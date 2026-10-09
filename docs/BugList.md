@@ -4,11 +4,12 @@
 
 编号前缀：T ElyTable，S ElyShow，P ElyPDF，D ElyDoc，M ElyMark，G ElyTree，K LOK 桥（`crates/ely-lok`），X 共用外壳（`ely-office`、`ely-files`、`ely-ui`、`ely-platform`、`ely-ipc`）。严重度：致命＝崩溃、丢数据或功能不可用；高＝常见路径结果错或功能坏；中＝边缘路径坏或界面误导；低＝小问题。
 
+
 ## 统计
 
 | 节 | 致命 | 高 | 中 | 低 | 合计 |
 | --- | --- | --- | --- | --- | --- |
-| T ElyTable 与 LOK 画布 | 1 | 1 | 3 | 2 | 7 |
+| T ElyTable 与 LOK 画布 | 1 | 1 | 7 | 6 | 15 |
 | S ElyShow | 2 | 0 | 2 | 6 | 10 |
 | P ElyPDF | 1 | 3 | 4 | 6 | 14 |
 | D ElyDoc | 0 | 2 | 2 | 4 | 8 |
@@ -16,7 +17,7 @@
 | G ElyTree | 0 | 0 | 3 | 11 | 14 |
 | K LOK 桥 | 0 | 1 | 1 | 2 | 4 |
 | X 共用外壳与平台 | 1 | 2 | 4 | 7 | 14 |
-| 合计 | 5 | 10 | 24 | 46 | 85 |
+| 合计 | 5 | 10 | 28 | 50 | 93 |
 
 致命：T-01 内核的图块与命中按像素网格，Ely 的光标、选区、表头按文档 twips，越远越错位；S-01 切换幻灯片后主画布不重画；S-03 ElyShow 的缩放一两帧后弹回“适合幻灯片”，缩放功能不可用；P-01 文件系统的 `PermissionDenied` 被拼成不存在的文案键，应用崩溃；X-01 设置窗口在前时 Cmd+Q 直接退出，跳过未保存询问并抹掉恢复点。
 
@@ -87,6 +88,55 @@
 - 原因：列号、行号不会被光标移动改变，EXPECT 的保护在这里是多余的；而所有鼠标按下与松开（含拖选的每一步移动）都计入修订。
 - 修法：`select.column`、`select.row`、`columns.width`、`rows.height` 不作编号命令（或 `run_in` 对它们不带 `at`），只保留对工作表、对象、参考线等真会被改动重排的编号做 EXPECT。
 
+### T-08 自动筛选的列菜单对光标所在的表而不是按钮所在的表筛选、排序
+- 严重度：中 ｜ 置信度：可能（内核侧按补丁追到；取决于单元格光标在哪）
+- 位置：`apps/ely-table/src/data.rs:412-437`（`column_asked` 发 `data.filter`/`data.sort`）、`:379-409`（`ask_column`）；内核 `patches/libreoffice/0017-lok-calc-filter-validation-columns.patch` 的 `lcl_Query`（`rView.GetDBData()`）与 `SID_SORT` 路径（`GetDBData()`）
+- 现象：单元格光标在筛选区之外（刚在别处键入）时点列头的筛选箭头、勾选值或“升序”：要么弹内核错误（`Check::Undoable` 失败），要么筛选、排序了光标所在的另一块数据。菜单本身能开，因为 `.uno:AutoFilterValues?col=&row=` 用的是按钮格。
+- 原因：内核自己的菜单对按钮格 `GetDBAtCursor(nCol, nRow)` 操作，补丁后的 `LaunchAutoFilterMenu` 不移动光标；Ely 的答复却经 `GetDBData()`（当前光标或选区）解析。
+- 修法：`column_asked` 先 `cell.goto` 到 `address(column, row)`（`Dialog::Column` 记下 `row`），或让补丁按按钮格取数据区。
+
+### T-09 导入文本文件时整文件的 UTF-8 校验在界面线程跑
+- 严重度：中 ｜ 置信度：已确认
+- 位置：`apps/ely-table/src/text.rs:241-245`（`in_window` 里 `Pending::new`）、`:58-63`、`:108-116`（`guess_encoding` 对全文 `from_utf8`）
+- 现象：打开几百 MB 的 CSV，导入对话框出现前整窗冻结几百毫秒到数秒（树莓派更久）。
+- 原因：读字节在后台，`Pending::new`（编码与分隔符猜测）却在主线程闭包里。
+- 修法：猜测放进后台任务，`in_window` 只接现成的 `Pending`。
+
+### T-10 CSV 导入对话框开着时打开任何别的对话框，待导入的文件静默消失
+- 严重度：中 ｜ 置信度：已确认
+- 位置：`apps/ely-table/src/text.rs:254-262`（`next_import` 把 `Pending` 移进 `Dialog::Import`）；无条件 `self.dialog = Some(..)` 的：`apps/ely-table/src/output.rs:218`、`rules.rs:146`、`:278`、`:341`、`analysis.rs:123`、`:149`、`page.rs:146`、`protect.rs:61`、`formulas.rs:119`、`:209`、`data.rs:231`、`:317`、`:397`
+- 现象：访达双击 .csv 出现导入对话框，按 Cmd+E 再取消：`Pending`（已检查字节的唯一副本）被丢，文件再也不打开，无提示。
+- 修法：替换 `Dialog::Import` 时把它放回 `imports` 队头，或有对话框开着时拒绝再开。
+
+### T-11 对话框比其标签活得久：导出、定义名称、重命名不可见却“开着”，挡住导入；名称表的“转到”激活已关闭的标签
+- 严重度：低 ｜ 置信度：可能
+- 位置：`apps/ely-table/src/dialog.rs:644-648`（导出 `sheet_in(*tab)?`）、`:563-571`、`:542-545`；`apps/ely-table/src/text.rs:255-257`（`next_import` 要 `dialog.is_none()`）；`apps/ely-table/src/formulas.rs:255-258`（`core.active = tab` 不核对）
+- 现象：Cmd+E 后 Cmd+W 关掉该标签：对话框不画了但 `self.dialog` 仍为 `Some`，无法关闭，之后打开 .csv 没反应，直到再开关一次别的对话框；名称表的“转到”把 `core.active` 指到已关标签，正文显示“没有打开的文档”。ElyDoc 的 D-01 是同一类问题（那里直接崩溃）。
+- 修法：`Book` 实现 `Host::tab_closed` 清掉指向该标签的 `dialog` 与 `choices`；“转到”先核对 `tab(tab).is_some()`。
+
+### T-12 打印区域是整列或整行时页面设置无法应用
+- 严重度：中 ｜ 置信度：可能（内核以 `$A:$D` 格式化整列区域）
+- 位置：`apps/ely-table/src/page.rs:75-83`（`cell_ok` 要求字母加数字）、`:86-97`（`areas`）、`:169-176`（`page_asked` 以 `table.page.bad_reference` 拒绝）
+- 现象：Excel 文件的打印区域 `=Sheet1!$A:$D` 预填进对话框，只改方向或缩放再按应用也被拒“Write ranges like A1:D20…”；不重写区域就用不了页面设置。
+- 修法：`areas()` 接受 `COL:COL` 与 `ROW:ROW`（内核 `ParseAny` 本就接受），或内核给的原值免校验。
+
+### T-13 打印失败报成“导出失败”（非 macOS 必现）
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-table/src/output.rs:147-150`（`print` 把 `print_later` 的失败交给 `output_failed`，文案 `table.export.failed`）、`crates/ely-platform/src/print.rs:87-89`
+- 修法：单独的 `table.print.failed` 文案；平台未实现时禁用或说明。
+
+### T-14 导入扫描把整个文件的每个字段都建成字符串
+- 严重度：低 ｜ 置信度：已确认（影响随文件大小）
+- 位置：`apps/ely-table/src/text.rs:78-106`（`scan`）、`:158-173`（`split` 返回全部行的 `Vec<Vec<String>>`）
+- 现象：只需要 8 行预览与每列的类型标志，却为 200 MB 的 CSV 分配约 1–2 GB 堆，树莓派上可能耗尽内存。
+- 修法：`split` 改为迭代器，只留前 `SHOWN` 行与列标志。
+
+### T-15 非 UTF-8 文本的默认编码跟系统区域而不是界面语言
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-table/src/text.rs:236`（`i18n::resolve(&locale::system())`）
+- 现象：英文系统上把应用语言设成简体中文，打开 GB18030 的 CSV 默认仍是 Windows-1252（反之亦然），与 agents.md 的“中文界面 GB18030、英文界面 Windows-1252”不符。
+- 修法：用 `ely_ui::i18n` 解析后的当前语言。
+
 ## S ElyShow（Impress）
 
 ### S-01 切换幻灯片后主画布不重画
@@ -150,146 +200,6 @@
 - 严重度：低 ｜ 置信度：已确认
 - 位置：`apps/ely-show/src/slideshow/start.rs:194-198`（标签或屏幕已不在 → 只记日志并 `discard`；选屏对话框开着时关掉标签再按开始可达）、`:123-125`（正在启动 → 只记日志）
 - 修法：两处都弹提示。
-
-## D ElyDoc（Writer）
-
-### D-01 导出或打印对话框开着时关闭其标签即崩溃
-- 严重度：高 ｜ 置信度：已确认
-- 位置：`apps/ely-doc/src/actions.rs:84-86`（`self.tab(*tab).expect("a modal keeps its tab")`），对话框由 `apps/ely-doc/src/output.rs:38-48` 打开；关闭路径 `crates/ely-office/src/close.rs:38-42`、`:142-154`、`:191-221`
-- 现象：开着“导出…”或“打印…”对话框按 Cmd+W、点窗口关闭钮或 Cmd+Q，标签被移除后下一帧渲染 `expect` 失败，进程崩溃；Cmd+Q 时先于其余脏标签的保存询问崩溃，这些标签只剩 10 秒一次的恢复点。
-- 原因：`Dialog::Output` 记着标签号，`dialog_element` 每帧无条件解包；没有任何地方在标签关闭时清 `self.dialog`（`Docs` 未实现 `Host::tab_closed`），`release_tab` 还把 `output()` 排队的 `when_settled` 续动作丢掉。其他对话框（`Ask`、`Link`、`Reference`、外壳的 `Unsaved`）都是防御性写法。
-- 复现：打开任一文档 → 文件›导出… → Cmd+W。
-- 修法：`dialog_element` 在 `tab()` 为 `None` 时清掉对话框并返回 `None`；`Docs` 实现 `tab_closed` 丢掉指向该标签的 `Dialog::Output`。
-
-### D-02 邮件合并以当前标签为模板，预览后生成的每份都是同一条记录
-- 严重度：高 ｜ 置信度：已确认
-- 位置：`apps/ely-doc/src/merge.rs:88-94`（`source()` 返回 `core.active`）、`:152-164`（预览）、`:178-195`（生成）；`apps/ely-doc/src/merge/run.rs:351-371`（预览经 `load_into` 开新标签）、`crates/ely-office/src/open.rs:231`（新标签成为当前）
-- 现象：选 CSV、插字段、点“预览”（填好的副本开成新标签并成为当前标签，合并面板仍在右侧）再点“生成”：模板成了预览副本，字段早已替换成第 N 条记录，N 个输出文件内容相同，文件名还带预览标签名；再点预览是预览的预览。无任何提示。
-- 原因：`Merge` 不记来源标签，每次点击时取 `core.active`；单测 `a_merge_keeps_its_source_when_the_tab_changes` 直接传 `source`，没覆盖界面路径。
-- 复现：任一含 `«Name»` 的文档 → 邮件合并 → 三行 CSV → 预览 → 生成。
-- 修法：选 CSV 或插字段时记下来源标签号（或在 `Extra` 标记预览标签），面板显示来源名，预览与生成都用它，当前标签是预览副本时拒绝。
-
-### D-03 界面线程同步持 worker 锁读内核（样式、字体、书签、公式、分节名）
-- 严重度：中 ｜ 置信度：已确认
-- 位置：`apps/ely-doc/src/insert.rs:318-324`（`insert_section`）、`apps/ely-doc/src/refs.rs:81-86`（`read`，书签、交叉引用、公式对话框用）、`apps/ely-doc/src/props.rs:116-122`（`read_fonts`）、`:133-137`（`read_styles`，每次切标签与 `Reported` 都跑）
-- 现象：保存大文档、邮件合并几百条记录（每条载入、替换、另存、关闭都持锁）期间，切标签或打开“插入›书签…”整窗冻结到锁空出来为止。
-- 原因：违反 2026-10-05 决策“界面线程不碰 worker”，这四处直接 `worker.lock()` 而不走 `read_in`/`read_off`。
-- 修法：改为后台读取，回来时核对仍是同一标签与视图。
-
-### D-04 一条批注的时间读不出，全部批注与修订都不显示
-- 严重度：中 ｜ 置信度：可能（内核对无日期批注写 `0-00-00`，`utl::toISO8601` 的空日期即如此）
-- 位置：`apps/ely-doc/src/review.rs:164-167`、`:373-393`（`threads` 遇第一个解析失败即整体 `Err`）、`:179-181`
-- 现象：打开含无日期批注的 DOCX（`w:comment` 无 `w:date`），批注与修订两栏都空，并弹引擎错误提示；每次审阅事件重读再失败再弹。
-- 原因：单条解析失败被提升为整表失败，`and_then` 连已解析的 `changes` 一起丢掉。
-- 修法：逐条解析时间，失败的那条用占位时间；`changes` 不因批注失败而丢。
-
-### D-05 邮件合并某条记录失败时内核文档泄漏
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-doc/src/merge/run.rs:464-470`
-- 原因：`fill`/`save_as` 以 `?` 提前返回，`close_doc` 不执行，`Doc` 无 `Drop`；每次重试多漏一份，worker 的 `N documents open` 计数漂移。
-- 修法：先取结果再一律 `close_doc`，最后传出首个错误。
-
-### D-06 导航栏大纲点击按当前列表取下标，后台重读后可能越界
-- 严重度：低 ｜ 置信度：可能
-- 位置：`apps/ely-doc/src/navigate.rs:277-283`（`navigator.outline[at]`）
-- 修法：用 `get(at)`，或在渲染时把目标矩形放进行的闭包。
-
-### D-07 导航栏隐藏时仍随每次光标移动重读大纲与书签
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-doc/src/chrome.rs:236-245`（`left_view` 不看 `navigating` 就 `navigator.show(tab)`）、`apps/ely-doc/src/navigate.rs:79`、`:91-123`
-- 现象：关掉导航栏后每次按键仍排两次内核读取，与键入争 worker 锁（规则 9：空闲不做事）。
-- 修法：隐藏时 `show(None)`，显示时重读一次。
-
-### D-08 Linux、Windows 上“打印…”可用，导出 PDF 后才报“此平台未构建”
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-doc/src/output.rs:28-30`、`:80-88`；`crates/ely-platform/src/print.rs:87-89`
-- 现象：菜单与页码范围对话框都正常，最后一步弹出带临时路径的错误提示。各文档应用同（见 X-13）。
-- 修法：平台未实现时禁用菜单项或在对话框里写明；错误文字去掉路径。
-
-## G ElyTree（Git）
-
-### G-01 打开“文件历史”或“逐行追溯”后，中间区不再响应任何别的选择
-- 严重度：中 ｜ 置信度：已确认
-- 位置：`apps/ely-tree/src/view.rs:185-187`（`body` 先于 `match self.side` 返回 `look_pane`）；入口 `apps/ely-tree/src/hist_pane.rs:43-66`、`apps/ely-tree/src/pane.rs:483`
-- 现象：按下差异标题栏的“文件历史”或“逐行追溯”后，点改动列表里另一个文件、历史里另一个提交、分支或储藏，中间区都不变；只有历史面板的小叉能退出。
-- 原因：`show()`（`pick.rs:302`）、`pick_commit`、`pick_place`、`set_side` 都不清 `self.look`，只有 `close_look` 与 blame 的 `show_commit` 清。
-- 修法：任何新选择都清 `self.look`，或只在 `side == Changes` 且所选文件不变时画它。
-
-### G-02 进行中操作读取失败被吞掉；`git am` 冲突无提示条无错误
-- 严重度：中 ｜ 置信度：已确认（`git am` 细节为可能）
-- 位置：`apps/ely-tree/src/ops.rs:81-98`（`doing`）、`apps/ely-tree/src/moves.rs:74`、`apps/ely-tree/src/conflict_pane.rs:62`、`:106-109`
-- 现象：`doing()` 出错时 `opened.doing = Some(Err(..))`，没有任何显示或日志；冲突文件列出来了，却没有“继续/跳过/中止”提示，冲突栏两侧退回泛称。
-- 原因：`rebase-apply` 一律当变基读 `onto`，`git am` 的 `rebase-apply/` 没有 `onto`，整个读取 `NotFound`；`describe()` 失败（如 `MERGE_HEAD` 指向已被清理的对象）同样整体失败。违反规则 2。
-- 复现：终端里 `git am` 停在冲突，在 ElyTree 打开该仓库。
-- 修法：`Some(Err)` 以提示条显示 Git 原话并记日志；无 `onto` 的 `rebase-apply` 视为 `git am` 进行中。
-
-### G-03 新建的空仓库在“仓库”页显示两段 Git 致命错误（引用日志、LFS）
-- 严重度：中 ｜ 置信度：可能
-- 位置：`apps/ely-tree/src/recover.rs:50-69`（`reflog … HEAD --`）、`apps/ely-tree/src/structure.rs:137-138`（`git lfs ls-files`）、`apps/ely-tree/src/places.rs:40-50`、`apps/ely-tree/src/side_places.rs:261-264`、`:279-281`
-- 现象：“新建仓库…”后仓库页出现 “fatal: bad revision 'HEAD'” 与 “Git can't resolve ref: HEAD” 两块红字；仓库没有问题，空列表才是正确状态。
-- 原因：HEAD 未诞生时显式传 `HEAD` 的 `reflog show` 以 128 退出，`run_or_one` 不接受；`git lfs ls-files` 同样先解析 HEAD。
-- 修法：`status.head.oid` 为空时两项直接给空列表。
-
-### G-04 停止取回/拉取/推送失败的提示写成“克隆没有停下”
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-tree/src/network.rs:126`（`stop_remote` 复用 `tree.error.stop`）、`crates/ely-ui/src/i18n/tree.rs:53`
-- 修法：加一条不限动词的文案。
-
-### G-05 合并结果保存失败报成“Git 失败”，`tree.error.save` 是死文案
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-tree/src/work.rs:424`（`(_, Err(error)) => failed("tree.error.write", …)`）、`crates/ely-ui/src/i18n/tree_ops.rs:127`、`:255`（定义却无人用，规则 6）
-- 修法：`written()` 加 `(Write::Save, Err)` 分支用 `tree.error.save`。
-
-### G-06 首次提交后紧接着取消暂存，按过期的“已有提交”判定跑成 `git rm --cached`
-- 严重度：低 ｜ 置信度：可能（竞争窗口为一次状态重读）
-- 位置：`apps/ely-tree/src/work.rs:352`（`born` 取自缓存的 `opened.status`）、`:426-427`（`read` 异步、`next_write` 同步）、`:85-93`、`:103-112`
-- 现象：新仓库里暂存、提交，列表刷新前按“全部取消暂存”：第二条写操作仍按 `oid: None` 跑 `rm --cached -f -r -q -- .`，把刚提交的全部文件标为删除（可恢复，但吓人）。
-- 修法：写操作执行前在后台 `rev-parse --verify -q HEAD` 判定，不用缓存状态。
-
-### G-07 任一引用没有创建日期，整个分支页读不出
-- 严重度：低 ｜ 置信度：可能
-- 位置：`apps/ely-tree/src/branches.rs:33`（`%(creatordate:unix)`）、`:106`（空串解析失败整体 `Err`）、`apps/ely-tree/src/side_refs.rs:227-235`
-- 复现：`git tag blobtag HEAD:README.md`，打开分支页。
-- 修法：日期可缺（显示“—”），或跳过非提交对象的引用。
-
-### G-08 清理预览后文件被外部删除，对话框只给裸 OS 错误
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-tree/src/work.rs:270`（`symlink_metadata(&at)?`）、`:415-422`
-- 现象：标题“Git did not do it”，正文 “No such file or directory (os error 2)”，没有路径，Git 并未运行。
-- 修法：映射成带路径的“自预览后已变”文案。
-
-### G-09 后台读取回来的对话框覆盖用户同时打开的对话框
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-tree/src/network.rs:186`（推送选远程）、`:237`（强制推送）、`apps/ely-tree/src/recovering.rs:116`（移动分支）
-- 现象：按“推送”（无上游）后立刻按“储藏改动…”并开始键入，`git remote` 回来时储藏对话框连同输入被换掉。
-- 修法：只在 `tree.ask` 仍为空（或仍是本次请求）时赋值。
-
-### G-10 选中的分支、标签、位置是窗口级的，跨仓库标签串台
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-tree/src/tree.rs:107-108`（`picked_ref`、`picked_place` 在 `Tree` 上）、`apps/ely-tree/src/refs_pane.rs:25-33`、`apps/ely-tree/src/side_refs.rs:238-245`
-- 现象：仓库 A 选中 `main`，切到仓库 B，B 的分支页显示它自己的 `main` 为已选并带动作按钮。
-- 修法：移入 `Opened`，或 `activate()` 时清掉。
-
-### G-11 已选边的冲突块再选另一边，提示“结果已手改”
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-tree/src/conflict.rs:219-224`
-- 修法：给“该块已选定”单独文案，或支持改选。
-
-### G-12 符号链接父目录下，当前打开的工作树被当成别的工作树而可“移除”
-- 严重度：低 ｜ 置信度：可能
-- 位置：`apps/ely-tree/src/places_pane.rs:253-255`、`:265-271`、`apps/ely-tree/src/structure.rs:245-247`
-- 原因：`here` 用 `git worktree list` 记录的原始路径比对已规范化的 `opened.repo.root`（macOS `/tmp` → `/private/tmp`）。
-- 修法：比对前 `canonicalize`。
-
-### G-13 非 macOS 平台的死入口
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-tree/src/running.rs:167-173`（停止远程命令非 Unix 报未构建）、`apps/ely-tree/src/tools.rs:109-115`（“在终端中打开”非 macOS 报未构建）、`crates/ely-ui/src/i18n/tree_places.rs:147`、`:281`（“在访达中显示”文案在 Linux、Windows 照样显示）
-- 修法：按 `cfg` 禁用或隐藏，`reveal` 换平台中性文案。
-
-### G-14 `repo.rs` 的孤立文档注释
-- 严重度：低 ｜ 置信度：已确认
-- 位置：`apps/ely-tree/src/repo.rs:10`（“How many repositories the recent list keeps.” 的常量早已移到 `ely_files::recent`，注释挂到了 `struct Repo` 上）
-- 修法：删掉。
 
 ## P ElyPDF（MuPDF）
 
@@ -378,6 +288,61 @@
 - 现象：ToUnicode 坏掉的文件文字里有 U+0001–U+001F，`text_blocks` 解析失败，编辑工具永远读不到该页，并落入 P-08 的循环。
 - 修法：`text`、`font` 用 `ely_json_string` 写。
 
+## D ElyDoc（Writer）
+
+### D-01 导出或打印对话框开着时关闭其标签即崩溃
+- 严重度：高 ｜ 置信度：已确认
+- 位置：`apps/ely-doc/src/actions.rs:84-86`（`self.tab(*tab).expect("a modal keeps its tab")`），对话框由 `apps/ely-doc/src/output.rs:38-48` 打开；关闭路径 `crates/ely-office/src/close.rs:38-42`、`:142-154`、`:191-221`
+- 现象：开着“导出…”或“打印…”对话框按 Cmd+W、点窗口关闭钮或 Cmd+Q，标签被移除后下一帧渲染 `expect` 失败，进程崩溃；Cmd+Q 时先于其余脏标签的保存询问崩溃，这些标签只剩 10 秒一次的恢复点。
+- 原因：`Dialog::Output` 记着标签号，`dialog_element` 每帧无条件解包；没有任何地方在标签关闭时清 `self.dialog`（`Docs` 未实现 `Host::tab_closed`），`release_tab` 还把 `output()` 排队的 `when_settled` 续动作丢掉。其他对话框（`Ask`、`Link`、`Reference`、外壳的 `Unsaved`）都是防御性写法。
+- 复现：打开任一文档 → 文件›导出… → Cmd+W。
+- 修法：`dialog_element` 在 `tab()` 为 `None` 时清掉对话框并返回 `None`；`Docs` 实现 `tab_closed` 丢掉指向该标签的 `Dialog::Output`。
+
+### D-02 邮件合并以当前标签为模板，预览后生成的每份都是同一条记录
+- 严重度：高 ｜ 置信度：已确认
+- 位置：`apps/ely-doc/src/merge.rs:88-94`（`source()` 返回 `core.active`）、`:152-164`（预览）、`:178-195`（生成）；`apps/ely-doc/src/merge/run.rs:351-371`（预览经 `load_into` 开新标签）、`crates/ely-office/src/open.rs:231`（新标签成为当前）
+- 现象：选 CSV、插字段、点“预览”（填好的副本开成新标签并成为当前标签，合并面板仍在右侧）再点“生成”：模板成了预览副本，字段早已替换成第 N 条记录，N 个输出文件内容相同，文件名还带预览标签名；再点预览是预览的预览。无任何提示。
+- 原因：`Merge` 不记来源标签，每次点击时取 `core.active`；单测 `a_merge_keeps_its_source_when_the_tab_changes` 直接传 `source`，没覆盖界面路径。
+- 复现：任一含 `«Name»` 的文档 → 邮件合并 → 三行 CSV → 预览 → 生成。
+- 修法：选 CSV 或插字段时记下来源标签号（或在 `Extra` 标记预览标签），面板显示来源名，预览与生成都用它，当前标签是预览副本时拒绝。
+
+### D-03 界面线程同步持 worker 锁读内核（样式、字体、书签、公式、分节名）
+- 严重度：中 ｜ 置信度：已确认
+- 位置：`apps/ely-doc/src/insert.rs:318-324`（`insert_section`）、`apps/ely-doc/src/refs.rs:81-86`（`read`，书签、交叉引用、公式对话框用）、`apps/ely-doc/src/props.rs:116-122`（`read_fonts`）、`:133-137`（`read_styles`，每次切标签与 `Reported` 都跑）
+- 现象：保存大文档、邮件合并几百条记录（每条载入、替换、另存、关闭都持锁）期间，切标签或打开“插入›书签…”整窗冻结到锁空出来为止。
+- 原因：违反 2026-10-05 决策“界面线程不碰 worker”，这四处直接 `worker.lock()` 而不走 `read_in`/`read_off`。
+- 修法：改为后台读取，回来时核对仍是同一标签与视图。
+
+### D-04 一条批注的时间读不出，全部批注与修订都不显示
+- 严重度：中 ｜ 置信度：可能（内核对无日期批注写 `0-00-00`，`utl::toISO8601` 的空日期即如此）
+- 位置：`apps/ely-doc/src/review.rs:164-167`、`:373-393`（`threads` 遇第一个解析失败即整体 `Err`）、`:179-181`
+- 现象：打开含无日期批注的 DOCX（`w:comment` 无 `w:date`），批注与修订两栏都空，并弹引擎错误提示；每次审阅事件重读再失败再弹。
+- 原因：单条解析失败被提升为整表失败，`and_then` 连已解析的 `changes` 一起丢掉。
+- 修法：逐条解析时间，失败的那条用占位时间；`changes` 不因批注失败而丢。
+
+### D-05 邮件合并某条记录失败时内核文档泄漏
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-doc/src/merge/run.rs:464-470`
+- 原因：`fill`/`save_as` 以 `?` 提前返回，`close_doc` 不执行，`Doc` 无 `Drop`；每次重试多漏一份，worker 的 `N documents open` 计数漂移。
+- 修法：先取结果再一律 `close_doc`，最后传出首个错误。
+
+### D-06 导航栏大纲点击按当前列表取下标，后台重读后可能越界
+- 严重度：低 ｜ 置信度：可能
+- 位置：`apps/ely-doc/src/navigate.rs:277-283`（`navigator.outline[at]`）
+- 修法：用 `get(at)`，或在渲染时把目标矩形放进行的闭包。
+
+### D-07 导航栏隐藏时仍随每次光标移动重读大纲与书签
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-doc/src/chrome.rs:236-245`（`left_view` 不看 `navigating` 就 `navigator.show(tab)`）、`apps/ely-doc/src/navigate.rs:79`、`:91-123`
+- 现象：关掉导航栏后每次按键仍排两次内核读取，与键入争 worker 锁（规则 9：空闲不做事）。
+- 修法：隐藏时 `show(None)`，显示时重读一次。
+
+### D-08 Linux、Windows 上“打印…”可用，导出 PDF 后才报“此平台未构建”
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-doc/src/output.rs:28-30`、`:80-88`；`crates/ely-platform/src/print.rs:87-89`
+- 现象：菜单与页码范围对话框都正常，最后一步弹出带临时路径的错误提示。各文档应用同（见 X-13）。
+- 修法：平台未实现时禁用菜单项或在对话框里写明；错误文字去掉路径。
+
 ## M ElyMark（CEF）
 
 ### M-01 键入期间外部以相同内容重写文件，丢掉上次停顿之后键入的全部文字
@@ -462,6 +427,91 @@
 - 严重度：低 ｜ 置信度：已确认
 - 位置：`apps/ely-mark/src/export.rs:276-282`（渲染回调里 `inline`、`read_to_string`、`fs::write`）；对照 `:172-176` 的 `write_output` 已在后台
 - 修法：暂存步骤移到 `background_spawn`。
+
+## G ElyTree（Git）
+
+### G-01 打开“文件历史”或“逐行追溯”后，中间区不再响应任何别的选择
+- 严重度：中 ｜ 置信度：已确认
+- 位置：`apps/ely-tree/src/view.rs:185-187`（`body` 先于 `match self.side` 返回 `look_pane`）；入口 `apps/ely-tree/src/hist_pane.rs:43-66`、`apps/ely-tree/src/pane.rs:483`
+- 现象：按下差异标题栏的“文件历史”或“逐行追溯”后，点改动列表里另一个文件、历史里另一个提交、分支或储藏，中间区都不变；只有历史面板的小叉能退出。
+- 原因：`show()`（`pick.rs:302`）、`pick_commit`、`pick_place`、`set_side` 都不清 `self.look`，只有 `close_look` 与 blame 的 `show_commit` 清。
+- 修法：任何新选择都清 `self.look`，或只在 `side == Changes` 且所选文件不变时画它。
+
+### G-02 进行中操作读取失败被吞掉；`git am` 冲突无提示条无错误
+- 严重度：中 ｜ 置信度：已确认（`git am` 细节为可能）
+- 位置：`apps/ely-tree/src/ops.rs:81-98`（`doing`）、`apps/ely-tree/src/moves.rs:74`、`apps/ely-tree/src/conflict_pane.rs:62`、`:106-109`
+- 现象：`doing()` 出错时 `opened.doing = Some(Err(..))`，没有任何显示或日志；冲突文件列出来了，却没有“继续/跳过/中止”提示，冲突栏两侧退回泛称。
+- 原因：`rebase-apply` 一律当变基读 `onto`，`git am` 的 `rebase-apply/` 没有 `onto`，整个读取 `NotFound`；`describe()` 失败（如 `MERGE_HEAD` 指向已被清理的对象）同样整体失败。违反规则 2。
+- 复现：终端里 `git am` 停在冲突，在 ElyTree 打开该仓库。
+- 修法：`Some(Err)` 以提示条显示 Git 原话并记日志；无 `onto` 的 `rebase-apply` 视为 `git am` 进行中。
+
+### G-03 新建的空仓库在“仓库”页显示两段 Git 致命错误（引用日志、LFS）
+- 严重度：中 ｜ 置信度：可能
+- 位置：`apps/ely-tree/src/recover.rs:50-69`（`reflog … HEAD --`）、`apps/ely-tree/src/structure.rs:137-138`（`git lfs ls-files`）、`apps/ely-tree/src/places.rs:40-50`、`apps/ely-tree/src/side_places.rs:261-264`、`:279-281`
+- 现象：“新建仓库…”后仓库页出现 “fatal: bad revision 'HEAD'” 与 “Git can't resolve ref: HEAD” 两块红字；仓库没有问题，空列表才是正确状态。
+- 原因：HEAD 未诞生时显式传 `HEAD` 的 `reflog show` 以 128 退出，`run_or_one` 不接受；`git lfs ls-files` 同样先解析 HEAD。
+- 修法：`status.head.oid` 为空时两项直接给空列表。
+
+### G-04 停止取回/拉取/推送失败的提示写成“克隆没有停下”
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-tree/src/network.rs:126`（`stop_remote` 复用 `tree.error.stop`）、`crates/ely-ui/src/i18n/tree.rs:53`
+- 修法：加一条不限动词的文案。
+
+### G-05 合并结果保存失败报成“Git 失败”，`tree.error.save` 是死文案
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-tree/src/work.rs:424`（`(_, Err(error)) => failed("tree.error.write", …)`）、`crates/ely-ui/src/i18n/tree_ops.rs:127`、`:255`（定义却无人用，规则 6）
+- 修法：`written()` 加 `(Write::Save, Err)` 分支用 `tree.error.save`。
+
+### G-06 首次提交后紧接着取消暂存，按过期的“已有提交”判定跑成 `git rm --cached`
+- 严重度：低 ｜ 置信度：可能（竞争窗口为一次状态重读）
+- 位置：`apps/ely-tree/src/work.rs:352`（`born` 取自缓存的 `opened.status`）、`:426-427`（`read` 异步、`next_write` 同步）、`:85-93`、`:103-112`
+- 现象：新仓库里暂存、提交，列表刷新前按“全部取消暂存”：第二条写操作仍按 `oid: None` 跑 `rm --cached -f -r -q -- .`，把刚提交的全部文件标为删除（可恢复，但吓人）。
+- 修法：写操作执行前在后台 `rev-parse --verify -q HEAD` 判定，不用缓存状态。
+
+### G-07 任一引用没有创建日期，整个分支页读不出
+- 严重度：低 ｜ 置信度：可能
+- 位置：`apps/ely-tree/src/branches.rs:33`（`%(creatordate:unix)`）、`:106`（空串解析失败整体 `Err`）、`apps/ely-tree/src/side_refs.rs:227-235`
+- 复现：`git tag blobtag HEAD:README.md`，打开分支页。
+- 修法：日期可缺（显示“—”），或跳过非提交对象的引用。
+
+### G-08 清理预览后文件被外部删除，对话框只给裸 OS 错误
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-tree/src/work.rs:270`（`symlink_metadata(&at)?`）、`:415-422`
+- 现象：标题“Git did not do it”，正文 “No such file or directory (os error 2)”，没有路径，Git 并未运行。
+- 修法：映射成带路径的“自预览后已变”文案。
+
+### G-09 后台读取回来的对话框覆盖用户同时打开的对话框
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-tree/src/network.rs:186`（推送选远程）、`:237`（强制推送）、`apps/ely-tree/src/recovering.rs:116`（移动分支）
+- 现象：按“推送”（无上游）后立刻按“储藏改动…”并开始键入，`git remote` 回来时储藏对话框连同输入被换掉。
+- 修法：只在 `tree.ask` 仍为空（或仍是本次请求）时赋值。
+
+### G-10 选中的分支、标签、位置是窗口级的，跨仓库标签串台
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-tree/src/tree.rs:107-108`（`picked_ref`、`picked_place` 在 `Tree` 上）、`apps/ely-tree/src/refs_pane.rs:25-33`、`apps/ely-tree/src/side_refs.rs:238-245`
+- 现象：仓库 A 选中 `main`，切到仓库 B，B 的分支页显示它自己的 `main` 为已选并带动作按钮。
+- 修法：移入 `Opened`，或 `activate()` 时清掉。
+
+### G-11 已选边的冲突块再选另一边，提示“结果已手改”
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-tree/src/conflict.rs:219-224`
+- 修法：给“该块已选定”单独文案，或支持改选。
+
+### G-12 符号链接父目录下，当前打开的工作树被当成别的工作树而可“移除”
+- 严重度：低 ｜ 置信度：可能
+- 位置：`apps/ely-tree/src/places_pane.rs:253-255`、`:265-271`、`apps/ely-tree/src/structure.rs:245-247`
+- 原因：`here` 用 `git worktree list` 记录的原始路径比对已规范化的 `opened.repo.root`（macOS `/tmp` → `/private/tmp`）。
+- 修法：比对前 `canonicalize`。
+
+### G-13 非 macOS 平台的死入口
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-tree/src/running.rs:167-173`（停止远程命令非 Unix 报未构建）、`apps/ely-tree/src/tools.rs:109-115`（“在终端中打开”非 macOS 报未构建）、`crates/ely-ui/src/i18n/tree_places.rs:147`、`:281`（“在访达中显示”文案在 Linux、Windows 照样显示）
+- 修法：按 `cfg` 禁用或隐藏，`reveal` 换平台中性文案。
+
+### G-14 `repo.rs` 的孤立文档注释
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-tree/src/repo.rs:10`（“How many repositories the recent list keeps.” 的常量早已移到 `ely_files::recent`，注释挂到了 `struct Repo` 上）
+- 修法：删掉。
 
 ## K LOK 桥（`crates/ely-lok` 的 worker、客户端、事件）
 
