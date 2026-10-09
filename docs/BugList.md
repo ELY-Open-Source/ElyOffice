@@ -4,6 +4,24 @@
 
 编号前缀：T ElyTable，S ElyShow，P ElyPDF，D ElyDoc，M ElyMark，G ElyTree，K LOK 桥（`crates/ely-lok`），X 共用外壳（`ely-office`、`ely-files`、`ely-ui`、`ely-platform`、`ely-ipc`）。严重度：致命＝崩溃、丢数据或功能不可用；高＝常见路径结果错或功能坏；中＝边缘路径坏或界面误导；低＝小问题。
 
+## 统计
+
+| 节 | 致命 | 高 | 中 | 低 | 合计 |
+| --- | --- | --- | --- | --- | --- |
+| T ElyTable 与 LOK 画布 | 1 | 1 | 3 | 2 | 7 |
+| S ElyShow | 2 | 0 | 2 | 6 | 10 |
+| P ElyPDF | 1 | 3 | 4 | 6 | 14 |
+| D ElyDoc | 0 | 2 | 2 | 4 | 8 |
+| M ElyMark | 0 | 1 | 5 | 8 | 14 |
+| G ElyTree | 0 | 0 | 3 | 11 | 14 |
+| K LOK 桥 | 0 | 1 | 1 | 2 | 4 |
+| X 共用外壳与平台 | 1 | 2 | 4 | 7 | 14 |
+| 合计 | 5 | 10 | 24 | 46 | 85 |
+
+致命：T-01 内核的图块与命中按像素网格，Ely 的光标、选区、表头按文档 twips，越远越错位；S-01 切换幻灯片后主画布不重画；S-03 ElyShow 的缩放一两帧后弹回“适合幻灯片”，缩放功能不可用；P-01 文件系统的 `PermissionDenied` 被拼成不存在的文案键，应用崩溃；X-01 设置窗口在前时 Cmd+Q 直接退出，跳过未保存询问并抹掉恢复点。
+
+高：T-02 单元格光标露出边缘即把视图滚到中央，点击与拖选时视图跳动；D-01 导出或打印对话框开着时关闭其标签即崩溃；D-02 邮件合并以当前标签为模板，预览后生成的每份都是同一条记录；P-02 每次编辑落地清掉全部图块与缩略图，页面空白、刚画的墨迹消失；P-03 “编辑文字和图片”先命中图片对象再命中文字；一点抖动就移动了背景图；P-04 `TEXT_BLOCKS` 对每个文字块重跑一遍整页内容过滤，编辑工具长时间无反应；M-01 键入期间外部以相同内容重写文件，丢掉上次停顿之后键入的全部文字；K-01 非 macOS 的 worker 不运行 VCL 主循环，内核的回调与异步输入永远不送达；X-02 共用 `settings.json` 读不出时 Doc、Table、Show 根本起不来；X-03 第二个实例启动即清掉运行中实例的工作目录与恢复点。
+
 ## 用户报告的三个问题
 
 ### ElyTable：点一个单元格，光标跳到别处；拖不出多格选区
@@ -84,6 +102,54 @@
 - 位置：`apps/ely-show/src/deck.rs`（506 行）
 - 原因：违反规则 5（文件不超过 500 行）；工作区内只有这一个文件超限。
 - 修法：把 `reread` 的读取闭包或 `Extra` 的图片管理拆到独立模块。
+
+### S-03 ElyShow 的缩放一两帧后弹回“适合幻灯片”，缩放功能不可用
+- 严重度：致命 ｜ 置信度：已确认
+- 位置：`apps/ely-show/src/deck.rs:139-150`（`Host::observed` 每次都 `view.fit_page(cx)`）、`crates/ely-office/src/open.rs:253`（每个 `Reported` 都调 `observed`）、`crates/ely-lok/src/view/lane.rs:121` 与 `view.rs:413`（任何输入落地、任何内核事件批次都发 `Reported`）、`crates/ely-lok/src/view.rs:262-268`（`fit_page` 置 `fit = true`）、`crates/ely-lok/src/view/zoom.rs:51`（`zoom_at` 置 `fit = false`）、`render.rs:256`、`:286-289`
+- 现象：Cmd+=、Cmd+-、Cmd+滚轮、捏合、状态栏缩放控件、“视图”菜单：幻灯片放大一帧，随即跳回适合页面，状态栏百分比也跳回。agents.md 写的“手动缩放即停止适合”不成立。
+- 原因：缩放后重绘改变了可见区，排队 `Input::Visible`，落地即 `Reported` → `observed` → 重新 `fit_page`；没有可见区变化时下一批内核事件也一样。
+- 复现：打开任一演示，Cmd+=。
+- 修法：只在标签首次观察时适合一次（`Extra` 里记标志），`observed` 不再调 `fit_page`；Cmd+0 已由 `Zooming::zoom(Reset)` 处理。
+
+### S-04 选屏对话框被别的对话框顶掉后，`show_starting` 卡住、放映副本泄漏
+- 严重度：中 ｜ 置信度：可能（多屏才会到选屏对话框）
+- 位置：`apps/ely-show/src/slideshow/start.rs:180-183`（置 `show_starting`、开对话框）、`:289-310`（只有取消与开始两条路清理）、无条件覆盖 `self.dialog` 的：`apps/ely-show/src/new.rs:298`、`apps/ely-show/src/table.rs:24-28`、`apps/ely-show/src/remarks.rs:80`、`apps/ely-show/src/chart.rs:453-454`；守卫 `start.rs:123-125` 只记日志
+- 现象：两块屏，F5 出选屏对话框时按 Cmd+N（或插入›表格、批注、图表）顶掉它；此后 F5、Shift+F5、放映菜单都没反应也无提示，`show-N.odp` 副本留在内核与磁盘里直到下次启动。同样的覆盖也会丢掉打了一半的批注或图表数据。
+- 修法：任何 `ask_*` 替换对话框时（或 `watch_dialogs` 发现种类离开 `Dialog::Show`）跑与取消相同的清理；或有对话框开着时拒绝再开。
+
+### S-05 一条批注的时间恰为午夜或只有日期，整个批注栏不显示
+- 严重度：中 ｜ 置信度：可能（上游 `utl::toISO8601` 时分秒全零时不写时间部分；jiff 的 `civil::DateTime` 要求有时间）
+- 位置：`apps/ely-show/src/remarks.rs:28-36`（逐条 `parse::<jiff::civil::DateTime>()?`）、`:168-176`（一条失败整栏换成错误文字）；内核 `sd/source/ui/unoidl/unomodel.cxx` 以 `utl::toISO8601` 写 `dateTime`
+- 现象：含 00:00:00 批注（LibreOffice “去除个人信息”保存的文件、只写 `dc:date` 的工具）的演示，右栏只显示“a bad comment time 2025-03-01: …”，画布上的标记还在但栏内无法编辑删除。ElyDoc 的 D-04 是同一类问题。
+- 修法：无时间部分时按 `civil::Date` 解析，单条失败只影响该条。
+
+### S-06 导出或打印的“从–到”填 0 时导出全部幻灯片
+- 严重度：低 ｜ 置信度：可能
+- 位置：`apps/ely-show/src/output/dialog.rs:82`（`value.round() as u32`，无下限）、`apps/ely-show/src/output.rs:53-59`（`pages()` 只排序）、`crates/ely-lok/src/worker.rs:403-430`（`from == 0` 表示全部）、`apps/ely-show/src/output.rs:117-125`（`targets` 的 `number as usize - 1`，0 时溢出：发行构建回绕、调试构建 panic）
+- 修法：`set` 里夹到 `1..=last`，`pages()` 再校验。
+
+### S-07 母版视图下演示检查的行按幻灯片序号跳转
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-show/src/check.rs:184-194`（`show_part(part)` 用幻灯片序号）、`:112`（`check_show` 无母版视图守卫，`slides.rs:93-99` 有）
+- 现象：显示母版时点“第 3 张”，内核对母版列表 `setPart(2)`，显示的是第 3 个母版或空白，对话框关闭。
+- 修法：先退出母版视图，或母版视图下禁用行。
+
+### S-08 刚编辑过幻灯片就进备注栏键入，备注可能丢
+- 严重度：低 ｜ 置信度：可能
+- 位置：`apps/ely-show/src/notes.rs`（`notes.at` 在聚焦期间冻结在上次读完的修订；`run_on(tab, &at, "notes.set", …)` 是编号命令，EXPECT 拒绝过期修订；强制重读后内核旧备注覆盖输入框，而 `shown` 已置为键入文字）
+- 现象：编辑幻灯片后在后台重读完成前点进备注框键入、失焦：提示“文档在此间已改动，请重试”，键入的备注被旧备注换掉；再失焦不再发送（`text == shown`）。
+- 修法：聚焦时取视图的 `read_at()` 更新 `notes.at`；发送失败时让 `shown` 保持内核文字以便下次失焦重发。
+
+### S-09 改尺寸失败后 `size_asked` 一直留着
+- 严重度：低 ｜ 置信度：可能
+- 位置：`apps/ely-show/src/design.rs:62-64`（命令前置 `size_asked`）、`apps/ely-show/src/deck.rs:343-347`（只在读回 0.5 mm 内才清）；用它的 `deck.rs:71-74`、`apps/ely-show/src/insert.rs:144`、`apps/ely-show/src/media.rs:116`、`apps/ely-show/src/guides.rs:200`、`:318`
+- 现象：`slide.size` 失败（worker 错误、无撤销步）后宽高字段显示内核没接受的尺寸，新参考线、媒体按它定位裁剪。`transition_asked` 有落地判定，尺寸没有。
+- 修法：命令报错时清掉，或像切换那样按序号落定。
+
+### S-10 开始放映的两处拒绝无提示（规则 2）
+- 严重度：低 ｜ 置信度：已确认
+- 位置：`apps/ely-show/src/slideshow/start.rs:194-198`（标签或屏幕已不在 → 只记日志并 `discard`；选屏对话框开着时关掉标签再按开始可达）、`:123-125`（正在启动 → 只记日志）
+- 修法：两处都弹提示。
 
 ## D ElyDoc（Writer）
 
