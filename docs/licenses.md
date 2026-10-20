@@ -4,7 +4,7 @@
 
 ## 自有代码
 
-Ely Office 的自有代码以 AGPL-3.0-or-later 发布，全文在仓库根的 `LICENSE`，并随每个应用包放在 `Resources/Licenses/LICENSE`。组件库 Ely-GPUI-Components 保留其 MIT/Apache-2.0。
+Ely Office 的自有代码以 MIT 发布，全文在仓库根的 `LICENSE`，并随每个应用包放在 `Resources/Licenses/LICENSE`。随包的引擎不随之改许可：ElyPDF 链接的 MuPDF 是 AGPL-3.0，ElyPDF 的发行包整体须按 AGPL 履行（对应源码见上游源码包）；ElyDoc、ElyTable、ElyShow 的 LibreOffice 仍为 MPL-2.0 等；ElyTree 带的 Git 仍为 GPL-2.0。组件库 Ely-GPUI-Components 保留其 MIT/Apache-2.0。
 
 ## 每个发行版附带
 
@@ -12,7 +12,7 @@ Ely Office 的自有代码以 AGPL-3.0-or-later 发布，全文在仓库根的 `
 | --- | --- | --- |
 | `ElyOffice-<版本>-source.tar.gz` | 自有源码、`Cargo.lock`、`rust-toolchain.toml`、上游补丁（`patches/libreoffice`、`patches/mupdf`）、构建与取上游的脚本（各上游钉在提交，脚本里写明地址与散列）、测试、文档 | `packaging/macos/release.sh` |
 | `ElyOffice-<版本>-upstream-source.tar.gz` | 实际编译的 MuPDF 源码（钉住的提交加我们的补丁，AGPL）与随包 Git 的源码（v2.56.0，GPLv2） | 同上；`tests/scripts/release-macos.sh` 核对其中是打过补丁的 MuPDF |
-| 各应用包 `Resources/Licenses/` | Ely 的 AGPL 全文；`rust-crates.txt`（链进该应用各二进制的全部 crate 与其许可文件，无许可文件的取标准文本并写明作者）；所带引擎的许可与通知（见下） | `packaging/licenses.sh`，缺任何一份即打包失败 |
+| 各应用包 `Resources/Licenses/` | Ely 的 MIT 全文；`rust-crates.txt`（链进该应用各二进制的全部 crate 与其许可文件，无许可文件的取标准文本并写明作者）；所带引擎的许可与通知（见下） | `packaging/licenses.sh`，缺任何一份即打包失败 |
 
 ## 第三方，按应用
 

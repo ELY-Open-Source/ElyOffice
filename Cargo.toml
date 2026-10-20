@@ -8,7 +8,7 @@ exclude = ["engines", "reference"]
 version = "0.1.8"
 edition = "2024"
 rust-version = "1.95"
-license = "AGPL-3.0-or-later"
+license = "MIT"
 publish = false
 
 [workspace.dependencies]

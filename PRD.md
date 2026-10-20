@@ -756,7 +756,7 @@ Doc、Table、Show 的 PDF 输出由 LOK 完成，不要求安装 ElyPDF。ElyMa
 
 ### 21.1 自有代码默认许可
 
-本 PRD 对新增应用代码采用 AGPL-3.0-or-later 作为发行默认，便于与 MuPDF 的开源使用路线保持一致。Ely GPUI Components 继续保留现有 MIT/Apache-2.0 许可，不因被应用使用而改写其许可证。[S1]
+本 PRD 对新增应用代码采用 MIT 作为发行默认（用户 2026-10-19 定，原为 AGPL-3.0-or-later）。MIT 只管 Ely 的自有代码：链接 MuPDF 的 ElyPDF 发行包整体仍须按 MuPDF 的 AGPL 条款提供对应源码。Ely GPUI Components 继续保留现有 MIT/Apache-2.0 许可，不因被应用使用而改写其许可证。[S1]
 
 第三方代码保持原许可证。不得把 LibreOffice、Git 或其他依赖的版权声明统一替换成 Ely 的声明。最终发行须按实际链接、进程调用、修改和打包方式审查，进程隔离不作为免除许可义务的依据。
 
