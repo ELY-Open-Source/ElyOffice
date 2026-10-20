@@ -43,4 +43,4 @@ Packages: `packaging/macos/release.sh` writes each app's `.app` and `.dmg`, the 
 
 ## Licence
 
-AGPL-3.0-or-later (`LICENSE`). Third-party components keep their own licences; see `docs/licenses.md`.
+MIT (`LICENSE`). Third-party components keep their own licences; see `docs/licenses.md`.
