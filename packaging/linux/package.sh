@@ -18,6 +18,13 @@ row=$(awk -F'\t' -v slug="$slug" '$1 == slug { print $2 "\t" $3 }' "$root/packag
 }
 name=${row%%$'\t'*}
 categories=${row##*$'\t'}
+# Ely is MIT; bundled engines keep their licences.
+case $slug in
+  ely-doc | ely-table | ely-show) license="MIT AND MPL-2.0" ;;
+  ely-pdf) license="MIT AND AGPL-3.0-or-later" ;;
+  ely-tree) license="MIT AND GPL-2.0-only" ;;
+  *) license=MIT ;;
+esac
 # The types it opens, from packaging/types.tsv; none drops the line.
 mimes=$(awk -F'\t' -v slug="$slug" '$1 == slug && !seen[$3]++ { printf "%s;", $3 }' "$root/packaging/types.tsv")
 desktop_entry() {
@@ -193,7 +200,7 @@ maintainer: ZacharyZhang
 vendor: ZacharyZhang
 description: $name, part of Ely Office
 homepage: https://git.zacharyzhang.com/ZacharyZhang-NY/ElyOffice
-license: AGPL-3.0-or-later
+license: $license
 contents:
   - src: $appdir/usr
     dst: /opt/ely-office/$slug
