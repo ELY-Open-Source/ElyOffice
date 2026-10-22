@@ -101,10 +101,14 @@ impl Desk {
         self.remember(path, cx);
     }
 
-    /// Takes a path that is gone out of the list.
+    /// Takes a path out of the recent list.
     pub fn forget(&mut self, path: &std::path::Path, cx: &mut Context<Self>) {
         match ely_files::recent::forget(&self.recent_file, path) {
-            Ok(()) => self.recent.retain(|known| known != path),
+            Ok(()) => {
+                self.recent.retain(|known| known != path);
+                log::info!("mark: a file left the recent list");
+                cx.notify();
+            }
             Err(error) => {
                 log::error!("mark: the recent list did not save: {error}");
                 let said = text(cx, "office.error.engine", &[("error", &error.to_string())]);

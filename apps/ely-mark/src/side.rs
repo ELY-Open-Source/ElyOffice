@@ -8,10 +8,11 @@ use ely_gpui_component::{
     forms::{InputEvent, SearchInput, TextInput},
     layout::ScrollArea,
     lists::{FileTree, ListItem, Outline, SelectableList},
+    menus::{ContextMenu, Menu, MenuItem},
     primitives::IconName,
     theme::ControlSize,
 };
-use ely_office::prelude::*;
+use ely_office::{menu::Offer, prelude::*};
 use ely_ui::{commands, i18n::text};
 use gpui::{
     AnyElement, AppContext as _, Context, Entity, InteractiveElement as _, IntoElement,
@@ -45,6 +46,8 @@ pub struct Side {
     listing: u64,
     /// Files that could not be read, and why.
     missed: Vec<(PathBuf, String)>,
+    /// A recent row's menu; each opens once.
+    asked: Option<ely_office::menu::Offer<PathBuf>>,
 }
 
 impl Side {
@@ -78,6 +81,7 @@ impl Side {
             tab: None,
             listing: 0,
             missed: Vec::new(),
+            asked: None,
         }
     }
 
@@ -200,18 +204,27 @@ impl Side {
             .action(open)
             .into_any_element();
         }
-        let (opener, clearer) = (desk.downgrade(), desk.downgrade());
+        let (opener, clearer, side) = (desk.downgrade(), desk.downgrade(), cx.weak_entity());
         let rows = read.recent.iter().map(|path| {
             let name = path
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default();
             let key: SharedString = path.to_string_lossy().into_owned().into();
-            let item = ListItem::new(key.clone(), name).description(
-                path.parent()
-                    .map(|dir| dir.display().to_string())
-                    .unwrap_or_default(),
-            );
+            let (side, file) = (side.clone(), path.clone());
+            let item = ListItem::new(key.clone(), name)
+                .description(
+                    path.parent()
+                        .map(|dir| dir.display().to_string())
+                        .unwrap_or_default(),
+                )
+                .on_secondary(move |at, _, cx| {
+                    side.update(cx, |side, cx| {
+                        side.asked = Some(Offer::new(side.asked.as_ref(), 0, file.clone(), at));
+                        cx.notify();
+                    })
+                    .ok();
+                });
             (key, item)
         });
         let list = rows
@@ -233,13 +246,31 @@ impl Side {
             .flex_col()
             .gap_2()
             .size_full()
-            .child(div().flex_1().min_h_0().child(list))
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .debug_selector(|| "mark-recent-list".into())
+                    .child(self.recent_menu(desk, cx).child(list)),
+            )
             .child(
                 div()
                     .debug_selector(|| "mark-clear-recent".into())
                     .child(clear),
             )
             .into_any_element()
+    }
+
+    /// Takes one file out of the recent list.
+    fn recent_menu(&self, desk: &Entity<Desk>, cx: &mut Context<Self>) -> ContextMenu {
+        let Some(offer) = &self.asked else {
+            return ContextMenu::new("mark-recent-menu", Menu::new()).manual(None).size_full();
+        };
+        let (desk, path) = (desk.downgrade(), offer.what.clone());
+        let remove = MenuItem::new(text(cx, "mark.recent.remove", &[])).on_click(move |_, cx| {
+            desk.update(cx, |desk, cx| desk.forget(&path, cx)).ok();
+        });
+        offer.host("mark-recent-menu", Menu::new().item(remove)).size_full()
     }
 
     fn outline(&self, desk: &Entity<Desk>, cx: &mut Context<Self>) -> AnyElement {

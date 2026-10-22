@@ -151,3 +151,35 @@ fn the_side_folds_from_its_key_and_stays_folded(cx: &mut TestAppContext) {
     assert!(drawn(cx, true), "the side is back");
     assert!(kept().side);
 }
+
+#[gpui::test]
+fn a_shut_recent_menu_stays_shut_when_files_return(cx: &mut TestAppContext) {
+    let (data, files) = (
+        tempfile::tempdir().expect("data"),
+        tempfile::tempdir().expect("files"),
+    );
+    let path = files.path().join("a.md");
+    std::fs::write(&path, "# A\n").expect("a file");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &path, cx);
+    let list = cx.debug_bounds("mark-recent-list").expect("the recent list");
+    let row = point(list.center().x, list.top() + px(12.0));
+    cx.simulate_mouse_down(row, gpui::MouseButton::Right, gpui::Modifiers::none());
+    cx.simulate_mouse_up(row, gpui::MouseButton::Right, gpui::Modifiers::none());
+    cx.run_until_parked();
+    let menu = "menu-row-Remove from Recent";
+    assert!(cx.debug_bounds(menu).is_some(), "opened");
+    cx.simulate_keystrokes("escape");
+    cx.run_until_parked();
+    assert!(cx.debug_bounds(menu).is_none(), "shut");
+    let side = desk.read_with(cx, |desk, _| desk.side.clone());
+    for pane in [Pane::Outline, Pane::Files] {
+        side.update(cx, |side, cx| {
+            side.pane = pane;
+            cx.notify();
+        });
+        cx.run_until_parked();
+    }
+    assert!(cx.debug_bounds("mark-recent-list").is_some(), "files are back");
+    assert!(cx.debug_bounds(menu).is_none(), "not replayed");
+}

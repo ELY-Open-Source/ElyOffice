@@ -103,6 +103,43 @@ fn the_recent_list_clears_from_its_button(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn one_recent_file_leaves_from_its_menu(cx: &mut TestAppContext) {
+    let (data, files) = (
+        tempfile::tempdir().expect("data"),
+        tempfile::tempdir().expect("files"),
+    );
+    let (a, b) = (files.path().join("a.md"), files.path().join("b.md"));
+    std::fs::write(&a, "A.\n").expect("a file");
+    std::fs::write(&b, "B.\n").expect("a file");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &a, cx);
+    open(&desk, &b, cx);
+    let real = |path: &std::path::Path| dunce::canonicalize(path).expect("a real path");
+    assert_eq!(desk.read_with(cx, |desk, _| desk.recent.clone()), [real(&b), real(&a)]);
+    // The newest file is the first row.
+    let remove_first = |cx: &mut gpui::VisualTestContext| {
+        let list = cx.debug_bounds("mark-recent-list").expect("the recent list");
+        let row = gpui::point(list.center().x, list.top() + gpui::px(12.0));
+        cx.simulate_mouse_down(row, gpui::MouseButton::Right, gpui::Modifiers::none());
+        cx.simulate_mouse_up(row, gpui::MouseButton::Right, gpui::Modifiers::none());
+        cx.run_until_parked();
+        let remove = cx.debug_bounds("menu-row-Remove from Recent").expect("the menu");
+        cx.simulate_click(remove.center(), gpui::Modifiers::none());
+        cx.run_until_parked();
+    };
+    remove_first(cx);
+    assert_eq!(desk.read_with(cx, |desk, _| desk.recent.clone()), [real(&a)]);
+    let kept = ely_files::recent::recent(&data.path().join("recent.json")).expect("the list");
+    assert_eq!(kept, [real(&a)]);
+    assert!(b.exists(), "the file stays on disk");
+    assert_eq!(desk.read_with(cx, |desk, _| desk.core.tabs.len()), 2, "its tab stays");
+    assert!(cx.debug_bounds("mark-clear-recent").is_some(), "clear all stays");
+    // The list redrew: its first row is now a.
+    remove_first(cx);
+    assert!(desk.read_with(cx, |desk, _| desk.recent.is_empty()));
+}
+
+#[gpui::test]
 fn the_outline_follows_typing(cx: &mut TestAppContext) {
     let (data, files) = (
         tempfile::tempdir().expect("data"),
