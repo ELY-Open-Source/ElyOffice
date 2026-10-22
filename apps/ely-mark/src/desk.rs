@@ -46,6 +46,8 @@ pub struct Desk {
     /// The folders the watcher covers.
     pub watched: Vec<PathBuf>,
     pub comparing: Option<crate::compare::Comparing>,
+    /// The body font picker, while open.
+    pub font_picking: Option<Entity<ely_gpui_component::forms::TextInput>>,
     pub keeping: crate::restore::Keeping,
     pub look: crate::look::Look,
     pub look_file: PathBuf,
@@ -200,6 +202,7 @@ pub(crate) fn open_in(
             watcher: None,
             watched: Vec::new(),
             comparing: None,
+            font_picking: None,
             keeping,
             look: look.clone(),
             look_file,
@@ -448,6 +451,7 @@ impl Render for Desk {
             .children(self.core_dialog(cx))
             .children(self.naming_element(cx))
             .children(self.compare_dialog(cx))
+            .children(self.font_dialog(cx))
             .children(self.find_box(cx))
             .children(self.export_dialog(cx));
         let root = Self::mode_actions(Self::look_actions(root, cx), cx);

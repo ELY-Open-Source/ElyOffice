@@ -116,6 +116,11 @@ pub fn menus(look: &crate::look::Look, cx: &App) -> Vec<Menu> {
                 Box::new(look::Mono),
                 look.font == Font::Mono,
             ),
+            checked(
+                "mark.look.other",
+                Box::new(look::OtherFont),
+                matches!(look.font, Font::Named(_)),
+            ),
             MenuItem::separator(),
             item("mark.look.actual", Box::new(look::ActualSize)),
             item("mark.look.larger", Box::new(look::Larger)),

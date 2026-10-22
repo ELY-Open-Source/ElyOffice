@@ -1,10 +1,19 @@
 //! The writing view, kept across launches (MARK-09, MARK-12).
 
-use std::{io, path::Path};
+use std::{cell::RefCell, io, path::Path, rc::Rc};
 
-use ely_gpui_component::{documents::DocumentLook, primitives::Severity, theme::ActiveTheme as _};
+use ely_gpui_component::{
+    documents::DocumentLook,
+    forms::{FontPicker, TextInput},
+    overlays::{Close, Dialog},
+    primitives::Severity,
+    theme::ActiveTheme as _,
+};
 use ely_office::prelude::*;
-use gpui::{App, Context, actions, rems};
+use gpui::{
+    AnyElement, App, AppContext as _, Context, IntoElement as _, ParentElement as _, SharedString,
+    Styled as _, Window, actions, div, rems,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::desk::Desk;
@@ -21,6 +30,7 @@ actions!(
         Sans,
         Serif,
         Mono,
+        OtherFont,
         Larger,
         Smaller,
         ActualSize
@@ -35,12 +45,14 @@ pub enum Width {
     Wide,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Font {
     Sans,
     Serif,
     Mono,
+    /// A system family the user picked.
+    Named(String),
 }
 
 /// How text shows; the Markdown never changes.
@@ -89,10 +101,11 @@ impl Look {
             Width::Medium => 48.0,
             Width::Wide => 64.0,
         };
-        let font = match self.font {
+        let font = match &self.font {
             Font::Sans => None,
             Font::Serif => Some(SERIF.into()),
             Font::Mono => Some(cx.theme().mono_family.clone()),
+            Font::Named(family) => Some(family.clone().into()),
         };
         DocumentLook {
             focus: self.focus,
@@ -201,6 +214,10 @@ impl Desk {
             .on_action(
                 cx.listener(|desk, _: &Mono, _, cx| desk.relook(|look| look.font = Font::Mono, cx)),
             )
+            .on_action(cx.listener(|desk, _: &OtherFont, window, cx| {
+                desk.font_picking = Some(cx.new(|cx| TextInput::new(window, cx)));
+                cx.notify();
+            }))
             .on_action(
                 cx.listener(move |desk, _: &Larger, _, cx| {
                     desk.relook(|look| look.size += step, cx)
@@ -214,6 +231,47 @@ impl Desk {
             )
     }
 }
+
+impl Desk {
+
+    /// The system's families, the one in use chosen.
+    pub fn font_dialog(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let field = self.font_picking.as_ref()?;
+        let this = cx.entity();
+        // Only actions get the closer, which hands focus back.
+        let closer: Rc<RefCell<Option<Close>>> = Rc::default();
+        let mut picker = FontPicker::new("mark-font-picker", field).on_change({
+            let (this, closer) = (this.clone(), closer.clone());
+            move |family: &SharedString, window, cx| {
+                let close = closer.borrow().clone().expect("the dialog gave its closer");
+                close(window, cx);
+                let font = Font::Named(family.to_string());
+                this.update(cx, |desk, cx| desk.relook(|look| look.font = font, cx));
+            }
+        });
+        if let Font::Named(family) = &self.look.font {
+            picker = picker.selected(family.clone());
+        }
+        let close = move |_: &mut Window, cx: &mut App| {
+            this.update(cx, |desk, cx| {
+                desk.font_picking = None;
+                cx.notify();
+            })
+        };
+        let title = ely_ui::i18n::text(cx, "mark.look.other.title", &[]);
+        let cancel = ely_office::cancel(cx);
+        let dialog = Dialog::new("mark-font-dialog", title, close)
+            .child(div().w_full().child(picker))
+            .action(move |close| {
+                closer.replace(Some(close.clone()));
+                cancel(close)
+            });
+        Some(dialog.into_any_element())
+    }
+}
+
+#[cfg(test)]
+mod font_tests;
 
 #[cfg(test)]
 mod tests {
