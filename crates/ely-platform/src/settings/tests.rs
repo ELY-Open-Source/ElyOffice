@@ -91,6 +91,23 @@ fn interface_text_takes_a_family_and_a_size_within_bounds() {
 }
 
 #[test]
+fn the_document_zoom_is_automatic_or_a_listed_percent() {
+    use super::{DOC_ZOOMS, DocZoom, Shared};
+    let fields = |text: &str| serde_json::from_str::<serde_json::Map<_, _>>(text).unwrap();
+    assert_eq!(Shared::default().doc_zoom, DocZoom::Auto);
+    assert_eq!(Shared::from_fields(&fields(r#"{"doc_zoom":"auto"}"#)).unwrap().doc_zoom, DocZoom::Auto);
+    for percent in DOC_ZOOMS {
+        let read = Shared::from_fields(&fields(&format!(r#"{{"doc_zoom":{percent}}}"#))).unwrap();
+        assert_eq!(read.doc_zoom, DocZoom::Percent(percent));
+        assert_eq!(DocZoom::Percent(percent).value(), json!(percent));
+    }
+    assert_eq!(DocZoom::Auto.value(), json!("auto"));
+    for bad in [r#"{"doc_zoom":110}"#, r#"{"doc_zoom":"fit"}"#, r#"{"doc_zoom":true}"#, r#"{"doc_zoom":1.5}"#] {
+        assert!(Shared::from_fields(&fields(bad)).is_err(), "{bad}");
+    }
+}
+
+#[test]
 fn a_write_overtaken_while_waiting_leaves_the_file() {
     let (_dir, store) = store();
     store.set("author", json!("Ana")).unwrap();

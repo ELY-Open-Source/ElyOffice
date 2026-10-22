@@ -461,3 +461,25 @@ fn a_size_the_kernel_does_not_take_clears_after_its_read() {
     let read = cx.update(|app| crate::design::mm100(deck.read(app).active_tab().expect("a tab").extra.size));
     assert!((read.0 - 30_000).abs() <= 50, "the kernel's own size shows: {read:?}");
 }
+
+#[test]
+fn a_default_zoom_takes_the_place_of_fitting() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = super::deck(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let default = |cx: &mut TestAppContext, zoom| cx.update(|app| app.global_mut::<ely_ui::settings::Current>().shared.doc_zoom = zoom);
+    default(&mut cx, ely_platform::settings::DocZoom::Percent(50));
+    update(&mut cx, &deck, |deck, cx| deck.new_blank(cx));
+    settle(&cx, |app| deck.read(app).active_tab().is_some());
+    // A later default leaves an open deck alone.
+    default(&mut cx, ely_platform::settings::DocZoom::Auto);
+    settle(&cx, |app| super::counts(app, &deck) == (1, 1));
+    cx.update(|app| {
+        let view = deck.read(app).active_tab().expect("a tab").view.read(app);
+        assert!(!view.fitting(), "a chosen zoom is not a whole slide");
+        assert_eq!(view.zoom(), 0.5);
+    });
+}

@@ -86,6 +86,11 @@ impl Doc {
         self.kind == 1
     }
 
+    /// Whether this is a presentation.
+    pub fn is_deck(&self) -> bool {
+        self.kind == 2
+    }
+
     /// Whether this handle saw a later state than `other`.
     pub fn newer_than(&self, other: &Doc) -> bool {
         self.rev > other.rev

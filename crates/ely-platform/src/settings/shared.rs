@@ -43,6 +43,28 @@ pub const UI_FONT: &str = "ui_font";
 pub const UI_TEXT_SIZE: &str = "ui_text_size";
 /// Interface text in pixels: least, most, default.
 pub const UI_TEXT_SIZES: (u32, u32, u32) = (12, 16, 13);
+pub const DOC_ZOOM: &str = "doc_zoom";
+/// The percents a document may open at.
+pub const DOC_ZOOMS: [u32; 6] = [50, 75, 100, 125, 150, 200];
+
+/// How Doc, Table, Show and PDF open a document.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DocZoom {
+    /// Each app's own: 100%, or a whole slide or width.
+    #[default]
+    Auto,
+    Percent(u32),
+}
+
+impl DocZoom {
+    /// As the file stores it.
+    pub fn value(self) -> Value {
+        match self {
+            DocZoom::Auto => Value::String("auto".into()),
+            DocZoom::Percent(percent) => percent.into(),
+        }
+    }
+}
 
 /// The shared settings; absent fields take their defaults.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -59,6 +81,7 @@ pub struct Shared {
     pub ui_font: String,
     /// Pixels of the interface's body text.
     pub ui_text_size: u32,
+    pub doc_zoom: DocZoom,
 }
 
 impl Default for Shared {
@@ -72,6 +95,7 @@ impl Default for Shared {
             check_updates: false,
             ui_font: String::new(),
             ui_text_size: UI_TEXT_SIZES.2,
+            doc_zoom: DocZoom::Auto,
         }
     }
 }
@@ -132,6 +156,15 @@ impl Shared {
                     .as_u64()
                     .filter(|size| (UI_TEXT_SIZES.0 as u64..=UI_TEXT_SIZES.1 as u64).contains(size))
                     .ok_or_else(|| wrong(UI_TEXT_SIZE, value))? as u32,
+            },
+            doc_zoom: match fields.get(DOC_ZOOM) {
+                None => defaults.doc_zoom,
+                Some(Value::String(word)) if word == "auto" => DocZoom::Auto,
+                Some(value) => value
+                    .as_u64()
+                    .and_then(|percent| DOC_ZOOMS.into_iter().find(|listed| *listed as u64 == percent))
+                    .map(DocZoom::Percent)
+                    .ok_or_else(|| wrong(DOC_ZOOM, value))?,
             },
         })
     }

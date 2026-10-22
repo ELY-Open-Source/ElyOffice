@@ -104,7 +104,16 @@ impl Engine for Pdf {
         cx: &mut App,
     ) -> io::Result<(Doc, Entity<PdfView>, String)> {
         let (doc, mark) = (loaded.doc, loaded.mark.clone());
-        let view = cx.new(|cx| PdfView::new(Arc::clone(worker), loaded, cx));
+        let zoom = ely_ui::settings::current(cx).doc_zoom;
+        let view = cx.new(|cx| {
+            let mut view = PdfView::new(Arc::clone(worker), loaded, cx);
+            // Automatic keeps the page width.
+            if let ely_platform::settings::DocZoom::Percent(percent) = zoom {
+                view.zoom = crate::layout::Zoom::Scale(percent as f32 / 100.0 * crate::layout::ACTUAL);
+                log::info!("pdf: opens at {percent}%");
+            }
+            view
+        });
         Ok((doc, view, mark))
     }
 

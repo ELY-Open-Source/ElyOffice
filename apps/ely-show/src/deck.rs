@@ -91,16 +91,6 @@ impl Host for Deck {
     }
 
     fn observed(&mut self, id: u64, view: &Entity<LokView>, cx: &mut Context<Self>) {
-        // A new deck fits once; a zoom then stays.
-        if let Some(tab) = self.tab_mut(id)
-            && !tab.extra.fitted
-        {
-            tab.extra.fitted = true;
-            view.update(cx, |view, cx| {
-                view.fit_page(cx);
-                view.turn_parts();
-            });
-        }
         // Pictures before the scheme landed are repainted.
         let lit = view.read(cx).lit();
         if let Some(tab) = self.tab_mut(id)

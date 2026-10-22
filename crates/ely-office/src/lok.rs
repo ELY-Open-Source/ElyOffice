@@ -49,6 +49,19 @@ impl Engine for Lok {
     ) -> io::Result<(Doc, Entity<LokView>, String)> {
         let Loaded { doc, laid, mark } = loaded;
         let view = LokView::open(Arc::clone(worker), doc.clone(), laid, cx);
+        let (zoom, deck) = (ely_ui::settings::current(cx).doc_zoom, doc.is_deck());
+        // Decided once: a later default leaves it.
+        view.update(cx, |view, cx| {
+            if deck {
+                view.turn_parts();
+            }
+            match zoom {
+                ely_platform::settings::DocZoom::Percent(percent) => view.set_zoom(percent as f32 / 100.0, cx),
+                ely_platform::settings::DocZoom::Auto if deck => view.fit_page(cx),
+                ely_platform::settings::DocZoom::Auto => {}
+            }
+        });
+        log::info!("office: opens at {zoom:?}, deck {deck}");
         Ok((doc, view, mark))
     }
 

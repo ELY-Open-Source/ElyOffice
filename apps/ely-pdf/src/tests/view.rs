@@ -162,3 +162,21 @@ fn a_dark_app_shows_the_page_as_the_file_paints_it() {
     let bytes = tile.as_bytes(0).expect("its pixels");
     assert_eq!(&bytes[..3], &[255, 255, 255], "the paper stays white");
 }
+
+#[test]
+fn a_default_zoom_opens_each_file_at_it() {
+    use ely_platform::settings::DocZoom;
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[], true);
+    let page: &[(f32, f32, &[&str])] = &[(612.0, 792.0, &["one"])];
+    let zooms = [(DocZoom::Auto, Zoom::Width), (DocZoom::Percent(150), Zoom::Scale(1.5 * crate::layout::ACTUAL))];
+    for (n, (chosen, opened)) in zooms.into_iter().enumerate() {
+        cx.update(|_, app| app.global_mut::<ely_ui::settings::Current>().shared.doc_zoom = chosen);
+        let path = file(dir.path(), &format!("{n}.pdf"), page);
+        cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.open_file(path, cx)));
+        settle(cx, |app| viewer.read(app).core.tabs.len() == n + 1);
+        let view = shown(cx, &viewer);
+        assert_eq!(cx.update(|_, app| view.read(app).zoom), opened, "{chosen:?}");
+    }
+}

@@ -52,8 +52,6 @@ pub struct Extra {
     pub masters: bool,
     /// The pictures were painted with Ely's scheme.
     pub lit: bool,
-    /// The view was fitted to the slide once.
-    pub fitted: bool,
 }
 
 impl Extra {

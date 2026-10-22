@@ -85,6 +85,11 @@ fn kept(key: &str) -> serde_json::Value {
     ely_platform::settings::Store::shared().unwrap().read().unwrap()[key].clone()
 }
 
+/// The font picker's pick.
+fn font(family: &str, cx: &mut gpui::App) {
+    super::picks::pick(ely_platform::settings::UI_FONT, serde_json::json!(family), cx);
+}
+
 /// A settings window, drawn; its writes still wait.
 fn opened(cx: &mut TestAppContext) -> gpui::VisualTestContext {
     let settings = cx.add_window(|window, cx| SettingsView::new(AppId::Mark, window, cx));
@@ -116,7 +121,7 @@ fn the_latest_text_pick_is_kept_across_windows(cx: &mut TestAppContext) {
     for size in [14, 15, 16] {
         press(&mut shown, size);
     }
-    shown.update(|_, cx| ["Georgia", "Consolas", "Arial"].map(|family| super::window::font_chosen(&family.into(), cx)));
+    shown.update(|_, cx| ["Georgia", "Consolas", "Arial"].map(|family| font(family, cx)));
     cx.run_until_parked();
     assert_eq!((kept("ui_text_size"), kept("ui_font")), (serde_json::json!(16), serde_json::json!("Arial")));
     // Back to the size on disk while a write waits.
@@ -126,11 +131,11 @@ fn the_latest_text_pick_is_kept_across_windows(cx: &mut TestAppContext) {
     assert_eq!(kept("ui_text_size"), serde_json::json!(16));
     // Picks still waiting outlive their window.
     press(&mut shown, 14);
-    shown.update(|_, cx| super::window::font_chosen(&"Georgia".into(), cx));
+    shown.update(|_, cx| font("Georgia", cx));
     shown.update(|window, _| window.remove_window());
     let mut reopened = opened(cx);
     press(&mut reopened, 15);
-    reopened.update(|_, cx| super::window::font_chosen(&"Consolas".into(), cx));
+    reopened.update(|_, cx| font("Consolas", cx));
     cx.run_until_parked();
     assert_eq!((kept("ui_text_size"), kept("ui_font")), (serde_json::json!(15), serde_json::json!("Consolas")));
     // A folder as the lock: writes fail, reads work.
@@ -138,20 +143,25 @@ fn the_latest_text_pick_is_kept_across_windows(cx: &mut TestAppContext) {
     std::fs::remove_file(&lock).unwrap();
     std::fs::create_dir(&lock).unwrap();
     let state = |cx: &mut gpui::VisualTestContext| {
-        cx.update(|_, cx| (cx.global::<super::Current>().unsaved.contains_key(super::SHARED), cx.global::<super::window::Picks>().size_shown))
+        cx.update(|_, cx| (cx.global::<super::Current>().unsaved.contains_key(ely_platform::settings::UI_TEXT_SIZE), super::picks::waiting(ely_platform::settings::UI_TEXT_SIZE, cx)))
     };
     for size in [14, 13, 16] {
         press(&mut reopened, size);
     }
+    let zoom = ely_platform::settings::DOC_ZOOM;
+    reopened.update(|_, cx| super::picks::pick(zoom, serde_json::json!(150), cx));
     cx.run_until_parked();
     assert_eq!(kept("ui_text_size"), serde_json::json!(15));
-    assert_eq!(state(&mut reopened), (true, Some(16)), "the failure shows and the pick stays");
+    assert_eq!(state(&mut reopened), (true, Some(serde_json::json!(16))), "the failure shows and the pick stays");
     // Mended, another pick saves and clears both.
     std::fs::remove_dir(&lock).unwrap();
     press(&mut reopened, 14);
     cx.run_until_parked();
     assert_eq!(kept("ui_text_size"), serde_json::json!(14));
     assert_eq!(state(&mut reopened), (false, None));
+    // The size's save clears only the size's failure.
+    let zoom_failed = reopened.update(|_, cx| (cx.global::<super::Current>().unsaved.contains_key(zoom), super::picks::waiting(zoom, cx)));
+    assert_eq!(zoom_failed, (true, Some(serde_json::json!(150))));
     // Unreadable: older picks skip, only the latest fails.
     let file = ely_platform::settings::Store::shared().unwrap().path().to_path_buf();
     std::fs::write(&file, "{").unwrap();
@@ -160,7 +170,7 @@ fn the_latest_text_pick_is_kept_across_windows(cx: &mut TestAppContext) {
     }
     cx.run_until_parked();
     assert_eq!(std::fs::read_to_string(&file).unwrap(), "{");
-    assert_eq!(state(&mut reopened), (true, Some(13)), "a skipped write hides no failure");
+    assert_eq!(state(&mut reopened), (true, Some(serde_json::json!(13))), "a skipped write hides no failure");
 }
 
 #[gpui::test]

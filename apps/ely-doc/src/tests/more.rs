@@ -323,3 +323,20 @@ fn the_side_panel_hides_and_review_brings_it_back() {
     assert_eq!(cx.update(|app| docs.read(app).side), crate::docs::Side::Review, "a hidden review comes back as review");
     assert!(shown(&mut cx));
 }
+
+#[test]
+fn a_default_zoom_opens_each_document_at_it() {
+    use ely_platform::settings::DocZoom;
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let zoom = |cx: &mut TestAppContext| cx.update(|app| docs.read(app).active_tab().expect("a tab").view.read(app).zoom());
+    blank(&mut cx, &docs);
+    assert_eq!(zoom(&mut cx), 1.0, "automatic is actual size");
+    cx.update(|app| app.global_mut::<ely_ui::settings::Current>().shared.doc_zoom = DocZoom::Percent(150));
+    blank(&mut cx, &docs);
+    assert_eq!(zoom(&mut cx), 1.5);
+}
