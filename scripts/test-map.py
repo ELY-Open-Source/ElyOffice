@@ -54,7 +54,7 @@ def tasks():
     for line in read("tasks/TASKS.md").splitlines():
         if m := re.match(r"- \[(.)\] (C[\d.]+[a-z]?) ", line):
             yield m.group(2) + ("" if m.group(1) == "x" else f"（{m.group(1)}）"), set(cites(line)), line
-    for line in read("agents.md").splitlines():
+    for line in read("docs/decisions.md").splitlines():
         if m := re.match(r"- (\d{4}-\d\d-\d\d)[^：]*：.*?（(C[\d.]+)", line):
             yield f"决策 {m.group(2)}", set(cites(line)), line
 
@@ -70,7 +70,7 @@ def known():
 
 def main():
     present = known()
-    rows = ["# 功能编号与测试对照", "", "对应 PRD §22。由 `scripts/test-map.py` 从 PRD、`tasks/TASKS.md` 与 `agents.md` 生成：每个编号列出引用它的任务与决策，其中写明、且在代码里确有其名的测试（单测函数名或 `tests/scripts` 的脚本），以及该领域测试所在之处。邮件与 Agent 属第二批，不列。", "",
+    rows = ["# 功能编号与测试对照", "", "对应 PRD §22。由 `scripts/test-map.py` 从 PRD、`tasks/TASKS.md` 与 `docs/decisions.md` 生成：每个编号列出引用它的任务与决策，其中写明、且在代码里确有其名的测试（单测函数名或 `tests/scripts` 的脚本），以及该领域测试所在之处。邮件与 Agent 属第二批，不列。", "",
             "| 编号 | 要求 | 任务 | 记下的测试 | 测试所在 |", "| --- | --- | --- | --- | --- |"]
     listed = list(tasks())
     for id_, need in ids():

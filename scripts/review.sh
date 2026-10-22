@@ -17,7 +17,7 @@ rm -f "$verdict"
 # The list that holds the item.
 list=$(grep -l -- "] $id " tasks/TASKS.md tasks/BUGS.md site/TASKS.md site/video/TASKS.md | head -n 1)
 [ -n "$list" ] || { echo "review.sh: no item $id in any task list" >&2; exit 2; }
-prompt="You review item $id of Ely Office, round $round. Work dir is the project root; agents.md holds the rules.
+prompt="You review item $id of Ely Office, round $round. Work dir is the project root; agents.md holds the rules; docs/decisions.md is the dated decision log.
 Read the line for $id in $list and the PRD.md sections it cites (for tasks/BUGS.md: its entry in docs/BugList.md); the items before it in that list are done.
 Scope: $scope
 Find defects only: behavior that breaks the PRD, errors swallowed, silent fallbacks, dead code, files over 500 lines, comments over one line or ten words, boxes inside boxes or useless subtitles in UI, abstractions with one user, missing or weak tests, claims no evidence backs. Build and run the tests yourself.

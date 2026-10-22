@@ -2,4 +2,5 @@
 agents.md export-ignore
 CLAUDE.md export-ignore
 PRD.md export-ignore
+docs/decisions.md export-ignore
 tasks export-ignore
