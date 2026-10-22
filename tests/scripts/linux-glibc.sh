@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
-# Linux builds need glibc 2.43 at most, as Ubuntu 26.04.
+# Linux builds run on Debian 11 and Ubuntu 20.04.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
-limit=2.43
+# Their glibc, and GCC 10's libstdc++.
+limits=(GLIBC_2.31 GLIBCXX_3.4.28 CXXABI_1.3.12)
 fail() {
   echo "FAIL: $*" >&2
   exit 1
 }
-for tool in objdump readelf; do
+for tool in readelf; do
   command -v "$tool" >/dev/null || {
     echo "SKIP: no $tool"
     exit 0
   }
 done
-release=$root/target/ubuntu/release
+release=$root/target/alma8/release
 lo=$root/engines/lo-src/instdir/program
-required=("$release"/ely-{doc,table,show,pdf,tree,mark,lok-worker,pdf-worker} "$lo/libmergedlo.so"
+required=("$release"/ely-{doc,table,show,pdf,mail,tree,mark,lok-worker,pdf-worker} "$lo/libmergedlo.so"
   "$root/engines/git/bin/git")
 for file in "${required[@]}"; do
   [ -f "$file" ] || fail "no $file; build in packaging/linux/container.sh"
@@ -25,7 +26,7 @@ for file in "${required[@]}"; do
 done
 list=$(mktemp)
 trap 'rm -f "$list"' EXIT
-find -L "$release"/ely-{doc,table,show,pdf,tree,mark,lok-worker,pdf-worker} "$lo" "$root/engines/git" \
+find -L "$release"/ely-{doc,table,show,pdf,mail,tree,mark,lok-worker,pdf-worker} "$lo" "$root/engines/git" \
   -type f -print0 >"$list" || fail "cannot list every file"
 checked=0
 while IFS= read -r -d '' file; do
@@ -35,10 +36,19 @@ while IFS= read -r -d '' file; do
   headers=$(readelf -lW "$file") || fail "readelf cannot read $file"
   # Static binaries, like git-lfs, need no glibc.
   grep -q ' DYNAMIC ' <<<"$headers" || continue
-  symbols=$(objdump -T "$file") || fail "objdump cannot read $file"
-  need=$(sed -n 's/.*GLIBC_\([0-9.]*\).*/\1/p' <<<"$symbols" | sort -V | tail -n 1)
-  [ -z "$need" ] && continue
-  [ "$(printf '%s\n%s\n' "$need" "$limit" | sort -V | tail -n 1)" = "$limit" ] ||
-    fail "${file#"$root"/} needs glibc $need, above $limit"
+  # Every version it needs, ABI tags included.
+  versions=$(readelf -VW "$file") || fail "readelf cannot read the versions of $file"
+  needs=$(awk '/^Version needs section/ { on = 1; next } /^Version / { on = 0 }
+    on { for (i = 1; i < NF; i++) if ($i == "Name:") print $(i + 1) }' <<<"$versions")
+  for limit in "${limits[@]}"; do
+    name=${limit%_*} most=${limit##*_}
+    while IFS= read -r version; do
+      [[ $version == "${name}"_* ]] || continue
+      number=${version#"${name}"_}
+      [[ $number =~ ^[0-9.]+$ ]] || fail "${file#"$root"/} needs $version, which $limit lacks"
+      [ "$(printf '%s\n%s\n' "$number" "$most" | sort -V | tail -n 1)" = "$most" ] ||
+        fail "${file#"$root"/} needs $name $number, above $most"
+    done <<<"$needs"
+  done
 done <"$list"
-echo "linux: $checked ELF files need glibc $limit at most"
+echo "linux: $checked ELF files need ${limits[*]} at most"

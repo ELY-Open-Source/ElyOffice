@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pinned static OpenSSL for Intel Macs; Homebrew's is arm64.
+# Pinned static OpenSSL: Intel Macs, and Linux for MuPDF.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -10,6 +10,8 @@ arch=$(uname -m)
 case "$(uname -s)-$arch" in
   Darwin-x86_64) target=darwin64-x86_64-cc ;;
   Darwin-arm64) target=darwin64-arm64-cc ;;
+  Linux-x86_64) target=linux-x86_64 ;;
+  Linux-aarch64) target=linux-aarch64 ;;
   *)
     echo "build-openssl.sh: no build for $(uname -s)-$arch" >&2
     exit 1
@@ -29,14 +31,16 @@ tar -xzf "$work/openssl.tar.gz" -C "$work"
 export MACOSX_DEPLOYMENT_TARGET=14.0
 cd "$work/openssl-$version"
 ./Configure "$target" no-shared no-tests --prefix="$out" --libdir=lib
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$(sysctl -n hw.ncpu 2>/dev/null || nproc)"
 rm -rf "$out"
 make install_sw
 # Packaging ships the licence from this prefix.
 cp LICENSE.txt "$out/"
-built=$(lipo -archs "$out/lib/libcrypto.a")
-[ "$built" = "$arch" ] || {
-  echo "build-openssl.sh: libcrypto.a is $built, want $arch" >&2
-  exit 1
-}
+if [ "$(uname)" = Darwin ]; then
+  built=$(lipo -archs "$out/lib/libcrypto.a")
+  [ "$built" = "$arch" ] || {
+    echo "build-openssl.sh: libcrypto.a is $built, want $arch" >&2
+    exit 1
+  }
+fi
 echo "build-openssl.sh: $("$out/bin/openssl" version) for $arch; PKG_CONFIG_PATH=$out/lib/pkgconfig"

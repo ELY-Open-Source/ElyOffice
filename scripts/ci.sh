@@ -20,7 +20,7 @@ if [ "$os" = macos ]; then
 fi
 [ -z "${ELY_PATH:-}" ] || PATH=$ELY_PATH:$PATH
 cd "$root"
-# Linux builds and packages in the Ubuntu 26.04 container.
+# Linux builds and packages in the AlmaLinux 8 container.
 inside=()
 [ "$os" != linux ] || inside=(packaging/linux/container.sh)
 
@@ -30,6 +30,11 @@ if [ "$os" = macos ] && [ "$(uname -s)-$(uname -m)" = Darwin-x86_64 ]; then
   intel=1
   channel=$(awk -F'"' '$1 ~ /^channel/ { print $2 }' rust-toolchain.toml)
   export RUSTUP_TOOLCHAIN=$channel-x86_64-apple-darwin PKG_CONFIG_PATH=$root/engines/openssl/lib/pkgconfig
+fi
+# Linux's MuPDF links the pinned static OpenSSL too.
+pinned_ssl=
+if [ -n "$intel" ] || [ "$os" = linux ]; then
+  pinned_ssl=1
 fi
 
 # Engines another clone on this host built; else built here.
@@ -54,7 +59,7 @@ if [ -n "${ELY_SHARE:-}" ]; then
   done
 else
   scripts/fetch-references.sh
-  [ -z "$intel" ] || scripts/build-openssl.sh
+  [ -z "$pinned_ssl" ] || ${inside[@]+"${inside[@]}"} scripts/build-openssl.sh
   ${inside[@]+"${inside[@]}"} scripts/build-mupdf.sh
   ${inside[@]+"${inside[@]}"} scripts/build-git.sh
   ${inside[@]+"${inside[@]}"} scripts/fetch-git-lfs.sh
@@ -62,9 +67,9 @@ else
   ${inside[@]+"${inside[@]}"} scripts/build-libreoffice.sh
 fi
 
-if [ -n "$intel" ]; then
-  [ -f "$PKG_CONFIG_PATH/libcrypto.pc" ] || {
-    echo "ci.sh: no x86_64 OpenSSL in $PKG_CONFIG_PATH; run scripts/build-openssl.sh" >&2
+if [ -n "$pinned_ssl" ]; then
+  [ -f "$root/engines/openssl/lib/pkgconfig/libcrypto.pc" ] || {
+    echo "ci.sh: no pinned OpenSSL in engines/openssl; run scripts/build-openssl.sh" >&2
     exit 1
   }
 fi

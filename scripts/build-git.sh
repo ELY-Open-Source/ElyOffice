@@ -34,6 +34,8 @@ rsync -a --delete --exclude .git "$root/reference/git/" "$src/"
 flags="prefix=$out RUNTIME_PREFIX=YesPlease INSTALL_SYMLINKS=YesPlease NO_GETTEXT=YesPlease NO_TCLTK=YesPlease NO_PERL=YesPlease NO_PYTHON=YesPlease"
 # The bundles say macOS 14; Git must not need newer.
 [ "$(uname)" = Darwin ] && export MACOSX_DEPLOYMENT_TARGET=14.0 && flags="$flags MACOSX_DEPLOYMENT_TARGET=14.0"
+# Linux: imap-send uses curl; no OpenSSL to ship.
+[ "$(uname)" = Linux ] && flags="$flags NO_OPENSSL=YesPlease"
 # Clang ignores Rosetta, so Intel builds name their architecture.
 compiler=()
 [ "$(uname)" != Darwin ] || compiler=("CC=cc -arch $(uname -m)")

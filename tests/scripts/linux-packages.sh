@@ -48,6 +48,8 @@ run() { # image, install command, package file, slug
     { tail -20 /tmp/install.log; exit 1; }; bash -c '$check' _ $4" ||
     fail "$3 does not install or link in $1"
 }
+# The oldest glibc served: 2.31.
+debian=debian:11@sha256:6f519a81440354a85eb592c5f32109ab80605f6b892455983a6f618bf87fabe9
 ubuntu=ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
 fedora=fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
 arch=archlinux@sha256:4e77cf2ea5f410e6f8be5abf93ccf17ce2436e87a138c167208356711a405dbd
@@ -58,6 +60,7 @@ for slug in $batch; do
   for file in "$deb" "$rpm" "$pkg"; do
     [ -f "$file" ] || fail "no $file; run packaging/linux/package.sh $slug"
   done
+  run "$debian" "apt-get update -q && apt-get install -y -q" "$deb" "$slug"
   run "$ubuntu" "apt-get update -q && apt-get install -y -q" "$deb" "$slug"
   run "$fedora" "dnf install -y -q" "$rpm" "$slug"
   run "$arch" "pacman -Sy --noconfirm && pacman -U --noconfirm" "$pkg" "$slug"

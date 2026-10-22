@@ -49,6 +49,8 @@ PROPS
     ;;
 esac
 flags="build=release HAVE_X11=no HAVE_GLUT=no HAVE_CURL=no HAVE_LIBCRYPTO=yes tesseract=yes"
+# The worker is a PIE; EL8's GCC defaults to non-PIC.
+[ "$(uname)" != Linux ] || flags="$flags LIB_CFLAGS=-fPIC"
 # Clang ignores Rosetta, so Intel builds name their architecture.
 compilers=()
 [ "$(uname)" != Darwin ] || compilers=("CC=xcrun cc -arch $(uname -m)" "CXX=xcrun c++ -arch $(uname -m)")
