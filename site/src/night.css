@@ -4,6 +4,7 @@
   color: #f5f5f7;
   background: #252525;
   --quiet: #c4c2c0;
+  --line: #3f3f3f;
 }
 
 /* The accent passes 4.5:1 as text only when lighter. */

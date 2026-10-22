@@ -77,21 +77,29 @@ for (const scheme of ["light", "dark"] as const) {
         });
         return 0.2126 * r + 0.7152 * g + 0.0722 * b;
       };
-      const ground = parse(getComputedStyle(document.documentElement).backgroundColor).rgb;
-      const page = lum(ground);
+      // Text sits on its nearest filled box, else on the page.
+      const ground = (el: Element) => {
+        for (let at: Element | null = el; at; at = at.parentElement) {
+          const bg = parse(getComputedStyle(at).backgroundColor);
+          if (bg.a === 1) return bg.rgb;
+        }
+        throw new Error("the page has no background");
+      };
       const alpha = (el: HTMLElement) => {
         let a = parse(getComputedStyle(el).color).a;
         for (let at: Element | null = el; at; at = at.parentElement) a *= Number(getComputedStyle(at).opacity);
         return a;
       };
-      const shown = (el: HTMLElement) => {
+      const shown = (el: HTMLElement, under: number[]) => {
         const a = alpha(el);
-        return parse(getComputedStyle(el).color).rgb.map((v, i) => v * a + ground[i] * (1 - a));
+        return parse(getComputedStyle(el).color).rgb.map((v, i) => v * a + under[i] * (1 - a));
       };
       const ratios = [...document.querySelectorAll<HTMLElement>("h1, h2, h3, p, a, li, button")]
         .filter((el) => el.textContent?.trim() && alpha(el) > 0)
         .map((el) => {
-          const text = lum(shown(el));
+          const under = ground(el);
+          const page = lum(under);
+          const text = lum(shown(el, under));
           return { ratio: (Math.max(text, page) + 0.05) / (Math.min(text, page) + 0.05), text: el.textContent };
         });
       return ratios.sort((a, b) => a.ratio - b.ratio)[0];

@@ -8,7 +8,7 @@ const GITEA_PAGE = 50;
 const GITEA_WAIT = 5000;
 
 type Cached = RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } };
-type Asset = { name: string; download_count: number };
+type Asset = { name: string; download_count: number; browser_download_url: string };
 type Release = { tag_name: string; assets: Asset[] };
 // A token lifts GitHub's limit for the shared egress addresses: `wrangler secret put GITHUB_TOKEN`.
 type Env = { GITHUB_TOKEN?: string };
@@ -39,11 +39,29 @@ async function readGitea<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** The newest release's version, without the v. */
-async function version(env: Env): Promise<string> {
-  const { tag_name: tag } = await read<Release>(env, "/releases/latest");
+// The full installers: every app in one download.
+const BUNDLES = {
+  macArm: (v: string) => `ElyOffice-${v}-arm64.dmg`,
+  macIntel: (v: string) => `ElyOffice-${v}-x86_64.dmg`,
+  windows: (v: string) => `ElyOffice-${v}-windows-x86_64-setup.exe`,
+};
+export type Bundle = keyof typeof BUNDLES;
+
+/** The newest release's version, without the v, and its full installers. */
+async function newest(env: Env): Promise<{ version: string; installers: Partial<Record<Bundle, string>> }> {
+  const { tag_name: tag, assets } = await read<Release>(env, "/releases/latest");
   if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error(`GitHub's latest tag is ${JSON.stringify(tag)}`);
-  return tag.slice(1);
+  const version = tag.slice(1);
+  const installers: Partial<Record<Bundle, string>> = {};
+  // A release still building lacks some; the page sends those to the release.
+  for (const [bundle, name] of Object.entries(BUNDLES) as [Bundle, (v: string) => string][]) {
+    const asset = assets.find((a) => a.name === name(version));
+    if (!asset) continue;
+    const url = `https://github.com/ELY-Open-Source/ElyOffice/releases/download/${tag}/${asset.name}`;
+    if (asset.browser_download_url !== url) throw new Error(`${asset.name} downloads from ${asset.browser_download_url}`);
+    installers[bundle] = url;
+  }
+  return { version, installers };
 }
 
 /** Downloads of `releases`; update manifests are checks, not downloads. */
@@ -88,8 +106,8 @@ async function giteaDownloads(): Promise<number> {
 export default {
   async fetch(_request: Request, env: Env): Promise<Response> {
     try {
-      const [v, n, old] = await Promise.all([version(env), downloads(env), giteaDownloads()]);
-      return Response.json({ version: v, downloads: n + old }, { headers: { "cache-control": "public, max-age=300" } });
+      const [{ version, installers }, n, old] = await Promise.all([newest(env), downloads(env), giteaDownloads()]);
+      return Response.json({ version, installers, downloads: n + old }, { headers: { "cache-control": "public, max-age=300" } });
     } catch (e) {
       return new Response(String(e), { status: 502 });
     }

@@ -1,7 +1,10 @@
 // GitHub redirects this to the newest release.
 export const RELEASES = "https://github.com/ELY-Open-Source/ElyOffice/releases/latest";
 
-export type Release = { version: string; downloads: number };
+/** Full installers in the newest release; one still building lacks some. */
+export type Installers = Partial<Record<"macArm" | "macIntel" | "windows", string>>;
+
+export type Release = { version: string; installers: Installers; downloads: number };
 
 /** The newest release and all downloads, from the worker. */
 export async function latest(): Promise<Release> {

@@ -8,10 +8,12 @@ import { rhythm } from "./rhythm.ts";
 import { playground } from "./play.ts";
 import { film } from "./film.ts";
 import { said, speak, word, type Lang } from "./text.ts";
-import { RELEASES, latest } from "./release.ts";
+import { latest } from "./release.ts";
+import { downloads } from "./download.ts";
 import { iconLink } from "./icons.ts";
 
 const REPO = "https://github.com/ELY-Open-Source/ElyOffice";
+const X = "https://x.com/ZacharyZhang";
 
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("index.html has no #app");
@@ -20,13 +22,23 @@ const hero = document.createElement("header");
 const title = document.createElement("h1");
 title.textContent = "Ely Office";
 const source = iconLink("github", "source", REPO);
-const download = iconLink("download", "get", RELEASES);
+const every = said("a", "every");
+every.href = "#download";
 const links = document.createElement("div");
 links.className = "links";
-links.append(download, source);
+links.append(every, source);
 const heroCount = said("p", "count");
 heroCount.hidden = true;
-hero.append(title, said("p", "tagline"), said("p", "platforms"), heroCount, links);
+const heroGet = downloads(false);
+const like = document.createElement("p");
+like.className = "small like";
+const follow = document.createElement("a");
+follow.href = X;
+follow.textContent = "@ZacharyZhang";
+const star = said("a", "star");
+star.href = REPO;
+like.append(said("span", "like"), follow, said("span", "likeOn"), star, said("span", "likeEnd"));
+hero.append(title, said("p", "tagline"), said("p", "platforms"), heroCount, heroGet.block, links, like);
 const { section, host, svg } = tour(hero);
 rhythm(host, svg);
 
@@ -38,8 +50,7 @@ const version = document.createElement("h2");
 version.textContent = "Ely Office";
 const count = said("p", "count");
 count.hidden = true;
-const get = said("a", "get");
-get.href = RELEASES;
+const get = downloads(true);
 const legal = document.createElement("ul");
 for (const [key, href] of [["privacy", "/privacy"], ["terms", "/termofservice"]] as const) {
   const a = said("a", key);
@@ -48,7 +59,7 @@ for (const [key, href] of [["privacy", "/privacy"], ["terms", "/termofservice"]]
   li.append(a);
   legal.append(li);
 }
-footer.append(version, count, said("p", "platforms"), said("p", "needs"), get, legal);
+footer.append(version, count, said("p", "platforms"), get.block, said("p", "needs"), legal);
 
 const toggle = said("button", "other");
 toggle.className = "lang";
@@ -66,11 +77,13 @@ main.append(section, playground(), shelf, film());
 app.append(night(), toggle, main, footer);
 say(lang);
 reveal([shelf]);
-void latest().then(({ version: v, downloads }) => {
+void latest().then(({ version: v, installers, downloads: n }) => {
   version.textContent = `Ely Office ${v}`;
+  heroGet.found(installers);
+  get.found(installers);
   for (const el of [heroCount, count]) {
-    el.dataset.n = String(downloads);
-    el.textContent = word(lang, "count", downloads);
+    el.dataset.n = String(n);
+    el.textContent = word(lang, "count", n);
     el.hidden = false;
   }
 });

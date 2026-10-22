@@ -7,6 +7,10 @@
   --quiet: #6e6e73;
   --accent: #3d7fe5;
   --link: #2a6ad0;
+  /* White on these passes 4.5:1. */
+  --button: #2a6ad0;
+  --button-hover: #1f58b3;
+  --line: #dcdcd8;
 }
 
 body {
@@ -195,4 +199,89 @@ body:has(.hero:hover) .lang {
   .lang {
     transition: none;
   }
+}
+
+.downloads {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+a.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.85rem 1.75rem;
+  border-radius: 999px;
+  background: var(--button);
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease-out;
+}
+
+a.button:hover {
+  background: var(--button-hover);
+}
+
+a.button svg {
+  height: 1.1em;
+  width: auto;
+}
+
+p.small {
+  font-size: 0.9375rem;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 11.75rem);
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+
+a.card {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 1.5rem 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: inherit;
+  font-size: 1.0625rem;
+  transition: border-color 0.15s ease-out;
+}
+
+a.card:hover {
+  border-color: var(--link);
+}
+
+a.card svg {
+  height: 2.25rem;
+  width: auto;
+  margin-bottom: 0.5rem;
+}
+
+a.card span + span {
+  font-size: 0.875rem;
+  font-weight: 300;
+  color: var(--quiet);
+}
+
+@media (max-width: 760px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 11.75rem));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a.button,
+  a.card {
+    transition: none;
+  }
+}
+
+.hero .like {
+  margin-top: -0.5rem;
 }

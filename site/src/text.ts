@@ -16,7 +16,24 @@ const en = {
   download: "Download",
   platforms: "Out now for macOS, Windows and Linux.",
   needs: "macOS 14 or later, Apple silicon or Intel.",
-  get: "Download",
+  forMacArm: "Download for Mac (Apple silicon)",
+  forMacIntel: "Download for Mac (Intel)",
+  forWindows: "Download for Windows",
+  forLinux: "Download for Linux",
+  whole: "One installer with all seven apps.",
+  apart: "Need only some apps? Get them one by one on ",
+  apartEnd: ".",
+  macArm: "Mac, Apple silicon",
+  macIntel: "Mac, Intel",
+  windows: "Windows",
+  linux: "Linux",
+  installer: "Full installer",
+  packages: "Packages on GitHub",
+  every: "All platforms",
+  like: "Like it? Follow ",
+  likeOn: " on X and ",
+  star: "star the project",
+  likeEnd: " on GitHub.",
   count: "{n} downloads so far.",
   source: "Source",
   other: "中文",
@@ -56,7 +73,24 @@ const zh: typeof en = {
   download: "下载",
   platforms: "macOS、Windows 与 Linux 版已发布。",
   needs: "macOS 14 或更新，Apple 芯片或 Intel。",
-  get: "前往下载",
+  forMacArm: "下载 Mac 版（Apple 芯片）",
+  forMacIntel: "下载 Mac 版（Intel）",
+  forWindows: "下载 Windows 版",
+  forLinux: "下载 Linux 版",
+  whole: "一个安装包，七个应用都在里面。",
+  apart: "只需要其中几个应用？到 ",
+  apartEnd: " 单独下载。",
+  macArm: "Mac，Apple 芯片",
+  macIntel: "Mac，Intel",
+  windows: "Windows",
+  linux: "Linux",
+  installer: "完整安装包",
+  packages: "GitHub 上的安装包",
+  every: "全部平台",
+  like: "喜欢的话，欢迎在 X 关注 ",
+  likeOn: "，并给项目",
+  star: "点个 Star",
+  likeEnd: "。",
   count: "已下载 {n} 次。",
   source: "源码",
   other: "English",
@@ -95,6 +129,11 @@ export function said<K extends keyof HTMLElementTagNameMap>(tag: K, key: Key): H
 export function word(lang: Lang, key: Key, n?: number): string {
   const text = TEXT[lang][key];
   return n === undefined ? text : text.replace("{n}", n.toLocaleString(lang === "zh" ? "zh-CN" : "en"));
+}
+
+/** The language the page is written in. */
+export function spoken(): Lang {
+  return document.documentElement.lang === "zh-CN" ? "zh" : "en";
 }
 
 /** Writes every keyed text in `lang`. */
