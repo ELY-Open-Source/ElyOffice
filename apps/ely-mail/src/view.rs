@@ -243,7 +243,7 @@ pub fn imap_range(folders: &[LocalFolder], cx: &App) -> Vec<(SharedString, Share
     }
     if !whole.is_empty() {
         let sep = label("mail.sync.whole_sep");
-        let names: Vec<&str> = whole.iter().map(|folder| folder.name.as_str()).collect();
+        let names: Vec<&str> = whole.iter().map(|folder| folder.shown.as_str()).collect();
         let value = text(cx, "mail.sync.whole_value", &[("names", &names.join(&sep))]);
         rows.push((label("mail.sync.whole"), value));
     }

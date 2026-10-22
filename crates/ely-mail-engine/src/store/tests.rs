@@ -58,6 +58,7 @@ mod contacts;
 mod ids;
 mod listing;
 mod mbox;
+mod names;
 mod rebuilt;
 mod reindex;
 mod rules;

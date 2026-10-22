@@ -123,6 +123,27 @@ fn escape_leaves_the_menu_key_working() {
 }
 
 #[test]
+fn a_chinese_folder_reads_in_chinese() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(dir.path()).unwrap();
+    let ann = store.add_account(&account("ann@example.com")).unwrap();
+    let folders = [("INBOX", Some(Role::Inbox)), ("Zebra", None), ("&UXZO1mWHTvZZOQ-", None)];
+    let [_, zebra, other]: [MailboxId; 3] = store.set_folders(ann, &folders).unwrap().try_into().unwrap();
+    drop(store);
+    let mut cx = TestAppContext::single();
+    let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
+    settle(cx, |app| mail.read(app).syncs.get(&ann).is_some_and(|each| each.folders.len() == 3));
+    cx.update(|_, app| mail.update(app, |mail, cx| mail.open_box(Open::Mailbox(ann, zebra), cx)));
+    settle(cx, |_| true);
+    let zebra = cx.debug_bounds("item-selected-Zebra").expect("Zebra");
+    cx.update(|_, app| mail.update(app, |mail, cx| mail.open_box(Open::Mailbox(ann, other), cx)));
+    settle(cx, |_| true);
+    let other = cx.debug_bounds("item-selected-其他文件夹").expect("其他文件夹");
+    // Read order: Z before 其; the raw & sorts first.
+    assert!(other.top() > zebra.top(), "{other:?} under {zebra:?}");
+}
+
+#[test]
 fn only_accounts_fold() {
     let dir = tempfile::tempdir().unwrap();
     let mut cx = TestAppContext::single();

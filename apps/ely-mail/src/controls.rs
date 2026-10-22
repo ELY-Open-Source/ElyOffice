@@ -1,9 +1,10 @@
 //! Sync now, pause, and folders kept whole.
 
 use ely_gpui_component::{buttons::Button, feedback::Banner, forms::Switch, primitives::Severity};
-use ely_mail_engine::{AccountId, Protocol};
+use ely_mail_engine::{AccountId, LocalFolder, Protocol};
 use gpui::{
-    AnyElement, Context, InteractiveElement as _, IntoElement, ParentElement as _, Styled as _, div,
+    AnyElement, App, Context, InteractiveElement as _, IntoElement, ParentElement as _, SharedString, Styled as _,
+    div,
 };
 
 use crate::mail::{Mail, text};
@@ -66,7 +67,7 @@ impl Mail {
         let switches = folders.into_iter().map(|folder| {
             let mailbox = folder.id;
             let this = this.clone();
-            let label = text(cx, "mail.sync.offline", &[("name", &folder.name)]);
+            let label = offline_label(folder, cx);
             let switch = Switch::new(("mail-offline", mailbox.0 as u64), folder.offline)
                 .label(label)
                 .on_change(move |on, _, cx| {
@@ -86,4 +87,8 @@ impl Mail {
                 .into_any_element(),
         )
     }
+}
+
+pub(crate) fn offline_label(folder: &LocalFolder, cx: &App) -> SharedString {
+    text(cx, "mail.sync.offline", &[("name", &folder.shown)])
 }

@@ -143,7 +143,7 @@ impl Render for Side {
         for (id, account) in mail.accounts() {
             let folders = mail.syncs.get(id).map_or(&[][..], |each| &each.folders);
             let mut sorted: Vec<&LocalFolder> = folders.iter().collect();
-            sorted.sort_by(|a, b| rank(a.role).cmp(&rank(b.role)).then(a.name.cmp(&b.name)));
+            sorted.sort_by(|a, b| rank(a.role).cmp(&rank(b.role)).then(a.shown.cmp(&b.shown)));
             let mut boxes = Vec::new();
             for folder in sorted {
                 let name = folder_name(folder, cx);
@@ -271,9 +271,9 @@ impl Mail {
 /// Inbox in the reader's words; others as named.
 pub fn folder_name(folder: &LocalFolder, cx: &App) -> SharedString {
     match folder.role {
-        _ if folder.local => text(cx, "mail.boxes.imported", &[("name", &folder.name)]),
+        _ if folder.local => text(cx, "mail.boxes.imported", &[("name", &folder.shown)]),
         Some(Role::Inbox) => text(cx, "mail.boxes.inbox", &[]),
-        _ => folder.name.clone().into(),
+        _ => folder.shown.clone().into(),
     }
 }
 

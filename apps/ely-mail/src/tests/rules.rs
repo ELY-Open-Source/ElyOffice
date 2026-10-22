@@ -118,3 +118,26 @@ fn rules_move_only_to_server_folders() {
     let named: Vec<_> = offered.iter().map(|choice| choice.label.to_string()).collect();
     assert_eq!(named, ["flag it", "archive it", "move it to All Mail", "move it to INBOX"]);
 }
+
+#[test]
+fn a_saved_move_names_its_folder_in_chinese() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(dir.path()).unwrap();
+    let ann = store.add_account(&account("ann@example.com")).unwrap();
+    let [_, drafts] = store
+        .set_folders(ann, &[("INBOX", Some(Role::Inbox)), ("&g0l6P3ux-", None)])
+        .unwrap()
+        .try_into()
+        .unwrap();
+    store.add_rule(ann, Match::From, "shop", Action::Move(drafts)).unwrap();
+    drop(store);
+    let rules = Store::open(dir.path()).unwrap().rules(ann).unwrap();
+    let mut cx = TestAppContext::single();
+    let (_, vcx) = window(&mut cx, dir.path(), Keys::default());
+    let said = vcx.update(|_, app| crate::rules::said(&rules[0], app).to_string());
+    assert!(said.ends_with("move it to 草稿箱"), "{said}");
+    let folders = Store::open(dir.path()).unwrap().folders(ann).unwrap();
+    let offered = vcx.update(|_, app| crate::rules::rule_actions(ely_mail_engine::Protocol::Imap, &folders, app));
+    let moves = offered.iter().find(|choice| choice.value == drafts.0.to_string()).expect("a move to 草稿箱");
+    assert_eq!(moves.label.as_ref(), "move it to 草稿箱");
+}

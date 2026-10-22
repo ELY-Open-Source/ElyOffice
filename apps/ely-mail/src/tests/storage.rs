@@ -36,7 +36,7 @@ fn all_mail_exports_once_a_file_per_folder() {
     let dir = tempfile::tempdir().unwrap();
     let mut store = Store::open(dir.path()).unwrap();
     let ann = store.add_account(&account("ann@example.com")).unwrap();
-    let folders = [("INBOX", Some(Role::Inbox)), ("a/b", None), ("a_b", None)];
+    let folders = [("INBOX", Some(Role::Inbox)), ("a/b", None), ("a_b", None), ("&g0l6P3ux-", None)];
     let inbox = store.set_folders(ann, &folders).unwrap()[0];
     store.put(inbox, &Key::Imap { uidvalidity: 1, uid: 1 }, &[], Fetched::Whole(PLAN)).unwrap();
     drop(store);
@@ -49,7 +49,7 @@ fn all_mail_exports_once_a_file_per_folder() {
     settle(cx, |_| account.join("INBOX.mbox").exists());
     let mut names: Vec<_> = std::fs::read_dir(&account).unwrap().map(|each| each.unwrap().file_name()).collect();
     names.sort();
-    assert_eq!(names, ["INBOX.mbox", "a_b 2.mbox", "a_b.mbox"]);
+    assert_eq!(names, ["INBOX.mbox", "a_b 2.mbox", "a_b.mbox", "草稿箱.mbox"]);
     let written = std::fs::read(account.join("INBOX.mbox")).unwrap();
     assert!(written.starts_with(b"From cy@example.com "));
     // Again: everything is there, so nothing is written.

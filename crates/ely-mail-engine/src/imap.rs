@@ -12,6 +12,7 @@ mod conn;
 mod drafts;
 mod organize;
 mod parts;
+pub(crate) mod utf7;
 
 use conn::{Arg, Conn};
 pub use organize::Can;

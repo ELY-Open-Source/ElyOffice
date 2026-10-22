@@ -3,7 +3,7 @@
 use rusqlite::params;
 
 use super::{AccountId, Change, MailboxId, MessageId, Store, rebuilt::REBUILT};
-use crate::{Error, Mailbox, Result, Role};
+use crate::{Error, Mailbox, Result, Role, imap::utf7};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RuleId(pub i64);
@@ -32,7 +32,7 @@ pub struct Rule {
     pub field: Match,
     pub words: String,
     pub action: Action,
-    /// The folder a move goes to, by name.
+    /// The folder a move goes to, as people read it.
     pub folder: Option<String>,
 }
 
@@ -118,6 +118,7 @@ impl Store {
                 ("archive", None) => Action::Archive,
                 (action, _) => return Err(Error::Store(format!("an unknown rule action {action:?}"))),
             };
+            let folder = folder.as_deref().map(utf7::decode).transpose()?;
             Ok(Rule { id: RuleId(id), field: Match::named(&field)?, words, action, folder })
         })
         .collect()

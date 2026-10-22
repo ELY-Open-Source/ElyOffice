@@ -205,7 +205,7 @@ impl Mail {
 }
 
 /// "From has “shop”: move to Receipts".
-fn said(rule: &Rule, cx: &App) -> SharedString {
+pub(crate) fn said(rule: &Rule, cx: &App) -> SharedString {
     let (_, field, _) = FIELDS.iter().find(|(_, _, field)| *field == rule.field).expect("every field is listed");
     let action = match (rule.action, &rule.folder) {
         (Action::Flag, _) => text(cx, "mail.rules.flag", &[]),
@@ -229,7 +229,7 @@ pub(crate) fn rule_actions(protocol: Protocol, folders: &[ely_mail_engine::Local
         }
         // An imported folder is not on the server.
         actions.extend(folders.iter().filter(|folder| !folder.local).map(|folder| {
-            Choice::new(folder.id.0.to_string(), text(cx, "mail.rules.move", &[("name", &folder.name)]))
+            Choice::new(folder.id.0.to_string(), text(cx, "mail.rules.move", &[("name", &folder.shown)]))
         }));
     }
     actions

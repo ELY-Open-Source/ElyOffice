@@ -289,6 +289,7 @@ fn the_range_names_the_folders_kept_whole() {
     let folder = |id, name: &str, offline| LocalFolder {
         id: MailboxId(id),
         name: name.into(),
+        shown: name.into(),
         role: None,
         offline,
         pinned: false,
@@ -316,6 +317,13 @@ fn the_range_names_the_folders_kept_whole() {
             rows(&[folder(2, "Sent", false)]),
             ["Downloaded: Headers of all mail; text from the last 90 days; attachments when asked"]
         );
+        let drafts = LocalFolder {
+            name: "&g0l6P3ux-".into(),
+            shown: "草稿箱".into(),
+            ..folder(4, "", true)
+        };
+        assert_eq!(rows(std::slice::from_ref(&drafts)), ["Kept whole: Every message in 草稿箱, with attachments"]);
+        assert_eq!(crate::controls::offline_label(&drafts, app), "Keep 草稿箱 whole offline");
     });
 }
 

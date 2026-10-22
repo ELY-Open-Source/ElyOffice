@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use rusqlite::{Transaction, params};
 
 use super::{AccountId, MailboxId, MessageId, Store, aside::Aside, mailbox_name, rebuilt::RECORD};
-use crate::{Error, Result, Role};
+use crate::{Error, Result, Role, imap::utf7};
 
 /// A local IMAP message as sync compares it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -25,7 +25,10 @@ pub struct Held {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocalFolder {
     pub id: MailboxId,
+    /// As the server spells it; commands use this.
     pub name: String,
+    /// As people read it.
+    pub shown: String,
     pub role: Option<Role>,
     /// Every message comes down whole.
     pub offline: bool,
@@ -57,6 +60,9 @@ impl Store {
         folders: &[(&str, Option<Role>)],
     ) -> Result<Vec<MailboxId>> {
         self.writable()?;
+        for (name, _) in folders {
+            utf7::decode(name)?;
+        }
         let held: Vec<(i64, String)> = self
             .conn
             .prepare("SELECT id, name FROM mailboxes WHERE account = ?1 AND NOT local")?
@@ -67,12 +73,17 @@ impl Store {
                 .iter()
                 .any(|(listed, _)| mailbox_name(listed) == name)
             {
+                // Older versions kept names that do not decode.
+                let shown = utf7::decode(&name).unwrap_or_else(|_| {
+                    log::warn!("mail: mailbox {id} is not modified UTF-7; its notice keeps the server's spelling");
+                    name.clone()
+                });
                 self.without_mail(MailboxId(id), None, false, |tx| {
                     // Moves there go back; their flags stay queued.
                     tx.execute(
                         "INSERT INTO dropped (account, kind, words)
                          SELECT ?1, 'vanished', ?2 FROM changes WHERE target = ?3",
-                        params![account.0, name, id],
+                        params![account.0, shown, id],
                     )?;
                     tx.execute("UPDATE messages SET moving = NULL WHERE moving = ?1", [id])?;
                     tx.execute(
@@ -106,7 +117,7 @@ impl Store {
         let rows = query.query_map([account.0], |row| {
             Ok((
                 MailboxId(row.get(0)?),
-                row.get(1)?,
+                row.get::<_, String>(1)?,
                 row.get::<_, Option<String>>(2)?,
                 row.get(3)?,
                 row.get(4)?,
@@ -121,9 +132,15 @@ impl Store {
                         .ok_or_else(|| Error::Store(format!("an unknown folder role {role:?}")))
                 })
                 .transpose()?;
+            // Imported names never crossed IMAP.
+            let shown = match local {
+                true => name.clone(),
+                false => utf7::decode(&name)?,
+            };
             Ok(LocalFolder {
                 id,
                 name,
+                shown,
                 role,
                 offline,
                 pinned,

@@ -166,7 +166,7 @@ fn export_all(store: &mut Store, dir: &std::path::Path) -> ely_mail_engine::Resu
         let mut taken = HashSet::new();
         let folder = dir.join(unique(&mut accounts, file_stem(Some(&account.address), "account")));
         for each in store.folders(id)? {
-            let name = unique(&mut taken, file_stem(Some(&each.name), "folder"));
+            let name = unique(&mut taken, file_stem(Some(&each.shown), "folder"));
             targets.push((each.id, folder.join(format!("{name}.mbox"))));
         }
     }
