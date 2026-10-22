@@ -19,7 +19,7 @@ use ely_platform::{AppId, startup};
 use ely_ui::{Root, Shell, commands, i18n::text};
 use gpui::{
     App, AppContext as _, Context, Entity, InteractiveElement as _, IntoElement,
-    ParentElement as _, PathPromptOptions, Render, Styled as _, Window, div,
+    ParentElement as _, PathPromptOptions, Render, SharedString, Styled as _, Window, div,
 };
 
 use crate::engine::Mark;
@@ -365,6 +365,14 @@ impl Desk {
         .detach();
     }
 
+    /// The caret's line and column, from one, in every mode.
+    pub(crate) fn caret_said(&self, cx: &App) -> Option<SharedString> {
+        let view = self.active_view()?;
+        let (line, column) = view.read(cx).document().read(cx).caret(cx);
+        let (line, column) = ((line + 1).to_string(), (column + 1).to_string());
+        Some(text(cx, "mark.caret", &[("line", &line), ("column", &column)]).into())
+    }
+
     fn status(&self, cx: &mut Context<Self>) -> StatusBar {
         let state = StatusBarItem::new("mark-state").label(self.save_state(cx));
         let Some(view) = self.active_view() else {
@@ -393,7 +401,8 @@ impl Desk {
             Some(git) => bar.left(git),
             None => bar,
         };
-        bar.right(modes)
+        let caret = self.caret_said(cx).expect("a tab");
+        bar.right(StatusBarItem::new("mark-caret").label(caret)).right(modes)
     }
 }
 

@@ -24,7 +24,7 @@
 - 段落与格式菜单照 Typora。菜单里带 Shift 的标点键写成所出的字符，如 Ctrl+{ 即 Ctrl+Shift+[。标题：Ctrl+1 至 Ctrl+6，Ctrl+0 段落，Ctrl+= 与 Ctrl+- 升降一级。块：Ctrl+Shift+K 代码块，Ctrl+Shift+M 公式块，Ctrl+Shift+Q 引用，Ctrl+Shift+[ 有序列表，Ctrl+Shift+] 无序列表，Ctrl+Shift+X 任务列表。
 - 格式：Ctrl+B 加粗，Ctrl+I 斜体，Ctrl+U 下划线，Ctrl+Shift+` 代码，Alt+Shift+5 删除线，Ctrl+K 超链接，Ctrl+Shift+I 插入图片，Ctrl+\ 清除样式。
 - 表格在“段落 ▸ 表格”：Ctrl+T 插入，Ctrl+Enter 下方插入行，Ctrl+Shift+Backspace 删除行，Alt+方向键移动行列，“格式化表格源码”对齐各列。
-- 视图：Ctrl+/ 在源代码与可视之间切换，F8 专注，F9 打字机，Ctrl+Shift+= 放大，Ctrl+Shift+- 缩小，Ctrl+Shift+0 实际大小（Windows 的中文输入法占着这个键，在 Windows 上用 Ctrl+Shift+9）；可视、源码、预览在“视图”菜单里选。
+- 视图：Ctrl+/ 在源码与编辑模式之间切换，F8 专注，F9 打字机，Ctrl+Shift+= 放大，Ctrl+Shift+- 缩小，Ctrl+Shift+0 实际大小（Windows 的中文输入法占着这个键，在 Windows 上用 Ctrl+Shift+9）；编辑、源码、预览在“视图”菜单与状态栏里选。源码模式默认显示行号（“视图›源码模式显示行号”可关）；状态栏在各模式都写出插入点所在的行与列。
 - 编辑：Ctrl+Shift+C 复制为 Markdown（无选区时复制全文），Ctrl+Shift+V 粘贴为纯文本；另有复制为纯文本、复制为 HTML 代码（图片保留原地址）、复制为富文本。
 - 右键菜单照 Typora，随所点之处变化：剪切、复制、粘贴、删除为一行图标；链接可打开、复制地址；图片可打开所在位置（网络图片在浏览器打开）、删除；代码块可复制其内容；公式与 HTML 块可编辑；加粗、斜体、代码、超链接与引用、列表各为一行图标；表格里为“表格 ▸”，别处为“段落 ▸”；“插入 ▸”；引用、列表、代码块等可整块删除。右键落在选区里时选区保留；正在编辑的块右键后仍开着。源码模式只有剪贴板与“复制／粘贴为”，预览只有复制。
 - 命令用不了时（如在代码里设标题、插入点不在表格里），提示写明原因，文字不动。macOS 上 Ctrl 为 Cmd。

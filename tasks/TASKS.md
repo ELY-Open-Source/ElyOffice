@@ -355,3 +355,4 @@
 - [x] R12.2 #20 ElyDoc 右栏可收起：“视图›侧栏”（Ctrl/Cmd+Alt+B），打开审阅、邮件合并、比较、新批注时自动展开；不跨重启记忆。ElyTable 的格式面板本可关。测试 `the_side_panel_hides_and_review_brings_it_back`（修前失败）。未送审
 - [x] R12.3 #22 ElyPDF 书签栏不随滚轮滚动：书签列表未放进滚动区（批注、附件两页本有）；改用 `ScrollArea::vertical`。测试 `a_long_bookmark_list_scrolls_to_its_last_mark`（修前失败）。未送审
 - [x] R12.4 官网加上 ElyMail（用户报：官网仍是六个应用）：标语改为七个应用，ElyMail 的中英文案；桌面模型加一座邮筒（`model.ts`），导览在 ElyPDF 之后停 ElyMail，屏幕贴真实录屏 `public/clips/mail.*`（Windows 上的 ElyMail 发行构建，`ELY_DATA_ROOT` 下的虚构收件箱：读会话、换信、本机搜索；`video/web.sh` 记下剪辑点）；道路游乐场加邮筒。单测与端到端随之改为七个；`e2e/text.spec.ts` 的页脚下载数原连隐私与条款链接一起数（改前即失败）；`touch.spec.ts` 的按下打开在整套运行时改前即不稳。未送审
+- [x] R12.5 #23 ElyMark 行号与模式名：源码模式行号默认显示（`look.json` 改存 `source_line_numbers`，0.1.10 写下的 `line_numbers: false` 不再沿用）；状态栏在三种模式都写插入点的行与列（`Desk::caret_said`）；“可视”改称“编辑”（Editing），Ctrl+/ 一项改称“切换源码模式”。测试 `numbers_hidden_by_0_1_10_show_again`、`the_status_bar_names_the_caret_line_in_every_mode`（修前失败）；Windows 真窗口核对。未送审

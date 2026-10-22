@@ -166,3 +166,27 @@ fn a_folder_lists_its_markdown_files(cx: &mut TestAppContext) {
     listed.sort();
     assert_eq!(listed, ["a.md", "sub/b.markdown"]);
 }
+
+#[gpui::test]
+fn the_status_bar_names_the_caret_line_in_every_mode(cx: &mut TestAppContext) {
+    let (data, files) = (
+        tempfile::tempdir().expect("data"),
+        tempfile::tempdir().expect("files"),
+    );
+    let path = files.path().join("a.md");
+    std::fs::write(&path, "# A\n\nfirst\nsecond line\n").expect("a file");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &path, cx);
+    let said = |cx: &mut VisualTestContext| {
+        desk.read_with(cx, |desk, cx| desk.caret_said(cx).expect("a tab").to_string())
+    };
+    let view = desk.read_with(cx, |desk, _| desk.active_view().expect("a tab"));
+    cx.update(|window, cx| view.update(cx, |view, cx| view.reveal((3, 4), window, cx)));
+    cx.run_until_parked();
+    assert_eq!(said(cx), "Ln 4, Col 5");
+    for mode in [Mode::Source, Mode::Preview, Mode::Visual] {
+        cx.update(|window, cx| desk.update(cx, |desk, cx| desk.switch(mode, window, cx)));
+        cx.run_until_parked();
+        assert_eq!(said(cx), "Ln 4, Col 5", "{mode:?}");
+    }
+}
