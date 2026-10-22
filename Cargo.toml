@@ -34,7 +34,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["NSWork
 rfd = { version = "0.17", default-features = false }
 aes-gcm = "0.11"
 base64 = "0.23"
-arboard = { version = "3.6", default-features = false, features = ["image-data"] }
+arboard = { version = "3.6", default-features = false, features = ["image-data", "wayland-data-control"] }
 getrandom = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp"] }
 semver = { version = "1", features = ["serde"] }

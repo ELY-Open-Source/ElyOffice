@@ -52,26 +52,30 @@ pub fn write(clip: &Clip) -> Result<()> {
 
 /// The richest payload on the clipboard: HTML, image, then text.
 pub fn read() -> Result<Option<Clip>> {
-    with_board(|board| {
-        let text = absent_ok(board.get_text())?;
-        if let Some(html) = html_of(board)? {
-            let text = text.unwrap_or_default();
-            return Ok(Some(Clip::Html { html, text }));
-        }
-        if let Some(image) = absent_ok(board.get_image())? {
-            let rgba = image::RgbaImage::from_raw(
-                image.width as u32,
-                image.height as u32,
-                image.bytes.into_owned(),
-            )
-            .context("the clipboard image has its size")?;
-            let mut png = Vec::new();
-            rgba.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
-                .context("the clipboard image encodes")?;
-            return Ok(Some(Clip::Png(png)));
-        }
-        Ok(text.map(Clip::Text))
-    })
+    let clip = with_board(richest)?;
+    log::info!("clipboard: read {}", clip.as_ref().map_or("nothing", kind));
+    Ok(clip)
+}
+
+fn richest(board: &mut Clipboard) -> Result<Option<Clip>> {
+    let text = absent_ok(board.get_text())?;
+    if let Some(html) = html_of(board)? {
+        let text = text.unwrap_or_default();
+        return Ok(Some(Clip::Html { html, text }));
+    }
+    if let Some(image) = absent_ok(board.get_image())? {
+        let rgba = image::RgbaImage::from_raw(
+            image.width as u32,
+            image.height as u32,
+            image.bytes.into_owned(),
+        )
+        .context("the clipboard image has its size")?;
+        let mut png = Vec::new();
+        rgba.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .context("the clipboard image encodes")?;
+        return Ok(Some(Clip::Png(png)));
+    }
+    Ok(text.map(Clip::Text))
 }
 
 /// The clipboard's HTML, if any; gpui's reads omit it.
