@@ -13,6 +13,7 @@ use ely_gpui_component::{
     primitives::IconName,
     shell::{StatusBar, StatusBarItem},
     theme::ControlSize,
+    typography::tabular,
 };
 use ely_office::{Core, Host, Kind, prelude::*};
 use ely_platform::{AppId, startup};
@@ -420,7 +421,8 @@ impl Render for Desk {
                 .flex_col()
                 .children(self.outside_banner(cx))
                 .children(large_banner(&tab.view, cx))
-                .child(div().flex_1().min_h_0().child(tab.view.clone()))
+                // Digits keep one width, so columns line up.
+                .child(tabular(div().flex_1().min_h_0()).child(tab.view.clone()))
                 .into_any_element(),
             None => {
                 let none = text(cx, "command.blocked.no_document", &[]);
