@@ -3,13 +3,18 @@
 use ely_gpui_component::{
     buttons::{Button, SegmentedControl},
     feedback::Banner,
-    forms::{Input, InputEvent, Switch, TextInput},
+    layout::ScrollArea,
+    forms::{FontPicker, Input, InputEvent, Switch, TextInput},
     primitives::{IconName, Severity},
     settings::{self as kit, SettingsLayout, SettingsRow, SettingsSection, ThemeSelector},
+    theme::ActiveTheme as _,
 };
 use ely_platform::{
     AppId,
-    settings::{APPEARANCE, AUTHOR, Appearance, CHECK_UPDATES, LANGUAGE, Language, MOTION, Motion, OMARCHY_SYNC, Store, word},
+    settings::{
+        APPEARANCE, AUTHOR, Appearance, CHECK_UPDATES, LANGUAGE, Language, MOTION, Motion, OMARCHY_SYNC, Store, UI_FONT, UI_TEXT_SIZE,
+        UI_TEXT_SIZES, word,
+    },
 };
 use gpui::{
     AppContext as _, Context, Entity, FocusHandle, Global, InteractiveElement as _, IntoElement, ParentElement, Render, SharedString, Styled,
@@ -57,6 +62,7 @@ pub struct SettingsView {
     author_saved: String,
     /// The latest author commit; older writes are dropped.
     author_asked: Arc<AtomicU64>,
+    ui_font: Entity<TextInput>,
     git: Option<Entity<TextInput>>,
     git_error: Option<SharedString>,
     /// The latest Git commit; older checks are dropped.
@@ -105,6 +111,7 @@ impl SettingsView {
                 }
             }));
         }
+        let ui_font = cx.new(|cx| TextInput::new(window, cx).label(text(cx, "settings.font", &[])));
         let focus = cx.focus_handle();
         window.focus(&focus, cx);
         Self {
@@ -114,6 +121,7 @@ impl SettingsView {
             author,
             author_saved: named,
             author_asked: Arc::default(),
+            ui_font,
             git,
             git_error,
             git_asked: Arc::default(),
@@ -236,7 +244,9 @@ impl SettingsView {
                     .description(text(cx, "settings.language.next", &[]))
                     .control(language),
             )
-            .row(SettingsRow::new(text(cx, "settings.motion", &[])).control(motion));
+            .row(SettingsRow::new(text(cx, "settings.motion", &[])).control(motion))
+            .row(SettingsRow::new(text(cx, "settings.font", &[])).control(self.font(cx)))
+            .row(SettingsRow::new(text(cx, "settings.text.size", &[])).control(text_size(shared.ui_text_size, cx)));
         let mut section = match crate::updates::updater(cx) {
             Some(updates) => self.updates(section, &updates.read(cx).checked, shared.check_updates, cx),
             // A dev build does not update itself.
@@ -250,6 +260,14 @@ impl SettingsView {
             section = section.row(SettingsRow::new(text(cx, "settings.omarchy", &[])).control(follow));
         }
         section
+    }
+
+    /// The system's families; the one in force is chosen.
+    fn font(&self, cx: &gpui::App) -> impl IntoElement {
+        let picker = FontPicker::new("settings-ui-font", &self.ui_font)
+            .selected(cx.theme().font_family.clone())
+            .on_change(|family, _, cx| font_chosen(family, cx));
+        div().w_full().max_w_64().child(picker)
     }
 
     /// The launch switch, and a check the user starts.
@@ -411,7 +429,65 @@ impl Render for SettingsView {
             .collect();
         Shell::new(text(cx, "settings.title", &[]), &self.focus)
             .secondary()
-            .child(div().size_full().p_6().flex().flex_col().gap_4().children(unreadable).children(app_error).children(unsaved).child(layout))
+            .child(
+                div().size_full().p_6().flex().flex_col().gap_4().children(unreadable).children(app_error).children(unsaved).child(
+                    ScrollArea::new("settings-scroll").vertical().flex_1().min_h_0().child(layout),
+                ),
+            )
             .children(dialog)
     }
+}
+
+/// The text picks, app-wide: they outlive a settings window.
+#[derive(Default)]
+pub(super) struct Picks {
+    font: Arc<AtomicU64>,
+    size: Arc<AtomicU64>,
+    /// A size whose save waits; the control shows it.
+    pub(super) size_shown: Option<u32>,
+}
+
+impl Global for Picks {}
+
+/// One segment per size; the pending pick shows.
+fn text_size(stored: u32, cx: &gpui::App) -> SegmentedControl {
+    let shown = cx.try_global::<Picks>().and_then(|picks| picks.size_shown).unwrap_or(stored);
+    let (least, most, _) = UI_TEXT_SIZES;
+    (least..=most)
+        .fold(SegmentedControl::new("settings-ui-size", shown.to_string()), |control, size| {
+            control.segment(size.to_string(), format!("{size} px"), None)
+        })
+        .on_change(|picked, _, cx| size_chosen(picked.parse().expect("a size segment"), cx))
+}
+
+/// The font picker's choice; the latest pick wins.
+pub(super) fn font_chosen(family: &SharedString, cx: &mut gpui::App) {
+    let latest = Arc::clone(&cx.default_global::<Picks>().font);
+    chosen(UI_FONT, Value::String(family.to_string()), &latest, cx).1.detach();
+}
+
+/// A size segment's choice; the latest pick wins.
+pub(super) fn size_chosen(size: u32, cx: &mut gpui::App) {
+    let picks = cx.default_global::<Picks>();
+    picks.size_shown = Some(size);
+    let latest = Arc::clone(&picks.size);
+    let (asked, write) = chosen(UI_TEXT_SIZE, Value::from(size), &latest, cx);
+    cx.refresh_windows();
+    cx.spawn(async move |cx: &mut gpui::AsyncApp| {
+        let written = write.await;
+        // Saved: the file's size shows; failed: the pick stays.
+        cx.update(|cx| {
+            if written && latest.load(Ordering::SeqCst) == asked {
+                cx.global_mut::<Picks>().size_shown = None;
+                cx.refresh_windows();
+            }
+        });
+    })
+    .detach();
+}
+
+/// Writes `key`; a later pick skips it under the lock.
+fn chosen(key: &'static str, value: Value, latest: &Arc<AtomicU64>, cx: &mut gpui::App) -> (u64, gpui::Task<bool>) {
+    let asked = latest.fetch_add(1, Ordering::SeqCst) + 1;
+    (asked, super::saved(key, value, Some((Arc::clone(latest), asked)), cx))
 }

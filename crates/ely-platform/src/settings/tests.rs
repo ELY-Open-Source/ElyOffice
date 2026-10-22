@@ -77,6 +77,20 @@ fn shared_fields_type_strictly_and_default_when_absent() {
 }
 
 #[test]
+fn interface_text_takes_a_family_and_a_size_within_bounds() {
+    use super::{Shared, UI_TEXT_SIZES};
+    let fields = |text: &str| serde_json::from_str::<serde_json::Map<_, _>>(text).unwrap();
+    let default = Shared::default();
+    assert_eq!((default.ui_font.as_str(), default.ui_text_size), ("", UI_TEXT_SIZES.2));
+    let read = Shared::from_fields(&fields(r#"{"ui_font":" Noto Sans CJK SC ","ui_text_size":16}"#)).unwrap();
+    assert_eq!((read.ui_font.as_str(), read.ui_text_size), ("Noto Sans CJK SC", 16));
+    assert_eq!(Shared::from_fields(&fields(r#"{"ui_text_size":12}"#)).unwrap().ui_text_size, 12);
+    for bad in [r#"{"ui_font":1}"#, r#"{"ui_text_size":11}"#, r#"{"ui_text_size":17}"#, r#"{"ui_text_size":13.5}"#, r#"{"ui_text_size":"13"}"#] {
+        assert!(Shared::from_fields(&fields(bad)).is_err(), "{bad}");
+    }
+}
+
+#[test]
 fn a_write_overtaken_while_waiting_leaves_the_file() {
     let (_dir, store) = store();
     store.set("author", json!("Ana")).unwrap();

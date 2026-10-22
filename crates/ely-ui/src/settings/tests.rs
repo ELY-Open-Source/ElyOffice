@@ -33,6 +33,137 @@ fn a_change_on_disk_turns_the_theme_at_once(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn the_interface_text_follows_the_settings(cx: &mut TestAppContext) {
+    installed(cx);
+    let own = cx.update(|cx| cx.theme().font_family.clone());
+    let chosen = Shared { ui_font: "Georgia".into(), ui_text_size: 15, ..Shared::default() };
+    cx.update(|cx| changed((chosen, None), cx));
+    cx.update(|cx| {
+        assert_eq!(cx.theme().font_family.as_ref(), "Georgia");
+        assert_eq!(cx.theme().font_scale, 15.0 / 13.0);
+    });
+    cx.update(|cx| changed((Shared::default(), None), cx));
+    cx.update(|cx| assert_eq!((cx.theme().font_family.clone(), cx.theme().font_scale), (own, 1.0)));
+}
+
+#[gpui::test]
+fn a_kept_text_size_applies_at_start(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        ely_gpui_component::init_for_tests(cx);
+        super::install_defaults(cx);
+        cx.global_mut::<super::Current>().shared.ui_text_size = 16;
+        crate::theme::install(cx);
+        assert_eq!(cx.theme().font_scale, 16.0 / 13.0);
+    });
+}
+
+#[gpui::test]
+fn the_page_scrolls_to_its_last_row_at_the_largest_text(cx: &mut TestAppContext) {
+    installed(cx);
+    cx.update(crate::updates::offer_for_tests);
+    let largest = Shared { ui_text_size: ely_platform::settings::UI_TEXT_SIZES.1, ..Shared::default() };
+    cx.update(|cx| changed((largest, None), cx));
+    let settings = cx.add_window(|window, cx| SettingsView::new(AppId::Mark, window, cx));
+    let mut shown = gpui::VisualTestContext::from_window(settings.into(), cx);
+    let height = gpui::px(520.0);
+    shown.simulate_resize(gpui::size(gpui::px(720.0), height));
+    shown.run_until_parked();
+    let before = shown.debug_bounds("settings-check-now").expect("the check is offered");
+    assert!(before.bottom() > height, "the page outgrows the window: {before:?}");
+    shown.simulate_event(gpui::ScrollWheelEvent {
+        position: gpui::point(gpui::px(500.0), gpui::px(300.0)),
+        delta: gpui::ScrollDelta::Pixels(gpui::point(gpui::px(0.0), gpui::px(-800.0))),
+        ..Default::default()
+    });
+    shown.run_until_parked();
+    let after = shown.debug_bounds("settings-check-now").expect("the check is offered");
+    assert!(after.bottom() <= height, "scrolled into view: {after:?}");
+}
+
+/// The shared file's `key`, as written.
+fn kept(key: &str) -> serde_json::Value {
+    ely_platform::settings::Store::shared().unwrap().read().unwrap()[key].clone()
+}
+
+/// A settings window, drawn; its writes still wait.
+fn opened(cx: &mut TestAppContext) -> gpui::VisualTestContext {
+    let settings = cx.add_window(|window, cx| SettingsView::new(AppId::Mark, window, cx));
+    let mut shown = gpui::VisualTestContext::from_window(settings.into(), cx);
+    shown.update(|window, cx| window.draw(cx).clear(cx));
+    shown
+}
+
+/// Clicks a size segment and draws; no write runs.
+fn press(shown: &mut gpui::VisualTestContext, size: u32) {
+    let named = ["segment 12", "segment 13", "segment 14", "segment 15", "segment 16"];
+    let at = shown.debug_bounds(named[(size - ely_platform::settings::UI_TEXT_SIZES.0) as usize]).expect("a size segment").center();
+    shown.update(|window, cx| {
+        let down = gpui::MouseDownEvent { position: at, button: gpui::MouseButton::Left, click_count: 1, ..Default::default() };
+        let up = gpui::MouseUpEvent { position: at, button: gpui::MouseButton::Left, click_count: 1, ..Default::default() };
+        window.dispatch_event(gpui::PlatformInput::MouseDown(down), cx);
+        window.dispatch_event(gpui::PlatformInput::MouseUp(up), cx);
+    });
+    shown.update(|window, cx| window.draw(cx).clear(cx));
+}
+
+#[gpui::test(iterations = 8)]
+fn the_latest_text_pick_is_kept_across_windows(cx: &mut TestAppContext) {
+    installed(cx);
+    let root = tempfile::tempdir().unwrap().keep();
+    // SAFETY: only this test writes the shared file.
+    unsafe { std::env::set_var("ELY_DATA_ROOT", &root) };
+    let mut shown = opened(cx);
+    for size in [14, 15, 16] {
+        press(&mut shown, size);
+    }
+    shown.update(|_, cx| ["Georgia", "Consolas", "Arial"].map(|family| super::window::font_chosen(&family.into(), cx)));
+    cx.run_until_parked();
+    assert_eq!((kept("ui_text_size"), kept("ui_font")), (serde_json::json!(16), serde_json::json!("Arial")));
+    // Back to the size on disk while a write waits.
+    press(&mut shown, 13);
+    press(&mut shown, 16);
+    cx.run_until_parked();
+    assert_eq!(kept("ui_text_size"), serde_json::json!(16));
+    // Picks still waiting outlive their window.
+    press(&mut shown, 14);
+    shown.update(|_, cx| super::window::font_chosen(&"Georgia".into(), cx));
+    shown.update(|window, _| window.remove_window());
+    let mut reopened = opened(cx);
+    press(&mut reopened, 15);
+    reopened.update(|_, cx| super::window::font_chosen(&"Consolas".into(), cx));
+    cx.run_until_parked();
+    assert_eq!((kept("ui_text_size"), kept("ui_font")), (serde_json::json!(15), serde_json::json!("Consolas")));
+    // A folder as the lock: writes fail, reads work.
+    let lock = ely_platform::settings::Store::shared().unwrap().path().with_file_name(".settings.lock");
+    std::fs::remove_file(&lock).unwrap();
+    std::fs::create_dir(&lock).unwrap();
+    let state = |cx: &mut gpui::VisualTestContext| {
+        cx.update(|_, cx| (cx.global::<super::Current>().unsaved.contains_key(super::SHARED), cx.global::<super::window::Picks>().size_shown))
+    };
+    for size in [14, 13, 16] {
+        press(&mut reopened, size);
+    }
+    cx.run_until_parked();
+    assert_eq!(kept("ui_text_size"), serde_json::json!(15));
+    assert_eq!(state(&mut reopened), (true, Some(16)), "the failure shows and the pick stays");
+    // Mended, another pick saves and clears both.
+    std::fs::remove_dir(&lock).unwrap();
+    press(&mut reopened, 14);
+    cx.run_until_parked();
+    assert_eq!(kept("ui_text_size"), serde_json::json!(14));
+    assert_eq!(state(&mut reopened), (false, None));
+    // Unreadable: older picks skip, only the latest fails.
+    let file = ely_platform::settings::Store::shared().unwrap().path().to_path_buf();
+    std::fs::write(&file, "{").unwrap();
+    for size in [15, 16, 13] {
+        press(&mut reopened, size);
+    }
+    cx.run_until_parked();
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), "{");
+    assert_eq!(state(&mut reopened), (true, Some(13)), "a skipped write hides no failure");
+}
+
+#[gpui::test]
 fn each_app_shows_its_own_sections(cx: &mut TestAppContext) {
     installed(cx);
     for (app, keys) in [

@@ -1,7 +1,7 @@
-use ely_gpui_component::theme::{Mode, Theme};
-use ely_platform::settings::{Appearance, Shared};
+use ely_gpui_component::theme::{ActiveTheme as _, Mode, Theme};
+use ely_platform::settings::{Appearance, Shared, UI_TEXT_SIZES};
 use ely_platform::{accessibility, env, omarchy_current_dir};
-use gpui::{App, Global, Window, WindowAppearance};
+use gpui::{App, Global, SharedString, Window, WindowAppearance};
 
 pub mod omarchy;
 mod watch;
@@ -43,8 +43,15 @@ struct OmarchyState(Option<OmarchyTheme>);
 
 impl Global for OmarchyState {}
 
+/// The theme's own font family, before any setting.
+struct OwnFont(SharedString);
+
+impl Global for OwnFont {}
+
 /// Applies motion and appearance settings, and starts following Omarchy.
 pub fn install(cx: &mut App) {
+    cx.set_global(OwnFont(cx.theme().font_family.clone()));
+    text(cx);
     motion(cx);
     cx.set_global(ThemeSettings::of(crate::settings::current(cx)));
     cx.set_global(OmarchyState::default());
@@ -55,11 +62,31 @@ pub fn install(cx: &mut App) {
     apply(cx, true);
 }
 
-/// Follows changed settings: motion, appearance and Omarchy sync.
+/// Follows changed settings: text, motion, appearance and Omarchy sync.
 pub(crate) fn settings_changed(cx: &mut App) {
+    text(cx);
     motion(cx);
     cx.set_global(ThemeSettings::of(crate::settings::current(cx)));
     apply(cx, false);
+}
+
+/// The interface font and its size.
+fn text(cx: &mut App) {
+    let shared = crate::settings::current(cx);
+    let family: SharedString = match shared.ui_font.as_str() {
+        "" => cx.global::<OwnFont>().0.clone(),
+        chosen => chosen.to_string().into(),
+    };
+    let size = shared.ui_text_size;
+    // Listing fonts is slow; only a chosen family needs it.
+    if !shared.ui_font.is_empty() && !cx.text_system().all_font_names().iter().any(|name| *name == *family) {
+        log::warn!("theme: no font family {family} on this system; text falls back");
+    }
+    Theme::update(cx, |theme| {
+        theme.font_family = family.clone();
+        theme.font_scale = size as f32 / UI_TEXT_SIZES.2 as f32;
+    });
+    log::info!("theme: interface text {family} at {size} px");
 }
 
 fn motion(cx: &mut App) {

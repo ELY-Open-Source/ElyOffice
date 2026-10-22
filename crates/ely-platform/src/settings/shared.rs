@@ -39,6 +39,10 @@ pub const MOTION: &str = "motion";
 pub const OMARCHY_SYNC: &str = "omarchy_sync";
 pub const AUTHOR: &str = "author";
 pub const CHECK_UPDATES: &str = "check_updates";
+pub const UI_FONT: &str = "ui_font";
+pub const UI_TEXT_SIZE: &str = "ui_text_size";
+/// Interface text in pixels: least, most, default.
+pub const UI_TEXT_SIZES: (u32, u32, u32) = (12, 16, 13);
 
 /// The shared settings; absent fields take their defaults.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -51,6 +55,10 @@ pub struct Shared {
     pub author: String,
     /// Asks for a newer release at launch; off unless chosen.
     pub check_updates: bool,
+    /// A system font family; empty is the theme's own.
+    pub ui_font: String,
+    /// Pixels of the interface's body text.
+    pub ui_text_size: u32,
 }
 
 impl Default for Shared {
@@ -62,6 +70,8 @@ impl Default for Shared {
             omarchy_sync: true,
             author: String::new(),
             check_updates: false,
+            ui_font: String::new(),
+            ui_text_size: UI_TEXT_SIZES.2,
         }
     }
 }
@@ -110,6 +120,18 @@ impl Shared {
                 None => defaults.author,
                 Some(Value::String(name)) => name.trim().to_string(),
                 Some(other) => return Err(wrong(AUTHOR, other)),
+            },
+            ui_font: match fields.get(UI_FONT) {
+                None => defaults.ui_font,
+                Some(Value::String(family)) => family.trim().to_string(),
+                Some(other) => return Err(wrong(UI_FONT, other)),
+            },
+            ui_text_size: match fields.get(UI_TEXT_SIZE) {
+                None => defaults.ui_text_size,
+                Some(value) => value
+                    .as_u64()
+                    .filter(|size| (UI_TEXT_SIZES.0 as u64..=UI_TEXT_SIZES.1 as u64).contains(size))
+                    .ok_or_else(|| wrong(UI_TEXT_SIZE, value))? as u32,
             },
         })
     }
