@@ -1,2 +1,6 @@
 [target.'cfg(all(windows, target_env = "msvc"))']
 rustflags = ["-C", "target-feature=+crt-static"]
+
+# As Info.plist; lower links Swift overlays by @rpath.
+[env]
+MACOSX_DEPLOYMENT_TARGET = "14.0"

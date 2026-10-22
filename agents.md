@@ -154,7 +154,7 @@ packaging/windows/templates.sh 以本构建的内核重写 packaging/windows/new
 packaging/icons/masters.py     写出 assets/icons 的全部 SVG 母版（图标设计只改这里）
 packaging/icons/build.sh       由 assets/icons 的母版渲染 icns、png、ico（只在 macOS）
 tests/scripts/icons.sh         八个图标齐全、未过期，macOS 为 squircle，其余无底形
-tests/scripts/release-macos.sh dist 里首批六个 .app：以访达的方式打开文件（启动与运行中），引擎都取自包内，带齐许可，不含系统会登记的内嵌包，每个二进制要求的系统不高于应用所写；源码包齐全
+tests/scripts/release-macos.sh dist 里首批六个 .app：以访达的方式打开文件（启动与运行中），引擎都取自包内，带齐许可，不含系统会登记的内嵌包，每个二进制要求的系统不高于应用所写，可执行文件的 `@rpath` 依赖都在包内；源码包齐全
 tests/engines/*.sh             引擎探测（LOK、MuPDF）；LOK 探测本构建的内核，不挂载官方镜像
 scripts/inert-lo.sh 路径.app    构建出的 LibreOffice.app 去掉文档类型、URL 类型、快速查看与聚焦插件并注销（build-libreoffice.sh 调用）
 scripts/extract-official-lo.sh 用 7zz 把官方镜像的 Frameworks 与 Resources 解到 engines/lo-official（不挂载，无包，“未打补丁即拒绝”的单测用）
@@ -167,6 +167,7 @@ tests/scripts/theme.sh         真窗口 ElyTable 以深、浅两种外观启动
 tests/scripts/lag.sh ely-doc   真窗口键入，从调试日志算输入落地、图块、按键到新图块的分位数（需辅助功能权限）；ELY_LAG_LOG=路径 留下日志
 tests/scripts/pdf-idle.sh      真窗口 ElyPDF 无文件启动时无 worker 子进程
 tests/scripts/comments-rules.sh  comments.py 对长注释与跨行注释报错
+tests/scripts/rpath-rules.sh     rpath.sh（release-macos.sh 逐个调用）对找不到或在包外（含 `..` 与链接）的 `@rpath` 依赖、otool 读不出的文件报错（替身 otool，任意系统可跑）
 tests/scripts/bad-settings.sh  通用设置读不出时 ElyDoc 照样启动，文件不被覆盖
 tests/scripts/one-instance.sh  第二份 ElyDoc 把文件交给第一份后退出，第一份开出它、工作目录不动
 tests/scripts/update.sh        装好的 ElyTree 从本机服务的新版下载、替换、重新打开（需辅助功能权限）

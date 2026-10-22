@@ -96,6 +96,7 @@ while IFS=$'\t' read -r slug name; do
     minos=$(vtool -show-build "$binary" | awk '/minos/ && !v { v = $2 } END { print v }')
     [ -z "$minos" ] || [ "$(printf '%s\n%s\n' "$minos" "$least" | sort -V | tail -n 1)" = "$least" ] ||
       fail "${binary#"$app"/} needs macOS $minos; $name says $least"
+    "$root/tests/scripts/rpath.sh" "$app" "$binary"
   done < <(find "$app" -type f \( -perm -111 -o -name '*.dylib' \))
   case $slug in
     ely-doc) first=t.docx second=u.docx ;;
