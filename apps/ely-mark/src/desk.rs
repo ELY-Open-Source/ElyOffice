@@ -432,7 +432,7 @@ impl Render for Desk {
             true => Shell::new(title, &self.core.focus),
             false => Shell::new(title, &self.core.focus)
                 .tabs(self.tab_strip(cx))
-                .left(Some(self.side.clone().into()))
+                .left(self.look.side.then(|| self.side.clone().into()))
                 .status(self.status(cx)),
         }
         .child(body);

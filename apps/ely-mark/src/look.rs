@@ -22,6 +22,7 @@ actions!(
     mark,
     [
         FocusMode,
+        Sidebar,
         Typewriter,
         LineNumbers,
         Narrow,
@@ -59,6 +60,9 @@ pub enum Font {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Look {
     pub focus: bool,
+    /// The left side shows.
+    #[serde(default = "shown")]
+    pub side: bool,
     pub typewriter: bool,
     pub width: Width,
     pub font: Font,
@@ -77,6 +81,7 @@ impl Default for Look {
     fn default() -> Self {
         Look {
             focus: false,
+            side: true,
             typewriter: false,
             width: Width::Medium,
             font: Font::Sans,
@@ -185,6 +190,9 @@ impl Desk {
         element
             .on_action(cx.listener(|desk, _: &FocusMode, _, cx| {
                 desk.relook(|look| look.focus = !look.focus, cx)
+            }))
+            .on_action(cx.listener(|desk, _: &Sidebar, _, cx| {
+                desk.relook(|look| look.side = !look.side, cx)
             }))
             .on_action(cx.listener(|desk, _: &Typewriter, _, cx| {
                 desk.relook(|look| look.typewriter = !look.typewriter, cx)
@@ -360,6 +368,7 @@ mod tests {
         let look = super::load(&file).expect("it reads");
         assert!(look.focus);
         assert!(look.line_numbers, "looks kept before numbers show them");
+        assert!(look.side, "looks kept before the side fold show it");
         assert_eq!(
             (look.width, look.font, look.size),
             (super::Width::Wide, super::Font::Serif, 120)

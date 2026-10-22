@@ -111,3 +111,43 @@ fn a_hit_in_an_open_file_moves_its_caret(cx: &mut TestAppContext) {
     });
     assert_eq!((place.line, place.column), (4, 7));
 }
+
+#[gpui::test]
+fn the_side_folds_from_its_key_and_stays_folded(cx: &mut TestAppContext) {
+    let (data, files) = (
+        tempfile::tempdir().expect("data"),
+        tempfile::tempdir().expect("files"),
+    );
+    let path = files.path().join("a.md");
+    std::fs::write(&path, "# A\n").expect("a file");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &path, cx);
+    let side = desk.read_with(cx, |desk, _| desk.side.clone());
+    side.update(cx, |side, cx| {
+        side.pane = Pane::Outline;
+        cx.notify();
+    });
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("mark-outline").is_some(), "the side shows");
+    let focus = desk.read_with(cx, |desk, _| desk.core.focus.clone());
+    cx.update(|window, cx| window.focus(&focus, cx));
+    let kept = || crate::look::load(&data.path().join("look.json")).expect("the look reads");
+    // The panel slides; wait out its motion.
+    let drawn = |cx: &mut gpui::VisualTestContext, want: bool| {
+        for _ in 0..50 {
+            cx.update(|window, _| window.refresh());
+            cx.run_until_parked();
+            if cx.debug_bounds("mark-outline").is_some() == want {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        false
+    };
+    cx.simulate_keystrokes("secondary-shift-l");
+    assert!(drawn(cx, false), "the side folds");
+    assert!(!kept().side && !kept().focus, "only the side is kept folded");
+    cx.simulate_keystrokes("secondary-shift-l");
+    assert!(drawn(cx, true), "the side is back");
+    assert!(kept().side);
+}
