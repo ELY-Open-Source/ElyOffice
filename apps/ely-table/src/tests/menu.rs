@@ -52,6 +52,8 @@ pub(super) fn spot(cx: &mut VisualTestContext, book: &Entity<Book>, column: u32,
 /// Right-clicks and waits until `shown` holds for the menu.
 fn right_click(cx: &mut VisualTestContext, book: &Entity<Book>, at: Point<Pixels>, shown: Shows) {
     cx.update(|_, app| book.update(app, |book, _| book.menu = None));
+    // Clicks hit the last frame, old popup included.
+    frames(cx);
     cx.simulate_mouse_move(at, None, Modifiers::none());
     cx.simulate_mouse_down(at, MouseButton::Right, Modifiers::none());
     cx.simulate_mouse_up(at, MouseButton::Right, Modifiers::none());
