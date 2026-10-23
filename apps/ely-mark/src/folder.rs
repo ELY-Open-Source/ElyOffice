@@ -62,15 +62,20 @@ fn fold(ch: char) -> impl Iterator<Item = char> {
 
 /// Where folded `query` starts in `line`, in characters.
 fn column_of(line: &str, query: &str) -> Option<usize> {
-    // Each folded byte keeps its character's place.
-    let (mut folded, mut places) = (String::new(), Vec::new());
+    if line.is_ascii() {
+        return line.to_ascii_lowercase().find(query);
+    }
+    let folded: String = line.chars().flat_map(fold).collect();
+    let at = folded.find(query)?;
+    // Map the matched prefix, not every folded byte.
+    let mut bytes = 0;
     for (place, ch) in line.chars().enumerate() {
-        for low in fold(ch) {
-            folded.push(low);
-            places.extend(std::iter::repeat_n(place, low.len_utf8()));
+        bytes += fold(ch).map(char::len_utf8).sum::<usize>();
+        if bytes > at {
+            return Some(place);
         }
     }
-    folded.find(query).map(|at| places[at])
+    Some(0)
 }
 
 /// Lines of `text` holding `query`, any case.
@@ -141,6 +146,21 @@ mod tests {
         assert_eq!(super::column_of("İİ née Word", "word"), Some(7));
         assert_eq!(super::column_of("中文 搜索", "搜索"), Some(3));
         assert_eq!(super::column_of("none", "word"), None);
+    }
+
+    #[test]
+    fn folded_columns_match_the_original_character() {
+        for (line, query, column) in [
+            ("ASCII Word", "word", Some(6)),
+            ("İİ née Word", "word", Some(7)),
+            ("İx", "\u{307}", Some(0)),
+            ("İx", "x", Some(1)),
+            ("😀 WORD", "word", Some(2)),
+            ("", "", Some(0)),
+            ("中文", "missing", None),
+        ] {
+            assert_eq!(super::column_of(line, query), column, "{line:?}");
+        }
     }
 
     #[test]
