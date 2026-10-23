@@ -456,7 +456,7 @@ fn an_outside_change_asks_and_keep_mine_overwrites() {
     );
 }
 
-mod find;
+pub(crate) mod find;
 mod more;
 mod overlap;
 

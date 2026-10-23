@@ -4,8 +4,9 @@ use gpui::{Entity, Modifiers, MouseButton, Pixels, Point, TestAppContext, Visual
 
 use super::Pick;
 use crate::docs::Docs;
-use crate::tests::{blank, docs, settled, text_of, type_into, with_window, written};
-use ely_office::prelude::*;
+use crate::tests::find::{finder, total};
+use crate::tests::{blank, docs, settle, settled, text_of, type_into, with_window, written};
+use ely_office::{FindReplace, prelude::*};
 
 /// The view with the menu's host over it.
 struct Host(Entity<Docs>, Entity<LokView>);
@@ -114,4 +115,58 @@ fn link_follows_the_kernel_flag() {
     };
     assert!(Pick::Link.on(&menu(true)));
     assert!(!Pick::Link.on(&menu(false)), "protected text gets no link");
+}
+
+#[test]
+fn a_misspelled_word_offers_suggestions() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(|cx| {
+        ely_gpui_component::init_for_tests(cx);
+        Theme::update(cx, |theme| theme.reduced_motion = true);
+    });
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "Teh end");
+    with_window(&mut cx, &docs, |docs, window, cx| {
+        docs.on_find(&FindReplace, window, cx)
+    });
+    let query = finder(&cx, &docs, |finder| finder.query.clone());
+    cx.update(|app| query.update(app, |query, cx| query.set_text("Teh", cx)));
+    settle(&cx, |app| total(app, &docs) == Some(1));
+    let (x, y, _, h) = finder(&cx, &docs, |finder| finder.all[0]);
+    let view = cx.update(|app| docs.read(app).active_tab().expect("a tab").view.clone());
+    let window = cx.add_window(|_, _| Host(docs.clone(), view.clone()));
+    let mut shown = VisualTestContext::from_window(window.into(), &cx);
+    frames(&mut shown);
+    let at = shown.update(|_, app| view.read(app).window_point((x + 60, y + h / 2)));
+    // A left click drops the found selection.
+    shown.simulate_mouse_down(at, MouseButton::Left, Modifiers::none());
+    shown.simulate_mouse_up(at, MouseButton::Left, Modifiers::none());
+    settled(&cx, &docs);
+    right_click(&mut shown, &docs, at, Target::Text);
+    let rule = cx.update(|app| {
+        let offer = docs.read(app).offer.as_ref().expect("an offer");
+        let spelling = offer.what.spelling.as_ref().expect("a spelling menu");
+        let (_, rule) = spelling
+            .suggestions
+            .iter()
+            .find(|(label, _)| label == "The")
+            .expect("The is offered");
+        rule.clone()
+    });
+    cx.update(|app| docs.update(app, |docs, cx| docs.run_active("spell.apply", &[&rule], cx)));
+    settled(&cx, &docs);
+    let path = dir.path().join("spelled.odt");
+    with_window(&mut cx, &docs, |docs, window, cx| {
+        docs.write_as(id, path.clone(), None, window, cx)
+    });
+    written(&cx, &path, None);
+    assert!(
+        text_of(&mut cx, &docs, &path).contains("The end"),
+        "the suggestion lands"
+    );
 }

@@ -1,0 +1,34 @@
+Windows LOK: a grabbed window counts as focused
+
+LOK renders off screen. On Linux the headless backend tracks focus
+itself, so GrabFocus takes at once. Windows builds have no headless
+backend (it needs FreeType and fontconfig), so LOK runs on hidden Win32
+windows that never receive the system focus. GrabFocus then waits for a
+WM_SETFOCUS that never comes: the document window never has focus, no
+paragraph is FOCUSED, and the LOK accessibility listener drops every
+caret and selection change. Under LOK on Windows, treat the window as
+focused, so the grab switches focus inside the kernel.
+
+--- a/vcl/source/window/mouse.cxx
++++ b/vcl/source/window/mouse.cxx
+@@ -21,6 +21,7 @@
+ #include <config_feature_desktop.h>
+ #include <config_vclplug.h>
+ 
++#include <comphelper/lok.hxx>
+ #include <tools/time.hxx>
+ 
+ #include <LibreOfficeKit/LibreOfficeKitEnums.h>
+@@ -189,6 +190,12 @@ static bool IsWindowFocused(const WindowImpl& rWinImpl)
+     if (rWinImpl.mbFakeFocusSet)
+         return true;
+ 
++#ifdef _WIN32
++    // LOK's hidden Win32 windows never get the system focus.
++    if (comphelper::LibreOfficeKit::isActive())
++        return true;
++#endif
++
+     return false;
+ }
+ 

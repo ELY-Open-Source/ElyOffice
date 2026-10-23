@@ -5,7 +5,7 @@ use gpui::{AppContext as _, Entity, TestAppContext};
 use crate::docs::Docs;
 use crate::tests::{blank, docs, settle, settled, text_of, type_into, with_window, written};
 
-fn finder<R>(cx: &TestAppContext, docs: &Entity<Docs>, read: impl Fn(&Finder) -> R) -> R {
+pub(crate) fn finder<R>(cx: &TestAppContext, docs: &Entity<Docs>, read: impl Fn(&Finder) -> R) -> R {
     cx.update(|app| {
         read(
             docs.read(app)
@@ -17,7 +17,7 @@ fn finder<R>(cx: &TestAppContext, docs: &Entity<Docs>, read: impl Fn(&Finder) ->
     })
 }
 
-fn total(app: &gpui::App, docs: &Entity<Docs>) -> Option<usize> {
+pub(crate) fn total(app: &gpui::App, docs: &Entity<Docs>) -> Option<usize> {
     docs.read(app)
         .core
         .finder
@@ -82,69 +82,6 @@ fn find_counts_steps_replaces_and_counts_words() {
     written(&cx, &path, None);
     let text = text_of(&mut cx, &docs, &path);
     assert!(text.contains("cow Cat cow dog"), "the cased matches go");
-}
-
-#[test]
-fn a_misspelled_word_offers_suggestions() {
-    let dir = tempfile::tempdir().expect("a temp dir");
-    let mut cx = TestAppContext::single();
-    let Some(docs) = docs(&mut cx, dir.path()) else {
-        eprintln!("SKIP: no LOK build");
-        return;
-    };
-    let id = blank(&mut cx, &docs);
-    type_into(&mut cx, &docs, "Teh end");
-    with_window(&mut cx, &docs, |docs, window, cx| {
-        docs.on_find(&FindReplace, window, cx)
-    });
-    let query = finder(&cx, &docs, |finder| finder.query.clone());
-    cx.update(|app| query.update(app, |query, cx| query.set_text("Teh", cx)));
-    settle(&cx, |app| total(app, &docs) == Some(1));
-    let (x, y, _, h) = finder(&cx, &docs, |finder| finder.all[0]);
-    let (worker, doc) = cx.update(|app| {
-        let docs = docs.read(app);
-        (
-            docs.core.worker.clone(),
-            docs.active_tab().expect("a tab").doc.clone(),
-        )
-    });
-    {
-        let mut worker = worker.lock().expect("the worker lock");
-        for (kind, buttons) in [(0, 1), (1, 1), (0, 4), (1, 4)] {
-            let (x, y, count, modifiers) = (x + 60, y + h / 2, 1, 0);
-            let event = ely_lok::Mouse {
-                kind,
-                x,
-                y,
-                count,
-                buttons,
-                modifiers,
-            };
-            worker.post_mouse(&doc, event).expect("the click posts");
-        }
-    }
-    settle(&cx, |app| docs.read(app).offer.is_some());
-    let rule = cx.update(|app| {
-        let offer = docs.read(app).offer.as_ref().expect("an offer");
-        let spelling = offer.what.spelling.as_ref().expect("a spelling menu");
-        let (_, rule) = spelling
-            .suggestions
-            .iter()
-            .find(|(label, _)| label == "The")
-            .expect("The is offered");
-        rule.clone()
-    });
-    cx.update(|app| docs.update(app, |docs, cx| docs.run_active("spell.apply", &[&rule], cx)));
-    settled(&cx, &docs);
-    let path = dir.path().join("spelled.odt");
-    with_window(&mut cx, &docs, |docs, window, cx| {
-        docs.write_as(id, path.clone(), None, window, cx)
-    });
-    written(&cx, &path, None);
-    assert!(
-        text_of(&mut cx, &docs, &path).contains("The end"),
-        "the suggestion lands"
-    );
 }
 
 #[test]

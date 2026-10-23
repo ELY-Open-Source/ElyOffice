@@ -170,6 +170,8 @@ impl Worker {
         };
         // Calc reports in document twips; unipoll lends LOK's loop.
         command.env("SAL_LOK_OPTIONS", "unipoll:sc_print_twips_msgs");
+        // LOK spells no language off this list.
+        command.env("LOK_ALLOWLIST_LANGUAGES", "en");
         if dev {
             command.arg("--dev");
         }
