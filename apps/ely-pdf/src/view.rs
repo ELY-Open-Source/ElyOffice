@@ -328,15 +328,18 @@ impl PdfView {
         let laid = self.laid_out();
         if let Some(place) = laid.placed.iter().find(|place| place.page == page) {
             let (_, top, _, _) = rect_on([0.0, y, 0.0, y], self.sizes[page], self.rotate, laid.scale);
-            // Across: stay unless the page's left is out of view.
-            let (left, wide) = (-f32::from(self.scroll.offset().x), f32::from(self.room.size.width));
-            let x = match place.x >= left && place.x < left + wide {
-                true => left,
-                false => (place.x - crate::layout::GAP).max(0.0),
-            };
-            self.go_to = Some((x, (place.y + top - crate::layout::GAP * 2.0).max(0.0)));
+            self.go_to = Some((self.across(place), (place.y + top - crate::layout::GAP * 2.0).max(0.0)));
         }
         cx.notify();
+    }
+
+    /// Across: stay unless the page's left is out of view.
+    fn across(&self, place: &crate::layout::Placed) -> f32 {
+        let (left, wide) = (-f32::from(self.scroll.offset().x), f32::from(self.room.size.width));
+        match place.x >= left && place.x < left + wide {
+            true => left,
+            false => (place.x - crate::layout::GAP).max(0.0),
+        }
     }
 
     /// Every page tile goes; images are freed next render.
@@ -349,12 +352,37 @@ impl PdfView {
         }
     }
 
-    /// Changes how pages show; the page read stays in view.
+    /// Changes how pages show; the spot read stays put.
     pub fn change(&mut self, change: impl FnOnce(&mut Self, f32), cx: &mut Context<Self>) {
-        let scale = self.laid_out().scale;
-        change(self, scale);
+        // A scroll not yet drawn counts.
+        let offset = self.scroll.offset();
+        let (left, top) = self.go_to.unwrap_or((-f32::from(offset.x), -f32::from(offset.y)));
+        let laid = self.laid_out();
+        // The page nearest the top left: across first, then down.
+        let near = |place: &crate::layout::Placed| {
+            let across = (place.x - left).max(left - place.x - place.w).max(0.0);
+            (across, (place.y - top).max(0.0))
+        };
+        let anchor = (laid.placed.iter().filter(|place| place.y + place.h > top))
+            .min_by(|a, b| near(a).partial_cmp(&near(b)).expect("finite places"));
+        // Down the page as a share; above it in pixels.
+        let (anchor, spot) = anchor.map_or((self.current, (0.0, 0.0, 0.0)), |place| {
+            let down = ((top - place.y) / place.h).max(0.0);
+            (place.page, ((left - place.x) / place.w, down, (top - place.y).min(0.0)))
+        });
+        change(self, laid.scale);
         self.retire_tiles();
-        self.show(self.current, 0.0, cx);
+        let laid = self.laid_out();
+        // Else the page read, at its top.
+        let held = match laid.placed.iter().find(|place| place.page == anchor) {
+            Some(place) => Some((place, spot)),
+            None => laid.placed.iter().find(|place| place.page == self.current).map(|place| (place, (spot.0, 0.0, 0.0))),
+        };
+        if let Some((place, (x, down, above))) = held {
+            self.go_to = Some(((place.x + x * place.w).max(0.0), (place.y + down * place.h + above).max(0.0)));
+            log::info!("pdf: view changed; page {} held at {x:.2}, {down:.2}, {above:.0} px at scale {:.2}", place.page + 1, laid.scale);
+        }
+        cx.notify();
     }
 
     /// Ctrl (Cmd on macOS) and the wheel step the zoom.

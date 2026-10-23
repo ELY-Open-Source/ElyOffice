@@ -5,6 +5,7 @@ use gpui::{Entity, Modifiers, ScrollDelta, ScrollWheelEvent, TestAppContext, Vis
 
 use super::{file, frames, settle, shown, windowed};
 use crate::layout::{Mode, Zoom};
+use ely_gpui_component::shell::ZoomStep;
 use crate::view::PdfView;
 use crate::viewer::Viewer;
 
@@ -220,4 +221,130 @@ fn the_status_bar_steps_the_zoom() {
     assert_eq!(units(cx), 0, "actual size draws 100");
     cx.update(|_, app| view.update(app, |view, cx| view.change(|view, _| view.zoom = Zoom::Scale(1.25 * crate::layout::ACTUAL), cx)));
     assert_eq!(units(cx), 5, "125% draws 125");
+}
+
+#[test]
+fn a_zoom_keeps_the_spot_on_the_page_at_the_top() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let page: (f32, f32, &[&str]) = (612.0, 792.0, &["p"]);
+    let path = file(dir.path(), "ten.pdf", &[page; 10]);
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
+    let view = shown(cx, &viewer);
+    settle(cx, |app| view.read(app).room.size.width > px(100.0));
+    let at = cx.update(|_, app| view.read(app).room.center());
+    for _ in 0..8 {
+        cx.simulate_event(ScrollWheelEvent { position: at, delta: ScrollDelta::Pixels(point(px(0.0), px(-500.0))), ..Default::default() });
+        frames(cx);
+    }
+    let before = spot(cx, &view);
+    assert!(before.0 >= 1 && before.2 > 50.0, "partway into a later page: {before:?}");
+    for step in [ZoomStep::In, ZoomStep::In, ZoomStep::Out] {
+        cx.update(|_, app| viewer.update(app, |viewer, cx| crate::keys::zoom(viewer, step, cx)));
+        frames(cx);
+        let after = spot(cx, &view);
+        assert!(same(after, before), "{step:?} keeps the spot: {before:?} -> {after:?}");
+    }
+    // Two steps before a frame, as one fast wheel.
+    cx.update(|_, app| {
+        for _ in 0..2 {
+            viewer.update(app, |viewer, cx| crate::keys::zoom(viewer, ZoomStep::Out, cx));
+        }
+    });
+    frames(cx);
+    let after = spot(cx, &view);
+    assert!(same(after, before), "two quick steps keep the spot: {before:?} -> {after:?}");
+}
+
+/// The page under the top edge, and its spot there.
+fn spot(cx: &mut VisualTestContext, view: &Entity<PdfView>) -> (usize, f32, f32, f32) {
+    cx.update(|_, app| {
+        let view = view.read(app);
+        let (laid, offset) = (view.laid_out(), view.scroll.offset());
+        let (left, top) = (-f32::from(offset.x), -f32::from(offset.y));
+        let below = || laid.placed.iter().filter(|p| p.y + p.h > top);
+        let column = below().filter(|p| p.x <= left && p.x + p.w > left).min_by(|a, b| a.y.total_cmp(&b.y));
+        let place = column.or_else(|| below().next()).expect("a page at the top");
+        (place.page, (left - place.x) / laid.scale, (top - place.y) / laid.scale, laid.scale)
+    })
+}
+
+/// Same spot; across only when panned in, above in pixels.
+fn same(a: (usize, f32, f32, f32), b: (usize, f32, f32, f32)) -> bool {
+    let down = match b.2 < 0.0 {
+        true => (a.2 * a.3 - b.2 * b.3).abs() < 0.5,
+        false => (a.2 - b.2).abs() < 0.5,
+    };
+    a.0 == b.0 && (b.1 < 0.0 || (a.1 - b.1).abs() < 0.5) && down
+}
+
+/// `pages` at scale 2, held at `at` on `page`.
+fn held<'a>(
+    cx: &'a mut TestAppContext,
+    dir: &std::path::Path,
+    pages: &[(f32, f32, &[&str])],
+    (mode, page): (Mode, usize),
+    at: (f32, f32),
+) -> (Entity<Viewer>, &'a mut VisualTestContext, Entity<PdfView>) {
+    let (viewer, cx) = windowed(cx, dir, &[file(dir, "held.pdf", pages)], true);
+    let view = shown(cx, &viewer);
+    settle(cx, |app| view.read(app).room.size.width > px(100.0));
+    cx.update(|_, app| view.update(app, |view, cx| view.change(|view, _| (view.zoom, view.mode) = (Zoom::Scale(2.0), mode), cx)));
+    frames(cx);
+    cx.update(|_, app| view.update(app, |view, cx| {
+        let place = *view.laid_out().placed.iter().find(|p| p.page == page).expect("the page");
+        view.go_to = Some((place.x + at.0 * 2.0, place.y + at.1 * 2.0));
+        cx.notify();
+    }));
+    frames(cx);
+    (viewer, cx, view)
+}
+
+#[test]
+fn zooming_out_near_a_page_bottom_keeps_the_spot() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx, view) = held(&mut cx, dir.path(), &[(612.0, 792.0, &["p"] as &[&str]); 10], (Mode::Continuous, 1), (0.0, 764.5));
+    let before = spot(cx, &view);
+    assert_eq!((before.0, before.2), (1, 764.5), "near page 2's bottom");
+    for _ in 0..2 {
+        cx.update(|_, app| viewer.update(app, |viewer, cx| crate::keys::zoom(viewer, ZoomStep::Out, cx)));
+        frames(cx);
+        let after = spot(cx, &view);
+        assert!(same(after, before), "a step out keeps the spot: {before:?} -> {after:?}");
+    }
+}
+
+#[test]
+fn a_zoom_keeps_the_spot_across() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx, view) = held(&mut cx, dir.path(), &[(1200.0, 792.0, &["p"] as &[&str]); 10], (Mode::Continuous, 1), (200.0, 284.0));
+    let before = spot(cx, &view);
+    assert!(before.1 > 150.0, "panned into the page: {before:?}");
+    cx.update(|_, app| viewer.update(app, |viewer, cx| crate::keys::zoom(viewer, ZoomStep::In, cx)));
+    frames(cx);
+    let after = spot(cx, &view);
+    assert!(same(after, before), "a step in keeps the spot across: {before:?} -> {after:?}");
+}
+
+#[test]
+fn a_zoom_on_the_right_hand_page_keeps_its_spot() {
+    // Wide enough to pan into the right-hand page.
+    let short: (f32, f32, &[&str]) = (1000.0, 200.0, &["p"]);
+    let letter: (f32, f32, &[&str]) = (1000.0, 792.0, &["p"]);
+    for pages in [[letter; 10], [short, letter, short, letter, short, letter, short, letter, short, letter]] {
+        // On the page, then in the gap above its row.
+        for at in [(100.0, 50.0), (100.0, -4.0)] {
+            let dir = tempfile::tempdir().expect("a temp dir");
+            let mut cx = TestAppContext::single();
+            let (viewer, cx, view) = held(&mut cx, dir.path(), &pages, (Mode::Two, 3), at);
+            let before = spot(cx, &view);
+            assert_eq!(before.0, 3, "by the right-hand page: {before:?}");
+            cx.update(|_, app| viewer.update(app, |viewer, cx| crate::keys::zoom(viewer, ZoomStep::In, cx)));
+            frames(cx);
+            let after = spot(cx, &view);
+            assert!(same(after, before), "a step in at {at:?} keeps the spot: {before:?} -> {after:?}");
+        }
+    }
 }
