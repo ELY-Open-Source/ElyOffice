@@ -246,3 +246,131 @@ fn the_window_closes_its_tabs_off_the_window() {
     }
     panic!("the window stayed");
 }
+
+/// Each page's text, as the open file holds it now.
+fn order(cx: &mut VisualTestContext, viewer: &Entity<Viewer>, view: &Entity<PdfView>) -> Vec<String> {
+    let (worker, doc) = cx.update(|_, app| (viewer.read(app).core.worker.clone(), view.read(app).doc));
+    let mut worker = worker.lock().expect("the lock");
+    let worker = worker.get().expect("a worker");
+    (0..3).map(|page| worker.text(doc, page).expect("reads").iter().map(|c| c.c).collect()).collect()
+}
+
+/// A point in one half of row `page`.
+fn half(cx: &mut VisualTestContext, page: usize, low: bool) -> gpui::Point<gpui::Pixels> {
+    const ROWS: [&str; 3] = ["pdf-thumb-0", "pdf-thumb-1", "pdf-thumb-2"];
+    let row = cx.debug_bounds(ROWS[page]).expect("the row");
+    gpui::point(row.center().x, if low { row.bottom() - gpui::px(10.0) } else { row.top() + gpui::px(10.0) })
+}
+
+/// Presses row one, moves through `path`, lets go at `end`.
+fn drag(cx: &mut VisualTestContext, view: &Entity<PdfView>, path: &[gpui::Point<gpui::Pixels>], end: gpui::Point<gpui::Pixels>) {
+    use gpui::{Modifiers, MouseButton};
+    frames(cx);
+    let start = cx.debug_bounds("pdf-thumb-0").expect("the dragged row").center();
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    for at in path {
+        cx.simulate_mouse_move(*at, MouseButton::Left, Modifiers::none());
+    }
+    cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::none());
+    settle(cx, |app| view.read(app).settled());
+    frames(cx);
+}
+
+#[test]
+fn a_dragged_row_lands_where_it_is_let_go() {
+    // Path and release: row and half for each.
+    let cases: [(&[(usize, bool)], (usize, bool), [&str; 3]); 4] = [
+        (&[(1, true)], (1, true), ["two", "one", "three"]),
+        (&[(1, false)], (1, true), ["two", "one", "three"]),
+        (&[(2, true)], (2, true), ["two", "three", "one"]),
+        (&[(1, false)], (1, false), ["one", "two", "three"]),
+    ];
+    for (path, end, want) in cases {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let mut cx = TestAppContext::single();
+        let (viewer, cx, view) = three(&mut cx, dir.path());
+        frames(cx);
+        let path: Vec<_> = path.iter().map(|(page, low)| half(cx, *page, *low)).collect();
+        let end = half(cx, end.0, end.1);
+        drag(cx, &view, &path, end);
+        assert_eq!(order(cx, &viewer, &view), want, "{path:?} then {end:?}");
+        assert_eq!(dirty(cx, &viewer), want[0] != "one", "only a move edits");
+    }
+}
+
+#[test]
+fn a_drag_let_go_off_the_list_leaves_nothing_behind() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx, view) = three(&mut cx, dir.path());
+    frames(cx);
+    let (last, page) = (half(cx, 2, true), cx.update(|_, app| view.read(app).room.center()));
+    drag(cx, &view, &[last], page);
+    // A short drag inside its own row.
+    let start = cx.debug_bounds("pdf-thumb-0").expect("the row").center();
+    let near = start + gpui::point(gpui::px(0.0), gpui::px(8.0));
+    drag(cx, &view, &[near], near);
+    assert_eq!(order(cx, &viewer, &view), ["one", "two", "three"]);
+    assert!(!dirty(cx, &viewer), "nothing moved");
+}
+
+#[test]
+fn the_line_follows_the_hand_and_goes_with_the_drag() {
+    use gpui::{Modifiers, MouseButton, px};
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx, view) = three(&mut cx, dir.path());
+    frames(cx);
+    let start = cx.debug_bounds("pdf-thumb-0").expect("the row").center();
+    let move_to = |cx: &mut VisualTestContext, at| {
+        cx.simulate_mouse_move(at, MouseButton::Left, Modifiers::none());
+        frames(cx);
+        cx.debug_bounds("pdf-drop").map(|line| line.center().y)
+    };
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    let row = cx.debug_bounds("pdf-thumb-1").expect("page two");
+    for (at, edge, said) in [(half(cx, 1, true), row.bottom(), "below page two"), (half(cx, 1, false), row.top(), "above page two")] {
+        let line = move_to(cx, at).expect(said);
+        assert!((line - edge).abs() < px(2.0), "{said}: {line:?} by {edge:?}");
+    }
+    let page = cx.update(|_, app| view.read(app).room.center());
+    assert_eq!(move_to(cx, page), None, "no line off the list");
+    cx.simulate_mouse_up(page, MouseButton::Left, Modifiers::none());
+    frames(cx);
+    assert!(!dirty(cx, &viewer), "let go off the list");
+    // Let go on the list; the line goes.
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    let low = half(cx, 1, true);
+    assert!(move_to(cx, low).is_some(), "a line after one move");
+    cx.simulate_mouse_up(low, MouseButton::Left, Modifiers::none());
+    settle(cx, |app| view.read(app).settled());
+    frames(cx);
+    assert_eq!(cx.debug_bounds("pdf-drop"), None, "no line after the drop");
+}
+
+#[test]
+fn a_drop_in_place_picks_and_anchors_the_dragged_page() {
+    use gpui::{Modifiers, MouseButton};
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx, view) = three(&mut cx, dir.path());
+    frames(cx);
+    let click = |cx: &mut VisualTestContext, page: &'static str, keys: Modifiers| {
+        let at = cx.debug_bounds(page).expect("the row").center();
+        cx.simulate_click(at, keys);
+        frames(cx);
+    };
+    click(cx, "pdf-thumb-0", Modifiers::none());
+    // A short drag of page three, in its own row.
+    let start = cx.debug_bounds("pdf-thumb-2").expect("the row").center();
+    let near = start + gpui::point(gpui::px(0.0), gpui::px(8.0));
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_move(near, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_up(near, MouseButton::Left, Modifiers::none());
+    settle(cx, |app| view.read(app).settled());
+    frames(cx);
+    assert!(!dirty(cx, &viewer), "nothing moved");
+    click(cx, "pdf-thumb-1", Modifiers::shift());
+    let picked: Vec<usize> = cx.update(|_, app| view.read(app).picked.iter().copied().collect());
+    assert_eq!(picked, [1, 2], "shift reaches from the dropped page");
+}

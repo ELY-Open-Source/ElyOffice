@@ -97,6 +97,8 @@ pub struct PdfView {
     /// Pages picked in the side panel, and the anchor.
     pub picked: BTreeSet<usize>,
     pub anchor: Option<usize>,
+    /// The drop zone under a drag: page, lower half.
+    pub aimed: Option<(usize, bool)>,
     pub tool: crate::content::Tool,
     /// What pages hold, read while editing.
     pub layers: crate::content::Layers,
@@ -217,6 +219,7 @@ impl PdfView {
             thumbing: false,
             picked: BTreeSet::new(),
             anchor: None,
+            aimed: None,
             tool: crate::content::Tool::Read,
             layers: HashMap::new(),
             reading_layer: false,

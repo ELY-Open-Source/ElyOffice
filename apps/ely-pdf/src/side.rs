@@ -163,7 +163,8 @@ fn row(view: &Entity<PdfView>, page: usize, cx: &App) -> gpui::AnyElement {
     let picture = read.picture(page);
     let count = read.sizes.len();
     let label = Viewer::text(cx, "pdf.page.label", &[("n", &(page + 1).to_string())]);
-    let (clicked, pressed, dropped) = (view.clone(), view.clone(), view.clone());
+    let (clicked, pressed, started) = (view.clone(), view.clone(), view.clone());
+    let aim = read.aimed.filter(|_| cx.has_active_drag());
     let dragged = Dragged {
         view: view.entity_id(),
         pages: if picked { read.picked.clone() } else { BTreeSet::from([page]) },
@@ -171,7 +172,9 @@ fn row(view: &Entity<PdfView>, page: usize, cx: &App) -> gpui::AnyElement {
     let ghost = label.clone();
     let height = (h * WIDTH / w).min(ROW - 24.0);
     div()
+        .relative()
         .id(("pdf-thumb", page))
+        .debug_selector(move || format!("pdf-thumb-{page}"))
         .w_full()
         .h(px(ROW))
         .tab_index(0)
@@ -193,16 +196,15 @@ fn row(view: &Entity<PdfView>, page: usize, cx: &App) -> gpui::AnyElement {
                 }
             })
         })
-        .on_drag(dragged, move |_, _, _, cx| DragGhost::new(ghost.clone(), None, cx))
-        .on_drop(move |drag: &Dragged, _, cx| {
-            if drag.view != dropped.entity_id() {
-                return;
-            }
-            let pages = drag.pages.clone();
-            dropped.update(cx, |view, cx| {
-                view.picked = pages;
-                view.move_to(page, cx);
-            })
+        .on_drag(dragged, move |_, _, window, cx| {
+            started.update(cx, |view, _| view.aimed = None);
+            // The move that starts a drag missed the zones.
+            window.defer(cx, |window, cx| {
+                let (position, modifiers) = (window.mouse_position(), window.modifiers());
+                let event = gpui::MouseMoveEvent { position, pressed_button: Some(gpui::MouseButton::Left), modifiers };
+                window.dispatch_event(gpui::PlatformInput::MouseMove(event), cx);
+            });
+            DragGhost::new(ghost.clone(), None, cx)
         })
         .child(
             div()
@@ -214,12 +216,52 @@ fn row(view: &Entity<PdfView>, page: usize, cx: &App) -> gpui::AnyElement {
                 .when_some(picture, |frame, picture| frame.child(img(picture).size_full())),
         )
         .child(div().text_xs().text_color(colors.fg_subtle).child((page + 1).to_string()))
+        .child(zone(view, (page, false), aim, cx))
+        .child(zone(view, (page + 1, true), aim, cx))
         .role(Role::ListItem)
         .aria_label(label)
         .aria_selected(picked)
         .aria_position_in_set(page + 1)
         .aria_size_of_set(count)
         .into_any_element()
+}
+
+/// Half a row: drops land before page `to`.
+fn zone(view: &Entity<PdfView>, (to, low): (usize, bool), aim: Option<(usize, bool)>, cx: &App) -> gpui::Div {
+    let (aimed, dropped) = (view.clone(), view.clone());
+    let zone = div().absolute().left_0().w_full().h(gpui::relative(0.5));
+    let line = div().debug_selector(|| "pdf-drop".into()).absolute().left_0().w_full().h(px(2.0)).bg(cx.theme().colors.focus);
+    let (zone, line) = if low { (zone.bottom_0(), line.bottom_0()) } else { (zone.top_0(), line.top_0()) };
+    zone.when(aim == Some((to, low)), |zone| zone.child(line))
+        .on_drag_move(move |event: &gpui::DragMoveEvent<Dragged>, _, cx| {
+            if event.drag(cx).view != aimed.entity_id() {
+                return;
+            }
+            let over = event.bounds.contains(&event.event.position);
+            aimed.update(cx, |view, cx| {
+                let now = match over {
+                    true => Some((to, low)),
+                    false if view.aimed == Some((to, low)) => None,
+                    false => view.aimed,
+                };
+                if now != view.aimed {
+                    view.aimed = now;
+                    cx.notify();
+                }
+            })
+        })
+        .on_drop(move |drag: &Dragged, _, cx| {
+            if drag.view != dropped.entity_id() {
+                return;
+            }
+            let pages = drag.pages.clone();
+            dropped.update(cx, |view, cx| {
+                view.anchor = pages.first().copied();
+                view.picked = pages;
+                cx.notify();
+                view.move_to(to, cx);
+            })
+        })
 }
 
 impl Render for Side {

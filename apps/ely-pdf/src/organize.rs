@@ -1,6 +1,6 @@
 //! Page organizing: insert, delete, move, turn, undo (PDF-02).
 
-use std::path::PathBuf;
+use std::{collections::BTreeSet, path::PathBuf};
 
 use ely_gpui_component::primitives::Severity;
 use ely_office::{Closing as _, Tabs as _};
@@ -80,7 +80,10 @@ impl PdfView {
     pub fn move_to(&mut self, to: usize, cx: &mut Context<Self>) {
         let pages = self.chosen_pages();
         let before = pages.iter().filter(|page| **page < to).count();
-        let landed = (to - before..to - before + pages.len()).collect();
+        let landed: BTreeSet<usize> = (to - before..to - before + pages.len()).collect();
+        if landed.iter().eq(pages.iter()) {
+            return log::info!("pdf: pages already at {to}; nothing moves");
+        }
         self.queue_edit("moving pages", Some(landed), true, move |worker, doc| worker.move_pages(doc, &pages, to), cx);
     }
 }
