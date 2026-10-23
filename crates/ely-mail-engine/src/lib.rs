@@ -12,6 +12,7 @@ mod net;
 pub mod oauth;
 pub mod page;
 mod pop;
+mod proxy;
 pub mod push;
 pub mod sent;
 mod smtp;

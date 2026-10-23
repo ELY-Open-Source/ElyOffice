@@ -70,6 +70,7 @@ pub(super) async fn post(
 fn send(url: &str, form: &[(&'static str, String)]) -> Result<(u16, String)> {
     let agent: Agent = Agent::config_builder()
         .timeout_global(Some(TIMEOUT))
+        .proxy(crate::proxy::for_web()?)
         .http_status_as_error(false)
         .build()
         .into();

@@ -64,12 +64,13 @@ pub(crate) async fn within<T>(step: &'static str, work: impl Future<Output = T>)
 }
 
 pub(crate) async fn tcp(server: &Server) -> Result<TcpStream> {
-    let stream = within(
-        "connecting",
-        TcpStream::connect((server.host.as_str(), server.port)),
-    )
-    .await?
-    .map_err(Error::Connect)?;
+    let host = server.host.as_str();
+    let stream = match crate::proxy::for_host(host)? {
+        Some(route) => within("connecting through the proxy", crate::proxy::tunnel(&route, host, server.port)).await??,
+        None => within("connecting", TcpStream::connect((host, server.port)))
+            .await?
+            .map_err(Error::Connect)?,
+    };
     log::info!("mail: connected to {}:{}", server.host, server.port);
     Ok(stream)
 }

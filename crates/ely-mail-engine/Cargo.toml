@@ -21,6 +21,7 @@ mail-send.workspace = true
 markdown.workspace = true
 mime_guess = "2"
 nom.workspace = true
+percent-encoding = "2"
 rustls.workspace = true
 rustls-platform-verifier.workspace = true
 rusqlite.workspace = true
@@ -35,6 +36,9 @@ ureq.workspace = true
 [dependencies.keyring]
 version = "3"
 features = ["apple-native", "windows-native"]
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
 
 [target.'cfg(target_os = "linux")'.dependencies.keyring]
 version = "3"

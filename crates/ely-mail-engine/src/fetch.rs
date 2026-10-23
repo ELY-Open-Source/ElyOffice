@@ -18,6 +18,7 @@ pub fn picture(url: &str) -> Result<(String, Vec<u8>)> {
     }
     let agent: Agent = Agent::config_builder()
         .timeout_global(Some(TIMEOUT))
+        .proxy(crate::proxy::for_web()?)
         .build()
         .into();
     let mut response = agent
