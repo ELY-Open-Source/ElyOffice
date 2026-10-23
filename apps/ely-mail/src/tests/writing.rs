@@ -161,7 +161,7 @@ fn a_message_is_built_with_its_hidden_copies_off_the_page() {
         to: vec![mailbox("ann@example.com")],
         cc: vec![mailbox("ANN@example.com"), mailbox("cy@example.com")],
         bcc: vec![mailbox("hidden@example.com")],
-        subject: "Plans".into(),
+        subject: "Plans bcc marker".into(),
         words: "**Friday** then".into(),
         markdown: true,
         signature: "Bo".into(),
@@ -180,9 +180,15 @@ fn a_message_is_built_with_its_hidden_copies_off_the_page() {
     let raw = String::from_utf8_lossy(&bytes);
     // Not "bcc" anywhere: a hex Message-ID may hold it.
     let head = &raw[..raw.find("\r\n\r\n").expect("a header end")];
-    assert!(!head.lines().any(|line| line.to_ascii_lowercase().starts_with("bcc:")), "{raw}");
+    assert!(
+        !head
+            .lines()
+            .any(|line| line.to_ascii_lowercase().starts_with("bcc:")),
+        "{raw}"
+    );
     assert!(!raw.contains("hidden@example.com"), "{raw}");
     let sent = read(&bytes).unwrap();
+    assert_eq!(sent.subject.as_deref(), Some("Plans bcc marker"));
     assert_eq!(sent.from[0].name.as_deref(), Some("Bo Lee"));
     let text = sent.text.unwrap().replace("\r\n", "\n");
     assert_eq!(text.trim_end(), "**Friday** then\n\n-- \nBo");

@@ -238,7 +238,7 @@ fn the_sent_form_loses_only_its_hidden_copies() {
         to: vec![person("bo@example.com")],
         cc: Vec::new(),
         bcc: vec![person("cy@example.com"), person("di@example.com")],
-        subject: "Plan".into(),
+        subject: "Plan bcc marker".into(),
         text: "Bcc: not a header\r\n".into(),
         html: None,
         attachments: Vec::new(),
@@ -254,8 +254,12 @@ fn the_sent_form_loses_only_its_hidden_copies() {
     };
     assert!(head(&built.bytes).contains("cy@example.com"));
     assert!(!head(&sent).contains("cy@example.com"), "{}", head(&sent));
-    assert!(!head(&sent).to_ascii_lowercase().contains("bcc"));
+    assert!(!head(&sent).lines().any(|line| {
+        line.split_once(':')
+            .is_some_and(|(name, _)| name.eq_ignore_ascii_case("bcc"))
+    }));
     let read = read(&sent).unwrap();
+    assert_eq!(read.subject.as_deref(), Some("Plan bcc marker"));
     assert_eq!(read.message_id.as_deref(), Some(built.message_id.as_str()));
     assert_eq!(read.to, [person("bo@example.com")]);
     assert!(
