@@ -352,8 +352,9 @@ mod tests {
     #[test]
     fn targets_skip_hidden_slides_and_pad_numbers() {
         let hidden = [false, true, false, false, false, false, false, false, false, false];
-        let files = targets(&hidden, Some((1, 3)), (std::path::Path::new("/out"), "deck"));
-        let names: Vec<String> = files.iter().map(|(_, p)| p.display().to_string()).collect();
-        assert_eq!(names, ["/out/deck-01.png", "/out/deck-03.png"]);
+        let out = std::path::Path::new("/out");
+        let files = targets(&hidden, Some((1, 3)), (out, "deck"));
+        let paths: Vec<&std::path::Path> = files.iter().map(|(_, p)| p.as_path()).collect();
+        assert_eq!(paths, [out.join("deck-01.png"), out.join("deck-03.png")]);
     }
 }

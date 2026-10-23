@@ -384,7 +384,7 @@
 - [x] R12.31 Windows 上旧有的测试失败（用户定：全部修完）：ely-lok `spelling_suggests_and_ignores`、`a11y_follows_the_focused_paragraph`；ElyDoc `a_misspelled_word_offers_suggestions`。根因二：LOK 未设 `LOK_ALLOWLIST_LANGUAGES` 即关掉拼写、断字、同义词（只 macOS 走系统拼写），worker 设 `en`；Windows 内核无无头后端，隐藏的 Win32 窗口不得焦点，段落不 FOCUSED，插入点与选区的无障碍事件全丢，补丁 0057（只 `_WIN32`）令 LOK 下窗口算作有焦点，Windows 内核已重建。ElyDoc 拼写测试改在画出的视图上先左键再右键。实测：两个拼写测试去掉白名单即失败；a11y 测试打补丁前失败、后通过；ely-lok 222、ely-office、ElyDoc 59 全过，ElyTable、ElyShow 只剩 R12.33、R12.34 的旧失败
 - [x] R12.32 ElyDoc `a_kernel_write_failure_stays_visible`（测试的临时文件被另一进程占着）。根因：测试删掉工作目录来让写入失败，Windows 不许删内核开着文件的目录。改为在内核写副本的 `save.docx` 处放一个文件夹，三端都令写入失败，工作目录不动。实测：Windows 通过；去掉那个文件夹，测试即失败
 - [x] R12.33 ElyTable `right_clicks_open_excel_rows_on_cells_and_headers`（不出菜单）。根因：测试的 `right_click` 清掉菜单后不画一帧就点，gpui 按上一帧命中，第一回开在 A2 的弹出层还在 A2 上，吃掉第二次右键，视图收不到按下。改为清掉后先画帧。实测：探针显示第二次按下未到视图；加画帧后通过，去掉即失败；ElyTable 65 个全过。产品不受影响：用户点菜单行即关，下次点击前早已重画
-- [ ] R12.34 ElyShow `targets_skip_hidden_slides_and_pad_numbers`（Windows 路径分隔符）
+- [x] R12.34 ElyShow `targets_skip_hidden_slides_and_pad_numbers`（Windows 路径分隔符）。根因：测试比对路径的显示字符串，写死 `/`，Windows 上 `join` 用 `\`。改为与 `join` 出的路径比对，目录与文件名都核对。实测：通过；去掉补零即失败；ElyShow 95 个全过
 - [ ] R12.35 ElyPDF `a_failed_read_is_not_asked_again`、`a_signed_file_lists_its_checks_and_saves_as_a_copy`、`a_save_writes_the_edits_and_undo_after_it_is_unsaved_again`
 - [ ] R12.36 ElyTree 在 Windows 上八个测试失败（git 工作树）
 - [ ] R12.37 组件库换 pin：`MailList` 滚动条（R12.28）、`Slider` 重复点同值、字体对话框聚焦字段（`focus_first`）
