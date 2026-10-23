@@ -179,4 +179,45 @@ fn a_default_zoom_opens_each_file_at_it() {
         let view = shown(cx, &viewer);
         assert_eq!(cx.update(|_, app| view.read(app).zoom), opened, "{chosen:?}");
     }
+    let view = shown(cx, &viewer);
+    assert_eq!(cx.update(|_, app| view.read(app).percent()), 150, "150% shows as 150");
+}
+
+/// The units digit the zoom control draws.
+fn units(cx: &mut VisualTestContext) -> usize {
+    const DIGITS: [&str; 10] = ["rolling-0", "rolling-1", "rolling-2", "rolling-3", "rolling-4", "rolling-5", "rolling-6", "rolling-7", "rolling-8", "rolling-9"];
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    frames(cx);
+    // The last cell drawn holds the units.
+    let cell = cx.debug_bounds("rolling-cell").expect("the control's digits");
+    (0..10)
+        .find(|&d| cx.debug_bounds(DIGITS[d]).is_some_and(|b| (b.top() - cell.top()).abs() < px(0.5)))
+        .expect("one digit in view")
+}
+
+#[test]
+fn the_status_bar_steps_the_zoom() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx) = super::opened(&mut cx, dir.path());
+    cx.update(|_, app| ely_gpui_component::theme::Theme::update(app, |theme| theme.reduced_motion = true));
+    let view = shown(cx, &viewer);
+    settle(cx, |app| view.read(app).room.size.width > px(100.0));
+    let scale = |cx: &mut VisualTestContext| cx.update(|_, app| view.read(app).laid_out().scale);
+    let press = |cx: &mut VisualTestContext, x: fn(gpui::Bounds<gpui::Pixels>) -> gpui::Pixels| {
+        let bar = cx.debug_bounds("pdf-zoom").expect("the zoom control");
+        cx.simulate_click(point(x(bar), bar.center().y), Modifiers::none());
+        frames(cx);
+    };
+    let start = scale(cx);
+    // Minus left, percent between, plus right.
+    press(cx, |bar| bar.left() + px(8.0));
+    assert_eq!(scale(cx), crate::keys::stepped(start, false), "minus steps down");
+    press(cx, |bar| bar.right() - px(8.0));
+    assert_eq!(scale(cx), crate::keys::stepped(crate::keys::stepped(start, false), true), "plus steps up");
+    press(cx, |bar| bar.center().x);
+    assert_eq!(cx.update(|_, app| view.read(app).zoom), Zoom::Scale(crate::layout::ACTUAL), "the percent is actual size");
+    assert_eq!(units(cx), 0, "actual size draws 100");
+    cx.update(|_, app| view.update(app, |view, cx| view.change(|view, _| view.zoom = Zoom::Scale(1.25 * crate::layout::ACTUAL), cx)));
+    assert_eq!(units(cx), 5, "125% draws 125");
 }

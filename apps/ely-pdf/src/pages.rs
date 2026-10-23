@@ -93,6 +93,11 @@ impl PdfView {
         layout(&self.sizes, self.rotate, (self.mode, self.zoom), room, self.current)
     }
 
+    /// Percent of actual size, as the default zoom.
+    pub fn percent(&self) -> u32 {
+        (self.laid_out().scale / crate::layout::ACTUAL * 100.0).round() as u32
+    }
+
     /// A window point as (page, point on it), if any.
     pub fn page_at(&self, at: Point<Pixels>) -> Option<(usize, (f32, f32))> {
         let laid = self.laid_out();

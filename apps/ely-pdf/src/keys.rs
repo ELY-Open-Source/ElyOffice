@@ -1,5 +1,6 @@
 //! Menus and keys of the viewer (PDF-01).
 
+use ely_gpui_component::shell::ZoomStep;
 use ely_ui::commands;
 use gpui::{
     App, Context, Div, InteractiveElement as _, KeyBinding, Menu, MenuItem, Window, actions,
@@ -87,6 +88,16 @@ pub fn menus(cx: &App) -> Vec<Menu> {
     .collect()
 }
 
+/// A zoom step: key, menu or status bar.
+pub fn zoom(viewer: &Viewer, step: ZoomStep, cx: &mut App) {
+    let to = move |now| match step {
+        ZoomStep::In => stepped(now, true),
+        ZoomStep::Out => stepped(now, false),
+        ZoomStep::Reset => ACTUAL,
+    };
+    viewer.on_view(|view, cx| view.change(|view, now| view.zoom = Zoom::Scale(to(now)), cx), cx);
+}
+
 /// The next zoom step up or down from `now`.
 pub fn stepped(now: f32, up: bool) -> f32 {
     match up {
@@ -106,15 +117,7 @@ pub fn on(root: Div, cx: &mut Context<Viewer>) -> Div {
         change(|view, _| view.mode = Mode::Single),
         change(|view, _| view.mode = Mode::Two),
     );
-    let (width, page, actual) = (
-        change(|view, _| view.zoom = Zoom::Width),
-        change(|view, _| view.zoom = Zoom::Page),
-        change(|view, _| view.zoom = Zoom::Scale(ACTUAL)),
-    );
-    let (zoom_in, zoom_out) = (
-        change(|view, now| view.zoom = Zoom::Scale(stepped(now, true))),
-        change(|view, now| view.zoom = Zoom::Scale(stepped(now, false))),
-    );
+    let (width, page) = (change(|view, _| view.zoom = Zoom::Width), change(|view, _| view.zoom = Zoom::Page));
     let (right, left) = (
         change(|view, _| view.rotate = (view.rotate + 90) % 360),
         change(|view, _| view.rotate = (view.rotate + 270) % 360),
@@ -125,9 +128,9 @@ pub fn on(root: Div, cx: &mut Context<Viewer>) -> Div {
         .on_action(cx.listener(move |v, _: &TwoPages, _, cx| two(v, cx)))
         .on_action(cx.listener(move |v, _: &FitWidth, _, cx| width(v, cx)))
         .on_action(cx.listener(move |v, _: &FitPage, _, cx| page(v, cx)))
-        .on_action(cx.listener(move |v, _: &ActualSize, _, cx| actual(v, cx)))
-        .on_action(cx.listener(move |v, _: &ZoomIn, _, cx| zoom_in(v, cx)))
-        .on_action(cx.listener(move |v, _: &ZoomOut, _, cx| zoom_out(v, cx)))
+        .on_action(cx.listener(|v, _: &ActualSize, _, cx| zoom(v, ZoomStep::Reset, cx)))
+        .on_action(cx.listener(|v, _: &ZoomIn, _, cx| zoom(v, ZoomStep::In, cx)))
+        .on_action(cx.listener(|v, _: &ZoomOut, _, cx| zoom(v, ZoomStep::Out, cx)))
         .on_action(cx.listener(move |v, _: &RotateRight, _, cx| right(v, cx)))
         .on_action(cx.listener(move |v, _: &RotateLeft, _, cx| left(v, cx)))
         .on_action(cx.listener(move |v, _: &NextPage, _, cx| next(v, cx)))
