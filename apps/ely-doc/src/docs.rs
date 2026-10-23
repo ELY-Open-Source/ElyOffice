@@ -37,7 +37,7 @@ pub struct Docs {
     pub review: Entity<Review>,
     /// What the right column shows.
     pub side: Side,
-    pub offer: Option<ely_office::menu::Offer<ely_lok::menu::Offered>>,
+    pub offer: Option<ely_ui::menu::Offer<ely_lok::menu::Offered>>,
     pub merge: Entity<crate::merge::Merge>,
     pub navigator: Entity<crate::navigate::Navigator>,
     /// Where jumps left from, latest last.

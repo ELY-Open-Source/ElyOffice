@@ -12,14 +12,15 @@ use gpui::{
     Styled as _, WeakEntity, Window, div,
 };
 
+use ely_ui::menu::Offer;
+
 use crate::{
     boxes::Open,
     mail::{Mail, text},
 };
 
-/// A folder's menu, numbered so each opens once.
+/// The folder a menu was asked for.
 struct Asked {
-    request: (u64, Point<Pixels>),
     account: AccountId,
     mailbox: MailboxId,
     pinned: bool,
@@ -29,7 +30,7 @@ struct Asked {
 
 pub struct Side {
     mail: WeakEntity<Mail>,
-    asked: Option<Asked>,
+    asked: Option<Offer<Asked>>,
 }
 
 impl Side {
@@ -53,20 +54,18 @@ impl Side {
         let Some(folder) = folders.iter().find(|folder| folder.id == mailbox) else {
             return log::error!("mail: a menu for a folder not listed");
         };
-        let number = self.asked.as_ref().map_or(1, |asked| asked.request.0 + 1);
-        self.asked = Some(Asked {
-            request: (number, at),
+        let asked = Asked {
             account,
             mailbox,
             pinned: folder.pinned,
             local: folder.local,
             name: folder_name(folder, cx),
-        });
+        };
+        self.asked = Some(Offer::new(self.asked.as_ref(), 0, asked, at));
         cx.notify();
     }
 
-    fn menu(&self, cx: &App) -> Option<(Menu, (u64, Point<Pixels>))> {
-        let asked = self.asked.as_ref()?;
+    fn menu(&self, asked: &Asked, cx: &App) -> Menu {
         let (account, mailbox, pinned) = (asked.account, asked.mailbox, asked.pinned);
         let (key, icon) = match pinned {
             true => ("mail.boxes.unpin", IconName::PinOff),
@@ -95,7 +94,7 @@ impl Side {
                 });
             menu = menu.item(remove);
         }
-        Some((menu, asked.request))
+        menu
     }
 }
 
@@ -200,13 +199,11 @@ impl Render for Side {
             .size_full()
             .child(div().p_2().child(list));
         // The host stays, so the list's focus survives the menu.
-        let (menu, request) = match self.menu(cx) {
-            Some((menu, request)) => (menu, Some(request)),
-            None => (Menu::new(), None),
+        let host = match &self.asked {
+            Some(offer) => offer.host("mail-side-menu", self.menu(&offer.what, cx)),
+            None => ContextMenu::new("mail-side-menu", Menu::new()).manual(None),
         };
-        ContextMenu::new("mail-side-menu", menu)
-            .manual(request)
-            .size_full()
+        host.size_full()
             .child(scroll)
             .into_any_element()
     }

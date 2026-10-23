@@ -62,7 +62,7 @@ pub struct Book {
     /// The sheet menu's request: number and place.
     pub sheet_menu: Option<(u64, gpui::Point<gpui::Pixels>)>,
     /// The grid or header menu.
-    pub menu: Option<ely_office::menu::Offer<crate::menu::What>>,
+    pub menu: Option<ely_ui::menu::Offer<crate::menu::What>>,
     pub panel: Entity<Panel>,
     pub choices: Option<crate::rules::Choices>,
     /// Read text files waiting for the import dialog.

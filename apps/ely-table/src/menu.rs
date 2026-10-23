@@ -9,7 +9,8 @@ use ely_lok::{
     menu::{Runs, Target, runs},
     sheet::Geometry,
 };
-use ely_office::menu::{self, Entry, Offer};
+use ely_office::menu::{self, Entry};
+use ely_ui::menu::Offer;
 use ely_office::prelude::*;
 use gpui::{App, Context, Entity, Pixels, Point, Window};
 

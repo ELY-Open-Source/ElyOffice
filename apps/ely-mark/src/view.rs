@@ -88,7 +88,7 @@ pub struct MarkView {
     /// Trackpad pixels toward the next size step.
     wheel: f32,
     /// The last right-click menu asked.
-    offer: Option<ely_office::menu::Offer<menu::Asked>>,
+    offer: Option<ely_ui::menu::Offer<menu::Asked>>,
     pub focus: FocusHandle,
 }
 

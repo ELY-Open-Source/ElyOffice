@@ -7,7 +7,7 @@ use ely_gpui_component::{
     menus::{ContextMenu, Menu, MenuItem},
     primitives::IconName,
 };
-use ely_office::menu::Offer;
+use ely_ui::menu::Offer;
 use ely_ui::i18n::text;
 use gpui::{
     Action, App, ClipboardItem, Context, Keystroke, MouseDownEvent, Pixels, Point, SharedString,

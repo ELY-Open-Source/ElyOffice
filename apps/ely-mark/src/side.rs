@@ -12,7 +12,8 @@ use ely_gpui_component::{
     primitives::IconName,
     theme::ControlSize,
 };
-use ely_office::{menu::Offer, prelude::*};
+use ely_office::prelude::*;
+use ely_ui::menu::Offer;
 use ely_ui::{commands, i18n::text};
 use gpui::{
     AnyElement, AppContext as _, Context, Entity, InteractiveElement as _, IntoElement,
@@ -47,7 +48,7 @@ pub struct Side {
     /// Files that could not be read, and why.
     missed: Vec<(PathBuf, String)>,
     /// A recent row's menu; each opens once.
-    asked: Option<ely_office::menu::Offer<PathBuf>>,
+    asked: Option<ely_ui::menu::Offer<PathBuf>>,
 }
 
 impl Side {

@@ -58,7 +58,7 @@ pub struct Deck {
     /// What the menus last showed: grid, guides, comments; undo, redo.
     pub snap_menus: Option<((bool, bool, bool), (bool, bool))>,
     /// The canvas's right-click menu.
-    pub menu: Option<ely_office::menu::Offer<crate::menu::What>>,
+    pub menu: Option<ely_ui::menu::Offer<crate::menu::What>>,
     /// Pictures of closed tabs and ended previews, freed later.
     pub retired: ely_gpui_component::primitives::Retired,
 }

@@ -8,7 +8,8 @@ use ely_lok::{
     LokView,
     menu::{Offered, Target},
 };
-use ely_office::menu::{self, Entry, Offer};
+use ely_office::menu::{self, Entry};
+use ely_ui::menu::Offer;
 use gpui::{App, Context, Entity, Window};
 
 use crate::docs::Docs;

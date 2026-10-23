@@ -123,6 +123,44 @@ fn escape_leaves_the_menu_key_working() {
 }
 
 #[test]
+fn a_shut_menu_stays_shut_when_the_window_opens_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut cx = TestAppContext::single();
+    let (mail, cx, ann, [_, sent]) = opened(dir.path(), &mut cx);
+    let open = Open::Mailbox(ann, sent);
+    cx.update(|_, app| mail.update(app, |mail, cx| mail.open_box(open, cx)));
+    settle(cx, |_| true);
+    let row = cx.debug_bounds("item-selected-Sent").expect("Sent");
+    cx.simulate_click(row.center(), Modifiers::none());
+    settle(cx, |_| true);
+    cx.simulate_keystrokes("shift-f10");
+    settle(cx, |_| true);
+    assert!(cx.debug_bounds("menu-row-Pin to top").is_some());
+    cx.simulate_keystrokes("escape");
+    settle(cx, |_| true);
+    // As the tray: a new window around the same mail.
+    let again = cx.update(|_, app| app.open_window(gpui::WindowOptions::default(), |_, _| mail.clone())).unwrap();
+    cx.update(|window, _| window.remove_window());
+    let mut cx = VisualTestContext::from_window(again.into(), cx);
+    cx.simulate_resize(size(px(1100.), px(800.)));
+    settle(&mut cx, |_| true);
+    assert!(cx.debug_bounds("item-selected-Sent").is_some(), "the side is drawn");
+    assert!(cx.debug_bounds("menu-row-Pin to top").is_none(), "no menu comes back");
+}
+
+#[test]
+fn a_right_click_off_the_folders_opens_no_menu() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut cx = TestAppContext::single();
+    let (_, cx, _, _) = opened(dir.path(), &mut cx);
+    let title = cx.debug_bounds("fold ann@example.com").expect("the account title");
+    cx.simulate_mouse_down(title.center(), MouseButton::Right, Modifiers::none());
+    cx.simulate_mouse_up(title.center(), MouseButton::Right, Modifiers::none());
+    settle(cx, |_| true);
+    assert!(cx.debug_bounds("menu-panel-0").is_none(), "no empty menu");
+}
+
+#[test]
 fn a_chinese_folder_reads_in_chinese() {
     let dir = tempfile::tempdir().unwrap();
     let mut store = Store::open(dir.path()).unwrap();
