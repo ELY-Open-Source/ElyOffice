@@ -1,47 +1,47 @@
 {
-  "version": "0.1.10",
+  "version": "0.1.11",
   "apps": {
     "ely-doc": {
       "name": "ElyDoc",
       "license": "MIT AND MPL-2.0",
-      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.10/ElyDoc-0.1.10-linux-x86_64.AppImage",
-      "sha256": "cad49c77075c7ce0cbee7c1e05d2a3e19202ec657ceb54a6b4123252a2e0af17"
+      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.11/ElyDoc-0.1.11-linux-x86_64.AppImage",
+      "sha256": "8df61a303fd0aedab208d726587a310593cafe95b9707992efe4678848004db1"
     },
     "ely-table": {
       "name": "ElyTable",
       "license": "MIT AND MPL-2.0",
-      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.10/ElyTable-0.1.10-linux-x86_64.AppImage",
-      "sha256": "200d515437f4e896c60a13a8ddde7f5a9891b3452eb8e7bbc531fdc7d64b7a13"
+      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.11/ElyTable-0.1.11-linux-x86_64.AppImage",
+      "sha256": "6f7e7c2530c7be5ea9a6b4a54aad0285ed4df017b51cb6f7ed02881636005c0a"
     },
     "ely-show": {
       "name": "ElyShow",
       "license": "MIT AND MPL-2.0",
-      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.10/ElyShow-0.1.10-linux-x86_64.AppImage",
-      "sha256": "862b630e20eb55b1ae0220ce4dac4cbbd4c762f9545068f76a920ea620451262"
+      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.11/ElyShow-0.1.11-linux-x86_64.AppImage",
+      "sha256": "532008c5cf22cbda3f2ce19181d84d092ab2bc7de535af8b1bb5101789aab69a"
     },
     "ely-pdf": {
       "name": "ElyPDF",
       "license": "MIT AND AGPL-3.0-or-later",
-      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.10/ElyPDF-0.1.10-linux-x86_64.AppImage",
-      "sha256": "1d8f89e13972f56574010fcb4bf4841cb8a7992ec8c6a2456e2b56e137bc2462"
+      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.11/ElyPDF-0.1.11-linux-x86_64.AppImage",
+      "sha256": "3482d73d10d5f694c7949472c5539d5c08d8a64598654392989f1681eec9fa36"
     },
     "ely-mail": {
       "name": "ElyMail",
       "license": "MIT",
-      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.10/ElyMail-0.1.10-linux-x86_64.AppImage",
-      "sha256": "4e0115a19639ff4e9808b695e029a75d567b956a3af147065175d651af25a98c"
+      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.11/ElyMail-0.1.11-linux-x86_64.AppImage",
+      "sha256": "7b562a2528e5a582e3a62afd10b077d168acb5cd6bbb825e2dafaabeebda51f4"
     },
     "ely-tree": {
       "name": "ElyTree",
       "license": "MIT AND GPL-2.0-only",
-      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.10/ElyTree-0.1.10-linux-x86_64.AppImage",
-      "sha256": "acf9a9c72461132b7ef03080cce6b6a32c947427a96fcffb825ba371ab423b52"
+      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.11/ElyTree-0.1.11-linux-x86_64.AppImage",
+      "sha256": "bd0b4b2ca3381041c07b5407dbc9907e221698d7703b1337b2ee4235da45e61f"
     },
     "ely-mark": {
       "name": "ElyMark",
       "license": "MIT AND AGPL-3.0-or-later AND GPL-2.0-only",
-      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.10/ElyMark-0.1.10-linux-x86_64.AppImage",
-      "sha256": "c253b6473749fa0308c6a658037ec05b2a2796c1e4d66b475ee38d6aa01148a7"
+      "url": "https://github.com/ELY-Open-Source/ElyOffice/releases/download/v0.1.11/ElyMark-0.1.11-linux-x86_64.AppImage",
+      "sha256": "314addf16cd70d90e532738f1caac90399bf46b97f4970d99a902e29eaef38a8"
     }
   }
 }
