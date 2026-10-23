@@ -274,7 +274,7 @@ impl Book {
             Pick::RowHeight => return self.ask_size(false, window, cx),
             Pick::ColumnWidth => return self.ask_size(true, window, cx),
             Pick::Format => {
-                self.panel_shown = true;
+                ely_ui::settings::panels::show(false, true, cx);
                 return cx.notify();
             }
             Pick::RowsAbove => ("rows.insert_above", &[]),

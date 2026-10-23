@@ -37,13 +37,9 @@ pub struct Docs {
     pub review: Entity<Review>,
     /// What the right column shows.
     pub side: Side,
-    /// The right column is shown.
-    pub siding: bool,
     pub offer: Option<ely_office::menu::Offer<ely_lok::menu::Offered>>,
     pub merge: Entity<crate::merge::Merge>,
     pub navigator: Entity<crate::navigate::Navigator>,
-    /// The left column shows the navigator.
-    pub navigating: bool,
     /// Where jumps left from, latest last.
     pub back: Vec<(u64, ely_lok::Rect)>,
     /// Last jump: tab, input, prior cursor moves, target.
@@ -57,8 +53,6 @@ pub struct Docs {
 
 /// Open dialog kinds, Ely's and the shell's, and the tab.
 type Seen = (Option<std::mem::Discriminant<Dialog>>, Option<std::mem::Discriminant<ely_office::Dialog>>, Option<u64>);
-
-gpui::actions!(doc, [ToggleSidePanel]);
 
 /// The right column's panels.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -117,7 +111,7 @@ fn menus(undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
         gpui::Menu::new(ely_ui::i18n::text(cx, "menu.view", &[])).items(
             ely_office::zoom_items(false, cx)
                 .into_iter()
-                .chain([gpui::MenuItem::separator(), gpui::MenuItem::action(ely_ui::i18n::text(cx, "doc.side.toggle", &[]), ToggleSidePanel)]),
+                .chain([gpui::MenuItem::separator(), ely_ui::commands::left_panel_item(cx), ely_ui::commands::right_panel_item(cx)]),
         ),
         crate::insert::menu(cx),
         crate::review::menu(cx),
@@ -143,11 +137,6 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
         gpui::KeyBinding::new(
             "secondary-f",
             ely_office::FindReplace,
-            Some(commands::CONTEXT),
-        ),
-        gpui::KeyBinding::new(
-            "secondary-alt-b",
-            ToggleSidePanel,
             Some(commands::CONTEXT),
         ),
         gpui::KeyBinding::new(
@@ -205,11 +194,9 @@ impl Docs {
             props,
             review,
             side: Side::Props,
-            siding: true,
             offer: None,
             merge,
             navigator,
-            navigating: true,
             back: Vec::new(),
             going: None,
             dialog_asked: 0,
@@ -220,12 +207,8 @@ impl Docs {
 
     /// Shows `side` in the right column, opening it.
     pub fn show_side(&mut self, side: Side, cx: &mut Context<Self>) {
-        (self.side, self.siding) = (side, true);
-        cx.notify();
-    }
-
-    pub fn on_side_panel(&mut self, _: &ToggleSidePanel, _: &mut Window, cx: &mut Context<Self>) {
-        self.siding = !self.siding;
+        self.side = side;
+        ely_ui::settings::panels::show(false, true, cx);
         cx.notify();
     }
 

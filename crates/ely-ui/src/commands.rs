@@ -19,6 +19,8 @@ actions!(
         ToggleCommandPalette,
         OpenSettings,
         CheckForUpdates,
+        ToggleLeftPanel,
+        ToggleRightPanel,
         Quit
     ]
 );
@@ -197,9 +199,22 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new(EXPORT.keys, Export, Some(CONTEXT)),
         KeyBinding::new("secondary-w", CloseTab, Some(CONTEXT)),
         KeyBinding::new(TOGGLE_PALETTE, ToggleCommandPalette, Some(CONTEXT)),
+        // Shift+L is Calc's AutoFilter; B as in ElyDoc.
+        KeyBinding::new("secondary-alt-s", ToggleLeftPanel, Some(CONTEXT)),
+        KeyBinding::new("secondary-alt-b", ToggleRightPanel, Some(CONTEXT)),
         KeyBinding::new("secondary-q", Quit, None),
         KeyBinding::new("secondary-,", OpenSettings, None),
     ]);
+}
+
+/// The View menu's item for the left panel.
+pub fn left_panel_item(cx: &App) -> MenuItem {
+    MenuItem::action(i18n::text(cx, "menu.view.left", &[]), ToggleLeftPanel)
+}
+
+/// The View menu's item for the right panel.
+pub fn right_panel_item(cx: &App) -> MenuItem {
+    MenuItem::action(i18n::text(cx, "menu.view.right", &[]), ToggleRightPanel)
 }
 
 pub fn run(id: &str, window: &mut Window, cx: &mut App) {

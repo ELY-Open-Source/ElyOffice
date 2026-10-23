@@ -17,6 +17,8 @@ use gpui::{
 mod page;
 mod panel;
 mod root;
+#[cfg(test)]
+mod tests;
 
 use page::Fade;
 use panel::{Side, SidePanel};
@@ -140,17 +142,19 @@ impl RenderOnce for Shell {
             .children(self.main.then(|| crate::updates::updater(cx)).flatten())
             .children(self.main.then(|| menu_bar(cx)).flatten())
             .children(self.tabs);
+        let shown = |left| crate::settings::panels::shown(left, cx);
+        let (left_view, right_view) = (self.left.filter(|_| shown(true)), self.right.filter(|_| shown(false)));
         // Panels give way so the content keeps its room.
         let (left, right) = (panel::fitted(Side::Left, window, cx), panel::fitted(Side::Right, window, cx));
         let (shown_left, shown_right) = panel::room(
             window.viewport_size().width,
-            self.left.as_ref().map(|_| left),
-            self.right.as_ref().map(|_| right),
+            left_view.as_ref().map(|_| left),
+            right_view.as_ref().map(|_| right),
         );
         let row = div().flex_1().min_h_0().flex().child(content).child(SidePanel::new(
             "right-panel",
             Side::Right,
-            self.right.filter(|_| shown_right.is_some()),
+            right_view.filter(|_| shown_right.is_some()),
             shown_right.unwrap_or(right),
         ));
         let frame = AppShell::new()
@@ -158,7 +162,7 @@ impl RenderOnce for Shell {
             .sidebar(SidePanel::new(
                 "left-panel",
                 Side::Left,
-                self.left.filter(|_| shown_left.is_some()),
+                left_view.filter(|_| shown_left.is_some()),
                 shown_left.unwrap_or(left),
             ))
             .child(row);

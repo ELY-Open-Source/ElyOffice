@@ -204,6 +204,7 @@ impl PdfView {
                 None
             }
         };
+        self.open_note_panel(cx);
         cx.notify();
     }
 
@@ -304,6 +305,7 @@ impl PdfView {
             }
             _ => (None, Some(Sketch { page, points: vec![point] })),
         };
+        self.open_note_panel(cx);
         cx.notify();
     }
 
@@ -350,6 +352,7 @@ impl PdfView {
             Tool::Link => {
                 let rect = if small { [first.0, first.1, first.0 + 120.0, first.1 + 20.0] } else { rect };
                 self.aim = Some(Aim::Note(Pick::NewLink { page, rect }));
+                self.open_note_panel(cx);
                 return cx.notify();
             }
             Tool::Field(kind) => {
@@ -359,6 +362,7 @@ impl PdfView {
                     (true, _) => [first.0, first.1, first.0 + 150.0, first.1 + 20.0],
                 };
                 self.aim = Some(Aim::Note(Pick::NewField { page, rect, kind }));
+                self.open_note_panel(cx);
                 return cx.notify();
             }
             _ => return cx.notify(),

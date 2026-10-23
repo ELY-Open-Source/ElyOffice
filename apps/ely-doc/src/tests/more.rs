@@ -311,14 +311,20 @@ fn the_side_panel_hides_and_review_brings_it_back() {
         return;
     };
     blank(&mut cx, &docs);
-    let shown = |cx: &mut TestAppContext| cx.update(|app| docs.update(app, |docs, cx| docs.side_view(cx).is_some()));
+    let shown = |cx: &mut TestAppContext| {
+        cx.update(|app| docs.update(app, |docs, cx| docs.side_view(cx).is_some() && ely_ui::settings::panels::shown(false, cx)))
+    };
+    let fold = |cx: &mut TestAppContext| {
+        with_window(cx, &docs, |_, window, cx| window.dispatch_action(Box::new(ely_ui::commands::ToggleRightPanel), cx));
+        cx.run_until_parked();
+    };
     assert!(shown(&mut cx), "open at first");
-    with_window(&mut cx, &docs, |docs, window, cx| docs.on_side_panel(&crate::docs::ToggleSidePanel, window, cx));
+    fold(&mut cx);
     assert!(!shown(&mut cx), "hidden");
     with_window(&mut cx, &docs, |docs, window, cx| docs.on_show_review(&crate::review::ShowReview, window, cx));
     assert!(shown(&mut cx), "review opens it");
     assert_eq!(cx.update(|app| docs.read(app).side), crate::docs::Side::Review);
-    with_window(&mut cx, &docs, |docs, window, cx| docs.on_side_panel(&crate::docs::ToggleSidePanel, window, cx));
+    fold(&mut cx);
     with_window(&mut cx, &docs, |docs, window, cx| docs.on_show_review(&crate::review::ShowReview, window, cx));
     assert_eq!(cx.update(|app| docs.read(app).side), crate::docs::Side::Review, "a hidden review comes back as review");
     assert!(shown(&mut cx));

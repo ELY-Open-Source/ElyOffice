@@ -113,7 +113,7 @@ fn a_hit_in_an_open_file_moves_its_caret(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn the_side_folds_from_its_key_and_stays_folded(cx: &mut TestAppContext) {
+fn the_side_folds_from_the_shared_key(cx: &mut TestAppContext) {
     let (data, files) = (
         tempfile::tempdir().expect("data"),
         tempfile::tempdir().expect("files"),
@@ -144,12 +144,15 @@ fn the_side_folds_from_its_key_and_stays_folded(cx: &mut TestAppContext) {
         }
         false
     };
-    cx.simulate_keystrokes("secondary-shift-l");
+    // As `ely_ui::run` does at start.
+    cx.update(|_, cx| ely_ui::commands::bind_keys(cx));
+    let shown = |cx: &mut gpui::VisualTestContext| cx.update(|_, cx| ely_ui::settings::panels::shown(true, cx));
+    cx.simulate_keystrokes("secondary-alt-s");
     assert!(drawn(cx, false), "the side folds");
-    assert!(!kept().side && !kept().focus, "only the side is kept folded");
-    cx.simulate_keystrokes("secondary-shift-l");
+    assert!(!shown(cx) && !kept().focus, "only the side folds");
+    cx.simulate_keystrokes("secondary-alt-s");
     assert!(drawn(cx, true), "the side is back");
-    assert!(kept().side);
+    assert!(shown(cx));
 }
 
 #[gpui::test]

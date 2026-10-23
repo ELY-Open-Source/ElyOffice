@@ -91,3 +91,17 @@ fn a_read_while_typing_keeps_the_new_draft() {
     update(&mut cx, &deck, |deck, cx| deck.commit_notes(cx));
     settle(&cx, |app| text(app).as_deref() == Some("second"));
 }
+
+#[test]
+fn comments_open_a_folded_right_panel() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = blank(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(|app| ely_ui::settings::panels::show(false, false, app));
+    cx.update(|app| deck.update(app, |deck, cx| deck.toggle_remarks(cx)));
+    let (remarks, shown) = cx.update(|app| (deck.read(app).remarks_open, ely_ui::settings::panels::shown(false, app)));
+    assert!(remarks && shown, "View › Comments shows them");
+}

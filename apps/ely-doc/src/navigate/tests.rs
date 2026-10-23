@@ -268,17 +268,16 @@ fn a_hidden_navigator_reads_nothing() {
     };
     crate::tests::blank(&mut cx, &docs);
     let follows = |cx: &mut TestAppContext| cx.update(|app| docs.read(app).navigator.read(app).shown.is_some());
+    // Tools › Navigator and View › Left Panel send this.
+    let fold = |cx: &mut TestAppContext| {
+        with_window(cx, &docs, |_, window, cx| window.dispatch_action(Box::new(ely_ui::commands::ToggleLeftPanel), cx));
+        cx.update(|app| docs.update(app, |docs, cx| docs.left_view(cx)));
+    };
     cx.update(|app| docs.update(app, |docs, cx| docs.left_view(cx)));
     assert!(follows(&mut cx), "shown: it follows the tab");
-    cx.update(|app| docs.update(app, |docs, cx| {
-        docs.navigating = false;
-        docs.left_view(cx)
-    }));
+    fold(&mut cx);
     assert!(!follows(&mut cx), "hidden: no tab to reread");
-    cx.update(|app| docs.update(app, |docs, cx| {
-        docs.navigating = true;
-        docs.left_view(cx)
-    }));
+    fold(&mut cx);
     assert!(follows(&mut cx), "shown again: it reads once more");
 }
 

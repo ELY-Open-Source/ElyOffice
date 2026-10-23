@@ -2,6 +2,8 @@
 
 pub(super) const EN: &[(&str, &str)] = &[
     ("menu.app.settings", "Settings…"),
+    ("menu.view.left", "Left Panel"),
+    ("menu.view.right", "Right Panel"),
     ("settings.title", "Settings"),
     ("settings.mail", "Mail"),
     ("settings.notify", "New mail notifications"),
@@ -85,6 +87,8 @@ pub(super) const EN: &[(&str, &str)] = &[
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("menu.app.settings", "设置…"),
+    ("menu.view.left", "左侧栏"),
+    ("menu.view.right", "右侧栏"),
     ("settings.title", "设置"),
     ("settings.mail", "邮件"),
     ("settings.notify", "新邮件通知"),

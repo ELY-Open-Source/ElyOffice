@@ -1,4 +1,4 @@
-//! Side panel widths, kept per app (§18.1).
+//! Side panel widths and folds, kept per app (§18.1).
 
 use std::{io, time::Duration};
 
@@ -14,6 +14,8 @@ pub(crate) struct Panels {
     store: Option<Store>,
     left: Option<Pixels>,
     right: Option<Pixels>,
+    /// Left, then right, folded away.
+    hidden: (bool, bool),
     moves: u64,
     saved: u64,
 }
@@ -27,12 +29,13 @@ pub(super) fn install(app: AppId, cx: &mut App) {
         let fields = store.read()?;
         parse(fields.get(KEY))
     });
-    let (left, right) = read.unwrap_or_else(|error| {
-        log::error!("settings: panel widths unreadable: {error}");
+    let ((left, right), hidden) = read.unwrap_or_else(|error| {
+        log::error!("settings: panels unreadable: {error}");
         cx.global_mut::<super::Current>().app_error.insert(super::PANELS, error.to_string().into());
-        (None, None)
+        ((None, None), (false, false))
     });
-    cx.set_global(Panels { store: store.ok(), left, right, moves: 0, saved: 0 });
+    cx.set_global(Panels { store: store.ok(), left, right, hidden, moves: 0, saved: 0 });
+    bind(cx);
     // Quitting right after a drag still keeps the width.
     cx.on_app_quit(|cx| {
         flush(cx);
@@ -41,11 +44,13 @@ pub(super) fn install(app: AppId, cx: &mut App) {
     .detach();
 }
 
+type Widths = (Option<Pixels>, Option<Pixels>);
+
 /// Absent or null is default; else a positive width.
-fn parse(saved: Option<&Value>) -> io::Result<(Option<Pixels>, Option<Pixels>)> {
+fn parse(saved: Option<&Value>) -> io::Result<(Widths, (bool, bool))> {
     let invalid = |why: String| io::Error::new(io::ErrorKind::InvalidData, format!("settings: panels {why}"));
     let fields = match saved {
-        None | Some(Value::Null) => return Ok((None, None)),
+        None | Some(Value::Null) => return Ok(((None, None), (false, false))),
         Some(Value::Object(fields)) => fields,
         Some(other) => return Err(invalid(format!("cannot be {other}"))),
     };
@@ -56,13 +61,44 @@ fn parse(saved: Option<&Value>) -> io::Result<(Option<Pixels>, Option<Pixels>)> 
         }
         Some(other) => Err(invalid(format!("{side} cannot be {other}"))),
     };
-    Ok((width("left")?, width("right")?))
+    let hidden = |key: &str| match fields.get(key) {
+        None | Some(Value::Null) => Ok(false),
+        Some(Value::Bool(hidden)) => Ok(*hidden),
+        Some(other) => Err(invalid(format!("{key} cannot be {other}"))),
+    };
+    Ok(((width("left")?, width("right")?), (hidden("left_hidden")?, hidden("right_hidden")?)))
 }
 
 /// Defaults in force, nothing kept: for tests.
 #[cfg(any(test, feature = "test-support"))]
 pub(super) fn install_defaults(cx: &mut App) {
-    cx.set_global(Panels { store: None, left: None, right: None, moves: 0, saved: 0 });
+    cx.set_global(Panels { store: None, left: None, right: None, hidden: (false, false), moves: 0, saved: 0 });
+    bind(cx);
+}
+
+/// The fold keys reach every window of the app.
+fn bind(cx: &mut App) {
+    cx.on_action(|_: &crate::commands::ToggleLeftPanel, cx| show(true, !shown(true, cx), cx));
+    cx.on_action(|_: &crate::commands::ToggleRightPanel, cx| show(false, !shown(false, cx), cx));
+}
+
+/// Whether the left or right panel shows.
+pub fn shown(left: bool, cx: &App) -> bool {
+    let (left_hidden, right_hidden) = cx.global::<Panels>().hidden;
+    !if left { left_hidden } else { right_hidden }
+}
+
+/// Shows or folds a side panel; kept for the app.
+pub fn show(left: bool, shown: bool, cx: &mut App) {
+    let hidden = &mut cx.global_mut::<Panels>().hidden;
+    let side = if left { &mut hidden.0 } else { &mut hidden.1 };
+    if *side != shown {
+        return;
+    }
+    *side = !shown;
+    log::info!("settings: {} panel {}", if left { "left" } else { "right" }, if shown { "shown" } else { "folded" });
+    changed(cx);
+    cx.refresh_windows();
 }
 
 /// The user's width for the left or right panel.
@@ -75,6 +111,12 @@ pub(crate) fn width(left: bool, cx: &App) -> Option<Pixels> {
 pub(crate) fn set_width(left: bool, width: Pixels, cx: &mut App) {
     let panels = cx.global_mut::<Panels>();
     *(if left { &mut panels.left } else { &mut panels.right }) = Some(width);
+    changed(cx);
+}
+
+/// Saves the panels once changes rest.
+fn changed(cx: &mut App) {
+    let panels = cx.global_mut::<Panels>();
     panels.moves += 1;
     let moves = panels.moves;
     cx.spawn(async move |cx: &mut AsyncApp| {
@@ -93,7 +135,8 @@ fn pending(cx: &App) -> Option<(Store, Value)> {
     let panels = cx.global::<Panels>();
     let store = panels.store.clone().filter(|_| panels.moves != panels.saved)?;
     let n = |w: Option<Pixels>| w.map(|w| f64::from(f32::from(w)));
-    Some((store, json!({ "left": n(panels.left), "right": n(panels.right) })))
+    let (left_hidden, right_hidden) = panels.hidden;
+    Some((store, json!({ "left": n(panels.left), "right": n(panels.right), "left_hidden": left_hidden, "right_hidden": right_hidden })))
 }
 
 /// Records a write; failures show and retry later.
@@ -104,7 +147,7 @@ fn settled(moves: u64, written: io::Result<()>, cx: &mut App) {
             super::unsaved(super::PANELS, None, cx);
         }
         Err(error) => {
-            log::error!("settings: panel widths not saved: {error}");
+            log::error!("settings: panels not saved: {error}");
             super::unsaved(super::PANELS, Some(error.to_string().into()), cx);
         }
     }
@@ -124,11 +167,29 @@ mod tests {
     use gpui::px;
     use serde_json::json;
 
+    #[gpui::test]
+    fn a_fold_is_kept_and_reads_back(cx: &mut gpui::TestAppContext) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = ely_platform::settings::Store::at(dir.path().join("settings.json"));
+        cx.update(|cx| {
+            super::super::install_defaults(cx);
+            cx.global_mut::<super::Panels>().store = Some(store.clone());
+            super::show(true, false, cx);
+            assert!(!super::shown(true, cx) && super::shown(false, cx));
+        });
+        cx.executor().advance_clock(super::SETTLE);
+        cx.run_until_parked();
+        let kept = store.read().unwrap();
+        assert_eq!(super::parse(kept.get(super::KEY)).unwrap(), ((None, None), (true, false)));
+    }
+
     #[test]
-    fn widths_read_strictly() {
-        assert_eq!(super::parse(None).unwrap(), (None, None));
-        assert_eq!(super::parse(Some(&json!({"left": 300, "right": null}))).unwrap(), (Some(px(300.0)), None));
-        for bad in [json!({"left": "broken", "right": 320}), json!({"left": -4}), json!([1])] {
+    fn widths_and_folds_read_strictly() {
+        assert_eq!(super::parse(None).unwrap(), ((None, None), (false, false)));
+        assert_eq!(super::parse(Some(&json!({"left": 300, "right": null}))).unwrap(), ((Some(px(300.0)), None), (false, false)));
+        let folded = json!({"left": null, "right": null, "left_hidden": true, "right_hidden": false});
+        assert_eq!(super::parse(Some(&folded)).unwrap(), ((None, None), (true, false)));
+        for bad in [json!({"left": "broken", "right": 320}), json!({"left": -4}), json!([1]), json!({"left_hidden": 1})] {
             assert!(super::parse(Some(&bad)).is_err(), "{bad}");
         }
     }

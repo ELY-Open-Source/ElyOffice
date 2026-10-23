@@ -19,7 +19,7 @@ pub mod switches;
 mod diagnostics;
 mod frame;
 mod storage;
-pub(crate) mod panels;
+pub mod panels;
 mod picks;
 #[cfg(test)]
 mod tests;

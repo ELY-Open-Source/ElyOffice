@@ -72,6 +72,7 @@ impl PdfView {
             return;
         };
         self.aim = Some(Aim::Note(Pick::Annot { page, id }));
+        self.open_note_panel(cx);
         self.show(page, top, cx);
     }
 }

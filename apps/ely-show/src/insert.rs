@@ -62,6 +62,9 @@ pub fn menus((grid, guides, remarks): (bool, bool, bool), cx: &App) -> [Menu; 2]
         MenuItem::action(label("show.view.guide_across"), AddHorizontalGuide),
         MenuItem::action(label("show.view.guide_down"), AddVerticalGuide),
         MenuItem::separator(),
+        ely_ui::commands::left_panel_item(cx),
+        ely_ui::commands::right_panel_item(cx),
+        MenuItem::separator(),
     ]);
     let view = view.items(ely_office::zoom_items(true, cx));
     [insert, view]
@@ -134,8 +137,11 @@ impl Deck {
     }
 
     /// Shows comments, or properties, in the right column.
-    fn toggle_remarks(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn toggle_remarks(&mut self, cx: &mut Context<Self>) {
         self.remarks_open = !self.remarks_open;
+        if self.remarks_open {
+            ely_ui::settings::panels::show(false, true, cx);
+        }
         self.snap_menus = None;
         self.sync_menus(cx);
         cx.notify();

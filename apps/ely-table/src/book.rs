@@ -21,7 +21,7 @@ use gpui::{
 };
 
 use crate::bars::Bars;
-use crate::format::{FormatPanel, Panel};
+use crate::format::Panel;
 use crate::grid::Drag;
 
 /// A cell: sheet count, address, edit count.
@@ -64,7 +64,6 @@ pub struct Book {
     /// The grid or header menu.
     pub menu: Option<ely_office::menu::Offer<crate::menu::What>>,
     pub panel: Entity<Panel>,
-    pub panel_shown: bool,
     pub choices: Option<crate::rules::Choices>,
     /// Read text files waiting for the import dialog.
     pub imports: std::collections::VecDeque<crate::text::Pending>,
@@ -123,7 +122,8 @@ impl Host for Book {
 fn menus(undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
     vec![
         gpui::Menu::new(ely_ui::i18n::text(cx, "menu.edit", &[])).items(ely_office::undo_items(undo, cx)),
-        gpui::Menu::new(ely_ui::i18n::text(cx, "menu.view", &[])).items(ely_office::zoom_items(false, cx)),
+        gpui::Menu::new(ely_ui::i18n::text(cx, "menu.view", &[]))
+            .items(ely_office::zoom_items(false, cx).into_iter().chain([gpui::MenuItem::separator(), ely_ui::commands::right_panel_item(cx)])),
         crate::sheets::menu(cx),
         crate::cells::menu(cx),
         crate::analysis::menu(cx),
@@ -203,7 +203,6 @@ impl Book {
             sheet_menu: None,
             menu: None,
             panel,
-            panel_shown: true,
             choices: None,
             imports: Default::default(),
             undo_menu: (false, false),
@@ -423,10 +422,6 @@ impl Render for Book {
         let root = crate::page::bind(crate::protect::bind(root, cx), cx);
         crate::analysis::bind(crate::rules::bind(root, cx), cx)
             .on_action(cx.listener(Self::on_find))
-            .on_action(cx.listener(|book, _: &FormatPanel, _, cx| {
-                book.panel_shown = !book.panel_shown;
-                cx.notify();
-            }))
     }
 }
 
@@ -438,7 +433,7 @@ impl Book {
             .map(|tab| (tab.view.clone(), tab.doc.clone()));
         let tab = shown.as_ref().map(|(view, doc)| (view, doc));
         self.panel.update(cx, |panel, cx| panel.show(tab, cx));
-        (shown.is_some() && self.panel_shown).then(|| self.panel.clone().into())
+        shown.is_some().then(|| self.panel.clone().into())
     }
 }
 

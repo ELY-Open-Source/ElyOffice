@@ -209,9 +209,11 @@ fn the_list_reads_every_page_and_jumps_to_a_pick() {
     })));
     settle(cx, |app| (0..3).all(|page| view.read(app).notes.contains_key(&page)));
     let id = cx.update(|_, app| view.read(app).notes[&2].annots[0].id);
+    cx.update(|_, app| ely_ui::settings::panels::show(false, false, app));
     cx.update(|_, app| view.update(app, |view, cx| view.pick_note(2, id, cx)));
     frames(cx);
     assert_eq!(cx.update(|_, app| (view.read(app).current, view.read(app).aim)), (2, Some(Aim::Note(Pick::Annot { page: 2, id }))));
+    assert!(cx.update(|_, app| ely_ui::settings::panels::shown(false, app)), "its editor opens");
 }
 
 #[test]
@@ -221,8 +223,10 @@ fn a_field_takes_a_new_name_and_options_and_no_change_is_no_step() {
     let (viewer, cx, view) = marking(&mut cx, dir.path());
     add_field(cx, &viewer, &view, FieldKind::Choice, [(72.0, 340.0), (200.0, 360.0)], "Color", &["Red", "Blue"]);
     let edited = cx.update(|_, app| view.read(app).edited);
+    cx.update(|_, app| ely_ui::settings::panels::show(false, false, app));
     click(cx, &view, (100.0, 350.0));
     assert!(matches!(cx.update(|_, app| view.read(app).aim), Some(Aim::Note(Pick::Field { .. }))), "the form tool picks a field");
+    assert!(cx.update(|_, app| ely_ui::settings::panels::shown(false, app)), "its editor opens");
     send(cx, &viewer, Change::Design("Color".into(), vec!["Red".into(), "Blue".into()]));
     frames(cx);
     assert_eq!(cx.update(|_, app| view.read(app).edited), edited, "as it was");

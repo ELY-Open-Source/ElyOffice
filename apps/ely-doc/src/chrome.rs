@@ -70,10 +70,11 @@ impl Docs {
             .active_tab()
             .map(|tab| (tab.view.clone(), tab.doc.clone()));
         // Hidden, it follows nothing: no reads on every move.
-        let tab = shown.as_ref().filter(|_| self.navigating).map(|(view, doc)| (view, doc));
+        let open = ely_ui::settings::panels::shown(true, cx);
+        let tab = shown.as_ref().filter(|_| open).map(|(view, doc)| (view, doc));
         self.navigator
             .update(cx, |navigator, cx| navigator.show(tab, cx));
-        shown.filter(|_| self.navigating)?;
+        shown?;
         Some(self.navigator.clone().into())
     }
 
@@ -85,7 +86,7 @@ impl Docs {
         let tab = shown.as_ref().map(|(view, doc)| (view, doc));
         self.props.update(cx, |props, cx| props.show(tab, cx));
         self.review.update(cx, |review, cx| review.show(tab, cx));
-        shown.as_ref().filter(|_| self.siding)?;
+        shown.as_ref()?;
         Some(match self.side {
             Side::Props => self.props.clone().into(),
             Side::Review => self.review.clone().into(),

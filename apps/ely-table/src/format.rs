@@ -16,7 +16,7 @@ use ely_office::prelude::*;
 use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, Hsla, IntoElement, Menu, MenuItem,
     ParentElement as _, Render, SharedString, Styled as _, Subscription, WeakEntity, Window,
-    actions, div, rgb,
+    div, rgb,
 };
 
 use crate::book::{Book, Spot};
@@ -25,12 +25,10 @@ mod colors;
 pub(crate) use colors::paint;
 use colors::{FILL, Pick, TEXT};
 
-actions!(table, [FormatPanel]);
-
 pub fn menu(cx: &App) -> Menu {
     let label = |key: &str| Book::text(cx, key, &[]);
     Menu::new(label("menu.format")).items([
-        MenuItem::action(label("table.format.panel"), FormatPanel),
+        MenuItem::action(label("table.format.panel"), ely_ui::commands::ToggleRightPanel),
         MenuItem::separator(),
         MenuItem::action(label("table.rules.conditional"), crate::rules::Conditional),
         MenuItem::action(

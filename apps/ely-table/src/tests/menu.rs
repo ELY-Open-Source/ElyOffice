@@ -258,3 +258,19 @@ fn a_header_ends_shape_text_editing() {
     let xml = std::fs::read_to_string(&path).expect("the save");
     assert_eq!(xml.matches(">z</text:p>").count(), 2, "each shape keeps its typed text");
 }
+
+#[test]
+fn format_cells_opens_a_folded_right_panel() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((window, book)) = super::book(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    super::blank(&mut cx, &book);
+    let shown = |cx: &mut TestAppContext| cx.update(|app| ely_ui::settings::panels::shown(false, app));
+    cx.update(|app| ely_ui::settings::panels::show(false, false, app));
+    assert!(!shown(&mut cx), "folded");
+    window.update(&mut cx, |_, window, app| book.update(app, |book, cx| book.choose(Pick::Format, window, cx))).expect("the window lives");
+    assert!(shown(&mut cx), "Format Cells opens it");
+}

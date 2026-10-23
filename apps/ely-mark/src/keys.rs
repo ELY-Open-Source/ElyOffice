@@ -17,7 +17,6 @@ pub fn bind(cx: &mut App) {
         // Over the code editor's `//` toggle.
         KeyBinding::new("secondary-/", ToggleSource, Some("ElyEditor")),
         KeyBinding::new("f8", crate::look::FocusMode, at),
-        KeyBinding::new("secondary-shift-l", crate::look::Sidebar, at),
         KeyBinding::new("f9", crate::look::Typewriter, at),
         KeyBinding::new("secondary-+", crate::look::Larger, at),
         KeyBinding::new("secondary-_", crate::look::Smaller, at),
@@ -74,7 +73,7 @@ pub fn menus(look: &crate::look::Look, cx: &App) -> Vec<Menu> {
             MenuItem::action(label(Mode::Source, cx), SourceMode),
             MenuItem::action(label(Mode::Preview, cx), PreviewMode),
             MenuItem::separator(),
-            checked("mark.look.side", Box::new(look::Sidebar), look.side),
+            ely_ui::commands::left_panel_item(cx),
             checked("mark.look.focus", Box::new(look::FocusMode), look.focus),
             checked(
                 "mark.look.typewriter",

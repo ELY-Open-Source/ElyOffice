@@ -75,6 +75,9 @@ pub fn menus(cx: &App) -> Vec<Menu> {
             MenuItem::separator(),
             MenuItem::action(label("pdf.view.rotate_left"), RotateLeft),
             MenuItem::action(label("pdf.view.rotate_right"), RotateRight),
+            MenuItem::separator(),
+            ely_ui::commands::left_panel_item(cx),
+            ely_ui::commands::right_panel_item(cx),
         ]),
         crate::organize::menu(cx),
     ]

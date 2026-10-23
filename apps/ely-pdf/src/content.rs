@@ -127,6 +127,13 @@ impl PdfView {
         if self.gesturing() { self.held } else { self.aim }
     }
 
+    /// A note's editor is the right panel: open it.
+    pub fn open_note_panel(&mut self, cx: &mut Context<Self>) {
+        if matches!(self.aim, Some(Aim::Note(_))) {
+            ely_ui::settings::panels::show(false, true, cx);
+        }
+    }
+
     /// Changes the tool; what was aimed at is let go.
     pub fn set_tool(&mut self, tool: Tool, cx: &mut Context<Self>) {
         log::info!("pdf: the {tool:?} tool");

@@ -21,7 +21,7 @@ use gpui::{
 use crate::docs::Docs;
 use ely_office::prelude::*;
 
-actions!(doc, [ToggleNavigator, GoBack]);
+actions!(doc, [GoBack]);
 
 #[derive(Clone, Copy, PartialEq)]
 enum Pane {
@@ -214,11 +214,6 @@ impl Docs {
         log::info!("doc: back to tab {id}");
         self.core.active = Some(id);
         self.go(place, cx);
-        cx.notify();
-    }
-
-    pub fn on_navigator(&mut self, _: &ToggleNavigator, _: &mut Window, cx: &mut Context<Self>) {
-        self.navigating = !self.navigating;
         cx.notify();
     }
 }
