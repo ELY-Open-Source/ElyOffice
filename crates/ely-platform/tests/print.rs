@@ -49,12 +49,12 @@ fn main() {
     fixture(&source, &[(1000.0, 600.0)]);
     let job = folder.path().join("custom-job.pdf");
     unsafe { std::env::set_var("ELY_PRINT_TO", &job) };
-    let error = futures::executor::block_on(ely_platform::print::print_pdf(&source)).expect_err("no such paper");
+    let error = futures::executor::block_on(ely_platform::print::print_pdf(&source, ely_platform::settings::Sides::Printer)).expect_err("no such paper");
     assert!(error.to_string().contains("page 1 is 353 × 212 mm; the printer's paper is"), "{error}");
     assert!(!job.exists(), "nothing printed");
     // 1.6 mm past A4: refused, not cut.
     fixture(&source, &[(600.0, 842.0)]);
-    let error = futures::executor::block_on(ely_platform::print::print_pdf(&source)).expect_err("past A4");
+    let error = futures::executor::block_on(ely_platform::print::print_pdf(&source, ely_platform::settings::Sides::Printer)).expect_err("past A4");
     assert!(error.to_string().contains("page 1 is 212 × 297 mm; the printer's paper is"), "{error}");
     assert!(!job.exists(), "nothing printed");
     println!("print: windows ok");
@@ -68,7 +68,7 @@ fn printed(folder: &Path, name: &str, sizes: &[(f32, f32)]) -> std::path::PathBu
     let job = folder.join(format!("{name}-job.pdf"));
     // Before any thread starts: the job goes to a file.
     unsafe { std::env::set_var("ELY_PRINT_TO", &job) };
-    assert!(futures::executor::block_on(ely_platform::print::print_pdf(&source)).expect("prints"), "printed");
+    assert!(futures::executor::block_on(ely_platform::print::print_pdf(&source, ely_platform::settings::Sides::Printer)).expect("prints"), "printed");
     job
 }
 
@@ -161,6 +161,7 @@ mod portal {
         sync::{Arc, Mutex},
     };
 
+    use ely_platform::settings::Sides;
     use zbus::{
         Connection,
         message::Header,
@@ -173,6 +174,8 @@ mod portal {
         /// What the dialog answers the user chose.
         choices: Vec<(&'static str, &'static str)>,
         setup: HashMap<String, OwnedValue>,
+        /// The settings the dialog was opened with.
+        settings: HashMap<String, OwnedValue>,
         formats: Option<Vec<String>>,
         token: Option<u32>,
         bytes: Option<Vec<u8>>,
@@ -204,7 +207,7 @@ mod portal {
             #[zbus(connection)] connection: &Connection,
             _parent: &str,
             _title: &str,
-            _settings: HashMap<String, OwnedValue>,
+            settings: HashMap<String, OwnedValue>,
             page_setup: HashMap<String, OwnedValue>,
             options: HashMap<String, OwnedValue>,
         ) -> OwnedObjectPath {
@@ -212,7 +215,7 @@ mod portal {
             let formats = options.get("supported_output_file_formats").map(|formats| formats.try_clone().expect("a copy").try_into().expect("strings"));
             let (cancel, choices) = {
                 let mut seen = self.0.lock().expect("the record");
-                (seen.setup, seen.formats) = (page_setup.clone(), formats);
+                (seen.setup, seen.settings, seen.formats) = (page_setup.clone(), settings, formats);
                 (seen.cancel, seen.choices.clone())
             };
             // GTK hands every setting back as text.
@@ -301,7 +304,7 @@ mod portal {
             .build()
             .await
             .expect("the portal serves");
-        assert!(ely_platform::print::print_pdf(source).await.expect("prints"), "printed");
+        assert!(ely_platform::print::print_pdf(source, Sides::Printer).await.expect("prints"), "printed");
         {
             let seen = seen.lock().expect("the record");
             let text = |key: &str| seen.setup.get(key).map(|value| value.downcast_ref::<String>().expect("text"));
@@ -310,26 +313,43 @@ mod portal {
             assert_eq!(text("Orientation").as_deref(), Some("landscape"));
             assert_eq!((number("Width"), number("Height"), number("MarginTop")), (Some(210.0), Some(297.0), Some(0.0)));
             assert_eq!(seen.token, Some(7), "the print carries the dialog's token");
+            assert!(seen.settings.is_empty(), "the printer's own sides stay");
             assert_eq!(seen.formats.as_deref(), Some(["pdf".to_string()].as_slice()), "PDF is all we hand over");
             let printed = sheets(seen.bytes.as_deref().expect("a job"));
             assert_eq!(printed, [((842, 595), vec![(842, [0, 0, 842, 595])])], "the page fills its sheet");
         }
+        // GTK's words: horizontal is the long edge.
+        for (sides, duplex) in [(Sides::Long, "horizontal"), (Sides::Short, "vertical"), (Sides::One, "simplex")] {
+            *seen.lock().expect("the record") = Seen::default();
+            assert!(ely_platform::print::print_pdf(source, sides).await.expect("prints"), "printed");
+            let seen = seen.lock().expect("the record");
+            let asked = seen.settings.get("duplex").map(|value| value.downcast_ref::<String>().expect("text"));
+            assert_eq!(asked.as_deref(), Some(duplex), "{sides:?}");
+        }
         // Page two at half size, from the sheet's top left.
         let choices = vec![("print-pages", "ranges"), ("page-ranges", "1"), ("scale", "50")];
         *seen.lock().expect("the record") = Seen { choices, ..Seen::default() };
-        assert!(ely_platform::print::print_pdf(three).await.expect("prints"), "printed");
+        assert!(ely_platform::print::print_pdf(three, Sides::Printer).await.expect("prints"), "printed");
         let printed = sheets(seen.lock().expect("the record").bytes.as_deref().expect("a job"));
         assert_eq!(printed, [((595, 842), vec![(420, [0, 545, 210, 842])])]);
         // Two copies, uncollated, of the last two pages, in reverse.
         let choices = vec![("print-pages", "ranges"), ("page-ranges", "1--1"), ("reverse", "true"), ("n-copies", "2"), ("collate", "false")];
         *seen.lock().expect("the record") = Seen { choices, ..Seen::default() };
-        assert!(ely_platform::print::print_pdf(three).await.expect("prints"), "printed");
+        assert!(ely_platform::print::print_pdf(three, Sides::Printer).await.expect("prints"), "printed");
         let printed = sheets(seen.lock().expect("the record").bytes.as_deref().expect("a job"));
-        let widths: Vec<i64> = printed.iter().map(|(_, placed)| placed[0].0).collect();
-        assert_eq!(widths, [300, 300, 420, 420]);
+        let widths = |printed: &[Sheet]| -> Vec<i64> { printed.iter().map(|(_, placed)| placed.first().map_or(0, |form| form.0)).collect() };
+        assert_eq!(widths(&printed), [300, 300, 420, 420]);
+        // Two-sided copies each start a sheet; 0 is blank.
+        for (collate, sent) in [("true", [595, 420, 300, 0, 595, 420, 300, 0]), ("false", [595, 420, 595, 420, 300, 0, 300, 0])] {
+            let choices = vec![("duplex", "horizontal"), ("n-copies", "2"), ("collate", collate)];
+            *seen.lock().expect("the record") = Seen { choices, ..Seen::default() };
+            assert!(ely_platform::print::print_pdf(three, Sides::Long).await.expect("prints"), "printed");
+            let printed = sheets(seen.lock().expect("the record").bytes.as_deref().expect("a job"));
+            assert_eq!(widths(&printed), sent, "collate {collate}");
+        }
         // Cancelled, nothing prints.
         *seen.lock().expect("the record") = Seen { cancel: true, ..Seen::default() };
-        assert!(!ely_platform::print::print_pdf(source).await.expect("cancels"), "not printed");
+        assert!(!ely_platform::print::print_pdf(source, Sides::Printer).await.expect("cancels"), "not printed");
         assert_eq!(seen.lock().expect("the record").bytes, None, "no job went out");
     }
 }

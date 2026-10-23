@@ -6,8 +6,8 @@ use windows::{
         Foundation::{GlobalFree, HGLOBAL, POINT},
         Graphics::{
             Gdi::{
-                DEVMODEW, DM_IN_BUFFER, DM_ORIENTATION, DM_OUT_BUFFER, DM_PAPERLENGTH, DM_PAPERSIZE, DM_PAPERWIDTH,
-                DMORIENT_LANDSCAPE, DMORIENT_PORTRAIT, DMPAPER_USER,
+                DEVMODE_DUPLEX, DEVMODEW, DM_DUPLEX, DM_IN_BUFFER, DM_ORIENTATION, DM_OUT_BUFFER, DM_PAPERLENGTH, DM_PAPERSIZE,
+                DM_PAPERWIDTH, DMDUP_HORIZONTAL, DMDUP_SIMPLEX, DMDUP_VERTICAL, DMORIENT_LANDSCAPE, DMORIENT_PORTRAIT, DMPAPER_USER,
             },
             Printing::{ClosePrinter, DocumentPropertiesW, GetDefaultPrinterW, OpenPrinterW, PRINTER_HANDLE},
         },
@@ -19,9 +19,10 @@ use windows::{
 };
 
 use super::wide;
+use crate::settings::Sides;
 
-/// `printer`'s settings, set to the document's paper.
-pub(super) fn settings(printer: &[u16], (width, height): (f64, f64)) -> anyhow::Result<Devmode> {
+/// `printer`'s settings, set to the document's paper and sides.
+pub(super) fn settings(printer: &[u16], (width, height): (f64, f64), sides: Sides) -> anyhow::Result<Devmode> {
     let name = PCWSTR(printer.as_ptr());
     let mut handle = PRINTER_HANDLE::default();
     unsafe { OpenPrinterW(name, &mut handle, None) }
@@ -57,16 +58,31 @@ pub(super) fn settings(printer: &[u16], (width, height): (f64, f64)) -> anyhow::
             paper.dmOrientation = if width > height { DMORIENT_LANDSCAPE } else { DMORIENT_PORTRAIT } as i16;
         }
         fields.dmFields |= DM_ORIENTATION;
+        if let Some(duplex) = duplex(sides) {
+            fields.dmDuplex = duplex;
+            fields.dmFields |= DM_DUPLEX;
+        }
         // The driver settles what it cannot do.
         let asked = settings.clone();
         answered(unsafe {
             DocumentPropertiesW(None, handle, name, Some(settings.as_mut_ptr()), Some(asked.as_ptr()), DM_IN_BUFFER.0 | DM_OUT_BUFFER.0)
         })?;
+        log::info!("print: sides {sides:?}, the driver keeps duplex {}", settings.fields().dmDuplex.0);
         Ok(settings)
     };
     let settings = set();
     unsafe { ClosePrinter(handle) }?;
     settings
+}
+
+/// Windows calls long-edge binding vertical.
+fn duplex(sides: Sides) -> Option<DEVMODE_DUPLEX> {
+    match sides {
+        Sides::Printer => None,
+        Sides::One => Some(DMDUP_SIMPLEX),
+        Sides::Long => Some(DMDUP_VERTICAL),
+        Sides::Short => Some(DMDUP_HORIZONTAL),
+    }
 }
 
 /// The printer's forms: id, then size in tenth millimetres.
@@ -206,4 +222,48 @@ fn answered(code: i32) -> anyhow::Result<()> {
         bail!("the printer refused its settings");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use windows::{
+        Win32::{
+            Graphics::{
+                Gdi::{DMDUP_HORIZONTAL, DMDUP_SIMPLEX, DMDUP_VERTICAL},
+                Printing::{EnumPrintersW, PRINTER_ENUM_CONNECTIONS, PRINTER_ENUM_LOCAL, PRINTER_INFO_4W},
+            },
+            Storage::Xps::{DC_DUPLEX, DeviceCapabilitiesW},
+        },
+        core::PCWSTR,
+    };
+
+    use super::{duplex, settings};
+    use crate::settings::Sides;
+
+    /// An installed printer whose driver prints both sides.
+    fn two_sided() -> Option<Vec<u16>> {
+        let flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
+        let (mut needed, mut count) = (0, 0);
+        // Asked with no buffer, it fails and gives the size.
+        let _ = unsafe { EnumPrintersW(flags, PCWSTR::null(), 4, None, &mut needed, &mut count) };
+        let mut buffer = vec![0u64; (needed as usize).div_ceil(8)];
+        let bytes = unsafe { std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast::<u8>(), needed as usize) };
+        unsafe { EnumPrintersW(flags, PCWSTR::null(), 4, Some(bytes), &mut needed, &mut count) }.expect("printers listed");
+        let infos = unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast::<PRINTER_INFO_4W>(), count as usize) };
+        infos.iter().map(|info| unsafe { info.pPrinterName.as_wide() }.iter().copied().chain([0]).collect::<Vec<u16>>()).find(|name| {
+            1 == unsafe { DeviceCapabilitiesW(PCWSTR(name.as_ptr()), PCWSTR::null(), DC_DUPLEX, None, None) }
+        })
+    }
+
+    #[test]
+    fn a_two_sided_printer_starts_on_the_sides_chosen() {
+        let Some(printer) = two_sided() else {
+            return eprintln!("SKIP: no printer here prints both sides");
+        };
+        let a4 = (595.0, 842.0);
+        for (sides, duplex) in [(Sides::Long, DMDUP_VERTICAL), (Sides::Short, DMDUP_HORIZONTAL), (Sides::One, DMDUP_SIMPLEX)] {
+            assert_eq!(settings(&printer, a4, sides).expect("settings").fields().dmDuplex, duplex, "{sides:?}");
+        }
+        assert_eq!(duplex(Sides::Printer), None, "the printer's own stays");
+    }
 }

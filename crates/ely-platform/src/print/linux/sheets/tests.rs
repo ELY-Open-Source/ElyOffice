@@ -38,6 +38,7 @@ fn choices(sheet: (f64, f64)) -> Choices {
         reverse: false,
         copies: 1,
         collate: true,
+        duplex: false,
         scale: 1.0,
         up: 1,
         order: Order { across_first: true, leftward: false, upward: false },
@@ -191,13 +192,21 @@ fn sets_order_and_copies_choose_the_sheets() {
     let widths = [100.0, 110.0, 120.0];
     let boxes: Vec<_> = widths.iter().map(|&w| plain([0.0, 0.0, w, 100.0])).collect();
     let (_folder, pdf) = pages(&boxes);
-    let order = |chosen: Choices| -> Vec<i64> { sheets(&compose(&pdf, &chosen).expect("composes")).iter().map(|sheet| sheet.1[0].0).collect() };
+    // A blank back has no form: width 0.
+    let order = |chosen: Choices| -> Vec<i64> {
+        sheets(&compose(&pdf, &chosen).expect("composes")).iter().map(|sheet| sheet.1.first().map_or(0, |form| form.0)).collect()
+    };
     let base = choices((595.0, 842.0));
     assert_eq!(order(Choices { set: Set::Odd, ..choices((595.0, 842.0)) }), [100, 120]);
     assert_eq!(order(Choices { set: Set::Even, ..choices((595.0, 842.0)) }), [110]);
     assert_eq!(order(Choices { reverse: true, ..choices((595.0, 842.0)) }), [120, 110, 100]);
     assert_eq!(order(Choices { copies: 2, ..choices((595.0, 842.0)) }), [100, 110, 120, 100, 110, 120]);
     assert_eq!(order(Choices { copies: 2, collate: false, ..base }), [100, 100, 110, 110, 120, 120]);
+    // Two-sided: each copy starts a fresh sheet.
+    let both = || Choices { duplex: true, copies: 2, ..choices((595.0, 842.0)) };
+    assert_eq!(order(both()), [100, 110, 120, 0, 100, 110, 120, 0]);
+    assert_eq!(order(Choices { collate: false, ..both() }), [100, 110, 100, 110, 120, 0, 120, 0]);
+    assert_eq!(order(Choices { reverse: true, copies: 1, ..both() }), [120, 0, 100, 110]);
     let none = compose(&pdf, &Choices { ranges: Some(vec![(5, 9)]), ..choices((595.0, 842.0)) });
     assert!(none.is_err(), "no chosen page is in the document");
 }

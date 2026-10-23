@@ -35,6 +35,8 @@ mod printer;
 
 use printer::{Devmode, default_printer, device, free, global, names, settings};
 
+use crate::settings::Sides;
+
 /// The printer tests write their job to a file with.
 const TO_FILE: &str = "Microsoft Print to PDF";
 /// Bytes one rendered band may take.
@@ -43,7 +45,7 @@ const BAND: usize = 32 << 20;
 const PROBE: u32 = 200;
 
 /// Shows the print dialog, then prints; false when cancelled.
-pub async fn print_pdf(pdf: &Path) -> anyhow::Result<bool> {
+pub async fn print_pdf(pdf: &Path, sides: Sides) -> anyhow::Result<bool> {
     let pdf = std::path::absolute(pdf)?;
     let sizes = {
         let pdf = pdf.clone();
@@ -56,10 +58,10 @@ pub async fn print_pdf(pdf: &Path) -> anyhow::Result<bool> {
     let job = match crate::env::value("ELY_PRINT_TO") {
         Some(to) => {
             let printer = wide(TO_FILE);
-            let settings = settings(&printer, paper)?;
+            let settings = settings(&printer, paper, sides)?;
             Job { printer, settings, pages: every, output: Some(wide(&to)) }
         }
-        None => match ask(every, paper)? {
+        None => match ask(every, paper, sides)? {
             Some(job) => job,
             None => {
                 log::info!("print: the dialog was cancelled");
@@ -138,13 +140,13 @@ impl Job {
 }
 
 /// Shows the dialog over the active window; None when cancelled.
-fn ask(every: Vec<u32>, paper: (f64, f64)) -> anyhow::Result<Option<Job>> {
+fn ask(every: Vec<u32>, paper: (f64, f64), sides: Sides) -> anyhow::Result<Option<Job>> {
     let owner = unsafe { GetActiveWindow() };
     if owner.is_invalid() {
         bail!("no window is active to own the print dialog");
     }
     let printer = default_printer()?;
-    let settings = settings(&printer, paper)?;
+    let settings = settings(&printer, paper, sides)?;
     let mut ranges = [PRINTPAGERANGE::default(); 32];
     let mut dialog = PRINTDLGEXW {
         lStructSize: size_of::<PRINTDLGEXW>() as u32,

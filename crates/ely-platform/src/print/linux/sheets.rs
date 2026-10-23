@@ -146,7 +146,14 @@ pub(super) fn compose(pdf: &std::path::Path, choices: &Choices) -> anyhow::Resul
         }
         sheets.push(sheet);
     }
-    let kids: Vec<Object> = arrange(choices, sheets.len())?.into_iter().map(|n| document.add_object(sheets[n].clone()).into()).collect();
+    let blank = {
+        let media: Vec<Object> = vec![0.into(), 0.into(), (width as f32).into(), (height as f32).into()];
+        dictionary! { "Type" => "Page", "Parent" => tree, "MediaBox" => media, "Resources" => dictionary! { "XObject" => Dictionary::new() } }
+    };
+    let kids: Vec<Object> = arrange(choices, sheets.len())?
+        .into_iter()
+        .map(|n| document.add_object(n.map_or_else(|| blank.clone(), |n| sheets[n].clone())).into())
+        .collect();
     let count = kids.len() as i64;
     document.objects.insert(tree, dictionary! { "Type" => "Pages", "Kids" => kids, "Count" => count }.into());
     let root = document.trailer.get(b"Root")?.as_reference()?;
@@ -174,9 +181,9 @@ fn picked(choices: &Choices, count: usize) -> anyhow::Result<Vec<usize>> {
     Ok(picked)
 }
 
-/// Sheets in print order: set, reverse, then copies.
-fn arrange(choices: &Choices, sheets: usize) -> anyhow::Result<Vec<usize>> {
-    let mut order: Vec<usize> = (0..sheets)
+/// Sheets in print order; None is a blank back.
+fn arrange(choices: &Choices, sheets: usize) -> anyhow::Result<Vec<Option<usize>>> {
+    let order: Vec<usize> = (0..sheets)
         .filter(|n| match choices.set {
             Set::All => true,
             Set::Even => n % 2 == 1,
@@ -186,14 +193,21 @@ fn arrange(choices: &Choices, sheets: usize) -> anyhow::Result<Vec<usize>> {
     if order.is_empty() {
         bail!("the chosen page set leaves no sheet to print");
     }
+    // Two-sided: a front and its back move together.
+    let side = if choices.duplex { 2 } else { 1 };
+    let mut leaves: Vec<Vec<Option<usize>>> = order.chunks(side).map(|leaf| leaf.iter().copied().map(Some).collect()).collect();
+    if let Some(last) = leaves.last_mut() {
+        last.resize(side, None);
+    }
     if choices.reverse {
-        order.reverse();
+        leaves.reverse();
     }
     let copies = choices.copies as usize;
-    Ok(match choices.collate {
-        true => order.iter().copied().cycle().take(order.len() * copies).collect(),
-        false => order.into_iter().flat_map(|n| std::iter::repeat_n(n, copies)).collect(),
-    })
+    let leaves: Vec<Vec<Option<usize>>> = match choices.collate {
+        true => leaves.iter().cloned().cycle().take(leaves.len() * copies).collect(),
+        false => leaves.into_iter().flat_map(|leaf| std::iter::repeat_n(leaf, copies)).collect(),
+    };
+    Ok(leaves.concat())
 }
 
 /// Each sheet's pages: which page, and where it goes.

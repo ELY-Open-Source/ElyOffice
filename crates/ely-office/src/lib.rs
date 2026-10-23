@@ -246,9 +246,10 @@ pub fn in_window<H: Host, R>(
 
 /// Opens the print panel after GPUI releases the app.
 pub fn print_later<H: Tabs>(pdf: std::path::PathBuf, cx: &mut Context<H>) {
+    let sides = ely_ui::settings::current(cx).two_sided;
     // The panel's modal loop calls back into GPUI.
     cx.spawn(async move |this, cx| {
-        let printed = ely_platform::print::print_pdf(&pdf).await;
+        let printed = ely_platform::print::print_pdf(&pdf, sides).await;
         // The copy may hold what a password guarded.
         if let Err(error) = std::fs::remove_file(&pdf) {
             log::error!("office: the print copy {} stays: {error}", pdf.display());

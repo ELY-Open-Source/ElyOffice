@@ -174,13 +174,42 @@ fn the_latest_text_pick_is_kept_across_windows(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn the_two_sided_row_picks_what_is_chosen(cx: &mut TestAppContext) {
+    installed(cx);
+    let two_sided = ely_platform::settings::TWO_SIDED;
+    // Printer's, one, long, short; Mark opens on Doc's pick.
+    for (app, steps, chosen) in [(AppId::Doc, 2, "long"), (AppId::Mark, 1, "short")] {
+        let settings = cx.add_window(|window, cx| SettingsView::new(app, window, cx));
+        let mut shown = gpui::VisualTestContext::from_window(settings.into(), cx);
+        settings.update(&mut shown, |view, _, _| view.section = "documents".into()).unwrap();
+        shown.update(|window, cx| window.draw(cx).clear(cx));
+        let at = shown.debug_bounds("settings-two-sided").expect("the row is shown").center();
+        // No write runs.
+        shown.update(|window, cx| {
+            let down = gpui::MouseDownEvent { position: at, button: gpui::MouseButton::Left, click_count: 1, ..Default::default() };
+            let up = gpui::MouseUpEvent { position: at, button: gpui::MouseButton::Left, click_count: 1, ..Default::default() };
+            window.dispatch_event(gpui::PlatformInput::MouseDown(down), cx);
+            window.dispatch_event(gpui::PlatformInput::MouseUp(up), cx);
+        });
+        for key in std::iter::repeat_n("down", steps).chain(["enter"]) {
+            shown.update(|window, cx| window.draw(cx).clear(cx));
+            let keystroke = gpui::Keystroke::parse(key).unwrap();
+            shown.update(|window, cx| window.dispatch_event(gpui::PlatformInput::KeyDown(gpui::KeyDownEvent { keystroke, is_held: false, prefer_character_input: false }), cx));
+        }
+        let picked = shown.update(|_, cx| super::picks::waiting(two_sided, cx));
+        assert_eq!(picked, Some(serde_json::json!(chosen)), "{app:?}");
+        shown.update(|window, _| window.remove_window());
+    }
+}
+
+#[gpui::test]
 fn each_app_shows_its_own_sections(cx: &mut TestAppContext) {
     installed(cx);
     for (app, keys) in [
         (AppId::Doc, &["general", "documents", "storage", "diagnostics"][..]),
         (AppId::Pdf, &["general", "documents", "storage", "diagnostics"]),
         (AppId::Tree, &["general", "git", "storage", "diagnostics"]),
-        (AppId::Mark, &["general", "storage", "diagnostics"]),
+        (AppId::Mark, &["general", "documents", "storage", "diagnostics"]),
         (AppId::Mail, &["general", "mail", "storage", "diagnostics"]),
     ] {
         // As each app does before its first window.

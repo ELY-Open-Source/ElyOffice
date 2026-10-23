@@ -36,8 +36,10 @@ type Options = HashMap<&'static str, Value<'static>>;
 mod choices;
 mod sheets;
 
+use crate::settings::Sides;
+
 /// Shows the portal's print dialog for `pdf`; false when cancelled.
-pub async fn print_pdf(pdf: &Path) -> anyhow::Result<bool> {
+pub async fn print_pdf(pdf: &Path, sides: Sides) -> anyhow::Result<bool> {
     let sizes = {
         let pdf = pdf.to_owned();
         super::off(move || sizes(&pdf)).await?
@@ -46,7 +48,11 @@ pub async fn print_pdf(pdf: &Path) -> anyhow::Result<bool> {
     log::info!("print: paper {}x{} points", paper.0, paper.1);
     let bus = Connection::session().await.context("no session bus for the print portal")?;
     let portal = Proxy::new(&bus, DESKTOP, PORTAL, "org.freedesktop.portal.Print").await?;
-    let settings = Options::new();
+    let settings = match duplex(sides) {
+        Some(duplex) => Options::from([("duplex", Value::from(duplex))]),
+        None => Options::new(),
+    };
+    log::info!("print: sides {sides:?}");
     let prepared = request(&bus, &portal, "PreparePrint", |mut options| {
         // We hand over PDF; the dialog must not offer others.
         options.insert("supported_output_file_formats", Value::from(vec!["pdf"]));
@@ -77,6 +83,16 @@ pub async fn print_pdf(pdf: &Path) -> anyhow::Result<bool> {
     .await?;
     log::info!("print: the portal took the job, printed {}", printed.is_some());
     Ok(printed.is_some())
+}
+
+/// GTK calls long-edge binding horizontal.
+fn duplex(sides: Sides) -> Option<&'static str> {
+    match sides {
+        Sides::Printer => None,
+        Sides::One => Some("simplex"),
+        Sides::Long => Some("horizontal"),
+        Sides::Short => Some("vertical"),
+    }
 }
 
 /// Calls `method`, awaits its answer; None when cancelled.

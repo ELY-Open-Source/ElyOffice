@@ -1,11 +1,22 @@
 //! macOS: PDFKit's print operation and panel.
 
-use std::path::Path;
+use std::{ffi::c_void, path::Path};
+
+use objc2_app_kit::NSPrintInfo;
+
+use crate::settings::Sides;
+
+#[link(name = "ApplicationServices", kind = "framework")]
+unsafe extern "C" {
+    fn PMSetDuplex(settings: *mut c_void, duplex: u32) -> i32;
+    #[cfg(test)]
+    fn PMGetDuplex(settings: *mut c_void, duplex: *mut u32) -> i32;
+}
 
 /// Shows the print panel for `pdf`; false when cancelled.
-pub async fn print_pdf(pdf: &Path) -> anyhow::Result<bool> {
+pub async fn print_pdf(pdf: &Path, sides: Sides) -> anyhow::Result<bool> {
     use objc2::{AllocAnyThread, MainThreadMarker};
-    use objc2_app_kit::{NSPaperOrientation, NSPrintInfo, NSPrintJobSavingURL, NSPrintSaveJob};
+    use objc2_app_kit::{NSPaperOrientation, NSPrintJobSavingURL, NSPrintSaveJob};
     use objc2_foundation::{NSCopying, NSSize, NSString, NSURL};
     use objc2_pdf_kit::{PDFDisplayBox, PDFDocument, PDFPrintScalingMode};
 
@@ -43,6 +54,7 @@ pub async fn print_pdf(pdf: &Path) -> anyhow::Result<bool> {
     info.setBottomMargin(0.0);
     info.setLeftMargin(0.0);
     info.setRightMargin(0.0);
+    two_sided(&info, sides)?;
     log::info!("print: paper {}x{} points", paper.width, paper.height);
     let operation = unsafe {
         document.printOperationForPrintInfo_scalingMode_autoRotate(
@@ -66,4 +78,51 @@ pub async fn print_pdf(pdf: &Path) -> anyhow::Result<bool> {
     let printed = operation.runOperation();
     log::info!("print: the panel closed, printed {printed}");
     Ok(printed)
+}
+
+/// PrintCore calls long-edge binding no tumble.
+fn two_sided(info: &NSPrintInfo, sides: Sides) -> anyhow::Result<()> {
+    let duplex = match sides {
+        Sides::Printer => return Ok(()),
+        Sides::One => 1,
+        Sides::Long => 2,
+        Sides::Short => 3,
+    };
+    let status = unsafe { PMSetDuplex(info.PMPrintSettings().as_ptr(), duplex) };
+    if status != 0 {
+        anyhow::bail!("macOS refused the sides {sides:?} ({status})");
+    }
+    info.updateFromPMPrintSettings();
+    log::info!("print: sides {sides:?}");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use objc2_app_kit::NSPrintInfo;
+    use objc2_foundation::NSCopying;
+
+    use super::{PMGetDuplex, two_sided};
+    use crate::settings::Sides;
+
+    /// PrintCore's answer, then the mode read.
+    fn duplex(info: &NSPrintInfo) -> (i32, u32) {
+        let mut duplex = 0;
+        (unsafe { PMGetDuplex(info.PMPrintSettings().as_ptr(), &mut duplex) }, duplex)
+    }
+
+    #[test]
+    fn the_panel_starts_on_the_sides_chosen() {
+        for (sides, mode) in [(Sides::Long, 2), (Sides::Short, 3), (Sides::One, 1)] {
+            let info = NSPrintInfo::sharedPrintInfo().copy();
+            two_sided(&info, sides).expect("set");
+            // A copy, as the print operation takes one.
+            assert_eq!(duplex(&info.copy()), (0, mode), "{sides:?}");
+        }
+        let info = NSPrintInfo::sharedPrintInfo().copy();
+        // Unset reads as kPMKeyNotFound; it must stay unset.
+        let own = duplex(&info);
+        two_sided(&info, Sides::Printer).expect("left");
+        assert_eq!(duplex(&info), own, "the printer's own stays");
+    }
 }

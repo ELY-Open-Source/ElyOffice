@@ -55,7 +55,7 @@ pub fn open(app: AppId, cx: &mut gpui::App) {
 pub struct SettingsView {
     pub(super) app: AppId,
     focus: FocusHandle,
-    section: SharedString,
+    pub(super) section: SharedString,
     author: Entity<TextInput>,
     /// The name last read from or saved to the file.
     author_saved: String,
@@ -197,7 +197,7 @@ impl SettingsView {
 
     pub(super) fn sections(&self, cx: &gpui::App) -> Vec<(&'static str, SharedString, IconName)> {
         let mut sections = vec![("general", text(cx, "settings.general", &[]), IconName::Settings)];
-        if matches!(self.app, AppId::Doc | AppId::Table | AppId::Show | AppId::Pdf) {
+        if matches!(self.app, AppId::Doc | AppId::Table | AppId::Show | AppId::Pdf | AppId::Mark) {
             sections.push(("documents", text(cx, "settings.documents", &[]), IconName::FileText));
         }
         if self.git.is_some() {
@@ -294,10 +294,18 @@ impl SettingsView {
     fn page(&self, this: gpui::WeakEntity<Self>, cx: &gpui::App) -> gpui::AnyElement {
         match self.section.as_ref() {
             "documents" => {
+                let printing = SettingsRow::new(text(cx, "settings.two_sided", &[]))
+                    .description(text(cx, "settings.two_sided.hint", &[]))
+                    .control(div().debug_selector(|| "settings-two-sided".into()).w_full().max_w_64().child(super::picks::two_sided(current(cx).two_sided, cx)));
+                let section = SettingsSection::new(text(cx, "settings.documents", &[]));
+                // ElyMark prints, but has no author, autosave or zoom.
+                if self.app == AppId::Mark {
+                    return section.row(printing).into_any_element();
+                }
                 let autosave = Switch::new("settings-autosave", super::switches::on(super::switches::AUTOSAVE, cx))
                     .name(text(cx, "settings.autosave", &[]))
                     .on_change(|on, _, cx| super::switches::set(super::switches::AUTOSAVE, on, cx));
-                SettingsSection::new(text(cx, "settings.documents", &[]))
+                section
                     .row(
                         SettingsRow::new(text(cx, "settings.author", &[]))
                             .description(text(cx, "settings.author.hint", &[]))
@@ -313,6 +321,7 @@ impl SettingsView {
                             .description(text(cx, "settings.zoom.hint", &[]))
                             .control(div().w_full().max_w_64().child(super::picks::doc_zoom(current(cx).doc_zoom, cx))),
                     )
+                    .row(printing)
                     .into_any_element()
             }
             "git" => {

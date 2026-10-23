@@ -180,7 +180,7 @@ tests/scripts/recovery.sh      真窗口 ElyDoc：恢复点、崩溃后副本、
 tests/scripts/pdf-recovery.sh  真窗口 ElyPDF：加锁文件的封存恢复点、空闲引擎退出后重开时再问密码（需辅助功能权限）
 tests/scripts/autosave.sh      真窗口 ElyDoc：自动保存开关、停手即写、外部改动不覆盖（需辅助功能权限）
 tests/scripts/print.sh         真窗口 ElyDoc：打印用文档自己的纸张，取消不动文档（需辅助功能权限）
-cargo test -p ely-platform --test print  Windows 经“Microsoft Print to PDF”出作业，核对纸张、方向与页面位置；Linux 起私有会话总线与替身打印门户，核对页面设置、令牌与交出的字节、取消（缺 dbus-daemon 时 SKIP）
+cargo test -p ely-platform --test print  Windows 经“Microsoft Print to PDF”出作业，核对纸张、方向与页面位置；Linux 起私有会话总线与替身打印门户，核对页面设置、双面、令牌与交出的字节、取消（缺 dbus-daemon 时 SKIP）
 tests/scripts/show-fullscreen.sh  真窗口 ElyShow：F5 放映的窗口盖住整块屏幕（菜单栏与程序坞之上，需辅助功能权限）
 tests/scripts/dock-macos.sh      dist 里 ElyDoc、ElyTable、ElyShow 与包外的 target/debug/ely-doc 各启动数次：LOK worker 从未登记为程序坞应用，图块照出
 tests/scripts/windows-bundle.sh  合集安装程序逐个静默运行所选应用的安装程序；某个被拒即停下并报出其名与退出码（缺 makensis 时 SKIP）

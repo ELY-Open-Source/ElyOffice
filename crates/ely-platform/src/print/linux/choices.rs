@@ -32,6 +32,8 @@ pub(super) struct Choices {
     pub reverse: bool,
     pub copies: u32,
     pub collate: bool,
+    /// Sheets print front and back.
+    pub duplex: bool,
     pub scale: f64,
     pub up: u32,
     pub order: Order,
@@ -82,6 +84,11 @@ pub(super) fn chosen(settings: &Map, setup: &Map) -> anyhow::Result<Choices> {
         reverse: flag(settings, "reverse", false)?,
         copies: count(settings, "n-copies")?,
         collate: flag(settings, "collate", true)?,
+        duplex: match text(settings, "duplex")?.unwrap_or("simplex") {
+            "simplex" => false,
+            "horizontal" | "vertical" => true,
+            other => bail!("the print dialog chose the sides {other}"),
+        },
         scale,
         up: count(settings, "number-up")?,
         order,
@@ -185,6 +192,7 @@ mod tests {
                 reverse: false,
                 copies: 1,
                 collate: true,
+                duplex: false,
                 scale: 1.0,
                 up: 1,
                 order,
@@ -203,6 +211,7 @@ mod tests {
             ("reverse", Value::from("true")),
             ("n-copies", Value::from("3")),
             ("collate", Value::from("false")),
+            ("duplex", Value::from("vertical")),
             ("scale", Value::from("50")),
             ("number-up", Value::from("4")),
             ("number-up-layout", Value::from("btrl")),
@@ -210,7 +219,7 @@ mod tests {
         ]);
         let choices = chosen(&settings, &a4("reverse-landscape")).expect("reads");
         assert_eq!(choices.ranges, Some(vec![(0, 1), (4, 4), (7, u32::MAX)]));
-        assert_eq!((choices.set, choices.reverse, choices.copies, choices.collate), (Set::Even, true, 3, false));
+        assert_eq!((choices.set, choices.reverse, choices.copies, choices.collate, choices.duplex), (Set::Even, true, 3, false, true));
         assert_eq!((choices.scale, choices.up), (0.5, 4));
         assert_eq!(choices.order, Order { across_first: false, leftward: true, upward: true });
         assert_eq!((choices.sheet.0.round(), choices.sheet.1.round(), choices.upside_down), (842.0, 595.0, true));
@@ -240,6 +249,7 @@ mod tests {
         assert!(bad(&[("n-copies", Value::from("0"))]));
         assert!(bad(&[("number-up-layout", Value::from("lrrl"))]));
         assert!(bad(&[("reverse", Value::from(1u32))]));
+        assert!(bad(&[("duplex", Value::from("both"))]));
         assert!(chosen(&Map::new(), &map(&[("Width", Value::from(210.0))])).is_err(), "no height");
     }
 }

@@ -56,6 +56,25 @@ pub enum DocZoom {
     Percent(u32),
 }
 
+pub const TWO_SIDED: &str = "two_sided";
+
+/// How the print dialog starts out turning pages.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Sides {
+    /// Whatever the printer is set to.
+    #[default]
+    Printer,
+    One,
+    /// Bound on the long edge.
+    Long,
+    /// Bound on the short edge.
+    Short,
+}
+
+impl Sides {
+    pub const ALL: [(Self, &'static str); 4] = [(Self::Printer, "printer"), (Self::One, "one"), (Self::Long, "long"), (Self::Short, "short")];
+}
+
 impl DocZoom {
     /// As the file stores it.
     pub fn value(self) -> Value {
@@ -82,6 +101,7 @@ pub struct Shared {
     /// Pixels of the interface's body text.
     pub ui_text_size: u32,
     pub doc_zoom: DocZoom,
+    pub two_sided: Sides,
 }
 
 impl Default for Shared {
@@ -96,6 +116,7 @@ impl Default for Shared {
             ui_font: String::new(),
             ui_text_size: UI_TEXT_SIZES.2,
             doc_zoom: DocZoom::Auto,
+            two_sided: Sides::Printer,
         }
     }
 }
@@ -166,6 +187,7 @@ impl Shared {
                     .map(DocZoom::Percent)
                     .ok_or_else(|| wrong(DOC_ZOOM, value))?,
             },
+            two_sided: pick(fields, TWO_SIDED, &Sides::ALL)?.unwrap_or(defaults.two_sided),
         })
     }
 }

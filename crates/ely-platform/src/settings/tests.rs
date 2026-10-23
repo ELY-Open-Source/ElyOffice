@@ -108,6 +108,22 @@ fn the_document_zoom_is_automatic_or_a_listed_percent() {
 }
 
 #[test]
+fn two_sided_printing_is_the_printers_unless_chosen() {
+    use super::{Shared, Sides, word};
+    let fields = |text: &str| serde_json::from_str::<serde_json::Map<_, _>>(text).unwrap();
+    assert_eq!(Shared::default().two_sided, Sides::Printer);
+    for (sides, stored) in Sides::ALL {
+        let read = Shared::from_fields(&fields(&format!(r#"{{"two_sided":"{stored}"}}"#))).unwrap();
+        assert_eq!(read.two_sided, sides);
+        assert_eq!(word(&Sides::ALL, &sides), stored);
+    }
+    assert_eq!(Sides::ALL.map(|(_, stored)| stored), ["printer", "one", "long", "short"]);
+    for bad in [r#"{"two_sided":"both"}"#, r#"{"two_sided":true}"#, r#"{"two_sided":2}"#] {
+        assert!(Shared::from_fields(&fields(bad)).is_err(), "{bad}");
+    }
+}
+
+#[test]
 fn a_write_overtaken_while_waiting_leaves_the_file() {
     let (_dir, store) = store();
     store.set("author", json!("Ana")).unwrap();
