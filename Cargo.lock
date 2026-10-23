@@ -2001,7 +2001,7 @@ checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
 
 [[package]]
 name = "ely-agent"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "ely-platform",
  "ely-ui",
@@ -2010,7 +2010,7 @@ dependencies = [
 
 [[package]]
 name = "ely-doc"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "csv",
@@ -2032,7 +2032,7 @@ dependencies = [
 
 [[package]]
 name = "ely-files"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "aes-gcm",
  "dunce",
@@ -2097,14 +2097,14 @@ dependencies = [
 
 [[package]]
 name = "ely-ipc"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "log",
 ]
 
 [[package]]
 name = "ely-lok"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "base64 0.23.1",
  "dunce",
@@ -2125,7 +2125,7 @@ dependencies = [
 
 [[package]]
 name = "ely-mail"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "directories",
  "ely-files",
@@ -2145,7 +2145,7 @@ dependencies = [
 
 [[package]]
 name = "ely-mail-engine"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "base64 0.23.1",
  "ely-mail-fake",
@@ -2180,7 +2180,7 @@ dependencies = [
 
 [[package]]
 name = "ely-mail-fake"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "base64 0.23.1",
  "ely-mail-engine",
@@ -2191,7 +2191,7 @@ dependencies = [
 
 [[package]]
 name = "ely-mark"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2217,7 +2217,7 @@ dependencies = [
 
 [[package]]
 name = "ely-office"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "directories",
@@ -2238,7 +2238,7 @@ dependencies = [
 
 [[package]]
 name = "ely-pdf"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "dunce",
  "ely-files",
@@ -2256,7 +2256,7 @@ dependencies = [
 
 [[package]]
 name = "ely-pdf-engine"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "cc",
  "ely-ipc",
@@ -2273,7 +2273,7 @@ dependencies = [
 
 [[package]]
 name = "ely-platform"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "arboard",
@@ -2313,7 +2313,7 @@ dependencies = [
 
 [[package]]
 name = "ely-show"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "ely-files",
  "ely-gpui-component",
@@ -2333,7 +2333,7 @@ dependencies = [
 
 [[package]]
 name = "ely-table"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "ely-gpui-component",
  "ely-lok",
@@ -2350,7 +2350,7 @@ dependencies = [
 
 [[package]]
 name = "ely-tree"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "dunce",
  "ely-files",
@@ -2370,7 +2370,7 @@ dependencies = [
 
 [[package]]
 name = "ely-ui"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "directories",
