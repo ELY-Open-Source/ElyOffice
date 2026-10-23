@@ -11,6 +11,17 @@ Title: start with the type, for example
 - [ ] **[BUG REPORT]**: a bug fix
 - [ ] **[Other]**: docs, refactoring, CI, dependencies or chores
 
+## App
+
+- [ ] ElyOffice (shared, or several apps)
+- [ ] ElyDoc
+- [ ] ElyTable
+- [ ] ElyShow
+- [ ] ElyPDF
+- [ ] ElyMail
+- [ ] ElyMark
+- [ ] ElyTree
+
 ## What and why
 
 <!-- One or two sentences. Link the issue: Closes #123 -->

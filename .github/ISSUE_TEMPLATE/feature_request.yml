@@ -13,6 +13,7 @@ body:
         - ElyTable
         - ElyShow
         - ElyPDF
+        - ElyMail
         - ElyMark
         - ElyTree
     validations:
