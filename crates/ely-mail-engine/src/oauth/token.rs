@@ -9,6 +9,9 @@ use crate::{Error, Result};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
 
+/// Microsoft's tenant for personal accounts.
+const PERSONAL: &str = "9188040d-6c67-4c5b-b112-36a304b66dad";
+
 #[derive(Deserialize)]
 struct Granted {
     access_token: String,
@@ -27,6 +30,7 @@ struct Refused {
 struct Claims {
     email: Option<String>,
     preferred_username: Option<String>,
+    tid: Option<String>,
 }
 
 /// Posts to the token endpoint off the async thread.
@@ -107,5 +111,20 @@ fn email(token: &str) -> Result<Option<String>> {
     let payload = token.split('.').nth(1).ok_or_else(unreadable)?;
     let bytes = URL_SAFE_NO_PAD.decode(payload).map_err(|_| unreadable())?;
     let claims: Claims = serde_json::from_slice(&bytes).map_err(|_| unreadable())?;
+    let from = match (&claims.email, &claims.preferred_username) {
+        (Some(_), _) => "email",
+        (None, Some(_)) => "preferred_username",
+        (None, None) => "no claim",
+    };
+    let differ = match (&claims.email, &claims.preferred_username) {
+        (Some(email), Some(name)) => !email.eq_ignore_ascii_case(name),
+        _ => false,
+    };
+    let account = match claims.tid.as_deref() {
+        Some(PERSONAL) => "personal",
+        Some(_) => "work or school",
+        None => "no tenant",
+    };
+    log::info!("oauth: address from {from}, claims differ {differ}, {account} account");
     Ok(claims.email.or(claims.preferred_username))
 }

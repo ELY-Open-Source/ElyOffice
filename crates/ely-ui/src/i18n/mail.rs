@@ -129,6 +129,10 @@ pub(super) const EN: &[(&str, &str)] = &[
         "mail.error.rejected",
         "the server refused the sign-in: {detail}",
     ),
+    (
+        "mail.error.outlook_held",
+        "Outlook took the sign-in but would not open the mailbox ({detail}). Outlook.com holds some accounts like this, and other mail apps fail the same way. Sign in once at outlook.live.com, finish any check it asks for, then try again",
+    ),
     ("mail.error.server", "the server refused: {detail}"),
     (
         "mail.error.protocol",
@@ -333,6 +337,10 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("mail.error.connect", "连不上（{detail}）"),
     ("mail.error.tls_failed", "安全连接失败（{detail}）"),
     ("mail.error.rejected", "服务器拒绝登录：{detail}"),
+    (
+        "mail.error.outlook_held",
+        "Outlook 接受了登录，却不肯打开邮箱（{detail}）。Outlook.com 会这样扣住部分账号，其他邮件应用同样失败。请在 outlook.live.com 登录一次，完成它要求的验证，再试",
+    ),
     ("mail.error.server", "服务器拒绝：{detail}"),
     ("mail.error.protocol", "读不懂服务器的回复：{detail}"),
     ("mail.error.timeout", "{detail}时没有回应"),

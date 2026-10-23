@@ -273,11 +273,17 @@ fn status(adding: &Adding, cx: &App) -> Option<AnyElement> {
     })
 }
 
+/// Outlook.com's words for an account it holds.
+const OUTLOOK_HELD: &str = "User is authenticated but not connected";
+
 /// A server's refusal in the reader's language, its words kept.
 pub fn failure(error: &Error, cx: &App) -> SharedString {
     let (key, detail) = match error {
         Error::Connect(err) => ("mail.error.connect", err.to_string()),
         Error::Tls(detail) => ("mail.error.tls_failed", detail.clone()),
+        Error::Rejected(detail) if detail.contains(OUTLOOK_HELD) => {
+            ("mail.error.outlook_held", detail.clone())
+        }
         Error::Rejected(detail) => ("mail.error.rejected", detail.clone()),
         Error::Server(detail) => ("mail.error.server", detail.clone()),
         Error::Protocol(detail) => ("mail.error.protocol", detail.clone()),

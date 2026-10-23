@@ -1,8 +1,8 @@
-use ely_mail_engine::{Auth, Security, oauth};
+use ely_mail_engine::{Auth, Error, Security, oauth};
 use gpui::{Modifiers, TestAppContext};
 
 use super::{Keys, adding, step_words, type_in, window};
-use crate::kinds::Kind;
+use crate::{add_view::failure, kinds::Kind};
 
 #[test]
 fn an_icloud_account_takes_apples_servers() {
@@ -71,4 +71,18 @@ fn a_build_without_a_client_id_says_so() {
     cx.update(|_, app| mail.update(app, |mail, cx| mail.sign_in(cx)));
     let words = step_words(&mail, cx);
     assert!(words.starts_with("Microsoft sign-in is not in this build"), "{words}");
+}
+
+#[test]
+fn outlooks_held_account_says_what_to_do() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut cx = TestAppContext::single();
+    let (_, cx) = window(&mut cx, dir.path(), Keys::default());
+    let held = Error::Rejected("NO User is authenticated but not connected.".into());
+    let other = Error::Rejected("NO LOGIN failed.".into());
+    let (held, other) = cx.update(|_, app| (failure(&held, app), failure(&other, app)));
+    assert!(held.starts_with("Outlook took the sign-in"), "{held}");
+    assert!(held.contains("(NO User is authenticated but not connected.)"), "{held}");
+    assert!(held.contains("outlook.live.com"), "{held}");
+    assert_eq!(other.as_ref(), "the server refused the sign-in: NO LOGIN failed.");
 }
