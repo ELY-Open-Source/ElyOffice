@@ -153,8 +153,9 @@ fn a_kernel_write_failure_stays_visible() {
     let id = blank(&mut cx, &docs);
     type_into(&mut cx, &docs, "RetainedText");
     let work = cx.update(|app| docs.read(app).active_tab().expect("a tab").work.clone());
-    std::fs::remove_dir_all(&work).expect("drops the scratch");
-    std::fs::write(&work, b"not a folder").expect("blocks it");
+    // A folder where the kernel writes its copy.
+    let block = work.join("save.docx");
+    std::fs::create_dir(&block).expect("blocks the copy");
     let target = dir.path().join("failure.docx");
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.write_as(id, target.clone(), None, window, cx)
@@ -164,8 +165,7 @@ fn a_kernel_write_failure_stays_visible() {
         !tab.exporting && tab.session.state() == ely_files::SaveState::SaveFailed
     });
     assert!(!target.exists(), "the failure writes nothing");
-    std::fs::remove_file(&work).expect("unblocks");
-    std::fs::create_dir_all(&work).expect("the scratch returns");
+    std::fs::remove_dir(&block).expect("unblocks");
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.write_as(id, target.clone(), None, window, cx)
     });
