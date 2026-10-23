@@ -35,7 +35,13 @@ const FILTERS: [(&str, &str, IconName, Filtered); 3] = [
 
 impl Mail {
     pub fn panes(&self, cx: &mut Context<Self>) -> AnyElement {
-        SplitPane::new("mail-panes", Axis::Horizontal, px(240.))
+        let split = SplitPane::new("mail-panes", Axis::Horizontal, px(240.))
+            .on_resize(|shares, _, cx| ely_ui::settings::panels::set_split(shares[0], cx));
+        let split = match ely_ui::settings::panels::split(cx) {
+            Some(share) => split.sizes(&[share, 1. - share]),
+            None => split,
+        };
+        split
             .pane(self.list_pane(cx))
             .pane(match self.open {
                 Open::Drafts => self.draft_pane(cx),
@@ -108,6 +114,7 @@ impl Mail {
         let lists_mail = !matches!(self.open, Open::Drafts | Open::Outbox);
         let searched = matches!(self.open, Open::Inboxes | Open::Mailbox(..));
         div()
+            .debug_selector(|| "mail-list-pane".into())
             .size_full()
             .flex()
             .flex_col()
