@@ -151,6 +151,7 @@ cp "$root/packaging/libreoffice/ely.xcd" "$app/registry/"
 
 if [ "$(uname)" = Linux ]; then
   # Meson leaves build-tree RUNPATHs in copied libraries, as cairo's.
+  built=$(cd "$src" && pwd -P)
   files=$(mktemp)
   find "$src/instdir" -type f -print0 >"$files" || {
     echo "build-libreoffice.sh: cannot list $src/instdir" >&2
@@ -161,7 +162,8 @@ if [ "$(uname)" = Linux ]; then
     [ "$magic" = '177ELF' ] || continue
     dynamic=$(readelf -dW "$lib") || exit 1
     paths=$(sed -n 's/.*(R\(UN\)\{0,1\}PATH).*\[\(.*\)\]/\2/p' <<<"$dynamic")
-    if [[ $paths == *"$src"* ]]; then
+    # Configure records the path with links resolved.
+    if [[ $paths == *"$built"* ]]; then
       # shellcheck disable=SC2016
       patchelf --set-rpath '$ORIGIN' "$lib"
       echo "build-libreoffice.sh: $lib now loads from \$ORIGIN"

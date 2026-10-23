@@ -5,6 +5,7 @@ libm.so.6	libc6	glibc
 libdl.so.2	libc6	glibc
 libpthread.so.0	libc6	glibc
 libresolv.so.2	libc6	glibc
+librt.so.1	libc6	glibc
 libgcc_s.so.1	libgcc-s1	libgcc
 libstdc++.so.6	libstdc++6	libstdc++
 libgssapi_krb5.so.2	libgssapi-krb5-2	krb5
@@ -23,3 +24,5 @@ libfribidi.so.0	libfribidi0	fribidi
 libgbm.so.1	libgbm1	mesa
 libgmp.so.10	libgmp10	gmp
 libharfbuzz.so.0	libharfbuzz0b	harfbuzz
+libgpg-error.so.0	libgpg-error0	libgpg-error
+libuuid.so.1	libuuid1	util-linux-libs

@@ -60,7 +60,9 @@ for slug in $batch; do
   for file in "$deb" "$rpm" "$pkg"; do
     [ -f "$file" ] || fail "no $file; run packaging/linux/package.sh $slug"
   done
-  run "$debian" "apt-get update -q && apt-get install -y -q" "$deb" "$slug"
+  # Debian 11 now lives on the archive.
+  run "$debian" "sed -i s#deb.debian.org#archive.debian.org# /etc/apt/sources.list &&
+    apt-get update -q && apt-get install -y -q" "$deb" "$slug"
   run "$ubuntu" "apt-get update -q && apt-get install -y -q" "$deb" "$slug"
   run "$fedora" "dnf install -y -q" "$rpm" "$slug"
   run "$arch" "pacman -Sy --noconfirm && pacman -U --noconfirm" "$pkg" "$slug"
