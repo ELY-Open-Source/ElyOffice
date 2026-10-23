@@ -11,8 +11,6 @@ version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
   exit 1
 }
 : "${ELY_RELEASE_TOKEN:?the GitHub token that uploads}"
-: "${ELY_GOOGLE_CLIENT_ID:?the Gmail OAuth client ID}"
-: "${ELY_GOOGLE_CLIENT_SECRET:?the Gmail OAuth client secret}"
 : "${ELY_MICROSOFT_CLIENT_ID:?the Microsoft OAuth client ID}"
 if [ "$os" = macos ]; then
   : "${ELY_SIGN_IDENTITY:?the Developer ID Application certificate}"

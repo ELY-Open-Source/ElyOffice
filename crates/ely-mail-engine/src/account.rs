@@ -19,6 +19,7 @@ pub enum Protocol {
 #[serde(rename_all = "lowercase")]
 pub enum Auth {
     Password,
+    /// Gmail by OAuth, as 0.1.10 added it; app passwords since.
     Google,
     Microsoft,
 }
@@ -28,7 +29,9 @@ impl Auth {
     pub fn provider(self) -> Option<Result<oauth::Provider>> {
         match self {
             Auth::Password => None,
-            Auth::Google => Some(oauth::google()),
+            Auth::Google => Some(Err(Error::SignInAgain(
+                "Gmail now signs in with an app password; remove this account and add it again".into(),
+            ))),
             Auth::Microsoft => Some(oauth::microsoft()),
         }
     }

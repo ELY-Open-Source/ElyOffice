@@ -86,6 +86,12 @@ pub(super) const EN: &[(&str, &str)] = &[
     ),
     ("mail.icloud.open", "Open Apple Account"),
     ("mail.icloud.password", "App-specific password"),
+    (
+        "mail.gmail.steps",
+        "Gmail needs an app password: turn on 2-Step Verification in your Google Account, open App passwords, make one and paste it below.",
+    ),
+    ("mail.gmail.open", "Open Google Account"),
+    ("mail.gmail.password", "App password"),
     ("mail.add.check", "Check"),
     ("mail.add.sign_in", "Sign In with {method}"),
     ("mail.add.save", "Add Account"),
@@ -102,10 +108,6 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("mail.add.bad_port", "{port} is not a port; use 1 to 65535."),
     ("mail.add.invalid", "These settings cannot be used: {error}"),
     ("mail.add.taken", "{address} is already added."),
-    (
-        "mail.add.unavailable.google",
-        "Gmail sign-in is not in this build: it was built without a Google client ID.",
-    ),
     (
         "mail.add.unavailable.microsoft",
         "Microsoft sign-in is not in this build: it was built without a Microsoft client ID.",
@@ -294,6 +296,12 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ),
     ("mail.icloud.open", "打开 Apple 账户"),
     ("mail.icloud.password", "应用专用密码"),
+    (
+        "mail.gmail.steps",
+        "Gmail 须用应用专用密码：先在 Google 账号里开启两步验证，打开“应用专用密码”，生成一个，粘贴到下面。",
+    ),
+    ("mail.gmail.open", "打开 Google 账号"),
+    ("mail.gmail.password", "应用专用密码"),
     ("mail.add.check", "检查"),
     ("mail.add.sign_in", "以 {method} 登录"),
     ("mail.add.save", "添加账号"),
@@ -310,10 +318,6 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("mail.add.bad_port", "{port} 不是端口，请填 1 至 65535。"),
     ("mail.add.invalid", "这些设置用不了：{error}"),
     ("mail.add.taken", "{address} 已经添加过。"),
-    (
-        "mail.add.unavailable.google",
-        "本构建没有 Gmail 登录：构建时未带 Google 客户端 ID。",
-    ),
     (
         "mail.add.unavailable.microsoft",
         "本构建没有 Microsoft 登录：构建时未带 Microsoft 客户端 ID。",

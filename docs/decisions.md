@@ -179,3 +179,4 @@
 - 2026-10-22（GitHub #29，R12.15）：ElyMark 正文默认等宽数字（tnum），不设开关；在应用里给文档外层设文字样式，不改组件库的 Markdown 渲染
 - 2026-10-22（GitHub #30，R12.16）：ElyMark 状态栏字数沿用 ElyDoc 的文案（字数、字符数；有选区时“已选 X / N 字”），字数按 Unicode 词界（汉字每字一词），字符按字素、含空白与 Markdown 标记，不另出“不含空格”的数。可视模式无文字选区，选区计数只在源码模式与打开的块
 - 2026-10-22（GitHub #35，R12.18，用户定）：ElyMail 的网络跟随系统代理。环境变量优先（ALL_PROXY、HTTPS_PROXY、HTTP_PROXY，NO_PROXY），其后 Windows 注册表（winreg）或 macOS `scutil --proxy`；Linux 只读环境变量。读不出或写错即报错，不退回直连。IMAP、SMTP、POP3 经 HTTP CONNECT 或 SOCKS5（引擎自写，登录解码后发）；OAuth 令牌与远程图片经 ureq，代理连同绕过表交给它逐请求判断（含重定向），ureq 照原样发登录，登录里有转义时这两类请求报错。PAC 不跟随。ely-platform 的更新检查不经此处，仍只读环境变量
+- 2026-10-22（GitHub #35，R12.19，用户定）：Gmail 改用应用专用密码，去掉 Google OAuth。理由：自有客户端未经 Google 验证，用户见警告且上限 100 人，`https://mail.google.com/` 是受限范围，去掉警告须过 CASA 安全评估；借用 Thunderbird 的客户端 ID 违反 Google API 条款与 Mozilla 的授权，不用。代价：须开两步验证，部分 Workspace 管理员禁用应用专用密码。0.1.10 加的 Gmail OAuth 账号保留 `Auth::Google` 只为读出，同步即报须删去重新添加；CI 的 `ELY_GOOGLE_*` 机密不再使用

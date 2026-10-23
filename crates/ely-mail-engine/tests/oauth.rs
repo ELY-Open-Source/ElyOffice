@@ -20,7 +20,7 @@ async fn sign_in_exchanges_the_code_with_pkce() {
         id_token(r#"{"email":"ana@example.com"}"#)
     );
     let (token, forms) = endpoint(200, body);
-    let sign_in = SignIn::start(provider(token, Some("shh")), "ana@example.com")
+    let sign_in = SignIn::start(provider(token), "ana@example.com")
         .await
         .unwrap();
     let asked = query(sign_in.url());
@@ -52,7 +52,7 @@ async fn sign_in_exchanges_the_code_with_pkce() {
     let form = forms.recv().unwrap();
     assert_eq!(form["grant_type"], "authorization_code");
     assert_eq!(form["code"], "c+1");
-    assert_eq!(form["client_secret"], "shh");
+    assert!(!form.contains_key("client_secret"));
     assert_eq!(form["redirect_uri"], redirect);
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(form["code_verifier"].as_bytes()));
     assert_eq!(challenge, asked["code_challenge"]);
@@ -60,7 +60,7 @@ async fn sign_in_exchanges_the_code_with_pkce() {
 
 #[tokio::test]
 async fn a_wrong_state_is_refused() {
-    let sign_in = SignIn::start(provider("http://127.0.0.1:9/token".into(), None), "")
+    let sign_in = SignIn::start(provider("http://127.0.0.1:9/token".into()), "")
         .await
         .unwrap();
     let asked = query(sign_in.url());
@@ -74,7 +74,7 @@ async fn a_wrong_state_is_refused() {
 
 #[tokio::test]
 async fn a_declined_consent_reports_the_reason() {
-    let sign_in = SignIn::start(provider("http://127.0.0.1:9/token".into(), None), "")
+    let sign_in = SignIn::start(provider("http://127.0.0.1:9/token".into()), "")
         .await
         .unwrap();
     let asked = query(sign_in.url());
@@ -107,7 +107,7 @@ async fn the_username_stands_in_for_a_missing_email() {
 async fn refresh_rotates_the_token() {
     let body = r#"{"access_token":"at-2","expires_in":60,"refresh_token":"rt-2"}"#.to_owned();
     let (token, forms) = endpoint(200, body);
-    let tokens = refresh(&provider(token, None), "rt-1").await.unwrap();
+    let tokens = refresh(&provider(token), "rt-1").await.unwrap();
     assert_eq!(
         (tokens.access.as_str(), tokens.refresh.as_deref()),
         ("at-2", Some("rt-2"))
@@ -124,7 +124,7 @@ async fn a_revoked_refresh_token_needs_sign_in_again() {
     for error in ["invalid_grant", "interaction_required"] {
         let body = format!(r#"{{"error":"{error}","error_description":"revoked"}}"#);
         let (token, _) = endpoint(400, body);
-        let err = refresh(&provider(token, None), "rt-1").await.err().unwrap();
+        let err = refresh(&provider(token), "rt-1").await.err().unwrap();
         assert!(
             matches!(&err, Error::SignInAgain(text) if text == &format!("{error}: revoked")),
             "{err}"
@@ -135,9 +135,9 @@ async fn a_revoked_refresh_token_needs_sign_in_again() {
 #[tokio::test]
 async fn other_refusals_stay_sign_in_errors() {
     let (token, _) = endpoint(401, r#"{"error":"invalid_client"}"#.to_owned());
-    let err = refresh(&provider(token, None), "rt-1").await.err().unwrap();
+    let err = refresh(&provider(token), "rt-1").await.err().unwrap();
     assert!(matches!(err, Error::SignIn(text) if text == "invalid_client"));
     let (token, _) = endpoint(502, "<html>bad gateway</html>".to_owned());
-    let err = refresh(&provider(token, None), "rt-1").await.err().unwrap();
+    let err = refresh(&provider(token), "rt-1").await.err().unwrap();
     assert!(matches!(err, Error::SignIn(text) if text.contains("502")));
 }

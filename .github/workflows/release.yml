@@ -17,8 +17,6 @@ jobs:
         env:
           ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Organization secrets, built into ElyMail.
-          ELY_GOOGLE_CLIENT_ID: ${{ secrets.ELY_GOOGLE_CLIENT_ID }}
-          ELY_GOOGLE_CLIENT_SECRET: ${{ secrets.ELY_GOOGLE_CLIENT_SECRET }}
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
           # Shared engines outside Documents, which macOS guards.
           ELY_SHARE: /Users/zacharyzhang/ely-share
@@ -43,8 +41,6 @@ jobs:
         env:
           ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Organization secrets, built into ElyMail.
-          ELY_GOOGLE_CLIENT_ID: ${{ secrets.ELY_GOOGLE_CLIENT_ID }}
-          ELY_GOOGLE_CLIENT_SECRET: ${{ secrets.ELY_GOOGLE_CLIENT_SECRET }}
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
           # x86_64 engines, built once by hand (R10.10).
           ELY_SHARE: /Users/zacharyzhang/ely-share-x86_64
@@ -67,8 +63,6 @@ jobs:
         env:
           ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Organization secrets, built into ElyMail.
-          ELY_GOOGLE_CLIENT_ID: ${{ secrets.ELY_GOOGLE_CLIENT_ID }}
-          ELY_GOOGLE_CLIENT_SECRET: ${{ secrets.ELY_GOOGLE_CLIENT_SECRET }}
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
           ELY_SHARE: /c/Users/zhang/Documents/Github/ElyOffice
           ELY_PATH: /c/Program Files/CMake/bin:/c/Users/zhang/AppData/Local/Microsoft/WinGet/Packages/Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe
@@ -90,10 +84,8 @@ jobs:
         env:
           ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Organization secrets, built into ElyMail.
-          ELY_GOOGLE_CLIENT_ID: ${{ secrets.ELY_GOOGLE_CLIENT_ID }}
-          ELY_GOOGLE_CLIENT_SECRET: ${{ secrets.ELY_GOOGLE_CLIENT_SECRET }}
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
-          WSLENV: ELY_RELEASE_TOKEN:ELY_GOOGLE_CLIENT_ID:ELY_GOOGLE_CLIENT_SECRET:ELY_MICROSOFT_CLIENT_ID
+          WSLENV: ELY_RELEASE_TOKEN:ELY_MICROSOFT_CLIENT_ID
         run: |
           wsl -d Ubuntu --exec bash -lc '
             set -euo pipefail

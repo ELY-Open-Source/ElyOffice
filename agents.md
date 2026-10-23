@@ -14,7 +14,7 @@
 | Doc / Table / Show | LibreOfficeKit，独立工作进程 |
 | Show 媒体 | 各平台原生：macOS AVFoundation，Windows Media Foundation，Linux GStreamer（LOK 不放媒体） |
 | PDF | MuPDF（C 接口），Tesseract OCR，独立工作进程 |
-| Mail | mail-send、mail-parser、mail-builder，IMAP（imap-proto 解析）与 POP3 由引擎自写（`crates/ely-mail-engine`，应用进程内的后台任务，无 worker）+ SQLite（FTS5）；网络随系统代理（HTTP CONNECT、SOCKS5）；正文以 html5ever 解析、净化后按块的子集由 GPUI 绘制；写信用 `documents::MarkdownDocument`，发出纯文本与 HTML；Gmail、Microsoft 走 OAuth，iCloud 走应用专用密码 |
+| Mail | mail-send、mail-parser、mail-builder，IMAP（imap-proto 解析）与 POP3 由引擎自写（`crates/ely-mail-engine`，应用进程内的后台任务，无 worker）+ SQLite（FTS5）；网络随系统代理（HTTP CONNECT、SOCKS5）；正文以 html5ever 解析、净化后按块的子集由 GPUI 绘制；写信用 `documents::MarkdownDocument`，发出纯文本与 HTML；Microsoft 走 OAuth，Gmail 与 iCloud 走应用专用密码 |
 | Tree | Git CLI，参数数组启动 |
 | Mark | 组件库 `documents::MarkdownDocument`（GPUI，原文即文本，无序列化）；markdown-rs 解析与导出 HTML，RaTeX 公式，mermaid-rs-renderer 图；PDF 经 `ely-pdf-worker` 由 MuPDF 排版 |
 | Agent | Kigi CLI 的 Rust 代码直接嵌入（不用 ACP），沿用其提供商登录与模型配置 |
@@ -219,6 +219,6 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - 更新：每个应用每个平台一份清单，读 GitHub 的最新发布；自动检查默认关，从不静默安装；包管理器与 Nix 装的不自更新，只提示。
 - 每个应用只跑一份，再次启动把文件交给运行中的那份。
 - ElyMark 原生实现（组件库 Markdown 组件、markdown-rs），不用 CEF、Electron；Typora 只作参照，读同一文件不同时随 GitHub（GFM）。
-- ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Gmail、Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；iCloud 走应用专用密码。
+- ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。
 - 审查：每条任务由 `scripts/review.sh` 交 codex 审查，至多三轮。

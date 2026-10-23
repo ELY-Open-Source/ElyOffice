@@ -52,13 +52,12 @@ pub fn endpoint(status: u16, body: String) -> (String, mpsc::Receiver<HashMap<St
     (url, receiver)
 }
 
-pub fn provider(token: String, secret: Option<&str>) -> Provider {
+pub fn provider(token: String) -> Provider {
     Provider {
         name: "test",
         authorize: "https://auth.example/authorize".into(),
         token,
         client_id: "client-1".into(),
-        client_secret: secret.map(str::to_owned),
         scope: "mail openid email".into(),
         extra: &[("prompt", "consent")],
         redirect_host: "127.0.0.1",
@@ -89,7 +88,7 @@ pub fn browse(redirect: &str, path: &str) -> String {
 /// Completes a sign-in whose endpoint answers with body.
 pub async fn signed_in(body: String) -> ely_mail_engine::Result<Tokens> {
     let (token, _) = endpoint(200, body);
-    let sign_in = SignIn::start(provider(token, None), "").await.unwrap();
+    let sign_in = SignIn::start(provider(token), "").await.unwrap();
     let asked = query(sign_in.url());
     let (redirect, state) = (asked["redirect_uri"].clone(), asked["state"].clone());
     let browser = thread::spawn(move || browse(&redirect, &format!("/?code=c&state={state}")));

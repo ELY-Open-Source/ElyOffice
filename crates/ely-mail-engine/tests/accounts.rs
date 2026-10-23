@@ -196,3 +196,42 @@ fn what_no_server_could_carry_is_refused() {
         assert!(matches!(err, Error::Invalid(_)), "{err}");
     }
 }
+
+/// What the vault answers for a 0.1.10 account.
+struct Kept(Result<Option<String>, String>);
+
+impl ely_mail_engine::Backend for Kept {
+    fn get(&self, _: &str) -> Result<Option<String>, String> {
+        self.0.clone()
+    }
+    fn set(&self, _: &str, _: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn delete(&self, _: &str) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn a_gmail_account_from_oauth_loads_and_asks_to_be_added_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path()).unwrap();
+    let gmail = Account {
+        auth: Auth::Google,
+        ..account("ann@gmail.com")
+    };
+    store.add_account(&gmail).unwrap();
+    drop(store);
+    let kept = Store::open(dir.path()).unwrap().accounts().unwrap();
+    assert_eq!(kept[0].1.auth, Auth::Google, "0.1.10's accounts still load");
+    // A kept token, none (session only), and a locked keychain.
+    for answer in [Ok(Some("refresh-1".into())), Ok(None), Err("locked".into())] {
+        let vault = ely_mail_engine::Vault::new(Box::new(Kept(answer.clone())));
+        let err = ely_mail_engine::sync::secret(&kept[0].1, &vault).await.err().unwrap();
+        assert!(matches!(err, Error::SignInAgain(_)), "{answer:?}: {err}");
+        assert!(
+            err.to_string().contains("app password; remove this account and add it again"),
+            "{answer:?}: {err}"
+        );
+    }
+}

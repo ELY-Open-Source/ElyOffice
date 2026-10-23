@@ -31,6 +31,7 @@ mod migrate;
 mod organize;
 mod outbox;
 mod panes;
+mod providers;
 mod reading;
 mod rules;
 mod notices;

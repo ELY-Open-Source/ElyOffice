@@ -59,7 +59,7 @@ clone() { # os
 }
 go() { # os
   CI_OS=$1 PATH=$work/bin:$PATH ELY_SHARE=$work/share ELY_RELEASE_TOKEN=unused \
-    ELY_GOOGLE_CLIENT_ID=unused ELY_GOOGLE_CLIENT_SECRET=unused ELY_MICROSOFT_CLIENT_ID=unused \
+    ELY_MICROSOFT_CLIENT_ID=unused \
     ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused \
     "$work/$1/scripts/ci.sh" "$1" "v$version" >"$work/$1.out" 2>&1
 }

@@ -22,6 +22,9 @@ pub const KINDS: [Kind; 5] = [
 /// Where iCloud makes app-specific passwords.
 pub const APPLE_ACCOUNT: &str = "https://account.apple.com";
 
+/// Where Google makes app passwords.
+pub const GOOGLE_APP_PASSWORDS: &str = "https://myaccount.google.com/apppasswords";
+
 impl Kind {
     pub fn key(self) -> &'static str {
         match self {
@@ -53,8 +56,9 @@ impl Kind {
             security,
         };
         match self {
+            // Google's OAuth needs a security review; app passwords do not.
             Kind::Gmail => Some((
-                Auth::Google,
+                Auth::Password,
                 server("imap.gmail.com", 993, Security::Tls),
                 server("smtp.gmail.com", 465, Security::Tls),
             )),

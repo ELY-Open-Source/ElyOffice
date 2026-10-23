@@ -230,6 +230,9 @@ fn the_big_providers_file_sent_mail_themselves() {
     sender.outgoing.host = "SMTP.mail.me.com".into();
     assert!(sender.files_sent_itself(), "iCloud");
     sender.outgoing.host = "smtp.example.com".into();
-    sender.auth = ely_mail_engine::Auth::Google;
-    assert!(sender.files_sent_itself(), "Gmail by OAuth");
+    sender.auth = ely_mail_engine::Auth::Microsoft;
+    assert!(sender.files_sent_itself(), "Microsoft by OAuth");
+    sender.auth = ely_mail_engine::Auth::Password;
+    sender.outgoing.host = "smtp.gmail.com".into();
+    assert!(sender.files_sent_itself(), "Gmail by app password");
 }

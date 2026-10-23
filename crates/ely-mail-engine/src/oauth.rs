@@ -15,8 +15,6 @@ pub struct Provider {
     pub authorize: String,
     pub token: String,
     pub client_id: String,
-    /// Google's desktop clients carry one; Microsoft's do not.
-    pub client_secret: Option<String>,
     pub scope: String,
     /// Authorize parameters this server adds.
     pub extra: &'static [(&'static str, &'static str)],
@@ -34,28 +32,6 @@ pub struct Tokens {
     pub email: Option<String>,
 }
 
-/// Gmail: IMAP, POP3 and SMTP under one scope.
-pub fn google() -> Result<Provider> {
-    Ok(gmail(
-        built("google", option_env!("ELY_GOOGLE_CLIENT_ID"))?,
-        built("google", option_env!("ELY_GOOGLE_CLIENT_SECRET"))?,
-    ))
-}
-
-fn gmail(client_id: String, secret: String) -> Provider {
-    Provider {
-        name: "google",
-        authorize: "https://accounts.google.com/o/oauth2/v2/auth".into(),
-        token: "https://oauth2.googleapis.com/token".into(),
-        client_id,
-        client_secret: Some(secret),
-        scope: "https://mail.google.com/ openid email".into(),
-        // Refresh token on every consent.
-        extra: &[("access_type", "offline"), ("prompt", "consent")],
-        redirect_host: "127.0.0.1",
-    }
-}
-
 /// Outlook.com and Microsoft 365.
 pub fn microsoft() -> Result<Provider> {
     Ok(outlook(built(
@@ -70,7 +46,6 @@ fn outlook(client_id: String) -> Provider {
         authorize: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize".into(),
         token: "https://login.microsoftonline.com/common/oauth2/v2.0/token".into(),
         client_id,
-        client_secret: None,
         scope: [
             "https://outlook.office.com/IMAP.AccessAsUser.All",
             "https://outlook.office.com/POP.AccessAsUser.All",
@@ -151,16 +126,13 @@ impl SignIn {
         let code = loopback::code(&self.listener, &self.state).await?;
         log::info!("oauth: {} returned a code", self.provider.name);
         drop(self.listener);
-        let mut form = vec![
+        let form = vec![
             ("grant_type", "authorization_code".to_owned()),
             ("client_id", self.provider.client_id.clone()),
             ("code", code),
             ("code_verifier", self.verifier),
             ("redirect_uri", self.redirect),
         ];
-        if let Some(secret) = &self.provider.client_secret {
-            form.push(("client_secret", secret.clone()));
-        }
         let tokens = token::post(&self.provider, form, false).await?;
         if tokens.refresh.is_none() {
             return Err(Error::SignIn("no refresh token granted".into()));
@@ -171,14 +143,11 @@ impl SignIn {
 
 /// A fresh access token; a refused refresh needs sign-in again.
 pub async fn refresh(provider: &Provider, refresh: &str) -> Result<Tokens> {
-    let mut form = vec![
+    let form = vec![
         ("grant_type", "refresh_token".to_owned()),
         ("client_id", provider.client_id.clone()),
         ("refresh_token", refresh.to_owned()),
     ];
-    if let Some(secret) = &provider.client_secret {
-        form.push(("client_secret", secret.clone()));
-    }
     token::post(provider, form, true).await
 }
 
@@ -216,14 +185,14 @@ mod tests {
     #[test]
     fn a_missing_client_id_makes_the_provider_unavailable() {
         assert!(matches!(
-            built("google", None),
-            Err(Error::Unavailable("google"))
+            built("microsoft", None),
+            Err(Error::Unavailable("microsoft"))
         ));
         assert!(matches!(
-            built("google", Some("")),
-            Err(Error::Unavailable("google"))
+            built("microsoft", Some("")),
+            Err(Error::Unavailable("microsoft"))
         ));
-        assert_eq!(built("google", Some("id-1")).unwrap(), "id-1");
+        assert_eq!(built("microsoft", Some("id-1")).unwrap(), "id-1");
     }
 
     async fn asked(provider: Provider) -> Vec<(String, String)> {
@@ -239,18 +208,6 @@ mod tests {
             .iter()
             .find(|(k, _)| k == key)
             .map(|(_, v)| v.as_str())
-    }
-
-    #[tokio::test]
-    async fn gmail_asks_for_a_refresh_token_every_time() {
-        let pairs = asked(gmail("id".into(), "s".into())).await;
-        assert_eq!(value(&pairs, "access_type"), Some("offline"));
-        assert_eq!(value(&pairs, "prompt"), Some("consent"));
-        assert!(
-            value(&pairs, "scope")
-                .unwrap()
-                .contains("https://mail.google.com/")
-        );
     }
 
     #[tokio::test]

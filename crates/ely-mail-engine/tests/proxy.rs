@@ -152,7 +152,6 @@ fn provider(token: String) -> oauth::Provider {
         authorize: String::new(),
         token,
         client_id: "id".into(),
-        client_secret: None,
         scope: String::new(),
         extra: &[],
         redirect_host: "127.0.0.1",

@@ -18,5 +18,5 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$root:$root" ${share[@]+"${share[
   -e HOME="$root/target/alma8-home" -e CARGO_HOME="$root/target/alma8-cargo" \
   -e CARGO_TARGET_DIR="$root/target/alma8" -e PKG_CONFIG_PATH="$root/engines/openssl/lib/pkgconfig" \
   -e ELY_RELEASE_TOKEN \
-  -e ELY_GOOGLE_CLIENT_ID -e ELY_GOOGLE_CLIENT_SECRET -e ELY_MICROSOFT_CLIENT_ID \
+  -e ELY_MICROSOFT_CLIENT_ID \
   "$image" "$@"

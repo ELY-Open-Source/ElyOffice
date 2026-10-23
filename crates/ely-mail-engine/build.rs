@@ -1,10 +1,6 @@
 use std::{env, fs, io::ErrorKind, path::Path};
 
-const KEYS: [&str; 3] = [
-    "ELY_GOOGLE_CLIENT_ID",
-    "ELY_GOOGLE_CLIENT_SECRET",
-    "ELY_MICROSOFT_CLIENT_ID",
-];
+const KEYS: [&str; 1] = ["ELY_MICROSOFT_CLIENT_ID"];
 
 /// Client IDs: CI secrets, else the local cred.txt.
 fn main() {

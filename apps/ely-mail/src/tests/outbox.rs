@@ -2,7 +2,7 @@
 
 use ely_gpui_component::primitives::Severity;
 use ely_mail_engine::{
-    AccountId, Auth, Error, Filed, Filing, Going, Landing, Letter, OutboxId, Protocol, Queued,
+    AccountId, Error, Filed, Filing, Going, Landing, Letter, OutboxId, Protocol, Queued,
     Store, Unsent, compose::attachment,
 };
 use gpui::{Entity, TestAppContext, VisualTestContext};
@@ -266,7 +266,7 @@ fn the_sent_copy_follows_the_provider_until_chosen() {
     let mut plain = account("ann@example.com");
     assert!(copies(&plain, None), "a plain server needs it");
     assert!(!copies(&plain, Some(false)));
-    plain.auth = Auth::Google;
+    plain.outgoing.host = "smtp.gmail.com".into();
     assert!(!copies(&plain, None), "Gmail files its own");
     assert!(copies(&plain, Some(true)), "unless asked");
     plain.protocol = Protocol::Pop { keep: true };

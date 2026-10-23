@@ -10,13 +10,13 @@ use ely_gpui_component::{
 };
 use ely_mail_engine::{Auth, Error, Security};
 use gpui::{
-    AnyElement, App, Context, IntoElement, ParentElement as _, SharedString, Styled as _,
-    WeakEntity, Window, div,
+    AnyElement, App, Context, InteractiveElement as _, IntoElement, ParentElement as _,
+    SharedString, Styled as _, WeakEntity, Window, div,
 };
 
 use crate::{
     adding::{Adding, Step},
-    kinds::{APPLE_ACCOUNT, KINDS, Kind},
+    kinds::{APPLE_ACCOUNT, GOOGLE_APP_PASSWORDS, KINDS, Kind},
     mail::{Mail, text},
     view::auth,
 };
@@ -144,26 +144,30 @@ impl Mail {
         let fields = &adding.fields;
         let password = div().w_full().child(PasswordInput::new(&fields.password));
         match adding.kind {
-            Kind::Gmail | Kind::Microsoft => DescriptionList::new()
+            Kind::Microsoft => DescriptionList::new()
                 .item(label("mail.add.address_hint"), field(&fields.address))
                 .into_any_element(),
-            Kind::ICloud => {
-                let open = Button::new("mail-add-apple", label("mail.icloud.open"))
-                    .on_click(|_, _, cx| cx.open_url(APPLE_ACCOUNT));
+            Kind::Gmail | Kind::ICloud => {
+                let (words, page) = match adding.kind {
+                    Kind::Gmail => ("mail.gmail", GOOGLE_APP_PASSWORDS),
+                    _ => ("mail.icloud", APPLE_ACCOUNT),
+                };
+                let open = Button::new("mail-add-page", label(&format!("{words}.open")))
+                    .on_click(move |_, _, cx| cx.open_url(page));
                 let rows = DescriptionList::new()
                     .item(label("mail.add.address"), field(&fields.address))
-                    .item(label("mail.icloud.password"), password);
+                    .item(label(&format!("{words}.password")), password);
                 div()
                     .flex()
                     .flex_col()
                     .gap_3()
-                    .child(label("mail.icloud.steps"))
-                    .child(div().child(open))
+                    .child(label(&format!("{words}.steps")))
+                    .child(div().debug_selector(|| "mail-add-page".into()).child(open))
                     .child(rows)
                     .into_any_element()
             }
             Kind::Imap | Kind::Pop => {
-                let auths = [Auth::Password, Auth::Google, Auth::Microsoft]
+                let auths = [Auth::Password, Auth::Microsoft]
                     .map(|each| (auth_key(each), auth(each, cx)));
                 let methods = choice(
                     this,
@@ -174,7 +178,6 @@ impl Mail {
                         adding.stop();
                         adding.step = Step::Editing;
                         adding.auth = match key {
-                            "google" => Auth::Google,
                             "microsoft" => Auth::Microsoft,
                             _ => Auth::Password,
                         };
