@@ -15,9 +15,11 @@ use crate::view::Mode;
 
 /// No glyphs, as tests have; three families to pick.
 #[derive(Default)]
-struct Families {
+pub(crate) struct Families {
     /// Every font asked for.
     asked: Mutex<Vec<Font>>,
+    /// Every line laid out.
+    pub(crate) laid: Mutex<Vec<String>>,
 }
 
 impl PlatformTextSystem for Families {
@@ -50,6 +52,7 @@ impl PlatformTextSystem for Families {
         NoopTextSystem.rasterize_glyph(params, bounds)
     }
     fn layout_line(&self, text: &str, font_size: Pixels, runs: &[FontRun]) -> LineLayout {
+        self.laid.lock().expect("the lines").push(text.to_owned());
         NoopTextSystem.layout_line(text, font_size, runs)
     }
     fn recommended_rendering_mode(&self, font_id: FontId, font_size: Pixels) -> TextRenderingMode {

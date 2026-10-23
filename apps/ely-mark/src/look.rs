@@ -279,7 +279,7 @@ impl Desk {
 }
 
 #[cfg(test)]
-mod font_tests;
+pub(crate) mod font_tests;
 
 #[cfg(test)]
 mod tests {

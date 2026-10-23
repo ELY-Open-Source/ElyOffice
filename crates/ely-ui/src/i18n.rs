@@ -269,6 +269,18 @@ pub fn counted(cx: &App, key: &str, n: u64, args: &[(&str, &str)]) -> SharedStri
     text(cx, &count_key(key, n), args)
 }
 
+/// Words and characters; with a selection, its words.
+pub fn word_count(cx: &App, words: u64, characters: u64, selected: Option<u64>) -> SharedString {
+    let count = |key, n: u64| counted(cx, key, n, &[("n", &n.to_string())]);
+    let Some(selected) = selected else {
+        let (words, characters) = (count("count.word", words), count("count.character", characters));
+        return text(cx, "count.words", &[("words", &words), ("characters", &characters)]);
+    };
+    let args = [("selected", selected.to_string()), ("words", words.to_string())];
+    let args: Vec<_> = args.iter().map(|(key, value)| (*key, value.as_str())).collect();
+    counted(cx, "count.selected", words, &args)
+}
+
 fn count_key(key: &str, n: u64) -> String {
     match n {
         1 => format!("{key}.one"),

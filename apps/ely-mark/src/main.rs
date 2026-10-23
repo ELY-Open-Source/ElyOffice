@@ -6,6 +6,7 @@ mod autosave;
 mod blocks;
 mod clip;
 mod compare;
+mod count;
 mod desk;
 mod engine;
 mod export;

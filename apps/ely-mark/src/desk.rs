@@ -113,6 +113,7 @@ impl Host for Desk {
         self.watch_folders(cx);
         self.look_once(id, cx);
         let changed = view.read(cx).changed();
+        self.recount(id, changed, cx);
         self.autosave(id, changed, cx);
         let recheck = self.tab_mut(id).is_some_and(|tab| {
             if !tab.dirty(cx) {
@@ -406,12 +407,17 @@ impl Desk {
             None => bar,
         };
         let caret = self.caret_said(cx).expect("a tab");
+        let bar = match self.count_item(cx) {
+            Some(count) => bar.right(count),
+            None => bar,
+        };
         bar.right(StatusBarItem::new("mark-caret").label(caret)).right(modes)
     }
 }
 
 impl Render for Desk {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.count_selection(cx);
         let tab = self.active_tab();
         let title = tab.map_or_else(|| AppId::Mark.name().into(), |tab| tab.name.clone());
         let body = match tab {

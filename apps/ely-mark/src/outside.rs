@@ -60,6 +60,11 @@ pub struct Extra {
     pub reads: u64,
     /// The writing view reached its document.
     pub looked: bool,
+    /// The text change last counted, and its count.
+    pub counting: Option<u64>,
+    pub counts: Option<crate::count::Counts>,
+    /// The selection, and its words once counted.
+    pub selection: Option<(std::sync::Arc<str>, Option<u64>)>,
 }
 
 impl Extra {
@@ -87,6 +92,9 @@ impl Default for Extra {
             restored: false,
             reads: 0,
             looked: false,
+            counting: None,
+            counts: None,
+            selection: None,
         }
     }
 }
