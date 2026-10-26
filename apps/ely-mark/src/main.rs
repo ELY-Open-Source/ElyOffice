@@ -16,6 +16,7 @@ mod keys;
 mod look;
 mod output;
 mod outside;
+mod paths;
 mod places;
 mod rename;
 mod restore;

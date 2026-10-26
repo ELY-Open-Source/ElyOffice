@@ -61,6 +61,7 @@ pub struct Desk {
     pub(crate) finding: Option<crate::finding::Find>,
     /// The copy being converted; a newer one drops it.
     pub(crate) copying: Option<gpui::Task<()>>,
+    pub(crate) tab_asked: Option<ely_ui::menu::Offer<PathBuf>>,
 }
 
 impl Host for Desk {
@@ -213,6 +214,7 @@ pub(crate) fn open_in(
             asked_print: None,
             finding: None,
             copying: None,
+            tab_asked: None,
         }
     });
     let menus = crate::keys::menus(&look, cx);
@@ -439,7 +441,7 @@ impl Render for Desk {
         let shell = match self.look.focus {
             true => Shell::new(title, &self.core.focus),
             false => Shell::new(title, &self.core.focus)
-                .tabs(self.tab_strip(cx))
+                .tabs(self.tabs(cx))
                 .left(Some(self.side.clone().into()))
                 .status(self.status(cx)),
         }
@@ -461,7 +463,8 @@ impl Render for Desk {
             .children(self.compare_dialog(cx))
             .children(self.font_dialog(cx))
             .children(self.find_box(cx))
-            .children(self.export_dialog(cx));
+            .children(self.export_dialog(cx))
+            .children(self.tab_menu(cx));
         let root = Self::mode_actions(Self::look_actions(root, cx), cx);
         let root = Self::block_actions(Self::table_actions(root, cx), cx);
         Self::output_actions(Self::clip_actions(root, cx), cx)

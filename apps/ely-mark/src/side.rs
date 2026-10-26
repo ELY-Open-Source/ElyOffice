@@ -47,7 +47,7 @@ pub struct Side {
     listing: u64,
     /// Files that could not be read, and why.
     missed: Vec<(PathBuf, String)>,
-    /// A recent row's menu; each opens once.
+    /// A file row's menu; each opens once.
     asked: Option<ely_ui::menu::Offer<PathBuf>>,
 }
 
@@ -183,16 +183,22 @@ impl Side {
     }
 
     fn files(&self, desk: &Entity<Desk>, cx: &mut Context<Self>) -> AnyElement {
+        let asker = cx.weak_entity();
         let read = desk.read(cx);
         if let Some(folder) = &read.folder {
             let (root, opener) = (folder.root.clone(), desk.downgrade());
-            return FileTree::new("mark-files", folder.files.clone())
+            let near = root.clone();
+            let tree = FileTree::new("mark-files", folder.files.clone())
                 .on_open(move |path, _, cx| {
                     let path = root.join(path.as_ref());
                     opener.update(cx, |desk, cx| desk.open_path(path, cx)).ok();
                 })
-                .size_full()
-                .into_any_element();
+                .on_context(move |path, at, _, cx| {
+                    let path = near.join(path.as_ref());
+                    asker.update(cx, |side, cx| side.ask(path, at, cx)).ok();
+                })
+                .size_full();
+            return self.file_menu(desk, cx).child(tree).into_any_element();
         }
         if read.recent.is_empty() {
             let open = Button::new("mark-open", text(cx, "command.file.open", &[]))
@@ -220,11 +226,7 @@ impl Side {
                         .unwrap_or_default(),
                 )
                 .on_secondary(move |at, _, cx| {
-                    side.update(cx, |side, cx| {
-                        side.asked = Some(Offer::new(side.asked.as_ref(), 0, file.clone(), at));
-                        cx.notify();
-                    })
-                    .ok();
+                    side.update(cx, |side, cx| side.ask(file.clone(), at, cx)).ok();
                 });
             (key, item)
         });
@@ -252,7 +254,7 @@ impl Side {
                     .flex_1()
                     .min_h_0()
                     .debug_selector(|| "mark-recent-list".into())
-                    .child(self.recent_menu(desk, cx).child(list)),
+                    .child(self.file_menu(desk, cx).child(list)),
             )
             .child(
                 div()
@@ -262,16 +264,29 @@ impl Side {
             .into_any_element()
     }
 
-    /// Takes one file out of the recent list.
-    fn recent_menu(&self, desk: &Entity<Desk>, cx: &mut Context<Self>) -> ContextMenu {
+    fn ask(&mut self, path: PathBuf, at: gpui::Point<gpui::Pixels>, cx: &mut Context<Self>) {
+        self.asked = Some(Offer::new(self.asked.as_ref(), 0, path, at));
+        cx.notify();
+    }
+
+    /// A file row's copies; a recent row's removal too.
+    fn file_menu(&self, desk: &Entity<Desk>, cx: &mut Context<Self>) -> ContextMenu {
         let Some(offer) = &self.asked else {
-            return ContextMenu::new("mark-recent-menu", Menu::new()).manual(None).size_full();
+            return ContextMenu::new("mark-file-menu", Menu::new()).manual(None).size_full();
         };
-        let (desk, path) = (desk.downgrade(), offer.what.clone());
-        let remove = MenuItem::new(text(cx, "mark.recent.remove", &[])).on_click(move |_, cx| {
-            desk.update(cx, |desk, cx| desk.forget(&path, cx)).ok();
-        });
-        offer.host("mark-recent-menu", Menu::new().item(remove)).size_full()
+        let menu = match desk.read(cx).folder.is_some() {
+            true => Menu::new(),
+            false => {
+                let (desk, path) = (desk.downgrade(), offer.what.clone());
+                let remove = MenuItem::new(text(cx, "mark.recent.remove", &[]))
+                    .on_click(move |_, cx| {
+                        desk.update(cx, |desk, cx| desk.forget(&path, cx)).ok();
+                    });
+                Menu::new().item(remove)
+            }
+        };
+        let menu = crate::paths::copies(menu, &offer.what, cx);
+        offer.host("mark-file-menu", menu).size_full()
     }
 
     fn outline(&self, desk: &Entity<Desk>, cx: &mut Context<Self>) -> AnyElement {
