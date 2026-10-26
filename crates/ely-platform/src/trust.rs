@@ -11,17 +11,36 @@ pub enum Trust {
 }
 
 /// Evaluates `chain` (DER, leaf first) against the system's trust settings.
-#[cfg(target_os = "macos")]
 pub fn check(chain: &[Vec<u8>]) -> io::Result<Trust> {
-    mac::check(chain, None)
+    #[cfg(target_os = "macos")]
+    let checked = mac::check(chain, None);
+    #[cfg(windows)]
+    let checked = windows::check(chain, None);
+    #[cfg(target_os = "linux")]
+    let checked = linux::check(chain, None);
+    checked
 }
 
-#[cfg(not(target_os = "macos"))]
-pub fn check(_chain: &[Vec<u8>]) -> io::Result<Trust> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "certificate trust is not built on this platform",
-    ))
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(windows)]
+mod windows;
+
+#[cfg(test)]
+mod tests {
+    /// The certificate in tests/fixtures/pdf/signer.p12, self-signed.
+    pub(super) fn signer() -> Vec<u8> {
+        include_bytes!("../../../tests/fixtures/pdf/signer.der").to_vec()
+    }
+
+    /// A test root; `leaf` chains to it.
+    pub(super) fn root() -> Vec<u8> {
+        include_bytes!("../../../tests/fixtures/pdf/chain-root.der").to_vec()
+    }
+
+    pub(super) fn leaf() -> Vec<u8> {
+        include_bytes!("../../../tests/fixtures/pdf/chain-leaf.der").to_vec()
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -62,12 +81,8 @@ mod mac {
 
     #[cfg(test)]
     mod tests {
+        use super::super::tests::{leaf, root, signer};
         use super::{Trust, check};
-
-        /// The certificate in tests/fixtures/pdf/signer.p12, self-signed.
-        fn signer() -> Vec<u8> {
-            include_bytes!("../../../tests/fixtures/pdf/signer.der").to_vec()
-        }
 
         #[test]
         fn a_self_signed_signer_is_not_trusted_by_the_system() {
@@ -78,10 +93,16 @@ mod mac {
 
         #[test]
         fn a_chain_to_a_trusted_root_is_trusted() {
+            assert_eq!(check(&[leaf()], Some(&[root()])).expect("checks"), Trust::Trusted);
             assert_eq!(
                 check(&[signer()], Some(&[signer()])).expect("checks"),
                 Trust::Trusted
             );
+        }
+
+        #[test]
+        fn a_chain_to_another_root_is_not() {
+            assert!(matches!(check(&[leaf()], Some(&[signer()])).expect("checks"), Trust::Untrusted(_)));
         }
     }
 }

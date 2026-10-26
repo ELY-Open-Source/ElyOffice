@@ -10,6 +10,7 @@ publish.workspace = true
 anyhow.workspace = true
 arboard.workspace = true
 directories.workspace = true
+dunce.workspace = true
 ely-ipc.workspace = true
 env_logger.workspace = true
 futures.workspace = true
@@ -47,6 +48,9 @@ libc.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 lopdf.workspace = true
+rustls-native-certs.workspace = true
+rustls-pki-types.workspace = true
+rustls-webpki.workspace = true
 zbus.workspace = true
 rfd = { workspace = true, features = ["xdg-portal"] }
 

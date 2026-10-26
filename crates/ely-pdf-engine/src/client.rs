@@ -153,6 +153,13 @@ impl Worker {
         self.child.id()
     }
 
+    /// Ends the worker process, for crash tests.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn kill(&mut self) -> io::Result<()> {
+        self.child.kill()?;
+        self.child.wait().map(|_| ())
+    }
+
     /// A request aimed at pages or objects `doc` saw.
     pub(crate) fn on(&self, doc: &Doc) -> io::Result<Pack> {
         Ok(Pack::new().u64(self.doc_id(doc)?).u64(doc.mark))

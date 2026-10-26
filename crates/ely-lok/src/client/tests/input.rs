@@ -330,10 +330,7 @@ fn a_calc_cut_finishes_without_a_dialog() {
     let outcome = wait.recv_timeout(std::time::Duration::from_secs(20));
     if outcome.is_err() {
         // A blocked worker would hold the test open.
-        std::process::Command::new("kill")
-            .args(["-9", &pid.to_string()])
-            .status()
-            .expect("kill runs");
+        kill(pid);
     }
     let (flavors, kept) = outcome.expect("the cut never blocked on a dialog");
     assert!(flavors > 0, "the cells copied");

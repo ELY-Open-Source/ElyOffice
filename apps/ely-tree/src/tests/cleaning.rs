@@ -17,7 +17,12 @@ fn a_clean_removes_what_was_shown_and_nothing_new() {
     std::fs::write(root.join(".gitignore"), "*.log\n").expect("writes");
     sh(&root, &["add", ".gitignore"]);
     sh(&root, &["commit", "-qm", "ignore logs"]);
-    for name in ["tab\there.txt", "say \"hi\".txt", "中文.txt", "build.log"] {
+    // Windows names hold no tab or quote.
+    let odd: &[&str] = match cfg!(windows) {
+        true => &["中文.txt"],
+        false => &["say \"hi\".txt", "tab\there.txt", "中文.txt"],
+    };
+    for name in odd.iter().chain(&["build.log"]) {
         std::fs::write(root.join(name), "x").expect("writes");
     }
     std::fs::create_dir_all(root.join("out/deep")).expect("makes");
@@ -27,15 +32,8 @@ fn a_clean_removes_what_was_shown_and_nothing_new() {
     let clean = recover::clean_preview(&git(), &root, false).expect("previews");
     let mut files = clean.files.clone();
     files.sort();
-    assert_eq!(
-        files,
-        [
-            "out/deep/f.txt",
-            "say \"hi\".txt",
-            "tab\there.txt",
-            "中文.txt"
-        ]
-    );
+    let shown: Vec<&str> = ["out/deep/f.txt"].iter().chain(odd).copied().collect();
+    assert_eq!(files, shown);
     // `out/` holds an ignored file, so Git names its files.
     assert_eq!(clean.dirs, ["empty/"]);
     let with = recover::clean_preview(&git(), &root, true).expect("previews");
@@ -53,8 +51,7 @@ fn a_clean_removes_what_was_shown_and_nothing_new() {
     assert!(root.join("late.txt").exists() && root.join("out/late.txt").exists());
     assert!(root.join("build.log").exists() && root.join("out/deep/kept.log").exists());
     assert!(!root.join("out/deep/f.txt").exists() && !root.join("empty").exists());
-    assert!(!root.join("tab\there.txt").exists() && !root.join("中文.txt").exists());
-    assert!(!root.join("say \"hi\".txt").exists());
+    assert!(odd.iter().all(|name| !root.join(name).exists()));
 }
 
 #[test]

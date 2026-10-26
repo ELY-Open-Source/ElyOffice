@@ -99,11 +99,7 @@ fn a_dead_worker_reaches_apps_while_idle() {
         })
         .detach();
     });
-    let pid = shared.lock().expect("the worker lock").child.id();
-    std::process::Command::new("kill")
-        .args(["-9", &pid.to_string()])
-        .status()
-        .expect("kill runs");
+    shared.lock().expect("the worker lock").child.kill().expect("the worker ends");
     let reported = settle(&cx, |_| !errors.borrow().is_empty());
     assert!(reported, "the idle watch reports the dead engine");
     assert!(

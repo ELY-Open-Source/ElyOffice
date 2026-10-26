@@ -72,9 +72,17 @@ pub fn save_atomic(path: &Path, bytes: &[u8], revision: u64) -> io::Result<Finge
             .map_err(|e| with_path(path, e))?;
         copy_acl(&target, staging.path()).map_err(|e| with_path(path, e))?;
     }
-    staging
-        .persist(&target)
+    // tempfile's Windows persist cannot replace a file another reader holds.
+    let staged = staging
+        .into_temp_path()
+        .keep()
         .map_err(|error| with_path(path, error.error))?;
+    if let Err(error) = std::fs::rename(&staged, &target) {
+        if let Err(left) = std::fs::remove_file(&staged) {
+            log::warn!("files: the staged copy {} stays: {left}", staged.display());
+        }
+        return Err(with_path(path, error));
+    }
     log::info!("files: saved revision {revision} to {}", path.display());
     Fingerprint::of(&target)
 }

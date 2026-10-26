@@ -1,0 +1,45 @@
+Readers share delete, so a save can replace an open file.
+
+On Windows fz_fopen_utf8 opened files with _wfopen, which never
+shares delete. MuPDF keeps a document's file open, so no rename
+could replace it: ElyPDF could not save over the open PDF (Access
+is denied). Read-only opens now share read, write and delete.
+
+--- a/source/fitz/time.c
++++ b/source/fitz/time.c
+@@ -31,6 +31,8 @@
+ #include <time.h>
+ #include <windows.h>
+ #include <direct.h> /* for mkdir */
++#include <io.h>
++#include <fcntl.h>
+ 
+ #ifndef _WINRT
+ 
+@@ -133,7 +135,25 @@
+ 		return NULL;
+ 	}
+ 
+-	file = _wfopen(wname, wmode);
++	/* Readers share delete, so a save may replace the file. */
++	if (!wcscmp(wmode, L"rb"))
++	{
++		HANDLE handle = CreateFileW(wname, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
++			NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
++		int fd = -1;
++		file = NULL;
++		if (handle == INVALID_HANDLE_VALUE)
++		{
++			DWORD code = GetLastError();
++			errno = code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND ? ENOENT : code == ERROR_ACCESS_DENIED || code == ERROR_SHARING_VIOLATION ? EACCES : EIO;
++		}
++		else if ((fd = _open_osfhandle((intptr_t)handle, _O_RDONLY | _O_BINARY)) == -1)
++			CloseHandle(handle);
++		else if ((file = _fdopen(fd, "rb")) == NULL)
++			_close(fd);
++	}
++	else
++		file = _wfopen(wname, wmode);
+ 
+ 	free(wname);
+ 	free(wmode);

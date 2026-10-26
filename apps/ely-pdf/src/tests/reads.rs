@@ -88,8 +88,7 @@ fn a_failed_read_is_not_asked_again() {
     let view = shown(cx, &viewer);
     assert!(cx.update(|_, app| view.read(app).form_names.is_none()), "not read yet");
     // A dead worker fails every read.
-    let pid = cx.update(|_, app| viewer.read(app).core.worker.lock().expect("the lock").get().expect("a worker").pid());
-    std::process::Command::new("kill").args(["-9", &pid.to_string()]).status().expect("kills");
+    cx.update(|_, app| viewer.read(app).core.worker.lock().expect("the lock").get().expect("a worker").kill()).expect("kills");
     cx.update(|_, app| view.update(app, |view, cx| view.ask_names(cx)));
     settle(cx, |app| !view.read(app).reading_names);
     assert!(cx.update(|_, app| view.read(app).unread.contains(&crate::view::Unread::Names)), "the failure is kept");
