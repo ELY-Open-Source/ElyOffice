@@ -53,6 +53,13 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Loose("StringName")],
         Check::Undoable,
     ),
+    // By address, the sheet named; the cursor stays.
+    command(
+        "cell.set",
+        ".uno:EnterString",
+        &[Arg::Text("Address"), Arg::Loose("StringName")],
+        Check::Undoable,
+    ),
     command(
         "rows.insert_above",
         ".uno:InsertRowsBefore",

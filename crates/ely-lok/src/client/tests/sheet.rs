@@ -30,7 +30,7 @@ fn a11y_follows_calc_cells() {
 }
 
 /// The FODS fixture in a fresh worker.
-fn open_sheet() -> (tempfile::TempDir, Worker, Doc) {
+pub(super) fn open_sheet() -> (tempfile::TempDir, Worker, Doc) {
     let install = install().expect("the pinned LOK build");
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");

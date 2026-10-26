@@ -17,7 +17,7 @@ pub mod wheel;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use ending::at_thread_end;
-pub use opening::{launch_files, on_open};
+pub use opening::{Ask, launch_files, on_ask, on_open};
 #[cfg(any(test, feature = "test-support"))]
 pub use opening::install_no_launch_files;
 pub use run::{run, window_options};

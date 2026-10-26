@@ -58,6 +58,19 @@ pub fn no_window_restore() {
 #[cfg(not(target_os = "macos"))]
 pub fn no_window_restore() {}
 
+/// A command-line run prints to the terminal that started it.
+#[cfg(windows)]
+pub fn attach_console() {
+    use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole, GetStdHandle, STD_OUTPUT_HANDLE};
+    // Redirected output already has somewhere to go.
+    if unsafe { GetStdHandle(STD_OUTPUT_HANDLE) }.is_null() {
+        unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
+    }
+}
+
+#[cfg(not(windows))]
+pub fn attach_console() {}
+
 /// Marks the start as done; later panics are ordinary panics.
 pub fn started() {
     STARTED.store(true, Ordering::Relaxed);

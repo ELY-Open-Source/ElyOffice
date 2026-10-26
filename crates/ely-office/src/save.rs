@@ -403,6 +403,13 @@ pub trait Saving: Host {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let ended = match &saved {
+            Ok(done) => Ok(done.path.as_path()),
+            Err(SaveError::Conflict) => Err("the file changed on disk since it was opened".to_string()),
+            Err(SaveError::Refused(state)) => Err(format!("the save was refused: {state:?}")),
+            Err(SaveError::Io(error)) => Err(error.to_string()),
+        };
+        self.save_ended(id, ended, cx);
         match saved {
             Ok(done) => {
                 log::info!("office: saved {}", done.path.display());

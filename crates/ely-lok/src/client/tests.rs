@@ -4,6 +4,7 @@ use super::*;
 
 mod analysis;
 mod borders;
+mod by_address;
 mod cell_looks;
 mod charts;
 mod check;
@@ -40,6 +41,17 @@ const PINNED_BUILD: &str = "8221e31";
 /// The pinned build, or None when absent.
 pub(crate) fn install() -> Option<PathBuf> {
     install_dir().ok()
+}
+
+/// Ends a stuck worker by its process id.
+pub(crate) fn kill(pid: u32) {
+    let pid = pid.to_string();
+    let status = if cfg!(windows) {
+        std::process::Command::new("taskkill").args(["/F", "/PID", &pid]).status()
+    } else {
+        std::process::Command::new("kill").args(["-9", &pid]).status()
+    };
+    assert!(status.expect("kill runs").success(), "the worker {pid} ends");
 }
 
 /// A tiny flat-XML document; no zip needed.

@@ -1,0 +1,167 @@
+LOK: Calc reads and writes one cell by address, the cursor kept
+
+- .uno:CellAt?address=Sheet1!A1 reads one cell: its absolute address,
+  the text shown and the input (a formula as typed). The sheet must be
+  named and exist; otherwise the answer is {"error": "address"}.
+- .uno:EnterString takes Address: the string goes into that cell on its
+  own sheet, one undo step; the cursor, the selection and the selected
+  sheets stay. ScViewFunc::EnterData wrote into every selected sheet.
+  The current cell's input line follows such a write.
+  Another program edits an open workbook this way (Ely #19).
+- Text with a line break entered as a string records its undo step
+  (SetEditCell); it went in through SetEditText with none.
+
+diff --git a/sc/sdi/scalc.sdi b/sc/sdi/scalc.sdi
+index 770f482..d07619e 100644
+--- a/sc/sdi/scalc.sdi
++++ b/sc/sdi/scalc.sdi
+@@ -6839,7 +6839,7 @@ SfxVoidItem Ungroup SID_OUTLINE_REMOVE
+ ]
+ 
+ SfxVoidItem EnterString SID_ENTER_STRING
+-(SfxStringItem StringName SID_ENTER_STRING,SfxBoolItem DontCommit FN_PARAM_1)
++(SfxStringItem StringName SID_ENTER_STRING,SfxBoolItem DontCommit FN_PARAM_1,SfxStringItem Address FN_PARAM_2)
+ [
+     AutoUpdate = FALSE,
+     FastCall = FALSE,
+diff --git a/sc/source/ui/inc/viewfunc.hxx b/sc/source/ui/inc/viewfunc.hxx
+index 85fb6af..c83d541 100644
+--- a/sc/source/ui/inc/viewfunc.hxx
++++ b/sc/source/ui/inc/viewfunc.hxx
+@@ -82,6 +82,9 @@ enum class SwitchSheetViewDirection
+ class ScViewFunc : public ScTabView
+ {
+ private:
++    void            EnterDataMarked(SCCOL nCol, SCROW nRow, SCTAB nTab, const OUString& rString,
++                                    const EditTextObject* pData, bool bMatrixExpand,
++                                    const ScMarkData& rMark);
+     ScAddress   aFormatSource;      // for automatic extension of formatting
+     ScRange     aFormatArea;
+     bool        bFormatValid;
+@@ -108,6 +111,8 @@ public:
+ 
+     SC_DLLPUBLIC void EnterData(SCCOL nCol, SCROW nRow, SCTAB nTab, const OUString& rString,
+                                 const EditTextObject* pData = nullptr, bool bMatrixExpand = false);
++    /// Enters one cell on its own sheet; the cursor stays.
++    void            EnterDataAt(const ScAddress& rPos, const OUString& rString);
+     void            EnterData( SCCOL nCol, SCROW nRow, SCTAB nTab,
+                                const EditTextObject& rData, bool bTestSimple = false );
+     void            EnterValue( SCCOL nCol, SCROW nRow, SCTAB nTab, const double& rValue );
+diff --git a/sc/source/ui/unoobj/docuno.cxx b/sc/source/ui/unoobj/docuno.cxx
+index b9801e4..f2391b2 100644
+--- a/sc/source/ui/unoobj/docuno.cxx
++++ b/sc/source/ui/unoobj/docuno.cxx
+@@ -768,6 +768,25 @@ void lcl_DefinedNames(tools::JsonWriter& rJsonWriter, ScDocument& rDoc)
+ 
+ namespace
+ {
++/// One cell named with its sheet: shown text and input.
++void lcl_CellAt(tools::JsonWriter& rJson, ScDocument& rDoc, std::string_view rCommand)
++{
++    std::map<OUString, OUString> aMap
++        = SfxLokHelper::parseCommandParameters(OUString::fromUtf8(rCommand));
++    const ScAddress::Details aDetails(rDoc.GetAddressConvention(), 0, 0);
++    ScAddress aPos;
++    const ScRefFlags nFlags = aPos.Parse(aMap[u"address"_ustr], rDoc, aDetails);
++    rJson.put("commandName", ".uno:CellAt");
++    // The sheet must be named: the shown one changes.
++    if (!(nFlags & ScRefFlags::VALID) || !(nFlags & ScRefFlags::TAB_3D) || !rDoc.HasTable(aPos.Tab()))
++        return rJson.put("error", "address");
++    rJson.put("address", aPos.Format(ScRefFlags::ADDR_ABS_3D, &rDoc, aDetails));
++    rJson.put("text", rDoc.GetString(aPos));
++    const bool bFormula = rDoc.GetCellType(aPos) == CELLTYPE_FORMULA;
++    rJson.put("input", bFormula ? rDoc.GetFormula(aPos.Col(), aPos.Row(), aPos.Tab())
++                                : rDoc.GetInputString(aPos.Col(), aPos.Row(), aPos.Tab()));
++}
++
+ /// The cell a `?col=&row=` query names, on the shown sheet.
+ bool lcl_QueryCell(std::string_view rCommand, SCCOL& rCol, SCROW& rRow)
+ {
+@@ -1095,7 +1114,7 @@ bool ScModelObj::supportsCommand(std::u16string_view rCommand)
+             u"AutoFilterValues", u"DataSelectValues",   u"Validation",
+             u"NumberFormatCode", u"ConditionalFormats", u"Chart",
+             u"PivotTable",       u"PrintLayout",        u"SheetProtection",
+-            u"ExternalLinks" };
++            u"ExternalLinks",    u"CellAt" };
+     return std::find(std::begin(aCommands), std::end(aCommands), rCommand) != std::end(aCommands);
+ }
+ 
+@@ -1105,6 +1124,8 @@ void ScModelObj::getCommandValues(tools::JsonWriter& rJsonWriter, std::string_vi
+         return lcl_DefinedNames(rJsonWriter, pDocShell->GetDocument());
+     if (pDocShell && rCommand == ".uno:ExternalLinks")
+         return lcl_ExternalLinks(rJsonWriter, pDocShell->GetDocument());
++    if (pDocShell && o3tl::starts_with(rCommand, ".uno:CellAt?"))
++        return lcl_CellAt(rJsonWriter, pDocShell->GetDocument(), rCommand);
+     ScViewData* pCurrent = ScDocShell::GetViewData();
+     if (pDocShell && pCurrent)
+     {
+diff --git a/sc/source/ui/view/cellsh3.cxx b/sc/source/ui/view/cellsh3.cxx
+index 7df370d..77a0b7c 100644
+--- a/sc/source/ui/view/cellsh3.cxx
++++ b/sc/source/ui/view/cellsh3.cxx
+@@ -382,6 +382,26 @@ void ScCellShell::Execute( SfxRequest& rReq )
+ 
+         case SID_ENTER_STRING:
+             {
++                const SfxPoolItem* pAddressItem;
++                if (pReqArgs && pReqArgs->HasItem(FN_PARAM_2, &pAddressItem))
++                {
++                    // Another program writes by address; the cursor stays.
++                    ScDocument& rDoc = GetViewData().GetDocument();
++                    const ScAddress::Details aDetails(rDoc.GetAddressConvention(), 0, 0);
++                    const OUString aAddress = static_cast<const SfxStringItem*>(pAddressItem)->GetValue();
++                    ScAddress aPos;
++                    const ScRefFlags nFlags = aPos.Parse(aAddress, rDoc, aDetails);
++                    if ((nFlags & ScRefFlags::VALID) && (nFlags & ScRefFlags::TAB_3D) && rDoc.HasTable(aPos.Tab()))
++                    {
++                        pTabViewShell->EnterDataAt(aPos, pReqArgs->Get(SID_ENTER_STRING).GetValue());
++                        // The current cell's input line follows.
++                        ScInputHandler* pInputHandler = pScMod->GetInputHdl(pTabViewShell);
++                        if (!pInputHandler || !pInputHandler->IsInEnterHandler())
++                            pTabViewShell->UpdateInputHandler();
++                        rReq.Done();
++                    }
++                    break;
++                }
+                 if ( pReqArgs )
+                 {
+                     // In the LOK case, we want to set the document modified state
+diff --git a/sc/source/ui/view/viewfunc.cxx b/sc/source/ui/view/viewfunc.cxx
+index 5065645..ac6c397 100644
+--- a/sc/source/ui/view/viewfunc.cxx
++++ b/sc/source/ui/view/viewfunc.cxx
+@@ -763,7 +763,7 @@ void applyText(ScViewFunc& rViewFunc, SCCOL nCol, SCROW nRow, SCTAB nTab, OUStri
+     if (ScStringUtil::isMultiline(rString))
+     {
+         rEngine.SetTextCurrentDefaults(rString);
+-        rDoc.SetEditText(aAddress, rEngine.CreateTextObject());
++        rFunc.SetEditCell(aAddress, *rEngine.CreateTextObject(), true);
+         pDocSh->AdjustRowHeight(nRow, nRow, nTab);
+     }
+     else
+@@ -786,9 +786,24 @@ void ScViewFunc::EnterData( SCCOL nCol, SCROW nRow, SCTAB nTab,
+                             const OUString& rString,
+                             const EditTextObject* pData,
+                             bool bMatrixExpand )
++{
++    EnterDataMarked(nCol, nRow, nTab, rString, pData, bMatrixExpand, GetViewData().GetMarkData());
++}
++
++void ScViewFunc::EnterDataAt(const ScAddress& rPos, const OUString& rString)
++{
++    ScMarkData aMark(GetViewData().GetDocument().GetSheetLimits());
++    aMark.SelectOneTable(rPos.Tab());
++    EnterDataMarked(rPos.Col(), rPos.Row(), rPos.Tab(), rString, nullptr, false, aMark);
++}
++
++void ScViewFunc::EnterDataMarked( SCCOL nCol, SCROW nRow, SCTAB nTab,
++                                  const OUString& rString,
++                                  const EditTextObject* pData,
++                                  bool bMatrixExpand, const ScMarkData& rMark )
+ {
+     ScDocument& rDoc = GetViewData().GetDocument();
+-    ScMarkData aMark(GetViewData().GetMarkData());
++    ScMarkData aMark(rMark);
+     bool bRecord = rDoc.IsUndoEnabled();
+ 
+     ScDocFunc &rFunc = GetViewData().GetDocFunc();

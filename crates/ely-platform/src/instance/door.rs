@@ -17,12 +17,19 @@ const PATH: u8 = 2;
 const DONE: u8 = 3;
 const REFUSED: u8 = 4;
 const OPEN: u8 = 5;
+/// A request from another program, then its answer.
+const ASK: u8 = 6;
+const ANSWER: u8 = 7;
+/// How long a caller waits for an answer.
+const ANSWERING: Duration = Duration::from_secs(90);
 /// How long one caller may take, start to end.
 const PATIENCE: Duration = Duration::from_secs(5);
 /// The largest frame before the token is shown.
 const SHOWN: usize = 64;
 /// The largest path frame: a whole Windows path.
 const LONGEST: usize = 128 * 1024;
+/// A request or answer: whole cells, JSON-escaped.
+const ASKED: usize = 64 * 1024 * 1024;
 
 /// The running copy's listener; its token keeps others out.
 pub struct Door {
@@ -45,23 +52,24 @@ impl Door {
         Ok(Door { listener, token })
     }
 
-    /// Hands each caller's files to `deliver`; false means not taken.
+    /// Files go to `deliver`, false meaning untaken; requests to `reply`.
     pub fn serve(
         self,
         deliver: impl Fn(Vec<PathBuf>) -> bool + Send + Sync + 'static,
+        reply: impl Fn(String) -> Result<String, String> + Send + Sync + 'static,
     ) -> io::Result<()> {
-        let deliver = Arc::new(deliver);
+        let (deliver, reply) = (Arc::new(deliver), Arc::new(reply));
         thread::Builder::new()
             .name("instance door".into())
             .spawn(move || {
                 for stream in self.listener.incoming() {
-                    let (token, deliver) = (self.token, deliver.clone());
+                    let (token, deliver, reply) = (self.token, deliver.clone(), reply.clone());
                     // A stalled caller must not hold up the next.
                     let answered = stream.and_then(|stream| {
                         thread::Builder::new()
                             .name("instance caller".into())
                             .spawn(move || {
-                                if let Err(error) = answer(&stream, &token, &*deliver) {
+                                if let Err(error) = answer(&stream, &token, &*deliver, &*reply) {
                                     log::warn!("instance: a hand-over failed: {error}");
                                 }
                             })
@@ -80,6 +88,7 @@ fn answer(
     stream: &TcpStream,
     token: &[u8],
     deliver: &dyn Fn(Vec<PathBuf>) -> bool,
+    reply: &dyn Fn(String) -> Result<String, String>,
 ) -> io::Result<()> {
     let mut timed = Timed {
         stream,
@@ -95,8 +104,17 @@ fn answer(
     }
     ely_ipc::write_frame(&mut &*stream, OPEN, 0, &[])?;
     let mut files = Vec::new();
+    let mut first = Some(next(&mut timed, ASKED)?);
+    if let Some((ASK, request)) = &first {
+        let request = String::from_utf8(request.clone()).map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "a request not in UTF-8"))?;
+        log::info!("instance: a request came ({} bytes)", request.len());
+        return match reply(request) {
+            Ok(answer) => ely_ipc::write_frame(&mut &*stream, ANSWER, 0, answer.as_bytes()),
+            Err(why) => ely_ipc::write_frame(&mut &*stream, REFUSED, 0, why.as_bytes()),
+        };
+    }
     loop {
-        match next(&mut timed, LONGEST)? {
+        match first.take().map_or_else(|| next(&mut timed, LONGEST), Ok)? {
             (PATH, bytes) => files.push(path(bytes)?),
             (DONE, _) => break,
             (tag, _) => {
@@ -154,6 +172,22 @@ pub(super) fn hand(dir: &Path, files: &[PathBuf], wait: Duration) -> io::Result<
             Err(error) => return Err(error),
         }
         thread::sleep(Duration::from_millis(100));
+    }
+}
+
+/// Sends `request` to `dir`'s door; the app's answer or refusal.
+pub(super) fn ask(dir: &Path, request: &str) -> io::Result<String> {
+    let (stream, token) = knock(dir)?;
+    if !admit(&stream, &token)? {
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "it refused the door's token"));
+    }
+    ely_ipc::write_frame(&mut &stream, ASK, 0, request.as_bytes())?;
+    stream.set_read_timeout(Some(ANSWERING))?;
+    let text = |bytes: Vec<u8>| String::from_utf8_lossy(&bytes).into_owned();
+    match next(&mut &stream, ASKED)? {
+        (ANSWER, bytes) => Ok(text(bytes)),
+        (REFUSED, bytes) => Err(io::Error::other(text(bytes))),
+        (tag, _) => Err(unexpected(tag)),
     }
 }
 
@@ -294,7 +328,7 @@ mod tests {
         let (sender, heard) = std::sync::mpsc::channel();
         let sender = std::sync::Mutex::new(sender);
         let door = Door::open(dir).expect("a door");
-        door.serve(move |files| sender.lock().expect("a sender").send(files).is_ok())
+        door.serve(move |files| sender.lock().expect("a sender").send(files).is_ok(), |_| Err("no requests".into()))
             .expect("served");
         heard
     }
@@ -400,7 +434,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("a temp dir");
         Door::open(dir.path())
             .expect("a door")
-            .serve(|_| false)
+            .serve(|_| false, |_| Err("no requests".into()))
             .expect("served");
         let started = Instant::now();
         let untaken = hand(dir.path(), &[PathBuf::from("x.md")], Duration::from_secs(3));

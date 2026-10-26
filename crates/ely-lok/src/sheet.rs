@@ -355,6 +355,34 @@ pub fn name_check_query(name: &str) -> String {
     format!("{NAMES}?name={}", encode(name))
 }
 
+/// One cell by address, its sheet named.
+pub const CELL: &str = ".uno:CellAt";
+
+/// One cell as the kernel holds it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CellAt {
+    /// Absolute, with the sheet.
+    pub address: String,
+    /// As shown.
+    pub text: String,
+    /// As typed: a formula keeps its `=`.
+    pub input: String,
+}
+
+pub fn cell_at_query(address: &str) -> String {
+    format!("{CELL}?address={}", encode(address))
+}
+
+/// The cell read; an address naming no cell is refused.
+pub fn cell_at(json: &str) -> io::Result<CellAt> {
+    let value: serde_json::Value = serde_json::from_str(json).map_err(|error| io::Error::other(format!("bad cell: {error}")))?;
+    if value["error"] == "address" {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "the address names no cell on a sheet"));
+    }
+    let field = |key: &str| value[key].as_str().map(str::to_owned).ok_or_else(|| io::Error::other(format!("unreadable cell: {value}")));
+    Ok(CellAt { address: field("address")?, text: field("text")?, input: field("input")? })
+}
+
 /// `text` percent-encoded for a query value.
 fn encode(text: &str) -> String {
     text.bytes()

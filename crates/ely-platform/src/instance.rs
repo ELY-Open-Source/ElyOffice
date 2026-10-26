@@ -35,6 +35,15 @@ pub fn hold(app: AppId, files: &[PathBuf]) -> io::Result<Start> {
     start(app, &dir, files)
 }
 
+/// Sends `request` to the running `app`; its answer.
+pub fn ask(app: AppId, request: &str) -> io::Result<String> {
+    let dir = crate::data_dir(app).map_err(io::Error::other)?;
+    if !dir.join("instance.door").try_exists()? {
+        return Err(io::Error::new(io::ErrorKind::NotFound, format!("{} is not running", app.name())));
+    }
+    door::ask(&dir, request)
+}
+
 fn start(app: AppId, dir: &Path, files: &[PathBuf]) -> io::Result<Start> {
     match take(app, dir) {
         Ok(()) => Ok(Start::First(Door::open(dir)?)),
@@ -52,6 +61,23 @@ fn take(app: AppId, dir: &Path) -> io::Result<()> {
         None => HELD.set(file).map_err(|_| io::Error::other("this process took its instance lock twice")),
         Some(holder) => Err(io::Error::new(io::ErrorKind::AlreadyExists, format!("{} is already running ({holder})", app.name()))),
     }
+}
+
+/// Every app's lock under `root`, or the first app running.
+pub(crate) fn closed(root: &Path) -> io::Result<Result<Vec<File>, AppId>> {
+    let mut held = Vec::new();
+    for app in AppId::ALL {
+        let dir = root.join(app.slug());
+        if !dir.try_exists()? {
+            continue;
+        }
+        let file = std::fs::OpenOptions::new().write(true).create(true).truncate(false).open(dir.join("instance.lock"))?;
+        if lock(&file)?.is_some() {
+            return Ok(Err(app));
+        }
+        held.push(file);
+    }
+    Ok(Ok(held))
 }
 
 /// Locks `file`, or names its holder as the OS reports.
@@ -151,6 +177,28 @@ mod tests {
         assert!(first.wait().expect("ends").success());
     }
 
+    #[test]
+    fn a_request_gets_the_app_s_answer_or_its_refusal() {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let door = Door::open(dir.path()).expect("a door");
+        let (sender, handed) = std::sync::mpsc::channel();
+        let sender = std::sync::Mutex::new(sender);
+        let reply = |request: String| match request.as_str() {
+            "cell" => Ok("42".to_string()),
+            "long" => Ok("汉".repeat(200_000)),
+            other => Err(format!("{other} is unknown")),
+        };
+        door.serve(move |files| sender.lock().expect("a sender").send(files).is_ok(), reply).expect("served");
+        assert_eq!(door::ask(dir.path(), "cell").expect("answered"), "42");
+        assert_eq!(door::ask(dir.path(), "long").expect("a long answer").chars().count(), 200_000);
+        assert_eq!(door::ask(dir.path(), &"x".repeat(300_000)).expect_err("echoed").to_string().len(), 300_011);
+        let refused = door::ask(dir.path(), "save").expect_err("refused");
+        assert_eq!(refused.to_string(), "save is unknown");
+        let file = PathBuf::from("C:/a.xlsx");
+        door::hand(dir.path(), std::slice::from_ref(&file), WAIT).expect("handed");
+        assert_eq!(handed.recv().expect("files"), vec![file], "hand-overs still work");
+    }
+
     /// The first copy: holds, then reports one hand-over.
     #[test]
     fn first_copy() {
@@ -162,7 +210,7 @@ mod tests {
         };
         let (sender, heard) = std::sync::mpsc::channel();
         let sender = std::sync::Mutex::new(sender);
-        door.serve(move |files| sender.lock().expect("a sender").send(files).is_ok()).expect("served");
+        door.serve(move |files| sender.lock().expect("a sender").send(files).is_ok(), |_| Err("no requests".into())).expect("served");
         println!("HELD");
         let files = heard.recv_timeout(std::time::Duration::from_secs(20)).expect("a hand-over");
         println!("GOT {}", files[0].display());

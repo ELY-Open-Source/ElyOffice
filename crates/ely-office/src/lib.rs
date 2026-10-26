@@ -83,6 +83,9 @@ pub trait Host: Sized + 'static {
     fn conflicted(&mut self, _id: u64, _: &mut Context<Self>) -> bool {
         false
     }
+    /// Tab `id`'s save ended: where it went, or why not.
+    fn save_ended(&mut self, _id: u64, _saved: Result<&std::path::Path, String>, _: &mut Context<Self>) {}
+
     /// Runs as tab `tab` leaves, saved, clean or discarded.
     fn tab_closed(&mut self, _tab: &Tab<Self::Extra, Self::Engine>, _: &mut Context<Self>) {}
 

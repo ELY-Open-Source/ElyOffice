@@ -131,7 +131,7 @@ fn every_mapped_command_reaches_the_kernel_and_reports_state() {
     assert!(text.contains("fo:font-weight=\"bold\""), "bold landed");
     assert_eq!(
         commands::all().count(),
-        251,
+        252,
         "the rows of text, layout, refs, tools, sheet, calc, data, analysis, page, show and draw"
     );
 }
@@ -245,10 +245,7 @@ fn a_kernel_dialog_is_closed_and_reported() {
     let outcome = wait.recv_timeout(std::time::Duration::from_secs(30));
     if outcome.is_err() {
         // A blocked worker would hold the test open.
-        std::process::Command::new("kill")
-            .args(["-9", &pid.to_string()])
-            .status()
-            .expect("kill runs");
+        kill(pid);
     }
     let blocked = outcome.expect("the dialog never blocked the worker");
     assert_eq!(blocked, ["Delete Contents"], "the dialog is reported");
