@@ -35,7 +35,7 @@ need() { # path, what to run
     exit 1
   }
 }
-build -p "$slug"
+build -p "$(cargo pkgid --manifest-path "$root/apps/$slug/Cargo.toml")"
 icon=$root/assets/icons/$slug.icns
 need "$icon" packaging/icons/build.sh
 

@@ -55,8 +55,6 @@ objc2-av-foundation = { version = "0.3", default-features = false, features = ["
 objc2-core-media = { version = "0.3", default-features = false, features = ["std", "CMTime"] }
 objc2-core-video = { version = "0.3", default-features = false, features = ["std", "CVBuffer", "CVImageBuffer", "CVPixelBuffer"] }
 objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFString", "CFCGTypes"] }
-core-video = "0.5"
-core-foundation = "0.10"
 objc2 = "0.6"
 security-framework = "3.7"
 objc2-pdf-kit = { version = "0.3", default-features = false, features = ["PDFDocument", "PDFPage", "objc2-app-kit"] }

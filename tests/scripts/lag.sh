@@ -12,7 +12,7 @@ fail() {
   exit 1
 }
 
-cargo build -q -p ely-lok --bins -p "$app" --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-lok --bins -p "$(cargo pkgid --manifest-path "$root/apps/$app/Cargo.toml")" --manifest-path "$root/Cargo.toml"
 swiftc -O -o "$work/axv" "$root/tests/scripts/ax-values.swift"
 [ "$("$work/axv" $$)" != untrusted ] || { echo "SKIP: needs Accessibility permission"; exit 0; }
 ELY_SMOKE=hold ELY_LOG=debug ELY_LOCALE=en HOME="$work" XDG_DATA_HOME="$work/data" \

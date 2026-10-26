@@ -26,8 +26,6 @@ ureq.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 metal.workspace = true
-core-foundation.workspace = true
-core-video.workspace = true
 objc2-app-kit.workspace = true
 objc2-av-foundation.workspace = true
 objc2-core-foundation.workspace = true

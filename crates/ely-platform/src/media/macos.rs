@@ -1,9 +1,10 @@
-use std::path::Path;
+use std::{path::Path, ptr::NonNull};
 
 use objc2::{AllocAnyThread, MainThreadMarker, rc::Retained, runtime::AnyObject};
 use objc2_av_foundation::{
     AVPlayer, AVPlayerItem, AVPlayerItemOutput, AVPlayerItemStatus, AVPlayerItemVideoOutput,
 };
+use objc2_core_foundation::CFRetained;
 use objc2_core_media::{CMTime, CMTimeFlags};
 use objc2_core_video::kCVPixelBufferPixelFormatTypeKey;
 use objc2_foundation::{NSDictionary, NSNumber, NSString, NSURL};
@@ -119,8 +120,6 @@ impl Player {
         }?;
         let raw = Retained::into_raw(buffer);
         // The copy hands its one reference over.
-        Some(unsafe {
-            <core_video::pixel_buffer::CVPixelBuffer as core_foundation::base::TCFType>::wrap_under_create_rule(raw.cast())
-        })
+        Some(unsafe { CFRetained::from_raw(NonNull::new_unchecked(raw)) })
     }
 }

@@ -23,7 +23,7 @@ pub enum State {
 
 /// A picture of the playing video.
 #[cfg(target_os = "macos")]
-pub type Frame = core_video::pixel_buffer::CVPixelBuffer;
+pub type Frame = objc2_core_foundation::CFRetained<objc2_core_video::CVPixelBuffer>;
 /// No platform here makes frames.
 #[cfg(not(target_os = "macos"))]
 pub enum Frame {}

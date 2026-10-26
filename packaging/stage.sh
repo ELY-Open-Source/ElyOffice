@@ -29,7 +29,7 @@ release=${CARGO_TARGET_DIR:-$root/target}/release
 
 rm -rf "$out"
 mkdir -p "$out"
-build -p "$slug"
+build -p "$(cargo pkgid --manifest-path "$root/apps/$slug/Cargo.toml")"
 cp "$release/$slug$exe" "$out/"
 if uses ely-lok; then
   lo=${ELY_LO_DIR:-$root/engines/lo-src/instdir}
