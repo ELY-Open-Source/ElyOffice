@@ -12,6 +12,11 @@ pub fn data_dir(app: AppId) -> Result<PathBuf> {
 
 /// The suite's folder: each app's, and the shared settings.
 pub(crate) fn root() -> Result<PathBuf> {
+    Ok(crate::folder::read(&home()?)?.at)
+}
+
+/// The first folder, holding the pointer to the chosen one.
+pub(crate) fn home() -> Result<PathBuf> {
     if let Some(root) = chosen_root(crate::env::value("ELY_DATA_ROOT"))? {
         return Ok(root);
     }

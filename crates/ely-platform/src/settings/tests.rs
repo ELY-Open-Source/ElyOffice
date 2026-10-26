@@ -127,7 +127,7 @@ fn two_sided_printing_is_the_printers_unless_chosen() {
 fn a_write_overtaken_while_waiting_leaves_the_file() {
     let (_dir, store) = store();
     store.set("author", json!("Ana")).unwrap();
-    let held = crate::lock::FileLock::take(&store.path().parent().unwrap().join(".settings.lock")).unwrap();
+    let held = crate::lock::FileLock::take(&store.path().parent().unwrap().join(super::LOCK)).unwrap();
     let waiting = {
         let store = store.clone();
         std::thread::spawn(move || store.set_if("author", json!("Bob"), || false).unwrap())

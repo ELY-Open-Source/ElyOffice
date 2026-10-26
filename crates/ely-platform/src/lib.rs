@@ -5,6 +5,7 @@ pub mod clipboard;
 pub mod diagnostics;
 mod dirs;
 pub mod env;
+pub mod folder;
 pub mod git;
 pub mod graphics;
 pub mod install;

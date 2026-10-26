@@ -18,6 +18,7 @@ use serde_json::Value;
 pub mod switches;
 mod diagnostics;
 mod frame;
+mod folder;
 mod storage;
 pub mod panels;
 mod picks;

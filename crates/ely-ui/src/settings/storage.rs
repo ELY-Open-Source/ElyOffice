@@ -12,7 +12,10 @@ use ely_gpui_component::{
     primitives::Severity,
     settings::{SettingsRow, SettingsSection},
 };
-use ely_platform::storage::{self, Kind, Limits};
+use ely_platform::{
+    folder,
+    storage::{self, Kind, Limits},
+};
 use gpui::{AnyElement, App, Context, IntoElement, SharedString, WeakEntity};
 
 use super::window::SettingsView;
@@ -26,9 +29,10 @@ type Usage = Vec<(Kind, u64, bool)>;
 pub(crate) struct Storage {
     usage: Option<Result<Usage, SharedString>>,
     limits: Option<Result<Limits, SharedString>>,
+    pub(super) folder: Option<Result<folder::State, SharedString>>,
     /// A clear waiting for the user's yes.
     confirming: Option<Kind>,
-    failed: Option<SharedString>,
+    pub(super) failed: Option<SharedString>,
 }
 
 /// Limit writes outlive the settings window that asked.
@@ -70,11 +74,12 @@ impl SettingsView {
             let usage = storage::usage(app).and_then(|usage| {
                 usage.into_iter().map(|(kind, bytes)| Ok((kind, bytes, storage::clearing(app, kind)?))).collect()
             });
-            (usage, storage::limits(app))
+            (usage, storage::limits(app), folder::state())
         });
         cx.spawn(async move |this, cx| {
-            let (usage, limits) = read.await;
+            let (usage, limits, folder) = read.await;
             this.update(cx, |this, cx| {
+                this.storage.folder = Some(folder.map_err(|error| error.to_string().into()));
                 this.storage.usage = Some(usage.map_err(|error| error.to_string().into()));
                 this.storage.limits = Some(match cx.default_global::<Limiting>().pending {
                     Some(wanted) => Ok(wanted),
@@ -88,6 +93,9 @@ impl SettingsView {
 
     pub(super) fn storage_page(&self, this: WeakEntity<Self>, cx: &App) -> AnyElement {
         let mut section = SettingsSection::new(text(cx, "settings.storage", &[]));
+        for row in self.folder_rows(this.clone(), cx) {
+            section = section.row(row);
+        }
         match &self.storage.usage {
             None => {}
             Some(Err(error)) => section = section.row(Banner::new("storage-unread", Severity::Danger, error.clone())),

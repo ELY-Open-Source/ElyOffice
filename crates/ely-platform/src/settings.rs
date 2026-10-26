@@ -18,6 +18,9 @@ pub use shared::{
 /// The layout this build reads and writes.
 pub const VERSION: u64 = 1;
 
+/// Taken while a settings file is written.
+pub(crate) const LOCK: &str = ".settings.lock";
+
 /// One settings file; writes keep unknown fields.
 #[derive(Clone, Debug)]
 pub struct Store {
@@ -72,7 +75,7 @@ impl Store {
     pub fn set_if(&self, key: &str, value: Value, still: impl FnOnce() -> bool) -> io::Result<bool> {
         let dir = self.path.parent().ok_or_else(|| io::Error::other("settings have no folder"))?;
         std::fs::create_dir_all(dir)?;
-        let _held = FileLock::take(&dir.join(".settings.lock"))?;
+        let _held = FileLock::take(&dir.join(LOCK))?;
         // A newer choice made while we waited wins.
         if !still() {
             log::info!("settings: {key} overtaken while waiting");
