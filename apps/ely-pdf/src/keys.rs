@@ -16,6 +16,7 @@ actions!(
         Continuous,
         SinglePage,
         TwoPages,
+        Horizontal,
         ZoomIn,
         ZoomOut,
         FitWidth,
@@ -67,6 +68,7 @@ pub fn menus(cx: &App) -> Vec<Menu> {
             MenuItem::action(label("pdf.view.continuous"), Continuous),
             MenuItem::action(label("pdf.view.single"), SinglePage),
             MenuItem::action(label("pdf.view.two"), TwoPages),
+            MenuItem::action(label("pdf.view.horizontal"), Horizontal),
             MenuItem::separator(),
             MenuItem::action(label("pdf.view.zoom_in"), ZoomIn),
             MenuItem::action(label("pdf.view.zoom_out"), ZoomOut),
@@ -112,10 +114,11 @@ pub fn on(root: Div, cx: &mut Context<Viewer>) -> Div {
         move |viewer: &mut Viewer, cx: &mut Context<Viewer>| viewer.on_view(|view, cx| view.change(change, cx), cx)
     };
     let turn = |by: isize| move |viewer: &mut Viewer, cx: &mut Context<Viewer>| viewer.on_view(|view, cx| view.turn(by, cx), cx);
-    let (continuous, single, two) = (
+    let (continuous, single, two, row) = (
         change(|view, _| view.mode = Mode::Continuous),
         change(|view, _| view.mode = Mode::Single),
         change(|view, _| view.mode = Mode::Two),
+        change(|view, _| view.mode = Mode::Horizontal),
     );
     let (width, page) = (change(|view, _| view.zoom = Zoom::Width), change(|view, _| view.zoom = Zoom::Page));
     let (right, left) = (
@@ -126,6 +129,7 @@ pub fn on(root: Div, cx: &mut Context<Viewer>) -> Div {
     root.on_action(cx.listener(move |v, _: &Continuous, _, cx| continuous(v, cx)))
         .on_action(cx.listener(move |v, _: &SinglePage, _, cx| single(v, cx)))
         .on_action(cx.listener(move |v, _: &TwoPages, _, cx| two(v, cx)))
+        .on_action(cx.listener(move |v, _: &Horizontal, _, cx| row(v, cx)))
         .on_action(cx.listener(move |v, _: &FitWidth, _, cx| width(v, cx)))
         .on_action(cx.listener(move |v, _: &FitPage, _, cx| page(v, cx)))
         .on_action(cx.listener(|v, _: &ActualSize, _, cx| zoom(v, ZoomStep::Reset, cx)))

@@ -133,15 +133,27 @@ impl PdfView {
         if let Some((x, y)) = self.go_to.take() {
             self.scroll.set_offset(point(px(-x), px(-y)));
         }
-        let top = -f32::from(self.scroll.offset().y);
+        let (left, top) = (-f32::from(self.scroll.offset().x), -f32::from(self.scroll.offset().y));
         let showing = self.showing(sf);
+        // Half a page past a jump's lead counts.
+        let ahead = |p: &Placed| match self.mode {
+            Mode::Horizontal => p.x + p.w > left + (GAP * 3.0).min(GAP + p.w / 2.0),
+            _ => p.y + p.h > top + (GAP * 3.0).min(GAP * 2.0 + p.h / 2.0),
+        };
+        let room = (f32::from(self.room.size.width), f32::from(self.room.size.height));
+        // Pages past the end never reach the edge.
+        let ended = match self.mode {
+            Mode::Horizontal => left + room.0 >= laid.size.0 - 0.5,
+            _ => top + room.1 >= laid.size.1 - 0.5,
+        };
         // The current page: first showing more than a sliver.
-        if let Some(first) = showing.iter().map(|s| s.place).find(|p| p.y + p.h > top + GAP * 3.0) {
-            let paired = showing.iter().any(|s| s.place.page == self.current) && first.page / 2 == self.current / 2;
+        if let Some(first) = showing.iter().map(|s| s.place).find(|p| ahead(p)) {
+            let held = showing.iter().any(|s| s.place.page == self.current);
             let now = match self.mode {
                 Mode::Single => self.current,
                 // Either page of a pair in view may be current.
-                Mode::Two if paired => self.current,
+                Mode::Two if held && first.page / 2 == self.current / 2 => self.current,
+                _ if ended && showing.iter().any(|s| s.place.page == self.current && ahead(&s.place)) => self.current,
                 _ => first.page,
             };
             if now != self.current {

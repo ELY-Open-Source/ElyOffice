@@ -6,6 +6,8 @@ pub enum Mode {
     Continuous,
     Single,
     Two,
+    /// One row, scrolled across.
+    Horizontal,
 }
 
 /// How big pages are drawn.
@@ -59,12 +61,15 @@ pub fn layout(sizes: &[(f32, f32)], rotate: i32, (mode, zoom): (Mode, Zoom), vie
     // Rows of one or two pages, as wide as theirs.
     let rows: Vec<Vec<usize>> = match mode {
         Mode::Two => shown.chunks(2).map(<[usize]>::to_vec).collect(),
+        Mode::Horizontal => vec![shown.clone()],
         _ => shown.iter().map(|page| vec![*page]).collect(),
     };
-    let widest = (rows.iter())
-        .map(|row| row.iter().map(|page| sizes[*page].0).sum::<f32>())
-        .fold(0.0, f32::max)
-        .max(1.0);
+    // A row of pages fits one page, not the row.
+    let fitted = match mode {
+        Mode::Horizontal => shown.iter().map(|page| sizes[*page].0).collect(),
+        _ => rows.iter().map(|row| row.iter().map(|page| sizes[*page].0).sum::<f32>()).collect::<Vec<_>>(),
+    };
+    let widest = fitted.into_iter().fold(0.0, f32::max).max(1.0);
     let room = (view.0 - GAP * (1.0 + across)).max(1.0);
     let scale = match zoom {
         Zoom::Scale(scale) => scale,
@@ -74,7 +79,11 @@ pub fn layout(sizes: &[(f32, f32)], rotate: i32, (mode, zoom): (Mode, Zoom), vie
             (room / widest).min((view.1 - 2.0 * GAP).max(1.0) / tallest)
         }
     };
-    let width = (widest * scale + GAP * (1.0 + across)).max(view.0);
+    let width = match mode {
+        Mode::Horizontal => shown.iter().map(|page| sizes[*page].0 * scale + GAP).sum::<f32>() + GAP,
+        _ => widest * scale + GAP * (1.0 + across),
+    }
+    .max(view.0);
     let (mut placed, mut y) = (Vec::new(), GAP);
     for row in rows {
         let row_w = row.iter().map(|page| sizes[*page].0 * scale).sum::<f32>() + GAP * (row.len() as f32 - 1.0);
@@ -119,6 +128,17 @@ mod tests {
         let rows: Vec<(usize, f32)> = two.placed.iter().map(|p| (p.page, p.y)).collect();
         assert_eq!(rows, [(0, 16.0), (1, 16.0), (2, 824.0)]);
         assert_eq!(two.placed[1].x - two.placed[0].x, 612.0 + 16.0, "side by side");
+    }
+
+    #[test]
+    fn horizontal_puts_pages_in_one_row_and_fits_one_page() {
+        let out = layout(&[LETTER, LETTER, LETTER], 0, (Mode::Horizontal, Zoom::Width), (644.0, 500.0), 0);
+        assert_eq!(out.scale, 1.0, "one page fills the room");
+        let at: Vec<(f32, f32)> = out.placed.iter().map(|p| (p.x, p.y)).collect();
+        assert_eq!(at, [(16.0, 16.0), (644.0, 16.0), (1272.0, 16.0)]);
+        assert_eq!(out.size, (16.0 + 3.0 * (612.0 + 16.0), 16.0 + 792.0 + 16.0));
+        let page = layout(&[LETTER, (612.0, 1584.0)], 0, (Mode::Horizontal, Zoom::Page), (644.0, 824.0), 0);
+        assert_eq!(page.scale, 0.5, "the tallest page fits the height");
     }
 
     #[test]

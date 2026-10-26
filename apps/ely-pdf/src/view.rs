@@ -331,7 +331,11 @@ impl PdfView {
         let laid = self.laid_out();
         if let Some(place) = laid.placed.iter().find(|place| place.page == page) {
             let (_, top, _, _) = rect_on([0.0, y, 0.0, y], self.sizes[page], self.rotate, laid.scale);
-            self.go_to = Some((self.across(place), (place.y + top - crate::layout::GAP * 2.0).max(0.0)));
+            let x = match self.mode {
+                Mode::Horizontal => (place.x - crate::layout::GAP).max(0.0),
+                _ => self.across(place),
+            };
+            self.go_to = Some((x, (place.y + top - crate::layout::GAP * 2.0).max(0.0)));
         }
         cx.notify();
     }

@@ -20,6 +20,7 @@ mod output;
 mod protect;
 mod reads;
 mod removal;
+mod row;
 mod sign;
 mod structure;
 mod view;
