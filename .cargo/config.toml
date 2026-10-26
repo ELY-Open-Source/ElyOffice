@@ -4,3 +4,7 @@ rustflags = ["-C", "target-feature=+crt-static"]
 # As Info.plist; lower links Swift overlays by @rpath.
 [env]
 MACOSX_DEPLOYMENT_TARGET = "14.0"
+
+# Rust 1.96 loads no proc macro with chained fixups.
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-arg=-Wl,-no_fixup_chains"]
