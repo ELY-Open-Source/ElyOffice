@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+#s5-root { position: absolute; inset: 0; pointer-events: none; }
+#s5-win .s5-bar { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 22px; border-bottom: 1px solid var(--line); }
+#s5-win .s5-dots { display: flex; gap: 9px; }
+#s5-win .s5-dots i { display: block; width: 13px; height: 13px; border-radius: 50%; }
+#s5-win .s5-dots i:nth-child(1) { background: #ff6b6b; } #s5-win .s5-dots i:nth-child(2) { background: #ffc44d; } #s5-win .s5-dots i:nth-child(3) { background: #3ddc84; }
+#s5-win .s5-name { font: 700 19px var(--zh); }
+#s5-nav { position: absolute; left: 0; top: 56px; bottom: 0; width: 220px; padding: 18px 12px; border-right: 1px solid var(--line); background: rgba(10, 6, 40, 0.14); }
+.s5-nav { height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-radius: 12px; font: 600 19px var(--zh); color: var(--ink-2); }
+.s5-nav .ico { width: 20px; height: 20px; }
+.s5-nav.on { color: #fff; background: linear-gradient(90deg, rgba(47, 216, 232, 0.5), rgba(47, 216, 232, 0.18)); }
+#s5-main { position: absolute; left: 260px; top: 84px; right: 40px; }
+#s5-main .t { font: 800 30px var(--zh); margin-bottom: 18px; }
+.s5-row { position: relative; display: flex; align-items: center; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,.1); }
+.s5-row .k { width: 150px; flex: none; font: 600 21px var(--zh); color: var(--ink); align-self: flex-start; padding-top: 2px; }
+.s5-row .v { flex: 1; font: 500 17px "JetBrains Mono", "Noto Sans SC", monospace; color: var(--ink-2); line-height: 1.55; min-height: 52px; }
+.s5-row .b { flex: none; height: 40px; padding: 0 18px; border-radius: 12px; display: flex; align-items: center; font: 600 18px var(--zh); background: rgba(255,255,255,.12); border: 1px solid var(--line-2); color: var(--ink); }
+#s5-pick { position: absolute; left: 0; top: 0; width: 300px; padding: 14px; border-radius: 18px; }
+#s5-pick .h { font: 700 17px var(--zh); color: var(--ink-3); padding: 2px 6px 10px; }
+.s5-drive { height: 46px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-radius: 12px; font: 600 19px var(--zh); color: var(--ink); }
+.s5-drive .ico { width: 22px; height: 22px; }
+.s5-drive.on { background: rgba(47, 216, 232, 0.4); }
+.s5-disk { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border-radius: 24px; }
+.s5-disk .ico { width: 54px; height: 54px; stroke-width: 1.6; }
+.s5-disk .l { font: 700 21px var(--sans); }
+.s5-disk .s { font: 500 16px var(--zh); color: var(--ink-2); }
+#s5-move { position: absolute; left: 0; top: 0; height: 40px; padding: 0 16px; font: 700 17px var(--zh); --c: #1d8f9c; }
+#s5-again { position: absolute; left: 0; top: 0; height: 46px; padding: 0 20px; font: 700 19px var(--zh); --c: var(--violet); white-space: nowrap; }
+#s5-ptr { position: absolute; left: 0; top: 0; width: 34px; height: 34px; filter: drop-shadow(0 4px 6px rgba(0,0,0,.45)); }
+</style>
+<div id="s5-root" data-composition-id="s5" data-width="1920" data-height="1080" data-duration="6">
+  <div id="s5-win" class="glass">
+    <div class="s5-bar"><div class="s5-dots"><i></i><i></i><i></i></div><div class="s5-name">设置</div></div>
+    <div id="s5-nav"></div>
+    <div id="s5-main"><div class="t">存储</div></div>
+  </div>
+  <div id="s5-pick" class="glass solid"></div>
+  <div id="s5-c" class="s5-disk glass"></div>
+  <div id="s5-d" class="s5-disk glass"></div>
+  <div id="s5-move" class="candy">下次启动时搬过去</div>
+  <div id="s5-again" class="candy">重装系统后，选回同一文件夹就能用</div>
+  <svg id="s5-ptr" viewBox="0 0 24 24"><path d="M4 2.5v17l4.6-4.3 3 6.6 3-1.4-3-6.4H18z" fill="#fff" stroke="#151024" stroke-width="1.4" stroke-linejoin="round"/></svg>
+</div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var G = window.__s5.G;
+    function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+    function prog(t, a, b) { return clamp((t - a) / (b - a), 0, 1); }
+    function smooth(x) { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+    function inOut(x) { x = clamp(x, 0, 1); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+    function backOut(x, s) { s = s == null ? 1.7 : s; x = clamp(x, 0, 1) - 1; return 1 + (s + 1) * x * x * x + s * x * x; }
+    function place(el, r) { el.style.left = r.x + "px"; el.style.top = r.y + "px"; el.style.width = r.w + "px"; el.style.height = r.h + "px"; }
+
+    var win = document.getElementById("s5-win");
+    place(win, G.win);
+    document.getElementById("s5-nav").innerHTML =
+      '<div class="s5-nav">' + ElyKit.icon("sparkle") + "通用</div>" +
+      '<div class="s5-nav">' + ElyKit.icon("file") + "文档</div>" +
+      '<div class="s5-nav on">' + ElyKit.icon("disk") + "存储</div>" +
+      '<div class="s5-nav">' + ElyKit.icon("bell") + "诊断</div>";
+    var main = document.getElementById("s5-main");
+    var ROWS = [["数据文件夹", "", "选择…"], ["本应用的日志", "128 KB", "清除"], ["恢复副本", "2.4 MB", "清除"]];
+    var rows = ROWS.map(function (r) {
+      var el = document.createElement("div");
+      el.className = "s5-row";
+      el.innerHTML = '<div class="k">' + r[0] + '</div><div class="v">' + r[1] + '</div><div class="b">' + r[2] + "</div>";
+      main.appendChild(el);
+      return el;
+    });
+    var path = rows[0].querySelector(".v"), choose = rows[0].querySelector(".b");
+    var NOW = "C:\\Users\\you\\AppData\\Local\\ElyOffice";
+    var NEXT = NOW + "。下次启动 Ely 应用、且没有别的 Ely 应用开着时，搬到 D:\\ElyOffice。";
+    var pick = document.getElementById("s5-pick");
+    pick.innerHTML = '<div class="h">选择文件夹</div><div class="s5-drive">' + ElyKit.icon("disk") + "系统 (C:)</div>" +
+      '<div class="s5-drive" id="s5-dd">' + ElyKit.icon("disk") + "数据 (D:)</div>";
+    var dd = document.getElementById("s5-dd");
+    var cd = document.getElementById("s5-c"), ddisk = document.getElementById("s5-d");
+    place(cd, G.from);
+    place(ddisk, G.to);
+    cd.innerHTML = ElyKit.icon("disk") + '<div class="l">C:</div><div class="s">系统盘</div>';
+    var dLabel = '<div class="l">D:\\ElyOffice</div><div class="s">';
+    var move = document.getElementById("s5-move"), again = document.getElementById("s5-again");
+    var ptr = document.getElementById("s5-ptr");
+    var BTN = { x: 1055, y: 312 };
+
+    function pop(el, x, y, p, o) {
+      el.style.transform = "translate(" + x + "px," + y + "px) scale(" + backOut(p, 2.4).toFixed(4) + ")";
+      el.style.opacity = o.toFixed(3);
+    }
+
+    function apply(lt) {
+      var out = smooth(prog(lt, 4.85, 5.1));
+      var wi = smooth(prog(lt, 0.62, 0.95));
+      win.style.opacity = (wi * (1 - out)).toFixed(3);
+      win.style.transform = "scale(" + ((0.97 + 0.03 * backOut(prog(lt, 0.62, 1.0), 1.4)) * (1 - 0.03 * out)).toFixed(4) + ")";
+
+      /* choose: press 选择…, pick D:, the row names the move */
+      var a = inOut(prog(lt, 0.95, 1.4));
+      var px = 1200 + (BTN.x - 1200) * a, py = 560 + (BTN.y - 560) * a;
+      var b = inOut(prog(lt, 1.7, 2.0));
+      px += (BTN.x + 40 - BTN.x) * b; py += (BTN.y + 110 - BTN.y) * b;
+      var press = 1 - 0.18 * Math.sin(Math.PI * prog(lt, 1.45, 1.6)) - 0.18 * Math.sin(Math.PI * prog(lt, 2.1, 2.25));
+      ptr.style.transform = "translate(" + (px - 5).toFixed(2) + "px," + (py - 3).toFixed(2) + "px) scale(" + press.toFixed(4) + ")";
+      ptr.style.opacity = (smooth(prog(lt, 0.85, 1.0)) * (1 - smooth(prog(lt, 2.35, 2.55)))).toFixed(3);
+      choose.style.transform = "scale(" + (1 - 0.08 * Math.sin(Math.PI * prog(lt, 1.45, 1.6))).toFixed(4) + ")";
+      var po = smooth(prog(lt, 1.55, 1.7)) * (1 - smooth(prog(lt, 2.25, 2.4)));
+      pop(pick, BTN.x - 120, BTN.y + 40, prog(lt, 1.55, 1.85), po);
+      dd.className = "s5-drive" + (lt > 1.95 ? " on" : "");
+      path.textContent = lt < 2.35 ? NOW : NEXT;
+      path.style.opacity = (lt < 2.35 ? 1 : smooth(prog(lt, 2.35, 2.6))).toFixed(3);
+      path.style.color = lt < 2.35 ? "" : "#bdf4fb";
+
+      /* the move: C: gives its data to D: */
+      var co = smooth(prog(lt, 2.4, 2.6)) * (1 - out);
+      cd.style.opacity = (co * (lt > 4.35 ? 1 - 0.45 * smooth(prog(lt, 4.35, 4.6)) : 1)).toFixed(3);
+      cd.style.transform = "scale(" + backOut(prog(lt, 2.4, 2.75), 2).toFixed(4) + ")";
+      var done = lt >= 4.35;
+      ddisk.innerHTML = ElyKit.icon(done ? "check" : "disk") + dLabel + (done ? "数据已在这里" : "等着搬入") + "</div>";
+      ddisk.style.opacity = (smooth(prog(lt, 2.5, 2.7)) * (1 - out)).toFixed(3);
+      ddisk.style.transform = "scale(" + (backOut(prog(lt, 2.5, 2.85), 2) * (done ? 1 + 0.06 * Math.sin(Math.PI * prog(lt, 4.35, 4.6)) : 1)).toFixed(4) + ")";
+      ddisk.style.boxShadow = done ? "0 0 0 2px rgba(47, 216, 232, 0.7), 0 30px 80px rgba(4, 2, 20, 0.5)" : "";
+      pop(move, 1440, 430, prog(lt, 2.7, 3.0), smooth(prog(lt, 2.7, 2.85)) * (1 - smooth(prog(lt, 4.3, 4.5))));
+      pop(again, 1350, 700, prog(lt, 4.5, 4.8), smooth(prog(lt, 4.5, 4.65)) * (1 - out));
+    }
+
+    var proxy = { t: 0 };
+    tl.to(proxy, { t: 6, duration: 6, ease: "none", onUpdate: function () { apply(proxy.t); } }, 0);
+    apply(0);
+  } finally {
+    window.__timelines["s5"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

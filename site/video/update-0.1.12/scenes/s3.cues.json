@@ -1,0 +1,72 @@
+[
+ {
+  "t": 26.05,
+  "sfx": "stretch",
+  "gain": 0.5
+ },
+ {
+  "t": 26.6,
+  "sfx": "bloop",
+  "gain": 0.6
+ },
+ {
+  "t": 27.4,
+  "sfx": "pop",
+  "gain": 0.45
+ },
+ {
+  "t": 27.9,
+  "sfx": "tick",
+  "gain": 0.3
+ },
+ {
+  "t": 28.05,
+  "sfx": "tick",
+  "gain": 0.3
+ },
+ {
+  "t": 28.2,
+  "sfx": "tick",
+  "gain": 0.3
+ },
+ {
+  "t": 28.6,
+  "sfx": "click",
+  "gain": 0.6
+ },
+ {
+  "t": 28.8,
+  "sfx": "whoosh",
+  "gain": 0.5
+ },
+ {
+  "t": 30.0,
+  "sfx": "thud",
+  "gain": 0.6
+ },
+ {
+  "t": 30.0,
+  "sfx": "boing",
+  "gain": 0.35
+ },
+ {
+  "t": 30.15,
+  "sfx": "pop",
+  "gain": 0.45
+ },
+ {
+  "t": 30.3,
+  "sfx": "whoosh",
+  "gain": 0.55
+ },
+ {
+  "t": 31.15,
+  "sfx": "stretch",
+  "gain": 0.5
+ },
+ {
+  "t": 31.95,
+  "sfx": "merge",
+  "gain": 0.55
+ }
+]

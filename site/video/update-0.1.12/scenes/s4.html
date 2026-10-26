@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+#s4-root { position: absolute; inset: 0; pointer-events: none; }
+#s4-win .s4-bar { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 22px; border-bottom: 1px solid var(--line); }
+#s4-win .s4-dots { display: flex; gap: 9px; }
+#s4-win .s4-dots i { display: block; width: 13px; height: 13px; border-radius: 50%; }
+#s4-win .s4-dots i:nth-child(1) { background: #ff6b6b; } #s4-win .s4-dots i:nth-child(2) { background: #ffc44d; } #s4-win .s4-dots i:nth-child(3) { background: #3ddc84; }
+#s4-win .s4-name { font: 700 19px var(--sans); display: flex; align-items: center; gap: 10px; }
+#s4-win .s4-name img { width: 28px; height: 28px; }
+#s4-side { position: absolute; left: 0; top: 56px; bottom: 0; width: 300px; border-right: 1px solid var(--line); background: rgba(10, 6, 40, 0.14); padding: 18px 14px; }
+.s4-sec { font: 700 14px var(--sans); letter-spacing: .14em; color: var(--ink-3); padding: 0 10px 10px; }
+.s4-node { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-radius: 10px; font: 500 19px var(--sans); color: var(--ink-2); }
+.s4-node .ico { width: 19px; height: 19px; }
+.s4-node.in { padding-left: 38px; }
+.s4-node.hot { background: rgba(242, 169, 0, 0.32); color: #fff; }
+#s4-tabs { position: absolute; left: 300px; right: 0; top: 56px; height: 48px; display: flex; align-items: flex-end; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+.s4-tab { width: 150px; height: 40px; border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: center; font: 600 17px var(--sans); color: var(--ink-3); background: rgba(255,255,255,.05); }
+.s4-tab.on { color: var(--ink); background: rgba(255,255,255,.16); }
+.s4-tab.hot { box-shadow: inset 0 0 0 2px rgba(242, 169, 0, 0.8); }
+#s4-doc { position: absolute; left: 360px; top: 140px; right: 80px; }
+#s4-doc .h1 { font: 800 40px var(--zh); color: var(--ink); margin-bottom: 22px; }
+#s4-doc .p { font: 400 22px var(--zh); color: var(--ink-2); line-height: 1.7; }
+#s4-doc .p b { color: var(--ink); }
+#s4-menu { position: absolute; left: 0; top: 0; width: 230px; padding: 8px; border-radius: 16px; }
+.s4-item { position: relative; height: 44px; border-radius: 10px; display: flex; align-items: center; gap: 10px; padding: 0 12px; font: 600 18px var(--zh); color: var(--ink); }
+.s4-item .ico { width: 19px; height: 19px; }
+#s4-hl { position: absolute; left: 8px; width: 214px; height: 44px; border-radius: 10px; background: rgba(242, 169, 0, 0.5); }
+#s4-toast { position: absolute; left: 0; top: 0; height: 42px; padding: 0 18px 0 14px; font: 600 18px var(--sans); --c: #b07d06; gap: 10px; white-space: nowrap; }
+#s4-toast .ico { width: 19px; height: 19px; stroke-width: 2.4; }
+#s4-ptr { position: absolute; left: 0; top: 0; width: 34px; height: 34px; filter: drop-shadow(0 4px 6px rgba(0,0,0,.45)); }
+#s4-ring { position: absolute; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 3px solid rgba(255, 220, 120, 0.9); }
+</style>
+<div id="s4-root" data-composition-id="s4" data-width="1920" data-height="1080" data-duration="6">
+  <div id="s4-win" class="glass">
+    <div class="s4-bar"><div class="s4-dots"><i></i><i></i><i></i></div><div class="s4-name"><img src="assets/icons/ely-mark.svg" alt="">ElyMark</div></div>
+    <div id="s4-side"></div>
+    <div id="s4-tabs"></div>
+    <div id="s4-doc"><div class="h1">周计划</div><div class="p">· 周一：整理 <b>plan.md</b> 里的需求<br>· 周三：评审新版原型<br>· 周五：发布 0.1.12，写更新说明</div></div>
+  </div>
+  <div id="s4-menu" class="glass solid"><div id="s4-hl"></div></div>
+  <div id="s4-toast" class="candy"></div>
+  <div id="s4-ring"></div>
+  <svg id="s4-ptr" viewBox="0 0 24 24"><path d="M4 2.5v17l4.6-4.3 3 6.6 3-1.4-3-6.4H18z" fill="#fff" stroke="#151024" stroke-width="1.4" stroke-linejoin="round"/></svg>
+</div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var S = window.__s4, G = S.G;
+    function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+    function prog(t, a, b) { return clamp((t - a) / (b - a), 0, 1); }
+    function smooth(x) { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+    function inOut(x) { x = clamp(x, 0, 1); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+    function backOut(x, s) { s = s == null ? 1.7 : s; x = clamp(x, 0, 1) - 1; return 1 + (s + 1) * x * x * x + s * x * x; }
+
+    var win = document.getElementById("s4-win");
+    win.style.left = G.win.x + "px"; win.style.top = G.win.y + "px"; win.style.width = G.win.w + "px"; win.style.height = G.win.h + "px";
+    var side = document.getElementById("s4-side");
+    side.innerHTML = '<div class="s4-sec">NOTES</div>' +
+      '<div class="s4-node">' + ElyKit.icon("folder") + "Notes</div>" +
+      '<div class="s4-node in">' + ElyKit.icon("file") + "plan.md</div>" +
+      '<div class="s4-node in" id="s4-todo">' + ElyKit.icon("file") + "todo.md</div>" +
+      '<div class="s4-node in">' + ElyKit.icon("file") + "ideas.md</div>" +
+      '<div class="s4-node in">' + ElyKit.icon("folder") + "images</div>";
+    var todo = document.getElementById("s4-todo");
+    var tabs = document.getElementById("s4-tabs");
+    tabs.innerHTML = '<div class="s4-tab on">notes.md</div><div class="s4-tab" id="s4-plan">plan.md</div><div class="s4-tab">todo.md</div>';
+    var plan = document.getElementById("s4-plan");
+    var menu = document.getElementById("s4-menu"), hl = document.getElementById("s4-hl");
+    ["复制文件名", "复制路径"].forEach(function (t) {
+      var el = document.createElement("div");
+      el.className = "s4-item";
+      el.innerHTML = ElyKit.icon("copy") + t;
+      menu.appendChild(el);
+    });
+    var toast = document.getElementById("s4-toast");
+    var ptr = document.getElementById("s4-ptr"), ring = document.getElementById("s4-ring");
+
+    /* pointer path: rest, the plan.md tab, the todo.md row */
+    var P0 = { x: 1180, y: 620 };
+    function at(lt) {
+      var a = inOut(prog(lt, 1.0, 1.6)), b = inOut(prog(lt, 3.1, 3.6));
+      var x = P0.x + (G.tab.x - P0.x) * a, y = P0.y + (G.tab.y - P0.y) * a;
+      x += (G.file.x - G.tab.x) * b; y += (G.file.y - G.tab.y) * b;
+      /* drift to the menu item being picked */
+      var m1 = inOut(prog(lt, 1.9, 2.25)), m2 = inOut(prog(lt, 3.8, 4.05));
+      var i1 = S.item(G.tab, 1), i2 = S.item(G.file, 0);
+      x += (i1.x - 60 - G.tab.x) * m1 * (1 - b); y += (i1.y - G.tab.y) * m1 * (1 - b);
+      x += (i2.x - 60 - G.file.x) * m2; y += (i2.y - G.file.y) * m2;
+      return { x: x, y: y };
+    }
+
+    function apply(lt) {
+      var out = smooth(prog(lt, 4.85, 5.1));
+      var wi = smooth(prog(lt, 0.62, 0.95));
+      win.style.opacity = (wi * (1 - out)).toFixed(3);
+      win.style.transform = "scale(" + ((0.97 + 0.03 * backOut(prog(lt, 0.62, 1.0), 1.4)) * (1 - 0.03 * out)).toFixed(4) + ")";
+
+      var p = at(lt);
+      var press = 1 - 0.18 * Math.sin(Math.PI * prog(lt, 1.65, 1.8)) - 0.18 * Math.sin(Math.PI * prog(lt, 3.65, 3.8))
+        - 0.12 * Math.sin(Math.PI * prog(lt, 2.35, 2.48)) - 0.12 * Math.sin(Math.PI * prog(lt, 4.15, 4.28));
+      ptr.style.transform = "translate(" + (p.x - 5).toFixed(2) + "px," + (p.y - 3).toFixed(2) + "px) scale(" + press.toFixed(4) + ")";
+      ptr.style.opacity = (smooth(prog(lt, 0.9, 1.1)) * (1 - out)).toFixed(3);
+
+      /* right press: a ring where it lands */
+      var r1 = prog(lt, 1.7, 2.1), r2 = prog(lt, 3.7, 4.1), rr = r2 > 0 ? r2 : r1, rc = r2 > 0 ? G.file : G.tab;
+      ring.style.transform = "translate(" + rc.x + "px," + rc.y + "px) scale(" + (0.4 + 1.2 * rr).toFixed(4) + ")";
+      ring.style.opacity = (rr > 0 && rr < 1 ? 1 - rr : 0).toFixed(3);
+
+      /* the menu opens at the press; the item picked lights and fires */
+      var first = lt < 3.0, mAt = first ? G.tab : G.file;
+      var t0 = first ? 1.75 : 3.75, t1 = first ? 2.5 : 4.3;
+      var mo = smooth(prog(lt, t0, t0 + 0.15)) * (1 - smooth(prog(lt, t1, t1 + 0.12)));
+      menu.style.transform = "translate(" + (mAt.x + 8) + "px," + (mAt.y + 8) + "px) scale(" + (0.9 + 0.1 * backOut(prog(lt, t0, t0 + 0.3), 2.4)).toFixed(4) + ")";
+      menu.style.transformOrigin = "0 0";
+      menu.style.opacity = mo.toFixed(3);
+      var pick = first ? 1 : 0;
+      var hot = first ? lt > 2.1 : lt > 3.95;
+      hl.style.top = 8 + pick * G.itemH + "px";
+      hl.style.opacity = hot ? 1 : 0;
+      plan.className = "s4-tab" + (lt > 1.7 && lt < 2.6 ? " hot" : "");
+      todo.className = "s4-node in" + (lt > 3.7 && lt < 4.4 ? " hot" : "");
+
+      /* the toast says what landed on the clipboard */
+      var second = lt >= 4.7;
+      toast.innerHTML = ElyKit.icon("check") + "已复制  " + (second ? "todo.md" : "D:\\Notes\\plan.md");
+      var tp = second ? prog(lt, 4.7, 5.0) : prog(lt, 2.9, 3.2);
+      var ts = second ? 0.9 + 0.1 * backOut(tp, 3) : backOut(tp, 2.6);
+      toast.style.transform = "translate(" + (G.toast.x - 130) + "px," + (G.toast.y - 21) + "px) scale(" + ts.toFixed(4) + ")";
+      toast.style.opacity = (smooth(prog(lt, 2.9, 3.05)) * (1 - out)).toFixed(3);
+    }
+
+    var proxy = { t: 0 };
+    tl.to(proxy, { t: 6, duration: 6, ease: "none", onUpdate: function () { apply(proxy.t); } }, 0);
+    apply(0);
+  } finally {
+    window.__timelines["s4"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

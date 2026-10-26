@@ -1,0 +1,198 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+#s2-root { position: absolute; inset: 0; pointer-events: none; }
+#s2-root .s2-bar { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 22px; border-bottom: 1px solid var(--line); }
+#s2-root .s2-dots { display: flex; gap: 9px; }
+#s2-root .s2-dots i { display: block; width: 13px; height: 13px; border-radius: 50%; }
+#s2-root .s2-dots i:nth-child(1) { background: #ff6b6b; } #s2-root .s2-dots i:nth-child(2) { background: #ffc44d; } #s2-root .s2-dots i:nth-child(3) { background: #3ddc84; }
+#s2-root .s2-name { font: 700 19px var(--sans); color: var(--ink); display: flex; align-items: center; gap: 10px; }
+#s2-root .s2-name img { width: 28px; height: 28px; }
+#s2-agent { position: relative; height: 32px; padding: 0 14px; font: 700 16px var(--zh); --c: var(--table); margin-left: auto; }
+#s2-lines { position: absolute; left: 28px; top: 80px; right: 24px; }
+.s2-line { height: 34px; display: flex; align-items: center; white-space: pre; font: 500 21px "JetBrains Mono", "Noto Sans SC", monospace; color: var(--ink); }
+.s2-line .p { color: #7cf0b0; margin-right: 12px; }
+.s2-line.note { color: rgba(170, 230, 200, 0.75); }
+.s2-line.out { font-size: 18px; color: #8fe8ff; }
+.s2-caret { display: inline-block; width: 11px; height: 24px; margin-left: 2px; background: #7cf0b0; border-radius: 2px; }
+#s2-fx { position: absolute; left: 20px; right: 20px; top: 68px; height: 40px; display: flex; align-items: center; gap: 12px; }
+#s2-fx .box { width: 96px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.1); border: 1px solid var(--line); font: 700 18px var(--mono); color: var(--ink); }
+#s2-fx .f { font: italic 700 18px var(--sans); color: var(--ink-3); }
+#s2-fx .val { flex: 1; height: 36px; border-radius: 10px; background: rgba(255,255,255,.06); border: 1px solid var(--line); }
+#s2-grid { position: absolute; left: 20px; top: 124px; }
+.s2-cell { position: absolute; display: flex; align-items: center; padding: 0 14px; font: 500 20px var(--zh); color: var(--ink); border-right: 1px solid rgba(255,255,255,.08); border-bottom: 1px solid rgba(255,255,255,.08); }
+.s2-cell.num { justify-content: flex-end; font-family: var(--sans); font-variant-numeric: tabular-nums; }
+.s2-cell.head { justify-content: center; font: 700 16px var(--sans); color: var(--ink-3); background: rgba(255,255,255,.05); padding: 0; }
+.s2-cell.top { font-weight: 700; color: var(--ink-2); }
+#s2-flash { position: absolute; border-radius: 6px; background: rgba(120, 240, 170, 0.45); }
+#s2-cursor { position: absolute; border: 3px solid #4be38f; border-radius: 4px; box-shadow: 0 0 18px rgba(75, 227, 143, 0.6); }
+#s2-tag { position: absolute; height: 40px; padding: 0 16px; font: 700 18px var(--zh); --c: #2e9e5b; white-space: nowrap; }
+#s2-status { position: relative; height: 34px; padding: 0 14px; font: 700 16px var(--zh); margin-left: auto; --c: #c9852b; }
+#s2-undo { position: relative; height: 34px; padding: 0 14px 0 10px; font: 700 16px var(--zh); --c: var(--violet); gap: 6px; }
+#s2-undo .ico { width: 18px; height: 18px; stroke-width: 2.4; }
+</style>
+<div id="s2-root" data-composition-id="s2" data-width="1920" data-height="1080" data-duration="14">
+  <div id="s2-term" class="glass solid">
+    <div class="s2-bar"><div class="s2-dots"><i></i><i></i><i></i></div><div class="s2-name">PowerShell</div><div id="s2-agent" class="candy">AI 代理</div></div>
+    <div id="s2-lines"></div>
+  </div>
+  <div id="s2-sheet" class="glass">
+    <div class="s2-bar"><div class="s2-dots"><i></i><i></i><i></i></div><div class="s2-name"><img src="assets/icons/ely-table.svg" alt="">sales.xlsx — ElyTable</div><div id="s2-status" class="candy"></div><div id="s2-undo" class="candy"></div></div>
+    <div id="s2-fx"><div class="box">B7</div><div class="f">fx</div><div class="val"></div></div>
+    <div id="s2-grid"><div id="s2-flash"></div><div id="s2-cursor"></div></div>
+    <div id="s2-tag" class="candy"></div>
+  </div>
+</div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var S = window.__s2, G = S.G;
+    function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+    function prog(t, a, b) { return clamp((t - a) / (b - a), 0, 1); }
+    function smooth(x) { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+    function backOut(x, s) { s = s == null ? 1.7 : s; x = clamp(x, 0, 1) - 1; return 1 + (s + 1) * x * x * x + s * x * x; }
+    function place(el, r) { el.style.left = r.x + "px"; el.style.top = r.y + "px"; el.style.width = r.w + "px"; el.style.height = r.h + "px"; }
+
+    var term = document.getElementById("s2-term"), sheet = document.getElementById("s2-sheet");
+    place(term, G.term);
+    place(sheet, G.sheet);
+
+    /* the terminal: what is typed, when, and what the app answers */
+    var LINES = [
+      { text: "# AI 代理：补上显示器的金额", t0: 1.4, t1: 2.4, note: true },
+      { text: 'ely-table cell set sales.xlsx Sheet1!D4 "=B4*C4"', t0: 4.0, t1: 5.6, cmd: true },
+      { text: "ely-table cell get sales.xlsx Sheet1!D4", t0: 6.6, t1: 7.6, cmd: true },
+      { text: '{"address":"Sheet1!$D$4","text":"3897","input":"=B4*C4"}', t0: 8.2, out: true },
+      { text: "ely-table cell save sales.xlsx", t0: 11.2, t1: 12.0, cmd: true },
+      { text: "C:\\Users\\you\\Documents\\sales.xlsx", t0: 12.5, out: true },
+    ];
+    var box = document.getElementById("s2-lines");
+    var rows = LINES.map(function (l) {
+      var el = document.createElement("div");
+      el.className = "s2-line" + (l.note ? " note" : "") + (l.out ? " out" : "");
+      el.innerHTML = (l.cmd ? '<span class="p">›</span>' : "") + '<span class="t"></span><span class="s2-caret"></span>';
+      box.appendChild(el);
+      return { el: el, t: el.querySelector(".t"), caret: el.querySelector(".s2-caret") };
+    });
+
+    /* the sheet: header row and four products; D4 waits for the write */
+    var DATA = [["产品", "数量", "单价", "金额"], ["键盘", "8", "260", "2080"], ["鼠标", "15", "99", "1485"], ["显示器", "3", "1299", ""], ["耳机", "6", "359", "2154"]];
+    var grid = document.getElementById("s2-grid");
+    var ox = G.gridX - G.sheet.x - 20, oy = G.gridY - G.sheet.y - 124;
+    function cellBox(col, row) {
+      var x = ox + G.rowHead;
+      for (var i = 0; i < col; i++) x += G.cols[i];
+      return { x: x, y: oy + G.headH + (row - 1) * G.rowH, w: G.cols[col], h: G.rowH };
+    }
+    var cells = [];
+    function add(cls, text, r) {
+      var el = document.createElement("div");
+      el.className = "s2-cell " + cls;
+      el.textContent = text;
+      place(el, r);
+      grid.appendChild(el);
+      return el;
+    }
+    var heads = [];
+    for (var c = 0; c < 5; c++) {
+      var hb = cellBox(c, 1);
+      heads.push(add("head", "ABCDE".charAt(c), { x: hb.x, y: oy, w: hb.w, h: G.headH }));
+    }
+    for (var r = 1; r <= 8; r++) {
+      heads.push(add("head", String(r), { x: ox, y: oy + G.headH + (r - 1) * G.rowH, w: G.rowHead, h: G.rowH }));
+      var line = [];
+      for (var c2 = 0; c2 < 5; c2++) {
+        var v = DATA[r - 1] ? DATA[r - 1][c2] || "" : "";
+        line.push(add((r === 1 ? "top" : c2 > 0 ? "num" : ""), v, cellBox(c2, r)));
+      }
+      cells.push(line);
+    }
+    var d4 = cells[3][3];
+    var flash = document.getElementById("s2-flash");
+    place(flash, cellBox(3, 4));
+    var cursor = document.getElementById("s2-cursor");
+    var b7 = cellBox(1, 7);
+    place(cursor, { x: b7.x - 2, y: b7.y - 2, w: b7.w + 4, h: b7.h + 4 });
+    var tag = document.getElementById("s2-tag");
+    tag.style.left = b7.x + 20 + 20 + b7.w + "px";
+    tag.style.top = 124 + b7.y + 5 + "px";
+    var status = document.getElementById("s2-status");
+    var undo = document.getElementById("s2-undo");
+    undo.innerHTML = ElyKit.icon("undo") + "撤销：写入 D4";
+
+    function set(el, x, y, s, o) {
+      el.style.transform = "translate(" + x.toFixed(2) + "px," + y.toFixed(2) + "px) scale(" + s.toFixed(4) + ")";
+      el.style.opacity = o.toFixed(3);
+    }
+
+    function apply(lt) {
+      var out = smooth(prog(lt, 12.85, 13.1));
+      var si = smooth(prog(lt, 0.62, 0.95)), ti = smooth(prog(lt, 1.12, 1.42));
+      set(sheet, 0, 0, (0.97 + 0.03 * backOut(prog(lt, 0.62, 1.0), 1.4)) * (1 - 0.03 * out), si * (1 - out));
+      set(term, 0, 0, (0.96 + 0.04 * backOut(prog(lt, 1.12, 1.5), 1.4)) * (1 - 0.03 * out), ti * (1 - out));
+
+      /* typing: a fixed schedule; the caret sits on the line being typed */
+      var active = -1;
+      for (var i = 0; i < LINES.length; i++) {
+        var l = LINES[i], n = l.text.length;
+        var shown = l.out ? (lt >= l.t0 ? n : 0) : Math.floor(n * prog(lt, l.t0, l.t1));
+        rows[i].t.textContent = l.text.slice(0, shown);
+        rows[i].el.style.opacity = lt >= l.t0 ? 1 : 0;
+        if (!l.out && lt >= l.t0) active = i;
+        rows[i].el.style.transform = l.out ? "translateY(" + (8 * (1 - smooth(prog(lt, l.t0, l.t0 + 0.2)))).toFixed(2) + "px)" : "none";
+      }
+      for (var k = 0; k < rows.length; k++) {
+        var on = k === active && (lt < LINES[k].t1 + 0.05 || (lt * 2) % 1 < 0.6) && !(k + 1 < LINES.length && lt >= LINES[k + 1].t0);
+        rows[k].caret.style.opacity = on ? 1 : 0;
+      }
+
+      /* grid builds row by row */
+      for (var h = 0; h < heads.length; h++) heads[h].style.opacity = smooth(prog(lt, 0.9 + h * 0.01, 1.2 + h * 0.01)).toFixed(3);
+      for (var rr = 0; rr < cells.length; rr++) {
+        var o = smooth(prog(lt, 0.95 + rr * 0.06, 1.3 + rr * 0.06));
+        for (var cc = 0; cc < 5; cc++) {
+          cells[rr][cc].style.opacity = o.toFixed(3);
+          cells[rr][cc].style.transform = "translateY(" + (10 * (1 - o)).toFixed(2) + "px)";
+        }
+      }
+      /* D4 fills when the drop lands; the cursor never leaves B7 */
+      var landed = lt >= 6.42;
+      d4.textContent = landed ? "3897" : "";
+      var dp = prog(lt, 6.42, 6.8);
+      d4.style.transform = "scale(" + (landed ? backOut(dp, 3) : 1).toFixed(4) + ")";
+      flash.style.opacity = (landed ? 1 - smooth(prog(lt, 6.6, 7.6)) : 0).toFixed(3);
+      var cp = prog(lt, 1.6, 2.0);
+      var pulse = 1 + 0.06 * Math.sin(Math.PI * prog(lt, 8.6, 9.0));
+      set(cursor, 0, 0, (0.8 + 0.2 * backOut(cp, 2.4)) * pulse, smooth(cp));
+      tag.textContent = lt < 8.6 ? "你的光标" : "光标没动 ✓";
+      var tp = prog(lt, 2.0, 2.35), tw = prog(lt, 8.6, 8.95);
+      set(tag, 0, 0, backOut(tp, 2.6) * (lt < 8.6 ? 1 : 0.85 + 0.15 * backOut(tw, 3)), smooth(tp));
+
+      /* the write marks the book edited; the save clears it */
+      var saved = lt >= 12.5;
+      status.textContent = saved ? "✓ 已保存" : "● 有改动";
+      status.style.setProperty("--c", saved ? "#2e9e5b" : "#c9852b");
+      var sp = saved ? prog(lt, 12.5, 12.85) : prog(lt, 6.45, 6.8);
+      set(status, 0, 0, landed ? backOut(sp, 2.6) : 0, landed ? smooth(sp * 2) : 0);
+      var up = prog(lt, 9.0, 9.35);
+      set(undo, 0, 0, backOut(up, 2.6), smooth(up * 2));
+    }
+
+    var proxy = { t: 0 };
+    tl.to(proxy, { t: 14, duration: 14, ease: "none", onUpdate: function () { apply(proxy.t); } }, 0);
+    apply(0);
+  } finally {
+    window.__timelines["s2"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

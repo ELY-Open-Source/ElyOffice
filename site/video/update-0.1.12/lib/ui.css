@@ -1,0 +1,113 @@
+/* Ely 0.1.12 film: shared design tokens and glass UI kit. */
+@font-face { font-family: "Inter"; src: url("../assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("../assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("../assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+
+:root {
+  --ink: #f5f6ff;
+  --ink-2: rgba(240, 242, 255, 0.72);
+  --ink-3: rgba(235, 238, 255, 0.5);
+  --line: rgba(255, 255, 255, 0.16);
+  --line-2: rgba(255, 255, 255, 0.28);
+  --glass: rgba(255, 255, 255, 0.09);
+  --glass-2: rgba(255, 255, 255, 0.14);
+  --glass-hi: rgba(255, 255, 255, 0.22);
+  --mail: #1e8fe0;
+  --mail-hi: #5cb4f2;
+  --doc: #3d7fe5;
+  --table: #2e9e5b;
+  --show: #f07b2a;
+  --pdf: #e0344f;
+  --tree: #7e57c2;
+  --mark: #f2a900;
+  --violet: #7b5cff;
+  --pink: #ff5fa8;
+  --cyan: #2fd8e8;
+  --peach: #ffb46b;
+  --lime: #b8f35a;
+  --sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
+  --zh: "Noto Sans SC", "Inter", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- glass surfaces ---------- */
+.glass {
+  position: absolute;
+  border-radius: 28px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.04) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  -webkit-backdrop-filter: blur(36px) saturate(170%);
+  backdrop-filter: blur(36px) saturate(170%);
+  box-shadow:
+    0 40px 120px rgba(4, 2, 20, 0.55),
+    0 12px 32px rgba(4, 2, 20, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font-family: var(--sans);
+  overflow: hidden;
+}
+/* specular sheen sweeping the top edge */
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 60% at 18% -10%, rgba(255, 255, 255, 0.22), transparent 55%);
+  pointer-events: none;
+}
+.glass.soft { background: linear-gradient(150deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04)); }
+.glass.solid { background: linear-gradient(150deg, rgba(36, 30, 78, 0.78), rgba(18, 14, 46, 0.72)); }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07));
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 8px 24px rgba(5, 3, 25, 0.35);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  color: var(--ink);
+  font: 600 20px var(--sans);
+  white-space: nowrap;
+}
+.pill.blue {
+  background: linear-gradient(170deg, #5fb8ff 0%, #1e8fe0 55%, #1673c4 100%);
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), inset 0 -6px 14px rgba(8, 40, 110, 0.35), 0 10px 30px rgba(30, 143, 224, 0.45);
+}
+.pill .ico { width: 22px; height: 22px; }
+
+/* juicy glossy candy chip: used for labels that "are" liquid */
+.candy {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #fff;
+  font: 700 26px var(--sans);
+  background: radial-gradient(120% 140% at 30% 15%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 42%), var(--c, var(--mail));
+  box-shadow: inset 0 -10px 22px rgba(0, 0, 0, 0.22), inset 0 2px 0 rgba(255, 255, 255, 0.55), 0 16px 34px rgba(0, 0, 0, 0.35);
+}
+
+.ico { display: block; width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- display type ---------- */
+.kicker { font: 700 18px var(--sans); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-2); }
+.title-zh { font: 900 84px var(--zh); letter-spacing: -0.01em; color: var(--ink); line-height: 1.08; }
+.title-en { font: 800 64px var(--sans); letter-spacing: -0.035em; color: var(--ink); line-height: 1.02; }
+.grad-text {
+  background: linear-gradient(100deg, #ffffff 0%, #bfe4ff 40%, #ffc6e6 75%, #ffffff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- captions (global) ---------- */
+#cap { position: absolute; left: 0; right: 0; top: 916px; height: 140px; display: flex; justify-content: center; pointer-events: none; z-index: 50; }

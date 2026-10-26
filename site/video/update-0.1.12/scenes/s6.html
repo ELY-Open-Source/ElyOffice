@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+#s6-root { position: absolute; inset: 0; pointer-events: none; }
+.s6-card { position: absolute; display: flex; align-items: center; gap: 22px; padding: 0 36px 0 132px; border-radius: 28px; }
+.s6-card .zh { font: 800 31px var(--zh); color: var(--ink); line-height: 1.25; }
+.s6-card .en { font: 500 19px var(--sans); color: var(--ink-2); margin-top: 6px; }
+.s6-check { position: absolute; left: 50px; top: 50%; width: 44px; height: 44px; margin-top: -22px; color: #fff; }
+.s6-check .ico { width: 44px; height: 44px; stroke-width: 3.2; }
+</style>
+<div id="s6-root" data-composition-id="s6" data-width="1920" data-height="1080" data-duration="4"></div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var S = window.__s6, root = document.getElementById("s6-root");
+    function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+    function prog(t, a, b) { return clamp((t - a) / (b - a), 0, 1); }
+    function smooth(x) { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+    function backOut(x, s) { s = s == null ? 1.7 : s; x = clamp(x, 0, 1) - 1; return 1 + (s + 1) * x * x * x + s * x * x; }
+    var FIXES = [
+      ["ElyMark 大纲滚动条不再闪烁", "ElyMark's outline scroll bar holds still"],
+      ["Windows：PDF 能存回原文件", "PDFs save over the open file on Windows"],
+      ["拼写检查：Windows 与 Linux", "Spell checking on Windows and Linux"],
+      ["大文件夹搜索更快", "Faster search in big folders"],
+    ];
+    var cards = FIXES.map(function (f, i) {
+      var el = document.createElement("div");
+      el.className = "s6-card glass";
+      el.style.left = S.CARDS[i].x + "px";
+      el.style.top = S.CARDS[i].y + "px";
+      el.style.width = S.CW + "px";
+      el.style.height = S.CH + "px";
+      el.innerHTML = '<div class="s6-check">' + ElyKit.icon("check") + '</div><div><div class="zh">' + f[0] + '</div><div class="en">' + f[1] + "</div></div>";
+      root.appendChild(el);
+      return { el: el, check: el.querySelector(".s6-check") };
+    });
+
+    function apply(lt) {
+      var out = smooth(prog(lt, 2.8, 3.05));
+      for (var i = 0; i < 4; i++) {
+        var t0 = 0.45 + i * 0.1, p = prog(lt, t0, t0 + 0.4);
+        cards[i].el.style.opacity = (smooth(p * 1.5) * (1 - out)).toFixed(3);
+        cards[i].el.style.transform = "translateY(" + (24 * (1 - backOut(p, 1.8))).toFixed(2) + "px) scale(" + (1 - 0.04 * out).toFixed(4) + ")";
+        var c = prog(lt, 1.02 + i * 0.25, 1.3 + i * 0.25);
+        cards[i].check.style.transform = "scale(" + backOut(c, 3).toFixed(4) + ")";
+        cards[i].check.style.opacity = smooth(c * 2).toFixed(3);
+      }
+    }
+
+    var proxy = { t: 0 };
+    tl.to(proxy, { t: 4, duration: 4, ease: "none", onUpdate: function () { apply(proxy.t); } }, 0);
+    apply(0);
+  } finally {
+    window.__timelines["s6"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

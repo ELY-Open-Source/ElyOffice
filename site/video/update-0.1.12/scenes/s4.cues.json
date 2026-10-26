@@ -1,0 +1,82 @@
+[
+ {
+  "t": 32.05,
+  "sfx": "stretch",
+  "gain": 0.5
+ },
+ {
+  "t": 32.6,
+  "sfx": "bloop",
+  "gain": 0.6
+ },
+ {
+  "t": 33.7,
+  "sfx": "click",
+  "gain": 0.6
+ },
+ {
+  "t": 33.75,
+  "sfx": "pop",
+  "gain": 0.45
+ },
+ {
+  "t": 34.4,
+  "sfx": "click",
+  "gain": 0.55
+ },
+ {
+  "t": 34.45,
+  "sfx": "stretch",
+  "gain": 0.4
+ },
+ {
+  "t": 34.9,
+  "sfx": "drip",
+  "gain": 0.6
+ },
+ {
+  "t": 34.92,
+  "sfx": "chime",
+  "gain": 0.45
+ },
+ {
+  "t": 35.7,
+  "sfx": "click",
+  "gain": 0.6
+ },
+ {
+  "t": 35.75,
+  "sfx": "pop",
+  "gain": 0.45
+ },
+ {
+  "t": 36.2,
+  "sfx": "click",
+  "gain": 0.55
+ },
+ {
+  "t": 36.25,
+  "sfx": "stretch",
+  "gain": 0.4
+ },
+ {
+  "t": 36.7,
+  "sfx": "drip",
+  "gain": 0.6
+ },
+ {
+  "t": 36.72,
+  "sfx": "chime",
+  "gain": 0.45
+ },
+ {
+  "t": 37.15,
+  "sfx": "stretch",
+  "gain": 0.5
+ },
+ {
+  "t": 37.95,
+  "sfx": "merge",
+  "gain": 0.55
+ }
+]

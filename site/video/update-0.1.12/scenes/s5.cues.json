@@ -1,0 +1,117 @@
+[
+ {
+  "t": 38.05,
+  "sfx": "stretch",
+  "gain": 0.5
+ },
+ {
+  "t": 38.6,
+  "sfx": "bloop",
+  "gain": 0.6
+ },
+ {
+  "t": 39.5,
+  "sfx": "click",
+  "gain": 0.6
+ },
+ {
+  "t": 39.6,
+  "sfx": "pop",
+  "gain": 0.45
+ },
+ {
+  "t": 40.15,
+  "sfx": "click",
+  "gain": 0.6
+ },
+ {
+  "t": 40.4,
+  "sfx": "tick",
+  "gain": 0.4
+ },
+ {
+  "t": 40.45,
+  "sfx": "pop",
+  "gain": 0.5
+ },
+ {
+  "t": 40.55,
+  "sfx": "pop",
+  "gain": 0.5
+ },
+ {
+  "t": 40.75,
+  "sfx": "swoosh-up",
+  "gain": 0.35
+ },
+ {
+  "t": 40.9,
+  "sfx": "stretch",
+  "gain": 0.3
+ },
+ {
+  "t": 41.18,
+  "sfx": "stretch",
+  "gain": 0.3
+ },
+ {
+  "t": 41.35,
+  "sfx": "drip",
+  "gain": 0.5
+ },
+ {
+  "t": 41.46,
+  "sfx": "stretch",
+  "gain": 0.3
+ },
+ {
+  "t": 41.63,
+  "sfx": "drip",
+  "gain": 0.5
+ },
+ {
+  "t": 41.74,
+  "sfx": "stretch",
+  "gain": 0.3
+ },
+ {
+  "t": 41.91,
+  "sfx": "drip",
+  "gain": 0.5
+ },
+ {
+  "t": 42.02,
+  "sfx": "stretch",
+  "gain": 0.3
+ },
+ {
+  "t": 42.19,
+  "sfx": "drip",
+  "gain": 0.5
+ },
+ {
+  "t": 42.35,
+  "sfx": "chime",
+  "gain": 0.6
+ },
+ {
+  "t": 42.47,
+  "sfx": "drip",
+  "gain": 0.5
+ },
+ {
+  "t": 42.5,
+  "sfx": "pop",
+  "gain": 0.5
+ },
+ {
+  "t": 43.15,
+  "sfx": "stretch",
+  "gain": 0.5
+ },
+ {
+  "t": 43.95,
+  "sfx": "merge",
+  "gain": 0.55
+ }
+]

@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+#s1-root { position: absolute; inset: 0; pointer-events: none; }
+#s1-root .s1-abs { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+#s1-kicker { left: 0; top: 262px; width: 1920px; display: flex; justify-content: center; align-items: center; gap: 22px; }
+#s1-kicker .s1-rule { width: 64px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.7)); }
+#s1-kicker .s1-rule.r { background: linear-gradient(270deg, rgba(255,255,255,0), rgba(255,255,255,.7)); }
+#s1-kicker .s1-word { display: flex; font: 800 26px var(--sans); letter-spacing: 0.42em; color: rgba(244, 246, 255, 0.86); text-shadow: 0 2px 18px rgba(80, 60, 255, 0.45); }
+#s1-kicker .s1-word span { display: inline-block; will-change: transform, opacity; }
+#s1-kicker .s1-dot { color: var(--pink); }
+.s1-spark { width: 44px; height: 44px; margin: -22px 0 0 -22px; color: #fff; filter: drop-shadow(0 0 10px rgba(255, 220, 255, 0.9)); }
+.s1-spark svg { width: 100%; height: 100%; display: block; }
+.s1-tile { width: 132px; height: 132px; }
+.s1-tile img { position: absolute; left: 14px; top: 14px; width: 104px; height: 104px; will-change: transform; }
+.s1-label { width: 220px; margin-left: -110px; text-align: center; font: 700 26px var(--sans); color: #f4f6ff; letter-spacing: 0.01em; text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6); }
+#s1-face { width: 168px; height: 168px; margin: -84px 0 0 -84px; }
+.s1-eye { position: absolute; top: 58px; width: 28px; height: 36px; margin-left: -14px; border-radius: 50%; background: radial-gradient(60% 60% at 45% 35%, #ffffff, #e9f2ff); box-shadow: inset 0 -3px 5px rgba(20, 60, 140, 0.25), 0 2px 6px rgba(0, 30, 90, 0.35); will-change: transform; }
+.s1-eye i { position: absolute; left: 7px; top: 12px; width: 15px; height: 18px; border-radius: 50%; background: #13213f; }
+.s1-eye i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+.s1-cheek { position: absolute; top: 96px; width: 22px; height: 11px; margin-left: -11px; border-radius: 50%; background: rgba(255, 120, 190, 0.55); filter: blur(2px); }
+#s1-new { left: 0; top: 0; padding: 0 16px; height: 44px; margin: -22px 0 0 -40px; position: absolute; font: 900 23px var(--mono); letter-spacing: 0.1em; --c: var(--pink); }
+</style>
+<div id="s1-root" data-composition-id="s1" data-width="1920" data-height="1080" data-duration="12">
+  <div id="s1-kicker" class="s1-abs"></div>
+  <div id="s1-sparks"></div>
+  <div id="s1-tiles"></div>
+  <div id="s1-face" class="s1-abs">
+    <div class="s1-eye" style="left:58px"><i></i></div>
+    <div class="s1-eye" style="left:110px"><i></i></div>
+    <div class="s1-cheek" style="left:40px"></div>
+    <div class="s1-cheek" style="left:128px"></div>
+  </div>
+  <div id="s1-new" class="candy">CLI</div>
+  <div id="s1-mlabel" class="s1-abs s1-label">ElyTable</div>
+</div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var root = document.getElementById("s1-root");
+    var APPS = [["doc", "ElyDoc"], ["show", "ElyShow"], ["pdf", "ElyPDF"], ["mail", "ElyMail"], ["tree", "ElyTree"], ["mark", "ElyMark"]];
+    var SPARK = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 0c.9 6.6 4.5 10.2 12 12-7.5 1.8-11.1 5.4-12 12-.9-6.6-4.5-10.2-12-12C7.5 10.2 11.1 6.6 12 0z"/></svg>';
+    var SP = [[560, 330, 1.0, 0.0], [1380, 300, 0.8, 0.05], [1450, 590, 1.1, 0.1], [500, 610, 0.7, 0.07], [760, 250, 0.6, 0.12], [1210, 660, 0.75, 0.03]];
+
+    function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+    function prog(t, a, b) { return clamp((t - a) / (b - a), 0, 1); }
+    function smooth(x) { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+    function backOut(x, s) { s = s == null ? 1.7 : s; x = clamp(x, 0, 1) - 1; return 1 + (s + 1) * x * x * x + s * x * x; }
+    function inBack(x) { x = clamp(x, 0, 1); return 2.7 * x * x * x - 1.7 * x * x; }
+
+    var kick = document.getElementById("s1-kicker");
+    var word = "ELY OFFICE";
+    var html = '<div class="s1-rule"></div><div class="s1-word">';
+    var letters = (word + " · UPDATE").split("");
+    for (var i = 0; i < letters.length; i++) {
+      var ch = letters[i] === " " ? "&nbsp;" : letters[i];
+      html += '<span' + (letters[i] === "·" ? ' class="s1-dot"' : "") + ">" + ch + "</span>";
+    }
+    kick.innerHTML = html + '</div><div class="s1-rule r"></div>';
+    var spans = kick.querySelectorAll(".s1-word span");
+    var rules = kick.querySelectorAll(".s1-rule");
+
+    var sparkBox = document.getElementById("s1-sparks");
+    var sparks = SP.map(function (s) {
+      var el = document.createElement("div");
+      el.className = "s1-abs s1-spark";
+      el.innerHTML = SPARK;
+      sparkBox.appendChild(el);
+      return el;
+    });
+
+    var tileBox = document.getElementById("s1-tiles");
+    var tiles = APPS.map(function (a) {
+      var t = document.createElement("div");
+      t.className = "s1-abs s1-tile";
+      t.innerHTML = '<img src="assets/icons/ely-' + a[0] + '.svg" alt="">';
+      tileBox.appendChild(t);
+      var l = document.createElement("div");
+      l.className = "s1-abs s1-label";
+      l.textContent = a[1];
+      tileBox.appendChild(l);
+      return { tile: t, img: t.firstChild, label: l };
+    });
+    var face = document.getElementById("s1-face");
+    var eyes = face.querySelectorAll(".s1-eye");
+    var cheeks = face.querySelectorAll(".s1-cheek");
+    var badge = document.getElementById("s1-new");
+    var mlabel = document.getElementById("s1-mlabel");
+
+    function set(el, x, y, sx, sy, o, rot) {
+      el.style.transform = "translate(" + x.toFixed(2) + "px," + y.toFixed(2) + "px) rotate(" + (rot || 0).toFixed(2) + "deg) scale(" + sx.toFixed(4) + "," + sy.toFixed(4) + ")";
+      el.style.opacity = o.toFixed(3);
+    }
+
+    function apply(lt) {
+      var S = window.__s1;
+      /* kicker: letters spring in, then lift away */
+      var kOut = smooth(prog(lt, 7.25, 7.6));
+      for (var i = 0; i < spans.length; i++) {
+        var p = prog(lt, 2.62 + i * 0.03, 2.62 + i * 0.03 + 0.45);
+        var y = 26 * (1 - backOut(p, 2.2)) - 30 * kOut;
+        set(spans[i], 0, y, 1, 1, smooth(p * 1.6) * (1 - kOut));
+      }
+      var rp = backOut(prog(lt, 2.75, 3.25), 1.6);
+      set(rules[0], -18 * (1 - rp), 0, rp, 1, smooth(prog(lt, 2.75, 3.0)) * (1 - kOut));
+      set(rules[1], 18 * (1 - rp), 0, rp, 1, smooth(prog(lt, 2.75, 3.0)) * (1 - kOut));
+
+      /* sparkles on the 5.0 hit */
+      for (var k = 0; k < sparks.length; k++) {
+        var s = SP[k], t0 = 5.0 + s[3], sp = prog(lt, t0, t0 + 0.7);
+        var sc = s[2] * (sp < 0.3 ? backOut(sp / 0.3, 3) : 1 - inBack((sp - 0.3) / 0.7));
+        var dx = (s[0] - 960) * 0.08 * sp, dy = (s[1] - 470) * 0.08 * sp;
+        set(sparks[k], s[0] + dx, s[1] + dy, sc, sc, sp > 0 && sp < 1 ? 1 : 0, sp * 160);
+      }
+
+      if (!S) return;
+      /* app icons on the tiles */
+      for (var j = 0; j < 6; j++) {
+        var tp = S.tile(j, lt), q = S.tq(j);
+        var pop = backOut(prog(lt, q + 0.1, q + 0.42), 2.4) * (1 - inBack(prog(lt, 10.06, 10.24)));
+        var on = lt > q + 0.1 && lt < 10.24 ? 1 : 0;
+        set(tiles[j].tile, tp.x - 66, tp.y - 66, tp.sx, tp.sy, on, 0);
+        tiles[j].img.style.transform = "scale(" + Math.max(pop, 0).toFixed(4) + ")";
+        var lp = prog(lt, q + 0.22, q + 0.55), lo = smooth(lp) * (1 - smooth(prog(lt, 9.98, 10.14)));
+        set(tiles[j].label, tp.x, 470 + 96 + 14 * (1 - backOut(lp, 2)), 1, 1, lo, 0);
+      }
+
+      /* the ElyTable drop: eyes, cheeks, CLI badge, label */
+      if (lt < 9.5) {
+        face.style.opacity = "0";
+        badge.style.opacity = "0";
+        mlabel.style.opacity = "0";
+        return;
+      }
+      var m = S.hero(lt), f = m.r / 84;
+      var eyeIn = backOut(prog(lt, 9.64, 9.9), 2.6);
+      var blink = 1 - 0.88 * Math.sin(Math.PI * prog(lt, 9.98, 10.08)) - 0.88 * Math.sin(Math.PI * prog(lt, 10.4, 10.48));
+      var shut = 1 - 0.9 * smooth(prog(lt, 10.76, 10.86));
+      var fo = smooth(prog(lt, 9.64, 9.7)) * (1 - smooth(prog(lt, 10.84, 10.92)));
+      set(face, m.x, m.y - m.r * 0.1 * m.sy, f * m.sx * eyeIn, f * m.sy * eyeIn, fo, 0);
+      var look = 6 * smooth(prog(lt, 9.75, 9.9)) - 12 * smooth(prog(lt, 10.12, 10.22)) + 6 * smooth(prog(lt, 10.5, 10.6));
+      for (var e = 0; e < 2; e++) {
+        eyes[e].style.transform = "translateX(" + look.toFixed(2) + "px) scaleY(" + Math.max(blink * shut, 0.06).toFixed(3) + ")";
+        cheeks[e].style.opacity = (smooth(prog(lt, 9.8, 10.0))).toFixed(3);
+      }
+      var bp = prog(lt, 9.76, 10.1), bOut = inBack(prog(lt, 10.2, 10.34));
+      var bs = backOut(bp, 3) * (1 - bOut);
+      set(badge, m.x + 74 * f * m.sx, m.y - 78 * f * m.sy, bs, bs, bp > 0 && bOut < 1 ? 1 : 0, -14 + 10 * Math.sin(lt * 9) * (1 - bp));
+      var mp = prog(lt, 9.82, 10.12), mo = smooth(mp) * (1 - smooth(prog(lt, 10.1, 10.24)));
+      set(mlabel, 960, 470 + 96 + 14 * (1 - backOut(mp, 2)), 1, 1, mo, 0);
+    }
+
+    var proxy = { t: 0 };
+    tl.to(proxy, { t: 12, duration: 12, ease: "none", onUpdate: function () { apply(proxy.t); } }, 0);
+    apply(0);
+  } finally {
+    window.__timelines["s1"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>
