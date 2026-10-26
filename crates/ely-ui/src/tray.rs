@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use ely_gpui_component::shell::{TrayIcon, TrayItem, TrayLook};
+use ely_gpui_component::desktop::{TrayIcon, TrayItem, TrayLook};
 use ely_platform::AppId;
 use gpui::{AnyWindowHandle, App, Entity, Global, QuitMode, Window, WindowId};
 

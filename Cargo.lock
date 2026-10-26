@@ -290,7 +290,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -301,7 +301,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -341,7 +341,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "parking_lot",
  "percent-encoding",
- "windows-sys 0.60.2",
+ "windows-sys 0.52.0",
  "wl-clipboard-rs",
  "x11rb",
 ]
@@ -471,18 +471,6 @@ dependencies = [
  "concurrent-queue",
  "event-listener-strategy",
  "futures-core",
- "pin-project-lite",
-]
-
-[[package]]
-name = "async-compression"
-version = "0.4.48"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb61aea1a7def73ee7c350a184f0e70b32c182344e2e75bf70c9b621b83417fd"
-dependencies = [
- "compression-codecs",
- "compression-core",
- "futures-io",
  "pin-project-lite",
 ]
 
@@ -747,26 +735,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
-name = "bindgen"
-version = "0.72.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
-dependencies = [
- "bitflags 2.13.2",
- "cexpr",
- "clang-sys",
- "itertools 0.13.0",
- "log",
- "prettyplease",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash 2.1.3",
- "shlex 1.3.0",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "bit-set"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -971,15 +939,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
-name = "bzip2"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3a53fac24f34a81bc9954b5d6cfce0c21e18ec6959f44f56e8e90e4bb7c346c"
-dependencies = [
- "libbz2-rs-sys",
-]
-
-[[package]]
 name = "calloop"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1049,7 +1008,7 @@ dependencies = [
  "find-msvc-tools",
  "jobserver",
  "libc",
- "shlex 2.0.1",
+ "shlex",
 ]
 
 [[package]]
@@ -1057,15 +1016,6 @@ name = "cesu8"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d43a04d8753f35258c91f8ec639f792891f748a1edbd759cf1dcea3382ad83c"
-
-[[package]]
-name = "cexpr"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
-dependencies = [
- "nom 7.1.3",
-]
 
 [[package]]
 name = "cfg-if"
@@ -1133,17 +1083,6 @@ dependencies = [
  "block-buffer 0.12.1",
  "crypto-common 0.2.2",
  "inout 0.2.2",
-]
-
-[[package]]
-name = "clang-sys"
-version = "1.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "157a8ba7b480713b56f4c09fd13fc3e0a22a5dfab8097ba61cbc5feef950788a"
-dependencies = [
- "glob",
- "libc",
- "libloading",
 ]
 
 [[package]]
@@ -1253,24 +1192,6 @@ dependencies = [
  "bytes",
  "memchr",
 ]
-
-[[package]]
-name = "compression-codecs"
-version = "0.4.43"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef16c47ba2797aa6a909cc37d39911f3a6743811fe7408ac0b0cc0276b656e9"
-dependencies = [
- "bzip2",
- "compression-core",
- "flate2",
- "memchr",
-]
-
-[[package]]
-name = "compression-core"
-version = "0.4.33"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e8ccc4ea9f6acc32d102c0f6d471d11d913ad15f20c04de743374861fa1d414"
 
 [[package]]
 name = "concurrent-queue"
@@ -1468,7 +1389,6 @@ dependencies = [
  "core-graphics2",
  "io-surface",
  "libc",
- "metal",
 ]
 
 [[package]]
@@ -1795,7 +1715,6 @@ dependencies = [
  "quote",
  "rustc_version",
  "syn 2.0.119",
- "unicode-xid",
 ]
 
 [[package]]
@@ -1868,7 +1787,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.3",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2000,6 +1919,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
 
 [[package]]
+name = "ely-account"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "gpui-pre",
+ "jiff",
+ "log",
+]
+
+[[package]]
+name = "ely-agent"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-chat",
+ "ely-collab",
+ "ely-core",
+ "ely-documents",
+ "ely-git",
+ "gpui-pre",
+ "jiff",
+ "log",
+ "smallvec",
+]
+
+[[package]]
 name = "ely-agent"
 version = "0.1.11"
 dependencies = [
@@ -2009,13 +1955,169 @@ dependencies = [
 ]
 
 [[package]]
+name = "ely-calendar"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "gpui-pre",
+ "jiff",
+ "log",
+]
+
+[[package]]
+name = "ely-canvas"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "gpui-pre",
+ "log",
+]
+
+[[package]]
+name = "ely-charts"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "gpui-pre",
+ "jiff",
+ "log",
+ "web-time",
+]
+
+[[package]]
+name = "ely-chat"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "ely-documents",
+ "ely-editor",
+ "gpui-pre",
+ "jiff",
+ "log",
+ "smallvec",
+ "unicode-segmentation",
+ "web-time",
+]
+
+[[package]]
+name = "ely-collab"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "ely-documents",
+ "gpui-pre",
+ "jiff",
+ "log",
+ "similar",
+ "smallvec",
+]
+
+[[package]]
+name = "ely-core"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "anyhow",
+ "barcoders",
+ "block2 0.6.2",
+ "emojis",
+ "futures",
+ "gpui-pre",
+ "gpui-pre-platform",
+ "image",
+ "iso_currency",
+ "isocountry",
+ "isolang",
+ "jiff",
+ "log",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "qrcode",
+ "raw-window-handle",
+ "regex",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "unicode-segmentation",
+ "web-time",
+]
+
+[[package]]
+name = "ely-dashboard"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "gpui-pre",
+ "jiff",
+ "log",
+]
+
+[[package]]
+name = "ely-debug"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-charts",
+ "ely-core",
+ "gpui-pre",
+ "log",
+ "regex",
+]
+
+[[package]]
+name = "ely-desktop"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "anyhow",
+ "ely-core",
+ "ely-devtools",
+ "futures",
+ "gpui-pre",
+ "image",
+ "log",
+ "notify",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "serde",
+ "web-time",
+ "windows 0.62.2",
+ "zbus",
+]
+
+[[package]]
+name = "ely-devtools"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-canvas",
+ "ely-chat",
+ "ely-core",
+ "ely-editor",
+ "gpui-pre",
+ "jiff",
+ "log",
+ "regex",
+ "serde_json",
+]
+
+[[package]]
 name = "ely-doc"
 version = "0.1.11"
 dependencies = [
  "anyhow",
  "csv",
  "directories",
- "ely-files",
+ "ely-files 0.1.11",
  "ely-gpui-component",
  "ely-lok",
  "ely-office",
@@ -2028,6 +2130,60 @@ dependencies = [
  "jiff",
  "log",
  "tempfile",
+]
+
+[[package]]
+name = "ely-documents"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "base64 0.22.1",
+ "ely-core",
+ "ely-editor",
+ "emojis",
+ "entities",
+ "gpui-pre",
+ "image",
+ "jiff",
+ "log",
+ "mermaid-rs-renderer",
+ "pulldown-cmark",
+ "ratex-layout",
+ "ratex-parser",
+ "ratex-svg",
+ "ratex-types",
+ "regex",
+ "similar",
+ "smallvec",
+ "unicode-segmentation",
+ "unicode-width",
+ "usvg",
+ "web-time",
+]
+
+[[package]]
+name = "ely-editor"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-charts",
+ "ely-core",
+ "gpui-pre",
+ "log",
+ "regex",
+ "serde_json",
+]
+
+[[package]]
+name = "ely-files"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "gpui-pre",
+ "image",
+ "jiff",
+ "log",
 ]
 
 [[package]]
@@ -2047,52 +2203,94 @@ dependencies = [
 ]
 
 [[package]]
-name = "ely-gpui-component"
+name = "ely-finance"
 version = "0.1.1"
-source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=bcaf2ccaa00b4d364f519b7eb33d88c4638f7e66#bcaf2ccaa00b4d364f519b7eb33d88c4638f7e66"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
 dependencies = [
- "alacritty_terminal",
- "anyhow",
- "barcoders",
- "base64 0.22.1",
- "block",
- "cocoa 0.26.0",
- "emojis",
- "futures",
+ "ely-charts",
+ "ely-core",
  "gpui-pre",
- "gpui-pre-platform",
- "image",
  "iso_currency",
- "isocountry",
- "isolang",
  "jiff",
  "log",
- "markdown",
- "mermaid-rs-renderer",
- "objc",
- "pulldown-cmark",
- "qrcode",
- "ratex-layout",
- "ratex-parser",
- "ratex-svg",
- "ratex-types",
- "raw-window-handle",
- "regex",
- "rqrr",
- "rust-embed",
- "rustix",
- "serde",
- "serde_json",
+]
+
+[[package]]
+name = "ely-generative"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-charts",
+ "ely-chat",
+ "ely-core",
+ "ely-debug",
+ "ely-documents",
+ "gpui-pre",
+ "jiff",
+ "log",
  "similar",
+]
+
+[[package]]
+name = "ely-git"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "ely-editor",
+ "gpui-pre",
+ "log",
+ "similar",
+]
+
+[[package]]
+name = "ely-gpui-component"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "anyhow",
+ "ely-account",
+ "ely-agent 0.1.1",
+ "ely-calendar",
+ "ely-canvas",
+ "ely-charts",
+ "ely-chat",
+ "ely-collab",
+ "ely-core",
+ "ely-dashboard",
+ "ely-debug",
+ "ely-desktop",
+ "ely-devtools",
+ "ely-documents",
+ "ely-editor",
+ "ely-files 0.1.1",
+ "ely-finance",
+ "ely-generative",
+ "ely-git",
+ "ely-interaction",
+ "ely-mail 0.1.1",
+ "ely-maps",
+ "ely-media",
+ "ely-messaging",
+ "ely-misc",
+ "ely-onboarding",
+ "ely-project",
+ "ely-rendering",
+ "ely-settings",
+ "ely-terminal",
+ "ely-tooling",
+ "gpui-pre",
+]
+
+[[package]]
+name = "ely-interaction"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "gpui-pre",
+ "log",
  "smallvec",
- "unicode-segmentation",
- "unicode-width",
- "usvg",
- "vte",
- "web-time",
- "windows 0.62.2",
- "wry",
- "zbus",
 ]
 
 [[package]]
@@ -2125,10 +2323,23 @@ dependencies = [
 
 [[package]]
 name = "ely-mail"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-chat",
+ "ely-core",
+ "gpui-pre",
+ "jiff",
+ "log",
+ "smallvec",
+]
+
+[[package]]
+name = "ely-mail"
 version = "0.1.11"
 dependencies = [
  "directories",
- "ely-files",
+ "ely-files 0.1.11",
  "ely-gpui-component",
  "ely-mail-engine",
  "ely-mail-fake",
@@ -2190,13 +2401,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ely-maps"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "anyhow",
+ "ely-canvas",
+ "ely-core",
+ "gpui-pre",
+ "image",
+ "isocountry",
+ "log",
+ "serde_json",
+]
+
+[[package]]
 name = "ely-mark"
 version = "0.1.11"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
  "dunce",
- "ely-files",
+ "ely-files 0.1.11",
  "ely-gpui-component",
  "ely-office",
  "ely-pdf-engine",
@@ -2207,12 +2433,58 @@ dependencies = [
  "gpui-pre",
  "jiff",
  "log",
- "markdown",
  "notify",
  "serde",
  "serde_json",
  "tempfile",
  "unicode-segmentation",
+]
+
+[[package]]
+name = "ely-media"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "ely-documents",
+ "ely-generative",
+ "gpui-pre",
+ "image",
+ "log",
+ "web-time",
+]
+
+[[package]]
+name = "ely-messaging"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "ely-media",
+ "gpui-pre",
+ "jiff",
+ "log",
+ "smallvec",
+ "web-time",
+]
+
+[[package]]
+name = "ely-misc"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-canvas",
+ "ely-core",
+ "ely-media",
+ "gpui-pre",
+ "image",
+ "jiff",
+ "log",
+ "qrcode",
+ "rqrr",
+ "smallvec",
+ "web-time",
+ "wry",
 ]
 
 [[package]]
@@ -2222,7 +2494,7 @@ dependencies = [
  "anyhow",
  "directories",
  "dunce",
- "ely-files",
+ "ely-files 0.1.11",
  "ely-gpui-component",
  "ely-lok",
  "ely-platform",
@@ -2237,11 +2509,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ely-onboarding"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "ely-documents",
+ "ely-settings",
+ "gpui-pre",
+ "log",
+]
+
+[[package]]
 name = "ely-pdf"
 version = "0.1.11"
 dependencies = [
  "dunce",
- "ely-files",
+ "ely-files 0.1.11",
  "ely-gpui-component",
  "ely-office",
  "ely-pdf-engine",
@@ -2281,6 +2565,7 @@ dependencies = [
  "core-foundation 0.10.0",
  "core-video",
  "directories",
+ "dunce",
  "ely-ipc",
  "env_logger",
  "futures",
@@ -2299,6 +2584,9 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "objc2-pdf-kit",
  "rfd",
+ "rustls-native-certs",
+ "rustls-pki-types",
+ "rustls-webpki",
  "security-framework 3.7.0",
  "semver",
  "serde",
@@ -2312,10 +2600,50 @@ dependencies = [
 ]
 
 [[package]]
+name = "ely-project"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-calendar",
+ "ely-core",
+ "ely-documents",
+ "ely-mail 0.1.1",
+ "gpui-pre",
+ "jiff",
+ "log",
+ "web-time",
+]
+
+[[package]]
+name = "ely-rendering"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "gpui-pre",
+ "image",
+ "log",
+ "web-time",
+]
+
+[[package]]
+name = "ely-settings"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "anyhow",
+ "ely-canvas",
+ "ely-core",
+ "gpui-pre",
+ "log",
+ "serde_json",
+]
+
+[[package]]
 name = "ely-show"
 version = "0.1.11"
 dependencies = [
- "ely-files",
+ "ely-files 0.1.11",
  "ely-gpui-component",
  "ely-lok",
  "ely-office",
@@ -2349,11 +2677,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "ely-terminal"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "alacritty_terminal",
+ "anyhow",
+ "ely-core",
+ "ely-editor",
+ "futures",
+ "gpui-pre",
+ "log",
+ "regex",
+ "rustix",
+ "vte",
+ "web-time",
+]
+
+[[package]]
+name = "ely-tooling"
+version = "0.1.1"
+source = "git+https://github.com/ELY-Open-Source/Ely-GPUI-Components?rev=9ae2d27c9e7cb49a109e87fb1393677432e9a747#9ae2d27c9e7cb49a109e87fb1393677432e9a747"
+dependencies = [
+ "ely-core",
+ "ely-devtools",
+ "gpui-pre",
+ "log",
+ "smallvec",
+ "web-time",
+]
+
+[[package]]
 name = "ely-tree"
 version = "0.1.11"
 dependencies = [
  "dunce",
- "ely-files",
+ "ely-files 0.1.11",
  "ely-gpui-component",
  "ely-platform",
  "ely-ui",
@@ -2430,6 +2789,12 @@ name = "endi"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "66b7e2430c6dff6a955451e2cfc438f09cea1965a9d6f87f7e3b90decc014099"
+
+[[package]]
+name = "entities"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5320ae4c3782150d900b79807611a59a99fc9a1d61d686faafc24b93fc8d7ca"
 
 [[package]]
 name = "enumflags2"
@@ -2511,17 +2876,6 @@ name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
-
-[[package]]
-name = "erased-serde"
-version = "0.4.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2add8a07dd6a8d93ff627029c51de145e12686fbc36ecb298ac22e74cf02dec"
-dependencies = [
- "serde",
- "serde_core",
- "typeid",
-]
 
 [[package]]
 name = "errno"
@@ -2623,9 +2977,6 @@ name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
-dependencies = [
- "getrandom 0.4.3",
-]
 
 [[package]]
 name = "fax"
@@ -2700,7 +3051,6 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e139bc46ca777eb5efaf62df0ab8cc5fd400866427e56c68b22e414e53bd3be"
 dependencies = [
- "fastrand",
  "futures-core",
  "futures-sink",
  "spin 0.9.9",
@@ -3015,11 +3365,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "r-efi 6.0.0",
  "rand_core 0.10.1",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -3057,12 +3405,6 @@ dependencies = [
  "log",
  "xml-rs",
 ]
-
-[[package]]
-name = "glob"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "glow"
@@ -3121,17 +3463,15 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "accesskit",
  "anyhow",
  "async-channel",
  "async-task",
  "backtrace",
- "bindgen",
  "bitflags 2.13.2",
  "chrono",
- "core-video",
  "ctor",
  "derive_more",
  "embed-resource",
@@ -3147,12 +3487,11 @@ dependencies = [
  "gpui-pre-shared-string",
  "gpui-pre-sum-tree",
  "gpui-pre-util",
- "gpui-pre-util-macros",
  "hdrhistogram",
  "heapless",
  "image",
  "inventory",
- "itertools 0.14.0",
+ "itertools",
  "libc",
  "log",
  "lyon",
@@ -3178,7 +3517,7 @@ dependencies = [
  "smallvec",
  "spin 0.10.1",
  "stacksafe",
- "strum 0.28.0",
+ "strum",
  "taffy",
  "thiserror 2.0.21",
  "ttf-parser",
@@ -3188,28 +3527,30 @@ dependencies = [
  "waker-fn",
  "web-time",
  "windows 0.62.2",
- "zed-font-kit",
  "zed-scap",
 ]
 
 [[package]]
 name = "gpui-pre-apple"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfdd914311cd12894367c8b9908947bb0c27fd42f8b9a5ff7a0730551a83fa4c"
+checksum = "b52f58893fe1a0836464428dfad2b5eaf42c9c303a9638f4c2aced5a69072a15"
 dependencies = [
  "anyhow",
  "async-task",
  "block2 0.6.2",
  "cbindgen",
  "core-foundation 0.10.0",
+ "core-foundation-sys",
  "core-graphics 0.24.0",
- "core-video",
+ "core-text",
  "derive_more",
  "dispatch2",
  "etagere",
  "foreign-types",
+ "futures",
  "gpui-pre",
+ "gpui-pre-collections",
  "gpui-pre-util",
  "image",
  "libc",
@@ -3217,16 +3558,25 @@ dependencies = [
  "mach2",
  "metal",
  "objc2 0.6.4",
+ "objc2-core-foundation",
+ "objc2-core-text",
+ "objc2-core-video",
  "objc2-foundation 0.3.2",
+ "objc2-metal 0.3.2",
  "objc2-quartz-core 0.3.2",
+ "objc2-security",
  "parking_lot",
+ "pathfinder_geometry",
+ "smallvec",
+ "thiserror 2.0.21",
+ "zed-font-kit",
 ]
 
 [[package]]
 name = "gpui-pre-collections"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c060863025dc3b8e90febad2d1f4ffd23a5d0dcedba39d3f6b7820ea2fdd3a0"
+checksum = "920c2f5b2f1a7813114d89f4841f26f6060d9c35d7c8a852a4205d1a767a7ce0"
 dependencies = [
  "gpui-pre-util",
  "indexmap",
@@ -3235,9 +3585,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre-derive-refineable"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc834f30f5f49791e214f1fde01a009c7de91c9cd0a9f31dabfed130ba39e6cf"
+checksum = "947395f26228296c0c79fb889d3687b205e552c25bbcdece216fb2394ea9bcd1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3246,14 +3596,12 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre-http-client"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d2935cf82333da3f41774e5757837756408f01356197b41c817ad2666034453"
+checksum = "c56cdaa3f1a271162b7fede1d4557879eedb056e293cedbb82743600650b755e"
 dependencies = [
  "anyhow",
- "async-compression",
  "bytes",
- "derive_more",
  "futures",
  "http",
  "http-body",
@@ -3267,9 +3615,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre-linux"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1131746fad5c87b5de74dc9c73105655b0c820a2dd4bb247586573e7cf5720e"
+checksum = "e28213c3fde6f13e91ba0b74b90cbaadec9373e36a031eda98561d31059870f3"
 dependencies = [
  "accesskit",
  "accesskit_unix",
@@ -3295,7 +3643,7 @@ dependencies = [
  "raw-window-handle",
  "smallvec",
  "smol",
- "strum 0.28.0",
+ "strum",
  "url",
  "uuid",
  "wayland-backend",
@@ -3312,9 +3660,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre-macos"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d756813ff1cd741a502af60fd18869e0677795936d7349642b41c49f43120c0"
+checksum = "c7c988b7e49775cc8542dbe48d5a10e073d8e898a023ef3ff3d24f33363e9863"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -3324,8 +3672,6 @@ dependencies = [
  "core-foundation 0.10.0",
  "core-foundation-sys",
  "core-graphics 0.24.0",
- "core-text",
- "core-video",
  "ctor",
  "dispatch2",
  "foreign-types",
@@ -3336,31 +3682,27 @@ dependencies = [
  "gpui-pre-scheduler",
  "gpui-pre-util",
  "image",
- "itertools 0.14.0",
+ "itertools",
  "log",
  "objc",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
- "objc2-core-graphics",
- "objc2-core-media",
+ "objc2-core-video",
  "objc2-foundation 0.3.2",
- "objc2-screen-capture-kit",
  "objc2-user-notifications",
  "parking_lot",
- "pathfinder_geometry",
  "raw-window-handle",
  "semver",
  "smallvec",
- "strum 0.28.0",
+ "strum",
  "uuid",
- "zed-font-kit",
 ]
 
 [[package]]
 name = "gpui-pre-macros"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2ad26ca759364694cb55487bebff4c1b7dd6accab49990ff3cda6f7a818a9f4"
+checksum = "0bb80dac5e1f6b8cde1d2740389e77dfc0071bfcc81fba5526d5dc90f68171cc"
 dependencies = [
  "heck 0.5.0",
  "proc-macro-crate",
@@ -3370,21 +3712,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpui-pre-perf"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fcb288a506a476b6cbf97e6ec1cc0118db43f0ca91087588afa1c2d8cd4f842"
-dependencies = [
- "gpui-pre-collections",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "gpui-pre-platform"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e200b7b78836f1a0fc70767d971768e88f29d8b91b697285c15fb8e373635a3e"
+checksum = "bbdbdac421178313fed8929fe95b42634a266a735079fcf03ff231bc2ccb2c5e"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -3398,18 +3729,18 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre-refineable"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4042345bb5bd3ecbc5d15b21ed128154f462a992058d7038cd397631f5462338"
+checksum = "237703b3b219d11adb50dd33bb0fcca3d34fc001623b3143e72cb051d0fb3777"
 dependencies = [
  "gpui-pre-derive-refineable",
 ]
 
 [[package]]
 name = "gpui-pre-scheduler"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4acd73345bc3c09f1b98c1b21eb4459ad8336f89bb2edcef619e11c5a08456e"
+checksum = "83f342555282a59ed8dd58dd7e0a920524fa8ef6aa8c8f30e2edb7019a8f72cb"
 dependencies = [
  "async-task",
  "backtrace",
@@ -3424,9 +3755,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre-shared-string"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "477529fd5aa90bff969785ee9a3938484d94aa5101cdf7b84719629c0345f98a"
+checksum = "71f488bf4780735f6b2dad24f8db1e3d9e2593de0ec298e3574c788f571b81c4"
 dependencies = [
  "schemars",
  "serde",
@@ -3435,22 +3766,21 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre-sum-tree"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ec0ec176d576b82aed716cf47185856b54ea9528caaf9d01787024689bfd824"
+checksum = "aadb3bd3da22617e2158b1842f5a9c29c1626c926ad0686163ced1a009963ff3"
 dependencies = [
  "gpui-pre-ztracing",
  "heapless",
- "log",
  "rayon",
  "tracing",
 ]
 
 [[package]]
 name = "gpui-pre-util"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1635ae7d0b05400bfa211ddef6c67dc8d9f223c463022c2b3bf2c1c14c6044f"
+checksum = "a04ec9abd7a87ac05a221f4629403831c44c17123bc33cb5d271a6303259b340"
 dependencies = [
  "anyhow",
  "log",
@@ -3458,23 +3788,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpui-pre-util-macros"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01486fce7722e5d7d7e7bb71c719dfdcc6ed917112bdc7c56d0556fdb60d10ab"
-dependencies = [
- "gpui-pre-perf",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "gpui-pre-web"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "184776d0763e6889dd2842dcb1204c15055945f2bdfe926b5ef57bdbd1952a65"
+checksum = "aedd55b99dc77e28df8202b0ea868aa5c90fda4aefff539ea21087d7c2ff4bfb"
 dependencies = [
  "anyhow",
+ "async-channel",
  "console_error_panic_hook",
  "futures",
  "gpui-pre",
@@ -3499,9 +3819,9 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre-wgpu"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "439c5421cafe1a7cf68d0c0ae5cc82b26fad6b0e6345ac98d20acaf1f2463914"
+checksum = "5b1cdb26c1503bf9662ee8fbc5ab0b44b2deeee4b5c12dc67491ba6fb5fc544b"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -3511,7 +3831,7 @@ dependencies = [
  "gpui-pre-collections",
  "gpui-pre-util",
  "image",
- "itertools 0.14.0",
+ "itertools",
  "log",
  "parking_lot",
  "profiling",
@@ -3527,7 +3847,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-pre-windows"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "accesskit",
  "accesskit_windows",
@@ -3540,7 +3860,7 @@ dependencies = [
  "gpui-pre-scheduler",
  "gpui-pre-util",
  "image",
- "itertools 0.14.0",
+ "itertools",
  "log",
  "parking_lot",
  "rand 0.9.5",
@@ -3554,34 +3874,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpui-pre-zlog"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bbe5b98630ef4bfed5a7105ec1062e78d571912bc491388f07ea22f2457c18b"
-dependencies = [
- "anyhow",
- "chrono",
- "gpui-pre-collections",
- "log",
-]
-
-[[package]]
 name = "gpui-pre-ztracing"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f806400f6bda1fdd9fc627e158c0e44fb0c4b7767582a3621efcf92f4a850db7"
+checksum = "f17bfd6bd1f77ba5c58181fa6f82fc7a63015a1c58bef94a76e5acb9f8e42572"
 dependencies = [
- "gpui-pre-zlog",
  "gpui-pre-ztracing-macro",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
 name = "gpui-pre-ztracing-macro"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d337c9acf058238e45ce0570d8a5958439242889492f91ae2d8e324211a61ccd"
+checksum = "4b0d73e1bc02eef886a5947f41b8512708792e9e5d3053d181843311a487f96f"
 
 [[package]]
 name = "half"
@@ -4104,7 +4410,6 @@ dependencies = [
  "iso_country",
  "proc-macro2",
  "quote",
- "strum 0.27.2",
 ]
 
 [[package]]
@@ -4124,15 +4429,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe50d48c77760c55188549098b9a7f6e37ae980c586a24693d6b01c3b2010c3c"
 dependencies = [
  "phf 0.11.3",
-]
-
-[[package]]
-name = "itertools"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
-dependencies = [
- "either",
 ]
 
 [[package]]
@@ -4404,12 +4700,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 
 [[package]]
-name = "libbz2-rs-sys"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34b357333733e8260735ba5894eb928c02ecc69c78715f01a8019e7fa7f2db4c"
-
-[[package]]
 name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4532,7 +4822,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 dependencies = [
  "serde_core",
- "value-bag",
 ]
 
 [[package]]
@@ -4648,12 +4937,9 @@ dependencies = [
 
 [[package]]
 name = "mach2"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a1b95cd5421ec55b445b5ae102f5ea0e768de1f82bd3001e11f426c269c3aea"
-dependencies = [
- "libc",
-]
+checksum = "dae608c151f68243f2b000364e1f7b186d9c29845f7d2d85bd31b9ad77ad552b"
 
 [[package]]
 name = "mail-builder"
@@ -4860,7 +5146,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "536bfad37a309d62069485248eeaba1e8d9853aaf951caaeaed0585a95346f08"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5017,15 +5303,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3b335231dfd352ffb0f8017f3b6027a4917f7df785ea2143d8af2adc66980ae"
 dependencies = [
  "winapi",
-]
-
-[[package]]
-name = "nu-ansi-term"
-version = "0.50.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
-dependencies = [
- "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -5330,16 +5607,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "objc2-core-location"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca347214e24bc973fc025fd0d36ebb179ff30536ed1f80252706db19ee452009"
-dependencies = [
- "objc2 0.6.4",
- "objc2-foundation 0.3.2",
-]
-
-[[package]]
 name = "objc2-core-media"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5355,6 +5622,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-core-text"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0cde0dfb48d25d2b4862161a4d5fcc0e3c24367869ad306b0c9ec0073bfed92d"
+dependencies = [
+ "bitflags 2.13.2",
+ "objc2-core-foundation",
+]
+
+[[package]]
 name = "objc2-core-video"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5365,6 +5642,7 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-io-surface",
+ "objc2-metal 0.3.2",
 ]
 
 [[package]]
@@ -5481,17 +5759,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "objc2-screen-capture-kit"
+name = "objc2-security"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74b7c5390f477482f001bc354d6571a70db7e4f8d5288e860c45521fbce11394"
+checksum = "709fe137109bd1e8b5a99390f77a7d8b2961dafc1a1c5db8f2e60329ad6d895a"
 dependencies = [
- "block2 0.6.2",
- "dispatch2",
- "objc2 0.6.4",
- "objc2-core-graphics",
- "objc2-core-media",
- "objc2-foundation 0.3.2",
+ "objc2-core-foundation",
 ]
 
 [[package]]
@@ -5515,7 +5788,6 @@ dependencies = [
  "bitflags 2.13.2",
  "block2 0.6.2",
  "objc2 0.6.4",
- "objc2-core-location",
  "objc2-foundation 0.3.2",
 ]
 
@@ -5673,7 +5945,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.45.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6021,8 +6293,6 @@ checksum = "af3fb618632874fb76937c2361a7f22afd393c982a2165595407edc75b06d3c1"
 dependencies = [
  "atomic",
  "crossbeam-queue",
- "futures",
- "log",
  "parking_lot",
  "pin-project",
  "pollster 0.2.5",
@@ -6065,16 +6335,6 @@ name = "presser"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8cf8e6a8aa66ce33f63993ffc4ea4271eb5b0530a9002db8455ea6050c77bfa"
-
-[[package]]
-name = "prettyplease"
-version = "0.2.37"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
-dependencies = [
- "proc-macro2",
- "syn 2.0.119",
-]
 
 [[package]]
 name = "proc-macro-crate"
@@ -6473,7 +6733,7 @@ dependencies = [
  "built",
  "cfg-if",
  "interpolate_name",
- "itertools 0.14.0",
+ "itertools",
  "libc",
  "libfuzzer-sys",
  "log",
@@ -7220,15 +7480,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_fmt"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e497af288b3b95d067a23a4f749f2861121ffcb2f6d8379310dcda040c345ed"
-dependencies = [
- "serde_core",
-]
-
-[[package]]
 name = "serde_json"
 version = "1.0.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7319,21 +7570,6 @@ dependencies = [
  "cpufeatures 0.3.1",
  "digest 0.11.3",
 ]
-
-[[package]]
-name = "sharded-slab"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
-dependencies = [
- "lazy_static",
-]
-
-[[package]]
-name = "shlex"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "shlex"
@@ -7501,7 +7737,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7570,7 +7806,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7646,32 +7882,11 @@ dependencies = [
 
 [[package]]
 name = "strum"
-version = "0.27.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
-dependencies = [
- "strum_macros 0.27.2",
-]
-
-[[package]]
-name = "strum"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd"
 dependencies = [
- "strum_macros 0.28.0",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.27.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
-dependencies = [
- "heck 0.5.0",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
+ "strum_macros",
 ]
 
 [[package]]
@@ -7691,85 +7906,6 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
-
-[[package]]
-name = "sval"
-version = "2.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b81b254da21fe1fcc4e3a74fe39b46e25e3a863078f8b71c954d47f84889dbc6"
-
-[[package]]
-name = "sval_buffer"
-version = "2.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50be352d2822ffafb59e3e2ddac9d5ee60f2eeadbb7b5a2a951b9f3651e87a6f"
-dependencies = [
- "sval",
- "sval_ref",
- "zerocopy",
-]
-
-[[package]]
-name = "sval_dynamic"
-version = "2.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b048ca293b998d9a45659159f94a64063791e74cdc670164943dbb434405573d"
-dependencies = [
- "sval",
-]
-
-[[package]]
-name = "sval_fmt"
-version = "2.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6b5888e40f80568733217f27b7317b845f463400ced36c424b1a804730e53b2"
-dependencies = [
- "itoa",
- "ryu",
- "sval",
-]
-
-[[package]]
-name = "sval_json"
-version = "2.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e17664d6bb6b74947afaab9d7c991caa9bf5638d4dee16fcbef637f440796049"
-dependencies = [
- "itoa",
- "ryu",
- "sval",
-]
-
-[[package]]
-name = "sval_nested"
-version = "2.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07c059969ca5ca163ea7fef6c9661758973d17691aba92abdcf5c428f4ec122c"
-dependencies = [
- "sval",
- "sval_buffer",
- "sval_ref",
-]
-
-[[package]]
-name = "sval_ref"
-version = "2.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42d6b29ff568c85c87561807f51d2adfff4b6016c6363133f7cd1652a12548f3"
-dependencies = [
- "sval",
-]
-
-[[package]]
-name = "sval_serde"
-version = "2.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f33ec9edc42b12764d5c90ca0a1d84189c6bde81ed27507f1e661c6e4e05853"
-dependencies = [
- "serde_core",
- "sval",
- "sval_nested",
-]
 
 [[package]]
 name = "svg_fmt"
@@ -7991,15 +8127,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.6",
-]
-
-[[package]]
-name = "thread_local"
-version = "1.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ad99c4c6d32803332c548b1af0540b357b3f5fc0be8f6c6bfe8b2e6ae784070"
-dependencies = [
- "cfg-if",
 ]
 
 [[package]]
@@ -8255,32 +8382,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 dependencies = [
  "once_cell",
- "valuable",
-]
-
-[[package]]
-name = "tracing-log"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee855f1f400bd0e5c02d150ae5de3840039a3f54b025156404e34c23c03f47c3"
-dependencies = [
- "log",
- "once_cell",
- "tracing-core",
-]
-
-[[package]]
-name = "tracing-subscriber"
-version = "0.3.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb7f578e5945fb242538965c2d0b04418d38ec25c79d160cd279bf0731c8d319"
-dependencies = [
- "nu-ansi-term",
- "sharded-slab",
- "smallvec",
- "thread_local",
- "tracing-core",
- "tracing-log",
 ]
 
 [[package]]
@@ -8304,12 +8405,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "typeid"
-version = "1.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc7d623258602320d5c55d1bc22793b57daff0ec7efc270ea7d55ce1d5f5471c"
-
-[[package]]
 name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8329,7 +8424,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8418,12 +8513,6 @@ name = "unicode-width"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
-
-[[package]]
-name = "unicode-xid"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "universal-hash"
@@ -8550,48 +8639,6 @@ dependencies = [
  "aligned-vec",
  "num-traits",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "valuable"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
-
-[[package]]
-name = "value-bag"
-version = "1.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2799ffb329a792ecfd902b71306c8a815a6ef1c0470fa9953a6aa4d4cecbe511"
-dependencies = [
- "value-bag-serde1",
- "value-bag-sval2",
-]
-
-[[package]]
-name = "value-bag-serde1"
-version = "1.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0941feceafbe7a8f59ea1096d45b97002884a41306315ad797b3684b63a81d8c"
-dependencies = [
- "erased-serde",
- "serde_core",
- "serde_fmt",
-]
-
-[[package]]
-name = "value-bag-sval2"
-version = "1.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "839752af8179287d27eb2b94164641b1ede9e60ab7424163388dc21ebd0508cd"
-dependencies = [
- "sval",
- "sval_buffer",
- "sval_dynamic",
- "sval_fmt",
- "sval_json",
- "sval_ref",
- "sval_serde",
 ]
 
 [[package]]

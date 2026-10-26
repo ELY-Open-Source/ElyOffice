@@ -85,10 +85,7 @@ fn a_dark_app_paints_the_page_white() {
 
 #[test]
 fn selection_keeps_document_text_readable_across_themes() {
-    use ely_gpui_component::{
-        devtools::{contrast, over},
-        theme::{ActiveTheme, Mode, Palette, Theme},
-    };
+    use ely_gpui_component::theme::{ActiveTheme, Mode, Palette, Theme, contrast, over};
 
     let Some(install) = crate::client::tests::install() else {
         eprintln!("SKIP: no pinned LOK build");

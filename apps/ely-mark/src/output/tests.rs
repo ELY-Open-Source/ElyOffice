@@ -27,7 +27,7 @@ fn formulas_and_diagrams_draw_as_svg() {
 
 #[test]
 fn what_does_not_draw_stays_as_code_at_its_own_line() {
-    let text = "$$\n\\frac{\n$$\n\n$$\n\\frac{\n$$\n\nText $\\sqrt{$ more.\n\n```mermaid\nflowchart LR\n  A -->\n```\n\n```mermaid\nflowchart LR\n  A[\u{F0000}] --> B\n```\n";
+    let text = "$$\n\\frac{\n$$\n\n$$\n\\frac{\n$$\n\nText $\\frac{a}$ more.\n\n```mermaid\nflowchart LR\n  A -->\n```\n\n```mermaid\nflowchart LR\n  A[\u{F0000}] --> B\n```\n";
     let page = page(text, None, &Pictures::Inline);
     let lines: Vec<usize> = page.formulas.iter().map(|(line, _)| *line).collect();
     assert_eq!(lines, [1, 5, 9]);
@@ -39,7 +39,7 @@ fn what_does_not_draw_stays_as_code_at_its_own_line() {
         "{}",
         page.html
     );
-    assert!(page.html.contains("<code>\\sqrt{</code>"), "{}", page.html);
+    assert!(page.html.contains("<code>\\frac{a}</code>"), "{}", page.html);
     assert!(
         page.html
             .contains("<pre><code class=\"language-mermaid\">flowchart LR"),
@@ -443,14 +443,14 @@ fn a_failed_linked_page_takes_the_folder_it_made() {
 #[test]
 fn a_formula_letter_no_font_has_stays_as_tex() {
     let page = page(
-        "Before\n\n$\text{\u{F0000}}$ after.\n",
+        "Before\n\n$\\text{\u{F0000}}$ after.\n",
         None,
         &Pictures::Inline,
     );
     let lines: Vec<usize> = page.formulas.iter().map(|(line, _)| *line).collect();
     assert_eq!(lines, [3]);
     assert!(
-        page.html.contains("<code>\text{\u{F0000}}</code>"),
+        page.html.contains("<code>\\text{\u{F0000}}</code>"),
         "{}",
         page.html
     );

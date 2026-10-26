@@ -5,22 +5,36 @@ import sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-lib = root / "reference/Ely-GPUI-Components/src"
+lib = root / "reference/Ely-GPUI-Components"
 ITEM = re.compile(r"^pub\s+(?:struct|enum|fn|trait|type|const)\s+([A-Za-z_]\w*)", re.M)
 USE = re.compile(r"pub\s+use\s+([^;]+);")
 CLAIM = re.compile(r"([a-z_]+)::\{([^}]*)\}")
+FACADE = (lib / "src/lib.rs").read_text()
+CORE = re.search(r"pub\s+use\s+ely_core::\{([^}]*)\}", FACADE)
+CRATE = re.compile(r"pub\s+use\s+(ely_\w+)\s+as\s+(\w+);")
+
+
+def entry(module: str) -> Path:
+    """The file that declares `module`'s public names."""
+    if CORE and module in (n.strip() for n in CORE.group(1).split(",")):
+        base = lib / "crates/ely-core/src"
+        for path in (base / module / "mod.rs", base / f"{module}.rs"):
+            if path.is_file():
+                return path
+    for krate, name in CRATE.findall(FACADE):
+        if name == module:
+            return lib / "crates" / krate.replace("_", "-") / "src/lib.rs"
+    sys.exit(f"FAIL: no module {module} in the component library")
 
 
 def public_names(module: str) -> set[str]:
-    mod_rs = lib / module / "mod.rs"
-    if not mod_rs.is_file():
-        sys.exit(f"FAIL: no module {module} in the component library")
-    text = mod_rs.read_text()
+    path = entry(module)
+    text = path.read_text()
     names = set(ITEM.findall(text))
     for use in USE.findall(text):
         use = " ".join(use.split())
         if use.endswith("::*"):
-            names |= glob_names(module, use[:-3])
+            names |= glob_names(path.parent, use[:-3], module)
             continue
         group = re.match(r".+::\{(.*)\}$", use)
         parts = group.group(1).split(",") if group else [use]
@@ -28,8 +42,8 @@ def public_names(module: str) -> set[str]:
     return names
 
 
-def glob_names(module: str, sub: str) -> set[str]:
-    for path in (lib / module / f"{sub}.rs", lib / module / sub / "mod.rs"):
+def glob_names(base: Path, sub: str, module: str) -> set[str]:
+    for path in (base / f"{sub}.rs", base / sub / "mod.rs"):
         if path.is_file():
             return set(ITEM.findall(path.read_text()))
     sys.exit(f"FAIL: cannot resolve {module}: pub use {sub}::*")

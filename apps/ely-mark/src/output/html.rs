@@ -7,13 +7,11 @@ use std::{
     ops::Range,
 };
 
-use ely_gpui_component::{
-    documents::{
-        AlertKind, Inline, MarkdownBlock, MarkdownReader, Style, alert, diagram_svg, is_toc,
-    },
-    typography::formula_svg,
+use ely_gpui_component::documents::{
+    AlertKind, Inline, MarkdownBlock, MarkdownReader, Style, alert, diagram_svg, formula_svg,
+    is_toc,
+    mdast::{AlignKind, Node},
 };
-use markdown::mdast::{AlignKind, Node};
 
 use super::{Page, address::safe, attribute, escape, pictures::Placed};
 
@@ -30,6 +28,7 @@ pub(super) fn write(
         source,
         reader: MarkdownReader::joined(source, tree),
         anchored: HashSet::new(),
+        lines: line_starts(source),
     };
     writer.root(tree)
 }
@@ -41,6 +40,8 @@ struct Writer<'a, 'b, 'c> {
     reader: MarkdownReader<'c>,
     /// Notes whose definition has its anchor.
     anchored: HashSet<usize>,
+    /// Where each source line starts.
+    lines: Vec<usize>,
 }
 
 /// What a read area leaves out, in reading order.
@@ -59,6 +60,12 @@ enum Mark<'a> {
 }
 
 impl Writer<'_, '_, '_> {
+    /// The line `node` starts on, from one.
+    fn line_of(&self, node: &Node) -> usize {
+        let at = node.position().start;
+        self.lines.partition_point(|start| *start <= at)
+    }
+
     fn push(&mut self, text: &str) {
         self.page.html.push_str(text);
     }
@@ -108,7 +115,7 @@ impl Writer<'_, '_, '_> {
                         let mark = if checked { " checked" } else { "" };
                         self.push(&format!("<input type=\"checkbox\" disabled{mark}> "));
                     }
-                    self.blocks(item, !list.spread && !each.spread)?;
+                    self.blocks(item, !list.spread)?;
                     self.push("</li>");
                 }
                 self.push(&format!("</{tag}>"));
@@ -117,13 +124,13 @@ impl Writer<'_, '_, '_> {
                 match diagram_svg(&code.value) {
                     Ok(svg) => self.push(&format!("<div class=\"diagram\">{}</div>", bare(&svg))),
                     Err(_) => {
-                        self.page.diagrams.push(line_of(node));
+                        self.page.diagrams.push(self.line_of(node));
                         self.code(Some("mermaid"), &code.value);
                     }
                 }
             }
             Node::Code(code) => self.code(code.lang.as_deref(), &code.value),
-            Node::Math(math) => self.math(line_of(node), &math.value, true),
+            Node::Math(math) => self.math(self.line_of(node), &math.value, true),
             Node::ThematicBreak(_) => self.push("<hr>"),
             Node::FootnoteDefinition(note) => {
                 // A reference reaches its note's first definition.
@@ -201,7 +208,7 @@ impl Writer<'_, '_, '_> {
     fn gather(&self, node: &Node, split: bool, out: &mut VecDeque<Atoms>) {
         match node {
             Node::InlineMath(_) => {
-                (out.back_mut().expect("a stretch").formulas).push_back(line_of(node))
+                (out.back_mut().expect("a stretch").formulas).push_back(self.line_of(node))
             }
             Node::FootnoteReference(call) => {
                 let number = self
@@ -233,7 +240,9 @@ impl Writer<'_, '_, '_> {
         self.push("<table>");
         for (at, (row, cells)) in read.into_iter().zip(written).enumerate() {
             let tag = if at == 0 { "th" } else { "td" };
-            let cells = cells.children().expect("a row holds cells");
+            // Cells past the head stay undrawn.
+            let cells = &cells.children().expect("a row holds cells");
+            let cells = &cells[..cells.len().min(aligns.len())];
             assert_eq!(row.len(), cells.len(), "a read cell per cell");
             self.push("<tr>");
             for (column, (pieces, cell)) in row.iter().zip(cells).enumerate() {
@@ -263,8 +272,8 @@ impl Writer<'_, '_, '_> {
                 self.push("</p>");
             }
             MarkdownBlock::Heading(depth, text) => {
-                let at = node.position().expect("a parsed node has its place");
-                self.push(&format!("<h{depth} id=\"h-{}\">", at.start.offset));
+                let at = node.position().start;
+                self.push(&format!("<h{depth} id=\"h-{at}\">"));
                 self.inline(text, atoms);
                 self.push(&format!("</h{depth}>"));
             }
@@ -475,9 +484,12 @@ fn tag(style: Style) -> &'static str {
     }
 }
 
-/// The line a node starts on, from one.
-fn line_of(node: &Node) -> usize {
-    node.position().map_or(0, |at| at.start.line)
+/// Line starts; CRLF, LF or a lone CR ends one.
+fn line_starts(source: &str) -> Vec<usize> {
+    let bytes = source.as_bytes();
+    let ends = (bytes.iter().enumerate())
+        .filter(|&(at, &byte)| byte == b'\n' || byte == b'\r' && bytes.get(at + 1) != Some(&b'\n'));
+    std::iter::once(0).chain(ends.map(|(at, _)| at + 1)).collect()
 }
 
 /// An SVG without its XML declaration.

@@ -1,9 +1,6 @@
 use std::{fs, thread, time::Duration};
 
-use ely_gpui_component::{
-    devtools::contrast,
-    theme::{Mix, Mode, Palette},
-};
+use ely_gpui_component::theme::{Mix, Mode, Palette, contrast};
 use futures::channel::mpsc::UnboundedReceiver;
 
 use super::{OmarchyTheme, changes, colors::hex, load, parse};

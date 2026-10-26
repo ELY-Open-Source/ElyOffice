@@ -1,8 +1,5 @@
 use anyhow::{Result, bail};
-use ely_gpui_component::{
-    devtools::{contrast, over},
-    theme::{Mix, Mode, Palette, Syntax},
-};
+use ely_gpui_component::theme::{Mix, Mode, Palette, Syntax, contrast, over};
 use gpui::{Hsla, hsla};
 
 use super::colors::{Colors, HUE_NAMES};

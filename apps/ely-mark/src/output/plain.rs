@@ -3,9 +3,8 @@
 use std::io;
 
 use ely_gpui_component::documents::{
-    MarkdownBlock, MarkdownReader, alert, is_toc, markdown_tree,
+    MarkdownBlock, MarkdownReader, alert, is_toc, markdown_tree, mdast::Node,
 };
-use markdown::mdast::Node;
 
 /// `text` as plain text, a blank line between blocks.
 pub fn plain(text: &str) -> io::Result<String> {
@@ -54,7 +53,8 @@ fn block(reader: &MarkdownReader, node: &Node, blocks: &mut Vec<String>) {
         }
         Node::Table(table) => {
             let rows = table.children.iter().map(|row| {
-                let cells = row.children().into_iter().flatten();
+                // Cells past the head stay undrawn.
+                let cells = row.children().into_iter().flatten().take(table.align.len());
                 let cells = cells.map(|cell| words(reader, cell));
                 cells.collect::<Vec<_>>().join("\t")
             });
