@@ -1,0 +1,364 @@
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 800; }
+#root { position: absolute; inset: 0; background: #252525; overflow: hidden; font-family: "Noto Sans SC", "Inter", sans-serif; color: #fff; }
+#m-glow { position: absolute; left: -60px; top: 177px; width: 1200px; height: 1200px; border-radius: 50%; }
+#m-svg { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+.m-top { position: absolute; left: 0; right: 0; top: 230px; text-align: center; }
+.m-low { position: absolute; left: 0; right: 0; top: 1130px; text-align: center; }
+#m-hook .a { font-weight: 900; font-size: 150px; line-height: 1.1; letter-spacing: 0.02em; }
+#m-hook .b { margin-top: 18px; font-weight: 700; font-size: 62px; color: rgba(255, 255, 255, 0.75); }
+#m-count { font-family: "JetBrains Mono", monospace; font-weight: 800; }
+#m-num { display: inline-block; font-size: 150px; line-height: 1.1; }
+#m-of { font-size: 56px; color: rgba(255, 255, 255, 0.45); }
+.m-lab .n { font-weight: 900; font-size: 104px; line-height: 1.15; }
+.m-lab .e { margin-top: 4px; font-family: "Inter", sans-serif; font-weight: 600; font-size: 46px; }
+#m-brand { font-family: "Inter", sans-serif; font-weight: 900; font-size: 140px; line-height: 1.1; letter-spacing: -0.03em; }
+#m-chips { display: flex; justify-content: center; gap: 22px; }
+.m-chip { padding: 18px 30px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.2); font-weight: 700; font-size: 46px; }
+#m-cta .a { font-weight: 900; font-size: 150px; line-height: 1.1; }
+#m-cta .a span { font-family: "Inter", sans-serif; color: #FFC233; }
+#m-cta .b { margin-top: 18px; font-weight: 700; font-size: 60px; color: rgba(255, 255, 255, 0.75); }
+#m-btn { position: absolute; left: 340px; top: 1110px; width: 400px; height: 116px; }
+#m-btn .s { position: absolute; inset: 0; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-family: "Inter", sans-serif; font-weight: 800; font-size: 54px; }
+#m-btn-off { border: 4px solid #FFC233; color: #FFC233; }
+#m-btn-on { background: #FFC233; color: #252525; }
+#m-plus { position: absolute; left: 700px; top: 1080px; font-family: "Inter", sans-serif; font-weight: 900; font-size: 64px; color: #FFC233; }
+#m-url { position: absolute; left: 0; right: 0; top: 1268px; text-align: center; font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 34px; color: rgba(255, 255, 255, 0.62); }
+</style>
+<div data-hf-id="hf-se2n" id="root" data-composition-id="morph" data-width="1080" data-height="1920">
+  <div data-hf-id="hf-txsh" id="m-glow" data-layout-allow-overflow></div>
+  <svg data-hf-id="hf-g0mx" id="m-svg" viewBox="0 0 1080 1920" data-layout-ignore>
+    <g data-hf-id="hf-q83k" id="m-shape">
+      <g data-hf-id="hf-9xuw" id="m-slots"></g>
+      <g data-hf-id="hf-46ae" id="m-d1" data-state="1">
+        <path data-hf-id="hf-06vm" d="M112 16V56A8 8 0 0 0 120 64H160Z" fill="#94B9F1" />
+        <rect data-hf-id="hf-gwzr" x="56" y="84" width="64" height="12" rx="4" fill="#FFFFFF" data-wipe="0" />
+        <rect data-hf-id="hf-2p22" x="56" y="108" width="80" height="8" rx="4" fill="#FFFFFF" data-wipe="1" />
+        <rect data-hf-id="hf-rzop" x="56" y="124" width="80" height="8" rx="4" fill="#FFFFFF" data-wipe="2" />
+        <rect data-hf-id="hf-4atw" x="56" y="140" width="80" height="8" rx="4" fill="#FFFFFF" data-wipe="3" />
+        <rect data-hf-id="hf-p2fq" x="56" y="156" width="48" height="8" rx="4" fill="#A8C5F3" data-wipe="4" />
+      </g>
+      <g data-hf-id="hf-4lau" id="m-d3" data-state="3">
+        <rect data-hf-id="hf-sih6" x="16" y="28" width="160" height="16" rx="8" fill="#F4A36A" />
+        <rect data-hf-id="hf-jvpa" x="32" y="52" width="128" height="72" rx="4" fill="#FFFFFF" />
+        <rect data-hf-id="hf-klp2" x="48" y="96" width="16" height="16" rx="2" fill="#F07B2A" data-grow="0" />
+        <rect data-hf-id="hf-9413" x="72" y="80" width="16" height="32" rx="2" fill="#F07B2A" data-grow="1" />
+        <rect data-hf-id="hf-p461" x="96" y="66" width="16" height="46" rx="2" fill="#F07B2A" data-grow="2" />
+        <path data-hf-id="hf-cuzk" d="M136 66A16 16 0 1 0 152 82H136Z" fill="#5D7FC9" />
+      </g>
+      <g data-hf-id="hf-uhzy" id="m-d4" data-state="4">
+        <path data-hf-id="hf-iexn" d="M112 16V56A8 8 0 0 0 120 64H160Z" fill="#EE8F9E" />
+        <rect data-hf-id="hf-3kf5" x="52" y="88" width="88" height="60" rx="6" fill="#FFFFFF" />
+        <path data-hf-id="hf-g4s5" d="M60 140L82 112L98 128L108 118L132 140Z" fill="#E0344F" />
+        <circle data-hf-id="hf-gs0s" cx="112" cy="104" r="7" fill="#EC8595" />
+        <rect data-hf-id="hf-x4i2" x="52" y="156" width="56" height="8" rx="4" fill="#F1A4B0" data-wipe="1" />
+      </g>
+      <g data-hf-id="hf-lqj2" id="m-d5" data-state="5">
+        <path data-hf-id="hf-94zb" d="M28 40H164L104 92A12 12 0 0 1 88 92Z" fill="#6DB6EB" />
+        <polyline data-hf-id="hf-dqtt" points="30,54 96,108 162,54" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+        <polyline data-hf-id="hf-wx7i" points="32,138 72,104" fill="none" stroke="#6DB6EB" stroke-width="8" stroke-linecap="round" />
+        <polyline data-hf-id="hf-ex28" points="160,138 120,104" fill="none" stroke="#6DB6EB" stroke-width="8" stroke-linecap="round" />
+      </g>
+      <g data-hf-id="hf-qd1y" id="m-d6" data-state="6">
+        <circle data-hf-id="hf-4ny7" cx="64" cy="40" r="11" fill="#FFFFFF" />
+        <circle data-hf-id="hf-ho50" cx="128" cy="64" r="11" fill="#FFFFFF" />
+        <circle data-hf-id="hf-nqe1" cx="64" cy="152" r="11" fill="#FFFFFF" />
+      </g>
+      <g data-hf-id="hf-qpxq" id="m-d7" data-state="7">
+        <path data-hf-id="hf-4ad0" d="M38 24H154A10 10 0 0 1 164 34V52H28V34A10 10 0 0 1 38 24Z" fill="#4F4F4F" />
+        <rect data-hf-id="hf-jb48" x="46" y="32" width="10" height="14" rx="5" fill="#FFFFFF" />
+        <rect data-hf-id="hf-tnox" x="70" y="32" width="10" height="14" rx="5" fill="#FFFFFF" />
+        <rect data-hf-id="hf-5xrv" x="94" y="32" width="10" height="14" rx="5" fill="#FFFFFF" />
+        <rect data-hf-id="hf-98by" x="118" y="32" width="10" height="14" rx="5" fill="#FFFFFF" />
+        <rect data-hf-id="hf-rd0p" x="142" y="32" width="10" height="14" rx="5" fill="#FFFFFF" />
+      </g>
+      <g data-hf-id="hf-cmu5" id="m-icons">
+        <g data-hf-id="hf-vera"><image data-hf-id="hf-yrt0" href="assets/icons/ely-doc.svg" width="60" height="60" /></g>
+        <g data-hf-id="hf-pwpm"><image data-hf-id="hf-stiq" href="assets/icons/ely-table.svg" width="60" height="60" /></g>
+        <g data-hf-id="hf-qb0n"><image data-hf-id="hf-w6t5" href="assets/icons/ely-show.svg" width="60" height="60" /></g>
+        <g data-hf-id="hf-qpbo"><image data-hf-id="hf-uvsg" href="assets/icons/ely-pdf.svg" width="60" height="60" /></g>
+        <g data-hf-id="hf-r3mp"><image data-hf-id="hf-o067" href="assets/icons/ely-mail.svg" width="60" height="60" /></g>
+        <g data-hf-id="hf-rhxq"><image data-hf-id="hf-8d6k" href="assets/icons/ely-tree.svg" width="60" height="60" /></g>
+        <g data-hf-id="hf-rw8r"><image data-hf-id="hf-uvsh" href="assets/icons/ely-mark.svg" width="60" height="60" /></g>
+      </g>
+      <g data-hf-id="hf-qf23" id="m-rays" stroke="#FFC233" stroke-width="4" stroke-linecap="round"></g>
+    </g>
+  </svg>
+
+  <div data-hf-id="hf-3g7u" id="m-hook" class="m-top"><div data-hf-id="hf-81gw" class="a">这个圆</div><div data-hf-id="hf-87l8" class="b">能变出一整套 Office</div></div>
+  <div data-hf-id="hf-m8zk" id="m-count" class="m-top"><span data-hf-id="hf-iuhv" id="m-num">01</span><span data-hf-id="hf-glp5" id="m-of"> / 07</span></div>
+  <div data-hf-id="hf-etif" id="m-lab-0" class="m-low m-lab"><div data-hf-id="hf-0rmg" class="n">文档</div><div data-hf-id="hf-ee7o" class="e" style="color:#94B9F1">ElyDoc</div></div>
+  <div data-hf-id="hf-avee" id="m-lab-1" class="m-low m-lab"><div data-hf-id="hf-7ilm" class="n">表格</div><div data-hf-id="hf-a62s" class="e" style="color:#8CCAA5">ElyTable</div></div>
+  <div data-hf-id="hf-4pol" id="m-lab-2" class="m-low m-lab"><div data-hf-id="hf-mwlh" class="n">幻灯片</div><div data-hf-id="hf-gj0h" class="e" style="color:#F4A36A">ElyShow</div></div>
+  <div data-hf-id="hf-3y0s" id="m-lab-3" class="m-low m-lab"><div data-hf-id="hf-1tjo" class="n">PDF</div><div data-hf-id="hf-vc8l" class="e" style="color:#EE8F9E">ElyPDF</div></div>
+  <div data-hf-id="hf-rfib" id="m-lab-4" class="m-low m-lab"><div data-hf-id="hf-j5ia" class="n">邮件</div><div data-hf-id="hf-e9td" class="e" style="color:#6DB6EB">ElyMail</div></div>
+  <div data-hf-id="hf-nhea" id="m-lab-5" class="m-low m-lab"><div data-hf-id="hf-8dcm" class="n">Git</div><div data-hf-id="hf-trsb" class="e" style="color:#B39DDB">ElyTree</div></div>
+  <div data-hf-id="hf-jja9" id="m-lab-6" class="m-low m-lab"><div data-hf-id="hf-9ecr" class="n">Markdown</div><div data-hf-id="hf-7389" class="e" style="color:#DADADA">ElyMark</div></div>
+  <div data-hf-id="hf-hton" id="m-brand-wrap" class="m-top"><div data-hf-id="hf-s97i" id="m-brand">Ely Office</div></div>
+  <div data-hf-id="hf-syd9" id="m-chips" class="m-low"><div data-hf-id="hf-9twm" class="m-chip">开源免费</div><div data-hf-id="hf-rbwp" class="m-chip">离线可用</div><div data-hf-id="hf-tj9a" class="m-chip">三端原生</div></div>
+  <div data-hf-id="hf-0drr" id="m-cta" class="m-top"><div data-hf-id="hf-goja" class="a">点个 <span data-hf-id="hf-yjo5">Star</span></div><div data-hf-id="hf-9um7" class="b">支持一下开源</div></div>
+  <div data-hf-id="hf-1zyt" id="m-btn" data-layout-allow-overlap><div data-hf-id="hf-mff3" id="m-btn-off" class="s">☆ Star</div><div data-hf-id="hf-c03n" id="m-btn-on" class="s">★ Starred</div></div>
+  <div data-hf-id="hf-nkv7" id="m-plus">+1</div>
+  <div data-hf-id="hf-q5gx" id="m-url">github.com/ELY-Open-Source/ElyOffice</div>
+</div>
+<script>
+(function () {
+  var P = 160, S = 3.2, CX = 540, CY = 470 + 96 * S;
+  var NS = "http://www.w3.org/2000/svg";
+
+  function dir(a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy); return [dx / l, dy / l]; }
+  // Vertices [x, y, cornerRadius]; corners are quadratic fillets.
+  function rpoly(v) {
+    var out = [], n = v.length;
+    for (var i = 0; i < n; i++) {
+      var c = v[i], r = c[2] || 0;
+      if (!r) { out.push([c[0], c[1]]); continue; }
+      var a = dir(c, v[(i - 1 + n) % n]), b = dir(c, v[(i + 1) % n]);
+      var p1 = [c[0] + a[0] * r, c[1] + a[1] * r], p2 = [c[0] + b[0] * r, c[1] + b[1] * r];
+      for (var k = 0; k <= 10; k++) {
+        var t = k / 10, u = 1 - t;
+        out.push([u * u * p1[0] + 2 * u * t * c[0] + t * t * p2[0], u * u * p1[1] + 2 * u * t * c[1] + t * t * p2[1]]);
+      }
+    }
+    return out;
+  }
+  function rrect(x, y, w, h, r) { return rpoly([[x, y, r], [x + w, y, r], [x + w, y + h, r], [x, y + h, r]]); }
+  function circle(cx, cy, r) {
+    var out = [];
+    for (var k = 0; k < 240; k++) { var a = -Math.PI / 2 + k / 240 * Math.PI * 2; out.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+    return out;
+  }
+  function star(cx, cy, ro, ri) {
+    var v = [];
+    for (var k = 0; k < 10; k++) { var a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? ri : ro; v.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r, k % 2 ? 0 : 3]); }
+    return rpoly(v);
+  }
+  // Outline of an open polyline stroked at width w with round caps.
+  function stroke(pts, w) {
+    var h = w / 2, n = pts.length, left = [], right = [], norms = [];
+    for (var i = 0; i < n; i++) {
+      var d = dir(pts[Math.max(0, i - 1)], pts[Math.min(n - 1, i + 1)]);
+      norms.push([-d[1], d[0]]);
+      left.push([pts[i][0] + norms[i][0] * h, pts[i][1] + norms[i][1] * h]);
+      right.push([pts[i][0] - norms[i][0] * h, pts[i][1] - norms[i][1] * h]);
+    }
+    function cap(p, nn, d) {
+      var out = [];
+      for (var k = 1; k < 16; k++) { var a = k / 16 * Math.PI; out.push([p[0] + h * (Math.cos(a) * nn[0] + Math.sin(a) * d[0]), p[1] + h * (Math.cos(a) * nn[1] + Math.sin(a) * d[1])]); }
+      return out;
+    }
+    var dEnd = dir(pts[n - 2], pts[n - 1]), dStart = dir(pts[1], pts[0]);
+    return left.concat(cap(pts[n - 1], norms[n - 1], dEnd), right.reverse(), cap(pts[0], [-norms[0][0], -norms[0][1]], dStart));
+  }
+  function cubic(p0, p1, p2, p3) {
+    var out = [];
+    for (var k = 0; k <= 40; k++) {
+      var t = k / 40, u = 1 - t;
+      out.push([u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+                u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]);
+    }
+    return out;
+  }
+  function line(a, b) { var out = []; for (var k = 0; k <= 20; k++) out.push([a[0] + (b[0] - a[0]) * k / 20, a[1] + (b[1] - a[1]) * k / 20]); return out; }
+
+  // Evenly spaced by arc length, clockwise on screen.
+  function resample(poly) {
+    var n = poly.length, cum = [0];
+    for (var i = 1; i <= n; i++) cum.push(cum[i - 1] + Math.hypot(poly[i % n][0] - poly[i - 1][0], poly[i % n][1] - poly[i - 1][1]));
+    var out = [], j = 0, L = cum[n];
+    for (var k = 0; k < P; k++) {
+      var s = k / P * L;
+      while (cum[j + 1] < s) j++;
+      var f = (s - cum[j]) / (cum[j + 1] - cum[j] || 1), a = poly[j], b = poly[(j + 1) % n];
+      out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+    }
+    var area = 0;
+    for (var m = 0; m < P; m++) { var p = out[m], q = out[(m + 1) % P]; area += p[0] * q[1] - q[0] * p[1]; }
+    return area < 0 ? out.reverse() : out;
+  }
+  function centroid(pts) { var x = 0, y = 0; pts.forEach(function (p) { x += p[0]; y += p[1]; }); return [x / pts.length, y / pts.length]; }
+
+  var PAGE = [[32, 16, 8], [112, 16, 0], [160, 64, 0], [160, 176, 8], [32, 176, 8]];
+  var cells = [[76, 78], [28, 120], [124, 120], [28, 36], [76, 36], [124, 36], [28, 78], [124, 78], [76, 120]];
+  var ring = [];
+  for (var k = 0; k < 7; k++) { var a = -Math.PI / 2 + k * Math.PI * 2 / 7; ring.push([96 + Math.cos(a) * 64, 96 + Math.sin(a) * 64]); }
+  var APP = ["#3D7FE5", "#2E9E5B", "#F07B2A", "#E0344F", "#1E8FE0", "#7E57C2", "#ECECEC"];
+
+  // land: when the morph into this state ends; dur: how long it takes.
+  var STATES = [
+    { land: 0, dur: 0, glow: "#FFFFFF", slots: [[circle(96, 96, 64), "#F4F4F4"]] },
+    { land: 2, dur: 0.4, glow: APP[0], slots: [[rpoly(PAGE), APP[0]]] },
+    { land: 3, dur: 0.4, glow: APP[1], slots: cells.map(function (c, i) {
+      return [rrect(c[0], c[1], 40, 34, 6), i === 2 ? "#FFD54F" : c[1] === 36 ? "#8CCAA5" : APP[1]];
+    }) },
+    { land: 4, dur: 0.4, glow: APP[2], slots: [[rrect(16, 28, 160, 112, 10), APP[2]],
+      [stroke(line([96, 140], [64, 176]), 12), "#8E8E8E"], [stroke(line([96, 140], [128, 176]), 12), "#8E8E8E"]] },
+    { land: 5, dur: 0.4, glow: APP[3], slots: [[rpoly(PAGE), APP[3]]] },
+    { land: 6, dur: 0.4, glow: APP[4], slots: [[rrect(16, 40, 160, 112, 12), APP[4]]] },
+    { land: 7, dur: 0.4, glow: APP[5], slots: [[stroke(line([64, 44], [64, 148]), 20), APP[5]],
+      [stroke(cubic([64, 128], [64, 92], [128, 104], [128, 72]), 20), APP[5]],
+      [circle(64, 40, 24), APP[5]], [circle(128, 64, 24), APP[5]], [circle(64, 152, 24), "#F2A900"]] },
+    { land: 8, dur: 0.4, glow: "#B0B0B0", slots: [[rrect(28, 24, 136, 152, 10), "#ECECEC"],
+      [rpoly([[44, 156], [44, 76], [66, 76], [82, 100], [98, 76], [120, 76], [120, 156], [100, 156], [100, 110], [82, 136], [64, 110], [64, 156]]), "#3E4A5C"],
+      [rpoly([[128, 76], [148, 76], [148, 124], [164, 124], [138, 158], [112, 124], [128, 124]]), "#F2A900"]] },
+    { land: 9, dur: 0.55, glow: "#7E8CFF", hub: [96, 96], slots: ring.map(function (c, i) { return [circle(c[0], c[1], 21), APP[i]]; }) },
+    { land: 12, dur: 0.55, glow: "#FFC233", hub: [96, 96], slots: [[star(96, 96, 72, 30), "#FFC233"]] },
+  ];
+  var SLOTS = 9;
+
+  STATES.forEach(function (st) {
+    st.pts = st.slots.map(function (s) { return resample(s[0]); });
+    st.hub = st.hub || centroid(st.pts[0]);
+  });
+  // Rotate each contour's start to sit closest to the same contour one state earlier.
+  for (var i = 1; i < STATES.length; i++) {
+    for (var s = 0; s < SLOTS; s++) {
+      var A = STATES[i - 1].pts[s], B = STATES[i].pts[s];
+      if (!A || !B) continue;
+      var best = 0, bestD = Infinity;
+      for (var sh = 0; sh < P; sh++) {
+        var d = 0;
+        for (var m = 0; m < P; m += 2) { var b = B[(m + sh) % P]; d += (A[m][0] - b[0]) * (A[m][0] - b[0]) + (A[m][1] - b[1]) * (A[m][1] - b[1]); }
+        if (d < bestD) { bestD = d; best = sh; }
+      }
+      STATES[i].pts[s] = B.slice(best).concat(B.slice(0, best));
+    }
+  }
+
+  var slotsG = document.getElementById("m-slots"), paths = [];
+  for (var q = 0; q < SLOTS; q++) { var p = document.createElementNS(NS, "path"); slotsG.appendChild(p); paths.push(p); }
+  var raysG = document.getElementById("m-rays"), rays = [];
+  for (var r = 0; r < 10; r++) { var l = document.createElementNS(NS, "line"); raysG.appendChild(l); rays.push(l); }
+  var shape = document.getElementById("m-shape"), glow = document.getElementById("m-glow");
+  var num = document.getElementById("m-num");
+  var icons = Array.prototype.slice.call(document.querySelectorAll("#m-icons > g"));
+  var details = Array.prototype.slice.call(document.querySelectorAll("#m-shape [data-state]"));
+  details.forEach(function (g) {
+    g.querySelectorAll("[data-wipe],[data-grow]").forEach(function (el) {
+      el._w = +el.getAttribute("width"); el._h = +el.getAttribute("height"); el._y = +el.getAttribute("y");
+    });
+  });
+
+  function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function ease(p) { return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; }
+  function back(p) { var c = 2.2; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); }
+  function rgb(h) { return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)]; }
+  function mix(a, b, e) { var x = rgb(a), y = rgb(b); return "rgb(" + [0, 1, 2].map(function (i) { return Math.round(x[i] + (y[i] - x[i]) * e); }).join(",") + ")"; }
+  function morphStart(i) { return STATES[i].land - STATES[i].dur; }
+  function slotPts(st, s) { if (st.pts[s]) return st.pts[s]; var h = st.hub, out = []; for (var k = 0; k < P; k++) out.push(h); return out; }
+  function slotColor(st, other, s) { return (st.slots[s] || other.slots[s] || [0, "#FFFFFF"])[1]; }
+
+  function render(t) {
+    var i = 0;
+    for (var k = STATES.length - 1; k > 0; k--) if (t >= morphStart(k)) { i = k; break; }
+    var B = STATES[i], A = STATES[Math.max(0, i - 1)];
+    var e = i === 0 ? 1 : ease(clamp((t - morphStart(i)) / B.dur));
+    var p = i === 0 ? 1 : clamp((t - morphStart(i)) / B.dur);
+    if (i === 0) A = B;
+
+    for (var s = 0; s < SLOTS; s++) {
+      var pa = slotPts(A, s), pb = slotPts(B, s), d = "";
+      if (!A.pts[s] && !B.pts[s]) { paths[s].setAttribute("d", ""); continue; }
+      for (var m = 0; m < P; m++) {
+        d += (m ? "L" : "M") + (pa[m][0] + (pb[m][0] - pa[m][0]) * e).toFixed(2) + " " + (pa[m][1] + (pb[m][1] - pa[m][1]) * e).toFixed(2);
+      }
+      paths[s].setAttribute("d", d + "Z");
+      paths[s].setAttribute("fill", mix(slotColor(A, B, s), slotColor(B, A, s), e));
+    }
+
+    // Squash on landing, a small dip mid-morph, a beat pulse while idle.
+    var sx = 1, sy = 1, rot = 0;
+    if (i === 0) { sx = sy = 1 + 0.06 * Math.exp(-(t % 1) * 7); }
+    else if (p < 1) { sx = sy = 1 - 0.07 * Math.sin(Math.PI * p); }
+    else {
+      var dt = t - B.land, w = 0.1 * Math.exp(-dt * 6) * Math.sin(dt * Math.PI * 2 * 2.6);
+      sx = 1 + w; sy = 1 - w;
+    }
+    if (i === STATES.length - 1 && p >= 1) rot = (t - B.land) * 3;
+    shape.setAttribute("transform", "translate(" + CX + " " + CY + ") rotate(" + rot.toFixed(3) + ") scale(" + (S * sx).toFixed(4) + " " + (S * sy).toFixed(4) + ") translate(-96 -96)");
+
+    var gc = mix(A.glow, B.glow, e);
+    glow.style.background = "radial-gradient(circle, " + gc.replace("rgb", "rgba").replace(")", ",0.30)") + " 0%, rgba(37,37,37,0) 62%)";
+
+    details.forEach(function (g) {
+      var si = +g.getAttribute("data-state"), land = STATES[si].land, end = morphStart(si + 1);
+      var o = Math.min(clamp((t - land - 0.03) / 0.14), clamp((end - t) / 0.1));
+      g.setAttribute("opacity", o.toFixed(3));
+      g.querySelectorAll("[data-wipe]").forEach(function (el) {
+        var f = ease(clamp((t - land - 0.06 - el.getAttribute("data-wipe") * 0.05) / 0.2));
+        el.setAttribute("width", Math.max(0.01, el._w * f).toFixed(2));
+      });
+      g.querySelectorAll("[data-grow]").forEach(function (el) {
+        var f = back(clamp((t - land - 0.08 - el.getAttribute("data-grow") * 0.07) / 0.3));
+        el.setAttribute("height", Math.max(0.01, el._h * f).toFixed(2));
+        el.setAttribute("y", (el._y + el._h * (1 - f)).toFixed(2));
+      });
+    });
+
+    // The suite's dots hand over to the real icons, and back before the star.
+    for (var c = 0; c < 7; c++) {
+      var t0 = 9.05 + c * 0.08;
+      var a = Math.min(clamp((t - t0) / 0.08), clamp((11.42 - t) / 0.12));
+      var sc = (t < 11.3 ? back(clamp((t - t0) / 0.3)) : 1 - 0.4 * clamp((t - 11.3) / 0.12));
+      icons[c].setAttribute("opacity", a.toFixed(3));
+      icons[c].setAttribute("transform", "translate(" + ring[c][0] + " " + ring[c][1] + ") scale(" + Math.max(0.01, sc).toFixed(3) + ") translate(-30 -30)");
+      if (i === 8) paths[c].setAttribute("opacity", (1 - a).toFixed(3));
+      else paths[c].setAttribute("opacity", "1");
+    }
+
+    var rt = t - 12;
+    rays.forEach(function (l, k) {
+      var ang = -Math.PI / 2 + (k + 0.5) * Math.PI / 5, f = clamp(rt / 0.6), r1 = 80 + 16 * (1 - Math.pow(1 - f, 3)), len = 12 * (1 - f);
+      l.setAttribute("x1", (96 + Math.cos(ang) * r1).toFixed(2)); l.setAttribute("y1", (96 + Math.sin(ang) * r1).toFixed(2));
+      l.setAttribute("x2", (96 + Math.cos(ang) * (r1 + len)).toFixed(2)); l.setAttribute("y2", (96 + Math.sin(ang) * (r1 + len)).toFixed(2));
+      l.setAttribute("opacity", rt < 0 ? "0" : (1 - f).toFixed(3));
+    });
+
+    var n = Math.max(1, Math.min(7, Math.floor(t - 1.88) + 1));
+    num.textContent = "0" + n;
+    num.style.color = ["#94B9F1", "#8CCAA5", "#F4A36A", "#EE8F9E", "#6DB6EB", "#B39DDB", "#DADADA"][n - 1];
+    var since = t - 1.88 - (n - 1);
+    num.style.transform = "scale(" + (1 + 0.14 * Math.exp(-Math.max(0, since) * 9)).toFixed(4) + ")";
+  }
+
+  var state = { t: 0 };
+  var tl = gsap.timeline({ paused: true });
+  tl.to(state, { t: 15, duration: 15, ease: "none", onUpdate: function () { render(state.t); } }, 0);
+
+  function show(sel, at, from) {
+    tl.fromTo(sel, Object.assign({ opacity: 0, y: 40, scale: 0.92 }, from), { opacity: 1, y: 0, scale: 1, duration: 0.32, ease: "back.out(2)", immediateRender: false }, at);
+  }
+  function hide(sel, at) { tl.to(sel, { opacity: 0, y: -28, duration: 0.15, ease: "power2.in" }, at); }
+
+  gsap.set(["#m-count", "#m-brand-wrap", "#m-cta", "#m-btn", "#m-url", "#m-plus", "#m-btn-on", ".m-lab", ".m-chip"], { opacity: 0 });
+  hide("#m-hook", 1.72);
+  show("#m-count", 1.9);
+  for (var j = 0; j < 7; j++) {
+    show("#m-lab-" + j, 2 + j - 0.12);
+    hide("#m-lab-" + j, j < 6 ? 2 + j + 0.6 : 8.45);
+  }
+  hide("#m-count", 8.45);
+  show("#m-brand-wrap", 8.85);
+  tl.fromTo(".m-chip", { opacity: 0, y: 40, scale: 0.85 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(2.4)", stagger: 0.12, immediateRender: false }, 9.35);
+  hide("#m-brand-wrap", 11.4);
+  hide(".m-chip", 11.4);
+  show("#m-cta", 11.95);
+  show("#m-btn", 12.25);
+  show("#m-url", 12.45, { y: 20, scale: 1 });
+  tl.to("#m-btn", { scale: 0.9, duration: 0.07, ease: "power2.in" }, 12.93);
+  tl.to("#m-btn", { scale: 1, duration: 0.4, ease: "back.out(3)" }, 13.0);
+  tl.fromTo("#m-btn-on", { opacity: 0 }, { opacity: 1, duration: 0.06, immediateRender: false }, 13.0);
+  tl.to("#m-btn-off", { opacity: 0, duration: 0.06 }, 13.0);
+  tl.fromTo("#m-plus", { opacity: 0, y: 0 }, { opacity: 1, y: -10, duration: 0.06, immediateRender: false }, 13.02);
+  tl.to("#m-plus", { y: -110, duration: 0.9, ease: "power2.out" }, 13.08);
+  tl.to("#m-plus", { opacity: 0, duration: 0.3 }, 13.7);
+
+  render(0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["morph"] = tl;
+})();
+</script>
+</template>

@@ -1,0 +1,348 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+#s5-root { position: absolute; inset: 0; }
+#s5-cam { position: absolute; inset: 0; }
+#s5-dim { position: absolute; left: 200px; top: 104px; width: 1520px; height: 780px; border-radius: 30px; background: rgba(6, 4, 26, 0.62); visibility: hidden; }
+
+/* compose window */
+#s5-cmp { left: 560px; top: 152px; width: 1000px; height: 640px; border-radius: 28px; visibility: hidden;
+  background: linear-gradient(150deg, rgba(58, 48, 122, 0.78), rgba(24, 18, 62, 0.74)); border-color: rgba(255, 255, 255, 0.3); }
+.s5-bar { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: center; padding: 0 24px; gap: 12px; border-bottom: 1px solid var(--line); font: 700 18px var(--zh); color: var(--ink); }
+.s5-bar .ico { width: 20px; height: 20px; color: var(--mail-hi); }
+.s5-bar .x { margin-left: auto; color: var(--ink-3); }
+.s5-row { position: absolute; left: 0; right: 0; height: 52px; display: flex; align-items: center; gap: 16px; padding: 0 24px; border-bottom: 1px solid var(--line); }
+.s5-row label { width: 56px; font: 500 16px var(--zh); color: var(--ink-3); }
+.s5-to { height: 32px; padding: 0 14px 0 6px; border-radius: 999px; display: flex; align-items: center; gap: 8px; font: 600 16px var(--zh); color: #fff;
+  background: rgba(30, 143, 224, 0.4); border: 1px solid rgba(120, 190, 255, 0.55); }
+.s5-to i { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: linear-gradient(150deg, #8fe3b0, #2e9e5b); }
+.s5-to i .ico { width: 14px; height: 14px; color: #fff; }
+.s5-subj { font: 600 18px var(--zh); color: var(--ink); }
+.s5-tool { position: absolute; left: 0; right: 0; top: 160px; height: 60px; display: flex; align-items: center; padding: 0 24px; border-bottom: 1px solid var(--line); }
+.s5-seg { position: relative; height: 40px; width: 232px; border-radius: 12px; background: rgba(255, 255, 255, 0.07); border: 1px solid var(--line); }
+.s5-thumb { position: absolute; left: 4px; top: 4px; height: 30px; width: 100px; border-radius: 9px; background: linear-gradient(170deg, #5fb8ff, #1e8fe0 60%, #1673c4); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 6px 14px rgba(30, 143, 224, 0.45); }
+.s5-sa, .s5-sb { position: absolute; top: 0; height: 38px; display: flex; align-items: center; justify-content: center; font: 600 15px var(--sans); color: var(--ink-3); }
+.s5-sa { left: 4px; width: 100px; font-family: var(--zh); }
+.s5-sb { left: 104px; width: 124px; }
+.s5-stat { position: absolute; right: 24px; top: 0; height: 60px; display: flex; align-items: center; }
+.s5-ring { position: absolute; right: 0; top: 19px; width: 22px; height: 22px; visibility: hidden; }
+.s5-ring circle { fill: none; stroke-width: 2.6; }
+.s5-chip { position: absolute; right: 0; top: 12px; height: 36px; padding: 0 14px 0 10px; border-radius: 999px; display: flex; align-items: center; gap: 8px; white-space: nowrap; visibility: hidden;
+  font: 600 15px var(--zh); color: #eafff2; background: rgba(61, 220, 132, 0.2); border: 1px solid rgba(61, 220, 132, 0.55); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); transform-origin: 100% 50%; }
+.s5-chip .ico { width: 18px; height: 18px; color: #3ddc84; }
+.s5-ed { position: absolute; left: 0; right: 0; top: 220px; bottom: 72px; }
+.s5-g { position: absolute; top: 0; height: 44px; font: 500 30px/44px "JetBrains Mono", "Noto Sans SC", monospace; color: var(--ink); white-space: pre; visibility: hidden; }
+.s5-g.mk { color: var(--mail-hi); }
+.s5-g.alt { font-family: var(--sans); font-weight: 700; color: #fff; }
+.s5-g.rd { font-family: var(--sans); }
+.s5-dst { position: absolute; top: 0; height: 44px; font: 500 30px/44px var(--sans); white-space: pre; visibility: hidden; }
+.s5-dst.b { font-weight: 700; }
+.s5-bul { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--mail-hi); box-shadow: 0 0 10px rgba(92, 180, 242, 0.8); visibility: hidden; }
+.s5-caret { position: absolute; left: 0; top: 0; width: 3px; height: 34px; border-radius: 2px; background: var(--mail-hi); box-shadow: 0 0 8px rgba(92, 180, 242, 0.8); visibility: hidden; }
+.s5-foot { position: absolute; left: 0; right: 0; bottom: 0; height: 72px; border-top: 1px solid var(--line); }
+.s5-hint { position: absolute; left: 24px; top: 18px; height: 36px; padding: 0 14px; border-radius: 999px; display: flex; align-items: center; gap: 8px; white-space: nowrap; visibility: hidden;
+  font: 600 16px var(--zh); color: var(--ink-2); background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); transform-origin: 0 50%; }
+.s5-hint b { font: 700 15px var(--mono); color: var(--mail-hi); }
+.s5-hint .ico { width: 16px; height: 16px; color: #3ddc84; }
+.s5-send { position: absolute; right: 24px; top: 14px; width: 112px; height: 44px; justify-content: center; font-size: 18px; padding: 0; }
+.s5-send .ico { width: 20px; height: 20px; }
+
+/* status overlays */
+#s5-net { position: absolute; left: 0; top: 121px; height: 32px; border-radius: 999px; overflow: hidden; visibility: hidden; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.1); border: 1px solid var(--line-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 20px rgba(4, 2, 20, 0.35); }
+#s5-net .ic { position: absolute; left: 7px; top: 5px; width: 20px; height: 20px; }
+#s5-net .ic .ico { width: 20px; height: 20px; }
+#s5-net .tx { position: absolute; left: 34px; top: 0; height: 30px; display: flex; align-items: center; font: 700 15px var(--zh); }
+#s5-toast { position: absolute; left: 0; top: 806px; height: 52px; padding: 0 22px 0 10px; gap: 12px; font: 700 20px var(--zh); visibility: hidden; transform-origin: 50% 100%; }
+#s5-toast i { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #6ff0a8, #22b866); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6); }
+#s5-queue { position: absolute; left: 0; top: 0; height: 28px; padding: 0 12px; border-radius: 999px; display: flex; align-items: center; gap: 6px; visibility: hidden; white-space: nowrap;
+  font: 600 14px var(--zh); color: #fff; background: rgba(20, 14, 40, 0.8); border: 1px solid rgba(255, 255, 255, 0.24); box-shadow: 0 8px 20px rgba(4, 2, 20, 0.4); }
+#s5-queue .ico { width: 15px; height: 15px; color: #ff8fc4; }
+#s5-toast i .ico { width: 20px; height: 20px; color: #fff; stroke-width: 2.6; }
+#s5-toast small { font: 500 15px var(--zh); color: var(--ink-3); }
+</style>
+<div id="s5-root" data-composition-id="s5" data-width="1920" data-height="1080" data-duration="10">
+  <div id="s5-cam"></div>
+  <div id="s5-dim"></div>
+  <div id="s5-cmp" class="glass"></div>
+  <div id="s5-net"></div>
+  <div id="s5-toast" class="pill"></div>
+  <div id="s5-queue"></div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var M = LQ.M, X = window.S5X, K = ElyKit;
+    var root = document.getElementById("s5-root");
+    var cam = document.getElementById("s5-cam");
+    var w = K.mailWindow(cam, { id: "s5", select: 0 });
+    var $ = function (id) { return document.getElementById(id); };
+
+    /* ---- compose window ---- */
+    var cmp = $("s5-cmp");
+    var ed = "";
+    X.G.forEach(function (g, i) {
+      var cls = g.role === "text" ? "" : " mk";
+      ed += '<div class="s5-g' + cls + '" id="s5-g' + i + '" style="left:' + g.x + "px;top:" + (12 + X.LH * g.line) + 'px">' + g.ch + "</div>";
+      if (g.bold && g.ascii) ed += '<div class="s5-g alt" id="s5-a' + i + '" style="left:' + g.x + "px;top:" + (12 + X.LH * g.line) + 'px">' + g.ch + "</div>";
+    });
+    // where the rendered (non-Markdown) text lands: measured from these hidden lines
+    var dst = { 1: X.LX, 3: X.LX + 36, 4: X.LX + 36 };
+    [1, 3, 4].forEach(function (li) {
+      ed += '<div class="s5-dst' + (li === 1 ? " b" : "") + '" id="s5-d' + li + '" style="left:' + dst[li] + "px;top:" + (12 + X.LH * li) + 'px">';
+      X.G.forEach(function (g, i) { if (g.line === li && g.role === "text") ed += '<span data-i="' + i + '">' + g.ch + "</span>"; });
+      ed += "</div>";
+    });
+    [3, 4].forEach(function (li) {
+      ed += '<div class="s5-bul" id="s5-bul' + li + '" style="left:' + (X.LX + 9 - 6) + "px;top:" + (12 + X.LH * li + X.LB / 2 - 6) + 'px"></div>';
+    });
+    for (var q = 0; q < X.L5.length; q++) ed += '<div class="s5-g rd" id="s5-l' + q + '" style="left:' + (X.LX + X.FS * q) + "px;top:" + (12 + X.LH * 5) + 'px">' + X.L5[q] + "</div>";
+    ed += '<div class="s5-caret" id="s5-caret"></div>';
+
+    cmp.innerHTML =
+      '<div class="s5-bar" id="s5-c0">' + K.icon("pen") + "新邮件<span class=\"x\">" + K.icon("x") + "</span></div>" +
+      '<div class="s5-row" id="s5-c1" style="top:56px"><label>收件人</label><div class="s5-to"><i>' + K.icon("contacts") + "</i>设计组</div></div>" +
+      '<div class="s5-row" id="s5-c2" style="top:108px"><label>主题</label><div class="s5-subj">周五评审</div></div>' +
+      '<div class="s5-tool" id="s5-c3"><div class="s5-seg"><div class="s5-thumb" id="s5-thumb"></div><div class="s5-sa" id="s5-sa">纯文本</div><div class="s5-sb" id="s5-sb">Markdown</div></div>' +
+      '<div class="s5-stat"><svg class="s5-ring" id="s5-ring" viewBox="0 0 22 22"><circle cx="11" cy="11" r="8.5" stroke="rgba(255,255,255,0.18)"/><circle id="s5-ringv" cx="11" cy="11" r="8.5" stroke="#3ddc84" stroke-linecap="round" transform="rotate(-90 11 11)" stroke-dasharray="53.4" stroke-dashoffset="53.4"/></svg>' +
+      '<div class="s5-chip" id="s5-chip">' + K.icon("check") + "已存为草稿</div></div></div>" +
+      '<div class="s5-ed" id="s5-c4">' + ed + "</div>" +
+      '<div class="s5-foot" id="s5-c5"><div class="s5-hint" id="s5-hint"><b>Markdown</b>→ 发出 纯文本 + HTML' + K.icon("check") + "</div>" +
+      '<div class="pill blue s5-send" id="s5-send">' + K.icon("send") + "发送</div></div>";
+    $("s5-net").innerHTML = '<span class="ic" id="s5-wifi" style="color:#bfe4ff">' + K.icon("wifi") + '</span><span class="ic" id="s5-cloud" style="color:#ff8fc4;opacity:0">' + K.icon("cloudOff") + "</span>" +
+      '<span class="tx" id="s5-off" style="color:#ffc2de;opacity:0">离线</span><span class="tx" id="s5-on" style="color:#9ff5c4;opacity:0">已连接</span>';
+    $("s5-queue").innerHTML = K.icon("cloudOff") + "排队中";
+    $("s5-toast").innerHTML = "<i>" + K.icon("check") + "</i>已发送<small>发件箱已清空</small>";
+
+    var drafts = $("s5-drafts"), dN = drafts.querySelector(".n");
+    var obox = $("s5-outbox");
+    var oN = document.createElement("span");
+    oN.className = "n";
+    oN.textContent = "1";
+    oN.style.display = "none";
+    obox.appendChild(oN);
+
+    var parts = [0, 1, 2, 3, 4, 5].map(function (i) { return $("s5-c" + i); });
+    var gEl = X.G.map(function (g, i) { return $("s5-g" + i); });
+    var aEl = X.G.map(function (g, i) { return $("s5-a" + i); });
+    var dSpan = {};
+    root.querySelectorAll(".s5-dst span").forEach(function (s) { dSpan[s.getAttribute("data-i")] = s; });
+    var l5 = []; for (q = 0; q < X.L5.length; q++) l5.push($("s5-l" + q));
+    var caret = $("s5-caret"), thumb = $("s5-thumb"), sa = $("s5-sa"), sb = $("s5-sb");
+    var ring = $("s5-ring"), ringv = $("s5-ringv"), chip = $("s5-chip"), hint = $("s5-hint"), send = $("s5-send");
+    var dim = $("s5-dim"), net = $("s5-net"), toast = $("s5-toast");
+    var wifi = $("s5-wifi"), cloud = $("s5-cloud"), offT = $("s5-off"), onT = $("s5-on");
+
+    function vis(el, o, tf) {
+      if (o <= 0.001) { el.style.visibility = "hidden"; el.style.opacity = "0"; el.style.transform = ""; return; }
+      el.style.visibility = "visible";
+      el.style.opacity = o >= 0.999 ? "" : String(o);
+      el.style.transform = tf || "";
+    }
+    function rect(el) {
+      var x = 0, y = 0, e = el;
+      while (e && e !== root) {
+        x += e.offsetLeft; y += e.offsetTop;
+        e = e.offsetParent;
+        if (e && e !== root) { x += e.clientLeft; y += e.clientTop; }
+      }
+      return { x: x, y: y, w: el.offsetWidth, h: el.offsetHeight };
+    }
+    function measure() {
+      if (w.compose.offsetParent === null) return;
+      var cr = { x: X.CW.x + 1, y: X.CW.y + 1 };
+      X.geo = {
+        pill: rect(w.compose),
+        dbadge: rect(dN),
+        obox: rect(obox),
+        sync: rect(w.sync),
+        chip: { x: cr.x + chip.offsetParent.offsetLeft + chip.offsetLeft, y: cr.y + 160 + chip.offsetTop, w: chip.offsetWidth, h: chip.offsetHeight },
+      };
+    }
+    function dstX(i) {
+      var s = dSpan[i];
+      return s.parentNode.offsetLeft + s.offsetLeft;
+    }
+    function pop(lt, T, f, d) { return M.spring(lt, T, f || 2.6, d || 0.4); }
+
+    function apply(lt) {
+      measure();
+      var g = X.geo;
+
+      /* the 写邮件 button gets pressed */
+      var pw = M.wobble(lt, 0.26, 4, 6, 1);
+      w.compose.style.transform = lt > 0.26 && lt < 1.2 ? "scale(" + (1 + 0.1 * pw).toFixed(4) + "," + (1 - 0.18 * pw).toFixed(4) + ")" : "";
+
+      /* dim the mail window while composing */
+      var dimO = M.smooth(M.prog(lt, 0.55, 0.95)) * (1 - M.smooth(M.prog(lt, 7.62, 8.1)));
+      vis(dim, dimO);
+
+      /* compose window */
+      /* the window unfolds out of the bubble, and squishes back into a drop */
+      var un = M.spring(lt, 0.7, 2.2, 0.55);
+      var co = M.smooth(M.prog(lt, 0.7, 0.86)) * (1 - M.smooth(M.prog(lt, 7.5, 7.62)));
+      var ctf = "";
+      if (lt < 2) {
+        var us = 0.3 + 0.7 * un;
+        ctf = Math.abs(us - 1) > 0.0005 ? "scale(" + (us * (1 + 0.04 * M.wobble(lt, 0.95, 3, 5, 1))).toFixed(4) + "," + (us * (1 - 0.04 * M.wobble(lt, 0.95, 3, 5, 1))).toFixed(4) + ")" : "";
+      } else if (lt > 7.42) {
+        var cx1 = M.inCubic(M.prog(lt, 7.42, 7.6)), cy1 = M.inCubic(M.prog(lt, 7.46, 7.62));
+        ctf = "rotate(" + (-5 * cx1).toFixed(3) + "deg) scale(" + (1 - 0.72 * cx1).toFixed(4) + "," + (1 - 0.8 * cy1).toFixed(4) + ")";
+      }
+      vis(cmp, co, ctf);
+      if (co > 0) {
+        parts.forEach(function (p, i) {
+          var a = M.prog(lt, 0.96 + 0.05 * i, 1.22 + 0.05 * i);
+          p.style.opacity = a >= 1 ? "" : String(M.smooth(a));
+          p.style.transform = a >= 1 ? "" : "translateY(" + (10 * (1 - M.outCubic(a))).toFixed(2) + "px)";
+        });
+        /* 纯文本 | Markdown */
+        var sk = M.spring(lt, 1.3, 2.6, 0.45);
+        var mid = Math.sin(Math.PI * M.clamp(M.prog(lt, 1.3, 1.5), 0, 1));
+        thumb.style.left = (4 + 100 * sk).toFixed(2) + "px";
+        thumb.style.width = (100 + 24 * M.clamp(sk, 0, 1.2) + 28 * mid).toFixed(2) + "px";
+        sa.style.color = lt < 1.38 ? "#fff" : "";
+        sb.style.color = lt >= 1.38 ? "#fff" : "";
+
+        /* typed Markdown source, then the marks melt */
+        var sl = X.slide(lt);
+        var bw = M.clamp(M.spring(lt, X.BOLD, 2.2, 0.55), 0, 1.3);
+        var cross = M.smooth(M.prog(lt, X.BOLD + 0.05, X.BOLD + 0.22));
+        var last = -1;
+        for (var i = 0; i < X.G.length; i++) {
+          var G = X.G[i], el = gEl[i];
+          var to = M.smooth(M.prog(lt, G.t, G.t + 0.05));
+          if (to > 0) last = i;
+          var T = X.MELT[i];
+          if (T != null) {
+            var mo = 1 - M.smooth(M.prog(lt, T + 0.02, T + 0.1));
+            vis(el, to * mo, to < 1 ? "translateY(" + (4 * (1 - to)).toFixed(2) + "px)" : "");
+            continue;
+          }
+          var dx = dSpan[i] ? (dstX(i) - G.x) * sl : 0;
+          var tf = "translate(" + dx.toFixed(2) + "px," + (4 * (1 - to)).toFixed(2) + "px)";
+          if (G.bold && G.ascii) {
+            vis(el, to * (1 - cross), tf);
+            vis(aEl[i], cross, tf);
+          } else {
+            vis(el, to, tf);
+            if (G.bold) {
+              el.style.fontWeight = String(Math.round(500 + 260 * bw));
+              el.style.color = bw > 0.01 ? "#fff" : "";
+            }
+          }
+        }
+        [3, 4].forEach(function (li) {
+          var b = $("s5-bul" + li), bt = X.BULLET(li);
+          var bs = pop(lt, bt, 3, 0.35);
+          vis(b, M.smooth(M.prog(lt, bt, bt + 0.06)), "scale(" + Math.max(bs, 0).toFixed(4) + ")");
+        });
+        var l5last = -1;
+        for (var k = 0; k < l5.length; k++) {
+          var t5 = M.smooth(M.prog(lt, X.L5T[k], X.L5T[k] + 0.05));
+          if (t5 > 0) l5last = k;
+          vis(l5[k], t5, t5 < 1 ? "translateY(" + (4 * (1 - t5)).toFixed(2) + "px)" : "");
+        }
+
+        /* caret */
+        var cx = -1, cy = 0, key = 0;
+        if (lt >= 1.3 && lt < 3.08) {
+          if (last < 0) { cx = X.LX; cy = 0; key = 1.3; }
+          else { var LG = X.G[last]; cx = LG.x + LG.adv; cy = LG.line; key = LG.t; }
+        } else if (lt >= 3.9 && lt < 7.4) {
+          if (l5last < 0) { var e4 = X.G[X.G.length - 1]; cx = dstX(X.G.length - 1) + e4.adv; cy = 4; key = 3.9; }
+          else { cx = X.LX + X.FS * (l5last + 1); cy = 5; key = X.L5T[l5last]; }
+        }
+        if (cx >= 0) {
+          var since = lt - key;
+          var on = since < 0.45 || Math.floor((since - 0.45) / 0.5) % 2 === 1;
+          vis(caret, on ? 1 : 0, "translate(" + (cx + 1).toFixed(2) + "px," + (12 + X.LH * cy + 5) + "px)");
+        } else vis(caret, 0);
+
+        /* Markdown sends plain text + HTML */
+        var hp = pop(lt, 3.86, 2.6, 0.45);
+        vis(hint, M.smooth(M.prog(lt, 3.86, 3.96)), "scale(" + Math.max(hp, 0).toFixed(4) + ")");
+
+        /* auto-save: a quiet ring for the pause, then the chip */
+        var l5end = X.L5T[X.L5T.length - 1] + 0.05;
+        var rp = M.prog(lt, l5end, X.SAVE);
+        vis(ring, lt > l5end && lt < X.SAVE + 0.05 ? M.smooth(M.prog(lt, l5end, l5end + 0.15)) : 0);
+        ringv.setAttribute("stroke-dashoffset", (53.4 * (1 - rp)).toFixed(2));
+        var chs = pop(lt, X.SAVE, 2.8, 0.38);
+        vis(chip, M.smooth(M.prog(lt, X.SAVE, X.SAVE + 0.06)), "scale(" + Math.max(chs, 0).toFixed(4) + ")");
+
+        /* 发送 is pressed */
+        var sw = M.wobble(lt, X.SENDT, 4, 7, 1) + (lt < 2 ? M.wobble(lt, 1.28, 4, 7, 1) * 0.6 : 0);
+        send.style.transform = Math.abs(sw) > 0.002 ? "scale(" + (1 + 0.08 * sw).toFixed(4) + "," + (1 - 0.16 * sw).toFixed(4) + ")" : "";
+      }
+
+      /* sidebar badges */
+      var dIn = X.SAVE + 0.66, dOut = 8.02;
+      dN.textContent = lt >= dIn && lt < dOut ? "3" : "2";
+      var dp = lt >= dOut ? M.wobble(lt, dOut, 4, 6, 1) : M.wobble(lt, dIn, 4, 6, 1);
+      dN.style.transform = Math.abs(dp) > 0.002 && lt < 9 ? "scale(" + (1 + 0.35 * dp).toFixed(4) + ")" : "";
+      var oOn = lt >= dOut && lt < 8.7;
+      oN.style.display = oOn ? "" : "none";
+      if (oOn) {
+        var os = M.spring(lt, dOut, 3, 0.4) * (1 - M.inCubic(M.prog(lt, 8.6, 8.7)));
+        oN.style.transform = "scale(" + Math.max(os, 0).toFixed(4) + ")";
+      } else oN.style.transform = "";
+
+      /* connection indicator beside the sync icon */
+      var no = M.smooth(M.prog(lt, 6.7, 6.95)) * (1 - M.smooth(M.prog(lt, 9.4, 9.7)));
+      if (no > 0.001 && g) {
+        var off = M.smooth(M.prog(lt, X.OFF, X.OFF + 0.14)) * (1 - M.smooth(M.prog(lt, X.BACK, X.BACK + 0.12)));
+        var back = M.smooth(M.prog(lt, X.BACK + 0.04, X.BACK + 0.18)) * (1 - M.smooth(M.prog(lt, 9.15, 9.35)));
+        var width = 34 + 50 * M.clamp(M.spring(lt, X.OFF, 2.6, 0.5), 0, 1.2) * (1 - M.smooth(M.prog(lt, X.BACK, X.BACK + 0.1))) + 66 * back;
+        var nw = M.wobble(lt, X.OFF, 5, 6, 1) + M.wobble(lt, X.BACK, 5, 6, 1);
+        net.style.width = width.toFixed(2) + "px";
+        net.style.left = (g.sync.x - 14 - width).toFixed(2) + "px";
+        net.style.background = off > 0.01 ? "rgba(255, 95, 168, " + (0.1 + 0.18 * off).toFixed(3) + ")" : back > 0.01 ? "rgba(61, 220, 132, " + (0.1 + 0.16 * back).toFixed(3) + ")" : "";
+        wifi.style.opacity = String(1 - off);
+        wifi.style.color = back > 0.01 ? "#7cf0b0" : "#bfe4ff";
+        cloud.style.opacity = String(off);
+        offT.style.opacity = String(off);
+        onT.style.opacity = String(back);
+        vis(net, no, Math.abs(nw) > 0.002 ? "rotate(" + (6 * nw).toFixed(3) + "deg) scale(" + (1 + 0.06 * nw).toFixed(4) + ")" : "");
+      } else vis(net, 0);
+
+      /* the waiting drop wears its queue state */
+      var qo = g ? M.smooth(M.prog(lt, 8.08, 8.18)) * (1 - M.smooth(M.prog(lt, X.BACK, X.BACK + 0.08))) : 0;
+      if (qo > 0.001) {
+        var R = X.rest(g);
+        vis($("s5-queue"), qo, "translate(" + (R[0] - 44).toFixed(2) + "px," + (R[1] - 66 - 0.4 * X.waitY(lt)).toFixed(2) + "px) scale(" + (0.85 + 0.15 * M.clamp(M.spring(lt, 8.08, 3, 0.4), 0, 1.2)).toFixed(4) + ")");
+      } else vis($("s5-queue"), 0);
+
+      /* the next sync spins */
+      var sp = M.prog(lt, X.BACK + 0.02, 9.1);
+      w.sync.style.transform = sp > 0 && sp < 1 ? "rotate(" + (360 * M.inOutCubic(sp)).toFixed(2) + "deg)" : "";
+
+      /* 已发送 */
+      var ts = M.spring(lt, X.TOAST, 2.6, 0.45);
+      var tOut = M.smooth(M.prog(lt, 9.42, 9.7));
+      var to2 = M.smooth(M.prog(lt, X.TOAST, X.TOAST + 0.1)) * (1 - tOut);
+      if (to2 > 0.001) {
+        toast.style.left = (960 - toast.offsetWidth / 2).toFixed(2) + "px";
+        vis(toast, to2, "translateY(" + (24 * (1 - M.clamp(ts, 0, 1.2)) + 10 * tOut).toFixed(2) + "px) scale(" + (0.9 + 0.1 * ts).toFixed(4) + ")");
+      } else vis(toast, 0);
+    }
+
+    var st = { v: 0 };
+    tl.to(st, { v: 10, duration: 10, ease: "none", onUpdate: function () { apply(st.v); } }, 0);
+    apply(0);
+  } finally {
+    window.__timelines["s5"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

@@ -1,0 +1,22 @@
+[
+  {"t": 11.6, "sfx": "bloop", "gain": 0.45},
+  {"t": 11.82, "sfx": "stretch", "gain": 0.4},
+  {"t": 12.0, "sfx": "splash", "gain": 0.9},
+  {"t": 12.02, "sfx": "boing", "gain": 0.55},
+  {"t": 12.12, "sfx": "whoosh", "gain": 0.45},
+  {"t": 12.3, "sfx": "pop", "gain": 0.7},
+  {"t": 12.5, "sfx": "thud", "gain": 0.6},
+  {"t": 12.82, "sfx": "drip", "gain": 0.4},
+  {"t": 12.98, "sfx": "tick", "gain": 0.3},
+  {"t": 13.22, "sfx": "stretch", "gain": 0.5},
+  {"t": 13.62, "sfx": "merge", "gain": 0.7},
+  {"t": 13.88, "sfx": "swoosh-up", "gain": 0.5},
+  {"t": 14.42, "sfx": "snap", "gain": 0.7},
+  {"t": 14.5, "sfx": "whoosh", "gain": 0.6},
+  {"t": 15.0, "sfx": "glass", "gain": 0.6},
+  {"t": 15.35, "sfx": "shimmer", "gain": 0.45},
+  {"t": 15.7, "sfx": "tick", "gain": 0.3},
+  {"t": 16.2, "sfx": "pop", "gain": 0.5},
+  {"t": 16.55, "sfx": "tick", "gain": 0.3},
+  {"t": 16.8, "sfx": "drip", "gain": 0.35}
+]

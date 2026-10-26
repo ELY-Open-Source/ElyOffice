@@ -1,0 +1,7 @@
+node_modules/
+.hyperframes/
+.thumbnails/
+.waveform-cache/
+renders/
+assets/audio/*.wav
+assets/fonts/*.ttf

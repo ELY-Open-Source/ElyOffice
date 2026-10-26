@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+#s9-root { position: absolute; inset: 0; pointer-events: none; }
+#s9-root .s9-abs { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+.s9-icon { width: 136px; height: 136px; margin: -68px 0 0 -68px; filter: drop-shadow(0 14px 22px rgba(6, 3, 30, 0.55)); }
+.s9-icon img { width: 100%; height: 100%; display: block; }
+#s9-pills { left: 0; top: 784px; width: 1920px; height: 60px; display: flex; justify-content: center; gap: 20px; }
+#s9-pills .pill { position: relative; height: 62px; padding: 0 28px; font: 600 26px var(--sans); gap: 12px; will-change: transform, opacity; }
+#s9-pills .pill .ico { width: 24px; height: 24px; }
+#s9-pills .pill b { font-weight: 800; }
+#s9-pills .s9-sep { opacity: 0.55; font-weight: 500; }
+#s9-pills .pill.blue { padding-left: 24px; }
+#s9-face { width: 168px; height: 168px; margin: -84px 0 0 -84px; }
+.s9-eye { position: absolute; top: 58px; width: 28px; height: 36px; margin-left: -14px; border-radius: 50%; background: radial-gradient(60% 60% at 45% 35%, #ffffff, #e9f2ff); box-shadow: inset 0 -3px 5px rgba(20, 60, 140, 0.25), 0 2px 6px rgba(0, 30, 90, 0.35); will-change: transform; }
+.s9-eye i { position: absolute; left: 7px; top: 12px; width: 15px; height: 18px; border-radius: 50%; background: #13213f; }
+.s9-eye i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+.s9-cheek { position: absolute; top: 98px; width: 24px; height: 12px; margin-left: -12px; border-radius: 50%; background: rgba(255, 120, 190, 0.6); filter: blur(2px); }
+#s9-spark { width: 40px; height: 40px; margin: -20px 0 0 -20px; color: #fff; filter: drop-shadow(0 0 10px rgba(255, 230, 255, 0.95)); }
+#s9-spark svg { width: 100%; height: 100%; display: block; }
+</style>
+<div id="s9-root" data-composition-id="s9" data-width="1920" data-height="1080" data-duration="12">
+  <div id="s9-icons"></div>
+  <div id="s9-pills" class="s9-abs"></div>
+  <div id="s9-face" class="s9-abs">
+    <div class="s9-eye" style="left:56px"><i></i></div>
+    <div class="s9-eye" style="left:112px"><i></i></div>
+    <div class="s9-cheek" style="left:36px"></div>
+    <div class="s9-cheek" style="left:132px"></div>
+  </div>
+  <div id="s9-spark" class="s9-abs"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 0c.9 6.6 4.5 10.2 12 12-7.5 1.8-11.1 5.4-12 12-.9-6.6-4.5-10.2-12-12C7.5 10.2 11.1 6.6 12 0z"/></svg></div>
+</div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var root = document.getElementById("s9-root");
+    var APPS = ["doc", "table", "show", "mail", "pdf", "tree", "mark"];
+    var LINK = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></svg>';
+
+    function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+    function prog(t, a, b) { return clamp((t - a) / (b - a), 0, 1); }
+    function smooth(x) { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+    function backOut(x, s) { s = s == null ? 1.7 : s; x = clamp(x, 0, 1) - 1; return 1 + (s + 1) * x * x * x + s * x * x; }
+    function spring(t, t0, f, z) {
+      var x = t - t0; if (x <= 0) return 0;
+      var w = 2 * Math.PI * f, wd = w * Math.sqrt(1 - z * z);
+      return 1 - Math.exp(-z * w * x) * (Math.cos(wd * x) + (z * w / wd) * Math.sin(wd * x));
+    }
+
+    var iconBox = document.getElementById("s9-icons");
+    var icons = APPS.map(function (a) {
+      var el = document.createElement("div");
+      el.className = "s9-abs s9-icon";
+      el.innerHTML = '<img src="assets/icons/ely-' + a + '-macos.svg" alt="">';
+      iconBox.appendChild(el);
+      return el;
+    });
+    var pillBox = document.getElementById("s9-pills");
+    pillBox.innerHTML =
+      '<div class="pill">' + ElyKit.icon("sparkle") + '免费开源 <span class="s9-sep">·</span> <b>MIT</b></div>' +
+      '<div class="pill">' + ElyKit.icon("download") + 'macOS <span class="s9-sep">·</span> Windows <span class="s9-sep">·</span> Linux</div>' +
+      '<div class="pill blue">' + LINK + 'github.com/ELY-Open-Source/ElyOffice</div>';
+    var pills = pillBox.querySelectorAll(".pill");
+    var face = document.getElementById("s9-face");
+    var eyes = face.querySelectorAll(".s9-eye");
+    var cheeks = face.querySelectorAll(".s9-cheek");
+    var spark = document.getElementById("s9-spark");
+
+    function set(el, x, y, sx, sy, o, rot) {
+      el.style.transform = "translate(" + x.toFixed(2) + "px," + y.toFixed(2) + "px) rotate(" + (rot || 0).toFixed(2) + "deg) scale(" + sx.toFixed(4) + "," + sy.toFixed(4) + ")";
+      el.style.opacity = o.toFixed(3);
+    }
+
+    function apply(lt) {
+      root.style.opacity = (1 - smooth(prog(lt, 11.4, 12.0))).toFixed(3);
+      var S = window.__s9;
+      if (!S) return;
+      for (var i = 0; i < 7; i++) {
+        var t0 = S.iconT(i) - 0.03;
+        var p = spring(lt, t0, 2.6, 0.38);
+        var sq = 1 + 0.12 * Math.exp(-6 * Math.max(lt - t0, 0)) * Math.sin(2 * Math.PI * 3 * Math.max(lt - t0, 0));
+        set(icons[i], S.ix(i), S.IY + S.bob(i, lt), p * sq, p / sq, lt > t0 ? 1 : 0, 0);
+      }
+      for (var k = 0; k < pills.length; k++) {
+        var pt = 5.0 + k * 0.14, pp = spring(lt, pt, 2.4, 0.42);
+        pills[k].style.transform = "translateY(" + (26 * (1 - pp)).toFixed(2) + "px) scale(" + (0.7 + 0.3 * pp).toFixed(4) + ")";
+        pills[k].style.opacity = smooth(prog(lt, pt, pt + 0.2)).toFixed(3);
+        pills[k].style.filter = "blur(" + (8 * (1 - smooth(prog(lt, pt, pt + 0.3)))).toFixed(2) + "px)";
+      }
+      /* the last drop gets a face and winks */
+      if (lt < 10.5) {
+        face.style.opacity = "0";
+        spark.style.opacity = "0";
+        return;
+      }
+      var d = S.drop(lt), f = d.r / 84;
+      var eyeIn = backOut(prog(lt, 10.6, 10.84), 2.6);
+      set(face, d.x, d.y - d.r * 0.08 * d.sy, f * d.sx * eyeIn, f * d.sy * eyeIn, smooth(prog(lt, 10.6, 10.66)), 0);
+      var blink = 1 - 0.9 * Math.sin(Math.PI * prog(lt, 10.86, 10.96));
+      var wink = 1 - 0.92 * Math.sin(Math.PI * prog(lt, 11.0, 11.3));
+      eyes[0].style.transform = "scaleY(" + Math.max(blink, 0.06).toFixed(3) + ")";
+      eyes[1].style.transform = "scaleY(" + Math.max(blink * wink, 0.06).toFixed(3) + ")";
+      for (var c = 0; c < 2; c++) cheeks[c].style.opacity = smooth(prog(lt, 10.7, 10.9)).toFixed(3);
+      var sp = prog(lt, 11.02, 11.5);
+      var ss = sp < 0.35 ? backOut(sp / 0.35, 3) : 1 - smooth((sp - 0.35) / 0.65);
+      set(spark, d.x + d.r * 1.25, d.y - d.r * 1.15 - 10 * sp, ss * 0.8, ss * 0.8, sp > 0 && sp < 1 ? 1 : 0, sp * 120);
+    }
+
+    var proxy = { t: 0 };
+    tl.to(proxy, { t: 12, duration: 12, ease: "none", onUpdate: function () { apply(proxy.t); } }, 0);
+    apply(0);
+  } finally {
+    window.__timelines["s9"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

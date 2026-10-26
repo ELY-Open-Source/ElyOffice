@@ -1,0 +1,474 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+#s8-root { position: absolute; inset: 0; font-family: var(--sans); color: var(--ink); }
+#s8-root .s8-c { opacity: 0; }
+#s8-root .s8-a { position: absolute; }
+#s8-root .s8-hd { position: absolute; left: 32px; top: 28px; height: 56px; display: flex; align-items: center; gap: 16px; }
+#s8-root .s8-hd > img { width: 48px; height: 48px; flex: none; }
+#s8-root .s8-ci { width: 56px; height: 56px; flex: none; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #fff;
+  background: radial-gradient(120% 120% at 30% 10%, rgba(255,255,255,.45), rgba(255,255,255,0) 50%), var(--c);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -8px 14px rgba(0,0,0,.2), 0 8px 20px rgba(0,0,0,.25); }
+#s8-root .s8-ci .ico { width: 30px; height: 30px; stroke-width: 2.1; }
+#s8-root .s8-t { font: 800 32px var(--sans); letter-spacing: -0.015em; white-space: nowrap; line-height: 1.1; }
+#s8-root .s8-st { font: 500 19px var(--zh); color: var(--ink-2); white-space: nowrap; margin-top: 4px; }
+#s8-root .s8-tag { height: 34px; padding: 0 14px; border-radius: 999px; display: flex; align-items: center; font: 700 17px var(--zh); white-space: nowrap;
+  background: rgba(255,255,255,.13); border: 1px solid var(--line-2); }
+#s8-root .s8-ok { position: absolute; width: 56px; height: 56px; --c: var(--table); opacity: 0; }
+#s8-root .s8-ok .ico { width: 30px; height: 30px; stroke-width: 3; }
+#s8-root .s8-lbl { font: 600 19px var(--zh); color: var(--ink-2); white-space: nowrap; }
+
+/* V1 bento */
+#s8-kick-w { position: absolute; left: 0; right: 0; top: 144px; display: flex; justify-content: center; }
+#s8-kick { font: 700 21px var(--sans); letter-spacing: 0.02em; }
+#s8-kick .ico { color: #ffe08a; }
+#s8-root .s8-tile { width: 320px; height: 240px; }
+#s8-root .s8-tico { position: absolute; left: 28px; top: 28px; width: 80px; height: 80px; filter: drop-shadow(0 8px 16px rgba(0,0,0,.3)); }
+#s8-root .s8-tname { position: absolute; left: 32px; top: 128px; font: 800 34px var(--sans); letter-spacing: -0.02em; }
+#s8-root .s8-tsub { position: absolute; left: 32px; top: 178px; font: 600 21px var(--zh); color: rgba(255,255,255,.86); white-space: nowrap; }
+
+/* V2 platforms + updates */
+#s8-root .s8-row { position: absolute; left: 32px; right: 32px; height: 104px; border-radius: 20px; display: flex; align-items: center; gap: 18px; padding: 0 24px;
+  background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+#s8-root .s8-row .ico { width: 34px; height: 34px; color: var(--ink-2); }
+#s8-root .s8-row b { display: block; font: 800 30px var(--zh); white-space: nowrap; }
+#s8-root .s8-row small { display: block; font: 500 19px var(--mono); color: var(--ink-3); margin-top: 2px; }
+#s8-new { position: relative; height: 34px; padding: 0 14px; --c: var(--pink); font: 800 18px var(--zh); opacity: 0; }
+#s8-ban { position: absolute; left: 32px; right: 32px; top: 112px; height: 88px; border-radius: 20px; display: flex; align-items: center; gap: 14px; padding: 0 16px 0 22px;
+  background: linear-gradient(100deg, rgba(47,216,232,.28), rgba(30,143,224,.2)); border: 1px solid rgba(160,230,255,.45); box-shadow: inset 0 1px 0 rgba(255,255,255,.35); }
+#s8-ban .ico { width: 30px; height: 30px; color: #bff6ff; }
+#s8-ban span { font: 700 25px var(--zh); white-space: nowrap; }
+#s8-rst { margin-left: auto; height: 52px; font-size: 20px; padding: 0 22px; font-family: var(--zh); font-weight: 700; }
+#s8-root .s8-bar { position: absolute; left: 32px; right: 32px; height: 56px; }
+#s8-root .s8-bar b { position: absolute; left: 0; top: 12px; font: 700 25px var(--sans); }
+#s8-root .s8-trk { position: absolute; left: 160px; top: 10px; width: 400px; height: 36px; border-radius: 18px; background: rgba(4,2,24,.35); border: 1px solid var(--line);
+  box-shadow: inset 0 3px 8px rgba(0,0,0,.35); }
+#s8-root .s8-pct { position: absolute; right: 0; top: 12px; width: 120px; text-align: right; font: 700 25px var(--mono); }
+#s8-steps { position: absolute; left: 32px; top: 400px; display: flex; gap: 12px; }
+#s8-root .s8-step { height: 52px; padding: 0 20px 0 10px; border-radius: 999px; display: flex; align-items: center; gap: 10px; font: 700 20px var(--zh); color: var(--ink-2);
+  background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+#s8-root .s8-step i { position: relative; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.14); font: 800 17px var(--sans); font-style: normal;
+  display: flex; align-items: center; justify-content: center; color: var(--ink); }
+#s8-root .s8-step i .ico { position: absolute; width: 20px; height: 20px; stroke-width: 3; opacity: 0; }
+#s8-root .s8-step .s8-dn { position: absolute; inset: 0; border-radius: 50%; background: var(--table); opacity: 0; }
+#s8-pkg-w { position: absolute; left: 0; right: 0; top: 734px; display: flex; justify-content: center; }
+#s8-pkg { font-family: var(--zh); }
+#s8-pkg code { font: 600 19px var(--mono); color: #bff6ff; }
+
+/* V3 nix + installer */
+#s8-term .s8-dots { position: absolute; left: 24px; top: 22px; display: flex; gap: 9px; }
+#s8-term .s8-dots i { width: 13px; height: 13px; border-radius: 50%; background: #ff6b6b; }
+#s8-term .s8-dots i:nth-child(2) { background: #ffc44d; } #s8-term .s8-dots i:nth-child(3) { background: #3ddc84; }
+#s8-term .s8-ttl { position: absolute; left: 0; right: 0; top: 17px; text-align: center; font: 600 18px var(--mono); color: var(--ink-3); }
+#s8-term .s8-rule { position: absolute; left: 0; right: 0; top: 56px; height: 1px; background: var(--line); }
+#s8-cmd { position: absolute; left: 32px; top: 84px; height: 40px; line-height: 40px; font: 500 23px var(--mono); white-space: pre; }
+#s8-cmd .s8-pr { color: var(--lime); }
+#s8-root .s8-caret { display: inline-block; width: 12px; height: 28px; vertical-align: -6px; background: var(--ink); border-radius: 2px; margin-left: 1px; }
+#s8-outl { position: absolute; left: 32px; top: 132px; font: 500 21px var(--mono); color: var(--ink-2); opacity: 0; }
+#s8-outl b { color: var(--mail-hi); font-weight: 700; }
+#s8-pkgl { position: absolute; left: 32px; top: 192px; font: 600 20px var(--zh); color: var(--ink-3); }
+#s8-root .s8-pk { position: absolute; width: 176px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  font: 600 20px var(--mono); color: var(--ink-2); background: rgba(255,255,255,.07); border: 1px solid var(--line); }
+#s8-pk-mail { color: #fff; }
+#s8-pk-mail .s8-glow { position: absolute; inset: -1px; border-radius: 14px; opacity: 0;
+  background: linear-gradient(170deg, #5fb8ff, #1e8fe0 60%, #1673c4); box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 10px 28px rgba(30,143,224,.55); }
+#s8-pk-mail span { position: relative; }
+#s8-inst .s8-fl { position: absolute; left: 32px; right: 32px; top: 152px; height: 60px; border-radius: 16px; display: flex; align-items: center; gap: 12px; padding: 0 16px; overflow: hidden;
+  background: rgba(4,2,24,.3); border: 1px solid var(--line-2); }
+#s8-inst .s8-fl .ico { width: 24px; height: 24px; color: var(--peach); }
+#s8-inst .s8-path span { position: absolute; left: 52px; top: 0; line-height: 58px; font: 600 20px var(--mono); white-space: nowrap; }
+#s8-brw { position: absolute; left: 32px; top: 236px; height: 52px; width: 132px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font: 700 20px var(--zh);
+  background: rgba(255,255,255,.14); border: 1px solid var(--line-2); box-shadow: inset 0 1px 0 rgba(255,255,255,.35); }
+#s8-ins { position: absolute; right: 32px; top: 236px; height: 52px; font: 700 20px var(--zh); }
+#s8-inote { position: absolute; left: 32px; top: 314px; font: 500 18px var(--zh); color: var(--ink-3); white-space: nowrap; }
+
+/* V4 ElyTable */
+#s8-sheet .s8-tb { position: absolute; left: 24px; top: 22px; display: flex; align-items: center; gap: 14px; }
+#s8-sheet .s8-tb img { width: 44px; height: 44px; }
+#s8-sheet .s8-tb small { font: 500 18px var(--mono); color: var(--ink-3); margin-left: 4px; }
+#s8-root .s8-ub { position: absolute; top: 26px; width: 56px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.1); border: 1px solid var(--line-2); }
+#s8-root .s8-ub .ico { width: 26px; height: 26px; stroke-width: 2.3; }
+#s8-grid { position: absolute; left: 24px; top: 100px; display: grid; --a: 200px; grid-template-columns: 56px var(--a) 180px 140px 160px; grid-template-rows: 44px repeat(5, 64px);
+  border-radius: 12px; overflow: hidden; background: rgba(4,2,24,.22); border: 1px solid var(--line); }
+#s8-grid > div { position: relative; display: flex; align-items: center; padding: 0 16px; font: 500 22px var(--zh); white-space: nowrap; overflow: hidden;
+  border-right: 1px solid rgba(255,255,255,.1); border-bottom: 1px solid rgba(255,255,255,.1); }
+#s8-grid > .h { justify-content: center; padding: 0; font: 700 17px var(--sans); color: var(--ink-3); background: rgba(255,255,255,.06); }
+#s8-grid > .b { font-weight: 800; color: var(--ink-2); font-size: 20px; }
+#s8-grid > .n { font-family: var(--mono); font-size: 22px; }
+#s8-b3s { position: absolute; inset: 2px; border-radius: 4px; box-shadow: inset 0 0 0 2.5px var(--lime), 0 0 18px rgba(184,243,90,.35); opacity: 0; }
+#s8-guide { position: absolute; top: 100px; height: 364px; width: 0; border-left: 3px dashed var(--lime); opacity: 0; filter: drop-shadow(0 0 6px rgba(184,243,90,.8)); }
+#s8-cur { position: absolute; top: 102px; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: 0;
+  background: rgba(255,255,255,.92); box-shadow: 0 6px 16px rgba(0,0,0,.4); color: #1b1d2a; font: 800 22px var(--sans); }
+#s8-dbl { position: absolute; top: 102px; width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--lime); opacity: 0; }
+#s8-panel .s8-pt { position: absolute; left: 28px; top: 26px; font: 800 30px var(--zh); }
+#s8-panel .s8-lbl { position: absolute; left: 28px; }
+#s8-root .s8-sw { position: absolute; top: 120px; width: 44px; height: 44px; border-radius: 13px; box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -6px 10px rgba(0,0,0,.18); }
+#s8-sel { position: absolute; left: 28px; right: 28px; top: 222px; height: 56px; border-radius: 14px; display: flex; align-items: center; gap: 12px; padding: 0 16px;
+  background: rgba(184,243,90,.16); border: 1px solid rgba(184,243,90,.6); font: 800 24px var(--zh); }
+#s8-sel code { font: 600 18px var(--mono); color: var(--ink-3); }
+#s8-sel .ico { margin-left: auto; width: 20px; height: 20px; transform: rotate(90deg); }
+#s8-pnote { position: absolute; left: 28px; top: 290px; font: 500 18px var(--zh); color: var(--ink-3); white-space: nowrap; }
+#s8-pnote code { font: 700 19px var(--mono); color: var(--lime); }
+#s8-root .s8-mi { position: absolute; left: 16px; right: 16px; height: 44px; border-radius: 12px; display: flex; align-items: center; gap: 12px; padding: 0 12px; font: 600 20px var(--zh); }
+#s8-root .s8-mi .ico { width: 22px; height: 22px; }
+#s8-root .s8-mi .s8-hl { position: absolute; inset: 0; border-radius: 12px; background: rgba(46,158,91,.55); opacity: 0; }
+#s8-root .s8-mi span, #s8-root .s8-mi svg { position: relative; }
+
+/* V5 ElyDoc scroll + ElyMark line numbers */
+#s8-vp { position: absolute; left: 32px; top: 96px; width: 540px; height: 392px; border-radius: 14px; overflow: hidden; background: #e9ebf3; }
+#s8-pg { position: absolute; left: 0; top: 0; width: 540px; }
+#s8-pg .s8-page { margin: 0 0 16px; background: #fbfbfe; padding: 32px 44px; height: 432px; overflow: hidden; }
+#s8-pg h3 { font: 800 27px var(--zh); color: #1b1d2a; margin-bottom: 14px; }
+#s8-pg p { font: 400 18px/1.75 var(--zh); color: #4a4f63; margin-bottom: 12px; }
+#s8-pg .s8-pn { font: 600 14px var(--sans); color: #9aa0b4; text-align: center; margin-top: 8px; }
+#s8-rail { position: absolute; left: 588px; top: 96px; width: 20px; height: 392px; border-radius: 10px; background: rgba(255,255,255,.1); border: 1px solid var(--line); }
+#s8-sl { position: absolute; left: 488px; top: 36px; }
+#s8-swt { position: absolute; left: 544px; top: 30px; width: 64px; height: 36px; border-radius: 18px; background: rgba(255,255,255,.16); border: 1px solid var(--line-2); }
+#s8-code { position: absolute; left: 32px; top: 96px; width: 576px; height: 392px; border-radius: 14px; overflow: hidden; background: rgba(6,4,26,.55); border: 1px solid var(--line); }
+#s8-gut { position: absolute; left: 0; top: 12px; width: 52px; text-align: right; font: 500 21px/31px var(--mono); color: var(--ink-3); }
+#s8-gut div { opacity: 0; }
+#s8-gutl { position: absolute; left: 62px; top: 0; bottom: 0; width: 1px; background: var(--line); opacity: 0; }
+#s8-src { position: absolute; left: 22px; top: 12px; font: 500 21px/31px var(--mono); color: var(--ink); white-space: pre; }
+#s8-src .m { color: var(--mark); } #s8-src .q { color: var(--violet); } #s8-src .c { color: var(--cyan); } #s8-src .d { color: var(--ink-3); }
+
+/* V6 fonts, PDF, fixes */
+#s8-dd { position: absolute; left: 32px; top: 100px; width: 300px; height: 56px; border-radius: 14px; display: flex; align-items: center; gap: 12px; padding: 0 18px;
+  background: rgba(255,255,255,.12); border: 1px solid var(--line-2); font: 700 23px var(--zh); }
+#s8-dd .s8-ddv { position: relative; flex: 1; height: 56px; overflow: hidden; }
+#s8-dd .s8-ddv span { position: absolute; left: 0; top: 0; line-height: 56px; white-space: nowrap; }
+#s8-dd .ico { width: 20px; height: 20px; transform: rotate(90deg); }
+#s8-menu { position: absolute; left: 32px; top: 162px; width: 300px; padding: 8px; border-radius: 16px; z-index: 3; opacity: 0; transform-origin: 50% 0;
+  background: linear-gradient(160deg, rgba(60,50,120,.94), rgba(26,20,64,.94)); border: 1px solid var(--line-2); box-shadow: 0 20px 40px rgba(0,0,0,.45); }
+#s8-menu div { position: relative; height: 48px; border-radius: 10px; display: flex; align-items: center; padding: 0 14px; font-size: 22px; }
+#s8-mhl { position: absolute; left: 8px; right: 8px; top: 8px; height: 48px; border-radius: 10px; background: rgba(61,127,229,.7); }
+#s8-smp { position: absolute; left: 32px; right: 32px; top: 176px; height: 120px; }
+#s8-smp div { position: absolute; left: 0; top: 0; line-height: 120px; font-size: 76px; white-space: nowrap; }
+#s8-smp .s8-old { font-family: "SimSun", "Songti SC", "Times New Roman", serif; font-weight: 400; }
+#s8-smp .s8-new { font-family: "Inter", "Noto Sans SC", sans-serif; font-weight: 800; letter-spacing: -0.02em; opacity: 0; }
+#s8-fch { position: absolute; left: 32px; top: 316px; display: flex; gap: 12px; }
+#s8-fch .pill { height: 40px; font: 700 18px var(--zh); padding: 0 16px; opacity: 0; }
+#s8-fch .ico { width: 18px; height: 18px; stroke-width: 3; color: var(--lime); }
+#s8-paper { position: absolute; left: 32px; top: 92px; width: 616px; height: 276px; border-radius: 12px; background: #fbfbfe; overflow: hidden; color: #1b1d2a;
+  box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+#s8-paper .s8-inv { position: absolute; left: 32px; top: 26px; font: 600 18px var(--sans); color: #6b7080; }
+#s8-amt { position: absolute; left: 32px; top: 56px; height: 56px; font: 800 40px var(--zh); line-height: 56px; white-space: nowrap; display: flex; }
+#s8-dg { position: relative; display: inline-block; width: 25px; height: 56px; overflow: hidden; }
+#s8-dg span { position: absolute; left: 0; top: 0; width: 25px; text-align: center; font-family: var(--sans); }
+#s8-dg .s8-d8 { color: #E0344F; }
+#s8-pcar { position: absolute; left: 178px; top: 66px; width: 3px; height: 38px; background: #E0344F; opacity: 0; }
+#s8-root .s8-nb { position: absolute; left: 372px; top: 26px; }
+#s8-root .s8-nb small { display: block; font: 600 16px var(--zh); color: #8a8f9e; }
+#s8-root .s8-nb b { display: block; font: 800 28px var(--zh); color: #2E9E5B; margin-top: 4px; }
+#s8-root .s8-nb code { display: block; font: 500 18px var(--mono); color: #6b7080; margin-top: 4px; }
+#s8-ghost { opacity: 0; }
+#s8-ghost small, #s8-ghost b, #s8-ghost code { color: #E0344F !important; }
+#s8-gstrike { position: absolute; left: -6px; right: -10px; top: 56px; height: 4px; border-radius: 2px; background: #E0344F; transform-origin: 0 50%; transform: scaleX(0); }
+#s8-gtag { position: absolute; left: 252px; top: 150px; height: 32px; padding: 0 12px; border-radius: 999px; display: flex; align-items: center; font: 700 16px var(--zh);
+  color: #fff; background: #E0344F; opacity: 0; }
+#s8-keep { position: absolute; left: 32px; top: 206px; height: 44px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; gap: 10px;
+  font: 700 20px var(--zh); color: #1f7a45; background: rgba(46,158,91,.14); border: 1px solid rgba(46,158,91,.4); opacity: 0; }
+#s8-keep .ico { width: 20px; height: 20px; stroke-width: 3; }
+#s8-root .s8-fix { position: absolute; top: 24px; }
+#s8-root .s8-fix b { display: block; font: 800 26px var(--zh); white-space: nowrap; }
+#s8-root .s8-fix small { display: block; font: 600 18px var(--sans); color: var(--ink-3); margin-top: 2px; white-space: nowrap; }
+</style>
+<div id="s8-root" data-composition-id="s8" data-width="1920" data-height="1080" data-duration="18"></div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    build(tl);
+  } finally {
+    window.__timelines = window.__timelines || {};
+    window.__timelines["s8"] = tl;
+  }
+
+  function build(tl) {
+    var root = document.getElementById("s8-root");
+    var I = ElyKit.icon;
+    function card(id, l, t, w, h, inner, cls) {
+      return '<div class="glass s8-c ' + (cls || "") + '" id="' + id + '" style="left:' + l + "px;top:" + t + "px;width:" + w + "px;height:" + h + 'px">' + inner + "</div>";
+    }
+    function hd(icon, title, sub, tag) {
+      return '<div class="s8-hd">' + icon + "<div><div class=\"s8-t\">" + title + "</div>" + (sub ? '<div class="s8-st">' + sub + "</div>" : "") + "</div>" + (tag ? '<div class="s8-tag">' + tag + "</div>" : "") + "</div>";
+    }
+    function ci(c, name) { return '<div class="s8-ci" style="--c:' + c + '">' + I(name) + "</div>"; }
+    function img(app) { return '<img src="assets/icons/ely-' + app + '.svg" alt=""/>'; }
+    function ok(id, l, t) { return '<div class="candy s8-ok" id="' + id + '" style="left:' + l + "px;top:" + t + 'px">' + I("check") + "</div>"; }
+
+    /* ---- V1 bento ---- */
+    var TILES = [
+      ["doc", "ElyDoc", "滚动条 · 中英字体同步", 456, 236],
+      ["table", "ElyTable", "文字颜色 · 撤销重做", 800, 236],
+      ["show", "ElyShow", "撤销 · 重做进了菜单", 1144, 236],
+      ["pdf", "ElyPDF", "改一个字，旁边不动", 456, 500],
+      ["tree", "ElyTree", "Intel 版 · Nix flake", 800, 500],
+      ["mark", "ElyMark", "源码行号 · 滚动条", 1144, 500],
+    ];
+    var h = '<div id="s8-kick-w"><div class="pill s8-c" id="s8-kick">' + I("sparkle") + "Ely Office 0.1.10 · 全家都升级了</div></div>";
+    TILES.forEach(function (T, i) {
+      h += card("s8-tile" + i, T[3], T[4], 320, 240,
+        '<img class="s8-tico" src="assets/icons/ely-' + T[0] + '-macos.svg" alt=""/><div class="s8-tname">' + T[1] + '</div><div class="s8-tsub">' + T[2] + "</div>", "s8-tile");
+    });
+
+    /* ---- V2 macOS + in-app updates ---- */
+    h += card("s8-mac", 300, 250, 520, 420,
+      hd(ci("var(--violet)", "chip"), "macOS", "原生构建 · 两种芯片") +
+      '<div class="s8-row" id="s8-r1" style="top:152px">' + I("chip") + "<div><b>Apple 芯片</b><small>arm64</small></div></div>" +
+      '<div class="s8-row" id="s8-r2" style="top:272px">' + I("chip") + '<div><b>Intel</b><small>x86_64</small></div><div class="candy" id="s8-new">新</div></div>' +
+      ok("s8-ok1", 408, 176) + ok("s8-ok2", 408, 296));
+    h += card("s8-upd", 868, 210, 752, 500,
+      hd(ci("var(--cyan)", "download"), "应用内更新", "Windows · Linux") +
+      '<div id="s8-ban">' + I("sparkle") + '<span>ElyOffice 0.1.10 已就绪</span><div class="pill blue" id="s8-rst">' + I("sync") + "重新启动以更新</div></div>" +
+      '<div class="s8-bar" style="top:236px"><b>Windows</b><div class="s8-trk"></div><div class="s8-pct" id="s8-pw">0%</div></div>' +
+      '<div class="s8-bar" style="top:312px"><b>Linux</b><div class="s8-trk"></div><div class="s8-pct" id="s8-pl">0%</div></div>' +
+      '<div id="s8-steps">' +
+      ["下载", "校验", "重新启动"].map(function (s, i) {
+        return '<div class="s8-step" id="s8-step' + i + '"><i><span class="s8-dn"></span><span class="s8-num" style="position:relative">' + (i + 1) + "</span>" + I("check") + "</i>" + s + "</div>";
+      }).join("") + "</div>");
+    h += '<div id="s8-pkg-w"><div class="pill s8-c" id="s8-pkg">' + I("terminal") + "deb · rpm · Arch 包：改为给出升级命令 <code>sudo apt install …</code></div></div>";
+
+    /* ---- V3 Nix flake + Windows install location ---- */
+    var PK = ["ely-doc", "ely-table", "ely-show", "ely-pdf", "ely-mail", "ely-tree", "ely-mark"];
+    h += card("s8-term", 280, 240, 820, 400,
+      '<div class="s8-dots"><i></i><i></i><i></i></div><div class="s8-ttl">zsh — nix</div><div class="s8-rule"></div>' +
+      '<div id="s8-cmd"><span class="s8-pr">$ </span><span id="s8-typ"></span><span class="s8-caret" id="s8-car"></span></div>' +
+      '<div id="s8-outl">▸ 正在启动 <b>ElyMail</b></div>' +
+      '<div id="s8-pkgl">flake 的包，以应用命名</div>' +
+      PK.map(function (p, i) {
+        var l = 32 + (i < 4 ? i : i - 4) * 192, t = i < 4 ? 236 : 300;
+        return '<div class="s8-pk" id="s8-pk-' + p.slice(4) + '" style="left:' + l + "px;top:" + t + 'px">' + (p === "ely-mail" ? '<div class="s8-glow"></div><span>' + p + "</span>" : p) + "</div>";
+      }).join(""), "solid");
+    h += card("s8-inst", 1140, 270, 500, 380,
+      hd(ci("var(--peach)", "folder"), "Ely Office 安装", "Windows 合集安装程序") +
+      '<div class="s8-lbl s8-a" style="left:32px;top:116px">安装位置</div>' +
+      '<div class="s8-fl">' + I("folder") + '<span class="s8-path"><span id="s8-p0">C:\\Program Files\\Ely Office</span><span id="s8-p1" style="opacity:0">D:\\Apps\\Ely Office</span></span></div>' +
+      '<div id="s8-brw">浏览…</div><div class="pill blue" id="s8-ins">' + I("download") + "安装</div>" +
+      '<div id="s8-inote">新装的应用放在这里，已装的原处升级</div>');
+
+    /* ---- V4 ElyTable ---- */
+    var G = '<div class="h"></div><div class="h">A</div><div class="h">B</div><div class="h">C</div><div class="h">D</div>' +
+      '<div class="h">1</div><div class="b">客户</div><div class="b">编号</div><div class="b">数量</div><div class="b">状态</div>' +
+      '<div class="h">2</div><div>Kettle &amp; Co. 订单 #48213</div><div class="n">00017</div><div class="n">3</div><div id="s8-d2">已发货</div>' +
+      '<div class="h">3</div><div>林晓</div><div class="n"><span id="s8-b3s"></span><span id="s8-b3"></span><span class="s8-caret" id="s8-b3c" style="height:24px;width:3px;opacity:0"></span></div><div class="n">12</div><div>待付款</div>' +
+      '<div class="h">4</div><div>陈默</div><div class="n">00108</div><div class="n">5</div><div>已发货</div>' +
+      '<div class="h">5</div><div>周雨桐</div><div class="n">00009</div><div class="n">8</div><div>已签收</div>';
+    h += card("s8-sheet", 300, 200, 960, 492,
+      '<div class="s8-tb">' + img("table") + '<span class="s8-t" style="font-size:28px">ElyTable</span><small>订单.xlsx</small></div>' +
+      '<div class="s8-ub" id="s8-undo" style="left:816px">' + I("undo") + '</div><div class="s8-ub" id="s8-redo" style="left:880px">' + I("redo") + "</div>" +
+      '<div id="s8-grid">' + G + '</div><div id="s8-guide"></div><div id="s8-dbl"></div><div id="s8-cur">↔</div>');
+    var SW = ["#F4F6FF", "#FF5FA8", "#2FD8E8", "#B8F35A", "#FFB46B"];
+    h += card("s8-panel", 1288, 200, 332, 492,
+      '<div class="s8-pt">格式</div><div class="s8-lbl" style="top:86px">文字颜色</div>' +
+      SW.map(function (c, i) { return '<div class="s8-sw" id="s8-sw' + i + '" style="left:' + (28 + i * 56) + "px;background:" + c + '"></div>'; }).join("") +
+      '<div class="s8-lbl" style="top:188px">数字格式</div><div id="s8-sel">文本<code>@</code>' + I("chevron") + "</div>" +
+      '<div id="s8-pnote"><code>00042</code> 前导零照键入保留</div>' +
+      '<div class="s8-lbl" style="top:338px">编辑</div>' +
+      '<div class="s8-mi" id="s8-mu" style="top:372px"><span class="s8-hl"></span>' + I("undo") + "<span>撤销</span></div>" +
+      '<div class="s8-mi" id="s8-mr" style="top:420px"><span class="s8-hl"></span>' + I("redo") + "<span>重做</span></div>");
+
+    /* ---- V5 scrollbars + line numbers ---- */
+    var PAGES = [
+      ["第一章 · 液体的手感", "界面应该像液体：按下时被压扁，松开时轻轻弹回，靠近时彼此粘连，分开时拉出细丝。", "每一次过渡都守恒体积：拉长时变细，压扁时变宽，动画才显得真实。"],
+      ["第二章 · 玻璃与极光", "磨砂玻璃让背后的极光透出来，却不抢正文的风头。颜色跟着应用走，蓝、绿、橙、红。", "阴影要柔，高光要脆，圆角保持一致：12、16、20、28。"],
+      ["第三章 · 节拍", "音乐每拍半秒，每小节两秒。关键的动作落在拍点上，段落的切换落在小节线上。", "让观众的眼睛先到，耳朵随后，节奏就对了。"],
+    ];
+    var pg = PAGES.map(function (P, i) {
+      return '<div class="s8-page"><h3>' + P[0] + "</h3><p>" + P[1] + "</p><p>" + P[2] + "</p><p>" + P[1] + '</p><div class="s8-pn">' + (i + 1) + " / 12</div></div>";
+    }).join("");
+    h += card("s8-doc", 300, 200, 640, 520,
+      hd(img("doc"), "ElyDoc", "", "长文档 · 12 页") + '<div id="s8-vp"><div id="s8-pg">' + pg + '</div></div><div id="s8-rail"></div>');
+    var SRC = [
+      '<span class="m"># Ely Office 0.1.10</span>', "",
+      '<span class="m">## ElyMail 首次登场</span>', '<span class="d">-</span> 离线优先，本机存储', '<span class="d">-</span> Gmail · Microsoft 一键登录', "",
+      '<span class="m">## 其他更新</span>', '<span class="d">-</span> <span class="m">**Intel**</span> 版 macOS', '<span class="d">-</span> 应用内更新 · Nix flake',
+      '<span class="d">-</span> 滚动条与 <span class="c">`行号`</span>', "", '<span class="q">&gt; 现在就去更新吧</span>',
+    ];
+    h += card("s8-mark", 980, 200, 640, 520,
+      hd(img("mark"), "ElyMark", "", "源码模式") +
+      '<div class="s8-lbl" id="s8-sl">行号</div><div id="s8-swt"></div>' +
+      '<div id="s8-code"><div id="s8-gut">' + SRC.map(function (_, i) { return "<div>" + (i + 1) + "</div>"; }).join("") + '</div><div id="s8-gutl"></div><div id="s8-src">' + SRC.join("\n") + "</div></div>");
+
+    /* ---- V6 fonts, PDF, fixes ---- */
+    h += card("s8-font", 300, 180, 600, 400,
+      hd(img("doc"), "ElyDoc", "", "字体") +
+      '<div id="s8-dd"><div class="s8-ddv"><span id="s8-dd0" style="font-family:SimSun,serif;font-weight:400">宋体</span><span id="s8-dd1" style="opacity:0">思源黑体</span></div>' + I("chevron") + "</div>" +
+      '<div id="s8-menu"><div id="s8-mhl"></div><div style="font-family:SimSun,serif">宋体</div><div style="font-family:KaiTi,STKaiti,serif">楷体</div><div style="font-weight:800">思源黑体</div></div>' +
+      '<div id="s8-smp"><div class="s8-old" id="s8-sm0">中文与 Latin</div><div class="s8-new" id="s8-sm1">中文与 Latin</div></div>' +
+      '<div id="s8-fch"><div class="pill" id="s8-fc0">' + I("check") + "中文字体</div><div class=\"pill\" id=\"s8-fc1\">" + I("check") + "西文字体</div></div>");
+    var NB = "<small>状态</small><b>已付清</b><code>2026-10-21</code>";
+    h += card("s8-pdf", 940, 180, 680, 400,
+      hd(img("pdf"), "ElyPDF", "", "改一个字") +
+      '<div id="s8-paper"><div class="s8-inv">发票 INV-1021</div>' +
+      '<div id="s8-amt"><span>合计 ¥1,</span><span id="s8-dg"><span id="s8-d2v">2</span><span class="s8-d8" id="s8-d8v">8</span></span><span>00.00</span></div><div id="s8-pcar"></div>' +
+      '<div class="s8-nb" id="s8-ghost">' + NB + '<div id="s8-gstrike"></div></div><div class="s8-nb" id="s8-nb">' + NB + "</div>" +
+      '<div id="s8-gtag">旧版：被挤歪</div><div id="s8-keep">' + I("check") + "旁边的字原地不动</div></div>");
+    h += card("s8-fixes", 300, 604, 1320, 112,
+      ok("s8-ok3", 32, 28) + '<div class="s8-fix" style="left:108px"><b>合并空白单元格不再失败</b><small>ElyTable</small></div>' +
+      ok("s8-ok4", 692, 28) + '<div class="s8-fix" style="left:768px"><b>表格边线可拖动</b><small>ElyDoc · macOS / Linux</small></div>');
+
+    root.insertAdjacentHTML("beforeend", h);
+    var $ = function (id) { return document.getElementById(id); };
+
+    /* ---- enter / exit (carousel: in from the right, out to the left) ---- */
+    function enter(el, t, d) {
+      tl.fromTo(el, { opacity: 0, x: 90, y: 16, scale: 0.9, filter: "blur(6px)" },
+        { opacity: 1, x: 0, y: 0, scale: 1, filter: "blur(0px)", duration: d || 0.38, ease: "back.out(1.5)", immediateRender: false }, t);
+    }
+    function exit(el, t) {
+      tl.fromTo(el, { opacity: 1, x: 0, scale: 1, filter: "blur(0px)" },
+        { opacity: 0, x: -70, scale: 0.94, filter: "blur(8px)", duration: 0.26, ease: "power2.in", immediateRender: false }, t);
+    }
+    function popIn(el, t, s) {
+      tl.fromTo(el, { opacity: 0, scale: s == null ? 0.3 : s }, { opacity: 1, scale: 1, duration: 0.36, ease: "back.out(2.6)", immediateRender: false }, t);
+    }
+    function press(el, t, s) {
+      tl.fromTo(el, { scale: 1 }, { scale: s || 0.86, duration: 0.07, ease: "power2.out", immediateRender: false }, t);
+      tl.fromTo(el, { scale: s || 0.86 }, { scale: 1, duration: 0.4, ease: "elastic.out(1.2, 0.4)", immediateRender: false }, t + 0.07);
+    }
+    var G1 = [$("s8-kick")].concat(TILES.map(function (_, i) { return $("s8-tile" + i); }));
+    var GROUPS = [
+      { els: G1, in: [0.9, 1.62, 1.67, 1.72, 1.77, 1.82, 1.87], out: 2.58 },
+      { els: [$("s8-mac"), $("s8-upd"), $("s8-pkg")], in: [3.32, 3.38, 3.62], out: 6.1 },
+      { els: [$("s8-term"), $("s8-inst")], in: [6.82, 6.88], out: 9.1 },
+      { els: [$("s8-sheet"), $("s8-panel")], in: [9.82, 9.88], out: 12.1 },
+      { els: [$("s8-doc"), $("s8-mark")], in: [12.82, 12.88], out: 14.35 },
+      { els: [$("s8-font"), $("s8-pdf"), $("s8-fixes")], in: [15.07, 15.13, 15.19], out: 16.7 },
+    ];
+    GROUPS.forEach(function (g) {
+      g.els.forEach(function (el, i) {
+        enter(el, g.in[i]);
+        exit(el, g.out + i * 0.02);
+      });
+    });
+    TILES.forEach(function (_, i) {
+      tl.fromTo($("s8-tile" + i).querySelector(".s8-tico"), { scale: 0.3, rotation: -12 }, { scale: 1, rotation: 0, duration: 0.5, ease: "back.out(2.4)", immediateRender: false }, 1.7 + i * 0.05);
+    });
+
+    /* V2 */
+    enter($("s8-r1"), 3.5, 0.4);
+    enter($("s8-r2"), 3.58, 0.4);
+    popIn($("s8-ok1"), 4.05);
+    popIn($("s8-ok2"), 4.5);
+    popIn($("s8-new"), 4.58, 0);
+    function stepDone(i, t) {
+      var s = $("s8-step" + i);
+      tl.fromTo(s.querySelector(".s8-dn"), { opacity: 0, scale: 0.2 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(3)", immediateRender: false }, t);
+      tl.fromTo(s.querySelector(".ico"), { opacity: 0 }, { opacity: 1, duration: 0.1, immediateRender: false }, t + 0.05);
+      tl.fromTo(s.querySelector(".s8-num"), { opacity: 1 }, { opacity: 0, duration: 0.08, immediateRender: false }, t + 0.03);
+      tl.fromTo(s, { color: "rgba(240,242,255,0.72)" }, { color: "#ffffff", duration: 0.2, immediateRender: false }, t);
+    }
+    stepDone(0, 4.9);
+    stepDone(1, 5.3);
+    press($("s8-rst"), 5.7);
+    stepDone(2, 5.78);
+    tl.fromTo($("s8-ban"), { boxShadow: "inset 0 1px 0 rgba(255,255,255,.35), 0 0 0 rgba(47,216,232,0)" },
+      { boxShadow: "inset 0 1px 0 rgba(255,255,255,.35), 0 0 40px rgba(47,216,232,.6)", duration: 0.25, yoyo: true, repeat: 1, immediateRender: false }, 5.7);
+
+    /* V3 */
+    tl.fromTo($("s8-outl"), { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out", immediateRender: false }, 8.2);
+    var glow = $("s8-pk-mail").querySelector(".s8-glow");
+    tl.fromTo(glow, { opacity: 0 }, { opacity: 1, duration: 0.15, immediateRender: false }, 8.66);
+    press($("s8-pk-mail"), 8.62, 0.84);
+    press($("s8-brw"), 7.45);
+    tl.fromTo($("s8-p0"), { y: 0, opacity: 1 }, { y: -40, opacity: 0, duration: 0.25, ease: "power2.in", immediateRender: false }, 7.6);
+    tl.fromTo($("s8-p1"), { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "back.out(2)", immediateRender: false }, 7.72);
+
+    /* V4 */
+    press($("s8-sw2"), 10.08, 0.8);
+    tl.fromTo($("s8-d2"), { color: "#f5f6ff" }, { color: "#2FD8E8", duration: 0.12, immediateRender: false }, 10.54);
+    tl.fromTo($("s8-b3s"), { opacity: 0 }, { opacity: 1, duration: 0.12, immediateRender: false }, 10.38);
+    tl.fromTo($("s8-b3c"), { opacity: 0 }, { opacity: 1, duration: 0.05, immediateRender: false }, 10.42);
+    tl.fromTo($("s8-b3c"), { opacity: 1 }, { opacity: 0, duration: 0.05, immediateRender: false }, 10.9);
+    tl.fromTo($("s8-sel"), { scale: 1 }, { scale: 1.06, duration: 0.15, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, 10.45);
+    tl.fromTo($("s8-pnote"), { opacity: 0.4 }, { opacity: 1, duration: 0.2, immediateRender: false }, 10.85);
+    tl.fromTo($("s8-cur"), { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.2, ease: "back.out(2.5)", immediateRender: false }, 10.82);
+    tl.fromTo($("s8-cur"), { opacity: 1 }, { opacity: 0, duration: 0.15, immediateRender: false }, 11.7);
+    tl.fromTo($("s8-guide"), { opacity: 0 }, { opacity: 1, duration: 0.08, immediateRender: false }, 10.88);
+    tl.fromTo($("s8-guide"), { opacity: 1 }, { opacity: 0, duration: 0.08, immediateRender: false }, 11.25);
+    [11.35, 11.47].forEach(function (t) {
+      tl.fromTo($("s8-dbl"), { opacity: 1, scale: 0.6 }, { opacity: 0, scale: 1.8, duration: 0.3, ease: "power2.out", immediateRender: false }, t);
+    });
+    press($("s8-undo"), 11.74, 0.8);
+    tl.fromTo($("s8-undo"), { rotation: 0 }, { rotation: -30, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, 11.74);
+    tl.fromTo($("s8-mu").querySelector(".s8-hl"), { opacity: 0 }, { opacity: 1, duration: 0.1, yoyo: true, repeat: 1, repeatDelay: 0.08, immediateRender: false }, 11.74);
+    tl.fromTo($("s8-d2"), { color: "#2FD8E8" }, { color: "#f5f6ff", duration: 0.1, immediateRender: false }, 11.78);
+    press($("s8-redo"), 11.94, 0.8);
+    tl.fromTo($("s8-redo"), { rotation: 0 }, { rotation: 30, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, 11.94);
+    tl.fromTo($("s8-mr").querySelector(".s8-hl"), { opacity: 0 }, { opacity: 1, duration: 0.1, yoyo: true, repeat: 1, repeatDelay: 0.06, immediateRender: false }, 11.94);
+    tl.fromTo($("s8-d2"), { color: "#f5f6ff" }, { color: "#2FD8E8", duration: 0.1, immediateRender: false }, 11.98);
+
+    /* V5 */
+    tl.fromTo($("s8-swt"), { backgroundColor: "rgba(255,255,255,0.16)" }, { backgroundColor: "rgba(242,169,0,0.75)", duration: 0.2, immediateRender: false }, 13.07);
+    tl.fromTo($("s8-src"), { x: 0 }, { x: 52, duration: 0.4, ease: "back.out(1.6)", immediateRender: false }, 13.09);
+    tl.fromTo($("s8-gutl"), { opacity: 0 }, { opacity: 1, duration: 0.2, immediateRender: false }, 13.13);
+    tl.fromTo($("s8-gut").children, { opacity: 0, x: -10 }, { opacity: 1, x: 0, duration: 0.18, ease: "back.out(3)", stagger: 0.045, immediateRender: false }, 13.15);
+
+    /* V6 */
+    press($("s8-dd"), 15.45, 0.94);
+    tl.fromTo($("s8-menu"), { opacity: 0, scaleY: 0.6, y: -8 }, { opacity: 1, scaleY: 1, y: 0, duration: 0.18, ease: "back.out(2)", immediateRender: false }, 15.49);
+    tl.fromTo($("s8-mhl"), { y: 0 }, { y: 96, duration: 0.14, ease: "power2.inOut", immediateRender: false }, 15.6);
+    tl.fromTo($("s8-menu"), { opacity: 1 }, { opacity: 0, duration: 0.1, immediateRender: false }, 15.76);
+    tl.fromTo($("s8-dd0"), { y: 0, opacity: 1 }, { y: -30, opacity: 0, duration: 0.18, immediateRender: false }, 15.74);
+    tl.fromTo($("s8-dd1"), { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "back.out(2)", immediateRender: false }, 15.78);
+    tl.fromTo($("s8-sm0"), { y: 0, opacity: 1, filter: "blur(0px)" }, { y: -24, opacity: 0, filter: "blur(6px)", duration: 0.18, ease: "power2.in", immediateRender: false }, 15.78);
+    tl.fromTo($("s8-sm1"), { y: 24, opacity: 0, filter: "blur(6px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.34, ease: "back.out(2)", immediateRender: false }, 15.84);
+    popIn($("s8-fc0"), 15.98);
+    popIn($("s8-fc1"), 16.04);
+    tl.fromTo($("s8-pcar"), { opacity: 0 }, { opacity: 1, duration: 0.05, repeat: 3, yoyo: true, repeatDelay: 0.07, immediateRender: false }, 15.4);
+    tl.fromTo($("s8-d2v"), { yPercent: 0 }, { yPercent: -100, duration: 0.2, ease: "back.out(2)", immediateRender: false }, 15.8);
+    tl.fromTo($("s8-d8v"), { yPercent: 100 }, { yPercent: 0, duration: 0.24, ease: "back.out(2)", immediateRender: false }, 15.8);
+    tl.fromTo($("s8-ghost"), { opacity: 0, x: 0, y: 0 }, { opacity: 0.7, x: 64, y: 118, duration: 0.3, ease: "power2.out", immediateRender: false }, 15.88);
+    tl.fromTo($("s8-gstrike"), { scaleX: 0 }, { scaleX: 1, duration: 0.16, ease: "power2.out", immediateRender: false }, 16.14);
+    popIn($("s8-gtag"), 16.18, 0.4);
+    tl.fromTo($("s8-nb"), { scale: 1 }, { scale: 1.08, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, 16.22);
+    popIn($("s8-keep"), 16.24, 0.5);
+    popIn($("s8-ok3"), 16.15);
+    popIn($("s8-ok4"), 16.32);
+
+    /* ---- time-driven DOM state (percent, typing, column width, scroll) ---- */
+    var CMD = "nix run github:ELY-Open-Source/ElyOffice#ely-mail";
+    var typ = $("s8-typ"), car = $("s8-car"), pw = $("s8-pw"), pl = $("s8-pl"), b3 = $("s8-b3"), grid = $("s8-grid");
+    var guide = $("s8-guide"), cur = $("s8-cur"), dbl = $("s8-dbl"), pgEl = $("s8-pg");
+    function charTime(i, t0, dt) { return t0 + i * dt + ((i * 7919) % 13) / 13 * dt * 0.6; }
+    function typed(t, s, t0, dt) {
+      var n = 0;
+      while (n < s.length && charTime(n, t0, dt) <= t) n++;
+      return s.slice(0, n);
+    }
+    var RANGE = 3 * 448 - 16 - 392;
+    function apply(t) {
+      var F = window.S8F;
+      if (!F) return;
+      pw.textContent = Math.round(F.fill(t, 3.75) * 100) + "%";
+      pl.textContent = Math.round(F.fill(t, 3.9) * 100) + "%";
+      typ.textContent = typed(t, CMD, 6.95, 0.021);
+      var typing = t > 6.9 && t < 8.15;
+      car.style.opacity = typing || Math.floor(t * 3.4) % 2 === 0 ? 1 : 0.15;
+      b3.textContent = typed(t, "00042", 10.45, 0.07);
+      var a = F.colA(t);
+      grid.style.setProperty("--a", a.toFixed(2) + "px");
+      var dragging = t >= 10.85 && t < 11.25;
+      var gx = 24 + 56 + F.guide(t);
+      guide.style.left = gx - 1.5 + "px";
+      cur.style.left = (dragging ? gx : 24 + 56 + Math.min(a, 254)) - 20 + "px";
+      dbl.style.left = 24 + 56 + 254 - 20 + "px";
+      var S = F.scroll(t);
+      var over = 16 * S.ib - 16 * S.it;
+      pgEl.style.transform = "translateY(" + (-(S.f * RANGE) - over).toFixed(2) + "px)";
+    }
+    var clk = { t: 0 };
+    tl.fromTo(clk, { t: 0 }, { t: 18, duration: 18, ease: "none", onUpdate: function () { apply(clk.t); } }, 0);
+  }
+})();
+</script>
+</template>
+</body>
+</html>

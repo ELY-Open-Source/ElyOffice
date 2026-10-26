@@ -1,0 +1,197 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+#s3-root { position: absolute; inset: 0; pointer-events: none; }
+#s3-cam { position: absolute; inset: 0; transform-origin: 0 0; }
+#s3-empty { position: absolute; left: 518px; top: 404px; width: 400px; display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: 0; }
+#s3-empty .ico { width: 56px; height: 56px; color: rgba(235, 238, 255, 0.4); stroke-width: 1.4; }
+#s3-empty .t { font: 700 24px "Noto Sans SC", sans-serif; color: #f5f6ff; }
+#s3-empty .s { font: 400 17px "Noto Sans SC", sans-serif; color: rgba(235, 238, 255, 0.55); }
+.s3-chip { left: 80px; width: 200px; height: 64px; font: 800 26px "Inter", sans-serif; letter-spacing: -0.01em; opacity: 0; }
+.s3-chip.dark { color: #0b1736; }
+.s3-badge { position: absolute; left: 296px; height: 40px; padding: 0 16px; font: 600 17px "Noto Sans SC", sans-serif; opacity: 0; }
+.s3-badge .ico { width: 18px; height: 18px; }
+.s3-badge .a, .s3-badge .b { display: flex; align-items: center; gap: 8px; }
+.s3-badge .b { position: absolute; left: 0; right: 0; top: 0; bottom: 0; justify-content: center; opacity: 0; color: #9ff0c0; }
+.s3-badge .b .ico { stroke-width: 2.6; }
+.s3-badge .a .ico { color: #ffd36b; }
+.s3-card { left: 80px; width: 512px; height: 96px; border-radius: 20px; opacity: 0; }
+.s3-face { position: absolute; inset: 0; display: flex; align-items: center; gap: 16px; padding: 0 24px; }
+.s3-face .av { width: 48px; height: 48px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center;
+  font: 700 20px "Noto Sans SC", sans-serif; color: #fff; background: linear-gradient(150deg, #8fe3b0, #2e9e5b);
+  box-shadow: inset 0 -4px 10px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.5); }
+.s3-face .tx { flex: 1; min-width: 0; }
+.s3-face .em { font: 600 18px "Inter", sans-serif; color: #f5f6ff; }
+.s3-face .pv { font: 500 14px "Noto Sans SC", sans-serif; color: rgba(235, 238, 255, 0.55); margin-top: 4px; }
+.s3-btn { width: 168px; height: 48px; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 8px; flex: none;
+  font: 700 18px "Noto Sans SC", sans-serif; color: #fff; background: linear-gradient(170deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%), var(--c);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -6px 14px rgba(0,0,0,.2), 0 8px 22px rgba(0,0,0,.3); }
+.s3-btn .ico { width: 20px; height: 20px; }
+.s3-face.back { opacity: 0; }
+.s3-face.back .ok { width: 48px; height: 48px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #7ef0aa, #2e9e5b); box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 6px 18px rgba(46,158,91,.5); color: #fff; }
+.s3-face.back .ok .ico { width: 26px; height: 26px; stroke-width: 3; }
+.s3-face.back .em { font: 700 20px "Noto Sans SC", sans-serif; }
+#s3-cursor { position: absolute; left: 0; top: 0; width: 32px; height: 32px; opacity: 0; transform-origin: 4px 3px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.45)); }
+</style>
+<div id="s3-root" data-composition-id="s3" data-width="1920" data-height="1080" data-duration="8">
+  <div id="s3-cam"></div>
+</div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var root = document.getElementById("s3-root");
+    var cam = document.getElementById("s3-cam");
+    var I = ElyKit.icon;
+    var w = ElyKit.mailWindow(cam, { id: "s3", select: 0 });
+    cam.insertAdjacentHTML("beforeend",
+      '<div id="s3-empty">' + I("inbox") + '<div class="t">还没有添加账号</div><div class="s">添加一个邮箱，就从这里开始</div></div>');
+
+    /* the 全部收件箱 badge becomes a stack of counts (same box, same glyph positions) */
+    var badge = w.win.querySelector("#s3-all .n");
+    badge.style.position = "relative";
+    badge.innerHTML = '<span style="visibility:hidden">12</span>' + ["5", "8", "10", "11", "12"].map(function (v) {
+      return '<span class="v" style="position:absolute;left:0;right:0;top:2px;text-align:center;opacity:' + (v === "12" ? 1 : 0) + '">' + v + "</span>";
+    }).join("");
+    var V = badge.querySelectorAll(".v");
+
+    /* layout shared with scenes/s3.liquid.js */
+    var ACC = [
+      { id: "gmail", name: "Gmail", c: "#EA4B5A", land: 0.5, y0: 264, T: 5.5 },
+      { id: "ms", name: "Microsoft", c: "#2F8CF0", land: 1.0, y0: 480, T: 6.0 },
+      { id: "icloud", name: "iCloud", c: "#8FB4FF", land: 4.0, y0: 424, T: 6.5, dark: true },
+      { id: "imap", name: "IMAP", c: "#7B5CFF", land: 4.25, y0: 504, T: 6.85 },
+      { id: "pop3", name: "POP3", c: "#2FD8E8", land: 4.5, y0: 584, T: 7.0, dark: true },
+    ];
+    var html = "";
+    ACC.forEach(function (a) {
+      html += '<div class="candy s3-chip' + (a.dark ? " dark" : "") + '" id="s3-chip-' + a.id + '" style="--c:' + a.c + ";top:" + (a.y0 - 32) + 'px">' + a.name + "</div>";
+    });
+    function oauth(id, y) {
+      return '<div class="pill s3-badge" id="s3-badge-' + id + '" style="top:' + (y - 20) + 'px"><span class="a">' + I("lock") + '一键登录 · OAuth</span><span class="b">' + I("check") + "已登录</span></div>";
+    }
+    html += oauth("gmail", 264) + oauth("ms", 480);
+    html += '<div class="pill s3-badge" id="s3-badge-icloud" style="top:404px"><span class="a">' + I("lock") + "应用专用密码</span></div>";
+    function card(id, y, mail, c) {
+      return '<div class="glass s3-card" id="s3-card-' + id + '" style="top:' + y + 'px">' +
+        '<div class="s3-face front"><div class="av">林</div><div class="tx"><div class="em">' + mail + '</div><div class="pv">在浏览器里授权，不存密码</div></div>' +
+        '<div class="s3-btn" style="--c:' + c + '">' + I("lock") + "一键登录</div></div>" +
+        '<div class="s3-face back"><div class="ok">' + I("check") + '</div><div class="tx"><div class="em">已登录</div><div class="pv">' + mail + "</div></div></div></div>";
+    }
+    html += card("gmail", 312, "lin.studio@gmail.com", "#EA4B5A") + card("ms", 528, "lin@outlook.com", "#2F8CF0");
+    html += '<svg id="s3-cursor" viewBox="0 0 32 32"><path d="M4 3 L4 25 L10 19.5 L14 28 L18.2 26.2 L14.4 17.8 L22 17.6 Z" fill="#fff" stroke="#0b1030" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    root.insertAdjacentHTML("beforeend", html);
+    var $ = function (s) { return document.getElementById(s); };
+    var chip = {}, bd = {};
+    ACC.forEach(function (a) { chip[a.id] = $("s3-chip-" + a.id); bd[a.id] = $("s3-badge-" + a.id); });
+    var cardG = $("s3-card-gmail"), cardM = $("s3-card-ms"), cur = $("s3-cursor");
+    var rows = w.rows, reads = w.read.children, side = w.side.children;
+    var allBox = $("s3-all"), empty = $("s3-empty");
+    var sideG = [side[5], side[6], side[7], side[8]], sideM = [side[9], side[10]], sideI = [side[11], side[12]];
+
+    /* ---- 18.0: camera makes room on the left ---- */
+    tl.fromTo(cam, { scale: 1, x: 0, y: 0 }, { scale: 0.78, x: 514, y: 60, duration: 1, ease: "power3.inOut" }, 0);
+    /* the inbox empties: we start from zero accounts */
+    tl.fromTo(rows, { opacity: 1, y: 0 }, { opacity: 0, y: -16, duration: 0.24, ease: "power2.in", stagger: 0.03 }, 0.12);
+    tl.fromTo(reads, { opacity: 1, y: 0 }, { opacity: 0, y: 0, duration: 0.25, ease: "power2.in" }, 0.15);
+    tl.fromTo([].slice.call(side, 5), { opacity: 1, x: 0 }, { opacity: 0, x: -12, duration: 0.22, ease: "power2.in", stagger: 0.02 }, 0.15);
+    tl.fromTo(badge, { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.3, duration: 0.2, ease: "power2.in" }, 0.2);
+    tl.fromTo(V[4], { opacity: 1 }, { opacity: 0, duration: 0.01 }, 0.45);
+    tl.fromTo(empty, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 0.55);
+
+    /* ---- chips pop over their liquid ---- */
+    ACC.forEach(function (a) {
+      tl.fromTo(chip[a.id], { opacity: 0, scale: 0.55 }, { opacity: 1, scale: 1, duration: 0.42, ease: "back.out(2.6)" }, a.land + 0.12);
+    });
+    tl.fromTo(bd.gmail, { opacity: 0, x: -14, scale: 0.85 }, { opacity: 1, x: 0, scale: 1, duration: 0.45, ease: "back.out(2)" }, 0.78);
+    tl.fromTo(cardG, { opacity: 0, y: 18, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.6)" }, 0.9);
+    tl.fromTo(bd.ms, { opacity: 0, x: -14, scale: 0.85 }, { opacity: 1, x: 0, scale: 1, duration: 0.45, ease: "back.out(2)" }, 1.28);
+    tl.fromTo(cardM, { opacity: 0, y: 18, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.6)" }, 1.4);
+
+    /* ---- one click each: the cursor presses, the card flips to 已登录 ---- */
+    tl.fromTo(cur, { opacity: 0, x: 700, y: 820 }, { opacity: 1, x: 640, y: 700, duration: 0.25, ease: "power2.out" }, 1.5);
+    tl.fromTo(cur, { x: 640, y: 700 }, { x: 480, y: 357, duration: 0.42, ease: "power3.inOut", immediateRender: false }, 1.58);
+    function click(at, card) {
+      var btn = card.querySelector(".s3-btn");
+      tl.fromTo(cur, { scale: 1 }, { scale: 0.8, duration: 0.07, ease: "power2.in", yoyo: true, repeat: 1, immediateRender: false }, at);
+      tl.fromTo(btn, { scale: 1 }, { scale: 0.92, duration: 0.07, ease: "power2.in", yoyo: true, repeat: 1, immediateRender: false }, at);
+      tl.fromTo(card, { scaleX: 1 }, { scaleX: 0, duration: 0.13, ease: "power2.in", immediateRender: false }, at + 0.06);
+      tl.fromTo(card.querySelector(".front"), { opacity: 1 }, { opacity: 0, duration: 0.01 }, at + 0.19);
+      tl.fromTo(card.querySelector(".back"), { opacity: 0 }, { opacity: 1, duration: 0.01 }, at + 0.19);
+      tl.fromTo(card, { scaleX: 0 }, { scaleX: 1, duration: 0.34, ease: "back.out(2.2)", immediateRender: false }, at + 0.19);
+      tl.fromTo(card.querySelector(".ok"), { scale: 0.3 }, { scale: 1, duration: 0.42, ease: "back.out(3)", immediateRender: false }, at + 0.24);
+    }
+    click(2.0, cardG);
+    tl.fromTo(cur, { x: 480, y: 357 }, { x: 480, y: 573, duration: 0.42, ease: "power3.inOut", immediateRender: false }, 2.4);
+    click(2.9, cardM);
+    tl.fromTo(cur, { x: 480, y: 573, opacity: 1 }, { x: 600, y: 760, opacity: 0, duration: 0.35, ease: "power2.in", immediateRender: false }, 3.25);
+
+    /* ---- 21.7: cards fold away, badges confirm, the column tidies up ---- */
+    tl.fromTo([cardG, cardM], { opacity: 1, y: 0, scale: 1 }, { opacity: 0, y: -12, scale: 0.94, duration: 0.28, ease: "power2.in", stagger: 0.08, immediateRender: false }, 3.7);
+    ["gmail", "ms"].forEach(function (id, i) {
+      var b = bd[id];
+      tl.fromTo(b.querySelector(".a"), { opacity: 1 }, { opacity: 0, duration: 0.12 }, 3.72 + i * 0.08);
+      tl.fromTo(b.querySelector(".b"), { opacity: 0 }, { opacity: 1, duration: 0.16 }, 3.8 + i * 0.08);
+      tl.fromTo(b, { scale: 1 }, { scale: 1.12, duration: 0.1, ease: "power2.out", yoyo: true, repeat: 1, immediateRender: false }, 3.8 + i * 0.08);
+    });
+    tl.fromTo([chip.ms, bd.ms], { y: 0 }, { y: -136, duration: 0.3, ease: "power3.inOut", immediateRender: false }, 3.85);
+    tl.fromTo(bd.icloud, { opacity: 0, x: -14, scale: 0.85 }, { opacity: 1, x: 0, scale: 1, duration: 0.45, ease: "back.out(2)" }, 4.28);
+
+    /* ---- 23.5+: each chip melts (the front liquid takes over) and is reeled into 全部收件箱 ---- */
+    ACC.forEach(function (a) {
+      if (bd[a.id]) tl.fromTo(bd[a.id], { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.9, duration: 0.16, ease: "power2.in", immediateRender: false }, a.T - 0.9);
+      tl.fromTo(chip[a.id], { opacity: 1 }, { opacity: 0, duration: 0.06, immediateRender: false }, a.T - 0.76);
+    });
+    function count(at, from, to) {
+      if (from >= 0) tl.fromTo(V[from], { opacity: 1 }, { opacity: 0, duration: 0.01 }, at);
+      tl.fromTo(V[to], { opacity: 0 }, { opacity: 1, duration: 0.01 }, at);
+      tl.fromTo(badge, { scale: 1.45 }, { scale: 1, duration: 0.5, ease: "elastic.out(1.1, 0.4)", immediateRender: false }, at);
+      tl.fromTo(allBox, { scale: 1.06 }, { scale: 1, duration: 0.45, ease: "elastic.out(1, 0.45)", immediateRender: false }, at);
+    }
+    var G = 5.52;
+    tl.fromTo(empty, { opacity: 1, y: 0 }, { opacity: 0, y: -10, duration: 0.2, ease: "power2.in", immediateRender: false }, 5.3);
+    tl.fromTo(badge, { opacity: 0 }, { opacity: 1, duration: 0.01, immediateRender: false }, G);
+    count(G, -1, 0);
+    function rowIn(list, at) {
+      tl.fromTo(list.map(function (r) { return rows[r[0]]; }), { opacity: 0, x: -34 }, { opacity: 1, x: 0, duration: 0.55, ease: "back.out(1.5)", stagger: 0.06, immediateRender: false }, at);
+      list.forEach(function (r) { tl.fromTo(rows[r[0]], { y: r[1] }, { y: r[1], duration: 0.01, immediateRender: false }, at - 0.01); });
+    }
+    function rowShift(list, at) {
+      list.forEach(function (r) { tl.fromTo(rows[r[0]], { y: r[1] }, { y: r[2], duration: 0.5, ease: "back.out(1.4)", immediateRender: false }, at); });
+    }
+    rowIn([[0, 0], [1, 0], [4, -176], [7, -352]], G);
+    tl.fromTo(reads, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.06, immediateRender: false }, G + 0.1);
+    tl.fromTo(sideG, { opacity: 0, x: -12 }, { opacity: 1, x: 0, duration: 0.4, ease: "back.out(2)", stagger: 0.04, immediateRender: false }, G);
+
+    var Ms = 6.02;
+    count(Ms, 0, 1);
+    rowShift([[4, -176, -88], [7, -352, -176]], Ms);
+    rowIn([[2, 0], [5, -88]], Ms + 0.05);
+    tl.fromTo(sideM, { opacity: 0, x: -12 }, { opacity: 1, x: 0, duration: 0.4, ease: "back.out(2)", stagger: 0.04, immediateRender: false }, Ms);
+
+    var Ic = 6.52;
+    count(Ic, 1, 2);
+    rowShift([[4, -88, 0], [5, -88, 0], [7, -176, 0]], Ic);
+    rowIn([[3, 0], [6, 0]], Ic + 0.05);
+    tl.fromTo(sideI, { opacity: 0, x: -12 }, { opacity: 1, x: 0, duration: 0.4, ease: "back.out(2)", stagger: 0.04, immediateRender: false }, Ic);
+
+    count(6.87, 2, 3);
+    count(7.02, 3, 4);
+
+    /* ---- 25.0: camera returns to the canonical window (H3) ---- */
+    tl.fromTo(cam, { scale: 0.78, x: 514, y: 60 }, { scale: 1, x: 0, y: 0, duration: 1, ease: "power3.inOut", immediateRender: false }, 7.0);
+  } finally {
+    window.__timelines["s3"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

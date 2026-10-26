@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<title>Ely Office 0.1.10</title>
+<script src="vendor/gsap.min.js"></script>
+<link rel="stylesheet" href="lib/ui.css" />
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #08061a; }
+#root { position: relative; width: 100%; height: 100%; overflow: hidden; font-family: "Inter", "Noto Sans SC", sans-serif; }
+#lq-back, #lq-front { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; display: block; }
+#lq-back { z-index: 0; }
+.scene-host { position: absolute; inset: 0; z-index: 10; }
+#lq-front { z-index: 30; pointer-events: none; }
+#cap { z-index: 40; }
+#cap-pill { position: relative; height: 106px; width: 300px; border-radius: 999px; overflow: hidden;
+  background: linear-gradient(160deg, rgba(40, 30, 96, 0.55), rgba(14, 10, 44, 0.55));
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  -webkit-backdrop-filter: blur(26px) saturate(170%); backdrop-filter: blur(26px) saturate(170%);
+  box-shadow: 0 18px 50px rgba(3, 2, 18, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -10px 24px rgba(120, 90, 255, 0.12); }
+#cap-pill::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(90% 120% at 20% -30%, rgba(255,255,255,.28), transparent 60%); }
+.cap-line { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
+.cap-zh { font: 600 35px "Noto Sans SC", sans-serif; color: #fff; letter-spacing: 0.01em; text-shadow: 0 2px 12px rgba(0,0,0,.35); }
+.cap-en { font: 500 23px "Inter", sans-serif; color: rgba(236, 238, 255, 0.82); letter-spacing: 0.005em; }
+.cap-measure { position: absolute; left: -9999px; top: 0; display: inline-flex; flex-direction: column; align-items: center; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="90" data-width="1920" data-height="1080">
+  <canvas id="lq-back" width="1920" height="1080"></canvas>
+  <div id="s1" data-composition-id="s1" data-composition-src="scenes/s1.html" data-start="0" data-duration="11" data-track-index="1" data-width="1920" data-height="1080" class="scene-host"></div>
+  <div id="s2" data-composition-id="s2" data-composition-src="scenes/s2.html" data-start="11" data-duration="7" data-track-index="2" data-width="1920" data-height="1080" class="scene-host"></div>
+  <div id="s3" data-composition-id="s3" data-composition-src="scenes/s3.html" data-start="18" data-duration="8" data-track-index="3" data-width="1920" data-height="1080" class="scene-host"></div>
+  <div id="s4" data-composition-id="s4" data-composition-src="scenes/s4.html" data-start="26" data-duration="8" data-track-index="4" data-width="1920" data-height="1080" class="scene-host"></div>
+  <div id="s5" data-composition-id="s5" data-composition-src="scenes/s5.html" data-start="34" data-duration="10" data-track-index="5" data-width="1920" data-height="1080" class="scene-host"></div>
+  <div id="s6" data-composition-id="s6" data-composition-src="scenes/s6.html" data-start="44" data-duration="6" data-track-index="6" data-width="1920" data-height="1080" class="scene-host"></div>
+  <div id="s7" data-composition-id="s7" data-composition-src="scenes/s7.html" data-start="50" data-duration="10" data-track-index="7" data-width="1920" data-height="1080" class="scene-host"></div>
+  <div id="s8" data-composition-id="s8" data-composition-src="scenes/s8.html" data-start="60" data-duration="18" data-track-index="8" data-width="1920" data-height="1080" class="scene-host"></div>
+  <div id="s9" data-composition-id="s9" data-composition-src="scenes/s9.html" data-start="78" data-duration="12" data-track-index="9" data-width="1920" data-height="1080" class="scene-host"></div>
+  <canvas id="lq-front" width="1920" height="1080"></canvas>
+  <div id="cap"><div id="cap-pill"></div></div>
+  <div id="driver" class="clip" data-start="0" data-duration="90" data-track-index="0" style="position:absolute;width:1px;height:1px;opacity:0"></div>
+  <audio id="mix" src="assets/audio/mix.wav" data-start="0" data-duration="90" data-track-index="20" data-volume="1"></audio>
+</div>
+<script src="lib/liquid.js"></script>
+<script src="lib/moods.js"></script>
+<script src="lib/kit.js"></script>
+<script src="lib/captions.js"></script>
+<script src="scenes/s1.liquid.js"></script>
+<script src="scenes/s2.liquid.js"></script>
+<script src="scenes/s3.liquid.js"></script>
+<script src="scenes/s4.liquid.js"></script>
+<script src="scenes/s5.liquid.js"></script>
+<script src="scenes/s6.liquid.js"></script>
+<script src="scenes/s7.liquid.js"></script>
+<script src="scenes/s8.liquid.js"></script>
+<script src="scenes/s9.liquid.js"></script>
+<script>
+/* Master timeline: drives the liquid canvases and the caption track. */
+(function () {
+  "use strict";
+  var DUR = 90;
+  window.__hf = window.__hf || {};
+  window.__hf.buildReady = window.__hf.buildReady || {};
+  var state = { t: 0 };
+
+  function buildCaptions(tl) {
+    var pill = document.getElementById("cap-pill");
+    var meas = document.createElement("div");
+    meas.className = "cap-measure";
+    document.body.appendChild(meas);
+    var caps = window.CAPTIONS;
+    var widths = caps.map(function (c) {
+      meas.innerHTML = '<div class="cap-zh">' + c.zh + '</div><div class="cap-en">' + c.en + "</div>";
+      return Math.min(1560, Math.ceil(meas.getBoundingClientRect().width) + 96);
+    });
+    meas.remove();
+    var lines = caps.map(function (c) {
+      var el = document.createElement("div");
+      el.className = "cap-line";
+      el.innerHTML = '<div class="cap-zh">' + c.zh + '</div><div class="cap-en">' + c.en + "</div>";
+      pill.appendChild(el);
+      return el;
+    });
+    gsap.set(pill, { width: 106, scale: 0, opacity: 0 });
+    gsap.set(lines, { opacity: 0 });
+    for (var i = 0; i < caps.length; i++) {
+      var c = caps[i];
+      var prev = caps[i - 1];
+      var next = caps[i + 1];
+      var gapBefore = prev ? c.s - prev.e : 99;
+      var gapAfter = next ? next.s - c.e : 99;
+      var zh = lines[i].children[0];
+      var en = lines[i].children[1];
+      if (gapBefore > 0.6) {
+        tl.fromTo(pill, { width: 106, scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.42, ease: "back.out(2.2)", immediateRender: false }, c.s - 0.3);
+      }
+      tl.to(pill, { width: widths[i], duration: 0.66, ease: "elastic.out(1, 0.55)" }, c.s - 0.2);
+      tl.fromTo(pill, { scaleY: 0.84, scaleX: 1.05 }, { scaleY: 1, scaleX: 1, duration: 0.62, ease: "elastic.out(1.2, 0.4)", immediateRender: false }, c.s - 0.2);
+      tl.fromTo(lines[i], { opacity: 0 }, { opacity: 1, duration: 0.01, immediateRender: false }, c.s - 0.06);
+      tl.fromTo(zh, { y: 18, opacity: 0, filter: "blur(8px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out", immediateRender: false }, c.s - 0.05);
+      tl.fromTo(en, { y: 14, opacity: 0, filter: "blur(6px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power3.out", immediateRender: false }, c.s + 0.05);
+      tl.to([zh, en], { y: -12, opacity: 0, filter: "blur(6px)", duration: 0.28, ease: "power2.in", stagger: 0.03 }, c.e - 0.28);
+      tl.set(lines[i], { opacity: 0 }, c.e + 0.04);
+      if (gapAfter > 0.6) {
+        tl.to(pill, { width: 106, duration: 0.3, ease: "power3.in" }, c.e - 0.12);
+        tl.to(pill, { scale: 0.2, opacity: 0, duration: 0.24, ease: "power2.in" }, c.e + 0.14);
+      }
+    }
+  }
+
+  var fonts = ['900 200px "Inter"', '600 35px "Noto Sans SC"', '900 84px "Noto Sans SC"', '500 23px "Inter"', '500 20px "JetBrains Mono"'];
+  window.__hf.buildReady.main = Promise.all(
+    fonts.map(function (f) {
+      return document.fonts.load(f, "Ely 邮件更新");
+    })
+  )
+    .then(function () {
+      return document.fonts.ready;
+    })
+    .then(function () {
+      LQ.init();
+      var tl = gsap.timeline({ paused: true });
+      tl.to(state, { t: DUR, duration: DUR, ease: "none", onUpdate: function () { LQ.render(state.t); } }, 0);
+      buildCaptions(tl);
+      LQ.render(0);
+      window.__timelines["main"] = tl;
+    });
+})();
+
+</script>
+</body>
+</html>

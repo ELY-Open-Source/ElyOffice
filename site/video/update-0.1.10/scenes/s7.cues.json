@@ -1,0 +1,192 @@
+[
+ {
+  "t": 50.14,
+  "sfx": "whoosh",
+  "gain": 0.4
+ },
+ {
+  "t": 50.32,
+  "sfx": "stretch",
+  "gain": 0.3
+ },
+ {
+  "t": 50.36,
+  "sfx": "pop",
+  "gain": 0.4
+ },
+ {
+  "t": 50.5,
+  "sfx": "pop",
+  "gain": 0.22
+ },
+ {
+  "t": 51.36,
+  "sfx": "tick",
+  "gain": 0.3
+ },
+ {
+  "t": 51.66,
+  "sfx": "bloop",
+  "gain": 0.4
+ },
+ {
+  "t": 52.06,
+  "sfx": "bloop",
+  "gain": 0.4
+ },
+ {
+  "t": 52.1,
+  "sfx": "shimmer",
+  "gain": 0.35
+ },
+ {
+  "t": 52.46,
+  "sfx": "bloop",
+  "gain": 0.4
+ },
+ {
+  "t": 52.86,
+  "sfx": "bloop",
+  "gain": 0.4
+ },
+ {
+  "t": 53.0,
+  "sfx": "swoosh-up",
+  "gain": 0.3
+ },
+ {
+  "t": 53.36,
+  "sfx": "pop",
+  "gain": 0.4
+ },
+ {
+  "t": 53.52,
+  "sfx": "bloop",
+  "gain": 0.3
+ },
+ {
+  "t": 53.64,
+  "sfx": "glass",
+  "gain": 0.3
+ },
+ {
+  "t": 53.76,
+  "sfx": "bloop",
+  "gain": 0.3
+ },
+ {
+  "t": 53.78,
+  "sfx": "stretch",
+  "gain": 0.35
+ },
+ {
+  "t": 54.05,
+  "sfx": "drip",
+  "gain": 0.25
+ },
+ {
+  "t": 54.3,
+  "sfx": "drip",
+  "gain": 0.25
+ },
+ {
+  "t": 54.52,
+  "sfx": "chime",
+  "gain": 0.45
+ },
+ {
+  "t": 54.6,
+  "sfx": "boing",
+  "gain": 0.35
+ },
+ {
+  "t": 54.9,
+  "sfx": "bloop",
+  "gain": 0.45
+ },
+ {
+  "t": 55.04,
+  "sfx": "glass",
+  "gain": 0.35
+ },
+ {
+  "t": 55.56,
+  "sfx": "whoosh",
+  "gain": 0.3
+ },
+ {
+  "t": 55.86,
+  "sfx": "swoosh-up",
+  "gain": 0.35
+ },
+ {
+  "t": 56.43,
+  "sfx": "click",
+  "gain": 0.5
+ },
+ {
+  "t": 56.55,
+  "sfx": "stretch",
+  "gain": 0.45
+ },
+ {
+  "t": 57.0,
+  "sfx": "whoosh",
+  "gain": 0.45
+ },
+ {
+  "t": 57.36,
+  "sfx": "bloop",
+  "gain": 0.5
+ },
+ {
+  "t": 57.44,
+  "sfx": "pop",
+  "gain": 0.3
+ },
+ {
+  "t": 58.08,
+  "sfx": "drip",
+  "gain": 0.35
+ },
+ {
+  "t": 58.22,
+  "sfx": "drip",
+  "gain": 0.35
+ },
+ {
+  "t": 58.32,
+  "sfx": "ding",
+  "gain": 0.7
+ },
+ {
+  "t": 58.36,
+  "sfx": "drip",
+  "gain": 0.35
+ },
+ {
+  "t": 58.72,
+  "sfx": "boing",
+  "gain": 0.25
+ },
+ {
+  "t": 59.0,
+  "sfx": "stretch",
+  "gain": 0.4
+ },
+ {
+  "t": 59.2,
+  "sfx": "drip",
+  "gain": 0.3
+ },
+ {
+  "t": 59.32,
+  "sfx": "whoosh",
+  "gain": 0.35
+ },
+ {
+  "t": 59.62,
+  "sfx": "merge",
+  "gain": 0.55
+ }
+]

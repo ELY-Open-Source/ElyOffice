@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+#s2-root { position: absolute; inset: 0; pointer-events: none; }
+#s2-kick-wrap { position: absolute; left: 0; right: 0; top: 112px; display: flex; justify-content: center; }
+#s2-kick { gap: 12px; font: 700 17px "Inter", "Noto Sans SC", sans-serif; letter-spacing: 0.22em; color: #eef4ff; }
+#s2-kick b { font-weight: 800; color: #fff; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.12em;
+  background: linear-gradient(170deg, #ff8fc4, #ff5fa8 60%, #e8458f); box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 6px 16px rgba(255,95,168,.45); }
+#s2-kick .zh { font-family: "Noto Sans SC", sans-serif; letter-spacing: 0.12em; }
+#s2-eyes { position: absolute; left: 912px; top: 600px; width: 96px; height: 40px; }
+.s2-eye { position: absolute; top: 0; width: 30px; height: 38px; border-radius: 50%;
+  background: radial-gradient(60% 50% at 40% 30%, #fff, #e8f2ff); box-shadow: inset 0 -3px 6px rgba(20,60,140,.25), 0 3px 8px rgba(5,20,70,.35); }
+.s2-eye.l { left: 0; } .s2-eye.r { right: 0; }
+.s2-pup { position: absolute; left: 8px; top: 14px; width: 14px; height: 16px; border-radius: 50%; background: #0d1a3a; }
+.s2-pup::after { content: ""; position: absolute; left: 3px; top: 3px; width: 5px; height: 5px; border-radius: 50%; background: #fff; }
+.s2-ping { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+  border: 2px solid #8fd0ff; box-shadow: 0 0 12px rgba(92,180,242,.8); opacity: 0; }
+#s2-tag-wrap { position: absolute; left: 0; right: 0; top: 32px; display: flex; justify-content: center; }
+#s2-tag { font: 600 19px "Noto Sans SC", sans-serif; gap: 10px; color: #f5f6ff; }
+#s2-tag .ico { width: 20px; height: 20px; color: #8fd0ff; }
+#s2-tag i { display: block; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.5); }
+</style>
+<div id="s2-root" data-composition-id="s2" data-width="1920" data-height="1080" data-duration="7">
+  <div id="s2-kick-wrap"><div class="pill" id="s2-kick"><b>NEW</b>ELY OFFICE 0.1.10<span class="zh">· 全新登场</span></div></div>
+  <div id="s2-eyes"><div class="s2-eye l"><div class="s2-pup"></div></div><div class="s2-eye r"><div class="s2-pup"></div></div></div>
+</div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var root = document.getElementById("s2-root");
+    var w = ElyKit.mailWindow(root, { id: "s2", select: 0 });
+    root.insertAdjacentHTML("beforeend",
+      '<div class="s2-ping" style="left:542.7px;top:246.6px"></div>' +
+      '<div class="s2-ping" style="left:542.7px;top:334.6px"></div>' +
+      '<div class="s2-ping" style="left:542.7px;top:510.6px"></div>' +
+      '<div id="s2-tag-wrap"><div class="pill" id="s2-tag">' + ElyKit.icon("cloudOff") + '本地存储<i></i>离线可读</div></div>');
+    var kick = document.getElementById("s2-kick");
+    var eyes = document.getElementById("s2-eyes");
+    var eye = root.querySelectorAll(".s2-eye");
+    var pup = root.querySelectorAll(".s2-pup");
+    var tag = document.getElementById("s2-tag");
+    var pings = root.querySelectorAll(".s2-ping");
+    var bar = w.win.querySelector(".mw-bar").children;
+    var side = w.side.children;
+    var chips = w.list.querySelector(".mw-filters").children;
+    var reads = w.read.children;
+    var badge = w.win.querySelector("#s2-all .n");
+
+    /* 12.2: kicker pops above the liquid title, leaves as the flap opens */
+    tl.fromTo(kick, { opacity: 0, y: 18, scale: 0.7 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(2.4)" }, 1.22);
+    tl.fromTo(kick, { opacity: 1, y: 0 }, { opacity: 0, y: -16, duration: 0.24, ease: "power2.in", immediateRender: false }, 2.24);
+
+    /* 12.5: the envelope lands and opens its eyes */
+    tl.fromTo(eyes, { opacity: 0, scaleY: 0.2, y: 8 }, { opacity: 1, scaleY: 1, y: 0, duration: 0.32, ease: "back.out(3)" }, 1.56);
+    tl.fromTo(eye, { scaleY: 1 }, { scaleY: 0.12, duration: 0.07, ease: "power2.in", yoyo: true, repeat: 1, immediateRender: false }, 1.98);
+    tl.fromTo(pup, { x: 0, y: 0 }, { x: 0, y: -8, duration: 0.25, ease: "power2.out" }, 1.7);
+    tl.fromTo(eyes, { opacity: 1, scaleY: 1 }, { opacity: 0, scaleY: 0.1, duration: 0.14, ease: "power2.in", immediateRender: false }, 2.16);
+
+    /* 15.0: the glass window settles over the liquid slab */
+    tl.fromTo(w.win, { opacity: 0, scale: 0.985 }, { opacity: 1, scale: 1, duration: 0.42, ease: "power2.out" }, 4.0);
+    tl.fromTo(bar, { opacity: 0, y: -14 }, { opacity: 1, y: 0, duration: 0.5, ease: "back.out(2)", stagger: 0.05 }, 4.32);
+    tl.fromTo(side, { opacity: 0, x: -26 }, { opacity: 1, x: 0, duration: 0.55, ease: "back.out(1.7)", stagger: 0.04 }, 4.42);
+    tl.fromTo(chips, { opacity: 0, y: 10, scale: 0.85 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(2.2)", stagger: 0.05 }, 4.55);
+    tl.fromTo(w.rows, { opacity: 0, y: 46 }, { opacity: 1, y: 0, duration: 0.7, ease: "elastic.out(1, 0.62)", stagger: 0.06 }, 4.62);
+    tl.fromTo(reads, { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out", stagger: 0.08 }, 4.95);
+    tl.fromTo(badge, { scale: 1 }, { scale: 1.35, duration: 0.12, ease: "power2.out", yoyo: true, repeat: 1, immediateRender: false }, 5.55);
+
+    /* 16.6: one sync spin, then the unread dots pulse */
+    tl.fromTo(w.sync, { rotation: -360 }, { rotation: 0, duration: 0.8, ease: "power3.inOut" }, 5.5);
+    tl.fromTo(pings, { opacity: 0.95, scale: 1 }, { opacity: 0, scale: 4.2, duration: 0.7, ease: "power2.out", stagger: 0.1, immediateRender: false }, 5.8);
+
+    /* 16.2: the offline-first tag */
+    tl.fromTo(tag, { opacity: 0, y: 14, scale: 0.8 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(2.2)" }, 5.2);
+    tl.fromTo(tag, { opacity: 1, y: 0, scale: 1 }, { opacity: 0, y: -10, scale: 0.94, duration: 0.3, ease: "power2.in", immediateRender: false }, 6.5);
+  } finally {
+    window.__timelines["s2"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

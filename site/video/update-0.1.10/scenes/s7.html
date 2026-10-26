@@ -1,0 +1,265 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+#s7-root { position: absolute; inset: 0; }
+#s7-fade { position: absolute; inset: 0; transform-origin: 960px 540px; }
+
+/* --- rules --- */
+#s7-rule { left: 136px; top: 200px; width: 680px; height: 344px; padding: 24px; opacity: 0; }
+.s7-rh { position: relative; height: 48px; display: flex; align-items: center; gap: 12px; font: 800 28px var(--zh); color: var(--ink); }
+.s7-rh .ico { width: 28px; height: 28px; color: #9fd8ff; }
+.s7-new { margin-left: auto; height: 32px; padding: 0 14px; border-radius: 999px; display: flex; align-items: center; gap: 6px;
+  font: 600 16px var(--zh); color: #d9ffd0; background: rgba(184, 243, 90, 0.16); border: 1px solid rgba(184, 243, 90, 0.4); }
+.s7-new .ico { width: 16px; height: 16px; color: #d9ffd0; }
+.s7-rl { position: relative; height: 72px; margin-top: 8px; border-radius: 16px; display: flex; align-items: center; gap: 10px; padding: 0 16px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); font: 600 21px var(--zh); color: var(--ink-2); }
+.s7-k { height: 40px; padding: 0 14px; border-radius: 12px; display: flex; align-items: center; background: rgba(255, 255, 255, 0.1); color: var(--ink); }
+.s7-v { font: 700 21px var(--sans); color: #fff; }
+.s7-ar { width: 26px; height: 26px; color: var(--ink-3); }
+.s7-act { margin-left: auto; height: 42px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; gap: 8px; color: #fff;
+  background: rgba(255, 255, 255, 0.12); border: 1px solid var(--line-2); }
+.s7-act .ico { width: 21px; height: 21px; }
+.s7-act.peach { background: linear-gradient(170deg, rgba(255, 180, 107, 0.6), rgba(240, 123, 42, 0.45)); }
+.s7-act.gold { background: linear-gradient(170deg, rgba(255, 214, 92, 0.55), rgba(242, 169, 0, 0.42)); }
+.s7-act.gold .ico { fill: #fff3c4; }
+.s7-flash { position: absolute; inset: -1px; border-radius: inherit; opacity: 0; border: 2px solid rgba(160, 215, 255, 0.95);
+  background: rgba(60, 170, 255, 0.18); box-shadow: 0 0 28px rgba(60, 170, 255, 0.5); }
+.s7-mailchip { position: absolute; left: 1260px; top: 102px; height: 56px; margin-left: -160px; width: 320px; border-radius: 999px; display: flex;
+  align-items: center; justify-content: center; gap: 10px; opacity: 0; font: 600 21px var(--sans); color: var(--ink); }
+.s7-mailchip i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.s7-mailchip .ico { width: 20px; height: 20px; color: var(--ink-2); }
+.s7-bub { position: absolute; width: 168px; height: 168px; margin: -84px 0 0 -84px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; opacity: 0; color: #fff; text-shadow: 0 2px 10px rgba(10, 6, 40, 0.5); }
+.s7-bub .ico { width: 30px; height: 30px; }
+.s7-bub b { font: 800 22px var(--sans); }
+.s7-bub .n { position: relative; height: 28px; width: 80px; }
+.s7-bub .n span { position: absolute; left: 0; right: 0; top: 0; text-align: center; font: 700 19px var(--sans); color: rgba(255, 255, 255, 0.85); opacity: 0; }
+#s7-star { position: absolute; left: 1556px; top: 592px; width: 54px; height: 54px; opacity: 0; color: #ffd54d; filter: drop-shadow(0 4px 12px rgba(242, 169, 0, 0.7)); }
+#s7-star .ico { width: 54px; height: 54px; fill: #ffd54d; stroke: #fff2b0; }
+
+/* --- contacts, vCard, MBOX, EML --- */
+#s7-chead { position: absolute; left: 110px; top: 214px; height: 56px; display: flex; align-items: center; gap: 12px; opacity: 0; }
+#s7-chead > b { font: 800 36px var(--zh); color: var(--ink); margin-right: 8px; }
+.s7-chip { height: 40px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; gap: 8px; font: 600 18px var(--zh); color: var(--ink);
+  background: rgba(255, 255, 255, 0.1); border: 1px solid var(--line-2); }
+.s7-chip .ico { width: 19px; height: 19px; }
+#s7-vcf { left: 110px; top: 300px; width: 200px; height: 248px; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; opacity: 0; }
+#s7-vcf .ico { width: 76px; height: 76px; color: #bfe4ff; stroke-width: 1.6; }
+#s7-vcf b { font: 800 34px var(--sans); color: #fff; }
+#s7-vcf span { font: 500 18px var(--zh); color: var(--ink-2); }
+.s7-ct { position: absolute; left: 428px; height: 72px; width: 330px; border-radius: 18px; padding: 0 20px; display: flex; flex-direction: column;
+  justify-content: center; opacity: 0; }
+.s7-ct b { font: 700 22px var(--zh); color: var(--ink); line-height: 1.2; }
+.s7-ct span { font: 500 17px var(--sans); color: var(--ink-3); line-height: 1.3; }
+.s7-ini { position: absolute; width: 60px; height: 60px; margin: -30px 0 0 -30px; display: flex; align-items: center; justify-content: center;
+  font: 800 25px var(--zh); color: #fff; opacity: 0; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
+#s7-cnote { position: absolute; left: 110px; top: 676px; font: 500 21px var(--zh); color: var(--ink-2); opacity: 0; display: flex; align-items: center; gap: 8px; }
+#s7-cnote .ico { width: 21px; height: 21px; color: #9fd8ff; }
+#s7-neck { left: 930px; top: 300px; width: 140px; height: 46px; border-radius: 14px; opacity: 0; }
+#s7-jar { left: 896px; top: 334px; width: 208px; height: 272px; border-radius: 48px; opacity: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 24px; }
+#s7-jar b { font: 800 34px var(--sans); color: #fff; letter-spacing: 0.04em; text-shadow: 0 2px 10px rgba(10, 6, 40, 0.5); }
+#s7-jlab { position: absolute; left: 800px; width: 400px; top: 630px; display: flex; justify-content: center; gap: 10px; opacity: 0; }
+#s7-done { position: absolute; left: 1068px; top: 302px; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(170deg, #c6ff7a, #5fc23a); box-shadow: 0 10px 26px rgba(80, 200, 60, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.6); opacity: 0; }
+#s7-done .ico { width: 32px; height: 32px; color: #fff; stroke-width: 3; }
+#s7-eml { left: 1256px; top: 326px; width: 528px; height: 318px; padding: 26px 30px; opacity: 0; border-radius: 24px; }
+.s7-eh { display: flex; align-items: center; gap: 10px; }
+.s7-ext { height: 34px; padding: 0 14px; border-radius: 9px; display: flex; align-items: center; font: 800 18px var(--sans); color: #fff; background: var(--mail); }
+.s7-ro { height: 34px; padding: 0 14px; border-radius: 999px; display: flex; align-items: center; gap: 6px; font: 600 17px var(--zh); color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); }
+.s7-ro .ico { width: 15px; height: 15px; }
+.s7-es { font: 700 30px var(--zh); color: var(--ink); margin: 18px 0 12px; }
+.s7-ef { display: flex; align-items: center; gap: 12px; font: 600 19px var(--zh); color: var(--ink); }
+.s7-ef small { display: block; font: 500 15px var(--sans); color: var(--ink-3); }
+.s7-eb { font: 400 18px/1.6 var(--zh); color: var(--ink-2); margin-top: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s7-save { position: absolute; right: 26px; bottom: 24px; height: 44px; font-size: 18px; padding: 0 18px; }
+
+/* --- desktop: close, tray, notification --- */
+#s7-cursor { position: absolute; left: 0; top: 0; width: 34px; height: 40px; opacity: 0; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45)); }
+#s7-tray { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: center; justify-content: flex-end; gap: 26px; padding-right: 32px;
+  background: radial-gradient(circle at 1646px 28px, rgba(20, 14, 58, 0) 0 21px, rgba(20, 14, 58, 0.5) 22px); border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 10px 30px rgba(4, 2, 20, 0.35); color: var(--ink); font: 600 20px var(--sans); opacity: 0; }
+#s7-tray .ico { width: 24px; height: 24px; color: var(--ink-2); }
+.s7-slot { width: 40px; height: 40px; }
+.s7-ime { font: 600 18px var(--zh); color: var(--ink-2); }
+#s7-tip { right: 203px; top: 76px; height: 52px; padding: 0 20px; border-radius: 16px; display: flex; align-items: center; gap: 10px; opacity: 0;
+  font: 600 19px var(--zh); color: var(--ink); white-space: nowrap; }
+#s7-tip .ico { width: 20px; height: 20px; color: #9fd8ff; }
+#s7-tip::after { content: ""; position: absolute; right: 64px; top: -7px; width: 14px; height: 14px; transform: rotate(45deg);
+  background: rgba(255, 255, 255, 0.16); border-left: 1px solid rgba(255, 255, 255, 0.24); border-top: 1px solid rgba(255, 255, 255, 0.24); }
+#s7-note { right: 28px; top: 80px; width: 640px; height: 156px; border-radius: 28px; padding: 24px 28px; display: flex; gap: 22px; opacity: 0; }
+#s7-note img { width: 80px; height: 80px; flex: none; margin-top: 6px; filter: drop-shadow(0 6px 14px rgba(30, 143, 224, 0.5)); }
+.s7-nt { flex: 1; min-width: 0; }
+.s7-n1 { display: flex; align-items: center; font: 600 20px var(--sans); color: var(--ink-2); }
+.s7-n1 span { margin-left: auto; font: 500 17px var(--zh); color: var(--ink-3); }
+.s7-n2 { font: 800 33px var(--zh); color: #fff; margin-top: 4px; }
+.s7-n3 { font: 500 23px var(--zh); color: var(--ink-2); margin-top: 2px; }
+</style>
+<div id="s7-root" data-composition-id="s7" data-width="1920" data-height="1080" data-duration="10">
+  <div id="s7-fade"></div>
+  <div id="s7-stage"></div>
+</div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var root = document.getElementById("s7-root");
+    var fade = document.getElementById("s7-fade");
+    var stage = document.getElementById("s7-stage");
+    var w = ElyKit.mailWindow(fade, { id: "s7", select: 0 });
+    var I = ElyKit.icon;
+    var IF = { immediateRender: false };
+    function ft(el, a, b, at) { tl.fromTo(el, a, Object.assign({}, b, IF), at); }
+    function pulse(el, prop, vals, at, dur, extra) {
+      var step = dur / (vals.length - 1);
+      for (var q = 0; q < vals.length - 1; q++) {
+        var a = {}, b2 = Object.assign({ duration: step, ease: "sine.inOut" }, extra || {});
+        a[prop] = vals[q]; b2[prop] = vals[q + 1];
+        ft(el, a, b2, at + q * step);
+      }
+    }
+    function popIn(el, at, from) { ft(el, Object.assign({ opacity: 0, scale: 0.6, y: 18 }, from || {}), { opacity: 1, scale: 1, y: 0, x: 0, duration: 0.5, ease: "back.out(2.2)" }, at); }
+    function popOut(el, at, dur) { ft(el, { opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }, { opacity: 0, scale: 0.86, y: 14, filter: "blur(8px)", duration: dur || 0.3, ease: "power2.in" }, at); }
+    var ARROW = '<svg class="ico s7-ar" viewBox="0 0 24 24"><path d="M4 12h15"/><path d="m13 6 6 6-6 6"/></svg>';
+
+    var html = "";
+    /* rules */
+    html += '<div class="glass" id="s7-rule"><div class="s7-rh">' + I("filter") + '规则<span class="s7-new">' + I("sparkle") + "只作用于新邮件</span></div>" +
+      '<div class="s7-rl" id="s7-rl0"><div class="s7-flash"></div><span class="s7-k">发件人</span>包含<span class="s7-v">“shop”</span>' + ARROW + '<span class="s7-act peach">' + I("folder") + "移到 Receipts</span></div>" +
+      '<div class="s7-rl" id="s7-rl1"><div class="s7-flash"></div><span class="s7-k">发件人</span>包含<span class="s7-v">“周雨桐”</span>' + ARROW + '<span class="s7-act gold">' + I("star") + "加标记</span></div>" +
+      '<div class="s7-rl" id="s7-rl2"><div class="s7-flash"></div><span class="s7-k">主题</span>包含<span class="s7-v">“周报”</span>' + ARROW + '<span class="s7-act">' + I("archive") + "归档</span></div></div>";
+    var DROPS = [["orders@kettle.shop", "#FFB46B"], ["周雨桐", "#FF5FA8"], ["deals@pixel.shop", "#FFB46B"], ["林晓", "#3ddc84"]];
+    DROPS.forEach(function (d, i) {
+      html += '<div class="glass s7-mailchip" id="s7-mc' + i + '"><i style="background:' + d[1] + ';box-shadow:0 0 10px ' + d[1] + '"></i>' + I("mail") + d[0] + "</div>";
+    });
+    html += '<div class="s7-bub" id="s7-bubR" style="left:1030px;top:712px">' + I("folder") + "<b>Receipts</b><div class=\"n\"><span>0</span><span>1</span><span>2</span></div></div>";
+    html += '<div class="s7-bub" id="s7-bubI" style="left:1490px;top:712px">' + I("inbox") + "<b>收件箱</b><div class=\"n\"><span>12</span><span>13</span><span>14</span></div></div>";
+    html += '<div id="s7-star">' + I("star") + "</div>";
+
+    /* contacts + vCard */
+    html += '<div id="s7-chead"><b>联系人</b><div class="s7-chip">' + I("download") + '导入 vCard</div><div class="s7-chip">' + I("upload") + "导出 vCard</div></div>";
+    html += '<div class="glass" id="s7-vcf">' + I("contacts") + "<b>.vcf</b><span>联系人.vcf</span></div>";
+    var CT = [["周", "周雨桐", "yutong.zhou@gmail.com"], ["林", "林晓", "lin.xiao@icloud.com"], ["M", "Marco Rossi", "marco@rossi.studio"], ["陈", "陈默", "chenmo@outlook.com"]];
+    CT.forEach(function (c, i) {
+      var y = 300 + i * 88;
+      html += '<div class="glass s7-ct" id="s7-ct' + i + '" style="top:' + y + 'px"><b>' + c[1] + "</b><span>" + c[2] + "</span></div>";
+      html += '<div class="s7-ini" id="s7-ini' + i + '" style="left:380px;top:' + (y + 36) + 'px">' + c[0] + "</div>";
+    });
+    html += '<div id="s7-cnote">' + I("send") + "从已发邮件自动收集 · 也可手动添加</div>";
+    /* MBOX jar */
+    html += '<div class="glass soft" id="s7-neck"></div><div class="glass soft" id="s7-jar"><b>MBOX</b></div>';
+    html += '<div id="s7-jlab"><div class="s7-chip">' + I("download") + '导入</div><div class="s7-chip">' + I("upload") + "导出</div></div>";
+    html += '<div id="s7-done">' + I("check") + "</div>";
+    /* EML read-only card */
+    html += '<div class="glass" id="s7-eml"><div class="s7-eh"><span class="s7-ext">.eml</span><span class="s7-ro">' + I("lock") + "只读</span></div>" +
+      '<div class="s7-es">周末去爬山吗？</div><div class="s7-ef">' + ElyKit.avatar(ElyKit.MAIL[3]) + "<div>林晓<small>lin.xiao@icloud.com</small></div></div>" +
+      '<div class="s7-eb">天气预报说周六晴，八点在地铁站集合，带点水和零食～</div>' +
+      '<div class="pill s7-save">' + I("download") + "另存为 EML…</div></div>";
+
+    /* desktop */
+    html += '<svg id="s7-cursor" viewBox="0 0 34 40" aria-hidden="true"><path d="M3 2v31l8.5-8 5.6 12.6 6-2.7-5.6-12.3H30z" fill="#fff" stroke="#14102e" stroke-width="2.4" stroke-linejoin="round"/></svg>';
+    html += '<div id="s7-tray"><div class="s7-slot"></div>' + I("wifi") + '<span class="s7-ime">中</span>' + I("bell") + "<span>10:42</span></div>";
+    html += '<div class="glass" id="s7-tip">' + I("sync") + "ElyMail 在托盘里 · 同步和发件箱照常运行</div>";
+    html += '<div class="glass" id="s7-note"><img src="assets/icons/ely-mail.svg" alt=""/><div class="s7-nt"><div class="s7-n1">ElyMail<span>现在</span></div>' +
+      '<div class="s7-n2">3 封新邮件</div><div class="s7-n3">来自 周雨桐、林晓 等</div></div></div>';
+    stage.insertAdjacentHTML("beforeend", html);
+    var $ = function (id) { return document.getElementById(id); };
+
+    /* ===== A. rules (0 → 3.3) ===== */
+    ft(fade, { scale: 1, y: 0 }, { scale: 0.9, y: 30, duration: 0.42, ease: "power3.in" }, 0.12);
+    ft(w.win, { opacity: 1, filter: "blur(0px)" }, { opacity: 0, filter: "blur(14px)", duration: 0.36, ease: "power2.in" }, 0.14);
+    popIn($("s7-rule"), 0.34, { x: -40 });
+    ["s7-rl0", "s7-rl1", "s7-rl2"].forEach(function (id, i) { ft($(id), { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.4, ease: "back.out(1.8)" }, 0.46 + i * 0.07); });
+    var MELT = [0.8, 1.2, 1.6, 2.0];
+    var FORK = MELT.map(function (m) { return m + 0.56; });
+    var LAND = MELT.map(function (m) { return m + 0.88; });
+    MELT.forEach(function (m, i) {
+      var mc = $("s7-mc" + i);
+      ft(mc, { opacity: 0, scale: 0.5, y: -30 }, { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: "back.out(2.4)" }, m - 0.3);
+      ft(mc, { opacity: 1, scaleX: 1, scaleY: 1 }, { opacity: 0, scaleX: 0.4, scaleY: 0.2, duration: 0.14, ease: "power2.in" }, m);
+    });
+    var bubR = $("s7-bubR"), bubI = $("s7-bubI");
+    popIn(bubR, 0.62); popIn(bubI, 0.68);
+    function counter(el, steps) {
+      var sp = el.querySelectorAll(".n span");
+      ft(sp[0], { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.8);
+      steps.forEach(function (at, i) {
+        ft(sp[i], { opacity: 1, y: 0 }, { opacity: 0, y: -12, duration: 0.14 }, at);
+        ft(sp[i + 1], { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.24, ease: "back.out(2.4)" }, at + 0.04);
+      });
+    }
+    counter(bubR, [LAND[0], LAND[2]]);
+    counter(bubI, [LAND[1], LAND[3]]);
+    /* the matching rule lights up as each drop reaches the fork */
+    function flash(id, at) {
+      var f = $(id).querySelector(".s7-flash");
+      ft(f, { opacity: 0 }, { opacity: 1, duration: 0.08 }, at);
+      ft(f, { opacity: 1 }, { opacity: 0, duration: 0.45, ease: "power2.out" }, at + 0.2);
+      pulse($(id), "scale", [1, 1.035, 1], at, 0.26);
+    }
+    flash("s7-rl0", FORK[0]); flash("s7-rl1", FORK[1]); flash("s7-rl0", FORK[2]);
+    var star = $("s7-star");
+    ft(star, { opacity: 0, scale: 0.2, rotation: -90, y: 30 }, { opacity: 1, scale: 1, rotation: 0, y: 0, duration: 0.5, ease: "back.out(3)" }, LAND[1] + 0.02);
+    /* exit A */
+    popOut($("s7-rule"), 3.0);
+    popOut(bubR, 3.04, 0.24); popOut(bubI, 3.08, 0.24); popOut(star, 3.0, 0.24);
+
+    /* ===== B. contacts, vCard, MBOX, EML (3.3 → 5.85) ===== */
+    popIn($("s7-chead"), 3.3, { x: -30 });
+    popIn($("s7-vcf"), 3.36);
+    var BUB = [3.5, 3.62, 3.74, 3.86];
+    CT.forEach(function (c, i) {
+      ft($("s7-ct" + i), { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.42, ease: "back.out(1.8)" }, BUB[i] + 0.38);
+      ft($("s7-ini" + i), { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2.4)" }, BUB[i] + 0.36);
+    });
+    ft($("s7-cnote"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 4.4);
+    popIn($("s7-jar"), 3.62); popIn($("s7-neck"), 3.66);
+    ft($("s7-jlab"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 3.8);
+    ft($("s7-done"), { opacity: 0, scale: 0.2, rotation: -60 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.45, ease: "back.out(3)" }, 4.52);
+    ft($("s7-eml"), { opacity: 0, scale: 0.92, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.32, ease: "power2.out" }, 5.02);
+    /* exit B */
+    var exB = ["s7-chead", "s7-vcf", "s7-cnote", "s7-jar", "s7-neck", "s7-jlab", "s7-done", "s7-eml"].map($);
+    CT.forEach(function (c, i) { exB.push($("s7-ct" + i), $("s7-ini" + i)); });
+    exB.forEach(function (el, i) { popOut(el, 5.56 + (i % 6) * 0.02, 0.24); });
+
+    /* ===== C. close to the tray (5.85 → 9.0) ===== */
+    ft(fade, { scale: 0.94, y: 0 }, { scale: 1, y: 0, duration: 0.45, ease: "power3.out" }, 5.85);
+    ft(w.win, { opacity: 0, filter: "blur(14px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.4, ease: "power2.out" }, 5.85);
+    tl.set(w.win, { filter: "none" }, 6.27);
+    var cur = $("s7-cursor");
+    ft(cur, { opacity: 0, x: 420, y: 330 }, { opacity: 1, x: 220, y: 128, duration: 0.42, ease: "power3.out" }, 6.0);
+    var red = w.win.querySelector(".mw-dots i");
+    pulse(red, "scale", [1, 0.6, 1.25, 1], 6.42, 0.24);
+    pulse(cur, "scale", [1, 0.86, 1], 6.42, 0.16, { transformOrigin: "10% 5%" });
+    ft(cur, { opacity: 1 }, { opacity: 0, duration: 0.2 }, 6.62);
+    /* the window is sucked into a drop */
+    ft(w.win, { opacity: 1, scaleX: 1, scaleY: 1, filter: "blur(0px)" },
+      { opacity: 0, scaleX: 0.3, scaleY: 0.12, filter: "blur(16px)", duration: 0.36, ease: "power3.in", transformOrigin: "50% 60%" }, 6.5);
+    var tray = $("s7-tray");
+    ft(tray, { opacity: 0, y: -60 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(1.6)" }, 6.8);
+    var tip = $("s7-tip");
+    popIn(tip, 7.42, { y: -14 });
+    popOut(tip, 8.02, 0.22);
+    var note = $("s7-note");
+    ft(note, { opacity: 0, x: 600, scaleX: 1 }, { opacity: 1, x: 0, duration: 0.6, ease: "back.out(1.5)" }, 8.3);
+    pulse(note, "scaleY", [1, 0.9, 1.04, 1], 8.7, 0.36, { transformOrigin: "50% 0%" });
+    var bell = tray.querySelectorAll(".ico")[1];
+    pulse(bell, "rotation", [0, 18, -14, 9, -5, 0], 8.32, 0.6, { transformOrigin: "50% 10%" });
+
+    /* ===== D. melt into H7 (9.0 → 10) ===== */
+    ft(note, { opacity: 1, scale: 1, filter: "blur(0px)" }, { opacity: 0, scale: 0.25, filter: "blur(14px)", duration: 0.28, ease: "power3.in", transformOrigin: "60% 50%" }, 9.0);
+    ft(tray, { opacity: 1, y: 0 }, { opacity: 0, y: -60, duration: 0.3, ease: "power3.in" }, 9.08);
+  } finally {
+    window.__timelines["s7"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

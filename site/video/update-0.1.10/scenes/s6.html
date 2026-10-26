@@ -1,0 +1,287 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+#s6-root { position: absolute; inset: 0; }
+#s6-fade { position: absolute; inset: 0; transform-origin: 960px 540px; }
+#s6-cam { position: absolute; inset: 0; transform-origin: 0 0; }
+
+/* typing in the search field */
+#s6-root .s6-py { display: inline-block; opacity: 0; color: #bfe4ff; font: 500 17px var(--sans); }
+#s6-root .s6-pyw { opacity: 0; display: inline-flex; border-bottom: 2px solid rgba(120, 190, 255, 0.85); line-height: 22px; }
+#s6-root .s6-pyw, #s6-root .s6-hz { position: absolute; left: 0; top: 50%; margin-top: -12px; white-space: nowrap; }
+#s6-root .s6-hz { opacity: 0; color: #fff; font: 600 17px var(--zh); line-height: 24px; }
+#s6-root .s6-qbox { position: relative; display: inline-block; width: 0; height: 24px; vertical-align: middle; }
+#s6-caret { position: absolute; top: 2px; width: 2px; height: 20px; border-radius: 2px; background: #5cb4f2; opacity: 0; box-shadow: 0 0 8px rgba(92, 180, 242, 0.9); }
+
+/* scope strip */
+#s6-scope { position: absolute; left: 0; top: 0; width: 500px; height: 100px; opacity: 0; }
+.s6-chip { position: absolute; top: 14px; height: 34px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+  font: 600 15px var(--zh); color: var(--ink-2); background: rgba(255, 255, 255, 0.07); border: 1px solid var(--line); overflow: hidden; }
+.s6-chip .s6-on { position: absolute; inset: 0; border-radius: inherit; opacity: 0;
+  background: linear-gradient(180deg, rgba(92, 180, 242, 0.55), rgba(30, 143, 224, 0.4)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+.s6-chip span { position: relative; }
+.s6-row2 { position: absolute; left: 16px; right: 16px; top: 64px; height: 28px; display: flex; align-items: center; }
+.s6-date { height: 28px; padding: 0 12px 0 10px; border-radius: 999px; display: flex; align-items: center; gap: 6px; font: 600 13px var(--zh);
+  color: var(--ink-2); background: rgba(255, 255, 255, 0.05); border: 1px dashed rgba(255, 255, 255, 0.24); }
+.s6-date .ico { width: 14px; height: 14px; }
+.s6-date .chev { transform: rotate(90deg); width: 12px; height: 12px; }
+.s6-count { margin-left: auto; position: relative; width: 220px; height: 28px; }
+.s6-count div { position: absolute; right: 0; top: 0; height: 28px; display: flex; align-items: center; gap: 6px; opacity: 0; white-space: nowrap;
+  font: 500 13px var(--zh); color: var(--ink-3); }
+.s6-count b { font: 800 15px var(--sans); color: #fff; }
+
+/* results */
+#s6-res { position: absolute; left: 0; top: 104px; width: 500px; height: 560px; }
+.s6-r { position: absolute; left: 0; top: 0; width: 500px; height: 88px; }
+.s6-r .mw-row { opacity: 0; }
+.s6-hl { color: #fff; background: rgba(30, 143, 224, 0.62); border-radius: 4px; box-shadow: 0 0 0 2px rgba(30, 143, 224, 0.62), 0 0 14px rgba(60, 170, 255, 0.55); }
+.s6-prevw { position: relative; height: 20px; margin-top: 3px; }
+.s6-prevw .mw-prev { position: absolute; left: 0; right: 0; top: 0; margin-top: 0; }
+.s6-att { position: absolute; left: 0; top: -1px; height: 22px; padding: 0 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;
+  font: 600 13px var(--zh); color: var(--ink); background: rgba(255, 255, 255, 0.1); border: 1px solid var(--line); white-space: nowrap; }
+.s6-att .ico { width: 13px; height: 13px; color: var(--ink-2); }
+.s6-att small { font: 500 12px var(--sans); color: var(--ink-3); margin-left: 4px; }
+
+/* stat */
+#s6-stat { position: absolute; inset: 0; pointer-events: none; }
+#s6-kick { position: absolute; left: 0; right: 0; top: 112px; text-align: center; opacity: 0; }
+#s6-kick span { display: inline-flex; align-items: center; gap: 12px; height: 44px; padding: 0 22px; border-radius: 999px;
+  font: 700 17px var(--sans); letter-spacing: 0.2em; color: var(--ink-2); background: rgba(255, 255, 255, 0.07); border: 1px solid var(--line); }
+#s6-kick .ico { width: 20px; height: 20px; color: #9fd8ff; }
+.s6-lab { position: absolute; left: 0; right: 0; text-align: center; opacity: 0; font: 700 38px var(--zh); color: var(--ink); letter-spacing: 0.02em; }
+.s6-lab em { font: 500 32px var(--sans); font-style: normal; color: var(--ink-3); letter-spacing: 0; }
+#s6-lab1 { top: 490px; }
+#s6-lab2 { top: 768px; }
+#s6-watch { position: absolute; left: 576px; top: 572px; width: 136px; height: 136px; opacity: 0; }
+#s6-watch svg { width: 136px; height: 136px; overflow: visible; }
+</style>
+<div id="s6-root" data-composition-id="s6" data-width="1920" data-height="1080" data-duration="6">
+  <div id="s6-fade"><div id="s6-cam"></div></div>
+  <div id="s6-stat">
+    <div id="s6-kick"><span><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>全文搜索 · 全部账号与文件夹</span></div>
+    <div class="s6-lab" id="s6-lab1">封邮件 <em>· messages</em></div>
+    <div id="s6-watch">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <rect x="52" y="4" width="16" height="10" rx="3" fill="rgba(255,255,255,.85)"/>
+        <path d="M60 14v6" stroke="rgba(255,255,255,.85)" stroke-width="5" stroke-linecap="round"/>
+        <path d="M96 26l6-6" stroke="rgba(255,255,255,.7)" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="60" cy="66" r="47" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.9)" stroke-width="5"/>
+        <path id="s6-arc" d="M60 27 A39 39 0 0 1 91.6 43.1" fill="none" stroke="#2fd8e8" stroke-width="9" stroke-linecap="round" stroke-dasharray="40" stroke-dashoffset="40"/>
+        <g stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-linecap="round"><path d="M60 24v5M102 66h-5M60 108v-5M18 66h5"/></g>
+        <path id="s6-hand" d="M60 66V32" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="60" cy="66" r="6" fill="#fff"/>
+      </svg>
+    </div>
+    <div class="s6-lab" id="s6-lab2">秒 <em>· seconds · 中位数 median</em></div>
+  </div>
+</div>
+<script>
+(function () {
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var root = document.getElementById("s6-root");
+    var cam = document.getElementById("s6-cam");
+    var fade = document.getElementById("s6-fade");
+    var w = ElyKit.mailWindow(cam, { id: "s6", select: 0 });
+    var I = ElyKit.icon;
+    var rowsBox = document.getElementById("s6-rows");
+    var filters = w.list.querySelector(".mw-filters");
+    var IF = { immediateRender: false };
+    function ft(el, a, b, at) { tl.fromTo(el, a, Object.assign({}, b, IF), at); }
+    /* a short keyframed pulse built from chained fromTo steps */
+    function pulse(el, prop, vals, at, dur, extra) {
+      var step = dur / (vals.length - 1);
+      for (var q = 0; q < vals.length - 1; q++) {
+        var a = {}, b2 = Object.assign({ duration: step, ease: "sine.inOut" }, extra || {});
+        a[prop] = vals[q]; b2[prop] = vals[q + 1];
+        ft(el, a, b2, at + q * step);
+      }
+    }
+
+    /* ---------- typing: pinyin "pingshen" committed as 评审 ---------- */
+    var PY = "pingshen";
+    var qb = '<span class="s6-qbox"><span class="s6-pyw">';
+    for (var k = 0; k < PY.length; k++) qb += '<span class="s6-py">' + PY[k] + "</span>";
+    qb += '</span><span class="s6-hz">评审</span><span id="s6-caret"></span></span>';
+    w.query.innerHTML = qb;
+    var pys = w.query.querySelectorAll(".s6-py");
+    var pyw = w.query.querySelector(".s6-pyw");
+    var hz = w.query.querySelector(".s6-hz");
+    var caret = document.getElementById("s6-caret");
+
+    /* ---------- scope strip ---------- */
+    var CHIPS = [["全部", 16, 52], ["发件人", 76, 68], ["收件人", 152, 68], ["主题", 228, 52], ["正文", 288, 52], ["附件名", 348, 68]];
+    var sc = '<div id="s6-scope">';
+    CHIPS.forEach(function (c, i) {
+      sc += '<div class="s6-chip" id="s6-chip' + i + '" style="left:' + c[1] + "px;width:" + c[2] + 'px"><div class="s6-on"></div><span>' + c[0] + "</span></div>";
+    });
+    var COUNTS = [[4, "全部账号与文件夹"], [2, "主题含 “评审”"], [3, "正文含 “评审”"], [2, "附件名含 “评审”"]];
+    sc += '<div class="s6-row2"><div class="s6-date">' + I("draft") + "日期 · 不限" + I("chevron", "chev") + '</div><div class="s6-count">';
+    COUNTS.forEach(function (c, i) { sc += '<div id="s6-cnt' + i + '"><b>' + c[0] + "</b> 封 · " + c[1] + "</div>"; });
+    sc += "</div></div></div>";
+
+    /* ---------- result rows (term highlighted) ---------- */
+    var HL = '<span class="s6-hl">评审</span>';
+    function av(t, a, b) { return '<div class="mw-av" style="background:linear-gradient(150deg,' + a + "," + b + ')">' + t + "</div>"; }
+    function att(name, size) { return '<div class="s6-att">' + I("clip") + name + "<small>" + size + "</small></div>"; }
+    function rrow(o) {
+      var flags = o.clip ? I("clip") : "";
+      return '<div class="mw-row' + (o.unread ? " unread" : "") + (o.sel ? " sel" : "") + '">' + av(o.av, o.c[0], o.c[1]) +
+        '<div class="mw-rt"><div class="mw-r1"><div class="mw-from">' + o.from + '</div><div class="mw-flags">' + flags + '</div><div class="mw-time">' + o.time + "</div></div>" +
+        '<div class="mw-subj">' + o.subj + '</div><div class="s6-prevw">' + o.prev + "</div></div></div>";
+    }
+    var RES = [
+      { from: "周雨桐", av: "周", c: ["#ff8fb8", "#d9468f"], time: "10:42", unread: true, sel: true, clip: true,
+        subj: "周五的设计" + HL + "改到下午三点",
+        prev: '<div class="mw-prev" id="s6-r0p">大家好，' + HL + "挪到 15:00，记得带上新版原型和动效稿……</div>" +
+          '<div id="s6-r0a" style="position:absolute;left:0;top:0;opacity:0">' + att("评审议程.pdf", "248 KB").replace("评审", HL) + "</div>" },
+      { from: "何川", av: "何", c: ["#9fd2ff", "#3d7fe5"], time: "周三", subj: HL + "会纪要：新版收件箱交互",
+        prev: '<div class="mw-prev">附上周二' + HL + "的结论和待办，下周一前请过一遍。</div>" },
+      { from: "王可", av: "王", c: ["#ffd28a", "#f07b2a"], time: "周二", unread: true, subj: "下周的排期，先对一下",
+        prev: '<div class="mw-prev">原型那边等' + HL + "结束再定，先把动效稿往前推……</div>" },
+      { from: "苏蔓", av: "苏", c: ["#d0a8ff", "#7e57c2"], time: "周一", clip: true, subj: "动效稿 v3 来了",
+        prev: att("设计" + HL + "-动效稿.key", "18.4 MB") },
+    ];
+    var rs = '<div id="s6-res">';
+    RES.forEach(function (o, i) { rs += '<div class="s6-r" id="s6-r' + i + '">' + rrow(o) + "</div>"; });
+    rs += "</div>";
+    w.list.insertAdjacentHTML("beforeend", sc + rs);
+
+    var chipOn = CHIPS.map(function (c, i) { return document.querySelector("#s6-chip" + i + " .s6-on"); });
+    var chipTx = CHIPS.map(function (c, i) { return document.querySelector("#s6-chip" + i + " span"); });
+    var chipEl = CHIPS.map(function (c, i) { return document.getElementById("s6-chip" + i); });
+    var scope = document.getElementById("s6-scope");
+    var cnt = COUNTS.map(function (c, i) { return document.getElementById("s6-cnt" + i); });
+    var rw = RES.map(function (o, i) { return document.getElementById("s6-r" + i); });
+    var rr = rw.map(function (el) { return el.querySelector(".mw-row"); });
+    var crow = Array.prototype.slice.call(w.rows);
+    var magnifier = w.search.querySelector(".ico");
+
+    /* ---------- camera push onto the search bar (0 → 0.7) ---------- */
+    ft(cam, { scale: 1, x: 0, y: 0 }, { scale: 1.3, x: -250, y: -101, duration: 0.7, ease: "power3.inOut" }, 0);
+
+    /* focus + placeholder */
+    ft(w.search, { borderColor: "rgba(255,255,255,0.16)", backgroundColor: "rgba(255,255,255,0.08)", boxShadow: "0 0 0 0px rgba(30,143,224,0), 0 0 0px rgba(60,170,255,0)" },
+      { borderColor: "rgba(120,190,255,0.85)", backgroundColor: "rgba(255,255,255,0.14)", boxShadow: "0 0 0 4px rgba(30,143,224,0.28), 0 0 26px rgba(60,170,255,0.45)", duration: 0.25, ease: "power2.out" }, 0.22);
+    ft(w.placeholder, { opacity: 1 }, { opacity: 0, duration: 0.1 }, 0.3);
+    pulse(magnifier, "scale", [1, 1.2, 1], 0.22, 0.24, { transformOrigin: "50% 50%" });
+
+    /* pinyin keystrokes, deterministic jitter */
+    var KT = [];
+    var j = [0, 0.012, -0.008, 0.01, -0.006, 0.014, -0.01, 0.006];
+    for (k = 0; k < PY.length; k++) KT.push(0.36 + k * 0.064 + j[k]);
+    ft(pyw, { opacity: 0 }, { opacity: 1, duration: 0.01 }, KT[0]);
+    KT.forEach(function (tt, i2) { ft(pys[i2], { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.06, ease: "power2.out" }, tt); });
+    var COMMIT = 0.88;
+    ft(pyw, { opacity: 1 }, { opacity: 0, duration: 0.06 }, COMMIT);
+    ft(hz, { opacity: 0, y: 6, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: "back.out(2.6)" }, COMMIT);
+    /* caret: follows the text, then blinks */
+    ft(caret, { opacity: 0, x: 0 }, { opacity: 1, x: 0, duration: 0.01 }, 0.32);
+    KT.forEach(function (tt, i2) { ft(caret, { x: i2 * 9.4 }, { x: (i2 + 1) * 9.4, duration: 0.05, ease: "power2.out" }, tt); });
+    ft(caret, { x: PY.length * 9.4 }, { x: 36, duration: 0.08, ease: "power2.out" }, COMMIT);
+    for (var b = 1.2; b < 2.6; b += 0.5) {
+      tl.set(caret, { opacity: 0 }, b);
+      tl.set(caret, { opacity: 1 }, b + 0.25);
+    }
+
+    /* filters row out, scope strip in, list pushed down 48 px */
+    ft(filters, { opacity: 1, y: 0 }, { opacity: 0, y: -12, duration: 0.2, ease: "power2.in" }, 0.3);
+    ft(rowsBox, { y: 0 }, { y: 48, duration: 0.34, ease: "power3.inOut" }, 0.34);
+    ft(scope, { opacity: 0 }, { opacity: 1, duration: 0.01 }, 0.36);
+    chipEl.forEach(function (el, i2) {
+      ft(el, { scale: 0.5, opacity: 0, y: 8 }, { scale: 1, opacity: 1, y: 0, duration: 0.36, ease: "back.out(2.4)" }, 0.38 + i2 * 0.045);
+    });
+    var row2 = scope.querySelector(".s6-row2");
+    ft(row2, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 0.66);
+
+    /* scope selection: 全部 → 主题 → 正文 → 附件名 */
+    var HOPS = [[0.72, 0], [1.5, 3], [1.9, 4], [2.3, 5]];
+    HOPS.forEach(function (h, i2) {
+      var at = h[0] + (i2 === 0 ? 0.08 : 0.12);
+      ft(chipOn[h[1]], { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power2.out" }, at);
+      ft(chipTx[h[1]], { color: "rgba(240,242,255,0.72)" }, { color: "#ffffff", duration: 0.18 }, at);
+      pulse(chipEl[h[1]], "scale", [1, 1.12, 0.96, 1], at, 0.36);
+      if (i2 > 0) {
+        var p = HOPS[i2 - 1][1];
+        ft(chipOn[p], { opacity: 1 }, { opacity: 0, duration: 0.16 }, h[0] + 0.04);
+        ft(chipTx[p], { color: "#ffffff" }, { color: "rgba(240,242,255,0.72)", duration: 0.16 }, h[0] + 0.04);
+        ft(cnt[i2 - 1], { opacity: 1, y: 0 }, { opacity: 0, y: -8, duration: 0.14 }, h[0] + 0.05);
+      }
+      ft(cnt[i2], { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.24, ease: "back.out(2)" }, i2 === 0 ? 0.95 : h[0] + 0.14);
+    });
+
+    /* ---------- the list filters: melt and rise ---------- */
+    var MELT = { opacity: 0, y: 26, scaleY: 0.5, filter: "blur(6px)", duration: 0.34, ease: "power2.in", transformOrigin: "50% 100%" };
+    var SOLID = { opacity: 1, y: 0, scaleY: 1, filter: "blur(0px)" };
+    function melt(el, at) { ft(el, SOLID, MELT, at); }
+    function rise(i2, slot, at) {
+      ft(rw[i2], { y: slot * 88 + 36 }, { y: slot * 88, duration: 0.5, ease: "back.out(1.7)" }, at);
+      ft(rr[i2], { opacity: 0, y: 0, scaleY: 1, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.26, ease: "power2.out" }, at);
+    }
+    for (k = 1; k <= 6; k++) melt(crow[k], 0.92 + (k - 1) * 0.03);
+    ft(rw[0], { y: 0 }, { y: 0, duration: 0.01 }, 0.9);
+    ft(rr[0], { opacity: 0 }, { opacity: 1, duration: 0.14 }, 0.92);
+    ft(crow[0], { opacity: 1 }, { opacity: 0, duration: 0.14 }, 0.95);
+    rise(1, 1, 1.22); rise(2, 2, 1.28); rise(3, 3, 1.34);
+    /* 主题 */
+    melt(rr[2], 1.52); melt(rr[3], 1.56);
+    /* 正文 */
+    rise(2, 2, 1.93);
+    /* 附件名 */
+    melt(rr[1], 2.32); melt(rr[2], 2.36);
+    var r0p = document.getElementById("s6-r0p"), r0a = document.getElementById("s6-r0a");
+    ft(r0p, { opacity: 1, y: 0 }, { opacity: 0, y: -8, duration: 0.16 }, 2.34);
+    ft(r0a, { opacity: 0, y: 8, scale: 0.8 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(2.4)", transformOrigin: "0% 50%" }, 2.38);
+    rise(3, 1, 2.5);
+
+    /* ---------- recede into the stat (2.64 → 2.95) ---------- */
+    ft(fade, { scale: 1 }, { scale: 0.88, duration: 0.36, ease: "power3.in" }, 2.64);
+    ft(w.win, { opacity: 1, filter: "blur(0px)" }, { opacity: 0, filter: "blur(14px)", duration: 0.32, ease: "power2.in" }, 2.64);
+
+    /* stat HTML */
+    var kick = document.getElementById("s6-kick"), lab1 = document.getElementById("s6-lab1"), lab2 = document.getElementById("s6-lab2");
+    var watch = document.getElementById("s6-watch"), hand = document.getElementById("s6-hand"), arc = document.getElementById("s6-arc");
+    ft(kick, { opacity: 0, y: -16, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, duration: 0.42, ease: "back.out(2)" }, 3.56);
+    ft(lab1, { opacity: 0, y: 18, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.45, ease: "power3.out" }, 3.08);
+    ft(watch, { opacity: 0, scale: 0.3, rotation: -40 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.55, ease: "back.out(2.4)", transformOrigin: "50% 55%" }, 3.44);
+    ft(hand, { rotation: 0 }, { rotation: 54, duration: 0.5, ease: "elastic.out(1.1, 0.45)", svgOrigin: "60 66" }, 3.52);
+    ft(arc, { strokeDashoffset: 40 }, { strokeDashoffset: 0, duration: 0.24, ease: "power2.out" }, 3.52);
+    pulse(watch, "y", [0, -10, 0, -3, 0], 3.76, 0.5);
+    ft(lab2, { opacity: 0, y: 18, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.45, ease: "power3.out" }, 3.66);
+    /* stat exit */
+    ft([kick, lab1, lab2], { opacity: 1, y: 0, filter: "blur(0px)" }, { opacity: 0, y: -14, filter: "blur(8px)", duration: 0.3, ease: "power2.in", stagger: 0.04 }, 5.0);
+    ft(watch, { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.5, duration: 0.3, ease: "back.in(2)" }, 5.02);
+
+    /* ---------- reset to the canonical window while hidden (5.2) ---------- */
+    var R = 5.2;
+    tl.set(cam, { scale: 1, x: 0, y: 0 }, R);
+    tl.set(w.search, { borderColor: "rgba(255,255,255,0.16)", backgroundColor: "rgba(255,255,255,0.08)", boxShadow: "none" }, R);
+    tl.set(w.placeholder, { opacity: 1 }, R);
+    tl.set([pyw, hz, caret], { opacity: 0 }, R);
+    tl.set(pys, { opacity: 0 }, R);
+    tl.set(filters, { opacity: 1, y: 0 }, R);
+    tl.set(rowsBox, { y: 0 }, R);
+    tl.set(crow, { opacity: 1, y: 0, scaleY: 1, filter: "none" }, R);
+    tl.set(scope, { opacity: 0 }, R);
+    tl.set(rr, { opacity: 0 }, R);
+
+    /* ---------- the window returns (5.3 → 5.85) and lands on H6 ---------- */
+    ft(fade, { scale: 0.94 }, { scale: 1, duration: 0.55, ease: "power3.out" }, 5.3);
+    ft(w.win, { opacity: 0, filter: "blur(14px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power2.out" }, 5.32);
+    tl.set(w.win, { filter: "none" }, 5.86);
+    pulse(magnifier, "scale", [1, 1.35, 0.92, 1], 5.68, 0.26, { transformOrigin: "50% 50%" });
+    tl.set(fade, { scale: 1 }, 5.9);
+  } finally {
+    window.__timelines["s6"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

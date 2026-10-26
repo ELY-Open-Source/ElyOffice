@@ -1,0 +1,11 @@
+{
+  "name": "update-0.1.10",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.8.184 preview",
+    "check": "npx --yes hyperframes@0.8.184 check",
+    "render": "npx --yes hyperframes@0.8.184 render",
+    "publish": "npx --yes hyperframes@0.8.184 publish"
+  }
+}

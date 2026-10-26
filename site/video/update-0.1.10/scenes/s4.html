@@ -1,0 +1,251 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+@font-face { font-family: "Inter"; src: url("assets/fonts/Inter.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Noto Sans SC"; src: url("assets/fonts/NotoSansSC.ttf"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono.ttf"); font-weight: 100 900; }
+#s4-root { position: absolute; inset: 0; }
+#s4-cam { position: absolute; inset: 0; transform-origin: 0 0; }
+#s4-thread, #s4-news { position: absolute; left: 36px; top: 82px; width: 678px; height: 620px; visibility: hidden; }
+
+/* thread */
+.s4-h { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 16px; font: 700 28px/36px var(--sans); color: var(--ink); letter-spacing: -0.01em; white-space: nowrap; }
+.s4-count { height: 30px; padding: 0 12px; border-radius: 999px; display: flex; align-items: center; gap: 6px; font: 600 14px var(--zh); color: #fff; background: rgba(30, 143, 224, 0.42); border: 1px solid rgba(120, 190, 255, 0.6); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+.s4-count .ico { width: 15px; height: 15px; }
+.s4-sub { position: absolute; left: 0; top: 48px; font: 500 14px/20px var(--mono); color: var(--ink-3); white-space: nowrap; }
+.s4-sub b { color: var(--cyan); font-weight: 600; }
+.s4-card { position: absolute; left: 56px; right: 0; height: 64px; border-radius: 16px; overflow: hidden; transform-origin: 50% 100%;
+  background: linear-gradient(150deg, rgba(74, 64, 150, 0.9), rgba(40, 32, 96, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 12px 26px rgba(4, 2, 20, 0.3); }
+.s4-card.me { background: linear-gradient(150deg, rgba(36, 98, 196, 0.92), rgba(30, 60, 140, 0.9)); border-color: rgba(120, 190, 255, 0.35); }
+.s4-ch { position: absolute; left: 14px; right: 18px; top: 13px; height: 38px; display: flex; align-items: center; gap: 12px; }
+.s4-ch .mw-av { width: 36px; height: 36px; font-size: 15px; }
+.s4-name { font: 600 16px var(--zh); color: var(--ink); white-space: nowrap; }
+.s4-snipw { position: relative; flex: 1; min-width: 0; height: 22px; }
+.s4-snip { position: absolute; left: 0; right: 0; top: 0; font: 400 15px/22px var(--sans); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s4-time { font: 500 13px var(--zh); color: var(--ink-3); white-space: nowrap; }
+.s4-body { position: absolute; left: 62px; right: 24px; top: 62px; font: 400 16px/26px var(--sans); color: var(--ink-2); }
+.s4-att { display: flex; gap: 10px; margin-top: 14px; }
+.s4-file { height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 6px; border-radius: 12px; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); font: 600 14px var(--sans); color: var(--ink); }
+.s4-file i { display: block; width: 32px; height: 32px; border-radius: 8px; }
+.s4-file small { font: 500 12px var(--sans); color: var(--ink-3); margin-left: 2px; }
+
+/* newsletter */
+.s4-nh { position: absolute; left: 0; top: 0; font: 700 28px/36px var(--zh); color: var(--ink); white-space: nowrap; letter-spacing: -0.01em; }
+.s4-nmeta { position: absolute; left: 0; right: 0; top: 52px; height: 40px; display: flex; align-items: center; gap: 14px; }
+.s4-nmeta .who { font: 600 16px var(--sans); color: var(--ink); }
+.s4-nmeta .addr { font: 400 14px var(--zh); color: var(--ink-3); }
+.s4-nmeta .when { margin-left: auto; font: 500 14px var(--zh); color: var(--ink-3); }
+.s4-banner { position: absolute; left: 0; top: 108px; width: 678px; height: 112px; border-radius: 16px; transform-origin: 50% 0;
+  background: linear-gradient(150deg, rgba(47, 216, 232, 0.2), rgba(123, 92, 255, 0.16));
+  border: 1px solid rgba(140, 230, 255, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 12px 28px rgba(4, 2, 20, 0.3); }
+.s4-brow { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.s4-b1 { position: absolute; left: 20px; top: 18px; height: 28px; display: flex; align-items: center; gap: 12px; font: 600 16px var(--zh); color: var(--ink); white-space: nowrap; }
+.s4-b1 .ico { width: 22px; height: 22px; color: var(--cyan); }
+.s4-b1 em { font-style: normal; color: var(--cyan); }
+.s4-b2 { position: absolute; left: 54px; top: 60px; display: flex; gap: 10px; }
+.s4-btn { height: 36px; padding: 0 16px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font: 600 15px var(--zh); color: var(--ink); white-space: nowrap;
+  background: rgba(255, 255, 255, 0.1); border: 1px solid var(--line-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+.s4-btn.pri { width: 112px; padding: 0; color: #fff; background: linear-gradient(170deg, #5fb8ff 0%, #1e8fe0 55%, #1673c4 100%); border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 8px 18px rgba(30, 143, 224, 0.4); }
+.s4-slot { position: absolute; border-radius: 16px; overflow: hidden; }
+.s4-bk { position: absolute; inset: 0; border-radius: 16px; border: 2px dashed rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.04);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font: 500 14px var(--zh); color: var(--ink-3); }
+.s4-bk .ico { width: 30px; height: 30px; }
+.s4-art { position: absolute; inset: 0; border-radius: 16px; clip-path: circle(0% at 50% 50%); }
+.s4-art span { position: absolute; left: 24px; bottom: 18px; font: 800 30px var(--zh); color: #fff; text-shadow: 0 4px 18px rgba(30, 10, 60, 0.45); }
+.s4-art small { position: absolute; left: 18px; bottom: 14px; font: 700 16px var(--zh); color: #fff; text-shadow: 0 2px 10px rgba(30, 10, 60, 0.5); }
+.s4-a0 { background: radial-gradient(55% 75% at 22% 30%, #ff8fd0 0%, rgba(255, 143, 208, 0) 70%), radial-gradient(50% 70% at 78% 70%, #2fd8e8 0%, rgba(47, 216, 232, 0) 70%), radial-gradient(40% 60% at 62% 20%, #ffd36b 0%, rgba(255, 211, 107, 0) 70%), linear-gradient(135deg, #6a44ff, #1e8fe0); }
+.s4-a1 { background: radial-gradient(60% 80% at 30% 30%, #ffd08a 0%, rgba(255, 208, 138, 0) 70%), radial-gradient(60% 80% at 80% 80%, #ff5fa8 0%, rgba(255, 95, 168, 0) 70%), linear-gradient(135deg, #ff9b6b, #c04fd8); }
+.s4-a2 { background: radial-gradient(60% 80% at 70% 25%, #b8f35a 0%, rgba(184, 243, 90, 0) 70%), radial-gradient(60% 80% at 25% 80%, #2fd8e8 0%, rgba(47, 216, 232, 0) 70%), linear-gradient(135deg, #1e8fe0, #2e9e5b); }
+
+/* screen-space overlays */
+#s4-shield { left: 1282px; top: 300px; width: 96px; height: 360px; border-radius: 48px; visibility: hidden; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.26), rgba(140, 220, 255, 0.08)); border-color: rgba(200, 240, 255, 0.55); }
+#s4-shield .ico { width: 48px; height: 48px; color: #bff4ff; filter: drop-shadow(0 4px 12px rgba(47, 216, 232, 0.6)); }
+#s4-tag { position: absolute; left: 0; top: 0; height: 28px; padding: 0 12px; border-radius: 999px; display: flex; align-items: center; gap: 6px; visibility: hidden; white-space: nowrap;
+  font: 600 14px var(--zh); color: #fff; background: rgba(20, 14, 40, 0.78); border: 1px solid rgba(255, 255, 255, 0.24); box-shadow: 0 8px 20px rgba(4, 2, 20, 0.4); }
+#s4-tag b { font: 600 12px var(--mono); color: var(--pink); }
+#s4-flash { position: absolute; inset: 0; border-radius: inherit; opacity: 0; background: radial-gradient(70% 40% at 100% var(--fy, 30%), rgba(255, 255, 255, 0.85), rgba(160, 240, 255, 0.25) 45%, transparent 75%); }
+.s4-star { position: absolute; left: 0; top: 0; width: 18px; height: 18px; color: #ffd36b; visibility: hidden; filter: drop-shadow(0 0 6px rgba(255, 211, 107, 0.8)); }
+.s4-star .ico { width: 18px; height: 18px; fill: #ffd36b; }
+</style>
+<div id="s4-root" data-composition-id="s4" data-width="1920" data-height="1080" data-duration="8">
+  <div id="s4-cam"></div>
+  <div id="s4-shield" class="glass"></div>
+  <div id="s4-tag">跟踪像素 <b>1×1</b></div>
+  <div class="s4-star"></div><div class="s4-star"></div><div class="s4-star"></div>
+</div>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  var tl = gsap.timeline({ paused: true });
+  try {
+    var M = LQ.M, X = window.S4X, K = ElyKit;
+    var root = document.getElementById("s4-root");
+    var cam = document.getElementById("s4-cam");
+    var w = K.mailWindow(cam, { id: "s4", select: 0 });
+
+    /* ---- conversation overlay (inside the reader pane) ---- */
+    var me = { av: "我", c: ["#7cc4ff", "#1e8fe0"] };
+    var marco = K.MAIL[2], aiko = K.MAIL[7];
+    var cards = [
+      { m: marco, name: "Marco Rossi", snip: "I'll upload the photos from the offsite tonight.", time: "周三 21:04" },
+      { m: me, name: "我", snip: "Could you send the sunset ones first? 想放进周报里。", time: "周四 09:12", me: true },
+      { m: aiko, name: "Aiko Tanaka", snip: "+1, and the tram one too, please!", time: "周四 10:30" },
+      { m: marco, name: "Marco Rossi", snip: "Here are the best shots from Thursday, the sunset ones are…", time: "昨天 18:40" },
+    ];
+    var th = '<div id="s4-thread"><div class="s4-h" id="s4-th-h">Re: Lisbon offsite photos<div class="s4-count">' + K.icon("mail") + '4 封 · 一条会话</div></div>' +
+      '<div class="s4-sub" id="s4-th-sub">按 <b>Message-ID</b> · <b>In-Reply-To</b> · <b>References</b> 串起</div>';
+    cards.forEach(function (c, i) {
+      th += '<div class="s4-card' + (c.me ? " me" : "") + '" id="s4-card' + i + '" style="top:' + X.cardTop(i) + 'px">' +
+        '<div class="s4-ch">' + K.avatar(c.m) + '<div class="s4-name">' + c.name + '</div><div class="s4-snipw"><div class="s4-snip">' + c.snip + "</div>" +
+        (i === 3 ? '<div class="s4-snip" id="s4-to" style="opacity:0">发给 我、Aiko Tanaka</div>' : "") +
+        '</div><div class="s4-time">' + c.time + "</div></div>" +
+        (i === 3 ? '<div class="s4-body" id="s4-body3">Here are the best shots from Thursday, the sunset ones are first. The tram is #28, of course.' +
+          '<div class="s4-att"><div class="s4-file"><i style="background:linear-gradient(135deg,#ffb46b,#ff5fa8)"></i>sunset-01.jpg<small>2.4 MB</small></div>' +
+          '<div class="s4-file"><i style="background:linear-gradient(135deg,#ffd36b,#2e9e5b)"></i>tram-28.jpg<small>1.8 MB</small></div></div></div>' : "") +
+        "</div>";
+    });
+    th += "</div>";
+
+    /* ---- newsletter overlay ---- */
+    var dw = K.MAIL[6];
+    var nw = '<div id="s4-news"><div class="s4-nh">' + dw.subj + "</div>" +
+      '<div class="s4-nmeta">' + K.avatar(dw) + '<div><div class="who">Design Weekly</div><div class="addr">发给 我</div></div><div class="when">周一 08:00</div></div>' +
+      '<div class="s4-banner" id="s4-banner">' +
+      '<div class="s4-brow" id="s4-bA"><div class="s4-b1">' + K.icon("shield") + "已拦下 <em>3</em> 张远程图片 · <em>1</em> 个跟踪像素从不载入</div>" +
+      '<div class="s4-b2"><div class="s4-btn pri" id="s4-load">载入图片</div><div class="s4-btn">总是载入此发件人的</div></div></div>' +
+      '<div class="s4-brow" id="s4-bB" style="opacity:0"><div class="s4-b1">' + K.icon("check") + "已载入 3 张图片 · 跟踪像素仍被拦下</div>" +
+      '<div class="s4-b2"><div class="s4-btn">总是载入此发件人的</div></div></div></div>' +
+      '<div class="s4-slot" id="s4-slot0" style="left:0;top:236px;width:678px;height:200px"><div class="s4-bk">' + K.icon("image") + "远程图片 · 等你点头</div>" +
+      '<div class="s4-art s4-a0"><span>粘连、拉丝与回弹</span></div></div>' +
+      '<div class="s4-slot" id="s4-slot1" style="left:0;top:452px;width:331px;height:124px"><div class="s4-bk">' + K.icon("image") + "</div>" +
+      '<div class="s4-art s4-a1"><small>01 · 挤压与拉伸</small></div></div>' +
+      '<div class="s4-slot" id="s4-slot2" style="left:347px;top:452px;width:331px;height:124px"><div class="s4-bk">' + K.icon("image") + "</div>" +
+      '<div class="s4-art s4-a2"><small>02 · 融合与分裂</small></div></div></div>';
+    w.read.insertAdjacentHTML("beforeend", th + nw);
+    document.getElementById("s4-shield").innerHTML = '<div id="s4-flash"></div>' + K.icon("shield");
+    var stars = root.querySelectorAll(".s4-star");
+    for (var si = 0; si < stars.length; si++) stars[si].innerHTML = K.icon("sparkle");
+
+    var $ = function (id) { return document.getElementById(id); };
+    var orig = [w.read.querySelector(".mw-h"), w.read.querySelector(".mw-meta"), w.read.querySelector(".mw-body")];
+    var thread = $("s4-thread"), thH = $("s4-th-h"), thSub = $("s4-th-sub");
+    var cardEl = [0, 1, 2, 3].map(function (i) { return $("s4-card" + i); });
+    var to3 = $("s4-to"), snip3 = cardEl[3].querySelector(".s4-snip"), body3 = $("s4-body3");
+    var news = $("s4-news"), banner = $("s4-banner"), bA = $("s4-bA"), bB = $("s4-bB"), loadBtn = $("s4-load");
+    var slots = [0, 1, 2].map(function (j) { return $("s4-slot" + j); });
+    var arts = slots.map(function (s) { return s.querySelector(".s4-art"); });
+    var shield = $("s4-shield"), tag = $("s4-tag"), flash = $("s4-flash");
+    var bks = slots.map(function (s) { return s.querySelector(".s4-bk"); });
+    var rows = w.rows;
+
+    function vis(el, o, tf) {
+      if (o <= 0.001) { el.style.visibility = "hidden"; el.style.opacity = "0"; el.style.transform = ""; return; }
+      el.style.visibility = "visible";
+      el.style.opacity = o >= 0.999 ? "" : String(o);
+      el.style.transform = tf || "";
+    }
+    function plain(el, o, tf) {
+      el.style.opacity = o >= 0.999 ? "" : String(o);
+      el.style.transform = tf || "";
+    }
+
+    function apply(lt) {
+      var c = X.cam(lt);
+      cam.style.transform = X.rest(lt) ? "" : "translate(" + c.x.toFixed(3) + "px," + c.y.toFixed(3) + "px) scale(" + c.s.toFixed(5) + ")";
+
+      /* selection hops from row to row with a small jelly */
+      var sel = lt < 0.32 ? 0 : lt < 3.75 ? 2 : lt < 7.2 ? 6 : 0;
+      var selT = lt >= 7.2 ? 7.2 : lt >= 3.75 ? 3.75 : lt >= 0.32 ? 0.32 : -9;
+      for (var i = 0; i < rows.length; i++) {
+        rows[i].classList.toggle("sel", i === sel);
+        var jw = i === sel && lt - selT < 0.6 && lt < 7.9 ? M.wobble(lt, selT, 4, 6, 1) : 0;
+        rows[i].style.transform = Math.abs(jw) > 0.002 ? "scale(" + (1 + 0.02 * jw).toFixed(4) + "," + (1 - 0.07 * jw).toFixed(4) + ")" : "";
+      }
+
+      /* the original reader content steps aside, and returns at the end */
+      var oo = lt < 2 ? 1 - M.smooth(M.prog(lt, 0.32, 0.5)) : M.smooth(M.prog(lt, 7.35, 7.75));
+      var oy = lt < 2 ? -10 * (1 - oo) : 12 * (1 - oo);
+      orig.forEach(function (el) { plain(el, oo, oo < 0.999 ? "translateY(" + oy.toFixed(2) + "px)" : ""); });
+
+      /* conversation */
+      var to = M.smooth(M.prog(lt, 0.42, 0.62)) * (1 - M.smooth(M.prog(lt, 3.6, 3.85)));
+      vis(thread, to, to < 0.999 && lt > 2 ? "translateY(" + (14 * (1 - to)).toFixed(2) + "px)" : "");
+      if (to > 0) {
+        var hp = M.outBack(M.prog(lt, 0.42, 0.78), 1.6);
+        plain(thH, M.smooth(M.prog(lt, 0.42, 0.6)), hp < 1 ? "translateY(" + (16 * (1 - hp)).toFixed(2) + "px)" : "");
+        plain(thSub, M.smooth(M.prog(lt, 0.62, 0.82)), "translateX(" + (-12 * (1 - M.outCubic(M.prog(lt, 0.62, 0.9)))).toFixed(2) + "px)");
+        for (var k = 0; k < 4; k++) {
+          var cd = X.card(k, lt);
+          vis(cardEl[k], cd.o, "translateY(" + cd.dy.toFixed(2) + "px) scale(" + cd.sx.toFixed(4) + "," + cd.sy.toFixed(4) + ")");
+        }
+        cardEl[3].style.height = X.h3(lt).toFixed(2) + "px";
+        var ex = M.smooth(M.prog(lt, X.EXP + 0.05, X.EXP + 0.3));
+        snip3.style.opacity = String(1 - ex);
+        to3.style.opacity = String(ex);
+        body3.style.opacity = String(M.smooth(M.prog(lt, X.EXP + 0.15, X.EXP + 0.45)));
+      }
+
+      /* newsletter */
+      var no = M.smooth(M.prog(lt, 3.95, 4.25)) * (1 - M.smooth(M.prog(lt, 7.15, 7.4)));
+      vis(news, no, no < 0.999 ? "translateY(" + (lt < 5 ? 12 * (1 - no) : -8 * (1 - no)).toFixed(2) + "px)" : "");
+      if (no > 0) {
+        var bs = M.spring(lt, 4.3, 2.4, 0.45);
+        plain(banner, M.smooth(M.prog(lt, 4.3, 4.45)), "scale(" + (0.9 + 0.1 * bs).toFixed(4) + ")");
+        var sw = M.smooth(M.prog(lt, 6.7, 6.84));
+        plain(bA, 1 - sw, sw > 0 ? "translateY(" + (-8 * sw).toFixed(2) + "px)" : "");
+        plain(bB, M.smooth(M.prog(lt, 6.76, 6.92)), "translateY(" + (8 * (1 - M.smooth(M.prog(lt, 6.76, 6.92)))).toFixed(2) + "px)");
+        var bw = M.wobble(lt, X.LOAD, 4, 6, 1);
+        loadBtn.style.transform = Math.abs(bw) > 0.002 ? "scale(" + (1 + 0.06 * bw).toFixed(4) + "," + (1 - 0.14 * bw).toFixed(4) + ")" : "";
+        for (var j = 0; j < 3; j++) {
+          var sp = M.outBack(M.prog(lt, 4.42 + 0.07 * j, 4.78 + 0.07 * j), 1.5);
+          var bl = X.bloom(j, lt);
+          var lw = M.wobble(lt, X.land(j) + 0.05, 3, 6, 1);
+          plain(slots[j], M.smooth(M.prog(lt, 4.42 + 0.07 * j, 4.6 + 0.07 * j)), "scale(" + (0.94 + 0.06 * sp + 0.012 * lw).toFixed(4) + "," + (0.94 + 0.06 * sp - 0.012 * lw).toFixed(4) + ")");
+          arts[j].style.clipPath = "circle(" + (bl * 80).toFixed(2) + "% at 50% 50%)";
+          bks[j].style.opacity = bl > 0 ? String(1 - M.smooth(M.prog(bl, 0.3, 0.9))) : "";
+        }
+      }
+
+      /* shield and the tracking pixel's name tag (screen space) */
+      var sh = X.shield(lt);
+      if (sh && sh.s > 0.001) vis(shield, sh.o, "translateX(" + sh.dx.toFixed(2) + "px) scale(" + (sh.s * sh.sx).toFixed(4) + "," + (sh.s * sh.sy).toFixed(4) + ")");
+      else vis(shield, 0);
+      var fl = 0, fy = 30;
+      for (var hh = 0; hh < X.HITS.length; hh++) {
+        var fx = M.prog(lt, X.HITS[hh], X.HITS[hh] + 0.4);
+        if (fx > 0 && fx < 1) { fl = Math.max(fl, Math.pow(1 - fx, 2)); fy = ((X.CY[hh] - X.SH.y) / X.SH.h) * 100; }
+      }
+      flash.style.opacity = fl > 0.001 ? fl.toFixed(3) : "0";
+      flash.style.setProperty("--fy", fy.toFixed(1) + "%");
+      var d = X.dark(lt);
+      var tagO = d ? M.smooth(M.prog(lt, 5.15, 5.3)) * (1 - M.smooth(M.prog(lt, 6.7, 6.78))) : 0;
+      if (tagO > 0.001) vis(tag, tagO, "translate(" + (d.x - 62).toFixed(2) + "px," + (d.y - 60).toFixed(2) + "px)");
+      else vis(tag, 0);
+      /* dizzy stars after the second bonk */
+      var so = d ? M.smooth(M.prog(lt, 6.12, 6.22)) * (1 - M.smooth(M.prog(lt, 6.5, 6.58))) : 0;
+      for (var s2 = 0; s2 < 3; s2++) {
+        if (so <= 0.001) { vis(stars[s2], 0); continue; }
+        var ang = lt * 9 + (s2 * 2 * Math.PI) / 3;
+        vis(stars[s2], so, "translate(" + (d.x - 9 + 30 * Math.cos(ang)).toFixed(2) + "px," + (d.y - 36 + 9 * Math.sin(ang)).toFixed(2) + "px) scale(" + (0.8 + 0.3 * Math.sin(ang * 2)).toFixed(3) + ")");
+      }
+    }
+
+    var st = { v: 0 };
+    tl.to(st, { v: 8, duration: 8, ease: "none", onUpdate: function () { apply(st.v); } }, 0);
+    apply(0);
+  } finally {
+    window.__timelines["s4"] = tl;
+  }
+})();
+</script>
+</template>
+</body>
+</html>

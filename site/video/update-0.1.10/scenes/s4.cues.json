@@ -1,0 +1,142 @@
+[
+ {
+  "t": 26.32,
+  "sfx": "drip",
+  "gain": 0.5
+ },
+ {
+  "t": 26.45,
+  "sfx": "pop",
+  "gain": 0.35
+ },
+ {
+  "t": 26.55,
+  "sfx": "whoosh",
+  "gain": 0.3
+ },
+ {
+  "t": 27,
+  "sfx": "bloop",
+  "gain": 0.5
+ },
+ {
+  "t": 27.1,
+  "sfx": "stretch",
+  "gain": 0.3
+ },
+ {
+  "t": 27.42,
+  "sfx": "bloop",
+  "gain": 0.5
+ },
+ {
+  "t": 27.84,
+  "sfx": "bloop",
+  "gain": 0.5
+ },
+ {
+  "t": 28.26,
+  "sfx": "bloop",
+  "gain": 0.5
+ },
+ {
+  "t": 28.7,
+  "sfx": "swoosh-up",
+  "gain": 0.4
+ },
+ {
+  "t": 29.44,
+  "sfx": "snap",
+  "gain": 0.4
+ },
+ {
+  "t": 29.6,
+  "sfx": "drip",
+  "gain": 0.3
+ },
+ {
+  "t": 29.75,
+  "sfx": "drip",
+  "gain": 0.5
+ },
+ {
+  "t": 29.88,
+  "sfx": "whoosh",
+  "gain": 0.4
+ },
+ {
+  "t": 30.3,
+  "sfx": "pop",
+  "gain": 0.45
+ },
+ {
+  "t": 30.52,
+  "sfx": "glass",
+  "gain": 0.5
+ },
+ {
+  "t": 30.8,
+  "sfx": "drip",
+  "gain": 0.35
+ },
+ {
+  "t": 31.05,
+  "sfx": "whoosh",
+  "gain": 0.3
+ },
+ {
+  "t": 31.1,
+  "sfx": "drip",
+  "gain": 0.3
+ },
+ {
+  "t": 31.4,
+  "sfx": "boing",
+  "gain": 0.6
+ },
+ {
+  "t": 31.85,
+  "sfx": "boing",
+  "gain": 0.7
+ },
+ {
+  "t": 32,
+  "sfx": "click",
+  "gain": 0.6
+ },
+ {
+  "t": 32.08,
+  "sfx": "swoosh-up",
+  "gain": 0.35
+ },
+ {
+  "t": 32.46,
+  "sfx": "bloop",
+  "gain": 0.5
+ },
+ {
+  "t": 32.66,
+  "sfx": "pop",
+  "gain": 0.35
+ },
+ {
+  "t": 32.72,
+  "sfx": "boing",
+  "gain": 0.7
+ },
+ {
+  "t": 32.77,
+  "sfx": "whoosh",
+  "gain": 0.45
+ },
+ {
+  "t": 32.9,
+  "sfx": "chime",
+  "gain": 0.4
+ },
+ {
+  "t": 33.12,
+  "sfx": "whoosh",
+  "gain": 0.35
+ }
+]
