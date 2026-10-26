@@ -88,7 +88,7 @@ def main():
             (f"scenes/{sid}.cues.json", "[]\n"),
         ):
             if not os.path.exists(name):
-                with open(name, "w", encoding="utf-8") as f:
+                with open(name, "w", encoding="utf-8", newline="\n") as f:
                     f.write(body)
     hosts = "\n".join(
         f'  <div id="{sid}" data-composition-id="{sid}" data-composition-src="scenes/{sid}.html" data-start="{start}" data-duration="{dur}" data-track-index="{i + 1}" data-width="1920" data-height="1080" class="scene-host"></div>'
@@ -98,7 +98,7 @@ def main():
     audio = ""
     if os.path.exists("assets/audio/mix.wav"):
         audio = '  <audio id="mix" src="assets/audio/mix.wav" data-start="0" data-duration="60" data-track-index="20" data-volume="1"></audio>'
-    with open("index.html", "w", encoding="utf-8") as f:
+    with open("index.html", "w", encoding="utf-8", newline="\n") as f:
         main_js = open("lib/main.js", encoding="utf-8").read()
         f.write(INDEX.format(hosts=hosts, scripts=scripts, audio=audio, main=main_js, dur=DUR))
 
