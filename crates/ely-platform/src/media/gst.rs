@@ -19,6 +19,7 @@ const CHANGE_FAILURE: c_int = 0;
 const SEEK_FLUSH_ACCURATE: c_int = 1 | 2;
 const MESSAGE_EOS: c_uint = 1;
 const MESSAGE_ERROR: c_uint = 1 << 1;
+const MESSAGE_ELEMENT: c_uint = 1 << 15;
 const MAP_READ: c_int = 1;
 
 #[repr(C)]
@@ -86,6 +87,8 @@ struct Api {
     unref_mini: unsafe extern "C" fn(*mut c_void),
     unref: unsafe extern "C" fn(Object),
     error_free: unsafe extern "C" fn(*mut GError),
+    is_missing: unsafe extern "C" fn(*mut Message) -> Gboolean,
+    missing_text: unsafe extern "C" fn(*mut Message) -> *mut c_char,
     free: unsafe extern "C" fn(*mut c_void),
 }
 
@@ -112,6 +115,7 @@ unsafe fn symbol<F: Copy>(handle: *mut c_void, name: &str) -> Result<F, String> 
 impl Api {
     fn load() -> Result<Api, String> {
         let (core, app) = (open("libgstreamer-1.0.so.0")?, open("libgstapp-1.0.so.0")?);
+        let utils = open("libgstpbutils-1.0.so.0")?;
         unsafe {
             let api = Api {
                 init_check: symbol(core, "gst_init_check")?,
@@ -140,6 +144,8 @@ impl Api {
                 unref_mini: symbol(core, "gst_mini_object_unref")?,
                 unref: symbol(core, "gst_object_unref")?,
                 error_free: symbol(core, "g_error_free")?,
+                is_missing: symbol(utils, "gst_is_missing_plugin_message")?,
+                missing_text: symbol(utils, "gst_missing_plugin_message_get_description")?,
                 free: symbol(core, "g_free")?,
             };
             let mut error = std::ptr::null_mut();
@@ -216,14 +222,23 @@ impl Player {
         }
     }
 
-    /// Takes the bus's errors and end of stream.
+    /// Takes errors, missing plugins and end of stream.
     fn read_bus(&self) {
         loop {
-            let message = unsafe { (self.api.pop_filtered)(self.bus, MESSAGE_EOS | MESSAGE_ERROR) };
+            let message = unsafe { (self.api.pop_filtered)(self.bus, MESSAGE_EOS | MESSAGE_ERROR | MESSAGE_ELEMENT) };
             if message.is_null() {
                 return;
             }
-            if unsafe { (*message).kind } == MESSAGE_ERROR {
+            let kind = unsafe { (*message).kind };
+            if kind == MESSAGE_ELEMENT {
+                if unsafe { (self.api.is_missing)(message) } != 0 {
+                    let raw = unsafe { (self.api.missing_text)(message) };
+                    let what = unsafe { CStr::from_ptr(raw) }.to_string_lossy().into_owned();
+                    unsafe { (self.api.free)(raw.cast()) };
+                    log::warn!("media: GStreamer lacks a plugin: {what}");
+                    self.failed.borrow_mut().get_or_insert(format!("GStreamer lacks a plugin: {what}"));
+                }
+            } else if kind == MESSAGE_ERROR {
                 let (mut error, mut debug) = (std::ptr::null_mut(), std::ptr::null_mut());
                 unsafe { (self.api.parse_error)(message, &mut error, &mut debug) };
                 let reason = unsafe { self.api.take(error) };
@@ -244,11 +259,13 @@ impl Player {
     }
 
     pub fn state(&self) -> State {
+        // Bus after state: nothing posted before PAUSED escapes.
+        let current = self.current();
         self.read_bus();
         if let Some(reason) = self.failed.borrow().clone() {
             return State::Failed(reason);
         }
-        if self.current() < STATE_PAUSED {
+        if current < STATE_PAUSED {
             return State::Loading;
         }
         let mut nanos = 0;

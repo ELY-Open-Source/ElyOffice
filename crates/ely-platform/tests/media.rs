@@ -50,6 +50,19 @@ fn main() {
     let broken = Player::open(&junk).expect("opens the file");
     pump(&|| broken.tick(false) != Ok(true));
     assert!(matches!(broken.tick(false), Err(reason) if !reason.is_empty()));
+    // A track no one decodes fails; no half playback.
+    let bytes = std::fs::read(&clip).expect("reads the clip");
+    for (at, codec, track) in [(461, b"avc1", "video"), (1234, b"mp4a", "sound")] {
+        assert_eq!(&bytes[at..at + 4], codec);
+        let mut odd = bytes.clone();
+        odd[at..at + 4].copy_from_slice(b"elyx");
+        let path = dir.path().join(format!("odd-{track}.mp4"));
+        std::fs::write(&path, odd).expect("writes");
+        let player = Player::open(&path).expect("opens the file");
+        pump(&|| player.state() != State::Loading);
+        let state = player.state();
+        assert!(matches!(&state, State::Failed(reason) if !reason.is_empty()), "odd {track}: {state:?}");
+    }
     println!("media: plays, shows frames, and fails with reasons");
 }
 
