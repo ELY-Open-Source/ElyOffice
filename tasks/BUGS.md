@@ -101,7 +101,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [x] X-01 设置窗口在前时 Cmd+Q 直接退出，跳过未保存询问并抹掉恢复点 — 退出一律经主窗口宿主的流程（route_quit），延后到动作结束、先把宿主窗口提到前面；R1 主窗口 Cmd+Q 不问；R2 询问被设置窗口挡住；R3 PASS
 - [x] X-02 共用 `settings.json` 读不出时 Doc、Table、Show 根本起不来 — 作者名取启动时读入的设置；R1 重启失败丢作者、脚本退出码、client.rs 超行；R2 作者更新的先后与停机期间的更新；R3 PASS
 - [x] X-03 第二个实例启动即清掉运行中实例的工作目录与恢复点 — 每个应用一个实例锁，第二份被拒并报出持锁进程（Unix fcntl F_GETLK）；R1–R3 进程号竞争、Windows 断言；R4 PASS
-- [ ] X-04 属性栏字号菜单的 `expect("sizes are numbers")` 是脆弱点，但当前不可达
+- [x] X-04 属性栏字号菜单的 `expect("sizes are numbers")` 是脆弱点，但当前不可达 — d59159c 已做（`ely_office::panel::ordered`：读不成点数的排在最后，不 panic）；R14.16 核对
 - [x] X-05 恢复点写不成时每 10 秒弹一次提示 — d59159c 已做（每个标签每种原因只提示一次，下一拍照常重试）；R14.9 核对
 - [x] X-06 `session.lock` 空或损坏即永久关闭恢复功能 — d59159c 修空锁与乱码；R14.9 补非 UTF-8 的锁（`Crash::check` 读字节，照崩溃处理并重写）
 - [x] X-07 加密文档的恢复点每次写入都解密全部已有点，且持 worker 锁 — d59159c 修解密（修剪只读文件名）；R14.11 把加密与写盘移出 worker 锁（`write_point`），测试 `an_unsaved_tab_gets_a_point`
