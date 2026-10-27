@@ -8,8 +8,8 @@ use ely_gpui_component::{
     theme::{ActiveTheme as _, ControlSize},
 };
 use gpui::{
-    AnyElement, Context, IntoElement, ParentElement as _, SharedString, Styled as _, div,
-    prelude::FluentBuilder as _,
+    AnyElement, Context, InteractiveElement as _, IntoElement, ParentElement as _, SharedString, Styled as _, div,
+    prelude::FluentBuilder as _, relative,
 };
 
 use crate::{
@@ -150,15 +150,17 @@ impl Tree {
                     .flex()
                     .child(
                         div()
+                            .debug_selector(|| "tree-file-log-list".into())
                             .flex_none()
-                            .w_96()
+                            .w(relative(0.4))
+                            .max_w_96()
                             .h_full()
                             .p_2()
                             .border_r_1()
                             .border_color(colors.border)
                             .child(list),
                     )
-                    .child(div().flex_1().min_w_0().h_full().child(shown))
+                    .child(div().debug_selector(|| "tree-file-log-shown".into()).flex_1().min_w_0().h_full().child(shown))
                     .into_any_element()
             }
             Look::Blame {

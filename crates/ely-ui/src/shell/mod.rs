@@ -151,20 +151,14 @@ impl RenderOnce for Shell {
             left_view.as_ref().map(|_| left),
             right_view.as_ref().map(|_| right),
         );
-        let row = div().flex_1().min_h_0().flex().child(content).child(SidePanel::new(
-            "right-panel",
-            Side::Right,
-            right_view.filter(|_| shown_right.is_some()),
-            shown_right.unwrap_or(right),
-        ));
+        let (squeezed_left, squeezed_right) = (left_view.is_some() && shown_left.is_none(), right_view.is_some() && shown_right.is_none());
+        let mut drawn_left = panel::slide(Side::Left, left_view.filter(|_| shown_left.is_some()), shown_left.unwrap_or(left), squeezed_left, window, cx);
+        let mut drawn_right = panel::slide(Side::Right, right_view.filter(|_| shown_right.is_some()), shown_right.unwrap_or(right), squeezed_right, window, cx);
+        panel::budget(&mut drawn_left, &mut drawn_right, window, cx);
+        let row = div().flex_1().min_h_0().flex().child(content).child(SidePanel::new(Side::Right, drawn_right));
         let frame = AppShell::new()
             .title_bar(header)
-            .sidebar(SidePanel::new(
-                "left-panel",
-                Side::Left,
-                left_view.filter(|_| shown_left.is_some()),
-                shown_left.unwrap_or(left),
-            ))
+            .sidebar(SidePanel::new(Side::Left, drawn_left))
             .child(row);
         let frame = match self.status {
             Some(bar) => frame.status_bar(bar),

@@ -20,6 +20,7 @@ mod history;
 mod place_flows;
 mod places;
 mod cleaning;
+mod narrow;
 mod recovery;
 mod window;
 

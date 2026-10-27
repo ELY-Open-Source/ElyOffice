@@ -11,7 +11,7 @@ use ely_gpui_component::{
 use gpui::{
     AnyElement, Context, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
     Role, SharedString, StatefulInteractiveElement as _, Styled as _, div,
-    prelude::FluentBuilder as _, px,
+    prelude::FluentBuilder as _, px, relative,
 };
 
 use crate::{
@@ -304,8 +304,10 @@ impl Tree {
                     .child(
                         div()
                             .id("tree-touched")
+                            .debug_selector(|| "tree-touched".into())
                             .flex_none()
-                            .w_72()
+                            .w(relative(0.4))
+                            .max_w_72()
                             .h_full()
                             .overflow_y_scroll()
                             .p_2()
@@ -313,7 +315,7 @@ impl Tree {
                             .border_color(colors.border)
                             .child(List::new().children(files)),
                     )
-                    .child(div().flex_1().min_w_0().h_full().child(shown)),
+                    .child(div().debug_selector(|| "tree-touched-shown".into()).flex_1().min_w_0().h_full().child(shown)),
             )
             .into_any_element()
     }

@@ -54,60 +54,125 @@ impl Slide {
     }
 }
 
-/// The slide, plus the view kept while closing.
+/// The slide, the view kept while closing, its last width.
 struct Slot {
     slide: Slide,
     view: Option<AnyView>,
+    full: Pixels,
 }
 
-/// A sliding side column; no view, no room.
+/// A panel this frame: its view, width and open share.
+pub(super) struct Drawn {
+    view: AnyView,
+    full: Pixels,
+    share: f32,
+    running: bool,
+    open: bool,
+}
+
+impl Drawn {
+    /// The room it takes now, closing or not.
+    fn taken(&self) -> Pixels {
+        self.full * self.share
+    }
+}
+
+fn panel_id(side: Side) -> ElementId {
+    match side {
+        Side::Left => "left-panel".into(),
+        Side::Right => "right-panel".into(),
+    }
+}
+
+/// Moves `side` toward `view`; `squeezed` closes at once.
+pub(super) fn slide(side: Side, view: Option<AnyView>, width: Pixels, squeezed: bool, window: &mut Window, cx: &mut App) -> Option<Drawn> {
+    let open = view.is_some();
+    let length = motion::duration(motion::BASE, cx);
+    let now = Instant::now();
+    let slot = window.use_keyed_state(panel_id(side), cx, |_, _| Slot { slide: Slide::new(open, now), view: None, full: width });
+    slot.update(cx, |slot, _| {
+        // Its room went: it may not slide over the content.
+        if squeezed {
+            *slot = Slot { slide: Slide::new(false, now), view: None, full: width };
+        }
+        slot.slide.aim(open, now, length);
+        if open {
+            (slot.view, slot.full) = (view, width);
+        }
+        let (share, running) = (slot.slide.share(now, length), slot.slide.running(now, length));
+        if !open && !running {
+            slot.view = None;
+        }
+        slot.view.clone().map(|view| Drawn { view, full: slot.full, share, running, open })
+    })
+}
+
+/// What `side` needs beside the content now.
+fn need(side: Side, drawn: &Option<Drawn>) -> Pixels {
+    drawn.as_ref().map_or(px(0.0), |drawn| match drawn.open {
+        true => least(side).min(drawn.full),
+        false => drawn.taken(),
+    })
+}
+
+/// Closes `side` at once, its slide dropped.
+fn shut(side: Side, drawn: &mut Option<Drawn>, window: &mut Window, cx: &mut App) {
+    let slot = window.use_keyed_state(panel_id(side), cx, |_, _| Slot { slide: Slide::new(false, Instant::now()), view: None, full: px(0.0) });
+    slot.update(cx, |slot, _| (slot.slide, slot.view) = (Slide::new(false, Instant::now()), None));
+    *drawn = None;
+}
+
+/// An open panel grows into what a closing one frees.
+fn wait(open: &mut Option<Drawn>, other: &Option<Drawn>, spare: Pixels) {
+    let closing = other.as_ref().filter(|other| !other.open);
+    if let (Some(open), Some(closing)) = (open.as_mut().filter(|open| open.open), closing) {
+        open.full = open.full.min((spare - closing.taken()).max(px(0.0)));
+    }
+}
+
+/// Fits this frame's panels beside the content; keeps drawn widths.
+pub(super) fn budget(left: &mut Option<Drawn>, right: &mut Option<Drawn>, window: &mut Window, cx: &mut App) {
+    let spare = window.viewport_size().width - px(CONTENT_LEAST);
+    // A closing panel that no longer fits goes, right first.
+    if right.as_ref().is_some_and(|drawn| !drawn.open) && need(Side::Right, right) + need(Side::Left, left) > spare {
+        shut(Side::Right, right, window, cx);
+    }
+    if left.as_ref().is_some_and(|drawn| !drawn.open) && need(Side::Left, left) + need(Side::Right, right) > spare {
+        shut(Side::Left, left, window, cx);
+    }
+    wait(left, right, spare);
+    wait(right, left, spare);
+    for (side, drawn) in [(Side::Left, &*left), (Side::Right, &*right)] {
+        if let Some(full) = drawn.as_ref().filter(|drawn| drawn.open).map(|drawn| drawn.full) {
+            // A fold starts from the width drawn.
+            let slot = window.use_keyed_state(panel_id(side), cx, |_, _| Slot { slide: Slide::new(true, Instant::now()), view: None, full });
+            slot.update(cx, |slot, _| slot.full = full);
+        }
+    }
+}
+
+/// A sliding side column; nothing drawn, no room.
 #[derive(IntoElement)]
 pub(super) struct SidePanel {
-    id: ElementId,
     side: Side,
-    view: Option<AnyView>,
-    width: Pixels,
+    drawn: Option<Drawn>,
 }
 
 impl SidePanel {
-    /// `width` is what the shell left; no view, no room.
-    pub(super) fn new(id: impl Into<ElementId>, side: Side, view: Option<AnyView>, width: Pixels) -> Self {
-        Self {
-            id: id.into(),
-            side,
-            view,
-            width,
-        }
+    pub(super) fn new(side: Side, drawn: Option<Drawn>) -> Self {
+        Self { side, drawn }
     }
 }
 
 impl RenderOnce for SidePanel {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let open = self.view.is_some();
-        let length = motion::duration(motion::BASE, cx);
-        let now = Instant::now();
-        let slot = window.use_keyed_state(self.id.clone(), cx, |_, _| Slot {
-            slide: Slide::new(open, now),
-            view: None,
-        });
-        let (share, running, view) = slot.update(cx, |slot, _| {
-            slot.slide.aim(open, now, length);
-            if open {
-                slot.view = self.view;
-            }
-            let share = slot.slide.share(now, length);
-            if !open && !slot.slide.running(now, length) {
-                slot.view = None;
-            }
-            (share, slot.slide.running(now, length), slot.view.clone())
-        });
-        let Some(view) = view else {
+        let Some(Drawn { view, full, share, running, .. }) = self.drawn else {
             return div().into_any_element();
         };
         if running {
             window.request_animation_frame();
         }
-        let full = self.width;
+        let id = panel_id(self.side);
         let shown = full * share;
         let theme = cx.theme();
         let inner = div()
@@ -121,7 +186,7 @@ impl RenderOnce for SidePanel {
             Side::Right => inner.border_l_1(),
         };
         // The inner edge drags the width.
-        let grip = resize_edge((self.id.clone(), "edge"), Axis::Horizontal, cx)
+        let grip = resize_edge((id.clone(), "edge"), Axis::Horizontal, cx)
             .absolute()
             .top_0()
             .bottom_0()
@@ -134,7 +199,7 @@ impl RenderOnce for SidePanel {
         };
         let side = self.side;
         div()
-            .id(self.id)
+            .id(id)
             .relative()
             .flex_none()
             .h_full()

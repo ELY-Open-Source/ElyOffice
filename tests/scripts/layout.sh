@@ -5,11 +5,12 @@ set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 [ "$(uname)" = Darwin ] || { echo "SKIP: macOS only"; exit 0; }
 work=$(mktemp -d)
-shots=${ELY_LAYOUT_SHOTS:-$work/shots}
+# Screenshots outlive the run, for a look inside the panels.
+shots=${ELY_LAYOUT_SHOTS:-$(mktemp -d)}
 cleanup() {
   local status=$?
   [ -n "${pid:-}" ] && { pkill -9 -P "$pid" 2>/dev/null || true; kill "$pid" 2>/dev/null || true; }
-  [ "$status" = 0 ] && [ -z "${ELY_LAYOUT_SHOTS:-}" ] && rm -rf "$work" || echo "kept $work" >&2
+  [ "$status" = 0 ] && rm -rf "$work" || echo "kept $work" >&2
   exit "$status"
 }
 trap cleanup EXIT
