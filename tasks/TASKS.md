@@ -219,7 +219,7 @@
 - [x] R2.9 ElyTable：对选中区域开自动筛选不扩到区域外紧邻的合计行 — R1 只标记于内存，应用、撤销、重开仍扩；R2 光标在别的数据块也沿用原区；R3 PASS
 - [~] R2.10 ElyTable：新插入的图表放在数据区旁的空白处，不压住数据 — R1 只避开源区、被挤回可见区；R2 抛出异常使 worker 退出、合并格；R3 FAIL（跨表按源表查、四周无处时照旧压住数据）后改为按所在表查、全表找空处、无处即失败，三轮上限，未再审
 - [x] R2.11 ElyTree：改动数的单复数（“1 file changed”） — R1 测试只核键名；R2 PASS
-- [~] R2.12 ElyTree：差异按文件类型着色，Markdown 不按代码高亮 — R3 FAIL（Rust 与 Ruby 词表、Haskell 与 Erlang 注释、TOML 与 CMake 紧接注释）后按语言分表（组件库 b0dbfd4），三轮上限，未再审
+- [~] R2.12 ElyTree：差异按文件类型着色，Markdown 不按代码高亮 — R3 FAIL（Rust 与 Ruby 词表、Haskell 与 Erlang 注释、TOML 与 CMake 紧接注释）后按语言分表（组件库 b0dbfd4），三轮上限，未再审。R14.5 审查查出 R3 另两项未修：Shell 的 `#` 在 `;&|()<>` 之后也开注释（Bash 实测），`CommentStart` 分出 YAML 只认空白；新测试以记录字形颜色的文本系统画出两种布局的差异，Markdown 不着代码色（审查者的强制 Rust 突变即失败）。组件库 d817edd
 - [x] R2.13 ElyMark：紧凑写法的 GFM 表格（无对齐空格）在可视模式显示为表格 — R3 PASS
 - [~] R2.14 ElyMark：任务列表的勾选框与正文同大、对齐首行 — R1 只测首项；R2 未生成的框也算；R3 FAIL（隐藏的框也算）后改为核对文字缩进与可见性，三轮上限，未再审
 - [x] R2.15 “打开方式”里不得出现 LibreOffice（用户 2026-10-09 加急，先于 R2.2 收尾）：构建出的 LibreOffice.app 去掉文档类型与快速查看插件并注销；任何测试不挂载官方镜像（官方内核解到无包的文件夹）；`tests/scripts/lo-unregistered.sh` 核对 — R1 注销不幂等、吞查询与 plist 错误、负例不认原因；R2 inert 步骤吞坏 plist；R3 PASS
@@ -409,7 +409,7 @@
 - [x] R14.2 更新清单经 GitHub 的 `releases/latest/download/` 取，不调 API，不受每小时 60 次的限（E-05，§4.2） — R1 PASS
 - [x] R14.3 更新清单签名（F-01，§4.2）：ed25519，公钥编进应用，`ci.sh` 签每份清单，缺签名或不符即拒；Windows 安装程序的 Authenticode 需要代码签名证书，本机没有 — R1 FAIL（`ci-share.sh` 缺 `ELY_UPDATE_KEY`，已补）；R2 PASS
 - [x] R14.4 更新安装（C-03，§4.2）：Windows 与 AppImage 已在退出后安装并重开（`install::after_quit`），关闭 N-03；非 macOS 的 `install`、`reopen` 桩删去 — R1 PASS
-- [ ] R14.5 用户提出的问题（D-06，§5）：C05.7、C05.8、R1.2 以各自编号送审；R2.5、R2.6、R2.8、R2.10、R2.12、R2.13、R2.14 照状态规则改正标记
+- [ ] R14.5 用户提出的问题（D-06，§5）：C05.7、C05.8、R1.2 以各自编号送审；R2.5、R2.6、R2.8、R2.10、R2.12、R2.13、R2.14 照状态规则改正标记 — R1 FAIL 两项：R2.12 的 R3 第四、五项未修（见 R2.12），已修，pin d817edd
 - [x] R14.5a 组件库换 pin 到 main（R14.5 的 C05.8 第三项、R14.22、R14.29 都要）：main 已是 gpui-pre 0.3.10 与 Rust 1.98，`vendor/gpui-pre`、`gpui-pre-windows` 的修补移到 0.3.10，`rust-toolchain.toml` 与四台发布机的工具链随之
 - [ ] R14.6 中文界面余下的英文（I-03，§5）
 - [ ] R14.7 文档内容对读屏可达（I-01，§5 UX-11）：LOK 段落的插入点与选区、ElyPDF 页面文字
