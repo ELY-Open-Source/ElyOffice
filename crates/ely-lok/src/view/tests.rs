@@ -11,6 +11,7 @@ mod large;
 mod show_borders;
 mod theme;
 mod text;
+mod zoom;
 use gpui::{App, Bounds, Entity, point, size};
 
 #[test]
