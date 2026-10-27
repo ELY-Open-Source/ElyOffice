@@ -24,26 +24,32 @@ cat >"$work/probe.fodt" <<'EOF'
 </office:document>
 EOF
 
-# A tall page: its middle row meets the first line.
-python -I - "$(cygpath -w "$work/probe.pdf")" <<'EOF'
-import sys
-stream = b"BT /F1 24 Tf 36 940 Td (Hello PDF reader) Tj ET BT /F1 24 Tf 36 100 Td (second line) Tj ET"
-objects = [
-    b"<< /Type /Catalog /Pages 2 0 R >>",
-    b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 1000] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
-    b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream",
-    b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-]
-out, offsets = bytearray(b"%PDF-1.4\n"), []
-for n, body in enumerate(objects, 1):
-    offsets.append(len(out))
-    out += b"%d 0 obj\n" % n + body + b"\nendobj\n"
-xref = len(out)
-out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
-out += b"".join(b"%010d 00000 n \n" % at for at in offsets)
-out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%EOF\n" % (len(objects) + 1, xref)
-open(sys.argv[1], "wb").write(out)
+# A tall page, then three short ones.
+python -I - "$(cygpath -w "$work")" <<'EOF'
+import os, sys
+def line(y, text):
+    return b"BT /F1 24 Tf 36 %d Td (%s) Tj ET " % (y, text)
+def write(name, size, streams):
+    kids = b" ".join(b"%d 0 R" % (4 + 2 * n) for n in range(len(streams)))
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [%s] /Count %d >>" % (kids, len(streams)),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    for n, stream in enumerate(streams):
+        objects.append(b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] /Contents %d 0 R /Resources << /Font << /F1 3 0 R >> >> >>" % (size[0], size[1], 5 + 2 * n))
+        objects.append(b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream")
+    out, offsets = bytearray(b"%PDF-1.4\n"), []
+    for n, body in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % n + body + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    out += b"".join(b"%010d 00000 n \n" % at for at in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%EOF\n" % (len(objects) + 1, xref)
+    open(os.path.join(sys.argv[1], name), "wb").write(out)
+write("probe.pdf", (300, 1000), [line(940, b"Hello PDF reader") + line(100, b"second line")])
+write("pages.pdf", (300, 120), [line(50, b"page " + word) for word in (b"one", b"two", b"three")])
 EOF
 
 # UI Automation is what NVDA reads.
@@ -89,12 +95,13 @@ function Read-State($label) {
     $text = $pattern.DocumentRange.GetText(-1).Replace("`r", '').Replace("`n", '/')
     $log.Add("$label|$($edit.Current.ControlType.ProgrammaticName)|$text|$($chosen.Replace("`n", '/'))")
 }
-function Drag($from, $to, $y) {
-    [Mouse]::SetCursorPos($from, $y) | Out-Null
+function Drag($box, $x0, $y0, $x1, $y1) { # in widths of $box
+    $at = { param($x, $y) [Mouse]::SetCursorPos([int]($box.Left + $box.Width * $x), [int]($box.Top + $box.Width * $y)) | Out-Null }
+    & $at $x0 $y0
     Start-Sleep -Milliseconds 200
     [Mouse]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
     foreach ($step in 1..10) {
-        [Mouse]::SetCursorPos([int]($from + ($to - $from) * $step / 10), $y) | Out-Null
+        & $at ($x0 + ($x1 - $x0) * $step / 10) ($y0 + ($y1 - $y0) * $step / 10)
         Start-Sleep -Milliseconds 50
     }
     [Mouse]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
@@ -112,12 +119,18 @@ try {
         Read-State 'emoji'
         [System.Windows.Forms.SendKeys]::SendWait('{RIGHT}+{RIGHT 4}')
         Read-State 'end'
-    } else {
+    } elseif ($Kind -eq 'pdf') {
         Read-State 'page'
         $box = $view.Current.BoundingRectangle
-        $y = [int]($box.Top + $box.Height / 2)
-        Drag ([int]($box.Left + $box.Width * 0.1)) ([int]($box.Left + $box.Width * 0.9)) $y
+        $y = $box.Height / 2 / $box.Width
+        Drag $box 0.1 $y 0.9 $y
         Read-State 'picked'
+    } else {
+        # At fit width a page is 0.4 widths tall.
+        Drag $view.Current.BoundingRectangle 0.1 0.2 0.9 0.6
+        Read-State 'across'
+        [System.Windows.Forms.SendKeys]::SendWait('{END}')
+        Read-State 'scrolled'
     }
 } finally {
     [System.IO.File]::WriteAllLines($Out, $log)
@@ -132,6 +145,7 @@ read_app() { # kind exe file
 }
 read_app doc ely-doc probe.fodt
 read_app pdf ely-pdf probe.pdf
+read_app pages ely-pdf pages.pdf
 cat >"$work/want.log" <<'EOF'
 caret|ControlType.Edit|Hello 世界 😀 end|
 line|ControlType.Edit|Hello 世界 😀 end|Hello 世界 😀 end
@@ -139,6 +153,8 @@ emoji|ControlType.Edit|Hello 世界 😀 end|😀
 end|ControlType.Edit|Hello 世界 😀 end|end
 page|ControlType.Document|Hello PDF reader/second line/|
 picked|ControlType.Document|Hello PDF reader/second line/|Hello PDF reader
+across|ControlType.Document|page one/page two/|page one/page two
+scrolled|ControlType.Document|page two/page three/|page two
 EOF
-cat "$work/doc.log" "$work/pdf.log" | tr -d '\r' | diff "$work/want.log" - || { echo "FAIL: the reader saw other text" >&2; exit 1; }
+cat "$work/doc.log" "$work/pdf.log" "$work/pages.log" | tr -d '\r' | diff "$work/want.log" - || { echo "FAIL: the reader saw other text" >&2; exit 1; }
 echo "PASS: ElyDoc's paragraph and ElyPDF's page, with caret and selection, reach UI Automation"

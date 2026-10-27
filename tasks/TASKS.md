@@ -412,7 +412,7 @@
 - [x] R14.5 用户提出的问题（D-06，§5）：C05.7、C05.8、R1.2 以各自编号送审；R2.5、R2.6、R2.8、R2.10、R2.12、R2.13、R2.14 照状态规则改正标记 — R1 FAIL 两项：R2.12 的 R3 第四、五项未修（见 R2.12），已修，pin d817edd；R2 FAIL 两项（同属 R2.12）已修，pin 73422f5
 - [x] R14.5a 组件库换 pin 到 main（R14.5 的 C05.8 第三项、R14.22、R14.29 都要）：main 已是 gpui-pre 0.3.10 与 Rust 1.98，`vendor/gpui-pre`、`gpui-pre-windows` 的修补移到 0.3.10，`rust-toolchain.toml` 与四台发布机的工具链随之
 - [x] R14.6 中文界面余下的英文（I-03，§5） — 内核对话框不显示、词典只随英文为常设决定；ElyTable 排序、筛选已中文；ElyDoc 属性栏的内置样式名与纸张名改按界面语言（LibreOffice 自带译文），ElyShow 的 Letter 同 — R1 FAIL 两项已修：用户样式与内置程序名撞名（照 LibreOffice 加减 ` (user)`）；筛选的测试可借排序画出的字通过（各自清空、新窗口、须画出自己的标题）
-- [ ] R14.7 文档内容对读屏可达（I-01，§5 UX-11）：LOK 段落的插入点与选区、ElyPDF 页面文字 — gpui 0.3.10 的合成子节点：LOK 段落交成文本串，插入点与选区由 UTF-16 换成字符；ElyPDF 以 `Document` 交出所显示页面的逐行文字与拖选；`windows-a11y.sh` 经 UI Automation 读到；VoiceOver、AT-SPI 未实测；整篇文档仍只到当前段落（LOK 只报当前段落）
+- [ ] R14.7 文档内容对读屏可达（I-01，§5 UX-11）：LOK 段落的插入点与选区、ElyPDF 页面文字 — gpui 0.3.10 的合成子节点：LOK 段落交成文本串，插入点与选区由 UTF-16 换成字符；ElyPDF 以 `Document` 交出所显示页面的逐行文字与拖选；`windows-a11y.sh` 经 UI Automation 读到；VoiceOver、AT-SPI 未实测；整篇文档仍只到当前段落（LOK 只报当前段落） — R1 FAIL 已修：跨页选区一端滚出屏外后选区消失，改为选区与所显示的行取交集；`windows-a11y.sh` 加三页 PDF 跨页拖选后按 End 的读取
 - [ ] R14.8 无障碍复核：七个应用，Windows 的 UIA 与 Linux 的 AT-SPI（I-02、A-07，§5）
 - [ ] R14.9 恢复（§6.3）：X-05 写不成每 10 秒弹一次、X-06 `session.lock` 坏即永久关闭、X-12 界面线程做文件 I/O
 - [ ] R14.10 保存与关闭（§6.2）：X-08 关闭链悬空、X-09 自动保存停摆、X-10 别的卷消失
