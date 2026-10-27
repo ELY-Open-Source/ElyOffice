@@ -104,11 +104,11 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [ ] X-04 属性栏字号菜单的 `expect("sizes are numbers")` 是脆弱点，但当前不可达
 - [x] X-05 恢复点写不成时每 10 秒弹一次提示 — d59159c 已做（每个标签每种原因只提示一次，下一拍照常重试）；R14.9 核对
 - [x] X-06 `session.lock` 空或损坏即永久关闭恢复功能 — d59159c 修空锁与乱码；R14.9 补非 UTF-8 的锁（`Crash::check` 读字节，照崩溃处理并重写）
-- [ ] X-07 加密文档的恢复点每次写入都解密全部已有点，且持 worker 锁
+- [x] X-07 加密文档的恢复点每次写入都解密全部已有点，且持 worker 锁 — d59159c 修解密（修剪只读文件名）；R14.11 把加密与写盘移出 worker 锁（`write_point`），测试 `an_unsaved_tab_gets_a_point`
 - [x] X-08 另存为在等待关闭或退出时被拒绝，关闭链悬空，ElyMark 的会话清单冻结 — d59159c 已做（`refuse_save` 停下等着的关闭）；R14.10 补标签已关的一路与测试 `a_refused_save_as_stops_the_close_it_held`
 - [x] X-09 保存期间落地的编辑可能让自动保存停摆 — d59159c 已做（`watch` 按编辑计数前进再记编辑）；R14.10 核对，`an_edit_after_a_save_raced_it_counts_again`
 - [x] X-10 别的标签的文件所在卷消失时，本标签的另存为失败并被标为保存失败 — d59159c 已做（`holder` 跳过比不了的标签，目标错误照报）；R14.10 核对，`a_tab_on_a_vanished_folder_takes_no_other_file`
-- [ ] X-11 worker 的 stderr 中继遇到第一行非 UTF-8 即永久停止
+- [x] X-11 worker 的 stderr 中继遇到第一行非 UTF-8 即永久停止 — d59159c 已做（按字节读、宽松转文字）；R14.11 核对，`a_line_in_another_encoding_stops_nothing`
 - [x] X-12 恢复路径在界面线程做文件 I/O — d59159c 修文档应用；R14.9 补 ElyMark（每 10 秒的扫点与写 session.json 改后台，退出当场写，`Turns` 防旧写盖新写）
 - [ ] X-13 非 macOS 构建里仍提供只会报“未构建”的入口
 - [ ] X-14 `agents.md` 引用的 `docs/engineering-risks.md` 不存在

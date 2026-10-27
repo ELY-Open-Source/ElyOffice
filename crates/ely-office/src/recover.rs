@@ -79,6 +79,12 @@ impl Keeping {
         Self::start_in(ely_platform::data_dir(app).map_err(io::Error::other)?)
     }
 
+    /// Recovery kept in `dir`, for tests.
+    #[cfg(feature = "test-support")]
+    pub fn in_folder(dir: PathBuf) -> io::Result<Self> {
+        Self::start_in(dir)
+    }
+
     fn start_in(dir: PathBuf) -> io::Result<Self> {
         let marker = Crash::check(&dir, ely_files::alive)?;
         log::info!("recovery: the last run ended {marker:?}");
@@ -127,6 +133,17 @@ impl Keeping {
         let bytes = serde_json::to_vec(&kept).map_err(io::Error::other)?;
         Ok((self.dir.join("recovery").join("index.json"), bytes))
     }
+}
+
+/// Seals and writes one point; no worker needed.
+fn write_point(app: ely_platform::AppId, folder: PathBuf, sealed: bool, bytes: &[u8]) -> io::Result<()> {
+    let limits = ely_platform::storage::limits(app)?;
+    let recovery = match sealed {
+        true => Recovery::sensitive(folder, RecoveryKey::load().key),
+        false => Recovery::new(folder),
+    };
+    let mut recovery = recovery.with_limits(limits.keep, limits.megabytes * 1024 * 1024);
+    recovery.write_once(bytes, None, SystemTime::now()).map(|_| ())
 }
 
 /// Staged then renamed: a failed write keeps the last index.
@@ -247,43 +264,50 @@ pub trait Recovering: Host {
             let kept = slot.kept.clone();
             let folder = keeping.folder(&kept.slot);
             let work = self.tab(id).expect("a due tab").work.join(format!("recovery.{}", kept.format));
+            let sealed = kept.sealed;
             self.read_in(
                 id,
                 move |worker, doc| {
                     Self::Engine::snapshot(worker, doc, &work, &kept.format)?;
                     let bytes = std::fs::read(&work)?;
                     std::fs::remove_file(&work)?;
-                    let limits = ely_platform::storage::limits(app)?;
-                    let recovery = match kept.sealed {
-                        true => Recovery::sensitive(folder, RecoveryKey::load().key),
-                        false => Recovery::new(folder),
-                    };
-                    let mut recovery = recovery.with_limits(limits.keep, limits.megabytes * 1024 * 1024);
-                    recovery.write_once(&bytes, None, SystemTime::now()).map(|_| ())
+                    Ok(bytes)
                 },
-                move |host, written, _, cx| {
-                    let Some(keeping) = host.core_mut().keeping.as_mut() else { return };
-                    let Some(slot) = keeping.slots.get_mut(&id) else { return };
-                    slot.writing = false;
-                    match written {
-                        Ok(()) => {
-                            slot.written = Some(edited);
-                            slot.failed = None;
-                            keeping.last = Some(SystemTime::now());
-                            if keeping.behind.is_some() {
-                                host.flush_index(cx);
-                            }
-                        }
-                        Err(error) => {
-                            log::error!("recovery: tab {id} point failed ({:?})", error.kind());
-                            let Some(said) = slot.fail(edited, &error) else { return };
-                            let shown = text(cx, "office.recovery.failed", &[("error", &said)]);
-                            host.toast_unlogged(shown, Severity::Warning, cx);
-                        }
-                    }
+                move |host, bytes, _, cx| {
+                    let Ok(bytes) = bytes else { return host.point_written(id, edited, bytes.map(drop), cx) };
+                    // Sealing and fsync never hold the worker.
+                    let task = cx.background_spawn(async move { write_point(app, folder, sealed, &bytes) });
+                    cx.spawn(async move |this: WeakEntity<Self>, cx: &mut AsyncApp| {
+                        let written = task.await;
+                        this.update(cx, |host, cx| host.point_written(id, edited, written, cx)).ok();
+                    })
+                    .detach();
                 },
                 cx,
             );
+        }
+    }
+
+    /// A point's write ended; a failure shows once.
+    fn point_written(&mut self, id: u64, edited: u64, written: io::Result<()>, cx: &mut Context<Self>) {
+        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
+        let Some(slot) = keeping.slots.get_mut(&id) else { return };
+        slot.writing = false;
+        match written {
+            Ok(()) => {
+                slot.written = Some(edited);
+                slot.failed = None;
+                keeping.last = Some(SystemTime::now());
+                if keeping.behind.is_some() {
+                    self.flush_index(cx);
+                }
+            }
+            Err(error) => {
+                log::error!("recovery: tab {id} point failed ({:?})", error.kind());
+                let Some(said) = slot.fail(edited, &error) else { return };
+                let shown = text(cx, "office.recovery.failed", &[("error", &said)]);
+                self.toast_unlogged(shown, Severity::Warning, cx);
+            }
         }
     }
 
