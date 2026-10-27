@@ -1,6 +1,6 @@
 //! The system player against a small H.264/AAC clip.
 
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
 fn main() {
     use std::time::{Duration, Instant};
 
@@ -60,13 +60,13 @@ fn wait() {
     NSRunLoop::currentRunLoop().runUntilDate(&NSDate::dateWithTimeIntervalSinceNow(0.02));
 }
 
-/// Media Foundation plays on its own threads.
-#[cfg(windows)]
+/// Media Foundation and GStreamer play on their own threads.
+#[cfg(any(windows, target_os = "linux"))]
 fn wait() {
     std::thread::sleep(std::time::Duration::from_millis(20));
 }
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 fn main() {
     println!("SKIP: no system player is built on this platform");
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The media player interface compiles for Linux and Windows too.
+# The media player interface compiles for Linux and Windows.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 targets=(x86_64-unknown-linux-gnu x86_64-pc-windows-msvc)
@@ -23,6 +23,8 @@ edition = "2024"
 [dependencies]
 anyhow = "1"
 log = "0.4"
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 dunce = "1"
 windows-core = "0.62"

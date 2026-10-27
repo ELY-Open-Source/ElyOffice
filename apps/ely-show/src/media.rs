@@ -51,9 +51,9 @@ pub(crate) type Picture = std::sync::Arc<gpui::RenderImage>;
 pub(crate) fn picture(frame: Frame) -> Picture {
     #[cfg(target_os = "macos")]
     return frame.into();
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     return crate::preview::picture(frame.size, frame.bgra);
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     match frame {}
 }
 

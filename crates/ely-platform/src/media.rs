@@ -8,9 +8,12 @@ mod macos;
 #[cfg(windows)]
 #[path = "media/mf.rs"]
 mod mf;
+#[cfg(target_os = "linux")]
+#[path = "media/gst.rs"]
+mod gst;
 
-/// macOS and Windows play; elsewhere nothing offers it.
-pub const BUILT: bool = cfg!(any(target_os = "macos", windows));
+/// macOS, Windows and Linux play; elsewhere nothing offers it.
+pub const BUILT: bool = cfg!(any(target_os = "macos", windows, target_os = "linux"));
 
 /// What the player knows of its file.
 #[derive(Clone, Debug, PartialEq)]
@@ -29,13 +32,13 @@ pub enum State {
 #[cfg(target_os = "macos")]
 pub type Frame = objc2_core_foundation::CFRetained<objc2_core_video::CVPixelBuffer>;
 /// A picture of the playing video: BGRA rows, top first.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub struct Frame {
     pub size: (u32, u32),
     pub bgra: Vec<u8>,
 }
 /// No platform here makes frames.
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 pub enum Frame {}
 
 /// One file in the system player, paused at first.
@@ -46,8 +49,10 @@ pub struct Player {
     inner: macos::Player,
     #[cfg(windows)]
     inner: mf::Player,
+    #[cfg(target_os = "linux")]
+    inner: gst::Player,
     // Nothing opens a player where none is built.
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     inner: std::convert::Infallible,
 }
 
@@ -68,7 +73,12 @@ impl Player {
             held: std::cell::Cell::new(false),
             inner: mf::Player::open(path)?,
         });
-        #[cfg(not(any(target_os = "macos", windows)))]
+        #[cfg(target_os = "linux")]
+        return Ok(Player {
+            held: std::cell::Cell::new(false),
+            inner: gst::Player::open(path)?,
+        });
+        #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
         anyhow::bail!("playing {} is not built on this platform", path.display())
     }
 
@@ -125,7 +135,7 @@ impl Player {
 }
 
 /// What an uninhabited player answers: nothing, ever.
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 trait Never {
     fn state(&self) -> State;
     fn play(&self);
@@ -136,7 +146,7 @@ trait Never {
     fn frame(&self) -> Option<Frame>;
 }
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 impl Never for std::convert::Infallible {
     fn state(&self) -> State {
         match *self {}
