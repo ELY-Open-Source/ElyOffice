@@ -284,7 +284,7 @@ fn secure_host(url: &str) -> Result<String> {
 }
 
 /// GETs `url`, following redirects only to places `secure_host` accepts.
-pub(crate) fn fetch(agent: &Agent, url: &str) -> Result<Response<Body>> {
+fn fetch(agent: &Agent, url: &str) -> Result<Response<Body>> {
     let mut url = url.to_string();
     for _ in 0..=MAX_REDIRECTS {
         secure_host(&url)?;
@@ -314,7 +314,7 @@ pub(crate) fn fetch(agent: &Agent, url: &str) -> Result<Response<Body>> {
     bail!("too many redirects")
 }
 
-pub(crate) fn manifest_agent() -> Agent {
+fn manifest_agent() -> Agent {
     Agent::config_builder()
         .timeout_global(Some(MANIFEST_TIMEOUT))
         .max_redirects(0)

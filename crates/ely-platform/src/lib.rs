@@ -15,7 +15,6 @@ pub mod lock;
 pub mod logging;
 pub mod media;
 pub mod print;
-pub mod release;
 pub mod settings;
 pub mod startup;
 pub mod storage;

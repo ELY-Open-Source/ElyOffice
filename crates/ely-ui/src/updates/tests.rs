@@ -80,3 +80,9 @@ fn a_packaged_app_names_its_command_and_downloads_nothing(cx: &mut gpui::TestApp
     let bundled = cx.new(|_| made(bundle(), Some((release("9.1.0", "https://c"), Phase::Offered))));
     assert_eq!(bundled.read_with(cx, |updates, _| updates.command()), None);
 }
+
+#[test]
+fn the_manifest_is_the_latest_releases_file() {
+    let want = format!("https://github.com/ELY-Open-Source/ElyOffice/releases/latest/download/ely-doc-{}.json", update::platform());
+    assert_eq!(latest(AppId::Doc), want);
+}

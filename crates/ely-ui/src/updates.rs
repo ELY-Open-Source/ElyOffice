@@ -17,8 +17,8 @@ use ely_platform::{
 use futures::{StreamExt as _, channel::mpsc};
 use gpui::{App, AppContext as _, Context, Entity, EventEmitter, Global};
 
-/// The release server's newest release, listed by its API.
-const LATEST: &str = "https://api.github.com/repos/ELY-Open-Source/ElyOffice/releases/latest";
+/// The newest release's files; GitHub redirects, no API.
+const LATEST: &str = "https://github.com/ELY-Open-Source/ElyOffice/releases/latest/download";
 
 #[derive(Clone, Debug, PartialEq)]
 enum Phase {
@@ -163,14 +163,12 @@ pub(crate) fn install(app: AppId, cx: &mut App) {
 }
 
 /// This build's manifest in the newest release, or the test's.
-fn manifest(app: AppId) -> anyhow::Result<String> {
-    match std::env::var("ELY_UPDATE_MANIFEST") {
-        Ok(url) => Ok(url),
-        Err(_) => {
-            let name = format!("{}-{}.json", app.slug(), update::platform());
-            ely_platform::release::asset_url(LATEST, &name)
-        }
-    }
+fn manifest(app: AppId) -> String {
+    std::env::var("ELY_UPDATE_MANIFEST").unwrap_or_else(|_| latest(app))
+}
+
+fn latest(app: AppId) -> String {
+    format!("{LATEST}/{}-{}.json", app.slug(), update::platform())
 }
 
 impl Updates {
@@ -203,7 +201,7 @@ impl Updates {
         let current =
             semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("the build's version");
         // The lookup is a request too: off the window's thread.
-        let checked = cx.background_spawn(async move { manifest(app).and_then(|url| update::check(&current, &url)) });
+        let checked = cx.background_spawn(async move { update::check(&current, &manifest(app)) });
         cx.spawn(async move |this, cx| {
             let checked = checked.await;
             this.update(cx, |this, cx| this.checked(checked, asked, cx)).ok();
