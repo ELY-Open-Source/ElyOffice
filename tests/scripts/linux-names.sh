@@ -182,6 +182,7 @@ while IFS="|" read -r app sample page; do
 done <<<"$apps"
 exit $failed'
 unset WAYLAND_DISPLAY
-ELY_GIT=${ELY_GIT:-$(command -v git)} ELY_NO_DIALOG=1 dbus-run-session -- bash -c "$inside" _ "$launcher" "$work" "$bin" "$(a11y_apps)" 2>"$work/session.log" ||
+# The page names are English.
+ELY_GIT=${ELY_GIT:-$(command -v git)} ELY_NO_DIALOG=1 ELY_LOCALE=en-US dbus-run-session -- bash -c "$inside" _ "$launcher" "$work" "$bin" "$(a11y_apps)" 2>"$work/session.log" ||
   { echo "FAIL: see $work" >&2; exit 1; }
 echo "PASS: seven apps name every control and every Tab stop; Tab reaches each document, F6 leaves it"

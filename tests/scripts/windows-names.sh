@@ -42,6 +42,8 @@ public static class Mouse {
 $A = [System.Windows.Automation.AutomationElement]
 $env:ELY_DATA_ROOT = $Data
 $env:ELY_NO_DIALOG = '1'
+# The page names are English.
+$env:ELY_LOCALE = 'en-US'
 $app = if ($File) { Start-Process -FilePath $Exe -ArgumentList "`"$File`"" -PassThru } else { Start-Process -FilePath $Exe -PassThru }
 $owner = New-Object System.Windows.Automation.PropertyCondition($A::ProcessIdProperty, $app.Id)
 $acts = 'Button','CheckBox','ComboBox','Edit','Hyperlink','ListItem','MenuItem','RadioButton','Slider','Spinner','TabItem','TreeItem','SplitButton','DataItem','Document'
