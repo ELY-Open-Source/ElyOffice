@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "gpui-pre-windows"
-version = "0.3.9"
+version = "0.3.10"
 build = "build.rs"
 publish = true
 autolib = false
@@ -20,7 +20,7 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
-description = "Zed's `gpui_windows` crate (gpui-pre snapshot of zed@93d7456)"
+description = "Zed's `gpui_windows` crate (gpui-pre snapshot of zed@08cbb88)"
 readme = false
 license = "Apache-2.0"
 repository = "https://github.com/zed-industries/zed"
@@ -32,7 +32,7 @@ ignored = ["scap"]
 [package.metadata.gpui-pre]
 zed-crate = "gpui_windows"
 zed-version = "0.1.0"
-zed-rev = "93d745668805029476e6d7fbb19652116fed51de"
+zed-rev = "08cbb88a152c3751a43e853425a70e9f631a5918"
 
 [features]
 default = ["gpui/default"]
@@ -48,7 +48,7 @@ path = "src/gpui_windows.rs"
 doctest = false
 
 [dependencies.gpui]
-version = "=0.3.9"
+version = "=0.3.10"
 default-features = false
 package = "gpui-pre"
 
@@ -63,7 +63,7 @@ version = "0.34"
 version = "1.0.86"
 
 [target.'cfg(target_os = "windows")'.dependencies.collections]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-collections"
 
 [target.'cfg(target_os = "windows")'.dependencies.dunce]
@@ -76,7 +76,7 @@ version = "0.2"
 version = "0.3.34"
 
 [target.'cfg(target_os = "windows")'.dependencies.gpui_util]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-util"
 
 [target.'cfg(target_os = "windows")'.dependencies.image]
@@ -130,7 +130,7 @@ default-features = false
 package = "zed-scap"
 
 [target.'cfg(target_os = "windows")'.dependencies.scheduler]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-scheduler"
 
 [target.'cfg(target_os = "windows")'.dependencies.smallvec]
@@ -166,8 +166,6 @@ features = [
     "Win32_UI_Shell_PropertiesSystem",
     "Win32_UI_WindowsAndMessaging",
     "Data_Xml_Dom",
-    "Foundation_Collections",
-    "System_UserProfile",
     "UI_Notifications",
     "UI_ViewManagement",
     "Wdk_System_SystemServices",

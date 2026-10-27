@@ -1,4 +1,4 @@
-// Modified for gpui-pre (snapshot of zed@93d7456): the `actions!` derive paths are crate-relative.
+// Modified for gpui-pre (snapshot of zed@08cbb88): the `actions!` derive paths are crate-relative.
 use anyhow::{Context as _, Result};
 use collections::{HashMap, TypeIdHashMap};
 pub use gpui_macros::Action;

@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "gpui-pre"
-version = "0.3.9"
+version = "0.3.10"
 authors = ["Nathan Sobo <nathan@zed.dev>"]
 build = "build.rs"
 publish = true
@@ -21,7 +21,7 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
-description = "Zed's GPU-accelerated UI framework (gpui-pre snapshot of zed@93d7456)"
+description = "Zed's GPU-accelerated UI framework (gpui-pre snapshot of zed@08cbb88)"
 homepage = "https://gpui.rs"
 readme = "README.md"
 keywords = [
@@ -40,12 +40,15 @@ ignored = [
     "objc2",
     "objc2-metal",
 ]
-ignored-paths = ["src/_ownership_and_data_flow.rs"]
+ignored-paths = [
+    "src/_ownership_and_data_flow.rs",
+    "benches/focus_cleanup.rs",
+]
 
 [package.metadata.gpui-pre]
 zed-crate = "gpui"
 zed-version = "0.2.2"
-zed-rev = "93d745668805029476e6d7fbb19652116fed51de"
+zed-rev = "08cbb88a152c3751a43e853425a70e9f631a5918"
 
 [features]
 bench = ["bench-support"]
@@ -61,6 +64,13 @@ default = [
     "windows-manifest",
 ]
 font-kit = []
+hot-reload = [
+    "dep:async-tungstenite",
+    "dep:dioxus-cli-config",
+    "dep:dioxus-devtools-types",
+    "dep:smol",
+    "dep:subsecond",
+]
 inspector = ["gpui_macros/inspector"]
 leak-detection = []
 profiler = ["dep:hdrhistogram"]
@@ -278,7 +288,7 @@ version = "4.7"
 version = "0.3"
 
 [dependencies.bench_metrics]
-version = "=0.3.9"
+version = "=0.3.10"
 optional = true
 package = "gpui-pre-bench-metrics"
 
@@ -294,7 +304,7 @@ features = [
 default-features = true
 
 [dependencies.collections]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-collections"
 
 [dependencies.criterion]
@@ -329,15 +339,15 @@ version = "7.7.1"
 optional = true
 
 [dependencies.gpui_macros]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-macros"
 
 [dependencies.gpui_shared_string]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-shared-string"
 
 [dependencies.gpui_util]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-util"
 
 [dependencies.hdrhistogram]
@@ -349,7 +359,7 @@ default-features = false
 version = "0.9.2"
 
 [dependencies.http_client]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-http-client"
 
 [dependencies.image]
@@ -429,7 +439,7 @@ default-features = false
 version = "0.6"
 
 [dependencies.refineable]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-refineable"
 
 [dependencies.regex]
@@ -451,7 +461,7 @@ features = [
 default-features = false
 
 [dependencies.scheduler]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-scheduler"
 
 [dependencies.schemars]
@@ -508,11 +518,11 @@ version = "0.28"
 features = ["derive"]
 
 [dependencies.sum_tree]
-version = "=0.3.9"
+version = "=0.3.10"
 package = "gpui-pre-sum-tree"
 
 [dependencies.taffy]
-version = "0.13.0"
+version = "0.15.0"
 features = [
     "std",
     "taffy_tree",
@@ -580,6 +590,26 @@ features = [
     "CVPixelBuffer",
 ]
 default-features = false
+
+[target.'cfg(any(target_os = "macos", target_os = "linux", target_os = "windows", target_os = "ios"))'.dependencies.async-tungstenite]
+version = "0.33"
+optional = true
+
+[target.'cfg(any(target_os = "macos", target_os = "linux", target_os = "windows", target_os = "ios"))'.dependencies.dioxus-cli-config]
+version = "0.7.10"
+optional = true
+
+[target.'cfg(any(target_os = "macos", target_os = "linux", target_os = "windows", target_os = "ios"))'.dependencies.dioxus-devtools-types]
+version = "0.7.10"
+optional = true
+
+[target.'cfg(any(target_os = "macos", target_os = "linux", target_os = "windows", target_os = "ios"))'.dependencies.smol]
+version = "2.0"
+optional = true
+
+[target.'cfg(any(target_os = "macos", target_os = "linux", target_os = "windows", target_os = "ios"))'.dependencies.subsecond]
+version = "0.7.10"
+optional = true
 
 [target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies.async-channel]
 version = "2.5"
