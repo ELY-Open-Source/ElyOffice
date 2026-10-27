@@ -419,7 +419,7 @@
 - [x] R14.11 恢复点与 worker 日志（§6.3、§18）：X-07 每次写入解密全部点、X-11 非 UTF-8 即停止中继 — 修复原在 d59159c（未审）。X-07 解密已成，补上加密与写盘移出 worker 锁并加端到端测试；X-11 已成，有测试。R1 通过
 - [x] R14.12 `ely-files` 的写入失败测试以 root 运行也成立（B-05，§6） — root 下 3 条失败属实；两条改用“文件挡在文件夹处”制造失败（root 同样失败），保存一条 root 下 SKIP；容器内 root 与普通用户各 118 过。R1 通过
 - [x] R14.13 LOK（§7）：K-02 图块代际、K-03 宽容解析、K-04 有符号的 part；K-01 照实关闭 — K-01 已成于 c96d39a，照实关闭；K-02 至 K-04 已成于 d59159c，K-03 补测试，K-02 的先后与 K-04 的 -1 无从测试，按代码核。R1 通过
-- [ ] R14.14 `view::tests::large` 并行时卡在 `Worker::spawn` 的根因（R12.38，§7） — 待审：cdb 见卡住的主线程在 `openclwrapper::switchOpenCLDevice` → `amdocl64!clFinish`；worker 启动设 `SAL_DISABLE_OPENCL=1`。去掉即卡（194 秒、2 失败），加上 11 个 2.25 秒全过；`ely-lok` 并行 321 个 55 秒
+- [x] R14.14 `view::tests::large` 并行时卡在 `Worker::spawn` 的根因（R12.38，§7） — R1 PASS：cdb 见卡住的主线程在 `openclwrapper::switchOpenCLDevice` → `amdocl64!clFinish`；worker 启动设 `SAL_DISABLE_OPENCL=1`。去掉即卡（194 秒、2 失败），加上 11 个 2.25 秒全过；`ely-lok` 并行 321 个 55 秒
 - [ ] R14.15 ElyDoc 命令行（§8、§16）：`ely-doc text docs|get|replace|save`
 - [ ] R14.16 ElyDoc 字号菜单的 `expect`（X-04，§8）
 - [ ] R14.17 ElyShow 媒体：Windows 以 Media Foundation 实现 `media::Player`（C-01、N-02，§10）
