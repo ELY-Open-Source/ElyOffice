@@ -1,4 +1,4 @@
-use gpui::{Entity, ScrollDelta, ScrollWheelEvent, TestAppContext, VisualTestContext, point, px};
+use gpui::{Entity, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext, point, px};
 
 use super::objects::blank;
 use super::{counts, settle, update};
@@ -35,7 +35,7 @@ fn the_wheel_scrolls_the_strip_to_its_last_slide() {
     assert!(before.bottom() > height, "the strip is longer than the window");
     let at = point(before.left() + px(20.0), height / 2.0);
     for _ in 0..20 {
-        shown.simulate_event(ScrollWheelEvent {
+        shown.simulate_event(ScrollEvent {
             position: at,
             delta: ScrollDelta::Pixels(point(px(0.0), px(-1000.0))),
             ..Default::default()

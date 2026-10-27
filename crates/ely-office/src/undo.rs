@@ -1,5 +1,6 @@
 //! Undo and Redo: keys and the Edit menu (#15).
 
+use ely_gpui_component::secondary;
 use ely_ui::commands;
 use ely_lok::LokView;
 use gpui::{App, Context, Div, InteractiveElement as _, KeyBinding, MenuItem, actions};
@@ -15,8 +16,8 @@ actions!(office, [Undo, Redo]);
 /// Command-Z, Shift-Command-Z; Ctrl+Y off the Mac.
 pub fn bind_undo_keys(cx: &mut App) {
     cx.bind_keys([
-        KeyBinding::new("secondary-z", Undo, Some(commands::CONTEXT)),
-        KeyBinding::new("secondary-shift-z", Redo, Some(commands::CONTEXT)),
+        KeyBinding::new(secondary!("z"), Undo, Some(commands::CONTEXT)),
+        KeyBinding::new(secondary!("shift-z"), Redo, Some(commands::CONTEXT)),
     ]);
     #[cfg(not(target_os = "macos"))]
     cx.bind_keys([KeyBinding::new("ctrl-y", Redo, Some(commands::CONTEXT))]);

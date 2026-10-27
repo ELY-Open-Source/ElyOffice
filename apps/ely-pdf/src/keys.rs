@@ -1,5 +1,6 @@
 //! Menus and keys of the viewer (PDF-01).
 
+use ely_gpui_component::secondary;
 use ely_gpui_component::shell::ZoomStep;
 use ely_ui::commands;
 use gpui::{
@@ -41,17 +42,17 @@ pub fn bind(cx: &mut App) {
     crate::writes::bind(cx);
     let at = Some(commands::CONTEXT);
     cx.bind_keys([
-        KeyBinding::new("secondary-=", ZoomIn, at),
-        KeyBinding::new("secondary--", ZoomOut, at),
-        KeyBinding::new("secondary-0", ActualSize, at),
-        KeyBinding::new("secondary-]", RotateRight, at),
-        KeyBinding::new("secondary-[", RotateLeft, at),
+        KeyBinding::new(secondary!("="), ZoomIn, at),
+        KeyBinding::new(secondary!("-"), ZoomOut, at),
+        KeyBinding::new(secondary!("0"), ActualSize, at),
+        KeyBinding::new(secondary!("]"), RotateRight, at),
+        KeyBinding::new(secondary!("["), RotateLeft, at),
         KeyBinding::new("pagedown", NextPage, at),
         KeyBinding::new("pageup", PreviousPage, at),
         KeyBinding::new("home", FirstPage, at),
         KeyBinding::new("end", LastPage, at),
-        KeyBinding::new("secondary-c", CopyText, at),
-        KeyBinding::new("secondary-f", Find, at),
+        KeyBinding::new(secondary!("c"), CopyText, at),
+        KeyBinding::new(secondary!("f"), Find, at),
     ]);
 }
 

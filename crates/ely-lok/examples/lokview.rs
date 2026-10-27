@@ -59,14 +59,14 @@ struct Probe {
     dir: PathBuf,
 }
 
-fn key(text: &str) -> Keystroke {
-    Keystroke::parse(text).expect("a keystroke")
+fn key(text: &str, cx: &App) -> Keystroke {
+    Keystroke::parse_with_os(text, cx.platform_info().os).expect("a keystroke")
 }
 
-fn typed(text: &str) -> Keystroke {
+fn typed(text: &str, cx: &App) -> Keystroke {
     Keystroke {
         key_char: Some(text.into()),
-        ..key(text)
+        ..key(text, cx)
     }
 }
 
@@ -148,27 +148,27 @@ impl Probe {
             1 => {
                 let end = at(cx, PAST_END, LINE_ONE);
                 drag(window, end, end, cx);
-                press(window, typed("X"), cx);
+                press(window, typed("X", cx), cx);
             }
             2 => {
                 let (from, to) = (at(cx, TEXT_LEFT, LINE_TWO), at(cx, PAST_END, LINE_TWO));
                 drag(window, from, to, cx);
-                press(window, typed("Z"), cx);
+                press(window, typed("Z", cx), cx);
                 println!(
                     "probe: focused={}",
                     self.view.read(cx).focus_handle().is_focused(window)
                 );
             }
             3 if clipboard_on => {
-                press(window, key("secondary-a"), cx);
-                press(window, key("secondary-c"), cx);
+                press(window, key("secondary-a", cx), cx);
+                press(window, key("secondary-c", cx), cx);
             }
             4 if clipboard_on => {
                 let copied = clipboard::read().expect("the clipboard reads");
                 println!("probe: copied={copied:?}");
-                press(window, key("secondary-end"), cx);
-                press(window, key("enter"), cx);
-                press(window, key("secondary-v"), cx);
+                press(window, key("secondary-end", cx), cx);
+                press(window, key("enter", cx), cx);
+                press(window, key("secondary-v", cx), cx);
             }
             3 | 4 => {}
             _ => {

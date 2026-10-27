@@ -1,5 +1,6 @@
 //! Typora's Copy as Markdown and Paste as Plain Text.
 
+use ely_gpui_component::secondary;
 use ely_gpui_component::primitives::Severity;
 use ely_office::prelude::*;
 use ely_ui::{commands, i18n::text};
@@ -15,8 +16,8 @@ actions!(mark, [CopyMarkdown, PastePlain]);
 pub fn bind(cx: &mut App) {
     let at = Some(commands::CONTEXT);
     cx.bind_keys([
-        KeyBinding::new("secondary-shift-c", CopyMarkdown, at),
-        KeyBinding::new("secondary-shift-v", PastePlain, at),
+        KeyBinding::new(secondary!("shift-c"), CopyMarkdown, at),
+        KeyBinding::new(secondary!("shift-v"), PastePlain, at),
     ]);
 }
 

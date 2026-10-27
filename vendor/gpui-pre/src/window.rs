@@ -2064,12 +2064,15 @@ impl Window {
             Box::new(move || {
                 handle
                     .update(&mut cx, |_, window, _cx| {
-                        for (area, hitbox) in &window.rendered_frame.window_control_hitboxes {
-                            if window.mouse_hit_test.ids.contains(&hitbox.id) {
-                                return Some(*area);
-                            }
-                        }
-                        None
+                        // Topmost first: a button wins over its bar.
+                        let areas = &window.rendered_frame.window_control_hitboxes;
+                        let hit = &window.mouse_hit_test;
+                        hit.ids.iter().take(hit.hover_hitbox_count).find_map(|id| {
+                            areas
+                                .iter()
+                                .find(|(_, hitbox)| hitbox.id == *id)
+                                .map(|(area, _)| *area)
+                        })
                     })
                     .log_err()
                     .unwrap_or(None)

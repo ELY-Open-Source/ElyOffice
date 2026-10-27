@@ -256,14 +256,14 @@ fn the_paragraph_and_format_menus_follow_typora(cx: &mut TestAppContext) {
 /// The keys a menu row shows for `action`.
 #[cfg(target_os = "windows")]
 fn keys(action: &dyn Action, cx: &mut VisualTestContext) -> String {
-    cx.update(|window, _| {
+    cx.update(|window, cx| {
         let binding = window
             .highest_precedence_binding_for_action(action)
             .expect("a binding");
         let strokes: Vec<String> = binding
             .keystrokes()
             .iter()
-            .map(|key| key.unparse())
+            .map(|key| key.unparse(cx.platform_info().os))
             .collect();
         strokes.join(" ")
     })

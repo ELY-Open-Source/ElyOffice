@@ -244,7 +244,7 @@ impl PdfView {
                     _ => view.sketch_end(cx),
                 })
             })
-            .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
+            .on_scroll(cx.listener(|_, _, _, cx| cx.notify()))
             .child(div().relative().w(px(laid.size.0)).h(px(laid.size.1)).children(pages));
         // Measures the view itself, which does not scroll.
         let measure = canvas(

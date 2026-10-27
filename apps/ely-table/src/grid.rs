@@ -7,7 +7,7 @@ use ely_lok::{
 };
 use ely_office::prelude::*;
 use gpui::{
-    AnyElement, ClickEvent, Context, CursorStyle, Entity, InteractiveElement as _, IntoElement,
+    AnyElement, App, ClickEvent, Context, CursorStyle, Entity, InteractiveElement as _, IntoElement,
     Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _,
     Pixels, Point, Role, StatefulInteractiveElement as _, Styled as _, Window, div, px,
     transparent_black,
@@ -28,9 +28,9 @@ const EDGE: f32 = 4.0;
 const HANDLE: f32 = 7.0;
 
 /// The vcl modifier bits a header click takes.
-fn modifier(modifiers: &Modifiers) -> String {
+fn modifier(modifiers: &Modifiers, cx: &App) -> String {
     let shift = if modifiers.shift { 0x1000 } else { 0 };
-    let add = if modifiers.secondary() { 0x2000 } else { 0 };
+    let add = if modifiers.secondary(cx) { 0x2000 } else { 0 };
     (shift | add).to_string()
 }
 
@@ -250,7 +250,7 @@ impl Book {
                 }),
             )
             .on_click(cx.listener(move |book, event: &ClickEvent, _, cx| {
-                book.select_header(column, index, &modifier(&event.modifiers()), cx);
+                book.select_header(column, index, &modifier(&event.modifiers(), cx), cx);
             }))
             .child(label);
         let cell = div()

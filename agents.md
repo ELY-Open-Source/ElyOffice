@@ -40,7 +40,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；等轴 SVG 积木
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin 9ae2d27，gpui 为 crates.io 的 `gpui-pre` =0.3.9）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
+依赖 `ely-gpui-component`（pin e2f2b41，gpui 为 crates.io 的 `gpui-pre` =0.3.10，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
 
 | 需要 | 用 |
 | --- | --- |
@@ -208,7 +208,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 
 完整记录（按日期，含实现细节与实测）在 `docs/decisions.md`。新的决定追加到那里；改变下列常规的，同时改本节。
 
-- 上游：LibreOffice 26.2.6、MuPDF 1.28.5、Git 2.56.0 加 git-lfs 3.8.0、`gpui-pre` =0.3.9，以 `scripts/fetch-references.sh` 为准；组件库跟随其 main，修复在组件库仓库里做并推上去，再改 pin。
+- 上游：LibreOffice 26.2.6、MuPDF 1.28.5、Git 2.56.0 加 git-lfs 3.8.0、`gpui-pre` =0.3.10，以 `scripts/fetch-references.sh` 为准；组件库跟随其 main，修复在组件库仓库里做并推上去，再改 pin。
 - 仓库与发布在 GitHub 组织 ELY-Open-Source（ElyOffice、Ely-GPUI-Components）。推 `v*` 标签即运行 `.github/workflows/release.yml`：自托管机器上以 `scripts/ci.sh` 构建 macOS（arm64，Rosetta 下的 Intel）、Windows、Linux（WSL 里的 AlmaLinux 8 容器）并上传。引擎经 `ELY_SHARE` 共用，新的 LibreOffice 补丁须先在三台机器的共享引擎上重建。
 - Git：main 的历史不改写；提交签名，不写任何署名行。
 - 许可：自有代码 MIT；随包引擎照各自的许可，Linux 包的许可字段取 `packaging/apps.tsv`。

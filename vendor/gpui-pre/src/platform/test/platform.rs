@@ -53,6 +53,7 @@ pub(crate) struct TestPlatform {
     idle_sleep_prevention_count: Arc<AtomicUsize>,
     idle_sleep_prevention_delay: Cell<Duration>,
     idle_sleep_prevention_fails: Cell<bool>,
+    quit_requests: Cell<usize>,
     headless_renderer_factory:
         Option<Box<dyn Fn() -> anyhow::Result<Option<Box<dyn PlatformHeadlessRenderer>>>>>,
     weak: Weak<Self>,
@@ -126,6 +127,11 @@ pub(crate) struct TestPrompts {
 }
 
 impl TestPlatform {
+    /// How many times the app asked to quit.
+    pub(crate) fn quit_requests(&self) -> usize {
+        self.quit_requests.get()
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     pub fn new(executor: BackgroundExecutor, foreground_executor: ForegroundExecutor) -> Rc<Self> {
         Self::with_platform(
@@ -250,6 +256,7 @@ impl TestPlatform {
             idle_sleep_prevention_count: Arc::new(AtomicUsize::new(0)),
             idle_sleep_prevention_delay: Cell::new(Duration::ZERO),
             idle_sleep_prevention_fails: Cell::new(false),
+            quit_requests: Cell::new(0),
             weak: weak.clone(),
             opened_url: Default::default(),
             system_notifications: Default::default(),
@@ -523,7 +530,9 @@ impl Platform for TestPlatform {
         unimplemented!()
     }
 
-    fn quit(&self) {}
+    fn quit(&self) {
+        self.quit_requests.set(self.quit_requests.get() + 1);
+    }
 
     fn restart(&self, path: Option<PathBuf>, arguments: Vec<std::ffi::OsString>) {
         if let Some(tx) = self.expect_restart.take() {

@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use ely_gpui_component::layout::{ScrollModel, ScrollPlace, ScrollSource, Scrollbar};
 use gpui::{
-    App, Axis, Bounds, Context, Entity, Pixels, Point, ScrollDelta, ScrollWheelEvent, Window,
+    App, Axis, Bounds, Context, Entity, Pixels, Point, ScrollDelta, ScrollEvent, Window,
     point, px,
 };
 
@@ -34,7 +34,7 @@ impl LokView {
     /// Scrolls the wheel in twips, clamped to the document (LOK-04).
     pub(super) fn on_scroll(
         &mut self,
-        event: &ScrollWheelEvent,
+        event: &ScrollEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {

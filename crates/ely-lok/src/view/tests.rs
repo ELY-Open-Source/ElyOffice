@@ -448,7 +448,7 @@ fn ctrl_and_a_notch_zoom_one_step_about_the_pointer() {
             view.scroll = (3_000, 9_000);
             view.set_zoom(1.0, cx);
             let at = gpui::point(gpui::px(300.0), gpui::px(200.0));
-            let wheel = |modifiers, y| gpui::ScrollWheelEvent {
+            let wheel = |modifiers, y| gpui::ScrollEvent {
                 position: at,
                 delta: gpui::ScrollDelta::Lines(gpui::point(0.0, y)),
                 modifiers,
@@ -462,11 +462,11 @@ fn ctrl_and_a_notch_zoom_one_step_about_the_pointer() {
             assert_eq!(view.zoom(), 1.0);
             let spot = |view: &LokView| view.scroll.1 + view.geom.twips_of(200.0);
             let before = spot(view);
-            assert!(view.wheel_zoom(&wheel(gpui::Modifiers::secondary_key(), 3.0), cx));
+            assert!(view.wheel_zoom(&wheel(gpui::Modifiers::secondary_key(cx), 3.0), cx));
             assert_eq!(view.zoom(), 1.25, "a three-line notch is one step");
             assert!((spot(view) - before).abs() <= 1, "the pointed spot stays");
-            view.wheel_zoom(&wheel(gpui::Modifiers::secondary_key(), -1.0), cx);
-            view.wheel_zoom(&wheel(gpui::Modifiers::secondary_key(), -1.0), cx);
+            view.wheel_zoom(&wheel(gpui::Modifiers::secondary_key(cx), -1.0), cx);
+            view.wheel_zoom(&wheel(gpui::Modifiers::secondary_key(cx), -1.0), cx);
             assert_eq!(view.zoom(), 0.8);
         });
     });

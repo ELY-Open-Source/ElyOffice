@@ -24,10 +24,10 @@ fn gestures_without_magnification_keep_the_fit() {
                 let pinch = gpui::PinchEvent { position: at, delta: 0.0, modifiers: Default::default(), phase };
                 view.pinch_zoom(&pinch, cx);
             }
-            let sideways = gpui::ScrollWheelEvent {
+            let sideways = gpui::ScrollEvent {
                 position: at,
                 delta: gpui::ScrollDelta::Pixels(point(px(30.0), px(0.0))),
-                modifiers: gpui::Modifiers::secondary_key(),
+                modifiers: gpui::Modifiers::secondary_key(cx),
                 ..Default::default()
             };
             assert!(view.wheel_zoom(&sideways, cx), "a Ctrl scroll is taken");

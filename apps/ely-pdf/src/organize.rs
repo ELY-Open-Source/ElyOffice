@@ -1,5 +1,6 @@
 //! Page organizing: insert, delete, move, turn, undo (PDF-02).
 
+use ely_gpui_component::secondary;
 use std::{collections::BTreeSet, path::PathBuf};
 
 use ely_gpui_component::primitives::Severity;
@@ -32,8 +33,8 @@ actions!(
 pub fn bind(cx: &mut App) {
     let at = Some(ely_ui::commands::CONTEXT);
     cx.bind_keys([
-        KeyBinding::new("secondary-z", Undo, at),
-        KeyBinding::new("secondary-shift-z", Redo, at),
+        KeyBinding::new(secondary!("z"), Undo, at),
+        KeyBinding::new(secondary!("shift-z"), Redo, at),
         KeyBinding::new("backspace", DeletePages, Some(crate::side::PAGES)),
         KeyBinding::new("delete", DeletePages, Some(crate::side::PAGES)),
     ]);

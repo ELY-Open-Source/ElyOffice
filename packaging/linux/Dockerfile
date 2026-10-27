@@ -22,6 +22,6 @@ RUN case $(uname -m) in \
   && curl -fsSL -o /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/1.29.2/$(uname -m)-unknown-linux-gnu/rustup-init" \
   && echo "$sum  /tmp/rustup-init" | sha256sum -c - \
   && chmod +x /tmp/rustup-init \
-  && CARGO_HOME=/opt/cargo /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain 1.96.0 -c rustfmt,clippy \
+  && CARGO_HOME=/opt/cargo /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain 1.98.1 -c rustfmt,clippy \
   && rm /tmp/rustup-init \
   && chmod -R a+rX /opt/rustup /opt/cargo

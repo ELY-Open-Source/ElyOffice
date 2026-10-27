@@ -3425,14 +3425,13 @@ impl Image {
                             }
                             frames.push(frame);
                         }
-                        Err(err) => {
-                            log::debug!("Skipping GIF frame due to decode error: {err}");
-                        }
+                        // A bad frame ends it: the decoder may never stop.
+                        Err(err) => return Err(err.into()),
                     }
                 }
 
                 if frames.is_empty() {
-                    anyhow::bail!("GIF could not be decoded: all frames failed");
+                    anyhow::bail!("GIF could not be decoded: no frames");
                 }
 
                 frames

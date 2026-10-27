@@ -1,5 +1,6 @@
 //! The table menu's work on the shown file (MARK-06).
 
+use ely_gpui_component::secondary;
 use ely_gpui_component::documents::TableEdit;
 use ely_ui::{commands, i18n::text};
 use gpui::{Action, App, Context, InteractiveElement as _, KeyBinding, Menu, MenuItem, actions};
@@ -30,14 +31,14 @@ pub fn bind(cx: &mut App) {
     // An open block's input takes Ctrl+Enter as Submit.
     let open = Some("MarkdownDocument > ElyInput");
     cx.bind_keys([
-        KeyBinding::new("secondary-t", InsertTable, at),
-        KeyBinding::new("secondary-enter", RowBelow, at),
-        KeyBinding::new("secondary-enter", RowBelow, open),
+        KeyBinding::new(secondary!("t"), InsertTable, at),
+        KeyBinding::new(secondary!("enter"), RowBelow, at),
+        KeyBinding::new(secondary!("enter"), RowBelow, open),
         KeyBinding::new("alt-up", MoveRowUp, at),
         KeyBinding::new("alt-down", MoveRowDown, at),
         KeyBinding::new("alt-left", MoveColumnLeft, at),
         KeyBinding::new("alt-right", MoveColumnRight, at),
-        KeyBinding::new("secondary-shift-backspace", DeleteRow, at),
+        KeyBinding::new(secondary!("shift-backspace"), DeleteRow, at),
     ]);
 }
 

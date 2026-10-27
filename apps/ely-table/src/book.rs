@@ -1,5 +1,6 @@
 //! ElyTable's window: workbooks over one LOK worker (§9.1).
 
+use ely_gpui_component::secondary;
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -156,12 +157,12 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     });
     cx.bind_keys([
         KeyBinding::new(
-            "secondary-f",
+            secondary!("f"),
             ely_office::FindReplace,
             Some(commands::CONTEXT),
         ),
         KeyBinding::new(
-            "secondary-shift-v",
+            secondary!("shift-v"),
             crate::data::PasteValues,
             Some(commands::CONTEXT),
         ),

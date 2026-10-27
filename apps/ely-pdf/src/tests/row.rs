@@ -1,6 +1,6 @@
 //! A row of pages and which one is current (R13.1).
 
-use gpui::{Modifiers, ScrollDelta, ScrollWheelEvent, TestAppContext, VisualTestContext, point, px};
+use gpui::{Modifiers, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext, point, px};
 
 use super::{file, frames, settle, shown, windowed};
 use crate::layout::{Mode, Zoom};
@@ -19,7 +19,7 @@ fn shift_and_the_wheel_scroll_a_row_of_pages_across() {
     let offset = |cx: &mut VisualTestContext| cx.update(|_, app| view.read(app).scroll.offset());
     let second = cx.update(|_, app| view.read(app).laid_out().placed[1].x);
     // Platforms turn Shift and the wheel into an across delta.
-    let notch = ScrollWheelEvent { position: at, delta: ScrollDelta::Lines(point(-3.0, 0.0)), modifiers: Modifiers::shift(), ..Default::default() };
+    let notch = ScrollEvent { position: at, delta: ScrollDelta::Lines(point(-3.0, 0.0)), modifiers: Modifiers::shift(), ..Default::default() };
     for _ in 0..100 {
         if -f32::from(offset(cx).x) >= second {
             break;

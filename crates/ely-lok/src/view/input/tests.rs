@@ -2,7 +2,7 @@ use super::*;
 use crate::view::clip::{clip_of, flavor_of};
 use ely_platform::clipboard::Clip;
 
-fn stroke(text: &str) -> Keystroke {
+fn stroke(text: &'static str) -> Keystroke {
     Keystroke::parse(text).expect("a keystroke")
 }
 
@@ -12,19 +12,12 @@ fn named_keys_map_to_vcl_codes() {
     assert_eq!(vcl_key(&stroke("shift-left")), Some((0, 1026 | SHIFT)));
     assert_eq!(vcl_key(&stroke("backspace")), Some((0, 1283)));
     assert_eq!(vcl_key(&stroke("f5")), Some((0, 772)));
-    let primary = if cfg!(target_os = "macos") {
-        "cmd"
-    } else {
-        "ctrl"
+    let (bold, redo) = match cfg!(target_os = "macos") {
+        true => ("cmd-b", "cmd-shift-z"),
+        false => ("ctrl-b", "ctrl-shift-z"),
     };
-    assert_eq!(
-        vcl_key(&stroke(&format!("{primary}-b"))),
-        Some((0, 513 | MOD1))
-    );
-    assert_eq!(
-        vcl_key(&stroke(&format!("{primary}-shift-z"))),
-        Some((0, 537 | MOD1 | SHIFT))
-    );
+    assert_eq!(vcl_key(&stroke(bold)), Some((0, 513 | MOD1)));
+    assert_eq!(vcl_key(&stroke(redo)), Some((0, 537 | MOD1 | SHIFT)));
 }
 
 #[test]

@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use gpui::{Keystroke, Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase};
+use gpui::{Keystroke, Modifiers, ScrollDelta, ScrollEvent, TouchPhase};
 
 use super::LokView;
 use super::input::{Input, vcl_key};
@@ -114,7 +114,7 @@ impl LokView {
     }
 
     /// The wheel turns while the whole page shows.
-    pub(super) fn turn_wheel(&mut self, event: &ScrollWheelEvent) -> bool {
+    pub(super) fn turn_wheel(&mut self, event: &ScrollEvent) -> bool {
         let (width, height) = self.extent();
         // A pixel of slack for rounding.
         let whole = self.geom.px_of(width) <= self.viewport.0 + 1.0

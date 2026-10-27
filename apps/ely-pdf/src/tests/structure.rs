@@ -4,7 +4,7 @@ use ely_pdf_engine::{
     Worker,
     sample::{Extras, pdf, pdf_with, scan},
 };
-use gpui::{Entity, Modifiers, MouseButton, ScrollDelta, ScrollWheelEvent, TestAppContext, VisualTestContext, point, px};
+use gpui::{Entity, Modifiers, MouseButton, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext, point, px};
 
 use super::input::over;
 use super::{frames, settle, shown, windowed};
@@ -126,7 +126,7 @@ fn a_long_bookmark_list_scrolls_to_its_last_mark() {
     assert!(before.bottom() > window.height, "the list is longer than the window");
     let at = point(before.left() + px(20.0), px(300.0));
     for _ in 0..20 {
-        cx.simulate_event(ScrollWheelEvent { position: at, delta: ScrollDelta::Pixels(point(px(0.0), px(-1000.0))), ..Default::default() });
+        cx.simulate_event(ScrollEvent { position: at, delta: ScrollDelta::Pixels(point(px(0.0), px(-1000.0))), ..Default::default() });
         frames(cx);
     }
     let after = cx.debug_bounds("pdf-marks").expect("the bookmarks are drawn");

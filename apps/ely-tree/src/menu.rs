@@ -1,5 +1,6 @@
 //! The Repository menu, and File's New and Open as repositories.
 
+use ely_gpui_component::secondary;
 use ely_ui::commands;
 use std::path::PathBuf;
 
@@ -27,7 +28,7 @@ pub const CONTEXT: &str = "tree";
 
 pub fn bind(cx: &mut App) {
     cx.bind_keys([KeyBinding::new(
-        "secondary-w",
+        secondary!("w"),
         CloseRepository,
         Some(CONTEXT),
     )]);

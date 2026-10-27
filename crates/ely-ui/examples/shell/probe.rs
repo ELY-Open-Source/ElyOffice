@@ -203,7 +203,7 @@ impl Gallery {
                 let i = (step - base) / 2;
                 if (step - base) % 2 == 0 {
                     if base == 14 {
-                        return Probe::Keys(vec![chord(i)]);
+                        return Probe::Keys(vec![chord(i, cx)]);
                     }
                     return Probe::Actions(vec![menu_action(i, cx)]);
                 }
@@ -214,7 +214,7 @@ impl Gallery {
                     ran_first(root, cx)
                 );
             }
-            38 => return Probe::Keys(vec![shift_p()]),
+            38 => return Probe::Keys(vec![shift_p(cx)]),
             39 => {
                 if !self.palette_wait(palette, &props, window, cx) {
                     return Probe::Again;
@@ -232,14 +232,14 @@ impl Gallery {
             }
             41 => {
                 log::info!("probe: palette open={palette}");
-                return Probe::Keys(vec![shift_p()]);
+                return Probe::Keys(vec![shift_p(cx)]);
             }
             42 => {
                 if !self.palette_wait(palette, &props, window, cx) {
                     return Probe::Again;
                 }
                 log::info!("probe: palette open={palette}");
-                return Probe::Keys(vec![shift_p()]);
+                return Probe::Keys(vec![shift_p(cx)]);
             }
             43 => {
                 log::info!("probe: palette open={palette}");
@@ -247,7 +247,7 @@ impl Gallery {
                     "probe: palette toggle-off returned focus={}",
                     anchor.is_focused(window)
                 );
-                return Probe::Keys(vec![shift_p()]);
+                return Probe::Keys(vec![shift_p(cx)]);
             }
             44 => {
                 if !self.palette_wait(palette, &props, window, cx) {
@@ -258,7 +258,7 @@ impl Gallery {
             45 => {
                 let palette = root.read(cx).palette_open();
                 log::info!("probe: esc closed palette={}", !palette);
-                return Probe::Keys(vec![shift_p()]);
+                return Probe::Keys(vec![shift_p(cx)]);
             }
             46 => {
                 if !self.palette_wait(palette, &props, window, cx) {
@@ -323,7 +323,7 @@ impl Gallery {
                     self.page_titles().join("|")
                 );
                 log::info!("probe: keyup kept text={}", field.read(cx).text());
-                return Probe::Keys(vec![secondary("z")]);
+                return Probe::Keys(vec![secondary("z", cx)]);
             }
             55 => {
                 let Some(Overlay::Rename { field }) = &self.dialog else {
@@ -374,7 +374,7 @@ impl Gallery {
                 self.open_delete(cx);
                 log::info!("probe: empty delete refused={}", self.dialog.is_none());
                 self.start_task(false, cx);
-                return Probe::Keys(vec![shift_p()]);
+                return Probe::Keys(vec![shift_p(cx)]);
             }
             62 => {
                 let palette = root.read(cx).palette_open();
@@ -463,7 +463,7 @@ impl Gallery {
                 );
             }
             70 => {
-                return Probe::Keys(vec![shift_p()]);
+                return Probe::Keys(vec![shift_p(cx)]);
             }
             71 => {
                 if !self.palette_wait(palette, &props, window, cx) {

@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use ely_gpui_component::mail::Mail as Row;
 use ely_mail_engine::{AccountId, Fetched, Filter, Key, MailboxId, Role, Store};
 use gpui::{
-    Entity, ScrollDelta, ScrollWheelEvent, SharedString, TestAppContext, VisualTestContext, point,
+    Entity, ScrollDelta, ScrollEvent, SharedString, TestAppContext, VisualTestContext, point,
     px, size,
 };
 
@@ -250,7 +250,7 @@ fn the_side_scrolls_past_many_folders_to_the_next_account() {
     assert!(before.bottom() > height, "the side fits the window");
     let at = point(px(100.), height / 2.0);
     for _ in 0..20 {
-        cx.simulate_event(ScrollWheelEvent {
+        cx.simulate_event(ScrollEvent {
             position: at,
             delta: ScrollDelta::Pixels(point(px(0.), px(-1000.))),
             ..Default::default()

@@ -1,5 +1,6 @@
 //! ElyDoc's window: document tabs over one LOK worker (§8.1).
 
+use ely_gpui_component::secondary;
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -135,12 +136,12 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     });
     cx.bind_keys([
         gpui::KeyBinding::new(
-            "secondary-f",
+            secondary!("f"),
             ely_office::FindReplace,
             Some(commands::CONTEXT),
         ),
         gpui::KeyBinding::new(
-            "secondary-[",
+            secondary!("["),
             crate::navigate::GoBack,
             Some(commands::CONTEXT),
         ),

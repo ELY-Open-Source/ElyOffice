@@ -70,7 +70,7 @@ fn the_page_scrolls_to_its_last_row_at_the_largest_text(cx: &mut TestAppContext)
     shown.run_until_parked();
     let before = shown.debug_bounds("settings-check-now").expect("the check is offered");
     assert!(before.bottom() > height, "the page outgrows the window: {before:?}");
-    shown.simulate_event(gpui::ScrollWheelEvent {
+    shown.simulate_event(gpui::ScrollEvent {
         position: gpui::point(gpui::px(500.0), gpui::px(300.0)),
         delta: gpui::ScrollDelta::Pixels(gpui::point(gpui::px(0.0), gpui::px(-800.0))),
         ..Default::default()

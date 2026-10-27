@@ -6,7 +6,7 @@ use std::{
 
 use ely_mail_engine::{AccountId, LocalFolder, MailboxId, Role, Store};
 use gpui::{
-    Entity, ScrollDelta, ScrollWheelEvent, TestAppContext, VisualTestContext, point, px, size,
+    Entity, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext, point, px, size,
 };
 
 use super::{Keys, account, settle, window};
@@ -268,7 +268,7 @@ fn the_account_page_scrolls_to_its_last_folder() {
     assert!(before.bottom() > height, "the folders fit the window");
     let at = point(px(400.), height / 2.0);
     for _ in 0..20 {
-        cx.simulate_event(ScrollWheelEvent {
+        cx.simulate_event(ScrollEvent {
             position: at,
             delta: ScrollDelta::Pixels(point(px(0.), px(-1000.))),
             ..Default::default()

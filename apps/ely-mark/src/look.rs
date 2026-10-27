@@ -277,7 +277,7 @@ pub(crate) mod font_tests;
 mod tests {
     use ely_gpui_component::documents::DocumentLook;
     use gpui::{
-        Entity, Modifiers, ScrollDelta, ScrollWheelEvent, TestAppContext, VisualTestContext, point,
+        Entity, Modifiers, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext, point,
         rems,
     };
 
@@ -395,7 +395,7 @@ mod tests {
         let focus = desk.read_with(cx, |desk, _| desk.core.focus.clone());
         cx.update(|window, cx| window.focus(&focus, cx));
         let at = cx.update(|window, _| window.viewport_size()).center();
-        let wheel = |modifiers, y| ScrollWheelEvent {
+        let wheel = |modifiers, y| ScrollEvent {
             position: at,
             delta: ScrollDelta::Lines(point(0.0, y)),
             modifiers,
@@ -418,11 +418,12 @@ mod tests {
             1.0,
             "only Ctrl, or Cmd on macOS"
         );
-        cx.simulate_event(wheel(Modifiers::secondary_key(), 3.0));
+        let secondary = cx.update(|_, cx| Modifiers::secondary_key(cx));
+        cx.simulate_event(wheel(secondary, 3.0));
         cx.run_until_parked();
         assert_eq!(document_look(&desk, cx).scale, 1.1, "a notch is one step");
-        cx.simulate_event(wheel(Modifiers::secondary_key(), -1.0));
-        cx.simulate_event(wheel(Modifiers::secondary_key(), -1.0));
+        cx.simulate_event(wheel(secondary, -1.0));
+        cx.simulate_event(wheel(secondary, -1.0));
         cx.run_until_parked();
         assert_eq!(document_look(&desk, cx).scale, 0.9);
     }

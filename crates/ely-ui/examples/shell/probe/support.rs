@@ -81,7 +81,7 @@ pub fn run(
     }
 }
 
-pub fn chord(i: usize) -> Keystroke {
+pub fn chord(i: usize, cx: &App) -> Keystroke {
     let (key, shift) = [
         ("n", false),
         ("o", false),
@@ -94,27 +94,27 @@ pub fn chord(i: usize) -> Keystroke {
         key: key.into(),
         modifiers: Modifiers {
             shift,
-            ..Modifiers::secondary_key()
+            ..Modifiers::secondary_key(cx)
         },
         ..Default::default()
     }
 }
 
-pub fn shift_p() -> Keystroke {
+pub fn shift_p(cx: &App) -> Keystroke {
     Keystroke {
         key: "p".into(),
         modifiers: Modifiers {
             shift: true,
-            ..Modifiers::secondary_key()
+            ..Modifiers::secondary_key(cx)
         },
         ..Default::default()
     }
 }
 
-pub fn secondary(key: &str) -> Keystroke {
+pub fn secondary(key: &str, cx: &App) -> Keystroke {
     Keystroke {
         key: key.into(),
-        modifiers: Modifiers::secondary_key(),
+        modifiers: Modifiers::secondary_key(cx),
         ..Default::default()
     }
 }

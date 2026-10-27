@@ -7,7 +7,7 @@ exclude = ["engines", "reference"]
 [workspace.package]
 version = "0.1.12"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.98"
 license = "MIT"
 publish = false
 
@@ -19,10 +19,10 @@ jiff = "0.2"
 anyhow = "1"
 directories = "6"
 dunce = "1"
-ely-gpui-component = { git = "https://github.com/ELY-Open-Source/Ely-GPUI-Components", rev = "9ae2d27c9e7cb49a109e87fb1393677432e9a747" }
+ely-gpui-component = { git = "https://github.com/ELY-Open-Source/Ely-GPUI-Components", rev = "e2f2b41cee43d5b79a715aaa2d59250a125413a0" }
 env_logger = "0.11"
-gpui = { package = "gpui-pre", version = "=0.3.9", default-features = false, features = ["stacker"] }
-gpui_platform = { package = "gpui-pre-platform", version = "=0.3.9", features = ["font-kit", "wayland", "x11"] }
+gpui = { package = "gpui-pre", version = "=0.3.10", default-features = false, features = ["stacker"] }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.10", features = ["font-kit", "wayland", "x11"] }
 futures = "0.3"
 libc = "0.2"
 log = "0.4"

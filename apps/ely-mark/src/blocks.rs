@@ -1,5 +1,6 @@
 //! Typora's Paragraph and Format menus at the caret (MARK-15).
 
+use ely_gpui_component::secondary;
 use ely_gpui_component::{
     documents::{BlockCommand, EditRefusal, InlineFormat, MarkdownDocument, TableRefusal},
     primitives::Severity,
@@ -53,29 +54,29 @@ actions!(
 pub fn bind(cx: &mut App) {
     let at = Some(commands::CONTEXT);
     cx.bind_keys([
-        KeyBinding::new("secondary-1", Heading1, at),
-        KeyBinding::new("secondary-2", Heading2, at),
-        KeyBinding::new("secondary-3", Heading3, at),
-        KeyBinding::new("secondary-4", Heading4, at),
-        KeyBinding::new("secondary-5", Heading5, at),
-        KeyBinding::new("secondary-6", Heading6, at),
-        KeyBinding::new("secondary-0", Paragraph, at),
-        KeyBinding::new("secondary-=", Promote, at),
-        KeyBinding::new("secondary--", Demote, at),
-        KeyBinding::new("secondary-shift-m", MathBlock, at),
-        KeyBinding::new("secondary-shift-k", CodeFences, at),
-        KeyBinding::new("secondary-shift-q", Quote, at),
-        KeyBinding::new("secondary-{", OrderedList, at),
-        KeyBinding::new("secondary-}", BulletList, at),
-        KeyBinding::new("secondary-shift-x", TaskList, at),
-        KeyBinding::new("secondary-b", Strong, at),
-        KeyBinding::new("secondary-i", Emphasis, at),
-        KeyBinding::new("secondary-u", Underline, at),
-        KeyBinding::new("secondary-~", InlineCode, at),
+        KeyBinding::new(secondary!("1"), Heading1, at),
+        KeyBinding::new(secondary!("2"), Heading2, at),
+        KeyBinding::new(secondary!("3"), Heading3, at),
+        KeyBinding::new(secondary!("4"), Heading4, at),
+        KeyBinding::new(secondary!("5"), Heading5, at),
+        KeyBinding::new(secondary!("6"), Heading6, at),
+        KeyBinding::new(secondary!("0"), Paragraph, at),
+        KeyBinding::new(secondary!("="), Promote, at),
+        KeyBinding::new(secondary!("-"), Demote, at),
+        KeyBinding::new(secondary!("shift-m"), MathBlock, at),
+        KeyBinding::new(secondary!("shift-k"), CodeFences, at),
+        KeyBinding::new(secondary!("shift-q"), Quote, at),
+        KeyBinding::new(secondary!("{"), OrderedList, at),
+        KeyBinding::new(secondary!("}"), BulletList, at),
+        KeyBinding::new(secondary!("shift-x"), TaskList, at),
+        KeyBinding::new(secondary!("b"), Strong, at),
+        KeyBinding::new(secondary!("i"), Emphasis, at),
+        KeyBinding::new(secondary!("u"), Underline, at),
+        KeyBinding::new(secondary!("~"), InlineCode, at),
         KeyBinding::new("alt-%", Strike, at),
-        KeyBinding::new("secondary-k", Hyperlink, at),
-        KeyBinding::new("secondary-shift-i", InsertImage, at),
-        KeyBinding::new("secondary-\\", ClearFormat, at),
+        KeyBinding::new(secondary!("k"), Hyperlink, at),
+        KeyBinding::new(secondary!("shift-i"), InsertImage, at),
+        KeyBinding::new(secondary!("\\"), ClearFormat, at),
     ]);
 }
 

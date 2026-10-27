@@ -883,15 +883,7 @@ impl Platform for WindowsPlatform {
             return;
         }
 
-        let identifier_utf16 = windows::core::HSTRING::from(identifier);
-        // SAFETY: `identifier_utf16` outlives the call and is null-terminated.
-        if let Err(error) = unsafe {
-            windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(
-                windows::core::PCWSTR(identifier_utf16.as_ptr()),
-            )
-        } {
-            log::warn!("failed to set the process AppUserModelID: {error}");
-        }
+        // Ely: no process AUMID, so pinned windows group.
         *self.app_identity.borrow_mut() = Some((identifier.to_string(), name.to_string()));
     }
 

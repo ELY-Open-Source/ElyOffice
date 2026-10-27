@@ -1,5 +1,5 @@
 use gpui::{
-    Modifiers, MouseButton, Pixels, Point, ScrollDelta, ScrollWheelEvent, TestAppContext,
+    Modifiers, MouseButton, Pixels, Point, ScrollDelta, ScrollEvent, TestAppContext,
     VisualTestContext, point, px,
 };
 
@@ -33,7 +33,7 @@ fn a_long_outline_scrolls_to_its_last_heading(cx: &mut TestAppContext) {
     );
     let at = point(before.left() + px(20.0), px(300.0));
     for _ in 0..20 {
-        cx.simulate_event(ScrollWheelEvent {
+        cx.simulate_event(ScrollEvent {
             position: at,
             delta: ScrollDelta::Pixels(point(px(0.0), px(-1000.0))),
             ..Default::default()

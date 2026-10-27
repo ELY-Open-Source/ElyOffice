@@ -1,7 +1,7 @@
 //! Password prompts, zoomed pairs, jumps across (C11.1).
 
 use ely_office::{Dialog, Dialogs as _, Opening as _, Tabs as _};
-use gpui::{Entity, Modifiers, ScrollDelta, ScrollWheelEvent, TestAppContext, VisualTestContext, point, px};
+use gpui::{Entity, Modifiers, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext, point, px};
 
 use super::{file, frames, settle, shown, windowed};
 use crate::layout::{Mode, Zoom};
@@ -126,7 +126,7 @@ fn ctrl_and_a_wheel_notch_step_the_zoom_once() {
     cx.update(|_, app| view.update(app, |view, cx| view.change(|view, _| view.zoom = Zoom::Scale(1.0), cx)));
     frames(cx);
     let at = cx.update(|_, app| view.read(app).room.center());
-    let wheel = |modifiers, y| ScrollWheelEvent { position: at, delta: ScrollDelta::Lines(point(0.0, y)), modifiers, ..Default::default() };
+    let wheel = |modifiers, y| ScrollEvent { position: at, delta: ScrollDelta::Lines(point(0.0, y)), modifiers, ..Default::default() };
     let other = match cfg!(target_os = "macos") {
         true => Modifiers { control: true, ..Default::default() },
         false => Modifiers { platform: true, ..Default::default() },
@@ -137,11 +137,12 @@ fn ctrl_and_a_wheel_notch_step_the_zoom_once() {
     let (zoom, scrolled) = read(cx);
     assert_eq!(zoom, Zoom::Scale(1.0), "only Ctrl, or Cmd on macOS");
     assert!(scrolled < px(0.0), "a plain wheel scrolls");
-    cx.simulate_event(wheel(Modifiers::secondary_key(), 3.0));
+    let secondary = cx.update(|_, cx| Modifiers::secondary_key(cx));
+    cx.simulate_event(wheel(secondary, 3.0));
     frames(cx);
     assert_eq!(read(cx).0, Zoom::Scale(crate::keys::stepped(1.0, true)), "a notch is one step");
-    cx.simulate_event(wheel(Modifiers::secondary_key(), -3.0));
-    cx.simulate_event(wheel(Modifiers::secondary_key(), -3.0));
+    cx.simulate_event(wheel(secondary, -3.0));
+    cx.simulate_event(wheel(secondary, -3.0));
     frames(cx);
     assert_eq!(read(cx).0, Zoom::Scale(crate::keys::stepped(1.0, false)));
 }
@@ -234,7 +235,7 @@ fn a_zoom_keeps_the_spot_on_the_page_at_the_top() {
     settle(cx, |app| view.read(app).room.size.width > px(100.0));
     let at = cx.update(|_, app| view.read(app).room.center());
     for _ in 0..8 {
-        cx.simulate_event(ScrollWheelEvent { position: at, delta: ScrollDelta::Pixels(point(px(0.0), px(-500.0))), ..Default::default() });
+        cx.simulate_event(ScrollEvent { position: at, delta: ScrollDelta::Pixels(point(px(0.0), px(-500.0))), ..Default::default() });
         frames(cx);
     }
     let before = spot(cx, &view);

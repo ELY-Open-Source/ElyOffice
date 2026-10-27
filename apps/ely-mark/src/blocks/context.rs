@@ -198,8 +198,10 @@ fn a_later_editor_copy_outlives_a_pending_conversion(cx: &mut TestAppContext) {
     cx.update(|window, cx| window.focus(&focus, cx));
     cx.run_until_parked();
     cx.update(|window, cx| window.dispatch_action(Box::new(crate::export::CopyHtml), cx));
-    let copy = gpui::Keystroke::parse("secondary-c").expect("key");
-    cx.update(|window, cx| window.dispatch_keystroke(copy, cx));
+    cx.update(|window, cx| {
+        let copy = gpui::Keystroke::parse_with_os("secondary-c", cx.platform_info().os).expect("key");
+        window.dispatch_keystroke(copy, cx)
+    });
     cx.run_until_parked();
     assert_eq!(clipboard(cx).as_deref(), Some("alpha"));
 }

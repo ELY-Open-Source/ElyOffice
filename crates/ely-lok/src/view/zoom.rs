@@ -1,6 +1,6 @@
 //! Zooming the page view about the pointer (LOK-04).
 
-use gpui::{Context, EventEmitter, PinchEvent, Pixels, Point, ScrollDelta, ScrollWheelEvent, Window};
+use gpui::{Context, EventEmitter, PinchEvent, Pixels, Point, ScrollDelta, ScrollEvent, Window};
 
 use super::LokView;
 
@@ -67,15 +67,15 @@ impl LokView {
     }
 
     /// Ctrl (macOS: Cmd) wheel zooms; else it turns or scrolls.
-    pub(super) fn on_wheel(&mut self, event: &ScrollWheelEvent, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn on_wheel(&mut self, event: &ScrollEvent, window: &mut Window, cx: &mut Context<Self>) {
         if !self.wheel_zoom(event, cx) && !self.turn_wheel(event) {
             self.on_scroll(event, window, cx);
         }
     }
 
     /// A notch is one step; a trackpad zooms smoothly.
-    pub(super) fn wheel_zoom(&mut self, event: &ScrollWheelEvent, cx: &mut Context<Self>) -> bool {
-        if !event.modifiers.secondary() {
+    pub(super) fn wheel_zoom(&mut self, event: &ScrollEvent, cx: &mut Context<Self>) -> bool {
+        if !event.modifiers.secondary(cx) {
             return false;
         }
         let zoom = match event.delta {

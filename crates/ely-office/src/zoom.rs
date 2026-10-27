@@ -1,5 +1,6 @@
 //! Zooming a document: keys, View menu items, the status control.
 
+use ely_gpui_component::secondary;
 use ely_gpui_component::shell::{ZoomControl, ZoomStep};
 use ely_ui::commands;
 use gpui::{App, Context, Div, InteractiveElement as _, KeyBinding, MenuItem, actions};
@@ -11,9 +12,9 @@ actions!(office, [ZoomIn, ZoomOut, ActualSize]);
 /// Command with =, - and 0, as Mac apps do.
 pub fn bind_zoom_keys(cx: &mut App) {
     cx.bind_keys([
-        KeyBinding::new("secondary-=", ZoomIn, Some(commands::CONTEXT)),
-        KeyBinding::new("secondary--", ZoomOut, Some(commands::CONTEXT)),
-        KeyBinding::new("secondary-0", ActualSize, Some(commands::CONTEXT)),
+        KeyBinding::new(secondary!("="), ZoomIn, Some(commands::CONTEXT)),
+        KeyBinding::new(secondary!("-"), ZoomOut, Some(commands::CONTEXT)),
+        KeyBinding::new(secondary!("0"), ActualSize, Some(commands::CONTEXT)),
     ]);
 }
 

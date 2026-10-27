@@ -1,7 +1,7 @@
 //! Ctrl (Cmd on macOS) and the wheel step a zoom.
 
 use gpui::{
-    App, DispatchPhase, HitboxBehavior, IntoElement, ScrollDelta, ScrollWheelEvent, Styled as _,
+    App, DispatchPhase, HitboxBehavior, IntoElement, ScrollDelta, ScrollEvent, Styled as _,
     Window, canvas,
 };
 
@@ -9,7 +9,7 @@ use gpui::{
 const STEP: f32 = 50.0;
 
 /// Steps `event` makes, plus is larger; `carry` keeps trackpad rest.
-pub fn steps(event: &ScrollWheelEvent, carry: &mut f32) -> i32 {
+pub fn steps(event: &ScrollEvent, carry: &mut f32) -> i32 {
     match event.delta {
         ScrollDelta::Lines(lines) => match lines.y {
             0.0 => 0,
@@ -26,14 +26,14 @@ pub fn steps(event: &ScrollWheelEvent, carry: &mut f32) -> i32 {
 
 /// Takes a zooming wheel before the parent scrolls.
 pub fn zoom_layer(
-    on: impl Fn(&ScrollWheelEvent, &mut Window, &mut App) + 'static,
+    on: impl Fn(&ScrollEvent, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
     canvas(
         |bounds, window, _| window.insert_hitbox(bounds, HitboxBehavior::Normal),
         move |_, hitbox, window, _| {
-            window.on_mouse_event(move |event: &ScrollWheelEvent, phase, window, cx| {
+            window.on_mouse_event(move |event: &ScrollEvent, phase, window, cx| {
                 if phase == DispatchPhase::Capture
-                    && event.modifiers.secondary()
+                    && event.modifiers.secondary(cx)
                     && hitbox.is_hovered(window)
                 {
                     cx.stop_propagation();
@@ -50,12 +50,12 @@ pub fn zoom_layer(
 
 #[cfg(test)]
 mod tests {
-    use gpui::{ScrollDelta, ScrollWheelEvent, point, px};
+    use gpui::{ScrollDelta, ScrollEvent, point, px};
 
     use super::steps;
 
-    fn wheel(delta: ScrollDelta) -> ScrollWheelEvent {
-        ScrollWheelEvent {
+    fn wheel(delta: ScrollDelta) -> ScrollEvent {
+        ScrollEvent {
             delta,
             ..Default::default()
         }

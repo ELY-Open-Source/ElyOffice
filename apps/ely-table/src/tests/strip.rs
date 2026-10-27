@@ -3,7 +3,7 @@
 use ely_lok::{Sheet, Sheets};
 use gpui::{
     Bounds, Context, IntoElement, Modifiers, ParentElement as _, Pixels, Render, RenderOnce as _,
-    ScrollDelta, ScrollHandle, ScrollWheelEvent, Styled as _, TestAppContext, TouchPhase,
+    ScrollDelta, ScrollHandle, ScrollEvent, Styled as _, TestAppContext, TouchPhase,
     VisualTestContext, Window, div, point, px,
 };
 
@@ -78,11 +78,12 @@ fn a_switched_workbook_shows_its_chosen_sheet(cx: &mut TestAppContext) {
     settle(cx);
     assert!(shown(&view, cx), "the first draw shows the chosen sheet");
     for book in [2, 1, 2] {
-        cx.simulate_event(ScrollWheelEvent {
+        cx.simulate_event(ScrollEvent {
             position: point(px(60.), px(16.)),
             delta: ScrollDelta::Pixels(point(px(0.), px(50_000.))),
             modifiers: Modifiers::none(),
             touch_phase: TouchPhase::Moved,
+            ..Default::default()
         });
         settle(cx);
         assert!(!shown(&view, cx), "the wheel moves the chosen sheet away");

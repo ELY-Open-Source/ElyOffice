@@ -393,7 +393,7 @@ impl PdfView {
     }
 
     /// Ctrl (Cmd on macOS) and the wheel step the zoom.
-    pub fn wheel_zoom(&mut self, event: &gpui::ScrollWheelEvent, cx: &mut Context<Self>) {
+    pub fn wheel_zoom(&mut self, event: &gpui::ScrollEvent, cx: &mut Context<Self>) {
         let steps = ely_ui::wheel::steps(event, &mut self.wheel);
         for _ in 0..steps.unsigned_abs() {
             self.change(|view, now| view.zoom = Zoom::Scale(crate::keys::stepped(now, steps > 0)), cx);

@@ -166,6 +166,8 @@ features = [
     "Win32_UI_Shell_PropertiesSystem",
     "Win32_UI_WindowsAndMessaging",
     "Data_Xml_Dom",
+    "Foundation_Collections",
+    "System_UserProfile",
     "UI_Notifications",
     "UI_ViewManagement",
     "Wdk_System_SystemServices",

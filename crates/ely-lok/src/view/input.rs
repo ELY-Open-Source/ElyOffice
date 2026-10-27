@@ -1,5 +1,6 @@
 //! Keys, mouse, IME and clipboard for LokView (LOK-06, LOK-07).
 
+use ely_gpui_component::secondary;
 use std::{io, sync::Mutex, time::Instant};
 
 use ely_platform::clipboard;
@@ -19,9 +20,9 @@ pub const CONTEXT: &str = "LokView";
 /// Binds the clipboard keys; call once at startup.
 pub fn init(cx: &mut App) {
     cx.bind_keys([
-        KeyBinding::new("secondary-c", Copy, Some(CONTEXT)),
-        KeyBinding::new("secondary-x", Cut, Some(CONTEXT)),
-        KeyBinding::new("secondary-v", Paste, Some(CONTEXT)),
+        KeyBinding::new(secondary!("c"), Copy, Some(CONTEXT)),
+        KeyBinding::new(secondary!("x"), Cut, Some(CONTEXT)),
+        KeyBinding::new(secondary!("v"), Paste, Some(CONTEXT)),
         // The document owns Tab, as office apps do.
         KeyBinding::new("tab", NextField, Some(CONTEXT)),
         KeyBinding::new("shift-tab", PreviousField, Some(CONTEXT)),

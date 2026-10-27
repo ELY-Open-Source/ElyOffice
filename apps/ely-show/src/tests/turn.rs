@@ -1,6 +1,6 @@
 use ely_lok::LokView;
 use ely_office::prelude::*;
-use gpui::{Entity, ScrollDelta, ScrollWheelEvent, TestAppContext, VisualTestContext, point};
+use gpui::{Entity, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext, point};
 
 use super::objects::{blank, selection};
 use super::{counts, quiet, settle, update};
@@ -26,7 +26,7 @@ fn current(shown: &mut VisualTestContext, deck: &Entity<Deck>) -> usize {
 fn wheel(shown: &mut VisualTestContext, notches: f32) {
     let middle = shown.update(|window, _| window.viewport_size()).center();
     let delta = ScrollDelta::Lines(point(0.0, notches * ely_lok::notch()));
-    shown.simulate_event(ScrollWheelEvent { position: middle.into(), delta, ..Default::default() });
+    shown.simulate_event(ScrollEvent { position: middle.into(), delta, ..Default::default() });
 }
 
 #[test]

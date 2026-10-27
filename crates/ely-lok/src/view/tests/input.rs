@@ -26,7 +26,7 @@ fn saved(view: &Entity<LokView>, cx: &mut TestAppContext) -> Vec<String> {
     paragraphs(&std::fs::read_to_string(&out).expect("the save reads"))
 }
 
-fn typed(key: &str) -> Keystroke {
+fn typed(key: &'static str) -> Keystroke {
     let mut stroke = Keystroke::parse(key).expect("a keystroke");
     stroke.key_char = Some(key.to_string());
     stroke

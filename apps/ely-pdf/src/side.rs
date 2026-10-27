@@ -187,7 +187,8 @@ fn row(view: &Entity<PdfView>, page: usize, cx: &App) -> gpui::AnyElement {
         .cursor_pointer()
         .on_click(move |event, _, cx| {
             let keys = event.modifiers();
-            clicked.update(cx, |view, cx| view.pick(page, (keys.shift, keys.secondary()), cx))
+            let secondary = keys.secondary(cx);
+            clicked.update(cx, |view, cx| view.pick(page, (keys.shift, secondary), cx))
         })
         .on_mouse_down(gpui::MouseButton::Right, move |_, _, cx| {
             pressed.update(cx, |view, cx| {

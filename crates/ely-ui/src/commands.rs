@@ -1,3 +1,4 @@
+use ely_gpui_component::secondary;
 use ely_platform::AppId;
 use std::rc::Rc;
 
@@ -78,25 +79,25 @@ pub struct Command {
 const BLOCKED: &str = "command.blocked.no_document";
 const NEW: Command = Command {
     id: "file.new",
-    keys: "secondary-n",
+    keys: secondary!("n"),
     blocked: None,
     action: || Box::new(New),
 };
 const OPEN: Command = Command {
     id: "file.open",
-    keys: "secondary-o",
+    keys: secondary!("o"),
     blocked: None,
     action: || Box::new(Open),
 };
 const SAVE: Command = Command {
     id: "file.save",
-    keys: "secondary-s",
+    keys: secondary!("s"),
     blocked: Some(BLOCKED),
     action: || Box::new(Save),
 };
 const SAVE_AS: Command = Command {
     id: "file.save_as",
-    keys: "secondary-shift-s",
+    keys: secondary!("shift-s"),
     blocked: Some(BLOCKED),
     action: || Box::new(SaveAs),
 };
@@ -108,13 +109,13 @@ const RENAME: Command = Command {
 };
 const EXPORT: Command = Command {
     id: "file.export",
-    keys: "secondary-e",
+    keys: secondary!("e"),
     blocked: Some(BLOCKED),
     action: || Box::new(Export),
 };
 const PRINT: Command = Command {
     id: "file.print",
-    keys: "secondary-p",
+    keys: secondary!("p"),
     blocked: Some(BLOCKED),
     action: || Box::new(Print),
 };
@@ -124,7 +125,7 @@ pub const FILE: [&Command; 6] = [&NEW, &OPEN, &SAVE, &SAVE_AS, &EXPORT, &PRINT];
 pub const RENAMING: [&Command; 7] = [&NEW, &OPEN, &SAVE, &SAVE_AS, &RENAME, &EXPORT, &PRINT];
 /// A tool that starts and opens, but saves nothing itself.
 pub const OPENING: [&Command; 2] = [&NEW, &OPEN];
-pub const TOGGLE_PALETTE: &str = "secondary-shift-p";
+pub const TOGGLE_PALETTE: &str = secondary!("shift-p");
 pub const CONTEXT: &str = "office";
 
 fn label(command: &Command, cx: &App) -> SharedString {
@@ -197,13 +198,13 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new(SAVE_AS.keys, SaveAs, Some(CONTEXT)),
         KeyBinding::new(RENAME.keys, Rename, Some(CONTEXT)),
         KeyBinding::new(EXPORT.keys, Export, Some(CONTEXT)),
-        KeyBinding::new("secondary-w", CloseTab, Some(CONTEXT)),
+        KeyBinding::new(secondary!("w"), CloseTab, Some(CONTEXT)),
         KeyBinding::new(TOGGLE_PALETTE, ToggleCommandPalette, Some(CONTEXT)),
         // Shift+L is Calc's AutoFilter; B as in ElyDoc.
-        KeyBinding::new("secondary-alt-s", ToggleLeftPanel, Some(CONTEXT)),
-        KeyBinding::new("secondary-alt-b", ToggleRightPanel, Some(CONTEXT)),
-        KeyBinding::new("secondary-q", Quit, None),
-        KeyBinding::new("secondary-,", OpenSettings, None),
+        KeyBinding::new(secondary!("alt-s"), ToggleLeftPanel, Some(CONTEXT)),
+        KeyBinding::new(secondary!("alt-b"), ToggleRightPanel, Some(CONTEXT)),
+        KeyBinding::new(secondary!("q"), Quit, None),
+        KeyBinding::new(secondary!(","), OpenSettings, None),
     ]);
 }
 

@@ -8,7 +8,7 @@ use super::{settle, update};
 use crate::deck::Deck;
 use crate::slideshow::{Show, steps::Place};
 
-fn press(cx: &mut TestAppContext, show: &Entity<Show>, key: &str) -> bool {
+fn press(cx: &mut TestAppContext, show: &Entity<Show>, key: &'static str) -> bool {
     let key = Keystroke::parse(key).expect("a key");
     cx.update(|app| show.update(app, |show, cx| show.key(&key, cx)))
 }

@@ -41,8 +41,10 @@ fn the_status_bar_counts_typing_and_any_selection() {
     cx.simulate_keystrokes("end shift-left");
     assert!(drew("0 of 4 words", cx), "a mark alone is a selection");
     // A frame drawn before the executor runs counts nothing.
-    let all = gpui::Keystroke::parse("secondary-a").expect("a key");
-    cx.update(|window, cx| window.dispatch_keystroke(all, cx));
+    cx.update(|window, cx| {
+        let all = gpui::Keystroke::parse_with_os("secondary-a", cx.platform_info().os).expect("a key");
+        window.dispatch_keystroke(all, cx)
+    });
     cx.update(|window, cx| window.draw(cx).clear(cx));
     let laid = std::mem::take(&mut *lines.laid.lock().expect("the lines"));
     assert!(!laid.iter().any(|line| line == "4 of 4 words"), "drawing counted");

@@ -155,7 +155,7 @@ impl MarkView {
             let label = text(cx, "mark.block.delete", &[("block", &name)]);
             rows = rows
                 .line()
-                .row(run(label, Box::new(b::DeleteBlock), window));
+                .row(run(label, Box::new(b::DeleteBlock), window, cx));
         }
         rows.menu()
     }
@@ -230,9 +230,10 @@ impl Rows {
 }
 
 /// A row that runs `action`, its keys shown.
-fn run(label: SharedString, action: Box<dyn Action>, window: &Window) -> MenuItem {
+fn run(label: SharedString, action: Box<dyn Action>, window: &Window, cx: &App) -> MenuItem {
+    let os = cx.platform_info().os;
     let keys = (window.highest_precedence_binding_for_action(action.as_ref())).map(|binding| {
-        let strokes: Vec<String> = binding.keystrokes().iter().map(|k| k.unparse()).collect();
+        let strokes: Vec<String> = binding.keystrokes().iter().map(|k| k.unparse(os)).collect();
         strokes.join(" ")
     });
     let action: Rc<Box<dyn Action>> = Rc::new(action);
@@ -245,11 +246,11 @@ fn run(label: SharedString, action: Box<dyn Action>, window: &Window) -> MenuIte
 }
 
 /// A button that presses `stroke` where focus went back.
-fn press(label: SharedString, icon: IconName, stroke: &str, shown: bool) -> MenuItem {
-    let keystroke = Keystroke::parse(stroke).expect("a fixed keystroke");
+fn press(label: SharedString, icon: IconName, stroke: &str, shown: bool, cx: &App) -> MenuItem {
+    let keystroke = Keystroke::parse_with_os(stroke, cx.platform_info().os).expect("a fixed keystroke");
     let button = MenuItem::new(label).icon(icon);
     let button = match shown {
-        true => button.keys(keystroke.unparse()),
+        true => button.keys(keystroke.unparse(cx.platform_info().os)),
         false => button,
     };
     button.on_click(move |window, cx| {
@@ -267,6 +268,7 @@ fn clipboard(selected: bool, cx: &App) -> Vec<MenuItem> {
             IconName::Scissors,
             "secondary-x",
             true,
+            cx,
         )
         .disabled(!selected),
         press(
@@ -274,6 +276,7 @@ fn clipboard(selected: bool, cx: &App) -> Vec<MenuItem> {
             IconName::Copy,
             "secondary-c",
             true,
+            cx,
         )
         .disabled(!selected),
         press(
@@ -281,12 +284,14 @@ fn clipboard(selected: bool, cx: &App) -> Vec<MenuItem> {
             IconName::Clipboard,
             "secondary-v",
             true,
+            cx,
         ),
         press(
             said("mark.edit.delete", cx),
             IconName::Trash2,
             "backspace",
             false,
+            cx,
         )
         .disabled(!selected),
     ]
@@ -307,21 +312,25 @@ fn copies(window: &Window, cx: &App) -> Vec<MenuItem> {
             said("mark.copy.plain", cx),
             Box::new(export::CopyPlain),
             window,
+            cx,
         ),
         run(
             said("mark.copy.markdown", cx),
             Box::new(clip::CopyMarkdown),
             window,
+            cx,
         ),
         run(
             said("mark.copy.html", cx),
             Box::new(export::CopyHtml),
             window,
+            cx,
         ),
         run(
             said("mark.copy.rich", cx),
             Box::new(export::CopyRich),
             window,
+            cx,
         ),
     ]
 }
@@ -331,6 +340,7 @@ fn copy_as(window: &Window, cx: &App) -> Menu {
         said("mark.paste.plain", cx),
         Box::new(clip::PastePlain),
         window,
+        cx,
     );
     copies(window, cx)
         .into_iter()
@@ -340,7 +350,7 @@ fn copy_as(window: &Window, cx: &App) -> Menu {
 }
 
 fn formats(window: &Window, cx: &App) -> Vec<MenuItem> {
-    let row = |key, action: Box<dyn Action>, name| run(said(key, cx), action, window).icon(name);
+    let row = |key, action: Box<dyn Action>, name| run(said(key, cx), action, window, cx).icon(name);
     vec![
         row("mark.format.strong", Box::new(b::Strong), IconName::Bold),
         row(
@@ -354,7 +364,7 @@ fn formats(window: &Window, cx: &App) -> Vec<MenuItem> {
 }
 
 fn wraps(window: &Window, cx: &App) -> Vec<MenuItem> {
-    let row = |key, action: Box<dyn Action>, name| run(said(key, cx), action, window).icon(name);
+    let row = |key, action: Box<dyn Action>, name| run(said(key, cx), action, window, cx).icon(name);
     vec![
         row("mark.block.quote", Box::new(b::Quote), IconName::Quote),
         row(
@@ -372,7 +382,7 @@ fn wraps(window: &Window, cx: &App) -> Vec<MenuItem> {
 }
 
 fn paragraph(window: &Window, cx: &App) -> Menu {
-    let row = |key, action: Box<dyn Action>| run(said(key, cx), action, window);
+    let row = |key, action: Box<dyn Action>| run(said(key, cx), action, window, cx);
     Menu::new()
         .item(row("mark.block.h1", Box::new(b::Heading1)))
         .item(row("mark.block.h2", Box::new(b::Heading2)))
@@ -385,7 +395,7 @@ fn paragraph(window: &Window, cx: &App) -> Menu {
 }
 
 fn table(window: &Window, cx: &App) -> Menu {
-    let row = |key, action: Box<dyn Action>| run(said(key, cx), action, window);
+    let row = |key, action: Box<dyn Action>| run(said(key, cx), action, window, cx);
     Menu::new()
         .item(row("mark.table.row_above", Box::new(tools::RowAbove)))
         .item(row("mark.table.row_below", Box::new(tools::RowBelow)))
@@ -418,7 +428,7 @@ fn table(window: &Window, cx: &App) -> Menu {
 }
 
 fn insert(inline: bool, window: &Window, cx: &App) -> Menu {
-    let row = |key, action: Box<dyn Action>| run(said(key, cx), action, window);
+    let row = |key, action: Box<dyn Action>| run(said(key, cx), action, window, cx);
     let menu = match inline {
         true => Menu::new()
             .item(row("mark.insert.image", Box::new(b::InsertImage)))
