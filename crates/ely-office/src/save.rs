@@ -34,18 +34,16 @@ pub trait Saving: Host {
     /// A save as refused unwritten; a waiting close stops.
     fn refuse_save(&mut self, then: &Option<After>, words: gpui::SharedString, cx: &mut Context<Self>) {
         self.toast(words, Severity::Danger, cx);
-        self.stop_close(then, cx);
-    }
-
-    /// Tab `id` went before its save; its close stops.
-    fn closed_first(&mut self, id: u64, then: &Option<After>, cx: &mut Context<Self>) {
-        log::info!("office: tab {id} closed before its save");
-        self.stop_close(then, cx);
-    }
-
-    fn stop_close(&mut self, then: &Option<After>, cx: &mut Context<Self>) {
         if then.is_some() {
             self.close_stopped(cx);
+        }
+    }
+
+    /// Tab `id` went before its save; its close goes on.
+    fn closed_first(&mut self, id: u64, then: Option<After>, window: &mut Window, cx: &mut Context<Self>) {
+        log::info!("office: tab {id} closed before its save");
+        if let Some(after) = then {
+            self.proceed(after, window, cx);
         }
     }
 
@@ -58,7 +56,7 @@ pub trait Saving: Host {
             return self.after_export(id, move |host, window, cx| host.save(id, then, window, cx));
         }
         let Some(tab) = self.tab(id) else {
-            return self.closed_first(id, &then, cx);
+            return self.closed_first(id, then, window, cx);
         };
         let Some(path) = tab
             .session
@@ -134,8 +132,9 @@ pub trait Saving: Host {
                     .partition(|(tab, _)| *tab == id);
                 host.core_mut().queued_saves = rest;
                 let Some(tab) = host.tab_mut(id) else {
-                    // Its close and queued saves stop, never vanish.
-                    host.closed_first(id, &then, cx);
+                    // The end is told; the close and queue go on.
+                    host.save_ended(id, Err(format!("tab {id} closed during its save")), cx);
+                    host.closed_first(id, then, window, cx);
                     return queued.into_iter().for_each(|(_, save)| save(host, window, cx));
                 };
                 tab.exporting = false;
@@ -214,7 +213,7 @@ pub trait Saving: Host {
         id: u64,
         path: PathBuf,
         then: Option<After>,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if !self.settled(id, cx) {
@@ -241,7 +240,7 @@ pub trait Saving: Host {
             return self.refuse_save(&then, text, cx);
         };
         let Some(tab) = self.tab(id) else {
-            return self.closed_first(id, &then, cx);
+            return self.closed_first(id, then, window, cx);
         };
         let holder = match self.holder(&target) {
             Ok(holder) => holder,
@@ -330,7 +329,7 @@ pub trait Saving: Host {
             });
         }
         let Some(tab) = self.tab(id) else {
-            return self.closed_first(id, &then, cx);
+            return self.closed_first(id, then, window, cx);
         };
         let format = tab
             .session
