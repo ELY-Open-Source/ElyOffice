@@ -2062,6 +2062,7 @@ dependencies = [
  "image",
  "jiff",
  "log",
+ "serde_json",
  "tempfile",
 ]
 

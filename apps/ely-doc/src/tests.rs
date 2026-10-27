@@ -460,6 +460,7 @@ pub(crate) mod find;
 mod more;
 mod overlap;
 mod points;
+mod remote;
 
 impl Docs {
     /// Chooses the active tab as template, then types a field.

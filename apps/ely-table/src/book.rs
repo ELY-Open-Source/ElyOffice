@@ -70,8 +70,6 @@ pub struct Book {
     pub imports: std::collections::VecDeque<crate::text::Pending>,
     /// Undo and Redo as the menus show them.
     pub undo_menu: (bool, bool),
-    /// Other programs' saves, by tab, waiting to end.
-    pub saving: Vec<(u64, ely_ui::Ask)>,
 }
 
 impl Host for Book {
@@ -90,10 +88,6 @@ impl Host for Book {
 
     fn core_mut(&mut self) -> &mut Core<Self> {
         &mut self.core
-    }
-
-    fn save_ended(&mut self, id: u64, saved: Result<&std::path::Path, String>, _: &mut Context<Self>) {
-        self.answer_saves(id, saved);
     }
 
     fn read_at(&self, tab: u64, _: &gpui::App) -> Option<ely_lok::Doc> {
@@ -215,7 +209,6 @@ impl Book {
             choices: None,
             imports: Default::default(),
             undo_menu: (false, false),
-            saving: Vec::new(),
         }
     }
 

@@ -13,11 +13,15 @@ mod navigate;
 mod output;
 mod props;
 mod refs;
+mod remote;
 mod review;
 
 use ely_platform::AppId;
 
 fn main() {
+    if let Some(code) = remote::command_line() {
+        std::process::exit(code);
+    }
     ely_ui::run(AppId::Doc, docs::open);
 }
 

@@ -159,6 +159,8 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
         true => docs.new_from(Template::Blank, cx),
         false => launched.into_iter().for_each(|path| docs.open_file(path, cx)),
     });
+    let asked = docs.clone();
+    ely_ui::on_ask(cx, move |ask, cx| asked.update(cx, |docs, cx| docs.answer_request(ask, cx)));
     let opening = docs.clone();
     ely_ui::on_open(cx, move |path, cx| {
         opening.update(cx, |docs, cx| docs.open_file(path, cx))

@@ -133,7 +133,7 @@ pub trait Saving: Host {
                 host.core_mut().queued_saves = rest;
                 let Some(tab) = host.tab_mut(id) else {
                     // The end is told; the close and queue go on.
-                    host.save_ended(id, Err(format!("tab {id} closed during its save")), cx);
+                    host.core_mut().answer_saves(id, Err(format!("tab {id} closed during its save")));
                     host.closed_first(id, then, window, cx);
                     return queued.into_iter().for_each(|(_, save)| save(host, window, cx));
                 };
@@ -407,7 +407,7 @@ pub trait Saving: Host {
             Err(SaveError::Refused(state)) => Err(format!("the save was refused: {state:?}")),
             Err(SaveError::Io(error)) => Err(error.to_string()),
         };
-        self.save_ended(id, ended, cx);
+        self.core_mut().answer_saves(id, ended);
         match saved {
             Ok(done) => {
                 log::info!("office: saved {}", done.path.display());

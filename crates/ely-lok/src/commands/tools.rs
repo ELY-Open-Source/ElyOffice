@@ -23,6 +23,18 @@ const REPLACE: [Arg; 7] = [
     Arg::Loose("SearchItem.ReplaceString"),
 ];
 
+/// Replace all, exact and case-sensitive; the find box hears nothing.
+const REPLACE_EXACT: [Arg; 8] = [
+    Arg::Text("SearchItem.SearchString"),
+    Arg::Bool("SearchItem.Backward"),
+    Arg::Int("SearchItem.Command", "unsigned short", 3, 3),
+    Arg::Int("SearchItem.TransliterateFlags", "long", 0, 0),
+    Arg::Int("SearchItem.SearchFlags", "long", 0, 0),
+    Arg::Int("SearchItem.AlgorithmType2", "short", 1, 1),
+    Arg::Loose("SearchItem.ReplaceString"),
+    Arg::Bool("Quiet"),
+];
+
 /// Find, replace, spelling and compare commands.
 pub(super) const ROWS: &[Command] = &[
     command("find.run", ".uno:ExecuteSearch", &FIND, Check::Finished),
@@ -31,6 +43,12 @@ pub(super) const ROWS: &[Command] = &[
         ".uno:ExecuteSearch",
         &REPLACE,
         Check::Finished,
+    ),
+    command(
+        "text.replace",
+        ".uno:ExecuteSearch",
+        &REPLACE_EXACT,
+        Check::Undoable,
     ),
     command(
         "spell.apply",

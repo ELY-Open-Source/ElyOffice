@@ -131,7 +131,7 @@ fn every_mapped_command_reaches_the_kernel_and_reports_state() {
     assert!(text.contains("fo:font-weight=\"bold\""), "bold landed");
     assert_eq!(
         commands::all().count(),
-        252,
+        253,
         "the rows of text, layout, refs, tools, sheet, calc, data, analysis, page, show and draw"
     );
 }

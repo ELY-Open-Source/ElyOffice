@@ -14,6 +14,7 @@ pub mod lok;
 pub mod menu;
 mod open;
 mod recover;
+pub mod remote;
 pub mod panel;
 mod save;
 mod stopped;
@@ -44,6 +45,7 @@ pub use find::{FindReplace, Finder, Finding};
 pub use lok::{Commands, Lok, start};
 pub use open::{Opening, Source};
 pub use recover::{Keeping, Recovering};
+pub use remote::Remote;
 pub use stopped::{Stopped, Stopping};
 pub use save::{Saving, folder};
 pub use undo::{Redo, Undo, Undoing, bind_undo_keys, undo_able, undo_items};
@@ -51,7 +53,7 @@ pub use zoom::{ActualSize, ZoomIn, ZoomOut, Zooming, bind_zoom_keys, zoom_items}
 
 /// Every shared trait, for `use ely_office::prelude::*`.
 pub mod prelude {
-    pub use crate::{Chrome, Closing, Commands, Dialogs, Finding, Host, Opening, Saving, Stopping, Tabs, Undoing, Zooming};
+    pub use crate::{Chrome, Closing, Commands, Dialogs, Finding, Host, Opening, Remote, Saving, Stopping, Tabs, Undoing, Zooming};
 }
 
 /// What one app opens and writes.
@@ -85,9 +87,6 @@ pub trait Host: Sized + 'static {
     fn conflicted(&mut self, _id: u64, _: &mut Context<Self>) -> bool {
         false
     }
-    /// Tab `id`'s save ended: where it went, or why not.
-    fn save_ended(&mut self, _id: u64, _saved: Result<&std::path::Path, String>, _: &mut Context<Self>) {}
-
     /// Runs as tab `tab` leaves, saved, clean or discarded.
     fn tab_closed(&mut self, _tab: &Tab<Self::Extra, Self::Engine>, _: &mut Context<Self>) {}
 
@@ -196,6 +195,8 @@ pub struct Core<H: Host> {
     pub stopped: Option<Stopped>,
     /// Edit counts at the last autosave look, per tab.
     pub quiet: std::collections::HashMap<u64, u64>,
+    /// Other programs' saves, answered as each ends.
+    pub saving: Vec<(u64, ely_ui::Ask)>,
 }
 
 impl<H: Host> Core<H> {
@@ -221,6 +222,7 @@ impl<H: Host> Core<H> {
             recovery_off: None,
             stopped: None,
             quiet: Default::default(),
+            saving: Vec::new(),
         }
     }
 }

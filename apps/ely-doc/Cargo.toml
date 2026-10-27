@@ -30,6 +30,7 @@ ely-office = { workspace = true, features = ["test-support"] }
 ely-gpui-component = { workspace = true, features = ["test-support"] }
 env_logger.workspace = true
 image.workspace = true
+serde_json.workspace = true
 tempfile.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
 
