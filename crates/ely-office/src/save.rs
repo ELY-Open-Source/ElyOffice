@@ -243,7 +243,12 @@ pub trait Saving: Host {
             return self.refuse_save(&then, text, cx);
         };
         let Some(tab) = self.tab(id) else {
-            return log::info!("office: tab {id} closed before its save");
+            log::info!("office: tab {id} closed before its save");
+            // A close that waited on it stops.
+            if then.is_some() {
+                self.close_stopped(cx);
+            }
+            return;
         };
         let holder = match self.holder(&target) {
             Ok(holder) => holder,
