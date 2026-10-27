@@ -9,7 +9,8 @@ use std::{
 use ely_pdf_engine::{Bookmark, Char, Doc, Worker};
 use gpui::{
     Context, EventEmitter, FocusHandle, InteractiveElement as _, IntoElement, ParentElement as _,
-    Render, RenderImage, ScrollHandle, Styled as _, Window, div,
+    Render, RenderImage, Role, ScrollHandle, StatefulInteractiveElement as _, Styled as _, Window,
+    div, prelude::FluentBuilder as _,
 };
 
 use crate::engine::{Loaded, MEASURE, Mupdf};
@@ -400,6 +401,13 @@ impl PdfView {
         }
     }
 
+    /// Shown pages' text for a reader; missing text asked.
+    fn reading(&mut self, shown: Vec<usize>, cx: &mut Context<Self>) -> impl FnOnce(&mut gpui::A11ySubtreeBuilder) + 'static {
+        let texts = shown.into_iter().filter_map(|page| Some((page, self.page_text(page, cx)?))).collect();
+        let span = self.selection.and_then(|selection| selection.span(|page| self.text.get(&page).map(|chars| chars.as_slice())));
+        crate::reading::pages(texts, span)
+    }
+
     /// Moves `by` pages; continuous views scroll there.
     pub fn turn(&mut self, by: isize, cx: &mut Context<Self>) {
         let last = self.sizes.len().saturating_sub(1) as isize;
@@ -411,7 +419,14 @@ impl PdfView {
 impl Render for PdfView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.retired.release(window);
-        let pages = self.page_view(window, cx);
-        div().size_full().track_focus(&self.focus).child(pages)
+        let (pages, shown) = self.page_view(window, cx);
+        let reading = window.is_a11y_active().then(|| self.reading(shown, cx));
+        div()
+            .id("pdf-view")
+            .role(Role::Document)
+            .size_full()
+            .track_focus(&self.focus)
+            .when_some(reading, |view, reading| view.a11y_synthetic_children(reading))
+            .child(pages)
     }
 }

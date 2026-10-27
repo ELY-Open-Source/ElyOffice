@@ -10,7 +10,9 @@ use gpui::{
 
 use std::sync::Arc;
 
-use gpui::{Pixels, RenderImage, point};
+mod a11y;
+
+use gpui::{Pixels, RenderImage, point, prelude::FluentBuilder as _};
 
 use super::{CONTEXT, LokView, TILE_TWIPS, TWIPS_PER_PIXEL, handles, input};
 use crate::Rect;
@@ -58,6 +60,7 @@ impl Render for LokView {
             .id("lok-view")
             .role(Role::MultilineTextInput)
             .aria_value(self.a11y.text.clone())
+            .when(window.is_a11y_active(), |view| view.a11y_synthetic_children(a11y::paragraph(&self.a11y)))
             .key_context(CONTEXT)
             .track_focus(&self.focus)
             .cursor(self.border_pointer().unwrap_or(self.pointer))

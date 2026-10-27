@@ -16,14 +16,14 @@
 | 要求 | 依据 | 缺口 |
 | --- | --- | --- |
 | 控件有角色与名称 | 组件库核心控件、对话框、列表、树、提交与差异行、设置行（组与说明）、提示（Toast 有角色与名称）；真窗口测试都经 AX 树操作（`ax-values`、`ax-press`） | `lists::Outline` 与 `feedback::Alert` 无角色（上游待办）；gpui 无 aria-disabled，以说明文字表达 |
-| 文档内容可达 | LOK 视图把当前段落（Calc 为当前单元格与输入行）以 `MultilineTextInput` 交给 AX（`lokview.sh` 读到键入后的段落） | gpui 没有文本选区与插入点的 AX：选区、插入点、整篇文档到不了辅助技术；ElyMark 原生组件的 AX 待 C14.16 核对；PDF 页面文字未接 AX |
+| 文档内容可达 | LOK 视图把当前段落（Calc 为当前单元格与输入行）以 `MultilineTextInput` 交给 AX，段落是文本串，插入点与选区随之（R14.7，gpui 0.3.10 的合成子节点）；ElyPDF 以 `Document` 交出所显示页面的逐行文字与拖选的选区；`windows-a11y.sh` 经 UI Automation 的 TextPattern（NVDA 所读）读到段落、插入点、跨 emoji 的选区与 PDF 的页文与选区 | LOK 只报当前段落，整篇文档到不了辅助技术；VoiceOver 与 AT-SPI 未实测（同一 accesskit 树）；ElyMark 原生组件的 AX 待 C14.16 核对 |
 | 编辑状态可达 | 保存状态、风险、引擎停止以提示条与状态栏文字表达 | 状态栏文字是否进 AX 树未逐项核对 |
 
 ## 国际化
 
 | 要求 | 依据 | 缺口 |
 | --- | --- | --- |
-| 简中与英文界面 | `ely_ui::i18n` 缺键即失败；组件库面板族、对话框、批注栏等内建中英目录；设置可切语言（下次启动生效） | 组件库 `SortBuilder`、`FilterBuilder`、欢迎页等文案仍为英文（上游待办）；ElyTable 选区统计以外的内核文字为英文 |
+| 简中与英文界面 | `ely_ui::i18n` 缺键即失败；组件库面板族、对话框、批注栏等内建中英目录；设置可切语言（下次启动生效） | 内核给出的固定文字由 Ely 重写：ElyTable 的状态、错误与单元格样式，ElyDoc 的内置样式名与纸张名（R14.6，`chinese.rs` 在中文下画出排序、筛选与属性栏，无英文）；文件与主题自带的名字照原样 |
 | 中英文输入、组合输入、标点 | LOK 视图与 ElyMark 的编辑器都经输入法回调处理组字（`lokview.sh` 组“你好”；组件库的文档测试）；往返用例含中文（`independent.rs`） | 系统拼音输入法实机只做过人工检查，测试以输入法回调模拟 |
 | 混合字体 | 内核按字体回退排版；缺失字体在 ElyDoc 页面上方列出 | 字体缺失环境的分页对照未做（见 `docs/compatibility.md`） |
 | 非 ASCII 路径 | `paths_keep_spaces_cjk_and_case`（保存）；启动参数按当前目录取绝对路径（C20.1 修） | — |

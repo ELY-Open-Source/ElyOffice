@@ -68,7 +68,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；等轴 SVG 积木
 | --- | --- |
 | LOK 图块画布与输入桥 | `crates/ely-lok` |
 | 富剪贴板：gpui 剪贴板只有文本与图片，无 HTML（富文本、表格） | `ely_platform::clipboard`，用 arboard（三端 HTML、PNG） |
-| gpui 无障碍只有 `aria_value` 等，无文本选区与插入点：LOK 文档的光标与选区到不了辅助技术 | `LokView` 只桥接当前段落文本（`Role::MultilineTextInput`）。上游待办：gpui 补文本选区 AX |
+| LOK 的无障碍事件只报当前段落（文本、插入点、选区，UTF-16 计），整篇文档到不了辅助技术 | `LokView` 以 gpui 的 `a11y_synthetic_children` 把段落交成文本串，插入点与选区换成字符（`view/render/a11y.rs`）；ElyPDF 把所显示页面的逐行文字与选区交成 `Document` 的文本串（`reading.rs`）；都只在辅助技术连上时做 |
 | 选中对象的框与手柄：LOK 不画进图块 | `LokView` 按图形选区画框与 8 个手柄；按住手柄拖动经 `setGraphicSelection` 交内核（缩放；裁剪模式下裁剪） |
 | 虚拟化 PDF 页面栈（`DocumentViewer` 一次铺全部页，不合 PERF-05） | `crates/ely-pdf-engine`、`apps/ely-pdf` |
 | 组件库的大纲项（`lists::Outline`）无无障碍角色：屏幕阅读器读不到 | 上游待办；ElyMark 的搜索失败改为结果列表里的行。`feedback::Banner` 已修（fac20ab：危险与警告为 alert，其余为 status，名为其文字），`feedback::Alert` 同（105bf94，名为标题与正文） |
@@ -189,6 +189,7 @@ tests/scripts/dock-macos.sh      dist 里 ElyDoc、ElyTable、ElyShow 与包外�
 tests/scripts/windows-bundle.sh  合集安装程序逐个静默运行所选应用的安装程序；某个被拒即停下并报出其名与退出码（缺 makensis 时 SKIP）
 tests/scripts/windows-installer.sh  假应用的安装程序：所选目录原有的文件经两次安装与卸载都在，旧版按注册表清理，文件被占用或程序在运行时什么也不改，写不进时放回旧版（缺 makensis 时 SKIP）
 tests/scripts/types.sh         packaging/types.tsv 的文件类型在 Linux 桌面项、Windows 安装程序与 macOS 文档类型里一致，macOS 的 UTI 照 MIME 类型、级别为 Alternate
+tests/scripts/windows-a11y.sh   真窗口 ElyDoc 与 ElyPDF：UI Automation 的 TextPattern 读到段落、插入点与选区（含 emoji），PDF 的页文与拖选（缺引擎时 SKIP）
 tests/scripts/windows-types.sh  真安装程序以假类型 `.elyprobe` 写 HKCU：能打开、只在无处理程序时设默认与“新建”、别的程序的登记与“新建”不动、换了文件夹后旧卸载不删新的、写不进即安装失败（缺 makensis 时 SKIP）
 tests/scripts/layout.sh        真窗口：六个应用在 640、800、1100 宽下无元素越出窗口左右，留截图（需辅助功能与屏幕录制权限）
 tests/scripts/ooxml.py <用例> <文件>  不经 LibreOffice 读 DOCX、XLSX、PPTX 并按自算的预期核对（往返用例调用）

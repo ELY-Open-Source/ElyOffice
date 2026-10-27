@@ -22,6 +22,7 @@ mod organize;
 mod output;
 mod pages;
 mod props;
+mod reading;
 mod protect;
 mod redact;
 mod search;

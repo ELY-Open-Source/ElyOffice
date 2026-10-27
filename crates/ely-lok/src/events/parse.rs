@@ -8,7 +8,7 @@ use super::Rect;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct A11y {
     pub text: String,
-    /// Caret and selection in chars; LOK's -1 is None.
+    /// Caret and selection in UTF-16 units; LOK's -1 is None.
     pub caret: Option<usize>,
     pub selection: Option<(usize, usize)>,
 }

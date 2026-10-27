@@ -125,8 +125,8 @@ impl PdfView {
         Some((page, from_view(local, self.sizes[page], self.rotate)))
     }
 
-    /// Pages in view and their tiles; missing ones asked.
-    pub fn page_view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+    /// Pages in view, and which; missing tiles asked.
+    pub fn page_view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> (AnyElement, Vec<usize>) {
         let sf = window.scale_factor();
         let (sunken, paper) = (cx.theme().colors.sunken, gpui::white());
         let laid = self.laid_out();
@@ -265,7 +265,8 @@ impl PdfView {
         let zoom = ely_ui::wheel::zoom_layer(move |event, _, cx| {
             wheeled.update(cx, |view, cx| view.wheel_zoom(event, cx))
         });
-        div().relative().size_full().child(pages).child(measure).child(zoom).into_any_element()
+        let view = div().relative().size_full().child(pages).child(measure).child(zoom).into_any_element();
+        (view, pages_shown)
     }
 
     /// Asks for the first missing tile, one at a time.
