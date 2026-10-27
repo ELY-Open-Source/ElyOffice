@@ -28,11 +28,13 @@ impl Crash {
     /// Reads the lock; a dead pid means a crash (§6.2).
     pub fn check(dir: &Path, alive: impl Fn(u32) -> bool) -> io::Result<Marker> {
         let file = dir.join("session.lock");
-        let text = match std::fs::read_to_string(&file) {
-            Ok(text) => text,
+        let bytes = match std::fs::read(&file) {
+            Ok(bytes) => bytes,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Marker::Clean),
             Err(error) => return Err(error),
         };
+        // Bad bytes are torn too; the open rewrites it.
+        let text = String::from_utf8_lossy(&bytes);
         let mut parts = text.split_whitespace();
         match (parts.next(), parts.next().map(str::parse::<u32>)) {
             (Some("discarded"), _) => Ok(Marker::Discarded),

@@ -414,7 +414,7 @@
 - [x] R14.6 中文界面余下的英文（I-03，§5） — 内核对话框不显示、词典只随英文为常设决定；ElyTable 排序、筛选已中文；ElyDoc 属性栏的内置样式名与纸张名改按界面语言（LibreOffice 自带译文），ElyShow 的 Letter 同 — R1 FAIL 两项已修：用户样式与内置程序名撞名（照 LibreOffice 加减 ` (user)`）；筛选的测试可借排序画出的字通过（各自清空、新窗口、须画出自己的标题）
 - [x] R14.7 文档内容对读屏可达（I-01，§5 UX-11）：LOK 段落的插入点与选区、ElyPDF 页面文字 — gpui 0.3.10 的合成子节点：LOK 段落交成文本串，插入点与选区由 UTF-16 换成字符；ElyPDF 以 `Document` 交出所显示页面的逐行文字与拖选；`windows-a11y.sh` 经 UI Automation 读到；VoiceOver、AT-SPI 未实测；整篇文档仍只到当前段落（LOK 只报当前段落） — R1 FAIL 已修：跨页选区一端滚出屏外后选区消失，改为选区与所显示的行取交集；`windows-a11y.sh` 加三页 PDF 跨页拖选后按 End 的读取
 - [x] R14.8 无障碍复核：七个应用，Windows 的 UIA 与 Linux 的 AT-SPI（I-02、A-07，§5） — R3 PASS：`windows-names.sh`、`linux-names.sh` 两端七个应用通过；修图标按钮以编号充名（组件库 76047a6）、LOK 视图无名、约二十五个框无名、gpui-pre-windows 在后台打开的窗口读屏收不到焦点、ElyPDF 页面不在 Tab 次序且无名。R1 FAIL 两项已修：PDF 页面得焦点无可见标记（加透明边框与 `focus_ring`）；测试的“Tab 达正文”只认 Document 角色，LOK 视图为 Edit 而免检（改为每个应用列出页面名，缺页或 Tab 不达即失败）；R2 FAIL 一项已修：页面名是英文而测试未固定语言，中文系统误报，两端改设 `ELY_LOCALE=en-US`
-- [ ] R14.9 恢复（§6.3）：X-05 写不成每 10 秒弹一次、X-06 `session.lock` 坏即永久关闭、X-12 界面线程做文件 I/O
+- [ ] R14.9 恢复（§6.3）：X-05 写不成每 10 秒弹一次、X-06 `session.lock` 坏即永久关闭、X-12 界面线程做文件 I/O — 待审：修复原在 d59159c（未审）。X-05 已成；X-06 补坏字节的锁（照崩溃处理并重写，原使文档应用每次关恢复、ElyMark 起不来）；X-12 补 ElyMark 每 10 秒在界面线程扫恢复点、写 session.json（改后台，退出仍当场写，`Turns` 排序）
 - [ ] R14.10 保存与关闭（§6.2）：X-08 关闭链悬空、X-09 自动保存停摆、X-10 别的卷消失
 - [ ] R14.11 恢复点与 worker 日志（§6.3、§18）：X-07 每次写入解密全部点、X-11 非 UTF-8 即停止中继
 - [ ] R14.12 `ely-files` 的写入失败测试以 root 运行也成立（B-05，§6）

@@ -464,6 +464,19 @@ mod tests {
     }
 
     #[test]
+    fn a_lock_of_bad_bytes_still_offers_the_points() {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let mut keeping = Keeping::start_in(dir.path().to_path_buf()).expect("starts");
+        keeping.crashed.push(kept("1-0", false));
+        keeping.save_index().expect("the index");
+        std::fs::write(dir.path().join("session.lock"), [0xff, 0xfe, 0]).expect("a torn lock");
+        let again = Keeping::start_in(dir.path().to_path_buf()).expect("starts despite the lock");
+        assert_eq!(again.crashed.len(), 1, "read as a crash");
+        let lock = std::fs::read_to_string(dir.path().join("session.lock")).expect("rewritten");
+        assert_eq!(lock, format!("open {}", std::process::id()));
+    }
+
+    #[test]
     fn a_clean_end_keeps_only_what_never_reopened() {
         let dir = tempfile::tempdir().expect("a temp dir");
         let mut keeping = Keeping::start_in(dir.path().to_path_buf()).expect("starts");
