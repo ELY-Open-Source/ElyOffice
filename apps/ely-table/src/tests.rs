@@ -398,6 +398,7 @@ mod menu;
 mod merge;
 mod names;
 mod numbers;
+mod remote;
 mod output;
 mod rules;
 mod undo;

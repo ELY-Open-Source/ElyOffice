@@ -33,6 +33,15 @@ impl Ask {
     }
 }
 
+#[cfg(any(test, feature = "test-support"))]
+impl Ask {
+    /// A request and where its answer lands, for tests.
+    pub fn for_tests(request: &str) -> (Self, std::sync::mpsc::Receiver<Result<String, String>>) {
+        let (answer, answered) = std::sync::mpsc::channel();
+        (Self { request: request.into(), answer }, answered)
+    }
+}
+
 /// How the app answers other programs.
 type Answer = dyn Fn(Ask, &mut App);
 

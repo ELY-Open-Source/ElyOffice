@@ -12,22 +12,8 @@ use gpui::{Context, TaskExt as _, Window};
 use crate::files::{self, file_name};
 use crate::{After, Closing, Dialog, Engine, Host, Opening, Tab, Tabs, in_window, text};
 
-/// The file a path names, links resolved.
-fn identity(path: &Path) -> io::Result<PathBuf> {
-    let real = match std::fs::canonicalize(path) {
-        Ok(real) => real,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            let parent = path.parent().unwrap_or(Path::new("."));
-            let name = path
-                .file_name()
-                .ok_or_else(|| io::Error::other("no file name"))?;
-            std::fs::canonicalize(parent)?.join(name)
-        }
-        Err(error) => return Err(error),
-    };
-    // Whole path only: a name may need `\\?\`.
-    Ok(dunce::simplified(&real).to_path_buf())
-}
+mod paths;
+use paths::identity;
 
 pub trait Saving: Host {
     /// The tab whose source file is `target`.
@@ -48,6 +34,16 @@ pub trait Saving: Host {
     /// A save as refused unwritten; a waiting close stops.
     fn refuse_save(&mut self, then: &Option<After>, words: gpui::SharedString, cx: &mut Context<Self>) {
         self.toast(words, Severity::Danger, cx);
+        self.stop_close(then, cx);
+    }
+
+    /// Tab `id` went before its save; its close stops.
+    fn closed_first(&mut self, id: u64, then: &Option<After>, cx: &mut Context<Self>) {
+        log::info!("office: tab {id} closed before its save");
+        self.stop_close(then, cx);
+    }
+
+    fn stop_close(&mut self, then: &Option<After>, cx: &mut Context<Self>) {
         if then.is_some() {
             self.close_stopped(cx);
         }
@@ -62,7 +58,7 @@ pub trait Saving: Host {
             return self.after_export(id, move |host, window, cx| host.save(id, then, window, cx));
         }
         let Some(tab) = self.tab(id) else {
-            return log::info!("office: tab {id} closed before its save");
+            return self.closed_first(id, &then, cx);
         };
         let Some(path) = tab
             .session
@@ -138,7 +134,9 @@ pub trait Saving: Host {
                     .partition(|(tab, _)| *tab == id);
                 host.core_mut().queued_saves = rest;
                 let Some(tab) = host.tab_mut(id) else {
-                    return log::info!("office: tab {id} closed during its save");
+                    // Its close and queued saves stop, never vanish.
+                    host.closed_first(id, &then, cx);
+                    return queued.into_iter().for_each(|(_, save)| save(host, window, cx));
                 };
                 tab.exporting = false;
                 let (saved, history) = match read {
@@ -243,12 +241,7 @@ pub trait Saving: Host {
             return self.refuse_save(&then, text, cx);
         };
         let Some(tab) = self.tab(id) else {
-            log::info!("office: tab {id} closed before its save");
-            // A close that waited on it stops.
-            if then.is_some() {
-                self.close_stopped(cx);
-            }
-            return;
+            return self.closed_first(id, &then, cx);
         };
         let holder = match self.holder(&target) {
             Ok(holder) => holder,
@@ -337,7 +330,7 @@ pub trait Saving: Host {
             });
         }
         let Some(tab) = self.tab(id) else {
-            return log::info!("office: tab {id} closed before its save");
+            return self.closed_first(id, &then, cx);
         };
         let format = tab
             .session

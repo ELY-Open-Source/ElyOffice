@@ -127,6 +127,9 @@ impl Book {
         if self.exporting(id) {
             return self.after_export(id, move |book, window, cx| book.save_for(id, ask, window, cx));
         }
+        if self.tab(id).is_none() {
+            return ask.answer(Err(format!("tab {id} closed before its save")));
+        }
         self.saving.push((id, ask));
         self.save(id, None, window, cx);
     }
