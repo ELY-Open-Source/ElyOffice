@@ -33,12 +33,14 @@ impl Crash {
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Marker::Clean),
             Err(error) => return Err(error),
         };
-        // Bad bytes are torn too; the open rewrites it.
-        let text = String::from_utf8_lossy(&bytes);
-        let mut parts = text.split_whitespace();
-        match (parts.next(), parts.next().map(str::parse::<u32>)) {
-            (Some("discarded"), _) => Ok(Marker::Discarded),
-            (Some("open"), Some(Ok(pid))) => Ok(if alive(pid) {
+        // Only the two whole forms `open` and `discard` write.
+        let text = std::str::from_utf8(&bytes).ok();
+        let pid = text
+            .and_then(|text| text.strip_prefix("open "))
+            .and_then(|pid| pid.parse::<u32>().ok());
+        match (text, pid) {
+            (Some("discarded 0"), _) => Ok(Marker::Discarded),
+            (_, Some(pid)) => Ok(if alive(pid) {
                 Marker::Clean
             } else {
                 Marker::Crashed

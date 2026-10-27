@@ -6,7 +6,7 @@ use std::{
     time::SystemTime,
 };
 
-use ely_files::{Crash, Marker, Recovery};
+use ely_files::{Crash, Marker, Recovery, Turns};
 use ely_office::prelude::*;
 use ely_ui::i18n::text;
 use gpui::{AppContext as _, Context};
@@ -17,7 +17,7 @@ use crate::engine::mark;
 use crate::view::{Mode, Place};
 
 mod store;
-use store::{Turns, sweep_logged};
+use store::sweep_logged;
 
 /// A kept tab: file, mode, place, recovery folder.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -48,7 +48,8 @@ pub struct Keeping {
     dir: PathBuf,
     crash: Option<Crash>,
     waiting: Vec<Waiting>,
-    written: Option<String>,
+    /// The list last handed to a write.
+    sent: Option<String>,
     /// The kind of session write failure last shown.
     unwritten: Option<io::ErrorKind>,
     /// A quit began: the kept list stays as then.
@@ -134,7 +135,7 @@ impl Keeping {
             dir: dir.to_path_buf(),
             crash: Some(crash),
             waiting,
-            written: None,
+            sent: None,
             unwritten: None,
             leaving: false,
             frozen: Vec::new(),
@@ -194,6 +195,10 @@ impl Keeping {
 
 fn session_json(saved: Saved) -> String {
     serde_json::to_string_pretty(&saved).expect("the session serializes")
+}
+
+fn save(file: &Path, json: &str) -> io::Result<()> {
+    ely_files::save_atomic(file, json.as_bytes(), 0).map(drop)
 }
 
 fn clear(dir: &Path) -> io::Result<()> {
@@ -256,25 +261,23 @@ impl Desk {
 
     /// Every ten seconds: unsaved text to points, tabs to disk.
     pub fn keep(&mut self, cx: &mut Context<Self>) {
-        let (live, kept) = self.keep_points(cx);
+        let (_, kept) = self.keep_points(cx);
         let json = (!self.keeping.leaving)
             .then(|| {
                 self.keeping.frozen = kept.clone();
                 session_json(Saved { tabs: kept })
             })
-            .filter(|json| self.keeping.written.as_ref() != Some(json));
-        let turn = json.as_ref().map(|_| self.keeping.turns.take());
-        let (dir, turns) = (self.keeping.dir.clone(), self.keeping.turns.clone());
+            .filter(|json| self.keeping.sent.as_ref() != Some(json));
+        let Some(json) = json else { return };
+        self.keeping.sent = Some(json.clone());
+        let turn = self.keeping.turns.take();
+        let file = self.keeping.dir.join("session.json");
+        let turns = self.keeping.turns.clone();
         // Disk work leaves the window's thread.
-        let task = cx.background_spawn(async move {
-            sweep_logged(&dir, &live);
-            let json = json?;
-            let wrote = turns.write(turn?, &dir.join("session.json"), json.as_bytes())?;
-            Some((json, wrote))
-        });
+        let task = cx.background_spawn(async move { turns.write(turn, || save(&file, &json)) });
         cx.spawn(async move |desk, cx| {
-            if let Some((json, wrote)) = task.await {
-                desk.update(cx, |desk, cx| desk.session_written(json, wrote, cx)).ok();
+            if let Some(wrote) = task.await {
+                desk.update(cx, |desk, cx| desk.session_written(wrote, cx)).ok();
             }
         })
         .detach();
@@ -376,26 +379,23 @@ impl Desk {
 
     /// Writes the list now: a quit needs it on disk.
     fn write_session(&mut self, saved: Saved, cx: &mut Context<Self>) {
+        // A queued write may differ: this one always lands.
         let json = session_json(saved);
-        if self.keeping.written.as_ref() == Some(&json) {
-            return;
-        }
         let file = self.keeping.dir.join("session.json");
+        self.keeping.sent = Some(json.clone());
         let turn = self.keeping.turns.take();
-        let wrote = (self.keeping.turns.write(turn, &file, json.as_bytes()))
+        let wrote = (self.keeping.turns.write(turn, || save(&file, &json)))
             .expect("this thread took the newest turn");
-        self.session_written(json, wrote, cx);
+        self.session_written(wrote, cx);
     }
 
-    fn session_written(&mut self, json: String, wrote: io::Result<()>, cx: &mut Context<Self>) {
+    fn session_written(&mut self, wrote: io::Result<()>, cx: &mut Context<Self>) {
         let error = match wrote {
-            Ok(()) => {
-                self.keeping.written = Some(json);
-                self.keeping.unwritten = None;
-                return;
-            }
+            Ok(()) => return self.keeping.unwritten = None,
             Err(error) => error,
         };
+        // The next tick writes the list again.
+        self.keeping.sent = None;
         log::error!("mark: the session did not save: {error}");
         // Each kind of failure shows once; the next tick retries.
         if self.keeping.unwritten != Some(error.kind()) {

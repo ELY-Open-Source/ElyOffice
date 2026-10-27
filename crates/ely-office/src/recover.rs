@@ -7,7 +7,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use ely_files::{Crash, Marker, Recovery, RecoveryKey};
+use ely_files::{Crash, Marker, Recovery, RecoveryKey, Turns};
 use ely_gpui_component::primitives::Severity;
 use gpui::{AppContext as _, AsyncApp, Context, WeakEntity};
 use serde::{Deserialize, Serialize};
@@ -69,6 +69,8 @@ pub struct Keeping {
     /// An index write runs; another follows it if asked.
     flushing: bool,
     flush_again: bool,
+    /// Orders the index writes: the newest lands last.
+    turns: Turns,
 }
 
 impl Keeping {
@@ -92,7 +94,7 @@ impl Keeping {
         };
         let crash = Crash::open(&dir, std::process::id())?;
         let (reopening, held) = (Vec::new(), Vec::new());
-        Ok(Self { dir, crash: Some(crash), slots: HashMap::new(), crashed, reopening, held, last: None, behind: None, flushing: false, flush_again: false })
+        Ok(Self { dir, crash: Some(crash), slots: HashMap::new(), crashed, reopening, held, last: None, behind: None, flushing: false, flush_again: false, turns: Turns::default() })
     }
 
     /// A clean quit: the next start finds nothing to recover.
@@ -108,9 +110,12 @@ impl Keeping {
         self.dir.join("recovery").join(slot)
     }
 
+    /// Writes the index now, after any write in flight.
     fn save_index(&self) -> io::Result<()> {
         let (path, bytes) = self.index()?;
-        write_index(&path, &bytes)
+        let turn = self.turns.take();
+        let wrote = self.turns.write(turn, || write_index(&path, &bytes));
+        wrote.expect("this thread took the newest turn")
     }
 
     /// The index file and what it should hold now.
@@ -293,15 +298,18 @@ pub trait Recovering: Host {
             Err(error) => return self.index_failed(error.to_string(), cx),
         };
         keeping.flushing = true;
-        let task = cx.background_spawn(async move { write_index(&path, &bytes) });
+        let (turn, turns) = (keeping.turns.take(), keeping.turns.clone());
+        let task = cx.background_spawn(async move { turns.write(turn, || write_index(&path, &bytes)) });
         cx.spawn(async move |this: WeakEntity<Self>, cx: &mut AsyncApp| {
             let written = task.await;
             this.update(cx, |host, cx| {
                 let Some(keeping) = host.core_mut().keeping.as_mut() else { return };
                 keeping.flushing = false;
                 match written {
-                    Ok(()) => keeping.behind = None,
-                    Err(error) => host.index_failed(error.to_string(), cx),
+                    // A later write, the quit's, holds the newest.
+                    None => {}
+                    Some(Ok(())) => keeping.behind = None,
+                    Some(Err(error)) => host.index_failed(error.to_string(), cx),
                 }
                 let again = host.core_mut().keeping.as_mut().is_some_and(|keeping| std::mem::take(&mut keeping.flush_again));
                 if again {
@@ -427,69 +435,4 @@ pub(crate) fn clock(at: SystemTime) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{Keeping, Kept, Slot};
-
-    #[test]
-    fn a_failing_point_says_so_once_until_the_reason_changes() {
-        let mut slot = Slot { kept: kept("s", false), written: None, writing: false, failed: None };
-        let full = std::io::Error::other("disk full");
-        assert_eq!(slot.fail(1, &full).as_deref(), Some("disk full"));
-        assert_eq!(slot.fail(2, &full), None, "the same reason stays quiet");
-        let big = std::io::Error::new(std::io::ErrorKind::InvalidInput, "over the cap");
-        assert!(slot.fail(3, &big).is_some(), "a new reason shows");
-        assert_eq!(slot.written, Some(3), "too big waits for the next edit");
-    }
-
-    fn kept(slot: &str, held: bool) -> Kept {
-        Kept { slot: slot.into(), name: "a.docx".into(), format: "docx".into(), sealed: false, held }
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn a_failed_index_write_keeps_the_last_one() {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = tempfile::tempdir().expect("a temp dir");
-        let mut keeping = Keeping::start_in(dir.path().to_path_buf()).expect("starts");
-        keeping.crashed.push(kept("1-0", false));
-        keeping.save_index().expect("the first index");
-        let recovery = dir.path().join("recovery");
-        std::fs::set_permissions(&recovery, std::fs::Permissions::from_mode(0o555)).expect("locks");
-        keeping.crashed.push(kept("1-1", false));
-        let failed = keeping.save_index();
-        std::fs::set_permissions(&recovery, std::fs::Permissions::from_mode(0o755)).expect("unlocks");
-        assert!(failed.is_err(), "the folder refused the write");
-        let read = super::read_index(dir.path()).expect("the old index still reads");
-        assert_eq!(read.len(), 1);
-    }
-
-    #[test]
-    fn a_lock_of_bad_bytes_still_offers_the_points() {
-        let dir = tempfile::tempdir().expect("a temp dir");
-        let mut keeping = Keeping::start_in(dir.path().to_path_buf()).expect("starts");
-        keeping.crashed.push(kept("1-0", false));
-        keeping.save_index().expect("the index");
-        std::fs::write(dir.path().join("session.lock"), [0xff, 0xfe, 0]).expect("a torn lock");
-        let again = Keeping::start_in(dir.path().to_path_buf()).expect("starts despite the lock");
-        assert_eq!(again.crashed.len(), 1, "read as a crash");
-        let lock = std::fs::read_to_string(dir.path().join("session.lock")).expect("rewritten");
-        assert_eq!(lock, format!("open {}", std::process::id()));
-    }
-
-    #[test]
-    fn a_clean_end_keeps_only_what_never_reopened() {
-        let dir = tempfile::tempdir().expect("a temp dir");
-        let mut keeping = Keeping::start_in(dir.path().to_path_buf()).expect("starts");
-        for slot in ["1-0", "1-1"] {
-            std::fs::create_dir_all(keeping.folder(slot).join("points")).expect("a slot");
-        }
-        keeping.crashed.push(kept("1-0", false));
-        keeping.held.push(kept("1-1", false));
-        keeping.save_index().expect("the index");
-        keeping.end();
-        let again = Keeping::start_in(dir.path().to_path_buf()).expect("starts again");
-        let slots: Vec<&str> = again.crashed.iter().map(|kept| kept.slot.as_str()).collect();
-        assert_eq!(slots, ["1-1"], "only the held slot comes back");
-        assert!(again.folder("1-1").exists() && !again.folder("1-0").exists());
-    }
-}
+mod tests;

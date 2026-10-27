@@ -275,7 +275,17 @@ fn a_discard_drops_points_and_records_it() {
 #[test]
 fn a_torn_lock_counts_as_a_crash() {
     let dir = tempfile::tempdir().expect("a temp dir");
-    let torn: [&[u8]; 5] = [b"", b"op", b"open x", b"open 7\xff", b"\xff\xfe\x00"];
+    let torn: [&[u8]; 9] = [
+        b"",
+        b"op",
+        b"open x",
+        b"open 7\xff",
+        b"open 7 \xff",
+        b"open 7 8",
+        b"discarded \xff",
+        b"discarded",
+        b"\xff\xfe\x00",
+    ];
     for torn in torn {
         std::fs::write(dir.path().join("session.lock"), torn).expect("writes");
         assert_eq!(Crash::check(dir.path(), |_| true).expect("reads"), Marker::Crashed, "{torn:?}");
