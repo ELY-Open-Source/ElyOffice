@@ -1,6 +1,6 @@
 use super::*;
 
-/// A view fitting a page far larger than 800 by 600.
+/// Fits a huge page into an 800 by 600 view.
 fn fitted_large(view: &mut LokView, cx: &mut gpui::Context<LokView>) {
     view.doc_size = (170_000, 170_000);
     view.fit_page(cx);

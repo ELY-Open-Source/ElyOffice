@@ -61,6 +61,10 @@ LangString NoList ${LANG_ENGLISH} "No install list found; nothing was deleted:"
 
 LangString Taken ${LANG_SIMPCHINESE} "安装位置已有不属于 ${APP_NAME} 的文件，未作任何改动："
 LangString Taken ${LANG_ENGLISH} "A file ${APP_NAME} did not install is in the way; nothing was changed:"
+LangString Types ${LANG_SIMPCHINESE} "${APP_NAME} 已装好，但文件类型登记失败，“打开方式”里没有它："
+LangString Types ${LANG_ENGLISH} "${APP_NAME} is installed, but its file types could not be registered; Open With will not list it:"
+LangString Untyped ${LANG_SIMPCHINESE} "${APP_NAME} 已卸下，但文件类型的登记删不掉，仍留在："
+LangString Untyped ${LANG_ENGLISH} "${APP_NAME} is uninstalled, but its file type registration could not be removed from:"
 
 ; Lists a legacy folder's files and folders to $R2.
 Function ElyWalk
@@ -355,7 +359,13 @@ copy:
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\${APP_SLUG}.ico"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "UninstallString" '"$INSTDIR\uninstall.exe"'
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
+  ; The types macro sets errors, $2 naming the key.
+  ClearErrors
   !insertmacro ElyTypesInstall
+  IfErrors 0 typed
+    MessageBox MB_ICONSTOP "$(Types)$\r$\n$2" /SD IDOK
+    Abort
+typed:
 SectionEnd
 
 Section "Uninstall"
@@ -393,7 +403,13 @@ deleted:
   Delete "$SMPROGRAMS\${APP_NAME}.lnk"
   DeleteRegKey HKCU "Software\Ely Office\${APP_NAME}"
   DeleteRegKey HKCU "${UNINSTALL_KEY}"
+  ; The types macro sets errors, $2 naming the key.
+  ClearErrors
   !insertmacro ElyTypesUninstall
+  IfErrors 0 untyped
+    MessageBox MB_ICONSTOP "$(Untyped)$\r$\n$2" /SD IDOK
+    SetErrorLevel 2
+untyped:
   MessageBox MB_YESNO|MB_DEFBUTTON2 "$(DeleteData)" /SD IDNO IDNO done
   RMDir /r "$LOCALAPPDATA\ElyOffice\${APP_SLUG}"
 done:

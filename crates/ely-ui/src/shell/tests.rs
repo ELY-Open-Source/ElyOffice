@@ -174,7 +174,7 @@ fn keeps_least(cx: &mut VisualTestContext, gone: &'static str) {
     panic!("{gone} never went");
 }
 
-/// Folds two 30 ms apart; the second slides from its width.
+/// Two folds 30 ms apart; the second keeps its width.
 fn fold_both(cx: &mut VisualTestContext, first: (&str, &'static str), second: (&str, &'static str)) {
     cx.simulate_keystrokes(first.0);
     frame(cx);
