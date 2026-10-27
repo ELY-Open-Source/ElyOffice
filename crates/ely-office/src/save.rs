@@ -226,7 +226,11 @@ pub trait Saving: Host {
                 host.write_as(id, path, then, window, cx)
             });
         }
-        let name = self.tab(id).map(|tab| tab.name.clone()).unwrap_or_default();
+        // A gone tab's close goes on, whatever the target.
+        let Some(tab) = self.tab(id) else {
+            return self.closed_first(id, then, window, cx);
+        };
+        let name = tab.name.clone();
         let unsaved = |error: io::Error, cx: &mut Context<Self>| {
             text(cx, "office.error.save", &[("name", &name), ("error", &error.to_string())])
         };
@@ -238,9 +242,6 @@ pub trait Saving: Host {
             let formats = Self::KIND.save_as.join(", .");
             let text = text(cx, "office.error.format", &[("formats", &formats)]);
             return self.refuse_save(&then, text, cx);
-        };
-        let Some(tab) = self.tab(id) else {
-            return self.closed_first(id, then, window, cx);
         };
         let holder = match self.holder(&target) {
             Ok(holder) => holder,

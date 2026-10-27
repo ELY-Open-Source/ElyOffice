@@ -140,3 +140,20 @@ fn a_second_close_of_the_window_keeps_the_first(cx: &mut TestAppContext) {
     let kept = kept(data.path());
     assert!(kept.contains("a.md") && kept.contains("b.md"), "{kept}");
 }
+
+#[gpui::test]
+fn a_gone_tabs_save_as_to_a_wrong_format_goes_on(cx: &mut TestAppContext) {
+    let elsewhere = |desk: &mut Desk, id, then, window: &mut Window, cx: &mut Context<Desk>| {
+        desk.write_as(id, std::env::temp_dir().join("ely-mark-gone.txt"), then, window, cx)
+    };
+    a_gone_tabs_save_lets_the_close_go_on(cx, elsewhere);
+}
+
+#[gpui::test]
+fn a_gone_tabs_save_as_into_a_missing_folder_goes_on(cx: &mut TestAppContext) {
+    let elsewhere = |desk: &mut Desk, id, then, window: &mut Window, cx: &mut Context<Desk>| {
+        let missing = std::env::temp_dir().join("ely-mark-no-such-folder").join("a.md");
+        desk.write_as(id, missing, then, window, cx)
+    };
+    a_gone_tabs_save_lets_the_close_go_on(cx, elsewhere);
+}
