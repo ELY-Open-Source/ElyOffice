@@ -16,6 +16,7 @@ pub fn run<V: Render>(
     root: impl FnOnce(AppId, &mut Window, &mut App) -> Entity<V> + 'static,
 ) {
     // As the installer after an update, nothing else runs.
+    #[cfg(target_os = "macos")]
     if let Some(code) = crate::updates::installer(app) {
         std::process::exit(code);
     }

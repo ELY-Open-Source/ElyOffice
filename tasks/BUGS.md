@@ -125,7 +125,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [ ] L-02 Linux 全工作区零警告构建，`cargo test --workspace` 通过（引擎齐全，无 SKIP）
 - [ ] N-01 打印：Windows、Linux 交系统打印（与 macOS 同一份 PDF、纸张与取消规则），不再禁用
 - [ ] N-02 ElyShow 媒体：Windows 以 Media Foundation、Linux 以 GStreamer 实现 `media::Player`（载入、可播、失败原因、帧、循环与播完）
-- [ ] N-03 自动更新的安装与重开：Windows 安装程序、Linux AppImage，照 macOS 的退出后替换、失败记录与重开
+- [x] N-03 自动更新的安装与重开：Windows 安装程序、Linux AppImage，照 macOS 的退出后替换、失败记录与重开 — 4a74360 已做（`install::after_quit`：Windows 等进程退出后静默运行安装程序并重开，AppImage 换文件后重开，失败写入 `updates/failed.txt`；`tests/install.rs` 核对）；R14.4 删去非 macOS 的 `install`、`reopen` 桩
 - [ ] N-04 签名验证的证书信任：Windows 系统信任库、Linux 系统 CA，禁网，不核吊销
 - [ ] N-05 ElyTree 与系统：停止 Git（Windows 结束进程树）、打开终端、在文件管理器中显示，Windows、Linux
 - [ ] N-06 应用之间：Windows、Linux 的同级应用查找与启动、系统默认程序打开、单实例与诊断的崩溃报告位置

@@ -90,11 +90,6 @@ pub fn install(dmg: &Path, bundle: &Path) -> io::Result<()> {
     swap(&staged, bundle)
 }
 
-#[cfg(not(target_os = "macos"))]
-pub fn install(_dmg: &Path, _bundle: &Path) -> io::Result<()> {
-    Err(io::Error::new(io::ErrorKind::Unsupported, "a dmg installs only on macOS"))
-}
-
 /// Copies the new app beside the old, hidden.
 #[cfg(target_os = "macos")]
 fn stage(from: &Path, parent: &Path, name: &std::ffi::OsStr) -> io::Result<PathBuf> {
@@ -131,25 +126,17 @@ fn swap(staged: &Path, bundle: &Path) -> io::Result<()> {
 }
 
 /// Returns once process `pid` has ended.
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 pub fn wait_for_exit(pid: u32) {
     while unsafe { libc::kill(pid as libc::pid_t, 0) } == 0 {
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
 }
 
-#[cfg(not(unix))]
-pub fn wait_for_exit(_pid: u32) {}
-
 /// Opens `bundle` as a fresh launch.
 #[cfg(target_os = "macos")]
 pub fn reopen(bundle: &Path) -> io::Result<()> {
     run(Command::new("open").arg(bundle))
-}
-
-#[cfg(not(target_os = "macos"))]
-pub fn reopen(_bundle: &Path) -> io::Result<()> {
-    Err(io::Error::new(io::ErrorKind::Unsupported, "a bundle reopens only on macOS"))
 }
 
 /// Runs `command`; a failure carries what it said.

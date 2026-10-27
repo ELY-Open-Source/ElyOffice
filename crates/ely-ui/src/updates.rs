@@ -4,14 +4,14 @@ mod view;
 
 use std::{
     io,
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::Stdio,
     sync::atomic::AtomicBool,
 };
 
 use ely_platform::{
     AppId,
-    install::{INSTALL, Installed},
+    install::Installed,
     update::{self, Check, Release},
 };
 use futures::{StreamExt as _, channel::mpsc};
@@ -91,12 +91,13 @@ fn note_path(app: AppId) -> io::Result<PathBuf> {
 }
 
 /// As the macOS installer: waits, installs, reopens; its exit code.
+#[cfg(target_os = "macos")]
 pub fn installer(app: AppId) -> Option<i32> {
     let args: Vec<String> = std::env::args().collect();
     let [_, flag, dmg, bundle, pid] = args.as_slice() else {
         return None;
     };
-    if flag != INSTALL {
+    if flag != ely_platform::install::INSTALL {
         return None;
     }
     let Ok(pid) = pid.parse() else {
@@ -104,7 +105,7 @@ pub fn installer(app: AppId) -> Option<i32> {
         return Some(2);
     };
     ely_platform::install::wait_for_exit(pid);
-    let installed = ely_platform::install::install(Path::new(dmg), Path::new(bundle));
+    let installed = ely_platform::install::install(std::path::Path::new(dmg), std::path::Path::new(bundle));
     if let Err(error) = &installed {
         // To the app's log; the reopened app shows it.
         eprintln!("update: the install failed: {error}");
@@ -117,7 +118,7 @@ pub fn installer(app: AppId) -> Option<i32> {
         }
     }
     // Last: the note is written before the app reads it.
-    if let Err(error) = ely_platform::install::reopen(Path::new(bundle)) {
+    if let Err(error) = ely_platform::install::reopen(std::path::Path::new(bundle)) {
         eprintln!("update: the app did not reopen: {error}");
         return Some(1);
     }
