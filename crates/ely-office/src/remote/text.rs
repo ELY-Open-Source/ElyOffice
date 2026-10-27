@@ -1,4 +1,4 @@
-//! The body text of a flat ODF document, as `get` gives it.
+//! The body text of a flat ODF document.
 
 use std::io;
 

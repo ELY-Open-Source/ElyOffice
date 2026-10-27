@@ -6,7 +6,7 @@ use ely_platform::instance;
 use ely_ui::Ask;
 use gpui::{Context, TaskExt as _, Window};
 
-use crate::{Core, Host, Saving, Tabs, in_window};
+use crate::{Core, Engine, Host, Saving, Tabs, in_window};
 
 mod text;
 pub use text::body_text;
@@ -48,6 +48,14 @@ pub fn command_line(
 /// `file` made absolute, as the running copy reads it.
 pub fn absolute(file: &str) -> Result<String, String> {
     std::path::absolute(file).map(|file| file.display().to_string()).map_err(|error| format!("{file}: {error}"))
+}
+
+/// A copy of `doc` as `format` via `path`; `doc` stays.
+pub fn copy<G: Engine>(worker: &mut G::Worker, doc: &G::Doc, path: &Path, format: &str) -> std::io::Result<Vec<u8>> {
+    G::snapshot(worker, doc, path, format)?;
+    let bytes = std::fs::read(path)?;
+    std::fs::remove_file(path)?;
+    Ok(bytes)
 }
 
 /// Answers `docs` and `save`; other verbs come back.

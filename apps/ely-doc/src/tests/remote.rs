@@ -42,6 +42,13 @@ fn text_reads_replaces_in_one_step_and_saves_with_the_cursor_kept() {
     assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("cat Cat 世界 😀 cat".into()));
     assert_eq!(ask(&mut cx, &docs, &["replace", &file, "cat", "dog"]), Ok(String::new()));
     assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("dog Cat 世界 😀 dog".into()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("dog Cat 世界 😀 dog".into()));
+    settled(&cx, &docs);
+    cx.update(|app| {
+        let tab = &docs.read(app).core.tabs[0];
+        assert!(tab.dirty(app), "a read leaves the edit unsaved");
+        assert_eq!(tab.session.path().map(std::path::PathBuf::from), Some(path.clone()), "a read keeps the file");
+    });
     let missing = ask(&mut cx, &docs, &["replace", &file, "zebra", "x"]);
     assert!(missing.as_ref().is_err_and(|why| why.starts_with("nothing replaced")), "{missing:?}");
     assert!(ask(&mut cx, &docs, &["replace", &file, "dog", "a\nb"]).is_err(), "a break in WITH");
@@ -62,4 +69,15 @@ fn text_reads_replaces_in_one_step_and_saves_with_the_cursor_kept() {
     let saved = ask(&mut cx, &docs, &["save", &file]).expect("saved");
     assert_eq!(std::fs::canonicalize(&saved).ok(), std::fs::canonicalize(&path).ok());
     assert!(text_of(&mut cx, &docs, &path).contains("dog Cat 世界 😀 dog"), "on disk at the answer");
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, " ", "_"]), Ok(String::new()));
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, "_", "\t"]), Ok(String::new()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("dog\tCat\t世界\t😀\tdog".into()));
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, "\t", " "]), Ok(String::new()));
+    let second = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "second");
+    let two = dir.path().join("two.odt");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(second, two.clone(), None, window, cx));
+    settle(&cx, |app| docs.read(app).core.tabs[1].name == "two.odt");
+    assert_eq!(ask(&mut cx, &docs, &["get", &two.display().to_string()]), Ok("second".into()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("dog Cat 世界 😀 dog".into()), "each open document reads");
 }

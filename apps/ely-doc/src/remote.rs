@@ -1,6 +1,6 @@
 //! Other programs read and edit open documents' text.
 
-use ely_office::{files, prelude::*, remote};
+use ely_office::{prelude::*, remote};
 use ely_platform::AppId;
 use ely_ui::Ask;
 use gpui::Context;
@@ -39,10 +39,12 @@ impl Docs {
         };
         match &words[..] {
             [verb, _] if verb == "get" => {
-                let work = self.core.work.clone();
+                let Some(copy) = self.tab(id).map(|tab| tab.work.join("text.fodt")) else {
+                    return ask.answer(Err(format!("tab {id} closed")));
+                };
                 self.read_in(
                     id,
-                    move |worker, doc| remote::body_text(&files::kernel_bytes::<ely_office::Lok>(worker, doc, &work, "fodt")?),
+                    move |worker, doc| remote::body_text(&remote::copy::<ely_office::Lok>(worker, doc, &copy, "fodt")?),
                     move |_, read, _, _| ask.answer(read.map_err(|error| error.to_string())),
                     cx,
                 );

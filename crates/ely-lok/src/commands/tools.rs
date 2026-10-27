@@ -25,7 +25,7 @@ const REPLACE: [Arg; 7] = [
 
 /// Replace all, exact and case-sensitive; the find box hears nothing.
 const REPLACE_EXACT: [Arg; 8] = [
-    Arg::Text("SearchItem.SearchString"),
+    Arg::Loose("SearchItem.SearchString"),
     Arg::Bool("SearchItem.Backward"),
     Arg::Int("SearchItem.Command", "unsigned short", 3, 3),
     Arg::Int("SearchItem.TransliterateFlags", "long", 0, 0),
