@@ -1,5 +1,8 @@
 //! The properties panel (DOC-02 to 08).
 
+mod builtin;
+#[cfg(test)]
+mod chinese;
 mod groups;
 #[cfg(test)]
 mod layout_tests;

@@ -14,6 +14,7 @@ use gpui::{
 };
 
 use super::Props;
+use super::builtin::{self, Builtin, CHARACTER, PARAGRAPH};
 use crate::docs::Docs;
 
 impl Props {
@@ -29,7 +30,7 @@ impl Props {
             "doc-props-paragraph",
             paragraphs,
             current.clone(),
-            "ParagraphStyles",
+            ("ParagraphStyles", &PARAGRAPH),
             cx,
         );
         let character_style = self.state(".uno:CharStyle", cx);
@@ -37,7 +38,7 @@ impl Props {
             "doc-props-character",
             characters,
             character_style.clone(),
-            "CharacterStyles",
+            ("CharacterStyles", &CHARACTER),
             cx,
         );
         PropertyGroup::new(tip("doc.props.style"))
@@ -65,21 +66,23 @@ impl Props {
         id: &'static str,
         names: Vec<SharedString>,
         current: Option<SharedString>,
-        family: &'static str,
+        (family, styles): (&'static str, &'static [Builtin]),
         cx: &Context<Self>,
     ) -> AnyElement {
         let this = cx.entity();
         let empty = names.is_empty();
+        let current = current.map(|name| SharedString::from(builtin::listed(styles, &name).to_string()));
         let placeholder = match current.as_deref() {
             Some(ely_lok::MIXED) => Docs::text(cx, "office.props.mixed", &[]),
-            Some(name) if known(name) => name.to_string().into(),
+            Some(name) if known(name) => builtin::shown(styles, name, cx),
             _ => Docs::text(cx, "doc.props.choose", &[]),
         };
         let mut menu = Select::new(
             id,
-            names
-                .into_iter()
-                .map(|name| Choice::new(name.clone(), name)),
+            names.into_iter().map(|name| {
+                let label = builtin::shown(styles, &name, cx);
+                Choice::new(name, label)
+            }),
         )
         .size(ControlSize::Sm)
         .disabled(empty)

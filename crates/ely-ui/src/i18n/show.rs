@@ -231,7 +231,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("show.size.hd", "16:9"),
     ("show.size.standard", "4:3"),
     ("show.size.a4", "A4"),
-    ("show.size.letter", "Letter"),
+    ("show.size.letter", "美国信函 (Letter)"),
     ("show.size.custom", "自定义"),
     ("show.new.title", "新建演示文稿"),
     ("show.new.category", "演示文稿"),

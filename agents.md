@@ -85,7 +85,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；等轴 SVG 积木
 | 组件无 role/aria 语义：菜单、列表等控件在 AX 树仍不可见 | 上游已修核心控件（7380afb：Button、TextInput、Tabs、面板行、对话框等）；其余上游待办。项目自绘控件已自带 |
 | gpui 无 aria-disabled API（`AriaProperties` 无 disabled 字段） | 组件 7380afb 起以本地化 aria_description 表达；上游待办：gpui 补 API |
 | 组件内部文案未接 i18n（Ely 用到的组件已接：提示、默认占位、补全空行、字号示例，6df9ab0；查找框、排序与筛选、密码开关，a4bf696；`i18n/tests/shipped.rs` 防回退；其余组件之外：欢迎页标题、菜单项等） | 面板族文案已接 i18n（7380afb，内建 en/zh-CN），`CommentSidebar` 与 `RelativeTime` 同（408f2b0）；其余上游待办 |
-| LOK 的 `.uno:StyleApply` 状态给界面名（`Default Paragraph Style`），样式列表给程序名（`Standard`），两者对不上 | ElyDoc 属性栏：列表外的当前样式显示为占位文字；更新样式用状态里的界面名。上游待办：状态带程序名 |
+| LOK 的 `.uno:StyleApply` 状态给英文界面名（`Default Paragraph Style`），样式列表给程序名（`Standard`），两者对不上；内核界面固定英文，内置样式名到不了中文 | ElyDoc `props/builtin.rs`：照 LibreOffice 26.2 的 SwStyleNameMapper、strings.hrc 与 zh-CN 译文列出内置的段落、字符、页面样式（程序名、英文、中文），状态里的界面名经它换回程序名，菜单按界面语言显示；用户自建的样式照原名。更新样式仍用状态里的界面名 |
 
 ## gpui 规则
 
@@ -216,7 +216,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - 首批发布 ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark；ElyAgent 第二批。
 - 数据只在 `ely_platform::data_dir` 给出的目录；用户文档永不碰；卸载先问。根默认在系统的本地数据目录；设置“存储”可换到所选文件夹下的 `ElyOffice`，指向文件 `folder.json` 留在默认位置，下次启动、无 Ely 应用在运行时搬动（`ely_platform::folder`）。
 - 文件类型只写在 `packaging/types.tsv`，只进“打开方式”，从不设为默认（Windows 的“新建”只在该类型无任何处理程序时设）。“打开方式”里不得出现 LibreOffice，任何脚本都不挂载 LibreOffice 镜像。
-- 语言：界面英文与简体中文；内核界面固定英文；ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
+- 语言：界面英文与简体中文；内核界面固定英文，内核给出的固定文字（ElyTable 的状态与错误、单元格样式，ElyDoc 的内置样式名）由 Ely 按界面语言重写，文件与主题资源自带的名字（母版、主题色集、用户样式、字体）照原样；ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
 - 外观：Doc、Table、Show、PDF 的页面照文件原色，只有四周的界面随深浅色；邮件正文、Mark、Agent 随深浅色。深色底 `#252525`，不用纯黑。有 Omarchy 时随 Omarchy。
 - 性能：八个应用都不许卡顿（120 FPS 手感，树莓派 3 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事。
 - LOK：界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；内核弹出的对话框即刻关闭并报错，需要的对话框由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入。
