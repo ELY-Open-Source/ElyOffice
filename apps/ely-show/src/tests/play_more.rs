@@ -10,7 +10,7 @@ use crate::deck::Deck;
 use crate::preview::timeline::{Look, object_look};
 use crate::slideshow::{Show, start::show_window, steps::Place};
 
-fn started(cx: &mut TestAppContext, deck: &Entity<Deck>, here: bool) -> Entity<Show> {
+pub(super) fn started(cx: &mut TestAppContext, deck: &Entity<Deck>, here: bool) -> Entity<Show> {
     update(cx, deck, |deck, cx| deck.start_show(here, cx));
     settle(cx, |app| deck.read(app).show.is_some());
     cx.update(|app| deck.read(app).show.clone().expect("playing"))
@@ -195,7 +195,9 @@ fn media_that_cannot_play_says_why_and_the_show_goes_on() {
         deck.read(app).active_tab().is_some_and(|tab| tab.extra.media.len() == 1)
     });
     let show = started(&mut cx, &deck, true);
-    // Off the main thread the system player refuses.
+    // The show's own media file, gone, fails on every platform.
+    let file = cx.update(|app| show.read(app).slides[0].media[0].file.clone());
+    std::fs::remove_file(ely_lok::file_path(&file).expect("a file URL")).expect("removes the media");
     cx.update(|app| show.update(app, |show, cx| show.toggle_media(0, cx)));
     assert!(cx.update(|app| show.read(app).notice.is_some()));
     assert!(cx.update(|app| deck.read(app).show.is_some()), "the show goes on");

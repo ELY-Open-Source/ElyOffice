@@ -81,7 +81,7 @@ pub struct Show {
     /// Stacks no longer wanted; freed once nothing draws them.
     gone: Vec<Stack>,
     /// Per window, audience then presenter: images to free.
-    retired: [ely_gpui_component::primitives::Retired; 2],
+    pub(crate) retired: [ely_gpui_component::primitives::Retired; 2],
     asking: HashSet<usize>,
     /// Digits typed toward a jump.
     pub typed: String,

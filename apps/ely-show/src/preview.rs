@@ -49,7 +49,7 @@ pub struct Preview {
     length: f64,
 }
 
-fn picture((width, height): (u32, u32), pixels: Vec<u8>) -> Arc<RenderImage> {
+pub(crate) fn picture((width, height): (u32, u32), pixels: Vec<u8>) -> Arc<RenderImage> {
     let image = ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, pixels)
         .expect("the worker paints the asked size");
     Arc::new(RenderImage::new([Frame::new(image)]))

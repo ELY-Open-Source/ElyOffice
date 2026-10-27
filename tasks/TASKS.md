@@ -422,7 +422,7 @@
 - [x] R14.14 `view::tests::large` 并行时卡在 `Worker::spawn` 的根因（R12.38，§7） — R1 PASS：cdb 见卡住的主线程在 `openclwrapper::switchOpenCLDevice` → `amdocl64!clFinish`；worker 启动设 `SAL_DISABLE_OPENCL=1`。去掉即卡（194 秒、2 失败），加上 11 个 2.25 秒全过；`ely-lok` 并行 321 个 55 秒
 - [x] R14.15 ElyDoc 命令行（§8、§16）：`ely-doc text docs|get|replace|save` — `ely_office::remote` 共用命令行、`docs`、`save`；`get` 读 fodt 副本的正文段落；`replace` 为静默、精确的全部替换（`text.replace`，一步撤销，光标照旧）；真内核测试、`doc-cli.sh`、`table-cli.sh` 皆过，四处改坏各令测试失败。R1 FAIL 三处已修：`get` 改经 `Engine::snapshot`（原走带 TakeOwnership 的保存，读后文档变已存）；空白原文改 `Arg::Loose`；注释；R2 PASS
 - [x] R14.16 ElyDoc 字号菜单的 `expect`（X-04，§8） — d59159c 已去掉 `expect`，`panel::ordered` 把内核写法古怪的字号排在最后；`an_odd_size_shows_last_and_panics_nothing` 在改回 panic 时失败。只核对、关条目，代码不动；R1 记录误称 ElyTable 共用，已改；R2 PASS
-- [ ] R14.17 ElyShow 媒体：Windows 以 Media Foundation 实现 `media::Player`（C-01、N-02，§10）
+- [ ] R14.17 ElyShow 媒体：Windows 以 Media Foundation 实现 `media::Player`（C-01、N-02，§10） — 待审：`media/mf.rs` 以 IMFMediaEngine 帧服务模式实现；字节流开文件；后端自己推进视频（帧服务模式无人取帧即不前进、不播完）；ElyShow 画 BGRA 帧、旧帧交 `Retired`；媒体测试两端同断言，`tests/video.rs` 新增；三处改坏各令测试失败
 - [ ] R14.18 ElyShow 媒体：Linux 以 GStreamer 实现 `media::Player`（C-01、N-02，§10）
 - [ ] R14.19 ElyShow 命令行（§10、§16）：`ely-show text docs|get|replace|save`
 - [ ] R14.20 PPTX 的章节（`p14:sectionLst`）保存不丢（D-02，§10、§19）

@@ -42,6 +42,7 @@ security-framework.workspace = true
 clipboard-win = "5.4"
 windows-sys.workspace = true
 windows.workspace = true
+windows-core.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true

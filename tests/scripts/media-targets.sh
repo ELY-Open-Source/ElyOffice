@@ -10,6 +10,7 @@ for target in "${targets[@]}"; do
     exit 0
   fi
 done
+native() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/src"
@@ -22,9 +23,13 @@ edition = "2024"
 [dependencies]
 anyhow = "1"
 log = "0.4"
+[target.'cfg(windows)'.dependencies]
+dunce = "1"
+windows-core = "0.62"
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Imaging", "Win32_Media_MediaFoundation", "Win32_System_Com"] }
 TOML
 cat >"$work/src/lib.rs" <<RS
-#[path = "$root/crates/ely-platform/src/media.rs"]
+#[path = "$(native "$root")/crates/ely-platform/src/media.rs"]
 pub mod media;
 // Every call ElyShow makes.
 pub fn touch(path: &std::path::Path) -> anyhow::Result<Option<media::Frame>> {

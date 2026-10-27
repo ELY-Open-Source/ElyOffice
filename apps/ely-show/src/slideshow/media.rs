@@ -1,17 +1,18 @@
 //! Audio and video on the shown slide, by a click.
 
 use ely_platform::media::Player;
-use gpui::{Context, SurfaceSource};
+use gpui::Context;
 
 use super::Show;
 use crate::deck::Deck;
+use crate::media::{Picture, picture, retire};
 
 /// The media object playing in the show.
 pub struct Playing {
     part: usize,
     index: usize,
     player: Player,
-    pub frame: Option<SurfaceSource>,
+    pub frame: Option<Picture>,
 }
 
 impl Show {
@@ -30,7 +31,7 @@ impl Show {
     /// Stops the media and tells the presenter why.
     fn media_failed(&mut self, reason: &str, cx: &mut Context<Self>) {
         log::warn!("show: media failed: {reason}");
-        self.media = None;
+        self.drop_media();
         self.notice = Some(Deck::text(cx, "show.media.failed", &[("reason", reason)]));
         cx.notify();
     }
@@ -59,6 +60,7 @@ impl Show {
             Ok(player) => {
                 log::info!("show: plays media {at} of slide {part}");
                 player.play();
+                self.drop_media();
                 self.media = Some(Playing {
                     part,
                     index: at,
@@ -79,13 +81,9 @@ impl Show {
         };
         let repeat = self.slides[playing.part].media[playing.index].repeat;
         let ticked = playing.player.tick(repeat);
-        if let Some(frame) = playing.player.frame() {
-            #[cfg(target_os = "macos")]
-            {
-                playing.frame = Some(frame.into());
-            }
-            #[cfg(not(target_os = "macos"))]
-            match frame {}
+        let old = playing.player.frame().and_then(|frame| playing.frame.replace(picture(frame)));
+        if let Some(old) = old {
+            self.retire(old);
         }
         self.media_seen(ticked, cx)
     }
@@ -98,8 +96,23 @@ impl Show {
         })
     }
 
+    /// Ends playback; its last picture is freed.
+    fn drop_media(&mut self) {
+        if let Some(picture) = self.media.take().and_then(|playing| playing.frame) {
+            self.retire(picture);
+        }
+    }
+
+    /// A picture drawn in each show window, freed in each.
+    fn retire(&mut self, picture: Picture) {
+        if self.presenter {
+            retire(&mut self.retired[1], picture.clone());
+        }
+        retire(&mut self.retired[0], picture);
+    }
+
     /// The playing video's frame and its bounds as shares.
-    pub fn media_frame(&self) -> Option<(SurfaceSource, (f32, f32, f32, f32))> {
+    pub fn media_frame(&self) -> Option<(Picture, (f32, f32, f32, f32))> {
         let playing = self.media.as_ref()?;
         let (left, top, width, height) = self.slides[playing.part].media[playing.index].bounds;
         let (w, h) = self.slide;

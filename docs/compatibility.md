@@ -48,7 +48,7 @@
 | 导入或受限 | PPT；章节（`p14:sectionLst`）内核不保留；媒体默认嵌入 |
 | 输出 | PDF（幻灯片或讲义 1、2、3、4、6、9 张一页）、PNG（每张 1920 宽）、打印 |
 
-限制：Ely 提供一组基础切换与动画，文件自带的其他效果照原样保留并显示内核名称；批注不做回复（Impress 无回复结构）；Windows 与 Linux 的媒体播放未构建。
+限制：Ely 提供一组基础切换与动画，文件自带的其他效果照原样保留并显示内核名称；批注不做回复（Impress 无回复结构）；Linux 的媒体播放未构建（macOS 以 AVFoundation、Windows 以 Media Foundation 播放）。
 
 ## ElyPDF
 

@@ -11,11 +11,9 @@ use ely_gpui_component::{
 };
 use ely_lok::{LokView, show::Media};
 use ely_office::prelude::*;
-use ely_platform::media::{Player, State};
-use gpui::{
-    AnyElement, App, Context, Entity, ParentElement as _, Styled as _, SurfaceSource,
-    TaskExt as _, Window, div,
-};
+use ely_gpui_component::primitives::Retired;
+use ely_platform::media::{Frame, Player, State};
+use gpui::{AnyElement, App, Context, Entity, ParentElement as _, Styled as _, TaskExt as _, Window, div};
 
 use crate::deck::Deck;
 use crate::design::{Panel, on_deck};
@@ -40,7 +38,31 @@ pub struct Playing {
     index: usize,
     url: String,
     player: Player,
-    frame: Option<SurfaceSource>,
+    frame: Option<Picture>,
+}
+
+/// A video picture as this platform draws it.
+#[cfg(target_os = "macos")]
+pub(crate) type Picture = gpui::SurfaceSource;
+#[cfg(not(target_os = "macos"))]
+pub(crate) type Picture = std::sync::Arc<gpui::RenderImage>;
+
+/// The player's frame, ready to draw.
+pub(crate) fn picture(frame: Frame) -> Picture {
+    #[cfg(target_os = "macos")]
+    return frame.into();
+    #[cfg(windows)]
+    return crate::preview::picture(frame.size, frame.bgra);
+    #[cfg(not(any(target_os = "macos", windows)))]
+    match frame {}
+}
+
+/// A picture no longer drawn, for `retired` to free.
+pub(crate) fn retire(retired: &mut Retired, picture: Picture) {
+    #[cfg(target_os = "macos")]
+    let _ = (retired, picture);
+    #[cfg(not(target_os = "macos"))]
+    retired.push(picture);
 }
 
 /// `m:ss`.
@@ -171,7 +193,14 @@ impl Deck {
         if !same {
             log::info!("show: the playing media object is gone from view");
             playing.player.pause();
-            self.playing = None;
+            self.drop_playing();
+        }
+    }
+
+    /// Ends playback; its last picture is freed.
+    fn drop_playing(&mut self) {
+        if let Some(picture) = self.playing.take().and_then(|playing| playing.frame) {
+            retire(&mut self.retired, picture);
         }
     }
 
@@ -216,6 +245,7 @@ impl Deck {
             Ok(player) => {
                 log::info!("show: plays media object {}", media.index);
                 player.play();
+                self.drop_playing();
                 self.playing = Some(Playing {
                     tab,
                     slide,
@@ -245,13 +275,10 @@ impl Deck {
         let playing = self.playing.as_mut()?;
         // A failure shows in the panel, from the player's state.
         let drawing = matches!(playing.player.tick(repeat), Ok(true));
-        if let Some(frame) = playing.player.frame() {
-            #[cfg(target_os = "macos")]
-            {
-                playing.frame = Some(frame.into());
-            }
-            #[cfg(not(target_os = "macos"))]
-            match frame {}
+        if let Some(frame) = playing.player.frame()
+            && let Some(old) = playing.frame.replace(picture(frame))
+        {
+            retire(&mut self.retired, old);
         }
         if drawing {
             window.request_animation_frame();
@@ -270,28 +297,13 @@ impl Deck {
 }
 
 /// A video picture over its object.
-#[cfg(target_os = "macos")]
-pub(crate) fn video(
-    frame: SurfaceSource,
-    (at, size): (gpui::Point<gpui::Pixels>, gpui::Point<gpui::Pixels>),
-) -> AnyElement {
+pub(crate) fn video(frame: Picture, (at, size): (gpui::Point<gpui::Pixels>, gpui::Point<gpui::Pixels>)) -> AnyElement {
     use gpui::IntoElement as _;
-    gpui::surface(frame)
-        .absolute()
-        .left(at.x)
-        .top(at.y)
-        .w(size.x)
-        .h(size.y)
-        .into_any_element()
-}
-
-/// No platform here makes video pictures.
-#[cfg(not(target_os = "macos"))]
-pub(crate) fn video(
-    frame: SurfaceSource,
-    _: (gpui::Point<gpui::Pixels>, gpui::Point<gpui::Pixels>),
-) -> AnyElement {
-    match frame {}
+    #[cfg(target_os = "macos")]
+    let shown = gpui::surface(frame);
+    #[cfg(not(target_os = "macos"))]
+    let shown = gpui::StyledImage::object_fit(gpui::img(gpui::ImageSource::Render(frame)), gpui::ObjectFit::Fill);
+    shown.absolute().left(at.x).top(at.y).w(size.x).h(size.y).into_any_element()
 }
 
 impl Panel {
