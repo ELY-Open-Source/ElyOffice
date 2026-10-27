@@ -189,6 +189,7 @@ pub fn output_dialog(
     let bound = |id: &'static str, value: u32, first: bool| {
         let this = this.clone();
         NumberInput::new(id, f64::from(value))
+            .label(text(if first { "doc.output.from" } else { "doc.output.to" }))
             .range(1.0, f64::from(last))
             .on_commit(move |value, _, cx| {
                 let value = value.round() as u32;

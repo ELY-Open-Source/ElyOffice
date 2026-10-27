@@ -74,6 +74,7 @@ pub(crate) fn show(
         .map(|name| Choice::new(name.clone(), name.clone()));
     let picked = this.clone();
     let select = Select::new("table-show-pick", choices)
+        .label(Book::text(cx, "table.show.title", &[]))
         .selected(chosen.to_string())
         .on_change(move |value, _, cx| {
             picked.update(cx, |book, cx| {

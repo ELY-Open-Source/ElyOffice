@@ -72,11 +72,12 @@ impl Props {
         let this = cx.entity();
         let color = color_state(self, ".uno:FontColor", cx);
         let highlight = color_state(self, ".uno:CharBackColor", cx);
-        let font = font_box(self, "doc-props-font", &self.fonts, window, cx);
+        let name = Docs::text(cx, "doc.props.font", &[]);
+        let font = font_box(self, ("doc-props-font", name), &self.fonts, window, cx);
         let tip = |key: &str| Docs::text(cx, key, &[]);
         PropertyGroup::new(tip("doc.props.text"))
             .row(tip("doc.props.font"), font)
-            .row(tip("doc.props.size"), size_menu(self, "doc-props-size", cx))
+            .row(tip("doc.props.size"), size_menu(self, ("doc-props-size", tip("doc.props.size")), cx))
             .row(
                 tip("doc.props.effects"),
                 div()

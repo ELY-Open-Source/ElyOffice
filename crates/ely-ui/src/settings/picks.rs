@@ -73,7 +73,8 @@ pub(super) fn doc_zoom(stored: DocZoom, cx: &App) -> Select {
     };
     let choices = std::iter::once(Choice::new("auto", text(cx, "settings.zoom.auto", &[])))
         .chain(DOC_ZOOMS.map(|percent| Choice::new(percent.to_string(), format!("{percent}%"))));
-    Select::new("settings-doc-zoom", choices).selected(shown).on_change(|picked, _, cx| {
+    Select::new("settings-doc-zoom", choices)
+        .label(text(cx, "settings.zoom", &[])).selected(shown).on_change(|picked, _, cx| {
         let zoom = match picked.as_ref() {
             "auto" => DocZoom::Auto,
             percent => DocZoom::Percent(percent.parse().expect("a zoom choice")),
@@ -90,6 +91,7 @@ pub(super) fn two_sided(stored: Sides, cx: &App) -> Select {
     };
     let choices = Sides::ALL.map(|(_, stored)| Choice::new(stored, text(cx, &format!("settings.two_sided.{stored}"), &[])));
     Select::new("settings-two-sided", choices)
+        .label(text(cx, "settings.two_sided", &[]))
         .selected(shown)
         .on_change(|picked, _, cx| pick(TWO_SIDED, Value::String(picked.to_string()), cx))
 }

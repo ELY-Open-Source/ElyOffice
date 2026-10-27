@@ -155,6 +155,7 @@ impl Render for Merge {
         let record = {
             let this = this.clone();
             NumberInput::new("doc-merge-record", self.record as f64)
+                .label(text("doc.merge.record"))
                 .range(1.0, table.rows.len() as f64)
                 .on_commit(move |value, _, cx| {
                     this.update(cx, |merge, cx| {

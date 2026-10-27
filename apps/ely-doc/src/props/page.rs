@@ -48,6 +48,16 @@ const FOOTER: Part = Part {
 };
 const TOP_BOTTOM: (&str, &str) = (".uno:PageULMargin", "page.margins_ul");
 
+/// The row label of one margin.
+fn margin_key(pair: (&str, &str), second: bool) -> &'static str {
+    match (pair == TOP_BOTTOM, second) {
+        (true, false) => "doc.props.top",
+        (true, true) => "doc.props.bottom",
+        (false, false) => "doc.props.margin_left",
+        (false, true) => "doc.props.margin_right",
+    }
+}
+
 /// The offered paper within the kernel's rounding of `size`.
 fn paper_of((width, height): (i32, i32)) -> Option<&'static str> {
     let (short, long) = (width.min(height), width.max(height));
@@ -95,6 +105,7 @@ impl Props {
             &[("w", &cm(size.0)), ("h", &cm(size.1))],
         );
         let mut menu = Select::new("doc-props-paper", choices)
+            .label(Docs::text(cx, "doc.props.paper", &[]))
             .size(ControlSize::Sm)
             .placeholder(custom)
             .on_change(move |name, _, cx| this.update(cx, |props, cx| props.set_paper(name, cx)));
@@ -174,6 +185,7 @@ impl Props {
         let mine = if second { other } else { first };
         let id = SharedString::from(format!("doc-props-{}-{second}", pair.1));
         let field = NumberInput::new(id, f64::from(mine) / 1000.0)
+            .label(Docs::text(cx, margin_key(pair, second), &[]))
             .range(0.0, 99.99)
             .step(0.1)
             .precision(2)
@@ -222,6 +234,7 @@ impl Props {
                 Choice::new(name, label)
             }),
         )
+            .label(Docs::text(cx, "doc.props.section", &[]))
         .size(ControlSize::Sm)
         .disabled(empty)
         .placeholder(current.as_deref().map(|name| builtin::shown(&PAGE, name, cx)).unwrap_or_default())

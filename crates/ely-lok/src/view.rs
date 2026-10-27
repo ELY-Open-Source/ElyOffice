@@ -19,6 +19,8 @@ mod clip;
 mod clock;
 mod edge;
 mod formula;
+mod geom;
+pub use geom::Geom;
 mod handles;
 mod ime;
 mod input;
@@ -39,30 +41,6 @@ mod turn;
 pub use turn::notch;
 
 pub(crate) use crate::{TILE_TWIPS, TWIPS_PER_PIXEL};
-/// Document/view conversion under one zoom and DPI (LOK-04).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Geom {
-    pub zoom: f32,
-    pub dpi: f32,
-}
-
-impl Geom {
-    /// Twips to logical pixels; GPUI scales to devices.
-    pub fn px_of(&self, twips: i32) -> f32 {
-        twips as f32 * self.zoom / TWIPS_PER_PIXEL
-    }
-
-    /// Logical pixels to twips.
-    pub fn twips_of(&self, pixels: f32) -> i32 {
-        (pixels * TWIPS_PER_PIXEL / self.zoom).round() as i32
-    }
-
-    /// Texture pixels for one tile edge at this DPI.
-    fn tile_pixels(&self) -> u32 {
-        (self.px_of(TILE_TWIPS) * self.dpi).round().max(1.0) as u32
-    }
-}
-
 /// An input request the engine refused; apps show it.
 #[derive(Clone, Debug)]
 pub struct LokError(pub String);
@@ -150,6 +128,8 @@ pub struct LokView {
     right_at: Option<Point<Pixels>>,
     fonts: Vec<String>,
     a11y: crate::A11y,
+    /// What readers call the view.
+    name: gpui::SharedString,
     tabs: Vec<i32>,
 }
 
@@ -243,6 +223,7 @@ impl LokView {
             right_at: None,
             fonts: Vec::new(),
             a11y: crate::A11y::default(),
+            name: gpui::SharedString::default(),
             tabs: Vec::new(),
             watching: None,
         };

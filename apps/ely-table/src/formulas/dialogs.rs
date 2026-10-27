@@ -33,6 +33,7 @@ pub fn define_dialog(
         .map(|scope| Choice::new(scope.clone(), scope_label(&scope, cx)));
     let picked = this.clone();
     let scope = Select::new("table-define-scope", scopes)
+        .label(Book::text(cx, "table.names.scope", &[]))
         .selected(scope.to_string())
         .on_change(move |value, _, cx| {
             picked.update(cx, |book, cx| {
@@ -96,6 +97,7 @@ pub fn names_dialog(
         .map(|(index, name)| Choice::new(index.to_string(), entry(name, cx)));
     let picked = this.clone();
     let list = Select::new("table-names-pick", choices)
+        .label(Book::text(cx, "table.names.name", &[]))
         .selected(chosen.to_string())
         .on_change(move |value, _, cx| {
             let index: usize = value.parse().expect("names are listed by index");

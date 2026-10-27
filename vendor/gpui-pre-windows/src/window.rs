@@ -1082,7 +1082,8 @@ impl PlatformWindow for WindowsWindow {
 
     fn a11y_init(&self, callbacks: gpui::A11yCallbacks) {
         let action_handler = A11yActionHandler(callbacks.action);
-        let is_focused = unsafe { GetForegroundWindow() } == self.0.hwnd;
+        // WM_ACTIVATE tracks this; a click to the front sends none.
+        let is_focused = self.is_active();
 
         let adapter = accesskit_windows::Adapter::new(
             accesskit_windows::HWND(self.0.hwnd.0),

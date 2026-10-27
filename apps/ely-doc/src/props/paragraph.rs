@@ -144,6 +144,7 @@ impl Props {
             false => ("doc-props-above", upper),
         };
         let field = NumberInput::new(id, f64::from(mine) * 72.0 / 2540.0)
+            .label(Docs::text(cx, if below { "doc.props.below" } else { "doc.props.above" }, &[]))
             .range(0.0, 283.0)
             .step(1.0)
             .precision(1)
@@ -182,6 +183,7 @@ impl Props {
             })
             .collect();
         let at = NumberInput::new("doc-props-tab-at", self.tab_at)
+            .label(Docs::text(cx, "doc.props.tabs", &[]))
             .range(0.0, 55.0)
             .step(0.25)
             .precision(2)

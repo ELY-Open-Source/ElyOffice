@@ -185,7 +185,7 @@ pub fn color_state<P: Panel>(panel: &P, uno: &str, cx: &App) -> Paint {
 /// The font box; `id` keys its text field.
 pub fn font_box<P: Panel>(
     panel: &P,
-    id: &'static str,
+    (id, label): (&'static str, SharedString),
     fonts: &[SharedString],
     window: &mut Window,
     cx: &mut Context<P>,
@@ -207,6 +207,9 @@ pub fn font_box<P: Panel>(
         true => text(cx, "office.props.mixed"),
         false => SharedString::default(),
     };
+    if input.read(cx).label_text() != &label {
+        input.update(cx, |input, cx| input.set_label(label, cx));
+    }
     if input.read(cx).placeholder_text() != &hint {
         input.update(cx, |input, cx| input.set_placeholder(hint, cx));
     }
@@ -217,7 +220,7 @@ pub fn font_box<P: Panel>(
 }
 
 /// The size menu, in points.
-pub fn size_menu<P: Panel>(panel: &P, id: &'static str, cx: &Context<P>) -> AnyElement {
+pub fn size_menu<P: Panel>(panel: &P, (id, name): (&'static str, SharedString), cx: &Context<P>) -> AnyElement {
     let this = cx.entity();
     let reported = panel.state(".uno:FontHeight", cx);
     let size = reported.clone().filter(|size| known(size));
@@ -233,6 +236,7 @@ pub fn size_menu<P: Panel>(panel: &P, id: &'static str, cx: &Context<P>) -> AnyE
             .map(|size| Choice::new(size.clone(), size)),
     )
     .size(ControlSize::Sm)
+    .label(name)
     .on_change(move |value, _, cx| send(&this, "format.size", &[value.as_ref()], cx));
     if reported.as_deref() == Some(ely_lok::MIXED) {
         menu = menu.placeholder(text(cx, "office.props.mixed"));

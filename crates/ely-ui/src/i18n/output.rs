@@ -22,6 +22,8 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("table.page.scale", "Scale"),
     ("table.page.percent", "Percent"),
     ("table.page.fit", "Pages wide × tall"),
+    ("table.page.wide", "Pages wide"),
+    ("table.page.tall", "Pages tall"),
     ("table.page.pages", "Pages in all"),
     ("table.page.apply", "Apply"),
     (
@@ -110,6 +112,8 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("table.page.scale", "缩放"),
     ("table.page.percent", "百分比"),
     ("table.page.fit", "宽 × 高页数"),
+    ("table.page.wide", "页宽"),
+    ("table.page.tall", "页高"),
     ("table.page.pages", "总页数"),
     ("table.page.apply", "应用"),
     (

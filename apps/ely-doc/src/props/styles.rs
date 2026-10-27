@@ -84,6 +84,7 @@ impl Props {
                 Choice::new(name, label)
             }),
         )
+            .label(Docs::text(cx, if family == "ParagraphStyles" { "doc.props.paragraph" } else { "doc.props.character" }, &[]))
         .size(ControlSize::Sm)
         .disabled(empty)
         .placeholder(placeholder)

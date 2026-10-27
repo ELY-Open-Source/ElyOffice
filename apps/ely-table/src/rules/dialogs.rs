@@ -109,10 +109,10 @@ fn find(table: &[(&'static str, &'static str)], value: &str) -> &'static str {
         .expect("a listed choice")
 }
 
-/// A select over `table`; `set` takes the pick.
+/// A select over `table`, named `name`; `set` takes the pick.
 fn pick(
     this: &Entity<Book>,
-    id: &'static str,
+    (id, name): (&'static str, &str),
     (table, selected): (&[(&'static str, &'static str)], &str),
     set: fn(&mut Dialog, &'static str),
     cx: &App,
@@ -122,6 +122,7 @@ fn pick(
         .map(|(value, key)| Choice::new(*value, Book::text(cx, key, &[])));
     let (this, table) = (this.clone(), table.to_vec());
     Select::new(id, choices)
+        .label(Book::text(cx, name, &[]))
         .selected(selected.to_string())
         .on_change(move |value, _, cx| {
             let value = find(&table, value);
@@ -168,7 +169,7 @@ pub fn validation_dialog(
         label("table.rules.allow"),
         pick(
             &this,
-            "table-rule-kind",
+            ("table-rule-kind", "table.rules.allow"),
             (&KINDS, &rule.kind),
             |dialog, kind| rule_of(dialog).kind = kind.into(),
             cx,
@@ -181,7 +182,7 @@ pub fn validation_dialog(
                     label("table.rules.data"),
                     pick(
                         &this,
-                        "table-rule-operator",
+                        ("table-rule-operator", "table.rules.data"),
                         (&OPERATORS, &rule.operator),
                         |dialog, op| rule_of(dialog).operator = op.into(),
                         cx,
@@ -237,7 +238,7 @@ pub fn validation_dialog(
                     label("table.rules.style"),
                     pick(
                         &this,
-                        "table-rule-style",
+                        ("table-rule-style", "table.rules.style"),
                         (&ALERTS, &rule.error_style),
                         |dialog, style| rule_of(dialog).error_style = style.into(),
                         cx,
@@ -295,7 +296,7 @@ pub fn conditional_dialog(
         label("table.rules.kind"),
         pick(
             &this,
-            "table-format-kind",
+            ("table-format-kind", "table.rules.kind"),
             (&FORMATS, shown.kind),
             |dialog, value| {
                 set_conditional(dialog, |kind, _, _, preset| {
@@ -327,6 +328,7 @@ pub fn conditional_dialog(
                     .into_iter()
                     .map(|(value, text)| Choice::new(value, text)),
             )
+                .label(label("table.rules.colors"))
             .selected(shown.preset.to_string())
             .on_change(move |value, _, cx| {
                 let at: usize = value.parse().expect("presets are indexes");
@@ -341,7 +343,7 @@ pub fn conditional_dialog(
                 label("table.rules.condition"),
                 pick(
                     &this,
-                    "table-format-operator",
+                    ("table-format-operator", "table.rules.condition"),
                     (&CONDITIONS, shown.operator),
                     |dialog, value| set_conditional(dialog, |_, operator, _, _| *operator = value),
                     cx,
@@ -360,7 +362,7 @@ pub fn conditional_dialog(
                 label("table.rules.cell_style"),
                 pick(
                     &this,
-                    "table-format-style",
+                    ("table-format-style", "table.rules.cell_style"),
                     (&STYLES, shown.style),
                     |dialog, value| set_conditional(dialog, |_, _, style, _| *style = value),
                     cx,
@@ -423,6 +425,7 @@ pub fn formats_dialog(
         .map(|(at, format)| Choice::new(at.to_string(), entry(format, cx)));
     let picked = this.clone();
     let list = Select::new("table-formats-pick", choices)
+        .label(Book::text(cx, "table.rules.formats_title", &[]))
         .selected(chosen.to_string())
         .on_change(move |value, _, cx| {
             let at: usize = value.parse().expect("formats are listed by index");

@@ -59,6 +59,7 @@ impl Render for LokView {
         div()
             .id("lok-view")
             .role(Role::MultilineTextInput)
+            .aria_label(self.name.clone())
             .aria_value(self.a11y.text.clone())
             .when(window.is_a11y_active(), |view| view.a11y_synthetic_children(a11y::paragraph(&self.a11y)))
             .key_context(CONTEXT)

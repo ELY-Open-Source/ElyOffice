@@ -100,8 +100,9 @@ impl Panel {
         let this = cx.entity();
         let ink = kernel::color_state(self, ".uno:FontColor", cx);
         let fonts = self.fonts(cx);
-        let font = font_box(self, "show-font", &fonts, window, cx);
-        let size = size_menu(self, "show-size", cx);
+        let name = Deck::text(cx, "show.object.font", &[]);
+        let font = font_box(self, ("show-font", name), &fonts, window, cx);
+        let size = size_menu(self, ("show-size", Deck::text(cx, "show.object.font_size", &[])), cx);
         let fit = self.fit(&sel.autofit, cx);
         let tip = |key: &str| Deck::text(cx, key, &[]);
         PropertyGroup::new(tip("show.object.text"))

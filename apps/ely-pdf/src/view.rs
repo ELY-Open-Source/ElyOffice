@@ -205,7 +205,7 @@ impl PdfView {
             painting: false,
             room: gpui::Bounds::default(),
             wheel: 0.0,
-            focus: cx.focus_handle(),
+            focus: cx.focus_handle().tab_stop(true),
             version: 0,
             edited: 0,
             queue: VecDeque::new(),
@@ -424,6 +424,7 @@ impl Render for PdfView {
         div()
             .id("pdf-view")
             .role(Role::Document)
+            .aria_label(ely_ui::i18n::text(cx, "pdf.document", &[]))
             .size_full()
             .track_focus(&self.focus)
             .when_some(reading, |view, reading| view.a11y_synthetic_children(reading))

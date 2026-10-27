@@ -4,6 +4,14 @@ use gpui::A11ySubtreeBuilder;
 use gpui::accesskit::{Node, Role, TextPosition, TextSelection};
 
 use crate::A11y;
+use crate::view::LokView;
+
+impl LokView {
+    /// Names the view for assistive tech.
+    pub fn set_name(&mut self, name: gpui::SharedString) {
+        self.name = name;
+    }
+}
 
 /// The char index at UTF-16 offset `at`.
 fn char_index(text: &str, at: usize) -> usize {

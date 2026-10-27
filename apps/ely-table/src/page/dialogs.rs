@@ -71,7 +71,7 @@ fn scale_rows(
             percent,
             (10, 400),
             |scale, value| *scale = Scale::Percent(value),
-        ))),
+        ).label(label("table.page.percent")))),
         Scale::Fit(wide, tall) => div()
             .flex()
             .items_center()
@@ -80,20 +80,20 @@ fn scale_rows(
                 if let Scale::Fit(wide, _) = scale {
                     *wide = value;
                 }
-            })))
+            }).label(label("table.page.wide"))))
             .child("×")
             .child(field(number("table-page-tall", this, tall, (0, 1000), |scale, value| {
                 if let Scale::Fit(_, tall) = scale {
                     *tall = value;
                 }
-            }))),
+            }).label(label("table.page.tall")))),
         Scale::Pages(pages) => div().child(field(number(
             "table-page-count",
             this,
             pages,
             (1, 1000),
             |scale, value| *scale = Scale::Pages(value),
-        ))),
+        ).label(label("table.page.pages")))),
     };
     let named = label(&format!("table.page.{mode}"));
     rows.item(label("table.page.scale"), modes)

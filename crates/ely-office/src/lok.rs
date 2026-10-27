@@ -50,8 +50,15 @@ impl Engine for Lok {
         let Loaded { doc, laid, mark } = loaded;
         let view = LokView::open(Arc::clone(worker), doc.clone(), laid, cx);
         let (zoom, deck) = (ely_ui::settings::current(cx).doc_zoom, doc.is_deck());
+        let kind = match (doc.is_sheet(), deck) {
+            (true, _) => "office.view.sheet",
+            (_, true) => "office.view.deck",
+            _ => "office.view.text",
+        };
+        let name = text(cx, kind, &[]);
         // Decided once: a later default leaves it.
         view.update(cx, |view, cx| {
+            view.set_name(name);
             if deck {
                 view.turn_parts();
             }

@@ -148,6 +148,7 @@ impl Props {
         let mine = if tall { height } else { width };
         let id = SharedString::from(format!("doc-props-extent-{tall}"));
         let field = NumberInput::new(id, f64::from(mine) / 1000.0)
+            .label(Docs::text(cx, if tall { "doc.props.height" } else { "doc.props.width" }, &[]))
             .range(0.1, 600.0)
             .step(0.1)
             .precision(2)

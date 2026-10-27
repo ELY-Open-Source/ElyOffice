@@ -194,6 +194,7 @@ pub fn table_dialog(
     let field = |id: &'static str, value: f64, max: f64, tall: bool| {
         let this = this.clone();
         let input = NumberInput::new(id, value)
+            .label(Docs::text(cx, if tall { "doc.insert.rows" } else { "doc.insert.columns" }, &[]))
             .range(1.0, max)
             .on_change(move |value, _, cx| {
                 this.update(cx, |docs, cx| {
