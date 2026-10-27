@@ -409,7 +409,7 @@
 - [x] R14.2 更新清单经 GitHub 的 `releases/latest/download/` 取，不调 API，不受每小时 60 次的限（E-05，§4.2） — R1 PASS
 - [x] R14.3 更新清单签名（F-01，§4.2）：ed25519，公钥编进应用，`ci.sh` 签每份清单，缺签名或不符即拒；Windows 安装程序的 Authenticode 需要代码签名证书，本机没有 — R1 FAIL（`ci-share.sh` 缺 `ELY_UPDATE_KEY`，已补）；R2 PASS
 - [x] R14.4 更新安装（C-03，§4.2）：Windows 与 AppImage 已在退出后安装并重开（`install::after_quit`），关闭 N-03；非 macOS 的 `install`、`reopen` 桩删去 — R1 PASS
-- [ ] R14.5 用户提出的问题（D-06，§5）：C05.7、C05.8、R1.2 以各自编号送审；R2.5、R2.6、R2.8、R2.10、R2.12、R2.13、R2.14 照状态规则改正标记 — R1 FAIL 两项：R2.12 的 R3 第四、五项未修（见 R2.12），已修，pin d817edd；R2 FAIL 两项（同属 R2.12）已修，pin 73422f5
+- [x] R14.5 用户提出的问题（D-06，§5）：C05.7、C05.8、R1.2 以各自编号送审；R2.5、R2.6、R2.8、R2.10、R2.12、R2.13、R2.14 照状态规则改正标记 — R1 FAIL 两项：R2.12 的 R3 第四、五项未修（见 R2.12），已修，pin d817edd；R2 FAIL 两项（同属 R2.12）已修，pin 73422f5
 - [x] R14.5a 组件库换 pin 到 main（R14.5 的 C05.8 第三项、R14.22、R14.29 都要）：main 已是 gpui-pre 0.3.10 与 Rust 1.98，`vendor/gpui-pre`、`gpui-pre-windows` 的修补移到 0.3.10，`rust-toolchain.toml` 与四台发布机的工具链随之
 - [ ] R14.6 中文界面余下的英文（I-03，§5）
 - [ ] R14.7 文档内容对读屏可达（I-01，§5 UX-11）：LOK 段落的插入点与选区、ElyPDF 页面文字
