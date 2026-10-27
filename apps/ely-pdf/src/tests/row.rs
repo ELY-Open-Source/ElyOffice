@@ -41,7 +41,9 @@ fn shift_and_the_wheel_scroll_a_row_of_pages_across() {
     frames(cx);
     let third = cx.update(|_, app| view.read(app).laid_out().placed[2].x);
     assert_eq!(cx.update(|_, app| view.read(app).current), 2);
-    assert_eq!(-f32::from(offset(cx).x), third - crate::layout::GAP, "the next page comes to the left");
+    let left = -f32::from(offset(cx).x);
+    // The scroll handle rounds below a thousandth of a pixel.
+    assert!((left - (third - crate::layout::GAP)).abs() < 0.001, "the next page comes to the left: {left} vs {third}");
 }
 
 /// Twenty small pages, several in view along `mode`.
