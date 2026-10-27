@@ -143,17 +143,19 @@ fn the_cap_counts_the_cursor_too() {
 #[cfg(unix)]
 #[test]
 fn a_failed_write_keeps_last_ok_honest() {
-    use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut recovery = Recovery::new(dir.path().to_path_buf());
     recovery
         .write_once(b"0", None, at(100))
         .expect("the write lands");
     let points = dir.path().join("points");
-    std::fs::set_permissions(&points, std::fs::Permissions::from_mode(0o555))
-        .expect("the lockdown");
+    // A file in the folder's place stops root too.
+    let aside = dir.path().join("aside");
+    std::fs::rename(&points, &aside).expect("the points move aside");
+    std::fs::write(&points, "in the way").expect("the file");
     let failed = recovery.write_once(b"1", None, at(200));
-    std::fs::set_permissions(&points, std::fs::Permissions::from_mode(0o755)).expect("the restore");
+    std::fs::remove_file(&points).expect("the file goes");
+    std::fs::rename(&aside, &points).expect("the points return");
     assert!(failed.is_err());
     assert_eq!(recovery.last_ok(), Some(at(100)));
     let listed = recovery.points().expect("the points list");

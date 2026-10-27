@@ -142,7 +142,6 @@ fn a_missing_file_fails_loud() {
 #[cfg(unix)]
 #[test]
 fn a_revoked_entry_path_fails_loud() {
-    use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().expect("a temp dir");
     let restricted = dir.path().join("restricted");
     std::fs::create_dir(&restricted).expect("the dir");
@@ -155,13 +154,15 @@ fn a_revoked_entry_path_fails_loud() {
         sessions.open(&target, false).expect("the first open"),
         Open::Fresh(_)
     ));
-    std::fs::set_permissions(&restricted, std::fs::Permissions::from_mode(0o000))
-        .expect("the lockdown");
+    // A file in the folder's place stops root too.
+    let aside = dir.path().join("aside");
+    std::fs::rename(&restricted, &aside).expect("the folder moves aside");
+    write(&restricted, "in the way");
     let opened = sessions.open(&alias, false);
     let checked = sessions.is_open(&alias);
-    std::fs::set_permissions(&restricted, std::fs::Permissions::from_mode(0o755))
-        .expect("the restore");
-    assert!(opened.is_err());
+    std::fs::remove_file(&restricted).expect("the file goes");
+    std::fs::rename(&aside, &restricted).expect("the folder returns");
+    assert!(opened.is_err_and(|error| error.kind() == std::io::ErrorKind::NotADirectory));
     assert!(checked.is_err());
     assert_eq!(
         sessions.open(&alias, false).expect("the alias open"),

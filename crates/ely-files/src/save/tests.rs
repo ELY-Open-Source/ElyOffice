@@ -35,6 +35,10 @@ fn a_bare_relative_name_saves_and_probes() {
 #[test]
 fn a_failed_write_keeps_the_original() {
     use std::os::unix::fs::PermissionsExt;
+    // Root ignores modes; only read-only mounts stop it.
+    if unsafe { libc::geteuid() } == 0 {
+        return eprintln!("SKIP: root ignores the folder's mode");
+    }
     let dir = tempfile::tempdir().expect("a temp dir");
     let target = dir.path().join("keep.md");
     write(&target, "original");
