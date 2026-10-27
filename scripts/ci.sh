@@ -12,6 +12,7 @@ version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
 }
 : "${ELY_RELEASE_TOKEN:?the GitHub token that uploads}"
 : "${ELY_MICROSOFT_CLIENT_ID:?the Microsoft OAuth client ID}"
+: "${ELY_UPDATE_KEY:?the release key that signs update manifests}"
 if [ "$os" = macos ]; then
   : "${ELY_SIGN_IDENTITY:?the Developer ID Application certificate}"
   : "${ELY_NOTARY_PROFILE:?the notarytool keychain profile}"
@@ -93,6 +94,9 @@ esac
 if [ "$os" = linux ]; then
   packaging/source.sh "$dist"
 fi
+
+# The apps take no manifest without its signature.
+${inside[@]+"${inside[@]}"} packaging/sign.sh "$dist"/*.json
 
 # The tag's release, made by whichever platform comes first.
 repo=ELY-Open-Source/ElyOffice

@@ -19,4 +19,5 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$root:$root" ${share[@]+"${share[
   -e CARGO_TARGET_DIR="$root/target/alma8" -e PKG_CONFIG_PATH="$root/engines/openssl/lib/pkgconfig" \
   -e ELY_RELEASE_TOKEN \
   -e ELY_MICROSOFT_CLIENT_ID \
+  -e ELY_UPDATE_KEY \
   "$image" "$@"

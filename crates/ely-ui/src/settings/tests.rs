@@ -293,7 +293,10 @@ fn only_an_installed_app_offers_a_check_and_a_click_starts_one(cx: &mut TestAppC
     installed(cx);
     assert!(check_button(cx).is_none(), "a dev build has no check");
     // SAFETY: tests reading it want this unreachable server.
-    unsafe { std::env::set_var("ELY_UPDATE_MANIFEST", "http://127.0.0.1:9/none.json") };
+    unsafe {
+        std::env::set_var("ELY_UPDATE_MANIFEST", "http://127.0.0.1:9/none.json");
+        std::env::set_var("ELY_UPDATE_PUBLIC_KEY", ely_platform::update::KEY);
+    }
     cx.update(crate::updates::offer_for_tests);
     let settings = cx.add_window(|window, cx| SettingsView::new(AppId::Mark, window, cx));
     let mut shown = gpui::VisualTestContext::from_window(settings.into(), cx);

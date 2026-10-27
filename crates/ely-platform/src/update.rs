@@ -1,3 +1,7 @@
+mod signature;
+
+pub use signature::{KEY, sign};
+
 use std::{
     collections::HashMap,
     fs::{self, File},
@@ -28,6 +32,7 @@ use ureq::{
 };
 
 const MANIFEST_LIMIT: u64 = 1 << 20;
+const SIGNATURE_LIMIT: u64 = 1 << 10;
 const DOWNLOAD_LIMIT: u64 = 4 << 30;
 const MANIFEST_TIMEOUT: Duration = Duration::from_secs(30);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -66,11 +71,11 @@ pub fn platform() -> String {
     format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
 }
 
-/// Fetches the manifest and compares it with `current`. Never installs.
-pub fn check(current: &Version, manifest_url: &str) -> Result<Check> {
+/// Fetches the manifest `key` signed; never installs.
+pub fn check(current: &Version, manifest_url: &str, key: &str) -> Result<Check> {
     let host = secure_host(manifest_url)?;
     log::info!("update check: asking {host}");
-    let result = fetch_manifest(current, manifest_url);
+    let result = fetch_manifest(current, manifest_url, key);
     match &result {
         Ok(Check::Current) => log::info!("update check: {host} has nothing newer than {current}"),
         Ok(Check::Available(release)) => {
@@ -81,13 +86,10 @@ pub fn check(current: &Version, manifest_url: &str) -> Result<Check> {
     result
 }
 
-fn fetch_manifest(current: &Version, manifest_url: &str) -> Result<Check> {
-    let text = fetch(&manifest_agent(), manifest_url)?
-        .body_mut()
-        .with_config()
-        .limit(MANIFEST_LIMIT)
-        .read_to_string()
-        .context("cannot read the update manifest")?;
+fn fetch_manifest(current: &Version, manifest_url: &str, key: &str) -> Result<Check> {
+    let text = read_text(manifest_url, MANIFEST_LIMIT)?;
+    let signature = read_text(&format!("{manifest_url}.sig"), SIGNATURE_LIMIT)?;
+    signature::verify(key, file_name(manifest_url)?, text.as_bytes(), &signature)?;
     let manifest: Manifest =
         serde_json::from_str(&text).context("the update manifest is not valid")?;
     let key = platform();
@@ -103,6 +105,15 @@ fn fetch_manifest(current: &Version, manifest_url: &str) -> Result<Check> {
         url: asset.url.clone(),
         sha256: asset.sha256.to_lowercase(),
     }))
+}
+
+fn read_text(url: &str, limit: u64) -> Result<String> {
+    fetch(&manifest_agent(), url)?
+        .body_mut()
+        .with_config()
+        .limit(limit)
+        .read_to_string()
+        .with_context(|| format!("cannot read {url}"))
 }
 
 /// Downloads into `dir`, calling `progress(done, total)`. `Ok(None)` means cancelled.

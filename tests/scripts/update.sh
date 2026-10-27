@@ -30,6 +30,9 @@ port=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0));
 sha=$(shasum -a 256 "$work/serve/ElyMark.dmg" | cut -d' ' -f1)
 key="macos-$(uname -m | sed s/arm64/aarch64/)"
 printf '{"version": "9.9.9", "assets": {"%s": {"url": "http://127.0.0.1:%s/ElyMark.dmg", "sha256": "%s"}}}\n' "$key" "$port" "$sha" >"$work/serve/ely-mark.json"
+# The test key signs; the app reads its half.
+signed() { ELY_UPDATE_KEY=JWPqrMuIaO6Rxz6efh5PJFonrCtZcc0yZnLG5pMUmKk= "$root/packaging/sign.sh" "$work/serve/ely-mark.json" >/dev/null; }
+signed
 python3 -m http.server "$port" --bind 127.0.0.1 --directory "$work/serve" >"$work/served" 2>&1 &
 server=$!
 mkdir -p "$work/home"
@@ -40,7 +43,7 @@ printf '#!/bin/sh\n[ -e "%s" ] && echo before >>"%s" || echo after >>"%s"\nexec 
 chmod +x "$work/bin/open"
 start() {
   PATH="$work/bin:$PATH" HOME="$work/home" ELY_LOG=info ELY_LOCALE=en ELY_NO_DIALOG=1 ELY_UPDATE_MANIFEST="http://127.0.0.1:$port/ely-mark.json" \
-    "$work/Applications/ElyMark.app/Contents/MacOS/ely-mark" >"$work/out" 2>&1 &
+    ELY_UPDATE_PUBLIC_KEY=LWfbar3eMGzvVABTvGC618oPPHvgHL/Cu30umm2w1Xg= "$work/Applications/ElyMark.app/Contents/MacOS/ely-mark" >"$work/out" 2>&1 &
   pid=$!
 }
 start
@@ -105,6 +108,7 @@ hdiutil create -quiet -volname Broken -srcfolder "$work/broken" -format UDZO "$w
 sha=$(shasum -a 256 "$work/serve/Broken.dmg" | cut -d' ' -f1)
 rm -f "$work/opened"
 printf '{"version": "9.9.10", "assets": {"%s": {"url": "http://127.0.0.1:%s/Broken.dmg", "sha256": "%s"}}}\n' "$key" "$port" "$sha" >"$work/serve/ely-mark.json"
+signed
 start
 for _ in $(seq 60); do grep -q 'mark: shown as' "$work/out" && break; sleep 0.5; done
 press "Check for Updates…"

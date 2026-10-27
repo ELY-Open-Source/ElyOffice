@@ -12,7 +12,7 @@ use std::{
 
 use ely_platform::{
     AppId, logging,
-    update::{Check, IDLE_TIMEOUT, Release, check, download, platform, verify_file},
+    update::{self, Check, IDLE_TIMEOUT, Release, check, download, platform, sign, verify_file},
 };
 use semver::Version;
 use sha2::{Digest, Sha256};
@@ -22,6 +22,19 @@ enum Reply {
     Body(Vec<u8>),
     Redirect(String),
     Stall(Arc<AtomicBool>),
+}
+
+/// The test key pair; `tests/scripts/update.sh` signs with it too.
+const SEED: &str = "JWPqrMuIaO6Rxz6efh5PJFonrCtZcc0yZnLG5pMUmKk=";
+const KEY: &str = "LWfbar3eMGzvVABTvGC618oPPHvgHL/Cu30umm2w1Xg=";
+
+/// The route of `name`'s signature over `reply`.
+fn signature_of(name: &str, reply: &Reply) -> (String, Reply) {
+    let Reply::Body(bytes) = reply else {
+        panic!("only a body is signed");
+    };
+    let signature = sign(SEED, name, bytes).expect("signed");
+    (format!("/{name}.sig"), Reply::Body(signature.into_bytes()))
 }
 
 fn hex_of(bytes: &[u8]) -> String {
@@ -123,57 +136,80 @@ fn error_text<T>(result: anyhow::Result<T>) -> String {
 fn a_newer_release_for_this_platform_is_offered_and_an_equal_or_older_one_is_not() {
     let sha = hex_of(&payload()).to_uppercase();
     let base = serve(|base| {
-        vec![(
-            "/latest.json".into(),
-            manifest("0.2.0", &platform(), base, &sha),
-        )]
+        let body = manifest("0.2.0", &platform(), base, &sha);
+        vec![signature_of("latest.json", &body), ("/latest.json".into(), body)]
     });
     let url = format!("{base}/latest.json");
 
-    let found = check(&Version::new(0, 1, 0), &url).unwrap();
+    let found = check(&Version::new(0, 1, 0), &url, KEY).unwrap();
     assert_eq!(found, Check::Available(release(&base, sha.to_lowercase())));
-    assert_eq!(check(&Version::new(0, 2, 0), &url).unwrap(), Check::Current);
-    assert_eq!(check(&Version::new(0, 3, 0), &url).unwrap(), Check::Current);
+    assert_eq!(check(&Version::new(0, 2, 0), &url, KEY).unwrap(), Check::Current);
+    assert_eq!(check(&Version::new(0, 3, 0), &url, KEY).unwrap(), Check::Current);
 }
 
 #[test]
 fn a_manifest_without_this_platform_a_bad_manifest_and_a_missing_one_all_fail_loudly() {
     let base = serve(|base| {
+        let other = manifest("0.2.0", "plan9-mips", base, "00");
+        let bad = Reply::Body(b"{not json".to_vec());
         vec![
-            (
-                "/other.json".into(),
-                manifest("0.2.0", "plan9-mips", base, "00"),
-            ),
-            ("/bad.json".into(), Reply::Body(b"{not json".to_vec())),
+            signature_of("other.json", &other),
+            ("/other.json".into(), other),
+            signature_of("bad.json", &bad),
+            ("/bad.json".into(), bad),
         ]
     });
     let current = Version::new(0, 1, 0);
 
     assert!(
-        error_text(check(&current, &format!("{base}/other.json"))).contains("has no build for")
+        error_text(check(&current, &format!("{base}/other.json"), KEY)).contains("has no build for")
     );
-    assert!(error_text(check(&current, &format!("{base}/bad.json"))).contains("not valid"));
-    assert!(error_text(check(&current, &format!("{base}/none.json"))).contains("cannot fetch"));
+    assert!(error_text(check(&current, &format!("{base}/bad.json"), KEY)).contains("not valid"));
+    assert!(error_text(check(&current, &format!("{base}/none.json"), KEY)).contains("cannot fetch"));
+}
+
+#[test]
+fn a_manifest_unsigned_or_signed_for_another_file_or_key_is_refused() {
+    let sha = hex_of(&payload());
+    let base = serve(|base| {
+        let body = manifest("0.2.0", &platform(), base, &sha);
+        let (_, swapped) = signature_of("ely-tree-windows-x86_64.json", &body);
+        vec![
+            ("/unsigned.json".into(), body.clone()),
+            ("/swapped.json".into(), body.clone()),
+            ("/swapped.json.sig".into(), swapped),
+            ("/forged.json".into(), body.clone()),
+            ("/forged.json.sig".into(), Reply::Body(b"AAAA".to_vec())),
+            signature_of("latest.json", &body),
+            ("/latest.json".into(), body),
+        ]
+    });
+    let current = Version::new(0, 1, 0);
+    let said = |name: &str, key: &str| error_text(check(&current, &format!("{base}/{name}"), key));
+
+    assert!(said("unsigned.json", KEY).contains("unsigned.json.sig"), "no signature");
+    assert!(said("swapped.json", KEY).contains("not signed by the release key"), "another file's");
+    assert!(said("forged.json", KEY).contains("not signed by the release key"), "a forgery");
+    assert!(said("latest.json", update::KEY).contains("not signed by the release key"), "another key");
 }
 
 #[test]
 fn plain_http_to_other_hosts_and_credentials_in_the_url_are_refused_before_any_request() {
     let current = Version::new(0, 1, 0);
 
-    assert!(error_text(check(&current, "http://example.com/latest.json")).contains("not https"));
+    assert!(error_text(check(&current, "http://example.com/latest.json", KEY)).contains("not https"));
     let sneaky = "http://127.0.0.1:1@192.168.31.221:9/latest.json";
-    assert!(error_text(check(&current, sneaky)).contains("carries credentials"));
+    assert!(error_text(check(&current, sneaky, KEY)).contains("carries credentials"));
 }
 
 #[test]
 fn a_redirect_is_followed_on_this_machine_and_refused_when_it_leaves_for_plain_http() {
     let sha = hex_of(&payload());
     let base = serve(|base| {
+        let body = manifest("0.2.0", &platform(), base, &sha);
         vec![
-            (
-                "/latest.json".into(),
-                manifest("0.2.0", &platform(), base, &sha),
-            ),
+            signature_of("first", &body),
+            ("/latest.json".into(), body),
             ("/first".into(), Reply::Redirect("/second".into())),
             ("/second".into(), Reply::Redirect("/latest.json".into())),
             (
@@ -184,9 +220,9 @@ fn a_redirect_is_followed_on_this_machine_and_refused_when_it_leaves_for_plain_h
     });
     let current = Version::new(0, 1, 0);
 
-    let followed = check(&current, &format!("{base}/first")).unwrap();
+    let followed = check(&current, &format!("{base}/first"), KEY).unwrap();
     assert!(matches!(followed, Check::Available(_)), "{followed:?}");
-    assert!(error_text(check(&current, &format!("{base}/leave"))).contains("not https"));
+    assert!(error_text(check(&current, &format!("{base}/leave"), KEY)).contains("not https"));
 }
 
 #[test]
@@ -389,19 +425,18 @@ fn checks_and_downloads_are_logged_with_their_outcome() {
     let body = payload();
     let sha = hex_of(&body);
     let base = serve(|base| {
+        let latest = manifest("0.2.0", &platform(), base, &sha);
         vec![
-            (
-                "/latest.json".into(),
-                manifest("0.2.0", &platform(), base, &sha),
-            ),
+            signature_of("latest.json", &latest),
+            ("/latest.json".into(), latest),
             ("/ElyDoc.bin".into(), Reply::Body(body.clone())),
         ]
     });
     let dir = tempfile::tempdir().unwrap();
     let cancel = AtomicBool::new(false);
 
-    check(&Version::new(0, 1, 0), &format!("{base}/latest.json")).unwrap();
-    check(&Version::new(0, 1, 0), &format!("{base}/none.json")).unwrap_err();
+    check(&Version::new(0, 1, 0), &format!("{base}/latest.json"), KEY).unwrap();
+    check(&Version::new(0, 1, 0), &format!("{base}/none.json"), KEY).unwrap_err();
     download(
         &release(&base, sha),
         dir.path(),

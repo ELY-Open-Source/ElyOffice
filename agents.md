@@ -137,6 +137,7 @@ packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.2
 tests/scripts/linux-glibc.sh     Linux 的应用、worker 与引擎要求的 glibc 不高于 2.31，GLIBCXX、CXXABI 不高于 GCC 10（Debian 11、Ubuntu 20.04），读版本需求表，`GLIBC_ABI_DT_RELR` 这类 ABI 标记也拒
 tests/scripts/linux-glibc-rules.sh  linux-glibc.sh 对 glibc 2.36 的符号与紧凑重定位（`GLIBC_ABI_DT_RELR`）报错，只要 2.2.5 的通过（现编的 ELF，只在 Linux）
 packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）
+packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调用）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发布后提交）
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；nix/release.json 与 apps.tsv 一致；nixos/nix 容器里 flake 的许可与表相同、ElyMark 构建并在 Xvfb 下画出（缺 docker 时 SKIP 容器部分）
 packaging/source.sh dist        本提交的源码包与随包的 copyleft 上游源码（打过补丁的 MuPDF、Git），文件名带提交号；工作区有未提交改动即拒绝（macOS 的 release.sh 与 CI 的 Linux 调用，发布只上传 Linux 的；Windows 的检出把符号链接写成文件，不出源码包）
@@ -218,7 +219,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - 外观：Doc、Table、Show、PDF 的页面照文件原色，只有四周的界面随深浅色；邮件正文、Mark、Agent 随深浅色。深色底 `#252525`，不用纯黑。有 Omarchy 时随 Omarchy。
 - 性能：八个应用都不许卡顿（120 FPS 手感，树莓派 3 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事。
 - LOK：界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；内核弹出的对话框即刻关闭并报错，需要的对话框由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入。
-- 更新：每个应用每个平台一份清单，读 GitHub 的最新发布；自动检查默认关，从不静默安装；包管理器与 Nix 装的不自更新，只提示。
+- 更新：每个应用每个平台一份清单，读 GitHub 的最新发布（`releases/latest/download`，不调 API）；清单以 ed25519 签名（`<清单>.sig`，签的是文件名加内容），公钥编进应用（`ely_platform::update::KEY`），缺签名或不符即拒；种子是组织机密 `ELY_UPDATE_KEY`，本机副本 `update-key.txt` 不入库，丢失即旧版再也收不到更新；自动检查默认关，从不静默安装；包管理器与 Nix 装的不自更新，只提示。
 - 每个应用只跑一份，再次启动把文件交给运行中的那份。
 - 本机别的程序经 `ely-table cell docs|get|set|save` 读写 ElyTable 已打开工作簿的单元格并保存：请求走实例门（本机回环、令牌文件只给同一用户），由应用以 `ely_ui::on_ask` 作答；始终开着；按地址读写由内核补丁 0058 完成，不动用户的光标与选区。
 - ElyMark 原生实现（组件库 Markdown 组件与其 Markdown 树），不用 CEF、Electron；Typora 只作参照，读同一文件不同时随 GitHub（GFM）。

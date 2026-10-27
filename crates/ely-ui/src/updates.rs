@@ -162,9 +162,13 @@ pub(crate) fn install(app: AppId, cx: &mut App) {
     }
 }
 
-/// This build's manifest in the newest release, or the test's.
-fn manifest(app: AppId) -> String {
-    std::env::var("ELY_UPDATE_MANIFEST").unwrap_or_else(|_| latest(app))
+/// This build's manifest and key, or the test's pair.
+fn manifest(app: AppId) -> anyhow::Result<(String, String)> {
+    let Ok(url) = std::env::var("ELY_UPDATE_MANIFEST") else {
+        return Ok((latest(app), update::KEY.to_string()));
+    };
+    let key = std::env::var("ELY_UPDATE_PUBLIC_KEY").map_err(|_| anyhow::anyhow!("ELY_UPDATE_MANIFEST needs ELY_UPDATE_PUBLIC_KEY"))?;
+    Ok((url, key))
 }
 
 fn latest(app: AppId) -> String {
@@ -201,7 +205,7 @@ impl Updates {
         let current =
             semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("the build's version");
         // The lookup is a request too: off the window's thread.
-        let checked = cx.background_spawn(async move { update::check(&current, &manifest(app)) });
+        let checked = cx.background_spawn(async move { manifest(app).and_then(|(url, key)| update::check(&current, &url, &key)) });
         cx.spawn(async move |this, cx| {
             let checked = checked.await;
             this.update(cx, |this, cx| this.checked(checked, asked, cx)).ok();

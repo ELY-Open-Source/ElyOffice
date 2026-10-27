@@ -53,13 +53,14 @@ clone() { # os
   write packaging/source.sh "$source"
   mkdir -p "$at/tests/scripts"
   write tests/scripts/engine-arch.sh :
-  write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.dmg; packaging/source.sh dist"
+  write packaging/sign.sh 'for f; do echo signed >"$f.sig"; done'
+  write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.dmg dist/app-$1.json; packaging/source.sh dist"
   write packaging/linux/container.sh 'exec "$@"'
-  write packaging/linux/package.sh "mkdir -p dist; touch dist/\$1-$1.AppImage"
+  write packaging/linux/package.sh "mkdir -p dist; touch dist/\$1-$1.AppImage dist/\$1-$1.json"
 }
 go() { # os
   CI_OS=$1 PATH=$work/bin:$PATH ELY_SHARE=$work/share ELY_RELEASE_TOKEN=unused \
-    ELY_MICROSOFT_CLIENT_ID=unused \
+    ELY_MICROSOFT_CLIENT_ID=unused ELY_UPDATE_KEY=unused \
     ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused \
     "$work/$1/scripts/ci.sh" "$1" "v$version" >"$work/$1.out" 2>&1
 }
@@ -75,8 +76,10 @@ uploads() { # name pattern, os
 run macos
 [ "$(uploads 'source' macos)" -eq 0 ] || fail "macOS uploaded source: $(cat "$STATE")"
 [ "$(uploads 'App-macos.dmg' macos)" -eq 1 ] || fail "macOS skipped its dmg"
+[ "$(uploads 'app-macos.json.sig' macos)" -eq 1 ] || fail "macOS left its manifest unsigned: $(cat "$STATE")"
 run linux
 [ "$(uploads '-source.tar.gz' linux)" -eq 2 ] || fail "Linux did not upload the pair: $(cat "$STATE")"
+[ "$(uploads 'ely-doc-linux.json.sig' linux)" -eq 1 ] || fail "Linux left a manifest unsigned: $(cat "$STATE")"
 # A rerun replaces its own files once and keeps macOS's.
 mac=$(grep ' macos$' "$STATE")
 ids=$(awk '$3 == "linux" { print $1 }' "$STATE" | sort)

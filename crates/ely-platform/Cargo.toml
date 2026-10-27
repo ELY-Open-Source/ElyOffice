@@ -8,6 +8,7 @@ publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+base64.workspace = true
 arboard.workspace = true
 directories.workspace = true
 dunce.workspace = true
@@ -17,6 +18,7 @@ futures.workspace = true
 getrandom.workspace = true
 image.workspace = true
 log.workspace = true
+ring.workspace = true
 semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true

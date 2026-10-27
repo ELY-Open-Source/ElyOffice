@@ -18,6 +18,8 @@ jobs:
           ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Organization secrets, built into ElyMail.
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
+          # Signs the update manifests.
+          ELY_UPDATE_KEY: ${{ secrets.ELY_UPDATE_KEY }}
           # Shared engines outside Documents, which macOS guards.
           ELY_SHARE: /Users/zacharyzhang/ely-share
           ELY_PATH: /Users/zacharyzhang/.cargo/bin:/opt/homebrew/bin
@@ -42,6 +44,8 @@ jobs:
           ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Organization secrets, built into ElyMail.
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
+          # Signs the update manifests.
+          ELY_UPDATE_KEY: ${{ secrets.ELY_UPDATE_KEY }}
           # x86_64 engines, built once by hand (R10.10).
           ELY_SHARE: /Users/zacharyzhang/ely-share-x86_64
           ELY_PATH: /Users/zacharyzhang/.cargo/bin:/opt/homebrew/bin
@@ -64,6 +68,8 @@ jobs:
           ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Organization secrets, built into ElyMail.
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
+          # Signs the update manifests.
+          ELY_UPDATE_KEY: ${{ secrets.ELY_UPDATE_KEY }}
           ELY_SHARE: /c/Users/zhang/Documents/Github/ElyOffice
           ELY_PATH: /c/Program Files/CMake/bin:/c/Users/zhang/AppData/Local/Microsoft/WinGet/Packages/Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe
         run: |
@@ -85,7 +91,9 @@ jobs:
           ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Organization secrets, built into ElyMail.
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
-          WSLENV: ELY_RELEASE_TOKEN:ELY_MICROSOFT_CLIENT_ID
+          # Signs the update manifests.
+          ELY_UPDATE_KEY: ${{ secrets.ELY_UPDATE_KEY }}
+          WSLENV: ELY_RELEASE_TOKEN:ELY_MICROSOFT_CLIENT_ID:ELY_UPDATE_KEY
         run: |
           wsl -d Ubuntu --exec bash -lc '
             set -euo pipefail

@@ -29,7 +29,7 @@ attempt() { # name, setup; sets status, writes the output
   chmod +x "$clone/tests/scripts/engine-arch.sh"
   (cd "$clone" && eval "$2")
   status=0
-  ELY_SHARE=$share ELY_RELEASE_TOKEN=unused ELY_MICROSOFT_CLIENT_ID=unused ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused \
+  ELY_SHARE=$share ELY_RELEASE_TOKEN=unused ELY_MICROSOFT_CLIENT_ID=unused ELY_UPDATE_KEY=unused ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused \
     "$clone/scripts/ci.sh" macos "v$version" >"$work/$1.out" 2>&1 ||
     status=$?
 }

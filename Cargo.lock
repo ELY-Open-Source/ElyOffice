@@ -2526,6 +2526,7 @@ version = "0.1.12"
 dependencies = [
  "anyhow",
  "arboard",
+ "base64 0.23.1",
  "clipboard-win",
  "directories",
  "dunce",
@@ -2547,6 +2548,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "objc2-pdf-kit",
  "rfd",
+ "ring",
  "rustls-native-certs",
  "rustls-pki-types",
  "rustls-webpki",
