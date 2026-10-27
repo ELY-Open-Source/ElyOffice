@@ -222,7 +222,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - 语言：界面英文与简体中文；内核界面固定英文，内核给出的固定文字（ElyTable 的状态与错误、单元格样式，ElyDoc 的内置样式名）由 Ely 按界面语言重写，文件与主题资源自带的名字（母版、主题色集、用户样式、字体）照原样；ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
 - 外观：Doc、Table、Show、PDF 的页面照文件原色，只有四周的界面随深浅色；邮件正文、Mark、Agent 随深浅色。深色底 `#252525`，不用纯黑。有 Omarchy 时随 Omarchy。
 - 性能：八个应用都不许卡顿（120 FPS 手感，树莓派 3 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事。
-- LOK：界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；内核弹出的对话框即刻关闭并报错，需要的对话框由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入。
+- LOK：worker 启动时关掉内核的 OpenCL（`SAL_DISABLE_OPENCL=1`：其启动自检在 AMD 驱动里会卡死，Calc 在 CPU 上算）；界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；内核弹出的对话框即刻关闭并报错，需要的对话框由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入。
 - 更新：每个应用每个平台一份清单，读 GitHub 的最新发布（`releases/latest/download`，不调 API）；清单以 ed25519 签名（`<清单>.sig`，签的是文件名加内容），公钥编进应用（`ely_platform::update::KEY`），缺签名或不符即拒；种子是组织机密 `ELY_UPDATE_KEY`，本机副本 `update-key.txt` 不入库，丢失即旧版再也收不到更新；自动检查默认关，从不静默安装；包管理器与 Nix 装的不自更新，只提示。
 - 每个应用只跑一份，再次启动把文件交给运行中的那份。
 - 本机别的程序经 `ely-table cell docs|get|set|save` 读写 ElyTable 已打开工作簿的单元格并保存：请求走实例门（本机回环、令牌文件只给同一用户），由应用以 `ely_ui::on_ask` 作答；始终开着；按地址读写由内核补丁 0058 完成，不动用户的光标与选区。
