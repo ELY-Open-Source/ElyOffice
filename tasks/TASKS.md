@@ -2,7 +2,7 @@
 
 进度真相。自上而下，逐条完成，不跳项。编号前缀是 PRD 章节号，`C00` 是用户指令的前置项。
 
-每条完成后：`scripts/review.sh ID 轮次` 在 herdr 开新分栏，codex --yolo（gpt-6.1-sol，effort xhigh，fast）审查，最多三轮。有问题先修，复审通过才勾选。审查只看缺陷，不收“建议增强”。每轮结论写入 `tasks/reviews/<编号>-r<轮>.md`。
+每条完成后：`scripts/review.sh ID 轮次` 在 herdr 开新分栏，codex --yolo（gpt-6-astra，effort xhigh，fast）审查，最多三轮。有问题先修，复审通过才勾选。审查只看缺陷，不收“建议增强”。每轮结论写入 `tasks/reviews/<编号>-r<轮>.md`。
 
 状态：`[ ]` 未做　`[x]` 完成且审查通过　`[~]` 三轮用尽，末轮缺陷已修并有回归测试，未经复审　`[!]` 外部阻塞，写明原因与证据，不算完成。
 
@@ -400,3 +400,56 @@
 - [x] R13.5 #19 ElyTable 本机 IPC（§9、§16）：外部程序经令牌连到运行中的 ElyTable，读写已打开文档的单元格并保存。用户 2026-10-25 定：内核补丁按地址读写单元格，不动用户的光标；首版只有列出文档、读一格（值与公式）、写一格、保存；外部经 `ely-table` 的命令行子命令调用，协议不公开；始终开着，不设开关。做法：补丁 0058（`.uno:CellAt` 读、`.uno:EnterString` 带 `Address` 写，只在该表、一步撤销、光标不动）；`ely-lok` 的 `cell.set` 与 `sheet::cell_at`；实例门加请求帧（`ASK`、`ANSWER`）与 `instance::ask`；`ely-ui::on_ask`；`Host::save_ended`；ElyTable 的 `remote.rs`（命令行与作答）；帮助与 agents.md。测试：内核 `a_cell_reads_and_writes_by_address_and_the_cursor_stays`（读、写公式、光标留在 B1、三种坏地址读写都拒、撤销一步、写另一表不碰当前表；改回用户的选区即失败）；门的请求与拒绝；`home` 转交与无人作答即拒；命令行分词；`tests/scripts/table-cli.sh` 真进程端到端，去掉作答注册或保存回报各令其失败；工作区（除 ely-lok）四线程全过，ely-lok（view，单线程）316 全过（命令表计数 251 改 252）。审查第 1 轮三处：同一标签排队的保存被前一次保存的结果一并回答（调用方得知已存，磁盘仍旧）；含换行的文字写入无撤销记录（上游 `applyText` 用 `SetEditText`），命令报错而内容已改；写当前格后公式栏与无障碍文字不更新。修：外部保存等标签空闲（`when_settled`、`after_export`）再开始自己的导出，结束时只答这一个；`applyText` 的多行分支改经 `ScDocFunc::SetEditCell`（有撤销，键入的多行同受益）；地址写入后照原路径调 `UpdateInputHandler`。补丁 0058 重切。测试：内核测试加两行写入与撤销、当前格写入后公式栏与无障碍文字，去掉任一修即失败；`table-cli.sh` 改为保存答复时即读磁盘（不再重启读回，崩溃恢复会掩盖），加六万行 xlsx 的重叠保存（日志须见排队），旧做法两次皆失败、新做法两次皆过。审查第 2 轮两处：请求与回答沿用路径帧的 128 KiB 上限，两万三千字的单元格读不回；补丁里新函数插在 `lcl_QueryCell` 的注释之后，成两行注释。修：请求与回答另设 64 MiB 上限 `ASKED`；注释移回原函数前，补丁重切。门的测试加 20 万字回答与 30 万字节请求，`table-cli.sh` 加 2.4 万字往返（经 Python 起进程：MSYS 按字节限参数），改回旧上限两者皆失败
 - [x] R13.6 五条议题逐条回复并致谢。2026-10-25 已发（#39、#41、#36、#43、#19 各一条，#41 英文，其余中文）；用户定：议题留着，随带修的版本发布再关
 - [ ] R13.7 发布 0.1.12（用户 2026-10-25 定）：版本号；补丁 0058 先在 Linux（WSL 的 AlmaLinux 8 容器）与两套 Mac 共享引擎里重建；推标签，三端构建上传，核对发布文件；Nix 的 release.json；一分钟更新视频。进度：0.1.12 已提交（dbb2f17）并推送；补丁 0058 已在 Linux 与两套 Mac 共享引擎建好；首次推标签两个 Mac 任务编不过 `gpui-pre-ztracing`（rustc 1.96 载不进 chained fixups 链出的过程宏），macOS 链接关掉 chained fixups 后标签移到修复提交重跑；第二次运行 Mac 编不过 ElyShow（gpui 0.3.9 的帧类型改为 objc2 的 `CFRetained<CVPixelBuffer>`），Windows 停在 ElyMail（`-p ely-mail` 与组件库同名），两处修好后标签再移重跑；视频 `site/video/update-0.1.12`（221a832）
+
+## R14 审计复核与命令行（用户 2026-10-27 定：核实 `OPTIMIZATION.md` 的五十项，真实的全部修好；ElyDoc、ElyShow、ElyMark 照 ElyTable 加命令行；不问，按推荐做）
+
+逐项核实的结论与不修的理由在 `docs/decisions.md` 2026-10-27。括号里是审计编号。
+
+- [x] R14.1 发布批次与审查模型（A-01）：PRD 第 9 行与 §1.2 第 1 条改为两批，ElyAgent 第二批；审查改用 gpt-6-astra（xhigh、fast）：`review.sh`、本文件页首、agents.md — R1 PASS
+- [ ] R14.2 更新清单经 GitHub 的 `releases/latest/download/` 取，不调 API，不受每小时 60 次的限（E-05，§4.2）
+- [ ] R14.3 更新清单签名（F-01，§4.2）：ed25519，公钥编进应用，`ci.sh` 签每份清单，缺签名或不符即拒；Windows 安装程序的 Authenticode 需要代码签名证书，本机没有
+- [ ] R14.4 更新安装（C-03，§4.2）：Windows 与 AppImage 已在退出后安装并重开（`install::after_quit`），关闭 N-03；非 macOS 的 `install`、`reopen` 桩删去
+- [ ] R14.5 用户提出的问题（D-06，§5）：C05.7、C05.8、R1.2 以各自编号送审；R2.5、R2.6、R2.8、R2.10、R2.12、R2.13、R2.14 照状态规则改正标记
+- [ ] R14.6 中文界面余下的英文（I-03，§5）
+- [ ] R14.7 文档内容对读屏可达（I-01，§5 UX-11）：LOK 段落的插入点与选区、ElyPDF 页面文字
+- [ ] R14.8 无障碍复核：七个应用，Windows 的 UIA 与 Linux 的 AT-SPI（I-02、A-07，§5）
+- [ ] R14.9 恢复（§6.3）：X-05 写不成每 10 秒弹一次、X-06 `session.lock` 坏即永久关闭、X-12 界面线程做文件 I/O
+- [ ] R14.10 保存与关闭（§6.2）：X-08 关闭链悬空、X-09 自动保存停摆、X-10 别的卷消失
+- [ ] R14.11 恢复点与 worker 日志（§6.3、§18）：X-07 每次写入解密全部点、X-11 非 UTF-8 即停止中继
+- [ ] R14.12 `ely-files` 的写入失败测试以 root 运行也成立（B-05，§6）
+- [ ] R14.13 LOK（§7）：K-02 图块代际、K-03 宽容解析、K-04 有符号的 part；K-01 照实关闭
+- [ ] R14.14 `view::tests::large` 并行时卡在 `Worker::spawn` 的根因（R12.38，§7）
+- [ ] R14.15 ElyDoc 命令行（§8、§16）：`ely-doc text docs|get|replace|save`
+- [ ] R14.16 ElyDoc 字号菜单的 `expect`（X-04，§8）
+- [ ] R14.17 ElyShow 媒体：Windows 以 Media Foundation 实现 `media::Player`（C-01、N-02，§10）
+- [ ] R14.18 ElyShow 媒体：Linux 以 GStreamer 实现 `media::Player`（C-01、N-02，§10）
+- [ ] R14.19 ElyShow 命令行（§10、§16）：`ely-show text docs|get|replace|save`
+- [ ] R14.20 PPTX 的章节（`p14:sectionLst`）保存不丢（D-02，§10、§19）
+- [ ] R14.21 ElyPDF：Windows 上的三个测试（R12.35、P3-13）；证书信任三端已有，关闭 N-04（C-02，§11）
+- [ ] R14.22 ElyMail 邮件列表的滚动条（R12.28、R12.39，§12）
+- [ ] R14.23 ElyMail 接 `mailto:`（D-03，§12）：三端登记为可选的处理程序，不设为默认；打开即写信，收件人、主题、正文照链接
+- [ ] R14.24 Gmail 应用专用密码的前提写在添加账户处（D-05，§12）
+- [ ] R14.25 ElyTree 缺陷 G-03 至 G-08（§13）
+- [ ] R14.26 ElyTree 缺陷 G-09 至 G-12、G-14（§13）
+- [ ] R14.27 ElyTree 打开终端、停止 Git：Windows、Linux（C-04、C-06、N-05、G-13、X-13，§13）
+- [ ] R14.28 ElyTree 测试：Windows（R12.36、P3-14）与 2.40 起的系统 Git（B-04，§13）
+- [ ] R14.29 ElyMark 可视模式只能在一个段落里选取，跨段选取要切到源码模式（用户 2026-10-27 报，§14）：可视模式拖动与 Shift 加方向键跨段选取，复制、删除、格式随之。核实：组件库 `MarkdownDocument` 的可视模式一次只把一个块开成文本框（`document/visual.rs` 的 `open_text`），没有跨块的选区；组件库 `blocks::BlockEditor` 有跨块选区（`blocks/span.rs`），ElyMark 不用它。在组件库修，推上去再改 pin
+- [ ] R14.30 ElyMark 命令行（§14、§16）：`ely-mark text docs|get|replace|save`
+- [ ] R14.31 ElyMark 打开 1 MB 文档的内存（H-02，§14、§20）
+- [ ] R14.32 ElyMark 不带 LOK 与 MuPDF 也能编译（E-01，§17）
+- [ ] R14.33 行尾：`.gitattributes` 定 LF，入库文件统一（B-08，§17）
+- [ ] R14.34 规则检查 `scripts/check.sh`：行数、注释、行尾；超 500 行的五个文件拆开（B-09，§17）
+- [ ] R14.35 依赖：cargo-deny 查许可与安全公告（E-04，§17、§21）
+- [ ] R14.36 往返验证在 Windows、Linux 运行，兼容清单分平台写明（C-05，§19）；与 Microsoft Office 交叉核对需要 Office，本机没有（D-01）
+- [ ] R14.37 XLSX 里不支持的函数，保存后缓存值不丢（D-02，§19）
+- [ ] R14.38 运行时可达的 panic（G-01，§20）
+- [ ] R14.39 性能：bench 在 Windows、Linux 运行，记下 0.1.12（H-01、H-03，§20）；120 Hz 实测需要高刷显示器，本机最高 75 Hz（H-04）
+- [ ] R14.40 缺引擎的测试：`ELY_REQUIRE_ENGINES=1` 即失败，CI 开启（B-03，§22）
+- [ ] R14.41 构建依赖写进 README，`doctor.sh` 逐项查（B-06，§22）
+- [ ] R14.42 Windows 与 Linux 全量测试通过（W-02、L-02，§22）
+- [ ] R14.43 发布以测试为门（B-02，§22）；Linux 任务不等 Windows 任务（B-07）
+- [ ] R14.44 合并前 CI：`pr.yml`（B-01，§22）
+- [ ] R14.45 窗口测试含 ElyMail（D-04，§22）
+- [ ] R14.46 记录（§24）：末轮 FAIL 而标 `[x]` 的改正（A-02）；已修的缺陷关闭并写提交（A-04）；一事一登记（A-05）；悬空引用（A-09）
+- [ ] R14.47 证据与结论（§23、§24）：引用的本机文件改为库内证据（A-06）；过期结论（A-07）
+- [ ] R14.48 验收核对表：五十项、三个命令行与跨段选取逐条核对

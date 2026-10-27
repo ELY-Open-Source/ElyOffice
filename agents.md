@@ -126,7 +126,7 @@ scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 到 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核对散列；Mac 核对架构）
 tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架构（ci.sh 发布前调用）
-scripts/review.sh ID 轮次 路径  审查一条任务（herdr 右侧分栏，codex gpt-6.1-sol，effort xhigh，fast）
+scripts/review.sh ID 轮次 路径  审查一条任务（herdr 右侧分栏，codex gpt-6-astra，effort xhigh，fast）
 scripts/apply-lo-patches.sh engines/lo-src  找出源码已到补丁序列第几个，补上其余（构建脚本调用）
 tests/scripts/lo-patches.sh    补丁序列从中途接着打、再打一次为空操作
 tests/scripts/media-targets.sh 媒体播放接口在 Linux、Windows 目标可编译（缺目标时 SKIP）

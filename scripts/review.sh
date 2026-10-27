@@ -37,7 +37,7 @@ pane=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus | jq
 echo "$pane" >"$last"
 started=
 for _ in 1 2 3 4 5; do
-  if err=$(herdr agent start "$name" --kind codex --pane "$pane" --timeout 120000 -- --yolo --model gpt-6.1-sol -c 'model_reasoning_effort="xhigh"' -c 'service_tier="fast"' -c check_for_update_on_startup=false 2>&1); then
+  if err=$(herdr agent start "$name" --kind codex --pane "$pane" --timeout 120000 -- --yolo --model gpt-6-astra -c 'model_reasoning_effort="xhigh"' -c 'service_tier="fast"' -c check_for_update_on_startup=false 2>&1); then
     started=1
     break
   fi
