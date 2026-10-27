@@ -31,6 +31,12 @@ fn ask(cx: &mut TestAppContext, deck: &Entity<Deck>, words: &[&str]) -> Result<S
     answer.into_inner().expect("answered")
 }
 
+/// Indices of the selected objects on the shown slide.
+fn marked(app: &gpui::App, deck: &Entity<Deck>) -> Vec<usize> {
+    let objects = deck.read(app).active_tab().and_then(|tab| tab.extra.objects.as_ref());
+    objects.map_or(Vec::new(), |found| found.objects.iter().enumerate().filter(|(_, o)| o.selected).map(|(at, _)| at).collect())
+}
+
 fn current(cx: &mut TestAppContext, deck: &Entity<Deck>) -> Option<usize> {
     cx.update(|app| deck.read(app).active_tab().map(|tab| tab.extra.slides.current))
 }
@@ -54,11 +60,17 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok("cat Cat 世界 😀 cat\x0ccat cell\ngrouped cat".into()));
     update(&mut cx, &deck, |deck, cx| deck.go_to_finding(1, cx));
     settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.current == 1));
+    // A selected table: matches elsewhere still change.
+    update(&mut cx, &deck, |deck, cx| deck.select_objects(&["0".into()], cx));
+    settle(&cx, |app| marked(app, &deck) == vec![0]);
     assert_eq!(ask(&mut cx, &deck, &["replace", &file, "cat", "dog"]), Ok(String::new()));
     let after = "dog Cat 世界 😀 dog\x0cdog cell\ngrouped dog";
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok(after.into()));
     quiet(&cx, &deck);
     assert_eq!(current(&mut cx, &deck), Some(1), "the user's slide stays");
+    update(&mut cx, &deck, |deck, cx| deck.force_reread(deck.core.active.expect("a tab"), cx));
+    quiet(&cx, &deck);
+    assert_eq!(cx.update(|app| marked(app, &deck)), vec![0], "the selection stays");
     cx.update(|app| {
         let tab = deck.read(app).active_tab().expect("a tab");
         assert!(tab.dirty(app), "a read leaves the edit unsaved");

@@ -56,14 +56,42 @@ impl Deck {
                 let (find, with) = (find.clone(), with.clone());
                 self.read_in(
                     id,
-                    move |worker, doc| worker.run(doc, "text.replace", &[&find, "false", "3", "0", "0", "1", &with, "true"]),
-                    move |_, done, _, _| ask.answer(done.map(|()| String::new()).map_err(|error| format!("nothing replaced: {error}"))),
+                    move |worker, doc| replace_all(worker, doc, &find, &with),
+                    move |_, done, _, _| ask.answer(done.map(|()| String::new()).map_err(|error| error.to_string())),
                     cx,
                 );
             }
             _ => ask.answer(Err("unknown command".into())),
         }
     }
+}
+
+/// Impress narrows Replace All to marked objects; unmark, then restore.
+fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, with: &str) -> std::io::Result<()> {
+    let read = |worker: &mut ely_lok::Worker, doc: &ely_lok::Doc| {
+        Ok::<_, std::io::Error>(ely_lok::show::objects(&worker.values(doc, ely_lok::show::OBJECTS)?)?.objects)
+    };
+    let before = read(worker, doc)?;
+    let marked: Vec<String> =
+        before.iter().enumerate().filter(|(_, object)| object.selected).map(|(at, _)| at.to_string()).collect();
+    if !marked.is_empty() {
+        worker.run(doc, "object.deselect", &["false"])?;
+    }
+    let replaced = worker.run(doc, "text.replace", &[find, "false", "3", "0", "0", "1", with, "true"]);
+    if !marked.is_empty() {
+        let now = worker.now(doc)?;
+        let same = |a: &[ely_lok::show::Object], b: &[ely_lok::show::Object]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| (&a.kind, &a.placeholder) == (&b.kind, &b.placeholder))
+        };
+        if !same(&before, &read(worker, &now)?) {
+            return Err(std::io::Error::other("the slide's objects changed; the selection was not restored"));
+        }
+        let picks: Vec<[&str; 2]> =
+            marked.iter().enumerate().map(|(n, at)| [at.as_str(), if n > 0 { "true" } else { "false" }]).collect();
+        let commands: Vec<(&str, &[&str])> = picks.iter().map(|values| ("object.select", values.as_slice())).collect();
+        worker.run_all(&now, &commands)?;
+    }
+    replaced.map_err(|error| std::io::Error::other(format!("nothing replaced: {error}")))
 }
 
 #[cfg(test)]
