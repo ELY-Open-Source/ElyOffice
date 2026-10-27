@@ -71,7 +71,7 @@ impl Props {
     ) -> AnyElement {
         let this = cx.entity();
         let empty = names.is_empty();
-        let current = current.map(|name| SharedString::from(builtin::listed(styles, &name).to_string()));
+        let current = current.map(|name| SharedString::from(builtin::listed(styles, &name)));
         let placeholder = match current.as_deref() {
             Some(ely_lok::MIXED) => Docs::text(cx, "office.props.mixed", &[]),
             Some(name) if known(name) => builtin::shown(styles, name, cx),

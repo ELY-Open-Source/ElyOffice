@@ -12,6 +12,11 @@ use gpui::{
 pub struct LaidOut(Mutex<Vec<String>>);
 
 impl LaidOut {
+    /// Forgets what was laid out so far.
+    pub fn clear(&self) {
+        self.0.lock().expect("the laid-out texts").clear();
+    }
+
     /// Whether some laid-out string holds `text`.
     pub fn saw(&self, text: &str) -> bool {
         let texts = self.0.lock().expect("the laid-out texts");

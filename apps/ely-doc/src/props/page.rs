@@ -212,7 +212,7 @@ impl Props {
         let current = self
             .state(".uno:PageStyleName", cx)
             .filter(|name| known(name))
-            .map(|name| SharedString::from(builtin::listed(&PAGE, &name).to_string()));
+            .map(|name| SharedString::from(builtin::listed(&PAGE, &name)));
         let this = cx.entity();
         let empty = names.is_empty();
         let mut menu = Select::new(

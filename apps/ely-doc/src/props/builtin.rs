@@ -6,22 +6,41 @@ use gpui::{App, SharedString};
 /// The kernel's name, its English, its Chinese.
 pub(super) type Builtin = (&'static str, &'static str, &'static str);
 
-/// Turns the kernel's English name into its list name.
-pub(super) fn listed<'a>(styles: &'static [Builtin], name: &'a str) -> &'a str {
-    styles
-        .iter()
-        .find(|(_, english, _)| *english == name)
-        .map_or(name, |(kernel, ..)| kernel)
+/// The character default: outside the pool, never suffixed.
+const NO_CHARACTER_STYLE: Builtin = ("Standard", "No Character Style", "无字符样式");
+
+/// A clashing user name carries this, as in LibreOffice.
+const USER: &str = " (user)";
+
+/// `name` less a user suffix, as LibreOffice drops it.
+fn unmarked(name: &str) -> &str {
+    match name.strip_suffix(USER) {
+        Some(rest) if name.encode_utf16().count() > 8 => rest,
+        _ => name,
+    }
 }
 
-/// How `name` reads; a user's own style keeps its name.
+/// The list name of a state name, as LibreOffice's FillProgName.
+pub(super) fn listed(styles: &[Builtin], name: &str) -> String {
+    if let Some((kernel, ..)) = styles.iter().find(|(_, english, _)| *english == name) {
+        return kernel.to_string();
+    }
+    if styles.iter().any(|row| row.0 == name && *row != NO_CHARACTER_STYLE) {
+        return format!("{name}{USER}");
+    }
+    unmarked(name).to_string()
+}
+
+/// How a list name reads, as LibreOffice's FillUIName.
 pub(super) fn shown(styles: &[Builtin], name: &str, cx: &App) -> SharedString {
     let chinese = cx.global::<I18n>().locale().tag == "zh-CN";
-    match styles.iter().find(|(kernel, ..)| *kernel == name) {
-        Some((_, _, zh)) if chinese => (*zh).into(),
-        Some((_, english, _)) => (*english).into(),
-        None => name.to_string().into(),
+    if let Some((_, english, zh)) = styles.iter().find(|(kernel, ..)| *kernel == name) {
+        return if chinese { *zh } else { *english }.into();
     }
+    if styles.iter().any(|row| row.1 == name && *row != NO_CHARACTER_STYLE) {
+        return format!("{name}{USER}").into();
+    }
+    unmarked(name).to_string().into()
 }
 
 // From LibreOffice 26.2.6: SwStyleNameMapper, strings.hrc, zh-CN po.
@@ -155,7 +174,7 @@ pub(super) const PARAGRAPH: [Builtin; 126] = [
 ];
 
 pub(super) const CHARACTER: [Builtin; 27] = [
-    ("Standard", "No Character Style", "无字符样式"),
+    NO_CHARACTER_STYLE,
     ("Footnote Symbol", "Footnote Characters", "脚注符"),
     ("Page Number", "Page Number", "页码"),
     ("Caption characters", "Caption Characters", "题注字符"),

@@ -2,7 +2,11 @@
 
 use std::sync::Arc;
 
-use ely_gpui_component::{i18n::I18n, theme::Theme};
+use ely_gpui_component::{
+    i18n::I18n,
+    tables::{FilterRule, Test},
+    theme::Theme,
+};
 use ely_office::laid::LaidOut;
 use gpui::{TestDispatcher, VisualTestContext};
 
@@ -37,15 +41,29 @@ fn sort_and_filter_speak_chinese() {
     });
     open(&mut cx, &book);
     run(&mut cx, &book, "cell.goto", &["A1"]);
-    let window = cx.add_window(|_, _| Shown(book.clone()));
-    let mut shown = VisualTestContext::from_window(window.into(), &cx);
-    for (asked_for, is) in [
-        (crate::data::Asked::Sort, (|dialog: &Dialog| matches!(dialog, Dialog::Sort { .. })) as fn(&Dialog) -> bool),
-        (crate::data::Asked::Filter, |dialog: &Dialog| matches!(dialog, Dialog::Filter { .. })),
+    for (asked_for, is, title) in [
+        (crate::data::Asked::Sort, (|dialog: &Dialog| matches!(dialog, Dialog::Sort { .. })) as fn(&Dialog) -> bool, "table.data.sort_title"),
+        (crate::data::Asked::Filter, |dialog: &Dialog| matches!(dialog, Dialog::Filter { .. }), "table.data.filter_title"),
     ] {
         update(&mut cx, &book, |book, cx| book.ask_data(asked_for, cx));
         asked(&cx, &book, is);
+        // A rule shows the filter's pickers.
+        update(&mut cx, &book, |book, _| {
+            if let Some(Dialog::Filter { rules, .. }) = &mut book.dialog {
+                *rules = vec![FilterRule {
+                    column: "0".into(),
+                    test: Test::Equals,
+                    value: "a".into(),
+                }];
+            }
+        });
+        // A new window lays out afresh.
+        laid.clear();
+        let window = cx.add_window(|_, _| Shown(book.clone()));
+        let mut shown = VisualTestContext::from_window(window.into(), &cx);
         frames(&mut shown);
+        let title = cx.update(|app| Book::text(app, title, &[]));
+        assert!(laid.saw(&title), "{asked_for:?} drew {title}");
         // The sheet's own headers are its content.
         assert!(laid.saw("Name"), "{asked_for:?} drew its columns");
         assert_eq!(laid.english(&["Name", "Qty", "City"]), Default::default(), "{asked_for:?}");
