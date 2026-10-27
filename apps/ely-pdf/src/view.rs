@@ -6,6 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use ely_gpui_component::primitives::FocusRing as _;
 use ely_pdf_engine::{Bookmark, Char, Doc, Worker};
 use gpui::{
     Context, EventEmitter, FocusHandle, InteractiveElement as _, IntoElement, ParentElement as _,
@@ -426,6 +427,9 @@ impl Render for PdfView {
             .role(Role::Document)
             .aria_label(ely_ui::i18n::text(cx, "pdf.document", &[]))
             .size_full()
+            .border_1()
+            .border_color(gpui::transparent_black())
+            .focus_ring(cx)
             .track_focus(&self.focus)
             .when_some(reading, |view, reading| view.a11y_synthetic_children(reading))
             .child(pages)

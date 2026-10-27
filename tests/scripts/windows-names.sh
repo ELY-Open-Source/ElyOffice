@@ -24,9 +24,9 @@ export MSYS2_ARG_CONV_EXCL='*'
 
 # What NVDA reads, through UI Automation.
 cat >"$work/walk.ps1" <<'EOF'
-param([string]$Exe, [string]$File, [string]$Data, [string]$Out)
+param([string]$Exe, [string]$File, [string]$Page, [string]$Data, [string]$Out)
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -54,6 +54,15 @@ function Press([byte]$key) {
     Start-Sleep -Milliseconds 300
     $A::FocusedElement
 }
+function IsPage($e) { $Page -and $e.Current.Name -eq $Page -and @('Edit', 'Document') -contains (Kind $e) }
+# The page's top edge, where its focus ring draws.
+function Edge($box) {
+    $shot = New-Object System.Drawing.Bitmap ([int]$box.Width), 2
+    [System.Drawing.Graphics]::FromImage($shot).CopyFromScreen([int]$box.Left, [int]$box.Top, 0, 0, $shot.Size)
+    $bytes = New-Object System.IO.MemoryStream
+    $shot.Save($bytes, [System.Drawing.Imaging.ImageFormat]::Png)
+    [Convert]::ToBase64String($bytes.ToArray())
+}
 try {
     $window = $null
     foreach ($i in 1..120) {
@@ -69,8 +78,9 @@ try {
             $log.Add("unnamed $(Kind $e) at $($e.Current.BoundingRectangle)")
         }
     }
-    $pages = @($all | Where-Object { (Kind $_) -eq 'Document' }).Count
+    if ($Page -and -not @($all | Where-Object { IsPage $_ }).Count) { $log.Add("no page [$Page]") }
     $reached = $false
+    $ring = $null
     # A click on the title bar's empty middle activates it.
     $menus = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::MenuBar)
     $bar = $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $menus).Current.BoundingRectangle
@@ -98,12 +108,20 @@ try {
         $last = $key
         $stops++
         if (-not $focused.Current.Name) { $log.Add("nameless stop $stops $(Kind $focused)") }
+        # A page without a caret must show its focus.
+        if ($ring) {
+            if ($ring.Shot -eq (Edge $ring.Box)) { $log.Add('no visible focus on the page') }
+            $ring = $null
+        }
+        if ((IsPage $focused) -and (Kind $focused) -eq 'Document') {
+            $ring = @{ Box = $focused.Current.BoundingRectangle; Shot = (Edge $focused.Current.BoundingRectangle) }
+        }
         for ($up = $focused; $up -and -not $reached; $up = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($up)) {
-            $reached = (Kind $up) -eq 'Document'
+            $reached = IsPage $up
         }
     }
     # Tab must lead back to the page.
-    if ($pages -and -not $reached) { $log.Add('unreached document') }
+    if ($Page -and -not $reached) { $log.Add("unreached page [$Page]") }
     $log.Add("stops $stops")
 } catch { $log.Add("error $_") } finally {
     [System.IO.File]::WriteAllLines($Out, $log)
@@ -114,22 +132,22 @@ EOF
 
 w() { cygpath -w "$1"; }
 failed=0
-for spec in "ely-doc doc.fodt" "ely-table table.fods" "ely-show show.fodp" "ely-pdf pdf.pdf" "ely-mail -" "ely-tree repo" "ely-mark mark.md"; do
-  set -- $spec
+while IFS='|' read -r app sample page; do
+  set -- "$app" "$sample"
   mkdir -p "$work/data-$1"
   file=""
   [ "$2" = - ] || file=$(w "$work/$2")
   powershell -NoProfile -ExecutionPolicy Bypass -File "$(w "$work/walk.ps1")" -Exe "$(w "$root/target/debug/$1.exe")" \
-    -File "$file" -Data "$(w "$work/data-$1")" -Out "$(w "$work/$1.log")"
+    -File "$file" -Page "$page" -Data "$(w "$work/data-$1")" -Out "$(w "$work/$1.log")" </dev/null
   log=$(tr -d '\r' <"$work/$1.log")
   stops=$(printf '%s\n' "$log" | sed -n 's/^stops //p')
-  if printf '%s\n' "$log" | grep -qE '^(unnamed|nameless|unreached|trapped|error)' || [ "${stops:-0}" -lt 3 ]; then
+  if printf '%s\n' "$log" | grep -qE '^(unnamed|nameless|unreached|no page|no visible|trapped|error)' || [ "${stops:-0}" -lt 3 ]; then
     echo "FAIL: $1" >&2
     printf '%s\n' "$log" >&2
     failed=1
   else
     echo "ok: $1, $stops Tab stops"
   fi
-done
+done < <(a11y_apps)
 [ "$failed" = 0 ] || exit 1
 echo "PASS: seven apps name every control and every Tab stop; Tab reaches each document, F6 leaves it"

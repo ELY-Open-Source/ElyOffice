@@ -1,4 +1,19 @@
-# Sourced: writes the files the name tests open into $1.
+# Sourced by the name tests.
+
+# Each app, its sample and its page's name.
+a11y_apps() {
+  cat <<'EOF'
+ely-doc|doc.fodt|Document
+ely-table|table.fods|Spreadsheet
+ely-show|show.fodp|Presentation
+ely-pdf|pdf.pdf|PDF document
+ely-mail|-|
+ely-tree|repo|
+ely-mark|mark.md|Document
+EOF
+}
+
+# Writes the files the apps open into $1.
 a11y_samples() {
   local dir=$1
   local ns='xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'

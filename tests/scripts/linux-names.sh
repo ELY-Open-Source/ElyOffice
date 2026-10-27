@@ -49,7 +49,7 @@ R = Atspi.Role
 ACTS = {R.PUSH_BUTTON, R.TOGGLE_BUTTON, R.CHECK_BOX, R.RADIO_BUTTON, R.COMBO_BOX, R.ENTRY, R.PASSWORD_TEXT,
         R.LIST_ITEM, R.MENU_ITEM, R.PAGE_TAB, R.TREE_ITEM, R.SLIDER, R.SPIN_BUTTON, R.LINK, R.DOCUMENT_FRAME}
 TAB, F6 = 0xFF09, 0xFFC3
-exe, path, out = sys.argv[1:4]
+exe, path, page, out = sys.argv[1:5]
 log = []
 
 
@@ -69,6 +69,10 @@ def app_of(pid):
 
 def focused(app):
     return next((n for n in nodes(app) if n.get_state_set().contains(Atspi.StateType.FOCUSED)), None)
+
+
+def is_page(node):
+    return bool(page) and node.get_name() == page and node.get_role() in (R.ENTRY, R.DOCUMENT_FRAME)
 
 
 def key_of(node):
@@ -108,9 +112,11 @@ try:
     time.sleep(6)
     pages = 0
     for node in nodes(app):
-        pages += node.get_role() == R.DOCUMENT_FRAME
+        pages += is_page(node)
         if node.get_role() in ACTS and not node.get_name():
             log.append(f"unnamed {node.get_role_name()}")
+    if page and not pages:
+        log.append(f"no page [{page}]")
     give_focus()
     seen, last, stops, reached = set(), None, 0, False
     for _ in range(150):
@@ -133,10 +139,10 @@ try:
             log.append(f"nameless stop {stops} {key[0]}")
         up = node
         while up is not None and not reached:
-            reached, up = up.get_role() == R.DOCUMENT_FRAME, up.get_parent()
+            reached, up = is_page(up), up.get_parent()
     # Tab must lead back to the page.
-    if pages and not reached:
-        log.append("unreached document")
+    if page and not reached:
+        log.append(f"unreached page [{page}]")
     log.append(f"stops {stops}")
 except SystemExit as stop:
     log.append(str(stop))
@@ -149,7 +155,8 @@ EOF
 
 # A private session bus with accessibility on.
 inside='set -euo pipefail
-"$1" --launch-immediately >"$2/atspi.log" 2>&1 &
+launcher=$1 work=$2 bin=$3 apps=$4
+"$launcher" --launch-immediately >"$work/atspi.log" 2>&1 &
 for _ in $(seq 40); do
   python3 -I -c "
 from gi.repository import Gio, GLib
@@ -159,23 +166,22 @@ Gio.bus_get_sync(Gio.BusType.SESSION).call_sync(\"org.a11y.Bus\", \"/org/a11y/bu
   sleep 0.25
 done
 failed=0
-for spec in "ely-doc doc.fodt" "ely-table table.fods" "ely-show show.fodp" "ely-pdf pdf.pdf" "ely-mail -" "ely-tree repo" "ely-mark mark.md"; do
-  set -- "$1" "$2" "$3" $spec
-  mkdir -p "$2/data-$4"
+while IFS="|" read -r app sample page; do
+  mkdir -p "$work/data-$app"
   file=-
-  [ "$5" = - ] || file=$2/$5
-  ELY_DATA_ROOT=$2/data-$4 python3 -I "$2/walk.py" "$3/$4" "$file" "$2/$4.log" 2>/dev/null
-  stops=$(sed -n "s/^stops //p" "$2/$4.log")
-  if grep -qE "^(unnamed|nameless|unreached|trapped|no focus|error)" "$2/$4.log" || [ "${stops:-0}" -lt 3 ]; then
-    echo "FAIL: $4"
-    cat "$2/$4.log"
+  [ "$sample" = - ] || file=$work/$sample
+  ELY_DATA_ROOT=$work/data-$app python3 -I "$work/walk.py" "$bin/$app" "$file" "$page" "$work/$app.log" 2>/dev/null </dev/null
+  stops=$(sed -n "s/^stops //p" "$work/$app.log")
+  if grep -qE "^(unnamed|nameless|unreached|no page|trapped|no focus|error)" "$work/$app.log" || [ "${stops:-0}" -lt 3 ]; then
+    echo "FAIL: $app"
+    cat "$work/$app.log"
     failed=1
   else
-    echo "ok: $4, $stops Tab stops"
+    echo "ok: $app, $stops Tab stops"
   fi
-done
+done <<<"$apps"
 exit $failed'
 unset WAYLAND_DISPLAY
-ELY_GIT=${ELY_GIT:-$(command -v git)} ELY_NO_DIALOG=1 dbus-run-session -- bash -c "$inside" _ "$launcher" "$work" "$bin" 2>"$work/session.log" ||
+ELY_GIT=${ELY_GIT:-$(command -v git)} ELY_NO_DIALOG=1 dbus-run-session -- bash -c "$inside" _ "$launcher" "$work" "$bin" "$(a11y_apps)" 2>"$work/session.log" ||
   { echo "FAIL: see $work" >&2; exit 1; }
 echo "PASS: seven apps name every control and every Tab stop; Tab reaches each document, F6 leaves it"
