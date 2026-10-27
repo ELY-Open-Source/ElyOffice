@@ -94,10 +94,10 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [ ] G-12 符号链接父目录下，当前打开的工作树被当成别的工作树而可“移除”
 - [ ] G-13 非 macOS 平台的死入口
 - [ ] G-14 `repo.rs` 的孤立文档注释
-- [ ] K-01 非 macOS 的 worker 不运行 VCL 主循环，内核的回调与异步输入永远不送达
-- [ ] K-02 图块的代际在画完之后才取，画到一半的作废被盖掉
-- [ ] K-03 `rect_of` 宽容解析把读不出的载荷悄悄吞掉
-- [ ] K-04 `Sheets.current` 用 `as u64` 转有符号的 part
+- [x] K-01 非 macOS 的 worker 不运行 VCL 主循环，内核的回调与异步输入永远不送达 — c96d39a 已做（Windows `worker/messages.rs`、Linux `worker/unipoll.rs`）；R14.13 照实关闭
+- [x] K-02 图块的代际在画完之后才取，画到一半的作废被盖掉 — d59159c 已做（先读代际再画）；R14.13 核对
+- [x] K-03 `rect_of` 宽容解析把读不出的载荷悄悄吞掉 — d59159c 已做（`Unreadable` 记为故障）；R14.13 补测试 `an_unreadable_rectangle_is_reported_never_swallowed`
+- [x] K-04 `Sheets.current` 用 `as u64` 转有符号的 part — d59159c 已做（`u64::try_from`，-1 报错）；R14.13 核对
 - [x] X-01 设置窗口在前时 Cmd+Q 直接退出，跳过未保存询问并抹掉恢复点 — 退出一律经主窗口宿主的流程（route_quit），延后到动作结束、先把宿主窗口提到前面；R1 主窗口 Cmd+Q 不问；R2 询问被设置窗口挡住；R3 PASS
 - [x] X-02 共用 `settings.json` 读不出时 Doc、Table、Show 根本起不来 — 作者名取启动时读入的设置；R1 重启失败丢作者、脚本退出码、client.rs 超行；R2 作者更新的先后与停机期间的更新；R3 PASS
 - [x] X-03 第二个实例启动即清掉运行中实例的工作目录与恢复点 — 每个应用一个实例锁，第二份被拒并报出持锁进程（Unix fcntl F_GETLK）；R1–R3 进程号竞争、Windows 断言；R4 PASS

@@ -70,3 +70,18 @@ fn malformed_formula_geometry_is_reported_and_cleared() {
     assert!(slot.batch.selection.is_empty());
     assert_eq!(slot.batch.text, TextAnchors::default());
 }
+
+#[test]
+fn an_unreadable_rectangle_is_reported_never_swallowed() {
+    let mut slot = Slot::default();
+    record(&mut slot, INVALIDATE_TILES, "EMPTY");
+    assert!(slot.batch.faults.is_empty() && slot.batch.all, "EMPTY means all");
+    let mut slot = Slot::default();
+    record(&mut slot, INVALIDATE_TILES, "1,2,x,4");
+    assert!(slot.batch.all, "an unreadable invalidation still redraws");
+    record(&mut slot, CELL_CURSOR, "1,2,3");
+    assert!(slot.batch.cell.cursor.is_none());
+    let mark = r#"{"marks":[{"rectangle":"1,2,y,4","color":"ff0000","part":"0"}]}"#;
+    record(&mut slot, REFERENCE_MARKS, mark);
+    assert_eq!(slot.batch.faults.len(), 3, "{:?}", slot.batch.faults);
+}
