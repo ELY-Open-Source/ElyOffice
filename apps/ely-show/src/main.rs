@@ -19,6 +19,7 @@ mod object;
 mod output;
 mod preview;
 mod remarks;
+mod remote;
 mod slides;
 mod slideshow;
 mod table;
@@ -27,6 +28,9 @@ mod text;
 use ely_platform::AppId;
 
 fn main() {
+    if let Some(code) = remote::command_line() {
+        std::process::exit(code);
+    }
     ely_ui::run(AppId::Show, deck::open);
 }
 

@@ -11,7 +11,8 @@ fail() {
   exit 1
 }
 
-cargo build -q -p ely-lok --bins -p ely-table --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-lok --bin ely-lok-worker --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-table --manifest-path "$root/Cargo.toml"
 swiftc -O -o "$work/shade" "$root/tests/scripts/window-shade.swift"
 shade_of() {
   local mode=$1 home="$work/$1"

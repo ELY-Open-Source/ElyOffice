@@ -174,6 +174,7 @@ tests/scripts/rpath-rules.sh     rpath.sh（release-macos.sh 逐个调用）对�
 tests/scripts/bad-settings.sh  通用设置读不出时 ElyDoc 照样启动，文件不被覆盖
 tests/scripts/table-cli.sh     开着 ElyTable 与一个工作簿，另一进程经 `ely-table cell` 列出、读、写（公式）、保存，错误地址与未开的文件被拒；保存答复时读磁盘核对；六万行 xlsx 上保存、写入、再保存交叠，第二次保存答复时写入已在盘上
 tests/scripts/doc-cli.sh       开着 ElyDoc 与一个 docx，另一进程经 `ely-doc text` 列出、读正文、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对
+tests/scripts/show-cli.sh      开着 ElyShow 与一个 pptx，另一进程经 `ely-show text` 列出、读各页文字、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对
 tests/scripts/data-folder.sh   指向文件要求搬动时，ElyMark 启动即把数据搬进所选文件夹、切换并记日志
 tests/scripts/one-instance.sh  第二份 ElyDoc 把文件交给第一份后退出，第一份开出它、工作目录不动
 tests/scripts/update.sh        装好的 ElyTree 从本机服务的新版下载、替换、重新打开（需辅助功能权限）
@@ -227,7 +228,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - LOK：worker 启动时关掉内核的 OpenCL（`SAL_DISABLE_OPENCL=1`：其启动自检在 AMD 驱动里会卡死，Calc 在 CPU 上算）；界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；内核弹出的对话框即刻关闭并报错，需要的对话框由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入。
 - 更新：每个应用每个平台一份清单，读 GitHub 的最新发布（`releases/latest/download`，不调 API）；清单以 ed25519 签名（`<清单>.sig`，签的是文件名加内容），公钥编进应用（`ely_platform::update::KEY`），缺签名或不符即拒；种子是组织机密 `ELY_UPDATE_KEY`，本机副本 `update-key.txt` 不入库，丢失即旧版再也收不到更新；自动检查默认关，从不静默安装；包管理器与 Nix 装的不自更新，只提示。
 - 每个应用只跑一份，再次启动把文件交给运行中的那份。
-- 本机别的程序经 `ely-table cell docs|get|set|save` 读写 ElyTable 已打开工作簿的单元格并保存：请求走实例门（本机回环、令牌文件只给同一用户），由应用以 `ely_ui::on_ask` 作答；始终开着；按地址读写由内核补丁 0058 完成，不动用户的光标与选区。ElyDoc 同样经 `ely-doc text docs|get|replace|save`：读的是内核导出的 fodt 副本里正文的段落（`ely_office::remote::body_text`，不含脚注、批注、文本框与删除的修订），替换是 Writer 的全部替换（精确、区分大小写、静默，光标照旧，一步撤销，一处没有即报错）。命令行、`docs`、`save` 与按文件找标签在 `ely_office::remote`，各应用只写自己的动词。
+- 本机别的程序经 `ely-table cell docs|get|set|save` 读写 ElyTable 已打开工作簿的单元格并保存：请求走实例门（本机回环、令牌文件只给同一用户），由应用以 `ely_ui::on_ask` 作答；始终开着；按地址读写由内核补丁 0058 完成，不动用户的光标与选区。ElyDoc 同样经 `ely-doc text docs|get|replace|save`：读的是内核导出的 fodt 副本里正文的段落（`ely_office::remote::body_text`，不含脚注、批注、文本框与删除的修订），替换是 Writer 的全部替换（精确、区分大小写、静默，光标照旧，一步撤销，一处没有即报错）。ElyShow 经 `ely-show text docs|get|replace|save`：读 fodp 副本里每张幻灯片的文本对象（`ely_office::remote::slide_text`，一段一行，幻灯片之间换页符，不含备注与批注，正是 LOK 下 Impress 全部替换所及），替换同为 `text.replace`，照 Impress 每个改到的文本框一步撤销，所在幻灯片照旧。命令行、`docs`、`save` 与按文件找标签在 `ely_office::remote`，各应用只写自己的动词。
 - ElyMark 原生实现（组件库 Markdown 组件与其 Markdown 树），不用 CEF、Electron；Typora 只作参照，读同一文件不同时随 GitHub（GFM）。
 - ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。

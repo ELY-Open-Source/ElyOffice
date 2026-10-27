@@ -424,7 +424,7 @@
 - [x] R14.16 ElyDoc 字号菜单的 `expect`（X-04，§8） — d59159c 已去掉 `expect`，`panel::ordered` 把内核写法古怪的字号排在最后；`an_odd_size_shows_last_and_panics_nothing` 在改回 panic 时失败。只核对、关条目，代码不动；R1 记录误称 ElyTable 共用，已改；R2 PASS
 - [x] R14.17 ElyShow 媒体：Windows 以 Media Foundation 实现 `media::Player`（C-01、N-02，§10） — `media/mf.rs` 以 IMFMediaEngine 帧服务模式实现；字节流开文件；后端自己推进视频（帧服务模式无人取帧即不前进、不播完）；ElyShow 画 BGRA 帧、旧帧交 `Retired`；媒体测试两端同断言，`tests/video.rs` 新增；三处改坏各令测试失败。R1 FAIL 两处已修：测试只在非 macOS 编；换页、结束屏、结束放映经 `drop_media`。并行测试另查出 Windows 上 worker 的临时目录不生效（只设了 TMPDIR），改为同设 TMP、TEMP；R2 PASS
 - [x] R14.18 ElyShow 媒体：Linux 以 GStreamer 实现 `media::Player`（C-01、N-02，§10）：`ely-platform/src/media/gst.rs` 运行时 dlopen 系统的 GStreamer，playbin 加 appsink 出 BGRA；共用的 `tests/media.rs` 与 ElyShow 的 `tests/video.rs` 在 WSL 原样通过
-- [ ] R14.19 ElyShow 命令行（§10、§16）：`ely-show text docs|get|replace|save`
+- [ ] R14.19 ElyShow 命令行（§10、§16）：`ely-show text docs|get|replace|save` — `get` 读 fodp 副本（`remote::slide_text`，幻灯片间换页符，不含备注、批注）；`replace` 为 `text.replace`，照 Impress 每个文本框一步撤销；真内核测试、`show-cli.sh` 皆过
 - [ ] R14.20 PPTX 的章节（`p14:sectionLst`）保存不丢（D-02，§10、§19）
 - [ ] R14.21 ElyPDF：Windows 上的三个测试（R12.35、P3-13）；证书信任三端已有，关闭 N-04（C-02，§11）
 - [ ] R14.22 ElyMail 邮件列表的滚动条（R12.28、R12.39，§12）
@@ -447,7 +447,7 @@
 - [ ] R14.39 性能：bench 在 Windows、Linux 运行，记下 0.1.12（H-01、H-03，§20）；120 Hz 实测需要高刷显示器，本机最高 75 Hz（H-04）
 - [ ] R14.40 缺引擎的测试：`ELY_REQUIRE_ENGINES=1` 即失败，CI 开启（B-03，§22）
 - [ ] R14.41 构建依赖写进 README，`doctor.sh` 逐项查（B-06，§22）
-- [ ] R14.42 Windows 与 Linux 全量测试通过（W-02、L-02，§22），含 BUGS 的 P3-21（Windows 下 `view::tests::large` 两个按 DPI 落错行）；另 ElyTable 的 `validation_aids_hide_outside_the_view_and_remain_in_frozen_rows` 在多个套件接连跑时失败一次（aids.rs:173，冻结行的提示数为 0），单跑与套件内并行六次皆过（R14.17 记）
+- [ ] R14.42 Windows 与 Linux 全量测试通过（W-02、L-02，§22），含 BUGS 的 P3-21（Windows 下 `view::tests::large` 两个按 DPI 落错行）；另 ElyTable 的 `validation_aids_hide_outside_the_view_and_remain_in_frozen_rows` 在多个套件接连跑时失败一次（aids.rs:173，冻结行的提示数为 0），单跑与套件内并行六次皆过（R14.17 记）；R14.19 时在 HEAD 上全套并行亦接连失败两次，单跑皆过，与测试 worker 带不带 gpui 清单无关
 - [ ] R14.43 发布以测试为门（B-02，§22）；Linux 任务不等 Windows 任务（B-07）
 - [ ] R14.44 合并前 CI：`pr.yml`（B-01，§22）
 - [ ] R14.45 窗口测试含 ElyMail（D-04，§22）

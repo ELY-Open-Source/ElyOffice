@@ -17,7 +17,8 @@ cleanup() {
 trap cleanup EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-cargo build -q -p ely-lok --bins -p ely-doc --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-lok --bin ely-lok-worker --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-doc --manifest-path "$root/Cargo.toml"
 run() { HOME="$work/home" ELY_LOG=info ELY_LOCALE=en ELY_NO_DIALOG=1 ELY_SMOKE=hold exec "$root/target/debug/ely-doc" "$@"; }
 run >"$work/first" 2>&1 &
 pid=$!

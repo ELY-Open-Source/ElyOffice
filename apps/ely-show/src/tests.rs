@@ -16,6 +16,7 @@ mod output;
 mod play;
 mod play_more;
 mod play_time;
+mod remote;
 mod review;
 mod slides;
 mod strip;

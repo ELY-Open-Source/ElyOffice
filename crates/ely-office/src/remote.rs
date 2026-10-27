@@ -9,7 +9,7 @@ use gpui::{Context, TaskExt as _, Window};
 use crate::{Core, Engine, Host, Saving, Tabs, in_window};
 
 mod text;
-pub use text::body_text;
+pub use text::{body_text, slide_text};
 
 /// `<app> <noun> ...` asks the running copy; its exit code.
 pub fn command_line(

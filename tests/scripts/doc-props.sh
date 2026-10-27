@@ -11,7 +11,8 @@ fail() {
   exit 1
 }
 
-cargo build -q -p ely-lok --bins -p ely-doc --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-lok --bin ely-lok-worker --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-doc --manifest-path "$root/Cargo.toml"
 swiftc -O -o "$work/axv" "$root/tests/scripts/ax-values.swift"
 swiftc -O -o "$work/click" "$root/tests/scripts/click.swift"
 [ "$("$work/axv" $$)" != untrusted ] || { echo "SKIP: needs Accessibility permission"; exit 0; }

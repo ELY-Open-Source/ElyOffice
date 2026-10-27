@@ -22,7 +22,8 @@ fail() {
   exit 1
 }
 
-cargo build -q -p ely-lok --bins -p ely-doc --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-lok --bin ely-lok-worker --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-doc --manifest-path "$root/Cargo.toml"
 for tool in ax-values ax-press; do swiftc -O -o "$work/$tool" "$root/tests/scripts/$tool.swift"; done
 [ "$("$work/ax-values" $$ | head -n 1)" != untrusted ] || { echo "SKIP: needs Accessibility permission"; exit 0; }
 home="$work/home"

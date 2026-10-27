@@ -1,4 +1,4 @@
-//! The body text of a flat ODF document.
+//! The text of a flat ODF document or presentation.
 
 use std::io;
 
@@ -13,10 +13,32 @@ use quick_xml::{
 const OFFICE: &[u8] = b"urn:oasis:names:tc:opendocument:xmlns:office:1.0";
 const TEXT: &[u8] = b"urn:oasis:names:tc:opendocument:xmlns:text:1.0";
 const DRAW: &[u8] = b"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
+const PRESENTATION: &[u8] = b"urn:oasis:names:tc:opendocument:xmlns:presentation:1.0";
+const OFFICEOOO: &[u8] = b"http://openoffice.org/2009/office";
 
-/// Where Writer's Replace All never looks.
-fn left_out(ns: &[u8], name: &[u8]) -> bool {
-    ns == DRAW || (ns == TEXT && matches!(name, b"note" | b"tracked-changes")) || (ns == OFFICE && name == b"annotation")
+/// Writer's body or Impress's slides.
+#[derive(Clone, Copy)]
+enum Body {
+    Text,
+    Slides,
+}
+
+impl Body {
+    fn name(self) -> &'static [u8] {
+        match self {
+            Body::Text => b"text",
+            Body::Slides => b"presentation",
+        }
+    }
+
+    /// Where Replace All never looks.
+    fn left_out(self, ns: &[u8], name: &[u8]) -> bool {
+        let comment = (ns == OFFICE || ns == OFFICEOOO) && name == b"annotation";
+        match self {
+            Body::Text => comment || ns == DRAW || (ns == TEXT && matches!(name, b"note" | b"tracked-changes")),
+            Body::Slides => comment || (ns == PRESENTATION && name == b"notes"),
+        }
+    }
 }
 
 fn bad(error: impl std::fmt::Display) -> io::Error {
@@ -25,9 +47,18 @@ fn bad(error: impl std::fmt::Display) -> io::Error {
 
 /// Each paragraph and heading of `office:text`, one per line.
 pub fn body_text(bytes: &[u8]) -> io::Result<String> {
+    read(bytes, Body::Text)
+}
+
+/// Each slide's paragraphs by line; form feeds part slides.
+pub fn slide_text(bytes: &[u8]) -> io::Result<String> {
+    read(bytes, Body::Slides)
+}
+
+fn read(bytes: &[u8], kind: Body) -> io::Result<String> {
     let mut reader = NsReader::from_reader(bytes);
     let (mut buf, mut out) = (Vec::new(), String::new());
-    let (mut body, mut skipped, mut open) = (false, 0usize, 0usize);
+    let (mut body, mut skipped, mut open, mut slides) = (false, 0usize, 0usize, 0usize);
     loop {
         let (bound, event) = reader.read_resolved_event_into(&mut buf).map_err(bad)?;
         let ns = match bound {
@@ -38,8 +69,17 @@ pub fn body_text(bytes: &[u8]) -> io::Result<String> {
         let paragraph = |name: &[u8]| ns == TEXT && matches!(name, b"p" | b"h");
         match event {
             Event::Start(_) if skipped > 0 => skipped += 1,
-            Event::Start(tag) if !body => body = ns == OFFICE && tag.local_name().as_ref() == b"text",
-            Event::Start(tag) if left_out(ns, tag.local_name().as_ref()) => skipped = 1,
+            Event::Start(tag) if !body => body = ns == OFFICE && tag.local_name().as_ref() == kind.name(),
+            Event::Start(tag) if kind.left_out(ns, tag.local_name().as_ref()) => skipped = 1,
+            Event::Start(tag) | Event::Empty(tag) if inside && ns == DRAW && tag.local_name().as_ref() == b"page" => {
+                slides += 1;
+                if slides > 1 {
+                    if out.ends_with('\n') {
+                        out.pop();
+                    }
+                    out.push('\x0c');
+                }
+            }
             Event::Start(tag) if paragraph(tag.local_name().as_ref()) => open += 1,
             Event::Empty(tag) if inside && open == 0 && paragraph(tag.local_name().as_ref()) => out.push('\n'),
             Event::Empty(tag) if inside && open > 0 && ns == TEXT => match tag.local_name().as_ref() {
@@ -60,7 +100,7 @@ pub fn body_text(bytes: &[u8]) -> io::Result<String> {
                 open -= 1;
                 out.push('\n');
             }
-            Event::End(tag) if inside && ns == OFFICE && tag.local_name().as_ref() == b"text" => break,
+            Event::End(tag) if inside && ns == OFFICE && tag.local_name().as_ref() == kind.name() => break,
             Event::Text(text) if inside && open > 0 => out.push_str(&text.xml10_content().map_err(bad)?),
             Event::GeneralRef(entity) if inside && open > 0 => match entity.resolve_char_ref().map_err(bad)? {
                 Some(char) => out.push(char),
@@ -69,7 +109,7 @@ pub fn body_text(bytes: &[u8]) -> io::Result<String> {
                     out.push_str(resolve_xml_entity(&name).ok_or_else(|| bad(format!("&{name};")))?);
                 }
             },
-            Event::Eof => return Err(bad("no office:text")),
+            Event::Eof => return Err(bad("no document body")),
             _ => {}
         }
         buf.clear();
@@ -82,7 +122,7 @@ pub fn body_text(bytes: &[u8]) -> io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::body_text;
+    use super::{body_text, slide_text};
 
     fn doc(body: &str) -> String {
         format!(
@@ -115,5 +155,15 @@ mod tests {
     fn a_document_without_a_text_body_is_refused() {
         assert!(body_text(b"<office:document/>").is_err());
         assert!(body_text(b"not xml <").is_err());
+        assert!(slide_text(doc("<text:p>a</text:p>").as_bytes()).is_err(), "text is no deck");
+    }
+
+    #[test]
+    fn slides_part_by_form_feeds_without_notes_or_comments() {
+        let slides = r#"<draw:page draw:name="1"><draw:frame><draw:text-box><text:p>Title</text:p><text:p>a<text:tab/>b</text:p></draw:text-box></draw:frame><presentation:notes><draw:frame><draw:text-box><text:p>note</text:p></draw:text-box></draw:frame></presentation:notes></draw:page><draw:page draw:name="2"/><draw:page draw:name="3"><draw:custom-shape><text:p>shape</text:p></draw:custom-shape><draw:frame><table:table><table:table-row><table:table-cell><text:p>cell</text:p></table:table-cell></table:table-row></table:table></draw:frame><draw:g><draw:frame><draw:text-box><text:p>grouped</text:p></draw:text-box></draw:frame></draw:g><officeooo:annotation><text:p>comment</text:p></officeooo:annotation></draw:page>"#;
+        let deck = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" xmlns:officeooo="http://openoffice.org/2009/office"><office:body><office:presentation>{slides}</office:presentation></office:body></office:document>"#
+        );
+        assert_eq!(slide_text(deck.as_bytes()).expect("reads"), "Title\na\tb\x0c\x0cshape\ncell\ngrouped");
     }
 }

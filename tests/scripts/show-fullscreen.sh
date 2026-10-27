@@ -21,7 +21,8 @@ fail() {
   exit 1
 }
 
-cargo build -q -p ely-lok --bins -p ely-show --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-lok --bin ely-lok-worker --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-show --manifest-path "$root/Cargo.toml"
 osascript -e 'tell application "System Events" to get name of first process' >/dev/null 2>&1 ||
   { echo "SKIP: needs Accessibility permission"; exit 0; }
 cp "$root/tests/fixtures/office/t.pptx" "$work/deck.pptx"

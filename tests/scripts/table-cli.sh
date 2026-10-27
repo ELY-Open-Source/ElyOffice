@@ -18,7 +18,8 @@ fail() {
 }
 native() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 
-cargo build -q -p ely-lok --bins -p ely-table --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-lok --bin ely-lok-worker --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-table --manifest-path "$root/Cargo.toml"
 table=$root/target/debug/ely-table
 export ELY_DATA_ROOT ELY_LOCALE=en ELY_NO_DIALOG=1 ELY_LOG=info
 ELY_DATA_ROOT=$(native "$work/data")

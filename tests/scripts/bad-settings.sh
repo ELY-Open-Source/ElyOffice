@@ -16,7 +16,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-cargo build -q -p ely-lok --bins -p ely-doc --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-lok --bin ely-lok-worker --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-doc --manifest-path "$root/Cargo.toml"
 shared="$work/home/Library/Application Support/ElyOffice"
 mkdir -p "$shared"
 printf '{"version": 2}\n' >"$shared/settings.json"
