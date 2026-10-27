@@ -6,25 +6,15 @@ use std::{
 };
 
 use ely_office::prelude::*;
-use gpui::{Entity, TestAppContext};
+use gpui::{Context, TestAppContext};
 
 use super::objects::blank;
 use super::play_more::started;
 use super::{settle, update};
 use crate::slideshow::Show;
 
-/// Ticks the show's player until `done`, in real time.
-fn play_until(cx: &mut TestAppContext, show: &Entity<Show>, done: impl Fn(&Show) -> bool) {
-    let end = Instant::now() + Duration::from_secs(10);
-    while !cx.update(|app| done(show.read(app))) {
-        assert!(Instant::now() < end, "the video never got there");
-        cx.update(|app| show.update(app, |show, cx| show.media_tick(cx)));
-        std::thread::sleep(Duration::from_millis(20));
-    }
-}
-
-#[test]
-fn each_picture_a_video_leaves_waits_to_be_freed() {
+/// Plays the clip; `stop` ends it after one replaced picture.
+fn stopped_by(another_slide: bool, stop: impl FnOnce(&mut Show, &mut Context<Show>)) {
     if !ely_platform::media::BUILT {
         eprintln!("SKIP: no system player is built on this platform");
         return;
@@ -39,34 +29,56 @@ fn each_picture_a_video_leaves_waits_to_be_freed() {
     let url = ely_lok::file_url(&clip);
     update(&mut cx, &deck, |deck, cx| deck.design_command("media.insert", &[&url, "false", "8000", "4500"], cx));
     settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.media.len() == 1));
-    let show = started(&mut cx, &deck, true);
+    if another_slide {
+        update(&mut cx, &deck, |deck, cx| deck.design_command("slide.insert", &[], cx));
+        settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.list.len() == 2));
+    }
+    let show = started(&mut cx, &deck, false);
     cx.update(|app| show.update(app, |show, cx| show.toggle_media(0, cx)));
-    play_until(&mut cx, &show, |show| show.media_frame().is_some());
-    let first = cx.update(|app| show.read(app).media_frame().expect("a picture").0);
-    assert_eq!(first.size(0), gpui::size(160.into(), 90.into()), "the clip's own size");
     let end = Instant::now() + Duration::from_secs(10);
+    let mut first = None;
     // Counted in the tick that replaces it, before a paint.
     while !cx.update(|app| {
         show.update(app, |show, cx| {
             show.media_tick(cx);
-            let replaced = show.media_frame().is_some_and(|(now, _)| !Arc::ptr_eq(&now, &first));
-            if replaced {
-                assert_eq!(Arc::strong_count(&first), 2, "the replaced picture waits in retired");
+            let Some((now, _)) = show.media_frame() else {
+                return false;
+            };
+            let first = first.get_or_insert_with(|| now.clone());
+            if Arc::ptr_eq(first, &now) {
+                return false;
             }
-            replaced
+            assert_eq!(first.size(0), gpui::size(160.into(), 90.into()), "the clip's own size");
+            assert_eq!(Arc::strong_count(first), 2, "the replaced picture waits in retired");
+            true
         })
     }) {
         assert!(Instant::now() < end, "the video never moved on");
         std::thread::sleep(Duration::from_millis(20));
     }
-    let last = cx.update(|app| show.read(app).media_frame().expect("a picture").0);
-    let failed = Err("Cannot Open".to_string());
-    // Checked before a window paints and frees it.
     cx.update(|app| {
         show.update(app, |show, cx| {
-            show.media_seen(failed, cx);
+            let last = show.media_frame().expect("a picture").0;
+            stop(show, cx);
             assert!(show.media_frame().is_none(), "playback stopped");
             assert_eq!(Arc::strong_count(&last), 2, "the last picture waits in retired");
         })
     });
+}
+
+#[test]
+fn a_failure_hands_the_last_picture_on() {
+    stopped_by(false, |show, cx| {
+        show.media_seen(Err("Cannot Open".into()), cx);
+    });
+}
+
+#[test]
+fn the_next_slide_hands_the_last_picture_on() {
+    stopped_by(true, |show, cx| show.next(cx));
+}
+
+#[test]
+fn the_end_screen_hands_the_last_picture_on() {
+    stopped_by(false, |show, cx| show.next(cx));
 }

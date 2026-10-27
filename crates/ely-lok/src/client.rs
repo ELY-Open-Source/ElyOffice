@@ -182,7 +182,8 @@ impl Worker {
         }
         let temp = profile_dir.join("tmp");
         std::fs::create_dir_all(&temp)?;
-        command.env("TMPDIR", &temp);
+        // Unix reads TMPDIR; Windows reads TMP, then TEMP.
+        command.env("TMPDIR", &temp).env("TMP", &temp).env("TEMP", &temp);
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

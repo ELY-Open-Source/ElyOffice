@@ -97,7 +97,7 @@ impl Show {
     }
 
     /// Ends playback; its last picture is freed.
-    fn drop_media(&mut self) {
+    pub(super) fn drop_media(&mut self) {
         if let Some(picture) = self.media.take().and_then(|playing| playing.frame) {
             self.retire(picture);
         }

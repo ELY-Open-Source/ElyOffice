@@ -189,11 +189,13 @@ impl Show {
                     How::Back => vec![BUILT; clicks + 1],
                     _ => vec![lead],
                 };
-                (self.media, self.notice) = (None, None);
+                self.drop_media();
+                self.notice = None;
             }
             (_, Place::End) => {
                 self.leaving = None;
-                (self.media, self.notice) = (None, None);
+                self.drop_media();
+                self.notice = None;
             }
         }
         log::info!("show: goes to {to:?}");
@@ -332,7 +334,7 @@ impl Show {
         }
         log::info!("show: ends");
         (self.advance, self.release) = (None, None);
-        self.media = None;
+        self.drop_media();
         let (windows, deck, me) = (std::mem::take(&mut self.windows), self.deck.clone(), cx.entity_id());
         start::discard(self.worker.clone(), self.doc.clone(), self.copy.clone(), cx);
         // A key may come from a window being closed.
