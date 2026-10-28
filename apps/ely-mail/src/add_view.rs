@@ -269,8 +269,17 @@ fn status(adding: &Adding, cx: &App) -> Option<AnyElement> {
             .gap_1()
             .child(said("mail.check.incoming", &checked.incoming))
             .child(said("mail.check.outgoing", &checked.outgoing))
+            .children(advice(adding.kind, checked).map(|key| line(Severity::Info, text(cx, key, &[]))))
             .into_any_element(),
     })
+}
+
+/// What to do when a provider refuses the password.
+pub fn advice(kind: Kind, checked: &ely_mail_engine::Checked) -> Option<&'static str> {
+    let refused = [&checked.incoming, &checked.outgoing]
+        .into_iter()
+        .any(|result| matches!(result, Err(Error::Rejected(_))));
+    (refused && kind == Kind::Gmail).then_some("mail.gmail.refused")
 }
 
 /// Outlook.com's words for an account it holds.

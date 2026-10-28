@@ -88,7 +88,11 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("mail.icloud.password", "App-specific password"),
     (
         "mail.gmail.steps",
-        "Gmail needs an app password: turn on 2-Step Verification in your Google Account, open App passwords, make one and paste it below.",
+        "Gmail needs an app password: turn on 2-Step Verification in your Google Account, open App passwords, make one and paste it below. No App passwords page means 2-Step Verification is off, or a Google Workspace admin has turned app passwords off.",
+    ),
+    (
+        "mail.gmail.refused",
+        "Google refused the password. Paste the 16-letter app password, not your Google password. If your Workspace admin has turned app passwords off, ask them to allow them; until then ElyMail cannot reach this account.",
     ),
     ("mail.gmail.open", "Open Google Account"),
     ("mail.gmail.password", "App password"),
@@ -302,7 +306,11 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("mail.icloud.password", "应用专用密码"),
     (
         "mail.gmail.steps",
-        "Gmail 须用应用专用密码：先在 Google 账号里开启两步验证，打开“应用专用密码”，生成一个，粘贴到下面。",
+        "Gmail 须用应用专用密码：先在 Google 账号里开启两步验证，打开“应用专用密码”，生成一个，粘贴到下面。找不到“应用专用密码”页，即两步验证未开，或 Google Workspace 的管理员关了应用专用密码。",
+    ),
+    (
+        "mail.gmail.refused",
+        "Google 拒绝了这个密码。请粘贴 16 位的应用专用密码，不是 Google 账号的密码。若 Workspace 的管理员关了应用专用密码，请他们打开；在此之前 ElyMail 连不上这个账号。",
     ),
     ("mail.gmail.open", "打开 Google 账号"),
     ("mail.gmail.password", "应用专用密码"),

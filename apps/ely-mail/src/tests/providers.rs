@@ -1,8 +1,11 @@
-use ely_mail_engine::{Auth, Error, Security, oauth};
+use ely_mail_engine::{Auth, Checked, Error, Security, oauth};
 use gpui::{Modifiers, TestAppContext};
 
 use super::{Keys, adding, step_words, type_in, window};
-use crate::{add_view::failure, kinds::Kind};
+use crate::{
+    add_view::{advice, failure},
+    kinds::Kind,
+};
 
 #[test]
 fn an_icloud_account_takes_apples_servers() {
@@ -85,4 +88,18 @@ fn outlooks_held_account_says_what_to_do() {
     assert!(held.contains("(NO User is authenticated but not connected.)"), "{held}");
     assert!(held.contains("outlook.live.com"), "{held}");
     assert_eq!(other.as_ref(), "the server refused the sign-in: NO LOGIN failed.");
+}
+
+#[test]
+fn a_refused_gmail_password_says_what_to_do() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut cx = TestAppContext::single();
+    let (_, cx) = window(&mut cx, dir.path(), Keys::default());
+    let refused = |incoming| Checked { incoming, outgoing: Ok(()) };
+    let rejected = || Err(Error::Rejected("NO [AUTHENTICATIONFAILED] Invalid credentials (Failure)".into()));
+    assert_eq!(advice(Kind::Gmail, &refused(rejected())), Some("mail.gmail.refused"));
+    assert_eq!(advice(Kind::ICloud, &refused(rejected())), None, "Google's words only for Google");
+    assert_eq!(advice(Kind::Gmail, &refused(Err(Error::Timeout("login")))), None, "only a refused password");
+    let words = cx.update(|_, app| crate::mail::text(app, "mail.gmail.refused", &[]));
+    assert!(words.contains("app password") && words.contains("Workspace admin"), "{words}");
 }

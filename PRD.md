@@ -379,7 +379,7 @@ XFA 动态表单、任意嵌入脚本执行、专业印前分色及 PDF 到 Offi
 
 默认布局为账号与文件夹、邮件列表、阅读区。写信可在独立窗口打开。HTML 正文与写信不用 CEF 与 Electron（用户 2026-10-19 定）：正文以 html5ever 解析，净化后按块的子集由 GPUI 绘制（段落、标题、列表、引用、表格、图片、链接、粗斜体与颜色），脚本、定位、浮动与样式表之外的版式不画，不当作完整页面渲染；写信用组件库的 Markdown 文档组件，发出纯文本与由 markdown-rs 生成的 HTML 两部分。
 
-内置登录：Microsoft 走 OAuth；Gmail 走应用专用密码（用户 2026-10-22 定：未经 Google 验证的客户端见警告、上限 100 人，Gmail 范围须过 CASA 评估）；iCloud 不给第三方 OAuth，走应用专用密码向导（服务器 `imap.mail.me.com:993`、`smtp.mail.me.com:587`，无 POP3）[S10]。网络随系统代理（HTTP CONNECT、SOCKS5）。OAuth 的客户端 ID 在构建时注入，缺 ID 的构建里该登录写明不可用。
+内置登录：Microsoft 走 OAuth；Gmail 走应用专用密码（用户 2026-10-22 定：未经 Google 验证的客户端见警告、上限 100 人，Gmail 范围须过 CASA 评估）。应用专用密码要求开启两步验证，Google Workspace 的管理员可以关掉它，添加页写明此前提、被拒时写明怎么办。Gmail 的 OAuth 计划：先过 Google 的应用验证与受限范围 `https://mail.google.com/` 每年一次的 CASA 评估，过了再加 OAuth 登录、与应用专用密码并存；何时启动由用户定，未启动前不写进发布说明；iCloud 不给第三方 OAuth，走应用专用密码向导（服务器 `imap.mail.me.com:993`、`smtp.mail.me.com:587`，无 POP3）[S10]。网络随系统代理（HTTP CONNECT、SOCKS5）。OAuth 的客户端 ID 在构建时注入，缺 ID 的构建里该登录写明不可用。
 
 ### 12.2 功能要求
 
