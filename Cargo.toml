@@ -20,7 +20,7 @@ jiff = "0.2"
 anyhow = "1"
 directories = "6"
 dunce = "1"
-ely-gpui-component = { git = "https://github.com/ELY-Open-Source/Ely-GPUI-Components", rev = "76047a6697d0c912f5cd0f40945803aa9bf80200" }
+ely-gpui-component = { git = "https://github.com/ELY-Open-Source/Ely-GPUI-Components", rev = "c349f257b27bbb9f4bf83fb89760c29647b4baa0" }
 env_logger = "0.11"
 gpui = { package = "gpui-pre", version = "=0.3.10", default-features = false, features = ["stacker"] }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.10", features = ["font-kit", "wayland", "x11"] }

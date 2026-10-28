@@ -74,7 +74,7 @@ fn a_typed_family_is_picked_kept_and_typing_goes_on() {
     cx.simulate_input("b");
     assert_eq!(text(cx), "ba\n");
     cx.dispatch_action(super::OtherFont);
-    cx.simulate_keystrokes("tab");
+    cx.run_until_parked();
     cx.simulate_input("Cons");
     cx.simulate_keystrokes("enter");
     assert!(desk.read_with(cx, |desk, _| desk.font_picking.is_none()), "a pick closes the dialog");

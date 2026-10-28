@@ -11,7 +11,7 @@ use ely_gpui_component::{
 };
 use ely_office::prelude::*;
 use gpui::{
-    AnyElement, App, AppContext as _, Context, IntoElement as _, ParentElement as _, SharedString,
+    AnyElement, App, AppContext as _, Context, Focusable as _, IntoElement as _, ParentElement as _, SharedString,
     Styled as _, Window, actions, div, rems,
 };
 use serde::{Deserialize, Serialize};
@@ -261,6 +261,7 @@ impl Desk {
         let title = ely_ui::i18n::text(cx, "mark.look.other.title", &[]);
         let cancel = ely_office::cancel(cx);
         let dialog = Dialog::new("mark-font-dialog", title, close)
+            .focus_first(field.read(cx).focus_handle(cx))
             .child(div().w_full().child(picker))
             .action(move |close| {
                 closer.replace(Some(close.clone()));
