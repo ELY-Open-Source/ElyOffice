@@ -3,7 +3,8 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
-work=$(mktemp -d)
+# Its real path: macOS links /var to /private/var.
+work=$(cd "$(mktemp -d)" && pwd -P)
 pid=
 cleanup() {
   [ -z "$pid" ] || kill "$pid" 2>/dev/null || true

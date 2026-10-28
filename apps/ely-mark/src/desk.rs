@@ -217,6 +217,7 @@ pub(crate) fn open_in(
             tab_asked: None,
         }
     });
+    crate::remote::listen(&desk, cx);
     let menus = crate::keys::menus(&look, cx);
     let root = ely_ui::document_root(
         app,
