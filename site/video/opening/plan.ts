@@ -36,7 +36,7 @@ const SEED: [number, number] = [8, 5];
 /** Chebyshev ring of a cell around the seed. */
 const ring = (i: number, j: number) => Math.max(Math.abs(i - SEED[0]), Math.abs(j - SEED[1]));
 
-/** Tiles landing per sixteenth, from beat 8; the rest land on 16. */
+/** Tiles landing per sixteenth from beat 8; rest on 16. */
 const RAIN: Record<number, number> = {
   2: 1, 4: 1, 6: 2, 8: 2, 10: 2, 12: 3, 13: 1, 14: 3, 15: 2, 16: 3, 17: 3, 18: 4, 19: 4,
   20: 5, 21: 5, 22: 6, 23: 6, 24: 7, 25: 8, 26: 9, 27: 10, 28: 11, 29: 12, 30: 13, 31: 14,
@@ -60,7 +60,7 @@ const tiles: Tile[] = (() => {
   }));
 })();
 
-/** Rise order follows the roads: Doc, Mark, Tree, Table, Show, PDF. */
+/** Rise order by road: Doc, Mark, Tree, Table, Show, PDF. */
 const RISE: [string, number][] = [
   ["ElyDoc", 16.25], ["ElyMark", 17.5], ["ElyTree", 18.5], ["ElyTable", 19.5], ["ElyShow", 20.75], ["ElyPDF", 22],
 ];
@@ -73,7 +73,7 @@ const parts = RISE.map(([name, beat]) => {
 const roads = model.find((p) => p.name === "Roads")?.blocks;
 if (!roads) throw new Error("model has no roads");
 
-/** A road cut into cells, laid from one end on sixteenths. */
+/** A road in cells, laid from one end on sixteenths. */
 function lay(road: Box, n: number, beat: number, reverse = false): { box: Box; beat: number }[] {
   const long = road.w >= road.d;
   return Array.from({ length: n }, (_, i) => {
@@ -146,7 +146,7 @@ function files(f: number): Shown[] {
   return out;
 }
 
-/** World turn: a quarter on bar 6, back on bar 7. */
+/** World turn: quarter on bar 6, back on bar 7. */
 function turn(f: number): number {
   const out = toward(f, 22, 2 * BEAT * FPS, glide);
   const back = toward(f, 28, 4 * BEAT * FPS, glide);
@@ -175,7 +175,7 @@ interface Frame {
   oy: number;
 }
 
-/** Bars 5 and 6: the desk fills 70% of the width. */
+/** Bars 5 and 6: the desk fills 70% width. */
 const wide: Frame = (() => {
   const [x0, x1] = extent(all, [0]);
   const [u0, u1, v0, v1] = extent(all, TURNS);

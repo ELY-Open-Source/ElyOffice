@@ -52,7 +52,7 @@ function ffmpeg(args) {
   if (run.status !== 0) throw new Error(`ffmpeg failed: ${args.join(" ")}`);
 }
 
-/** An H.264 preview of an over layer on the light field. */
+/** H.264 preview of an over layer on the light field. */
 function preview(name, first, count) {
   const dir = join(extra, name);
   ffmpeg([

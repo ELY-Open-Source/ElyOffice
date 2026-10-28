@@ -7,10 +7,11 @@ here=$(cd "$(dirname "$0")/.." && pwd)
 list=$(mktemp)
 trap 'rm -f "$list"' EXIT
 git -C "$root" ls-files -z -- '*.rs' '*.c' '*.h' '*.sh' '*.py' '*.ts' '*.tsx' '*.js' '*.mjs' '*.css' \
-  '*.swift' '*.nsi' '*.ps1' '*.html' ':!vendor' ':!reference' ':!patches' >"$list"
+  '*.swift' '*.nsi' '*.ps1' '*.html' ':(exclude,glob)**/vendor/**' ':!reference' ':!patches' >"$list"
 failed=0
-long=$(cd "$root" && xargs -0 wc -l <"$list" | sed -E 's/^ *([0-9]+) (.*)$/\1\t\2/' |
-  awk -F'\t' '$1 > 500 && $2 != "total" {print $2 ": " $1 " lines"}')
+# awk counts an unterminated last line; wc -l does not.
+long=$(cd "$root" && xargs -0 awk 'FNR == 1 && NR > 1 && n > 500 {print name ": " n " lines"}
+  {name = FILENAME; n = FNR} END {if (n > 500) print name ": " n " lines"}' <"$list")
 if [ -n "$long" ]; then
   echo "FAIL: files over 500 lines:"
   echo "$long"

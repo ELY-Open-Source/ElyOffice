@@ -1,5 +1,5 @@
 # Usage: .work/video015/venv/Scripts/python.exe site/video/update-0.1.5/audio/compose.py
-"""Music bed (96 BPM, 24 bars, 60 s) and UI sounds for the 0.1.5 update video."""
+"""Music bed (96 BPM, 24 bars) and UI sounds."""
 import wave
 from pathlib import Path
 
@@ -283,7 +283,7 @@ def impact(strength, tail=2.4):
 
 
 def impulse(seconds, t60, seed):
-    """Stereo reverb impulse: decorrelated noise with per-band decay (low, mid, high)."""
+    """Stereo reverb impulse: decorrelated noise, per-band decay."""
     g = np.random.default_rng(seed)
     n = int(seconds * SR)
     t = secs(n)

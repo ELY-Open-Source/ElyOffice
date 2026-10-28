@@ -7,7 +7,7 @@ const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 const ramp = (f: number, a: number, b: number, ease = EASE.out) => interpolate(f, [a, b], [0, 1], { ...clamp, easing: ease });
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-// Row after the bloom, and the tighter row it gathers into above the wordmark.
+// The row after the bloom, and its tighter row above.
 const ROW = { gap: 212, y: 470, k: 0.62 };
 const GATHER = { gap: 128, y: 384, k: 0.38, at: 5 * BEAT };
 const BLOOM = { at: BEAT, every: BEAT / 2, dur: 26 };
@@ -40,8 +40,7 @@ const AppIcon: React.FC<{ index: number }> = ({ index }) => {
   const land = bloomAt + BLOOM.dur;
   const gather = ramp(f, GATHER.at + index * 2, GATHER.at + index * 2 + 44, EASE.inOut);
 
-  // Split: the dots rise first, then fan out, like a fountain.
-  // Both start from rest; the rise leads the spread.
+  // Split: dots rise from rest, then fan out, a fountain.
   const splitX = lerp(ICON.x, ICON.x + offset * ROW.gap, EASE.inOut(Math.max(0, (travel - 0.15) / 0.85)));
   const splitY = lerp(ICON.y, ROW.y, EASE.inOut(Math.min(1, travel / 0.7)));
   const cx = lerp(splitX, ICON.x + offset * GATHER.gap, gather);

@@ -12,7 +12,7 @@ const SOUND: Record<string, { file: string; volume: number } | undefined> = {
   wheel: { file: 'tick', volume: 0.18 },
 };
 
-/** UI sounds on the logged presses, keys and scrolls of `cuts`. */
+/** UI sounds on the logged presses, keys and scrolls. */
 export const Sounds: React.FC<{ cuts: Cut[] }> = ({ cuts }) => {
   const hits: { frame: number; file: string; volume: number }[] = [];
   for (const cut of lay(cuts)) {
@@ -34,7 +34,7 @@ export const Sounds: React.FC<{ cuts: Cut[] }> = ({ cuts }) => {
   );
 };
 
-/** Section frame of footage time `t` in `cuts`, for timing overlays. */
+/** Section frame of footage time `t` in `cuts`. */
 export const frameOf = (cuts: Cut[], t: number) => {
   const cut = lay(cuts).find((c) => t >= c.from && t < c.to);
   if (!cut) throw new Error(`no cut shows footage time ${t}`);

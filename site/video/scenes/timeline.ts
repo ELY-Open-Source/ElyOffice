@@ -38,7 +38,7 @@ const DESK_DONE = DESK_END + 1;
 /** Beat each app starts on; its blocks follow on sixteenths. */
 const partBeats = [16, 18, 20, 22, 24, 26, 28];
 
-/** Fade in ending on the first beat; gone at the second. */
+/** Fades in by the first beat; gone at the second. */
 const TEXTS: Record<string, [number, number]> = {
   title: [24, 32],
   offline: [144.5, 147.5],

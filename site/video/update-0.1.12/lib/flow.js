@@ -1,5 +1,4 @@
-/* Shared liquid moves for the feature scenes: a ball swells into a panel,
-   a panel folds into the next ball, a drop flies on a string. Pure functions of time. */
+/* Shared liquid moves: ball to panel, back, drops on strings. */
 (function () {
   "use strict";
   var M = LQ.M;
@@ -14,8 +13,7 @@
     P.box(cx, cy, w, h, Math.min(r, w / 2, h / 2), col, { k: k || 40 });
   }
 
-  /* o = {r, col, tint, rect: {x, y, w, h, r}, t0, t1, t2, cx, cy, ta}: the ball at (cx, cy),
-     (960, 500) unless given, shown from ta, squashes before t0, swells into rect by t1, sinks by t2. */
+  /* The ball swells into rect by t1, sinks by t2. */
   function open(P, lt, o) {
     if (lt >= o.t2 || (o.ta != null && lt < o.ta)) return;
     var ox = o.cx == null ? 960 : o.cx, oy = o.cy == null ? 500 : o.cy;
@@ -32,8 +30,7 @@
       M.lerp(2 * o.r, R.w, e) * s * (1 + jig), M.lerp(2 * o.r, R.h, e) * s * (1 - jig), M.lerp(o.r, R.r, e) * s, col);
   }
 
-  /* o = {rect, from, r, col, ta, t0, t1}: liquid fills rect behind the glass from ta,
-     folds into the ball (960, 500, r, col) over [t0, t1], and is exactly that ball at t1. */
+  /* Liquid fills rect, folds into the ball over [t0, t1]. */
   function close(P, lt, o) {
     var ta = o.ta == null ? o.t0 - 0.3 : o.ta;
     if (lt < ta) return;
@@ -50,8 +47,7 @@
       M.lerp(R.w, d, e) * (1 + jig), M.lerp(R.h, d, e) * (1 - jig), M.lerp(R.r, o.r, e), M.mix3(rgb(o.from), rgb(o.col), M.smooth(u)));
   }
 
-  /* o = {t0, t1, ax, ay, bx, by, r, col, h}: a drop beads at A, flies an arc of height h
-     pulling a string that snaps, lands on B at t1 with a squash, and is absorbed. */
+  /* A drop flies A to B on a snapping string. */
   function drop(P, lt, o) {
     var t0 = o.t0, t1 = o.t1, r = o.r;
     if (lt < t0 - 0.2 || lt > t1 + 0.4) return;

@@ -11,7 +11,7 @@ from drive import _log
 
 
 def menus(files):
-    """ElyMark: right-click › 表格 ▸, a diagonal over 插入 into the submenu."""
+    """ElyMark: right-click › 表格 ▸, diagonally into the submenu."""
     proc, h = launch("ElyMark", "ely-mark.exe", files / "发布计划.md")
     with take("menus", OUT):
         move_to(900, 520, 0.8)
@@ -30,7 +30,7 @@ def menus(files):
 
 
 def cells(files):
-    """ElyMark: a cell opens alone, shows its source, Tab and arrows move."""
+    """ElyMark: a cell opens alone, shows source; Tab, arrows move."""
     proc, h = launch("ElyMark", "ely-mark.exe", files / "发布计划.md")
     with take("cells", OUT):
         move_to(1000, 480, 0.8)
@@ -56,7 +56,7 @@ def cells(files):
 
 
 def doc(files):
-    """ElyDoc: Word-style table menu, insert a row, drag a column border."""
+    """ElyDoc: Word-style table menu, insert a row, drag a border."""
     proc, h = launch("ElyDoc", "ely-doc.exe", files / "工作汇报.docx", wait=8)
     with take("doc", OUT):
         move_to(1000, 760, 0.8)
@@ -120,7 +120,7 @@ def show(files):
 
 
 def more(files):
-    """ElyMark: a second launch hands its file over; the recent list clears."""
+    """ElyMark: a second launch hands over; the recent list clears."""
     proc, h = launch("ElyMark", "ely-mark.exe", files / "发布计划.md", files / "读书笔记.md")
     with take("more", OUT):
         move_to(900, 600, 0.8)

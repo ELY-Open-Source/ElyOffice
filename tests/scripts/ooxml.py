@@ -181,7 +181,7 @@ def sheet(path):
 
 
 def notes_body(notes):
-    """The text of a notes page's body placeholder, the editable notes."""
+    """A notes page's body placeholder text: the editable notes."""
     found = []
     for shape in notes.iter(P + "sp"):
         holder = shape.find(f"{P}nvSpPr/{P}nvPr/{P}ph")

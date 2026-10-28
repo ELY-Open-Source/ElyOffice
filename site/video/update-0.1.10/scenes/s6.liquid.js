@@ -1,8 +1,7 @@
-/* s6: liquid choreography, global 44s to 50s. Search: the jelly scope selector,
-   rows melting and bubbling, then the 100,000 / 0.15 s stat. Geometry mirrors scenes/s6.html. */
+/* s6 search, 44–50 s: jelly scope, melting rows, the stat. */
 (function () {
   var M = LQ.M;
-  /* camera of the HTML layer while searching: scale 1.3, translate (-250, -101) */
+  /* The HTML layer's search camera: scale 1.3, translate (-250, -101). */
   var S = 1.3, TX = -250, TY = -101;
   function sx(x) { return S * x + TX; }
   function sy(y) { return S * y + TY; }
@@ -71,7 +70,7 @@
     var breathe = 1 + 0.03 * Math.sin(lt * 7.1);
     var r0 = 7.6;
     if (i === 0) {
-      /* a bead drops from the search field and spreads into the underline */
+      /* A bead drops from the search field into the underline. */
       var a = M.prog(lt, 0.72, 0.84);
       var by = M.lerp(JY - 46, JY, M.inCubic(a));
       if (a < 1) {
@@ -108,7 +107,7 @@
 
   function bez(a, c, b, t) { var u = 1 - t; return u * u * a + 2 * u * t * c + t * t * b; }
 
-  /* jelly bead leaps from 附件名 to the centre and seeds the counter */
+  /* A jelly bead leaps from 附件名 and seeds the counter. */
   function leap(lt, P) {
     if (lt < 2.66 || lt >= 3.02) return;
     var x0 = CHIP[5].x, y0 = JY;
@@ -152,7 +151,7 @@
       }
     }
 
-    /* a drip forms under the comma and falls into "0.15 s" */
+    /* A drip falls from the comma into 0.15 s. */
     if (lt >= 3.12 && lt < 3.56) {
       var g = M.prog(lt, 3.12, 3.38);
       var dr2 = 13 * M.outCubic(g);
@@ -178,7 +177,7 @@
     }
   }
 
-  /* the stat gathers into one drop that flies home into the magnifier */
+  /* The stat gathers into one drop, flies into the magnifier. */
   function home(lt, P) {
     if (lt < 5.08 || lt >= 5.8) return;
     var g = M.outBack(M.prog(lt, 5.08, 5.38), 1.6);

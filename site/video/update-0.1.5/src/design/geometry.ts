@@ -2,7 +2,7 @@ export type Point = [number, number];
 
 const TAU = Math.PI * 2;
 
-// Quarter (or any) arc sampled in y-down screen space; angles increase clockwise.
+// An arc sampled in y-down space; angles run clockwise.
 export const arc = (cx: number, cy: number, r: number, from: number, to: number, steps: number): Point[] => {
   const out: Point[] = [];
   for (let i = 0; i <= steps; i++) {
@@ -22,7 +22,7 @@ export const roundedRect = (x: number, y: number, w: number, h: number, r: numbe
 export const circle = (r: number, steps = 96): Point[] =>
   Array.from({ length: steps }, (_, i): Point => [r * Math.cos((TAU * i) / steps - TAU / 4), r * Math.sin((TAU * i) / steps - TAU / 4)]);
 
-// Exact rounded rectangle as an SVG path (arcs), for the open stage.
+// Exact rounded rectangle as an SVG path, for the stage.
 export const roundedRectPath = (x: number, y: number, w: number, h: number, r: number) =>
   `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}` +
   `H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
@@ -86,7 +86,7 @@ export const union = (parts: Sdf[]): Sdf => (x, y) => {
   return d;
 };
 
-// Marching squares on the zero level set; returns the longest closed loop.
+// Marching squares on the zero level; the longest closed loop.
 export const contour = (sdf: Sdf, x0: number, y0: number, x1: number, y1: number, step: number): Point[] => {
   const nx = Math.ceil((x1 - x0) / step) + 1;
   const ny = Math.ceil((y1 - y0) / step) + 1;

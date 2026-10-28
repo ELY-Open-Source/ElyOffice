@@ -1,12 +1,10 @@
-/* s4: reading (threads, privacy), global 26–34 s. Local time lt = 0..8.
-   window.S4X holds pure functions of lt shared by s4.html and this build,
-   so DOM and liquid stay locked to the same camera and choreography. */
+/* s4 reading, 26–34 s; window.S4X shares the camera with s4.html. */
 (function () {
   "use strict";
   var M = LQ.M, C = LQ.C;
   var X = (window.S4X = {});
 
-  /* ---------- camera (wrapper transform, origin 0 0: p' = p*s + t) ---------- */
+  /* Camera: the wrapper's transform, p' = p*s + t. */
   var ID = { s: 1, x: 0, y: 0 };
   var A = { s: 1.25, x: -290, y: -150 };
   var B = { s: 1.2, x: -806, y: -150 };
@@ -73,7 +71,7 @@
     return X.sc(lt, X.O[0] + 22, X.O[1] + X.cardTop(i) + 32 + cd.dy);
   };
 
-  /* ---------- newsletter, shield and the drops (screen space under camera B) ---------- */
+  /* Newsletter, shield and drops, in screen space under camera B. */
   X.SH = { x: 1282, y: 300, w: 96, h: 360 }; // glass shield (screen)
   X.HITS = [5.4, 5.85, 6.72];
   X.LOAD = 6.0; // "载入图片" tap
@@ -108,7 +106,7 @@
 
   var C1 = [1392, 404], C2 = [1392, 440], C3 = [1392, 516];
   X.CY = [C1[1], C2[1], C3[1]];
-  /* the tracking pixel: a tiny dark glossy drop with comedic timing */
+  /* The tracking pixel: a tiny dark drop with comedic timing. */
   X.dark = function (lt) {
     if (lt < 5.0 || lt > 7.1) return null;
     var x, y, sx = 1, sy = 1, rot = 0, p, w, r = 19;
@@ -222,7 +220,7 @@
   }
   X.pastel = pastel;
 
-  /* ---------- the liquid fingertip: a glass drop that taps the UI ---------- */
+  /* The liquid fingertip: a glass drop that taps the UI. */
   X.tap = function (P, lt, T, x, y) {
     var t0 = T - 0.26;
     if (lt < t0 || lt > T + 0.44) return;
@@ -299,7 +297,7 @@
       var p = pastel(j, lt);
       if (p) P.ball(p.x, p.y, p.r, X.PC[j], { sx: p.sx, sy: p.sy, rot: p.rot, k: 14 });
     }
-    // a spray of dark spit where the pixel bonks the shield
+    // Dark spit sprays where the pixel bonks the shield.
     for (var h = 0; h < 3; h++) {
       var ft = lt - X.HITS[h];
       if (ft <= 0 || ft > 0.45) continue;

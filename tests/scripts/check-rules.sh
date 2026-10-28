@@ -21,7 +21,15 @@ lines 500 "src/full.rs"
 lines 600 "vendor/big.rs"
 lines 600 "docs/notes.md"
 lines 600 "src/with space/data.txt"
+lines 600 "site/video/vendor/big.js"
+# The same lines, the last without its LF.
+bare() { lines "$1" "$2" && printf '%s' "$(cat "$work/$2")" >"$work/$2"; }
+bare 500 "src/bare.rs"
 check || fail "files within the rules failed: $said"
+bare 501 "src/bare.rs"
+! check || fail "501 lines without a final LF passed"
+case $said in *"src/bare.rs: 501 lines"*) ;; *) fail "the unterminated file was not named: $said" ;; esac
+bare 500 "src/bare.rs"
 lines 501 "src/with space/long.rs"
 ! check || fail "a 501-line .rs passed"
 case $said in *"src/with space/long.rs: 501 lines"*) ;; *) fail "the long file was not named: $said" ;; esac

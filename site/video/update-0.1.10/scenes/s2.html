@@ -53,7 +53,7 @@
     var reads = w.read.children;
     var badge = w.win.querySelector("#s2-all .n");
 
-    /* 12.2: kicker pops above the liquid title, leaves as the flap opens */
+    /* 12.2: kicker pops above the title, leaves as flap opens. */
     tl.fromTo(kick, { opacity: 0, y: 18, scale: 0.7 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(2.4)" }, 1.22);
     tl.fromTo(kick, { opacity: 1, y: 0 }, { opacity: 0, y: -16, duration: 0.24, ease: "power2.in", immediateRender: false }, 2.24);
 

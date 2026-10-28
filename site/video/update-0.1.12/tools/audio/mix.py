@@ -63,7 +63,7 @@ def load_sfx(sfx_dir):
 
 
 def vary(x, file, index, t, name):
-    """Tiny deterministic pitch (±35 cents), gain (±1.2 dB) and placement (±0.35) per cue."""
+    """Tiny deterministic pitch, gain and placement changes per cue."""
     r = np.random.default_rng(zlib.crc32(f"{file}:{index}:{t:.4f}:{name}".encode()))
     ratio = 2 ** (r.uniform(-35, 35) / 1200)
     n = int(len(x) / ratio)

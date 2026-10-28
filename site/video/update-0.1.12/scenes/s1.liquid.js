@@ -1,7 +1,4 @@
-/* s1 intro, global 0–12 s: a white drop lands, blooms into "0.1.11", melts into
-   "0.1.12", splits into six app tiles, the ElyTable drop plunges in and slurps
-   them all, settling exactly on H1. Pure function of time.
-   window.__s1 shares the same poses with scenes/s1.html (eyes, icons). */
+/* s1 intro, 0–12 s: drop, versions, tiles, then H1. */
 (function () {
   "use strict";
   var M = LQ.M, C = LQ.C;
@@ -46,7 +43,7 @@
     return g;
   }
 
-  /* text field pose: centre (cx, cy), scale s, glyph top and bottom */
+  /* Text field pose: centre, scale, glyph top and bottom. */
   function pose(lt) {
     var g = geo();
     var s = 1 + M.wobble(lt, 2.6, 2.4, 4, 0.05);
@@ -97,7 +94,7 @@
       P.cap(960, yb + r * st * 0.4, 960, yb + r * st * 0.4 + 90 * (1 - lu), (r / st) * 0.55, 2, WHITE, { k: 30 });
       return;
     }
-    /* bloom: the drop stretches into a bar over the word, then thins away as the letters fatten */
+    /* Bloom: a bar over the word thins as letters fatten. */
     var e2 = M.outBack(M.prog(lt, 2.42, 2.56), 1.4), thin = 1 - M.smooth(M.prog(lt, 2.56, 2.76));
     var hw = (geo().w9 / 2 - 96) * e2, rr = M.lerp(r, 104, M.smooth(M.prog(lt, 2.42, 2.54))) * thin;
     if (rr > 0.5) P.cap(960 - hw, TY, 960 + hw, TY, rr, rr, WHITE, { k: 40 });
@@ -145,7 +142,7 @@
     else P.text(0, SB, p.cx, p.cy, { scale: p.s, amount: amt, color: CANDY });
   }
 
-  /* 4.1–5.0: the last "1" swells into a blob and comes back a "2" */
+  /* 4.1–5.0: the last 1 swells and comes back a 2. */
   function cover(lt, P) {
     if (lt < 4.1 || lt > 5.0) return;
     var p = pose(lt), g = p.g;
@@ -227,7 +224,7 @@
     var p = pose(lt);
     return { x: gx(p, p.g.ctr[c]), y: p.top - r * 0.72 };
   }
-  /* 5.0–7.8: the drip becomes a stray droplet that hops along the digits */
+  /* 5.0–7.8: the drip hops along the digits as a droplet. */
   function stray(lt, P) {
     if (lt < TLAND || lt > 7.8) return;
     var r = 24;
@@ -253,7 +250,7 @@
     P.ball(prev.x, prev.y + r * (1 - sq), rr, WHITE, { sx: 1 / sq, sy: sq, k: 22 });
   }
 
-  /* ---------- 7.4–12: puddle → six tiles → ElyTable drop → H1 ---------- */
+  /* 7.4–12: puddle, six tiles, ElyTable drop, H1. */
   function slot6(i) { return 960 + (i - 2.5) * 200; }
   function puddleX(i) { return 960 + (i - 2.5) * 84; }
   function shove(i, lt) { return (i < 3 ? -1 : 1) * 100 * M.spring(lt, 9.46 + RANK[i] * 0.035, 2.6, 0.4); }
@@ -265,7 +262,7 @@
     return { x: slot6(i) + shove(i, lt), y: ROW, sx: 1 - 0.12 * w, sy: 1 + 0.1 * w };
   }
 
-  /* 7.4–8.06: drips sag, a bar swallows the word, then slumps into the puddle */
+  /* 7.4–8.06: drips sag, a bar swallows the word, slumps. */
   function melt(lt, P) {
     if (lt < 7.4 || lt > 8.08) return;
     var p = pose(Math.min(lt, 7.76)), g = p.g;
@@ -365,7 +362,7 @@
     end: 12,
     build: function (lt, P) {
       if (lt >= 10.95) {
-        /* hold on H1; squat before the 12.0 drop, exact at the end */
+        /* Hold H1; squat before the 12.0 drop, exact at end. */
         var sq = 1 - 0.12 * Math.sin(Math.PI * M.prog(lt, 11.4, 11.98));
         P.ball(960, 500 + 120 * (1 - sq), 120, C.table, { sx: 1 / sq, sy: sq });
         return;

@@ -145,7 +145,7 @@ def section(s, scene, end, plan):
 
 
 def plate_chain(scene, rec, k, card, out):
-    """Pins the recording to the screen face, then flattens it into the window."""
+    """Pins the recording to the screen, flattened into the window."""
     data = json.loads((SCENES / f"{scene['name']}.json").read_text())["frames"]
     landed = next(f["corners"] for f in data if f["corners"])
     corners = [padded(f["corners"] or landed) for f in data]
@@ -172,7 +172,7 @@ def plate_chain(scene, rec, k, card, out):
 
 
 def view_expr(app, first, n):
-    """Per-frame crop of the recording from the fx layer, or the whole."""
+    """Per-frame crop from the fx layer, or the whole recording."""
     path = EXTRA / f"{app}-fx" / "view.json"
     if not path.exists():
         return [[0, 0, 1920, 1080]] * n
@@ -230,7 +230,7 @@ def starts():
 
 
 def film(made):
-    """Joins every part, lays the delivered layers on top, adds music."""
+    """Joins the parts, lays delivered layers on top, adds music."""
     order = ["opening", "rise", *made, "files", "props", "end"]
     inputs = []
     for part in order:

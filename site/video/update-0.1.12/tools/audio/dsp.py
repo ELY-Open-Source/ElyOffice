@@ -86,7 +86,7 @@ def butter(x, kind, f, order=2):
 
 
 def tv(x, kind, freq, q=0.7071, block=64):
-    """Biquad whose corner follows freq (scalar or per-sample array); state carries across blocks."""
+    """Biquad with a moving corner; state carries across blocks."""
     freq = np.broadcast_to(np.asarray(freq, float), (len(x),))
     y = np.empty_like(x)
     zi = np.zeros((1, 2) + x.shape[1:])
@@ -136,7 +136,7 @@ def sine(freq, n=None, start=0.0):
 # Envelopes and placement -----------------------------------------------
 
 def env(n, attack=0.005, release=0.05, hold=None, decay=None, sustain=1.0):
-    """Click-free envelope: sine-squared attack, optional decay, cosine-squared release ending at zero."""
+    """Click-free envelope: sine-squared attack, optional decay, cosine-squared release."""
     t = secs(n)
     e = np.sin(np.clip(t / max(attack, 1e-4), 0, 1) * np.pi / 2) ** 2
     if decay:
@@ -172,7 +172,7 @@ def width(x, amount, mono_below=150.0):
 # Space -------------------------------------------------------------------
 
 def impulse(seconds, t60, seed, predelay=0.012, damp=8000.0, build=0.015):
-    """Stereo reverb impulse: decorrelated noise with low, mid and high decay times plus early reflections."""
+    """Stereo reverb impulse: per-band decay plus early reflections."""
     g = np.random.default_rng(seed)
     n = ns(seconds)
     t = secs(n)
@@ -224,7 +224,7 @@ def chorus(x, rate=0.23, depth=0.0025, centre=0.011, mix=0.45):
 # Dynamics ----------------------------------------------------------------
 
 def compress(x, threshold_db, ratio, attack, release, knee=6.0, block=48):
-    """Feed-forward peak compressor; the detector runs on blocks, the gain is interpolated per sample."""
+    """Peak compressor: block detector, gain interpolated per sample."""
     lvl = np.abs(x).max(1) if x.ndim == 2 else np.abs(x)
     nb = -(-len(lvl) // block)
     peaks = np.pad(lvl, (0, nb * block - len(lvl))).reshape(nb, block).max(1)
@@ -251,7 +251,7 @@ def db(v):
 
 
 def limiter(x, ceiling_db, release=0.08, look=96, block=32):
-    """Look-ahead brickwall on 4x-oversampled peaks. The smoothed gain never exceeds what any nearby peak needs."""
+    """Look-ahead brickwall on 4x-oversampled peaks, smoothed gain."""
     c = 10 ** (ceiling_db / 20)
     n = len(x)
     up = np.abs(signal.resample_poly(x, 4, 1, axis=0)).max(1)[:n * 4]
@@ -312,7 +312,7 @@ def write_wav(path, x):
 
 
 def read_wav(path):
-    """Read a 16- or 24-bit PCM WAV as float (frames, channels)."""
+    """Reads a 16- or 24-bit PCM WAV as float."""
     with wave.open(str(path), "rb") as w:
         ch, width, rate, frames = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
         raw = w.readframes(frames)

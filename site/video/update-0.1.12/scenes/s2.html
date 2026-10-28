@@ -64,7 +64,7 @@
     place(term, G.term);
     place(sheet, G.sheet);
 
-    /* the terminal: what is typed, when, and what the app answers */
+    /* The terminal: what is typed, when, and the answer. */
     var LINES = [
       { text: "# AI 代理：补上显示器的金额", t0: 1.4, t1: 2.4, note: true },
       { text: 'ely-table cell set sales.xlsx Sheet1!D4 "=B4*C4"', t0: 4.0, t1: 5.6, cmd: true },
@@ -82,7 +82,7 @@
       return { el: el, t: el.querySelector(".t"), caret: el.querySelector(".s2-caret") };
     });
 
-    /* the sheet: header row and four products; D4 waits for the write */
+    /* The sheet: a header, four products; D4 awaits the write. */
     var DATA = [["产品", "数量", "单价", "金额"], ["键盘", "8", "260", "2080"], ["鼠标", "15", "99", "1485"], ["显示器", "3", "1299", ""], ["耳机", "6", "359", "2154"]];
     var grid = document.getElementById("s2-grid");
     var ox = G.gridX - G.sheet.x - 20, oy = G.gridY - G.sheet.y - 124;
@@ -138,7 +138,7 @@
       set(sheet, 0, 0, (0.97 + 0.03 * backOut(prog(lt, 0.62, 1.0), 1.4)) * (1 - 0.03 * out), si * (1 - out));
       set(term, 0, 0, (0.96 + 0.04 * backOut(prog(lt, 1.12, 1.5), 1.4)) * (1 - 0.03 * out), ti * (1 - out));
 
-      /* typing: a fixed schedule; the caret sits on the line being typed */
+      /* Typing on a fixed schedule; the caret follows the line. */
       var active = -1;
       for (var i = 0; i < LINES.length; i++) {
         var l = LINES[i], n = l.text.length;
@@ -162,7 +162,7 @@
           cells[rr][cc].style.transform = "translateY(" + (10 * (1 - o)).toFixed(2) + "px)";
         }
       }
-      /* D4 fills when the drop lands; the cursor never leaves B7 */
+      /* D4 fills on the drop's landing; cursor stays on B7. */
       var landed = lt >= 6.42;
       d4.textContent = landed ? "3897" : "";
       var dp = prog(lt, 6.42, 6.8);

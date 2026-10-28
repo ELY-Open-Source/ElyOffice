@@ -9,8 +9,7 @@ export type HeadingSpec = {
   app?: AppId;
   // Section-local frame the title starts to enter (default: beat 1).
   at?: number;
-  // Section-local frame it starts to leave (default: the next heading's
-  // entrance, or HEADING.out frames before the section ends).
+  // Section-local frame it starts leaving; defaults to the next entrance.
   until?: number;
 };
 
@@ -19,9 +18,7 @@ const LEAVE = 22;
 
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
-// Per-character rise, unblur and fade; leaving drifts on up and dissolves.
-// The first `keepIn` characters are already on screen (shared with the previous
-// heading); the first `keepOut` stay for the next one until `handoff`.
+// Per-character rise and unblur; shared characters stay on screen.
 const Kinetic: React.FC<{
   text: string;
   local: number;
@@ -62,17 +59,17 @@ const Kinetic: React.FC<{
   );
 };
 
-// One section title above the stage's left edge, with an optional app chip.
+// A section title above the stage, with an optional chip.
 export type HeadingTiming = {
   spec: HeadingSpec;
   enter: number;
   leave: number;
-  // Characters shared with the previous / next heading of the section.
+  // Characters shared with the previous and next heading.
   keepIn: number;
   keepOut: number;
-  // Section-local frame the next heading takes over (null for the last).
+  // Section-local frame the next heading takes over; null if last.
   handoff: number | null;
-  // Rule colour of the previous heading, which this one eases from.
+  // The previous heading's rule colour, which this eases from.
   fromColor: string | null;
 };
 
@@ -178,12 +175,12 @@ const shared = (a: string, b: string) => {
   const y = Array.from(b);
   let n = 0;
   while (n < x.length && n < y.length && x[n] === y[n]) n++;
-  // Keep whole words only: stop after the last space of the shared run.
+  // Whole words only: stop after the shared run's last space.
   const cut = x.slice(0, n).lastIndexOf(' ');
   return n === x.length || n === y.length ? n : cut + 1;
 };
 
-// Resolve each heading's frames within a section; `accent` colours the rule.
+// Each heading's frames within a section; `accent` colours the rule.
 export const headingTimes = (specs: HeadingSpec[], duration: number, accent: (spec: HeadingSpec) => string): HeadingTiming[] =>
   specs.map((spec, i) => {
     const enter = spec.at ?? HEADING.in;

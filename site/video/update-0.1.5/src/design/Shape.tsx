@@ -17,7 +17,7 @@ export const mix = (a: string, b: string, t: number) => {
   return `#${((c(16) << 16) | (c(8) << 8) | c(0)).toString(16).padStart(6, '0')}`;
 };
 
-// The highlighted table cell that the cell-editing section grows out of.
+// The highlighted cell the cell-editing section grows from.
 const CellArt: React.FC = () => (
   <svg viewBox="0 0 192 192" width="100%" height="100%">
     <rect x="16" y="51" width="160" height="90" rx="8" fill="#3E4A5C" />
@@ -80,7 +80,7 @@ export type ShapeViewProps = {
   border?: number;
   sweep?: number | null;
   details?: Details[];
-  // Multiplier on shadow and glow, for shapes stacked on one another.
+  // Shadow and glow multiplier for shapes stacked on others.
   presence?: number;
   content?: {
     node: ReactNode;
@@ -91,7 +91,7 @@ export type ShapeViewProps = {
   };
 };
 
-// One morphing shape: glow, shadow, clipped content, colour wash, artwork, edge.
+// One morphing shape: glow, shadow, content, wash, artwork, edge.
 export const ShapeView: React.FC<ShapeViewProps> = ({
   d,
   color,
@@ -154,7 +154,7 @@ export const ShapeView: React.FC<ShapeViewProps> = ({
           {fill > 0.001 ? (
             <AbsoluteFill
               style={{
-                // A soft top light that scales with the shape gives the flat colour depth.
+                // A soft top light scaled to the shape gives depth.
                 background: `radial-gradient(circle at ${cx.toFixed(1)}px ${(cy - 80 * k).toFixed(1)}px, rgba(255,255,255,0.09), rgba(255,255,255,0) ${(230 * k).toFixed(1)}px), ${color}`,
                 opacity: fill,
               }}

@@ -7,12 +7,12 @@ import type { TakeName } from './take';
 /** A stretch of one take: footage seconds `from` to `to`. */
 export type Cut = { take: TakeName; from: number; to: number; rate?: number; fade?: number };
 
-/** A camera key at section frame `f`: zoom and the footage point in the middle. */
+/** Camera key at frame `f`: zoom, centred footage point. */
 export type Shot = { f: number; z: number; x: number; y: number };
 
 export type Placed = Cut & { start: number; length: number };
 
-/** Each cut's section frames; a cut's fade overlaps the one before. */
+/** Each cut's section frames; its fade overlaps the one before. */
 export const lay = (cuts: Cut[], first = 0): Placed[] => {
   let at = first;
   return cuts.map((cut, i) => {
@@ -37,7 +37,7 @@ const camera = (shots: Shot[], f: number) => {
   return { f, z: a.z + (b.z - a.z) * k, x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
 };
 
-/** Footage pixels to stage pixels, under the camera at frame `f`. */
+/** Footage pixels to stage pixels under the camera at `f`. */
 export const viewOf = (shots: Shot[], f: number) => {
   const c = camera(shots, f);
   const k = FOOTAGE.scale * c.z;
@@ -55,7 +55,7 @@ type Props = {
   overlay?: (cut: Placed, t: number, f: number) => React.ReactNode;
 };
 
-/** Recorded takes on the stage, with the drawn pointer and a directed camera. */
+/** Recorded takes on stage, with drawn pointer and directed camera. */
 export const Clip: React.FC<Props> = ({ cuts, shots, overlay }) => {
   const f = useCurrentFrame();
   const view = viewOf(shots, f);

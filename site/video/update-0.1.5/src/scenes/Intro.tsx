@@ -3,7 +3,7 @@ import { COLOR, EASE, FONT, ICON, SECTION } from '../theme';
 import { type ShapeId, SHAPES, boundaryPulse, shapePath } from '../design/morph';
 import { ShapeView, type Details, mix, rgba } from '../design/Shape';
 
-// Each icon lands on a beat; the dot breathes for the first two beats.
+// Icons land on beats; the dot breathes for two beats.
 const STEPS: { shape: ShapeId; land: number; dur: number }[] = [
   { shape: 'ely-doc', land: 75, dur: 30 },
   { shape: 'ely-show', land: 112.5, dur: 24 },
@@ -18,7 +18,7 @@ const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 const ramp = (f: number, a: number, b: number, ease = EASE.out) => interpolate(f, [a, b], [0, 1], { ...clamp, easing: ease });
 
 const iconAt = (f: number) => {
-  // Before the wordmark the icon sits a little higher, at the frame's centre.
+  // Before the wordmark the icon sits higher, at frame centre.
   const cy = ICON.y - 40 * (1 - ramp(f, 150, 240, EASE.inOut));
   const pulse = boundaryPulse(f - END);
   const index = STEPS.findLastIndex((s) => f >= s.land - s.dur);

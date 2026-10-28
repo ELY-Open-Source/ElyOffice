@@ -92,7 +92,7 @@ const everything = [...model.flatMap((p) => p.blocks), ...lamp, ...props.flatMap
 /** Model under the title; whole model; end card. */
 const hero = fit(everything, 1720, 790, WIDTH / 2, 640);
 const wide = fit(everything, 1800, 960, WIDTH / 2, 545);
-/** End card: below the title, or above the delivered voxel type. */
+/** End card: below the title, or above delivered voxel type. */
 const ending = () => (hidden.has("name") ? fit(everything, 1500, 340, WIDTH / 2, 235) : fit(everything, 1440, 600, WIDTH / 2, 575));
 /** The opening's last framing, in this renderer's terms. */
 const opened = (() => {
@@ -147,7 +147,7 @@ function bounds(app: string) {
   return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
 }
 
-/** Pushes toward the screen, then into it on the last beat. */
+/** Pushes toward the screen, into it on the last beat. */
 function push(app: string, t: number, beat: number): { cam: Camera; flat: number } {
   const f = bounds(app);
   const [cx, cy] = [(f.x0 + f.x1) / 2, (f.y0 + f.y1) / 2];

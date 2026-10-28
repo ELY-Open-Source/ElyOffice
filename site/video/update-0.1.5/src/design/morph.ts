@@ -17,7 +17,7 @@ import {
 
 export type ShapeId = AppId | 'dot' | 'cell';
 
-// Silhouettes in Papirus grid units, centred on the grid centre (96, 96).
+// Silhouettes in Papirus grid units, centred on (96, 96).
 const centre = (points: Point[]): Point[] => points.map(([x, y]) => [x - 96, y - 96]);
 const Q = Math.PI / 2;
 
@@ -78,7 +78,7 @@ export const SHAPES: Record<ShapeId, { points: Point[]; color: string; accent: s
   dot: { points: circle(15), color: '#3D7FE5', accent: '#3D7FE5' },
 };
 
-// The open stage, shrunk to icon size so shape and size can morph separately.
+// The stage at icon size: shape and size morph separately.
 const PROXY_W = 168;
 const PROXY_H = (PROXY_W * STAGE.h) / STAGE.w;
 const PROXY_R = (STAGE.r * PROXY_W) / STAGE.w;
@@ -86,8 +86,7 @@ const proxy = roundedRect(-PROXY_W / 2, -PROXY_H / 2, PROXY_W, PROXY_H, PROXY_R,
 // Zoom at which the proxy is exactly the stage.
 export const STAGE_ZOOM = STAGE.w / (PROXY_W * ICON.unit);
 
-// Rings are resampled into four runs between corresponding anchors (the
-// shape's outer corners), so corners travel to corners and nothing shears.
+// Rings resample in four runs between corners, so nothing shears.
 const RUN = 128;
 const ANCHORS: Partial<Record<ShapeId, Point[]>> = {
   // The board's corners, not the stand's feet.
@@ -155,14 +154,14 @@ const ring = (from: ShapeId | 'stage', to: ShapeId | 'stage'): Ring => {
   const key = `${from}>${to}`;
   let found = cache.get(key);
   if (!found) {
-    // Equal, aligned rings: flubber neither bisects nor needs to rotate them.
+    // Equal, aligned rings: flubber need not bisect or rotate them.
     found = flubber(prepare(from), prepare(to), { string: false, maxSegmentLength: 0 });
     cache.set(key, found);
   }
   return found;
 };
 
-// Path of `from` turned `t` of the way into `to`, drawn at zoom `k` around (cx, cy).
+// Path of `from` turned `t` toward `to`, at zoom `k`.
 export const shapePath = (from: ShapeId | 'stage', to: ShapeId | 'stage', t: number, k: number, cx: number, cy: number) => {
   const points = from === to ? prepare(from) : ring(from, to)(t);
   return toPath(points, ICON.unit * k, cx, cy);
@@ -173,7 +172,7 @@ export const shapePath = (from: ShapeId | 'stage', to: ShapeId | 'stage', t: num
 export type MorphState = {
   // 0: icon silhouette, 1: stage rectangle.
   s: number;
-  // Zoom of the shape (1 = icon size, STAGE_ZOOM = stage size).
+  // Shape zoom: 1 is icon size, STAGE_ZOOM stage size.
   k: number;
   cx: number;
   cy: number;
@@ -187,7 +186,7 @@ export type MorphState = {
   // 0: icon shadow, 1: stage shadow.
   lift: number;
   border: number;
-  // 0..1 travel of the light sweep along the stage edge; null when idle.
+  // Light sweep along the stage edge, 0..1; null when idle.
   sweep: number | null;
 };
 
@@ -201,7 +200,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 // The downbeat swell: the icon breathes in on the cut.
 export const boundaryPulse = (d: number) => 0.04 * Math.exp(-((d / 6.5) ** 2));
 
-// Icon resting on a cut, `d` frames from it (negative: before it).
+// Icon resting on a cut, `d` frames from it.
 export const restState = (d: number): MorphState => ({
   s: 0,
   k: 1 + boundaryPulse(d),
@@ -217,7 +216,7 @@ export const restState = (d: number): MorphState => ({
   sweep: null,
 });
 
-// `o` is how open the stage is (0 icon, 1 stage), in each direction's own time.
+// `o`: stage openness (0 icon, 1 stage), per direction.
 const openState = (shape: number, zoom: number, o: number, sweep: number | null): MorphState => ({
   s: shape,
   k: Math.exp(Math.log(STAGE_ZOOM) * zoom),
@@ -243,7 +242,7 @@ export const enterState = (f: number): MorphState => {
   return openState(shape, zoom, zoom, sweep);
 };
 
-// Section-local frame `f` of a stage in a section `duration` frames long.
+// Section-local frame `f` of a stage, `duration` frames long.
 export const exitState = (f: number, duration: number): MorphState => {
   const d = f - duration;
   if (d >= -MORPH.hold) return restState(d);

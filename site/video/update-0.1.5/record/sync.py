@@ -9,7 +9,7 @@ import numpy as np
 
 
 def first_change(video: Path, x: int, y: int, after: float, until: float):
-    """The first frame time when the patch at (x, y) changes."""
+    """First frame time when the patch at (x, y) changes."""
     with av.open(str(video)) as box:
         stream = box.streams.video[0]
         start = float(stream.start_time * stream.time_base) if stream.start_time else 0.0

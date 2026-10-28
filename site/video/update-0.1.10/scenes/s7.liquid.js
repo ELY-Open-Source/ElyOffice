@@ -1,10 +1,9 @@
-/* s7: liquid choreography, global 50s to 60s. Rules funnel, vCard bubbles, the MBOX jar,
-   the .eml drop, the window sucked into the tray, and the melt into H7. Geometry mirrors scenes/s7.html. */
+/* s7, 50–60 s: rules, vCards, MBOX jar, .eml, tray, H7. */
 (function () {
   var M = LQ.M, C = LQ.C;
   var CLEAR = "#F4F6FF";
   function bez(a, c, b, t) { var u = 1 - t; return u * u * a + 2 * u * t * c + t * t * b; }
-  /* a ball flying along a quadratic curve, stretched along its velocity */
+  /* A ball on a quadratic curve, stretched along its velocity. */
   function flyer(P, lt, t0, t1, a, c, b, r0, r1, col, ease, k) {
     var e = ease || M.inOutCubic;
     var p = e(M.prog(lt, t0, t1)), p2 = e(M.prog(lt + 0.004, t0, t1));
@@ -110,7 +109,7 @@
   function jar(lt, P) {
     if (lt < 3.72 || lt >= 5.86) return;
     var out = 1 - M.inCubic(M.prog(lt, 5.56, 5.8));
-    /* the pour: a gooey stream that slurps beads into the jar */
+    /* The pour: a gooey stream slurps beads into the jar. */
     var head = M.lerp(-30, MOUTH, M.inCubic(M.prog(lt, 3.75, 3.95)));
     var tail = M.lerp(-30, MOUTH, M.inCubic(M.prog(lt, 4.38, 4.56)));
     if (lt < 4.56 && head > tail + 2) P.cap(JX, tail, JX, head, 5, 6.5, C.mail, { k: 22 });
@@ -130,7 +129,7 @@
       P.ball(JX + wv, JBOT - h + 6, Math.min(36, h * 0.4), C.mail, { sx: 2.1, sy: 0.4, k: 26 });
     }
   }
-  /* one message pops out of the jar as an .eml drop and opens as a card */
+  /* An .eml drop leaves the jar, opens as a card. */
   var EX = 1520, EY = 485;
   function eml(lt, P) {
     if (lt < 4.55 || lt >= 5.42) return;
@@ -153,7 +152,7 @@
     P.box(EX, EY, bw * (1 + sq), bh * (1 - sq), M.lerp(30, 24, g), C.mail, { k: 30 });
   }
 
-  /* ---------- C. close: the window becomes a drop and flies into the tray ---------- */
+  /* C. Close: the window drops into the tray. */
   var SLOT = [1646, 28];
   function closeToTray(lt, P) {
     if (lt >= 6.42 && lt < 6.72) {
@@ -180,7 +179,7 @@
     /* resting in the tray: lands, breathes, swallows three new-mail droplets */
     var land = M.wobble(lt, 7.36, 4, 6, 0.35);
     var blip = 0;
-    /* three new mails sweep across the desktop and drop into the tray */
+    /* Three new mails sweep across and drop into the tray. */
     var IN = [7.56, 7.7, 7.84], FLY = 0.52;
     var NCOL = ["#FF5FA8", "#3ddc84", "#2FD8E8"];
     for (var i = 0; i < 3; i++) {
@@ -211,7 +210,7 @@
     P.ball(SLOT[0], SLOT[1], r, C.mail, { sx: 1 + land + blip, sy: 1 - land - blip, k: 30 });
   }
 
-  /* ---------- D. the notification melts and everything falls into H7 ---------- */
+  /* D. The notification melts; everything falls into H7. */
   var NC = [1636, 158];
   function finale(lt, P) {
     if (lt < 9.0) return;
@@ -235,7 +234,7 @@
   }
 
   LQ.add({ id: "s7", start: 50, end: 60, build: function (lt, P) {
-    /* a richer body for the small coloured drops; back to the default before the H7 ball */
+    /* Richer body for the small drops; default again before H7. */
     var rich = 1 - M.smooth(M.prog(lt, 5.6, 6.0));
     if (rich > 0) P.material({ body: 0.42 + 0.2 * rich });
     funnel(lt, P);

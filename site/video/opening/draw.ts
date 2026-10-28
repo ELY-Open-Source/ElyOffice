@@ -171,7 +171,7 @@ function bounds(v: View, b: Box): [number, number, number, number] {
   return [x0, x1, y0, y1];
 }
 
-/** True if `a` draws first, false if `b`, null if unknown. */
+/** True if `a` draws first, false if `b`, else null. */
 function behind(a: Box, b: Box, vx: number, vy: number): boolean | null {
   const axes: [number, number, number, number, number][] = [
     [a.x, a.w, b.x, b.w, vx],

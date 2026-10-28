@@ -1,6 +1,4 @@
-/* s4 ElyMark copies a file's name and path, global 32–38 s: the H3 ball swells
-   into the window; drops carry each copy from the menu to the toast; the window
-   folds into the data-folder ball (H4). */
+/* s4 ElyMark copies name and path, 32–38 s, then H4. */
 (function () {
   "use strict";
   var C = LQ.C, F = window.FLOW;

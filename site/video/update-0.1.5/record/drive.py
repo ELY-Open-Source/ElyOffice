@@ -139,7 +139,7 @@ def _ease(t):
 
 
 def move_to(x, y, dur=0.6, path=None):
-    """Moves the pointer to region (x, y); `path` bends the line."""
+    """Moves the pointer to region (x, y); `path` bends it."""
     sx, sy = where()
     steps = max(1, int(dur * 240))
     start = time.perf_counter()

@@ -1,6 +1,4 @@
-/* s3: accounts, global 18s to 26s.
-   Back layer: each provider arrives as a drop and squashes into its chip (the HTML chip pops over it).
-   Front layer: each chip melts back into a drop and is reeled along a gooey string into 全部收件箱. */
+/* s3 accounts, 18–26 s: drops become chips, reeled into 全部收件箱. */
 (function () {
   var M = LQ.M, C = LQ.C;
   /* shared with scenes/s3.html (keep the numbers in sync) */
@@ -9,7 +7,7 @@
     chipW: 200,
     chipH: 64,
     cx: 180,
-    /* land = local landing time, y0/y1 = chip centre before/after the cards leave, T = absorption time */
+    /* land: landing time; y0/y1: chip centre; T: absorption time. */
     acc: [
       { id: "gmail", c: "#EA4B5A", land: 0.5, y0: 264, y1: 264, T: 5.5, from: "top" },
       { id: "ms", c: "#2F8CF0", land: 1.0, y0: 480, y1: 344, T: 6.0, from: "left" },
@@ -22,7 +20,7 @@
   function hx(c) { return M.hex(c).slice(0, 3); }
   var MAIL = hx(C.mail);
 
-  /* the 全部收件箱 icon, in screen space, following the camera return (power3.inOut == cubic in-out) */
+  /* The 全部收件箱 icon on screen, following the camera return. */
   function mouth(lt) {
     var k = M.inOutCubic(M.prog(lt, 7, 8));
     return { x: M.lerp(696.7, 234.2, k), y: M.lerp(244.9, 237, k), s: M.lerp(S3.cam.s, 1, k) };
@@ -38,7 +36,7 @@
     return { x: 2 * (1 - s) * (c.x - o.x) + 2 * s * (t.x - c.x), y: 2 * (1 - s) * (c.y - o.y) + 2 * s * (t.y - c.y) };
   }
 
-  /* back layer: a drop flies in and squashes into a 200x64 pill under the HTML chip */
+  /* Back: a drop squashes into a pill under the chip. */
   function arrive(P, lt, a) {
     var u = lt - a.land, cx = S3.cx, cy = a.y0;
     if (u < -0.45 || u > 0.46) return;
@@ -76,7 +74,7 @@
     }
   }
 
-  /* front layer: chip -> drop -> pulled along a string -> gulped by the inbox */
+  /* Front layer: chip, drop, string, gulped by the inbox. */
   function strand(P, lt, a) {
     var u = lt - a.T;
     if (u < -0.8 || u > 0.32) return;
@@ -116,7 +114,7 @@
       }
     }
 
-    /* the string: shoots out of the inbox, hooks the drop, and is reeled in with it */
+    /* The string shoots out, hooks the drop, reels it in. */
     var reach = M.outCubic(M.prog(u, -0.62, -0.46));
     if (reach > 0 && u < 0.02) {
       var s0 = u < depart ? 1 - reach : s;
@@ -144,7 +142,7 @@
       P.ball(dp.x, dp.y, rd, dcol, { sx: st, sy: 1 / st, rot: Math.atan2(dv.y, dv.x), k: 24 });
     }
 
-    /* the inbox mouth: a little lip while the string is out, a gulp when the drop arrives */
+    /* Inbox mouth: lips while the string's out, then gulps. */
     var lip = M.prog(u, -0.62, -0.55) * (1 - M.smooth(M.prog(u, 0.12, 0.3)));
     var gulp = Math.sin(Math.PI * M.prog(u, -0.04, 0.24));
     var mr = (9 + 14 * gulp) * lip * (mo.s / 0.78);

@@ -10,7 +10,7 @@ const GITEA_WAIT = 5000;
 type Cached = RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } };
 type Asset = { name: string; download_count: number; browser_download_url: string };
 type Release = { tag_name: string; assets: Asset[] };
-// A token lifts GitHub's limit for the shared egress addresses: `wrangler secret put GITHUB_TOKEN`.
+// A token lifts GitHub's limit: `wrangler secret put GITHUB_TOKEN`.
 type Env = { GITHUB_TOKEN?: string };
 
 const cf = { cacheTtl: 300, cacheEverything: true };
@@ -47,13 +47,13 @@ const BUNDLES = {
 };
 export type Bundle = keyof typeof BUNDLES;
 
-/** The newest release's version, without the v, and its full installers. */
+/** The newest release's version, without v, and full installers. */
 async function newest(env: Env): Promise<{ version: string; installers: Partial<Record<Bundle, string>> }> {
   const { tag_name: tag, assets } = await read<Release>(env, "/releases/latest");
   if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error(`GitHub's latest tag is ${JSON.stringify(tag)}`);
   const version = tag.slice(1);
   const installers: Partial<Record<Bundle, string>> = {};
-  // A release still building lacks some; the page sends those to the release.
+  // A building release lacks some; those link to the release.
   for (const [bundle, name] of Object.entries(BUNDLES) as [Bundle, (v: string) => string][]) {
     const asset = assets.find((a) => a.name === name(version));
     if (!asset) continue;
@@ -86,7 +86,7 @@ async function downloads(env: Env): Promise<number> {
   }
 }
 
-/** Downloads of every Gitea release; 0 when Gitea is down, slow or odd. */
+/** Gitea releases' downloads; 0 when Gitea is down or odd. */
 async function giteaDownloads(): Promise<number> {
   try {
     let total = 0;

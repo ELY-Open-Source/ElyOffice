@@ -1,7 +1,4 @@
-/* s7 outro, global 48–60 s: from H6 the seven balls wave, fling together into
-   one marbled drop (ring shockwave on 50.0), which seeds seven icon drops and
-   blooms into "Ely Office" / "0.1.12". A last drip falls, hops onto the mail
-   icon and winks; fade to black. window.__s7 shares poses with scenes/s7.html. */
+/* s7 outro, 48–60 s: balls fuse, bloom into the title. */
 (function () {
   "use strict";
   var M = LQ.M, C = LQ.C;
@@ -127,8 +124,7 @@
     }
   }
 
-  /* 1.66–2.9: the white core splits; each half stretches into a bar that
-     covers its word, then thins away as the letters fatten */
+  /* 1.66–2.9: the core splits into bars that thin into letters. */
   function core(lt, P) {
     if (lt < 1.66 || lt > 2.9) return;
     var rc = 128 * M.smooth(M.prog(lt, 1.66, 1.98));
@@ -154,7 +150,7 @@
     P.ring(960, 470, 190 + 980 * M.outCubic(pr), (9 * Math.pow(1 - pr, 1.5) + 0.7) * M.smooth((lt - 1.95) / 0.05), WHITE, { k: 12 });
   }
 
-  /* letters appear as a thin solid core and fatten: no ghost halo */
+  /* Letters grow from a thin solid core: no ghost halo. */
   function pop(lt, t0, d) { return lt < t0 ? 0 : 0.5 + 0.5 * M.smooth((lt - t0) / d); }
   function titles(lt, P) {
     if (lt < 2.42) return;
@@ -176,7 +172,7 @@
     P.ball(x, p.tbot + sag + dr * 0.3, dr, WHITE, { sx: 0.95, sy: 1.08, k: 20 });
   }
 
-  /* 9.0–12: the last drip: hangs from the final "0", falls onto ElyPDF, hops onto ElyMail */
+  /* 9.0–12: the last drip falls onto ElyPDF, hops onto ElyMail. */
   var TSN = 9.76, TL1 = 10.0, TH = 10.14, TL2 = 10.5;
   function dropPose(lt) {
     var p, x, y;

@@ -32,7 +32,7 @@ const Mouse: React.FC<{ part: 'left' | 'right' | 'wheel'; lit: number }> = ({ pa
   );
 };
 
-// A keyboard chord or mouse button that pops in, presses on cue, and leaves.
+// A key chord or mouse button that pops, presses, leaves.
 export const KeyCap: React.FC<KeyCapProps> = ({ keys, from, to, press = [], x, y }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();

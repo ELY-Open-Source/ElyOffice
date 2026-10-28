@@ -101,7 +101,7 @@ class App:
         return self.family()[1] / 1024
 
     def handles(self):
-        """Open handles of the app and its children, as type and name."""
+        """Open handles of the app and children: type and name."""
         ours, _ = self.family()
         found = collections.Counter()
         for pid in ours:
@@ -256,7 +256,7 @@ def documents_open(lines):
 
 
 def handles_kept(before, now, extra, cycle):
-    """Handles past the baseline: only system ones, the same each cycle."""
+    """Handles past baseline: only system ones, same each cycle."""
     grown = now - before
     # Read-only system resources load once, on first use.
     left = sorted(handle for handle in grown if not handle[1].startswith("/System/Library/"))

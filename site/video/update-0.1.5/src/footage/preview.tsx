@@ -1,4 +1,4 @@
-// Test entry for the footage sections: `remotion still src/footage/preview.tsx <Section> …`.
+// Footage test entry: `remotion still src/footage/preview.tsx <Section>`.
 import { AbsoluteFill, Composition, registerRoot } from 'remotion';
 import '../design/fonts';
 import { Background } from '../design/Background';

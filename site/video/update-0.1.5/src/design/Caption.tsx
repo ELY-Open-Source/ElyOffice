@@ -6,14 +6,14 @@ export type CaptionProps = {
   // Section-local frames: starts entering at `from`, gone by `to`.
   from: number;
   to: number;
-  // Centre of the pill in composition pixels (default: bottom centre of the stage).
+  // Pill centre in composition pixels; default bottom centre.
   x?: number;
   y?: number;
 };
 
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
-// A glass pill with one line of explanation, over the stage.
+// A glass pill with one line of explanation.
 export const Caption: React.FC<CaptionProps> = ({ text, from, to, x = STAGE.x + STAGE.w / 2, y = STAGE.y + STAGE.h - 64 }) => {
   const frame = useCurrentFrame();
   if (frame < from || frame >= to) return null;

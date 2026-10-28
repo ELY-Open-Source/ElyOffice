@@ -1,7 +1,4 @@
-/* s8: everything else in 0.1.10 (montage), global 60 s to 78 s.
-   Six vignettes of glass cards. Between vignettes every card melts into a
-   drop under its glass, the drops travel and grow into the next cards.
-   Card rects here match the CSS rects in s8.html: [cx, cy, w, h, colour]. */
+/* s8 montage, 60–78 s: cards melt to drops between vignettes. */
 (function () {
   "use strict";
   var M = LQ.M, C = LQ.C;
@@ -91,12 +88,12 @@
 
   function hop(P, lt, h) {
     var s = V[h], d = V[h + 1], n = Math.max(s.length, d.length);
-    // 2 -> 2 hops swap sides, so the drops kiss and fuse mid-screen
+    // 2 -> 2 hops swap sides; the drops fuse mid-screen.
     var sw = s.length === 2 && d.length === 2 ? 1 : 0;
     for (var j = 0; j < n; j++) trav(P, lt - T[h], j, rr(s[j % s.length]), rr(d[(j + sw) % d.length]), h === 0, sw);
   }
 
-  /* H7 ball squashes, then bursts into the six app drops that grow into the bento. */
+  /* H7 bursts into six drops that grow into the bento. */
   function intro(P, lt) {
     var a0 = 0.17 * M.smooth(M.prog(lt, 0.12, 0.5));
     if (lt < 0.5) {
@@ -139,7 +136,7 @@
     }
   }
 
-  /* V6 cards melt into three drops; seven drops roll out of them into H8. */
+  /* V6 cards melt into three drops; seven roll into H8. */
   var SRC_OF = [0, 0, 2, 2, 1, 1, 1];
   function outro(P, lt) {
     var tau = lt - OUT;
@@ -204,8 +201,7 @@
     }
   }
 
-  /* ---------- front-layer feature liquid ---------- */
-  /* A liquid bubble pops, rings, then hands over to an HTML candy at t0 + 0.2. */
+  /* Front layer: a bubble pops, then HTML takes over. */
   function pop(P, lt, x, y, R, t0, col) {
     var x0 = lt - t0;
     if (x0 < 0 || x0 > 0.45) return;
@@ -236,7 +232,7 @@
     pop(P, lt, 736, 454, 28, 3.85, C.table);
     pop(P, lt, 736, 574, 32, 4.3, C.table);
   }
-  /* The command spits out a mail drop that hops onto the ely-mail package. */
+  /* The command spits a mail drop onto the ely-mail package. */
   function fx3(P, lt) {
     var t0 = 8.2;
     if (lt < t0 || lt > 9.0) return;
@@ -255,7 +251,7 @@
       P.ball(400, 564 + r * w * 0.6, r, C.mail, { sx: 1 + w, sy: 1 / (1 + w), k: 20 });
     }
   }
-  /* A cyan drop leaves the swatch, arcs into cell D2 and splashes. */
+  /* A cyan drop arcs from the swatch into D2, splashing. */
   function fx4(P, lt) {
     var t0 = 10.1;
     if (lt < t0 || lt > 11.05) return;
@@ -307,7 +303,7 @@
     var kc = M.mix3(rgb(C.white), rgb(C.mark), M.smooth(M.prog(q, 0.2, 0.9)));
     P.ball(M.lerp(1542, 1570, q), 248, 13 * app, kc, { sx: sx, sy: 1 / sx, k: 8 });
   }
-  /* A red drop falls on the digit being edited; the check bubbles pop. */
+  /* A red drop hits the edited digit; check bubbles pop. */
   function fx6(P, lt) {
     var t0 = 15.55, land = 15.8, X = 1186, Y = 352;
     if (lt >= t0 && lt < land + 0.2) {

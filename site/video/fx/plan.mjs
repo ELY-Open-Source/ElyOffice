@@ -33,12 +33,7 @@ function bezier(x1, y1, x2, y2) {
 export const settle = bezier(0.2, 0.8, 0.3, 1);
 export const glide = bezier(0.65, 0, 0.35, 1);
 
-/**
- * Per app: first beat of its section, punch-ins and callouts.
- * Beats count from the section's bar 1; rects and boxes are recording pixels.
- * A punch-in eases in over `in`, holds, eases out over `out`;
- * when one's `out` equals the next one's `in`, the view pans directly.
- */
+/** Per app: section's first beat, punch-ins, callouts (recording pixels). */
 export const APPS = [
   {
     app: "doc",
@@ -136,7 +131,7 @@ export function frames(a) {
 const FULL = [0, 0, REC.w, REC.h];
 const mix = (a, b, p) => a.map((v, i) => v + (b[i] - v) * p);
 
-/** Eased moves of the view rect, as [t0, t1, from, to, ease]. */
+/** Eased view-rect moves: [t0, t1, from, to, ease]. */
 function moves(a) {
   const out = [];
   a.zooms.forEach((z, i) => {

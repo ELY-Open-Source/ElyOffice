@@ -1,8 +1,7 @@
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { COLOR, HEIGHT, WIDTH } from '../theme';
 
-// Near-black field with a faint lift at the centre and fine film grain. The grain
-// changes every other frame (30 Hz) from a seed fixed by the frame number.
+// Near-black field, faint centre lift, 30 Hz seeded film grain.
 export const Background: React.FC = () => {
   const frame = useCurrentFrame();
   const seed = Math.floor(frame / 2) % 997;

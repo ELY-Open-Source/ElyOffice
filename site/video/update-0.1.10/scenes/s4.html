@@ -170,7 +170,7 @@
         rows[i].style.transform = Math.abs(jw) > 0.002 ? "scale(" + (1 + 0.02 * jw).toFixed(4) + "," + (1 - 0.07 * jw).toFixed(4) + ")" : "";
       }
 
-      /* the original reader content steps aside, and returns at the end */
+      /* The reader content steps aside, and returns at the end. */
       var oo = lt < 2 ? 1 - M.smooth(M.prog(lt, 0.32, 0.5)) : M.smooth(M.prog(lt, 7.35, 7.75));
       var oy = lt < 2 ? -10 * (1 - oo) : 12 * (1 - oo);
       orig.forEach(function (el) { plain(el, oo, oo < 0.999 ? "translateY(" + oy.toFixed(2) + "px)" : ""); });

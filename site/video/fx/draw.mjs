@@ -123,7 +123,7 @@ const GAP = 18;
 const HOLE = { x: WINDOW.x - GAP, y: WINDOW.y - GAP, x1: WINDOW.x + WINDOW.w + GAP };
 const GROUND = iso(GRID_U, [W / 2, -GRID_U * 20]);
 
-/** Whether a frame point lies in the margin the grid may use. */
+/** Whether a frame point is in the grid's margin. */
 const free = ([x, y]) => x > 4 && x < W - 4 && y > 4 && y < H - 4 && !(x > HOLE.x - 4 && x < HOLE.x1 + 4 && y > HOLE.y - 4);
 
 /** Tiles whose lifted cube stays inside the margin. */

@@ -11,7 +11,7 @@ export const BAR = 150;
 export const beat = (n: number) => Math.round(n * BEAT);
 export const bar = (n: number) => n * BAR;
 
-// Section start frames (bars 1, 3, 7, 11, 17, 22) and lengths.
+// Section starts (bars 1, 3, 7, 11, 17, 22), lengths.
 export const SECTION = {
   intro: { from: 0, duration: 300 },
   menus: { from: 300, duration: 600 },
@@ -50,28 +50,24 @@ export const STAGE_CENTER = { x: STAGE.x + STAGE.w / 2, y: STAGE.y + STAGE.h / 2
 // Recordings are 2048×1152; this maps them onto the stage width.
 export const FOOTAGE = { w: 2048, h: 1152, scale: STAGE.w / 2048 } as const;
 
-// Where boundary icons rest, and the size of one icon-grid unit (Papirus 192 grid).
+// Boundary icon rest spots and one Papirus 192-grid unit.
 export const ICON = { x: 960, y: 590, unit: 1.375 } as const;
 
-// Section-local morph frames. Boundary icons rest for `hold` frames on each side
-// of the cut (one beat in total, centred on the downbeat); the shape morph takes
-// `morph` frames. The stage is fully open from `ENTER_END`, and starts closing at
-// `duration - EXIT_LEN`.
+// Section-local morph frames: icons rest `hold` beside each cut.
 export const MORPH = { hold: 18, morph: 42 } as const;
 export const ENTER_END = MORPH.hold + MORPH.morph;
 export const EXIT_LEN = MORPH.hold + MORPH.morph;
 
-// Headings enter on beat 1 of a section, the sub line half a beat later, and
-// start to leave `out` frames before the section ends (gone before it closes).
+// Headings enter on beat 1, leave `out` before the end.
 export const HEADING = { in: beat(1), sub: beat(0.5), out: 92 } as const;
 
 export const EASE = {
   out: Easing.bezier(0.22, 1, 0.36, 1),
   inOut: Easing.bezier(0.65, 0, 0.35, 1),
   in: Easing.bezier(0.55, 0, 0.75, 0.06),
-  // Starts from rest, decelerates long: for growth that should feel heavy.
+  // Starts from rest, long deceleration: growth that feels heavy.
   bloom: Easing.bezier(0.5, 0, 0.1, 1),
-  // Gentle start, soft landing: for collapses that must come to rest.
+  // Gentle start, soft landing: for collapses that come to rest.
   land: Easing.bezier(0.6, 0, 0.2, 1),
 } as const;
 

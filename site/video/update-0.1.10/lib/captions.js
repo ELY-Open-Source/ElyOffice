@@ -1,4 +1,4 @@
-/* Bilingual caption track: global seconds. Scenes keep content above y = 890. */
+/* Bilingual captions in global seconds; scenes stay above y 890. */
 window.CAPTIONS = [
   { s: 1.3, e: 4.4, zh: "叮！更新来了", en: "Ding! A fresh update just dropped" },
   { s: 4.7, e: 7.6, zh: "从 0.1.9 到 0.1.10", en: "From 0.1.9 to 0.1.10" },

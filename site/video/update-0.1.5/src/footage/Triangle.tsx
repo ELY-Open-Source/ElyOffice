@@ -9,7 +9,7 @@ type Props = {
   /** Footage seconds the pointer crosses toward the submenu. */
   from: number;
   to: number;
-  /** The row it crosses without opening, as y0..y1, and its note. */
+  /** The row it crosses without opening (y0..y1), and its note. */
   passed: [number, number];
   note: string;
 };

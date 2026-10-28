@@ -1,6 +1,4 @@
-/* Ely 0.1.10 film: shared UI kit (icons, sample mail, the ElyMail window).
-   Usage inside a scene: ElyKit.icon("inbox") -> "<svg ...>" string,
-   ElyKit.mailWindow(container, { id: "s3", select: 0, box: "all" }) -> refs. */
+/* Shared UI kit: icons, sample mail, the ElyMail window. */
 (function () {
   "use strict";
   var P = {
@@ -87,8 +85,7 @@
     return '<div class="mw-box' + (on ? " on" : "") + '"' + (extra || "") + ">" + icon(ic) + "<span>" + label + "</span>" + (n ? '<span class="n">' + n + "</span>" : "") + "</div>";
   }
 
-  /* Build the canonical ElyMail window inside `el` (absolutely positioned at the
-     canonical frame unless opts.style overrides). Returns element refs. */
+  /* Builds the ElyMail window in `el`; returns element refs. */
   function mailWindow(el, opts) {
     opts = opts || {};
     var pre = opts.id || "mw";

@@ -1,5 +1,4 @@
-/* s5 the data folder, global 38–44 s: the H4 ball swells into Settings; data
-   drops flow from C: to D:; everything folds into the fixes ball (H5). */
+/* s5 data folder, 38–44 s: drops flow C: to D:. */
 (function () {
   "use strict";
   var C = LQ.C, F = window.FLOW;

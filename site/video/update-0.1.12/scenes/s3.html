@@ -86,7 +86,7 @@
       win.style.opacity = (wi * (1 - out)).toFixed(3);
       win.style.transform = "scale(" + ((0.97 + 0.03 * backOut(prog(lt, 0.62, 1.0), 1.4)) * (1 - 0.03 * out)).toFixed(4) + ")";
 
-      /* column: scrolls gently; row: lands on 4.0, then Shift + wheel slides it */
+      /* Column scrolls gently; the row lands on 4.0, Shift-wheel slides. */
       var scroll = 120 * smooth(prog(lt, 1.0, 2.6));
       var slide = 720 * inOut(prog(lt, 4.3, 5.0));
       for (var i = 0; i < 7; i++) {

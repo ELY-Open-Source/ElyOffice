@@ -11,7 +11,7 @@ def _ph(f):
 
 
 def _tame(y, drive=1.6):
-    """Peak-normalize a noisy one-shot and round off its spikes so its crest factor matches the kit."""
+    """Peak-normalizes a noisy one-shot, rounding spikes to the kit's crest."""
     y = y / np.abs(y).max()
     return np.tanh(drive * y) / np.tanh(drive)
 
@@ -129,7 +129,7 @@ def sub(m, dur, vel=1.0, glide=0.0):
 
 
 def rubber(m, dur, vel=1.0, glide=0.0, bite=1.0):
-    """Rubbery funk bass: saw and square through a resonant envelope filter, over a sine sub."""
+    """Rubbery funk bass: saw and square, envelope filter, sine sub."""
     n = ns(dur + 0.08)
     t = secs(n)
     f = hz(m) * 2 ** (glide * np.exp(-t / 0.045) / 12)
@@ -210,7 +210,7 @@ def marimba(m, vel=1.0):
 
 
 def bubble(m, vel=1.0):
-    """A plink that scoops up onto its pitch, like a bubble surfacing."""
+    """A plink scooping up onto its pitch, like a bubble."""
     n = ns(0.55)
     t = secs(n)
     ph = _ph(hz(m) * 2 ** (-9 * np.exp(-t / 0.02) / 12))
@@ -254,12 +254,7 @@ FORMANTS = ((1.0, 5.5), (0.55, 8.0), (0.12, 11.0))
 
 
 def line(notes, voice="vocal", glide=0.035, vib=0.18):
-    """Monophonic line with legato glides and delayed vibrato.
-
-    notes: (start s, midi, duration s, velocity, vowel). "vocal" is a saw and pulse source through
-    three morphing formant bandpasses (a chopped vocal); "glass" is a near-pure sine.
-    Returns (start time, mono signal).
-    """
+    """Legato line; notes: (start, midi, duration, velocity, vowel)."""
     notes = sorted(notes)
     t0 = notes[0][0] - 0.02
     n = ns(max(t + d for t, _, d, _, _ in notes) + 0.35 - t0)

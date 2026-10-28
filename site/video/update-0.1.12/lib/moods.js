@@ -1,4 +1,4 @@
-/* Global aurora mood keyframes (global seconds). A key blends in over `blend` seconds ending at its t. */
+/* Aurora mood keyframes, global seconds; each blends in before t. */
 (function () {
   var dark = { bright: 0.0 };
   var dawn = { base: "#07051A", c0: "#5B3CF0", c1: "#1E8FE0", c2: "#FF4FA3", c3: "#2FD8E8", amt: [0.85, 0.7, 0.45, 0.4], bright: 1, vig: 0.6 };

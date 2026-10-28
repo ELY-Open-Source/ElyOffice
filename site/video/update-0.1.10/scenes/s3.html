@@ -54,7 +54,7 @@
     cam.insertAdjacentHTML("beforeend",
       '<div id="s3-empty">' + I("inbox") + '<div class="t">还没有添加账号</div><div class="s">添加一个邮箱，就从这里开始</div></div>');
 
-    /* the 全部收件箱 badge becomes a stack of counts (same box, same glyph positions) */
+    /* The 全部收件箱 badge becomes a stack of counts, same box. */
     var badge = w.win.querySelector("#s3-all .n");
     badge.style.position = "relative";
     badge.innerHTML = '<span style="visibility:hidden">12</span>' + ["5", "8", "10", "11", "12"].map(function (v) {
@@ -115,7 +115,7 @@
     tl.fromTo(bd.ms, { opacity: 0, x: -14, scale: 0.85 }, { opacity: 1, x: 0, scale: 1, duration: 0.45, ease: "back.out(2)" }, 1.28);
     tl.fromTo(cardM, { opacity: 0, y: 18, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.6)" }, 1.4);
 
-    /* ---- one click each: the cursor presses, the card flips to 已登录 ---- */
+    /* One click each; the card flips to 已登录. */
     tl.fromTo(cur, { opacity: 0, x: 700, y: 820 }, { opacity: 1, x: 640, y: 700, duration: 0.25, ease: "power2.out" }, 1.5);
     tl.fromTo(cur, { x: 640, y: 700 }, { x: 480, y: 357, duration: 0.42, ease: "power3.inOut", immediateRender: false }, 1.58);
     function click(at, card) {
@@ -133,7 +133,7 @@
     click(2.9, cardM);
     tl.fromTo(cur, { x: 480, y: 573, opacity: 1 }, { x: 600, y: 760, opacity: 0, duration: 0.35, ease: "power2.in", immediateRender: false }, 3.25);
 
-    /* ---- 21.7: cards fold away, badges confirm, the column tidies up ---- */
+    /* 21.7: cards fold away, badges confirm, the column tidies. */
     tl.fromTo([cardG, cardM], { opacity: 1, y: 0, scale: 1 }, { opacity: 0, y: -12, scale: 0.94, duration: 0.28, ease: "power2.in", stagger: 0.08, immediateRender: false }, 3.7);
     ["gmail", "ms"].forEach(function (id, i) {
       var b = bd[id];
@@ -144,7 +144,7 @@
     tl.fromTo([chip.ms, bd.ms], { y: 0 }, { y: -136, duration: 0.3, ease: "power3.inOut", immediateRender: false }, 3.85);
     tl.fromTo(bd.icloud, { opacity: 0, x: -14, scale: 0.85 }, { opacity: 1, x: 0, scale: 1, duration: 0.45, ease: "back.out(2)" }, 4.28);
 
-    /* ---- 23.5+: each chip melts (the front liquid takes over) and is reeled into 全部收件箱 ---- */
+    /* 23.5+: each chip melts and is reeled into 全部收件箱. */
     ACC.forEach(function (a) {
       if (bd[a.id]) tl.fromTo(bd[a.id], { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.9, duration: 0.16, ease: "power2.in", immediateRender: false }, a.T - 0.9);
       tl.fromTo(chip[a.id], { opacity: 1 }, { opacity: 0, duration: 0.06, immediateRender: false }, a.T - 0.76);

@@ -1,6 +1,4 @@
-/* s2 ElyTable from the command line, global 12–26 s: the H1 ball swells into the
-   sheet and flings a drop that becomes the terminal; drops carry the write to D4
-   and the answer back; both panels fold into the ElyPDF ball (H2). */
+/* s2 ElyTable command line, 12–26 s: sheet, terminal, drops, H2. */
 (function () {
   "use strict";
   var M = LQ.M, C = LQ.C, F = window.FLOW;

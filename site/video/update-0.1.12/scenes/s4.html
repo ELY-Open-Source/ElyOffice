@@ -113,7 +113,7 @@
       ring.style.transform = "translate(" + rc.x + "px," + rc.y + "px) scale(" + (0.4 + 1.2 * rr).toFixed(4) + ")";
       ring.style.opacity = (rr > 0 && rr < 1 ? 1 - rr : 0).toFixed(3);
 
-      /* the menu opens at the press; the item picked lights and fires */
+      /* Menu opens on press; the picked item lights and fires. */
       var first = lt < 3.0, mAt = first ? G.tab : G.file;
       var t0 = first ? 1.75 : 3.75, t1 = first ? 2.5 : 4.3;
       var mo = smooth(prog(lt, t0, t0 + 0.15)) * (1 - smooth(prog(lt, t1, t1 + 0.12)));

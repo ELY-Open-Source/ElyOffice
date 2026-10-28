@@ -1,6 +1,4 @@
-/* s2: ElyMail reveal, global 11s to 18s.
-   H1 ball -> crouch -> (12.0) jelly envelope + title jet -> flap opens, title gulped ->
-   letter stretches out and snaps free -> grows into the window rect -> drains away under the glass. */
+/* s2 ElyMail reveal, 11–18 s: ball, envelope, letter, window. */
 (function () {
   var M = LQ.M, C = LQ.C;
   function hx(c) { return M.hex(c).slice(0, 3); }
@@ -9,7 +7,7 @@
   var FLOOR = 695, ENV_W = 400, ENV_H = 270, WIN = { cx: 960, cy: 494, w: 1520, h: 780, r: 30 };
   var LETTER0 = { cy: 258, w: 320, h: 250 };
 
-  /* Phase A: the H1 ball crouches, hops, then squashes hard (bottom pinned at y 620). */
+  /* Phase A: the H1 ball crouches, hops, squashes hard. */
   function ballA(lt) {
     var hx_ = M.prog(lt, 0.18, 0.6);
     var hop = lt > 0.18 && lt < 0.6 ? 52 * 4 * hx_ * (1 - hx_) : 0;
@@ -56,7 +54,7 @@
     return { cx: 960, cy: cy, w: w, h: h, r: r };
   }
 
-  /* The letter rect: rises out, stretches, snaps free, then grows into the window. */
+  /* Letter rect: rises, stretches, snaps free, grows into the window. */
   function letter(lt, top) {
     if (lt < 2.85) return null;
     if (lt < 3.45) {
@@ -129,8 +127,7 @@
       P.ball(E.cx, E.cy, 0.1, C.mail);
       P.box(E.cx, E.cy, E.w, E.h, E.r, C.mail);
 
-      /* ---- open flap (back, behind the letter) ---- */
-      /* a collinear tri flips sdTri inside-out over the whole frame: keep the apex >= 12 px off the hinge */
+      /* Open flap; its apex stays 12 px off the hinge. */
       var fp2 = M.prog(lt, 2.42, 2.7), fo2 = M.outBack(fp2, 1.8);
       if (fp2 > 0.04 && E.w > 30) P.tri(L + 14, top + 10, R - 14, top + 10, E.cx, top + 10 - Math.max(12, 118 * fo2 * (E.w / ENV_W)), 10, "#4AA8EE", { k: 24 });
 
@@ -152,7 +149,7 @@
         P.text(0, TITLE, 960, M.lerp(272, 470, f), { scale: sc, color: C.white, amount: amt });
       }
 
-      /* ---- letter: solid white on the front while it slides out, melts into the back slab at the snap ---- */
+      /* Letter: white on the front, melts into the back slab. */
       var Lt = letter(lt, top);
       if (Lt && lt >= 3.45) P.box(Lt.cx, Lt.cy, Lt.w, Lt.h, Lt.r, Lt.c, { k: 12 });
       if (Lt && lt < 3.45) {

@@ -29,7 +29,7 @@ KITS["peakbuild"] = KITS["peak"]
 
 
 def roll(mix, t0, t1, v0, v1, segments):
-    """Snare roll; segments are (fraction of the span where a subdivision starts, step in seconds)."""
+    """Snare roll; segments are (span fraction, step seconds)."""
     t = t0
     while t < t1 - 1e-6:
         u = (t - t0) / (t1 - t0)
@@ -242,7 +242,7 @@ def keys(mix):
         pool = tones(t, 68, 92)
         mix.add("keys", ins.kalimba(pool[min(k, len(pool) - 1)], 0.4 + 0.04 * k), t, p=0.4 * np.sin(k), hall=0.3)
 
-    for bar in range(13, 21):                          # B: kalimba answers in the gaps of the long vocal notes
+    for bar in range(13, 21):                          # B: kalimba answers in the vocal's gaps
         for step, idx in ((3, 1), (4, 2), (7, 3), (11, 3), (13, 2)):
             t = at(bar, step)
             if 41.4 <= t:

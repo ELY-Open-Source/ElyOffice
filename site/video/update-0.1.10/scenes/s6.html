@@ -163,7 +163,7 @@
     var crow = Array.prototype.slice.call(w.rows);
     var magnifier = w.search.querySelector(".ico");
 
-    /* ---------- camera push onto the search bar (0 → 0.7) ---------- */
+    /* Camera pushes onto the search bar, 0 to 0.7. */
     ft(cam, { scale: 1, x: 0, y: 0 }, { scale: 1.3, x: -250, y: -101, duration: 0.7, ease: "power3.inOut" }, 0);
 
     /* focus + placeholder */
@@ -190,7 +190,7 @@
       tl.set(caret, { opacity: 1 }, b + 0.25);
     }
 
-    /* filters row out, scope strip in, list pushed down 48 px */
+    /* Filters row out, scope strip in, list down 48 px. */
     ft(filters, { opacity: 1, y: 0 }, { opacity: 0, y: -12, duration: 0.2, ease: "power2.in" }, 0.3);
     ft(rowsBox, { y: 0 }, { y: 48, duration: 0.34, ease: "power3.inOut" }, 0.34);
     ft(scope, { opacity: 0 }, { opacity: 1, duration: 0.01 }, 0.36);
@@ -271,7 +271,7 @@
     tl.set(scope, { opacity: 0 }, R);
     tl.set(rr, { opacity: 0 }, R);
 
-    /* ---------- the window returns (5.3 → 5.85) and lands on H6 ---------- */
+    /* The window returns, 5.3 to 5.85, and lands on H6. */
     ft(fade, { scale: 0.94 }, { scale: 1, duration: 0.55, ease: "power3.out" }, 5.3);
     ft(w.win, { opacity: 0, filter: "blur(14px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power2.out" }, 5.32);
     tl.set(w.win, { filter: "none" }, 5.86);

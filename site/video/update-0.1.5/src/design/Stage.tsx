@@ -34,8 +34,7 @@ const OPEN: MorphState = {
 
 const OPEN_PATH = roundedRectPath(STAGE.x, STAGE.y, STAGE.w, STAGE.h, STAGE.r);
 
-// The framed screen of a footage section. Children are laid out in stage
-// coordinates (0..STAGE.w, 0..STAGE.h) and clipped to the stage's shape.
+// The framed screen; children use stage coordinates, clipped to it.
 export const Stage: React.FC<StageProps> = ({ enter, exit, heading, background = COLOR.panel, children }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
@@ -46,7 +45,7 @@ export const Stage: React.FC<StageProps> = ({ enter, exit, heading, background =
   const d = icon === null ? OPEN_PATH : shapePath(icon, 'stage', state.s, state.k, state.cx, state.cy);
   const openColor = SHAPES[enter?.from ?? exit?.to ?? 'dot'].color;
   const color = icon === null ? openColor : SHAPES[icon].color;
-  // The open stage glows in its own app's colour; closing hands over gradually.
+  // The open stage glows in its app's colour, handing over.
   const glowColor = exiting ? mix(openColor, color, 1 - state.lift) : color;
   const sectionAccent = SHAPES[enter?.from ?? exit?.to ?? 'dot'].accent;
   const accent = (spec: HeadingSpec) => (spec.app ? SHAPES[spec.app].accent : sectionAccent);

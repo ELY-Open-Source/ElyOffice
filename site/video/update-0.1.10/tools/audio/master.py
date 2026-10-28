@@ -28,7 +28,7 @@ def curve(points, log=False):
 
 
 def muffle(x):
-    """41.4-42.6: the music sinks underwater (low-pass with a soft resonance, a few dB down) and pops back."""
+    """41.4-42.6: the music sinks underwater and pops back."""
     a, b = ns(41.2), ns(42.9)
     seg = x[a:b]
     t = 41.2 + secs(len(seg))
@@ -43,7 +43,7 @@ def muffle(x):
 
 
 def stem_report(mix, window=(12.0, 26.0)):
-    """RMS and peak (dBFS) of each stem in a window, before mastering."""
+    """Each stem's RMS and peak in a window, before mastering."""
     a, b = ns(window[0]), ns(window[1])
     return {k: (round(20 * np.log10(np.sqrt((v[a:b] ** 2).mean()) + 1e-12), 1),
                 round(20 * np.log10(np.abs(v[a:b]).max() + 1e-12), 1)) for k, v in sorted(mix.stems.items())}

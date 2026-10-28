@@ -136,7 +136,7 @@
     for (var k = 0; k < 10; k++) { var a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? ri : ro; v.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r, k % 2 ? 0 : 3]); }
     return rpoly(v);
   }
-  // Outline of an open polyline stroked at width w with round caps.
+  // Outline of an open polyline, width w, round caps.
   function stroke(pts, w) {
     var h = w / 2, n = pts.length, left = [], right = [], norms = [];
     for (var i = 0; i < n; i++) {
@@ -187,7 +187,7 @@
   for (var k = 0; k < 7; k++) { var a = -Math.PI / 2 + k * Math.PI * 2 / 7; ring.push([96 + Math.cos(a) * 64, 96 + Math.sin(a) * 64]); }
   var APP = ["#3D7FE5", "#2E9E5B", "#F07B2A", "#E0344F", "#1E8FE0", "#7E57C2", "#ECECEC"];
 
-  // land: when the morph into this state ends; dur: how long it takes.
+  // land: when the morph here ends; dur: its length.
   var STATES = [
     { land: 0, dur: 0, glow: "#FFFFFF", slots: [[circle(96, 96, 64), "#F4F4F4"]] },
     { land: 2, dur: 0.4, glow: APP[0], slots: [[rpoly(PAGE), APP[0]]] },
@@ -213,7 +213,7 @@
     st.pts = st.slots.map(function (s) { return resample(s[0]); });
     st.hub = st.hub || centroid(st.pts[0]);
   });
-  // Rotate each contour's start to sit closest to the same contour one state earlier.
+  // Rotate each contour's start near its previous state's start.
   for (var i = 1; i < STATES.length; i++) {
     for (var s = 0; s < SLOTS; s++) {
       var A = STATES[i - 1].pts[s], B = STATES[i].pts[s];
@@ -269,7 +269,7 @@
       paths[s].setAttribute("fill", mix(slotColor(A, B, s), slotColor(B, A, s), e));
     }
 
-    // Squash on landing, a small dip mid-morph, a beat pulse while idle.
+    // Squash on landing, dip mid-morph, beat pulse when idle.
     var sx = 1, sy = 1, rot = 0;
     if (i === 0) { sx = sy = 1 + 0.06 * Math.exp(-(t % 1) * 7); }
     else if (p < 1) { sx = sy = 1 - 0.07 * Math.sin(Math.PI * p); }
@@ -298,7 +298,7 @@
       });
     });
 
-    // The suite's dots hand over to the real icons, and back before the star.
+    // Suite dots hand over to icons, back before the star.
     for (var c = 0; c < 7; c++) {
       var t0 = 9.05 + c * 0.08;
       var a = Math.min(clamp((t - t0) / 0.08), clamp((11.42 - t) / 0.12));

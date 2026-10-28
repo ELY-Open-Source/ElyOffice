@@ -95,7 +95,7 @@ export interface Prop {
   blocks: Box[];
 }
 
-/** A prop's blocks, placed on a 4 by 4 plinth at (ox, oy). */
+/** A prop's blocks on a 4x4 plinth at (ox, oy). */
 function plinth(ox: number, oy: number, list: [number, number, number, number, number, number, string?][]): Box[] {
   const base: Box = { x: ox, y: oy, z: 0, w: 4, d: 4, h: TOP, tone: DESK };
   const boxes = [base, ...list.map(([x, y, w, d, h, z, tone]) => on(ox + x, oy + y, w, d, h, z, tone ?? PAPER))];

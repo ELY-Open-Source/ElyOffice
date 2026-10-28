@@ -317,7 +317,7 @@
     root.insertAdjacentHTML("beforeend", h);
     var $ = function (id) { return document.getElementById(id); };
 
-    /* ---- enter / exit (carousel: in from the right, out to the left) ---- */
+    /* Carousel: in from the right, out to the left. */
     function enter(el, t, d) {
       tl.fromTo(el, { opacity: 0, x: 90, y: 16, scale: 0.9, filter: "blur(6px)" },
         { opacity: 1, x: 0, y: 0, scale: 1, filter: "blur(0px)", duration: d || 0.38, ease: "back.out(1.5)", immediateRender: false }, t);

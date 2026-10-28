@@ -1,6 +1,4 @@
-/* s5: writing and sending, global 34–44 s. Local time lt = 0..10.
-   window.S5X holds the shared model (compose geometry, typing schedule, glyph
-   layout, melt timing). s5.html measures the static window targets into S5X.geo. */
+/* s5 writing and sending, 34–44 s; window.S5X shares the model. */
 (function () {
   "use strict";
   var M = LQ.M, C = LQ.C;
@@ -52,7 +50,7 @@
   for (var q = 0; q < X.L5.length; q++) X.L5T.push(4.12 + q * 0.072 + (rng() - 0.5) * 0.02);
   X.SAVE = X.L5T[X.L5T.length - 1] + 1.5; // auto-save after a 1.5 s pause
 
-  /* melt schedule: the ** pairs drip, the "- " contracts into a bullet */
+  /* Melt schedule: ** pairs drip; the dash becomes a bullet. */
   X.MELT = {};
   var mt = { "1:0": 3.12, "1:1": 3.16, "1:10": 3.24, "1:11": 3.28, "3:0": 3.38, "4:0": 3.44 };
   G.forEach(function (g, i) {
@@ -105,8 +103,7 @@
       return;
     }
     if (lt >= 0.64) {
-      // the drop inflates into a candy bubble the window unfolds from, then
-      // recedes into the 发送 button it leaves behind
+      // The drop inflates into a bubble, then recedes into 发送.
       var s = M.spring(lt, 0.62, 2.6, 0.38);
       var wv = M.wobble(lt, 0.66, 3.2, 5, 1);
       var w = M.lerp(88, 320, s) * (1 + 0.06 * wv), h = M.lerp(88, 200, s) * (1 - 0.07 * wv);
@@ -209,7 +206,7 @@
   };
   X.SKY = [2150, -280];
 
-  /* send offline: crumple into a drop, hop into 发件箱, fidget, slingshot out */
+  /* Send offline: crumple, hop into 发件箱, fidget, slingshot out. */
   function sendFlow(P, lt, g) {
     if (lt < X.SENDT + 0.02 || lt > 9.1) return;
     var R = X.rest(g);

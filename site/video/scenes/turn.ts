@@ -1,4 +1,4 @@
-// The model turned about the desk centre, as the montage draws it.
+// Turns the model about the desk centre, like the montage.
 import { project } from "../../src/iso.ts";
 import { model } from "../../src/model.ts";
 import recs from "../montage/recs.json" with { type: "json" };

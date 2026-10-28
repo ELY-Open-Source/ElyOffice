@@ -1,5 +1,4 @@
-/* s6 the fixes, global 44–48 s: the H5 ball swells under four cards; the cards
-   melt into one drop that splits into seven app balls in a row (H6). */
+/* s6 fixes, 44–48 s: four cards melt into seven balls. */
 (function () {
   "use strict";
   var M = LQ.M, C = LQ.C, F = window.FLOW;
@@ -12,7 +11,7 @@
   var ORDER = ["doc", "table", "show", "mail", "pdf", "tree", "mark"];
   var WHITE = [0.95, 0.96, 1.0];
 
-  /* 3.45–4.0: one drop divides into seven balls, exact at the end */
+  /* 3.45–4.0: one drop divides into seven, exact at the end. */
   function split(lt, P) {
     var u = M.prog(lt, 3.45, 4.0), e = M.outBack(u, 1.4);
     var calm = 1 - M.smooth(M.prog(u, 0.6, 1));

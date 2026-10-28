@@ -1,8 +1,4 @@
-/* Ely liquid engine: glossy metaball goo + aurora, driven only by time.
-   Coordinates are CSS pixels on the 1920x1080 frame, y down.
-   Scenes register with LQ.add({ id, start, end, build(lt, P, t) }).
-   Two canvases: #lq-back (aurora + liquid behind the UI) and #lq-front
-   (transparent, liquid above the UI). P.layer(1) sends primitives to the front. */
+/* Liquid engine: metaball goo and aurora, driven only by time. */
 (function () {
   "use strict";
   var W = 1920, H = 1080;
@@ -51,8 +47,7 @@
     x = M.clamp(x, 0, 1);
     return x * x * x;
   };
-  /* Damped spring from 0 to 1 that starts at time t0.
-     freq in Hz, damp 0..1 (0.25 = very wobbly, 0.7 = soft). */
+  /* Damped spring, 0 to 1 from t0; damp 0..1. */
   M.spring = function (t, t0, freq, damp) {
     var x = t - t0;
     if (x <= 0) return 0;
@@ -61,14 +56,14 @@
     var wd = w * Math.sqrt(Math.max(1 - z * z, 0.0001));
     return 1 - Math.exp(-z * w * x) * (Math.cos(wd * x) + (z * w / wd) * Math.sin(wd * x));
   };
-  /* Decaying wobble around 0 that starts at t0: a squash impulse. */
+  /* Decaying wobble around 0 from t0: a squash impulse. */
   M.wobble = function (t, t0, freq, damp, amp) {
     var x = t - t0;
     if (x <= 0) return 0;
     var w = 2 * Math.PI * (freq || 3);
     return (amp == null ? 1 : amp) * Math.exp(-(damp || 4) * x) * Math.sin(w * x);
   };
-  /* Ballistic drop with bounces onto floor y = 0 (returns height above floor, >= 0). */
+  /* Ballistic drop bouncing on floor y 0; returns height above. */
   M.bounce = function (t, t0, h0, g, restitution) {
     var x = t - t0;
     if (x < 0) return h0;
@@ -156,7 +151,7 @@
 
   /* ---------- text fields ---------- */
   var TXW = 2048, TXH = 512;
-  /* spec: { text, font: "900 220px Inter", w, h (field box in px), blur, align, ls (letterSpacing px) } */
+  /* spec: text, font, w, h, blur, align, ls (letter spacing). */
   function textKey(s) {
     return [s.text, s.font, s.w, s.h, s.blur, s.ls || 0, s.align || "c", s.pad || 0, s.lh || 0].join("|");
   }
@@ -366,7 +361,7 @@
     this._push([x, y, r * (o.sx || 1), r * (o.sy || 1)], [o.rot || 0, 0, o.clear || 0, 0], [c[0], c[1], c[2], o.k == null ? 40 : o.k]);
     return this;
   };
-  /* P.cap(ax, ay, bx, by, ra, rb, color, {k}) : tapered capsule, use for strings and necks */
+  /* P.cap(ax, ay, bx, by, ra, rb, color): tapered capsule. */
   Frame.prototype.cap = function (ax, ay, bx, by, ra, rb, color, o) {
     o = o || {};
     if (ra <= 0.05 && rb <= 0.05) return this;
@@ -374,7 +369,7 @@
     this._push([ax, ay, bx, by], [ra, rb, o.clear || 0, 1], [c[0], c[1], c[2], o.k == null ? 30 : o.k]);
     return this;
   };
-  /* P.box(cx, cy, w, h, radius, color, {rot, k}) : full width/height */
+  /* P.box(cx, cy, w, h, radius, color): full width and height. */
   Frame.prototype.box = function (x, y, w, h, r, color, o) {
     o = o || {};
     if (w <= 0.1 || h <= 0.1) return this;
@@ -390,7 +385,7 @@
     this._push([x, y, r, w], [0, 0, o.clear || 0, 3], [c[0], c[1], c[2], o.k == null ? 20 : o.k]);
     return this;
   };
-  /* P.text(slot, {text, font, w, h, blur, ls, lh}, x, y, {scale, color, amount}) */
+  /* P.text(slot, spec, x, y, {scale, color, amount}) */
   Frame.prototype.text = function (slot, spec, x, y, o) {
     o = o || {};
     var T = {
@@ -407,7 +402,7 @@
   /* P.tri(x0,y0,x1,y1,x2,y2, round, color, {k}) : rounded triangle */
   Frame.prototype.tri = function (x0, y0, x1, y1, x2, y2, r, color, o) {
     o = o || {};
-    // A near-collinear triangle turns the SDF inside out and floods the layer.
+    // A near-collinear triangle inverts the SDF and floods the layer.
     var area2 = Math.abs((x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0));
     var span = Math.max(Math.hypot(x1 - x0, y1 - y0), Math.hypot(x2 - x1, y2 - y1), Math.hypot(x0 - x2, y0 - y2));
     if (!(area2 > span * 2)) return this;
@@ -415,7 +410,7 @@
     this._push([x0, y0, x1, y1], [x2, y2, r || 0, 4], [c[0], c[1], c[2], o.k == null ? 30 : o.k]);
     return this;
   };
-  /* P.morph(specA, specB, x, y, f, {scale, colorA, colorB}) : one liquid field blended from A (f=0) to B (f=1). Uses both text slots. */
+  /* P.morph(specA, specB, x, y, f): A blended into B. */
   Frame.prototype.morph = function (specA, specB, x, y, f, o) {
     o = o || {};
     this.text(0, specA, x, y, { scale: o.scale, color: o.colorA || o.color, amount: 1 - f });
@@ -427,7 +422,7 @@
     this._layer = l;
     return this;
   };
-  /* Background mood: P.mood({ base, c0, c1, c2, c3 (hex), amt [4], warp [2], bright, vig }, weight) */
+  /* P.mood({base, c0..c3, amt, warp, bright, vig}, weight): background mood. */
   Frame.prototype.mood = function (m, w) {
     w = w == null ? 1 : w;
     var b = this.bg;
