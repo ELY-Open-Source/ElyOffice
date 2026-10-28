@@ -140,11 +140,25 @@ fn booleans_empty_strings_arrays_and_volatile_inputs_keep_them_too() {
         ("H6", "four", array),
         ("K8", "42", "=FUTUREFN(INDIRECT(\"J8\"))"),
         ("L8", "43", "=FUTUREFN(OFFSET(J8,0,0))"),
+        // Array members: booleans, an empty string, bad numbers, a mix.
+        ("J1", "TRUE", "{=FUTUREFN(9)}"),
+        ("G10", "TRUE", "{=FUTUREFN(5)}"),
+        ("H10", "FALSE", "{=FUTUREFN(5)}"),
+        ("G11", "41", "{=FUTUREFN(6)}"),
+        ("H11", "", "{=FUTUREFN(6)}"),
+        ("G12", "#NAME?", "{=FUTUREFN(7)}"),
+        ("H12", "#NAME?", "{=FUTUREFN(7)}"),
+        ("G13", "#NAME?", "{=FUTUREFN(8)}"),
+        ("H13", "#NAME?", "{=FUTUREFN(8)}"),
+        ("G14", "TRUE", "{=FUTUREFN(10)}"),
+        ("H14", "41", "{=FUTUREFN(10)}"),
+        ("G15", "41", "{=FUTUREFN(11)}"),
+        ("H15", "TRUE", "{=FUTUREFN(11)}"),
     ];
     cells(&mut worker, &doc, &loaded);
     let all = [
-        "Sheet1!A1", "Sheet1!A2", "Sheet1!A3", "Sheet1!B1", "Sheet1!B2",
-        "Sheet1!B3", "Sheet1!E1", "Sheet1!G5", "Sheet1!K8", "Sheet1!L8",
+        "Sheet1!A1", "Sheet1!A2", "Sheet1!A3", "Sheet1!B1", "Sheet1!B2", "Sheet1!B3", "Sheet1!E1",
+        "Sheet1!G5", "Sheet1!G10", "Sheet1!G11", "Sheet1!G14", "Sheet1!G15", "Sheet1!J1", "Sheet1!K8", "Sheet1!L8",
     ];
     assert_eq!(kept_cells(&mut worker, &doc), all, "the banner's cells");
     let (xlsx, ods) = (dir.path().join("more.xlsx"), dir.path().join("more.ods"));
@@ -156,7 +170,7 @@ fn booleans_empty_strings_arrays_and_volatile_inputs_keep_them_too() {
     cells(&mut worker, &doc, &[("K8", "#NAME?", loaded[13].2), ("L8", "#NAME?", loaded[14].2)]);
     worker.run(&doc, "cell.goto", &["Sheet1!A5"]).expect("A5");
     worker.run(&doc, "format.bold", &[]).expect("bold");
-    assert_eq!(kept_cells(&mut worker, &doc), all[..8], "formatting keeps them");
+    assert_eq!(kept_cells(&mut worker, &doc), all[..13], "formatting keeps them");
     worker.run(&doc, "cell.set", &["Sheet1!I2", "5"]).expect("I2");
     cells(&mut worker, &doc, &[("A2", "#NAME?", "=FUTUREFN(I2)"), ("B2", "#NAME?", "=FUTUREFN(I2)")]);
     cells(&mut worker, &doc, &[loaded[2], loaded[6], loaded[8], loaded[12]]);
@@ -165,6 +179,49 @@ fn booleans_empty_strings_arrays_and_volatile_inputs_keep_them_too() {
         let again = worker.load(&crate::file_url(copy)).expect("reopens");
         cells(&mut worker, &again, &loaded);
         assert_eq!(kept_cells(&mut worker, &again), all, "{}", copy.display());
+        // Types survive ODS too.
+        let onward = dir.path().join("onward.xlsx");
+        again.save_as(&mut worker, &crate::file_url(&onward), "xlsx").expect("saves");
+        read_back(&onward, "kept-more");
+        // A copy, first, recalculated: members read their elements.
+        worker.run(&again, "sheet.move", &["1", "true", "true"]).expect("copies");
+        worker.run(&again, "calc.all", &[]).expect("recalculates");
+        cells_on(&mut worker, &again, "Sheet1_2", &[loaded[16], loaded[17], loaded[26], loaded[27]]);
+        again.save_as(&mut worker, &crate::file_url(&onward), "xlsx").expect("saves");
+        read_back(&onward, "kept-copied");
         worker.close_doc(again).expect("closes");
     }
+}
+
+#[test]
+fn ods_empty_strings_keep_and_bad_numbers_do_not() {
+    let Some(install) = install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let doc = open_fixture(&mut worker, "kept-more.ods");
+    let loaded = [
+        // The string value comes before the formula.
+        ("A1", "", "=FUTUREFN(2)"),
+        ("B1", "41", "{=FUTUREFN(1)}"),
+        ("C1", "", "{=FUTUREFN(1)}"),
+        ("B2", "#NAME?", "{=FUTUREFN(3)}"),
+        ("C2", "#NAME?", "{=FUTUREFN(3)}"),
+        ("B3", "#NAME?", "=FUTUREFN(5)"),
+        // An array with no value of its own.
+        ("B4", "#NAME?", "{=FUTUREFN(6)}"),
+        // A member's empty string with no paragraph.
+        ("B5", "41", "{=FUTUREFN(7)}"),
+        ("C5", "", "{=FUTUREFN(7)}"),
+    ];
+    cells(&mut worker, &doc, &loaded);
+    let kept = ["Sheet1!A1", "Sheet1!B1", "Sheet1!B5"];
+    assert_eq!(kept_cells(&mut worker, &doc), kept);
+    let again = dir.path().join("again.ods");
+    doc.save_as(&mut worker, &crate::file_url(&again), "ods").expect("saves");
+    worker.close_doc(doc).expect("closes");
+    let doc = worker.load(&crate::file_url(&again)).expect("reopens");
+    cells(&mut worker, &doc, &loaded);
+    assert_eq!(kept_cells(&mut worker, &doc), kept, "Ely's own copy");
 }

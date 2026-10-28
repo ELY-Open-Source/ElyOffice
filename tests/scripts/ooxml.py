@@ -256,6 +256,24 @@ MORE = {
     "H6": (None, "str", "four"),
     "K8": ('FUTUREFN(INDIRECT("J8"))', "n", "42"),
     "L8": ("FUTUREFN(OFFSET(J8,0,0))", "n", "43"),
+    "J1": ("FUTUREFN(9)", "b", "1"),
+    "G10": ("FUTUREFN(5)", "b", "1"),
+    "H10": (None, "b", "0"),
+    "G11": ("FUTUREFN(6)", "n", "41"),
+    "H11": (None, "str", None),
+    "G12": ("FUTUREFN(7)", "e", "#NAME?"),
+    "H12": (None, "e", "#NAME?"),
+    "G13": ("FUTUREFN(8)", "e", "#NAME?"),
+    "H13": (None, "e", "#NAME?"),
+    "G14": ("FUTUREFN(10)", "b", "1"),
+    "H14": (None, "n", "41"),
+    "G15": ("FUTUREFN(11)", "n", "41"),
+    "H15": (None, "b", "1"),
+}
+# A sheet copy is a change: volatile cells recalculate.
+COPIED = MORE | {
+    "K8": ('FUTUREFN(INDIRECT("J8"))', "e", "#NAME?"),
+    "L8": ("FUTUREFN(OFFSET(J8,0,0))", "e", "#NAME?"),
 }
 
 
@@ -276,6 +294,7 @@ CASES = {
     "kept": lambda path: cells_are(path, KEPT),
     "kept-edited": lambda path: cells_are(path, EDITED),
     "kept-more": lambda path: cells_are(path, MORE),
+    "kept-copied": lambda path: cells_are(path, COPIED),
 }
 
 # Damage each check must catch: part, pattern, replacement.
@@ -303,8 +322,13 @@ MUTATIONS = {
     ],
     "kept-more": [
         ("xl/worksheets/sheet1.xml", r'(<c r="A1"[^>]*)t="b"', r'\g<1>t="n"'),
+        ("xl/worksheets/sheet1.xml", r'(<c r="H10"[^>]*)t="b"', r'\g<1>t="n"'),
         ("xl/worksheets/sheet1.xml", r'(<c r="H6"[^>]*><v>)four(</v>)', r"\g<1>five\g<2>"),
         ("xl/worksheets/sheet1.xml", r'(<c r="K8"[^>]*>.*?<v>)42(</v>)', r"\g<1>0\g<2>"),
+    ],
+    "kept-copied": [
+        ("xl/worksheets/sheet1.xml", r'(<c r="H10"[^>]*)t="b"', r'\g<1>t="n"'),
+        ("xl/worksheets/sheet1.xml", r'(<c r="K8"[^>]*)t="e"', r'\g<1>t="n"'),
     ],
     "deck": [
         ("ppt/_rels/presentation.xml.rels", r"slides/slide2\.xml", "slides/missing.xml"),
