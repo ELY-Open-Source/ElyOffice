@@ -10,6 +10,7 @@ publish.workspace = true
 dunce.workspace = true
 anyhow.workspace = true
 directories.workspace = true
+flate2.workspace = true
 ely-files.workspace = true
 ely-gpui-component.workspace = true
 ely-lok = { workspace = true, features = ["view"] }

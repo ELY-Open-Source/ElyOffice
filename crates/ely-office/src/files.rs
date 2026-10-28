@@ -14,6 +14,8 @@ use quick_xml::{
 
 use crate::{Engine, Kind};
 
+mod zip;
+
 /// The lowercase extension of `path`.
 fn extension(path: &Path) -> String {
     path.extension()
@@ -62,7 +64,7 @@ pub fn macro_risk(kind: &Kind, path: &Path) -> io::Result<bool> {
     }
     let bytes = std::fs::read(path)?;
     if bytes.starts_with(b"PK\x03\x04") {
-        let names = zip_names(&bytes)?;
+        let names = zip::names(&bytes)?;
         return Ok(names
             .iter()
             .any(|name| name.ends_with("vbaProject.bin") || name.starts_with("Basic/")));
@@ -82,6 +84,11 @@ fn flat_odf_has_basic(bytes: &[u8]) -> io::Result<bool> {
     if !text.trim_ascii_start().starts_with(b"<") {
         return Ok(false);
     }
+    holds(text, OOO, b"library-embedded")
+}
+
+/// Whether XML `text` has element `name` in namespace `ns`.
+fn holds(text: &[u8], ns: &[u8], name: &[u8]) -> io::Result<bool> {
     let mut reader = NsReader::from_reader(text);
     let mut buf = Vec::new();
     loop {
@@ -89,8 +96,8 @@ fn flat_odf_has_basic(bytes: &[u8]) -> io::Result<bool> {
             .read_resolved_event_into(&mut buf)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
         match (bound, event) {
-            (ResolveResult::Bound(Namespace(OOO)), Event::Start(tag) | Event::Empty(tag))
-                if tag.local_name().as_ref() == b"library-embedded" =>
+            (ResolveResult::Bound(Namespace(found)), Event::Start(tag) | Event::Empty(tag))
+                if found == ns && tag.local_name().as_ref() == name =>
             {
                 return Ok(true);
             }
@@ -101,42 +108,19 @@ fn flat_odf_has_basic(bytes: &[u8]) -> io::Result<bool> {
     }
 }
 
-/// The entry names in a zip's central directory.
-fn zip_names(bytes: &[u8]) -> io::Result<Vec<String>> {
-    let bad = || io::Error::new(io::ErrorKind::InvalidData, "a damaged zip directory");
-    let u16_at = |at: usize| {
-        bytes
-            .get(at..at + 2)
-            .map(|b| u16::from_le_bytes([b[0], b[1]]) as usize)
-    };
-    let u32_at = |at: usize| {
-        bytes
-            .get(at..at + 4)
-            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize)
-    };
-    let end = (0..bytes.len().saturating_sub(21))
-        .rev()
-        .find(|&at| bytes[at..].starts_with(b"PK\x05\x06"))
-        .ok_or_else(bad)?;
-    let (count, mut at) = (
-        u16_at(end + 10).ok_or_else(bad)?,
-        u32_at(end + 16).ok_or_else(bad)?,
-    );
-    let mut names = Vec::with_capacity(count);
-    for _ in 0..count {
-        if !bytes
-            .get(at..)
-            .is_some_and(|rest| rest.starts_with(b"PK\x01\x02"))
-        {
-            return Err(bad());
-        }
-        let name_len = u16_at(at + 28).ok_or_else(bad)?;
-        let skip = u16_at(at + 30).ok_or_else(bad)? + u16_at(at + 32).ok_or_else(bad)?;
-        let name = bytes.get(at + 46..at + 46 + name_len).ok_or_else(bad)?;
-        names.push(String::from_utf8_lossy(name).into_owned());
-        at += 46 + name_len + skip;
+/// PowerPoint 2010's namespace, which holds sections.
+const P14: &[u8] = b"http://schemas.microsoft.com/office/powerpoint/2010/main";
+
+/// Whether a PPTX has slide sections, which the kernel drops.
+pub fn sections(path: &Path) -> io::Result<bool> {
+    let bytes = std::fs::read(path)?;
+    if !bytes.starts_with(b"PK\x03\x04") {
+        return Ok(false);
     }
-    Ok(names)
+    match zip::read(&bytes, "ppt/presentation.xml")? {
+        Some(xml) => holds(&xml, P14, b"sectionLst"),
+        None => Ok(false),
+    }
 }
 
 /// Whether an OLE file has a `_VBA_PROJECT` directory entry.
@@ -260,5 +244,40 @@ mod tests {
             "broken XML is an error"
         );
         std::fs::remove_dir_all(&dir).expect("cleans");
+    }
+
+    /// A zip of one stored entry, CRC unchecked.
+    fn stored(name: &str, data: &[u8]) -> Vec<u8> {
+        let (size, len) = ((data.len() as u32).to_le_bytes(), (name.len() as u16).to_le_bytes());
+        let mut zip = b"PK\x03\x04\x14\0\0\0\0\0\0\0\0\0\0\0\0\0".to_vec();
+        zip.extend(size.into_iter().chain(size).chain(len).chain([0, 0]));
+        zip.extend(name.as_bytes().iter().chain(data));
+        let dir = zip.len() as u32;
+        zip.extend(b"PK\x01\x02\x14\0\x14\0\0\0\0\0\0\0\0\0\0\0\0\0");
+        zip.extend(size.into_iter().chain(size).chain(len).chain([0; 16]));
+        zip.extend(name.as_bytes());
+        let dir_size = zip.len() as u32 - dir;
+        zip.extend(b"PK\x05\x06\0\0\0\0\x01\0\x01\0");
+        zip.extend(dir_size.to_le_bytes().into_iter().chain(dir.to_le_bytes()).chain([0, 0]));
+        zip
+    }
+
+    #[test]
+    fn sections_are_found_in_the_presentation_part() {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
+        assert!(sections(&fixtures.join("show/sections.pptx")).expect("deflated"), "two sections");
+        assert!(!sections(&fixtures.join("office/t.pptx")).expect("pptx"), "no sections");
+        assert!(!sections(&fixtures.join("show/trouble.fodp")).expect("flat odp"));
+        assert!(!sections(&fixtures.join("office/t.docx")).expect("docx"), "no presentation part");
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let write = |name: &str, xml: &str| {
+            let path = dir.path().join(name);
+            std::fs::write(&path, stored("ppt/presentation.xml", xml.as_bytes())).expect("writes");
+            path
+        };
+        let deck = |inner: &str| format!(r#"<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main">{inner}</p:presentation>"#);
+        assert!(sections(&write("s.pptx", &deck("<p14:sectionLst/>"))).expect("stored"), "a stored part");
+        assert!(!sections(&write("p.pptx", &deck("<p:sectionLst/>"))).expect("other ns"), "only p14 counts");
+        assert!(sections(&write("b.pptx", &deck("<a></b><p14:sectionLst/>"))).is_err(), "broken XML is an error");
     }
 }

@@ -33,7 +33,7 @@ assets/      icons/ 是八个应用的图标母版（SVG）与渲染出的 icns�
 dist/        打包产物，不入库
 docs/        兼容清单、无障碍、帮助、许可、性能记录；engineering-risks.md、qa.md 等内部笔记只在本机，不入库
 scripts/     fetch-references.sh 取上游  doctor.sh 查工具  review.sh 开分栏审查  build-*.sh 构建引擎
-tests/       scripts 与 engines 下是脚本测试；engines 缺二进制时报 SKIP；fixtures 是测试共用的样本（media/clip.mp4：1 秒 H.264/AAC；pdf/aes128.pdf：AES-128 加密，打开密码 user、所有者密码 owner；pdf/signer.p12 与 signer.der：自签名测试证书，密码 ely；pdf/chain-root.der 与 chain-leaf.der：测试用的根与其签发的证书；mail/sample.eml：带编码主题、分组抄送、纯文本加 HTML、cid 图片与附件的邮件，LF 行尾，测试换成 CRLF）
+tests/       scripts 与 engines 下是脚本测试；engines 缺二进制时报 SKIP；fixtures 是测试共用的样本（media/clip.mp4：1 秒 H.264/AAC；pdf/aes128.pdf：AES-128 加密，打开密码 user、所有者密码 owner；pdf/signer.p12 与 signer.der：自签名测试证书，密码 ely；pdf/chain-root.der 与 chain-leaf.der：测试用的根与其签发的证书；show/sections.pptx：t.pptx 加两个章节（p14:sectionLst）；mail/sample.eml：带编码主题、分组抄送、纯文本加 HTML、cid 图片与附件的邮件，LF 行尾，测试换成 CRLF）
 tasks/       TASKS.md 进度真相
 site/        官网（Vite 8、pnpm、TypeScript，无框架；等轴 SVG 积木；中英两种文案在 src/text.ts）；site/video 是发布视频的分镜、配乐、录屏与合成脚本，产物在 site/video/out（不入库）
 ```
@@ -85,6 +85,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；等轴 SVG 积木
 | 组件无 role/aria 语义：菜单、列表等控件在 AX 树仍不可见 | 上游已修核心控件（7380afb：Button、TextInput、Tabs、面板行、对话框等）；其余上游待办。项目自绘控件已自带 |
 | gpui 无 aria-disabled API（`AriaProperties` 无 disabled 字段） | 组件 7380afb 起以本地化 aria_description 表达；上游待办：gpui 补 API |
 | 组件内部文案未接 i18n（Ely 用到的组件已接：提示、默认占位、补全空行、字号示例，6df9ab0；查找框、排序与筛选、密码开关，a4bf696；`i18n/tests/shipped.rs` 防回退；其余组件之外：欢迎页标题、菜单项等） | 面板族文案已接 i18n（7380afb，内建 en/zh-CN），`CommentSidebar` 与 `RelativeTime` 同（408f2b0）；其余上游待办 |
+| PPTX 的章节：内核无此结构，导入即丢 | `ely_office::files::sections` 打开时读 `ppt/presentation.xml` 的 `p14:sectionLst`，有即 `Risk::Sections`：横幅说明，保存改为另存副本（原文件不动），自动保存与命令行保存不写原文件 |
 | LOK 的 `.uno:StyleApply` 状态给英文界面名（`Default Paragraph Style`），样式列表给程序名（`Standard`），两者对不上；内核界面固定英文，内置样式名到不了中文 | ElyDoc `props/builtin.rs`：照 LibreOffice 26.2 的 SwStyleNameMapper、strings.hrc 与 zh-CN 译文列出内置的段落、字符、页面样式（程序名、英文、中文），状态里的界面名经它换回程序名，菜单按界面语言显示；用户自建的样式照原名。更新样式仍用状态里的界面名 |
 
 ## gpui 规则

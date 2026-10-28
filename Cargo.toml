@@ -15,6 +15,7 @@ publish = false
 embed-resource = "=3.0.11"
 csv = "1"
 encoding_rs = "0.8"
+flate2 = "1"
 jiff = "0.2"
 anyhow = "1"
 directories = "6"

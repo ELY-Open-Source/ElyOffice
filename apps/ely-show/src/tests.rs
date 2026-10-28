@@ -18,6 +18,7 @@ mod play_more;
 mod play_time;
 mod remote;
 mod review;
+mod sections;
 mod slides;
 mod strip;
 mod turn;

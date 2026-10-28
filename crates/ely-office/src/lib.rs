@@ -112,6 +112,8 @@ pub enum Risk {
     Signed,
     /// A damaged file opened through a repaired copy (PDF-14).
     Repaired,
+    /// PPTX slide sections the kernel drops (D-02).
+    Sections,
 }
 
 /// One open document.
@@ -150,6 +152,7 @@ impl<E, G: Engine> Tab<E, G> {
             _ if self.risk == Some(Risk::Macros) => "office.state.risk",
             _ if self.risk == Some(Risk::Signed) => "office.state.signed",
             _ if self.risk == Some(Risk::Repaired) => "office.state.repaired",
+            _ if self.risk == Some(Risk::Sections) => "office.state.sections",
             _ if self.exporting => "office.state.saving",
             SaveState::Saving => "office.state.saving",
             SaveState::ExternalModified => "office.state.external",

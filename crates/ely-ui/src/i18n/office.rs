@@ -70,6 +70,11 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("office.state.risk", "Risk mode"),
     ("office.state.signed", "Signed"),
     ("office.state.repaired", "Repaired copy"),
+    ("office.state.sections", "Has sections"),
+    (
+        "office.sections",
+        "{name} has slide sections, which Ely cannot keep. Save As writes a {formats} copy without them; the original keeps its sections.",
+    ),
     (
         "office.repaired",
         "{name} is damaged. Ely opened a repaired copy; Save As writes it to a new file and the damaged original stays as it is.",
@@ -159,6 +164,11 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("office.state.risk", "风险模式"),
     ("office.state.signed", "已签名"),
     ("office.state.repaired", "修复的副本"),
+    ("office.state.sections", "含章节"),
+    (
+        "office.sections",
+        "{name} 含幻灯片章节，Ely 无法保留。“另存为”写出不含章节的 {formats} 副本；原文件的章节照旧。",
+    ),
     (
         "office.repaired",
         "{name} 已损坏。Ely 打开的是修复后的副本；“另存为”把它写成新文件，损坏的原件保持原样。",

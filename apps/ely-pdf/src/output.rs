@@ -241,7 +241,7 @@ impl Viewer {
         let (key, action): (&str, Box<dyn gpui::Action>) = match self.active_tab()?.risk? {
             ely_office::Risk::Signed => ("pdf.sign.show", Box::new(crate::document::ShowSignatures)),
             ely_office::Risk::Repaired => ("pdf.repair.show", Box::new(crate::document::ShowRepairReport)),
-            ely_office::Risk::Macros => return Some(banner),
+            ely_office::Risk::Macros | ely_office::Risk::Sections => return Some(banner),
         };
         let label = Self::text(cx, key, &[]);
         Some(banner.action(label, move |window, cx| window.dispatch_action(action.boxed_clone(), cx)))
