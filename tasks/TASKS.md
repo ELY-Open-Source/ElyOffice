@@ -431,7 +431,7 @@
 - [x] R14.23 ElyMail 接 `mailto:`（D-03，§12）：三端登记为可选的处理程序，不设为默认；打开即写信，收件人、主题、正文照链接。`types.tsv` 的 `mailto:` 行到三端（Linux `%U`、Windows 默认应用、macOS `CFBundleURLTypes`），`ely_ui::mail_link` 原样交链接，引擎 `mailto` 照 RFC 6068 填新信；测试见决策。R1 FAIL 四处已修：引号里的逗号不再切地址、域名转 IDNA、主题解 MIME 编码词、转义须两位十六进制。R2 FAIL 一处已修：编码词解出的换行也拒
 - [x] R14.24 Gmail 应用专用密码的前提写在添加账户处（D-05，§12）— 说明补 Workspace 管理员可关；Gmail 被拒另起一行说怎么办（`add_view::advice`）；PRD 写 OAuth 计划（验证与 CASA 评估后加，时机由用户定）；有测试。R1 修：说明列 Google 不给应用专用密码的几种情形（非穷举）；测试画真的添加页，中英各五例（`ely_ui::laid`）
 - [x] R14.25 ElyTree 缺陷 G-03 至 G-08（§13）— 修复早在 d59159c（G-03 另有 30801ad 的三轮审查），逐条核实并以突变确认测试；G-04 无测试，补 Windows 测试 `a_stop_that_fails_names_git_not_the_clone`。R1 修：`born` 只认一字不差的分支名（`--orphan topic` 在 `topic/sub` 之上）；停止失败不再吞掉取回的失败；两个超 500 行的文件拆开
-- [ ] R14.26 ElyTree 缺陷 G-09 至 G-12、G-14（§13）— 修复早在 d59159c，逐条核实并以突变确认测试；G-10 的测试只查位置，补上分支与标签的选中
+- [ ] R14.26 ElyTree 缺陷 G-09 至 G-12、G-14（§13）— 修复早在 d59159c，逐条核实并以突变确认测试；G-10 的测试只查位置，补上分支与标签的选中。R1 修：选中测试核对两仓库各自的原样；晚到的读测试加读失败的提示
 - [ ] R14.27 ElyTree 打开终端、停止 Git：Windows、Linux（C-04、C-06、N-05、G-13、X-13，§13）
 - [ ] R14.28 ElyTree 测试：Windows（R12.36、P3-14）与 2.40 起的系统 Git（B-04，§13）
 - [ ] R14.29 ElyMark 可视模式只能在一个段落里选取，跨段选取要切到源码模式（用户 2026-10-27 报，§14）：可视模式拖动与 Shift 加方向键跨段选取，复制、删除、格式随之。核实：组件库 `MarkdownDocument` 的可视模式一次只把一个块开成文本框（`document/visual.rs` 的 `open_text`），没有跨块的选区；组件库 `blocks::BlockEditor` 有跨块选区（`blocks/span.rs`），ElyMark 不用它。在组件库修，推上去再改 pin

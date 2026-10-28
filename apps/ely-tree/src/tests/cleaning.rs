@@ -229,11 +229,24 @@ fn a_pick_in_one_repository_stays_there() {
             tree.pick_place(crate::places::Place::Remote("origin".into()), cx);
             tree.pick_ref(crate::branches::Kind::Tag, "v1".into(), cx);
             tree.activate(Some(ids[1]), cx);
+            tree.pick_ref(crate::branches::Kind::Local, "topic".into(), cx);
+            tree.activate(Some(ids[0]), cx);
         })
     });
-    assert!(cx.update(|_, app| {
+    let picks = cx.update(|_, app| {
         tree.read(app)
-            .active()
-            .is_some_and(|o| o.picked_place.is_none() && o.picked_ref.is_none())
-    }));
+            .repos
+            .iter()
+            .map(|o| (o.picked_place.clone(), o.picked_ref.clone()))
+            .collect::<Vec<_>>()
+    });
+    let remote = Some(crate::places::Place::Remote("origin".into()));
+    assert_eq!(
+        picks,
+        [
+            (remote, Some((crate::branches::Kind::Tag, "v1".into()))),
+            (None, Some((crate::branches::Kind::Local, "topic".into()))),
+        ],
+        "each repository keeps its own picks"
+    );
 }

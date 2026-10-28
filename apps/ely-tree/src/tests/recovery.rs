@@ -396,21 +396,38 @@ fn a_read_that_lands_late_leaves_the_users_dialog_open() {
     let head = sh(&root, &["rev-parse", "HEAD"]).trim().to_string();
     let mut cx = TestAppContext::single();
     let (tree, cx) = window(&mut cx, dir.path());
+    // The window's toasts live on its root.
+    let shell = cx.update(|window, app| {
+        let shell =
+            ely_ui::tool_root(ely_platform::AppId::Tree, tree.clone().into(), Vec::new(), window, app);
+        tree.update(app, |tree, _| tree.root = shell.downgrade());
+        shell
+    });
     cx.update(|_, app| tree.update(app, |tree, cx| tree.open_path(root.clone(), cx)));
     settle(cx, |app| branch(tree.read(app)).is_some());
-    cx.update(|_, app| {
-        tree.update(app, |tree, cx| {
-            tree.ask_move(&head, cx);
-            tree.ask = Some(Ask::Failed {
-                title: "mine".into(),
-                detail: "".into(),
-            });
-        })
-    });
-    cx.run_until_parked();
-    let ask = cx.update(|_, app| match &tree.read(app).ask {
-        Some(Ask::Failed { title, .. }) => title.to_string(),
-        _ => "replaced".into(),
-    });
-    assert_eq!(ask, "mine");
+    let missing = "0123456789abcdef0123456789abcdef01234567";
+    let said = recover::plan_move(&git(), &root, missing).expect_err("no such commit");
+    for to in [head.as_str(), missing] {
+        cx.update(|_, app| {
+            tree.update(app, |tree, cx| {
+                tree.ask_move(to, cx);
+                tree.ask = Some(Ask::Failed {
+                    title: "mine".into(),
+                    detail: "".into(),
+                });
+            })
+        });
+        cx.run_until_parked();
+        let ask = cx.update(|_, app| match &tree.read(app).ask {
+            Some(Ask::Failed { title, .. }) => title.to_string(),
+            _ => "replaced".into(),
+        });
+        assert_eq!(ask, "mine", "{to}");
+    }
+    // A failed read still says why, as a toast.
+    let title = cx.update(|_, app| ely_ui::i18n::text(app, "tree.op.failed", &[]));
+    let want = format!("{title}: {said}");
+    let toasts = cx.update(|_, app| shell.read(app).toasts(app));
+    let danger = Some(ely_gpui_component::primitives::Severity::Danger);
+    assert!(toasts.iter().any(|(text, severity)| *text == want && *severity == danger), "{toasts:?}");
 }
