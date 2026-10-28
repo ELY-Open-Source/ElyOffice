@@ -49,4 +49,5 @@ fn sections_keep_the_original_and_save_only_as_a_copy() {
 fn utf16_and_encrypted_decks_are_guarded_too() {
     keeps_the_original("sections-utf16.pptx", "", Risk::Sections);
     keeps_the_original("sections-locked.pptx", "ely", Risk::Sealed);
+    keeps_the_original("sections-locked-tail.pptx", "ely", Risk::Sealed);
 }

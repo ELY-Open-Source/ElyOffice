@@ -167,14 +167,11 @@ fn ole_has(bytes: &[u8], name: &str) -> bool {
         .flat_map(u16::to_le_bytes)
         .collect();
     // 128-byte entries: name, byte length, type 2.
-    (512..bytes.len().saturating_sub(128))
-        .step_by(128)
-        .any(|at| {
-            let entry = &bytes[at..at + 128];
-            entry.starts_with(&name)
-                && u16::from_le_bytes([entry[64], entry[65]]) as usize == name.len() + 2
-                && entry[66] == 2
-        })
+    bytes[512.min(bytes.len())..].as_chunks::<128>().0.iter().any(|entry| {
+        entry.starts_with(&name)
+            && u16::from_le_bytes([entry[64], entry[65]]) as usize == name.len() + 2
+            && entry[66] == 2
+    })
 }
 
 /// A path's file name for tab titles.
@@ -340,6 +337,7 @@ mod tests {
         assert_eq!(risk(&show, "sections.pptx"), Some(crate::Risk::Sections));
         assert_eq!(risk(&show, "sections-utf16.pptx"), Some(crate::Risk::Sections));
         assert_eq!(risk(&show, "sections-locked.pptx"), Some(crate::Risk::Sealed));
+        assert_eq!(risk(&show, "sections-locked-tail.pptx"), Some(crate::Risk::Sealed), "the last entry");
         assert_eq!(risk(&show, "trouble.fodp"), None);
         assert_eq!(risk(&KIND, "sections.pptx"), None, "Doc and Table never ask");
     }
