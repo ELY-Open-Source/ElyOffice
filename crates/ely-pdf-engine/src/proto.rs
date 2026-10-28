@@ -123,7 +123,10 @@ pub struct Char {
     pub rect: [f32; 4],
 }
 
-/// Parses a BOUNDS reply: `count` page boxes, each with area.
+/// Page sides, in points: one point to Acrobat's 15,000,000 inches.
+pub const SIDES: std::ops::RangeInclusive<f32> = 1.0..=15_000_000.0 * 72.0;
+
+/// Parses a BOUNDS reply: `count` page boxes within `SIDES`.
 pub fn boxes(bytes: &[u8], count: usize) -> io::Result<Vec<[f32; 4]>> {
     let mut reply = ely_ipc::Unpack::new(bytes);
     let mut boxes = Vec::with_capacity(count);
@@ -133,9 +136,9 @@ pub fn boxes(bytes: &[u8], count: usize) -> io::Result<Vec<[f32; 4]>> {
             *value = f32::from_bits(reply.u64()? as u32);
         }
         let [x0, y0, x1, y1] = one;
-        // Layout divides by these.
-        if !one.iter().all(|value| value.is_finite()) || x1 <= x0 || y1 <= y0 {
-            return Err(io::Error::other(format!("a page box {one:?} without finite area")));
+        // Layout divides by and sums these.
+        if !one.iter().all(|value| value.is_finite()) || !SIDES.contains(&(x1 - x0)) || !SIDES.contains(&(y1 - y0)) {
+            return Err(io::Error::other(format!("a page box {one:?} outside the page sizes")));
         }
         boxes.push(one);
     }
@@ -240,14 +243,20 @@ mod tests {
     }
 
     #[test]
-    fn page_boxes_need_a_finite_area() {
+    fn page_boxes_keep_to_the_page_sizes() {
         let letter = [0.0, 0.0, 612.0, 792.0];
         assert_eq!(super::boxes(&reply(&[letter]), 1).expect("a page"), [letter]);
         let wide = [0.0, 0.0, f32::INFINITY, 792.0];
         let unread = [0.0, 0.0, f32::NAN, 792.0];
-        for bad in [wide, unread, [0.0, 0.0, 0.0, 792.0], [0.0, 10.0, 612.0, 10.0]] {
+        let largest = [0.0, 0.0, *super::SIDES.end(), *super::SIDES.end()];
+        assert_eq!(super::boxes(&reply(&[largest]), 1).expect("the largest page"), [largest]);
+        // Finite ends, an endless width; then finite and too large.
+        let spread = [-f32::MAX, 0.0, f32::MAX, 792.0];
+        let huge = [0.0, 0.0, 8.1e37, 8.1e37];
+        let thin = [0.0, 0.0, 0.5, 792.0];
+        for bad in [wide, unread, spread, huge, thin, [0.0, 0.0, 0.0, 792.0], [0.0, 10.0, 612.0, 10.0]] {
             let said = super::boxes(&reply(&[letter, bad]), 2).expect_err("refused");
-            assert!(said.to_string().contains("without finite area"), "{said}");
+            assert!(said.to_string().contains("outside the page sizes"), "{said}");
         }
     }
 }

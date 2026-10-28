@@ -111,6 +111,22 @@ mod tests {
     const LETTER: (f32, f32) = (612.0, 792.0);
 
     #[test]
+    fn the_largest_pages_at_the_largest_zoom_stay_finite() {
+        let side = *ely_pdf_engine::proto::SIDES.end();
+        let (smallest, largest) = (*ely_pdf_engine::proto::SIDES.start(), (side, side));
+        let pages = [largest, (smallest, side), largest, largest];
+        // A stored zoom setting reaches u32::MAX percent.
+        let scale = u32::MAX as f32 / 100.0 * ACTUAL;
+        for mode in [Mode::Continuous, Mode::Single, Mode::Two, Mode::Horizontal] {
+            for zoom in [Zoom::Width, Zoom::Page, Zoom::Scale(scale)] {
+                let laid = layout(&pages, 90, (mode, zoom), (100_000.0, 100_000.0), 1);
+                let all = laid.placed.iter().flat_map(|p| [p.x, p.y, p.w, p.h]);
+                assert!(all.chain([laid.size.0, laid.size.1, laid.scale]).all(f32::is_finite), "{mode:?} {zoom:?}: {laid:?}");
+            }
+        }
+    }
+
+    #[test]
     fn continuous_fits_the_width_and_stacks_with_gaps() {
         let out = layout(&[LETTER, LETTER], 0, (Mode::Continuous, Zoom::Width), (644.0, 500.0), 0);
         assert_eq!(out.scale, 1.0, "612 points in 612 pixels of room");
