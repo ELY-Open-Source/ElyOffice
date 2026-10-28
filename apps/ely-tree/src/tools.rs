@@ -104,13 +104,27 @@ pub const REVEAL: &str = if cfg!(target_os = "macos") {
     "tree.tool.reveal_folder"
 };
 
+/// A started launcher; its stderr lands in a file.
+#[cfg(unix)]
+pub(crate) struct Launched {
+    child: Child,
+    said: std::fs::File,
+    at: std::time::Instant,
+}
+
 #[cfg(target_os = "macos")]
-pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
-    Command::new("open")
+pub(crate) fn terminal_at(dir: &Path) -> io::Result<Launched> {
+    let said = tempfile::tempfile()?;
+    let child = Command::new("open")
         .args(["-a", "Terminal"])
         .arg(dir)
-        .stderr(std::process::Stdio::piped())
-        .spawn()
+        .stderr(said.try_clone()?)
+        .spawn()?;
+    Ok(Launched {
+        child,
+        said,
+        at: std::time::Instant::now(),
+    })
 }
 
 /// PowerShell keeps a UNC folder; cmd.exe cannot.
@@ -131,18 +145,23 @@ pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
 
 /// The freedesktop launcher, else Debian's.
 #[cfg(all(unix, not(target_os = "macos")))]
-pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
+pub(crate) fn terminal_at(dir: &Path) -> io::Result<Launched> {
     launcher(&["xdg-terminal-exec", "x-terminal-emulator"], dir)
 }
 
 /// The first launcher found; its errors are kept.
 #[cfg(all(unix, not(target_os = "macos")))]
-fn launcher(names: &[&str], dir: &Path) -> io::Result<Child> {
+fn launcher(names: &[&str], dir: &Path) -> io::Result<Launched> {
+    // A file: a helper may hold a pipe open.
+    let said = tempfile::tempfile()?;
     for &name in names {
         let mut command = Command::new(name);
-        command.current_dir(dir).stderr(std::process::Stdio::piped());
+        command.current_dir(dir).stderr(said.try_clone()?);
         match command.spawn() {
-            Ok(child) => return Ok(child),
+            Ok(child) => {
+                let at = std::time::Instant::now();
+                return Ok(Launched { child, said, at });
+            }
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 log::info!("tree: no {name}")
             }
@@ -161,16 +180,20 @@ const STARTUP: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// A launcher that fails while starting says why.
 #[cfg(unix)]
-fn settled(child: Child, startup: std::time::Duration) -> io::Result<()> {
-    let started = std::time::Instant::now();
-    let out = child.wait_with_output()?;
+fn settled(launched: Launched, startup: std::time::Duration) -> io::Result<()> {
+    use std::os::unix::fs::FileExt as _;
+    let Launched { mut child, said, at } = launched;
+    let status = child.wait()?;
     // Some terminals end with their shell's code.
-    if out.status.success() || started.elapsed() >= startup {
-        log::info!("tree: the terminal ended, {}", out.status);
+    if status.success() || at.elapsed() >= startup {
+        log::info!("tree: the terminal ended, {status}");
         return Ok(());
     }
-    let said = String::from_utf8_lossy(&out.stderr).trim().to_string();
-    Err(io::Error::other(format!("{}: {said}", out.status)))
+    // Read in place: a helper may still write.
+    let mut bytes = vec![0; usize::try_from(said.metadata()?.len()).map_err(io::Error::other)?];
+    said.read_exact_at(&mut bytes, 0)?;
+    let said = String::from_utf8_lossy(&bytes).trim().to_string();
+    Err(io::Error::other(format!("{status}: {said}")))
 }
 
 impl Tree {
@@ -181,18 +204,18 @@ impl Tree {
     pub fn open_terminal(&mut self, cx: &mut Context<Self>) {
         let Some(root) = self.root() else { return };
         log::info!("tree: terminal at {}", root.display());
-        let child = match terminal_at(&root) {
-            Ok(child) => child,
+        let started = match terminal_at(&root) {
+            Ok(started) => started,
             Err(error) => return self.failed("tree.error.tool", &error.to_string(), cx),
         };
         // A closed console's exit says nothing.
         #[cfg(windows)]
-        drop(child);
+        drop(started);
         #[cfg(unix)]
         {
             let (done, result) = futures::channel::oneshot::channel();
             // Waits as long as the terminal lives.
-            std::thread::spawn(move || done.send(settled(child, STARTUP)));
+            std::thread::spawn(move || done.send(settled(started, STARTUP)));
             cx.spawn(async move |this, cx| {
                 if let Ok(Err(error)) = result.await {
                     log::warn!("tree: the terminal failed: {error}");
@@ -381,6 +404,11 @@ mod tests {
         let started = super::launcher(&[&bad], dir.path()).expect("starts");
         let said = super::settled(started, Duration::from_secs(5)).expect_err("fails");
         assert!(said.to_string().contains("no display"), "{said}");
+        // Its helper holds stderr past the startup window.
+        let held = fixture("launcher-held");
+        let started = super::launcher(&[&held], dir.path()).expect("starts");
+        let said = super::settled(started, Duration::from_secs(3)).expect_err("fails");
+        assert!(said.to_string().contains("no display"), "{said}");
         let session = fixture("launcher-session");
         let started = super::launcher(&[&session], dir.path()).expect("starts");
         super::settled(started, Duration::from_millis(300)).expect("a session's own exit");
@@ -389,7 +417,9 @@ mod tests {
         super::settled(started, Duration::from_secs(5)).expect("ends well");
         let here = std::fs::read_to_string(dir.path().join("here")).expect("wrote");
         assert_eq!(std::path::Path::new(here.trim()), dir.path());
-        let none = super::launcher(&["ely-no-such-launcher"], dir.path()).expect_err("none");
+        let Err(none) = super::launcher(&["ely-no-such-launcher"], dir.path()) else {
+            panic!("a launcher that is not there started");
+        };
         assert_eq!(none.kind(), std::io::ErrorKind::NotFound);
     }
 
