@@ -83,10 +83,7 @@ fn a_waiting_file_brings_its_message_down() {
 fn a_whole_message_attached_waits_and_downloads() {
     let dir = tempfile::tempdir().unwrap();
     // Partial sync kept only the root's header.
-    let head = "Content-Type: multipart/mixed; boundary=b
-Content-Disposition: attachment; filename=pack
-
-";
+    let head = "Content-Type: multipart/mixed; boundary=b\r\nContent-Disposition: attachment; filename=pack\r\n\r\n";
     let id = seeded(dir.path(), format!("{NOTE}{head}").as_bytes(), &["TEXT".to_owned()]);
     let mut cx = TestAppContext::single();
     let (mail, vcx) = window(&mut cx, dir.path(), Keys::default());

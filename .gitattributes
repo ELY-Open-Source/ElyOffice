@@ -1,3 +1,6 @@
+# LF everywhere; upstream copies keep their bytes.
+* text=auto eol=lf
+vendor/** -text
 # Internal records stay out of source archives.
 agents.md export-ignore
 CLAUDE.md export-ignore
