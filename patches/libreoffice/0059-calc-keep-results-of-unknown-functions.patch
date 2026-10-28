@@ -32,7 +32,7 @@ diff --git a/sc/inc/formulacell.hxx b/sc/inc/formulacell.hxx
      ScMatrixMode    cMatrixFlag      : 8;
      sal_uInt16      nSeenInIteration : 16;   // Iteration cycle in which the cell was last encountered
      SvNumFormatType nFormatType      : 16;
-@@ -246,6 +247,16 @@ public:
+@@ -246,6 +247,18 @@ public:
  
      bool GetDirty() const { return bDirty; }
      SC_DLLPUBLIC void ResetDirty();
@@ -44,12 +44,14 @@ diff --git a/sc/inc/formulacell.hxx b/sc/inc/formulacell.hxx
 +            nFormatType = SvNumFormatType::LOGICAL;
 +    }
 +    bool IsKeptResult() const { return mbKeptResult; }
++    /// Calc lacks a function here or in a name used.
++    SC_DLLPUBLIC static bool HasUnknownFunction( const ScDocument& rDoc, const ScTokenArray& rCode );
 +    /// Takes over another cell's kept result.
 +    void KeepResultOf( const ScFormulaCell& rCell );
      bool NeedsListening() const { return bNeedListening; }
      void SetNeedsListening( bool bVar );
      void SetNeedsDirty( bool bVar );
-@@ -409,7 +420,7 @@ public:
+@@ -409,7 +422,7 @@ public:
  
      OUString GetHybridFormula() const;
  
@@ -227,7 +229,7 @@ diff --git a/sc/source/core/data/formulacell.cxx b/sc/source/core/data/formulace
 +    // Unknown functions' loaded results stand; origins hold their matrix.
 +    const ScMatrixFormulaCellToken* pMatrix = aResult.GetMatrixFormulaCellToken();
 +    const formula::StackVar eLoaded = pMatrix ? pMatrix->GetUpperLeftType() : aResult.GetType();
-+    if (eLoaded != formula::svUnknown && pCode->HasOpCode(ocBad))
++    if (eLoaded != formula::svUnknown && HasUnknownFunction(rDocument, *pCode))
 +    {
 +        mbKeptResult = true;
 +        if (lcl_IsLogical(rDocument, aPos))
@@ -338,6 +340,34 @@ diff --git a/sc/source/core/data/formulacell.cxx b/sc/source/core/data/formulace
  
      if (bCompile)
      {
+@@ -3917,6 +3986,27 @@ void ScFormulaCell::UpdateGrow( const ScRange& rArea, SCCOL nGrowX, SCROW nGrowY
+         StartListeningTo( rDocument ); // Listener as previous
+ }
+ 
++static bool lcl_HasUnknownFunction( const ScDocument& rDoc, const ScTokenArray& rCode, int nRecursion )
++{
++    if (rCode.HasOpCode(ocBad))
++        return true;
++    FormulaTokenArrayPlainIterator aIter(rCode);
++    for (const FormulaToken* p = aIter.First(); p; p = aIter.Next())
++    {
++        if (p->GetOpCode() != ocName || nRecursion >= 126)
++            continue;
++        const ScRangeData* pName = rDoc.FindRangeNameBySheetAndIndex(p->GetSheet(), p->GetIndex());
++        if (pName && pName->GetCode() && lcl_HasUnknownFunction(rDoc, *pName->GetCode(), nRecursion + 1))
++            return true;
++    }
++    return false;
++}
++
++bool ScFormulaCell::HasUnknownFunction( const ScDocument& rDoc, const ScTokenArray& rCode )
++{
++    return lcl_HasUnknownFunction(rDoc, rCode, 0);
++}
++
+ // See also ScDocument::FindRangeNamesReferencingSheet()
+ static void lcl_FindRangeNamesInUse(sc::UpdatedRangeNames& rIndexes, const ScTokenArray* pCode, const ScDocument& rDoc,
+         int nRecursion)
 diff --git a/sc/source/core/tool/interpr5.cxx b/sc/source/core/tool/interpr5.cxx
 --- a/sc/source/core/tool/interpr5.cxx
 +++ b/sc/source/core/tool/interpr5.cxx
@@ -409,14 +439,14 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
  #include <utility>
  
  using namespace ::com::sun::star::uno;
-@@ -34,6 +39,83 @@ namespace oox::xls {
+@@ -34,6 +39,79 @@ namespace oox::xls {
  
  namespace {
  
 +/// A formula naming what Calc lacks keeps the file's result.
 +void keepIfUnknown(ScFormulaCell& rCell, bool bLogical = false)
 +{
-+    if (rCell.GetCode()->HasOpCode(ocBad))
++    if (ScFormulaCell::HasUnknownFunction(rCell.GetDocument(), *rCell.GetCode()))
 +        rCell.SetKeptResult(bLogical);
 +}
 +
@@ -461,14 +491,10 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
 +            rMat.PutString(rDoc.GetSharedStringPool().intern(rText), nCol, nRow);
 +            return true;
 +        case XML_s:
-+        {
-+            // A shared string was set as the cell's text.
-+            ScRefCellValue aCell(rDoc, rValue.maAddress);
-+            if (aCell.getType() != CELLTYPE_STRING)
-+                return false;
-+            rMat.PutString(*aCell.getSharedString(), nCol, nRow);
++        case XML_inlineStr:
++            // Plain cells' text, resolved on import.
++            rMat.PutString(rDoc.GetSharedStringPool().intern(rText), nCol, nRow);
 +            return true;
-+        }
 +    }
 +    return false;
 +}
@@ -493,7 +519,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
  /**
   * Cache the token array for the last cell position in each column. We use
   * one cache per sheet.
-@@ -159,7 +241,7 @@ void applySharedFormulas(
+@@ -159,7 +237,7 @@ void applySharedFormulas(
              if (bNeedNumberFormat)
                  pCell->SetNeedNumberFormat(true);
  
@@ -502,7 +528,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
              {
                  // No cached cell value. Mark it for re-calculation.
                  pCell->SetDirty();
-@@ -182,7 +264,10 @@ void applySharedFormulas(
+@@ -182,7 +260,10 @@ void applySharedFormulas(
                                  rDoc.getDoc().GetFormatTable()->GetStandardFormat( SvNumFormatType::LOGICAL));
                      }
                      if (rDesc.maCellValue == "1" || rDesc.maCellValue == "0")
@@ -513,7 +539,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
                      else
                      {
                          // Recalc even if AutoCalc is disabled.
-@@ -199,6 +284,8 @@ void applySharedFormulas(
+@@ -199,6 +280,8 @@ void applySharedFormulas(
                              bHasCalculatedFormulaCells = true;
                          }
                          pCell->SetResultDouble(fVal);
@@ -522,7 +548,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
                          /* TODO: is it on purpose that we never reset dirty here
                           * and thus recalculate anyway if cell was dirty? Or is it
                           * never dirty and therefore set dirty below otherwise? This
-@@ -216,6 +303,7 @@ void applySharedFormulas(
+@@ -216,6 +299,7 @@ void applySharedFormulas(
                          // that use macro functions to show #VALUE!
                          pCell->ResetDirty();
                          pCell->SetChanged(false);
@@ -530,7 +556,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
                          break;
                      }
                      [[fallthrough]];
-@@ -291,8 +379,11 @@ void applyCellFormulas(
+@@ -291,8 +375,11 @@ void applyCellFormulas(
  void applyArrayFormulas(
      ScDocumentImport& rDoc,
      const Sequence<ExternalLinkInfo>& rExternalLinks,
@@ -543,7 +569,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
      for (const FormulaBuffer::TokenRangeAddressItem& rAddressItem : rArrays)
      {
          const ScAddress& aPos = rAddressItem.maTokenAndAddress.maAddress;
-@@ -300,8 +391,46 @@ void applyArrayFormulas(
+@@ -300,8 +387,46 @@ void applyArrayFormulas(
          ScCompiler aComp(rDoc.getDoc(), aPos, formula::FormulaGrammar::GRAM_OOXML);
          aComp.SetExternalLinks(rExternalLinks);
          std::unique_ptr<ScTokenArray> pArray(aComp.CompileString(rAddressItem.maTokenAndAddress.maTokenStr));
@@ -554,7 +580,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
 +        // Read before the matrix cells replace the loaded values.
 +        const ScRange& rRange = rAddressItem.maRange;
 +        ScMatrixRef pMat;
-+        if (pValues && pArray->HasOpCode(ocBad))
++        if (pValues && ScFormulaCell::HasUnknownFunction(rDoc.getDoc(), *pArray))
 +        {
 +            if (aValues.empty())
 +                for (const FormulaBuffer::FormulaValue& rValue : *pValues)
@@ -592,7 +618,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
      }
  }
  
-@@ -317,7 +446,8 @@ void applyCellFormulaValues(
+@@ -317,7 +442,8 @@ void applyCellFormulaValues(
          const ScAddress& aCellPos = rValue.maAddress;
          ScFormulaCell* pCell = rDoc.getDoc().GetFormulaCell(aCellPos);
          const OUString& rValueStr = rValue.maValueStr;
@@ -602,7 +628,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
              continue;
  
          switch (rValue.mnCellType)
-@@ -333,8 +463,21 @@ void applyCellFormulaValues(
+@@ -333,8 +459,21 @@ void applyCellFormulaValues(
                  pCell->SetResultDouble(fVal);
                  pCell->ResetDirty();
                  pCell->SetChanged(false);
@@ -624,7 +650,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
              case XML_str:
                  // Excel uses t="str" for string results (per definition
                  // ECMA-376 18.18.11 ST_CellType (Cell Type) "Cell containing a
-@@ -352,6 +495,7 @@ void applyCellFormulaValues(
+@@ -352,6 +491,7 @@ void applyCellFormulaValues(
                      pCell->SetResultToken(new formula::FormulaStringToken(std::move(aSS)));
                      pCell->ResetDirty();
                      pCell->SetChanged(false);
@@ -632,7 +658,7 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
                  }
              break;
              default:
-@@ -375,7 +519,8 @@ void processSheetFormulaCells(
+@@ -375,7 +515,8 @@ void processSheetFormulaCells(
      }
  
      if (rItem.mpArrayFormulas)
@@ -645,16 +671,39 @@ diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formu
 diff --git a/sc/source/filter/oox/sheetdatacontext.cxx b/sc/source/filter/oox/sheetdatacontext.cxx
 --- a/sc/source/filter/oox/sheetdatacontext.cxx
 +++ b/sc/source/filter/oox/sheetdatacontext.cxx
-@@ -19,6 +19,8 @@
+@@ -19,6 +19,12 @@
  
  #include <sheetdatacontext.hxx>
  
 +#include <algorithm>
++#include <optional>
++
++#include <rtl/character.hxx>
++#include <sharedstringsbuffer.hxx>
 +
  #include <oox/core/xmlfilterbase.hxx>
  #include <oox/helper/attributelist.hxx>
  #include <oox/helper/binaryinputstream.hxx>
-@@ -63,6 +65,7 @@ SheetDataContext::SheetDataContext( WorksheetFragmentBase& rFragment ) :
+@@ -54,6 +60,18 @@ const sal_uInt16 BIFF12_ROW_CUSTOMHEIGHT    = 0x2000;
+ const sal_uInt16 BIFF12_ROW_CUSTOMFORMAT    = 0x4000;
+ const sal_uInt8 BIFF12_ROW_SHOWPHONETIC     = 0x01;
+ 
++/// A shared string's text; none for an unsound index.
++std::optional<OUString> sharedText( const SharedStringsBuffer& rStrings, std::u16string_view aIndex )
++{
++    if (aIndex.empty() || aIndex.size() > 9
++        || !std::all_of(aIndex.begin(), aIndex.end(), [](sal_Unicode c) { return rtl::isAsciiDigit(c); }))
++        return std::nullopt;
++    RichStringRef xString = rStrings.getString(o3tl::toInt32(aIndex));
++    if (!xString)
++        return std::nullopt;
++    return xString->getStringContent();
++}
++
+ } // namespace
+ 
+ SheetDataContext::SheetDataContext( WorksheetFragmentBase& rFragment ) :
+@@ -63,6 +81,7 @@ SheetDataContext::SheetDataContext( WorksheetFragmentBase& rFragment ) :
      mnSheet( rFragment.getSheetIndex() ),
      mbHasFormula( false ),
      mbValidRange( false ),
@@ -662,7 +711,7 @@ diff --git a/sc/source/filter/oox/sheetdatacontext.cxx b/sc/source/filter/oox/sh
      mnRow( -1 ),
      mnCol( -1 )
  {
-@@ -96,6 +99,7 @@ ContextHandlerRef SheetDataContext::onCreateContext( sal_Int32 nElement, const A
+@@ -96,6 +115,7 @@ ContextHandlerRef SheetDataContext::onCreateContext( sal_Int32 nElement, const A
                      mxInlineStr = std::make_shared<RichString>();
                      return new RichStringContext( *this, mxInlineStr );
                  case XLS_TOKEN( v ):
@@ -670,7 +719,7 @@ diff --git a/sc/source/filter/oox/sheetdatacontext.cxx b/sc/source/filter/oox/sh
                      return this;    // characters contain cell value
                  case XLS_TOKEN( f ):
                      importFormula( rAttribs );
-@@ -139,7 +143,8 @@ void SheetDataContext::onEndElement()
+@@ -139,7 +159,8 @@ void SheetDataContext::onEndElement()
  
              // If a number cell has some preloaded value, stick it into the buffer
              // but do this only for real cell formulas (not array, shared etc.)
@@ -680,7 +729,7 @@ diff --git a/sc/source/filter/oox/sheetdatacontext.cxx b/sc/source/filter/oox/sh
                  setCellFormulaValue(maCellData.maCellAddr, maCellValue, maCellData.mnCellType);
              break;
  
-@@ -149,7 +154,8 @@ void SheetDataContext::onEndElement()
+@@ -149,7 +170,8 @@ void SheetDataContext::onEndElement()
                  if( mbValidRange && maFmlaData.isValidSharedRef( maCellData.maCellAddr ) )
                      createSharedFormulaMapEntry(maCellData.maCellAddr, maFmlaData.mnSharedId, maFormulaStr);
  
@@ -690,7 +739,7 @@ diff --git a/sc/source/filter/oox/sheetdatacontext.cxx b/sc/source/filter/oox/sh
                  mrSheetData.setCellFormat( maCellData );
              }
              else
-@@ -160,6 +166,11 @@ void SheetDataContext::onEndElement()
+@@ -160,6 +182,11 @@ void SheetDataContext::onEndElement()
              if( mbValidRange && maFmlaData.isValidArrayRef( maCellData.maCellAddr ) )
              {
                  setCellArrayFormula( maFmlaData.maFormulaRef, maCellData.maCellAddr, maFormulaStr );
@@ -702,7 +751,7 @@ diff --git a/sc/source/filter/oox/sheetdatacontext.cxx b/sc/source/filter/oox/sh
              }
              // set cell formatting, but do not set result as cell value
              mrSheetData.setBlankCell( maCellData );
-@@ -178,6 +189,12 @@ void SheetDataContext::onEndElement()
+@@ -178,6 +205,29 @@ void SheetDataContext::onEndElement()
      if( mbHasFormula )
          return;
  
@@ -710,12 +759,29 @@ diff --git a/sc/source/filter/oox/sheetdatacontext.cxx b/sc/source/filter/oox/sh
 +    const ScAddress& rAddr = maCellData.maCellAddr;
 +    std::erase_if(maArrays, [&rAddr](const ScRange& rArray) { return rArray.aEnd.Row() < rAddr.Row(); });
 +    if (std::any_of(maArrays.begin(), maArrays.end(), [&rAddr](const ScRange& rArray) { return rArray.Contains(rAddr); }))
-+        setCellFormulaValue(rAddr, maCellValue, mbHasValue ? maCellData.mnCellType : XML_TOKEN_INVALID);
++    {
++        // Strings resolve here: the index checked, rich text flattened.
++        OUString aText = maCellValue;
++        sal_Int32 nType = mbHasValue ? maCellData.mnCellType : XML_TOKEN_INVALID;
++        if (nType == XML_s)
++        {
++            std::optional<OUString> oText = sharedText(getSharedStrings(), maCellValue);
++            aText = oText.value_or(OUString());
++            if (!oText)
++                nType = XML_TOKEN_INVALID;
++        }
++        else if (maCellData.mnCellType == XML_inlineStr && mxInlineStr)
++        {
++            aText = mxInlineStr->getStringContent();
++            nType = XML_inlineStr;
++        }
++        setCellFormulaValue(rAddr, aText, nType);
++    }
 +
      // no formula created: try to set the cell value
      if( !maCellValue.isEmpty() ) switch( maCellData.mnCellType )
      {
-@@ -349,6 +366,7 @@ bool SheetDataContext::importCell( const AttributeList& rAttribs )
+@@ -349,6 +399,7 @@ bool SheetDataContext::importCell( const AttributeList& rAttribs )
  
          // reset cell value, formula settings, and inline string
          maCellValue.clear();

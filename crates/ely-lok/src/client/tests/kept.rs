@@ -225,3 +225,45 @@ fn ods_empty_strings_keep_and_bad_numbers_do_not() {
     cells(&mut worker, &doc, &loaded);
     assert_eq!(kept_cells(&mut worker, &doc), kept, "Ely's own copy");
 }
+
+#[test]
+fn string_members_and_names_with_unknown_functions_keep_them_too() {
+    let Some(install) = install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let doc = open_fixture(&mut worker, "kept-strings.xlsx");
+    let loaded = [
+        ("A1", "41", "{=FUTUREFN(1)}"),
+        ("B1", "hello", "{=FUTUREFN(1)}"),
+        ("B2", "", "{=FUTUREFN(2)}"),
+        // A shared string in two runs.
+        ("B3", "hello", "{=FUTUREFN(3)}"),
+        // Unsound or missing shared string indexes.
+        ("A4", "#NAME?", "{=FUTUREFN(4)}"),
+        ("A5", "#NAME?", "{=FUTUREFN(5)}"),
+        ("A6", "#NAME?", "{=FUTUREFN(6)}"),
+        ("E7", "41", "=MyValue"),
+        ("F7", "42", "=Outer"),
+        ("G7", "2", "=Known"),
+        ("H7", "41", "{=MyValue}"),
+    ];
+    cells(&mut worker, &doc, &loaded);
+    let kept = ["Sheet1!A1", "Sheet1!A2", "Sheet1!A3", "Sheet1!E7", "Sheet1!F7", "Sheet1!H7"];
+    assert_eq!(kept_cells(&mut worker, &doc), kept);
+    let (xlsx, ods) = (dir.path().join("strings.xlsx"), dir.path().join("strings.ods"));
+    doc.save_as(&mut worker, &crate::file_url(&xlsx), "xlsx").expect("saves");
+    doc.save_as(&mut worker, &crate::file_url(&ods), "ods").expect("saves");
+    // The name's input changes.
+    worker.run(&doc, "cell.set", &["Sheet1!D7", "5"]).expect("D7");
+    cells(&mut worker, &doc, &[("E7", "#NAME?", "=MyValue"), ("F7", "#NAME?", "=Outer"), ("G7", "5", "=Known")]);
+    cells(&mut worker, &doc, &[("H7", "#NAME?", "{=MyValue}")]);
+    worker.close_doc(doc).expect("closes");
+    for copy in [&xlsx, &ods] {
+        let again = worker.load(&crate::file_url(copy)).expect("reopens");
+        cells(&mut worker, &again, &loaded);
+        assert_eq!(kept_cells(&mut worker, &again), kept, "{}", copy.display());
+        worker.close_doc(again).expect("closes");
+    }
+}
