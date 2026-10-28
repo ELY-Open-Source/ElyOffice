@@ -177,6 +177,8 @@ tests/scripts/table-cli.sh     开着 ElyTable 与一个工作簿，另一进程
 tests/scripts/doc-cli.sh       开着 ElyDoc 与一个 docx，另一进程经 `ely-doc text` 列出、读正文、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对
 tests/scripts/show-cli.sh      开着 ElyShow 与一个 pptx，另一进程经 `ely-show text` 列出、读各页文字、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对
 tests/scripts/mark-cli.sh      开着 ElyMark 与一个 md，另一进程经 `ely-mark text` 列出、读原文、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对（`CARGO_TARGET_DIR` 设了即取其中的构建）
+tests/scripts/mark-build.sh     由不带 engines 与 reference 的 `git archive HEAD` 构建 ElyMark，`ELY_MUPDF_DIR` 指空目录
+tests/scripts/worker-rebuild.sh 改了 MuPDF 垫片（只动时间），worker 的构建脚本即重跑
 tests/scripts/data-folder.sh   指向文件要求搬动时，ElyMark 启动即把数据搬进所选文件夹、切换并记日志
 tests/scripts/one-instance.sh  第二份 ElyDoc 把文件交给第一份后退出，第一份开出它、工作目录不动
 tests/scripts/update.sh        装好的 ElyTree 从本机服务的新版下载、替换、重新打开（需辅助功能权限）
