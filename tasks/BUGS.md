@@ -126,7 +126,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [ ] N-01 打印：Windows、Linux 交系统打印（与 macOS 同一份 PDF、纸张与取消规则），不再禁用
 - [x] N-02 ElyShow 媒体：Windows 以 Media Foundation、Linux 以 GStreamer 实现 `media::Player`（载入、可播、失败原因、帧、循环与播完） — Windows R14.17（`media/mf.rs`），Linux R14.18（`media/gst.rs`）
 - [x] N-03 自动更新的安装与重开：Windows 安装程序、Linux AppImage，照 macOS 的退出后替换、失败记录与重开 — 4a74360 已做（`install::after_quit`：Windows 等进程退出后静默运行安装程序并重开，AppImage 换文件后重开，失败写入 `updates/failed.txt`；`tests/install.rs` 核对）；R14.4 删去非 macOS 的 `install`、`reopen` 桩
-- [ ] N-04 签名验证的证书信任：Windows 系统信任库、Linux 系统 CA，禁网，不核吊销
+- [x] N-04 签名验证的证书信任：Windows 系统信任库、Linux 系统 CA，禁网，不核吊销 — b7334ff 已做（`ely_platform::trust`：Windows 的 CryptoAPI 链引擎只读缓存、不自动更新根、不核吊销；Linux 的系统 CA 加 webpki，无网络）；R14.21 核对，三端测试皆过，Windows 上“一律受信”被测试抓住
 - [ ] N-05 ElyTree 与系统：停止 Git（Windows 结束进程树）、打开终端、在文件管理器中显示，Windows、Linux
 - [ ] N-06 应用之间：Windows、Linux 的同级应用查找与启动、系统默认程序打开、单实例与诊断的崩溃报告位置
 - [ ] L-03 Linux 真窗口：六个应用开样本、编辑、保存、打印禁用说明、设置、更新检查
@@ -153,7 +153,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [ ] P3-10 Windows：`crates/ely-office/tests/restart.rs` 设 `HOME` 想用临时目录，但 Windows 上 `data_dir` 取已知文件夹（不看 `HOME`），测试在真实的 ElyDoc 配置里运行；中途被杀即留下挡路的 `lok-verify.fodt` 文件夹，真实 ElyDoc 的内核核对随之失败（2026-10-14 审查中出现，已手动删去）
 - [ ] P3-11 ElyShow：正编辑表格单元格时在幻灯片空白处右键，内核（Impress）只结束编辑、不发 `LOK_CALLBACK_CONTEXT_MENU`，再右键一次才有幻灯片菜单；Windows 实测，他端未核；修需内核补丁
 - [ ] P3-12 Windows：`output::tests::targets_skip_hidden_slides_and_pad_numbers` 以 `/` 拼的路径比对，Windows 的 `join` 用 `\`，单测恒失败（代码无误）
-- [ ] P3-13 Windows：ElyPDF 三个单测恒失败（2026-10-14 组件 6b033f3 下实测，与组件无关）：`reads::a_failed_read_is_not_asked_again` 用 `kill -9` 杀 worker（同 P3-07）；`sign::a_signed_file_lists_its_checks_and_saves_as_a_copy` 报 “self-signed”（证书信任在 Windows 未构建，未细查）；`organize::a_save_writes_the_edits_and_undo_after_it_is_unsaved_again` 报状态未落定（原因未查）
+- [x] P3-13 Windows：ElyPDF 三个单测恒失败（2026-10-14 组件 6b033f3 下实测，与组件无关）：`reads::a_failed_read_is_not_asked_again` 用 `kill -9` 杀 worker（同 P3-07）；`sign::a_signed_file_lists_its_checks_and_saves_as_a_copy` 报 “self-signed”（证书信任在 Windows 未构建，未细查）；`organize::a_save_writes_the_edits_and_undo_after_it_is_unsaved_again` 报状态未落定（原因未查） — b7334ff 已修（见 R12.35：MuPDF 补丁 0006 令只读打开共享删除、`save_atomic` 以 `std::fs::rename` 替换、测试用 `Worker::kill`）；R14.21 核对，三个测试在 Windows 连过三次，放回 `persist` 即失败
 - [ ] P3-14 Windows：ElyTree 九个单测恒失败：五个比对 Git 写出的文字，本机 Git 的 `core.autocrlf` 写成 CRLF（测试仓库未设 `core.autocrlf false`）；其余写 Windows 不许的文件名（os error 123）。代码行为未见错，未修
 - [ ] P3-15 Windows：全量并行单测中偶有一个 LOK worker 读到的 BuildId 为 `development`（`desktop/source/app/app.cxx` 读不到 bootstrap 的 buildid 时的默认值），握手照规则拒绝；同一时刻别的 worker 读到正确的 8221e31，内核与 worker 都未重建，单独重跑即过（2026-10-14 ElyDoc `review::tests::one_unreadable_time_spares_the_other_notes`，三次重跑皆过）。疑为并发时读 `version.ini` 偶发失败，原因未查
 - [ ] P3-16 发布：`ci.sh` 在三端各自调用 `packaging/source.sh` 并上传同名的源码包与上游源码包，发布里同名文件出现三份（Gitea 允许重名）；上游源码包打的是各机的 `engines/mupdf-src`，含构建留下的文件，三份大小不同（v0.1.5：Linux 108 MB，macOS 161 MB）。v0.1.5 手动删去后到的两份，留 Linux 的一份。应只出一份，且上游包只含源码
