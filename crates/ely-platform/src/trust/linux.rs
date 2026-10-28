@@ -59,7 +59,7 @@ fn base(leaf: &[u8], rest: &[Vec<u8>], roots: &[CertificateDer]) -> Trust {
                 Err(error) => log::warn!("trust: a system root does not parse: {error}"),
             }
         }
-        reaches(&signer, &pool, &anchors, 0)
+        reaches(&signer, &pool, &anchors, 0, 0)
     })();
     match checked {
         Ok(()) => Trust::Trusted,
@@ -72,15 +72,20 @@ fn parse(der: &[u8]) -> Result<X509Certificate<'_>, String> {
     parse_x509_certificate(der).map(|(_, cert)| cert).map_err(|error| error.to_string())
 }
 
-/// Whether `cert` chains to an anchor; `below` counts CAs.
-fn reaches(cert: &X509Certificate, pool: &[X509Certificate], anchors: &[X509Certificate], below: u32) -> Result<(), String> {
+/// Whether `cert` chains to an anchor; `below` counts path-length CAs.
+fn reaches(
+    cert: &X509Certificate,
+    pool: &[X509Certificate],
+    anchors: &[X509Certificate],
+    below: u32,
+    depth: u32,
+) -> Result<(), String> {
     let name = cert.subject();
     if !cert.validity().is_valid() {
         return Err(format!("{name} is outside its validity period"));
     }
-    let unknown = |ext: &&X509Extension| ext.critical && matches!(ext.parsed_extension(), ParsedExtension::UnsupportedExtension { .. });
-    if let Some(ext) = cert.extensions().iter().find(unknown) {
-        return Err(format!("{name} has an unknown critical extension {}", ext.oid));
+    for ext in cert.extensions() {
+        enforced(ext).map_err(|why| format!("{name} {why}"))?;
     }
     // Fails closed: name constraints are not evaluated.
     if cert.name_constraints().map_err(|error| error.to_string())?.is_some() {
@@ -89,7 +94,7 @@ fn reaches(cert: &X509Certificate, pool: &[X509Certificate], anchors: &[X509Cert
     if anchors.iter().any(|anchor| anchor.as_raw() == cert.as_raw()) {
         return Ok(());
     }
-    if below > MAX_DEPTH {
+    if depth > MAX_DEPTH {
         return Err("the chain is too long".into());
     }
     let mut why = format!("no trusted issuer for {name}");
@@ -97,12 +102,25 @@ fn reaches(cert: &X509Certificate, pool: &[X509Certificate], anchors: &[X509Cert
         if issuer.subject().as_raw() != cert.issuer().as_raw() || issuer.as_raw() == cert.as_raw() {
             continue;
         }
-        match issues(issuer, cert, below).and_then(|()| reaches(issuer, pool, anchors, below + 1)) {
+        // Self-issued CAs do not count (RFC 5280, 4.2.1.9).
+        let counted = below + u32::from(issuer.subject().as_raw() != issuer.issuer().as_raw());
+        match issues(issuer, cert, below).and_then(|()| reaches(issuer, pool, anchors, counted, depth + 1)) {
             Ok(()) => return Ok(()),
             Err(error) => why = error,
         }
     }
     Err(why)
+}
+
+/// Refuses an unreadable extension, or a critical one left unchecked.
+fn enforced(ext: &X509Extension) -> Result<(), String> {
+    match ext.parsed_extension() {
+        ParsedExtension::ParseError { error } => Err(format!("has an unreadable extension {}: {error}", ext.oid)),
+        // Any usage is accepted, as on macOS and Windows.
+        ParsedExtension::BasicConstraints(_) | ParsedExtension::KeyUsage(_) | ParsedExtension::ExtendedKeyUsage(_) => Ok(()),
+        _ if ext.critical => Err(format!("has a critical extension Ely does not check: {}", ext.oid)),
+        _ => Ok(()),
+    }
 }
 
 /// The most CAs between a signer and its root.

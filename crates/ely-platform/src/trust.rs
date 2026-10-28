@@ -57,13 +57,15 @@ mod tests {
         key: rcgen::KeyPair,
     }
 
-    fn made(name: &str, (from, to): (i32, i32), ca: rcgen::IsCa, by: Option<&Made>) -> Made {
+    fn made(name: &str, (from, to): (i32, i32), ca: rcgen::IsCa, by: Option<&Made>, extra: Vec<rcgen::CustomExtension>) -> Made {
         use rcgen::{CertificateParams, DnType, Issuer, KeyPair, date_time_ymd};
         let mut params = CertificateParams::new(Vec::<String>::new()).expect("params");
         params.distinguished_name.push(DnType::CommonName, name);
         params.not_before = date_time_ymd(from, 1, 1);
         params.not_after = date_time_ymd(to, 1, 1);
         params.is_ca = ca;
+        params.custom_extensions = extra;
+        params.use_authority_key_identifier_extension = true;
         let key = KeyPair::generate().expect("a key");
         let cert = match by {
             Some(by) => params.signed_by(&key, &Issuer::from_params(&by.params, &by.key)),
@@ -84,10 +86,10 @@ mod tests {
 
     #[test]
     fn a_root_signs_only_while_it_is_valid() {
-        let root = made("Ely test root", NOW, ca(), None);
+        let root = made("Ely test root", NOW, ca(), None, vec![]);
         assert!(!untrusted(std::slice::from_ref(&root.der), &root));
         for span in [(2020, 2021), (2040, 2050)] {
-            let root = made("Ely test root", span, ca(), None);
+            let root = made("Ely test root", span, ca(), None, vec![]);
             assert!(untrusted(std::slice::from_ref(&root.der), &root), "{span:?}");
         }
     }
@@ -95,21 +97,44 @@ mod tests {
     #[test]
     fn a_ca_signer_chains_like_any_other() {
         for signer in [rcgen::IsCa::ExplicitNoCa, ca()] {
-            let root = made("Ely test root", NOW, ca(), None);
-            let child = made("Ely test signer", NOW, signer, Some(&root));
+            let root = made("Ely test root", NOW, ca(), None, vec![]);
+            let child = made("Ely test signer", NOW, signer, Some(&root), vec![]);
             assert!(!untrusted(std::slice::from_ref(&child.der), &root), "{signer:?}");
-            let other = made("Ely test root", NOW, ca(), None);
+            let other = made("Ely test root", NOW, ca(), None, vec![]);
             assert!(untrusted(std::slice::from_ref(&child.der), &other), "{signer:?} under a namesake");
         }
     }
 
     #[test]
     fn a_ca_signer_needs_a_ca_between() {
-        let root = made("Ely test root", NOW, ca(), None);
+        let root = made("Ely test root", NOW, ca(), None, vec![]);
         for (between, trusted) in [(ca(), true), (rcgen::IsCa::ExplicitNoCa, false)] {
-            let middle = made("Ely test middle", NOW, between, Some(&root));
-            let signer = made("Ely test signer", NOW, ca(), Some(&middle));
+            let middle = made("Ely test middle", NOW, between, Some(&root), vec![]);
+            let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
             assert_eq!(!untrusted(&[signer.der, middle.der], &root), trusted, "{between:?}");
+        }
+    }
+
+    #[test]
+    fn a_critical_extension_left_unchecked_breaks_the_chain() {
+        let root = made("Ely test root", NOW, ca(), None, vec![]);
+        let cases: [(&[u64], Vec<u8>); 2] = [(&[2, 5, 29, 36], vec![0x30, 3, 0x80, 1, 0]), (&[2, 5, 29, 37], vec![5, 0])];
+        for (oid, content) in cases {
+            let mut ext = rcgen::CustomExtension::from_oid_content(oid, content);
+            ext.set_criticality(true);
+            let middle = made("Ely test middle", NOW, ca(), Some(&root), vec![ext]);
+            let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
+            assert!(untrusted(&[signer.der, middle.der], &root), "{oid:?}");
+        }
+    }
+
+    #[test]
+    fn a_rollover_ca_is_not_counted_in_the_path_length() {
+        let root = made("Ely test root", NOW, rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0)), None, vec![]);
+        for (name, trusted) in [("Ely test root", true), ("Ely test middle", false)] {
+            let middle = made(name, NOW, ca(), Some(&root), vec![]);
+            let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
+            assert_eq!(!untrusted(&[signer.der, middle.der], &root), trusted, "{name}");
         }
     }
 }

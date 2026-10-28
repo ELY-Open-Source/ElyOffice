@@ -58,7 +58,7 @@
 | 导入或受限 | XFA 表单不支持；已签名文件另存为未签名副本；修复过的文件只能另存；多选列表框按单选填写 |
 | 输出 | PDF、页面图片（PNG 72/150/300 dpi）、文本、优化的 PDF、打印 |
 
-保存经 MuPDF 写快照后紧缩写出；签名经增量更新写出并重开核对摘要。独立阅读器 PDFKit 读回页序、改动的文字与字段值（`crates/ely-pdf-engine/tests/independent.rs`）。证书信任照各端系统：macOS 的 SecTrust、Windows 的 CryptoAPI 链引擎、Linux 的系统 CA（webpki；签名者本身是根或是 CA 时照基本 X.509 规则：有效期、签名、上级为 CA、路径长度、签发用途，有名称约束或不认识的关键扩展即不受信）。限制：证书吊销状态不核验，不联网。
+保存经 MuPDF 写快照后紧缩写出；签名经增量更新写出并重开核对摘要。独立阅读器 PDFKit 读回页序、改动的文字与字段值（`crates/ely-pdf-engine/tests/independent.rs`）。证书信任照各端系统：macOS 的 SecTrust、Windows 的 CryptoAPI 链引擎、Linux 的系统 CA（webpki；签名者本身是根或是 CA 时照基本 X.509 规则：有效期、签名、上级为 CA、路径长度、签发用途，有名称约束、读不出的扩展或未执行的关键扩展即不受信，路径长度不计自颁发的换钥证书）。限制：证书吊销状态不核验，不联网。
 
 ## ElyTree
 
