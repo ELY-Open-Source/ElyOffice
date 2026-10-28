@@ -432,7 +432,7 @@
 - [x] R14.24 Gmail 应用专用密码的前提写在添加账户处（D-05，§12）— 说明补 Workspace 管理员可关；Gmail 被拒另起一行说怎么办（`add_view::advice`）；PRD 写 OAuth 计划（验证与 CASA 评估后加，时机由用户定）；有测试。R1 修：说明列 Google 不给应用专用密码的几种情形（非穷举）；测试画真的添加页，中英各五例（`ely_ui::laid`）
 - [x] R14.25 ElyTree 缺陷 G-03 至 G-08（§13）— 修复早在 d59159c（G-03 另有 30801ad 的三轮审查），逐条核实并以突变确认测试；G-04 无测试，补 Windows 测试 `a_stop_that_fails_names_git_not_the_clone`。R1 修：`born` 只认一字不差的分支名（`--orphan topic` 在 `topic/sub` 之上）；停止失败不再吞掉取回的失败；两个超 500 行的文件拆开
 - [x] R14.26 ElyTree 缺陷 G-09 至 G-12、G-14（§13）— 修复早在 d59159c，逐条核实并以突变确认测试；G-10 的测试只查位置，补上分支与标签的选中。R1 修：选中测试核对两仓库各自的原样；晚到的读测试加读失败的提示
-- [ ] R14.27 ElyTree 打开终端、停止 Git：Windows、Linux（C-04、C-06、N-05、G-13、X-13，§13）— Windows 停止 Git 照 Git for Windows：以 CtrlRoutine 向 Git 进程树送 Ctrl+C，其清理照跑，10 秒未退即结束进程树；打开终端：Windows 新控制台里的 PowerShell（cmd 不认 UNC 目录），Linux `xdg-terminal-exec` 或 `x-terminal-emulator`，起得来随即失败的启动器报出其话；三端都显示这些入口。第 1 轮：10 秒兜底等所持的每个进程（钩子助手可握住管道）、启动器失败报出、UNC 目录
+- [ ] R14.27 ElyTree 打开终端、停止 Git：Windows、Linux（C-04、C-06、N-05、G-13、X-13，§13）— Windows 停止 Git 照 Git for Windows：以 CtrlRoutine 向 Git 进程树送 Ctrl+C，其清理照跑，10 秒未退即结束进程树；打开终端：Windows 新控制台里的 PowerShell（cmd 不认 UNC 目录），Linux `xdg-terminal-exec` 或 `x-terminal-emulator`，起得来随即失败的启动器报出其话；三端都显示这些入口。第 1 轮：10 秒兜底等所持的每个进程（钩子助手可握住管道）、启动器失败报出、UNC 目录；第 2 轮：5 秒内非零退出才算没开成，测试脚本改为入库样本
 - [ ] R14.28 ElyTree 测试：Windows（R12.36、P3-14）与 2.40 起的系统 Git（B-04，§13）
 - [ ] R14.29 ElyMark 可视模式只能在一个段落里选取，跨段选取要切到源码模式（用户 2026-10-27 报，§14）：可视模式拖动与 Shift 加方向键跨段选取，复制、删除、格式随之。核实：组件库 `MarkdownDocument` 的可视模式一次只把一个块开成文本框（`document/visual.rs` 的 `open_text`），没有跨块的选区；组件库 `blocks::BlockEditor` 有跨块选区（`blocks/span.rs`），ElyMark 不用它。在组件库修，推上去再改 pin
 - [ ] R14.30 ElyMark 命令行（§14、§16）：`ely-mark text docs|get|replace|save`
@@ -447,7 +447,7 @@
 - [ ] R14.39 性能：bench 在 Windows、Linux 运行，记下 0.1.12（H-01、H-03，§20）；120 Hz 实测需要高刷显示器，本机最高 75 Hz（H-04）
 - [ ] R14.40 缺引擎的测试：`ELY_REQUIRE_ENGINES=1` 即失败，CI 开启（B-03，§22）
 - [ ] R14.41 构建依赖写进 README，`doctor.sh` 逐项查（B-06，§22）
-- [ ] R14.42 Windows 与 Linux 全量测试通过（W-02、L-02，§22），含 BUGS 的 P3-21（Windows 下 `view::tests::large` 两个按 DPI 落错行）；另 ElyTable 的 `validation_aids_hide_outside_the_view_and_remain_in_frozen_rows` 在多个套件接连跑时失败一次（aids.rs:173，冻结行的提示数为 0），单跑与套件内并行六次皆过（R14.17 记）；R14.19 时在 HEAD 上全套并行亦接连失败两次，单跑皆过，与测试 worker 带不带 gpui 清单无关；另 ElyTree 的 `a_failing_hook_says_why` 在 Linux 全量里 19 次失败 1 次（R14.27 时见，单跑与改动前皆过，未取到失败信息）
+- [ ] R14.42 Windows 与 Linux 全量测试通过（W-02、L-02，§22），含 BUGS 的 P3-21（Windows 下 `view::tests::large` 两个按 DPI 落错行）；另 ElyTable 的 `validation_aids_hide_outside_the_view_and_remain_in_frozen_rows` 在多个套件接连跑时失败一次（aids.rs:173，冻结行的提示数为 0），单跑与套件内并行六次皆过（R14.17 记）；R14.19 时在 HEAD 上全套并行亦接连失败两次，单跑皆过，与测试 worker 带不带 gpui 清单无关；另 ElyTree 的 `a_failing_hook_says_why` 在 Linux 全量里 19 次失败 1 次（R14.27 时见，单跑与改动前皆过，R14.27 第 2 轮取到：`history.rs:268` 的 Broken pipe，提交信息经 stdin 写给 Git（`git.rs:62`），钩子先拒、Git 先退，写入得 EPIPE，盖住了钩子的话；须修）
 - [ ] R14.43 发布以测试为门（B-02，§22）；Linux 任务不等 Windows 任务（B-07）
 - [ ] R14.44 合并前 CI：`pr.yml`（B-01，§22）
 - [ ] R14.45 窗口测试含 ElyMail（D-04，§22）

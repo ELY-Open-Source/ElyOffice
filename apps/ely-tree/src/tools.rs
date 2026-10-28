@@ -155,11 +155,18 @@ fn launcher(names: &[&str], dir: &Path) -> io::Result<Child> {
     ))
 }
 
-/// A launcher can start, then fail; it says why.
+/// After this, an exit is the session's own.
 #[cfg(unix)]
-fn settled(child: Child) -> io::Result<()> {
+const STARTUP: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// A launcher that fails while starting says why.
+#[cfg(unix)]
+fn settled(child: Child, startup: std::time::Duration) -> io::Result<()> {
+    let started = std::time::Instant::now();
     let out = child.wait_with_output()?;
-    if out.status.success() {
+    // Some terminals end with their shell's code.
+    if out.status.success() || started.elapsed() >= startup {
+        log::info!("tree: the terminal ended, {}", out.status);
         return Ok(());
     }
     let said = String::from_utf8_lossy(&out.stderr).trim().to_string();
@@ -185,7 +192,7 @@ impl Tree {
         {
             let (done, result) = futures::channel::oneshot::channel();
             // Waits as long as the terminal lives.
-            std::thread::spawn(move || done.send(settled(child)));
+            std::thread::spawn(move || done.send(settled(child, STARTUP)));
             cx.spawn(async move |this, cx| {
                 if let Ok(Err(error)) = result.await {
                     log::warn!("tree: the terminal failed: {error}");
@@ -362,22 +369,24 @@ mod tests {
 
     #[cfg(all(unix, not(target_os = "macos")))]
     #[test]
-    fn a_launcher_that_starts_and_fails_says_why() {
-        use std::os::unix::fs::PermissionsExt as _;
+    fn a_launcher_that_fails_while_starting_says_why() {
+        use std::time::Duration;
         let dir = tempfile::tempdir().expect("a temp dir");
-        let script = |name: &str, body: &str| {
-            let path = dir.path().join(name);
-            std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("writes");
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("runs");
+        // Written once in the tree: no file busy.
+        let fixture = |name: &str| {
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/tree").join(name);
             path.to_string_lossy().to_string()
         };
-        let bad = script("bad", "echo 'no display' >&2; exit 1");
+        let bad = fixture("launcher-fails");
         let started = super::launcher(&[&bad], dir.path()).expect("starts");
-        let said = super::settled(started).expect_err("fails");
+        let said = super::settled(started, Duration::from_secs(5)).expect_err("fails");
         assert!(said.to_string().contains("no display"), "{said}");
-        let good = script("good", "pwd > here");
+        let session = fixture("launcher-session");
+        let started = super::launcher(&[&session], dir.path()).expect("starts");
+        super::settled(started, Duration::from_millis(300)).expect("a session's own exit");
+        let good = fixture("launcher-pwd");
         let started = super::launcher(&["ely-no-such-launcher", &good], dir.path()).expect("starts");
-        super::settled(started).expect("ends well");
+        super::settled(started, Duration::from_secs(5)).expect("ends well");
         let here = std::fs::read_to_string(dir.path().join("here")).expect("wrote");
         assert_eq!(std::path::Path::new(here.trim()), dir.path());
         let none = super::launcher(&["ely-no-such-launcher"], dir.path()).expect_err("none");
