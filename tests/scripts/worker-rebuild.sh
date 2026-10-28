@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A shim edit rebuilds the worker's native code, not just the stamp.
+# A shim edit rebuilds the worker's native code too.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
