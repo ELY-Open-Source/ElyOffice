@@ -124,20 +124,17 @@ pub fn places(tree: &Entity<Tree>, cx: &mut Context<Changes>) -> AnyElement {
             Box::new(|t, _, cx| t.ask_force(cx)),
         ),
     ]);
-    let terminal = crate::tools::TERMINAL.then(|| {
-        button(
-            tree,
-            "tree-terminal",
-            label("tree.tool.terminal"),
-            Box::new(|t, _, cx| t.open_terminal(cx)),
-        )
-    });
     let local = div()
         .flex()
         .flex_wrap()
         .gap_1()
-        .children(terminal)
         .children([
+            button(
+                tree,
+                "tree-terminal",
+                label("tree.tool.terminal"),
+                Box::new(|t, _, cx| t.open_terminal(cx)),
+            ),
             button(
                 tree,
                 "tree-reveal",

@@ -9,6 +9,9 @@ use std::{
 
 use crate::git::Git;
 
+#[cfg(windows)]
+mod win;
+
 /// Git running; progress comes line by line.
 pub struct Running {
     verb: String,
@@ -40,6 +43,9 @@ impl Git {
                 });
             }
         }
+        // Git started after this hears Ctrl+C.
+        #[cfg(windows)]
+        win::hear()?;
         let mut child = command.spawn()?;
         let verb = args.first().copied().unwrap_or("").to_string();
         log::info!("tree: git {verb} started, {}", child.id());
@@ -152,10 +158,13 @@ impl Stop {
         log::info!("tree: git {} asked to stop", child.id());
         terminate(child.id())
     }
-}
 
-/// Only Unix stops Git; elsewhere no stop shows.
-pub const STOPS: bool = cfg!(unix);
+    /// A stop over any child, for tests.
+    #[cfg(all(test, unix))]
+    pub fn over(child: Child) -> Stop {
+        Stop(Arc::new(Mutex::new(child)))
+    }
+}
 
 /// Its own session: the group is Git and its helpers.
 #[cfg(unix)]
@@ -167,12 +176,10 @@ fn terminate(pid: u32) -> io::Result<()> {
     }
 }
 
-#[cfg(not(unix))]
-fn terminate(_pid: u32) -> io::Result<()> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "stopping Git is not built on this platform",
-    ))
+/// Ctrl+C to Git and its helpers, as Git for Windows.
+#[cfg(windows)]
+fn terminate(pid: u32) -> io::Result<()> {
+    win::stop(pid)
 }
 
 #[cfg(test)]

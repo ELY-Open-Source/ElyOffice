@@ -92,7 +92,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [x] G-10 选中的分支、标签、位置是窗口级的，跨仓库标签串台（d59159c；R14.26 补测试）
 - [x] G-11 已选边的冲突块再选另一边，提示“结果已手改”（d59159c；R14.26 核实）
 - [x] G-12 符号链接父目录下，当前打开的工作树被当成别的工作树而可“移除”（d59159c；R14.26 核实）
-- [ ] G-13 非 macOS 平台的死入口
+- [x] G-13 非 macOS 平台的死入口（R14.27）
 - [x] G-14 `repo.rs` 的孤立文档注释（d59159c；R14.26 核实）
 - [x] K-01 非 macOS 的 worker 不运行 VCL 主循环，内核的回调与异步输入永远不送达 — c96d39a 已做（Windows `worker/messages.rs`、Linux `worker/unipoll.rs`）；R14.13 照实关闭
 - [x] K-02 图块的代际在画完之后才取，画到一半的作废被盖掉 — d59159c 已做（先读代际再画）；R14.13 核对
@@ -110,7 +110,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [x] X-10 别的标签的文件所在卷消失时，本标签的另存为失败并被标为保存失败 — d59159c 已做（`holder` 跳过比不了的标签，目标错误照报）；R14.10 核对，`a_tab_on_a_vanished_folder_takes_no_other_file`
 - [x] X-11 worker 的 stderr 中继遇到第一行非 UTF-8 即永久停止 — d59159c 已做（按字节读、宽松转文字）；R14.11 核对，`a_line_in_another_encoding_stops_nothing`
 - [x] X-12 恢复路径在界面线程做文件 I/O — d59159c 修文档应用；R14.9 补 ElyMark（每 10 秒的扫点与写 session.json 改后台，退出当场写，`Turns` 防旧写盖新写）
-- [ ] X-13 非 macOS 构建里仍提供只会报“未构建”的入口
+- [x] X-13 非 macOS 构建里仍提供只会报“未构建”的入口（R14.27）
 - [ ] X-14 `agents.md` 引用的 `docs/engineering-risks.md` 不存在
 
 ## 0.1.2 发布
@@ -127,7 +127,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [x] N-02 ElyShow 媒体：Windows 以 Media Foundation、Linux 以 GStreamer 实现 `media::Player`（载入、可播、失败原因、帧、循环与播完） — Windows R14.17（`media/mf.rs`），Linux R14.18（`media/gst.rs`）
 - [x] N-03 自动更新的安装与重开：Windows 安装程序、Linux AppImage，照 macOS 的退出后替换、失败记录与重开 — 4a74360 已做（`install::after_quit`：Windows 等进程退出后静默运行安装程序并重开，AppImage 换文件后重开，失败写入 `updates/failed.txt`；`tests/install.rs` 核对）；R14.4 删去非 macOS 的 `install`、`reopen` 桩
 - [x] N-04 签名验证的证书信任：Windows 系统信任库、Linux 系统 CA，禁网，不核吊销 — b7334ff 已做（`ely_platform::trust`：Windows 的 CryptoAPI 链引擎只读缓存、不自动更新根、不核吊销；Linux 的系统 CA 加 webpki，无网络）；R14.21 核对，三端测试皆过，Windows 上“一律受信”被测试抓住
-- [ ] N-05 ElyTree 与系统：停止 Git（Windows 结束进程树）、打开终端、在文件管理器中显示，Windows、Linux
+- [x] N-05 ElyTree 与系统：停止 Git（Windows 结束进程树）、打开终端、在文件管理器中显示，Windows、Linux（R14.27）
 - [ ] N-06 应用之间：Windows、Linux 的同级应用查找与启动、系统默认程序打开、单实例与诊断的崩溃报告位置
 - [ ] L-03 Linux 真窗口：六个应用开样本、编辑、保存、打印禁用说明、设置、更新检查
 - [ ] O-01 Omarchy：外观为“系统”时随 Omarchy 主题，切换主题即刻跟随（Omarchy 虚拟机里实测）

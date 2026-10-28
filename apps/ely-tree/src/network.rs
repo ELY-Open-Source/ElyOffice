@@ -264,9 +264,6 @@ impl Tree {
                 this.update(cx, |tree, cx| tree.stop_remote(id, cx)).ok();
             });
         let alert = Alert::new("tree-net", Severity::Info, verb).body(net.said.clone());
-        if !crate::running::STOPS {
-            return Some(alert.into_any_element());
-        }
         Some(alert.action(stop.into_any_element()).into_any_element())
     }
 }

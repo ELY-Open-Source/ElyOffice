@@ -3,7 +3,7 @@
 use std::{
     io,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Child, Command},
 };
 
 use ely_gpui_component::{
@@ -97,9 +97,6 @@ fn launch(editor: &Path, file: &Path) -> io::Result<()> {
         .map_err(|error| io::Error::other(format!("{}: {error}", editor.display())))
 }
 
-/// Only macOS opens a terminal; elsewhere it is hidden.
-pub const TERMINAL: bool = cfg!(target_os = "macos");
-
 /// The reveal entry, named for this platform's file browser.
 pub const REVEAL: &str = if cfg!(target_os = "macos") {
     "tree.tool.reveal"
@@ -108,19 +105,33 @@ pub const REVEAL: &str = if cfg!(target_os = "macos") {
 };
 
 #[cfg(target_os = "macos")]
-fn terminal_at(dir: &Path) -> io::Result<()> {
-    Command::new("open")
-        .args(["-a", "Terminal"])
-        .arg(dir)
-        .spawn()
-        .map(drop)
+pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
+    Command::new("open").args(["-a", "Terminal"]).arg(dir).spawn()
 }
 
-#[cfg(not(target_os = "macos"))]
-fn terminal_at(_dir: &Path) -> io::Result<()> {
+/// A new console; Windows hosts it in the default terminal.
+#[cfg(windows)]
+pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
+    use std::os::windows::process::CommandExt as _;
+    // CREATE_NEW_CONSOLE
+    Command::new("cmd.exe").current_dir(dir).creation_flags(0x10).spawn()
+}
+
+/// The freedesktop launcher, else Debian's.
+#[cfg(all(unix, not(target_os = "macos")))]
+pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
+    for name in ["xdg-terminal-exec", "x-terminal-emulator"] {
+        match Command::new(name).current_dir(dir).spawn() {
+            Ok(child) => return Ok(child),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                log::info!("tree: no {name}")
+            }
+            Err(error) => return Err(io::Error::other(format!("{name}: {error}"))),
+        }
+    }
     Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "opening a terminal is not built on this platform",
+        io::ErrorKind::NotFound,
+        "no terminal launcher: xdg-terminal-exec or x-terminal-emulator",
     ))
 }
 

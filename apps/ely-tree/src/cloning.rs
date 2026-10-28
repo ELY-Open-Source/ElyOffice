@@ -67,7 +67,7 @@ impl Tree {
         .detach();
     }
 
-    fn start_clone(&mut self, url: String, into: PathBuf, cx: &mut Context<Self>) {
+    pub(crate) fn start_clone(&mut self, url: String, into: PathBuf, cx: &mut Context<Self>) {
         let Some(git) = self.git(cx) else { return };
         let running = match git.clone_repo(&url, &into) {
             Ok(running) => running,
@@ -130,9 +130,10 @@ impl Tree {
         let Some(cloning) = &mut self.cloning else {
             return;
         };
-        cloning.stopping = true;
-        if let Err(error) = cloning.stop.now() {
-            self.failed("tree.error.stop", &error.to_string(), cx);
+        // Only a stop asked for turns failure quiet.
+        match cloning.stop.now() {
+            Ok(()) => cloning.stopping = true,
+            Err(error) => self.failed("tree.error.stop", &error.to_string(), cx),
         }
         cx.notify();
     }

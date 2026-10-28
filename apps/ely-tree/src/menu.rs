@@ -35,8 +35,6 @@ pub fn bind(cx: &mut App) {
 }
 
 pub fn menus(cx: &App) -> Vec<Menu> {
-    let terminal = crate::tools::TERMINAL
-        .then(|| MenuItem::action(text(cx, "tree.tool.terminal", &[]), OpenTerminal));
     let items = [
         MenuItem::action(text(cx, "tree.clone", &[]), CloneRepository),
         MenuItem::action(text(cx, "tree.close", &[]), CloseRepository),
@@ -46,14 +44,11 @@ pub fn menus(cx: &App) -> Vec<Menu> {
         MenuItem::action(text(cx, "tree.net.push", &[]), Push),
         MenuItem::action(text(cx, "tree.force.open", &[]), ForcePush),
         MenuItem::separator(),
-    ]
-    .into_iter()
-    .chain(terminal)
-    .chain([
+        MenuItem::action(text(cx, "tree.tool.terminal", &[]), OpenTerminal),
         MenuItem::action(text(cx, crate::tools::REVEAL, &[]), Reveal),
         MenuItem::action(text(cx, "tree.clean.open", &[]), CleanUntracked),
         MenuItem::action(text(cx, "tree.tool.editor", &[]), ChooseEditor),
-    ]);
+    ];
     vec![Menu::new(text(cx, "tree.menu.repository", &[])).items(items)]
 }
 
