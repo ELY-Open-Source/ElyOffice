@@ -72,6 +72,7 @@ rustls-platform-verifier = "0.7"
 rustls-native-certs = "0.8"
 rustls-pki-types = "1"
 rustls-webpki = { version = "0.103", default-features = false, features = ["ring", "alloc"] }
+x509-parser = { version = "0.18", features = ["verify"] }
 tokio = { version = "1", features = ["net", "time", "io-util", "rt", "macros"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
 

@@ -52,6 +52,7 @@ lopdf.workspace = true
 rustls-native-certs.workspace = true
 rustls-pki-types.workspace = true
 rustls-webpki.workspace = true
+x509-parser.workspace = true
 zbus.workspace = true
 rfd = { workspace = true, features = ["xdg-portal"] }
 
@@ -60,6 +61,7 @@ rfd.workspace = true
 
 [dev-dependencies]
 lopdf.workspace = true
+rcgen.workspace = true
 tempfile.workspace = true
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]

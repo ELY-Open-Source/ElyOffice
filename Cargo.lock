@@ -2518,6 +2518,7 @@ dependencies = [
  "objc2-core-video",
  "objc2-foundation 0.3.2",
  "objc2-pdf-kit",
+ "rcgen",
  "rfd",
  "ring",
  "rustls-native-certs",
@@ -2533,6 +2534,7 @@ dependencies = [
  "windows 0.62.2",
  "windows-core 0.62.2",
  "windows-sys 0.60.2",
+ "x509-parser",
  "zbus",
 ]
 
