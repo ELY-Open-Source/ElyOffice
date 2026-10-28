@@ -1,4 +1,4 @@
-"""Synthesized voices for the 0.1.10 score. Every voice returns a click-free array (mono, or stereo (n, 2))."""
+"""Synthesized voices, each a click-free mono or (n, 2) array."""
 import numpy as np
 
 from dsp import SR, butter, env, eq, hz, noise, ns, pan, pulse, rng, saw, secs, sine, tv

@@ -5,7 +5,7 @@
    (transparent, liquid above the UI). P.layer(1) sends primitives to the front. */
 (function () {
   "use strict";
-  var W = 1920, H = 1080, MAXP = 40;
+  var W = 1920, H = 1080;
 
   var LQ = (window.LQ = {
     W: W,
@@ -123,121 +123,10 @@
     lime: "#B8F35A",
   };
 
-  /* ---------- shaders ---------- */
-  var VS = "attribute vec2 aP;varying vec2 vUv;void main(){vUv=aP*0.5+0.5;gl_Position=vec4(aP,0.,1.);}";
-
-  var NOISE = [
-    "float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}",
-    "float vn(vec2 p){vec2 i=floor(p);vec2 f=fract(p);vec2 u=f*f*(3.-2.*f);",
-    "return mix(mix(h21(i),h21(i+vec2(1,0)),u.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),u.x),u.y);}",
-    "float fbm(vec2 p){float v=0.,a=.5;mat2 r=mat2(.8,-.6,.6,.8);for(int i=0;i<5;i++){v+=a*vn(p);p=r*p*2.03+11.7;a*=.5;}return v;}",
-  ].join("\n");
-
-  var FS_AURORA = [
-    "precision highp float;varying vec2 vUv;",
-    "uniform float uT;uniform vec3 uBase,uC0,uC1,uC2,uC3;uniform vec4 uAmt;uniform vec2 uWarp;",
-    NOISE,
-    "void main(){",
-    " vec2 p=(vUv-.5)*vec2(1.7778,1.)*1.35+uWarp;",
-    " float t=uT*.055;",
-    " vec2 q=vec2(fbm(p*.85+vec2(0.,t)),fbm(p*.85+vec2(4.1,-t*.9)));",
-    " vec2 r=vec2(fbm(p+1.7*q+vec2(1.7,9.2)+t*.6),fbm(p+1.7*q+vec2(8.3,2.8)-t*.45));",
-    " float f=fbm(p+1.9*r);",
-    " vec3 c=uBase;",
-    " c=mix(c,uC0,smoothstep(.30,.85,f)*uAmt.x);",
-    " c=mix(c,uC1,smoothstep(.45,1.05,length(q))*uAmt.y);",
-    " c=mix(c,uC2,smoothstep(.52,.95,r.y)*uAmt.z);",
-    " c=mix(c,uC3,smoothstep(.40,.80,r.x*f*1.6)*uAmt.w);",
-    " gl_FragColor=vec4(c,1.);",
-    "}",
-  ].join("\n");
-
-  var FS_LIQ = [
-    "precision highp float;varying vec2 vUv;",
-    "#define MAXP " + MAXP,
-    "uniform vec2 uRes;uniform float uT;uniform int uN;uniform int uFront;",
-    "uniform vec4 uA[MAXP];uniform vec4 uB[MAXP];uniform vec4 uC[MAXP];",
-    "uniform sampler2D uBg;uniform float uBgOn;uniform vec3 uBase;uniform float uBright;uniform float uVig;",
-    "uniform sampler2D uTx0;uniform sampler2D uTx1;uniform vec4 uTxR0;uniform vec4 uTxR1;",
-    "uniform vec4 uTxP0;uniform vec4 uTxP1;", // rgb tint, amount (0 = off)
-    "uniform float uTxBlur;uniform float uTxK;uniform float uTxSum;",
-    "uniform float uBevel;uniform float uRefr;uniform float uGloss;uniform float uBody;uniform vec2 uShadow;uniform float uShadowA;",
-    "uniform float uGrain;uniform float uFade;",
-    "float sdEll(vec2 p,vec2 r){float k0=length(p/r);float k1=length(p/(r*r));return k0*(k0-1.)/max(k1,1e-4);}",
-    "float sdCap(vec2 p,vec2 a,vec2 b,float ra,float rb){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/max(dot(ba,ba),1e-3),0.,1.);return length(pa-ba*h)-mix(ra,rb,h);}",
-    "float sdBox(vec2 p,vec2 b,float r){vec2 q=abs(p)-b+r;return length(max(q,0.))+min(max(q.x,q.y),0.)-r;}",
-    "float sdRing(vec2 p,float r,float w){return abs(length(p)-r)-w;}",
-    "float smin(float a,float b,float k){float h=max(k-abs(a-b),0.)/k;return min(a,b)-h*h*k*.25;}",
-    "mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}",
-    "float txA(sampler2D s,vec4 R,vec2 p){vec2 u=(p-R.xy)/R.zw;if(u.x<0.||u.y<0.||u.x>1.||u.y>1.)return 0.;return texture2D(s,u).a;}",
-    "float aD(float a){return (.5-a)*uTxBlur*2.6+(1.-smoothstep(0.,.06,a))*400.;}",
-    "float sdTri(vec2 p,vec2 p0,vec2 p1,vec2 p2){vec2 e0=p1-p0,e1=p2-p1,e2=p0-p2;vec2 v0=p-p0,v1=p-p1,v2=p-p2;vec2 pq0=v0-e0*clamp(dot(v0,e0)/dot(e0,e0),0.,1.);vec2 pq1=v1-e1*clamp(dot(v1,e1)/dot(e1,e1),0.,1.);vec2 pq2=v2-e2*clamp(dot(v2,e2)/dot(e2,e2),0.,1.);float s=sign(e0.x*e2.y-e0.y*e2.x);vec2 d=min(min(vec2(dot(pq0,pq0),s*(v0.x*e0.y-v0.y*e0.x)),vec2(dot(pq1,pq1),s*(v1.x*e1.y-v1.y*e1.x))),vec2(dot(pq2,pq2),s*(v2.x*e2.y-v2.y*e2.x)));return -sqrt(d.x)*sign(d.y);}",
-    // scene: returns distance; col out
-    "float scene(vec2 p,out vec4 col){",
-    " float d=1e5;vec4 cs=vec4(0.);float ws=0.;",
-    " for(int i=0;i<MAXP;i++){",
-    "  if(i>=uN)break;",
-    "  vec4 A=uA[i];vec4 B=uB[i];vec4 C=uC[i];float di;",
-    "  if(B.w<.5){vec2 q=rot(B.x)*(p-A.xy);di=sdEll(q,A.zw);}",
-    "  else if(B.w<1.5){di=sdCap(p,A.xy,A.zw,B.x,B.y);}",
-    "  else if(B.w<2.5){vec2 q=rot(B.x)*(p-A.xy);di=sdBox(q,A.zw,B.y);}",
-    "  else if(B.w<3.5){di=sdRing(p-A.xy,A.z,A.w);}",
-    "  else {di=sdTri(p,A.xy,A.zw,B.xy)-B.z;}",
-    "  d=smin(d,di,max(C.w,.5));",
-    "  float cl=B.w>3.5?0.:B.z;float w=exp(-clamp(di,-60.,600.)/(C.w*.45+10.));cs+=vec4(C.rgb,cl)*w;ws+=w;",
-    " }",
-    " float a0=uTxP0.w>0.?txA(uTx0,uTxR0,p):0.;float a1=uTxP1.w>0.?txA(uTx1,uTxR1,p):0.;",
-    " if(uTxSum>.5){float a=a0*uTxP0.w+a1*uTxP1.w;if(a>0.){float dt=aD(a);d=smin(d,dt,uTxK);float w=exp(-clamp(dt,-60.,600.)/(uTxK*.45+10.));vec3 tc=(uTxP0.rgb*a0*uTxP0.w+uTxP1.rgb*a1*uTxP1.w)/max(a,1e-4);cs+=vec4(tc,0.)*w;ws+=w;}}",
-    " else{",
-    "  if(uTxP0.w>0.){float dt=aD(a0*uTxP0.w);d=smin(d,dt,uTxK);float w=exp(-clamp(dt,-60.,600.)/(uTxK*.45+10.));cs+=vec4(uTxP0.rgb,0.)*w;ws+=w;}",
-    "  if(uTxP1.w>0.){float dt=aD(a1*uTxP1.w);d=smin(d,dt,uTxK);float w=exp(-clamp(dt,-60.,600.)/(uTxK*.45+10.));cs+=vec4(uTxP1.rgb,0.)*w;ws+=w;}",
-    " }",
-    " col=cs/max(ws,1e-5);return d;",
-    "}",
-    "float dOnly(vec2 p){vec4 c;return scene(p,c);}",
-    "float hgt(float d){float x=clamp(-d/uBevel,0.,1.);return sqrt(1.-(1.-x)*(1.-x));}",
-    "vec3 bgAt(vec2 px){vec2 u=px/uRes;u.y=1.-u.y;u=clamp(u,0.,1.);vec3 c=texture2D(uBg,u).rgb;return c;}",
-    "float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}",
-    "void main(){",
-    " vec2 px=vec2(vUv.x,1.-vUv.y)*uRes;",
-    " vec3 bg=uBgOn>.5?bgAt(px):uBase;",
-    " vec2 vc=vUv-.5;float vig=1.-uVig*dot(vc,vc)*1.6;",
-    " bg*=vig*uBright;",
-    " vec4 tc4;float d=scene(px,tc4);vec3 tint=tc4.rgb;float clr=clamp(tc4.a,0.,1.);",
-    " float ds=dOnly(px-uShadow);",
-    " float sh=(1.-smoothstep(-uBevel*.4,uBevel*1.1,ds))*uShadowA;",
-    " vec3 outc=bg*(1.-sh*.75);float outa=uFront==1?sh*.55:1.;",
-    " if(d<2.){",
-    "  float e=1.6;",
-    "  float h0=hgt(d);float hx=hgt(dOnly(px+vec2(e,0.)));float hy=hgt(dOnly(px+vec2(0.,e)));",
-    "  vec2 g=vec2(hx-h0,hy-h0)/e*uBevel;",
-    "  vec3 n=normalize(vec3(-g*1.15,1.));",
-    "  vec3 L=normalize(vec3(-.42,-.62,.78));vec3 V=vec3(0.,0.,1.);vec3 Hh=normalize(L+V);",
-    "  float thick=h0;",
-    "  vec2 off=n.xy*uRefr*(1.2+thick*1.4);",
-    "  vec3 refr;",
-    "  if(uBgOn>.5){refr=vec3(bgAt(px+off*1.06).r,bgAt(px+off).g,bgAt(px+off*.94).b)*uBright;}",
-    "  else{refr=mix(vec3(.93,.95,1.),tint,.25);}",
-    "  float fres=pow(1.-clamp(n.z,0.,1.),2.2);",
-    "  vec3 env=uBgOn>.5?bgAt(px-n.xy*260.)*1.6+.08:vec3(.95);",
-    "  vec3 body=mix(refr*mix(vec3(1.),tint*1.5,.55),tint*(.55+.45*thick),uBody*(1.-clr));body=mix(body,refr*1.08+.03,clr*.6);",
-    "  float caus=pow(clamp(dot(normalize(n.xy+1e-4),-L.xy),0.,1.),2.)*(1.-thick)*(1.-fres*.5);",
-    "  body+=tint*caus*.9+vec3(1.)*caus*.12;",
-    "  body*=1.-.22*smoothstep(.6,1.,1.-thick)*clamp(dot(n.xy,L.xy)*2.,0.,1.);",
-    "  float spec=pow(max(dot(n,Hh),0.),140.)*2.2+pow(max(dot(n,Hh),0.),22.)*.32;",
-    "  vec3 L2=normalize(vec3(.55,.5,.7));float spec2=pow(max(dot(n,normalize(L2+V)),0.),60.)*.35;",
-    "  vec3 c=body+env*fres*.55*uGloss+vec3(1.)*spec*uGloss+mix(tint,vec3(1.),.5)*spec2*uGloss;",
-    "  float rim=smoothstep(2.5,0.,abs(d+1.2))*clamp(-dot(n.xy,L.xy)*3.,0.,1.);c+=vec3(1.)*rim*.35*uGloss;",
-    "  float a=clamp(.5-d/1.1,0.,1.);",
-    "  outc=mix(outc,c,a);",
-    "  if(uFront==1){outa=max(outa,a);}",
-    " }",
-    " float gr=(h21(px+fract(uT*7.13)*vec2(97.,61.))-.5)*uGrain;",
-    " outc+=gr;",
-    " outc*=uFade;",
-    " if(uFront==1){gl_FragColor=vec4(outc*outa,outa);}else{gl_FragColor=vec4(outc,1.);}",
-    "}",
-  ].join("\n");
+  /* ---------- shaders: lib/shaders.js, loaded first ---------- */
+  var GLSL = window.LQ_SHADERS;
+  if (!GLSL) throw new Error("liquid.js: load lib/shaders.js first");
+  var VS = GLSL.VS, FS_AURORA = GLSL.AURORA, FS_LIQ = GLSL.LIQ, MAXP = GLSL.MAXP;
 
   function compile(gl, type, src) {
     var s = gl.createShader(type);

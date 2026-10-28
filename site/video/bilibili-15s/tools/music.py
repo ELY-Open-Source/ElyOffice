@@ -1,4 +1,4 @@
-# Usage: python tools/music.py (numpy). 120 BPM, 30 beats = 15 s.
+# python tools/music.py (numpy): 120 BPM, 30 beats, 15 s.
 import wave
 from pathlib import Path
 
@@ -23,7 +23,7 @@ CHORDS = [
     (43, [43, 59, 62, 67, 71], [62, 67, 71, 74]),
 ]
 ARP = [0, 1, 2, 3, 2, 1, 2, 3]
-# Morph landings in beats (one per app, then suite and star).
+# Morph landings in beats: one per app, suite, star.
 LANDINGS = [4, 6, 8, 10, 12, 14, 16, 18, 24]
 HOOK = [(0, 74, 1.5), (1.5, 76, 0.5), (2, 78, 1.0), (3, 81, 1.0)]
 TOP = [(18, 78, 1), (19, 81, 1), (20, 83, 1.5), (21.5, 81, 0.5), (22, 78, 2)]
@@ -276,7 +276,7 @@ def harmony(b0, b1, step=0.5, up=0, gain=0.33):
 
 
 def arrange():
-    # 0-2 s: hook, kick on the downbeat so frame 0 already moves.
+    # 0-2 s: hook; a downbeat kick moves frame 0.
     put(kick(1.0, 0.3), 0, 1.0, 0.0, 0.03)
     drums(0, 4, four=False, snaps=False)
     harmony(0, 4)
@@ -285,7 +285,7 @@ def arrange():
     # 2-9 s: the seven apps, full groove.
     drums(4, 18)
     harmony(4, 18)
-    # 9-12 s: the suite, lifted; last beat drops out into the riser.
+    # 9-12 s: suite lifted; last beat drops into the riser.
     drums(18, 23)
     harmony(18, 23, step=0.25, up=12, gain=0.26)
     for beat, m, length in TOP:
@@ -305,7 +305,7 @@ def arrange():
     put(kick(0.8, 0.4), 26.0, 0.8, 0.0, 0.05)
     put(pluck(74, 2.6, 1.1), 26.0, 0.3, 0.0, 0.5)
     put(pluck(81, 2.6, 1.1), 26.0, 0.24, 0.0, 0.5)
-    # A short swish into each morph (the motion's sound), varied per landing.
+    # A swish into each morph, varied per landing.
     for k, land in enumerate(LANDINGS[:-1]):
         lo, hi = (900, 5000) if k % 2 else (1400, 7000)
         put(swish(0.42, lo, hi, 1.0), land - 0.72, 0.16, 0.5 if k % 2 else -0.5, 0.2)

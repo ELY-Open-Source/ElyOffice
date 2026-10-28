@@ -170,7 +170,9 @@ tests/scripts/doc-review.sh    真窗口 ElyDoc：无日期的批注逐条写明
 tests/scripts/theme.sh         真窗口 ElyTable 以深、浅两种外观启动，截窗口量网格亮度（需屏幕录制权限）
 tests/scripts/lag.sh ely-doc   真窗口键入，从调试日志算输入落地、图块、按键到新图块的分位数（需辅助功能权限）；ELY_LAG_LOG=路径 留下日志
 tests/scripts/pdf-idle.sh      真窗口 ElyPDF 无文件启动时无 worker 子进程
-tests/scripts/comments-rules.sh  comments.py 对长注释与跨行注释报错
+scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、注释（comments.py，只查入库文件）、行尾（eol.sh），全部报出
+tests/scripts/check-rules.sh    check.sh 只数代码文件、报出超长文件全名、注释与行尾的失败也使其失败
+tests/scripts/comments-rules.sh  comments.py 对长注释与跨行注释报错，Python 字符串里的 # 不算，未入库的文件不查
 tests/scripts/rpath-rules.sh     rpath.sh（release-macos.sh 逐个调用）对找不到或在包外（含 `..` 与链接）的 `@rpath` 依赖、otool 读不出的文件报错（替身 otool，任意系统可跑）
 tests/scripts/bad-settings.sh  通用设置读不出时 ElyDoc 照样启动，文件不被覆盖
 tests/scripts/table-cli.sh     开着 ElyTable 与一个工作簿，另一进程经 `ely-table cell` 列出、读、写（公式）、保存，错误地址与未开的文件被拒；保存答复时读磁盘核对；六万行 xlsx 上保存、写入、再保存交叠，第二次保存答复时写入已在盘上

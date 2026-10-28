@@ -1,8 +1,4 @@
-"""The 0.1.12 music: the 0.1.10 score, 0-28 s then 58-90 s, joined on a bar line.
-
-Usage: python tools/audio/cut.py [SOURCE]   SOURCE defaults to ../update-0.1.10/assets/audio/music.wav
-A bar of section B, then the tom fill into the F# chorus, which lands at 30 s.
-"""
+"""The 0.1.12 music: 0.1.10's 0-28 s and 58-90 s."""
 import sys
 from pathlib import Path
 
@@ -14,6 +10,7 @@ from dsp import N, SR, db, lufs, read_wav, true_peak, write_wav  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT.parent / "update-0.1.10" / "assets" / "audio" / "music.wav"
+# A bar line: section B, then the fill into chorus.
 JOIN, RESUME = 28.0, 58.0
 FADE = 0.02
 

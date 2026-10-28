@@ -12,7 +12,7 @@ const GLYPH: Record<Platform, keyof typeof ICONS> = { macArm: "apple", macIntel:
 
 type Hints = { platform: string; getHighEntropyValues(hints: string[]): Promise<{ architecture?: string }> };
 
-/** The visitor's platform from the user agent; Macs guess Apple silicon. */
+/** The visitor's platform by user agent; Macs guess Apple silicon. */
 export function guess(ua = navigator.userAgent): Platform {
   if (/Windows/.test(ua)) return "windows";
   if (/Macintosh|Mac OS X/.test(ua) && !/iPhone|iPad/.test(ua)) return "macArm";
@@ -20,7 +20,7 @@ export function guess(ua = navigator.userAgent): Platform {
   return "windows";
 }
 
-/** Chromium on a Mac tells its chip; other browsers keep the guess. */
+/** Chromium on Macs names the chip; others keep the guess. */
 async function chip(): Promise<Platform | null> {
   const hints = (navigator as Navigator & { userAgentData?: Hints }).userAgentData;
   if (hints?.platform !== "macOS") return null;
@@ -30,10 +30,10 @@ async function chip(): Promise<Platform | null> {
   return null;
 }
 
-/** Where `p` downloads: its installer, or the release for Linux and missing ones. */
+/** Where `p` downloads: its installer, else the release page. */
 const target = (p: Platform, installers: Installers | null) => (p === "linux" ? RELEASES : installers?.[p] ?? RELEASES);
 
-/** The download block: a button for this platform, a note on single apps. */
+/** Download block: this platform's button, a note on single apps. */
 export function downloads(cards: boolean) {
   let platform = guess();
   let installers: Installers | null = null;

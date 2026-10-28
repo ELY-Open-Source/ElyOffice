@@ -1,7 +1,4 @@
-"""Regenerate assets/audio/music.wav (cut from the 0.1.10 score) and assets/audio/sfx/*.wav.
-
-Usage: python tools/audio/build.py   (needs numpy and scipy)
-"""
+"""Regenerates music.wav (cut from 0.1.10) and sfx/*.wav; needs numpy, scipy."""
 import sys
 from pathlib import Path
 

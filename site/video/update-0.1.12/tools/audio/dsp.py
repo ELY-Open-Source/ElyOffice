@@ -1,4 +1,4 @@
-"""Shared DSP for the 0.1.10 film audio: filters, oscillators, envelopes, space, dynamics and I/O."""
+"""Shared DSP: filters, oscillators, envelopes, space, dynamics and I/O."""
 import wave
 from pathlib import Path
 

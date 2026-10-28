@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Comments stay on one line and under eleven words."""
+import io
 import re
+import subprocess
 import sys
+import tokenize
 from pathlib import Path
 
 root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2]
@@ -76,11 +79,14 @@ def comment_re(path):
     return LINE_COMMENT.get(path.suffix, re.compile(r"^\s*#\s?(.*)$"))
 
 
+# Only what git tracks: scratch files are not the project's.
+listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], check=True, capture_output=True).stdout
+tracked = set(listed.decode().split("\0"))
 too_long = []
 repeated = {}
 for pattern in PATTERNS:
     for path in sorted(root.glob(pattern)):
-        if "node_modules" in path.parts:
+        if path.relative_to(root).as_posix() not in tracked:
             continue
         if path.suffix in SCANNED:
             last = None
@@ -93,12 +99,18 @@ for pattern in PATTERNS:
             continue
         comment = comment_re(path)
         previous = None
-        lines = path.read_text().split("\n")
+        source = path.read_text()
+        lines = source.split("\n")
         if path.suffix == ".py":
-            start = 1 if lines and lines[0].startswith("#!") else 0
-            if start < len(lines) and lines[start].startswith('"""'):
+            # Real comments only: a "#" inside a string is code.
+            source, lines = lines, [""] * len(lines)
+            for token in tokenize.generate_tokens(io.StringIO("\n".join(source)).readline):
+                if token.type == tokenize.COMMENT and not token.line[:token.start[1]].strip():
+                    lines[token.start[0] - 1] = token.line.rstrip("\n")
+            start = 1 if source and source[0].startswith("#!") else 0
+            if start < len(source) and source[start].startswith('"""'):
                 doc = []
-                for line in lines[start:]:
+                for line in source[start:]:
                     doc.append(line.strip('" '))
                     if line.count('"""') >= 2 or (len(doc) > 1 and '"""' in line):
                         break

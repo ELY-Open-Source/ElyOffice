@@ -1,111 +1,10 @@
-"""Score for the 0.1.10 film: 120 BPM, 45 bars of 2 s, E major lifting to F# major for the peak chorus."""
+"""The score: 120 BPM, 45 bars, E major, F# chorus."""
 import numpy as np
 
 import instruments as ins
-from dsp import (SR, N, butter, chorus, compress, convolve, env, eq, hz, impulse, limiter, lufs, ns,
-                 pan, pingpong, reseed, rng, secs, true_peak, tv, width)
-
-TAIL = SR
-STEP = 0.125
-SWING = 0.011
-TARGET_LUFS = -15.0
-CEILING_DB = -2.0
-SEED = 1010
-
-# root (bass midi), rootless voicing (G#3..A#4)
-VOICINGS = {
-    "Amaj9": (33, (56, 59, 61, 64)), "B13": (35, (57, 61, 63, 68)), "B9sus": (35, (57, 61, 64, 66)),
-    "B7b9": (35, (57, 60, 63, 66)), "G#m11": (32, (59, 61, 63, 66)), "C#m9": (37, (59, 63, 64, 68)),
-    "F#m9": (30, (57, 61, 64, 68)), "Emaj9": (40, (56, 59, 63, 66)), "C#7sus": (37, (59, 63, 66, 68)),
-    "C#9": (37, (59, 63, 65, 68)), "Bmaj9": (35, (58, 61, 63, 66)), "C#13": (37, (59, 63, 65, 70)),
-    "A#m11": (34, (61, 63, 65, 68)), "D#m9": (39, (61, 65, 66, 70)), "F#maj9": (30, (58, 61, 65, 68)),
-}
-CHANGES = [
-    (0, "Amaj9"), (4, "B9sus"), (5, "Emaj9"), (6, "C#m9"), (8, "Amaj9"), (10, "B13"), (11, "B9sus"),
-    (12, "Amaj9"), (14, "B13"), (16, "G#m11"), (18, "C#m9"), (20, "Amaj9"), (22, "B13"), (24, "C#m9"),
-    (26, "F#m9"), (28, "G#m11"), (30, "Amaj9"), (32, "B13"), (34, "F#m9"), (36, "G#m11"), (38, "Amaj9"),
-    (40, "B9sus"), (41, "B13"), (42, "Amaj9"), (44, "B9sus"), (46, "B7b9"), (47, "Emaj9"), (48, "C#m9"),
-    (50, "Amaj9"), (52, "B13"), (54, "G#m11"), (56, "C#m9"), (58, "F#m9"), (59, "C#7sus"), (59.5, "C#9"),
-    (60, "Bmaj9"), (62, "C#13"), (64, "A#m11"), (66, "D#m9"), (68, "Bmaj9"), (70, "C#13"), (72, "A#m11"),
-    (74, "D#m9"), (76, "Bmaj9"), (77, "C#7sus"), (77.5, "C#9"), (78, "F#maj9"), (80, "Bmaj9"),
-    (82, "C#13"), (84, "A#m11"), (86, "Bmaj9"), (87, "C#7sus"), (88, "F#maj9"),
-]
-SECTIONS = [(0, "pre"), (1, "intro"), (4, "rise"), (5, "groove"), (11.5, "gap"), (12, "A"), (26, "B1"),
-            (30, "B2"), (34, "B3"), (42, "back"), (44, "build"), (47, "half"), (50, "C"), (58, "Cbuild"),
-            (60, "peak"), (76, "peakbuild"), (78, "unison"), (80, "outro"), (88, "end")]
-# kick-keyed ducking depth per section
-PUMP = {"groove": 0.15, "A": 0.5, "B1": 0.25, "B2": 0.35, "B3": 0.45, "back": 0.45, "build": 0.45,
-        "half": 0.35, "C": 0.5, "Cbuild": 0.5, "peak": 0.55, "peakbuild": 0.55, "unison": 0.6, "outro": 0.2}
-GAINS = {"kick": 0.55, "clap": 0.75, "snap": 0.45, "hats": 1.7, "perc": 0.8, "toms": 0.42, "bass": 0.27,
-         "pad": 0.22, "stab": 0.55, "ep": 0.3, "keys": 0.36, "lead": 1.05, "glass": 0.26, "whistle": 0.16,
-         "fx": 0.3, "post": 0.3}
-
-
-def chord_at(t):
-    name = CHANGES[0][1]
-    for s, c in CHANGES:
-        if s > t + 1e-6:
-            break
-        name = c
-    return name
-
-
-def root(t):
-    return VOICINGS[chord_at(t)][0]
-
-
-def voicing(t):
-    return VOICINGS[chord_at(t)][1]
-
-
-def section(t):
-    name = SECTIONS[0][1]
-    for s, c in SECTIONS:
-        if s > t + 1e-6:
-            break
-        name = c
-    return name
-
-
-def at(bar, step, swing=True):
-    return bar * 2.0 + step * STEP + (SWING if swing and step % 2 else 0.0)
-
-
-def human(t, ms=3.0):
-    return t + rng().normal(0, ms / 1000)
-
-
-def vary(v, amount=0.07):
-    return v * (1 + rng().uniform(-amount, amount))
-
-
-def blank():
-    return np.zeros((N + TAIL, 2))
-
-
-class Mix:
-    def __init__(self):
-        self.stems, self.kicks, self.booms = {}, [], []
-        self.sends = {k: blank() for k in ("plate", "hall", "delay")}
-
-    def add(self, stem, sig, t, gain=1.0, p=0.0, **sends):
-        sig = pan(sig, p) if sig.ndim == 1 else sig
-        i = ns(t)
-        if i < 0:
-            sig, i = sig[-i:], 0
-        bus = self.stems.setdefault(stem, blank())
-        n = min(len(sig), len(bus) - i)
-        if n <= 0:
-            return
-        part = sig[:n] * gain * GAINS[stem]
-        bus[i:i + n] += part
-        for name, amount in sends.items():
-            self.sends[name][i:i + n] += part * amount
-
-    def kick(self, t, vel, punch=1.0):
-        depth = PUMP.get(section(t), 0.0)
-        self.kicks.append((t, depth * min(1.0, vel + 0.1)))
-        self.add("kick", ins.kick(vel, punch), t)
+from dsp import butter, env, ns, reseed, rng, secs, SR
+from grid import at, CHANGES, human, Mix, root, section, SEED, STEP, SWING, vary, voicing, VOICINGS
+from master import master, stem_report
 
 
 # Drums ------------------------------------------------------------------
@@ -515,7 +414,7 @@ def effects(mix):
         rev = ins.reverse(ins.crash(0.5, 1.0, 0.45))
         mix.add("fx", rev, t + 1.0 - len(rev) / SR, 0.8, hall=0.2)
 
-    # 42.6: back online, a quick rising bloop and swoosh that is not muffled
+    # 42.6: back online; a rising bloop and swoosh, unmuffled.
     n = ns(0.22)
     tt = secs(n)
     f = 260 * (1400 / 260) ** (tt / 0.22) ** 1.4
@@ -523,117 +422,6 @@ def effects(mix):
     mix.add("post", up * 0.6, 42.42, p=0.0, hall=0.3, delay=0.2)
     sw = ins.riser(0.25, 600, 9000, 1.2)
     mix.add("post", sw * 0.6, 42.37, hall=0.2)
-
-
-# Mastering --------------------------------------------------------------
-
-def pump_curve(events, release=0.12, length=0.45):
-    k = ns(length)
-    t = secs(k)
-    shape = np.minimum(1, t / 0.004) * np.exp(-t / release)
-    p = np.zeros(N + TAIL)
-    for t0, depth in events:
-        i = ns(t0)
-        n = min(k, len(p) - i)
-        p[i:i + n] = np.maximum(p[i:i + n], depth * shape[:n])
-    return p
-
-
-def curve(points, log=False):
-    ts, vs = np.array(points, float).T
-    vs = np.log(vs) if log else vs
-
-    def at_(t):
-        v = np.interp(t, ts, vs)
-        return np.exp(v) if log else v
-    return at_
-
-
-def muffle(x):
-    """41.4-42.6: the music sinks underwater (low-pass with a soft resonance, a few dB down) and pops back."""
-    a, b = ns(41.2), ns(42.9)
-    seg = x[a:b]
-    t = 41.2 + secs(len(seg))
-    cut = curve([(41.2, 19000), (41.38, 19000), (41.52, 520), (42.5, 520), (42.62, 2400), (42.72, 19000),
-                 (42.9, 19000)], log=True)(t)
-    wet = tv(tv(seg, "low", cut, q=1.1, block=32), "low", cut, q=0.7, block=32)
-    gain = 10 ** (curve([(41.2, 0), (41.38, 0), (41.55, -3.5), (42.5, -3.5), (42.62, 0), (42.9, 0)])(t) / 20)
-    fade = np.clip(np.minimum((t - 41.2) / 0.08, (42.9 - t) / 0.08), 0, 1)[:, None]
-    y = x.copy()
-    y[a:b] = seg * (1 - fade) + wet * gain[:, None] * fade
-    return y
-
-
-def stem_report(mix, window=(12.0, 26.0)):
-    """RMS and peak (dBFS) of each stem in a window, before mastering."""
-    a, b = ns(window[0]), ns(window[1])
-    return {k: (round(20 * np.log10(np.sqrt((v[a:b] ** 2).mean()) + 1e-12), 1),
-                round(20 * np.log10(np.abs(v[a:b]).max() + 1e-12), 1)) for k, v in sorted(mix.stems.items())}
-
-
-def master(mix):
-    return finish(premaster(mix))
-
-
-def premaster(mix):
-    s = {k: mix.stems.get(k, blank()) for k in GAINS}
-    p = pump_curve(mix.kicks)
-    pb = pump_curve(mix.booms, release=0.45, length=1.6)
-    duck = lambda amount: (1 - np.clip(amount * p + pb, 0, 0.85))[:, None]
-
-    pad = width(chorus(eq(butter(s["pad"], "high", 120), "peak", 950, 0.8, -3.0)), 1.5, 180)
-    synth = pad * duck(1.0) + butter(s["stab"], "high", 140) * duck(0.75) + s["ep"] * duck(0.5) \
-        + width(butter(s["keys"], "high", 180), 1.25, 200) * duck(0.35)
-    build_lp = curve([(0, 20000), (43.99, 20000), (44.0, 900), (46.95, 16000), (47.0, 20000), (90, 20000)], log=True)
-    synth = tv(synth, "low", build_lp(secs(len(synth))), q=0.9, block=256)
-
-    bass = butter(s["bass"], "low", 5000).mean(1, keepdims=True) * np.ones((1, 2)) * duck(0.8)
-    lead = eq(butter(s["lead"], "high", 180), "peak", 3000, 1.0, -2.0)
-    lead = compress(lead, -20, 2.5, 0.005, 0.12) * duck(0.12)
-    glass = s["glass"] * duck(0.12) + s["whistle"] * duck(0.2)
-    drums = s["kick"] + s["clap"] + s["snap"] + s["hats"] + s["perc"] + s["toms"]
-
-    plate = convolve(mix.sends["plate"] * 0.35, impulse(1.6, (1.2, 1.1, 0.7), 21, damp=9000))
-    hall = convolve(mix.sends["hall"] * 0.3, impulse(3.4, (3.0, 2.6, 1.4), 31, predelay=0.03, damp=7000))
-    delay = pingpong(mix.sends["delay"] * 0.3, 0.375, 0.42)
-    wet = butter(plate + hall + convolve(delay * 0.3, impulse(1.6, (1.2, 1.1, 0.7), 21)) + delay, "high", 220)
-    wet *= duck(0.6)
-
-    gap = curve([(0, 1), (11.5, 1), (11.53, 0.05), (11.97, 0.05), (12.0, 1), (90, 1)])(secs(N + TAIL))[:, None]
-    x = (drums + bass + synth + glass + wet + s["fx"]) * gap + lead
-    x = muffle(x) + s["post"]
-
-    x = butter(x, "high", 22)
-    x = eq(x, "peak", 2600, 0.9, -1.5)                 # room for the sound effects
-    x = eq(x, "highshelf", 7000, 0.7071, 3.0)
-    x = width(x, 1.0, 120)                             # mono below 120 Hz
-    x = compress(x, -14, 1.7, 0.02, 0.2, knee=8)
-    x *= 10 ** (RIDE(secs(len(x))) / 20)[:, None]
-    x = x[:N]
-    t = secs(N)
-    x *= (np.cos(np.clip((t - 89.3) / 0.58, 0, 1) * np.pi / 2) ** 2)[:, None]
-    x *= np.minimum(1, t / 0.005)[:, None]
-    x[t >= 89.88] = 0.0
-    return x
-
-
-RIDE = curve([(0, -5.0), (4.0, -5.0), (4.95, -2.5), (5.0, -4.0), (9.5, -4.0), (11.5, -3.0), (11.99, -1.0), (12.0, 0.0),
-               (25.9, 0.0), (26.0, -2.5), (29.9, -2.5), (30.0, -1.8), (33.9, -1.8), (34.0, -1.0), (43.9, -1.0),
-               (46.9, 0.0), (47.0, -0.5), (49.9, -0.8), (50.0, -0.3), (59.9, 0.2), (60.0, 1.4), (77.9, 1.4),
-               (78.0, 1.6), (79.9, 0.5), (80.0, -3.5), (88.0, -4.5), (90.0, -5.0)])
-
-
-def finish(x, target=TARGET_LUFS, ceiling=CEILING_DB):
-    g = target - lufs(x)
-    for _ in range(6):
-        y = x * 10 ** (g / 20)
-        y = np.tanh(y * 0.9) / 0.9
-        y = limiter(y, ceiling)
-        err = target - lufs(y)
-        if abs(err) < 0.05:
-            break
-        g += err
-    return y
 
 
 def build_music():

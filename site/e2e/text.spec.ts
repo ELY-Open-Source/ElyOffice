@@ -157,7 +157,7 @@ test.describe("English locale", () => {
     const unique = [...new Set(hrefs)];
     expect(unique.sort()).toEqual([REPO, RELEASES, X, ...Object.values(installers)].sort());
     for (const url of unique) {
-      // X turns away HEAD and browser-like clients; a plain GET answers.
+      // X refuses HEAD and browser-like clients; a plain GET answers.
       const res = url === X ? await request.get(url, { headers: { "user-agent": "curl/8" } }) : await request.head(url);
       expect(res.status(), url).toBeLessThan(400);
     }

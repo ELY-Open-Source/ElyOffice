@@ -1,9 +1,4 @@
-"""Place the scenes' sound-effect cues over the music and master the film mix.
-
-Usage: python tools/audio/mix.py [cues_dir] [--music WAV] [--sfx DIR] [--out WAV]
-  cues_dir defaults to scenes/; every *.cues.json there is a JSON array of {"t", "sfx", "gain"}.
-Deterministic: each cue's small pitch, gain and pan variation is seeded from the cue itself.
-"""
+"""Places scenes' sound cues over the music; masters the film."""
 import argparse
 import json
 import sys
@@ -112,7 +107,8 @@ def master(x):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("cues", nargs="?", default=str(ROOT / "scenes"))
+    ap.add_argument("cues", nargs="?", default=str(ROOT / "scenes"),
+                    help='folder of *.cues.json, each a JSON array of {"t", "sfx", "gain"}')
     ap.add_argument("--music", default=str(ROOT / "assets" / "audio" / "music.wav"))
     ap.add_argument("--sfx", default=str(ROOT / "assets" / "audio" / "sfx"))
     ap.add_argument("--out", default=str(ROOT / "assets" / "audio" / "mix.wav"))

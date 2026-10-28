@@ -77,7 +77,7 @@ for (const scheme of ["light", "dark"] as const) {
         });
         return 0.2126 * r + 0.7152 * g + 0.0722 * b;
       };
-      // Text sits on its nearest filled box, else on the page.
+      // Text sits on its nearest filled box, else the page.
       const ground = (el: Element) => {
         for (let at: Element | null = el; at; at = at.parentElement) {
           const bg = parse(getComputedStyle(at).backgroundColor);

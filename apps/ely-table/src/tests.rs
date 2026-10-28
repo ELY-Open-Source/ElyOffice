@@ -400,5 +400,6 @@ mod names;
 mod numbers;
 mod remote;
 mod output;
+mod protect;
 mod rules;
 mod undo;

@@ -1,7 +1,4 @@
-"""Regenerate assets/audio/music.wav and assets/audio/sfx/*.wav deterministically.
-
-Usage: python tools/audio/build.py   (needs numpy and scipy)
-"""
+"""Regenerates assets/audio music.wav and sfx/*.wav; needs numpy and scipy."""
 import sys
 from pathlib import Path
 

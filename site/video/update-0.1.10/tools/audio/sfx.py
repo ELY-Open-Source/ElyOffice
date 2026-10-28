@@ -1,4 +1,4 @@
-"""Synthesized one-shots for the film's cues: wet, rubbery liquid sounds and soft glossy UI sounds."""
+"""One-shots for the cues: rubbery liquid and glossy UI sounds."""
 import numpy as np
 
 import instruments as ins

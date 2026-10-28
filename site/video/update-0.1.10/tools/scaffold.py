@@ -1,4 +1,4 @@
-"""Writes index.html and (unless they exist) the scene stubs. Run from the project root."""
+"""Writes index.html and missing scene stubs; run at the root."""
 import os
 
 SCENES = [("s1", 0, 11), ("s2", 11, 7), ("s3", 18, 8), ("s4", 26, 8), ("s5", 34, 10), ("s6", 44, 6), ("s7", 50, 10), ("s8", 60, 18), ("s9", 78, 12)]
@@ -64,6 +64,7 @@ html, body {{ width: 1920px; height: 1080px; overflow: hidden; background: #0806
   <div id="driver" class="clip" data-start="0" data-duration="90" data-track-index="0" style="position:absolute;width:1px;height:1px;opacity:0"></div>
 {audio}
 </div>
+<script src="lib/shaders.js"></script>
 <script src="lib/liquid.js"></script>
 <script src="lib/moods.js"></script>
 <script src="lib/kit.js"></script>

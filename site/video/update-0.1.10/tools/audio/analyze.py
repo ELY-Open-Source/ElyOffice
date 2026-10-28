@@ -1,7 +1,4 @@
-"""Objective checks for a rendered track, plus a spectrogram PNG (no plotting library needed).
-
-Usage: python tools/audio/analyze.py <wav> [--png out.png]
-"""
+"""Objective checks for a rendered track, plus a spectrogram PNG."""
 import argparse
 import struct
 import zlib
