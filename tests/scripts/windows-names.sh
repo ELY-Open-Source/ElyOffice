@@ -16,7 +16,7 @@ rm -rf "$work"
 mkdir -p "$work"
 mail="path+file:///$(cygpath -m "$root/apps/ely-mail")"
 (cd "$root" && cargo build -q -p ely-doc -p ely-table -p ely-show -p ely-pdf -p "$mail" -p ely-tree -p ely-mark \
-  -p ely-lok -p ely-pdf-engine --bins)
+  -p ely-lok -p ely-pdf-worker --bins)
 
 . "$root/tests/scripts/a11y-samples.sh"
 a11y_samples "$work"

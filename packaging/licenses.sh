@@ -20,7 +20,7 @@ put() { # into, files...
 put . "$root/LICENSE"
 case $slug in
   ely-doc | ely-table | ely-show) crates=(ely-lok) ;;
-  ely-pdf | ely-mark) crates=(ely-pdf-engine) ;;
+  ely-pdf | ely-mark) crates=(ely-pdf-worker) ;;
   *) crates=() ;;
 esac
 python3 "$root/packaging/crates.py" "$slug" ${crates[@]+"${crates[@]}"} >"$out/rust-crates.txt"
@@ -75,7 +75,7 @@ case $slug in
       MINGW* | MSYS*) put OpenSSL "$root/engines/vcpkg/installed/x64-windows-static/share/openssl/copyright" ;;
       *) put OpenSSL "$(pkg-config --variable=prefix libcrypto)/LICENSE.txt" ;;
     esac
-    put GreatVibes "$root/crates/ely-pdf-engine/fonts/OFL.txt"
+    put GreatVibes "$root/crates/ely-pdf-worker/fonts/OFL.txt"
     ;;
 esac
 case $slug in

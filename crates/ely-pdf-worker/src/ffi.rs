@@ -59,7 +59,7 @@ unsafe extern "C" {
 }
 
 /// Great Vibes (OFL), for typed signatures.
-static SCRIPT: &[u8] = include_bytes!("../../../fonts/GreatVibes-Regular.ttf");
+static SCRIPT: &[u8] = include_bytes!("../fonts/GreatVibes-Regular.ttf");
 
 /// Hands MuPDF the script face, alive while the worker is.
 pub fn script_font() {

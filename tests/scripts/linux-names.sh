@@ -21,7 +21,7 @@ bin=${CARGO_TARGET_DIR:-$root/target}/debug
 rm -rf "$work"
 mkdir -p "$work"
 (cd "$root" && cargo build -q -p ely-doc -p ely-table -p ely-show -p ely-pdf -p "path+file://$root/apps/ely-mail" \
-  -p ely-tree -p ely-mark -p ely-lok -p ely-pdf-engine --bins)
+  -p ely-tree -p ely-mark -p ely-lok -p ely-pdf-worker --bins)
 . "$root/tests/scripts/a11y-samples.sh"
 a11y_samples "$work"
 

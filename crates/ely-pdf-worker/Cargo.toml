@@ -1,0 +1,29 @@
+[package]
+name = "ely-pdf-worker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+ely-ipc.workspace = true
+ely-pdf-engine.workspace = true
+log.workspace = true
+env_logger.workspace = true
+
+[build-dependencies]
+cc = "1"
+
+[dev-dependencies]
+ely-pdf-engine = { workspace = true, features = ["test-support"] }
+lopdf.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+objc2.workspace = true
+objc2-foundation = { workspace = true, features = ["NSArray"] }
+objc2-pdf-kit = { workspace = true, features = ["PDFPage", "PDFAnnotation", "PDFAnnotationUtilities"] }

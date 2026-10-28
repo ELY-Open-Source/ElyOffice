@@ -54,7 +54,7 @@ if uses ely-lok; then
   fi
 fi
 if uses ely-pdf-engine; then
-  build -p ely-pdf-engine --bin ely-pdf-worker
+  build -p ely-pdf-worker
   cp "$release/ely-pdf-worker$exe" "$out/"
 fi
 # OCR's languages: ElyPDF alone reads text from pictures.

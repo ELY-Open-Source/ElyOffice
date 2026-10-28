@@ -611,7 +611,8 @@ ely-office/
     ely-platform/    # 文件对话框、打印、凭据、系统集成
     ely-files/       # 文件会话、保存、恢复、监听
     ely-lok/         # LOK 接入；仅 Doc/Table/Show 使用
-    ely-pdf-engine/  # MuPDF 与 OCR 接入
+    ely-pdf-engine/  # PDF worker 的协议与客户端，不链 MuPDF
+    ely-pdf-worker/  # MuPDF 与 OCR 接入，独立进程
     ely-mail-engine/ # 邮件协议、同步和本地存储
   assets/
   tests/

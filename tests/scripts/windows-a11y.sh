@@ -14,7 +14,7 @@ trap stop EXIT
 stop
 rm -rf "$work"
 mkdir -p "$work/data"
-(cd "$root" && cargo build -q -p ely-doc -p ely-lok -p ely-pdf -p ely-pdf-engine --bins)
+(cd "$root" && cargo build -q -p ely-doc -p ely-lok -p ely-pdf -p ely-pdf-worker --bins)
 
 cat >"$work/probe.fodt" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>

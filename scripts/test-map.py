@@ -15,7 +15,7 @@ WHERE = {
     "DOC": "apps/ely-doc/src/tests、doc-props.sh",
     "TABLE": "apps/ely-table/src/tests、theme.sh",
     "SHOW": "apps/ely-show/src/tests",
-    "PDF": "apps/ely-pdf/src/tests、crates/ely-pdf-engine/tests、pdf-recovery.sh",
+    "PDF": "apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh",
     "TREE": "apps/ely-tree/src/tests",
     "MARK": "apps/ely-mark 单测、mark-*.sh",
     "MAIL": "apps/ely-mail/src/tests、crates/ely-mail-engine/tests",

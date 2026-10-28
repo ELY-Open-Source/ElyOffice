@@ -21,7 +21,7 @@ fail() {
   exit 1
 }
 
-cargo build -q -p ely-pdf-engine --bins -p ely-pdf --manifest-path "$root/Cargo.toml"
+cargo build -q -p ely-pdf-worker -p ely-pdf --manifest-path "$root/Cargo.toml"
 for tool in ax-values ax-press; do swiftc -O -o "$work/$tool" "$root/tests/scripts/$tool.swift"; done
 [ "$("$work/ax-values" $$ | head -n 1)" != untrusted ] || { echo "SKIP: needs Accessibility permission"; exit 0; }
 home="$work/home"

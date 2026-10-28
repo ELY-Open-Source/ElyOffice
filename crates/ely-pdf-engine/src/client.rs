@@ -124,7 +124,7 @@ impl Worker {
         let reply = worker.request(tag::HELLO, &[])?;
         if Unpack::new(&reply).str()? != proto::BUILD {
             return Err(io::Error::other(format!(
-                "the pdf worker {} is from other sources; run cargo build -p ely-pdf-engine --bins",
+                "the pdf worker {} is from other sources; run cargo build -p ely-pdf-worker",
                 bin.display()
             )));
         }

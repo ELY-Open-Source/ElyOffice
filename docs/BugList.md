@@ -227,7 +227,7 @@
 
 ### P-04 `TEXT_BLOCKS` 对每个文字块重跑一遍整页内容过滤，编辑工具长时间无反应
 - 严重度：高 ｜ 置信度：可能（代价推断，未计时）
-- 位置：`crates/ely-pdf-engine/shim/ely_text.c:227-245`、`:156-179`、`:133-145`（每块一次 `pdf_filter_page_contents`）；`apps/ely-pdf/src/content.rs:129-156`（逐页读）、`:169-171`（层未到即静默返回）
+- 位置：`crates/ely-pdf-worker/shim/ely_text.c:227-245`、`:156-179`、`:133-145`（每块一次 `pdf_filter_page_contents`）；`apps/ely-pdf/src/content.rs:129-156`（逐页读）、`:169-171`（层未到即静默返回）
 - 现象：密集页面上开编辑工具很久不出框，点击被忽略，图块与缩略图也停住（worker 单线程被占满）。
 - 修法：每页一遍干跑记下全部字形原点与字符，再逐块比对；或只对点中的块判定可编辑。
 
@@ -240,13 +240,13 @@
 
 ### P-06 默认字体“原字体”在 Type 1/Type 3 字体的文件上失败，只给引擎原话
 - 严重度：中 ｜ 置信度：可能（`pdf_font_writing_supported` 只认 TrueType/CFF/OpenType）
-- 位置：`apps/ely-pdf/src/editing.rs:77`、`crates/ely-pdf-engine/shim/ely_write.c:61-67`、`apps/ely-pdf/src/writes.rs:115`、`:138-142`
+- 位置：`apps/ely-pdf/src/editing.rs:77`、`crates/ely-pdf-worker/shim/ely_write.c:61-67`、`apps/ely-pdf/src/writes.rs:115`、`:138-142`
 - 现象：LaTeX 或旧 PDF 上“应用”报“previewing text failed: the document's font cannot write new text”，不提示换字体（缺字形的情形倒有 `pdf.text.missing` 提示）。
 - 修法：像 `Wrote::Missing` 一样在面板里提示换字体，或读块时预判可写性、默认 Helvetica。
 
 ### P-07 含连字的文字块永远不可编辑
 - 严重度：中 ｜ 置信度：可能
-- 位置：`crates/ely-pdf-engine/shim/ely_text.c:91-109`（`block_targets` 按 stext 字符计数）、`:112-130`（`take_glyph` 按字形计数）、`:167`
+- 位置：`crates/ely-pdf-worker/shim/ely_text.c:91-109`（`block_targets` 按 stext 字符计数）、`:112-130`（`take_glyph` 按字形计数）、`:167`
 - 现象：含 fi、fl、ffi 连字的段落不出编辑框、点击无效；真放过去 `ely_remove_block` 也会报“N of M glyphs were found”。
 - 修法：按同一原点的字符分组计字形，或每字形按 `ucslen` 多计命中。
 
@@ -269,12 +269,12 @@
 
 ### P-11 撤销或重做在 MuPDF 侧失败后 worker 的步数不再同步
 - 严重度：低 ｜ 置信度：已确认
-- 位置：`crates/ely-pdf-engine/src/bin/ely-pdf-worker/main.rs:62-86`、`:161-165`
+- 位置：`crates/ely-pdf-worker/src/main.rs:62-86`、`:161-165`
 - 修法：失败时 `doc.sync(&self.mupdf, None)`。
 
 ### P-12 `unhook` 中途抛出时泄漏保留的对象
 - 严重度：低 ｜ 置信度：已确认
-- 位置：`crates/ely-pdf-engine/shim/ely_insert.c:17-49`、`:352-356`（`n` 只在返回时发布，`fz_always` 以 0 释放）
+- 位置：`crates/ely-pdf-worker/shim/ely_insert.c:17-49`、`:352-356`（`n` 只在返回时发布，`fz_always` 以 0 释放）
 - 修法：以 `int *n` 传入并逐个递增。
 
 ### P-13 优化导出的“之前”大小取磁盘文件而非当前文档
@@ -284,7 +284,7 @@
 
 ### P-14 文字块含控制字符时 JSON 回复不可解析
 - 严重度：低 ｜ 置信度：可能
-- 位置：`crates/ely-pdf-engine/shim/ely_text.c:240`（`%q` 不是 JSON 转义；别处用的是 `ely_json_string`）
+- 位置：`crates/ely-pdf-worker/shim/ely_text.c:240`（`%q` 不是 JSON 转义；别处用的是 `ely_json_string`）
 - 现象：ToUnicode 坏掉的文件文字里有 U+0001–U+001F，`text_blocks` 解析失败，编辑工具永远读不到该页，并落入 P-08 的循环。
 - 修法：`text`、`font` 用 `ely_json_string` 写。
 

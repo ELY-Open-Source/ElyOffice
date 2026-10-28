@@ -26,7 +26,7 @@ scripts/build-libreoffice.sh      # patched LibreOffice 26.2.6.3 (about an hour)
 scripts/build-mupdf.sh            # patched MuPDF 1.28.5
 scripts/build-git.sh && scripts/fetch-git-lfs.sh
 scripts/fetch-tessdata.sh
-cargo build -p ely-lok --bins -p ely-pdf-engine --bins
+cargo build -p ely-lok --bins -p ely-pdf-worker
 cargo run -p ely-doc              # or ely-table, ely-show, ely-pdf, ely-mail, ely-tree, ely-mark
 ```
 

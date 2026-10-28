@@ -9,24 +9,13 @@ publish.workspace = true
 [dependencies]
 ely-ipc.workspace = true
 log.workspace = true
-env_logger.workspace = true
 serde_json.workspace = true
 
 [features]
 test-support = []
 
-[build-dependencies]
-cc = "1"
-
 [dev-dependencies]
-ely-pdf-engine = { path = ".", features = ["test-support"] }
-lopdf.workspace = true
 tempfile.workspace = true
 
 [lints]
 workspace = true
-
-[target.'cfg(target_os = "macos")'.dev-dependencies]
-objc2.workspace = true
-objc2-foundation = { workspace = true, features = ["NSArray"] }
-objc2-pdf-kit = { workspace = true, features = ["PDFPage", "PDFAnnotation", "PDFAnnotationUtilities"] }

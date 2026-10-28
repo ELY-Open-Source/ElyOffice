@@ -2,7 +2,7 @@
 # ElyPDF with no file starts no MuPDF worker (PERF-01).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
-(cd "$root" && cargo build -q -p ely-pdf -p ely-pdf-engine)
+(cd "$root" && cargo build -q -p ely-pdf -p ely-pdf-worker)
 ELY_NO_DIALOG=1 ELY_SMOKE=hold "$root/target/debug/ely-pdf" >/dev/null 2>&1 &
 app=$!
 trap 'kill $app 2>/dev/null || true' EXIT
