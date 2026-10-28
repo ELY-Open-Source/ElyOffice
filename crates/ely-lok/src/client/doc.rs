@@ -187,7 +187,9 @@ impl Doc {
             .u64(u64::from(pixels.0))
             .u64(u64::from(pixels.1))
             .bytes();
-        worker.request(tag::PAINT_PART, &request)
+        let painted = worker.request(tag::PAINT_PART, &request)?;
+        crate::show::sized(&painted, pixels)?;
+        Ok(painted)
     }
 
     /// Slide `part`'s slideshow layers at about `pixels`.

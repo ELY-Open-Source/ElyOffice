@@ -373,7 +373,10 @@ impl PdfView {
             (across, (place.y - top).max(0.0))
         };
         let anchor = (laid.placed.iter().filter(|place| place.y + place.h > top))
-            .min_by(|a, b| near(a).partial_cmp(&near(b)).expect("finite places"));
+            .min_by(|a, b| {
+                let ((a_across, a_down), (b_across, b_down)) = (near(a), near(b));
+                a_across.total_cmp(&b_across).then(a_down.total_cmp(&b_down))
+            });
         // Down the page as a share; above it in pixels.
         let (anchor, spot) = anchor.map_or((self.current, (0.0, 0.0, 0.0)), |place| {
             let down = ((top - place.y) / place.h).max(0.0);

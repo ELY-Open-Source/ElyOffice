@@ -211,6 +211,8 @@ cd site && pnpm test && pnpm e2e   官网单测（几何、道路连通）与 Pl
 cd site/video/scenes && npm run verify   发布视频：群像与离场两个渲染器在切场处屏幕角点一致，离场全程各屏播自己的录屏帧（真页面渲染）
 scripts/deny.sh [根] [检查...]  cargo-deny：安全公告、yanked、许可与来源；重复版本只许 deny.toml 里列着的组，组消失而 skip 还在即败（只减不增）
 tests/scripts/deny-rules.sh    deny.sh：列着的重复组过、多余或无着落的 skip 败、去掉的旧版回来败（临时 crate）
+scripts/panics.py [根]          非测试代码的 expect、unwrap、panic!、unreachable!（clippy 量，构建脚本与 ely-mail-fake 除外）与 scripts/panics.tsv 逐条相符、各带理由，任一种类不多于 HEAD 的表；`--sites` 列出本机各处
+tests/scripts/panics-rules.sh  panics.py：列着的过、测试模块与 build.rs 不算、新处、增多、消失、无理由皆败（临时 crate）
 cargo check --workspace
 cargo test --workspace
 ELY_GIT=路径 cargo test -p ely-tree  ElyTree 测试用该 Git（系统 Git 须 2.40 起）；不设即用 engines/git 的随包 Git，都没有即失败
