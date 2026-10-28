@@ -2,10 +2,18 @@
 
 use std::path::Path;
 
-use ely_pdf_engine::{FieldKind, NewField, Worker, Writing, Wrote, sample::{Extras, pdf_with}};
+use ely_pdf_engine::{Doc, FieldKind, NewField, Worker, Writing, Wrote, sample::{Extras, pdf_with}};
 
 fn worker() -> Worker {
     Worker::spawn_from(Path::new(env!("CARGO_BIN_EXE_ely-pdf-worker"))).expect("the worker")
+}
+
+/// Saves, closes, reopens the save for a second session.
+fn reopened(worker: &mut Worker, doc: Doc, dir: &Path) -> Doc {
+    let first = dir.join("first.pdf");
+    worker.save(doc, &first).expect("the first save");
+    worker.close(doc).expect("closes");
+    worker.open(&first).expect("reopens").doc
 }
 
 /// Each page's text and widget values, as lopdf reads them.
@@ -76,6 +84,8 @@ fn text_a_field_and_page_order_read_back_elsewhere() {
     let field = NewField { kind: FieldKind::Text, name: "name".into(), rect: [72.0, 200.0, 272.0, 220.0], options: Vec::new() };
     worker.add_field(doc, 0, &field).expect("adds a field");
     doc = worker.now(doc).expect("the state");
+    // The second session fills the field the first one made.
+    doc = reopened(&mut worker, doc, dir.path());
     let id = worker.marks(doc, 0).expect("marks").fields[0].id;
     worker.fill(doc, 0, id, "Ada").expect("fills");
     doc = worker.now(doc).expect("the state");
@@ -109,8 +119,13 @@ fn text_in_a_subset_font_reads_back_elsewhere() {
     };
     assert!(matches!(worker.put_text(doc, 0, &writing, 0.0).expect("writes"), Wrote::Done(_)));
     doc = worker.now(doc).expect("the state");
+    doc = reopened(&mut worker, doc, dir.path());
+    let before = worker.pages(doc).expect("pages");
+    worker.insert_blank(doc, before, (612.0, 792.0)).expect("adds a page");
+    doc = worker.now(doc).expect("the state");
     let out = dir.path().join("edited.pdf");
     worker.save(doc, &out).expect("saves");
     let pages = read_back(&out);
+    assert_eq!(pages.len(), before + 1, "{pages:?}");
     assert!(pages[0].0.contains("TEXT BUNDLE"), "{pages:?}");
 }
