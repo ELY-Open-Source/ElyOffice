@@ -227,3 +227,33 @@ fn the_status_bar_names_the_caret_line_in_every_mode(cx: &mut TestAppContext) {
         assert_eq!(said(cx), "Ln 4, Col 5", "{mode:?}");
     }
 }
+
+#[gpui::test(iterations = 16)]
+fn files_opened_together_keep_the_order_asked(cx: &mut TestAppContext) {
+    let (data, files) = (
+        tempfile::tempdir().expect("data"),
+        tempfile::tempdir().expect("files"),
+    );
+    // Larger files first, so the later loads finish sooner.
+    let names = ["f0.md", "f1.md", "f2.md", "f3.md", "f4.md", "f5.md"];
+    let paths: Vec<_> = names
+        .iter()
+        .enumerate()
+        .map(|(n, name)| {
+            let path = files.path().join(name);
+            std::fs::write(&path, "Line\n\n".repeat(4000 >> n)).expect("a file");
+            path
+        })
+        .collect();
+    let (desk, cx) = start(cx, data.path());
+    desk.update(cx, |desk, cx| {
+        for path in &paths {
+            desk.open_path(path.clone(), cx);
+        }
+    });
+    cx.run_until_parked();
+    let opened: Vec<String> = desk.read_with(cx, |desk, _| {
+        desk.core.tabs.iter().map(|tab| tab.name.to_string()).collect()
+    });
+    assert_eq!(opened, names);
+}

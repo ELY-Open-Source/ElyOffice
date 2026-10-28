@@ -213,7 +213,9 @@ pub trait Opening: Host {
         );
         self.watch(id, &view, cx);
         window.focus(&Self::Engine::focus(view.read(cx)), cx);
-        self.core_mut().tabs.push(Tab {
+        // Tabs keep the order their loads began.
+        let at = self.core().tabs.partition_point(|tab| tab.id < id);
+        self.core_mut().tabs.insert(at, Tab {
             id,
             view,
             doc,
