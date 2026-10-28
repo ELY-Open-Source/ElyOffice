@@ -79,6 +79,25 @@ cat >"$work/site/video/a.html" <<'EOF'
 <p title="<!-- One two three four five six seven eight nine ten eleven. -->">Hi</p>
 EOF
 check || fail "a comment inside an HTML script, style or attribute string was read"
+cat >"$work/site/video/a.html" <<'EOF'
+<textarea><!-- One two three four five six seven eight nine ten eleven. --></textarea>
+<title><!-- One two three four five six seven eight nine ten eleven. --></title>
+EOF
+check || fail "the text of a textarea or title was read as a comment"
+cat >"$work/site/video/a.html" <<'EOF'
+<script>
+const tag = "</script-template>";
+// One two three four five six seven eight nine ten eleven.
+</script>
+EOF
+! check || fail "a long comment after </script-template> in a script passed"
+cat >"$work/site/video/a.html" <<'EOF'
+<style>
+a::after { content: "</style-template>"; }
+/* One two three four five six seven eight nine ten eleven. */
+</style>
+EOF
+! check || fail "a long comment after </style-template> in a style passed"
 rm "$work/site/video/a.html"
 printf '/* first */ const a = 1;\n/* second */ const b = 2;\n' >"$work/site/video/lib/a.js"
 check || fail "leading .js comments on two code lines were joined"

@@ -31,6 +31,8 @@ LINE_COMMENT = {
 # Parsed by TypeScript itself: regexes and JSX text included.
 PARSED = {".ts": "ts", ".tsx": "tsx", ".js": "js", ".mjs": "js"}
 TAG = re.compile(r"<(/?)([A-Za-z][\w-]*)")
+# Elements whose content is text, never markup.
+RAW = ("script", "style", "textarea", "title", "xmp", "iframe", "noembed", "noframes")
 
 
 def entry(text, start, end):
@@ -86,14 +88,15 @@ def html(text):
             j += 1
         j += 1
         name = tag.group(2).lower()
-        if tag.group(1) or name not in ("script", "style"):
+        if tag.group(1) or name not in RAW:
             i = j
             continue
-        close = re.compile(rf"</{name}\b", re.I).search(text, j)
+        # Only the whole name ends it: not "</script-template>".
+        close = re.compile(rf"</{name}(?=[\s/>])", re.I).search(text, j)
         stop = close.start() if close else len(text)
         if name == "style":
             spans += [(j + s, j + e) for s, e in css(text[j:stop])]
-        else:
+        elif name == "script":
             scripts.append((j, text[j:stop]))
         i = stop
     return spans, scripts
