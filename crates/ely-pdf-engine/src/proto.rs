@@ -126,6 +126,16 @@ pub struct Char {
 /// Page sides, in points: one point to Acrobat's 15,000,000 inches.
 pub const SIDES: std::ops::RangeInclusive<f32> = 1.0..=15_000_000.0 * 72.0;
 
+/// A page box whose sides lie within `SIDES`.
+pub fn page_box(one: [f32; 4]) -> io::Result<()> {
+    let [x0, y0, x1, y1] = one;
+    // Layout divides by and sums these.
+    if !one.iter().all(|value| value.is_finite()) || !SIDES.contains(&(x1 - x0)) || !SIDES.contains(&(y1 - y0)) {
+        return Err(io::Error::other(format!("a page box {one:?} outside the page sizes")));
+    }
+    Ok(())
+}
+
 /// Parses a BOUNDS reply: `count` page boxes within `SIDES`.
 pub fn boxes(bytes: &[u8], count: usize) -> io::Result<Vec<[f32; 4]>> {
     let mut reply = ely_ipc::Unpack::new(bytes);
@@ -135,11 +145,7 @@ pub fn boxes(bytes: &[u8], count: usize) -> io::Result<Vec<[f32; 4]>> {
         for value in &mut one {
             *value = f32::from_bits(reply.u64()? as u32);
         }
-        let [x0, y0, x1, y1] = one;
-        // Layout divides by and sums these.
-        if !one.iter().all(|value| value.is_finite()) || !SIDES.contains(&(x1 - x0)) || !SIDES.contains(&(y1 - y0)) {
-            return Err(io::Error::other(format!("a page box {one:?} outside the page sizes")));
-        }
+        page_box(one)?;
         boxes.push(one);
     }
     match reply.rest().is_empty() {

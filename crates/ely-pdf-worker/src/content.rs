@@ -5,6 +5,8 @@ use std::{
     io, ptr,
 };
 
+use ely_ipc::{Pack, Unpack};
+
 use crate::ffi::{Context, Document, Mupdf, Open, checked, page, text};
 
 unsafe extern "C" {
@@ -136,5 +138,37 @@ impl Mupdf {
     pub fn add_image(&self, doc: &Open, at: usize, path: &str, rect: [f32; 4]) -> io::Result<()> {
         let path = text(path)?;
         checked(unsafe { ely_add_image(self.ctx, doc.0, page(at)?, path.as_ptr(), rect.as_ptr()) }).map(|_| ())
+    }
+}
+
+impl crate::Worker {
+    /// Writes or previews text; a missing glyph changes nothing.
+    pub(crate) fn put_text(&mut self, id: u64, ask: &mut Unpack) -> io::Result<Vec<u8>> {
+        let at = ask.u64()? as usize;
+        let block = usize::try_from(ask.i64()?).ok();
+        let (expected, text, font) = (ask.str()?, ask.str()?, ask.str()?);
+        let size = f32::from_bits(ask.u64()? as u32);
+        let rgb = ask.u64()? as u32;
+        let mut bx = [0f32; 3];
+        for value in &mut bx {
+            *value = f32::from_bits(ask.u64()? as u32);
+        }
+        let scale = f32::from_bits(ask.u64()? as u32);
+        let writing = Writing { block, expected, text, font, size, rgb, bx };
+        let doc = self.docs.get_mut(&id).ok_or_else(|| io::Error::other(format!("no document {id}")))?;
+        let wrote = self.mupdf.put_text(&doc.open, at, &writing, &doc.password, scale);
+        if matches!(wrote, Ok(Wrote::Done)) {
+            self.edits += 1;
+        }
+        let made = matches!(wrote, Ok(Wrote::Done)).then_some(self.edits);
+        doc.sync(&self.mupdf, made)?;
+        Ok(match wrote? {
+            Wrote::Done => Pack::new().u64(0).str(&doc.mark()).bytes(),
+            Wrote::Missing(c) => Pack::new().u64(2).u64(u64::from(c)).bytes(),
+            Wrote::Unwritable => Pack::new().u64(3).bytes(),
+            Wrote::Preview(pixels, (w, h), grew) => {
+                Pack::new().u64(1).u64(u64::from(w)).u64(u64::from(h)).u64(u64::from(grew)).blob(&pixels).bytes()
+            }
+        })
     }
 }

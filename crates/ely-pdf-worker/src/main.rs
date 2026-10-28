@@ -6,7 +6,7 @@ use std::{
 };
 
 use ely_ipc::{Pack, Unpack, read_frame, write_frame};
-use ely_pdf_engine::proto::{may, tag};
+use ely_pdf_engine::proto::{may, page_box, tag};
 
 mod content;
 mod edit;
@@ -130,34 +130,24 @@ impl Worker {
         Ok(doc.mark())
     }
 
-    /// Writes or previews text; a missing glyph changes nothing.
-    fn put_text(&mut self, id: u64, ask: &mut Unpack) -> io::Result<Vec<u8>> {
-        let at = ask.u64()? as usize;
-        let block = usize::try_from(ask.i64()?).ok();
-        let (expected, text, font) = (ask.str()?, ask.str()?, ask.str()?);
-        let size = f32::from_bits(ask.u64()? as u32);
-        let rgb = ask.u64()? as u32;
-        let mut bx = [0f32; 3];
-        for value in &mut bx {
-            *value = f32::from_bits(ask.u64()? as u32);
-        }
-        let scale = f32::from_bits(ask.u64()? as u32);
-        let writing = content::Writing { block, expected, text, font, size, rgb, bx };
+    /// Like `edited`; a page it leaves outside `SIDES` undoes it.
+    fn resized(&mut self, id: u64, edit: impl FnOnce(&Mupdf, &Open) -> io::Result<Vec<usize>>) -> io::Result<String> {
+        let mut changed = Vec::new();
+        let mark = self.edited(id, |mupdf, doc| {
+            changed = edit(mupdf, doc)?;
+            Ok(())
+        })?;
         let doc = self.docs.get_mut(&id).ok_or_else(|| io::Error::other(format!("no document {id}")))?;
-        let wrote = self.mupdf.put_text(&doc.open, at, &writing, &doc.password, scale);
-        if matches!(wrote, Ok(content::Wrote::Done)) {
-            self.edits += 1;
-        }
-        let made = matches!(wrote, Ok(content::Wrote::Done)).then_some(self.edits);
-        doc.sync(&self.mupdf, made)?;
-        Ok(match wrote? {
-            content::Wrote::Done => Pack::new().u64(0).str(&doc.mark()).bytes(),
-            content::Wrote::Missing(c) => Pack::new().u64(2).u64(u64::from(c)).bytes(),
-            content::Wrote::Unwritable => Pack::new().u64(3).bytes(),
-            content::Wrote::Preview(pixels, (w, h), grew) => {
-                Pack::new().u64(1).u64(u64::from(w)).u64(u64::from(h)).u64(u64::from(grew)).blob(&pixels).bytes()
-            }
-        })
+        let checked = changed.iter().try_for_each(|&page| page_box(self.mupdf.bounds(&doc.open, page)?));
+        let Err(error) = checked else {
+            return Ok(mark);
+        };
+        log::warn!("pdf-worker: an edit left {error}; undone");
+        self.mupdf.undo(&doc.open, false)?;
+        // No edit made it, so redo never reaches it.
+        doc.steps[doc.at - 1] = None;
+        doc.sync(&self.mupdf, None)?;
+        Err(error)
     }
 
     fn edit(&mut self, kind: u8, ask: &mut Unpack) -> io::Result<Vec<u8>> {
@@ -188,18 +178,18 @@ impl Worker {
                 for side in &mut margins {
                     *side = f32::from_bits(ask.u64()? as u32);
                 }
-                self.edited(id, |mupdf, doc| mupdf.crop_pages(doc, &pages, margins))?
+                self.resized(id, |mupdf, doc| mupdf.crop_pages(doc, &pages, margins).map(|()| pages))?
             }
             tag::BLANK => {
                 let at = ask.u64()? as usize;
                 let size = (f32::from_bits(ask.u64()? as u32), f32::from_bits(ask.u64()? as u32));
-                self.edited(id, |mupdf, doc| mupdf.insert_blank(doc, at, size))?
+                self.resized(id, |mupdf, doc| mupdf.insert_blank(doc, at, size).map(|()| vec![at]))?
             }
             tag::INSERT => {
                 let (at, path, mut count) = (ask.u64()? as usize, ask.str()?, 0);
-                let mark = self.edited(id, |mupdf, doc| {
+                let mark = self.resized(id, |mupdf, doc| {
                     count = mupdf.insert_file(doc, at, &path)?;
-                    Ok(())
+                    Ok((at..at + count).collect())
                 })?;
                 return Ok(Pack::new().u64(count as u64).str(&mark).bytes());
             }

@@ -226,6 +226,31 @@ fn crop_margins_are_points_whatever_the_user_unit() {
     assert_eq!(worker.bounds(doc, 0, 1).expect("bounds"), [[0.0, 0.0, 1224.0, 1512.0]]);
 }
 
+#[test]
+fn an_edit_leaving_a_page_too_small_is_undone_and_never_redone() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = worker();
+    let half = Extras { unit: Some(0.5), ..Extras::default() };
+    let doc = open(&mut worker, dir.path(), "half.pdf", &pdf_with(&[(612.0, 792.0, &["x"])], &[], &half));
+    let (mark, page) = (worker.history(doc).expect("a mark"), [[0.0, 0.0, 306.0, 396.0]]);
+    // 1.4 units pass MuPDF; 0.7 points is no page.
+    let said = worker.crop_pages(doc, &[0], [0.0, 305.3, 0.0, 0.0]).expect_err("refused");
+    assert!(said.to_string().contains("outside the page sizes"), "{said}");
+    let thin = dir.path().join("thin.pdf");
+    std::fs::write(&thin, pdf_with(&[(1.5, 792.0, &["y"])], &[], &half)).expect("writes");
+    assert!(worker.insert_file(doc, 1, &thin).is_err(), "a page 0.75 points wide");
+    assert_eq!(worker.history(doc).expect("a mark"), mark, "nothing changed");
+    assert_eq!(worker.bounds(doc, 0, 1).expect("bounds"), page);
+    assert!(worker.undo(doc, true).is_err(), "nothing to redo");
+    // The old handle still edits, saves and reopens.
+    worker.rotate_pages(doc, &[0], 90).expect("turns");
+    let doc = worker.now(doc).expect("the state");
+    let saved = dir.path().join("saved.pdf");
+    worker.save(doc, &saved).expect("saves");
+    let again = open(&mut worker, dir.path(), "again.pdf", &std::fs::read(&saved).expect("reads"));
+    assert_eq!(worker.bounds(again, 0, 1).expect("bounds"), [[0.0, 0.0, 396.0, 306.0]]);
+}
+
 /// Runs `step` on its own thread, ten seconds at most.
 fn bounded<T: Send + 'static>(step: impl FnOnce() -> T + Send + 'static) -> T {
     let (done, answer) = std::sync::mpsc::channel();
