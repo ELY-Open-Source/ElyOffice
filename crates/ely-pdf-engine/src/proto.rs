@@ -123,6 +123,28 @@ pub struct Char {
     pub rect: [f32; 4],
 }
 
+/// Parses a BOUNDS reply: `count` page boxes, each with area.
+pub fn boxes(bytes: &[u8], count: usize) -> io::Result<Vec<[f32; 4]>> {
+    let mut reply = ely_ipc::Unpack::new(bytes);
+    let mut boxes = Vec::with_capacity(count);
+    for _ in 0..count {
+        let mut one = [0f32; 4];
+        for value in &mut one {
+            *value = f32::from_bits(reply.u64()? as u32);
+        }
+        let [x0, y0, x1, y1] = one;
+        // Layout divides by these.
+        if !one.iter().all(|value| value.is_finite()) || x1 <= x0 || y1 <= y0 {
+            return Err(io::Error::other(format!("a page box {one:?} without finite area")));
+        }
+        boxes.push(one);
+    }
+    match reply.rest().is_empty() {
+        true => Ok(boxes),
+        false => Err(io::Error::other("a bounds reply too long")),
+    }
+}
+
 /// Bytes a character takes in a TEXT reply.
 pub const CHAR_BYTES: usize = 24;
 
@@ -209,3 +231,23 @@ pub fn outline(json: &str) -> io::Result<Vec<Bookmark>> {
 pub const ANY: u64 = u64::MAX;
 /// How a refusal for a changed document begins.
 pub const STALE: &str = "stale: ";
+
+#[cfg(test)]
+mod tests {
+    fn reply(boxes: &[[f32; 4]]) -> Vec<u8> {
+        let pack = boxes.iter().flatten().fold(ely_ipc::Pack::new(), |pack, value| pack.u64(u64::from(value.to_bits())));
+        pack.bytes()
+    }
+
+    #[test]
+    fn page_boxes_need_a_finite_area() {
+        let letter = [0.0, 0.0, 612.0, 792.0];
+        assert_eq!(super::boxes(&reply(&[letter]), 1).expect("a page"), [letter]);
+        let wide = [0.0, 0.0, f32::INFINITY, 792.0];
+        let unread = [0.0, 0.0, f32::NAN, 792.0];
+        for bad in [wide, unread, [0.0, 0.0, 0.0, 792.0], [0.0, 10.0, 612.0, 10.0]] {
+            let said = super::boxes(&reply(&[letter, bad]), 2).expect_err("refused");
+            assert!(said.to_string().contains("without finite area"), "{said}");
+        }
+    }
+}

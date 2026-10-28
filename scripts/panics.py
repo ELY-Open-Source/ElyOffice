@@ -14,7 +14,7 @@ ARGS = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 ROOT = Path(ARGS[0]).resolve() if ARGS else Path(__file__).resolve().parent.parent
 LIST = ROOT / "scripts" / "panics.tsv"
 LINTS = ("expect_used", "unwrap_used", "panic", "unreachable")
-# clippy's own lints skip a local macro's body; these two follow it.
+# Macro bodies escape clippy's lints; these two reach them.
 INSIDE = ("disallowed_macros", "disallowed_methods")
 BANNED = """disallowed-macros = ["core::panic", "std::panic", "core::unreachable", "std::unreachable"]
 disallowed-methods = ["core::option::Option::expect", "core::result::Result::expect",
@@ -83,7 +83,8 @@ def read(output):
         if note.get("reason") != "compiler-message":
             continue
         code = ((note["message"].get("code") or {}).get("code") or "").removeprefix("clippy::")
-        if code not in LINTS + INSIDE:
+        # Build scripts run at build time.
+        if code not in LINTS + INSIDE or "custom-build" in note["target"]["kind"]:
             continue
         span = next(s for s in note["message"]["spans"] if s["is_primary"])
         file = local(span["file_name"])
@@ -97,7 +98,7 @@ def read(output):
         found[(*at, kind)] = expression(span)
     taken = set()
     for at, kind, _ in spans:
-        # A call's own hit: the last in place inside it, not in a smaller call of its kind.
+        # A call's own hit: the innermost of its kind within it.
         own = [
             hit for hit, (where, theirs, span) in enumerate(inside)
             if hit not in taken and theirs == kind and span.get("expansion") is None
@@ -124,11 +125,7 @@ def local(name):
         relative = path.resolve().relative_to(ROOT)
     except ValueError:
         return None
-    file = relative.as_posix()
-    # Build scripts and what they include run at build time.
-    if file.endswith("build.rs") or file.startswith("packaging/"):
-        return None
-    return file if (ROOT / relative).is_file() else None
+    return relative.as_posix() if (ROOT / relative).is_file() else None
 
 
 def rows(text):

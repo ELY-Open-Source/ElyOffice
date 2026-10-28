@@ -226,20 +226,7 @@ impl Worker {
             .u64(first as u64)
             .u64(count as u64)
             .bytes();
-        let reply = self.request(tag::BOUNDS, &ask)?;
-        let mut reply = Unpack::new(&reply);
-        let mut boxes = Vec::with_capacity(count);
-        for _ in 0..count {
-            let mut one = [0f32; 4];
-            for value in &mut one {
-                *value = f32::from_bits(reply.u64()? as u32);
-            }
-            boxes.push(one);
-        }
-        match reply.rest().is_empty() {
-            true => Ok(boxes),
-            false => Err(io::Error::other("a bounds reply too long")),
-        }
+        proto::boxes(&self.request(tag::BOUNDS, &ask)?, count)
     }
 
     /// A page's device pixels `tile` (x, y, w, h), BGRA.

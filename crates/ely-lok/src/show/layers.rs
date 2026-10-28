@@ -43,8 +43,8 @@ enum Sent {
 
 /// Pixels that fill `width` by `height`, four bytes each.
 pub(crate) fn sized(pixels: &[u8], (width, height): (u32, u32)) -> io::Result<()> {
-    let asked = u64::from(width) * u64::from(height) * 4;
-    if pixels.len() as u64 != asked {
+    let asked = (width as usize).checked_mul(height as usize).and_then(|area| area.checked_mul(4));
+    if asked != Some(pixels.len()) {
         return Err(io::Error::other(format!("{} bytes for {width}x{height}", pixels.len())));
     }
     Ok(())
@@ -123,15 +123,19 @@ pub fn layers(payload: &[u8]) -> io::Result<Layers> {
 mod tests {
     use crate::ipc::Pack;
 
-    fn reply(pixels: &[u8]) -> Vec<u8> {
+    fn reply((width, height): (u64, u64), pixels: &[u8]) -> Vec<u8> {
         let layer = r#"{"type":"bitmap"}"#;
-        Pack::new().u64(2).u64(1).u64(1).str(layer).u64(1).blob(pixels).bytes()
+        Pack::new().u64(width).u64(height).u64(1).str(layer).u64(1).blob(pixels).bytes()
     }
 
     #[test]
     fn a_layer_of_another_size_is_refused() {
-        assert_eq!(super::layers(&reply(&[0; 8])).expect("fits").list.len(), 1);
-        let said = super::layers(&reply(&[0; 4])).err().expect("refused");
+        assert_eq!(super::layers(&reply((2, 1), &[0; 8])).expect("fits").list.len(), 1);
+        let said = super::layers(&reply((2, 1), &[0; 4])).err().expect("refused");
         assert!(said.to_string().contains("4 bytes for 2x1"), "{said}");
+        // Too large to hold: refused, never wrapped to zero.
+        let huge = 1 << 31;
+        let said = super::layers(&reply((huge, huge), &[])).err().expect("refused");
+        assert!(said.to_string().contains("0 bytes for 2147483648x2147483648"), "{said}");
     }
 }

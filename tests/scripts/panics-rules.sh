@@ -32,6 +32,12 @@ code ""
 list "$row"
 commit "one site"
 run || fail "the listed site failed: $said"
+# A runtime module named like a build script counts.
+printf 'pub fn b(x: Option<u8>) -> u8 {\n    x.expect("runtime")\n}\n' >"$work/src/build.rs"
+code 'pub mod build;'
+! run || fail "an unlisted expect in src/build.rs passed"
+case $said in *"new: src/build.rs: expect_used"*) ;; *) fail "src/build.rs was not named: $said" ;; esac
+rm "$work/src/build.rs"
 # A new site, not listed.
 code 'pub fn taken(x: Option<u8>) -> u8 { x.unwrap() }'
 ! run || fail "an unlisted unwrap passed"
@@ -40,7 +46,7 @@ case $said in *"new: src/lib.rs: unwrap_used x.unwrap()"*) ;; *) fail "the new s
 list "$row" $'src/lib.rs\tunwrap_used\tx.unwrap()\tlinux,macos,windows\ttaken'
 ! run || fail "a rise over HEAD passed"
 case $said in *"rise: unwrap_used 0 at HEAD, 1 now"*) ;; *) fail "the rise was not named: $said" ;; esac
-# A listed site that is gone fails; so does a row with no reason.
+# Gone sites and rows without a reason fail.
 code ""
 list "$row" $'src/lib.rs\texpect_used\tgone.expect("gone")\tlinux,macos,windows\tgone'
 ! run || fail "a gone site passed"
