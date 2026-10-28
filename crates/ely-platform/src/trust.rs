@@ -124,7 +124,9 @@ mod tests {
             ext.set_criticality(true);
             let middle = made("Ely test middle", NOW, ca(), Some(&root), vec![ext]);
             let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
-            assert!(untrusted(&[signer.der, middle.der], &root), "{oid:?}");
+            // macOS refuses to read the broken one at all.
+            let checked = check(&[signer.der, middle.der], Some(std::slice::from_ref(&root.der)));
+            assert!(!matches!(checked, Ok(Trust::Trusted)), "{oid:?}: {checked:?}");
         }
     }
 
