@@ -1,0 +1,125 @@
+# cargo-deny: licences, advisories, duplicates, sources.
+
+[graph]
+all-features = true
+
+[advisories]
+unmaintained = "workspace"
+unsound = "all"
+yanked = "deny"
+ignore = []
+
+[licenses]
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.93
+
+# Mozilla's root store data; the text ships in each crate.
+[[licenses.exceptions]]
+crate = "webpki-roots"
+allow = ["CDLA-Permissive-2.0"]
+
+[[licenses.exceptions]]
+crate = "webpki-root-certs"
+allow = ["CDLA-Permissive-2.0"]
+
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "deny"
+# Groups at R14.35, all two upstream majors; none may join.
+# ely-files 0.1.1 is the component library's own crate.
+skip = [
+    "aes",
+    "base64",
+    "bitflags",
+    "bit-set",
+    "bit-vec",
+    "block-buffer",
+    "block-padding",
+    "cbc",
+    "cipher",
+    "convert_case",
+    "core-foundation",
+    "cpufeatures",
+    "crypto-common",
+    "digest",
+    "dirs",
+    "dirs-sys",
+    "ely-files",
+    "foldhash",
+    "font-types",
+    "getrandom",
+    "hashbrown",
+    "heck",
+    "inout",
+    "jni",
+    "jni-sys",
+    "md-5",
+    "miniz_oxide",
+    "nom",
+    "objc2",
+    "objc2-app-kit",
+    "objc2-foundation",
+    "object",
+    "phf",
+    "phf_generator",
+    "phf_macros",
+    "phf_shared",
+    "png",
+    "pollster",
+    "quick-error",
+    "rand",
+    "rand_core",
+    "read-fonts",
+    "redox_users",
+    "r-efi",
+    "roxmltree",
+    "rustc-hash",
+    "security-framework",
+    "serde_spanned",
+    "sha2",
+    "skrifa",
+    "spin",
+    "syn",
+    "synstructure",
+    "thiserror",
+    "thiserror-impl",
+    "toml",
+    "toml_datetime",
+    "toml_edit",
+    "weezl",
+    "windows_aarch64_gnullvm",
+    "windows_aarch64_msvc",
+    "windows_i686_gnu",
+    "windows_i686_gnullvm",
+    "windows_i686_msvc",
+    "windows_x86_64_gnu",
+    "windows_x86_64_gnullvm",
+    "windows_x86_64_msvc",
+    "windows-sys",
+    "windows-targets",
+    "winnow",
+]
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-git = ["https://github.com/ELY-Open-Source/Ely-GPUI-Components"]

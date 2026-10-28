@@ -440,7 +440,7 @@
 - [x] R14.32 ElyMark 不带 LOK 与 MuPDF 也能编译（E-01，§17） — MuPDF worker 移成独立包 `crates/ely-pdf-worker`（shim、字体、链 MuPDF 的 build.rs 与驱动 worker 的测试随之）；`ely-pdf-engine` 只余协议与客户端，build.rs 只算 worker 与客户端共用的版本戳，不编 C；`tests/scripts/mark-build.sh` 由 `git archive HEAD`（无 engines、无 reference）构建 ElyMark，三端皆过，上一提交在 Linux 上照 E-01 在 `build.rs:68` 失败。LOK 一半属实不成立：ely-lok 无构建脚本，发行版 ElyMark 不含其代码，不拆 ely-office。第 1 轮：worker 的 build.rs 记下垫片目录，改垫片即重编原生库（`worker-rebuild.sh`）。第 2 轮：两条注释改短
 - [x] R14.33 行尾：`.gitattributes` 定 LF，入库文件统一（B-08，§17） — `* text=auto eol=lf`，`vendor/** -text`；重新归一后索引的 CRLF 只余 vendor 的上游邮件样本；ElyMail 一处测试信头改为显式 `\r\n`；`tests/scripts/eol.sh` 查索引与新文件属性，对上一提交败。第 1 轮：路径以 `-z` 与制表符整取（带空格的路径），`eol-rules.sh` 测之。第 2 轮：`ls-files` 失败即停（先写临时文件），替身 git 测之
 - [~] R14.34 规则检查 `scripts/check.sh`：行数、注释、行尾；超 500 行的五个文件拆开（B-09，§17） — `scripts/check.sh` 查代码文件行数、注释、行尾，全部报出；`output.rs` 拆出 `protect.rs`，`liquid.js` 拆出 `shaders.js`（逐像素同），`score.py` 拆出 `grid.py`、`master.py`（样本同）；`comments.py` 只查入库文件、Python 以 tokenize 取注释，改短 42 处；`check-rules.sh` 测之。第 1 轮：注释检查覆盖 JS、HTML、Python 行尾注释与各级文档字符串（改短 242 组，输出逐像素、逐样本不变），行数改由 awk 计末行无 LF。第 2 轮：JS、TS、TSX 与 HTML 脚本的注释交 TypeScript 解析器（`comments.mjs`），HTML 按标签走读，独占一行看两侧。第 3 轮（末轮 FAIL，已修并测）：textarea、title 等的文字不是注释，结束标签按完整名
-- [ ] R14.35 依赖：cargo-deny 查许可与安全公告（E-04，§17、§21）
+- [ ] R14.35 依赖：cargo-deny 查许可与安全公告（E-04，§17、§21） — `deny.toml`：公告、yanked、许可白名单、来源；查出 9 条公告（rustls 四条等）与 3 个 yanked，semver 内升级修掉；根证书数据的 CDLA-Permissive-2.0 只对两个 crate 放行；重复 70 组皆上游大版本，无可对齐，以今日的组为 skip、新增即败
 - [ ] R14.36 往返验证在 Windows、Linux 运行，兼容清单分平台写明（C-05，§19）；与 Microsoft Office 交叉核对需要 Office，本机没有（D-01）
 - [ ] R14.37 XLSX 里不支持的函数，保存后缓存值不丢（D-02，§19）
 - [ ] R14.38 运行时可达的 panic（G-01，§20）
