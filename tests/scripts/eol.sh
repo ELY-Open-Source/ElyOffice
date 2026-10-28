@@ -2,11 +2,19 @@
 # Every tracked text file is LF; vendor keeps upstream bytes.
 set -euo pipefail
 
-root=$(cd "$(dirname "$0")/../.." && pwd)
-bad=$(git -C "$root" ls-files --eol | awk '($1 == "i/crlf" || $1 == "i/mixed") && $NF !~ /^vendor\// {print $NF}')
+root=${1:-$(cd "$(dirname "$0")/../.." && pwd)}
+bad=
+# Records end in NUL; the path follows the first tab.
+while IFS= read -r -d '' record; do
+  info=${record%%$'\t'*}
+  path=${record#*$'\t'}
+  case ${info%% *} in
+    i/crlf | i/mixed) [[ $path == vendor/* ]] || bad+="$path"$'\n' ;;
+  esac
+done < <(git -C "$root" ls-files --eol -z)
 if [ -n "$bad" ]; then
   echo "FAIL: CRLF in the index:"
-  echo "$bad"
+  printf '%s' "$bad"
   exit 1
 fi
 probe=$(git -C "$root" check-attr text eol -- probe.rs | tr '\n' ' ')

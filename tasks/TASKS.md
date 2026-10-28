@@ -438,7 +438,7 @@
 - [x] R14.30 ElyMark 命令行（§14、§16）：`ely-mark text docs|get|replace|save` — `get` 读此刻原文（含未写回的键入），`replace` 精确全部替换、一步撤销，预览拒绝；`docs`、`save` 用 `ely_office::remote`；单测与 `tests/scripts/mark-cli.sh` 三端过。第 1 轮：`get` 按字节原样输出（不补换行）；文件被删后标签仍按自己的路径可读可改，保存拒绝并说明须另存；第 2 轮通过
 - [x] R14.31 ElyMark 打开 1 MB 文档的内存（H-02，§14、§20） — 1,037 MB 是 CEF 时的数；同机同样本 30 次：P95 286 ms、125 MB（验收 ≤1,200 ms、≤400 MB）；`bench.py` 给 PERF-07 加 400 MB 预算并逐条标出。第 1 轮：Windows 两项内存同一时点重测、预算判定加测试
 - [x] R14.32 ElyMark 不带 LOK 与 MuPDF 也能编译（E-01，§17） — MuPDF worker 移成独立包 `crates/ely-pdf-worker`（shim、字体、链 MuPDF 的 build.rs 与驱动 worker 的测试随之）；`ely-pdf-engine` 只余协议与客户端，build.rs 只算 worker 与客户端共用的版本戳，不编 C；`tests/scripts/mark-build.sh` 由 `git archive HEAD`（无 engines、无 reference）构建 ElyMark，三端皆过，上一提交在 Linux 上照 E-01 在 `build.rs:68` 失败。LOK 一半属实不成立：ely-lok 无构建脚本，发行版 ElyMark 不含其代码，不拆 ely-office。第 1 轮：worker 的 build.rs 记下垫片目录，改垫片即重编原生库（`worker-rebuild.sh`）。第 2 轮：两条注释改短
-- [ ] R14.33 行尾：`.gitattributes` 定 LF，入库文件统一（B-08，§17） — `* text=auto eol=lf`，`vendor/** -text`；重新归一后索引的 CRLF 只余 vendor 的上游邮件样本；ElyMail 一处测试信头改为显式 `\r\n`；`tests/scripts/eol.sh` 查索引与新文件属性，对上一提交败
+- [ ] R14.33 行尾：`.gitattributes` 定 LF，入库文件统一（B-08，§17） — `* text=auto eol=lf`，`vendor/** -text`；重新归一后索引的 CRLF 只余 vendor 的上游邮件样本；ElyMail 一处测试信头改为显式 `\r\n`；`tests/scripts/eol.sh` 查索引与新文件属性，对上一提交败。第 1 轮：路径以 `-z` 与制表符整取（带空格的路径），`eol-rules.sh` 测之
 - [ ] R14.34 规则检查 `scripts/check.sh`：行数、注释、行尾；超 500 行的五个文件拆开（B-09，§17）
 - [ ] R14.35 依赖：cargo-deny 查许可与安全公告（E-04，§17、§21）
 - [ ] R14.36 往返验证在 Windows、Linux 运行，兼容清单分平台写明（C-05，§19）；与 Microsoft Office 交叉核对需要 Office，本机没有（D-01）
