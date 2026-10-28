@@ -157,6 +157,39 @@ fn a_stopped_fetch_ends_quietly() {
     );
 }
 
+#[cfg(not(unix))]
+#[test]
+fn a_stop_that_fails_names_git_not_the_clone() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let root = committed(dir.path());
+    let silent = std::net::TcpListener::bind("127.0.0.1:0").expect("a port");
+    let url = format!("git://{}/nothing", silent.local_addr().expect("an address"));
+    sh(&root, &["remote", "add", "origin", &url]);
+    let mut cx = TestAppContext::single();
+    let (tree, cx) = window(&mut cx, dir.path());
+    // The window's toasts live on its root.
+    let shell = cx.update(|window, app| {
+        let shell =
+            ely_ui::tool_root(ely_platform::AppId::Tree, tree.clone().into(), Vec::new(), window, app);
+        tree.update(app, |tree, _| tree.root = shell.downgrade());
+        shell
+    });
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.open_path(root.clone(), cx)));
+    settle(cx, |app| branch(tree.read(app)).is_some());
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.fetch_one("origin", cx)));
+    settle(cx, |app| running(&tree, app));
+    let held = silent.accept().expect("Git connects");
+    let id = cx.update(|_, app| tree.read(app).active.expect("open"));
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.stop_remote(id, cx)));
+    let error = "stopping Git is not built on this platform";
+    let want =
+        cx.update(|_, app| ely_ui::i18n::text(app, "tree.error.stop_remote", &[("error", error)]));
+    let toasts = cx.update(|_, app| shell.read(app).toasts(app));
+    assert!(toasts.iter().any(|(text, _)| *text == want), "{toasts:?}");
+    drop(held);
+    settle(cx, |app| !running(&tree, app));
+}
+
 #[test]
 fn a_push_with_no_upstream_asks_where_then_tracks_it() {
     let dir = tempfile::tempdir().expect("a temp dir");
