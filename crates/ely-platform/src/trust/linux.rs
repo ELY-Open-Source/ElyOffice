@@ -4,7 +4,9 @@ use std::io;
 
 use rustls_pki_types::{CertificateDer, UnixTime};
 use webpki::{ALL_VERIFICATION_ALGS, EndEntityCert, ExtendedKeyUsageValidator, KeyPurposeIdIter, anchor_from_trusted_cert};
-use x509_parser::prelude::{ParsedExtension, X509Certificate, X509Extension, parse_x509_certificate};
+use x509_parser::prelude::{
+    AttributeTypeAndValue, ParsedExtension, X509Certificate, X509Extension, X509Name, parse_x509_certificate,
+};
 
 use super::Trust;
 
@@ -99,17 +101,42 @@ fn reaches(
     }
     let mut why = format!("no trusted issuer for {name}");
     for issuer in anchors.iter().chain(pool) {
-        if issuer.subject().as_raw() != cert.issuer().as_raw() || issuer.as_raw() == cert.as_raw() {
+        if !same_name(issuer.subject(), cert.issuer()) || issuer.as_raw() == cert.as_raw() {
             continue;
         }
         // Self-issued CAs do not count (RFC 5280, 4.2.1.9).
-        let counted = below + u32::from(issuer.subject().as_raw() != issuer.issuer().as_raw());
+        let counted = below + u32::from(!same_name(issuer.subject(), issuer.issuer()));
         match issues(issuer, cert, below).and_then(|()| reaches(issuer, pool, anchors, counted, depth + 1)) {
             Ok(()) => return Ok(()),
             Err(error) => why = error,
         }
     }
     Err(why)
+}
+
+/// An attribute's type and folded value.
+type Attr = (String, Result<String, Vec<u8>>);
+
+/// Names equal by RFC 5280, 7.1: case and spacing aside.
+fn same_name(a: &X509Name, b: &X509Name) -> bool {
+    let rdns = |name: &X509Name| -> Vec<Vec<Attr>> {
+        name.iter()
+            .map(|rdn| {
+                let mut attrs: Vec<_> = rdn.iter().map(|attr| (attr.attr_type().to_id_string(), folded(attr))).collect();
+                attrs.sort();
+                attrs
+            })
+            .collect()
+    };
+    a.as_raw() == b.as_raw() || rdns(a) == rdns(b)
+}
+
+/// A string value folded; any other value as bytes.
+fn folded(attr: &AttributeTypeAndValue) -> Result<String, Vec<u8>> {
+    match attr.as_str() {
+        Ok(text) => Ok(text.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()),
+        Err(_) => Err(attr.as_slice().to_vec()),
+    }
 }
 
 /// Refuses an unreadable extension, or a critical one left unchecked.

@@ -57,7 +57,7 @@ mod tests {
         key: rcgen::KeyPair,
     }
 
-    fn made(name: &str, (from, to): (i32, i32), ca: rcgen::IsCa, by: Option<&Made>, extra: Vec<rcgen::CustomExtension>) -> Made {
+    fn made(name: impl Into<rcgen::DnValue>, (from, to): (i32, i32), ca: rcgen::IsCa, by: Option<&Made>, extra: Vec<rcgen::CustomExtension>) -> Made {
         use rcgen::{CertificateParams, DnType, Issuer, KeyPair, date_time_ymd};
         let mut params = CertificateParams::new(Vec::<String>::new()).expect("params");
         params.distinguished_name.push(DnType::CommonName, name);
@@ -136,6 +136,17 @@ mod tests {
             let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
             assert_eq!(!untrusted(&[signer.der, middle.der], &root), trusted, "{name}");
         }
+    }
+
+    /// Windows compares names byte for byte; RFC 5280 does not.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_rollover_ca_keeps_its_name_in_another_encoding() {
+        let root = made("Ely test root", NOW, rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0)), None, vec![]);
+        let printable = rcgen::string::PrintableString::try_from("Ely test root").expect("printable");
+        let middle = made(rcgen::DnValue::PrintableString(printable), NOW, ca(), Some(&root), vec![]);
+        let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
+        assert!(!untrusted(&[signer.der, middle.der], &root));
     }
 }
 
