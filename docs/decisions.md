@@ -266,3 +266,10 @@
 beta`；`<u>alpha</u>` 与 `beta` 选 `pha</u>
 
 beta` 后 Ctrl+U，存盘得两段各一层下划线（`.work/R14.29/window3.ps1`）。另：组件库 CI 的 cargo-deny 因新公告 RUSTSEC-2026-0414（pulldown-cmark 0.13.4，开 `ENABLE_WIKILINKS` 时事件指数增长）失败；组件库与 Ely 都不开该选项，未受影响；两处锁文件都升到 0.13.5，组件库 `cargo deny check` 通过。组件库 1bbd868 的 CI 中三端 gate、api、semver 皆过，只 deny 因此失败。
+- 2026-10-28（R14.29 第 3 轮，末轮）：审查一处，属实（组件库 0f461ac、392a037，pin da28586 → 392a037）。`follow` 把指针下的列表项截到最后一个已有块，而新末段在全部块之后：在“添加块”上按住再原地松开、或在新末段里点击，松开时的 `follow` 当成向上拖入上一段，合并后段间换行与选中的字被键入盖掉（`alpha` 加 `beta` 存成 `alphabeta`）。改为：指针在块之后时，开着的是新末段即留其索引，否则才截到最后一块。测试 `clicks_in_a_new_end_select_nothing_above`：按下、画一帧、松开的完整点击开出新末段，键入得 `alpha
+
+beta`；再在新末段 `be` 后点击键入 X 得 `alpha
+
+beXta`；换回旧的截法即失败。真窗口（Windows）：在“添加块”上按住 200 毫秒原地松开，键入 `beta` 存盘得 `alpha
+
+beta`（`.work/R14.29/window4.ps1`）。组件库 ely-documents 507、ely-core 571 过，clippy、fmt、panics 清单过；ElyMark 175、ElyMail 145 过。三轮用尽，记 `[~]`。
