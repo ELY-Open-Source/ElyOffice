@@ -55,6 +55,22 @@ pub(crate) fn sh(dir: &Path, args: &[&str]) -> String {
     String::from_utf8(git().run(dir, &all).expect("git runs")).expect("utf-8")
 }
 
+/// Git's connection; a Git that never starts fails.
+pub(crate) fn connected(silent: &std::net::TcpListener) -> std::net::TcpStream {
+    silent.set_nonblocking(true).expect("nonblocking");
+    let start = std::time::Instant::now();
+    loop {
+        match silent.accept() {
+            Ok((stream, _)) => return stream,
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                assert!(start.elapsed() < std::time::Duration::from_secs(30), "Git never connected");
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Err(error) => panic!("accept: {error}"),
+        }
+    }
+}
+
 /// A repository with one commit of `a.txt`.
 pub(crate) fn committed(dir: &Path) -> PathBuf {
     let root = dir.join("work");
@@ -281,7 +297,7 @@ fn a_stopped_clone_ends_and_leaves_nothing() {
             let _ = said.send(line.to_string());
         })
     });
-    let _held = silent.accept().expect("Git connects");
+    let _held = connected(&silent);
     let first = heard
         .recv_timeout(std::time::Duration::from_secs(5))
         .expect("a line while waiting");

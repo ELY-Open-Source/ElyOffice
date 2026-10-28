@@ -4,7 +4,7 @@ use ely_gpui_component::git::StashAction;
 use gpui::{App, Entity, TestAppContext};
 
 use super::{
-    committed,
+    committed, connected,
     places::me,
     sh,
     window::{branch, settle, settle_within, window},
@@ -171,22 +171,6 @@ fn a_stopped_clone_leaves_no_folder() {
     settle_within(cx, GRACE, |app| tree.read(app).cloning.is_none());
     assert!(!into.exists(), "Git removed the clone it began");
     assert!(cx.update(|_, app| tree.read(app).ask.is_none()), "a stop is no failure");
-}
-
-/// Git's connection; a Git that never starts fails.
-fn connected(silent: &std::net::TcpListener) -> std::net::TcpStream {
-    silent.set_nonblocking(true).expect("nonblocking");
-    let start = std::time::Instant::now();
-    loop {
-        match silent.accept() {
-            Ok((stream, _)) => return stream,
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                assert!(start.elapsed() < GRACE, "Git never connected");
-                std::thread::sleep(std::time::Duration::from_millis(20));
-            }
-            Err(error) => panic!("accept: {error}"),
-        }
-    }
 }
 
 /// Windows may end a hung Git only after 10 s.
