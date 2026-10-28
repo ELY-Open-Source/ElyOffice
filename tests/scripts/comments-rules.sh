@@ -72,7 +72,34 @@ printf "<p>It's fine.</p>\n<script>\n// %s\n</script>\n" "$long" >"$work/site/vi
 ! check || fail "an eleven-word comment in an HTML script passed"
 printf "<p>It's fine.</p>\n<style>\n/* Short. */\n</style>\n" >"$work/site/video/a.html"
 check || fail "a short HTML style comment failed"
-rm "$work/site/video/a.html" "$work/site/video/lib/a.js"
+rm "$work/site/video/a.html"
+cat >"$work/site/video/a.html" <<'EOF'
+<script>const markup = "<!-- One two three four five six seven eight nine ten eleven. -->";</script>
+<style>a::after { content: "<!-- One two three four five six seven eight nine ten eleven. -->"; }</style>
+<p title="<!-- One two three four five six seven eight nine ten eleven. -->">Hi</p>
+EOF
+check || fail "a comment inside an HTML script, style or attribute string was read"
+rm "$work/site/video/a.html"
+printf '/* first */ const a = 1;\n/* second */ const b = 2;\n' >"$work/site/video/lib/a.js"
+check || fail "leading .js comments on two code lines were joined"
+printf '/* a */ a { color: red; }\n/* b */ b { color: blue; }\n' >"$work/site/video/lib/a.css"
+check || fail "leading .css comments on two rules were joined"
+rm "$work/site/video/lib/a.css"
+cat >"$work/site/video/lib/a.js" <<'EOF'
+const quote = /['"]/g;
+// One two three four five six seven eight nine ten eleven.
+EOF
+! check || fail "an eleven-word .js comment after a regex passed"
+rm "$work/site/video/lib/a.js"
+cat >"$work/site/video/lib/a.tsx" <<'EOF'
+const view = <div>It's fine.{/* One two three four five six seven eight nine ten eleven. */}</div>;
+EOF
+! check || fail "an eleven-word comment in a JSX expression passed"
+cat >"$work/site/video/lib/a.tsx" <<'EOF'
+const view = <div>// One two three four five six seven eight nine ten eleven.</div>;
+EOF
+check || fail "JSX text that looks like a comment was read"
+rm "$work/site/video/lib/a.tsx"
 check || fail "a clean tree failed"
 printf '/* One two three four five six seven eight nine ten eleven. */\n' >"$work/site/src/scratch.ts"
 python3 "$root/tests/scripts/comments.py" "$work" >/dev/null 2>&1 || fail "an untracked file was checked"
