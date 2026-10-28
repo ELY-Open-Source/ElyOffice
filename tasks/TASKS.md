@@ -437,7 +437,7 @@
 - [~] R14.29 ElyMark 可视模式只能在一个段落里选取，跨段选取要切到源码模式（用户 2026-10-27 报，§14）：可视模式拖动与 Shift 加方向键跨段选取，复制、删除、格式随之。核实：组件库 `MarkdownDocument` 的可视模式一次只把一个块开成文本框（`document/visual.rs` 的 `open_text`），没有跨块的选区；组件库 `blocks::BlockEditor` 有跨块选区（`blocks/span.rs`），ElyMark 不用它。在组件库修，推上去再改 pin — 组件库 dfb1e67、1bbd868，pin 1bbd868：拖动与 Shift+上下越出所开的块，所跨的块合成一个原文文本框，选区跨过它们，复制、删除、键入随之，一步撤销；拖到视图外滚动；行内格式跨块逐段施加。窗口测试与真窗口（Windows）皆过。第 1 轮（4f84790）：跨段下划线整体取消、Shift 按显示行与 x 落点、按住在视图外持续滚动、跨块格式另成文件、注释缩短；第 2 轮（da28586）：新末段可跨段扩选、拖动的定时滚动随字段关闭、延迟放置让位于键入、从下划线里开始或结束的选区；pulldown-cmark 0.13.5（RUSTSEC-2026-0414）；第 3 轮（392a037）：新末段里的点击不再并入上一段，未经复审
 - [x] R14.30 ElyMark 命令行（§14、§16）：`ely-mark text docs|get|replace|save` — `get` 读此刻原文（含未写回的键入），`replace` 精确全部替换、一步撤销，预览拒绝；`docs`、`save` 用 `ely_office::remote`；单测与 `tests/scripts/mark-cli.sh` 三端过。第 1 轮：`get` 按字节原样输出（不补换行）；文件被删后标签仍按自己的路径可读可改，保存拒绝并说明须另存；第 2 轮通过
 - [x] R14.31 ElyMark 打开 1 MB 文档的内存（H-02，§14、§20） — 1,037 MB 是 CEF 时的数；同机同样本 30 次：P95 286 ms、125 MB（验收 ≤1,200 ms、≤400 MB）；`bench.py` 给 PERF-07 加 400 MB 预算并逐条标出。第 1 轮：Windows 两项内存同一时点重测、预算判定加测试
-- [ ] R14.32 ElyMark 不带 LOK 与 MuPDF 也能编译（E-01，§17）
+- [ ] R14.32 ElyMark 不带 LOK 与 MuPDF 也能编译（E-01，§17） — MuPDF worker 移成独立包 `crates/ely-pdf-worker`（shim、字体、链 MuPDF 的 build.rs 与驱动 worker 的测试随之）；`ely-pdf-engine` 只余协议与客户端，build.rs 只算 worker 与客户端共用的版本戳，不编 C；`tests/scripts/mark-build.sh` 由 `git archive HEAD`（无 engines、无 reference）构建 ElyMark，三端皆过，上一提交在 Linux 上照 E-01 在 `build.rs:68` 失败。LOK 一半属实不成立：ely-lok 无构建脚本，发行版 ElyMark 不含其代码，不拆 ely-office
 - [ ] R14.33 行尾：`.gitattributes` 定 LF，入库文件统一（B-08，§17）
 - [ ] R14.34 规则检查 `scripts/check.sh`：行数、注释、行尾；超 500 行的五个文件拆开（B-09，§17）
 - [ ] R14.35 依赖：cargo-deny 查许可与安全公告（E-04，§17、§21）
@@ -447,7 +447,7 @@
 - [ ] R14.39 性能：bench 在 Windows、Linux 运行，记下 0.1.12（H-01、H-03，§20）；120 Hz 实测需要高刷显示器，本机最高 75 Hz（H-04）
 - [ ] R14.40 缺引擎的测试：`ELY_REQUIRE_ENGINES=1` 即失败，CI 开启（B-03，§22）
 - [ ] R14.41 构建依赖写进 README，`doctor.sh` 逐项查（B-06，§22）
-- [ ] R14.42 Windows 与 Linux 全量测试通过（W-02、L-02，§22），含 BUGS 的 P3-21（Windows 下 `view::tests::large` 两个按 DPI 落错行）；另 ElyTable 的 `validation_aids_hide_outside_the_view_and_remain_in_frozen_rows` 在多个套件接连跑时失败一次（aids.rs:173，冻结行的提示数为 0），单跑与套件内并行六次皆过（R14.17 记）；R14.19 时在 HEAD 上全套并行亦接连失败两次，单跑皆过，与测试 worker 带不带 gpui 清单无关；另 ElyTree 的 `a_failing_hook_says_why` 在 Linux 全量里 19 次失败 1 次（R14.27 时见，单跑与改动前皆过，R14.27 第 2 轮取到：`history.rs:268` 的 Broken pipe，提交信息经 stdin 写给 Git（`git.rs:62`），钩子先拒、Git 先退，写入得 EPIPE，盖住了钩子的话；须修）；另 clippy 在 ElyMail `contacts.rs:175`、`files.rs:99` 与 ElyMark `desk.rs:380` 各有一处告警（R14.29 时见，换 pin 前即有）；ElyShow `deck.rs:59`、`output.rs:97`、`remote.rs:72`、`tests/turn.rs:29` 与 ely-lok 若干处（R14.30 时见，改动前即有）
+- [ ] R14.42 Windows 与 Linux 全量测试通过（W-02、L-02，§22），含 BUGS 的 P3-21（Windows 下 `view::tests::large` 两个按 DPI 落错行）；另 ElyTable 的 `validation_aids_hide_outside_the_view_and_remain_in_frozen_rows` 在多个套件接连跑时失败一次（aids.rs:173，冻结行的提示数为 0），单跑与套件内并行六次皆过（R14.17 记）；R14.19 时在 HEAD 上全套并行亦接连失败两次，单跑皆过，与测试 worker 带不带 gpui 清单无关；另 ElyTree 的 `a_failing_hook_says_why` 在 Linux 全量里 19 次失败 1 次（R14.27 时见，单跑与改动前皆过，R14.27 第 2 轮取到：`history.rs:268` 的 Broken pipe，提交信息经 stdin 写给 Git（`git.rs:62`），钩子先拒、Git 先退，写入得 EPIPE，盖住了钩子的话；须修）；另 clippy 在 ElyMail `contacts.rs:175`、`files.rs:99` 与 ElyMark `desk.rs:380` 各有一处告警（R14.29 时见，换 pin 前即有）；ElyShow `deck.rs:59`、`output.rs:97`、`remote.rs:72`、`tests/turn.rs:29` 与 ely-lok 若干处（R14.30 时见，改动前即有）；`ely-pdf-worker` 测试里 9 处 `chunks_exact`（R14.32 时见，代码搬家前即有）
 - [ ] R14.43 发布以测试为门（B-02，§22）；Linux 任务不等 Windows 任务（B-07）
 - [ ] R14.44 合并前 CI：`pr.yml`（B-01，§22）
 - [ ] R14.45 窗口测试含 ElyMail（D-04，§22）
