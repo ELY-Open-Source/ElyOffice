@@ -227,12 +227,13 @@ fn a_pick_in_one_repository_stays_there() {
         tree.update(app, |tree, cx| {
             tree.activate(Some(ids[0]), cx);
             tree.pick_place(crate::places::Place::Remote("origin".into()), cx);
+            tree.pick_ref(crate::branches::Kind::Tag, "v1".into(), cx);
             tree.activate(Some(ids[1]), cx);
         })
     });
     assert!(cx.update(|_, app| {
         tree.read(app)
             .active()
-            .is_some_and(|o| o.picked_place.is_none())
+            .is_some_and(|o| o.picked_place.is_none() && o.picked_ref.is_none())
     }));
 }
