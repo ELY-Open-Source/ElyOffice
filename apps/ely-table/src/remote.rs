@@ -16,7 +16,7 @@ ADDRESS names its sheet, as in Sheet1!A1. ElyTable must be running with FILE ope
 
 /// `ely-table cell ...` asks the running copy; its exit code.
 pub fn command_line() -> Option<i32> {
-    remote::command_line(AppId::Table, "cell", USAGE, request)
+    remote::command_line(AppId::Table, "cell", USAGE, request, &[])
 }
 
 /// The words sent; the file made absolute.

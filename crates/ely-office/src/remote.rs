@@ -1,6 +1,6 @@
 //! Other programs read and write open documents (GitHub #19).
 
-use std::path::Path;
+use std::{io::Write as _, path::Path};
 
 use ely_platform::instance;
 use ely_ui::Ask;
@@ -11,12 +11,13 @@ use crate::{Core, Engine, Host, Saving, Tabs, in_window};
 mod text;
 pub use text::{body_text, slide_text};
 
-/// `<app> <noun> ...` asks the running copy; its exit code.
+/// Asks the running copy; `exact` verbs print as is.
 pub fn command_line(
     app: ely_platform::AppId,
     noun: &str,
     usage: &str,
     request: fn(&[&str]) -> Result<Vec<String>, String>,
+    exact: &[&str],
 ) -> Option<i32> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     if args.first().is_none_or(|first| first != noun) {
@@ -31,12 +32,23 @@ pub fn command_line(
             return Some(2);
         }
     };
+    let content = request.first().is_some_and(|verb| exact.contains(&verb.as_str()));
     match instance::ask(app, &serde_json::Value::from(request).to_string()) {
         Ok(answer) => {
-            if !answer.is_empty() {
-                println!("{answer}");
+            let line = match content || answer.is_empty() {
+                true => answer,
+                false => format!("{answer}
+"),
+            };
+            // Exit runs no destructors: flush here.
+            let mut out = std::io::stdout();
+            match out.write_all(line.as_bytes()).and_then(|()| out.flush()) {
+                Ok(()) => Some(0),
+                Err(error) => {
+                    eprintln!("{}: the answer did not print: {error}", app.slug());
+                    Some(1)
+                }
             }
-            Some(0)
         }
         Err(error) => {
             eprintln!("{}: {error}", app.slug());
@@ -94,6 +106,12 @@ pub trait Remote: Saving {
             ask.answer(Err(format!("{} must be saved under another name in {}", words[1], Self::KIND.app.name())));
             return None;
         }
+        // The window saves a deleted file only as another.
+        let on_disk = self.tab(id).and_then(|tab| tab.session.path()).map(|path| Path::new(path).try_exists());
+        if let Some(Ok(false)) = on_disk {
+            ask.answer(Err(format!("{} is gone from disk; save it under another name in {}", words[1], Self::KIND.app.name())));
+            return None;
+        }
         cx.spawn(async move |this, cx| in_window(&this, cx, |host, window, cx| host.save_for(id, ask, window, cx)))
             .detach_and_log_err(cx);
         None
@@ -101,6 +119,11 @@ pub trait Remote: Saving {
 
     /// The tab showing `file`; only saved files are named.
     fn tab_of(&self, file: &str) -> Result<u64, String> {
+        // A tab whose file went keeps its own name.
+        let named = self.core().tabs.iter().find(|tab| tab.session.path().is_some_and(|path| Path::new(path) == Path::new(file)));
+        if let Some(tab) = named {
+            return Ok(tab.id);
+        }
         let wanted = std::fs::canonicalize(file).map_err(|error| format!("{file}: {error}"))?;
         // A tab whose file went cannot match.
         let shows = |path: &Path| std::fs::canonicalize(path).is_ok_and(|real| real == wanted);

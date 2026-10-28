@@ -11,13 +11,13 @@ const USAGE: &str = "usage: ely-mark text docs
        ely-mark text get FILE
        ely-mark text replace FILE FIND WITH
        ely-mark text save FILE
-get prints the Markdown as it stands, unsaved typing included.
+get prints the Markdown as it stands, byte for byte, unsaved typing included.
 replace changes every exact, case-matched FIND in the Markdown, as one undo step.
 ElyMark must be running with FILE open, not in preview.";
 
 /// `ely-mark text ...` asks the running copy; its exit code.
 pub fn command_line() -> Option<i32> {
-    remote::command_line(AppId::Mark, "text", USAGE, request)
+    remote::command_line(AppId::Mark, "text", USAGE, request, &["get"])
 }
 
 /// The words sent; the file made absolute.

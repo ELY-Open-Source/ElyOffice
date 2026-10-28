@@ -75,3 +75,25 @@ fn text_reads_typing_replaces_in_one_step_and_saves(cx: &mut TestAppContext) {
     assert!(refused.as_ref().is_err_and(|why| why.contains("preview")), "{refused:?}");
     assert_eq!(ask(&desk, &["get", &file], cx).as_deref(), Ok(after.as_str()), "preview reads");
 }
+
+#[gpui::test]
+fn a_deleted_files_tab_still_reads_and_replaces(cx: &mut TestAppContext) {
+    let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+    let path = files.path().join("gone.md");
+    std::fs::write(&path, "cat\n").expect("a file");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &path, cx);
+    let file = path.display().to_string();
+    assert_eq!(ask(&desk, &["replace", &file, "cat", "dog"], cx), Ok(String::new()));
+    std::fs::remove_file(&path).expect("deleted");
+    for _ in 0..50 {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        cx.run_until_parked();
+    }
+    assert_eq!(ask(&desk, &["get", &file], cx).as_deref(), Ok("dog\n"), "the tab keeps its text");
+    assert_eq!(ask(&desk, &["replace", &file, "dog", "fox"], cx), Ok(String::new()));
+    assert_eq!(ask(&desk, &["get", &file], cx).as_deref(), Ok("fox\n"));
+    let refused = ask(&desk, &["save", &file], cx);
+    assert!(refused.as_ref().is_err_and(|why| why.contains("gone from disk")), "{refused:?}");
+    assert!(!path.exists(), "nothing written back");
+}
