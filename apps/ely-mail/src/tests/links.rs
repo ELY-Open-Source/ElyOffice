@@ -34,10 +34,11 @@ fn a_broken_mail_link_opens_nothing() {
     seeded(dir.path(), format!("{NOTE}\r\nx").as_bytes(), &[]);
     let mut cx = TestAppContext::single();
     let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
-    let link = PathBuf::from("mailto:a@b.c?subject=%zz");
-    cx.update(|_, app| mail.update(app, |mail, cx| mail.take_files(vec![link], cx)));
-    cx.run_until_parked();
-    assert!(composing(cx).is_empty());
+    for link in ["mailto:a@b.c?subject=%zz", "mailto:a@b.c?subject=%3D%3FUTF-8%3FQ%3Fa%3D0D%3D0Ab%3F%3D"] {
+        cx.update(|_, app| mail.update(app, |mail, cx| mail.take_files(vec![PathBuf::from(link)], cx)));
+        cx.run_until_parked();
+        assert!(composing(cx).is_empty(), "{link}");
+    }
 }
 
 #[test]

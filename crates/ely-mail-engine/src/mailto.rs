@@ -74,12 +74,17 @@ fn ascii_domain(address: &str) -> Result<String, String> {
 
 /// Encoded words (RFC 2047) read as text.
 fn subject(value: &str) -> Result<String, String> {
-    if value.contains(['\r', '\n']) {
-        return Err("a subject holds no line breaks".to_owned());
-    }
+    let one_line = |text: &str| match text.contains(['\r', '\n']) {
+        true => Err("a subject holds no line breaks".to_owned()),
+        false => Ok(()),
+    };
+    one_line(value)?;
     let header = format!("Subject: {value}\r\n\r\n");
     let parsed = MessageParser::default().parse_headers(header.as_bytes());
-    Ok(parsed.and_then(|message| message.subject().map(str::to_owned)).unwrap_or_default())
+    let read = parsed.and_then(|message| message.subject().map(str::to_owned)).unwrap_or_default();
+    // Encoded words can carry them too.
+    one_line(&read)?;
+    Ok(read)
 }
 
 /// Percent escapes as UTF-8; `+` stays a plus.
@@ -152,6 +157,7 @@ mod tests {
             "mailto:a@b.c?body=%-1",
             "mailto:%22a@b.c",
             "mailto:a@b.c?subject=x%0Ay",
+            "mailto:a@b.c?subject=%3D%3FUTF-8%3FQ%3Fa%3D0D%3D0Ab%3F%3D",
             "a@b.c",
         ] {
             assert!(parse(link).is_err(), "{link}");
