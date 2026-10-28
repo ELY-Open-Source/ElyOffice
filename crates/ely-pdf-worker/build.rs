@@ -6,6 +6,8 @@ fn main() {
     let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("set by cargo")).join("../..");
     let mupdf = std::env::var_os("ELY_MUPDF_DIR").map_or_else(|| root.join("engines/mupdf-build"), PathBuf::from);
     println!("cargo:rerun-if-env-changed=ELY_MUPDF_DIR");
+    // cc's own rebuild lines are off; a shim edit recompiles it.
+    println!("cargo:rerun-if-changed=shim");
     let windows = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows");
     // MSVC's libmupdf.lib holds its third parties and PKCS#7.
     let libs: &[&str] =
