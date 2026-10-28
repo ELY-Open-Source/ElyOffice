@@ -33,7 +33,7 @@ assets/      icons/ 是八个应用的图标母版（SVG）与渲染出的 icns�
 dist/        打包产物，不入库
 docs/        兼容清单、无障碍、帮助、许可、性能记录；engineering-risks.md、qa.md 等内部笔记只在本机，不入库
 scripts/     fetch-references.sh 取上游  doctor.sh 查工具  review.sh 开分栏审查  build-*.sh 构建引擎
-tests/       scripts 与 engines 下是脚本测试；engines 缺二进制时报 SKIP；fixtures 是测试共用的样本（media/clip.mp4：1 秒 H.264/AAC；pdf/aes128.pdf：AES-128 加密，打开密码 user、所有者密码 owner；pdf/signer.p12 与 signer.der：自签名测试证书，密码 ely；pdf/chain-root.der 与 chain-leaf.der：测试用的根与其签发的证书；show/sections.pptx：t.pptx 加两个章节（p14:sectionLst），sections-utf16.pptx 同而 presentation.xml 为 UTF-16LE，sections-locked.pptx 为其加密版，打开密码 ely，sections-locked-tail.pptx 同而目录移到文件末尾、`EncryptedPackage` 在最后一格；tree/launcher-fails、launcher-held、launcher-pwd、launcher-session：ElyTree 终端启动器测试用的可执行脚本（Git 里 100755）；mail/sample.eml：带编码主题、分组抄送、纯文本加 HTML、cid 图片与附件的邮件，LF 行尾，测试换成 CRLF）
+tests/       scripts 与 engines 下是脚本测试；engines 缺二进制时报 SKIP；fixtures 是测试共用的样本（media/clip.mp4：1 秒 H.264/AAC；pdf/aes128.pdf：AES-128 加密，打开密码 user、所有者密码 owner；pdf/signer.p12 与 signer.der：自签名测试证书，密码 ely；pdf/chain-root.der 与 chain-leaf.der：测试用的根与其签发的证书；show/sections.pptx：t.pptx 加两个章节（p14:sectionLst），sections-utf16.pptx 同而 presentation.xml 为 UTF-16LE，sections-locked.pptx 为其加密版，打开密码 ely，sections-locked-tail.pptx 同而目录移到文件末尾、`EncryptedPackage` 在最后一格；tree/launcher-fails、launcher-held、launcher-pwd、launcher-session：ElyTree 终端启动器测试用的可执行脚本（Git 里 100755）；git/git-2.39、git-2.40：只报版本的假 Git（版本下限测试，Git 里 100755）；mail/sample.eml：带编码主题、分组抄送、纯文本加 HTML、cid 图片与附件的邮件，LF 行尾，测试换成 CRLF）
 tasks/       TASKS.md 进度真相
 site/        官网（Vite 8、pnpm、TypeScript，无框架；等轴 SVG 积木；中英两种文案在 src/text.ts）；site/video 是发布视频的分镜、配乐、录屏与合成脚本，产物在 site/video/out（不入库）
 ```
@@ -204,6 +204,7 @@ cd site && pnpm test && pnpm e2e   官网单测（几何、道路连通）与 Pl
 cd site/video/scenes && npm run verify   发布视频：群像与离场两个渲染器在切场处屏幕角点一致，离场全程各屏播自己的录屏帧（真页面渲染）
 cargo check --workspace
 cargo test --workspace
+ELY_GIT=路径 cargo test -p ely-tree  ElyTree 测试用该 Git（系统 Git 须 2.40 起）；不设即用 engines/git 的随包 Git，都没有即失败
 rm -rf target/debug/incremental   每次构建或测试后都删（用户定：增量缓存会占满磁盘）
 cargo build -p ely-lok --bins   LOK 单测前先建 worker；单测不会自动重建它
 cargo build -p ely-pdf-engine --bins  ElyPDF 的 worker（链接 engines/mupdf-build，ELY_MUPDF_DIR 可改；运行时 ELY_PDF_WORKER 可指定）

@@ -128,6 +128,16 @@ mod tests {
         assert!(super::version_of(&fake).is_err());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn a_system_git_before_the_floor_is_refused() {
+        let fake = |name: &str| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/git").join(name);
+        let old = super::system_version(&fake("git-2.39")).expect_err("too old");
+        assert_eq!(old.kind(), std::io::ErrorKind::Unsupported);
+        assert!(old.to_string().contains("older than 2.40"), "{old}");
+        assert_eq!(super::system_version(&fake("git-2.40")).expect("the floor"), "git version 2.40.0");
+    }
+
     #[test]
     fn versions_read_as_major_and_minor() {
         assert_eq!(super::parse_version("git version 2.56.0\n"), Some((2, 56)));

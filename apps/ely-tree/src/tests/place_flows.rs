@@ -146,7 +146,7 @@ fn a_stopped_fetch_ends_quietly() {
     settle(cx, |app| branch(tree.read(app)).is_some());
     cx.update(|_, app| tree.update(app, |tree, cx| tree.fetch_one("origin", cx)));
     settle(cx, |app| running(&tree, app));
-    let _held = silent.accept().expect("Git connects");
+    let _held = connected(&silent);
     let id = cx.update(|_, app| tree.read(app).active.expect("open"));
     cx.update(|_, app| tree.update(app, |tree, cx| tree.stop_remote(id, cx)));
     settle_within(cx, GRACE, |app| !running(&tree, app));
@@ -165,12 +165,28 @@ fn a_stopped_clone_leaves_no_folder() {
     let mut cx = TestAppContext::single();
     let (tree, cx) = window(&mut cx, dir.path());
     cx.update(|_, app| tree.update(app, |tree, cx| tree.start_clone(url, into.clone(), cx)));
-    let _held = silent.accept().expect("Git connects");
+    let _held = connected(&silent);
     settle(cx, |_| into.exists());
     cx.update(|_, app| tree.update(app, |tree, cx| tree.stop_clone(cx)));
     settle_within(cx, GRACE, |app| tree.read(app).cloning.is_none());
     assert!(!into.exists(), "Git removed the clone it began");
     assert!(cx.update(|_, app| tree.read(app).ask.is_none()), "a stop is no failure");
+}
+
+/// Git's connection; a Git that never starts fails.
+fn connected(silent: &std::net::TcpListener) -> std::net::TcpStream {
+    silent.set_nonblocking(true).expect("nonblocking");
+    let start = std::time::Instant::now();
+    loop {
+        match silent.accept() {
+            Ok((stream, _)) => return stream,
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                assert!(start.elapsed() < GRACE, "Git never connected");
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Err(error) => panic!("accept: {error}"),
+        }
+    }
 }
 
 /// Windows may end a hung Git only after 10 s.
@@ -207,7 +223,7 @@ fn a_stop_that_fails_names_git_not_the_clone() {
     settle(cx, |app| branch(tree.read(app)).is_some());
     cx.update(|_, app| tree.update(app, |tree, cx| tree.fetch_one("origin", cx)));
     settle(cx, |app| running(&tree, app));
-    let held = silent.accept().expect("Git connects");
+    let held = connected(&silent);
     let id = cx.update(|_, app| tree.read(app).active.expect("open"));
     let stop = crate::running::Stop::over(unstoppable());
     cx.update(|_, app| {

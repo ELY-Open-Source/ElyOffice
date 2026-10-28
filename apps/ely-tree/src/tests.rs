@@ -36,7 +36,7 @@ pub(crate) fn git() -> Git {
             std::env::set_var("GIT_CONFIG_GLOBAL", none);
         }
     });
-    Git::find().expect("the bundled Git; run scripts/build-git.sh")
+    Git::find().expect("Ely's Git (scripts/build-git.sh) or ELY_GIT at a Git 2.40+")
 }
 
 /// Runs Git with a test identity and no signing.
