@@ -217,7 +217,46 @@ def deck(path):
         check(not any("Speaker" in text for text in spoken[1:]), f"only slide one has the notes: {spoken}")
 
 
-CASES = {"contract": contract, "sheet": sheet, "deck": deck}
+CUBE = 'CUBEVALUE("Sales","[Measures].[Total]")'
+# tests/fixtures/table/kept.xlsx: what Calc cannot compute keeps the file's result.
+KEPT = {
+    "A1": (None, "n", "2"),
+    "B1": (CUBE, "n", "41"),
+    "C1": ("B1+1", "n", "42"),
+    "D1": ("A1*" + CUBE, "n", "82"),
+    "E1": ('_xlfn.TRANSLATE("hello","en","de")', "str", "hallo"),
+    "F1": ("SUM(A1,1)", "n", "3"),
+    "A2": (None, "n", "10"),
+    "B2": ('CUBEVALUE("Sales",A2)', "n", "100"),
+    "B3": ('CUBEVALUE("Sales",A3)', "n", "200"),
+}
+# After A1 and A2 change, their dependents are unknown.
+EDITED = KEPT | {
+    "A1": (None, "n", "3"),
+    "D1": ("A1*" + CUBE, "e", "#NAME?"),
+    "F1": ("SUM(A1,1)", "n", "4"),
+    "A2": (None, "n", "11"),
+    "B2": ('CUBEVALUE("Sales",A2)', "e", "#NAME?"),
+}
+
+
+def cells_are(path, expected):
+    """Formulas as written, with the file's type and value."""
+    with zipfile.ZipFile(path) as archive:
+        found = cells(archive)
+    for ref, want in expected.items():
+        if check(ref in found, f"{ref} is there"):
+            got = (found[ref][1], found[ref][0], found[ref][2])
+            check(got == want, f"{ref} is {got!r}, not {want!r}")
+
+
+CASES = {
+    "contract": contract,
+    "sheet": sheet,
+    "deck": deck,
+    "kept": lambda path: cells_are(path, KEPT),
+    "kept-edited": lambda path: cells_are(path, EDITED),
+}
 
 # Damage each check must catch: part, pattern, replacement.
 MUTATIONS = {
@@ -232,6 +271,15 @@ MUTATIONS = {
     "sheet": [
         ("xl/worksheets/sheet1.xml", r'(<c r="H1"[^>]*><v>)7(</v>)', r"\g<1>70\g<2>"),
         ("xl/_rels/workbook.xml.rels", r"worksheets/sheet1\.xml", "worksheets/missing.xml"),
+    ],
+    "kept": [
+        ("xl/worksheets/sheet1.xml", r'(<c r="B1"[^>]*>.*?<v>)41(</v>)', r"\g<1>0\g<2>"),
+        ("xl/worksheets/sheet1.xml", r"CUBEVALUE\(&quot;Sales&quot;,&quot;\[", "cubevalue(&quot;Sales&quot;,&quot;["),
+        ("xl/worksheets/sheet1.xml", r'<c r="E1"[^>]*t="str"', '<c r="E1" s="0" t="e"'),
+    ],
+    "kept-edited": [
+        ("xl/worksheets/sheet1.xml", r'<c r="D1"[^>]*t="e"><f([^>]*)>(.*?)</f><v>#NAME\?</v>', r'<c r="D1" t="n"><f\1>\2</f><v>82</v>'),
+        ("xl/worksheets/sheet1.xml", r'(<c r="B3"[^>]*>.*?<v>)200(</v>)', r"\g<1>0\g<2>"),
     ],
     "deck": [
         ("ppt/_rels/presentation.xml.rels", r"slides/slide2\.xml", "slides/missing.xml"),

@@ -136,6 +136,7 @@ pub const VALUES: &[&str] = &[
     crate::sheet::LAYOUT,
     crate::sheet::PROTECTION,
     crate::sheet::LINKS,
+    crate::sheet::KEPT,
     crate::show::DESIGN,
     crate::show::OBJECTS,
     crate::show::NOTES,

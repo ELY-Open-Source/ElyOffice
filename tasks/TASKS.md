@@ -442,7 +442,7 @@
 - [~] R14.34 规则检查 `scripts/check.sh`：行数、注释、行尾；超 500 行的五个文件拆开（B-09，§17） — `scripts/check.sh` 查代码文件行数、注释、行尾，全部报出；`output.rs` 拆出 `protect.rs`，`liquid.js` 拆出 `shaders.js`（逐像素同），`score.py` 拆出 `grid.py`、`master.py`（样本同）；`comments.py` 只查入库文件、Python 以 tokenize 取注释，改短 42 处；`check-rules.sh` 测之。第 1 轮：注释检查覆盖 JS、HTML、Python 行尾注释与各级文档字符串（改短 242 组，输出逐像素、逐样本不变），行数改由 awk 计末行无 LF。第 2 轮：JS、TS、TSX 与 HTML 脚本的注释交 TypeScript 解析器（`comments.mjs`），HTML 按标签走读，独占一行看两侧。第 3 轮（末轮 FAIL，已修并测）：textarea、title 等的文字不是注释，结束标签按完整名
 - [x] R14.35 依赖：cargo-deny 查许可与安全公告（E-04，§17、§21） — `deny.toml`：公告、yanked、许可白名单、来源；查出 9 条公告（rustls 四条等）与 3 个 yanked，semver 内升级修掉；根证书数据的 CDLA-Permissive-2.0 只对两个 crate 放行；重复 70 组皆上游大版本，无可对齐，以今日的组为 skip、新增即败。第 1 轮：`scripts/deny.sh` 把多余与无着落的 skip 提升为错误，`deny-rules.sh` 测之
 - [x] R14.36 往返验证在 Windows、Linux 运行，兼容清单分平台写明（C-05，§19）；与 Microsoft Office 交叉核对需要 Office，本机没有（D-01） — 办公三例 Windows 本已在跑（无 SKIP），Linux 亦过；PDF 读回非 macOS 改用 lopdf，三端皆过；兼容清单往返表三端各一列，打印分平台，Linux 真桌面打印照写未核对。第 1 轮：PDF 两例补成两次会话（保存、关闭、重开、再改、再存）
-- [ ] R14.37 XLSX 里不支持的函数，保存后缓存值不丢（D-02，§19）
+- [ ] R14.37 XLSX 里不支持的函数，保存后缓存值不丢（D-02，§19） — 补丁 0059：算不了的格留住文件的结果直到其输入改变，原公式照原拼写，ElyTable 横幅列出这些格；XLSX 与 ODS
 - [ ] R14.38 运行时可达的 panic（G-01，§20）
 - [ ] R14.39 性能：bench 在 Windows、Linux 运行，记下 0.1.12（H-01、H-03，§20）；120 Hz 实测需要高刷显示器，本机最高 75 Hz（H-04）
 - [ ] R14.40 缺引擎的测试：`ELY_REQUIRE_ENGINES=1` 即失败，CI 开启（B-03，§22）

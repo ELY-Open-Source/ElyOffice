@@ -20,10 +20,15 @@ fn checked(worker: &mut Worker, doc: Doc, dir: &Path, case: &str, format: &str) 
     let last = dir.join(format!("{case}-again.{format}"));
     doc.save_as(worker, &crate::file_url(&last), format).expect("the second save");
     worker.close_doc(doc).expect("closes");
+    read_back(&last, case);
+}
+
+/// `tests/scripts/ooxml.py` checks `file` as `case`.
+pub(super) fn read_back(file: &Path, case: &str) {
     let reader = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/scripts/ooxml.py");
     // The file passes, and each known damage to it fails.
     for args in [vec![case], vec!["selftest", case]] {
-        let out = match Command::new("python3").arg(&reader).args(&args).arg(&last).output() {
+        let out = match Command::new("python3").arg(&reader).args(&args).arg(file).output() {
             Ok(out) => out,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 return eprintln!("SKIP: no python3 to read {case}");

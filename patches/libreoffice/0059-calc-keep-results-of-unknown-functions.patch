@@ -1,0 +1,205 @@
+Calc: a formula naming what Calc lacks keeps the file's result
+
+- XLSX and ODS import mark a formula cell holding an unknown name
+  (ocBad) and a loaded result: its result stands, through the hard
+  recalc on load too, so its dependents use it and a save writes it
+  back (Ely #D-02; PRD §288). A changed input (Notify) or SetDirty
+  (an edit, a reference update) ends that; it then recalcs to #NAME?.
+- An unknown function keeps its spelling instead of being lowercased,
+  so the formula written back names it as read.
+- .uno:KeptResults lists such cells with their sheet.
+
+diff --git a/sc/inc/formulacell.hxx b/sc/inc/formulacell.hxx
+--- a/sc/inc/formulacell.hxx
++++ b/sc/inc/formulacell.hxx
+@@ -137,6 +137,7 @@ private:
+     bool            mbIsExtRef       : 1; // has references in ScExternalRefManager; never cleared after set
+     bool            mbSeenInPath     : 1; // For detecting cycle involving formula groups and singleton formulacells
+     bool            mbFreeFlying     : 1; // Cell is out of sheets interpreted, like in conditional format
++    bool            mbKeptResult     : 1 = false; // File's result stands: unknown names, inputs unchanged
+     ScMatrixMode    cMatrixFlag      : 8;
+     sal_uInt16      nSeenInIteration : 16;   // Iteration cycle in which the cell was last encountered
+     SvNumFormatType nFormatType      : 16;
+@@ -246,6 +247,9 @@ public:
+ 
+     bool GetDirty() const { return bDirty; }
+     SC_DLLPUBLIC void ResetDirty();
++    /// Keep the loaded result: an unknown function, inputs unchanged.
++    void SetKeptResult() { mbKeptResult = true; }
++    bool IsKeptResult() const { return mbKeptResult; }
+     bool NeedsListening() const { return bNeedListening; }
+     void SetNeedsListening( bool bVar );
+     void SetNeedsDirty( bool bVar );
+diff --git a/sc/source/core/data/formulacell.cxx b/sc/source/core/data/formulacell.cxx
+--- a/sc/source/core/data/formulacell.cxx
++++ b/sc/source/core/data/formulacell.cxx
+@@ -1353,6 +1353,10 @@ void ScFormulaCell::CompileXML( sc::CompileFormulaContext& rCxt, ScProgress& rPr
+     //  (for external links warning, CompileXML is called at the end of loading XML file)
+     rDocument.CheckLinkFormulaNeedingCheck(*pCode);
+ 
++    // A loaded result of an unknown function stands.
++    if (aResult.GetType() != formula::svUnknown && pCode->HasOpCode(ocBad))
++        mbKeptResult = true;
++
+     //volatile cells must be added here for import
+     if( !pCode->IsRecalcModeNormal() || pCode->IsRecalcModeForced())
+     {
+@@ -1890,6 +1894,15 @@ bool ScFormulaCell::Interpret(SCROW nStartOffset, SCROW nEndOffset)
+ 
+ void ScFormulaCell::InterpretTail( ScInterpreterContext& rContext, ScInterpretTailParameter eTailParam )
+ {
++    if (mbKeptResult)
++    {
++        // The file's result is the only one: keep it.
++        if (eTailParam == SCITP_NORMAL)
++            ResetDirty();
++        if (!rDocument.IsThreadedGroupCalcInProgress() && !pCode->IsRecalcModeAlways())
++            rDocument.RemoveFromFormulaTree(this);
++        return;
++    }
+     RecursionCounter aRecursionCounter( rDocument.GetRecursionHelper(), this);
+     // TODO If this cell is not an iteration cell, add it to the list of iteration cells?
+     if(bIsIterCell)
+@@ -2482,6 +2495,8 @@ void ScFormulaCell::Notify( const SfxHint& rHint )
+     if (!(nHint == SfxHintId::ScDataChanged || nHint == SfxHintId::ScTableOpDirty || (bSubTotal && nHint == SfxHintId::ScHiddenRowsChanged)))
+         return;
+ 
++    // An input changed: the file's result no longer holds.
++    mbKeptResult = false;
+     bool bForceTrack = false;
+     if ( nHint == SfxHintId::ScTableOpDirty )
+     {
+@@ -2533,6 +2548,9 @@ void ScFormulaCell::SetDirty( bool bDirtyFlag )
+     if (IsInChangeTrack())
+         return;
+ 
++    // Set dirty by an edit, not by a full recalc.
++    mbKeptResult = false;
++
+     if ( rDocument.GetHardRecalcState() != ScDocument::HardRecalcState::OFF )
+     {
+         SetDirtyVar();
+diff --git a/sc/source/core/tool/compiler.cxx b/sc/source/core/tool/compiler.cxx
+--- a/sc/source/core/tool/compiler.cxx
++++ b/sc/source/core/tool/compiler.cxx
+@@ -4839,7 +4839,14 @@ Label_Rewind:
+     // would prematurely end compilation. Simple unknown names are handled by
+     // the interpreter.
+     // Use the same CharClass that was used for uppercase.
+-    aUpper = ((bAsciiUpper || mbCharClassesDiffer) ? ScGlobal::getCharClass() : *pCharClass).lowercase( aUpper );
++    // An unknown function keeps its spelling as written.
++    const sal_Unicode* pNext = aFormula.getStr() + nSrcPos;
++    while (*pNext == ' ')
++        pNext++;
++    if (*pNext == '(')
++        aUpper = OUString(cSymbol);
++    else
++        aUpper = ((bAsciiUpper || mbCharClassesDiffer) ? ScGlobal::getCharClass() : *pCharClass).lowercase( aUpper );
+     svl::SharedString aSS = rDoc.GetSharedStringPool().intern(aUpper);
+     maRawToken.SetString(aSS.getData(), aSS.getDataIgnoreCase());
+     maRawToken.NewOpCode( ocBad );
+diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formulabuffer.cxx
+--- a/sc/source/filter/oox/formulabuffer.cxx
++++ b/sc/source/filter/oox/formulabuffer.cxx
+@@ -34,6 +34,13 @@ namespace oox::xls {
+ 
+ namespace {
+ 
++/// A formula naming what Calc lacks keeps the file's result.
++void keepIfUnknown(ScFormulaCell& rCell)
++{
++    if (rCell.GetCode()->HasOpCode(ocBad))
++        rCell.SetKeptResult();
++}
++
+ /**
+  * Cache the token array for the last cell position in each column. We use
+  * one cache per sheet.
+@@ -182,7 +189,10 @@ void applySharedFormulas(
+                                 rDoc.getDoc().GetFormatTable()->GetStandardFormat( SvNumFormatType::LOGICAL));
+                     }
+                     if (rDesc.maCellValue == "1" || rDesc.maCellValue == "0")
++                    {
+                         pCell->SetResultDouble(rDesc.maCellValue == "1" ? 1.0 : 0.0);
++                        keepIfUnknown(*pCell);
++                    }
+                     else
+                     {
+                         // Recalc even if AutoCalc is disabled.
+@@ -199,6 +209,7 @@ void applySharedFormulas(
+                             bHasCalculatedFormulaCells = true;
+                         }
+                         pCell->SetResultDouble(fVal);
++                        keepIfUnknown(*pCell);
+                         /* TODO: is it on purpose that we never reset dirty here
+                          * and thus recalculate anyway if cell was dirty? Or is it
+                          * never dirty and therefore set dirty below otherwise? This
+@@ -216,6 +227,7 @@ void applySharedFormulas(
+                         // that use macro functions to show #VALUE!
+                         pCell->ResetDirty();
+                         pCell->SetChanged(false);
++                        keepIfUnknown(*pCell);
+                         break;
+                     }
+                     [[fallthrough]];
+@@ -333,6 +345,7 @@ void applyCellFormulaValues(
+                 pCell->SetResultDouble(fVal);
+                 pCell->ResetDirty();
+                 pCell->SetChanged(false);
++                keepIfUnknown(*pCell);
+             }
+             break;
+             case XML_str:
+@@ -352,6 +365,7 @@ void applyCellFormulaValues(
+                     pCell->SetResultToken(new formula::FormulaStringToken(std::move(aSS)));
+                     pCell->ResetDirty();
+                     pCell->SetChanged(false);
++                    keepIfUnknown(*pCell);
+                 }
+             break;
+             default:
+diff --git a/sc/source/ui/unoobj/docuno.cxx b/sc/source/ui/unoobj/docuno.cxx
+--- a/sc/source/ui/unoobj/docuno.cxx
++++ b/sc/source/ui/unoobj/docuno.cxx
+@@ -1042,6 +1042,23 @@ void lcl_ExternalLinks(tools::JsonWriter& rJson, ScDocument& rDoc)
+         rJson.putSimpleValue(rSource);
+ }
+ 
++/// Cells showing the file's result: Calc cannot compute their formula.
++void lcl_KeptResults(tools::JsonWriter& rJson, ScDocument& rDoc)
++{
++    rJson.put("commandName", ".uno:KeptResults");
++    const ScAddress::Details aDetails(rDoc.GetAddressConvention(), 0, 0);
++    auto aArray = rJson.startArray("cells");
++    for (SCTAB nTab = 0; nTab < rDoc.GetTableCount(); ++nTab)
++    {
++        ScCellIterator aIter(rDoc, ScRange(0, 0, nTab, rDoc.MaxCol(), rDoc.MaxRow(), nTab));
++        for (bool bHas = aIter.first(); bHas; bHas = aIter.next())
++        {
++            if (aIter.getType() == CELLTYPE_FORMULA && aIter.getFormulaCell()->IsKeptResult())
++                rJson.putSimpleValue(aIter.GetPos().Format(ScRefFlags::VALID | ScRefFlags::TAB_3D, &rDoc, aDetails));
++        }
++    }
++}
++
+ /// The sheet's protection and its allowed actions.
+ void lcl_SheetProtection(tools::JsonWriter& rJson, ScDocument& rDoc, SCTAB nTab)
+ {
+@@ -1114,7 +1131,7 @@ bool ScModelObj::supportsCommand(std::u16string_view rCommand)
+             u"AutoFilterValues", u"DataSelectValues",   u"Validation",
+             u"NumberFormatCode", u"ConditionalFormats", u"Chart",
+             u"PivotTable",       u"PrintLayout",        u"SheetProtection",
+-            u"ExternalLinks",    u"CellAt" };
++            u"ExternalLinks",    u"CellAt",             u"KeptResults" };
+     return std::find(std::begin(aCommands), std::end(aCommands), rCommand) != std::end(aCommands);
+ }
+ 
+@@ -1124,6 +1141,8 @@ void ScModelObj::getCommandValues(tools::JsonWriter& rJsonWriter, std::string_vi
+         return lcl_DefinedNames(rJsonWriter, pDocShell->GetDocument());
+     if (pDocShell && rCommand == ".uno:ExternalLinks")
+         return lcl_ExternalLinks(rJsonWriter, pDocShell->GetDocument());
++    if (pDocShell && rCommand == ".uno:KeptResults")
++        return lcl_KeptResults(rJsonWriter, pDocShell->GetDocument());
+     if (pDocShell && o3tl::starts_with(rCommand, ".uno:CellAt?"))
+         return lcl_CellAt(rJsonWriter, pDocShell->GetDocument(), rCommand);
+     ScViewData* pCurrent = ScDocShell::GetViewData();

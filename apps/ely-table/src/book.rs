@@ -49,6 +49,8 @@ pub struct Extra {
     pub ruling: bool,
     /// Linked sources shown as saved.
     pub links: Vec<String>,
+    /// Cells showing the file's results: unknown functions.
+    pub kept: Vec<String>,
     /// The edit count the links were last asked at.
     pub linked: Option<u64>,
     /// A links read is on its way.
@@ -287,7 +289,7 @@ impl Book {
         );
     }
 
-    /// Rereads the linked sources after each edit.
+    /// Rereads linked sources and kept results after each edit.
     fn read_links(&mut self, id: u64, view: &Entity<LokView>, cx: &mut Context<Self>) {
         let edited = view.read(cx).edited();
         let Some(tab) = self.tab_mut(id) else {
@@ -301,7 +303,10 @@ impl Book {
         ely_lok::read_off(
             &self.core.worker,
             &doc,
-            |worker, doc| ely_lok::sheet::links(&worker.values(doc, ely_lok::sheet::LINKS)?),
+            |worker, doc| {
+                let links = ely_lok::sheet::links(&worker.values(doc, ely_lok::sheet::LINKS)?)?;
+                Ok((links, ely_lok::sheet::kept(&worker.values(doc, ely_lok::sheet::KEPT)?)?))
+            },
             move |book: &mut Self, read, cx| {
                 let Some(tab) = book.tab_mut(id) else {
                     return;
@@ -309,9 +314,9 @@ impl Book {
                 tab.extra.linking = false;
                 let view = tab.view.clone();
                 match read {
-                    Ok(links) => {
-                        log::info!("table: tab {id} links {} sources", links.len());
-                        tab.extra.links = links;
+                    Ok((links, kept)) => {
+                        log::info!("table: tab {id} links {} sources, {} kept results", links.len(), kept.len());
+                        (tab.extra.links, tab.extra.kept) = (links, kept);
                     }
                     Err(error) => book.engine_failed(&error.to_string(), cx),
                 }
@@ -332,6 +337,16 @@ impl Book {
         let sources = links.join(", ");
         let text = Self::text(cx, "table.links.stale", &[("sources", &sources)]);
         Some(Banner::new("table-links", Severity::Info, text))
+    }
+
+    /// Results Calc cannot compute stay as saved (§9.3, D-02).
+    fn kept_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
+        let kept = &self.active_tab()?.extra.kept;
+        if kept.is_empty() {
+            return None;
+        }
+        let text = Self::text(cx, "table.kept.stale", &[("cells", &listed(kept))]);
+        Some(Banner::new("table-kept", Severity::Info, text))
     }
 
     /// Holds the kernel's frozen rows and columns in place.
@@ -384,11 +399,21 @@ impl Book {
             .flex_col()
             .children(risk)
             .children(self.links_banner(cx))
+            .children(self.kept_banner(cx))
             .child(self.bars.render(cx))
             .child(self.grid(window, cx))
             .child(self.sheet_strip(cx))
             .into_any_element()
     }
+}
+
+/// The first five cells, then how many in all.
+pub(crate) fn listed(cells: &[String]) -> String {
+    let mut listed = cells.iter().take(5).cloned().collect::<Vec<_>>().join(", ");
+    if cells.len() > 5 {
+        listed.push_str(&format!(", … ({})", cells.len()));
+    }
+    listed
 }
 
 impl Render for Book {

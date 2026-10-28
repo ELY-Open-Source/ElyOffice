@@ -14,6 +14,8 @@ pub const VALIDATION: &str = ".uno:Validation";
 pub const FORMATS: &str = ".uno:ConditionalFormats";
 /// Sources whose data shows as last saved (§9.3).
 pub const LINKS: &str = ".uno:ExternalLinks";
+/// Cells showing the file's result: their function is unknown.
+pub const KEPT: &str = ".uno:KeptResults";
 
 fn parse(json: &str, what: &str) -> io::Result<serde_json::Value> {
     serde_json::from_str(json).map_err(|error| io::Error::other(format!("bad {what}: {error}")))
@@ -93,15 +95,25 @@ pub fn filter_values(json: &str) -> io::Result<Filter> {
 
 /// Parses `.uno:ExternalLinks`.
 pub fn links(json: &str) -> io::Result<Vec<String>> {
-    let value = parse(json, "links")?;
-    value["links"]
+    strings(json, "links")
+}
+
+/// Parses `.uno:KeptResults`: addresses with their sheet.
+pub fn kept(json: &str) -> io::Result<Vec<String>> {
+    strings(json, "cells")
+}
+
+/// The array of strings at `key`.
+fn strings(json: &str, key: &str) -> io::Result<Vec<String>> {
+    let value = parse(json, key)?;
+    value[key]
         .as_array()
-        .ok_or_else(|| io::Error::other(format!("no links in {value}")))?
+        .ok_or_else(|| io::Error::other(format!("no {key} in {value}")))?
         .iter()
-        .map(|link| {
-            link.as_str()
+        .map(|item| {
+            item.as_str()
                 .map(str::to_string)
-                .ok_or_else(|| io::Error::other(format!("a bad link: {link}")))
+                .ok_or_else(|| io::Error::other(format!("a bad entry in {key}: {item}")))
         })
         .collect()
 }

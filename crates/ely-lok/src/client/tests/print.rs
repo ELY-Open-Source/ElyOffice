@@ -259,7 +259,7 @@ fn ooxml_cell(column: &str, formula: &str, value: &str) -> String {
 }
 
 #[test]
-fn excel_caches_recompute_and_unknown_functions_show_errors() {
+fn excel_caches_recompute_unless_the_function_is_unknown() {
     if skip() {
         return;
     }
@@ -299,11 +299,10 @@ with zipfile.ZipFile(sys.argv[1], 'w', zipfile.ZIP_DEFLATED) as z:
         .expect("zip runs");
     assert!(zip.success());
     let opened = worker.load(&crate::file_url(&excel)).expect("loads");
-    assert_eq!(
-        cells(&mut worker, &opened, "A1"),
-        "#NAME?",
-        "no fake result"
-    );
+    // The file's result, which the banner names (D-02).
+    assert_eq!(cells(&mut worker, &opened, "A1"), "42", "the file's result");
+    let named = sheet::kept(&worker.values(&opened, sheet::KEPT).expect("reads")).expect("parses");
+    assert_eq!(named.len(), 1, "{named:?}");
     assert_eq!(
         cells(&mut worker, &opened, "B1"),
         "2",
@@ -314,7 +313,7 @@ with zipfile.ZipFile(sys.argv[1], 'w', zipfile.ZIP_DEFLATED) as z:
         .save_as(&mut worker, &crate::file_url(&again), "fods")
         .expect("saves");
     let kept = std::fs::read_to_string(again).expect("reads");
-    assert!(kept.contains("of:=futurefn(1)"), "the formula stays");
+    assert!(kept.contains("of:=FUTUREFN(1)"), "the formula stays as written");
 }
 
 #[test]
