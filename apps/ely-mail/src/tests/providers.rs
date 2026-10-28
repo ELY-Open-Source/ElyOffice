@@ -1,11 +1,11 @@
-use ely_mail_engine::{Auth, Checked, Error, Security, oauth};
-use gpui::{Modifiers, TestAppContext};
+use std::{io, sync::Arc};
 
-use super::{Keys, adding, step_words, type_in, window};
-use crate::{
-    add_view::{advice, failure},
-    kinds::Kind,
-};
+use ely_mail_engine::{Auth, Checked, Error, Security, oauth};
+use ely_ui::laid::LaidOut;
+use gpui::{Modifiers, TestAppContext, TestDispatcher};
+
+use super::{Keys, account, adding, step_words, type_in, window};
+use crate::{adding::Step, add_view::failure, kinds::Kind};
 
 #[test]
 fn an_icloud_account_takes_apples_servers() {
@@ -93,13 +93,44 @@ fn outlooks_held_account_says_what_to_do() {
 #[test]
 fn a_refused_gmail_password_says_what_to_do() {
     let dir = tempfile::tempdir().unwrap();
-    let mut cx = TestAppContext::single();
-    let (_, cx) = window(&mut cx, dir.path(), Keys::default());
-    let refused = |incoming| Checked { incoming, outgoing: Ok(()) };
-    let rejected = || Err(Error::Rejected("NO [AUTHENTICATIONFAILED] Invalid credentials (Failure)".into()));
-    assert_eq!(advice(Kind::Gmail, &refused(rejected())), Some("mail.gmail.refused"));
-    assert_eq!(advice(Kind::ICloud, &refused(rejected())), None, "Google's words only for Google");
-    assert_eq!(advice(Kind::Gmail, &refused(Err(Error::Timeout("login")))), None, "only a refused password");
-    let words = cx.update(|_, app| crate::mail::text(app, "mail.gmail.refused", &[]));
-    assert!(words.contains("app password") && words.contains("Workspace admin"), "{words}");
+    let laid = Arc::new(LaidOut::default());
+    let mut cx = TestAppContext::build_with_text_system(TestDispatcher::new(0), None, laid.clone());
+    let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
+    let rejected = || Error::Rejected("NO [AUTHENTICATIONFAILED] Invalid credentials".into());
+    let refused = || io::Error::from(io::ErrorKind::ConnectionRefused);
+    for locale in ["en-US", "zh-CN"] {
+        cx.update(|_, app| ely_ui::i18n::install_as(locale, app));
+        let cases: [(Kind, Option<Error>, Option<Error>, bool); 5] = [
+            (Kind::Gmail, Some(rejected()), None, true),
+            (Kind::Gmail, None, Some(rejected()), true),
+            (Kind::ICloud, Some(rejected()), None, false),
+            (Kind::Gmail, Some(Error::Timeout("login")), None, false),
+            (Kind::Gmail, Some(Error::Connect(refused())), None, false),
+        ];
+        for (kind, incoming, outgoing, advised) in cases {
+            let failed = incoming.as_ref().or(outgoing.as_ref()).map(|err| cx.update(|_, app| failure(err, app)));
+            adding(&mail, kind, cx);
+            cx.update(|_, app| {
+                mail.update(app, |mail, _| {
+                    mail.adding.as_mut().unwrap().step = Step::Checked {
+                        account: account("ann@gmail.com"),
+                        kept: "secret".into(),
+                        checked: Checked {
+                            incoming: incoming.map_or(Ok(()), Err),
+                            outgoing: outgoing.map_or(Ok(()), Err),
+                        },
+                    };
+                })
+            });
+            laid.clear();
+            for _ in 0..3 {
+                cx.update(|window, _| window.refresh());
+                cx.run_until_parked();
+            }
+            let failed = failed.expect("each case fails one side");
+            assert!(laid.saw(&failed), "{locale} {kind:?}: the check result drew");
+            let advice = cx.update(|_, app| crate::mail::text(app, "mail.gmail.refused", &[]));
+            assert_eq!(laid.saw(&advice), advised, "{locale} {kind:?} {failed}");
+        }
+    }
 }

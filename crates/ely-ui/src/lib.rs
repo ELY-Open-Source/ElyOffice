@@ -2,6 +2,8 @@ pub mod commands;
 #[cfg(any(test, feature = "test-support"))]
 mod ending;
 pub mod i18n;
+#[cfg(any(test, feature = "test-support"))]
+pub mod laid;
 pub mod menu;
 mod frames;
 mod opening;

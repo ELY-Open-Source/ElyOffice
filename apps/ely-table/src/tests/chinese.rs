@@ -7,7 +7,7 @@ use ely_gpui_component::{
     tables::{FilterRule, Test},
     theme::Theme,
 };
-use ely_office::laid::LaidOut;
+use ely_ui::laid::LaidOut;
 use gpui::{TestDispatcher, VisualTestContext};
 
 use super::data::{asked, open, run};

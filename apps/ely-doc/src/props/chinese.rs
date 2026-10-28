@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use ely_gpui_component::{i18n::I18n, theme::Theme};
-use ely_office::laid::LaidOut;
+use ely_ui::laid::LaidOut;
 use ely_office::panel::Panel as _;
 use gpui::{Entity, TestAppContext, TestDispatcher, VisualTestContext};
 

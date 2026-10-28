@@ -8,8 +8,6 @@ mod dialogs;
 pub mod engine;
 pub mod files;
 mod find;
-#[cfg(feature = "test-support")]
-pub mod laid;
 pub mod lok;
 pub mod menu;
 mod open;

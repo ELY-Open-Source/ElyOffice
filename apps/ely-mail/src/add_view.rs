@@ -275,7 +275,7 @@ fn status(adding: &Adding, cx: &App) -> Option<AnyElement> {
 }
 
 /// What to do when a provider refuses the password.
-pub fn advice(kind: Kind, checked: &ely_mail_engine::Checked) -> Option<&'static str> {
+fn advice(kind: Kind, checked: &ely_mail_engine::Checked) -> Option<&'static str> {
     let refused = [&checked.incoming, &checked.outgoing]
         .into_iter()
         .any(|result| matches!(result, Err(Error::Rejected(_))));
