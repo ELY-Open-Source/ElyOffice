@@ -188,6 +188,14 @@ fn a_stop_that_fails_names_git_not_the_clone() {
     assert!(toasts.iter().any(|(text, _)| *text == want), "{toasts:?}");
     drop(held);
     settle(cx, |app| !running(&tree, app));
+    // The fetch's own failure still shows; no stop is claimed.
+    let stopped = cx.update(|_, app| ely_ui::i18n::text(app, "tree.net.stopped", &[]));
+    let toasts = cx.update(|_, app| shell.read(app).toasts(app));
+    assert!(toasts.iter().all(|(text, _)| *text != stopped), "{toasts:?}");
+    assert!(
+        cx.update(|_, app| matches!(tree.read(app).ask, Some(Ask::Failed { .. }))),
+        "the fetch says why it failed"
+    );
 }
 
 #[test]

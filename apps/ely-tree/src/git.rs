@@ -78,8 +78,10 @@ impl Git {
         // Only Git's line end goes; a name keeps every byte.
         let branch = branch.strip_suffix('\n').unwrap_or(&branch).to_owned();
         let found = self.command(dir, &["for-each-ref", "--format=%(refname)", &branch]).output()?;
+        // The pattern also matches refs below it.
+        let held = found.stdout.split(|&byte| byte == b'\n').any(|name| name == branch.as_bytes());
         let unborn = branch.starts_with("refs/heads/") && found.status.success();
-        if unborn && found.stdout.is_empty() && found.stderr.is_empty() {
+        if unborn && !held && found.stderr.is_empty() {
             return Ok(false);
         }
         let mut why = format!("HEAD names {branch}: no commit, and no branch yet to begin");

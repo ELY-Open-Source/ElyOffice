@@ -430,7 +430,7 @@
 - [~] R14.22 ElyMail 邮件列表的滚动条（R12.28、R12.39，§12）— 组件库 `MailList` 叠 `Scrollbar`（读其 `uniform_list` 的 `base_handle`），拖动即滚；`Slider` 不报同值的挑选为对的行为（字号控件画待存的挑选），ElyOffice 不用；ElyMark 字体对话框以 `Dialog::focus_first` 把焦点交给字段，不再先按 Tab；三项皆有回归测试。R1 FAIL 一处已修：滑块未随键盘的延后滚动；组件库 `Scrollbar` 在 prepaint 比对，变了才再要一帧（e2c56d5），测试只送视图要的帧。R2 FAIL 三处已修：测试要求要帧降到零；停留期间不再每帧重绘，改为一次定时唤醒（c4104bf）；`scroll.rs` 拆出 `source.rs`、`shown.rs`，注释缩短；顺带修 `ely_office` 标签按载入完成先后排列（改按 id 插入，有测试）。R3 FAIL 一处已修：先前滚动的定时唤醒在最新停留中重绘；改为唯一的待醒任务，新的替换并取消旧的，测试计重绘次数。三轮用尽，修复有回归测试，不再复审
 - [x] R14.23 ElyMail 接 `mailto:`（D-03，§12）：三端登记为可选的处理程序，不设为默认；打开即写信，收件人、主题、正文照链接。`types.tsv` 的 `mailto:` 行到三端（Linux `%U`、Windows 默认应用、macOS `CFBundleURLTypes`），`ely_ui::mail_link` 原样交链接，引擎 `mailto` 照 RFC 6068 填新信；测试见决策。R1 FAIL 四处已修：引号里的逗号不再切地址、域名转 IDNA、主题解 MIME 编码词、转义须两位十六进制。R2 FAIL 一处已修：编码词解出的换行也拒
 - [x] R14.24 Gmail 应用专用密码的前提写在添加账户处（D-05，§12）— 说明补 Workspace 管理员可关；Gmail 被拒另起一行说怎么办（`add_view::advice`）；PRD 写 OAuth 计划（验证与 CASA 评估后加，时机由用户定）；有测试。R1 修：说明列 Google 不给应用专用密码的几种情形（非穷举）；测试画真的添加页，中英各五例（`ely_ui::laid`）
-- [ ] R14.25 ElyTree 缺陷 G-03 至 G-08（§13）— 修复早在 d59159c（G-03 另有 30801ad 的三轮审查），逐条核实并以突变确认测试；G-04 无测试，补 Windows 测试 `a_stop_that_fails_names_git_not_the_clone`
+- [ ] R14.25 ElyTree 缺陷 G-03 至 G-08（§13）— 修复早在 d59159c（G-03 另有 30801ad 的三轮审查），逐条核实并以突变确认测试；G-04 无测试，补 Windows 测试 `a_stop_that_fails_names_git_not_the_clone`。R1 修：`born` 只认一字不差的分支名（`--orphan topic` 在 `topic/sub` 之上）；停止失败不再吞掉取回的失败；两个超 500 行的文件拆开
 - [ ] R14.26 ElyTree 缺陷 G-09 至 G-12、G-14（§13）
 - [ ] R14.27 ElyTree 打开终端、停止 Git：Windows、Linux（C-04、C-06、N-05、G-13、X-13，§13）
 - [ ] R14.28 ElyTree 测试：Windows（R12.36、P3-14）与 2.40 起的系统 Git（B-04，§13）

@@ -16,6 +16,7 @@ mod boxes;
 mod branching;
 mod diffs;
 mod flows;
+mod head;
 mod history;
 mod place_flows;
 mod places;
