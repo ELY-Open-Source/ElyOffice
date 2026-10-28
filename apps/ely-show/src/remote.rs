@@ -69,11 +69,16 @@ impl Deck {
 /// Impress narrows Replace All to marked objects; unmark, then restore.
 fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, with: &str) -> std::io::Result<()> {
     let read = |worker: &mut ely_lok::Worker, doc: &ely_lok::Doc| {
-        Ok::<_, std::io::Error>(ely_lok::show::objects(&worker.values(doc, ely_lok::show::OBJECTS)?)?.objects)
+        Ok::<_, std::io::Error>(ely_lok::show::objects(&worker.values(doc, ely_lok::show::OBJECTS)?)?)
     };
-    let before = read(worker, doc)?;
+    let shown = read(worker, doc)?;
+    let before = shown.objects;
     let marked: Vec<String> =
         before.iter().enumerate().filter(|(_, object)| object.selected).map(|(at, _)| at.to_string()).collect();
+    // Marks inside a group have no index to restore.
+    if shown.selection.as_ref().map_or(0, |selection| selection.count) != marked.len() {
+        return Err(std::io::Error::other("an object inside a group is selected in ElyShow; leave the group first"));
+    }
     if !marked.is_empty() {
         worker.run(doc, "object.deselect", &["false"])?;
     }
@@ -83,7 +88,7 @@ fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, wit
         let same = |a: &[ely_lok::show::Object], b: &[ely_lok::show::Object]| {
             a.len() == b.len() && a.iter().zip(b).all(|(a, b)| (&a.kind, &a.placeholder) == (&b.kind, &b.placeholder))
         };
-        if !same(&before, &read(worker, &now)?) {
+        if !same(&before, &read(worker, &now)?.objects) {
             return Err(std::io::Error::other("the slide's objects changed; the selection was not restored"));
         }
         let picks: Vec<[&str; 2]> =

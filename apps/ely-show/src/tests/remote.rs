@@ -97,4 +97,17 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     assert!(on_disk.contains("cat in a comment"), "comments untouched");
     assert_eq!(ask(&mut cx, &deck, &["replace", &file, " ", "\t"]), Ok(String::new()));
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok(after.replace(' ', "\t")));
+    // A shape picked inside the entered group (F3): refused, unchanged.
+    let id = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    // Picks by number need a read after the replaces.
+    update(&mut cx, &deck, |deck, cx| deck.force_reread(id, cx));
+    quiet(&cx, &deck);
+    update(&mut cx, &deck, |deck, cx| deck.select_objects(&["1".into()], cx));
+    settle(&cx, |app| marked(app, &deck) == vec![1]);
+    update(&mut cx, &deck, |deck, cx| deck.read_in(id, |worker, doc| worker.post_key(doc, 0, 770), |_, _, _, _| {}, cx));
+    update(&mut cx, &deck, |deck, cx| deck.force_reread(id, cx));
+    quiet(&cx, &deck);
+    let refused = ask(&mut cx, &deck, &["replace", &file, "dog", "cat"]);
+    assert!(refused.as_ref().is_err_and(|why| why.contains("inside a group")), "{refused:?}");
+    assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok(after.replace(' ', "\t")), "nothing replaced");
 }
