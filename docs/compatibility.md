@@ -4,19 +4,26 @@
 
 版本：Ely Office 0.1.11（首批七个应用：ElyDoc、ElyTable、ElyShow、ElyPDF、ElyTree、ElyMark、ElyMail）。日期 2026-10-23。
 内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0056）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0005）；Git 2.56.0（a018953）与 git-lfs 3.8.0。
-验证机：macOS 27.0 arm64。Windows 11 上跑单测与部分真窗口核对；Linux 的 deb、rpm、Arch 包在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库，glibc 不高于 2.31。下面的往返验证只在 macOS 做过。本机没有 Microsoft Office：与 Office 的交叉检查未做（待做）。
+验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库，glibc 不高于 2.31。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。本机没有 Microsoft Office：与 Office 的交叉检查未做（待做）。
 
 ## 往返验证
 
-每份样本在 Ely 中打开、编辑、保存、关闭、再打开、再编辑、再保存，最后由不经 LibreOffice 的读取器检查（`tests/scripts/ooxml.py`：自己解 OOXML，预期值由它自己算；DOCX 另交 macOS 的 `textutil` 读）。用例在 `crates/ely-lok/src/client/tests/independent.rs`。
+每份样本在 Ely 中打开、编辑、保存、关闭、再打开、再编辑、再保存，最后由不经 LibreOffice 或 MuPDF 的读取器检查。办公文件交 `tests/scripts/ooxml.py`（自己解 OOXML，预期值由它自己算），DOCX 在 macOS 上另交 `textutil` 读；用例在 `crates/ely-lok/src/client/tests/independent.rs`。PDF 在 macOS 上交 PDFKit 读，在 Windows 与 Linux 上交 lopdf 读；用例在 `crates/ely-pdf-worker/tests/independent.rs`。
 
-| 用例 | 检查 | 结果 |
+| 用例 | 检查 | macOS | Windows | Linux |
+| --- | --- | --- | --- | --- |
+| DOCX 合同 | 两次会话键入的文字（含中文）、批注、修订记录的插入、修订开关保留 | 通过（另经 `textutil`） | 通过 | 通过 |
+| XLSX 公式 | 公式文本与缓存结果：整数、日期序号、`#DIV/0!` 错误值、文本严格相等，浮点按用例声明的 1e-12 容差；第二次会话的公式 | 通过 | 通过 | 通过 |
+| PPTX 演示 | 三张幻灯片、隐藏的那张仍隐藏、备注文字（含中文） | 通过 | 通过 | 通过 |
+| PDF 编辑 | 改动的文字、填写的字段值、移动后的页序；子集字体里改的文字 | 通过（PDFKit） | 通过（lopdf） | 通过（lopdf） |
+
+打印：纸张取文档的，按原大印。打印机没有该纸张、或页面放不下所选纸张时报错，不裁切。
+
+| 平台 | 路径 | 核对 |
 | --- | --- | --- |
-| DOCX 合同 | 两次会话键入的文字（含中文）、批注、修订记录的插入、修订开关保留；`textutil` 读得出文字 | 通过 |
-| XLSX 公式 | 公式文本与缓存结果：整数、日期序号、`#DIV/0!` 错误值、文本严格相等，浮点按用例声明的 1e-12 容差；第二次会话的公式 | 通过 |
-| PPTX 演示 | 三张幻灯片、隐藏的那张仍隐藏、备注文字（含中文） | 通过 |
-
-打印：macOS 经 PDFKit 的打印面板，Windows 经系统打印对话框（真窗口核对到 Microsoft Print to PDF），Linux 经桌面门户（只对替身门户核对，真桌面未核对）；纸张取文档的，按原大印。打印机没有该纸张、或页面放不下所选纸张时报错，不裁切。Linux 由 Ely 照对话框的选择排页（页码范围、奇偶页、倒序、份数与逐份、缩放、每张页数），只交出 PDF。
+| macOS | PDFKit 的打印面板 | 真窗口 |
+| Windows | 系统打印对话框 | 真窗口，打印到 Microsoft Print to PDF |
+| Linux | 桌面门户；由 Ely 照对话框的选择排页（页码范围、奇偶页、倒序、份数与逐份、缩放、每张页数），只交出 PDF | 只对替身门户核对；GNOME、KDE 真桌面未核对 |
 
 字体：缺失字体由内核报出，ElyDoc 页面上方列出缺失的字体（`doc.fonts.missing`），分页可能与有字体时不同；字体一致与缺失两种环境的对照未做。产品不带微软字体。
 
@@ -58,7 +65,7 @@
 | 导入或受限 | XFA 表单不支持；已签名文件另存为未签名副本；修复过的文件只能另存；多选列表框按单选填写 |
 | 输出 | PDF、页面图片（PNG 72/150/300 dpi）、文本、优化的 PDF、打印 |
 
-保存经 MuPDF 写快照后紧缩写出；签名经增量更新写出并重开核对摘要。独立阅读器 PDFKit 读回页序、改动的文字与字段值（`crates/ely-pdf-worker/tests/independent.rs`）。证书信任照各端系统：macOS 的 SecTrust、Windows 的 CryptoAPI 链引擎、Linux 的系统 CA（webpki；签名者本身是根或是 CA 时照基本 X.509 规则：有效期、签名、上级为 CA、路径长度、签发用途，有名称约束、读不出的扩展或未执行的关键扩展即不受信，路径长度不计自颁发的换钥证书（名字照 RFC 5280 比较；Windows 逐字节比，名字换了编码的换钥证书在 Windows 上不受信））。限制：证书吊销状态不核验，不联网。
+保存经 MuPDF 写快照后紧缩写出；签名经增量更新写出并重开核对摘要。独立阅读器读回页序、改动的文字与字段值（见上“往返验证”）。证书信任照各端系统：macOS 的 SecTrust、Windows 的 CryptoAPI 链引擎、Linux 的系统 CA（webpki；签名者本身是根或是 CA 时照基本 X.509 规则：有效期、签名、上级为 CA、路径长度、签发用途，有名称约束、读不出的扩展或未执行的关键扩展即不受信，路径长度不计自颁发的换钥证书（名字照 RFC 5280 比较；Windows 逐字节比，名字换了编码的换钥证书在 Windows 上不受信））。限制：证书吊销状态不核验，不联网。
 
 ## ElyTree
 

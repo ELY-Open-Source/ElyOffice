@@ -1,19 +1,47 @@
-//! Ely's edits read back by another reader, PDFKit (QA-13).
-#![cfg(target_os = "macos")]
+//! Edits read back by another reader: PDFKit, else lopdf (QA-13).
 
 use std::path::Path;
 
 use ely_pdf_engine::{FieldKind, NewField, Worker, Writing, Wrote, sample::{Extras, pdf_with}};
-use objc2::AllocAnyThread as _;
-use objc2_foundation::{NSString, NSURL};
-use objc2_pdf_kit::PDFDocument;
 
 fn worker() -> Worker {
     Worker::spawn_from(Path::new(env!("CARGO_BIN_EXE_ely-pdf-worker"))).expect("the worker")
 }
 
-/// Each page's text and widget values, as PDFKit reads them.
+/// Each page's text and widget values, as lopdf reads them.
+#[cfg(not(target_os = "macos"))]
 fn read_back(path: &Path) -> Vec<(String, Vec<String>)> {
+    let document = lopdf::Document::load(path).expect("lopdf opens it");
+    let value = |annot: &lopdf::Dictionary| {
+        let own = annot.get(b"V").ok();
+        // A widget's value may sit on its parent field.
+        let parent = || annot.get(b"Parent").ok().and_then(|p| document.dereference(p).ok()).and_then(|(_, p)| p.as_dict().ok()?.get(b"V").ok());
+        own.or_else(parent).map(|v| lopdf::decode_text_string(document.dereference(v).expect("a value").1).expect("a text value"))
+    };
+    document
+        .get_pages()
+        .iter()
+        .map(|(&number, &id)| {
+            let text = document.extract_text(&[number]).expect("its text");
+            let page = document.get_dictionary(id).expect("a page");
+            let annots = page.get(b"Annots").ok().map(|a| document.dereference(a).expect("annotations").1.as_array().expect("an array").clone()).unwrap_or_default();
+            let values = annots
+                .iter()
+                .map(|a| document.dereference(a).expect("an annotation").1.as_dict().expect("a dictionary"))
+                .filter(|a| a.get(b"Subtype").ok().and_then(|s| s.as_name().ok()) == Some(b"Widget".as_slice()))
+                .filter_map(value)
+                .collect();
+            (text, values)
+        })
+        .collect()
+}
+
+/// Each page's text and widget values, as PDFKit reads them.
+#[cfg(target_os = "macos")]
+fn read_back(path: &Path) -> Vec<(String, Vec<String>)> {
+    use objc2::AllocAnyThread as _;
+    use objc2_foundation::{NSString, NSURL};
+    use objc2_pdf_kit::PDFDocument;
     let url = NSURL::fileURLWithPath(&NSString::from_str(path.to_str().expect("UTF-8")));
     let document = unsafe { PDFDocument::initWithURL(PDFDocument::alloc(), &url) }.expect("PDFKit opens it");
     (0..unsafe { document.pageCount() })
