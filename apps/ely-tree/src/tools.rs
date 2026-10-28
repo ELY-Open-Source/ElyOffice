@@ -106,7 +106,19 @@ pub const REVEAL: &str = if cfg!(target_os = "macos") {
 
 #[cfg(target_os = "macos")]
 pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
-    Command::new("open").args(["-a", "Terminal"]).arg(dir).spawn()
+    Command::new("open")
+        .args(["-a", "Terminal"])
+        .arg(dir)
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+}
+
+/// PowerShell keeps a UNC folder; cmd.exe cannot.
+#[cfg(windows)]
+pub(crate) fn terminal(dir: &Path) -> Command {
+    let mut command = Command::new("powershell.exe");
+    command.arg("-NoLogo").current_dir(dir);
+    command
 }
 
 /// A new console; Windows hosts it in the default terminal.
@@ -114,14 +126,22 @@ pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
 pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
     use std::os::windows::process::CommandExt as _;
     // CREATE_NEW_CONSOLE
-    Command::new("cmd.exe").current_dir(dir).creation_flags(0x10).spawn()
+    terminal(dir).creation_flags(0x10).spawn()
 }
 
 /// The freedesktop launcher, else Debian's.
 #[cfg(all(unix, not(target_os = "macos")))]
 pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
-    for name in ["xdg-terminal-exec", "x-terminal-emulator"] {
-        match Command::new(name).current_dir(dir).spawn() {
+    launcher(&["xdg-terminal-exec", "x-terminal-emulator"], dir)
+}
+
+/// The first launcher found; its errors are kept.
+#[cfg(all(unix, not(target_os = "macos")))]
+fn launcher(names: &[&str], dir: &Path) -> io::Result<Child> {
+    for &name in names {
+        let mut command = Command::new(name);
+        command.current_dir(dir).stderr(std::process::Stdio::piped());
+        match command.spawn() {
             Ok(child) => return Ok(child),
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 log::info!("tree: no {name}")
@@ -131,8 +151,19 @@ pub(crate) fn terminal_at(dir: &Path) -> io::Result<Child> {
     }
     Err(io::Error::new(
         io::ErrorKind::NotFound,
-        "no terminal launcher: xdg-terminal-exec or x-terminal-emulator",
+        format!("no terminal launcher: {}", names.join(" or ")),
     ))
+}
+
+/// A launcher can start, then fail; it says why.
+#[cfg(unix)]
+fn settled(child: Child) -> io::Result<()> {
+    let out = child.wait_with_output()?;
+    if out.status.success() {
+        return Ok(());
+    }
+    let said = String::from_utf8_lossy(&out.stderr).trim().to_string();
+    Err(io::Error::other(format!("{}: {said}", out.status)))
 }
 
 impl Tree {
@@ -143,8 +174,28 @@ impl Tree {
     pub fn open_terminal(&mut self, cx: &mut Context<Self>) {
         let Some(root) = self.root() else { return };
         log::info!("tree: terminal at {}", root.display());
-        if let Err(error) = terminal_at(&root) {
-            self.failed("tree.error.tool", &error.to_string(), cx);
+        let child = match terminal_at(&root) {
+            Ok(child) => child,
+            Err(error) => return self.failed("tree.error.tool", &error.to_string(), cx),
+        };
+        // A closed console's exit says nothing.
+        #[cfg(windows)]
+        drop(child);
+        #[cfg(unix)]
+        {
+            let (done, result) = futures::channel::oneshot::channel();
+            // Waits as long as the terminal lives.
+            std::thread::spawn(move || done.send(settled(child)));
+            cx.spawn(async move |this, cx| {
+                if let Ok(Err(error)) = result.await {
+                    log::warn!("tree: the terminal failed: {error}");
+                    this.update(cx, |tree, cx| {
+                        tree.failed("tree.error.tool", &error.to_string(), cx)
+                    })
+                    .ok();
+                }
+            })
+            .detach();
         }
     }
 
@@ -282,6 +333,55 @@ mod tests {
         let gone = std::path::Path::new("/nonexistent/DeletedEditor.app");
         let said = super::launch(gone, std::path::Path::new("/tmp")).expect_err("gone");
         assert!(said.to_string().contains("DeletedEditor.app"), "{said}");
+    }
+
+    /// The folder the terminal's shell starts in.
+    #[cfg(windows)]
+    fn shell_dir(dir: &std::path::Path) -> String {
+        let out = super::terminal(dir)
+            .args(["-NoProfile", "-Command", "(Get-Location).ProviderPath"])
+            .output()
+            .expect("powershell runs");
+        assert!(out.status.success(), "{out:?}");
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn the_terminal_starts_in_the_repository_even_on_a_share() {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let local = dir.path().to_string_lossy().to_string();
+        assert_eq!(shell_dir(dir.path()), local);
+        let (drive, rest) = local.split_once(":\\").expect("a drive path");
+        let share = format!("\\\\localhost\\{drive}$\\{rest}");
+        if !std::path::Path::new(&share).is_dir() {
+            return eprintln!("SKIP: no admin share at {share}");
+        }
+        assert_eq!(shell_dir(std::path::Path::new(&share)), share);
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    #[test]
+    fn a_launcher_that_starts_and_fails_says_why() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let script = |name: &str, body: &str| {
+            let path = dir.path().join(name);
+            std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("writes");
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("runs");
+            path.to_string_lossy().to_string()
+        };
+        let bad = script("bad", "echo 'no display' >&2; exit 1");
+        let started = super::launcher(&[&bad], dir.path()).expect("starts");
+        let said = super::settled(started).expect_err("fails");
+        assert!(said.to_string().contains("no display"), "{said}");
+        let good = script("good", "pwd > here");
+        let started = super::launcher(&["ely-no-such-launcher", &good], dir.path()).expect("starts");
+        super::settled(started).expect("ends well");
+        let here = std::fs::read_to_string(dir.path().join("here")).expect("wrote");
+        assert_eq!(std::path::Path::new(here.trim()), dir.path());
+        let none = super::launcher(&["ely-no-such-launcher"], dir.path()).expect_err("none");
+        assert_eq!(none.kind(), std::io::ErrorKind::NotFound);
     }
 
     #[test]

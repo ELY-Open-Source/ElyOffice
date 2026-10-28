@@ -5,6 +5,7 @@ use std::{
     io,
     os::windows::io::{AsRawHandle as _, FromRawHandle as _, OwnedHandle},
     sync::OnceLock,
+    time::{Duration, Instant},
 };
 
 use windows_sys::{
@@ -29,7 +30,7 @@ use windows_sys::{
 };
 
 /// Git for Windows waits this long, then ends the tree.
-const GRACE_MS: u32 = 10_000;
+const GRACE: Duration = Duration::from_secs(10);
 
 type Routine = unsafe extern "system" fn(*mut c_void) -> u32;
 
@@ -75,11 +76,18 @@ pub fn stop(root: u32) -> io::Result<()> {
 
 /// Git's exit can hang behind a blocked read.
 fn end_after_grace(root: u32, held: Vec<OwnedHandle>) {
-    let Some(first) = held.first() else { return };
-    if unsafe { WaitForSingleObject(first.as_raw_handle(), GRACE_MS) } == WAIT_OBJECT_0 {
+    let deadline = Instant::now() + GRACE;
+    // A helper can outlive Git and hold its pipes.
+    let ended = held.iter().all(|process| {
+        let left = deadline.saturating_duration_since(Instant::now()).as_millis();
+        let left = u32::try_from(left).unwrap_or(u32::MAX);
+        let waited = unsafe { WaitForSingleObject(process.as_raw_handle(), left) };
+        waited == WAIT_OBJECT_0
+    });
+    if ended {
         return;
     }
-    log::warn!("tree: git {root} still runs after ctrl-c; ending it");
+    log::warn!("tree: git {root}'s tree still runs after ctrl-c; ending it");
     for process in held.iter().rev() {
         let handle = process.as_raw_handle();
         if unsafe { WaitForSingleObject(handle, 0) } == WAIT_OBJECT_0 {
@@ -178,4 +186,53 @@ fn interrupt(process: &OwnedHandle, routine: Routine) -> io::Result<()> {
         drop(OwnedHandle::from_raw_handle(thread));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use crate::tests::{committed, git, sh};
+
+    /// Run by the test below as its helper.
+    #[test]
+    #[ignore = "a helper process"]
+    fn deaf() {
+        let Some(marker) = std::env::var_os("ELY_DEAF") else { return };
+        super::checked(unsafe { super::SetConsoleCtrlHandler(None, 1) }).expect("deaf");
+        std::fs::write(marker, "").expect("marks");
+        std::thread::sleep(Duration::from_secs(60));
+    }
+
+    #[test]
+    fn a_helper_that_outlives_git_is_ended_too() {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let root = committed(dir.path());
+        let bare = dir.path().join("bare.git");
+        sh(dir.path(), &["init", "-q", "--bare", &bare.to_string_lossy()]);
+        let slash = |path: &std::path::Path| path.to_string_lossy().replace('\\', "/");
+        let (marker, exe) = (dir.path().join("deaf"), std::env::current_exe().expect("this test"));
+        let hook = format!(
+            "#!/bin/sh\nELY_DEAF='{}' '{}' --exact running::win::tests::deaf --ignored --nocapture\n",
+            slash(&marker),
+            slash(&exe)
+        );
+        std::fs::write(root.join(".git/hooks/pre-push"), hook).expect("a hook");
+        let running = git()
+            .start(&root, &["push", &bare.to_string_lossy(), "HEAD:main"])
+            .expect("starts");
+        let stop = running.stop();
+        let (done, result) = std::sync::mpsc::channel();
+        std::thread::spawn(move || done.send(running.follow(|_| {})));
+        let start = Instant::now();
+        while !marker.exists() {
+            assert!(start.elapsed() < Duration::from_secs(60), "the helper never ran");
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        stop.now().expect("asks");
+        let ended = result
+            .recv_timeout(super::GRACE + Duration::from_secs(10))
+            .expect("the run ends though the helper ignores ctrl-c");
+        assert!(ended.is_err(), "a stopped push fails: {ended:?}");
+    }
 }

@@ -473,18 +473,3 @@ fn the_repository_menu_offers_every_tool() {
         "{names:?}"
     );
 }
-
-#[test]
-fn a_terminal_opens_on_every_platform() {
-    let dir = tempfile::tempdir().expect("a temp dir");
-    let mut child = match crate::tools::terminal_at(dir.path()) {
-        Ok(child) => child,
-        // Linux without a launcher says which to install.
-        Err(error) if cfg!(target_os = "linux") && error.kind() == std::io::ErrorKind::NotFound => {
-            return eprintln!("SKIP: {error}");
-        }
-        Err(error) => panic!("a terminal starts: {error}"),
-    };
-    child.kill().expect("closes");
-    child.wait().expect("ends");
-}
