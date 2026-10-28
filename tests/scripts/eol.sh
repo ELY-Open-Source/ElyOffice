@@ -3,6 +3,10 @@
 set -euo pipefail
 
 root=${1:-$(cd "$(dirname "$0")/../.." && pwd)}
+list=$(mktemp)
+trap 'rm -f "$list"' EXIT
+# A failed listing stops here; NUL needs a file.
+git -C "$root" ls-files --eol -z >"$list"
 bad=
 # Records end in NUL; the path follows the first tab.
 while IFS= read -r -d '' record; do
@@ -11,7 +15,7 @@ while IFS= read -r -d '' record; do
   case ${info%% *} in
     i/crlf | i/mixed) [[ $path == vendor/* ]] || bad+="$path"$'\n' ;;
   esac
-done < <(git -C "$root" ls-files --eol -z)
+done <"$list"
 if [ -n "$bad" ]; then
   echo "FAIL: CRLF in the index:"
   printf '%s' "$bad"

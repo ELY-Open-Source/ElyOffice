@@ -32,4 +32,14 @@ case $said in
     exit 1
     ;;
 esac
-echo "PASS: eol.sh keeps vendor's bytes and names whole paths"
+git -C "$work" rm -q --cached -- "notes vendor/probe.md"
+# A git whose listing fails; the rest is real.
+mkdir "$work/bin"
+printf '#!/usr/bin/env bash\nfor arg; do [ "$arg" != ls-files ] || exit 128; done\nexec "%s" "$@"\n' \
+  "$(command -v git)" >"$work/bin/git"
+chmod +x "$work/bin/git"
+if said=$(PATH="$work/bin:$PATH" bash "$root/tests/scripts/eol.sh" "$work" 2>&1); then
+  echo "FAIL: a failed listing passed: $said"
+  exit 1
+fi
+echo "PASS: eol.sh keeps vendor's bytes, names whole paths, stops on git's failure"
