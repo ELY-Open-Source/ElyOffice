@@ -425,7 +425,7 @@
 - [x] R14.17 ElyShow 媒体：Windows 以 Media Foundation 实现 `media::Player`（C-01、N-02，§10） — `media/mf.rs` 以 IMFMediaEngine 帧服务模式实现；字节流开文件；后端自己推进视频（帧服务模式无人取帧即不前进、不播完）；ElyShow 画 BGRA 帧、旧帧交 `Retired`；媒体测试两端同断言，`tests/video.rs` 新增；三处改坏各令测试失败。R1 FAIL 两处已修：测试只在非 macOS 编；换页、结束屏、结束放映经 `drop_media`。并行测试另查出 Windows 上 worker 的临时目录不生效（只设了 TMPDIR），改为同设 TMP、TEMP；R2 PASS
 - [x] R14.18 ElyShow 媒体：Linux 以 GStreamer 实现 `media::Player`（C-01、N-02，§10）：`ely-platform/src/media/gst.rs` 运行时 dlopen 系统的 GStreamer，playbin 加 appsink 出 BGRA；共用的 `tests/media.rs` 与 ElyShow 的 `tests/video.rs` 在 WSL 原样通过
 - [x] R14.19 ElyShow 命令行（§10、§16）：`ely-show text docs|get|replace|save` — `get` 读 fodp 副本（`remote::slide_text`，幻灯片间换页符，不含备注、批注）；`replace` 为 `text.replace`，照 Impress 每个文本框一步撤销；真内核测试、`show-cli.sh` 皆过。R1 FAIL：有选中对象时 Impress 只在其中替换；改为先取消选中、替换后照序号重选，测试先选中表格。R2 FAIL：进入组合后选着其中的对象，`SlideObjects` 只列页面一层，标记数却为 1；Ely 的按号选择只认页面一层、无从复原，改为此时拒绝、不动文档；R3 PASS
-- [ ] R14.20 PPTX 的章节（`p14:sectionLst`）不被静默丢掉（D-02，§10、§19）— 内核无章节，保不住；打开即 `Risk::Sections`（横幅、状态“含章节”），保存改为另存副本，自动保存与命令行保存不写原文件，原文件的章节不动；单测与真内核测试皆过。R1 FAIL 两处已修：加密的 PPTX 看不到章节，改为 `Risk::Sealed`（同样只写副本）；UTF-16 的 presentation.xml 先解码再查，UTF-32 报错。R2 FAIL 一处已修：OLE 目录的扫描漏了文件最后一个 128 字节的项，改为逐个完整的项都查（宏的查法同受益）
+- [x] R14.20 PPTX 的章节（`p14:sectionLst`）不被静默丢掉（D-02，§10、§19）— 内核无章节，保不住；打开即 `Risk::Sections`（横幅、状态“含章节”），保存改为另存副本，自动保存与命令行保存不写原文件，原文件的章节不动；单测与真内核测试皆过。R1 FAIL 两处已修：加密的 PPTX 看不到章节，改为 `Risk::Sealed`（同样只写副本）；UTF-16 的 presentation.xml 先解码再查，UTF-32 报错。R2 FAIL 一处已修：OLE 目录的扫描漏了文件最后一个 128 字节的项，改为逐个完整的项都查（宏的查法同受益）。R3 PASS
 - [ ] R14.21 ElyPDF：Windows 上的三个测试（R12.35、P3-13）；证书信任三端已有，关闭 N-04（C-02，§11）
 - [ ] R14.22 ElyMail 邮件列表的滚动条（R12.28、R12.39，§12）
 - [ ] R14.23 ElyMail 接 `mailto:`（D-03，§12）：三端登记为可选的处理程序，不设为默认；打开即写信，收件人、主题、正文照链接
