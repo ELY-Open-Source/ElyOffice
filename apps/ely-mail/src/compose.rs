@@ -98,10 +98,12 @@ impl Compose {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let kept = opening.draft.as_ref();
-        let (words, markdown) = kept.map_or(("", true), |it| {
-            (it.unsent.words.as_str(), it.unsent.markdown)
-        });
+        // A link's body is plain text.
+        let (words, markdown) = match (&opening.draft, &opening.asked) {
+            (Some(kept), _) => (kept.unsent.words.as_str(), kept.unsent.markdown),
+            (None, Some(asked)) if !asked.body.is_empty() => (asked.body.as_str(), false),
+            _ => ("", true),
+        };
         let mode = match markdown {
             true => MarkdownMode::Visual,
             false => MarkdownMode::Source,
@@ -173,6 +175,13 @@ impl Compose {
                 let earlier = lead::lead(answered.how, &answered.mail, answered.text, cx);
                 compose.before = Some(earlier);
             }
+        }
+        if let Some(asked) = opening.asked {
+            let addresses = |list: Vec<String>| list.into_iter().map(Into::into).collect();
+            compose.to = addresses(asked.to);
+            compose.cc = addresses(asked.cc);
+            compose.bcc = addresses(asked.bcc);
+            compose.subject = asked.subject.into();
         }
         compose.written = Draft {
             to: compose.to.clone(),

@@ -27,6 +27,7 @@ mod drafts;
 mod files;
 mod flows;
 mod leaving;
+mod links;
 mod migrate;
 mod organize;
 mod outbox;

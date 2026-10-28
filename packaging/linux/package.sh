@@ -22,8 +22,10 @@ categories=${row##*$'\t'}
 license=$(awk -F'\t' -v slug="$slug" '$1 == slug { print $5 }' "$root/packaging/apps.tsv")
 # The types it opens, from packaging/types.tsv; none drops the line.
 mimes=$(awk -F'\t' -v slug="$slug" '$1 == slug && !seen[$3]++ { printf "%s;", $3 }' "$root/packaging/types.tsv")
+# A URL scheme needs links, not only files.
+args=$(awk -F'\t' -v slug="$slug" '$1 == slug && $2 ~ /:$/ { found = 1 } END { print found ? "%U" : "%F" }' "$root/packaging/types.tsv")
 desktop_entry() {
-  sed -e "s/@NAME@/$name/" -e "s/@SLUG@/$slug/g" -e "s/@CATEGORIES@/$categories/" -e "s|@MIME@|$mimes|" \
+  sed -e "s/@NAME@/$name/" -e "s/@SLUG@/$slug/g" -e "s/@CATEGORIES@/$categories/" -e "s|@MIME@|$mimes|" -e "s/@ARGS@/$args/" \
     -e '/^MimeType=$/d' "$root/packaging/linux/app.desktop.in"
 }
 

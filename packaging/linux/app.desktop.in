@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=@NAME@
-Exec=@SLUG@ %F
+Exec=@SLUG@ @ARGS@
 MimeType=@MIME@
 Icon=@SLUG@
 Categories=@CATEGORIES@

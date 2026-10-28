@@ -192,11 +192,11 @@ tests/scripts/show-fullscreen.sh  真窗口 ElyShow：F5 放映的窗口盖住�
 tests/scripts/dock-macos.sh      dist 里 ElyDoc、ElyTable、ElyShow 与包外的 target/debug/ely-doc 各启动数次：LOK worker 从未登记为程序坞应用，图块照出
 tests/scripts/windows-bundle.sh  合集安装程序逐个静默运行所选应用的安装程序；某个被拒即停下并报出其名与退出码（缺 makensis 时 SKIP）
 tests/scripts/windows-installer.sh  假应用的安装程序：所选目录原有的文件经两次安装与卸载都在，旧版按注册表清理，文件被占用或程序在运行时什么也不改，写不进时放回旧版（缺 makensis 时 SKIP）
-tests/scripts/types.sh         packaging/types.tsv 的文件类型在 Linux 桌面项、Windows 安装程序与 macOS 文档类型里一致，macOS 的 UTI 照 MIME 类型、级别为 Alternate
+tests/scripts/types.sh         packaging/types.tsv 的文件类型与 URL 方案在 Linux 桌面项、Windows 安装程序与 macOS 的 plist 里一致，macOS 的 UTI 照 MIME 类型、级别为 Alternate，URL 方案从不被接管
 tests/scripts/windows-a11y.sh   真窗口 ElyDoc 与 ElyPDF：UI Automation 的 TextPattern 读到段落、插入点与选区（含 emoji），PDF 的页文与拖选（缺引擎时 SKIP）
 tests/scripts/windows-names.sh  真窗口七个应用：UI Automation 里每个可操作节点与 Tab 停靠点都有名字，Tab 走得到文档、F6 出得去（样本取自 a11y-samples.sh；缺引擎时 SKIP）
 tests/scripts/linux-names.sh    同上，经 AT-SPI：Xvfb 在容器里经 TCP，应用与私有 D-Bus、AT-SPI 总线在本机（缺 docker、AT-SPI 的 Python 绑定或引擎时 SKIP）
-tests/scripts/windows-types.sh  真安装程序以假类型 `.elyprobe` 写 HKCU：能打开、只在无处理程序时设默认与“新建”、别的程序的登记与“新建”不动、换了文件夹后旧卸载不删新的、写不进即安装失败（缺 makensis 时 SKIP）
+tests/scripts/windows-types.sh  真安装程序以假类型 `.elyprobe` 写 HKCU：能打开、只在无处理程序时设默认与“新建”、假方案 `elyprobe:` 进“默认应用”而不接管、别的程序的登记与“新建”不动、换了文件夹后旧卸载不删新的、写不进即安装失败（缺 makensis 时 SKIP）
 tests/scripts/layout.sh        真窗口：六个应用在 640、800、1100 宽下无元素越出窗口左右，留截图（需辅助功能与屏幕录制权限）
 tests/scripts/ooxml.py <用例> <文件>  不经 LibreOffice 读 DOCX、XLSX、PPTX 并按自算的预期核对（往返用例调用）
 cd site && pnpm run deploy    官网构建并经 wrangler 发到 Cloudflare Workers（静态资源，另有 `site/worker` 只答 `/release.json`：GitHub API 的最新版本、其中三个完整安装包（Mac arm64、Mac x86_64、Windows）的地址与全部发布的下载总数，加上 Gitea 上迁移前的下载（Gitea 不通时只计 GitHub；都不计更新清单 `.json`），缓存 5 分钟；下载按钮按访客的平台直接下载完整安装包，Linux 与单独的应用指向 `releases/latest`），地址 https://office.elygpui.com（workers.dev 地址 https://ely-office.zhangyanghaha0407.workers.dev 同站）
@@ -222,7 +222,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - macOS 发布以 Developer ID 签名并公证（`ELY_SIGN_IDENTITY`、`ELY_NOTARY_PROFILE`），缺即失败，不出未公证的包。
 - 首批发布 ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark；ElyAgent 第二批。
 - 数据只在 `ely_platform::data_dir` 给出的目录；用户文档永不碰；卸载先问。根默认在系统的本地数据目录；设置“存储”可换到所选文件夹下的 `ElyOffice`，指向文件 `folder.json` 留在默认位置，下次启动、无 Ely 应用在运行时搬动（`ely_platform::folder`）。
-- 文件类型只写在 `packaging/types.tsv`，只进“打开方式”，从不设为默认（Windows 的“新建”只在该类型无任何处理程序时设）。“打开方式”里不得出现 LibreOffice，任何脚本都不挂载 LibreOffice 镜像。
+- 文件类型只写在 `packaging/types.tsv`，只进“打开方式”，从不设为默认（Windows 的“新建”只在该类型无任何处理程序时设）。URL 方案也写在那里，第二列以冒号结尾（`mailto:`）：Linux 的 `x-scheme-handler` 与 `%U`，Windows 的 `Capabilities\URLAssociations` 与 `RegisteredApplications`（只进“默认应用”供选，从不写 `Classes\mailto`），macOS 的 `CFBundleURLTypes`；链接经 `ely_ui::mail_link` 原样交到应用，ElyMail 照 RFC 6068 填好新信。“打开方式”里不得出现 LibreOffice，任何脚本都不挂载 LibreOffice 镜像。
 - 语言：界面英文与简体中文；内核界面固定英文，内核给出的固定文字（ElyTable 的状态与错误、单元格样式，ElyDoc 的内置样式名）由 Ely 按界面语言重写，文件与主题资源自带的名字（母版、主题色集、用户样式、字体）照原样；ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
 - 外观：Doc、Table、Show、PDF 的页面照文件原色，只有四周的界面随深浅色；邮件正文、Mark、Agent 随深浅色。深色底 `#252525`，不用纯黑。有 Omarchy 时随 Omarchy。
 - 性能：八个应用都不许卡顿（120 FPS 手感，树莓派 3 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事。

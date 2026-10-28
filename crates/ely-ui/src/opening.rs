@@ -1,6 +1,11 @@
 //! Files handed to the app: arguments, Finder, second copies.
 
-use std::{io, path::PathBuf, time::Duration};
+use std::{
+    ffi::OsString,
+    io,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use ely_platform::instance::Door;
 use futures::{StreamExt, channel::mpsc};
@@ -64,7 +69,27 @@ pub(crate) struct Hands {
 
 /// Launch arguments, relative to where the app was started.
 pub(crate) fn launch_args() -> io::Result<Vec<PathBuf>> {
-    std::env::args_os().skip(1).map(std::path::absolute).collect()
+    std::env::args_os().skip(1).map(launch_arg).collect()
+}
+
+/// A path, a `file://` URL, or a whole mail link.
+fn launch_arg(arg: OsString) -> io::Result<PathBuf> {
+    match arg.to_str() {
+        Some(link) if is_mail_link(link) => Ok(PathBuf::from(link)),
+        Some(url) if url.starts_with("file://") => {
+            file_path(url).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, format!("an unreadable file URL: {url}")))
+        }
+        _ => std::path::absolute(arg),
+    }
+}
+
+fn is_mail_link(text: &str) -> bool {
+    text.get(..7).is_some_and(|scheme| scheme.eq_ignore_ascii_case("mailto:"))
+}
+
+/// The `mailto:` link an opened item is, if any.
+pub fn mail_link(opened: &Path) -> Option<&str> {
+    opened.to_str().filter(|text| is_mail_link(text))
 }
 
 /// Queues `files`, then files the system or copies ask for.
@@ -87,6 +112,11 @@ pub(crate) fn listen(application: &Application, files: Vec<PathBuf>, door: Door)
     let system = queue.clone();
     application.on_open_urls(move |urls| {
         for url in urls {
+            if is_mail_link(&url) {
+                log::info!("run: the system asks to write to a mail link");
+                system.unbounded_send(PathBuf::from(url)).ok();
+                continue;
+            }
             match file_path(&url) {
                 Some(path) => {
                     log::info!("run: the system asks to open a file");
@@ -209,6 +239,27 @@ mod tests {
         assert_eq!(file_path("https://example.com/a"), None);
         assert_eq!(file_path("file:///a/%zz"), None);
         assert_eq!(file_path("file:///a/%4"), None);
+    }
+}
+
+#[cfg(test)]
+mod launch_tests {
+    use super::{launch_arg, mail_link};
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn mail_links_stay_whole_and_file_urls_become_paths() {
+        let link = "mailto:a@b.c?subject=x%20y";
+        assert_eq!(launch_arg(link.into()).expect("a link"), PathBuf::from(link));
+        assert_eq!(mail_link(Path::new("MAILTO:a@b.c")), Some("MAILTO:a@b.c"));
+        assert_eq!(mail_link(Path::new("mailto.md")), None);
+        #[cfg(windows)]
+        let (url, path) = ("file:///C:/a%20b.eml", "C:/a b.eml");
+        #[cfg(unix)]
+        let (url, path) = ("file:///tmp/a%20b.eml", "/tmp/a b.eml");
+        assert_eq!(launch_arg(url.into()).expect("a file URL"), PathBuf::from(path));
+        assert!(launch_arg("file:///a/%zz".into()).is_err(), "a broken URL is refused");
+        assert!(launch_arg("a.eml".into()).expect("a path").is_absolute());
     }
 }
 

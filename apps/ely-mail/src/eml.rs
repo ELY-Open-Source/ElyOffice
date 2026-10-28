@@ -72,8 +72,15 @@ pub fn is_eml(path: &std::path::Path) -> bool {
 }
 
 impl Mail {
-    /// Message files open to read; others go into a draft.
+    /// Links and messages open; other files join a draft.
     pub fn take_files(&mut self, files: Vec<PathBuf>, cx: &mut Context<Self>) {
+        let (links, files): (Vec<_>, Vec<_>) = files.into_iter().partition(|opened| ely_ui::mail_link(opened).is_some());
+        for link in links {
+            match crate::mailto::parse(ely_ui::mail_link(&link).expect("a mail link")) {
+                Ok(asked) => self.write_asked(asked, cx),
+                Err(error) => self.failed("mail.write.link", &error, cx),
+            }
+        }
         let (messages, others): (Vec<_>, Vec<_>) = files.into_iter().partition(|path| is_eml(path));
         for path in messages {
             self.open_eml(path, cx);

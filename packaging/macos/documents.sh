@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Prints the app's CFBundleDocumentTypes. Usage: documents.sh <slug>
+# Prints the app's document and URL types. Usage: documents.sh <slug>
 set -euo pipefail
+
+root=$(cd "$(dirname "$0")/../.." && pwd)
+slug=${1:?app slug}
 
 # role, then the content types it opens.
 case ${1:?app slug} in
@@ -23,5 +26,15 @@ echo "    <key>CFBundleTypeRole</key><string>$role</string>"
 echo "    <key>LSHandlerRank</key><string>Alternate</string>"
 echo "    <key>LSItemContentTypes</key><array>"
 for type in "$@"; do echo "      <string>$type</string>"; done
+echo "    </array>"
+echo "  </dict></array>"
+# URL schemes from packaging/types.tsv, as a viewer.
+schemes=$(awk -F'	' -v slug="$slug" '$1 == slug && $2 ~ /:$/ { print substr($2, 1, length($2) - 1) }' "$root/packaging/types.tsv")
+[ -n "$schemes" ] || exit 0
+echo "  <key>CFBundleURLTypes</key><array><dict>"
+echo "    <key>CFBundleURLName</key><string>$slug.links</string>"
+echo "    <key>CFBundleTypeRole</key><string>Viewer</string>"
+echo "    <key>CFBundleURLSchemes</key><array>"
+for scheme in $schemes; do echo "      <string>$scheme</string>"; done
 echo "    </array>"
 echo "  </dict></array>"

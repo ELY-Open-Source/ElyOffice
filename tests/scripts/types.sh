@@ -37,7 +37,14 @@ for slug in $(cut -f1 "$types" | sort -u); do
   rows=$(awk -F'\t' -v slug="$slug" '$1 == slug' "$types")
   while IFS=$'\t' read -r _ ext mime; do
     grep -q "^MimeType=.*$mime;" <<<"$desktop" || fail "$slug: Linux misses $mime"
-    if [ "$ext" = / ]; then
+    if [ "${ext%:}" != "$ext" ]; then
+      scheme=${ext%:}
+      grep -q '^Exec=.* %U$' <<<"$desktop" || fail "$slug: Linux passes no links"
+      grep -q "URLAssociations\" \"$scheme\"" <<<"$windows" || fail "$slug: Windows misses $scheme"
+      grep -q 'DeleteRegValue HKCU "Software\\RegisteredApplications"' <<<"$windows" || fail "$slug: uninstall keeps $scheme"
+      ! grep -q "Classes\\\\$scheme[\\\\\"]" <<<"$windows" || fail "$slug: Windows takes $scheme over"
+      grep -q "<string>$scheme</string>" <<<"$("$root/packaging/macos/documents.sh" "$slug")" || fail "$slug: macOS misses $scheme"
+    elif [ "$ext" = / ]; then
       grep -q 'Directory\\shell' <<<"$windows" || fail "$slug: Windows misses folders"
     else
       grep -q "\\\\.$ext\\\\OpenWithProgids" <<<"$windows" || fail "$slug: Windows misses .$ext"
@@ -48,8 +55,8 @@ for slug in $(cut -f1 "$types" | sort -u); do
   # macOS declares each MIME type's own UTI, never as owner.
   mac=$("$root/packaging/macos/documents.sh" "$slug")
   grep -q '<key>LSHandlerRank</key><string>Alternate</string>' <<<"$mac" || fail "$slug: macOS rank is not Alternate"
-  declared=$(sed -n 's|^      <string>\(.*\)</string>$|\1|p' <<<"$mac" | sort)
-  wanted=$(cut -f3 <<<"$rows" | sort -u | while read -r mime; do uti "$mime"; done | sort)
+  declared=$(sed -n '/CFBundleURLTypes/q; s|^      <string>\(.*\)</string>$|\1|p' <<<"$mac" | sort)
+  wanted=$(awk -F'\t' '$2 !~ /:$/ { print $3 }' <<<"$rows" | sort -u | while read -r mime; do uti "$mime"; done | sort)
   [ "$declared" = "$wanted" ] || fail "$slug: macOS declares $(echo $declared), the table means $(echo $wanted)"
 done
 # Explorer's New makes docx, xlsx, pptx and md.
@@ -61,4 +68,4 @@ for ext in docx xlsx pptx md; do
     fail "$slug: New misses .$ext"
   fresh=$((fresh + 1))
 done
-echo "ok: types ($count file types on three systems, $fresh in New)"
+echo "ok: types ($count file types and URL schemes on three systems, $fresh in New)"

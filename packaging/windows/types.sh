@@ -9,8 +9,12 @@ name=$(awk -F'\t' -v slug="$slug" '$1 == slug { print $2 }' "$root/packaging/app
 progid="ElyOffice.$name"
 classes='Software\Classes'
 command="'\"\$INSTDIR\\$slug.exe\" \"%1\"'"
-exts=$(awk -F'\t' -v slug="$slug" '$1 == slug && $2 != "/" { print $2 }' "$root/packaging/types.tsv")
+exts=$(awk -F'\t' -v slug="$slug" '$1 == slug && $2 != "/" && $2 !~ /:$/ { print $2 }' "$root/packaging/types.tsv")
 folder=$(awk -F'\t' -v slug="$slug" '$1 == slug && $2 == "/" { print "yes" }' "$root/packaging/types.tsv")
+# URL schemes go to Default Apps, never taken over.
+schemes=$(awk -F'\t' -v slug="$slug" '$1 == slug && $2 ~ /:$/ { print substr($2, 1, length($2) - 1) }' "$root/packaging/types.tsv")
+urlclass="$progid.Url"
+capabilities="Software\\ElyOffice\\$name\\Capabilities"
 # Types Explorer's New menu makes, from packaging/windows/new.
 fresh=""
 for ext in $exts; do
@@ -99,6 +103,21 @@ if [ -n "$folder" ]; then
   put "  " "$classes\\Directory\\shell\\$progid" "Icon" "\"\$INSTDIR\\$slug.ico\""
   put "  " "$classes\\Directory\\shell\\$progid\\command" "" "$command"
 fi
+if [ -n "$schemes" ]; then
+  put "  " "$classes\\$urlclass" "" "\"$name Link\""
+  put "  " "$classes\\$urlclass" "URL Protocol" '""'
+  put "  " "$classes\\$urlclass\\DefaultIcon" "" "\"\$INSTDIR\\$slug.ico\""
+  put "  " "$classes\\$urlclass\\shell\\open\\command" "" "$command"
+  put "  " "$capabilities" "ApplicationName" "\"$name\""
+  put "  " "$capabilities" "ApplicationDescription" "\"$name\""
+  for scheme in $schemes; do
+    put "  " "$capabilities\\URLAssociations" "$scheme" "\"$urlclass\""
+  done
+  # Default Apps lists it once the class opens.
+  echo "  \${If} \$2 == \"\""
+  put "    " "Software\\RegisteredApplications" "$name" "\"$capabilities\""
+  echo "  \${EndIf}"
+fi
 echo '  System::Call "shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)"'
 echo '  ClearErrors'
 echo '  StrCmp $2 "" +2'
@@ -139,6 +158,20 @@ if [ -n "$folder" ]; then
   owner "  " "$classes\\Directory\\shell\\$progid\\command"
   echo "  \${If} \$0 == \$1"
   gone "    " "$classes\\Directory\\shell\\$progid"
+  echo "  \${EndIf}"
+fi
+if [ -n "$schemes" ]; then
+  owner "  " "$classes\\$urlclass\\shell\\open\\command"
+  echo "  \${If} \$0 == \$1"
+  drop "    " "Software\\RegisteredApplications" "$name"
+  # The class goes last, once nothing names it.
+  echo "    \${If} \$2 == \"\""
+  gone "      " "Software\\ElyOffice\\$name"
+  echo "      DeleteRegKey /ifempty HKCU \"Software\\ElyOffice\""
+  echo "    \${EndIf}"
+  echo "    \${If} \$2 == \"\""
+  gone "      " "$classes\\$urlclass"
+  echo "    \${EndIf}"
   echo "  \${EndIf}"
 fi
 echo '  System::Call "shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)"'

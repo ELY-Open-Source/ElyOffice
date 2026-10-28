@@ -13,7 +13,9 @@ c='Software\Classes'
 # A made-up app and type keep real types out.
 class="$c\\ElyOffice.ElyProbe" app="$c\\Applications\\ely-probe.exe" listing="$c\\.elyprobe\\OpenWithProgids"
 command="$class\\shell\\open\\command"
-keys=("$class" "$c\\.elyprobe" "$c\\Other.ElyProbe" "$app" "$c\\Directory\\shell\\ElyOffice.ElyProbe"
+# A made-up scheme for Default Apps.
+url="$c\\ElyOffice.ElyProbe.Url" caps='Software\ElyOffice\ElyProbe\Capabilities' listed_apps='Software\RegisteredApplications'
+keys=("$class" "$c\\.elyprobe" "$c\\Other.ElyProbe" "$app" "$c\\Directory\\shell\\ElyOffice.ElyProbe" "$url" "$c\\elyprobe" 'Software\ElyOffice\ElyProbe'
   'Software\Ely Office\ElyProbe' 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Ely Office ElyProbe')
 # Set-Acl wants write access, which the rule denies.
 undeny() {
@@ -26,8 +28,9 @@ deny() { # key [rights]
     fail "the deny rule on $1 did not take"
 }
 clean() {
-  for key in "$class" "$app" "$listing" "$command"; do undeny "$key"; done
+  for key in "$class" "$app" "$listing" "$command" "$url"; do undeny "$key"; done
   for key in "${keys[@]}"; do reg delete "HKCU\\$key" /f >/dev/null 2>&1 || true; done
+  reg delete "HKCU\\$listed_apps" /v ElyProbe /f >/dev/null 2>&1 || true
   rm -f "$APPDATA/Microsoft/Windows/Start Menu/Programs/ElyProbe.lnk"
   ! reg query "HKCU\\$class" >/dev/null 2>&1 || { echo "FAIL: the probe class stays" >&2; exit 1; }
 }
@@ -42,7 +45,7 @@ tree=$work/tree
 mkdir -p "$tree/packaging/windows/new"
 cp "$root/packaging/windows/types.sh" "$tree/packaging/windows/"
 printf 'ely-probe\tElyProbe\tUtility;\t1\tMIT\n' >"$tree/packaging/apps.tsv"
-printf 'ely-probe\telyprobe\tapplication/x-elyprobe\nely-probe\t/\tinode/directory\n' >"$tree/packaging/types.tsv"
+printf 'ely-probe\telyprobe\tapplication/x-elyprobe\nely-probe\t/\tinode/directory\nely-probe\telyprobe:\tx-scheme-handler/elyprobe\n' >"$tree/packaging/types.tsv"
 : >"$tree/packaging/windows/new/new.elyprobe"
 "$tree/packaging/windows/types.sh" ely-probe >"$work/types.nsh"
 stage=$work/stage
@@ -100,6 +103,10 @@ a=$work/a
 listed || fail "fresh: Open With misses it"
 [ "$(value "$c\\.elyprobe")" = ElyOffice.ElyProbe ] || fail "fresh: New has no class"
 [ "$(value "$c\\.elyprobe\\ShellNew" FileName)" = "$(cygpath -w "$a")\\new.elyprobe" ] || fail "fresh: no New"
+[ "$(value "$url\\shell\\open\\command")" = "$(opens "$a")" ] || fail "fresh: links do not open"
+[ "$(value "$caps\\URLAssociations" elyprobe)" = ElyOffice.ElyProbe.Url ] || fail "fresh: no URL association"
+[ "$(value "$listed_apps" ElyProbe)" = "$caps" ] || fail "fresh: Default Apps misses it"
+! reg query "HKCU\\$c\\elyprobe" >/dev/null 2>&1 || fail "fresh: the scheme was taken over"
 
 # Moved: the old folder's uninstall leaves the new one working.
 b=$work/b
@@ -109,12 +116,18 @@ b=$work/b
 [ "$(value "$class\\shell\\open\\command")" = "$(opens "$b")" ] || fail "moved: the old uninstall took the open command"
 [ "$(value "$c\\Directory\\shell\\ElyOffice.ElyProbe\\command")" = "$(opens "$b")" ] || fail "moved: the old uninstall took the folder menu"
 listed || fail "moved: the old uninstall took Open With"
+[ "$(value "$url\\shell\\open\\command")" = "$(opens "$b")" ] || fail "moved: the old uninstall took links"
+[ "$(value "$listed_apps" ElyProbe)" = "$caps" ] || fail "moved: the old uninstall took Default Apps"
 [ "$(uninstall "$b")" = 0 ] || fail "last uninstall"
 for key in "$class" "$c\\Directory\\shell\\ElyOffice.ElyProbe" "$c\\.elyprobe\\ShellNew"; do
   ! reg query "HKCU\\$key" >/dev/null 2>&1 || fail "uninstall left $key"
 done
 ! listed || fail "uninstall left Open With"
 [ -z "$(value "$c\\.elyprobe")" ] || fail "uninstall left the class"
+for key in "$url" 'Software\ElyOffice\ElyProbe'; do
+  ! reg query "HKCU\\$key" >/dev/null 2>&1 || fail "uninstall left $key"
+done
+[ -z "$(value "$listed_apps" ElyProbe)" ] || fail "uninstall left Default Apps"
 
 # Another app's type: its default and New stay.
 reg add "HKCU\\$c\\Other.ElyProbe\\shell\\open\\command" /ve /d 'C:\Other\other.exe "%1"' /f >/dev/null
@@ -136,7 +149,11 @@ deny "$class"
 ! listed || fail "denied class: Open With names an unusable class"
 [ "$(blamed "$work/e")" = "HKCU\\$class" ] || fail "denied class: blamed $(cat "$work/said.txt")"
 clean
-for key in "$app" "$listing"; do
+deny "$url"
+[ "$(install "$work/u")" != 0 ] || fail "denied link class: the install reported success"
+[ -z "$(value "$listed_apps" ElyProbe)" ] || fail "denied link class: Default Apps names it"
+clean
+for key in "$app" "$listing" "$url"; do
   deny "$key"
   [ "$(blamed "$work/f")" = "HKCU\\$key" ] || fail "denied $key: blamed $(cat "$work/said.txt")"
   clean

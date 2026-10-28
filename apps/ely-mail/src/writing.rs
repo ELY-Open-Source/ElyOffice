@@ -39,6 +39,8 @@ pub struct Opening {
     pub from: AccountId,
     pub answered: Option<Answered>,
     pub draft: Option<Reopened>,
+    /// A mail link's addresses, subject and body.
+    pub asked: Option<crate::mailto::Asked>,
 }
 
 /// The message answered or forwarded.
@@ -173,6 +175,7 @@ fn answered(store: &Store, id: MessageId, how: How) -> Result<Opening> {
             missing,
         }),
         draft: None,
+        asked: None,
     })
 }
 
@@ -216,6 +219,15 @@ impl Mail {
 
     /// A new message carrying `files` (§16); it never sends itself.
     pub fn write_with(&mut self, files: Vec<PathBuf>, cx: &mut Context<Self>) {
+        self.write(files, None, cx);
+    }
+
+    /// A new message filled from a mail link.
+    pub fn write_asked(&mut self, asked: crate::mailto::Asked, cx: &mut Context<Self>) {
+        self.write(Vec::new(), Some(asked), cx);
+    }
+
+    fn write(&mut self, files: Vec<PathBuf>, asked: Option<crate::mailto::Asked>, cx: &mut Context<Self>) {
         let preferred = self.open.account();
         self.with_store(
             cx,
@@ -238,6 +250,7 @@ impl Mail {
                             from,
                             answered: None,
                             draft: None,
+                            asked,
                         },
                         cx,
                     );

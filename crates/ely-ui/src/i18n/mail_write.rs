@@ -37,6 +37,7 @@ pub(super) const EN: &[(&str, &str)] = &[
         "Reading {n} files; Send waits for them",
     ),
     ("mail.write.no_account", "Add an account before writing"),
+    ("mail.write.link", "This mail link does not open: {error}"),
     (
         "mail.write.unread",
         "The message could not be started: {error}",
@@ -96,6 +97,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("mail.write.unnamed", "未命名的文件"),
     ("mail.write.reading", "正在读取 {n} 个文件，读完才能发送"),
     ("mail.write.no_account", "先添加账号再写邮件"),
+    ("mail.write.link", "无法打开这个邮件链接：{error}"),
     ("mail.write.unread", "无法开始写这封邮件：{error}"),
     ("mail.write.unopened", "写邮件的窗口没有打开：{error}"),
     ("mail.write.attach_failed", "有文件未能附加：{error}"),

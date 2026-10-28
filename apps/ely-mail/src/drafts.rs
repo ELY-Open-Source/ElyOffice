@@ -269,6 +269,7 @@ impl Mail {
                         unsent: draft.unsent,
                         files: store.draft_files(id)?,
                     }),
+                    asked: None,
                 })
             },
             move |mail, read, cx| {
