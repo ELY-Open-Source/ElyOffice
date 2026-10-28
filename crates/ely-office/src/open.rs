@@ -167,10 +167,9 @@ pub trait Opening: Host {
             Source::Locked(path, _) => (path, None, true),
         };
         let opened = loaded.and_then(|loaded| {
-            let risk = match (files::macro_risk(&Self::KIND, &path)?, files::sections(&path)?) {
-                (true, _) => Some(crate::Risk::Macros),
-                (_, true) => Some(crate::Risk::Sections),
-                _ => Self::Engine::risk(&loaded),
+            let risk = match files::macro_risk(&Self::KIND, &path)? {
+                true => Some(crate::Risk::Macros),
+                false => files::section_risk(&Self::KIND, &path)?.or_else(|| Self::Engine::risk(&loaded)),
             };
             let (work, session) = match registry {
                 Some(_) => (

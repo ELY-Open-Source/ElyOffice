@@ -2433,6 +2433,7 @@ dependencies = [
  "ely-lok",
  "ely-platform",
  "ely-ui",
+ "encoding_rs",
  "flate2",
  "gpui-pre",
  "jiff",

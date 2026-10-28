@@ -114,6 +114,8 @@ pub enum Risk {
     Repaired,
     /// PPTX slide sections the kernel drops (D-02).
     Sections,
+    /// An encrypted PPTX whose sections Ely cannot see.
+    Sealed,
 }
 
 /// One open document.
@@ -153,6 +155,7 @@ impl<E, G: Engine> Tab<E, G> {
             _ if self.risk == Some(Risk::Signed) => "office.state.signed",
             _ if self.risk == Some(Risk::Repaired) => "office.state.repaired",
             _ if self.risk == Some(Risk::Sections) => "office.state.sections",
+            _ if self.risk == Some(Risk::Sealed) => "office.state.sealed",
             _ if self.exporting => "office.state.saving",
             SaveState::Saving => "office.state.saving",
             SaveState::ExternalModified => "office.state.external",

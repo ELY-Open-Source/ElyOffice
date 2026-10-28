@@ -53,6 +53,7 @@ pub trait Chrome: Host {
             crate::Risk::Signed => "office.signed",
             crate::Risk::Repaired => "office.repaired",
             crate::Risk::Sections => "office.sections",
+            crate::Risk::Sealed => "office.sealed",
         };
         let warning = text(cx, key, &[("name", &tab.name), ("formats", &formats)]);
         Some(Banner::new("office-risk", Severity::Warning, warning))

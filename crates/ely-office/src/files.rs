@@ -1,6 +1,7 @@
 //! Formats and the kernel half of a save (FILE-04).
 
 use std::{
+    borrow::Cow,
     io,
     path::{Path, PathBuf},
 };
@@ -69,27 +70,51 @@ pub fn macro_risk(kind: &Kind, path: &Path) -> io::Result<bool> {
             .iter()
             .any(|name| name.ends_with("vbaProject.bin") || name.starts_with("Basic/")));
     }
-    if bytes.starts_with(&[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]) {
-        return Ok(ole_has_vba(&bytes));
+    if bytes.starts_with(OLE) {
+        return Ok(ole_has(&bytes, "_VBA_PROJECT"));
     }
     flat_odf_has_basic(&bytes)
 }
+
+/// The first bytes of an OLE compound file.
+const OLE: &[u8] = &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
 
 /// The office namespace that carries Basic libraries.
 const OOO: &[u8] = b"http://openoffice.org/2004/office";
 
 /// Whether flat ODF embeds a Basic library, namespaces in scope.
 fn flat_odf_has_basic(bytes: &[u8]) -> io::Result<bool> {
-    let text = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
+    let text = utf8(bytes)?;
     if !text.trim_ascii_start().starts_with(b"<") {
         return Ok(false);
     }
-    holds(text, OOO, b"library-embedded")
+    holds(&text, OOO, b"library-embedded")
+}
+
+/// XML bytes in an ASCII-compatible form; UTF-16 decoded.
+fn utf8(bytes: &[u8]) -> io::Result<Cow<'_, [u8]>> {
+    let utf16 = |encoding: &'static encoding_rs::Encoding, rest: &[u8]| {
+        let text = encoding.decode_without_bom_handling_and_without_replacement(rest);
+        let text = text.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, format!("bad {}", encoding.name())))?;
+        Ok(Cow::Owned(text.into_owned().into_bytes()))
+    };
+    match bytes {
+        [0xFF, 0xFE, 0, 0, ..] | [0, 0, 0xFE, 0xFF, ..] | [0x3C, 0, 0, 0, ..] | [0, 0, 0, 0x3C, ..] => {
+            Err(io::Error::new(io::ErrorKind::InvalidData, "UTF-32 XML is not read"))
+        }
+        [0xEF, 0xBB, 0xBF, rest @ ..] => Ok(Cow::Borrowed(rest)),
+        [0xFF, 0xFE, rest @ ..] => utf16(encoding_rs::UTF_16LE, rest),
+        [0xFE, 0xFF, rest @ ..] => utf16(encoding_rs::UTF_16BE, rest),
+        [0x3C, 0, ..] => utf16(encoding_rs::UTF_16LE, bytes),
+        [0, 0x3C, ..] => utf16(encoding_rs::UTF_16BE, bytes),
+        _ => Ok(Cow::Borrowed(bytes)),
+    }
 }
 
 /// Whether XML `text` has element `name` in namespace `ns`.
 fn holds(text: &[u8], ns: &[u8], name: &[u8]) -> io::Result<bool> {
-    let mut reader = NsReader::from_reader(text);
+    let text = utf8(text)?;
+    let mut reader = NsReader::from_reader(text.as_ref());
     let mut buf = Vec::new();
     loop {
         let (bound, event) = reader
@@ -123,9 +148,21 @@ pub fn sections(path: &Path) -> io::Result<bool> {
     }
 }
 
-/// Whether an OLE file has a `_VBA_PROJECT` directory entry.
-fn ole_has_vba(bytes: &[u8]) -> bool {
-    let name: Vec<u8> = "_VBA_PROJECT"
+/// What ElyShow's file risks: sections, or a seal hiding them.
+pub fn section_risk(kind: &Kind, path: &Path) -> io::Result<Option<crate::Risk>> {
+    if kind.app != ely_platform::AppId::Show {
+        return Ok(None);
+    }
+    let bytes = std::fs::read(path)?;
+    if bytes.starts_with(OLE) && ole_has(&bytes, "EncryptedPackage") {
+        return Ok(Some(crate::Risk::Sealed));
+    }
+    Ok(sections(path)?.then_some(crate::Risk::Sections))
+}
+
+/// Whether an OLE file has a stream entry `name`.
+fn ole_has(bytes: &[u8], name: &str) -> bool {
+    let name: Vec<u8> = name
         .encode_utf16()
         .flat_map(u16::to_le_bytes)
         .collect();
@@ -279,5 +316,31 @@ mod tests {
         assert!(sections(&write("s.pptx", &deck("<p14:sectionLst/>"))).expect("stored"), "a stored part");
         assert!(!sections(&write("p.pptx", &deck("<p:sectionLst/>"))).expect("other ns"), "only p14 counts");
         assert!(sections(&write("b.pptx", &deck("<a></b><p14:sectionLst/>"))).is_err(), "broken XML is an error");
+        let raw = |name: &str, xml: Vec<u8>| {
+            let path = dir.path().join(name);
+            std::fs::write(&path, stored("ppt/presentation.xml", &xml)).expect("writes");
+            path
+        };
+        let text = deck("<p14:sectionLst/>");
+        let le: Vec<u8> = text.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        let be: Vec<u8> = text.encode_utf16().flat_map(u16::to_be_bytes).collect();
+        assert!(sections(&raw("le.pptx", [&[0xFF, 0xFE][..], &le].concat())).expect("UTF-16LE"));
+        assert!(sections(&raw("le-bare.pptx", le.clone())).expect("UTF-16LE, no BOM"));
+        assert!(sections(&raw("be.pptx", [&[0xFE, 0xFF][..], &be].concat())).expect("UTF-16BE"));
+        let utf32: Vec<u8> = text.chars().flat_map(|c| (c as u32).to_le_bytes()).collect();
+        assert!(sections(&raw("32.pptx", utf32)).is_err(), "UTF-32 is an error, not absence");
+        assert!(sections(&raw("bad.pptx", vec![0xFF, 0xFE, 0x3C, 0, 0x00, 0xD8])).is_err(), "a lone surrogate");
+    }
+
+    #[test]
+    fn only_show_asks_and_a_seal_hides_the_sections() {
+        let show = Kind { app: ely_platform::AppId::Show, kept: &["pptx"], save_as: &["pptx"], macros: None };
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/show");
+        let risk = |kind: &Kind, name: &str| section_risk(kind, &fixtures.join(name)).expect(name);
+        assert_eq!(risk(&show, "sections.pptx"), Some(crate::Risk::Sections));
+        assert_eq!(risk(&show, "sections-utf16.pptx"), Some(crate::Risk::Sections));
+        assert_eq!(risk(&show, "sections-locked.pptx"), Some(crate::Risk::Sealed));
+        assert_eq!(risk(&show, "trouble.fodp"), None);
+        assert_eq!(risk(&KIND, "sections.pptx"), None, "Doc and Table never ask");
     }
 }

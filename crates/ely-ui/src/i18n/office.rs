@@ -71,6 +71,11 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("office.state.signed", "Signed"),
     ("office.state.repaired", "Repaired copy"),
     ("office.state.sections", "Has sections"),
+    ("office.state.sealed", "Sections unchecked"),
+    (
+        "office.sealed",
+        "{name} is encrypted, so Ely cannot see whether it has slide sections, which Ely cannot keep. Save As writes a {formats} copy; the original stays as it is.",
+    ),
     (
         "office.sections",
         "{name} has slide sections, which Ely cannot keep. Save As writes a {formats} copy without them; the original keeps its sections.",
@@ -165,6 +170,11 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("office.state.signed", "已签名"),
     ("office.state.repaired", "修复的副本"),
     ("office.state.sections", "含章节"),
+    ("office.state.sealed", "章节未查"),
+    (
+        "office.sealed",
+        "{name} 已加密，Ely 看不到其中有无幻灯片章节，而章节 Ely 无法保留。“另存为”写出 {formats} 副本；原文件保持原样。",
+    ),
     (
         "office.sections",
         "{name} 含幻灯片章节，Ely 无法保留。“另存为”写出不含章节的 {formats} 副本；原文件的章节照旧。",
