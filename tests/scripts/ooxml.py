@@ -239,6 +239,25 @@ EDITED = KEPT | {
     "B2": ('CUBEVALUE("Sales",A2)', "e", "#NAME?"),
 }
 
+# tests/fixtures/table/kept-more.xlsx: each kind of result the file holds.
+MORE = {
+    "A1": ("FUTUREFN(1)", "b", "1"),
+    "B1": ("FUTUREFN(2)", "str", None),
+    "C1": ("FUTUREFN(3)", "e", "#NAME?"),
+    "D1": ("FUTUREFN(4)", "e", "#NAME?"),
+    "E1": (CUBE, "n", "41"),
+    "A2": ("FUTUREFN(I2)", "b", "1"),
+    "A3": ("FUTUREFN(I3)", "b", "0"),
+    "B2": ("FUTUREFN(I2)", "str", None),
+    "B3": ("FUTUREFN(I3)", "str", "ok"),
+    "G5": ("FUTUREFN(1)", "n", "1"),
+    "H5": (None, "n", "2"),
+    "G6": (None, "n", "3"),
+    "H6": (None, "str", "four"),
+    "K8": ('FUTUREFN(INDIRECT("J8"))', "n", "42"),
+    "L8": ("FUTUREFN(OFFSET(J8,0,0))", "n", "43"),
+}
+
 
 def cells_are(path, expected):
     """Formulas as written, with the file's type and value."""
@@ -256,6 +275,7 @@ CASES = {
     "deck": deck,
     "kept": lambda path: cells_are(path, KEPT),
     "kept-edited": lambda path: cells_are(path, EDITED),
+    "kept-more": lambda path: cells_are(path, MORE),
 }
 
 # Damage each check must catch: part, pattern, replacement.
@@ -280,6 +300,11 @@ MUTATIONS = {
     "kept-edited": [
         ("xl/worksheets/sheet1.xml", r'<c r="D1"[^>]*t="e"><f([^>]*)>(.*?)</f><v>#NAME\?</v>', r'<c r="D1" t="n"><f\1>\2</f><v>82</v>'),
         ("xl/worksheets/sheet1.xml", r'(<c r="B3"[^>]*>.*?<v>)200(</v>)', r"\g<1>0\g<2>"),
+    ],
+    "kept-more": [
+        ("xl/worksheets/sheet1.xml", r'(<c r="A1"[^>]*)t="b"', r'\g<1>t="n"'),
+        ("xl/worksheets/sheet1.xml", r'(<c r="H6"[^>]*><v>)four(</v>)', r"\g<1>five\g<2>"),
+        ("xl/worksheets/sheet1.xml", r'(<c r="K8"[^>]*>.*?<v>)42(</v>)', r"\g<1>0\g<2>"),
     ],
     "deck": [
         ("ppt/_rels/presentation.xml.rels", r"slides/slide2\.xml", "slides/missing.xml"),
