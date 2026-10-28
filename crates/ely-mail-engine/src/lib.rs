@@ -17,6 +17,7 @@ pub mod push;
 pub mod sent;
 mod smtp;
 mod store;
+pub mod mailto;
 pub mod mbox;
 pub mod sync;
 pub mod vcard;

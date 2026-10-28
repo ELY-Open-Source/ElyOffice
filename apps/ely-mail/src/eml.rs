@@ -76,7 +76,7 @@ impl Mail {
     pub fn take_files(&mut self, files: Vec<PathBuf>, cx: &mut Context<Self>) {
         let (links, files): (Vec<_>, Vec<_>) = files.into_iter().partition(|opened| ely_ui::mail_link(opened).is_some());
         for link in links {
-            match crate::mailto::parse(ely_ui::mail_link(&link).expect("a mail link")) {
+            match ely_mail_engine::mailto::parse(ely_ui::mail_link(&link).expect("a mail link")) {
                 Ok(asked) => self.write_asked(asked, cx),
                 Err(error) => self.failed("mail.write.link", &error, cx),
             }

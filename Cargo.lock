@@ -2298,6 +2298,7 @@ dependencies = [
  "form_urlencoded",
  "getrandom 0.4.3",
  "html5ever",
+ "idna",
  "imap-proto",
  "jiff",
  "keyring",

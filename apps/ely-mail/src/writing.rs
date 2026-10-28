@@ -40,7 +40,7 @@ pub struct Opening {
     pub answered: Option<Answered>,
     pub draft: Option<Reopened>,
     /// A mail link's addresses, subject and body.
-    pub asked: Option<crate::mailto::Asked>,
+    pub asked: Option<ely_mail_engine::mailto::Asked>,
 }
 
 /// The message answered or forwarded.
@@ -223,11 +223,11 @@ impl Mail {
     }
 
     /// A new message filled from a mail link.
-    pub fn write_asked(&mut self, asked: crate::mailto::Asked, cx: &mut Context<Self>) {
+    pub fn write_asked(&mut self, asked: ely_mail_engine::mailto::Asked, cx: &mut Context<Self>) {
         self.write(Vec::new(), Some(asked), cx);
     }
 
-    fn write(&mut self, files: Vec<PathBuf>, asked: Option<crate::mailto::Asked>, cx: &mut Context<Self>) {
+    fn write(&mut self, files: Vec<PathBuf>, asked: Option<ely_mail_engine::mailto::Asked>, cx: &mut Context<Self>) {
         let preferred = self.open.account();
         self.with_store(
             cx,

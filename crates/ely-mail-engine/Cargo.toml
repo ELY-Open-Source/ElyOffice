@@ -11,6 +11,7 @@ base64.workspace = true
 form_urlencoded = "1"
 getrandom.workspace = true
 html5ever.workspace = true
+idna = "1"
 imap-proto.workspace = true
 jiff.workspace = true
 tempfile.workspace = true

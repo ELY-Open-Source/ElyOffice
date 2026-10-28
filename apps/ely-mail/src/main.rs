@@ -17,7 +17,6 @@ mod identity;
 mod kinds;
 mod letter;
 mod mail;
-mod mailto;
 mod menu;
 mod migrate;
 mod notices;
