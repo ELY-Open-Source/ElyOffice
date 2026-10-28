@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # The bench's verdicts on made-up logs and handles.
 import collections
+import os
 import re
+import tempfile
 import unittest
 
 import bench
@@ -40,6 +42,17 @@ class Verdicts(unittest.TestCase):
         cursor = 1
         with self.assertRaisesRegex(RuntimeError, "no document count"):
             bench.documents_open(log[cursor:])
+
+    def test_ElyMark_memory_is_held_to_its_budget(self):
+        env = {"date": "2000-01-01", "machine": "Test"}
+        rows = [("PERF-07", "ElyMark at the budget", [100], 400.0),
+                ("PERF-07", "ElyMark past it", [100], 401.0)]
+        with tempfile.TemporaryDirectory() as out:
+            bench.write(out, env, rows, None, 1)
+            with open(os.path.join(out, "2000-01-01-Test.md"), encoding="utf-8") as record:
+                text = record.read()
+        self.assertIn("| ElyMark at the budget | 1 | 100 | 100 ✓ | 2000 | 400 ✓ | 400 |", text)
+        self.assertIn("| ElyMark past it | 1 | 100 | 100 ✓ | 2000 | 401 ✗ | 400 |", text)
 
 
 if __name__ == "__main__":
