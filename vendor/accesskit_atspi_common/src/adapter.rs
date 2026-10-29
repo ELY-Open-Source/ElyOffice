@@ -477,6 +477,22 @@ impl Adapter {
         }
     }
 
+    /// Takes every node off the bus that `register_tree` and updates put there.
+    fn unregister_tree(&self) {
+        fn collect(node: Node<'_>, to_remove: &mut Vec<(NodeId, InterfaceSet)>) {
+            to_remove.push((node.id(), NodeWrapper(&node).interfaces()));
+            for child in node.filtered_children(&filter) {
+                collect(child, to_remove);
+            }
+        }
+
+        let mut objects_to_remove = Vec::new();
+        collect(self.context.read_tree().state().root(), &mut objects_to_remove);
+        for (id, interfaces) in objects_to_remove {
+            self.unregister_interfaces(id, interfaces);
+        }
+    }
+
     pub fn platform_node(&self, id: NodeId) -> PlatformNode {
         PlatformNode::new(&self.context, self.id, id)
     }
@@ -605,6 +621,8 @@ impl Drop for Adapter {
     fn drop(&mut self) {
         let root_id = self.context.read_tree().state().root_id();
         self.window_destroyed(root_id);
+        // Each registered interface would outlive the window on the bus.
+        self.unregister_tree();
         // Note: We deliberately do the following here, not in a Drop
         // implementation on context, because AppContext owns a second
         // strong reference to Context, and we need that to be released.
@@ -736,6 +754,60 @@ mod tests {
             with_children(Role::Window, &[LocalNodeId(1)]),
         )]));
         assert_eq!(*ops.lock().unwrap(), vec![CacheOp::Removed(added_id)]);
+    }
+
+    #[derive(Default)]
+    struct Registry {
+        on: Vec<NodeId>,
+        off: Vec<NodeId>,
+    }
+
+    struct RegistryCallback(Arc<Mutex<Registry>>);
+
+    impl AdapterCallback for RegistryCallback {
+        fn register_interfaces(&self, _: &Adapter, id: NodeId, _: InterfaceSet) {
+            self.0.lock().unwrap().on.push(id);
+        }
+        fn unregister_interfaces(&self, _: &Adapter, id: NodeId, _: InterfaceSet) {
+            self.0.lock().unwrap().off.push(id);
+        }
+        fn emit_event(&self, _: &Adapter, _: Event) {}
+    }
+
+    #[test]
+    fn dropping_takes_every_node_off_the_bus() {
+        let registry = Arc::new(Mutex::new(Registry::default()));
+        let mut adapter = Adapter::new(
+            &AppContext::new(None),
+            RegistryCallback(registry.clone()),
+            initial_tree(),
+            false,
+            WindowBounds::default(),
+            NoOpActionHandler,
+        );
+        adapter.update(update(vec![
+            (
+                LocalNodeId(0),
+                with_children(Role::Window, &[LocalNodeId(1), LocalNodeId(2)]),
+            ),
+            (LocalNodeId(2), Node::new(Role::Button)),
+        ]));
+        let distinct = |ids: &[NodeId]| {
+            let mut seen: Vec<NodeId> = Vec::new();
+            for id in ids {
+                if !seen.contains(id) {
+                    seen.push(*id);
+                }
+            }
+            seen
+        };
+        let on = distinct(&registry.lock().unwrap().on);
+        assert_eq!(on.len(), 3);
+        let before = registry.lock().unwrap().off.len();
+        drop(adapter);
+        let off = distinct(&registry.lock().unwrap().off[before..]);
+        assert_eq!(off.len(), on.len());
+        assert!(on.iter().all(|id| off.contains(id)), "each node leaves the bus");
     }
 
     #[test]
