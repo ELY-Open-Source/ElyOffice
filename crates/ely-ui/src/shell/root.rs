@@ -2,6 +2,7 @@ use ely_gpui_component::{
     feedback::{Toast, ToastViewport, Toaster},
     navigation::{Command as PaletteCommand, CommandPalette},
     primitives::{Severity, raise},
+    theme::ActiveTheme as _,
 };
 use ely_platform::AppId;
 use std::path::{Path, PathBuf};
@@ -271,8 +272,10 @@ impl Render for Root {
             None => Shell::new(self.app.name(), &self.focus).into_any_element(),
         };
         let has = |id| self.file.iter().any(|command| command.id == id);
+        // Text without its own color, overlays too, takes the theme's.
         let frame = div()
             .size_full()
+            .text_color(cx.theme().colors.fg)
             .key_context(commands::CONTEXT)
             .on_action(cx.listener(|this, _: &New, _, cx| this.attempt("file.new", cx)))
             .on_action(cx.listener(|this, _: &Open, _, cx| this.attempt("file.open", cx)))
@@ -350,7 +353,7 @@ fn view(path: &Path) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use gpui::{FocusHandle, InteractiveElement as _, IntoElement, Render, TestAppContext, div};
+    use gpui::{FocusHandle, InteractiveElement as _, IntoElement, ParentElement as _, Render, Styled as _, TestAppContext, div};
 
     /// A focused view that counts the saves it gets.
     struct Saves(FocusHandle, usize);
@@ -386,5 +389,51 @@ mod tests {
         cx.run_until_parked();
         assert_eq!(cx.update(|cx| saves.read(cx).1), 0, "the view never gets it");
         assert_eq!(cx.update(|cx| root.read(cx).toasts(cx).len()), 1, "the reason shows");
+    }
+
+    type Seen = std::rc::Rc<std::cell::Cell<Option<gpui::Hsla>>>;
+
+    /// Records its drawn text color, and an overlay's.
+    struct Inked(Seen, Seen);
+
+    fn ink(seen: Seen) -> impl IntoElement {
+        gpui::canvas(move |_, window, _| seen.set(Some(window.text_style().color)), |_, _, _, _| {})
+    }
+
+    impl Render for Inked {
+        fn render(&mut self, _: &mut gpui::Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
+            div()
+                .size_full()
+                .child(ink(self.0.clone()))
+                .child(ely_gpui_component::primitives::raise("inked-overlay", ink(self.1.clone())))
+        }
+    }
+
+    #[gpui::test]
+    fn text_without_a_color_takes_the_theme_overlays_too(cx: &mut TestAppContext) {
+        use ely_gpui_component::theme::{ActiveTheme as _, Mode, Theme};
+        cx.update(|cx| {
+            ely_gpui_component::init_for_tests(cx);
+            crate::settings::install_defaults(cx);
+            crate::i18n::install(cx);
+            Theme::set_mode_now(Mode::Dark, cx);
+        });
+        let (page, overlay) = (Seen::default(), Seen::default());
+        let (shown_page, shown_overlay) = (page.clone(), overlay.clone());
+        let window = cx
+            .update(|cx| {
+                cx.open_window(Default::default(), |window, cx| {
+                    let inked = gpui::AppContext::new(cx, |_| Inked(shown_page, shown_overlay));
+                    super::tool_root(ely_platform::AppId::Tree, inked.into(), Vec::new(), window, cx)
+                })
+            })
+            .expect("a window");
+        let cx = &mut gpui::VisualTestContext::from_window(window.into(), cx);
+        cx.update(|window, _| window.refresh());
+        cx.run_until_parked();
+        let fg = cx.update(|_, cx| cx.theme().colors.fg);
+        assert_ne!(fg, gpui::black(), "dark text would hide on a dark page");
+        assert_eq!(page.get(), Some(fg), "the page");
+        assert_eq!(overlay.get(), Some(fg), "an overlay over it");
     }
 }
