@@ -14,6 +14,13 @@ from gi.repository import Atspi  # noqa: E402
 R = Atspi.Role
 SYM = Atspi.KeySynthType.SYM
 CONTROL, ENTER = 0xFFE3, 0xFF0D
+KEYS = {"pagedown": 0xFF56, "tab": 0xFF09}
+# When the last input left, for bench.py to time from.
+SENT = []
+
+
+def sent():
+    SENT.append(time.time() * 1000)
 
 
 def nodes(node):
@@ -61,6 +68,7 @@ def xtest(send):
     display = ctypes.c_void_p(x11.XOpenDisplay(None))
     if not display:
         sys.exit("no X display")
+    sent()
     send(x11, xtst, display)
     x11.XFlush(display)
     x11.XCloseDisplay(display)
@@ -88,6 +96,17 @@ def chord(letter):
     xtest(send)
 
 
+def key(name):
+    """One named key down and up."""
+
+    def send(x11, xtst, display):
+        code = x11.XKeysymToKeycode(display, ctypes.c_ulong(KEYS[name]))
+        for down in (1, 0):
+            xtst.XTestFakeKeyEvent(display, code, down, 0)
+
+    xtest(send)
+
+
 def front(title):
     """Focuses the window, as a window manager would."""
     tree = subprocess.run(["xwininfo", "-root", "-children"], capture_output=True, text=True, check=True).stdout
@@ -108,9 +127,13 @@ def main():
     if command == "front":
         front(arg)
     elif command == "type":
+        sent()
         Atspi.generate_keyboard_event(0, arg, Atspi.KeySynthType.STRING)
     elif command == "enter":
+        sent()
         Atspi.generate_keyboard_event(ENTER, None, Atspi.KeySynthType.PRESSRELEASE | SYM)
+    elif command == "key":
+        key(arg)
     elif command == "chord":
         # AT-SPI's Control press never holds: the letter types.
         chord(arg)
@@ -123,19 +146,24 @@ def main():
             sys.exit(f"no control named {arg}")
         action = node.get_action_iface()
         if action is not None and action.get_n_actions() > 0:
+            sent()
             action.do_action(0)
         else:
             click(node)
     elif command == "shows":
         print("yes" if named(pid, arg) is not None else "no")
     elif command == "field":
-        field = next((node for node in nodes(app_of(pid)) if node.get_role() == R.ENTRY), None)
-        if field is None:
-            sys.exit("no text field")
+        app, until = app_of(pid), time.monotonic() + 10
+        while (field := next((n for n in nodes(app) if n.get_role() == R.ENTRY), None)) is None:
+            if time.monotonic() > until:
+                sys.exit(f"no text field in {app.get_name()} in 10 s")
+            time.sleep(0.1)
         click(field)
     else:
         sys.exit(f"unknown command {command}")
     time.sleep(0.1)
+    if SENT:
+        print(f"sent {SENT[-1]:.0f}")
 
 
 main()

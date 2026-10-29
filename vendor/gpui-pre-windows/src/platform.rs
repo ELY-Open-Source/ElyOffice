@@ -1596,6 +1596,13 @@ fn file_save_dialog(
         };
     }
 
+    // A name typed without one gets the suggested name's extension.
+    let kind = suggested_name
+        .as_deref()
+        .and_then(|name| std::path::Path::new(name).extension())
+        .and_then(|extension| extension.to_str())
+        .map(|extension| (HSTRING::from(extension), HSTRING::from(format!("*.{extension}"))));
+
     if let Some(suggested_name) = suggested_name {
         unsafe {
             dialog
@@ -1606,10 +1613,21 @@ fn file_save_dialog(
     }
 
     unsafe {
-        dialog.SetFileTypes(&[Common::COMDLG_FILTERSPEC {
+        let all = Common::COMDLG_FILTERSPEC {
             pszName: windows::core::w!("All files"),
             pszSpec: windows::core::w!("*.*"),
-        }])?;
+        };
+        match &kind {
+            Some((extension, spec)) => {
+                let own = Common::COMDLG_FILTERSPEC {
+                    pszName: PCWSTR(spec.as_ptr()),
+                    pszSpec: PCWSTR(spec.as_ptr()),
+                };
+                dialog.SetFileTypes(&[own, all])?;
+                dialog.SetDefaultExtension(extension)?;
+            }
+            None => dialog.SetFileTypes(&[all])?,
+        }
         if let Err(error) = dialog.Show(window) {
             if error.code() == HRESULT::from_win32(ERROR_CANCELLED.0) {
                 return Ok(None);

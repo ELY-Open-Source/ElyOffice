@@ -42,18 +42,23 @@ function Window {
     if (-not $window) { throw "no window for process $Id" }
     $window
 }
+# In any of the app's windows: a dialog may be its own.
 function Named([string]$name) {
+    $owner = New-Object System.Windows.Automation.PropertyCondition($A::ProcessIdProperty, $Id)
     $named = New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $name)
-    (Window).FindFirst('Descendants', $named)
+    foreach ($window in $A::RootElement.FindAll('Children', $owner)) {
+        $found = $window.FindFirst('Descendants', $named)
+        if ($found) { return $found }
+    }
 }
+function Mine { $pid0 = [uint32]0; [Input]::Owner([Input]::GetForegroundWindow(), [ref]$pid0) | Out-Null; $pid0 -eq $Id }
 # Input goes to the front window: it must be the app's.
 function Ours {
-    if (-not $script:handle) { $script:handle = [IntPtr](Window).Current.NativeWindowHandle }
-    $front = [Input]::GetForegroundWindow()
-    if ($front -eq $script:handle) { return }
+    if (Mine) { return }
+    $handle = [IntPtr](Window).Current.NativeWindowHandle
     # A console flashing up takes the front; take it back once.
-    for ($try = 0; $try -lt 5 -and -not [Input]::Front($script:handle); $try++) { Start-Sleep -Milliseconds 100 }
-    if ([Input]::GetForegroundWindow() -eq $script:handle) { [Console]::Error.WriteLine("drive: took the front back"); return }
+    for ($try = 0; $try -lt 5 -and -not [Input]::Front($handle); $try++) { Start-Sleep -Milliseconds 100 }
+    if (Mine) { [Console]::Error.WriteLine("drive: took the front back"); return }
     throw "process $Id lost the front to $(Holder); no input sent"
 }
 # The process owning the front window, by name and id.
@@ -63,13 +68,18 @@ function Holder {
     "$((Get-Process -Id $pid0 -ErrorAction SilentlyContinue).ProcessName) ($pid0)"
 }
 # SendKeys' journal hook drops keys on Windows 11.
+# When the last input left, for bench.py to time from.
+function Sent { $script:sent = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() }
 function Key([byte]$vk, [bool]$up) {
-    if (-not $up) { Ours }
-    [Input]::keybd_event($vk, 0, $(if ($up) { 2 } else { 0 }), [UIntPtr]::Zero)
+    if (-not $up) { Ours; Sent }
+    # Page and arrow keys are extended keys.
+    $flags = $(if ($up) { 2 } else { 0 }) -bor $(if ($vk -ge 0x21 -and $vk -le 0x28) { 1 } else { 0 })
+    [Input]::keybd_event($vk, 0, $flags, [UIntPtr]::Zero)
 }
 function Tap([byte]$vk) { Key $vk $false; Key $vk $true }
 function ClickAt([int]$x, [int]$y) {
     [Input]::SetCursorPos($x, $y) | Out-Null
+    Sent
     [Input]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
     [Input]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
 }
@@ -104,6 +114,7 @@ switch ($Command) {
         }
     }
     'enter' { Tap 0x0D }
+    'key' { Tap (@{ pagedown = 0x22; tab = 0x09 })[$Arg] }
     'chord' {
         Key 0x11 $false
         Tap ([byte][char]$Arg.ToUpper())
@@ -113,13 +124,16 @@ switch ($Command) {
         $element = Named $Arg
         if (-not $element) { throw "no control named $Arg" }
         $invoke = $null
-        if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) { $invoke.Invoke() } else { Click $element }
+        if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) { Sent; $invoke.Invoke() } else { Click $element }
     }
     'shows' { if (Named $Arg) { 'yes' } else { 'no' } }
     'field' {
         $edit = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
-        $field = (Window).FindFirst('Descendants', $edit)
-        if (-not $field) { throw 'no text field' }
+        $until = (Get-Date).AddSeconds(10)
+        while (-not ($field = (Window).FindFirst('Descendants', $edit))) {
+            if ((Get-Date) -gt $until) { throw "no text field in process $Id in 10 s" }
+            Start-Sleep -Milliseconds 100
+        }
         Click $field
     }
     'machine' {
@@ -131,3 +145,4 @@ switch ($Command) {
     }
     default { throw "unknown command $Command" }
 }
+if ($script:sent) { "sent $($script:sent)" }
