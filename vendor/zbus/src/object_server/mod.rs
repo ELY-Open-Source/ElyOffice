@@ -232,15 +232,8 @@ impl ObjectServer {
                 .await?;
         }
         if node.is_empty() {
-            let mut path_parts = path.rsplit('/').filter(|i| !i.is_empty());
-            let last_part = path_parts.next().unwrap();
-            let ppath = ObjectPath::from_string_unchecked(
-                path_parts.fold(String::new(), |a, p| format!("/{p}{a}")),
-            );
-            root.get_child_mut(&ppath, false)
-                .0
-                .unwrap()
-                .remove_node(last_part);
+            // Empty ancestors go too, else each removed path leaves its branch behind.
+            root.prune(&path);
             return Ok(true);
         }
         Ok(false)

@@ -106,8 +106,33 @@ impl Node {
         })
     }
 
-    pub(super) fn remove_node(&mut self, node: &str) -> bool {
-        self.children.remove(node).is_some()
+    /// Removes the node at `path` and the ancestors that only led to it.
+    ///
+    /// An ancestor stays if it has other children, interfaces of its own or an `ObjectManager`.
+    pub(super) fn prune(&mut self, path: &ObjectPath<'_>) -> bool {
+        let parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty()).collect();
+        if parts.is_empty() {
+            return false;
+        }
+        let mut node = &*self;
+        let mut keep = 0;
+        for (depth, part) in parts.iter().enumerate() {
+            let Some(child) = node.children.get(*part) else {
+                return false;
+            };
+            let needed = child.children.len() > 1
+                || !child.is_empty()
+                || child.interfaces.contains_key(&ObjectManager::name());
+            if depth + 1 < parts.len() && needed {
+                keep = depth + 1;
+            }
+            node = child;
+        }
+        let mut node = &mut *self;
+        for part in &parts[..keep] {
+            node = node.children.get_mut(*part).expect("walked above");
+        }
+        node.children.remove(parts[keep]).is_some()
     }
 
     pub(super) fn add_arc_interface(
@@ -253,5 +278,44 @@ impl Node {
             .await
             .get_all(object_server, connection, None, &emitter)
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Node;
+    use crate::fdo::ObjectManager;
+    use zvariant::ObjectPath;
+
+    fn path(p: &str) -> ObjectPath<'_> {
+        ObjectPath::try_from(p).unwrap()
+    }
+
+    fn make(root: &mut Node, p: &str) {
+        root.get_child_mut(&path(p), true).0.unwrap();
+    }
+
+    #[test]
+    fn prune_takes_the_branch_that_only_led_to_the_node() {
+        let mut root = Node::new("/".try_into().unwrap());
+        make(&mut root, "/a/b/c");
+        make(&mut root, "/a/d");
+        make(&mut root, "/x/y");
+        assert!(root.prune(&path("/a/b/c")));
+        assert!(root.get_child(&path("/a/b")).is_none());
+        assert!(root.get_child(&path("/a/d")).is_some(), "a sibling keeps its parent");
+        assert!(root.prune(&path("/x/y")));
+        assert!(root.get_child(&path("/x")).is_none());
+        assert!(!root.prune(&path("/x/y")), "gone already");
+    }
+
+    #[test]
+    fn prune_keeps_an_object_manager() {
+        let mut root = Node::new("/".try_into().unwrap());
+        make(&mut root, "/m/n/o");
+        root.get_child_mut(&path("/m"), false).0.unwrap().add_interface(ObjectManager);
+        assert!(root.prune(&path("/m/n/o")));
+        assert!(root.get_child(&path("/m/n")).is_none());
+        assert!(root.get_child(&path("/m")).is_some());
     }
 }
