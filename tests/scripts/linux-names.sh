@@ -86,16 +86,32 @@ def press(key):
     return focused(app)
 
 
-def give_focus():
-    """Focuses the app's window, as a window manager would."""
+def top():
     tree = subprocess.run(["xwininfo", "-root", "-children"], capture_output=True, text=True, check=True).stdout
     tops = re.findall(r'^\s+(0x[0-9a-f]+) "Ely', tree, re.M)
     if len(tops) != 1:
         raise SystemExit(f"error {len(tops)} top windows")
+    return tops[0]
+
+
+def placed():
+    """The frame's screen place is the X window's: Orca points there."""
+    info = subprocess.run(["xwininfo", "-id", top()], capture_output=True, text=True, check=True).stdout
+    x, y = (int(re.search(rf"Absolute upper-left {axis}:\s+(-?\d+)", info).group(1)) for axis in "XY")
+    if (x, y) == (0, 0):
+        raise SystemExit("error the window sits at the screen origin; placement proves nothing")
+    box = app.get_child_at_index(0).get_extents(Atspi.CoordType.SCREEN)
+    # gpui-linux creates the window 2 px right of its bounds.
+    if abs(box.x - x) > 2 or abs(box.y - y) > 1:
+        log.append(f"misplaced frame at {box.x},{box.y}; the window is at {x},{y}")
+
+
+def give_focus():
+    """Focuses the app's window, as a window manager would."""
     x11 = ctypes.CDLL("libX11.so.6")
     x11.XOpenDisplay.restype = ctypes.c_void_p
     display = ctypes.c_void_p(x11.XOpenDisplay(None))
-    x11.XSetInputFocus(display, ctypes.c_ulong(int(tops[0], 16)), 1, 0)
+    x11.XSetInputFocus(display, ctypes.c_ulong(int(top(), 16)), 1, 0)
     x11.XCloseDisplay(display)
     time.sleep(0.5)
 
@@ -117,6 +133,7 @@ try:
             log.append(f"unnamed {node.get_role_name()}")
     if page and not pages:
         log.append(f"no page [{page}]")
+    placed()
     give_focus()
     seen, last, stops, reached = set(), None, 0, False
     for _ in range(150):
@@ -172,7 +189,7 @@ while IFS="|" read -r app sample page; do
   [ "$sample" = - ] || file=$work/$sample
   ELY_DATA_ROOT=$work/data-$app python3 -I "$work/walk.py" "$bin/$app" "$file" "$page" "$work/$app.log" 2>/dev/null </dev/null
   stops=$(sed -n "s/^stops //p" "$work/$app.log")
-  if grep -qE "^(unnamed|nameless|unreached|no page|trapped|no focus|error)" "$work/$app.log" || [ "${stops:-0}" -lt 3 ]; then
+  if grep -qE "^(unnamed|nameless|unreached|no page|trapped|no focus|misplaced|error)" "$work/$app.log" || [ "${stops:-0}" -lt 3 ]; then
     echo "FAIL: $app"
     cat "$work/$app.log"
     failed=1
@@ -185,4 +202,4 @@ unset WAYLAND_DISPLAY
 # The page names are English.
 ELY_GIT=${ELY_GIT:-$(command -v git)} ELY_NO_DIALOG=1 ELY_LOCALE=en-US dbus-run-session -- bash -c "$inside" _ "$launcher" "$work" "$bin" "$(a11y_apps)" 2>"$work/session.log" ||
   { echo "FAIL: see $work" >&2; exit 1; }
-echo "PASS: seven apps name every control and every Tab stop; Tab reaches each document, F6 leaves it"
+echo "PASS: seven apps name every control and every Tab stop, at its screen place; Tab reaches each document, F6 leaves it"

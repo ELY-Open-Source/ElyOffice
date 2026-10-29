@@ -81,6 +81,23 @@ pub(super) enum Back {
 }
 
 impl Input {
+    /// For the log: the kind, never the text.
+    pub(super) fn kind(&self) -> &'static str {
+        match self {
+            Input::Key { .. } => "key",
+            Input::Mouse(_) => "mouse",
+            Input::Text { .. } => "text",
+            Input::Copy { .. } => "copy",
+            Input::Paste | Input::PasteOnly(_) => "paste",
+            Input::Complete { .. } => "complete",
+            Input::Theme(_) => "theme",
+            Input::Run { commands, .. } => commands.first().map_or("run", |(id, _)| id),
+            Input::Drag { .. } => "drag",
+            Input::Visible(..) => "visible",
+            Input::Part(_) | Input::Turn { .. } => "part",
+        }
+    }
+
     /// Whether the input may change the document.
     pub(super) fn edits(&self) -> bool {
         match self {

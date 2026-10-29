@@ -47,14 +47,14 @@ impl LokView {
                     let done = select_biased! {
                         input = input_queue.next() => {
                             let Some((seq, input, sent)) = input else { break };
-                            let (waited, edits) = (sent.elapsed().as_millis(), input.edits());
+                            let (waited, edits, kind) = (sent.elapsed().as_millis(), input.edits(), input.kind());
                             let switched = matches!(input, super::input::Input::Part(_));
                             let outcome = super::input::run(&worker, &doc, input);
                             let took = sent.elapsed().as_millis();
                             if took > SLOW_MS {
-                                log::warn!("lok: input {seq} waited {waited}, took {took} ms");
+                                log::warn!("lok: input {seq} {kind} waited {waited}, took {took} ms");
                             } else {
-                                log::debug!("lok: input {seq} waited {waited}, took {took} ms");
+                                log::debug!("lok: input {seq} {kind} waited {waited}, took {took} ms");
                             }
                             Landed::Input(seq, edits, switched, outcome)
                         }

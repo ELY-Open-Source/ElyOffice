@@ -1,0 +1,40 @@
+liblangtag: a real lock on Windows
+
+- liblangtag's Windows LT_LOCK made a new mutex on every call, never
+  waited on it and never closed it: no locking at all, and one leaked
+  handle per lock. The worker kept 6 more handles for every document
+  it opened and closed (Ely #R14.39, PERF-08).
+- A statically initialised SRWLOCK, as the pthread branch does with
+  PTHREAD_MUTEX_INITIALIZER: no handle, and it does lock.
+
+diff --git a/external/liblangtag/UnpackedTarball_liblangtag.mk b/external/liblangtag/UnpackedTarball_liblangtag.mk
+--- a/external/liblangtag/UnpackedTarball_liblangtag.mk
++++ b/external/liblangtag/UnpackedTarball_liblangtag.mk
+@@ -30,6 +30,7 @@ endif
+ $(eval $(call gb_UnpackedTarball_add_patches,liblangtag, \
+ 	$(if $(SYSTEM_LIBXML),,external/liblangtag/langtag-libtool-rpath.patch.0) \
+     external/liblangtag/clang-cl.patch.0 \
++    external/liblangtag/windows-lock.patch.0 \
+ ))
+ 
+ # vim: set noet sw=4 ts=4:
+diff --git a/external/liblangtag/windows-lock.patch.0 b/external/liblangtag/windows-lock.patch.0
+new file mode 100644
+--- /dev/null
++++ b/external/liblangtag/windows-lock.patch.0
+@@ -0,0 +1,15 @@
++--- liblangtag/lt-lock.h
+++++ liblangtag/lt-lock.h
++@@ -38,9 +38,9 @@
++ #define LT_LOCK(v)			pthread_mutex_lock(&LT_LOCK_NAME (v))
++ #define LT_UNLOCK(v)			pthread_mutex_unlock(&LT_LOCK_NAME (v))
++ #elif _WIN32
++-#define LT_LOCK_DEFINE(v)		HANDLE LT_LOCK_NAME (v)
++-#define LT_LOCK(v)			LT_LOCK_NAME (v) = CreateMutex(NULL, FALSE, NULL)
++-#define LT_UNLOCK(v)			ReleaseMutex(LT_LOCK_NAME (v))
+++#define LT_LOCK_DEFINE(v)		SRWLOCK LT_LOCK_NAME (v) = SRWLOCK_INIT
+++#define LT_LOCK(v)			AcquireSRWLockExclusive(&LT_LOCK_NAME (v))
+++#define LT_UNLOCK(v)			ReleaseSRWLockExclusive(&LT_LOCK_NAME (v))
++ #else
++ #error No Mutex Lock available
++ #endif

@@ -14,6 +14,8 @@ mod fonts;
 mod format;
 mod formula;
 mod handouts;
+#[cfg(windows)]
+mod handles;
 mod independent;
 mod kept;
 pub(crate) mod input;
