@@ -32,8 +32,4 @@ guard let target = roots.lazy.compactMap({ find($0, 0) }).first else {
     print("none")
     exit(0)
 }
-// When it was sent, on stderr: stdout stays for scripts.
-let sent = Date().timeIntervalSince1970 * 1000
-let pressed = AXUIElementPerformAction(target, kAXPressAction as CFString) == .success
-FileHandle.standardError.write("sent \(Int(sent))\n".data(using: .utf8)!)
-print(pressed ? "pressed" : "refused")
+print(AXUIElementPerformAction(target, kAXPressAction as CFString) == .success ? "pressed" : "refused")

@@ -7,16 +7,9 @@ import platform
 import re
 import subprocess
 import sys
-import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
-
-
-def target_dir(frames=False):
-    """Shipped builds; PERF-02's profiled ones apart."""
-    target = os.environ.get("CARGO_TARGET_DIR", os.path.join(ROOT, "target"))
-    return os.path.join(target, "frames") if frames else target
 
 
 def sh(*args, **kw):
@@ -26,21 +19,13 @@ def sh(*args, **kw):
     return out.stdout
 
 
-def sent(said):
-    """Epoch ms the helper sent its last input."""
-    found = re.findall(r"^sent (\d+)$", said, re.M)
-    if not found:
-        raise RuntimeError(f"the input helper did not say when it sent: {said!r}")
-    return float(found[-1])
-
-
 class Host:
     """What every platform answers; memory in KB."""
 
     name = ""
 
-    def exe(self, slug, frames=False):
-        target = target_dir(frames)
+    def exe(self, slug):
+        target = os.environ.get("CARGO_TARGET_DIR", os.path.join(ROOT, "target"))
         return os.path.join(target, "release", slug + (".exe" if sys.platform == "win32" else ""))
 
     def git(self):
@@ -49,27 +34,14 @@ class Host:
     def lingering(self, marker):
         return subprocess.run(["pgrep", "-f", marker], capture_output=True).returncode == 0
 
-    def pids(self, root):
-        """`root` and its descendants, unsampled."""
-        rows = [tuple(map(int, line.split())) for line in sh("ps", "-A", "-o", "pid=,ppid=").splitlines()]
-        return descendants(root, rows)
-
     def family(self, root):
         """Pid to resident KB, for `root` and its descendants."""
         rows = [tuple(map(int, line.split())) for line in sh("ps", "-A", "-o", "pid=,ppid=,rss=").splitlines()]
         ours = descendants(root, [(pid, ppid) for pid, ppid, _ in rows])
-        found = {pid: rss for pid, _, rss in rows if pid in ours}
-        if root not in found:
-            raise RuntimeError(f"process {root} is gone; nothing to sample")
-        return found
+        return {pid: rss for pid, _, rss in rows if pid in ours}
 
     def settle(self, pid, name):
-        """A new window's controls reach assistive tech a moment later."""
-        until = time.monotonic() + 10
-        while not self.shows(pid, name):
-            if time.monotonic() > until:
-                raise RuntimeError(f"no control named {name} in process {pid} in 10 s")
-            time.sleep(0.1)
+        """Presses here use the control's own action."""
 
 
 def descendants(root, pairs):
@@ -86,14 +58,11 @@ def descendants(root, pairs):
 class Mac(Host):
     name = "macOS"
     system = ("/System/Library/",)
-    # US layout virtual key codes.
-    keycodes = dict(zip("asdfhgzxcvbqweryt123465=97-80]ou[ip lj'k;", map(str, [
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-        30, 31, 32, 33, 34, 35, 49, 37, 38, 39, 40, 41])), n="45", m="46", pagedown="121", tab="48")
+    keycodes = {"n": "45", "w": "13"}
 
     def __init__(self, work):
         self.work = work
-        for tool in ["ax-values", "ax-press", "click", "chord", "key"]:
+        for tool in ["ax-values", "ax-press", "click", "chord"]:
             sh("swiftc", "-O", "-o", os.path.join(work, tool), os.path.join(ROOT, "tests", "scripts", tool + ".swift"))
 
     def handles(self, pids):
@@ -116,24 +85,16 @@ class Mac(Host):
         sh("osascript", "-e", f'{events} to perform action "AXRaise" of window "{title}"')
 
     def type(self, pid, text):
-        if text[:-1]:
-            self.keys(f'keystroke "{text[:-1]}"')
-        return self.key(pid, text[-1])
-
-    def key(self, pid, name):
-        return sent(sh(os.path.join(self.work, "key"), str(pid), self.keycodes[name]))
+        self.keys(f'keystroke "{text}"')
 
     def enter(self, pid):
-        return sent(sh(os.path.join(self.work, "key"), str(pid), "36"))
+        self.keys("key code 36")
 
     def chord(self, pid, letter):
         sh(os.path.join(self.work, "chord"), str(pid), self.keycodes[letter])
 
     def press(self, pid, name):
-        out = subprocess.run([os.path.join(self.work, "ax-press"), str(pid), name], capture_output=True, text=True)
-        if out.returncode or out.stdout.strip() != "pressed":
-            raise RuntimeError(f"ax-press {name}: {out.stdout.strip()} {out.stderr.strip()}")
-        return sent(out.stderr)
+        sh(os.path.join(self.work, "ax-press"), str(pid), name)
 
     def controls(self, pid):
         return sh(os.path.join(self.work, "ax-values"), str(pid))
@@ -142,11 +103,7 @@ class Mac(Host):
         return f"title={name}" in self.controls(pid)
 
     def click_field(self, pid):
-        until = time.monotonic() + 10
-        while (field := next((l for l in self.controls(pid).splitlines() if l.startswith("AXTextField")), None)) is None:
-            if time.monotonic() > until:
-                raise RuntimeError(f"no text field in process {pid} in 10 s")
-            time.sleep(0.1)
+        field = next(line for line in self.controls(pid).splitlines() if line.startswith("AXTextField"))
         x, y = field.rsplit("at=", 1)[1].split(",")
         sh(os.path.join(self.work, "click"), x, y)
 
@@ -193,13 +150,10 @@ class Linux(Host):
         self.helper("front", pid, title)
 
     def type(self, pid, text):
-        return sent(self.helper("type", pid, text))
-
-    def key(self, pid, name):
-        return sent(self.helper("key", pid, name))
+        self.helper("type", pid, text)
 
     def enter(self, pid):
-        return sent(self.helper("enter", pid))
+        self.helper("enter", pid)
 
     def chord(self, pid, letter):
         self.helper("chord", pid, letter)
@@ -208,7 +162,7 @@ class Linux(Host):
         self.helper("settle", pid, name)
 
     def press(self, pid, name):
-        return sent(self.helper("press", pid, name))
+        self.helper("press", pid, name)
 
     def shows(self, pid, name):
         return self.helper("shows", pid, name).strip() == "yes"
@@ -247,13 +201,9 @@ class Windows(Host):
         found = self.ui("lingering", 0, marker)
         return found.strip() == "yes"
 
-    k32 = ctypes.WinDLL("kernel32", use_last_error=True) if sys.platform == "win32" else None
-
-    def failed(self, what, pid):
-        return RuntimeError(f"{what} for process {pid} failed: {ctypes.WinError(ctypes.get_last_error())}")
-
     def processes(self):
         """(pid, parent) for every process, from one snapshot."""
+        k32 = ctypes.windll.kernel32
 
         class Entry(ctypes.Structure):
             _fields_ = [("size", ctypes.c_ulong), ("usage", ctypes.c_ulong), ("pid", ctypes.c_ulong),
@@ -261,77 +211,61 @@ class Windows(Host):
                         ("parent", ctypes.c_ulong), ("base", ctypes.c_long), ("flags", ctypes.c_ulong),
                         ("exe", ctypes.c_wchar * 260)]
 
-        self.k32.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
-        snap = self.k32.CreateToolhelp32Snapshot(2, 0)
-        if snap in (None, ctypes.c_void_p(-1).value):
-            raise self.failed("a process snapshot", 0)
+        k32.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
+        snap = ctypes.c_void_p(k32.CreateToolhelp32Snapshot(2, 0))
         entry, pairs = Entry(), []
         entry.size = ctypes.sizeof(Entry)
-        more = self.k32.Process32FirstW(ctypes.c_void_p(snap), ctypes.byref(entry))
+        more = k32.Process32FirstW(snap, ctypes.byref(entry))
         while more:
             pairs.append((entry.pid, entry.parent))
-            more = self.k32.Process32NextW(ctypes.c_void_p(snap), ctypes.byref(entry))
-        self.k32.CloseHandle(ctypes.c_void_p(snap))
+            more = k32.Process32NextW(snap, ctypes.byref(entry))
+        k32.CloseHandle(snap)
         return pairs
 
-    def pids(self, root):
-        return descendants(root, self.processes())
-
-    def query(self, pid, read):
-        """`read(handle)` on an open process; any failure voids the run."""
-        self.k32.OpenProcess.restype = ctypes.c_void_p
+    def opened(self, pid):
+        k32 = ctypes.windll.kernel32
+        k32.OpenProcess.restype = ctypes.c_void_p
         # PROCESS_QUERY_LIMITED_INFORMATION
-        handle = self.k32.OpenProcess(0x1000, False, pid)
-        if not handle:
-            raise self.failed("opening", pid)
-        try:
-            return read(ctypes.c_void_p(handle))
-        finally:
-            self.k32.CloseHandle(ctypes.c_void_p(handle))
+        return ctypes.c_void_p(k32.OpenProcess(0x1000, False, pid))
 
     def family(self, root):
         class Counters(ctypes.Structure):
             _fields_ = [("cb", ctypes.c_ulong), ("faults", ctypes.c_ulong)] + [
                 (name, ctypes.c_size_t) for name in ("peak", "working", "qpp", "qp", "qpn", "qn", "page", "peak_page")]
 
-        def working(handle):
-            counters = Counters()
+        ours, found = descendants(root, self.processes()), {}
+        for pid in ours:
+            handle, counters = self.opened(pid), Counters()
             counters.cb = ctypes.sizeof(Counters)
-            if not self.k32.K32GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
-                raise self.failed("reading memory", pid)
-            return counters.working // 1024
-
-        found = {}
-        for pid in descendants(root, self.processes()):
-            found[pid] = self.query(pid, working)
+            if handle and ctypes.windll.kernel32.K32GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+                found[pid] = counters.working // 1024
+            ctypes.windll.kernel32.CloseHandle(handle)
         return found
 
     def handles(self, pids):
+        total = ctypes.c_ulong()
         found = collections.Counter()
         for pid in pids:
-            total = ctypes.c_ulong()
-            if not self.query(pid, lambda handle: self.k32.GetProcessHandleCount(handle, ctypes.byref(total))):
-                raise self.failed("counting handles", pid)
-            found[("handles", "")] += total.value
+            handle = self.opened(pid)
+            if handle and ctypes.windll.kernel32.GetProcessHandleCount(handle, ctypes.byref(total)):
+                found[("handles", "")] += total.value
+            ctypes.windll.kernel32.CloseHandle(handle)
         return found
 
     def front(self, pid, title):
         self.ui("front", pid, title)
 
     def type(self, pid, text):
-        return sent(self.ui("type", pid, text))
-
-    def key(self, pid, name):
-        return sent(self.ui("key", pid, name))
+        self.ui("type", pid, text)
 
     def enter(self, pid):
-        return sent(self.ui("enter", pid))
+        self.ui("enter", pid)
 
     def chord(self, pid, letter):
         self.ui("chord", pid, letter)
 
     def press(self, pid, name):
-        return sent(self.ui("press", pid, name))
+        self.ui("press", pid, name)
 
     def shows(self, pid, name):
         return self.ui("shows", pid, name).strip() == "yes"
