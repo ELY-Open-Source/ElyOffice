@@ -455,5 +455,5 @@
 - [ ] R14.47 证据与结论（§23、§24）：引用的本机文件改为库内证据（A-06）；过期结论（A-07）
 - [ ] R14.48 ElyDoc 打开大文件：用户反馈 23 MB 的文档“转了很久打不开”，内为一张大表格，一列图片、一列文字。照此造样本，在三端复现、找出卡在哪一步（读入、排版、首个图块）并修根因；加回归测试与 PERF 记录
 - [x] R14.48a Windows 上 Doc、Table、Show 存不了新文档（用户反馈）：另存为对话框只有“所有文件”、无默认扩展名，键入 `报告` 即交回无扩展名的路径，Ely 拒写（“另存为只写 .docx、.odt”）。已修：随包 gpui 的 Windows 保存对话框按建议名的扩展名加一个类型并设默认扩展名，系统自补 `.docx`、同名先问；`tests/scripts/windows-save-as.py` 真窗口核对，去掉修复即失败。第 1 轮：测试取 Cargo 目标目录的构建、用已入库的 bench.App，R14.39 的驱动改动移出
-- [ ] R14.48b Omarchy 上 Super+C/V 与 Ctrl+C/V 不能复制粘贴（用户反馈）：测试机上 0.1.12 的 ElyMark、ElyDoc 经虚拟键盘与 Omarchy 自身的 `send_key_state` 皆能复制粘贴，未复现；测试机无 fcitx5（Omarchy 默认带，环境 `INPUT_METHOD=fcitx`），装它需全系统升级，待用户同意，并问清是真机还是远程桌面、哪些应用
+- [ ] R14.48b Omarchy 上 Super+C/V 与 Ctrl+C/V 不能复制粘贴（用户反馈）：测试机上 0.1.12 的 ElyMark、ElyDoc 经虚拟键盘与 Omarchy 自身的 `send_key_state` 皆能复制粘贴，未复现；测试机无 fcitx5（Omarchy 默认带，环境 `INPUT_METHOD=fcitx`），已按用户同意升级系统（omarchy 与 omarchy-settings 照 pacman.conf 留在 4.0.4）并装 fcitx5 与拼音：fcitx5 在 Hyprland 自己的套接字上作输入法、拼音开着（出预编辑），Ctrl+C/V 照样能用，仍未复现。Super+C/V 测不了：wtype 按住的 Super 被 Hyprland 当作单按 Super，打开 Omarchy 菜单，GNOME Text Editor 同样失败；经外层远程桌面合成器发的键到不了 Hyprland。待用户说明是真机还是远程桌面、哪些应用、在何处复制到何处
 - [ ] R14.49 验收核对表：五十项、三个命令行与跨段选取逐条核对
