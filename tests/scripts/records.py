@@ -31,7 +31,8 @@ def faults(text, tracked):
 def spread(ref):
     """A review range like -r1..r3 names each round."""
     m = re.search(r"-r(\d+)\.\.r(\d+)\.md$", ref)
-    if not m:
+    # A reversed range names no round: check it as written.
+    if not m or int(m.group(1)) > int(m.group(2)):
         return [ref]
     return [f"{ref[:m.start()]}-r{n}.md" for n in range(int(m.group(1)), int(m.group(2)) + 1)]
 
@@ -44,7 +45,7 @@ def main():
     tracked = set(subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.splitlines())
     # Each must be caught: gaps, truncated names, unmarked local evidence.
     bad = ["see `scripts/no-such.sh`", "`scripts/check.s`", "`scripts/check..sh`", "`tasks/reviews/no-such-r1.md`",
-           "`tasks/reviews/R4.4-r1..r9.md`", "log in .work/R1/run.log", "`.work/review/`"]
+           "`tasks/reviews/R4.4-r1..r9.md`", "`tasks/reviews/R4.4-r9..r1.md`", "log in .work/R1/run.log", "`.work/review/`"]
     for text in bad:
         if not faults(text, tracked):
             sys.exit(f"FAIL: records.py passes {text!r}")

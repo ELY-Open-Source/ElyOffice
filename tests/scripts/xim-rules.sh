@@ -10,7 +10,8 @@ fail() {
 [ "$(uname)" = Linux ] || { echo "SKIP: Linux only"; exit 0; }
 command -v python3 >/dev/null || { echo "SKIP: no python3"; exit 0; }
 work=$(mktemp -d)
-trap 'pkill -f "$work/bin/fcitx5 serve" 2>/dev/null; rm -rf "$work"' EXIT
+# The script under test usually stops the stand-in itself.
+trap 'pkill -f "$work/bin/fcitx5 serve" 2>/dev/null || true; rm -rf "$work"' EXIT
 mkdir -p "$work/repo/tests/scripts" "$work/repo/target/release" "$work/out/release" "$work/bin"
 cp "$root/tests/scripts/linux-xim.sh" "$work/repo/tests/scripts/"
 cp "$root/Cargo.toml" "$work/repo/"
