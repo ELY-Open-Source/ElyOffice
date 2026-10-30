@@ -26,6 +26,8 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q libdbus-1-dev libfontconfig-dev libxcb1-dev libxkbcommon-x11-dev
+          # The media test plays an H.264 and AAC clip through GStreamer.
+          sudo apt-get install -y -q libgstreamer-plugins-base1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
       - name: Tools
         run: |
           npm install -g pnpm
