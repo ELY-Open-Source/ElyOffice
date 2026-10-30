@@ -55,7 +55,8 @@ launch() { # bin, log, whether it runs the LOK worker
     if [ "$done_at" = 0 ] && tail -n +"$start" "$log" 2>/dev/null | grep -q "$ready"; then done_at=$((SECONDS + 3)); fi
     [ "$done_at" = 0 ] || [ $SECONDS -lt "$done_at" ] || { alive=1; break; }
   done
-  if [ "$alive" = 1 ] && kill -0 "$pid" 2>/dev/null; then
+  # A live app is ended; only its own exit counts.
+  if kill -0 "$pid" 2>/dev/null; then
     kill "$pid"
     wait "$pid" 2>/dev/null || true
   else
