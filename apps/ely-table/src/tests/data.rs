@@ -336,3 +336,36 @@ fn a_column_button_sorts_its_own_block_not_the_cursors() {
     assert_eq!(cells(&mut cx, &book, "A2:A4"), "1\n2\n3");
     assert_eq!(cells(&mut cx, &book, "C2:C4"), "9\n7\n8");
 }
+
+#[test]
+fn the_column_search_redraws_the_list_and_keeps_hidden_ticks() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((_window, book)) = book(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    open(&mut cx, &book);
+    run(&mut cx, &book, "cell.goto", &["A1"]);
+    run(&mut cx, &book, "data.autofilter", &[]);
+    let id = cx.update(|app| book.read(app).core.active.expect("a tab"));
+    update(&mut cx, &book, |book, cx| {
+        book.ask_column(id, &Request::Filter { column: 0, row: 0 }, cx)
+    });
+    asked(&cx, &book, |dialog| matches!(dialog, Dialog::Column { .. }));
+    let redraws = std::rc::Rc::new(std::cell::Cell::new(0));
+    let counted = redraws.clone();
+    cx.update(|app| app.observe(&book, move |_, _| counted.set(counted.get() + 1)).detach());
+    let search = cx.update(|app| match &book.read(app).dialog {
+        Some(Dialog::Column { search, .. }) => search.clone(),
+        _ => unreachable!("checked above"),
+    });
+    quiet(&cx, &book);
+    redraws.set(0);
+    // Counted before the engine runs: only the search redraws.
+    cx.update(|app| search.update(app, |field, cx| field.set_text("C", cx)));
+    assert!(redraws.get() > 0, "a search redraws the list");
+    // Untouched a and b stay ticked behind the search.
+    update(&mut cx, &book, |book, cx| book.column_asked(None, cx));
+    assert!(dropped(&mut cx, &book, 0).is_empty(), "nothing dropped");
+}

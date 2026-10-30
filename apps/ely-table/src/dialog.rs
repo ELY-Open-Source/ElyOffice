@@ -98,6 +98,8 @@ pub enum Dialog {
         row: u32,
         entries: Vec<Entry>,
         picked: Vec<SharedString>,
+        /// Narrows the entries shown; hidden ones keep their tick.
+        search: Entity<TextInput>,
     },
     Validation {
         tab: u64,
@@ -259,8 +261,9 @@ impl Book {
                 column,
                 entries,
                 picked,
+                search,
                 ..
-            } => data::column_dialog(this, (*column, entries, picked), dismiss, cx)
+            } => data::column_dialog(this, (*column, entries, picked, search), dismiss, cx)
                 .into_any_element(),
             Dialog::Validation { rule, fields, .. } => {
                 rules::validation_dialog(this, (rule, fields), dismiss, cx).into_any_element()
