@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Workflows: releases gated and apart; pull requests off our machines."""
 import copy
+import itertools
 import os
 import re
 import shlex
@@ -27,15 +28,36 @@ def runs(job):
     return " ".join(step.get("run", "") for step in job["steps"])
 
 
+def commands(line):
+    """Each simple command's words, split at ; && || | & and parentheses."""
+    lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    command = []
+    for word in list(lexer) + [";"]:
+        if word and set(word) <= set(";&|()"):
+            if command:
+                yield command
+            command = []
+        else:
+            command.append(word)
+
+
+def assigned(words):
+    """Words after leading VAR=value assignments."""
+    return list(itertools.dropwhile(lambda word: re.match(r"[A-Za-z_]\w*=", word), words))
+
+
 def installed(job):
-    """Packages named to apt install, comments left out."""
+    """Packages an apt install command itself is given."""
     packages = set()
     for step in job["steps"]:
         for line in step.get("run", "").splitlines():
-            words = shlex.split(line, comments=True)
-            for at in range(len(words) - 1):
-                if words[at] in ("apt", "apt-get") and words[at + 1] == "install":
-                    packages.update(word for word in words[at + 2:] if not word.startswith("-"))
+            for words in commands(line):
+                words = assigned(words)
+                if words[:1] == ["sudo"]:
+                    words = assigned(list(itertools.dropwhile(lambda word: word.startswith("-"), words[1:])))
+                if words[:1] in (["apt"], ["apt-get"]) and words[1:2] == ["install"]:
+                    packages.update(word for word in words[2:] if not word.startswith("-"))
     return packages
 
 
@@ -78,12 +100,21 @@ for runner in ["ely-windows", ["self-hosted"], "${{ matrix.os }}", {"group": "ou
     bad[name]["runs-on"] = runner
     if not pr_faults(bad, libraries):
         failed.append(f"runs-on {runner!r} passes")
-bad = copy.deepcopy(pr)
-for step in bad[name]["steps"]:
-    if "run" in step:
-        step["run"] = step["run"].replace(f" {libraries[0]}", "") + f"\n# {libraries[0]}"
-if not pr_faults(bad, libraries):
-    failed.append(f"{libraries[0]} named only in a comment passes")
+lib = libraries[0]
+moves = {
+    "only in a comment": lambda run: run.replace(f" {lib}", "") + f"\n# {lib}",
+    "after &&": lambda run: re.sub(f" {lib}(.*)", rf"\1 && echo {lib}", run),
+    "after ;": lambda run: re.sub(f" {lib}(.*)", rf"\1; echo {lib}", run),
+    "piped on": lambda run: re.sub(f" {lib}(.*)", rf"\1 | tee {lib}", run),
+    "in an echoed install": lambda run: re.sub(f"^(.*apt-get install.* {lib}.*)$", r"echo \1", run, flags=re.M),
+}
+for how, move in moves.items():
+    bad = copy.deepcopy(pr)
+    for step in bad[name]["steps"]:
+        if "run" in step and lib in step["run"]:
+            step["run"] = move(step["run"])
+    if lib in installed(pr[name]) and not pr_faults(bad, libraries):
+        failed.append(f"{lib} {how} passes")
 bad = copy.deepcopy(pr)
 del bad[name]["env"]["PANICS_BASE"]
 if not pr_faults(bad, libraries):
