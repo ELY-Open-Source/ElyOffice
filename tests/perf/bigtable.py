@@ -35,7 +35,7 @@ WORDS = "产品检查记录现场照片说明设备编号位置状态正常需�
 
 
 def image(seed):
-    """Smooth noise at WIDTH x HEIGHT, like a photo or screenshot."""
+    """Smooth noise at WIDTH x HEIGHT, like a photo."""
     rng = random.Random(seed)
     small = Image.new("RGB", (WIDTH // 8, HEIGHT // 8))
     small.putdata([(rng.randrange(256), rng.randrange(256), rng.randrange(256)) for _ in range(small.width * small.height)])
