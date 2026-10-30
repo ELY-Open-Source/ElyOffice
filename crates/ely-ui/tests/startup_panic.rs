@@ -37,6 +37,10 @@ fn boot() {
 fn child(mode: &str) -> (Output, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
     let output = Command::new(std::env::current_exe().unwrap())
+        // Headless on Linux: the host's display must not decide.
+        .env_remove("WAYLAND_DISPLAY")
+        .env_remove("WAYLAND_SOCKET")
+        .env_remove("DISPLAY")
         .env(CHILD, mode)
         .env(DIR, dir.path())
         .env("ELY_NO_DIALOG", "1")
