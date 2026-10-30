@@ -11,12 +11,14 @@ export function touch(host: HTMLElement, svg: SVGSVGElement, parts: Map<string, 
   host.append(nav);
 
   const owner = new Map([...parts].flatMap(([name, blocks]) => blocks.map((b) => [b, name] as const)));
-  const hits = still(svg, owner);
+  const { layer, hits } = still(svg, owner);
+  opens(layer);
 
   for (const [name, blocks] of parts) {
     const target = `#${name.toLowerCase()}`;
     const state = { hover: false, focus: false, press: false };
-    const hit = hits.filter((h) => h.dataset.part === name);
+    const hit = hits.filter((h) => h.dataset.part === name && !h.classList.contains("lift"));
+    const lifts = hits.filter((h) => h.dataset.part === name && h.classList.contains("lift"));
     const caption = document.createElement("p");
     caption.className = "caption";
     caption.textContent = name;
@@ -32,6 +34,7 @@ export function touch(host: HTMLElement, svg: SVGSVGElement, parts: Map<string, 
         b.classList.toggle("pressed", up && state.press);
       }
       caption.classList.toggle("shown", up);
+      for (const l of lifts) l.classList.toggle("on", up);
       // The camera announces each move on the host.
       if (up) {
         host.addEventListener("moved", follow);
@@ -48,13 +51,12 @@ export function touch(host: HTMLElement, svg: SVGSVGElement, parts: Map<string, 
     };
 
     const own = (node: EventTarget | null) => node instanceof SVGElement && node.dataset.part === name;
-    for (const h of hit) {
+    for (const h of [...hit, ...lifts]) {
       h.addEventListener("pointerenter", () => set({ hover: true }));
       h.addEventListener("pointerleave", (e) => own(e.relatedTarget) || set({ hover: false, press: false }));
       h.addEventListener("pointerdown", (e) => e.button === 0 && set({ press: true }));
       h.addEventListener("pointerup", () => set({ press: false }));
       h.addEventListener("pointercancel", () => set({ press: false }));
-      h.addEventListener("click", () => (location.hash = target));
     }
 
     const door = document.createElement("a");
@@ -68,8 +70,22 @@ export function touch(host: HTMLElement, svg: SVGSVGElement, parts: Map<string, 
   }
 }
 
-/** Resting outlines over the model, layered as drawn. */
-function still(svg: SVGSVGElement, owner: Map<SVGGElement, string>): SVGPolygonElement[] {
+/** Opens the app a primary press starts and ends on. */
+function opens(layer: SVGGElement): void {
+  const part = (node: EventTarget | null) => (node instanceof SVGElement ? (node.dataset.part ?? "") : "");
+  let pressed = "";
+  // Any press elsewhere forgets the last one.
+  addEventListener("pointerdown", () => (pressed = ""), true);
+  layer.addEventListener("pointerdown", (e) => (pressed = e.button === 0 ? part(e.target) : ""));
+  layer.addEventListener("pointercancel", () => (pressed = ""));
+  layer.addEventListener("pointerup", (e) => {
+    if (e.button === 0 && pressed && part(e.target) === pressed) location.hash = `#${pressed.toLowerCase()}`;
+    pressed = "";
+  });
+}
+
+/** Resting and lifted outlines over the model, layered as drawn. */
+function still(svg: SVGSVGElement, owner: Map<SVGGElement, string>): { layer: SVGGElement; hits: SVGPolygonElement[] } {
   const layer = document.createElementNS(SVG, "g");
   layer.setAttribute("class", "hits");
   const hits: SVGPolygonElement[] = [];
@@ -82,10 +98,16 @@ function still(svg: SVGSVGElement, owner: Map<SVGGElement, string>): SVGPolygonE
     face.setAttribute("class", name ? "hit-face" : "hit-face ground");
     face.dataset.part = name ?? "";
     layer.append(face);
-    if (name) hits.push(face);
+    if (!name) continue;
+    // Where a lifted block draws; front blocks still cover it.
+    const lift = outline.cloneNode() as SVGPolygonElement;
+    lift.setAttribute("class", "hit-face lift");
+    lift.dataset.part = name;
+    layer.append(lift);
+    hits.push(face, lift);
   }
   svg.append(layer);
-  return hits;
+  return { layer, hits };
 }
 
 /** Puts the caption one cell above the lifted top. */

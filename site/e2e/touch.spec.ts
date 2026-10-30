@@ -51,7 +51,29 @@ test.beforeEach(async ({ page }) => {
   page.on("response", (r) => r.status() >= 400 && errors.push(`${r.url()} ${r.status()}`));
   await page.goto("/");
   await expect(page.locator(".model .hit-face:not(.ground)").first()).toBeAttached();
+  // The release's count moves the hero, then the camera.
+  await expect(page.locator('header [data-t="count"]')).toBeVisible();
+  await still(page);
 });
+
+/** Resolves once the model stays put for three frames. */
+const still = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<void>((done) => {
+        const svg = document.querySelector<SVGSVGElement>(".model .stage")!;
+        let [last, same] = ["", 0];
+        const look = () => {
+          const m = svg.getScreenCTM()!;
+          const now = [m.a, m.d, m.e, m.f].join();
+          same = now === last ? same + 1 : 0;
+          last = now;
+          if (same >= 3) done();
+          else requestAnimationFrame(look);
+        };
+        requestAnimationFrame(look);
+      }),
+  );
 
 test.afterEach(() => expect(errors).toEqual([]));
 
@@ -133,6 +155,73 @@ test("a primary press sinks one cell; only a click starting on it opens", async 
   await page.mouse.move(again.x, again.y);
   await page.mouse.up();
   expect(await page.evaluate(() => location.hash)).toBe("");
+});
+
+test("a lifted building owns what it draws", async ({ page }) => {
+  for (const name of APPS) {
+    const at = await spot(page, name);
+    await page.mouse.move(at.x, at.y);
+    await expect(caption(page, name)).toHaveCSS("opacity", "1");
+    const wrong = await page.evaluate((n) => {
+      const out: string[] = [];
+      const owner = (x: number, y: number) => {
+        const face = document.elementsFromPoint(x, y).find((e) => e.classList.contains("face"));
+        return face?.closest<SVGElement>(".block")!.dataset.part;
+      };
+      const r = [...document.querySelectorAll(`.block[data-part="${n}"] .face`)].map((f) => f.getBoundingClientRect());
+      for (let y = Math.min(...r.map((b) => b.top)); y < Math.max(...r.map((b) => b.bottom)); y += 3)
+        for (let x = Math.min(...r.map((b) => b.left)); x < Math.max(...r.map((b) => b.right)); x += 3) {
+          if (owner(x, y) !== n) continue;
+          if ([[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dx, dy]) => owner(x + dx, y + dy) !== n)) continue;
+          const hit = document.elementsFromPoint(x, y).find((e) => e.classList.contains("hit-face")) as SVGElement | undefined;
+          if (hit?.dataset.part !== n) out.push(`${x},${y}: ${hit?.dataset.part} over ${n}`);
+        }
+      return out;
+    }, name);
+    expect(wrong, name).toEqual([]);
+    await page.mouse.move(5, 5);
+  }
+});
+
+test("a press that drifts within one building still opens it", async ({ page }) => {
+  for (const name of APPS) {
+    const at = await spot(page, name);
+    await page.mouse.move(at.x, at.y);
+    // Two points 2 px apart on two of its outlines.
+    const pair = await page.evaluate((n) => {
+      const hit = (x: number, y: number) =>
+        document.elementsFromPoint(x, y).find((e) => e.classList.contains("hit-face")) as SVGElement | undefined;
+      for (const face of document.querySelectorAll(`.hit-face[data-part="${n}"]`)) {
+        const r = face.getBoundingClientRect();
+        for (let y = Math.ceil(r.top); y < r.bottom; y += 2)
+          for (let x = Math.ceil(r.left); x < r.right; x += 2) {
+            const [a, b] = [hit(x, y), hit(x + 2, y)];
+            if (a && b && a !== b && a.dataset.part === n && b.dataset.part === n) return { x, y };
+          }
+      }
+      return null;
+    }, name);
+    if (!pair) continue;
+    await page.mouse.move(pair.x, pair.y);
+    await page.mouse.down();
+    await page.mouse.move(pair.x + 2, pair.y);
+    await page.mouse.up();
+    await expect(page).toHaveURL(new RegExp(`#${name.toLowerCase()}$`));
+    return;
+  }
+  throw new Error("no building has two outlines side by side");
+});
+
+test("Enter on a building's link starts Tab in its region", async ({ page }) => {
+  for (let i = 0; i < 40 && (await page.evaluate(() => document.activeElement?.textContent)) !== "ElyDoc"; i++)
+    await page.keyboard.press("Tab");
+  await expect(page.locator(".doors a").first()).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".copy article.current h2")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".copy article.current .get")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".copy article.current .toggle-clip")).toBeFocused();
 });
 
 test("holding Enter sinks the focused building until release", async ({ page }) => {

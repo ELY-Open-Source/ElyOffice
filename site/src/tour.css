@@ -136,6 +136,11 @@
   transition: opacity 0.2s ease-out 0.1s;
 }
 
+/* A heading takes focus only to start Tab there. */
+.copy h2:focus {
+  outline: none;
+}
+
 .acts {
   display: flex;
   gap: 2rem;
@@ -161,7 +166,7 @@
 }
 
 .copy:hover :is(.get, .toggle-clip),
-.copy article:focus-within :is(.get, .toggle-clip) {
+.copy .acts:focus-within :is(.get, .toggle-clip) {
   opacity: 1;
 }
 

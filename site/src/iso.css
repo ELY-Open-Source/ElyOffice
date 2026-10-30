@@ -55,6 +55,16 @@
   cursor: auto;
 }
 
+/* A lifted block's place, live only while it is up. */
+.hit-face.lift {
+  translate: 0 calc(-1 * var(--step));
+  pointer-events: none;
+}
+
+.hit-face.lift.on {
+  pointer-events: all;
+}
+
 .block.lifted {
   translate: 0 calc(-1 * var(--step));
 }
