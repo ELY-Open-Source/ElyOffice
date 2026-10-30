@@ -132,6 +132,7 @@ try {
             $reached = $true
             # At the page, F6 must take focus out of it.
             $after = Press 0x75
+            if (-not $after) { $log.Add('no focus after F6'); break }
             if (PageOf $after) { $log.Add("F6 stays in page [$Page] at $(Kind $after) [$($after.Current.Name)]") }
             $landed = $after
         }
@@ -157,7 +158,7 @@ while IFS='|' read -r app sample page; do
     -File "$file" -Page "$page" -Data "$(w "$work/data-$1")" -Out "$(w "$work/$1.log")" </dev/null
   log=$(tr -d '\r' <"$work/$1.log")
   stops=$(printf '%s\n' "$log" | sed -n 's/^stops //p')
-  if printf '%s\n' "$log" | grep -qE '^(unnamed|nameless|unreached|no page|no visible|trapped|F6 stays|error)' || [ "${stops:-0}" -lt 3 ]; then
+  if printf '%s\n' "$log" | grep -qE '^(unnamed|nameless|unreached|no page|no visible|no focus|trapped|F6 stays|error)' || [ "${stops:-0}" -lt 3 ]; then
     echo "FAIL: $1" >&2
     printf '%s\n' "$log" >&2
     failed=1
