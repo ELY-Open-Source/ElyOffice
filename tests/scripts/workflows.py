@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Workflows: releases gated and apart; pull requests off our machines."""
 import copy
-import itertools
 import os
 import re
-import shlex
 import sys
 
 try:
@@ -28,36 +26,18 @@ def runs(job):
     return " ".join(step.get("run", "") for step in job["steps"])
 
 
-def commands(line):
-    """Words of each simple command in a shell line."""
-    lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
-    lexer.whitespace_split = True
-    command = []
-    for word in list(lexer) + [";"]:
-        if word and set(word) <= set(";&|()"):
-            if command:
-                yield command
-            command = []
-        else:
-            command.append(word)
-
-
-def assigned(words):
-    """Words after leading VAR=value assignments."""
-    return list(itertools.dropwhile(lambda word: re.match(r"[A-Za-z_]\w*=", word), words))
+# Only a plain line installs: no shell syntax to misread.
+INSTALL = re.compile(r"\s*(?:sudo\s+)?apt(?:-get)?\s+install((?:\s+-[a-z]+)*)((?:\s+[a-z0-9][a-z0-9.+-]*)+)\s*")
 
 
 def installed(job):
-    """Packages an apt install command itself is given."""
+    """Packages on plain `[sudo] apt-get install` lines."""
     packages = set()
     for step in job["steps"]:
         for line in step.get("run", "").splitlines():
-            for words in commands(line):
-                words = assigned(words)
-                if words[:1] == ["sudo"]:
-                    words = assigned(list(itertools.dropwhile(lambda word: word.startswith("-"), words[1:])))
-                if words[:1] in (["apt"], ["apt-get"]) and words[1:2] == ["install"]:
-                    packages.update(word for word in words[2:] if not word.startswith("-"))
+            match = INSTALL.fullmatch(line)
+            if match:
+                packages.update(match.group(2).split())
     return packages
 
 
@@ -68,7 +48,7 @@ def pr_faults(jobs, libraries):
             faults.append(f"pr {name} runs on {job.get('runs-on')!r}, not GitHub's {HOSTED}")
         missing = sorted(set(libraries) - installed(job))
         if missing:
-            faults.append(f"pr {name} lacks README's {missing}")
+            faults.append(f"pr {name} lacks README's {missing} on a plain apt-get install line")
         env = job.get("env", {})
         if env.get("ELY_REQUIRE_ENGINES") != "1":
             faults.append(f"pr {name} lets missing engines skip")
@@ -106,15 +86,29 @@ moves = {
     "after &&": lambda run: re.sub(f" {lib}(.*)", rf"\1 && echo {lib}", run),
     "after ;": lambda run: re.sub(f" {lib}(.*)", rf"\1; echo {lib}", run),
     "piped on": lambda run: re.sub(f" {lib}(.*)", rf"\1 | tee {lib}", run),
-    "in an echoed install": lambda run: re.sub(f"^(.*apt-get install.* {lib}.*)$", r"echo \1", run, flags=re.M),
+    "in an echoed install": lambda run: re.sub(f"^(.*install.* {lib}.*)$", r"echo \1", run, flags=re.M),
+    "behind a quoted ;": lambda run: re.sub(f"^(.*install.* {lib}.*)$", r'echo ";" \1', run, flags=re.M),
+    "under sudo -l": lambda run: re.sub(f"^(\\s*)sudo (.*install.* {lib}.*)$", r"\1sudo -l \2", run, flags=re.M),
 }
-for how, move in moves.items():
+
+
+def moved(move):
+    """The pr jobs with `lib`'s install line changed by `move`."""
     bad = copy.deepcopy(pr)
     for step in bad[name]["steps"]:
         if "run" in step and lib in step["run"]:
             step["run"] = move(step["run"])
-    if lib in installed(pr[name]) and not pr_faults(bad, libraries):
+    if bad == pr:
+        failed.append("a counterexample changed nothing")
+    return bad
+
+
+for how, move in moves.items():
+    if not pr_faults(moved(move), libraries):
         failed.append(f"{lib} {how} passes")
+# apt itself installs as apt-get does.
+if pr_faults(moved(lambda run: run.replace("apt-get install", "apt install")), libraries):
+    failed.append("apt install is taken for missing libraries")
 bad = copy.deepcopy(pr)
 del bad[name]["env"]["PANICS_BASE"]
 if not pr_faults(bad, libraries):
