@@ -121,7 +121,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；等轴 SVG 积木
 
 ```text
 scripts/doctor.sh              本系统构建所需的工具与系统包（与 README 的 Build 一节逐项对应）
-scripts/fetch-references.sh    取上游源码到 reference/
+scripts/fetch-references.sh [名字...]  取上游源码到 reference/；给了名字只取那几个（pr.yml 只取 mupdf）
 scripts/fetch-tessdata.sh      取 OCR 语言数据到 engines/tessdata（钉提交，核对散列）
 scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随包）
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
@@ -253,5 +253,5 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - ElyMark 原生实现（组件库 Markdown 组件与其 Markdown 树），不用 CEF、Electron；Typora 只作参照，读同一文件不同时随 GitHub（GFM）。
 - ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。
-- 合并前：`.github/workflows/pr.yml` 在每个 PR 与 main 的推送上，以 GitHub 托管的 Ubuntu 跑 check.sh、deny.sh、panics.py、clippy（告警即败）与不需引擎的测试（严格模式）；PR 从不上自托管机器，带引擎的全部测试是发布的门（release-tests.sh）。
+- 合并前：`.github/workflows/pr.yml` 在每个 PR 与 main 的推送上，以 GitHub 托管的 Ubuntu 建 MuPDF（PDF worker 才编得过）后跑 check.sh、deny.sh、panics.py、整个工作区的 clippy（告警即败）与不需引擎的测试（严格模式）；PR 从不上自托管机器，带引擎的全部测试是发布的门（release-tests.sh）。
 - 审查：每条任务由 `scripts/review.sh` 交 codex 审查，至多三轮。

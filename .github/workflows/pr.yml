@@ -10,11 +10,13 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 150
     env:
       ELY_REQUIRE_ENGINES: '1'
       CARGO_TERM_COLOR: never
-      # LibreOffice and MuPDF crates; release-tests.sh runs them.
+      # Linux's MuPDF links the pinned static OpenSSL.
+      PKG_CONFIG_PATH: ${{ github.workspace }}/engines/openssl/lib/pkgconfig
+      # Crates whose tests run LibreOffice or the PDF worker; release-tests.sh runs them.
       NO_ENGINES: >-
         --workspace --exclude ely-lok --exclude ely-office --exclude ely-doc --exclude ely-table
         --exclude ely-show --exclude ely-pdf --exclude ely-pdf-worker --exclude ely-mark
@@ -29,6 +31,8 @@ jobs:
           npm install -g pnpm
           cargo install cargo-deny --locked --version 0.20.2
           (cd site && pnpm install --frozen-lockfile)
+      - name: MuPDF, so the PDF worker compiles
+        run: scripts/fetch-references.sh mupdf && scripts/build-openssl.sh && scripts/build-mupdf.sh
       - name: Project rules
         run: scripts/check.sh
       - name: Licences, advisories and sources
@@ -36,6 +40,6 @@ jobs:
       - name: Panics listed with reasons
         run: python3 scripts/panics.py
       - name: Clippy, warnings fail
-        run: cargo clippy --all-targets $NO_ENGINES -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests that need no engine
         run: ELY_GIT=$(command -v git) cargo test $NO_ENGINES
