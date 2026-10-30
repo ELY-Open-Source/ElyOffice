@@ -1,6 +1,6 @@
 # 验收核对表
 
-R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五十项）逐条的结论，三个新命令行与 ElyMark 的跨段选取。2026-10-30 据提交 e960b24 写成；状态以 `tasks/TASKS.md` 为准，“过审”是末轮审查 PASS，“已修，末轮后未复审”是三轮用尽、末轮的缺陷已修并有回归测试。
+R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五十项）逐条的结论，三个新命令行与 ElyMark 的跨段选取。2026-10-30 据提交 e0907a3 写成；状态以 `tasks/TASKS.md` 为准，“过审”是末轮审查 PASS，“已修，末轮后未复审”是三轮用尽、末轮的缺陷已修并有回归测试。
 
 ## 五十项
 
@@ -53,7 +53,7 @@ R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五�
 | H-02 | P1 | ElyMark 内存 | R14.31 过审（ee77c0b，审查 r2 PASS） |
 | H-03 | P2 | 性能项覆盖不全 | R14.39 过审（c4a0cb8，审查 r3 PASS） |
 | H-04 | P2 | 120 fps 未实测 | R14.39 过审（c4a0cb8，审查 r3 PASS）；120 Hz 未实测：本机显示器最高 75 Hz |
-| I-01 | P1 | 文档内容对读屏不可达 | R14.7 过审（2fce780，审查 r2 PASS）；R14.49 过审（22efdb3，审查 r2 PASS）；VoiceOver 与 AT-SPI 的文本读取未实测（只经 UI Automation）；整篇文档仍只到当前段落 |
+| I-01 | P1 | 文档内容对读屏不可达 | R14.7 过审（2fce780，审查 r2 PASS）；R14.49 过审（22efdb3，审查 r2 PASS）；VoiceOver 不测（用户 2026-10-30 定）；AT-SPI 的文本读取未实测（只经 UI Automation）；整篇文档仍只到当前段落 |
 | I-02 | P1 | 无障碍复核范围 | R14.8 过审（c17f7df，审查 r3 PASS）；R14.49 过审（22efdb3，审查 r2 PASS）；macOS 未按新改动复核，ElyMail 未纳入 macOS 复核（`docs/accessibility.md`） |
 | I-03 | P2 | 国际化缺口 | R14.6 过审（a52d706，审查 r2 PASS） |
 
@@ -88,7 +88,7 @@ R14.29（已修，末轮后未复审）：可视模式拖动与 Shift 加上下�
 | D-01 与 Microsoft Office 交叉核对 | 未做 | 没有 Office |
 | B-01 main 的分支保护 | 待用户定 | 要求 PR 检查会挡住每条任务后的直接推送 |
 | F-01 Windows 安装程序的 Authenticode 签名 | 未做 | 没有代码签名证书 |
-| I-01 VoiceOver 与 AT-SPI 的文本读取 | 未实测 | 只经 Windows 的 UI Automation 读到；整篇文档仍只到当前段落（LOK 只报当前段落） |
+| I-01 AT-SPI 的文本读取 | 未实测 | 只经 Windows 的 UI Automation 读到；VoiceOver 由用户 2026-10-30 定不测；整篇文档仍只到当前段落（LOK 只报当前段落） |
 | I-02 macOS 的无障碍复核 | 未做 | macOS 只在 2026-10-08 复核六个应用，未按此后的改动重做，ElyMail 未在其中 |
 | H-04 120 Hz 实测 | 未做 | 本机显示器最高 75 Hz |
 | B-07 Linux 发布任务上 GitHub 托管机器 | 未做 | 每次要重建或缓存十余 GB 的内核；Linux 任务已不等 Windows |
