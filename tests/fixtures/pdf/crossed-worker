@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+import struct, sys
+head = sys.stdin.buffer.read(13)
+asked = struct.unpack('<Q', head[5:13])[0]
+body = struct.pack('<I', 3) + b'any'
+sys.stdout.buffer.write(struct.pack('<I', len(body)) + bytes([100]) + struct.pack('<Q', asked + 1) + body)
+sys.stdout.flush()

@@ -1,0 +1,4 @@
+#!/bin/sh
+echo 'git version 2.56.0'
+echo 'fatal: version query failed' >&2
+exit 7

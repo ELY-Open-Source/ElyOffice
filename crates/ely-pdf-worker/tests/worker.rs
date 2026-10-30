@@ -148,15 +148,8 @@ fn every_hit_counts_once_however_many_or_however_split() {
 #[cfg(unix)]
 #[test]
 fn a_worker_from_other_sources_is_refused() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     // Answers HELLO with someone else's stamp.
-    let stale = dir.path().join("stale-worker");
-    std::fs::write(
-        &stale,
-        "#!/usr/bin/env python3\nimport struct, sys\nhead = sys.stdin.buffer.read(13)\nstamp = b'old'\nbody = struct.pack('<I', len(stamp)) + stamp\nsys.stdout.buffer.write(struct.pack('<I', len(body)) + bytes([100]) + head[5:13] + body)\nsys.stdout.flush()\n",
-    )
-    .expect("writes");
-    std::fs::set_permissions(&stale, std::os::unix::fs::PermissionsExt::from_mode(0o755)).expect("executable");
+    let stale = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/pdf/stale-worker");
     let refused = Worker::spawn_from(&stale).err().expect("refused");
     assert!(refused.to_string().contains("other sources"), "{refused}");
 }
@@ -164,15 +157,8 @@ fn a_worker_from_other_sources_is_refused() {
 #[cfg(unix)]
 #[test]
 fn a_reply_to_another_request_is_refused() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     // Answers HELLO under the next request's id.
-    let crossed = dir.path().join("crossed-worker");
-    std::fs::write(
-        &crossed,
-        "#!/usr/bin/env python3\nimport struct, sys\nhead = sys.stdin.buffer.read(13)\nasked = struct.unpack('<Q', head[5:13])[0]\nbody = struct.pack('<I', 3) + b'any'\nsys.stdout.buffer.write(struct.pack('<I', len(body)) + bytes([100]) + struct.pack('<Q', asked + 1) + body)\nsys.stdout.flush()\n",
-    )
-    .expect("writes");
-    std::fs::set_permissions(&crossed, std::os::unix::fs::PermissionsExt::from_mode(0o755)).expect("executable");
+    let crossed = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/pdf/crossed-worker");
     let refused = Worker::spawn_from(&crossed).err().expect("refused");
     assert!(refused.to_string().contains("not 1"), "{refused}");
 }

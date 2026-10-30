@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+import struct, sys
+head = sys.stdin.buffer.read(13)
+stamp = b'old'
+body = struct.pack('<I', len(stamp)) + stamp
+sys.stdout.buffer.write(struct.pack('<I', len(body)) + bytes([100]) + head[5:13] + body)
+sys.stdout.flush()
