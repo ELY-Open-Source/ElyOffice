@@ -96,7 +96,10 @@ pub trait Opening: Host {
 
     fn failed_open(&self, name: &str, error: &io::Error, cx: &mut gpui::App) {
         log::error!("{}: {name} did not open: {error}", Self::KIND.app.slug());
-        let error = error.to_string();
+        let error = match error.get_ref().and_then(|inner| inner.downcast_ref::<files::NotPackage>()) {
+            Some(files::NotPackage(ext)) => text(cx, "office.error.not_package", &[("ext", ext)]).to_string(),
+            None => error.to_string(),
+        };
         let text = text(
             cx,
             "office.error.open",
@@ -132,8 +135,9 @@ pub trait Opening: Host {
         cx.spawn(async move |this, cx| {
             let loaded = cx
                 .background_spawn(async move {
-                    if let Some((bytes, _)) = &text {
-                        std::fs::write(&written, bytes.as_slice())?;
+                    match &text {
+                        Some((bytes, _)) => std::fs::write(&written, bytes.as_slice())?,
+                        None => files::check_package(&written)?,
                     }
                     let mut worker = worker.lock().expect("the worker lock");
                     let from = match &text {

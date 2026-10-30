@@ -2,7 +2,7 @@
 
 use std::{
     borrow::Cow,
-    io,
+    io::{self, Read as _},
     path::{Path, PathBuf},
 };
 
@@ -53,6 +53,40 @@ pub fn kernel_bytes<G: Engine>(
     let bytes = std::fs::read(&copy)?;
     log::info!("office: the kernel wrote {} bytes of {format}", bytes.len());
     Ok(bytes)
+}
+
+/// Formats stored as zip packages, encrypted ones as OLE.
+const PACKAGED: &[&str] = &[
+    "docx", "docm", "dotx", "dotm", "xlsx", "xlsm", "xltx", "xltm", "pptx", "pptm", "potx", "ppsx", "odt", "ott",
+    "ods", "ots", "odp", "otp",
+];
+
+/// Named as a package, but its bytes are not one.
+#[derive(Debug)]
+pub struct NotPackage(pub String);
+
+impl std::fmt::Display for NotPackage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "the file is not a .{} document: its content is not an Office package", self.0)
+    }
+}
+
+impl std::error::Error for NotPackage {}
+
+/// Fails at once when a package's bytes are something else.
+pub fn check_package(path: &Path) -> io::Result<()> {
+    let ext = extension(path);
+    if !PACKAGED.contains(&ext.as_str()) {
+        return Ok(());
+    }
+    let mut head = Vec::with_capacity(8);
+    std::fs::File::open(path)?.take(8).read_to_end(&mut head)?;
+    // An empty file opens as a new document.
+    if head.is_empty() || head.starts_with(b"PK\x03\x04") || head.starts_with(OLE) {
+        return Ok(());
+    }
+    log::warn!("office: a .{ext} file is not a package; not loaded");
+    Err(io::Error::new(io::ErrorKind::InvalidData, NotPackage(ext)))
 }
 
 /// Whether `path` carries macros Ely will not round-trip (LOK-11).
@@ -211,6 +245,25 @@ mod tests {
         assert!(kept("/a/b.pages").is_err(), "unknown formats fail");
         assert_eq!(save_as_format(&KIND, Path::new("/a/b.docx")), Some("docx"));
         assert_eq!(save_as_format(&KIND, Path::new("/a/b.pdf")), None);
+    }
+
+    #[test]
+    fn a_package_name_over_other_bytes_fails_before_loading() {
+        let dir = tempfile::tempdir().expect("a dir");
+        let write = |name: &str, body: &[u8]| {
+            let path = dir.path().join(name);
+            std::fs::write(&path, body).expect("writes");
+            path
+        };
+        let error = check_package(&write("text.docx", b"examplefile.com - Sample Files\r\n")).expect_err("plain text");
+        let inner = error.get_ref().and_then(|inner| inner.downcast_ref::<NotPackage>()).expect("named");
+        assert_eq!(inner.0, "docx");
+        assert!(check_package(&write("pk.XLSX", b"PK not a zip")).is_err(), "only the full signature");
+        check_package(&write("zip.pptx", b"PK\x03\x04rest")).expect("a zip");
+        check_package(&write("sealed.docx", OLE)).expect("encrypted");
+        check_package(&write("empty.docx", b"")).expect("an empty file");
+        check_package(&write("text.doc", b"plain")).expect("not a package format");
+        check_package(&write("rows.csv", b"a,b")).expect("not a package format");
     }
 
     #[test]

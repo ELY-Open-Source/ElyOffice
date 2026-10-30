@@ -89,3 +89,25 @@ fn fail_a_load(cx: &mut TestAppContext, docs: &Entity<Docs>, file: &Path) {
     with_window(cx, docs, |docs, _, cx| docs.open_file(copy, cx));
     settle(cx, |app| docs.read(app).core.stopped.is_some());
 }
+
+#[test]
+fn a_docx_that_is_plain_text_fails_at_once_and_the_engine_stays() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    cx.update(ely_gpui_component::init_for_tests);
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let fake = dir.path().join("fake.docx");
+    std::fs::write(&fake, "examplefile.com - Sample Files\r\n".repeat(1000)).expect("the file writes");
+    with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(fake, cx));
+    settle(&cx, |app| docs.read(app).core.loading.is_empty());
+    let (tabs, stopped) = cx.update(|app| (docs.read(app).core.tabs.len(), docs.read(app).core.stopped.is_some()));
+    assert_eq!((tabs, stopped), (0, false), "no tab, and the engine never saw it");
+    let empty = dir.path().join("empty.docx");
+    std::fs::write(&empty, "").expect("the file writes");
+    with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(empty, cx));
+    settle(&cx, |app| docs.read(app).core.loading.is_empty());
+    assert_eq!(cx.update(|app| docs.read(app).core.tabs.len()), 1, "an empty file opens as new");
+}
