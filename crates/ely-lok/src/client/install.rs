@@ -58,6 +58,21 @@ pub fn install_dir() -> io::Result<PathBuf> {
     ))
 }
 
+/// A test's LOK build; missing skips unless required.
+#[cfg(any(test, feature = "test-support"))]
+pub fn test_install() -> Option<PathBuf> {
+    let required = std::env::var("ELY_REQUIRE_ENGINES").as_deref() == Ok("1");
+    match install_dir() {
+        Ok(dir) => Some(dir),
+        Err(error) if required => panic!("ELY_REQUIRE_ENGINES=1 and {error}"),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            eprintln!("SKIP: {error}");
+            None
+        }
+        Err(error) => panic!("the LOK build cannot be read: {error}"),
+    }
+}
+
 /// The worker binary: env override, else beside this exe.
 pub(super) fn worker_bin() -> io::Result<PathBuf> {
     if let Ok(bin) = std::env::var("ELY_LOK_WORKER") {
@@ -102,4 +117,39 @@ pub(super) fn worker_bin() -> io::Result<PathBuf> {
         io::ErrorKind::NotFound,
         "no ely-lok-worker binary (set ELY_LOK_WORKER)",
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::process::Command;
+
+    /// Run by the test below with its own environment.
+    #[test]
+    #[ignore = "a helper process"]
+    fn absent() {
+        assert!(super::test_install().is_none(), "no build is there");
+    }
+
+    /// The helper with no LOK build, strict or not.
+    fn absent_with(strict: bool) -> std::process::Output {
+        let mut run = Command::new(std::env::current_exe().expect("this test"));
+        run.args(["--exact", "client::install::tests::absent", "--ignored", "--nocapture"]);
+        run.env("ELY_LOK_DIR", std::env::temp_dir().join("ely-no-lok-here"));
+        match strict {
+            true => run.env("ELY_REQUIRE_ENGINES", "1"),
+            false => run.env_remove("ELY_REQUIRE_ENGINES"),
+        };
+        run.output().expect("the helper runs")
+    }
+
+    #[test]
+    fn a_missing_build_skips_unless_engines_are_required() {
+        let loose = absent_with(false);
+        let said = String::from_utf8_lossy(&loose.stderr);
+        assert!(loose.status.success() && said.contains("SKIP: ELY_LOK_DIR"), "{said}");
+        let strict = absent_with(true);
+        let said = String::from_utf8_lossy(&strict.stderr);
+        assert!(!strict.status.success(), "a required engine that is missing fails");
+        assert!(said.contains("ELY_REQUIRE_ENGINES=1 and ELY_LOK_DIR"), "{said}");
+    }
 }

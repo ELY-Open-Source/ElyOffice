@@ -20,7 +20,7 @@ impl gpui::Render for Blank {
 
 /// An unrendered Book over a fresh worker, if LOK exists.
 fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<Blank>, Entity<Book>)> {
-    let install = ely_lok::install_dir().ok()?;
+    let install = ely_lok::test_install()?;
     let worker = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");

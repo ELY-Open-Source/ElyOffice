@@ -22,7 +22,7 @@ pub(crate) fn docs(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Docs>> 
         .is_test(true)
         .filter_level(log::LevelFilter::Info)
         .try_init();
-    let install = ely_lok::install_dir().ok()?;
+    let install = ely_lok::test_install()?;
     let worker = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");

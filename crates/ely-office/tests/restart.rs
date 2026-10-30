@@ -5,7 +5,7 @@ use ely_platform::AppId;
 
 #[test]
 fn a_restart_signs_with_the_newest_name_and_survives_a_failure() {
-    let Ok(install) = ely_lok::install_dir() else {
+    let Some(install) = ely_lok::test_install() else {
         eprintln!("SKIP: no LOK build");
         return;
     };

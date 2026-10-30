@@ -18,6 +18,8 @@ mod frames;
 mod install;
 mod load;
 pub use install::{install_dir, templates};
+#[cfg(any(test, feature = "test-support"))]
+pub use install::test_install;
 use install::worker_bin;
 pub use doc::{Pdf, Sheet, Sheets};
 pub use feed::Feed;

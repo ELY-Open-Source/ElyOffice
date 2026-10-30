@@ -28,7 +28,7 @@ mod video;
 
 /// An unrendered Deck over a fresh worker, if LOK exists.
 pub(super) fn deck(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Deck>> {
-    let install = ely_lok::install_dir().ok()?;
+    let install = ely_lok::test_install()?;
     let worker = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");

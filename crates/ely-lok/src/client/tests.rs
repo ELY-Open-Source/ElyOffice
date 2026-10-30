@@ -43,7 +43,7 @@ const PINNED_BUILD: &str = "8221e31";
 
 /// The pinned build, or None when absent.
 pub(crate) fn install() -> Option<PathBuf> {
-    install_dir().ok()
+    crate::test_install()
 }
 
 /// Ends a stuck worker by its process id.

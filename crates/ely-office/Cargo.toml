@@ -25,10 +25,11 @@ serde_json.workspace = true
 ely-ui.workspace = true
 
 [features]
-test-support = ["ely-ui/test-support"]
+test-support = ["ely-ui/test-support", "ely-lok/test-support"]
 
 [dev-dependencies]
 tempfile.workspace = true
+ely-lok = { workspace = true, features = ["view", "test-support"] }
 
 [lints]
 workspace = true
