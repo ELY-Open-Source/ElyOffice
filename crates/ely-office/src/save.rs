@@ -10,9 +10,10 @@ use ely_gpui_component::primitives::Severity;
 use gpui::{Context, TaskExt as _, Window};
 
 use crate::files::{self, file_name};
-use crate::{After, Closing, Dialog, Engine, Host, Opening, Tab, Tabs, in_window, text};
+use crate::{After, Closing, Dialog, Engine, Host, Opening, Tabs, in_window, text};
 
 mod paths;
+pub use paths::folder;
 use paths::identity;
 
 pub trait Saving: Host {
@@ -66,6 +67,20 @@ pub trait Saving: Host {
         else {
             return self.save_as(id, then, cx);
         };
+        // Moved or deleted outside: ask where instead.
+        match path.try_exists() {
+            Ok(true) => {}
+            Ok(false) => {
+                log::warn!("office: {} is gone; tab {id}'s save becomes Save As", path.display());
+                let words = text(cx, "office.gone", &[("name", &tab.name)]);
+                self.toast(words, Severity::Warning, cx);
+                return self.save_as(id, then, cx);
+            }
+            Err(error) => {
+                let error = io::Error::new(error.kind(), format!("{}: {error}", path.display()));
+                return self.finish(id, Err(SaveError::Io(error)), None, then, window, cx);
+            }
+        }
         let format = match files::kept_format(&Self::KIND, &path) {
             Ok(format) => format,
             Err(error) => {
@@ -473,18 +488,6 @@ pub trait Saving: Host {
 }
 
 impl<H: Host> Saving for H {}
-
-/// Where a panel for `tab` opens: beside it, else Documents.
-pub fn folder<E, G: Engine>(tab: &Tab<E, G>) -> Option<PathBuf> {
-    tab.session
-        .path()
-        .and_then(|path| path.parent().map(PathBuf::from))
-        .or_else(|| {
-            directories::UserDirs::new()?
-                .document_dir()
-                .map(PathBuf::from)
-        })
-}
 
 #[cfg(all(test, windows))]
 mod tests;

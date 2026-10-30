@@ -5,6 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::{Engine, Tab};
+
 /// The file a path names, links resolved.
 pub(super) fn identity(path: &Path) -> io::Result<PathBuf> {
     let real = match std::fs::canonicalize(path) {
@@ -20,4 +22,16 @@ pub(super) fn identity(path: &Path) -> io::Result<PathBuf> {
     };
     // Whole path only: a name may need `\\?\`.
     Ok(dunce::simplified(&real).to_path_buf())
+}
+
+/// Where a panel for `tab` opens: beside it, else Documents.
+pub fn folder<E, G: Engine>(tab: &Tab<E, G>) -> Option<PathBuf> {
+    tab.session
+        .path()
+        .and_then(|path| path.parent().map(PathBuf::from))
+        .or_else(|| {
+            directories::UserDirs::new()?
+                .document_dir()
+                .map(PathBuf::from)
+        })
 }

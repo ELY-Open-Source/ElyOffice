@@ -346,3 +346,29 @@ fn a_default_zoom_opens_each_document_at_it() {
     blank(&mut cx, &docs);
     assert_eq!(zoom(&mut cx), 1.5);
 }
+
+#[test]
+fn a_file_moved_away_asks_where_its_save_goes() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    let first = dir.path().join("未命名 1.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, first.clone(), None, window, cx));
+    written(&cx, &first, None);
+    // Moved to the Desktop outside Ely.
+    std::fs::rename(&first, dir.path().join("moved.docx")).expect("moved outside");
+    type_into(&mut cx, &docs, "AfterTheMove");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.save(id, None, window, cx));
+    settle(&cx, |_| cx.did_prompt_for_new_path());
+    let chosen = dir.path().join("chosen.docx");
+    let pick = chosen.clone();
+    cx.simulate_new_path_selection(move |_| Some(pick));
+    written(&cx, &chosen, None);
+    assert!(!first.exists(), "nothing comes back where the file was");
+    let name = cx.update(|app| docs.read(app).active_tab().expect("a tab").name.clone());
+    assert_eq!(name.as_ref(), "chosen.docx");
+}

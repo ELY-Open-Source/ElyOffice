@@ -281,9 +281,12 @@ fn save_mode(
 pub fn save_as(session: &mut Session, path: &Path, bytes: &[u8]) -> Result<Saved, SaveError> {
     let target = resolved(path).map_err(SaveError::Io)?;
     let backup = !atomic_capable(&target).map_err(SaveError::Io)?;
+    // A file moved or deleted outside is written anew.
     let own = match session.path() {
-        Some(current) => same_file(current, &target).map_err(SaveError::Io)?,
-        None => false,
+        Some(current) if current.try_exists().map_err(|e| SaveError::Io(with_path(current, e)))? => {
+            same_file(current, &target).map_err(SaveError::Io)?
+        }
+        _ => false,
     };
     if own {
         // The session's own file keeps its conflict check.

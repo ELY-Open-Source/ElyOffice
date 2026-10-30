@@ -14,13 +14,17 @@ pub struct Fingerprint {
 }
 
 impl Fingerprint {
+    /// Errors name `path`; their kind stays.
     pub fn of(path: &Path) -> io::Result<Self> {
-        let meta = std::fs::metadata(path)?;
-        Ok(Self {
-            len: meta.len(),
-            modified: meta.modified()?,
-            id: file_id(path)?,
-        })
+        let read = || -> io::Result<Self> {
+            let meta = std::fs::metadata(path)?;
+            Ok(Self {
+                len: meta.len(),
+                modified: meta.modified()?,
+                id: file_id(path)?,
+            })
+        };
+        read().map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))
     }
 }
 
