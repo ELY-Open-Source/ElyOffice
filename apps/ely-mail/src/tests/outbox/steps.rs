@@ -106,12 +106,13 @@ fn a_send_queues_what_was_there_when_pressed() {
     );
 }
 
-/// Holds each connection; the first goes when told.
-fn dropping_first() -> (u16, mpsc::Sender<()>) {
+/// Holds each connection; the first goes when told, once here.
+fn dropping_first() -> (u16, mpsc::Receiver<()>, mpsc::Sender<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     listener.set_nonblocking(true).unwrap();
     let (go, told) = mpsc::channel();
+    let (came, arrived) = mpsc::channel();
     thread::spawn(move || {
         let (mut first, mut rest, mut gone) = (None::<TcpStream>, Vec::new(), false);
         loop {
@@ -122,7 +123,10 @@ fn dropping_first() -> (u16, mpsc::Sender<()>) {
             }
             if let Ok((stream, _)) = listener.accept() {
                 match first.is_none() && !gone {
-                    true => first = Some(stream),
+                    true => {
+                        first = Some(stream);
+                        came.send(()).unwrap();
+                    }
                     false => rest.push(stream),
                 }
             }
@@ -132,13 +136,13 @@ fn dropping_first() -> (u16, mpsc::Sender<()>) {
             thread::sleep(Duration::from_millis(10));
         }
     });
-    (port, go)
+    (port, arrived, go)
 }
 
 #[test]
 fn the_list_follows_each_send_as_it_goes() {
     let dir = tempfile::tempdir().unwrap();
-    let (port, go) = dropping_first();
+    let (port, arrived, go) = dropping_first();
     let (quiet, _keep) = silent_server();
     let mut bo = account("bo@example.com");
     (bo.outgoing.port, bo.incoming.port) = (port, quiet);
@@ -176,6 +180,8 @@ fn the_list_follows_each_send_as_it_goes() {
     });
     cx.update(|_, app| mail.update(app, |mail, cx| mail.run_outbox(false, cx)));
     settle(cx, |app| mail.read(app).queued[0].going == Going::Sending);
+    // Sending shows before the connection lands; drop it once here.
+    arrived.recv_timeout(Duration::from_secs(20)).expect("the first connection");
     go.send(()).unwrap();
     settle(cx, |app| {
         let shown = &mail.read(app).queued;

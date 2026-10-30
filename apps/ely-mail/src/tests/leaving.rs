@@ -195,6 +195,7 @@ fn a_file_without_a_name_is_forwarded() {
 }
 
 /// Presses the drawn Close of `on`, Windows and Linux style.
+#[cfg(not(target_os = "macos"))]
 fn press_close(on: gpui::AnyWindowHandle, cx: &mut VisualTestContext) {
     let mut there = VisualTestContext::from_window(on, cx);
     there.run_until_parked();
@@ -206,6 +207,8 @@ fn press_close(on: gpui::AnyWindowHandle, cx: &mut VisualTestContext) {
     there.run_until_parked();
 }
 
+// macOS draws no Close: AppKit's traffic lights.
+#[cfg(not(target_os = "macos"))]
 #[test]
 fn the_drawn_close_keeps_as_the_system_close_does() {
     let dir = tempfile::tempdir().unwrap();

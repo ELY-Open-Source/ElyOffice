@@ -182,7 +182,8 @@ pub fn window_options(app: AppId, size: gpui::Size<gpui::Pixels>, cx: &App) -> W
         titlebar: Some(TitlebarOptions {
             title: Some(app.name().into()),
             appears_transparent: true,
-            traffic_light_position: Some(cx.theme().traffic_light_origin()),
+            // AppKit answers on the main thread; tests run off it.
+            traffic_light_position: (!cx.is_test()).then(|| cx.theme().traffic_light_origin()),
         }),
         window_decorations: Some(WindowDecorations::Client),
         window_min_size: Some(gpui::size(px(640.0), px(420.0))),
