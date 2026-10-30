@@ -5,6 +5,14 @@ set -euo pipefail
 ref="$(cd "$(dirname "$0")/.." && pwd)/reference"
 mkdir -p "$ref"
 only=" $* "
+known=$(awk '$1 == "fetch" { print $2 }' "${BASH_SOURCE[0]}")
+for name in "$@"; do
+  grep -qxF -- "$name" <<<"$known" || {
+    echo "fetch-references.sh: no upstream named $name; known:" $known >&2
+    exit 1
+  }
+done
+wanted() { [ "$only" = "  " ] || [[ $only == *" $1 "* ]]; }
 
 sparse_ok() { # dir [sparse paths...]
   local dir=$1
@@ -15,7 +23,7 @@ sparse_ok() { # dir [sparse paths...]
 fetch() { # name url rev [sparse paths...]
   local name=$1 url=$2 rev=$3
   shift 3
-  [ "$only" = "  " ] || [[ $only == *" $name "* ]] || return 0
+  wanted "$name" || return 0
   local dir="$ref/$name"
   if [ -d "$dir/.git" ] && [ "$(git -C "$dir" rev-parse HEAD)" = "$rev" ] && sparse_ok "$dir" "$@"; then
     echo "ok    $name $rev"
@@ -44,7 +52,7 @@ fetch libreoffice-core https://github.com/LibreOffice/core.git 8221e31b3ac356a16
   include/LibreOfficeKit libreofficekit desktop/source/lib desktop/inc \
   officecfg/registry/data/org/openoffice/Office/UI
 fetch mupdf https://github.com/ArtifexSoftware/mupdf.git 8ad45e92f0935d3d87f1db3f873086472a5e1b24
-[ ! -d "$ref/mupdf/.git" ] || git -C "$ref/mupdf" submodule update --init --depth 1 --recursive
+! wanted mupdf || git -C "$ref/mupdf" submodule update --init --depth 1 --recursive
 fetch git https://github.com/git/git.git a018953688f1b10bddf91bff8747068f5f4746a4
 fetch tesseract https://github.com/tesseract-ocr/tesseract.git db0ec62f81b0737fbbe184d8fea40af5738f8eef
 fetch marktext https://github.com/marktext/marktext.git b29cb5621e12cedb801c1cd886d9005159feaa2e

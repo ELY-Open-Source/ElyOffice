@@ -1,5 +1,4 @@
-# Pull requests and main: the rules and the engine-free tests.
-# GitHub's machines only: no pull request reaches a self-hosted runner.
+# Rules and engine-free tests, on GitHub's machines only.
 name: pr
 on:
   pull_request:
@@ -14,9 +13,11 @@ jobs:
     env:
       ELY_REQUIRE_ENGINES: '1'
       CARGO_TERM_COLOR: never
+      # Panic counts compare with the commit before the change.
+      PANICS_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
       # Linux's MuPDF links the pinned static OpenSSL.
       PKG_CONFIG_PATH: ${{ github.workspace }}/engines/openssl/lib/pkgconfig
-      # Crates whose tests run LibreOffice or the PDF worker; release-tests.sh runs them.
+      # Engine crates; release-tests.sh runs their tests.
       NO_ENGINES: >-
         --workspace --exclude ely-lok --exclude ely-office --exclude ely-doc --exclude ely-table
         --exclude ely-show --exclude ely-pdf --exclude ely-pdf-worker --exclude ely-mark
@@ -26,7 +27,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q libdbus-1-dev libfontconfig-dev libxcb1-dev libxkbcommon-x11-dev
-          # The media test plays an H.264 and AAC clip through GStreamer.
+          # GStreamer plays the media test's H.264 and AAC clip.
           sudo apt-get install -y -q libgstreamer-plugins-base1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
       - name: Tools
         run: |
@@ -40,7 +41,7 @@ jobs:
       - name: Licences, advisories and sources
         run: scripts/deny.sh
       - name: Panics listed with reasons
-        run: python3 scripts/panics.py
+        run: git fetch -q --depth 1 origin "$PANICS_BASE" && python3 scripts/panics.py
       - name: Clippy, warnings fail
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests that need no engine
