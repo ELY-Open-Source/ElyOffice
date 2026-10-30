@@ -31,7 +31,7 @@ vendor/      crates.io 上游 crate 的副本加本项目的修复，经工作�
 packaging/   三端打包脚本，apps.tsv 是八个应用的二进制名、名字、桌面分类、发布批次与许可（Linux 包与 Nix 的许可字段）；icons/ 由图标母版渲染各端格式；libreoffice/ely.xcd 是内核的默认配置层
 assets/      icons/ 是八个应用的图标母版（SVG）与渲染出的 icns、png、ico，规则见其 README
 dist/        打包产物，不入库
-docs/        兼容清单、无障碍、帮助、许可、性能记录；engineering-risks.md、qa.md 等内部笔记只在本机，不入库
+docs/        兼容清单、无障碍、帮助、许可、性能记录、功能编号与测试的对照（test-map.md，由 scripts/test-map.py 生成）；验收的证据都在库里
 scripts/     fetch-references.sh 取上游  doctor.sh 查工具  review.sh 开分栏审查  build-*.sh 构建引擎
 tests/       scripts 与 engines 下是脚本测试；engines 缺二进制时报 SKIP；fixtures 是测试共用的样本（media/clip.mp4：1 秒 H.264/AAC；pdf/aes128.pdf：AES-128 加密，打开密码 user、所有者密码 owner；pdf/signer.p12 与 signer.der：自签名测试证书，密码 ely；pdf/chain-root.der 与 chain-leaf.der：测试用的根与其签发的证书；show/sections.pptx：t.pptx 加两个章节（p14:sectionLst），sections-utf16.pptx 同而 presentation.xml 为 UTF-16LE，sections-locked.pptx 为其加密版，打开密码 ely，sections-locked-tail.pptx 同而目录移到文件末尾、`EncryptedPackage` 在最后一格；tree/launcher-fails、launcher-held、launcher-pwd、launcher-session：ElyTree 终端启动器测试用的可执行脚本（Git 里 100755）；git/git-2.39、git-2.40：只报版本的假 Git（版本下限测试，Git 里 100755）；table/kept.xlsx：照 Excel 写法的 XLSX，含 Calc 不认的函数（`CUBEVALUE`、`_xlfn.TRANSLATE`，一组共享公式）与其缓存值，kept-more.xlsx 含布尔、空串、缺值、坏数、数组（含各类成员）与易变函数，kept-more.ods 含属性顺序不同的空串、空串与坏数的矩阵成员，kept-strings.xlsx 含内联与共享字符串的数组成员、坏索引与用未知函数的定义名称，皆由同目录 make-kept.py 生成；mail/sample.eml：带编码主题、分组抄送、纯文本加 HTML、cid 图片与附件的邮件，LF 行尾，测试换成 CRLF）
 tasks/       TASKS.md 进度真相
@@ -146,6 +146,8 @@ tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的
 packaging/source.sh dist        本提交的源码包与随包的 copyleft 上游源码（打过补丁的 MuPDF、Git），文件名带提交号；工作区有未提交改动即拒绝（macOS 的 release.sh 与 CI 的 Linux 调用，发布只上传 Linux 的；Windows 的检出把符号链接写成文件，不出源码包）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝
 scripts/release-tests.sh         发布的门：建好两个 worker，严格模式跑 `cargo test --workspace`（ci.sh 打包前调用）
+scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务与其测试（pr.yml 核对它与提交一致）
+tests/scripts/records.py         TASKS、BUGS、BugList、decisions 引用的库内文件都在，否则标“（已移除）”；引用 .work/ 须标“（本机，未入库）”（pr.yml 调用）
 tests/scripts/workflows.py       release.yml 的任务互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 的 runs-on 恰为 ubuntu-24.04、以整行的 `[sudo] apt-get install` 装齐 README 的库、严格模式、panic 数比基线提交（各带反例）
 tests/scripts/ci-upload.sh       ci.sh 的上传：测试失败即一个不传；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
 tests/scripts/linux-packages.sh  deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库

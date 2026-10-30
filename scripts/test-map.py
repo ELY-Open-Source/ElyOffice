@@ -25,7 +25,7 @@ WHERE = {
 
 
 def read(name):
-    with open(os.path.join(ROOT, name)) as text:
+    with open(os.path.join(ROOT, name), encoding="utf-8") as text:
         return text.read()
 
 
@@ -87,7 +87,7 @@ def main():
         labels = list(dict.fromkeys(label for label, _ in mine))
         where = WHERE[id_.split("-")[0]]
         rows.append(f"| {id_} | {need} | {'、'.join(labels) or '无'} | {'、'.join(f'`{n}`' for n in named) or '—'} | {where} |")
-    with open(os.path.join(ROOT, "docs", "test-map.md"), "w") as out:
+    with open(os.path.join(ROOT, "docs", "test-map.md"), "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(rows) + "\n")
     print(f"docs/test-map.md: {len(rows) - 6} ids")
 

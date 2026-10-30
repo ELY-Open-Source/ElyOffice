@@ -38,6 +38,8 @@ jobs:
         run: scripts/fetch-references.sh mupdf && scripts/build-openssl.sh && scripts/build-mupdf.sh
       - name: Project rules
         run: scripts/check.sh
+      - name: Records cite what exists; the test map is current
+        run: python3 tests/scripts/records.py && python3 scripts/test-map.py && git diff --exit-code docs/test-map.md
       - name: Licences, advisories and sources
         run: scripts/deny.sh
       - name: Panics listed with reasons
