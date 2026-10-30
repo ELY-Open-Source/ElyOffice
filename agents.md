@@ -203,7 +203,8 @@ tests/scripts/autosave.sh      真窗口 ElyDoc：自动保存开关、停手即
 tests/scripts/print.sh         真窗口 ElyDoc：打印用文档自己的纸张，取消不动文档（需辅助功能权限）
 cargo test -p ely-platform --test print  Windows 经“Microsoft Print to PDF”出作业，核对纸张、方向与页面位置；Linux 起私有会话总线与替身打印门户，核对页面设置、双面、令牌与交出的字节、取消（缺 dbus-daemon 时 SKIP）
 tests/scripts/show-fullscreen.sh  真窗口 ElyShow：F5 放映的窗口盖住整块屏幕（菜单栏与程序坞之上，需辅助功能权限）
-tests/scripts/dock-macos.sh      dist 里 ElyDoc、ElyTable、ElyShow 与包外的 target/debug/ely-doc 各启动数次：LOK worker 从未登记为程序坞应用，图块照出
+tests/scripts/dock-macos.sh      dist 里第一批各 .app 与包外的 target/debug/ely-doc 各启动数次：应用自身是一个程序坞图标、观察期内不退出，子进程从未登记为程序坞应用；带内核的三个另核 worker 为 UIElement、图块照出
+tests/scripts/dock-rules.sh      dock-macos.sh 对假应用（替身 lsappinfo）：worker 类型张冠李戴、提前退出、查询失败、无用例的应用皆败（只在 macOS）
 tests/scripts/windows-bundle.sh  合集安装程序逐个静默运行所选应用的安装程序；某个被拒即停下并报出其名与退出码（缺 makensis 时 SKIP）
 tests/scripts/windows-installer.sh  假应用的安装程序：所选目录原有的文件经两次安装与卸载都在，旧版按注册表清理，文件被占用或程序在运行时什么也不改，写不进时放回旧版（缺 makensis 时 SKIP）
 tests/scripts/types.sh         packaging/types.tsv 的文件类型与 URL 方案在 Linux 桌面项、Windows 安装程序与 macOS 的 plist 里一致，macOS 的 UTI 照 MIME 类型、级别为 Alternate，URL 方案从不被接管
