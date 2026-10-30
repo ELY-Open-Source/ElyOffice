@@ -19,19 +19,20 @@ ElyMail signs in to Microsoft with OAuth, and to Gmail and iCloud with an app pa
 
 ## Build
 
-Install Rust with [rustup](https://rustup.rs) (`rust-toolchain.toml` pins the version), then the system packages:
+Install Rust with [rustup](https://rustup.rs) (`rust-toolchain.toml` pins the version), then the system packages. Every system also needs Git, Python 3, curl, Node.js and pnpm (`check.sh` and the site use the last two).
 
-- macOS: Xcode with its Metal toolchain (`xcodebuild -downloadComponent MetalToolchain`); gpui compiles its shaders with `xcrun metal`.
-- Windows: Visual Studio Build Tools with the C++ workload (MSVC and a Windows SDK); gpui compiles its shaders with the SDK's `fxc.exe`.
-- Linux, one line per family:
+- macOS: Xcode with its Metal toolchain (`xcodebuild -downloadComponent MetalToolchain`), since gpui compiles its shaders with `xcrun metal`; then `brew install cmake ninja pkg-config node pnpm` for LibreOffice and the checks.
+- Windows: Visual Studio Build Tools with the C++ workload (MSVC, a Windows SDK and CMake with Ninja); gpui compiles its shaders with the SDK's `fxc.exe`. Git for Windows supplies bash and curl.
+- Linux, one line per family, then pnpm. LibreOffice builds inside `packaging/linux/container.sh`, hence Docker:
 
 ```sh
-sudo apt install build-essential pkg-config libdbus-1-dev libfontconfig-dev libxcb1-dev libxkbcommon-x11-dev
-sudo dnf install gcc make pkgconf-pkg-config dbus-devel fontconfig-devel libxcb-devel libxkbcommon-x11-devel
-sudo pacman -S --needed base-devel dbus fontconfig libxcb libxkbcommon-x11
+sudo apt install build-essential pkg-config git curl python3 nodejs npm docker.io libdbus-1-dev libfontconfig-dev libxcb1-dev libxkbcommon-x11-dev
+sudo dnf install gcc make pkgconf-pkg-config git curl python3 nodejs npm moby-engine dbus-devel fontconfig-devel libxcb-devel libxkbcommon-x11-devel
+sudo pacman -S --needed base-devel git curl python nodejs npm docker dbus fontconfig libxcb libxkbcommon-x11
+sudo npm install -g pnpm
 ```
 
-`scripts/doctor.sh` checks each of these, and the tools the engine scripts below use.
+`scripts/doctor.sh` checks each of these for the system it runs on.
 
 ```sh
 scripts/doctor.sh                 # toolchain versions

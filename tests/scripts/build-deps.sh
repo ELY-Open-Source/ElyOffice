@@ -26,12 +26,16 @@ curl -fsSL -o /tmp/rustup-init https://static.rust-lang.org/rustup/archive/1.29.
 echo "5be191e8c70a5007074254cb74d78dbfdd25cd5a61c27de7b8e5410122ec24f4  /tmp/rustup-init" | sha256sum -c - >/dev/null
 chmod +x /tmp/rustup-init && /tmp/rustup-init -y -q --profile minimal --default-toolchain none >/dev/null 2>&1
 . "$HOME/.cargo/env"
-ours="cc|pkg-config|dbus-1|fontconfig|xcb|xkbcommon|xkbcommon-x11"
 before=$(bash scripts/doctor.sh || true)
 grep -Eq "^MISSING dbus-1 " <<<"$before" || { echo "doctor.sh missed the absent dbus-1:"; echo "$before"; exit 1; }
 eval "$install" >/tmp/install.log 2>&1 || { tail -20 /tmp/install.log; exit 1; }
-after=$(bash scripts/doctor.sh || true)
-if grep -E "^(MISSING|BROKEN) +($ours)( |:|$)" <<<"$after"; then exit 1; fi
+after=$(bash scripts/doctor.sh) || { echo "$after"; exit 1; }
+# Each tool counts: without make, doctor fails.
+make=$(command -v make) && mv "$make" /tmp/make
+if bash scripts/doctor.sh >/tmp/doctor.log 2>&1 || ! grep -q "^MISSING make" /tmp/doctor.log; then
+  echo "doctor.sh passed without make:"; cat /tmp/doctor.log; exit 1
+fi
+mv /tmp/make "$make"
 cargo test -q -p ely-mail-engine --no-run >/tmp/mail.log 2>&1 || { tail -30 /tmp/mail.log; exit 1; }
 cargo build -q --workspace --exclude ely-pdf-worker --bins --tests >/tmp/build.log 2>&1 || { tail -30 /tmp/build.log; exit 1; }
 echo "README packages build Ely"'
@@ -49,8 +53,9 @@ run() { # image, preparation, install command
 ubuntu=ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
 fedora=fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
 arch=archlinux@sha256:4e77cf2ea5f410e6f8be5abf93ccf17ce2436e87a138c167208356711a405dbd
+pnpm=$(line 'npm install' '')
 run "$ubuntu" "apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl ca-certificates" \
-  "DEBIAN_FRONTEND=noninteractive $(line 'apt install' -y)"
-run "$fedora" "true" "$(line 'dnf install' -y)"
-run "$arch" "pacman -Sy --noconfirm" "$(line 'pacman -S' --noconfirm)"
-echo "PASS: README's Linux packages build Ely; doctor.sh checks them"
+  "DEBIAN_FRONTEND=noninteractive $(line 'apt install' -y) && $pnpm"
+run "$fedora" "true" "$(line 'dnf install' -y) && $pnpm"
+run "$arch" "pacman -Sy --noconfirm" "$(line 'pacman -S' --noconfirm) && $pnpm"
+echo "PASS: README's Linux lines satisfy doctor.sh and build Ely; doctor.sh misses no tool"
