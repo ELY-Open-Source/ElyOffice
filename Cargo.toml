@@ -91,6 +91,7 @@ all = { level = "warn", priority = -1 }
 [patch.crates-io]
 accesskit_atspi_common = { path = "vendor/accesskit_atspi_common" }
 gpui-pre = { path = "vendor/gpui-pre" }
+gpui-pre-linux = { path = "vendor/gpui-pre-linux" }
 gpui-pre-windows = { path = "vendor/gpui-pre-windows" }
 mail-parser = { path = "vendor/mail-parser" }
 zbus = { path = "vendor/zbus" }
