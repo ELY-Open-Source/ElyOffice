@@ -19,7 +19,7 @@ ElyMail signs in to Microsoft with OAuth, and to Gmail and iCloud with an app pa
 
 ## Build
 
-Install Rust with [rustup](https://rustup.rs) (`rust-toolchain.toml` pins the version), then the system packages. Every system also needs Git, Python 3, curl, Node.js 22.12 or newer and pnpm (`check.sh` and the site use the last two).
+Install Rust with [rustup](https://rustup.rs) (`rust-toolchain.toml` pins the version), then the system packages. Every system also needs Git, Python 3, curl, Node.js 22.18 or newer (the first to run the site's TypeScript tests unflagged) and pnpm (`check.sh` and the site use the last two).
 
 - macOS: Xcode with its Metal toolchain (`xcodebuild -downloadComponent MetalToolchain`), since gpui compiles its shaders with `xcrun metal`; then `brew install cmake ninja pkg-config make gnu-sed bison flex gettext autoconf automake node pnpm` for LibreOffice and the checks (`build-libreoffice.sh` puts Homebrew's GNU make, sed, bison, flex and gettext first).
 - Windows: Visual Studio 2022 with the C++ workload (MSVC, a Windows SDK and CMake with Ninja); gpui compiles its shaders with the SDK's `fxc.exe`. Git for Windows supplies bash and curl. LibreOffice builds under Cygwin in `C:\cygwin64` (`ELY_CYGWIN` elsewhere) with autoconf, automake and LibreOffice's GNU make in `/opt/lo/bin`, as its [Windows build guide](https://wiki.documentfoundation.org/Development/BuildingOnWindows) sets up.

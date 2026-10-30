@@ -50,8 +50,8 @@ check cargo --version
 check git --version
 check python3 --version
 check curl --version
-# The site's Vite and Wrangler.
-least node 22.12 node --version
+# The site's tests run .ts files from 22.18.
+least node 22.18 node --version
 check pnpm --version
 
 case $(uname -s) in
@@ -92,8 +92,9 @@ case $(uname -s) in
     }
     need msvc msvc
     need fxc fxc
-    # LibreOffice builds under Cygwin, with its own make.
-    cygwin=${ELY_CYGWIN:-/c/cygwin64}
+    # Cygwin builds LibreOffice; this shell's form of its root.
+    cygwin=$(cygpath -u "${ELY_CYGWIN:-C:/cygwin64}")
+    cygwin=${cygwin%/}
     least lo-make 4.2 "$cygwin/opt/lo/bin/make.exe" --version
     need autoconf "$cygwin/bin/bash.exe" -lc 'autoconf --version'
     need aclocal "$cygwin/bin/bash.exe" -lc 'aclocal --version'
