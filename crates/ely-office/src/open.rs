@@ -127,13 +127,7 @@ pub trait Opening: Host {
         let written = path.clone();
         self.core_mut().loading.push((id, file_name(&path)));
         cx.notify();
-        if self.core().stop.is_some() {
-            cx.spawn(async move |this, cx| {
-                cx.background_executor().timer(crate::stopped::SLOW).await;
-                this.update(cx, |host, cx| crate::Stopping::slow_load(host, id, cx))
-            })
-            .detach_and_log_err(cx);
-        }
+        crate::Stopping::watch_slow(self, id, cx);
         let worker = Arc::clone(&self.core().worker);
         cx.spawn(async move |this, cx| {
             let loaded = cx

@@ -97,8 +97,11 @@ fn corner_rectangle(cx: &mut TestAppContext, book: &Entity<Book>) {
     run(cx, book, "draw.shape", &["rectangle", "true"]);
     run(cx, book, "object.x", &["0"]);
     run(cx, book, "object.y", &["0"]);
-    let selected = cx.update(|app| book.read(app).active_tab().expect("a tab").view.read(app).graphic());
-    assert!(selected.is_some_and(|(x, y, ..)| x < 100 && y < 100), "selected at A1: {selected:?}");
+    // The move is reported after the answer.
+    settle(cx, |app| {
+        let selected = book.read(app).active_tab().expect("a tab").view.read(app).graphic();
+        selected.is_some_and(|(x, y, ..)| x < 100 && y < 100)
+    });
 }
 
 /// Protects the sheet, allowing selection and `more`.

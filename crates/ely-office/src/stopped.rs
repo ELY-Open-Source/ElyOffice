@@ -2,8 +2,14 @@
 
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use ely_gpui_component::{feedback::Banner, primitives::Severity};
-use gpui::{AppContext as _, Context};
+use ely_gpui_component::{
+    feedback::{Banner, EmptyState},
+    primitives::{IconName, Severity},
+};
+use gpui::{
+    AnyElement, AppContext as _, Context, InteractiveElement as _, IntoElement as _, ParentElement as _, Styled as _, TaskExt as _,
+    div,
+};
 
 use crate::{Closing as _, Dialog, Engine, Host, Opening as _, Recovering as _, recover::clock, text};
 
@@ -40,6 +46,37 @@ pub trait Stopping: Host {
             }
         })
         .detach();
+    }
+
+    /// Offers the stop if load `id` still runs after `SLOW`.
+    fn watch_slow(&mut self, id: u64, cx: &mut Context<Self>) {
+        if self.core().stop.is_none() {
+            return;
+        }
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(SLOW).await;
+            this.update(cx, |host, cx| host.slow_load(id, cx))
+        })
+        .detach_and_log_err(cx);
+    }
+
+    /// No document shown: loading or empty, under the engine's banner.
+    fn empty_body(&self, id: &'static str, icon: IconName, cx: &mut Context<Self>) -> AnyElement {
+        let title = match self.core().loading.first() {
+            Some((_, name)) => text(cx, "office.loading", &[("name", name)]),
+            None => text(cx, "command.blocked.no_document", &[]),
+        };
+        let empty = EmptyState::new(id, icon, title);
+        let Some(banner) = self.stopped_banner(cx) else {
+            return empty.into_any_element();
+        };
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .child(div().debug_selector(|| "office-engine-banner".into()).child(banner))
+            .child(div().flex_1().min_h_0().child(empty))
+            .into_any_element()
     }
 
     /// A load still running after `SLOW`: the stop is offered.

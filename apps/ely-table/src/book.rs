@@ -7,7 +7,7 @@ use std::{
 };
 
 use ely_gpui_component::{
-    feedback::{Banner, EmptyState},
+    feedback::Banner,
     primitives::{IconName, Severity},
     shell::{StatusBar, StatusBarItem},
 };
@@ -386,11 +386,7 @@ impl Book {
 
     fn body(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         if self.active_tab().is_none() {
-            let title = match self.core.loading.first() {
-                Some((_, name)) => Self::text(cx, "office.loading", &[("name", name)]),
-                None => Self::text(cx, "command.blocked.no_document", &[]),
-            };
-            return EmptyState::new("table-empty", IconName::Table, title).into_any_element();
+            return self.empty_body("table-empty", IconName::Table, cx);
         }
         let risk = self.stopped_banner(cx).or_else(|| self.risk_banner(cx));
         div()

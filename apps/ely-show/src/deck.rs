@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use ely_gpui_component::{feedback::EmptyState, primitives::IconName, shell::StatusBar};
+use ely_gpui_component::{primitives::IconName, shell::StatusBar};
 use ely_lok::{
     LokView, Worker,
     show::Design,
@@ -403,11 +403,7 @@ impl Deck {
 
     pub(crate) fn body(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let Some(tab) = self.active_tab() else {
-            let title = match self.core.loading.first() {
-                Some((_, name)) => Self::text(cx, "office.loading", &[("name", name)]),
-                None => Self::text(cx, "command.blocked.no_document", &[]),
-            };
-            return EmptyState::new("show-empty", IconName::Monitor, title).into_any_element();
+            return self.empty_body("show-empty", IconName::Monitor, cx);
         };
         let view = tab.view.clone();
         let guides = self.guide_layer(&view, cx);

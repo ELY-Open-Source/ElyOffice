@@ -47,7 +47,7 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("office.stopped.lost", "Not reopened: {names}. Their unsaved changes had no recovery point."),
     (
         "office.slow",
-        "{name} has not opened after {seconds} seconds. If the document engine is stuck, stop it, then reopen your documents.",
+        "{name} has not opened after {seconds} seconds. Stopping the document engine closes every document open in this app; changes since each one's last recovery point are lost. You can reopen them afterwards.",
     ),
     ("office.slow.stop", "Stop the engine"),
     ("office.error.engine", "{error}"),
@@ -153,7 +153,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("office.stopped.never", "尚无"),
     ("office.stopped.reopen", "重新打开文档"),
     ("office.stopped.lost", "未能重新打开：{names}。其未保存的改动没有恢复点。"),
-    ("office.slow", "{name} 已过 {seconds} 秒仍未打开。若文档引擎卡住，可停止它，再重新打开文档。"),
+    ("office.slow", "{name} 已过 {seconds} 秒仍未打开。停止文档引擎会关闭本应用中所有打开的文档，各文档自上一个恢复点以来的改动将丢失；之后可重新打开。"),
     ("office.slow.stop", "停止文档引擎"),
     ("office.error.engine", "{error}"),
     ("office.error.format", "另存为只写 .{formats}"),

@@ -1,7 +1,7 @@
 //! Tabs, page, status line and side panel.
 
 use ely_gpui_component::{
-    feedback::{Banner, EmptyState},
+    feedback::Banner,
     primitives::{IconName, Severity},
     shell::{StatusBar, StatusBarItem},
 };
@@ -57,11 +57,7 @@ impl Docs {
                 .child(div().flex_1().min_h_0().child(view))
                 .into_any_element();
         }
-        let title = match self.core.loading.first() {
-            Some((_, name)) => Self::text(cx, "office.loading", &[("name", name)]),
-            None => Self::text(cx, "command.blocked.no_document", &[]),
-        };
-        EmptyState::new("doc-empty", IconName::FileText, title).into_any_element()
+        self.empty_body("doc-empty", IconName::FileText, cx)
     }
 
     /// The navigator column, while shown.
