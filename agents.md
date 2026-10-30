@@ -120,7 +120,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；等轴 SVG 积木
 ## 命令
 
 ```text
-scripts/doctor.sh              工具链版本
+scripts/doctor.sh              工具链版本与本系统的构建依赖（README 所列系统包、macOS 的 Metal、Windows 的 MSVC 与 fxc）
 scripts/fetch-references.sh    取上游源码到 reference/
 scripts/fetch-tessdata.sh      取 OCR 语言数据到 engines/tessdata（钉提交，核对散列）
 scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随包）
@@ -171,6 +171,7 @@ tests/scripts/theme.sh         真窗口 ElyTable 以深、浅两种外观启动
 tests/scripts/lag.sh ely-doc   真窗口键入，从调试日志算输入落地、图块、按键到新图块的分位数（需辅助功能权限）；ELY_LAG_LOG=路径 留下日志
 tests/scripts/pdf-idle.sh      真窗口 ElyPDF 无文件启动时无 worker 子进程
 scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、注释（comments.py，只查入库文件）、行尾（eol.sh），全部报出；JS、TS、TSX 与 HTML 脚本的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript 解析，须先在 `site/` 执行 `pnpm install`
+tests/scripts/build-deps.sh      干净的 Ubuntu 24.04、Fedora 44、Arch 容器只装 README 所列的包：doctor.sh 装前报缺、装后齐全，`ely-mail-engine` 与整个工作区编得过（缺 docker 时 SKIP）
 tests/scripts/check-rules.sh    check.sh 只数代码文件（末行无 LF 也计）、报出超长文件全名、注释与行尾的失败也使其失败
 tests/scripts/comments-rules.sh  comments.py 对长注释与跨行注释报错（含 JS、HTML 及其脚本、Python 行尾注释与文档字符串），字符串里的 # 不算，相邻的行尾注释不算跨行，未入库与 vendor 的文件不查
 tests/scripts/rpath-rules.sh     rpath.sh（release-macos.sh 逐个调用）对找不到或在包外（含 `..` 与链接）的 `@rpath` 依赖、otool 读不出的文件报错（替身 otool，任意系统可跑）

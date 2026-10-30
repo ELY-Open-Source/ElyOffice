@@ -19,6 +19,20 @@ ElyMail signs in to Microsoft with OAuth, and to Gmail and iCloud with an app pa
 
 ## Build
 
+Install Rust with [rustup](https://rustup.rs) (`rust-toolchain.toml` pins the version), then the system packages:
+
+- macOS: Xcode with its Metal toolchain (`xcodebuild -downloadComponent MetalToolchain`); gpui compiles its shaders with `xcrun metal`.
+- Windows: Visual Studio Build Tools with the C++ workload (MSVC and a Windows SDK); gpui compiles its shaders with the SDK's `fxc.exe`.
+- Linux, one line per family:
+
+```sh
+sudo apt install build-essential pkg-config libdbus-1-dev libfontconfig-dev libxcb1-dev libxkbcommon-x11-dev
+sudo dnf install gcc make pkgconf-pkg-config dbus-devel fontconfig-devel libxcb-devel libxkbcommon-x11-devel
+sudo pacman -S --needed base-devel dbus fontconfig libxcb libxkbcommon-x11
+```
+
+`scripts/doctor.sh` checks each of these, and the tools the engine scripts below use.
+
 ```sh
 scripts/doctor.sh                 # toolchain versions
 scripts/fetch-references.sh       # upstream sources at pinned commits
