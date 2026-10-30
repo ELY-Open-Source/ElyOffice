@@ -1,6 +1,6 @@
 # 验收核对表
 
-R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五十项）逐条的结论，三个新命令行与 ElyMark 的跨段选取。2026-10-30 据提交 a980727 写成；状态以 `tasks/TASKS.md` 为准，“过审”是末轮审查 PASS，“已修，末轮后未复审”是三轮用尽、末轮的缺陷已修并有回归测试。
+R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五十项）逐条的结论，三个新命令行与 ElyMark 的跨段选取。2026-10-30 据提交 27aa95f 写成；状态以 `tasks/TASKS.md` 为准，“过审”是末轮审查 PASS，“已修，末轮后未复审”是三轮用尽、末轮的缺陷已修并有回归测试。
 
 ## 五十项
 
@@ -53,8 +53,8 @@ R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五�
 | H-02 | P1 | ElyMark 内存 | R14.31 过审（ee77c0b，审查 r2 PASS） |
 | H-03 | P2 | 性能项覆盖不全 | R14.39 过审（c4a0cb8，审查 r3 PASS） |
 | H-04 | P2 | 120 fps 未实测 | R14.39 过审（c4a0cb8，审查 r3 PASS）；120 Hz 未实测：本机显示器最高 75 Hz |
-| I-01 | P1 | 文档内容对读屏不可达 | R14.7 过审（2fce780，审查 r2 PASS）；R14.52 已做，审查中（—，审查 无）；R14.49 过审（22efdb3，审查 r2 PASS）；VoiceOver 不测（用户 2026-10-30 定）；AT-SPI 的文本读取由 R14.52 实测（`linux-a11y.sh`）；整篇文档仍只到当前段落 |
-| I-02 | P1 | 无障碍复核范围 | R14.8 过审（c17f7df，审查 r3 PASS）；R14.49 过审（22efdb3，审查 r2 PASS）；macOS 未按新改动复核，ElyMail 未纳入 macOS 复核（`docs/accessibility.md`） |
+| I-01 | P1 | 文档内容对读屏不可达 | R14.7 过审（2fce780，审查 r2 PASS）；R14.52 过审（3cf3652，审查 r2 PASS）；R14.49 过审（22efdb3，审查 r2 PASS）；VoiceOver 不测（用户 2026-10-30 定）；AT-SPI 的文本读取由 R14.52 实测（`linux-a11y.sh`）；整篇文档仍只到当前段落 |
+| I-02 | P1 | 无障碍复核范围 | R14.8 过审（c17f7df，审查 r3 PASS）；R14.53 已修，末轮后未复审（e2929f7，审查 r3 FAIL）；R14.49 过审（22efdb3，审查 r2 PASS）；macOS 七个应用（含 ElyMail）由 R14.53 复核（`macos-names.sh`），修 VoiceOver 焦点总报窗口（gpui-pre-macos）与 ElyMark 的 F6 只在块间走（组件库 63543a0）；三端的名字测试到页面即核 F6 出得去 |
 | I-03 | P2 | 国际化缺口 | R14.6 过审（a52d706，审查 r2 PASS） |
 
 
@@ -76,16 +76,15 @@ R14.29（已修，末轮后未复审）：可视模式拖动与 Shift 加上下�
 
 | issue | 任务 | 结论 | 测试 |
 | --- | --- | --- | --- |
-| #49 腾讯文档导出的 docx 永远停在“正在打开” | R14.50 过审（r3 PASS） | 未复现：二十余个变体在 0.1.12 与今日的内核上 1 至 4 秒打开，根因要报告者的文件。已修“卡住无路可走”：载入过 30 秒，空页或标签之上都出横幅与“停止文档引擎”（写明会关闭全部文档、丢失恢复点之后的改动），停止后载入失败、接上“重新打开文档” | `ely-lok` 的 `client::tests::stop`；ElyDoc 的 `tests::slow`（真窗口里按下两个按钮） |
+| #49 腾讯文档导出的 docx 永远停在“正在打开” | R14.50 过审（r3 PASS） | 未复现：二十余个变体在 0.1.12 与今日的内核上 1 至 4 秒打开，根因要报告者的文件，用户定暂缓、等其回复。已修“卡住无路可走”：载入过 30 秒，空页或标签之上都出横幅与“停止文档引擎”（写明会关闭全部文档、丢失恢复点之后的改动），停止后载入失败、接上“重新打开文档” | `ely-lok` 的 `client::tests::stop`；ElyDoc 的 `tests::slow`（真窗口里按下两个按钮） |
 | #50 ElyTable 自动筛选加搜索 | R14.51 过审（r3 PASS） | 值列表上方加搜索框（有名），按显示的名字、完整大小写折叠（unicase 2.10）；搜索只收窄所见，未见项的勾选照旧，“全部”只作用于所见，无匹配时说明 | `data::dialogs` 单测；`tests::data::the_column_search_narrows_the_list_and_keeps_hidden_ticks`（真窗口里键入、点单项与“全部”） |
+| R14.48 23 MB 的大表格 DOCX 打不开 | R14.48 过审（r2 PASS）；用户定：视同已修 | 用户判定与 90 MB 的公开样本同一问题（.docx 名而非 Office 包），载入前查文件头已修；八种真表格样本（`tests/perf/bigtable.py`）在三端 0.1 至 3.6 秒打开；原文件不再等 | `ely-office` 的 `files::tests::a_package_name_over_other_bytes_fails_before_loading` |
 
 ## 未完成
 
 | 任务 | 状态 | 缘由 |
 | --- | --- | --- |
-| R14.48 23 MB 的大表格 DOCX 打不开 | 受阻 | 八种样本（`tests/perf/bigtable.py`）在三端 0.1 至 3.6 秒打开，复现不出；要用户的文件或换掉文字的副本 |
 | D-01 与 Microsoft Office 交叉核对 | 未做 | 没有 Office |
 | F-01 Windows 安装程序的 Authenticode 签名 | 未做 | 没有代码签名证书 |
-| I-02 macOS 的无障碍复核 | 未做 | macOS 只在 2026-10-08 复核六个应用，未按此后的改动重做，ElyMail 未在其中 |
 | H-04 120 Hz 实测 | 未做 | 本机显示器最高 75 Hz |
 | B-07 Linux 发布任务上 GitHub 托管机器 | 未做 | 每次要重建或缓存十余 GB 的内核；Linux 任务已不等 Windows |
