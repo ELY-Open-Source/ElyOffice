@@ -376,6 +376,11 @@ mod tests {
         let greek = entries(&["ΟΣ"]);
         assert_eq!(shown(&greek, "Σ", "(Empty)").len(), 1);
         assert_eq!(shown(&greek, "ος", "(Empty)").len(), 1);
+        // Folds that expand to several letters keep their order.
+        let ligature = entries(&["o\u{FB03}ce"]);
+        assert_eq!(shown(&ligature, "OFFICE", "(Empty)").len(), 1);
+        assert!(shown(&ligature, "OIFFCE", "(Empty)").is_empty(), "a misspelling");
+        assert_eq!(shown(&entries(&["\u{390}"]), "\u{399}\u{308}\u{301}", "(Empty)").len(), 1);
     }
 
     #[test]

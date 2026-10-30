@@ -20,7 +20,7 @@ jiff = "0.2"
 anyhow = "1"
 directories = "6"
 dunce = "1"
-ely-gpui-component = { git = "https://github.com/ELY-Open-Source/Ely-GPUI-Components", rev = "56dc00c94a4845f7d0d27af85b95cf53072f9927" }
+ely-gpui-component = { git = "https://github.com/ELY-Open-Source/Ely-GPUI-Components", rev = "01fe68db06998203184ccf6da8de50f7cae2b628" }
 env_logger = "0.11"
 gpui = { package = "gpui-pre", version = "=0.3.10", default-features = false, features = ["stacker"] }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.10", features = ["font-kit", "wayland", "x11"] }
@@ -46,7 +46,7 @@ html5ever = "0.39"
 sha2 = "0.10"
 ring = "0.17"
 tempfile = "3"
-unicase = "2"
+unicase = "2.10"
 ureq = { version = "3", features = ["socks-proxy"] }
 unicode-segmentation = "1"
 windows-sys = { version = "0.60", features = ["Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_Globalization", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_Threading", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Com", "Win32_UI_Shell", "Win32_System_Registry", "Win32_Security_Authentication_Identity", "Win32_Security_Cryptography", "Win32_System_Console", "Win32_System_Diagnostics_ToolHelp"] }

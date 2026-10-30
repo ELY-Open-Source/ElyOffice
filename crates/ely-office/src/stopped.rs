@@ -7,7 +7,7 @@ use ely_gpui_component::{
     primitives::{IconName, Severity},
 };
 use gpui::{
-    AnyElement, AppContext as _, Context, InteractiveElement as _, IntoElement as _, ParentElement as _, Styled as _, TaskExt as _,
+    AnyElement, AppContext as _, Context, IntoElement as _, ParentElement as _, Styled as _, TaskExt as _,
     div,
 };
 
@@ -74,7 +74,7 @@ pub trait Stopping: Host {
             .size_full()
             .flex()
             .flex_col()
-            .child(div().debug_selector(|| "office-engine-banner".into()).child(banner))
+            .child(banner)
             .child(div().flex_1().min_h_0().child(empty))
             .into_any_element()
     }

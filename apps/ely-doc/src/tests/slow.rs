@@ -2,7 +2,7 @@
 
 use std::{path::Path, time::Duration};
 
-use gpui::{Entity, IntoElement, Render, TestAppContext, VisualTestContext, Window};
+use gpui::{Entity, IntoElement, Modifiers, Render, TestAppContext, VisualTestContext, Window};
 
 use ely_office::prelude::*;
 
@@ -19,13 +19,22 @@ impl Render for Body {
     }
 }
 
-/// Whether a fresh draw shows the engine's banner.
-fn banner_shown(cx: &mut TestAppContext, docs: &Entity<Docs>) -> bool {
-    let window = cx.add_window(|_, _| Body(docs.clone()));
-    let shown = VisualTestContext::from_window(window.into(), cx).into_mut();
+const STOP: &str = "banner-action Stop the engine";
+const REOPEN: &str = "banner-action Reopen documents";
+
+/// Redraws the body; whether the banner action `selector` shows.
+fn drawn(shown: &mut VisualTestContext, selector: &'static str) -> bool {
     shown.update(|window, _| window.refresh());
     shown.run_until_parked();
-    shown.debug_bounds("office-engine-banner").is_some()
+    shown.debug_bounds(selector).is_some()
+}
+
+/// Presses the banner action `selector` in the drawn body.
+fn press(shown: &mut VisualTestContext, selector: &'static str) {
+    assert!(drawn(shown, selector), "{selector} draws");
+    let at = shown.debug_bounds(selector).expect("drawn above");
+    shown.simulate_click(at.center(), Modifiers::none());
+    shown.run_until_parked();
 }
 
 #[test]
@@ -43,24 +52,24 @@ fn a_slow_load_offers_the_stop_and_the_stop_ends_the_engine() {
     let file = dir.path().join("open.fodt");
     let fodt = cx.update(|app| Template::Report.fodt(app));
     std::fs::write(&file, fodt).expect("the file writes");
+    let window = cx.add_window(|_, _| Body(docs.clone()));
+    let shown = VisualTestContext::from_window(window.into(), &cx).into_mut();
     // The first document hangs: no tab, only the loading page.
     with_window(&mut cx, &docs, |docs, _, cx| {
         docs.core.loading.push((7, "stuck.docx".into()));
         docs.watch_slow(7, cx);
     });
-    assert!(!banner_shown(&mut cx, &docs), "not slow yet");
+    assert!(!drawn(shown, STOP), "not slow yet");
     cx.executor().advance_clock(Duration::from_secs(31));
     cx.run_until_parked();
     assert_eq!(cx.update(|app| docs.read(app).core.slow), Some(7), "the timer marks it slow");
-    assert!(banner_shown(&mut cx, &docs), "the stop shows over the loading page");
-    with_window(&mut cx, &docs, |docs, _, cx| {
-        docs.stop_engine(cx);
-        docs.core.loading.clear();
-    });
+    press(shown, STOP);
     assert_eq!(cx.update(|app| docs.read(app).core.slow), None, "the offer is gone");
+    // The press ends the engine.
+    settle(&cx, |app| docs.read(app).core.worker.lock().expect("the worker").ended().is_some());
+    with_window(&mut cx, &docs, |docs, _, _| docs.core.loading.clear());
     fail_a_load(&mut cx, &docs, &file);
-    assert!(banner_shown(&mut cx, &docs), "Reopen documents shows with no tab");
-    with_window(&mut cx, &docs, |docs, _, cx| docs.restart_engine(cx));
+    press(shown, REOPEN);
     settle(&cx, |app| docs.read(app).core.stopped.is_none());
     // A load that answers in time never offers it.
     with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(file.clone(), cx));
