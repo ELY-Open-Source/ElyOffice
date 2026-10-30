@@ -18,7 +18,8 @@ pub(crate) struct FrameDebugInfo {
 }
 
 struct CapturedFrame {
-    rendered_at: String,
+    /// UTC: a local time asks Windows for the time zone each frame.
+    rendered_at: chrono::DateTime<chrono::Utc>,
     frame_number: u64,
     window_title: Option<SharedString>,
     node_count: usize,
@@ -81,7 +82,7 @@ impl A11yDebug {
         self.last_active_descendant = active_descendant;
         self.frame_number += 1;
         self.last_frame = Some(CapturedFrame {
-            rendered_at: chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
+            rendered_at: chrono::Utc::now(),
             frame_number: self.frame_number,
             window_title: window_title.cloned(),
             node_count: update.nodes.len(),
@@ -133,7 +134,10 @@ impl A11yDebug {
 
         let frame = self.last_frame.as_ref().map(|frame| {
             serde_json::json!({
-                "rendered_at": frame.rendered_at,
+                "rendered_at": frame
+                    .rendered_at
+                    .with_timezone(&chrono::Local)
+                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
                 "frame_number": frame.frame_number,
                 "window_title": frame.window_title.as_ref().map(|title| title.to_string()),
                 "node_count": frame.node_count,
