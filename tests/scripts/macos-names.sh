@@ -44,7 +44,7 @@ while IFS='|' read -r app sample page; do
   printf '%s\n' "$log" >"$work/$app.log"
   stops=$(printf '%s\n' "$log" | sed -n 's/^stops //p')
   # Window buttons are native here; empty ElyMail has two stops.
-  if printf '%s\n' "$log" | grep -qE '^(unnamed|nameless|unreached|no page|no focus|trapped|error)' || [ "${stops:-0}" -lt 2 ]; then
+  if printf '%s\n' "$log" | grep -qE '^(unnamed|nameless|unreached|no page|no focus|trapped|F6 stays|error)' || [ "${stops:-0}" -lt 2 ]; then
     echo "FAIL: $app" >&2
     printf '%s\n' "$log" >&2
     failed=1

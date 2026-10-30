@@ -10,9 +10,15 @@ let acts: Set<String> = ["AXButton", "AXCheckBox", "AXRadioButton", "AXPopUpButt
                          "AXTextArea", "AXMenuItem", "AXSlider", "AXIncrementor", "AXLink", "AXRow"]
 let app = AXUIElementCreateApplication(pid)
 
+var failures = Set<String>()
+// Absent is fine; a failed query leaves the check unfinished.
 func attr(_ e: AXUIElement, _ n: String) -> AnyObject? {
     var v: AnyObject?
-    return AXUIElementCopyAttributeValue(e, n as CFString, &v) == .success ? v : nil
+    let error = AXUIElementCopyAttributeValue(e, n as CFString, &v)
+    if ![.success, .noValue, .attributeUnsupported].contains(error) {
+        failures.insert("\(n) failed with \(error.rawValue)")
+    }
+    return error == .success ? v : nil
 }
 func text(_ e: AXUIElement, _ n: String) -> String { attr(e, n) as? String ?? "" }
 func role(_ e: AXUIElement) -> String { text(e, kAXRoleAttribute) }
@@ -27,6 +33,14 @@ func isPage(_ e: AXUIElement) -> Bool {
 func nodes(_ e: AXUIElement, _ depth: Int = 0) -> [AXUIElement] {
     if depth > 60 { return [] }
     return [e] + (attr(e, kAXChildrenAttribute) as? [AXUIElement] ?? []).flatMap { nodes($0, depth + 1) }
+}
+func pageOf(_ e: AXUIElement) -> AXUIElement? {
+    var up: AXUIElement? = e
+    while let at = up {
+        if isPage(at) { return at }
+        up = attr(at, kAXParentAttribute).map { $0 as! AXUIElement }
+    }
+    return nil
 }
 func key(_ e: AXUIElement) -> String {
     let parent = attr(e, kAXParentAttribute).map { $0 as! AXUIElement }
@@ -55,6 +69,7 @@ var log: [String] = []
 // A first read wakes the tree; the app sends it.
 _ = (attr(app, kAXWindowsAttribute) as? [AXUIElement] ?? []).map { nodes($0) }
 usleep(1_500_000)
+failures.removeAll()
 let windows = attr(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
 let all = ([app] + windows).flatMap { nodes($0) }
 // Separators, and the window buttons macOS names itself.
@@ -90,13 +105,16 @@ for _ in 0..<150 {
     stops += 1
     log.append("stop \(stops) \(k)")
     if !named(node) { log.append("nameless stop \(stops) \(role(node))") }
-    var up: AXUIElement? = node
-    while let at = up, !reached {
-        reached = isPage(at)
-        up = attr(at, kAXParentAttribute).map { $0 as! AXUIElement }
+    // At the page, F6 must take focus out of it.
+    if !reached, pageOf(node) != nil {
+        reached = true
+        guard let out = press(97) else { log.append("no focus after F6"); break }
+        if pageOf(out) != nil { log.append("F6 stays in page [\(page)] at \(key(out))") }
+        last = key(out)
     }
 }
 // Tab must lead back to the page.
 if !page.isEmpty && !reached { log.append("unreached page [\(page)]") }
+for failure in failures.sorted() { log.append("error AX \(failure)") }
 log.append("stops \(stops)")
 print(log.joined(separator: "\n"))

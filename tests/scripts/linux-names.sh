@@ -75,6 +75,14 @@ def is_page(node):
     return bool(page) and node.get_name() == page and node.get_role() in (R.ENTRY, R.DOCUMENT_FRAME)
 
 
+def page_of(node):
+    while node is not None:
+        if is_page(node):
+            return node
+        node = node.get_parent()
+    return None
+
+
 def key_of(node):
     parent = node.get_parent()
     return (node.get_role_name(), node.get_name(), node.get_index_in_parent(), parent.get_name() if parent else "")
@@ -154,9 +162,16 @@ try:
         last, stops = key, stops + 1
         if not key[1]:
             log.append(f"nameless stop {stops} {key[0]}")
-        up = node
-        while up is not None and not reached:
-            reached, up = is_page(up), up.get_parent()
+        # At the page, F6 must take focus out of it.
+        if not reached and page_of(node) is not None:
+            reached = True
+            after = press(F6)
+            if after is None:
+                log.append("no focus after F6")
+                break
+            if page_of(after) is not None:
+                log.append(f"F6 stays in page [{page}] at {key_of(after)}")
+            last = key_of(after)
     # Tab must lead back to the page.
     if page and not reached:
         log.append(f"unreached page [{page}]")
@@ -189,7 +204,7 @@ while IFS="|" read -r app sample page; do
   [ "$sample" = - ] || file=$work/$sample
   ELY_DATA_ROOT=$work/data-$app python3 -I "$work/walk.py" "$bin/$app" "$file" "$page" "$work/$app.log" 2>/dev/null </dev/null
   stops=$(sed -n "s/^stops //p" "$work/$app.log")
-  if grep -qE "^(unnamed|nameless|unreached|no page|trapped|no focus|misplaced|error)" "$work/$app.log" || [ "${stops:-0}" -lt 3 ]; then
+  if grep -qE "^(unnamed|nameless|unreached|no page|trapped|no focus|misplaced|F6 stays|error)" "$work/$app.log" || [ "${stops:-0}" -lt 3 ]; then
     echo "FAIL: $app"
     cat "$work/$app.log"
     failed=1
