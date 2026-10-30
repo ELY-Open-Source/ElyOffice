@@ -47,7 +47,9 @@ fn text_reads_replaces_in_one_step_and_saves_with_the_cursor_kept() {
     cx.update(|app| {
         let tab = &docs.read(app).core.tabs[0];
         assert!(tab.dirty(app), "a read leaves the edit unsaved");
-        assert_eq!(tab.session.path().map(std::path::PathBuf::from), Some(path.clone()), "a read keeps the file");
+        // macOS keeps temp files behind /var's link.
+        let kept = tab.session.path().and_then(|kept| std::fs::canonicalize(kept).ok());
+        assert_eq!(kept, std::fs::canonicalize(&path).ok(), "a read keeps the file");
     });
     let missing = ask(&mut cx, &docs, &["replace", &file, "zebra", "x"]);
     assert!(missing.as_ref().is_err_and(|why| why.starts_with("nothing replaced")), "{missing:?}");

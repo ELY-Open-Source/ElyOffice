@@ -108,14 +108,21 @@ fn a_lowered_picture_moves_with_its_run_and_keeps_it() {
     assert_eq!(picture_position(&again), "-100% 100%", "the position survives DOCX");
     // The square's red sits below the line's text.
     let tile = back.paint_tile(&mut worker, (1440, 1440, 3840, 1920), (256, 128)).expect("a tile");
-    let rows = |hit: fn(&[u8]) -> bool| {
+    // Bands of rows holding such pixels, top first.
+    let bands = |hit: fn(&[u8]) -> bool| {
         let mut lit: Vec<usize> = tile.pixels.as_chunks::<4>().0.iter().enumerate().filter(|(_, px)| hit(*px)).map(|(at, _)| at / 256).collect();
         lit.dedup();
-        let first = *lit.first().expect("some pixels");
-        let line = lit.iter().zip(first..).take_while(|(row, want)| **row <= *want).last().expect("a row");
-        (first, *line.0)
+        let mut bands: Vec<(usize, usize)> = Vec::new();
+        for row in lit {
+            match bands.last_mut() {
+                Some(band) if band.1 + 1 == row => band.1 = row,
+                _ => bands.push((row, row)),
+            }
+        }
+        bands
     };
-    let red = rows(|px| px[2] > 200 && px[1] < 60 && px[0] < 60);
-    let ink = rows(|px| px[0] < 80 && px[1] < 80 && px[2] < 80);
+    // The fill: Cairo's outline and the spelling squiggle are thin.
+    let red = bands(|px| px[2] > 200 && px[1] < 60 && px[0] < 60).into_iter().max_by_key(|band| band.1 - band.0).expect("red rows");
+    let ink = bands(|px| px[0] < 80 && px[1] < 80 && px[2] < 80)[0];
     assert!(red.1 > ink.1 + 4, "the picture hangs below the text: red {red:?}, text {ink:?}");
 }
