@@ -18,7 +18,7 @@ pub(crate) struct FrameDebugInfo {
 }
 
 struct CapturedFrame {
-    /// UTC: a local time asks Windows for the time zone each frame.
+    /// Local time would ask Windows for its zone each frame.
     rendered_at: chrono::DateTime<chrono::Utc>,
     frame_number: u64,
     window_title: Option<SharedString>,
