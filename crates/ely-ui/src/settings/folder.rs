@@ -88,7 +88,7 @@ mod tests {
         cx.update(|cx| {
             ely_gpui_component::init_for_tests(cx);
             crate::settings::install_defaults(cx);
-            crate::i18n::install(cx);
+            crate::i18n::install_as("en-US", cx);
         });
         let at = PathBuf::from(if cfg!(windows) { r"C:\data\ElyOffice" } else { "/data/ElyOffice" });
         let next = PathBuf::from(if cfg!(windows) { r"D:\keep\ElyOffice" } else { "/keep/ElyOffice" });

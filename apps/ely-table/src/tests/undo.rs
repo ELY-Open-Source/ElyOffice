@@ -21,7 +21,7 @@ fn drawn<'a>(cx: &'a mut TestAppContext, dir: &Path) -> Option<(Entity<Book>, &'
     cx.update(|cx| {
         ely_gpui_component::init_for_tests(cx);
         ely_ui::settings::install_defaults(cx);
-        ely_ui::i18n::install(cx);
+        ely_ui::i18n::install_as("en-US", cx);
         let edit = gpui::Menu::new("Edit").items(ely_office::undo_items((false, false), cx));
         let menus = ely_ui::commands::menus(ely_platform::AppId::Table, &ely_ui::commands::FILE, true, vec![edit], cx);
         cx.set_menus(menus);

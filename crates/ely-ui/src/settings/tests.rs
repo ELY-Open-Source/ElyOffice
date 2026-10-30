@@ -12,7 +12,7 @@ fn installed(cx: &mut TestAppContext) {
         ely_gpui_component::init_for_tests(cx);
         super::install_defaults(cx);
         crate::theme::install(cx);
-        crate::i18n::install(cx);
+        crate::i18n::install_as("en-US", cx);
     });
 }
 

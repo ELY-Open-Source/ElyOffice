@@ -16,7 +16,7 @@ pub(crate) fn start(
     cx.update(ely_gpui_component::init_for_tests);
     cx.update(|cx| {
         ely_ui::settings::install_defaults(cx);
-        ely_ui::i18n::install(cx);
+        ely_ui::i18n::install_as("en-US", cx);
         ely_ui::install_no_launch_files(cx);
     });
     let held = Rc::new(RefCell::new(None));

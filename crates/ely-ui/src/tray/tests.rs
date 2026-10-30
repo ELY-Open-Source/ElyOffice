@@ -25,7 +25,7 @@ fn installed(cx: &mut TestAppContext) {
         ely_gpui_component::init_for_tests(cx);
         crate::settings::install_defaults(cx);
         crate::theme::install(cx);
-        crate::i18n::install(cx);
+        crate::i18n::install_as("en-US", cx);
     });
 }
 
@@ -61,6 +61,8 @@ fn an_unkept_app_quits_with_its_window(cx: &mut TestAppContext) {
     assert_eq!(cx.quit_requests(), usize::from(cfg!(not(target_os = "macos"))));
 }
 
+// AppKit's status item needs the main thread.
+#[cfg(not(target_os = "macos"))]
 #[gpui::test]
 fn a_kept_app_closes_to_the_tray_and_opens_again(cx: &mut TestAppContext) {
     installed(cx);

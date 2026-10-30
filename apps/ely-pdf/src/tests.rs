@@ -70,7 +70,7 @@ pub(crate) fn windowed<'a>(
     cx.update(ely_gpui_component::init_for_tests);
     cx.update(|cx| {
         ely_ui::settings::install_defaults(cx);
-        ely_ui::i18n::install(cx);
+        ely_ui::i18n::install_as("en-US", cx);
     });
     cx.update(crate::keys::bind);
     cx.update(|cx| {

@@ -13,7 +13,7 @@ fn open<'a>(
     cx.update(ely_gpui_component::init_for_tests);
     cx.update(|cx| {
         ely_ui::settings::install_defaults(cx);
-        ely_ui::i18n::install(cx);
+        ely_ui::i18n::install_as("en-US", cx);
     });
     let source = Source::decode(text.as_bytes().to_vec()).expect("reads");
     let saved = mark(&source.text);
@@ -152,7 +152,7 @@ fn the_shell_hears_a_load_it_subscribed_to(cx: &mut TestAppContext) {
     cx.update(ely_gpui_component::init_for_tests);
     cx.update(|cx| {
         ely_ui::settings::install_defaults(cx);
-        ely_ui::i18n::install(cx);
+        ely_ui::i18n::install_as("en-US", cx);
     });
     let heard = std::rc::Rc::new(std::cell::Cell::new(0));
     let (count, held) = (

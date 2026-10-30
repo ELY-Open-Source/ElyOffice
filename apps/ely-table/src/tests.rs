@@ -26,7 +26,7 @@ fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<Blank>, Ent
     std::fs::create_dir_all(&work).expect("the work dir");
     cx.update(|cx| {
         ely_ui::settings::install_defaults(cx);
-        ely_ui::i18n::install(cx);
+        ely_ui::i18n::install_as("en-US", cx);
     });
     let window = cx.add_window(|_, _| Blank);
     let book = cx

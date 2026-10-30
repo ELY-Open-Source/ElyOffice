@@ -333,7 +333,7 @@ b.png",
     }
 
     /// A file name that is no text.
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "macos")))]
     fn odd_name() -> std::ffi::OsString {
         use std::os::unix::ffi::OsStrExt as _;
         std::ffi::OsStr::from_bytes(b"pic-\xFF.png").to_owned()
@@ -345,6 +345,8 @@ b.png",
         std::ffi::OsString::from_wide(&[0x70, 0xD800, 0x2E, 0x70, 0x6E, 0x67])
     }
 
+    // macOS takes only UTF-8 names: no such file.
+    #[cfg(not(target_os = "macos"))]
     #[gpui::test]
     fn a_name_that_is_no_text_is_refused(cx: &mut TestAppContext) {
         let (view, cx, [_, files], said) = saved(cx);

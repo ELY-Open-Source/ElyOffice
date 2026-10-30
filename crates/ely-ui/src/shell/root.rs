@@ -369,7 +369,7 @@ mod tests {
         cx.update(|cx| {
             ely_gpui_component::init_for_tests(cx);
             crate::settings::install_defaults(cx);
-            crate::i18n::install(cx);
+            crate::i18n::install_as("en-US", cx);
         });
         let window = cx.add_window(|_, cx| Saves(cx.focus_handle(), 0));
         let (saves, root) = window
@@ -415,7 +415,7 @@ mod tests {
         cx.update(|cx| {
             ely_gpui_component::init_for_tests(cx);
             crate::settings::install_defaults(cx);
-            crate::i18n::install(cx);
+            crate::i18n::install_as("en-US", cx);
             Theme::set_mode_now(Mode::Dark, cx);
         });
         let (page, overlay) = (Seen::default(), Seen::default());

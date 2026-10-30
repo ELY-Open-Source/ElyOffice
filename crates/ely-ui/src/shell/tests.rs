@@ -44,7 +44,7 @@ fn either_panel_folds_from_its_key(cx: &mut TestAppContext) {
     cx.update(|cx| {
         ely_gpui_component::init_for_tests(cx);
         crate::settings::install_defaults(cx);
-        crate::i18n::install(cx);
+        crate::i18n::install_as("en-US", cx);
         crate::commands::bind_keys(cx);
     });
     let window = cx.add_window(|_, cx| {
@@ -78,7 +78,7 @@ fn a_panel_without_room_goes_at_once(cx: &mut TestAppContext) {
     cx.update(|cx| {
         ely_gpui_component::init_for_tests(cx);
         crate::settings::install_defaults(cx);
-        crate::i18n::install(cx);
+        crate::i18n::install_as("en-US", cx);
     });
     let window = cx.add_window(|_, cx| {
         let (left, right) = (cx.new(|_| Probe("left-probe")), cx.new(|_| Probe("right-probe")));
@@ -118,7 +118,7 @@ fn a_fold_at_a_narrow_width_never_squeezes_the_content(cx: &mut TestAppContext) 
     cx.update(|cx| {
         ely_gpui_component::init_for_tests(cx);
         crate::settings::install_defaults(cx);
-        crate::i18n::install(cx);
+        crate::i18n::install_as("en-US", cx);
         crate::commands::bind_keys(cx);
     });
     let window = cx.add_window(|_, cx| {
@@ -143,7 +143,7 @@ fn both_at(cx: &mut TestAppContext, width: f32) -> VisualTestContext {
     cx.update(|cx| {
         ely_gpui_component::init_for_tests(cx);
         crate::settings::install_defaults(cx);
-        crate::i18n::install(cx);
+        crate::i18n::install_as("en-US", cx);
         crate::commands::bind_keys(cx);
     });
     let window = cx.add_window(|_, cx| {

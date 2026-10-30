@@ -38,7 +38,7 @@ pub(crate) fn window<'a>(
     cx.update(ely_gpui_component::init_for_tests);
     cx.update(|cx| {
         ely_ui::settings::install_defaults(cx);
-        ely_ui::i18n::install(cx);
+        ely_ui::i18n::install_as("en-US", cx);
         // As tool_root does: menus before the window.
         let menus = crate::menu::menus(cx);
         let menus = ely_ui::commands::menus(ely_platform::AppId::Tree, &ely_ui::commands::OPENING, false, menus, cx);

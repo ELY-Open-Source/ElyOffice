@@ -28,7 +28,7 @@ pub(crate) fn docs(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Docs>> 
     std::fs::create_dir_all(&work).expect("the work dir");
     cx.update(|app| {
         ely_ui::settings::install_defaults(app);
-        ely_ui::i18n::install(app);
+        ely_ui::i18n::install_as("en-US", app);
         Some(app.new(|cx| Docs::new(worker, work, cx)))
     })
 }

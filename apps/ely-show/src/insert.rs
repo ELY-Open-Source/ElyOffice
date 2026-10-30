@@ -170,7 +170,7 @@ mod tests {
         cx.update(ely_gpui_component::init_for_tests);
         let (offered, total) = cx.update(|cx| {
             ely_ui::settings::install_defaults(cx);
-            ely_ui::i18n::install(cx);
+            ely_ui::i18n::install_as("en-US", cx);
             let media = crate::deck::Deck::text(cx, "show.insert.media", &[]);
             let [insert, _] = super::menus((false, false, false), cx);
             let names = insert.items.iter().filter_map(|item| match item {
