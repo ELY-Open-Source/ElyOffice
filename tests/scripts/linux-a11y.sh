@@ -106,7 +106,9 @@ def state(label):
     text = Atspi.Text.get_text(node, 0, Atspi.Text.get_character_count(node))
     picks = (Atspi.Text.get_selection(node, i) for i in range(Atspi.Text.get_n_selections(node)))
     chosen = "+".join(Atspi.Text.get_text(node, r.start_offset, r.end_offset) for r in picks)
-    log.append(f"{label}|{node.get_role_name()}|{text.replace(chr(10), '/')}|{chosen.replace(chr(10), '/')}")
+    row = f"{label}|{node.get_role_name()}|{text.replace(chr(10), '/')}|{chosen.replace(chr(10), '/')}"
+    # The caret in characters, as Orca reads it.
+    log.append(row + (f"|{Atspi.Text.get_caret_offset(node)}" if kind == "doc" else ""))
 
 
 def focus_window():
@@ -160,6 +162,7 @@ try:
         state("line")
         keys(HOME)
         keys(RIGHT, times=9)
+        state("moved")
         keys(SHIFT, RIGHT)
         state("emoji")
         keys(RIGHT)
@@ -204,10 +207,11 @@ unset WAYLAND_DISPLAY
 ELY_NO_DIALOG=1 ELY_LOCALE=en-US dbus-run-session -- bash -c "$inside" _ "$launcher" "$work" "$bin" 2>"$work/session.log" ||
   { echo "FAIL: see $work" >&2; exit 1; }
 cat >"$work/want.log" <<'EOF'
-caret|entry|Hello 世界 😀 end|
-line|entry|Hello 世界 😀 end|Hello 世界 😀 end
-emoji|entry|Hello 世界 😀 end|😀
-end|entry|Hello 世界 😀 end|end
+caret|entry|Hello 世界 😀 end||0
+line|entry|Hello 世界 😀 end|Hello 世界 😀 end|14
+moved|entry|Hello 世界 😀 end||9
+emoji|entry|Hello 世界 😀 end|😀|10
+end|entry|Hello 世界 😀 end|end|14
 page|document frame|Hello PDF reader/second line/|
 picked|document frame|Hello PDF reader/second line/|Hello PDF reader
 across|document frame|page one/page two/|page one/page two
