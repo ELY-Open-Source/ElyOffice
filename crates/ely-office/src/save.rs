@@ -73,6 +73,10 @@ pub trait Saving: Host {
             Ok(false) => {
                 log::warn!("office: {} is gone; tab {id}'s save becomes Save As", path.display());
                 let words = text(cx, "office.gone", &[("name", &tab.name)]);
+                // Close still asks; autosave stops prompting.
+                if let Some(tab) = self.tab_mut(id) {
+                    tab.session.save_failed();
+                }
                 self.toast(words, Severity::Warning, cx);
                 return self.save_as(id, then, cx);
             }

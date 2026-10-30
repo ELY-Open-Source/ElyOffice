@@ -372,3 +372,43 @@ fn a_file_moved_away_asks_where_its_save_goes() {
     let name = cx.update(|app| docs.read(app).active_tab().expect("a tab").name.clone());
     assert_eq!(name.as_ref(), "chosen.docx");
 }
+
+/// Saves, deletes the file outside, then cancels Save As.
+fn cancel_after_the_file_goes(edit: bool) {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "KeptInMemory");
+    let first = dir.path().join("first.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, first.clone(), None, window, cx));
+    written(&cx, &first, None);
+    std::fs::remove_file(&first).expect("deleted outside");
+    if edit {
+        type_into(&mut cx, &docs, "AfterTheDelete");
+    }
+    with_window(&mut cx, &docs, |docs, window, cx| docs.save(id, None, window, cx));
+    settle(&cx, |_| cx.did_prompt_for_new_path());
+    cx.simulate_new_path_selection(|_| None);
+    cx.run_until_parked();
+    let (state, dirty) = cx.update(|app| {
+        let tab = docs.read(app).active_tab().expect("a tab");
+        (tab.session.state(), tab.dirty(app))
+    });
+    // Autosave skips it; closing still asks.
+    assert_eq!(state, ely_files::SaveState::SaveFailed);
+    assert!(dirty, "the only copy is in memory");
+}
+
+#[test]
+fn a_cancelled_save_of_a_deleted_file_still_asks_on_close() {
+    cancel_after_the_file_goes(false);
+}
+
+#[test]
+fn a_cancelled_save_after_edits_stops_autosave_asking() {
+    cancel_after_the_file_goes(true);
+}
