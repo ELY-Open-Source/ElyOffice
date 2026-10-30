@@ -1,0 +1,47 @@
+Desktop: the BuildId is read at each use, not cached
+
+ReplaceStringHookProc kept the BuildId in a static on its first
+call. On Windows one early read of version.ini sometimes failed and
+the process said "development" for good; the file read fine later.
+Read it when a string asks for it, and warn when it falls back.
+
+diff --git a/desktop/source/app/app.cxx b/desktop/source/app/app.cxx
+index 78b6b98cc..516203b1e 100644
+--- a/desktop/source/app/app.cxx
++++ b/desktop/source/app/app.cxx
+@@ -414,10 +414,23 @@ CommandLineArgs& Desktop::GetCommandLineArgs()
+     return theCommandLineArgs;
+ }
+ 
++namespace {
++
++// Read at each use; an early failure must not stick.
++OUString BuildId()
++{
++    OUString sBuildId = utl::Bootstrap::getBuildIdData(OUString());
++    if (!sBuildId.isEmpty())
++        return sBuildId;
++    SAL_WARN("desktop.app", "version.ini gave no buildid; saying development");
++    return u"development"_ustr;
++}
++
++}
++
+ OUString ReplaceStringHookProc( const OUString& rStr )
+ {
+-    const static OUString sBuildId(utl::Bootstrap::getBuildIdData(u"development"_ustr)),
+-        sBrandName(utl::ConfigManager::getProductName()),
++    const static OUString sBrandName(utl::ConfigManager::getProductName()),
+         sVersion(utl::ConfigManager::getProductVersion()),
+         sAboutBoxVersion(utl::ConfigManager::getAboutBoxProductVersion()),
+         sAboutBoxVersionSuffix(utl::ConfigManager::getAboutBoxProductVersionSuffix()),
+@@ -428,7 +441,8 @@ OUString ReplaceStringHookProc( const OUString& rStr )
+     {
+         sRet = sRet.replaceAll( "%PRODUCTNAME", sBrandName );
+         sRet = sRet.replaceAll( "%PRODUCTVERSION", sVersion );
+-        sRet = sRet.replaceAll( "%BUILDID", sBuildId );
++        if (sRet.indexOf("%BUILDID") != -1)
++            sRet = sRet.replaceAll( "%BUILDID", BuildId() );
+         sRet = sRet.replaceAll( "%ABOUTBOXPRODUCTVERSIONSUFFIX", sAboutBoxVersionSuffix );
+         sRet = sRet.replaceAll( "%ABOUTBOXPRODUCTVERSION", sAboutBoxVersion );
+         sRet = sRet.replaceAll( "%PRODUCTEXTENSION", sExtension );
