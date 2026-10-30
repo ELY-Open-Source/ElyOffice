@@ -2,6 +2,8 @@
 
 import os
 import re
+import shutil
+import tempfile
 import time
 
 import run
@@ -99,4 +101,9 @@ def typing(work, recipe, runs):
     if len(ticks) != runs:
         raise RuntimeError(f"{recipe.slug}: {runs} keys gave {len(ticks)} timings")
     stalls = [int(m.group(1)) for line in lines[since:] if (m := re.search(STALL, line))]
+    if stalls:
+        # What the main thread did is in the log.
+        kept = tempfile.mkdtemp(prefix=f"ely-bench-stall-{recipe.slug}-")
+        shutil.copy(app.log, kept)
+        print(f"{recipe.slug}: main thread busy {stalls} ms; its log: {kept}")
     return ticks, stalls
