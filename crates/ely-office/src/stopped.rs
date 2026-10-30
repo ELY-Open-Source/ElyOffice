@@ -1,11 +1,14 @@
 //! The engine ended: say so, then reopen (§6.3).
 
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use ely_gpui_component::{feedback::Banner, primitives::Severity};
 use gpui::{AppContext as _, Context};
 
 use crate::{Closing as _, Dialog, Engine, Host, Opening as _, Recovering as _, recover::clock, text};
+
+/// How long a load runs before the stop is offered.
+pub(crate) const SLOW: Duration = Duration::from_secs(30);
 
 /// Why the engine ended, and whether it is coming back.
 pub struct Stopped {
@@ -39,9 +42,46 @@ pub trait Stopping: Host {
         .detach();
     }
 
-    /// What ended, the last point, and the way back.
+    /// A load still running after `SLOW`: the stop is offered.
+    fn slow_load(&mut self, id: u64, cx: &mut Context<Self>) {
+        if !self.core().loading.iter().any(|(loading, _)| *loading == id) {
+            return;
+        }
+        log::warn!("{}: tab {id} has not opened after {} s", Self::KIND.app.slug(), SLOW.as_secs());
+        self.core_mut().slow = Some(id);
+        cx.notify();
+    }
+
+    /// Ends the worker under a stuck load, which then fails.
+    fn stop_engine(&mut self, cx: &mut Context<Self>) {
+        self.core_mut().slow = None;
+        cx.notify();
+        let Some(stop) = self.core().stop.clone() else { return };
+        log::warn!("{}: the user stops the engine under a slow load", Self::KIND.app.slug());
+        // The stuck load then fails, which checks the engine.
+        if let Err(error) = stop() {
+            crate::Tabs::engine_failed(self, &error.to_string(), cx);
+        }
+    }
+
+    /// A slow load and its stop.
+    fn slow_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
+        let id = self.core().slow?;
+        let (_, name) = self.core().loading.iter().find(|(loading, _)| *loading == id)?;
+        let seconds = SLOW.as_secs().to_string();
+        let said = text(cx, "office.slow", &[("name", name), ("seconds", &seconds)]);
+        let this = cx.entity();
+        let stop = text(cx, "office.slow.stop", &[]);
+        Some(Banner::new("office-slow", Severity::Warning, said).action(stop, move |_, cx| {
+            this.update(cx, |host, cx| host.stop_engine(cx))
+        }))
+    }
+
+    /// The engine's end and way back, or a slow load.
     fn stopped_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
-        let stopped = self.core().stopped.as_ref()?;
+        let Some(stopped) = self.core().stopped.as_ref() else {
+            return self.slow_banner(cx);
+        };
         let at = match self.core().keeping.as_ref().and_then(|keeping| keeping.last) {
             Some(at) => clock(at),
             None => text(cx, "office.stopped.never", &[]).to_string(),
@@ -66,11 +106,15 @@ pub trait Stopping: Host {
         cx.spawn(async move |this, cx| {
             let restarted = cx
                 .background_spawn(async move {
-                    Self::Engine::restart(Self::KIND.app, &mut worker.lock().expect("the worker lock"))
+                    let mut worker = worker.lock().expect("the worker lock");
+                    Self::Engine::restart(Self::KIND.app, &mut worker).map(|()| Self::Engine::stopper(&worker))
                 })
                 .await;
             let reopened = this.update(cx, |host, cx| match restarted {
-                Ok(()) => host.reopen_all(cx),
+                Ok(stop) => {
+                    host.core_mut().stop = stop;
+                    host.reopen_all(cx)
+                }
                 Err(error) => {
                     log::error!("{}: the engine does not restart: {error}", Self::KIND.app.slug());
                     host.core_mut().stopped = Some(Stopped { why: error.to_string(), restarting: false });

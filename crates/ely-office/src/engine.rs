@@ -11,6 +11,9 @@ use gpui::{App, Context, Entity, FocusHandle, Window};
 
 use crate::Host;
 
+/// Ends a stuck worker; runs outside its lock.
+pub type Stop = Arc<dyn Fn() -> io::Result<()> + Send + Sync>;
+
 /// Where a load starts.
 pub enum Load<'a, I> {
     /// A file and its password, empty for none.
@@ -64,6 +67,10 @@ pub trait Engine: Sized + 'static {
     fn retire(view: &Entity<Self::View>, cx: &mut App) -> ely_gpui_component::primitives::Retired;
     /// Why the worker ended, if it did (§6.3).
     fn ended(_worker: &mut Self::Worker) -> Option<String> {
+        None
+    }
+    /// Ends the worker from outside its lock; None cannot.
+    fn stopper(_worker: &Self::Worker) -> Option<Stop> {
         None
     }
     /// A fresh worker in place of an ended one.

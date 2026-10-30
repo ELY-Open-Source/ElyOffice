@@ -10,7 +10,7 @@ use ely_lok::{Doc, LokError, LokView, Reported, Worker, sheet::csv::Import};
 use ely_platform::AppId;
 use gpui::{App, Context, Entity, FocusHandle, Window};
 
-use crate::engine::{Engine, Load};
+use crate::engine::{Engine, Load, Stop};
 use crate::{Host, Tabs, text};
 
 /// The LOK engine.
@@ -94,6 +94,11 @@ impl Engine for Lok {
 
     fn ended(worker: &mut Worker) -> Option<String> {
         worker.ended()
+    }
+
+    fn stopper(worker: &Worker) -> Option<Stop> {
+        let stopper = worker.stopper();
+        Some(Arc::new(move || stopper.stop()))
     }
 
     fn restart(app: AppId, worker: &mut Worker) -> io::Result<()> {

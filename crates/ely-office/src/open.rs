@@ -127,6 +127,13 @@ pub trait Opening: Host {
         let written = path.clone();
         self.core_mut().loading.push((id, file_name(&path)));
         cx.notify();
+        if self.core().stop.is_some() {
+            cx.spawn(async move |this, cx| {
+                cx.background_executor().timer(crate::stopped::SLOW).await;
+                this.update(cx, |host, cx| crate::Stopping::slow_load(host, id, cx))
+            })
+            .detach_and_log_err(cx);
+        }
         let worker = Arc::clone(&self.core().worker);
         cx.spawn(async move |this, cx| {
             let loaded = cx
@@ -160,6 +167,9 @@ pub trait Opening: Host {
         self.core_mut()
             .loading
             .retain(|(loading, _)| *loading != id);
+        if self.core().slow == Some(id) {
+            self.core_mut().slow = None;
+        }
         let imported = matches!(source, Source::Import(..));
         let (path, registry, tried) = match source {
             Source::File(path, registry, password) => (path, Some(registry), !password.is_empty()),
@@ -195,6 +205,8 @@ pub trait Opening: Host {
                 if error.kind() == io::ErrorKind::PermissionDenied && !imported {
                     return crate::Dialogs::ask_password(self, path, tried, registry.is_none(), window, cx);
                 }
+                // A stopped or crashed engine fails the load first.
+                crate::Stopping::check_engine(self, cx);
                 return self.failed_open(&path.display().to_string(), &error, cx);
             }
         };

@@ -25,6 +25,7 @@ impl Worker {
     /// Kills the child and reports the rejection.
     pub(crate) fn reject<T>(&mut self, reason: String) -> io::Result<T> {
         log::warn!("lok: {reason}");
+        *self.stopper.gate() = true;
         let _ = self.child.kill();
         let _ = self.child.wait();
         Err(io::Error::new(io::ErrorKind::InvalidData, reason))

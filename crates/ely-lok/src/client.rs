@@ -17,7 +17,9 @@ mod feed;
 mod frames;
 mod install;
 mod load;
+mod stop;
 pub use install::{install_dir, templates};
+pub use stop::Stopper;
 #[cfg(any(test, feature = "test-support"))]
 pub use install::test_install;
 use install::worker_bin;
@@ -40,6 +42,7 @@ pub struct Worker {
     session: u64,
     stderr: ely_ipc::Relay,
     check: Check,
+    pub(crate) stopper: Stopper,
     /// The name new comments sign with, once set.
     author: Option<String>,
 }
@@ -200,8 +203,10 @@ impl Worker {
         let (feed, (sender, replies)) = (Feed::default(), mpsc::channel());
         let reading = feed.clone();
         std::thread::spawn(move || frames::read_frames(BufReader::new(stdout), &reading, &sender));
+        let stopper = Stopper::new(child.id());
         let worker = Self {
             child,
+            stopper,
             stdin: BufWriter::new(stdin),
             replies,
             feed,
@@ -386,6 +391,7 @@ impl Worker {
 
     /// A worker whose output failed: stopped, reaped, and why.
     fn broken(&mut self, request: u8, error: io::Error) -> io::Error {
+        *self.stopper.gate() = true;
         let _ = self.child.kill();
         let status = self.child.wait().map(|status| status.to_string()).unwrap_or_else(|wait| wait.to_string());
         log::error!("lok: the worker failed on request {request} ({status})");
@@ -419,14 +425,6 @@ impl Worker {
         }
     }
 
-    /// Why the worker process ended, if it has.
-    pub fn ended(&mut self) -> Option<String> {
-        match self.child.try_wait() {
-            Ok(status) => status.map(|status| status.to_string()),
-            Err(error) => Some(error.to_string()),
-        }
-    }
-
     /// Closes the document in the worker.
     pub fn close_doc(&mut self, doc: Doc) -> io::Result<()> {
         self.request(tag::CLOSE_DOC, &Pack::new().u64(self.doc_id(&doc)?).bytes())?;
@@ -444,6 +442,7 @@ impl Worker {
         if outcome.is_err() {
             let _ = self.child.kill();
         }
+        *self.stopper.gate() = true;
         let status = match self.child.wait() {
             Ok(status) => status,
             Err(error) => {

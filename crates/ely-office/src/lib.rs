@@ -38,7 +38,7 @@ pub use autosave::Autosaving;
 pub use chrome::Chrome;
 pub use close::{After, Closing};
 pub use dialogs::{Dialog, Dialogs, cancel};
-pub use engine::{Engine, Load};
+pub use engine::{Engine, Load, Stop};
 pub use find::{FindReplace, Finder, Finding};
 pub use lok::{Commands, Lok, start};
 pub use open::{Opening, Source};
@@ -197,6 +197,10 @@ pub struct Core<H: Host> {
     pub recovery_off: Option<String>,
     /// The engine ended under the open tabs (§6.3).
     pub stopped: Option<Stopped>,
+    /// Ends a stuck worker; None when the engine cannot.
+    pub stop: Option<Stop>,
+    /// A load still unanswered after `stopped::SLOW`.
+    pub slow: Option<u64>,
     /// Edit counts at the last autosave look, per tab.
     pub quiet: std::collections::HashMap<u64, u64>,
     /// Other programs' saves, answered as each ends.
@@ -205,6 +209,8 @@ pub struct Core<H: Host> {
 
 impl<H: Host> Core<H> {
     pub fn new(worker: Arc<Mutex<WorkerOf<H>>>, work: PathBuf, cx: &mut Context<H>) -> Self {
+        // A worker just made holds no lock yet.
+        let stop = H::Engine::stopper(&worker.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         Core {
             worker,
             sessions: Sessions::default(),
@@ -225,6 +231,8 @@ impl<H: Host> Core<H> {
             keeping: None,
             recovery_off: None,
             stopped: None,
+            stop,
+            slow: None,
             quiet: Default::default(),
             saving: Vec::new(),
         }

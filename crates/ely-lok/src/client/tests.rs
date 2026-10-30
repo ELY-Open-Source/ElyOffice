@@ -34,6 +34,7 @@ mod rules;
 mod sheet;
 pub(crate) mod show;
 mod slides;
+mod stop;
 mod tools;
 mod word;
 mod workbook;
