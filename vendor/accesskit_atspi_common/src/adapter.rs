@@ -312,6 +312,10 @@ impl TreeChangeHandler for AdapterChangeHandler<'_> {
                 .unregister_interfaces(new_wrapper.id(), old_interfaces ^ kept_interfaces);
             self.adapter
                 .register_interfaces(new_node.id(), new_interfaces ^ kept_interfaces);
+            // Caching clients learn the new interfaces.
+            if old_interfaces != new_interfaces {
+                self.adapter.emit_cache_added(new_node.id());
+            }
             let bounds = *self.adapter.context.read_root_window_bounds();
             new_wrapper.notify_changes(&bounds, self.adapter, &old_wrapper);
             self.emit_text_selection_change(Some(old_node), new_node);

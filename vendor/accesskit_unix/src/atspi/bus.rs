@@ -396,7 +396,8 @@ impl Bus {
         let Ok(item) = cache_item_for_node(self.unique_name().inner(), &node) else {
             return Ok(());
         };
-        self.emit_cache_signal("AddAccessible", &item).await
+        // One struct argument, as libatspi reads it.
+        self.emit_cache_signal("AddAccessible", &(item,)).await
     }
 
     pub(crate) async fn emit_cache_remove(&self, adapter_id: usize, node_id: NodeId) -> Result<()> {
@@ -407,7 +408,7 @@ impl Bus {
                 node: node_id,
             },
         );
-        self.emit_cache_signal("RemoveAccessible", &reference).await
+        self.emit_cache_signal("RemoveAccessible", &(reference,)).await
     }
 
     async fn emit_cache_signal<B>(&self, signal_name: &str, body: &B) -> Result<()>
