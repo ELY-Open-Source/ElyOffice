@@ -164,17 +164,19 @@ fn validation_aids_hide_outside_the_view_and_remain_in_frozen_rows() {
     let count = |shown: &mut VisualTestContext| {
         shown.update(|_, app| book.update(app, |book, cx| book.cell_aids(&view, cx).len()))
     };
-    assert_eq!(count(&mut shown), 2, "visible arrow and input help");
+    // The kernel's cursor reports arrive on their own thread.
+    let until = |shown: &mut VisualTestContext, want: usize, why: &str| {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while count(shown) != want {
+            assert!(std::time::Instant::now() < deadline, "{why}: {} aids", count(shown));
+            frames(shown);
+        }
+    };
+    until(&mut shown, 2, "visible arrow and input help");
     shown.update(|_, app| view.update(app, |view, cx| view.show(far, cx)));
-    frames(&mut shown);
-    assert_eq!(count(&mut shown), 0, "scrolling away hides both aids");
+    until(&mut shown, 0, "scrolling away hides both aids");
     shown.update(|_, app| view.update(app, |view, cx| view.set_frozen(frozen, cx)));
-    frames(&mut shown);
-    assert_eq!(
-        count(&mut shown),
-        2,
-        "a visible frozen row retains its aids"
-    );
+    until(&mut shown, 2, "a visible frozen row retains its aids");
 }
 
 #[test]

@@ -19,7 +19,7 @@ const SCALE: f32 = 200.0 / 72.0;
 fn scan_of(worker: &mut Worker, doc: Doc, out: PathBuf) -> PathBuf {
     let (w, h) = ((612.0 * SCALE).ceil() as i32, (792.0 * SCALE).ceil() as i32);
     let bgra = worker.render(doc, 0, (SCALE, 0), [0, 0, w, h]).expect("draws").bgra;
-    let gray: Vec<u8> = bgra.chunks_exact(4).map(|p| ((u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2])) / 3) as u8).collect();
+    let gray: Vec<u8> = bgra.as_chunks::<4>().0.iter().map(|p| ((u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2])) / 3) as u8).collect();
     std::fs::write(&out, scan((612.0, 792.0), (w as u32, h as u32), &gray)).expect("writes");
     out
 }

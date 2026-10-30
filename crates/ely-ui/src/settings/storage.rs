@@ -48,12 +48,15 @@ struct Limiting {
 
 impl gpui::Global for Limiting {}
 
+/// Elements drawn from the app's state.
+pub type Drawn<T> = std::rc::Rc<dyn Fn(&App) -> T>;
+
 /// An app's own storage rows: reread on each visit.
 pub struct AppStorage {
     pub read: std::rc::Rc<dyn Fn(&mut App)>,
-    pub rows: std::rc::Rc<dyn Fn(&App) -> Vec<AnyElement>>,
+    pub rows: Drawn<Vec<AnyElement>>,
     /// Its yes-or-no before deleting, when asked.
-    pub dialog: std::rc::Rc<dyn Fn(&App) -> Option<AnyElement>>,
+    pub dialog: Drawn<Option<AnyElement>>,
 }
 
 impl gpui::Global for AppStorage {}

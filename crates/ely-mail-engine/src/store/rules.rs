@@ -172,7 +172,10 @@ impl Store {
     pub fn remove_rule(&mut self, id: RuleId) -> Result<()> {
         self.writable()?;
         match self.conn.execute("DELETE FROM rules WHERE id = ?1", [id.0])? {
-            1 => Ok(log::info!("mail: rule {} removed", id.0)),
+            1 => {
+                log::info!("mail: rule {} removed", id.0);
+                Ok(())
+            }
             _ => Err(Error::Store(format!("no rule {}", id.0))),
         }
     }

@@ -36,8 +36,11 @@ pub fn rect_of(text: &str) -> Result<Option<Rect>, Unreadable> {
     Ok(Some((next()?, next()?, next()?, next()?)))
 }
 
+/// A print-twips anchor, when the kernel gives one.
+pub type Anchor = Option<(i32, i32)>;
+
 /// The visible text cursor, with its optional print-twips anchor.
-pub fn cursor_of(text: &str) -> Result<(Option<Rect>, Option<(i32, i32)>), Unreadable> {
+pub fn cursor_of(text: &str) -> Result<(Option<Rect>, Anchor), Unreadable> {
     if !text.trim_start().starts_with('{') {
         return Ok((rect_of(text)?, None));
     }
@@ -55,7 +58,7 @@ pub fn cursor_of(text: &str) -> Result<(Option<Rect>, Option<(i32, i32)>), Unrea
 }
 
 /// Text selection rectangles sharing an optional print-twips anchor.
-pub fn selection_of(text: &str) -> Result<(Vec<Rect>, Option<(i32, i32)>), Unreadable> {
+pub fn selection_of(text: &str) -> Result<(Vec<Rect>, Anchor), Unreadable> {
     let (text, anchor) = match text.split_once("::") {
         Some((rects, point)) => (rects, Some(point_of(point)?)),
         None => (text, None),

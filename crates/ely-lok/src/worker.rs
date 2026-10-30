@@ -374,7 +374,7 @@ fn verify(lok: &Lok, url: &str) -> io::Result<u64> {
     // Past the 2 cm margin, where the text sits.
     doc.paint_rect(&mut tile, (64, 64), (0, 0, 3000, 3000));
     drop(doc);
-    let red = tile.chunks_exact(4).filter(|px| px[2] > 200 && px[0] < 80 && px[1] < 80).count();
+    let red = tile.as_chunks::<4>().0.iter().filter(|px| px[2] > 200 && px[0] < 80 && px[1] < 80).count();
     log::info!("lok-worker: tile self-check found {red} red pixels");
     Ok(red as u64)
 }

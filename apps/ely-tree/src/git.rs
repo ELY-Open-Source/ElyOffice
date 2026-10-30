@@ -61,9 +61,14 @@ impl Git {
         // Writing apart from reading cannot fill both pipes.
         let writer = std::thread::spawn(move || stdin.write_all(&input));
         let output = child.wait_with_output()?;
-        writer
+        let written = writer
             .join()
-            .map_err(|_| io::Error::other("the stdin writer panicked"))??;
+            .map_err(|_| io::Error::other("the stdin writer panicked"))?;
+        // Git that quits unread breaks the pipe; its words matter.
+        if !output.status.success() {
+            return checked(args, output);
+        }
+        written?;
         checked(args, output)
     }
 

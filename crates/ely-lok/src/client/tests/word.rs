@@ -109,7 +109,7 @@ fn a_lowered_picture_moves_with_its_run_and_keeps_it() {
     // The square's red sits below the line's text.
     let tile = back.paint_tile(&mut worker, (1440, 1440, 3840, 1920), (256, 128)).expect("a tile");
     let rows = |hit: fn(&[u8]) -> bool| {
-        let mut lit: Vec<usize> = tile.pixels.chunks_exact(4).enumerate().filter(|(_, px)| hit(px)).map(|(at, _)| at / 256).collect();
+        let mut lit: Vec<usize> = tile.pixels.as_chunks::<4>().0.iter().enumerate().filter(|(_, px)| hit(*px)).map(|(at, _)| at / 256).collect();
         lit.dedup();
         let first = *lit.first().expect("some pixels");
         let line = lit.iter().zip(first..).take_while(|(row, want)| **row <= *want).last().expect("a row");

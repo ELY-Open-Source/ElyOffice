@@ -92,26 +92,17 @@ pub(super) fn worker_bin() -> io::Result<PathBuf> {
             ))
         };
     }
-    let sibling = std::env::current_exe()?
-        .parent()
-        .unwrap_or(Path::new("."))
-        .join(if cfg!(windows) {
-            "ely-lok-worker.exe"
-        } else {
-            "ely-lok-worker"
-        });
+    let name = if cfg!(windows) { "ely-lok-worker.exe" } else { "ely-lok-worker" };
+    let exe = std::env::current_exe()?;
+    let sibling = exe.parent().unwrap_or(Path::new(".")).join(name);
     if sibling.try_exists()? {
         return Ok(sibling);
     }
-    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../target/debug")
-        .join(if cfg!(windows) {
-            "ely-lok-worker.exe"
-        } else {
-            "ely-lok-worker"
-        });
-    if dev.try_exists()? {
-        return Ok(dev);
+    // Test binaries live one folder below the worker.
+    if let Some(above) = exe.parent().and_then(Path::parent).map(|dir| dir.join(name))
+        && above.try_exists()?
+    {
+        return Ok(above);
     }
     Err(io::Error::new(
         io::ErrorKind::NotFound,

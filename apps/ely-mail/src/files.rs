@@ -96,7 +96,8 @@ impl Mail {
                         Err(error) => return this.update(cx, |mail, cx| mail.failed("mail.file.unsaved", &error.to_string(), cx)).ok(),
                     };
                     let Some(path) = chosen else {
-                        return Some(log::info!("mail: saving a file was cancelled"));
+                        log::info!("mail: saving a file was cancelled");
+                        return Some(());
                     };
                     let target = path.clone();
                     let written = cx

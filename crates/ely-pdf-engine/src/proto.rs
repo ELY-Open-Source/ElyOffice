@@ -165,7 +165,9 @@ pub fn chars(bytes: &[u8]) -> io::Result<Vec<Char>> {
     let word =
         |at: &[u8], n: usize| <[u8; 4]>::try_from(&at[n * 4..n * 4 + 4]).expect("four bytes");
     bytes
-        .chunks_exact(CHAR_BYTES)
+        .as_chunks::<CHAR_BYTES>()
+        .0
+        .iter()
         .map(|one| {
             let code = u32::from_ne_bytes(word(one, 1));
             Ok(Char {

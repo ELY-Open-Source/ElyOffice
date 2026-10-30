@@ -106,7 +106,7 @@ fn a_preview_draws_the_change_and_keeps_none_of_it() {
     doc = worker.now(doc).expect("the state");
     assert!(grew, "more lines than before");
     assert_eq!(pixels.len(), (w * h * 4) as usize);
-    assert!(pixels.chunks_exact(4).any(|p| p[0] < 128), "it draws text");
+    assert!(pixels.as_chunks::<4>().0.iter().any(|p| p[0] < 128), "it draws text");
     assert_eq!(worker.history(doc).expect("a mark"), before);
     assert!(page_text(&mut worker, doc).contains("Hello world"));
 }

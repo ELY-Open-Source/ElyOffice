@@ -239,6 +239,18 @@ fn commits_go_in_with_their_message_and_amend_replaces_the_last() {
     );
 }
 
+#[test]
+fn git_that_quits_unread_says_why() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let root = committed(dir.path());
+    // More than a pipe holds: the write must break.
+    let input = vec![b'x'; 1 << 20];
+    let failed = git()
+        .run_input(&root, &["rev-parse", "--verify", "refs/heads/none"], &input)
+        .expect_err("no such branch");
+    assert!(failed.to_string().contains("git rev-parse (exit"), "{failed}");
+}
+
 #[cfg(unix)]
 #[test]
 fn a_failing_hook_says_why() {

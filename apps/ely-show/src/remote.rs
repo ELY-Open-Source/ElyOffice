@@ -69,7 +69,7 @@ impl Deck {
 /// Impress narrows Replace All to marked objects; unmark, then restore.
 fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, with: &str) -> std::io::Result<()> {
     let read = |worker: &mut ely_lok::Worker, doc: &ely_lok::Doc| {
-        Ok::<_, std::io::Error>(ely_lok::show::objects(&worker.values(doc, ely_lok::show::OBJECTS)?)?)
+        ely_lok::show::objects(&worker.values(doc, ely_lok::show::OBJECTS)?)
     };
     let shown = read(worker, doc)?;
     let before = shown.objects;

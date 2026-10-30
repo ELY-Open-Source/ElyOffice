@@ -65,7 +65,7 @@ fn a_dark_app_paints_the_page_white() {
     let shade = || {
         let mut worker = worker.lock().expect("the worker");
         let tile = doc.paint_tile(&mut worker, (1440, 1440, 3840, 3840), (64, 64)).expect("a tile");
-        let sum: u64 = tile.pixels.chunks_exact(4).map(|px| u64::from(px[0]) + u64::from(px[1]) + u64::from(px[2])).sum();
+        let sum: u64 = tile.pixels.as_chunks::<4>().0.iter().map(|px| u64::from(px[0]) + u64::from(px[1]) + u64::from(px[2])).sum();
         sum / (64 * 64 * 3)
     };
     worker.lock().expect("the worker").run(&doc, "view.theme", &["TEST_DARK"]).expect("the dark scheme");

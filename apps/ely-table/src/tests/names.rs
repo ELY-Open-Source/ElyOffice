@@ -212,10 +212,14 @@ fn the_names_list_stays_with_its_workbook_and_scope() {
             )
         })
     };
+    // The sheet and the cursor report apart.
+    let landed = |app: &gpui::App, part: usize, cells: &[&str], name: &str| {
+        let tab = &book.read(app).core.tabs[0];
+        let address = tab.view.read(app).cell().address.clone();
+        tab.extra.sheets.current == part && (cells.contains(&address.as_str()) || address.starts_with(name))
+    };
     pick(&mut cx, "Local", "Other");
-    settle(&cx, |app| {
-        book.read(app).core.tabs[0].extra.sheets.current == 1
-    });
+    settle(&cx, |app| landed(app, 1, &["B2"], "Local"));
     let (part, address) = shown(&mut cx);
     assert!(
         part == 1 && (address == "B2" || address.starts_with("Local")),
@@ -233,9 +237,7 @@ fn the_names_list_stays_with_its_workbook_and_scope() {
         book.core.active = Some(book.core.tabs[1].id)
     });
     pick(&mut cx, "Spot", "");
-    settle(&cx, |app| {
-        book.read(app).core.tabs[0].extra.sheets.current == 0
-    });
+    settle(&cx, |app| landed(app, 0, &["A5", "Spot"], "Spot"));
     let (part, address) = shown(&mut cx);
     assert!(
         part == 0 && (address == "A5" || address == "Spot"),

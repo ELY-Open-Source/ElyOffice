@@ -25,6 +25,9 @@ use crate::slides::Strip;
 
 pub use crate::extra::Extra;
 
+/// Menu checks: grid, guides, comments; undo, redo.
+pub type Snapped = ((bool, bool, bool), (bool, bool));
+
 pub struct Deck {
     pub core: Core<Deck>,
     pub dialog: Option<crate::dialog::Dialog>,
@@ -56,7 +59,7 @@ pub struct Deck {
     pub active_remark: Option<SharedString>,
     pub remarks_pane: Entity<crate::remarks::Pane>,
     /// What the menus last showed: grid, guides, comments; undo, redo.
-    pub snap_menus: Option<((bool, bool, bool), (bool, bool))>,
+    pub snap_menus: Option<Snapped>,
     /// The canvas's right-click menu.
     pub menu: Option<ely_ui::menu::Offer<crate::menu::What>>,
     /// Pictures of closed tabs and ended previews, freed later.

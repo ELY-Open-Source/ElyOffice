@@ -27,7 +27,7 @@ fn note(page: usize, shape: Shape) -> NewAnnot {
 /// Whether page one's pixels `at` hold colour `bgra`.
 fn has_color(worker: &mut Worker, doc: Doc, at: [i32; 4], bgra: [u8; 3]) -> bool {
     let pixels = worker.render(doc, 0, (1.0, 0), at).expect("draws").bgra;
-    pixels.chunks_exact(4).any(|p| p[..3].iter().zip(bgra).all(|(a, b)| a.abs_diff(b) < 40))
+    pixels.as_chunks::<4>().0.iter().any(|p| p[..3].iter().zip(bgra).all(|(a, b)| a.abs_diff(b) < 40))
 }
 
 #[test]

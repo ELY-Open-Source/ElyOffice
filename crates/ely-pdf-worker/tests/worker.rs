@@ -39,7 +39,7 @@ fn pages_measure_render_and_read_their_text() {
         .render(doc, 0, (2.0, 0), [0, 0, 600, 300])
         .expect("renders").bgra;
     assert_eq!(tile.len(), 600 * 300 * 4);
-    let dark = tile.chunks_exact(4).filter(|p| p[0] < 128).count();
+    let dark = tile.as_chunks::<4>().0.iter().filter(|p| p[0] < 128).count();
     assert!(dark > 100, "text shows: {dark}");
     // A quarter turn makes the page tall side wide.
     assert!(

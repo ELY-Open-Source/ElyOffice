@@ -172,7 +172,7 @@ impl Mail {
                 .variant(ButtonVariant::Ghost)
                 .size(ControlSize::Sm)
                 .on_click(move |_, _, cx| {
-                    this.update(cx, |mail, cx| act(mail, cx)).ok();
+                    this.update(cx, act).ok();
                 })
         };
         let import = button("mail-contacts-import", "mail.contacts.import", Mail::import_contacts, cx);

@@ -20,7 +20,7 @@ impl Store {
         self.writable()?;
         let spare = self.spare("")?;
         for (id, _) in &spare {
-            self.to_headers(*id)?;
+            self.keep_headers(*id)?;
         }
         log::info!("mail: {} downloaded messages forgotten", spare.len());
         Ok(spare.len())
@@ -61,7 +61,7 @@ impl Store {
                 log::info!("mail: a newer cap stopped the trim");
                 break;
             }
-            self.to_headers(id)?;
+            self.keep_headers(id)?;
             self.conn.execute("UPDATE messages SET trimmed = 1 WHERE id = ?1", [id.0])?;
             // Its file goes with the last spare message holding it.
             if let Some((uses, size)) = left.get_mut(&hash) {
@@ -85,7 +85,7 @@ impl Store {
         Ok(rows)
     }
 
-    fn to_headers(&mut self, id: MessageId) -> Result<()> {
+    fn keep_headers(&mut self, id: MessageId) -> Result<()> {
         let stored = self.get(id)?;
         let original = self.original(id)?.ok_or_else(|| Error::Store(format!("message {} lost its original", id.0)))?;
         let mail = read(&original)?;

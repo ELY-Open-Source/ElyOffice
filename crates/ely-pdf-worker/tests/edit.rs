@@ -283,7 +283,7 @@ fn long_clashing_field_names_still_get_a_number() {
 /// Red pixels of a page at one pixel a point.
 fn red(worker: &mut Worker, doc: Doc, page: usize) -> usize {
     let pixels = worker.render(doc, page, (1.0, 0), [0, 0, 612, 792]).expect("renders").bgra;
-    pixels.chunks_exact(4).filter(|p| p[2] > 180 && p[1] < 80 && p[0] < 80).count()
+    pixels.as_chunks::<4>().0.iter().filter(|p| p[2] > 180 && p[1] < 80 && p[0] < 80).count()
 }
 
 #[test]

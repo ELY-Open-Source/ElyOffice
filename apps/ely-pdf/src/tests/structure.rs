@@ -187,7 +187,7 @@ fn scanned(dir: &std::path::Path) -> std::path::PathBuf {
     let s: f32 = 200.0 / 72.0;
     let (w, h) = ((612.0 * s).ceil() as i32, (792.0 * s).ceil() as i32);
     let bgra = worker.render(doc, 0, (s, 0), [0, 0, w, h]).expect("draws").bgra;
-    let gray: Vec<u8> = bgra.chunks_exact(4).map(|p| ((u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2])) / 3) as u8).collect();
+    let gray: Vec<u8> = bgra.as_chunks::<4>().0.iter().map(|p| ((u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2])) / 3) as u8).collect();
     let path = dir.join("scan.pdf");
     std::fs::write(&path, scan((612.0, 792.0), (w as u32, h as u32), &gray)).expect("writes");
     path

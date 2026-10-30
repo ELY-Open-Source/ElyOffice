@@ -94,7 +94,7 @@ fn loaded<T>(
 fn picture(worker: &mut Worker, doc: &Doc, part: usize, size: (u32, u32), to: std::fs::File) -> io::Result<()> {
     let mut pixels = doc.paint_part(worker, (part, false), size)?;
     // The kernel paints BGRA.
-    for pixel in pixels.chunks_exact_mut(4) {
+    for pixel in pixels.as_chunks_mut::<4>().0 {
         pixel.swap(0, 2);
     }
     png(pixels, size, to)

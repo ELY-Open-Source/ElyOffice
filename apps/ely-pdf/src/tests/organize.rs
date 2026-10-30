@@ -276,10 +276,13 @@ fn drag(cx: &mut VisualTestContext, view: &Entity<PdfView>, path: &[gpui::Point<
     frames(cx);
 }
 
+/// Rows passed, row let go on, the order after.
+type Drag = (&'static [(usize, bool)], (usize, bool), [&'static str; 3]);
+
 #[test]
 fn a_dragged_row_lands_where_it_is_let_go() {
     // Path and release: row and half for each.
-    let cases: [(&[(usize, bool)], (usize, bool), [&str; 3]); 4] = [
+    let cases: [Drag; 4] = [
         (&[(1, true)], (1, true), ["two", "one", "three"]),
         (&[(1, false)], (1, true), ["two", "one", "three"]),
         (&[(2, true)], (2, true), ["two", "three", "one"]),

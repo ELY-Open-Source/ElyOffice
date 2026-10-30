@@ -175,7 +175,7 @@ pub fn bundle(app: AppId, parts: &[Part], redact: Option<&Redact>) -> io::Result
         let length = file.metadata()?.len();
         let skipped = length.saturating_sub(part.bytes);
         // A cut line may hold half a path: skip it.
-        let mut before = [b'\n'];
+        let mut before = *b"\n";
         if skipped > 0 {
             file.seek(SeekFrom::Start(skipped - 1))?;
             file.read_exact(&mut before)?;

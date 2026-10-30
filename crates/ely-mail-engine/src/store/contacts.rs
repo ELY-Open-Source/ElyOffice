@@ -54,7 +54,10 @@ impl Store {
     pub fn remove_contact(&mut self, id: ContactId) -> Result<()> {
         self.writable()?;
         match self.conn.execute("DELETE FROM contacts WHERE id = ?1", [id.0])? {
-            1 => Ok(log::info!("mail: contact {} removed", id.0)),
+            1 => {
+                log::info!("mail: contact {} removed", id.0);
+                Ok(())
+            }
             _ => Err(Error::Store(format!("no contact {}", id.0))),
         }
     }

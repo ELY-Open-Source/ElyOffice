@@ -379,7 +379,7 @@ impl Desk {
         let view = self.active_view()?;
         let (line, column) = view.read(cx).document().read(cx).caret(cx);
         let (line, column) = ((line + 1).to_string(), (column + 1).to_string());
-        Some(text(cx, "mark.caret", &[("line", &line), ("column", &column)]).into())
+        Some(text(cx, "mark.caret", &[("line", &line), ("column", &column)]))
     }
 
     fn status(&self, cx: &mut Context<Self>) -> StatusBar {

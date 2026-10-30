@@ -25,13 +25,13 @@ fn a_tile_paints_real_pixels() {
     let ink = |px: &[u8]| u32::from(px[0]) + u32::from(px[1]) + u32::from(px[2]);
     let dark = tile
         .pixels
-        .chunks_exact(4)
-        .filter(|px| ink(px) < 720)
+        .as_chunks::<4>().0.iter()
+        .filter(|px| ink(*px) < 720)
         .count();
     let light = tile
         .pixels
-        .chunks_exact(4)
-        .filter(|px| ink(px) > 720)
+        .as_chunks::<4>().0.iter()
+        .filter(|px| ink(*px) > 720)
         .count();
     assert!(
         dark > 0 && light > 0,
@@ -144,7 +144,7 @@ fn a_red_span_paints_red_bytes() {
         .expect("the tile paints");
     let red = tile
         .pixels
-        .chunks_exact(4)
+        .as_chunks::<4>().0.iter()
         .filter(|px| px[2] > 200 && px[0] < 80 && px[1] < 80)
         .count();
     assert!(red > 0, "BGRA red bytes paint red: {red}");
@@ -343,7 +343,7 @@ fn writer_reports_its_page_rects() {
 fn brightness(tile: &Tile) -> u32 {
     let sum: u64 = tile
         .pixels
-        .chunks_exact(4)
+        .as_chunks::<4>().0.iter()
         .map(|px| u64::from(px[0]) + u64::from(px[1]) + u64::from(px[2]))
         .sum();
     (sum / (tile.pixels.len() as u64 / 4 * 3)) as u32
