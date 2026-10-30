@@ -10,8 +10,9 @@ use ely_gpui_component::{
     theme::ControlSize,
 };
 use ely_lok::sheet::{self, Entry, Selection};
+use unicase::UniCase;
 use ely_office::prelude::*;
-use gpui::{App, AppContext as _, Entity, ParentElement as _, SharedString, Styled as _, Window, div};
+use gpui::{App, AppContext as _, Entity, InteractiveElement as _, ParentElement as _, SharedString, Styled as _, Window, div};
 
 use super::title;
 use crate::book::Book;
@@ -224,7 +225,8 @@ pub fn columns_dialog(
 
 /// The column menu's search: each change redraws the list.
 pub(crate) fn search_field(window: &mut Window, cx: &mut gpui::Context<Book>) -> Entity<TextInput> {
-    let search = cx.new(|cx| TextInput::new(window, cx));
+    let named = Book::text(cx, "table.filter.search", &[]);
+    let search = cx.new(|cx| TextInput::new(window, cx).label(named.clone()).placeholder(named));
     cx.subscribe(&search, |_, _, event: &InputEvent, cx| {
         if *event == InputEvent::Changed {
             cx.notify();
@@ -234,14 +236,14 @@ pub(crate) fn search_field(window: &mut Window, cx: &mut gpui::Context<Book>) ->
     search
 }
 
-/// Entries whose label holds `search`, ignoring case.
+/// Entries whose label holds `search`, folding case.
 fn shown<'a>(entries: &'a [Entry], search: &str, empty: &str) -> Vec<&'a Entry> {
-    let search = search.trim().to_lowercase();
+    let search = UniCase::new(search.trim()).to_folded_case();
     entries
         .iter()
         .filter(|entry| {
             let label = if entry.text.is_empty() { empty } else { &entry.text };
-            label.to_lowercase().contains(&search)
+            UniCase::new(label).to_folded_case().contains(&search)
         })
         .collect()
 }
@@ -329,7 +331,7 @@ pub fn column_dialog(
                         .child(sort("table-column-down", "table.filter.down", false)),
                 )
                 .child(SearchInput::new("table-column-search", search).size(ControlSize::Sm))
-                .child(whole)
+                .child(div().debug_selector(|| "table-column-all".into()).child(whole))
                 .child(
                     div().h_64().child(
                         ScrollArea::new("table-column-scroll")
@@ -370,6 +372,10 @@ mod tests {
         assert_eq!(texts("empty"), [""], "the blank entry by its label");
         assert_eq!(texts(""), ["Beijing", "北京", "", "Shanghai", "jing"]);
         assert!(texts("x").is_empty());
+        // A final sigma folds like any other.
+        let greek = entries(&["ΟΣ"]);
+        assert_eq!(shown(&greek, "Σ", "(Empty)").len(), 1);
+        assert_eq!(shown(&greek, "ος", "(Empty)").len(), 1);
     }
 
     #[test]

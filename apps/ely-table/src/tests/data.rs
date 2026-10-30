@@ -1,4 +1,7 @@
-use ely_gpui_component::tables::{FilterRule, SortKey, Test};
+use ely_gpui_component::{
+    forms::TextInput,
+    tables::{FilterRule, SortKey, Test},
+};
 use ely_lok::{Request, sheet};
 
 use super::*;
@@ -337,14 +340,34 @@ fn a_column_button_sorts_its_own_block_not_the_cursors() {
     assert_eq!(cells(&mut cx, &book, "C2:C4"), "9\n7\n8");
 }
 
+/// Draws ElyTable's open dialog.
+struct Shown(Entity<Book>);
+
+impl gpui::Render for Shown {
+    fn render(&mut self, _: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
+        use gpui::{ParentElement as _, Styled as _};
+        let dialog = self.0.update(cx, |book, cx| book.dialog_element(cx));
+        gpui::div().size_full().children(dialog)
+    }
+}
+
+/// The column dialog's picked values and search field.
+fn column_state(cx: &mut gpui::VisualTestContext, book: &Entity<Book>) -> (Vec<String>, Entity<TextInput>) {
+    cx.update(|_, app| match &book.read(app).dialog {
+        Some(Dialog::Column { picked, search, .. }) => (picked.iter().map(ToString::to_string).collect(), search.clone()),
+        _ => unreachable!("the column dialog is open"),
+    })
+}
+
 #[test]
-fn the_column_search_redraws_the_list_and_keeps_hidden_ticks() {
+fn the_column_search_narrows_the_list_and_keeps_hidden_ticks() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let Some((_window, book)) = book(&mut cx, dir.path()) else {
         eprintln!("SKIP: no LOK build");
         return;
     };
+    cx.update(ely_gpui_component::init_for_tests);
     open(&mut cx, &book);
     run(&mut cx, &book, "cell.goto", &["A1"]);
     run(&mut cx, &book, "data.autofilter", &[]);
@@ -353,19 +376,51 @@ fn the_column_search_redraws_the_list_and_keeps_hidden_ticks() {
         book.ask_column(id, &Request::Filter { column: 0, row: 0 }, cx)
     });
     asked(&cx, &book, |dialog| matches!(dialog, Dialog::Column { .. }));
-    let redraws = std::rc::Rc::new(std::cell::Cell::new(0));
-    let counted = redraws.clone();
-    cx.update(|app| app.observe(&book, move |_, _| counted.set(counted.get() + 1)).detach());
-    let search = cx.update(|app| match &book.read(app).dialog {
-        Some(Dialog::Column { search, .. }) => search.clone(),
-        _ => unreachable!("checked above"),
+    let window = cx.add_window(|_, cx| {
+        cx.observe(&book, |_, _, cx| cx.notify()).detach();
+        Shown(book.clone())
     });
-    quiet(&cx, &book);
-    redraws.set(0);
-    // Counted before the engine runs: only the search redraws.
-    cx.update(|app| search.update(app, |field, cx| field.set_text("C", cx)));
-    assert!(redraws.get() > 0, "a search redraws the list");
-    // Untouched a and b stay ticked behind the search.
+    let shown = gpui::VisualTestContext::from_window(window.into(), &cx).into_mut();
+    shown.run_until_parked();
+    let rows = |shown: &mut gpui::VisualTestContext| -> Vec<&str> {
+        [("a", "check a"), ("b", "check b"), ("c", "check c")]
+            .into_iter()
+            .filter(|(_, selector)| shown.debug_bounds(selector).is_some())
+            .map(|(value, _)| value)
+            .collect()
+    };
+    let press = |shown: &mut gpui::VisualTestContext, selector: &'static str| {
+        let at = shown.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} draws"));
+        shown.simulate_click(at.center(), gpui::Modifiers::none());
+        shown.run_until_parked();
+    };
+    let type_in = |shown: &mut gpui::VisualTestContext, text: &str| {
+        let (_, search) = column_state(shown, &book);
+        shown.update(|_, app| search.update(app, |field, cx| field.set_text(text, cx)));
+        shown.run_until_parked();
+    };
+    assert_eq!(rows(shown), ["a", "b", "c"]);
+    let (picked, search) = column_state(shown, &book);
+    assert_eq!(picked, ["a", "b", "c"]);
+    // Screen readers name the field.
+    shown.update(|_, app| {
+        let field = search.read(app);
+        assert!(!field.label_text().is_empty() && !field.placeholder_text().is_empty());
+    });
+    type_in(shown, "C");
+    assert_eq!(rows(shown), ["c"], "the search narrows the list");
+    press(shown, "check c");
+    assert_eq!(column_state(shown, &book).0, ["a", "b"], "hidden ticks stay");
+    type_in(shown, "zzz");
+    assert!(rows(shown).is_empty(), "nothing matches");
+    type_in(shown, "b");
+    press(shown, "table-column-all");
+    assert_eq!(column_state(shown, &book).0, ["a"], "All clears the shown only");
+    type_in(shown, "");
+    press(shown, "table-column-all");
+    assert_eq!(column_state(shown, &book).0, ["a", "b", "c"], "All ticks every value");
+    type_in(shown, "c");
+    press(shown, "check c");
     update(&mut cx, &book, |book, cx| book.column_asked(None, cx));
-    assert!(dropped(&mut cx, &book, 0).is_empty(), "nothing dropped");
+    assert_eq!(dropped(&mut cx, &book, 0), ["c"], "the engine drops c alone");
 }
