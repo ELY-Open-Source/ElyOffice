@@ -1,6 +1,6 @@
 # 验收核对表
 
-R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五十项）逐条的结论，三个新命令行与 ElyMark 的跨段选取。2026-10-30 据提交 27aa95f 写成；状态以 `tasks/TASKS.md` 为准，“过审”是末轮审查 PASS，“已修，末轮后未复审”是三轮用尽、末轮的缺陷已修并有回归测试。
+R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五十项）逐条的结论，三个新命令行与 ElyMark 的跨段选取。2026-10-30 据提交 8760766 写成；状态以 `tasks/TASKS.md` 为准，“过审”是末轮审查 PASS，“已修，末轮后未复审”是三轮用尽、末轮的缺陷已修并有回归测试。
 
 ## 五十项
 
@@ -44,17 +44,17 @@ R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五�
 | E-04 | P1 | 依赖治理 | R14.35 过审（6ba0b26，审查 r2 PASS） |
 | E-05 | P1 | 更新通道写死 | R14.2 过审（56c2c43，审查 r1 PASS） |
 | E-06 | P2 | 官网与产品同仓 | 不修：官网同仓是目录约定，拆仓库属对外动作 |
-| F-01 | P0 | 更新包的真实性 | R14.3 过审（66351d4，审查 r2 PASS）；R14.49 过审（22efdb3，审查 r2 PASS）；Windows 安装程序的 Authenticode 签名未做：没有代码签名证书 |
+| F-01 | P0 | 更新包的真实性 | R14.3 过审（66351d4，审查 r2 PASS）；R14.49 过审（22efdb3，审查 r3 PASS）；Windows 安装程序的 Authenticode 签名未做：没有代码签名证书 |
 | F-02 | P1 | ElyMark 被 AGPL 传染 | 不修：ElyMark 自身代码仍是 MIT，MuPDF worker 是单独进程，许可字段照实列出随包组件，源码随发行 |
 | F-03 | P1 | unsafe 缺说明 | 不修：无 SAFETY 注释不是缺陷，健全与否要逐处审 |
 | G-01 | P1 | panic 点 | R14.38 已修，末轮后未复审（71988f7，审查 r3 FAIL） |
-| G-02 | P1 | 审计出的缺陷积压 | R14.49 过审（22efdb3，审查 r2 PASS） |
+| G-02 | P1 | 审计出的缺陷积压 | R14.49 过审（22efdb3，审查 r3 PASS） |
 | H-01 | P1 | 性能基线过期 | R14.39 过审（c4a0cb8，审查 r3 PASS） |
 | H-02 | P1 | ElyMark 内存 | R14.31 过审（ee77c0b，审查 r2 PASS） |
 | H-03 | P2 | 性能项覆盖不全 | R14.39 过审（c4a0cb8，审查 r3 PASS） |
 | H-04 | P2 | 120 fps 未实测 | R14.39 过审（c4a0cb8，审查 r3 PASS）；120 Hz 未实测：本机显示器最高 75 Hz |
-| I-01 | P1 | 文档内容对读屏不可达 | R14.7 过审（2fce780，审查 r2 PASS）；R14.52 过审（3cf3652，审查 r2 PASS）；R14.49 过审（22efdb3，审查 r2 PASS）；VoiceOver 不测（用户 2026-10-30 定）；AT-SPI 的文本读取由 R14.52 实测（`linux-a11y.sh`）；整篇文档仍只到当前段落 |
-| I-02 | P1 | 无障碍复核范围 | R14.8 过审（c17f7df，审查 r3 PASS）；R14.53 已修，末轮后未复审（e2929f7，审查 r3 FAIL）；R14.49 过审（22efdb3，审查 r2 PASS）；macOS 七个应用（含 ElyMail）由 R14.53 复核（`macos-names.sh`），修 VoiceOver 焦点总报窗口（gpui-pre-macos）与 ElyMark 的 F6 只在块间走（组件库 63543a0）；三端的名字测试到页面即核 F6 出得去 |
+| I-01 | P1 | 文档内容对读屏不可达 | R14.7 过审（2fce780，审查 r2 PASS）；R14.52 过审（3cf3652，审查 r2 PASS）；R14.49 过审（22efdb3，审查 r3 PASS）；VoiceOver 不测（用户 2026-10-30 定）；AT-SPI 的文本读取由 R14.52 实测（`linux-a11y.sh`）；整篇文档仍只到当前段落 |
+| I-02 | P1 | 无障碍复核范围 | R14.8 过审（c17f7df，审查 r3 PASS）；R14.53 已修，末轮后未复审（e2929f7，审查 r3 FAIL）；R14.49 过审（22efdb3，审查 r3 PASS）；macOS 七个应用（含 ElyMail）由 R14.53 复核（`macos-names.sh`），修 VoiceOver 焦点总报窗口（gpui-pre-macos）与 ElyMark 的 F6 只在块间走（组件库 63543a0）；三端的名字测试到页面即核 F6 出得去 |
 | I-03 | P2 | 国际化缺口 | R14.6 过审（a52d706，审查 r2 PASS） |
 
 
@@ -84,7 +84,7 @@ R14.29（已修，末轮后未复审）：可视模式拖动与 Shift 加上下�
 
 | 任务 | 状态 | 缘由 |
 | --- | --- | --- |
-| D-01 与 Microsoft Office 交叉核对 | 未做 | 没有 Office |
-| F-01 Windows 安装程序的 Authenticode 签名 | 未做 | 没有代码签名证书 |
-| H-04 120 Hz 实测 | 未做 | 本机显示器最高 75 Hz |
-| B-07 Linux 发布任务上 GitHub 托管机器 | 未做 | 每次要重建或缓存十余 GB 的内核；Linux 任务已不等 Windows |
+| D-01 与 Microsoft Office 交叉核对 | 用户定：不做 | 没有 Office |
+| F-01 Windows 安装程序的 Authenticode 签名 | 用户定：暂缓 | 没有代码签名证书；已申请 SignPath Foundation，批下后再接 |
+| H-04 120 Hz 实测 | 用户定：不做 | 本机显示器最高 75 Hz |
+| B-07 Linux 发布任务上 GitHub 托管机器 | 用户定：不做 | Linux 照旧在 WSL 里构建、在 Omarchy 上实测；每次上托管机器要重建或缓存十余 GB 的内核；Linux 任务已不等 Windows |
