@@ -1,4 +1,4 @@
-import { DOWNLOADS, expect, INSTALLERS, test, VERSION, type Page } from "./fixtures.ts";
+import { DOWNLOADS, expect, INSTALLERS, SOURCES, test, VERSION, type Page } from "./fixtures.ts";
 import { TEXT, word, type Key, type Lang } from "../src/text.ts";
 
 const REPO = "https://github.com/ELY-Open-Source/ElyOffice";
@@ -103,7 +103,11 @@ test.describe("English locale", () => {
     await expect(page.getByRole("link", { name: "GitHub Releases" })).toHaveCount(2);
     await expect(page.locator(".tour .get")).toHaveCount(APPS.length);
     for (const i of APPS.keys()) await expect(page.locator(".tour .get").nth(i)).toHaveAttribute("href", RELEASES);
-    await expect(page.locator(".hero .links a").last()).toHaveAttribute("href", REPO);
+    // Source is this release's archive, never a moving branch.
+    await expect(page.locator(".hero .links a").last()).toHaveAttribute("href", SOURCES.own);
+    await expect(page.locator("#download .sources a")).toHaveText(["Source", "Upstream source"]);
+    for (const [i, href] of [SOURCES.own, SOURCES.upstream].entries())
+      await expect(page.locator("#download .sources a").nth(i)).toHaveAttribute("href", href);
     await expect(page.locator(".hero .links a").first()).toHaveAttribute("href", "#download");
   });
 
@@ -118,11 +122,14 @@ test.describe("English locale", () => {
   });
 
   test("a release still building sends its missing installers to the release", async ({ page }) => {
-    await page.route("**/release.json", (r) => r.fulfill({ json: { version: VERSION, installers: { macArm: INSTALLERS.macArm }, downloads: DOWNLOADS } }));
+    const json = { version: VERSION, installers: { macArm: INSTALLERS.macArm }, sources: { own: SOURCES.own }, downloads: DOWNLOADS };
+    await page.route("**/release.json", (r) => r.fulfill({ json }));
     await page.goto("/");
     await expect(page.locator("#download h2")).toHaveText(`Ely Office ${VERSION}`);
     await expect(page.locator(".hero a.button")).toHaveAttribute("href", RELEASES);
     await expect(page.locator("#download a.card").first()).toHaveAttribute("href", INSTALLERS.macArm);
+    await expect(page.locator("#download .sources a").first()).toHaveAttribute("href", SOURCES.own);
+    await expect(page.locator("#download .sources a").last()).toHaveAttribute("href", `${REPO}/releases/tag/v${VERSION}`);
   });
 
   test("the hero and download area name the newest version and all downloads", async ({ page }) => {
@@ -146,16 +153,18 @@ test.describe("English locale", () => {
 
   test("every external link answers @net", async ({ page, request }) => {
     const res = await request.get("https://api.github.com/repos/ELY-Open-Source/ElyOffice/releases/latest");
-    const { tag_name: tag } = (await res.json()) as { tag_name: string };
+    const { tag_name: tag, assets } = (await res.json()) as { tag_name: string; assets: { name: string }[] };
     const v = tag.slice(1);
     const dl = `${REPO}/releases/download/${tag}`;
     const installers = { macArm: `${dl}/ElyOffice-${v}-arm64.dmg`, macIntel: `${dl}/ElyOffice-${v}-x86_64.dmg`, windows: `${dl}/ElyOffice-${v}-windows-x86_64-setup.exe` };
-    await page.route("**/release.json", (r) => r.fulfill({ json: { version: v, installers, downloads: DOWNLOADS } }));
+    const named = (end: string) => `${dl}/${assets.find((a) => a.name.endsWith(end) && !a.name.slice(0, -end.length).endsWith("-upstream"))!.name}`;
+    const sources = { own: named("-source.tar.gz"), upstream: named("-upstream-source.tar.gz") };
+    await page.route("**/release.json", (r) => r.fulfill({ json: { version: v, installers, sources, downloads: DOWNLOADS } }));
     await page.goto("/");
     await expect(page.locator(".hero a.button")).toHaveAttribute("href", installers.windows);
     const hrefs = await page.locator("a[href^='http']").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).href));
     const unique = [...new Set(hrefs)];
-    expect(unique.sort()).toEqual([REPO, RELEASES, X, ...Object.values(installers)].sort());
+    expect(unique.sort()).toEqual([REPO, RELEASES, X, ...Object.values(installers), ...Object.values(sources)].sort());
     for (const url of unique) {
       // X refuses HEAD and browser-like clients; a plain GET answers.
       const res = url === X ? await request.get(url, { headers: { "user-agent": "curl/8" } }) : await request.head(url);

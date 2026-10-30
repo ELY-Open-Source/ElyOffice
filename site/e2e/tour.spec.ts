@@ -7,6 +7,9 @@ let errors: string[] = [];
 test.beforeEach(async ({ page }) => {
   errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("requestfailed", (r) => errors.push(`${r.url()} ${r.failure()?.errorText}`));
+  page.on("response", (r) => r.status() >= 400 && errors.push(`${r.url()} ${r.status()}`));
 });
 
 test.afterEach(() => expect(errors).toEqual([]));
@@ -109,3 +112,50 @@ test.describe("phone", () => {
     expect(copy!.y).toBeGreaterThan(844 * 0.55);
   });
 });
+
+test.describe("reduced motion, every screen", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  test("each app's poster is a real picture that decodes", async ({ page }) => {
+    for (const [i, app] of APPS.entries()) {
+      await page.goto(`/#${app.toLowerCase()}`);
+      await expect(page.locator(".copy article").nth(i)).toHaveClass(/current/);
+      // A missing file comes back as HTML: decode it.
+      const size = await page.locator(".clip").nth(i).evaluate(async (video) => {
+        const poster = (video as HTMLVideoElement).poster;
+        if (!poster) throw new Error("no poster");
+        const img = new Image();
+        img.src = poster;
+        await img.decode();
+        return [img.naturalWidth, img.naturalHeight];
+      });
+      expect(Math.min(...size), app).toBeGreaterThan(200);
+    }
+  });
+});
+
+for (const [w, h] of [[568, 320], [320, 568], [844, 390], [390, 844]]) {
+  test.describe(`${w} by ${h}`, () => {
+    test.use({ viewport: { width: w, height: h }, reducedMotion: "reduce", hasTouch: true });
+
+    test("each app's download and play are on screen and pressable", async ({ page }) => {
+      for (const [i, app] of APPS.entries()) {
+        await page.goto(`/#${app.toLowerCase()}`);
+        const article = page.locator(".copy article").nth(i);
+        await expect(article).toHaveClass(/current/);
+        for (const control of [article.locator(".get"), article.locator(".toggle-clip")]) {
+          // The copy may scroll inside itself; the page must not.
+          await control.evaluate((c) => c.scrollIntoView({ block: "nearest" }));
+          const hit = await control.evaluate((c) => {
+            const r = c.getBoundingClientRect();
+            const inside = r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth;
+            const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return inside && !!top && c.contains(top);
+          });
+          expect(hit, `${app} ${await control.getAttribute("class")}`).toBe(true);
+        }
+        await expect(article).toHaveClass(/current/);
+      }
+    });
+  });
+}

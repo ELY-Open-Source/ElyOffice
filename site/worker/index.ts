@@ -47,8 +47,27 @@ const BUNDLES = {
 };
 export type Bundle = keyof typeof BUNDLES;
 
-/** The newest release's version, without v, and full installers. */
-async function newest(env: Env): Promise<{ version: string; installers: Partial<Record<Bundle, string>> }> {
+// Own and upstream source archives; their names carry the commit.
+const SOURCES = { own: "-source.tar.gz", upstream: "-upstream-source.tar.gz" };
+export type Source = keyof typeof SOURCES;
+
+/** `name` is version `v`'s archive ending `end`, a commit between. */
+function archive(name: string, v: string, end: string): boolean {
+  const start = `ElyOffice-${v}-`;
+  return name.startsWith(start) && name.endsWith(end) && /^[0-9a-f]+$/.test(name.slice(start.length, -end.length));
+}
+
+type Newest = { version: string; installers: Partial<Record<Bundle, string>>; sources: Partial<Record<Source, string>> };
+
+/** Where `asset` of `tag` downloads; elsewhere is an error. */
+function url(tag: string, asset: Asset): string {
+  const url = `https://github.com/ELY-Open-Source/ElyOffice/releases/download/${tag}/${asset.name}`;
+  if (asset.browser_download_url !== url) throw new Error(`${asset.name} downloads from ${asset.browser_download_url}`);
+  return url;
+}
+
+/** The newest release's version, without v, installers and sources. */
+async function newest(env: Env): Promise<Newest> {
   const { tag_name: tag, assets } = await read<Release>(env, "/releases/latest");
   if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error(`GitHub's latest tag is ${JSON.stringify(tag)}`);
   const version = tag.slice(1);
@@ -56,12 +75,15 @@ async function newest(env: Env): Promise<{ version: string; installers: Partial<
   // A building release lacks some; those link to the release.
   for (const [bundle, name] of Object.entries(BUNDLES) as [Bundle, (v: string) => string][]) {
     const asset = assets.find((a) => a.name === name(version));
-    if (!asset) continue;
-    const url = `https://github.com/ELY-Open-Source/ElyOffice/releases/download/${tag}/${asset.name}`;
-    if (asset.browser_download_url !== url) throw new Error(`${asset.name} downloads from ${asset.browser_download_url}`);
-    installers[bundle] = url;
+    if (asset) installers[bundle] = url(tag, asset);
   }
-  return { version, installers };
+  const sources: Partial<Record<Source, string>> = {};
+  for (const [source, end] of Object.entries(SOURCES) as [Source, string][]) {
+    const found = assets.filter((a) => archive(a.name, version, end));
+    if (found.length > 1) throw new Error(`${tag} has ${found.length} ${source} source archives`);
+    if (found.length) sources[source] = url(tag, found[0]);
+  }
+  return { version, installers, sources };
 }
 
 /** Downloads of `releases`; update manifests are checks, not downloads. */
@@ -106,8 +128,8 @@ async function giteaDownloads(): Promise<number> {
 export default {
   async fetch(_request: Request, env: Env): Promise<Response> {
     try {
-      const [{ version, installers }, n, old] = await Promise.all([newest(env), downloads(env), giteaDownloads()]);
-      return Response.json({ version, installers, downloads: n + old }, { headers: { "cache-control": "public, max-age=300" } });
+      const [{ version, installers, sources }, n, old] = await Promise.all([newest(env), downloads(env), giteaDownloads()]);
+      return Response.json({ version, installers, sources, downloads: n + old }, { headers: { "cache-control": "public, max-age=300" } });
     } catch (e) {
       return new Response(String(e), { status: 502 });
     }

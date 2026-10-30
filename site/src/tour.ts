@@ -280,7 +280,9 @@ export function tour(hero: HTMLElement): { section: HTMLElement; host: HTMLEleme
     span = h;
     const below = hero.offsetTop + hero.offsetHeight + 32;
     const whole = fit(desk, [24, below, w - 24, h - 32], 2);
-    const area: Box = w <= NARROW ? [16, h * 0.04, w - 52, h * 0.56] : [w * 0.42, h * 0.08, w - 88, h * 0.92];
+    // Copy below the model only on a narrow upright screen.
+    const upright = w <= NARROW && h >= w;
+    const area: Box = upright ? [16, h * 0.04, w - 52, h * 0.56] : [w * 0.42, h * 0.08, w - 88, h * 0.92];
     cams = [whole, ...homes.map((box) => fit(box, area, 8)), whole];
   };
 

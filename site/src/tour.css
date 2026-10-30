@@ -107,6 +107,9 @@
   background: var(--page);
   translate: -100% 0;
   transition: translate 0.2s cubic-bezier(0.2, 0.8, 0.3, 1);
+  /* Short screens scroll the copy, never clip its actions. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .touring .copy {
@@ -122,7 +125,7 @@
   grid-area: 1 / 1;
   gap: 1rem;
   justify-items: start;
-  align-content: center;
+  align-content: safe center;
   opacity: 0;
   visibility: hidden;
   transition:
@@ -220,7 +223,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 760px) and (orientation: portrait) {
   .copy {
     inset: 58% 0 0;
     align-items: start;

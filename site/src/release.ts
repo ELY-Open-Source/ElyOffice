@@ -4,7 +4,13 @@ export const RELEASES = "https://github.com/ELY-Open-Source/ElyOffice/releases/l
 /** The newest release's full installers; one still building lacks some. */
 export type Installers = Partial<Record<"macArm" | "macIntel" | "windows", string>>;
 
-export type Release = { version: string; installers: Installers; downloads: number };
+/** The release's own source archive and its patched upstreams. */
+export type Sources = Partial<Record<"own" | "upstream", string>>;
+
+export type Release = { version: string; installers: Installers; sources: Sources; downloads: number };
+
+/** A version's release page: never a moving branch. */
+export const releasePage = (version: string) => `https://github.com/ELY-Open-Source/ElyOffice/releases/tag/v${version}`;
 
 /** The newest release and all downloads, from the worker. */
 export async function latest(): Promise<Release> {

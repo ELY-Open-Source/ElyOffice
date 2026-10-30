@@ -8,7 +8,7 @@ import { rhythm } from "./rhythm.ts";
 import { playground } from "./play.ts";
 import { film } from "./film.ts";
 import { said, speak, word, type Lang } from "./text.ts";
-import { latest } from "./release.ts";
+import { RELEASES, latest, releasePage } from "./release.ts";
 import { downloads } from "./download.ts";
 import { iconLink } from "./icons.ts";
 
@@ -21,7 +21,8 @@ if (!app) throw new Error("index.html has no #app");
 const hero = document.createElement("header");
 const title = document.createElement("h1");
 title.textContent = "Ely Office";
-const source = iconLink("github", "source", REPO);
+// Until the release is read, its page holds the sources.
+const source = iconLink("github", "source", RELEASES);
 const every = said("a", "every");
 every.href = "#download";
 const links = document.createElement("div");
@@ -59,7 +60,13 @@ for (const [key, href] of [["privacy", "/privacy"], ["terms", "/termofservice"]]
   li.append(a);
   legal.append(li);
 }
-footer.append(version, count, said("p", "platforms"), get.block, said("p", "needs"), legal);
+const own = said("a", "source");
+const upstream = said("a", "upstream");
+const sources = document.createElement("p");
+sources.className = "sources";
+sources.append(own, upstream);
+for (const a of [own, upstream]) a.href = RELEASES;
+footer.append(version, count, said("p", "platforms"), get.block, said("p", "needs"), sources, legal);
 
 const toggle = said("button", "other");
 toggle.className = "lang";
@@ -77,8 +84,11 @@ main.append(section, playground(), shelf, film());
 app.append(night(), toggle, main, footer);
 say(lang);
 reveal([shelf]);
-void latest().then(({ version: v, installers, downloads: n }) => {
+void latest().then(({ version: v, installers, sources: archives, downloads: n }) => {
   version.textContent = `Ely Office ${v}`;
+  // A missing archive sends readers to its release page.
+  source.href = own.href = archives.own ?? releasePage(v);
+  upstream.href = archives.upstream ?? releasePage(v);
   heroGet.found(installers);
   get.found(installers);
   for (const el of [heroCount, count]) {

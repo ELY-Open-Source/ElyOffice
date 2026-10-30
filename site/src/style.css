@@ -115,6 +115,14 @@ footer {
   text-align: center;
 }
 
+footer .sources {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem 2.5rem;
+  margin: 0;
+}
+
 footer ul {
   display: flex;
   flex-wrap: wrap;
