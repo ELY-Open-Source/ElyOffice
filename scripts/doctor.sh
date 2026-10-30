@@ -27,31 +27,56 @@ need() { # name, then the command that proves it
     failed=1
   fi
 }
+# A tool whose first version number is at least `min`.
+least() { # name, min, then the command printing its version
+  local name=$1 min=$2 out have
+  shift 2
+  if ! out=$("$@" 2>&1); then
+    echo "MISSING $name (README, Build): ${out%%$'\n'*}"
+    failed=1
+    return
+  fi
+  have=$(grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' <<<"$out" | head -1)
+  if [ -z "$have" ] || [ "$(printf '%s\n%s\n' "$min" "$have" | sort -V | head -1)" != "$min" ]; then
+    echo "OLD     $name ${have:-unknown}, want $min or newer (README, Build)"
+    failed=1
+    return
+  fi
+  printf '%-10s %s\n' "$name" "${out%%$'\n'*}"
+}
 
 check rustc --version
 check cargo --version
 check git --version
 check python3 --version
 check curl --version
-check node --version
+# The site's Vite and Wrangler.
+least node 22.12 node --version
 check pnpm --version
 
 case $(uname -s) in
   Darwin)
     check clang --version
-    check make --version
     check pkg-config --version
     check cmake --version
     check ninja --version
     need metal xcrun -sdk macosx metal --version
+    # What build-libreoffice.sh puts first on PATH.
+    for formula in gnu-sed bison flex gettext; do
+      need "$formula" brew list --versions "$formula"
+    done
+    least make 4.2 "$(brew --prefix make 2>/dev/null)/libexec/gnubin/make" --version
+    check autoconf --version
+    check aclocal --version
     ;;
   MINGW* | MSYS* | CYGWIN*)
     check cmake --version
     check ninja --version
     vswhere="$(cygpath -u "$PROGRAMFILES") (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+    # LibreOffice builds with Visual Studio 2022 alone.
     msvc() {
       local found
-      found=$("$vswhere" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath) &&
+      found=$("$vswhere" -products '*' -version '[17.0,18.0)' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath) &&
         [ -n "$found" ] && echo "$found"
     }
     # As gpui's build script looks: variable, PATH, SDK.
@@ -67,6 +92,11 @@ case $(uname -s) in
     }
     need msvc msvc
     need fxc fxc
+    # LibreOffice builds under Cygwin, with its own make.
+    cygwin=${ELY_CYGWIN:-/c/cygwin64}
+    least lo-make 4.2 "$cygwin/opt/lo/bin/make.exe" --version
+    need autoconf "$cygwin/bin/bash.exe" -lc 'autoconf --version'
+    need aclocal "$cygwin/bin/bash.exe" -lc 'aclocal --version'
     ;;
   Linux)
     check cc --version

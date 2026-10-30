@@ -36,6 +36,8 @@ if bash scripts/doctor.sh >/tmp/doctor.log 2>&1 || ! grep -q "^MISSING make" /tm
   echo "doctor.sh passed without make:"; cat /tmp/doctor.log; exit 1
 fi
 mv /tmp/make "$make"
+# The site builds on the Node.js README installs.
+(cd site && pnpm install -s --frozen-lockfile && pnpm -s build) >/tmp/site.log 2>&1 || { tail -30 /tmp/site.log; exit 1; }
 cargo test -q -p ely-mail-engine --no-run >/tmp/mail.log 2>&1 || { tail -30 /tmp/mail.log; exit 1; }
 cargo build -q --workspace --exclude ely-pdf-worker --bins --tests >/tmp/build.log 2>&1 || { tail -30 /tmp/build.log; exit 1; }
 echo "README packages build Ely"'
@@ -54,8 +56,11 @@ ubuntu=ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15
 fedora=fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
 arch=archlinux@sha256:4e77cf2ea5f410e6f8be5abf93ccf17ce2436e87a138c167208356711a405dbd
 pnpm=$(line 'npm install' '')
+node=$(grep -E '^curl -fsSL https://deb.nodesource.com/' "$root/README.md") || fail "README has no NodeSource line"
+node=${node//sudo -E /}
+node=${node//sudo apt install/apt install -y}
 run "$ubuntu" "apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl ca-certificates" \
-  "DEBIAN_FRONTEND=noninteractive $(line 'apt install' -y) && $pnpm"
+  "export DEBIAN_FRONTEND=noninteractive && $(line 'apt install' -y) && $node && $pnpm"
 run "$fedora" "true" "$(line 'dnf install' -y) && $pnpm"
 run "$arch" "pacman -Sy --noconfirm" "$(line 'pacman -S' --noconfirm) && $pnpm"
-echo "PASS: README's Linux lines satisfy doctor.sh and build Ely; doctor.sh misses no tool"
+echo "PASS: README's Linux lines satisfy doctor.sh and build Ely and its site; doctor.sh misses no tool"
