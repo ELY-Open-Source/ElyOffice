@@ -823,6 +823,11 @@ impl X11Client {
         let Some((mut ximc, xim_handler)) = state.take_xim() else {
             return;
         };
+        // Before the open's reply there is no input method id.
+        if !xim_handler.connected {
+            state.restore_xim(ximc, xim_handler);
+            return;
+        }
         let mut ic_attributes = ximc
             .build_ic_attributes()
             .push(AttributeName::InputStyle, InputStyle::PREEDIT_CALLBACKS)
