@@ -135,7 +135,8 @@ tests/scripts/media-targets.sh 媒体播放接口在 Linux、Windows 目标可�
 cargo test -p ely-platform --test media  系统播放器真放 1 秒片段：可播、出帧、播完、循环、暂停守住、坏文件说原因（macOS、Windows 与 Linux）
 tests/scripts/linux-idle.sh      真窗口 ElyTree：打开仓库后、Omarchy 换主题与改设置后，空闲时不读主题、设置，不跑 git status；照样跟随换主题、改设置与改文件，经内存映射的写入也跟随
 tests/scripts/linux-backends.sh  Linux 构建带 Wayland 与 X11；Hyprland 上 ElyTree 在两者上都映射出窗口、画出页面与起始页文字（截窗口量色，tesseract 读字）
-tests/scripts/linux-xim.sh       X11 上的 ElyMark 与 fcitx5 经 XIM 建成输入上下文（`CreateIcReply`，无 XIM 错误）；fcitx5 没在跑才自起、用完即停（缺 X 显示或 fcitx5 时 SKIP；`ELY_MARK_BIN` 指定要测的构建）
+tests/scripts/linux-xim.sh       X11 上的 ElyMark 与 fcitx5 经 XIM 建成输入上下文（`CreateIcReply`，无 XIM 错误）；fcitx5 没在跑才自起、用完即停（缺 X 显示或 fcitx5 时 SKIP；`ELY_MARK_BIN` 指定要测的构建，不设即跑 Cargo 刚建出的那个；握手前退出或超时即报退出码与应用最后的输出）
+tests/scripts/xim-rules.sh       linux-xim.sh 对替身（cargo、fcitx5、应用）：跑 Cargo 报出的构建而非 target 里的旧程序，应用握手前退出即报其退出码与错误（只在 Linux）
 tests/scripts/wayland-clipboard.sh  无头 sway（无 Xwayland，X11 剪贴板为空）里与 wl-copy、wl-paste 互相复制粘贴文字、HTML、PNG（容器内构建与运行，缺 docker 时 SKIP）
 packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；引擎、应用、打包；目标在 target/alma8）
 tests/scripts/linux-glibc.sh     Linux 的应用、worker 与引擎要求的 glibc 不高于 2.31，GLIBCXX、CXXABI 不高于 GCC 10（Debian 11、Ubuntu 20.04），读版本需求表，`GLIBC_ABI_DT_RELR` 这类 ABI 标记也拒

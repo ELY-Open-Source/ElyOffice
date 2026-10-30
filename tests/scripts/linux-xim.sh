@@ -9,10 +9,17 @@ fail() {
 }
 [ "$(uname)" = Linux ] && [ -n "${DISPLAY:-}" ] || { echo "SKIP: needs an X display"; exit 0; }
 command -v fcitx5 >/dev/null || { echo "SKIP: no fcitx5"; exit 0; }
-bin=${ELY_MARK_BIN:-$root/target/release/ely-mark}
-if [ -z "${ELY_MARK_BIN:-}" ]; then
+bin=${ELY_MARK_BIN:-}
+if [ -z "$bin" ]; then
   version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
-  cargo build -q --release --manifest-path "$root/Cargo.toml" -p "ely-mark@$version"
+  # The binary Cargo just built, wherever its target is.
+  bin=$(cargo build -q --release --manifest-path "$root/Cargo.toml" -p "ely-mark@$version" \
+    --message-format=json-render-diagnostics |
+    python3 -c 'import json, sys
+found = [m["executable"] for m in map(json.loads, sys.stdin)
+         if m.get("reason") == "compiler-artifact" and m.get("executable") and m["target"]["name"] == "ely-mark"]
+print(found[-1] if found else "")')
+  [ -n "$bin" ] || fail "cargo named no ely-mark binary"
 fi
 work=$(mktemp -d)
 ours=
@@ -35,9 +42,20 @@ env -u WAYLAND_DISPLAY XMODIFIERS=@im=fcitx ELY_SMOKE=hold ELY_LOG=debug HOME="$
 pid=$!
 for _ in $(seq 40); do
   grep -q -E 'CreateIcReply|XIMClientError' "$work/out.log" && break
+  kill -0 "$pid" 2>/dev/null || break
   sleep 0.5
 done
-said=$(grep -a -E 'zed_xim::(client|x11rb)\] (->|<-)|XIMClientError' "$work/out.log" | sed -E 's/^\[[^]]*\] *//' | tr '\n' ' ')
+said=$( (grep -a -E 'zed_xim::(client|x11rb)\] (->|<-)|XIMClientError' "$work/out.log" || true) |
+  sed -E 's/^\[[^]]*\] *//' | tr '\n' ' ')
 ! grep -q XIMClientError "$work/out.log" || fail "the XIM exchange broke: $said"
-grep -q '<-: CreateIcReply' "$work/out.log" || fail "no input context in 20 s: $said"
+if ! grep -q '<-: CreateIcReply' "$work/out.log"; then
+  if kill -0 "$pid" 2>/dev/null; then
+    state="still running after 20 s"
+  else
+    wait "$pid" && code=0 || code=$?
+    state="exited $code"
+    pid=
+  fi
+  fail "no input context ($bin $state); XIM: ${said:-none}; last output: $(tail -5 "$work/out.log" | tr '\n' ' ')"
+fi
 echo "PASS: ElyMark on X11 opened an XIM input context with fcitx5"
