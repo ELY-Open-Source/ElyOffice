@@ -281,11 +281,16 @@ class Windows(Host):
             raise self.failed("a process snapshot", 0)
         entry, pairs = Entry(), []
         entry.size = ctypes.sizeof(Entry)
-        more = self.k32.Process32FirstW(ctypes.c_void_p(snap), ctypes.byref(entry))
-        while more:
-            pairs.append((entry.pid, entry.parent))
-            more = self.k32.Process32NextW(ctypes.c_void_p(snap), ctypes.byref(entry))
-        self.k32.CloseHandle(ctypes.c_void_p(snap))
+        try:
+            more = self.k32.Process32FirstW(ctypes.c_void_p(snap), ctypes.byref(entry))
+            while more:
+                pairs.append((entry.pid, entry.parent))
+                more = self.k32.Process32NextW(ctypes.c_void_p(snap), ctypes.byref(entry))
+            # Only ERROR_NO_MORE_FILES ends a whole list.
+            if ctypes.get_last_error() != 18:
+                raise self.failed(f"listing processes after {len(pairs)}", 0)
+        finally:
+            self.k32.CloseHandle(ctypes.c_void_p(snap))
         return pairs
 
     def pids(self, root):

@@ -281,5 +281,8 @@ fn a_closed_tab_frees_its_view_and_document(cx: &mut TestAppContext) {
         cx.run_until_parked();
         assert!(view.upgrade().is_none(), "the view outlives its tab");
         assert!(document.upgrade().is_none(), "the document outlives its tab");
+        let remembered = desk.read_with(cx, |desk, _| desk.remembered.clone());
+        assert!(!remembered.contains_key(&id), "the closed tab's path stays");
+        assert_eq!(remembered.len(), 1, "only a.md is open: {remembered:?}");
     }
 }

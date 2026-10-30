@@ -44,9 +44,38 @@ fn closed_documents_leave_no_handles() {
             handles(&worker)
         })
         .collect();
-    let quarter = CYCLES / 4;
-    let late = *counts[CYCLES - quarter..].iter().min().expect("cycles");
-    let early = *counts[..quarter].iter().max().expect("cycles");
-    assert!(late <= early, "the handles climb: {counts:?}");
-    assert!(late <= before + ONCE, "{before} handles became {counts:?}");
+    if let Err(why) = settled(before, &counts) {
+        panic!("{why}");
+    }
+}
+
+/// Settled as the bench judges: no climb at the end.
+fn settled(before: u32, counts: &[u32]) -> Result<(), String> {
+    let quarter = (counts.len() / 4).max(1);
+    let (prior, late) = (&counts[counts.len() - 2 * quarter..counts.len() - quarter], &counts[counts.len() - quarter..]);
+    let median = |part: &[u32]| {
+        let mut sorted = part.to_vec();
+        sorted.sort_unstable();
+        f64::from(sorted[sorted.len() / 2] + sorted[(sorted.len() - 1) / 2]) / 2.0
+    };
+    let (low, high) = (late.iter().min().expect("a quarter"), prior.iter().max().expect("a quarter"));
+    if low > high && median(late) > median(prior) {
+        return Err(format!("the handles climb: {counts:?}"));
+    }
+    if *low > before + ONCE {
+        return Err(format!("{before} handles became {counts:?}"));
+    }
+    Ok(())
+}
+
+#[test]
+fn a_climb_after_an_early_peak_fails() {
+    let mut climb = vec![108; 5];
+    climb.extend([100; 10]);
+    climb.extend([101, 102, 103, 104, 105]);
+    assert!(settled(100, &climb).is_err());
+    let mut jitter = vec![108; 5];
+    jitter.extend([100, 101, 100, 102, 100, 101, 100, 102, 100, 101, 100, 101, 100, 102, 100]);
+    assert_eq!(settled(100, &jitter), Ok(()));
+    assert!(settled(100, &[109; 20]).is_err(), "kept past ONCE");
 }

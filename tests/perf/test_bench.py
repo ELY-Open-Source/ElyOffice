@@ -151,5 +151,42 @@ class Ended(unittest.TestCase):
             host.handles(1, [1])
 
 
+class Kernel:
+    """Toolhelp that lists `count` processes, then stops with `error`."""
+
+    def __init__(self, count, error):
+        self.count, self.error, self.given = count, error, 0
+        self.CreateToolhelp32Snapshot = lambda flags, pid: 7
+        self.Process32NextW = self.Process32FirstW
+        self.CloseHandle = lambda snap: 1
+
+    def Process32FirstW(self, snap, entry):
+        if self.given == self.count:
+            drive.ctypes.set_last_error(self.error)
+            return 0
+        self.given += 1
+        entry._obj.pid, entry._obj.parent = self.given, 0
+        return 1
+
+
+@unittest.skipUnless(os.name == "nt", "Toolhelp is Windows only")
+class Listing(unittest.TestCase):
+    def listed(self, count, error):
+        host = object.__new__(drive.Windows)
+        host.k32 = Kernel(count, error)
+        return host.processes()
+
+    def test_a_whole_list_ends_with_no_more_files(self):
+        self.assertEqual(self.listed(2, 18), [(1, 0), (2, 0)])
+
+    def test_a_failed_first_entry_voids_the_run(self):
+        with self.assertRaises(RuntimeError):
+            self.listed(0, 5)
+
+    def test_a_list_cut_short_voids_the_run(self):
+        with self.assertRaises(RuntimeError):
+            self.listed(1, 5)
+
+
 if __name__ == "__main__":
     unittest.main()

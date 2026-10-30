@@ -6,8 +6,8 @@ import tempfile
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "perf"))
-import bench
 import drive
+import run
 
 if sys.platform != "win32":
     sys.exit(print("SKIP: the Windows save dialog"))
@@ -18,27 +18,27 @@ exe = os.path.join(os.environ.get("CARGO_TARGET_DIR", os.path.join(drive.ROOT, "
 if not os.path.isfile(exe):
     sys.exit(f"FAIL: no build at {exe}")
 work = tempfile.mkdtemp()
-bench.HOST = drive.host(work)
-bench.HOST.exe = lambda slug: exe
+run.HOST = drive.host(work)
+run.HOST.exe = lambda slug, frames: exe
 target = os.path.join(work, "report")
 kept = target + ".docx"
 
 
 def save_as(app, after):
     """Ctrl+S on a new document, `target` typed with no extension."""
-    bench.HOST.chord(app.process.pid, "s")
+    run.HOST.chord(app.process.pid, "s")
     app.wait("office: asks where to save", after=after)
     time.sleep(2)
-    bench.HOST.type(app.process.pid, target)
+    run.HOST.type(app.process.pid, target)
     time.sleep(0.5)
-    bench.HOST.enter(app.process.pid)
+    run.HOST.enter(app.process.pid)
 
 
 def saved(app, after):
     return [line for line in app.lines()[after:] if "office: saved" in line]
 
 
-app = bench.App("ely-doc", os.path.join(work, "home"))
+app = run.App("ely-doc", os.path.join(work, "home"))
 try:
     app.wait("opened Untitled 1 ")
     app.front()
@@ -47,18 +47,18 @@ try:
     if not os.path.isfile(kept) or os.path.exists(target):
         sys.exit(f"FAIL: wrote {sorted(os.listdir(work))}, not report.docx")
     # The dialog asks before replacing the .docx it added.
-    bench.HOST.chord(app.process.pid, "w")
+    run.HOST.chord(app.process.pid, "w")
     app.wait("office: closed report.docx")
     with open(kept, "wb") as old:
         old.write(b"OLD")
-    bench.HOST.chord(app.process.pid, "n")
+    run.HOST.chord(app.process.pid, "n")
     for _ in range(100):
-        if bench.HOST.shows(app.process.pid, "Use template"):
+        if run.HOST.shows(app.process.pid, "Use template"):
             break
         time.sleep(0.1)
     else:
         sys.exit("FAIL: the new document dialog never showed")
-    bench.HOST.press(app.process.pid, "Use template")
+    run.HOST.press(app.process.pid, "Use template")
     app.wait("opened Untitled 2 ")
     since = len(app.lines())
     save_as(app, "opened Untitled 2 ")
@@ -66,7 +66,7 @@ try:
     with open(kept, "rb") as now:
         if now.read() != b"OLD" or saved(app, since):
             sys.exit("FAIL: report.docx was replaced without asking")
-    bench.HOST.type(app.process.pid, "y")
+    run.HOST.type(app.process.pid, "y")
     app.wait(r"office: saved .*report\.docx", after="opened Untitled 2 ", timeout=30)
     with open(kept, "rb") as now:
         if now.read() == b"OLD":
