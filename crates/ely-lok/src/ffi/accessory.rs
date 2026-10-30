@@ -70,8 +70,14 @@ pub fn check() -> io::Result<()> {
     if found == PROHIBITED {
         // Outside a bundle nothing registers; accessory lets it draw.
         let done = unsafe { set(app, sel_registerName(c"setActivationPolicy:".as_ptr()), ACCESSORY) };
+        // A granted change lands a moment later.
+        let asked = std::time::Instant::now();
         found = read();
-        log::info!("lok: the unbundled worker asked for accessory ({done})");
+        while done != 0 && found == PROHIBITED && asked.elapsed() < std::time::Duration::from_secs(2) {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+            found = read();
+        }
+        log::info!("lok: the unbundled worker asked for accessory ({done}), in {:?}", asked.elapsed());
     }
     if found != ACCESSORY {
         return Err(io::Error::other(format!("the worker's activation policy is {found}, not accessory")));

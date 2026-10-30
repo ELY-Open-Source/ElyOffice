@@ -1,8 +1,10 @@
+#[cfg(not(target_os = "macos"))]
 use std::{cell::Cell, rc::Rc};
 
 use ely_platform::AppId;
 use gpui::{AnyWindowHandle, AppContext as _, Context, IntoElement, Render, TestAppContext, Window};
 
+#[cfg(not(target_os = "macos"))]
 const PNG: &[u8] = include_bytes!("../../../../assets/icons/ely-mail.png");
 /// Unshipped: its saved window place is no one's.
 const APP: AppId = AppId::Agent;
@@ -42,6 +44,7 @@ fn close(window: AnyWindowHandle, cx: &mut TestAppContext) {
     cx.run_until_parked();
 }
 
+#[cfg(not(target_os = "macos"))]
 fn keep(reopened: Rc<Cell<usize>>, cx: &mut TestAppContext) -> anyhow::Result<()> {
     cx.update(|cx| {
         super::keep(APP, PNG, "envelope", move |window, cx| {
@@ -105,9 +108,9 @@ fn without_a_tray_host_closing_quits(cx: &mut TestAppContext) {
 #[cfg(target_os = "linux")]
 mod host;
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(windows)]
 mod host {
-    /// Windows and macOS need no host.
+    /// Windows needs no host.
     pub fn serve() -> Option<()> {
         Some(())
     }
