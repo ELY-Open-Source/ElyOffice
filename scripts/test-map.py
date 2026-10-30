@@ -62,11 +62,22 @@ def tasks():
             yield f"决策 {m.group(2)}", set(cites(line)), line
 
 
+# A test attribute, any others, then the test function.
+TEST = re.compile(r"#\[(?:\w+::)*test(?:\([^)]*\))?\]\s*(?:#\[[^\]]*\]\s*)*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+([a-z0-9_]+)")
+
+
+def tests(text):
+    """Functions under a test attribute in Rust source."""
+    return set(TEST.findall(text))
+
+
 def known():
     """Test function and script names present in the tree."""
-    found = subprocess.run(["grep", "-rhoE", r"fn [a-z0-9_]+\(", "crates", "apps", "--include=*.rs"],
-                           cwd=ROOT, capture_output=True, text=True).stdout
-    names = set(re.findall(r"fn ([a-z0-9_]+)\(", found))
+    names = set()
+    for top in ("crates", "apps"):
+        for path in glob.glob(os.path.join(ROOT, top, "**", "*.rs"), recursive=True):
+            with open(path, encoding="utf-8") as source:
+                names |= tests(source.read())
     names |= {f for f in os.listdir(os.path.join(ROOT, "tests", "scripts"))}
     return names
 
@@ -92,6 +103,19 @@ def main():
     # A whole name, digits included, reaches its row.
     if "a11y_follows_the_focused_paragraph" not in present:
         sys.exit("FAIL: test-map.py cuts test names short")
+    # Production methods and extern declarations are not tests.
+    if not_tests := {"run_in", "ely_open", "ely_scan"} & present:
+        sys.exit(f"FAIL: test-map.py counts {sorted(not_tests)} as tests")
+    sample = """#[gpui::test(iterations = 8)]
+#[ignore]
+async fn a() {}
+#[tokio::test]
+pub async fn b() {}
+fn c() {}
+unsafe extern "C" { fn d(); }
+"""
+    if tests(sample) != {"a", "b"}:
+        sys.exit(f"FAIL: test-map.py reads {sorted(tests(sample))} as the sample's tests")
     if gone := missing():
         sys.exit(f"FAIL: test-map.py cites places not in the tree: {gone}")
     rows = ["# 功能编号与测试对照", "", "对应 PRD §22。由 `scripts/test-map.py` 从 PRD、`tasks/TASKS.md` 与 `docs/decisions.md` 生成：每个编号列出引用它的任务与决策，其中写明、且在代码里确有其名的测试（单测函数名或 `tests/scripts` 的脚本），以及该领域测试所在之处。Agent 属第二批，不列。", "",
