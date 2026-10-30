@@ -57,7 +57,7 @@ pub fn kernel_bytes<G: Engine>(
 
 /// Formats stored as zip packages, encrypted ones as OLE.
 const PACKAGED: &[&str] = &[
-    "docx", "docm", "dotx", "dotm", "xlsx", "xlsm", "xltx", "xltm", "pptx", "pptm", "potx", "ppsx", "odt", "ott",
+    "docx", "docm", "dotx", "dotm", "xlsx", "xlsm", "xltx", "xltm", "pptx", "pptm", "potx", "potm", "ppsx", "ppsm", "odt", "ott",
     "ods", "ots", "odp", "otp",
 ];
 
@@ -259,6 +259,9 @@ mod tests {
         let inner = error.get_ref().and_then(|inner| inner.downcast_ref::<NotPackage>()).expect("named");
         assert_eq!(inner.0, "docx");
         assert!(check_package(&write("pk.XLSX", b"PK not a zip")).is_err(), "only the full signature");
+        for name in ["plain.potm", "plain.ppsm", "plain.xltm", "plain.dotm", "plain.odp"] {
+            assert!(check_package(&write(name, b"plain")).is_err(), "{name}");
+        }
         check_package(&write("zip.pptx", b"PK\x03\x04rest")).expect("a zip");
         check_package(&write("sealed.docx", OLE)).expect("encrypted");
         check_package(&write("empty.docx", b"")).expect("an empty file");
