@@ -29,7 +29,7 @@ def runs(job):
 
 
 def commands(line):
-    """Each simple command's words, split at ; && || | & and parentheses."""
+    """Words of each simple command in a shell line."""
     lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
     lexer.whitespace_split = True
     command = []
