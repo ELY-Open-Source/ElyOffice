@@ -145,7 +145,7 @@ tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的
 packaging/source.sh dist        本提交的源码包与随包的 copyleft 上游源码（打过补丁的 MuPDF、Git），文件名带提交号；工作区有未提交改动即拒绝（macOS 的 release.sh 与 CI 的 Linux 调用，发布只上传 Linux 的；Windows 的检出把符号链接写成文件，不出源码包）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝
 scripts/release-tests.sh         发布的门：建好两个 worker，严格模式跑 `cargo test --workspace`（ci.sh 打包前调用）
-tests/scripts/workflows.py       release.yml 的任务互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包
+tests/scripts/workflows.py       release.yml 的任务互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 只在 GitHub 的机器上跑、装齐 README 的库、严格模式
 tests/scripts/ci-upload.sh       ci.sh 的上传：测试失败即一个不传；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
 tests/scripts/linux-packages.sh  deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库
 tests/scripts/linux-pins.sh      Linux 打包工具（appimagetool、linuxdeploy、运行时、nfpm）的下载与钉的散列相符
@@ -253,4 +253,5 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - ElyMark 原生实现（组件库 Markdown 组件与其 Markdown 树），不用 CEF、Electron；Typora 只作参照，读同一文件不同时随 GitHub（GFM）。
 - ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。
+- 合并前：`.github/workflows/pr.yml` 在每个 PR 与 main 的推送上，以 GitHub 托管的 Ubuntu 跑 check.sh、deny.sh、panics.py、clippy（告警即败）与不需引擎的测试（严格模式）；PR 从不上自托管机器，带引擎的全部测试是发布的门（release-tests.sh）。
 - 审查：每条任务由 `scripts/review.sh` 交 codex 审查，至多三轮。

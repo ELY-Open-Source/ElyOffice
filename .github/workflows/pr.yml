@@ -1,0 +1,41 @@
+# Pull requests and main: the rules and the engine-free tests.
+# GitHub's machines only: no pull request reaches a self-hosted runner.
+name: pr
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      ELY_REQUIRE_ENGINES: '1'
+      CARGO_TERM_COLOR: never
+      # LibreOffice and MuPDF crates; release-tests.sh runs them.
+      NO_ENGINES: >-
+        --workspace --exclude ely-lok --exclude ely-office --exclude ely-doc --exclude ely-table
+        --exclude ely-show --exclude ely-pdf --exclude ely-pdf-worker --exclude ely-mark
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: README's libraries (the runner has Docker and Node)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libdbus-1-dev libfontconfig-dev libxcb1-dev libxkbcommon-x11-dev
+      - name: Tools
+        run: |
+          npm install -g pnpm
+          cargo install cargo-deny --locked --version 0.20.2
+          (cd site && pnpm install --frozen-lockfile)
+      - name: Project rules
+        run: scripts/check.sh
+      - name: Licences, advisories and sources
+        run: scripts/deny.sh
+      - name: Panics listed with reasons
+        run: python3 scripts/panics.py
+      - name: Clippy, warnings fail
+        run: cargo clippy --all-targets $NO_ENGINES -- -D warnings
+      - name: Tests that need no engine
+        run: ELY_GIT=$(command -v git) cargo test $NO_ENGINES
