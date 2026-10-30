@@ -1,5 +1,4 @@
-# A tag builds, packages and uploads all three platforms.
-# Tags only: no pull request ever reaches the self-hosted runners.
+# Tags build, package and upload; pull requests never run here.
 name: release
 on:
   push:
@@ -80,8 +79,7 @@ jobs:
           git -C "$dir" checkout --force "${{ github.sha }}"
           "$dir/scripts/ci.sh" windows "${{ github.ref_name }}"
   linux:
-    # WSL on the Windows runner keeps a built kernel.
-    # Not after Windows: a Windows failure leaves Linux running.
+    # WSL keeps a kernel; Windows failures never stop Linux.
     runs-on: [self-hosted, ely-windows]
     timeout-minutes: 360
     steps:

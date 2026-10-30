@@ -41,12 +41,20 @@ case $method:$url in
 esac
 EOF
 chmod +x "$work/bin/curl"
+# Fake cargo: logs each call; $CARGO_FAILS names the failing one.
+export CARGO_LOG=$work/cargo.log
+cat >"$work/bin/cargo" <<'EOF'
+#!/usr/bin/env bash
+echo "$* | engines=${ELY_REQUIRE_ENGINES:-} incremental=${CARGO_INCREMENTAL:-}" >>"$CARGO_LOG"
+[ "$1" != "${CARGO_FAILS:-}" ] || { echo "cargo $1 failed"; exit 101; }
+EOF
+chmod +x "$work/bin/cargo"
 
 # A clone writing one package and the source pair.
 clone() { # os
   local at=$work/$1 source='d=$1; touch "$d/ElyOffice-V-c0ffee-source.tar.gz" "$d/ElyOffice-V-c0ffee-upstream-source.tar.gz"'
   mkdir -p "$at/scripts" "$at/packaging/macos" "$at/packaging/linux"
-  cp "$root/scripts/ci.sh" "$at/scripts/"
+  cp "$root/scripts/ci.sh" "$root/scripts/release-tests.sh" "$at/scripts/"
   cp "$root/Cargo.toml" "$root/rust-toolchain.toml" "$at/"
   cp "$root/packaging/apps.tsv" "$at/packaging/"
   write() { printf '#!/usr/bin/env bash\n%s\n' "$2" >"$at/$1" && chmod +x "$at/$1"; }
@@ -57,7 +65,6 @@ clone() { # os
   write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.dmg dist/app-$1.json; packaging/source.sh dist"
   write packaging/linux/container.sh 'exec "$@"'
   write packaging/linux/package.sh "mkdir -p dist; touch dist/\$1-$1.AppImage dist/\$1-$1.json"
-  write scripts/release-tests.sh "${TESTS:-:}"
 }
 go() { # os
   CI_OS=$1 PATH=$work/bin:$PATH ELY_SHARE=$work/share ELY_RELEASE_TOKEN=unused \
@@ -73,20 +80,31 @@ uploads() { # name pattern, os
   awk -v n="$1" -v o="$2" '$2 ~ n && $3 == o' "$STATE" | wc -l
 }
 
-# A failing test stops the release before any upload.
+# The gate: both workers, then every test, engines required.
+gate="build -p ely-lok --bins -p ely-pdf-worker | engines=1 incremental=0
+test --workspace | engines=1 incremental=0"
+# A failed build or test uploads nothing.
 for os in macos linux; do
-  TESTS="echo 'test failed'; exit 1" clone "$os"
-  ! go "$os" || fail "$os released past a failing test"
-  grep -q "test failed" "$work/$os.out" || fail "$os did not run its tests: $(cat "$work/$os.out")"
-  [ ! -s "$STATE" ] || fail "$os uploaded past a failing test: $(cat "$STATE")"
-  rm -rf "${work:?}/$os"
+  for step in build test; do
+    clone "$os"
+    : >"$CARGO_LOG"
+    ! CARGO_FAILS=$step go "$os" || fail "$os released past a failing $step"
+    grep -q "cargo $step failed" "$work/$os.out" || fail "$os did not run cargo $step: $(cat "$work/$os.out")"
+    [ "$step" = test ] || ! grep -q "^test " "$CARGO_LOG" || fail "$os tested past a failed build"
+    [ ! -s "$STATE" ] || fail "$os uploaded past a failing $step: $(cat "$STATE")"
+    rm -rf "${work:?}/$os"
+  done
 done
+: >"$CARGO_LOG"
 # macOS first: it builds the pair and uploads neither.
 run macos
+[ "$(cat "$CARGO_LOG")" = "$gate" ] || fail "macOS gate ran: $(cat "$CARGO_LOG")"
 [ "$(uploads 'source' macos)" -eq 0 ] || fail "macOS uploaded source: $(cat "$STATE")"
 [ "$(uploads 'App-macos.dmg' macos)" -eq 1 ] || fail "macOS skipped its dmg"
 [ "$(uploads 'app-macos.json.sig' macos)" -eq 1 ] || fail "macOS left its manifest unsigned: $(cat "$STATE")"
+: >"$CARGO_LOG"
 run linux
+[ "$(cat "$CARGO_LOG")" = "$gate" ] || fail "Linux gate ran: $(cat "$CARGO_LOG")"
 [ "$(uploads '-source.tar.gz' linux)" -eq 2 ] || fail "Linux did not upload the pair: $(cat "$STATE")"
 [ "$(uploads 'ely-doc-linux.json.sig' linux)" -eq 1 ] || fail "Linux left a manifest unsigned: $(cat "$STATE")"
 # A rerun replaces its own files once and keeps macOS's.
@@ -100,4 +118,4 @@ grep -q "replacing ElyOffice-V-c0ffee-source.tar.gz" "$work/linux.out" || fail "
 [ "$(uploads '-source.tar.gz' linux)" -eq 2 ] || fail "the rerun lost the pair: $(cat "$STATE")"
 [ -z "$(comm -12 <(echo "$ids") <(awk '$3 == "linux" { print $1 }' "$STATE" | sort))" ] ||
   fail "an old upload stayed: $(cat "$STATE")"
-echo "ci-upload: Linux alone uploads source; reruns replace their own"
+echo "ci-upload: strict gate first; Linux alone uploads source; reruns replace their own"
