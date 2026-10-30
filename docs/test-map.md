@@ -128,19 +128,19 @@
 | TREE-13 | 恢复与清理 | C13.6（~）、决策 C13.6 | — | apps/ely-tree/src/tests |
 | TREE-14 | 外部工具 | C13.6（~）、决策 C13.6 | — | apps/ely-tree/src/tests |
 | MARK-01 | 本地文件 | C14.4、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
-| MARK-02 | 编辑模式 | C14.6（~）、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
-| MARK-03 | Markdown | C14.7（~）、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
-| MARK-04 | 扩展语法 | C14.2（~）、C14.7（~）、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
+| MARK-02 | 编辑模式 | C14.6、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
+| MARK-03 | Markdown | C14.7、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
+| MARK-04 | 扩展语法 | C14.2、C14.7、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-05 | 导航 | C14.8、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
-| MARK-06 | 编辑工具 | C14.9（~）、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
+| MARK-06 | 编辑工具 | C14.9、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-07 | 附件 | C14.10、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-08 | 外部修改 | C14.11、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
-| MARK-09 | 书写视图 | C14.12（~）、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
+| MARK-09 | 书写视图 | C14.12、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-10 | 搜索 | C14.13、C14.16、决策 C14.4 | `new`、`open`、`insert_table`、`scale` | apps/ely-mark 单测、mark-*.sh |
-| MARK-11 | 输出 | C14.14（~）、C14.16、决策 C14.4 | `new`、`open`、`insert_table`、`scale` | apps/ely-mark 单测、mark-*.sh |
+| MARK-11 | 输出 | C14.14、C14.16、决策 C14.4 | `new`、`open`、`insert_table`、`scale` | apps/ely-mark 单测、mark-*.sh |
 | MARK-12 | 会话恢复 | C14.15、C14.16、决策 C14.4 | `new`、`open`、`insert_table`、`scale` | apps/ely-mark 单测、mark-*.sh |
 | MARK-13 | Git 配合 | C14.16、决策 C14.4 | `new`、`open`、`insert_table`、`scale` | apps/ely-mark 单测、mark-*.sh |
-| MARK-14 | 大文件 | C14.6（~）、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
+| MARK-14 | 大文件 | C14.6、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-15 | 格式命令 | 无 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-16 | 右键菜单 | 无 | — | apps/ely-mark 单测、mark-*.sh |
 | PERF-01 | 启动 | C20.1（~）、决策 C20.1、决策 C11.1 | `chord.swift`、`pdf-idle.sh` | tests/perf/bench.py、lag.sh |
@@ -149,7 +149,7 @@
 | PERF-04 | 表格打开 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-05 | PDF 浏览 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-06 | 本地搜索 | C12.16、C12.23（ ）、C20.1（~）、决策 C20.1、决策 C12.16 | `release-macos.sh`、`chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-07 | Markdown | C14.5（~）、C14.6（~）、C20.1（~）、决策 C20.1、决策 C14.4 | `chord.swift`、`new`、`open`、`insert_table`、`scale` | tests/perf/bench.py、lag.sh |
+| PERF-07 | Markdown | C14.5、C14.6、C20.1（~）、决策 C20.1、决策 C14.4 | `chord.swift`、`new`、`open`、`insert_table`、`scale` | tests/perf/bench.py、lag.sh |
 | PERF-08 | 资源释放 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-09 | 多会话 | C20.1（~） | `chord.swift` | tests/perf/bench.py、lag.sh |
 | QA-01 | 安装与离线启动 | C22.2（ ） | — | 见 docs/qa.md |
