@@ -12,6 +12,7 @@ use gpui::{Context, TaskExt as _, Window};
 use crate::files::{self, file_name};
 use crate::{After, Closing, Dialog, Engine, Host, Opening, Tabs, in_window, text};
 
+mod gone;
 mod paths;
 pub use paths::folder;
 use paths::identity;
@@ -70,16 +71,7 @@ pub trait Saving: Host {
         // Moved or deleted outside: ask where instead.
         match path.try_exists() {
             Ok(true) => {}
-            Ok(false) => {
-                log::warn!("office: {} is gone; tab {id}'s save becomes Save As", path.display());
-                let words = text(cx, "office.gone", &[("name", &tab.name)]);
-                // Close still asks; autosave stops prompting.
-                if let Some(tab) = self.tab_mut(id) {
-                    tab.session.save_failed();
-                }
-                self.toast(words, Severity::Warning, cx);
-                return self.save_as(id, then, cx);
-            }
+            Ok(false) => return gone::gone(self, id, &path, then, cx),
             Err(error) => {
                 let error = io::Error::new(error.kind(), format!("{}: {error}", path.display()));
                 return self.finish(id, Err(SaveError::Io(error)), None, then, window, cx);

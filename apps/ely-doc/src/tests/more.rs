@@ -412,3 +412,38 @@ fn a_cancelled_save_of_a_deleted_file_still_asks_on_close() {
 fn a_cancelled_save_after_edits_stops_autosave_asking() {
     cancel_after_the_file_goes(true);
 }
+
+#[test]
+fn a_program_saving_a_file_deleted_meanwhile_gets_an_error() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "KeepThis");
+    let path = dir.path().join("remote.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    written(&cx, &path, None);
+    let asked = serde_json::json!(["save", path.display().to_string()]).to_string();
+    let (ask, answered) = ely_ui::Ask::for_tests(&asked);
+    // Accepted while there; gone before it runs.
+    with_window(&mut cx, &docs, |docs, _, cx| {
+        docs.answer_request(ask, cx);
+        std::fs::remove_file(&path).expect("deleted outside");
+    });
+    let answer = std::cell::RefCell::new(None);
+    settle(&cx, |_| {
+        *answer.borrow_mut() = answered.try_recv().ok();
+        answer.borrow().is_some() || cx.did_prompt_for_new_path()
+    });
+    assert!(!cx.did_prompt_for_new_path(), "a program gets no dialog");
+    let answer = answer.into_inner().expect("an answer");
+    assert!(answer.as_ref().is_err_and(|why| why.contains("moved or deleted")), "{answer:?}");
+    cx.update(|app| {
+        let docs = docs.read(app);
+        assert!(docs.core.saving.is_empty(), "no request left waiting");
+        assert_eq!(docs.tab(id).expect("open").session.state(), ely_files::SaveState::SaveFailed);
+    });
+}
