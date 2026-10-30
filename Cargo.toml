@@ -54,7 +54,7 @@ windows-core = "0.62"
 lopdf = { version = "0.45", default-features = false }
 zbus = { version = "5", default-features = false, features = ["async-io"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["NSLocale", "NSPathUtilities", "NSString", "NSURL", "NSDictionary", "NSValue", "NSError", "NSRunLoop", "NSDate", "NSUserDefaults"] }
-objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVPlayer", "AVPlayerItem", "AVPlayerItemOutput", "AVAsset", "objc2-core-media", "objc2-core-video", "objc2-core-foundation"] }
+objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "AVPlayer", "AVPlayerItem", "AVPlayerItemOutput", "AVAsset", "AVAssetTrack", "AVMediaFormat", "objc2-core-media", "objc2-core-video", "objc2-core-foundation"] }
 objc2-core-media = { version = "0.3", default-features = false, features = ["std", "CMTime"] }
 objc2-core-video = { version = "0.3", default-features = false, features = ["std", "CVBuffer", "CVImageBuffer", "CVPixelBuffer"] }
 objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFString", "CFCGTypes"] }

@@ -2,7 +2,8 @@ use std::{path::Path, ptr::NonNull};
 
 use objc2::{AllocAnyThread, MainThreadMarker, rc::Retained, runtime::AnyObject};
 use objc2_av_foundation::{
-    AVPlayer, AVPlayerItem, AVPlayerItemOutput, AVPlayerItemStatus, AVPlayerItemVideoOutput,
+    AVMediaTypeAudio, AVMediaTypeVideo, AVPlayer, AVPlayerItem, AVPlayerItemOutput,
+    AVPlayerItemStatus, AVPlayerItemVideoOutput,
 };
 use objc2_core_foundation::CFRetained;
 use objc2_core_media::{CMTime, CMTimeFlags};
@@ -56,6 +57,9 @@ impl Player {
     pub fn state(&self) -> State {
         match unsafe { self.item.status() } {
             AVPlayerItemStatus::ReadyToPlay => {
+                if let Some(track) = self.unplayable() {
+                    return State::Failed(format!("its {track} track is in a format this system cannot play"));
+                }
                 let size = unsafe { self.item.presentationSize() };
                 let video = (size.width > 0.0 && size.height > 0.0)
                     .then(|| (size.width.round() as u32, size.height.round() as u32));
@@ -72,6 +76,21 @@ impl Player {
             }
             _ => State::Loading,
         }
+    }
+
+    /// A track the system cannot play: no half playback.
+    fn unplayable(&self) -> Option<String> {
+        let tracks = unsafe { self.item.asset().tracks() };
+        let track = tracks.iter().find(|track| !unsafe { track.isPlayable() })?;
+        let kind = unsafe { track.mediaType() };
+        let is = |known: Option<&NSString>| known.is_some_and(|known| *known == *kind);
+        Some(if is(unsafe { AVMediaTypeVideo }) {
+            "video".into()
+        } else if is(unsafe { AVMediaTypeAudio }) {
+            "sound".into()
+        } else {
+            kind.to_string()
+        })
     }
 
     pub fn play(&self) {
