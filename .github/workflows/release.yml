@@ -81,8 +81,8 @@ jobs:
           "$dir/scripts/ci.sh" windows "${{ github.ref_name }}"
   linux:
     # WSL on the Windows runner keeps a built kernel.
+    # Not after Windows: a Windows failure leaves Linux running.
     runs-on: [self-hosted, ely-windows]
-    needs: windows
     timeout-minutes: 360
     steps:
       - name: Build, package and upload for Linux

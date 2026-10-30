@@ -73,6 +73,8 @@ if [ -n "$pinned_ssl" ]; then
   }
 fi
 [ "$(uname -s)" != Darwin ] || tests/scripts/engine-arch.sh "$(uname -m)"
+# One failing test and nothing ships.
+scripts/release-tests.sh
 
 dist=$root/dist
 rm -rf "$dist"

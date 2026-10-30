@@ -57,6 +57,7 @@ clone() { # os
   write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.dmg dist/app-$1.json; packaging/source.sh dist"
   write packaging/linux/container.sh 'exec "$@"'
   write packaging/linux/package.sh "mkdir -p dist; touch dist/\$1-$1.AppImage dist/\$1-$1.json"
+  write scripts/release-tests.sh "${TESTS:-:}"
 }
 go() { # os
   CI_OS=$1 PATH=$work/bin:$PATH ELY_SHARE=$work/share ELY_RELEASE_TOKEN=unused \
@@ -72,6 +73,14 @@ uploads() { # name pattern, os
   awk -v n="$1" -v o="$2" '$2 ~ n && $3 == o' "$STATE" | wc -l
 }
 
+# A failing test stops the release before any upload.
+for os in macos linux; do
+  TESTS="echo 'test failed'; exit 1" clone "$os"
+  ! go "$os" || fail "$os released past a failing test"
+  grep -q "test failed" "$work/$os.out" || fail "$os did not run its tests: $(cat "$work/$os.out")"
+  [ ! -s "$STATE" ] || fail "$os uploaded past a failing test: $(cat "$STATE")"
+  rm -rf "${work:?}/$os"
+done
 # macOS first: it builds the pair and uploads neither.
 run macos
 [ "$(uploads 'source' macos)" -eq 0 ] || fail "macOS uploaded source: $(cat "$STATE")"

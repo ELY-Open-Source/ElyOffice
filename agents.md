@@ -144,7 +144,9 @@ packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；nix/release.json 与 apps.tsv 一致；nixos/nix 容器里 flake 的许可与表相同、ElyMark 构建并在 Xvfb 下画出（缺 docker 时 SKIP 容器部分）
 packaging/source.sh dist        本提交的源码包与随包的 copyleft 上游源码（打过补丁的 MuPDF、Git），文件名带提交号；工作区有未提交改动即拒绝（macOS 的 release.sh 与 CI 的 Linux 调用，发布只上传 Linux 的；Windows 的检出把符号链接写成文件，不出源码包）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝
-tests/scripts/ci-upload.sh       ci.sh 的上传：macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
+scripts/release-tests.sh         发布的门：建好两个 worker，严格模式跑 `cargo test --workspace`（ci.sh 打包前调用）
+tests/scripts/workflows.py       release.yml 的任务互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包
+tests/scripts/ci-upload.sh       ci.sh 的上传：测试失败即一个不传；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
 tests/scripts/linux-packages.sh  deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库
 tests/scripts/linux-pins.sh      Linux 打包工具（appimagetool、linuxdeploy、运行时、nfpm）的下载与钉的散列相符
 tests/scripts/linux-installed.sh installed|appimage  Hyprland 上装好的六个应用或 AppImage：一个窗口、随 Omarchy（Catppuccin）、读出页面文字（PDF、Markdown 经各自引擎），ElyTree 随换主题到 Latte（grim 按窗口截取）
@@ -233,7 +235,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 完整记录（按日期，含实现细节与实测）在 `docs/decisions.md`。新的决定追加到那里；改变下列常规的，同时改本节。
 
 - 上游：LibreOffice 26.2.6、MuPDF 1.28.5、Git 2.56.0 加 git-lfs 3.8.0、`gpui-pre` =0.3.10，以 `scripts/fetch-references.sh` 为准；组件库跟随其 main，修复在组件库仓库里做并推上去，再改 pin。
-- 仓库与发布在 GitHub 组织 ELY-Open-Source（ElyOffice、Ely-GPUI-Components）。推 `v*` 标签即运行 `.github/workflows/release.yml`：自托管机器上以 `scripts/ci.sh` 构建 macOS（arm64，Rosetta 下的 Intel）、Windows、Linux（WSL 里的 AlmaLinux 8 容器）并上传。引擎经 `ELY_SHARE` 共用，新的 LibreOffice 补丁须先在三台机器的共享引擎上重建。
+- 仓库与发布在 GitHub 组织 ELY-Open-Source（ElyOffice、Ely-GPUI-Components）。推 `v*` 标签即运行 `.github/workflows/release.yml`：自托管机器上以 `scripts/ci.sh` 构建 macOS（arm64，Rosetta 下的 Intel）、Windows、Linux（WSL 里的 AlmaLinux 8 容器）并上传；四个任务互不等待，`ci.sh` 打包前先以 `scripts/release-tests.sh` 跑全部测试（`ELY_REQUIRE_ENGINES=1`），一个失败即不出包。引擎经 `ELY_SHARE` 共用，新的 LibreOffice 补丁须先在三台机器的共享引擎上重建。
 - Git：main 的历史不改写；提交签名，不写任何署名行。
 - 许可：自有代码 MIT；随包引擎照各自的许可，Linux 包的许可字段取 `packaging/apps.tsv`。
 - macOS 发布以 Developer ID 签名并公证（`ELY_SIGN_IDENTITY`、`ELY_NOTARY_PROFILE`），缺即失败，不出未公证的包。

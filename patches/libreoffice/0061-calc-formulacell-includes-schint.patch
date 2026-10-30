@@ -1,0 +1,18 @@
+Calc: formulacell.cxx includes ScHint's header
+
+0059 casts a hint to ScHint, declared in brdcst.hxx, which
+formulacell.cxx never included. Windows builds found it through
+the precompiled header; macOS clang without one stopped at the
+incomplete type.
+
+diff --git a/sc/source/core/data/formulacell.cxx b/sc/source/core/data/formulacell.cxx
+--- a/sc/source/core/data/formulacell.cxx
++++ b/sc/source/core/data/formulacell.cxx
+@@ -43,6 +43,7 @@
+ #include <progress.hxx>
+ #include <scmatrix.hxx>
+ #include <docsh.hxx>
++#include <brdcst.hxx>
+ #include <rechead.hxx>
+ #include <scitems.hxx>
+ #include <validat.hxx>
