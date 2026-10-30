@@ -1,8 +1,25 @@
 # Sourced by Linux window tests: inputs, cases and the judge.
 
-# Case: slug, the words it shows, its input.
-cases=("ely-doc|Kernel prose|prose.docx" "ely-table|Kernel cell|cells.xlsx" "ely-show|Click to add Title|" "ely-pdf|Packaged PDF|page.pdf"
-  "ely-tree|hello.txt|repo" "ely-mark|Packaged|note.md")
+# The words an app shows, then its input.
+shows() { # slug
+  case $1 in
+    ely-doc) echo "Kernel prose|prose.docx" ;;
+    ely-table) echo "Kernel cell|cells.xlsx" ;;
+    ely-show) echo "Click to add Title|" ;;
+    ely-pdf) echo "Packaged PDF|page.pdf" ;;
+    ely-mail) echo "No mail accounts yet|" ;;
+    ely-tree) echo "hello.txt|repo" ;;
+    ely-mark) echo "Packaged|note.md" ;;
+    *) return 1 ;;
+  esac
+}
+# Case: slug|words|input, for each first-batch app.
+cases=()
+for slug in $(awk -F'\t' '$4 == 1 { print $1 }' "$root/packaging/apps.tsv"); do
+  said=$(shows "$slug") || fail "apps.tsv's $slug has no window case"
+  cases+=("$slug|$said")
+done
+[ ${#cases[@]} -gt 0 ] || fail "apps.tsv lists no first-batch app"
 
 # Omarchy on Catppuccin; a repo, a note, a PDF.
 linux_inputs() { # root, work

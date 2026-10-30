@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Six apps at three widths: nothing passes the window's sides.
+# First-batch apps at three widths: nothing passes the window's sides.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -19,8 +19,12 @@ fail() {
   exit 1
 }
 
-cargo build -q --release --manifest-path "$root/Cargo.toml" --bins -p ely-lok -p ely-pdf-worker \
-  -p ely-doc -p ely-table -p ely-show -p ely-pdf -p ely-tree -p ely-mark
+apps=$(awk -F'\t' '$4 == 1 { print $1 }' "$root/packaging/apps.tsv")
+[ -n "$apps" ] || fail "apps.tsv lists no first-batch app"
+# By version: crates.io has its own ely-mail.
+version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
+# shellcheck disable=SC2046
+cargo build -q --release --manifest-path "$root/Cargo.toml" --bins -p ely-lok -p ely-pdf-worker $(printf -- "-p %s@$version " $apps)
 swiftc -O -o "$work/ax-frames" "$root/tests/scripts/ax-frames.swift"
 [ "$("$work/ax-frames" $$ | head -n 1)" != untrusted ] || { echo "SKIP: needs Accessibility permission"; exit 0; }
 mkdir -p "$shots" "$work/repo"
@@ -51,10 +55,25 @@ window_id() {
   swift -e 'import CoreGraphics; let l = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as! [[String: Any]]; for w in l where (w["kCGWindowOwnerPID"] as? Int) == Int(CommandLine.arguments[1])! && (w["kCGWindowLayer"] as? Int) == 0 { print(w["kCGWindowNumber"]!); break }' "$1"
 }
 
-check() { # slug, file
-  local slug=$1 file=$2 home=$work/home-$1
+# What each app opens; ElyMail starts with no account.
+opens() { # slug
+  case $1 in
+    ely-doc) echo "$fixtures/t.docx" ;;
+    ely-table) echo "$fixtures/t.xlsx" ;;
+    ely-show) echo "$fixtures/t.pptx" ;;
+    ely-pdf) echo "$fixtures/t.pdf" ;;
+    ely-mail) echo ;;
+    ely-tree) echo "$work/repo" ;;
+    ely-mark) echo "$work/notes.md" ;;
+    *) return 1 ;;
+  esac
+}
+
+check() { # slug, then a file or nothing
+  local slug=$1 home=$work/home-$1
+  shift
   mkdir -p "$home"
-  HOME=$home ELY_SMOKE=hold ELY_NO_DIALOG=1 ELY_LOCALE=en "$root/target/release/$slug" "$file" >"$work/$slug.out" 2>&1 &
+  HOME=$home ELY_SMOKE=hold ELY_NO_DIALOG=1 ELY_LOCALE=en "$root/target/release/$slug" "$@" >"$work/$slug.out" 2>&1 &
   pid=$!
   sleep 8
   for width in 640 800 1100; do
@@ -78,10 +97,8 @@ $out"
   pid=
 }
 
-check ely-doc "$fixtures/t.docx"
-check ely-table "$fixtures/t.xlsx"
-check ely-show "$fixtures/t.pptx"
-check ely-pdf "$fixtures/t.pdf"
-check ely-tree "$work/repo"
-check ely-mark "$work/notes.md"
+for slug in $apps; do
+  file=$(opens "$slug") || fail "apps.tsv's $slug has no layout case"
+  if [ -n "$file" ]; then check "$slug" "$file"; else check "$slug"; fi
+done
 echo "ok: layout (screenshots in $shots)"

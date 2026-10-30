@@ -30,6 +30,10 @@ uti() {
     *) fail "no UTI known for $1" ;;
   esac
 }
+# Every first-batch app opens a file type or a link.
+for slug in $(awk -F'\t' '$4 == 1 { print $1 }' "$root/packaging/apps.tsv"); do
+  cut -f1 "$types" | grep -qxF "$slug" || fail "$slug declares no file type or link in types.tsv"
+done
 count=0
 for slug in $(cut -f1 "$types" | sort -u); do
   desktop=$("$root/packaging/linux/package.sh" --desktop "$slug")
