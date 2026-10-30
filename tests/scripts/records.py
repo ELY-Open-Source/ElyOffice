@@ -20,25 +20,37 @@ def faults(text, tracked):
         if ref.startswith(".work/"):
             if not after.startswith(LOCAL):
                 found.append(f"{ref} is local evidence, unmarked")
-        # Globs, braces and r1..r3 ranges stand for several files.
-        elif any(c in ref for c in "{}*") or ".." in ref or after.startswith(GONE):
+        # Globs and braces stand for several files.
+        elif any(c in ref for c in "{}*") or after.startswith(GONE):
             continue
-        elif ref not in tracked and not any(path.startswith(ref.rstrip("/") + "/") for path in tracked):
-            found.append(f"{ref} is not in the repository")
+        else:
+            found += [f"{one} is not in the repository" for one in spread(ref) if not present(one, tracked)]
     return found
+
+
+def spread(ref):
+    """A review range like -r1..r3 names each round."""
+    m = re.search(r"-r(\d+)\.\.r(\d+)\.md$", ref)
+    if not m:
+        return [ref]
+    return [f"{ref[:m.start()]}-r{n}.md" for n in range(int(m.group(1)), int(m.group(2)) + 1)]
+
+
+def present(ref, tracked):
+    return ref in tracked or any(path.startswith(ref.rstrip("/") + "/") for path in tracked)
 
 
 def main():
     tracked = set(subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.splitlines())
     # Each must be caught: gaps, truncated names, unmarked local evidence.
-    bad = ["see `scripts/no-such.sh`", "`scripts/check.s`", "`tasks/reviews/no-such-r1.md`",
-           "log in .work/R1/run.log", "`.work/review/`"]
+    bad = ["see `scripts/no-such.sh`", "`scripts/check.s`", "`scripts/check..sh`", "`tasks/reviews/no-such-r1.md`",
+           "`tasks/reviews/R4.4-r1..r9.md`", "log in .work/R1/run.log", "`.work/review/`"]
     for text in bad:
         if not faults(text, tracked):
             sys.exit(f"FAIL: records.py passes {text!r}")
     if not faults("`tasks/R4-acceptance.md`", tracked - {"tasks/R4-acceptance.md"}):
         sys.exit("FAIL: records.py passes a removed task file")
-    good = "`scripts/check.sh`, `scripts/`, `scripts/gone.sh`（已移除）, .work/a.log（本机，未入库）, `.work/review/`（本机，未入库）"
+    good = "`scripts/check.sh`, `scripts/`, `tasks/reviews/R4.4-r1..r3.md`, `scripts/gone.sh`（已移除）, .work/a.log（本机，未入库）, `.work/review/`（本机，未入库）"
     if faults(good, tracked):
         sys.exit(f"FAIL: records.py rejects present or marked references: {faults(good, tracked)}")
     failed = []
