@@ -214,6 +214,7 @@ tests/scripts/windows-a11y.sh   真窗口 ElyDoc 与 ElyPDF：UI Automation 的 
 tests/scripts/linux-a11y.sh     同 windows-a11y.sh，经 AT-SPI 的 Text 接口（Orca 所读）：Xvfb 在容器里，私有 AT-SPI 总线，键鼠经 XTest（缺 docker、AT-SPI 的 Python 绑定或引擎时 SKIP）
 tests/scripts/windows-names.sh  真窗口七个应用：UI Automation 里每个可操作节点与 Tab 停靠点都有名字，Tab 走得到文档、F6 出得去（样本取自 a11y-samples.sh；缺引擎时 SKIP）
 tests/scripts/linux-names.sh    同上，并核对报给辅助技术的窗口位置与 X 窗口相符，经 AT-SPI：Xvfb 在容器里经 TCP，应用与私有 D-Bus、AT-SPI 总线在本机（缺 docker、AT-SPI 的 Python 绑定或引擎时 SKIP）
+tests/scripts/macos-names.sh    同上，经 macOS 的 AX（VoiceOver 所读，`ax-names.swift`）：应用空闲后才接入，窗口按钮不算（系统自命名），Tab 停靠点至少两个（窗口按钮是原生的）（需辅助功能权限）
 tests/scripts/windows-save-as.py  真窗口 ElyDoc：另存为里键入无扩展名的名字即存为 .docx，同名先问再替换（键鼠真输入，须桌面空闲；非 Windows 时 SKIP）
 tests/scripts/windows-types.sh  真安装程序以假类型 `.elyprobe` 写 HKCU：能打开、只在无处理程序时设默认与“新建”、假方案 `elyprobe:` 进“默认应用”而不接管、别的程序的登记与“新建”不动、换了文件夹后旧卸载不删新的、写不进即安装失败（缺 makensis 时 SKIP）
 tests/scripts/layout.sh        真窗口：六个应用在 640、800、1100 宽下无元素越出窗口左右，留截图（需辅助功能与屏幕录制权限）
