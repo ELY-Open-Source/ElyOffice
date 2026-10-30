@@ -89,10 +89,14 @@ for _ in 0..<10 where !active() {
 if !active() { log.append("error the app never came to the front") }
 // Tab 48, F6 97.
 var seen = Set<String>(), last = "", stops = 0, reached = false
+// Where F6 landed: a stop, checked before Tab moves on.
+var landed: AXUIElement? = nil
 for _ in 0..<150 {
-    guard var node = press(48) else { log.append("no focus after stop \(stops)"); break }
+    let tabbed = landed == nil
+    guard var node = landed ?? press(48) else { log.append("no focus after stop \(stops)"); break }
+    landed = nil
     // A document keeps Tab; F6 leaves it.
-    if key(node) == last {
+    if tabbed && key(node) == last {
         guard let left = press(97) else { log.append("no focus after stop \(stops)"); break }
         node = left
         if key(node) == last { log.append("trapped in \(last)"); break }
@@ -110,7 +114,7 @@ for _ in 0..<150 {
         reached = true
         guard let out = press(97) else { log.append("no focus after F6"); break }
         if pageOf(out) != nil { log.append("F6 stays in page [\(page)] at \(key(out))") }
-        last = key(out)
+        landed = out
     }
 }
 // Tab must lead back to the page.

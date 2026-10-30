@@ -57,6 +57,12 @@ function Press([byte]$key) {
     $A::FocusedElement
 }
 function IsPage($e) { $Page -and $e.Current.Name -eq $Page -and @('Edit', 'Document') -contains (Kind $e) }
+function PageOf($e) {
+    for ($up = $e; $up; $up = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($up)) {
+        if (IsPage $up) { return $true }
+    }
+    $false
+}
 # The page's top edge, where its focus ring draws.
 function Edge($box) {
     $shot = New-Object System.Drawing.Bitmap ([int]$box.Width), 2
@@ -95,11 +101,15 @@ try {
     $seen = @{}
     $last = ''
     $stops = 0
+    # Where F6 landed: a stop, checked before Tab moves on.
+    $landed = $null
     foreach ($i in 1..150) {
-        $focused = Press 0x09
+        $tabbed = -not $landed
+        $focused = if ($tabbed) { Press 0x09 } else { $landed }
+        $landed = $null
         $key = $focused.GetRuntimeId() -join '.'
         # A document keeps Tab; F6 leaves it.
-        if ($key -eq $last) {
+        if ($tabbed -and $key -eq $last) {
             $focused = Press 0x75
             $key = $focused.GetRuntimeId() -join '.'
             if ($key -eq $last) { $log.Add("trapped in $(Kind $focused) [$($focused.Current.Name)]"); break }
@@ -118,8 +128,12 @@ try {
         if ((IsPage $focused) -and (Kind $focused) -eq 'Document') {
             $ring = @{ Box = $focused.Current.BoundingRectangle; Shot = (Edge $focused.Current.BoundingRectangle) }
         }
-        for ($up = $focused; $up -and -not $reached; $up = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($up)) {
-            $reached = IsPage $up
+        if (-not $reached -and (PageOf $focused)) {
+            $reached = $true
+            # At the page, F6 must take focus out of it.
+            $after = Press 0x75
+            if (PageOf $after) { $log.Add("F6 stays in page [$Page] at $(Kind $after) [$($after.Current.Name)]") }
+            $landed = $after
         }
     }
     # Tab must lead back to the page.
@@ -143,7 +157,7 @@ while IFS='|' read -r app sample page; do
     -File "$file" -Page "$page" -Data "$(w "$work/data-$1")" -Out "$(w "$work/$1.log")" </dev/null
   log=$(tr -d '\r' <"$work/$1.log")
   stops=$(printf '%s\n' "$log" | sed -n 's/^stops //p')
-  if printf '%s\n' "$log" | grep -qE '^(unnamed|nameless|unreached|no page|no visible|trapped|error)' || [ "${stops:-0}" -lt 3 ]; then
+  if printf '%s\n' "$log" | grep -qE '^(unnamed|nameless|unreached|no page|no visible|trapped|F6 stays|error)' || [ "${stops:-0}" -lt 3 ]; then
     echo "FAIL: $1" >&2
     printf '%s\n' "$log" >&2
     failed=1

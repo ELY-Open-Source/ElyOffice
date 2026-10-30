@@ -144,10 +144,14 @@ try:
     placed()
     give_focus()
     seen, last, stops, reached = set(), None, 0, False
+    # Where F6 landed: a stop, checked before Tab moves on.
+    landed = None
     for _ in range(150):
-        node = press(TAB)
+        tabbed = landed is None
+        node = press(TAB) if tabbed else landed
+        landed = None
         # A document keeps Tab; F6 leaves it.
-        if node is not None and key_of(node) == last:
+        if tabbed and node is not None and key_of(node) == last:
             node = press(F6)
             if node is not None and key_of(node) == last:
                 log.append(f"trapped in {last}")
@@ -171,7 +175,7 @@ try:
                 break
             if page_of(after) is not None:
                 log.append(f"F6 stays in page [{page}] at {key_of(after)}")
-            last = key_of(after)
+            landed = after
     # Tab must lead back to the page.
     if page and not reached:
         log.append(f"unreached page [{page}]")
