@@ -110,6 +110,7 @@ fn open<V: Render>(
     crate::opening::home(app, hands, cx);
     // Settings alone would hold the lock yet open nothing.
     cx.on_window_closed(move |cx, closed| {
+        log::info!("ui: a window closed, {} open", cx.windows().len());
         if crate::tray::closed(closed, cx) {
             cx.quit();
         }

@@ -84,6 +84,11 @@ fn trimmed(path: &Path, cap: u64) -> std::io::Result<()> {
     fs::write(path, &tail[whole..])
 }
 
+/// Milliseconds in each stamp: the bench times by them.
+fn built(builder: &mut Builder, target: Target) -> Logger {
+    builder.format_timestamp_millis().target(target).build()
+}
+
 /// Logs to stderr and a file. `ELY_LOG` sets level.
 pub fn init(app: AppId) -> Result<()> {
     init_in(app, &data_dir(app)?)
@@ -98,9 +103,10 @@ pub fn init_in(app: AppId, dir: &Path) -> Result<()> {
         .append(true)
         .open(&path)
         .with_context(|| format!("cannot open {}", path.display()))?;
-    let logger = Builder::from_env(Env::new().filter_or("ELY_LOG", "info"))
-        .target(Target::Pipe(Box::new(Tee(file))))
-        .build();
+    let logger = built(
+        &mut Builder::from_env(Env::new().filter_or("ELY_LOG", "info")),
+        Target::Pipe(Box::new(Tee(file))),
+    );
     let level = logger.filter();
     log::set_boxed_logger(Box::new(Private(logger))).context("a logger is already set")?;
     log::set_max_level(level);
@@ -157,10 +163,10 @@ mod filter_tests {
 
     fn logged(target: &str, level: Level, args: std::fmt::Arguments) -> String {
         let out = Shared::default();
-        let logger = Builder::new()
-            .filter_level(log::LevelFilter::Trace)
-            .target(Target::Pipe(Box::new(out.clone())))
-            .build();
+        let logger = super::built(
+            Builder::new().filter_level(log::LevelFilter::Trace),
+            Target::Pipe(Box::new(out.clone())),
+        );
         let record = Record::builder()
             .target(target)
             .level(level)
@@ -183,5 +189,13 @@ mod filter_tests {
         assert!(other.contains("something else"), "{other}");
         let wire = logged("ureq::unit", Level::Debug, format_args!("bytes"));
         assert!(wire.is_empty(), "{wire}");
+    }
+
+    #[test]
+    fn a_line_is_stamped_to_the_millisecond() {
+        let line = logged("ely", Level::Info, format_args!("ready"));
+        let stamp = line.trim_start_matches('[').split(' ').next().unwrap();
+        let fraction = stamp.trim_end_matches('Z').rsplit_once('.').map(|(_, ms)| ms);
+        assert!(fraction.is_some_and(|ms| ms.len() == 3 && ms.bytes().all(|b| b.is_ascii_digit())), "{line}");
     }
 }

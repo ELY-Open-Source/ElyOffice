@@ -357,7 +357,7 @@ impl Worker {
                     self.forget(id)?;
                     return Err(error);
                 }
-                log::info!("pdf-worker: opened document {id}, locked {locked}");
+                log::info!("pdf-worker: opened document {id}, locked {locked}, {} documents open", self.docs.len());
                 Ok(Pack::new().u64(id).u64(u64::from(locked)).bytes())
             }
             tag::UNLOCK => {
@@ -435,6 +435,7 @@ impl Worker {
         if let Some(copy) = doc.copy {
             std::fs::remove_file(copy)?;
         }
+        log::info!("pdf-worker: closed document {id}, {} documents open", self.docs.len());
         Ok(())
     }
 }

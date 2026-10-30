@@ -207,10 +207,6 @@ pub trait Opening: Host {
                 text(cx, "office.untitled", &[("n", &n)])
             }
         };
-        log::info!(
-            "{}: opened {name} as tab {id}, risk {risk:?}",
-            Self::KIND.app.slug()
-        );
         self.watch(id, &view, cx);
         window.focus(&Self::Engine::focus(view.read(cx)), cx);
         // Tabs keep the order their loads began.
@@ -232,7 +228,14 @@ pub trait Opening: Host {
         });
         self.core_mut().active = Some(id);
         // Points from now on; a crash copy comes back unsaved.
-        let named = self.tab(id).expect("just opened").name.clone();
+        let tab = self.tab(id).expect("just opened");
+        let named = tab.name.clone();
+        log::info!(
+            "{}: opened {named} as tab {id}, risk {:?}, {} tabs open",
+            Self::KIND.app.slug(),
+            tab.risk,
+            self.core().tabs.len()
+        );
         crate::Recovering::keep_tab(self, id, &named, tried, cx);
         crate::Recovering::reopened(self, id, &path, cx);
         cx.notify();

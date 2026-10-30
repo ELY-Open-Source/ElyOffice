@@ -5,7 +5,10 @@ use std::os::windows::io::AsRawHandle as _;
 use super::*;
 
 /// Load and close cycles after the first ones fill caches.
-const CYCLES: u32 = 20;
+const CYCLES: usize = 20;
+
+/// Opened once on first use, plus the thread pool's churn.
+const ONCE: u32 = 8;
 
 fn handles(worker: &Worker) -> u32 {
     let mut count = 0;
@@ -35,10 +38,15 @@ fn closed_documents_leave_no_handles() {
         cycle(&mut worker);
     }
     let before = handles(&worker);
-    for _ in 0..CYCLES {
-        cycle(&mut worker);
-    }
-    let after = handles(&worker);
-    // A leak of one handle a cycle fails here.
-    assert!(after < before + CYCLES, "{CYCLES} cycles took the worker from {before} to {after} handles");
+    let counts: Vec<u32> = (0..CYCLES)
+        .map(|_| {
+            cycle(&mut worker);
+            handles(&worker)
+        })
+        .collect();
+    let quarter = CYCLES / 4;
+    let late = *counts[CYCLES - quarter..].iter().min().expect("cycles");
+    let early = *counts[..quarter].iter().max().expect("cycles");
+    assert!(late <= early, "the handles climb: {counts:?}");
+    assert!(late <= before + ONCE, "{before} handles became {counts:?}");
 }

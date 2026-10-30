@@ -10,7 +10,8 @@ import time
 import zipfile
 import xml.etree.ElementTree as ET
 
-import bench
+import drive
+import run
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
@@ -46,26 +47,28 @@ def main():
     if sys.platform != "darwin":
         sys.exit("SKIP: the soak drives macOS windows")
     work = tempfile.mkdtemp()
-    bench.tools(work)
-    fixture = os.path.join(bench.ROOT, "tests", "fixtures", "office", "t.docx")
+    run.HOST = host = drive.Mac(work)
+    fixture = os.path.join(run.ROOT, "tests", "fixtures", "office", "t.docx")
     paths = {name: os.path.join(work, name) for name in ["a.docx", "b.docx"]}
     for path in paths.values():
         shutil.copy(fixture, path)
-    app = bench.App("ely-doc", os.path.join(work, "home"), list(paths.values()))
+    app = run.App("ely-doc", os.path.join(work, "home"), list(paths.values()))
     def save():
         """Saves through the menu: a keystroke can be lost."""
-        bench.sh("osascript", "-e", f'tell application "System Events" to tell (first process whose unix id is {app.process.pid}) '
+        drive.sh("osascript", "-e", f'tell application "System Events" to tell (first process whose unix id is {app.process.pid}) '
                  'to click menu item "Save" of menu "File" of menu bar 1')
 
     def press(title):
         """Chooses a tab, then puts the keyboard in its document."""
-        bench.sh(os.path.join(work, "ax-press"), str(app.process.pid), title, "AXRadioButton")
+        pressed = drive.sh(os.path.join(work, "ax-press"), str(app.process.pid), title, "AXRadioButton").strip()
+        if pressed != "pressed":
+            raise RuntimeError(f"the {title} tab: {pressed}")
         time.sleep(0.5)
-        area = next(line for line in app.ax().splitlines() if line.startswith("AXTextArea"))
+        area = next(line for line in host.controls(app.process.pid).splitlines() if line.startswith("AXTextArea"))
         x, y = area.rsplit("at=", 1)[1].split(",")
-        bench.sh(os.path.join(work, "click"), x, y)
+        drive.sh(os.path.join(work, "click"), x, y, str(app.process.pid))
         # The click may land mid-word; typing goes at the end.
-        bench.keys("key code 119 using command down")
+        host.keys("key code 119 using command down")
         time.sleep(0.3)
 
     try:
@@ -75,12 +78,12 @@ def main():
         while time.monotonic() < end:
             n += 1
             press("a.docx")
-            bench.keys(f'keystroke " A{n} "')
+            host.keys(f'keystroke " A{n} "')
             save()
             press("b.docx")
-            bench.keys(f'keystroke "B{n}"')
+            host.keys(f'keystroke "B{n}"')
             time.sleep(0.3)
-            bench.keys('keystroke "z" using command down')
+            host.keys('keystroke "z" using command down')
             save()
             time.sleep(0.5)
             if n % 10 == 0:

@@ -18,6 +18,9 @@ public static class Input {
     [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr window);
     [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
     [DllImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")] public static extern uint Owner(IntPtr window, out uint pid);
+    [DllImport("user32.dll")] public static extern IntPtr GetKeyboardLayout(uint thread);
+    [DllImport("user32.dll")] public static extern IntPtr LoadKeyboardLayout(string id, uint flags);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr window, uint message, IntPtr w, IntPtr l);
     // The foreground's input queue lets another take the front.
     public static bool Front(IntPtr window) {
         uint ours = GetCurrentThreadId(), theirs = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
@@ -67,14 +70,33 @@ function Holder {
     [Input]::Owner([Input]::GetForegroundWindow(), [ref]$pid0) | Out-Null
     "$((Get-Process -Id $pid0 -ErrorAction SilentlyContinue).ProcessName) ($pid0)"
 }
+# An input method would compose the keys; use US English.
+function Plain {
+    $window = [Input]::GetForegroundWindow()
+    $thread = [Input]::GetWindowThreadProcessId($window, [IntPtr]::Zero)
+    $us = [Input]::LoadKeyboardLayout('00000409', 1)
+    if ([Input]::GetKeyboardLayout($thread) -eq $us) { return }
+    # WM_INPUTLANGCHANGEREQUEST
+    [Input]::PostMessage($window, 0x50, [IntPtr]::Zero, $us) | Out-Null
+    for ($try = 0; $try -lt 40; $try++) {
+        Start-Sleep -Milliseconds 50
+        if ([Input]::GetKeyboardLayout($thread) -eq $us) { [Console]::Error.WriteLine("drive: switched process $Id to US English"); return }
+    }
+    throw "process $Id keeps input method $('{0:x}' -f [Input]::GetKeyboardLayout($thread).ToInt64()); no input sent"
+}
+# When the last input left, for bench.py to time from.
+function Sent { $script:sent = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() }
 # SendKeys' journal hook drops keys on Windows 11.
 function Key([byte]$vk, [bool]$up) {
-    if (-not $up) { Ours }
-    [Input]::keybd_event($vk, 0, $(if ($up) { 2 } else { 0 }), [UIntPtr]::Zero)
+    if (-not $up) { Ours; Plain; Sent }
+    # Page and arrow keys are extended keys.
+    $flags = $(if ($up) { 2 } else { 0 }) -bor $(if ($vk -ge 0x21 -and $vk -le 0x28) { 1 } else { 0 })
+    [Input]::keybd_event($vk, 0, $flags, [UIntPtr]::Zero)
 }
 function Tap([byte]$vk) { Key $vk $false; Key $vk $true }
 function ClickAt([int]$x, [int]$y) {
     [Input]::SetCursorPos($x, $y) | Out-Null
+    Sent
     [Input]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
     [Input]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
 }
@@ -109,6 +131,7 @@ switch ($Command) {
         }
     }
     'enter' { Tap 0x0D }
+    'key' { Tap (@{ pagedown = 0x22; tab = 0x09 })[$Arg] }
     'chord' {
         Key 0x11 $false
         Tap ([byte][char]$Arg.ToUpper())
@@ -118,13 +141,16 @@ switch ($Command) {
         $element = Named $Arg
         if (-not $element) { throw "no control named $Arg" }
         $invoke = $null
-        if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) { $invoke.Invoke() } else { Click $element }
+        if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) { Sent; $invoke.Invoke() } else { Click $element }
     }
     'shows' { if (Named $Arg) { 'yes' } else { 'no' } }
     'field' {
         $edit = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
-        $field = (Window).FindFirst('Descendants', $edit)
-        if (-not $field) { throw 'no text field' }
+        $until = (Get-Date).AddSeconds(10)
+        while (-not ($field = (Window).FindFirst('Descendants', $edit))) {
+            if ((Get-Date) -gt $until) { throw "no text field in process $Id in 10 s" }
+            Start-Sleep -Milliseconds 100
+        }
         Click $field
     }
     'machine' {
@@ -136,3 +162,4 @@ switch ($Command) {
     }
     default { throw "unknown command $Command" }
 }
+if ($script:sent) { "sent $($script:sent)" }

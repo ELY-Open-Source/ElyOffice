@@ -367,6 +367,7 @@ impl Tree {
             net: None,
             _watcher: watcher,
         });
+        log::info!("tree: {} repositories open", self.repos.len());
         self.activate(Some(id), cx);
         self.read(id, cx);
         self.read_me(id, cx);
@@ -475,7 +476,7 @@ impl Tree {
         if self.look.as_ref().is_some_and(|look| look.repo() == id) {
             self.look = None;
         }
-        log::info!("tree: closed {}", closed.repo.root.display());
+        log::info!("tree: closed {}, {} repositories open", closed.repo.root.display(), self.repos.len());
         if self.active == Some(id) {
             // The closed box goes with its repository.
             self.active = None;

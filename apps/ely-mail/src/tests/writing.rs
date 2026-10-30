@@ -316,3 +316,20 @@ fn a_message_kept_as_headers_is_answered_without_quoting() {
         assert!(compose.before.is_none(), "no words to quote");
     });
 }
+
+#[test]
+fn the_shared_new_command_opens_a_message() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path()).unwrap();
+    store.add_account(&account("me@example.com")).unwrap();
+    drop(store);
+    let mut cx = TestAppContext::single();
+    let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
+    // As Ctrl+N and File > New send it.
+    cx.update(|window, app| {
+        let focus = mail.read(app).focus.clone();
+        window.focus(&focus, app);
+        window.dispatch_action(Box::new(ely_ui::commands::New), app)
+    });
+    opened(cx);
+}

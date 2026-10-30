@@ -198,6 +198,7 @@ impl Mail {
             text(cx, "mail.no_subject", &[]),
         );
         let names = none.clone();
+        let searched = search.is_some();
         self.with_store(
             cx,
             move |store| {
@@ -247,6 +248,8 @@ impl Mail {
                             _ => rows,
                         };
                         mail.queued = queued;
+                        let shown = rows.as_ref().map_or(0, |rows| rows.rows.len());
+                        log::info!("mail: list read {read} shows {shown} messages, searched {searched}");
                         mail.listing.show(rows.map(Ok));
                     }
                     Err(error) => {

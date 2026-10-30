@@ -257,3 +257,29 @@ fn files_opened_together_keep_the_order_asked(cx: &mut TestAppContext) {
     });
     assert_eq!(opened, names);
 }
+
+#[gpui::test]
+fn a_closed_tab_frees_its_view_and_document(cx: &mut TestAppContext) {
+    use ely_office::prelude::*;
+    let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+    let (a, b) = (files.path().join("a.md"), files.path().join("b.md"));
+    std::fs::write(&a, "# A\n\nOne.\n").expect("a");
+    std::fs::write(&b, "# B\n\nTwo.\n").expect("b");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &a, cx);
+    for _ in 0..3 {
+        open(&desk, &b, cx);
+        let (id, view, document) = desk.read_with(cx, |desk, cx| {
+            let tab = desk.core.tabs.last().expect("b's tab");
+            (tab.id, tab.view.downgrade(), tab.view.read(cx).document().downgrade())
+        });
+        // Drawn once, as the window does.
+        cx.update(|window, _| window.refresh());
+        cx.run_until_parked();
+        desk.update(cx, |desk, cx| desk.close_tab(id, cx));
+        cx.update(|window, _| window.refresh());
+        cx.run_until_parked();
+        assert!(view.upgrade().is_none(), "the view outlives its tab");
+        assert!(document.upgrade().is_none(), "the document outlives its tab");
+    }
+}

@@ -2,7 +2,6 @@
 
 pub(super) const EN: &[(&str, &str)] = &[
     ("mail.boxes.imported", "{name} (on this computer)"),
-    ("mail.eml.open", "Open Message File…"),
     ("mail.eml.save", "Save as EML…"),
     ("mail.eml.title", "Message File"),
     ("mail.eml.unread", "The message file could not be read"),
@@ -29,7 +28,6 @@ pub(super) const EN: &[(&str, &str)] = &[
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("mail.boxes.imported", "{name}（本机）"),
-    ("mail.eml.open", "打开邮件文件…"),
     ("mail.eml.save", "另存为 EML…"),
     ("mail.eml.title", "邮件文件"),
     ("mail.eml.unread", "邮件文件读不出"),

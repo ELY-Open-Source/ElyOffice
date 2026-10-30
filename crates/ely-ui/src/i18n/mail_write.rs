@@ -1,8 +1,6 @@
 //! ElyMail's writing: the compose window and the sender's identity.
 
 pub(super) const EN: &[(&str, &str)] = &[
-    ("mail.menu.message", "Message"),
-    ("mail.write.new", "New Message"),
     ("mail.write.title", "New Message"),
     ("mail.write.from", "From"),
     ("mail.write.plain", "Plain text"),
@@ -70,8 +68,6 @@ pub(super) const EN: &[(&str, &str)] = &[
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
-    ("mail.menu.message", "邮件"),
-    ("mail.write.new", "写邮件"),
     ("mail.write.title", "新邮件"),
     ("mail.write.from", "发件人"),
     ("mail.write.plain", "纯文本"),

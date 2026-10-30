@@ -106,6 +106,7 @@ impl Host for Desk {
     /// A closed tab's unsaved text is gone for good (§6.2).
     fn tab_closed(&mut self, tab: &ely_office::Tab<Self::Extra, Mark>, cx: &mut Context<Self>) {
         let path = tab.session.path().map(std::path::Path::to_path_buf);
+        self.remembered.remove(&tab.id);
         self.drop_slot(&tab.extra.slot, path, tab.name.to_string(), cx);
     }
 

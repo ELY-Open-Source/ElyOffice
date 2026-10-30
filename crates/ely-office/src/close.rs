@@ -245,7 +245,7 @@ pub trait Closing: Host {
         if let Err(error) = std::fs::remove_dir_all(&tab.work) {
             log::warn!("office: scratch {} stays: {error}", tab.work.display());
         }
-        log::info!("office: closed {}", tab.name);
+        log::info!("office: closed {}, {} tabs open", tab.name, self.core().tabs.len());
         cx.notify();
         Some(tab.doc)
     }

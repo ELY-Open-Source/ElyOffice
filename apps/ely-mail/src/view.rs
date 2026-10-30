@@ -11,7 +11,7 @@ use ely_gpui_component::{
 };
 use ely_mail_engine::{AccountId, Auth, LocalFolder, Protocol, Security, Server, sync};
 use ely_platform::AppId;
-use ely_ui::Shell;
+use ely_ui::{Shell, commands};
 use gpui::{
     AnyElement, App, Context, InteractiveElement as _, IntoElement, ParentElement as _, Render,
     SharedString, Styled as _, Window, div,
@@ -281,8 +281,8 @@ impl Render for Mail {
             )
             .on_action(cx.listener(|mail, _: &menu::RemoveAccount, _, cx| mail.ask_remove(cx)))
             .on_action(cx.listener(|mail, _: &menu::SyncAll, _, cx| mail.sync_all(cx)))
-            .on_action(cx.listener(|mail, _: &menu::NewMessage, _, cx| mail.write_new(cx)))
-            .on_action(cx.listener(|mail, _: &menu::OpenMessageFile, _, cx| mail.pick_eml(cx)))
+            .on_action(cx.listener(|mail, _: &commands::New, _, cx| mail.write_new(cx)))
+            .on_action(cx.listener(|mail, _: &commands::Open, _, cx| mail.pick_eml(cx)))
             .child(shell)
             .children(self.add_dialog(cx))
             .children(self.remove_dialog(cx))
