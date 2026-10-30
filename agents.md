@@ -27,7 +27,7 @@ crates/      ely-ui  ely-platform  ely-ipc（应用与引擎 worker 之间的帧
 reference/   上游源码，只读，不属于本项目，不审查
 engines/     下载的二进制与引擎构建产物，不入库，不审查；mupdf-src 是 reference/mupdf 加 patches/mupdf 的构建副本
 patches/     对上游的补丁，随源码发行（libreoffice、mupdf）
-vendor/      crates.io 上游 crate 的副本加本项目的修复，经工作区 `[patch.crates-io]` 换入（accesskit_atspi_common、gpui-pre、gpui-pre-linux、gpui-pre-windows、mail-parser、zbus）；首个提交为原样，其后是修复
+vendor/      crates.io 上游 crate 的副本加本项目的修复，经工作区 `[patch.crates-io]` 换入（accesskit_atspi_common、accesskit_unix、gpui-pre、gpui-pre-linux、gpui-pre-windows、mail-parser、zbus）；首个提交为原样，其后是修复
 packaging/   三端打包脚本，apps.tsv 是八个应用的二进制名、名字、桌面分类、发布批次与许可（Linux 包与 Nix 的许可字段）；icons/ 由图标母版渲染各端格式；libreoffice/ely.xcd 是内核的默认配置层
 assets/      icons/ 是八个应用的图标母版（SVG）与渲染出的 icns、png、ico，规则见其 README
 dist/        打包产物，不入库
