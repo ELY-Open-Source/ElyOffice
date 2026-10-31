@@ -136,13 +136,20 @@ fn every_toc_entry_has_its_heading() {
     }
 }
 
+/// The quickest of five: load only ever adds time.
+fn fastest(mut time: impl FnMut() -> std::time::Duration) -> std::time::Duration {
+    (0..5).map(|_| time()).min().expect("five runs")
+}
+
 #[test]
 fn a_long_html_block_writes_in_linear_time() {
     let took = |count: usize| {
         let source = format!("<div>{}</div>\n", "<b>x</b> ".repeat(count));
-        let start = std::time::Instant::now();
-        html(&source);
-        start.elapsed()
+        fastest(|| {
+            let start = std::time::Instant::now();
+            html(&source);
+            start.elapsed()
+        })
     };
     let (small, large) = (took(8_000), took(32_000));
     // Four times the input; squared would be sixteen.
@@ -161,10 +168,12 @@ fn notes_under_deep_marks_write_in_linear_time() {
             "x[^n] ".repeat(count)
         );
         let tree = markdown_tree(&source);
-        let mut placed = Placed::new(None, &Pictures::Inline);
-        let start = std::time::Instant::now();
-        write(&tree, &source, &mut placed, &mut Page::default()).expect("written");
-        start.elapsed()
+        fastest(|| {
+            let mut placed = Placed::new(None, &Pictures::Inline);
+            let start = std::time::Instant::now();
+            write(&tree, &source, &mut placed, &mut Page::default()).expect("written");
+            start.elapsed()
+        })
     };
     // Parsing grows squared upstream; untimed.
     let (small, large) = (took(4_000), took(16_000));
@@ -283,10 +292,12 @@ fn formulas_far_down_a_page_write_in_linear_time() {
         let filler = "word ".repeat(40);
         let source = format!("x $\\frac{{a}}$ {filler}\n\n").repeat(count);
         let tree = markdown_tree(&source);
-        let mut placed = Placed::new(None, &Pictures::Inline);
-        let start = std::time::Instant::now();
-        write(&tree, &source, &mut placed, &mut Page::default()).expect("written");
-        start.elapsed()
+        fastest(|| {
+            let mut placed = Placed::new(None, &Pictures::Inline);
+            let start = std::time::Instant::now();
+            write(&tree, &source, &mut placed, &mut Page::default()).expect("written");
+            start.elapsed()
+        })
     };
     let (small, large) = (took(1_000), took(4_000));
     assert!(large < small * 8, "{small:?} then {large:?}");
