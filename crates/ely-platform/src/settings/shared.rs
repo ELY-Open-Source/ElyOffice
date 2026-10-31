@@ -21,6 +21,7 @@ pub enum Language {
     #[default]
     System,
     English,
+    Spanish,
     Chinese,
 }
 
@@ -126,7 +127,7 @@ impl Appearance {
 }
 
 impl Language {
-    pub const ALL: [(Self, &'static str); 3] = [(Self::System, "system"), (Self::English, "en-US"), (Self::Chinese, "zh-CN")];
+    pub const ALL: [(Self, &'static str); 4] = [(Self::System, "system"), (Self::English, "en-US"), (Self::Spanish, "es-ES"), (Self::Chinese, "zh-CN")];
 }
 
 impl Motion {

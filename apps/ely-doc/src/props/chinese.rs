@@ -134,3 +134,16 @@ fn builtin_styles_read_in_the_interface_language(cx: &mut TestAppContext) {
         assert_eq!(builtin::shown(&PARAGRAPH, "Text body", app), "Body Text");
     });
 }
+
+#[gpui::test]
+fn spanish_builtin_names_preserve_user_and_kernel_names(cx: &mut gpui::TestAppContext) {
+    cx.update(|app| {
+        ely_ui::i18n::install_as("es-ES", app);
+        assert_eq!(builtin::shown(&PARAGRAPH, "Text body", app), "Cuerpo de texto");
+        assert_eq!(builtin::shown(&PAGE, "Standard", app), "Estilo de página predeterminado");
+        assert_eq!(builtin::shown(&CHARACTER, "Standard", app), "Sin estilo de carácter");
+        assert_eq!(builtin::shown(&PARAGRAPH, "Mi estilo", app), "Mi estilo");
+        assert_eq!(builtin::listed(&PARAGRAPH, "Body Text"), "Text body");
+        assert_eq!(builtin::shown(&PARAGRAPH, "Text body (user)", app), "Text body");
+    });
+}
