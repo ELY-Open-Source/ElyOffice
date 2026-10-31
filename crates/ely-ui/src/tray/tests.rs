@@ -70,7 +70,7 @@ fn an_unkept_app_quits_with_its_window(cx: &mut TestAppContext) {
 fn a_kept_app_closes_to_the_tray_and_opens_again(cx: &mut TestAppContext) {
     installed(cx);
     let Some(_host) = host::serve() else {
-        return eprintln!("SKIP: no dbus-daemon");
+        return eprintln!("SKIP: no tray host");
     };
     let first = open(cx);
     let reopened = Rc::new(Cell::new(0));
@@ -110,8 +110,11 @@ mod host;
 
 #[cfg(windows)]
 mod host {
-    /// Windows needs no host.
+    /// The taskbar's notification area; desktopless logons lack it.
     pub fn serve() -> Option<()> {
-        Some(())
+        use windows_sys::Win32::UI::WindowsAndMessaging::FindWindowW;
+        let class: Vec<u16> = "Shell_TrayWnd\0".encode_utf16().collect();
+        let tray = unsafe { FindWindowW(class.as_ptr(), std::ptr::null()) };
+        (!tray.is_null()).then_some(())
     }
 }

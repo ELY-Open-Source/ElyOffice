@@ -100,13 +100,13 @@ fi
 # The apps take no manifest without its signature.
 ${inside[@]+"${inside[@]}"} packaging/sign.sh "$dist"/*.json
 
-# The tag's release, made by whichever platform comes first.
+# A pre-release, made by whichever platform comes first.
 repo=ELY-Open-Source/ElyOffice
 api=https://api.github.com/repos/$repo
 auth=(-H "Authorization: Bearer $ELY_RELEASE_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
 release_id() { curl -fsS "${auth[@]}" "$api/releases/tags/$tag" | python3 -c 'import json, sys; print(json.load(sys.stdin)["id"])' | tr -d '\r'; }
 if ! id=$(release_id 2>/dev/null); then
-  body="{\"tag_name\": \"$tag\", \"name\": \"Ely Office $version\"}"
+  body="{\"tag_name\": \"$tag\", \"name\": \"Ely Office $version\", \"prerelease\": true}"
   # Another platform may make it first (422); the read decides.
   curl -fsS "${auth[@]}" -H "Content-Type: application/json" -d "$body" "$api/releases" >/dev/null || true
   id=$(release_id)

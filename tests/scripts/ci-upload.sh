@@ -24,9 +24,11 @@ export STATE=$work/uploads
 cat >"$work/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 url=${!#}
-case "$* " in *" -X DELETE "*) method=DELETE ;; *) method=GET ;; esac
+case "$* " in *" -X DELETE "*) method=DELETE ;; *" -d "*) method=POST ;; *) method=GET ;; esac
 case $method:$url in
-  GET:*/releases/tags/*) echo '{"id": 1}' ;;
+  GET:*/releases/tags/*) [ -s "$STATE.made" ] || exit 22; echo '{"id": 1}' ;;
+  POST:*/releases)
+    for arg; do [ "${prev:-}" != -d ] || echo "$arg" >>"$STATE.made"; prev=$arg; done ;;
   GET:*/releases/1/assets\?per_page=100\&page=1)
     python3 -c 'import json, sys; print(json.dumps([{"id": int(l.split()[0]), "name": l.split()[1]} for l in open(sys.argv[1]) if l.strip()]))' "$STATE" ;;
   GET:*/releases/1/assets\?per_page=100\&page=*) echo '[]' ;;
@@ -102,6 +104,10 @@ run macos
 [ "$(uploads 'source' macos)" -eq 0 ] || fail "macOS uploaded source: $(cat "$STATE")"
 [ "$(uploads 'App-macos.dmg' macos)" -eq 1 ] || fail "macOS skipped its dmg"
 [ "$(uploads 'app-macos.json.sig' macos)" -eq 1 ] || fail "macOS left its manifest unsigned: $(cat "$STATE")"
+# Made once, as a pre-release.
+[ "$(wc -l <"$STATE.made")" -eq 1 ] || fail "releases made: $(cat "$STATE.made")"
+python3 -c 'import json, sys; assert json.load(open(sys.argv[1]))["prerelease"] is True' "$STATE.made" ||
+  fail "a public release from one platform: $(cat "$STATE.made")"
 : >"$CARGO_LOG"
 run linux
 [ "$(cat "$CARGO_LOG")" = "$gate" ] || fail "Linux gate ran: $(cat "$CARGO_LOG")"

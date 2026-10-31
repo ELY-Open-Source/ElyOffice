@@ -77,6 +77,10 @@ jobs:
           git -C "$dir" remote set-url origin https://github.com/ELY-Open-Source/ElyOffice.git
           git -C "$dir" fetch --force --tags origin
           git -C "$dir" checkout --force "${{ github.sha }}"
+          # Files unchanged since an older eol rule keep old endings.
+          stale() { git -C "$dir" ls-files --eol | awk -F'\t' '$1 ~ /attr\/(-text|text=auto eol=lf) *$/ { split($1, f, / +/); if (f[1] != "i/" substr(f[2], 3)) print $2 }'; }
+          stale | (cd "$dir" && xargs -r -d '\n' rm -f --) && git -C "$dir" checkout --force -- .
+          [ -z "$(stale)" ] || { echo "CRLF still in the checkout:"; stale; exit 1; }
           "$dir/scripts/ci.sh" windows "${{ github.ref_name }}"
   linux:
     # WSL keeps a kernel; Windows failures never stop Linux.
