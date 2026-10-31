@@ -1,6 +1,9 @@
 use ely_gpui_component::i18n::I18n;
 
 mod analysis;
+mod es;
+#[cfg(test)]
+mod spanish_tests;
 mod calc;
 mod data;
 mod doc;
@@ -46,6 +49,8 @@ const EN: &[(&str, &str)] = &[
     ("toast.open_failed", "The file did not open: {error}"),
     ("menu.app.switch_failed", "{app} did not open: {error}"),
     ("menu.file", "File"),
+    ("menu.edit", "Edit"),
+    ("menu.view", "View"),
     ("menu.insert", "Insert"),
     ("command.file.new", "New"),
     ("command.file.open", "Open…"),
@@ -104,6 +109,8 @@ const ZH_CN: &[(&str, &str)] = &[
     ("toast.open_failed", "文件没能打开：{error}"),
     ("menu.app.switch_failed", "{app} 没能打开：{error}"),
     ("menu.file", "文件"),
+    ("menu.edit", "编辑"),
+    ("menu.view", "视图"),
     ("menu.insert", "插入"),
     ("command.file.new", "新建"),
     ("command.file.open", "打开…"),
@@ -143,12 +150,12 @@ const ZH_CN: &[(&str, &str)] = &[
     ("gallery.delete.confirm", "删除页面"),
 ];
 
-/// zh-* maps to zh-CN; anything else to en-US.
+/// Supported languages share a catalog across regional variants.
 pub fn resolve(tag: &str) -> &'static str {
-    if tag.to_ascii_lowercase().starts_with("zh") {
-        "zh-CN"
-    } else {
-        "en-US"
+    match tag.split(['-', '_', '.', '@']).next().unwrap_or("").to_ascii_lowercase().as_str() {
+        "zh" => "zh-CN",
+        "es" => "es-ES",
+        _ => "en-US",
     }
 }
 
@@ -160,15 +167,17 @@ pub fn install(cx: &mut App) {
     install_as(locale, cx);
 }
 
-/// Installs the catalogs speaking `locale` (en-US or zh-CN).
+/// Installs the catalogs for the selected language.
 pub fn install_as(locale: &'static str, cx: &mut App) {
     #[cfg(target_os = "windows")]
     gpui_windows::set_text_language(locale);
     let (en, zh) = catalogs();
+    let spanish = spanish_catalog(&en);
     cx.set_global(
         I18n::new(locale)
             .catalog("en-US", &en)
-            .catalog("zh-CN", &zh),
+            .catalog("zh-CN", &zh)
+            .catalog("es-ES", &spanish),
     );
 }
 
@@ -248,6 +257,19 @@ fn catalogs() -> (Catalog, Catalog) {
         .copied()
         .collect();
     (en, zh)
+}
+
+/// Other apps retain English until their translations are contributed.
+fn spanish_catalog(en: &[(&'static str, &'static str)]) -> Catalog {
+    let translated = es::catalog();
+    en.iter().filter(|(key, _)| !spanish_key(key)).copied()
+        .chain(translated).collect()
+}
+
+fn spanish_key(key: &str) -> bool {
+    [EN, office::EN, doc::EN, refs::EN, tools::EN, table::EN,
+        calc::EN, data::EN, analysis::EN, output::EN, settings::EN]
+        .iter().any(|catalog| catalog.iter().any(|(each, _)| *each == key))
 }
 
 /// `ELY_LOCALE`, then the language setting, then the system's.

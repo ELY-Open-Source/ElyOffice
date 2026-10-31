@@ -4,6 +4,7 @@ use super::{Arg, Check, Command, command};
 
 /// Calculation, named ranges and tracing (TABLE-03..06).
 pub(super) const ROWS: &[Command] = &[
+    command("macro.apply", ".uno:EnterString", &[Arg::Text("ElyMacro")], Check::Result),
     command(
         "calc.auto",
         ".uno:AutomaticCalculation",

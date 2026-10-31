@@ -145,7 +145,7 @@ ElyMark 默认只显示必要的标签、文件和编辑入口。ElyMail 使用�
 | UX-05 | 长任务显示范围、状态、错误和可用的取消操作 | 导出、OCR、同步、Git 操作不阻塞窗口 |
 | UX-06 | 失败提示保留用户输入，并提供重试或另存路径 | 模拟权限不足、断网和磁盘不足 |
 | UX-07 | 危险操作说明具体对象和影响，不只显示“确定吗” | 检查删除、覆盖、硬重置和内容删除 |
-| UX-08 | 支持简体中文与英文；错误正文不用未解释的内部错误码替代 | 切换语言后检查主要界面 |
+| UX-08 | 支持简体中文与英文；ElyDoc、ElyTable 另支持西班牙语；错误正文不用未解释的内部错误码替代 | 切换语言后检查主要界面 |
 | UX-09 | 中文输入法组合输入、候选框、撤销与跨区域焦点一致 | 三端分别测试拼音输入和中英文混排 |
 | UX-10 | 多屏缩放变化不造成点击偏移、选区漂移或浮层遮挡 | 100%、150%、200% 缩放下跨屏拖动 |
 | UX-11 | 正文、标签、错误和状态不只通过颜色表达 | 检查灰度显示和高对比主题 |
@@ -278,6 +278,7 @@ LOK 负责文档模型、布局、计算、内容编辑与文件转换。GPUI �
 | TABLE-14 | 打印 | 支持打印区域、重复标题、分页、方向、缩放和 PDF 导出 |
 | TABLE-15 | 保护 | 支持内核已实现的工作表保护、锁定单元格和编辑许可；不绕过密码 |
 | TABLE-16 | 大数据浏览 | 只渲染可视区域；滚动不为所有空单元格创建 UI 对象 |
+| TABLE-17 | Experimental R macros | Explicit local Rscript execution over a typed copy of one selection; values, bold header and autofit in one undo step; preserve formulas, validate batches and reject conflicts; external .R files, timeout and visible errors; no packages or automatic execution |
 
 公式验收至少包含 SUM、AVERAGE、COUNT、SUMIF/SUMIFS、COUNTIF/COUNTIFS、IF/IFS、IFERROR、ROUND、文本与日期函数、INDEX/MATCH、VLOOKUP/XLOOKUP、FILTER、SORT 和 UNIQUE。该清单是产品目标；必须确认所锁定 LOK 版本及文件过滤器能完成计算和往返保存，不能因函数名可输入就认定已支持。
 

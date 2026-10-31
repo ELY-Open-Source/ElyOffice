@@ -137,3 +137,14 @@ fn a_write_overtaken_while_waiting_leaves_the_file() {
     assert!(!waiting.join().unwrap(), "the overtaken write is skipped");
     assert_eq!(store.read().unwrap()["author"], "Ana");
 }
+
+#[test]
+fn spanish_language_is_read_and_preserved() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = super::Store::at(dir.path().join("shared.json"));
+    store.set("language", json!("es-ES")).unwrap();
+    store.set("author", json!("Ana")).unwrap();
+    let fields = store.read().unwrap();
+    assert_eq!(super::Shared::from_fields(&fields).unwrap().language, super::Language::Spanish);
+    assert_eq!(fields["language"], "es-ES");
+}

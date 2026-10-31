@@ -1,7 +1,6 @@
 //! ElyPDF's reader.
 
 pub(super) const EN: &[(&str, &str)] = &[
-    ("menu.edit", "Edit"),
     ("pdf.failed", "{what} failed: {error}"),
     ("pdf.status.page", "Page {n} of {count}"),
     ("pdf.copy", "Copy"),
@@ -227,7 +226,6 @@ pub(super) const EN: &[(&str, &str)] = &[
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
-    ("menu.edit", "编辑"),
     ("pdf.failed", "{what}失败：{error}"),
     ("pdf.status.page", "第 {n} 页，共 {count} 页"),
     ("pdf.copy", "复制"),

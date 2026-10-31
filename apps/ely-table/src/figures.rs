@@ -94,6 +94,18 @@ fn fields(status: &str) -> Vec<&str> {
 
 #[cfg(test)]
 mod tests {
+    #[gpui::test]
+    fn spanish_status_translates_labels_without_changing_values(cx: &mut gpui::TestAppContext) {
+        cx.update(|app| {
+            ely_ui::i18n::install_as("es-ES", app);
+            assert_eq!(super::label("Average: 21; Sum: 42", app), "Promedio 21  Suma 42");
+            assert_eq!(super::label("Sum: $1,234.50", app), "Suma $1,234.50");
+            for (english, key) in super::ERRORS {
+                assert_eq!(super::label(english, app), super::Book::text(app, key, &[]));
+            }
+        });
+    }
+
     #[test]
     fn kernel_status_takes_the_interface_language() {
         let cx = gpui::TestAppContext::single();

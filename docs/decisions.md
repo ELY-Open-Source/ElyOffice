@@ -378,3 +378,37 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 2026-10-31（R14.54）：0.1.13 的 Linux 包已在发布上，Omarchy 上装好七个 Arch 包（`pacman -Q` 皆 0.1.13-1），但那时 Omarchy 没有图形会话（Hyprland 未运行、远程桌面会话已结束），`linux-installed.sh` 跑不了，未自起桌面。改以 `linux-distros.sh` 测发布上的 deb 与 rpm（`ELY_DIST` 指下载的发布文件）：ElyDoc 先败于“shows no 'Kernel prose'”，留下的截图里页面与文字都在、日志有首块图块，是 OCR 读漏：tesseract 默认的版面分析（psm 3）把深色面板旁的大白页整块略过，反色与否、放大与否都读不到；`--psm 11`（零散文字）四种组合都读到。`linux-common.sh` 的读字改为 psm 11，重跑：七个应用在 Ubuntu 26.04（deb）与 Fedora 44（rpm）上 14 项皆过。
 - 2026-10-30（S12）：官网上线命令行页 `/docs` 与更新日志 `/changelog`，同隐私、条款页为静态页（共用 `legal.css`，中英两段）；更新日志每版一个 `site/changelog/<版本>.md`，构建前由 `changelog/page.ts` 写成 `public/changelog.html`（不入库），因整页已 623 行、每版都长，入库即违 500 行之规。命令行页的事实皆取自代码或实测：用法照各应用 `remote.rs` 的 USAGE，退出码照 `ely_office::remote::command_line`（0 完成、1 被拒、2 看不懂），Linux 的 AppImage 以发布的 ElyTable 0.1.13 实测照传参数，Windows 上 PowerShell 不等窗口程序（P3-24），故写明经管道的写法。更新日志的 0.1.8 至 0.1.13 照各发布说明；0.1.7 只在 Gitea 有说明，取自那里；0.1.0 至 0.1.5 的说明缺或只有英文，照 TASKS 的 R1 至 R6 写，每项以其提交是否为该版原提交的祖先核对所属版本；0.1.9 原说明里“macOS 版经公证”与 0.1.5、0.1.8 重复，不列。日期取各版原提交的日期（GitHub 上 0.1.1 至 0.1.8 的发布日期是迁移之日）。`test/pages.test.ts` 使下次打标签而未补更新日志即失败。
 - 2026-10-31（S12）：用户要两页进首页顶部、且不要中英并列。首页顶部的链接行加“命令行”“更新日志”（窄屏折行，四个链接同一基线）；两页不再中英上下排，`public/lang.js` 只显示一种：链接的 `?lang=` 优先，否则照浏览器语言（与首页同一规则），导航的按钮切换并改写地址、标题与 `<html lang>`；首页在切换语言时改写两页链接的 `?lang=`，所以首页选了中文再点进去即中文。无脚本时两种都显示。
+
+
+## 2026-10-31 — Spanish for ElyDoc and ElyTable
+
+The shared language setting accepts `es-ES` and displays Español. System
+Spanish variants (including `es_PE.UTF-8` and `es-419`) select the same catalog.
+Doc, Table, their document shell, settings and component messages are translated.
+Writer's built-in style display names are translated without changing the kernel
+names sent to LibreOffice or user-defined names. Table's formulas, error codes,
+number parsing and document formats retain their existing conventions.
+
+Other apps' dedicated messages remain explicitly English in the Spanish catalog;
+this contribution does not claim to translate the whole suite. English and
+Chinese retain their catalogs. Spanish key and placeholder parity tests cover
+all Doc/Table/shared modules, and the component library supplies Spanish without
+falling back to another language.
+
+## 2026-10-31 — Experimental R macros in ElyTable
+
+Rscript runs locally with --vanilla in a separate background process, using only
+base R. A bounded typed selection is copied before launch; R reads that copy
+and returns a batch after successful completion. No interactive RPC is needed.
+Columns are lists to retain mixed cell types; formula objects expose their
+expression and calculated value but cannot be overwritten.
+
+LOK patch 0063 exposes the typed selection and accepts a validated batch through
+the existing EnterString dispatcher. The worker revision rejects intervening
+input, and the kernel rechecks the selection before entering one native Calc
+undo list for values, header weight and optimal column widths. The list carries
+the active view ID, required by LOK undo ownership; an unbound UNO undo context
+cannot be undone from that view. Normal application errors undo that list. Protected sheets and merged selections are refused.
+R has user permissions, with a 30-second process limit; this is not a sandbox.
+Source stays in external .R files, and execution is always an explicit action.
+Verification and remaining engine/runtime limitations are in docs/r-macros.md.
