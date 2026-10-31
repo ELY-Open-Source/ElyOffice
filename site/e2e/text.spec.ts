@@ -76,7 +76,7 @@ test.describe("English locale", () => {
     await page.locator(".lang").click();
     await expect(icons).toHaveCount(2);
     await expect(page.locator(".hero a.button")).toHaveText("下载 Windows 版");
-    await expect(page.locator(".hero .links a")).toHaveText(["全部平台", "源码"]);
+    await expect(page.locator(".hero .links a")).toHaveText(["全部平台", "命令行", "更新日志", "源码"]);
   });
 
   test("the language button switches every text and back", async ({ page }) => {
@@ -207,8 +207,8 @@ test("the hero links share one baseline in either language", async ({ browser })
         return y;
       }),
     );
-    expect(lines).toHaveLength(2);
-    expect(Math.abs(lines[0] - lines[1]), locale).toBeLessThan(0.5);
+    expect(lines).toHaveLength(4);
+    for (const y of lines) expect(Math.abs(y - lines[0]), locale).toBeLessThan(0.5);
     await page.close();
   }
 });

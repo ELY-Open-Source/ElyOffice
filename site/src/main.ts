@@ -7,7 +7,7 @@ import { night } from "./night.ts";
 import { rhythm } from "./rhythm.ts";
 import { playground } from "./play.ts";
 import { film } from "./film.ts";
-import { said, speak, word, type Lang } from "./text.ts";
+import { said, speak, word, type Key, type Lang } from "./text.ts";
 import { RELEASES, latest, releasePage } from "./release.ts";
 import { downloads } from "./download.ts";
 import { iconLink } from "./icons.ts";
@@ -18,6 +18,14 @@ const X = "https://x.com/ZacharyZhang";
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("index.html has no #app");
 
+const pages: [HTMLAnchorElement, string][] = [];
+/** A text page's link, opened in the shown language. */
+const page = (key: Key, path: string) => {
+  const a = said("a", key);
+  pages.push([a, path]);
+  return a;
+};
+
 const hero = document.createElement("header");
 const title = document.createElement("h1");
 title.textContent = "Ely Office";
@@ -27,7 +35,7 @@ const every = said("a", "every");
 every.href = "#download";
 const links = document.createElement("div");
 links.className = "links";
-links.append(every, source);
+links.append(every, page("docs", "/docs"), page("changelog", "/changelog"), source);
 const heroCount = said("p", "count");
 heroCount.hidden = true;
 const heroGet = downloads(false);
@@ -53,9 +61,11 @@ const count = said("p", "count");
 count.hidden = true;
 const get = downloads(true);
 const legal = document.createElement("ul");
-for (const [key, href] of [["docs", "/docs"], ["changelog", "/changelog"], ["privacy", "/privacy"], ["terms", "/termofservice"]] as const) {
-  const a = said("a", key);
-  a.href = href;
+const privacy = said("a", "privacy");
+privacy.href = "/privacy";
+const terms = said("a", "terms");
+terms.href = "/termofservice";
+for (const a of [page("docs", "/docs"), page("changelog", "/changelog"), privacy, terms]) {
   const li = document.createElement("li");
   li.append(a);
   legal.append(li);
@@ -76,6 +86,7 @@ const say = (next: Lang) => {
   lang = next;
   speak(lang);
   toggle.lang = lang === "en" ? "zh-CN" : "en";
+  for (const [a, path] of pages) a.href = `${path}?lang=${lang}`;
 };
 toggle.addEventListener("click", () => say(lang === "en" ? "zh" : "en"));
 

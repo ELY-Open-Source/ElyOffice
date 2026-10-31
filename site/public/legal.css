@@ -39,6 +39,19 @@ nav {
   font-size: 0.9375rem;
 }
 
+nav button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--link);
+  cursor: pointer;
+}
+
+nav button:hover {
+  text-decoration: underline;
+}
+
 article + article {
   margin-top: 9rem;
 }
@@ -103,7 +116,8 @@ a:hover {
   text-decoration: underline;
 }
 
-a:focus-visible {
+a:focus-visible,
+button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
   border-radius: 2px;

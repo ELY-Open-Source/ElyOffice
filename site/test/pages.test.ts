@@ -20,7 +20,7 @@ test("the changelog has every release tag, newest first, in both languages", () 
   const all = releases(new URL("site/changelog/", root));
   assert.deepEqual(all.map((r) => `v${r.version}`), [...tags].sort(newer));
   for (const r of all) assert.ok(r.en.length && r.zh.length, `${r.version} lacks a language`);
-  const [en, zh] = page(all).split('<article id="zh"');
+  const [en, zh] = page(all).split('<article lang="zh-CN"');
   assert.equal(en.split("<h2 ").length - 1, tags.length);
   assert.equal(zh.split("<h2>").length - 1, tags.length);
 });

@@ -87,14 +87,15 @@ export function page(all: Release[]): string {
   </head>
   <body>
     <main>
-      <nav><a href="/">Ely Office</a><a href="#zh" lang="zh-CN">中文</a></nav>
-      <article>
+      <nav><a href="/">Ely Office</a><button type="button"></button></nav>
+      <article data-title="Changelog · Ely Office">
 ${article("en", en)}
       </article>
-      <article id="zh" lang="zh-CN">
+      <article lang="zh-CN" data-title="更新日志 · Ely Office">
 ${article("zh", zh)}
       </article>
     </main>
+    <script src="/lang.js"></script>
   </body>
 </html>
 `;
