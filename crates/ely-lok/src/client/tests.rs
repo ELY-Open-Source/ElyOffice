@@ -29,6 +29,7 @@ mod paint;
 mod playlist;
 mod print;
 mod refs;
+mod r_macros;
 mod roundtrip;
 mod rules;
 mod sheet;

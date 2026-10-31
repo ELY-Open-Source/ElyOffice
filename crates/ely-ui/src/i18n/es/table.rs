@@ -1,6 +1,17 @@
 //! Spanish table messages.
 
 pub(super) const ES: &[(&str, &str)] = &[
+    ("table.r.menu", "Macros"),
+    ("table.r.title", "Ejecutar macro R — experimental"),
+    ("table.r.code", "Código R"),
+    ("table.r.permissions", "R se ejecuta con tus permisos de usuario; no es una sandbox. Ejecuta solo código de confianza. Límite: 30 segundos."),
+    ("table.r.busy", "Espera a que termine la edición pendiente y vuelve a ejecutar."),
+    ("table.r.done", "Macro aplicada. Deshacer revierte todo el lote."),
+    ("table.r.open", "Abrir .R…"),
+    ("table.r.save", "Guardar .R…"),
+    ("table.r.run", "Ejecutar"),
+    ("table.r.running", "Ejecutando…"),
+
     ("menu.sheet", "Hoja"),
     ("menu.cells", "Celdas"),
     ("table.sheet.default", "Hoja{n}"),

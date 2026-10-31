@@ -27,6 +27,7 @@ pub(crate) fn edit(
 
 /// What the open dialog asks, for which workbook.
 pub enum Dialog {
+    RMacro(Box<crate::macros::Editor>),
     Rename {
         tab: u64,
         /// The state the sheet number was read in.
@@ -178,6 +179,7 @@ impl Dialog {
             | Dialog::Export { tab, .. }
             | Dialog::Page { tab, .. }
             | Dialog::Protect { tab, .. } => Some(*tab),
+            Dialog::RMacro(editor) => Some(editor.tab),
             Dialog::Import(_) => None,
         }
     }
@@ -205,6 +207,7 @@ impl Book {
             }
         };
         let element = match self.dialog.as_ref()? {
+            Dialog::RMacro(editor) => crate::macros::dialog(this, editor, dismiss, cx).into_any_element(),
             Dialog::Rename { tab, index, field, .. } => {
                 let names = self.sheet_in(*tab)?.2;
                 crate::sheets::dialogs::rename(this, (*index, field, names), dismiss, cx)

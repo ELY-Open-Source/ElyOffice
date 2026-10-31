@@ -278,6 +278,7 @@ LOK 负责文档模型、布局、计算、内容编辑与文件转换。GPUI �
 | TABLE-14 | 打印 | 支持打印区域、重复标题、分页、方向、缩放和 PDF 导出 |
 | TABLE-15 | 保护 | 支持内核已实现的工作表保护、锁定单元格和编辑许可；不绕过密码 |
 | TABLE-16 | 大数据浏览 | 只渲染可视区域；滚动不为所有空单元格创建 UI 对象 |
+| TABLE-17 | Experimental R macros | Explicit local Rscript execution over a typed copy of one selection; values, bold header and autofit in one undo step; preserve formulas, validate batches and reject conflicts; external .R files, timeout and visible errors; no packages or automatic execution |
 
 公式验收至少包含 SUM、AVERAGE、COUNT、SUMIF/SUMIFS、COUNTIF/COUNTIFS、IF/IFS、IFERROR、ROUND、文本与日期函数、INDEX/MATCH、VLOOKUP/XLOOKUP、FILTER、SORT 和 UNIQUE。该清单是产品目标；必须确认所锁定 LOK 版本及文件过滤器能完成计算和往返保存，不能因函数名可输入就认定已支持。
 

@@ -394,3 +394,21 @@ this contribution does not claim to translate the whole suite. English and
 Chinese retain their catalogs. Spanish key and placeholder parity tests cover
 all Doc/Table/shared modules, and the component library supplies Spanish without
 falling back to another language.
+
+## 2026-10-31 — Experimental R macros in ElyTable
+
+Rscript runs locally with --vanilla in a separate background process, using only
+base R. A bounded typed selection is copied before launch; R reads that copy
+and returns a batch after successful completion. No interactive RPC is needed.
+Columns are lists to retain mixed cell types; formula objects expose their
+expression and calculated value but cannot be overwritten.
+
+LOK patch 0063 exposes the typed selection and accepts a validated batch through
+the existing EnterString dispatcher. The worker revision rejects intervening
+input, and the kernel rechecks the selection before entering one native Calc
+undo list for values, header weight and optimal column widths. The list carries
+the active view ID, required by LOK undo ownership; an unbound UNO undo context
+cannot be undone from that view. Normal application errors undo that list. Protected sheets and merged selections are refused.
+R has user permissions, with a 30-second process limit; this is not a sandbox.
+Source stays in external .R files, and execution is always an explicit action.
+Verification and remaining engine/runtime limitations are in docs/r-macros.md.

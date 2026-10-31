@@ -68,7 +68,7 @@ impl Command {
     /// Names something the document numbers, as read.
     pub fn addressed(&self, values: &[&str]) -> bool {
         // An index of -1 names nothing: a new tab stop.
-        self.args.iter().zip(values).any(|(arg, value)| matches!(arg, Arg::Int(name, ..) if NUMBERED.contains(name)) && *value != "-1")
+        self.id == "macro.apply" || self.args.iter().zip(values).any(|(arg, value)| matches!(arg, Arg::Int(name, ..) if NUMBERED.contains(name)) && *value != "-1")
     }
 
     /// This command with `values`, checked now (LOK-02).
@@ -137,6 +137,7 @@ pub const VALUES: &[&str] = &[
     crate::sheet::PROTECTION,
     crate::sheet::LINKS,
     crate::sheet::KEPT,
+    ".uno:ElyMacroSelection",
     crate::show::DESIGN,
     crate::show::OBJECTS,
     crate::show::NOTES,

@@ -134,6 +134,7 @@ fn menus(undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
         crate::formulas::menu(cx),
         crate::data::menu(cx),
         crate::page::menu(cx),
+        crate::macros::menu(cx),
     ]
 }
 
@@ -431,6 +432,7 @@ impl Render for Book {
             .track_focus(&self.core.focus)
             .on_action(cx.listener(|book, _: &commands::New, _, cx| book.new_blank(cx)))
             .on_action(cx.listener(Self::on_open_file))
+            .on_action(cx.listener(Self::on_r_macro))
             .on_action(cx.listener(Self::on_save))
             .on_action(cx.listener(Self::on_save_as))
             .on_action(cx.listener(Self::on_close_tab))
