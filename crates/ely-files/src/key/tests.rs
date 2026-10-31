@@ -204,7 +204,12 @@ fn a_mid_init_key_is_never_visible_to_another_loader() {
     });
     let (a_backend, dir_a) = (Arc::clone(&backend), dir.path().to_path_buf());
     let a = std::thread::spawn(move || load_with(a_backend.as_ref() as &dyn Backend, &dir_a));
-    std::thread::sleep(Duration::from_millis(30));
+    // B starts once a holds the lock, mid-write.
+    let until = std::time::Instant::now() + Duration::from_secs(10);
+    while backend.visible.lock().expect("the store").is_none() {
+        assert!(std::time::Instant::now() < until, "a never began its write");
+        std::thread::sleep(Duration::from_millis(1));
+    }
     let b = load_with(backend.as_ref() as &dyn Backend, dir.path()).expect("b loads");
     assert!(a.join().expect("a joins").is_err(), "a's init rolls back");
     assert_eq!(b.len(), 32, "b initialized its own committed key");
