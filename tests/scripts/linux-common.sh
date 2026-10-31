@@ -108,6 +108,7 @@ judge() { # slug, screenshot, words, app log
   [ $((blue - red)) -gt 10 ] || fail "$1's title bar is not Catppuccin"
   # Dark text, twice the size: Xvfb draws at scale 1.
   magick "$2" -colorspace Gray -negate -resize 200% "$2.ocr.png"
-  text=$(tesseract "$2.ocr.png" - 2>"$2.ocr") || fail "tesseract failed: $(cat "$2.ocr")"
+  # Sparse text: a page beside panels hides from layout analysis.
+  text=$(tesseract "$2.ocr.png" - --psm 11 2>"$2.ocr") || fail "tesseract failed: $(cat "$2.ocr")"
   grep -qi "$3" <<<"$text" || fail "$1 shows no '$3': $text"
 }
