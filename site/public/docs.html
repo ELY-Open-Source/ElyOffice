@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Command line · Ely Office</title>
+    <meta name="description" content="Read and edit documents open in ElyDoc, ElyTable and ElyShow from scripts and AI agents." />
+    <link rel="stylesheet" href="/legal.css" />
+  </head>
+  <body>
+    <main>
+      <nav><a href="/">Ely Office</a><a href="#zh" lang="zh-CN">中文</a></nav>
+      <article>
+        <h1>Command line</h1>
+        <p class="date">ElyTable from 0.1.12; ElyDoc and ElyShow from 0.1.13</p>
+
+        <p>
+          Scripts and AI agents can read and edit a document while it is open in ElyDoc, ElyTable or ElyShow, then save
+          it. Each command asks the copy of the app that is already running, so the app must be open with that file. A
+          request comes only from your own account on the same computer; nothing listens on the network.
+        </p>
+        <p>
+          Edits go into the open document as if you had made them, and you can undo them. Your cursor and selection stay
+          where they were.
+        </p>
+
+        <h2>Where the command is</h2>
+        <p>The command is the app itself, given arguments:</p>
+        <ul>
+          <li>
+            <strong>macOS:</strong> <code>/Applications/ElyDoc.app/Contents/MacOS/ely-doc</code>, and likewise
+            <code>ElyTable.app/…/ely-table</code> and <code>ElyShow.app/…/ely-show</code>.
+          </li>
+          <li>
+            <strong>Windows:</strong> <code>%LOCALAPPDATA%\Programs\Ely Office\ElyDoc\ely-doc.exe</code>, and likewise
+            for ElyTable and ElyShow, unless you chose another folder when installing.
+          </li>
+          <li>
+            <strong>Linux (deb, rpm, Arch):</strong> <code>ely-doc</code>, <code>ely-table</code> and
+            <code>ely-show</code> are on your <code>PATH</code>.
+          </li>
+          <li><strong>Linux (AppImage):</strong> run the AppImage with the same arguments.</li>
+        </ul>
+
+        <h2>ElyDoc</h2>
+        <pre><code>ely-doc text docs
+ely-doc text get FILE
+ely-doc text replace FILE FIND WITH
+ely-doc text save FILE</code></pre>
+        <ul>
+          <li><code>docs</code> lists the files open in ElyDoc, one full path per line.</li>
+          <li>
+            <code>get</code> prints the body text, one paragraph per line. Footnotes, comments, text frames and deleted
+            tracked changes are left out.
+          </li>
+          <li>
+            <code>replace</code> changes every exact, case-matched <code>FIND</code> in the body to <code>WITH</code>,
+            as one undo step. Both must stay within one paragraph. If <code>FIND</code> is nowhere in the body, nothing
+            changes and the command fails.
+          </li>
+          <li><code>save</code> saves the file and prints its path once the save is on disk.</li>
+        </ul>
+        <pre><code>$ ely-doc text get report.docx
+Quarterly report
+Sales rose in March.
+$ ely-doc text replace report.docx March April
+$ ely-doc text save report.docx
+/home/me/report.docx</code></pre>
+
+        <h2>ElyTable</h2>
+        <pre><code>ely-table cell docs
+ely-table cell get FILE ADDRESS
+ely-table cell set FILE ADDRESS TEXT
+ely-table cell save FILE</code></pre>
+        <ul>
+          <li>
+            <code>ADDRESS</code> always names its sheet, as in <code>Sheet1!A1</code>. An address without a sheet is
+            refused.
+          </li>
+          <li>
+            <code>get</code> prints the cell as one line of JSON: its full address, the text shown in the cell, and
+            what was typed into it.
+          </li>
+          <li>
+            <code>set</code> types <code>TEXT</code> into the cell, as one undo step. Text starting with
+            <code>=</code> is a formula in Excel's A1 style, and numbers are written as in English (<code>3.5</code>).
+          </li>
+          <li><code>docs</code> and <code>save</code> work as in ElyDoc.</li>
+        </ul>
+        <pre><code>$ ely-table cell set budget.xlsx 'Sheet1!B2' '=6*7'
+$ ely-table cell get budget.xlsx 'Sheet1!B2'
+{"address":"Sheet1!$B$2","text":"42","input":"=6*7"}
+$ ely-table cell save budget.xlsx
+/home/me/budget.xlsx</code></pre>
+
+        <h2>ElyShow</h2>
+        <pre><code>ely-show text docs
+ely-show text get FILE
+ely-show text replace FILE FIND WITH
+ely-show text save FILE</code></pre>
+        <ul>
+          <li>
+            <code>get</code> prints the text on each slide, one paragraph per line, with a form feed between slides.
+            Speaker notes and comments are left out.
+          </li>
+          <li>
+            <code>replace</code> changes every exact, case-matched <code>FIND</code> on the slides. As in Impress, each
+            text box it changes is one undo step. The current slide and the selection stay as they were.
+          </li>
+          <li><code>docs</code> and <code>save</code> work as in ElyDoc.</li>
+        </ul>
+        <pre><code>$ ely-show text replace pitch.pptx 2025 2026
+$ ely-show text save pitch.pptx
+/home/me/pitch.pptx</code></pre>
+
+        <h2>Files and answers</h2>
+        <ul>
+          <li>
+            <code>FILE</code> may be relative to the current folder. It must be a file open in the app; a new document
+            gets a name only once it is saved.
+          </li>
+          <li>
+            Some files are kept as they were and saved only as a copy, such as a presentation with sections. For
+            those, and for a file deleted from disk, <code>save</code> fails and says so; save them in the app.
+          </li>
+          <li>
+            Exit codes: <strong>0</strong> done; <strong>1</strong> refused, such as the app not running or the file
+            not open, with the reason on standard error; <strong>2</strong> the command was not understood, with
+            usage.
+          </li>
+        </ul>
+
+        <h2>Windows: PowerShell and cmd</h2>
+        <p>
+          The apps are windowed programs, and PowerShell does not wait for one unless its output goes through a pipe.
+          Without a pipe you get no answer and no exit code. In PowerShell, pipe the command:
+        </p>
+        <pre><code>$doc = "$env:LOCALAPPDATA\Programs\Ely Office\ElyDoc\ely-doc.exe"
+$text = &amp; $doc text get report.docx | Out-String
+$LASTEXITCODE</code></pre>
+        <p>
+          <code>Start-Process -Wait -NoNewWindow -PassThru</code> also waits and gives the exit code. Batch files,
+          <code>cmd /c</code> and Git Bash wait as usual.
+        </p>
+
+        <p>ElyMark has the same commands for Markdown, as <code>ely-mark text</code>.</p>
+      </article>
+
+      <article id="zh" lang="zh-CN">
+        <h1>命令行</h1>
+        <p class="date">ElyTable 自 0.1.12 起；ElyDoc 与 ElyShow 自 0.1.13 起</p>
+
+        <p>
+          脚本与 AI 代理可以读写在 ElyDoc、ElyTable、ElyShow 里打开着的文档，并保存。每条命令问的是已在运行的那份应用，所以应用必须开着、并打开了这个文件。请求只来自本机你自己的账户，不在网络上监听。
+        </p>
+        <p>改动像你亲手改的一样进入打开着的文档，可以撤销；你的光标与选区不动。</p>
+
+        <h2>命令在哪里</h2>
+        <p>命令就是应用本身，带上参数：</p>
+        <ul>
+          <li>
+            <strong>macOS：</strong><code>/Applications/ElyDoc.app/Contents/MacOS/ely-doc</code>，ElyTable、ElyShow
+            同理（<code>ElyTable.app/…/ely-table</code>、<code>ElyShow.app/…/ely-show</code>）。
+          </li>
+          <li>
+            <strong>Windows：</strong><code>%LOCALAPPDATA%\Programs\Ely Office\ElyDoc\ely-doc.exe</code>，ElyTable、ElyShow
+            同理；安装时选了别的文件夹则在那里。
+          </li>
+          <li>
+            <strong>Linux（deb、rpm、Arch）：</strong><code>ely-doc</code>、<code>ely-table</code>、<code>ely-show</code>
+            已在 <code>PATH</code> 上。
+          </li>
+          <li><strong>Linux（AppImage）：</strong>用同样的参数运行 AppImage。</li>
+        </ul>
+
+        <h2>ElyDoc</h2>
+        <pre><code>ely-doc text docs
+ely-doc text get FILE
+ely-doc text replace FILE FIND WITH
+ely-doc text save FILE</code></pre>
+        <ul>
+          <li><code>docs</code> 列出 ElyDoc 里打开的文件，一行一个完整路径。</li>
+          <li><code>get</code> 输出正文，一段一行，不含脚注、批注、文本框与已删除的修订。</li>
+          <li>
+            <code>replace</code> 把正文里每一处与 <code>FIND</code> 完全相同（区分大小写）的文字换成 <code>WITH</code>，一步撤销。两者都不能跨段。正文里一处
+            <code>FIND</code> 也没有时什么都不改，命令失败。
+          </li>
+          <li><code>save</code> 保存文件，写到磁盘后输出其路径。</li>
+        </ul>
+        <pre><code>$ ely-doc text get report.docx
+季度报告
+三月销量上升。
+$ ely-doc text replace report.docx 三月 四月
+$ ely-doc text save report.docx
+/home/me/report.docx</code></pre>
+
+        <h2>ElyTable</h2>
+        <pre><code>ely-table cell docs
+ely-table cell get FILE ADDRESS
+ely-table cell set FILE ADDRESS TEXT
+ely-table cell save FILE</code></pre>
+        <ul>
+          <li><code>ADDRESS</code> 一律写明工作表，如 <code>Sheet1!A1</code>；不带工作表的地址被拒。</li>
+          <li><code>get</code> 以一行 JSON 输出该格：完整地址、格里显示的文字、键入的内容。</li>
+          <li>
+            <code>set</code> 把 <code>TEXT</code> 键入该格，一步撤销。以 <code>=</code> 开头的是公式，照 Excel 的 A1
+            写法；数字照英文写法（<code>3.5</code>）。
+          </li>
+          <li><code>docs</code> 与 <code>save</code> 同 ElyDoc。</li>
+        </ul>
+        <pre><code>$ ely-table cell set budget.xlsx 'Sheet1!B2' '=6*7'
+$ ely-table cell get budget.xlsx 'Sheet1!B2'
+{"address":"Sheet1!$B$2","text":"42","input":"=6*7"}
+$ ely-table cell save budget.xlsx
+/home/me/budget.xlsx</code></pre>
+
+        <h2>ElyShow</h2>
+        <pre><code>ely-show text docs
+ely-show text get FILE
+ely-show text replace FILE FIND WITH
+ely-show text save FILE</code></pre>
+        <ul>
+          <li><code>get</code> 输出每张幻灯片上的文字，一段一行，幻灯片之间是换页符；不含演讲者备注与批注。</li>
+          <li>
+            <code>replace</code> 替换幻灯片上每一处与 <code>FIND</code> 完全相同（区分大小写）的文字。与 Impress 一样，每个改到的文本框是一步撤销。当前幻灯片与选中照旧。
+          </li>
+          <li><code>docs</code> 与 <code>save</code> 同 ElyDoc。</li>
+        </ul>
+        <pre><code>$ ely-show text replace pitch.pptx 2025 2026
+$ ely-show text save pitch.pptx
+/home/me/pitch.pptx</code></pre>
+
+        <h2>文件与答复</h2>
+        <ul>
+          <li><code>FILE</code> 可以相对于当前文件夹，但必须是应用里打开着的文件；新建的文档保存后才有名字。</li>
+          <li>有些文件保持原样、只能另存副本，如带章节的演示文稿。这类文件以及已从磁盘删除的文件，<code>save</code> 会失败并说明原因，请在应用里保存。</li>
+          <li>
+            退出码：<strong>0</strong> 完成；<strong>1</strong> 被拒，如应用没在运行、文件没打开，原因写在标准错误；<strong>2</strong> 命令看不懂，并给出用法。
+          </li>
+        </ul>
+
+        <h2>Windows：PowerShell 与 cmd</h2>
+        <p>这些应用是窗口程序，PowerShell 只有在输出经管道时才会等它，否则拿不到答复，也没有退出码。在 PowerShell 里请接上管道：</p>
+        <pre><code>$doc = "$env:LOCALAPPDATA\Programs\Ely Office\ElyDoc\ely-doc.exe"
+$text = &amp; $doc text get report.docx | Out-String
+$LASTEXITCODE</code></pre>
+        <p><code>Start-Process -Wait -NoNewWindow -PassThru</code> 也会等待并给出退出码。批处理文件、<code>cmd /c</code> 与 Git Bash 照常等待。</p>
+
+        <p>ElyMark 对 Markdown 有同样的命令：<code>ely-mark text</code>。</p>
+      </article>
+    </main>
+  </body>
+</html>

@@ -55,6 +55,8 @@ const en = {
   light: "Switch to light",
   clipPlay: "Play",
   clipPause: "Pause",
+  docs: "Command line",
+  changelog: "Changelog",
   privacy: "Privacy",
   terms: "Terms",
 };
@@ -113,6 +115,8 @@ const zh: typeof en = {
   light: "切换到浅色",
   clipPlay: "播放",
   clipPause: "暂停",
+  docs: "命令行",
+  changelog: "更新日志",
   privacy: "隐私政策",
   terms: "服务条款",
 };

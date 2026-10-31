@@ -1,4 +1,4 @@
-/* Privacy and terms pages. */
+/* The site's text pages: privacy, terms, docs, changelog. */
 :root {
   color-scheme: light dark;
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif;
@@ -6,6 +6,7 @@
   --quiet: #6e6e73;
   --link: #2a6ad0;
   --accent: #3d7fe5;
+  --code: #f0efec;
   color: var(--text);
   background: #fbfbfa;
 }
@@ -15,6 +16,7 @@
     --text: #f5f5f7;
     --quiet: #a1a1a6;
     --link: #6ea2f2;
+    --code: #303030;
     background: #252525;
   }
 }
@@ -105,4 +107,30 @@ a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
   border-radius: 2px;
+}
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  color: var(--text);
+}
+
+pre {
+  margin: 0 0 1.25rem;
+  padding: 0.875rem 1rem;
+  overflow-x: auto;
+  background: var(--code);
+  border-radius: 8px;
+  line-height: 1.55;
+}
+
+pre code {
+  font-size: 0.8125rem;
+}
+
+.when {
+  margin-inline-start: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--quiet);
 }

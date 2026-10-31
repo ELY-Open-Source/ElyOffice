@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node changelog/page.ts && tsc && vite build",
     "preview": "vite preview",
     "deploy": "pnpm build && wrangler deploy",
     "test": "node --test test/*.test.ts",

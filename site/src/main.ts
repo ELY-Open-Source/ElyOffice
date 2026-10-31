@@ -53,7 +53,7 @@ const count = said("p", "count");
 count.hidden = true;
 const get = downloads(true);
 const legal = document.createElement("ul");
-for (const [key, href] of [["privacy", "/privacy"], ["terms", "/termofservice"]] as const) {
+for (const [key, href] of [["docs", "/docs"], ["changelog", "/changelog"], ["privacy", "/privacy"], ["terms", "/termofservice"]] as const) {
   const a = said("a", key);
   a.href = href;
   const li = document.createElement("li");

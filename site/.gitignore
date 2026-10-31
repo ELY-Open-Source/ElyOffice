@@ -3,3 +3,4 @@ dist/
 .wrangler/
 test-results
 playwright-report
+public/changelog.html

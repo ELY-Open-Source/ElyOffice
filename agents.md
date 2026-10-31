@@ -35,7 +35,7 @@ docs/        兼容清单、无障碍、帮助、许可、性能记录、功能�
 scripts/     fetch-references.sh 取上游  doctor.sh 查工具  review.sh 开分栏审查  build-*.sh 构建引擎
 tests/       scripts 与 engines 下是脚本测试；engines 缺二进制时报 SKIP；fixtures 是测试共用的样本（media/clip.mp4：1 秒 H.264/AAC；pdf/aes128.pdf：AES-128 加密，打开密码 user、所有者密码 owner；pdf/signer.p12 与 signer.der：自签名测试证书，密码 ely；pdf/chain-root.der 与 chain-leaf.der：测试用的根与其签发的证书；show/sections.pptx：t.pptx 加两个章节（p14:sectionLst），sections-utf16.pptx 同而 presentation.xml 为 UTF-16LE，sections-locked.pptx 为其加密版，打开密码 ely，sections-locked-tail.pptx 同而目录移到文件末尾、`EncryptedPackage` 在最后一格；tree/launcher-fails、launcher-held、launcher-pwd、launcher-session：ElyTree 终端启动器测试用的可执行脚本（Git 里 100755）；git/git-2.39、git-2.40：只报版本的假 Git（版本下限测试），git-fails：报出版本后以 7 失败的假 Git；pdf/stale-worker、crossed-worker：答错盖章与错号的假 PDF worker（皆 Git 里 100755：测试里现写现跑的程序会撞上别的测试 fork 出的子进程而报 ETXTBSY）；table/kept.xlsx：照 Excel 写法的 XLSX，含 Calc 不认的函数（`CUBEVALUE`、`_xlfn.TRANSLATE`，一组共享公式）与其缓存值，kept-more.xlsx 含布尔、空串、缺值、坏数、数组（含各类成员）与易变函数，kept-more.ods 含属性顺序不同的空串、空串与坏数的矩阵成员，kept-strings.xlsx 含内联与共享字符串的数组成员、坏索引与用未知函数的定义名称，皆由同目录 make-kept.py 生成；mail/sample.eml：带编码主题、分组抄送、纯文本加 HTML、cid 图片与附件的邮件，LF 行尾，测试换成 CRLF）
 tasks/       TASKS.md 进度真相
-site/        官网（Vite 8、pnpm、TypeScript，无框架；等轴 SVG 积木；中英两种文案在 src/text.ts）；site/video 是发布视频的分镜、配乐、录屏与合成脚本，产物在 site/video/out（不入库）
+site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行页、`/changelog` 更新日志由 `changelog/<版本>.md` 每版一个在构建时写成；等轴 SVG 积木；中英两种文案在 src/text.ts）；site/video 是发布视频的分镜、配乐、录屏与合成脚本，产物在 site/video/out（不入库）
 ```
 
 ## 组件映射
@@ -223,7 +223,7 @@ tests/perf/bigtable.py 输出 行数 宽 高 jpeg|png inline|anchor|tight [英�
 tests/perf/linux.sh [参数]      Linux 上的 bench.py：容器里的 Xvfb、私有 AT-SPI 总线（atspi.py）
 tests/scripts/ooxml.py <用例> <文件>  不经 LibreOffice 读 DOCX、XLSX、PPTX 并按自算的预期核对（往返用例调用）
 cd site && pnpm run deploy    官网构建并经 wrangler 发到 Cloudflare Workers（静态资源，另有 `site/worker` 只答 `/release.json`：GitHub API 的最新版本、其中三个完整安装包（Mac arm64、Mac x86_64、Windows）的地址与全部发布的下载总数，加上 Gitea 上迁移前的下载（Gitea 不通时只计 GitHub；都不计更新清单 `.json`），缓存 5 分钟；下载按钮按访客的平台直接下载完整安装包，Linux 与单独的应用指向 `releases/latest`），地址 https://office.elygpui.com（workers.dev 地址 https://ely-office.zhangyanghaha0407.workers.dev 同站）
-cd site && pnpm test && pnpm e2e   官网单测（几何、道路连通）与 Playwright 端到端（悬停、聚焦、按压、命中归属）
+cd site && pnpm test && pnpm e2e   官网单测（几何、道路连通；更新日志与 git 的 v* 标签一一对应，每次发布加 `site/changelog/<版本>.md` 并部署；命令行页含各应用 USAGE 的每条命令）与 Playwright 端到端（悬停、聚焦、按压、命中归属）
 cd site/video/scenes && npm run verify   发布视频：群像与离场两个渲染器在切场处屏幕角点一致，离场全程各屏播自己的录屏帧（真页面渲染）
 scripts/deny.sh [根] [检查...]  cargo-deny：安全公告、yanked、许可与来源；重复版本只许 deny.toml 里列着的组，组消失而 skip 还在即败（只减不增）
 tests/scripts/deny-rules.sh    deny.sh：列着的重复组过、多余或无着落的 skip 败、去掉的旧版回来败（临时 crate）
