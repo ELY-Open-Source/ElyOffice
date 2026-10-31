@@ -147,7 +147,16 @@ fn a_misspelled_word_offers_suggestions() {
     shown.simulate_mouse_down(at, MouseButton::Left, Modifiers::none());
     shown.simulate_mouse_up(at, MouseButton::Left, Modifiers::none());
     settled(&cx, &docs);
-    right_click(&mut shown, &docs, at, Target::Text);
+    // Writer's idle spell check marks the word some time later.
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        right_click(&mut shown, &docs, at, Target::Text);
+        let marked = cx.update(|app| docs.read(app).offer.as_ref().is_some_and(|offer| offer.what.spelling.is_some()));
+        if marked || std::time::Instant::now() > until {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
     let rule = cx.update(|app| {
         let offer = docs.read(app).offer.as_ref().expect("an offer");
         let spelling = offer.what.spelling.as_ref().expect("a spelling menu");
