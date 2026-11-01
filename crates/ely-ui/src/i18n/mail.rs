@@ -135,7 +135,11 @@ pub(super) const EN: &[(&str, &str)] = &[
     ),
     (
         "mail.error.outlook_held",
-        "Outlook took the sign-in but would not open the mailbox ({detail}). Outlook.com holds some accounts like this, and other mail apps fail the same way. Sign in once at outlook.live.com, finish any check it asks for, then try again",
+        "Outlook took the sign-in but would not open the mailbox ({detail}). On outlook.live.com, open Settings, Mail, Forwarding and IMAP, and turn on Let devices and apps use IMAP. If it is on, open account.live.com/activity, find this sign-in under Recent activity, choose This was me, then try again. If it still fails, ask Microsoft support",
+    ),
+    (
+        "mail.error.outlook_smtp_disabled",
+        "Microsoft has turned off SMTP sign-in for this mailbox ({detail}). A personal Outlook.com account has no switch to turn it back on, so ElyMail cannot send from it",
     ),
     ("mail.error.server", "the server refused: {detail}"),
     (
@@ -347,7 +351,11 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("mail.error.rejected", "服务器拒绝登录：{detail}"),
     (
         "mail.error.outlook_held",
-        "Outlook 接受了登录，却不肯打开邮箱（{detail}）。Outlook.com 会这样扣住部分账号，其他邮件应用同样失败。请在 outlook.live.com 登录一次，完成它要求的验证，再试",
+        "Outlook 接受了登录，却不肯打开邮箱（{detail}）。请在 outlook.live.com 打开设置 → 邮件 → 转发和 IMAP，开启“允许设备和应用使用 IMAP”。已开启的，打开 account.live.com/activity，在“最近的活动”里找到这次登录，选“这是我”，再试。仍不行，请联系 Microsoft 支持",
+    ),
+    (
+        "mail.error.outlook_smtp_disabled",
+        "Microsoft 关闭了这个邮箱的 SMTP 登录（{detail}）。个人 Outlook.com 账号没有开关可以重新打开，ElyMail 无法用它发信",
     ),
     ("mail.error.server", "服务器拒绝：{detail}"),
     ("mail.error.protocol", "读不懂服务器的回复：{detail}"),

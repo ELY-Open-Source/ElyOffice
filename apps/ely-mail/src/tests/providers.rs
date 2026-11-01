@@ -104,7 +104,14 @@ fn outlooks_held_account_says_what_to_do() {
     let (held, other) = cx.update(|_, app| (failure(&held, app), failure(&other, app)));
     assert!(held.starts_with("Outlook took the sign-in"), "{held}");
     assert!(held.contains("(NO User is authenticated but not connected.)"), "{held}");
-    assert!(held.contains("outlook.live.com"), "{held}");
+    assert!(held.contains("outlook.live.com") && held.contains("Let devices and apps use IMAP"), "{held}");
+    let words = "535 Authentication unsuccessful, SmtpClientAuthentication is disabled for the Mailbox. Visit https://aka.ms/smtp_auth_disabled for more information.";
+    let off = cx.update(|_, app| failure(&Error::Rejected(words.into()), app));
+    assert!(off.starts_with("Microsoft has turned off SMTP sign-in") && off.contains(words), "{off}");
+    assert!(held.contains("account.live.com/activity") && held.contains("This was me"), "{held}");
+    cx.update(|_, app| ely_ui::i18n::install_as("zh-CN", app));
+    let held = cx.update(|_, app| failure(&Error::Rejected("NO User is authenticated but not connected.".into()), app));
+    assert!(held.contains("转发和 IMAP") && held.contains("account.live.com/activity") && held.contains("这是我"), "{held}");
     assert_eq!(other.as_ref(), "the server refused the sign-in: NO LOGIN failed.");
 }
 
