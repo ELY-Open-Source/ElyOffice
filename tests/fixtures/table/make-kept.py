@@ -1,4 +1,4 @@
-"""Writes the kept fixtures as Excel would save them."""
+"""Writes kept and spill fixtures as Excel saves them."""
 import os
 import sys
 import zipfile
@@ -102,6 +102,35 @@ NAMES = (
     """<definedName name="Outer">MyValue+1</definedName>"""
     """</definedNames>"""
 )
+# Spilling (C1, K1 one cell now), plain (E1, T1), non-dynamic (I1).
+SPILL = (
+    """<row r="1">"""
+    """<c r="A1"><v>3</v></c>"""
+    """<c r="C1" cm="1"><f t="array" ref="C1:C3">_xlfn._xlws.SORT(_xlfn.UNIQUE(A1:A4))</f><v>1</v></c>"""
+    """<c r="E1"><f t="array" ref="E1:E2">A1:A2*2</f><v>6</v></c>"""
+    """<c r="I1" cm="2"><f t="array" ref="I1:I2">A1:A2+2</f><v>5</v></c>"""
+    """<c r="K1" cm="1"><f t="array" ref="K1">IF($A$1=3,1,TRANSPOSE($A$1:$A$4))</f><v>1</v></c>"""
+    """<c r="T1"><f t="array" ref="T1">SUM($A$1:$A$4*1)</f><v>9</v></c>"""
+    """</row><row r="2">"""
+    """<c r="A2"><v>1</v></c><c r="C2"><v>2</v></c><c r="E2"><v>2</v></c><c r="I2"><v>3</v></c>"""
+    """</row><row r="3">"""
+    """<c r="A3"><v>3</v></c><c r="C3"><v>3</v></c>"""
+    """</row><row r="4">"""
+    """<c r="A4"><v>2</v></c>"""
+    """</row>"""
+)
+METADATA = (
+    """<metadata xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" """
+    """xmlns:xda="http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray">"""
+    """<metadataTypes count="1"><metadataType name="XLDAPR" minSupportedVersion="120000" copy="1" pasteAll="1" pasteValues="1" merge="1" splitFirst="1" rowColShift="1" clearFormats="1" clearComments="1" assign="1" coerce="1" cellMeta="1"/>"""
+    """</metadataTypes>"""
+    """<futureMetadata name="XLDAPR" count="2">"""
+    """<bk><extLst><ext uri="{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}"><xda:dynamicArrayProperties fDynamic="1" fCollapsed="0"/></ext></extLst></bk>"""
+    """<bk><extLst><ext uri="{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}"><xda:dynamicArrayProperties fDynamic="0" fCollapsed="0"/></ext></extLst></bk>"""
+    """</futureMetadata>"""
+    """<cellMetadata count="2"><bk><rc t="1" v="0"/></bk><bk><rc t="1" v="1"/></bk></cellMetadata>"""
+    """</metadata>"""
+)
 SHARED = (
     """<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="2" uniqueCount="2">"""
     """<si><t>hello</t></si>"""
@@ -152,13 +181,15 @@ MANIFEST = (
 )
 
 SHARED_TYPE = """<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>"""
+META_TYPE = """<Override PartName="/xl/metadata.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml"/>"""
+META_REL = """<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sheetMetadata" Target="metadata.xml"/>"""
 SHARED_REL = """<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>"""
 
 
-def files(rows, names="", shared=None):
+def files(rows, names="", shared=None, meta=None):
     parts = {
         "[Content_Types].xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>""" + (SHARED_TYPE if shared else "") + """</Types>""",
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>""" + (SHARED_TYPE if shared else "") + (META_TYPE if meta is not None else "") + """</Types>""",
         "_rels/.rels": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>""",
         "docProps/app.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -166,10 +197,13 @@ def files(rows, names="", shared=None):
         "xl/workbook.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>""" + names + """<calcPr calcId="191029"/></workbook>""",
         "xl/_rels/workbook.xml.rels": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>""" + (SHARED_REL if shared else "") + """</Relationships>""",
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>""" + (SHARED_REL if shared else "") + (META_REL if meta is not None else "") + """</Relationships>""",
         "xl/worksheets/sheet1.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>""" + rows + """</sheetData></worksheet>""",
     }
+    if meta is not None:
+        parts["xl/metadata.xml"] = meta and """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+""" + meta
     if shared:
         parts["xl/sharedStrings.xml"] = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 """ + shared
@@ -185,7 +219,10 @@ with zipfile.ZipFile(os.path.join(sys.argv[1], "kept-more.ods"), "w") as out:
         out.writestr(info, text)
 
 for name, parts in [("kept.xlsx", files(KEPT)), ("kept-more.xlsx", files(MORE)),
-                    ("kept-strings.xlsx", files(STRINGS, NAMES, SHARED))]:
+                    ("kept-strings.xlsx", files(STRINGS, NAMES, SHARED)),
+                    ("spill.xlsx", files(SPILL, meta=METADATA)),
+                    ("spill-broken.xlsx", files(SPILL, meta="<metadata")),
+                    ("spill-empty.xlsx", files(SPILL, meta=""))]:
     with zipfile.ZipFile(os.path.join(sys.argv[1], name), "w", zipfile.ZIP_DEFLATED) as out:
         for part, text in parts.items():
             info = zipfile.ZipInfo(part, (2026, 10, 28, 0, 0, 0))

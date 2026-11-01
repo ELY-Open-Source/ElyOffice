@@ -1,0 +1,625 @@
+Calc keeps Excel's dynamic arrays through XLSX
+
+Excel marks a spilling array formula with cm="1" on its anchor cell,
+pointing into xl/metadata.xml (an XLDAPR block, fDynamic="1"). Calc
+read neither and wrote neither, so a saved workbook turned SORT(),
+FILTER() and the like into fixed legacy arrays that no longer spill
+(Ely R15.11a). Import reads metadata.xml and flags the array origins
+whose cm names a dynamic block; the flag follows the cell through
+copies; export writes cm="1" on flagged origins and the metadata part
+with its relationship.
+diff --git a/include/oox/token/relationship.hxx b/include/oox/token/relationship.hxx
+--- a/include/oox/token/relationship.hxx
++++ b/include/oox/token/relationship.hxx
+@@ -59,6 +59,7 @@
+     PRESPROPS,
+     SETTINGS,
+     SHAREDSTRINGS,
++    SHEETMETADATA,
+     SLIDE,
+     SLIDELAYOUT,
+     SLIDEMASTER,
+diff --git a/oox/source/core/xmlfilterbase.cxx b/oox/source/core/xmlfilterbase.cxx
+--- a/oox/source/core/xmlfilterbase.cxx
++++ b/oox/source/core/xmlfilterbase.cxx
+@@ -157,6 +157,8 @@
+              NMSP_xr2},
+             {u"http://schemas.microsoft.com/office/spreadsheetml/2017/revision16"_ustr,
+              NMSP_xr16},
++            {u"http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray"_ustr,
++             NMSP_xda},
+             {u"http://schemas.microsoft.com/office/drawing/2017/decorative"_ustr, NMSP_adec},
+             {u"http://schemas.microsoft.com/office/drawing/2016/SVG/main"_ustr, NMSP_asvg},
+             {u"http://schemas.microsoft.com/office/drawing/2014/chartex"_ustr, NMSP_cx},
+diff --git a/oox/source/token/namespaces-strict.txt b/oox/source/token/namespaces-strict.txt
+--- a/oox/source/token/namespaces-strict.txt
++++ b/oox/source/token/namespaces-strict.txt
+@@ -97,6 +97,7 @@
+ xr6                     http://schemas.microsoft.com/office/spreadsheetml/2016/revision6
+ xr10                    http://schemas.microsoft.com/office/spreadsheetml/2016/revision10
+ xr16                    http://schemas.microsoft.com/office/spreadsheetml/2017/revision16
++xda                     http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray
+ cs                      http://schemas.microsoft.com/office/drawing/2012/chartStyle
+ 
+ # MSO 2014 extensions ---------------------------------------------------------
+diff --git a/oox/source/token/namespaces.txt b/oox/source/token/namespaces.txt
+--- a/oox/source/token/namespaces.txt
++++ b/oox/source/token/namespaces.txt
+@@ -95,6 +95,7 @@
+ xr6                     http://schemas.microsoft.com/office/spreadsheetml/2016/revision6
+ xr10                    http://schemas.microsoft.com/office/spreadsheetml/2016/revision10
+ xr16                    http://schemas.microsoft.com/office/spreadsheetml/2017/revision16
++xda                     http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray
+ cs                      http://schemas.microsoft.com/office/drawing/2012/chartStyle
+ 
+ # MSO 2014 extensions ---------------------------------------------------------
+diff --git a/oox/source/token/relationship.inc b/oox/source/token/relationship.inc
+--- a/oox/source/token/relationship.inc
++++ b/oox/source/token/relationship.inc
+@@ -39,6 +39,7 @@
+ {Relationship::PRESPROPS, u"http://schemas.openxmlformats.org/officeDocument/2006/relationships/presProps"},
+ {Relationship::SETTINGS, u"http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings"},
+ {Relationship::SHAREDSTRINGS, u"http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"},
++{Relationship::SHEETMETADATA, u"http://schemas.openxmlformats.org/officeDocument/2006/relationships/sheetMetadata"},
+ {Relationship::SLIDE, u"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"},
+ {Relationship::SLIDELAYOUT, u"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout"},
+ {Relationship::SLIDEMASTER, u"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster"},
+diff --git a/oox/source/token/tokens.txt b/oox/source/token/tokens.txt
+--- a/oox/source/token/tokens.txt
++++ b/oox/source/token/tokens.txt
+@@ -2043,6 +2043,7 @@
+ dy
+ dyaOrig
+ dynamicAddress
++dynamicArrayProperties
+ dynamicFilter
+ dz
+ e
+@@ -2217,6 +2218,8 @@
+ extrusioncolor
+ extrusionok
+ f
++fCollapsed
++fDynamic
+ fHdr
+ fLocksText
+ fLocksWithSheet
+@@ -5908,6 +5911,7 @@
+ xSplit
+ xVal
+ xWindow
++xda
+ xdr
+ xf
+ xfDxf
+diff --git a/sc/Library_scfilt.mk b/sc/Library_scfilt.mk
+--- a/sc/Library_scfilt.mk
++++ b/sc/Library_scfilt.mk
+@@ -206,6 +206,7 @@
+ 	sc/source/filter/oox/scenariobuffer \
+ 	sc/source/filter/oox/scenariocontext \
+ 	sc/source/filter/oox/sharedstringsbuffer \
++	sc/source/filter/oox/metadatafragment \
+ 	sc/source/filter/oox/sharedstringsfragment \
+ 	sc/source/filter/oox/sheetdatabuffer \
+ 	sc/source/filter/oox/sheetdatacontext \
+diff --git a/sc/inc/formulacell.hxx b/sc/inc/formulacell.hxx
+--- a/sc/inc/formulacell.hxx
++++ b/sc/inc/formulacell.hxx
+@@ -138,6 +138,7 @@
+     bool            mbSeenInPath     : 1; // For detecting cycle involving formula groups and singleton formulacells
+     bool            mbFreeFlying     : 1; // Cell is out of sheets interpreted, like in conditional format
+     bool            mbKeptResult     : 1 = false; // File's result stands: unknown names, inputs unchanged
++    bool            mbDynamicArray   : 1 = false; // Excel's spilling array origin; saved back as one
+     ScMatrixMode    cMatrixFlag      : 8;
+     sal_uInt16      nSeenInIteration : 16;   // Iteration cycle in which the cell was last encountered
+     SvNumFormatType nFormatType      : 16;
+@@ -255,6 +256,11 @@
+             nFormatType = SvNumFormatType::LOGICAL;
+     }
+     bool IsKeptResult() const { return mbKeptResult; }
++    /// An XLSX dynamic array: saved back as one.
++    void SetDynamicArray() { mbDynamicArray = true; }
++    /// Undo copies keep rCell's array size and dynamic flag.
++    void KeepArrayOf( const ScFormulaCell& rCell );
++    bool IsDynamicArray() const { return mbDynamicArray; }
+     /// Calc lacks a function here or in a name used.
+     SC_DLLPUBLIC static bool HasUnknownFunction( const ScDocument& rDoc, const ScTokenArray& rCode );
+     /// Takes over another cell's kept result.
+diff --git a/sc/source/core/data/column.cxx b/sc/source/core/data/column.cxx
+--- a/sc/source/core/data/column.cxx
++++ b/sc/source/core/data/column.cxx
+@@ -2203,10 +2203,13 @@
+ 
+         // Insert the old formula group into the undo document.
+         ScAddress aUndoPos = rOldPos;
+-        ScFormulaCell* pFC = new ScFormulaCell(*mpUndoDoc, aUndoPos, rOldCode.Clone());
++        const ScMatrixMode eMatrix = ppCells[0]->GetMatrixFlag();
++        ScFormulaCell* pFC = new ScFormulaCell(*mpUndoDoc, aUndoPos, rOldCode.Clone(),
++                                               formula::FormulaGrammar::GRAM_DEFAULT, eMatrix);
+         // Undo needs the kept result: nothing else holds it.
+         if (ppCells[0]->IsKeptResult())
+             pFC->KeepResultOf(*ppCells[0]);
++        pFC->KeepArrayOf(*ppCells[0]);
+ 
+         if (nLength == 1)
+         {
+@@ -2221,9 +2224,11 @@
+         aUndoPos.IncRow();
+         for (SCROW i = 1; i < nLength; ++i, aUndoPos.IncRow())
+         {
+-            pFC = new ScFormulaCell(*mpUndoDoc, aUndoPos, xGroup);
++            pFC = new ScFormulaCell(*mpUndoDoc, aUndoPos, xGroup,
++                                    formula::FormulaGrammar::GRAM_DEFAULT, eMatrix);
+             if (ppCells[i]->IsKeptResult())
+                 pFC->KeepResultOf(*ppCells[i]);
++            pFC->KeepArrayOf(*ppCells[i]);
+             aCells.push_back(pFC);
+         }
+ 
+diff --git a/sc/source/core/data/column4.cxx b/sc/source/core/data/column4.cxx
+--- a/sc/source/core/data/column4.cxx
++++ b/sc/source/core/data/column4.cxx
+@@ -682,6 +682,8 @@
+                 ScFormulaCell* pCell = new ScFormulaCell(rDocument, aPos, xGroup, rDocument.GetGrammar(), nMatrixFlag);
+                 if (nMatrixFlag == ScMatrixMode::Formula)
+                     pCell->SetMatColsRows( nMatrixCols, nMatrixRows);
++                if (rSrc.IsDynamicArray())
++                    pCell->SetDynamicArray();
+                 if (i == 0)
+                 {
+                     xGroup->mpTopCell = pCell;
+diff --git a/sc/source/core/data/formulacell.cxx b/sc/source/core/data/formulacell.cxx
+--- a/sc/source/core/data/formulacell.cxx
++++ b/sc/source/core/data/formulacell.cxx
+@@ -801,6 +801,7 @@
+     mbFreeFlying(false),
+     // Undo copies land where the inputs still are.
+     mbKeptResult(rCell.mbKeptResult && rPos == rCell.aPos && !rDoc.IsClipboard() && !rCell.rDocument.IsClipboard()),
++    mbDynamicArray(rCell.mbDynamicArray),
+     cMatrixFlag ( rCell.cMatrixFlag ),
+     nSeenInIteration(0),
+     nFormatType( rCell.nFormatType ),
+@@ -2455,6 +2456,18 @@
+     }
+ }
+ 
++void ScFormulaCell::KeepArrayOf( const ScFormulaCell& rCell )
++{
++    if (rCell.cMatrixFlag == ScMatrixMode::Formula)
++    {
++        SCCOL nCols;
++        SCROW nRows;
++        rCell.GetMatColsRows(nCols, nRows);
++        SetMatColsRows(nCols, nRows);
++    }
++    mbDynamicArray = rCell.mbDynamicArray;
++}
++
+ void ScFormulaCell::GetMatColsRows( SCCOL & nCols, SCROW & nRows ) const
+ {
+     const ScMatrixFormulaCellToken* pMat = aResult.GetMatrixFormulaCellToken();
+@@ -3316,6 +3329,7 @@
+         pFCell->KeepResultOf(rCell);
+     else
+         pFCell->SetResultToken(nullptr);  // to recognize it as changed later (Cut/Paste!)
++    pFCell->KeepArrayOf(rCell);
+     rUndoDoc.SetFormulaCell(aUndoPos, pFCell);
+ }
+ 
+diff --git a/sc/source/filter/excel/excdoc.cxx b/sc/source/filter/excel/excdoc.cxx
+--- a/sc/source/filter/excel/excdoc.cxx
++++ b/sc/source/filter/excel/excdoc.cxx
+@@ -811,6 +811,42 @@
+         m_xExpChangeTrack->Write();
+ }
+ 
++// One XLDAPR block, as Excel writes it.
++void ExcDocument::WriteDynamicArrayMetadata( XclExpXmlStream& rStrm )
++{
++    sax_fastparser::FSHelperPtr pMeta = rStrm.CreateOutputStream(
++        u"xl/metadata.xml"_ustr, u"metadata.xml", rStrm.GetCurrentStream()->getOutputStream(),
++        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml",
++        oox::getRelationship(Relationship::SHEETMETADATA));
++    rStrm.PushStream(pMeta);
++    pMeta->startElement(XML_metadata, XML_xmlns, rStrm.getNamespaceURL(OOX_NS(xls)),
++                        FSNS(XML_xmlns, XML_xda), rStrm.getNamespaceURL(OOX_NS(xda)));
++    pMeta->startElement(XML_metadataTypes, XML_count, "1");
++    pMeta->singleElement(XML_metadataType, XML_name, "XLDAPR", XML_minSupportedVersion, "120000",
++                         XML_copy, "1", XML_pasteAll, "1", XML_pasteValues, "1", XML_merge, "1",
++                         XML_splitFirst, "1", XML_rowColShift, "1", XML_clearFormats, "1",
++                         XML_clearComments, "1", XML_assign, "1", XML_coerce, "1",
++                         XML_cellMeta, "1");
++    pMeta->endElement(XML_metadataTypes);
++    pMeta->startElement(XML_futureMetadata, XML_name, "XLDAPR", XML_count, "1");
++    pMeta->startElement(XML_bk);
++    pMeta->startElement(XML_extLst);
++    pMeta->startElement(XML_ext, XML_uri, "{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}");
++    pMeta->singleElementNS(XML_xda, XML_dynamicArrayProperties, XML_fDynamic, "1",
++                           XML_fCollapsed, "0");
++    pMeta->endElement(XML_ext);
++    pMeta->endElement(XML_extLst);
++    pMeta->endElement(XML_bk);
++    pMeta->endElement(XML_futureMetadata);
++    pMeta->startElement(XML_cellMetadata, XML_count, "1");
++    pMeta->startElement(XML_bk);
++    pMeta->singleElement(XML_rc, XML_t, "1", XML_v, "0");
++    pMeta->endElement(XML_bk);
++    pMeta->endElement(XML_cellMetadata);
++    pMeta->endElement(XML_metadata);
++    rStrm.PopStream();
++}
++
+ void ExcDocument::WriteXml( XclExpXmlStream& rStrm )
+ {
+     ScDocShell* pDocShell = GetDocShell();
+@@ -918,6 +954,9 @@
+     if( m_xExpChangeTrack )
+         m_xExpChangeTrack->WriteXml( rStrm );
+ 
++    if (HasDynamicArrays())
++        WriteDynamicArrayMetadata(rStrm);
++
+     XclExpXmlPivotCaches& rCaches = GetXmlPivotTableManager().GetCaches();
+     if (rCaches.HasCaches())
+         rCaches.SaveXml(rStrm);
+diff --git a/sc/source/filter/excel/xetable.cxx b/sc/source/filter/excel/xetable.cxx
+--- a/sc/source/filter/excel/xetable.cxx
++++ b/sc/source/filter/excel/xetable.cxx
+@@ -946,11 +946,17 @@
+     OUString    sValue;
+     XclXmlUtils::GetFormulaTypeAndValue( mrScFmlaCell, sType, sValue );
+     sax_fastparser::FSHelperPtr& rWorksheet = rStrm.GetCurrentStream();
++    // Excel's spilling arrays point at metadata.xml's XLDAPR block.
++    const bool bDynamic = mxAddRec && mrScFmlaCell.IsDynamicArray()
++                          && mrScFmlaCell.GetMatrixFlag() == ScMatrixMode::Formula;
++    if (bDynamic)
++        rStrm.GetRoot().NoteDynamicArray();
+     rWorksheet->startElement( XML_c,
+             XML_r, XclXmlUtils::ToOString(rStrm.GetRoot().GetStringBuf(), GetXclPos()).getStr(),
+             XML_s, lcl_GetStyleId(rStrm, *this),
+-            XML_t, sType
+-            // OOXTODO: XML_cm, XML_vm, XML_ph
++            XML_t, sType,
++            XML_cm, bDynamic ? "1" : nullptr
++            // OOXTODO: XML_vm, XML_ph
+     );
+ 
+     bool bWriteFormula = true;
+diff --git a/sc/source/filter/inc/excdoc.hxx b/sc/source/filter/inc/excdoc.hxx
+--- a/sc/source/filter/inc/excdoc.hxx
++++ b/sc/source/filter/inc/excdoc.hxx
+@@ -94,6 +94,7 @@
+     void                ReadDoc();
+     void                Write( SvStream& rSvStrm );
+     void                WriteXml( XclExpXmlStream& );
++    void                WriteDynamicArrayMetadata( XclExpXmlStream& rStrm );
+ 
+     // add an element attributes and values to FastAttributeList
+     static void addElemensToAttrList(const rtl::Reference<sax_fastparser::FastAttributeList>& pAttrList,
+diff --git a/sc/source/filter/inc/formulabuffer.hxx b/sc/source/filter/inc/formulabuffer.hxx
+--- a/sc/source/filter/inc/formulabuffer.hxx
++++ b/sc/source/filter/inc/formulabuffer.hxx
+@@ -11,6 +11,7 @@
+ 
+ #include "workbookhelper.hxx"
+ #include <mutex>
++#include <set>
+ #include <utility>
+ #include <vector>
+ 
+@@ -83,6 +84,8 @@
+ private:
+ 
+     std::mutex maMtxData;
++    std::set<sal_Int32> maDynamicCellMeta;
++    std::vector<ScAddress> maDynamicArrays;
+     // Vectors indexed by SCTAB - cf. SetSheetCount
+     std::vector< std::vector<TokenAddressItem> >         maCellFormulas;
+     std::vector< std::vector<TokenRangeAddressItem> >    maCellArrayFormulas;
+@@ -111,6 +114,12 @@
+     void                createSharedFormulaMapEntry( const ScAddress& rAddress,
+                                                      sal_Int32 nSharedId, const OUString& rTokens );
+ 
++    /// metadata.xml: index nIndex (1-based) marks a dynamic array.
++    void                setDynamicCellMeta( sal_Int32 nIndex );
++    bool                isDynamicCellMeta( sal_Int32 nIndex ) const;
++    /// The array formula anchored at rAddress is a dynamic array.
++    void                setDynamicArray( const ScAddress& rAddress );
++
+     /// ensure sizes of vectors matches the number of sheets
+     void SetSheetCount( SCTAB nSheets );
+ };
+diff --git a/sc/source/filter/inc/metadatafragment.hxx b/sc/source/filter/inc/metadatafragment.hxx
+new file mode 100644
+--- /dev/null
++++ b/sc/source/filter/inc/metadatafragment.hxx
+@@ -0,0 +1,42 @@
++/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++/*
++ * This file is part of the LibreOffice project.
++ *
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
++ */
++
++#pragma once
++
++#include "excelhandlers.hxx"
++
++#include <utility>
++#include <vector>
++
++namespace oox::xls {
++
++/** xl/metadata.xml: which cell metadata indexes (cm) mark dynamic arrays. */
++class MetadataFragment : public WorkbookFragmentBase
++{
++public:
++    explicit MetadataFragment( const WorkbookHelper& rHelper, const OUString& rFragmentPath );
++
++    /** Saw the root; an empty part parses without one. */
++    bool isRead() const { return mbRead; }
++
++protected:
++    virtual ::oox::core::ContextHandlerRef onCreateContext( sal_Int32 nElement, const AttributeList& rAttribs ) override;
++    virtual void finalizeImport() override;
++
++private:
++    std::vector<OUString> maTypes;           /// metadataType names, by 1-based t.
++    std::vector<bool> maDynamic;             /// XLDAPR future blocks, by 0-based v.
++    std::vector<std::pair<sal_Int32, sal_Int32>> maCells; /// cellMetadata blocks: first rc's t, v.
++    bool mbInArrays = false;                 /// Inside futureMetadata name="XLDAPR".
++    bool mbRead = false;                     /// Saw the metadata root.
++};
++
++} // namespace oox::xls
++
++/* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sc/source/filter/inc/sheetdatabuffer.hxx b/sc/source/filter/inc/sheetdatabuffer.hxx
+--- a/sc/source/filter/inc/sheetdatabuffer.hxx
++++ b/sc/source/filter/inc/sheetdatabuffer.hxx
+@@ -40,6 +40,7 @@
+     sal_Int32           mnCellType;         /// Data type of the cell value.
+     sal_Int32           mnXfId;             /// XF (cell formatting) identifier.
+     bool                mbShowPhonetic;     /// True = show phonetic text.
++    sal_Int32           mnCellMeta;         /// Cell metadata index (cm), 0 = none.
+ 
+     explicit            CellModel();
+ };
+diff --git a/sc/source/filter/inc/xeroot.hxx b/sc/source/filter/inc/xeroot.hxx
+--- a/sc/source/filter/inc/xeroot.hxx
++++ b/sc/source/filter/inc/xeroot.hxx
+@@ -100,6 +100,7 @@
+     ScCompiler::OpCodeMapPtr  mxOpCodeMap;  /// mapping between op-codes and names
+ 
+     bool                mbRelUrl;           /// true = Store URLs relative.
++    bool                mbDynamicArrays = false; /// true = a cell wrote cm="1".
+ 
+     OStringBuffer       maStringBuf;        /// buffer to avoid massive OUString allocations
+ 
+@@ -118,6 +119,9 @@
+     const XclExpRoot& GetRoot() const { return *this; }
+     /** Returns true, if URLs should be stored relative to the document location. */
+     bool         IsRelUrl() const { return mrExpData.mbRelUrl; }
++    /** A dynamic array was written: metadata.xml must define cm="1". */
++    void         NoteDynamicArray() const { mrExpData.mbDynamicArrays = true; }
++    bool         HasDynamicArrays() const { return mrExpData.mbDynamicArrays; }
+     sc::CompileFormulaContext& GetCompileFormulaContext() const { return *mrExpData.mpCompileFormulaCxt; }
+ 
+     /** Returns the buffer for Calc->Excel sheet index conversion. */
+diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formulabuffer.cxx
+--- a/sc/source/filter/oox/formulabuffer.cxx
++++ b/sc/source/filter/oox/formulabuffer.cxx
+@@ -554,6 +554,22 @@
+     maCellFormulaValues.resize( nSheets );
+ }
+ 
++void FormulaBuffer::setDynamicCellMeta( sal_Int32 nIndex )
++{
++    maDynamicCellMeta.insert(nIndex);
++}
++
++bool FormulaBuffer::isDynamicCellMeta( sal_Int32 nIndex ) const
++{
++    return maDynamicCellMeta.count(nIndex) != 0;
++}
++
++void FormulaBuffer::setDynamicArray( const ScAddress& rAddress )
++{
++    std::scoped_lock aGuard(maMtxData);
++    maDynamicArrays.push_back(rAddress);
++}
++
+ void FormulaBuffer::finalizeImport()
+ {
+     ISegmentProgressBarRef xFormulaBar = getProgressBar().createSegment( getProgressBar().getFreeLength() );
+@@ -574,6 +590,15 @@
+         processSheetFormulaCells(rDoc, rItem, getExternalLinks().getLinkInfos(),
+                 *this);
+ 
++    for (const ScAddress& rAddress : maDynamicArrays)
++    {
++        ScFormulaCell* pCell = rDoc.getDoc().GetFormulaCell(rAddress);
++        if (pCell && pCell->GetMatrixFlag() == ScMatrixMode::Formula)
++            pCell->SetDynamicArray();
++        else
++            SAL_WARN("sc.filter", "dynamic array at " << rAddress.Format(ScRefFlags::VALID) << " has no array formula");
++    }
++
+     // With formula results being set and not recalculated we need to
+     // force-trigger adding all linked external files to the LinkManager.
+     rDoc.getDoc().GetExternalRefManager()->addFilesToLinkManager();
+diff --git a/sc/source/filter/oox/metadatafragment.cxx b/sc/source/filter/oox/metadatafragment.cxx
+new file mode 100644
+--- /dev/null
++++ b/sc/source/filter/oox/metadatafragment.cxx
+@@ -0,0 +1,98 @@
++/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++/*
++ * This file is part of the LibreOffice project.
++ *
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
++ */
++
++#include <metadatafragment.hxx>
++#include <formulabuffer.hxx>
++
++#include <o3tl/safeint.hxx>
++#include <oox/helper/attributelist.hxx>
++#include <oox/token/namespaces.hxx>
++#include <oox/token/tokens.hxx>
++
++namespace oox::xls {
++
++using namespace ::oox::core;
++
++MetadataFragment::MetadataFragment( const WorkbookHelper& rHelper, const OUString& rFragmentPath ) :
++    WorkbookFragmentBase( rHelper, rFragmentPath )
++{
++}
++
++ContextHandlerRef MetadataFragment::onCreateContext( sal_Int32 nElement, const AttributeList& rAttribs )
++{
++    switch( getCurrentElement() )
++    {
++        case XML_ROOT_CONTEXT:
++            if( nElement == XLS_TOKEN( metadata ) )
++            {
++                mbRead = true;
++                return this;
++            }
++        break;
++        case XLS_TOKEN( metadata ):
++            if( nElement == XLS_TOKEN( metadataTypes ) || nElement == XLS_TOKEN( cellMetadata ) )
++                return this;
++            if( nElement == XLS_TOKEN( futureMetadata ) )
++            {
++                mbInArrays = rAttribs.getString( XML_name, OUString() ) == "XLDAPR";
++                return this;
++            }
++        break;
++        case XLS_TOKEN( metadataTypes ):
++            if( nElement == XLS_TOKEN( metadataType ) )
++                maTypes.push_back( rAttribs.getString( XML_name, OUString() ) );
++        break;
++        case XLS_TOKEN( futureMetadata ):
++            if( nElement == XLS_TOKEN( bk ) && mbInArrays )
++            {
++                maDynamic.push_back( false );
++                return this;
++            }
++        break;
++        case XLS_TOKEN( cellMetadata ):
++            if( nElement == XLS_TOKEN( bk ) )
++            {
++                maCells.emplace_back( 0, -1 );
++                return this;
++            }
++        break;
++        case XLS_TOKEN( bk ):
++            if( nElement == XLS_TOKEN( extLst ) )
++                return this;
++            // Only a block's first record names its type.
++            if( nElement == XLS_TOKEN( rc ) && !maCells.empty() && maCells.back().first == 0 )
++                maCells.back() = { rAttribs.getInteger( XML_t, 0 ), rAttribs.getInteger( XML_v, -1 ) };
++        break;
++        case XLS_TOKEN( extLst ):
++            if( nElement == XLS_TOKEN( ext ) )
++                return this;
++        break;
++        case XLS_TOKEN( ext ):
++            if( nElement == OOX_TOKEN( xda, dynamicArrayProperties ) && !maDynamic.empty() )
++                maDynamic.back() = rAttribs.getBool( XML_fDynamic, false );
++        break;
++    }
++    return nullptr;
++}
++
++void MetadataFragment::finalizeImport()
++{
++    for( size_t nCell = 0; nCell < maCells.size(); ++nCell )
++    {
++        const auto [nType, nValue] = maCells[ nCell ];
++        if( nType < 1 || o3tl::make_unsigned( nType ) > maTypes.size() || maTypes[ nType - 1 ] != "XLDAPR" )
++            continue;
++        if( nValue >= 0 && o3tl::make_unsigned( nValue ) < maDynamic.size() && maDynamic[ nValue ] )
++            getFormulaBuffer().setDynamicCellMeta( static_cast< sal_Int32 >( nCell + 1 ) );
++    }
++}
++
++} // namespace oox::xls
++
++/* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sc/source/filter/oox/sheetdatabuffer.cxx b/sc/source/filter/oox/sheetdatabuffer.cxx
+--- a/sc/source/filter/oox/sheetdatabuffer.cxx
++++ b/sc/source/filter/oox/sheetdatabuffer.cxx
+@@ -61,7 +61,8 @@
+ CellModel::CellModel() :
+     mnCellType( XML_TOKEN_INVALID ),
+     mnXfId( -1 ),
+-    mbShowPhonetic( false )
++    mbShowPhonetic( false ),
++    mnCellMeta( 0 )
+ {
+ }
+ 
+diff --git a/sc/source/filter/oox/sheetdatacontext.cxx b/sc/source/filter/oox/sheetdatacontext.cxx
+--- a/sc/source/filter/oox/sheetdatacontext.cxx
++++ b/sc/source/filter/oox/sheetdatacontext.cxx
+@@ -182,6 +182,8 @@
+             if( mbValidRange && maFmlaData.isValidArrayRef( maCellData.maCellAddr ) )
+             {
+                 setCellArrayFormula( maFmlaData.maFormulaRef, maCellData.maCellAddr, maFormulaStr );
++                if (getFormulaBuffer().isDynamicCellMeta(maCellData.mnCellMeta))
++                    getFormulaBuffer().setDynamicArray(maCellData.maCellAddr);
+                 // Its result, for an unknown function to keep.
+                 if (mbHasValue)
+                     setCellFormulaValue(maCellData.maCellAddr, maCellValue, maCellData.mnCellType);
+@@ -396,6 +398,7 @@
+         maCellData.mnCellType     = rAttribs.getToken( XML_t, XML_n );
+         maCellData.mnXfId         = rAttribs.getInteger( XML_s, -1 );
+         maCellData.mbShowPhonetic = rAttribs.getBool( XML_ph, false );
++        maCellData.mnCellMeta     = rAttribs.getInteger( XML_cm, 0 );
+ 
+         // reset cell value, formula settings, and inline string
+         maCellValue.clear();
+diff --git a/sc/source/filter/oox/workbookfragment.cxx b/sc/source/filter/oox/workbookfragment.cxx
+--- a/sc/source/filter/oox/workbookfragment.cxx
++++ b/sc/source/filter/oox/workbookfragment.cxx
+@@ -20,6 +20,7 @@
+ #include <utility>
+ #include <workbookfragment.hxx>
+ 
++#include <com/sun/star/io/IOException.hpp>
+ #include <oox/core/filterbase.hxx>
+ #include <oox/core/xmlfilterbase.hxx>
+ #include <oox/drawingml/themefragmenthandler.hxx>
+@@ -36,6 +37,7 @@
+ #include <externallinkfragment.hxx>
+ #include <formulabuffer.hxx>
+ #include <pivotcachebuffer.hxx>
++#include <metadatafragment.hxx>
+ #include <sharedstringsfragment.hxx>
+ #include <revisionfragment.hxx>
+ #include <stylesfragment.hxx>
+@@ -388,6 +390,16 @@
+             importOoxFragment(new SharedStringsFragment(*this, aSstFragmentPath.replaceFirst("sharedStrings","SharedStrings")));
+     xGlobalSegment->setPosition( 0.75 );
+ 
++    // read the cell metadata: which array formulas spill
++    OUString aMetadataFragmentPath = getFragmentPathFromFirstTypeFromOfficeDoc( u"sheetMetadata" );
++    if( !aMetadataFragmentPath.isEmpty() )
++    {
++        rtl::Reference< MetadataFragment > xMetadata = new MetadataFragment( *this, aMetadataFragmentPath );
++        // Unread, every spilling array would save as fixed.
++        if( !importOoxFragment( xMetadata ) || !xMetadata->isRead() )
++            throw css::io::IOException( "cannot read " + aMetadataFragmentPath );
++    }
++
+     // read the connections substream
+     OUString aConnFragmentPath = getFragmentPathFromFirstTypeFromOfficeDoc( u"connections" );
+     if( !aConnFragmentPath.isEmpty() )

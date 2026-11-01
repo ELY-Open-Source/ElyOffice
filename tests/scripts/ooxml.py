@@ -19,6 +19,8 @@ P = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
 A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
 R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
 REL = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+XDA = "{http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray}"
+CT = "{http://schemas.openxmlformats.org/package/2006/content-types}"
 
 failures = []
 
@@ -120,22 +122,28 @@ def contract(path):
         check("Alpha 甲" in shown and "Hello 世界" in shown, f"textutil reads the text: {shown!r}")
 
 
-def cells(archive):
-    """The workbook's first declared sheet, through its relationship."""
-    book = main_part(archive)
-    if not book:
-        return {}
-    shared = []
-    for part in related(archive, book, "sharedStrings"):
-        shared = [texts(si, S + "t") for si in xml(archive, part).iter(S + "si")]
+def first_sheet(archive, book):
+    """The workbook's first declared sheet part, through its relationship."""
     sheets = list(xml(archive, book).iter(S + "sheet"))
     if not check(sheets, "the workbook lists a sheet"):
-        return {}
+        return None
     target = rels(archive, book).get(sheets[0].get(R + "id"))
     if not check(target and target[1] in archive.namelist(), f"the first sheet's part exists: {target}"):
+        return None
+    return target[1]
+
+
+def cells(archive):
+    """The first sheet's cells: type, formula, value."""
+    book = main_part(archive)
+    part = book and first_sheet(archive, book)
+    if not part:
         return {}
+    shared = []
+    for strings in related(archive, book, "sharedStrings"):
+        shared = [texts(si, S + "t") for si in xml(archive, strings).iter(S + "si")]
     found = {}
-    for c in xml(archive, target[1]).iter(S + "c"):
+    for c in xml(archive, part).iter(S + "c"):
         kind = c.get("t", "n")
         f, v = c.find(S + "f"), c.find(S + "v")
         value = v.text if v is not None else None
@@ -277,6 +285,65 @@ COPIED = MORE | {
 }
 
 
+def dynamic_meta(archive, book):
+    """Cell metadata indexes (cm) whose block is a dynamic array."""
+    parts = related(archive, book, "sheetMetadata")
+    if not parts:
+        return set()
+    types = {o.get("PartName").lstrip("/"): o.get("ContentType")
+             for o in xml(archive, "[Content_Types].xml").iter(CT + "Override")}
+    check(types.get(parts[0]) == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml",
+          f"{parts[0]} has the sheetMetadata content type")
+    meta = xml(archive, parts[0])
+    names = [kind.get("name") for kind in meta.iter(S + "metadataType")]
+    flags = [any(p.get("fDynamic") == "1" for p in bk.iter(XDA + "dynamicArrayProperties"))
+             for future in meta.iter(S + "futureMetadata") if future.get("name") == "XLDAPR"
+             for bk in future.findall(S + "bk")]
+    found = set()
+    for block in meta.iter(S + "cellMetadata"):
+        for cm, bk in enumerate(block.findall(S + "bk"), 1):
+            rc = bk.find(S + "rc")
+            kind, value = int(rc.get("t")), int(rc.get("v"))
+            if 0 < kind <= len(names) and names[kind - 1] == "XLDAPR" and value < len(flags) and flags[value]:
+                found.add(cm)
+    return found
+
+
+# Anchor: (ref, formula, spills).
+SPILL = {
+    "C1": ("C1:C3", "_xlfn._xlws.SORT(_xlfn.UNIQUE(A1:A4))", True),
+    "E1": ("E1:E2", "A1:A2*2", False),
+    "I1": ("I1:I2", "A1:A2+2", False),
+    "K1": ("K1", "IF($A$1=3,1,TRANSPOSE($A$1:$A$4))", True),
+    "T1": ("T1", "SUM($A$1:$A$4*1)", False),
+}
+# K1 pasted as formulas into O1:O2.
+PASTED = SPILL | {cell: (cell, SPILL["K1"][1], True) for cell in ("O1", "O2")}
+
+
+def spill(path, expected=SPILL):
+    """Excel's spilling arrays keep cm and the metadata it names."""
+    with zipfile.ZipFile(path) as archive:
+        book = main_part(archive)
+        part = book and first_sheet(archive, book)
+        if not part:
+            return
+        dynamic = dynamic_meta(archive, book)
+        found = {c.get("r"): c for c in xml(archive, part).iter(S + "c")}
+    for ref, (span, formula, spills) in expected.items():
+        c = found.get(ref)
+        if not check(c is not None, f"{ref} is there"):
+            continue
+        f = c.find(S + "f")
+        # A one-cell ref may be written X1 or X1:X1.
+        span_of = f.get("ref", "") if f is not None else ""
+        if ":" in span_of and len(set(span_of.split(":"))) == 1:
+            span_of = span_of.split(":")[0]
+        got = (f.get("t"), span_of, f.text) if f is not None else None
+        check(got == ("array", span, formula), f"{ref} is {got!r}")
+        check((int(c.get("cm", "0")) in dynamic) == spills, f"{ref} spills: {spills}")
+
+
 def cells_are(path, expected):
     """Formulas as written, with the file's type and value."""
     with zipfile.ZipFile(path) as archive:
@@ -295,6 +362,8 @@ CASES = {
     "kept-edited": lambda path: cells_are(path, EDITED),
     "kept-more": lambda path: cells_are(path, MORE),
     "kept-copied": lambda path: cells_are(path, COPIED),
+    "spill": spill,
+    "spill-pasted": lambda path: spill(path, PASTED),
 }
 
 # Damage each check must catch: part, pattern, replacement.
@@ -329,6 +398,16 @@ MUTATIONS = {
     "kept-copied": [
         ("xl/worksheets/sheet1.xml", r'(<c r="H10"[^>]*)t="b"', r'\g<1>t="n"'),
         ("xl/worksheets/sheet1.xml", r'(<c r="K8"[^>]*)t="e"', r'\g<1>t="n"'),
+    ],
+    "spill": [
+        ("xl/worksheets/sheet1.xml", r'(<c r="C1"[^>]*?) cm="1"', r"\1"),
+        ("xl/worksheets/sheet1.xml", r'<c r="E1"', '<c r="E1" cm="1"'),
+        ("xl/metadata.xml", r'fDynamic="1"', 'fDynamic="0"'),
+        ("xl/_rels/workbook.xml.rels", r'<Relationship [^>]*sheetMetadata"[^>]*/>', ""),
+        ("[Content_Types].xml", r'<Override PartName="/xl/metadata.xml"[^>]*/>', ""),
+    ],
+    "spill-pasted": [
+        ("xl/worksheets/sheet1.xml", r'(<c r="O2"[^>]*?) cm="1"', r"\1"),
     ],
     "deck": [
         ("ppt/_rels/presentation.xml.rels", r"slides/slide2\.xml", "slides/missing.xml"),
