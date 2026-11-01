@@ -1,0 +1,285 @@
+XLSX pivot tables keep Excel's header and grand total words
+
+Excel's compact pivot shows rowHeaderCaption and colHeaderCaption in
+its header cells, "Row Labels" and "Column Labels" by default, and
+grandTotalCaption, "Grand Total" by default, on its totals. The import
+read these captions and dropped them, so Calc wrote the field names
+and "Total Result" over Excel's cells and every save changed the
+table's text (Ely R15.11d). The import now keeps each caption, an
+empty one too, or Excel's default when the file has none; a compact
+table writes them in its header cells, a tabular one still shows
+field names. With no row field but the data layout one, the
+column fields' own layout decides.
+Export writes a caption only when it differs from Excel's default, so
+Excel in another language still shows its own words.
+diff --git a/sc/inc/dpoutput.hxx b/sc/inc/dpoutput.hxx
+index 29423ab66..23b2c1132 100644
+--- a/sc/inc/dpoutput.hxx
++++ b/sc/inc/dpoutput.hxx
+@@ -32,6 +32,7 @@
+ #include "pivot/PivotTableFormatOutput.hxx"
+ 
+ #include <memory>
++#include <optional>
+ #include <vector>
+ 
+ namespace com::sun::star::sheet {
+@@ -87,8 +88,11 @@ private:
+     bool mbSizeOverflow:1;
+     bool mbHeaderLayout:1;  // true : grid, false : standard
+     bool mbHasCompactRowField:1; // true: at least one of the row fields has compact layout.
++    bool mbHasCompactColField:1;
+     bool mbExpandCollapse:1; // true: show expand/collapse buttons
+     bool mbHideHeader : 1;
++    std::optional<OUString> maRowCaption;
++    std::optional<OUString> maColCaption;
+ 
+     void            DataCell( SCCOL nCol, SCROW nRow, SCTAB nTab,
+                                 const css::sheet::DataResult& rData );
+@@ -146,6 +150,7 @@ public:
+     void GetMemberResultNames(ScDPUniqueStringSet& rNames, tools::Long nDimension);
+ 
+     void            SetHeaderLayout(bool bUseGrid);
++    void            SetHeaderCaptions(const std::optional<OUString>& rRow, const std::optional<OUString>& rCol);
+     bool            GetHeaderLayout() const { return mbHeaderLayout;}
+ 
+     void setFormats(sc::PivotTableFormats const& rPivotTableFormats)
+diff --git a/sc/inc/dpsave.hxx b/sc/inc/dpsave.hxx
+index 3490bcaa9..ab2c09a0c 100644
+--- a/sc/inc/dpsave.hxx
++++ b/sc/inc/dpsave.hxx
+@@ -261,6 +261,9 @@ private:
+ 
+     std::unique_ptr<sc::PivotTableFormats> mpFormats;
+     std::optional<OUString> mpGrandTotalName;
++    // Excel's compact header captions; unset keeps Calc's.
++    std::optional<OUString> mpRowHeaderCaption;
++    std::optional<OUString> mpColHeaderCaption;
+     mutable std::unique_ptr<DimOrderType> mpDimOrder; // dimension order for row and column dimensions, to traverse result tree.
+ 
+ public:
+@@ -278,6 +281,9 @@ public:
+ 
+     SC_DLLPUBLIC void SetGrandTotalName(const OUString& rName);
+     SC_DLLPUBLIC const std::optional<OUString> & GetGrandTotalName() const;
++    SC_DLLPUBLIC void SetHeaderCaptions(const OUString& rRow, const OUString& rCol);
++    const std::optional<OUString>& GetRowHeaderCaption() const { return mpRowHeaderCaption; }
++    const std::optional<OUString>& GetColHeaderCaption() const { return mpColHeaderCaption; }
+ 
+     const DimsType& GetDimensions() const { return m_DimList; }
+ 
+diff --git a/sc/source/core/data/dpobject.cxx b/sc/source/core/data/dpobject.cxx
+index 16092c6ed..05543b8ce 100644
+--- a/sc/source/core/data/dpobject.cxx
++++ b/sc/source/core/data/dpobject.cxx
+@@ -530,6 +530,7 @@ void ScDPObject::CreateOutput()
+ 
+     mpOutput.reset(new ScDPOutput(mpDocument, mxSource, maOutputRange.aStart, bFilterButton, bExpandCollapse, *this, mbHideHeader));
+     mpOutput->SetHeaderLayout(mbHeaderLayout);
++    mpOutput->SetHeaderCaptions(mpSaveData->GetRowHeaderCaption(), mpSaveData->GetColHeaderCaption());
+     if (mpSaveData->hasFormats())
+         mpOutput->setFormats(mpSaveData->getFormats());
+ 
+diff --git a/sc/source/core/data/dpoutput.cxx b/sc/source/core/data/dpoutput.cxx
+index 3db976df0..2e5884d7d 100644
+--- a/sc/source/core/data/dpoutput.cxx
++++ b/sc/source/core/data/dpoutput.cxx
+@@ -497,6 +497,7 @@ ScDPOutput::ScDPOutput(ScDocument* pDocument, uno::Reference<sheet::XDimensionsS
+     , mbSizeOverflow(false)
+     , mbHeaderLayout(false)
+     , mbHasCompactRowField(false)
++    , mbHasCompactColField(false)
+     , mbExpandCollapse(bExpandCollapse)
+     , mbHideHeader(bHideHeader)
+ {
+@@ -572,6 +573,9 @@ ScDPOutput::ScDPOutput(ScDocument* pDocument, uno::Reference<sheet::XDimensionsS
+                                         uno::Sequence<sheet::MemberResult> aResult = xLevRes->getResults();
+                                         if (!lcl_MemberEmpty(aResult))
+                                         {
++                                            sheet::DataPilotFieldLayoutInfo aLayoutInfo;
++                                            if (xPropSet->getPropertyValue(SC_UNO_DP_LAYOUT) >>= aLayoutInfo)
++                                                mbHasCompactColField |= (aLayoutInfo.LayoutMode == sheet::DataPilotFieldLayoutMode::COMPACT_LAYOUT);
+                                             mpColFields.emplace_back(nDim, nHierarchy, nLev, nDimPos, nNumFmt, aResult, aName,
+                                                                      aCaption, bHasHiddenMember, bIsDataLayout, false);
+                                         }
+@@ -785,7 +789,9 @@ void ScDPOutput::HeaderCell( SCCOL nCol, SCROW nRow, SCTAB nTab,
+ 
+ void ScDPOutput::MultiFieldCell(SCCOL nCol, SCROW nRow, SCTAB nTab, bool bRowField)
+ {
+-    mpDocument->SetString(nCol, nRow, nTab, ScResId(bRowField ? STR_PIVOT_ROW_LABELS : STR_PIVOT_COL_LABELS));
++    const OUString aLabel = bRowField ? maRowCaption.value_or(ScResId(STR_PIVOT_ROW_LABELS))
++                                      : maColCaption.value_or(ScResId(STR_PIVOT_COL_LABELS));
++    mpDocument->SetString(nCol, nRow, nTab, aLabel);
+ 
+     ScMF nMergeFlag = ScMF::Button;
+     for (auto& rData : mpRowFields)
+@@ -1001,7 +1007,12 @@ void ScDPOutput::outputColumnHeaders(SCTAB nTab, ScDPOutputImpl& rOutputImpl)
+ 
+         if (mnMemberStartRow > mnTabStartRow)
+         {
+-            if (!mbHasCompactRowField || nNumColFields == 1)
++            // Without real rows, the columns' layout decides.
++            const bool bRows = std::any_of(mpRowFields.begin(), mpRowFields.end(),
++                                           [](const ScDPOutLevelData& r) { return !r.mbDataLayout; });
++            const bool bCompact = bRows ? mbHasCompactRowField : mbHasCompactColField;
++            const bool bCaption = bCompact && maColCaption;
++            if (!bCaption && (!mbHasCompactRowField || nNumColFields == 1))
+                 FieldCell(nHeaderCol, mnTabStartRow, nTab, mpColFields[nField], true);
+             else if (!nField)
+                 MultiFieldCell(nHeaderCol, mnTabStartRow, nTab, false /* bRowField */);
+@@ -1076,7 +1087,8 @@ void ScDPOutput::outputRowHeader(SCTAB nTab, ScDPOutputImpl& rOutputImpl)
+         const bool bCompactField = maRowCompactFlags[nField];
+         SCCOL nHdrCol = mnTabStartCol + SCCOL(nField); //TODO: check for overflow
+         SCROW nHdrRow = mnDataStartRow - 1;
+-        if (!mbHasCompactRowField || nNumRowFields == 1)
++        const bool bCaption = mbHasCompactRowField && maRowCaption;
++        if (!bCaption && (!mbHasCompactRowField || nNumRowFields == 1))
+             FieldCell(nHdrCol, nHdrRow, nTab, mpRowFields[nField], true);
+         else if (!nField)
+             MultiFieldCell(nHdrCol, nHdrRow, nTab, true /* bRowField */);
+@@ -1315,6 +1327,12 @@ void ScDPOutput::GetMemberResultNames(ScDPUniqueStringSet& rNames, tools::Long n
+     }
+ }
+ 
++void ScDPOutput::SetHeaderCaptions(const std::optional<OUString>& rRow, const std::optional<OUString>& rCol)
++{
++    maRowCaption = rRow;
++    maColCaption = rCol;
++}
++
+ void ScDPOutput::SetHeaderLayout(bool bUseGrid)
+ {
+     mbHeaderLayout = bUseGrid;
+diff --git a/sc/source/core/data/dpsave.cxx b/sc/source/core/data/dpsave.cxx
+index 1d697d648..7cc751a61 100644
+--- a/sc/source/core/data/dpsave.cxx
++++ b/sc/source/core/data/dpsave.cxx
+@@ -757,6 +757,8 @@ ScDPSaveData::ScDPSaveData(const ScDPSaveData& rOther)
+     , mbExpandCollapse(rOther.mbExpandCollapse)
+     , mbDimensionMembersBuilt(rOther.mbDimensionMembersBuilt)
+     , mpGrandTotalName(rOther.mpGrandTotalName)
++    , mpRowHeaderCaption(rOther.mpRowHeaderCaption)
++    , mpColHeaderCaption(rOther.mpColHeaderCaption)
+ {
+     if (rOther.mpDimensionData)
+         mpDimensionData.reset(new ScDPDimensionSaveData(*rOther.mpDimensionData));
+@@ -807,6 +809,9 @@ bool ScDPSaveData::operator== (const ScDPSaveData& rOther) const
+     else if (rOther.mpGrandTotalName)
+         return false;
+ 
++    if (mpRowHeaderCaption != rOther.mpRowHeaderCaption || mpColHeaderCaption != rOther.mpColHeaderCaption)
++        return false;
++
+     return true;
+ }
+ 
+@@ -839,6 +844,12 @@ const std::optional<OUString> & ScDPSaveData::GetGrandTotalName() const
+     return mpGrandTotalName;
+ }
+ 
++void ScDPSaveData::SetHeaderCaptions(const OUString& rRow, const OUString& rCol)
++{
++    mpRowHeaderCaption = rRow;
++    mpColHeaderCaption = rCol;
++}
++
+ namespace {
+ 
+ class DimOrderInserter
+diff --git a/sc/source/filter/excel/xepivotxml.cxx b/sc/source/filter/excel/xepivotxml.cxx
+index 363e8446d..241fceea3 100644
+--- a/sc/source/filter/excel/xepivotxml.cxx
++++ b/sc/source/filter/excel/xepivotxml.cxx
+@@ -54,6 +54,14 @@ using namespace com::sun::star;
+ 
+ namespace {
+ 
++// A caption Excel would show anyway is not written.
++std::optional<OString> lcl_caption(const std::optional<OUString>& rName, std::u16string_view aExcel)
++{
++    if (!rName || *rName == aExcel)
++        return {};
++    return rName->toUtf8();
++}
++
+ void savePivotCacheRecordsXml( XclExpXmlStream& rStrm, const ScDPCache& rCache )
+ {
+     SCROW nCount = rCache.GetDataSize();
+@@ -1083,7 +1091,10 @@ void XclExpXmlPivotTables::SavePivotTableXml( XclExpXmlStream& rStrm, const ScDP
+         XML_outline, ToPsz10(!bTabularMode),
+         XML_outlineData, ToPsz10(!bTabularMode),
+         XML_compact, ToPsz10(bCompactMode),
+-        XML_compactData, ToPsz10(bCompactMode));
++        XML_compactData, ToPsz10(bCompactMode),
++        XML_grandTotalCaption, lcl_caption(rSaveData.GetGrandTotalName(), u"Grand Total"),
++        XML_rowHeaderCaption, lcl_caption(rSaveData.GetRowHeaderCaption(), u"Row Labels"),
++        XML_colHeaderCaption, lcl_caption(rSaveData.GetColHeaderCaption(), u"Column Labels"));
+ 
+     // NB: Excel's range does not include page field area (if any).
+     ScRange aOutRange = rDPObj.GetOutputRangeByType(sheet::DataPilotOutputRangeType::TABLE);
+diff --git a/sc/source/filter/inc/pivottablebuffer.hxx b/sc/source/filter/inc/pivottablebuffer.hxx
+index a760d54e4..78336ca1a 100644
+--- a/sc/source/filter/inc/pivottablebuffer.hxx
++++ b/sc/source/filter/inc/pivottablebuffer.hxx
+@@ -229,9 +229,9 @@ struct PTDefinitionModel : public AutoFormatModel
+ {
+     OUString     maName;
+     OUString     maDataCaption;
+-    OUString     maGrandTotalCaption;
+-    OUString     maRowHeaderCaption;
+-    OUString     maColHeaderCaption;
++    std::optional<OUString> maGrandTotalCaption;
++    std::optional<OUString> maRowHeaderCaption;
++    std::optional<OUString> maColHeaderCaption;
+     OUString     maErrorCaption;
+     OUString     maMissingCaption;
+     OUString     maPageStyle;
+diff --git a/sc/source/filter/oox/pivottablebuffer.cxx b/sc/source/filter/oox/pivottablebuffer.cxx
+index 263aa19ea..40f67b653 100644
+--- a/sc/source/filter/oox/pivottablebuffer.cxx
++++ b/sc/source/filter/oox/pivottablebuffer.cxx
+@@ -992,9 +992,9 @@ void PivotTable::importPivotTableDefinition( const AttributeList& rAttribs )
+ {
+     maDefModel.maName                = rAttribs.getXString( XML_name, OUString() );
+     maDefModel.maDataCaption         = rAttribs.getXString( XML_dataCaption , OUString() );
+-    maDefModel.maGrandTotalCaption   = rAttribs.getXString( XML_grandTotalCaption, OUString() );
+-    maDefModel.maRowHeaderCaption    = rAttribs.getXString( XML_rowHeaderCaption, OUString() );
+-    maDefModel.maColHeaderCaption    = rAttribs.getXString( XML_colHeaderCaption, OUString() );
++    maDefModel.maGrandTotalCaption   = rAttribs.getXString( XML_grandTotalCaption );
++    maDefModel.maRowHeaderCaption    = rAttribs.getXString( XML_rowHeaderCaption );
++    maDefModel.maColHeaderCaption    = rAttribs.getXString( XML_colHeaderCaption );
+     maDefModel.maErrorCaption        = rAttribs.getXString( XML_errorCaption, OUString() );
+     maDefModel.maMissingCaption      = rAttribs.getXString( XML_missingCaption, OUString() );
+     maDefModel.maPageStyle           = rAttribs.getXString( XML_pageStyle, OUString() );
+@@ -1104,7 +1104,7 @@ void PivotTable::importPTDefinition( SequenceInputStream& rStrm )
+     if( getFlag( nFlags2, BIFF12_PTDEF_HASDATACAPTION ) )
+         rStrm >> maDefModel.maDataCaption;
+     if( getFlag( nFlags2, BIFF12_PTDEF_HASGRANDTOTALCAPTION ) )
+-        rStrm >> maDefModel.maGrandTotalCaption;
++        maDefModel.maGrandTotalCaption = BiffHelper::readString( rStrm );
+     if( !getFlag( nFlags3, BIFF12_PTDEF_NOERRORCAPTION ) )   // missing flag indicates existing string
+         rStrm >> maDefModel.maErrorCaption;
+     if( !getFlag( nFlags3, BIFF12_PTDEF_NOMISSINGCAPTION ) ) // missing flag indicates existing string
+@@ -1118,9 +1118,9 @@ void PivotTable::importPTDefinition( SequenceInputStream& rStrm )
+     if( getFlag( nFlags2, BIFF12_PTDEF_HASTAG ) )
+         rStrm >> maDefModel.maTag;
+     if( getFlag( nFlags3, BIFF12_PTDEF_HASCOLHEADERCAPTION ) )   // TODO: right order (col/row)? spec is unclear
+-        rStrm >> maDefModel.maColHeaderCaption;
++        maDefModel.maColHeaderCaption = BiffHelper::readString( rStrm );
+     if( getFlag( nFlags3, BIFF12_PTDEF_HASROWHEADERCAPTION ) )
+-        rStrm >> maDefModel.maRowHeaderCaption;
++        maDefModel.maRowHeaderCaption = BiffHelper::readString( rStrm );
+ 
+     SAL_WARN_IF(
+         (nDataAxis != BIFF12_PTDEF_ROWAXIS) && (nDataAxis != BIFF12_PTDEF_COLAXIS),
+@@ -1281,6 +1281,10 @@ void PivotTable::finalizeImport()
+             pSaveData->SetDrillDown(maDefModel.mbEnableDrill);
+             pSaveData->SetFilterButton(false);
+             pSaveData->SetExpandCollapse(maDefModel.mbShowDrill);
++            // Excel's words, unless the file names its own.
++            pSaveData->SetGrandTotalName(maDefModel.maGrandTotalCaption.value_or(u"Grand Total"_ustr));
++            pSaveData->SetHeaderCaptions(maDefModel.maRowHeaderCaption.value_or(u"Row Labels"_ustr),
++                                         maDefModel.maColHeaderCaption.value_or(u"Column Labels"_ustr));
+         }
+         mpDPObject->SetHideHeader(maLocationModel.mnFirstHeaderRow == 0);
+         // finalize all fields, this finds field names and creates grouping fields

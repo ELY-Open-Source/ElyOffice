@@ -25,7 +25,12 @@ fn checked(worker: &mut Worker, doc: Doc, dir: &Path, case: &str, format: &str) 
 
 /// `tests/scripts/ooxml.py` checks `file` as `case`.
 pub(super) fn read_back(file: &Path, case: &str) {
-    let reader = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/scripts/ooxml.py");
+    read_with("ooxml.py", file, case);
+}
+
+/// The `tests/scripts` reader `script` checks `file` as `case`.
+pub(super) fn read_with(script: &str, file: &Path, case: &str) {
+    let reader = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/scripts").join(script);
     // The file passes, and each known damage to it fails.
     for args in [vec![case], vec!["selftest", case]] {
         let out = match Command::new("python3").arg(&reader).args(&args).arg(file).output() {

@@ -20,6 +20,7 @@ mod handouts;
 mod handles;
 mod independent;
 mod kept;
+mod pivot;
 mod spill;
 pub(crate) mod input;
 mod latency;

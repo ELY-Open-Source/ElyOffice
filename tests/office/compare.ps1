@@ -8,9 +8,9 @@ $known = @{
     'big.docx tocFields' = @('56 -> 1', 'Writer writes TOC page numbers as text')
     'big.docx body' = @('1961:333EDF4C7635 -> 1960:8E5FE0D94301', 'Writer drops empty section-break paragraphs; an untitled TOC field ends in its last entry (R15.11c)')
     'big.docx pages' = @('105:5614230D39F7 -> 105:359DB6FEE34A', 'an untitled TOC gains a line on update (R15.11c)')
+    'big.xlsx Pivot values' = @('84:7A6FCE40E019 -> 84:257FC29459A5', 'Calc sums pivot data in its own order: totals differ past the 13th digit')
+    'big.xlsx Pivot formulas' = @('84:F449FD4F434D -> 84:DF2CC42F1714', 'Calc sums pivot data in its own order: totals differ past the 13th digit')
     'big.xlsx Calc formulas' = @('132:751ABAD09DB5 -> 132:9BCF94E2F266', 'Calc writes FALSE as FALSE() (R15.11f)')
-    'big.xlsx Pivot values' = @('84:7A6FCE40E019 -> 84:930E63BBB555', 'Calc writes its own pivot labels (R15.11d)')
-    'big.xlsx Pivot formulas' = @('84:F449FD4F434D -> 84:9BD847190B80', 'Calc writes its own pivot labels (R15.11d)')
     'big.pptx motion' = @('60:24181814C350 -> 60:3AC993BF709B', 'the video loses its entrance effect (R15.11e)')
     'big.pptx sections' = @('3 -> 0', 'Impress has no sections; ElyShow saves a copy')
 }
