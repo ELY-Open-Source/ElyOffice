@@ -1,0 +1,27 @@
+Text sends its stroke state: width, dash, cap, join, miter.
+
+The sanitize filter flushed FLUSH_ALL before text, which leaves out
+FLUSH_STROKE_STATE. Text drawn in a stroke render mode (1 or 2 Tr)
+came out with the default line width and no dash once filtered
+(Ely moving stroked text by its block's own glyphs).
+
+--- a/source/pdf/pdf-op-filter.c	2026-11-01 00:57:01.447198900 -0400
++++ b/source/pdf/pdf-op-filter.c	2026-11-01 00:57:01.518040700 -0400
+@@ -1008,7 +1008,7 @@
+ 			p->tos.tm = initial_tm;
+ 			/* If we are the first thing actually sent, flush the gs. */
+ 			if (first)
+-				filter_flush(ctx, p, FLUSH_ALL);
++				filter_flush(ctx, p, FLUSH_ALL | FLUSH_STROKE_STATE);
+ 			first = 0;
+ 			send_segment(ctx, p, buf+start, j-start, obj);
+ 			p->tos.tm = new_tm;
+@@ -1023,7 +1023,7 @@
+ static void
+ segment_to_chain(fz_context *ctx, pdf_sanitize_processor *p, unsigned char *seg, size_t len, pdf_obj *dummy)
+ {
+-	filter_flush(ctx, p, FLUSH_CTM | FLUSH_TEXT | FLUSH_OP);
++	filter_flush(ctx, p, FLUSH_CTM | FLUSH_TEXT | FLUSH_OP | FLUSH_STROKE_STATE);
+ 	if (p->super.chain->op_Tj)
+ 		p->super.chain->op_Tj(ctx, p->super.chain, (char *)seg, len);
+ }

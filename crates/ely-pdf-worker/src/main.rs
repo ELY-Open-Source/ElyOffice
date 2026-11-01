@@ -214,6 +214,11 @@ impl Worker {
                 let swap = Some(swap.as_str()).filter(|path| !path.is_empty());
                 self.edited(id, |mupdf, doc| mupdf.place(doc, at, index, t, drop, swap))?
             }
+            tag::MOVE_TEXT => {
+                let (at, block, expected) = (ask.u64()? as usize, ask.u64()? as usize, ask.str()?);
+                let by = (f32::from_bits(ask.u64()? as u32), f32::from_bits(ask.u64()? as u32));
+                self.edited(id, |mupdf, doc| mupdf.move_text(doc, at, (block, &expected), by))?
+            }
             tag::ADD_IMAGE => {
                 let (at, path, mut rect) = (ask.u64()? as usize, ask.str()?, [0f32; 4]);
                 for value in &mut rect {

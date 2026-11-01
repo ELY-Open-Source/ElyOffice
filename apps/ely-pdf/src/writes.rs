@@ -18,13 +18,17 @@ use crate::content::{Aim, Tool};
 use crate::editing::Preview;
 use crate::viewer::Viewer;
 
-actions!(pdf, [EditContent, AddText, AddImage, StopEditing]);
+actions!(pdf, [EditContent, AddText, AddImage, StopEditing, DeleteObject]);
 
 /// The key context while an editing tool is on.
 pub const EDITING: &str = "PdfEditing";
 
 pub fn bind(cx: &mut App) {
-    cx.bind_keys([KeyBinding::new("escape", StopEditing, Some(EDITING))]);
+    cx.bind_keys([
+        KeyBinding::new("escape", StopEditing, Some(EDITING)),
+        KeyBinding::new("delete", DeleteObject, Some(EDITING)),
+        KeyBinding::new("backspace", DeleteObject, Some(EDITING)),
+    ]);
 }
 
 /// The editing items of the Edit menu.
@@ -268,6 +272,7 @@ pub fn on(root: gpui::Div, cx: &mut Context<Viewer>) -> gpui::Div {
         .on_action(cx.listener(|v, _: &AddText, _, cx| v.toggle_tool(Tool::AddText, cx)))
         .on_action(cx.listener(|v, _: &AddImage, _, cx| v.add_image(cx)))
         .on_action(cx.listener(|v, _: &StopEditing, _, cx| v.on_view(|view, cx| view.set_tool(Tool::Read, cx), cx)))
+        .on_action(cx.listener(|v, _: &DeleteObject, _, cx| v.delete_object(cx)))
 }
 
 impl Viewer {

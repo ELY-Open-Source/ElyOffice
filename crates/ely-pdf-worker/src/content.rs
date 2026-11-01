@@ -40,6 +40,7 @@ unsafe extern "C" {
         drop: c_int,
         path: *const c_char,
     ) -> c_int;
+    fn ely_move_text(ctx: *mut Context, doc: *mut Document, page: c_int, block: c_int, expected: *const c_char, dx: f32, dy: f32) -> c_int;
     fn ely_add_image(ctx: *mut Context, doc: *mut Document, page: c_int, path: *const c_char, rect: *const f32) -> c_int;
 }
 
@@ -132,6 +133,12 @@ impl Mupdf {
         let path = swap.as_ref().map_or(ptr::null(), |path| path.as_ptr());
         let index = number(index)?;
         checked(unsafe { ely_place(self.ctx, doc.0, page(at)?, index, t.as_ptr(), c_int::from(drop), path) }).map(|_| ())
+    }
+
+    /// Moves text block `block` by page-space `by`, as drawn.
+    pub fn move_text(&self, doc: &Open, at: usize, (block, expected): (usize, &str), by: (f32, f32)) -> io::Result<()> {
+        let expected = text(expected)?;
+        checked(unsafe { ely_move_text(self.ctx, doc.0, page(at)?, number(block)?, expected.as_ptr(), by.0, by.1) }).map(|_| ())
     }
 
     /// Draws the image at `path` into page-space `rect`.

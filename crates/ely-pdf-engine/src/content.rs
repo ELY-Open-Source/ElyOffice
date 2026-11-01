@@ -146,6 +146,12 @@ impl Worker {
         Unpack::new(&reply).str()
     }
 
+    /// Moves text block `block` by `by`, as drawn; the mark.
+    pub fn move_text(&mut self, doc: Doc, page: usize, (block, expected): (usize, &str), by: (f32, f32)) -> io::Result<String> {
+        let ask = floats(self.on(&doc)?.u64(page as u64).u64(block as u64).str(expected), &[by.0, by.1]);
+        Unpack::new(&self.request(tag::MOVE_TEXT, &ask.bytes())?).str()
+    }
+
     /// Draws the image at `path` into page-space `rect`; the mark.
     pub fn add_image(&mut self, doc: Doc, page: usize, path: &Path, rect: [f32; 4]) -> io::Result<String> {
         let path = path.to_str().ok_or_else(|| io::Error::other("a path that is not UTF-8"))?;

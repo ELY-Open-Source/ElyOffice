@@ -39,6 +39,7 @@ fz_matrix ely_to_user(fz_context *ctx, pdf_page *page);
 void ely_read_block(fz_context *ctx, fz_document *doc, pdf_page *page, int number, int index, const char *expected,
 	ely_shape *shape);
 void ely_remove_block(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_shape *shape);
+void ely_keep_block(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_shape *shape, pdf_filter_options *opts);
 void ely_drop_shape(fz_context *ctx, ely_shape *shape);
 pdf_obj *ely_append_content(fz_context *ctx, pdf_document *pdf, pdf_obj *page, fz_buffer *buf);
 const char *ely_add_resource(fz_context *ctx, pdf_obj *page, pdf_obj *type, const char *stem,

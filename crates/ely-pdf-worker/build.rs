@@ -24,6 +24,7 @@ fn main() {
         .file("shim/ely_insert.c")
         .file("shim/ely_text.c")
         .file("shim/ely_write.c")
+        .file("shim/ely_move.c")
         .file("shim/ely_pen.c")
         .file("shim/ely_place.c")
         .file("shim/ely_annot.c")

@@ -83,6 +83,8 @@ pub mod tag {
     pub const CHECK_PICTURES: u8 = 59;
     /// A folder's HTML page as a new PDF; no document.
     pub const HTML_PDF: u8 = 60;
+    /// Moves a text block as drawn.
+    pub const MOVE_TEXT: u8 = 61;
     pub const OK: u8 = 100;
     pub const ERR: u8 = 101;
 }

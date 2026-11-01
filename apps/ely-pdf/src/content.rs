@@ -67,7 +67,7 @@ pub enum Aim {
     Note(crate::annotate::Pick),
 }
 
-/// An object being moved, or scaled from its corner.
+/// An object or text block moved, or an object scaled.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Drag {
     pub page: usize,
@@ -80,6 +80,8 @@ pub struct Drag {
     pub pressed: (f32, f32),
     /// The pointer went past a click's slack.
     pub moved: bool,
+    /// A text block, not an object.
+    pub text: bool,
 }
 
 /// The corner handle's reach, in page points.
@@ -206,10 +208,14 @@ impl PdfView {
             Some((index, scale)) => {
                 let rect = layer.drawn[index].rect;
                 let pressed = (f32::from(at.x), f32::from(at.y));
-                self.drag = Some(Drag { page, index, rect, from: point, now: point, scale, pressed, moved: false });
+                self.drag = Some(Drag { page, index, rect, from: point, now: point, scale, pressed, moved: false, text: false });
                 Some(Aim::Object { page, index })
             }
-            None => text.map(|index| Aim::Text { page, index }),
+            None => text.map(|index| {
+                let (rect, pressed) = (layer.blocks[index].rect, (f32::from(at.x), f32::from(at.y)));
+                self.drag = Some(Drag { page, index, rect, from: point, now: point, scale: false, pressed, moved: false, text: true });
+                Aim::Text { page, index }
+            }),
         };
         cx.notify();
     }
@@ -241,12 +247,25 @@ impl PdfView {
             cx.emit(crate::view::Failed(text.to_string()));
             return cx.notify();
         }
+        if drag.text {
+            return self.move_text(&drag, cx);
+        }
         let (page, index, change) = (drag.page, drag.index, drag.change());
         self.edit(
             if drag.scale { "scaling an object" } else { "moving an object" },
             move |worker, doc| worker.place(doc, page, index, change),
             cx,
         );
+    }
+
+    /// Moves a dragged block as drawn: fonts, spacing, colours kept.
+    fn move_text(&mut self, drag: &Drag, cx: &mut Context<Self>) {
+        let (page, index) = (drag.page, drag.index);
+        let Some(expected) = self.layers.get(&page).and_then(|layer| layer.blocks.get(index)).map(|b| b.text.clone()) else {
+            return log::warn!("pdf: a dragged block is gone from page {page}");
+        };
+        let by = (drag.now.0 - drag.from.0, drag.now.1 - drag.from.1);
+        self.edit("moving text", move |worker, doc| worker.move_text(doc, page, (index, &expected), by), cx);
     }
 
     /// Outlines of what edits on `place`; the aimed one bold.
@@ -266,13 +285,16 @@ impl PdfView {
             Some(Aim::Text { page, index: at }) => !object && page == place.page && at == index,
             _ => false,
         };
+        let shown = |text: bool, index: usize, rect: [f32; 4]| {
+            let dragged = self.drag.filter(|d| d.page == place.page && d.index == index && d.text == text);
+            dragged.map_or(rect, |d| d.shown())
+        };
         let mut marks: Vec<AnyElement> = (layer.blocks.iter().enumerate())
             .filter(|(_, b)| b.editable)
-            .map(|(index, b)| outline(b.rect, aimed(false, index)))
+            .map(|(index, b)| outline(shown(true, index, b.rect), aimed(false, index)))
             .collect();
         for (index, drawn) in layer.drawn.iter().enumerate() {
-            let dragged = self.drag.filter(|d| d.page == place.page && d.index == index);
-            let rect = dragged.map_or(drawn.rect, |d| d.shown());
+            let rect = shown(false, index, drawn.rect);
             marks.push(outline(rect, aimed(true, index)));
             if aimed(true, index) {
                 let (x, y, w, h) = rect_on(rect, size, self.rotate, scale);
@@ -293,7 +315,7 @@ mod tests {
 
     #[test]
     fn a_drag_moves_or_scales_from_the_top_left() {
-        let mut drag = Drag { page: 0, index: 0, rect: [10.0, 20.0, 110.0, 70.0], from: (50.0, 40.0), now: (60.0, 45.0), scale: false, pressed: (0.0, 0.0), moved: true };
+        let mut drag = Drag { page: 0, index: 0, rect: [10.0, 20.0, 110.0, 70.0], from: (50.0, 40.0), now: (60.0, 45.0), scale: false, pressed: (0.0, 0.0), moved: true, text: false };
         assert_eq!(drag.change(), [1.0, 0.0, 0.0, 1.0, 10.0, 5.0]);
         assert_eq!(drag.shown(), [20.0, 25.0, 120.0, 75.0]);
         drag = Drag { from: (110.0, 70.0), now: (210.0, 80.0), scale: true, ..drag };

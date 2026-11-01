@@ -132,6 +132,47 @@ fn new_text_lands_where_pressed_and_objects_delete() {
 }
 
 #[test]
+fn a_text_block_drags_to_a_new_place_in_one_step() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (_, cx, view) = editing(&mut cx, dir.path());
+    let hello = |cx: &mut VisualTestContext| {
+        cx.update(|_, app| view.read(app).layers[&0].blocks.iter().find(|b| b.text.starts_with("Hello")).map(|b| b.rect))
+    };
+    let was = hello(cx).expect("hello");
+    let (from, to) = (over(cx, &view, 0, (80.0, 66.0)), over(cx, &view, 0, (120.0, 166.0)));
+    cx.simulate_mouse_down(from, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_move(to, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_up(to, MouseButton::Left, Modifiers::none());
+    blocks(cx, &view);
+    let now = hello(cx).expect("hello, moved");
+    assert!((now[0] - was[0] - 40.0).abs() < 0.5 && (now[1] - was[1] - 100.0).abs() < 0.5, "{now:?} from {was:?}");
+    assert_eq!(cx.update(|_, app| view.read(app).edited), 1, "one edit");
+    // A press with no drag only aims.
+    click(cx, &view, (120.0, 166.0));
+    assert_eq!(cx.update(|_, app| view.read(app).edited), 1);
+}
+
+#[test]
+fn delete_removes_the_aimed_object_and_nothing_else() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (_, cx, view) = editing(&mut cx, dir.path());
+    cx.update(|window, app| {
+        let focus = view.read(app).focus.clone();
+        window.focus(&focus, app)
+    });
+    click(cx, &view, (80.0, 66.0));
+    cx.simulate_keystrokes("delete");
+    assert_eq!(cx.update(|_, app| view.read(app).edited), 0, "text is not an object");
+    click(cx, &view, (310.0, 370.0));
+    assert!(matches!(cx.update(|_, app| view.read(app).aim), Some(Aim::Object { index: 0, .. })), "the stamp");
+    cx.simulate_keystrokes("delete");
+    assert!(!blocks(cx, &view).iter().any(|b| b == "STAMP"), "the stamp is gone");
+    assert!(blocks(cx, &view).iter().any(|b| b.starts_with("Hello")), "the text stays");
+}
+
+#[test]
 fn escape_leaves_the_edit_tool() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();

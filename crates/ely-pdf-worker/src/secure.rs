@@ -30,7 +30,7 @@ unsafe extern "C" {
 pub fn needs(kind: u8) -> u32 {
     match kind {
         tag::DELETE | tag::MOVE | tag::ROTATE | tag::BLANK | tag::INSERT | tag::OUTLINE_EDIT => may::ASSEMBLE,
-        tag::CROP | tag::PUT_TEXT | tag::PLACE | tag::ADD_IMAGE | tag::TEXT_LAYER | tag::LINK_EDIT => may::EDIT,
+        tag::CROP | tag::PUT_TEXT | tag::MOVE_TEXT | tag::PLACE | tag::ADD_IMAGE | tag::TEXT_LAYER | tag::LINK_EDIT => may::EDIT,
         tag::SET_METADATA | tag::ATTACH | tag::DETACH | tag::REDACT | tag::CLEAN => may::EDIT,
         tag::ANNOTATE | tag::CHANGE_ANNOT => may::ANNOTATE,
         tag::ADD_FIELD | tag::CHANGE_FIELD => may::EDIT | may::ANNOTATE,

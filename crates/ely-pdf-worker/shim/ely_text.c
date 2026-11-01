@@ -36,6 +36,8 @@ typedef struct
 	/* The glyph each block last counted, so once each. */
 	int *seen;
 	int glyph;
+	/* A clip that also paints was met. */
+	int painted;
 } targets;
 
 /* The glyphs of `block` with their user-space origins. */
@@ -98,13 +100,15 @@ static int take_glyph(fz_context *ctx, void *opaque, int *ucs, int ucslen, fz_ma
 {
 	targets *t = opaque;
 	(void)bbox;
-	(void)tr;
 	(void)ca;
 	(void)CA;
 	fz_point at = fz_transform_point(fz_transform_point(fz_make_point(0, 0), trm), ctm);
 	/* MuPDF gives at most PDF_MRANGE_CAP; each spells to 18. */
 	int i, k, found = 0, spelt[18 * PDF_MRANGE_CAP], n = 0;
 	t->glyph++;
+	/* Clipping text masks later paint; it is not plain text. */
+	if (tr >= 4)
+		return 0;
 	if (ucslen > PDF_MRANGE_CAP)
 		fz_throw(ctx, FZ_ERROR_ARGUMENT, "a glyph with %d characters", ucslen);
 	/* Match what stext reads: ligature code points spelled out. */
@@ -442,4 +446,37 @@ void ely_drop_shape(fz_context *ctx, ely_shape *shape)
 	}
 	shape->font = NULL;
 	shape->glyphs = NULL;
+}
+
+static int keep_glyph(fz_context *ctx, void *opaque, int *ucs, int ucslen, fz_matrix trm, fz_matrix ctm,
+	fz_rect bbox, int tr, float ca, float CA)
+{
+	return !take_glyph(ctx, opaque, ucs, ucslen, trm, ctm, bbox, tr, ca, CA);
+}
+
+/* Drawing goes; plain clips stay; a painting clip is noted. */
+static int cull_drawing(fz_context *ctx, void *opaque, fz_rect bbox, fz_cull_type type)
+{
+	targets *t = opaque;
+	(void)ctx;
+	(void)bbox;
+	if (type > FZ_CULL_CLIP_PATH_DROP && type < FZ_CULL_GLYPH)
+		t->painted = 1;
+	return type != FZ_CULL_CLIP_PATH_DROP && type != FZ_CULL_GLYPH;
+}
+
+/* Runs `opts` over the page, keeping only the block's glyphs. */
+void ely_keep_block(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_shape *shape, pdf_filter_options *opts)
+{
+	targets *t = shape->glyphs;
+	pdf_sanitize_filter_options *sopts = opts->filters[0].options;
+	sopts->opaque = t;
+	sopts->text_filter = keep_glyph;
+	sopts->culler = cull_drawing;
+	t->hit = t->painted = 0;
+	pdf_filter_page_contents(ctx, pdf, page, opts);
+	if (t->painted)
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "the page clips with paths that also paint");
+	if (t->hit != t->n)
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "%d of %d glyphs were found", t->hit, t->n);
 }
