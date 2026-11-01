@@ -161,11 +161,21 @@ impl PdfView {
                 cx.emit(Reported);
             }
         }
-        let wanted: Vec<(TileKey, [i32; 4])> = showing
-            .iter()
-            .flat_map(|s| s.keys.iter().copied())
-            .filter(|(key, _)| !self.tiles.contains_key(key) && !self.failed.contains(key))
-            .collect();
+        let missing = |screen: &[crate::backdrop::Showing]| -> Vec<(TileKey, [i32; 4])> {
+            let keys = screen.iter().flat_map(|s| s.keys.iter().copied());
+            keys.filter(|(key, _)| !self.tiles.contains_key(key) && !self.failed.contains(key)).collect()
+        };
+        let ahead = self.ahead(sf);
+        let mut wanted = missing(&showing);
+        if wanted.is_empty() {
+            if let Some(since) = self.filling.take() {
+                log::debug!("pdf: screen complete in {} ms", since.elapsed().as_millis());
+            }
+            // The screen first; then the next turn's.
+            wanted = missing(&ahead);
+        } else {
+            self.filling.get_or_insert_with(std::time::Instant::now);
+        }
         let pages: Vec<(Placed, Vec<AnyElement>)> = showing
             .iter()
             .map(|s| {
@@ -186,7 +196,7 @@ impl PdfView {
                 (s.place, tiles)
             })
             .collect();
-        self.settle(&showing);
+        self.settle(&showing, &ahead);
         let pages_shown: Vec<usize> = showing.iter().map(|s| s.place.page).collect();
         self.ask_layers(&pages_shown, cx);
         self.ask_notes(pages_shown.iter().copied(), cx);

@@ -135,14 +135,15 @@ impl PdfView {
         if pages || fresh.pages != self.sizes.len() {
             // A page may now stand where another stood.
             self.retire_tiles();
+            self.whole.clear();
             self.sizes = measured;
             self.thumbs_stale.clear();
             for (_, image) in self.thumbs.drain() {
                 self.retired.push(image);
             }
         } else {
-            // Same pages: old pictures stay until repainted.
-            self.keep_all();
+            // Same pages: their last whole draws stand in.
+            self.retire_tiles();
             self.thumbs_stale.extend(self.thumbs.keys().copied());
             let read = fresh.first.len();
             self.sizes[..read].copy_from_slice(&measured[..read]);

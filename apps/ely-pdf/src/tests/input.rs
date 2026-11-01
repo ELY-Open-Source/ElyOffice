@@ -202,9 +202,9 @@ fn never_bare(cx: &mut VisualTestContext, view: &Entity<PdfView>) -> (gpui::Subs
     (watch, bare)
 }
 
-/// Only new tiles drawn, and none on its way.
+/// The screen whole with new tiles, none on its way.
 fn repainted(view: &PdfView) -> bool {
-    view.backdrop.is_empty() && !view.painting && !view.tiles.is_empty()
+    view.filling.is_none() && !view.painting && !view.tiles.is_empty()
 }
 
 fn note() -> ely_pdf_engine::NewAnnot {
@@ -304,13 +304,13 @@ fn old_tiles_are_painted_and_freed_with_their_tab() {
         view.update(app, |view, cx| {
             let keys: Vec<_> = view.tiles.keys().copied().collect();
             view.failed.extend(keys);
-            view.keep_all();
+            view.retire_tiles();
             cx.notify();
             view.painted
         })
     });
     cx.run_until_parked();
-    let (painted, kept) = cx.update(|_, app| (view.read(app).painted, view.read(app).backdrop.len()));
+    let (painted, kept) = cx.update(|_, app| (view.read(app).painted, view.read(app).whole.values().map(Vec::len).sum::<usize>()));
     // Old tiles cover what shows of the page.
     let shown = cx.update(|window, app| {
         let read = view.read(app);
@@ -324,7 +324,7 @@ fn old_tiles_are_painted_and_freed_with_their_tab() {
     });
     assert!(kept > 0 && painted - before >= shown * 0.99, "{kept} old tiles painted {} of {shown}", painted - before);
     cx.update(|_, app| view.update(app, |view, _| view.retire_all()));
-    assert!(cx.update(|_, app| view.read(app).backdrop.is_empty()), "closing hands every old tile over");
+    assert!(cx.update(|_, app| view.read(app).whole.is_empty()), "closing hands every old tile over");
 }
 
 #[test]

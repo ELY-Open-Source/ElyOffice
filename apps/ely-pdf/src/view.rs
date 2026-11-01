@@ -56,8 +56,6 @@ pub struct PdfView {
     pub failed: HashSet<TileKey>,
     /// Reads that failed; not asked again until an edit.
     pub unread: HashSet<Unread>,
-    /// Old tiles shown under their page until covered.
-    pub backdrop: Vec<crate::backdrop::Old>,
     pub text: HashMap<usize, Arc<Vec<Char>>>,
     pub asking_text: HashSet<usize>,
     pub marks: Vec<Bookmark>,
@@ -70,6 +68,12 @@ pub struct PdfView {
     pub go_to: Option<(f32, f32)>,
     /// A tile is on its way from the worker.
     pub painting: bool,
+    /// The way pages last turned: 1 on, -1 back.
+    pub heading: isize,
+    /// Since when the screen has lacked tiles.
+    pub filling: Option<std::time::Instant>,
+    /// Each shown page's last whole draw, and its size then.
+    pub whole: HashMap<usize, Vec<crate::backdrop::Drawn>>,
     /// The view's size and place, as last painted.
     pub room: gpui::Bounds<gpui::Pixels>,
     /// Trackpad pixels toward the next zoom step.
@@ -173,8 +177,9 @@ impl PdfView {
     pub fn retire_all(&mut self) -> ely_gpui_component::primitives::Retired {
         let mut images = std::mem::take(&mut self.retired);
         let tiles = self.tiles.drain().map(|(_, image)| image);
-        let old = self.backdrop.drain(..).map(|old| old.image);
-        for image in tiles.chain(old).chain(self.thumbs.drain().map(|(_, image)| image)) {
+        // Its images also sit in tiles or retired.
+        self.whole.clear();
+        for image in tiles.chain(self.thumbs.drain().map(|(_, image)| image)) {
             images.push(image);
         }
         images
@@ -198,7 +203,6 @@ impl PdfView {
             painted: 0.0,
             failed: HashSet::new(),
             unread: HashSet::new(),
-            backdrop: Vec::new(),
             text: HashMap::new(),
             asking_text: HashSet::new(),
             marks: loaded.marks,
@@ -207,6 +211,9 @@ impl PdfView {
             chosen: None,
             go_to: None,
             painting: false,
+            heading: 1,
+            filling: None,
+            whole: HashMap::new(),
             room: gpui::Bounds::default(),
             wheel: 0.0,
             focus: cx.focus_handle().tab_stop(true),
@@ -333,16 +340,25 @@ impl PdfView {
     /// Scrolls `page` into view, `y` points near the top.
     pub fn show(&mut self, page: usize, y: f32, cx: &mut Context<Self>) {
         self.current = page;
-        let laid = self.laid_out();
-        if let Some(place) = laid.placed.iter().find(|place| place.page == page) {
-            let (_, top, _, _) = rect_on([0.0, y, 0.0, y], self.sizes[page], self.rotate, laid.scale);
-            let x = match self.mode {
-                Mode::Horizontal => (place.x - crate::layout::GAP).max(0.0),
-                _ => self.across(place),
-            };
-            self.go_to = Some((x, (place.y + top - crate::layout::GAP * 2.0).max(0.0)));
+        if let Some(at) = self.landing(&self.laid_out(), page, y) {
+            self.go_to = Some(at);
+            self.filling.get_or_insert_with(std::time::Instant::now);
         }
         cx.notify();
+    }
+
+    /// Where a jump to `page`, `y` points down, scrolls.
+    pub fn landing(&self, laid: &crate::layout::Layout, page: usize, y: f32) -> Option<(f32, f32)> {
+        let place = laid.placed.iter().find(|place| place.page == page)?;
+        let (_, top, _, _) = rect_on([0.0, y, 0.0, y], self.sizes[page], self.rotate, laid.scale);
+        let x = match self.mode {
+            Mode::Horizontal => (place.x - crate::layout::GAP).max(0.0),
+            _ => self.across(place),
+        };
+        let y = (place.y + top - crate::layout::GAP * 2.0).max(0.0);
+        // The scroll stops at the content's end.
+        let (room_w, room_h) = (f32::from(self.room.size.width), f32::from(self.room.size.height));
+        Some((x.min((laid.size.0 - room_w).max(0.0)), y.min((laid.size.1 - room_h).max(0.0))))
     }
 
     /// Across: stay unless the page's left is out of view.
@@ -356,9 +372,6 @@ impl PdfView {
 
     /// Every page tile goes; images are freed next render.
     pub fn retire_tiles(&mut self) {
-        for old in self.backdrop.drain(..) {
-            self.retired.push(old.image);
-        }
         for (_, image) in self.tiles.drain() {
             self.retired.push(image);
         }
@@ -421,6 +434,7 @@ impl PdfView {
     pub fn turn(&mut self, by: isize, cx: &mut Context<Self>) {
         let last = self.sizes.len().saturating_sub(1) as isize;
         let page = (self.current as isize + by).clamp(0, last) as usize;
+        self.heading = by.signum();
         self.show(page, 0.0, cx);
     }
 }
