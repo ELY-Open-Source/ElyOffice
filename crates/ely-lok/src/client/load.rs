@@ -5,6 +5,18 @@ use std::io;
 use super::{Doc, Worker};
 use crate::ipc::{Pack, Unpack, tag};
 
+/// A load refused: the file's package is broken.
+#[derive(Debug)]
+pub struct Damaged;
+
+impl std::fmt::Display for Damaged {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(crate::ipc::DAMAGED)
+    }
+}
+
+impl std::error::Error for Damaged {}
+
 impl Worker {
     /// Loads `url`; macros never run (LOK-11).
     pub fn load(&mut self, url: &str) -> io::Result<Doc> {
@@ -32,10 +44,10 @@ impl Worker {
     pub fn unlock(&mut self, url: &str, password: &str) -> io::Result<Doc> {
         let request = Pack::new().str(url).str(password).bytes();
         let payload = self.request(tag::LOAD, &request).map_err(|error| {
-            if error.to_string() == crate::ipc::LOCKED {
-                io::Error::new(io::ErrorKind::PermissionDenied, error.to_string())
-            } else {
-                error
+            match error.to_string().as_str() {
+                crate::ipc::LOCKED => io::Error::new(io::ErrorKind::PermissionDenied, error.to_string()),
+                crate::ipc::DAMAGED => io::Error::new(io::ErrorKind::InvalidData, Damaged),
+                _ => error,
             }
         })?;
         self.opened(&payload)

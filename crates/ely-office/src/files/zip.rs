@@ -37,7 +37,8 @@ fn entries(bytes: &[u8]) -> io::Result<Vec<Entry>> {
         let skip = u16_at(bytes, at + 30)? + u16_at(bytes, at + 32)?;
         let name = bytes.get(at + 46..at + 46 + name_len).ok_or_else(bad)?;
         entries.push(Entry {
-            name: String::from_utf8_lossy(name).into_owned(),
+            // A backslash is a slash, as the kernel reads it.
+            name: String::from_utf8_lossy(name).replace('\\', "/"),
             method: u16_at(bytes, at + 10)?,
             size: u32_at(bytes, at + 20)?,
             local: u32_at(bytes, at + 42)?,

@@ -12,7 +12,7 @@ mod events;
 #[cfg(unix)]
 mod fatal;
 mod input;
-mod password;
+mod asked;
 mod revision;
 mod slides;
 mod teardown;
@@ -51,7 +51,7 @@ pub fn run(
 fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Result<()> {
     let lok = Box::leak(Box::new(lok));
     pin(lok);
-    lok.register_callback(password::on_kit);
+    lok.register_callback(asked::on_kit);
     lok.register_any_input(waiting);
     unsafe {
         gcd::dispatch_async_f(gcd::main_queue(), std::ptr::null_mut(), mark_pumping);
@@ -308,17 +308,18 @@ fn load(lok: &Lok, url: &str, password: String, filter: &str) -> io::Result<u64>
             "a password with NUL",
         ));
     }
-    password::arm(Some(password).filter(|password| !password.is_empty()));
+    asked::arm(Some(password).filter(|password| !password.is_empty()));
     // LOK hands what it does not take to the filter.
     let options = match filter {
         "" => LOAD_OPTIONS.to_owned(),
         filter => format!("{LOAD_OPTIONS},{filter}"),
     };
     let loaded = lok.load(url, &options);
-    let refused = password::refused();
-    password::arm(None);
+    let (refused, damaged) = (asked::refused(), asked::damaged());
+    asked::arm(None);
     let doc = match loaded {
         Err(_) if refused => return Err(io::Error::other(ipc::LOCKED)),
+        Err(_) if damaged => return Err(io::Error::other(ipc::DAMAGED)),
         loaded => loaded?,
     };
     // A session number per load; native pointers get reused.

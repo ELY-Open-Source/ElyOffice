@@ -1,0 +1,29 @@
+Package: a backslash in a zip entry name is a slash
+
+Tencent Docs writes folder entries such as word\theme/. No valid
+name holds a backslash, so ZipFile refused the package as broken
+and LOK's repair question, shown by the standard handler, waited
+forever: ElyDoc and ElyTable stayed at "opening" (#49). Read a
+backslash as the separator it means, in the central directory and
+in each local header, so both names agree.
+diff --git a/package/source/zipapi/ZipFile.cxx b/package/source/zipapi/ZipFile.cxx
+index 62c1efb7a..27198bfca 100644
+--- a/package/source/zipapi/ZipFile.cxx
++++ b/package/source/zipapi/ZipFile.cxx
+@@ -996,6 +996,7 @@ sal_uInt64 ZipFile::readLOC_Impl(ZipEntry &rEntry, std::vector<sal_Int8>& rNameB
+         std::string_view aNameView(reinterpret_cast<const char *>(rNameBuffer.data()), nRead);
+ 
+         OUString sLOCPath( aNameView.data(), aNameView.size(), RTL_TEXTENCODING_UTF8 );
++        sLOCPath = sLOCPath.replace( '\\', '/' );
+ 
+         if ( rEntry.nPathLen == -1 ) // the file was created
+         {
+@@ -1409,6 +1410,8 @@ sal_Int32 ZipFile::readCEN()
+             // read always in UTF8, some tools seem not to set UTF8 bit
+             std::string_view aPathView(reinterpret_cast<char const *>(aMemGrabber.getCurrentPos()), aEntry.nPathLen);
+             aEntry.sPath = OUString( aPathView.data(), aPathView.size(), RTL_TEXTENCODING_UTF8 );
++            // No name holds a backslash; writers mean a slash.
++            aEntry.sPath = aEntry.sPath.replace( '\\', '/' );
+ 
+             if ( !::comphelper::OStorageHelper::IsValidZipEntryFileName( aEntry.sPath, true ) )
+                 throw ZipException(u"Zip entry has an invalid name."_ustr );

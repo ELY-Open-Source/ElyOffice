@@ -17,6 +17,7 @@ mod feed;
 mod frames;
 mod install;
 mod load;
+pub use load::Damaged;
 mod stop;
 pub use install::{install_dir, templates};
 pub use stop::Stopper;

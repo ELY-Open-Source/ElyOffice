@@ -48,6 +48,8 @@ pub fn path_of_file_url(url: &str) -> std::io::Result<std::path::PathBuf> {
 
 /// The load error a missing or wrong password gives.
 pub const LOCKED: &str = "the document needs its password";
+/// The load error a broken package gives.
+pub const DAMAGED: &str = "the file is damaged";
 
 /// Request tags from the client.
 pub mod tag {

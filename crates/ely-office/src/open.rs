@@ -96,8 +96,10 @@ pub trait Opening: Host {
 
     fn failed_open(&self, name: &str, error: &io::Error, cx: &mut gpui::App) {
         log::error!("{}: {name} did not open: {error}", Self::KIND.app.slug());
-        let error = match error.get_ref().and_then(|inner| inner.downcast_ref::<files::NotPackage>()) {
+        let inner = error.get_ref();
+        let error = match inner.and_then(|inner| inner.downcast_ref::<files::NotPackage>()) {
             Some(files::NotPackage(ext)) => text(cx, "office.error.not_package", &[("ext", ext)]).to_string(),
+            None if inner.is_some_and(|inner| inner.is::<ely_lok::Damaged>()) => text(cx, "office.error.damaged", &[]).to_string(),
             None => error.to_string(),
         };
         let text = text(

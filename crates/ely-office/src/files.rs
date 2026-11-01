@@ -360,6 +360,16 @@ mod tests {
         assert!(!sections(&fixtures.join("show/trouble.fodp")).expect("flat odp"));
         assert!(!sections(&fixtures.join("office/t.docx")).expect("docx"), "no presentation part");
         let dir = tempfile::tempdir().expect("a temp dir");
+        // The part named with a backslash, which the kernel opens.
+        let bytes = std::fs::read(fixtures.join("show/sections.pptx")).expect("reads");
+        let (from, to) = (b"ppt/presentation.xml".as_slice(), b"ppt\\presentation.xml".as_slice());
+        let mut renamed = bytes.clone();
+        let at: Vec<usize> = bytes.windows(from.len()).enumerate().filter(|(_, w)| *w == from).map(|(i, _)| i).collect();
+        assert_eq!(at.len(), 2, "the local and central names");
+        at.iter().for_each(|&i| renamed[i..i + to.len()].copy_from_slice(to));
+        let slanted = dir.path().join("slanted.pptx");
+        std::fs::write(&slanted, renamed).expect("writes");
+        assert!(sections(&slanted).expect("a backslash name"), "its sections are still seen");
         let write = |name: &str, xml: &str| {
             let path = dir.path().join(name);
             std::fs::write(&path, stored("ppt/presentation.xml", xml.as_bytes())).expect("writes");

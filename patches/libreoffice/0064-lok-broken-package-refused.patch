@@ -1,0 +1,67 @@
+LOK: a broken package's repair question is refused, not shown
+
+BrokenPackageRequest fell back to the standard interaction handler,
+which opens a modal dialog. In a headless LOK process nobody can
+answer it, so the load never returned (Ely #49). Refuse the repair
+and the notice like the other questions LOK answers itself: the
+load fails with ERRCODE_IO_BROKENPACKAGE, and a "brokenpackage"
+error callback tells the client why.
+diff --git a/desktop/source/lib/lokinteractionhandler.cxx b/desktop/source/lib/lokinteractionhandler.cxx
+index 858793b85..5430ad1d1 100644
+--- a/desktop/source/lib/lokinteractionhandler.cxx
++++ b/desktop/source/lib/lokinteractionhandler.cxx
+@@ -27,6 +27,7 @@
+ #include <com/sun/star/beans/NamedValue.hpp>
+ #include <com/sun/star/task/XInteractionAbort.hpp>
+ #include <com/sun/star/task/XInteractionApprove.hpp>
++#include <com/sun/star/task/XInteractionDisapprove.hpp>
+ #include <com/sun/star/task/XInteractionPassword2.hpp>
+ #include <com/sun/star/task/DocumentMacroConfirmationRequest.hpp>
+ #include <com/sun/star/task/InteractionHandler.hpp>
+@@ -141,6 +142,21 @@ void selectApproved(uno::Sequence<uno::Reference<task::XInteractionContinuation>
+     }
+ }
+ 
++/// Refuses: disapproves, else aborts.
++void selectRefused(uno::Sequence<uno::Reference<task::XInteractionContinuation>> const &rContinuations)
++{
++    for (auto const & c : rContinuations)
++    {
++        if (uno::Reference<task::XInteractionDisapprove> xDisapprove(c, uno::UNO_QUERY); xDisapprove.is())
++            return xDisapprove->select();
++    }
++    for (auto const & c : rContinuations)
++    {
++        if (uno::Reference<task::XInteractionAbort> xAbort(c, uno::UNO_QUERY); xAbort.is())
++            return xAbort->select();
++    }
++}
++
+ bool ShouldFallbackToStandard(const uno::Reference<task::XInteractionRequest>& xRequest)
+ {
+     uno::Any const request(xRequest->getRequest());
+@@ -148,9 +164,6 @@ bool ShouldFallbackToStandard(const uno::Reference<task::XInteractionRequest>& x
+     if (task::DocumentMacroConfirmationRequest aStruct; request >>= aStruct)
+         return true;
+ 
+-    if (document::BrokenPackageRequest aStruct; request >>= aStruct)
+-        return true;
+-
+     if (document::FilterOptionsRequest aStruct; request >>= aStruct)
+         return true;
+ 
+@@ -386,6 +399,14 @@ sal_Bool SAL_CALL LOKInteractionHandler::handleInteractionRequest(
+     if (handlePasswordRequest(aContinuations, request))
+         return true;
+ 
++    // No one here answers a repair question: the load fails.
++    if (document::BrokenPackageRequest aBroken; request >>= aBroken)
++    {
++        postError(task::InteractionClassification_ERROR, "brokenpackage", ERRCODE_IO_BROKENPACKAGE, u""_ustr);
++        selectRefused(aContinuations);
++        return true;
++    }
++
+     if (ShouldFallbackToStandard(xRequest))
+         return FallbackToStandard(xRequest);
+ 

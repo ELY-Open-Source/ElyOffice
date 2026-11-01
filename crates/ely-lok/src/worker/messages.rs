@@ -15,7 +15,7 @@ use windows_sys::Win32::{
     },
 };
 
-use super::{answer, events, lok, password, pin, quit, teardown};
+use super::{answer, asked, events, lok, pin, quit, teardown};
 use crate::ffi::Lok;
 use crate::ipc;
 
@@ -31,7 +31,7 @@ static PENDING: AtomicUsize = AtomicUsize::new(0);
 pub(super) fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Result<()> {
     let lok = Box::leak(Box::new(lok));
     pin(lok);
-    lok.register_callback(password::on_kit);
+    lok.register_callback(asked::on_kit);
     lok.register_any_input(waiting);
     WINDOW.store(window()?, Ordering::SeqCst);
     std::thread::spawn(move || reader(input));
