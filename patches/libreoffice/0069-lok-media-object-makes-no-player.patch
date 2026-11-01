@@ -1,0 +1,31 @@
+LOK: a media object's view makes no player
+
+Painting a slide with a video under LOK built a hidden MediaWindow
+on the document window, whose player (MFPlay on Windows) started
+creating its media item. The paint's view went away, the player
+with it, and MFPlay's queued creation callback then ran against
+freed memory: the worker died, in 6 of 8 opens of a 60-slide deck
+with one video (Ely R15.13a). A kit client plays media itself
+(ElyShow natively); the slide shows the file's poster frame.
+diff --git a/svx/source/sdr/contact/viewobjectcontactofsdrmediaobj.cxx b/svx/source/sdr/contact/viewobjectcontactofsdrmediaobj.cxx
+index 3de0e5b43..b330c23c8 100644
+--- a/svx/source/sdr/contact/viewobjectcontactofsdrmediaobj.cxx
++++ b/svx/source/sdr/contact/viewobjectcontactofsdrmediaobj.cxx
+@@ -25,6 +25,7 @@
+ #include <vcl/outdev.hxx>
+ #include <vcl/window.hxx>
+ #include <avmedia/mediaitem.hxx>
++#include <comphelper/lok.hxx>
+ #include "sdrmediawindow.hxx"
+ 
+ namespace sdr::contact {
+@@ -37,7 +38,8 @@ ViewObjectContactOfSdrMediaObj::ViewObjectContactOfSdrMediaObj( ObjectContact& r
+ #if HAVE_FEATURE_AVMEDIA
+     vcl::Window* pWindow = getWindow();
+ 
+-    if( pWindow )
++    // Kit clients play media themselves; skip the player.
++    if( pWindow && !comphelper::LibreOfficeKit::isActive() )
+     {
+         mpMediaWindow.reset( new SdrMediaWindow( pWindow, *this ) );
+         mpMediaWindow->hide();
