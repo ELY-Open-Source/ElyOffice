@@ -371,6 +371,21 @@ def equation(path):
     check(said == "x−b−ca-b1−23−4", f"Word reads {said!r}")
 
 
+def toc_end(path):
+    """The TOC field ends alone, last in its content control."""
+    with zipfile.ZipFile(path) as archive:
+        body = xml(archive, main_part(archive)).find(W + "body")
+    kids = list(body)
+    sdts = [k for k in kids if k.tag == W + "sdt" and "Table of Contents" in ET.tostring(k, encoding="unicode")]
+    if not check(len(sdts) == 1, "one TOC content control"):
+        return
+    last = sdts[0].find(W + "sdtContent").findall(W + "p")[-1]
+    kinds = [f.get(W + "fldCharType") for f in last.iter(W + "fldChar")]
+    check(kinds == ["end"] and texts(last, W + "t") == "", f"last paragraph holds {kinds} {texts(last, W + 't')!r}")
+    after = texts(kids[kids.index(sdts[0]) + 1], W + "t")
+    check(after == "Alpha", f"the TOC is followed by {after!r}")
+
+
 CASES = {
     "contract": contract,
     "sheet": sheet,
@@ -382,6 +397,7 @@ CASES = {
     "spill": spill,
     "spill-pasted": lambda path: spill(path, PASTED),
     "equation": equation,
+    "toc-end": toc_end,
 }
 
 # Damage each check must catch: part, pattern, replacement.
@@ -432,6 +448,11 @@ MUTATIONS = {
         ("word/document.xml", r"<m:nor/>", ""),
         ("word/document.xml", r"a-b", "a−b"),
         ("word/document.xml", r"1−2", "1-2"),
+    ],
+    "toc-end": [
+        ("word/document.xml", r'(?s)(</w:r>)(</w:p>)(<w:p[ >](?:(?!<w:p[ >]).)*?)<w:r>(?:<w:rPr></w:rPr>)?<w:fldChar w:fldCharType="end"/></w:r>(</w:p>)</w:sdtContent></w:sdt>', r'\1<w:r><w:fldChar w:fldCharType="end"/></w:r>\2</w:sdtContent></w:sdt>\3\4'),
+        ("word/document.xml", r"</w:sdt>", "</w:sdt><w:p/>"),
+        ("word/document.xml", r'(<w:r>(?:<w:rPr></w:rPr>)?<w:fldChar w:fldCharType="end"/></w:r></w:p></w:sdtContent>)', r'<w:r><w:t>x</w:t></w:r>\1'),
     ],
     "deck": [
         ("ppt/_rels/presentation.xml.rels", r"slides/slide2\.xml", "slides/missing.xml"),

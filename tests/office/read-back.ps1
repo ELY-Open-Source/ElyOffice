@@ -86,6 +86,13 @@ function Read-Word([string]$Path) {
         $links = Get-Digest @(foreach ($l in $doc.Hyperlinks) { "$($l.Address) $($l.TextToDisplay)" })
         # Page numbers by Word's layout, both sides.
         $doc.Fields.Update() | Out-Null
+        $doc.Repaginate()
+        # What each page starts with, after the update.
+        $pages = foreach ($n in 1..$doc.ComputeStatistics(2)) {
+            $at = $doc.GoTo(1, 1, $n)
+            $para = $at.Paragraphs.Item(1).Range
+            "$n $($at.Start - $para.Start) $(($para.Text -replace $mark, '').Trim())"
+        }
         $toc = $doc.TablesOfContents.Item(1).Range
         $outside = @($doc.Fields | Where-Object { $_.Code.Start -lt $toc.Start -or $_.Code.End -gt $toc.End })
         $margins = foreach ($s in $doc.Sections) {
@@ -105,6 +112,7 @@ function Read-Word([string]$Path) {
             margins = Get-Digest @($margins)
             charts = Get-Digest @(foreach ($s in $doc.InlineShapes) { if ($s.HasChart -eq -1) { Get-Series $s.Chart } })
             fields = Get-Digest @(foreach ($f in $outside) { "$($f.Type) $(Get-Target $f.Code.Text)" })
+            pages = Get-Digest @($pages)
             tocFields = $tocFields; starts = $starts; links = $links
         }
         $doc.Close(0)

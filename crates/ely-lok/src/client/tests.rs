@@ -10,6 +10,7 @@ mod cell_looks;
 mod charts;
 mod check;
 mod commands;
+mod docx;
 mod filter;
 mod fonts;
 mod format;
@@ -17,7 +18,6 @@ mod formula;
 mod handouts;
 #[cfg(windows)]
 mod handles;
-mod equation;
 mod independent;
 mod kept;
 mod spill;
