@@ -32,7 +32,7 @@ packaging/   三端打包脚本，apps.tsv 是八个应用的二进制名、名�
 assets/      icons/ 是八个应用的图标母版（SVG）与渲染出的 icns、png、ico，规则见其 README
 dist/        打包产物，不入库
 docs/        兼容清单、无障碍、帮助、许可、性能记录、功能编号与测试的对照（test-map.md，由 scripts/test-map.py 生成）；验收的证据都在库里
-scripts/     fetch-references.sh 取上游  doctor.sh 查工具  review.sh 开分栏审查  build-*.sh 构建引擎
+scripts/     fetch-references.sh 取上游  doctor.sh 查工具  review.sh 开终端审查  build-*.sh 构建引擎
 tests/       scripts 与 engines 下是脚本测试；engines 缺二进制时报 SKIP；fixtures 是测试共用的样本（media/clip.mp4：1 秒 H.264/AAC；pdf/aes128.pdf：AES-128 加密，打开密码 user、所有者密码 owner；pdf/signer.p12 与 signer.der：自签名测试证书，密码 ely；pdf/chain-root.der 与 chain-leaf.der：测试用的根与其签发的证书；show/sections.pptx：t.pptx 加两个章节（p14:sectionLst），sections-utf16.pptx 同而 presentation.xml 为 UTF-16LE，sections-locked.pptx 为其加密版，打开密码 ely，sections-locked-tail.pptx 同而目录移到文件末尾、`EncryptedPackage` 在最后一格；tree/launcher-fails、launcher-held、launcher-pwd、launcher-session：ElyTree 终端启动器测试用的可执行脚本（Git 里 100755）；git/git-2.39、git-2.40：只报版本的假 Git（版本下限测试），git-fails：报出版本后以 7 失败的假 Git；pdf/stale-worker、crossed-worker：答错盖章与错号的假 PDF worker（皆 Git 里 100755：测试里现写现跑的程序会撞上别的测试 fork 出的子进程而报 ETXTBSY）；table/kept.xlsx：照 Excel 写法的 XLSX，含 Calc 不认的函数（`CUBEVALUE`、`_xlfn.TRANSLATE`，一组共享公式）与其缓存值，kept-more.xlsx 含布尔、空串、缺值、坏数、数组（含各类成员）与易变函数，kept-more.ods 含属性顺序不同的空串、空串与坏数的矩阵成员，kept-strings.xlsx 含内联与共享字符串的数组成员、坏索引与用未知函数的定义名称，皆由同目录 make-kept.py 生成；mail/sample.eml：带编码主题、分组抄送、纯文本加 HTML、cid 图片与附件的邮件，LF 行尾，测试换成 CRLF）
 tasks/       TASKS.md 进度真相
 site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行页、`/changelog` 更新日志由 `changelog/<版本>.md` 每版一个在构建时写成，两页随网站语言只显示一种（`public/lang.js`，首页链接带 `?lang=`）；等轴 SVG 积木；中英两种文案在 src/text.ts）；site/video 是发布视频的分镜、配乐、录屏与合成脚本，产物在 site/video/out（不入库）
@@ -128,7 +128,8 @@ scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 到 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核对散列；Mac 核对架构）
 tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架构（ci.sh 发布前调用）
-scripts/review.sh ID 轮次 路径  审查一条任务（herdr 右侧分栏，codex gpt-6-astra，effort xhigh，fast）
+scripts/review.sh ID 轮次 路径  审查一条任务（herdr 桌面应用的新终端，经 `hc`，codex gpt-6-astra，effort xhigh，fast）
+tests/scripts/review-rules.sh   review.sh 对替身 hc：粘贴吞掉回车即补一次，阻塞、退出、状态读不出即停而不按键，审查结束才读结论，空结论即败，CRLF 的 jq 与消息打断的等待照常（三端可跑）
 scripts/apply-lo-patches.sh engines/lo-src  找出源码已到补丁序列第几个，补上其余（构建脚本调用）
 tests/scripts/lo-patches.sh    补丁序列从中途接着打、再打一次为空操作
 tests/scripts/media-targets.sh 媒体播放接口在 Linux、Windows 目标可编译（缺目标时 SKIP）
