@@ -470,7 +470,7 @@
 ## R15 议题、流畅与多语言（用户 2026-10-31 定：先修 #48、#47、#46、#44、#42，再做打开与翻页的流畅，最后加语言并合并 #51、#53；每条送审、提交、推送）
 
 - [x] R15.0 审查脚本改用 herdr 桌面应用的 `hc`：本机已无 `herdr` 命令行，`review.sh` 以旧命令开分栏即失败（C00） — R3 ok
-- [ ] R15.1 #42 安装包体积：Linux 下载 242 MB。量出各部分的大小，去掉不该随包的部分（§4.2）
+- [x] R15.1 #42 安装包体积：Linux 下载 242 MB。量出各部分的大小，去掉不该随包的部分（§4.2）。原因：随包的 LibreOffice 库带符号表，Git 带调试信息（linuxdeploy 只剥应用与 worker），deb、rpm 用 gzip。已做：`stage.sh` 在 Linux 上剥去每个 ELF 的符号与调试信息；不用的图库、英文同义词库、ElyShow 以外的演示模板不随包；deb、rpm 改 xz；`package.sh` 遇仍带 `.symtab` 或 `.debug_*` 的 ELF 即失败。0.1.13 对比（MB，AppImage／deb）：ElyDoc 227.4→181.1／254.5→169.5，ElyShow 227.6→187.9／254.7→176.6，ElyTable 224.8→178.6／251.6→167.4，ElyMark 116.4→71.4／126.8→60.1，ElyTree 79.7→34.7／87.3→26.8，ElyPDF 59.0→59.0／62.8→53.2，ElyMail 25.8→25.8／28.0→23.1。`linux-packages.sh`（Debian 11 至 Arch 皆装上、皆链接）、`linux-distros.sh`（Ubuntu、Fedora 上七个应用皆画出、读出页面文字）皆过；剥过的 Git 跑 commit、status、diff、log 与 LFS — R1 ok
 - [ ] R15.2 #44 ElyPDF 缩放：工具栏加放大、缩小；缩放后停在原页，不跳回第一页（PDF-01，§11）
 - [ ] R15.3 #44 ElyPDF 左侧栏可收起（§11.1）
 - [ ] R15.4 #44 ElyPDF 缩略图拖动重排页面（PDF-02，§11）

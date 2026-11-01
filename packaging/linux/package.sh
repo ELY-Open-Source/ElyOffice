@@ -139,6 +139,8 @@ needed=(libvulkan.so.1 libwayland-client.so.0)
 while IFS= read -r -d '' file; do
   magic=$(head -c 4 "$file" | od -An -c | tr -d ' ') || broken "cannot read $file"
   [ "$magic" = '177ELF' ] || continue
+  sections=$(readelf -SW "$file") || broken "readelf cannot read $file"
+  ! grep -qE ' \.(symtab|debug_)' <<<"$sections" || broken "${file#"$appdir"/} keeps symbols or debug info"
   dynamic=$(readelf -dW "$file") || broken "readelf cannot read $file"
   # Library paths resolve inside the package.
   records=$(awk '/\((RUNPATH|RPATH)\)/ { n++ } END { print n + 0 }' <<<"$dynamic") || broken "cannot count paths of $file"
@@ -210,6 +212,10 @@ contents:
     dst: /usr/share/applications/$slug.desktop
   - src: $icon
     dst: /usr/share/icons/hicolor/512x512/apps/$slug.png
+deb:
+  compression: xz
+rpm:
+  compression: xz
 overrides:
   deb:
     depends:

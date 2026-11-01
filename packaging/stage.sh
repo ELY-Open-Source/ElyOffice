@@ -46,6 +46,19 @@ if uses ely-lok; then
       rm "$stub"
     fi
   done < <(find "$out/libreoffice/program" -type f -size -64c)
+  # Unused by Ely: gallery, thesaurus; Impress templates outside ElyShow.
+  share=$out/libreoffice/share
+  rm -rf "$share/gallery"
+  [ "$slug" = ely-show ] || rm -rf "$share/template/common/presnt"
+  en=$share/extensions/dict-en
+  rm "$en"/th_en_US_v2.*
+  awk '/<node oor:name="ThesDic_/ { skip = 1 } !skip { print } skip && /<\/node>/ { skip = 0 }' \
+    "$en/dictionaries.xcu" >"$en/dictionaries.xcu.next"
+  mv "$en/dictionaries.xcu.next" "$en/dictionaries.xcu"
+  ! grep -q 'DICT_THES' "$en/dictionaries.xcu" || {
+    echo "stage.sh: the thesaurus is still in $en/dictionaries.xcu" >&2
+    exit 1
+  }
   if [ -n "$exe" ]; then
     # The kernel needs the VC++ runtime; it ships beside it.
     crt=$(ls -d "/c/Program Files/Microsoft Visual Studio/2022/"*/VC/Redist/MSVC/*/x64/Microsoft.VC143.CRT | tail -n 1)
@@ -68,6 +81,16 @@ fi
 if [ "$slug" = ely-tree ] || { [ "$slug" = ely-mark ] && [ "$(uname)" = Linux ]; }; then
   need "$root/engines/git" "scripts/build-git.sh and scripts/fetch-git-lfs.sh"
   cp -R "$root/engines/git" "$out/git"
+fi
+# Linux: strip symbols and debug info from every ELF.
+if [ -z "$exe" ]; then
+  find "$out" -type f -print0 >"$out.files"
+  while IFS= read -r -d '' file; do
+    [ "$(head -c 4 "$file" | od -An -c | tr -d ' ')" = '177ELF' ] || continue
+    chmod u+w "$file"
+    strip --strip-unneeded "$file"
+  done <"$out.files"
+  rm "$out.files"
 fi
 "$root/packaging/licenses.sh" "$slug" "$out/licenses"
 echo "$out"
