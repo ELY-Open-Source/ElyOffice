@@ -1,6 +1,6 @@
 use std::{io, sync::Arc};
 
-use ely_mail_engine::{Auth, Checked, Error, Security, oauth};
+use ely_mail_engine::{Auth, Checked, Error, Security, Stage, oauth};
 use ely_ui::laid::LaidOut;
 use gpui::{Modifiers, TestAppContext, TestDispatcher};
 
@@ -77,6 +77,24 @@ fn a_build_without_a_client_id_says_so() {
 }
 
 #[test]
+fn a_quiet_server_is_named_in_the_readers_language() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut cx = TestAppContext::single();
+    let (_, cx) = window(&mut cx, dir.path(), Keys::default());
+    let said = |cx: &mut gpui::VisualTestContext, stage| cx.update(|_, app| failure(&Error::Timeout(stage), app));
+    assert_eq!(said(cx, Stage::LoggingIn).as_ref(), "no answer while logging in");
+    assert!(said(cx, Stage::StartingTls).contains("proxy"), "the proxy is named");
+    cx.update(|_, app| ely_ui::i18n::install_as("zh-CN", app));
+    assert_eq!(said(cx, Stage::LoggingIn).as_ref(), "登录时没有回应");
+    let tls = said(cx, Stage::StartingTls);
+    assert!(tls.contains("代理") && !tls.chars().any(|c| c.is_ascii_alphabetic()), "{tls}");
+    for stage in [Stage::ConnectingThroughProxy, Stage::WaitingForGreeting, Stage::SavingSentCopy, Stage::LoggingOut] {
+        let words = said(cx, stage);
+        assert!(!words.chars().any(|c| c.is_ascii_alphabetic()), "{stage}: {words}");
+    }
+}
+
+#[test]
 fn outlooks_held_account_says_what_to_do() {
     let dir = tempfile::tempdir().unwrap();
     let mut cx = TestAppContext::single();
@@ -104,7 +122,7 @@ fn a_refused_gmail_password_says_what_to_do() {
             (Kind::Gmail, Some(rejected()), None, true),
             (Kind::Gmail, None, Some(rejected()), true),
             (Kind::ICloud, Some(rejected()), None, false),
-            (Kind::Gmail, Some(Error::Timeout("login")), None, false),
+            (Kind::Gmail, Some(Error::Timeout(Stage::LoggingIn)), None, false),
             (Kind::Gmail, Some(Error::Connect(refused())), None, false),
         ];
         for (kind, incoming, outgoing, advised) in cases {

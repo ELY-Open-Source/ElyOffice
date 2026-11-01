@@ -1,5 +1,6 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
+use crate::Stage;
 use rustls::{ClientConfig, crypto::ring, pki_types::ServerName};
 use rustls_platform_verifier::BuilderVerifierExt;
 use serde::{Deserialize, Serialize};
@@ -57,7 +58,7 @@ pub fn system_tls() -> Result<TlsConnector> {
     Ok(TlsConnector::from(Arc::new(config)))
 }
 
-pub(crate) async fn within<T>(step: &'static str, work: impl Future<Output = T>) -> Result<T> {
+pub(crate) async fn within<T>(step: Stage, work: impl Future<Output = T>) -> Result<T> {
     tokio::time::timeout(WAIT, work)
         .await
         .map_err(|_| Error::Timeout(step))
@@ -66,8 +67,8 @@ pub(crate) async fn within<T>(step: &'static str, work: impl Future<Output = T>)
 pub(crate) async fn tcp(server: &Server) -> Result<TcpStream> {
     let host = server.host.as_str();
     let stream = match crate::proxy::for_host(host)? {
-        Some(route) => within("connecting through the proxy", crate::proxy::tunnel(&route, host, server.port)).await??,
-        None => within("connecting", TcpStream::connect((host, server.port)))
+        Some(route) => within(Stage::ConnectingThroughProxy, crate::proxy::tunnel(&route, host, server.port)).await??,
+        None => within(Stage::Connecting, TcpStream::connect((host, server.port)))
             .await?
             .map_err(Error::Connect)?,
     };
@@ -78,7 +79,7 @@ pub(crate) async fn tcp(server: &Server) -> Result<TcpStream> {
 pub(crate) async fn tls(tcp: TcpStream, server: &Server, tls: &TlsConnector) -> Result<Stream> {
     let name = ServerName::try_from(server.host.clone())
         .map_err(|err| Error::Tls(format!("{}: {err}", server.host)))?;
-    let stream = within("starting TLS", tls.connect(name, tcp))
+    let stream = within(Stage::StartingTls, tls.connect(name, tcp))
         .await?
         .map_err(|err| Error::Tls(err.to_string()))?;
     log::info!("mail: TLS with {}:{}", server.host, server.port);

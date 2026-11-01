@@ -1,5 +1,6 @@
 use std::io;
 
+use crate::Stage;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio_rustls::TlsConnector;
@@ -21,8 +22,8 @@ impl Pop {
             Security::Tls => net::tls(tcp, server, tls).await?,
             Security::StartTls => {
                 let mut plain = BufReader::new(tcp);
-                within("waiting for the greeting", status(&mut plain)).await??;
-                within("starting TLS", ask(&mut plain, "STLS")).await??;
+                within(Stage::WaitingForGreeting, status(&mut plain)).await??;
+                within(Stage::StartingTls, ask(&mut plain, "STLS")).await??;
                 // Plain bytes here would pass as TLS data.
                 if !plain.buffer().is_empty() {
                     return Err(Error::Protocol("the server sent data after STLS".into()));
@@ -32,16 +33,16 @@ impl Pop {
         };
         let mut io = BufReader::new(stream);
         if server.security == Security::Tls {
-            within("waiting for the greeting", status(&mut io)).await??;
+            within(Stage::WaitingForGreeting, status(&mut io)).await??;
         }
-        within("logging in", authenticate(&mut io, login)).await??;
+        within(Stage::LoggingIn, authenticate(&mut io, login)).await??;
         log::info!("mail: POP3 login on {}", server.host);
         Ok(Self { io })
     }
 
     /// Message numbers with their unique ids.
     pub async fn uids(&mut self) -> Result<Vec<(usize, String)>> {
-        let list = within("listing messages", async {
+        let list = within(Stage::ListingMessages, async {
             ask(&mut self.io, "UIDL").await?;
             lines(&mut self.io).await
         })
@@ -60,7 +61,7 @@ impl Pop {
     }
 
     pub async fn fetch(&mut self, number: usize) -> Result<Vec<u8>> {
-        within("fetching the message", async {
+        within(Stage::FetchingMessage, async {
             ask(&mut self.io, &format!("RETR {number}")).await?;
             lines(&mut self.io).await
         })
@@ -70,14 +71,14 @@ impl Pop {
     /// Marks it deleted; QUIT carries that out.
     pub async fn delete(&mut self, number: usize) -> Result<()> {
         within(
-            "deleting the message",
+            Stage::DeletingMessage,
             ask(&mut self.io, &format!("DELE {number}")),
         )
         .await?
     }
 
     pub async fn quit(mut self) -> Result<()> {
-        within("logging out", ask(&mut self.io, "QUIT")).await??;
+        within(Stage::LoggingOut, ask(&mut self.io, "QUIT")).await??;
         Ok(())
     }
 }

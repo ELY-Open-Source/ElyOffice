@@ -16,7 +16,7 @@ pub enum Error {
     /// The server said something the client cannot read.
     Protocol(String),
     /// The server did not answer in time.
-    Timeout(&'static str),
+    Timeout(crate::Stage),
     /// The message went out; its acceptance is unknown.
     Unsure(String),
     /// An address or login the protocol cannot carry.

@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::Stage;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use mail_send::{
     Credentials, Error as SendError, SmtpClient,
@@ -40,27 +41,27 @@ impl Smtp {
             Security::StartTls => {
                 let mut plain = smtp(tcp);
                 greeting(&mut plain).await?;
-                let hello = within("greeting", plain.ehlo(HELLO))
+                let hello = within(Stage::Greeting, plain.ehlo(HELLO))
                     .await?
-                    .map_err(failed)?;
+                    .map_err(failed(Stage::Greeting))?;
                 if !hello.has_capability(smtp_proto::EXT_START_TLS) {
                     return Err(Error::Server("the server does not offer STARTTLS".into()));
                 }
-                within("starting TLS", plain.start_tls(tls, &server.host))
+                within(Stage::StartingTls, plain.start_tls(tls, &server.host))
                     .await?
-                    .map_err(failed)?
+                    .map_err(failed(Stage::StartingTls))?
             }
         };
-        let hello = within("greeting", client.capabilities(HELLO, false))
+        let hello = within(Stage::Greeting, client.capabilities(HELLO, false))
             .await?
-            .map_err(failed)?;
+            .map_err(failed(Stage::Greeting))?;
         match &login.secret {
             Secret::Password(password) => {
                 let credentials = Credentials::Plain {
                     username: login.user.clone(),
                     secret: password.clone(),
                 };
-                within("logging in", client.authenticate(&credentials, &hello))
+                within(Stage::LoggingIn, client.authenticate(&credentials, &hello))
                     .await?
                     .map_err(refused)?;
             }
@@ -68,7 +69,7 @@ impl Smtp {
                 if hello.auth_mechanisms & smtp_proto::AUTH_XOAUTH2 == 0 {
                     return Err(Error::Rejected("the server does not offer XOAUTH2".into()));
                 }
-                within("logging in", xoauth2(&mut client, &login.xoauth2(token))).await??;
+                within(Stage::LoggingIn, xoauth2(&mut client, &login.xoauth2(token))).await??;
             }
         }
         log::info!("mail: SMTP login on {}", server.host);
@@ -128,7 +129,7 @@ impl Smtp {
             }
             params.add("SMTPUTF8");
         }
-        let handed = within("sending", async {
+        let handed = within(Stage::Sending, async {
             self.client.mail_from(from, &params).await?;
             for to in to {
                 self.client.rcpt_to(to, &Parameters::new()).await?;
@@ -140,18 +141,18 @@ impl Smtp {
         .await?;
         match handed {
             Err(SendError::UnexpectedReply(reply)) => return Err(refusal(reply)),
-            other => other.map_err(failed)?,
+            other => other.map_err(failed(Stage::Sending))?,
         }
         // The final dot may be out already.
-        match within("sending", self.client.stream.flush()).await {
+        match within(Stage::Sending, self.client.stream.flush()).await {
             Ok(Ok(())) => {}
             Ok(Err(err)) => return Err(Error::Unsure(err.to_string())),
             Err(err) => return Err(Error::Unsure(err.to_string())),
         }
         // The message is out; a lost answer leaves it unknown.
-        let answer = match within("waiting for the server to accept", self.client.read()).await {
+        let answer = match within(Stage::WaitingToAccept, self.client.read()).await {
             Ok(Ok(answer)) => answer,
-            Ok(Err(err)) => return Err(Error::Unsure(failed(err).to_string())),
+            Ok(Err(err)) => return Err(Error::Unsure(failed(Stage::WaitingToAccept)(err).to_string())),
             Err(err) => return Err(Error::Unsure(err.to_string())),
         };
         if let Err(SendError::UnexpectedReply(reply)) = answer.assert_positive_completion() {
@@ -162,9 +163,9 @@ impl Smtp {
     }
 
     pub async fn quit(self) -> Result<()> {
-        within("logging out", self.client.quit())
+        within(Stage::LoggingOut, self.client.quit())
             .await?
-            .map_err(failed)
+            .map_err(failed(Stage::LoggingOut))
     }
 }
 
@@ -184,10 +185,10 @@ async fn greeting<T>(client: &mut SmtpClient<T>) -> Result<()>
 where
     T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
-    let reply = within("waiting for the greeting", client.read())
+    let reply = within(Stage::WaitingForGreeting, client.read())
         .await?
-        .map_err(failed)?;
-    reply.assert_positive_completion().map_err(failed)
+        .map_err(failed(Stage::WaitingForGreeting))?;
+    reply.assert_positive_completion().map_err(failed(Stage::WaitingForGreeting))
 }
 
 /// Gmail's exchange: an error challenge draws an empty line.
@@ -196,9 +197,9 @@ where
     T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     let command = format!("AUTH XOAUTH2 {}\r\n", STANDARD.encode(initial));
-    let mut reply = client.cmd(command).await.map_err(failed)?;
+    let mut reply = client.cmd(command).await.map_err(failed(Stage::LoggingIn))?;
     if reply.code() == 334 {
-        reply = client.cmd("\r\n").await.map_err(failed)?;
+        reply = client.cmd("\r\n").await.map_err(failed(Stage::LoggingIn))?;
     }
     match reply.code() {
         235 => Ok(()),
@@ -303,18 +304,34 @@ fn refused(err: SendError) -> Error {
         SendError::UnsupportedAuthMechanism => {
             Error::Rejected("the server offers no login method for these credentials".into())
         }
-        other => failed(other),
+        other => failed(Stage::LoggingIn)(other),
     }
 }
 
-fn failed(err: SendError) -> Error {
-    match err {
+/// Mail-send's own timer names the step it ran in.
+fn failed(stage: Stage) -> impl Fn(SendError) -> Error {
+    move |err| match err {
         SendError::Io(err) => Error::Connect(err),
         SendError::Tls(err) => Error::Tls(err.to_string()),
-        SendError::Timeout => Error::Timeout("talking to the server"),
+        SendError::Timeout => Error::Timeout(stage),
         SendError::UnexpectedReply(reply) => {
             Error::Server(format!("{} {}", reply.code(), reply.message()))
         }
         other => Error::Protocol(other.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mail_sends_own_timeout_keeps_the_step() {
+        let quiet = |error| match error {
+            Error::Timeout(stage) => stage,
+            other => panic!("not a timeout: {other}"),
+        };
+        assert_eq!(quiet(failed(Stage::StartingTls)(SendError::Timeout)), Stage::StartingTls);
+        assert_eq!(quiet(refused(SendError::Timeout)), Stage::LoggingIn);
     }
 }

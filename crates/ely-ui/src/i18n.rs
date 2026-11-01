@@ -13,6 +13,7 @@ mod mail_notify;
 mod mail_storage;
 mod mail_rules;
 mod mail_search;
+mod mail_stages;
 mod mail_outbox;
 mod mail_write;
 mod mark;
@@ -193,6 +194,7 @@ fn catalogs() -> (Catalog, Catalog) {
         .chain(mail_storage::EN)
         .chain(mail_rules::EN)
         .chain(mail_search::EN)
+        .chain(mail_stages::EN)
         .chain(tools::EN)
         .chain(table::EN)
         .chain(calc::EN)
@@ -228,6 +230,7 @@ fn catalogs() -> (Catalog, Catalog) {
         .chain(mail_storage::ZH_CN)
         .chain(mail_rules::ZH_CN)
         .chain(mail_search::ZH_CN)
+        .chain(mail_stages::ZH_CN)
         .chain(tools::ZH_CN)
         .chain(table::ZH_CN)
         .chain(calc::ZH_CN)

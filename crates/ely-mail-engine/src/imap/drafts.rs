@@ -1,5 +1,6 @@
 //! Copies placed on the server: drafts, sent mail (C12.13, C12.14).
 
+use crate::Stage;
 use imap_proto::{Response, ResponseCode, rfc4315::UidSetMember};
 
 use super::{Arg, Imap};
@@ -10,7 +11,7 @@ impl Imap {
     pub async fn put_draft(&mut self, mailbox: &str, message: &[u8]) -> Result<Remote> {
         self.needs_uidplus().await?;
         let placed = self
-            .append(mailbox, "(\\Draft \\Seen)", message, "saving the draft")
+            .append(mailbox, "(\\Draft \\Seen)", message, Stage::SavingDraft)
             .await?;
         let (uidvalidity, uid) =
             placed.ok_or_else(|| Error::Protocol("the saved draft came without its UID".into()))?;
@@ -24,7 +25,7 @@ impl Imap {
 
     /// Files a sent message, read already.
     pub async fn put_sent(&mut self, mailbox: &str, message: &[u8]) -> Result<()> {
-        self.append(mailbox, "(\\Seen)", message, "saving the sent copy")
+        self.append(mailbox, "(\\Seen)", message, Stage::SavingSentCopy)
             .await?;
         log::info!("mail: a sent copy was placed on the server");
         Ok(())
@@ -36,7 +37,7 @@ impl Imap {
         mailbox: &str,
         flags: &str,
         message: &[u8],
-        step: &'static str,
+        step: Stage,
     ) -> Result<Option<(u32, u32)>> {
         let mut placed = None;
         let args = [Arg::Text(mailbox), Arg::Atom(flags), Arg::Bytes(message)];
@@ -60,7 +61,7 @@ impl Imap {
     pub async fn drop_draft(&mut self, remote: &Remote) -> Result<bool> {
         self.needs_uidplus().await?;
         let opened = self
-            .open("SELECT", "opening the drafts folder", &remote.mailbox)
+            .open("SELECT", Stage::OpeningDrafts, &remote.mailbox)
             .await?;
         if opened.uidvalidity != remote.uidvalidity {
             log::warn!("mail: the drafts folder was renumbered; its old copy stays");
@@ -73,13 +74,13 @@ impl Imap {
             Arg::Atom("(\\Deleted)"),
         ];
         within(
-            "marking the old draft",
+            Stage::MarkingOldDraft,
             self.conn.run("UID STORE", &mark, |_, _| {}),
         )
         .await??
         .map_err(Error::Server)?;
         within(
-            "removing the old draft",
+            Stage::RemovingOldDraft,
             self.conn.run("UID EXPUNGE", &[Arg::Atom(&uid)], |_, _| {}),
         )
         .await??

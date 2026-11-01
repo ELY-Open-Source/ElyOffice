@@ -16,6 +16,7 @@ mod proxy;
 pub mod push;
 pub mod sent;
 mod smtp;
+mod stage;
 mod store;
 pub mod mailto;
 pub mod mbox;
@@ -27,6 +28,7 @@ mod wire;
 
 pub use account::{Account, Auth, Checked, Protocol};
 pub use error::{Error, Result};
+pub use stage::Stage;
 pub use imap::{Folder, Got, Imap, Opened, Role};
 pub use mime::{Built, Draft, Mail, Mailbox, Part, Shown, build, read, without_bcc};
 pub use net::{Login, Secret, Security, Server, system_tls};

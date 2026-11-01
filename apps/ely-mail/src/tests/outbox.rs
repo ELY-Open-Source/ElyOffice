@@ -235,7 +235,7 @@ fn sends_and_copies_end_in_the_right_state() {
         landing(Ok(Err(offline)), true).0,
         Landing::Waiting(_)
     ));
-    let slow = Error::Timeout("connecting");
+    let slow = Error::Timeout(ely_mail_engine::Stage::Connecting);
     assert!(matches!(
         landing(Ok(Err(slow)), true).0,
         Landing::Waiting(_)

@@ -31,6 +31,7 @@ mod removing;
 mod rules;
 mod seeking;
 mod side;
+mod stage;
 mod storage;
 mod syncing;
 mod view;

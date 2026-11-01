@@ -296,7 +296,7 @@ pub fn failure(error: &Error, cx: &App) -> SharedString {
         Error::Rejected(detail) => ("mail.error.rejected", detail.clone()),
         Error::Server(detail) => ("mail.error.server", detail.clone()),
         Error::Protocol(detail) => ("mail.error.protocol", detail.clone()),
-        Error::Timeout(step) => ("mail.error.timeout", (*step).to_owned()),
+        Error::Timeout(stage) => return crate::stage::quiet(*stage, cx),
         other => ("mail.error.other", other.to_string()),
     };
     text(cx, key, &[("detail", &detail)])

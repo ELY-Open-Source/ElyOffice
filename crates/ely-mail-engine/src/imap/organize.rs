@@ -1,5 +1,6 @@
 //! Flags, moves and removals on the server (C12.15).
 
+use crate::Stage;
 use std::collections::{HashMap, HashSet};
 
 use imap_proto::{Response, ResponseCode, rfc4315::UidSetMember};
@@ -36,14 +37,14 @@ impl Imap {
 
     /// SELECT: the mailbox opened to change.
     pub async fn select(&mut self, mailbox: &str) -> Result<Opened> {
-        self.open("SELECT", "opening the mailbox to change it", mailbox)
+        self.open("SELECT", Stage::OpeningMailboxToChange, mailbox)
             .await
     }
 
     /// Which of `uids` the open mailbox still holds.
     pub async fn present(&mut self, uids: &[u32]) -> Result<HashSet<u32>> {
         let got = self
-            .uid_fetch(&set(uids), "(UID)", "checking messages")
+            .uid_fetch(&set(uids), "(UID)", Stage::CheckingMessages)
             .await?;
         Ok(got.into_keys().filter(|uid| uids.contains(uid)).collect())
     }
@@ -54,7 +55,7 @@ impl Imap {
         let (uid_set, flags) = (set(uids), format!("({flag})"));
         let args = [Arg::Atom(&uid_set), Arg::Atom(how), Arg::Atom(&flags)];
         within(
-            "changing flags",
+            Stage::ChangingFlags,
             self.conn.run("UID STORE", &args, |_, _| {}),
         )
         .await??
@@ -64,7 +65,7 @@ impl Imap {
     /// Each UID's flags; a UID gone meanwhile is absent.
     pub async fn flags_of(&mut self, uids: &[u32]) -> Result<HashMap<u32, Vec<String>>> {
         let got = self
-            .uid_fetch(&set(uids), "(UID FLAGS)", "reading flags")
+            .uid_fetch(&set(uids), "(UID FLAGS)", Stage::ReadingFlags)
             .await?;
         Ok(got.into_iter().map(|(uid, it)| (uid, it.flags)).collect())
     }
@@ -77,7 +78,7 @@ impl Imap {
             Arg::Atom("Message-ID"),
             Arg::Text(&quoted),
         ];
-        self.search(&args, "finding a moved message").await
+        self.search(&args, Stage::FindingMovedMessage).await
     }
 
     /// RFC 6851 MOVE.
@@ -95,7 +96,7 @@ impl Imap {
         let mut said = None;
         let args = [Arg::Atom(&uid_set), Arg::Text(target)];
         within(
-            "moving messages",
+            Stage::MovingMessages,
             self.conn.run(verb, &args, |response, _| {
                 let outcome = match response {
                     Response::Data { outcome, .. } | Response::Done { outcome, .. } => outcome,
@@ -131,7 +132,7 @@ impl Imap {
         self.mark(uids, "\\Deleted", true).await?;
         let uid_set = set(uids);
         within(
-            "removing messages",
+            Stage::RemovingMessages,
             self.conn
                 .run("UID EXPUNGE", &[Arg::Atom(&uid_set)], |_, _| {}),
         )

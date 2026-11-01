@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::Stage;
 use imap_proto::{AttributeValue, Capability, MailboxDatum, NameAttribute, Response, ResponseCode};
 use tokio_rustls::TlsConnector;
 
@@ -97,8 +98,8 @@ impl Imap {
             Security::Tls => net::tls(tcp, server, tls).await?,
             Security::StartTls => {
                 let mut plain = Conn::new(tcp);
-                within("waiting for the greeting", plain.greeting()).await??;
-                within("starting TLS", plain.run("STARTTLS", &[], |_, _| {}))
+                within(Stage::WaitingForGreeting, plain.greeting()).await??;
+                within(Stage::StartingTls, plain.run("STARTTLS", &[], |_, _| {}))
                     .await??
                     .map_err(Error::Server)?;
                 net::tls(plain.wire.into_inner()?, server, tls).await?
@@ -106,15 +107,15 @@ impl Imap {
         };
         let mut conn = Conn::new(stream);
         if server.security == Security::Tls {
-            within("waiting for the greeting", conn.greeting()).await??;
+            within(Stage::WaitingForGreeting, conn.greeting()).await??;
         }
         let outcome = match &login.secret {
             Secret::Password(password) => {
                 let args = [Arg::Text(&login.user), Arg::Text(password)];
-                within("logging in", conn.run("LOGIN", &args, |_, _| {})).await??
+                within(Stage::LoggingIn, conn.run("LOGIN", &args, |_, _| {})).await??
             }
             Secret::Token(token) => {
-                within("logging in", conn.xoauth2(&login.xoauth2(token))).await??
+                within(Stage::LoggingIn, conn.xoauth2(&login.xoauth2(token))).await??
             }
         };
         outcome.map_err(Error::Rejected)?;
@@ -136,7 +137,7 @@ impl Imap {
         ];
         let args = if extended { &all[..] } else { &all[..2] };
         within(
-            "listing mailboxes",
+            Stage::ListingMailboxes,
             self.conn.run("LIST", args, |response, raw| {
                 if let Response::MailboxData(MailboxDatum::List(list)) = response {
                     let name = mailbox_name(&list.name, raw);
@@ -152,7 +153,7 @@ impl Imap {
     async fn capabilities(&mut self) -> Result<Vec<String>> {
         let mut can = Vec::new();
         within(
-            "reading capabilities",
+            Stage::ReadingCapabilities,
             self.conn.run("CAPABILITY", &[], |response, _| {
                 if let Response::Capabilities(list) = response {
                     can.extend(list.iter().filter_map(|it| match it {
@@ -168,11 +169,11 @@ impl Imap {
     }
 
     pub async fn examine(&mut self, mailbox: &str) -> Result<Opened> {
-        self.open("EXAMINE", "opening the mailbox", mailbox).await
+        self.open("EXAMINE", Stage::OpeningMailbox, mailbox).await
     }
 
     /// EXAMINE reads; SELECT may change.
-    async fn open(&mut self, verb: &str, step: &'static str, mailbox: &str) -> Result<Opened> {
+    async fn open(&mut self, verb: &str, step: Stage, mailbox: &str) -> Result<Opened> {
         let (mut uidvalidity, mut exists) = (None, None);
         within(
             step,
@@ -203,7 +204,7 @@ impl Imap {
     /// Every UID in the open mailbox with its flags.
     pub async fn flags(&mut self) -> Result<Vec<(u32, Vec<String>)>> {
         let got = self
-            .uid_fetch("1:*", "(UID FLAGS)", "reading flags")
+            .uid_fetch("1:*", "(UID FLAGS)", Stage::ReadingFlags)
             .await?;
         Ok(got.into_iter().map(|(uid, it)| (uid, it.flags)).collect())
     }
@@ -211,7 +212,7 @@ impl Imap {
     /// Headers of `uids`; a UID gone meanwhile is absent.
     pub async fn headers(&mut self, uids: &[u32]) -> Result<Vec<Got>> {
         let what = "(UID FLAGS BODY.PEEK[HEADER])";
-        let got = self.uid_fetch(&set(uids), what, "fetching headers").await?;
+        let got = self.uid_fetch(&set(uids), what, Stage::FetchingHeaders).await?;
         asked(got, uids, "HEADER")
     }
 
@@ -219,7 +220,7 @@ impl Imap {
     pub async fn bodies(&mut self, uids: &[u32]) -> Result<Vec<Got>> {
         let what = "(UID FLAGS BODY.PEEK[])";
         let got = self
-            .uid_fetch(&set(uids), what, "fetching messages")
+            .uid_fetch(&set(uids), what, Stage::FetchingMessages)
             .await?;
         asked(got, uids, "")
     }
@@ -228,7 +229,7 @@ impl Imap {
     pub async fn structures(&mut self, uids: &[u32]) -> Result<Vec<(u32, Node)>> {
         let what = "(UID BODYSTRUCTURE)";
         let mut got = self
-            .uid_fetch(&set(uids), what, "reading structures")
+            .uid_fetch(&set(uids), what, Stage::ReadingStructures)
             .await?;
         let mut out = Vec::new();
         for &uid in uids {
@@ -252,7 +253,7 @@ impl Imap {
             .collect();
         let what = format!("(UID FLAGS {})", peeks.join(" "));
         let mut got = self
-            .uid_fetch(&uid.to_string(), &what, "fetching message text")
+            .uid_fetch(&uid.to_string(), &what, Stage::FetchingMessageText)
             .await?;
         let Some(it) = got.remove(&uid) else {
             return Ok(None);
@@ -267,11 +268,11 @@ impl Imap {
     /// UIDs of messages that arrived on or after `day` (`19-Jul-2026`).
     pub async fn since(&mut self, day: &str) -> Result<Vec<u32>> {
         let args = [Arg::Atom("SINCE"), Arg::Atom(day)];
-        self.search(&args, "searching by date").await
+        self.search(&args, Stage::SearchingByDate).await
     }
 
     /// UID SEARCH, sorted.
-    async fn search(&mut self, args: &[Arg<'_>], step: &'static str) -> Result<Vec<u32>> {
+    async fn search(&mut self, args: &[Arg<'_>], step: Stage) -> Result<Vec<u32>> {
         let mut uids = Vec::new();
         within(
             step,
@@ -294,7 +295,7 @@ impl Imap {
     }
 
     pub async fn logout(mut self) -> Result<()> {
-        within("logging out", self.conn.run("LOGOUT", &[], |_, _| {}))
+        within(Stage::LoggingOut, self.conn.run("LOGOUT", &[], |_, _| {}))
             .await??
             .map_err(Error::Server)
     }
@@ -304,7 +305,7 @@ impl Imap {
         &mut self,
         uids: &str,
         what: &str,
-        step: &'static str,
+        step: Stage,
     ) -> Result<HashMap<u32, Fetch>> {
         let mut got: HashMap<u32, Fetch> = HashMap::new();
         let args = [Arg::Atom(uids), Arg::Atom(what)];
