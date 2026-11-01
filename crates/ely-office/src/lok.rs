@@ -21,6 +21,7 @@ pub struct Loaded {
     doc: Doc,
     laid: ely_lok::Layout,
     mark: String,
+    feed: ely_lok::Feed,
 }
 
 impl Engine for Lok {
@@ -38,7 +39,7 @@ impl Engine for Lok {
         // Layout and history too: the window never waits.
         let laid = ely_lok::layout(worker, &doc)?;
         let mark = worker.values(&doc, ".uno:Undo")?;
-        Ok(Loaded { doc, laid, mark })
+        Ok(Loaded { doc, laid, mark, feed: worker.feed() })
     }
 
     fn open(
@@ -47,8 +48,8 @@ impl Engine for Lok {
         _: &mut Window,
         cx: &mut App,
     ) -> io::Result<(Doc, Entity<LokView>, String)> {
-        let Loaded { doc, laid, mark } = loaded;
-        let view = LokView::open(Arc::clone(worker), doc.clone(), laid, cx);
+        let Loaded { doc, laid, mark, feed } = loaded;
+        let view = LokView::open(Arc::clone(worker), doc.clone(), laid, feed, cx);
         let (zoom, deck) = (ely_ui::settings::current(cx).doc_zoom, doc.is_deck());
         let kind = match (doc.is_sheet(), deck) {
             (true, _) => "office.view.sheet",

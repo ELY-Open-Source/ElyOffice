@@ -54,11 +54,12 @@ impl Slide {
     }
 }
 
-/// The slide, the view kept while closing, its last width.
+/// The slide, kept view, last width, user's choice.
 struct Slot {
     slide: Slide,
     view: Option<AnyView>,
     full: Pixels,
+    chosen: bool,
 }
 
 /// A panel this frame: its view, width and open share.
@@ -84,18 +85,24 @@ fn panel_id(side: Side) -> ElementId {
     }
 }
 
-/// Moves `side` toward `view`; `squeezed` closes at once.
-pub(super) fn slide(side: Side, view: Option<AnyView>, width: Pixels, squeezed: bool, window: &mut Window, cx: &mut App) -> Option<Drawn> {
+/// Moves `side` toward `view`; only a `chosen` flip slides.
+pub(super) fn slide(side: Side, view: Option<AnyView>, width: Pixels, squeezed: bool, chosen: bool, window: &mut Window, cx: &mut App) -> Option<Drawn> {
     let open = view.is_some();
     let length = motion::duration(motion::BASE, cx);
     let now = Instant::now();
-    let slot = window.use_keyed_state(panel_id(side), cx, |_, _| Slot { slide: Slide::new(open, now), view: None, full: width });
+    let slot = window.use_keyed_state(panel_id(side), cx, |_, _| Slot { slide: Slide::new(open, now), view: None, full: width, chosen });
     slot.update(cx, |slot, _| {
         // Its room went: it may not slide over the content.
         if squeezed {
-            *slot = Slot { slide: Slide::new(false, now), view: None, full: width };
+            *slot = Slot { slide: Slide::new(false, now), view: None, full: width, chosen };
         }
-        slot.slide.aim(open, now, length);
+        if slot.chosen != chosen {
+            slot.slide.aim(open, now, length);
+        } else if slot.slide.to != f32::from(u8::from(open)) {
+            // Content came or went: no user asked, no motion.
+            slot.slide = Slide::new(open, now);
+        }
+        slot.chosen = chosen;
         if open {
             (slot.view, slot.full) = (view, width);
         }
@@ -117,7 +124,7 @@ fn need(side: Side, drawn: &Option<Drawn>) -> Pixels {
 
 /// Closes `side` at once, its slide dropped.
 fn shut(side: Side, drawn: &mut Option<Drawn>, window: &mut Window, cx: &mut App) {
-    let slot = window.use_keyed_state(panel_id(side), cx, |_, _| Slot { slide: Slide::new(false, Instant::now()), view: None, full: px(0.0) });
+    let slot = window.use_keyed_state(panel_id(side), cx, |_, _| Slot { slide: Slide::new(false, Instant::now()), view: None, full: px(0.0), chosen: false });
     slot.update(cx, |slot, _| (slot.slide, slot.view) = (Slide::new(false, Instant::now()), None));
     *drawn = None;
 }
@@ -145,7 +152,7 @@ pub(super) fn budget(left: &mut Option<Drawn>, right: &mut Option<Drawn>, window
     for (side, drawn) in [(Side::Left, &*left), (Side::Right, &*right)] {
         if let Some(full) = drawn.as_ref().filter(|drawn| drawn.open).map(|drawn| drawn.full) {
             // A fold starts from the width drawn.
-            let slot = window.use_keyed_state(panel_id(side), cx, |_, _| Slot { slide: Slide::new(true, Instant::now()), view: None, full });
+            let slot = window.use_keyed_state(panel_id(side), cx, |_, _| Slot { slide: Slide::new(true, Instant::now()), view: None, full, chosen: true });
             slot.update(cx, |slot, _| slot.full = full);
         }
     }

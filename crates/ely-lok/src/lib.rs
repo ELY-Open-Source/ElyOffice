@@ -15,7 +15,7 @@ mod table;
 mod worker;
 
 pub use client::{
-    A11y, Cell, Damaged, Doc, Events, Function, MIXED, Mark, Mouse, Pdf, Rect, Request, Sheet, Sheets, Tile,
+    A11y, Cell, Damaged, Doc, Events, Feed, Function, MIXED, Mark, Mouse, Pdf, Rect, Request, Sheet, Sheets, Tile,
     Worker, install_dir, is_nothing, is_stale, templates,
 };
 #[cfg(any(test, feature = "test-support"))]

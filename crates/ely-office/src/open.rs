@@ -134,6 +134,8 @@ pub trait Opening: Host {
         cx.notify();
         crate::Stopping::watch_slow(self, id, cx);
         let worker = Arc::clone(&self.core().worker);
+        let slug = Self::KIND.app.slug();
+        log::info!("{slug}: tab {id} load queued");
         cx.spawn(async move |this, cx| {
             let loaded = cx
                 .background_spawn(async move {
@@ -141,12 +143,17 @@ pub trait Opening: Host {
                         Some((bytes, _)) => std::fs::write(&written, bytes.as_slice())?,
                         None => files::check_package(&written)?,
                     }
+                    let asked = std::time::Instant::now();
                     let mut worker = worker.lock().expect("the worker lock");
+                    log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
                     let from = match &text {
                         None => Load::File(&written, &password),
                         Some((_, how)) => Load::Import(&written, how),
                     };
-                    Self::Engine::load(&mut worker, from)
+                    let began = std::time::Instant::now();
+                    let loaded = Self::Engine::load(&mut worker, from);
+                    log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());
+                    loaded
                 })
                 .await;
             in_window(&this, cx, |host, window, cx| {
@@ -177,6 +184,7 @@ pub trait Opening: Host {
             Source::Locked(path, _) => (path, None, true),
         };
         let opened = loaded.and_then(|loaded| {
+            let began = std::time::Instant::now();
             let risk = match files::macro_risk(&Self::KIND, &path)? {
                 true => Some(crate::Risk::Macros),
                 false => files::section_risk(&Self::KIND, &path)?.or_else(|| Self::Engine::risk(&loaded)),
@@ -191,7 +199,9 @@ pub trait Opening: Host {
                     (dir.to_path_buf(), Session::new_file())
                 }
             };
+            let read = began.elapsed().as_millis();
             let (doc, view, mark) = Self::Engine::open(&self.core().worker, loaded, window, cx)?;
+            log::info!("{}: tab {id} risk read in {read} ms, view in {} ms", Self::KIND.app.slug(), began.elapsed().as_millis() - read);
             Ok((doc, work, session, risk, view, mark))
         });
         let (doc, work, session, risk, view, mark) = match opened {
@@ -269,6 +279,9 @@ pub trait Opening: Host {
                     (true, true) if moved => tab.session.edit(),
                     (false, true) => tab.session.reverted(),
                     _ => {}
+                }
+                if modified != tab.modified {
+                    log::info!("{}: tab {id} modified {modified} after {edited} edits", Self::KIND.app.slug());
                 }
                 tab.modified = modified;
             }

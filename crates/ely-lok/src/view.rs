@@ -153,9 +153,10 @@ impl LokView {
         worker: Arc<Mutex<Worker>>,
         doc: Doc,
         (size, pages): Layout,
+        feed: crate::Feed,
         cx: &mut App,
     ) -> Entity<Self> {
-        cx.new(|cx| Self::sized(worker, doc, size, pages, cx))
+        cx.new(|cx| Self::sized(worker, doc, size, pages, feed, cx))
     }
 
     fn sized(
@@ -163,6 +164,7 @@ impl LokView {
         doc: Doc,
         (width, height): (i64, i64),
         pages: Vec<Rect>,
+        feed: crate::Feed,
         cx: &mut Context<Self>,
     ) -> Self {
         log::info!("lok: {} pages", pages.len());
@@ -227,7 +229,7 @@ impl LokView {
             tabs: Vec::new(),
             watching: None,
         };
-        view.watching = Some(view.watch(cx));
+        view.watching = Some(view.watch(feed, cx));
         view
     }
 
@@ -288,8 +290,7 @@ impl LokView {
     }
 
     /// Takes pushed events; the worker lock stays free (LOK-03).
-    fn watch(&self, cx: &mut Context<Self>) -> Task<()> {
-        let feed = self.worker.lock().expect("the worker lock").feed();
+    fn watch(&self, feed: crate::Feed, cx: &mut Context<Self>) -> Task<()> {
         let (worker, doc) = (Arc::clone(&self.worker), self.doc.clone());
         cx.spawn(async move |this, cx| {
             // The resize count measured; none yet.
@@ -469,7 +470,11 @@ impl LokView {
                 }
                 cx.notify();
             }
-            Ok(_) => cx.notify(),
+            Ok(tile) => {
+                let now = (self.generation, self.geom.zoom, self.geom.dpi);
+                log::debug!("lok: tile {key:?} dropped: {:?} against {now:?}", (tile.generation, geom.zoom, geom.dpi));
+                cx.notify()
+            }
             Err(error) => {
                 // Retried at the next change or move.
                 log::warn!("lok: tile {key:?} failed: {error}");

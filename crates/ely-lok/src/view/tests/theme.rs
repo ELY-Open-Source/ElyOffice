@@ -61,6 +61,7 @@ fn a_dark_app_paints_the_page_white() {
     let mut started = crate::Worker::spawn(&install, &profile).expect("the worker");
     let doc = started.load(&crate::file_url(&source)).expect("the document loads");
     let laid = super::super::layout(&mut started, &doc).expect("the layout reads");
+    let feed = started.feed();
     let worker = Arc::new(Mutex::new(started));
     let shade = || {
         let mut worker = worker.lock().expect("the worker");
@@ -71,7 +72,7 @@ fn a_dark_app_paints_the_page_white() {
     worker.lock().expect("the worker").run(&doc, "view.theme", &["TEST_DARK"]).expect("the dark scheme");
     let dark = shade();
     assert!(dark < 100, "the kernel starts dark: {dark}");
-    let view = cx.update(|app| LokView::open(Arc::clone(&worker), doc.clone(), laid, app));
+    let view = cx.update(|app| LokView::open(Arc::clone(&worker), doc.clone(), laid, feed.clone(), app));
     let shown = view.clone();
     cx.add_window(move |_, _| Host(shown));
     assert!(

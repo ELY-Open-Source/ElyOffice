@@ -31,10 +31,11 @@ fn main() {
         let doc = worker
             .load(&format!("file://{}", source.display()))
             .expect("the document loads");
+        let feed = worker.feed();
         let worker = Arc::new(Mutex::new(worker));
         let laid = ely_lok::layout(&mut worker.lock().expect("the worker lock"), &doc)
             .expect("the layout reads");
-        let view = LokView::open(Arc::clone(&worker), doc.clone(), laid, cx);
+        let view = LokView::open(Arc::clone(&worker), doc.clone(), laid, feed, cx);
         let probe = Probe {
             view: view.clone(),
             worker,

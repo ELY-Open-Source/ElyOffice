@@ -1,6 +1,7 @@
 use super::*;
 
 mod borders;
+mod busy;
 mod clip;
 mod commands;
 mod edge;
@@ -59,10 +60,11 @@ pub(super) fn live_view_of(
         .load(&crate::file_url(&source))
         .expect("the document loads");
     std::mem::forget(dir);
+    let feed = worker.feed();
     let shared = Arc::new(Mutex::new(worker));
     let laid = super::layout(&mut shared.lock().expect("the worker lock"), &doc)
         .expect("the layout reads");
-    let view = LokView::open(Arc::clone(&shared), doc, laid, app);
+    let view = LokView::open(Arc::clone(&shared), doc, laid, feed, app);
     (view, shared)
 }
 

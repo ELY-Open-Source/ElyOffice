@@ -209,3 +209,41 @@ fn narrowing_during_a_fold_keeps_the_content(cx: &mut TestAppContext) {
     keeps_least(cx, "right-probe");
     assert!(cx.debug_bounds("left-probe").is_some(), "the left stays");
 }
+
+/// A left view that comes with a document.
+struct Arriving(FocusHandle, Option<AnyView>);
+
+impl Render for Arriving {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div().size_full().key_context(crate::commands::CONTEXT).child(Shell::new("arriving", &self.0).secondary().left(self.1.clone()))
+    }
+}
+
+#[gpui::test]
+fn a_panel_that_comes_with_content_takes_its_width_at_once(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        ely_gpui_component::init_for_tests(cx);
+        crate::settings::install_defaults(cx);
+        crate::i18n::install_as("en-US", cx);
+        crate::commands::bind_keys(cx);
+    });
+    let window = cx.add_window(|_, cx| Arriving(cx.focus_handle(), None));
+    let mut cx = VisualTestContext::from_window(window.into(), cx);
+    cx.simulate_resize(gpui::size(gpui::px(1100.0), gpui::px(680.0)));
+    frame(&mut cx);
+    cx.update(|window, cx| {
+        let root = window.root::<Arriving>().flatten().expect("the root");
+        let probe = cx.new(|_| Probe("left-probe"));
+        root.update(cx, |root, cx| {
+            root.1 = Some(probe.into());
+            cx.notify();
+        });
+        window.focus(&root.read(cx).0.clone(), cx);
+    });
+    frame(&mut cx);
+    let body = cx.debug_bounds("shell-body").expect("the content");
+    assert_eq!(body.origin.x, gpui::px(220.0), "the panel slid in with the document");
+    cx.simulate_keystrokes("secondary-alt-s");
+    frame(&mut cx);
+    assert!(cx.debug_bounds("left-probe").is_some(), "the user's fold slides, not jumps");
+}
