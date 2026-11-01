@@ -1,6 +1,6 @@
 //! Page pictures, and bookmarks if any (PDF-01, PDF-02).
 
-use std::{collections::BTreeSet, ops::Range, sync::Arc};
+use std::{collections::BTreeSet, ops::Range, sync::Arc, time::Duration};
 
 use ely_gpui_component::{
     buttons::SegmentedControl,
@@ -10,8 +10,8 @@ use ely_gpui_component::{
 };
 use gpui::{
     Action, App, Context, Entity, InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderImage, Role,
-    StatefulInteractiveElement as _, Styled as _, WeakEntity, Window, div, img, prelude::FluentBuilder as _, px,
-    uniform_list,
+    StatefulInteractiveElement as _, Styled as _, UniformListScrollHandle, WeakEntity, Window, div, img,
+    prelude::FluentBuilder as _, px, uniform_list,
 };
 
 use crate::organize::{CropPages, DeletePages, ExtractPages, InsertBlankPage, InsertPagesFromFile, RotatePagesLeft, RotatePagesRight};
@@ -23,6 +23,11 @@ pub const PAGES: &str = "PdfPages";
 /// A picture's width in pixels, and its row's height.
 const WIDTH: f32 = 96.0;
 const ROW: f32 = 152.0;
+/// A drag this near a list end rolls the list.
+const EDGE: f32 = 32.0;
+/// Pixels rolled a tick.
+const STEP: f32 = 16.0;
+const TICK: Duration = Duration::from_millis(16);
 
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Pane {
@@ -44,12 +49,16 @@ pub struct Side {
     pub(crate) pane: Pane,
     /// The view shown, watched for new pictures and edits.
     watched: Option<(gpui::EntityId, gpui::Subscription)>,
+    scroll: UniformListScrollHandle,
+    /// Pixels a tick while a drag holds at an end.
+    edge: f32,
+    pub(crate) rolling: bool,
 }
 
 impl Side {
     pub fn new(viewer: &Entity<Viewer>, cx: &mut Context<Self>) -> Self {
         cx.observe(viewer, |_, _, cx| cx.notify()).detach();
-        Side { viewer: viewer.downgrade(), pane: Pane::Pages, watched: None }
+        Side { viewer: viewer.downgrade(), pane: Pane::Pages, watched: None, scroll: UniformListScrollHandle::new(), edge: 0.0, rolling: false }
     }
 
     /// Follows `view`, dropping the one followed before.
@@ -59,6 +68,53 @@ impl Side {
         }
         let watching = cx.observe(view, |_, _, cx| cx.notify());
         self.watched = Some((view.entity_id(), watching));
+    }
+
+    /// Rolls the list while a drag holds near an end.
+    fn drag_near(&mut self, event: &gpui::DragMoveEvent<Dragged>, window: &mut Window, cx: &mut Context<Self>) {
+        let (at, list) = (event.event.position, event.bounds);
+        self.edge = match () {
+            _ if !list.contains(&at) => 0.0,
+            _ if at.y < list.top() + px(EDGE) => -STEP,
+            _ if at.y > list.bottom() - px(EDGE) => STEP,
+            _ => 0.0,
+        };
+        if self.edge == 0.0 || self.rolling {
+            return;
+        }
+        self.rolling = true;
+        cx.spawn_in(window, async move |side, cx| loop {
+            cx.background_executor().timer(TICK).await;
+            match side.update_in(cx, |side, window, cx| side.roll(window, cx)) {
+                Ok(true) => {}
+                Ok(false) => break,
+                Err(error) => break log::info!("pdf: the page list closed mid-drag: {error}"),
+            }
+        })
+        .detach();
+    }
+
+    /// One tick; false when the roll ends.
+    fn roll(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if self.edge == 0.0 || !cx.has_active_drag() {
+            self.rolling = false;
+            return false;
+        }
+        let list = self.scroll.0.borrow().base_handle.clone();
+        let (now, most) = (list.offset(), list.max_offset());
+        let y = (now.y - px(self.edge)).clamp(-most.y, px(0.0));
+        list.set_offset(gpui::point(now.x, y));
+        // Rows moved under the hand: aim anew.
+        let down = f32::from(window.mouse_position().y - list.bounds().top() - y) / ROW;
+        if let Some(view) = self.viewer.upgrade().and_then(|viewer| viewer.read(cx).active_view()) {
+            view.update(cx, |view, cx| {
+                let row = down.floor() as usize;
+                view.aimed = (row < view.sizes.len()).then(|| if down.fract() >= 0.5 { (row + 1, true) } else { (row, false) });
+                cx.notify();
+            });
+        }
+        cx.notify();
+        true
     }
 }
 
@@ -308,10 +364,13 @@ impl Render for Side {
                     rows.update(cx, |view, cx| view.ask_thumb(range.clone(), sf, cx));
                     range.map(|page| row(&rows, page, cx)).collect()
                 })
+                .track_scroll(&self.scroll)
                 .size_full();
                 div()
                     .id("pdf-pages-list")
+                    .debug_selector(|| "pdf-pages-list".into())
                     .size_full()
+                    .on_drag_move(cx.listener(Self::drag_near))
                     .role(Role::List)
                     .aria_label(Viewer::text(cx, "pdf.side.pages", &[]))
                     .key_context(PAGES)
