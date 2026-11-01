@@ -367,12 +367,14 @@ impl PdfView {
         let offset = self.scroll.offset();
         let (left, top) = self.go_to.unwrap_or((-f32::from(offset.x), -f32::from(offset.y)));
         let laid = self.laid_out();
-        // The page nearest the top left: across first, then down.
+        let below: Vec<_> = laid.placed.iter().filter(|place| place.y + place.h > top).collect();
+        let row = below.iter().map(|place| place.row).min();
+        // In that row, the page nearest the top left.
         let near = |place: &crate::layout::Placed| {
             let across = (place.x - left).max(left - place.x - place.w).max(0.0);
             (across, (place.y - top).max(0.0))
         };
-        let anchor = (laid.placed.iter().filter(|place| place.y + place.h > top))
+        let anchor = (below.into_iter().filter(|place| Some(place.row) == row))
             .min_by(|a, b| {
                 let ((a_across, a_down), (b_across, b_down)) = (near(a), near(b));
                 a_across.total_cmp(&b_across).then(a_down.total_cmp(&b_down))

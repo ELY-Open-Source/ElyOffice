@@ -28,6 +28,8 @@ pub const GAP: f32 = 16.0;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Placed {
     pub page: usize,
+    /// Its row, counted from the top.
+    pub row: usize,
     pub x: f32,
     pub y: f32,
     pub w: f32,
@@ -85,13 +87,13 @@ pub fn layout(sizes: &[(f32, f32)], rotate: i32, (mode, zoom): (Mode, Zoom), vie
     }
     .max(view.0);
     let (mut placed, mut y) = (Vec::new(), GAP);
-    for row in rows {
+    for (at, row) in rows.into_iter().enumerate() {
         let row_w = row.iter().map(|page| sizes[*page].0 * scale).sum::<f32>() + GAP * (row.len() as f32 - 1.0);
         let row_h = row.iter().map(|page| sizes[*page].1 * scale).fold(0.0, f32::max);
         let mut x = (width - row_w) / 2.0;
         for page in row {
             let (w, h) = (sizes[page].0 * scale, sizes[page].1 * scale);
-            placed.push(Placed { page, x, y: y + (row_h - h) / 2.0, w, h });
+            placed.push(Placed { page, row: at, x, y: y + (row_h - h) / 2.0, w, h });
             x += w + GAP;
         }
         y += row_h + GAP;
@@ -130,7 +132,7 @@ mod tests {
     fn continuous_fits_the_width_and_stacks_with_gaps() {
         let out = layout(&[LETTER, LETTER], 0, (Mode::Continuous, Zoom::Width), (644.0, 500.0), 0);
         assert_eq!(out.scale, 1.0, "612 points in 612 pixels of room");
-        assert_eq!(out.placed[0], Placed { page: 0, x: 16.0, y: 16.0, w: 612.0, h: 792.0 });
+        assert_eq!(out.placed[0], Placed { page: 0, row: 0, x: 16.0, y: 16.0, w: 612.0, h: 792.0 });
         assert_eq!(out.placed[1].y, 16.0 + 792.0 + 16.0);
         assert_eq!(out.size, (644.0, 16.0 + 2.0 * (792.0 + 16.0)));
     }
