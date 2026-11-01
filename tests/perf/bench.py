@@ -101,12 +101,14 @@ def main():
     want = lambda perf: not args.only or perf in args.only
     work = tempfile.mkdtemp()
     run.HOST = drive.host(work)
-    packages = ["-p", search.spec("crates/ely-lok"), "-p", search.spec("crates/ely-pdf-worker"),
-                *[arg for slug in APPS for arg in ("-p", search.spec("apps/" + slug))]]
-    drive.sh("cargo", "build", "--release", "-q", "--bins", *packages, cwd=run.ROOT)
+    packages = [arg for slug in APPS for arg in ("-p", search.spec("apps/" + slug))]
     # gpui's journal times each key to its frame (PERF-02).
-    drive.sh("cargo", "build", "--release", "-q", "--bins", "--features", "ely-ui/frames",
-             "--target-dir", drive.target_dir(frames=True), *packages, cwd=run.ROOT)
+    for target, features in ((drive.target_dir(frames=False), []), (drive.target_dir(frames=True), ["--features", "ely-ui/frames"])):
+        build = ("cargo", "build", "--release", "-q", "--bins", "--target-dir", target)
+        # Alone: gpui's manifest would make the worker DPI-aware.
+        for worker in ("crates/ely-lok", "crates/ely-pdf-worker"):
+            drive.sh(*build, "-p", search.spec(worker), cwd=run.ROOT)
+        drive.sh(*build, *features, *packages, cwd=run.ROOT)
     found = samples.made(os.path.join(run.ROOT, "engines", "bench"), run.HOST.git())
     rows, held = [], []
     try:

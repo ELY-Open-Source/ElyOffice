@@ -34,6 +34,7 @@ mod print;
 mod refs;
 mod roundtrip;
 mod rules;
+mod seam;
 mod sheet;
 pub(crate) mod show;
 mod slides;

@@ -40,6 +40,8 @@ pub fn run(
     let profile_dir = dunce::canonicalize(profile_dir)?;
     let profile_url = profile_url_of(&profile_dir);
     let _ = teardown::PROFILE.set(profile_dir.clone());
+    #[cfg(windows)]
+    messages::unaware()?;
     let lok = Lok::hook(Path::new(install), &profile_url)?;
     #[cfg(unix)]
     fatal::watch();
