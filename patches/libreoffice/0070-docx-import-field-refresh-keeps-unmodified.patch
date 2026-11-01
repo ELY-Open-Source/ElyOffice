@@ -1,0 +1,40 @@
+DOCX import: refreshing PAGEREF fields keeps the document unmodified
+
+With PAGEREF fields, the DOCX import refreshes all fields on the
+first OnFocus, which is still part of the load. The refresh marks
+the SwDoc modified while the doc shell refuses the mark, so the two
+disagree: the SwDoc says modified, the shell says not. The next
+SetModified that the shell accepts, such as the line-number
+charstyle made on the first paint of change bars, then reports the
+untouched file as modified: it asks to save on close and keeps
+writing recovery copies (Ely R15.13b). The import now restores the
+SwDoc's state after its own refresh.
+diff --git a/sw/source/writerfilter/dmapper/ModelEventListener.cxx b/sw/source/writerfilter/dmapper/ModelEventListener.cxx
+index 9d04b82a7..f5d61fec6 100644
+--- a/sw/source/writerfilter/dmapper/ModelEventListener.cxx
++++ b/sw/source/writerfilter/dmapper/ModelEventListener.cxx
+@@ -29,6 +29,9 @@
+ #include <com/sun/star/view/XFormLayerAccess.hpp>
+ #include <comphelper/diagnose_ex.hxx>
+ #include <unotxdoc.hxx>
++#include <docsh.hxx>
++#include <doc.hxx>
++#include <IDocumentState.hxx>
+ #include <unofieldcoll.hxx>
+ #include <unofield.hxx>
+ 
+@@ -82,7 +85,14 @@ void ModelEventListener::notifyEvent( const document::EventObject& rEvent )
+                 }
+             }
+             if (nIndex)
++            {
++                // Part of the import: the loaded document stays unmodified.
++                IDocumentState& rState = pDoc->GetDocShell()->GetDoc()->getIDocumentState();
++                const bool bWasModified = rState.IsModified();
+                 pTextFields->refresh();
++                if (!bWasModified)
++                    rState.ResetModified();
++            }
+         }
+         catch( const uno::Exception& )
+         {
