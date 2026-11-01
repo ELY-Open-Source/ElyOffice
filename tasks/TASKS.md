@@ -472,7 +472,7 @@
 - [x] R15.0 审查脚本改用 herdr 桌面应用的 `hc`：本机已无 `herdr` 命令行，`review.sh` 以旧命令开分栏即失败（C00） — R3 ok
 - [x] R15.1 #42 安装包体积：Linux 下载 242 MB。量出各部分的大小，去掉不该随包的部分（§4.2）。原因：随包的 LibreOffice 库带符号表，Git 带调试信息（linuxdeploy 只剥应用与 worker），deb、rpm 用 gzip。已做：`stage.sh` 在 Linux 上剥去每个 ELF 的符号与调试信息；不用的图库、英文同义词库、ElyShow 以外的演示模板不随包；deb、rpm 改 xz；`package.sh` 遇仍带 `.symtab` 或 `.debug_*` 的 ELF 即失败。0.1.13 对比（MB，AppImage／deb）：ElyDoc 227.4→181.1／254.5→169.5，ElyShow 227.6→187.9／254.7→176.6，ElyTable 224.8→178.6／251.6→167.4，ElyMark 116.4→71.4／126.8→60.1，ElyTree 79.7→34.7／87.3→26.8，ElyPDF 59.0→59.0／62.8→53.2，ElyMail 25.8→25.8／28.0→23.1。`linux-packages.sh`（Debian 11 至 Arch 皆装上、皆链接）、`linux-distros.sh`（Ubuntu、Fedora 上七个应用皆画出、读出页面文字）皆过；剥过的 Git 跑 commit、status、diff、log 与 LFS — R1 ok
 - [~] R15.2 #44 缩放与位置：0.1.11 已做（R12.23 状态栏缩放、R12.24 缩放留在原处），#44 晚于发布 23 小时提交、未经对照；在 0.1.13 上核实（PDF-01，§11）。第 1 轮查出仍跳回第一页：页宽不一时，锚点从顶边以下所有页中先比横向距离，屏外靠下的宽页抢走锚点，缩小后位置截为零。第 2 轮查出限于可见页仍不够：下一行的宽页露在下缘时同样抢走锚点。改为先取顶边所在的行（同一行的页中线相同，取最上一行），再在行内按横向取页；`a_wide_page_further_down_takes_no_zoom_from_the_page_read` 两例（第 10 页宽在屏外、第 3 页宽露在下缘）经按键、状态栏、Ctrl+滚轮三路缩小皆留在第 2 页原处，HEAD 败第一例，第 1 轮的改法败第二例。第 3 轮查出以浮点中线认行会在长文档里把同一双页行拆开（1664 页、225%，中线差 1 像素，退到第 1656 页）：`Placed` 加 `row`，由排版的同一循环给出，锚点按行号取；`a_long_two_page_row_keeps_its_right_hand_page` 照其样本，第 3 轮的改法即败。三轮用尽，未经复审
-- [ ] R15.3 #44 ElyPDF 左侧栏可收起（§11.1）
+- [x] R15.3 #44 左侧栏收起：0.1.11 已做（R12.22，菜单与 Ctrl+Alt+S）；在 0.1.13 上核实（§11.1）。核实：7356f18 在 0.1.11 发布前；ElyPDF 视图菜单有左右两栏的开关（`keys.rs` 的 `left_panel_item`、`right_panel_item`），`Shell` 按 `settings::panels::shown` 收起；今日 Windows 上 `ely-ui` 的 shell 测试 17 个皆过 — R1 ok
 - [ ] R15.4 #44 ElyPDF 缩略图拖动重排页面（PDF-02，§11）
 - [ ] R15.5 #44 ElyPDF 常规编辑：照 PDF-03、PDF-04 核对已有与缺的编辑，补齐缺项（§11）
 - [ ] R15.6 #46 ElyPDF 打开 EPUB：MuPDF 排版成页，阅读、搜索、缩放照 PDF（§11）
