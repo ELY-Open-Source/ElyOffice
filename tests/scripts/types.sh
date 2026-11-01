@@ -24,6 +24,7 @@ uti() {
     application/vnd.oasis.opendocument.presentation) echo org.oasis-open.opendocument.presentation ;;
     application/vnd.ms-powerpoint) echo com.microsoft.powerpoint.ppt ;;
     application/pdf) echo com.adobe.pdf ;;
+    application/epub+zip) echo org.idpf.epub-container ;;
     text/markdown) echo net.daringfireball.markdown ;;
     message/rfc822) echo com.apple.mail.email ;;
     inode/directory) echo public.folder ;;

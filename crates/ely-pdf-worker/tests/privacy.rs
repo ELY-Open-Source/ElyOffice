@@ -47,11 +47,17 @@ fn a_broken_stream_keeps_its_text_out_of_the_log() {
     let at = worker.now(opened.doc).unwrap();
     assert!(worker.change_link(at, 0, &LinkChange::Add { rect: [72.0, 300.0, 200.0, 320.0], to: secret }).is_err());
     worker.close(opened.doc).unwrap();
+    // A book's missing picture: MuPDF's warning names it.
+    let book = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/epub/sample.epub");
+    let book = worker.open(&book).unwrap();
+    worker.render(book.doc, 0, (1.0, 0), [0, 0, 100, 100]).unwrap();
+    worker.close(book.doc).unwrap();
     drop(worker);
     std::thread::sleep(Duration::from_millis(500));
     let records = kept().lock().unwrap().clone();
     assert!(records.iter().any(|r| r.contains("native output withheld")), "MuPDF spoke: {records:#?}");
     assert!(records.iter().any(|r| r.contains("ely_pdf_worker") || r.contains("pdf-worker")), "the worker's own records pass");
-    let leaked: Vec<_> = records.iter().filter(|r| r.contains("ZqxPrivate42")).collect();
+    assert!(records.iter().any(|r| r.contains("warned while laying out")), "the book's warning is counted: {records:#?}");
+    let leaked: Vec<_> = records.iter().filter(|r| r.contains("ZqxPrivate42") || r.contains("ely-private-picture")).collect();
     assert!(leaked.is_empty(), "document text reached the log: {leaked:#?}");
 }

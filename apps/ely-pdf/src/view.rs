@@ -148,6 +148,9 @@ pub struct PdfView {
 
 /// Why a request was refused, by what it needs.
 pub fn restricted(needed: &str, cx: &gpui::App) -> gpui::SharedString {
+    if needed == "pdf" {
+        return ely_ui::i18n::text(cx, "pdf.epub.read_only", &[]);
+    }
     let what = ely_ui::i18n::text(cx, &format!("pdf.may.{needed}"), &[]);
     ely_ui::i18n::text(cx, "pdf.restricted", &[("what", &what)])
 }

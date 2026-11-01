@@ -225,12 +225,12 @@ fn a_failed_open_keeps_no_memory() {
     };
     // MuPDF's 256 MB store fills first; then nothing grows.
     for _ in 0..70 {
-        let refused = worker.open(&png).expect_err("not a PDF");
-        assert!(refused.to_string().contains("not a PDF"), "{refused}");
+        let refused = worker.open(&png).expect_err("neither a PDF nor an EPUB");
+        assert!(refused.to_string().contains("neither a PDF nor an EPUB"), "{refused}");
     }
     let before = rss(worker.pid());
     for _ in 0..50 {
-        assert!(worker.open(&png).is_err(), "not a PDF");
+        assert!(worker.open(&png).is_err(), "neither a PDF nor an EPUB");
     }
     let grown = rss(worker.pid()).saturating_sub(before);
     assert!(grown < 40_000, "50 more failed opens of a 4 MB image kept {grown} KiB");

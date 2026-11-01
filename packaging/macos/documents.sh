@@ -13,7 +13,7 @@ case ${1:?app slug} in
     com.microsoft.excel.xls public.comma-separated-values-text public.tab-separated-values-text ;;
   ely-show) set -- Editor org.openxmlformats.presentationml.presentation \
     org.oasis-open.opendocument.presentation com.microsoft.powerpoint.ppt ;;
-  ely-pdf) set -- Editor com.adobe.pdf ;;
+  ely-pdf) set -- Editor com.adobe.pdf org.idpf.epub-container ;;
   ely-mark) set -- Editor net.daringfireball.markdown ;;
   ely-mail) set -- Viewer com.apple.mail.email ;;
   ely-tree) set -- Viewer public.folder ;;

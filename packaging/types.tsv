@@ -11,6 +11,7 @@ ely-show	pptx	application/vnd.openxmlformats-officedocument.presentationml.prese
 ely-show	odp	application/vnd.oasis.opendocument.presentation
 ely-show	ppt	application/vnd.ms-powerpoint
 ely-pdf	pdf	application/pdf
+ely-pdf	epub	application/epub+zip
 ely-mark	md	text/markdown
 ely-mark	markdown	text/markdown
 ely-tree	/	inode/directory

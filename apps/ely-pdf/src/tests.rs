@@ -13,6 +13,7 @@ use crate::view::PdfView;
 use crate::viewer::Viewer;
 
 mod editing;
+mod epub;
 mod input;
 mod notes;
 mod organize;

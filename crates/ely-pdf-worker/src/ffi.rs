@@ -20,6 +20,7 @@ unsafe extern "C" {
     fn ely_init() -> *mut Context;
     fn ely_open(ctx: *mut Context, path: *const c_char, out: *mut *mut Document) -> c_int;
     fn ely_close(ctx: *mut Context, doc: *mut Document);
+    fn ely_kind(ctx: *mut Context, doc: *mut Document) -> c_int;
     fn ely_needs_password(ctx: *mut Context, doc: *mut Document) -> c_int;
     fn ely_authenticate(ctx: *mut Context, doc: *mut Document, password: *const c_char) -> c_int;
     fn ely_count_pages(ctx: *mut Context, doc: *mut Document, out: *mut c_int) -> c_int;
@@ -108,6 +109,11 @@ impl Mupdf {
         let mut doc = ptr::null_mut();
         checked(unsafe { ely_open(self.ctx, path.as_ptr(), &mut doc) })?;
         Ok(Open(doc))
+    }
+
+    /// 1 for a PDF, 2 for an EPUB, 0 otherwise.
+    pub fn kind(&self, doc: &Open) -> io::Result<c_int> {
+        checked(unsafe { ely_kind(self.ctx, doc.0) })
     }
 
     pub fn close(&self, doc: Open) {

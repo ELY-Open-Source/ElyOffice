@@ -99,7 +99,9 @@ pub mod may {
     pub const ASSEMBLE: u32 = 32;
     /// Opened with the owner password, or not protected.
     pub const OWNER: u32 = 64;
-    pub const NAMES: [(u32, &str); 7] = [
+    /// Needs a PDF: an EPUB only reads.
+    pub const PDF: u32 = 128;
+    pub const NAMES: [(u32, &str); 8] = [
         (PRINT, "print"),
         (COPY, "copy"),
         (EDIT, "edit"),
@@ -107,6 +109,7 @@ pub mod may {
         (FILL, "fill"),
         (ASSEMBLE, "assemble"),
         (OWNER, "owner"),
+        (PDF, "pdf"),
     ];
     /// A refusal's error text starts with this.
     pub const REFUSED: &str = "restricted:";

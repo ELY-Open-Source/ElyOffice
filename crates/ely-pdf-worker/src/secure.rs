@@ -89,7 +89,24 @@ impl crate::Worker {
     /// What document `id` allows now.
     pub(crate) fn allowed(&self, id: u64) -> io::Result<u32> {
         let doc = self.record(id)?;
+        // A book allows only copying.
+        if !doc.pdf {
+            return Ok(may::COPY);
+        }
         self.mupdf.permissions(&doc.open, doc.owner)
+    }
+
+    /// An EPUB's answer to a PDF request; `None` goes on.
+    pub(crate) fn read_only(&self, id: u64, kind: u8) -> io::Result<Option<Vec<u8>>> {
+        if self.record(id)?.pdf {
+            return Ok(None);
+        }
+        match kind {
+            tag::HISTORY | tag::PERMISSIONS | tag::REPAIR_REPORT | tag::LINKS | tag::METADATA | tag::EXPORT_IMAGE | tag::EXPORT_TEXT => Ok(None),
+            tag::SIGNED => Ok(Some(ely_ipc::Pack::new().u64(0).bytes())),
+            tag::ANNOTS => Ok(Some(br#"{"annots":[],"fields":[]}"#.to_vec())),
+            _ => Err(io::Error::other(format!("{}pdf", may::REFUSED))),
+        }
     }
 
     /// Refuses `kind` on `id` when the document forbids it.

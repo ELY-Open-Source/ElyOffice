@@ -28,6 +28,8 @@ struct Doc {
     password: String,
     /// Opened with the owner password, or unprotected.
     owner: bool,
+    /// A PDF; an EPUB only reads.
+    pdf: bool,
     /// What MuPDF warned at open; kept as the repair report.
     warnings: String,
     repair: Option<String>,
@@ -152,6 +154,9 @@ impl Worker {
 
     fn edit(&mut self, kind: u8, ask: &mut Unpack) -> io::Result<Vec<u8>> {
         let id = ask.u64()?;
+        if let Some(answer) = self.read_only(id, kind)? {
+            return Ok(answer);
+        }
         self.guard(id, kind)?;
         let mark = match kind {
             tag::HISTORY => self.record(id)?.mark(),
@@ -339,14 +344,20 @@ impl Worker {
             tag::OPEN => {
                 let open = self.mupdf.open(&ask.str()?)?;
                 let prepared = (|| {
+                    // An EPUB only reads; other kinds MuPDF opens stay out.
+                    match self.mupdf.kind(&open)? {
+                        1 => {}
+                        2 => return Ok((false, false, false)),
+                        _ => return Err(io::Error::other("neither a PDF nor an EPUB")),
+                    }
                     let locked = self.mupdf.locked(&open)?;
                     // Unprotected files answer 1; owners carry bit 4.
                     let owner = !locked && matches!(self.mupdf.unlock(&open, "")?, access if access == 1 || access & 4 != 0);
                     self.mupdf.journal(&open)?;
-                    Ok::<_, io::Error>((locked, owner))
+                    Ok::<_, io::Error>((locked, owner, true))
                 })();
                 // A failed start releases what MuPDF opened.
-                let (locked, owner) = match prepared {
+                let (locked, owner, pdf) = match prepared {
                     Ok(prepared) => prepared,
                     Err(error) => {
                         self.mupdf.close(open);
@@ -356,9 +367,9 @@ impl Worker {
                 let id = self.next;
                 self.next += 1;
                 let warnings = output::open_warnings();
-                let doc = Doc { open, password: String::new(), owner, warnings, repair: None, found: false, copy: None, steps: Vec::new(), at: 0 };
+                let doc = Doc { open, password: String::new(), owner, pdf, warnings, repair: None, found: false, copy: None, steps: Vec::new(), at: 0 };
                 self.docs.insert(id, doc);
-                if !locked && let Err(error) = self.repair(id) {
+                if pdf && !locked && let Err(error) = self.repair(id) {
                     self.forget(id)?;
                     return Err(error);
                 }

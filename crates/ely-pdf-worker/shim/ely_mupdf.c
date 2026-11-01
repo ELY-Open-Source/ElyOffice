@@ -116,6 +116,24 @@ int ely_open(fz_context *ctx, const char *path, fz_document **out)
 	return 0;
 }
 
+/* 1 for a PDF, 2 for an EPUB, else 0. */
+int ely_kind(fz_context *ctx, fz_document *doc)
+{
+	char format[64];
+	int kind = 0;
+	fz_var(kind);
+	fz_try(ctx)
+	{
+		if (pdf_specifics(ctx, doc))
+			kind = 1;
+		else if (fz_lookup_metadata(ctx, doc, FZ_META_FORMAT, format, sizeof format) > 0 && !strncmp(format, "EPUB", 4))
+			kind = 2;
+	}
+	fz_catch(ctx)
+		return ely_fail(ctx);
+	return kind;
+}
+
 /* Reads every object and non-image stream; 1 if any warned. */
 int ely_scan(fz_context *ctx, fz_document *doc)
 {
@@ -361,9 +379,15 @@ static void outline_json(fz_context *ctx, fz_output *out, fz_document *doc, fz_o
 	fz_write_string(ctx, out, "[");
 	for (; item; item = item->next)
 	{
-		int page = item->page.page >= 0 ? fz_page_number_from_location(ctx, doc, item->page) : -1;
+		fz_location at = item->page;
+		float y = item->y;
+		int page;
+		/* EPUB entries give only a link inside the book. */
+		if (at.page < 0 && item->uri && !fz_is_external_link(ctx, item->uri))
+			at = fz_resolve_link(ctx, doc, item->uri, NULL, &y);
+		page = at.page >= 0 ? fz_page_number_from_location(ctx, doc, at) : -1;
 		fz_write_printf(ctx, out, "{%q:%q,%q:%d,%q:%g,%q:", "title", item->title ? item->title : "",
-			"page", page, "y", item->y, "down");
+			"page", page, "y", y, "down");
 		outline_json(ctx, out, doc, item->down);
 		fz_write_string(ctx, out, item->next ? "}," : "}");
 	}
