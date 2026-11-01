@@ -53,6 +53,7 @@ pub fn install(cx: &mut App) {
     cx.set_global(OwnFont(cx.theme().font_family.clone()));
     text(cx);
     motion(cx);
+    scrollbars(cx);
     cx.set_global(ThemeSettings::of(crate::settings::current(cx)));
     cx.set_global(OmarchyState::default());
     match omarchy_current_dir() {
@@ -66,6 +67,7 @@ pub fn install(cx: &mut App) {
 pub(crate) fn settings_changed(cx: &mut App) {
     text(cx);
     motion(cx);
+    scrollbars(cx);
     cx.set_global(ThemeSettings::of(crate::settings::current(cx)));
     apply(cx, false);
 }
@@ -94,6 +96,12 @@ fn motion(cx: &mut App) {
     cx.set_reduce_motion(reduce);
     Theme::update(cx, |theme| theme.reduced_motion = reduce);
     log::info!("theme: reduced motion {}", if reduce { "on" } else { "off" });
+}
+
+fn scrollbars(cx: &mut App) {
+    let shown = crate::settings::current(cx).always_scrollbars;
+    Theme::update(cx, |theme| theme.scrollbars_shown = shown);
+    log::info!("theme: scrollbars {}", if shown { "always shown" } else { "fade" });
 }
 
 /// Re-applies the theme when the system appearance changes.

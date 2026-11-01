@@ -12,7 +12,7 @@ use ely_gpui_component::{
 use ely_platform::{
     AppId,
     settings::{
-        APPEARANCE, AUTHOR, Appearance, CHECK_UPDATES, LANGUAGE, Language, MOTION, Motion, OMARCHY_SYNC, Store, UI_FONT, word,
+        ALWAYS_SCROLLBARS, APPEARANCE, AUTHOR, Appearance, CHECK_UPDATES, LANGUAGE, Language, MOTION, Motion, OMARCHY_SYNC, Store, UI_FONT, word,
     },
 };
 use gpui::{
@@ -245,7 +245,12 @@ impl SettingsView {
             )
             .row(SettingsRow::new(text(cx, "settings.motion", &[])).control(motion))
             .row(SettingsRow::new(text(cx, "settings.font", &[])).control(self.font(cx)))
-            .row(SettingsRow::new(text(cx, "settings.text.size", &[])).control(super::picks::text_size(shared.ui_text_size, cx)));
+            .row(SettingsRow::new(text(cx, "settings.text.size", &[])).control(super::picks::text_size(shared.ui_text_size, cx)))
+            .row(SettingsRow::new(text(cx, "settings.scrollbars", &[])).control(
+                Switch::new("settings-scrollbars", shared.always_scrollbars)
+                    .name(text(cx, "settings.scrollbars", &[]))
+                    .on_change(|on, _, cx| set(ALWAYS_SCROLLBARS, Value::Bool(on), cx)),
+            ));
         let mut section = match crate::updates::updater(cx) {
             Some(updates) => self.updates(section, &updates.read(cx).checked, shared.check_updates, cx),
             // A dev build does not update itself.

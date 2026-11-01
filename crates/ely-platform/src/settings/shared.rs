@@ -37,6 +37,7 @@ pub const APPEARANCE: &str = "appearance";
 pub const LANGUAGE: &str = "language";
 pub const MOTION: &str = "motion";
 pub const OMARCHY_SYNC: &str = "omarchy_sync";
+pub const ALWAYS_SCROLLBARS: &str = "always_scrollbars";
 pub const AUTHOR: &str = "author";
 pub const CHECK_UPDATES: &str = "check_updates";
 pub const UI_FONT: &str = "ui_font";
@@ -92,6 +93,8 @@ pub struct Shared {
     pub language: Language,
     pub motion: Motion,
     pub omarchy_sync: bool,
+    /// Scrollbars stay shown instead of fading.
+    pub always_scrollbars: bool,
     /// Signs comments and changes; empty means the account name.
     pub author: String,
     /// Asks for a newer release at launch; off unless chosen.
@@ -111,6 +114,7 @@ impl Default for Shared {
             language: Language::System,
             motion: Motion::System,
             omarchy_sync: true,
+            always_scrollbars: false,
             author: String::new(),
             check_updates: false,
             ui_font: String::new(),
@@ -160,6 +164,11 @@ impl Shared {
                 None => defaults.omarchy_sync,
                 Some(Value::Bool(on)) => *on,
                 Some(other) => return Err(wrong(OMARCHY_SYNC, other)),
+            },
+            always_scrollbars: match fields.get(ALWAYS_SCROLLBARS) {
+                None => defaults.always_scrollbars,
+                Some(Value::Bool(on)) => *on,
+                Some(other) => return Err(wrong(ALWAYS_SCROLLBARS, other)),
             },
             author: match fields.get(AUTHOR) {
                 None => defaults.author,

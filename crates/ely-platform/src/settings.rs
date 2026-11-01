@@ -11,7 +11,7 @@ use crate::{AppId, lock::FileLock};
 
 mod shared;
 pub use shared::{
-    APPEARANCE, AUTHOR, Appearance, CHECK_UPDATES, LANGUAGE, Language, MOTION, Motion, OMARCHY_SYNC, Shared, UI_FONT, UI_TEXT_SIZE, UI_TEXT_SIZES,
+    ALWAYS_SCROLLBARS, APPEARANCE, AUTHOR, Appearance, CHECK_UPDATES, LANGUAGE, Language, MOTION, Motion, OMARCHY_SYNC, Shared, UI_FONT, UI_TEXT_SIZE, UI_TEXT_SIZES,
     DOC_ZOOM, DOC_ZOOMS, DocZoom, Sides, TWO_SIDED, word,
 };
 

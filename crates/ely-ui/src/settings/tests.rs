@@ -47,6 +47,17 @@ fn the_interface_text_follows_the_settings(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn scrollbars_stay_shown_when_chosen(cx: &mut TestAppContext) {
+    installed(cx);
+    cx.update(|cx| assert!(!cx.theme().scrollbars_shown, "they fade by default"));
+    let shown = Shared { always_scrollbars: true, ..Shared::default() };
+    cx.update(|cx| changed((shown, None), cx));
+    cx.update(|cx| assert!(cx.theme().scrollbars_shown));
+    cx.update(|cx| changed((Shared::default(), None), cx));
+    cx.update(|cx| assert!(!cx.theme().scrollbars_shown));
+}
+
+#[gpui::test]
 fn a_kept_text_size_applies_at_start(cx: &mut TestAppContext) {
     cx.update(|cx| {
         ely_gpui_component::init_for_tests(cx);
