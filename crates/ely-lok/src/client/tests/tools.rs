@@ -124,11 +124,16 @@ fn spelling_suggests_and_ignores() {
         &["Teh", "false", "0", "0", "0", "1"],
     );
     let (x, y, _, h) = seen.found[0];
-    let json = menu(&mut worker, &doc, &mut seen, (x + 60, y + h / 2)).expect("a menu");
-    let spelling = menu::read(&json)
-        .expect("the menu parses")
-        .spelling
-        .expect("a spelling menu");
+    // Writer's idle spell check marks the word later.
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let spelling = loop {
+        let json = menu(&mut worker, &doc, &mut seen, (x + 60, y + h / 2)).expect("a menu");
+        let spelling = menu::read(&json).expect("the menu parses").spelling;
+        if spelling.is_some() || std::time::Instant::now() > until {
+            break spelling.expect("a spelling menu");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    };
     let (_, rule) = spelling
         .suggestions
         .iter()

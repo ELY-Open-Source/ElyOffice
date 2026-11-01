@@ -1,0 +1,55 @@
+DOCX footnote separators keep no paragraph spacing
+
+Writer models a Word-style separator as one line of the default
+font, without spacing, but wrote the separator paragraph bare, so
+Word gave it Normal's space after and line spacing. Each page with
+footnotes lost about 10 pt and content moved (Ely R15.11). Write the
+spacing Word itself writes: after 0, single line.
+diff --git a/sw/source/filter/ww8/docxattributeoutput.cxx b/sw/source/filter/ww8/docxattributeoutput.cxx
+index e79f62134..c36e579d4 100644
+--- a/sw/source/filter/ww8/docxattributeoutput.cxx
++++ b/sw/source/filter/ww8/docxattributeoutput.cxx
+@@ -8976,19 +8976,22 @@ void DocxAttributeOutput::FootnoteEndnoteReference()
+     }
+ }
+ 
+-static void WriteFootnoteSeparatorHeight(
++static void WriteFootnoteSeparatorPr(
+     ::sax_fastparser::FSHelperPtr const& pSerializer, SwTwips const nHeight)
+ {
++    pSerializer->startElementNS(XML_w, XML_pPr);
++    // Writer's separator has no paragraph spacing; Word's default neither.
++    pSerializer->singleElementNS(XML_w, XML_spacing, FSNS(XML_w, XML_after), "0",
++        FSNS(XML_w, XML_line), "240", FSNS(XML_w, XML_lineRule), "auto");
+     // try to get the height by setting font size of the paragraph
+     if (nHeight != 0)
+     {
+-        pSerializer->startElementNS(XML_w, XML_pPr);
+         pSerializer->startElementNS(XML_w, XML_rPr);
+         pSerializer->singleElementNS(XML_w, XML_sz, FSNS(XML_w, XML_val),
+             OString::number((nHeight + 5) / 10));
+         pSerializer->endElementNS(XML_w, XML_rPr);
+-        pSerializer->endElementNS(XML_w, XML_pPr);
+     }
++    pSerializer->endElementNS(XML_w, XML_pPr);
+ }
+ 
+ void DocxAttributeOutput::FootnotesEndnotes( bool bFootnotes )
+@@ -9029,7 +9032,7 @@ void DocxAttributeOutput::FootnotesEndnotes( bool bFootnotes )
+         }
+     }
+ 
+-    WriteFootnoteSeparatorHeight(m_pSerializer, nHeight);
++    WriteFootnoteSeparatorPr(m_pSerializer, nHeight);
+ 
+     m_pSerializer->startElementNS(XML_w, XML_r);
+     if (bSeparator)
+@@ -9044,7 +9047,7 @@ void DocxAttributeOutput::FootnotesEndnotes( bool bFootnotes )
+             FSNS( XML_w, XML_type ), "continuationSeparator" );
+     m_pSerializer->startElementNS(XML_w, XML_p);
+ 
+-    WriteFootnoteSeparatorHeight(m_pSerializer, nHeight);
++    WriteFootnoteSeparatorPr(m_pSerializer, nHeight);
+ 
+     m_pSerializer->startElementNS(XML_w, XML_r);
+     if (bSeparator)

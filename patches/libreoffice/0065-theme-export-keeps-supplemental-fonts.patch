@@ -1,0 +1,42 @@
+Theme export keeps supplemental fonts
+
+The font scheme wrote only latin, ea and cs, dropping each
+<a:font script typeface>. Word themes map Hans to 等线 there; on
+reopen eastAsiaTheme resolved to an empty face and the text fell
+back to a taller font, adding pages (Ely R15.11).
+diff --git a/oox/source/export/ThemeExport.cxx b/oox/source/export/ThemeExport.cxx
+index e91f0ae5e..d180ee012 100644
+--- a/oox/source/export/ThemeExport.cxx
++++ b/oox/source/export/ThemeExport.cxx
+@@ -35,6 +35,15 @@ void writeRelativeRectangle(sax_fastparser::FSHelperPtr pFS, sal_Int32 nToken,
+                          OString::number(rRelativeRectangle.mnRight), XML_b,
+                          OString::number(rRelativeRectangle.mnBottom));
+ }
++
++void writeSupplemental(sax_fastparser::FSHelperPtr const& pFS,
++                       std::vector<model::ThemeSupplementalFont> const& rFonts)
++{
++    for (auto const& rFont : rFonts)
++        pFS->singleElementNS(XML_a, XML_font, XML_script, rFont.maScript, XML_typeface,
++                             rFont.maTypeface);
++}
++
+ } // end anonymous namespace
+ 
+ ThemeExport::ThemeExport(oox::core::XmlFilterBase* pFilterBase,
+@@ -123,6 +132,7 @@ bool ThemeExport::writeFontScheme(model::FontScheme const& rFontScheme)
+         fillAttrList(aAttrList, rFontScheme.getMajorComplex());
+         mpFS->singleElementNS(XML_a, XML_cs, aAttrList);
+     }
++    writeSupplemental(mpFS, rFontScheme.getMajorSupplementalFontList());
+ 
+     mpFS->endElementNS(XML_a, XML_majorFont);
+ 
+@@ -143,6 +153,7 @@ bool ThemeExport::writeFontScheme(model::FontScheme const& rFontScheme)
+         fillAttrList(aAttrList, rFontScheme.getMinorComplex());
+         mpFS->singleElementNS(XML_a, XML_cs, aAttrList);
+     }
++    writeSupplemental(mpFS, rFontScheme.getMinorSupplementalFontList());
+ 
+     mpFS->endElementNS(XML_a, XML_minorFont);
+ 
