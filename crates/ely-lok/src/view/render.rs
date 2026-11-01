@@ -301,6 +301,7 @@ impl LokView {
 
     /// The page mask and visible tiles; requests the missing ones.
     pub(super) fn prepare(&mut self, bounds: Bounds<Pixels>) -> Painted {
+        self.aim();
         self.viewport = (bounds.size.width.into(), bounds.size.height.into());
         self.origin = bounds.origin;
         if self.fit {
@@ -325,7 +326,12 @@ impl LokView {
         );
         let scale = (geom.tile_pixels(), TILE_TWIPS);
         if self.shown != Some(((sx, sy, vw, vh), scale)) {
+            // Only up and down moves set the heading.
+            if let Some(((_, before, _, _), _)) = self.shown.filter(|&((_, y, _, _), was)| was == scale && sy != y) {
+                self.heading = (sy - before).signum();
+            }
             self.shown = Some(((sx, sy, vw, vh), scale));
+            self.filling.get_or_insert_with(std::time::Instant::now);
             self.failed.clear();
             self.send(input::Input::Visible((sx, sy, vw, vh), scale));
         }
@@ -338,8 +344,7 @@ impl LokView {
                     px(self.spare.1 + geom.px_of(vy)),
                 )
         };
-        let mut ready = Vec::new();
-        let mut missing = Vec::new();
+        let mut slots = Vec::new();
         self.on_screen.clear();
         for (dx0, dx1, vx) in ax.panes(vw) {
             for (dy0, dy1, vy) in ay.panes(vh) {
@@ -351,28 +356,25 @@ impl LokView {
                         continue;
                     }
                     self.on_screen.push(key);
-                    match self.tiles.get(&key) {
-                        Some(tile) => {
-                            let origin =
-                                at(vx + key.0 * TILE_TWIPS - dx0, vy + key.1 * TILE_TWIPS - dy0);
-                            let place = Bounds {
-                                origin,
-                                size: size(side, side),
-                            };
-                            ready.push((place, Arc::clone(&tile.image), clip));
-                            if tile.stale {
-                                missing.push(key);
-                            }
-                        }
-                        None => missing.push(key),
-                    }
+                    let origin = at(vx + key.0 * TILE_TWIPS - dx0, vy + key.1 * TILE_TWIPS - dy0);
+                    slots.push((key, Bounds { origin, size: size(side, side) }, clip));
                 }
             }
         }
         self.keep_near((vw, vh));
-        for key in missing {
-            self.request_tile(key);
+        self.reveal_if_whole();
+        let mut ready = Vec::new();
+        for (key, place, clip) in slots {
+            let tile = self.tiles.get(&key);
+            if let Some(tile) = tile {
+                ready.push((place, Arc::clone(&tile.image), clip));
+            }
+            if tile.is_none_or(|tile| tile.stale) {
+                self.request_tile(key);
+            }
         }
+        self.want(vh / TILE_TWIPS + 1, extent);
+        let (pages, tiles) = self.screen(bounds.origin, pages, ready);
         let rect = |rect: Rect| self.screen_rect(rect);
         let caret = self.text_caret().filter(|_| self.cursor_visible);
         let half = self.handle_size / 2.0;
@@ -388,7 +390,7 @@ impl LokView {
         });
         Painted {
             pages,
-            tiles: ready,
+            tiles,
             selection: self.text_selection(),
             caret,
             cell: self.cell.cursor.map(rect),

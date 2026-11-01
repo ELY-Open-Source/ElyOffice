@@ -29,6 +29,7 @@ mod off;
 mod panes;
 mod reads;
 mod render;
+mod reveal;
 mod zoom;
 pub use zoom::{ZOOM_STEPS, Zoomed};
 mod scroll;
@@ -48,12 +49,6 @@ pub struct LokError(pub String);
 /// The kernel reported, or queued input landed.
 #[derive(Clone, Debug)]
 pub struct Reported;
-
-struct TileEntry {
-    image: Arc<RenderImage>,
-    /// Shown until its repaint lands, so edits never flash.
-    stale: bool,
-}
 
 /// Paints one LOK document as a cached tile grid (LOK-03).
 pub struct LokView {
@@ -91,8 +86,14 @@ pub struct LokView {
     clock: clock::EditClock,
     /// A tile reached the screen; logged once (PERF-03).
     drawn: bool,
+    /// Since when the screen has lacked tiles.
+    filling: Option<std::time::Instant>,
+    /// The way the view last moved: 1 down, -1 up.
+    heading: i32,
+    wanted: reveal::Wanted,
     /// Tiles the last frame showed.
     on_screen: Vec<(i32, i32)>,
+    whole: Option<reveal::Whole>,
     /// The mark of this view's last copy.
     copied: Option<String>,
     /// The event watch; it ends with the view.
@@ -136,6 +137,7 @@ pub struct LokView {
 /// A document's size and page frames, in twips.
 pub type Layout = ((i64, i64), Vec<Rect>);
 
+use reveal::TileEntry;
 use sheet::{Measured, measure};
 
 /// Reads `doc`'s size and page frames.
@@ -168,7 +170,8 @@ impl LokView {
         cx: &mut Context<Self>,
     ) -> Self {
         log::info!("lok: {} pages", pages.len());
-        let lane = Self::lane(Arc::clone(&worker), doc.clone(), cx);
+        let wanted: reveal::Wanted = Arc::new(Mutex::new((Geom { zoom: 1.0, dpi: 1.0 }, HashSet::new())));
+        let lane = Self::lane(Arc::clone(&worker), doc.clone(), Arc::clone(&wanted), cx);
         let mut view = Self {
             worker,
             doc,
@@ -197,7 +200,11 @@ impl LokView {
             last_edit: 0,
             clock: clock::EditClock::default(),
             drawn: false,
+            filling: None,
+            heading: 1,
+            wanted,
             on_screen: Vec::new(),
+            whole: None,
             copied: None,
             cursor: None,
             text: text::TextGeometry::default(),
@@ -465,9 +472,7 @@ impl LokView {
                 };
                 let image = Arc::new(RenderImage::new([Frame::new(image)]));
                 self.clock.painted(tile.generation, Arc::as_ptr(&image) as usize);
-                if let Some(old) = self.tiles.insert(key, TileEntry { image, stale: false }) {
-                    self.retired.push(old.image);
-                }
+                self.land(key, image);
                 cx.notify();
             }
             Ok(tile) => {

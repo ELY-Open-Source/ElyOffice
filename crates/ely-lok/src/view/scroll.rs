@@ -144,18 +144,24 @@ impl LokView {
     /// The tile-twips point under a view position.
     pub(super) fn tile_point(&self, position: Point<Pixels>) -> (i32, i32) {
         let local = position - self.origin;
-        let (ax, ay) = self.axes();
+        let (scroll, geom, spare) = self.seen();
+        let (ax, ay) = self.axes_at(scroll);
         (
-            ax.doc(self.geom.twips_of(f32::from(local.x) - self.spare.0)),
-            ay.doc(self.geom.twips_of(f32::from(local.y) - self.spare.1)),
+            ax.doc(geom.twips_of(f32::from(local.x) - spare.0)),
+            ay.doc(geom.twips_of(f32::from(local.y) - spare.1)),
         )
     }
 
     /// The panes of each axis.
     pub(super) fn axes(&self) -> (super::panes::Axis, super::panes::Axis) {
+        self.axes_at(self.scroll)
+    }
+
+    /// The panes of each axis at `scroll`.
+    fn axes_at(&self, scroll: (i32, i32)) -> (super::panes::Axis, super::panes::Axis) {
         let axis = |frozen, scroll| super::panes::Axis { frozen, scroll };
         let (fx, fy) = self.frozen_tiles();
-        (axis(fx, self.scroll.0), axis(fy, self.scroll.1))
+        (axis(fx, scroll.0), axis(fy, scroll.1))
     }
 
     /// Whether a print-twips rectangle intersects the visible panes.
@@ -165,9 +171,9 @@ impl LokView {
     }
 
     pub(super) fn tile_visible(&self, (x, y, w, h): Rect) -> bool {
-        let (ax, ay) = self.axes();
-        ax.visible(x, w, self.geom.twips_of(self.viewport.0))
-            && ay.visible(y, h, self.geom.twips_of(self.viewport.1))
+        let (scroll, geom, _) = self.seen();
+        let (ax, ay) = self.axes_at(scroll);
+        ax.visible(x, w, geom.twips_of(self.viewport.0)) && ay.visible(y, h, geom.twips_of(self.viewport.1))
     }
 
     /// The window point of a print-twips document point (LOK-04).
@@ -177,9 +183,10 @@ impl LokView {
 
     /// The window point of a tile-twips point.
     pub(super) fn tile_window_point(&self, (x, y): (i32, i32)) -> gpui::Point<Pixels> {
-        let (ax, ay) = self.axes();
-        let (x, y) = (self.geom.px_of(ax.show(x)), self.geom.px_of(ay.show(y)));
-        self.origin + point(px(self.spare.0 + x), px(self.spare.1 + y))
+        let (scroll, geom, spare) = self.seen();
+        let (ax, ay) = self.axes_at(scroll);
+        let (x, y) = (geom.px_of(ax.show(x)), geom.px_of(ay.show(y)));
+        self.origin + point(px(spare.0 + x), px(spare.1 + y))
     }
 
     /// A document rect in window pixels, panes applied.

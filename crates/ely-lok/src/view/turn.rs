@@ -96,14 +96,14 @@ impl LokView {
         self.turning.get_or_insert_default();
     }
 
-    /// Queues Up, Down; the worker turns if nothing is picked.
+    /// Queues Up, Down, Page keys; nothing picked, it turns.
     pub(super) fn turn_key(&mut self, keystroke: &Keystroke) -> bool {
         if self.turning.is_none() || keystroke.modifiers != Modifiers::none() {
             return false;
         }
         let step = match keystroke.key.as_str() {
-            "down" => 1,
-            "up" => -1,
+            "down" | "pagedown" => 1,
+            "up" | "pageup" => -1,
             _ => return false,
         };
         let Some(key) = vcl_key(keystroke) else {

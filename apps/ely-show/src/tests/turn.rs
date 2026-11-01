@@ -30,7 +30,7 @@ fn wheel(shown: &mut VisualTestContext, notches: f32) {
 }
 
 #[test]
-fn the_wheel_and_up_down_turn_slides() {
+fn the_wheel_up_down_and_page_keys_turn_slides() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let Some(deck) = blank(&mut cx, dir.path()) else {
@@ -63,6 +63,10 @@ fn the_wheel_and_up_down_turn_slides() {
     assert_eq!(current(&mut shown, &deck), 2, "the last slide stays");
     shown.simulate_keystrokes("up");
     assert_eq!(current(&mut shown, &deck), 1, "Up turns back");
+    shown.simulate_keystrokes("pagedown");
+    assert_eq!(current(&mut shown, &deck), 2, "Page Down turns, as in PowerPoint");
+    shown.simulate_keystrokes("pageup");
+    assert_eq!(current(&mut shown, &deck), 1, "Page Up turns back");
     wheel(&mut shown, 1.0);
     assert_eq!(current(&mut shown, &deck), 0, "the wheel turns up");
     // Down queued behind Tab moves the object Tab picks.

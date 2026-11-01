@@ -199,7 +199,6 @@ crates/ely-lok/src/show/layers.rs	expect_used	pixels.expect("checked above")	lin
 crates/ely-lok/src/show/layers.rs	expect_used	pixels.take().expect("checked above")	linux,macos,windows	checked above
 crates/ely-lok/src/show/parts.rs	expect_used	serde_json::from_str(&look.to_json()).expect("a look is JSON")	linux,macos,windows	a look is JSON
 crates/ely-lok/src/view.rs	expect_used	self.lane .tiles .unbounded_send(job) .expect("the lane lives with the view")	linux,macos,windows	the lane lives with the view
-crates/ely-lok/src/view.rs	expect_used	self.worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/formula.rs	expect_used	vcl_key(keystroke).expect("Enter and Tab are vcl keys")	linux,macos,windows	Enter and Tab are vcl keys
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("shift-tab").expect("a keystroke")	linux,macos,windows	a keystroke
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("tab").expect("a keystroke")	linux,macos,windows	a keystroke
@@ -207,17 +206,18 @@ crates/ely-lok/src/view/input.rs	expect_used	self.lane .inputs .unbounded_send((
 crates/ely-lok/src/view/input.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/lane.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/off.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
+crates/ely-lok/src/view/reveal.rs	expect_used	wanted.lock().expect("the wanted lock")	linux,macos,windows	the wanted lock
 crates/ely-lok/src/view/sheet.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/worker.rs	expect_used	OUT.get().expect("the output is set")	linux,macos,windows	the output is set
 crates/ely-lok/src/worker.rs	expect_used	docs().lock().expect("the docs lock")	linux,macos,windows	the docs lock
 crates/ely-lok/src/worker.rs	expect_used	docs().lock().expect("the docs lock")	linux,macos,windows	the docs lock
 crates/ely-lok/src/worker.rs	expect_used	docs().lock().expect("the docs lock")	linux,macos,windows	the docs lock
 crates/ely-lok/src/worker.rs	expect_used	out.lock().expect("the output lock")	linux,macos,windows	the output lock
+crates/ely-lok/src/worker/asked.rs	expect_used	GIVEN.lock().expect("the password lock")	linux,macos,windows	the password lock
+crates/ely-lok/src/worker/asked.rs	expect_used	GIVEN.lock().expect("the password lock")	linux,macos,windows	the password lock
 crates/ely-lok/src/worker/events.rs	expect_used	OUT.get().expect("the output is set")	linux,macos,windows	the output is set
 crates/ely-lok/src/worker/events.rs	expect_used	out.lock().expect("the output lock")	linux,macos,windows	the output lock
 crates/ely-lok/src/worker/input.rs	expect_used	command.split('?').next().expect("split has a first part")	linux,macos,windows	split has a first part
-crates/ely-lok/src/worker/password.rs	expect_used	GIVEN.lock().expect("the password lock")	linux,macos,windows	the password lock
-crates/ely-lok/src/worker/password.rs	expect_used	GIVEN.lock().expect("the password lock")	linux,macos,windows	the password lock
 crates/ely-lok/src/worker/revision.rs	expect_used	revisions().lock().expect("the revisions lock")	linux,macos,windows	the revisions lock
 crates/ely-lok/src/worker/revision.rs	expect_used	revisions().lock().expect("the revisions lock")	linux,macos,windows	the revisions lock
 crates/ely-lok/src/worker/revision.rs	expect_used	revisions().lock().expect("the revisions lock")	linux,macos,windows	the revisions lock

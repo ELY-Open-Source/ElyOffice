@@ -9,6 +9,7 @@ mod fit;
 mod formula;
 mod input;
 mod large;
+mod reveal;
 mod show_borders;
 mod theme;
 mod text;
@@ -150,9 +151,10 @@ fn tiles_paint_in_logical_pixels_at_2x() {
                 };
                 view.finish_tile(key, view.geom, Ok(tile), cx);
             }
+            // Two tiles fill this screen, so it shows.
             let bounds = Bounds {
                 origin: point(px(10.0), px(20.0)),
-                size: size(px(800.0), px(600.0)),
+                size: size(px(511.0), px(255.0)),
             };
             let ready = view.prepare(bounds).tiles;
             let rects: Vec<_> = ready.iter().map(|(rect, ..)| *rect).collect();
@@ -249,6 +251,12 @@ fn the_view_clamps_scroll_and_guards_generations() {
                 "a rect batch outdates intersecting tiles"
             );
             view.finish_tile((0, 0), geom, painted(6), cx);
+            let bounds = Bounds {
+                origin: point(px(0.0), px(0.0)),
+                size: size(px(255.0), px(255.0)),
+            };
+            let whole = view.prepare(bounds).tiles.len();
+            assert_eq!(whole, 1, "one tile fills this screen");
             view.finish_tile((3, 3), geom, painted(6), cx);
             view.apply_batch(
                 crate::Events {
@@ -265,12 +273,8 @@ fn the_view_clamps_scroll_and_guards_generations() {
                 view.tiles[&(0, 0)].stale,
                 "the dirty tile waits for its repaint"
             );
-            let bounds = Bounds {
-                origin: point(px(0.0), px(0.0)),
-                size: size(px(800.0), px(600.0)),
-            };
             let painted = view.prepare(bounds);
-            assert!(!painted.tiles.is_empty(), "stale tiles still paint");
+            assert_eq!(painted.tiles.len(), whole, "the stale screen still paints");
             assert!(
                 view.fetching.contains(&(0, 0)),
                 "and their repaint is asked"
