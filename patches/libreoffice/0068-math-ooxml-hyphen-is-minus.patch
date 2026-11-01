@@ -1,0 +1,22 @@
+OOXML math reads a run's hyphen as the minus sign
+
+Outside an m:nor (normal text) run Word renders an OMML hyphen as
+U+2212, literal and double-struck runs included. The importer
+escaped it as quoted StarMath text, so export wrote it back as
+normal text (m:lit, m:nor) and Word kept a hyphen (Ely R15.11b).
+Read it as MS_MINUS, StarMath's own minus; normal-text runs keep
+their hyphen.
+diff --git a/starmath/source/ooxmlimport.cxx b/starmath/source/ooxmlimport.cxx
+index defd7388f..d937eb91e 100644
+--- a/starmath/source/ooxmlimport.cxx
++++ b/starmath/source/ooxmlimport.cxx
+@@ -612,6 +612,9 @@ OUString SmOoxmlImport::handleR()
+                 isTagT = true;
+                 XmlStream::Tag rtag = m_rStream.ensureOpeningTag( M_TOKEN( t ));
+                 OUString sTagText = rtag.text;
++                // Outside normal text a hyphen is the minus sign.
++                if (!normal)
++                    sTagText = sTagText.replace('-', MS_MINUS);
+                 if (scrString == "double-struck")
+                 {
+                     sTagText = SmOoxmlImport::handleSetString(sTagText);

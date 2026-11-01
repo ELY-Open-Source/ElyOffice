@@ -6,8 +6,7 @@ $ely = (New-Item -ItemType Directory -Force (Join-Path $Dir 'ely')).FullName
 # Exact before -> after; any other value fails.
 $known = @{
     'big.docx tocFields' = @('56 -> 1', 'Writer writes TOC page numbers as text')
-    'big.docx equations' = @('6:A0BFF148A032 -> 6:198019547D61', 'Math writes U+2212 as "-" (R15.11b)')
-    'big.docx body' = @('1961:333EDF4C7635 -> 1960:98AB8A708F32', 'minus; section-break and TOC paragraphs (R15.11b, R15.11c)')
+    'big.docx body' = @('1961:333EDF4C7635 -> 1960:8E5FE0D94301', 'section-break and TOC paragraphs (R15.11c)')
     'big.xlsx Calc formulas' = @('132:751ABAD09DB5 -> 132:9BCF94E2F266', 'Calc writes FALSE as FALSE() (R15.11f)')
     'big.xlsx Pivot values' = @('84:7A6FCE40E019 -> 84:930E63BBB555', 'Calc writes its own pivot labels (R15.11d)')
     'big.xlsx Pivot formulas' = @('84:F449FD4F434D -> 84:9BD847190B80', 'Calc writes its own pivot labels (R15.11d)')

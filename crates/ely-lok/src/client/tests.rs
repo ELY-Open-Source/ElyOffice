@@ -17,6 +17,7 @@ mod formula;
 mod handouts;
 #[cfg(windows)]
 mod handles;
+mod equation;
 mod independent;
 mod kept;
 mod spill;

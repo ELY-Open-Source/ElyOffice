@@ -20,6 +20,7 @@ A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
 R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
 REL = "{http://schemas.openxmlformats.org/package/2006/relationships}"
 XDA = "{http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray}"
+MATH = "{http://schemas.openxmlformats.org/officeDocument/2006/math}"
 CT = "{http://schemas.openxmlformats.org/package/2006/content-types}"
 
 failures = []
@@ -354,6 +355,22 @@ def cells_are(path, expected):
             check(got == want, f"{ref} is {got!r}, not {want!r}")
 
 
+def equation(path):
+    """Math hyphens are minus signs; normal text keeps its own."""
+    with zipfile.ZipFile(path) as archive:
+        body = xml(archive, main_part(archive))
+    said = ""
+    for run in body.iter(MATH + "r"):
+        text = texts(run, MATH + "t")
+        nor = run.find(f"{MATH}rPr/{MATH}nor")
+        if nor is not None and nor.get(MATH + "val", "on") in ("on", "1", "true"):
+            said += text
+        else:
+            # Word shows this hyphen as U+2212.
+            said += text.replace("-", "−")
+    check(said == "x−b−ca-b1−23−4", f"Word reads {said!r}")
+
+
 CASES = {
     "contract": contract,
     "sheet": sheet,
@@ -364,6 +381,7 @@ CASES = {
     "kept-copied": lambda path: cells_are(path, COPIED),
     "spill": spill,
     "spill-pasted": lambda path: spill(path, PASTED),
+    "equation": equation,
 }
 
 # Damage each check must catch: part, pattern, replacement.
@@ -408,6 +426,12 @@ MUTATIONS = {
     ],
     "spill-pasted": [
         ("xl/worksheets/sheet1.xml", r'(<c r="O2"[^>]*?) cm="1"', r"\1"),
+    ],
+    "equation": [
+        ("word/document.xml", r"<m:r>(<m:t[^>]*>)[-−](</m:t>)", r"<m:r><m:rPr><m:nor/></m:rPr>\1-\2"),
+        ("word/document.xml", r"<m:nor/>", ""),
+        ("word/document.xml", r"a-b", "a−b"),
+        ("word/document.xml", r"1−2", "1-2"),
     ],
     "deck": [
         ("ppt/_rels/presentation.xml.rels", r"slides/slide2\.xml", "slides/missing.xml"),
