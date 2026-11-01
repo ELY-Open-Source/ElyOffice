@@ -106,7 +106,9 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     };
     // The worker starts with the first file (PERF-01).
     let viewer = cx.new(|cx| {
-        let mut host = Viewer::new(Arc::default(), work, cx);
+        let mupdf = Mupdf::default();
+        let stop = <Pdf as ely_office::Engine>::stopper(&mupdf);
+        let mut host = Viewer::new(Arc::new(Mutex::new(mupdf)), stop, work, cx);
         // Recovery points, crash return, autosave (§6.2, §6.3).
         ely_office::Recovering::start_recovery(&mut host, cx);
         <Viewer as ely_office::Autosaving>::start_autosave(cx);
@@ -133,10 +135,10 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
 }
 
 impl Viewer {
-    pub fn new(worker: Arc<Mutex<Mupdf>>, work: PathBuf, cx: &mut Context<Self>) -> Self {
+    pub fn new(worker: Arc<Mutex<Mupdf>>, stop: Option<ely_office::Stop>, work: PathBuf, cx: &mut Context<Self>) -> Self {
         let (this, weak) = (cx.entity(), cx.weak_entity());
         Viewer {
-            core: Core::new(worker, work, cx),
+            core: Core::new(worker, stop, work, cx),
             side: cx.new(|cx| crate::side::Side::new(&this, cx)),
             ask: None,
             edit_panel: cx.new(|_| crate::editing::EditPanel::new(weak.clone())),

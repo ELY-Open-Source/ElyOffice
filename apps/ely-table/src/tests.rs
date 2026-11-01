@@ -21,7 +21,7 @@ impl gpui::Render for Blank {
 /// An unrendered Book over a fresh worker, if LOK exists.
 fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<Blank>, Entity<Book>)> {
     let install = ely_lok::test_install()?;
-    let worker = ely_office::lok::test_worker(&install, &dir.join("profile"));
+    let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");
     cx.update(|cx| {
@@ -31,7 +31,7 @@ fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<Blank>, Ent
     let window = cx.add_window(|_, _| Blank);
     let book = cx
         .update_window(window.into(), |_, window, app| {
-            let book = app.new(|cx| Book::new(worker, work, window, cx));
+            let book = app.new(|cx| Book::new(worker, stop, work, window, cx));
             book.update(app, |book, _| {
                 book.core.window = Some(window.window_handle())
             });

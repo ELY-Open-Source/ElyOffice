@@ -23,13 +23,13 @@ pub(crate) fn docs(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Docs>> 
         .filter_level(log::LevelFilter::Info)
         .try_init();
     let install = ely_lok::test_install()?;
-    let worker = ely_office::lok::test_worker(&install, &dir.join("profile"));
+    let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");
     cx.update(|app| {
         ely_ui::settings::install_defaults(app);
         ely_ui::i18n::install_as("en-US", app);
-        Some(app.new(|cx| Docs::new(worker, work, cx)))
+        Some(app.new(|cx| Docs::new(worker, stop, work, cx)))
     })
 }
 
@@ -462,6 +462,7 @@ mod overlap;
 mod points;
 mod remote;
 mod slow;
+mod start;
 
 impl Docs {
     /// Chooses the active tab as template, then types a field.

@@ -15,7 +15,7 @@ impl gpui::Render for Shown {
 /// A drawn Book, its actions live.
 fn drawn<'a>(cx: &'a mut TestAppContext, dir: &Path) -> Option<(Entity<Book>, &'a mut VisualTestContext)> {
     let install = ely_lok::test_install()?;
-    let worker = ely_office::lok::test_worker(&install, &dir.join("profile"));
+    let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");
     cx.update(|cx| {
@@ -28,7 +28,7 @@ fn drawn<'a>(cx: &'a mut TestAppContext, dir: &Path) -> Option<(Entity<Book>, &'
         ely_office::bind_undo_keys(cx);
     });
     let (shown, cx) = cx.add_window_view(|window, cx| {
-        let book = cx.new(|cx| Book::new(worker, work, window, cx));
+        let book = cx.new(|cx| Book::new(worker, stop, work, window, cx));
         book.update(cx, |book, _| book.core.window = Some(window.window_handle()));
         Shown(book)
     });

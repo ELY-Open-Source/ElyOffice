@@ -193,7 +193,7 @@ pub(crate) fn open_in(
         let this = cx.entity();
         let side = cx.new(|cx| crate::side::Side::new(&this, window, cx));
         Desk {
-            core: Core::new(Arc::new(Mutex::new(())), work, cx),
+            core: Core::new(Arc::new(Mutex::new(())), <Mark as ely_office::Engine>::stopper(&()), work, cx),
             naming: None,
             exporting: None,
             folder: None,

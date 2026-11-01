@@ -123,12 +123,12 @@ fn menus(undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
 /// The window root with a blank document.
 pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     ely_lok::init(cx);
-    let (worker, work) = match ely_office::start(app, cx) {
+    let (worker, stop, work) = match ely_office::start(app, cx) {
         Ok(started) => started,
         Err(error) => ely_platform::startup::fail(app, &format!("{error}")),
     };
     let docs = cx.new(|cx| {
-        let mut host = Docs::new(worker, work, cx);
+        let mut host = Docs::new(worker, stop, work, cx);
         // Recovery points, crash return, autosave (§6.2, §6.3).
         ely_office::Recovering::start_recovery(&mut host, cx);
         <Docs as ely_office::Autosaving>::start_autosave(cx);
@@ -173,7 +173,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
 }
 
 impl Docs {
-    pub fn new(worker: Arc<Mutex<Worker>>, work: PathBuf, cx: &mut Context<Self>) -> Self {
+    pub fn new(worker: Arc<Mutex<Worker>>, stop: Option<ely_office::Stop>, work: PathBuf, cx: &mut Context<Self>) -> Self {
         let props = cx.new(|_| Props::new(Arc::clone(&worker)));
         let review = cx.new(|_| Review::new(Arc::clone(&worker)));
         let weak = cx.weak_entity();
@@ -192,7 +192,7 @@ impl Docs {
         .detach();
         cx.observe_self(|docs, _| docs.watch_dialogs()).detach();
         Docs {
-            core: Core::new(worker, work, cx),
+            core: Core::new(worker, stop, work, cx),
             dialog: None,
             props,
             review,

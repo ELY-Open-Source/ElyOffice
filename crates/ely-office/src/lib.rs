@@ -208,9 +208,8 @@ pub struct Core<H: Host> {
 }
 
 impl<H: Host> Core<H> {
-    pub fn new(worker: Arc<Mutex<WorkerOf<H>>>, work: PathBuf, cx: &mut Context<H>) -> Self {
-        // A worker just made holds no lock yet.
-        let stop = H::Engine::stopper(&worker.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+    /// `stop` comes before sharing; never lock the worker here.
+    pub fn new(worker: Arc<Mutex<WorkerOf<H>>>, stop: Option<Stop>, work: PathBuf, cx: &mut Context<H>) -> Self {
         Core {
             worker,
             sessions: Sessions::default(),

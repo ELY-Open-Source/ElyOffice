@@ -145,7 +145,11 @@ pub(crate) fn main_window<V: Render>(
         options.window_bounds = Some(bounds);
     }
     let opened = cx.open_window(options, |window, cx| {
-        window.on_next_frame(move |_, cx| {
+        // The platform shows the window before its root exists.
+        log::info!("ui: window shown");
+        window.on_next_frame(move |window, cx| {
+            // Runs before the next draw: after the first present.
+            window.on_next_frame(|_, _| log::info!("ui: first frame presented"));
             startup::started();
             if smoke == Smoke::Once {
                 println!("ready {}", app.name());
@@ -154,7 +158,9 @@ pub(crate) fn main_window<V: Render>(
         });
         theme::follow_system(window);
         crate::settings::follow_frame(app, window, cx);
-        root(app, window, cx)
+        let root = root(app, window, cx);
+        log::info!("ui: root built");
+        root
     })?;
     Ok(opened.into())
 }

@@ -121,12 +121,12 @@ pub fn menus(on: (bool, bool, bool), undo: (bool, bool), cx: &App) -> Vec<gpui::
 /// The window root with a blank deck.
 pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     ely_lok::init(cx);
-    let (worker, work) = match ely_office::start(app, cx) {
+    let (worker, stop, work) = match ely_office::start(app, cx) {
         Ok(started) => started,
         Err(error) => ely_platform::startup::fail(app, &format!("{error}")),
     };
     let deck = cx.new(|cx| {
-        let mut host = Deck::new(worker, work, cx);
+        let mut host = Deck::new(worker, stop, work, cx);
         // Recovery points, crash return, autosave (§6.2, §6.3).
         ely_office::Recovering::start_recovery(&mut host, cx);
         <Deck as ely_office::Autosaving>::start_autosave(cx);
@@ -161,7 +161,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
 }
 
 impl Deck {
-    pub fn new(worker: Arc<Mutex<Worker>>, work: PathBuf, cx: &mut Context<Self>) -> Self {
+    pub fn new(worker: Arc<Mutex<Worker>>, stop: Option<ely_office::Stop>, work: PathBuf, cx: &mut Context<Self>) -> Self {
         let deck = cx.weak_entity();
         // Closing or switching tabs stops playback.
         cx.observe_self(|deck, _| {
@@ -170,7 +170,7 @@ impl Deck {
         })
         .detach();
         Deck {
-            core: Core::new(worker, work, cx),
+            core: Core::new(worker, stop, work, cx),
             dialog: None,
             strip: cx.new(|cx| Strip::new(deck.clone(), cx)),
             panel: cx.new(|cx| Panel::new(deck.clone(), cx)),

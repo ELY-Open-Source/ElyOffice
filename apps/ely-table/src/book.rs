@@ -140,12 +140,12 @@ fn menus(undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
 /// The window root with a blank workbook.
 pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     ely_lok::init(cx);
-    let (worker, work) = match ely_office::start(app, cx) {
+    let (worker, stop, work) = match ely_office::start(app, cx) {
         Ok(started) => started,
         Err(error) => ely_platform::startup::fail(app, &format!("{error}")),
     };
     let book = cx.new(|cx| {
-        let mut host = Book::new(worker, work, window, cx);
+        let mut host = Book::new(worker, stop, work, window, cx);
         // Recovery points, crash return, autosave (§6.2, §6.3).
         ely_office::Recovering::start_recovery(&mut host, cx);
         <Book as ely_office::Autosaving>::start_autosave(cx);
@@ -192,6 +192,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
 impl Book {
     pub fn new(
         worker: Arc<Mutex<Worker>>,
+        stop: Option<ely_office::Stop>,
         work: PathBuf,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -201,7 +202,7 @@ impl Book {
         // A closed dialog lets the next import ask.
         cx.observe_self(|book, cx| book.next_import(cx)).detach();
         Book {
-            core: Core::new(worker, work, cx),
+            core: Core::new(worker, stop, work, cx),
             dialog: None,
             bars: Bars::new(window, cx),
             drag: None,

@@ -152,11 +152,13 @@ impl Engine for Lok {
     }
 }
 
-/// The worker and the scratch root of `app`.
-pub fn start(app: AppId, cx: &mut App) -> io::Result<(Arc<Mutex<Worker>>, PathBuf)> {
+/// The worker, its stop and the scratch root of `app`.
+pub fn start(app: AppId, cx: &mut App) -> io::Result<(Arc<Mutex<Worker>>, Option<Stop>, PathBuf)> {
     let data = ely_platform::data_dir(app).map_err(io::Error::other)?;
     let work = crate::fresh_work(&data)?;
-    let worker = Arc::new(Mutex::new(spawn(app)?));
+    let launched = spawn(app)?;
+    let stop = Lok::stopper(&launched);
+    let worker = Arc::new(Mutex::new(launched));
     // The window opens now; the kernel finishes starting behind it.
     let starting = Arc::clone(&worker);
     // Settings as read at launch; defaults if unreadable.
@@ -174,7 +176,7 @@ pub fn start(app: AppId, cx: &mut App) -> io::Result<(Arc<Mutex<Worker>>, PathBu
     })
     .detach();
     follow_author(&worker, wanted, cx);
-    Ok((worker, work))
+    Ok((worker, stop, work))
 }
 
 /// Sends the newest wanted name, read under the worker lock.
@@ -267,8 +269,9 @@ impl<H: Host<Engine = Lok>> Commands for H {}
 
 /// A worker that shuts down when the test's thread ends.
 #[cfg(feature = "test-support")]
-pub fn test_worker(install: &Path, profile: &Path) -> Arc<Mutex<Worker>> {
+pub fn test_worker(install: &Path, profile: &Path) -> (Arc<Mutex<Worker>>, Option<Stop>) {
     let worker = Worker::spawn(install, profile).expect("the worker");
+    let stop = Lok::stopper(&worker);
     let worker = Arc::new(Mutex::new(worker));
     let ending = worker.clone();
     ely_ui::at_thread_end(move || match ending.lock() {
@@ -278,5 +281,5 @@ pub fn test_worker(install: &Path, profile: &Path) -> Arc<Mutex<Worker>> {
         },
         Err(_) => log::warn!("lok: a test panicked holding the worker"),
     });
-    worker
+    (worker, stop)
 }
