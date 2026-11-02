@@ -72,6 +72,22 @@ pub enum Sides {
     Short,
 }
 
+pub const PAPER: &str = "paper";
+
+/// The paper a new document starts on.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Paper {
+    /// Letter in the system's Letter regions, else A4.
+    #[default]
+    Region,
+    A4,
+    Letter,
+}
+
+impl Paper {
+    pub const ALL: [(Self, &'static str); 3] = [(Self::Region, "region"), (Self::A4, "a4"), (Self::Letter, "letter")];
+}
+
 impl Sides {
     pub const ALL: [(Self, &'static str); 4] = [(Self::Printer, "printer"), (Self::One, "one"), (Self::Long, "long"), (Self::Short, "short")];
 }
@@ -105,6 +121,7 @@ pub struct Shared {
     pub ui_text_size: u32,
     pub doc_zoom: DocZoom,
     pub two_sided: Sides,
+    pub paper: Paper,
 }
 
 impl Default for Shared {
@@ -121,6 +138,7 @@ impl Default for Shared {
             ui_text_size: UI_TEXT_SIZES.2,
             doc_zoom: DocZoom::Auto,
             two_sided: Sides::Printer,
+            paper: Paper::Region,
         }
     }
 }
@@ -197,6 +215,7 @@ impl Shared {
                     .ok_or_else(|| wrong(DOC_ZOOM, value))?,
             },
             two_sided: pick(fields, TWO_SIDED, &Sides::ALL)?.unwrap_or(defaults.two_sided),
+            paper: pick(fields, PAPER, &Paper::ALL)?.unwrap_or(defaults.paper),
         })
     }
 }

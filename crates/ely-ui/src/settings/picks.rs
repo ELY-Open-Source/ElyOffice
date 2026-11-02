@@ -12,7 +12,7 @@ use ely_gpui_component::{
     buttons::SegmentedControl,
     forms::{Choice, Select},
 };
-use ely_platform::settings::{DOC_ZOOM, DOC_ZOOMS, DocZoom, Sides, TWO_SIDED, UI_TEXT_SIZE, UI_TEXT_SIZES, word};
+use ely_platform::settings::{DOC_ZOOM, DOC_ZOOMS, DocZoom, PAPER, Paper, Sides, TWO_SIDED, UI_TEXT_SIZE, UI_TEXT_SIZES, word};
 use gpui::{App, AsyncApp, Global};
 use serde_json::Value;
 
@@ -81,6 +81,19 @@ pub(super) fn doc_zoom(stored: DocZoom, cx: &App) -> Select {
         };
         pick(DOC_ZOOM, zoom.value(), cx)
     })
+}
+
+/// The paper new documents start on.
+pub(super) fn paper(stored: Paper, cx: &App) -> Select {
+    let shown = match waiting(PAPER, cx) {
+        Some(Value::String(stored)) => stored,
+        _ => word(&Paper::ALL, &stored).to_string(),
+    };
+    let choices = Paper::ALL.map(|(_, stored)| Choice::new(stored, text(cx, &format!("settings.paper.{stored}"), &[])));
+    Select::new("settings-paper", choices)
+        .label(text(cx, "settings.paper", &[]))
+        .selected(shown)
+        .on_change(|picked, _, cx| pick(PAPER, Value::String(picked.to_string()), cx))
 }
 
 /// The sides the print dialog starts on.

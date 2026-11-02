@@ -310,7 +310,7 @@ impl SettingsView {
                 let autosave = Switch::new("settings-autosave", super::switches::on(super::switches::AUTOSAVE, cx))
                     .name(text(cx, "settings.autosave", &[]))
                     .on_change(|on, _, cx| super::switches::set(super::switches::AUTOSAVE, on, cx));
-                section
+                let section = section
                     .row(
                         SettingsRow::new(text(cx, "settings.author", &[]))
                             .description(text(cx, "settings.author.hint", &[]))
@@ -325,9 +325,17 @@ impl SettingsView {
                         SettingsRow::new(text(cx, "settings.zoom", &[]))
                             .description(text(cx, "settings.zoom.hint", &[]))
                             .control(div().w_full().max_w_64().child(super::picks::doc_zoom(current(cx).doc_zoom, cx))),
-                    )
-                    .row(printing)
-                    .into_any_element()
+                    );
+                // Only ElyDoc makes paged documents.
+                let section = match self.app {
+                    AppId::Doc => section.row(
+                        SettingsRow::new(text(cx, "settings.paper", &[]))
+                            .description(text(cx, "settings.paper.hint", &[]))
+                            .control(div().debug_selector(|| "settings-paper".into()).w_full().max_w_64().child(super::picks::paper(current(cx).paper, cx))),
+                    ),
+                    _ => section,
+                };
+                section.row(printing).into_any_element()
             }
             "git" => {
                 let field = self.git.clone().expect("the git section is ElyTree's");

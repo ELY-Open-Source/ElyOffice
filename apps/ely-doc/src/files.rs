@@ -1,6 +1,10 @@
 //! The bundled templates (DOC-01).
 
+use ely_platform::settings::Paper;
 use gpui::App;
+
+/// LibreOffice's Letter regions (i18nutil paper.cxx).
+const LETTER_REGIONS: [&str; 14] = ["US", "PR", "CA", "VE", "CL", "MX", "CO", "PH", "BZ", "CR", "GT", "NI", "PA", "SV"];
 
 /// The three bundled templates (DOC-01).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -62,8 +66,9 @@ impl Template {
                 }
             })
             .collect();
+        let (width, height) = page(ely_ui::settings::current(cx).paper);
         format!(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" office:version=\"1.3\" office:mimetype=\"application/vnd.oasis.opendocument.text\"><office:body><office:text>{body}</office:text></office:body></office:document>\n"
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" office:version=\"1.3\" office:mimetype=\"application/vnd.oasis.opendocument.text\"><office:automatic-styles><style:page-layout style:name=\"pm1\"><style:page-layout-properties fo:page-width=\"{width}\" fo:page-height=\"{height}\" style:print-orientation=\"portrait\" fo:margin-top=\"2cm\" fo:margin-bottom=\"2cm\" fo:margin-left=\"2cm\" fo:margin-right=\"2cm\"/></style:page-layout></office:automatic-styles><office:master-styles><style:master-page style:name=\"Standard\" style:page-layout-name=\"pm1\"/></office:master-styles><office:body><office:text>{body}</office:text></office:body></office:document>\n"
         )
     }
 
@@ -81,6 +86,23 @@ impl Template {
     }
 }
 
+/// Width and height; margins stay the kernel's 2 cm.
+fn page(paper: Paper) -> (&'static str, &'static str) {
+    let region = ely_platform::locale::region();
+    let letter = letter(paper, region.as_deref());
+    log::info!("doc: new page {paper:?}, region {region:?}, letter {letter}");
+    if letter { ("8.5in", "11in") } else { ("21cm", "29.7cm") }
+}
+
+/// Letter for `paper` in `region`; unnamed regions get A4.
+fn letter(paper: Paper, region: Option<&str>) -> bool {
+    match paper {
+        Paper::A4 => false,
+        Paper::Letter => true,
+        Paper::Region => region.is_some_and(|region| LETTER_REGIONS.contains(&region)),
+    }
+}
+
 /// XML-escapes template text.
 fn escape(text: &str) -> String {
     text.replace('&', "&amp;")
@@ -95,5 +117,19 @@ mod tests {
     #[test]
     fn template_text_is_escaped() {
         assert_eq!(escape("a<b & c>"), "a&lt;b &amp; c&gt;");
+    }
+
+    #[test]
+    fn the_region_picks_the_paper() {
+        use ely_platform::locale::region_of;
+        let picks = |tag: &str| letter(Paper::Region, region_of(tag).as_deref());
+        assert!(picks("en-US"));
+        assert!(picks("en-US@calendar=japanese"), "a keyword keeps the US");
+        assert!(!picks("en-u-ca-gregory"), "a calendar is no region");
+        assert!(!picks("de-DE"));
+        assert!(!picks("en"), "no region, A4");
+        assert!(!picks("x-us"), "private use names no region");
+        assert!(letter(Paper::Letter, Some("DE")));
+        assert!(!letter(Paper::A4, Some("US")));
     }
 }

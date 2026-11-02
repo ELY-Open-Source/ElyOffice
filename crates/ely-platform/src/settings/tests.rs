@@ -138,3 +138,17 @@ fn a_write_overtaken_while_waiting_leaves_the_file() {
     assert!(!waiting.join().unwrap(), "the overtaken write is skipped");
     assert_eq!(store.read().unwrap()["author"], "Ana");
 }
+
+#[test]
+fn new_paper_follows_the_region_unless_chosen() {
+    use super::{Paper, Shared, word};
+    let fields = |text: &str| serde_json::from_str::<serde_json::Map<_, _>>(text).unwrap();
+    assert_eq!(Shared::default().paper, Paper::Region);
+    for (paper, stored) in Paper::ALL {
+        assert_eq!(Shared::from_fields(&fields(&format!(r#"{{"paper":"{stored}"}}"#))).unwrap().paper, paper);
+        assert_eq!(word(&Paper::ALL, &paper), stored);
+    }
+    for bad in [r#"{"paper":"A4"}"#, r#"{"paper":"a3"}"#, r#"{"paper":4}"#] {
+        assert!(Shared::from_fields(&fields(bad)).is_err(), "{bad}");
+    }
+}

@@ -294,3 +294,29 @@ fn queued_page_edits_footers_and_new_sections_show_up() {
             .is_some_and(|shown| shown.pages.contains(&name))
     });
 }
+
+#[test]
+fn a_new_document_starts_on_the_chosen_paper() {
+    use ely_platform::settings::Paper;
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    for (paper, width, height) in [(Paper::A4, 21000, 29700), (Paper::Letter, 21590, 27940)] {
+        cx.update(|app| app.global_mut::<ely_ui::settings::Current>().shared.paper = paper);
+        blank(&mut cx, &docs);
+        let props = panel(&mut cx, &docs);
+        settle(&cx, |app| {
+            let props = props.read(app);
+            let size = props.state(".uno:AttributePageSize", app);
+            size.as_deref()
+                .and_then(super::sheet::size_of)
+                .is_some_and(|(w, h)| (w - width).abs() <= 2 && (h - height).abs() <= 2)
+                && props.state(".uno:PageLRMargin", app).as_deref() == Some("2000,2000")
+                && props.state(".uno:PageULMargin", app).as_deref() == Some("2000,2000")
+        });
+    }
+    settled(&cx, &docs);
+}

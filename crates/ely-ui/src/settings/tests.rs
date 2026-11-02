@@ -214,6 +214,37 @@ fn the_two_sided_row_picks_what_is_chosen(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn only_doc_offers_the_new_paper(cx: &mut TestAppContext) {
+    installed(cx);
+    for (app, offered) in [(AppId::Doc, true), (AppId::Table, false)] {
+        let settings = cx.add_window(|window, cx| SettingsView::new(app, window, cx));
+        let mut shown = gpui::VisualTestContext::from_window(settings.into(), cx);
+        settings.update(&mut shown, |view, _, _| view.section = "documents".into()).unwrap();
+        shown.update(|window, cx| window.draw(cx).clear(cx));
+        let row = shown.debug_bounds("settings-paper");
+        assert_eq!(row.is_some(), offered, "{app:?}");
+        if let Some(row) = row {
+            let at = row.center();
+            shown.update(|window, cx| {
+                let down = gpui::MouseDownEvent { position: at, button: gpui::MouseButton::Left, click_count: 1, ..Default::default() };
+                let up = gpui::MouseUpEvent { position: at, button: gpui::MouseButton::Left, click_count: 1, ..Default::default() };
+                window.dispatch_event(gpui::PlatformInput::MouseDown(down), cx);
+                window.dispatch_event(gpui::PlatformInput::MouseUp(up), cx);
+            });
+            // By region, A4, Letter.
+            for key in ["down", "down", "enter"] {
+                shown.update(|window, cx| window.draw(cx).clear(cx));
+                let keystroke = gpui::Keystroke::parse(key).unwrap();
+                shown.update(|window, cx| window.dispatch_event(gpui::PlatformInput::KeyDown(gpui::KeyDownEvent { keystroke, is_held: false, prefer_character_input: false }), cx));
+            }
+            let picked = shown.update(|_, cx| super::picks::waiting(ely_platform::settings::PAPER, cx));
+            assert_eq!(picked, Some(serde_json::json!("letter")));
+        }
+        shown.update(|window, _| window.remove_window());
+    }
+}
+
+#[gpui::test]
 fn each_app_shows_its_own_sections(cx: &mut TestAppContext) {
     installed(cx);
     for (app, keys) in [
