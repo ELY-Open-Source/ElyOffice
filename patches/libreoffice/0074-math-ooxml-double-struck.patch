@@ -1,0 +1,91 @@
+DOCX equations keep every double-struck letter and digit
+
+Word marks a math run double-struck with m:scr and shows its letters
+and digits as Unicode's double-struck characters. The OMML import kept
+only C, N, Q, R and Z, as Starmath's set symbols, and wrote every
+other character plain, so a double-struck 3 came back as 3 (Ely
+R15.11g). The other letters and digits now become their double-struck
+Unicode characters, which Word shows unchanged; lowercase c, n, q, r
+and z no longer become the unknown names setc and the like.
+A run marked as normal text (m:nor) stays plain, as Word shows it.
+Quotes inside a normal-text run are escaped, so they stay. A literal
+run (m:lit) keeps its math letters; only m:nor makes Starmath text.
+diff --git a/starmath/source/ooxmlimport.cxx b/starmath/source/ooxmlimport.cxx
+--- a/starmath/source/ooxmlimport.cxx
++++ b/starmath/source/ooxmlimport.cxx
+@@ -615,7 +615,7 @@ OUString SmOoxmlImport::handleR()
+                 // Outside normal text a hyphen is the minus sign.
+                 if (!normal)
+                     sTagText = sTagText.replace('-', MS_MINUS);
+-                if (scrString == "double-struck")
++                if (!normal && scrString == "double-struck")
+                 {
+                     sTagText = SmOoxmlImport::handleSetString(sTagText);
+                 }
+@@ -631,27 +631,44 @@ OUString SmOoxmlImport::handleR()
+         }
+     }
+     m_rStream.ensureClosingTag( M_TOKEN( r ));
+-    if (scrString.isEmpty() && (normal || literal || isTagT))
++    if ((scrString.isEmpty() || normal) && (normal || literal || isTagT))
+     {
+-        return encloseOrEscapeLiteral(text.makeStringAndClear(), normal || literal);
++        return encloseOrEscapeLiteral(text.makeStringAndClear(), normal);
+     }
+     return text.makeStringAndClear();
+ }
+ 
++// Unicode's double-struck letter or digit; 0 for others.
++static sal_uInt32 lcl_doubleStruck(sal_Unicode c)
++{
++    if (c == 'H')
++        return 0x210D;
++    if (c == 'P')
++        return 0x2119;
++    if (c >= 'A' && c <= 'Z')
++        return 0x1D538 + (c - 'A');
++    if (c >= 'a' && c <= 'z')
++        return 0x1D552 + (c - 'a');
++    if (c >= '0' && c <= '9')
++        return 0x1D7D8 + (c - '0');
++    return 0;
++}
++
+ OUString SmOoxmlImport::handleSetString(const OUString& setOUstring)
+ {
+-    std::unordered_set<sal_Unicode> setList= {'C', 'N', 'Q', 'R', 'Z', 'c', 'n', 'q', 'r', 'z'};
+-    OUString result;
++    std::unordered_set<sal_Unicode> setList= {'C', 'N', 'Q', 'R', 'Z'};
++    OUStringBuffer result;
+     for (sal_Int32 i = 0; i < setOUstring.getLength(); i++)
+     {
+-        if (setList.contains(setOUstring[i]))
+-        {
+-            result += OUString::Concat(" set" ) + OUStringChar(setOUstring[i]) + OUString::Concat(" ");
+-        }
++        const sal_Unicode c = setOUstring[i];
++        if (setList.contains(c))
++            result.append(OUString::Concat(" set") + OUStringChar(c) + " ");
++        else if (sal_uInt32 nStruck = lcl_doubleStruck(c))
++            result.appendUtf32(nStruck);
+         else
+-            result += encloseOrEscapeLiteral(setOUstring.copy(i, 1), /*bForce=*/false);
++            result.append(encloseOrEscapeLiteral(OUString(c), /*bForce=*/false));
+     }
+-    return result;
++    return result.makeStringAndClear();
+ }
+ 
+ OUString SmOoxmlImport::handleRad()
+diff --git a/starmath/source/parse5.cxx b/starmath/source/parse5.cxx
+--- a/starmath/source/parse5.cxx
++++ b/starmath/source/parse5.cxx
+@@ -339,7 +339,7 @@ const SmTokenTableEntry* GetTokenTableEntry(const OUString& rName)
+ OUString encloseOrEscapeLiteral(const OUString& string, bool force)
+ {
+     if (force)
+-        return "\"" + string + "\"";
++        return "\"" + string.replaceAll("\"", "\\\"") + "\"";
+     OUStringBuffer result;
+     const std::unordered_set<sal_Unicode> DelimiterTable1{
+         //keeping " as first entry is important to not get into recursive replacement

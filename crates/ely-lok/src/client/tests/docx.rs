@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use super::independent::read_back;
+use super::independent::read_with;
 use super::*;
 
 /// Saves Word's `fixture`, then Ely's output; reads both as `case`.
@@ -18,7 +18,7 @@ fn saved_twice(fixture: &str, case: &str) {
         let out = dir.path().join(name);
         doc.save_as(&mut worker, &crate::file_url(&out), "docx").expect("saves");
         worker.close_doc(doc).expect("closes");
-        read_back(&out, case);
+        read_with("ooxml_word.py", &out, case);
         source = out;
     }
 }

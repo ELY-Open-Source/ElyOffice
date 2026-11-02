@@ -222,7 +222,7 @@ tests/scripts/layout.sh        真窗口：六个应用在 640、800、1100 宽�
 tests/perf/bench.py [--runs N] [--only PERF-..]  性能基准（PERF-01 至 08），release 构建，结果写 docs/perf；macOS、Windows 直接跑（驱动 tests/perf/drive.py、drive.ps1，Windows 上不在前台即拒发输入）
 tests/perf/bigtable.py 输出 行数 宽 高 jpeg|png inline|anchor|tight [英寸 [cantsplit]]  一张大表格的 DOCX：一列图片一列中文（R14.48 的样本）
 tests/perf/linux.sh [参数]      Linux 上的 bench.py：容器里的 Xvfb、私有 AT-SPI 总线（atspi.py）
-tests/scripts/ooxml.py <用例> <文件>  不经 LibreOffice 读 DOCX、XLSX、PPTX 并按自算的预期核对（往返用例调用）；ooxml_pivot.py 同法核对透视表的标签与标题属性，ooxml_motion.py 核对视频的淡入与触发序列，ooxml_formula.py 核对公式文字
+tests/scripts/ooxml.py <用例> <文件>  不经 LibreOffice 读 DOCX、XLSX、PPTX 并按自算的预期核对（往返用例调用）；ooxml_pivot.py 同法核对透视表的标签与标题属性，ooxml_motion.py 核对视频的淡入与触发序列，ooxml_formula.py 核对公式文字，ooxml_word.py 核对 Word 公式（减号、双线体）与目录
 tests/office/compare.ps1 目录   本机 Microsoft Office 经 COM 写出大而复杂的 DOCX、XLSX、PPTX，Ely 内核打开、写入、另存，新引擎重开核对；Office 读回两份，比内容摘要（文字、公式与重算的值、批注、备注、域的目标、动画，Word 更新域后每页的起始），不符即失败（已知差异钉住前后值；须 ELY_LOK_DIR，只在 Windows）
 cd site && pnpm run deploy    官网构建并经 wrangler 发到 Cloudflare Workers（静态资源，另有 `site/worker` 只答 `/release.json`：GitHub API 的最新版本、其中三个完整安装包（Mac arm64、Mac x86_64、Windows）的地址与全部发布的下载总数，加上 Gitea 上迁移前的下载（Gitea 不通时只计 GitHub；都不计更新清单 `.json`），缓存 5 分钟；下载按钮按访客的平台直接下载完整安装包，Linux 与单独的应用指向 `releases/latest`），地址 https://office.elygpui.com（workers.dev 地址 https://ely-office.zhangyanghaha0407.workers.dev 同站）
 cd site && pnpm test && pnpm e2e   官网单测（几何、道路连通；更新日志与 git 的 v* 标签一一对应，每次发布加 `site/changelog/<版本>.md` 并部署；命令行页含各应用 USAGE 的每条命令）与 Playwright 端到端（悬停、聚焦、按压、命中归属）

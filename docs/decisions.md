@@ -397,6 +397,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 2026-11-01（R15.11d）：XLSX 透视表照 Excel 的字：表头与总计用文件给的标题，缺即用 Excel 的英文缺省（Row Labels、Column Labels、Grand Total，内核界面本为英文）；只在紧凑版式用表头标题；存回时只写不同于缺省的标题，别种语言的 Excel 刷新后照它自己的语言。标题不进 ODS（Calc 原生的透视表照旧）。空标题是文件的选择，照空存回；没有真实行字段时（数据布局字段不算）列表头看列字段自身的版式。
 - 2026-11-01（R15.11e）：PPTX 视频的触发序列照 PowerPoint 写：再点触发对象即结束，不带幻灯片的上一页、下一页条件；Impress 的媒体预设按 PowerPoint 的编号写出（播放 1、暂停 2、停止 3），编号取自 PowerPoint 自己保存的文件。
 - 2026-11-02（R15.11f）：XLSX 公式里的 `TRUE`、`FALSE` 照 Excel 写成裸词，不带空括号。内核解析时裸词与 `FALSE()` 合成同一个函数记号，分不出原来写的是哪种；Excel 自己存的几乎都是裸词，两种的值相同，故一律写裸词。
+- 2026-11-02（R15.11g）：DOCX 公式的双线体在导入时换成 Unicode 的双线体字符（C、N、Q、R、Z 仍用 Starmath 的集合符号）。Starmath 没有双线体的字体属性，Unicode 字符是 Word 自己显示的字，存回后 Word 读出相同。
 
 ## 2026-11-02 Windows 的 worker 不把请求管道留作 stdin（R15.13d）
 
