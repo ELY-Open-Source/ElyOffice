@@ -18,6 +18,8 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("office.error.changed", "The document changed meanwhile; try again"),
     ("office.print.failed", "Printing failed: {error}"),
     ("office.link.refused", "Ely opens only web and mail links."),
+    ("office.error.dialog", "The engine opened a dialog Ely closed: {title}"),
+    ("office.error.dialog_said", "The engine opened a dialog Ely closed: {title}. It said: {body}"),
     (
         "office.recovery.failed",
         "A recovery copy was not written: {error}",
@@ -146,6 +148,8 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("office.error.changed", "文档在此间已改动，请重试"),
     ("office.print.failed", "打印失败：{error}"),
     ("office.link.refused", "Ely 只打开网页与邮件链接。"),
+    ("office.error.dialog", "内核打开了一个对话框，Ely 已将其关闭：{title}"),
+    ("office.error.dialog_said", "内核打开了一个对话框，Ely 已将其关闭：{title}。内容：{body}"),
     ("office.recovery.failed", "恢复副本未能写入：{error}"),
     ("office.recovery.off", "本次运行不写恢复副本：{error}"),
     ("office.recovery.lost", "{name} 未能恢复：{error}"),

@@ -7,6 +7,7 @@ use std::{
 };
 
 use ely_lok::{Doc, LokError, LokView, Reported, Worker, sheet::csv::Import};
+use ely_gpui_component::primitives::Severity;
 use ely_platform::AppId;
 use gpui::{App, Context, Entity, FocusHandle, Window};
 
@@ -143,6 +144,18 @@ impl Engine for Lok {
             false => failed(host, &error.0, cx),
         })
         .detach();
+        // Log the title only; the body may name user files.
+        cx.subscribe(view, |host, _, closed: &ely_lok::Closed, cx| {
+            log::warn!("{}: the engine opened a dialog Ely closed: {}", H::KIND.app.slug(), closed.title);
+            let title = closed.title.as_str();
+            let shown = match closed.body.as_str() {
+                "" => text(cx, "office.error.dialog", &[("title", title)]),
+                body => text(cx, "office.error.dialog_said", &[("title", title), ("body", body)]),
+            };
+            host.toast_unlogged(shown, Severity::Danger, cx);
+        })
+        .detach();
+        cx.subscribe(view, move |host, view, linked: &ely_lok::Linked, cx| follow(host, view, &linked.0, cx)).detach();
         // The status shows the zoom.
         cx.subscribe(view, |_, _, _: &ely_lok::Zoomed, cx| cx.notify()).detach();
         cx.subscribe(view, move |host, view, _: &Reported, cx| {
@@ -150,6 +163,22 @@ impl Engine for Lok {
             reported(host, &view, modified, cx)
         })
         .detach();
+    }
+}
+
+/// Follows a link: a document place, or web and mail.
+fn follow<H: Host<Engine = Lok>>(host: &mut H, view: Entity<LokView>, link: &str, cx: &mut Context<H>) {
+    let slug = H::KIND.app.slug();
+    if let Some(mark) = link.strip_prefix('#') {
+        log::info!("{slug}: jumping to a place in the document");
+        if let Err(error) = view.update(cx, |view, _| view.run("link.jump", &[mark])) {
+            host.engine_failed(&error.to_string(), cx);
+        }
+    } else if crate::outward(link) {
+        log::info!("{slug}: opening a web or mail link");
+        cx.open_url(link);
+    } else {
+        host.toast(text(cx, "office.link.refused", &[]), Severity::Danger, cx);
     }
 }
 
@@ -229,7 +258,7 @@ pub trait Commands: Host<Engine = Lok> {
     fn run_in(&mut self, tab: Option<u64>, id: &str, values: &[&str], cx: &mut Context<Self>) {
         let Some(tab) = tab.and_then(|tab| self.tab(tab)) else {
             let text = text(cx, "command.blocked.no_document", &[]);
-            return self.toast(text, ely_gpui_component::primitives::Severity::Warning, cx);
+            return self.toast(text, Severity::Warning, cx);
         };
         log::info!("{}: runs {id}", Self::KIND.app.slug());
         // Numbers hold only in the state they were read.

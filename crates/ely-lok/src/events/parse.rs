@@ -16,7 +16,7 @@ pub struct A11y {
 /// A kernel window event that matters to the guard.
 pub enum Dialog {
     /// A dialog is up; close it.
-    Opened { window: u32, title: Option<String> },
+    Opened { window: u32, title: Option<String>, body: String },
     /// A window got its title.
     Titled { window: u32, title: String },
     /// A tunneled window ended.
@@ -200,7 +200,36 @@ pub fn dialog_of(jsdialog: bool, text: &str) -> Option<Dialog> {
         // A tooltip is no dialog.
         action == "created" && json["type"] != "tooltip"
     };
-    opens.then_some(Dialog::Opened { window, title })
+    opens.then_some(Dialog::Opened { window, title, body: said(&json) })
+}
+
+/// A clicked link; only Calc appends the click position.
+pub fn link_of(sheet: bool, text: &str) -> &str {
+    match text.rsplit_once(" coordinates: ") {
+        Some((link, _)) if sheet => link,
+        _ => text,
+    }
+}
+
+/// A message box's shown lines; empty for other dialogs.
+fn said(json: &Value) -> String {
+    fn lines(node: &Value, out: &mut Vec<String>) {
+        let shown = node["visible"] != false && node["visible"] != "false";
+        if !shown {
+            return;
+        }
+        if node["type"] == "multilineedit" && let Some(text) = node["text"].as_str().filter(|text| !text.is_empty()) {
+            out.push(text.to_string());
+        }
+        for child in node["children"].as_array().into_iter().flatten() {
+            lines(child, out);
+        }
+    }
+    let mut out = Vec::new();
+    if json["type"] == "messagebox" {
+        lines(json, &mut out);
+    }
+    out.join(" ")
 }
 
 /// A signed LOK position; -1 and absent are None.
@@ -345,7 +374,7 @@ mod tests {
 
     fn opened(event: Option<Dialog>) -> Option<(u32, Option<String>)> {
         match event? {
-            Dialog::Opened { window, title } => Some((window, title)),
+            Dialog::Opened { window, title, .. } => Some((window, title)),
             Dialog::Titled { .. } | Dialog::Gone { .. } => None,
         }
     }
@@ -373,6 +402,27 @@ mod tests {
         assert_eq!(opened(update), Some((2, None)));
         assert!(dialog_of(true, r#"{"jsontype":"formulabar","id":0}"#).is_none());
         assert!(dialog_of(true, r#"{"jsontype":"dialog","action":"close","id":2}"#).is_none());
+    }
+
+    #[test]
+    fn a_link_loses_only_the_click_position() {
+        let mail = "mailto:a@example.com?body=The coordinates: 1, 2";
+        assert_eq!(link_of(true, &format!("{mail} coordinates: 10, 20, 30, 40, 5.5, 6")), mail);
+        assert_eq!(link_of(false, mail), mail, "Writer and Impress add nothing");
+    }
+
+    #[test]
+    fn a_message_box_says_its_shown_lines() {
+        let body = |text: &str| match dialog_of(true, text) {
+            Some(Dialog::Opened { body, .. }) => body,
+            _ => panic!("the box did not open"),
+        };
+        let shown = r#"{"jsontype":"dialog","id":3,"type":"messagebox","text":"Information","children":[{"type":"container","children":[
+            {"type":"multilineedit","text":"Invalid range"},{"type":"multilineedit","text":"","visible":"false"},
+            {"type":"multilineedit","text":"Hidden","visible":false},{"type":"pushbutton","text":"OK"}]}]}"#;
+        assert_eq!(body(shown), "Invalid range");
+        let other = r#"{"jsontype":"dialog","id":4,"type":"dialog","children":[{"type":"multilineedit","text":"typed"}]}"#;
+        assert_eq!(body(other), "", "only message boxes speak");
     }
 
     #[test]

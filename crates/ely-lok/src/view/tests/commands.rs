@@ -55,7 +55,7 @@ fn run_reaches_the_kernel_and_state_comes_back() {
 }
 
 #[test]
-fn a_kernel_dialog_reaches_apps_as_an_error() {
+fn a_kernel_dialog_reaches_apps_as_closed() {
     let Some(install) = crate::client::tests::install() else {
         eprintln!("SKIP: no pinned LOK build");
         return;
@@ -66,8 +66,8 @@ fn a_kernel_dialog_reaches_apps_as_an_error() {
     let errors = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     cx.update(|app| {
         let errors = errors.clone();
-        app.subscribe(&view, move |_, error: &LokError, _| {
-            errors.borrow_mut().push(error.0.clone())
+        app.subscribe(&view, move |_, closed: &crate::Closed, _| {
+            errors.borrow_mut().push((closed.title.clone(), closed.body.clone()))
         })
         .detach();
         view.update(app, |view, _| {
@@ -76,11 +76,8 @@ fn a_kernel_dialog_reaches_apps_as_an_error() {
     });
     let reported = settle(&cx, |_| !errors.borrow().is_empty());
     assert!(reported, "the blocked dialog reaches subscribers");
-    assert!(
-        errors.borrow()[0].contains("Delete Contents"),
-        "{:?}",
-        errors.borrow()
-    );
+    let (title, body) = errors.borrow()[0].clone();
+    assert_eq!((title.as_str(), body.as_str()), ("Delete Contents", ""), "a dialog, not a message box");
 }
 
 #[test]

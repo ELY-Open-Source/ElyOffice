@@ -10,6 +10,7 @@ use std::{
 use crate::ffi::{Document, Raw};
 
 mod cell;
+mod kinds;
 mod parse;
 mod text;
 #[cfg(test)]
@@ -20,45 +21,10 @@ use cell::{functions_of, marks_of, request_of, usage_of};
 pub use parse::A11y;
 use parse::{
     Dialog, Unreadable, a11y_update, dialog_of, fonts_of, formula_text, found_of, rect_of,
-    result_of, state_of, tabs_of,
+    result_of, state_of, tabs_of, link_of,
 };
 
-/// LOK_CALLBACK kinds Ely reads.
-const INVALIDATE_TILES: i32 = 0;
-const CURSOR: i32 = 1;
-const SELECTION: i32 = 2;
-const CURSOR_VISIBLE: i32 = 5;
-const GRAPHIC: i32 = 6;
-const STATE: i32 = 8;
-const RULER: i32 = 35;
-const WINDOW: i32 = 36;
-const JSDIALOG: i32 = 46;
-const RESULT: i32 = 16;
-const A11Y_FOCUS: i32 = 62;
-const A11Y_CARET: i32 = 63;
-const A11Y_SELECTION: i32 = 64;
-const A11Y_CELL: i32 = 67;
-const A11Y_EDITING: i32 = 68;
-const A11Y_OBJECT: i32 = 69;
-const REDLINES: i32 = 30;
-const REDLINE: i32 = 31;
-const COMMENT: i32 = 32;
-const NOT_FOUND: i32 = 12;
-const FOUND: i32 = 15;
-const MENU: i32 = 23;
-const FONTS: i32 = 57;
-const SIZE_CHANGED: i32 = 13;
-const SET_PART: i32 = 14;
-const CELL_CURSOR: i32 = 17;
-const MOUSE_POINTER: i32 = 18;
-const CELL_FORMULA: i32 = 19;
-const HEADER: i32 = 33;
-const GEOMETRY: i32 = 50;
-const CELL_ADDRESS: i32 = 34;
-const REFERENCE_MARKS: i32 = 45;
-const FUNCTION_LIST: i32 = 47;
-const TOOLTIP: i32 = 71;
-const TABLE: i32 = 44;
+use kinds::*;
 
 /// A mixed state; kernel values never hold NUL.
 pub const MIXED: &str = "\u{0}mixed";
@@ -106,8 +72,10 @@ pub struct Events {
     pub fonts: Vec<String>,
     /// Kernel states changed since the last drain (LOK-05).
     pub states: Vec<(String, String)>,
-    /// Dialogs the kernel opened and Ely closed (LOK-08).
-    pub blocked: Vec<String>,
+    /// Dialogs the kernel opened and Ely closed: title, body (LOK-08).
+    pub blocked: Vec<(String, String)>,
+    /// Links the user clicked, for Ely to follow.
+    pub links: Vec<String>,
     pub a11y: A11y,
     /// The paragraph's own tab stops, in 1/100 mm.
     pub tabs: Vec<i32>,
@@ -128,6 +96,8 @@ struct Slot {
     pushed: u64,
     /// The client zoom last set: tile pixels, tile twips.
     zoom: (i32, i32),
+    /// A spreadsheet: its links carry the click position.
+    sheet: bool,
 }
 
 impl Slot {
@@ -138,6 +108,7 @@ impl Slot {
         self.batch.rects.clear();
         self.batch.states.clear();
         self.batch.blocked.clear();
+        self.batch.links.clear();
         self.batch.menu = None;
         self.batch.faults.clear();
         batch
@@ -154,43 +125,6 @@ fn signal() -> &'static Condvar {
     SIGNAL.get_or_init(Condvar::new)
 }
 
-const KINDS: [i32; 35] = [
-    TABLE,
-    MOUSE_POINTER,
-    REFERENCE_MARKS,
-    FUNCTION_LIST,
-    TOOLTIP,
-    GEOMETRY,
-    SIZE_CHANGED,
-    SET_PART,
-    CELL_CURSOR,
-    CELL_FORMULA,
-    HEADER,
-    CELL_ADDRESS,
-    FONTS,
-    NOT_FOUND,
-    FOUND,
-    MENU,
-    REDLINES,
-    REDLINE,
-    COMMENT,
-    RULER,
-    INVALIDATE_TILES,
-    CURSOR,
-    SELECTION,
-    CURSOR_VISIBLE,
-    GRAPHIC,
-    STATE,
-    RESULT,
-    WINDOW,
-    JSDIALOG,
-    A11Y_FOCUS,
-    A11Y_CARET,
-    A11Y_SELECTION,
-    A11Y_CELL,
-    A11Y_EDITING,
-    A11Y_OBJECT,
-];
 
 unsafe extern "C" fn on_event(kind: i32, payload: *const c_char, data: *mut c_void) {
     if !KINDS.contains(&kind) || data.is_null() {
@@ -252,6 +186,7 @@ fn record(slot: &mut Slot, kind: i32, text: &str) -> Option<u32> {
             }
         }
         RESULT => slot.result = result_of(text),
+        HYPERLINK => batch.links.push(link_of(slot.sheet, text).to_string()),
         RULER => batch.tabs = tabs_of(text),
         REDLINES | REDLINE | COMMENT => batch.review += 1,
         NOT_FOUND => {
@@ -318,7 +253,7 @@ fn record(slot: &mut Slot, kind: i32, text: &str) -> Option<u32> {
                 batch.dismissed += 1;
             }
             Dialog::Gone { .. } => {}
-            Dialog::Opened { window, title } => {
+            Dialog::Opened { window, title, body } => {
                 if !slot.closed.insert(window) {
                     return None;
                 }
@@ -326,7 +261,7 @@ fn record(slot: &mut Slot, kind: i32, text: &str) -> Option<u32> {
                     .or_else(|| slot.titles.get(&window).cloned())
                     .unwrap_or_else(|| format!("window {window}"));
                 log::warn!("lok: closing kernel dialog {window} ({title})");
-                batch.blocked.push(title);
+                batch.blocked.push((title, body));
                 return Some(window);
             }
         },
@@ -341,6 +276,7 @@ pub fn watch(id: u64, doc: &Document) {
     let data = Box::into_raw(Box::new((id, doc.raw())));
     let mut slot = Slot::default();
     slot.batch.cursor_visible = true;
+    slot.sheet = doc.kind() == 1;
     slots().lock().expect("the events lock").insert(id, slot);
     doc.initialize_for_rendering();
     doc.set_callback(Some(on_event), data.cast());

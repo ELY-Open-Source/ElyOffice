@@ -41,6 +41,9 @@ fn merge(before: Events, mut next: Events) -> Events {
     let mut blocked = before.blocked;
     blocked.append(&mut next.blocked);
     next.blocked = blocked;
+    let mut links = before.links;
+    links.append(&mut next.links);
+    next.links = links;
     next.menu = next.menu.or(before.menu);
     let mut faults = before.faults;
     faults.append(&mut next.faults);
@@ -55,6 +58,7 @@ fn snapshot(batch: &Events) -> Events {
         rects: Vec::new(),
         states: Vec::new(),
         blocked: Vec::new(),
+        links: Vec::new(),
         menu: None,
         faults: Vec::new(),
         ..batch.clone()

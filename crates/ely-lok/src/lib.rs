@@ -22,7 +22,7 @@ pub use client::{
 pub use client::test_install;
 #[cfg(feature = "view")]
 pub use view::{
-    CONTEXT, Copy, Cut, Geom, Layout, LokError, LokView, Paste, Reported, ZOOM_STEPS, notch,
+    CONTEXT, Closed, Copy, Cut, Geom, Linked, Layout, LokError, LokView, Paste, Reported, ZOOM_STEPS, notch,
     SCHEME, Zoomed, init, layout, paper, read_off,
 };
 #[cfg(feature = "view")]

@@ -12,6 +12,7 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Text("Bookmark")],
         Check::Undoable,
     ),
+    command("link.jump", ".uno:JumpToMark", &[Arg::Text("Bookmark")], Check::Finished),
     command(
         "link.insert",
         ".uno:SetHyperlink",

@@ -12,6 +12,7 @@ fn named_keys_map_to_vcl_codes() {
     assert_eq!(vcl_key(&stroke("shift-left")), Some((0, 1026 | SHIFT)));
     assert_eq!(vcl_key(&stroke("backspace")), Some((0, 1283)));
     assert_eq!(vcl_key(&stroke("f5")), Some((0, 772)));
+    assert_eq!(vcl_key(&stroke("f1")), None, "kernel help stays shut");
     let (bold, redo) = match cfg!(target_os = "macos") {
         true => ("cmd-b", "cmd-shift-z"),
         false => ("ctrl-b", "ctrl-shift-z"),

@@ -28,6 +28,8 @@ mod lane;
 mod off;
 mod panes;
 mod reads;
+mod relay;
+pub use relay::{Closed, Linked};
 mod render;
 mod reveal;
 mod zoom;
@@ -404,11 +406,7 @@ impl LokView {
         self.a11y = batch.a11y;
         self.tabs = batch.tabs;
         self.states.extend(batch.states);
-        for title in batch.blocked {
-            cx.emit(LokError(format!(
-                "the kernel opened a dialog Ely closed: {title}"
-            )));
-        }
+        self.relay(batch.blocked, batch.links, cx);
         cx.emit(Reported);
         if batch.generation == self.generation && !batch.all && batch.rects.is_empty() {
             cx.notify();

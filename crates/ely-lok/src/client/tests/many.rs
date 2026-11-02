@@ -90,5 +90,6 @@ fn writer_dialog_keys_leave_every_document_working() {
         kill(pid);
     }
     let blocked = outcome.expect("the worker died or hung after a Writer dialog");
-    assert_eq!(blocked, ["Insert Table", "AutoText"], "each dialog is reported");
+    let titles: Vec<&str> = blocked.iter().map(|(title, _): &(String, String)| title.as_str()).collect();
+    assert_eq!(titles, ["Insert Table", "AutoText"], "each dialog is reported");
 }

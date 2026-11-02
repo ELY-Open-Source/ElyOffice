@@ -27,6 +27,7 @@ mod spill;
 pub(crate) mod input;
 mod latency;
 mod layout;
+mod links;
 mod media;
 mod menus;
 mod motion;
@@ -142,6 +143,7 @@ pub(crate) fn poll_until(
         all: false,
         states: Vec::new(),
         blocked: Vec::new(),
+        links: Vec::new(),
         ..from.clone()
     };
     loop {
@@ -151,15 +153,18 @@ pub(crate) fn poll_until(
         let mut rects = std::mem::take(&mut seen.rects);
         let mut states = std::mem::take(&mut seen.states);
         let mut blocked = std::mem::take(&mut seen.blocked);
+        let mut links = std::mem::take(&mut seen.links);
         let all = seen.all || batch.all;
         rects.extend(batch.rects.iter().copied());
         states.extend(batch.states.iter().cloned());
         blocked.extend(batch.blocked.iter().cloned());
+        links.extend(batch.links.iter().cloned());
         seen = Events {
             rects,
             all,
             states,
             blocked,
+            links,
             ..batch
         };
         if done(&seen) || std::time::Instant::now() >= deadline {

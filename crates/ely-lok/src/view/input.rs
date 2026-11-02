@@ -169,6 +169,8 @@ pub(super) fn vcl_key(keystroke: &Keystroke) -> Option<(u32, i32)> {
         "space" if command => Some(1284),
         "insert" => Some(1285),
         "delete" => Some(1286),
+        // Kernel help is LibreOffice's manual.
+        "f1" => return None,
         key => key
             .strip_prefix('f')
             .and_then(|n| n.parse::<i32>().ok())

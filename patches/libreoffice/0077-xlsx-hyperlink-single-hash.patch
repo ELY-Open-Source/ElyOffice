@@ -1,0 +1,23 @@
+Calc keeps one '#' on XLSX hyperlinks whose location starts with '#'
+
+The XLSX importer always put '#' before a hyperlink's location. Some
+writers already store the location as "#'Sheet'!A1" (Ely R15.28,
+issue #57), so the cell's URL became "##'Sheet'.A1"
+and no jump could resolve it. The importer now adds '#' only when the
+location lacks one.
+
+diff --git a/sc/source/filter/oox/worksheethelper.cxx b/sc/source/filter/oox/worksheethelper.cxx
+index 3b24f22a8..3d34b67b2 100644
+--- a/sc/source/filter/oox/worksheethelper.cxx
++++ b/sc/source/filter/oox/worksheethelper.cxx
+@@ -1005,8 +1005,9 @@ OUString WorksheetGlobals::getHyperlinkUrl( const HyperlinkModel& rHyperlink ) c
+     OUStringBuffer aUrlBuffer;
+     if( !rHyperlink.maTarget.isEmpty() )
+         aUrlBuffer.append( getBaseFilter().getAbsoluteUrl( rHyperlink.maTarget ) );
++    // Some writers put the '#' in the location itself.
+     if( !rHyperlink.maLocation.isEmpty() )
+-        aUrlBuffer.append( "#" + rHyperlink.maLocation );
++        aUrlBuffer.append( rHyperlink.maLocation.startsWith( "#" ) ? rHyperlink.maLocation : "#" + rHyperlink.maLocation );
+     OUString aUrl = aUrlBuffer.makeStringAndClear();
+ 
+     if( aUrl.startsWith("#") )

@@ -131,7 +131,7 @@ fn every_mapped_command_reaches_the_kernel_and_reports_state() {
     assert!(text.contains("fo:font-weight=\"bold\""), "bold landed");
     assert_eq!(
         commands::all().count(),
-        253,
+        254,
         "the rows of text, layout, refs, tools, sheet, calc, data, analysis, page, show and draw"
     );
 }
@@ -248,7 +248,8 @@ fn a_kernel_dialog_is_closed_and_reported() {
         kill(pid);
     }
     let blocked = outcome.expect("the dialog never blocked the worker");
-    assert_eq!(blocked, ["Delete Contents"], "the dialog is reported");
+    let titles: Vec<&str> = blocked.iter().map(|(title, _)| title.as_str()).collect();
+    assert_eq!(titles, ["Delete Contents"], "the dialog is reported");
 }
 
 #[test]
