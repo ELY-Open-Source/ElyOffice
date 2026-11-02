@@ -36,3 +36,5 @@ pub use ipc::STALE;
 pub use ipc::file_url_of as file_url;
 pub use ipc::path_of_file_url as file_path;
 pub use worker::run as worker_run;
+#[cfg(windows)]
+pub use worker::stdin::private as worker_stdin;

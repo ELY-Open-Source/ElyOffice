@@ -20,6 +20,8 @@ mod text;
 #[cfg(windows)]
 mod messages;
 #[cfg(windows)]
+pub(crate) mod stdin;
+#[cfg(windows)]
 use messages::serve;
 #[cfg(target_os = "linux")]
 mod unipoll;

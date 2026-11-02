@@ -102,11 +102,11 @@ impl Engine for Lok {
         Some(Arc::new(move || stopper.stop()))
     }
 
-    fn restart(app: AppId, worker: &mut Worker) -> io::Result<()> {
+    fn restart(_: AppId, worker: &mut Worker) -> io::Result<()> {
         let author = worker.author().map(str::to_string);
         let author = author.ok_or_else(|| io::Error::other("the ended worker had no author"))?;
         // The ended worker stays until the new one is ready.
-        let mut fresh = spawn(app)?;
+        let mut fresh = worker.relaunch()?;
         fresh.ready()?;
         fresh.set_author(&author)?;
         *worker = fresh;

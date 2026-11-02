@@ -46,6 +46,8 @@ pub struct Worker {
     pub(crate) stopper: Stopper,
     /// The name new comments sign with, once set.
     author: Option<String>,
+    /// The build, profile and probes it started with.
+    start: (PathBuf, PathBuf, bool),
 }
 
 /// The start-up check: to run, passed, or why it failed.
@@ -217,6 +219,7 @@ impl Worker {
             stderr,
             check: Check::Pending(profile_dir.to_path_buf()),
             author: None,
+            start: (install.to_path_buf(), profile_dir.to_path_buf(), dev),
         };
         Ok(worker)
     }

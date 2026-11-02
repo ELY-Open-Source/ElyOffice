@@ -10,10 +10,7 @@ fn a_restart_signs_with_the_newest_name_and_survives_a_failure() {
         return;
     };
     let home = tempfile::tempdir().expect("a temp dir");
-    // The one test here: nothing else reads HOME.
-    unsafe { std::env::set_var("HOME", home.path()) };
-    let profile = ely_platform::data_dir(AppId::Doc).expect("a data dir").join("lok-profile");
-    std::fs::create_dir_all(&profile).expect("the profile");
+    let profile = home.path().join("lok-profile");
     let mut worker = ely_lok::Worker::launch(&install, &profile).expect("the worker");
     worker.ready().expect("checks");
     worker.set_author("Ada").expect("signs");
@@ -31,6 +28,8 @@ fn a_restart_signs_with_the_newest_name_and_survives_a_failure() {
     // A name asked while down signs after the restart.
     worker.shutdown().expect("stops");
     assert!(worker.set_author("Latest").is_err(), "a stopped engine cannot take it");
+    std::fs::remove_dir_all(profile.join("user")).expect("the profile's user part goes");
     Lok::restart(AppId::Doc, &mut worker).expect("restarts");
     assert_eq!(worker.author(), Some("Latest"), "the newest name signs");
+    assert!(profile.join("user").is_dir(), "the restart runs on the worker's own profile");
 }
