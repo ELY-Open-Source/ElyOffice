@@ -502,6 +502,12 @@
 - [ ] R15.11h DOCX 目录域结束与正文同段时（有无标题皆然），存回后正文仍在目录域外，Word 更新目录不删它；目录里有行内内容控件时域结束仍独占末段（§7、§19.2）
 - [ ] R15.11i XLSX 只有列字段的透视表存回照 Excel 的版式：数据标题占首列，列区从第二列起（§7、§19.2）
 - [ ] R15.11j XLSX 透视表的数据布局表头存回照文件的 `dataCaption`（缺省 Values），不写 Calc 的 Data（§7、§19.2）
+- [ ] R15.25 #54 ElyDoc 新建文档的默认纸张：设置里选默认纸张（A4、Letter 等），新建文档照它，不再随内核的 en-US 落成 Letter（§8.2 DOC-05、§20.3）
+- [x] R15.26 合并 PR #55：Windows 安装与卸载程序声明高 DPI，缩放下不模糊（§4.2）。原因：`installer.nsi`、`bundle.nsi` 未声明 DPI 感知，Windows 在缩放下把安装界面按位图放大。改法（PR 原样）：两处加 `ManifestDPIAware true` 与 `ManifestDPIAwareness PerMonitorV2`（NSIS 3.13）。核实：本机 NSIS 编出的安装程序清单含 `<dpiAware>true</dpiAware>` 与 `<dpiAwareness>PerMonitorV2</dpiAwareness>`；`tests/scripts/windows-installer.sh`、`windows-bundle.sh` 通过。审查一轮过（tasks/reviews/R15.26-r1.md），以合并提交 9fbc362 并入
+- [ ] R15.27 #56 ElyTable 粘贴制表符分隔的中文文字（macOS）：按行列分进单元格，不报错（§7 LOK-06、§9.2 TABLE-08）
+- [ ] R15.28 #57 ElyTable 单击超链接单元格：内部链接跳到目标表与单元格，外部链接交系统打开，不再弹出被关掉的内核对话框；内核对话框的正文进提示（§7、§9.2）
+- [ ] R15.29 #58 ElyDoc 打开邮件合并后右侧栏回不到文字、段落、样式：有明确的返回入口（§5.2、§8.2 DOC-14）
+- [ ] R15.30 #59 界面字体到达对话框与 tooltip（§5.2）
 - [ ] R15.15 合并 PR #51：ElyDoc、ElyTable 西班牙语（§20.3）
 - [ ] R15.16 西班牙语覆盖全部应用（§20.3）
 - [ ] R15.17 设置里的界面语言改为下拉列表（§5、§20.3）
