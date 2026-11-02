@@ -37,6 +37,7 @@ mod roundtrip;
 mod rules;
 mod seam;
 mod sheet;
+mod trigger;
 pub(crate) mod show;
 mod slides;
 mod stop;

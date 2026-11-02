@@ -1,0 +1,46 @@
+PPTX keeps a video's click-to-play sequence as PowerPoint reads it
+
+A PowerPoint video carries a trigger sequence: clicking the video
+toggles play and pause. On save Impress gave that sequence the slide's
+onPrev and onNext conditions instead of ending it on the next click of
+its trigger, and wrote the media command without its preset ID.
+PowerPoint then folded the command into the main sequence, so the
+video's fade-in read as a 0.001 second media call (Ely R15.11e). The
+sequence now ends on its own trigger, as PowerPoint writes it, and the
+three media presets map to PowerPoint's IDs: 1 play, 2 pause, 3 stop.
+diff --git a/oox/source/ppt/commontimenodecontext.cxx b/oox/source/ppt/commontimenodecontext.cxx
+index 6e982c216..7747c3e19 100644
+--- a/oox/source/ppt/commontimenodecontext.cxx
++++ b/oox/source/ppt/commontimenodecontext.cxx
+@@ -281,6 +281,10 @@ const preset_mapping* preset_mapping::getList()
+         { css::presentation::EffectPresetClass::MOTIONPATH, 39     ,"ooo-motionpath-s-curve-2" },
+         { css::presentation::EffectPresetClass::MOTIONPATH, 45     ,"ooo-motionpath-heartbeat" },
+ 
++        { css::presentation::EffectPresetClass::MEDIACALL, 1     ,"ooo-media-start" },
++        { css::presentation::EffectPresetClass::MEDIACALL, 2     ,"ooo-media-toggle-pause" },
++        { css::presentation::EffectPresetClass::MEDIACALL, 3     ,"ooo-media-stop" },
++
+         { 0,0,nullptr }
+     };
+ 
+diff --git a/sd/source/filter/eppt/pptx-animations.cxx b/sd/source/filter/eppt/pptx-animations.cxx
+index a534ca715..fb5e31d7a 100644
+--- a/sd/source/filter/eppt/pptx-animations.cxx
++++ b/sd/source/filter/eppt/pptx-animations.cxx
+@@ -989,8 +989,14 @@ void PPTXAnimationExport::WriteAnimationNodeSeq()
+ 
+     WriteAnimationNodeCommonPropsStart();
+ 
+-    WriteAnimationCondListForSeq(mpFS, XML_prevCondLst);
+-    WriteAnimationCondListForSeq(mpFS, XML_nextCondLst);
++    // A trigger's sequence ends on the next trigger click.
++    if (mpContext->getEffectNodeType() == EffectNodeType::INTERACTIVE_SEQUENCE)
++        WriteAnimationCondList(mpContext->getBeginCondList(), XML_nextCondLst);
++    else
++    {
++        WriteAnimationCondListForSeq(mpFS, XML_prevCondLst);
++        WriteAnimationCondListForSeq(mpFS, XML_nextCondLst);
++    }
+ 
+     mpFS->endElementNS(XML_p, XML_seq);
+ }

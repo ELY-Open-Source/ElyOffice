@@ -11,7 +11,6 @@ $known = @{
     'big.xlsx Pivot values' = @('84:7A6FCE40E019 -> 84:257FC29459A5', 'Calc sums pivot data in its own order: totals differ past the 13th digit')
     'big.xlsx Pivot formulas' = @('84:F449FD4F434D -> 84:DF2CC42F1714', 'Calc sums pivot data in its own order: totals differ past the 13th digit')
     'big.xlsx Calc formulas' = @('132:751ABAD09DB5 -> 132:9BCF94E2F266', 'Calc writes FALSE as FALSE() (R15.11f)')
-    'big.pptx motion' = @('60:24181814C350 -> 60:3AC993BF709B', 'the video loses its entrance effect (R15.11e)')
     'big.pptx sections' = @('3 -> 0', 'Impress has no sections; ElyShow saves a copy')
 }
 

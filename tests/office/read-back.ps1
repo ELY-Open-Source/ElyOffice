@@ -164,7 +164,7 @@ function Read-PowerPoint([string]$Path) {
                 if ($shape.HasChart) { $kinds += @(Get-Series $shape.Chart) }
             }
             $notes += $slide.NotesPage.Shapes.Placeholders.Item(2).TextFrame.TextRange.Text
-            $motion += "$($slide.SlideShowTransition.EntryEffect) " + (@(foreach ($e in $slide.TimeLine.MainSequence) { $e.EffectType }) -join ',')
+            $motion += "$($slide.SlideShowTransition.EntryEffect) " + (@(foreach ($e in $slide.TimeLine.MainSequence) { "$($e.EffectType)/$($e.Timing.Duration)" }) -join ',')
         }
         [ordered]@{
             edits = @($text | Where-Object { $_ -like "*$mark*" }).Count
