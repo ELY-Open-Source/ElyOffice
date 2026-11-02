@@ -1,0 +1,26 @@
+Writer undo uses the current view only when it shows the same document
+
+Under LibreOfficeKit, sw::UndoManager::impl_DoUndoRedo takes its edit
+shell from SfxViewShell::Current(). While a second document loads it
+has no view yet, so the current view belongs to the first document.
+The DOCX import undoes a paragraph whose style it cannot apply (a
+pStyle with no definition), and that undo moved the first document's
+cursor to node indices of the second: with two such paragraphs the
+index runs past the first document's nodes and the worker dies with
+an access violation, which the crash handler ends with exit code 0
+(Ely R15.13c). The current view now counts only for its own document;
+otherwise the document's own edit shell is used, as without LOK.
+diff --git a/sw/source/core/undo/docundo.cxx b/sw/source/core/undo/docundo.cxx
+index 8f9fc0e4e..5f68fb5ca 100644
+--- a/sw/source/core/undo/docundo.cxx
++++ b/sw/source/core/undo/docundo.cxx
+@@ -673,6 +673,9 @@ bool UndoManager::impl_DoUndoRedo(UndoOrRedoType undoOrRedo, size_t nUndoOffset)
+     UnoActionContext c(& rDoc); // exception-safe StartAllAction/EndAllAction
+ 
+     SwView* pViewShell = dynamic_cast<SwView*>(SfxViewShell::Current());
++    // The current view may show another document.
++    if (pViewShell && pViewShell->GetDocShell()->GetDoc() != &rDoc)
++        pViewShell = nullptr;
+     SwEditShell *const pEditShell(
+         comphelper::LibreOfficeKit::isActive() && pViewShell ? pViewShell->GetWrtShellPtr()
+         : rDoc.GetEditShell());

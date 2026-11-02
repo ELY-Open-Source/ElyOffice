@@ -14,6 +14,42 @@ fn alive(worker: &mut Worker, step: &str) {
 }
 
 #[test]
+fn three_documents_edit_save_and_close() {
+    let Some(install) = install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let office = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office");
+    let docs: Vec<Doc> = ["redline.docx", "toc.docx", "equation.docx"]
+        .iter()
+        .map(|name| worker.load(&crate::file_url(&office.join(name))).unwrap_or_else(|e| panic!("loading {name}: {e}")))
+        .collect();
+    let mut docs = docs.into_iter();
+    let (first, second, third) = (docs.next().expect("one"), docs.next().expect("two"), docs.next().expect("three"));
+    for round in 0..20 {
+        for c in "Ely edit ".chars() {
+            worker.post_key(&first, c as u32, 0).expect("a key posts");
+        }
+        alive(&mut worker, &format!("typing, round {round}"));
+        for (n, doc) in [&first, &second, &third].into_iter().enumerate() {
+            let copy = dir.path().join(format!("recovery-{n}.docx"));
+            doc.save_as(&mut worker, &crate::file_url(&copy), "docx").expect("a recovery copy");
+        }
+        alive(&mut worker, &format!("recovery copies, round {round}"));
+    }
+    worker.close_doc(third).expect("closes the third");
+    alive(&mut worker, "closing the third");
+    for c in "after ".chars() {
+        worker.post_key(&first, c as u32, 0).expect("a key posts after a close");
+    }
+    first.save_as(&mut worker, &crate::file_url(&dir.path().join("last.docx")), "docx").expect("saves after a close");
+    second.save_as(&mut worker, &crate::file_url(&dir.path().join("other.docx")), "docx").expect("saves the other");
+    alive(&mut worker, "after the close");
+}
+
+
+#[test]
 fn writer_dialog_keys_leave_every_document_working() {
     let Some(install) = install() else {
         return eprintln!("SKIP: no pinned LOK build");
