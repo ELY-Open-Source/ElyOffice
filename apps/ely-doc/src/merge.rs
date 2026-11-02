@@ -131,11 +131,7 @@ impl Render for Merge {
                 })
         };
         let Some(table) = self.table.clone() else {
-            let group =
-                PropertyGroup::new(text("doc.merge.title")).row(text("doc.merge.data"), choose);
-            return PropertyGrid::new("doc-merge")
-                .group(group)
-                .into_any_element();
+            return div().p_2().child(choose).into_any_element();
         };
         let fields = table
             .headers

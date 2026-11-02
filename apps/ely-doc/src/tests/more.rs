@@ -330,6 +330,51 @@ fn the_side_panel_hides_and_review_brings_it_back() {
     assert!(shown(&mut cx));
 }
 
+/// A window root that shows one view.
+struct Shown(gpui::AnyView);
+
+impl gpui::Render for Shown {
+    fn render(&mut self, _: &mut gpui::Window, _: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
+        use gpui::{ParentElement as _, Styled as _};
+        gpui::div().size_full().child(self.0.clone())
+    }
+}
+
+#[test]
+fn the_side_tabs_lead_back_from_mail_merge() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(|cx| {
+        ely_gpui_component::init_for_tests(cx);
+        ely_gpui_component::theme::Theme::update(cx, |theme| theme.reduced_motion = true);
+    });
+    blank(&mut cx, &docs);
+    cx.update(|app| docs.update(app, |docs, cx| docs.show_side(crate::docs::Side::Merge, cx)));
+    let column = cx.update(|app| docs.update(app, |docs, cx| docs.side_view(cx))).expect("a column");
+    let window = cx.add_window(|_, _| Shown(column));
+    let mut shown = gpui::VisualTestContext::from_window(window.into(), &cx);
+    let click = |shown: &mut gpui::VisualTestContext, tab: &'static str| {
+        // Past reduced motion's 1ms indicator.
+        for _ in 0..3 {
+            std::thread::sleep(std::time::Duration::from_millis(2));
+            shown.update(|window, _| window.refresh());
+            shown.run_until_parked();
+        }
+        let bounds = shown.debug_bounds(tab).expect("the tab is drawn");
+        shown.simulate_click(bounds.center(), gpui::Modifiers::none());
+        shown.run_until_parked();
+    };
+    click(&mut shown, "tab-0");
+    assert_eq!(cx.update(|app| docs.read(app).side), crate::docs::Side::Props, "Format comes back");
+    click(&mut shown, "tab-2");
+    assert_eq!(cx.update(|app| docs.read(app).side), crate::docs::Side::Merge);
+    assert!(cx.update(|app| ely_ui::settings::panels::shown(false, app)), "the column stays open");
+}
+
 #[test]
 fn a_default_zoom_opens_each_document_at_it() {
     use ely_platform::settings::DocZoom;

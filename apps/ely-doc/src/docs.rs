@@ -40,6 +40,7 @@ pub struct Docs {
     pub side: Side,
     pub offer: Option<ely_ui::menu::Offer<ely_lok::menu::Offered>>,
     pub merge: Entity<crate::merge::Merge>,
+    pub column: Entity<crate::chrome::Column>,
     pub navigator: Entity<crate::navigate::Navigator>,
     /// Where jumps left from, latest last.
     pub back: Vec<(u64, ely_lok::Rect)>,
@@ -178,6 +179,7 @@ impl Docs {
         let review = cx.new(|_| Review::new(Arc::clone(&worker)));
         let weak = cx.weak_entity();
         let merge = cx.new(|_| crate::merge::Merge::new(weak.clone()));
+        let column = cx.new(|_| crate::chrome::Column { docs: weak.clone() });
         let navigator = cx.new(|_| crate::navigate::Navigator::new(weak, Arc::clone(&worker)));
         let failed = |docs: &mut Docs, error: &LokError, cx: &mut Context<Docs>| {
             docs.engine_failed(&error.0, cx)
@@ -199,6 +201,7 @@ impl Docs {
             side: Side::Props,
             offer: None,
             merge,
+            column,
             navigator,
             back: Vec::new(),
             going: None,
