@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::ffi::Document;
+use crate::ffi::{Document, Raw};
 
 mod cell;
 mod parse;
@@ -94,6 +94,8 @@ pub struct Events {
     pub searched: u64,
     /// Bumps when the document's size changes.
     pub resized: u64,
+    /// Bumps when a dialog Ely closed has ended.
+    pub dismissed: u64,
     /// The last search's matches; empty when none.
     pub found: Vec<Rect>,
     /// A context menu the kernel offered, as JSON.
@@ -194,7 +196,7 @@ unsafe extern "C" fn on_event(kind: i32, payload: *const c_char, data: *mut c_vo
     if !KINDS.contains(&kind) || data.is_null() {
         return;
     }
-    let (id, raw) = unsafe { *data.cast::<(u64, crate::ffi::Raw)>() };
+    let (id, raw) = unsafe { *data.cast::<(u64, Raw)>() };
     let text = if payload.is_null() {
         String::new()
     } else {
@@ -204,16 +206,13 @@ unsafe extern "C" fn on_event(kind: i32, payload: *const c_char, data: *mut c_vo
     };
     let close = {
         let mut slots = slots().lock().expect("the events lock");
-        let Some(slot) = slots.get_mut(&id) else {
-            return;
-        };
+        let Some(slot) = slots.get_mut(&id) else { return };
         let close = record(slot, kind, &text);
         slot.batch.seq += 1;
         close
     };
     if let Some(window) = close {
-        // Outside the lock: closing calls back in.
-        crate::ffi::close_window(raw, window);
+        crate::worker::closing::later(id, raw, window);
     }
     signal().notify_all();
 }
@@ -313,9 +312,12 @@ fn record(slot: &mut Slot, kind: i32, text: &str) -> Option<u32> {
             batch.a11y.text = formula_text(text).expect("checked above");
         }
         WINDOW | JSDIALOG => match dialog_of(kind == JSDIALOG, text)? {
-            Dialog::Titled { window, title } => {
-                slot.titles.insert(window, title);
+            Dialog::Titled { window, title } => { slot.titles.insert(window, title); }
+            Dialog::Gone { window } if slot.closed.contains(&window) => {
+                log::info!("lok: kernel dialog {window} ended");
+                batch.dismissed += 1;
             }
+            Dialog::Gone { .. } => {}
             Dialog::Opened { window, title } => {
                 if !slot.closed.insert(window) {
                     return None;
@@ -323,7 +325,7 @@ fn record(slot: &mut Slot, kind: i32, text: &str) -> Option<u32> {
                 let title = title
                     .or_else(|| slot.titles.get(&window).cloned())
                     .unwrap_or_else(|| format!("window {window}"));
-                log::warn!("lok: closed kernel dialog {window} ({title})");
+                log::warn!("lok: closing kernel dialog {window} ({title})");
                 batch.blocked.push(title);
                 return Some(window);
             }

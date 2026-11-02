@@ -19,6 +19,8 @@ pub enum Dialog {
     Opened { window: u32, title: Option<String> },
     /// A window got its title.
     Titled { window: u32, title: String },
+    /// A tunneled window ended.
+    Gone { window: u32 },
 }
 
 /// A payload that is neither a rectangle nor empty.
@@ -189,6 +191,9 @@ pub fn dialog_of(jsdialog: bool, text: &str) -> Option<Dialog> {
             title: title?,
         });
     }
+    if !jsdialog && action == "close" {
+        return Some(Dialog::Gone { window });
+    }
     let opens = if jsdialog {
         json["jsontype"] == "dialog" && action != "close"
     } else {
@@ -341,7 +346,7 @@ mod tests {
     fn opened(event: Option<Dialog>) -> Option<(u32, Option<String>)> {
         match event? {
             Dialog::Opened { window, title } => Some((window, title)),
-            Dialog::Titled { .. } => None,
+            Dialog::Titled { .. } | Dialog::Gone { .. } => None,
         }
     }
 
@@ -357,6 +362,8 @@ mod tests {
             r#"{"id":"2","action":"title_changed","title":"Delete"}"#,
         );
         assert!(matches!(titled, Some(Dialog::Titled { window: 2, .. })));
+        let gone = dialog_of(false, r#"{"id":"7","action":"close"}"#);
+        assert!(matches!(gone, Some(Dialog::Gone { window: 7 })));
         let js = r#"{"id":"Delete","text":"Delete Contents","id":2,"jsontype":"dialog"}"#;
         assert_eq!(
             opened(dialog_of(true, js)),

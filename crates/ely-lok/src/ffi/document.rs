@@ -394,6 +394,9 @@ impl Drop for Document {
 #[derive(Clone, Copy)]
 pub struct Raw(*mut Doc);
 
+// SAFETY: dereferenced only on the kernel's thread.
+unsafe impl Send for Raw {}
+
 impl Document {
     pub fn raw(&self) -> Raw {
         Raw(self.doc)

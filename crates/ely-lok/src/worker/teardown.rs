@@ -6,6 +6,7 @@ use super::{LOK, docs, quit};
 pub(super) fn teardown_work() -> io::Result<()> {
     let mut docs = docs().lock().expect("the docs lock");
     crate::events::stop_all(&docs);
+    docs.keys().for_each(|id| super::closing::forget(*id));
     docs.clear();
     let kit = LOK.swap(std::ptr::null_mut(), std::sync::atomic::Ordering::SeqCst);
     if !kit.is_null() {

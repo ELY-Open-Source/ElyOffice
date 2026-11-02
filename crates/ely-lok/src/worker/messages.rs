@@ -15,12 +15,13 @@ use windows_sys::Win32::{
     },
 };
 
-use super::{answer, asked, events, lok, pin, quit, teardown};
+use super::{answer, asked, closing, events, lok, pin, quit, teardown};
 use crate::ffi::Lok;
 use crate::ipc;
 
 const ASK: u32 = WM_APP + 1;
 const CLOSED: u32 = WM_APP + 2;
+const DUE: u32 = WM_APP + 3;
 
 /// The message-only window the requests go to.
 static WINDOW: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
@@ -122,6 +123,13 @@ fn reader(mut input: impl io::Read) {
     }
 }
 
+/// Asks the loop to close the due dialogs.
+pub(super) fn nudge() {
+    if unsafe { PostMessageW(WINDOW.load(Ordering::SeqCst), DUE, 0, 0) } == 0 {
+        log::error!("lok-worker: a dialog close did not post: {}", io::Error::last_os_error());
+    }
+}
+
 /// Idle jobs yield to a waiting request.
 extern "C" fn waiting(_: *mut c_void, _: i32) -> bool {
     PENDING.load(Ordering::SeqCst) > 0
@@ -142,6 +150,10 @@ unsafe extern "system" fn procedure(
             0
         }
         CLOSED => teardown::teardown(0),
+        DUE => {
+            closing::now();
+            0
+        }
         _ => unsafe { DefWindowProcW(window, message, wparam, lparam) },
     }
 }

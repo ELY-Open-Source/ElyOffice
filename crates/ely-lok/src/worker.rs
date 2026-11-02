@@ -13,6 +13,7 @@ mod events;
 mod fatal;
 mod input;
 mod asked;
+pub(crate) mod closing;
 mod revision;
 mod slides;
 mod teardown;
@@ -359,6 +360,7 @@ fn close(id: u64) {
     if let Some(doc) = docs.get(&id) {
         crate::events::unwatch(id, doc);
     }
+    closing::forget(id);
     docs.remove(&id);
     revision::forget(id);
     slides::forget(id);

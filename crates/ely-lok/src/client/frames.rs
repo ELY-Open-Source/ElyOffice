@@ -21,6 +21,7 @@ fn unpack_pushed(body: &[u8]) -> io::Result<(u64, Events)> {
     let review = unpack.u64()?;
     let searched = unpack.u64()?;
     let resized = unpack.u64()?;
+    let dismissed = unpack.u64()?;
     let found = rects_of(&mut unpack)?;
     let menu = Some(unpack.str()?).filter(|menu| !menu.is_empty());
     let faults = (0..unpack.u64()?)
@@ -66,6 +67,7 @@ fn unpack_pushed(body: &[u8]) -> io::Result<(u64, Events)> {
         review,
         searched,
         resized,
+        dismissed,
         found,
         menu,
         faults,

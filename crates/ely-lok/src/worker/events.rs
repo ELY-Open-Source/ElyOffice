@@ -43,7 +43,8 @@ fn pack_events(batch: Events) -> Vec<u8> {
     let pack = pack
         .u64(batch.review)
         .u64(batch.searched)
-        .u64(batch.resized);
+        .u64(batch.resized)
+        .u64(batch.dismissed);
     let pack = rects(pack, &batch.found);
     let pack = pack.str(batch.menu.as_deref().unwrap_or_default());
     let pack = batch
