@@ -217,3 +217,66 @@ fn the_pointer_is_text_only_while_a_cell_edits() {
     });
     assert_eq!(editing.pointer, "text", "the edited cell shows the text pointer");
 }
+
+#[test]
+fn pasted_lines_of_tabbed_text_fill_cells_without_a_dialog() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = open_sheet();
+    for row in 3..=8 {
+        for column in ["A", "B", "C"] {
+            worker.run(&doc, "cell.set", &[&format!("S!{column}{row}"), "old"]).expect("old content");
+        }
+    }
+    let mut seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
+    // Issue #56: Chinese lines, empty fields, a quoted line break.
+    let blocks = [
+        ("A3", "商品名称\t规格\t\nA4纸\t\t\n"),
+        ("A6", "商品\t\"一行\n二行\"\t50\n另一件\t规格\t60\n"),
+        ("A8", "x\t\"一行\n\"\t\"\n\"\n"),
+    ];
+    for (at, text) in blocks {
+        worker.run(&doc, "cell.goto", &[at]).expect("the target");
+        let pasted = worker.paste(&doc, "text/plain;charset=utf-8", text.as_bytes());
+        seen = poll_until(&mut worker, &doc, &seen, SETTLE, |_| false);
+        assert!(seen.blocked.is_empty(), "no dialog opens: {:?}", seen.blocked);
+        pasted.expect("the text pastes");
+    }
+    let mut cell = |address: &str| {
+        let json = worker.values(&doc, &crate::sheet::cell_at_query(&format!("S!{address}"))).expect("a cell");
+        crate::sheet::cell_at(&json).expect("readable").text
+    };
+    let rows: Vec<Vec<String>> = (3..=8).map(|row| ["A", "B", "C"].map(|column| cell(&format!("{column}{row}"))).to_vec()).collect();
+    assert_eq!(
+        rows,
+        [
+            ["商品名称", "规格", ""],
+            ["A4纸", "", ""],
+            ["old", "old", "old"],
+            ["商品", "一行\n二行", "50"],
+            ["另一件", "规格", "60"],
+            ["x", "一行\n", "\n"],
+        ]
+    );
+}
+
+#[test]
+fn a_skipped_trailing_column_keeps_its_cell() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = open_sheet();
+    worker.run(&doc, "cell.set", &["S!A3", "one\ttwo\t"]).expect("A3");
+    worker.run(&doc, "cell.set", &["S!C3", "old"]).expect("C3");
+    worker.run(&doc, "cell.goto", &["A3"]).expect("A3");
+    // Text to Columns by tab, the third column skipped
+    worker.run(&doc, "data.columns", &["9,34,76,1,3/9,0,false,true,false,false,false,0,false"]).expect("the split");
+    let mut cell = |address: &str| {
+        let json = worker.values(&doc, &crate::sheet::cell_at_query(&format!("S!{address}"))).expect("a cell");
+        crate::sheet::cell_at(&json).expect("readable").text
+    };
+    assert_eq!(["A3", "B3", "C3"].map(&mut cell), ["one", "two", "old"]);
+}

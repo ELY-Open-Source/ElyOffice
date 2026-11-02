@@ -1,0 +1,91 @@
+Calc pastes multi-line text without the Text Import dialog under LOK
+
+Pasting text with more than one line made Calc open its Text Import
+dialog for every view except a LOK mobile phone. An Ely client closes
+every kernel dialog, so the import never ran and the paste failed with
+"the engine did not paste" (Ely R15.27, issue #56). Under LOK the text
+now imports with fixed options, as Excel pastes: tab-separated, '"'
+quotes (a quoted field may hold a line break), special numbers such as
+dates detected, one undo step. Setting the options selects the full
+CSV reader (ExtText2Doc); the plain line reader split quoted line
+breaks. The Markdown chooser in the same branch is skipped too; it
+would be one more dialog the client closes.
+
+ExtText2Doc changes, for imports into an existing sheet only (paste,
+insert, Text to Columns, all with undo); whole-file imports are as
+before:
+- It sizes the range and clears it before writing. A line ending in a
+  separator has one more, empty, field, which the sizing never
+  counted, so that cell kept its old content. The sizing pass now
+  counts it, unless the column info skips that column.
+- It cut one trailing newline from every field, a speed workaround for
+  some CSV files. A pasted quoted field such as "a<LF>" lost real
+  content that way; with undo the field is kept whole.
+
+diff --git a/sc/source/ui/docshell/impex.cxx b/sc/source/ui/docshell/impex.cxx
+index 0d08d1f74..92a25889f 100644
+--- a/sc/source/ui/docshell/impex.cxx
++++ b/sc/source/ui/docshell/impex.cxx
+@@ -1679,7 +1679,8 @@ bool ScImportExport::ExtText2Doc( SvStream& rStrm )
+                             cStr, pSeps, bMerge, bIsQuoted, bOverflowCell, bRemoveSpace );
+                     // some dodgy CSVs have a trailing linefeed in each token, which will
+                     // make the code think that we have a multi-line field, which will slow things down a lot.
+-                    if (aCell.endsWith("\n"))
++                    // Pasted fields keep their newlines
++                    if (!bUndo && aCell.endsWith("\n"))
+                         aCell = aCell.copy(0, aCell.getLength()-1);
+ 
+                     sal_uInt8 nFmt = SC_COL_STANDARD;
+@@ -1721,6 +1722,17 @@ bool ScImportExport::ExtText2Doc( SvStream& rStrm )
+                     }
+                     ++nSourceCol;
+                 }
++                // A trailing separator ends one more, empty, field
++                if (bDetermineRange && !bMerge && !aLine.isEmpty() && nCol <= rDoc.MaxCol()
++                    && ScGlobal::UnicodeStrChr(pSeps, aLine[aLine.getLength() - 1]))
++                {
++                    sal_uInt8 nFmt = SC_COL_STANDARD;
++                    for (i = nInfoStart; i < nInfoCount; i++)
++                        if (pColStart[i] == nSourceCol + 1)
++                            nFmt = pColFormat[i];
++                    if (nFmt != SC_COL_SKIP)
++                        ++nCol;
++                }
+             }
+             if (nEndCol < nCol)
+                 nEndCol = nCol;     //! points to the next free or even rDoc.MaxCol()+2
+diff --git a/sc/source/ui/view/viewfun5.cxx b/sc/source/ui/view/viewfun5.cxx
+index 5a401d20e..db1d2197f 100644
+--- a/sc/source/ui/view/viewfun5.cxx
++++ b/sc/source/ui/view/viewfun5.cxx
+@@ -849,10 +849,9 @@ bool ScViewFunc::PasteDataFormatFormattedText( SotClipboardFormatId nFormatId,
+     else if ((nFormatId == SotClipboardFormatId::STRING || nFormatId == SotClipboardFormatId::STRING_TSVC)
+             && rDataHelper.GetString( nFormatId, *pStrBuffer ))
+     {
+-        // Do CSV dialog if more than one line. But not if invoked from Automation.
+-        const SfxViewShell* pViewShell = SfxViewShell::Current();
++        // CSV dialog for several lines; none under LOK or Automation.
+         sal_Int32 nDelim = pStrBuffer->indexOf('\n');
+-        if (!(pViewShell && pViewShell->isLOKMobilePhone()) && !comphelper::Automation::AutomationInvokedZone::isActive()
++        if (!comphelper::LibreOfficeKit::isActive() && !comphelper::Automation::AutomationInvokedZone::isActive()
+             && nDelim >= 0 && nDelim != pStrBuffer->getLength () - 1)
+         {
+             vcl::Window* pParent = GetActiveWin();
+@@ -930,7 +929,17 @@ bool ScViewFunc::PasteDataFormatFormattedText( SotClipboardFormatId nFormatId,
+             return true;
+         }
+         else
++        {
++            // Tab-separated with quotes, as Excel pastes
++            if (comphelper::LibreOfficeKit::isActive())
++            {
++                ScAsciiOptions aOptions;
++                aOptions.SetFieldSeps(u"\t"_ustr);
++                aOptions.SetDetectSpecialNumber(true);
++                pObj->SetExtOptions(aOptions);
++            }
+             bRet = pObj->ImportString( *pStrBuffer, nFormatId );
++        }
+     }
+     else if ((nFormatId != SotClipboardFormatId::STRING && nFormatId != SotClipboardFormatId::STRING_TSVC)
+             && rDataHelper.GetString( nFormatId, *pStrBuffer ))
