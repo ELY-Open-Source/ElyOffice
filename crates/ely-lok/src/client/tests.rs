@@ -18,6 +18,7 @@ mod formula;
 mod handouts;
 #[cfg(windows)]
 mod handles;
+mod booleans;
 mod independent;
 mod kept;
 mod pivot;

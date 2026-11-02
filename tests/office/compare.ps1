@@ -10,7 +10,6 @@ $known = @{
     'big.docx pages' = @('105:5614230D39F7 -> 105:359DB6FEE34A', 'an untitled TOC gains a line on update (R15.11c)')
     'big.xlsx Pivot values' = @('84:7A6FCE40E019 -> 84:257FC29459A5', 'Calc sums pivot data in its own order: totals differ past the 13th digit')
     'big.xlsx Pivot formulas' = @('84:F449FD4F434D -> 84:DF2CC42F1714', 'Calc sums pivot data in its own order: totals differ past the 13th digit')
-    'big.xlsx Calc formulas' = @('132:751ABAD09DB5 -> 132:9BCF94E2F266', 'Calc writes FALSE as FALSE() (R15.11f)')
     'big.pptx sections' = @('3 -> 0', 'Impress has no sections; ElyShow saves a copy')
 }
 

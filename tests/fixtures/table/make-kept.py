@@ -20,6 +20,15 @@ KEPT = (
     """</row>"""
 )
 
+# Excel's bare TRUE and FALSE.
+BOOLEANS = (
+    """<row r="1">"""
+    """<c r="A1"><v>2</v></c>"""
+    """<c r="B1" t="b"><f>IF(A1&gt;0,TRUE,FALSE)</f><v>1</v></c>"""
+    """<c r="C1"><f>VLOOKUP(2,A1:B1,1,FALSE)</f><v>2</v></c>"""
+    """</row>"""
+)
+
 # Booleans, empty and missing results, a bad number, arrays, volatile inputs.
 MORE = (
     """<row r="1">"""
@@ -222,7 +231,8 @@ for name, parts in [("kept.xlsx", files(KEPT)), ("kept-more.xlsx", files(MORE)),
                     ("kept-strings.xlsx", files(STRINGS, NAMES, SHARED)),
                     ("spill.xlsx", files(SPILL, meta=METADATA)),
                     ("spill-broken.xlsx", files(SPILL, meta="<metadata")),
-                    ("spill-empty.xlsx", files(SPILL, meta=""))]:
+                    ("spill-empty.xlsx", files(SPILL, meta="")),
+                    ("booleans.xlsx", files(BOOLEANS))]:
     with zipfile.ZipFile(os.path.join(sys.argv[1], name), "w", zipfile.ZIP_DEFLATED) as out:
         for part, text in parts.items():
             info = zipfile.ZipInfo(part, (2026, 10, 28, 0, 0, 0))

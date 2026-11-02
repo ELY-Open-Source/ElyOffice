@@ -1,0 +1,33 @@
+XLSX formulas keep Excel's bare TRUE and FALSE
+
+Excel writes a logical constant in a formula as TRUE or FALSE. Calc
+parses the bare word as the function TRUE() or FALSE(), adding the
+parentheses, and wrote them back, so every save changed the formula
+text Excel shows (Ely R15.11f). The OOXML writer now drops the empty
+parentheses after TRUE and FALSE; the value is the same in Excel and
+Calc. A file that spelled FALSE() itself is also written FALSE.
+diff --git a/formula/source/core/api/FormulaCompiler.cxx b/formula/source/core/api/FormulaCompiler.cxx
+index 680f8c583..c0eca5922 100644
+--- a/formula/source/core/api/FormulaCompiler.cxx
++++ b/formula/source/core/api/FormulaCompiler.cxx
+@@ -2768,6 +2768,20 @@ const FormulaToken* FormulaCompiler::CreateStringFromToken( OUStringBuffer& rBuf
+     }
+     if( bSpaces )
+         rBuffer.append( ' ');
++    // Excel writes a bare TRUE or FALSE.
++    if (bAllowArrAdvance && mxSymbols->isOOXML() && (eOp == ocTrue || eOp == ocFalse))
++    {
++        const FormulaToken* pOpen = maArrIterator.PeekNext();
++        if (pOpen && pOpen->GetOpCode() == ocOpen)
++        {
++            maArrIterator.Next();
++            const FormulaToken* pClose = maArrIterator.PeekNext();
++            if (pClose && pClose->GetOpCode() == ocClose)
++                maArrIterator.Next();
++            else
++                rBuffer.append(mxSymbols->getSymbol(ocOpen));
++        }
++    }
+     if ( bAllowArrAdvance )
+     {
+         if( bNext )
