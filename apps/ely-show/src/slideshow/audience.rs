@@ -3,6 +3,7 @@
 use ely_gpui_component::{
     feedback::InlineMessage,
     primitives::{FocusScope, Severity},
+    theme::ActiveTheme as _,
 };
 use gpui::{
     Context, Entity, FocusHandle, InteractiveElement as _, IntoElement, MouseButton,
@@ -59,6 +60,7 @@ impl Render for Audience {
         // Keys reach ancestors of the focused scope.
         div()
             .size_full()
+            .font_family(cx.theme().font_family.clone())
             .on_key_down(move |event, _, cx| {
                 if keys.update(cx, |show, cx| show.key(&event.keystroke, cx)) {
                     cx.stop_propagation();

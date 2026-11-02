@@ -272,10 +272,11 @@ impl Render for Root {
             None => Shell::new(self.app.name(), &self.focus).into_any_element(),
         };
         let has = |id| self.file.iter().any(|command| command.id == id);
-        // Text without its own color, overlays too, takes the theme's.
+        // Unstyled text, overlays too, takes the theme's.
         let frame = div()
             .size_full()
             .text_color(cx.theme().colors.fg)
+            .font_family(cx.theme().font_family.clone())
             .key_context(commands::CONTEXT)
             .on_action(cx.listener(|this, _: &New, _, cx| this.attempt("file.new", cx)))
             .on_action(cx.listener(|this, _: &Open, _, cx| this.attempt("file.open", cx)))
@@ -391,13 +392,19 @@ mod tests {
         assert_eq!(cx.update(|cx| root.read(cx).toasts(cx).len()), 1, "the reason shows");
     }
 
-    type Seen = std::rc::Rc<std::cell::Cell<Option<gpui::Hsla>>>;
+    type Seen = std::rc::Rc<std::cell::RefCell<Option<(gpui::Hsla, gpui::SharedString)>>>;
 
-    /// Records its drawn text color, and an overlay's.
+    /// Records its drawn text color and font, and an overlay's.
     struct Inked(Seen, Seen);
 
     fn ink(seen: Seen) -> impl IntoElement {
-        gpui::canvas(move |_, window, _| seen.set(Some(window.text_style().color)), |_, _, _, _| {})
+        gpui::canvas(
+            move |_, window, _| {
+                let style = window.text_style();
+                *seen.borrow_mut() = Some((style.color, style.font_family));
+            },
+            |_, _, _, _| {},
+        )
     }
 
     impl Render for Inked {
@@ -410,7 +417,7 @@ mod tests {
     }
 
     #[gpui::test]
-    fn text_without_a_color_takes_the_theme_overlays_too(cx: &mut TestAppContext) {
+    fn unstyled_text_takes_the_theme_overlays_too(cx: &mut TestAppContext) {
         use ely_gpui_component::theme::{ActiveTheme as _, Mode, Theme};
         cx.update(|cx| {
             ely_gpui_component::init_for_tests(cx);
@@ -431,9 +438,11 @@ mod tests {
         let cx = &mut gpui::VisualTestContext::from_window(window.into(), cx);
         cx.update(|window, _| window.refresh());
         cx.run_until_parked();
-        let fg = cx.update(|_, cx| cx.theme().colors.fg);
+        let (fg, family) = cx.update(|_, cx| (cx.theme().colors.fg, cx.theme().font_family.clone()));
         assert_ne!(fg, gpui::black(), "dark text would hide on a dark page");
-        assert_eq!(page.get(), Some(fg), "the page");
-        assert_eq!(overlay.get(), Some(fg), "an overlay over it");
+        assert_ne!(family.as_ref(), ".SystemUIFont", "the theme names its own font");
+        let want = Some((fg, family));
+        assert_eq!(*page.borrow(), want, "the page");
+        assert_eq!(*overlay.borrow(), want, "an overlay over it");
     }
 }
