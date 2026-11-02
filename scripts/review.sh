@@ -21,7 +21,7 @@ prompt="You review item $id of Ely Office, round $round. Work dir is the project
 Read the line for $id in $list and the PRD.md sections it cites (for tasks/BUGS.md: its entry in docs/BugList.md); the items before it in that list are done.
 Scope: $scope
 Find defects only: behavior that breaks the PRD, errors swallowed, silent fallbacks, dead code, files over 500 lines, comments over one line or ten words, boxes inside boxes or useless subtitles in UI, abstractions with one user, missing or weak tests, claims no evidence backs. Build and run the tests yourself.
-Copies of the tree you build for probes use their own CARGO_TARGET_DIR, never ./target: crates bake their source path in. Delete those copies and their target dirs before you write the verdict; keep only small logs, in .work/ under the project root. Write nothing in the folder above the project.
+Copies of the tree you build for probes use their own CARGO_TARGET_DIR, never ./target: crates bake their source path in. Write the verdict first, then delete those copies and their target dirs; keep only small logs, in .work/ under the project root. If a deletion is refused, add a last line to the verdict naming what is left. Write nothing in the folder above the project.
 On Windows, build and run nothing under %TEMP%: Application Control blocks programs there. Linux runs in WSL (wsl -d Ubuntu); its clone at ~/Documents/Github/ElyOffice holds this tree's changes.
 Do not suggest enhancements. Do not reject for taste. Edit no file except the verdict.
 Round 2 and later: read the previous verdict tasks/reviews/$id-r$((round - 1)).md, confirm each defect is fixed, then look for new defects in changed code.
