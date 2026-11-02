@@ -1,5 +1,7 @@
 ; Installs the ticked apps, each by its own setup.
 Unicode true
+ManifestDPIAware true
+ManifestDPIAwareness PerMonitorV2
 !include "MUI2.nsh"
 
 !ifndef VERSION

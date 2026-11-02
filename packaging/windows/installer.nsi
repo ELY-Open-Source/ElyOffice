@@ -1,5 +1,7 @@
 ; Per-user installer; pass each define the checks below name.
 Unicode true
+ManifestDPIAware true
+ManifestDPIAwareness PerMonitorV2
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
 
