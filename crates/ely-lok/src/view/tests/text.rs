@@ -65,7 +65,7 @@ fn scrolled_text_and_hints_hide_but_frozen_text_stays_visible() {
                 view.scroll = scroll;
                 assert_eq!(view.is_visible(cell), visible);
                 assert_eq!(
-                    view.text_caret().is_some(),
+                    view.text_caret(view.seen()).is_some(),
                     visible,
                     "{anchor:?} {frozen:?}"
                 );
@@ -124,7 +124,7 @@ fn formula_caret_paint_and_ime_follow_the_same_scrolled_cell() {
                 view.geom = Geom { zoom, dpi };
                 let (_, y, _, _) = view.tile_rect(cell);
                 view.scroll = (0, y - 600);
-                let caret = view.text_caret().unwrap();
+                let caret = view.text_caret(view.seen()).unwrap();
                 let ime = view.cursor_bounds().unwrap();
                 let selected = view.text_selection()[0];
                 let cell = view.screen_rect(cell);
@@ -155,7 +155,7 @@ fn formula_caret_paint_and_ime_follow_the_same_scrolled_cell() {
                 None,
                 cx,
             );
-            assert_eq!(view.text_caret(), Some(view.screen_rect((20, 30, 0, 300))));
+            assert_eq!(view.text_caret(view.seen()), Some(view.screen_rect((20, 30, 0, 300))));
             assert!(
                 view.text_selection().is_empty(),
                 "a cleared selection loses its anchor"

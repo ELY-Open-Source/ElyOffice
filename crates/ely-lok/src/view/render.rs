@@ -308,31 +308,27 @@ impl LokView {
         }
         self.clamp_scroll();
         let geom = self.geom;
-        let (sx, sy) = self.scroll;
         let extent = self.extent();
         self.spare = self.slack();
         let pages = if self.pages.is_empty() {
-            vec![self.tile_screen_rect((0, 0, extent.0, extent.1))]
+            vec![self.tile_screen_rect(self.seen(), (0, 0, extent.0, extent.1))]
         } else {
             self.pages
                 .iter()
                 .map(|&page| self.screen_rect(page))
                 .collect()
         };
-        let (vw, vh) = (
-            geom.twips_of(bounds.size.width.into()),
-            geom.twips_of(bounds.size.height.into()),
-        );
-        let scale = (geom.tile_pixels(), TILE_TWIPS);
-        if self.shown != Some(((sx, sy, vw, vh), scale)) {
+        let (visible, scale) = self.asked();
+        let (_, sy, vw, vh) = visible;
+        if self.moved() {
             // Only up and down moves set the heading.
             if let Some(((_, before, _, _), _)) = self.shown.filter(|&((_, y, _, _), was)| was == scale && sy != y) {
                 self.heading = (sy - before).signum();
             }
-            self.shown = Some(((sx, sy, vw, vh), scale));
+            self.shown = Some((visible, scale));
             self.filling.get_or_insert_with(std::time::Instant::now);
             self.failed.clear();
-            self.send(input::Input::Visible((sx, sy, vw, vh), scale));
+            self.send(input::Input::Visible(visible, scale));
         }
         let side = px(geom.px_of(TILE_TWIPS));
         let at = |vx: i32, vy: i32| {
@@ -361,7 +357,7 @@ impl LokView {
             .collect();
         let (pages, tiles) = self.screen(bounds.origin, pages, ready);
         let rect = |rect: Rect| self.screen_rect(rect);
-        let caret = self.text_caret().filter(|_| self.cursor_visible);
+        let caret = self.text_caret(self.seen()).filter(|_| self.cursor_visible);
         let half = self.handle_size / 2.0;
         let frame = self.frame().map(|frame| {
             let squares = handles::points(frame)

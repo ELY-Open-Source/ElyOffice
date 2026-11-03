@@ -22,6 +22,9 @@ pub(super) type Placed = (Bounds<Pixels>, Arc<RenderImage>, Bounds<Pixels>);
 /// Scroll, geom and margins a screen was drawn at.
 pub(super) type Seen = ((i32, i32), Geom, (f32, f32));
 
+/// A visible area in tile twips and its tile scale.
+pub(super) type Asked = ((i32, i32, i32, i32), (u32, i32));
+
 /// The last whole screen.
 pub(super) struct Whole {
     origin: Point<Pixels>,
@@ -73,12 +76,31 @@ impl LokView {
 
     /// Whether `keys` still lack tiles; failed ones never come.
     fn lacks(&self, keys: &[(i32, i32)]) -> bool {
+        // A move retries failed tiles, as `prepare` will.
+        let moved = self.moved();
         keys.iter().any(|key| {
-            !self.failed.contains(&(*key, self.generation)) && self.tiles.get(key).is_none_or(|tile| tile.stale)
+            (moved || !self.failed.contains(&(*key, self.generation)))
+                && self.tiles.get(key).is_none_or(|tile| tile.stale)
         })
     }
 
-    /// The screen shown: held until the view's is whole.
+    /// The visible area and scale asked of the kernel.
+    pub(super) fn asked(&self) -> Asked {
+        let (vw, vh) = (self.geom.twips_of(self.viewport.0), self.geom.twips_of(self.viewport.1));
+        ((self.scroll.0, self.scroll.1, vw, vh), (self.geom.tile_pixels(), TILE_TWIPS))
+    }
+
+    /// Whether the asked area differs from the last one sent.
+    pub(super) fn moved(&self) -> bool {
+        self.shown != Some(self.asked())
+    }
+
+    /// The screen last drawn; input maps by it.
+    pub(super) fn drawn(&self) -> Seen {
+        self.whole.as_ref().map_or((self.scroll, self.geom, self.spare), |whole| whole.seen)
+    }
+
+    /// The screen the next frame draws; drawing maps by it.
     pub(super) fn seen(&self) -> Seen {
         let target = (self.scroll, self.geom, self.spare);
         match &self.whole {

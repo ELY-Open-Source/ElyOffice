@@ -2,7 +2,7 @@
 
 use gpui::{Bounds, Pixels};
 
-use super::{Geom, LokView};
+use super::{Geom, LokView, reveal::Seen};
 use crate::{Events, Rect};
 
 #[derive(Default)]
@@ -58,30 +58,31 @@ impl LokView {
         moved
     }
 
-    pub(super) fn text_caret(&self) -> Option<Bounds<Pixels>> {
-        let geom = self.seen().1;
+    pub(super) fn text_caret(&self, seen: Seen) -> Option<Bounds<Pixels>> {
+        let geom = seen.1;
         let rect = match self.text.cursor {
             Some((rect, anchor)) => self.text_tile_rect(geom, rect, anchor),
             None => self.tile_rect_at(geom, self.cursor?),
         };
-        (rect.3 > 0 && self.tile_visible(rect)).then(|| self.tile_screen_rect(rect))
+        (rect.3 > 0 && self.tile_visible(seen, rect)).then(|| self.tile_screen_rect(seen, rect))
     }
 
     pub(super) fn text_selection(&self) -> Vec<Bounds<Pixels>> {
-        let geom = self.seen().1;
+        let seen = self.seen();
+        let geom = seen.1;
         match &self.text.selection {
             Some((rects, anchor)) => rects
                 .iter()
                 .map(|&rect| self.text_tile_rect(geom, rect, *anchor))
-                .filter(|&rect| rect.2 > 0 && rect.3 > 0 && self.tile_visible(rect))
-                .map(|rect| self.tile_screen_rect(rect))
+                .filter(|&rect| rect.2 > 0 && rect.3 > 0 && self.tile_visible(seen, rect))
+                .map(|rect| self.tile_screen_rect(seen, rect))
                 .collect(),
             None => self
                 .selection
                 .iter()
                 .map(|&rect| self.tile_rect_at(geom, rect))
-                .filter(|&rect| rect.2 > 0 && rect.3 > 0 && self.tile_visible(rect))
-                .map(|rect| self.tile_screen_rect(rect))
+                .filter(|&rect| rect.2 > 0 && rect.3 > 0 && self.tile_visible(seen, rect))
+                .map(|rect| self.tile_screen_rect(seen, rect))
                 .collect(),
         }
     }

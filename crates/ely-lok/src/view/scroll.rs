@@ -149,10 +149,10 @@ impl LokView {
         if geom == self.geom { at } else { self.tile_of(self.print_at(geom, at)) }
     }
 
-    /// The shown tile-twips point and geom under a position.
+    /// The drawn tile-twips point and geom under a position.
     fn seen_point(&self, position: Point<Pixels>) -> ((i32, i32), Geom) {
         let local = position - self.origin;
-        let (scroll, geom, spare) = self.seen();
+        let (scroll, geom, spare) = self.drawn();
         let (ax, ay) = self.axes_at(scroll, geom);
         let at = (
             ax.doc(geom.twips_of(f32::from(local.x) - spare.0)),
@@ -175,12 +175,12 @@ impl LokView {
 
     /// Whether a print-twips rectangle intersects the visible panes.
     pub fn is_visible(&self, rect: Rect) -> bool {
-        let rect = self.tile_rect_at(self.seen().1, rect);
-        rect.2 > 0 && rect.3 > 0 && self.tile_visible(rect)
+        let seen = self.seen();
+        let rect = self.tile_rect_at(seen.1, rect);
+        rect.2 > 0 && rect.3 > 0 && self.tile_visible(seen, rect)
     }
 
-    pub(super) fn tile_visible(&self, (x, y, w, h): Rect) -> bool {
-        let (scroll, geom, _) = self.seen();
+    pub(super) fn tile_visible(&self, (scroll, geom, _): Seen, (x, y, w, h): Rect) -> bool {
         let (ax, ay) = self.axes_at(scroll, geom);
         ax.visible(x, w, geom.twips_of(self.viewport.0)) && ay.visible(y, h, geom.twips_of(self.viewport.1))
     }
@@ -203,16 +203,16 @@ impl LokView {
         Bounds::from_corners(self.window_point((x, y)), self.window_point((x + w, y + h)))
     }
 
-    /// A tile-twips rect in window pixels.
-    pub(super) fn tile_screen_rect(&self, (x, y, w, h): crate::Rect) -> Bounds<Pixels> {
-        let seen = self.seen();
+    /// A tile-twips rect in window pixels on screen `seen`.
+    pub(super) fn tile_screen_rect(&self, seen: Seen, (x, y, w, h): crate::Rect) -> Bounds<Pixels> {
         Bounds::from_corners(self.tile_window_at(seen, (x, y)), self.tile_window_at(seen, (x + w, y + h)))
     }
 
-    /// The cursor rect in window pixels.
+    /// The cursor rect in window pixels, on the drawn screen.
     pub fn cursor_bounds(&self) -> Option<Bounds<Pixels>> {
-        let mut bounds = self.text_caret()?;
-        bounds.size.width = bounds.size.width.max(px(self.geom.px_of(1)));
+        let seen = self.drawn();
+        let mut bounds = self.text_caret(seen)?;
+        bounds.size.width = bounds.size.width.max(px(seen.1.px_of(1)));
         Some(bounds)
     }
 }

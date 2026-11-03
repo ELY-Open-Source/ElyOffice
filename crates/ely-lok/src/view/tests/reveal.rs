@@ -35,6 +35,21 @@ fn long_view(cx: &gpui::TestAppContext, install: &std::path::Path) -> (Entity<Lo
     (view, bounds)
 }
 
+/// Waits until every tile of the asked screen is in.
+fn landed(cx: &gpui::TestAppContext, view: &Entity<LokView>) {
+    for _ in 0..200 {
+        cx.run_until_parked();
+        let whole = cx.update(|app| {
+            let view = view.read(app);
+            view.on_screen.iter().all(|key| view.tiles.get(key).is_some_and(|tile| !tile.stale))
+        });
+        if whole {
+            return;
+        }
+    }
+    panic!("the screen never came whole");
+}
+
 /// Each drawn tile's place and image address.
 fn drawn(painted: &super::super::render::Painted) -> Vec<(Bounds<Pixels>, usize)> {
     painted.tiles.iter().map(|(place, image, _)| (*place, Arc::as_ptr(image) as usize)).collect()
@@ -64,13 +79,11 @@ fn a_jump_keeps_the_whole_old_screen_until_the_new_one_is_whole() {
     assert_eq!(under(&cx), old, "a click lands on the screen it sees");
     assert_eq!(cx.update(|app| view.read(app).cursor_bounds()), caret, "the caret stays with it");
     assert_eq!(waiting.selection, before.selection, "so does the selection");
-    let after = (0..200)
-        .find_map(|_| {
-            cx.run_until_parked();
-            let frame = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
-            (drawn(&frame) != drawn(&before)).then_some(frame)
-        })
-        .expect("the new screen comes");
+    landed(&cx, &view);
+    assert_eq!(under(&cx), old, "every tile in, not yet drawn: clicks keep the old screen");
+    assert_eq!(cx.update(|app| view.read(app).cursor_bounds()), caret, "so does the caret");
+    let after = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
+    assert_ne!(drawn(&after), drawn(&before), "the next frame shows the new screen");
     let next = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
     assert_eq!((&after.pages, drawn(&after)), (&next.pages, drawn(&next)), "the first new frame is already the new screen");
     let shown = cx.update(|app| view.read(app).on_screen.len());
@@ -132,6 +145,39 @@ fn a_zoomed_sheet_maps_by_the_screen_it_holds() {
     });
     let want = format!("B{}", row + 1);
     assert_eq!(super::large::selected(&view, &mut cx, &want), want, "a click picks the cell it shows");
+}
+
+#[test]
+fn a_move_retries_a_failed_tile_and_holds_for_every_reader() {
+    let Some(install) = crate::client::tests::install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let cx = gpui::TestAppContext::single();
+    let (view, bounds) = long_view(&cx, &install);
+    cx.update(|app| view.update(app, |view, _| view.scroll.1 = 12 * TILE_TWIPS));
+    settle(&cx, &view, bounds);
+    let keys = |cx: &gpui::TestAppContext| cx.update(|app| view.read(app).on_screen.iter().copied().collect::<HashSet<_>>());
+    let screen = keys(&cx);
+    // A shown tile failed to repaint and stays stale.
+    cx.update(|app| {
+        view.update(app, |view, _| {
+            let key = view.on_screen[0];
+            view.tiles.get_mut(&key).expect("a shown tile").stale = true;
+            view.failed.insert((key, view.generation));
+        })
+    });
+    let before = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
+    assert_eq!(before.tiles.len(), screen.len(), "the stale tile still shows");
+    let spot = (1500, 12 * TILE_TWIPS + 3000);
+    let at = |cx: &gpui::TestAppContext| cx.update(|app| view.read(app).window_point(spot));
+    let old = at(&cx);
+    cx.update(|app| view.update(app, |view, _| view.scroll.1 += 300));
+    assert_eq!(at(&cx), old, "read before the canvas, the move waits for the retry");
+    let waiting = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
+    assert_eq!(cx.update(|app| view.read(app).scroll().1), 12 * TILE_TWIPS + 300, "the view moved");
+    assert_eq!(keys(&cx), screen, "the same tiles cover the moved screen");
+    assert_eq!(drawn(&waiting), drawn(&before), "the canvas holds the old screen");
+    assert_eq!(at(&cx), old, "and maps by it");
 }
 
 #[test]
