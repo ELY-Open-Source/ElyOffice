@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# review.sh against a stand-in hc: start, Enter, stops, verdict.
+# review.sh against a stand-in herdr: tabs, stops, verdict.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -11,39 +11,40 @@ fail() {
 }
 mkdir -p "$work/bin" "$work/crlf" "$work/tree/scripts" "$work/tree/tasks" "$work/tree/site/video"
 cp "$root/scripts/review.sh" "$work/tree/scripts/"
-echo "- [ ] T1.1 probe" >"$work/tree/tasks/TASKS.md"
+printf -- '- [ ] T1.1 probe\n- [ ] T1.2 probe\n' >"$work/tree/tasks/TASKS.md"
 touch "$work/tree/tasks/BUGS.md" "$work/tree/site/TASKS.md" "$work/tree/site/video/TASKS.md"
-# Pops the first line; the last line repeats.
-cat >"$work/bin/pop" <<'EOF'
+cat >"$work/bin/herdr" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-f=$1
-head -n 1 "$f"
-if [ "$(wc -l <"$f")" -gt 1 ]; then
-  tail -n +2 "$f" >"$f.next"
-  mv "$f.next" "$f"
-fi
-EOF
-cat >"$work/bin/hc" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-w=$HC_FAKE
-case $1 in
-  kill | send) ;;
-  run) echo '{"address":"t9"}' ;;
-  keys) echo "$3" >>"$w/keys" ;;
-  get)
-    if [ "$2" = "$HC_TERMINAL_ID" ]; then
-      echo '{"labels":{"herdr.space":"s","herdr.tab":"t","where":"w"}}'
-      exit
-    fi
-    s=$("$w/bin/pop" "$w/states")
+w=$HERDR_FAKE
+case "$1 $2" in
+  "tab create")
+    case " $* " in *" --workspace w1 "*) ;; *) echo "tab outside w1: $*" >&2; exit 1 ;; esac
+    n=$(($(cat "$w/tabs" 2>/dev/null || echo 0) + 1))
+    echo "$n" >"$w/tabs"
+    echo "w1:t$n" >>"$w/live"
+    echo "{\"result\":{\"tab\":{\"tab_id\":\"w1:t$n\"},\"root_pane\":{\"pane_id\":\"w1:p$n\"}}}" ;;
+  "tab get")
+    g=$(cat "$w/get")
+    [ "$g" != 2 ] || { echo '{"error":{"code":"tab_not_found","message":"x"}}'; echo 'transport failure'; exit 1; }
+    [ "$g" = 0 ] || { echo '{"error":{"code":"timeout","message":"no answer"}}'; exit 1; }
+    grep -qx "$3" "$w/live" 2>/dev/null || { echo "{\"error\":{\"code\":\"tab_not_found\",\"message\":\"tab $3 not found\"}}"; exit 1; } ;;
+  "tab close")
+    [ "$(cat "$w/close")" = 0 ] || { echo "close refused" >&2; exit 1; }
+    echo "$3" >>"$w/closed"
+    grep -vx "$3" "$w/live" >"$w/live.next" || true
+    mv "$w/live.next" "$w/live" ;;
+  "agent start") exit "$(cat "$w/start")" ;;
+  "agent prompt")
+    # Without --wait the review is still running.
+    case " $* " in *" --wait "*) ;; *) exit 0 ;; esac
+    case " $* " in *" --timeout "*) ;; *) exit 0 ;; esac
+    cp "$w/verdict" "$w/tree/tasks/reviews/$FAKE_VERDICT"
+    exit "$(cat "$w/prompt")" ;;
+  "agent get")
+    s=$(cat "$w/status")
     [ "$s" != broken ] || exit 1
-    echo "{\"status\":{\"state\":\"$s\"}}" ;;
-  wait)
-    r=$("$w/bin/pop" "$w/waits")
-    case $r in *'"ended":true'*) cp "$w/verdict" "$w/tree/tasks/reviews/T1.1-r1.md" ;; esac
-    echo "$r" ;;
+    echo "{\"result\":{\"agent\":{\"agent_status\":\"$s\"}}}" ;;
 esac
 EOF
 # Native Windows jq writes CRLF.
@@ -52,40 +53,59 @@ cat >"$work/crlf/jq" <<EOF
 set -o pipefail
 "$(command -v jq)" "\$@" | awk '{ printf "%s\r\n", \$0 }'
 EOF
-chmod +x "$work/bin/hc" "$work/bin/pop" "$work/crlf/jq"
-done='{"ended":true,"reason":"status","status":"done","exit_code":null}'
-late='{"ended":false,"reason":"timeout","status":null,"exit_code":null}'
-note='{"ended":false,"reason":"message","status":null,"exit_code":null}'
-# Usage: run <states> <waits> <verdict> [path]; sets rc, said, keys.
+chmod +x "$work/bin/herdr" "$work/crlf/jq"
+# Usage: run item round start prompt status verdict [path].
 run() {
-  printf '%s\n' $1 >"$work/states"
-  printf '%s\n' $2 >"$work/waits"
-  printf '%b' "$3" >"$work/verdict"
-  rm -f "$work/keys" "$work/tree/tasks/reviews/T1.1-r1.md"
+  echo "${CLOSE:-0}" >"$work/close"
+  echo "${GET:-0}" >"$work/get"
+  echo "$3" >"$work/start"
+  echo "$4" >"$work/prompt"
+  echo "$5" >"$work/status"
+  printf '%b' "$6" >"$work/verdict"
+  mkdir -p "$work/tree/tasks/reviews"
+  rm -f "$work/tree/tasks/reviews/$1-r$2.md"
   rc=0
-  said=$(HC_FAKE=$work HC_TERMINAL_ID=t1 PATH="${4:-}$work/bin:$PATH" bash "$work/tree/scripts/review.sh" T1.1 1 2>&1) || rc=$?
-  keys=0
-  if [ -f "$work/keys" ]; then keys=$(($(wc -l <"$work/keys"))); fi
+  said=$(HERDR_FAKE=$work HERDR_ENV=1 HERDR_WORKSPACE_ID=w1 FAKE_VERDICT="$1-r$2.md" PATH="${7:-}$work/bin:$PATH" \
+    bash "$work/tree/scripts/review.sh" "$1" "$2" 2>&1) || rc=$?
 }
-run "working" "$late $done" 'PASS\n'
-[ "$rc" = 0 ] && [ "$said" = PASS ] && [ "$keys" = 0 ] || fail "plain review: rc $rc, keys $keys, $said"
-run "working" "$late $done" 'PASS\n' "$work/crlf:"
+run T1.1 1 0 0 done 'PASS\n'
+[ "$rc" = 0 ] && [ "$said" = PASS ] || fail "plain review: rc $rc, $said"
+run T1.1 1 0 0 idle 'PASS\n' "$work/crlf:"
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "CRLF jq: rc $rc, $said"
-run "working" "$note $note $note $note $note $note $note $note $note $note $done" 'PASS\n'
-[ "$rc" = 0 ] && [ "$said" = PASS ] || fail "ten messages: rc $rc, $said"
-run "idle working" "$done" 'FAIL\nx.rs:1 bug\n'
-[ "$rc" = 0 ] && [ "$keys" = 1 ] || fail "swallowed Enter: rc $rc, keys $keys, $said"
+run T1.1 1 0 0 done 'FAIL\nx.rs:1 bug\n'
 case $said in *"x.rs:1 bug"*) ;; *) fail "verdict body lost: $said" ;; esac
-run "blocked" "$done" 'PASS\n'
-[ "$rc" = 1 ] && [ "$keys" = 0 ] || fail "blocked: rc $rc, keys $keys"
+run T1.1 1 0 0 blocked 'PASS\n'
+[ "$rc" = 1 ] || fail "a blocked reviewer passed"
 case $said in *blocked*) ;; *) fail "blocked not named: $said" ;; esac
-run "broken" "$done" 'PASS\n'
-[ "$rc" = 1 ] && [ "$keys" = 0 ] || fail "unreadable status: rc $rc, keys $keys"
-run "done" "$done" 'PASS\r\n'
-[ "$rc" = 0 ] || fail "a review done before the first look failed: $said"
-run "working" '{"ended":true,"reason":"exit","status":null,"exit_code":17}' 'PASS\n'
-[ "$rc" = 1 ] || fail "an exited reviewer passed"
-case $said in *17*) ;; *) fail "exit code not named: $said" ;; esac
-run "working" "$done" ''
+run T1.1 1 0 0 broken 'PASS\n'
+[ "$rc" = 1 ] || fail "an unreadable status passed"
+run T1.1 1 1 0 done 'PASS\n'
+[ "$rc" = 1 ] || fail "a codex that never started passed"
+run T1.1 1 0 1 done 'PASS\n'
+[ "$rc" = 1 ] || fail "a prompt that timed out passed"
+run T1.1 1 0 0 done ''
 [ "$rc" = 1 ] || fail "an empty verdict passed"
+# Parallel items keep each other's tabs.
+rm -f "$work/closed" "$work/tabs" "$work/live" "$work/tree/tasks/reviews/.tabs/"*
+run T1.1 1 0 0 done 'PASS\n'
+run T1.2 1 0 0 done 'PASS\n'
+[ ! -f "$work/closed" ] || fail "another item's tab closed: $(cat "$work/closed")"
+run T1.1 2 0 0 done 'PASS\n'
+[ "$(cat "$work/closed")" = w1:t1 ] || fail "round 2 closed $(cat "$work/closed" 2>/dev/null), not its round 1 tab"
+# A live tab that will not close stops the review.
+CLOSE=1 run T1.1 3 0 0 done 'PASS\n'
+[ "$rc" = 1 ] || fail "a refused close passed: $said"
+[ "$(cat "$work/tree/tasks/reviews/.tabs/T1.1")" = w1:t3 ] || fail "the open tab's id was lost"
+# A lookup that fails otherwise stops it too.
+GET=1 run T1.1 3 0 0 done 'PASS\n'
+[ "$rc" = 1 ] || fail "a failed lookup passed: $said"
+[ "$(cat "$work/tree/tasks/reviews/.tabs/T1.1")" = w1:t3 ] || fail "a failed lookup lost the id"
+# So does a lookup answer jq cannot parse.
+GET=2 run T1.1 3 0 0 done 'PASS\n'
+[ "$rc" = 1 ] || fail "an unparsed lookup passed: $said"
+[ "$(cat "$work/tree/tasks/reviews/.tabs/T1.1")" = w1:t3 ] || fail "an unparsed lookup lost the id"
+# A tab the user closed is no obstacle.
+: >"$work/live"
+CLOSE=1 run T1.1 3 0 0 done 'PASS\n'
+[ "$rc" = 0 ] || fail "a gone tab stopped the review: $said"
 echo "ok: review rules"

@@ -128,8 +128,8 @@ scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 到 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核对散列；Mac 核对架构）
 tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架构（ci.sh 发布前调用）
-scripts/review.sh ID 轮次 路径  审查一条任务（herdr 桌面应用的新终端，经 `hc`，codex gpt-6-astra，effort xhigh，fast）
-tests/scripts/review-rules.sh   review.sh 对替身 hc：粘贴吞掉回车即补一次，阻塞、退出、状态读不出即停而不按键，审查结束才读结论，空结论即败，CRLF 的 jq 与消息打断的等待照常（三端可跑）
+scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 的新标签页，每条任务一个，可并行；codex gpt-6-astra，effort xhigh，fast）
+tests/scripts/review-rules.sh   review.sh 对替身 herdr：codex 起不来、提示超时、阻塞、状态读不出、空结论皆败，CRLF 的 jq 照常，并行的两条任务互不关标签页，下一轮只关本条上一轮的（三端可跑）
 scripts/apply-lo-patches.sh engines/lo-src  找出源码已到补丁序列第几个，补上其余（构建脚本调用）
 tests/scripts/lo-patches.sh    补丁序列从中途接着打、再打一次为空操作
 tests/scripts/media-targets.sh 媒体播放接口在 Linux、Windows 目标可编译（缺目标时 SKIP）
