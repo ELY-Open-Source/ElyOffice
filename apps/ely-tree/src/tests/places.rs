@@ -117,12 +117,7 @@ fn a_stash_command_refuses_a_moved_list() {
             oid: first,
         },
     );
-    assert!(
-        dropped
-            .expect_err("refused")
-            .to_string()
-            .contains("changed")
-    );
+    assert_eq!(dropped.expect_err("refused").to_string(), "tree.error.stash_stale");
     assert_eq!(stash::list(&git(), &root).expect("reads").len(), 2);
 }
 
@@ -234,7 +229,7 @@ fn a_detached_head_or_no_upstream_has_no_forced_push() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let root = committed(dir.path());
     let none = remotes::force(&git(), &root).expect_err("no upstream");
-    assert!(none.to_string().contains("no upstream"), "{none}");
+    assert_eq!(none.to_string(), "tree.error.no_upstream");
     sh(&root, &["checkout", "-q", "--detach"]);
     assert!(remotes::force(&git(), &root).is_err());
 }

@@ -195,4 +195,7 @@ pub(super) const ES: &[(&str, &str)] = &[
         "Guarde el documento antes de cambiarle el nombre",
     ),
     ("mark.rename.saving", "Espere a que termine el guardado"),
+    ("mark.error.utf16", "no se lee texto UTF-16"),
+    ("mark.error.not_utf8", "no es UTF-8 en el byte {at}"),
+    ("mark.error.unsettled", "el archivo siguió cambiando mientras se leía"),
 ];

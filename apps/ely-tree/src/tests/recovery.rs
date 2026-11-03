@@ -71,7 +71,7 @@ fn moving_back_keeps_changes_and_refuses_a_moved_head() {
     assert!(plan.left[0].ends_with("gone soon"));
     sh(&root, &["commit", "-q", "--allow-empty", "-m", "meanwhile"]);
     let refused = run(&root, move_of(&plan)).expect_err("HEAD moved");
-    assert!(refused.to_string().contains("moved"), "{refused}");
+    assert_eq!(refused.to_string(), "tree.error.head_moved");
     sh(&root, &["reset", "-q", "--keep", "HEAD~1"]);
     run(&root, move_of(&plan)).expect("moves");
     assert_eq!(sh(&root, &["rev-parse", "HEAD"]).trim(), first);
@@ -101,7 +101,7 @@ fn staged_work_refuses_a_move_rather_than_lose_it() {
     let plan = recover::plan_move(&git(), &root, &first).expect("a plan");
     sh(&root, &["add", "a.txt"]);
     let refused = run(&root, move_of(&plan)).expect_err("staged");
-    assert!(refused.to_string().contains("staged"), "{refused}");
+    assert_eq!(refused.to_string(), "tree.error.staged");
     assert_eq!(sh(&root, &["show", ":a.txt"]), "unstaged\n", "index kept");
 }
 

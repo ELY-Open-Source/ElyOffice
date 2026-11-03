@@ -193,4 +193,10 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("pdf.clean.done", "{name} を保存しました。クリーンアップして確認しました。"),
     ("pdf.removal.go", "名前を付けて保存…"),
     ("pdf.removal.warning", "新しいファイルに書き出します。このドキュメントはそのまま残ります。元のファイル、古いバックアップ、同期の履歴、すでに送ったコピーには、削除した内容がまだ残っている可能性があります。Ely の作業用コピーは通常の方法で削除され、ディスクから完全に消去されるわけではありません。"),
+    ("pdf.error.locked", "パスワードが必要です"),
+    ("pdf.error.no_pages", "表示するページがありません"),
+    ("pdf.error.not_pdf", "ファイルは PDF でも EPUB でもありません"),
+    ("pdf.error.password_changed", "ディスク上のファイルがドキュメントのパスワードを受け付けませんでした"),
+    ("pdf.error.repaired_password", "修復したコピーがパスワードを受け付けませんでした"),
+    ("pdf.error.not_whole", "ドキュメントを完全には読み取れませんでした: {report}"),
 ];

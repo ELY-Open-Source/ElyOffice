@@ -53,7 +53,7 @@ impl SettingsView {
                         this.storage.folder = Some(Ok(state));
                         this.storage.failed = None;
                     }
-                    Err(error) => this.storage.failed = Some(text(cx, "settings.storage.failed", &[("error", &error.to_string())])),
+                    Err(error) => this.storage.failed = Some(text(cx, "settings.storage.failed", &[("error", &crate::i18n::error(cx, &error))])),
                 }
                 cx.notify();
             })

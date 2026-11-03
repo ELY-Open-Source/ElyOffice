@@ -122,7 +122,7 @@ impl Tree {
                     }
                     Err(error) => {
                         tree.set_amend(false, cx);
-                        tree.failed("tree.error.amend", &error.to_string(), cx);
+                        tree.failed("tree.error.amend", &error, cx);
                     }
                 }
             })

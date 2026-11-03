@@ -1,7 +1,9 @@
 //! Framed requests between an app and its engine worker.
 
 mod relay;
+mod worded;
 pub use relay::{Relay, Said, relay};
+pub use worded::{Then, Worded};
 
 use std::io::{self, Read, Write};
 use std::process::Command;

@@ -161,7 +161,7 @@ impl Mail {
                     match opened {
                         Ok(()) => log::info!("mail: a file's copy opened"),
                         Err(error) => {
-                            this.update(cx, |mail, cx| mail.failed("mail.file.unopened", &error.to_string(), cx)).ok();
+                            this.update(cx, |mail, cx| mail.failed("mail.file.unopened", &ely_ui::i18n::error(cx, &error), cx)).ok();
                         }
                     }
                 })

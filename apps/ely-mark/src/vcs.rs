@@ -164,15 +164,19 @@ impl Desk {
                     .spawn(async move { ely_platform::apps::open(AppId::Tree, &[file]) })
                     .await;
                 if let Err(error) = opened {
-                    log::error!("mark: ElyTree did not open: {error}");
-                    cx.update(|cx| {
-                        let said = text(cx, "mark.git.failed", &[("error", &error.to_string())]);
-                        this.update(cx, |desk, cx| desk.toast(said, Severity::Danger, cx));
-                    });
+                    // Logged even if the window has closed.
+                    log::error!("mark: ElyTree did not open: {}", ely_ipc::Worded::logged(&error));
+                    cx.update(|cx| this.update(cx, |desk, cx| desk.tree_failed(&error, cx)));
                 }
             })
             .detach();
         }))
+    }
+
+    /// ElyTree did not start: its words; the caller logs it.
+    pub(crate) fn tree_failed(&self, error: &io::Error, cx: &mut Context<Self>) {
+        let said = text(cx, "mark.git.failed", &[("error", &ely_ui::i18n::error(cx, error))]);
+        self.toast_unlogged(said, Severity::Danger, cx);
     }
 }
 

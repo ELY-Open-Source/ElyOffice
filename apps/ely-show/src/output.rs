@@ -221,7 +221,7 @@ impl Deck {
                 let text = Deck::text(cx, "show.output.open", &[("name", &name)]);
                 return self.toast(text, Severity::Danger, cx);
             }
-            Err(error) => return self.output_failed(&error.to_string(), cx),
+            Err(error) => return self.output_failed(&error, cx),
         }
         let (name, opened) = (ely_office::files::file_name(&path), path.clone());
         self.write_pdf(output, path, cx, move |deck, cx| {
@@ -253,7 +253,7 @@ impl Deck {
             move |worker, doc| on_copy(worker, doc, (&copy, None), |worker, made| made.export_pdf(worker, &url, &pdf)),
             move |deck, written, _, cx| match written {
                 Ok(()) => then(deck, cx),
-                Err(error) => deck.output_failed(&error.to_string(), cx),
+                Err(error) => deck.output_failed(&error, cx),
             },
             cx,
         );
@@ -283,12 +283,11 @@ impl Deck {
                     let written = (files.iter().zip(claimed))
                         .try_for_each(|((part, _), file)| picture(worker, made, *part, size, file));
                     // A failure leaves none of this run's files.
-                    if let Err(error) = &written
-                        && let Err(left) = files.iter().try_for_each(|(_, path)| std::fs::remove_file(path))
-                    {
-                        return Err(io::Error::other(format!("{error}; then {left}")));
-                    }
-                    written.map(|()| files.len())
+                    written.map_err(|error| match files.iter().try_for_each(|(_, path)| std::fs::remove_file(path)) {
+                        Ok(()) => error,
+                        Err(left) => ely_ipc::Worded::then(error, left),
+                    })?;
+                    Ok(files.len())
                 })
             },
             move |deck, written, _, cx| match written {
@@ -301,15 +300,17 @@ impl Deck {
                     let text = Deck::text(cx, "show.output.taken", &[("name", &error.to_string())]);
                     deck.toast(text, Severity::Danger, cx);
                 }
-                Err(error) => deck.output_failed(&error.to_string(), cx),
+                Err(error) => deck.output_failed(&error, cx),
             },
             cx,
         );
     }
 
-    fn output_failed(&self, error: &str, cx: &mut Context<Self>) {
-        let text = Deck::text(cx, "show.output.failed", &[("error", error)]);
-        self.toast(text, Severity::Danger, cx);
+    /// Logs `error` itself; only the toast reads its words.
+    fn output_failed(&self, error: &io::Error, cx: &mut Context<Self>) {
+        log::warn!("show: the output failed: {}", ely_ipc::Worded::logged(error));
+        let text = Deck::text(cx, "show.output.failed", &[("error", &ely_ui::i18n::error(cx, error))]);
+        self.toast_unlogged(text, Severity::Danger, cx);
     }
 }
 

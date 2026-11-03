@@ -143,7 +143,7 @@ impl crate::Worker {
             let fresh = mupdf.open(utf8(&copy)?)?;
             let ready = (|| {
                 if mupdf.locked(&fresh)? && mupdf.unlock(&fresh, &doc.password)? == 0 {
-                    return Err(io::Error::other("the repaired copy refused the password"));
+                    return Err(ely_ipc::Worded::error(io::ErrorKind::PermissionDenied, "pdf.error.repaired_password", &[]));
                 }
                 mupdf.journal(&fresh)
             })();
@@ -177,7 +177,7 @@ impl crate::Worker {
         if matches!(kind, tag::EXPORT_IMAGE | tag::EXPORT_TEXT) && doc.found {
             refuse(may::COPY, has)?;
             let report = doc.repair.as_deref().expect("noted with the damage");
-            return Err(io::Error::other(format!("the document did not read whole: {report}")));
+            return Err(ely_ipc::Worded::error(io::ErrorKind::InvalidData, "pdf.error.not_whole", &[("report", report)]));
         }
         match kind {
             tag::EXPORT_IMAGE => {

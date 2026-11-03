@@ -109,7 +109,7 @@ fn a_shown_file_now_a_folder_stops_the_clean() {
         ignored: false,
     };
     let refused = run(&root, write).expect_err("a folder now");
-    assert!(refused.to_string().contains("changed"), "{refused}");
+    assert_eq!(refused.to_string(), "tree.error.clean_stale");
     assert!(root.join("out/early.txt/late.txt").exists() && root.join("top.txt").exists());
 }
 
@@ -193,12 +193,11 @@ fn a_shown_file_deleted_since_says_it_changed() {
         ignored: false,
     };
     let error = run(&root, write).expect_err("refused");
-    assert!(
-        error
-            .to_string()
-            .contains("gone.txt changed since the preview"),
-        "{error}"
-    );
+    let said = error
+        .get_ref()
+        .and_then(|inner| inner.downcast_ref::<ely_ipc::Worded>())
+        .expect("worded");
+    assert_eq!((said.key, said.args.as_slice()), ("tree.error.clean_stale", &[("path".to_string(), "gone.txt".to_string())][..]));
 }
 
 #[test]

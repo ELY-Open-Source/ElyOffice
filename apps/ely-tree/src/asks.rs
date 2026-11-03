@@ -132,8 +132,9 @@ impl Tree {
     pub fn offer(&mut self, ask: Ask, cx: &mut Context<Self>) {
         match (&self.ask, ask) {
             (None, ask) => self.ask = Some(ask),
+            // The read logged its error; a toast says it.
             (Some(_), Ask::Failed { title, detail }) => {
-                self.toast(format!("{title}: {detail}").into(), Severity::Danger, cx)
+                self.toast_unlogged(format!("{title}: {detail}").into(), Severity::Danger, cx)
             }
             (Some(_), _) => log::info!("tree: a later dialog stands; read dropped"),
         }

@@ -86,4 +86,6 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("office.zoom.out", "縮小"),
     ("office.zoom.actual", "実際のサイズ"),
     ("office.zoom.fit", "スライドに合わせる"),
+    ("office.error.utf32", "パッケージに UTF-32 の XML が含まれていて、読み取りません"),
+    ("office.error.zip_method", "パッケージ内の {name} は読み取らない zip 圧縮方式 {method} を使っています"),
 ];

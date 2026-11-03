@@ -1,6 +1,6 @@
 //! Export, print, and the repaired copy's report (PDF-13, PDF-14).
 
-use std::{io, path::PathBuf};
+use std::path::PathBuf;
 
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant, SegmentedControl},
@@ -168,12 +168,11 @@ impl Viewer {
                     crate::ask::copy_into(&work, file)
                 });
                 // A failure leaves none of this run's files.
-                if let Err(error) = &written
-                    && let Err(left) = targets.iter().try_for_each(std::fs::remove_file)
-                {
-                    return Err(io::Error::other(format!("{error}; then {left}")));
-                }
-                written.map(|()| targets.len())
+                written.map_err(|error| match targets.iter().try_for_each(std::fs::remove_file) {
+                    Ok(()) => error,
+                    Err(left) => ely_ipc::Worded::then(error, left),
+                })?;
+                Ok(targets.len())
             },
             move |viewer, done, _, cx| match done {
                 Ok(count) => {

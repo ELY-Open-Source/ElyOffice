@@ -77,7 +77,7 @@ impl crate::Worker {
                 let password = self.record(id)?.password.clone();
                 let file = self.mupdf.open(&path)?;
                 let read = match self.mupdf.locked(&file) {
-                    Ok(true) if self.mupdf.unlock(&file, &password)? == 0 => Err(io::Error::other("the file refused the document's password")),
+                    Ok(true) if self.mupdf.unlock(&file, &password)? == 0 => Err(ely_ipc::Worded::error(io::ErrorKind::PermissionDenied, "pdf.error.password_changed", &[])),
                     Ok(_) => self.mupdf.signatures(&file),
                     Err(error) => Err(error),
                 };

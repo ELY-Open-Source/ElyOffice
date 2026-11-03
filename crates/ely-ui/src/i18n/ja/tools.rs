@@ -86,4 +86,8 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("doc.merge.done", "{folder} に {n} 個のファイルを書き出しました"),
     ("doc.merge.done.one", "{folder} に 1 個のファイルを書き出しました"),
     ("doc.merge.failed", "レコード {n} で差し込みが止まりました: {error}"),
+    ("doc.merge.unnamed", "列 {n} に名前がありません"),
+    ("doc.merge.guillemet", "列 {name} に « または » が含まれています"),
+    ("doc.merge.twice", "{name} という名前の列が 2 つあります"),
+    ("doc.merge.no_rows", "ファイルに行がありません"),
 ];

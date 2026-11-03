@@ -87,7 +87,7 @@ fn restore(kept: &Kept, folder: &Path, work: &Path, next: u64, this_run: bool) -
             let key = RecoveryKey::load();
             // This run's points open with this run's key.
             if !key.lasting && !this_run {
-                return Err(io::Error::new(io::ErrorKind::PermissionDenied, "the recovery key is not in the key store"));
+                return Err(ely_ipc::Worded::error(io::ErrorKind::PermissionDenied, "error.no_key", &[]));
             }
             Recovery::sensitive(folder.to_path_buf(), key.key)
         }

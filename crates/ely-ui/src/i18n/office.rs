@@ -134,6 +134,8 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("office.zoom.out", "Zoom Out"),
     ("office.zoom.actual", "Actual Size"),
     ("office.zoom.fit", "Fit Slide"),
+    ("office.error.utf32", "the package holds UTF-32 XML, which is not read"),
+    ("office.error.zip_method", "{name} in the package uses zip method {method}, which is not read"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -237,4 +239,6 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("office.zoom.out", "缩小"),
     ("office.zoom.actual", "实际大小"),
     ("office.zoom.fit", "适合幻灯片"),
+    ("office.error.utf32", "包里有 UTF-32 编码的 XML，不读取"),
+    ("office.error.zip_method", "包里的 {name} 用了不读取的 zip 压缩方式 {method}"),
 ];
