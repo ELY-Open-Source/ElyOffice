@@ -148,3 +148,29 @@ fn a_key_never_waits_behind_a_point() {
     });
     assert_eq!(points(&kept), 0, "the point waits for a pause");
 }
+
+#[test]
+fn an_autosave_keeps_the_round_going() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((docs, kept)) = kept_docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let saved = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "saved");
+    let path = dir.path().join("saved.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(saved, path.clone(), None, window, cx));
+    settle(&cx, |app| docs.read(app).tab(saved).is_some_and(|tab| !tab.exporting && !tab.dirty(app)));
+    type_into(&mut cx, &docs, "more");
+    blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "unsaved");
+    cx.update(|app| ely_ui::settings::switches::set(ely_ui::settings::switches::AUTOSAVE, true, app));
+    cx.update(|app| docs.update(app, |docs, cx| docs.keep_points(cx)));
+    beat(&mut cx, &docs);
+    beat(&mut cx, &docs);
+    let exporting = cx.update(|app| docs.read(app).tab(saved).is_some_and(|tab| tab.exporting));
+    assert!(exporting, "the saved tab autosaves in the pause");
+    // No input since: the unsaved tab follows without a beat.
+    settle(&cx, |app| points(&kept) == 2 && writing(&docs, app) == 0);
+}
