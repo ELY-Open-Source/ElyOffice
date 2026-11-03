@@ -92,9 +92,13 @@ impl Engine for Mark {
                 format!("writing .{format}"),
             ));
         }
-        let mut text = doc.lock().expect("the text lock");
-        std::fs::write(path, text.source.encode(&text.current))?;
-        text.written = Some(mark(&text.current));
+        // The window reads the text; the disk waits unlocked.
+        let (bytes, written) = {
+            let text = doc.lock().expect("the text lock");
+            (text.source.encode(&text.current), mark(&text.current))
+        };
+        std::fs::write(path, bytes)?;
+        doc.lock().expect("the text lock").written = Some(written);
         Ok(())
     }
 
@@ -174,5 +178,39 @@ mod tests {
             Mark::history(&mut (), &doc).expect("a mark"),
             mark("xAlpha.\n")
         );
+    }
+
+    /// A pipe in `dir`; its reader opens once written.
+    #[cfg(unix)]
+    fn held_pipe(dir: &std::path::Path) -> (std::path::PathBuf, impl FnOnce() -> std::fs::File) {
+        let path = dir.join("held.md");
+        let made = std::process::Command::new("mkfifo").arg(&path).status();
+        assert!(made.expect("mkfifo runs").success(), "a pipe");
+        let reading = path.clone();
+        // A pipe's open waits for its writer.
+        (path, move || std::fs::File::open(reading).expect("the reader opens"))
+    }
+
+    // Windows writes cannot open a pipe: Unix holds the disk.
+    #[cfg(unix)]
+    #[test]
+    fn a_waiting_disk_leaves_the_text_free() {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let (path, reader) = held_pipe(dir.path());
+        let text = "x".repeat(1 << 20);
+        let doc = Arc::new(Mutex::new(Text::new(Source::decode(Vec::new()).expect("reads"))));
+        doc.lock().expect("the text lock").current = text.clone();
+        let writing = {
+            let doc = Arc::clone(&doc);
+            std::thread::spawn(move || Mark::write(&mut (), &doc, &path, "md"))
+        };
+        let mut reader = reader();
+        // The write waits on its reader; the window still reads.
+        assert!(doc.try_lock().is_ok(), "the disk holds the text lock");
+        let mut got = Vec::new();
+        std::io::Read::read_to_end(&mut reader, &mut got).expect("reads the write");
+        writing.join().expect("the writer ends").expect("writes");
+        assert!(got == text.as_bytes(), "the pipe got {} bytes", got.len());
+        assert_eq!(Mark::history(&mut (), &doc).expect("a mark"), mark(&text));
     }
 }

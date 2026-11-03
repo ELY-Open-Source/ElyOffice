@@ -144,11 +144,12 @@ impl Host for Desk {
                 view.update(cx, |view, cx| view.moved(folder.to_path_buf(), cx));
             }
             self.track_recent(id, &path, cx);
-            let real = dunce::canonicalize(&path).ok();
+            // Only an asked line needs the real path.
+            let real = || dunce::canonicalize(&path).ok();
             if self
                 .going
                 .as_ref()
-                .is_some_and(|(file, _)| Some(file) == real.as_ref())
+                .is_some_and(|(file, _)| Some(file) == real().as_ref())
                 && let Some((_, at)) = self.going.take()
             {
                 self.reveal_later(view.clone(), at, cx);

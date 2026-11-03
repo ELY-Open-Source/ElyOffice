@@ -34,6 +34,7 @@ apps/ely-mark/src/desk.rs	expect_used	self.caret_said(cx).expect("a tab")	linux,
 apps/ely-mark/src/desk.rs	expect_used	tab.doc.lock().expect("the text lock")	linux,macos,windows	the text lock
 apps/ely-mark/src/engine.rs	expect_used	doc.lock().expect("the text lock")	linux,macos,windows	the text lock
 apps/ely-mark/src/engine.rs	expect_used	doc.lock().expect("the text lock")	linux,macos,windows	the text lock
+apps/ely-mark/src/engine.rs	expect_used	doc.lock().expect("the text lock")	linux,macos,windows	the text lock
 apps/ely-mark/src/export/mod.rs	expect_used	FORMATS .iter() .find(|(each, ..)| *each == format) .expect("listed")	linux,macos,windows	listed
 apps/ely-mark/src/export/mod.rs	expect_used	FORMATS .iter() .find(|(each, ..)| *each == format) .expect("listed")	linux,macos,windows	listed
 apps/ely-mark/src/look.rs	expect_used	closer.borrow().clone().expect("the dialog gave its closer")	linux,macos,windows	the dialog gave its closer
@@ -269,11 +270,6 @@ crates/ely-office/src/recover.rs	expect_used	self.tab(id).expect("a due tab")	li
 crates/ely-office/src/recover.rs	expect_used	wrote.expect("this thread took the newest turn")	linux,macos,windows	this thread took the newest turn
 crates/ely-office/src/recover/reopen.rs	expect_used	host.core().keeping.as_ref().expect("keeping")	linux,macos,windows	keeping
 crates/ely-office/src/recover/reopen.rs	expect_used	host.core_mut().keeping.as_mut().expect("keeping")	linux,macos,windows	keeping
-crates/ely-office/src/save.rs	expect_used	host.tab_mut(id).expect("open")	linux,macos,windows	open
-crates/ely-office/src/save.rs	expect_used	host.tab_mut(id).expect("open")	linux,macos,windows	open
-crates/ely-office/src/save.rs	expect_used	host.tab_mut(id).expect("open")	linux,macos,windows	open
-crates/ely-office/src/save.rs	expect_used	host.tab_mut(id).expect("open")	linux,macos,windows	open
-crates/ely-office/src/save.rs	expect_used	host.tab_mut(id).expect("open")	linux,macos,windows	open
 crates/ely-office/src/save.rs	expect_used	self.tab(id).expect("the tab is open")	linux,macos,windows	the tab is open
 crates/ely-office/src/save.rs	expect_used	self.tab_mut(id).expect("open")	linux,macos,windows	open
 crates/ely-office/src/save.rs	expect_used	self.tab_mut(id).expect("the tab is open")	linux,macos,windows	the tab is open

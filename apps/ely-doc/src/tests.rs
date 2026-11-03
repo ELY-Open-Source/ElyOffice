@@ -55,6 +55,13 @@ pub(crate) fn written(cx: &TestAppContext, path: &Path, before: Option<&[u8]>) {
     settle(cx, |_| {
         std::fs::read(path).is_ok_and(|bytes| Some(bytes.as_slice()) != before)
     });
+    // The save lands on the window's turn after the disk.
+    for _ in 0..10_000 {
+        if !cx.executor().tick() {
+            return;
+        }
+    }
+    panic!("the window never went idle after the write");
 }
 
 /// Runs `call` with a window, as actions get one.

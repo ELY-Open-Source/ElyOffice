@@ -20,8 +20,9 @@ pub use task::RecoveryTask;
 pub use turns::Turns;
 
 pub use save::{
-    SaveError, Saved, atomic_capable, claim_all, export, import_attachment, same_file, save,
-    write_attachment,
-    save_as, save_atomic, save_overwrite, save_with_backup, save_with_probe,
+    Done, SaveError, Saved, Write, atomic_capable, claim_all, export, import_attachment, same_file,
+    save_atomic, save_with_backup, write_attachment,
 };
+#[cfg(test)]
+pub(crate) use save::save;
 pub use session::{Fingerprint, Open, SaveState, SaveTicket, Session, Sessions, StaleTicket};

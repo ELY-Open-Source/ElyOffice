@@ -10,7 +10,7 @@ use ely_files::{Fingerprint, Policy, PolicyEngine, SaveState};
 use ely_gpui_component::{feedback::Banner, primitives::Severity};
 use ely_office::prelude::*;
 use futures::{StreamExt as _, channel::mpsc};
-use gpui::Context;
+use gpui::{AppContext as _, Context};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher as _};
 
 use crate::desk::Desk;
@@ -58,6 +58,8 @@ pub struct Extra {
     pub restored: bool,
     /// Disk reads started; only the newest lands.
     pub reads: u64,
+    /// The path the recent list last took from it.
+    pub tracked: Option<std::path::PathBuf>,
     /// The writing view reached its document.
     pub looked: bool,
     /// The text change last counted, and its count.
@@ -91,6 +93,7 @@ impl Default for Extra {
             point_failed: None,
             restored: false,
             reads: 0,
+            tracked: None,
             looked: false,
             counting: None,
             counts: None,
@@ -150,26 +153,66 @@ impl Desk {
         // A write, ours or not, may change what Git sees.
         self.ask_git(cx);
         let ids: Vec<u64> = self.core.tabs.iter().map(|tab| tab.id).collect();
-        for id in ids {
-            self.look(id, cx);
-        }
+        self.look_at(ids, cx);
     }
 
     /// Compares tab `id`'s file with its last read or write.
     pub fn look(&mut self, id: u64, cx: &mut Context<Self>) {
-        let Some(tab) = self.tab_mut(id) else {
-            return;
-        };
-        let Some(path) = tab.session.path().map(Path::to_path_buf) else {
-            return;
-        };
-        if tab.exporting || tab.session.state() == SaveState::Saving {
-            tab.extra.recheck = true;
+        self.look_at(vec![id], cx);
+    }
+
+    /// The tabs' files, read off the window at once.
+    fn look_at(&mut self, ids: Vec<u64>, cx: &mut Context<Self>) {
+        let mut asked = Vec::new();
+        for id in ids {
+            let Some(tab) = self.tab_mut(id) else { continue };
+            let Some(path) = tab.session.path().map(Path::to_path_buf) else { continue };
+            if tab.exporting || tab.session.state() == SaveState::Saving {
+                tab.extra.recheck = true;
+                continue;
+            }
+            tab.extra.recheck = false;
+            asked.push((id, path, tab.session.fingerprint()));
+        }
+        if asked.is_empty() {
             return;
         }
-        tab.extra.recheck = false;
-        let ours = tab.session.fingerprint();
-        match Fingerprint::of(&path) {
+        cx.spawn(async move |desk, cx| {
+            let seen = cx.background_spawn(async move {
+                let seen = asked.into_iter().map(|(id, path, ours)| {
+                    let now = Fingerprint::of(&path);
+                    (id, path, ours, now)
+                });
+                seen.collect::<Vec<_>>()
+            });
+            let seen = seen.await;
+            desk.update(cx, |desk, cx| {
+                for (id, path, ours, now) in seen {
+                    desk.compared(id, path, ours, now, cx);
+                }
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// The disk as read against the tab now.
+    fn compared(
+        &mut self,
+        id: u64,
+        path: PathBuf,
+        ours: Option<Fingerprint>,
+        now: io::Result<Fingerprint>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(tab) = self.tab(id).filter(|tab| tab.session.path() == Some(&path)) else {
+            return log::info!("mark: a look at a moved or closed tab was dropped");
+        };
+        // A save began or landed meanwhile: look again.
+        if tab.session.fingerprint() != ours || tab.exporting || tab.session.state() == SaveState::Saving {
+            return self.look(id, cx);
+        }
+        match now {
             Ok(now) if Some(now) == ours => {
                 if !matches!(tab.extra.outside, Outside::Changed(..)) {
                     self.set_outside(id, Outside::Clear, cx);

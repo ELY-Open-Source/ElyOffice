@@ -87,6 +87,11 @@ impl Desk {
 
     /// Tab `id` shows `path`; the recent list follows.
     pub fn track_recent(&mut self, id: u64, path: &std::path::Path, cx: &mut Context<Self>) {
+        // The disk is asked only when the tab's path moves.
+        let Some(tab) = self.tab_mut(id).filter(|tab| tab.extra.tracked.as_deref() != Some(path)) else {
+            return;
+        };
+        tab.extra.tracked = Some(path.to_path_buf());
         let Ok(real) = dunce::canonicalize(path) else {
             return log::warn!("mark: {} is gone; the recent list keeps it", path.display());
         };

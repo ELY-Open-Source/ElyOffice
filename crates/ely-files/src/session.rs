@@ -65,6 +65,13 @@ pub struct SaveTicket {
     revision: u64,
 }
 
+impl SaveTicket {
+    /// The revision this save writes.
+    pub(crate) fn revision(&self) -> u64 {
+        self.revision
+    }
+}
+
 /// A ticket from before a reload; its content is obsolete.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StaleTicket;
@@ -82,6 +89,8 @@ pub struct Session {
     loading: bool,
     loaded: bool,
     saving: Option<SaveTicket>,
+    /// A Save As target while its write runs.
+    writing: Option<PathBuf>,
     pub cursor: Option<String>,
     pub zoom: f32,
     recovery: Option<PathBuf>,
@@ -102,6 +111,7 @@ impl Session {
             loading: false,
             loaded: true,
             saving: None,
+            writing: None,
             cursor: None,
             zoom: 1.0,
             recovery: None,
@@ -172,6 +182,15 @@ impl Session {
 
     pub fn state(&self) -> SaveState {
         self.state
+    }
+
+    /// A running Save As target; no other tab takes it.
+    pub fn writing(&self) -> Option<&Path> {
+        self.writing.as_deref()
+    }
+
+    pub(crate) fn write_to(&mut self, path: &Path) {
+        self.writing = Some(path.to_path_buf());
     }
 
     pub fn recovery(&self) -> Option<&Path> {
@@ -298,7 +317,7 @@ impl Session {
             );
             return Err(StaleTicket);
         }
-        self.saving = None;
+        (self.saving, self.writing) = (None, None);
         if ticket.generation != self.generation {
             log::warn!("session: a stale ticket for {} is dropped", path.display());
             return Err(StaleTicket);
@@ -323,17 +342,31 @@ impl Session {
 
     /// A failed save keeps the file and the unsaved content.
     pub fn fail_save(&mut self, ticket: SaveTicket) -> Result<(), StaleTicket> {
-        if self.saving.map(|running| running.task) != Some(ticket.task) {
-            log::warn!("session: a failure for an unknown save is dropped");
-            return Err(StaleTicket);
-        }
-        self.saving = None;
-        if ticket.generation != self.generation {
-            log::warn!("session: a stale save failure is dropped");
-            return Err(StaleTicket);
-        }
+        self.release(ticket)?;
         log::warn!("session: save failed at revision {}", self.revision);
         self.state = SaveState::SaveFailed;
+        Ok(())
+    }
+
+    /// The disk changed under a running save; nothing was written.
+    pub fn conflict(&mut self, ticket: SaveTicket) -> Result<(), StaleTicket> {
+        self.release(ticket)?;
+        log::warn!("session: a save at revision {} met an outside change", self.revision);
+        self.external_modified();
+        Ok(())
+    }
+
+    /// Ends `ticket`'s save unwritten; stale ones change nothing.
+    fn release(&mut self, ticket: SaveTicket) -> Result<(), StaleTicket> {
+        if self.saving.map(|running| running.task) != Some(ticket.task) {
+            log::warn!("session: the end of an unknown save is dropped");
+            return Err(StaleTicket);
+        }
+        (self.saving, self.writing) = (None, None);
+        if ticket.generation != self.generation {
+            log::warn!("session: the end of a stale save is dropped");
+            return Err(StaleTicket);
+        }
         Ok(())
     }
 

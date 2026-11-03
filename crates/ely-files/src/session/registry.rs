@@ -158,6 +158,13 @@ impl Sessions {
         Ok(())
     }
 
+    /// Session `id` names what `saved` wrote; no disk read.
+    pub fn saved(&mut self, id: usize, saved: &crate::Saved) {
+        for entry in self.open.iter_mut().filter(|(_, _, have)| *have == id) {
+            (entry.0, entry.1) = (saved.path.clone(), saved.written.id);
+        }
+    }
+
     /// Where session `id`'s file went in `dir`, if renamed there.
     pub fn renamed_in(&self, id: usize, dir: &Path) -> io::Result<Option<PathBuf>> {
         let had = self.open.iter().find(|(_, _, have)| *have == id);
