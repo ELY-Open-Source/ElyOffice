@@ -175,8 +175,8 @@ pub struct Core<H: Host> {
     pub sessions: Sessions,
     pub tabs: Vec<Tab<H::Extra, H::Engine>>,
     pub active: Option<u64>,
-    /// The tab last brought to the front.
-    shown: Option<u64>,
+    /// The front tab and its page's focus.
+    shown: Option<(u64, Option<FocusHandle>)>,
     /// Loads in flight: tab id and name.
     pub loading: Vec<(u64, SharedString)>,
     pub focus: FocusHandle,

@@ -131,7 +131,15 @@ switch ($Command) {
         }
     }
     'enter' { Tap 0x0D }
-    'key' { Tap (@{ pagedown = 0x22; tab = 0x09 })[$Arg] }
+    'key' { Tap (@{ pagedown = 0x22; tab = 0x09; escape = 0x1B })[$Arg] }
+    'tab' {
+        # A real press on the strip's tab, never Invoke.
+        $item = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::TabItem)
+        $named = New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $Arg)
+        $element = (Window).FindFirst('Descendants', (New-Object System.Windows.Automation.AndCondition($item, $named)))
+        if (-not $element) { throw "no tab named $Arg" }
+        Click $element
+    }
     'chord' {
         Key 0x11 $false
         Tap ([byte][char]$Arg.ToUpper())
