@@ -23,8 +23,7 @@ from loadfiles import TOKEN
 from run import APPS, App
 
 ENDED = r"the engine ended"
-ZOOMS = [("100", "0", 0), ("25", "minus", 4), ("67", "minus", 2), ("125", "plus", 1), ("400", "plus", 5),
-         ("wheel+2", "0", 2), ("wheel-3", "0", -3)]
+ZOOMS = [("100", "0", 0), ("25", "minus", 4), ("67", "minus", 2), ("125", "plus", 1), ("400", "plus", 5), ("wheel+2", "0", 2), ("wheel-3", "0", -3)]
 CASES = {}
 WORK = ""
 
@@ -40,24 +39,15 @@ def place(name, slug):
     return folder
 
 
-def start(name, slug, files, count=None):
-    """`slug` with `files`, all of them open."""
-    app = App(slug, os.path.join(WORK, name, "home-" + slug), files, frames=True)
+def start(name, slug, files, front=None):
+    """`slug` with `files` open; `front` handed over last, active."""
+    app = App(slug, load.data_home(WORK, f"{name[:3]}{slug[4:7]}"), files, frames=True)
     try:
-        load.wait_opened(app, count or len(files), 60 + 15 * len(files))
-    except BaseException:
-        app.stop()
-        raise
-    return app
-
-
-def with_front(name, slug, others, front):
-    """`others` at launch, then `front` handed over: active."""
-    app = start(name, slug, others)
-    try:
-        since = len(app.lines())
-        drive.sh(run.HOST.exe(slug, True), front, env=app.env, timeout=120)
-        load.wait_opened(app, len(others) + 1, 120, since)
+        load.wait_opened(app, len(files), 60 + 15 * len(files))
+        if front:
+            since = len(app.lines())
+            drive.sh(run.HOST.exe(slug, True), front, env=app.env, timeout=120)
+            load.wait_opened(app, len(files) + 1, 120, since)
     except BaseException:
         app.stop()
         raise
@@ -267,7 +257,7 @@ def close_unsaved():
         front = loadfiles.front_file(folder, slug)
         other = os.path.join(folder, f"other.{loadfiles.EXT[slug]}")
         shutil.copy(front, other)
-        app = with_front("closing", slug, [other], front)
+        app = start("closing", slug, [other], front)
         try:
             typing_into(app)
             load.type_keys(app, RECIPES[slug], 5)
@@ -293,15 +283,35 @@ def close_unsaved():
     return rows
 
 
+def newest_points(app):
+    """Each edited document's newest recovery point, as a file."""
+    folder, found = os.path.join(app.home, app.slug, "recovery"), {}
+    with open(os.path.join(folder, "index.json"), encoding="utf-8") as index:
+        for entry in json.load(index):
+            points = sorted(os.listdir(os.path.join(folder, entry["slot"], "points")))
+            if points:
+                copy = os.path.join(WORK, f"point-{app.slug[4:]}-{entry['name']}")
+                found[entry["name"]] = shutil.copy(os.path.join(folder, entry["slot"], "points", points[-1]), copy)
+    return found
+
+
+def held(slug, point):
+    """Keys and the round-1 edit a recovery point holds."""
+    if slug == "ely-table":
+        typed = loadfiles.cell(point, "Typing", "A1") or ""
+        return typed.count("1"), loadfiles.cell(point, "Data", "H1")
+    return loadfiles.text_of(point).count("x"), loadfiles.tokens(point)
+
+
 @case
 def engine_killed():
-    """The engine dies mid-edit; documents come back with their edits."""
+    """The engine dies mid-edit; edited tabs come back from points."""
     rows = []
     for slug in ("ely-doc", "ely-table", "ely-show"):
         folder = place("killed", slug)
         front = loadfiles.front_file(folder, slug)
         others = [shutil.copy(front, os.path.join(folder, f"other{n}.{loadfiles.EXT[slug]}")) for n in range(2)]
-        app = with_front("killed", slug, others, front)
+        app = start("killed", slug, others, front)
         try:
             typing_into(app)
             load.type_keys(app, RECIPES[slug], 10)
@@ -322,19 +332,19 @@ def engine_killed():
                 since = len(app.lines())
                 run.HOST.press(app.process.pid, "Reopen documents")
                 reopened = any(len(lines_matching(app, r"opened .+ as tab", since)) >= 3 or time.sleep(0.25) for _ in range(240))
-            kept = typed_now(app, front, 15) if reopened else -1
-            edits = "not read: the documents did not come back"
-            if reopened and slug == "ely-table":
-                edits = {os.path.basename(path): value_of(app, path, "Data!H1") for path in others}
-            elif reopened:
-                edits = {os.path.basename(path): re.findall(TOKEN + r"\d+", said(app, "text", "get", path)) for path in others}
+            names = [line.split("opened ")[1].split(" as tab")[0] for line in lines_matching(app, r"opened .+ as tab", since)]
+            # Edited tabs reopen as unsaved copies (decisions 2026-10-08).
+            points = {name: held(slug, path) for name, path in newest_points(app).items()}
             alive = app.process.poll() is None
         finally:
             app.stop()
-        ok = alive and noticed and reopened and kept == 15
+        front_keys = points.get("front." + loadfiles.EXT[slug], (0, None))[0]
+        edited = all(points.get(os.path.basename(path), (0, None))[1] in ([1], "1") for path in others)
+        ok = alive and noticed and reopened and front_keys >= 10 and edited
         rows.append((f"{APPS[slug]}: the engine killed mid-edit", ok,
-                     f"workers killed {len(workers)}; app alive {alive}; noticed {noticed}; reopened {reopened}; "
-                     f"front keeps {kept} of 15 keys (10 before the last point); others' edits {edits}"))
+                     f"workers killed {len(workers)}; app alive {alive}; noticed {noticed}; reopened as {names}; "
+                     f"the points hold (keys, edit) {points}: front keeps {front_keys} of 15 keys, 10 typed before the "
+                     f"last point; the 5 after it are lost by the 10 s point interval"))
     return rows
 
 
@@ -455,7 +465,7 @@ def main():
     unknown = set(args.cases) - set(CASES)
     if unknown:
         parser.error(f"unknown cases {sorted(unknown)}; known {list(CASES)}")
-    WORK = os.path.join(run.ROOT, ".work", f"extreme-{datetime.datetime.now():%Y%m%d-%H%M%S}")
+    WORK = os.path.join(run.ROOT, ".work", f"E{datetime.datetime.now():%H%M%S}")
     os.makedirs(WORK)
     run.HOST = drive.host(WORK)
     load.build(list(RECIPES))

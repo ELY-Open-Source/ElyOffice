@@ -146,6 +146,19 @@ def wait_opened(app, count, timeout, since=0):
     raise app.failed(pattern.pattern, timeout)
 
 
+# A longer LibreOffice profile path aborts the worker (149 chars).
+PROFILE_MOST = 140
+
+
+def data_home(work, name):
+    """A data root short enough for the LibreOffice profile."""
+    home = os.path.join(work, "h-" + name[-6:])
+    profile = os.path.join(home, "ely-table", "lok-profile")
+    if len(profile) > PROFILE_MOST:
+        raise RuntimeError(f"{profile} is over {PROFILE_MOST} characters; run from a shorter folder")
+    return home
+
+
 def window_place(app):
     """The window place the app last saved."""
     path = os.path.join(app.home, app.slug, "settings.json")
@@ -240,7 +253,7 @@ def one_app(slug, folder, work, args):
     """Opens, types, edits, saves and reads back one app's documents."""
     recipe, out = RECIPES[slug], {"edits": [], "problems": []}
     lowest[0] = free_gb()
-    home, place = os.path.join(work, "home-" + slug), os.path.join(work, slug)
+    home, place = data_home(work, slug), os.path.join(work, slug)
     os.makedirs(place, exist_ok=True)
     files, front = loadfiles.documents(folder, place, slug, args.docs)
     app = App(slug, home, files, frames=True)
@@ -355,7 +368,7 @@ def main():
         sys.exit("SKIP: PERF-10 reads free memory on Windows only")
     if not 2 <= args.docs or args.rounds > 9:
         parser.error("--docs needs 2 or more; --rounds at most 9")
-    work = os.path.join(run.ROOT, ".work", f"load-{datetime.datetime.now():%Y%m%d-%H%M%S}")
+    work = os.path.join(run.ROOT, ".work", f"L{datetime.datetime.now():%H%M%S}")
     os.makedirs(work)
     run.HOST = drive.host(work)
     build(args.apps)
