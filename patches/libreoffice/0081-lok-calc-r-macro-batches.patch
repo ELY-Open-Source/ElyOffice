@@ -27,7 +27,7 @@ diff --git a/sc/source/ui/inc/elymacro.hxx b/sc/source/ui/inc/elymacro.hxx
 new file mode 100644
 --- /dev/null
 +++ b/sc/source/ui/inc/elymacro.hxx
-@@ -0,0 +1,390 @@
+@@ -0,0 +1,402 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -214,14 +214,22 @@ new file mode 100644
 +    const sal_Int32 nRows = a.EndRow - a.StartRow + 1;
 +    const sal_Int32 nColumns = a.EndColumn - a.StartColumn + 1;
 +    require(nRows > 0 && nColumns > 0 && sal_Int64(nRows) * nColumns <= 10000, "cells");
-+    // Escaped bytes, counted cell by cell before the copy.
-+    sal_Int64 nBytes = 256;
++    // The reply's exact bytes, counted before the copy.
++    tools::JsonWriter aFrame;
++    aFrame.put("range", rangeName(a));
++    aFrame.put("rows", nRows);
++    aFrame.put("columns", nColumns);
++    {
++        auto aNone = aFrame.startArray("cells");
++    }
++    sal_Int64 nBytes = aFrame.finishAndGetAsOString().getLength();
 +    for (sal_Int32 r = 0; r < nRows; ++r)
 +        for (sal_Int32 c = 0; c < nColumns; ++c)
 +        {
 +            tools::JsonWriter aOne;
 +            cell(aOne, xModel, xRange->getCellByPosition(c, r));
-+            nBytes += aOne.finishAndGetAsOString().getLength() + 4;
++            // Each cell after the first follows ", ".
++            nBytes += aOne.finishAndGetAsOString().getLength() + (r || c ? 2 : 0);
 +            require(nBytes <= nBudget, "too_big");
 +        }
 +    rJson.put("range", rangeName(a));
@@ -328,13 +336,9 @@ new file mode 100644
 +    }
 +    Reference<css::sheet::XSheetCellRange> xSheetRange(xRange, UNO_QUERY_THROW);
 +    auto xSheet = xSheetRange->getSpreadsheet();
-+    // Format changes: the sheet's protection, then Calc's rule.
++    // Format changes need only an unprotected sheet.
 +    if (aBatch.aBold != "null" || aBatch.bAutofit)
-+    {
 +        require(!Reference<css::util::XProtectable>(xSheet, UNO_QUERY_THROW)->isProtected(), "protected");
-+        require(rDoc.IsBlockEditable(SCTAB(a.Sheet), SCCOL(a.StartColumn), SCROW(a.StartRow),
-+            SCCOL(a.EndColumn), SCROW(a.EndRow)), "locked");
-+    }
 +    // Reject merged ranges, including a merge crossing the boundary.
 +    auto xCursor = xSheet->createCursorByRange(xSheetRange);
 +    xCursor->collapseToMergedArea();
@@ -409,7 +413,15 @@ new file mode 100644
 +        // Undone, the partial list must not wait in Redo.
 +        if (rUndo.GetUndoActionCount() && rUndo.GetUndoActionComment() == aTitle)
 +        {
-+            const bool bUndone = rUndo.Undo();
++            bool bUndone = false;
++            try
++            {
++                bUndone = rUndo.Undo();
++            }
++            catch (...)
++            {
++                SAL_WARN("sc.ui", "R macro rollback threw");
++            }
 +            rUndo.ClearRedo();
 +            // Writes left in place: never report "nothing changed".
 +            require(bUndone, "rollback");

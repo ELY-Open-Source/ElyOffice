@@ -18,6 +18,7 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("table.r.unreadable", "ElyTable no pudo leer la selección para R. No se cambió nada."),
     ("table.r.range", "Selecciona un solo bloque de celdas para R. No se cambió nada."),
     ("table.r.cells", "Selecciona como máximo 10.000 celdas para R. No se cambió nada."),
+    ("table.r.unsure", "ElyTable no pudo confirmar si se aplicaron los cambios de R; puede que se hayan aplicado en parte o del todo. Revisa el libro antes de continuar."),
     ("table.r.rollback", "La aplicación de los cambios de R falló a medias y Calc no pudo deshacer lo ya escrito. Revisa la selección."),
     ("table.r.locked", "Calc no permite cambiar esas celdas: la hoja las protege. No se cambió nada."),
     ("table.r.batch_too_big", "Los cambios y la selección a la que se aplican superan juntos 4 MiB. Selecciona menos celdas. No se cambió nada."),

@@ -244,10 +244,10 @@ fn apply(worker: &mut ely_lok::Worker, at: &ely_lok::Doc, batch: &str, stop: &At
     // Any writer since R's read makes `at` stale.
     match worker.run(at, "macro.apply", &[batch]) {
         // Read under this lock: no other batch interleaves.
-        Err(error) if !ely_lok::is_stale(&error) => {
-            let reason = worker.values(at, ely_lok::sheet::MACRO_REFUSAL)?;
-            Err(protocol::kernel_refusal(&reason, error))
-        }
+        Err(error) if !ely_lok::is_stale(&error) => match worker.values(at, ely_lok::sheet::MACRO_REFUSAL) {
+            Ok(reason) => Err(protocol::kernel_refusal(&reason, error)),
+            Err(lost) => Err(protocol::unsure(&error, &format!("no reason: {lost}"))),
+        },
         done => done,
     }
 }

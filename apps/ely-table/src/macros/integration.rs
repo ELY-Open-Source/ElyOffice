@@ -281,3 +281,57 @@ fn each_kernel_refusal_names_its_reason() {
     assert_eq!(apply(&mut worker, &batch), Some("table.r.merged"));
 }
 
+/// The demo workbook in a fresh worker, A1:B2 selected.
+fn demo(dir: &std::path::Path) -> Option<(Worker, Doc)> {
+    let install = ely_lok::test_install()?;
+    let mut worker = Worker::spawn(&install, &dir.join("profile")).expect("worker");
+    let source = dir.join("demo.fods");
+    std::fs::write(&source, include_str!("../../../../tests/fixtures/table/r-macro-demo.fods")).expect("fixture");
+    let doc = worker.load(&ely_lok::file_url(&source)).expect("document");
+    worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
+    Some((worker, doc))
+}
+
+#[test]
+fn a_cell_set_waiting_for_the_worker_lands_after_the_batch() {
+    let dir = tempfile::tempdir().expect("directory");
+    let Some((mut worker, doc)) = demo(dir.path()) else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let (at, batch) = (worker.now(&doc).expect("revision"), untouched(&mut worker, &doc));
+    let shared = std::sync::Mutex::new(worker);
+    let asked = AtomicBool::new(false);
+    std::thread::scope(|scope| {
+        let mut held = shared.lock().expect("the worker lock");
+        let cli = scope.spawn(|| {
+            asked.store(true, std::sync::atomic::Ordering::SeqCst);
+            let mut worker = shared.lock().expect("the worker lock");
+            worker.run(&doc, "cell.set", &["Demo!D9", "from the command line"]).expect("cell set");
+        });
+        while !asked.load(std::sync::atomic::Ordering::SeqCst) {
+            std::thread::yield_now();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        assert!(!cli.is_finished(), "the cell set waits for the worker");
+        // Check and write share the lock; the set waits.
+        super::apply(&mut held, &at, &batch, &AtomicBool::new(false)).expect("R's batch is current");
+    });
+    let mut worker = shared.into_inner().expect("the worker");
+    let undo = worker.values(&doc, ".uno:Undo").expect("undo history");
+    let steps = ely_lok::history::steps(&undo).expect("steps");
+    assert!(steps.len() >= 2 && steps[1].0.starts_with("R macro"), "the set followed the batch: {steps:?}");
+    worker.run(&doc, "cell.goto", &["A1"]).expect("A1");
+    assert!(snapshot(&mut worker, &doc).contains("from R"));
+}
+
+#[test]
+fn a_lost_worker_says_changes_may_have_landed() {
+    let dir = tempfile::tempdir().expect("directory");
+    let Some((mut worker, doc)) = demo(dir.path()) else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let (at, batch) = (worker.now(&doc).expect("revision"), untouched(&mut worker, &doc));
+    worker.stopper().stop().expect("the worker ends");
+    let lost = super::apply(&mut worker, &at, &batch, &AtomicBool::new(false)).expect_err("no reply");
+    assert_eq!(refusal(&lost), Some("table.r.unsure"), "{lost}");
+}

@@ -80,18 +80,24 @@ fn kernel_key(code: &str) -> Option<&'static str> {
 pub fn kernel_refusal(reason: &str, failed: io::Error) -> io::Error {
     let reason: Value = match serde_json::from_str(reason) {
         Ok(reason) => reason,
-        Err(error) => return io::Error::other(format!("{failed}; its reason is unreadable: {error}")),
+        Err(error) => return unsure(&failed, &format!("its reason is unreadable: {error}")),
     };
     match (reason["refused"].as_str(), reason["message"].as_str()) {
+        // Rolled back in the kernel: nothing changed.
         (Some("failed"), Some(message)) => io::Error::other(format!("{failed}: {message}")),
-        // The kernel turned the batch away before reading it.
-        (Some(""), _) => failed,
+        (Some(""), _) => unsure(&failed, "the kernel gave no reason"),
         (Some(code), _) => match kernel_key(code) {
             Some(key) => refused(key),
-            None => io::Error::other(format!("{failed}; unknown reason {code}")),
+            None => unsure(&failed, &format!("unknown reason {code}")),
         },
-        _ => io::Error::other(format!("{failed}; no reason in {reason}")),
+        _ => unsure(&failed, &format!("no reason in {reason}")),
     }
+}
+
+/// An apply whose outcome nobody knows; changes may have landed.
+pub fn unsure(failed: &io::Error, why: &str) -> io::Error {
+    log::warn!("table: R macro outcome unknown: {failed}; {why}");
+    refused("table.r.unsure")
 }
 
 impl Snapshot {
@@ -398,10 +404,11 @@ mod tests {
         let error = kernel_refusal(&failed, io::Error::other("macro.apply"));
         assert_eq!(refusal(&error), None);
         assert!(error.to_string().ends_with("kernel said"), "{error}");
-        let never = json!({"refused": "", "message": ""}).to_string();
-        assert_eq!(kernel_refusal(&never, io::Error::other("as sent")).to_string(), "as sent");
-        let odd = json!({"refused": "odd", "message": ""}).to_string();
-        assert!(kernel_refusal(&odd, io::Error::other("x")).to_string().contains("odd"));
+        // No known reason: the batch may have landed.
+        for unknown in [json!({"refused": "", "message": ""}).to_string(), json!({"refused": "odd"}).to_string(), json!({}).to_string(), "{".into()] {
+            let error = kernel_refusal(&unknown, io::Error::other("macro.apply"));
+            assert_eq!(refusal(&error), Some("table.r.unsure"), "{unknown}");
+        }
         let selection = json!({"refused": "cells"}).to_string();
         assert_eq!(refusal(&Snapshot::parse(&selection).expect_err("refused")), Some("table.r.cells"));
     }

@@ -389,3 +389,75 @@ fn r_batches_keep_subnormals_and_bold_every_script() {
         assert!(xml.contains(weight), "{weight} is missing");
     }
 }
+
+#[test]
+fn a_theme_change_while_r_runs_keeps_the_batch() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = super::sheet::open_book(super::input::FODS);
+    worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
+    let before = snapshot(&mut worker, &doc);
+    let at = worker.now(&doc).expect("revision");
+    worker.run(&doc, "view.theme", &["COLOR_SCHEME_ELY_DARK"]).expect("the scheme");
+    let batch = one_write(&before, "text", json!("from R")).to_string();
+    worker.run(&at, "macro.apply", &[&batch]).expect("still current");
+    assert_eq!(snapshot(&mut worker, &doc)["cells"][0]["value"], "from R");
+}
+
+/// B1:C1 holds a two-cell array formula.
+const ARRAY: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+ <office:body><office:spreadsheet><table:table table:name="S"><table:table-row><table:table-cell><text:p>Head</text:p></table:table-cell><table:table-cell table:formula="of:={1;2}" table:number-matrix-columns-spanned="2" table:number-matrix-rows-spanned="1" office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="2"><text:p>2</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet></office:body>
+</office:document>"#;
+
+#[test]
+fn format_only_batches_cover_part_of_an_array() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (dir, mut worker, doc) = super::sheet::open_book(ARRAY);
+    // A1:B1 cuts the array C1 still belongs to.
+    worker.run(&doc, "cell.goto", &["A1:B1"]).expect("selection");
+    for (bold, autofit) in [(json!(true), false), (json!(null), true)] {
+        let before = snapshot(&mut worker, &doc);
+        let batch = json!({"snapshot": before, "writes": [], "bold": bold, "autofit": autofit});
+        let at = worker.now(&doc).expect("revision");
+        worker.run(&at, "macro.apply", &[&batch.to_string()]).expect("formatting is allowed");
+    }
+    let saved = dir.path().join("array.fods");
+    doc.save_as(&mut worker, &crate::file_url(&saved), "fods").expect("saved");
+    let xml = std::fs::read_to_string(&saved).expect("XML");
+    assert!(xml.contains("fo:font-weight=\"bold\""), "the header is bold");
+}
+
+#[test]
+fn a_selection_of_exactly_4_mib_reads_and_one_byte_more_does_not() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = super::sheet::open_book(super::input::FODS);
+    let long = "a".repeat(32767);
+    for row in 1..=127 {
+        worker.run(&doc, "cell.set", &[&format!("S!E{row}"), &long]).expect("long text");
+    }
+    // Each text cell is 30 bytes plus its text.
+    let frame = r#"{ "range": "0:4:0:4:127", "rows": 128, "columns": 1, "cells": [ ]}"#.len();
+    let cell = |text: usize| 30 + text;
+    let last = 4 * 1024 * 1024 - frame - 127 * cell(32767) - cell(0) - 2 * 127;
+    for (text, fits) in [(last, true), (last + 1, false)] {
+        worker.run(&doc, "cell.set", &["S!E128", &"a".repeat(text)]).expect("last cell");
+        worker.run(&doc, "cell.goto", &["E1:E128"]).expect("selection");
+        let reply = worker.values(&doc, crate::sheet::MACRO).expect("reply");
+        let json: Value = serde_json::from_str(&reply).expect("JSON");
+        match fits {
+            true => assert_eq!((reply.len(), json["rows"].as_u64()), (4 * 1024 * 1024, Some(128))),
+            false => assert_eq!(json["refused"], "too_big", "{} bytes", reply.len()),
+        }
+    }
+}

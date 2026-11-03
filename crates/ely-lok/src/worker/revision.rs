@@ -60,6 +60,10 @@ pub fn bump(request: u8, payload: &[u8]) {
     if !changes || request == tag::POST_MOUSE && hover(&mut unpack) {
         return;
     }
+    // The colour scheme touches neither the document nor the selection.
+    if request == tag::POST_UNO && unpack.str().is_ok_and(|id| id == "view.theme") {
+        return;
+    }
     if let Some(revision) = revisions().lock().expect("the revisions lock").get_mut(&id) {
         *revision += 1;
     }
