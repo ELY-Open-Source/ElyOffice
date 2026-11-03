@@ -1,6 +1,9 @@
 //! Saves and looks touch the disk off the window (R15.41).
 
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Barrier, Mutex},
+};
 
 use ely_files::SaveState;
 use ely_office::prelude::*;
@@ -244,4 +247,44 @@ fn a_save_as_onto_a_file_still_loading_is_refused(cx: &mut TestAppContext) {
         desk.core.tabs.iter().map(|tab| tab.session.path().map(PathBuf::from)).collect::<Vec<_>>()
     });
     assert_eq!(paths, [Some(path), Some(target)], "each file in one tab");
+}
+
+#[gpui::test]
+fn a_target_gone_while_loading_keeps_its_holder(cx: &mut TestAppContext) {
+    let (desk, cx, id, path, _dirs) = opened("one
+", cx);
+    let target = path.with_file_name("b.md");
+    std::fs::write(&target, "old
+").expect("the target");
+    let held = desk.update(cx, |desk, cx| {
+        desk.open_file(target.clone(), cx);
+        // Gone mid-replace while it loads.
+        std::fs::remove_file(&target).expect("the delete");
+        desk.holder(&target).expect("the holder")
+    });
+    assert!(held.is_some_and(|other| other != id), "a missing loading file has no holder");
+    settle(cx);
+}
+
+#[test]
+fn tabs_opened_together_all_reach_the_recent_list() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let file = dir.path().join("recent.json");
+    let (turn, start) = (Arc::new(Mutex::new(())), Arc::new(Barrier::new(16)));
+    let threads: Vec<_> = (0..16)
+        .map(|n| {
+            let (file, turn, start) = (file.clone(), turn.clone(), start.clone());
+            let path = dir.path().join(format!("{n}.md"));
+            std::fs::write(&path, "").expect("a file");
+            std::thread::spawn(move || {
+                start.wait();
+                crate::places::record(&turn, &file, &path, None)
+            })
+        })
+        .collect();
+    for thread in threads {
+        thread.join().expect("the writer ends").expect("recorded");
+    }
+    let list = ely_files::recent::recent(&file).expect("the list");
+    assert_eq!(list.len(), 16, "a concurrent write lost entries");
 }

@@ -3,6 +3,7 @@
 use std::{
     io,
     path::{Path, PathBuf},
+    sync::Mutex,
     time::Duration,
 };
 
@@ -18,7 +19,14 @@ use crate::folder::{Folder, markdown_under};
 pub(crate) const RETRY: Duration = Duration::from_secs(30);
 
 /// Puts `path` first; drops `old` once gone. Off the window.
-fn relist(file: &Path, path: &Path, old: Option<PathBuf>) -> io::Result<(PathBuf, Option<Vec<PathBuf>>)> {
+pub(crate) fn record(
+    turn: &Mutex<()>,
+    file: &Path,
+    path: &Path,
+    old: Option<PathBuf>,
+) -> io::Result<(PathBuf, Option<Vec<PathBuf>>)> {
+    // The list is read, changed and written whole.
+    let _turn = turn.lock().map_err(|_| io::Error::other("a recent-list write panicked"))?;
     let real = dunce::canonicalize(path)?;
     if old.as_ref() == Some(&real) {
         return Ok((real, None));
@@ -113,12 +121,12 @@ impl Desk {
         let Some(tab) = self.tab_mut(id).filter(|tab| tab.extra.tracked.as_deref() != Some(path)) else {
             return;
         };
-        // One attempt at a time; a failure waits `RETRY`.
+        // One attempt per tab; a failure waits `RETRY`.
         tab.extra.tracked = Some(path.to_path_buf());
-        let (file, path) = (self.recent_file.clone(), path.to_path_buf());
+        let (file, path, turn) = (self.recent_file.clone(), path.to_path_buf(), self.recording.clone());
         let seeking = path.clone();
         cx.spawn(async move |desk, cx| {
-            let listed = cx.background_spawn(async move { relist(&file, &seeking, old) }).await;
+            let listed = cx.background_spawn(async move { record(&turn, &file, &seeking, old) }).await;
             desk.update(cx, |desk, cx| desk.listed(id, path, listed, cx)).ok();
         })
         .detach();

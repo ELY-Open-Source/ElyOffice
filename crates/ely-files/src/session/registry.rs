@@ -173,7 +173,8 @@ impl Sessions {
     pub fn holding(&self, path: &Path) -> io::Result<Option<usize>> {
         match Self::key(path) {
             Ok(key) => Ok(self.held(&key.canonical, key.id)),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+            // Missing mid-replace: its recorded path still holds it.
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(self.held(path, None)),
             Err(error) => Err(error),
         }
     }
