@@ -5,50 +5,22 @@ use ely_gpui_component::{
     navigation::{EditorTab, EditorTabs},
     primitives::Severity,
 };
-use gpui::{Context, FocusHandle, SharedString, Window};
+use gpui::{Context, SharedString, Window};
 
 use crate::{After, Closing, Engine, Host, Tabs, text};
 
-/// A tab switch: the page behind stops drawing; keys follow.
+/// A tab switch: the one behind stops drawing.
 pub(crate) fn follow_front<H: Host>(host: &mut H, cx: &mut Context<H>) {
     let front = host.core().active;
-    if host.core().shown.as_ref().map(|(id, _)| *id) == front {
+    let behind = std::mem::replace(&mut host.core_mut().shown, front);
+    if behind == front {
         return;
     }
-    let page = front.and_then(|id| host.tab(id)).map(|tab| <H::Engine as Engine>::focus(tab.view.read(cx)));
-    let behind = std::mem::replace(&mut host.core_mut().shown, front.map(|id| (id, page.clone())));
-    if let Some(tab) = behind.as_ref().and_then(|(id, _)| host.tab(*id)) {
+    if let Some(tab) = behind.and_then(|id| host.tab(id)) {
         <H::Engine as Engine>::hide(&tab.view, cx);
     }
     if let Some(id) = front {
         host.tab_shown(id, cx);
-    }
-    if let Some(page) = page {
-        hand_keys(host, behind.and_then(|(_, held)| held), page, cx);
-    }
-}
-
-/// The front page takes the keys the page behind held.
-fn hand_keys<H: Host>(host: &H, behind: Option<FocusHandle>, page: FocusHandle, cx: &mut Context<H>) {
-    let Some(handle) = host.core().window else {
-        return;
-    };
-    let root = host.core().focus.clone();
-    let handed = handle.update(cx, |_, window, cx| {
-        // Focus the user put elsewhere stays.
-        let free = window.focused(cx).is_none_or(|focused| {
-            focused == root || focused == page || behind.is_some_and(|old| old.contains_focused(window, cx))
-        });
-        if free {
-            window.focus(&page, cx);
-        }
-        free
-    });
-    let slug = H::KIND.app.slug();
-    match handed {
-        Ok(true) => log::info!("{slug}: the front page has the keys"),
-        Ok(false) => log::info!("{slug}: the keys stay where the user put them"),
-        Err(error) => log::error!("{slug}: the keys could not follow the front: {error}"),
     }
 }
 

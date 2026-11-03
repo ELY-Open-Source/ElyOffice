@@ -61,6 +61,10 @@ fn every_switch_hands_the_keys_to_the_front_deck() {
     });
     let window = cx.add_window(|_, _| Front(deck.clone()));
     let mut shown = VisualTestContext::from_window(window.into(), &cx);
+    // Focus events need the window in front, as typing does.
+    shown.update(|window, _| window.activate_window());
+    shown.run_until_parked();
+    assert!(shown.update(|window, _| window.is_window_active()), "the window is in front");
     shown.update(|window, app| deck.update(app, |deck, cx| {
         deck.own_window(window, cx);
         let focus = deck.tab(b).expect("b").view.read(cx).focus_handle().clone();

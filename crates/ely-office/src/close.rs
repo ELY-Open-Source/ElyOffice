@@ -42,9 +42,18 @@ pub trait Closing: Host {
     }
 
     /// Takes `window` as home; quit anywhere asks here first.
-    fn own_window(&mut self, window: &Window, cx: &mut Context<Self>) {
+    fn own_window(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let handle = window.window_handle();
         self.core_mut().window = Some(handle);
+        // Keys that fall to the root go to the front.
+        let root = self.core().focus.clone();
+        cx.on_focus(&root, window, |host, window, cx| {
+            if let Some(tab) = host.active_tab() {
+                log::info!("{}: the window had the keys; tab {} takes them", Self::KIND.app.slug(), tab.id);
+                window.focus(&Self::Engine::focus(tab.view.read(cx)), cx);
+            }
+        })
+        .detach();
         let host = cx.entity().downgrade();
         ely_ui::commands::route_quit(cx, move |cx| {
             let host = host.clone();
