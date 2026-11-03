@@ -31,8 +31,8 @@ KEY_WAIT = 10
 TARGET = 100
 # The user's floor: stop before the machine swaps.
 FLOOR_GB = 12
-# Clicks the bench never makes while typing.
-OTHERS = re.compile(r"ui: mouse_down to frame")
+# Clicks and pointer moves the bench never makes while typing.
+OTHERS = re.compile(r"ui: mouse_down to frame|lok: input \d+ mouse")
 RETRIES = 2
 
 
@@ -177,6 +177,17 @@ def interfered(app, since, place):
     return None
 
 
+def repainted(app, since):
+    """Did the engine take the key, and the screen redraw?"""
+    lines = app.lines()[since:]
+    took = [line for line in lines if re.search(r"lok: input \d+ text", line)]
+    drawn = [line for line in lines if "lok: screen complete" in line]
+    if not took or not drawn or run.logged_at(drawn[-1]) < run.logged_at(took[-1]):
+        return ""
+    after = run.logged_at(drawn[-1]) - run.logged_at(took[-1])
+    return f"; the engine took it and the screen redrew {after:.0f} ms later: the edit clock missed it"
+
+
 def type_keys(app, recipe, count, busy=None):
     """Keys to feedback, `count` at least and while `busy` runs."""
     since, place = len(app.lines()), window_place(app)
@@ -188,7 +199,7 @@ def type_keys(app, recipe, count, busy=None):
             if interfered(app, since, place):
                 break
             if time.monotonic() > until:
-                raise RuntimeError(f"{app.slug}: key {n + 1} showed nothing in {KEY_WAIT} s")
+                raise RuntimeError(f"{app.slug}: key {n + 1} showed nothing in {KEY_WAIT} s{repainted(app, since)}")
             time.sleep(0.01)
         n += 1
         free_gb()
