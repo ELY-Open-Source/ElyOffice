@@ -240,4 +240,8 @@ pub(super) const ES: &[(&str, &str)] = &[
     ),
     ("pdf.error.locked", "se necesita una contraseña"),
     ("pdf.error.no_pages", "no hay páginas que mostrar"),
+    ("pdf.error.not_pdf", "el archivo no es ni PDF ni EPUB"),
+    ("pdf.error.password_changed", "el archivo del disco rechazó la contraseña del documento"),
+    ("pdf.error.repaired_password", "la copia reparada rechazó la contraseña"),
+    ("pdf.error.not_whole", "el documento no se leyó completo: {report}"),
 ];

@@ -36,7 +36,7 @@ mod tools;
 mod tree;
 mod tree_ops;
 mod tree_places;
-use ely_platform::locale::Said;
+use ely_ipc::{Then, Worded};
 use ely_platform::settings::{LANGUAGES, Language};
 use gpui::{App, SharedString};
 
@@ -106,6 +106,7 @@ const EN: &[(&str, &str)] = &[
     ("error.no_pixels", "the picture has no pixels"),
     ("error.then", "{error}; removing the files already written failed too: {left}"),
     ("error.no_key", "the recovery key is not in the key store"),
+    ("error.not_installed", "{app} is not installed"),
 ];
 
 const ZH_CN: &[(&str, &str)] = &[
@@ -168,6 +169,7 @@ const ZH_CN: &[(&str, &str)] = &[
     ("error.no_pixels", "图片没有像素"),
     ("error.then", "{error}；已写出的文件也没能删除：{left}"),
     ("error.no_key", "密钥存储里没有恢复密钥"),
+    ("error.not_installed", "{app} 没有安装"),
 ];
 
 /// The listed language of `tag`'s primary subtag; else en-US.
@@ -294,10 +296,14 @@ pub fn text(cx: &App, key: &str, args: &[(&str, &str)]) -> SharedString {
 
 /// `error` in the window's language when Ely worded it.
 pub fn error(cx: &App, error: &std::io::Error) -> SharedString {
-    let Some(said) = error.get_ref().and_then(|inner| inner.downcast_ref::<Said>()) else {
+    if let Some(then) = error.get_ref().and_then(|inner| inner.downcast_ref::<Then>()) {
+        let (first, left) = (self::error(cx, &then.error), self::error(cx, &then.left));
+        return text(cx, "error.then", &[("error", &first), ("left", &left)]);
+    }
+    let Some(said) = error.get_ref().and_then(|inner| inner.downcast_ref::<Worded>()) else {
         return error.to_string().into();
     };
-    let args: Vec<_> = said.args.iter().map(|(name, value)| (*name, value.as_str())).collect();
+    let args: Vec<_> = said.args.iter().map(|(name, value)| (name.as_str(), value.as_str())).collect();
     text(cx, said.key, &args)
 }
 
@@ -352,19 +358,20 @@ mod tests {
     #[gpui::test]
     fn errors_ely_words_read_in_each_language(cx: &mut gpui::TestAppContext) {
         use std::io;
-        let locked = super::Said::error(io::ErrorKind::PermissionDenied, "error.no_key", &[]);
-        let then = super::Said::then(&io::Error::other("A"), &io::Error::other("B"));
+        let locked = super::Worded::error(io::ErrorKind::PermissionDenied, "error.no_key", &[]);
+        let pixels = || super::Worded::error(io::ErrorKind::InvalidData, "error.no_pixels", &[]);
+        let then = super::Worded::then(pixels(), io::Error::other("B"));
         cx.update(|cx| {
             for (tag, key, both) in [
-                ("zh-CN", "密钥存储里没有恢复密钥", "A；已写出的文件也没能删除：B"),
-                ("es-ES", "la clave de recuperación no está en el almacén de claves", "A; tampoco se pudieron eliminar los archivos ya escritos: B"),
+                ("zh-CN", "密钥存储里没有恢复密钥", "图片没有像素；已写出的文件也没能删除：B"),
+                ("es-ES", "la clave de recuperación no está en el almacén de claves", "la imagen no tiene píxeles; tampoco se pudieron eliminar los archivos ya escritos: B"),
             ] {
                 super::install_as(tag, cx);
                 assert_eq!((super::error(cx, &locked), super::error(cx, &then)), (key.into(), both.into()), "{tag}");
                 assert_eq!(super::error(cx, &io::Error::other("the system's")), "the system's", "{tag}");
             }
         });
-        assert_eq!(locked.to_string(), "error.no_key", "logs name the key");
+        assert_eq!((locked.to_string(), then.to_string()), ("error.no_key".into(), "error.then".into()), "logs name the key");
     }
 
     #[test]

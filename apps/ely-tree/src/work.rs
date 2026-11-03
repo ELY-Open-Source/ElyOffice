@@ -6,7 +6,7 @@ use ely_gpui_component::{
     git::{ChangeAction, ChangeSection},
     primitives::Severity,
 };
-use ely_platform::locale::Said;
+use ely_ipc::Worded;
 use gpui::{AppContext as _, Context, SharedString};
 
 use crate::{
@@ -187,7 +187,7 @@ pub(crate) fn run(
             let file = root.join(path);
             // A link here now would carry the text elsewhere.
             if std::fs::symlink_metadata(&file).is_ok_and(|meta| meta.file_type().is_symlink()) {
-                return Err(Said::error(io::ErrorKind::Other, "tree.error.now_link", &[("path", path)]));
+                return Err(Worded::error(io::ErrorKind::Other, "tree.error.now_link", &[("path", path)]));
             }
             std::fs::write(&file, text)
         }
@@ -200,7 +200,7 @@ pub(crate) fn run(
         } => {
             // A patch from an older diff is refused.
             if git.run(root, &strs(check))? != **seen {
-                return Err(Said::error(io::ErrorKind::Other, "tree.error.patch_stale", &[]));
+                return Err(Worded::error(io::ErrorKind::Other, "tree.error.patch_stale", &[]));
             }
             git.run_input(root, &strs(args), patch.as_bytes()).map(drop)
         }
@@ -211,13 +211,13 @@ pub(crate) fn run(
                 &["rev-parse", "-q", "--verify", &format!("stash@{{{at}}}")],
             )?;
             if String::from_utf8_lossy(&now).trim() != oid {
-                return Err(Said::error(io::ErrorKind::Other, "tree.error.stash_stale", &[]));
+                return Err(Worded::error(io::ErrorKind::Other, "tree.error.stash_stale", &[]));
             }
             git.run(root, &strs(args)).map(drop)
         }
         Write::Move { branch, head, .. } => {
             if recover::head_now(git, root)? != (branch.clone(), head.clone()) {
-                return Err(Said::error(io::ErrorKind::Other, "tree.error.head_moved", &[]));
+                return Err(Worded::error(io::ErrorKind::Other, "tree.error.head_moved", &[]));
             }
             recover::nothing_staged(git, root)?;
             git.run(root, &strs(args)).map(drop)
@@ -251,7 +251,7 @@ pub(crate) fn run(
 
 /// A shown path: same kind, reached through no link.
 fn as_shown(root: &std::path::Path, path: &str, folder: bool) -> io::Result<()> {
-    let changed = || Said::error(io::ErrorKind::Other, "tree.error.clean_stale", &[("path", path)]);
+    let changed = || Worded::error(io::ErrorKind::Other, "tree.error.clean_stale", &[("path", path)]);
     let mut at = root.to_path_buf();
     let parts: Vec<&str> = path.trim_end_matches('/').split('/').collect();
     for (ix, part) in parts.iter().enumerate() {

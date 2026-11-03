@@ -2,7 +2,7 @@
 
 use std::{io, path::Path};
 
-use ely_platform::locale::Said;
+use ely_ipc::Worded;
 
 use crate::git::Git;
 
@@ -127,7 +127,7 @@ pub fn nothing_staged(git: &Git, root: &Path) -> io::Result<()> {
     {
         return Ok(());
     }
-    Err(Said::error(io::ErrorKind::Other, "tree.error.staged", &[]))
+    Err(Worded::error(io::ErrorKind::Other, "tree.error.staged", &[]))
 }
 
 pub fn plan_move(git: &Git, root: &Path, to: &str) -> io::Result<Move> {

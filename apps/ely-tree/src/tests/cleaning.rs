@@ -195,9 +195,9 @@ fn a_shown_file_deleted_since_says_it_changed() {
     let error = run(&root, write).expect_err("refused");
     let said = error
         .get_ref()
-        .and_then(|inner| inner.downcast_ref::<ely_platform::locale::Said>())
+        .and_then(|inner| inner.downcast_ref::<ely_ipc::Worded>())
         .expect("worded");
-    assert_eq!((said.key, said.args.as_slice()), ("tree.error.clean_stale", &[("path", "gone.txt".to_string())][..]));
+    assert_eq!((said.key, said.args.as_slice()), ("tree.error.clean_stale", &[("path".to_string(), "gone.txt".to_string())][..]));
 }
 
 #[test]

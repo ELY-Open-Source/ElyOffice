@@ -240,7 +240,7 @@ impl Root {
             if let Err(error) = opened {
                 log::error!("apps: {} did not open: {error}", app.name());
                 root.update(cx, |root, cx| {
-                    let said = crate::i18n::text(cx, "menu.app.switch_failed", &[("app", app.name()), ("error", &error.to_string())]);
+                    let said = crate::i18n::text(cx, "menu.app.switch_failed", &[("app", app.name()), ("error", &crate::i18n::error(cx, &error))]);
                     root.toast(said, Severity::Danger, cx);
                 })
                 .ok();

@@ -168,7 +168,7 @@ fn launcher(names: &[&str], dir: &Path) -> io::Result<Launched> {
             Err(error) => return Err(io::Error::other(format!("{name}: {error}"))),
         }
     }
-    Err(ely_platform::locale::Said::error(io::ErrorKind::NotFound, "tree.error.no_terminal", &[("names", &names.join(", "))]))
+    Err(ely_ipc::Worded::error(io::ErrorKind::NotFound, "tree.error.no_terminal", &[("names", &names.join(", "))]))
 }
 
 /// After this, an exit is the session's own.

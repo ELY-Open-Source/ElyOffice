@@ -109,7 +109,7 @@ fn read_still(path: &Path) -> io::Result<(Fingerprint, Source)> {
             return Ok((before, Source::decode(bytes)?));
         }
     }
-    Err(ely_platform::locale::Said::error(io::ErrorKind::Other, "mark.error.unsettled", &[]))
+    Err(ely_ipc::Worded::error(io::ErrorKind::Other, "mark.error.unsettled", &[]))
 }
 
 impl Desk {

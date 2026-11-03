@@ -9,7 +9,7 @@ use ely_gpui_component::{
 };
 use ely_office::{Closing as _, Tabs as _};
 use ely_pdf_engine::{Writing, Wrote};
-use ely_platform::locale::Said;
+use ely_ipc::Worded;
 use gpui::{
     AnyElement, App, Context, IntoElement, KeyBinding, MenuItem, ParentElement as _, Styled as _, Window, actions,
     div, img, px,
@@ -47,12 +47,12 @@ const PREVIEW: f32 = 2.0;
 
 /// The chosen font cannot draw `c`.
 pub(crate) fn no_glyph(c: char) -> io::Error {
-    Said::error(io::ErrorKind::InvalidInput, "pdf.text.missing", &[("char", &c.to_string())])
+    Worded::error(io::ErrorKind::InvalidInput, "pdf.text.missing", &[("char", &c.to_string())])
 }
 
 /// The document's own font cannot write new text.
 pub(crate) fn unwritable() -> io::Error {
-    Said::error(io::ErrorKind::InvalidInput, "pdf.text.unwritable", &[])
+    Worded::error(io::ErrorKind::InvalidInput, "pdf.text.unwritable", &[])
 }
 
 impl Viewer {

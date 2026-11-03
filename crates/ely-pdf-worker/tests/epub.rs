@@ -72,5 +72,5 @@ fn other_kinds_mupdf_reads_stay_out() {
     let path = dir.path().join("note.txt");
     std::fs::write(&path, "plain text").expect("writes");
     let said = worker().open(&path).expect_err("refused");
-    assert!(said.to_string().contains("neither a PDF nor an EPUB"), "{said}");
+    assert_eq!(said.to_string(), "pdf.error.not_pdf", "worded across the pipe");
 }

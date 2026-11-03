@@ -95,6 +95,9 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("settings.app_unreadable", "This app's settings cannot be read, so defaults are in use: {error}"),
     ("settings.storage.inside", "{path} is inside the data folder"),
     ("settings.storage.not_ely", "{path} holds files that are not Ely's"),
+    ("settings.git.not_git", "{path} is no Git; it says {said}"),
+    ("settings.git.old", "{version} at {path} is older than {least}"),
+    ("settings.git.failed", "{path} --version failed ({status}): {said}"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -189,4 +192,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("settings.app_unreadable", "本应用的设置读不出，正用默认值：{error}"),
     ("settings.storage.inside", "{path} 在数据文件夹里面"),
     ("settings.storage.not_ely", "{path} 里有不属于 Ely 的文件"),
+    ("settings.git.not_git", "{path} 不是 Git，它报的是 {said}"),
+    ("settings.git.old", "{path} 的 {version} 早于 {least}"),
+    ("settings.git.failed", "{path} --version 失败（{status}）：{said}"),
 ];

@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use ely_platform::locale::Said;
+use ely_ipc::Worded;
 
 use crate::{git::Git, running::Running};
 
@@ -29,7 +29,7 @@ fn text(bytes: Vec<u8>) -> io::Result<String> {
 pub fn open(git: &Git, path: &Path) -> io::Result<Repo> {
     if text(git.run(path, &["rev-parse", "--is-bare-repository"])?)? == "true" {
         let path = path.display().to_string();
-        return Err(Said::error(io::ErrorKind::Unsupported, "tree.error.bare", &[("path", &path)]));
+        return Err(Worded::error(io::ErrorKind::Unsupported, "tree.error.bare", &[("path", &path)]));
     }
     let root = text(git.run(path, &["rev-parse", "--show-toplevel"])?)?;
     let git_dir = text(git.run(path, &["rev-parse", "--absolute-git-dir"])?)?;
@@ -56,7 +56,7 @@ impl Git {
     pub fn clone_repo(&self, url: &str, into: &Path) -> io::Result<Running> {
         if into.exists() && std::fs::read_dir(into)?.next().is_some() {
             let into = into.display().to_string();
-            return Err(Said::error(io::ErrorKind::AlreadyExists, "tree.error.not_empty", &[("path", &into)]));
+            return Err(Worded::error(io::ErrorKind::AlreadyExists, "tree.error.not_empty", &[("path", &into)]));
         }
         let parent = into
             .parent()

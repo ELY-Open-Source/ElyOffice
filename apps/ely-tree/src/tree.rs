@@ -164,10 +164,9 @@ pub(crate) fn inside(root: &Path, file: &Path) -> io::Result<String> {
 
 impl Tree {
     pub(crate) fn new(recent_file: PathBuf, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let git = Git::find().map_err(|error| error.to_string());
-        if let Err(error) = &git {
-            log::error!("tree: {error}");
-        }
+        let git = Git::find()
+            .inspect_err(|error| log::error!("tree: {error}"))
+            .map_err(|error| ely_ui::i18n::error(cx, &error).to_string());
         let (recent, unread) = match ely_files::recent::recent(&recent_file) {
             Ok(list) => (list, None),
             Err(error) => (Vec::new(), Some(error.to_string())),

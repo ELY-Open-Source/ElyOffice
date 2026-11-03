@@ -277,8 +277,8 @@ pub trait Saving: Host {
             // Another tab may have taken the target meanwhile.
             match host.holder(&target) {
                 Ok(Some(other)) if other != id => {
-                    let message = format!("{} is open in another tab", target.display());
-                    return Err(SaveError::Io(io::Error::other(message)));
+                    let name = file_name(&target);
+                    return Err(SaveError::Io(ely_ipc::Worded::error(io::ErrorKind::Other, "office.error.taken", &[("name", &name)])));
                 }
                 Err(error) => return Err(SaveError::Io(error)),
                 _ => {}

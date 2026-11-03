@@ -161,4 +161,6 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("office.zoom.out", "Alejar"),
     ("office.zoom.actual", "Tamaño real"),
     ("office.zoom.fit", "Ajustar diapositiva"),
+    ("office.error.utf32", "el paquete contiene XML en UTF-32, que no se lee"),
+    ("office.error.zip_method", "{name} dentro del paquete usa el método zip {method}, que no se lee"),
 ];

@@ -283,12 +283,11 @@ impl Deck {
                     let written = (files.iter().zip(claimed))
                         .try_for_each(|((part, _), file)| picture(worker, made, *part, size, file));
                     // A failure leaves none of this run's files.
-                    if let Err(error) = &written
-                        && let Err(left) = files.iter().try_for_each(|(_, path)| std::fs::remove_file(path))
-                    {
-                        return Err(ely_platform::locale::Said::then(error, &left));
-                    }
-                    written.map(|()| files.len())
+                    written.map_err(|error| match files.iter().try_for_each(|(_, path)| std::fs::remove_file(path)) {
+                        Ok(()) => error,
+                        Err(left) => ely_ipc::Worded::then(error, left),
+                    })?;
+                    Ok(files.len())
                 })
             },
             move |deck, written, _, cx| match written {

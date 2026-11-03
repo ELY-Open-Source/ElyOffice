@@ -1,9 +1,11 @@
 //! Ely's own errors read in the window's language (R15.38).
 
+use ely_office::prelude::*;
 use gpui::{Entity, TestAppContext, VisualTestContext};
 
-use super::{Blank, docs, with_window};
+use super::{Blank, docs, settle, with_window};
 use crate::docs::Docs;
+use crate::files::Template;
 use crate::merge::{Table, read_csv};
 
 /// A window root that keeps Docs' toasts.
@@ -56,4 +58,37 @@ fn a_csv_without_rows_says_so_in_chinese_and_spanish(cx: &mut TestAppContext) {
             assert_eq!((said(&twice), said(&empty)), (named.into(), none.into()), "{locale}");
         }
     });
+}
+
+#[test]
+fn a_save_as_target_another_tab_took_meanwhile_says_so_in_chinese_and_spanish() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    cx.update(ely_gpui_component::init_for_tests);
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let root = rooted(&mut cx, &docs);
+    let fodt = cx.update(|app| Template::Report.fodt(app));
+    let [a, b, target] = ["a.fodt", "b.fodt", "copy.odt"].map(|name| dir.path().join(name));
+    for path in [&a, &b, &target] {
+        std::fs::write(path, &fodt).expect("writes");
+    }
+    for path in [&a, &b] {
+        let path = path.clone();
+        with_window(&mut cx, &docs, move |docs, _, cx| docs.open_file(path, cx));
+    }
+    settle(&cx, |app| docs.read(app).core.tabs.len() == 2 && docs.read(app).core.loading.is_empty());
+    let (first, second) = cx.update(|app| (docs.read(app).core.tabs[0].id, docs.read(app).core.tabs[1].id));
+    for (locale, said) in [("zh-CN", "copy.odt 已在另一个标签页打开"), ("es-ES", "copy.odt está abierto en otra pestaña")] {
+        cx.update(|app| ely_ui::i18n::install_as(locale, app));
+        let (b, target) = (b.clone(), target.clone());
+        with_window(&mut cx, &docs, move |docs, window, cx| {
+            docs.tab_mut(second).expect("b").session = ely_files::Session::load(b).expect("b");
+            docs.write_as(first, target.clone(), None, window, cx);
+            // Before the export lands, the other tab takes the target.
+            docs.tab_mut(second).expect("b").session = ely_files::Session::load(target).expect("the target");
+        });
+        settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| text.contains(said)));
+    }
 }

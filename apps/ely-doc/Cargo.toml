@@ -21,6 +21,7 @@ ely-office.workspace = true
 gpui.workspace = true
 jiff.workspace = true
 log.workspace = true
+ely-ipc.workspace = true
 ely-platform.workspace = true
 ely-ui.workspace = true
 

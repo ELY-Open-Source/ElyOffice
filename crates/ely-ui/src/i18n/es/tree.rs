@@ -129,6 +129,7 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("tree.look.unread", "No se pudo leer"),
     ("tree.error.staged", "se perderían los cambios en stage; haga commit o sáquelos del stage primero"),
     ("tree.error.bare", "{path} es un repositorio vacío (bare)"),
+    ("tree.error.git_gone", "no hay Git en {path}; revise ELY_GIT o el ajuste de Git"),
     ("tree.error.not_empty", "{path} no está vacía"),
     ("tree.error.detached", "HEAD no está en ninguna rama"),
     ("tree.error.no_upstream", "{branch} no tiene upstream"),

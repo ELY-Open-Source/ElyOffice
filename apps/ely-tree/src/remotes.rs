@@ -2,7 +2,7 @@
 
 use std::{io, path::Path};
 
-use ely_platform::locale::Said;
+use ely_ipc::Worded;
 
 use crate::git::Git;
 
@@ -76,7 +76,7 @@ pub struct Force {
 pub fn force(git: &Git, root: &Path) -> io::Result<Force> {
     let branch = words(git.run_or_one(root, &["symbolic-ref", "--short", "-q", "HEAD"])?)?;
     if branch.is_empty() {
-        return Err(Said::error(io::ErrorKind::Other, "tree.error.detached", &[]));
+        return Err(Worded::error(io::ErrorKind::Other, "tree.error.detached", &[]));
     }
     let setting = |key: &str| -> io::Result<String> {
         words(git.run_or_one(
@@ -86,7 +86,7 @@ pub fn force(git: &Git, root: &Path) -> io::Result<Force> {
     };
     let (remote, target) = (setting("remote")?, setting("merge")?);
     if remote.is_empty() || target.is_empty() {
-        return Err(Said::error(io::ErrorKind::Other, "tree.error.no_upstream", &[("branch", &branch)]));
+        return Err(Worded::error(io::ErrorKind::Other, "tree.error.no_upstream", &[("branch", &branch)]));
     }
     let upstream = format!("{branch}@{{upstream}}");
     let lease = words(git.run(root, &["rev-parse", "--verify", &upstream])?)?;

@@ -10,7 +10,7 @@ use std::{
 
 use ely_gpui_component::primitives::Severity;
 use ely_lok::{Doc, Worker};
-use ely_platform::locale::Said;
+use ely_ipc::Worded;
 use gpui::{AppContext as _, Context, SharedString, TaskExt as _};
 
 use ely_office::files::{self, file_name};
@@ -37,15 +37,15 @@ pub fn read_csv(path: &Path) -> io::Result<Table> {
         .map(|header| header.trim().to_string())
         .collect();
     if let Some(at) = headers.iter().position(String::is_empty) {
-        return Err(Said::error(io::ErrorKind::InvalidData, "doc.merge.unnamed", &[("n", &(at + 1).to_string())]));
+        return Err(Worded::error(io::ErrorKind::InvalidData, "doc.merge.unnamed", &[("n", &(at + 1).to_string())]));
     }
     // A name with a guillemet would blur the marker bounds.
     if let Some(header) = headers.iter().find(|header| header.contains(['«', '»'])) {
-        return Err(Said::error(io::ErrorKind::InvalidData, "doc.merge.guillemet", &[("name", header)]));
+        return Err(Worded::error(io::ErrorKind::InvalidData, "doc.merge.guillemet", &[("name", header)]));
     }
     for (at, header) in headers.iter().enumerate() {
         if headers[..at].contains(header) {
-            return Err(Said::error(io::ErrorKind::InvalidData, "doc.merge.twice", &[("name", header)]));
+            return Err(Worded::error(io::ErrorKind::InvalidData, "doc.merge.twice", &[("name", header)]));
         }
     }
     let rows = reader
@@ -54,7 +54,7 @@ pub fn read_csv(path: &Path) -> io::Result<Table> {
         .collect::<Result<Vec<Vec<String>>, _>>()
         .map_err(io::Error::other)?;
     if rows.is_empty() {
-        return Err(Said::error(io::ErrorKind::InvalidData, "doc.merge.no_rows", &[]));
+        return Err(Worded::error(io::ErrorKind::InvalidData, "doc.merge.no_rows", &[]));
     }
     Ok(Table {
         name: file_name(path),

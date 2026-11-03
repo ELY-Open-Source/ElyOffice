@@ -118,7 +118,7 @@ fn choose_in(home: &Path, parent: &Path) -> io::Result<State> {
     let target = dunce::canonicalize(parent)?.join(NAME);
     let target = if target.try_exists()? { dunce::canonicalize(&target)? } else { target };
     let shown = target.display().to_string();
-    let refuse = |key| Err(crate::locale::Said::error(io::ErrorKind::InvalidInput, key, &[("path", &shown)]));
+    let refuse = |key| Err(ely_ipc::Worded::error(io::ErrorKind::InvalidInput, key, &[("path", &shown)]));
     if target != at && target.starts_with(&at) {
         return refuse("settings.storage.inside");
     }

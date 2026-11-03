@@ -197,6 +197,32 @@ fn a_clone_into_a_full_folder_says_so_in_chinese_and_spanish() {
     assert!(cx.update(|_, app| tree.read(app).cloning.is_none()), "no clone began");
 }
 
+#[test]
+fn opening_in_a_missing_elymark_says_so_in_chinese_and_spanish() {
+    // An installed one would start for real.
+    if ely_platform::apps::installed(ely_platform::AppId::Mark) {
+        return eprintln!("SKIP: ElyMark is installed here");
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let root = committed(dir.path());
+    let mut cx = TestAppContext::single();
+    let (tree, cx) = window(&mut cx, dir.path());
+    // The window's toasts live on its root.
+    let shell = cx.update(|window, app| {
+        let shell = ely_ui::tool_root(ely_platform::AppId::Tree, tree.clone().into(), Vec::new(), window, app);
+        tree.update(app, |tree, _| tree.root = shell.downgrade());
+        shell
+    });
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.open_path(root.clone(), cx)));
+    settle(cx, |app| branch(tree.read(app)).is_some());
+    for (locale, said) in [("zh-CN", "ElyMark 没有安装"), ("es-ES", "ElyMark no está instalado")] {
+        cx.update(|_, app| ely_ui::i18n::install_as(locale, app));
+        cx.update(|_, app| tree.update(app, |tree, cx| tree.open_in_mark("a.txt", cx)));
+        let toasts = cx.update(|_, app| shell.read(app).toasts(app));
+        assert!(toasts.iter().any(|(text, _)| text.contains(said)), "{locale}: {toasts:?}");
+    }
+}
+
 /// Windows may end a hung Git only after 10 s.
 const GRACE: std::time::Duration = std::time::Duration::from_secs(30);
 

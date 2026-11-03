@@ -63,11 +63,11 @@ pub struct Pdf;
 /// What a tab needs; locked or empty files fail.
 fn read(worker: &mut Worker, doc: Doc, locked: bool, password: &str) -> io::Result<Loaded> {
     if locked && !worker.unlock(doc, password)? {
-        return Err(ely_platform::locale::Said::error(io::ErrorKind::PermissionDenied, "pdf.error.locked", &[]));
+        return Err(ely_ipc::Worded::error(io::ErrorKind::PermissionDenied, "pdf.error.locked", &[]));
     }
     let pages = worker.pages(doc)?;
     if pages == 0 {
-        return Err(ely_platform::locale::Said::error(io::ErrorKind::InvalidData, "pdf.error.no_pages", &[]));
+        return Err(ely_ipc::Worded::error(io::ErrorKind::InvalidData, "pdf.error.no_pages", &[]));
     }
     let first = worker.bounds(doc, 0, pages.min(MEASURE))?;
     let (marks, mark, allowed) = (worker.outline(doc)?, worker.history(doc)?, worker.permissions(doc)?);
