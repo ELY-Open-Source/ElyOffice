@@ -89,6 +89,10 @@ impl Host for Deck {
         self.sync_menus(cx);
     }
 
+    fn tab_shown(&mut self, id: u64, cx: &mut Context<Self>) {
+        self.paint_next(id, cx);
+    }
+
     fn read_at(&self, tab: u64, _: &gpui::App) -> Option<ely_lok::Doc> {
         self.tab(tab).and_then(|tab| tab.extra.read_at.clone())
     }

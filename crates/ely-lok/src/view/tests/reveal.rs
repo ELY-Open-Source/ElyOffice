@@ -245,6 +245,35 @@ fn the_next_screen_paints_ahead_and_old_jobs_are_skipped() {
 }
 
 #[test]
+fn a_hidden_view_drops_its_queued_screen() {
+    let Some(install) = crate::client::tests::install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let cx = gpui::TestAppContext::single();
+    let (view, bounds) = long_view(&cx, &install);
+    // One frame asks for the screen; then its tab hides.
+    cx.update(|app| {
+        view.update(app, |view, cx| {
+            view.invalidate(cx);
+            _ = view.prepare(bounds);
+            assert!(!view.fetching.is_empty(), "the screen is queued");
+            view.hide();
+        })
+    });
+    cx.run_until_parked();
+    cx.update(|app| {
+        let view = view.read(app);
+        assert!(view.fetching.is_empty() && view.tiles.values().all(|tile| tile.stale), "nothing paints behind");
+    });
+    settle(&cx, &view, bounds);
+    cx.update(|app| {
+        let view = view.read(app);
+        let fresh = view.on_screen.iter().all(|key| view.tiles.get(key).is_some_and(|tile| !tile.stale));
+        assert!(fresh, "shown again, the screen paints");
+    });
+}
+
+#[test]
 fn page_keys_turn_parts_like_up_and_down() {
     let Some(install) = crate::client::tests::install() else {
         return eprintln!("SKIP: no pinned LOK build");

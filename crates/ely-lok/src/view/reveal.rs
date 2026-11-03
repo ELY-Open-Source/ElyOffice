@@ -45,6 +45,13 @@ pub(super) fn wanted(wanted: &Wanted) -> MutexGuard<'_, (Geom, HashSet<(i32, i32
 }
 
 impl LokView {
+    /// Drawn no more: queued tiles go; drawing asks again.
+    pub fn hide(&mut self) {
+        self.on_screen.clear();
+        self.filling = None;
+        wanted(&self.wanted).1.clear();
+    }
+
     /// Takes `image` for `key`; it shows with its screen.
     pub(super) fn land(&mut self, key: (i32, i32), image: Arc<RenderImage>) {
         if let Some(old) = self.tiles.insert(key, TileEntry { image, stale: false }) {
