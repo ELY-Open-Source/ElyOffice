@@ -25,6 +25,7 @@
 | --- | --- | --- |
 | 简中与英文界面 | `ely_ui::i18n` 缺键即失败；组件库面板族、对话框、批注栏等内建中英目录；设置可切语言（下次启动生效） | 内核给出的固定文字由 Ely 重写：ElyTable 的状态、错误与单元格样式，ElyDoc 的内置样式名与纸张名（R14.6，`chinese.rs` 在中文下画出排序、筛选与属性栏，无英文）；文件与主题自带的名字照原样 |
 | 西班牙语界面 | 系统的 es-*（`es_PE.UTF-8`、`es-419`）归到 es-ES，设置可选 Español；ElyDoc、ElyTable、文档外壳、设置与组件文案已译，缺键即失败（`spanish_tests.rs`）；内置样式名与纸张名照 LibreOffice 的 es 译文（`builtin.rs`） | 其他应用的专用文字仍为英文（R15.16）；拼写词典只随英文 |
+| 越南语界面 | 系统的 vi-*（`vi_VN.UTF-8`）归到 vi-VN，设置可选 Tiếng Việt；八个应用与组件文案已译，缺键即失败（`vietnamese_tests.rs`）；内核文字照 LibreOffice 26.2.6.3 的 vi 译文（`builtin.rs`、`figures.rs`），vi 未译的自拟 | 拼写词典只随英文；Windows-1258 的 CSV 导入后声调为组合字符，内核不合成 |
 | 中英文输入、组合输入、标点 | LOK 视图与 ElyMark 的编辑器都经输入法回调处理组字（`lokview.sh` 组“你好”；组件库的文档测试）；往返用例含中文（`independent.rs`） | 系统拼音输入法实机只做过人工检查，测试以输入法回调模拟 |
 | 混合字体 | 内核按字体回退排版；缺失字体在 ElyDoc 页面上方列出 | 字体缺失环境的分页对照未做（见 `docs/compatibility.md`） |
 | 非 ASCII 路径 | `paths_keep_spaces_cjk_and_case`（保存）；启动参数按当前目录取绝对路径（C20.1 修） | — |

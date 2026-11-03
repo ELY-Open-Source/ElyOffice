@@ -109,6 +109,7 @@ fn scan(bytes: &[u8], how: &Import) -> Scan {
 pub(crate) fn legacy_encoding(locale: &str) -> Encoding {
     match locale {
         "zh-CN" => Encoding::Gb18030,
+        "vi-VN" => Encoding::Windows1258,
         _ => Encoding::Windows1252,
     }
 }
@@ -152,6 +153,7 @@ fn decode(bytes: &[u8], encoding: Encoding) -> Option<String> {
         Encoding::EucKr => (encoding_rs::EUC_KR, &[]),
         Encoding::Windows1252 => (encoding_rs::WINDOWS_1252, &[]),
         Encoding::Windows1251 => (encoding_rs::WINDOWS_1251, &[]),
+        Encoding::Windows1258 => (encoding_rs::WINDOWS_1258, &[]),
         // Latin-1 maps each byte to its code point.
         Encoding::Latin1 => return Some(bytes.iter().map(|byte| char::from(*byte)).collect()),
     };
@@ -364,7 +366,12 @@ mod tests {
     #[test]
     fn each_language_names_its_windows_code_page() {
         // Excel saves CSV in the system's ANSI code page.
-        let pages = [("en-US", Encoding::Windows1252), ("es-ES", Encoding::Windows1252), ("zh-CN", Encoding::Gb18030)];
+        let pages = [
+            ("en-US", Encoding::Windows1252),
+            ("es-ES", Encoding::Windows1252),
+            ("vi-VN", Encoding::Windows1258),
+            ("zh-CN", Encoding::Gb18030),
+        ];
         let listed: Vec<_> = ely_platform::settings::LANGUAGES.iter().map(|(tag, _)| *tag).collect();
         assert_eq!(pages.map(|(tag, _)| tag).to_vec(), listed, "a new language picks its page");
         for (tag, page) in pages {

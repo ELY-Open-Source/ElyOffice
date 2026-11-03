@@ -116,6 +116,27 @@ fn csv_imports_take_the_encoding_separator_and_quote() {
 }
 
 #[test]
+fn csv_imports_read_vietnamese_windows_1258() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install().expect("LOK"), &dir.path().join("p")).expect("up");
+    // Vietnamese Excel writes ẵ as ă plus combining tilde.
+    let bytes = [0xD0, 0xE0, b' ', b'N', 0xE3, 0xDE, b'n', b'g', b',', b'3', b'\n'];
+    let how = Import {
+        separator: ',',
+        quote: Some('"'),
+        encoding: Encoding::Windows1258,
+        columns: Vec::new(),
+    };
+    let doc = import(dir.path(), &mut worker, &bytes, &how);
+    let xml = flat(&mut worker, &doc, dir.path());
+    assert!(xml.contains("<text:p>Đà Nă\u{303}ng</text:p>"), "{xml}");
+    assert!(xml.contains(r#"office:value="3""#), "the number reads");
+}
+
+#[test]
 fn a_txt_file_imports_as_a_sheet() {
     if skip() {
         return;
