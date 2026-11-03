@@ -190,6 +190,8 @@ def repainted(app, since):
 
 def type_keys(app, recipe, count, busy=None):
     """Keys to feedback, `count` at least and while `busy` runs."""
+    run.HOST.park(app.process.pid)
+    time.sleep(0.5)
     since, place = len(app.lines()), window_place(app)
     n = 0
     while n < count or (busy is not None and busy.is_alive()):

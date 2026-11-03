@@ -143,6 +143,12 @@ switch ($Command) {
         Tap ([byte]$(if ($named.ContainsKey($Arg)) { $named[$Arg] } else { [char]$Arg.ToUpper() }))
         Key 0x11 $true
     }
+    'park' {
+        # A pointer resting on the window feeds it moves.
+        $r = (Window).Current.BoundingRectangle
+        $x = $(if ($r.X -gt 20) { $r.X - 10 } else { $r.X + $r.Width + 10 })
+        [Input]::SetCursorPos([int]$x, [int]($r.Y + $r.Height / 2)) | Out-Null
+    }
     'middle' {
         Ours
         $r = (Window).Current.BoundingRectangle
