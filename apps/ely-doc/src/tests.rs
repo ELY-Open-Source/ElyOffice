@@ -457,6 +457,7 @@ fn an_outside_change_asks_and_keep_mine_overwrites() {
 }
 
 pub(crate) mod find;
+mod focus;
 mod more;
 mod overlap;
 mod points;

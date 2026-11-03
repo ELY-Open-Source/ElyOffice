@@ -356,6 +356,9 @@ class Windows(Host):
         self.clicks += 1
         return sent(self.ui("press", pid, name))
 
+    def tab(self, pid, name):
+        return sent(self.ui("tab", pid, name))
+
     def shows(self, pid, name):
         return self.ui("shows", pid, name).strip() == "yes"
 
