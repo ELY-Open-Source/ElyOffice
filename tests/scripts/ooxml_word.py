@@ -76,7 +76,40 @@ def toc_end(path):
     ooxml.check(after == "Alpha", f"the TOC is followed by {after!r}")
 
 
-CASES = {"equation": equation, "toc-end": toc_end}
+def after_toc(path):
+    """Texts in and after the TOC field, repeats folded."""
+    with zipfile.ZipFile(path) as archive:
+        body = ooxml.xml(archive, ooxml.main_part(archive)).find(ooxml.W + "body")
+    depth, closed, inside, outside = 0, False, [], []
+    for node in body.iter():
+        kind = node.get(ooxml.W + "fldCharType") if node.tag == ooxml.W + "fldChar" else None
+        if kind == "begin":
+            depth += 1
+        elif kind == "end":
+            depth -= 1
+            closed = closed or depth == 0
+        elif node.tag == ooxml.W + "t" and depth > 0:
+            inside.append(node.text or "")
+        elif node.tag == ooxml.W + "t" and closed and depth == 0 and (not outside or outside[-1] != node.text):
+            # A shape's text comes twice: DrawingML and VML.
+            outside.append(node.text or "")
+    return inside, outside
+
+
+def toc_tail(path):
+    """Text after the TOC field end stays outside the field."""
+    outside = after_toc(path)[1]
+    ooxml.check(outside == ["After", "Alpha", "Beta"], f"outside the TOC field: {outside}")
+
+
+def toc_shape(path):
+    """A text box after the field end stays outside it."""
+    inside, outside = after_toc(path)
+    ooxml.check(outside == ["ObjectTail", "Alpha", "Beta"], f"outside the TOC field: {outside}")
+    ooxml.check("ObjectTail" not in inside, "a copy of the text box is in the TOC field")
+
+
+CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape}
 MUTATIONS = {
     "equation": [
         ("word/document.xml", r"<m:r>(<m:t[^>]*>)[-−](</m:t>)", r"<m:r><m:rPr><m:nor/></m:rPr>\1-\2"),
@@ -87,6 +120,14 @@ MUTATIONS = {
         ("word/document.xml", r"5-6", "𝟝-𝟞"),
         ("word/document.xml", r'"alpha"|&quot;alpha&quot;', "alpha"),
         ("word/document.xml", r"(?s)<m:nor/>((?:(?!</m:r>).)*?alpha)", r"\1"),
+    ],
+    "toc-shape": [
+        ("word/document.xml", r'(?s)(<w:r>(?:<w:rPr></w:rPr>)?<w:fldChar w:fldCharType="end"/></w:r>)(.*?ObjectTail.*?)(</w:p>)', r'\2\1\3'),
+        ("word/document.xml", r'ObjectTail', "Gone"),
+    ],
+    "toc-tail": [
+        ("word/document.xml", r'(<w:fldChar w:fldCharType="end"/></w:r>)(.*?)(<w:r>(?:<w:rPr></w:rPr>)?<w:t[^>]*>After</w:t></w:r>)', r'\3\1\2'),
+        ("word/document.xml", r'<w:t[^>]*>After</w:t>', ""),
     ],
     "toc-end": [
         ("word/document.xml", r'(?s)(</w:r>)(</w:p>)(<w:p[ >](?:(?!<w:p[ >]).)*?)<w:r>(?:<w:rPr></w:rPr>)?<w:fldChar w:fldCharType="end"/></w:r>(</w:p>)</w:sdtContent></w:sdt>', r'\1<w:r><w:fldChar w:fldCharType="end"/></w:r>\2</w:sdtContent></w:sdt>\3\4'),

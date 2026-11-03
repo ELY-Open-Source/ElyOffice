@@ -1,0 +1,205 @@
+Writer keeps a DOCX TOC's field end where Word puts it
+
+A table of contents in a block content control (Word's "Automatic
+Table") gets a heading, so the importer builds its section from the
+content control's start. Two cases still came out wrong (Ely R15.11h):
+
+- Body text after the field end, in the same paragraph, stayed inside
+  the index section. The export then wrote it inside the TOC field,
+  where Word's next "Update Table" deletes it. The importer now notes
+  where in the paragraph the field ended, and how many objects were
+  anchored there. Once the paragraph is finished, any text or new
+  anchored object after that point leaves the section: the
+  paragraph is split there if the last entry precedes the end, and the
+  rest is moved with SwNodes::MoveNodes, which keeps the node, so marks
+  and positions in it survive. An empty end paragraph stays in the
+  index, as before.
+- An inline content control inside an entry cleared the "in a content
+  control" state at its end, so the importer deleted the field end's
+  own empty paragraph and the end landed in the last entry. A separate
+  flag, cleared only at a block content control's end and at the TOC's
+  end, keeps that paragraph.
+- That kept paragraph then closed the TOC's content control before it.
+  An inline content control's end read the shared "outside a paragraph"
+  flag, which only some properties set, so an alias-only control kept
+  the outer block's value and its end was deferred to the next
+  paragraph as a block end. An inline end is now always a run end.
+
+The move only happens if the paragraph is still the section's last
+node when it finishes; otherwise the import goes on as before, with a
+warning.
+
+diff --git a/sw/inc/ndarr.hxx b/sw/inc/ndarr.hxx
+index e674cc7..b4770da 100644
+--- a/sw/inc/ndarr.hxx
++++ b/sw/inc/ndarr.hxx
+@@ -187,7 +187,7 @@ public:
+     void Delete(const SwNodeIndex &rPos, SwNodeOffset nNodes = SwNodeOffset(1));
+     void Delete(const SwNode& rPos, SwNodeOffset nNodes = SwNodeOffset(1));
+ 
+-    bool MoveNodes( const SwNodeRange&, SwNodes& rNodes, SwNode& rPos,
++    SW_DLLPUBLIC bool MoveNodes( const SwNodeRange&, SwNodes& rNodes, SwNode& rPos,
+                 bool bNewFrames = true );
+     void MoveRange( SwPaM&, SwPosition&, SwNodes& rNodes );
+ 
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper.cxx b/sw/source/writerfilter/dmapper/DomainMapper.cxx
+index db5ce7c..46de2c3 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper.cxx
+@@ -1384,10 +1384,13 @@ void DomainMapper::lcl_attribute(Id nName, const Value & val)
+             }
+ 
+             m_pImpl->SetSdt(false);
++            if (nName == NS_ooxml::LN_CT_SdtBlock_sdtEndContent)
++                m_pImpl->m_StreamStateStack.top().bTOCInSdt = false;
+ 
+             // It's not possible to insert the relevant property to the character context here:
+             // the previous, already sent character context may be still active, so the property would be lost.
+-            if (m_pImpl->m_pSdtHelper->isOutsideAParagraph())
++            // An inline SDT ends inside its paragraph
++            if (nName == NS_ooxml::LN_CT_SdtBlock_sdtEndContent && m_pImpl->m_pSdtHelper->isOutsideAParagraph())
+                 m_pImpl->setParaSdtEndDeferred(true);
+             else
+                 m_pImpl->setSdtEndDeferred(true);
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+index 6a962e3..040b63f 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+@@ -138,6 +138,9 @@
+ #include <docufld.hxx>
+ #include <txtfld.hxx>
+ #include <ndtxt.hxx>
++#include <ndarr.hxx>
++#include <ndindex.hxx>
++#include <section.hxx>
+ #include <doc.hxx>
+ #include <fmtanchr.hxx>
+ #include <frmfmt.hxx>
+@@ -296,6 +299,40 @@ static FieldContextPtr GetParentFieldContext(const std::deque<FieldContextPtr>&
+     return rFieldStack[rFieldStack.size() - 2];
+ }
+ 
++/// The cursor's paragraph, if it is a TOC's last.
++static SwTextNode* lcl_TOCEndParagraph(const uno::Reference<text::XTextRange>& xPosition)
++{
++    auto pCursor = dynamic_cast<SwXTextCursor*>(xPosition.get());
++    SwPaM* pPaM = pCursor ? pCursor->GetPaM() : nullptr;
++    SwTextNode* pParagraph = pPaM ? pPaM->GetPointNode().GetTextNode() : nullptr;
++    if (!pParagraph)
++        return nullptr;
++    const SwSectionNode* pTOC = pParagraph->FindSectionNode();
++    if (!pTOC || pTOC->GetSection().GetType() != SectionType::ToxContent
++        || pTOC->EndOfSectionIndex() != pParagraph->GetIndex() + 1)
++        return nullptr;
++    return pParagraph;
++}
++
++static bool lcl_HoldsContent(const SwTextNode& rParagraph)
++{
++    return rParagraph.Len() || !rParagraph.GetAnchoredFlys().empty();
++}
++
++/// Moves a section's last paragraph, from nAt on, after it.
++static void lcl_MoveOutOfSection(SwTextNode& rParagraph, sal_Int32 nAt)
++{
++    // The node keeps the second half
++    if (nAt && !rParagraph.GetDoc().getIDocumentContentOperations().SplitNode(SwPosition(rParagraph, nAt), false))
++        throw uno::RuntimeException(u"TOC tail paragraph did not split"_ustr);
++    SwNodes& rNodes = rParagraph.GetNodes();
++    SwNodeIndex aAfter(*rParagraph.EndOfSectionNode(), 1);
++    // Keeps the node, so marks and ranges in it survive
++    if (!rNodes.MoveNodes(SwNodeRange(rParagraph, SwNodeOffset(0), rParagraph, SwNodeOffset(1)),
++                          rNodes, aAfter.GetNode()))
++        throw uno::RuntimeException(u"TOC tail paragraph did not move"_ustr);
++}
++
+ /// Decides if the pInner field inside pOuter is allowed in Writer core, depending on their type.
+ static bool IsFieldNestingAllowed(const FieldContextPtr& pOuter, const FieldContextPtr& pInner)
+ {
+@@ -2273,6 +2310,20 @@ void DomainMapper_Impl::finishParagraph( const PropertyMapPtr& pPropertyMap, con
+         }
+     }
+ 
++    if (const auto xTOCEnd = m_StreamStateStack.top().xTOCEndParagraph; xTOCEnd && !IsInShape())
++    {
++        m_StreamStateStack.top().xTOCEndParagraph.clear();
++        const sal_Int32 nAt = m_StreamStateStack.top().nTOCEndAt;
++        const size_t nFlys = m_StreamStateStack.top().nTOCEndFlys;
++        SwTextNode* pTOCEnd = lcl_TOCEndParagraph(xTOCEnd);
++        if (!pTOCEnd)
++            SAL_WARN("writerfilter.dmapper", "TOC end paragraph left the TOC, tail not moved");
++        // Content after the field end is not index content
++        else if ((pTOCEnd->Len() > nAt || pTOCEnd->GetAnchoredFlys().size() > nFlys) && !IsInTOC()
++                 && !m_bStartIndex && !m_bStartBibliography)
++            lcl_MoveOutOfSection(*pTOCEnd, nAt);
++    }
++
+ #ifdef DBG_UTIL
+     TagLogger::getInstance().startElement("finishParagraph");
+ #endif
+@@ -7617,6 +7668,7 @@ void DomainMapper_Impl::handleToc
+         }
+         else
+         {
++            m_StreamStateStack.top().bTOCInSdt = true;
+             // create TOC section
+             css::uno::Reference<css::text::XTextRange> xTextRangeEndOfTocHeader = GetTopTextAppend()->getEnd();
+             xTOC = createSectionForRange(m_StreamStateStack.top().xSdtEntryStart, xTextRangeEndOfTocHeader, sTOCServiceName, false);
+@@ -9233,10 +9285,12 @@ void DomainMapper_Impl::PopFieldContext()
+             {
+                 if( pContext->GetTOC().is() )
+                 {
++                    uno::Reference<text::XTextRange> xKeptEnd;
+                     if (m_bStartedTOC || m_bStartIndex || m_bStartBibliography)
+                     {
+                         // inside SDT, last empty paragraph is also part of index
+-                        if (!m_StreamStateStack.top().bParaChanged && !m_StreamStateStack.top().xSdtEntryStart)
++                        if (!m_StreamStateStack.top().bParaChanged && !m_StreamStateStack.top().xSdtEntryStart
++                            && !m_StreamStateStack.top().bTOCInSdt)
+                         {
+                             // End of index is the first item on a new paragraph - this paragraph
+                             // should not be part of index
+@@ -9259,16 +9313,26 @@ void DomainMapper_Impl::PopFieldContext()
+                                     m_aTextAppendStack.top().xInsertPosition);
+                             }
+                         }
++                        else if (m_StreamStateStack.top().bParaChanged || m_StreamStateStack.top().bTOCInSdt)
++                            xKeptEnd = m_aTextAppendStack.top().xInsertPosition;
+                         m_bStartedTOC = false;
+                         m_aTextAppendStack.pop();
+                         m_StreamStateStack.top().bTextInserted = false;
+                         m_StreamStateStack.top().bParaChanged = true; // the paragraph must stay anyway
+                     }
+                     m_bStartTOC = false;
++                    m_StreamStateStack.top().bTOCInSdt = false;
+                     m_bStartIndex = false;
+                     m_bStartBibliography = false;
+                     if (IsInHeaderFooter() && m_bStartTOCHeaderFooter)
+                         m_bStartTOCHeaderFooter = false;
++                    // Only what follows the end may leave
++                    if (SwTextNode* pEnd = lcl_TOCEndParagraph(xKeptEnd); pEnd && (pEnd->Len() || !lcl_HoldsContent(*pEnd)))
++                    {
++                        m_StreamStateStack.top().xTOCEndParagraph = xKeptEnd;
++                        m_StreamStateStack.top().nTOCEndAt = pEnd->Len();
++                        m_StreamStateStack.top().nTOCEndFlys = pEnd->GetAnchoredFlys().size();
++                    }
+                 }
+                 else
+                 {
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
+index f1a6eb2..854dbba 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
+@@ -264,6 +264,12 @@ struct SubstreamContext
+     /// If the current paragraph is inside a structured document element.
+     bool bSdt = false;
+     css::uno::Reference<css::text::XTextRange> xSdtEntryStart;
++    /// Titled TOC whose block SDT is still open.
++    bool bTOCInSdt = false;
++    /// The TOC's last paragraph, where its field ended.
++    css::uno::Reference<css::text::XTextRange> xTOCEndParagraph;
++    sal_Int32 nTOCEndAt = 0;
++    size_t nTOCEndFlys = 0;
+     OUString sCurrentParaStyleName; ///< highly inaccurate. Overwritten by "overlapping" paragraphs like flys.
+     bool bHasFootnoteStyle = false;
+     bool bCheckFootnoteStyle = false;

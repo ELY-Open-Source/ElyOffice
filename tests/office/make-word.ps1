@@ -6,6 +6,21 @@ $Dir = (New-Item -ItemType Directory -Force $Dir).FullName
 . "$PSScriptRoot/picture.ps1"
 $png = New-Picture (Join-Path $Dir 'picture.png')
 
+# Word may still be closing the last chart's data.
+function Add-Chart($sel, $doc) {
+    $shapes = $doc.InlineShapes.Count
+    for ($try = 1; ; $try++) {
+        try { $chart = $sel.InlineShapes.AddChart2(-1, 51); break }
+        catch {
+            $busy = "$_" -match 'chart data grid is already open' -and $doc.InlineShapes.Count -eq $shapes
+            if (-not $busy -or $try -ge 60) { throw }
+            Start-Sleep -Seconds 1
+        }
+    }
+    $chart.Chart.ChartData.Workbook.Close()
+    return $chart
+}
+
 $word = New-Object -ComObject Word.Application
 $word.Visible = $false
 $word.DisplayAlerts = 0
@@ -65,8 +80,7 @@ try {
         $doc.OMaths.Item($doc.OMaths.Count).BuildUp()
         $sel.EndKey(6) | Out-Null
         $sel.TypeParagraph()
-        $chart = $sel.InlineShapes.AddChart2(-1, 51)
-        $chart.Chart.ChartData.Workbook.Close()
+        Add-Chart $sel $doc | Out-Null
         $sel.EndKey(6) | Out-Null
         $sel.TypeParagraph()
         $sel.InlineShapes.AddPicture($png) | Out-Null

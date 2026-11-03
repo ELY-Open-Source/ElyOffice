@@ -33,6 +33,25 @@ fn titled_toc_field_ends_in_its_own_paragraph() {
     saved_twice("toc.docx", "toc-end");
 }
 
+#[test]
+fn text_after_a_toc_field_end_stays_outside_the_field() {
+    saved_twice("toc-tail.docx", "toc-tail");
+    saved_twice("toc-tail-untitled.docx", "toc-tail");
+    saved_twice("toc-tail-entry.docx", "toc-tail");
+    saved_twice("toc-tail-entry-untitled.docx", "toc-tail");
+}
+
+#[test]
+fn a_text_box_after_a_toc_field_end_stays_outside_the_field() {
+    saved_twice("toc-shape.docx", "toc-shape");
+    saved_twice("toc-shape-untitled.docx", "toc-shape");
+}
+
+#[test]
+fn an_inline_content_control_keeps_the_toc_end_alone() {
+    saved_twice("toc-inline.docx", "toc-end");
+}
+
 /// Whether the kernel has reported the document modified.
 fn modified(seen: &Events) -> bool {
     seen.states.iter().any(|(name, state)| name == ".uno:ModifiedStatus" && state == "true")
