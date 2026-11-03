@@ -239,7 +239,7 @@ def saved(slug, path, rounds):
         want = {("Data", "H1"): rounds, ("Data", "A1"): 1000 + rounds, ("Calc", "A1"): 2 * (1000 + rounds)}
         for (sheet, ref), value in want.items():
             got = loadfiles.cell(path, sheet, ref)
-            if got is None or float(got) != value:
+            if number(got) != value:
                 problems.append(f"{name}: {sheet}!{ref} saved {got}, not {value}")
         kept = book_kept(path, ROWS.get(name.split("-")[-1].split(".")[0], HUGE["ely-table"]), rounds)
         if "-big" in name:
@@ -254,6 +254,14 @@ def saved(slug, path, rounds):
 
 # Data rows by sample kind, as loadfiles writes them.
 ROWS = {"small": 500, "big": 20000}
+
+
+def number(text):
+    """A saved value as a number, or None."""
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return None
 
 
 def data(rows, rounds):
@@ -303,7 +311,7 @@ def book_kept(path, rows, rounds):
         if isinstance(value, str):
             kept[f"Calc!{ref} shows {value}"] = got == value
         else:
-            kept[f"Calc!{ref} recalculated to {value:g}"] = got is not None and abs(float(got) - value) <= 1e-6 * max(1, abs(value))
+            kept[f"Calc!{ref} recalculated to {value:g}"] = number(got) is not None and abs(number(got) - value) <= 1e-6 * max(1, abs(value))
     return kept
 
 

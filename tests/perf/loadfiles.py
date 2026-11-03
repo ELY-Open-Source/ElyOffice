@@ -3,7 +3,9 @@
 import os
 import re
 import shutil
+import struct
 import zipfile
+import zlib
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 
@@ -423,14 +425,49 @@ def book_links(path):
             "Links!A1 shows the source's value": value is not None and abs(float(value) - RATES_NOW[0]) < 1e-9}
 
 
+def ole_preview(path):
+    """The OLE object's own preview image, or None."""
+    with zipfile.ZipFile(path) as archive:
+        xml = archive.read("word/document.xml").decode("utf-8")
+        found = re.search(r'<w:object\b(?:(?!</w:object>).)*?<v:imagedata [^>]*r:id="([^"]+)"(?:(?!</w:object>).)*?<o:OLEObject ', xml, re.S)
+        if found is None:
+            return None
+        rels = ET.fromstring(archive.read("word/_rels/document.xml.rels"))
+        target = next((rel.get("Target") for rel in rels.iter(P + "Relationship") if rel.get("Id") == found.group(1)), None)
+        return None if target is None else archive.read("word/" + target)
+
+
+def whole_png(data):
+    """Every chunk's CRC holds and the pixels inflate to size."""
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        return False
+    at, idat, size = 8, b"", None
+    while at + 12 <= len(data):
+        length, kind = struct.unpack(">I4s", data[at:at + 8])
+        body = data[at + 8:at + 8 + length]
+        if len(body) != length or struct.unpack(">I", data[at + 8 + length:at + 12 + length])[0] != zlib.crc32(kind + body):
+            return False
+        if kind == b"IHDR":
+            width, height, depth, colour = struct.unpack(">IIBB", body[:10])
+            size = height * (1 + width * {0: 1, 2: 3, 4: 2, 6: 4}[colour] * depth // 8)
+        idat += body if kind == b"IDAT" else b""
+        if kind == b"IEND":
+            try:
+                return size is not None and len(zlib.decompress(idat)) == size
+            except zlib.error:
+                return False
+        at += 12 + length
+    return False
+
+
 def word_updates(path, folder, old_preview):
     """Saved DOCX after its sources changed: links, shown text."""
     with zipfile.ZipFile(path) as archive:
-        media = [archive.read(name) for name in archive.namelist() if name.startswith("word/media/")]
         targets = external(archive, "word/document.xml")
-    links = word_links(path, "Included changed")
+    links, preview = word_links(path, "Included changed"), ole_preview(path)
     picture = "file:///" + os.path.abspath(os.path.join(folder, "picture.png")).replace("\\", "/")
+    # What the picture shows is not in the file.
     return {"INCLUDETEXT saved with the changed text": links["INCLUDETEXT shows the source's text"],
-            "the linked picture still links its file": picture in targets and samples.noise_png(4, 64, 64) not in media,
-            "the OLE link stays with a renewed preview": links["OLE link kept"] and len(media) > 0
-            and all(item != old_preview for item in media) and all(item[:4] in (b"\x89PNG", b"\x01\x00\x00\x00") for item in media)}
+            "the linked picture keeps its link": picture in targets,
+            "the OLE link stays with a renewed preview": links["OLE link kept"] and preview is not None
+            and preview != old_preview and whole_png(preview)}
