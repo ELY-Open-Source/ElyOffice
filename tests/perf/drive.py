@@ -359,6 +359,15 @@ class Windows(Host):
     def click_field(self, pid):
         self.ui("field", pid)
 
+    def middle(self, pid):
+        self.ui("middle", pid)
+
+    def wheel(self, pid, notches):
+        self.ui("wheel", pid, notches)
+
+    def shot(self, pid, path):
+        self.ui("shot", pid, path)
+
     def environment(self):
         info = self.ui("machine", 0).strip().split("|")
         cpu, cores, memory, gpu, system = info

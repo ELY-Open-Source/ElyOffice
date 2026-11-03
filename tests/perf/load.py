@@ -18,6 +18,7 @@ import time
 import drive
 import feedback
 import loadfiles
+import richfiles
 import run
 import search
 
@@ -30,6 +31,15 @@ KEY_WAIT = 10
 TARGET = 100
 # The user's floor: stop before the machine swaps.
 FLOOR_GB = 12
+# Clicks the bench never makes while typing.
+OTHERS = re.compile(r"ui: mouse_down to frame")
+RETRIES = 2
+
+
+class Interfered(RuntimeError):
+    """Someone else used the desktop: the run is void."""
+
+
 # Lowest free memory seen, GB, per app run.
 lowest = [float("inf")]
 
@@ -136,19 +146,41 @@ def wait_opened(app, count, timeout, since=0):
     raise app.failed(pattern.pattern, timeout)
 
 
+def window_place(app):
+    """The window place the app last saved."""
+    path = os.path.join(app.home, app.slug, "settings.json")
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as settings:
+        return json.load(settings).get("window")
+
+
+def interfered(app, since, place):
+    """Someone else clicked or moved the window."""
+    others = [line[-90:] for line in app.lines()[since:] if OTHERS.search(line)]
+    moved = window_place(app)
+    if others or moved != place:
+        return f"{app.slug}: someone else clicked or moved the window: {others[:1] or [place, moved]}"
+    return None
+
+
 def type_keys(app, recipe, count, busy=None):
     """Keys to feedback, `count` at least and while `busy` runs."""
-    since = len(app.lines())
+    since, place = len(app.lines()), window_place(app)
     n = 0
     while n < count or (busy is not None and busy.is_alive()):
         recipe.send(app.process.pid)
         until = time.monotonic() + KEY_WAIT
         while sum(1 for line in app.lines()[since:] if re.search(recipe.answer, line)) <= n:
+            if interfered(app, since, place):
+                break
             if time.monotonic() > until:
                 raise RuntimeError(f"{app.slug}: key {n + 1} showed nothing in {KEY_WAIT} s")
             time.sleep(0.01)
         n += 1
         free_gb()
+        if why := interfered(app, since, place):
+            raise Interfered(why)
         time.sleep(0.15)
     lines = app.lines()[since:]
     return [int(m.group(1)) for line in lines if (m := re.search(recipe.answer, line))], lines
@@ -188,14 +220,20 @@ def saved(slug, path, rounds):
         if loadfiles.formula(path, "Calc", "A1") is None:
             problems.append(f"{name}: Calc!A1 lost its formula")
         if "-big" in name:
-            problems += [f"{name}: {what} failed" for what, ok in loadfiles.book_links(path).items() if not ok]
+            kept = {**loadfiles.book_links(path), **richfiles.xlsx_kept(path)}
+            problems += [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
         return problems
     found = loadfiles.tokens(path)
     if found != [rounds]:
         problems.append(f"{name}: saved tokens {found}, not [{rounds}]")
+    kept = {}
     if "-linked" in name:
-        problems += [f"{name}: {what} failed" for what, ok in loadfiles.word_links(path).items() if not ok]
-    return problems
+        kept = loadfiles.word_links(path)
+    elif "-big.docx" in name:
+        kept = richfiles.docx_kept(path)
+    elif "-big.pptx" in name:
+        kept = richfiles.pptx_kept(path)
+    return problems + [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
 
 
 def one_app(slug, folder, work, args):
@@ -203,7 +241,7 @@ def one_app(slug, folder, work, args):
     recipe, out = RECIPES[slug], {"edits": [], "problems": []}
     lowest[0] = free_gb()
     home, place = os.path.join(work, "home-" + slug), os.path.join(work, slug)
-    os.makedirs(place)
+    os.makedirs(place, exist_ok=True)
     files, front = loadfiles.documents(folder, place, slug, args.docs)
     app = App(slug, home, files, frames=True)
     try:
@@ -217,7 +255,8 @@ def one_app(slug, folder, work, args):
         out["memory open MB"] = app.memory_mb()
         app.front()
         recipe.into(app.process.pid)
-        time.sleep(1)
+        # Clicks reach the log at the next two-second flush.
+        time.sleep(2.5)
         out["idle"] = type_keys(app, recipe, args.keys)
         busy = threading.Thread(target=edit_rounds, args=(app, recipe, files, args.rounds, out))
         busy.start()
@@ -267,11 +306,23 @@ def row(slug, out):
     return "| " + " | ".join(cells) + " |"
 
 
+def machine():
+    return re.sub(r"[^A-Za-z0-9]+", "-", f"{run.HOST.environment()['machine']} {run.HOST.name}").strip("-")
+
+
+def build(apps):
+    """The frames release builds of `apps` and the LOK worker."""
+    build = ("cargo", "build", "--release", "-q", "--bins", "--target-dir", drive.target_dir(frames=True))
+    # Alone: gpui's manifest would make the worker DPI-aware.
+    drive.sh(*build, "-p", search.spec("crates/ely-lok"), cwd=run.ROOT)
+    drive.sh(*build, "--features", "ely-ui/frames", *[a for slug in apps for a in ("-p", search.spec("apps/" + slug))],
+             cwd=run.ROOT)
+
+
 def environment(args):
     builds = {name: hashlib.sha256(open(run.HOST.exe(name, True), "rb").read()).hexdigest()[:16]
               for name in [*args.apps, "ely-lok-worker"]}
-    env = {"date": datetime.date.today().isoformat(), **run.HOST.environment()}
-    env["machine"] = re.sub(r"[^A-Za-z0-9]+", "-", f"{env['machine']} {run.HOST.name}").strip("-")
+    env = {"date": datetime.date.today().isoformat(), **run.HOST.environment(), "machine": machine()}
     return {**env, "docs": args.docs, "rounds": args.rounds, "keys": args.keys, "builds": builds,
             "lok": os.environ.get("ELY_LOK_DIR", "engines/")}
 
@@ -307,20 +358,24 @@ def main():
     work = os.path.join(run.ROOT, ".work", f"load-{datetime.datetime.now():%Y%m%d-%H%M%S}")
     os.makedirs(work)
     run.HOST = drive.host(work)
-    build = ("cargo", "build", "--release", "-q", "--bins", "--target-dir", drive.target_dir(frames=True))
-    # Alone: gpui's manifest would make the worker DPI-aware.
-    drive.sh(*build, "-p", search.spec("crates/ely-lok"), cwd=run.ROOT)
-    drive.sh(*build, "--features", "ely-ui/frames", *[a for slug in args.apps for a in ("-p", search.spec("apps/" + slug))],
-             cwd=run.ROOT)
+    build(args.apps)
     folder = loadfiles.made(os.path.join(run.ROOT, ".work", "load-samples"))
     rows, problems = [], []
     for slug in args.apps:
-        try:
-            out = one_app(slug, folder, work, args)
-            rows.append(row(slug, out))
-            problems += [f"{APPS[slug]}: {problem}" for problem in out["problems"]]
-        except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
-            problems.append(f"{APPS[slug]}: run stopped: {error}")
+        for attempt in range(RETRIES + 1):
+            try:
+                out = one_app(slug, folder, os.path.join(work, str(attempt)), args)
+                rows.append(row(slug, out))
+                problems += [f"{APPS[slug]}: {problem}" for problem in out["problems"]]
+            except Interfered as error:
+                print(f"{error}; {'again in 30 s' if attempt < RETRIES else 'giving up'}", flush=True)
+                if attempt < RETRIES:
+                    time.sleep(30)
+                    continue
+                problems.append(f"{APPS[slug]}: run voided {RETRIES + 1} times: {error}")
+            except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+                problems.append(f"{APPS[slug]}: run stopped: {error}")
+            break
         print(f"{slug}: done, {len(problems)} problems so far", flush=True)
     write(args.out, environment(args), rows, problems)
     if problems:

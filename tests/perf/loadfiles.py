@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 
 import drive
+import richfiles
 import samples
 
 TOKEN = "ELYEDIT"
@@ -132,6 +133,9 @@ def cells(r, values):
         ref = f"{chr(65 + c)}{r}"
         if value is None:
             continue
+        if isinstance(value, tuple):
+            out.append(f'<c r="{ref}"><f t="array" ref="{value[1]}">{escape(value[0])}</f></c>')
+            continue
         if isinstance(value, str) and value.startswith("="):
             out.append(f'<c r="{ref}"><f>{escape(value[1:])}</f></c>')
         elif isinstance(value, str):
@@ -151,8 +155,11 @@ def workbook(path, rows, linked=False, typing=False):
             f"=INDEX({span('F')},MATCH(MAX({span('B')}),{span('B')},0))", f'=AVERAGEIFS({span("C")},{span("D")},"<30")',
             f"=SUMPRODUCT(({span('A')}>10)*({span('B')}<90)*{span('F')})", f'=TEXT(SUM(Amounts),"#,##0")',
             f"=IFERROR(1/(Data!A1-Data!A1),-1)", f"=ROUND(STDEV({span('C')}),3)", f"=MEDIAN({span('D')})",
-            f"=LARGE({span('E')},5)", f'=IF(SUM(Amounts)>0,"up",IF(SUM(Amounts)<0,"down","flat"))']
-    sheet_rows = [cells(r, [f, "=Data!B1" if r == 1 else f"=B{r - 1}+Data!B{r}*0.5"]) for r, f in enumerate(calc, 1)]
+            f"=LARGE({span('E')},5)", f'=IF(SUM(Amounts)>0,"up",IF(SUM(Amounts)<0,"down","flat"))',
+            "=IF(NOW()>0,RAND()*0+1,0)", "=SUM(OFFSET(Data!$A$1,0,0,10,1))", '=INDIRECT("Data!B2")']
+    dynamic = {1: [None, ("_xlfn._xlws.SORT(Data!$A$1:$A$10)", "D1:D10"), ("_xlfn.UNIQUE(Data!$G$1:$G$100)", "E1:E7")]}
+    sheet_rows = [cells(r, [f, "=Data!B1" if r == 1 else f"=B{r - 1}+Data!B{r}*0.5", *dynamic.get(r, [])])
+                  for r, f in enumerate(calc, 1)]
     sheet_rows += [cells(r, [None, f"=B{r - 1}+Data!B{r}*0.5"]) for r in range(len(calc) + 1, rows + 1)]
     array = f'<row r="{rows + 1}"><c r="C{rows + 1}"><f t="array" ref="C{rows + 1}">SUM({span("A")}*{span("B")})</f></c></row>'
     ns = f'xmlns="{S[1:-1]}" xmlns:r="{REL}"'
@@ -243,8 +250,7 @@ def small_md(n):
 def made(folder):
     """The big samples, written once into `folder`."""
     os.makedirs(folder, exist_ok=True)
-    makers = {"big.docx": big_docx, "big.xlsx": lambda path: workbook(path, 20000, linked=True),
-              "big.pptx": lambda path: presentation(path, 4), "big.md": big_md}
+    makers = {"big.docx": big_docx, "big.xlsx": big_xlsx, "big.pptx": big_pptx, "big.md": big_md}
     for name, make in makers.items():
         path = os.path.join(folder, name)
         if not os.path.exists(path):
@@ -256,6 +262,17 @@ def made(folder):
 def big_docx(path):
     samples.docx(path)
     rewrite(path, {"word/document.xml": lambda xml: before_last(xml, "</w:body>", para(f"{TOKEN}0"))})
+    richfiles.docx(path)
+
+
+def big_xlsx(path):
+    workbook(path, 20000, linked=True)
+    richfiles.xlsx(path, 20000)
+
+
+def big_pptx(path):
+    presentation(path, 4)
+    richfiles.pptx(path)
 
 
 def big_md(path):
@@ -302,17 +319,22 @@ def documents(folder, work, slug, n):
             with open(path, "w", encoding="utf-8", newline="\n") as note:
                 note.write(small_md(i))
         files.append(path)
-    front = os.path.join(work, f"front.{EXT[slug]}")
+    return files, front_file(work, slug)
+
+
+def front_file(folder, slug):
+    """A small document the keys go into."""
+    front = os.path.join(folder, f"front.{EXT[slug]}")
     if slug == "ely-mark":
         with open(front, "w", encoding="utf-8", newline="\n") as note:
             note.write("# Typing\n\nA paragraph.\n")
     elif slug == "ely-doc":
-        small_docx(front, n)
+        small_docx(front, 0)
     elif slug == "ely-table":
         workbook(front, 500, typing=True)
     else:
         presentation(front, 0)
-    return files, front
+    return front
 
 
 def text_of(path):

@@ -39,10 +39,14 @@ public static class Input {
 [Input]::SetProcessDPIAware() | Out-Null
 $A = [System.Windows.Automation.AutomationElement]
 
+# A busy main thread answers UI Automation late.
 function Window {
     $owner = New-Object System.Windows.Automation.PropertyCondition($A::ProcessIdProperty, $Id)
-    $window = $A::RootElement.FindFirst('Children', $owner)
-    if (-not $window) { throw "no window for process $Id" }
+    $until = (Get-Date).AddSeconds(10)
+    while (-not ($window = $A::RootElement.FindFirst('Children', $owner))) {
+        if ((Get-Date) -gt $until) { throw "no window for process $Id in 10 s" }
+        Start-Sleep -Milliseconds 100
+    }
     $window
 }
 # Any of the app's windows: a dialog is its own.
@@ -133,9 +137,35 @@ switch ($Command) {
     'enter' { Tap 0x0D }
     'key' { Tap (@{ pagedown = 0x22; tab = 0x09; escape = 0x1B })[$Arg] }
     'chord' {
+        # powershell -File reads a leading '-' as a parameter.
+        $named = @{ 'plus' = 0xBB; 'minus' = 0xBD; 'tab' = 0x09 }
         Key 0x11 $false
-        Tap ([byte][char]$Arg.ToUpper())
+        Tap ([byte]$(if ($named.ContainsKey($Arg)) { $named[$Arg] } else { [char]$Arg.ToUpper() }))
         Key 0x11 $true
+    }
+    'middle' {
+        Ours
+        $r = (Window).Current.BoundingRectangle
+        ClickAt ([int]($r.X + $r.Width / 2)) ([int]($r.Y + $r.Height / 2))
+    }
+    'wheel' {
+        # Ctrl and the wheel, $Arg notches, at the middle.
+        $r = (Window).Current.BoundingRectangle
+        [Input]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)) | Out-Null
+        Key 0x11 $false
+        $delta = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]([int]$Arg * 120)), 0)
+        [Input]::mouse_event(0x0800, 0, 0, $delta, [UIntPtr]::Zero)
+        Start-Sleep -Milliseconds 50
+        Key 0x11 $true
+    }
+    'shot' {
+        Add-Type -AssemblyName System.Drawing
+        $r = (Window).Current.BoundingRectangle
+        $image = New-Object System.Drawing.Bitmap([int]$r.Width, [int]$r.Height)
+        $drawn = [System.Drawing.Graphics]::FromImage($image)
+        $drawn.CopyFromScreen([int]$r.X, [int]$r.Y, 0, 0, $image.Size)
+        $image.Save($Arg, [System.Drawing.Imaging.ImageFormat]::Png)
+        $drawn.Dispose(); $image.Dispose()
     }
     'press' {
         $element = Named $Arg
