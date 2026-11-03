@@ -63,7 +63,9 @@ fn kernel_key(code: &str) -> Option<&'static str> {
         "cells" => "table.r.cells",
         "too_big" => "table.r.too_big",
         "unreadable" => "table.r.unreadable",
-        "read_only" => "table.r.read_only",
+        "batch_too_big" => "table.r.batch_too_big",
+        "locked" => "table.r.locked",
+        "rollback" => "table.r.rollback",
         "undo_off" => "table.r.undo_off",
         "busy" => "table.r.busy",
         "changed" => "table.r.stale",
@@ -219,7 +221,7 @@ impl Snapshot {
             json!({"snapshot": self.json, "writes": writes, "bold": bold, "autofit": autofit})
                 .to_string();
         if batch.len() as u64 > BYTES {
-            return Err(bad());
+            return Err(refused("table.r.batch_too_big"));
         }
         Ok(batch)
     }
@@ -379,8 +381,8 @@ mod tests {
     #[test]
     fn kernel_refusals_keep_their_own_words() {
         let codes = [
-            "range", "cells", "too_big", "unreadable", "read_only", "undo_off", "busy", "changed",
-            "protected", "merged", "invalid",
+            "range", "cells", "too_big", "batch_too_big", "unreadable", "undo_off", "busy", "changed",
+            "protected", "locked", "merged", "invalid", "rollback",
         ];
         let keys: std::collections::HashSet<_> = codes
             .iter()
@@ -402,5 +404,25 @@ mod tests {
         assert!(kernel_refusal(&odd, io::Error::other("x")).to_string().contains("odd"));
         let selection = json!({"refused": "cells"}).to_string();
         assert_eq!(refusal(&Snapshot::parse(&selection).expect_err("refused")), Some("table.r.cells"));
+    }
+
+    #[test]
+    fn a_batch_over_the_limit_is_not_blamed_on_r() {
+        let sizes: Vec<usize> = (0..64).map(|i| if i == 63 { 32477 } else { 32767 }).collect();
+        let cells: Vec<_> = sizes.iter().map(|n| json!({"kind": "text", "value": "a".repeat(*n)})).collect();
+        let source = json!({"range": "S!A1:A64", "rows": 64, "columns": 1, "cells": cells}).to_string();
+        let snapshot = Snapshot::parse(&source).expect("the selection fits");
+        assert!(snapshot.input().expect("input").len() as u64 <= BYTES, "R's input fits");
+        let mut output = String::from("ELY_R_1
+");
+        for (index, n) in sizes.iter().enumerate() {
+            output.push_str(&format!("W	{index}	text	{}
+", hex(&"b".repeat(*n))));
+        }
+        output.push_str("DONE
+");
+        assert!(output.len() as u64 <= BYTES, "R's output fits");
+        let error = snapshot.instructions(&output).expect_err("the batch does not");
+        assert_eq!(refusal(&error), Some("table.r.batch_too_big"));
     }
 }

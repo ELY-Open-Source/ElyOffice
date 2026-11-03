@@ -3,10 +3,12 @@ LOK: typed selection copies and transactional R macro batches
 ElyTable runs R outside LOK. This bridge reads only a bounded selection,
 then validates a complete typed batch before applying it in one undo list
 bound to the active view.
-Formula cells are read-only. Protected sheets and merged ranges are refused.
-The caller also checks the worker revision before dispatch.
+Formula cells are read-only. Each write follows Calc's own rule for typing
+into that cell (ScDocument::IsBlockEditable); format changes refuse a
+protected sheet; merged ranges are refused. A refusal mid-batch undoes the
+batch and clears Redo. The caller also checks the worker revision.
 Each refusal carries a code (.uno:ElyMacroRefusal hands over the last one),
-so ElyTable can say why: too many cells, protected, merged, read-only, undo off.
+so ElyTable can say why: too many cells, locked, protected, merged, too big.
 
 diff --git a/sc/sdi/scalc.sdi b/sc/sdi/scalc.sdi
 index d07619e..86f5897 100644
@@ -25,7 +27,7 @@ diff --git a/sc/source/ui/inc/elymacro.hxx b/sc/source/ui/inc/elymacro.hxx
 new file mode 100644
 --- /dev/null
 +++ b/sc/source/ui/inc/elymacro.hxx
-@@ -0,0 +1,385 @@
+@@ -0,0 +1,390 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -54,6 +56,7 @@ new file mode 100644
 +#include <com/sun/star/util/XNumberFormatTypes.hpp>
 +#include <com/sun/star/util/XProtectable.hpp>
 +#include <com/sun/star/view/XSelectionSupplier.hpp>
++#include <document.hxx>
 +#include <rtl/math.hxx>
 +#include <sal/log.hxx>
 +#include <tools/json_writer.hxx>
@@ -168,9 +171,40 @@ new file mode 100644
 +    return f;
 +}
 +
-+inline sal_Int64 utf8Size(const OUString& rText)
++// One cell's fields, as both passes write them.
++inline void cell(tools::JsonWriter& rJson, const Reference<css::frame::XModel>& xModel,
++                 const Reference<css::table::XCell>& xCell)
 +{
-+    return OUStringToOString(rText, RTL_TEXTENCODING_UTF8).getLength();
++    auto eType = xCell->getType();
++    if (eType == css::table::CellContentType_FORMULA)
++    {
++        rJson.put("formula", xCell->getFormula());
++        // Formula results remain separate from their source.
++        sal_Int32 nResult = 0;
++        Reference<css::beans::XPropertySet>(xCell, UNO_QUERY_THROW)
++            ->getPropertyValue(u"FormulaResultType2"_ustr) >>= nResult;
++        eType = nResult == 1 ? css::table::CellContentType_VALUE
++                            : css::table::CellContentType_TEXT;
++    }
++    if (eType == css::table::CellContentType_EMPTY)
++    {
++        rJson.put("kind", "empty");
++        rJson.put("value", "");
++    }
++    else if (eType == css::table::CellContentType_VALUE)
++    {
++        const bool bLogical = logical(xModel, xCell);
++        rJson.put("kind", bLogical ? "boolean" : "number");
++        if (bLogical)
++            rJson.put("value", xCell->getValue() != 0);
++        else
++            rJson.put("value", decimal(xCell->getValue()));
++    }
++    else
++    {
++        rJson.put("kind", "text");
++        rJson.put("value", Reference<css::text::XTextRange>(xCell, UNO_QUERY_THROW)->getString());
++    }
 +}
 +
 +inline void snapshot(tools::JsonWriter& rJson, const Reference<css::frame::XModel>& xModel)
@@ -180,15 +214,14 @@ new file mode 100644
 +    const sal_Int32 nRows = a.EndRow - a.StartRow + 1;
 +    const sal_Int32 nColumns = a.EndColumn - a.StartColumn + 1;
 +    require(nRows > 0 && nColumns > 0 && sal_Int64(nRows) * nColumns <= 10000, "cells");
-+    // Counted first, so an oversized copy is never built.
-+    sal_Int64 nBytes = 0;
++    // Escaped bytes, counted cell by cell before the copy.
++    sal_Int64 nBytes = 256;
 +    for (sal_Int32 r = 0; r < nRows; ++r)
 +        for (sal_Int32 c = 0; c < nColumns; ++c)
 +        {
-+            const auto xCell = xRange->getCellByPosition(c, r);
-+            nBytes += 64 + utf8Size(Reference<css::text::XTextRange>(xCell, UNO_QUERY_THROW)->getString());
-+            if (xCell->getType() == css::table::CellContentType_FORMULA)
-+                nBytes += utf8Size(xCell->getFormula());
++            tools::JsonWriter aOne;
++            cell(aOne, xModel, xRange->getCellByPosition(c, r));
++            nBytes += aOne.finishAndGetAsOString().getLength() + 4;
 +            require(nBytes <= nBudget, "too_big");
 +        }
 +    rJson.put("range", rangeName(a));
@@ -198,45 +231,8 @@ new file mode 100644
 +    for (sal_Int32 r = 0; r < nRows; ++r)
 +        for (sal_Int32 c = 0; c < nColumns; ++c)
 +        {
-+            const auto xCell = xRange->getCellByPosition(c, r);
-+            auto eType = xCell->getType();
-+            const bool bFormula = eType == css::table::CellContentType_FORMULA;
-+            OUString aFormula;
-+            if (bFormula)
-+            {
-+                aFormula = xCell->getFormula();
-+                // Formula results remain separate from their source.
-+                sal_Int32 nResult = 0;
-+                Reference<css::beans::XPropertySet>(xCell, UNO_QUERY_THROW)
-+                    ->getPropertyValue(u"FormulaResultType2"_ustr) >>= nResult;
-+                eType = nResult == 1 ? css::table::CellContentType_VALUE
-+                                    : css::table::CellContentType_TEXT;
-+            }
-+            OUString aText;
-+            if (eType == css::table::CellContentType_TEXT)
-+                aText = Reference<css::text::XTextRange>(xCell, UNO_QUERY_THROW)->getString();
 +            auto aCell = rJson.startStruct();
-+            if (bFormula)
-+                rJson.put("formula", aFormula);
-+            if (eType == css::table::CellContentType_EMPTY)
-+            {
-+                rJson.put("kind", "empty");
-+                rJson.put("value", "");
-+            }
-+            else if (eType == css::table::CellContentType_VALUE)
-+            {
-+                const bool bLogical = logical(xModel, xCell);
-+                rJson.put("kind", bLogical ? "boolean" : "number");
-+                if (bLogical)
-+                    rJson.put("value", xCell->getValue() != 0);
-+                else
-+                    rJson.put("value", decimal(xCell->getValue()));
-+            }
-+            else
-+            {
-+                rJson.put("kind", "text");
-+                rJson.put("value", aText);
-+            }
++            cell(rJson, xModel, xRange->getCellByPosition(c, r));
 +        }
 +}
 +
@@ -301,10 +297,10 @@ new file mode 100644
 +    return aBatch;
 +}
 +
-+inline void apply(const Reference<css::frame::XModel>& xModel, const OUString& rBatch,
-+                  SfxUndoManager& rUndo, ViewShellId nView)
++inline void apply(const Reference<css::frame::XModel>& xModel, const ScDocument& rDoc,
++                  const OUString& rBatch, SfxUndoManager& rUndo, ViewShellId nView)
 +{
-+    require(rBatch.getLength() <= nBudget, "too_big");
++    require(rBatch.getLength() <= nBudget, "batch_too_big");
 +    tools::JsonWriter aNow;
 +    // A selection R did not read is a changed one.
 +    try
@@ -332,7 +328,13 @@ new file mode 100644
 +    }
 +    Reference<css::sheet::XSheetCellRange> xSheetRange(xRange, UNO_QUERY_THROW);
 +    auto xSheet = xSheetRange->getSpreadsheet();
-+    require(!Reference<css::util::XProtectable>(xSheet, UNO_QUERY_THROW)->isProtected(), "protected");
++    // Format changes: the sheet's protection, then Calc's rule.
++    if (aBatch.aBold != "null" || aBatch.bAutofit)
++    {
++        require(!Reference<css::util::XProtectable>(xSheet, UNO_QUERY_THROW)->isProtected(), "protected");
++        require(rDoc.IsBlockEditable(SCTAB(a.Sheet), SCCOL(a.StartColumn), SCROW(a.StartRow),
++            SCCOL(a.EndColumn), SCROW(a.EndRow)), "locked");
++    }
 +    // Reject merged ranges, including a merge crossing the boundary.
 +    auto xCursor = xSheet->createCursorByRange(xSheetRange);
 +    xCursor->collapseToMergedArea();
@@ -358,6 +360,10 @@ new file mode 100644
 +            const sal_Int32 c = w.nIndex % nColumns;
 +            const sal_Int32 r = w.nIndex / nColumns;
 +            const auto xCell = xRange->getCellByPosition(c, r);
++            // Calc's own rule for typing into this cell.
++            const SCCOL nCol = SCCOL(a.StartColumn + c);
++            const SCROW nRow = SCROW(a.StartRow + r);
++            require(rDoc.IsBlockEditable(SCTAB(a.Sheet), nCol, nRow, nCol, nRow), "locked");
 +            if (w.aKind == "text")
 +                Reference<css::text::XTextRange>(xCell, UNO_QUERY_THROW)->setString(OUString::fromUtf8(w.aValue));
 +            else if (w.aKind == "empty")
@@ -403,9 +409,10 @@ new file mode 100644
 +        // Undone, the partial list must not wait in Redo.
 +        if (rUndo.GetUndoActionCount() && rUndo.GetUndoActionComment() == aTitle)
 +        {
-+            if (!rUndo.Undo())
-+                SAL_WARN("sc.ui", "R macro partial batch not undone");
++            const bool bUndone = rUndo.Undo();
 +            rUndo.ClearRedo();
++            // Writes left in place: never report "nothing changed".
++            require(bUndone, "rollback");
 +        }
 +        throw;
 +    }
@@ -463,7 +470,7 @@ index 77a0b7c..55d65e8 100644
  #include <scitems.hxx>
  #include <editeng/editview.hxx>
  #include <editeng/editeng.hxx>
-@@ -382,6 +385,43 @@ void ScCellShell::Execute( SfxRequest& rReq )
+@@ -382,6 +385,41 @@ void ScCellShell::Execute( SfxRequest& rReq )
 
          case SID_ENTER_STRING:
              {
@@ -474,10 +481,8 @@ index 77a0b7c..55d65e8 100644
 +                    elymacro::lastRefusal() = elymacro::Reason();
 +                    try
 +                    {
-+                        // The state now, not the load arguments.
-+                        elymacro::require(!pShell->IsReadOnly(), "read_only");
 +                        elymacro::require(GetViewData().GetDocument().IsUndoEnabled(), "undo_off");
-+                        elymacro::apply(pShell->GetModel(),
++                        elymacro::apply(pShell->GetModel(), GetViewData().GetDocument(),
 +                            static_cast<const SfxStringItem*>(pMacro)->GetValue(),
 +                            *pShell->GetUndoManager(), pTabViewShell->GetViewShellId());
 +                        pTabViewShell->UpdateInputHandler();

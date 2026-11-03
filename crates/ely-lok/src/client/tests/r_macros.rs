@@ -248,7 +248,9 @@ fn r_refusals_say_why_once() {
     worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
     let locked = crate::sheet::protect_json("", &[]);
     worker.run(&doc, "sheet.protect", &[&locked]).expect("protected");
-    assert_eq!(refused(&mut worker, &doc, &one_write(&before, "text", json!("x"))), "protected");
+    assert_eq!(refused(&mut worker, &doc, &one_write(&before, "text", json!("x"))), "locked");
+    let bold = json!({"snapshot": before, "writes": [], "bold": true, "autofit": false});
+    assert_eq!(refused(&mut worker, &doc, &bold), "protected");
     let open = crate::sheet::unprotect_json("");
     worker.run(&doc, "sheet.protect", &[&open]).expect("unprotected");
     worker.run(&doc, "cell.goto", &["A2:B2"]).expect("a row");
@@ -275,6 +277,85 @@ fn r_selection_past_4_mib_is_refused_before_it_is_copied() {
     assert!(reply.len() < 1024, "{} bytes came back", reply.len());
     let reply: Value = serde_json::from_str(&reply).expect("JSON");
     assert_eq!(reply["refused"], "too_big");
+    // Fits as text, not once JSON escapes each backslash.
+    let slashes = "\\".repeat(32767);
+    for row in 1..=127 {
+        worker.run(&doc, "cell.set", &[&format!("S!D{row}"), &slashes]).expect("long text");
+    }
+    worker.run(&doc, "cell.goto", &["D1:D127"]).expect("selection");
+    let reply = worker.values(&doc, crate::sheet::MACRO).expect("reply");
+    assert!(reply.len() < 1024, "{} bytes came back", reply.len());
+    assert_eq!(serde_json::from_str::<Value>(&reply).expect("JSON")["refused"], "too_big");
+}
+
+#[test]
+fn a_refusal_mid_batch_undoes_its_writes_and_leaves_no_redo() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = super::sheet::open_book(super::input::FODS);
+    worker.run(&doc, "cell.goto", &["B2"]).expect("B2");
+    worker.run(&doc, "cells.lock", &["false"]).expect("B2 unlocked");
+    worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
+    let before = snapshot(&mut worker, &doc);
+    let allow = ["selectLocked".to_string(), "selectUnlocked".to_string()];
+    worker.run(&doc, "sheet.protect", &[&crate::sheet::protect_json("", &allow)]).expect("protected");
+    let undo = worker.values(&doc, ".uno:Undo").expect("undo history");
+    // B2 is written, then Calc refuses the locked A1.
+    let writes = json!([{"index": 3, "kind": "text", "value": "landed"}, {"index": 0, "kind": "text", "value": "refused"}]);
+    let batch = json!({"snapshot": before, "writes": writes, "bold": null, "autofit": false});
+    assert_eq!(refused(&mut worker, &doc, &batch), "locked");
+    // Calc's Undo selects what it restored.
+    worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
+    assert_eq!(snapshot(&mut worker, &doc), before, "B2 is undone");
+    assert_eq!(worker.values(&doc, ".uno:Undo").expect("undo history"), undo);
+    let redo = crate::history::steps(&worker.values(&doc, ".uno:Redo").expect("redo history")).expect("steps");
+    assert!(redo.is_empty(), "the refused prefix waits in Redo: {redo:?}");
+}
+
+/// Saved “open read-only”: Ely still loads it editable.
+const LOAD_READONLY: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+ <office:settings><config:config-item-set config:name="ooo:configuration-settings">
+  <config:config-item config:name="LoadReadonly" config:type="boolean">true</config:config-item>
+ </config:config-item-set></office:settings>
+ <office:body><office:spreadsheet><table:table table:name="S"><table:table-row><table:table-cell><text:p>Hello</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet></office:body>
+</office:document>"#;
+
+/// Ely reaches no read-only document; R edits as typing does.
+#[test]
+fn r_batches_edit_what_typing_edits() {
+    let Some(install) = install() else {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    };
+    let dir = tempfile::tempdir().expect("directory");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("worker");
+    let marked = dir.path().join("marked.fods");
+    std::fs::write(&marked, LOAD_READONLY).expect("fixture");
+    let locked = dir.path().join("locked.fods");
+    std::fs::write(&locked, super::input::FODS).expect("fixture");
+    let mut mode = std::fs::metadata(&locked).expect("mode").permissions();
+    mode.set_readonly(true);
+    std::fs::set_permissions(&locked, mode.clone()).expect("read-only on disk");
+    for source in [&marked, &locked] {
+        let doc = worker.load(&crate::file_url(source)).expect("document");
+        worker.run(&doc, "cell.set", &["S!B1", "typed"]).expect("typing edits");
+        worker.run(&doc, "cell.goto", &["A1:B1"]).expect("selection");
+        let before = snapshot(&mut worker, &doc);
+        let at = worker.now(&doc).expect("revision");
+        let batch = one_write(&before, "text", json!("from R")).to_string();
+        worker.run(&at, "macro.apply", &[&batch]).expect("R edits too");
+        assert_eq!(snapshot(&mut worker, &doc)["cells"][0]["value"], "from R");
+        worker.close_doc(doc).expect("closed");
+    }
+    #[allow(clippy::permissions_set_readonly_false)]
+    mode.set_readonly(false);
+    std::fs::set_permissions(&locked, mode).expect("writable again");
 }
 
 #[test]

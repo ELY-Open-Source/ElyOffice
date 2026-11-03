@@ -128,7 +128,63 @@ fn a_stopped_batch_never_reaches_the_kernel() {
 }
 
 #[test]
-fn a_queued_edit_drops_the_batch_it_would_follow() {
+fn a_cell_set_while_r_runs_makes_the_batch_stale() {
+    let dir = tempfile::tempdir().expect("directory");
+    let mut cx = TestAppContext::single();
+    let Some((window, book)) = book(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    cx.update(ely_gpui_component::init_for_tests);
+    update(&mut cx, &book, |book, cx| book.new_blank(cx));
+    settle(&cx, |app| {
+        book.read(app).active_tab().is_some_and(|tab| {
+            tab.view.read(app).settled() && !tab.extra.sheets.list.is_empty()
+        })
+    });
+    cx.update_window(window.into(), |_, window, app| {
+        book.update(app, |book, cx| book.on_r_macro(&RunRMacro, window, cx))
+    })
+    .expect("the window lives");
+    // R reads; then `ely-table cell set` lands.
+    let (tab, doc, at, batch) = cx.update(|app| {
+        let book = book.read(app);
+        let tab = book.active_tab().expect("a tab");
+        let b1 = format!("{}!B1", tab.extra.sheets.list[0].name);
+        let mut worker = book.core.worker.lock().expect("the worker lock");
+        worker.run(&tab.doc, "cell.goto", &["A1"]).expect("selection");
+        let at = worker.now(&tab.doc).expect("revision");
+        let batch = untouched(&mut worker, &tab.doc);
+        worker.run(&tab.doc, "cell.set", &[&b1, "from the command line"]).expect("cell set");
+        (tab.id, tab.doc.clone(), at, batch)
+    });
+    let run = Arc::new(AtomicBool::new(false));
+    update(&mut cx, &book, |book, cx| {
+        if let Some(Dialog::RMacro(editor)) = &mut book.dialog {
+            editor.running = Some(Arc::clone(&run));
+        }
+        let outcome = runner::Outcome { log: String::new(), batch: Ok(batch) };
+        book.ran_r(tab, at, outcome, Arc::clone(&run), cx);
+    });
+    settle(&cx, |app| {
+        matches!(&book.read(app).dialog, Some(Dialog::RMacro(editor)) if editor.running.is_none())
+    });
+    let (stale, output) = cx.update(|app| {
+        let Some(Dialog::RMacro(editor)) = &book.read(app).dialog else {
+            panic!("the R editor is open");
+        };
+        (Book::text(app, "table.r.stale", &[]).to_string(), editor.output.clone())
+    });
+    assert!(output.contains(&stale), "{output}");
+    let first = cx.update(|app| {
+        let mut worker = book.read(app).core.worker.lock().expect("the worker lock");
+        worker.run(&doc, "cell.goto", &["A1"]).expect("selection");
+        snapshot(&mut worker, &doc)
+    });
+    assert!(!first.contains("from R"), "the stale batch never landed: {first}");
+}
+
+#[test]
+fn a_window_edit_queued_while_r_runs_lands_first() {
     let dir = tempfile::tempdir().expect("directory");
     let mut cx = TestAppContext::single();
     let Some((window, book)) = book(&mut cx, dir.path()) else {
@@ -143,11 +199,13 @@ fn a_queued_edit_drops_the_batch_it_would_follow() {
         book.update(app, |book, cx| book.on_r_macro(&RunRMacro, window, cx))
     })
     .expect("the window lives");
-    let (tab, at, edited) = cx.update(|app| {
+    let (tab, doc, at, batch) = cx.update(|app| {
         let book = book.read(app);
         let tab = book.active_tab().expect("a tab");
-        let at = book.core.worker.lock().expect("the worker lock").now(&tab.doc).expect("revision");
-        (tab.id, at, tab.view.read(app).edited())
+        let mut worker = book.core.worker.lock().expect("the worker lock");
+        worker.run(&tab.doc, "cell.goto", &["A1"]).expect("selection");
+        let at = worker.now(&tab.doc).expect("revision");
+        (tab.id, tab.doc.clone(), at, untouched(&mut worker, &tab.doc))
     });
     let run = Arc::new(AtomicBool::new(false));
     update(&mut cx, &book, |book, cx| {
@@ -156,18 +214,26 @@ fn a_queued_edit_drops_the_batch_it_would_follow() {
         }
         // Queued, not landed: the batch could take the worker first.
         book.run_active("cell.enter", &["typed"], cx);
-        let outcome = runner::Outcome { log: String::new(), batch: Ok("{}".into()) };
-        book.ran_r(tab, (at, edited), outcome, Arc::clone(&run), cx);
+        let outcome = runner::Outcome { log: String::new(), batch: Ok(batch) };
+        book.ran_r(tab, at, outcome, Arc::clone(&run), cx);
+        // Not sent: it waits behind the queued input.
+        assert!(book.core.waiting.iter().any(|(id, _)| *id == tab), "the batch went first");
     });
-    // Nothing ran yet: the batch never went to the worker.
-    let (stale, output, running) = cx.update(|app| {
-        let Some(Dialog::RMacro(editor)) = &book.read(app).dialog else {
-            panic!("the R editor is open");
-        };
-        let stale = Book::text(app, "table.r.stale", &[]).to_string();
-        (stale, editor.output.clone(), editor.running.is_some())
+    settle(&cx, |app| {
+        matches!(&book.read(app).dialog, Some(Dialog::RMacro(editor)) if editor.running.is_none())
     });
-    assert!(!running && output.contains(&stale), "{output}");
+    let output = cx.update(|app| match &book.read(app).dialog {
+        Some(Dialog::RMacro(editor)) => editor.output.clone(),
+        _ => panic!("the R editor is open"),
+    });
+    let stale = cx.update(|app| Book::text(app, "table.r.stale", &[]).to_string());
+    assert!(output.contains(&stale), "{output}");
+    let first = cx.update(|app| {
+        let mut worker = book.read(app).core.worker.lock().expect("the worker lock");
+        worker.run(&doc, "cell.goto", &["A1"]).expect("selection");
+        snapshot(&mut worker, &doc)
+    });
+    assert!(first.contains("typed") && !first.contains("from R"), "{first}");
 }
 
 /// The batch R would send unchanged for the selection now.
@@ -202,7 +268,11 @@ fn each_kernel_refusal_names_its_reason() {
     worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
     let lock = ely_lok::sheet::protect_json("", &[]);
     worker.run(&doc, "sheet.protect", &[&lock]).expect("protected");
-    assert_eq!(apply(&mut worker, &batch), Some("table.r.protected"));
+    assert_eq!(apply(&mut worker, &batch), Some("table.r.locked"));
+    let mut bold: Value = serde_json::from_str(&batch).expect("JSON");
+    bold["writes"] = json!([]);
+    bold["bold"] = json!(true);
+    assert_eq!(apply(&mut worker, &bold.to_string()), Some("table.r.protected"));
     worker.run(&doc, "sheet.protect", &[&ely_lok::sheet::unprotect_json("")]).expect("unprotected");
     worker.run(&doc, "cell.goto", &["A2:B2"]).expect("a row");
     worker.run(&doc, "cells.merge", &["false"]).expect("merged");
