@@ -424,7 +424,8 @@ fn save(unpack: &mut Unpack) -> io::Result<()> {
             "unknown save option",
         ));
     }
-    with_doc(id, |doc| doc.save_as(&url, &format, &options))??;
+    with_doc(id, |doc| doc.save_as(&url, &format, &options))?
+        .map_err(|error| io::Error::other(format!("{error}: {}", lok().error())))?;
     log::info!("lok-worker: saved as {format} to {url} ({options})");
     Ok(())
 }

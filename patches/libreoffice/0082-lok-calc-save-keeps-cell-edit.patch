@@ -8,13 +8,18 @@ reason (ScDocShell::PrepareSaveGuard).
 
 Now a save writes the cells as entered and the edit stays open. The
 "TerminateEditing" save option enters it first, for a save that ends
-the view. While a cell edit holds typed text, LOK keeps the document
-modified, so a save no longer clears it. LOK marked it modified on the
-first key only; text typed through postExtTextInputEvent (how clients
-type characters) now marks it too, or an open edit looked saved.
+the view; an entry the cell's validity rule refuses stays open and the
+save fails with a reason (TerminateEditing now says whether the edit
+ended), so a close never drops it. While a cell edit holds typed text,
+LOK keeps the document modified, so a save no longer clears it. LOK
+marked it modified on the first key only; text typed through
+postExtTextInputEvent (how clients type characters) now marks it too.
+A composition that opened an edit on a cell and ends empty (an IME
+cancel) cancels the edit, as Escape does, and restores the modified
+state, so no later commit empties the cell.
 
 diff --git a/desktop/source/lib/init.cxx b/desktop/source/lib/init.cxx
-index 6159f4b..7718581 100644
+index 6159f4b..fede296 100644
 --- a/desktop/source/lib/init.cxx
 +++ b/desktop/source/lib/init.cxx
 @@ -3848,6 +3848,7 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
@@ -34,31 +39,85 @@ index 6159f4b..7718581 100644
              else if (aKey == "NoFileSync")
                  aSaveMediaDescriptor[u"NoFileSync"_ustr] <<= true;
              else if (aKey == "FromTemplate")
-@@ -3924,6 +3927,13 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+@@ -3924,6 +3927,17 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
              aSaveMediaDescriptor[MediaDescriptor::PROP_INTERACTIONHANDLER] <<= uno::Reference<task::XInteractionHandler2>(pInteraction);
          }
  
 +        // Only a closing save enters the cell edit.
 +        if (bTerminateEditing)
 +        {
-+            if (SfxObjectShell* pObjectShell = getSfxObjectShell(pThis))
-+                pObjectShell->TerminateEditing();
++            SfxObjectShell* pObjectShell = getSfxObjectShell(pThis);
++            if (pObjectShell && !pObjectShell->TerminateEditing())
++            {
++                SetLastExceptionMsg(u"the entry in the edited cell is not accepted"_ustr);
++                return false;
++            }
 +        }
 +
          if (bTakeOwnership)
              xStorable->storeAsURL(aURL, aSaveMediaDescriptor.getAsConstPropertyValueList());
          else
+diff --git a/include/sfx2/objsh.hxx b/include/sfx2/objsh.hxx
+index 4ac9045..da3bbb6 100644
+--- a/include/sfx2/objsh.hxx
++++ b/include/sfx2/objsh.hxx
+@@ -318,8 +318,8 @@ public:
+ 
+     // TODO/LATER: currently only overridden in Calc, should be made non-virtual
+     virtual bool                DoSaveCompleted( SfxMedium* pNewStor=nullptr, bool bRegisterRecent=true );
+-    /// Terminate any in-flight editing. Used before saving, primarily by Calc to commit cell changes.
+-    virtual void                TerminateEditing() {}
++    /// Ends in-flight editing; false if it stays open.
++    virtual bool                TerminateEditing() { return true; }
+ 
+     bool                        LoadOwnFormat( SfxMedium& pMedium );
+     virtual bool                SaveAsOwnFormat( SfxMedium& pMedium );
 diff --git a/sc/source/ui/app/inputhdl.cxx b/sc/source/ui/app/inputhdl.cxx
-index 7014b7d..855a267 100644
+index 7014b7d..a20de04 100644
 --- a/sc/source/ui/app/inputhdl.cxx
 +++ b/sc/source/ui/app/inputhdl.cxx
-@@ -4265,6 +4265,12 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
+@@ -849,6 +849,8 @@ ScInputHandler::ScInputHandler()
+         mbDocumentDisposing(false),
+         mbPartialPrefix(false),
+         mbEditingExistingContent(false),
++        mbExtInputOpened(false),
++        mbExtInputWasModified(false),
+         nValidation( 0 ),
+         eAttrAdjust( SvxCellHorJustify::Standard ),
+         aScaleX( 1,1 ),
+@@ -4222,6 +4224,8 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
+         {
+             if (bNewView)                           // create new edit view
+             {
++                mbExtInputOpened = eMode == SC_INPUT_NONE;
++                mbExtInputWasModified = pActiveViewSh->GetViewData().GetDocShell()->IsModified();
+                 pActiveViewSh->GetViewData().GetDocShell()->PostEditView(*mpEditEngine, aCursorPos);
+                 UpdateActiveView();
+                 if (eMode==SC_INPUT_NONE)
+@@ -4264,7 +4268,29 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
+                 }
              }
  
++            if (rCEvt.GetCommand() == CommandEventId::EndExtTextInput)
++            {
++                const bool bOpened = mbExtInputOpened;
++                mbExtInputOpened = false;
++                // A composition that opened the edit, ended empty, cancels.
++                if (bOpened && comphelper::LibreOfficeKit::isActive() && GetEditText(mpEditEngine.get()).isEmpty())
++                {
++                    ScDocShell* pDocSh = pActiveViewSh->GetViewData().GetDocShell();
++                    CancelHandler();
++                    if (!mbExtInputWasModified)
++                        pDocSh->SetModified(false);
++                    return;
++                }
++            }
++
              DataChanged();              //  calls UpdateParenthesis()
 +
 +            // Typed text marks the document modified, as keys do.
-+            if (comphelper::LibreOfficeKit::isActive() && rCEvt.GetCommand() == CommandEventId::ExtTextInput
++            const CommandExtTextInputData* pText = rCEvt.GetExtTextInputData();
++            if (comphelper::LibreOfficeKit::isActive() && pText && !pText->GetText().isEmpty()
 +                && !pActiveViewSh->GetViewData().GetDocShell()->IsModified())
 +                pActiveViewSh->GetViewData().GetDocShell()->SetModified();
 +
@@ -66,7 +125,7 @@ index 7014b7d..855a267 100644
          }
  
 diff --git a/sc/source/ui/docshell/docsh.cxx b/sc/source/ui/docshell/docsh.cxx
-index 923a972..93196b2 100644
+index 923a972..b22aa07 100644
 --- a/sc/source/ui/docshell/docsh.cxx
 +++ b/sc/source/ui/docshell/docsh.cxx
 @@ -90,6 +90,7 @@
@@ -77,12 +136,10 @@ index 923a972..93196b2 100644
  #include <docfunc.hxx>
  #include <imoptdlg.hxx>
  #include <impex.hxx>
-@@ -3046,8 +3047,29 @@ SfxUndoManager* ScDocShell::GetUndoManager()
-     return m_pDocument->GetUndoManager();
+@@ -1881,12 +1882,27 @@ void popFileName(OUString& rPath)
+     }
  }
  
-+namespace {
-+
 +/// Whether a view holds a typed cell edit.
 +bool HasTypedCellEdit( const ScDocShell& rShell )
 +{
@@ -95,10 +152,23 @@ index 923a972..93196b2 100644
 +            return true;
 +    }
 +    return false;
+ }
+ 
+-void ScDocShell::TerminateEditing()
 +}
 +
-+}
-+
++bool ScDocShell::TerminateEditing()
+ {
+-    // Commit any cell changes before saving.
+-    ScModule::get()->InputEnterHandler();
++    // An entry its validity rule refuses stays open.
++    ScModule::get()->InputEnterHandler(ScEnterMode::NORMAL, true);
++    return !HasTypedCellEdit(*this);
+ }
+ 
+ bool ScDocShell::SaveAs( SfxMedium& rMedium )
+@@ -3048,6 +3064,9 @@ SfxUndoManager* ScDocShell::GetUndoManager()
+ 
  void ScDocShell::SetModified( bool bModified )
  {
 +    // A typed cell edit keeps the document modified.
@@ -107,11 +177,34 @@ index 923a972..93196b2 100644
      if ( SfxObjectShell::IsEnableSetModified() )
      {
          SfxObjectShell::SetModified( bModified );
+diff --git a/sc/source/ui/inc/docsh.hxx b/sc/source/ui/inc/docsh.hxx
+index bf76665..9ef129e 100644
+--- a/sc/source/ui/inc/docsh.hxx
++++ b/sc/source/ui/inc/docsh.hxx
+@@ -204,7 +204,7 @@ public:
+ 
+     SC_DLLPUBLIC virtual void SetVisArea( const tools::Rectangle & rVisArea ) override;
+ 
+-    virtual void    TerminateEditing() override;
++    virtual bool    TerminateEditing() override;
+ 
+     using SfxObjectShell::GetVisArea;
+     virtual tools::Rectangle GetVisArea( sal_uInt16 nAspect ) const override;
 diff --git a/sc/source/ui/inc/inputhdl.hxx b/sc/source/ui/inc/inputhdl.hxx
-index 2f3ac5c..6f1b100 100644
+index 2f3ac5c..a51118c 100644
 --- a/sc/source/ui/inc/inputhdl.hxx
 +++ b/sc/source/ui/inc/inputhdl.hxx
-@@ -251,6 +251,7 @@ public:
+@@ -108,6 +108,9 @@ private:
+     /// To indicate if there is a partial prefix completion.
+     bool                    mbPartialPrefix:1;
+     bool                    mbEditingExistingContent:1;
++    /// A composition opened this edit; the modified state before.
++    bool                    mbExtInputOpened:1;
++    bool                    mbExtInputWasModified:1;
+ 
+     sal_uLong                   nValidation;
+     SvxCellHorJustify       eAttrAdjust;
+@@ -251,6 +254,7 @@ public:
      bool            TakesReturn() const     { return ( nTipVisible != nullptr ); }
  
      void            SetModified()       { bModified = true; }
