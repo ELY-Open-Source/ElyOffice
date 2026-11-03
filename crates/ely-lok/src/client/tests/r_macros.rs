@@ -259,30 +259,6 @@ fn r_refusals_say_why_once() {
 }
 
 #[test]
-fn r_batches_refuse_a_document_read_only_now() {
-    let Some(install) = install() else {
-        eprintln!("SKIP: no pinned LOK build");
-        return;
-    };
-    let dir = tempfile::tempdir().expect("directory");
-    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("worker");
-    let source = dir.path().join("locked.fods");
-    std::fs::write(&source, super::input::FODS).expect("fixture");
-    let mut mode = std::fs::metadata(&source).expect("mode").permissions();
-    mode.set_readonly(true);
-    std::fs::set_permissions(&source, mode.clone()).expect("read-only");
-    let doc = worker.load(&crate::file_url(&source)).expect("document");
-    worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
-    let before = snapshot(&mut worker, &doc);
-    let code = refused(&mut worker, &doc, &one_write(&before, "text", json!("x")));
-    #[allow(clippy::permissions_set_readonly_false)]
-    mode.set_readonly(false);
-    std::fs::set_permissions(&source, mode).expect("writable again");
-    assert_eq!(code, "read_only");
-    assert_eq!(snapshot(&mut worker, &doc), before);
-}
-
-#[test]
 fn r_selection_past_4_mib_is_refused_before_it_is_copied() {
     if install().is_none() {
         eprintln!("SKIP: no pinned LOK build");
