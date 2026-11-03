@@ -196,6 +196,13 @@ impl Root {
         });
     }
 
+    /// An unopened output: logs the error, shows its words.
+    pub(crate) fn open_failed(&mut self, error: &std::io::Error, cx: &mut Context<Self>) {
+        log::error!("apps: the output did not open: {error}");
+        let said = crate::i18n::text(cx, "toast.open_failed", &[("error", &crate::i18n::error(cx, error))]);
+        self.toast(said, Severity::Danger, cx);
+    }
+
     /// The toasts on show: title and severity, oldest first.
     pub fn toasts(&self, cx: &gpui::App) -> Vec<(SharedString, Option<Severity>)> {
         self.toaster.read(cx).shown()
@@ -219,11 +226,7 @@ impl Root {
                 cx.spawn(async move |cx| {
                     let opened = cx.background_spawn(async move { view(&path) }).await;
                     if let Err(error) = opened {
-                        log::error!("apps: the output did not open: {error}");
-                        cx.update(|cx| {
-                            let said = crate::i18n::text(cx, "toast.open_failed", &[("error", &error.to_string())]);
-                            root.update(cx, |root, cx| root.toast(said, Severity::Danger, cx)).ok();
-                        });
+                        cx.update(|cx| root.update(cx, |root, cx| root.open_failed(&error, cx)).ok());
                     }
                 })
                 .detach();
@@ -444,5 +447,32 @@ mod tests {
         let want = Some((fg, family));
         assert_eq!(*page.borrow(), want, "the page");
         assert_eq!(*overlay.borrow(), want, "an overlay over it");
+    }
+
+    #[gpui::test]
+    fn an_output_whose_app_went_says_so_in_chinese_and_spanish(cx: &mut TestAppContext) {
+        // An installed one would start for real.
+        if ely_platform::apps::installed(ely_platform::AppId::Pdf) {
+            return eprintln!("SKIP: ElyPDF is installed here");
+        }
+        // The check passed; at launch the app is gone.
+        let gone = ely_platform::apps::open(ely_platform::AppId::Pdf, &[]).expect_err("no ElyPDF");
+        cx.update(|cx| {
+            ely_gpui_component::init_for_tests(cx);
+            crate::settings::install_defaults(cx);
+            crate::i18n::install_as("en-US", cx);
+        });
+        let window = cx.add_window(|_, cx| Saves(cx.focus_handle(), 0));
+        let root = window
+            .update(cx, |_, window, cx| super::tool_root(ely_platform::AppId::Tree, cx.entity().into(), Vec::new(), window, cx))
+            .unwrap();
+        for (locale, said) in [("zh-CN", "ElyPDF 没有安装"), ("es-ES", "ElyPDF no está instalado")] {
+            cx.update(|cx| crate::i18n::install_as(locale, cx));
+            let toasts = cx.update(|cx| {
+                root.update(cx, |root, cx| root.open_failed(&gone, cx));
+                root.read(cx).toasts(cx)
+            });
+            assert!(toasts.iter().any(|(text, _)| text.contains(said)), "{locale}: {toasts:?}");
+        }
     }
 }

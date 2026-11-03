@@ -92,3 +92,24 @@ fn a_save_as_target_another_tab_took_meanwhile_says_so_in_chinese_and_spanish() 
         settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| text.contains(said)));
     }
 }
+
+#[test]
+fn a_bad_csv_logs_its_key_never_its_columns_or_words() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    cx.update(ely_gpui_component::init_for_tests);
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let root = rooted(&mut cx, &docs);
+    let csv = dir.path().join("people.csv");
+    std::fs::write(&csv, "ZqxPatient42,ZqxPatient42\nAda,Lin\n").expect("writes");
+    cx.update(|app| ely_ui::i18n::install_as("zh-CN", app));
+    with_window(&mut cx, &docs, |docs, _, cx| docs.take_csv(0, &csv, cx));
+    let said = cx.update(|app| ely_ui::i18n::text(app, "doc.merge.twice", &[("name", "ZqxPatient42")]));
+    let toasts = cx.update(|app| root.read(app).toasts(app));
+    assert!(toasts.iter().any(|(text, _)| text.contains(said.as_ref())), "{toasts:?}");
+    let kept = ely_ui::logs::kept();
+    assert!(kept.iter().any(|line| line.ends_with("doc: the merge data did not read: doc.merge.twice")), "{kept:?}");
+    assert!(!kept.iter().any(|line| line.contains("ZqxPatient42") || line.contains(said.as_ref())), "{kept:?}");
+}

@@ -109,11 +109,11 @@ impl Docs {
         then: impl FnOnce(&mut Self, SharedString, PathBuf, &mut Context<Self>) + 'static,
     ) {
         let Some(name) = self.tab(source).map(|tab| tab.name.clone()) else {
-            return self.merge_failed(&ely_ui::i18n::text(cx, "error.closed", &[]), cx);
+            return self.merge_failed(&Worded::error(io::ErrorKind::NotFound, "error.closed", &[]), cx);
         };
         let copy = match files::work_dir(&self.core.work, into) {
             Ok(dir) => dir.join("merge.odt"),
-            Err(error) => return self.merge_failed(&ely_ui::i18n::error(cx, &error), cx),
+            Err(error) => return self.merge_failed(&error, cx),
         };
         let url = ely_lok::file_url(&copy);
         self.read_in(
@@ -121,15 +121,17 @@ impl Docs {
             move |worker, doc| doc.save_as(worker, &url, "odt"),
             move |docs, saved, _, cx| match saved {
                 Ok(()) => then(docs, name, copy, cx),
-                Err(error) => docs.merge_failed(&ely_ui::i18n::error(cx, &error), cx),
+                Err(error) => docs.merge_failed(&error, cx),
             },
             cx,
         );
     }
 
-    fn merge_failed(&self, error: &str, cx: &mut Context<Self>) {
-        let text = Docs::text(cx, "office.error.engine", &[("error", error)]);
-        self.toast(text, Severity::Danger, cx);
+    /// Logs `error` itself; only the toast reads its words.
+    fn merge_failed(&self, error: &io::Error, cx: &mut Context<Self>) {
+        log::warn!("doc: the merge failed: {error}");
+        let text = Docs::text(cx, "office.error.engine", &[("error", &ely_ui::i18n::error(cx, error))]);
+        self.toast_unlogged(text, Severity::Danger, cx);
     }
 
     /// Opens record `at` filled in, as a new tab.
@@ -181,7 +183,7 @@ impl Docs {
                     move |worker, doc| fill(worker, doc, &headers, &row),
                     |docs, filled, _, cx| {
                         if let Err(error) = filled {
-                            docs.merge_failed(&ely_ui::i18n::error(cx, &error), cx);
+                            docs.merge_failed(&error, cx);
                         }
                     },
                     cx,
@@ -205,7 +207,7 @@ impl Docs {
             });
         }
         let Some(name) = self.tab(source).map(|tab| tab.name.clone()) else {
-            return self.merge_failed(&ely_ui::i18n::text(cx, "error.closed", &[]), cx);
+            return self.merge_failed(&Worded::error(io::ErrorKind::NotFound, "error.closed", &[]), cx);
         };
         let stem = Path::new(name.as_ref()).file_stem().map_or_else(
             || name.to_string(),

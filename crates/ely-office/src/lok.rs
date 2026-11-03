@@ -143,9 +143,12 @@ impl Engine for Lok {
         reported: impl Fn(&mut H, &Entity<LokView>, bool, &mut Context<H>) + 'static,
         failed: impl Fn(&mut H, &str, &mut Context<H>) + 'static,
     ) {
-        cx.subscribe(view, move |host, _, error: &LokError, cx| match error.0.starts_with(ely_lok::STALE) {
-            true => failed(host, &text(cx, "office.error.changed", &[]), cx),
-            false => failed(host, &error.0, cx),
+        cx.subscribe(view, move |host, _, error: &LokError, cx| {
+            log::warn!("{}: {}", H::KIND.app.slug(), error.0);
+            match error.0.starts_with(ely_lok::STALE) {
+                true => failed(host, &text(cx, "office.error.changed", &[]), cx),
+                false => failed(host, &error.0, cx),
+            }
         })
         .detach();
         // Log the title only; the body may name user files.

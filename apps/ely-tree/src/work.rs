@@ -415,7 +415,7 @@ impl Tree {
             (Write::Save { path, text }, Ok(())) => self.merge_saved(id, path, text, cx),
             // A file write, not Git: the result did not save.
             (Write::Save { .. }, Err(error)) => {
-                self.failed("tree.error.save", &ely_ui::i18n::error(cx, &error), cx)
+                self.failed("tree.error.save", &error, cx)
             }
             // A conflict stop is no failure; Git says which.
             (
@@ -427,7 +427,7 @@ impl Tree {
                 Err(error),
             ) => self.git_failed(stopped, ely_ui::i18n::error(cx, &error).to_string(), cx),
             (_, Ok(())) => {}
-            (_, Err(error)) => self.failed("tree.error.write", &ely_ui::i18n::error(cx, &error), cx),
+            (_, Err(error)) => self.failed("tree.error.write", &error, cx),
         }
         self.read(id, cx);
         self.next_write(id, cx);

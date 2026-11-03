@@ -2054,7 +2054,6 @@ dependencies = [
  "ely-platform",
  "ely-ui",
  "embed-resource",
- "env_logger",
  "gpui-pre",
  "image",
  "jiff",

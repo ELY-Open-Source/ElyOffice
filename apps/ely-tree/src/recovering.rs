@@ -115,10 +115,10 @@ impl Tree {
                 }
                 let ask = match plan {
                     Ok(plan) => Ask::Move { repo, plan },
-                    Err(error) => Ask::Failed {
-                        title: text(cx, "tree.op.failed", &[]),
-                        detail: ely_ui::i18n::error(cx, &error),
-                    },
+                    Err(error) => {
+                        log::warn!("tree: a move plan failed: {error}");
+                        Ask::Failed { title: text(cx, "tree.op.failed", &[]), detail: ely_ui::i18n::error(cx, &error) }
+                    }
                 };
                 tree.offer(ask, cx);
             })

@@ -75,10 +75,15 @@ impl Docs {
             let text = Docs::text(cx, "doc.merge.from_preview", &[]);
             return self.toast(text, Severity::Warning, cx);
         }
-        self.pick(false, cx, move |docs, path, cx| match read_csv(&path) {
+        self.pick(false, cx, move |docs, path, cx| docs.take_csv(source, &path, cx));
+    }
+
+    /// Reads `path` as merge data, else says why.
+    pub(crate) fn take_csv(&mut self, source: u64, path: &std::path::Path, cx: &mut Context<Self>) {
+        match read_csv(path) {
             Ok(table) => {
                 log::info!("doc: merge data has {} rows", table.rows.len());
-                docs.merge.update(cx, |merge, cx| {
+                self.merge.update(cx, |merge, cx| {
                     merge.table = Some(table);
                     merge.source = Some(source);
                     merge.record = 1;
@@ -86,6 +91,8 @@ impl Docs {
                 });
             }
             Err(error) => {
+                // A worded error logs its key, never the columns.
+                log::warn!("doc: the merge data did not read: {error}");
                 let name = path.display().to_string();
                 let error = ely_ui::i18n::error(cx, &error);
                 let text = Docs::text(
@@ -93,9 +100,9 @@ impl Docs {
                     "doc.merge.unreadable",
                     &[("name", &name), ("error", &error)],
                 );
-                docs.toast(text, Severity::Danger, cx);
+                self.toast_unlogged(text, Severity::Danger, cx);
             }
-        });
+        }
     }
 
     /// The template's tab, while it is open.

@@ -139,8 +139,10 @@ impl Viewer {
         if ely_pdf_engine::refused(error).is_some() {
             return self.failed(error, cx);
         }
+        // Engine text may quote the document: the user sees it.
+        log::error!("pdf: a write failed ({:?})", error.kind());
         let text = Self::text(cx, "office.error.save", &[("name", name), ("error", &ely_ui::i18n::error(cx, error))]);
-        self.toast(text, Severity::Danger, cx);
+        self.toast_unlogged(text, Severity::Danger, cx);
     }
 
     /// Asks for a folder, then writes the parts there.

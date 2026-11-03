@@ -48,7 +48,11 @@ impl Viewer {
     pub(crate) fn failed(&self, error: &io::Error, cx: &mut App) {
         match ely_pdf_engine::refused(error) {
             Some(needed) => self.toast(crate::view::restricted(needed, cx), Severity::Warning, cx),
-            None => self.panel_failed(&ely_ui::i18n::error(cx, error), cx),
+            None => {
+                log::error!("pdf: a step failed ({:?})", error.kind());
+                let text = Self::text(cx, "office.error.panel", &[("error", &ely_ui::i18n::error(cx, error))]);
+                self.toast_unlogged(text, Severity::Danger, cx);
+            }
         }
     }
 

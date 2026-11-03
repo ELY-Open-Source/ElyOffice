@@ -107,7 +107,7 @@ pub trait Opening: Host {
             "office.error.open",
             &[("name", name), ("error", &error)],
         );
-        self.toast(text, ely_gpui_component::primitives::Severity::Danger, cx);
+        self.toast_unlogged(text, ely_gpui_component::primitives::Severity::Danger, cx);
     }
 
     /// Loads off the main thread; the tab takes focus.
@@ -306,7 +306,10 @@ pub trait Opening: Host {
                 log::info!("office: tab {id} failed after it closed");
                 return;
             }
-            host.engine_failed(error, cx);
+            // Engines log their own detail; words may quote errors.
+            log::warn!("{}: tab {id} reported an engine failure", Self::KIND.app.slug());
+            let shown = text(cx, "office.error.engine", &[("error", error)]);
+            host.toast_unlogged(shown, ely_gpui_component::primitives::Severity::Danger, cx);
             crate::Stopping::check_engine(host, cx);
         });
     }

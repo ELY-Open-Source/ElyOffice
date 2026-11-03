@@ -2,7 +2,7 @@
 
 use ely_gpui_component::secondary;
 use ely_ui::commands;
-use std::path::PathBuf;
+use std::{io, path::PathBuf};
 
 use gpui::{App, Context, KeyBinding, Menu, MenuItem, PathPromptOptions, Window, actions};
 
@@ -69,8 +69,8 @@ impl Tree {
         cx.spawn(async move |this, cx| {
             let picked = picked
                 .await
-                .map_err(|error| error.to_string())
-                .and_then(|picked| picked.map_err(|error| error.to_string()));
+                .map_err(io::Error::other)
+                .and_then(|picked| picked.map_err(io::Error::other));
             this.update(cx, |tree, cx| match picked {
                 Ok(Some(paths)) => paths.into_iter().for_each(|path| then(tree, path, cx)),
                 Ok(None) => log::info!("tree: the folder panel was cancelled"),

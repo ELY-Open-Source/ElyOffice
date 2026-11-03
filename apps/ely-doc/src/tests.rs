@@ -17,11 +17,7 @@ impl gpui::Render for Blank {
 
 /// A Docs over a fresh worker, if LOK exists.
 pub(crate) fn docs(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Docs>> {
-    // A failing test prints its log.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .filter_level(log::LevelFilter::Info)
-        .try_init();
+    ely_ui::logs::keep();
     let install = ely_lok::test_install()?;
     let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");

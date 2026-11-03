@@ -203,7 +203,7 @@ impl Tree {
         log::info!("tree: terminal at {}", root.display());
         let started = match terminal_at(&root) {
             Ok(started) => started,
-            Err(error) => return self.failed("tree.error.tool", &ely_ui::i18n::error(cx, &error), cx),
+            Err(error) => return self.failed("tree.error.tool", &error, cx),
         };
         // A closed console's exit says nothing.
         #[cfg(windows)]
@@ -217,7 +217,7 @@ impl Tree {
                 if let Ok(Err(error)) = result.await {
                     log::warn!("tree: the terminal failed: {error}");
                     this.update(cx, |tree, cx| {
-                        tree.failed("tree.error.tool", &ely_ui::i18n::error(cx, &error), cx)
+                        tree.failed("tree.error.tool", &error, cx)
                     })
                     .ok();
                 }
@@ -242,13 +242,13 @@ impl Tree {
         cx.spawn(async move |this, cx| {
             let picked = picked
                 .await
-                .map_err(|error| error.to_string())
-                .and_then(|picked| picked.map_err(|error| error.to_string()));
+                .map_err(io::Error::other)
+                .and_then(|picked| picked.map_err(io::Error::other));
             this.update(cx, |tree, cx| match picked {
                 Ok(Some(mut paths)) if !paths.is_empty() => {
                     let editor = paths.remove(0);
                     if let Err(error) = tree.tools.keep(editor) {
-                        return tree.failed("tree.error.tool", &ely_ui::i18n::error(cx, &error), cx);
+                        return tree.failed("tree.error.tool", &error, cx);
                     }
                     if let Some(path) = then {
                         tree.open_in_editor(&path, cx);
@@ -275,7 +275,7 @@ impl Tree {
         cx.spawn(async move |this, cx| {
             if let Err(error) = task.await {
                 this.update(cx, |tree, cx| {
-                    tree.failed("tree.error.tool", &ely_ui::i18n::error(cx, &error), cx)
+                    tree.failed("tree.error.tool", &error, cx)
                 })
                 .ok();
             }
@@ -286,7 +286,7 @@ impl Tree {
     pub fn open_in_mark(&mut self, path: &str, cx: &mut Context<Self>) {
         let Some(root) = self.root() else { return };
         if let Err(error) = ely_platform::apps::open(AppId::Mark, &[root.join(path)]) {
-            self.failed("tree.error.tool", &ely_ui::i18n::error(cx, &error), cx);
+            self.failed("tree.error.tool", &error, cx);
         }
     }
 }
