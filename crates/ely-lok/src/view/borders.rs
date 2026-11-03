@@ -143,9 +143,9 @@ impl LokView {
         lines(table).into_iter().find_map(|(side, at, (start, end), room)| {
             let reach = self.handle_size.min(px(self.geom.px_of(room) / 4.0));
             let (from, to) = if side.upright() {
-                (self.window_point((at, start)), self.window_point((at, end)))
+                (self.hit_point((at, start)), self.hit_point((at, end)))
             } else {
-                (self.window_point((start, at)), self.window_point((end, at)))
+                (self.hit_point((start, at)), self.hit_point((end, at)))
             };
             let (near, along, low, high) = if side.upright() {
                 ((from.x - position.x).abs(), position.y, from.y, to.y)

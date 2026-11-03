@@ -8,7 +8,7 @@ use gpui::{
     point, px,
 };
 
-use super::{LokView, input::Input};
+use super::{Geom, LokView, input::Input, reveal::Seen};
 use crate::{Mouse, Rect};
 
 impl LokView {
@@ -138,53 +138,68 @@ impl LokView {
 
     /// The print-twips document point under a view position (LOK-04).
     pub fn doc_point(&self, position: Point<Pixels>) -> (i32, i32) {
-        self.print_of(self.tile_point(position))
+        let (at, geom) = self.seen_point(position);
+        self.print_at(geom, at)
     }
 
-    /// The tile-twips point under a view position.
+    /// The tile-twips point under a view position, for the kernel.
     pub(super) fn tile_point(&self, position: Point<Pixels>) -> (i32, i32) {
+        let (at, geom) = self.seen_point(position);
+        // A held sheet's tile twips are at its own scale.
+        if geom == self.geom { at } else { self.tile_of(self.print_at(geom, at)) }
+    }
+
+    /// The drawn tile-twips point and geom under a position.
+    fn seen_point(&self, position: Point<Pixels>) -> ((i32, i32), Geom) {
         let local = position - self.origin;
-        let (scroll, geom, spare) = self.seen();
-        let (ax, ay) = self.axes_at(scroll);
-        (
+        let (scroll, geom, spare) = self.drawn();
+        let (ax, ay) = self.axes_at(scroll, geom);
+        let at = (
             ax.doc(geom.twips_of(f32::from(local.x) - spare.0)),
             ay.doc(geom.twips_of(f32::from(local.y) - spare.1)),
-        )
+        );
+        (at, geom)
     }
 
     /// The panes of each axis.
     pub(super) fn axes(&self) -> (super::panes::Axis, super::panes::Axis) {
-        self.axes_at(self.scroll)
+        self.axes_at(self.scroll, self.geom)
     }
 
-    /// The panes of each axis at `scroll`.
-    fn axes_at(&self, scroll: (i32, i32)) -> (super::panes::Axis, super::panes::Axis) {
+    /// The panes of each axis at `scroll` and `geom`.
+    fn axes_at(&self, scroll: (i32, i32), geom: Geom) -> (super::panes::Axis, super::panes::Axis) {
         let axis = |frozen, scroll| super::panes::Axis { frozen, scroll };
-        let (fx, fy) = self.frozen_tiles();
+        let (fx, fy) = self.tile_at(geom, self.frozen);
         (axis(fx, scroll.0), axis(fy, scroll.1))
     }
 
     /// Whether a print-twips rectangle intersects the visible panes.
     pub fn is_visible(&self, rect: Rect) -> bool {
-        let rect = self.tile_rect(rect);
-        rect.2 > 0 && rect.3 > 0 && self.tile_visible(rect)
+        let seen = self.seen();
+        let rect = self.tile_rect_at(seen.1, rect);
+        rect.2 > 0 && rect.3 > 0 && self.tile_visible(seen, rect)
     }
 
-    pub(super) fn tile_visible(&self, (x, y, w, h): Rect) -> bool {
-        let (scroll, geom, _) = self.seen();
-        let (ax, ay) = self.axes_at(scroll);
+    pub(super) fn tile_visible(&self, (scroll, geom, _): Seen, (x, y, w, h): Rect) -> bool {
+        let (ax, ay) = self.axes_at(scroll, geom);
         ax.visible(x, w, geom.twips_of(self.viewport.0)) && ay.visible(y, h, geom.twips_of(self.viewport.1))
     }
 
     /// The window point of a print-twips document point (LOK-04).
     pub fn window_point(&self, at: (i32, i32)) -> gpui::Point<Pixels> {
-        self.tile_window_point(self.tile_of(at))
+        let seen = self.seen();
+        self.tile_window_at(seen, self.tile_at(seen.1, at))
     }
 
-    /// The window point of a tile-twips point.
-    pub(super) fn tile_window_point(&self, (x, y): (i32, i32)) -> gpui::Point<Pixels> {
-        let (scroll, geom, spare) = self.seen();
-        let (ax, ay) = self.axes_at(scroll);
+    /// Where a print-twips point was last drawn, for hit tests.
+    pub(super) fn hit_point(&self, at: (i32, i32)) -> gpui::Point<Pixels> {
+        let drawn = self.drawn();
+        self.tile_window_at(drawn, self.tile_at(drawn.1, at))
+    }
+
+    /// The window point of a tile-twips point on screen `seen`.
+    fn tile_window_at(&self, (scroll, geom, spare): Seen, (x, y): (i32, i32)) -> gpui::Point<Pixels> {
+        let (ax, ay) = self.axes_at(scroll, geom);
         let (x, y) = (geom.px_of(ax.show(x)), geom.px_of(ay.show(y)));
         self.origin + point(px(spare.0 + x), px(spare.1 + y))
     }
@@ -194,15 +209,16 @@ impl LokView {
         Bounds::from_corners(self.window_point((x, y)), self.window_point((x + w, y + h)))
     }
 
-    /// A tile-twips rect in window pixels.
-    pub(super) fn tile_screen_rect(&self, (x, y, w, h): crate::Rect) -> Bounds<Pixels> {
-        Bounds::from_corners(self.tile_window_point((x, y)), self.tile_window_point((x + w, y + h)))
+    /// A tile-twips rect in window pixels on screen `seen`.
+    pub(super) fn tile_screen_rect(&self, seen: Seen, (x, y, w, h): crate::Rect) -> Bounds<Pixels> {
+        Bounds::from_corners(self.tile_window_at(seen, (x, y)), self.tile_window_at(seen, (x + w, y + h)))
     }
 
-    /// The cursor rect in window pixels.
+    /// The cursor rect in window pixels, on the drawn screen.
     pub fn cursor_bounds(&self) -> Option<Bounds<Pixels>> {
-        let mut bounds = self.text_caret()?;
-        bounds.size.width = bounds.size.width.max(px(self.geom.px_of(1)));
+        let seen = self.drawn();
+        let mut bounds = self.text_caret(seen)?;
+        bounds.size.width = bounds.size.width.max(px(seen.1.px_of(1)));
         Some(bounds)
     }
 }

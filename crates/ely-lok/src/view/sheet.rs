@@ -4,7 +4,7 @@ use std::{io, sync::Mutex};
 
 use gpui::Context;
 
-use super::{Layout, LokView, TILE_TWIPS};
+use super::{Geom, Layout, LokView};
 use crate::{Doc, Rect, Worker, sheet::Geometry};
 
 /// A layout and the client zoom it was measured at.
@@ -27,30 +27,40 @@ impl LokView {
         }
     }
 
-    /// Device pixels per twip, as the kernel paints our tiles.
-    pub(super) fn ppt(&self) -> f64 {
-        f64::from(self.geom.tile_pixels()) / f64::from(TILE_TWIPS)
+    /// A print-twips point in tile twips.
+    pub(super) fn tile_of(&self, at: (i32, i32)) -> (i32, i32) {
+        self.tile_at(self.geom, at)
     }
 
-    /// A print-twips point in tile twips.
-    pub(super) fn tile_of(&self, (x, y): (i32, i32)) -> (i32, i32) {
+    /// A print-twips point in tile twips at `geom`.
+    pub(super) fn tile_at(&self, geom: Geom, (x, y): (i32, i32)) -> (i32, i32) {
         match &self.sheet {
-            Some(sheet) => (sheet.columns.tile(x, self.ppt()), sheet.rows.tile(y, self.ppt())),
+            Some(sheet) => (sheet.columns.tile(x, geom.ppt()), sheet.rows.tile(y, geom.ppt())),
             None => (x, y),
         }
     }
 
     /// A tile-twips point in print twips.
-    pub(super) fn print_of(&self, (x, y): (i32, i32)) -> (i32, i32) {
+    pub(super) fn print_of(&self, at: (i32, i32)) -> (i32, i32) {
+        self.print_at(self.geom, at)
+    }
+
+    /// A tile-twips point at `geom` in print twips.
+    pub(super) fn print_at(&self, geom: Geom, (x, y): (i32, i32)) -> (i32, i32) {
         match &self.sheet {
-            Some(sheet) => (sheet.columns.print(x, self.ppt()), sheet.rows.print(y, self.ppt())),
+            Some(sheet) => (sheet.columns.print(x, geom.ppt()), sheet.rows.print(y, geom.ppt())),
             None => (x, y),
         }
     }
 
     /// A print-twips rect in tile twips.
     pub(super) fn tile_rect(&self, rect: Rect) -> Rect {
-        self.sheet.as_ref().map_or(rect, |sheet| sheet.text_rect(rect, None, self.ppt()))
+        self.tile_rect_at(self.geom, rect)
+    }
+
+    /// A print-twips rect in tile twips at `geom`.
+    pub(super) fn tile_rect_at(&self, geom: Geom, rect: Rect) -> Rect {
+        self.sheet.as_ref().map_or(rect, |sheet| sheet.text_rect(rect, None, geom.ppt()))
     }
 
     /// The frozen extent in tile twips.
@@ -60,7 +70,9 @@ impl LokView {
 
     /// Rescales, keeping the scrolling pane's start in place.
     pub(super) fn keep_scroll(&mut self, change: impl FnOnce(&mut Self)) {
-        let start = self.scrolled_start();
+        // The view's own start, not a held screen's.
+        let (fx, fy) = self.frozen_tiles();
+        let start = self.print_of((fx + self.scroll.0, fy + self.scroll.1));
         self.carry_size(change);
         let ((x, y), (fx, fy)) = (self.tile_of(start), self.frozen_tiles());
         self.scroll = (x - fx, y - fy);
@@ -84,9 +96,10 @@ impl LokView {
         self.tile_of(print)
     }
 
-    /// Where the scrolling pane starts, in print twips.
+    /// Where the shown scrolling pane starts, in print twips.
     pub fn scrolled_start(&self) -> (i32, i32) {
-        let (fx, fy) = self.frozen_tiles();
-        self.print_of((fx + self.scroll.0, fy + self.scroll.1))
+        let (scroll, geom, _) = self.seen();
+        let (fx, fy) = self.tile_at(geom, self.frozen);
+        self.print_at(geom, (fx + scroll.0, fy + scroll.1))
     }
 }
