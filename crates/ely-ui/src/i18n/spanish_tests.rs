@@ -10,6 +10,8 @@ fn spanish_regions_and_posix_tags_select_spanish() {
         "ES-mx",
         "es-419",
         "es_ES@euro",
+        "es.UTF-8",
+        "es@euro",
     ] {
         assert_eq!(resolve(tag), "es-ES", "{tag}");
     }
