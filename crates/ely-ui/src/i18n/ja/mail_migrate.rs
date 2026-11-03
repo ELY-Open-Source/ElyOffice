@@ -1,0 +1,27 @@
+//! Japanese message files and mbox files for ElyMail.
+
+pub(super) const JA: &[(&str, &str)] = &[
+    ("mail.boxes.imported", "{name} (このコンピューター)"),
+    ("mail.eml.save", "EML として保存…"),
+    ("mail.eml.title", "メッセージファイル"),
+    ("mail.eml.unread", "メッセージファイルを読み取れませんでした"),
+    ("mail.eml.unopened", "メッセージファイルを開けませんでした: {error}"),
+    ("mail.eml.unsaved", "メッセージを保存できませんでした: {error}"),
+    ("mail.eml.saved", "{path} に保存しました"),
+    ("mail.eml.incomplete", "このメッセージはまだすべて揃っていません。ダウンロード中なので、完了してからもう一度保存してください。"),
+    ("mail.eml.pictures", "メッセージファイルからは Web 画像 {n} 件を読み込みません。"),
+    ("mail.mbox.import", "MBOX をインポート…"),
+    ("mail.mbox.importing", "「{name}」をインポートしています…"),
+    ("mail.mbox.imported", "このコンピューターの「{name}」にメッセージ {n} 件をインポートしました"),
+    ("mail.mbox.imported.one", "このコンピューターの「{name}」にメッセージ 1 件をインポートしました"),
+    ("mail.mbox.unimported", "mbox ファイルをインポートできませんでした: {error}"),
+    ("mail.mbox.export", "MBOX としてエクスポート…"),
+    ("mail.mbox.unexported", "フォルダーをエクスポートできませんでした: {error}"),
+    ("mail.mbox.partial", "メッセージ {n} 件を除外しました。ヘッダーしかないもの、ファイルがダウンロードされていないもの、または mbox で変わってしまう生のバイナリ部分を含むものです。"),
+    ("mail.mbox.partial.one", "メッセージ 1 件を除外しました。ヘッダーしかないもの、ファイルがダウンロードされていないもの、または mbox で変わってしまう生のバイナリ部分を含むものです。"),
+    ("mail.mbox.remove", "インポートしたフォルダーを削除…"),
+    ("mail.mbox.remove_title", "「{name}」を削除しますか?"),
+    ("mail.mbox.remove_message", "メッセージはこのコンピューターから削除されます。サーバーには保存されていません。"),
+    ("mail.mbox.remove_go", "削除"),
+    ("mail.mbox.unremoved", "フォルダーを削除できませんでした: {error}"),
+];

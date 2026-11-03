@@ -4,6 +4,9 @@ mod analysis;
 mod es;
 #[cfg(test)]
 mod spanish_tests;
+mod ja;
+#[cfg(test)]
+mod japanese_tests;
 mod calc;
 mod data;
 mod doc;
@@ -183,12 +186,13 @@ pub fn install(cx: &mut App) {
 pub fn install_as(locale: &'static str, cx: &mut App) {
     #[cfg(target_os = "windows")]
     gpui_windows::set_text_language(locale);
-    let [en, zh, es] = catalogs();
+    let [en, zh, es, ja] = catalogs();
     cx.set_global(
         I18n::new(locale)
             .catalog("en-US", &en)
             .catalog("zh-CN", &zh)
-            .catalog("es-ES", &es),
+            .catalog("es-ES", &es)
+            .catalog("ja-JP", &ja),
     );
 }
 
@@ -269,9 +273,9 @@ const ZH_MODULES: [&[(&str, &str)]; 34] = [
     settings::ZH_CN,
 ];
 
-/// The English, Chinese and Spanish catalogs, every module's messages.
-fn catalogs() -> [Catalog; 3] {
-    [EN_MODULES, ZH_MODULES, es::ES].map(|modules| modules.iter().flat_map(|module| module.iter().copied()).collect())
+/// Every language's catalog, every module's messages.
+fn catalogs() -> [Catalog; 4] {
+    [EN_MODULES, ZH_MODULES, es::ES, ja::JA].map(|modules| modules.iter().flat_map(|module| module.iter().copied()).collect())
 }
 
 /// `ELY_LOCALE`, then the language setting, then the system's.
@@ -363,7 +367,7 @@ mod tests {
         for tag in ["zh-CN", "zh-Hans", "zh", "ZH-TW", "zh_CN"] {
             assert_eq!(resolve(tag), "zh-CN", "{tag}");
         }
-        for tag in ["en", "en-US", "fr", "ja", "", "x9!", "zhx"] {
+        for tag in ["en", "en-US", "fr", "", "x9!", "zhx"] {
             assert_eq!(resolve(tag), "en-US", "{tag}");
         }
     }
