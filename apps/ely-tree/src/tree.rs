@@ -297,7 +297,7 @@ impl Tree {
                     Some(Ok(rel)) => tree.file_log(&rel, cx),
                     Some(Err((file, error))) => {
                         let shown = file.display().to_string();
-                        log::warn!("tree: {shown} did not open: {error}");
+                        log::warn!("tree: a file did not open: {error}");
                         let words = text(cx, "tree.error.open", &[("path", &shown), ("error", &ely_ui::i18n::error(cx, &error))]);
                         tree.toast_unlogged(words, Severity::Danger, cx);
                     }
@@ -380,8 +380,9 @@ impl Tree {
 
     /// A recent entry that no longer opens leaves the list.
     fn not_opened(&mut self, path: &Path, error: &io::Error, cx: &mut Context<Self>) {
+        // The path stays in the toast, out of the log.
+        log::warn!("tree: a repository did not open: {error}");
         let shown = path.display().to_string();
-        log::warn!("tree: {shown} did not open: {error}");
         if self.recent.iter().any(|known| known == path) {
             self.recent.retain(|known| known != path);
             if let Err(error) = ely_files::recent::forget(&self.recent_file, path) {

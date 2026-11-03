@@ -223,6 +223,28 @@ fn a_refused_clone_logs_its_key_never_its_folder_or_words() {
 }
 
 #[test]
+fn a_bare_repository_logs_its_key_never_its_path() {
+    ely_ui::logs::keep();
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let bare = dir.path().join("ZqxRecords42.git");
+    sh(dir.path(), &["init", "-q", "--bare", bare.to_str().expect("utf-8")]);
+    let mut cx = TestAppContext::single();
+    let (tree, cx) = window(&mut cx, dir.path());
+    // The window's toasts live on its root.
+    let shell = cx.update(|window, app| {
+        let shell = ely_ui::tool_root(ely_platform::AppId::Tree, tree.clone().into(), Vec::new(), window, app);
+        tree.update(app, |tree, _| tree.root = shell.downgrade());
+        shell
+    });
+    cx.update(|_, app| ely_ui::i18n::install_as("zh-CN", app));
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.open_path(bare.clone(), cx)));
+    settle(cx, |app| shell.read(app).toasts(app).iter().any(|(text, _)| text.contains("ZqxRecords42.git 是裸仓库")));
+    let kept = ely_ui::logs::kept();
+    assert!(kept.iter().any(|line| line.ends_with("tree: a repository did not open: tree.error.bare")), "{kept:?}");
+    assert!(!kept.iter().any(|line| line.contains("ZqxRecords42") || line.contains("裸仓库")), "{kept:?}");
+}
+
+#[test]
 fn opening_in_a_missing_elymark_says_so_in_chinese_and_spanish() {
     // An installed one would start for real.
     if ely_platform::apps::installed(ely_platform::AppId::Mark) {
