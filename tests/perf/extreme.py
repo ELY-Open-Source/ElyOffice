@@ -22,9 +22,9 @@ from load import RECIPES
 from loadfiles import TOKEN
 from run import APPS, App
 
-ENDED = r"the engine ended"
 ZOOMS = [("100", "0", 0), ("25", "minus", 4), ("67", "minus", 2), ("125", "plus", 1), ("400", "plus", 5), ("wheel+2", "0", 2), ("wheel-3", "0", -3)]
 CASES = {}
+VERB = {**dict.fromkeys(RECIPES, "text"), "ely-table": "cell"}
 WORK = ""
 
 
@@ -62,10 +62,6 @@ def said(app, *words, timeout=300):
     return out.stdout
 
 
-def verb(slug):
-    return "cell" if slug == "ely-table" else "text"
-
-
 def typing_into(app):
     """The app in front, the caret where keys land."""
     if app.slug != "ely-mark":
@@ -95,12 +91,8 @@ def missing_sources():
     rows = []
     for slug in ("ely-doc", "ely-table"):
         folder = place("missing", slug)
-        if slug == "ely-doc":
-            path = os.path.join(folder, "doc-linked.docx")
-            loadfiles.linked_docx(path, folder)
-        else:
-            path = os.path.join(folder, "table-big.xlsx")
-            loadfiles.workbook(path, 2000, linked=True, typing=True)
+        path = os.path.join(folder, f"linked.{loadfiles.EXT[slug]}")
+        loadfiles.linked_docx(path, folder) if slug == "ely-doc" else loadfiles.workbook(path, 2000, linked=True, typing=True)
         began = time.monotonic()
         app = start("missing", slug, [path])
         took = (time.monotonic() - began) * 1000
@@ -108,7 +100,7 @@ def missing_sources():
             typing_into(app)
             ticks, _ = load.type_keys(app, RECIPES[slug], 5)
             RECIPES[slug].finish(app.process.pid)
-            said(app, verb(slug), "save", path)
+            said(app, VERB[slug], "save", path)
             warned = lines_matching(app, r"(WARN|ERROR).*(link|source|not found|missing)")
         finally:
             app.stop()
@@ -233,7 +225,7 @@ def save_while_typing():
         def keep_saving(stop):
             while not stop.is_set():
                 try:
-                    saves.append(load.ask(app, [verb(slug), "save", front]))
+                    saves.append(load.ask(app, [VERB[slug], "save", front]))
                 except RuntimeError as error:
                     failures.append(str(error))
                 time.sleep(0.5)
@@ -250,7 +242,7 @@ def save_while_typing():
                 saver.join()
             RECIPES[slug].finish(app.process.pid)
             time.sleep(1)
-            said(app, verb(slug), "save", front)
+            said(app, VERB[slug], "save", front)
         finally:
             app.stop()
         ok = load.typed(slug, front, 40) and not failures
@@ -323,7 +315,7 @@ def engine_killed():
                 os.kill(pid, 9)
             since = len(app.lines())
             RECIPES[slug].send(app.process.pid)
-            noticed = any(lines_matching(app, ENDED, since) or time.sleep(0.25) for _ in range(60))
+            noticed = any(lines_matching(app, r"the engine ended", since) or time.sleep(0.25) for _ in range(60))
             reopened = False
             if noticed and any(run.HOST.shows(app.process.pid, "Reopen documents") or time.sleep(0.25) for _ in range(40)):
                 since = len(app.lines())
@@ -417,38 +409,46 @@ def very_large():
     """One huge file per app, typed, edited, saved, read."""
     rows = []
     for slug in RECIPES:
-        folder = place("large", slug)
-        path = os.path.join(folder, f"huge.{loadfiles.EXT[slug]}")
-        if slug == "ely-doc":
-            richfiles.pages_docx(path, 500)
-        elif slug == "ely-table":
-            loadfiles.workbook(path, 60000, typing=True)
-            richfiles.xlsx(path, 60000)
-        elif slug == "ely-show":
-            loadfiles.presentation(path, 20)
-        else:
-            with open(path, "w", encoding="utf-8", newline="\n") as note:
-                note.write(f"# Typing\n\nA paragraph.\n\n{TOKEN}0\n\n" + loadfiles.small_md(0).replace(f"{TOKEN}0", "") * 6000)
-        size = os.path.getsize(path) / 2**20
-        began = time.monotonic()
-        app = start("large", slug, [path])
-        opened = (time.monotonic() - began) * 1000
         try:
-            typing_into(app)
-            ticks, _ = load.type_keys(app, RECIPES[slug], 20)
-            RECIPES[slug].finish(app.process.pid)
-            edit = [load.ask(app, words) for words in RECIPES[slug].edits(path, 1)]
-            saved = load.ask(app, [verb(slug), "save", path])
-            memory = app.memory_mb()
-        finally:
-            app.stop()
-        problems = [] if load.typed(slug, path, 20) else ["the 20 keys are not all saved"]
-        problems += load.saved(slug, path, 1)
-        slow = [tick for tick in ticks if tick > load.TARGET]
-        rows.append((f"{APPS[slug]}: a {size:.0f} MB file", not problems and not slow,
-                     f"open {opened:.0f} ms; keys P50 {load.percentile(ticks, 0.5)} P95 {load.percentile(ticks, 0.95)} "
-                     f"max {max(ticks)} ms; edit {max(edit):.0f} ms; save {saved:.0f} ms; {memory:.0f} MB; problems {problems or 'none'}"))
+            rows.append(huge(slug))
+        except load.Interfered:
+            raise
+        except (RuntimeError, subprocess.TimeoutExpired) as error:
+            rows.append((f"{APPS[slug]}: a huge file", False, f"stopped: {str(error)[-200:]}"))
     return rows
+
+
+def huge(slug):
+    folder = place("large", slug)
+    path = os.path.join(folder, f"huge.{loadfiles.EXT[slug]}")
+    if slug == "ely-doc":
+        richfiles.pages_docx(path, 500)
+    elif slug == "ely-table":
+        loadfiles.workbook(path, 60000, typing=True)
+        richfiles.xlsx(path, 60000)
+    elif slug == "ely-show":
+        loadfiles.presentation(path, 20)
+    else:
+        with open(path, "w", encoding="utf-8", newline="\n") as note:
+            note.write(f"# Typing\n\nA paragraph.\n\n{TOKEN}0\n\n" + loadfiles.small_md(0).replace(f"{TOKEN}0", "") * 6000)
+    size, began = os.path.getsize(path) / 2**20, time.monotonic()
+    app = start("large", slug, [path])
+    opened = (time.monotonic() - began) * 1000
+    try:
+        typing_into(app)
+        ticks, _ = load.type_keys(app, RECIPES[slug], 20)
+        RECIPES[slug].finish(app.process.pid)
+        edit = [load.ask(app, words) for words in RECIPES[slug].edits(path, 1)]
+        saved = load.ask(app, [VERB[slug], "save", path])
+        memory = app.memory_mb()
+    finally:
+        app.stop()
+    problems = [] if load.typed(slug, path, 20) else ["the 20 keys are not all saved"]
+    problems += load.saved(slug, path, 1)
+    slow = [tick for tick in ticks if tick > load.TARGET]
+    return (f"{APPS[slug]}: a {size:.0f} MB file", not problems and not slow,
+            f"open {opened:.0f} ms; keys P50 {load.percentile(ticks, 0.5)} P95 {load.percentile(ticks, 0.95)} "
+            f"max {max(ticks)} ms; edit {max(edit):.0f} ms; save {saved:.0f} ms; {memory:.0f} MB; problems {problems or 'none'}")
 
 
 def main():
