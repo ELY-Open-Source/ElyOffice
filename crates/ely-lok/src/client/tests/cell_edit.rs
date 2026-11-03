@@ -191,3 +191,52 @@ fn a_cancelled_composition_leaves_the_cell_and_other_edits() {
         assert_eq!(xml.contains("from another process"), meanwhile, "the other edit is written");
     }
 }
+
+/// Array, merge, hidden, filtered rows; P protected.
+const CELLS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+ <office:body><office:spreadsheet>
+  <table:table table:name="S">
+   <table:table-row><table:table-cell table:formula="of:={1;2}" table:number-matrix-columns-spanned="2" table:number-matrix-rows-spanned="1" office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="2"><text:p>2</text:p></table:table-cell></table:table-row>
+   <table:table-row><table:table-cell table:number-columns-spanned="2" table:number-rows-spanned="1"><text:p>merged</text:p></table:table-cell><table:covered-table-cell/></table:table-row>
+   <table:table-row table:visibility="collapsed"><table:table-cell><text:p>hidden</text:p></table:table-cell></table:table-row>
+   <table:table-row table:visibility="filter"><table:table-cell><text:p>filtered</text:p></table:table-cell></table:table-row>
+  </table:table>
+  <table:table table:name="P" table:protected="true"><table:table-row><table:table-cell><text:p>locked</text:p></table:table-cell></table:table-row></table:table>
+ </office:spreadsheet></office:body>
+</office:document>"#;
+
+#[test]
+fn a_closing_save_enters_merged_hidden_and_filtered_cells_and_types_nothing_into_locked_ones() {
+    let Some(install) = install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let source = dir.path().join("cells.fods");
+    write(&source, CELLS);
+    let doc = worker.load(&crate::file_url(&source)).expect("loads");
+    // Sheet, cell, typed, what the cell holds after.
+    let cases = [
+        (0, "A2", "mg", "mg"),
+        (0, "A3", "hd", "hd"),
+        (0, "A4", "ft", "ft"),
+        (0, "B1", "mx", "2"),
+        (1, "A1", "pr", "locked"),
+    ];
+    let mut seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
+    for (at, (part, cell, typed, held)) in cases.into_iter().enumerate() {
+        doc.show_sheet(&mut worker, part).expect("the sheet");
+        worker.run(&doc, "cell.goto", &[cell]).expect("the cell");
+        seen = poll_until(&mut worker, &doc, &seen, SETTLE, |_| false);
+        worker.post_text(&doc, false, typed).expect("types");
+        worker.post_text(&doc, true, "").expect("commits");
+        seen = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| seen.a11y.text == typed);
+        assert_eq!(seen.a11y.text == typed, typed == held, "{cell}: an edit opens only where typing lands");
+        let out = dir.path().join(format!("closing{at}.fods"));
+        doc.save_closing(&mut worker, &crate::file_url(&out), "fods").expect("saves");
+        let xml = std::fs::read_to_string(&out).expect("the saved file");
+        assert!(xml.contains(&format!(">{held}</text:p>")), "{cell}: holds {held}");
+        assert_eq!(xml.contains(&format!(">{typed}</text:p>")), typed == held, "{cell}: typed {typed}");
+    }
+}
