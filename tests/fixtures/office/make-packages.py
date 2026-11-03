@@ -25,6 +25,17 @@ copy("t.xlsx", "backslash.xlsx", ["xl" + BACKSLASH + "worksheets/", "xl" + BACKS
 copy("t.docx", "broken.docx", ["word/a?b.xml"])
 
 
+def cut(source, target, part):
+    with zipfile.ZipFile(os.path.join(HERE, source)) as old, zipfile.ZipFile(os.path.join(sys.argv[1], target), "w") as out:
+        for item in old.infolist():
+            data = old.read(item.filename)
+            out.writestr(item, data[: len(data) // 2] if item.filename == part else data)
+
+
+# The body's XML ends halfway.
+cut("t.docx", "malformed.docx", "word/document.xml")
+
+
 HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
 M = 'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"'
 

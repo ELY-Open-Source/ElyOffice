@@ -20,9 +20,12 @@ pub enum Appearance {
 pub enum Language {
     #[default]
     System,
-    English,
-    Chinese,
+    /// A tag from `LANGUAGES`.
+    Listed(&'static str),
 }
+
+/// Each interface language: its locale tag and own name.
+pub const LANGUAGES: [(&str, &str); 3] = [("en-US", "English"), ("es-ES", "Español"), ("zh-CN", "简体中文")];
 
 /// Interface motion; System follows the OS setting.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -148,7 +151,18 @@ impl Appearance {
 }
 
 impl Language {
-    pub const ALL: [(Self, &'static str); 3] = [(Self::System, "system"), (Self::English, "en-US"), (Self::Chinese, "zh-CN")];
+    /// As the file stores it.
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::Listed(tag) => tag,
+        }
+    }
+
+    /// The language stored as `word`, if any.
+    fn of(word: &str) -> Option<Self> {
+        std::iter::once(Self::System).chain(LANGUAGES.map(|(tag, _)| Self::Listed(tag))).find(|language| language.word() == word)
+    }
 }
 
 impl Motion {
@@ -171,7 +185,10 @@ impl Shared {
         let defaults = Self::default();
         Ok(Self {
             appearance: pick(fields, APPEARANCE, &Appearance::ALL)?.unwrap_or(defaults.appearance),
-            language: pick(fields, LANGUAGE, &Language::ALL)?.unwrap_or(defaults.language),
+            language: match fields.get(LANGUAGE) {
+                None => defaults.language,
+                Some(value) => value.as_str().and_then(Language::of).ok_or_else(|| wrong(LANGUAGE, value))?,
+            },
             motion: pick(fields, MOTION, &Motion::ALL)?.unwrap_or(defaults.motion),
             check_updates: match fields.get(CHECK_UPDATES) {
                 None => defaults.check_updates,

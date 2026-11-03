@@ -24,4 +24,9 @@ impl Geom {
     pub(super) fn tile_pixels(&self) -> u32 {
         (self.px_of(TILE_TWIPS) * self.dpi).round().max(1.0) as u32
     }
+
+    /// Device pixels per twip, as the kernel paints our tiles.
+    pub(super) fn ppt(&self) -> f64 {
+        f64::from(self.tile_pixels()) / f64::from(TILE_TWIPS)
+    }
 }

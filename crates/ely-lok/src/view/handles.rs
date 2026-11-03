@@ -59,7 +59,7 @@ impl LokView {
         };
         let reach = self.handle_size;
         let hit = points(frame).iter().position(|&point| {
-            let at = self.window_point(point);
+            let at = self.hit_point(point);
             (at.x - position.x).abs() <= reach && (at.y - position.y).abs() <= reach
         });
         let Some(at) = hit else {

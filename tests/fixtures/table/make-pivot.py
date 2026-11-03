@@ -30,10 +30,15 @@ def cross(row_label, col_label, total):
             ("G6", 4), ("H6", 7), ("E7", total), ("F7", 4), ("G7", 6), ("H7", 10)]
 
 
-def columns(col_label, total):
+def columns(col_label, total, name="Sum of Revenue"):
     """Excel's cached table in E3:H5, with no row field."""
-    return [("F3", col_label), ("F4", "A"), ("G4", "B"), ("H4", total), ("E5", "Sum of Revenue"),
+    return [("F3", col_label), ("F4", "A"), ("G4", "B"), ("H4", total), ("E5", name),
             ("F5", 4), ("G5", 6), ("H5", 10)]
+
+
+def empty(col_label, total):
+    """Excel's E3:G4 with no value field; H4 is the user's."""
+    return [("E3", col_label), ("E4", "A"), ("F4", "B"), ("G4", total), ("H4", "NEIGHBOR")]
 
 
 def values(col_label, total):
@@ -76,24 +81,28 @@ SUM = '<dataField name="Sum of Revenue" fld="2" baseField="0" baseItem="0"/>'
 COUNT = '<dataField name="Count revenue" fld="2" subtotal="count" baseField="0" baseItem="0"/>'
 
 
-def table(captions, ref="E3:H7"):
+def table(captions, ref="E3:H7", name="Sum of Revenue"):
     two = '<items count="3"><item x="0"/><item x="1"/><item t="default"/></items>'
     lines = '<i><x/></i><i><x v="1"/></i><i t="grand"><x/></i>'
     region = '<pivotField axis="axisRow" showAll="0">' if ref == "E3:H7" else '<pivotField showAll="0">'
     rows = {"E3:H7": f'<rowFields count="1"><field x="0"/></rowFields><rowItems count="3">{lines}</rowItems>',
             "E3:H5": '<rowItems count="1"><i/></rowItems>',
+            "E3:G4": '<rowItems count="1"><i/></rowItems>',
             "E3:H6": '<rowFields count="1"><field x="-2"/></rowFields>'
                      '<rowItems count="2"><i><x/></i><i i="1"><x v="1"/></i></rowItems>'}[ref]
-    data = f'<dataFields count="2">{SUM}{COUNT}</dataFields>' if ref == "E3:H6" else f'<dataFields count="1">{SUM}</dataFields>'
+    one = f'<dataField name="{name}" fld="2" baseField="0" baseItem="0"/>'
+    data = {"E3:H6": f'<dataFields count="2">{SUM}{COUNT}</dataFields>', "E3:G4": ""}.get(ref, f'<dataFields count="1">{one}</dataFields>')
+    revenue = '<pivotField showAll="0"/>' if ref == "E3:G4" else '<pivotField dataField="1" showAll="0"/>'
+    first = "0" if ref == "E3:G4" else "1"
     on_rows = ' dataOnRows="1"' if ref == "E3:H6" else ""
     return HEAD + (
         f'<pivotTableDefinition {NS} name="PivotTable1" cacheId="1"{on_rows} applyNumberFormats="0" applyBorderFormats="0" '
         'applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" '
         f'dataCaption="Values"{captions} updatedVersion="8" minRefreshableVersion="3" useAutoFormatting="1" '
         'itemPrintTitles="1" createdVersion="8" indent="0" outline="1" outlineData="1" multipleFieldFilters="0">'
-        f'<location ref="{ref}" firstHeaderRow="1" firstDataRow="2" firstDataCol="1"/>'
+        f'<location ref="{ref}" firstHeaderRow="1" firstDataRow="2" firstDataCol="{first}"/>'
         f'<pivotFields count="3">{region}{two}</pivotField>'
-        f'<pivotField axis="axisCol" showAll="0">{two}</pivotField><pivotField dataField="1" showAll="0"/></pivotFields>'
+        f'<pivotField axis="axisCol" showAll="0">{two}</pivotField>{revenue}</pivotFields>'
         f'{rows}<colFields count="1"><field x="1"/></colFields><colItems count="3">{lines}</colItems>'
         f'{data}'
         '<pivotTableStyleInfo name="PivotStyleLight16" showRowHeaders="1" showColHeaders="1" showRowStripes="0" '
@@ -101,7 +110,7 @@ def table(captions, ref="E3:H7"):
     )
 
 
-def files(captions, cached, ref="E3:H7"):
+def files(captions, cached, ref="E3:H7", name="Sum of Revenue"):
     override = "application/vnd.openxmlformats-officedocument.spreadsheetml."
     types = [("/xl/workbook.xml", "sheet.main+xml"), ("/xl/worksheets/sheet1.xml", "worksheet+xml"),
              ("/xl/pivotCache/pivotCacheDefinition1.xml", "pivotCacheDefinition+xml"),
@@ -121,7 +130,7 @@ def files(captions, cached, ref="E3:H7"):
         "xl/pivotCache/pivotCacheDefinition1.xml": CACHE,
         "xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels": rels(("pivotCacheRecords", "pivotCacheRecords1.xml")),
         "xl/pivotCache/pivotCacheRecords1.xml": RECORDS,
-        "xl/pivotTables/pivotTable1.xml": table(captions, ref),
+        "xl/pivotTables/pivotTable1.xml": table(captions, ref, name),
         "xl/pivotTables/_rels/pivotTable1.xml.rels": rels(("pivotCacheDefinition", "../pivotCache/pivotCacheDefinition1.xml")),
     }
 
@@ -132,7 +141,11 @@ for name, parts in [("pivot.xlsx", files("", cross("Row Labels", "Column Labels"
                     ("pivot-named.xlsx", files(NAMED, cross("行标签", "列标签", "总计"))),
                     ("pivot-blank.xlsx", files(BLANK, cross("", "", "Grand Total"))),
                     ("pivot-columns.xlsx", files(NAMED, columns("列标签", "总计"), "E3:H5")),
-                    ("pivot-values.xlsx", files(NAMED, values("列标签", "总计"), "E3:H6"))]:
+                    ("pivot-values.xlsx", files(NAMED, values("列标签", "总计"), "E3:H6")),
+                    ("pivot-empty.xlsx", files(NAMED, empty("列标签", "总计"), "E3:G4"))] + [
+                    # Value names that look like input stay text.
+                    (f"pivot-name-{n}.xlsx", files(NAMED, columns("列标签", "总计", name), "E3:H5", name))
+                    for n, name in [("formula", "=1+1"), ("quote", "'Revenue"), ("number", "123")]]:
     with zipfile.ZipFile(os.path.join(sys.argv[1], name), "w", zipfile.ZIP_DEFLATED) as out:
         for part, body in parts.items():
             info = zipfile.ZipInfo(part, (2026, 11, 1, 0, 0, 0))

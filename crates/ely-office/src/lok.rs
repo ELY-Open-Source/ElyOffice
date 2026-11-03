@@ -94,6 +94,10 @@ impl Engine for Lok {
         view.update(cx, |view, _| view.retire_all())
     }
 
+    fn hide(view: &Entity<LokView>, cx: &mut App) {
+        view.update(cx, |view, _| view.hide());
+    }
+
     fn ended(worker: &mut Worker) -> Option<String> {
         worker.ended()
     }

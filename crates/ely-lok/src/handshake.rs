@@ -1,14 +1,48 @@
 //! Worker handshake: pinned-build and tile checks (LOK-01).
 
-use std::{io, path::Path};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 use crate::client::{BUILD_ID, Worker};
 use crate::ipc::{self, Pack, Unpack, tag};
+
+/// The start-up check: pending, running, passed, or why it failed.
+pub(crate) enum Check {
+    Pending(PathBuf),
+    Checking,
+    Passed,
+    Failed(String),
+}
 
 /// Red text: a BGRA tile shows red in byte two.
 const VERIFY_DOC: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" office:version=\"1.3\" office:mimetype=\"application/vnd.oasis.opendocument.text\"><office:automatic-styles><style:style style:name=\"T1\" style:family=\"text\"><style:text-properties fo:color=\"#ff0000\" fo:font-size=\"28pt\" fo:font-weight=\"bold\"/></style:style></office:automatic-styles><office:body><office:text><text:p><text:span text:style-name=\"T1\">verify</text:span></text:p></office:text></office:body></office:document>";
 
 impl Worker {
+    /// Checks the pinned build and tiles, once (LOK-01).
+    pub fn ready(&mut self) -> io::Result<()> {
+        let profile = match &self.check {
+            // The checks' own requests pass through here.
+            Check::Passed | Check::Checking => return Ok(()),
+            Check::Failed(why) => return Err(io::Error::other(format!("the worker failed its check: {why}"))),
+            Check::Pending(profile) => profile.clone(),
+        };
+        self.check = Check::Checking;
+        let checked = self.version_checked().and_then(|build| self.verify(&build, &profile).map(|()| build));
+        match checked {
+            Ok(build) => {
+                self.check = Check::Passed;
+                log::info!("lok: worker up, {build}");
+                Ok(())
+            }
+            Err(error) => {
+                self.check = Check::Failed(error.to_string());
+                Err(error)
+            }
+        }
+    }
+
     /// Rejects builds that are not the pinned one (LOK-01).
     pub(crate) fn verify(&mut self, build: &str, profile_dir: &Path) -> io::Result<()> {
         if !build.contains(BUILD_ID) {

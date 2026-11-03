@@ -22,14 +22,19 @@ pub(super) type Placed = (Bounds<Pixels>, Arc<RenderImage>, Bounds<Pixels>);
 /// Scroll, geom and margins a screen was drawn at.
 pub(super) type Seen = ((i32, i32), Geom, (f32, f32));
 
-/// The last whole screen, and whether it stands in now.
+/// A visible area in tile twips and its tile scale.
+pub(super) type Asked = ((i32, i32, i32, i32), (u32, i32));
+
+/// The last whole screen.
 pub(super) struct Whole {
     origin: Point<Pixels>,
     pages: Vec<Bounds<Pixels>>,
     tiles: Vec<Placed>,
     seen: Seen,
-    holding: bool,
 }
+
+/// Document start, end and view start, across then down.
+pub(super) type Pane = ((i32, i32, i32), (i32, i32, i32));
 
 /// What the lane may still paint: one geom, these keys.
 pub(super) type Wanted = Arc<Mutex<(Geom, HashSet<(i32, i32)>)>>;
@@ -40,6 +45,13 @@ pub(super) fn wanted(wanted: &Wanted) -> MutexGuard<'_, (Geom, HashSet<(i32, i32
 }
 
 impl LokView {
+    /// Drawn no more: queued tiles go; drawing asks again.
+    pub fn hide(&mut self) {
+        self.on_screen.clear();
+        self.filling = None;
+        wanted(&self.wanted).1.clear();
+    }
+
     /// Takes `image` for `key`; it shows with its screen.
     pub(super) fn land(&mut self, key: (i32, i32), image: Arc<RenderImage>) {
         if let Some(old) = self.tiles.insert(key, TileEntry { image, stale: false }) {
@@ -52,39 +64,80 @@ impl LokView {
     pub(super) fn screen(&mut self, origin: Point<Pixels>, pages: Vec<Bounds<Pixels>>, tiles: Vec<Placed>) -> (Vec<Bounds<Pixels>>, Vec<Placed>) {
         if !self.waiting() {
             let seen = (self.scroll, self.geom, self.spare);
-            self.whole = Some(Whole { origin, pages: pages.clone(), tiles: tiles.clone(), seen, holding: false });
+            self.whole = Some(Whole { origin, pages: pages.clone(), tiles: tiles.clone(), seen });
             return (pages, tiles);
         }
-        let Some(whole) = self.whole.as_mut() else {
+        let Some(whole) = self.whole.as_ref() else {
             return (pages, Vec::new());
         };
-        whole.holding = true;
         let moved = origin - whole.origin;
         let shift = |b: &Bounds<Pixels>| Bounds { origin: b.origin + moved, size: b.size };
         let tiles = whole.tiles.iter().map(|(place, image, clip)| (shift(place), Arc::clone(image), shift(clip))).collect();
         (whole.pages.iter().map(shift).collect(), tiles)
     }
 
-    /// On-screen keys still to come; failed ones never do.
+    /// On-screen keys still to come.
     fn waiting(&self) -> bool {
-        self.on_screen.iter().any(|key| {
-            !self.failed.contains(&(*key, self.generation)) && self.tiles.get(key).is_none_or(|tile| tile.stale)
+        self.lacks(&self.on_screen)
+    }
+
+    /// Whether `keys` still lack tiles; failed ones never come.
+    fn lacks(&self, keys: &[(i32, i32)]) -> bool {
+        // A move retries failed tiles, as `prepare` will.
+        let moved = self.moved();
+        keys.iter().any(|key| {
+            (moved || !self.failed.contains(&(*key, self.generation)))
+                && self.tiles.get(key).is_none_or(|tile| tile.stale)
         })
     }
 
-    /// A frame being prepared maps by the target geometry.
-    pub(super) fn aim(&mut self) {
-        if let Some(whole) = self.whole.as_mut() {
-            whole.holding = false;
+    /// The visible area and scale asked of the kernel.
+    pub(super) fn asked(&self) -> Asked {
+        let (vw, vh) = (self.geom.twips_of(self.viewport.0), self.geom.twips_of(self.viewport.1));
+        ((self.scroll.0, self.scroll.1, vw, vh), (self.geom.tile_pixels(), TILE_TWIPS))
+    }
+
+    /// Whether the asked area differs from the last one sent.
+    pub(super) fn moved(&self) -> bool {
+        self.shown != Some(self.asked())
+    }
+
+    /// The screen last drawn; input maps by it.
+    pub(super) fn drawn(&self) -> Seen {
+        self.whole.as_ref().map_or((self.scroll, self.geom, self.spare), |whole| whole.seen)
+    }
+
+    /// The screen the next frame draws; drawing maps by it.
+    pub(super) fn seen(&self) -> Seen {
+        let target = (self.scroll, self.geom, self.spare);
+        match &self.whole {
+            // Read before the next paint too, as headers are.
+            Some(whole) if whole.seen != target && self.lacks(&self.screen_keys()) => whole.seen,
+            _ => target,
         }
     }
 
-    /// The geometry on screen: the held one, else the view's.
-    pub(super) fn seen(&self) -> Seen {
-        match &self.whole {
-            Some(whole) if whole.holding => whole.seen,
-            _ => (self.scroll, self.geom, self.spare),
+    /// The tile keys the view's own screen needs.
+    fn screen_keys(&self) -> Vec<(i32, i32)> {
+        let (vw, vh) = (self.geom.twips_of(self.viewport.0), self.geom.twips_of(self.viewport.1));
+        self.tiling((vw, vh), self.extent()).into_iter().flat_map(|(_, keys)| keys).collect()
+    }
+
+    /// Each visible pane and its tile keys.
+    pub(super) fn tiling(&self, (vw, vh): (i32, i32), extent: (i32, i32)) -> Vec<(Pane, Vec<(i32, i32)>)> {
+        let (ax, ay) = self.axes();
+        let span = |(start, end, _): (i32, i32, i32)| start.div_euclid(TILE_TWIPS)..=end.div_euclid(TILE_TWIPS);
+        let mut tiling = Vec::new();
+        for across in ax.panes(vw) {
+            for down in ay.panes(vh) {
+                let keys = span(across)
+                    .flat_map(|kx| span(down).map(move |ky| (kx, ky)))
+                    .filter(|key| key.0 * TILE_TWIPS < extent.0 && key.1 * TILE_TWIPS < extent.1)
+                    .collect();
+                tiling.push(((across, down), keys));
+            }
         }
+        tiling
     }
 
     /// Logs a screen that lacked tiles once it lacks none.
@@ -114,7 +167,7 @@ impl LokView {
             .collect()
     }
 
-    /// Lets the lane drop jobs nobody waits for; paints ahead.
+    /// Publishes the keys the lane may paint, then requests them.
     pub(super) fn want(&mut self, reach: i32, extent: (i32, i32)) {
         // The screen first; ahead only once it is whole.
         let ahead = if self.waiting() { Vec::new() } else { self.ahead(reach, extent) };
@@ -125,7 +178,9 @@ impl LokView {
                 *wanted = (self.geom, keys);
             }
         }
-        for key in ahead {
+        // Published first: the lane skips keys missing from it.
+        let screen = self.on_screen.clone();
+        for key in screen.into_iter().chain(ahead) {
             if self.tiles.get(&key).is_none_or(|tile| tile.stale) {
                 self.request_tile(key);
             }

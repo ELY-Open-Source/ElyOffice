@@ -1,0 +1,108 @@
+Calc keeps Excel's caption column on XLSX pivots with only column fields
+
+Excel leaves the first column of a pivot table with column fields and no
+row field for the data caption: "Sum of Revenue" sits beside the data
+row, and the column area starts in the second column. Calc started the
+column area in the first column and wrote the caption into the corner,
+where the column header then overwrote it. A save therefore moved every
+cell one column to the left and wrote firstDataCol="0" (Ely R15.11i).
+
+Pivot tables from Excel files (they carry a column header caption, see
+0071) now keep that column, with the caption on the data row, unless the
+data layout field is itself a column field. The export follows from the
+output range. Calc's own pivot tables keep Calc's layout.
+
+A pivot table with no value field has no caption, so it keeps no such
+column; otherwise the table grew into the cell beside it. The caption
+is written as text: a value field named "=1+1", "'Revenue" or "123"
+stays that text, as in Excel, and is not read as input.
+
+diff --git a/sc/inc/dpoutput.hxx b/sc/inc/dpoutput.hxx
+index 23b2c11..5375051 100644
+--- a/sc/inc/dpoutput.hxx
++++ b/sc/inc/dpoutput.hxx
+@@ -89,6 +89,7 @@ private:
+     bool mbHeaderLayout:1;  // true : grid, false : standard
+     bool mbHasCompactRowField:1; // true: at least one of the row fields has compact layout.
+     bool mbHasCompactColField:1;
++    bool mbHasDataField:1;
+     bool mbExpandCollapse:1; // true: show expand/collapse buttons
+     bool mbHideHeader : 1;
+     std::optional<OUString> maRowCaption;
+@@ -105,6 +106,7 @@ private:
+ 
+     /// Computes number of columns needed to write row fields.
+     SCCOL           GetColumnsForRowFields() const;
++    bool            HasCaptionColumn() const;
+     void            CalcSizes();
+ 
+     /** Query which sub-area of the table the cell is in. See
+diff --git a/sc/source/core/data/dpoutput.cxx b/sc/source/core/data/dpoutput.cxx
+index 2e5884d..138e0b5 100644
+--- a/sc/source/core/data/dpoutput.cxx
++++ b/sc/source/core/data/dpoutput.cxx
+@@ -498,6 +498,7 @@ ScDPOutput::ScDPOutput(ScDocument* pDocument, uno::Reference<sheet::XDimensionsS
+     , mbHeaderLayout(false)
+     , mbHasCompactRowField(false)
+     , mbHasCompactColField(false)
++    , mbHasDataField(false)
+     , mbExpandCollapse(bExpandCollapse)
+     , mbHideHeader(bHideHeader)
+ {
+@@ -527,6 +528,8 @@ ScDPOutput::ScDPOutput(ScDocument* pDocument, uno::Reference<sheet::XDimensionsS
+                         SC_UNO_DP_POSITION );
+                 bool bIsDataLayout = ScUnoHelpFunctions::GetBoolProperty(
+                     xDimProp, SC_UNO_DP_ISDATALAYOUT);
++                if (eDimOrient == sheet::DataPilotFieldOrientation_DATA)
++                    mbHasDataField = true;
+                 bool bHasHiddenMember = ScUnoHelpFunctions::GetBoolProperty(
+                     xDimProp, SC_UNO_DP_HAS_HIDDEN_MEMBER);
+                 sal_Int32 nNumFmt = ScUnoHelpFunctions::GetLongProperty(
+@@ -866,6 +869,14 @@ SCCOL ScDPOutput::GetColumnsForRowFields() const
+     return nNum;
+ }
+ 
++// Excel keeps a caption column when no row field
++bool ScDPOutput::HasCaptionColumn() const
++{
++    return maColCaption.has_value() && mbHasDataField && mpRowFields.empty() && !mpColFields.empty()
++           && std::none_of(mpColFields.begin(), mpColFields.end(),
++                           [](const ScDPOutLevelData& r) { return r.mbDataLayout; });
++}
++
+ void ScDPOutput::CalcSizes()
+ {
+     if (mbSizesValid)
+@@ -895,7 +906,8 @@ void ScDPOutput::CalcSizes()
+             ++nPageSize;        //  filter button above the page fields
+     }
+ 
+-    if (maStartPos.Col() + static_cast<tools::Long>(mpRowFields.size()) + mnColCount - 1 > mpDocument->MaxCol() ||
++    const SCCOL nCaptionCols = HasCaptionColumn() ? 1 : 0;
++    if (maStartPos.Col() + static_cast<tools::Long>(mpRowFields.size()) + nCaptionCols + mnColCount - 1 > mpDocument->MaxCol() ||
+         maStartPos.Row() + nPageSize + mnHeaderSize + static_cast<tools::Long>(mpColFields.size()) + mnRowCount > mpDocument->MaxRow())
+     {
+         mbSizeOverflow = true;
+@@ -905,7 +917,7 @@ void ScDPOutput::CalcSizes()
+     mnTabStartRow = maStartPos.Row() + static_cast<SCROW>(nPageSize);          // below page fields
+     mnMemberStartCol = mnTabStartCol;
+     mnMemberStartRow = mnTabStartRow + static_cast<SCROW>(mnHeaderSize);
+-    mnDataStartCol = mnMemberStartCol + GetColumnsForRowFields();
++    mnDataStartCol = mnMemberStartCol + GetColumnsForRowFields() + nCaptionCols;
+     mnDataStartRow = mnMemberStartRow + static_cast<SCROW>(mpColFields.size());
+     if (mnColCount > 0)
+         mnTabEndCol = mnDataStartCol + static_cast<SCCOL>(mnColCount) - 1;
+@@ -1225,7 +1237,12 @@ void ScDPOutput::Output()
+     {
+         //TODO: use default string ("result") ?
+     }
+-    mpDocument->SetString(mnTabStartCol, mnTabStartRow, nTab, maDataDescription);
++    // Excel names the data beside its row
++    const bool bCaption = HasCaptionColumn();
++    ScSetStringParam aCaption;
++    aCaption.setTextInput();
++    mpDocument->SetString(mnTabStartCol, bCaption ? mnDataStartRow : mnTabStartRow, nTab,
++                          maDataDescription, bCaption ? &aCaption : nullptr);
+ 
+     //  set STR_PIVOT_STYLENAME_INNER for whole data area (subtotals are overwritten)
+ 

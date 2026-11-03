@@ -6,15 +6,23 @@ use std::{
     thread::JoinHandle,
 };
 
-/// The relaying thread, and the worker's last error record.
+/// The relaying thread, and what the worker said last.
 pub struct Relay {
-    last: Arc<Mutex<Option<String>>>,
+    last: Arc<Mutex<Said>>,
     thread: Option<JoinHandle<()>>,
 }
 
+/// The worker's last error record and its last line.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Said {
+    pub error: Option<String>,
+    /// Raw; may hold engine text once documents are open.
+    pub line: Option<String>,
+}
+
 impl Relay {
-    /// After the worker exits: its last error record.
-    pub fn last_error(&mut self) -> Option<String> {
+    /// After the worker exits: what it said last.
+    pub fn said(&mut self) -> Said {
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
@@ -24,7 +32,7 @@ impl Relay {
 
 /// Logs the worker's own records; engine text stays out.
 pub fn relay(stderr: impl Read + Send + 'static, who: &'static str) -> Relay {
-    let last = Arc::new(Mutex::new(None));
+    let last = Arc::new(Mutex::new(Said::default()));
     let kept = Arc::clone(&last);
     let thread = std::thread::spawn(move || {
         let mut withheld = 0u64;
@@ -39,11 +47,16 @@ pub fn relay(stderr: impl Read + Send + 'static, who: &'static str) -> Relay {
             // Engines may print other encodings; keep reading past them.
             let line = String::from_utf8_lossy(&bytes);
             let line = line.trim_end_matches(['\n', '\r']);
-            match parse(line) {
+            let record = parse(line);
+            {
+                let mut said = kept.lock().expect("the relay lock");
+                said.line = Some(line.to_string());
+                if let Some((log::Level::Error, _, message)) = record {
+                    said.error = Some(message.to_string());
+                }
+            }
+            match record {
                 Some((level, target, message)) => {
-                    if level == log::Level::Error {
-                        *kept.lock().expect("the relay lock") = Some(message.to_string());
-                    }
                     log::log!(target: target, level, "{message}")
                 }
                 // A crash stack names code, never documents.
@@ -89,7 +102,16 @@ mod tests {
     fn a_line_in_another_encoding_stops_nothing() {
         let stderr: &[u8] = b"caf\xe9 opened\n[2026-10-08T12:00:00Z ERROR ely_pdf::worker] it broke\n";
         let mut relay = super::relay(stderr, "test");
-        assert_eq!(relay.last_error().as_deref(), Some("it broke"));
+        assert_eq!(relay.said().error.as_deref(), Some("it broke"));
+    }
+
+    #[test]
+    fn the_last_line_is_kept_even_when_it_is_no_record() {
+        let stderr: &[u8] = b"[2026-11-03T05:09:10Z ERROR ely_lok::worker] early\r\nfatal runtime error: aborting\r\n";
+        let mut relay = super::relay(stderr, "test");
+        let said = relay.said();
+        assert_eq!(said.error.as_deref(), Some("early"));
+        assert_eq!(said.line.as_deref(), Some("fatal runtime error: aborting"));
     }
 
     #[test]
