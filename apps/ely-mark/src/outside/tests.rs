@@ -170,15 +170,19 @@ fn a_stale_read_never_lands(cx: &mut TestAppContext) {
     std::fs::write(&path, "newest disk\n").expect("a newer write");
     look(&desk, id, cx);
     assert_eq!(shown(&desk, cx), "newest disk\n");
-    let reads = desk.read_with(cx, |desk, _| desk.tab(id).expect("open").extra.reads);
+    let (reads, stamp) = desk.read_with(cx, |desk, _| {
+        let extra = &desk.tab(id).expect("open").extra;
+        (extra.reads, extra.stamp)
+    });
     for number in [reads - 1, reads] {
         let (path, older) = (path.clone(), (older.0, older.1.clone()));
         desk.update(cx, |desk, cx| {
-            desk.disk_read(id, path, number, Ok(older), cx)
+            desk.disk_read(id, path, (number, stamp), Ok(older), cx)
         });
         cx.run_until_parked();
         assert_eq!(shown(&desk, cx), "newest disk\n", "read {number}");
     }
 }
 
+mod late;
 mod saving;

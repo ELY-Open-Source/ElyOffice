@@ -287,3 +287,19 @@ fn a_rename_is_found_by_identity_not_by_link() {
     std::fs::remove_file(&moved).expect("the delete");
     assert_eq!(Sessions::renamed_in(had, dir.path()).expect("the scan"), None);
 }
+
+#[test]
+fn a_missing_target_is_held_across_case() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let folder = dunce::canonicalize(dir.path()).expect("the real folder");
+    let (lower, upper) = (folder.join("b.md"), folder.join("B.md"));
+    write(&lower, "0");
+    let folds = upper.exists();
+    let mut sessions = Sessions::default();
+    let Open::Fresh(id) = sessions.open(&lower, false).expect("the open") else {
+        panic!("a fresh session")
+    };
+    // Gone mid-replace: the name alone holds it.
+    std::fs::remove_file(&lower).expect("the gap");
+    assert_eq!(sessions.holding(&upper).expect("the holder"), folds.then_some(id));
+}

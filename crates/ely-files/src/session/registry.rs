@@ -157,46 +157,52 @@ impl Sessions {
     }
 
     /// Session `id` now names the file at `path`.
-    pub fn track(&mut self, id: usize, key: Key) -> Result<(), usize> {
+    pub fn track(&mut self, id: usize, key: Key) -> io::Result<Result<(), usize>> {
         // Another session holding it keeps it alone.
-        if let Some(other) = self.holders(&key.canonical, key.id).find(|other| *other != id) {
-            return Err(other);
+        if let Some(other) = self.holders(&key.canonical, key.id)?.into_iter().find(|other| *other != id) {
+            return Ok(Err(other));
         }
         for entry in self.open.iter_mut().filter(|(_, _, have)| *have == id) {
             (entry.0, entry.1) = (key.canonical.clone(), key.id);
         }
-        Ok(())
+        Ok(Ok(()))
     }
 
     /// The session of what `saved` wrote, else new.
-    pub fn adopt(&mut self, saved: &crate::Saved) -> Open {
-        if let Some(id) = self.held(&saved.path, saved.written.id) {
-            return Open::Focus(id);
+    pub fn adopt(&mut self, saved: &crate::Saved) -> io::Result<Open> {
+        if let Some(id) = self.held(&saved.path, saved.written.id)? {
+            return Ok(Open::Focus(id));
         }
         let id = self.next;
         self.next += 1;
         self.open.push((saved.path.clone(), saved.written.id, id));
-        Open::Fresh(id)
+        Ok(Open::Fresh(id))
     }
 
     /// The session holding `path`; only `path` is read.
     pub fn holding(&self, path: &Path) -> io::Result<Option<usize>> {
         match Self::key(path) {
-            Ok(key) => Ok(self.held(&key.canonical, key.id)),
+            Ok(key) => self.held(&key.canonical, key.id),
             // Missing mid-replace: its recorded path still holds it.
-            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(self.held(path, None)),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => self.held(path, None),
             Err(error) => Err(error),
         }
     }
 
     /// A recorded path or file identity, matched in memory.
-    fn held(&self, canonical: &Path, id: Option<FileId>) -> Option<usize> {
-        self.holders(canonical, id).next()
+    fn held(&self, canonical: &Path, id: Option<FileId>) -> io::Result<Option<usize>> {
+        Ok(self.holders(canonical, id)?.first().copied())
     }
 
-    fn holders<'a>(&'a self, canonical: &'a Path, id: Option<FileId>) -> impl Iterator<Item = usize> + 'a {
-        let holds = move |(have, had, _): &&(PathBuf, Option<FileId>, usize)| have == canonical || (id.is_some() && *had == id);
-        self.open.iter().filter(holds).map(|(_, _, session)| *session)
+    /// Paths match as their folder compares names.
+    fn holders(&self, canonical: &Path, id: Option<FileId>) -> io::Result<Vec<usize>> {
+        let mut found = Vec::new();
+        for (have, had, session) in &self.open {
+            if (id.is_some() && *had == id) || crate::same_name(have, canonical)? {
+                found.push(*session);
+            }
+        }
+        Ok(found)
     }
 
     /// Session `id`'s path now holds file `file`, as read.
@@ -258,7 +264,7 @@ mod tests {
         std::fs::rename(&a, &b).expect("renames");
         // Opened in the gap: the same file, so focus.
         assert_eq!(sessions.open(&b, false).expect("opens"), Open::Focus(id));
-        sessions.track(id, Sessions::key(&b).expect("the key")).expect("moves");
+        sessions.track(id, Sessions::key(&b).expect("the key")).expect("compares").expect("moves");
         assert_eq!(sessions.open(&b, false).expect("opens"), Open::Focus(id));
         sessions.close(id);
         assert!(matches!(
@@ -283,7 +289,7 @@ mod tests {
         // An atomic save: a new file takes the name.
         std::fs::write(&temp, "saved").expect("writes");
         std::fs::rename(&temp, &a).expect("replaces");
-        sessions.track(id, Sessions::key(&a).expect("the key")).expect("tracks");
+        sessions.track(id, Sessions::key(&a).expect("the key")).expect("compares").expect("tracks");
         std::fs::rename(&a, &b).expect("renames");
         assert_eq!(sessions.open(&b, false).expect("opens"), Open::Focus(id));
     }

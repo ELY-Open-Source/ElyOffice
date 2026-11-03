@@ -53,22 +53,34 @@ fn read_still(path: &Path) -> io::Result<(Fingerprint, Source)> {
 
 impl Desk {
     /// Gone: an atomic replace, a rename, or a delete.
-    pub(super) fn missing(&mut self, id: u64, path: PathBuf, cx: &mut Context<Self>) {
-        let registry = self.tab(id).and_then(|tab| tab.registry);
-        let had = registry.and_then(|registry| self.core.sessions.identity_of(registry));
+    pub(super) fn missing(&mut self, id: u64, path: PathBuf, ours: Option<Fingerprint>, cx: &mut Context<Self>) {
+        let Some(tab) = self.tab(id) else { return };
+        let began = (ours, tab.extra.stamp);
+        let had = tab.registry.and_then(|registry| self.core.sessions.identity_of(registry));
         cx.spawn(async move |desk, cx| {
             cx.background_executor().timer(GAP).await;
             let looking = path.clone();
             let found = cx.background_spawn(async move { gone_to(&looking, had) }).await;
-            desk.update(cx, |desk, cx| desk.still_missing(id, path, found, cx))
+            desk.update(cx, |desk, cx| desk.still_missing(id, path, began, found, cx))
                 .ok();
         })
         .detach();
     }
 
-    fn still_missing(&mut self, id: u64, path: PathBuf, found: io::Result<Gone>, cx: &mut Context<Self>) {
-        if self.tab(id).filter(|tab| tab.session.path() == Some(&path)).is_none() {
-            return;
+    pub(super) fn still_missing(
+        &mut self,
+        id: u64,
+        path: PathBuf,
+        (ours, stamp): (Option<Fingerprint>, u64),
+        found: io::Result<Gone>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(tab) = self.checked(id, &path, stamp) else {
+            return log::info!("mark: a search for tab {id}'s file lapsed");
+        };
+        // A save landed meanwhile: look again.
+        if tab.session.fingerprint() != ours {
+            return self.look(id, cx);
         }
         match found {
             Ok(Gone::Back) => self.look(id, cx),
@@ -93,7 +105,7 @@ impl Desk {
             return;
         };
         tab.extra.reads += 1;
-        let number = tab.extra.reads;
+        let number = (tab.extra.reads, tab.extra.stamp);
         let reading = path.clone();
         cx.spawn(async move |desk, cx| {
             let read = cx.background_spawn(async move { read_still(&reading) }).await;
@@ -108,7 +120,7 @@ impl Desk {
         &mut self,
         id: u64,
         path: PathBuf,
-        number: u64,
+        number: (u64, u64),
         read: io::Result<(Fingerprint, Source)>,
         cx: &mut Context<Self>,
     ) {
@@ -138,10 +150,10 @@ impl Desk {
         .detach();
     }
 
-    /// Whether read `number` of `path` is still tab `id`'s newest.
-    fn reading(&self, id: u64, path: &Path, number: u64) -> bool {
-        let Some(tab) = self.tab(id).filter(|tab| tab.session.path() == Some(path)) else {
-            log::info!("mark: a read for a moved or closed tab was dropped");
+    /// Whether read `number` is tab `id`'s newest and current.
+    fn reading(&self, id: u64, path: &Path, (number, stamp): (u64, u64)) -> bool {
+        let Some(tab) = self.checked(id, path, stamp) else {
+            log::info!("mark: a read for tab {id} lapsed");
             return false;
         };
         let newest = tab.extra.reads == number;

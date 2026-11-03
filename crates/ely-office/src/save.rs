@@ -197,11 +197,15 @@ pub trait Saving: Host {
             self.core_mut().sessions.close(old);
         }
         let registry = match self.core_mut().sessions.adopt(done) {
-            Open::Fresh(registry) | Open::View(registry) => Ok(registry),
+            Ok(Open::Fresh(registry) | Open::View(registry)) => Ok(registry),
             // Never two editable tabs on one file.
-            Open::Focus(other) => {
+            Ok(Open::Focus(other)) => {
                 log::error!("office: tab {id} saved onto session {other}'s file");
                 Err(text(cx, "office.error.taken", &[("name", &file_name(&done.path))]))
+            }
+            Err(error) => {
+                log::error!("office: tab {id}'s saved file cannot be matched: {error}");
+                Err(error.to_string().into())
             }
         };
         // Ely's writes carry no signatures; macros may stay.

@@ -215,7 +215,7 @@ fn resolved(path: &Path) -> io::Result<PathBuf> {
 
 /// Whether two paths name one file, links resolved.
 pub fn same_file(a: &Path, b: &Path) -> io::Result<bool> {
-    if resolved(a)? == resolved(b)? {
+    if crate::same_name(&resolved(a)?, &resolved(b)?)? {
         return Ok(true);
     }
     // A missing side is another file.

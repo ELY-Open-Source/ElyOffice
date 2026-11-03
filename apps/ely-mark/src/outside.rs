@@ -58,6 +58,8 @@ pub struct Extra {
     pub restored: bool,
     /// Disk reads started; only the newest lands.
     pub reads: u64,
+    /// Bumped by each outside state; older checks lapse.
+    pub stamp: u64,
     /// The path the recent list last took from it.
     pub tracked: Option<std::path::PathBuf>,
     /// The writing view reached its document.
@@ -93,6 +95,7 @@ impl Default for Extra {
             point_failed: None,
             restored: false,
             reads: 0,
+            stamp: 0,
             tracked: None,
             looked: false,
             counting: None,
@@ -159,23 +162,23 @@ impl Desk {
                 continue;
             }
             tab.extra.recheck = false;
-            asked.push((id, path, tab.session.fingerprint()));
+            asked.push((id, path, tab.session.fingerprint(), tab.extra.stamp));
         }
         if asked.is_empty() {
             return;
         }
         cx.spawn(async move |desk, cx| {
             let seen = cx.background_spawn(async move {
-                let seen = asked.into_iter().map(|(id, path, ours)| {
+                let seen = asked.into_iter().map(|(id, path, ours, stamp)| {
                     let now = Fingerprint::of(&path);
-                    (id, path, ours, now)
+                    (id, path, (ours, stamp), now)
                 });
                 seen.collect::<Vec<_>>()
             });
             let seen = seen.await;
             desk.update(cx, |desk, cx| {
-                for (id, path, ours, now) in seen {
-                    desk.compared(id, path, ours, now, cx);
+                for (id, path, began, now) in seen {
+                    desk.compared(id, path, began, now, cx);
                 }
             })
             .ok();
@@ -188,12 +191,12 @@ impl Desk {
         &mut self,
         id: u64,
         path: PathBuf,
-        ours: Option<Fingerprint>,
+        (ours, stamp): (Option<Fingerprint>, u64),
         now: io::Result<Fingerprint>,
         cx: &mut Context<Self>,
     ) {
-        let Some(tab) = self.tab(id).filter(|tab| tab.session.path() == Some(&path)) else {
-            return log::info!("mark: a look at a moved or closed tab was dropped");
+        let Some(tab) = self.checked(id, &path, stamp) else {
+            return log::info!("mark: a look at tab {id} lapsed");
         };
         // A save began or landed meanwhile: look again.
         if tab.session.fingerprint() != ours || tab.exporting || tab.session.state() == SaveState::Saving {
@@ -201,12 +204,12 @@ impl Desk {
         }
         match now {
             Ok(now) if Some(now) == ours => {
-                if !matches!(tab.extra.outside, Outside::Changed(..)) {
+                if matches!(tab.extra.outside, Outside::Deleted | Outside::Unread(_)) {
                     self.set_outside(id, Outside::Clear, cx);
                 }
             }
             Ok(_) => self.read_disk(id, path, cx),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => self.missing(id, path, cx),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => self.missing(id, path, ours, cx),
             Err(error) => self.set_outside(id, Outside::Unread(error.to_string()), cx),
         }
     }
@@ -276,11 +279,19 @@ impl Desk {
         Some(view)
     }
 
+    /// Tab `id`'s file state; checks begun before it lapse.
     pub fn set_outside(&mut self, id: u64, outside: Outside, cx: &mut Context<Self>) {
         if let Some(tab) = self.tab_mut(id) {
             tab.extra.outside = outside;
+            tab.extra.stamp += 1;
             cx.notify();
         }
+    }
+
+    /// Tab `id`, if a check begun at `stamp` holds.
+    fn checked(&self, id: u64, path: &Path, stamp: u64) -> Option<&ely_office::Tab<Extra, crate::engine::Mark>> {
+        let tab = self.tab(id).filter(|tab| tab.session.path() == Some(path))?;
+        (tab.extra.stamp == stamp).then_some(tab)
     }
 
     /// The active file's trouble on disk, with its way out.

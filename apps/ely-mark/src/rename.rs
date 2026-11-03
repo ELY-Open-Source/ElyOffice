@@ -133,19 +133,16 @@ impl Desk {
         let Some(registry) = self.tab(id).map(|tab| tab.registry) else {
             return false;
         };
-        // Moved onto a file another tab is saving as.
-        let writer = self.core.tabs.iter().find(|tab| tab.id != id && tab.session.writing() == Some(key.path()));
-        if let Some(other) = writer.map(|tab| tab.id) {
-            log::warn!("mark: tab {id}'s file went onto tab {other}'s Save As");
-            self.set_outside(id, crate::outside::Outside::Deleted, cx);
-            return false;
-        }
-        // Moved onto another tab's file: this one lost it.
-        if let Some(registry) = registry
-            && let Err(other) = self.core_mut().sessions.track(registry, key)
-        {
-            log::warn!("mark: tab {id}'s file went onto session {other}'s");
-            self.set_outside(id, crate::outside::Outside::Deleted, cx);
+        let lost = match self.claim(id, registry, key) {
+            Ok(None) => None,
+            Ok(Some(other)) => {
+                log::warn!("mark: tab {id}'s file went onto {other}");
+                Some(crate::outside::Outside::Deleted)
+            }
+            Err(error) => Some(crate::outside::Outside::Unread(error.to_string())),
+        };
+        if let Some(lost) = lost {
+            self.set_outside(id, lost, cx);
             return false;
         }
         if let Some(tab) = self.tab_mut(id) {
@@ -159,6 +156,20 @@ impl Desk {
         self.relist(cx);
         cx.notify();
         true
+    }
+
+    /// Who else holds `key`'s file; else tab `id` takes it.
+    fn claim(&mut self, id: u64, registry: Option<usize>, key: ely_files::Key) -> io::Result<Option<String>> {
+        for tab in self.core.tabs.iter().filter(|tab| tab.id != id) {
+            if let Some(writing) = tab.session.writing()
+                && ely_files::same_name(writing, key.path())?
+            {
+                return Ok(Some(format!("tab {}'s Save As", tab.id)));
+            }
+        }
+        let Some(registry) = registry else { return Ok(None) };
+        let taken = self.core_mut().sessions.track(registry, key)?;
+        Ok(taken.err().map(|other| format!("session {other}'s file")))
     }
 }
 

@@ -12,7 +12,7 @@ use gpui::{Entity, TestAppContext, VisualTestContext};
 use super::{GAP, Outside, opened, shown};
 use crate::desk::Desk;
 
-fn edit(desk: &Entity<Desk>, text: &str, cx: &mut VisualTestContext) {
+pub(super) fn edit(desk: &Entity<Desk>, text: &str, cx: &mut VisualTestContext) {
     let view = desk.read_with(cx, |desk, _| desk.active_view().expect("a tab"));
     view.update(cx, |view, cx| view.adopt(text.to_owned(), cx));
 }
@@ -26,7 +26,7 @@ fn saving(desk: &Entity<Desk>, id: u64, cx: &mut VisualTestContext) -> bool {
 }
 
 /// Runs tasks singly until tab `id` is seen saving.
-fn until_saving(desk: &Entity<Desk>, id: u64, cx: &mut VisualTestContext) -> bool {
+pub(super) fn until_saving(desk: &Entity<Desk>, id: u64, cx: &mut VisualTestContext) -> bool {
     for _ in 0..10_000 {
         if saving(desk, id, cx) {
             return true;
@@ -38,7 +38,7 @@ fn until_saving(desk: &Entity<Desk>, id: u64, cx: &mut VisualTestContext) -> boo
     false
 }
 
-fn settle(cx: &mut VisualTestContext) {
+pub(super) fn settle(cx: &mut VisualTestContext) {
     cx.run_until_parked();
     cx.executor().advance_clock(GAP * 2);
     cx.run_until_parked();
@@ -162,8 +162,8 @@ fn a_read_waits_for_the_disk_seen_again(cx: &mut TestAppContext) {
     let seen = ely_files::Fingerprint::of(&path).expect("the fingerprint");
     let disk = crate::text::Source::decode(std::fs::read(&path).expect("reads")).expect("decodes");
     desk.update(cx, |desk, cx| {
-        let number = desk.tab(id).expect("open").extra.reads;
-        desk.disk_read(id, path.clone(), number, Ok((seen, disk)), cx);
+        let extra = &desk.tab(id).expect("open").extra;
+        desk.disk_read(id, path.clone(), (extra.reads, extra.stamp), Ok((seen, disk)), cx);
     });
     assert_eq!(shown(&desk, cx), "one\n", "the window saw the disk on its turn");
     settle(cx);
