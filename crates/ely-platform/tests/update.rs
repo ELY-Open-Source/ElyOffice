@@ -340,7 +340,7 @@ fn a_stalled_download_fails_and_frees_its_socket() {
     let text = error_text(stalled);
     assert!(text.contains("stalled"), "{text}");
     assert!(
-        closed_within(&closed, Duration::from_secs(60)),
+        closed_within(&closed, Duration::from_secs(5)),
         "the client kept the socket open"
     );
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 0);
@@ -377,7 +377,7 @@ fn a_cancel_is_answered_at_once_and_the_socket_is_freed_within_the_idle_time() {
         "the cancel waited for the socket"
     );
     assert!(
-        closed_within(&closed, Duration::from_secs(60)),
+        closed_within(&closed, Duration::from_secs(5)),
         "the client kept the socket open"
     );
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 0);
