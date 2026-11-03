@@ -59,9 +59,9 @@ fn a_hidden_deck_edited_from_outside_reads_nothing_until_shown() {
     update(&mut cx, &deck, |deck, cx| deck.open_file(path.clone(), cx));
     settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.list.len() == 2));
     quiet(&cx, &deck);
-    let hidden = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    let hidden = cx.update(|app| deck.read(app).core.active()).expect("a tab");
     update(&mut cx, &deck, |deck, cx| deck.new_blank(cx));
-    settle(&cx, |app| deck.read(app).core.active != Some(hidden));
+    settle(&cx, |app| deck.read(app).core.active() != Some(hidden));
     quiet(&cx, &deck);
     let before = cx.update(|app| reads(app, &deck, hidden));
     let view = |app: &gpui::App| deck.read(app).tab(hidden).expect("the tab").view.read(app).read_at();
@@ -80,7 +80,7 @@ fn a_hidden_deck_edited_from_outside_reads_nothing_until_shown() {
     let after = "cow Cat 世界 😀 cow\x0ccow cell\ngrouped cow";
     assert_eq!(ely_office::remote::slide_text(on_disk.as_bytes()).ok().as_deref(), Some(after), "both edits saved");
     update(&mut cx, &deck, |deck, cx| {
-        deck.core.active = Some(hidden);
+        deck.core.set_active(Some(hidden));
         cx.notify();
     });
     // Shown, it reads the state the edits left.
@@ -118,7 +118,7 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok(after.into()));
     quiet(&cx, &deck);
     assert_eq!(current(&mut cx, &deck), Some(1), "the user's slide stays");
-    update(&mut cx, &deck, |deck, cx| deck.force_reread(deck.core.active.expect("a tab"), cx));
+    update(&mut cx, &deck, |deck, cx| deck.force_reread(deck.core.active().expect("a tab"), cx));
     quiet(&cx, &deck);
     assert_eq!(cx.update(|app| marked(app, &deck)), vec![0], "the selection stays");
     cx.update(|app| {
@@ -148,7 +148,7 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     assert_eq!(ask(&mut cx, &deck, &["replace", &file, " ", "\t"]), Ok(String::new()));
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok(after.replace(' ', "\t")));
     // A shape picked inside the entered group (F3): refused, unchanged.
-    let id = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    let id = cx.update(|app| deck.read(app).core.active()).expect("a tab");
     // Picks by number need a read after the replaces.
     update(&mut cx, &deck, |deck, cx| deck.force_reread(id, cx));
     quiet(&cx, &deck);

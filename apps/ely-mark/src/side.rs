@@ -55,7 +55,7 @@ impl Side {
     pub fn new(desk: &Entity<Desk>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         // A new shown file is searched again.
         cx.observe(desk, |side, desk, cx| {
-            let (active, listing) = (desk.read(cx).core.active, desk.read(cx).listings);
+            let (active, listing) = (desk.read(cx).core.active(), desk.read(cx).listings);
             let shown = !side.wide && side.tab != active;
             let listed = side.wide && side.listing != listing;
             if !side.searched.is_empty() && (shown || listed) {
@@ -95,7 +95,7 @@ impl Side {
         self.runs += 1;
         let run = self.runs;
         let desk = desk.read(cx);
-        (self.tab, self.listing) = (desk.core.active, desk.listings);
+        (self.tab, self.listing) = (desk.core.active(), desk.listings);
         self.searched = query.clone();
         if query.is_empty() {
             (self.hits, self.missed) = (Vec::new(), Vec::new());

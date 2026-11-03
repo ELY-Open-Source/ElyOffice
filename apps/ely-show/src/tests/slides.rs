@@ -164,7 +164,7 @@ fn notes_typed_before_a_slide_change_stay_on_their_slide() {
             .and_then(|tab| tab.extra.notes.clone())
     };
     update(&mut cx, &deck, |deck, cx| {
-        let tab = deck.core.active;
+        let tab = deck.core.active();
         deck.run_in(tab, "slide.insert", &[], cx)
     });
     let shown =
@@ -211,15 +211,15 @@ fn a_chart_read_that_lands_late_opens_nothing() {
     has(&cx, &deck, |o| {
         o.selection.as_ref().is_some_and(|s| s.kind == "chart")
     });
-    let first = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    let first = cx.update(|app| deck.read(app).core.active()).expect("a tab");
     update(&mut cx, &deck, |deck, cx| deck.new_blank(cx));
     settle(&cx, |app| deck.read(app).core.tabs.len() == 2);
-    let second = cx.update(|app| deck.read(app).core.active).expect("a tab");
-    update(&mut cx, &deck, |deck, _| deck.core.active = Some(first));
+    let second = cx.update(|app| deck.read(app).core.active()).expect("a tab");
+    update(&mut cx, &deck, |deck, _| deck.core.set_active(Some(first)));
     // Another tab comes forward before the read comes back.
     update(&mut cx, &deck, |deck, cx| {
         deck.ask_chart(cx);
-        deck.core.active = Some(second);
+        deck.core.set_active(Some(second));
     });
     for _ in 0..100 {
         cx.executor()
@@ -343,7 +343,7 @@ fn a_comment_picked_on_another_slide_shows_its_slide_again() {
         eprintln!("SKIP: no LOK build");
         return;
     };
-    let tab = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    let tab = cx.update(|app| deck.read(app).core.active()).expect("a tab");
     update(&mut cx, &deck, |deck, cx| {
         deck.send_remark((tab, None), "Here", cx)
     });
@@ -450,7 +450,7 @@ fn a_size_the_kernel_does_not_take_clears_after_its_read() {
     update(&mut cx, &deck, |deck, cx| {
         deck.resize((30_000, 19_050), cx);
         // As if the kernel refused: it keeps another size.
-        let id = deck.core.active.expect("a tab");
+        let id = deck.core.active().expect("a tab");
         let tab = deck.tab_mut(id).expect("a tab");
         let (_, seq) = tab.extra.size_asked.expect("asked");
         tab.extra.size_asked = Some(((40_000, 19_050), seq));

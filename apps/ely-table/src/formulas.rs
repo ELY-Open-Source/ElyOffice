@@ -87,7 +87,7 @@ impl Book {
 
     /// Asks for a name, prefilled with the selection.
     pub(crate) fn ask_define(&mut self, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             let text = Book::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };
@@ -179,7 +179,7 @@ impl Book {
 
     /// Lists the names to change, jump to or remove.
     fn ask_names(&mut self, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             let text = Book::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };
@@ -254,7 +254,7 @@ impl Book {
             }
             NameAct::Go => {
                 // The jump shows its own workbook.
-                self.core.active = tab;
+                self.core.set_active(tab);
                 self.run_in(tab, "cell.goto", &[&name.range], cx);
             }
             NameAct::Remove => self.run_in(tab, "names.remove", &[&name.name, &name.scope], cx),

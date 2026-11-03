@@ -133,9 +133,9 @@ fn a_scan_for_a_tab_left_behind_opens_nothing() {
     let (viewer, cx) = windowed(&mut cx, dir.path(), &[a, b], true);
     let first = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
     cx.update(|_, app| viewer.update(app, |viewer, cx| {
-        viewer.core.active = Some(first);
+        viewer.core.set_active(Some(first));
         viewer.ask_clean(cx);
-        viewer.core.active = Some(viewer.core.tabs[1].id);
+        viewer.core.set_active(Some(viewer.core.tabs[1].id));
     }));
     for _ in 0..20 {
         frames(cx);

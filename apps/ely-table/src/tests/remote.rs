@@ -55,7 +55,7 @@ fn a_hidden_book_set_from_outside_reads_nothing_until_shown() {
     assert!(got.contains("42"), "{got}");
     assert!(ask(&mut cx, &book, &["save", &file]).is_ok(), "saved");
     update(&mut cx, &book, |book, cx| {
-        book.core.active = Some(id);
+        book.core.set_active(Some(id));
         cx.notify();
     });
     // Shown, it reads the state the sets left.

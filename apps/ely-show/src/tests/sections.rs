@@ -29,7 +29,7 @@ fn keeps_the_original(fixture: &str, password: &str, risk: Risk) {
     let refused = answered.try_recv().expect("answered at once");
     assert!(refused.as_ref().is_err_and(|why| why.contains("another name")), "{fixture}: {refused:?}");
     let copy = dir.path().join("copy.pptx");
-    let id = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    let id = cx.update(|app| deck.read(app).core.active()).expect("a tab");
     let window = cx.update(|app| deck.read(app).core.window).expect("a window");
     cx.update_window(window, |_, window, app| deck.update(app, |deck, cx| deck.write_as(id, copy.clone(), None, window, cx)))
         .expect("the window lives");

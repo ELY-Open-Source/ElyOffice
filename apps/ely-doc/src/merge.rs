@@ -67,7 +67,7 @@ impl Docs {
     }
 
     pub(crate) fn choose_csv(&mut self, cx: &mut Context<Self>) {
-        let Some(source) = self.core.active else {
+        let Some(source) = self.core.active() else {
             let text = Docs::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };

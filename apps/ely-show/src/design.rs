@@ -42,7 +42,7 @@ fn preset((w, h): (i64, i64)) -> Option<&'static str> {
 impl Deck {
     /// Runs a design command; the next read shows what changed.
     pub fn design_command(&mut self, id: &str, values: &[&str], cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return;
         };
         self.run_in(Some(tab), id, values, cx);
@@ -51,7 +51,7 @@ impl Deck {
 
     /// Resizes the slides; the asked size shows until read back.
     pub(crate) fn resize(&mut self, (w, h): (i64, i64), cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active.and_then(|id| self.tab_mut(id)) else {
+        let Some(tab) = self.core.active().and_then(|id| self.tab_mut(id)) else {
             return;
         };
         let (sw, sh) = tab.extra.shown_size();
@@ -271,7 +271,7 @@ impl Panel {
                 .on_click(move |_, _, cx| {
                     on_deck(&weak, cx, |deck, cx| {
                         deck.run_active("master.insert", &[], cx);
-                        if let Some(id) = deck.core.active {
+                        if let Some(id) = deck.core.active() {
                             deck.force_reread(id, cx);
                         }
                     })

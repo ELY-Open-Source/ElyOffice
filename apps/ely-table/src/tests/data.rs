@@ -169,7 +169,7 @@ fn a_column_button_lists_validation_offers_and_formats_list() {
     open(&mut cx, &book);
     run(&mut cx, &book, "cell.goto", &["A1"]);
     run(&mut cx, &book, "data.autofilter", &[]);
-    let id = cx.update(|app| book.read(app).core.active.expect("a tab"));
+    let id = cx.update(|app| book.read(app).core.active().expect("a tab"));
     update(&mut cx, &book, |book, cx| {
         book.ask_column(id, &Request::Filter { column: 0, row: 0 }, cx)
     });
@@ -330,7 +330,7 @@ fn a_column_button_sorts_its_own_block_not_the_cursors() {
     run(&mut cx, &book, "cell.goto", &["A1"]);
     run(&mut cx, &book, "data.autofilter", &[]);
     run(&mut cx, &book, "cell.goto", &["C3"]);
-    let id = cx.update(|app| book.read(app).core.active.expect("a tab"));
+    let id = cx.update(|app| book.read(app).core.active().expect("a tab"));
     update(&mut cx, &book, |book, cx| {
         book.ask_column(id, &Request::Filter { column: 0, row: 0 }, cx)
     });
@@ -371,7 +371,7 @@ fn the_column_search_narrows_the_list_and_keeps_hidden_ticks() {
     open(&mut cx, &book);
     run(&mut cx, &book, "cell.goto", &["A1"]);
     run(&mut cx, &book, "data.autofilter", &[]);
-    let id = cx.update(|app| book.read(app).core.active.expect("a tab"));
+    let id = cx.update(|app| book.read(app).core.active().expect("a tab"));
     update(&mut cx, &book, |book, cx| {
         book.ask_column(id, &Request::Filter { column: 0, row: 0 }, cx)
     });

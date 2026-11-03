@@ -151,7 +151,7 @@ fn the_names_list_stays_with_its_workbook_and_scope() {
             .clone()
     });
     update(&mut cx, &book, |book, cx| {
-        book.core.active = Some(first);
+        book.core.set_active(Some(first));
         book.run_active("sheet.insert", &["Other", "2"], cx);
         book.run_active(
             "names.define",
@@ -173,7 +173,7 @@ fn the_names_list_stays_with_its_workbook_and_scope() {
         matches!(book.read(app).dialog, Some(Dialog::Names { .. }))
     });
     update(&mut cx, &book, |book, _| {
-        book.core.active = Some(book.core.tabs[1].id)
+        book.core.set_active(Some(book.core.tabs[1].id))
     });
     let pick = |cx: &mut TestAppContext, name: &str, scope: &str| {
         update(cx, &book, |book, cx| {
@@ -191,7 +191,7 @@ fn the_names_list_stays_with_its_workbook_and_scope() {
     };
     let shown = |cx: &mut TestAppContext| {
         quiet(cx, &book);
-        let active = cx.update(|app| book.read(app).core.active);
+        let active = cx.update(|app| book.read(app).core.active());
         assert_eq!(active, Some(first), "the jump shows its workbook");
         update(cx, &book, |book, cx| book.refill(cx));
         let named = cx.update(|app| book.read(app).bars.name.read(app).text().to_string());
@@ -234,7 +234,7 @@ fn the_names_list_stays_with_its_workbook_and_scope() {
         matches!(book.read(app).dialog, Some(Dialog::Names { .. }))
     });
     update(&mut cx, &book, |book, _| {
-        book.core.active = Some(book.core.tabs[1].id)
+        book.core.set_active(Some(book.core.tabs[1].id))
     });
     pick(&mut cx, "Spot", "");
     settle(&cx, |app| landed(app, 0, &["A5", "Spot"], "Spot"));
@@ -266,7 +266,7 @@ fn a_waiting_definition_keeps_its_workbook_sheets() {
     });
     for (id, name) in [(first, "Origin"), (second, "Destination")] {
         update(&mut cx, &book, |book, cx| {
-            book.core.active = Some(id);
+            book.core.set_active(Some(id));
             book.run_active("sheet.rename", &[name, "1"], cx);
         });
     }
@@ -286,7 +286,7 @@ fn a_waiting_definition_keeps_its_workbook_sheets() {
     });
     cx.update(|app| {
         book.update(app, |book, cx| {
-            book.core.active = Some(first);
+            book.core.set_active(Some(first));
             book.run_active("cell.goto", &["B2:C3"], cx);
             book.ask_define(cx);
         })
@@ -294,7 +294,7 @@ fn a_waiting_definition_keeps_its_workbook_sheets() {
     settle(&cx, |app| {
         matches!(book.read(app).dialog, Some(Dialog::Define { .. }))
     });
-    update(&mut cx, &book, |book, _| book.core.active = Some(second));
+    update(&mut cx, &book, |book, _| book.core.set_active(Some(second)));
     let scopes = cx.update(|app| book.read(app).define_scopes());
     assert_eq!(
         scopes,
@@ -307,7 +307,7 @@ fn a_waiting_definition_keeps_its_workbook_sheets() {
             name.update(cx, |name, cx| name.set_text("Area", cx));
         }
         book.define(cx);
-        book.core.active = Some(first);
+        book.core.set_active(Some(first));
     });
     settle(&cx, |app| book.read(app).dialog.is_none());
     quiet(&cx, &book);
@@ -346,9 +346,9 @@ fn a_rename_stays_with_its_workbook() {
     });
     cx.update_window(window.into(), |_, window, app| {
         book.update(app, |book, cx| {
-            book.core.active = Some(first);
+            book.core.set_active(Some(first));
             book.ask_rename(window, cx);
-            book.core.active = Some(second);
+            book.core.set_active(Some(second));
             book.rename_asked("Kept", cx);
         })
     })

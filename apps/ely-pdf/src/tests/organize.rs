@@ -64,7 +64,7 @@ fn a_save_writes_the_edits_and_undo_after_it_is_unsaved_again() {
         view.move_to(to, cx);
     });
     assert_eq!(cx.update(|_, app| view.read(app).picked.iter().copied().collect::<Vec<_>>()), [0], "the moved page stays picked");
-    let id = cx.update(|_, app| viewer.read(app).core.active.expect("a tab"));
+    let id = cx.update(|_, app| viewer.read(app).core.active().expect("a tab"));
     cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.save(id, None, window, cx)));
     settle(cx, |app| !viewer.read(app).active_tab().expect("a tab").dirty(app));
     assert_eq!(texts(&dir.path().join("three.pdf")), ["three", "one", "two"]);
@@ -113,7 +113,7 @@ fn closing_an_edited_tab_asks_first() {
     let mut cx = TestAppContext::single();
     let (viewer, cx, view) = three(&mut cx, dir.path());
     edit(cx, &view, |view, cx| view.edit("pdf.doing.turn", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx));
-    let id = cx.update(|_, app| viewer.read(app).core.active.expect("a tab"));
+    let id = cx.update(|_, app| viewer.read(app).core.active().expect("a tab"));
     cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.request_close(id, ely_office::After::Tab, window, cx)));
     settle(cx, |app| matches!(viewer.read(app).core.dialog, Some(Dialog::Unsaved { .. })));
 }
@@ -123,7 +123,7 @@ fn extract_and_split_write_new_files_and_refuse_to_overwrite() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let (viewer, cx, view) = three(&mut cx, dir.path());
-    let id = cx.update(|_, app| viewer.read(app).core.active.expect("a tab"));
+    let id = cx.update(|_, app| viewer.read(app).core.active().expect("a tab"));
     let part = dir.path().join("part.pdf");
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_pages(id, vec![0, 2], part.clone(), cx)));
     settle(cx, |_| part.exists());
@@ -202,7 +202,7 @@ fn a_failed_edit_lets_a_waiting_save_go() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let (viewer, cx, view) = three(&mut cx, dir.path());
-    let id = cx.update(|_, app| viewer.read(app).core.active.expect("a tab"));
+    let id = cx.update(|_, app| viewer.read(app).core.active().expect("a tab"));
     let ran = std::rc::Rc::new(std::cell::Cell::new(false));
     cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.crop", |worker, doc| worker.crop_pages(doc, &[0], [900.0; 4]), cx)));
     cx.update(|_, app| viewer.update(app, |viewer, _| {

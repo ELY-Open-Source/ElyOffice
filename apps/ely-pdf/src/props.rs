@@ -51,7 +51,7 @@ fn now(read: &Properties, key: &str) -> Option<String> {
 
 impl Viewer {
     pub fn ask_properties(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.no_document(cx);
         };
         self.read_in(

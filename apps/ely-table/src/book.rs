@@ -104,7 +104,7 @@ impl Host for Book {
         self.offer_menu(id, view, cx);
         self.follow_rule(id, view, cx);
         self.read_links(id, view, cx);
-        if self.core.active == Some(id) {
+        if self.core.active() == Some(id) {
             self.sync_bars(view, cx);
         }
     }
@@ -251,7 +251,7 @@ impl Book {
             return;
         };
         // Numbered commands need the latest read; hidden books wait.
-        let behind = self.core.active == Some(id)
+        let behind = self.core.active() == Some(id)
             && tab.extra.read_at.as_ref().is_some_and(|at| view.read(cx).read_at().newer_than(at));
         if tab.extra.reading || tab.extra.read == Some(seen) && !behind {
             return;

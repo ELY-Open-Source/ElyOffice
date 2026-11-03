@@ -53,7 +53,7 @@ impl Desk {
     }
 
     fn ask_export(&mut self, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.no_document(cx);
         };
         self.exporting = Some((tab, Format::Page));
@@ -235,7 +235,7 @@ impl Desk {
 
     /// Prints the PDF export through the system panel.
     fn print(&mut self, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.no_document(cx);
         };
         if !self.settled(tab, cx) {

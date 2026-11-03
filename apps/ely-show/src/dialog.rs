@@ -62,7 +62,7 @@ impl Deck {
 
     /// A dialog or tab change ends earlier asks.
     pub(crate) fn watch_dialogs(&mut self) {
-        let now = (self.dialog.as_ref().map(std::mem::discriminant), self.core.active);
+        let now = (self.dialog.as_ref().map(std::mem::discriminant), self.core.active());
         if self.dialog_seen != now {
             self.dialog_seen = now;
             self.dialog_asked += 1;
@@ -71,7 +71,7 @@ impl Deck {
 
     /// Whether read `asked` still stands; `open_dialog` checks the rest.
     pub fn dialog_due(&self, asked: u64, id: u64) -> bool {
-        self.dialog_asked == asked && self.core.active == Some(id)
+        self.dialog_asked == asked && self.core.active() == Some(id)
     }
 
     /// The open dialog, drawn.

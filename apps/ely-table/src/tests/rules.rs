@@ -38,7 +38,7 @@ fn a_dialog_asked_from_a_workbook_left_behind_is_dropped() {
     ];
     for ask in asks {
         update(&mut cx, &book, |book, cx| {
-            book.core.active = Some(first);
+            book.core.set_active(Some(first));
             book.run_active("cell.goto", &["B2"], cx);
         });
         quiet(&cx, &book);
@@ -49,7 +49,7 @@ fn a_dialog_asked_from_a_workbook_left_behind_is_dropped() {
             book.update(app, |book, cx| {
                 book.dialog = None;
                 ask(book, window, cx);
-                book.core.active = Some(second);
+                book.core.set_active(Some(second));
             })
         })
         .expect("the window lives");
@@ -165,7 +165,7 @@ fn a_format_code_lands_in_the_workbook_that_asked() {
         })
     };
     let (panel, view, doc) = cx.update(|app| {
-        book.update(app, |book, _| book.core.active = Some(first));
+        book.update(app, |book, _| book.core.set_active(Some(first)));
         let book = book.read(app);
         let tab = book.tab(first).expect("a tab");
         (book.panel.clone(), tab.view.clone(), tab.doc.clone())
@@ -177,7 +177,7 @@ fn a_format_code_lands_in_the_workbook_that_asked() {
         })
     });
     // The check is still on its way.
-    update(&mut cx, &book, |book, _| book.core.active = Some(second));
+    update(&mut cx, &book, |book, _| book.core.set_active(Some(second)));
     settle(&cx, |app| {
         book.read(app)
             .core

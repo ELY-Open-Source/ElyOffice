@@ -37,7 +37,7 @@ pub struct Protecting {
 
 impl Book {
     pub(crate) fn ask_protect(&mut self, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             return self.warn_key("command.blocked.no_document", cx);
         };
         if !self.settled(id, cx) {

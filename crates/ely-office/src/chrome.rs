@@ -11,7 +11,7 @@ use crate::{After, Closing, Engine, Host, Tabs, text};
 
 /// A tab switch: the one behind stops drawing.
 pub(crate) fn follow_front<H: Host>(host: &mut H, cx: &mut Context<H>) {
-    let front = host.core().active;
+    let front = host.core().active();
     let behind = std::mem::replace(&mut host.core_mut().shown, front);
     if behind == front {
         return;
@@ -42,7 +42,7 @@ pub trait Chrome: Host {
                 move |id, _, cx| {
                     let id = id.parse().expect("tab ids are numbers");
                     this.update(cx, |host, cx| {
-                        host.core_mut().active = Some(id);
+                        host.core_mut().set_active(Some(id));
                         cx.notify();
                     });
                 }
@@ -53,7 +53,7 @@ pub trait Chrome: Host {
                     host.request_close(id, After::Tab, window, cx)
                 });
             });
-        match core.active {
+        match core.active() {
             Some(id) => tabs.selected(id.to_string()),
             None => tabs,
         }

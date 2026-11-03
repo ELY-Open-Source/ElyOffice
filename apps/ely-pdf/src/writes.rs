@@ -58,7 +58,7 @@ impl Viewer {
 
     /// Writes the panel's text, or empties the block when `erase`.
     pub fn write_text(&mut self, erase: bool, cx: &mut Context<Self>) {
-        let (Some(tab), Some(view)) = (self.core.active, self.active_view()) else {
+        let (Some(tab), Some(view)) = (self.core.active(), self.active_view()) else {
             return;
         };
         let Some(aim) = view.read(cx).aim else {

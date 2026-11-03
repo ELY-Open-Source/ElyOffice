@@ -49,7 +49,7 @@ impl Desk {
 
     /// Counts a new selection off the window; drawing only reads.
     pub(crate) fn count_selection(&mut self, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             return;
         };
         let Some(view) = self.active_view() else {

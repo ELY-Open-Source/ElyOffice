@@ -186,7 +186,7 @@ impl Panel {
         let Some(tab) = self
             .book
             .upgrade()
-            .and_then(|book| book.read(cx).core.active)
+            .and_then(|book| book.read(cx).core.active())
         else {
             return;
         };

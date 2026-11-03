@@ -180,7 +180,7 @@ impl Deck {
     ) {
         cx.spawn(async move |this, cx| {
             in_window(&this, cx, |deck, window, cx| {
-                let still = deck.core.active == Some(tab)
+                let still = deck.core.active() == Some(tab)
                     && asked.is_none_or(|asked| marked_chart(deck) == Some(asked));
                 if !still {
                     return log::info!("show: a chart dialog for tab {tab} came late");

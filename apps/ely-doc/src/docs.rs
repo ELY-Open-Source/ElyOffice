@@ -221,7 +221,7 @@ impl Docs {
     /// A dialog or tab change ends earlier dialog reads.
     fn watch_dialogs(&mut self) {
         let ely = self.dialog.as_ref().map(std::mem::discriminant);
-        let now = (ely, self.core.dialog.as_ref().map(std::mem::discriminant), self.core.active);
+        let now = (ely, self.core.dialog.as_ref().map(std::mem::discriminant), self.core.active());
         if self.dialog_seen != now {
             self.dialog_seen = now;
             self.dialog_asked += 1;

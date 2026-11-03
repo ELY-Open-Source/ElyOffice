@@ -178,10 +178,10 @@ fn a_start_left_for_another_tab_says_so() {
         eprintln!("SKIP: no LOK build");
         return;
     };
-    let first = cx.update(|app| deck.read(app).core.active.expect("a tab"));
+    let first = cx.update(|app| deck.read(app).core.active().expect("a tab"));
     update(&mut cx, &deck, |deck, cx| deck.new_blank(cx));
-    settle(&cx, |app| deck.read(app).core.tabs.len() == 2 && deck.read(app).core.active != Some(first));
-    let second = cx.update(|app| deck.read(app).core.active.expect("a tab"));
+    settle(&cx, |app| deck.read(app).core.tabs.len() == 2 && deck.read(app).core.active() != Some(first));
+    let second = cx.update(|app| deck.read(app).core.active().expect("a tab"));
     let root = super::slides::in_window(&mut cx, &deck, |deck, window, cx| {
         let this = cx.entity();
         let root = ely_ui::document_root(ely_platform::AppId::Show, this.into(), &ely_ui::commands::FILE, Vec::new(), window, cx);
@@ -189,10 +189,10 @@ fn a_start_left_for_another_tab_says_so() {
         root
     });
     update(&mut cx, &deck, |deck, cx| {
-        deck.core.active = Some(first);
+        deck.core.set_active(Some(first));
         deck.start_show(false, cx);
         // Another tab comes forward while the copy is read.
-        deck.core.active = Some(second);
+        deck.core.set_active(Some(second));
     });
     let gone = cx.update(|app| Deck::text(app, "show.play.gone", &[]));
     settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| *text == gone));

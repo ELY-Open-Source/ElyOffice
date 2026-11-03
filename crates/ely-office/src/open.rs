@@ -80,11 +80,8 @@ pub trait Opening: Host {
         match self.core_mut().sessions.open(&path, false) {
             Ok(Open::Focus(registry)) => {
                 let core = self.core_mut();
-                core.active = core
-                    .tabs
-                    .iter()
-                    .find(|tab| tab.registry == Some(registry))
-                    .map(|tab| tab.id);
+                let open = core.tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id);
+                core.set_active(open);
                 cx.notify();
             }
             Ok(Open::Fresh(registry) | Open::View(registry)) => {
@@ -131,6 +128,7 @@ pub trait Opening: Host {
         };
         let written = path.clone();
         self.core_mut().loading.push((id, file_name(&path)));
+        self.core_mut().asked_front(id);
         cx.notify();
         crate::Stopping::watch_slow(self, id, cx);
         let worker = Arc::clone(&self.core().worker);
@@ -144,7 +142,7 @@ pub trait Opening: Host {
                         None => files::check_package(&written)?,
                     }
                     let asked = std::time::Instant::now();
-                    ely_lok::behind(&worker, |worker| {
+                    ely_lok::behind(&worker, move |worker| {
                         log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
                         let from = match &text {
                             None => Load::File(&written, &password),
@@ -155,6 +153,7 @@ pub trait Opening: Host {
                         log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());
                         loaded
                     })
+                    .await
                 })
                 .await;
             in_window(&this, cx, |host, window, cx| {
@@ -231,7 +230,11 @@ pub trait Opening: Host {
             }
         };
         self.watch(id, &view, cx);
-        window.focus(&Self::Engine::focus(view.read(cx)), cx);
+        // Hidden views never draw nor ask the engine.
+        let front = self.core().takes_front(id);
+        if front {
+            window.focus(&Self::Engine::focus(view.read(cx)), cx);
+        }
         // Tabs keep the order their loads began.
         let at = self.core().tabs.partition_point(|tab| tab.id < id);
         self.core_mut().tabs.insert(at, Tab {
@@ -249,12 +252,14 @@ pub trait Opening: Host {
             reopen: false,
             extra: Default::default(),
         });
-        self.core_mut().active = Some(id);
+        if front {
+            self.core_mut().landed_front(id);
+        }
         // Points from now on; a crash copy comes back unsaved.
         let tab = self.tab(id).expect("just opened");
         let named = tab.name.clone();
         log::info!(
-            "{}: opened {named} as tab {id}, risk {:?}, {} tabs open",
+            "{}: opened {named} as tab {id}, risk {:?}, {} tabs open, in front {front}",
             Self::KIND.app.slug(),
             tab.risk,
             self.core().tabs.len()
