@@ -37,6 +37,8 @@ pub struct Editor {
     pub output: String,
     /// Set while R runs; storing true stops it.
     pub running: Option<Arc<AtomicBool>>,
+    /// The file request whose result this editor takes.
+    pub asked: Option<u64>,
 }
 
 impl Editor {
@@ -93,7 +95,7 @@ impl Book {
             })
             .clone();
         let output = String::new();
-        self.open_dialog(Dialog::RMacro(Box::new(Editor { tab, code, output, running: None })));
+        self.open_dialog(Dialog::RMacro(Box::new(Editor { tab, code, output, running: None, asked: None })));
         cx.notify();
     }
 
@@ -141,9 +143,9 @@ impl Book {
             Ok(path) => path,
             Err(error) => return self.r_note(&said(&error, cx), cx),
         };
-        if !self.settled(tab, cx) {
+        let Some(edited) = self.landed(tab, cx).filter(|_| self.settled(tab, cx)) else {
             return self.r_note(&Self::text(cx, "table.r.busy", &[]), cx);
-        }
+        };
         let run = Arc::new(AtomicBool::new(false));
         if let Some(Dialog::RMacro(editor)) = &mut self.dialog {
             editor.running = Some(Arc::clone(&run));
@@ -158,11 +160,17 @@ impl Book {
                 Ok((at, snapshot))
             },
             move |book, read, _, cx| match read {
-                Ok((at, snapshot)) => book.run_r(tab, rscript, (at, snapshot), script, run, cx),
+                Ok(read) => book.run_r(tab, rscript, (read, edited), script, run, cx),
                 Err(error) => book.r_said(&run, &said(&error, cx), true, cx),
             },
             cx,
         );
+    }
+
+    /// Edits landed in `tab`; None while one is queued.
+    fn landed(&self, tab: u64, cx: &App) -> Option<u64> {
+        let view = self.tab(tab)?.view.read(cx);
+        (!view.edit_pending()).then(|| view.edited())
     }
 
     /// R runs on its own thread, never the executor's.
@@ -170,7 +178,7 @@ impl Book {
         &mut self,
         tab: u64,
         rscript: PathBuf,
-        (at, snapshot): (ely_lok::Doc, protocol::Snapshot),
+        ((at, snapshot), edited): ((ely_lok::Doc, protocol::Snapshot), u64),
         script: String,
         run: Arc<AtomicBool>,
         cx: &mut Context<Self>,
@@ -182,7 +190,7 @@ impl Book {
         cx.spawn(async move |this, cx| {
             let outcome = result.await;
             in_window(&this, cx, |book, _, cx| match outcome {
-                Ok(outcome) => book.ran_r(tab, at, outcome, run, cx),
+                Ok(outcome) => book.ran_r(tab, (at, edited), outcome, run, cx),
                 Err(error) => book.r_said(&run, &format!("\n{error}"), true, cx),
             })
         })
@@ -192,7 +200,7 @@ impl Book {
     fn ran_r(
         &mut self,
         tab: u64,
-        at: ely_lok::Doc,
+        (at, edited): (ely_lok::Doc, u64),
         outcome: runner::Outcome,
         run: Arc<AtomicBool>,
         cx: &mut Context<Self>,
@@ -206,14 +214,22 @@ impl Book {
             Ok(batch) => batch,
             Err(error) => return self.r_said(&run, &format!("\n{}", said(&error, cx)), true, cx),
         };
+        // An edit queued meanwhile could land after the batch.
+        if self.landed(tab, cx) != Some(edited) {
+            log::info!("table: R macro dropped: tab {tab} was edited");
+            return self.r_said(&run, &format!("
+{}", Self::text(cx, "table.r.stale", &[])), true, cx);
+        }
         log::info!("table: R macro applies {} bytes to tab {tab}", batch.len());
+        let stop = Arc::clone(&run);
         self.read_in(
             tab,
-            move |worker, _| worker.run(&at, "macro.apply", &[&batch]),
+            move |worker, _| apply(worker, &at, &batch, &stop),
             move |book, result, _, cx| {
                 let text = match result {
                     Ok(()) => Self::text(cx, "table.r.done", &[]),
                     Err(error) if ely_lok::is_stale(&error) => Self::text(cx, "table.r.stale", &[]),
+                    Err(error) if protocol::refusal(&error).is_some() => said(&error, cx).into(),
                     Err(error) => {
                         log::warn!("table: R macro batch refused: {error}");
                         Self::text(cx, "table.r.refused", &[("error", &error.to_string())])
@@ -223,6 +239,22 @@ impl Book {
             },
             cx,
         );
+    }
+}
+
+/// A stop or close before the worker takes the batch.
+fn apply(worker: &mut ely_lok::Worker, at: &ely_lok::Doc, batch: &str, stop: &AtomicBool) -> io::Result<()> {
+    if stop.load(Ordering::Relaxed) {
+        log::info!("table: R macro stopped before its batch applied");
+        return Err(protocol::refused("table.r.stopped"));
+    }
+    match worker.run(at, "macro.apply", &[batch]) {
+        // Read under this lock: no other batch interleaves.
+        Err(error) if !ely_lok::is_stale(&error) => {
+            let reason = worker.values(at, ely_lok::sheet::MACRO_REFUSAL)?;
+            Err(protocol::kernel_refusal(&reason, error))
+        }
+        done => done,
     }
 }
 

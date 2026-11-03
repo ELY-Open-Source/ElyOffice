@@ -1,7 +1,7 @@
 //! Where Rscript is: `ELY_RSCRIPT`, PATH, then R's install.
 
 use super::protocol::refused;
-use std::{io, path::PathBuf};
+use std::{ffi::OsString, io, path::PathBuf};
 
 #[cfg(windows)]
 const NAME: &str = "Rscript.exe";
@@ -9,15 +9,20 @@ const NAME: &str = "Rscript.exe";
 const NAME: &str = "Rscript";
 
 pub fn locate() -> io::Result<PathBuf> {
-    if let Some(path) = std::env::var_os("ELY_RSCRIPT") {
-        return Ok(path.into());
+    resolve(std::env::var_os("ELY_RSCRIPT"), std::env::var_os("PATH"))
+}
+
+/// Absolute now: R later runs in another folder.
+fn resolve(script: Option<OsString>, paths: Option<OsString>) -> io::Result<PathBuf> {
+    if let Some(path) = script {
+        return std::path::absolute(path);
     }
-    let paths = std::env::var_os("PATH").unwrap_or_default();
+    let paths = paths.unwrap_or_default();
     if let Some(found) = std::env::split_paths(&paths)
         .map(|dir| dir.join(NAME))
         .find(|path| path.is_file())
     {
-        return Ok(found);
+        return std::path::absolute(found);
     }
     installed()?.ok_or_else(|| refused("table.r.missing"))
 }
@@ -96,12 +101,28 @@ fn registry(
     Ok(Some(std::ffi::OsString::from_wide(&buffer[..len])))
 }
 
-#[cfg(all(test, windows))]
+#[cfg(test)]
 mod tests {
-    use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
+    use super::{NAME, resolve};
 
     #[test]
+    fn relative_paths_resolve_before_r_moves() {
+        let here = std::env::current_dir().expect("the folder");
+        let named = resolve(Some("bin/Rscript".into()), None).expect("ELY_RSCRIPT");
+        assert_eq!(named, here.join("bin/Rscript"));
+        // A PATH entry relative to this folder.
+        let dir = tempfile::tempdir_in(&here).expect("directory");
+        std::fs::write(dir.path().join(NAME), "").expect("a stand-in");
+        let entry = dir.path().file_name().expect("its name").to_owned();
+        let found = resolve(None, Some(entry)).expect("found on PATH");
+        assert!(found.is_absolute(), "{}", found.display());
+        assert_eq!(found, dir.path().join(NAME));
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn a_registry_string_reads_whole_and_absence_is_none() {
+        use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
         let root = super::registry(
             HKEY_LOCAL_MACHINE,
             "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",

@@ -46,34 +46,84 @@ impl std::fmt::Display for Unreadable {
 
 impl std::error::Error for Unreadable {}
 
+/// R's output cannot be applied.
 fn bad() -> io::Error {
     refused("table.r.invalid")
+}
+
+/// The kernel's copy of the selection cannot be read.
+fn unread() -> io::Error {
+    refused("table.r.unreadable")
+}
+
+/// The message key for the kernel's refusal code (0080).
+fn kernel_key(code: &str) -> Option<&'static str> {
+    Some(match code {
+        "range" => "table.r.range",
+        "cells" => "table.r.cells",
+        "too_big" => "table.r.too_big",
+        "unreadable" => "table.r.unreadable",
+        "read_only" => "table.r.read_only",
+        "undo_off" => "table.r.undo_off",
+        "busy" => "table.r.busy",
+        "changed" => "table.r.stale",
+        "protected" => "table.r.protected",
+        "merged" => "table.r.merged",
+        "invalid" => "table.r.invalid",
+        _ => return None,
+    })
+}
+
+/// `failed` with the reason the kernel kept for it.
+pub fn kernel_refusal(reason: &str, failed: io::Error) -> io::Error {
+    let reason: Value = match serde_json::from_str(reason) {
+        Ok(reason) => reason,
+        Err(error) => return io::Error::other(format!("{failed}; its reason is unreadable: {error}")),
+    };
+    match (reason["refused"].as_str(), reason["message"].as_str()) {
+        (Some("failed"), Some(message)) => io::Error::other(format!("{failed}: {message}")),
+        // The kernel turned the batch away before reading it.
+        (Some(""), _) => failed,
+        (Some(code), _) => match kernel_key(code) {
+            Some(key) => refused(key),
+            None => io::Error::other(format!("{failed}; unknown reason {code}")),
+        },
+        _ => io::Error::other(format!("{failed}; no reason in {reason}")),
+    }
 }
 
 impl Snapshot {
     pub fn parse(text: &str) -> io::Result<Self> {
         if text.len() as u64 > BYTES {
-            return Err(bad());
+            return Err(refused("table.r.too_big"));
         }
-        let json: Value = serde_json::from_str(text)?;
+        let json: Value = serde_json::from_str(text).map_err(|_| unread())?;
         if let Some(error) = json["error"].as_str() {
             return Err(io::Error::other(Unreadable(error.to_string())));
         }
-        let rows = usize::try_from(json["rows"].as_u64().ok_or_else(bad)?).map_err(|_| bad())?;
+        if let Some(code) = json["refused"].as_str() {
+            return Err(kernel_key(code).map_or_else(
+                || io::Error::other(format!("the selection was refused: {code}")),
+                refused,
+            ));
+        }
+        let rows = usize::try_from(json["rows"].as_u64().ok_or_else(unread)?).map_err(|_| unread())?;
         let columns =
-            usize::try_from(json["columns"].as_u64().ok_or_else(bad)?).map_err(|_| bad())?;
+            usize::try_from(json["columns"].as_u64().ok_or_else(unread)?).map_err(|_| unread())?;
         let count = rows
             .checked_mul(columns)
             .filter(|n| (1..=LIMIT).contains(n))
-            .ok_or_else(bad)?;
-        let cells = json["cells"].as_array().ok_or_else(bad)?;
+            .ok_or_else(unread)?;
+        let cells = json["cells"].as_array().ok_or_else(unread)?;
         if cells.len() != count || json["range"].as_str().is_none() {
-            return Err(bad());
+            return Err(unread());
         }
         for cell in cells {
-            validate_value(cell)?;
+            if !valid(cell) {
+                return Err(unread());
+            }
             if cell.get("formula").is_some_and(|f| f.as_str().is_none()) {
-                return Err(bad());
+                return Err(unread());
             }
         }
         Ok(Self {
@@ -85,20 +135,20 @@ impl Snapshot {
 
     pub fn input(&self) -> io::Result<String> {
         let mut text = format!("{}\t{}\n", self.rows, self.columns);
-        for cell in self.json["cells"].as_array().ok_or_else(bad)? {
+        for cell in self.json["cells"].as_array().ok_or_else(unread)? {
             let value = match cell["kind"].as_str() {
-                Some("text" | "number") => cell["value"].as_str().ok_or_else(bad)?.to_string(),
+                Some("text" | "number") => cell["value"].as_str().ok_or_else(unread)?.to_string(),
                 Some("empty") => String::new(),
                 _ => cell["value"].to_string(),
             };
             text.push_str(&format!(
                 "{}\t{}",
-                cell["kind"].as_str().ok_or_else(bad)?,
+                cell["kind"].as_str().ok_or_else(unread)?,
                 hex(&value)
             ));
             if let Some(formula) = cell.get("formula") {
                 text.push('\t');
-                text.push_str(&hex(formula.as_str().ok_or_else(bad)?));
+                text.push_str(&hex(formula.as_str().ok_or_else(unread)?));
             }
             text.push('\n');
         }
@@ -133,7 +183,9 @@ impl Snapshot {
                         return Err(bad());
                     }
                     let text = unhex(encoded)?;
-                    let value = match *kind {
+                    // Calc holds no empty text: "" clears, as in Excel.
+                    let kind = if *kind == "text" && text.is_empty() { "empty" } else { *kind };
+                    let value = match kind {
                         "text" => Value::String(text),
                         "empty" if text.is_empty() => Value::Null,
                         "number" => {
@@ -147,7 +199,9 @@ impl Snapshot {
                         _ => return Err(bad()),
                     };
                     let cell = json!({"index": index, "kind": kind, "value": value});
-                    validate_value(&cell)?;
+                    if !valid(&cell) {
+                        return Err(bad());
+                    }
                     writes.push(cell);
                 }
                 ["H", flag] if bold.is_none() && matches!(*flag, "true" | "false") => {
@@ -171,9 +225,9 @@ impl Snapshot {
     }
 }
 
-fn validate_value(cell: &Value) -> io::Result<()> {
+fn valid(cell: &Value) -> bool {
     let value = &cell["value"];
-    let valid = match cell["kind"].as_str() {
+    match cell["kind"].as_str() {
         Some("text") => value
             .as_str()
             .is_some_and(|s| !s.contains('\0') && s.len() <= 32767),
@@ -184,8 +238,7 @@ fn validate_value(cell: &Value) -> io::Result<()> {
         Some("boolean") => value.is_boolean(),
         Some("empty") => value.is_null() || value.as_str() == Some(""),
         _ => false,
-    };
-    if valid { Ok(()) } else { Err(bad()) }
+    }
 }
 
 fn hex(text: &str) -> String {
@@ -250,7 +303,9 @@ mod tests {
                 .expect("batch");
         let writes = &batch["writes"];
         assert_eq!(writes[0]["value"], "00123");
-        assert_eq!(writes[1]["value"], "");
+        // Calc holds no empty text: "" clears the cell.
+        assert_eq!(writes[1]["kind"], "empty");
+        assert!(writes[1]["value"].is_null());
         assert_eq!(writes[2]["value"], "-1.25");
         assert_eq!(writes[3]["value"], false);
         assert!(writes[4]["value"].is_null());
@@ -306,5 +361,46 @@ mod tests {
         }
         assert!(snapshot().instructions("ELY_R_1\nA\n").is_err());
         assert!(snapshot().instructions("ELY_R_1\nDONE\nA").is_err());
+    }
+
+    #[test]
+    fn selection_failures_are_not_blamed_on_r() {
+        // Each cell is valid; together they pass 4 MiB.
+        let big = "a".repeat(32767);
+        let cells: Vec<_> = (0..130).map(|_| json!({"kind": "text", "value": big})).collect();
+        let source = json!({"range": "S!A1:A130", "rows": 130, "columns": 1, "cells": cells}).to_string();
+        assert_eq!(refusal(&Snapshot::parse(&source).expect_err("too big")), Some("table.r.too_big"));
+        let odd = r#"{"range":"S!A1","rows":1,"columns":1,"cells":[{"kind":"date","value":"1"}]}"#;
+        for broken in ["{", odd] {
+            assert_eq!(refusal(&Snapshot::parse(broken).expect_err(broken)), Some("table.r.unreadable"));
+        }
+    }
+
+    #[test]
+    fn kernel_refusals_keep_their_own_words() {
+        let codes = [
+            "range", "cells", "too_big", "unreadable", "read_only", "undo_off", "busy", "changed",
+            "protected", "merged", "invalid",
+        ];
+        let keys: std::collections::HashSet<_> = codes
+            .iter()
+            .map(|code| {
+                let reason = json!({"refused": code, "message": ""}).to_string();
+                let error = kernel_refusal(&reason, io::Error::other("macro.apply"));
+                refusal(&error).unwrap_or_else(|| panic!("{code} is worded"))
+            })
+            .collect();
+        assert_eq!(keys.len(), codes.len(), "no two causes share words");
+        assert!(!keys.contains("table.r.refused"), "none is the generic failure");
+        let failed = json!({"refused": "failed", "message": "kernel said"}).to_string();
+        let error = kernel_refusal(&failed, io::Error::other("macro.apply"));
+        assert_eq!(refusal(&error), None);
+        assert!(error.to_string().ends_with("kernel said"), "{error}");
+        let never = json!({"refused": "", "message": ""}).to_string();
+        assert_eq!(kernel_refusal(&never, io::Error::other("as sent")).to_string(), "as sent");
+        let odd = json!({"refused": "odd", "message": ""}).to_string();
+        assert!(kernel_refusal(&odd, io::Error::other("x")).to_string().contains("odd"));
+        let selection = json!({"refused": "cells"}).to_string();
+        assert_eq!(refusal(&Snapshot::parse(&selection).expect_err("refused")), Some("table.r.cells"));
     }
 }

@@ -144,6 +144,7 @@ pub const VALUES: &[&str] = &[
     crate::sheet::LINKS,
     crate::sheet::KEPT,
     crate::sheet::MACRO,
+    crate::sheet::MACRO_REFUSAL,
     crate::show::DESIGN,
     crate::show::OBJECTS,
     crate::show::NOTES,

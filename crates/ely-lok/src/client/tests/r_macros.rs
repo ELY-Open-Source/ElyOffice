@@ -156,6 +156,7 @@ fn r_macro_refuses_disabled_undo_before_any_changes() {
     let batch = json!({"snapshot":before,"writes":[{"index":0,"kind":"text","value":"must not appear"}],"bold":true,"autofit":true}).to_string();
     let at = worker.now(&doc).expect("revision");
     assert!(worker.run(&at, "macro.apply", &[&batch]).is_err());
+    assert_eq!(reason(&mut worker, &doc)["refused"], "undo_off");
     assert_eq!(snapshot(&mut worker, &doc), before);
     assert_eq!(
         worker.values(&doc, crate::sheet::GEOMETRY).expect("widths"),
@@ -208,4 +209,126 @@ fn r_batches_keep_precise_numbers_and_scientific_notation() {
         .run(&doc, "cell.goto", &["A1:D1"])
         .expect("selection restored");
     assert_eq!(snapshot(&mut worker, &doc), before);
+}
+
+/// The kernel's reason for the last refused batch.
+fn reason(worker: &mut Worker, doc: &Doc) -> Value {
+    serde_json::from_str(&worker.values(doc, crate::sheet::MACRO_REFUSAL).expect("the reason"))
+        .expect("JSON")
+}
+
+/// Refused `batch`: the kernel's code for it.
+fn refused(worker: &mut Worker, doc: &Doc, batch: &Value) -> Value {
+    let at = worker.now(doc).expect("revision");
+    assert!(worker.run(&at, "macro.apply", &[&batch.to_string()]).is_err());
+    reason(worker, doc)["refused"].clone()
+}
+
+fn one_write(before: &Value, kind: &str, value: Value) -> Value {
+    json!({"snapshot": before, "writes": [{"index": 0, "kind": kind, "value": value}], "bold": null, "autofit": false})
+}
+
+#[test]
+fn r_refusals_say_why_once() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = super::sheet::open_book(super::input::FODS);
+    worker.run(&doc, "cell.goto", &["A1:A10001"]).expect("a tall selection");
+    assert_eq!(snapshot(&mut worker, &doc)["refused"], "cells");
+    worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
+    let before = snapshot(&mut worker, &doc);
+    // Calc holds no empty text; ElyTable sends a clear.
+    assert_eq!(refused(&mut worker, &doc, &one_write(&before, "text", json!(""))), "invalid");
+    assert_eq!(reason(&mut worker, &doc)["refused"], "", "a reason is read once");
+    let moved = json!({"snapshot": before, "writes": [], "bold": true, "autofit": false});
+    worker.run(&doc, "cell.goto", &["A1:B3"]).expect("another selection");
+    assert_eq!(refused(&mut worker, &doc, &moved), "changed");
+    worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
+    let locked = crate::sheet::protect_json("", &[]);
+    worker.run(&doc, "sheet.protect", &[&locked]).expect("protected");
+    assert_eq!(refused(&mut worker, &doc, &one_write(&before, "text", json!("x"))), "protected");
+    let open = crate::sheet::unprotect_json("");
+    worker.run(&doc, "sheet.protect", &[&open]).expect("unprotected");
+    worker.run(&doc, "cell.goto", &["A2:B2"]).expect("a row");
+    worker.run(&doc, "cells.merge", &["false"]).expect("merged");
+    worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
+    let merged = snapshot(&mut worker, &doc);
+    assert_eq!(refused(&mut worker, &doc, &one_write(&merged, "text", json!("x"))), "merged");
+}
+
+#[test]
+fn r_batches_refuse_a_document_read_only_now() {
+    let Some(install) = install() else {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    };
+    let dir = tempfile::tempdir().expect("directory");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("worker");
+    let source = dir.path().join("locked.fods");
+    std::fs::write(&source, super::input::FODS).expect("fixture");
+    let mut mode = std::fs::metadata(&source).expect("mode").permissions();
+    mode.set_readonly(true);
+    std::fs::set_permissions(&source, mode.clone()).expect("read-only");
+    let doc = worker.load(&crate::file_url(&source)).expect("document");
+    worker.run(&doc, "cell.goto", &["A1:B2"]).expect("selection");
+    let before = snapshot(&mut worker, &doc);
+    let code = refused(&mut worker, &doc, &one_write(&before, "text", json!("x")));
+    #[allow(clippy::permissions_set_readonly_false)]
+    mode.set_readonly(false);
+    std::fs::set_permissions(&source, mode).expect("writable again");
+    assert_eq!(code, "read_only");
+    assert_eq!(snapshot(&mut worker, &doc), before);
+}
+
+#[test]
+fn r_selection_past_4_mib_is_refused_before_it_is_copied() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = super::sheet::open_book(super::input::FODS);
+    // Each cell is legal; together they pass 4 MiB.
+    let long = "a".repeat(32767);
+    for row in 1..=130 {
+        worker.run(&doc, "cell.set", &[&format!("S!C{row}"), &long]).expect("long text");
+    }
+    worker.run(&doc, "cell.goto", &["C1:C130"]).expect("selection");
+    let reply = worker.values(&doc, crate::sheet::MACRO).expect("reply");
+    assert!(reply.len() < 1024, "{} bytes came back", reply.len());
+    let reply: Value = serde_json::from_str(&reply).expect("JSON");
+    assert_eq!(reply["refused"], "too_big");
+}
+
+#[test]
+fn r_batches_keep_subnormals_and_bold_every_script() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (dir, mut worker, doc) = super::sheet::open_book(super::input::FODS);
+    worker.run(&doc, "cell.set", &["S!C1", "שלום"]).expect("complex script");
+    worker.run(&doc, "cell.goto", &["A1:C2"]).expect("selection");
+    let before = snapshot(&mut worker, &doc);
+    let numbers = ["5e-324", "1e-310"];
+    let writes: Vec<_> = numbers
+        .iter()
+        .enumerate()
+        .map(|(at, value)| json!({"index": 3 + at, "kind": "number", "value": value}))
+        .collect();
+    let batch = json!({"snapshot": before, "writes": writes, "bold": true, "autofit": false});
+    let at = worker.now(&doc).expect("revision");
+    worker.run(&at, "macro.apply", &[&batch.to_string()]).expect("subnormals apply");
+    let after = snapshot(&mut worker, &doc);
+    for (at, expected) in numbers.iter().enumerate() {
+        let value: f64 = after["cells"][3 + at]["value"].as_str().expect("decimal").parse().expect("number");
+        assert_eq!(value.to_bits(), expected.parse::<f64>().expect("expected").to_bits());
+    }
+    let saved = dir.path().join("bold.fods");
+    doc.save_as(&mut worker, &crate::file_url(&saved), "fods").expect("saved");
+    let xml = std::fs::read_to_string(&saved).expect("XML");
+    for weight in ["fo:font-weight=\"bold\"", "style:font-weight-asian=\"bold\"", "style:font-weight-complex=\"bold\""] {
+        assert!(xml.contains(weight), "{weight} is missing");
+    }
 }

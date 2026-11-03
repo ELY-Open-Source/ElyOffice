@@ -5,6 +5,8 @@ then validates a complete typed batch before applying it in one undo list
 bound to the active view.
 Formula cells are read-only. Protected sheets and merged ranges are refused.
 The caller also checks the worker revision before dispatch.
+Each refusal carries a code (.uno:ElyMacroRefusal hands over the last one),
+so ElyTable can say why: too many cells, protected, merged, read-only, undo off.
 
 diff --git a/sc/sdi/scalc.sdi b/sc/sdi/scalc.sdi
 index d07619e..86f5897 100644
@@ -23,7 +25,7 @@ diff --git a/sc/source/ui/inc/elymacro.hxx b/sc/source/ui/inc/elymacro.hxx
 new file mode 100644
 --- /dev/null
 +++ b/sc/source/ui/inc/elymacro.hxx
-@@ -0,0 +1,268 @@
+@@ -0,0 +1,385 @@
 +/* This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
 + * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -52,6 +54,8 @@ new file mode 100644
 +#include <com/sun/star/util/XNumberFormatTypes.hpp>
 +#include <com/sun/star/util/XProtectable.hpp>
 +#include <com/sun/star/view/XSelectionSupplier.hpp>
++#include <rtl/math.hxx>
++#include <sal/log.hxx>
 +#include <tools/json_writer.hxx>
 +#include <svl/undo.hxx>
 +#include <boost/property_tree/json_parser.hpp>
@@ -63,24 +67,59 @@ new file mode 100644
 +#include <string>
 +#include <set>
 +#include <sstream>
++#include <vector>
 +
 +namespace elymacro
 +{
 +namespace css = com::sun::star;
 +using css::uno::Reference;
++using css::uno::UNO_QUERY;
 +using css::uno::UNO_QUERY_THROW;
 +using boost::property_tree::ptree;
 +
-+inline void require(bool b)
++// A refusal ElyTable words by its code.
++struct Refusal
++{
++    const char* code;
++};
++
++inline void require(bool b, const char* code)
 +{
 +    if (!b)
-+        throw css::uno::RuntimeException(u"Invalid or conflicting R macro batch"_ustr);
++        throw Refusal{ code };
 +}
++
++// Why the last batch failed, kept until ElyTable reads it.
++struct Reason
++{
++    std::string code;
++    OUString message;
++};
++
++inline Reason& lastRefusal()
++{
++    static Reason aReason;
++    return aReason;
++}
++
++// Hands over the last reason once.
++inline void refusal(tools::JsonWriter& rJson)
++{
++    Reason& rReason = lastRefusal();
++    rJson.put("refused", rReason.code);
++    rJson.put("message", rReason.message);
++    rReason = Reason();
++}
++
++// ElyTable's limit for the selection and the batch.
++constexpr sal_Int64 nBudget = 4 * 1024 * 1024;
 +
 +inline Reference<css::table::XCellRange> selection(const Reference<css::frame::XModel>& xModel)
 +{
 +    Reference<css::view::XSelectionSupplier> xSelection(xModel->getCurrentController(), UNO_QUERY_THROW);
-+    Reference<css::table::XCellRange> xRange(xSelection->getSelection(), UNO_QUERY_THROW);
++    // Shapes and several ranges are not one block.
++    Reference<css::table::XCellRange> xRange(xSelection->getSelection(), UNO_QUERY);
++    require(xRange.is(), "range");
 +    return xRange;
 +}
 +
@@ -110,12 +149,28 @@ new file mode 100644
 +
 +inline std::string decimal(double value)
 +{
-+    require(std::isfinite(value));
++    require(std::isfinite(value), "unreadable");
 +    char buffer[64];
 +    const auto result = std::to_chars(buffer, buffer + sizeof(buffer), value,
 +        std::chars_format::general, std::numeric_limits<double>::max_digits10);
-+    require(result.ec == std::errc{});
++    require(result.ec == std::errc{}, "unreadable");
 +    return std::string(buffer, result.ptr);
++}
++
++// Subnormals included; stream extraction rejects them on libc++.
++inline double number(const std::string& rText)
++{
++    rtl_math_ConversionStatus eStatus = rtl_math_ConversionStatus_Ok;
++    sal_Int32 nEnd = 0;
++    const double f = rtl::math::stringToDouble(rText, '.', 0, &eStatus, &nEnd);
++    require(!rText.empty() && eStatus == rtl_math_ConversionStatus_Ok
++        && nEnd == sal_Int32(rText.size()) && std::isfinite(f), "invalid");
++    return f;
++}
++
++inline sal_Int64 utf8Size(const OUString& rText)
++{
++    return OUStringToOString(rText, RTL_TEXTENCODING_UTF8).getLength();
 +}
 +
 +inline void snapshot(tools::JsonWriter& rJson, const Reference<css::frame::XModel>& xModel)
@@ -124,7 +179,18 @@ new file mode 100644
 +    const auto a = address(xRange);
 +    const sal_Int32 nRows = a.EndRow - a.StartRow + 1;
 +    const sal_Int32 nColumns = a.EndColumn - a.StartColumn + 1;
-+    require(nRows > 0 && nColumns > 0 && sal_Int64(nRows) * nColumns <= 10000);
++    require(nRows > 0 && nColumns > 0 && sal_Int64(nRows) * nColumns <= 10000, "cells");
++    // Counted first, so an oversized copy is never built.
++    sal_Int64 nBytes = 0;
++    for (sal_Int32 r = 0; r < nRows; ++r)
++        for (sal_Int32 c = 0; c < nColumns; ++c)
++        {
++            const auto xCell = xRange->getCellByPosition(c, r);
++            nBytes += 64 + utf8Size(Reference<css::text::XTextRange>(xCell, UNO_QUERY_THROW)->getString());
++            if (xCell->getType() == css::table::CellContentType_FORMULA)
++                nBytes += utf8Size(xCell->getFormula());
++            require(nBytes <= nBudget, "too_big");
++        }
 +    rJson.put("range", rangeName(a));
 +    rJson.put("rows", nRows);
 +    rJson.put("columns", nColumns);
@@ -132,12 +198,13 @@ new file mode 100644
 +    for (sal_Int32 r = 0; r < nRows; ++r)
 +        for (sal_Int32 c = 0; c < nColumns; ++c)
 +        {
-+            auto aCell = rJson.startStruct();
 +            const auto xCell = xRange->getCellByPosition(c, r);
 +            auto eType = xCell->getType();
-+            if (eType == css::table::CellContentType_FORMULA)
++            const bool bFormula = eType == css::table::CellContentType_FORMULA;
++            OUString aFormula;
++            if (bFormula)
 +            {
-+                rJson.put("formula", xCell->getFormula());
++                aFormula = xCell->getFormula();
 +                // Formula results remain separate from their source.
 +                sal_Int32 nResult = 0;
 +                Reference<css::beans::XPropertySet>(xCell, UNO_QUERY_THROW)
@@ -145,6 +212,12 @@ new file mode 100644
 +                eType = nResult == 1 ? css::table::CellContentType_VALUE
 +                                    : css::table::CellContentType_TEXT;
 +            }
++            OUString aText;
++            if (eType == css::table::CellContentType_TEXT)
++                aText = Reference<css::text::XTextRange>(xCell, UNO_QUERY_THROW)->getString();
++            auto aCell = rJson.startStruct();
++            if (bFormula)
++                rJson.put("formula", aFormula);
 +            if (eType == css::table::CellContentType_EMPTY)
 +            {
 +                rJson.put("kind", "empty");
@@ -162,7 +235,7 @@ new file mode 100644
 +            else
 +            {
 +                rJson.put("kind", "text");
-+                rJson.put("value", Reference<css::text::XTextRange>(xCell, UNO_QUERY_THROW)->getString());
++                rJson.put("value", aText);
 +            }
 +        }
 +}
@@ -184,57 +257,94 @@ new file mode 100644
 +    return aTree;
 +}
 +
++struct Write
++{
++    sal_Int32 nIndex;
++    std::string aKind;
++    std::string aValue;
++};
++
++struct Batch
++{
++    std::vector<Write> aWrites;
++    std::string aBold;
++    bool bAutofit = false;
++};
++
++// Every check runs before the first change.
++inline Batch validated(const ptree& rTree, sal_Int32 nCells)
++{
++    Batch aBatch;
++    std::set<sal_Int32> aIndices;
++    for (const auto& rEntry : rTree.get_child("writes"))
++    {
++        const auto& w = rEntry.second;
++        Write aWrite{ w.get<sal_Int32>("index"), w.get<std::string>("kind"),
++                      w.get<std::string>("value") };
++        const auto& k = aWrite.aKind;
++        const auto& v = aWrite.aValue;
++        require(aWrite.nIndex >= 0 && aWrite.nIndex < nCells
++            && aIndices.insert(aWrite.nIndex).second, "invalid");
++        require(k == "text" || k == "number" || k == "boolean" || k == "empty", "invalid");
++        // Calc holds no empty text; an empty write clears.
++        require(k != "text" || (!v.empty() && v.size() <= 32767
++            && v.find('\0') == std::string::npos), "invalid");
++        if (k == "number")
++            number(v);
++        require(k != "boolean" || v == "true" || v == "false", "invalid");
++        require(k != "empty" || v == "null", "invalid");
++        aBatch.aWrites.push_back(std::move(aWrite));
++    }
++    aBatch.aBold = rTree.get<std::string>("bold");
++    require(aBatch.aBold == "null" || aBatch.aBold == "true" || aBatch.aBold == "false", "invalid");
++    aBatch.bAutofit = rTree.get<bool>("autofit");
++    return aBatch;
++}
++
 +inline void apply(const Reference<css::frame::XModel>& xModel, const OUString& rBatch,
 +                  SfxUndoManager& rUndo, ViewShellId nView)
 +{
-+    require(rBatch.getLength() <= 4 * 1024 * 1024);
-+    for (const auto& arg : xModel->getArgs())
-+        if (arg.Name == "ReadOnly")
-+        {
-+            bool bReadOnly = false;
-+            arg.Value >>= bReadOnly;
-+            require(!bReadOnly);
-+        }
-+    const auto aBatch = parse(rBatch.toUtf8().getStr());
++    require(rBatch.getLength() <= nBudget, "too_big");
 +    tools::JsonWriter aNow;
-+    snapshot(aNow, xModel);
-+    require(parse(aNow.finishAndGetAsOString().getStr()) == aBatch.get_child("snapshot"));
++    // A selection R did not read is a changed one.
++    try
++    {
++        snapshot(aNow, xModel);
++    }
++    catch (const Refusal&)
++    {
++        throw Refusal{ "changed" };
++    }
 +    const auto xRange = selection(xModel);
 +    const auto a = address(xRange);
 +    const sal_Int32 nRows = a.EndRow - a.StartRow + 1;
 +    const sal_Int32 nColumns = a.EndColumn - a.StartColumn + 1;
++    Batch aBatch;
++    try
++    {
++        const auto aTree = parse(rBatch.toUtf8().getStr());
++        require(parse(aNow.finishAndGetAsOString().getStr()) == aTree.get_child("snapshot"), "changed");
++        aBatch = validated(aTree, nRows * nColumns);
++    }
++    catch (const boost::property_tree::ptree_error&)
++    {
++        throw Refusal{ "invalid" };
++    }
 +    Reference<css::sheet::XSheetCellRange> xSheetRange(xRange, UNO_QUERY_THROW);
 +    auto xSheet = xSheetRange->getSpreadsheet();
-+    require(!Reference<css::util::XProtectable>(xSheet, UNO_QUERY_THROW)->isProtected());
++    require(!Reference<css::util::XProtectable>(xSheet, UNO_QUERY_THROW)->isProtected(), "protected");
 +    // Reject merged ranges, including a merge crossing the boundary.
 +    auto xCursor = xSheet->createCursorByRange(xSheetRange);
 +    xCursor->collapseToMergedArea();
-+    require(rangeName(address(Reference<css::table::XCellRange>(xCursor, UNO_QUERY_THROW))) == rangeName(a));
++    require(rangeName(address(Reference<css::table::XCellRange>(xCursor, UNO_QUERY_THROW))) == rangeName(a), "merged");
 +    for (sal_Int32 r = 0; r < nRows; ++r)
 +        for (sal_Int32 c = 0; c < nColumns; ++c)
-+            require(!Reference<css::util::XMergeable>(xRange->getCellRangeByPosition(c,r,c,r), UNO_QUERY_THROW)->getIsMerged());
-+    const auto& rWrites = aBatch.get_child("writes");
-+    std::set<sal_Int32> aIndices;
-+    for (const auto& rEntry : rWrites)
-+    {
-+        const auto& w = rEntry.second;
-+        const sal_Int32 i = w.get<sal_Int32>("index");
-+        require(i >= 0 && i < nRows * nColumns && aIndices.insert(i).second);
-+        const auto xCell = xRange->getCellByPosition(i % nColumns, i / nColumns);
-+        require(xCell->getType() != css::table::CellContentType_FORMULA);
-+        const auto k = w.get<std::string>("kind");
-+        const auto v = w.get<std::string>("value");
-+        require(k == "text" || k == "number" || k == "boolean" || k == "empty");
-+        require(k != "text" || (v.size() <= 32767 && v.find('\0') == std::string::npos));
-+        require(k != "number" || std::isfinite(w.get<double>("value")));
-+        require(k != "boolean" || v == "true" || v == "false");
-+        require(k != "empty" || v == "null");
-+    }
-+    const auto sBold = aBatch.get<std::string>("bold");
-+    require(sBold == "null" || sBold == "true" || sBold == "false");
-+    const bool bAutofit = aBatch.get<bool>("autofit");
-+    require(rUndo.IsUndoEnabled() && !rUndo.IsInListAction()
-+        && rUndo.GetMaxUndoActionCount() > 0);
++            require(!Reference<css::util::XMergeable>(xRange->getCellRangeByPosition(c,r,c,r), UNO_QUERY_THROW)->getIsMerged(), "merged");
++    for (const auto& w : aBatch.aWrites)
++        require(xRange->getCellByPosition(w.nIndex % nColumns, w.nIndex / nColumns)->getType()
++            != css::table::CellContentType_FORMULA, "invalid");
++    require(rUndo.IsUndoEnabled() && rUndo.GetMaxUndoActionCount() > 0, "undo_off");
++    require(!rUndo.IsInListAction(), "busy");
 +    static std::atomic<sal_uInt64> nRun{0};
 +    const OUString aTitle = u"R macro (experimental) #"_ustr + OUString::number(++nRun);
 +    xModel->lockControllers();
@@ -243,36 +353,40 @@ new file mode 100644
 +    bool bLeft = false;
 +    try
 +    {
-+        for (const auto& rEntry : rWrites)
++        for (const auto& w : aBatch.aWrites)
 +        {
-+            const auto& w = rEntry.second;
-+            const sal_Int32 i = w.get<sal_Int32>("index");
-+            const auto xCell = xRange->getCellByPosition(i % nColumns, i / nColumns);
-+            const auto k = w.get<std::string>("kind");
-+            if (k == "text")
-+                Reference<css::text::XTextRange>(xCell, UNO_QUERY_THROW)->setString(OUString::fromUtf8(w.get<std::string>("value")));
-+            else if (k == "empty")
-+                Reference<css::sheet::XSheetOperation>(xRange->getCellRangeByPosition(i%nColumns,i/nColumns,i%nColumns,i/nColumns), UNO_QUERY_THROW)
++            const sal_Int32 c = w.nIndex % nColumns;
++            const sal_Int32 r = w.nIndex / nColumns;
++            const auto xCell = xRange->getCellByPosition(c, r);
++            if (w.aKind == "text")
++                Reference<css::text::XTextRange>(xCell, UNO_QUERY_THROW)->setString(OUString::fromUtf8(w.aValue));
++            else if (w.aKind == "empty")
++                Reference<css::sheet::XSheetOperation>(xRange->getCellRangeByPosition(c, r, c, r), UNO_QUERY_THROW)
 +                    ->clearContents(css::sheet::CellFlags::VALUE | css::sheet::CellFlags::DATETIME | css::sheet::CellFlags::STRING | css::sheet::CellFlags::FORMULA);
 +            else
 +            {
-+                if (k == "boolean" || logical(xModel, xCell))
++                if (w.aKind == "boolean" || logical(xModel, xCell))
 +                {
 +                    Reference<css::util::XNumberFormatsSupplier> xFormats(xModel, UNO_QUERY_THROW);
 +                    Reference<css::util::XNumberFormatTypes> xTypes(xFormats->getNumberFormats(), UNO_QUERY_THROW);
 +                    css::lang::Locale aLocale;
 +                    aLocale.Language = "en";
 +                    aLocale.Country = "US";
-+                    const sal_Int32 nFormat = xTypes->getStandardFormat(k == "boolean" ? css::util::NumberFormat::LOGICAL : css::util::NumberFormat::NUMBER, aLocale);
++                    const sal_Int32 nFormat = xTypes->getStandardFormat(w.aKind == "boolean" ? css::util::NumberFormat::LOGICAL : css::util::NumberFormat::NUMBER, aLocale);
 +                    Reference<css::beans::XPropertySet>(xCell, UNO_QUERY_THROW)->setPropertyValue(u"NumberFormat"_ustr, css::uno::Any(nFormat));
 +                }
-+                xCell->setValue(k == "boolean" ? (w.get<bool>("value") ? 1 : 0) : w.get<double>("value"));
++                xCell->setValue(w.aKind == "boolean" ? (w.aValue == "true" ? 1 : 0) : number(w.aValue));
 +            }
 +        }
-+        if (sBold != "null")
-+            Reference<css::beans::XPropertySet>(xRange->getCellRangeByPosition(0,0,nColumns-1,0), UNO_QUERY_THROW)
-+                ->setPropertyValue(u"CharWeight"_ustr, css::uno::Any(sBold == "true" ? css::awt::FontWeight::BOLD : css::awt::FontWeight::NORMAL));
-+        if (bAutofit)
++        if (aBatch.aBold != "null")
++        {
++            const css::uno::Any aWeight(aBatch.aBold == "true" ? css::awt::FontWeight::BOLD : css::awt::FontWeight::NORMAL);
++            Reference<css::beans::XPropertySet> xHeader(xRange->getCellRangeByPosition(0, 0, nColumns - 1, 0), UNO_QUERY_THROW);
++            // Western, Asian and complex scripts weigh apart.
++            for (const auto& rName : { u"CharWeight"_ustr, u"CharWeightAsian"_ustr, u"CharWeightComplex"_ustr })
++                xHeader->setPropertyValue(rName, aWeight);
++        }
++        if (aBatch.bAutofit)
 +        {
 +            Reference<css::table::XColumnRowRange> xColumns(xRange, UNO_QUERY_THROW);
 +            for (sal_Int32 c = 0; c < nColumns; ++c)
@@ -286,8 +400,13 @@ new file mode 100644
 +    {
 +        if (!bLeft)
 +            rUndo.LeaveListAction();
++        // Undone, the partial list must not wait in Redo.
 +        if (rUndo.GetUndoActionCount() && rUndo.GetUndoActionComment() == aTitle)
-+            require(rUndo.Undo());
++        {
++            if (!rUndo.Undo())
++                SAL_WARN("sc.ui", "R macro partial batch not undone");
++            rUndo.ClearRedo();
++        }
 +        throw;
 +    }
 +}
@@ -304,25 +423,29 @@ index ebb729f..6a4247d 100644
  #include <config_feature_opencl.h>
 
  #include <scitems.hxx>
-@@ -1131,7 +1132,7 @@ bool ScModelObj::supportsCommand(std::u16string_view rCommand)
+@@ -1131,7 +1132,8 @@ bool ScModelObj::supportsCommand(std::u16string_view rCommand)
              u"AutoFilterValues", u"DataSelectValues",   u"Validation",
              u"NumberFormatCode", u"ConditionalFormats", u"Chart",
              u"PivotTable",       u"PrintLayout",        u"SheetProtection",
 -            u"ExternalLinks",    u"CellAt",             u"KeptResults" };
-+            u"ElyMacroSelection", u"ExternalLinks",    u"CellAt",             u"KeptResults" };
++            u"ElyMacroSelection", u"ElyMacroRefusal",
++            u"ExternalLinks",    u"CellAt",             u"KeptResults" };
      return std::find(std::begin(aCommands), std::end(aCommands), rCommand) != std::end(aCommands);
  }
 
-@@ -1145,6 +1146,12 @@ void ScModelObj::getCommandValues(tools::JsonWriter& rJsonWriter, std::string_vi
+@@ -1145,6 +1147,15 @@ void ScModelObj::getCommandValues(tools::JsonWriter& rJsonWriter, std::string_vi
          return lcl_KeptResults(rJsonWriter, pDocShell->GetDocument());
      if (pDocShell && o3tl::starts_with(rCommand, ".uno:CellAt?"))
          return lcl_CellAt(rJsonWriter, pDocShell->GetDocument(), rCommand);
 +    if (pDocShell && rCommand == ".uno:ElyMacroSelection")
 +    {
 +        try { elymacro::snapshot(rJsonWriter, pDocShell->GetModel()); }
++        catch (const elymacro::Refusal& r) { rJsonWriter.put("refused", r.code); }
 +        catch (const css::uno::Exception& e) { rJsonWriter.put("error", e.Message); }
 +        return;
 +    }
++    if (rCommand == ".uno:ElyMacroRefusal")
++        return elymacro::refusal(rJsonWriter);
      ScViewData* pCurrent = ScDocShell::GetViewData();
      if (pDocShell && pCurrent)
      {
@@ -340,28 +463,43 @@ index 77a0b7c..55d65e8 100644
  #include <scitems.hxx>
  #include <editeng/editview.hxx>
  #include <editeng/editeng.hxx>
-@@ -382,6 +385,28 @@ void ScCellShell::Execute( SfxRequest& rReq )
+@@ -382,6 +385,43 @@ void ScCellShell::Execute( SfxRequest& rReq )
 
          case SID_ENTER_STRING:
              {
 +                const SfxPoolItem* pMacro;
 +                if (pReqArgs && pReqArgs->HasItem(FN_PARAM_3, &pMacro))
 +                {
++                    ScDocShell* pShell = GetViewData().GetDocShell();
++                    elymacro::lastRefusal() = elymacro::Reason();
 +                    try
 +                    {
-+                        elymacro::require(GetViewData().GetDocument().IsUndoEnabled());
-+                        elymacro::require(GetViewData().GetDocShell()->GetUndoManager()->GetMaxUndoActionCount() > 0);
-+                        elymacro::apply(GetViewData().GetDocShell()->GetModel(),
++                        // The state now, not the load arguments.
++                        elymacro::require(!pShell->IsReadOnly(), "read_only");
++                        elymacro::require(GetViewData().GetDocument().IsUndoEnabled(), "undo_off");
++                        elymacro::apply(pShell->GetModel(),
 +                            static_cast<const SfxStringItem*>(pMacro)->GetValue(),
-+                            *GetViewData().GetDocShell()->GetUndoManager(),
-+                            pTabViewShell->GetViewShellId());
++                            *pShell->GetUndoManager(), pTabViewShell->GetViewShellId());
 +                        pTabViewShell->UpdateInputHandler();
 +                        rReq.SetReturnValue(SfxBoolItem(SID_ENTER_STRING, true));
 +                        rReq.Done();
 +                    }
-+                    catch (...)
++                    catch (const elymacro::Refusal& rRefusal)
 +                    {
-+                        SAL_WARN("sc.ui", "R macro batch refused");
++                        SAL_WARN("sc.ui", "R macro batch refused: " << rRefusal.code);
++                        elymacro::lastRefusal() = { rRefusal.code, OUString() };
++                        rReq.Ignore();
++                    }
++                    catch (const css::uno::Exception& rError)
++                    {
++                        SAL_WARN("sc.ui", "R macro batch failed: " << rError.Message);
++                        elymacro::lastRefusal() = { "failed", rError.Message };
++                        rReq.Ignore();
++                    }
++                    catch (const std::exception& rError)
++                    {
++                        SAL_WARN("sc.ui", "R macro batch failed: " << rError.what());
++                        elymacro::lastRefusal() = { "failed", OUString::fromUtf8(rError.what()) };
 +                        rReq.Ignore();
 +                    }
 +                    break;

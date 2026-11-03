@@ -6,7 +6,7 @@ use gpui::{AppContext as _, Entity, TestAppContext, WindowHandle};
 use crate::book::Book;
 use crate::dialog::Dialog;
 
-struct Blank;
+pub(crate) struct Blank;
 
 impl gpui::Render for Blank {
     fn render(
@@ -19,7 +19,7 @@ impl gpui::Render for Blank {
 }
 
 /// An unrendered Book over a fresh worker, if LOK exists.
-fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<Blank>, Entity<Book>)> {
+pub(crate) fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<Blank>, Entity<Book>)> {
     let install = ely_lok::test_install()?;
     let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");
@@ -43,7 +43,7 @@ fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<Blank>, Ent
 
 /// Steps the scheduler until `done` or ten seconds pass.
 #[track_caller]
-fn settle(cx: &TestAppContext, done: impl Fn(&gpui::App) -> bool) {
+pub(crate) fn settle(cx: &TestAppContext, done: impl Fn(&gpui::App) -> bool) {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     while std::time::Instant::now() < deadline {
         if !cx.executor().tick() {
@@ -70,7 +70,7 @@ fn fresh(cx: &TestAppContext, book: &Entity<Book>) {
     });
 }
 
-fn update(
+pub(crate) fn update(
     cx: &mut TestAppContext,
     book: &Entity<Book>,
     f: impl FnOnce(&mut Book, &mut gpui::Context<Book>),

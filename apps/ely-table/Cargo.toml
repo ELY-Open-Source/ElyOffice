@@ -17,6 +17,7 @@ ely-gpui-component.workspace = true
 serde_json.workspace = true
 ely-lok = { workspace = true, features = ["view"] }
 ely-office.workspace = true
+ely-files.workspace = true
 gpui.workspace = true
 log.workspace = true
 ely-platform.workspace = true

@@ -27,7 +27,8 @@ pub fn run(rscript: &Path, snapshot: &Snapshot, script: &str, stop: &AtomicBool)
     Outcome { log, batch }
 }
 
-fn read_limited(path: &Path) -> io::Result<String> {
+/// At most `BYTES`, however the file grows.
+pub(super) fn read_limited(path: &Path) -> io::Result<String> {
     let file = fs::File::open(path)?;
     if file.metadata()?.len() > BYTES {
         return Err(refused("table.r.too_big"));
@@ -73,15 +74,19 @@ fn execute(
         .stdin(Stdio::null())
         .stdout(fs::File::create(&stdout)?)
         .stderr(fs::File::create(&stderr)?);
+    // A stop before R starts runs nothing.
+    if stop.load(Ordering::Relaxed) {
+        return Err(refused("table.r.stopped"));
+    }
     let mut run = Run::start(&mut command).map_err(|error| match error.kind() {
         io::ErrorKind::NotFound => refused("table.r.missing"),
         _ => error,
     })?;
     let started = Instant::now();
-    let status = loop {
-        match run.child.try_wait() {
-            Ok(Some(status)) => break Ok(status),
-            Ok(None) => {}
+    let ended = loop {
+        match run.exited() {
+            Ok(true) => break Ok(()),
+            Ok(false) => {}
             Err(error) => break Err(error),
         }
         let oversized = [&stdout, &stderr, &output]
@@ -98,13 +103,12 @@ fn execute(
         }
         std::thread::sleep(Duration::from_millis(25));
     };
+    // Helpers end on every path, an exit too.
+    let status = run.finish()?;
     let elapsed = started.elapsed().as_millis();
-    match &status {
-        Ok(status) => log::info!("table: Rscript ended {status} after {elapsed} ms"),
+    match &ended {
+        Ok(()) => log::info!("table: Rscript ended {status} after {elapsed} ms"),
         Err(error) => log::info!("table: Rscript ended by {:?} after {elapsed} ms", refusal(error)),
-    }
-    if status.is_err() {
-        run.end()?;
     }
     let mut output_error = None;
     for path in [&stdout, &stderr] {
@@ -113,7 +117,11 @@ fn execute(
             Err(error) => output_error = Some(error),
         }
     }
-    let status = status?;
+    ended?;
+    // A stop while R exited still drops its batch.
+    if stop.load(Ordering::Relaxed) {
+        return Err(refused("table.r.stopped"));
+    }
     if let Some(error) = output_error {
         return Err(error);
     }
@@ -156,6 +164,16 @@ mod tests {
         let error = go(&dir.path().join("absent-Rscript"), "", TIMEOUT, &mut String::new())
             .expect_err("missing");
         assert_eq!(refusal(&error), Some("table.r.missing"));
+    }
+
+    #[test]
+    fn a_stop_before_r_starts_runs_nothing() {
+        let dir = tempfile::tempdir().expect("directory");
+        let absent = dir.path().join("absent-Rscript");
+        let stop = AtomicBool::new(true);
+        let error = execute(&absent, &snapshot(), "", TIMEOUT, &stop, &mut String::new())
+            .expect_err("stopped");
+        assert_eq!(refusal(&error), Some("table.r.stopped"), "R was never started");
     }
 
     #[cfg(unix)]

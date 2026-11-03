@@ -2608,6 +2608,7 @@ dependencies = [
 name = "ely-table"
 version = "0.1.13"
 dependencies = [
+ "ely-files 0.1.13",
  "ely-gpui-component",
  "ely-lok",
  "ely-office",
