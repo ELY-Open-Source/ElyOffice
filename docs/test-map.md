@@ -70,6 +70,7 @@
 | TABLE-14 | 打印 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
 | TABLE-15 | 保护 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
 | TABLE-16 | 大数据浏览 | C09.1（~）、C09.5（~）、决策 C09.5 | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
+| TABLE-17 | R 宏（实验性） | 无 | — | apps/ely-table/src/tests、theme.sh |
 | SHOW-01 | 幻灯片管理 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
 | SHOW-02 | 模板与母版 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
 | SHOW-03 | 文字 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |

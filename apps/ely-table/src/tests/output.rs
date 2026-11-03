@@ -434,7 +434,13 @@ fn the_default_encoding_follows_the_apps_language() {
     let path = dir.path().join("gb.csv");
     // 你好 in GB18030: not UTF-8.
     std::fs::write(&path, [0xC4, 0xE3, 0xBA, 0xC3, b'\n']).expect("writes");
-    for (tag, expected) in [("zh-CN", Encoding::Gb18030), ("en-US", Encoding::Windows1252), ("es-ES", Encoding::Windows1252)] {
+    let pages = [
+        ("zh-CN", Encoding::Gb18030),
+        ("en-US", Encoding::Windows1252),
+        ("es-ES", Encoding::Windows1252),
+        ("ja-JP", Encoding::ShiftJis),
+    ];
+    for (tag, expected) in pages {
         cx.update(|app| I18n::set_locale(tag, app));
         update(&mut cx, &book, |book, cx| book.ask_import(path.clone(), cx));
         asked(&cx, &book, |dialog| matches!(dialog, Dialog::Import(_)));

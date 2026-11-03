@@ -2608,6 +2608,7 @@ dependencies = [
 name = "ely-table"
 version = "0.1.13"
 dependencies = [
+ "ely-files 0.1.13",
  "ely-gpui-component",
  "ely-lok",
  "ely-office",
@@ -2615,11 +2616,14 @@ dependencies = [
  "ely-ui",
  "embed-resource",
  "encoding_rs",
+ "futures",
  "gpui-pre",
+ "libc",
  "log",
  "serde_json",
  "tempfile",
  "unicase",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

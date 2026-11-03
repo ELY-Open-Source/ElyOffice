@@ -116,6 +116,26 @@ fn csv_imports_take_the_encoding_separator_and_quote() {
 }
 
 #[test]
+fn shift_jis_imports_as_excel_writes_it() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install().expect("LOK"), &dir.path().join("p")).expect("up");
+    // ①㈱～日本 as Japanese Excel saves it: Windows-932.
+    let bytes = [0x87, 0x40, 0x87, 0x8A, 0x81, 0x60, 0x93, 0xFA, 0x96, 0x7B, b'\n'];
+    let how = Import {
+        separator: ',',
+        quote: Some('"'),
+        encoding: Encoding::ShiftJis,
+        columns: Vec::new(),
+    };
+    let doc = import(dir.path(), &mut worker, &bytes, &how);
+    let xml = flat(&mut worker, &doc, dir.path());
+    assert!(xml.contains("<text:p>①㈱～日本</text:p>"), "Windows-932 characters read");
+}
+
+#[test]
 fn a_txt_file_imports_as_a_sheet() {
     if skip() {
         return;

@@ -1,0 +1,26 @@
+//! Japanese analysis messages.
+
+pub(super) const JA: &[(&str, &str)] = &[
+    ("table.pivot.make", "ピボットテーブル…"),
+    ("table.pivot.refresh", "ピボットテーブルの更新"),
+    ("table.pivot.title", "ピボットテーブル"),
+    ("table.pivot.source", "ソース: {range}"),
+    ("table.pivot.unused", "未使用"),
+    ("table.pivot.rows", "行"),
+    ("table.pivot.columns", "列"),
+    ("table.pivot.pages", "フィルター"),
+    ("table.pivot.data", "値"),
+    ("table.pivot.sum", "合計"),
+    ("table.pivot.count", "個数"),
+    ("table.pivot.average", "平均"),
+    ("table.pivot.max", "最大"),
+    ("table.pivot.min", "最小"),
+    ("table.pivot.other", "その他"),
+    ("table.pivot.function_of", "{field} の集計"),
+    ("table.pivot.go", "作成"),
+    ("table.pivot.apply", "適用"),
+    ("table.pivot.headers", "ピボットテーブルを作成するには、すべての列に見出しが必要です。"),
+    ("table.pivot.none", "カーソルがピボットテーブル内にありません。"),
+    ("table.chart.make", "グラフ…"),
+    ("table.chart.range", "データ範囲"),
+];

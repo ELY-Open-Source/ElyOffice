@@ -16,6 +16,10 @@ pub const FORMATS: &str = ".uno:ConditionalFormats";
 pub const LINKS: &str = ".uno:ExternalLinks";
 /// Cells showing the file's result: their function is unknown.
 pub const KEPT: &str = ".uno:KeptResults";
+/// A typed copy of the selection for R (0081).
+pub const MACRO: &str = ".uno:ElyMacroSelection";
+/// Why the last R batch was refused, read once (0081).
+pub const MACRO_REFUSAL: &str = ".uno:ElyMacroRefusal";
 
 fn parse(json: &str, what: &str) -> io::Result<serde_json::Value> {
     serde_json::from_str(json).map_err(|error| io::Error::other(format!("bad {what}: {error}")))

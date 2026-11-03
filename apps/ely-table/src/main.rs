@@ -12,6 +12,7 @@ mod format;
 mod formulas;
 mod grid;
 mod menu;
+mod macros;
 mod output;
 mod page;
 mod protect;

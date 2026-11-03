@@ -8,6 +8,7 @@ use gpui::{AppContext as _, Entity, TestAppContext};
 
 use crate::deck::Deck;
 
+mod focus;
 mod menu;
 mod motion;
 mod notes;

@@ -1,0 +1,5 @@
+#!/bin/sh
+printf 'Mensaje con tildes: áé\n'
+printf 'Error: falló\n' >&2
+printf 'ELY_R_1\nA\nDONE\n' > "$5"
+exit 7
