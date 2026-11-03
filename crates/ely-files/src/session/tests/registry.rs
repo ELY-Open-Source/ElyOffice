@@ -281,8 +281,9 @@ fn a_rename_is_found_by_identity_not_by_link() {
     let moved = dir.path().join("b.md");
     std::fs::rename(&first, &moved).expect("the rename");
     std::os::unix::fs::symlink(&moved, dir.path().join("link.md")).expect("the link");
-    let found = sessions.renamed_in(id, dir.path()).expect("the scan");
+    let had = sessions.identity_of(id).expect("an identity");
+    let found = Sessions::renamed_in(had, dir.path()).expect("the scan");
     assert_eq!(found, Some(moved.clone()));
     std::fs::remove_file(&moved).expect("the delete");
-    assert_eq!(sessions.renamed_in(id, dir.path()).expect("the scan"), None);
+    assert_eq!(Sessions::renamed_in(had, dir.path()).expect("the scan"), None);
 }

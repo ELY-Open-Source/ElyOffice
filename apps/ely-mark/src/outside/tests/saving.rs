@@ -110,3 +110,102 @@ fn a_look_reads_the_disk_between_the_windows_turns(cx: &mut TestAppContext) {
     settle(cx);
     assert_eq!(shown(&desk, cx), "two, longer\n");
 }
+
+fn state(desk: &Entity<Desk>, id: u64, cx: &mut VisualTestContext) -> SaveState {
+    desk.read_with(cx, |desk, _| desk.tab(id).expect("open").session.state())
+}
+
+#[gpui::test]
+fn an_edit_after_the_copy_is_taken_stays_unsaved(cx: &mut TestAppContext) {
+    let (desk, cx, id, path, _dirs) = opened("one\n", cx);
+    edit(&desk, "two\n", cx);
+    let copy = desk.read_with(cx, |desk, _| desk.tab(id).expect("open").work.join("save.md"));
+    assert!(!copy.exists(), "no copy before the save");
+    save(&desk, id, cx);
+    let dispatcher = cx.executor().dispatcher().as_test().expect("a test dispatcher").clone();
+    // The copy is taken; the window has not heard yet.
+    while !copy.exists() {
+        while dispatcher.tick(true) {}
+        assert!(copy.exists() || dispatcher.tick(false), "the copy was never taken");
+    }
+    edit(&desk, "three\n", cx);
+    cx.run_until_parked();
+    assert_eq!(std::fs::read_to_string(&path).expect("reads"), "two\n");
+    assert_eq!(state(&desk, id, cx), SaveState::Dirty, "the later edit shows saved");
+}
+
+#[gpui::test]
+fn opening_a_file_being_saved_as_focuses_the_saving_tab(cx: &mut TestAppContext) {
+    let (desk, cx, id, path, _dirs) = opened("one\n", cx);
+    let target = path.with_file_name("b.md");
+    std::fs::write(&target, "old\n").expect("the target");
+    edit(&desk, "mine\n", cx);
+    let to = target.clone();
+    desk.update_in(cx, |desk, window, cx| desk.write_as(id, to, None, window, cx));
+    assert!(until_saving(&desk, id, cx), "the write runs apart from the window");
+    desk.update(cx, |desk, cx| desk.open_file(target.clone(), cx));
+    settle(cx);
+    let (tabs, active) = desk.read_with(cx, |desk, _| (desk.core.tabs.len(), desk.core.active));
+    assert_eq!((tabs, active), (1, Some(id)), "one editable tab per file");
+    assert_eq!(std::fs::read_to_string(&target).expect("reads"), "mine\n");
+}
+
+#[gpui::test]
+fn a_read_waits_for_the_disk_seen_again(cx: &mut TestAppContext) {
+    let (desk, cx, id, path, _dirs) = opened("one\n", cx);
+    std::fs::write(&path, "two, longer\n").expect("an outside write");
+    let seen = ely_files::Fingerprint::of(&path).expect("the fingerprint");
+    let disk = crate::text::Source::decode(std::fs::read(&path).expect("reads")).expect("decodes");
+    desk.update(cx, |desk, cx| {
+        let number = desk.tab(id).expect("open").extra.reads;
+        desk.disk_read(id, path.clone(), number, Ok((seen, disk)), cx);
+    });
+    assert_eq!(shown(&desk, cx), "one\n", "the window saw the disk on its turn");
+    settle(cx);
+    assert_eq!(shown(&desk, cx), "two, longer\n");
+}
+
+#[gpui::test]
+fn keep_mine_sees_the_disk_between_the_windows_turns(cx: &mut TestAppContext) {
+    let (desk, cx, id, path, _dirs) = opened("one\n", cx);
+    edit(&desk, "mine\n", cx);
+    save(&desk, id, cx);
+    assert!(until_saving(&desk, id, cx), "the write runs apart from the window");
+    std::fs::write(&path, "theirs, longer\n").expect("an outside write");
+    settle(cx);
+    assert_eq!(state(&desk, id, cx), SaveState::ExternalModified);
+    let exporting = desk.update_in(cx, |desk, window, cx| {
+        desk.keep_mine(id, None, window, cx);
+        desk.tab(id).expect("open").exporting
+    });
+    assert!(!exporting, "Keep Mine read the disk on the window's turn");
+    settle(cx);
+    assert_eq!(std::fs::read_to_string(&path).expect("reads"), "mine\n");
+    assert_eq!(state(&desk, id, cx), SaveState::Saved);
+}
+
+#[gpui::test]
+fn the_recent_list_retries_a_path_it_missed(cx: &mut TestAppContext) {
+    let (desk, cx, id, path, _dirs) = opened("one\n", cx);
+    let blocker = path.with_file_name("blocker");
+    std::fs::write(&blocker, "").expect("a file in the way");
+    let good = desk.update(cx, |desk, _| {
+        desk.remembered.clear();
+        desk.recent.clear();
+        desk.tab_mut(id).expect("open").extra.tracked = None;
+        std::mem::replace(&mut desk.recent_file, blocker.join("recent"))
+    });
+    std::fs::remove_file(&good).expect("the list starts empty");
+    let track = |desk: &Entity<Desk>, cx: &mut VisualTestContext| {
+        desk.update(cx, |desk, cx| desk.track_recent(id, &path, cx));
+    };
+    // Gone mid-replace, then unwritable: both are retried.
+    std::fs::rename(&path, blocker.with_extension("away")).expect("moved away");
+    track(&desk, cx);
+    std::fs::rename(blocker.with_extension("away"), &path).expect("moved back");
+    track(&desk, cx);
+    desk.update(cx, |desk, _| desk.recent_file = good);
+    track(&desk, cx);
+    let real = dunce::canonicalize(&path).expect("the real path");
+    assert_eq!(desk.read_with(cx, |desk, _| desk.recent.first().cloned()), Some(real));
+}

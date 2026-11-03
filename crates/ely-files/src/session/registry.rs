@@ -158,6 +158,39 @@ impl Sessions {
         Ok(())
     }
 
+    /// The session of what `saved` wrote, else new.
+    pub fn adopt(&mut self, saved: &crate::Saved) -> Open {
+        if let Some(id) = self.held(&saved.path, saved.written.id) {
+            return Open::Focus(id);
+        }
+        let id = self.next;
+        self.next += 1;
+        self.open.push((saved.path.clone(), saved.written.id, id));
+        Open::Fresh(id)
+    }
+
+    /// The session holding `path`; only `path` is read.
+    pub fn holding(&self, path: &Path) -> io::Result<Option<usize>> {
+        match Self::key(path) {
+            Ok(key) => Ok(self.held(&key.canonical, key.id)),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// A recorded path or file identity, matched in memory.
+    fn held(&self, canonical: &Path, id: Option<FileId>) -> Option<usize> {
+        let found = self.open.iter().find(|(have, had, _)| have == canonical || (id.is_some() && *had == id));
+        found.map(|(_, _, session)| *session)
+    }
+
+    /// Session `id`'s path now holds file `file`, as read.
+    pub fn replaced(&mut self, id: usize, file: Option<FileId>) {
+        for entry in self.open.iter_mut().filter(|(_, _, have)| *have == id) {
+            entry.1 = file;
+        }
+    }
+
     /// Session `id` names what `saved` wrote; no disk read.
     pub fn saved(&mut self, id: usize, saved: &crate::Saved) {
         for entry in self.open.iter_mut().filter(|(_, _, have)| *have == id) {
@@ -165,12 +198,13 @@ impl Sessions {
         }
     }
 
-    /// Where session `id`'s file went in `dir`, if renamed there.
-    pub fn renamed_in(&self, id: usize, dir: &Path) -> io::Result<Option<PathBuf>> {
-        let had = self.open.iter().find(|(_, _, have)| *have == id);
-        let Some(had) = had.and_then(|(_, had, _)| *had) else {
-            return Ok(None);
-        };
+    /// The file identity session `id` last recorded.
+    pub fn identity_of(&self, id: usize) -> Option<FileId> {
+        self.open.iter().find(|(_, _, have)| *have == id).and_then(|(_, had, _)| *had)
+    }
+
+    /// The entry of `dir` that is file `had`, renamed there.
+    pub fn renamed_in(had: FileId, dir: &Path) -> io::Result<Option<PathBuf>> {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             // A link to the file is not the file.

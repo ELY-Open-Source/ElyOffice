@@ -2,7 +2,7 @@
 
 use std::{io, path::PathBuf};
 
-use ely_files::{Done, SaveError, Write};
+use ely_files::{Done, SaveError, Stamp, Write};
 use gpui::{AppContext as _, Context, TaskExt as _, Window};
 
 use super::{Saving, gone};
@@ -23,6 +23,8 @@ struct Landing {
     then: Option<After>,
     /// The view's edit count when the export began.
     edited: u64,
+    /// The session's content when the export began.
+    stamp: Stamp,
     history: Option<String>,
 }
 
@@ -39,7 +41,7 @@ pub(super) fn export<H: Saving>(
         return;
     };
     tab.exporting = true;
-    let (work, view) = (tab.work.clone(), tab.view.clone());
+    let (work, view, stamp) = (tab.work.clone(), tab.view.clone(), tab.session.stamp());
     let edited = H::Engine::edited(view.read(cx));
     cx.notify();
     let sound = !matches!(target, Target::As(..));
@@ -53,7 +55,7 @@ pub(super) fn export<H: Saving>(
             Ok(Ok((bytes, H::Engine::history(worker, doc)?)))
         },
         move |host, read, window, cx| {
-            let landing = Landing { then, edited, history: None };
+            let landing = Landing { then, edited, stamp, history: None };
             match read {
                 _ if host.tab(id).is_none() => ended(host, id, Err(closed(id)), landing, window, cx),
                 Ok(Ok((bytes, history))) => {
@@ -97,19 +99,25 @@ fn write<H: Saving>(
         return ended(host, id, Err(closed(id)), landing, window, cx);
     };
     let begun = match &target {
-        Target::Own => Write::save(&mut tab.session),
-        Target::Over => Write::overwrite(&mut tab.session),
-        Target::As(path, _) => Write::save_as(&mut tab.session, path),
+        Target::Own => Write::save(landing.stamp, &mut tab.session),
+        Target::Over => Write::overwrite(landing.stamp, &mut tab.session),
+        Target::As(path, _) => Write::save_as(landing.stamp, &mut tab.session, path),
     };
     let write = match begun {
         Ok(write) => write,
         Err(error) => return ended(host, id, Err(error), landing, window, cx),
     };
     log::info!("office: tab {id} writes {} bytes off the window", bytes.len());
-    let task = cx.background_spawn(async move { write.run(&bytes) });
+    let moving = matches!(target, Target::As(..));
+    let task = cx.background_spawn(async move {
+        let done = write.run(&bytes);
+        // A new file's macros are read here.
+        let risk = done.saved.as_ref().ok().filter(|_| moving).map(|saved| files::macro_risk(&H::KIND, &saved.path));
+        (done, risk)
+    });
     cx.spawn(async move |this, cx| {
-        let done = task.await;
-        in_window(&this, cx, |host, window, cx| landed(host, id, done, target, landing, window, cx))
+        let (done, risk) = task.await;
+        in_window(&this, cx, |host, window, cx| landed(host, id, (done, risk), target, landing, window, cx))
     })
     .detach_and_log_err(cx);
 }
@@ -118,7 +126,7 @@ fn write<H: Saving>(
 fn landed<H: Saving>(
     host: &mut H,
     id: u64,
-    done: Done,
+    (done, risk): (Done, Option<io::Result<bool>>),
     target: Target,
     landing: Landing,
     window: &mut Window,
@@ -128,15 +136,15 @@ fn landed<H: Saving>(
         return ended(host, id, done.saved, landing, window, cx);
     };
     let saved = done.land(&mut tab.session);
-    match (&saved, target) {
-        (Ok(saved), Target::As(_, reopen)) => {
-            host.moved(id, saved, cx);
+    match (&saved, target, risk) {
+        (Ok(saved), Target::As(_, reopen), Some(risk)) => {
+            host.moved(id, saved, risk, cx);
             if let Some(tab) = host.tab_mut(id) {
                 tab.reopen = reopen;
             }
         }
         // Moved or deleted outside: ask where instead.
-        (Err(SaveError::Io(error)), Target::Own) if error.kind() == io::ErrorKind::NotFound => {
+        (Err(SaveError::Io(error)), Target::Own, _) if error.kind() == io::ErrorKind::NotFound => {
             let path = host.tab(id).and_then(|tab| tab.session.path().map(PathBuf::from));
             let queued = settle(host, id);
             if let Some(path) = path {

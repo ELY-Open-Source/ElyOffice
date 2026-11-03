@@ -9,7 +9,7 @@ fn the_write_runs_on_another_thread_and_lands() {
     write(&target, "0");
     let mut session = Session::load(target.clone()).expect("the file loads");
     session.edit();
-    let begun = Write::save(&mut session).expect("the save starts");
+    let begun = Write::save(session.stamp(), &mut session).expect("the save starts");
     assert_eq!(session.state(), SaveState::Saving);
     let done = std::thread::spawn(move || begun.run(b"edited")).join().expect("the writer ends");
     assert_eq!(read(&target), "edited", "on disk before the session hears");
@@ -26,15 +26,15 @@ fn a_change_after_the_ticket_conflicts_at_the_write() {
     write(&target, "0");
     let mut session = Session::load(target.clone()).expect("the file loads");
     session.edit();
-    let begun = Write::save(&mut session).expect("the save starts");
+    let begun = Write::save(session.stamp(), &mut session).expect("the save starts");
     write(&target, "outside, longer");
     let done = begun.run(b"local");
     assert!(matches!(done.saved, Err(SaveError::Conflict)));
     assert!(matches!(done.land(&mut session), Err(SaveError::Conflict)));
     assert_eq!(read(&target), "outside, longer", "the outside change stays");
     assert_eq!(session.state(), SaveState::ExternalModified);
-    assert!(matches!(Write::save(&mut session), Err(SaveError::Conflict)), "a plain save asks first");
-    Write::overwrite(&mut session).expect("keep mine starts").run(b"local").land(&mut session).expect("lands");
+    assert!(matches!(Write::save(session.stamp(), &mut session), Err(SaveError::Conflict)), "a plain save asks first");
+    Write::overwrite(session.stamp(), &mut session).expect("keep mine starts").run(b"local").land(&mut session).expect("lands");
     assert_eq!(read(&target), "local");
 }
 
@@ -45,11 +45,42 @@ fn a_reload_during_the_write_keeps_the_reloaded_file() {
     write(&target, "0");
     let mut session = Session::load(target.clone()).expect("the file loads");
     session.edit();
-    let begun = Write::save(&mut session).expect("the save starts");
+    let begun = Write::save(session.stamp(), &mut session).expect("the save starts");
     let done = begun.run(b"written");
     let seen = Fingerprint::of(&target).expect("the fingerprint");
     session.reload_at(seen).expect("reloads");
     assert!(done.land(&mut session).is_err(), "a stale ticket never lands");
     assert_eq!(session.fingerprint(), Some(seen));
+    assert_eq!(session.state(), SaveState::Saved);
+}
+
+#[test]
+fn an_edit_during_the_export_stays_unsaved() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let target = dir.path().join("typed.md");
+    write(&target, "0");
+    let mut session = Session::load(target.clone()).expect("the file loads");
+    session.edit();
+    let exported = session.stamp();
+    // Typed after the export took its bytes.
+    session.edit();
+    let begun = Write::save(exported, &mut session).expect("the save starts");
+    begun.run(b"one edit").land(&mut session).expect("the save lands");
+    assert_eq!(session.saved_revision(), 1, "the ticket claims what was exported");
+    assert_eq!(session.state(), SaveState::Dirty, "the later edit still needs a save");
+}
+
+#[test]
+fn a_reload_during_the_export_writes_nothing() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let target = dir.path().join("reloaded.md");
+    write(&target, "0");
+    let mut session = Session::load(target.clone()).expect("the file loads");
+    session.edit();
+    let exported = session.stamp();
+    write(&target, "outside, longer");
+    session.reload().expect("reloads");
+    assert!(Write::save(exported, &mut session).is_err(), "old bytes never land");
+    assert_eq!(read(&target), "outside, longer");
     assert_eq!(session.state(), SaveState::Saved);
 }

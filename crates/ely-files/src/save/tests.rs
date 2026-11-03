@@ -233,7 +233,7 @@ fn the_save_flow_keeps_a_backup_on_a_limited_volume() {
     write(&target, "previous");
     let mut session = Session::load(target.clone()).expect("the file loads");
     session.edit();
-    let write = Write::save(&mut session).expect("the save starts");
+    let write = Write::save(session.stamp(), &mut session).expect("the save starts");
     let saved = write.run_with(b"new", |_| Ok(false)).land(&mut session).expect("the save lands");
     let backup = saved.backup.expect("a backup on a limited volume");
     assert_eq!(read(&target), "new");
@@ -343,7 +343,7 @@ fn a_save_through_a_cross_dir_link_probes_the_real_volume() {
     session.edit();
     let limited = resolved(&real).expect("the resolved target");
     let probe = move |path: &Path| Ok(path != limited);
-    let write = Write::save(&mut session).expect("the save starts");
+    let write = Write::save(session.stamp(), &mut session).expect("the save starts");
     let saved = write.run_with(b"new", probe).land(&mut session).expect("the save lands");
     let backup = saved.backup.expect("a backup on the limited volume");
     let real_dir = resolved(&cloud).expect("the resolved cloud dir");

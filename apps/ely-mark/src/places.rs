@@ -67,13 +67,16 @@ impl Desk {
         }
     }
 
-    /// Puts `path` first in the recent list.
-    pub fn remember(&mut self, path: &std::path::Path, cx: &mut Context<Self>) {
+    /// Puts `path` first in the recent list; whether it did.
+    pub fn remember(&mut self, path: &std::path::Path, cx: &mut Context<Self>) -> bool {
         // One spelling per file: its real path.
         let remembered = dunce::canonicalize(path)
             .and_then(|path| ely_files::recent::remember(&self.recent_file, &path));
         match remembered {
-            Ok(list) => self.recent = list,
+            Ok(list) => {
+                self.recent = list;
+                true
+            }
             Err(error) => {
                 log::error!("mark: the recent list did not save: {error}");
                 self.toast(
@@ -81,29 +84,33 @@ impl Desk {
                     Severity::Danger,
                     cx,
                 );
+                false
             }
         }
     }
 
     /// Tab `id` shows `path`; the recent list follows.
     pub fn track_recent(&mut self, id: u64, path: &std::path::Path, cx: &mut Context<Self>) {
-        // The disk is asked only when the tab's path moves.
-        let Some(tab) = self.tab_mut(id).filter(|tab| tab.extra.tracked.as_deref() != Some(path)) else {
+        // The disk is asked until the list took this path.
+        if self.tab(id).is_none_or(|tab| tab.extra.tracked.as_deref() == Some(path)) {
             return;
-        };
-        tab.extra.tracked = Some(path.to_path_buf());
+        }
         let Ok(real) = dunce::canonicalize(path) else {
             return log::warn!("mark: {} is gone; the recent list keeps it", path.display());
         };
-        if self.remembered.get(&id) == Some(&real) {
-            return;
+        if self.remembered.get(&id) != Some(&real) {
+            if !self.remember(path, cx) {
+                return;
+            }
+            if let Some(old) = self.remembered.insert(id, real)
+                && !old.exists()
+            {
+                self.forget(&old, cx);
+            }
         }
-        if let Some(old) = self.remembered.insert(id, real)
-            && !old.exists()
-        {
-            self.forget(&old, cx);
+        if let Some(tab) = self.tab_mut(id) {
+            tab.extra.tracked = Some(path.to_path_buf());
         }
-        self.remember(path, cx);
     }
 
     /// Takes a path out of the recent list.

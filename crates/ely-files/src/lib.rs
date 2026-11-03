@@ -25,4 +25,4 @@ pub use save::{
 };
 #[cfg(test)]
 pub(crate) use save::save;
-pub use session::{Fingerprint, Open, SaveState, SaveTicket, Session, Sessions, StaleTicket};
+pub use session::{Fingerprint, Open, SaveState, SaveTicket, Session, Sessions, StaleTicket, Stamp};

@@ -70,6 +70,18 @@ impl SaveTicket {
     pub(crate) fn revision(&self) -> u64 {
         self.revision
     }
+
+    /// The ticket claims only what was exported at `stamp`.
+    pub(crate) fn of(self, stamp: Stamp) -> SaveTicket {
+        SaveTicket { revision: stamp.revision, ..self }
+    }
+}
+
+/// The content an export took: its generation and revision.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Stamp {
+    pub(crate) generation: u64,
+    pub(crate) revision: u64,
 }
 
 /// A ticket from before a reload; its content is obsolete.
@@ -174,6 +186,11 @@ impl Session {
 
     pub fn revision(&self) -> u64 {
         self.revision
+    }
+
+    /// What an export starting now holds.
+    pub fn stamp(&self) -> Stamp {
+        Stamp { generation: self.generation, revision: self.revision }
     }
 
     pub fn saved_revision(&self) -> u64 {

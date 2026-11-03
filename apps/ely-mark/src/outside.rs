@@ -102,19 +102,6 @@ impl Default for Extra {
     }
 }
 
-/// The file's bytes and the fingerprint they match.
-fn read_still(path: &Path) -> io::Result<(Fingerprint, Source)> {
-    // A writer mid-way changes the fingerprint; read again.
-    for _ in 0..5 {
-        let before = Fingerprint::of(path)?;
-        let bytes = std::fs::read(path)?;
-        if Fingerprint::of(path)? == before {
-            return Ok((before, Source::decode(bytes)?));
-        }
-    }
-    Err(io::Error::other("the file kept changing while read"))
-}
-
 impl Desk {
     /// Watches every tab's folder; a change looks at the tabs.
     pub fn watch_folders(&mut self, cx: &mut Context<Self>) {
@@ -224,112 +211,6 @@ impl Desk {
         }
     }
 
-    /// Gone: an atomic replace, a rename, or a delete.
-    fn missing(&mut self, id: u64, path: PathBuf, cx: &mut Context<Self>) {
-        cx.spawn(async move |desk, cx| {
-            cx.background_executor().timer(GAP).await;
-            desk.update(cx, |desk, cx| desk.still_missing(id, path, cx))
-                .ok();
-        })
-        .detach();
-    }
-
-    fn still_missing(&mut self, id: u64, path: PathBuf, cx: &mut Context<Self>) {
-        let Some(tab) = self.tab(id).filter(|tab| tab.session.path() == Some(&path)) else {
-            return;
-        };
-        if path.exists() {
-            return self.look(id, cx);
-        }
-        let found = match (tab.registry, path.parent()) {
-            (Some(registry), Some(dir)) => self.core.sessions.renamed_in(registry, dir),
-            _ => Ok(None),
-        };
-        match found {
-            Ok(Some(to)) => {
-                log::info!("mark: {} was renamed outside", path.display());
-                self.follow(id, to, cx);
-                self.look(id, cx);
-            }
-            Ok(None) => {
-                log::warn!("mark: {} was deleted outside", path.display());
-                self.set_outside(id, Outside::Deleted, cx);
-            }
-            Err(error) => self.set_outside(id, Outside::Unread(error.to_string()), cx),
-        }
-    }
-
-    /// Changed: a clean tab follows, a dirty one asks.
-    fn read_disk(&mut self, id: u64, path: PathBuf, cx: &mut Context<Self>) {
-        let Some(tab) = self.tab_mut(id) else {
-            return;
-        };
-        tab.extra.reads += 1;
-        let number = tab.extra.reads;
-        let reading = path.clone();
-        cx.spawn(async move |desk, cx| {
-            let read = cx
-                .background_executor()
-                .spawn(async move { read_still(&reading) })
-                .await;
-            desk.update(cx, |desk, cx| desk.disk_read(id, path, number, read, cx))
-                .ok();
-        })
-        .detach();
-    }
-
-    fn disk_read(
-        &mut self,
-        id: u64,
-        path: PathBuf,
-        number: u64,
-        read: io::Result<(Fingerprint, Source)>,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(tab) = self.tab(id).filter(|tab| tab.session.path() == Some(&path)) else {
-            return log::info!("mark: a read for a moved or closed tab was dropped");
-        };
-        if tab.extra.reads != number {
-            return log::info!("mark: read {number} of tab {id} lapsed");
-        }
-        let (fingerprint, disk) = match read {
-            Ok(read) => read,
-            Err(error) => return self.set_outside(id, Outside::Unread(error.to_string()), cx),
-        };
-        // The disk moved on since the read: look again.
-        if Fingerprint::of(&path).ok() != Some(fingerprint) {
-            log::info!("mark: tab {id}'s file changed while read");
-            return self.look(id, cx);
-        }
-        let current = tab.doc.lock().expect("the text lock").current.clone();
-        let kept = disk.text == tab.extra.base;
-        let dirty = tab.dirty(cx);
-        log::info!("mark: {} changed outside; unsaved {dirty}", path.display());
-        match (disk.text == current, dirty) {
-            // The same text: only the file underneath is new.
-            (true, _) => {
-                self.adopt_disk(id, &disk, fingerprint, cx);
-            }
-            // The text as last saved: the edits stay unsaved.
-            (false, true) if kept => self.keep_edits(id, disk, fingerprint, cx),
-            (false, false) => self.take_disk(id, disk, fingerprint, cx),
-            (false, true) => {
-                let tab = self.tab_mut(id).expect("open");
-                tab.session.external_modified();
-                tab.extra.policy.external_modified();
-                self.set_outside(id, Outside::Changed(disk, fingerprint), cx);
-                // An open comparison shows the newest disk text.
-                if self
-                    .comparing
-                    .as_ref()
-                    .is_some_and(|comparing| comparing.id == id)
-                {
-                    self.compare(id, cx);
-                }
-            }
-        }
-    }
-
     /// The disk's text replaces the tab's; autosave starts afresh.
     pub fn take_disk(
         &mut self,
@@ -358,11 +239,8 @@ impl Desk {
         tab.doc.lock().expect("the text lock").source = disk;
         // A conflict stopped autosave, maybe mid-write; it resumes.
         tab.extra.restart_autosave();
-        let (registry, path) = (tab.registry, tab.session.path().map(Path::to_path_buf));
-        if let (Some(registry), Some(path)) = (registry, path)
-            && let Err(error) = self.core.sessions.track(registry, &path)
-        {
-            log::warn!("mark: the replaced file did not register: {error}");
+        if let Some(registry) = tab.registry {
+            self.core.sessions.replaced(registry, fingerprint.id);
         }
         self.set_outside(id, Outside::Clear, cx);
         self.save_after_pause(id, cx);
@@ -389,12 +267,9 @@ impl Desk {
         // Its bytes (BOM, line ends) are what saves keep now.
         tab.doc.lock().expect("the text lock").source = disk.clone();
         let (view, registry) = (tab.view.clone(), tab.registry);
-        let path = tab.session.path().map(Path::to_path_buf);
         // An atomic replace is a new file underneath.
-        if let (Some(registry), Some(path)) = (registry, path)
-            && let Err(error) = self.core.sessions.track(registry, &path)
-        {
-            log::warn!("mark: the replaced file did not register: {error}");
+        if let Some(registry) = registry {
+            self.core.sessions.replaced(registry, fingerprint.id);
         }
         self.set_outside(id, Outside::Clear, cx);
         view.update(cx, |view, cx| view.saved(&saved, cx));
@@ -486,6 +361,8 @@ fn watch(dirs: &[PathBuf], cx: &mut Context<Desk>) -> notify::Result<Recommended
     log::info!("mark: watching {} folders", dirs.len());
     Ok(watcher)
 }
+
+mod disk;
 
 #[cfg(test)]
 pub(crate) mod tests;

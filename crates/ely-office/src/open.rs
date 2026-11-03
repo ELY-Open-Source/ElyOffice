@@ -77,6 +77,12 @@ pub trait Opening: Host {
 
     /// Opens a user file with its password.
     fn open_with(&mut self, path: PathBuf, password: String, cx: &mut Context<Self>) {
+        // A Save As writing there owns the file already.
+        if let Some(id) = crate::save::writer(&self.core().tabs, &path) {
+            log::info!("{}: tab {id} is saving as the file asked; it takes focus", Self::KIND.app.slug());
+            self.core_mut().active = Some(id);
+            return cx.notify();
+        }
         match self.core_mut().sessions.open(&path, false) {
             Ok(Open::Focus(registry)) => {
                 let core = self.core_mut();

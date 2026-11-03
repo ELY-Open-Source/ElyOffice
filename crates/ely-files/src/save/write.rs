@@ -6,7 +6,7 @@ use std::{
 };
 
 use super::{SaveError, Saved, atomic_capable, resolved, same_file, save_atomic, save_with_backup, with_path};
-use crate::{Fingerprint, SaveState, SaveTicket, Session};
+use crate::{Fingerprint, SaveState, SaveTicket, Session, Stamp};
 
 /// What the disk must still hold before the write.
 enum Check {
@@ -39,9 +39,19 @@ fn session_path(session: &Session) -> Result<PathBuf, SaveError> {
         .ok_or_else(|| SaveError::Io(io::Error::new(io::ErrorKind::NotFound, "no path to save")))
 }
 
+/// A reload since the export makes its bytes stale.
+fn current(session: &Session, stamp: Stamp) -> Result<(), SaveError> {
+    if session.stamp().generation != stamp.generation {
+        log::warn!("files: the session reloaded during the export; nothing is written");
+        return Err(SaveError::Io(io::Error::other("the file reloaded while the save was prepared")));
+    }
+    Ok(())
+}
+
 impl Write {
-    /// A save in place; an outside change is a conflict.
-    pub fn save(session: &mut Session) -> Result<Write, SaveError> {
+    /// A save in place of `stamp`; an outside change conflicts.
+    pub fn save(stamp: Stamp, session: &mut Session) -> Result<Write, SaveError> {
+        current(session, stamp)?;
         let path = session_path(session)?;
         let seen = session.fingerprint();
         let ticket = session.begin_save().map_err(|state| match state {
@@ -49,11 +59,12 @@ impl Write {
             SaveState::ExternalModified => SaveError::Conflict,
             state => SaveError::Refused(state),
         })?;
-        Ok(Write { ticket, path, check: Check::Seen(seen) })
+        Ok(Write { ticket: ticket.of(stamp), path, check: Check::Seen(seen) })
     }
 
     /// Save As to `path`; its own file stays checked.
-    pub fn save_as(session: &mut Session, path: &Path) -> Result<Write, SaveError> {
+    pub fn save_as(stamp: Stamp, session: &mut Session, path: &Path) -> Result<Write, SaveError> {
+        current(session, stamp)?;
         let (own, seen) = (session.path().map(Path::to_path_buf), session.fingerprint());
         // A new file keeps the local version in a conflict.
         let ticket = match session.state() == SaveState::ExternalModified {
@@ -62,14 +73,15 @@ impl Write {
         };
         let ticket = ticket.map_err(SaveError::Refused)?;
         session.write_to(path);
-        Ok(Write { ticket, path: path.to_path_buf(), check: Check::Own(own, seen) })
+        Ok(Write { ticket: ticket.of(stamp), path: path.to_path_buf(), check: Check::Own(own, seen) })
     }
 
     /// Keep Mine in a conflict: over the changed file.
-    pub fn overwrite(session: &mut Session) -> Result<Write, SaveError> {
+    pub fn overwrite(stamp: Stamp, session: &mut Session) -> Result<Write, SaveError> {
+        current(session, stamp)?;
         let path = session_path(session)?;
         let ticket = session.begin_save_overwrite().map_err(SaveError::Refused)?;
-        Ok(Write { ticket, path, check: Check::Over })
+        Ok(Write { ticket: ticket.of(stamp), path, check: Check::Over })
     }
 
     /// Checks the disk, then writes `bytes`; off the UI thread.
@@ -154,15 +166,15 @@ impl Done {
 /// A save begun, written and landed at once.
 #[cfg(test)]
 pub(crate) fn save(session: &mut Session, bytes: &[u8]) -> Result<Saved, SaveError> {
-    Write::save(session)?.run(bytes).land(session)
+    Write::save(session.stamp(), session)?.run(bytes).land(session)
 }
 
 #[cfg(test)]
 pub(crate) fn save_as(session: &mut Session, path: &Path, bytes: &[u8]) -> Result<Saved, SaveError> {
-    Write::save_as(session, path)?.run(bytes).land(session)
+    Write::save_as(session.stamp(), session, path)?.run(bytes).land(session)
 }
 
 #[cfg(test)]
 pub(crate) fn save_overwrite(session: &mut Session, bytes: &[u8]) -> Result<Saved, SaveError> {
-    Write::overwrite(session)?.run(bytes).land(session)
+    Write::overwrite(session.stamp(), session)?.run(bytes).land(session)
 }
