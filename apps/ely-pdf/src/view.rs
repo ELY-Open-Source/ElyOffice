@@ -382,22 +382,24 @@ impl PdfView {
         // A scroll not yet drawn counts.
         let offset = self.scroll.offset();
         let (left, top) = self.go_to.unwrap_or((-f32::from(offset.x), -f32::from(offset.y)));
-        let laid = self.laid_out();
-        let row = laid.placed.iter().filter(|place| place.y + place.h > top).map(|place| place.row).min();
-        let in_row: Vec<_> = laid.placed.iter().filter(|place| Some(place.row) == row).collect();
+        let was = self.laid_out();
+        let row = was.placed.iter().filter(|place| place.y + place.h > top).map(|place| place.row).min();
+        let in_row: Vec<_> = was.placed.iter().filter(|place| Some(place.row) == row).collect();
         // The row's tallest page starts it.
         let row_top = in_row.iter().map(|place| place.y).fold(f32::INFINITY, f32::min);
-        // In that row, the page nearest the left edge.
+        change(self, was.scale);
+        self.retire_tiles();
+        let laid = self.laid_out();
+        // In that row: still shown, then nearest the left.
+        let shown: std::collections::HashSet<usize> = laid.placed.iter().map(|place| place.page).collect();
+        let gone = |place: &crate::layout::Placed| !shown.contains(&place.page);
         let across = |place: &crate::layout::Placed| (place.x - left).max(left - place.x - place.w).max(0.0);
-        let anchor = in_row.into_iter().min_by(|a, b| across(a).total_cmp(&across(b)));
+        let anchor = in_row.into_iter().min_by(|a, b| gone(a).cmp(&gone(b)).then(across(a).total_cmp(&across(b))));
         // In the row as a share; above it in pixels.
         let (anchor, spot) = anchor.map_or((self.current, (0.0, 0.0, 0.0)), |place| {
             let down = (top.max(row_top) - place.y) / place.h;
             (place.page, ((left - place.x) / place.w, down, (top - row_top).min(0.0)))
         });
-        change(self, laid.scale);
-        self.retire_tiles();
-        let laid = self.laid_out();
         // Else the page read, at its top.
         let held = match laid.placed.iter().find(|place| place.page == anchor) {
             Some(place) => Some((place, spot)),
