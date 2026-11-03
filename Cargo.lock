@@ -2615,11 +2615,14 @@ dependencies = [
  "ely-ui",
  "embed-resource",
  "encoding_rs",
+ "futures",
  "gpui-pre",
+ "libc",
  "log",
  "serde_json",
  "tempfile",
  "unicase",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

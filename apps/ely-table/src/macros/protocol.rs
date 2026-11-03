@@ -13,8 +13,41 @@ pub struct Snapshot {
     pub columns: usize,
 }
 
+/// A failure ElyTable words itself; holds its message key.
+#[derive(Debug)]
+pub struct Refusal(pub &'static str);
+
+impl std::fmt::Display for Refusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
+    }
+}
+
+impl std::error::Error for Refusal {}
+
+pub fn refused(key: &'static str) -> io::Error {
+    io::Error::other(Refusal(key))
+}
+
+/// The key `error` carries, if ElyTable words it.
+pub fn refusal(error: &io::Error) -> Option<&'static str> {
+    error.get_ref()?.downcast_ref::<Refusal>().map(|refusal| refusal.0)
+}
+
+/// The kernel's reason the selection cannot be read.
+#[derive(Debug)]
+pub struct Unreadable(pub String);
+
+impl std::fmt::Display for Unreadable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Unreadable {}
+
 fn bad() -> io::Error {
-    io::Error::other("Invalid R macro data or instructions")
+    refused("table.r.invalid")
 }
 
 impl Snapshot {
@@ -24,7 +57,7 @@ impl Snapshot {
         }
         let json: Value = serde_json::from_str(text)?;
         if let Some(error) = json["error"].as_str() {
-            return Err(io::Error::other(format!("R macro selection: {error}")));
+            return Err(io::Error::other(Unreadable(error.to_string())));
         }
         let rows = usize::try_from(json["rows"].as_u64().ok_or_else(bad)?).map_err(|_| bad())?;
         let columns =

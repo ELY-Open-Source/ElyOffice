@@ -1,12 +1,13 @@
 //! The real example changes values and formatting together.
 
-use super::{protocol::Snapshot, runner};
+use super::{protocol::Snapshot, rscript, runner};
 use ely_lok::{Doc, Worker};
 use serde_json::Value;
+use std::sync::atomic::AtomicBool;
 
 fn snapshot(worker: &mut Worker, doc: &Doc) -> String {
     worker
-        .values(doc, ".uno:ElyMacroSelection")
+        .values(doc, ely_lok::sheet::MACRO)
         .expect("typed selection")
 }
 
@@ -25,10 +26,10 @@ fn real_r_demo_values_format_errors_and_one_undo() {
         eprintln!("SKIP: no pinned LOK build");
         return;
     };
-    if !runner::available() {
+    let Ok(r) = rscript::locate() else {
         eprintln!("SKIP: Rscript is not installed");
         return;
-    }
+    };
     let dir = tempfile::tempdir().expect("directory");
     let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("worker");
     let source = dir.path().join("demo.fods");
@@ -47,16 +48,15 @@ fn real_r_demo_values_format_errors_and_one_undo() {
     let geometry = worker
         .values(&doc, ely_lok::sheet::GEOMETRY)
         .expect("column widths");
-    let script = include_str!("../../../../examples/macros/limpiar-textos.R");
-    let failed = runner::run(
-        Snapshot::parse(&before).expect("snapshot"),
-        format!("{script}\nstop(\"falló\")"),
-    );
+    let script = super::EXAMPLE;
+    let stop = AtomicBool::new(false);
+    let copy = Snapshot::parse(&before).expect("snapshot");
+    let failed = runner::run(&r, &copy, &format!("{script}\nstop(\"falló\")"), &stop);
     assert!(failed.batch.is_err());
     assert!(failed.log.contains("falló"));
     assert_eq!(snapshot(&mut worker, &doc), before);
     let at = worker.now(&doc).expect("revision before R");
-    let outcome = runner::run(Snapshot::parse(&before).expect("snapshot"), script.into());
+    let outcome = runner::run(&r, &copy, script, &stop);
     let batch = outcome.batch.expect("successful R batch");
     worker
         .run(&at, "macro.apply", &[&batch])

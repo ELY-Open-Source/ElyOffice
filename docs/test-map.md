@@ -11,7 +11,7 @@
 | UX-05 | 长任务显示范围、状态、错误和可用的取消操作 | C05.4 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-06 | 失败提示保留用户输入，并提供重试或另存路径 | C05.4 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-07 | 危险操作说明具体对象和影响，不只显示“确定吗” | C05.4 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
-| UX-08 | 支持简体中文与英文；错误正文不用未解释的内部错误码替代 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
+| UX-08 | 支持简体中文与英文；ElyDoc、ElyTable 另支持西班牙语；错误正文不用未解释的内部错误码替代 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-09 | 中文输入法组合输入、候选框、撤销与跨区域焦点一致 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-10 | 多屏缩放变化不造成点击偏移、选区漂移或浮层遮挡 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-11 | 正文、标签、错误和状态不只通过颜色表达 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
@@ -70,6 +70,7 @@
 | TABLE-14 | 打印 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
 | TABLE-15 | 保护 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
 | TABLE-16 | 大数据浏览 | C09.1（~）、C09.5（~）、决策 C09.5 | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
+| TABLE-17 | R 宏（实验性） | 无 | — | apps/ely-table/src/tests、theme.sh |
 | SHOW-01 | 幻灯片管理 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
 | SHOW-02 | 模板与母版 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
 | SHOW-03 | 文字 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |

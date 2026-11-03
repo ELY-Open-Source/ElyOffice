@@ -1,168 +1,47 @@
-# Macros R experimentales en ElyTable
+# ElyTable 的 R 宏（实验性）
 
-Esta demo ejecuta R localmente sobre una copia del rango seleccionado. Requiere
-R con `Rscript` en PATH, sin paquetes adicionales. ElyOffice no instala R.
-R se ejecuta con los permisos del usuario: el proceso separado **no es una
-sandbox**. Ejecuta únicamente código de confianza.
+在本机用 R 处理所选区域的一份副本，结果一步写回、一步撤销。只用 base R，不装包。ElyTable 不安装 R。
 
-## Preparación del desarrollador
+R 以当前用户的权限运行，**不是沙箱**：宏能读写用户能碰的任何文件。只运行可信的代码。宏从不随文档运行，也不存进 XLSX、ODS；只在用户点“运行”时执行（文档内的宏仍照 LOK-11 不执行）。
 
-Compila el núcleo LibreOffice con la serie de parches del repositorio, incluido
-`0063-lok-calc-r-macro-batches.patch`, y después el worker y ElyTable:
+## 启用
 
-```sh
-scripts/build-libreoffice.sh
-cargo build -p ely-lok --bins -p ely-table
-cargo run -p ely-table
-```
+- 装 R（https://cran.r-project.org；Linux 装发行版的 `r-base` 或 `R` 包）。
+- ElyTable 依次找 `Rscript`：环境变量 `ELY_RSCRIPT`，`PATH`，再找 R 自己的安装位置（Windows 读注册表 `HKCU`、`HKLM` 的 `SOFTWARE\R-core\R` 的 `InstallPath`；macOS 查 `/Library/Frameworks/R.framework/Resources/bin`、`/opt/homebrew/bin`、`/usr/local/bin`，因从访达启动的应用拿不到 shell 的 `PATH`）。都找不到即说明如何安装，不运行。
+- 内核须带补丁 `0080-lok-calc-r-macro-batches.patch`。没有它的内核读不出选区，运行即报错。
 
-Un núcleo anterior no ofrece la lectura tipada ni la aplicación del lote. No
-basta con recompilar únicamente ElyTable. Sigue README.md para preparar las
-herramientas de compilación; la compilación del núcleo queda fuera del minuto
-de prueba.
+## 使用
 
-## Prueba en un minuto
+选一个矩形区域，菜单“宏 → 运行 R 宏”。编辑器第一次打开时填入示例（`apps/ely-table/src/macros/example.R`：去掉文字首尾空格、表头加粗、列宽自适应），之后保留上次的代码。“打开 .R…”“保存 .R…”只读写 `.R` 文件，代码不进工作簿。运行时按钮变为“停止”；停止、关掉对话框或超过 30 秒，R 连同它起的子进程一并结束，表格不改。
 
-1. Puedes abrir `tests/fixtures/table/r-macro-demo.fods` y seleccionar `A1:E3`.
-   Para crear otra muestra: en un libro nuevo, introduce una cabecera y textos con espacios al principio
-   y al final. Incluye `  José  `, comillas y un identificador de texto `'00123`.
-   Añade un número, un booleano, una celda vacía y una fórmula `=1+1`.
-2. Selecciona el rectángulo que contiene esos datos, incluida la cabecera.
-3. Abre **Macros → Ejecutar macro R — experimental** y pulsa **Ejecutar**.
-   La macro de ejemplo ya está en el editor. También puedes abrir
-   [limpiar-textos.R](../examples/macros/limpiar-textos.R) con **Abrir .R…**.
-4. Comprueba los textos sin espacios, la cabecera en negrita y los anchos
-   ajustados. `00123` sigue siendo texto y `=1+1` sigue siendo una fórmula.
-5. Cierra el editor y usa **Deshacer** una vez: valores, negrita y anchos vuelven
-   juntos al estado previo. **Guardar .R…** guarda solo el código, fuera del libro.
+R 运行期间对工作簿的任何改动（键入、点按、粘贴、命令）都使这一批作废，提示重新运行。
 
-Para probar un fallo, añade `stop("falló")` al final de la macro: el editor
-muestra el error y el documento no cambia. `Sys.sleep(60)` provoca el límite
-de ejecución de 30 segundos, sin aplicar instrucciones. Si otra operación
-modifica el libro mientras R trabaja, el lote se rechaza por conflicto; vuelve
-a ejecutarlo sobre la nueva selección.
-
-## API disponible
+## API
 
 ```r
-seleccion <- ely$selection()
-datos <- ely$read_range(seleccion)
-ely$write_range(seleccion, datos)
-ely$format_header(seleccion, bold = TRUE)
-ely$autofit_columns(seleccion)
+selection <- ely$selection()
+data <- ely$read_range(selection)
+ely$write_range(selection, data)
+ely$format_header(selection, bold = TRUE)
+ely$autofit_columns(selection)
 ```
 
-La selección es un identificador opaco con `rows` y `columns`. Solo representa
-el rectángulo capturado al pulsar Ejecutar. No acepta direcciones arbitrarias.
-`read_range` devuelve un `data.frame` cuyas columnas son listas: cada celda
-conserva su tipo, incluso en columnas mixtas. Los textos son cadenas UTF-8,
-los números son doubles, los booleanos son logical y las vacías son `NULL`.
-Una cadena vacía sigue siendo texto al leerla; Calc puede normalizar una
-escritura de cadena vacía como celda vacía.
+- `selection()` 只代表点“运行”时选中的矩形，不收任意地址。
+- `read_range` 给一个 `data.frame`，每列是 list，每格保留自己的类型：文字为 UTF-8 字符串，数字为 double，逻辑值为 logical，空格为 `NULL`。
+- 公式格是 `ely_formula` 对象，`formula` 为公式文字，`value` 为算得的值；只读，改了即报错。公式文字是 Calc API 的写法（英文函数名、参数以分号分隔），不是界面上的 Excel A1 写法。
+- 改一格：`data[[1]][2] <- list("00123")`；清空：`data[[1]][2] <- list(NULL)`。维数与 list 列须不变。
+- 每格至多写一次，表头与列宽各至多一条。
 
-Las fórmulas se representan mediante objetos `ely_formula` con miembros
-`formula` (expresión) y `value` (resultado calculado). Son de solo lectura en
-esta demo. La macro de ejemplo transforma solo cadenas, dejando intactos
-estos objetos. Para cambiar una celda usa, por ejemplo,
-`datos[[1]][2] <- list("00123")`; para vaciarla, `datos[[1]][2] <- list(NULL)`.
-Conserva las dimensiones y las columnas como listas. Envía como máximo una
-escritura de cada celda, una instrucción de cabecera y una de ajuste de ancho.
+## 运行方式与限制
 
-## Ejecución y límites
+ElyTable 先取文档的版本号与选区的类型化副本（内核补丁 0080），放开 worker，再在自己的线程里以参数数组起 `Rscript --vanilla api.R 输入 宏 输出`，工作目录是一个私有临时目录；不经 shell，代码与数据都以文件交给 R。Windows 上 R 不弹控制台窗口，放进一个 Job 对象（结束即整树结束）；Unix 上 R 自成进程组，结束时整组 `SIGKILL`。
 
-ElyTable toma la revisión del documento y una copia tipada del rango mediante
-LOK. Libera el worker antes de iniciar `Rscript --vanilla`, con argumentos
-separados y archivos temporales privados. El código se carga desde un archivo;
-no se construyen comandos de shell con código ni datos del usuario.
+R 正常结束后，ElyTable 先校验整批（格式、类型、位置、公式不动、大小），再交 worker；worker 核对版本号，内核重读选区与快照比对、再校验一遍，然后在一个绑定当前视图的撤销组里写值、表头加粗与列宽；中途出错即撤回这一组。R 失败或校验不过时文档不动。
 
-La API R lee la copia y acumula instrucciones en memoria. Solo escribe el
-resultado cuando el script termina correctamente. ElyTable valida el protocolo
-completo, los tipos, los límites, las posiciones y la conservación de fórmulas
-antes de enviar una única operación al worker. El worker comprueba la revisión;
-el núcleo vuelve a contrastar la selección y sus datos, valida todo el lote y
-lo aplica dentro de un contexto de deshacer. Si falla la aplicación, revierte
-ese contexto. Un fallo de R o de validación no envía cambios al documento.
+限制：10000 格，30 秒，输入、输出与源码各 4 MiB，单格文字 32767 字节。多重选区、受保护的工作表、含合并格的区域、只读文档与撤销已关的文档被拒。列宽自适应作用于所选整列。写逻辑值时设逻辑格式；对逻辑格写数字时改回常规数字格式。内核在一批写到中途崩溃时不保证回滚。
 
-Límites: 10 000 celdas, 30 segundos, 4 MiB por archivo de entrada/salida y
-32 767 bytes por texto. Se rechazan selecciones múltiples, hojas protegidas y
-rangos combinados y documentos sin deshacer habilitado. El ajuste cambia el ancho de las columnas completas
-seleccionadas. El lote cambia negrita y ancho cuando se solicitan; al escribir
-booleanos usa el formato lógico. Una escritura numérica sobre una celda lógica
-vuelve a formato numérico estándar. Las alturas automáticas siguen el recálculo
-de Calc, también al deshacer textos.
-No se garantiza recuperación ante un cierre forzado o fallo del núcleo a mitad
-de una operación; el rollback cubre errores de aplicación ordinarios.
+日志只记 Rscript 的退出状态与用时、读入的格数、写回的字节数与拒绝的原因，不记代码、单元格的值与 R 的输出。
 
-Las macros no se guardan en XLSX/ODS ni se ejecutan al abrir documentos. Esta
-API no incluye paquetes, eventos, funciones en celdas, VBA ni servicios remotos.
-Los procesos que una macro lance por su cuenta tienen los permisos del usuario;
-el límite controla el proceso Rscript que inicia ElyTable.
+## 测试
 
-## Verificación
-
-Las pruebas están en `src/macros/{protocol,runner,integration}.rs` de ElyTable y
-`crates/ely-lok/src/client/tests/r_macros.rs`. Con R y el núcleo preparados:
-
-```sh
-cargo build -p ely-lok --bins
-cargo test -p ely-table macros:: -- --nocapture
-ELY_REQUIRE_ENGINES=1 cargo test -p ely-lok r_macros:: -- --nocapture
-```
-
-La prueba de R real informa `SKIP` si Rscript falta. La de LOK informa `SKIP`
-si falta el núcleo, salvo con `ELY_REQUIRE_ENGINES=1`. Las pruebas de protocolo
-y proceso sustituto no requieren R ni LibreOffice.
-
-### Comprobaciones realizadas en esta implementación
-
-- Compilación de ElyTable y el worker; check y Clippy de ambos paquetes y sus
-  pruebas, con `-D warnings`: pasan.
-- **14 pruebas pasan**: nueve de protocolo/proceso, cuatro nativas LOK y una
-  integrada que ejecuta el ejemplo con R real sobre el documento. Incluyen
-  UTF-8, comillas, espacios, vacías, ceros iniciales, booleanos, precisión
-  numérica, fórmulas, validación completa, errores, ausencia de Rscript y timeout.
-  Verifican conflictos, rechazo con deshacer deshabilitado y restauración de
-  valores, negrita y anchos con un solo Deshacer. Se ejecutaron importando los
-  módulos fuente reales en un harness Cargo aislado con serde_json, tempfile y
-  ely-lok del repositorio.
-- Calc se compiló y enlazó desde LibreOffice 26.2.6.3, commit
-  `8221e31b3ac356a1623c672912a3d2b492f7e3d1`, con los parches 0001–0063.
-  El runtime local usa ese Calc y los demás componentes instalados de la misma
-  versión fijada. La compilación completa de toda la suite no se repitió.
-- Pruebas C++ verifican el transporte exacto de doubles, incluidos extremos,
-  cero negativo y subnormales, y la equivalencia de objetos JSON con distinto
-  orden de claves, conservando el orden y contenido de las celdas.
-- En una ventana real en español se verificaron el menú y el editor. Abrir y
-  guardar `.R` mediante el diálogo del sistema conservó el ejemplo byte por
-  byte. El usuario completó la prueba desde la GUI: confirmó la ejecución,
-  los textos, la cabecera en negrita y los anchos ajustados; la barra de
-  fórmulas de E2 mostró `=C2*2` y confirmó que Deshacer funciona.
-- El parche se comprueba en reversa contra el árbol compilado. Las reglas de
-  parches, `scripts/check.sh`, el formato de los módulos nuevos y
-  `git diff --check` pasan. El formato global encuentra diferencias previas en
-  archivos ajenos a esta tarea.
-
-R 4.6.1 se instaló por petición explícita del usuario. La demo local se abre
-con la entrada **ElyTable R — experimental**, o con
-`./.work/r-demo/ely-table-r` desde este checkout. Usa un perfil aislado y abre
-una copia de la muestra. El producto sigue sin instalar R automáticamente.
-
-No se verificaron Windows/macOS ni la suite completa del workspace. Se utilizó
-Rust 1.98.0 disponible; el repositorio fija 1.98.1. `scripts/review.sh` requiere
-herdr y no se pudo ejecutar aquí. Las tres revisiones independientes están en
-`tasks/reviews/TABLE-R-r1.md`, `TABLE-R-r2.md` y `TABLE-R-r3.md`. La corrección
-posterior del identificador de vista del grupo de deshacer pasó las pruebas
-nativas; no recibió otra revisión independiente porque se agotaron las tres
-rondas permitidas por el repositorio.
-
-## Archivos modificados
-
-| Archivos | Cambio |
-| --- | --- |
-| `apps/ely-table/src/macros/*` | Editor, diálogos `.R`, protocolo tipado, API base R, proceso y pruebas. |
-| `apps/ely-table/{Cargo.toml,src/book.rs,src/dialog.rs,src/main.rs}` | Integración del menú, acción y editor. |
-| `crates/ely-lok/src/commands*` y `client/tests/r_macros.rs` | Registro del puente, control de revisión y pruebas nativas. |
-| `patches/libreoffice/0063-lok-calc-r-macro-batches.patch` | Lectura de selección, validación y aplicación con deshacer vinculado a la vista. |
-| `crates/ely-ui/src/i18n/{table.rs,es/table.rs}` | Textos en inglés, chino y español. |
-| `examples/macros/limpiar-textos.R`, `tests/fixtures/table/r-*` y `rscript-*` | Ejemplo, libro de muestra y procesos sustitutos de prueba. |
-| `README.md`, `agents.md`, `PRD.md`, `docs/decisions.md`, `tasks/*` | Uso, arquitectura, alcance, estado y revisiones. |
+`apps/ely-table/src/macros/` 下：`protocol.rs`（传输、类型、整批校验），`runner.rs`（缺 R、退出码、坏输出、超时、停止；用 `tests/fixtures/table/rscript-*` 替身，只在 Unix），`contain.rs`（结束时 R 起的子进程一并结束，三端），`files.rs`（只认 `.R`、大小上限），`integration.rs`（真 R 与内核）。`crates/ely-lok/src/client/tests/r_macros.rs` 测内核一侧（校验、冲突、公式不动、一步撤销、撤销关闭时拒绝、数字精度）。用真 R 的测试在找不到 Rscript 时打 SKIP。

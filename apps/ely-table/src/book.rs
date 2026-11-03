@@ -72,6 +72,8 @@ pub struct Book {
     pub imports: std::collections::VecDeque<crate::text::Pending>,
     /// Undo and Redo as the menus show them.
     pub undo_menu: (bool, bool),
+    /// The R editor's code, kept between openings.
+    pub r_code: Option<Entity<ely_gpui_component::forms::TextInput>>,
 }
 
 impl Host for Book {
@@ -213,6 +215,7 @@ impl Book {
             choices: None,
             imports: Default::default(),
             undo_menu: (false, false),
+            r_code: None,
         }
     }
 

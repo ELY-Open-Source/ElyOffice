@@ -1,10 +1,11 @@
-//! Spreadsheet rows: calculation, names, error tracing.
+//! Spreadsheet rows: calculation, names, tracing, R batches.
 
 use super::{Arg, Check, Command, command};
 
-/// Calculation, named ranges and tracing (TABLE-03..06).
+/// Calculation, named ranges, tracing, R (TABLE-03..06, 17).
 pub(super) const ROWS: &[Command] = &[
-    command("macro.apply", ".uno:EnterString", &[Arg::Text("ElyMacro")], Check::Result),
+    // A whole R batch in one undo step (0080).
+    command("macro.apply", ".uno:EnterString", &[Arg::Read("ElyMacro")], Check::Result),
     command(
         "calc.auto",
         ".uno:AutomaticCalculation",

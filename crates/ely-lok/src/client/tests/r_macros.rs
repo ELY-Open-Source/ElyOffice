@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 fn snapshot(worker: &mut Worker, doc: &Doc) -> Value {
     serde_json::from_str(
         &worker
-            .values(doc, ".uno:ElyMacroSelection")
+            .values(doc, crate::sheet::MACRO)
             .expect("typed selection"),
     )
     .expect("JSON")
