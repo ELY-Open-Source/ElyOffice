@@ -28,10 +28,10 @@ Format: docs/perf/README.md.
 
 | App | Open all ms | Open one more ms | Memory MB open / edited | Free GB, lowest | Keys idle: P50 / P95 / max ms | Frames idle: over 8.3 ms / all, dirty to shown | Stalls idle | Keys editing: P50 / P95 / max ms | Frames editing | Stalls editing | Command edit P50 / P95 ms | Save P50 / max ms | Stalls whole run |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ElyDoc | 19585 | 7198 | 675 / 779 | 40 | 30: 21 / 30 / 33 | 60/61, p95 ≤26.5, max 36.7 | 0 | 30: 24 / 184 / 266 | 209/213, p95 ≤25.9, max 30.2 | 0 | 375 / 653 | 2836 / 5478 | 5, max 13652 |
-| ElyTable | 23225 | 748 | 939 / 1036 | 36 | 30: 21 / 46 / 77 | 45/45, p95 ≤31.0, max 31.4 | 0 | 30: 25 / 1545 / 2790 | 253/253, p95 ≤25.5, max 31.1 | 0 | 1145 / 1777 | 6619 / 11584 | 89, max 662 |
-| ElyShow | 48415 | 1990 | 1527 / 1977 | 45 | 30: 27 / 36 / 184 | 56/57, p95 ≤23.3, max 25.3 | 0 | 30: 36 / 1502 / 3810 | 464/465, p95 ≤24.8, max 27.6 | 0 | 1131 / 2433 | 14215 / 27218 | 100, max 1550 |
-| ElyMark | 1494 | 88 | 223 / 267 | 50 | 30: 15 / 21 / 22 | 155/192, p95 ≤20.7, max 24.1 | 0 | 30: 13 / 22 / 25 | 208/255, p95 ≤22.6, max 29.7 | 0 | 106 / 164 | 725 / 1160 | 1, max 719 |
+| ElyDoc | 16835 | 7022 | 676 / 778 | 40 | 30: 23 / 29 / 29 | 64/65, p95 ≤25.2, max 25.2 | 0 | 30: 26 / 308 / 311 | 215/220, p95 ≤27.3, max 28.6 | 0 | 842 / 4990 | 3013 / 5515 | 5, max 10348 |
+| ElyTable | 21973 | 644 | 934 / 1029 | 45 | 30: 19 / 26 / 27 | 36/36, p95 ≤24.7, max 25.9 | 0 | 30: 24 / 395 / 423 | 225/232, p95 ≤24.6, max 28.5 | 0 | 592 / 1067 | 5281 / 10059 | 81, max 464 |
+| ElyShow | 46864 | 2025 | 1580 / 2041 | 45 | 30: 26 / 39 / 426 | 57/57, p95 ≤21.8, max 25.5 | 0 | 30: 36 / 1302 / 1402 | 406/408, p95 ≤25.2, max 27.8 | 0 | 1007 / 1843 | 13397 / 26509 | 103, max 6292 |
+| ElyMark | 2062 | 84 | 223 / 266 | 39 | 30: 15 / 23 / 23 | 173/208, p95 ≤22.7, max 545.2 | 1 | 30: 16 / 21 / 22 | 259/293, p95 ≤25.5, max 736.5 | 6 | 341 / 1486 | 1630 / 1886 | 11, max 1029 |
 
 Problems:
 
@@ -55,8 +55,8 @@ Problems:
 - ElyDoc: doc-081-linked.docx: OLE link kept failed
 - ElyDoc: doc-091-linked.docx: INCLUDETEXT shows the source's text failed
 - ElyDoc: doc-091-linked.docx: OLE link kept failed
-- ElyDoc: PERF-02: 5 of 30 keys over 100 ms editing, max 266 ms
-- ElyDoc: PERF-02: main thread busy over 100 ms 5 times, max 13652 ms
+- ElyDoc: PERF-02: 3 of 30 keys over 100 ms editing, max 311 ms
+- ElyDoc: PERF-02: main thread busy over 100 ms 5 times, max 10348 ms
 - ElyTable: table-000-big.xlsx: Links!A1 shows the source's value failed
 - ElyTable: table-010-big.xlsx: Links!A1 shows the source's value failed
 - ElyTable: table-020-big.xlsx: Links!A1 shows the source's value failed
@@ -67,9 +67,11 @@ Problems:
 - ElyTable: table-070-big.xlsx: Links!A1 shows the source's value failed
 - ElyTable: table-080-big.xlsx: Links!A1 shows the source's value failed
 - ElyTable: table-090-big.xlsx: Links!A1 shows the source's value failed
-- ElyTable: PERF-02: 10 of 30 keys over 100 ms editing, max 2790 ms
-- ElyTable: PERF-02: main thread busy over 100 ms 89 times, max 662 ms
-- ElyShow: PERF-02: 1 of 30 keys over 100 ms idle, max 184 ms
-- ElyShow: PERF-02: 12 of 30 keys over 100 ms editing, max 3810 ms
-- ElyShow: PERF-02: main thread busy over 100 ms 100 times, max 1550 ms
-- ElyMark: PERF-02: main thread busy over 100 ms 1 times, max 719 ms
+- ElyTable: PERF-02: 6 of 30 keys over 100 ms editing, max 423 ms
+- ElyTable: PERF-02: main thread busy over 100 ms 81 times, max 464 ms
+- ElyShow: PERF-02: 1 of 30 keys over 100 ms idle, max 426 ms
+- ElyShow: PERF-02: 12 of 30 keys over 100 ms editing, max 1402 ms
+- ElyShow: PERF-02: main thread busy over 100 ms 103 times, max 6292 ms
+- ElyMark: PERF-02: a frame took 545 ms from dirty to shown idle
+- ElyMark: PERF-02: a frame took 736 ms from dirty to shown editing
+- ElyMark: PERF-02: main thread busy over 100 ms 11 times, max 1029 ms
