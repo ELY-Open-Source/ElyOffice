@@ -29,7 +29,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("mail.outbox.failed_toast", "Non envoyé : {error}. Le message reste dans la boîte d’envoi."),
     ("mail.outbox.unfiled_toast", "Envoyé, mais sa copie n’a pas été enregistrée dans Envoyés : {error}. Seule la copie est retentée."),
     ("mail.outbox.unfiled_later", "Envoyé, mais le serveur de sa copie pour Envoyés n’a pas été joint : {error}. La copie est retentée à la prochaine synchronisation ; le message n’est pas renvoyé."),
-    ("mail.outbox.no_sent_folder", "le compte n’a pas de dossier Envoyés"),
+    ("mail.outbox.no_sent_folder", "le compte ne liste aucun dossier Envoyés"),
     ("mail.outbox.unread", "La boîte d’envoi n’a pas pu être lue : {error}"),
     ("mail.outbox.unsaved", "La boîte d’envoi n’a pas été mise à jour : {error}"),
     ("mail.outbox.unqueued", "Le message n’a pas été placé dans la boîte d’envoi : {error}"),

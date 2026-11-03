@@ -25,7 +25,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("show.transition.uncover-left", "Découvrir vers la gauche"),
     ("show.transition.wipe-right", "Balayer vers la droite"),
     ("show.transition.split-vertical-out", "Scinder vers l’extérieur"),
-    ("show.transition.dissolve", "Dissoudre"),
+    ("show.transition.dissolve", "Dissolution"),
     ("show.effect.entrance-appear", "Apparition"),
     ("show.effect.entrance-fade-in", "Ouverture en fondu"),
     ("show.effect.entrance-fly-in", "Arrivée"),

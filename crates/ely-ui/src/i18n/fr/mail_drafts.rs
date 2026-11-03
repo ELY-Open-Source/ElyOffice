@@ -15,7 +15,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("mail.drafts.unread", "Les brouillons n’ont pas pu être lus : {error}"),
     ("mail.drafts.up", "Garder aussi les brouillons dans le dossier Brouillons du serveur"),
     ("mail.drafts.unsaved_choice", "Le choix des brouillons n’a pas été enregistré : {error}"),
-    ("mail.drafts.no_folder", "Gardé sur cet ordinateur. Le serveur n’a pas encore de dossier Brouillons."),
+    ("mail.drafts.no_folder", "Gardé sur cet ordinateur. Le serveur ne liste pas encore de dossier Brouillons."),
     ("mail.drafts.server_failed", "Gardé sur cet ordinateur. La copie du serveur n’a pas été enregistrée : {error}"),
     ("mail.drafts.server_stale", "Une ancienne copie peut rester dans les brouillons du serveur : {error}"),
 ];

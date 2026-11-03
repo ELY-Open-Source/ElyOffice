@@ -83,7 +83,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("tree.lfs.stored", "Objet ici, pointeur dans l’arbre de travail"),
     ("tree.lfs.pointer", "Pointeur seulement ; l’objet n’est pas ici"),
     ("tree.upstream.set", "Définir la branche amont…"),
-    ("tree.upstream.unset", "Retirer la branche amont"),
+    ("tree.upstream.unset", "Désactiver le suivi amont"),
     ("tree.upstream.title", "Quelle branche distante {branch} suit-elle ?"),
     ("tree.upstream.none", "Aucune branche distante ; récupérez d’abord"),
     ("tree.places.reflog", "Reflog"),

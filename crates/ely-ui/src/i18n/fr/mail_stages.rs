@@ -5,7 +5,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("mail.stage.connecting", "la connexion"),
     ("mail.stage.proxy", "la connexion via le proxy"),
     ("mail.stage.greeting_wait", "l’attente du message d’accueil"),
-    ("mail.stage.greeting", "l’accueil du serveur"),
+    ("mail.stage.greeting", "la salutation au serveur"),
     ("mail.stage.login", "l’identification"),
     ("mail.stage.logout", "la déconnexion"),
     ("mail.stage.mailboxes", "la liste des boîtes aux lettres"),

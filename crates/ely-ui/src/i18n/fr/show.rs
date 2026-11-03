@@ -15,7 +15,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("show.slide.hidden", "masquée"),
     ("show.strip.slides", "Diapos"),
     ("show.strip.masters", "Diapos maîtresses"),
-    ("show.masters.busy", "Fermez les diapos maîtresses pour changer de diapo"),
+    ("show.masters.busy", "Fermez les diapos maîtresses pour modifier les diapos"),
     ("show.masters.edit", "Modifier les diapos maîtresses"),
     ("show.masters.close", "Fermer les diapos maîtresses"),
     ("show.masters.new", "Nouvelle diapo maîtresse"),

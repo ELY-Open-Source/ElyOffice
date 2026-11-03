@@ -24,7 +24,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("mark.table.column_right", "Insérer colonne après"),
     ("mark.table.delete_row", "Supprimer ligne"),
     ("mark.table.delete_column", "Supprimer colonne"),
-    ("mark.table.delete", "Effacer le tableau"),
+    ("mark.table.delete", "Supprimer tableau"),
     ("mark.table.none", "Placez d’abord le curseur dans un tableau"),
     ("mark.table.kept", "Un tableau garde sa ligne d’en-tête et une colonne"),
     ("mark.table.beyond", "Cette cellule est au-delà des colonnes de l’en-tête"),
