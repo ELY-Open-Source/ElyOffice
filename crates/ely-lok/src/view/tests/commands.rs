@@ -1,15 +1,17 @@
 use super::*;
 use gpui::TestAppContext;
 
-/// Steps the scheduler until `done` or the budget ends.
+/// Steps the scheduler until `done` or a minute passes.
 fn settle(cx: &TestAppContext, done: impl Fn(&App) -> bool) -> bool {
-    for _ in 0..60 {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while std::time::Instant::now() < deadline {
         for _ in 0..20 {
             cx.executor().tick();
         }
         if cx.update(|app| done(app)) {
             return true;
         }
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
     false
 }

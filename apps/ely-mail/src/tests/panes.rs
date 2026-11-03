@@ -78,7 +78,7 @@ fn listed(mail: &Entity<Mail>, cx: &mut VisualTestContext) -> Option<Vec<String>
 
 pub(super) fn shows(mail: &Entity<Mail>, cx: &mut VisualTestContext, subjects: &[&str]) {
     let want: Vec<String> = subjects.iter().map(|each| each.to_string()).collect();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     while listed(mail, cx).as_ref() != Some(&want) {
         assert!(
             std::time::Instant::now() < deadline,

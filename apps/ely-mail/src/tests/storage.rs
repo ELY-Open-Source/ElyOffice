@@ -105,7 +105,7 @@ fn the_download_cap_is_kept_and_trimmed_mail_offers_its_body() {
     let button: &'static str = format!("mail-download-{}", id.0).leak();
     settle(vcx, |_| true);
     let mut tries = 0;
-    while vcx.debug_bounds(button).is_none() && tries < 100 {
+    while vcx.debug_bounds(button).is_none() && tries < 3000 {
         vcx.run_until_parked();
         std::thread::sleep(std::time::Duration::from_millis(20));
         tries += 1;

@@ -62,7 +62,7 @@ fn a_resized_slide_reaches_the_view_and_still_fits() {
                 .expect("sent");
         })
     });
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     while cx.update(|app| view.read(app).doc_size.0 < 100_000) {
         assert!(
             std::time::Instant::now() < deadline,

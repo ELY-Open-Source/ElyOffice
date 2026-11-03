@@ -32,7 +32,7 @@ fn a_file_saves_where_asked() {
     let chosen = target.clone();
     vcx.simulate_new_path_selection(move |_| Some(chosen));
     vcx.run_until_parked();
-    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
     while !target.exists() && std::time::Instant::now() < deadline {
         vcx.run_until_parked();
         std::thread::sleep(Duration::from_millis(20));

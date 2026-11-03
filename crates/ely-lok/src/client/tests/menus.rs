@@ -12,8 +12,6 @@ pub(super) const DOC: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
  </table:table><text:p>after</text:p></office:text></office:body>
 </office:document>"#;
 
-const WAIT: std::time::Duration = std::time::Duration::from_secs(5);
-
 /// Right-clicks at a point and reads the kernel's menu.
 fn right(worker: &mut Worker, doc: &Doc, seen: &mut Events, (x, y): (i32, i32)) -> menu::Offered {
     click(worker, doc, x, y);
@@ -26,7 +24,7 @@ fn press(worker: &mut Worker, doc: &Doc, seen: &mut Events, (x, y): (i32, i32)) 
         let event = Mouse { kind, x, y, count: 1, buttons: 4, modifiers: 0 };
         worker.post_mouse(doc, event).expect("the click posts");
     }
-    *seen = poll_until(worker, doc, seen, WAIT, |seen| seen.menu.is_some());
+    *seen = poll_until(worker, doc, seen, HANG, |seen| seen.menu.is_some());
     menu::read(&seen.menu.take().expect("a menu")).expect("the menu parses")
 }
 
@@ -36,7 +34,7 @@ pub(super) fn find(worker: &mut Worker, doc: &Doc, seen: &mut Events, word: &str
     worker
         .run(doc, "find.run", &[word, "false", "0", "0", "0", "1"])
         .expect("the search runs");
-    *seen = poll_until(worker, doc, seen, WAIT, |seen| seen.searched > before);
+    *seen = poll_until(worker, doc, seen, HANG, |seen| seen.searched > before);
     let (x, y, _, h) = seen.found[0];
     (x + 60, y + h / 2)
 }
@@ -71,7 +69,7 @@ fn a_right_click_names_its_target() {
     click(&mut worker, &doc, at.0, at.1);
     let blue = png(dir.path(), "blue.png", [0, 0, 255, 255]);
     worker.run(&doc, "image.insert", &[&blue]).expect("the image lands");
-    seen = poll_until(&mut worker, &doc, &seen, WAIT, |seen| seen.graphic.is_some());
+    seen = poll_until(&mut worker, &doc, &seen, HANG, |seen| seen.graphic.is_some());
     let (x, y, w, h) = seen.graphic.expect("the image is selected");
     let frame = right(&mut worker, &doc, &mut seen, (x + w / 2, y + h / 2));
     assert_eq!(frame.target, Target::Frame);

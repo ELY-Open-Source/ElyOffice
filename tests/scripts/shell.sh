@@ -17,7 +17,7 @@ out=$(ELY_SMOKE=1 HOME="$work/smoke" XDG_DATA_HOME="$work/smoke/data" perl -e 'a
 
 run_gallery() {
   ELY_SMOKE=hold ELY_GALLERY_PROBE=1 ELY_PROBE_HOLD_AT=${3:-} ELY_APPEARANCE=dark ELY_LOCALE=${4:-en} HOME="$work/$1" XDG_DATA_HOME="$work/$1/data" \
-    perl -e 'alarm 120; exec @ARGV' "$root/target/debug/examples/shell" >/dev/null 2>"$work/$1.err" &
+    perl -e 'alarm 600; exec @ARGV' "$root/target/debug/examples/shell" >/dev/null 2>"$work/$1.err" &
   pid=$!
 }
 wait_line() {

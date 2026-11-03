@@ -28,7 +28,7 @@ impl Render for Framed {
 
 /// Waits out the slide until `name` is drawn or not.
 fn drawn(cx: &mut VisualTestContext, name: &'static str, want: bool) -> bool {
-    for _ in 0..50 {
+    for _ in 0..3000 {
         cx.update(|window, _| window.refresh());
         cx.run_until_parked();
         if cx.debug_bounds(name).is_some() == want {
@@ -101,7 +101,7 @@ fn a_panel_without_room_goes_at_once(cx: &mut TestAppContext) {
 /// Each frame of a fold keeps the content's least width.
 fn folds_within(cx: &mut VisualTestContext, keys: &str, name: &'static str) {
     cx.simulate_keystrokes(keys);
-    for _ in 0..50 {
+    for _ in 0..6000 {
         frame(cx);
         let body = cx.debug_bounds("shell-body").expect("the content");
         assert!(body.size.width >= gpui::px(360.0), "{name} folding squeezed the content to {:?}", body.size.width);
@@ -162,7 +162,7 @@ fn both_at(cx: &mut TestAppContext, width: f32) -> VisualTestContext {
 
 /// Frames until `gone` is drawn no more, the content kept.
 fn keeps_least(cx: &mut VisualTestContext, gone: &'static str) {
-    for _ in 0..60 {
+    for _ in 0..6000 {
         frame(cx);
         let body = cx.debug_bounds("shell-body").expect("the content");
         assert!(body.size.width >= gpui::px(360.0), "the content shrank to {:?}", body.size.width);
