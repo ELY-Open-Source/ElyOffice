@@ -8,7 +8,7 @@ node_modules/
 .ruff_cache/
 
 # Local only
-/tasks/reviews/.pane
+/tasks/reviews/.tabs/
 /.pi/
 /markdown-sample.md
 /assets/papirus_icons-master.zip
