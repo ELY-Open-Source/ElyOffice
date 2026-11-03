@@ -124,7 +124,7 @@ impl Viewer {
                     }
                     let hits = match found {
                         Ok(hits) => hits,
-                        Err(error) => return view.fail("searching", &error, cx),
+                        Err(error) => return view.fail("pdf.doing.search", &error, cx),
                     };
                     view.found.extend(hits);
                     let first = view.chosen.is_none() && !view.found.is_empty();

@@ -226,7 +226,7 @@ fn an_edit_keeps_the_page_drawn_until_its_repaint_lands() {
     settle(cx, |app| repainted(view.read(app)));
     let before: Vec<_> = cx.update(|_, app| view.read(app).tiles.values().cloned().collect());
     let (_watch, bare) = never_bare(cx, &view);
-    cx.update(|_, app| view.update(app, |view, cx| view.annotate("adding a note", vec![note()], cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.annotate("pdf.doing.add_note", vec![note()], cx)));
     settle(cx, |app| view.read(app).edited == 1 && repainted(view.read(app)));
     assert!(!bare.get(), "the page never goes blank");
     let after = cx.update(|_, app| view.read(app).tiles.values().cloned().collect::<Vec<_>>());
@@ -268,7 +268,7 @@ fn an_edit_past_the_first_hundred_sizes_keeps_the_page_drawn() {
     let view = shown(cx, &viewer);
     settle(cx, |app| view.read(app).sizes[100] == (612.0, 900.0) && repainted(view.read(app)));
     let (_watch, bare) = never_bare(cx, &view);
-    cx.update(|_, app| view.update(app, |view, cx| view.annotate("adding a note", vec![note()], cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.annotate("pdf.doing.add_note", vec![note()], cx)));
     settle(cx, |app| view.read(app).edited == 1 && repainted(view.read(app)));
     assert!(!bare.get(), "the page never goes blank");
 }
@@ -286,7 +286,7 @@ fn an_edit_on_page_101_keeps_its_measured_size_and_its_tiles() {
     settle(cx, |app| view.read(app).current == 100 && repainted(view.read(app)));
     let (_watch, bare) = never_bare(cx, &view);
     let late = ely_pdf_engine::NewAnnot { page: 100, ..note() };
-    cx.update(|_, app| view.update(app, |view, cx| view.annotate("adding a note", vec![late], cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.annotate("pdf.doing.add_note", vec![late], cx)));
     settle(cx, |app| view.read(app).edited == 1 && repainted(view.read(app)));
     assert!(!bare.get(), "page 101 never goes blank");
     assert_eq!(cx.update(|_, app| view.read(app).sizes[100]), (612.0, 900.0), "its measured size holds");
@@ -337,7 +337,7 @@ fn an_edit_keeps_page_pictures_until_they_repaint() {
     let old = cx.update(|_, app| view.read(app).picture(0).expect("a picture"));
     // A picture on its way holds back the repaint.
     cx.update(|_, app| view.update(app, |view, _| view.thumbing = true));
-    cx.update(|_, app| view.update(app, |view, cx| view.annotate("adding a note", vec![note()], cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.annotate("pdf.doing.add_note", vec![note()], cx)));
     settle(cx, |app| view.read(app).edited == 1 && repainted(view.read(app)));
     // Dropped from the atlas, it returns only if drawn.
     cx.update(|window, _| window.drop_image(old.clone())).expect("drops");

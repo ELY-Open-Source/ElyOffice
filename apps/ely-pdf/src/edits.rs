@@ -192,7 +192,7 @@ impl PdfView {
     }
 
     pub fn undo(&mut self, redo: bool, cx: &mut Context<Self>) {
-        let what = if redo { "redo" } else { "undo" };
+        let what = if redo { "pdf.doing.redo" } else { "pdf.doing.undo" };
         self.edit_pages(what, move |worker, doc| worker.undo(doc, redo), cx);
     }
 }

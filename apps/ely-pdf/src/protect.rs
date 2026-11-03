@@ -140,7 +140,7 @@ impl Viewer {
             return;
         };
         let Some(dir) = ely_office::folder(open) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let tail = Self::text(cx, if lock.is_some() { "pdf.protect.tail" } else { "pdf.protect.bare" }, &[]);
         let chosen = cx.prompt_for_new_path(&dir, Some(&beside(&open.name, &tail)));

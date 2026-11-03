@@ -211,7 +211,7 @@ fn a_layer_read_from_before_an_edit_is_read_again() {
     let (_, cx, view) = editing(&mut cx, dir.path());
     // The read starts before the edit lands, returns after.
     cx.update(|_, app| view.update(app, |view, cx| {
-        view.edit("turning", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx);
+        view.edit("pdf.doing.turn", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx);
         view.layers.clear();
         view.ask_layers(&[0], cx);
         assert!(view.reading_layer);
@@ -260,7 +260,7 @@ fn a_preview_goes_once_anything_else_lands() {
         let preview = viewer.read(app).preview.as_ref().expect("shown");
         ((preview.tab, preview.version, preview.page), preview.writing.clone())
     });
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("deleting", |worker, doc| worker.delete_pages(doc, &[0]), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.delete_pages", |worker, doc| worker.delete_pages(doc, &[0]), cx)));
     settle(cx, |app| view.read(app).edited == 1 && viewer.read(app).preview.is_none());
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.commit_text(stale.0, stale.1, cx)));
     frames(cx);

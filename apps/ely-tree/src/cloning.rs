@@ -49,7 +49,7 @@ impl Tree {
             .map(PathBuf::from)
             .or_else(std::env::home_dir);
         let Some(near) = near else {
-            return self.failed("tree.error.clone", "no home folder", cx);
+            return self.failed("tree.error.clone", &ely_ui::i18n::text(cx, "error.no_home", &[]), cx);
         };
         let picked = cx.prompt_for_new_path(&near, suggested(&url));
         cx.spawn(async move |this, cx| {

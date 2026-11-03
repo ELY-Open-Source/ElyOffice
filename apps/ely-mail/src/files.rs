@@ -45,7 +45,7 @@ impl Mail {
         }
         let Ok(store) = self.store.clone() else {
             self.downloading.remove(&id);
-            return self.failed("mail.file.download_failed", "no store", cx);
+            return self.failed("mail.file.download_failed", &ely_ui::i18n::text(cx, "error.no_store", &[]), cx);
         };
         let tls = match self.tls.clone() {
             Ok(tls) => tls,
@@ -85,7 +85,7 @@ impl Mail {
                     Err(error) => return mail.failed("mail.file.unread", &error, cx),
                 };
                 let Some(dirs) = directories::UserDirs::new() else {
-                    return mail.failed("mail.file.unsaved", "no home folder", cx);
+                    return mail.failed("mail.file.unsaved", &ely_ui::i18n::text(cx, "error.no_home", &[]), cx);
                 };
                 let dir = dirs.download_dir().unwrap_or(dirs.home_dir()).to_path_buf();
                 let chosen = cx.prompt_for_new_path(&dir, Some(&named(&part, cx)));

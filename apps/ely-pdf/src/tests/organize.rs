@@ -42,7 +42,7 @@ fn a_delete_marks_the_tab_and_undo_clears_it() {
     assert!(!dirty(cx, &viewer));
     edit(cx, &view, |view, cx| {
         view.picked = [1].into();
-        view.edit("deleting", |worker, doc| worker.delete_pages(doc, &[1]), cx);
+        view.edit("pdf.doing.delete_pages", |worker, doc| worker.delete_pages(doc, &[1]), cx);
     });
     frames(cx);
     assert_eq!(cx.update(|_, app| view.read(app).sizes.len()), 2);
@@ -82,8 +82,8 @@ fn an_edit_queued_behind_another_is_refused() {
     let mut cx = TestAppContext::single();
     let (_, cx, view) = three(&mut cx, dir.path());
     cx.update(|_, app| view.update(app, |view, cx| {
-        view.edit("turning", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx);
-        view.edit("deleting", |worker, doc| worker.delete_pages(doc, &[0]), cx);
+        view.edit("pdf.doing.turn", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx);
+        view.edit("pdf.doing.delete_pages", |worker, doc| worker.delete_pages(doc, &[0]), cx);
     }));
     // The worker sees one edit at a time.
     assert_eq!(cx.update(|_, app| (view.read(app).editing, view.read(app).queue.len())), (true, 1));
@@ -112,7 +112,7 @@ fn closing_an_edited_tab_asks_first() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let (viewer, cx, view) = three(&mut cx, dir.path());
-    edit(cx, &view, |view, cx| view.edit("turning", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx));
+    edit(cx, &view, |view, cx| view.edit("pdf.doing.turn", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx));
     let id = cx.update(|_, app| viewer.read(app).core.active.expect("a tab"));
     cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.request_close(id, ely_office::After::Tab, window, cx)));
     settle(cx, |app| matches!(viewer.read(app).core.dialog, Some(Dialog::Unsaved { .. })));
@@ -193,7 +193,7 @@ fn a_range_pick_starts_over_after_pages_move() {
     settle(cx, |app| view.read(app).sizes.len() == 2);
     cx.update(|_, app| view.update(app, |view, cx| view.pick(0, (true, false), cx)));
     assert_eq!(cx.update(|_, app| view.read(app).chosen_pages()), [0], "no range from a page that went");
-    edit(cx, &view, |view, cx| view.edit("blank", |worker, doc| worker.insert_blank(doc, 1, (100.0, 100.0)), cx));
+    edit(cx, &view, |view, cx| view.edit("pdf.doing.insert_page", |worker, doc| worker.insert_blank(doc, 1, (100.0, 100.0)), cx));
     assert_eq!(cx.update(|_, app| view.read(app).sizes.len()), 3);
 }
 
@@ -204,7 +204,7 @@ fn a_failed_edit_lets_a_waiting_save_go() {
     let (viewer, cx, view) = three(&mut cx, dir.path());
     let id = cx.update(|_, app| viewer.read(app).core.active.expect("a tab"));
     let ran = std::rc::Rc::new(std::cell::Cell::new(false));
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("cropping", |worker, doc| worker.crop_pages(doc, &[0], [900.0; 4]), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.crop", |worker, doc| worker.crop_pages(doc, &[0], [900.0; 4]), cx)));
     cx.update(|_, app| viewer.update(app, |viewer, _| {
         let ran = ran.clone();
         viewer.when_settled(id, move |_, _, _| ran.set(true));

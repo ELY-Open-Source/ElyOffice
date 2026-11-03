@@ -169,7 +169,7 @@ impl PdfView {
                     }
                     Err(error) => {
                         view.unread.insert(Unread::Layer(page));
-                        view.fail("reading what the page holds", &error, cx)
+                        view.fail("pdf.doing.contents", &error, cx)
                     }
                 }
                 cx.notify();
@@ -252,7 +252,7 @@ impl PdfView {
         }
         let (page, index, change) = (drag.page, drag.index, drag.change());
         self.edit(
-            if drag.scale { "scaling an object" } else { "moving an object" },
+            if drag.scale { "pdf.doing.scale_object" } else { "pdf.doing.move_object" },
             move |worker, doc| worker.place(doc, page, index, change),
             cx,
         );
@@ -265,7 +265,7 @@ impl PdfView {
             return log::warn!("pdf: a dragged block is gone from page {page}");
         };
         let by = (drag.now.0 - drag.from.0, drag.now.1 - drag.from.1);
-        self.edit("moving text", move |worker, doc| worker.move_text(doc, page, (index, &expected), by), cx);
+        self.edit("pdf.doing.move_text", move |worker, doc| worker.move_text(doc, page, (index, &expected), by), cx);
     }
 
     /// Outlines of what edits on `place`; the aimed one bold.

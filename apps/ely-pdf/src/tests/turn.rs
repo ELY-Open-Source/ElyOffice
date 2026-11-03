@@ -185,7 +185,7 @@ fn after_an_edit_one_new_tile_waits_for_the_rest() {
         contents: "Look".into(),
         author: String::new(),
     };
-    cx.update(|_, app| view.update(app, |view, cx| view.annotate("adding a note", vec![note], cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.annotate("pdf.doing.add_note", vec![note], cx)));
     settle(cx, |app| view.read(app).edited == 1);
     one_lands(cx, &view, sf, &before, "an edit");
 }
@@ -196,7 +196,7 @@ fn after_a_page_move_the_old_page_never_stands_in() {
     let mut cx = TestAppContext::single();
     let (cx, view, sf, _) = frozen(&mut cx, dir.path());
     let doc = cx.update(|_, app| view.read(app).doc);
-    cx.update(|_, app| view.update(app, |view, cx| view.edit_pages("moving pages", move |worker, _| worker.move_pages(doc, &[1], 0), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit_pages("pdf.doing.move_pages", move |worker, _| worker.move_pages(doc, &[1], 0), cx)));
     settle(cx, |app| view.read(app).edited == 1);
     assert!(cx.update(|_, app| drawn(view.read(app), sf, 0)).is_empty(), "another page's draw never shows");
     one_lands(cx, &view, sf, &HashSet::new(), "a move");

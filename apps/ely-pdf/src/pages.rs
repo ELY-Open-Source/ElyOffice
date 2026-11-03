@@ -317,7 +317,7 @@ impl PdfView {
                         let first = view.failed.is_empty();
                         view.failed.insert(key);
                         if first {
-                            view.fail("drawing a page", &error, cx);
+                            view.fail("pdf.doing.page", &error, cx);
                         }
                     }
                 }

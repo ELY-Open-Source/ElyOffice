@@ -113,7 +113,7 @@ impl Desk {
             return;
         };
         let Some(dir) = ely_office::folder(source) else {
-            return self.export_failed("no documents folder", cx);
+            return self.export_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let stem = source
             .name
@@ -151,7 +151,7 @@ impl Desk {
         };
         match self.holder(&path) {
             Ok(None) => {}
-            Ok(Some(_)) => return self.export_failed("an open document is there", cx),
+            Ok(Some(_)) => return self.export_failed(&ely_ui::i18n::text(cx, "error.open_there", &[]), cx),
             Err(error) => return self.export_failed(&error.to_string(), cx),
         }
         let session = source.session.path().map(PathBuf::from);

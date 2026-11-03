@@ -107,7 +107,7 @@ fn an_edit_made_while_saving_stays_and_the_tab_reopens_after_the_next_save() {
     cx.update(|window, app| viewer.update(app, |viewer, cx| {
         viewer.write_as(id, fixed.clone(), None, window, cx);
         // Lands after the save took its snapshot.
-        view.update(cx, |view, cx| view.edit("rotating", |w, doc| w.rotate_pages(doc, &[0], 90), cx));
+        view.update(cx, |view, cx| view.edit("pdf.doing.turn", |w, doc| w.rotate_pages(doc, &[0], 90), cx));
     }));
     settle(cx, |app| fixed.is_file() && view.read(app).edited == 1 && viewer.read(app).active_tab().is_some_and(|tab| !tab.exporting));
     for _ in 0..10 {
@@ -133,7 +133,7 @@ fn picked_pages_from_before_an_edit_export_nothing() {
     let target = dir.path().join("doc-2.png");
     cx.update(|_, app| viewer.update(app, |viewer, cx| {
         let version = view.read(cx).version;
-        view.update(cx, |view, cx| view.edit("deleting", |w, doc| w.delete_pages(doc, &[0]), cx));
+        view.update(cx, |view, cx| view.edit("pdf.doing.delete_pages", |w, doc| w.delete_pages(doc, &[0]), cx));
         viewer.write_images(id, (vec![1], version), 72.0, vec![target.clone()], cx);
     }));
     settle(cx, |app| view.read(app).edited == 1 && view.read(app).settled());
@@ -210,7 +210,7 @@ fn an_edited_document_does_not_quote_the_files_size() {
         root
     });
     let note = ely_pdf_engine::NewAnnot { page: 0, shape: ely_pdf_engine::Shape::Note((100.0, 500.0)), rgb: None, contents: "n".into(), author: String::new() };
-    cx.update(|_, app| view.update(app, |view, cx| view.annotate("a note", vec![note], cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.annotate("pdf.doing.add_note", vec![note], cx)));
     settle(cx, |app| view.read(app).settled() && view.read(app).modified());
     let id = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
     let out = dir.path().join("small.pdf");

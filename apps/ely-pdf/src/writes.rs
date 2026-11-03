@@ -129,7 +129,7 @@ impl Viewer {
                 cx.notify();
             }
             Ok(_) => self.commit_text((tab, version, page), writing, cx),
-            Err(error) => self.failed_read("previewing text", &error, cx),
+            Err(error) => self.failed_read("pdf.doing.preview", &error, cx),
         }
     }
 
@@ -141,7 +141,7 @@ impl Viewer {
         };
         self.on_same(&view, version, cx, |view, cx| {
             view.edit(
-                "writing text",
+                "pdf.doing.write",
                 move |worker, doc| match worker.put_text(doc, page, &writing, 0.0)? {
                     Wrote::Done(mark) => Ok(mark),
                     Wrote::Missing(c) => Err(io::Error::other(format!("the font has no {c}"))),
@@ -155,7 +155,7 @@ impl Viewer {
 
     fn failed_read(&self, what: &str, error: &io::Error, cx: &mut App) {
         log::error!("pdf: {what} failed ({:?})", error.kind());
-        let text = Self::text(cx, "pdf.failed", &[("what", what), ("error", &error.to_string())]);
+        let text = Self::text(cx, "pdf.failed", &[("what", &Self::text(cx, what, &[])), ("error", &error.to_string())]);
         self.toast(text, Severity::Danger, cx);
     }
 
@@ -173,7 +173,7 @@ impl Viewer {
         };
         let version = view.read(cx).version;
         self.on_same(&view, version, cx, |view, cx| {
-            view.edit("deleting an object", move |worker, doc| worker.delete_object(doc, page, index), cx)
+            view.edit("pdf.doing.delete_object", move |worker, doc| worker.delete_object(doc, page, index), cx)
         });
     }
 
@@ -185,7 +185,7 @@ impl Viewer {
         let version = view.read(cx).version;
         self.pick(false, cx, move |viewer, path: PathBuf, cx| {
             viewer.on_same(&view, version, cx, |view, cx| {
-                view.edit("replacing an image", move |worker, doc| worker.replace_image(doc, page, index, &path), cx)
+                view.edit("pdf.doing.replace_image", move |worker, doc| worker.replace_image(doc, page, index, &path), cx)
             });
         });
     }
@@ -218,7 +218,7 @@ impl Viewer {
         self.pick(false, cx, move |viewer, path: PathBuf, cx| {
             let (w, h) = match image::image_dimensions(&path) {
                 Ok(size) => size,
-                Err(error) => return viewer.failed_read("reading the picture", &io::Error::other(error), cx),
+                Err(error) => return viewer.failed_read("pdf.doing.picture", &io::Error::other(error), cx),
             };
             viewer.on_same(&view, version, cx, |view, cx| {
                 let (pw, ph) = view.sizes[page];
@@ -226,7 +226,7 @@ impl Viewer {
                 let fit = (pw * 0.5 / w as f32).min(ph * 0.5 / h as f32).min(0.75);
                 let (iw, ih) = (w as f32 * fit, h as f32 * fit);
                 let rect = [(pw - iw) / 2.0, (ph - ih) / 2.0, (pw + iw) / 2.0, (ph + ih) / 2.0];
-                view.edit("adding an image", move |worker, doc| worker.add_image(doc, page, &path, rect), cx)
+                view.edit("pdf.doing.add_image", move |worker, doc| worker.add_image(doc, page, &path, rect), cx)
             });
         });
     }

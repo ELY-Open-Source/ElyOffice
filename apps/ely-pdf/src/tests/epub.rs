@@ -27,7 +27,7 @@ fn a_book_opens_and_a_change_says_it_only_reads() {
         viewer.update(app, |viewer, _| viewer.core.root = root.downgrade());
         root
     });
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("deleting pages", |worker, doc| worker.delete_pages(doc, &[0]), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.delete_pages", |worker, doc| worker.delete_pages(doc, &[0]), cx)));
     let said = cx.update(|_, app| Viewer::text(app, "pdf.epub.read_only", &[]));
     settle(cx, |app| !root.read(app).toasts(app).is_empty());
     let toasts = cx.update(|_, app| root.read(app).toasts(app));

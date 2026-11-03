@@ -193,7 +193,7 @@ impl PdfView {
                     Err(error) if ely_pdf_engine::is_stale(&error) => log::info!("pdf: a page picture from before an edit is dropped"),
                     Err(error) => {
                         view.thumbs_failed.insert(page);
-                        view.fail("drawing a page picture", &error, cx);
+                        view.fail("pdf.doing.thumbnail", &error, cx);
                     }
                 }
                 cx.notify();

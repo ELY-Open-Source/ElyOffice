@@ -72,7 +72,7 @@ impl Viewer {
         let turned = unturn(margins, view.read(cx).rotate);
         let points = turned.map(|side| side * MM);
         view.update(cx, |view, cx| {
-            view.edit_pages("cropping pages", move |worker, doc| worker.crop_pages(doc, &pages, points), cx)
+            view.edit_pages("pdf.doing.crop", move |worker, doc| worker.crop_pages(doc, &pages, points), cx)
         });
         cx.notify();
     }
@@ -84,7 +84,7 @@ impl Viewer {
         };
         let (id, pages) = (tab.id, view.read(cx).chosen_pages());
         let Some(dir) = ely_office::folder(tab) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let name = format!("{}-{}.pdf", stem(&tab.name), pages[0] + 1);
         let chosen = cx.prompt_for_new_path(&dir, Some(&name));

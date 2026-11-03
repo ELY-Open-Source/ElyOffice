@@ -166,7 +166,7 @@ impl Viewer {
             return self.toast(summary, Severity::Info, cx);
         };
         let laid = self.on_same(&view, run.version, cx, |view, cx| {
-            view.edit("adding recognised text", move |worker, doc| worker.text_layer(doc, &pages, replace), cx)
+            view.edit("pdf.doing.add_ocr", move |worker, doc| worker.text_layer(doc, &pages, replace), cx)
         });
         if laid {
             self.toast(summary, Severity::Success, cx);

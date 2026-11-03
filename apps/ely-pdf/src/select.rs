@@ -94,7 +94,7 @@ impl PdfView {
                         }
                         Err(error) => {
                             view.marking = None;
-                            view.fail("reading the text", &error, cx)
+                            view.fail("pdf.doing.text", &error, cx)
                         }
                     }
                 },
@@ -187,7 +187,7 @@ impl PdfView {
                     log::info!("pdf: copies text from {} pages", parts.len());
                     cx.write_to_clipboard(ClipboardItem::new_string(parts.join("\n")));
                 }
-                Err(error) => view.fail("copying", &error, cx),
+                Err(error) => view.fail("pdf.doing.copy", &error, cx),
             },
             cx,
         );

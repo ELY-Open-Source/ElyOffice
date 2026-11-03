@@ -104,7 +104,7 @@ impl Mail {
         write: impl FnOnce(&std::path::Path) -> Result<usize, String> + Send + 'static,
     ) {
         let Some(dirs) = directories::UserDirs::new() else {
-            return self.failed(failed, "no home folder", cx);
+            return self.failed(failed, &ely_ui::i18n::text(cx, "error.no_home", &[]), cx);
         };
         let dir = dirs.document_dir().unwrap_or(dirs.home_dir()).to_path_buf();
         let chosen = cx.prompt_for_new_path(&dir, Some(&name));
@@ -172,7 +172,7 @@ impl Mail {
 
     pub fn export_mbox(&mut self, mailbox: MailboxId, name: &str, cx: &mut Context<Self>) {
         let Ok(store) = self.store.clone() else {
-            return self.failed("mail.mbox.unexported", "no store", cx);
+            return self.failed("mail.mbox.unexported", &ely_ui::i18n::text(cx, "error.no_store", &[]), cx);
         };
         let file = file_name(Some(name), "mail", "mbox");
         self.save_new(file, "mail.mbox.unexported", cx, move |path| {

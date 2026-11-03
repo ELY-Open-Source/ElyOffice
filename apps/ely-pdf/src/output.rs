@@ -30,7 +30,7 @@ impl PdfView {
                     (view.repair, view.damage_seen) = (report, true);
                     cx.emit(Reported);
                 }
-                Err(error) => view.fail("reading the damage report", &error, cx),
+                Err(error) => view.fail("pdf.doing.damage", &error, cx),
             },
             cx,
         );
@@ -112,7 +112,7 @@ impl Viewer {
             return;
         };
         let Some(dir) = ely_office::folder(tab) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let (id, stem) = (asked.tab, stem(&tab.name));
         if asked.kind == Kind::Images {
@@ -363,8 +363,8 @@ impl Viewer {
                 .on_change(toggled(|how, on| (how.from, how.to) = if on { (300, 150) } else { (300, 0) })),
         );
         if shrink {
-            let from = NumberInput::new("pdf-export-from", f64::from(how.from)).range(72.0, 2400.0).suffix("dpi").label(Self::text(cx, "pdf.export.above", &[]));
-            let to = NumberInput::new("pdf-export-to", f64::from(how.to)).range(36.0, 1200.0).suffix("dpi").label(Self::text(cx, "pdf.export.to", &[]));
+            let from = NumberInput::new("pdf-export-from", f64::from(how.from)).range(72.0, 2400.0).suffix(Self::text(cx, "pdf.export.dpi", &[])).label(Self::text(cx, "pdf.export.above", &[]));
+            let to = NumberInput::new("pdf-export-to", f64::from(how.to)).range(36.0, 1200.0).suffix(Self::text(cx, "pdf.export.dpi", &[])).label(Self::text(cx, "pdf.export.to", &[]));
             let list = DescriptionList::new()
                 .item(Self::text(cx, "pdf.export.above", &[]), from.on_change(set(|how, value| how.from = value.round() as u32)))
                 .item(Self::text(cx, "pdf.export.to", &[]), to.on_change(set(|how, value| how.to = value.round() as u32)));

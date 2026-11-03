@@ -55,11 +55,11 @@ struct Scan {
 }
 
 impl Pending {
-    pub(crate) fn new(path: PathBuf, bytes: Vec<u8>, chinese: bool) -> Self {
+    pub(crate) fn new(path: PathBuf, bytes: Vec<u8>, legacy: Encoding) -> Self {
         let how = Import {
             separator: guess_separator(&path, &bytes),
             quote: Some('"'),
-            encoding: guess_encoding(&bytes, chinese),
+            encoding: guess_encoding(&bytes, legacy),
             columns: Vec::new(),
         };
         Pending {
@@ -105,14 +105,21 @@ fn scan(bytes: &[u8], how: &Import) -> Scan {
     }
 }
 
-fn guess_encoding(sample: &[u8], chinese: bool) -> Encoding {
+/// The Windows code page of the app's language.
+pub(crate) fn legacy_encoding(locale: &str) -> Encoding {
+    match locale {
+        "zh-CN" => Encoding::Gb18030,
+        _ => Encoding::Windows1252,
+    }
+}
+
+fn guess_encoding(sample: &[u8], legacy: Encoding) -> Encoding {
     if sample.starts_with(&[0xFF, 0xFE]) || sample.starts_with(&[0xFE, 0xFF]) {
         return Encoding::Utf16;
     }
     match std::str::from_utf8(sample) {
         Ok(_) => Encoding::Utf8,
-        Err(_) if chinese => Encoding::Gb18030,
-        Err(_) => Encoding::Windows1252,
+        Err(_) => legacy,
     }
 }
 
@@ -232,12 +239,12 @@ impl Book {
     pub(crate) fn ask_import(&mut self, path: PathBuf, cx: &mut Context<Self>) {
         let reading = path.clone();
         // The language the app shows, not the system's.
-        let chinese = cx.global::<ely_gpui_component::i18n::I18n>().locale().tag == "zh-CN";
+        let legacy = legacy_encoding(cx.global::<ely_gpui_component::i18n::I18n>().locale().tag);
         cx.spawn(async move |this, cx| {
             // Guessing checks the whole file: off the window thread.
             let pending = cx
                 .background_spawn(async move {
-                    std::fs::read(&reading).map(|bytes| Pending::new(reading, bytes, chinese))
+                    std::fs::read(&reading).map(|bytes| Pending::new(reading, bytes, legacy))
                 })
                 .await;
             in_window(&this, cx, |book, _, cx| match pending {
@@ -348,10 +355,21 @@ mod tests {
         assert_eq!(guess_separator(csv, b"a;b;c,d\n1;2"), ';');
         assert_eq!(guess_separator(csv, b"one\n"), ',');
         assert_eq!(guess_separator(Path::new("a.TSV"), b"a,b"), '\t');
-        assert_eq!(guess_encoding("名称".as_bytes(), false), Encoding::Utf8);
-        assert_eq!(guess_encoding(&[0xC3, 0xFB], true), Encoding::Gb18030);
-        assert_eq!(guess_encoding(&[0xC3, 0xFB], false), Encoding::Windows1252);
-        assert_eq!(guess_encoding(&[0xFF, 0xFE, b'a', 0], false), Encoding::Utf16);
+        assert_eq!(guess_encoding("名称".as_bytes(), Encoding::Gb18030), Encoding::Utf8);
+        assert_eq!(guess_encoding(&[0xC3, 0xFB], Encoding::Gb18030), Encoding::Gb18030);
+        assert_eq!(guess_encoding(&[0xC3, 0xFB], Encoding::Windows1252), Encoding::Windows1252);
+        assert_eq!(guess_encoding(&[0xFF, 0xFE, b'a', 0], Encoding::Gb18030), Encoding::Utf16);
+    }
+
+    #[test]
+    fn each_language_names_its_windows_code_page() {
+        // Excel saves CSV in the system's ANSI code page.
+        let pages = [("en-US", Encoding::Windows1252), ("es-ES", Encoding::Windows1252), ("zh-CN", Encoding::Gb18030)];
+        let listed: Vec<_> = ely_platform::settings::LANGUAGES.iter().map(|(tag, _)| *tag).collect();
+        assert_eq!(pages.map(|(tag, _)| tag).to_vec(), listed, "a new language picks its page");
+        for (tag, page) in pages {
+            assert_eq!(legacy_encoding(tag), page, "{tag}");
+        }
     }
 
     #[test]
