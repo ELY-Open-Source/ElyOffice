@@ -1,0 +1,27 @@
+//! Korean mail storage messages.
+
+pub(super) const KO: &[(&str, &str)] = &[
+    ("mail.storage.unread", "메일 저장 공간을 읽을 수 없습니다: {error}"),
+    ("mail.storage.index", "메일 색인"),
+    ("mail.storage.index_hint", "계정, 폴더, 헤더, 임시 보관함, 보낼 편지함: {size}, 검색: {search}"),
+    ("mail.storage.originals", "다운로드한 메일"),
+    ("mail.storage.originals_hint", "{size}. 정리하면 서버에 아직 있는 메일을 이 컴퓨터에서 내려놓으며, 동기화하거나 열 때 다시 다운로드합니다. 오프라인 폴더, POP3, 가져온 메일은 남습니다."),
+    ("mail.storage.forget", "정리…"),
+    ("mail.storage.forget_title", "다운로드한 메일을 정리하시겠습니까?"),
+    ("mail.storage.forget_message", "IMAP 서버에 있는 메일의 본문과 파일을 이 컴퓨터에서 삭제하며 헤더는 남습니다. 최근 메일은 다음 동기화 때, 이전 메일은 열 때 다시 다운로드합니다."),
+    ("mail.storage.forget_go", "정리"),
+    ("mail.storage.forgot", "메시지 {n}개를 내려놓았습니다"),
+    ("mail.storage.forgot.one", "메시지 1개를 내려놓았습니다"),
+    ("mail.storage.unforgotten", "메일을 정리하지 못했습니다: {error}"),
+    ("mail.storage.cap", "다운로드한 메일 한도"),
+    ("mail.storage.cap_none", "제한 없음"),
+    ("mail.storage.cap_hint", "한도를 넘으면 가장 오래된 다운로드부터 헤더만 남깁니다. 오프라인 폴더와 가져온 메일은 유지됩니다."),
+    ("mail.storage.cap_unread", "저장된 한도를 읽을 수 없어 한도를 적용하지 않습니다: {error}"),
+    ("mail.storage.cap_unsaved", "한도를 저장하지 못했습니다: {error}"),
+    ("mail.storage.untrimmed", "다운로드를 한도에 맞게 줄이지 못했습니다: {error}"),
+    ("mail.storage.all", "모든 메일 내보내기"),
+    ("mail.storage.all_hint", "각 폴더가 계정별 폴더 안의 mbox 파일 하나가 됩니다."),
+    ("mail.storage.export", "내보내기…"),
+    ("mail.storage.exported", "폴더 {n}개를 내보냈습니다. 메시지 {left}개는 뺐습니다(전체가 없거나 원시 바이너리)"),
+    ("mail.storage.exported.one", "폴더 1개를 내보냈습니다. 메시지 {left}개는 뺐습니다(전체가 없거나 원시 바이너리)"),
+];

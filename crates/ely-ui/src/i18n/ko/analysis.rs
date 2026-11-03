@@ -1,0 +1,26 @@
+//! Korean analysis messages.
+
+pub(super) const KO: &[(&str, &str)] = &[
+    ("table.pivot.make", "피벗 테이블…"),
+    ("table.pivot.refresh", "피벗 테이블 새로 고침"),
+    ("table.pivot.title", "피벗 테이블"),
+    ("table.pivot.source", "원본: {range}"),
+    ("table.pivot.unused", "사용 안 함"),
+    ("table.pivot.rows", "행"),
+    ("table.pivot.columns", "열"),
+    ("table.pivot.pages", "필터"),
+    ("table.pivot.data", "값"),
+    ("table.pivot.sum", "합계"),
+    ("table.pivot.count", "개수"),
+    ("table.pivot.average", "평균"),
+    ("table.pivot.max", "최대"),
+    ("table.pivot.min", "최소"),
+    ("table.pivot.other", "기타"),
+    ("table.pivot.function_of", "{field} 요약"),
+    ("table.pivot.go", "만들기"),
+    ("table.pivot.apply", "적용"),
+    ("table.pivot.headers", "피벗 테이블을 만들려면 모든 열에 머리글이 있어야 합니다."),
+    ("table.pivot.none", "커서가 피벗 테이블 안에 있지 않습니다."),
+    ("table.chart.make", "차트…"),
+    ("table.chart.range", "데이터 범위"),
+];

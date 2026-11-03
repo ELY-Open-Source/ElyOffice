@@ -1,0 +1,27 @@
+//! Korean mail migrate messages.
+
+pub(super) const KO: &[(&str, &str)] = &[
+    ("mail.boxes.imported", "{name}(이 컴퓨터)"),
+    ("mail.eml.save", "EML로 저장…"),
+    ("mail.eml.title", "메시지 파일"),
+    ("mail.eml.unread", "메시지 파일을 읽을 수 없습니다"),
+    ("mail.eml.unopened", "메시지 파일을 열지 못했습니다: {error}"),
+    ("mail.eml.unsaved", "메시지를 저장하지 못했습니다: {error}"),
+    ("mail.eml.saved", "{path}에 저장했습니다"),
+    ("mail.eml.incomplete", "이 메시지는 아직 다 받지 못했습니다. 다운로드 중이니 끝나면 다시 저장하십시오."),
+    ("mail.eml.pictures", "메시지 파일에서는 웹 그림 {n}개를 불러오지 않습니다."),
+    ("mail.mbox.import", "MBOX 가져오기…"),
+    ("mail.mbox.importing", "“{name}” 가져오는 중…"),
+    ("mail.mbox.imported", "이 컴퓨터의 “{name}”에 메시지 {n}개를 가져왔습니다"),
+    ("mail.mbox.imported.one", "이 컴퓨터의 “{name}”에 메시지 1개를 가져왔습니다"),
+    ("mail.mbox.unimported", "mbox 파일을 가져오지 못했습니다: {error}"),
+    ("mail.mbox.export", "MBOX로 내보내기…"),
+    ("mail.mbox.unexported", "폴더를 내보내지 못했습니다: {error}"),
+    ("mail.mbox.partial", "메시지 {n}개를 뺐습니다. 헤더만 있거나, 파일을 다운로드하지 않았거나, mbox가 바꿀 원시 바이너리 부분이 있습니다."),
+    ("mail.mbox.partial.one", "메시지 1개를 뺐습니다. 헤더만 있거나, 파일을 다운로드하지 않았거나, mbox가 바꿀 원시 바이너리 부분이 있습니다."),
+    ("mail.mbox.remove", "가져온 폴더 제거…"),
+    ("mail.mbox.remove_title", "“{name}”을(를) 제거하시겠습니까?"),
+    ("mail.mbox.remove_message", "그 메시지가 이 컴퓨터에서 삭제됩니다. 어느 서버에도 없습니다."),
+    ("mail.mbox.remove_go", "제거"),
+    ("mail.mbox.unremoved", "폴더를 제거하지 못했습니다: {error}"),
+];
