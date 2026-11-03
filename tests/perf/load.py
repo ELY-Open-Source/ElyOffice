@@ -258,23 +258,31 @@ def frames(lines):
             max(float(m.group(3)) for m in found), max(float(m.group(4)) for m in found))
 
 
-def zoomed(lines):
-    """The last zoom the view logged, in percent."""
-    found = [int(m.group(1)) for line in lines if (m := re.search(r"lok: zoom (\d+)%", line))]
-    return found[-1] if found else None
+def zooms(lines):
+    """Each zoom the view logged, in percent."""
+    return [int(m.group(1)) for line in lines if (m := re.search(r"lok: zoom (\d+)%", line))]
 
 
-def reached(reset, now, key, times):
-    """Whether a step left the zoom where it should be."""
-    if reset is None or now is None:
-        return False
-    if key == "0":
-        return now < reset if times < 0 else now > reset if times > 0 else now == reset
+def stepped(zoom, key, times):
     steps = [25, 50, 67, 80, 100, 125, 150, 200, 300, 400]
     for _ in range(times):
-        nearer = [s for s in steps if s > reset] if key == "plus" else [s for s in steps if s < reset][::-1]
-        reset = nearer[0] if nearer else reset
-    return now == reset
+        nearer = [s for s in steps if s > zoom] if key == "plus" else [s for s in steps if s < zoom][::-1]
+        zoom = nearer[0] if nearer else zoom
+    return zoom
+
+
+def reached(reset, seen, key, times):
+    """Whether a step's logged zooms are those it asked for."""
+    if times == 0:
+        return True
+    if not seen:
+        return False
+    if key == "0":
+        return reset is None or (seen[-1] < reset if times < 0 else seen[-1] > reset)
+    # A fit goes unlogged; the first step anchors.
+    if reset is not None and seen[0] != stepped(reset, key, 1):
+        return False
+    return len(seen) == times and seen[-1] == stepped(seen[0], key, times - 1)
 
 
 def stalls(lines):

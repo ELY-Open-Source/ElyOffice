@@ -351,10 +351,11 @@ def zoom():
             app.front()
             time.sleep(3)
             for name, key, times in ZOOMS:
+                before = len(app.lines())
                 run.HOST.chord(app.process.pid, "0")
                 # The log reaches the file within two seconds.
                 time.sleep(2.5)
-                reset, since = load.zoomed(app.lines()), len(app.lines())
+                reset, since = (load.zooms(app.lines()[before:]) or [None])[-1], len(app.lines())
                 for _ in range(abs(times) if not name.startswith("wheel") else 0):
                     run.HOST.chord(app.process.pid, key)
                     time.sleep(0.3)
@@ -365,8 +366,8 @@ def zoom():
                     run.HOST.chord(app.process.pid, "home")
                 time.sleep(3)
                 run.HOST.shot(app.process.pid, os.path.join(shots, f"{slug[4:]}-{name}.png"))
-                if not load.reached(reset, now := load.zoomed(app.lines()[since:]) or reset, key, times):
-                    missed.append(f"{name}: {reset} to {now}")
+                if not load.reached(reset, seen := load.zooms(app.lines()[since:]), key, times):
+                    missed.append(f"{name}: from {reset} through {seen}")
             failed = lines_matching(app, run.PAINT_FAILED)
         finally:
             app.stop()

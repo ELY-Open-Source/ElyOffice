@@ -57,15 +57,17 @@ class Logs(unittest.TestCase):
         self.assertIsNone(load.frames(["[x] lok: edit to tile 5 ms"]))
 
     def test_zoom_steps_are_judged(self):
-        self.assertEqual(load.zoomed(["[x] lok: zoom 50%", "[x] lok: zoom 125%"]), 125)
-        self.assertIsNone(load.zoomed(["[x] lok: edit to tile 5 ms"]))
-        self.assertTrue(load.reached(100, 25, "minus", 4))
-        self.assertTrue(load.reached(100, 400, "plus", 5))
-        self.assertTrue(load.reached(50, 25, "minus", 4))
-        self.assertFalse(load.reached(100, 100, "plus", 1))
-        self.assertTrue(load.reached(100, 132, "0", 2))
-        self.assertFalse(load.reached(100, 100, "0", -3))
-        self.assertFalse(load.reached(None, 100, "plus", 1))
+        self.assertEqual(load.zooms(["[x] lok: zoom 50%", "[x] lok: edit to tile 5 ms", "[x] lok: zoom 125%"]), [50, 125])
+        self.assertTrue(load.reached(100, [80, 67, 50, 25], "minus", 4))
+        self.assertTrue(load.reached(100, [125, 150, 200, 300, 400], "plus", 5))
+        # ElyShow's fit is unlogged: 47 % steps to 50 first.
+        self.assertTrue(load.reached(None, [50, 67, 80, 100, 125], "plus", 5))
+        self.assertFalse(load.reached(None, [50, 67, 80, 100], "plus", 5), "a lost chord")
+        self.assertFalse(load.reached(100, [100], "plus", 1))
+        self.assertFalse(load.reached(100, [], "0", -3), "the wheel did nothing")
+        self.assertTrue(load.reached(100, [90, 81], "0", -3))
+        self.assertFalse(load.reached(100, [110], "0", -3))
+        self.assertTrue(load.reached(None, [], "0", 0))
 
     def test_stalls_are_read(self):
         self.assertEqual(load.stalls(["[x] ui: the main thread was busy 140 ms", "[x] other"]), [140])

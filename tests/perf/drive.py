@@ -369,7 +369,8 @@ class Windows(Host):
         return self.ui("rect", pid).strip()
 
     def wheel(self, pid, notches):
-        self.ui("wheel", pid, notches)
+        # powershell -File reads a leading '-' as a parameter.
+        self.ui("wheel", pid, f"n{notches}")
 
     def shot(self, pid, path):
         self.ui("shot", pid, path)

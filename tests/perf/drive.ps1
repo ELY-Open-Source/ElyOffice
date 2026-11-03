@@ -163,7 +163,7 @@ switch ($Command) {
         $r = (Window).Current.BoundingRectangle
         [Input]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)) | Out-Null
         Key 0x11 $false
-        $delta = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]([int]$Arg * 120)), 0)
+        $delta = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]([int]$Arg.TrimStart('n') * 120)), 0)
         [Input]::mouse_event(0x0800, 0, 0, $delta, [UIntPtr]::Zero)
         Start-Sleep -Milliseconds 50
         Key 0x11 $true
