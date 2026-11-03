@@ -1,0 +1,333 @@
+#!/usr/bin/env python3
+"""PERF-10: many documents open and edited at once, per app."""
+
+import argparse
+import concurrent.futures
+import ctypes
+import datetime
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import threading
+import time
+
+import drive
+import feedback
+import loadfiles
+import run
+import search
+
+from loadfiles import TOKEN
+from run import APPS, App, percentile
+
+FRAMES = re.compile(r"ui: frames (\d+) \(lost (\d+)\):.*dirty to shown p50 \S+ p95 (\S+) max (\S+) ms; over 8\.3 ms (\d+)")
+WORKER = re.compile(r"lok-worker: (\d+) documents open")
+KEY_WAIT = 10
+TARGET = 100
+# The user's floor: stop before the machine swaps.
+FLOOR_GB = 12
+# Lowest free memory seen, GB, per app run.
+lowest = [float("inf")]
+
+
+class Memory(ctypes.Structure):
+    _fields_ = [("size", ctypes.c_ulong), ("load", ctypes.c_ulong)] + [
+        (name, ctypes.c_ulonglong) for name in ("total", "free", "page", "page_free", "virtual", "virtual_free", "extended")]
+
+
+def free_gb():
+    """Physical memory free now; raises below the floor."""
+    status = Memory()
+    status.size = ctypes.sizeof(Memory)
+    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+        raise RuntimeError("free memory could not be read")
+    free = status.free / 2**30
+    lowest[0] = min(lowest[0], free)
+    if free < FLOOR_GB:
+        raise RuntimeError(f"stopped: free memory {free:.1f} GB under {FLOOR_GB} GB")
+    return free
+
+
+def finish_enter(pid):
+    run.HOST.enter(pid)
+
+
+def finish_escape(pid):
+    run.HOST.key(pid, "escape")
+
+
+def finish_nothing(pid):
+    """The typed text is already in the document."""
+
+
+def replaced(path, r):
+    return [["text", "replace", path, f"{TOKEN}{r - 1}", f"{TOKEN}{r}"]]
+
+
+def set_cells(path, r):
+    """H1 counts rounds; A1 feeds every formula."""
+    return [["cell", "set", path, "Data!H1", str(r)], ["cell", "set", path, "Data!A1", str(1000 + r)]]
+
+
+class Recipe(feedback.Keys):
+    def __init__(self, slug, answer, into, finish, edits, key="x"):
+        super().__init__(slug, [], None, answer, into, key)
+        self.finish, self.edits = finish, edits
+
+
+RECIPES = {
+    "ely-doc": Recipe("ely-doc", feedback.TILE, feedback.into_document, finish_nothing, replaced),
+    "ely-table": Recipe("ely-table", feedback.TILE, feedback.into_document, finish_enter, set_cells, key="1"),
+    "ely-show": Recipe("ely-show", feedback.TILE, feedback.into_box, finish_escape, replaced),
+    "ely-mark": Recipe("ely-mark", feedback.FRAME, feedback.into_paragraph, finish_nothing, replaced),
+}
+
+
+def ask(app, words):
+    """Ms the app's command line took; raises on refusal."""
+    began = time.monotonic()
+    out = subprocess.run([run.HOST.exe(app.slug, True), *words], env=app.env, capture_output=True, text=True,
+                         timeout=300, creationflags=drive.QUIET)
+    took = (time.monotonic() - began) * 1000
+    if out.returncode:
+        raise RuntimeError(f"{' '.join(words[:2])} {os.path.basename(words[2])}: exit {out.returncode}: {out.stderr.strip()}")
+    return took
+
+
+def at_once(app, jobs):
+    """Each job's words asked together; times and failures."""
+    times, failures = [], []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(jobs))) as pool:
+        for future in [pool.submit(ask, app, words) for words in jobs]:
+            try:
+                times.append(future.result())
+            except (RuntimeError, subprocess.TimeoutExpired) as error:
+                failures.append(str(error))
+    return times, failures
+
+
+def edit_rounds(app, recipe, files, rounds, out):
+    """Every document edited `rounds` times, all of them at once."""
+    for r in range(1, rounds + 1):
+        times, failures = at_once(app, [words for path in files for words in recipe.edits(path, r)])
+        out["edits"] += times
+        out["problems"] += [f"edit round {r}: {failure}" for failure in failures]
+
+
+def wait_opened(app, count, timeout, since=0):
+    """Until `count` tabs are open; a failed open raises."""
+    pattern = re.compile(rf"{app.slug}: opened .+ as tab \d+, risk .*, (\d+) tabs open")
+    until = time.monotonic() + timeout
+    while time.monotonic() < until:
+        lines = app.lines()[since:]
+        failed = [line for line in lines if " did not open" in line]
+        if failed:
+            raise RuntimeError(f"{app.slug}: {failed[0][-160:]}")
+        if any(int(m.group(1)) >= count for line in lines if (m := pattern.search(line))):
+            return (time.monotonic() - app.start) * 1000
+        if app.process.poll() is not None:
+            raise app.failed(pattern.pattern, timeout)
+        free_gb()
+        time.sleep(0.05)
+    raise app.failed(pattern.pattern, timeout)
+
+
+def type_keys(app, recipe, count, busy=None):
+    """Keys to feedback, `count` at least and while `busy` runs."""
+    since = len(app.lines())
+    n = 0
+    while n < count or (busy is not None and busy.is_alive()):
+        recipe.send(app.process.pid)
+        until = time.monotonic() + KEY_WAIT
+        while sum(1 for line in app.lines()[since:] if re.search(recipe.answer, line)) <= n:
+            if time.monotonic() > until:
+                raise RuntimeError(f"{app.slug}: key {n + 1} showed nothing in {KEY_WAIT} s")
+            time.sleep(0.01)
+        n += 1
+        free_gb()
+        time.sleep(0.15)
+    lines = app.lines()[since:]
+    return [int(m.group(1)) for line in lines if (m := re.search(recipe.answer, line))], lines
+
+
+def frames(lines):
+    """Frames, lost, late, worst dirty-to-shown p95 and max."""
+    found = [FRAMES.search(line) for line in lines]
+    found = [m for m in found if m]
+    if not found:
+        return None
+    return (sum(int(m.group(1)) for m in found), sum(int(m.group(2)) for m in found), sum(int(m.group(5)) for m in found),
+            max(float(m.group(3)) for m in found), max(float(m.group(4)) for m in found))
+
+
+def stalls(lines):
+    return [int(m.group(1)) for line in lines if (m := re.search(feedback.STALL, line))]
+
+
+def typed(slug, path, count):
+    """Whether the front document saved every key typed."""
+    if slug == "ely-table":
+        value = loadfiles.cell(path, "Typing", "A1")
+        return value is not None and abs(float(value) / float("1" * count) - 1) < 1e-9
+    return "x" * count in loadfiles.text_of(path)
+
+
+def saved(slug, path, rounds):
+    """What a saved document lost of its edits and links."""
+    name, problems = os.path.basename(path), []
+    if slug == "ely-table":
+        want = {("Data", "H1"): rounds, ("Data", "A1"): 1000 + rounds, ("Calc", "A1"): 2 * (1000 + rounds)}
+        for (sheet, ref), value in want.items():
+            got = loadfiles.cell(path, sheet, ref)
+            if got is None or float(got) != value:
+                problems.append(f"{name}: {sheet}!{ref} saved {got}, not {value}")
+        if loadfiles.formula(path, "Calc", "A1") is None:
+            problems.append(f"{name}: Calc!A1 lost its formula")
+        if "-big" in name:
+            problems += [f"{name}: {what} failed" for what, ok in loadfiles.book_links(path).items() if not ok]
+        return problems
+    found = loadfiles.tokens(path)
+    if found != [rounds]:
+        problems.append(f"{name}: saved tokens {found}, not [{rounds}]")
+    if "-linked" in name:
+        problems += [f"{name}: {what} failed" for what, ok in loadfiles.word_links(path).items() if not ok]
+    return problems
+
+
+def one_app(slug, folder, work, args):
+    """Opens, types, edits, saves and reads back one app's documents."""
+    recipe, out = RECIPES[slug], {"edits": [], "problems": []}
+    lowest[0] = free_gb()
+    home, place = os.path.join(work, "home-" + slug), os.path.join(work, slug)
+    os.makedirs(place)
+    files, front = loadfiles.documents(folder, place, slug, args.docs)
+    app = App(slug, home, files, frames=True)
+    try:
+        out["open all ms"] = wait_opened(app, len(files), 60 + 15 * len(files))
+        since = len(app.lines())
+        handed = time.monotonic()
+        drive.sh(run.HOST.exe(slug, True), front, env=app.env, timeout=120)
+        wait_opened(app, len(files) + 1, 120, since)
+        out["open one more ms"] = (time.monotonic() - handed) * 1000
+        time.sleep(2)
+        out["memory open MB"] = app.memory_mb()
+        app.front()
+        recipe.into(app.process.pid)
+        time.sleep(1)
+        out["idle"] = type_keys(app, recipe, args.keys)
+        busy = threading.Thread(target=edit_rounds, args=(app, recipe, files, args.rounds, out))
+        busy.start()
+        try:
+            out["editing"] = type_keys(app, recipe, args.keys, busy)
+        finally:
+            busy.join()
+        recipe.finish(app.process.pid)
+        time.sleep(1)
+        out["saves"], failures = at_once(app, [["text" if slug != "ely-table" else "cell", "save", path] for path in files + [front]])
+        out["problems"] += [f"save: {failure}" for failure in failures]
+        out["memory edited MB"] = app.memory_mb()
+        lines = app.lines()
+    finally:
+        app.stop()
+    counts = [int(m.group(1)) for line in lines if (m := WORKER.search(line))]
+    if slug != "ely-mark" and (not counts or counts[-1] != len(files) + 1):
+        out["problems"].append(f"the worker holds {counts[-1:] or 'no'} documents, not {len(files) + 1}")
+    failed = [line for line in lines if re.search(run.PAINT_FAILED, line)]
+    out["problems"] += [f"painting: {failed[0][-160:]}"] if failed else []
+    keys = len(out["idle"][0]) + len(out["editing"][0])
+    if not typed(slug, front, keys):
+        out["problems"].append(f"front: the {keys} keys typed are not all saved")
+    for path in files:
+        out["problems"] += saved(slug, path, args.rounds)
+    out["stalls"], out["free GB"] = stalls(lines), lowest[0]
+    return out
+
+
+def row(slug, out):
+    """One record line; PERF-02's verdicts join the problems."""
+    cells = [APPS[slug], f"{out['open all ms']:.0f}", f"{out['open one more ms']:.0f}",
+             f"{out['memory open MB']:.0f} / {out['memory edited MB']:.0f}", f"{out['free GB']:.0f}"]
+    for phase in ("idle", "editing"):
+        ticks, lines = out[phase]
+        p95, slow = percentile(ticks, 0.95), [tick for tick in ticks if tick > TARGET]
+        if slow:
+            out["problems"].append(f"PERF-02: {len(slow)} of {len(ticks)} keys over {TARGET} ms {phase}, max {max(slow)} ms")
+        seen = frames(lines)
+        late = "no frame line" if seen is None else f"{seen[2]}/{seen[0]}, p95 ≤{seen[3]:.1f}, max {seen[4]:.1f}"
+        cells += [f"{len(ticks)}: {percentile(ticks, 0.5)} / {p95} / {max(ticks)}", late, str(len(stalls(lines)))]
+    cells += [f"{percentile(out['edits'], 0.5):.0f} / {percentile(out['edits'], 0.95):.0f}" if out["edits"] else "none",
+              f"{percentile(out['saves'], 0.5):.0f} / {max(out['saves']):.0f}" if out["saves"] else "none",
+              f"{len(out['stalls'])}, max {max(out['stalls'], default=0)}"]
+    if out["stalls"]:
+        out["problems"].append(f"PERF-02: main thread busy over 100 ms {len(out['stalls'])} times, max {max(out['stalls'])} ms")
+    return "| " + " | ".join(cells) + " |"
+
+
+def environment(args):
+    builds = {name: hashlib.sha256(open(run.HOST.exe(name, True), "rb").read()).hexdigest()[:16]
+              for name in [*args.apps, "ely-lok-worker"]}
+    env = {"date": datetime.date.today().isoformat(), **run.HOST.environment()}
+    env["machine"] = re.sub(r"[^A-Za-z0-9]+", "-", f"{env['machine']} {run.HOST.name}").strip("-")
+    return {**env, "docs": args.docs, "rounds": args.rounds, "keys": args.keys, "builds": builds,
+            "lok": os.environ.get("ELY_LOK_DIR", "engines/")}
+
+
+def write(out_dir, env, rows, problems):
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, f"{env['date']}-{env['machine']}-load-{env['docs']}.md")
+    lines = [f"# PERF-10 load {env['date']}, {env['docs']} documents per app", "", "Format: docs/perf/README.md.", "",
+             "```json", json.dumps(env, indent=2), "```", "",
+             "| App | Open all ms | Open one more ms | Memory MB open / edited | Free GB, lowest | Keys idle: P50 / P95 / max ms | "
+             "Frames idle: over 8.3 ms / all, dirty to shown | Stalls idle | Keys editing: P50 / P95 / max ms | "
+             "Frames editing | Stalls editing | Command edit P50 / P95 ms | Save P50 / max ms | Stalls whole run |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |", *rows, "",
+             "Problems:", ""]
+    lines += [f"- {problem}" for problem in problems] or ["- none"]
+    with open(path, "w", encoding="utf-8", newline="\n") as record:
+        record.write("\n".join(lines) + "\n")
+    print(path)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--docs", type=int, default=100)
+    parser.add_argument("--rounds", type=int, default=3)
+    parser.add_argument("--keys", type=int, default=30)
+    parser.add_argument("--apps", nargs="*", default=list(RECIPES))
+    parser.add_argument("--out", default=os.path.join(run.ROOT, "docs", "perf"))
+    args = parser.parse_args()
+    if sys.platform != "win32":
+        sys.exit("SKIP: PERF-10 reads free memory on Windows only")
+    if not 2 <= args.docs or args.rounds > 9:
+        parser.error("--docs needs 2 or more; --rounds at most 9")
+    work = os.path.join(run.ROOT, ".work", f"load-{datetime.datetime.now():%Y%m%d-%H%M%S}")
+    os.makedirs(work)
+    run.HOST = drive.host(work)
+    build = ("cargo", "build", "--release", "-q", "--bins", "--target-dir", drive.target_dir(frames=True))
+    # Alone: gpui's manifest would make the worker DPI-aware.
+    drive.sh(*build, "-p", search.spec("crates/ely-lok"), cwd=run.ROOT)
+    drive.sh(*build, "--features", "ely-ui/frames", *[a for slug in args.apps for a in ("-p", search.spec("apps/" + slug))],
+             cwd=run.ROOT)
+    folder = loadfiles.made(os.path.join(run.ROOT, ".work", "load-samples"))
+    rows, problems = [], []
+    for slug in args.apps:
+        try:
+            out = one_app(slug, folder, work, args)
+            rows.append(row(slug, out))
+            problems += [f"{APPS[slug]}: {problem}" for problem in out["problems"]]
+        except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+            problems.append(f"{APPS[slug]}: run stopped: {error}")
+        print(f"{slug}: done, {len(problems)} problems so far", flush=True)
+    write(args.out, environment(args), rows, problems)
+    if problems:
+        print(f"the logs: {work}")
+        raise SystemExit("\n".join(problems))
+    shutil.rmtree(work)
+
+
+if __name__ == "__main__":
+    main()

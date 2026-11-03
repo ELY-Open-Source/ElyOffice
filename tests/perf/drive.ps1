@@ -131,7 +131,7 @@ switch ($Command) {
         }
     }
     'enter' { Tap 0x0D }
-    'key' { Tap (@{ pagedown = 0x22; tab = 0x09 })[$Arg] }
+    'key' { Tap (@{ pagedown = 0x22; tab = 0x09; escape = 0x1B })[$Arg] }
     'chord' {
         Key 0x11 $false
         Tap ([byte][char]$Arg.ToUpper())
