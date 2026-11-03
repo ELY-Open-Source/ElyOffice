@@ -199,6 +199,16 @@ def type_keys(app, recipe, count, busy=None):
     return [int(m.group(1)) for line in lines if (m := re.search(recipe.answer, line))], lines
 
 
+def landed(app, recipe):
+    """One key's time, or none when it showed nothing."""
+    try:
+        return type_keys(app, recipe, 1)[0]
+    except Interfered:
+        raise
+    except RuntimeError:
+        return []
+
+
 def frames(lines):
     """Frames, lost, late, worst dirty-to-shown p95 and max."""
     found = [FRAMES.search(line) for line in lines]

@@ -1,6 +1,9 @@
 """PERF-10's complex content: what Office files carry beyond text."""
 
+import json
+import os
 import re
+import shutil
 import zipfile
 
 import loadfiles
@@ -142,3 +145,23 @@ def pages_docx(path, pages):
             media[f"word/media/p{n}.png"] = samples.noise_png(n, 200, 150)
     body.append(loadfiles.para(f"{loadfiles.TOKEN}0"))
     loadfiles.word(path, body, rels, media)
+
+
+def newest_points(app, work):
+    """Each edited document's newest recovery point, copied out."""
+    folder, found = os.path.join(app.home, app.slug, "recovery"), {}
+    with open(os.path.join(folder, "index.json"), encoding="utf-8") as index:
+        for entry in json.load(index):
+            points = sorted(os.listdir(os.path.join(folder, entry["slot"], "points")))
+            if points:
+                copy = os.path.join(work, f"point-{app.slug[4:]}-{entry['name']}")
+                found[entry["name"]] = shutil.copy(os.path.join(folder, entry["slot"], "points", points[-1]), copy)
+    return found
+
+
+def held(slug, point):
+    """Keys and the round-1 edit a recovery point holds."""
+    if slug == "ely-table":
+        typed = loadfiles.cell(point, "Typing", "A1") or ""
+        return typed.count("1"), loadfiles.cell(point, "Data", "H1")
+    return loadfiles.text_of(point).count("x"), loadfiles.tokens(point)

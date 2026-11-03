@@ -68,6 +68,9 @@ def verb(slug):
 
 def typing_into(app):
     """The app in front, the caret where keys land."""
+    if app.slug != "ely-mark":
+        app.wait(r"lok: first tile drawn", timeout=120)
+        time.sleep(2)
     app.front()
     RECIPES[app.slug].into(app.process.pid)
     time.sleep(2.5)
@@ -178,7 +181,7 @@ def three_switching():
         files = [shutil.copy(front, os.path.join(folder, f"{name}.{loadfiles.EXT[slug]}")) for name in "abc"]
         base = {path: loadfiles.text_of(path).count("x") for path in files}
         app = start("switching", slug, files)
-        typed, problems, slow = dict.fromkeys(files, 0), [], []
+        typed, problems, slow, focused = dict.fromkeys(files, 0), [], [], []
         try:
             app.front()
             busy = threading.Thread(target=edit_others, args=(app, files, 3, problems), daemon=True)
@@ -189,8 +192,16 @@ def three_switching():
                     time.sleep(0.3)
                     RECIPES[slug].into(app.process.pid)
                     time.sleep(2.5)
-                    ticks, _ = load.type_keys(app, RECIPES[slug], 3)
-                    typed[path] += 3
+                    ticks = load.landed(app, RECIPES[slug])
+                    focused.append(bool(ticks))
+                    if not ticks:
+                        # Focus left the document: the user clicks back in.
+                        run.HOST.middle(app.process.pid)
+                        run.HOST.key(app.process.pid, "escape")
+                        RECIPES[slug].into(app.process.pid)
+                        time.sleep(2.5)
+                    ticks += load.type_keys(app, RECIPES[slug], 2)[0]
+                    typed[path] += len(ticks)
                     slow += [tick for tick in ticks if tick > load.TARGET]
             busy.join()
             for path in files:
@@ -201,9 +212,10 @@ def three_switching():
         lost = {os.path.basename(path): (loadfiles.text_of(path).count("x") - base[path], keys) for path, keys in typed.items()
                 if loadfiles.text_of(path).count("x") - base[path] != keys}
         tokens = {os.path.basename(path): loadfiles.tokens(path) for path in files}
-        ok = alive and not lost and not problems and all(found == [3] for found in tokens.values())
+        ok = alive and not lost and not problems and all(focused) and all(found == [3] for found in tokens.values())
         rows.append((f"{APPS[slug]}: three open, tabs switched while typing and while all are edited", ok,
-                     f"27 keys, {len(slow)} over {load.TARGET} ms; keys lost (saved, typed): {lost or 'none'}; "
+                     f"keys stay in the document after {focused.count(True)} of {len(focused)} tab switches; "
+                     f"{sum(typed.values())} keys, {len(slow)} over {load.TARGET} ms; keys lost (saved, typed): {lost or 'none'}; "
                      f"edits saved {tokens}; command failures {problems[:2] or 'none'}"))
     return rows
 
@@ -265,6 +277,11 @@ def close_unsaved():
             time.sleep(1)
             run.HOST.chord(app.process.pid, "w")
             asked = any(run.HOST.shows(app.process.pid, "Don't Save") or time.sleep(0.25) for _ in range(40))
+            if not asked and lines_matching(app, r"closed front\."):
+                # ElyMark saves as it goes; nothing is left to ask.
+                written = load.typed(slug, front, 5)
+                rows.append((f"{APPS[slug]}: closing an autosaved document", written, f"closed at once; the keys on disk {written}"))
+                continue
             run.HOST.key(app.process.pid, "escape")
             time.sleep(1.5)
             kept = not lines_matching(app, r"office: closed front\.") and typed_now(app, front, 5) == 5
@@ -281,26 +298,6 @@ def close_unsaved():
         rows.append((f"{APPS[slug]}: closing an edited document asks, cancels and saves", asked and kept and closed and written,
                      f"asked {asked}; Escape kept it with its keys {kept}; Save closed it {closed}; the keys on disk {written}"))
     return rows
-
-
-def newest_points(app):
-    """Each edited document's newest recovery point, as a file."""
-    folder, found = os.path.join(app.home, app.slug, "recovery"), {}
-    with open(os.path.join(folder, "index.json"), encoding="utf-8") as index:
-        for entry in json.load(index):
-            points = sorted(os.listdir(os.path.join(folder, entry["slot"], "points")))
-            if points:
-                copy = os.path.join(WORK, f"point-{app.slug[4:]}-{entry['name']}")
-                found[entry["name"]] = shutil.copy(os.path.join(folder, entry["slot"], "points", points[-1]), copy)
-    return found
-
-
-def held(slug, point):
-    """Keys and the round-1 edit a recovery point holds."""
-    if slug == "ely-table":
-        typed = loadfiles.cell(point, "Typing", "A1") or ""
-        return typed.count("1"), loadfiles.cell(point, "Data", "H1")
-    return loadfiles.text_of(point).count("x"), loadfiles.tokens(point)
 
 
 @case
@@ -334,7 +331,7 @@ def engine_killed():
                 reopened = any(len(lines_matching(app, r"opened .+ as tab", since)) >= 3 or time.sleep(0.25) for _ in range(240))
             names = [line.split("opened ")[1].split(" as tab")[0] for line in lines_matching(app, r"opened .+ as tab", since)]
             # Edited tabs reopen as unsaved copies (decisions 2026-10-08).
-            points = {name: held(slug, path) for name, path in newest_points(app).items()}
+            points = {name: richfiles.held(slug, path) for name, path in richfiles.newest_points(app, WORK).items()}
             alive = app.process.poll() is None
         finally:
             app.stop()
