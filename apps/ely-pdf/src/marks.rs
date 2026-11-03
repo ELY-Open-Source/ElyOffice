@@ -143,7 +143,7 @@ impl Viewer {
             Some(expect) => BookmarkChange::Edit { path, expect, title: Some(title), to: None },
         };
         self.on_same(&view, version, cx, |view, cx| {
-            view.edit("changing bookmarks", move |worker, doc| worker.change_bookmark(doc, &change), cx)
+            view.edit("pdf.doing.change_marks", move |worker, doc| worker.change_bookmark(doc, &change), cx)
         });
     }
 
@@ -158,7 +158,7 @@ impl Viewer {
         let change = BookmarkChange::Delete { path: flat.path, expect: flat.title };
         self.on_same(&view, version, cx, |view, cx| {
             view.mark_pick = None;
-            view.edit("deleting a bookmark", move |worker, doc| worker.change_bookmark(doc, &change), cx)
+            view.edit("pdf.doing.delete_mark", move |worker, doc| worker.change_bookmark(doc, &change), cx)
         });
     }
 

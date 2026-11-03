@@ -91,7 +91,7 @@ fn a_place_from_before_an_edit_signs_nothing() {
     let at = SignAt { page: 0, object: None, rect: [72.0, 600.0, 272.0, 660.0], version: 0 };
     cx.update(|_, app| view.update(app, |view, cx| {
         view.sign_at = Some(at);
-        view.edit("rotating", |w, doc| w.rotate_pages(doc, &[0], 90), cx)
+        view.edit("pdf.doing.turn", |w, doc| w.rotate_pages(doc, &[0], 90), cx)
     }));
     settle(cx, |app| view.read(app).edited == 1);
     let (tab, target) = (cx.update(|_, app| viewer.read(app).core.tabs[0].id), dir.path().join("out.pdf"));
@@ -154,7 +154,7 @@ fn a_signed_file_saved_as_a_copy_reopens_as_the_copy() {
     let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
     let view = shown(cx, &viewer);
     assert!(shows_signed(cx, &viewer, &view));
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("rotating", |w, doc| w.rotate_pages(doc, &[0], 90), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.turn", |w, doc| w.rotate_pages(doc, &[0], 90), cx)));
     settle(cx, |app| view.read(app).edited == 1);
     let copy = dir.path().join("copy.pdf");
     let reopened = save_signed_as(cx, &viewer, &view, &copy);

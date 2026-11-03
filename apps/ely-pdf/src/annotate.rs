@@ -119,7 +119,7 @@ impl PdfView {
                     }
                 }
                 if let Some(error) = first {
-                    view.fail("reading annotations", &error, cx);
+                    view.fail("pdf.doing.annotations", &error, cx);
                 }
                 cx.notify();
             },
@@ -145,7 +145,7 @@ impl PdfView {
                     Ok(names) => view.form_names = Some(names),
                     Err(error) => {
                         view.unread.insert(Unread::Names);
-                        view.fail("reading field names", &error, cx)
+                        view.fail("pdf.doing.fields", &error, cx)
                     }
                 }
                 cx.notify();
@@ -188,7 +188,7 @@ impl PdfView {
                 FieldKind::Checkbox | FieldKind::Radio => {
                     let value = if field.checked && field.kind == FieldKind::Checkbox { "Off".to_string() } else { field.on };
                     if !(field.checked && field.kind == FieldKind::Radio) {
-                        self.settled_edit("filling a field", cx, move |worker, doc| worker.fill(doc, page, field.id, &value));
+                        self.settled_edit("pdf.doing.fill", cx, move |worker, doc| worker.fill(doc, page, field.id, &value));
                     }
                     None
                 }
@@ -267,7 +267,7 @@ impl PdfView {
             annots.push(NewAnnot { page, shape, rgb: None, contents: String::new(), author: String::new() });
         }
         self.selection = None;
-        self.annotate("marking text", annots, cx);
+        self.annotate("pdf.doing.mark_text", annots, cx);
     }
 
     /// Adds `annots` signed by the account's name.
@@ -368,7 +368,7 @@ impl PdfView {
             _ => return cx.notify(),
         };
         let annot = NewAnnot { page, shape, rgb: None, contents: String::new(), author: String::new() };
-        self.annotate("drawing", vec![annot], cx);
+        self.annotate("pdf.doing.draw", vec![annot], cx);
     }
 
     /// The aimed annotation or field, and a shape being drawn.

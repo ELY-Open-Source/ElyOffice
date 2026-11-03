@@ -75,7 +75,7 @@ fn an_edit_drops_the_marks_and_none_asks_nothing() {
     let mut cx = TestAppContext::single();
     let (viewer, cx, view) = opened(&mut cx, dir.path());
     cx.update(|_, app| view.update(app, |view, cx| view.mark_regions(0, vec![[72.0, 60.0, 120.0, 80.0]], None, cx)));
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("rotating", |w, doc| w.rotate_pages(doc, &[0], 90), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.turn", |w, doc| w.rotate_pages(doc, &[0], 90), cx)));
     settle(cx, |app| view.read(app).edited == 1);
     assert!(cx.update(|_, app| view.read(app).redactions.is_empty()), "pages may have moved");
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.ask_redact(cx)));
@@ -87,7 +87,7 @@ fn cleaning_counts_first_then_writes_a_clean_file() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let (viewer, cx, view) = opened(&mut cx, dir.path());
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("titling", |w, doc| w.set_properties(doc, &[("Title", "Plan")]), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.properties", |w, doc| w.set_properties(doc, &[("Title", "Plan")]), cx)));
     settle(cx, |app| view.read(app).edited == 1);
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.ask_clean(cx)));
     settle(cx, |app| viewer.read(app).removal.is_some());

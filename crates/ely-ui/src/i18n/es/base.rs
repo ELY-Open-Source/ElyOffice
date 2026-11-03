@@ -64,4 +64,10 @@ pub(super) const ES: &[(&str, &str)] = &[
         "{title} y sus elementos se eliminarán de forma permanente.",
     ),
     ("gallery.delete.confirm", "Eliminar página"),
+    ("error.no_documents", "no hay ninguna carpeta Documentos"),
+    ("error.no_home", "no hay ninguna carpeta personal"),
+    ("error.no_store", "el almacén de correo no está abierto"),
+    ("error.closed", "el documento se cerró"),
+    ("error.open_there", "hay un documento abierto en esa ubicación"),
+    ("error.no_pixels", "la imagen no tiene píxeles"),
 ];

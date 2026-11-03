@@ -85,7 +85,7 @@ impl PdfView {
         if landed.iter().eq(pages.iter()) {
             return log::info!("pdf: pages already at {to}; nothing moves");
         }
-        self.queue_edit("moving pages", Some(landed), true, move |worker, doc| worker.move_pages(doc, &pages, to), cx);
+        self.queue_edit("pdf.doing.move_pages", Some(landed), true, move |worker, doc| worker.move_pages(doc, &pages, to), cx);
     }
 }
 
@@ -109,14 +109,14 @@ impl Viewer {
         }
         view.update(cx, |view, cx| {
             view.picked.clear();
-            view.edit_pages("deleting pages", move |worker, doc| worker.delete_pages(doc, &pages), cx);
+            view.edit_pages("pdf.doing.delete_pages", move |worker, doc| worker.delete_pages(doc, &pages), cx);
         });
     }
 
     fn turn_pages(&mut self, by: i32, cx: &mut Context<Self>) {
         self.on_pages(cx, |view, cx| {
             let pages = view.chosen_pages();
-            view.edit_pages("turning pages", move |worker, doc| worker.rotate_pages(doc, &pages, by), cx);
+            view.edit_pages("pdf.doing.turn", move |worker, doc| worker.rotate_pages(doc, &pages, by), cx);
         });
     }
 
@@ -140,7 +140,7 @@ impl Viewer {
         self.on_pages(cx, |view, cx| {
             let at = view.chosen_pages().last().copied().expect("one page at least");
             let size = view.sizes[at];
-            view.edit_pages("inserting a page", move |worker, doc| worker.insert_blank(doc, at + 1, size), cx);
+            view.edit_pages("pdf.doing.insert_page", move |worker, doc| worker.insert_blank(doc, at + 1, size), cx);
         });
     }
 
@@ -153,7 +153,7 @@ impl Viewer {
             viewer.on_pages(cx, |view, cx| {
                 let at = view.chosen_pages().last().copied().expect("one page at least") + 1;
                 view.edit_pages(
-                    "inserting pages",
+                    "pdf.doing.insert_pages",
                     move |worker, doc| worker.insert_file(doc, at, &path).map(|(_, mark)| mark),
                     cx,
                 );

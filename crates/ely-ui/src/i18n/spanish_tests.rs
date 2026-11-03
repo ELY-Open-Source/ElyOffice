@@ -1,4 +1,4 @@
-use super::{catalogs, es, resolve, spanish_catalog, spanish_keys};
+use super::{EN_MODULES, catalogs, es, resolve};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[test]
@@ -29,31 +29,19 @@ fn arguments(message: &str) -> BTreeSet<&str> {
 }
 
 #[test]
-fn spanish_covers_doc_table_and_shared_messages_without_duplicates() {
-    let (en, _) = catalogs();
-    let covered = spanish_keys();
-    let source: BTreeMap<_, _> = en
-        .iter()
-        .filter(|(key, _)| covered.contains(key))
-        .copied()
-        .collect();
-    let translated = es::catalog();
-    let es: BTreeMap<_, _> = translated.iter().copied().collect();
-    assert_eq!(es.len(), translated.len(), "duplicate Spanish key");
-    assert_eq!(
-        source.keys().collect::<Vec<_>>(),
-        es.keys().collect::<Vec<_>>()
-    );
-    for (key, english) in source {
-        assert_eq!(arguments(english), arguments(es[key]), "{key}");
-        assert!(!es[key].is_empty(), "{key}");
+fn spanish_translates_every_module_once_with_its_arguments() {
+    for (english, spanish) in EN_MODULES.iter().zip(es::ES) {
+        let source: BTreeSet<_> = english.iter().map(|(key, _)| *key).collect();
+        let translated: BTreeSet<_> = spanish.iter().map(|(key, _)| *key).collect();
+        assert_eq!(source, translated, "a module's keys");
     }
-    let complete = spanish_catalog(&en);
-    assert_eq!(en.len(), complete.len());
-    assert_eq!(
-        en.iter().map(|(key, _)| key).collect::<BTreeSet<_>>(),
-        complete.iter().map(|(key, _)| key).collect::<BTreeSet<_>>()
-    );
+    let [en, _, spanish] = catalogs();
+    let es: BTreeMap<_, _> = spanish.iter().copied().collect();
+    assert_eq!(es.len(), spanish.len(), "duplicate Spanish key");
+    for (key, english) in en {
+        assert_eq!(arguments(english), arguments(es[key]), "{key}");
+        assert!(!es[key].trim().is_empty(), "{key}");
+    }
 }
 
 #[gpui::test]
@@ -72,6 +60,8 @@ fn spanish_catalog_renders_menus_counts_and_errors(cx: &mut gpui::TestAppContext
             super::text(cx, "table.error.div_zero", &[]),
             "Error: división por cero"
         );
+        assert_eq!(super::text(cx, "table.style.accent1", &[]), "Realce 1");
+        assert_eq!(super::text(cx, "show.size.letter", &[]), "Carta");
         assert_eq!(
             ely_gpui_component::i18n::text(cx, "find.replace_all", &[]),
             "Reemplazar todo"

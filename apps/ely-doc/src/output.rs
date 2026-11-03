@@ -86,7 +86,7 @@ impl Docs {
             });
         }
         let Some(dir) = ely_office::folder(source) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let stem = source
             .name
@@ -139,7 +139,7 @@ impl Docs {
         then: impl FnOnce(&mut Self, std::io::Result<()>, &mut Context<Self>) + 'static,
     ) {
         let Some(name) = self.tab(tab).map(|tab| tab.name.clone()) else {
-            return self.output_failed("the document closed", cx);
+            return self.output_failed(&ely_ui::i18n::text(cx, "error.closed", &[]), cx);
         };
         log::info!("doc: writing a PDF of {name} ({pdf:?})");
         let url = ely_lok::file_url(&path);

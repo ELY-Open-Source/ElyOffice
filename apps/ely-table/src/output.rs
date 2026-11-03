@@ -66,7 +66,7 @@ impl Book {
             return;
         };
         let Some(dir) = ely_office::folder(source) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let stem = source
             .name

@@ -104,7 +104,7 @@ impl Mail {
 
     fn export_contacts(&mut self, cx: &mut Context<Self>) {
         let Some(dirs) = directories::UserDirs::new() else {
-            return self.failed("mail.contacts.unexported", "no home folder", cx);
+            return self.failed("mail.contacts.unexported", &ely_ui::i18n::text(cx, "error.no_home", &[]), cx);
         };
         let dir = dirs.document_dir().unwrap_or(dirs.home_dir()).to_path_buf();
         let chosen = cx.prompt_for_new_path(&dir, Some("contacts.vcf"));

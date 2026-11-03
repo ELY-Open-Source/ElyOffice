@@ -25,6 +25,7 @@ mod motion;
 mod office;
 mod output;
 mod pdf;
+mod pdf_steps;
 mod play;
 mod refs;
 mod secure;
@@ -96,6 +97,12 @@ const EN: &[(&str, &str)] = &[
         "{title} and its items are gone for good.",
     ),
     ("gallery.delete.confirm", "Delete Page"),
+    ("error.no_documents", "there is no Documents folder"),
+    ("error.no_home", "there is no home folder"),
+    ("error.no_store", "the mail store is not open"),
+    ("error.closed", "the document closed"),
+    ("error.open_there", "an open document is there"),
+    ("error.no_pixels", "the picture has no pixels"),
 ];
 
 const ZH_CN: &[(&str, &str)] = &[
@@ -150,6 +157,12 @@ const ZH_CN: &[(&str, &str)] = &[
     ("gallery.delete.title", "删除{title}？"),
     ("gallery.delete.message", "{title}及其内容将被永久删除。"),
     ("gallery.delete.confirm", "删除页面"),
+    ("error.no_documents", "没有“文档”文件夹"),
+    ("error.no_home", "没有主文件夹"),
+    ("error.no_store", "邮件存储没有打开"),
+    ("error.closed", "文档已关闭"),
+    ("error.open_there", "那里有一个打开着的文档"),
+    ("error.no_pixels", "图片没有像素"),
 ];
 
 /// The listed language of `tag`'s primary subtag; else en-US.
@@ -170,108 +183,95 @@ pub fn install(cx: &mut App) {
 pub fn install_as(locale: &'static str, cx: &mut App) {
     #[cfg(target_os = "windows")]
     gpui_windows::set_text_language(locale);
-    let (en, zh) = catalogs();
-    let spanish = spanish_catalog(&en);
+    let [en, zh, es] = catalogs();
     cx.set_global(
         I18n::new(locale)
             .catalog("en-US", &en)
             .catalog("zh-CN", &zh)
-            .catalog("es-ES", &spanish),
+            .catalog("es-ES", &es),
     );
 }
 
 /// Keys and messages of one language.
 type Catalog = Vec<(&'static str, &'static str)>;
 
-/// The English and Chinese catalogs, every module's messages.
-fn catalogs() -> (Catalog, Catalog) {
-    let en: Vec<_> = EN
-        .iter()
-        .chain(office::EN)
-        .chain(doc::EN)
-        .chain(refs::EN)
-        .chain(mail::EN)
-        .chain(mail_write::EN)
-        .chain(mail_drafts::EN)
-        .chain(mail_outbox::EN)
-        .chain(mail_organize::EN)
-        .chain(mail_contacts::EN)
-        .chain(mail_migrate::EN)
-        .chain(mail_notify::EN)
-        .chain(mail_storage::EN)
-        .chain(mail_rules::EN)
-        .chain(mail_search::EN)
-        .chain(mail_stages::EN)
-        .chain(tools::EN)
-        .chain(table::EN)
-        .chain(calc::EN)
-        .chain(data::EN)
-        .chain(analysis::EN)
-        .chain(output::EN)
-        .chain(show::EN)
-        .chain(motion::EN)
-        .chain(play::EN)
-        .chain(pdf::EN)
-        .chain(secure::EN)
-        .chain(tree::EN)
-        .chain(tree_ops::EN)
-        .chain(tree_places::EN)
-        .chain(mark::EN)
-        .chain(mark_menus::EN)
-        .chain(settings::EN)
-        .copied()
-        .collect();
-    let zh: Vec<_> = ZH_CN
-        .iter()
-        .chain(office::ZH_CN)
-        .chain(doc::ZH_CN)
-        .chain(refs::ZH_CN)
-        .chain(mail::ZH_CN)
-        .chain(mail_write::ZH_CN)
-        .chain(mail_drafts::ZH_CN)
-        .chain(mail_outbox::ZH_CN)
-        .chain(mail_organize::ZH_CN)
-        .chain(mail_contacts::ZH_CN)
-        .chain(mail_migrate::ZH_CN)
-        .chain(mail_notify::ZH_CN)
-        .chain(mail_storage::ZH_CN)
-        .chain(mail_rules::ZH_CN)
-        .chain(mail_search::ZH_CN)
-        .chain(mail_stages::ZH_CN)
-        .chain(tools::ZH_CN)
-        .chain(table::ZH_CN)
-        .chain(calc::ZH_CN)
-        .chain(data::ZH_CN)
-        .chain(analysis::ZH_CN)
-        .chain(output::ZH_CN)
-        .chain(show::ZH_CN)
-        .chain(motion::ZH_CN)
-        .chain(play::ZH_CN)
-        .chain(pdf::ZH_CN)
-        .chain(secure::ZH_CN)
-        .chain(tree::ZH_CN)
-        .chain(tree_ops::ZH_CN)
-        .chain(tree_places::ZH_CN)
-        .chain(mark::ZH_CN)
-        .chain(mark_menus::ZH_CN)
-        .chain(settings::ZH_CN)
-        .copied()
-        .collect();
-    (en, zh)
-}
+const EN_MODULES: [&[(&str, &str)]; 34] = [
+    EN,
+    office::EN,
+    doc::EN,
+    refs::EN,
+    mail::EN,
+    mail_write::EN,
+    mail_drafts::EN,
+    mail_outbox::EN,
+    mail_organize::EN,
+    mail_contacts::EN,
+    mail_migrate::EN,
+    mail_notify::EN,
+    mail_storage::EN,
+    mail_rules::EN,
+    mail_search::EN,
+    mail_stages::EN,
+    tools::EN,
+    table::EN,
+    calc::EN,
+    data::EN,
+    analysis::EN,
+    output::EN,
+    show::EN,
+    motion::EN,
+    play::EN,
+    pdf::EN,
+    pdf_steps::EN,
+    secure::EN,
+    tree::EN,
+    tree_ops::EN,
+    tree_places::EN,
+    mark::EN,
+    mark_menus::EN,
+    settings::EN,
+];
 
-/// Other apps retain English until their translations are contributed.
-fn spanish_catalog(en: &[(&'static str, &'static str)]) -> Catalog {
-    let covered = spanish_keys();
-    en.iter().filter(|(key, _)| !covered.contains(key)).copied().chain(es::catalog()).collect()
-}
+const ZH_MODULES: [&[(&str, &str)]; 34] = [
+    ZH_CN,
+    office::ZH_CN,
+    doc::ZH_CN,
+    refs::ZH_CN,
+    mail::ZH_CN,
+    mail_write::ZH_CN,
+    mail_drafts::ZH_CN,
+    mail_outbox::ZH_CN,
+    mail_organize::ZH_CN,
+    mail_contacts::ZH_CN,
+    mail_migrate::ZH_CN,
+    mail_notify::ZH_CN,
+    mail_storage::ZH_CN,
+    mail_rules::ZH_CN,
+    mail_search::ZH_CN,
+    mail_stages::ZH_CN,
+    tools::ZH_CN,
+    table::ZH_CN,
+    calc::ZH_CN,
+    data::ZH_CN,
+    analysis::ZH_CN,
+    output::ZH_CN,
+    show::ZH_CN,
+    motion::ZH_CN,
+    play::ZH_CN,
+    pdf::ZH_CN,
+    pdf_steps::ZH_CN,
+    secure::ZH_CN,
+    tree::ZH_CN,
+    tree_ops::ZH_CN,
+    tree_places::ZH_CN,
+    mark::ZH_CN,
+    mark_menus::ZH_CN,
+    settings::ZH_CN,
+];
 
-/// Keys of the modules translated into Spanish.
-fn spanish_keys() -> std::collections::HashSet<&'static str> {
-    [EN, office::EN, doc::EN, refs::EN, tools::EN, table::EN, calc::EN, data::EN, analysis::EN, output::EN, settings::EN]
-        .iter()
-        .flat_map(|catalog| catalog.iter().map(|(key, _)| *key))
-        .collect()
+/// The English, Chinese and Spanish catalogs, every module's messages.
+fn catalogs() -> [Catalog; 3] {
+    [EN_MODULES, ZH_MODULES, es::ES].map(|modules| modules.iter().flat_map(|module| module.iter().copied()).collect())
 }
 
 /// `ELY_LOCALE`, then the language setting, then the system's.
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn every_english_singular_reads_unlike_its_plural_at_one() {
-        let (en, _) = catalogs();
+        let [en, ..] = catalogs();
         let text = |key: &str| en.iter().find(|(k, _)| *k == key).map(|(_, v)| *v).expect("the key");
         for (key, one) in en.iter().filter(|(key, _)| key.ends_with(".one")) {
             let many = text(key.trim_end_matches(".one")).replace("{n}", "1").replace("{count}", "1");
@@ -347,11 +347,12 @@ mod tests {
     }
 
     #[test]
-    fn both_catalogs_hold_the_same_keys_and_singulars() {
-        let (en, zh) = catalogs();
+    fn every_catalog_holds_the_same_keys_and_singulars() {
         let keys = |list: &[(&str, &str)]| list.iter().map(|(key, _)| key.to_string()).collect::<BTreeSet<_>>();
-        let (en, zh) = (keys(&en), keys(&zh));
-        assert_eq!(en.symmetric_difference(&zh).collect::<Vec<_>>(), Vec::<&String>::new());
+        let [en, others @ ..] = catalogs().map(|catalog| keys(&catalog));
+        for other in others {
+            assert_eq!(en.symmetric_difference(&other).collect::<Vec<_>>(), Vec::<&String>::new());
+        }
         for key in en.iter().filter_map(|key| key.strip_suffix(".one")) {
             assert!(en.contains(key), "{key}.one has no plural");
         }

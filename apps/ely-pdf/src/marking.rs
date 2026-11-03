@@ -82,20 +82,20 @@ impl Viewer {
         self.on_same(&view, version, cx, move |view, cx| {
             let note = |page, shape, contents| NewAnnot { page, shape, rgb: None, contents, author: String::new() };
             match (pick, change) {
-                (Pick::NewNote { page, at }, Change::Note(text)) => view.annotate("adding a note", vec![note(page, Shape::Note(at), text)], cx),
+                (Pick::NewNote { page, at }, Change::Note(text)) => view.annotate("pdf.doing.add_note", vec![note(page, Shape::Note(at), text)], cx),
                 (Pick::NewStamp { page, at }, Change::Stamp(icon)) => {
                     let rect = around(at, STAMP, view.sizes[page]);
-                    view.annotate("adding a stamp", vec![note(page, Shape::Stamp(rect, icon), String::new())], cx)
+                    view.annotate("pdf.doing.add_stamp", vec![note(page, Shape::Stamp(rect, icon), String::new())], cx)
                 }
                 (Pick::Annot { page, id }, Change::Contents(text)) => {
-                    view.edit("changing an annotation", move |w, doc| w.change_annot(doc, page, id, None, Some(&text)), cx)
+                    view.edit("pdf.doing.change_annot", move |w, doc| w.change_annot(doc, page, id, None, Some(&text)), cx)
                 }
                 (Pick::Annot { page, id }, Change::Color(rgb)) => {
-                    view.edit("colouring an annotation", move |w, doc| w.change_annot(doc, page, id, Some(rgb), None), cx)
+                    view.edit("pdf.doing.colour_annot", move |w, doc| w.change_annot(doc, page, id, Some(rgb), None), cx)
                 }
-                (Pick::Annot { page, id }, Change::Delete) => view.edit("deleting an annotation", move |w, doc| w.delete_annot(doc, page, id), cx),
-                (Pick::Field { page, id }, Change::Delete) => view.edit("deleting a field", move |w, doc| w.delete_field(doc, page, id), cx),
-                (Pick::Field { page, id }, Change::Fill(value)) => view.edit("filling a field", move |w, doc| w.fill(doc, page, id, &value), cx),
+                (Pick::Annot { page, id }, Change::Delete) => view.edit("pdf.doing.delete_annot", move |w, doc| w.delete_annot(doc, page, id), cx),
+                (Pick::Field { page, id }, Change::Delete) => view.edit("pdf.doing.delete_field", move |w, doc| w.delete_field(doc, page, id), cx),
+                (Pick::Field { page, id }, Change::Fill(value)) => view.edit("pdf.doing.fill", move |w, doc| w.fill(doc, page, id, &value), cx),
                 (Pick::Field { page, id }, Change::Design(name, options)) => {
                     let Some(field) = view.notes.get(&page).and_then(|m| m.fields.iter().find(|f| f.id == id)) else {
                         return log::error!("pdf: a picked field is not read");
@@ -107,20 +107,20 @@ impl Viewer {
                         return log::info!("pdf: the field is as it was");
                     }
                     view.edit(
-                        "changing a field",
+                        "pdf.doing.change_field",
                         move |w, doc| w.change_field(doc, page, id, renamed.as_deref(), listed.as_deref()),
                         cx,
                     )
                 }
                 (Pick::NewField { page, rect, kind }, Change::Design(name, options)) => {
                     let field = NewField { kind, name, rect, options };
-                    view.edit("adding a field", move |w, doc| w.add_field(doc, page, &field), cx)
+                    view.edit("pdf.doing.add_field", move |w, doc| w.add_field(doc, page, &field), cx)
                 }
                 (Pick::NewLink { page, rect }, Change::Target(typed)) => {
                     let Some(to) = crate::links::parse(&typed, view.sizes.len()) else {
                         return bad_target(cx);
                     };
-                    view.edit("adding a link", move |w, doc| w.change_link(doc, page, &LinkChange::Add { rect, to }), cx)
+                    view.edit("pdf.doing.add_link", move |w, doc| w.change_link(doc, page, &LinkChange::Add { rect, to }), cx)
                 }
                 (Pick::Link { page, index }, change) => {
                     let Some(expect) = view.links.get(&page).and_then(|links| links.get(index)).map(|link| link.uri.clone()) else {
@@ -134,7 +134,7 @@ impl Viewer {
                         },
                         other => return log::error!("pdf: {other:?} does not fit a link"),
                     };
-                    view.edit("changing a link", move |w, doc| w.change_link(doc, page, &change), cx)
+                    view.edit("pdf.doing.change_link", move |w, doc| w.change_link(doc, page, &change), cx)
                 }
                 (pick, change) => log::error!("pdf: {change:?} does not fit {pick:?}"),
             }

@@ -264,14 +264,14 @@ impl PdfView {
         view
     }
 
-    /// Says `what` failed; the window shows it.
+    /// Says the step keyed `what` failed; the window shows it.
     pub fn fail(&self, what: &str, error: &io::Error, cx: &mut Context<Self>) {
         // Engine text may quote the document: the user sees it.
         log::error!("pdf: {what} failed ({:?})", error.kind());
         let text = match ely_pdf_engine::refused(error) {
             _ if ely_pdf_engine::is_stale(error) => ely_ui::i18n::text(cx, "pdf.object.changed", &[]),
             Some(needed) => restricted(needed, cx),
-            None => ely_ui::i18n::text(cx, "pdf.failed", &[("what", what), ("error", &error.to_string())]),
+            None => ely_ui::i18n::text(cx, "pdf.failed", &[("what", &ely_ui::i18n::text(cx, what, &[])), ("error", &error.to_string())]),
         };
         cx.emit(Failed(text.to_string()));
     }
@@ -331,7 +331,7 @@ impl PdfView {
                     cx.notify();
                     view.measure(from + count, cx);
                 }
-                Err(error) => view.fail("page sizes", &error, cx),
+                Err(error) => view.fail("pdf.doing.sizes", &error, cx),
             },
             cx,
         );

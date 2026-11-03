@@ -46,7 +46,7 @@ impl PdfView {
                     Ok(files) => view.files = Some(files),
                     Err(error) => {
                         view.unread.insert(Unread::Files);
-                        view.fail("reading attachments", &error, cx)
+                        view.fail("pdf.doing.attachments", &error, cx)
                     }
                 }
                 cx.notify();
@@ -109,7 +109,7 @@ impl Viewer {
         self.pick(false, cx, move |_, path: PathBuf, cx| {
             let name = ely_office::files::file_name(&path);
             log::info!("pdf: attaches a file");
-            view.update(cx, |view, cx| view.edit("attaching a file", move |worker, doc| worker.attach(doc, &name, &path), cx));
+            view.update(cx, |view, cx| view.edit("pdf.doing.attach", move |worker, doc| worker.attach(doc, &name, &path), cx));
         });
     }
 
@@ -122,7 +122,7 @@ impl Viewer {
         };
         view.update(cx, |view, cx| {
             view.file_pick = None;
-            view.edit("removing an attachment", move |worker, doc| worker.detach(doc, &key), cx)
+            view.edit("pdf.doing.remove_attachment", move |worker, doc| worker.detach(doc, &key), cx)
         });
     }
 
@@ -137,7 +137,7 @@ impl Viewer {
             return;
         };
         let Some(dir) = ely_office::folder(tab) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let id = tab.id;
         let chosen = cx.prompt_for_new_path(&dir, Some(&name));

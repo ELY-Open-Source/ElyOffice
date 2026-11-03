@@ -40,7 +40,7 @@ fn limits_hold_until_the_owner_password_lifts_them() {
     let mut cx = TestAppContext::single();
     let (viewer, cx, view) = limited(&mut cx, dir.path(), may::PRINT);
     assert_eq!(cx.update(|_, app| view.read(app).allowed) & (may::ASSEMBLE | may::OWNER), 0);
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("rotating", |w, doc| w.rotate_pages(doc, &[0], 90), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.turn", |w, doc| w.rotate_pages(doc, &[0], 90), cx)));
     settle(cx, |app| view.read(app).settled());
     assert_eq!(cx.update(|_, app| view.read(app).edited), 0, "refused");
     cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.ask_owner(window, cx)));
@@ -52,7 +52,7 @@ fn limits_hold_until_the_owner_password_lifts_them() {
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.try_owner(cx)));
     settle(cx, |app| view.read(app).allowed & may::OWNER != 0);
     assert!(cx.update(|_, app| viewer.read(app).secure.is_none()));
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("rotating", |w, doc| w.rotate_pages(doc, &[0], 90), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.turn", |w, doc| w.rotate_pages(doc, &[0], 90), cx)));
     settle(cx, |app| view.read(app).edited == 1);
 }
 

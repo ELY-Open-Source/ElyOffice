@@ -201,7 +201,7 @@ fn the_list_reads_every_page_and_jumps_to_a_pick() {
     let view = shown(cx, &viewer);
     settle(cx, |app| view.read(app).room.size.width > gpui::px(100.0));
     let note = ely_pdf_engine::NewAnnot { page: 2, shape: ely_pdf_engine::Shape::Note((100.0, 500.0)), rgb: None, contents: "Last".into(), author: String::new() };
-    cx.update(|_, app| view.update(app, |view, cx| view.annotate("adding a note", vec![note], cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.annotate("pdf.doing.add_note", vec![note], cx)));
     settle(cx, |app| view.read(app).settled());
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.side.update(cx, |side, cx| {
         side.pane = crate::side::Pane::Notes;
@@ -268,7 +268,7 @@ fn a_new_field_on_another_page_gets_a_free_name() {
     let view = shown(cx, &viewer);
     settle(cx, |app| view.read(app).room.size.width > gpui::px(100.0));
     let first = ely_pdf_engine::NewField { kind: FieldKind::Text, name: "Text1".into(), rect: [72.0, 300.0, 272.0, 320.0], options: Vec::new() };
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("adding a field", move |w, doc| w.add_field(doc, 0, &first), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.add_field", move |w, doc| w.add_field(doc, 0, &first), cx)));
     settle(cx, |app| view.read(app).settled());
     cx.update(|_, app| view.update(app, |view, cx| {
         view.tool = Tool::Field(FieldKind::Text);
@@ -332,8 +332,8 @@ fn quick_strokes_queue_behind_each_other() {
     let note = |y: f32| ely_pdf_engine::NewAnnot { page: 0, shape: ely_pdf_engine::Shape::Note((100.0, y)), rgb: None, contents: "n".into(), author: String::new() };
     // The second lands while the first still runs.
     cx.update(|_, app| view.update(app, |view, cx| {
-        view.annotate("a first note", vec![note(500.0)], cx);
-        view.annotate("a second note", vec![note(400.0)], cx);
+        view.annotate("pdf.doing.add_note", vec![note(500.0)], cx);
+        view.annotate("pdf.doing.add_note", vec![note(400.0)], cx);
     }));
     settle(cx, |app| view.read(app).settled());
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.side.update(cx, |side, cx| {
@@ -346,21 +346,21 @@ fn quick_strokes_queue_behind_each_other() {
     };
     assert_eq!(count(cx), 2, "both notes landed");
     let rotate = |view: &mut PdfView, cx: &mut gpui::Context<PdfView>| {
-        view.edit_pages("rotating", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx)
+        view.edit_pages("pdf.doing.turn", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx)
     };
     // A running rotation would move the point: refused.
     cx.update(|_, app| view.update(app, |view, cx| {
         rotate(view, cx);
-        view.annotate("a note while turning", vec![note(300.0)], cx);
+        view.annotate("pdf.doing.add_note", vec![note(300.0)], cx);
     }));
     assert_eq!(count(cx), 2, "refused while pages move");
     // A rotation waiting behind another edit: refused too.
     cx.update(|_, app| view.update(app, |view, cx| {
-        view.annotate("a third note", vec![note(250.0)], cx);
+        view.annotate("pdf.doing.add_note", vec![note(250.0)], cx);
         rotate(view, cx);
-        view.annotate("a note behind a turn", vec![note(200.0)], cx);
+        view.annotate("pdf.doing.add_note", vec![note(200.0)], cx);
     }));
     assert_eq!(count(cx), 3, "only the note before the turn");
-    cx.update(|_, app| view.update(app, |view, cx| view.annotate("a settled note", vec![note(150.0)], cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.annotate("pdf.doing.add_note", vec![note(150.0)], cx)));
     assert_eq!(count(cx), 4, "taken once pages are still");
 }

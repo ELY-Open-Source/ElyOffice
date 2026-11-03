@@ -161,7 +161,7 @@ fn attachments_list_save_and_remove() {
     let (viewer, cx, view) = opened(&mut cx, dir.path());
     let file = dir.path().join("notes.txt");
     std::fs::write(&file, "notes").expect("writes");
-    cx.update(|_, app| view.update(app, |view, cx| view.edit("attaching", move |w, doc| w.attach(doc, "notes.txt", &file), cx)));
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.attach", move |w, doc| w.attach(doc, "notes.txt", &file), cx)));
     landed(cx, &view, 1);
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.side.update(cx, |side, cx| {
         side.pane = crate::side::Pane::Files;

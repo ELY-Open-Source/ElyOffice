@@ -1,32 +1,73 @@
-//! Spanish for Doc, Table and their shared windows.
+//! Spanish for every app.
 
 mod analysis;
 mod base;
 mod calc;
 mod data;
 mod doc;
+mod mail;
+mod mail_contacts;
+mod mail_drafts;
+mod mail_migrate;
+mod mail_notify;
+mod mail_organize;
+mod mail_outbox;
+mod mail_rules;
+mod mail_search;
+mod mail_stages;
+mod mail_storage;
+mod mail_write;
+mod mark;
+mod mark_menus;
+mod motion;
 mod office;
 mod output;
+mod pdf;
+mod pdf_steps;
+mod play;
 mod refs;
+mod secure;
 mod settings;
+mod show;
 mod table;
 mod tools;
+mod tree;
+mod tree_ops;
+mod tree_places;
 
-use super::Catalog;
-
-pub(super) fn catalog() -> Catalog {
-    base::ES
-        .iter()
-        .chain(office::ES)
-        .chain(doc::ES)
-        .chain(refs::ES)
-        .chain(tools::ES)
-        .chain(table::ES)
-        .chain(calc::ES)
-        .chain(data::ES)
-        .chain(analysis::ES)
-        .chain(output::ES)
-        .chain(settings::ES)
-        .copied()
-        .collect()
-}
+pub(super) const ES: [&[(&str, &str)]; 34] = [
+    base::ES,
+    office::ES,
+    doc::ES,
+    refs::ES,
+    mail::ES,
+    mail_write::ES,
+    mail_drafts::ES,
+    mail_outbox::ES,
+    mail_organize::ES,
+    mail_contacts::ES,
+    mail_migrate::ES,
+    mail_notify::ES,
+    mail_storage::ES,
+    mail_rules::ES,
+    mail_search::ES,
+    mail_stages::ES,
+    tools::ES,
+    table::ES,
+    calc::ES,
+    data::ES,
+    analysis::ES,
+    output::ES,
+    show::ES,
+    motion::ES,
+    play::ES,
+    pdf::ES,
+    pdf_steps::ES,
+    secure::ES,
+    tree::ES,
+    tree_ops::ES,
+    tree_places::ES,
+    mark::ES,
+    mark_menus::ES,
+    settings::ES,
+];

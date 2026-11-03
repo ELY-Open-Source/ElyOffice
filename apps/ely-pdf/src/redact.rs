@@ -124,7 +124,7 @@ impl Viewer {
             return;
         };
         let Some(dir) = ely_office::folder(open) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let tail = match removal {
             Removal::Redact { .. } => Self::text(cx, "pdf.redact.tail", &[]),

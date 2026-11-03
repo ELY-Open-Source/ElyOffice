@@ -188,7 +188,7 @@ pub trait Saving: Host {
             return;
         };
         let Some(dir) = folder(tab) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let stem = tab
             .name

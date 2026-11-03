@@ -73,7 +73,7 @@ impl PdfView {
                     Ok(read) => view.signatures = Some((asked, read)),
                     Err(error) => {
                         view.unread.insert(Unread::Signatures(asked));
-                        view.fail("reading signatures", &error, cx)
+                        view.fail("pdf.doing.signatures", &error, cx)
                     }
                 }
                 cx.notify();
@@ -242,7 +242,7 @@ impl Viewer {
             location: text(&signer.location),
         };
         let Some(dir) = ely_office::folder(open) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let tab = open.id;
         let chosen = cx.prompt_for_new_path(&dir, Some(&beside(&open.name, &Self::text(cx, "pdf.sign.tail", &[]))));

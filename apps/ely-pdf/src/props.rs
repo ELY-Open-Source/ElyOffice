@@ -91,7 +91,7 @@ impl Viewer {
         };
         view.update(cx, |view, cx| {
             view.edit(
-                "setting properties",
+                "pdf.doing.properties",
                 move |worker, doc| {
                     let pairs: Vec<(&str, &str)> = changed.iter().map(|(key, value)| (*key, value.as_str())).collect();
                     worker.set_properties(doc, &pairs)

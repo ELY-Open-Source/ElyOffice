@@ -190,7 +190,7 @@ impl Deck {
             });
         }
         let Some(dir) = ely_office::folder(source) else {
-            return self.panel_failed("no documents folder", cx);
+            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
         let stem = (source.name.rsplit_once('.'))
             .map_or(source.name.to_string(), |(stem, _)| stem.to_string());
