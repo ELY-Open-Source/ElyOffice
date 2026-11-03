@@ -275,7 +275,7 @@ impl<H: Host> Core<H> {
 
     /// Whether load `id` takes the front when it lands.
     fn takes_front(&self, id: u64) -> bool {
-        self.front == Some(id) || self.active.is_none()
+        self.front == Some(id) || self.active.is_none() || self.active == Some(id)
     }
 }
 
