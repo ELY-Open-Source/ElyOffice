@@ -12,7 +12,7 @@ Format: docs/perf/README.md. Main at c3db6bd (R15.33, R15.34) merged; harness af
 | ElyDoc: INCLUDETEXT follows its source changed while open | FAIL | kept the old text | E055808 |
 | ElyDoc: INCLUDETEXT saved with the changed text | FAIL | read in the saved file after the sources changed | E055808 |
 | ElyDoc: the linked picture still links its file | pass | read in the saved file after the sources changed | E055808 |
-| ElyDoc: the OLE link stays with a renewed preview | FAIL | read in the saved file after the sources changed | E055808 |
+| ElyDoc: the OLE link stays | FAIL | read in the saved file after the sources changed; the link is gone | E055808 |
 | ElyDoc: three open, tabs switched while typing and while all are edited | FAIL | keys stay in the document after 0 of 9 tab switches; 18 keys, 0 over 100 ms; keys lost (saved, typed): none; edits saved {'a.docx': [3], 'b.docx': [3], 'c.docx': [3]}; command failures none | E055808 |
 | ElyShow: three open, tabs switched while typing and while all are edited | FAIL | keys stay in the document after 0 of 9 tab switches; 18 keys, 0 over 100 ms; keys lost (saved, typed): none; edits saved {'a.pptx': [3], 'b.pptx': [3], 'c.pptx': [3]}; command failures none | E055808 |
 | ElyDoc: saved 100 times while 40 keys went in | FAIL | keys P95 641 max 867 ms, 2 over 100; every key saved: True; save failures: none | E055808 |
@@ -38,4 +38,4 @@ Format: docs/perf/README.md. Main at c3db6bd (R15.33, R15.34) merged; harness af
 | ElyShow: a 94 MB file | FAIL | open 7975 ms; keys P50 36 P95 964 max 964 ms; frames over 8.3 ms 72/85, dirty to shown max 25.6 ms; edit 46 ms; save 1683 ms; 856 MB; problems none | E055808 |
 | ElyMark: a 7 MB file | pass | open 2146 ms; keys P50 49 P95 84 max 84 ms; frames over 8.3 ms 196/196, dirty to shown max 68.3 ms; edit 114 ms; save 106 ms; 228 MB; problems none | E055808 |
 
-Known and filed: slow keys while saving are R15.35 (ElyShow, and this run ElyDoc's 2 keys). The ElyTable save-while-typing row is a data loss: a save ends the cell edit in progress, later keys replace the cell. The three-switching rows: after a tab switch, by UI Automation or a real mouse click, keys reach no document until the page is clicked. Zoom steps are read back from the view's log, each from the 25 % floor.
+Known and filed: slow keys while saving are R15.35 (ElyShow, and this run ElyDoc's 2 keys). The ElyTable save-while-typing row is a data loss: a save ends the cell edit in progress, later keys replace the cell. The three-switching rows: after a tab switch, by UI Automation or a real mouse click, keys reach no document until the page is clicked. Zoom steps are read back from the view's log, each from the 25 % floor. After review round 5 the OLE row checks only the kept link (re-read from the same saved file, still FAIL): what a renewed preview or linked picture shows needs a screen, and is not verified.

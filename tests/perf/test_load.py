@@ -8,7 +8,6 @@ import unittest
 import load
 import loadfiles
 import richfiles
-import samples
 
 
 class ReadBack(unittest.TestCase):
@@ -71,13 +70,16 @@ class ReadBack(unittest.TestCase):
             '<c r="A2"><f>', '<c r="A2" t="e"><v>#VALUE!</v><f>', 1)})
         self.assertIn("table-005-small.xlsx: Calc!A2 recalculated to -3275 failed", richfiles.saved("ely-table", book, 0))
 
-    def test_the_ole_preview_is_its_own_whole_image(self):
-        path = os.path.join(self.work, "doc-001-linked.docx")
-        loadfiles.linked_docx(path, self.work)
-        self.assertEqual(loadfiles.ole_preview(path), samples.noise_png(9, 120, 60))
-        self.assertTrue(loadfiles.whole_png(samples.noise_png(9, 120, 60)))
-        self.assertFalse(loadfiles.whole_png(bytes([0x89]) + b"PNG"))
-        self.assertFalse(loadfiles.whole_png(samples.noise_png(9, 120, 60)[:-20]))
+    def test_error_values_fail_links_and_keys(self):
+        loadfiles.sources(self.work)
+        book = os.path.join(self.work, "table-000-big.xlsx")
+        loadfiles.workbook(book, 40, linked=True, typing=True)
+        loadfiles.rewrite(book, {"xl/worksheets/sheet4.xml": lambda xml: xml.replace(
+            '<c r="A1"><f>', '<c r="A1" t="e"><f>', 1).replace("<v>1.01</v>", "<v>#VALUE!</v>", 1)})
+        self.assertFalse(loadfiles.book_links(book)["Links!A1 shows the source's value"])
+        loadfiles.rewrite(book, {"xl/worksheets/sheet1.xml": lambda xml: xml.replace(
+            "<sheetData></sheetData>", '<sheetData><row r="1"><c r="A1" t="e"><v>#VALUE!</v></c></row></sheetData>', 1)})
+        self.assertFalse(richfiles.typed("ely-table", book, 3))
 
     def test_typed_keys_must_all_be_there(self):
         path = os.path.join(self.work, "front.md")

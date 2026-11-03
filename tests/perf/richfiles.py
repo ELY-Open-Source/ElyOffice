@@ -228,7 +228,7 @@ def typed(slug, path, count):
     """Whether the front document saved every key typed."""
     if slug == "ely-table":
         value = loadfiles.cell(path, "Typing", "A1")
-        return value is not None and abs(float(value) / float("1" * count) - 1) < 1e-9
+        return number(value) is not None and abs(number(value) / float("1" * count) - 1) < 1e-9
     return "x" * count in loadfiles.text_of(path)
 
 

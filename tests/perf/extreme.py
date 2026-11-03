@@ -18,7 +18,6 @@ import load
 import loadfiles
 import richfiles
 import run
-import samples
 
 from load import RECIPES
 from run import APPS, App
@@ -168,7 +167,7 @@ def changed_sources():
     rows.append(("ElyDoc: INCLUDETEXT follows its source changed while open", "Included changed" in later,
                  "followed" if "Included changed" in later else "kept the old text"))
     rows += [(f"ElyDoc: {what}", ok, "read in the saved file after the sources changed")
-             for what, ok in loadfiles.word_updates(path, folder, samples.noise_png(9, 120, 60)).items()]
+             for what, ok in loadfiles.word_updates(path, folder).items()]
     return rows
 
 
