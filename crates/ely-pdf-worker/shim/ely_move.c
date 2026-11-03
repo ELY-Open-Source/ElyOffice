@@ -1,6 +1,5 @@
 /* Moves a text block as drawn: fonts, spacing, colour (PDF-03). */
 
-#include <stdlib.h>
 #include <string.h>
 
 #include "ely_shim.h"
@@ -54,18 +53,6 @@ static int is_quiet(const unsigned char *s, size_t n)
 	return 0;
 }
 
-/* The MCID a BDC line names, or -1. */
-static int mcid_of(const unsigned char *s, size_t n)
-{
-	size_t i;
-	if (!is_op(s, n, "BDC"))
-		return -1;
-	for (i = 0; i + 6 < n; i++)
-		if (!memcmp(s + i, "/MCID ", 6))
-			return atoi((const char *)s + i + 6);
-	return -1;
-}
-
 static size_t line_end(fz_buffer *buf, size_t at)
 {
 	while (at < buf->len && buf->data[at] != '\n')
@@ -73,30 +60,134 @@ static size_t line_end(fz_buffer *buf, size_t at)
 	return at;
 }
 
-typedef struct
-{
-	size_t line, at, n;
-	int marks, mcid;
-} open_tag;
+typedef void (bdc_fn)(fz_context *ctx, pdf_processor *proc, const char *tag, pdf_obj *raw, pdf_obj *cooked);
+typedef void (bmc_fn)(fz_context *ctx, pdf_processor *proc, const char *tag);
+typedef void (emc_fn)(fz_context *ctx, pdf_processor *proc);
 
-/* Whether `buf` opens this tag: MCID, else same line. */
-static int repeats(fz_buffer *buf, const unsigned char *s, open_tag *tag)
+/* One pass's marked content, by occurrence in the page. */
+typedef struct tags
 {
-	size_t at, end;
-	for (at = 0; at < buf->len; at = end + 1)
+	bdc_fn *in_bdc, *out_bdc;
+	bmc_fn *in_bmc, *out_bmc;
+	emc_fn *in_emc, *out_emc;
+	/* Occurrences open in the page; the first `written` are out. */
+	int *open, depth, room, written;
+	/* The occurrence of each tag written, in order. */
+	int *order, n, cap;
+	int seen;
+	/* Per occurrence: whether its written sequence marks. */
+	char *marks;
+	/* For the page left behind: the moved copy's tags. */
+	struct tags *copy;
+} tags;
+
+static void push(fz_context *ctx, int **list, int *n, int *room, int v)
+{
+	if (*n == *room)
 	{
-		end = line_end(buf, at);
-		if (tag->mcid >= 0 ? mcid_of(buf->data + at, end - at) == tag->mcid
-			: end - at == tag->n && !memcmp(buf->data + at, s, tag->n))
-			return 1;
+		*room = *room ? *room * 2 : 16;
+		*list = fz_realloc_array(ctx, *list, *room, int);
 	}
-	return 0;
+	(*list)[(*n)++] = v;
 }
 
-/* Drops empty tags, with `other` just those it repeats. */
-static void unmark_empty(fz_context *ctx, fz_buffer *buf, void *other)
+static void opened(fz_context *ctx, tags *t)
 {
+	push(ctx, &t->open, &t->depth, &t->room, t->seen++);
+}
+
+static void in_bdc(fz_context *ctx, pdf_processor *proc, const char *tag, pdf_obj *raw, pdf_obj *cooked)
+{
+	tags *t = fz_user_context(ctx);
+	opened(ctx, t);
+	t->in_bdc(ctx, proc, tag, raw, cooked);
+}
+
+static void in_bmc(fz_context *ctx, pdf_processor *proc, const char *tag)
+{
+	tags *t = fz_user_context(ctx);
+	opened(ctx, t);
+	t->in_bmc(ctx, proc, tag);
+}
+
+static void in_emc(fz_context *ctx, pdf_processor *proc)
+{
+	tags *t = fz_user_context(ctx);
+	t->in_emc(ctx, proc);
+	if (t->depth > 0)
+		t->depth--;
+}
+
+/* The sanitizer writes open tags outermost first. */
+static void written(fz_context *ctx, tags *t)
+{
+	if (t->written >= t->depth)
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "a tag written that is not open");
+	push(ctx, &t->order, &t->n, &t->cap, t->open[t->written++]);
+}
+
+static void out_bdc(fz_context *ctx, pdf_processor *proc, const char *tag, pdf_obj *raw, pdf_obj *cooked)
+{
+	tags *t = fz_user_context(ctx);
+	written(ctx, t);
+	t->out_bdc(ctx, proc, tag, raw, cooked);
+}
+
+static void out_bmc(fz_context *ctx, pdf_processor *proc, const char *tag)
+{
+	tags *t = fz_user_context(ctx);
+	written(ctx, t);
+	t->out_bmc(ctx, proc, tag);
+}
+
+static void out_emc(fz_context *ctx, pdf_processor *proc)
+{
+	tags *t = fz_user_context(ctx);
+	t->written--;
+	t->out_emc(ctx, proc);
+}
+
+/* The sanitizer off the structure tree, its tags followed. */
+static pdf_processor *untagged(fz_context *ctx, pdf_document *doc, pdf_processor *chain, int struct_parents,
+	fz_matrix transform, pdf_filter_options *options, void *sopts)
+{
+	tags *t = fz_user_context(ctx);
+	pdf_processor *in;
+	(void)struct_parents;
+	t->out_bdc = chain->op_BDC;
+	t->out_bmc = chain->op_BMC;
+	t->out_emc = chain->op_EMC;
+	chain->op_BDC = out_bdc;
+	chain->op_BMC = out_bmc;
+	chain->op_EMC = out_emc;
+	in = pdf_new_sanitize_filter(ctx, doc, chain, -1, transform, options, sopts);
+	t->in_bdc = in->op_BDC;
+	t->in_bmc = in->op_BMC;
+	t->in_emc = in->op_EMC;
+	in->op_BDC = in_bdc;
+	in->op_BMC = in_bmc;
+	in->op_EMC = in_emc;
+	return in;
+}
+
+typedef struct
+{
+	size_t line;
+	int at, marks;
+} open_tag;
+
+/* Whether occurrence `at` marks in the moved copy. */
+static int moved(tags *t, int at)
+{
+	return t->copy && at < t->copy->seen && t->copy->marks[at];
+}
+
+/* Drops empty tags: all in the copy, moved ones here. */
+static void unmark_empty(fz_context *ctx, fz_buffer *buf, void *opaque)
+{
+	tags *t = opaque;
 	size_t at, end, lines = 1, line = 0, depth = 0;
+	int k = 0;
 	open_tag *open = NULL;
 	char *drop = NULL;
 	fz_buffer *out = NULL;
@@ -109,32 +200,35 @@ static void unmark_empty(fz_context *ctx, fz_buffer *buf, void *other)
 			lines += buf->data[at] == '\n';
 		open = fz_malloc_array(ctx, lines, open_tag);
 		drop = fz_calloc(ctx, lines, 1);
+		t->marks = fz_calloc(ctx, t->seen + 1, 1);
 		for (at = 0; at < buf->len; at = end + 1, line++)
 		{
 			const unsigned char *s = buf->data + at;
 			end = line_end(buf, at);
 			if (is_op(s, end - at, "BDC") || is_op(s, end - at, "BMC"))
 			{
+				if (k >= t->n)
+					fz_throw(ctx, FZ_ERROR_ARGUMENT, "more tags written than followed");
 				open[depth].line = line;
-				open[depth].at = at;
-				open[depth].n = end - at;
-				open[depth].marks = 0;
-				open[depth++].mcid = mcid_of(s, end - at);
+				open[depth].at = t->order[k++];
+				open[depth++].marks = 0;
 			}
 			else if (is_op(s, end - at, "EMC") && depth > 0)
 			{
 				open_tag *tag = &open[--depth];
-				int twice = other && repeats(other, buf->data + tag->at, tag);
-				if (tag->marks && twice)
+				if (tag->marks && moved(t, tag->at))
 					fz_throw(ctx, FZ_ERROR_ARGUMENT, "this text shares its tag with other content");
-				if (!tag->marks && (twice || !other))
+				if (!tag->marks && (!t->copy || moved(t, tag->at)))
 					drop[tag->line] = drop[line] = 1;
+				t->marks[tag->at] = (char)tag->marks;
 				if (tag->marks && depth > 0)
 					open[depth - 1].marks = 1;
 			}
 			else if (depth > 0 && !is_quiet(s, end - at))
 				open[depth - 1].marks = 1;
 		}
+		if (k != t->n)
+			fz_throw(ctx, FZ_ERROR_ARGUMENT, "%d of %d tags written were found", k, t->n);
 		out = fz_new_buffer(ctx, buf->len + 1);
 		for (at = 0, line = 0; at < buf->len; at = end + 1, line++)
 		{
@@ -158,12 +252,26 @@ static void unmark_empty(fz_context *ctx, fz_buffer *buf, void *other)
 		fz_rethrow(ctx);
 }
 
-/* The sanitizer, kept off the structure tree. */
-static pdf_processor *untagged(fz_context *ctx, pdf_document *doc, pdf_processor *chain, int struct_parents,
-	fz_matrix transform, pdf_filter_options *options, void *sopts)
+static void drop_tags(fz_context *ctx, tags *t)
 {
-	(void)struct_parents;
-	return pdf_new_sanitize_filter(ctx, doc, chain, -1, transform, options, sopts);
+	fz_free(ctx, t->open);
+	fz_free(ctx, t->order);
+	fz_free(ctx, t->marks);
+}
+
+typedef void (pass_fn)(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_shape *shape, pdf_filter_options *opts);
+
+/* Runs `pass` with `t` following its tags. */
+static void follow(fz_context *ctx, pdf_page *page, ely_shape *shape, pdf_filter_options *opts, pass_fn *pass, tags *t)
+{
+	void *before = fz_user_context(ctx);
+	fz_set_user_context(ctx, t);
+	fz_try(ctx)
+		pass(ctx, page->doc, page, shape, opts);
+	fz_always(ctx)
+		fz_set_user_context(ctx, before);
+	fz_catch(ctx)
+		fz_rethrow(ctx);
 }
 
 /* Notes text that clips: here only text painted by patterns. */
@@ -211,7 +319,7 @@ static void refuse_patterns(fz_context *ctx, pdf_document *pdf, pdf_obj *res, fz
 }
 
 /* The page's content drawing only the block's glyphs. */
-static fz_buffer *block_content(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_shape *shape)
+static fz_buffer *block_content(fz_context *ctx, pdf_page *page, ely_shape *shape, tags *t)
 {
 	pdf_sanitize_filter_options sopts = { 0 };
 	pdf_filter_factory list[2] = { { untagged, NULL }, { NULL, NULL } };
@@ -228,19 +336,22 @@ static fz_buffer *block_content(fz_context *ctx, pdf_document *pdf, pdf_page *pa
 	opts.complete = hold_buffer;
 	fz_try(ctx)
 	{
-		ely_keep_block(ctx, pdf, page, shape, &opts);
+		follow(ctx, page, shape, &opts, ely_keep_block, t);
 		out = without_forms(ctx, all);
-		unmark_empty(ctx, out, NULL);
+		unmark_empty(ctx, out, t);
 	}
 	fz_always(ctx)
 		fz_drop_buffer(ctx, all);
 	fz_catch(ctx)
+	{
+		fz_drop_buffer(ctx, out);
 		fz_rethrow(ctx);
+	}
 	return out;
 }
 
 /* Takes the block out, tags kept off the structure tree. */
-static void take_block(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_shape *shape, fz_buffer *drawn)
+static void take_block(fz_context *ctx, pdf_page *page, ely_shape *shape, tags *t)
 {
 	pdf_sanitize_filter_options sopts = { 0 };
 	pdf_filter_factory list[2] = { { untagged, NULL }, { NULL, NULL } };
@@ -249,9 +360,9 @@ static void take_block(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_s
 	opts.filters = list;
 	opts.ascii = 1;
 	opts.newlines = 1;
-	opts.opaque = drawn;
+	opts.opaque = t;
 	opts.complete = unmark_empty;
-	ely_take_block(ctx, pdf, page, shape, &opts);
+	follow(ctx, page, shape, &opts, ely_take_block, t);
 }
 
 int ely_move_text(fz_context *ctx, fz_document *doc, int number, int block, const char *expected, float dx, float dy)
@@ -261,7 +372,9 @@ int ely_move_text(fz_context *ctx, fz_document *doc, int number, int block, cons
 	ely_shape shape = { NULL };
 	fz_buffer *drawn = NULL, *buf = NULL;
 	pdf_obj *res = NULL;
+	tags copy = { 0 }, left = { 0 };
 	int begun = 0;
+	left.copy = &copy;
 	fz_var(pdf);
 	fz_var(page);
 	fz_var(drawn);
@@ -279,9 +392,9 @@ int ely_move_text(fz_context *ctx, fz_document *doc, int number, int block, cons
 		pdf_begin_operation(ctx, pdf, "Move text");
 		begun = 1;
 		res = pdf_keep_obj(ctx, pdf_page_resources(ctx, page));
-		drawn = block_content(ctx, pdf, page, &shape);
+		drawn = block_content(ctx, page, &shape, &copy);
 		refuse_patterns(ctx, pdf, res, drawn);
-		take_block(ctx, pdf, page, &shape, drawn);
+		take_block(ctx, page, &shape, &left);
 		/* Both streams name only what the old resources hold. */
 		pdf_dict_put(ctx, page->obj, PDF_NAME(Resources), res);
 		buf = fz_new_buffer(ctx, drawn->len + 64);
@@ -297,6 +410,8 @@ int ely_move_text(fz_context *ctx, fz_document *doc, int number, int block, cons
 		fz_drop_buffer(ctx, drawn);
 		fz_drop_buffer(ctx, buf);
 		pdf_drop_obj(ctx, res);
+		drop_tags(ctx, &copy);
+		drop_tags(ctx, &left);
 		ely_drop_shape(ctx, &shape);
 		fz_drop_page(ctx, (fz_page *)page);
 	}

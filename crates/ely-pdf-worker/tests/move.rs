@@ -209,6 +209,31 @@ fn a_tag_the_move_would_split_refuses_it() {
     }
 }
 
+#[test]
+fn separate_sequences_alike_stay_apart() {
+    let far = "BT /F1 18 Tf 72 300 Td (Far) Tj ET";
+    let empty = "BT /F1 18 Tf ET";
+    // Twin tags, an empty twin, a string naming an MCID.
+    let cases = [
+        ("/Artifact BMC", "/Artifact BMC", far, "/Artifact", 2),
+        ("/Artifact BMC", "/Artifact BMC", empty, "/Artifact", 2),
+        ("/Span <</Alt (/MCID 0)>> BDC", "/P <</MCID 0>> BDC", far, "/MCID 0", 2),
+    ];
+    for (first, second, then, word, times) in cases {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let content = format!("{first} BT /F1 18 Tf 72 700 Td (Hello) Tj ET EMC {second} {then} EMC");
+        let (mut worker, doc) = drawn(dir.path(), &content);
+        let index = worker.text_blocks(doc, 0).expect("blocks").iter().position(|b| b.text == "Hello").expect("hello");
+        worker.move_text(doc, 0, (index, "Hello"), (40.0, 100.0)).expect(&content);
+        let doc = worker.now(doc).expect("the state");
+        let out = dir.path().join("moved.pdf");
+        worker.save(doc, &out).expect("saves");
+        let bytes = std::fs::read(&out).expect("reads");
+        let count = bytes.windows(word.len()).filter(|w| *w == word.as_bytes()).count();
+        assert_eq!(count, times, "{content}: each sequence once");
+    }
+}
+
 /// Helvetica and pattern `P0` (object 6), drawing `content`, opened.
 fn patterned(dir: &Path, pattern: &str, content: &str) -> (Worker, Doc) {
     let objects = ["<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string(), pattern.to_string()];
