@@ -1,11 +1,14 @@
 """PERF-10's complex content: what Office files carry beyond text."""
 
+import functools
 import json
 import os
 import re
 import shutil
+import statistics
 import tempfile
 import zipfile
+import xml.etree.ElementTree as ET
 
 import loadfiles
 import samples
@@ -45,13 +48,20 @@ def docx(path):
             {"word/comments.xml": comments})
 
 
+def archive_text(path, name):
+    with zipfile.ZipFile(path) as archive:
+        return archive.read(name).decode("utf-8") if name in archive.namelist() else ""
+
+
 def docx_kept(path):
     """What a saved rich DOCX still holds."""
     with zipfile.ZipFile(path) as archive:
         xml = archive.read("word/document.xml").decode("utf-8")
         names = archive.namelist()
-    return {"comment kept": "word/comments.xml" in names and "commentReference" in xml,
-            "insertion kept": "<w:ins " in xml, "deletion kept": "<w:del " in xml,
+    notes = archive_text(path, "word/comments.xml")
+    return {"comment kept": "A comment" in notes and "commentReference" in xml,
+            "insertion kept": re.search(r"<w:ins [^>]*>.*?> inserted</w:t>", xml, re.S) is not None,
+            "deletion kept": re.search(r"<w:del [^>]*>.*?> deleted</w:delText>", xml, re.S) is not None,
             "TOC kept": "TOC \\o" in xml, "PAGE field kept": re.search(r"instrText[^>]*>\s*PAGE", xml) is not None,
             "DATE field kept": re.search(r"instrText[^>]*>\s*DATE", xml) is not None,
             "100 pages kept": len(re.findall(r"Page \d+", loadfiles.text_of(path))) >= 100,
@@ -197,7 +207,11 @@ def huge_kept(slug, path):
         return {**xlsx_kept(path), f"Data!A{n} kept": loadfiles.cell(path, "Data", f"A{n}") is not None,
                 f"Calc!B{n} chain kept": loadfiles.formula(path, "Calc", f"B{n}") is not None}
     if slug == "ely-mark":
-        return {f"{n} notes kept": loadfiles.text_of(path).count("| 19 | row 19 | 361 |") == n}
+        with tempfile.TemporaryDirectory() as folder:
+            huge_sample(slug, os.path.join(folder, "huge.md"))
+            want = loadfiles.text_of(os.path.join(folder, "huge.md"))
+        text = re.sub(loadfiles.TOKEN + r"\d+", loadfiles.TOKEN + "0", loadfiles.text_of(path)).replace("x" * 20, "", 1)
+        return {f"the {n} notes are as written": text == want}
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
         if slug == "ely-show":
@@ -249,25 +263,47 @@ def data(rows, rounds):
     return [row + [sum(row) * (1 if row[0] % 2 == 0 else -1), f"cat{r % 7}"] for r, row in enumerate(table, 1)]
 
 
+def calc_formulas(path):
+    """Calc's formulas by cell: text and array range."""
+    with zipfile.ZipFile(path) as archive:
+        sheet = ET.fromstring(archive.read(loadfiles.sheet_part(archive, "Calc")))
+    found = ((c.get("r"), c.find(loadfiles.S + "f")) for c in sheet.iter(loadfiles.S + "c"))
+    # C501:C501 and C501 are one cell.
+    single = lambda span: span.split(":")[0] if span and len(set(span.split(":"))) == 1 else span
+    return {ref: (f.text, single(f.get("ref"))) for ref, f in found if f is not None}
+
+
+@functools.lru_cache
+def written_formulas(rows):
+    with tempfile.TemporaryDirectory() as folder:
+        loadfiles.workbook(os.path.join(folder, "w.xlsx"), rows)
+        return calc_formulas(os.path.join(folder, "w.xlsx"))
+
+
 def book_kept(path, rows, rounds):
-    """Complex formulas still there, and their values recalculated."""
+    """Each formula as written, each value recalculated, spills too."""
     d = data(rows, rounds)
-    a, b, f = [row[0] for row in d], [row[1] for row in d], [row[5] for row in d]
-    middle = sorted(row[3] for row in d)
-    want = {"A2": sum(row[5] for row in d if row[6] == "cat3" and row[0] > 50),
+    a, b, c, f = ([row[k] for row in d] for k in (0, 1, 2, 5))
+    middle, amounts = sorted(row[3] for row in d), sum(f)
+    want = {"A1": 2 * a[0], "A2": sum(row[5] for row in d if row[6] == "cat3" and row[0] > 50),
             "A3": sum(1 for row in d if row[6] == "cat1" and row[1] < 40),
-            "A4": next(row[5] for row in d if row[0] == 42),
-            "A5": f[b.index(max(b))],
-            "A7": sum(row[5] for row in d if row[0] > 10 and row[1] < 90),
-            "A11": (middle[(rows - 1) // 2] + middle[rows // 2]) / 2,
-            f"B{rows}": b[0] + 0.5 * sum(b[1:]), f"C{rows + 1}": sum(x * y for x, y in zip(a, b))}
-    kept = {}
+            "A4": next(row[5] for row in d if row[0] == 42), "A5": f[b.index(max(b))],
+            "A6": statistics.mean(row[2] for row in d if row[3] < 30),
+            "A7": sum(row[5] for row in d if row[0] > 10 and row[1] < 90), "A8": f"{amounts:,}", "A9": -1,
+            "A10": round(statistics.stdev(c), 3), "A11": (middle[(rows - 1) // 2] + middle[rows // 2]) / 2,
+            "A12": sorted((row[4] for row in d), reverse=True)[4],
+            "A13": "up" if amounts > 0 else "down" if amounts < 0 else "flat", "A14": 1, "A15": sum(a[:10]), "A16": b[1],
+            "B2": b[0] + 0.5 * b[1], f"B{rows}": b[0] + 0.5 * sum(b[1:]), f"C{rows + 1}": sum(x * y for x, y in zip(a, b))}
+    want |= {f"D{n}": v for n, v in enumerate(sorted(a[:10]), 1)}
+    want |= {f"E{n}": f"cat{n % 7}" for n in range(1, 8)}
+    saved = calc_formulas(path)
+    kept = {f"Calc!{ref} formula {text}": saved.get(ref) == (text, span) for ref, (text, span) in written_formulas(rows).items()}
     for ref, value in want.items():
         got = loadfiles.cell(path, "Calc", ref)
-        kept[f"Calc!{ref} formula kept"] = loadfiles.formula(path, "Calc", ref) is not None
-        kept[f"Calc!{ref} recalculated to {value:g}"] = got is not None and abs(float(got) - value) <= 1e-6 * max(1, abs(value))
-    for ref in ("A6", "A8", "A9", "A10", "A12", "A13", "A14", "A15", "A16", "D1", "E1"):
-        kept[f"Calc!{ref} formula kept"] = loadfiles.formula(path, "Calc", ref) is not None
+        if isinstance(value, str):
+            kept[f"Calc!{ref} shows {value}"] = got == value
+        else:
+            kept[f"Calc!{ref} recalculated to {value:g}"] = got is not None and abs(float(got) - value) <= 1e-6 * max(1, abs(value))
     return kept
 
 

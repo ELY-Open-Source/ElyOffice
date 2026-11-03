@@ -400,13 +400,13 @@ def external(archive, name):
             if rel.get("TargetMode") == "External"]
 
 
-def word_links(path):
+def word_links(path, included=INCLUDED_NOW):
     """What a saved DOCX still links, and whether INCLUDETEXT updated."""
     with zipfile.ZipFile(path) as archive:
         xml = archive.read("word/document.xml").decode("utf-8")
         targets = external(archive, "word/document.xml")
     return {"INCLUDETEXT field kept": "INCLUDETEXT" in xml and "include.docx" in xml,
-            "INCLUDETEXT shows the source's text": INCLUDED_NOW in text_of(path),
+            "INCLUDETEXT shows the source's text": included in text_of(path),
             "linked picture kept": any(t.endswith("picture.png") for t in targets),
             "OLE link kept": 'Type="Link"' in xml and any(t.endswith("source.xlsx") for t in targets)}
 
@@ -423,10 +423,14 @@ def book_links(path):
             "Links!A1 shows the source's value": value is not None and abs(float(value) - RATES_NOW[0]) < 1e-9}
 
 
-def word_updates(path, old_picture):
-    """Saved DOCX: no stale picture copy, no stale OLE preview."""
+def word_updates(path, folder, old_preview):
+    """Saved DOCX after its sources changed: links, shown text."""
     with zipfile.ZipFile(path) as archive:
         media = [archive.read(name) for name in archive.namelist() if name.startswith("word/media/")]
-    links = word_links(path)
-    return {"the linked picture stays a link, no stale copy": links["linked picture kept"] and old_picture not in media,
-            "the OLE link stays, its preview renewed": links["OLE link kept"] and samples.noise_png(9, 120, 60) not in media}
+        targets = external(archive, "word/document.xml")
+    links = word_links(path, "Included changed")
+    picture = "file:///" + os.path.abspath(os.path.join(folder, "picture.png")).replace("\\", "/")
+    return {"INCLUDETEXT saved with the changed text": links["INCLUDETEXT shows the source's text"],
+            "the linked picture still links its file": picture in targets and samples.noise_png(4, 64, 64) not in media,
+            "the OLE link stays with a renewed preview": links["OLE link kept"] and len(media) > 0
+            and all(item != old_preview for item in media) and all(item[:4] in (b"\x89PNG", b"\x01\x00\x00\x00") for item in media)}

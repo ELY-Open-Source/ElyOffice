@@ -18,6 +18,7 @@ import load
 import loadfiles
 import richfiles
 import run
+import samples
 
 from load import RECIPES
 from run import APPS, App
@@ -57,14 +58,17 @@ def start(name, slug, files, front=None):
 
 
 @contextlib.contextmanager
-def running(name, slug, files, front=None, clicks=False):
+def running(name, slug, files, front=None):
     """One case's app; void if someone used the desktop."""
-    app = start(name, slug, files, front)
+    app, clicked = start(name, slug, files, front), run.HOST.clicks
     try:
         yield app
         # The log flushes every two seconds.
         time.sleep(2.5)
-        if why := load.interfered(app, 0 if clicks else len(app.lines()), moves=True):
+        downs = [line for line in app.lines() if "ui: mouse_down to frame" in line]
+        if len(downs) > run.HOST.clicks - clicked:
+            raise load.Interfered(f"{app.slug}: {len(downs)} clicks, the driver made {run.HOST.clicks - clicked}")
+        if why := load.interfered(app, len(app.lines()), moves=True):
             raise load.Interfered(why)
     finally:
         app.stop()
@@ -136,7 +140,7 @@ def changed_sources():
     loadfiles.sources(folder)
     book, source = os.path.join(folder, "book.xlsx"), os.path.join(folder, "source.xlsx")
     loadfiles.workbook(book, 200, linked=True)
-    with running("changed", "ely-table", [book], clicks=True) as app:
+    with running("changed", "ely-table", [book]) as app:
         closed = value_of(app, book, "Links!A1")
         drive.sh(run.HOST.exe("ely-table", True), source, env=app.env, timeout=120)
         load.wait_opened(app, 2, 60)
@@ -152,10 +156,9 @@ def changed_sources():
     loadfiles.sources(folder)
     path = os.path.join(folder, "linked.docx")
     loadfiles.linked_docx(path, folder)
-    with running("changed", "ely-doc", [path], clicks=True) as app:
+    with running("changed", "ely-doc", [path]) as app:
         opened = said(app, "text", "get", path)
         loadfiles.word(os.path.join(folder, "include.docx"), [loadfiles.para("Included changed")])
-        old = open(os.path.join(folder, "picture.png"), "rb").read()
         loadfiles.sources(folder, rates=[9 + m / 100 for m in range(1, 13)], seed=5)
         time.sleep(3)
         later = said(app, "text", "get", path)
@@ -164,8 +167,8 @@ def changed_sources():
                  f"shows {'the source' if loadfiles.INCLUDED_NOW in opened else 'the cached'} text"))
     rows.append(("ElyDoc: INCLUDETEXT follows its source changed while open", "Included changed" in later,
                  "followed" if "Included changed" in later else "kept the old text"))
-    rows += [(f"ElyDoc: {what} after its source changed", ok, "read in the saved file")
-             for what, ok in loadfiles.word_updates(path, old).items()]
+    rows += [(f"ElyDoc: {what}", ok, "read in the saved file after the sources changed")
+             for what, ok in loadfiles.word_updates(path, folder, samples.noise_png(9, 120, 60)).items()]
     return rows
 
 
@@ -385,7 +388,7 @@ def rapid_open_close():
         folder = place("rapid", slug)
         front = loadfiles.front_file(folder, slug)
         files = [shutil.copy(front, os.path.join(folder, f"r{n:02d}.{loadfiles.EXT[slug]}")) for n in range(20)]
-        with running("rapid", slug, [front], clicks=True) as app:
+        with running("rapid", slug, [front]) as app:
             times, memory = [], [app.memory_mb()]
             app.front()
             for _ in range(3):

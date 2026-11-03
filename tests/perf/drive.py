@@ -247,6 +247,8 @@ class Linux(Host):
 
 class Windows(Host):
     name = "Windows"
+    # Clicks this driver made, so others can be told apart.
+    clicks = 0
     # Counts only, unnamed: bench.handles_steady judges them.
     system = None
 
@@ -351,15 +353,18 @@ class Windows(Host):
         self.ui("chord", pid, letter)
 
     def press(self, pid, name):
+        self.clicks += 1
         return sent(self.ui("press", pid, name))
 
     def shows(self, pid, name):
         return self.ui("shows", pid, name).strip() == "yes"
 
     def click_field(self, pid):
+        self.clicks += 1
         self.ui("field", pid)
 
     def middle(self, pid):
+        self.clicks += 1
         self.ui("middle", pid)
 
     def park(self, pid):

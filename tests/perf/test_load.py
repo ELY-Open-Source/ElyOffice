@@ -55,8 +55,13 @@ class ReadBack(unittest.TestCase):
         book = os.path.join(self.work, "table-004-small.xlsx")
         loadfiles.workbook(book, 500)
         kept = richfiles.book_kept(book, 500, 0)
-        self.assertTrue(kept["Calc!A2 formula kept"])
-        self.assertFalse(any(ok for what, ok in kept.items() if "recalculated" in what), "nothing computed yet")
+        formulas = [ok for what, ok in kept.items() if " formula " in what]
+        self.assertTrue(formulas and all(formulas))
+        self.assertFalse(any(ok for what, ok in kept.items() if " formula " not in what), "nothing computed yet")
+        loadfiles.rewrite(book, {"xl/worksheets/sheet2.xml": lambda xml: xml.replace("<f>SUMIFS(", "<f>0+SUMIFS(", 1)})
+        changed = [what for what, ok in richfiles.book_kept(book, 500, 0).items() if " formula " in what and not ok]
+        self.assertEqual(len(changed), 1)
+        self.assertTrue(changed[0].startswith("Calc!A2 formula SUMIFS("))
 
     def test_typed_keys_must_all_be_there(self):
         path = os.path.join(self.work, "front.md")
