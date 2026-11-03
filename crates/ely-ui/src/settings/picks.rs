@@ -12,7 +12,9 @@ use ely_gpui_component::{
     buttons::SegmentedControl,
     forms::{Choice, Select},
 };
-use ely_platform::settings::{DOC_ZOOM, DOC_ZOOMS, DocZoom, PAPER, Paper, Sides, TWO_SIDED, UI_TEXT_SIZE, UI_TEXT_SIZES, word};
+use ely_platform::settings::{
+    DOC_ZOOM, DOC_ZOOMS, DocZoom, LANGUAGE, LANGUAGES, Language, PAPER, Paper, Sides, TWO_SIDED, UI_TEXT_SIZE, UI_TEXT_SIZES, word,
+};
 use gpui::{App, AsyncApp, Global};
 use serde_json::Value;
 
@@ -81,6 +83,25 @@ pub(super) fn doc_zoom(stored: DocZoom, cx: &App) -> Select {
         };
         pick(DOC_ZOOM, zoom.value(), cx)
     })
+}
+
+/// System, then each language in its own name.
+pub(super) fn languages(cx: &App) -> Vec<Choice> {
+    std::iter::once(Choice::new(Language::System.word(), text(cx, "settings.language.system", &[])))
+        .chain(LANGUAGES.map(|(tag, name)| Choice::new(tag, name)))
+        .collect()
+}
+
+/// The interface language apps start in.
+pub(super) fn language(stored: Language, cx: &App) -> Select {
+    let shown = match waiting(LANGUAGE, cx) {
+        Some(Value::String(word)) => word,
+        _ => stored.word().to_string(),
+    };
+    Select::new("settings-language", languages(cx))
+        .label(text(cx, "settings.language", &[]))
+        .selected(shown)
+        .on_change(|picked, _, cx| pick(LANGUAGE, Value::String(picked.to_string()), cx))
 }
 
 /// The paper new documents start on.

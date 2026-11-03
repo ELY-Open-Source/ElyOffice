@@ -12,7 +12,7 @@ use ely_gpui_component::{
 use ely_platform::{
     AppId,
     settings::{
-        ALWAYS_SCROLLBARS, APPEARANCE, AUTHOR, Appearance, CHECK_UPDATES, LANGUAGE, Language, MOTION, Motion, OMARCHY_SYNC, Store, UI_FONT, word,
+        ALWAYS_SCROLLBARS, APPEARANCE, AUTHOR, Appearance, CHECK_UPDATES, MOTION, Motion, OMARCHY_SYNC, Store, UI_FONT, word,
     },
 };
 use gpui::{
@@ -226,11 +226,7 @@ impl SettingsView {
             };
             set(APPEARANCE, word(&Appearance::ALL, &chosen).into(), cx);
         });
-        let language = choices("settings-language", &Language::ALL, &shared.language, |choice, cx| match choice {
-            Language::System => text(cx, "settings.language.system", &[]),
-            Language::English => "English".into(),
-            Language::Chinese => "简体中文".into(),
-        }, LANGUAGE, cx);
+        let language = div().debug_selector(|| "settings-language".into()).w_full().max_w_64().child(super::picks::language(shared.language, cx));
         let motion = choices("settings-motion", &Motion::ALL, &shared.motion, |choice, cx| match choice {
             Motion::System => text(cx, "settings.motion.system", &[]),
             Motion::Reduced => text(cx, "settings.motion.reduce", &[]),

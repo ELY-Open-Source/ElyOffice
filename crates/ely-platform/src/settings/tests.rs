@@ -70,11 +70,27 @@ fn shared_fields_type_strictly_and_default_when_absent() {
     assert!(read.always_scrollbars && !Shared::default().always_scrollbars, "chosen, fading by default");
     assert_eq!(
         (read.appearance, read.language, read.motion, read.omarchy_sync, read.author.as_str()),
-        (Appearance::Dark, Language::Chinese, Motion::Reduced, false, "Ana")
+        (Appearance::Dark, Language::Listed("zh-CN"), Motion::Reduced, false, "Ana")
     );
     for bad in [r#"{"appearance":"blue"}"#, r#"{"omarchy_sync":"yes"}"#, r#"{"author":3}"#, r#"{"check_updates":1}"#, r#"{"always_scrollbars":"on"}"#] {
         assert!(Shared::from_fields(&fields(bad)).is_err(), "{bad}");
     }
+}
+
+#[test]
+fn the_language_is_system_or_a_listed_tag() {
+    use super::{LANGUAGES, Language, Shared};
+    let read = |word: &str| Shared::from_fields(&serde_json::from_str(&format!(r#"{{"language":"{word}"}}"#)).unwrap()).map(|shared| shared.language);
+    assert_eq!(read("system").unwrap(), Language::System);
+    assert_eq!(Language::System.word(), "system");
+    for (tag, _) in LANGUAGES {
+        assert_eq!(read(tag).unwrap(), Language::Listed(tag));
+        assert_eq!(Language::Listed(tag).word(), tag);
+    }
+    for bad in ["en", "zh", "zh-cn", "x-unlisted", ""] {
+        assert!(read(bad).is_err(), "{bad}");
+    }
+    assert!(Shared::from_fields(&serde_json::from_str(r#"{"language":1}"#).unwrap()).is_err());
 }
 
 #[test]
