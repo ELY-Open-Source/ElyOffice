@@ -32,6 +32,7 @@ mod tools;
 mod tree;
 mod tree_ops;
 mod tree_places;
+use ely_platform::settings::{LANGUAGES, Language};
 use gpui::{App, SharedString};
 
 const EN: &[(&str, &str)] = &[
@@ -144,13 +145,10 @@ const ZH_CN: &[(&str, &str)] = &[
     ("gallery.delete.confirm", "删除页面"),
 ];
 
-/// zh-* maps to zh-CN; anything else to en-US.
+/// The listed language of `tag`'s primary subtag; else en-US.
 pub fn resolve(tag: &str) -> &'static str {
-    if tag.to_ascii_lowercase().starts_with("zh") {
-        "zh-CN"
-    } else {
-        "en-US"
-    }
+    let primary = |tag: &str| tag.split(['-', '_']).next().unwrap_or_default().to_ascii_lowercase();
+    LANGUAGES.iter().find(|(listed, _)| primary(listed) == primary(tag)).map_or("en-US", |(listed, _)| listed)
 }
 
 /// Installs the catalogs and resolves the locale.
@@ -161,7 +159,7 @@ pub fn install(cx: &mut App) {
     install_as(locale, cx);
 }
 
-/// Installs the catalogs speaking `locale` (en-US or zh-CN).
+/// Installs the catalogs speaking `locale`, a listed tag.
 pub fn install_as(locale: &'static str, cx: &mut App) {
     #[cfg(target_os = "windows")]
     gpui_windows::set_text_language(locale);
@@ -255,11 +253,10 @@ fn catalogs() -> (Catalog, Catalog) {
 
 /// `ELY_LOCALE`, then the language setting, then the system's.
 fn locale_tag(cx: &App) -> String {
-    use ely_platform::settings::{Language, word};
     match crate::settings::current(cx).language {
         Language::System => ely_platform::locale::system(),
         _ if ely_platform::env::value("ELY_LOCALE").is_some() => ely_platform::locale::system(),
-        chosen => word(&Language::ALL, &chosen).into(),
+        Language::Listed(tag) => tag.into(),
     }
 }
 
@@ -293,7 +290,7 @@ fn count_key(key: &str, n: u64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{catalogs, count_key, resolve};
+    use super::{I18n, LANGUAGES, catalogs, count_key, resolve};
     use std::collections::BTreeSet;
 
     #[test]
@@ -339,11 +336,26 @@ mod tests {
 
     #[test]
     fn zh_variants_pick_zh_cn_others_pick_en() {
-        for tag in ["zh-CN", "zh-Hans", "zh", "ZH-TW"] {
+        for tag in ["zh-CN", "zh-Hans", "zh", "ZH-TW", "zh_CN"] {
             assert_eq!(resolve(tag), "zh-CN", "{tag}");
         }
-        for tag in ["en", "en-US", "fr", "ja", "", "x9!"] {
+        for tag in ["en", "en-US", "fr", "ja", "", "x9!", "zhx"] {
             assert_eq!(resolve(tag), "en-US", "{tag}");
         }
+    }
+
+    #[gpui::test]
+    fn every_listed_language_has_its_catalog(cx: &mut gpui::TestAppContext) {
+        let primaries: BTreeSet<_> = LANGUAGES.iter().map(|(tag, _)| tag.split('-').next()).collect();
+        assert_eq!(primaries.len(), LANGUAGES.len(), "the system's language picks one");
+        cx.update(|cx| {
+            for (tag, _) in LANGUAGES {
+                assert_eq!(resolve(tag), tag);
+                assert_eq!(resolve(tag.split('-').next().unwrap()), tag);
+                super::install_as(tag, cx);
+                assert_eq!(cx.global::<I18n>().locale().tag, tag);
+                super::text(cx, "settings.language", &[]);
+            }
+        });
     }
 }
