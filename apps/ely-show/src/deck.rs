@@ -112,7 +112,7 @@ impl Host for Deck {
         self.offer_menu(id, view, cx);
         self.reread(id, view, cx);
         // Undo's state can change with no new read.
-        if self.core.active == Some(id) {
+        if self.core.active() == Some(id) {
             self.sync_menus(cx);
         }
     }
@@ -218,7 +218,7 @@ impl Deck {
             read.graphic(),
         );
         // Hidden decks read when shown; Replace All reports parts too.
-        if self.core.active != Some(id) {
+        if self.core.active() != Some(id) {
             return;
         }
         let Some(tab) = self.tab_mut(id) else {

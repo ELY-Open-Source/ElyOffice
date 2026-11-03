@@ -148,7 +148,7 @@ impl Docs {
         let offer = self
             .offer
             .as_ref()
-            .filter(|offer| Some(offer.tab) == self.core.active)?;
+            .filter(|offer| Some(offer.tab) == self.core.active())?;
         Some(offer.host("doc-menu", menu_of(&cx.entity(), &offer.what, cx)))
     }
 

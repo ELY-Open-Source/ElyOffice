@@ -174,7 +174,7 @@ fn two_files_are_two_tabs_each_with_its_outline(cx: &mut TestAppContext) {
     assert_eq!(outline(&desk, cx), [(1, "B".into(), 0)]);
     let first = desk.read_with(cx, |desk, _| desk.core.tabs[0].id);
     desk.update(cx, |desk, cx| {
-        desk.core.active = Some(first);
+        desk.core.set_active(Some(first));
         cx.notify();
     });
     assert_eq!(outline(&desk, cx), [(1, "A".into(), 0)]);

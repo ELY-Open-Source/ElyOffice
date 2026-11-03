@@ -97,7 +97,7 @@ impl Bars {
 impl Book {
     /// Shows the active cell, except in a bar being typed.
     pub fn sync_bars(&mut self, view: &Entity<LokView>, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             return;
         };
         let cell = view.read(cx).cell();

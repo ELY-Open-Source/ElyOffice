@@ -326,7 +326,7 @@ fn a_failed_picture_waits_for_the_next_read() {
             .expect("closes");
     });
     update(&mut cx, &deck, |deck, cx| {
-        let id = deck.core.active.expect("a tab");
+        let id = deck.core.active().expect("a tab");
         deck.tab_mut(id).expect("the tab").extra.thumbs.clear();
         deck.paint_next(id, cx);
     });

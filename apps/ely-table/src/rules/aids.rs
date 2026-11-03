@@ -63,7 +63,7 @@ impl Book {
         let Some(tab) = self.tab(id) else {
             return;
         };
-        if self.core.active != Some(id)
+        if self.core.active() != Some(id)
             || choices.placement != placement(view.read(cx), &tab.extra.geometry, choices.cell)
         {
             self.choices = None;

@@ -40,7 +40,7 @@ fn export_never_writes_over_the_open_file(cx: &mut TestAppContext) {
     std::fs::write(&path, "# Note\n").expect("a file");
     let (desk, cx) = start(cx, data.path());
     open(&desk, &path, cx);
-    let tab = desk.read_with(cx, |desk, _| desk.core.active.expect("a tab"));
+    let tab = desk.read_with(cx, |desk, _| desk.core.active().expect("a tab"));
     desk.update(cx, |desk, cx| {
         desk.export_to(tab, path.clone(), Format::Text, cx)
     });

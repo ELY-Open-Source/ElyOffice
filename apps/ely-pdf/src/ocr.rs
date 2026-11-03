@@ -63,7 +63,7 @@ pub fn pages(scope: Scope, current: usize, (from, to): (usize, usize), count: us
 
 impl Viewer {
     pub fn ask_ocr(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        let (Some(tab), Some(view)) = (self.core.active, self.active_view()) else {
+        let (Some(tab), Some(view)) = (self.core.active(), self.active_view()) else {
             return self.no_document(cx);
         };
         let count = view.read(cx).sizes.len();

@@ -27,15 +27,15 @@ fn only_the_shown_deck_paints_its_pictures() {
     let Some(deck) = blank(&mut cx, dir.path()) else {
         return eprintln!("SKIP: no LOK build");
     };
-    let first = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    let first = cx.update(|app| deck.read(app).core.active()).expect("a tab");
     update(&mut cx, &deck, |deck, cx| deck.new_blank(cx));
-    settle(&cx, |app| deck.read(app).core.active != Some(first) && counts(app, &deck) == (1, 1));
+    settle(&cx, |app| deck.read(app).core.active() != Some(first) && counts(app, &deck) == (1, 1));
     // A hundred hidden decks would hold the engine.
     update(&mut cx, &deck, |deck, cx| deck.repaint_all(first, cx));
     cx.run_until_parked();
     assert_eq!(cx.update(|app| pictures(app, &deck, first)), (1, 1, false), "a hidden deck paints nothing");
     update(&mut cx, &deck, |deck, cx| {
-        deck.core.active = Some(first);
+        deck.core.set_active(Some(first));
         cx.notify();
     });
     settle(&cx, |app| pictures(app, &deck, first) == (1, 0, false));

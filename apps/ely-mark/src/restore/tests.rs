@@ -98,7 +98,7 @@ mod window {
             let tab = desk.core.tabs.iter().find(|tab| tab.name.as_ref() == name);
             let tab = tab.unwrap_or_else(|| panic!("no tab {name}"));
             let (id, view) = (tab.id, tab.view.clone());
-            desk.core.active = Some(id);
+            desk.core.set_active(Some(id));
             cx.notify();
             view
         });

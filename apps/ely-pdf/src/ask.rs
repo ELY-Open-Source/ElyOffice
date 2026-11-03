@@ -46,7 +46,7 @@ fn stem(name: &str) -> &str {
 
 impl Viewer {
     pub fn ask_crop(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        let (Some(tab), Some(view)) = (self.core.active, self.active_view()) else {
+        let (Some(tab), Some(view)) = (self.core.active(), self.active_view()) else {
             return self.no_document(cx);
         };
         let pages = view.read(cx).chosen_pages();
@@ -55,7 +55,7 @@ impl Viewer {
     }
 
     pub fn ask_split(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.no_document(cx);
         };
         self.ask = Some(Ask::Split { tab, every: 1 });

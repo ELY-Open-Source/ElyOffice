@@ -22,21 +22,21 @@ pub trait Closing: Host {
     }
 
     fn on_save(&mut self, _: &Save, window: &mut Window, cx: &mut Context<Self>) {
-        match self.core().active {
+        match self.core().active() {
             Some(id) => self.save(id, None, window, cx),
             None => self.no_document(cx),
         }
     }
 
     fn on_save_as(&mut self, _: &SaveAs, _: &mut Window, cx: &mut Context<Self>) {
-        match self.core().active {
+        match self.core().active() {
             Some(id) => self.save_as(id, None, cx),
             None => self.no_document(cx),
         }
     }
 
     fn on_close_tab(&mut self, _: &CloseTab, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(id) = self.core().active {
+        if let Some(id) = self.core().active() {
             self.request_close(id, After::Tab, window, cx);
         }
     }
@@ -210,7 +210,7 @@ pub trait Closing: Host {
         let worker = std::sync::Arc::clone(&self.core().worker);
         cx.spawn(async move |this, cx| {
             let closed = cx
-                .background_spawn(async move { ely_lok::behind(&worker, |worker| Self::Engine::close(worker, doc)) })
+                .background_spawn(async move { ely_lok::behind(&worker, |worker| Self::Engine::close(worker, doc)).await })
                 .await;
             if let Err(error) = closed
                 && this
@@ -246,6 +246,7 @@ pub trait Closing: Host {
         if let Some(registry) = tab.registry {
             core.sessions.close(registry);
         }
+        // Not a choice: a file asked still takes the front.
         if core.active == Some(id) {
             core.active = core.tabs.last().map(|tab| tab.id);
         }

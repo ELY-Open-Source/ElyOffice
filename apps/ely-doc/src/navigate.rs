@@ -212,7 +212,7 @@ impl Docs {
             return self.toast(text, Severity::Warning, cx);
         }
         log::info!("doc: back to tab {id}");
-        self.core.active = Some(id);
+        self.core.set_active(Some(id));
         self.go(place, cx);
         cx.notify();
     }

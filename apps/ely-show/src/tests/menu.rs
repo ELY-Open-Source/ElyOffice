@@ -180,7 +180,7 @@ fn closing_the_last_deck_greys_undo() {
     settle(&cx, |app| offered(app) == (true, false));
     cx.update(|app| {
         deck.update(app, |deck, cx| {
-            let id = deck.core.active.expect("a deck");
+            let id = deck.core.active().expect("a deck");
             deck.close_tab(id, cx);
         })
     });

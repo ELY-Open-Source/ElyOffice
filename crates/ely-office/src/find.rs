@@ -312,7 +312,7 @@ pub trait Finding: Host<Engine = crate::Lok> {
         self.core()
             .finder
             .as_ref()
-            .filter(|finder| Some(finder.tab) == self.core().active)
+            .filter(|finder| Some(finder.tab) == self.core().active())
     }
 
     /// The find box over the page, while open.

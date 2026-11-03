@@ -262,7 +262,7 @@ impl Book {
 
     /// The menu's host, for the active workbook.
     pub(crate) fn context_menu(&self, cx: &mut Context<Self>) -> Option<ContextMenu> {
-        let offer = self.menu.as_ref().filter(|offer| Some(offer.tab) == self.core.active)?;
+        let offer = self.menu.as_ref().filter(|offer| Some(offer.tab) == self.core.active())?;
         Some(offer.host("table-menu", menu_of(&cx.entity(), &offer.what, cx)))
     }
 
@@ -271,7 +271,7 @@ impl Book {
         log::info!("table: the menu picks {pick:?}");
         let (id, values): (&str, &[&str]) = match pick {
             Pick::Cut | Pick::Copy | Pick::Paste => return self.clipboard(pick, cx),
-            Pick::Merge => return self.merge(self.core.active, cx),
+            Pick::Merge => return self.merge(self.core.active(), cx),
             Pick::RowHeight => return self.ask_size(false, window, cx),
             Pick::ColumnWidth => return self.ask_size(true, window, cx),
             Pick::Format => {

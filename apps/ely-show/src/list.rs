@@ -58,7 +58,7 @@ impl Panel {
 impl Deck {
     /// Selects the objects at `picked`, in order.
     pub fn select_objects(&mut self, picked: &[String], cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return;
         };
         if picked.is_empty() {

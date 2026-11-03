@@ -46,7 +46,7 @@ const WHOLE: Pdf = Pdf {
 
 impl Book {
     pub(crate) fn on_export(&mut self, _: &Export, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.warn_key("command.blocked.no_document", cx);
         };
         self.open_dialog(Dialog::Export {
@@ -124,7 +124,7 @@ impl Book {
 
     /// Prints a PDF of every sheet through the system panel.
     pub(crate) fn on_print(&mut self, _: &Print, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.warn_key("command.blocked.no_document", cx);
         };
         self.print(tab, cx);

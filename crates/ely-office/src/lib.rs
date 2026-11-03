@@ -174,11 +174,14 @@ pub struct Core<H: Host> {
     pub worker: Arc<Mutex<WorkerOf<H>>>,
     pub sessions: Sessions,
     pub tabs: Vec<Tab<H::Extra, H::Engine>>,
-    pub active: Option<u64>,
+    /// Written by `set_active`, a front load or a close.
+    active: Option<u64>,
     /// The tab last brought to the front.
     shown: Option<u64>,
-    /// Loads in flight: tab id and name.
-    pub loading: Vec<(u64, SharedString)>,
+    /// Loads in flight: tab id, name and session.
+    pub loading: Vec<(u64, SharedString, Option<usize>)>,
+    /// The newest load asked; only it takes the front.
+    front: Option<u64>,
     pub focus: FocusHandle,
     pub root: WeakEntity<Root>,
     pub work: PathBuf,
@@ -222,6 +225,7 @@ impl<H: Host> Core<H> {
             active: None,
             shown: None,
             loading: Vec::new(),
+            front: None,
             focus: cx.focus_handle(),
             root: WeakEntity::new_invalid(),
             work,
@@ -241,6 +245,49 @@ impl<H: Host> Core<H> {
             quiet: Default::default(),
             saving: Vec::new(),
         }
+    }
+}
+
+impl<H: Host> Core<H> {
+    /// The tab in front.
+    pub fn active(&self) -> Option<u64> {
+        self.active
+    }
+
+    /// Puts `tab` in front; pending loads stay behind.
+    pub fn set_active(&mut self, tab: Option<u64>) {
+        self.active = tab;
+        self.front = None;
+    }
+
+    /// Load `id` landed in front; a newer load still may.
+    fn landed_front(&mut self, id: u64) {
+        self.active = Some(id);
+        if self.front == Some(id) {
+            self.front = None;
+        }
+    }
+
+    /// Load `id` was asked last; it lands in front.
+    fn asked_front(&mut self, id: u64) {
+        self.front = Some(id);
+    }
+
+    /// Load `id` failed; true when the active tab moved.
+    fn failed_front(&mut self, id: u64) -> bool {
+        let chosen = self.active == Some(id);
+        if chosen {
+            self.active = self.tabs.last().map(|tab| tab.id);
+        }
+        if chosen || self.front == Some(id) {
+            self.front = self.loading.last().map(|(id, ..)| *id);
+        }
+        chosen
+    }
+
+    /// Whether load `id` takes the front when it lands.
+    fn takes_front(&self, id: u64) -> bool {
+        self.front == Some(id) || self.active.is_none() || self.active == Some(id)
     }
 }
 
@@ -317,7 +364,7 @@ pub trait Tabs: Host {
     }
 
     fn active_tab(&self) -> Option<&Tab<Self::Extra, Self::Engine>> {
-        self.core().active.and_then(|id| self.tab(id))
+        self.core().active().and_then(|id| self.tab(id))
     }
 
     fn toast(&self, text: SharedString, severity: Severity, cx: &mut App) {
@@ -383,7 +430,7 @@ pub trait Tabs: Host {
         cx.spawn(async move |this, cx| {
             let read = cx
                 .background_executor()
-                .spawn(async move { ely_lok::behind(&worker, |worker| read(worker, &doc)) })
+                .spawn(async move { ely_lok::behind(&worker, move |worker| read(worker, &doc)).await })
                 .await;
             in_window(&this, cx, |host, window, cx| then(host, read, window, cx))
         })
@@ -402,7 +449,7 @@ pub trait Tabs: Host {
             id,
             read,
             move |host, read, window, cx| {
-                if host.core().active != Some(id) {
+                if host.core().active() != Some(id) {
                     log::info!(
                         "{}: tab {id} left; its dialog is dropped",
                         Self::KIND.app.slug()

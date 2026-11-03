@@ -82,14 +82,14 @@ pub fn bind(root: Div, cx: &mut Context<Book>) -> Div {
         .on_action(cx.listener(|book, _: &HideSheet, _, cx| book.hide_sheet(cx)))
         .on_action(cx.listener(|book, _: &ShowSheet, _, cx| book.ask_show(cx)))
         .on_action(
-            cx.listener(|book, _: &DeleteSheet, _, cx| book.ask_delete(book.core.active, cx)),
+            cx.listener(|book, _: &DeleteSheet, _, cx| book.ask_delete(book.core.active(), cx)),
         )
 }
 
 impl Book {
     /// The shown sheet, its name, and every name.
     fn current_sheet(&self) -> Option<(usize, String, Vec<String>)> {
-        self.sheet_in(self.core.active?)
+        self.sheet_in(self.core.active()?)
     }
 
     /// Tab `id`: shown sheet, its name, every name.
@@ -200,7 +200,7 @@ impl Book {
         let Some((current, ..)) = self.current_sheet() else {
             return self.warn("command.blocked.no_document", cx);
         };
-        if self.core.active.is_none_or(|id| self.visible_count(id) < 2) {
+        if self.core.active().is_none_or(|id| self.visible_count(id) < 2) {
             return self.warn("table.sheet.last", cx);
         }
         self.run_active("sheet.hide", &[&current.to_string()], cx);
@@ -231,7 +231,7 @@ impl Book {
     }
 
     pub(crate) fn ask_rename(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let (Some(tab), Some((index, name, _))) = (self.core.active, self.current_sheet()) else {
+        let (Some(tab), Some((index, name, _))) = (self.core.active(), self.current_sheet()) else {
             return self.warn("command.blocked.no_document", cx);
         };
         // The list shown was read in this state.

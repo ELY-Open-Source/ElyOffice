@@ -45,20 +45,30 @@ impl LokView {
         let (landing, mut landed) = mpsc::unbounded::<Landed>();
         cx.background_executor()
             .spawn(async move {
-                loop {
+                'lane: loop {
                     let done = select_biased! {
                         input = input_queue.next() => {
-                            let Some((seq, input, sent)) = input else { break };
-                            let (waited, edits, kind) = (sent.elapsed().as_millis(), input.edits(), input.kind());
-                            let switched = matches!(input, super::input::Input::Part(_));
-                            let outcome = super::input::run(&worker, &doc, input);
-                            let took = sent.elapsed().as_millis();
-                            if took > SLOW_MS {
-                                log::warn!("lok: input {seq} {kind} waited {waited}, took {took} ms");
-                            } else {
-                                log::debug!("lok: input {seq} {kind} waited {waited}, took {took} ms");
+                            let Some(first) = input else { break };
+                            let mut batch = vec![first];
+                            // Queued inputs share one hold of the worker.
+                            while let Ok(more) = input_queue.try_recv() {
+                                batch.push(more);
                             }
-                            Landed::Input(seq, edits, switched, outcome)
+                            let mut held = worker.lock().expect("the worker lock");
+                            let mut done = Vec::with_capacity(batch.len());
+                            for (seq, input, sent) in batch {
+                                let (waited, edits, kind) = (sent.elapsed().as_millis(), input.edits(), input.kind());
+                                let switched = matches!(input, super::input::Input::Part(_));
+                                let outcome = super::input::run(&mut held, &doc, input);
+                                let took = sent.elapsed().as_millis();
+                                if took > SLOW_MS {
+                                    log::warn!("lok: input {seq} {kind} waited {waited}, took {took} ms");
+                                } else {
+                                    log::debug!("lok: input {seq} {kind} waited {waited}, took {took} ms");
+                                }
+                                done.push(Landed::Input(seq, edits, switched, outcome));
+                            }
+                            done
                         }
                         job = tile_queue.next() => {
                             let Some(job) = job else { break };
@@ -66,7 +76,7 @@ impl LokView {
                                 let wanted = super::reveal::wanted(&wanted);
                                 wanted.0 == job.geom && wanted.1.contains(&job.key)
                             };
-                            if !still {
+                            vec![if !still {
                                 log::debug!("lok: tile job {:?} skipped", job.key);
                                 Landed::Skipped(job.key)
                             } else {
@@ -80,11 +90,13 @@ impl LokView {
                                 let key = job.key;
                                 log::debug!("lok: tile {key:?} in {} ms, {waited} waiting for the worker", started.elapsed().as_millis());
                                 Landed::Tile(job, tile)
-                            }
+                            }]
                         }
                     };
-                    if landing.unbounded_send(done).is_err() {
-                        break;
+                    for done in done {
+                        if landing.unbounded_send(done).is_err() {
+                            break 'lane;
+                        }
                     }
                 }
             })

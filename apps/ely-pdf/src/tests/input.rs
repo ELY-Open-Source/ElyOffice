@@ -68,7 +68,7 @@ fn two_tabs<'a>(cx: &'a mut TestAppContext, dir: &std::path::Path) -> (Entity<Vi
 /// Opens find on `tab` and searches `query` at once.
 fn find_in(cx: &mut VisualTestContext, viewer: &Entity<Viewer>, tab: u64, query: &str) {
     cx.update(|window, app| viewer.update(app, |viewer, cx| {
-        viewer.core.active = Some(tab);
+        viewer.core.set_active(Some(tab));
         viewer.open_find(window, cx);
         let field = viewer.find.as_ref().expect("open").query.clone();
         field.update(cx, |field, cx| field.set_text(query, cx));
@@ -86,7 +86,7 @@ fn a_hit_found_late_never_moves_another_tab() {
     let (viewer, cx, first, second) = two_tabs(&mut cx, dir.path());
     find_in(cx, &viewer, first, "alpha");
     // Before the batch comes back, the reader turns to B.
-    cx.update(|_, app| viewer.update(app, |viewer, _| viewer.core.active = Some(second)));
+    cx.update(|_, app| viewer.update(app, |viewer, _| viewer.core.set_active(Some(second))));
     settle(cx, |app| viewer.read(app).find.as_ref().is_some_and(|find| find.done == 3));
     let (a, b) = (view_of(cx, &viewer, first), view_of(cx, &viewer, second));
     let state = cx.update(|_, app| (a.read(app).chosen, b.read(app).current));

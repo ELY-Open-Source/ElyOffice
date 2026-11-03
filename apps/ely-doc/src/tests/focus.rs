@@ -42,7 +42,7 @@ fn two_tabs(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<(Entity<Do
     shown.update(|window, app| {
         docs.update(app, |docs, cx| {
             docs.own_window(window, cx);
-            docs.core.active = Some(a);
+            docs.core.set_active(Some(a));
             let focus = docs.tab(a).expect("a").view.read(cx).focus_handle().clone();
             window.focus(&focus, cx);
             cx.notify();
@@ -102,7 +102,7 @@ fn a_page_that_leaves_hands_the_keys_to_the_front() {
     };
     // A switch that leaves focus alone, as Go Back does.
     shown.update(|_, app| docs.update(app, |docs, cx| {
-        docs.core.active = Some(b);
+        docs.core.set_active(Some(b));
         cx.notify();
     }));
     frames(&mut shown);
@@ -131,7 +131,7 @@ fn a_find_box_that_leaves_with_its_tab_hands_the_keys_on() {
     assert!(shown.update(|window, app| query.focus_handle(app).is_focused(window)), "find has the keys");
     // Go Back from the field: A's box leaves with A.
     shown.update(|_, app| docs.update(app, |docs, cx| {
-        docs.core.active = Some(b);
+        docs.core.set_active(Some(b));
         cx.notify();
     }));
     frames(&mut shown);
@@ -140,7 +140,7 @@ fn a_find_box_that_leaves_with_its_tab_hands_the_keys_on() {
     // A control that stays keeps them.
     shown.update(|window, app| window.focus(&kept, app));
     shown.update(|_, app| docs.update(app, |docs, cx| {
-        docs.core.active = Some(a);
+        docs.core.set_active(Some(a));
         cx.notify();
     }));
     frames(&mut shown);

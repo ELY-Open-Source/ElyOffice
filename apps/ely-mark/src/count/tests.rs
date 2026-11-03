@@ -50,7 +50,7 @@ fn the_status_bar_counts_typing_and_any_selection() {
     assert!(!laid.iter().any(|line| line == "4 of 4 words"), "drawing counted");
     assert!(drew("4 of 4 words", cx), "the count lands later");
     // An older selection's count arriving last is dropped.
-    let id = desk.read_with(cx, |desk, _| desk.core.active.expect("a tab"));
+    let id = desk.read_with(cx, |desk, _| desk.core.active().expect("a tab"));
     let old: Arc<str> = "!".into();
     desk.update(cx, |desk, cx| desk.land_selection(id, &old, 0, cx));
     assert!(!drew("0 of 4 words", cx), "a stale count landed");

@@ -80,11 +80,13 @@ pub trait Opening: Host {
         match self.core_mut().sessions.open(&path, false) {
             Ok(Open::Focus(registry)) => {
                 let core = self.core_mut();
-                core.active = core
-                    .tabs
-                    .iter()
-                    .find(|tab| tab.registry == Some(registry))
-                    .map(|tab| tab.id);
+                let open = core.tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id);
+                // Still loading: chosen as its loading tab is.
+                let chosen = open.or_else(|| core.loading.iter().find(|(.., of)| *of == Some(registry)).map(|(id, ..)| *id));
+                core.set_active(chosen);
+                if let Some(id) = open {
+                    self.focus_later(id, cx);
+                }
                 cx.notify();
             }
             Ok(Open::Fresh(registry) | Open::View(registry)) => {
@@ -92,6 +94,21 @@ pub trait Opening: Host {
             }
             Err(error) => self.failed_open(&path.display().to_string(), &error, cx),
         }
+    }
+
+    /// Gives tab `id` the keys once the window is free.
+    fn focus_later(&self, id: u64, cx: &mut Context<Self>) {
+        let Some(handle) = self.core().window else {
+            return log::warn!("{}: no window to focus tab {id} in", Self::KIND.app.slug());
+        };
+        let host = cx.entity().downgrade();
+        cx.defer(move |cx| {
+            let Some(host) = host.upgrade() else { return };
+            let Some(focus) = host.read(cx).tab(id).map(|tab| Self::Engine::focus(tab.view.read(cx))) else { return };
+            if let Err(error) = handle.update(cx, |_, window, cx| window.focus(&focus, cx)) {
+                log::warn!("{}: tab {id} kept no focus: {error}", Self::KIND.app.slug());
+            }
+        });
     }
 
     fn failed_open(&self, name: &str, error: &io::Error, cx: &mut gpui::App) {
@@ -119,18 +136,20 @@ pub trait Opening: Host {
 
     /// Loads into tab id `id`, taken earlier from `next`.
     fn load_into(&mut self, id: u64, source: Source<ImportOf<Self>>, cx: &mut Context<Self>) {
-        let (path, password, text) = match &source {
-            Source::File(path, _, password) => (path.clone(), password.clone(), None),
-            Source::Copy(path) => (path.clone(), String::new(), None),
-            Source::Locked(path, password) => (path.clone(), password.clone(), None),
+        let (path, password, text, registry) = match &source {
+            Source::File(path, registry, password) => (path.clone(), password.clone(), None, Some(*registry)),
+            Source::Copy(path) => (path.clone(), String::new(), None, None),
+            Source::Locked(path, password) => (path.clone(), password.clone(), None, None),
             Source::Import(path, bytes, how) => (
                 path.clone(),
                 String::new(),
                 Some((Arc::clone(bytes), how.clone())),
+                None,
             ),
         };
         let written = path.clone();
-        self.core_mut().loading.push((id, file_name(&path)));
+        self.core_mut().loading.push((id, file_name(&path), registry));
+        self.core_mut().asked_front(id);
         cx.notify();
         crate::Stopping::watch_slow(self, id, cx);
         let worker = Arc::clone(&self.core().worker);
@@ -144,7 +163,7 @@ pub trait Opening: Host {
                         None => files::check_package(&written)?,
                     }
                     let asked = std::time::Instant::now();
-                    ely_lok::behind(&worker, |worker| {
+                    ely_lok::behind(&worker, move |worker| {
                         log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
                         let from = match &text {
                             None => Load::File(&written, &password),
@@ -155,6 +174,7 @@ pub trait Opening: Host {
                         log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());
                         loaded
                     })
+                    .await
                 })
                 .await;
             in_window(&this, cx, |host, window, cx| {
@@ -174,7 +194,7 @@ pub trait Opening: Host {
     ) {
         self.core_mut()
             .loading
-            .retain(|(loading, _)| *loading != id);
+            .retain(|(loading, ..)| *loading != id);
         if self.core().slow == Some(id) {
             self.core_mut().slow = None;
         }
@@ -208,6 +228,11 @@ pub trait Opening: Host {
         let (doc, work, session, risk, view, mark) = match opened {
             Ok(opened) => opened,
             Err(error) => {
+                if self.core_mut().failed_front(id)
+                    && let Some(tab) = self.active_tab()
+                {
+                    window.focus(&Self::Engine::focus(tab.view.read(cx)), cx);
+                }
                 if let Some(registry) = registry {
                     self.core_mut().sessions.close(registry);
                 }
@@ -231,7 +256,11 @@ pub trait Opening: Host {
             }
         };
         self.watch(id, &view, cx);
-        window.focus(&Self::Engine::focus(view.read(cx)), cx);
+        // Hidden views never draw nor ask the engine.
+        let front = self.core().takes_front(id);
+        if front {
+            window.focus(&Self::Engine::focus(view.read(cx)), cx);
+        }
         // Tabs keep the order their loads began.
         let at = self.core().tabs.partition_point(|tab| tab.id < id);
         self.core_mut().tabs.insert(at, Tab {
@@ -249,12 +278,14 @@ pub trait Opening: Host {
             reopen: false,
             extra: Default::default(),
         });
-        self.core_mut().active = Some(id);
+        if front {
+            self.core_mut().landed_front(id);
+        }
         // Points from now on; a crash copy comes back unsaved.
         let tab = self.tab(id).expect("just opened");
         let named = tab.name.clone();
         log::info!(
-            "{}: opened {named} as tab {id}, risk {:?}, {} tabs open",
+            "{}: opened {named} as tab {id}, risk {:?}, {} tabs open, in front {front}",
             Self::KIND.app.slug(),
             tab.risk,
             self.core().tabs.len()

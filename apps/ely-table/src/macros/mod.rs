@@ -80,7 +80,7 @@ fn said(error: &io::Error, cx: &App) -> String {
 
 impl Book {
     pub fn on_r_macro(&mut self, _: &RunRMacro, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.warn_key("command.blocked.no_document", cx);
         };
         let code = self

@@ -66,7 +66,7 @@ fn stem(name: &str) -> String {
 
 impl Viewer {
     pub fn on_export(&mut self, _: &Export, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.no_document(cx);
         };
         let how = Optimizing { compress: true, from: 300, to: 150 };
@@ -75,7 +75,7 @@ impl Viewer {
     }
 
     pub fn on_print(&mut self, _: &Print, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.no_document(cx);
         };
         self.print(tab, cx);

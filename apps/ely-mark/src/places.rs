@@ -144,7 +144,7 @@ impl Desk {
     ) {
         let held = tab.or_else(|| self.tab_of(&file));
         if let Some(id) = held.filter(|id| self.tab(*id).is_some()) {
-            self.core.active = Some(id);
+            self.core.set_active(Some(id));
             if let Some(view) = self.tab(id).map(|open| open.view.clone()) {
                 // After the list's own key handling, which keeps focus.
                 window.defer(cx, move |window, cx| {

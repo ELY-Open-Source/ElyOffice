@@ -245,7 +245,7 @@ fn a_shut_menu_stays_shut_when_its_tab_returns(cx: &mut TestAppContext) {
     crate::desk::tests::open(&desk, &other, cx);
     let first = desk.read_with(cx, |desk, _| desk.core.tabs[0].id);
     desk.update(cx, |desk, cx| {
-        desk.core.active = Some(first);
+        desk.core.set_active(Some(first));
         cx.notify();
     });
     cx.run_until_parked();

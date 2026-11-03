@@ -88,7 +88,7 @@ fn inserted_media_reads_back_and_is_picked() {
         .join("../../tests/fixtures/media/clip.mp4");
     let url = ely_lok::file_url(&clip);
     update(&mut cx, &deck, |deck, cx| {
-        let tab = deck.core.active;
+        let tab = deck.core.active();
         deck.run_in(tab, "media.insert", &[&url, "false", "8000", "4500"], cx);
         deck.force_reread(tab.expect("a tab"), cx);
     });
@@ -137,7 +137,7 @@ fn a_stop_cancels_a_preview_on_its_way_and_a_slide_change_ends_one() {
     update(&mut cx, &deck, |deck, cx| deck.preview_transition(cx));
     settle(&cx, |app| deck.read(app).preview.is_some());
     update(&mut cx, &deck, |deck, cx| {
-        let tab = deck.core.active;
+        let tab = deck.core.active();
         deck.run_in(tab, "slide.insert", &[], cx);
         deck.force_reread(tab.expect("a tab"), cx);
     });
@@ -315,7 +315,7 @@ fn an_undone_duration_is_not_sent_again() {
     });
     update(&mut cx, &deck, |deck, cx| {
         deck.send_transition(|t| t.duration = 3.5, false, cx);
-        let tab = deck.core.active;
+        let tab = deck.core.active();
         deck.run_in(tab, "edit.undo", &[], cx);
         deck.force_reread(tab.expect("a tab"), cx);
     });

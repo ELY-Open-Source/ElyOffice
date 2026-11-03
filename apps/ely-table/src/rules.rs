@@ -81,7 +81,7 @@ fn unrestricted() -> Validation {
 impl Book {
     /// Opens the validation of the current cell.
     pub(crate) fn ask_rule(&mut self, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             let text = Book::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };
@@ -269,7 +269,7 @@ impl Book {
     }
 
     pub(crate) fn ask_conditional(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             let text = Book::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };
@@ -317,7 +317,7 @@ impl Book {
 
     /// Lists the shown sheet's conditional formats.
     pub(crate) fn ask_formats(&mut self, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             let text = Book::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };

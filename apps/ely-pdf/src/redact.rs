@@ -71,7 +71,7 @@ pub(crate) fn beside(name: &str, tail: &str) -> String {
 
 impl Viewer {
     pub fn ask_redact(&mut self, cx: &mut Context<Self>) {
-        let (Some(tab), Some(view)) = (self.core.active, self.active_view()) else {
+        let (Some(tab), Some(view)) = (self.core.active(), self.active_view()) else {
             return self.no_document(cx);
         };
         let read = view.read(cx);

@@ -51,10 +51,10 @@ fn every_switch_hands_the_keys_to_the_front_deck() {
     let Some(deck) = blank(&mut cx, dir.path()) else {
         return eprintln!("SKIP: no LOK build");
     };
-    let a = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    let a = cx.update(|app| deck.read(app).core.active()).expect("a tab");
     update(&mut cx, &deck, |deck, cx| deck.new_blank(cx));
-    settle(&cx, |app| deck.read(app).core.active != Some(a) && counts(app, &deck) == (1, 1));
-    let b = cx.update(|app| deck.read(app).core.active).expect("b tab");
+    settle(&cx, |app| deck.read(app).core.active() != Some(a) && counts(app, &deck) == (1, 1));
+    let b = cx.update(|app| deck.read(app).core.active()).expect("b tab");
     cx.update(|cx| {
         Theme::update(cx, |theme| theme.reduced_motion = true);
         ely_ui::set_document_menus(ely_platform::AppId::Show, &ely_ui::commands::FILE, Vec::new(), cx);
@@ -80,7 +80,7 @@ fn every_switch_hands_the_keys_to_the_front_deck() {
     }
     // A switch that never touches focus.
     shown.update(|_, app| deck.update(app, |deck, cx| {
-        deck.core.active = Some(a);
+        deck.core.set_active(Some(a));
         cx.notify();
     }));
     frames(&mut shown);
