@@ -47,11 +47,12 @@ pub fn kernel_bytes<G: Engine>(
     doc: &G::Doc,
     work: &Path,
     format: &str,
+    closing: bool,
 ) -> io::Result<Vec<u8>> {
     let copy = work.join(format!("save.{format}"));
-    G::write(worker, doc, &copy, format)?;
+    G::write(worker, doc, &copy, format, closing)?;
     let bytes = std::fs::read(&copy)?;
-    log::info!("office: the kernel wrote {} bytes of {format}", bytes.len());
+    log::info!("office: the kernel wrote {} bytes of {format}, closing {closing}", bytes.len());
     Ok(bytes)
 }
 

@@ -126,6 +126,8 @@ pub trait Saving: Host {
         tab.exporting = true;
         let (work, view) = (tab.work.clone(), tab.view.clone());
         let edited = Self::Engine::edited(view.read(cx));
+        // Other saves leave an open edit as it is.
+        let closing = then.is_some();
         cx.notify();
         self.read_in(
             id,
@@ -133,7 +135,7 @@ pub trait Saving: Host {
                 if overwrite && let Some(risk) = Self::Engine::unsound(worker, doc)? {
                     return Ok(Err(risk));
                 }
-                let bytes = files::kernel_bytes::<Self::Engine>(worker, doc, &work, format)?;
+                let bytes = files::kernel_bytes::<Self::Engine>(worker, doc, &work, format, closing)?;
                 Ok(Ok((bytes, Self::Engine::history(worker, doc)?)))
             },
             move |host, read, window, cx| {
