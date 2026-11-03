@@ -81,6 +81,8 @@ pub trait Opening: Host {
             Ok(Open::Focus(registry)) => {
                 let core = self.core_mut();
                 let open = core.tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id);
+                // Still loading: chosen as its loading tab is.
+                let open = open.or_else(|| core.loading.iter().find(|(.., of)| *of == Some(registry)).map(|(id, ..)| *id));
                 core.set_active(open);
                 cx.notify();
             }
@@ -116,18 +118,19 @@ pub trait Opening: Host {
 
     /// Loads into tab id `id`, taken earlier from `next`.
     fn load_into(&mut self, id: u64, source: Source<ImportOf<Self>>, cx: &mut Context<Self>) {
-        let (path, password, text) = match &source {
-            Source::File(path, _, password) => (path.clone(), password.clone(), None),
-            Source::Copy(path) => (path.clone(), String::new(), None),
-            Source::Locked(path, password) => (path.clone(), password.clone(), None),
+        let (path, password, text, registry) = match &source {
+            Source::File(path, registry, password) => (path.clone(), password.clone(), None, Some(*registry)),
+            Source::Copy(path) => (path.clone(), String::new(), None, None),
+            Source::Locked(path, password) => (path.clone(), password.clone(), None, None),
             Source::Import(path, bytes, how) => (
                 path.clone(),
                 String::new(),
                 Some((Arc::clone(bytes), how.clone())),
+                None,
             ),
         };
         let written = path.clone();
-        self.core_mut().loading.push((id, file_name(&path)));
+        self.core_mut().loading.push((id, file_name(&path), registry));
         self.core_mut().asked_front(id);
         cx.notify();
         crate::Stopping::watch_slow(self, id, cx);
@@ -173,7 +176,7 @@ pub trait Opening: Host {
     ) {
         self.core_mut()
             .loading
-            .retain(|(loading, _)| *loading != id);
+            .retain(|(loading, ..)| *loading != id);
         if self.core().slow == Some(id) {
             self.core_mut().slow = None;
         }
@@ -207,6 +210,7 @@ pub trait Opening: Host {
         let (doc, work, session, risk, view, mark) = match opened {
             Ok(opened) => opened,
             Err(error) => {
+                self.core_mut().failed_front(id);
                 if let Some(registry) = registry {
                     self.core_mut().sessions.close(registry);
                 }

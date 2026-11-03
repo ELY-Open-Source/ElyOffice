@@ -63,7 +63,7 @@ pub trait Stopping: Host {
     /// No document shown: loading or empty, under the engine's banner.
     fn empty_body(&self, id: &'static str, icon: IconName, cx: &mut Context<Self>) -> AnyElement {
         let title = match self.core().loading.first() {
-            Some((_, name)) => text(cx, "office.loading", &[("name", name)]),
+            Some((_, name, _)) => text(cx, "office.loading", &[("name", name)]),
             None => text(cx, "command.blocked.no_document", &[]),
         };
         let empty = EmptyState::new(id, icon, title);
@@ -81,7 +81,7 @@ pub trait Stopping: Host {
 
     /// A load still running after `SLOW`: the stop is offered.
     fn slow_load(&mut self, id: u64, cx: &mut Context<Self>) {
-        if !self.core().loading.iter().any(|(loading, _)| *loading == id) {
+        if !self.core().loading.iter().any(|(loading, ..)| *loading == id) {
             return;
         }
         log::warn!("{}: tab {id} has not opened after {} s", Self::KIND.app.slug(), SLOW.as_secs());
@@ -104,7 +104,7 @@ pub trait Stopping: Host {
     /// A slow load and its stop.
     fn slow_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
         let id = self.core().slow?;
-        let (_, name) = self.core().loading.iter().find(|(loading, _)| *loading == id)?;
+        let (_, name, _) = self.core().loading.iter().find(|(loading, ..)| *loading == id)?;
         let seconds = SLOW.as_secs().to_string();
         let said = text(cx, "office.slow", &[("name", name), ("seconds", &seconds)]);
         let this = cx.entity();

@@ -178,8 +178,8 @@ pub struct Core<H: Host> {
     active: Option<u64>,
     /// The tab last brought to the front.
     shown: Option<u64>,
-    /// Loads in flight: tab id and name.
-    pub loading: Vec<(u64, SharedString)>,
+    /// Loads in flight: tab id, name and session.
+    pub loading: Vec<(u64, SharedString, Option<usize>)>,
     /// The newest load asked; only it takes the front.
     front: Option<u64>,
     pub focus: FocusHandle,
@@ -271,6 +271,17 @@ impl<H: Host> Core<H> {
     /// Load `id` was asked last; it lands in front.
     fn asked_front(&mut self, id: u64) {
         self.front = Some(id);
+    }
+
+    /// Load `id` failed; its claim on the front passes on.
+    fn failed_front(&mut self, id: u64) {
+        let chosen = self.active == Some(id);
+        if chosen {
+            self.active = self.tabs.last().map(|tab| tab.id);
+        }
+        if chosen || self.front == Some(id) {
+            self.front = self.loading.last().map(|(id, ..)| *id);
+        }
     }
 
     /// Whether load `id` takes the front when it lands.

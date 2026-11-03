@@ -56,7 +56,7 @@ fn a_slow_load_offers_the_stop_and_the_stop_ends_the_engine() {
     let shown = VisualTestContext::from_window(window.into(), &cx).into_mut();
     // The first document hangs: no tab, only the loading page.
     with_window(&mut cx, &docs, |docs, _, cx| {
-        docs.core.loading.push((7, "stuck.docx".into()));
+        docs.core.loading.push((7, "stuck.docx".into(), None));
         docs.watch_slow(7, cx);
     });
     assert!(!drawn(shown, STOP), "not slow yet");

@@ -35,7 +35,7 @@ pub trait Chrome: Host {
         let loading = core
             .loading
             .iter()
-            .map(|(id, name)| EditorTab::new(id.to_string(), name.clone()).preview(true));
+            .map(|(id, name, _)| EditorTab::new(id.to_string(), name.clone()).preview(true));
         let tabs = EditorTabs::new("office-tabs", open.chain(loading).collect::<Vec<_>>())
             .on_select({
                 let this = this.clone();
@@ -85,7 +85,7 @@ pub trait Chrome: Host {
     fn save_state(&self, cx: &mut Context<Self>) -> SharedString {
         match (self.active_tab(), self.core().loading.first()) {
             (Some(tab), _) => text(cx, tab.state_key(cx), &[]),
-            (None, Some((_, name))) => text(cx, "office.loading", &[("name", name)]),
+            (None, Some((_, name, _))) => text(cx, "office.loading", &[("name", name)]),
             (None, None) => SharedString::default(),
         }
     }

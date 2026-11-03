@@ -83,3 +83,52 @@ fn a_loading_tab_chosen_takes_focus_when_it_lands() {
         .expect("the window lives");
     assert!(focused, "the chosen tab landed without focus");
 }
+
+#[test]
+fn a_chosen_load_that_fails_hands_the_front_on() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    blank(&mut cx, &docs);
+    let (bad, good) = (dir.path().join("a.docx"), dir.path().join("b.fodt"));
+    std::fs::write(&bad, b"not a package").expect("the file writes");
+    std::fs::write(&good, cx.update(|app| Template::Report.fodt(app))).expect("the file writes");
+    with_window(&mut cx, &docs, |docs, _, cx| {
+        docs.open_file(bad, cx);
+        let chosen = docs.core.loading.last().expect("a load in flight").0;
+        docs.open_file(good, cx);
+        // As a click on the first loading tab does.
+        docs.core.set_active(Some(chosen));
+    });
+    settle(&cx, |app| docs.read(app).core.loading.is_empty() && docs.read(app).core.tabs.len() == 2);
+    let landed = cx.update(|app| docs.read(app).core.tabs.iter().find(|tab| tab.name == "b.fodt").expect("opened").id);
+    assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(landed));
+}
+
+#[test]
+fn reopening_a_file_still_loading_chooses_it() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    blank(&mut cx, &docs);
+    let fodt = cx.update(|app| Template::Report.fodt(app));
+    let (a, b) = (dir.path().join("a.fodt"), dir.path().join("b.fodt"));
+    for file in [&a, &b] {
+        std::fs::write(file, &fodt).expect("the file writes");
+    }
+    with_window(&mut cx, &docs, |docs, _, cx| {
+        docs.open_file(b, cx);
+        docs.open_file(a.clone(), cx);
+        docs.open_file(a, cx);
+        assert_eq!(docs.core.loading.len(), 2, "the reopen loads nothing more");
+    });
+    settle(&cx, |app| docs.read(app).core.tabs.len() == 3);
+    let chosen = cx.update(|app| docs.read(app).core.tabs.iter().find(|tab| tab.name == "a.fodt").expect("opened").id);
+    assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(chosen));
+}
