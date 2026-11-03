@@ -383,7 +383,7 @@ pub trait Tabs: Host {
         cx.spawn(async move |this, cx| {
             let read = cx
                 .background_executor()
-                .spawn(async move { read(&mut worker.lock().expect("the worker lock"), &doc) })
+                .spawn(async move { ely_lok::behind(&worker, |worker| read(worker, &doc)) })
                 .await;
             in_window(&this, cx, |host, window, cx| then(host, read, window, cx))
         })

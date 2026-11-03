@@ -109,6 +109,12 @@ impl Host for Book {
         }
     }
 
+    fn tab_shown(&mut self, id: u64, cx: &mut Context<Self>) {
+        if let Some(view) = self.tab(id).map(|tab| tab.view.clone()) {
+            self.reread(id, &view, cx);
+        }
+    }
+
     /// A closed tab's dialog and list go with it.
     fn tab_closed(&mut self, tab: &ely_office::Tab<Extra, ely_office::Lok>, cx: &mut Context<Self>) {
         if self.dialog.as_ref().and_then(crate::dialog::Dialog::tab) == Some(tab.id) {
@@ -244,8 +250,9 @@ impl Book {
         let Some(tab) = self.tab(id) else {
             return;
         };
-        // Numbered commands need the list read at the latest revision.
-        let behind = tab.extra.read_at.as_ref().is_some_and(|at| view.read(cx).read_at().newer_than(at));
+        // Numbered commands need the latest read; hidden books wait.
+        let behind = self.core.active == Some(id)
+            && tab.extra.read_at.as_ref().is_some_and(|at| view.read(cx).read_at().newer_than(at));
         if tab.extra.reading || tab.extra.read == Some(seen) && !behind {
             return;
         }

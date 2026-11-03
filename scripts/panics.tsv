@@ -205,6 +205,7 @@ crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("tab").expect("a k
 crates/ely-lok/src/view/input.rs	expect_used	self.lane .inputs .unbounded_send((self.sent, input, Instant::now())) .expect("the input queue lives with the view")	linux,macos,windows	the input queue lives with the view
 crates/ely-lok/src/view/input.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/lane.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
+crates/ely-lok/src/view/off.rs	expect_used	TURN.lock().expect("the background turn")	linux,macos,windows	the background turn
 crates/ely-lok/src/view/off.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/reveal.rs	expect_used	wanted.lock().expect("the wanted lock")	linux,macos,windows	the wanted lock
 crates/ely-lok/src/view/sheet.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
@@ -243,7 +244,6 @@ crates/ely-mail-engine/src/vcard.rs	expect_used	parts.last_mut().expect("starts 
 crates/ely-mail-engine/src/vcard.rs	expect_used	parts.next().expect("split yields one part")	linux,macos,windows	split yields one part
 crates/ely-office/src/chrome.rs	expect_used	id.parse().expect("tab ids are numbers")	linux,macos,windows	tab ids are numbers
 crates/ely-office/src/chrome.rs	expect_used	id.parse().expect("tab ids are numbers")	linux,macos,windows	tab ids are numbers
-crates/ely-office/src/close.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-office/src/find.rs	expect_used	self.core().finder.as_ref().expect("the finder is open")	linux,macos,windows	the finder is open
 crates/ely-office/src/find.rs	expect_used	self.core_mut().finder.as_mut().expect("open")	linux,macos,windows	open
 crates/ely-office/src/find.rs	expect_used	self.core_mut().finder.as_mut().expect("the finder is open")	linux,macos,windows	the finder is open
@@ -252,7 +252,6 @@ crates/ely-office/src/find.rs	expect_used	self.core_mut().finder.as_mut().expect
 crates/ely-office/src/find.rs	expect_used	self.core_mut().finder.as_mut().expect("the finder is open")	linux,macos,windows	the finder is open
 crates/ely-office/src/find.rs	expect_used	self.core_mut().finder.as_mut().expect("the finder is open")	linux,macos,windows	the finder is open
 crates/ely-office/src/find.rs	expect_used	usize::try_from(count - finder.seen).expect("a count of outcomes")	linux,macos,windows	a count of outcomes
-crates/ely-office/src/lib.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-office/src/lok.rs	expect_used	starting.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-office/src/lok.rs	expect_used	wanted.lock().expect("the author lock")	linux,macos,windows	the author lock
 crates/ely-office/src/lok.rs	expect_used	wanted.lock().expect("the author lock")	linux,macos,windows	the author lock
@@ -260,7 +259,6 @@ crates/ely-office/src/lok.rs	expect_used	wanted.lock().expect("the author lock")
 crates/ely-office/src/lok.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-office/src/open.rs	expect_used	path.parent().expect("a copy sits in its work dir")	linux,macos,windows	a copy sits in its work dir
 crates/ely-office/src/open.rs	expect_used	self.tab(id).expect("just opened")	linux,macos,windows	just opened
-crates/ely-office/src/open.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-office/src/panel.rs	expect_used	ely_lok::commands::find(command) .expect("a table command")	linux,macos,windows	a table command
 crates/ely-office/src/panel.rs	expect_used	swatches .iter() .position(|(_, swatch)| *swatch == color) .expect("the palette hands back its own colors")	linux,macos,windows	the palette hands back its own colors
 crates/ely-office/src/recover.rs	expect_used	keeping.slots.get_mut(&id).expect("a due tab has a slot")	linux,macos,windows	a due tab has a slot
