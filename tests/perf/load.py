@@ -210,9 +210,10 @@ def repainted(app, since):
     lines = app.lines()[since:]
     took = [line for line in lines if re.search(r"lok: input \d+ text", line)]
     drawn = [line for line in lines if "lok: screen complete" in line]
-    if not took or not drawn or run.logged_at(drawn[-1]) < run.logged_at(took[-1]):
+    later = [run.logged_at(line) for line in drawn if took and run.logged_at(line) >= run.logged_at(took[-1])]
+    if not later:
         return ""
-    after = run.logged_at(drawn[-1]) - run.logged_at(took[-1])
+    after = later[0] - run.logged_at(took[-1])
     return f"; the engine took it and the screen redrew {after:.0f} ms later: the edit clock missed it"
 
 
