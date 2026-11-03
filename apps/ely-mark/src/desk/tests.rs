@@ -286,3 +286,19 @@ fn a_closed_tab_frees_its_view_and_document(cx: &mut TestAppContext) {
         assert_eq!(remembered.len(), 1, "only a.md is open: {remembered:?}");
     }
 }
+
+#[gpui::test]
+fn utf16_text_says_why_in_chinese_and_spanish(cx: &mut TestAppContext) {
+    let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+    let path = files.path().join("wide.md");
+    std::fs::write(&path, b"\xFF\xFE#\0 \0a\0").expect("a file");
+    let (desk, cx) = start(cx, data.path());
+    let root = desk.read_with(cx, |desk, _| desk.core.root.upgrade().expect("the window"));
+    for (locale, said) in [("zh-CN", "不读取 UTF-16 文本"), ("es-ES", "no se lee texto UTF-16")] {
+        cx.update(|_, app| ely_ui::i18n::install_as(locale, app));
+        open(&desk, &path, cx);
+        let toasts = root.read_with(cx, |root, cx| root.toasts(cx));
+        assert!(toasts.iter().any(|(text, _)| text.contains(said)), "{locale}: {toasts:?}");
+    }
+    assert!(desk.read_with(cx, |desk, _| desk.core.tabs.is_empty()), "no tab opened");
+}

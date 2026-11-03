@@ -173,6 +173,30 @@ fn a_stopped_clone_leaves_no_folder() {
     assert!(cx.update(|_, app| tree.read(app).ask.is_none()), "a stop is no failure");
 }
 
+#[test]
+fn a_clone_into_a_full_folder_says_so_in_chinese_and_spanish() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let into = dir.path().join("into");
+    std::fs::create_dir(&into).expect("a folder");
+    std::fs::write(into.join("kept.txt"), "x").expect("a file");
+    let mut cx = TestAppContext::single();
+    let (tree, cx) = window(&mut cx, dir.path());
+    // The window's toasts live on its root.
+    let shell = cx.update(|window, app| {
+        let shell = ely_ui::tool_root(ely_platform::AppId::Tree, tree.clone().into(), Vec::new(), window, app);
+        tree.update(app, |tree, _| tree.root = shell.downgrade());
+        shell
+    });
+    for (locale, said) in [("zh-CN", "不是空文件夹"), ("es-ES", "no está vacía")] {
+        cx.update(|_, app| ely_ui::i18n::install_as(locale, app));
+        let url = "https://example.invalid/none.git".to_string();
+        cx.update(|_, app| tree.update(app, |tree, cx| tree.start_clone(url, into.clone(), cx)));
+        let toasts = cx.update(|_, app| shell.read(app).toasts(app));
+        assert!(toasts.iter().any(|(text, _)| text.contains(said)), "{locale}: {toasts:?}");
+    }
+    assert!(cx.update(|_, app| tree.read(app).cloning.is_none()), "no clone began");
+}
+
 /// Windows may end a hung Git only after 10 s.
 const GRACE: std::time::Duration = std::time::Duration::from_secs(30);
 

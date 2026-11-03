@@ -188,7 +188,7 @@ impl Desk {
                     );
                     desk.toast(said, Severity::Danger, cx);
                 }
-                Err(error) => desk.export_failed(&error.to_string(), cx),
+                Err(error) => desk.export_failed(&ely_ui::i18n::error(cx, &error), cx),
             })
         })
         .detach_and_log_err(cx);

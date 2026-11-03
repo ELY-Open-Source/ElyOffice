@@ -124,7 +124,7 @@ impl Tree {
         // Only a stop asked for turns failure quiet.
         match net.stop.now() {
             Ok(()) => net.stopping = true,
-            Err(error) => self.failed("tree.error.stop_remote", &error.to_string(), cx),
+            Err(error) => self.failed("tree.error.stop_remote", &ely_ui::i18n::error(cx, &error), cx),
         }
         cx.notify();
     }
@@ -197,7 +197,7 @@ impl Tree {
                     },
                     Err(error) => Ask::Failed {
                         title: text(cx, "tree.remotes.unread", &[]),
-                        detail: error.to_string().into(),
+                        detail: ely_ui::i18n::error(cx, &error),
                     },
                 };
                 tree.offer(ask, cx);
@@ -239,7 +239,7 @@ impl Tree {
                     Ok(plan) => Ask::Force { repo, plan },
                     Err(error) => Ask::Failed {
                         title: text(cx, "tree.force.unready", &[]),
-                        detail: error.to_string().into(),
+                        detail: ely_ui::i18n::error(cx, &error),
                     },
                 };
                 tree.offer(ask, cx);

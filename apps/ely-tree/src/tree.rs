@@ -293,7 +293,7 @@ impl Tree {
                     Some(Ok(rel)) => tree.file_log(&rel, cx),
                     Some(Err((file, error))) => {
                         let shown = file.display().to_string();
-                        let words = text(cx, "tree.error.open", &[("path", &shown), ("error", &error.to_string())]);
+                        let words = text(cx, "tree.error.open", &[("path", &shown), ("error", &ely_ui::i18n::error(cx, &error))]);
                         tree.toast(words, Severity::Danger, cx);
                     }
                     None => {}
@@ -324,7 +324,7 @@ impl Tree {
         self.recent = match ely_files::recent::remember(&self.recent_file, &repo.root) {
             Ok(list) => list,
             Err(error) => {
-                self.failed("tree.error.recent", &error.to_string(), cx);
+                self.failed("tree.error.recent", &ely_ui::i18n::error(cx, &error), cx);
                 self.recent.clone()
             }
         };
@@ -379,19 +379,19 @@ impl Tree {
         if self.recent.iter().any(|known| known == path) {
             self.recent.retain(|known| known != path);
             if let Err(error) = ely_files::recent::forget(&self.recent_file, path) {
-                self.failed("tree.error.recent", &error.to_string(), cx);
+                self.failed("tree.error.recent", &ely_ui::i18n::error(cx, &error), cx);
             }
             let words = text(
                 cx,
                 "tree.error.recent_gone",
-                &[("path", &shown), ("error", &error.to_string())],
+                &[("path", &shown), ("error", &ely_ui::i18n::error(cx, error))],
             );
             self.toast(words, Severity::Danger, cx);
         } else {
             let words = text(
                 cx,
                 "tree.error.open",
-                &[("path", &shown), ("error", &error.to_string())],
+                &[("path", &shown), ("error", &ely_ui::i18n::error(cx, error))],
             );
             self.toast(words, Severity::Danger, cx);
         }

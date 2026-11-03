@@ -3,7 +3,7 @@
 use std::io::{self, Read};
 
 fn bad() -> io::Error {
-    io::Error::new(io::ErrorKind::InvalidData, "a damaged zip directory")
+    ely_platform::locale::Said::error(io::ErrorKind::InvalidData, "office.error.damaged", &[])
 }
 
 fn u16_at(bytes: &[u8], at: usize) -> io::Result<usize> {

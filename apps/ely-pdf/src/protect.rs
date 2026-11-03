@@ -48,7 +48,7 @@ impl Viewer {
     pub(crate) fn failed(&self, error: &io::Error, cx: &mut App) {
         match ely_pdf_engine::refused(error) {
             Some(needed) => self.toast(crate::view::restricted(needed, cx), Severity::Warning, cx),
-            None => self.panel_failed(&error.to_string(), cx),
+            None => self.panel_failed(&ely_ui::i18n::error(cx, error), cx),
         }
     }
 

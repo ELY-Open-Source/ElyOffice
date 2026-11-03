@@ -100,7 +100,7 @@ pub trait Opening: Host {
         let error = match inner.and_then(|inner| inner.downcast_ref::<files::NotPackage>()) {
             Some(files::NotPackage(ext)) => text(cx, "office.error.not_package", &[("ext", ext)]).to_string(),
             None if inner.is_some_and(|inner| inner.is::<ely_lok::Damaged>()) => text(cx, "office.error.damaged", &[]).to_string(),
-            None => error.to_string(),
+            None => ely_ui::i18n::error(cx, error).to_string(),
         };
         let text = text(
             cx,

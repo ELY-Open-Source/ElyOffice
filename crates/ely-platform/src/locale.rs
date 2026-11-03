@@ -101,6 +101,36 @@ fn resolve_env(keys: [&str; 3], get: impl Fn(&str) -> Option<String>) -> String 
     "en".into()
 }
 
+/// An error Ely words: a catalog key and its arguments.
+#[derive(Debug)]
+pub struct Said {
+    pub key: &'static str,
+    pub args: Vec<(&'static str, String)>,
+}
+
+impl Said {
+    /// An io error of `kind` the window words by `key`.
+    pub fn error(kind: std::io::ErrorKind, key: &'static str, args: &[(&'static str, &str)]) -> std::io::Error {
+        let args = args.iter().map(|(name, value)| (*name, value.to_string())).collect();
+        std::io::Error::new(kind, Self { key, args })
+    }
+
+    /// `error`, then removing its partial files failed with `left`.
+    pub fn then(error: &std::io::Error, left: &std::io::Error) -> std::io::Error {
+        let (error, left) = (error.to_string(), left.to_string());
+        Self::error(std::io::ErrorKind::Other, "error.then", &[("error", &error), ("left", &left)])
+    }
+}
+
+/// Logs name the key, never the arguments.
+impl std::fmt::Display for Said {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.key)
+    }
+}
+
+impl std::error::Error for Said {}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

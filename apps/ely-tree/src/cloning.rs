@@ -71,7 +71,7 @@ impl Tree {
         let Some(git) = self.git(cx) else { return };
         let running = match git.clone_repo(&url, &into) {
             Ok(running) => running,
-            Err(error) => return self.failed("tree.error.clone", &error.to_string(), cx),
+            Err(error) => return self.failed("tree.error.clone", &ely_ui::i18n::error(cx, &error), cx),
         };
         self.cloning = Some(Cloning {
             into,
@@ -121,7 +121,7 @@ impl Tree {
                 let words = text(cx, "tree.clone.stopped", &[]);
                 self.toast(words, Severity::Info, cx);
             }
-            Err(error) => self.failed("tree.error.clone", &error.to_string(), cx),
+            Err(error) => self.failed("tree.error.clone", &ely_ui::i18n::error(cx, &error), cx),
         }
     }
 
@@ -133,7 +133,7 @@ impl Tree {
         // Only a stop asked for turns failure quiet.
         match cloning.stop.now() {
             Ok(()) => cloning.stopping = true,
-            Err(error) => self.failed("tree.error.stop", &error.to_string(), cx),
+            Err(error) => self.failed("tree.error.stop", &ely_ui::i18n::error(cx, &error), cx),
         }
         cx.notify();
     }

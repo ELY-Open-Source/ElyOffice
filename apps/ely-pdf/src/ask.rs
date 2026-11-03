@@ -139,7 +139,7 @@ impl Viewer {
         if ely_pdf_engine::refused(error).is_some() {
             return self.failed(error, cx);
         }
-        let text = Self::text(cx, "office.error.save", &[("name", name), ("error", &error.to_string())]);
+        let text = Self::text(cx, "office.error.save", &[("name", name), ("error", &ely_ui::i18n::error(cx, error))]);
         self.toast(text, Severity::Danger, cx);
     }
 
@@ -178,7 +178,7 @@ impl Viewer {
                 if let Err(error) = &written
                     && let Err(left) = targets.iter().try_for_each(std::fs::remove_file)
                 {
-                    return Err(io::Error::other(format!("{error}; then {left}")));
+                    return Err(ely_platform::locale::Said::then(error, &left));
                 }
                 written.map(|()| targets.len())
             },

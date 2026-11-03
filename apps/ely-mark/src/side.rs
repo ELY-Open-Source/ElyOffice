@@ -154,7 +154,7 @@ impl Side {
                                             "mark: {} was not searched: {error}",
                                             path.display()
                                         );
-                                        missed.push((path, error.to_string()));
+                                        missed.push((path, error));
                                         continue;
                                     }
                                 }
@@ -173,7 +173,9 @@ impl Side {
                 .await;
             side.update(cx, |side, cx| {
                 if side.runs == run {
-                    (side.hits, side.missed) = hits;
+                    let (hits, missed) = hits;
+                    side.hits = hits;
+                    side.missed = missed.into_iter().map(|(path, error)| (path, ely_ui::i18n::error(cx, &error).to_string())).collect();
                     cx.notify();
                 }
             })

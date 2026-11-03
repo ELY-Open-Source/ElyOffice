@@ -223,6 +223,8 @@ pub(super) const EN: &[(&str, &str)] = &[
         "pdf.removal.warning",
         "This writes a new file; this document stays as it is. The original, old backups, sync history and copies already sent may still hold what is removed. Ely's working copies are deleted the ordinary way, not wiped from the disk.",
     ),
+    ("pdf.error.locked", "a password is needed"),
+    ("pdf.error.no_pages", "no pages to show"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -424,4 +426,6 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
         "pdf.removal.warning",
         "将写成新文件，当前文档不变。原件、旧备份、同步历史与已发出的副本仍可能含有被删内容。Ely 的工作副本按普通方式删除，不是磁盘级擦除。",
     ),
+    ("pdf.error.locked", "需要密码"),
+    ("pdf.error.no_pages", "没有可显示的页面"),
 ];

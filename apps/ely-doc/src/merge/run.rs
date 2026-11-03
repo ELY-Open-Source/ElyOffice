@@ -10,6 +10,7 @@ use std::{
 
 use ely_gpui_component::primitives::Severity;
 use ely_lok::{Doc, Worker};
+use ely_platform::locale::Said;
 use gpui::{AppContext as _, Context, SharedString, TaskExt as _};
 
 use ely_office::files::{self, file_name};
@@ -36,15 +37,15 @@ pub fn read_csv(path: &Path) -> io::Result<Table> {
         .map(|header| header.trim().to_string())
         .collect();
     if let Some(at) = headers.iter().position(String::is_empty) {
-        return Err(io::Error::other(format!("column {} has no name", at + 1)));
+        return Err(Said::error(io::ErrorKind::InvalidData, "doc.merge.unnamed", &[("n", &(at + 1).to_string())]));
     }
     // A name with a guillemet would blur the marker bounds.
     if let Some(header) = headers.iter().find(|header| header.contains(['«', '»'])) {
-        return Err(io::Error::other(format!("column {header} holds « or »")));
+        return Err(Said::error(io::ErrorKind::InvalidData, "doc.merge.guillemet", &[("name", header)]));
     }
     for (at, header) in headers.iter().enumerate() {
         if headers[..at].contains(header) {
-            return Err(io::Error::other(format!("two columns are named {header}")));
+            return Err(Said::error(io::ErrorKind::InvalidData, "doc.merge.twice", &[("name", header)]));
         }
     }
     let rows = reader
@@ -53,7 +54,7 @@ pub fn read_csv(path: &Path) -> io::Result<Table> {
         .collect::<Result<Vec<Vec<String>>, _>>()
         .map_err(io::Error::other)?;
     if rows.is_empty() {
-        return Err(io::Error::other("the file has no rows"));
+        return Err(Said::error(io::ErrorKind::InvalidData, "doc.merge.no_rows", &[]));
     }
     Ok(Table {
         name: file_name(path),
@@ -108,11 +109,11 @@ impl Docs {
         then: impl FnOnce(&mut Self, SharedString, PathBuf, &mut Context<Self>) + 'static,
     ) {
         let Some(name) = self.tab(source).map(|tab| tab.name.clone()) else {
-            return self.merge_failed(&io::Error::other("the source document closed"), cx);
+            return self.merge_failed(&ely_ui::i18n::text(cx, "error.closed", &[]), cx);
         };
         let copy = match files::work_dir(&self.core.work, into) {
             Ok(dir) => dir.join("merge.odt"),
-            Err(error) => return self.merge_failed(&error, cx),
+            Err(error) => return self.merge_failed(&ely_ui::i18n::error(cx, &error), cx),
         };
         let url = ely_lok::file_url(&copy);
         self.read_in(
@@ -120,14 +121,14 @@ impl Docs {
             move |worker, doc| doc.save_as(worker, &url, "odt"),
             move |docs, saved, _, cx| match saved {
                 Ok(()) => then(docs, name, copy, cx),
-                Err(error) => docs.merge_failed(&error, cx),
+                Err(error) => docs.merge_failed(&ely_ui::i18n::error(cx, &error), cx),
             },
             cx,
         );
     }
 
-    fn merge_failed(&self, error: &io::Error, cx: &mut Context<Self>) {
-        let text = Docs::text(cx, "office.error.engine", &[("error", &error.to_string())]);
+    fn merge_failed(&self, error: &str, cx: &mut Context<Self>) {
+        let text = Docs::text(cx, "office.error.engine", &[("error", error)]);
         self.toast(text, Severity::Danger, cx);
     }
 
@@ -180,7 +181,7 @@ impl Docs {
                     move |worker, doc| fill(worker, doc, &headers, &row),
                     |docs, filled, _, cx| {
                         if let Err(error) = filled {
-                            docs.merge_failed(&error, cx);
+                            docs.merge_failed(&ely_ui::i18n::error(cx, &error), cx);
                         }
                     },
                     cx,
@@ -204,7 +205,7 @@ impl Docs {
             });
         }
         let Some(name) = self.tab(source).map(|tab| tab.name.clone()) else {
-            return self.merge_failed(&io::Error::other("the source document closed"), cx);
+            return self.merge_failed(&ely_ui::i18n::text(cx, "error.closed", &[]), cx);
         };
         let stem = Path::new(name.as_ref()).file_stem().map_or_else(
             || name.to_string(),
@@ -294,10 +295,10 @@ mod tests {
         assert_eq!(table.rows[0], ["Ada", "London, UK"]);
         assert_eq!(table.rows[1][1], "上海");
         for (body, why) in [
-            ("Name,\nAda,x\n", "no name"),
-            ("Name,Name\na,b\n", "two columns"),
-            ("Name,«Name»\na,b\n", "holds « or »"),
-            ("Name,City\n", "no rows"),
+            ("Name,\nAda,x\n", "doc.merge.unnamed"),
+            ("Name,Name\na,b\n", "doc.merge.twice"),
+            ("Name,«Name»\na,b\n", "doc.merge.guillemet"),
+            ("Name,City\n", "doc.merge.no_rows"),
             ("Name,City\nAda\n", "found record"),
         ] {
             std::fs::write(&path, body).expect("writes");

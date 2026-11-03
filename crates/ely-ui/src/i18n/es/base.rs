@@ -70,4 +70,6 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("error.closed", "el documento se cerró"),
     ("error.open_there", "hay un documento abierto en esa ubicación"),
     ("error.no_pixels", "la imagen no tiene píxeles"),
+    ("error.then", "{error}; tampoco se pudieron eliminar los archivos ya escritos: {left}"),
+    ("error.no_key", "la clave de recuperación no está en el almacén de claves"),
 ];

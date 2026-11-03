@@ -238,4 +238,6 @@ pub(super) const ES: &[(&str, &str)] = &[
         "pdf.removal.warning",
         "Se escribe un archivo nuevo; este documento se mantiene intacto. El original, las copias de seguridad antiguas, el historial de sincronización y las copias ya enviadas aún pueden contener lo eliminado. Las copias de trabajo de Ely se eliminan de la forma habitual, sin borrarse de forma segura del disco.",
     ),
+    ("pdf.error.locked", "se necesita una contraseña"),
+    ("pdf.error.no_pages", "no hay páginas que mostrar"),
 ];

@@ -463,6 +463,7 @@ mod points;
 mod remote;
 mod slow;
 mod start;
+mod words;
 
 impl Docs {
     /// Chooses the active tab as template, then types a field.

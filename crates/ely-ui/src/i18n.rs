@@ -36,6 +36,7 @@ mod tools;
 mod tree;
 mod tree_ops;
 mod tree_places;
+use ely_platform::locale::Said;
 use ely_platform::settings::{LANGUAGES, Language};
 use gpui::{App, SharedString};
 
@@ -103,6 +104,8 @@ const EN: &[(&str, &str)] = &[
     ("error.closed", "the document closed"),
     ("error.open_there", "an open document is there"),
     ("error.no_pixels", "the picture has no pixels"),
+    ("error.then", "{error}; removing the files already written failed too: {left}"),
+    ("error.no_key", "the recovery key is not in the key store"),
 ];
 
 const ZH_CN: &[(&str, &str)] = &[
@@ -163,6 +166,8 @@ const ZH_CN: &[(&str, &str)] = &[
     ("error.closed", "文档已关闭"),
     ("error.open_there", "那里有一个打开着的文档"),
     ("error.no_pixels", "图片没有像素"),
+    ("error.then", "{error}；已写出的文件也没能删除：{left}"),
+    ("error.no_key", "密钥存储里没有恢复密钥"),
 ];
 
 /// The listed language of `tag`'s primary subtag; else en-US.
@@ -287,6 +292,15 @@ pub fn text(cx: &App, key: &str, args: &[(&str, &str)]) -> SharedString {
     cx.global::<I18n>().text(key, args)
 }
 
+/// `error` in the window's language when Ely worded it.
+pub fn error(cx: &App, error: &std::io::Error) -> SharedString {
+    let Some(said) = error.get_ref().and_then(|inner| inner.downcast_ref::<Said>()) else {
+        return error.to_string().into();
+    };
+    let args: Vec<_> = said.args.iter().map(|(name, value)| (*name, value.as_str())).collect();
+    text(cx, said.key, &args)
+}
+
 /// The message for `n` things: `key.one` when one, else `key`.
 pub fn counted(cx: &App, key: &str, n: u64, args: &[(&str, &str)]) -> SharedString {
     text(cx, &count_key(key, n), args)
@@ -333,6 +347,24 @@ mod tests {
             super::install_as("zh-CN", cx);
             assert_eq!((said(1, cx), said(2, cx)), ("1 个文件有改动".into(), "2 个文件有改动".into()));
         });
+    }
+
+    #[gpui::test]
+    fn errors_ely_words_read_in_each_language(cx: &mut gpui::TestAppContext) {
+        use std::io;
+        let locked = super::Said::error(io::ErrorKind::PermissionDenied, "error.no_key", &[]);
+        let then = super::Said::then(&io::Error::other("A"), &io::Error::other("B"));
+        cx.update(|cx| {
+            for (tag, key, both) in [
+                ("zh-CN", "密钥存储里没有恢复密钥", "A；已写出的文件也没能删除：B"),
+                ("es-ES", "la clave de recuperación no está en el almacén de claves", "A; tampoco se pudieron eliminar los archivos ya escritos: B"),
+            ] {
+                super::install_as(tag, cx);
+                assert_eq!((super::error(cx, &locked), super::error(cx, &then)), (key.into(), both.into()), "{tag}");
+                assert_eq!(super::error(cx, &io::Error::other("the system's")), "the system's", "{tag}");
+            }
+        });
+        assert_eq!(locked.to_string(), "error.no_key", "logs name the key");
     }
 
     #[test]

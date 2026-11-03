@@ -286,7 +286,7 @@ impl Deck {
                     if let Err(error) = &written
                         && let Err(left) = files.iter().try_for_each(|(_, path)| std::fs::remove_file(path))
                     {
-                        return Err(io::Error::other(format!("{error}; then {left}")));
+                        return Err(ely_platform::locale::Said::then(error, &left));
                     }
                     written.map(|()| files.len())
                 })
@@ -301,7 +301,7 @@ impl Deck {
                     let text = Deck::text(cx, "show.output.taken", &[("name", &error.to_string())]);
                     deck.toast(text, Severity::Danger, cx);
                 }
-                Err(error) => deck.output_failed(&error.to_string(), cx),
+                Err(error) => deck.output_failed(&ely_ui::i18n::error(cx, &error), cx),
             },
             cx,
         );

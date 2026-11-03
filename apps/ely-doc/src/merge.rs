@@ -87,7 +87,7 @@ impl Docs {
             }
             Err(error) => {
                 let name = path.display().to_string();
-                let error = error.to_string();
+                let error = ely_ui::i18n::error(cx, &error);
                 let text = Docs::text(
                     cx,
                     "doc.merge.unreadable",

@@ -117,7 +117,7 @@ impl Tree {
                     Ok(plan) => Ask::Move { repo, plan },
                     Err(error) => Ask::Failed {
                         title: text(cx, "tree.op.failed", &[]),
-                        detail: error.to_string().into(),
+                        detail: ely_ui::i18n::error(cx, &error),
                     },
                 };
                 tree.offer(ask, cx);
