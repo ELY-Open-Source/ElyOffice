@@ -1,4 +1,4 @@
-//! Spanish read, flag, move, delete and their server queue for ElyMail.
+//! Spanish ElyMail read, flag, move and delete messages.
 
 pub(super) const ES: &[(&str, &str)] = &[
     ("mail.act.read", "Marcar como leído"),
