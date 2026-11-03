@@ -128,7 +128,8 @@ fn a_search_across_a_write_looks_again(cx: &mut TestAppContext) {
     let found = Ok(Gone::Renamed(old, key));
     desk.update(cx, |desk, cx| desk.still_missing(id, path.clone(), began, found, cx));
     settle(cx);
-    assert_eq!(at(&desk, id, cx), Some(path), "an old search moved the tab off its write");
+    let real = at(&desk, id, cx).map(|at| dunce::canonicalize(at).expect("real"));
+    assert_eq!(real, Some(dunce::canonicalize(&path).expect("real")), "an old search moved the tab off its write");
 }
 
 #[gpui::test]

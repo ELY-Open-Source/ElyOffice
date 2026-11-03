@@ -4,17 +4,28 @@ use std::{ffi::OsStr, io, path::Path};
 
 /// Whether resolved `a` and `b` name one entry.
 pub fn same_name(a: &Path, b: &Path) -> io::Result<bool> {
+    same_name_with(a, b, case_sensitive)
+}
+
+/// As `same_name`, the volume's case probe handed in.
+fn same_name_with(a: &Path, b: &Path, sensitive: impl FnOnce(&Path) -> io::Result<bool>) -> io::Result<bool> {
     if a == b {
         return Ok(true);
     }
     let (Some(folder), Some(x), Some(y)) = (a.parent(), a.file_name(), b.file_name()) else {
         return Ok(false);
     };
-    if b.parent() != Some(folder) || !folded_equal(x, y) {
+    if b.parent() != Some(folder) {
+        return Ok(false);
+    }
+    if equivalent(x, y) {
+        return Ok(true);
+    }
+    if !folded_equal(x, y) {
         return Ok(false);
     }
     // Only a case variant asks the disk.
-    Ok(!case_sensitive(folder)?)
+    Ok(!sensitive(folder)?)
 }
 
 /// Equal as NTFS matches names.
@@ -59,14 +70,25 @@ fn case_sensitive(folder: &Path) -> io::Result<bool> {
     Ok(info.Flags & FILE_CS_FLAG_CASE_SENSITIVE_DIR != 0)
 }
 
-/// Equal as APFS and HFS+ match names.
+/// One name on APFS and HFS+, whatever the case mode.
+#[cfg(target_os = "macos")]
+fn equivalent(x: &OsStr, y: &OsStr) -> bool {
+    compared(x, y, objc2_core_foundation::CFStringCompareFlags::CompareNonliteral)
+}
+
+/// Equal as case-insensitive APFS and HFS+ match names.
 #[cfg(target_os = "macos")]
 fn folded_equal(x: &OsStr, y: &OsStr) -> bool {
-    use objc2_core_foundation::{CFComparisonResult, CFString, CFStringCompareFlags};
+    use objc2_core_foundation::CFStringCompareFlags;
+    compared(x, y, CFStringCompareFlags::CompareCaseInsensitive | CFStringCompareFlags::CompareNonliteral)
+}
+
+#[cfg(target_os = "macos")]
+fn compared(x: &OsStr, y: &OsStr, flags: objc2_core_foundation::CFStringCompareFlags) -> bool {
+    use objc2_core_foundation::{CFComparisonResult, CFString};
     let (Some(x), Some(y)) = (x.to_str(), y.to_str()) else {
         return false;
     };
-    let flags = CFStringCompareFlags::CompareCaseInsensitive | CFStringCompareFlags::CompareNonliteral;
     CFString::from_str(x).compare(Some(&CFString::from_str(y)), flags) == CFComparisonResult::CompareEqualTo
 }
 
@@ -78,6 +100,12 @@ fn case_sensitive(folder: &Path) -> io::Result<bool> {
         -1 => Err(io::Error::last_os_error()),
         sensitive => Ok(sensitive != 0),
     }
+}
+
+/// NTFS and Linux keep names as written.
+#[cfg(not(target_os = "macos"))]
+fn equivalent(_: &OsStr, _: &OsStr) -> bool {
+    false
 }
 
 /// No API tells; names match exactly.
@@ -93,7 +121,20 @@ fn case_sensitive(_: &Path) -> io::Result<bool> {
 
 #[cfg(test)]
 mod tests {
-    use super::same_name;
+    use super::{same_name, same_name_with};
+
+    #[test]
+    fn composed_and_decomposed_names_match_where_apple_volumes_do() {
+        let folder = std::path::Path::new("/notes");
+        let (composed, decomposed) = (folder.join("ely-\u{e9}.md"), folder.join("ely-e\u{301}.md"));
+        // A case-sensitive volume still treats them as one name.
+        let same = same_name_with(&composed, &decomposed, |_| Ok(true)).expect("compares");
+        assert_eq!(same, cfg!(target_os = "macos"));
+        let upper = folder.join("ELY-E\u{301}.md");
+        assert!(!same_name_with(&composed, &upper, |_| Ok(true)).expect("compares"));
+        let folds = same_name_with(&composed, &upper, |_| Ok(false)).expect("compares");
+        assert_eq!(folds, cfg!(target_os = "macos"));
+    }
 
     #[test]
     fn case_variants_match_as_the_volume_does() {

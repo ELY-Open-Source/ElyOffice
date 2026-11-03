@@ -397,7 +397,8 @@ fn a_rename_onto_a_save_as_target_is_not_followed(cx: &mut TestAppContext) {
         (at(a), at(b))
     });
     assert_ne!(at_a, at_b, "two tabs on one file");
-    assert_eq!(at_a, Some(target), "the Save As lost its target");
+    let real = dunce::canonicalize(target.parent().expect("a folder")).expect("real").join("c.md");
+    assert_eq!(at_a, Some(real), "the Save As lost its target");
 }
 
 #[gpui::test]
