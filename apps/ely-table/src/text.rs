@@ -363,6 +363,7 @@ mod tests {
         assert_eq!(guess_encoding("名称".as_bytes(), Encoding::Gb18030), Encoding::Utf8);
         assert_eq!(guess_encoding(&[0xC3, 0xFB], Encoding::Gb18030), Encoding::Gb18030);
         assert_eq!(guess_encoding(&[0xC3, 0xFB], Encoding::Windows1252), Encoding::Windows1252);
+        assert_eq!(guess_encoding(b"Cr\xe8me;br\xfbl\xe9e\n", Encoding::Windows1252), Encoding::Windows1252);
         assert_eq!(guess_encoding(&[0xFF, 0xFE, b'a', 0], Encoding::Gb18030), Encoding::Utf16);
     }
 
@@ -372,6 +373,7 @@ mod tests {
         let pages = [
             ("en-US", Encoding::Windows1252),
             ("es-ES", Encoding::Windows1252),
+            ("fr-FR", Encoding::Windows1252),
             ("ja-JP", Encoding::ShiftJis),
             ("ko-KR", Encoding::Windows949),
             ("vi-VN", Encoding::Windows1258),
