@@ -201,9 +201,7 @@ pub trait Closing: Host {
         let worker = std::sync::Arc::clone(&self.core().worker);
         cx.spawn(async move |this, cx| {
             let closed = cx
-                .background_spawn(async move {
-                    Self::Engine::close(&mut worker.lock().expect("the worker lock"), doc)
-                })
+                .background_spawn(async move { ely_lok::behind(&worker, |worker| Self::Engine::close(worker, doc)) })
                 .await;
             if let Err(error) = closed
                 && this
