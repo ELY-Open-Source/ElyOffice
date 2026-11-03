@@ -47,12 +47,62 @@ def columns(path, last=5):
     ooxml.check(got == dict(zip(ATTRIBUTES, NAMED)), f"the captions written: {got}")
 
 
+COLUMNS = {"E3": None, "F3": "列标签", "G3": None, "H3": None, "E4": None, "F4": "A", "G4": "B",
+           "H4": "总计", "E5": "Sum of Revenue", "F5": "4", "G5": "6", "H5": "10"}
+PLACE = {"ref": "E3:H5", "firstHeaderRow": "1", "firstDataRow": "2", "firstDataCol": "1"}
+
+
+def only_columns(path):
+    """Excel's layout: the caption in E, the columns from F."""
+    columns(path)
+    with zipfile.ZipFile(path) as archive:
+        found = {ref: value for ref, (_, _, value) in ooxml.cells(archive).items()}
+        tables = ooxml.related(archive, ooxml.first_sheet(archive, ooxml.main_part(archive)), "pivotTable")
+        place = ooxml.xml(archive, tables[0]).find(ooxml.S + "location")
+    shown = {ref: found.get(ref) or None for ref in COLUMNS}
+    ooxml.check(shown == COLUMNS, f"the table's cells: {shown}")
+    ooxml.check(not any(found.get(f"I{r}") for r in range(3, 6)), "nothing right of the table")
+    got = {name: place.get(name) for name in PLACE}
+    ooxml.check(got == PLACE, f"the location: {got}")
+
+
+def read(path):
+    """The first sheet's cells and its pivot definition."""
+    with zipfile.ZipFile(path) as archive:
+        found = ooxml.cells(archive)
+        tables = ooxml.related(archive, ooxml.first_sheet(archive, ooxml.main_part(archive)), "pivotTable")
+        return found, ooxml.xml(archive, tables[0])
+
+
+def no_values(path):
+    """No value field: Excel's columns, H4 untouched."""
+    found, table = read(path)
+    want = {"E3": "列标签", "F3": None, "G3": None, "E4": "A", "F4": "B", "G4": "总计", "H4": "NEIGHBOR", "E5": None}
+    shown = {ref: (found.get(ref) or (None, None, None))[2] or None for ref in want}
+    ooxml.check(shown == want, f"the cells: {shown}")
+    place = table.find(ooxml.S + "location")
+    # Calc's empty data row is R15.11l
+    got = {"ref": place.get("ref")[:4], "firstDataCol": place.get("firstDataCol")}
+    ooxml.check(got == {"ref": "E3:G", "firstDataCol": "0"}, f"the location: {got}")
+    ooxml.check(table.find(ooxml.S + "dataFields") is None, "no value field written")
+
+
+def value_name(path):
+    """The value field's name shows as plain text."""
+    found, table = read(path)
+    name = table.find(f"{ooxml.S}dataFields/{ooxml.S}dataField").get("name")
+    kind, formula, value = found.get("E5") or (None, None, None)
+    ooxml.check(kind in ("s", "inlineStr") and formula is None and value == name, f"E5 for {name!r}: {kind} {formula} {value}")
+
+
 CASES = {
     "pivot": lambda path: captions(path, DEFAULTS, (None, None, None)),
     "pivot-named": lambda path: captions(path, NAMED, NAMED),
     "pivot-blank": lambda path: captions(path, ("", "", "Grand Total"), ("", "", None)),
-    "pivot-columns": columns,
+    "pivot-columns": only_columns,
     "pivot-values": lambda path: columns(path, 6),
+    "pivot-empty": no_values,
+    "pivot-name": value_name,
 }
 DEFINITION = "xl/pivotTables/pivotTable1.xml"
 MUTATIONS = {
@@ -72,6 +122,18 @@ MUTATIONS = {
     "pivot-columns": [
         (DEFINITION, r' colHeaderCaption="[^"]*"', ""),
         ("xl/sharedStrings.xml", r">列标签<", ">Product<"),
+        (DEFINITION, r'firstDataCol="1"', 'firstDataCol="0"'),
+        (DEFINITION, r'ref="E3:H5"', 'ref="E3:G5"'),
+        ("xl/worksheets/sheet1.xml", r'<c r="E5"', '<c r="E3"'),
+    ],
+    "pivot-empty": [
+        (DEFINITION, r'firstDataCol="0"', 'firstDataCol="1"'),
+        (DEFINITION, r'ref="E3:G\d"', 'ref="E3:H5"'),
+        ("xl/worksheets/sheet1.xml", r'<c r="H4"[^>]*>.*?</c>', '<c r="H4" t="inlineStr"><is><t>总计</t></is></c>'),
+    ],
+    "pivot-name": [
+        ("xl/worksheets/sheet1.xml", r'<c r="E5"[^>]*>.*?</c>', '<c r="E5"><f>1+1</f><v>2</v></c>'),
+        (DEFINITION, r'(<dataField [^>]*name=")[^"]*"', r'\1other"'),
     ],
     "pivot-values": [
         ("xl/sharedStrings.xml", r">列标签<", ">Product<"),

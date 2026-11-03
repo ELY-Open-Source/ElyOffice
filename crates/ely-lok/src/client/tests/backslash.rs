@@ -43,3 +43,13 @@ fn a_broken_package_fails_instead_of_asking() {
     let error = loaded(&install, "broken.docx").expect_err("a broken package opened");
     assert!(error.get_ref().is_some_and(|inner| inner.is::<crate::Damaged>()), "named as damaged: {error}");
 }
+
+#[test]
+fn a_malformed_part_fails_instead_of_asking() {
+    let Some(install) = install() else {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    };
+    let error = loaded(&install, "malformed.docx").expect_err("a malformed body opened");
+    assert!(error.get_ref().is_some_and(|inner| inner.is::<crate::Damaged>()), "named as damaged: {error}");
+}

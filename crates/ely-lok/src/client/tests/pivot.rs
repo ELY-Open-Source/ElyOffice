@@ -40,11 +40,23 @@ fn a_pivot_keeps_blank_captions_blank() {
 }
 
 #[test]
-fn a_pivot_with_only_columns_keeps_its_caption() {
+fn a_pivot_with_only_columns_keeps_excel_s_layout() {
     round_trip("pivot-columns.xlsx", "pivot-columns");
 }
 
 #[test]
 fn values_on_rows_keep_the_column_caption() {
     round_trip("pivot-values.xlsx", "pivot-values");
+}
+
+#[test]
+fn a_pivot_with_no_values_leaves_its_neighbour() {
+    round_trip("pivot-empty.xlsx", "pivot-empty");
+}
+
+#[test]
+fn value_names_that_look_like_input_stay_text() {
+    for name in ["pivot-name-formula.xlsx", "pivot-name-quote.xlsx", "pivot-name-number.xlsx"] {
+        round_trip(name, "pivot-name");
+    }
 }

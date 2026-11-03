@@ -142,19 +142,26 @@ static int take_glyph(fz_context *ctx, void *opaque, int *ucs, int ucslen, fz_ma
 	return found;
 }
 
-/* Runs the glyph filter over the page; `dry` changes nothing. */
-static void filter_glyphs(fz_context *ctx, pdf_document *pdf, pdf_page *page, targets *t, int dry)
+/* Runs `opts`, taking out the glyphs at `t`. */
+static void filter_glyphs(fz_context *ctx, pdf_document *pdf, pdf_page *page, targets *t, pdf_filter_options *opts)
+{
+	pdf_sanitize_filter_options *sopts = opts->filters[0].options;
+	sopts->opaque = t;
+	sopts->text_filter = take_glyph;
+	t->hit = 0;
+	pdf_filter_page_contents(ctx, pdf, page, opts);
+}
+
+/* The plain glyph filter; `dry` changes nothing. */
+static void plain_glyphs(fz_context *ctx, pdf_document *pdf, pdf_page *page, targets *t, int dry)
 {
 	pdf_sanitize_filter_options sopts = { 0 };
 	pdf_filter_factory list[2] = { { pdf_new_sanitize_filter, NULL }, { NULL, NULL } };
 	pdf_filter_options opts = { 0 };
-	sopts.opaque = t;
-	sopts.text_filter = take_glyph;
 	list[0].options = &sopts;
 	opts.filters = list;
 	opts.no_update = dry;
-	t->hit = 0;
-	pdf_filter_page_contents(ctx, pdf, page, &opts);
+	filter_glyphs(ctx, pdf, page, t, &opts);
 }
 
 /* User space from the page space MuPDF reports in. */
@@ -177,7 +184,7 @@ static int reachable(fz_context *ctx, pdf_document *pdf, pdf_page *page, fz_stex
 	fz_try(ctx)
 	{
 		block_targets(ctx, block, ely_to_user(ctx, page), &t);
-		filter_glyphs(ctx, pdf, page, &t, 1);
+		plain_glyphs(ctx, pdf, page, &t, 1);
 		ok = t.n > 0 && t.hit == t.n;
 	}
 	fz_always(ctx)
@@ -238,7 +245,7 @@ static void reachable_all(fz_context *ctx, pdf_document *pdf, pdf_page *page, fz
 					}
 			b++;
 		}
-		filter_glyphs(ctx, pdf, page, &t, 1);
+		plain_glyphs(ctx, pdf, page, &t, 1);
 		for (b = 0; b < n; b++)
 			ok[b] = count[b] > 0 && t.hits[b] == count[b];
 	}
@@ -427,7 +434,16 @@ void ely_read_block(fz_context *ctx, fz_document *doc, pdf_page *page, int numbe
 void ely_remove_block(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_shape *shape)
 {
 	targets *t = shape->glyphs;
-	filter_glyphs(ctx, pdf, page, t, 0);
+	plain_glyphs(ctx, pdf, page, t, 0);
+	if (t->hit != t->n)
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "%d of %d glyphs were found", t->hit, t->n);
+}
+
+/* The same through `opts`, which write the page. */
+void ely_take_block(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_shape *shape, pdf_filter_options *opts)
+{
+	targets *t = shape->glyphs;
+	filter_glyphs(ctx, pdf, page, t, opts);
 	if (t->hit != t->n)
 		fz_throw(ctx, FZ_ERROR_ARGUMENT, "%d of %d glyphs were found", t->hit, t->n);
 }

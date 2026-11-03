@@ -24,19 +24,9 @@
 | 要求 | 依据 | 缺口 |
 | --- | --- | --- |
 | 简中与英文界面 | `ely_ui::i18n` 缺键即失败；组件库面板族、对话框、批注栏等内建中英目录；设置可切语言（下次启动生效） | 内核给出的固定文字由 Ely 重写：ElyTable 的状态、错误与单元格样式，ElyDoc 的内置样式名与纸张名（R14.6，`chinese.rs` 在中文下画出排序、筛选与属性栏，无英文）；文件与主题自带的名字照原样 |
+| 西班牙语界面 | 系统的 es-*（`es_PE.UTF-8`、`es-419`）归到 es-ES，设置可选 Español；ElyDoc、ElyTable、文档外壳、设置与组件文案已译，缺键即失败（`spanish_tests.rs`）；内置样式名与纸张名照 LibreOffice 的 es 译文（`builtin.rs`） | 其他应用的专用文字仍为英文（R15.16）；拼写词典只随英文 |
 | 中英文输入、组合输入、标点 | LOK 视图与 ElyMark 的编辑器都经输入法回调处理组字（`lokview.sh` 组“你好”；组件库的文档测试）；往返用例含中文（`independent.rs`） | 系统拼音输入法实机只做过人工检查，测试以输入法回调模拟 |
 | 混合字体 | 内核按字体回退排版；缺失字体在 ElyDoc 页面上方列出 | 字体缺失环境的分页对照未做（见 `docs/compatibility.md`） |
 | 非 ASCII 路径 | `paths_keep_spaces_cjk_and_case`（保存）；启动参数按当前目录取绝对路径（C20.1 修） | — |
 | 日期、数字、纸张用显式区域 | 内核载入选项固定 `Language=en-US`（`ely-lok/src/worker.rs` 的 `LOAD_OPTIONS`），公式为 Excel A1 语法；纸张取自文档本身并原样打印（C19.2） | — |
 | 改界面语言不重解释已存数值 | 同上：内核的数字区域不随界面语言，界面语言只改 Ely 的文案与选区统计的名称 | — |
-
-
-## Spanish interface
-
-ElyDoc and ElyTable offer **Español** in Settings → General → Language.
-Restart each app after changing it. **System** recognizes regional Spanish tags,
-including `es-PE`, `es-MX`, `es-419` and POSIX `es_PE.UTF-8`.
-The translation includes their shared settings and document dialogs. Other apps'
-dedicated messages are still English when this shared preference is Spanish.
-LibreOffice formula names and numeric input conventions are unchanged; this adds
-an interface language, not Spanish spelling dictionaries.

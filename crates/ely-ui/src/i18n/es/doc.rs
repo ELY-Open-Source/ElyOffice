@@ -88,7 +88,7 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("doc.paper.a5", "A5"),
     ("doc.paper.b5", "B5"),
     ("doc.paper.letter", "Carta"),
-    ("doc.paper.legal", "Oficio"),
+    ("doc.paper.legal", "Legal"),
     ("doc.props.orientation", "Orientación"),
     ("doc.props.portrait", "Vertical"),
     ("doc.props.landscape", "Horizontal"),

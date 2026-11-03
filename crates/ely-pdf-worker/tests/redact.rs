@@ -4,7 +4,7 @@ use std::path::Path;
 
 use ely_pdf_engine::{
     Cleaning, Doc, NewAnnot, OcrLine, Region, Shape, Worker,
-    sample::{Extras, pdf_with},
+    sample::{Extras, one_page, pdf_with},
 };
 
 fn worker() -> Worker {
@@ -35,6 +35,22 @@ fn reopen(path: &Path) -> (Worker, Doc) {
     let mut worker = worker();
     let doc = worker.open(path).expect("opens").doc;
     (worker, doc)
+}
+
+#[test]
+fn empty_marked_content_outside_the_region_stays() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let font = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string();
+    let content = "/Artifact BMC EMC BT /F1 18 Tf 72 700 Td (Hello) Tj ET BT /F1 18 Tf 72 400 Td (Other) Tj ET";
+    let path = dir.path().join("tagged.pdf");
+    std::fs::write(&path, one_page("", " /Resources << /Font << /F1 5 0 R >> >>", content, &[font])).expect("writes");
+    let (mut worker, doc) = reopen(&path);
+    let other = worker.text_blocks(doc, 0).expect("blocks").into_iter().find(|b| b.text == "Other").expect("other").rect;
+    let out = dir.path().join("out.pdf");
+    worker.redact(doc, &[Region { page: 0, rect: other }], &out).expect("removes");
+    let bytes = std::fs::read(&out).expect("reads");
+    let count = |what: &str| bytes.windows(what.len()).filter(|w| *w == what.as_bytes()).count();
+    assert_eq!((count("/Artifact"), count("Other")), (1, 0));
 }
 
 #[test]

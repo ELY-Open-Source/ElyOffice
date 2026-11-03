@@ -20,6 +20,11 @@ pub(super) const ES: &[(&str, &str)] = &[
         "El documento cambió mientras tanto; inténtelo de nuevo",
     ),
     ("office.print.failed", "Error al imprimir: {error}"),
+    ("office.error.dialog", "El motor abrió un cuadro de diálogo que Ely cerró: {title}"),
+    (
+        "office.error.dialog_said",
+        "El motor abrió un cuadro de diálogo que Ely cerró: {title}. Decía: {body}",
+    ),
     (
         "office.link.refused",
         "Ely solo abre enlaces web y de correo.",
@@ -68,6 +73,10 @@ pub(super) const ES: &[(&str, &str)] = &[
     (
         "office.error.not_package",
         "no es un archivo .{ext} válido; su contenido tiene otro formato, como texto sin formato",
+    ),
+    (
+        "office.error.damaged",
+        "el archivo está dañado; pida una copia nueva a quien lo envió o vuelva a guardarlo en el programa que lo creó",
     ),
     (
         "office.error.panel",
