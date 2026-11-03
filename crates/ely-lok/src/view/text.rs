@@ -2,7 +2,7 @@
 
 use gpui::{Bounds, Pixels};
 
-use super::LokView;
+use super::{Geom, LokView, reveal::Seen};
 use crate::{Events, Rect};
 
 #[derive(Default)]
@@ -20,16 +20,16 @@ impl LokView {
             .is_some_and(|(rects, _)| !rects.is_empty())
     }
 
-    fn text_tile_rect(&self, rect: Rect, anchor: (i32, i32)) -> Rect {
+    fn text_tile_rect(&self, geom: Geom, rect: Rect, anchor: (i32, i32)) -> Rect {
         if let Some(sheet) = &self.sheet {
-            sheet.text_rect(rect, Some(anchor), self.ppt())
+            sheet.text_rect(rect, Some(anchor), geom.ppt())
         } else {
             (anchor.0 + rect.0, anchor.1 + rect.1, rect.2, rect.3)
         }
     }
 
     fn text_print_rect(&self, rect: Rect, anchor: (i32, i32)) -> Rect {
-        let (x, y, w, h) = self.text_tile_rect(rect, anchor);
+        let (x, y, w, h) = self.text_tile_rect(self.geom, rect, anchor);
         let (left, top) = self.print_of((x, y));
         let (right, bottom) = self.print_of((x + w, y + h));
         (left, top, right - left, bottom - top)
@@ -58,28 +58,31 @@ impl LokView {
         moved
     }
 
-    pub(super) fn text_caret(&self) -> Option<Bounds<Pixels>> {
+    pub(super) fn text_caret(&self, seen: Seen) -> Option<Bounds<Pixels>> {
+        let geom = seen.1;
         let rect = match self.text.cursor {
-            Some((rect, anchor)) => self.text_tile_rect(rect, anchor),
-            None => self.tile_rect(self.cursor?),
+            Some((rect, anchor)) => self.text_tile_rect(geom, rect, anchor),
+            None => self.tile_rect_at(geom, self.cursor?),
         };
-        (rect.3 > 0 && self.tile_visible(rect)).then(|| self.tile_screen_rect(rect))
+        (rect.3 > 0 && self.tile_visible(seen, rect)).then(|| self.tile_screen_rect(seen, rect))
     }
 
     pub(super) fn text_selection(&self) -> Vec<Bounds<Pixels>> {
+        let seen = self.seen();
+        let geom = seen.1;
         match &self.text.selection {
             Some((rects, anchor)) => rects
                 .iter()
-                .map(|&rect| self.text_tile_rect(rect, *anchor))
-                .filter(|&rect| rect.2 > 0 && rect.3 > 0 && self.tile_visible(rect))
-                .map(|rect| self.tile_screen_rect(rect))
+                .map(|&rect| self.text_tile_rect(geom, rect, *anchor))
+                .filter(|&rect| rect.2 > 0 && rect.3 > 0 && self.tile_visible(seen, rect))
+                .map(|rect| self.tile_screen_rect(seen, rect))
                 .collect(),
             None => self
                 .selection
                 .iter()
-                .map(|&rect| self.tile_rect(rect))
-                .filter(|&rect| rect.2 > 0 && rect.3 > 0 && self.tile_visible(rect))
-                .map(|rect| self.tile_screen_rect(rect))
+                .map(|&rect| self.tile_rect_at(geom, rect))
+                .filter(|&rect| rect.2 > 0 && rect.3 > 0 && self.tile_visible(seen, rect))
+                .map(|rect| self.tile_screen_rect(seen, rect))
                 .collect(),
         }
     }

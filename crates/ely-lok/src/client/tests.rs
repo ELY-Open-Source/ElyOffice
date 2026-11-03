@@ -35,6 +35,7 @@ mod output;
 mod paint;
 mod playlist;
 mod print;
+mod profile;
 mod refs;
 mod r_macros;
 mod roundtrip;

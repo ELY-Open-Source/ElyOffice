@@ -1,0 +1,38 @@
+Windows: a 248-character path gets the long-path prefix
+
+osl_getSystemPathFromFileURL left paths of up to MAX_PATH - 12 (248)
+characters without the \\?\ prefix. CreateDirectoryW without it takes
+at most 247 characters (its documented MAX_PATH - 12 counts the
+terminating null), so a
+folder whose path is exactly 248 characters failed with error 206,
+ERROR_FILENAME_EXCED_RANGE. The extension manager makes folders 86 to
+99 characters below the user profile (user\extensions\tmp\registry\...,
+user\uno_packages\cache\...); with a profile path of 149 to about 162
+characters one of them landed on 248, dp_misc::create_folder threw, and
+the exception left LOK's start-up uncaught (Ely R15.33). Shorter and
+longer profiles started. Prefix paths from 248 characters on.
+
+GetLongPathNameW and FindFirstFileW take 259 characters without the
+prefix, so the MAX_PATH checks before them stay as they are.
+
+diff --git a/sal/osl/w32/file_url.cxx b/sal/osl/w32/file_url.cxx
+index ea90ccad7..21b4fc827 100644
+--- a/sal/osl/w32/file_url.cxx
++++ b/sal/osl/w32/file_url.cxx
+@@ -684,14 +684,14 @@ oslFileError osl_getSystemPathFromFileURL_(const OUString& strURL, rtl_uString *
+             else
+             {
+                 /* do not separate the directory and file case, so the maximal path length without prefix is MAX_PATH-12 */
+-                if ( nDecodedLen - nSkip <= MAX_PATH - 12 )
++                if ( nDecodedLen - nSkip < MAX_PATH - 12 )
+                 {
+                     sTempPath = sDecodedURL->subView(nSkip);
+                 }
+                 else
+                 {
+                     sDecodedURL = GetCaseCorrectPathName(sDecodedURL->subView(nSkip));
+-                    if (sDecodedURL->getLength() <= MAX_PATH - 12
++                    if (sDecodedURL->getLength() < MAX_PATH - 12
+                         || sDecodedURL->startsWith(WSTR_SYSTEM_ROOT_PATH)
+                         || sDecodedURL->startsWith(WSTR_LONG_PATH_PREFIX))
+                     {
