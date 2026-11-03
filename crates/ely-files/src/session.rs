@@ -444,7 +444,7 @@ impl Session {
 
 mod registry;
 pub(crate) use registry::file_id;
-pub use registry::{Open, Sessions};
+pub use registry::{Key, Open, Sessions};
 
 #[cfg(test)]
 mod tests;

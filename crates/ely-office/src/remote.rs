@@ -118,11 +118,10 @@ pub trait Remote: Saving {
         if let Some(tab) = named {
             return Ok(tab.id);
         }
-        let wanted = std::fs::canonicalize(file).map_err(|error| format!("{file}: {error}"))?;
-        // A tab whose file went cannot match.
-        let shows = |path: &Path| std::fs::canonicalize(path).is_ok_and(|real| real == wanted);
-        let tab = self.core().tabs.iter().find(|tab| tab.session.path().is_some_and(|path| shows(Path::new(path))));
-        tab.map(|tab| tab.id).ok_or_else(|| format!("{file} is not open in {}", Self::KIND.app.name()))
+        // Matched in memory; only `file` is read.
+        let held = self.holder(Path::new(file)).map_err(|error| format!("{file}: {error}"))?;
+        held.filter(|id| self.tab(*id).is_some())
+            .ok_or_else(|| format!("{file} is not open in {}", Self::KIND.app.name()))
     }
 
     /// Saves once idle; the next save ending is this one.

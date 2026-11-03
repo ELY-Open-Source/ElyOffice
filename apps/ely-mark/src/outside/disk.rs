@@ -16,7 +16,7 @@ use crate::text::Source;
 /// Where a missing file went.
 pub(super) enum Gone {
     Back,
-    Renamed(PathBuf),
+    Renamed(PathBuf, ely_files::Key),
     Deleted,
 }
 
@@ -29,7 +29,13 @@ fn gone_to(path: &Path, had: Option<(u64, u64)>) -> io::Result<Gone> {
         (Some(had), Some(dir)) => ely_files::Sessions::renamed_in(had, dir)?,
         _ => None,
     };
-    Ok(renamed.map_or(Gone::Deleted, Gone::Renamed))
+    match renamed {
+        Some(to) => {
+            let key = ely_files::Sessions::key(&to)?;
+            Ok(Gone::Renamed(to, key))
+        }
+        None => Ok(Gone::Deleted),
+    }
 }
 
 /// The file's bytes and the fingerprint they match.
@@ -66,9 +72,9 @@ impl Desk {
         }
         match found {
             Ok(Gone::Back) => self.look(id, cx),
-            Ok(Gone::Renamed(to)) => {
+            Ok(Gone::Renamed(to, key)) => {
                 log::info!("mark: {} was renamed outside", path.display());
-                self.follow(id, to, cx);
+                self.follow(id, to, key, cx);
                 self.look(id, cx);
             }
             Ok(Gone::Deleted) => {

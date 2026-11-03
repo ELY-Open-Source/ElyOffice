@@ -27,7 +27,7 @@ pub enum Open {
 
 /// The dedup key: canonical path plus file identity.
 #[derive(Clone, Debug)]
-struct Key {
+pub struct Key {
     canonical: PathBuf,
     id: Option<(u64, u64)>,
 }
@@ -81,7 +81,7 @@ pub(crate) fn file_id(_: &Path) -> io::Result<Option<(u64, u64)>> {
 
 impl Sessions {
     /// The key of an existing file; missing fails loud.
-    fn key(path: &Path) -> io::Result<Key> {
+    pub fn key(path: &Path) -> io::Result<Key> {
         Ok(Key {
             canonical: dunce::canonicalize(path)?,
             id: file_id(path)?,
@@ -150,8 +150,11 @@ impl Sessions {
     }
 
     /// Session `id` now names the file at `path`.
-    pub fn track(&mut self, id: usize, path: &Path) -> io::Result<()> {
-        let key = Self::key(path)?;
+    pub fn track(&mut self, id: usize, key: Key) -> Result<(), usize> {
+        // Another session holding it keeps it alone.
+        if let Some(other) = self.holders(&key.canonical, key.id).find(|other| *other != id) {
+            return Err(other);
+        }
         for entry in self.open.iter_mut().filter(|(_, _, have)| *have == id) {
             (entry.0, entry.1) = (key.canonical.clone(), key.id);
         }
@@ -181,8 +184,12 @@ impl Sessions {
 
     /// A recorded path or file identity, matched in memory.
     fn held(&self, canonical: &Path, id: Option<FileId>) -> Option<usize> {
-        let found = self.open.iter().find(|(have, had, _)| have == canonical || (id.is_some() && *had == id));
-        found.map(|(_, _, session)| *session)
+        self.holders(canonical, id).next()
+    }
+
+    fn holders<'a>(&'a self, canonical: &'a Path, id: Option<FileId>) -> impl Iterator<Item = usize> + 'a {
+        let holds = move |(have, had, _): &&(PathBuf, Option<FileId>, usize)| have == canonical || (id.is_some() && *had == id);
+        self.open.iter().filter(holds).map(|(_, _, session)| *session)
     }
 
     /// Session `id`'s path now holds file `file`, as read.
@@ -244,7 +251,7 @@ mod tests {
         std::fs::rename(&a, &b).expect("renames");
         // Opened in the gap: the same file, so focus.
         assert_eq!(sessions.open(&b, false).expect("opens"), Open::Focus(id));
-        sessions.track(id, &b).expect("moves");
+        sessions.track(id, Sessions::key(&b).expect("the key")).expect("moves");
         assert_eq!(sessions.open(&b, false).expect("opens"), Open::Focus(id));
         sessions.close(id);
         assert!(matches!(
@@ -269,7 +276,7 @@ mod tests {
         // An atomic save: a new file takes the name.
         std::fs::write(&temp, "saved").expect("writes");
         std::fs::rename(&temp, &a).expect("replaces");
-        sessions.track(id, &a).expect("tracks");
+        sessions.track(id, Sessions::key(&a).expect("the key")).expect("tracks");
         std::fs::rename(&a, &b).expect("renames");
         assert_eq!(sessions.open(&b, false).expect("opens"), Open::Focus(id));
     }

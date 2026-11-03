@@ -278,7 +278,7 @@ fn tabs_opened_together_all_reach_the_recent_list() {
             std::fs::write(&path, "").expect("a file");
             std::thread::spawn(move || {
                 start.wait();
-                crate::places::record(&turn, &file, &path, None)
+                crate::places::in_turn(&turn, || crate::places::record(&file, &path, None))
             })
         })
         .collect();
@@ -287,4 +287,86 @@ fn tabs_opened_together_all_reach_the_recent_list() {
     }
     let list = ely_files::recent::recent(&file).expect("the list");
     assert_eq!(list.len(), 16, "a concurrent write lost entries");
+}
+
+#[gpui::test]
+fn recent_list_changes_wait_for_their_turn_off_the_window(cx: &mut TestAppContext) {
+    let (desk, cx, _, path, _dirs) = opened("one
+", cx);
+    cx.run_until_parked();
+    let file = desk.read_with(cx, |desk, _| desk.recent_file.clone());
+    let real = dunce::canonicalize(&path).expect("the real path");
+    let listed = || ely_files::recent::recent(&file).expect("the list").contains(&real);
+    assert!(listed(), "the open was recorded");
+    desk.update(cx, |desk, cx| desk.forget(&real, cx));
+    assert!(listed(), "forget wrote on the window's turn");
+    cx.run_until_parked();
+    assert!(!listed());
+    desk.update(cx, |desk, cx| desk.remember(&path, cx));
+    assert!(!listed(), "remember wrote on the window's turn");
+    cx.run_until_parked();
+    assert!(listed());
+    desk.update(cx, |desk, cx| desk.clear_recent(cx));
+    assert!(listed(), "clearing wrote on the window's turn");
+    cx.run_until_parked();
+    assert!(!listed());
+    assert!(desk.read_with(cx, |desk, _| desk.recent.is_empty()));
+}
+
+#[gpui::test]
+fn a_tab_is_found_in_memory_while_its_file_is_away(cx: &mut TestAppContext) {
+    let (desk, cx, id, path, _dirs) = opened("one
+", cx);
+    let spelled = path.parent().expect("a folder").join(".").join("a.md");
+    std::fs::remove_file(&path).expect("gone mid-replace");
+    let (mark, remote) = desk.update(cx, |desk, _| {
+        let asked = spelled.to_str().expect("a UTF-8 path");
+        (desk.tab_of(&spelled), ely_office::Remote::tab_of(desk, asked))
+    });
+    assert_eq!(mark, Some(id), "the window looked for it on the disk");
+    assert_eq!(remote, Ok(id));
+}
+
+#[gpui::test]
+fn a_tab_and_its_asked_line_land_with_no_disk_read(cx: &mut TestAppContext) {
+    let (desk, cx, _, path, _dirs) = opened("one
+", cx);
+    let other = path.with_file_name("b.md");
+    std::fs::write(&other, "x
+y
+z
+").expect("a file");
+    let work = desk.update_in(cx, |desk, window, cx| {
+        let work = desk.core.work.join(format!("doc-{}", desk.core.next));
+        desk.open_at(None, other.clone(), (2, 0), window, cx);
+        work
+    });
+    // Its work dir comes last off the window.
+    while !work.exists() {
+        assert!(cx.executor().tick(), "the load never read the file");
+    }
+    std::fs::remove_file(&other).expect("the file leaves before the tab lands");
+    cx.run_until_parked();
+    let (tabs, going) = desk.read_with(cx, |desk, _| (desk.core.tabs.len(), desk.going.is_some()));
+    assert_eq!(tabs, 2, "the landing read the disk");
+    assert!(!going, "the asked line waited on the disk");
+}
+
+#[gpui::test]
+fn a_file_moved_onto_another_tabs_is_not_shared(cx: &mut TestAppContext) {
+    let (desk, cx, a, path, _dirs) = opened("one
+", cx);
+    let other = path.with_file_name("b.md");
+    std::fs::write(&other, "two
+").expect("a file");
+    desk.update(cx, |desk, cx| desk.open_file(other.clone(), cx));
+    settle(cx);
+    std::fs::rename(&path, &other).expect("moved over b");
+    super::look(&desk, a, cx);
+    let (paths, deleted) = desk.read_with(cx, |desk, _| {
+        let paths = desk.core.tabs.iter().map(|tab| tab.session.path().map(PathBuf::from)).collect::<Vec<_>>();
+        (paths, matches!(desk.tab(a).expect("open").extra.outside, Outside::Deleted))
+    });
+    assert_eq!(paths, [Some(path), Some(other)], "two tabs on one file");
+    assert!(deleted, "the moved tab lost its file");
 }

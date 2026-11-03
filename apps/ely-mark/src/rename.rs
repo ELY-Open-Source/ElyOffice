@@ -89,7 +89,7 @@ impl Desk {
         cx.spawn(async move |this, cx| {
             let done = cx
                 .background_executor()
-                .spawn(async move { ely_files::rename_new(&source, &target) })
+                .spawn(async move { ely_files::rename_new(&source, &target).map(|()| ely_files::Sessions::key(&target)) })
                 .await;
             this.update(cx, |desk, cx| desk.renamed(id, from, to, done, cx))
                 .ok();
@@ -103,22 +103,23 @@ impl Desk {
         id: u64,
         from: PathBuf,
         to: PathBuf,
-        done: io::Result<()>,
+        done: io::Result<io::Result<ely_files::Key>>,
         cx: &mut Context<Self>,
     ) {
-        if let Err(error) = done {
-            log::error!("mark: {} did not rename: {error}", from.display());
-            let (name, error) = (file_name(&from), error.to_string());
-            let said = text(
-                cx,
-                "mark.rename.failed",
-                &[("name", &name), ("error", &error)],
-            );
-            return self.toast(said, Severity::Danger, cx);
-        }
+        let key = match done {
+            Ok(Ok(key)) => key,
+            // Renamed but unread: the watcher follows it.
+            Ok(Err(error)) => return log::warn!("mark: {} was renamed, then unread: {error}", to.display()),
+            Err(error) => {
+                log::error!("mark: {} did not rename: {error}", from.display());
+                let (name, error) = (file_name(&from), error.to_string());
+                let said = text(cx, "mark.rename.failed", &[("name", &name), ("error", &error)]);
+                return self.toast(said, Severity::Danger, cx);
+            }
+        };
         log::info!("mark: renamed {} to {}", from.display(), to.display());
         match self.tab(id).and_then(|tab| tab.session.path()) {
-            Some(path) if path == from => self.follow(id, to, cx),
+            Some(path) if path == from => self.follow(id, to, key, cx),
             // The watcher saw the rename first.
             Some(path) if path == to => log::info!("mark: the tab already follows"),
             _ => log::info!("mark: the renamed file's tab is gone"),
@@ -126,17 +127,16 @@ impl Desk {
     }
 
     /// Tab `id`'s file now lives at `to`.
-    pub fn follow(&mut self, id: u64, to: PathBuf, cx: &mut Context<Self>) {
+    pub fn follow(&mut self, id: u64, to: PathBuf, key: ely_files::Key, cx: &mut Context<Self>) {
         let Some(registry) = self.tab(id).map(|tab| tab.registry) else {
             return;
         };
-        // One session moves: an open in the gap focused it.
+        // Moved onto another tab's file: this one lost it.
         if let Some(registry) = registry
-            && let Err(error) = self.core_mut().sessions.track(registry, &to)
+            && let Err(other) = self.core_mut().sessions.track(registry, key)
         {
-            log::error!("mark: the renamed file did not register: {error}");
-            let said = text(cx, "office.error.engine", &[("error", &error.to_string())]);
-            self.toast(said, Severity::Danger, cx);
+            log::warn!("mark: tab {id}'s file went onto session {other}'s");
+            return self.set_outside(id, crate::outside::Outside::Deleted, cx);
         }
         if let Some(tab) = self.tab_mut(id) {
             tab.session.renamed(to.clone());
