@@ -421,3 +421,59 @@ w
     let line = desk.read_with(cx, |desk, cx| desk.active_view().expect("a tab").read(cx).place(cx).line);
     assert_eq!(line, 3, "the later asked line was dropped");
 }
+
+fn save_as_onto_a_taken_file(then: Option<ely_office::After>, cx: &mut TestAppContext) {
+    let (desk, cx, id, path, _dirs) = opened("one
+", cx);
+    let target = path.with_file_name("c.md");
+    std::fs::write(&target, "old
+").expect("the target");
+    edit(&desk, "mine
+", cx);
+    let to = target.clone();
+    desk.update_in(cx, |desk, window, cx| desk.write_as(id, to, then, window, cx));
+    assert!(until_saving(&desk, id, cx), "the write runs apart from the window");
+    // Another session takes the target before the landing.
+    let taken = desk.update(cx, |desk, _| desk.core.sessions.open(&target, false).expect("registers"));
+    assert!(matches!(taken, ely_files::Open::Fresh(_)));
+    settle(cx);
+    let (open, registry, path, state, dirty) = desk.read_with(cx, |desk, cx| {
+        let tab = desk.tab(id).expect("the tab stays");
+        (desk.core.tabs.len(), tab.registry, tab.session.path().map(PathBuf::from), tab.session.state(), tab.dirty(cx))
+    });
+    assert_eq!((open, registry, path), (1, None, None), "the tab still names the taken file");
+    assert_ne!(state, SaveState::Saved, "the collision shows as saved");
+    assert!(dirty, "the text is unsaved");
+}
+
+#[gpui::test]
+fn a_save_as_landing_on_a_taken_file_stays_unsaved(cx: &mut TestAppContext) {
+    save_as_onto_a_taken_file(None, cx);
+}
+
+#[gpui::test]
+fn a_close_waiting_on_a_taken_save_as_keeps_the_tab(cx: &mut TestAppContext) {
+    save_as_onto_a_taken_file(Some(ely_office::After::Tab), cx);
+}
+
+#[gpui::test]
+fn a_refused_rename_is_not_looked_at_again(cx: &mut TestAppContext) {
+    let (desk, cx, a, path, _dirs) = opened("one
+", cx);
+    desk.update(cx, |desk, _| desk.watcher = None);
+    let other = path.with_file_name("b.md");
+    std::fs::write(&other, "two
+").expect("a file");
+    desk.update(cx, |desk, cx| desk.open_file(other.clone(), cx));
+    settle(cx);
+    std::fs::rename(&path, &other).expect("moved over b");
+    super::look(&desk, a, cx);
+    // Only another look would find the file back.
+    std::fs::write(&path, "back
+").expect("a new a.md");
+    for _ in 0..4 {
+        settle(cx);
+    }
+    let deleted = desk.read_with(cx, |desk, _| matches!(desk.tab(a).expect("open").extra.outside, Outside::Deleted));
+    assert!(deleted, "the refused rename was looked at again");
+}

@@ -138,7 +138,10 @@ fn landed<H: Saving>(
     let saved = done.land(&mut tab.session);
     match (&saved, target, risk) {
         (Ok(saved), Target::As(_, reopen), Some(risk)) => {
-            host.moved(id, saved, risk, cx);
+            // Taken meanwhile: a failed save, edits kept.
+            if let Err(taken) = host.moved(id, saved, risk, cx) {
+                return ended(host, id, Err(SaveError::Io(taken)), landing, window, cx);
+            }
             if let Some(tab) = host.tab_mut(id) {
                 tab.reopen = reopen;
             }

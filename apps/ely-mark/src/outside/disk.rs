@@ -74,8 +74,10 @@ impl Desk {
             Ok(Gone::Back) => self.look(id, cx),
             Ok(Gone::Renamed(to, key)) => {
                 log::info!("mark: {} was renamed outside", path.display());
-                self.follow(id, to, key, cx);
-                self.look(id, cx);
+                // A refused follow stays deleted; no look loops.
+                if self.follow(id, to, key, cx) {
+                    self.look(id, cx);
+                }
             }
             Ok(Gone::Deleted) => {
                 log::warn!("mark: {} was deleted outside", path.display());

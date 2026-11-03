@@ -119,30 +119,34 @@ impl Desk {
         };
         log::info!("mark: renamed {} to {}", from.display(), to.display());
         match self.tab(id).and_then(|tab| tab.session.path()) {
-            Some(path) if path == from => self.follow(id, to, key, cx),
+            Some(path) if path == from => {
+                self.follow(id, to, key, cx);
+            }
             // The watcher saw the rename first.
             Some(path) if path == to => log::info!("mark: the tab already follows"),
             _ => log::info!("mark: the renamed file's tab is gone"),
         }
     }
 
-    /// Tab `id`'s file now lives at `to`.
-    pub fn follow(&mut self, id: u64, to: PathBuf, key: ely_files::Key, cx: &mut Context<Self>) {
+    /// Follows `id` to `to`; a refusal marks it deleted.
+    pub fn follow(&mut self, id: u64, to: PathBuf, key: ely_files::Key, cx: &mut Context<Self>) -> bool {
         let Some(registry) = self.tab(id).map(|tab| tab.registry) else {
-            return;
+            return false;
         };
         // Moved onto a file another tab is saving as.
         let writer = self.core.tabs.iter().find(|tab| tab.id != id && tab.session.writing() == Some(key.path()));
         if let Some(other) = writer.map(|tab| tab.id) {
             log::warn!("mark: tab {id}'s file went onto tab {other}'s Save As");
-            return self.set_outside(id, crate::outside::Outside::Deleted, cx);
+            self.set_outside(id, crate::outside::Outside::Deleted, cx);
+            return false;
         }
         // Moved onto another tab's file: this one lost it.
         if let Some(registry) = registry
             && let Err(other) = self.core_mut().sessions.track(registry, key)
         {
             log::warn!("mark: tab {id}'s file went onto session {other}'s");
-            return self.set_outside(id, crate::outside::Outside::Deleted, cx);
+            self.set_outside(id, crate::outside::Outside::Deleted, cx);
+            return false;
         }
         if let Some(tab) = self.tab_mut(id) {
             tab.session.renamed(to.clone());
@@ -154,6 +158,7 @@ impl Desk {
         // The tree and folder search see the new name.
         self.relist(cx);
         cx.notify();
+        true
     }
 }
 

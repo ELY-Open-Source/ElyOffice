@@ -191,7 +191,7 @@ pub trait Saving: Host {
     }
 
     /// The tab now names the saved file: registry, title, risk.
-    fn moved(&mut self, id: u64, done: &Saved, macros: io::Result<bool>, cx: &mut Context<Self>) {
+    fn moved(&mut self, id: u64, done: &Saved, macros: io::Result<bool>, cx: &mut Context<Self>) -> io::Result<()> {
         let tab = self.tab(id).expect("the tab is open");
         if let Some(old) = tab.registry {
             self.core_mut().sessions.close(old);
@@ -201,9 +201,7 @@ pub trait Saving: Host {
             // Never two editable tabs on one file.
             Open::Focus(other) => {
                 log::error!("office: tab {id} saved onto session {other}'s file");
-                let said = text(cx, "office.error.taken", &[("name", &file_name(&done.path))]);
-                self.toast(said, Severity::Danger, cx);
-                Err(other)
+                Err(text(cx, "office.error.taken", &[("name", &file_name(&done.path))]))
             }
         };
         // Ely's writes carry no signatures; macros may stay.
@@ -216,13 +214,18 @@ pub trait Saving: Host {
         };
         let tab = self.tab_mut(id).expect("the tab is open");
         // The text stays, unsaved, with no file of its own.
-        let Ok(registry) = registry else {
-            (tab.registry, tab.session) = (None, ely_files::Session::new_file());
-            return tab.session.edit();
+        let registry = match registry {
+            Ok(registry) => registry,
+            Err(taken) => {
+                (tab.registry, tab.session) = (None, ely_files::Session::new_file());
+                tab.session.edit();
+                return Err(io::Error::other(taken.to_string()));
+            }
         };
         tab.registry = Some(registry);
         tab.name = file_name(&done.path);
         tab.risk = risk;
+        Ok(())
     }
 
     /// Keep Mine over the disk now; later changes conflict.
