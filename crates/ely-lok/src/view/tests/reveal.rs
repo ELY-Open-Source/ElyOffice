@@ -57,6 +57,7 @@ fn a_jump_keeps_the_whole_old_screen_until_the_new_one_is_whole() {
     let caret = cx.update(|app| view.read(app).cursor_bounds());
     assert!(caret.is_some(), "the caret shows on the first screen");
     cx.update(|app| view.update(app, |view, _| view.scroll.1 = view.extent().1 / 2));
+    assert_eq!(under(&cx), old, "read before the next paint, it maps the same");
     let waiting = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
     assert_eq!(drawn(&waiting), drawn(&before), "the old screen stays, every tile in place");
     assert_eq!(waiting.pages, before.pages, "its pages stay with it");
@@ -109,6 +110,7 @@ fn a_zoomed_sheet_maps_by_the_screen_it_holds() {
     let seen = shown(&cx);
     assert!(seen.1 && seen.3.0 == 4 && seen.3.1 > 4 && !before.selection.is_empty(), "the selected cell shows below the frozen rows");
     cx.update(|app| view.update(app, |view, cx| view.set_zoom(0.8, cx)));
+    assert_eq!(shown(&cx), seen, "headers read before the canvas prepares");
     let waiting = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
     assert_eq!(drawn(&waiting), drawn(&before), "the old screen stays");
     assert_eq!(shown(&cx), seen, "cells, clicks, panes and headers map by it");

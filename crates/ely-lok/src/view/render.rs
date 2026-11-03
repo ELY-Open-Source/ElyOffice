@@ -301,7 +301,6 @@ impl LokView {
 
     /// The page mask and visible tiles; requests the missing ones.
     pub(super) fn prepare(&mut self, bounds: Bounds<Pixels>) -> Painted {
-        self.aim();
         self.viewport = (bounds.size.width.into(), bounds.size.height.into());
         self.origin = bounds.origin;
         if self.fit {
@@ -335,7 +334,6 @@ impl LokView {
             self.failed.clear();
             self.send(input::Input::Visible((sx, sy, vw, vh), scale));
         }
-        let (ax, ay) = self.axes();
         let side = px(geom.px_of(TILE_TWIPS));
         let at = |vx: i32, vy: i32| {
             bounds.origin
@@ -346,19 +344,12 @@ impl LokView {
         };
         let mut slots = Vec::new();
         self.on_screen.clear();
-        for (dx0, dx1, vx) in ax.panes(vw) {
-            for (dy0, dy1, vy) in ay.panes(vh) {
-                let clip = Bounds::from_corners(at(vx, vy), at(vx + dx1 - dx0, vy + dy1 - dy0));
-                let (kx0, ky0) = (dx0.div_euclid(TILE_TWIPS), dy0.div_euclid(TILE_TWIPS));
-                let (kx1, ky1) = (dx1.div_euclid(TILE_TWIPS), dy1.div_euclid(TILE_TWIPS));
-                for key in (kx0..=kx1).flat_map(|kx| (ky0..=ky1).map(move |ky| (kx, ky))) {
-                    if key.0 * TILE_TWIPS >= extent.0 || key.1 * TILE_TWIPS >= extent.1 {
-                        continue;
-                    }
-                    self.on_screen.push(key);
-                    let origin = at(vx + key.0 * TILE_TWIPS - dx0, vy + key.1 * TILE_TWIPS - dy0);
-                    slots.push((key, Bounds { origin, size: size(side, side) }, clip));
-                }
+        for (((dx0, dx1, vx), (dy0, dy1, vy)), keys) in self.tiling((vw, vh), extent) {
+            let clip = Bounds::from_corners(at(vx, vy), at(vx + dx1 - dx0, vy + dy1 - dy0));
+            for key in keys {
+                self.on_screen.push(key);
+                let origin = at(vx + key.0 * TILE_TWIPS - dx0, vy + key.1 * TILE_TWIPS - dy0);
+                slots.push((key, Bounds { origin, size: size(side, side) }, clip));
             }
         }
         self.keep_near((vw, vh));

@@ -8,7 +8,7 @@ use gpui::{
     point, px,
 };
 
-use super::{Geom, LokView, input::Input};
+use super::{Geom, LokView, input::Input, reveal::Seen};
 use crate::{Mouse, Rect};
 
 impl LokView {
@@ -187,12 +187,12 @@ impl LokView {
 
     /// The window point of a print-twips document point (LOK-04).
     pub fn window_point(&self, at: (i32, i32)) -> gpui::Point<Pixels> {
-        self.tile_window_point(self.tile_at(self.seen().1, at))
+        let seen = self.seen();
+        self.tile_window_at(seen, self.tile_at(seen.1, at))
     }
 
-    /// The window point of a shown tile-twips point.
-    pub(super) fn tile_window_point(&self, (x, y): (i32, i32)) -> gpui::Point<Pixels> {
-        let (scroll, geom, spare) = self.seen();
+    /// The window point of a tile-twips point on screen `seen`.
+    fn tile_window_at(&self, (scroll, geom, spare): Seen, (x, y): (i32, i32)) -> gpui::Point<Pixels> {
         let (ax, ay) = self.axes_at(scroll, geom);
         let (x, y) = (geom.px_of(ax.show(x)), geom.px_of(ay.show(y)));
         self.origin + point(px(spare.0 + x), px(spare.1 + y))
@@ -205,7 +205,8 @@ impl LokView {
 
     /// A tile-twips rect in window pixels.
     pub(super) fn tile_screen_rect(&self, (x, y, w, h): crate::Rect) -> Bounds<Pixels> {
-        Bounds::from_corners(self.tile_window_point((x, y)), self.tile_window_point((x + w, y + h)))
+        let seen = self.seen();
+        Bounds::from_corners(self.tile_window_at(seen, (x, y)), self.tile_window_at(seen, (x + w, y + h)))
     }
 
     /// The cursor rect in window pixels.
