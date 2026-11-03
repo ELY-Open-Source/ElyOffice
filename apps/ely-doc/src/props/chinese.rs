@@ -86,7 +86,7 @@ fn the_page_and_style_groups_speak_chinese() {
     }
     // A font's name is its own.
     let font = cx.update(|app| props.read(app).state(".uno:CharFontName", app)).expect("a font");
-    let mut allowed: Vec<&str> = font.split(' ').collect();
+    let mut allowed: Vec<&str> = font.split(|ch: char| !ch.is_ascii_alphabetic()).filter(|word| word.len() > 1).collect();
     assert!(laid.saw(&font), "the panel drew the font");
     assert_eq!(laid.english(&allowed), Default::default());
     cx.update(|app| props.update(app, |props, cx| props.set_paper("Letter", cx)));

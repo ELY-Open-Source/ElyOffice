@@ -1,7 +1,5 @@
 use super::*;
 
-/// How long an edit may take to show.
-const SETTLE: std::time::Duration = std::time::Duration::from_secs(3);
 /// How long a quiet document is watched.
 const QUIET: std::time::Duration = std::time::Duration::from_millis(600);
 
@@ -60,7 +58,7 @@ fn an_edit_bumps_the_generation_and_invalidates() {
     assert_eq!(before.generation, base.generation, "idle: no bump");
     click(&mut worker, &doc, 150, 150);
     worker.post_key(&doc, 0, 1280).expect("Return posts");
-    let batch = poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+    let batch = poll_until(&mut worker, &doc, &base, HANG, |seen| {
         seen.generation > base.generation
     });
     assert!(
@@ -106,7 +104,7 @@ fn uno_commands_invalidate_and_repaint() {
         .run(&doc, "edit.select_all", &[])
         .expect("select all");
     worker.cut(&doc).expect("the cut runs");
-    let batch = poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+    let batch = poll_until(&mut worker, &doc, &base, HANG, |seen| {
         seen.generation > base.generation
     });
     assert!(

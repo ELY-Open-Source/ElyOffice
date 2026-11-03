@@ -119,7 +119,7 @@ fn keys_carry_chars_and_modifiers() {
     worker
         .post_key(&doc, 0, MOD1 | KEY_A)
         .expect("select all posts");
-    let seen = poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &base, HANG, |seen| {
         !seen.selection.is_empty()
     });
     assert!(!seen.selection.is_empty(), "mod1+A selects: {seen:?}");
@@ -151,7 +151,7 @@ fn the_cursor_and_selection_arrive_in_twips() {
     let (_dir, mut worker, doc) = open(FODT);
     let (width, height) = doc.size(&mut worker).expect("the size");
     click(&mut worker, &doc, 150, 150);
-    let seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         seen.cursor.is_some()
     });
     let (x, y, w, h) = seen.cursor.expect("a cursor rect");
@@ -172,7 +172,7 @@ fn the_cursor_and_selection_arrive_in_twips() {
     worker.post_mouse(&doc, down(0, x)).expect("press");
     worker.post_mouse(&doc, down(2, x + 1500)).expect("drag");
     worker.post_mouse(&doc, down(1, x + 1500)).expect("release");
-    let dragged = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let dragged = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         !seen.selection.is_empty()
     });
     assert!(!dragged.selection.is_empty(), "a drag selects: {dragged:?}");

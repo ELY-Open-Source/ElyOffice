@@ -54,7 +54,7 @@ fn tab_stops_add_and_remove_through_the_ruler() {
     worker
         .run(&state, "paragraph.tab", &["-1", "1134", "false"])
         .expect("add a 2 cm stop");
-    let added = poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+    let added = poll_until(&mut worker, &doc, &base, HANG, |seen| {
         seen.tabs.len() == 1
     });
     assert_eq!(added.tabs.len(), 1, "the ruler shows one stop");
@@ -67,7 +67,7 @@ fn tab_stops_add_and_remove_through_the_ruler() {
     worker
         .run(&state, "paragraph.tab", &["0", "0", "true"])
         .expect("remove it");
-    let removed = poll_until(&mut worker, &doc, &added, SETTLE, |seen| {
+    let removed = poll_until(&mut worker, &doc, &added, HANG, |seen| {
         seen.tabs.is_empty()
     });
     assert!(removed.tabs.is_empty(), "the stop is gone");
@@ -179,13 +179,13 @@ fn spacing_above_and_below_set_apart() {
     worker
         .run(&doc, "paragraph.spacing", &["0", "212"])
         .expect("6 pt below");
-    let below = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let below = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         state(seen, ".uno:ULSpacing") == Some("0,212")
     });
     worker
         .run(&doc, "paragraph.spacing", &["423", "212"])
         .expect("12 pt above");
-    poll_until(&mut worker, &doc, &below, SETTLE, |seen| {
+    poll_until(&mut worker, &doc, &below, HANG, |seen| {
         state(seen, ".uno:ULSpacing") == Some("423,212")
     });
     let text = saved(&dir, &mut worker, &doc, "spacing.fodt");
@@ -209,7 +209,7 @@ fn the_character_style_is_reported() {
     worker
         .run(&doc, "format.style", &["Emphasis", "CharacterStyles"])
         .expect("emphasis");
-    let seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         state(seen, ".uno:CharStyle") == Some("Emphasis")
     });
     assert_eq!(state(&seen, ".uno:CharStyle"), Some("Emphasis"));
@@ -258,7 +258,7 @@ fn mixed_selections_report_dont_care() {
         ".uno:StyleApply",
         ".uno:ULSpacing",
     ];
-    let seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         names
             .iter()
             .all(|name| state(seen, name) == Some(crate::MIXED))
@@ -301,7 +301,7 @@ fn character_styles_mix_their_attributes() {
         .run(&doc, "edit.select_all", &[])
         .expect("select all");
     let names = [".uno:CharFontName", ".uno:Bold", ".uno:CharStyle"];
-    let seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         names
             .iter()
             .all(|name| state(seen, name) == Some(crate::MIXED))

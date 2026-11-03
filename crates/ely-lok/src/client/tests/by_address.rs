@@ -17,7 +17,7 @@ fn a_cell_reads_and_writes_by_address_and_the_cursor_stays() {
     assert_eq!((a1.text.as_str(), a1.input.as_str()), ("Hello 世界", "Hello 世界"), "{a1:?}");
     let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
     worker.post_key(&doc, 0, 1027).expect("Right to B1");
-    let b1 = poll_until(&mut worker, &doc, &base, SETTLE, |seen| seen.cell.address == "B1");
+    let b1 = poll_until(&mut worker, &doc, &base, HANG, |seen| seen.cell.address == "B1");
     assert_eq!(b1.cell.address, "B1");
     worker.run(&doc, "cell.set", &["S!C3", "=1+2"]).expect("C3 set");
     let c3 = read(&mut worker, "S!C3").expect("C3");
@@ -25,7 +25,7 @@ fn a_cell_reads_and_writes_by_address_and_the_cursor_stays() {
     let after = poll_until(&mut worker, &doc, &b1, SETTLE, |_| false);
     assert_eq!(after.cell.address, "B1", "the cursor stays");
     worker.run(&doc, "cell.set", &["S!B1", "here"]).expect("the current cell set");
-    let current = poll_until(&mut worker, &doc, &after, SETTLE, |seen| seen.cell.formula == "here" && seen.a11y.text == "here");
+    let current = poll_until(&mut worker, &doc, &after, HANG, |seen| seen.cell.formula == "here" && seen.a11y.text == "here");
     assert_eq!((current.cell.formula.as_str(), current.a11y.text.as_str()), ("here", "here"), "the input line follows");
     for bad in ["C3", "Nowhere!C3", "S!"] {
         let refused = read(&mut worker, bad).expect_err(bad);

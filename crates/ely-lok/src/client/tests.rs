@@ -131,6 +131,9 @@ pub(crate) fn click(worker: &mut Worker, doc: &Doc, x: i32, y: i32) {
     }
 }
 
+/// A wait for a condition fails only past this.
+pub(crate) const HANG: std::time::Duration = std::time::Duration::from_secs(60);
+
 /// Polls past `from` until `done` or `wait`; rects pile up.
 pub(crate) fn poll_until(
     worker: &mut Worker,

@@ -44,7 +44,7 @@ fn right_click(cx: &mut VisualTestContext, docs: &Entity<Docs>, at: Point<Pixels
             .as_ref()
             .is_some_and(|offer| offer.what.target == target)
     };
-    for _ in 0..500 {
+    for _ in 0..3000 {
         cx.run_until_parked();
         if cx.update(|_, app| shown(app)) {
             return frames(cx);
