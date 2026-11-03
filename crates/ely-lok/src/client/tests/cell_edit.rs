@@ -114,25 +114,31 @@ fn a_closing_save_refuses_an_entry_its_rule_refuses() {
 }
 
 #[test]
-fn a_cancelled_composition_leaves_the_cell_as_it_was() {
+fn a_cancelled_composition_leaves_the_cell_and_other_edits() {
     if install().is_none() {
         eprintln!("SKIP: no pinned LOK build");
         return;
     }
-    let (dir, mut worker, doc) = open_sheet();
-    let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
-    worker.post_text(&doc, false, "n").expect("a composition");
-    let composing = poll_until(&mut worker, &doc, &base, SETTLE, |seen| seen.a11y.text == "n");
-    assert_eq!(composing.a11y.text, "n", "the composition opens an edit");
-    worker.post_text(&doc, false, "").expect("the cancel");
-    worker.post_text(&doc, true, "").expect("the end");
-    let back = poll_until(&mut worker, &doc, &composing, SETTLE, |seen| {
-        seen.a11y.text == "Hello 世界" && modified(seen) == Some("false")
-    });
-    assert_eq!(back.a11y.text, "Hello 世界", "the cell as it was");
-    assert_eq!(modified(&back), Some("false"), "nothing changed");
-    let out = dir.path().join("closing.fods");
-    doc.save_closing(&mut worker, &crate::file_url(&out), "fods").expect("saves");
-    let xml = std::fs::read_to_string(&out).expect("the saved file");
-    assert!(xml.contains("Hello 世界</text:p>"), "the cell is kept");
+    for meanwhile in [true, false] {
+        let (dir, mut worker, doc) = open_sheet();
+        let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
+        worker.post_text(&doc, false, "n").expect("a composition");
+        let composing = poll_until(&mut worker, &doc, &base, SETTLE, |seen| seen.a11y.text == "n");
+        assert_eq!(composing.a11y.text, "n", "meanwhile {meanwhile}: the composition opens an edit");
+        if meanwhile {
+            worker.run(&doc, "cell.set", &["S!B1", "from another process"]).expect("another program's edit");
+        }
+        worker.post_text(&doc, false, "").expect("the cancel");
+        worker.post_text(&doc, true, "").expect("the end");
+        let back = poll_until(&mut worker, &doc, &composing, SETTLE, |seen| seen.a11y.text == "Hello 世界");
+        assert_eq!(back.a11y.text, "Hello 世界", "meanwhile {meanwhile}: the cell as it was");
+        let after = poll_until(&mut worker, &doc, &back, SETTLE, |seen| modified(seen) == Some("false"));
+        let last = modified(&after).or(modified(&back));
+        assert_ne!(last, Some("false"), "meanwhile {meanwhile}: the cancel marks nothing saved");
+        let out = dir.path().join("closing.fods");
+        doc.save_closing(&mut worker, &crate::file_url(&out), "fods").expect("saves");
+        let xml = std::fs::read_to_string(&out).expect("the saved file");
+        assert!(xml.contains("Hello 世界</text:p>"), "meanwhile {meanwhile}: the cell is kept");
+        assert_eq!(xml.contains("from another process"), meanwhile, "the other edit is written");
+    }
 }
