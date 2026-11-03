@@ -153,6 +153,148 @@ fn a_plain_clip_moves_with_its_text() {
 }
 
 #[test]
+fn a_move_leaves_the_structure_tree_as_it_was() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let content = "/Artifact BMC BT /F1 18 Tf ET EMC /P <</MCID 0>> BDC BT /F1 18 Tf 72 700 Td (Hello) Tj ET EMC /P <</MCID 1>> BDC BT /F1 18 Tf 72 500 Td (Other) Tj ET EMC";
+    let objects = [
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string(),
+        "<< /Type /StructTreeRoot /K [7 0 R 8 0 R] /ParentTree << /Nums [0 [7 0 R 8 0 R]] >> >>".to_string(),
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 /T (TITLE-HELLO) /E (WIDE-HELLO) /ActualText (Hello) >>".to_string(),
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 /T (TITLE-OTHER) /E (WIDE-OTHER) /Alt (ALT-OTHER) >>".to_string(),
+    ];
+    let path = dir.path().join("tagged.pdf");
+    let page = " /StructParents 0 /Resources << /Font << /F1 5 0 R >> >>";
+    std::fs::write(&path, one_page(" /StructTreeRoot 6 0 R", page, content, &objects)).expect("writes");
+    let mut worker = worker();
+    let doc = worker.open(&path).expect("opens").doc;
+    let index = worker.text_blocks(doc, 0).expect("blocks").iter().position(|b| b.text == "Hello").expect("hello");
+    worker.move_text(doc, 0, (index, "Hello"), (40.0, 100.0)).expect("moves");
+    let doc = worker.now(doc).expect("the state");
+    let out = dir.path().join("moved.pdf");
+    worker.save(doc, &out).expect("saves");
+    let bytes = std::fs::read(&out).expect("reads");
+    let count = |what: &str| bytes.windows(what.len()).filter(|w| *w == what.as_bytes()).count();
+    for kept in ["TITLE-HELLO", "WIDE-HELLO", "TITLE-OTHER", "WIDE-OTHER", "ALT-OTHER"] {
+        assert_eq!(count(kept), 1, "{kept}");
+    }
+    assert_eq!(count("(Hello)"), 2, "the actual text and the moved line");
+    assert_eq!((count("/MCID 0"), count("/MCID 1")), (1, 1), "each marked once");
+    assert_eq!(count("/Artifact"), 1, "an empty tag the move did not touch stays");
+}
+
+#[test]
+fn a_tag_the_move_would_split_refuses_it() {
+    // By MCID, inline or named; else as written.
+    let named = " /Properties << /MC0 << /MCID 0 >> >>";
+    for (tag, props) in [("/P <</MCID 0>> BDC", ""), ("/P /MC0 BDC", named), ("/Span <</Alt (WHOLE)>> BDC", ""), ("/Artifact BMC", "")] {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let content = format!("{tag} BT /F1 18 Tf 72 700 Td (Hello) Tj ET BT /F1 18 Tf 72 300 Td (Far) Tj ET EMC");
+        let objects = [
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string(),
+            "<< /Type /StructTreeRoot /K [7 0 R] /ParentTree << /Nums [0 [7 0 R]] >> >>".to_string(),
+            "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>".to_string(),
+        ];
+        let path = dir.path().join("split.pdf");
+        let page = format!(" /StructParents 0 /Resources << /Font << /F1 5 0 R >>{props} >>");
+        std::fs::write(&path, one_page(" /StructTreeRoot 6 0 R", &page, &content, &objects)).expect("writes");
+        let mut worker = worker();
+        let doc = worker.open(&path).expect("opens").doc;
+        let ink = inked(&mut worker, doc);
+        let index = worker.text_blocks(doc, 0).expect("blocks").iter().position(|b| b.text == "Hello").expect("hello");
+        let before = worker.history(doc).expect("a mark");
+        let said = worker.move_text(doc, 0, (index, "Hello"), (40.0, 100.0)).expect_err("refused");
+        assert!(said.to_string().contains("shares its tag"), "{tag}: {said}");
+        let doc = worker.now(doc).expect("the state");
+        assert_eq!((worker.history(doc).expect("a mark"), inked(&mut worker, doc)), (before, ink), "{tag}: nothing changed");
+    }
+}
+
+#[test]
+fn separate_sequences_alike_stay_apart() {
+    let far = "BT /F1 18 Tf 72 300 Td (Far) Tj ET";
+    let empty = "BT /F1 18 Tf ET";
+    // Twin tags, an empty twin, a string naming an MCID.
+    let cases = [
+        ("/Artifact BMC", "/Artifact BMC", far, "/Artifact", 2),
+        ("/Artifact BMC", "/Artifact BMC", empty, "/Artifact", 2),
+        ("/Span <</Alt (/MCID 0)>> BDC", "/P <</MCID 0>> BDC", far, "/MCID 0", 2),
+    ];
+    for (first, second, then, word, times) in cases {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let content = format!("{first} BT /F1 18 Tf 72 700 Td (Hello) Tj ET EMC {second} {then} EMC");
+        let (mut worker, doc) = drawn(dir.path(), &content);
+        let index = worker.text_blocks(doc, 0).expect("blocks").iter().position(|b| b.text == "Hello").expect("hello");
+        worker.move_text(doc, 0, (index, "Hello"), (40.0, 100.0)).expect(&content);
+        let doc = worker.now(doc).expect("the state");
+        let out = dir.path().join("moved.pdf");
+        worker.save(doc, &out).expect("saves");
+        let bytes = std::fs::read(&out).expect("reads");
+        let count = bytes.windows(word.len()).filter(|w| *w == word.as_bytes()).count();
+        assert_eq!(count, times, "{content}: each sequence once");
+    }
+}
+
+#[test]
+fn empty_marked_content_elsewhere_stays() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let empty = "/Artifact BMC EMC /Span <</Alt (EMPTY)>> BDC EMC /Stated BMC 0 g EMC";
+    let content = format!("/Artifact BMC BT /F1 18 Tf 72 700 Td (Hello) Tj ET EMC {empty}");
+    let (mut worker, doc) = drawn(dir.path(), &content);
+    let index = worker.text_blocks(doc, 0).expect("blocks").iter().position(|b| b.text == "Hello").expect("hello");
+    worker.move_text(doc, 0, (index, "Hello"), (40.0, 100.0)).expect("moves");
+    let doc = worker.now(doc).expect("the state");
+    let out = dir.path().join("moved.pdf");
+    worker.save(doc, &out).expect("saves");
+    let bytes = std::fs::read(&out).expect("reads");
+    let count = |what: &str| bytes.windows(what.len()).filter(|w| *w == what.as_bytes()).count();
+    assert_eq!((count("/Artifact"), count("(EMPTY)"), count("/Stated")), (2, 1, 1), "the moved tag and the three empty ones");
+}
+
+/// Helvetica and pattern `P0` (object 6), drawing `content`, opened.
+fn patterned(dir: &Path, pattern: &str, content: &str) -> (Worker, Doc) {
+    let objects = ["<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string(), pattern.to_string()];
+    let path = dir.join("patterned.pdf");
+    let page = " /Resources << /Font << /F1 5 0 R >> /Pattern << /P0 6 0 R >> >>";
+    std::fs::write(&path, one_page("", page, content, &objects)).expect("writes");
+    let mut worker = worker();
+    let doc = worker.open(&path).expect("opens").doc;
+    (worker, doc)
+}
+
+#[test]
+fn patterned_text_refuses_the_move() {
+    let shading = "<< /PatternType 2 /Shading << /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 680 0 760] /Function << /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 0 1] /N 1 >> >> >>";
+    let tile = "1 0 0 rg 0 0 5 5 re f";
+    let tiling = format!("<< /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 10 10] /XStep 10 /YStep 10 /Resources << >> /Length {} >>\nstream\n{tile}\nendstream", tile.len());
+    let text = "BT /F1 60 Tf 72 700 Td (Hello) Tj ET";
+    let cases = [
+        (shading, format!("/Pattern cs /P0 scn {text}")),
+        (tiling.as_str(), format!("/Pattern cs /P0 scn {text}")),
+        (shading, "/Pattern CS /P0 SCN 2 w BT /F1 60 Tf 1 Tr 72 700 Td (Hello) Tj ET".to_string()),
+    ];
+    for (pattern, content) in cases {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let (mut worker, doc) = patterned(dir.path(), pattern, &content);
+        let ink = inked(&mut worker, doc);
+        let blocks = worker.text_blocks(doc, 0).expect("blocks");
+        let index = blocks.iter().position(|b| b.text == "Hello").expect("hello");
+        assert!(blocks[index].editable, "{content}: the page's own text");
+        let before = worker.history(doc).expect("a mark");
+        let said = worker.move_text(doc, 0, (index, "Hello"), (40.0, 200.0)).expect_err("refused");
+        assert!(said.to_string().contains("painted with a pattern"), "{said}");
+        let doc = worker.now(doc).expect("the state");
+        assert_eq!((worker.history(doc).expect("a mark"), inked(&mut worker, doc)), (before, ink), "{content}: nothing changed");
+    }
+    // A pattern elsewhere, or for strokes only, still moves.
+    for content in [format!("q /Pattern cs /P0 scn 300 100 100 100 re f Q 1 0 0 rg {text}"), format!("/Pattern CS /P0 SCN 1 0 0 rg {text}")] {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let (mut worker, doc) = patterned(dir.path(), shading, &content);
+        let index = worker.text_blocks(doc, 0).expect("blocks").iter().position(|b| b.text == "Hello").expect("hello");
+        worker.move_text(doc, 0, (index, "Hello"), (40.0, 200.0)).expect(&content);
+    }
+}
+
+#[test]
 fn stroked_text_keeps_its_width_and_dash_through_a_save() {
     for mode in [1, 2] {
         let dir = tempfile::tempdir().expect("a temp dir");
