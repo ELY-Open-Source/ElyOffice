@@ -101,6 +101,32 @@ fn a_wrong_encoding_blocks_the_import() {
 }
 
 #[test]
+fn a_french_excel_csv_opens_in_its_code_page() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((_window, book)) = book(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let path = dir.path().join("menu.csv");
+    // French Excel: semicolons, Windows-1252 bytes.
+    std::fs::write(&path, b"Plat;Prix\nCr\xe8me br\xfbl\xe9e;4,5\n").expect("writes");
+    cx.update(|app| ely_gpui_component::i18n::I18n::set_locale("fr-FR", app));
+    update(&mut cx, &book, |book, cx| book.ask_import(path.clone(), cx));
+    asked(&cx, &book, |dialog| matches!(dialog, Dialog::Import(pending) if !pending.reading));
+    cx.update(|app| match book.read(app).dialog.as_ref() {
+        Some(Dialog::Import(pending)) => {
+            assert_eq!(pending.how.encoding, ely_lok::sheet::csv::Encoding::Windows1252);
+            assert_eq!(pending.how.separator, ';');
+        }
+        _ => unreachable!("an import dialog"),
+    });
+    update(&mut cx, &book, |book, cx| book.import_asked(cx));
+    settle(&cx, |app| book.read(app).active_tab().is_some_and(|tab| tab.name == "menu.csv"));
+    assert_eq!(cells(&mut cx, &book, "A2"), "Crème brûlée");
+}
+
+#[test]
 fn exports_write_the_shown_sheet_as_text() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
@@ -434,7 +460,7 @@ fn the_default_encoding_follows_the_apps_language() {
     let path = dir.path().join("gb.csv");
     // 你好 in GB18030: not UTF-8.
     std::fs::write(&path, [0xC4, 0xE3, 0xBA, 0xC3, b'\n']).expect("writes");
-    for (tag, expected) in [("zh-CN", Encoding::Gb18030), ("en-US", Encoding::Windows1252), ("es-ES", Encoding::Windows1252)] {
+    for (tag, expected) in [("zh-CN", Encoding::Gb18030), ("en-US", Encoding::Windows1252), ("es-ES", Encoding::Windows1252), ("fr-FR", Encoding::Windows1252)] {
         cx.update(|app| I18n::set_locale(tag, app));
         update(&mut cx, &book, |book, cx| book.ask_import(path.clone(), cx));
         asked(&cx, &book, |dialog| matches!(dialog, Dialog::Import(_)));

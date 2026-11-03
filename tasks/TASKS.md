@@ -516,7 +516,7 @@
 - [ ] R15.18 日语（§20.3）
 - [ ] R15.19 韩语（§20.3）
 - [ ] R15.20 越南语（§20.3）
-- [ ] R15.21 法语（§20.3）
+- [~] R15.21 法语（§20.3）。照 R15.16，不加新机制：`LANGUAGES` 加一行 fr-FR（“Français”），系统 fr-*（`fr_CA.UTF-8`、`fr-BE`）同用；`fr/` 下每个英文模块一个（34 个，2405 条），`fr::FR` 与 `EN_MODULES` 一一对应，与英、中、西同样缺键即失败。组件库 bc8e5fb 已带 fr-FR 的 `LOCALES` 与全键的 `builtin/fr.rs`，不改组件库。内核固定文字照 LibreOffice 26.2.6.3 fr：ElyTable 错误说明 25 条、单元格样式 10 条、选区统计 7 条取 sc，ElyDoc 内置样式 163 条取 sw（`builtin.rs` 加法文一列），纸张取 vcl，ElyShow 版式与效果名能对上的取 sd、officecfg；ElyTree 照 Git 的 fr.po，ElyMark 菜单照 Typora 1.14.10 的 fr-FR；来源与自拟的条目记于 docs/decisions.md。ElyTable 导入非 UTF-8 文本时 fr-FR 预选 Windows-1252（法文 Windows 的 ANSI 代码页，法文 Excel 存 CSV 所用），新测试 `a_french_excel_csv_opens_in_its_code_page`：分号、1252 字节的 CSV 在法语下预选 1252 与分号，导入后 A2 为 Crème brûlée。测试（`ELY_REQUIRE_ENGINES=1`）：ely-ui 80、ely-platform 92（另集成测试全过）、ely-doc 84、ely-table 78 全过；check.sh、records.py、agents_md.py 过；八个应用在 `ELY_LOCALE=fr_FR.UTF-8`、`ELY_SMOKE=1` 下解析为 fr-FR，正常退出。反证：删去 `tree.net.push` 的法文，ely-ui 30 个测试失败（`french_translates_every_module_once_with_its_arguments` 报 a module's keys，组件库报 `fr-FR misses ["tree.net.push"]`）。
 - [ ] R15.22 德语（§20.3）
 - [ ] R15.23 合并 PR #53：ElyTable 的 R 宏（§9）
 - [ ] R15.31 极限测试（PERF-10）：Doc、Table、Show、Mark 各同时开 100 份文档并同时编辑，量输入落地与帧时间；Excel 复杂公式、跨工作簿引用，Word 外部链接，逐项实测，问题逐个修

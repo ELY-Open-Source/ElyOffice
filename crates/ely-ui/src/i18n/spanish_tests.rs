@@ -15,7 +15,7 @@ fn spanish_regions_and_posix_tags_select_spanish() {
     ] {
         assert_eq!(resolve(tag), "es-ES", "{tag}");
     }
-    for tag in ["est", "esx-PE", "zhx", "fr-FR"] {
+    for tag in ["est", "esx-PE", "zhx", "frx"] {
         assert_eq!(resolve(tag), "en-US", "{tag}");
     }
 }
@@ -35,7 +35,7 @@ fn spanish_translates_every_module_once_with_its_arguments() {
         let translated: BTreeSet<_> = spanish.iter().map(|(key, _)| *key).collect();
         assert_eq!(source, translated, "a module's keys");
     }
-    let [en, _, spanish] = catalogs();
+    let [en, _, spanish, ..] = catalogs();
     let es: BTreeMap<_, _> = spanish.iter().copied().collect();
     assert_eq!(es.len(), spanish.len(), "duplicate Spanish key");
     for (key, english) in en {
