@@ -94,7 +94,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("mail.error.connect", "không kết nối được ({detail})"),
     ("mail.error.tls_failed", "kết nối bảo mật thất bại ({detail})"),
     ("mail.error.rejected", "máy chủ đã từ chối đăng nhập: {detail}"),
-    ("mail.error.outlook_held", "Outlook đã nhận đăng nhập nhưng không mở hộp thư ({detail}). Trên outlook.live.com, hãy mở Settings, Mail, Forwarding and IMAP, rồi bật Let devices and apps use IMAP. Nếu đã bật, hãy mở account.live.com/activity, tìm lần đăng nhập này trong Recent activity, chọn This was me rồi thử lại. Nếu vẫn thất bại, hãy hỏi bộ phận hỗ trợ của Microsoft"),
+    ("mail.error.outlook_held", "Outlook đã nhận đăng nhập nhưng không mở hộp thư ({detail}). Trên outlook.live.com, hãy mở Cài đặt → Thư → Chuyển tiếp và IMAP, rồi bật “Cho phép thiết bị và ứng dụng sử dụng IMAP”. Nếu đã bật, hãy mở account.live.com/activity, tìm lần đăng nhập này trong “Hoạt động gần đây”, chọn “Đây là tôi” rồi thử lại. Nếu vẫn thất bại, hãy hỏi bộ phận hỗ trợ của Microsoft"),
     ("mail.error.outlook_smtp_disabled", "Microsoft đã tắt đăng nhập SMTP cho hộp thư này ({detail}). Tài khoản Outlook.com cá nhân không có công tắc để bật lại, nên ElyMail không thể gửi thư từ tài khoản đó"),
     ("mail.error.server", "máy chủ đã từ chối: {detail}"),
     ("mail.error.protocol", "không đọc được phản hồi của máy chủ: {detail}"),

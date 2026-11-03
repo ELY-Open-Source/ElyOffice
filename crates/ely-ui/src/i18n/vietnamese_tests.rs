@@ -47,5 +47,10 @@ fn vietnamese_catalog_renders_menus_counts_and_kernel_words(cx: &mut gpui::TestA
         assert_eq!(super::text(cx, "doc.paper.letter", &[]), "Lá thư");
         assert_eq!(super::text(cx, "tree.net.push", &[]), "Đẩy lên");
         assert_eq!(ely_gpui_component::i18n::text(cx, "find.replace_all", &[]), "Thay thế tất cả");
+        let held = super::text(cx, "mail.error.outlook_held", &[("detail", "NO")]);
+        for english in ["Settings", "Forwarding", "Let devices", "Recent activity", "This was me"] {
+            assert!(!held.contains(english), "{english} in {held}");
+        }
+        assert!(held.contains("Chuyển tiếp và IMAP") && held.contains("“Đây là tôi”"), "{held}");
     });
 }
