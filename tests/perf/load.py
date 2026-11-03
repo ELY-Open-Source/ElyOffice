@@ -177,7 +177,7 @@ def wait_opened(app, count, timeout, since=0):
     raise app.failed(pattern.pattern, timeout)
 
 
-# A longer LibreOffice profile path aborts the worker (149 chars).
+# Kernels before patch 0080 abort at 149 characters.
 PROFILE_MOST = 140
 
 
