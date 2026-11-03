@@ -1,0 +1,27 @@
+//! Japanese rows on the settings storage page for ElyMail.
+
+pub(super) const JA: &[(&str, &str)] = &[
+    ("mail.storage.unread", "メールの保存領域を読み取れませんでした: {error}"),
+    ("mail.storage.index", "メールのインデックス"),
+    ("mail.storage.index_hint", "アカウント、フォルダー、ヘッダー、下書き、送信トレイ: {size}、検索: {search}"),
+    ("mail.storage.originals", "ダウンロードしたメール"),
+    ("mail.storage.originals_hint", "{size}。クリーンアップすると、サーバーにまだあるメールを手放します。同期したときや開いたときに再びダウンロードされます。オフラインのフォルダー、POP3 とインポートしたメールは残ります。"),
+    ("mail.storage.forget", "クリーンアップ…"),
+    ("mail.storage.forget_title", "ダウンロードしたメールをクリーンアップしますか?"),
+    ("mail.storage.forget_message", "IMAP サーバー上のメールの本文とファイルをこのコンピューターから削除します。ヘッダーは残ります。最近のメールは次回の同期で、古いメールは開いたときに再びダウンロードされます。"),
+    ("mail.storage.forget_go", "クリーンアップ"),
+    ("mail.storage.forgot", "メッセージ {n} 件を手放しました"),
+    ("mail.storage.forgot.one", "メッセージ 1 件を手放しました"),
+    ("mail.storage.unforgotten", "メールをクリーンアップできませんでした: {error}"),
+    ("mail.storage.cap", "ダウンロードしたメールの上限"),
+    ("mail.storage.cap_none", "上限なし"),
+    ("mail.storage.cap_hint", "上限を超えると、最も古いダウンロードからヘッダーだけに戻ります。オフラインのフォルダーとインポートしたメールは保持されます。"),
+    ("mail.storage.cap_unread", "保存された上限を読み取れないため、上限は適用されません: {error}"),
+    ("mail.storage.cap_unsaved", "上限を保存できませんでした: {error}"),
+    ("mail.storage.untrimmed", "ダウンロードを上限まで減らせませんでした: {error}"),
+    ("mail.storage.all", "すべてのメールをエクスポート"),
+    ("mail.storage.all_hint", "各フォルダーが mbox ファイルになり、アカウントごとのフォルダーに入ります。"),
+    ("mail.storage.export", "エクスポート…"),
+    ("mail.storage.exported", "{n} 個のフォルダーをエクスポートしました。メッセージ {left} 件を除外しました (すべて揃っていないか、生のバイナリ)"),
+    ("mail.storage.exported.one", "1 個のフォルダーをエクスポートしました。メッセージ {left} 件を除外しました (すべて揃っていないか、生のバイナリ)"),
+];
