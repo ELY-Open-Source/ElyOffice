@@ -170,19 +170,6 @@ fn a_closing_save_leaves_a_refused_pivot_edit_open() {
 }
 
 #[test]
-fn a_closing_save_enters_a_pivot_rename() {
-    if install().is_none() {
-        return eprintln!("SKIP: no pinned LOK build");
-    }
-    let dir = tempfile::tempdir().expect("a temp dir");
-    let (mut worker, doc, _) = pivot_edit(&dir, "E5", "East", "Eastern");
-    let out = dir.path().join("closing.fods");
-    doc.save_closing(&mut worker, &crate::file_url(&out), "fods").expect("saves");
-    let xml = std::fs::read_to_string(&out).expect("the saved file");
-    assert!(xml.contains(">Eastern</text:p>"), "the rename is written");
-}
-
-#[test]
 fn a_cancelled_composition_leaves_the_cell_and_other_edits() {
     if install().is_none() {
         eprintln!("SKIP: no pinned LOK build");
@@ -258,5 +245,103 @@ fn a_closing_save_enters_merged_hidden_and_filtered_cells_and_types_nothing_into
         let xml = std::fs::read_to_string(&out).expect("the saved file");
         assert!(xml.contains(&format!(">{held}</text:p>")), "{cell}: holds {held}");
         assert_eq!(xml.contains(&format!(">{typed}</text:p>")), typed == held, "{cell}: typed {typed}");
+    }
+}
+
+/// A word to complete, and a list in D1:D2.
+const ENTRIES: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+ <office:body><office:spreadsheet>
+  <table:table table:name="S">
+   <table:table-row><table:table-cell><text:p>Apple</text:p></table:table-cell><table:table-cell/><table:table-cell/><table:table-cell><text:p>Red</text:p></table:table-cell></table:table-row>
+   <table:table-row><table:table-cell/><table:table-cell/><table:table-cell/><table:table-cell><text:p>Blue</text:p></table:table-cell></table:table-row>
+  </table:table>
+ </office:spreadsheet></office:body>
+</office:document>"#;
+
+/// `address` before, after Enter, after a closing save.
+fn enter_or_close(source: &std::path::Path, address: &str, typed: &str, rule: Option<&str>) -> (String, String, std::io::Result<String>) {
+    let install = install().expect("the pinned LOK build");
+    let read = |worker: &mut Worker, doc: &Doc| {
+        let json = worker.values(doc, &sheet::cell_at_query(address)).expect("reads");
+        sheet::cell_at(&json).expect("a cell").text
+    };
+    let mut after = Vec::new();
+    for closing in [false, true] {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+        let doc = worker.load(&crate::file_url(source)).expect("loads");
+        let (_, cell) = address.split_once('!').expect("a sheet");
+        worker.run(&doc, "cell.goto", &[cell]).expect("the cell");
+        if let Some(rule) = rule {
+            worker.run(&doc, "rules.validation", &[rule]).expect("the rule");
+        }
+        let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
+        let was = read(&mut worker, &doc);
+        worker.post_text(&doc, false, typed).expect("types");
+        worker.post_text(&doc, true, "").expect("commits");
+        let open = poll_until(&mut worker, &doc, &base, SETTLE, |seen| seen.a11y.text.starts_with(typed));
+        assert!(open.a11y.text.starts_with(typed), "{address}: the edit holds {typed}, not {:?}", open.a11y.text);
+        let done = match closing {
+            false => {
+                worker.post_key(&doc, 0, 1280).expect("Enter");
+                poll_until(&mut worker, &doc, &open, SETTLE, |_| false);
+                Ok(read(&mut worker, &doc))
+            }
+            true => {
+                let out = dir.path().join("closing.fods");
+                doc.save_closing(&mut worker, &crate::file_url(&out), "fods").map(|()| read(&mut worker, &doc))
+            }
+        };
+        after.push((was, done));
+    }
+    let (closed_was, closed) = after.pop().expect("closing");
+    let (was, entered) = after.pop().expect("Enter");
+    assert_eq!(closed_was, was, "{address}: both start alike");
+    (was, entered.expect("Enter answers"), closed)
+}
+
+#[test]
+fn a_closing_save_takes_exactly_what_enter_takes() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let entries = dir.path().join("entries.fods");
+    write(&entries, ENTRIES);
+    let pivot = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/table/pivot.xlsx");
+    let listed = sheet::Validation {
+        kind: "list".into(),
+        operator: "equal".into(),
+        value1: "$D$1:$D$2".into(),
+        show_error: true,
+        error_style: "stop".into(),
+        ..sheet::Validation::default()
+    }
+    .to_json();
+    // File, cell, typed, rule, Enter takes, cell shows.
+    let cases = [
+        (&entries, "S!A2", "Ap", None, true, true),
+        (&entries, "S!B1", "(c)", None, true, true),
+        (&entries, "S!C1", "Blue", Some(listed.as_str()), true, true),
+        (&entries, "S!C1", "Pink", Some(listed.as_str()), false, false),
+        (&pivot, "Sheet1!E5", "Eastern", None, true, true),
+        // The field's name changes; Excel's caption stays shown.
+        (&pivot, "Sheet1!E4", "Area", None, true, false),
+        (&pivot, "Sheet1!F5", "9", None, false, false),
+    ];
+    for (source, address, typed, rule, takes, shows) in cases {
+        let (was, entered, closed) = enter_or_close(source, address, typed, rule);
+        assert_eq!(entered != was, shows, "{address} {typed}: Enter made {was:?} {entered:?}");
+        match closed {
+            Ok(closed) => {
+                assert!(takes, "{address} {typed}: Enter refuses it, the save dropped it");
+                assert_eq!(closed, entered, "{address} {typed}: as Enter");
+            }
+            Err(error) => {
+                assert!(!takes, "{address} {typed}: Enter takes it, the save refused: {error}");
+                assert!(error.to_string().contains(REFUSED), "{address}: {error}");
+            }
+        }
     }
 }
