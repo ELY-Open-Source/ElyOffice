@@ -1,0 +1,108 @@
+Marked content that was empty in the source survives filtering.
+
+The sanitize filter holds each BMC or BDC back until something is
+sent inside it, and drops it at its EMC otherwise. A sequence that
+was empty to begin with (`/Artifact BMC EMC`, or only state between)
+was dropped too, by every edit that rewrites a page through the
+filter (Ely moving or rewriting text, redaction). The filter now
+counts what it removes; a tag that lost nothing is sent at its EMC.
+
+--- a/source/pdf/pdf-op-filter.c
++++ b/source/pdf/pdf-op-filter.c
+@@ -116,6 +116,9 @@
+ 	editable_str alt;
+ 	editable_str actualtext;
+ 
++	/* The processor's removed count when this tag opened. */
++	int removed;
++
+ 	struct tag_record *prev;
+ } tag_record;
+ 
+@@ -142,6 +145,8 @@
+ 	int text_removed;
+ 	pdf_filter_options *global_options;
+ 	fz_path *path;
++	/* How many marking things have been removed so far. */
++	int removed;
+ } pdf_sanitize_processor;
+ 
+ static void
+@@ -960,6 +965,8 @@
+ 		else
+ 			remove = filter_show_char(ctx, p, cid, &uni);
+ 
++		p->removed += remove != 0;
++
+ 		/* FIXME: Should check for marking/non-marking! For
+ 		 * now assume space is the only non-marking. */
+ 		if (cpt != 32)
+@@ -1569,6 +1576,7 @@
+ 	else if (sd->p->options->culler && sd->p->options->culler(ctx, sd->p->options->opaque, r, sd->type))
+ 	{
+ 		/* This segment can be skipped */
++		sd->p->removed++;
+ 	}
+ 	else
+ 	{
+@@ -2501,7 +2509,10 @@
+ 		r = fz_transform_rect(r, ctm);
+ 
+ 		if (p->options->culler(ctx, p->options->opaque, r, FZ_CULL_IMAGE))
++		{
++			p->removed++;
+ 			return;
++		}
+ 	}
+ 
+ 	filter_flush(ctx, p, FLUSH_ALL);
+@@ -2549,7 +2560,10 @@
+ 		r = fz_intersect_rect(r, p->gstate->clip_rect);
+ 
+ 		if (p->options->culler(ctx, p->options->opaque, r, FZ_CULL_SHADING))
++		{
++			p->removed++;
+ 			return;
++		}
+ 	}
+ 
+ 	filter_flush(ctx, p, FLUSH_ALL);
+@@ -2575,7 +2589,10 @@
+ 		r = fz_transform_rect(r, ctm);
+ 
+ 		if (p->options->culler(ctx, p->options->opaque, r, FZ_CULL_IMAGE))
++		{
++			p->removed++;
+ 			return;
++		}
+ 	}
+ 
+ 	filter_flush(ctx, p, FLUSH_ALL);
+@@ -2713,6 +2730,7 @@
+ 		fz_free(ctx, bmc);
+ 		fz_rethrow(ctx);
+ 	}
++	bmc->removed = p->removed;
+ 	bmc->prev = p->pending_tags;
+ 	p->pending_tags = bmc;
+ }
+@@ -2743,6 +2761,7 @@
+ 		fz_free(ctx, bdc);
+ 		fz_rethrow(ctx);
+ 	}
++	bdc->removed = p->removed;
+ 	bdc->prev = p->pending_tags;
+ 	p->pending_tags = bdc;
+ 
+@@ -2786,6 +2805,11 @@
+ {
+ 	pdf_sanitize_processor *p = (pdf_sanitize_processor*)proc;
+ 
++	/* A pending tag that lost nothing was empty in the source;
++	 * send it, so it is closed like any other sent tag. */
++	if (p->pending_tags != NULL && p->pending_tags->removed == p->removed)
++		flush_tags(ctx, p, &p->pending_tags);
++
+ 	/* If we have any pending tags, pop one of those. If not,
+ 	 * pop one of the current ones, and pass the EMC on. */
+ 	if (p->pending_tags != NULL)
