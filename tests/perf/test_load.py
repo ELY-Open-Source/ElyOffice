@@ -7,6 +7,7 @@ import unittest
 
 import load
 import loadfiles
+import richfiles
 
 
 class ReadBack(unittest.TestCase):
@@ -17,8 +18,8 @@ class ReadBack(unittest.TestCase):
     def test_a_missing_edit_is_named(self):
         path = os.path.join(self.work, "doc-002-small.docx")
         loadfiles.small_docx(path, 2)
-        self.assertEqual(load.saved("ely-doc", path, 0), [])
-        self.assertEqual(load.saved("ely-doc", path, 3), ["doc-002-small.docx: saved tokens [0], not [3]"])
+        self.assertEqual(richfiles.saved("ely-doc", path, 0), [])
+        self.assertEqual(richfiles.saved("ely-doc", path, 3), ["doc-002-small.docx: saved tokens [0], not [3]"])
 
     def test_stale_links_fail_and_kept_links_pass(self):
         loadfiles.sources(self.work)
@@ -35,16 +36,34 @@ class ReadBack(unittest.TestCase):
     def test_an_unsaved_cell_is_named(self):
         path = os.path.join(self.work, "table-003-small.xlsx")
         loadfiles.workbook(path, 20)
-        problems = load.saved("ely-table", path, 2)
+        problems = richfiles.saved("ely-table", path, 2)
         self.assertIn("table-003-small.xlsx: Data!H1 saved None, not 2", problems)
         self.assertIn("table-003-small.xlsx: Data!A1 saved 7, not 1002", problems)
+
+    def test_lost_content_is_named(self):
+        note = os.path.join(self.work, "mark-000-big.md")
+        with open(note, "w", encoding="utf-8") as only:
+            only.write("ELYEDIT3")
+        self.assertEqual(richfiles.saved("ely-mark", note, 3), ["mark-000-big.md: the note is as written failed"])
+        big = os.path.join(self.work, "doc-000-big.docx")
+        loadfiles.big_docx(big)
+        self.assertEqual(richfiles.saved("ely-doc", big, 0), [])
+        loadfiles.rewrite(big, {"word/document.xml": lambda xml: xml.replace(" DATE ", " TIME ")})
+        self.assertEqual(richfiles.saved("ely-doc", big, 0), ["doc-000-big.docx: DATE field kept failed"])
+
+    def test_formulas_must_be_recalculated(self):
+        book = os.path.join(self.work, "table-004-small.xlsx")
+        loadfiles.workbook(book, 500)
+        kept = richfiles.book_kept(book, 500, 0)
+        self.assertTrue(kept["Calc!A2 formula kept"])
+        self.assertFalse(any(ok for what, ok in kept.items() if "recalculated" in what), "nothing computed yet")
 
     def test_typed_keys_must_all_be_there(self):
         path = os.path.join(self.work, "front.md")
         with open(path, "w", encoding="utf-8") as note:
             note.write("A paragraphxxxx.\n")
-        self.assertTrue(load.typed("ely-mark", path, 4))
-        self.assertFalse(load.typed("ely-mark", path, 5))
+        self.assertTrue(richfiles.typed("ely-mark", path, 4))
+        self.assertFalse(richfiles.typed("ely-mark", path, 5))
 
 
 class Logs(unittest.TestCase):
@@ -56,18 +75,18 @@ class Logs(unittest.TestCase):
         self.assertEqual(load.frames(lines), (150, 1, 7, 9.5, 20.0))
         self.assertIsNone(load.frames(["[x] lok: edit to tile 5 ms"]))
 
-    def test_zoom_steps_are_judged(self):
+    def test_zoom_steps_are_exact(self):
         self.assertEqual(load.zooms(["[x] lok: zoom 50%", "[x] lok: edit to tile 5 ms", "[x] lok: zoom 125%"]), [50, 125])
-        self.assertTrue(load.reached(100, [80, 67, 50, 25], "minus", 4))
-        self.assertTrue(load.reached(100, [125, 150, 200, 300, 400], "plus", 5))
-        # ElyShow's fit is unlogged: 47 % steps to 50 first.
-        self.assertTrue(load.reached(None, [50, 67, 80, 100, 125], "plus", 5))
-        self.assertFalse(load.reached(None, [50, 67, 80, 100], "plus", 5), "a lost chord")
-        self.assertFalse(load.reached(100, [100], "plus", 1))
-        self.assertFalse(load.reached(100, [], "0", -3), "the wheel did nothing")
-        self.assertTrue(load.reached(100, [90, 81], "0", -3))
-        self.assertFalse(load.reached(100, [110], "0", -3))
-        self.assertTrue(load.reached(None, [], "0", 0))
+        self.assertEqual(load.walk(0, 0), [])
+        self.assertEqual(load.walk(2, 0), [50, 67])
+        self.assertEqual(load.walk(9, 0)[-1], 400)
+        self.assertEqual(load.walk(0, 2), [50])
+        self.assertEqual(load.walk(5, -3), [50, 67, 80, 100, 125, 100])
+
+    def test_frames_are_a_verdict(self):
+        self.assertIsNotNone(load.frames_failed(None))
+        self.assertIsNotNone(load.frames_failed((10, 0, 9, 20.0, 150.0)))
+        self.assertIsNone(load.frames_failed((10, 0, 9, 20.0, 62.0)))
 
     def test_stalls_are_read(self):
         self.assertEqual(load.stalls(["[x] ui: the main thread was busy 140 ms", "[x] other"]), [140])

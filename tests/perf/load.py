@@ -264,66 +264,25 @@ def zooms(lines):
     return [int(m.group(1)) for line in lines if (m := re.search(r"lok: zoom (\d+)%", line))]
 
 
-def stepped(zoom, key, times):
+def walk(ups, wheel):
+    """The zooms logged stepping up from 25 %, then one wheel step."""
     steps = [25, 50, 67, 80, 100, 125, 150, 200, 300, 400]
-    for _ in range(times):
-        nearer = [s for s in steps if s > zoom] if key == "plus" else [s for s in steps if s < zoom][::-1]
-        zoom = nearer[0] if nearer else zoom
-    return zoom
+    seen = steps[1:ups + 1]
+    if wheel:
+        now = steps.index(seen[-1] if seen else 25)
+        seen.append(steps[min(len(steps) - 1, max(0, now + (1 if wheel > 0 else -1)))])
+    return seen
 
 
-def reached(reset, seen, key, times):
-    """Whether a step's logged zooms are those it asked for."""
-    if times == 0:
-        return True
-    if not seen:
-        return False
-    if key == "0":
-        return reset is None or (seen[-1] < reset if times < 0 else seen[-1] > reset)
-    # A fit goes unlogged; the first step anchors.
-    if reset is not None and seen[0] != stepped(reset, key, 1):
-        return False
-    return len(seen) == times and seen[-1] == stepped(seen[0], key, times - 1)
+def frames_failed(seen):
+    """Why frames break PERF-02, or None."""
+    if seen is None:
+        return "no frame line was logged"
+    return f"a frame took {seen[4]:.0f} ms from dirty to shown" if seen[4] > TARGET else None
 
 
 def stalls(lines):
     return [int(m.group(1)) for line in lines if (m := re.search(feedback.STALL, line))]
-
-
-def typed(slug, path, count):
-    """Whether the front document saved every key typed."""
-    if slug == "ely-table":
-        value = loadfiles.cell(path, "Typing", "A1")
-        return value is not None and abs(float(value) / float("1" * count) - 1) < 1e-9
-    return "x" * count in loadfiles.text_of(path)
-
-
-def saved(slug, path, rounds):
-    """What a saved document lost of its edits and links."""
-    name, problems = os.path.basename(path), []
-    if slug == "ely-table":
-        want = {("Data", "H1"): rounds, ("Data", "A1"): 1000 + rounds, ("Calc", "A1"): 2 * (1000 + rounds)}
-        for (sheet, ref), value in want.items():
-            got = loadfiles.cell(path, sheet, ref)
-            if got is None or float(got) != value:
-                problems.append(f"{name}: {sheet}!{ref} saved {got}, not {value}")
-        if loadfiles.formula(path, "Calc", "A1") is None:
-            problems.append(f"{name}: Calc!A1 lost its formula")
-        if "-big" in name:
-            kept = {**loadfiles.book_links(path), **richfiles.xlsx_kept(path)}
-            problems += [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
-        return problems
-    found = loadfiles.tokens(path)
-    if found != [rounds]:
-        problems.append(f"{name}: saved tokens {found}, not [{rounds}]")
-    kept = {}
-    if "-linked" in name:
-        kept = loadfiles.word_links(path)
-    elif "-big.docx" in name:
-        kept = richfiles.docx_kept(path)
-    elif "-big.pptx" in name:
-        kept = richfiles.pptx_kept(path)
-    return problems + [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
 
 
 def one_app(slug, folder, work, args):
@@ -375,10 +334,11 @@ def one_app(slug, folder, work, args):
     failed = [line for line in lines if re.search(run.PAINT_FAILED, line)]
     out["problems"] += [f"painting: {failed[0][-160:]}"] if failed else []
     keys = len(out["idle"][0]) + len(out["editing"][0])
-    if not typed(slug, front, keys):
+    if not richfiles.typed(slug, front, keys):
         out["problems"].append(f"front: the {keys} keys typed are not all saved")
     for path in files:
-        out["problems"] += saved(slug, path, args.rounds)
+        out["problems"] += richfiles.saved(slug, path, args.rounds)
+    free_gb()
     out["stalls"], out["free GB"] = stalls(lines), FLOOR.lowest
     return out
 
@@ -393,6 +353,8 @@ def row(slug, out):
         if slow:
             out["problems"].append(f"PERF-02: {len(slow)} of {len(ticks)} keys over {TARGET} ms {phase}, max {max(slow)} ms")
         seen = frames(lines)
+        if why := frames_failed(seen):
+            out["problems"].append(f"PERF-02: {why} {phase}")
         late = "no frame line" if seen is None else f"{seen[2]}/{seen[0]}, p95 ≤{seen[3]:.1f}, max {seen[4]:.1f}"
         cells += [f"{len(ticks)}: {percentile(ticks, 0.5)} / {p95} / {max(ticks)}", late, str(len(stalls(lines)))]
     cells += [f"{percentile(out['edits'], 0.5):.0f} / {percentile(out['edits'], 0.95):.0f}" if out["edits"] else "none",

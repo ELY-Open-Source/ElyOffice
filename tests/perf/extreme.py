@@ -2,6 +2,7 @@
 """PERF-10's extreme cases on real windows, each one checked."""
 
 import argparse
+import contextlib
 import datetime
 import json
 import os
@@ -21,7 +22,8 @@ import run
 from load import RECIPES
 from run import APPS, App
 
-ZOOMS = [("reset", "0", 0), ("25", "minus", 4), ("67", "minus", 2), ("125", "plus", 1), ("400", "plus", 5), ("wheel+2", "0", 2), ("wheel-3", "0", -3)]
+# Name, steps up from the 25 % floor, wheel notches.
+ZOOMS = [("25", 0, 0), ("67", 2, 0), ("100", 4, 0), ("125", 5, 0), ("400", 9, 0), ("wheel+2", 0, 2), ("wheel-3", 5, -3)]
 CASES = {}
 VERB = {**dict.fromkeys(RECIPES, "text"), "ely-table": "cell"}
 WORK = ""
@@ -52,6 +54,20 @@ def start(name, slug, files, front=None):
         app.stop()
         raise
     return app
+
+
+@contextlib.contextmanager
+def running(name, slug, files, front=None, clicks=False):
+    """The app for one case; void if someone used the desktop."""
+    app = start(name, slug, files, front)
+    try:
+        yield app
+        # The log flushes every two seconds.
+        time.sleep(2.5)
+        if why := load.interfered(app, 0 if clicks else len(app.lines()), moves=True):
+            raise load.Interfered(why)
+    finally:
+        app.stop()
 
 
 def said(app, *words, timeout=300):
@@ -94,16 +110,13 @@ def missing_sources():
         path = os.path.join(folder, f"linked.{loadfiles.EXT[slug]}")
         loadfiles.linked_docx(path, folder) if slug == "ely-doc" else loadfiles.workbook(path, 2000, linked=True, typing=True)
         began = time.monotonic()
-        app = start("missing", slug, [path])
-        took = (time.monotonic() - began) * 1000
-        try:
+        with running("missing", slug, [path]) as app:
+            took = (time.monotonic() - began) * 1000
             typing_into(app)
             ticks, _ = load.type_keys(app, RECIPES[slug], 5)
             RECIPES[slug].finish(app.process.pid)
             said(app, VERB[slug], "save", path)
             warned = lines_matching(app, r"(WARN|ERROR).*(link|source|not found|missing)")
-        finally:
-            app.stop()
         kept = loadfiles.word_links(path) if slug == "ely-doc" else loadfiles.book_links(path)
         lost = [what for what, ok in kept.items() if not ok and "shows" not in what]
         rows.append((f"{APPS[slug]}: opens a file whose link sources are missing", not lost,
@@ -123,8 +136,7 @@ def changed_sources():
     loadfiles.sources(folder)
     book, source = os.path.join(folder, "book.xlsx"), os.path.join(folder, "source.xlsx")
     loadfiles.workbook(book, 200, linked=True)
-    app = start("changed", "ely-table", [book])
-    try:
+    with running("changed", "ely-table", [book], clicks=True) as app:
         closed = value_of(app, book, "Links!A1")
         drive.sh(run.HOST.exe("ely-table", True), source, env=app.env, timeout=120)
         load.wait_opened(app, 2, 60)
@@ -132,8 +144,6 @@ def changed_sources():
         said(app, "cell", "save", source)
         time.sleep(3)
         live = value_of(app, book, "Links!A1")
-    finally:
-        app.stop()
     rows = [("ElyTable: an external reference to a closed source shows the source's value", closed == loadfiles.RATES_NOW[0],
              f"Links!A1 shows {closed}; the cache holds {loadfiles.RATES_CACHED[0]}, the source {loadfiles.RATES_NOW[0]}"),
             ("ElyTable: the reference follows its source edited and saved in the same app", live == 9.99,
@@ -142,18 +152,20 @@ def changed_sources():
     loadfiles.sources(folder)
     path = os.path.join(folder, "linked.docx")
     loadfiles.linked_docx(path, folder)
-    app = start("changed", "ely-doc", [path])
-    try:
+    with running("changed", "ely-doc", [path], clicks=True) as app:
         opened = said(app, "text", "get", path)
         loadfiles.word(os.path.join(folder, "include.docx"), [loadfiles.para("Included changed")])
+        old = open(os.path.join(folder, "picture.png"), "rb").read()
+        loadfiles.sources(folder, rates=[9 + m / 100 for m in range(1, 13)], seed=5)
         time.sleep(3)
         later = said(app, "text", "get", path)
-    finally:
-        app.stop()
+        said(app, "text", "save", path)
     rows.append(("ElyDoc: INCLUDETEXT shows its source's text on opening", loadfiles.INCLUDED_NOW in opened,
                  f"shows {'the source' if loadfiles.INCLUDED_NOW in opened else 'the cached'} text"))
     rows.append(("ElyDoc: INCLUDETEXT follows its source changed while open", "Included changed" in later,
                  "followed" if "Included changed" in later else "kept the old text"))
+    rows += [(f"ElyDoc: {what} after its source changed", ok, "read in the saved file")
+             for what, ok in loadfiles.word_updates(path, old).items()]
     return rows
 
 
@@ -172,9 +184,8 @@ def three_switching():
         front = loadfiles.front_file(folder, slug)
         files = [shutil.copy(front, os.path.join(folder, f"{name}.{loadfiles.EXT[slug]}")) for name in "abc"]
         base = {path: loadfiles.text_of(path).count("x") for path in files}
-        app = start("switching", slug, files)
-        typed, problems, slow, focused = dict.fromkeys(files, 0), [], [], []
-        try:
+        with running("switching", slug, files) as app:
+            typed, problems, slow, focused = dict.fromkeys(files, 0), [], [], []
             app.front()
             busy = threading.Thread(target=edit_others, args=(app, files, 3, problems), daemon=True)
             busy.start()
@@ -199,12 +210,10 @@ def three_switching():
             for path in files:
                 said(app, "text", "save", path)
             alive = app.process.poll() is None
-        finally:
-            app.stop()
         lost = {os.path.basename(path): (loadfiles.text_of(path).count("x") - base[path], keys) for path, keys in typed.items()
                 if loadfiles.text_of(path).count("x") - base[path] != keys}
         tokens = {os.path.basename(path): loadfiles.tokens(path) for path in files}
-        ok = alive and not lost and not problems and all(focused) and all(found == [3] for found in tokens.values())
+        ok = alive and not lost and not problems and not slow and all(focused) and all(found == [3] for found in tokens.values())
         rows.append((f"{APPS[slug]}: three open, tabs switched while typing and while all are edited", ok,
                      f"keys stay in the document after {focused.count(True)} of {len(focused)} tab switches; "
                      f"{sum(typed.values())} keys, {len(slow)} over {load.TARGET} ms; keys lost (saved, typed): {lost or 'none'}; "
@@ -219,18 +228,17 @@ def save_while_typing():
     for slug in RECIPES:
         folder = place("saving", slug)
         front = loadfiles.front_file(folder, slug)
-        app = start("saving", slug, [front])
-        saves, failures = [], []
+        with running("saving", slug, [front]) as app:
+            saves, failures = [], []
 
-        def keep_saving(stop):
-            while not stop.is_set():
-                try:
-                    saves.append(load.ask(app, [VERB[slug], "save", front]))
-                except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
-                    failures.append(str(error))
-                time.sleep(0.5)
+            def keep_saving(stop):
+                while not stop.is_set():
+                    try:
+                        saves.append(load.ask(app, [VERB[slug], "save", front]))
+                    except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+                        failures.append(str(error))
+                    time.sleep(0.5)
 
-        try:
             typing_into(app)
             stop = threading.Event()
             saver = threading.Thread(target=keep_saving, args=(stop,), daemon=True)
@@ -243,12 +251,10 @@ def save_while_typing():
             RECIPES[slug].finish(app.process.pid)
             time.sleep(1)
             said(app, VERB[slug], "save", front)
-        finally:
-            app.stop()
         slow = [tick for tick in ticks if tick > load.TARGET]
-        ok = load.typed(slug, front, 40) and not failures and not slow
+        ok = richfiles.typed(slug, front, 40) and not failures and not slow
         rows.append((f"{APPS[slug]}: saved {len(saves)} times while 40 keys went in", ok,
-                     f"keys P95 {load.percentile(ticks, 0.95)} max {max(ticks)} ms, {len(slow)} over {load.TARGET}; every key saved: {load.typed(slug, front, 40)}; "
+                     f"keys P95 {load.percentile(ticks, 0.95)} max {max(ticks)} ms, {len(slow)} over {load.TARGET}; every key saved: {richfiles.typed(slug, front, 40)}; "
                      f"save failures: {failures[:2] or 'none'}"))
     return rows
 
@@ -262,8 +268,7 @@ def close_unsaved():
         front = loadfiles.front_file(folder, slug)
         other = os.path.join(folder, f"other.{loadfiles.EXT[slug]}")
         shutil.copy(front, other)
-        app = start("closing", slug, [other], front)
-        try:
+        with running("closing", slug, [other], front) as app:
             typing_into(app)
             load.type_keys(app, RECIPES[slug], 5)
             RECIPES[slug].finish(app.process.pid)
@@ -272,7 +277,7 @@ def close_unsaved():
             asked = any(run.HOST.shows(app.process.pid, "Don't Save") or time.sleep(0.25) for _ in range(40))
             if not asked and lines_matching(app, r"closed front\."):
                 # ElyMark saves as it goes; nothing is left to ask.
-                written = load.typed(slug, front, 5)
+                written = richfiles.typed(slug, front, 5)
                 rows.append((f"{APPS[slug]}: closing an autosaved document", written, f"closed at once; the keys on disk {written}"))
                 continue
             run.HOST.key(app.process.pid, "escape")
@@ -285,9 +290,7 @@ def close_unsaved():
                 time.sleep(0.25)
             run.HOST.press(app.process.pid, "Save")
             closed = any(lines_matching(app, r"office: closed front\.") or time.sleep(0.25) for _ in range(80))
-        finally:
-            app.stop()
-        written = load.typed(slug, front, 5)
+        written = richfiles.typed(slug, front, 5)
         rows.append((f"{APPS[slug]}: closing an edited document asks, cancels and saves", asked and kept and closed and written,
                      f"asked {asked}; Escape kept it with its keys {kept}; Save closed it {closed}; the keys on disk {written}"))
     return rows
@@ -301,8 +304,7 @@ def engine_killed():
         folder = place("killed", slug)
         front = loadfiles.front_file(folder, slug)
         others = [shutil.copy(front, os.path.join(folder, f"other{n}.{loadfiles.EXT[slug]}")) for n in range(2)]
-        app = start("killed", slug, others, front)
-        try:
+        with running("killed", slug, others, front) as app:
             typing_into(app)
             load.type_keys(app, RECIPES[slug], 10)
             RECIPES[slug].finish(app.process.pid)
@@ -326,8 +328,6 @@ def engine_killed():
             # Edited tabs reopen as unsaved copies (decisions 2026-10-08).
             points = {name: richfiles.held(slug, path) for name, path in richfiles.newest_points(app, WORK).items()}
             alive = app.process.poll() is None
-        finally:
-            app.stop()
         front_keys = points.get("front." + loadfiles.EXT[slug], (0, None))[0]
         edited = all(points.get(os.path.basename(path), (0, None))[1] in ([1], "1") for path in others)
         ok = alive and noticed and reopened and front_keys >= 10 and edited
@@ -346,31 +346,32 @@ def zoom():
         shots = place("zoom", slug)
         path = os.path.join(shots, f"big.{loadfiles.EXT[slug]}")
         shutil.copy(os.path.join(folder, f"big.{loadfiles.EXT[slug]}"), path)
-        app, missed = start("zoom", slug, [path]), []
-        try:
+        missed = []
+        with running("zoom", slug, [path]) as app:
             app.front()
             time.sleep(3)
-            for name, key, times in ZOOMS:
+            for name, ups, wheel in ZOOMS:
                 before = len(app.lines())
                 run.HOST.chord(app.process.pid, "0")
+                for _ in range(9):
+                    run.HOST.chord(app.process.pid, "minus")
                 # The log reaches the file within two seconds.
                 time.sleep(2.5)
-                reset, since = (load.zooms(app.lines()[before:]) or [None])[-1], len(app.lines())
-                for _ in range(abs(times) if not name.startswith("wheel") else 0):
-                    run.HOST.chord(app.process.pid, key)
+                floor, since = load.zooms(app.lines()[before:])[-1:], len(app.lines())
+                for _ in range(ups):
+                    run.HOST.chord(app.process.pid, "plus")
                     time.sleep(0.3)
-                if name.startswith("wheel"):
-                    run.HOST.wheel(app.process.pid, times)
+                if wheel:
+                    run.HOST.wheel(app.process.pid, wheel)
                 if slug == "ely-table":
                     # A1's selection border, against its gridlines.
                     run.HOST.chord(app.process.pid, "home")
                 time.sleep(3)
                 run.HOST.shot(app.process.pid, os.path.join(shots, f"{slug[4:]}-{name}.png"))
-                if not load.reached(reset, seen := load.zooms(app.lines()[since:]), key, times):
-                    missed.append(f"{name}: from {reset} through {seen}")
+                seen = load.zooms(app.lines()[since:])
+                if floor != [25] or seen != load.walk(ups, wheel):
+                    missed.append(f"{name}: floor {floor}, then {seen}")
             failed = lines_matching(app, run.PAINT_FAILED)
-        finally:
-            app.stop()
         rows.append((f"{APPS[slug]}: zoom 25 % to 400 % and by wheel", not failed and not missed,
                      f"tiles failed: {len(failed)}; zoom not as asked: {missed or 'none'}; screenshots in {shots}"))
     return rows
@@ -384,9 +385,8 @@ def rapid_open_close():
         folder = place("rapid", slug)
         front = loadfiles.front_file(folder, slug)
         files = [shutil.copy(front, os.path.join(folder, f"r{n:02d}.{loadfiles.EXT[slug]}")) for n in range(20)]
-        app = start("rapid", slug, [front])
-        times, memory = [], [app.memory_mb()]
-        try:
+        with running("rapid", slug, [front], clicks=True) as app:
+            times, memory = [], [app.memory_mb()]
             app.front()
             for _ in range(3):
                 since, began = len(app.lines()), time.monotonic()
@@ -404,8 +404,6 @@ def rapid_open_close():
                 times.append((opened * 1000, (time.monotonic() - began - opened) * 1000))
                 memory.append(app.memory_mb())
             alive = app.process.poll() is None
-        finally:
-            app.stop()
         rows.append((f"{APPS[slug]}: 20 handed over at once and closed by key, 3 times", alive,
                      f"open / close ms {[(round(a), round(b)) for a, b in times]}; memory MB {[round(m) for m in memory]}"))
     return rows
@@ -429,9 +427,8 @@ def huge(slug):
     path = os.path.join(place("large", slug), f"huge.{loadfiles.EXT[slug]}")
     richfiles.huge_sample(slug, path)
     size, began = os.path.getsize(path) / 2**20, time.monotonic()
-    app = start("large", slug, [path])
-    opened = (time.monotonic() - began) * 1000
-    try:
+    with running("large", slug, [path]) as app:
+        opened = (time.monotonic() - began) * 1000
         # ElyMark shows files past LARGEST_READ as source.
         typing_into(app, run.HOST.middle if slug == "ely-mark" else None)
         ticks, typed_lines = load.type_keys(app, RECIPES[slug], 20)
@@ -439,12 +436,10 @@ def huge(slug):
         edit = [load.ask(app, words) for words in RECIPES[slug].edits(path, 1)]
         saved = load.ask(app, [VERB[slug], "save", path])
         memory = app.memory_mb()
-    finally:
-        app.stop()
-    problems = [] if load.typed(slug, path, 20) else ["the 20 keys are not all saved"]
-    problems += load.saved(slug, path, 1)
-    problems += [what for what, ok in richfiles.huge_kept(slug, path).items() if not ok]
+    problems = [] if richfiles.typed(slug, path, 20) else ["the 20 keys are not all saved"]
+    problems += richfiles.saved(slug, path, 1)
     seen = load.frames(typed_lines)
+    problems += [why] if (why := load.frames_failed(seen)) else []
     drawn = "no frame line" if seen is None else f"frames over 8.3 ms {seen[2]}/{seen[0]}, dirty to shown max {seen[4]:.1f} ms"
     slow = [tick for tick in ticks if tick > load.TARGET]
     return (f"{APPS[slug]}: a {size:.0f} MB file", not problems and not slow,

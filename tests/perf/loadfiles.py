@@ -192,8 +192,8 @@ def workbook(path, rows, linked=False, typing=False):
     package(path, "xl/workbook.xml", BOOK_MAIN, parts, rels, overrides)
 
 
-def source_xlsx(path):
-    rows = "".join(cells(m, [m, v]) for m, v in enumerate(RATES_NOW, 1))
+def source_xlsx(path, rates=RATES_NOW):
+    rows = "".join(cells(m, [m, v]) for m, v in enumerate(rates, 1))
     ns = f'xmlns="{S[1:-1]}" xmlns:r="{REL}"'
     package(path, "xl/workbook.xml", BOOK_MAIN,
             {"xl/workbook.xml": f'<workbook {ns}><sheets><sheet name="Rates" sheetId="1" r:id="s1"/></sheets></workbook>',
@@ -290,12 +290,13 @@ def role(slug, i):
     return "linked" if slug == "ely-doc" and i % 10 == 1 else "small"
 
 
-def sources(work):
-    """What the linked documents point at."""
-    source_xlsx(os.path.join(work, "source.xlsx"))
-    word(os.path.join(work, "include.docx"), [para(INCLUDED_NOW)])
+def sources(work, rates=RATES_NOW, seed=4):
+    """What the linked documents point at; later, newer ones."""
+    source_xlsx(os.path.join(work, "source.xlsx"), rates)
+    if seed == 4:
+        word(os.path.join(work, "include.docx"), [para(INCLUDED_NOW)])
     with open(os.path.join(work, "picture.png"), "wb") as png:
-        png.write(samples.noise_png(4, 64, 64))
+        png.write(samples.noise_png(seed, 64, 64))
 
 
 def documents(folder, work, slug, n):
@@ -420,3 +421,12 @@ def book_links(path):
     return {"external book kept": any(t.endswith("source.xlsx") for t in targets),
             "Links!A1 formula kept": bool(re.search(r"\[\d+\]Rates!\$B\$1", used)),
             "Links!A1 shows the source's value": value is not None and abs(float(value) - RATES_NOW[0]) < 1e-9}
+
+
+def word_updates(path, old_picture):
+    """Saved DOCX: no stale picture copy, no stale OLE preview."""
+    with zipfile.ZipFile(path) as archive:
+        media = [archive.read(name) for name in archive.namelist() if name.startswith("word/media/")]
+    links = word_links(path)
+    return {"the linked picture stays a link, no stale copy": links["linked picture kept"] and old_picture not in media,
+            "the OLE link stays, its preview renewed": links["OLE link kept"] and samples.noise_png(9, 120, 60) not in media}

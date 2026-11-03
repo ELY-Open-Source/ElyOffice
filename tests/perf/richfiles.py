@@ -4,10 +4,12 @@ import json
 import os
 import re
 import shutil
+import tempfile
 import zipfile
 
 import loadfiles
 import samples
+
 
 COMMENTS = "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"
 DRAWING = "application/vnd.openxmlformats-officedocument.drawing+xml"
@@ -51,6 +53,8 @@ def docx_kept(path):
     return {"comment kept": "word/comments.xml" in names and "commentReference" in xml,
             "insertion kept": "<w:ins " in xml, "deletion kept": "<w:del " in xml,
             "TOC kept": "TOC \\o" in xml, "PAGE field kept": re.search(r"instrText[^>]*>\s*PAGE", xml) is not None,
+            "DATE field kept": re.search(r"instrText[^>]*>\s*DATE", xml) is not None,
+            "100 pages kept": len(re.findall(r"Page \d+", loadfiles.text_of(path))) >= 100,
             "20 pictures kept": sum(name.startswith("word/media/") for name in names) >= 20}
 
 
@@ -204,3 +208,90 @@ def huge_kept(slug, path):
     pages = len(re.findall(r"Page \d+", loadfiles.text_of(path)))
     return {f"{n} pages kept": pages == n, f"{n // 5} tables kept": xml.count("<w:tbl>") >= n // 5,
             f"{n // 10} pictures kept": sum(name.startswith("word/media/") for name in names) >= n // 10}
+
+
+def typed(slug, path, count):
+    """Whether the front document saved every key typed."""
+    if slug == "ely-table":
+        value = loadfiles.cell(path, "Typing", "A1")
+        return value is not None and abs(float(value) / float("1" * count) - 1) < 1e-9
+    return "x" * count in loadfiles.text_of(path)
+
+
+def saved(slug, path, rounds):
+    """What a saved document lost of its edits and links."""
+    name, problems = os.path.basename(path), []
+    if slug == "ely-table":
+        want = {("Data", "H1"): rounds, ("Data", "A1"): 1000 + rounds, ("Calc", "A1"): 2 * (1000 + rounds)}
+        for (sheet, ref), value in want.items():
+            got = loadfiles.cell(path, sheet, ref)
+            if got is None or float(got) != value:
+                problems.append(f"{name}: {sheet}!{ref} saved {got}, not {value}")
+        kept = book_kept(path, ROWS.get(name.split("-")[-1].split(".")[0], HUGE["ely-table"]), rounds)
+        if "-big" in name:
+            kept = {**kept, **loadfiles.book_links(path), **xlsx_kept(path)}
+        return problems + [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
+    found = loadfiles.tokens(path)
+    if found != [rounds]:
+        problems.append(f"{name}: saved tokens {found}, not [{rounds}]")
+    kept = loadfiles.word_links(path) if "-linked" in name else original(slug, path, rounds)
+    return problems + [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
+
+
+# Data rows by sample kind, as loadfiles writes them.
+ROWS = {"small": 500, "big": 20000}
+
+
+def data(rows, rounds):
+    """Data's columns A to G after the edits set A1."""
+    table = [[(r * 7 + c * 13) % 100 for c in range(5)] for r in range(1, rows + 1)]
+    table[0][0] = 1000 + rounds
+    return [row + [sum(row) * (1 if row[0] % 2 == 0 else -1), f"cat{r % 7}"] for r, row in enumerate(table, 1)]
+
+
+def book_kept(path, rows, rounds):
+    """Complex formulas still there, and their values recalculated."""
+    d = data(rows, rounds)
+    a, b, f = [row[0] for row in d], [row[1] for row in d], [row[5] for row in d]
+    middle = sorted(row[3] for row in d)
+    want = {"A2": sum(row[5] for row in d if row[6] == "cat3" and row[0] > 50),
+            "A3": sum(1 for row in d if row[6] == "cat1" and row[1] < 40),
+            "A4": next(row[5] for row in d if row[0] == 42),
+            "A5": f[b.index(max(b))],
+            "A7": sum(row[5] for row in d if row[0] > 10 and row[1] < 90),
+            "A11": (middle[(rows - 1) // 2] + middle[rows // 2]) / 2,
+            f"B{rows}": b[0] + 0.5 * sum(b[1:]), f"C{rows + 1}": sum(x * y for x, y in zip(a, b))}
+    kept = {}
+    for ref, value in want.items():
+        got = loadfiles.cell(path, "Calc", ref)
+        kept[f"Calc!{ref} formula kept"] = loadfiles.formula(path, "Calc", ref) is not None
+        kept[f"Calc!{ref} recalculated to {value:g}"] = got is not None and abs(float(got) - value) <= 1e-6 * max(1, abs(value))
+    for ref in ("A6", "A8", "A9", "A10", "A12", "A13", "A14", "A15", "A16", "D1", "E1"):
+        kept[f"Calc!{ref} formula kept"] = loadfiles.formula(path, "Calc", ref) is not None
+    return kept
+
+
+def original(slug, path, rounds):
+    """The sample's own content, beyond the edit token."""
+    name = os.path.basename(path)
+    if name.startswith("huge."):
+        return huge_kept(slug, path)
+    if "-big" in name and slug in ("ely-doc", "ely-show"):
+        return docx_kept(path) if slug == "ely-doc" else pptx_kept(path)
+    if slug == "ely-mark":
+        text = loadfiles.text_of(path).replace(f"{loadfiles.TOKEN}{rounds}", f"{loadfiles.TOKEN}0")
+        return {"the note is as written": text == expected_md(name)}
+    if slug == "ely-show":
+        return {"9 slides kept": loadfiles.text_of(path).count("\n") == 8}
+    text = loadfiles.text_of(path)
+    return {"36 paragraphs kept": text.count("Ely Office opens many documents at once.") == 36 * 12,
+            "the table kept": all(f"R{r}C{c}" in text for r in range(10) for c in range(4))}
+
+
+def expected_md(name):
+    """A Markdown sample's text, as loadfiles wrote it."""
+    if "-big" not in name:
+        return loadfiles.small_md(int(name.split("-")[1]))
+    with tempfile.TemporaryDirectory() as folder:
+        loadfiles.big_md(os.path.join(folder, "big.md"))
+        return loadfiles.text_of(os.path.join(folder, "big.md"))
