@@ -1,4 +1,4 @@
-use super::{catalogs, es, resolve, spanish_catalog, spanish_key};
+use super::{catalogs, es, resolve, spanish_catalog, spanish_keys};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[test]
@@ -29,9 +29,10 @@ fn arguments(message: &str) -> BTreeSet<&str> {
 #[test]
 fn spanish_covers_doc_table_and_shared_messages_without_duplicates() {
     let (en, _) = catalogs();
+    let covered = spanish_keys();
     let source: BTreeMap<_, _> = en
         .iter()
-        .filter(|(key, _)| spanish_key(key))
+        .filter(|(key, _)| covered.contains(key))
         .copied()
         .collect();
     let translated = es::catalog();
@@ -61,6 +62,8 @@ fn spanish_catalog_renders_menus_counts_and_errors(cx: &mut gpui::TestAppContext
         assert_eq!(super::text(cx, "menu.edit", &[]), "Editar");
         assert_eq!(super::text(cx, "menu.view", &[]), "Ver");
         assert_eq!(super::text(cx, "table.sheet.insert", &[]), "Insertar hoja");
+        assert_eq!(super::text(cx, "settings.paper.letter", &[]), super::text(cx, "doc.paper.letter", &[]));
+        assert_eq!(super::text(cx, "doc.paper.legal", &[]), "Legal");
         assert_eq!(super::word_count(cx, 1, 1, None), "1 palabra, 1 carácter");
         assert_eq!(super::word_count(cx, 2, 3, Some(1)), "1 de 2 palabras");
         assert_eq!(

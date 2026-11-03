@@ -264,15 +264,16 @@ fn catalogs() -> (Catalog, Catalog) {
 
 /// Other apps retain English until their translations are contributed.
 fn spanish_catalog(en: &[(&'static str, &'static str)]) -> Catalog {
-    let translated = es::catalog();
-    en.iter().filter(|(key, _)| !spanish_key(key)).copied()
-        .chain(translated).collect()
+    let covered = spanish_keys();
+    en.iter().filter(|(key, _)| !covered.contains(key)).copied().chain(es::catalog()).collect()
 }
 
-fn spanish_key(key: &str) -> bool {
-    [EN, office::EN, doc::EN, refs::EN, tools::EN, table::EN,
-        calc::EN, data::EN, analysis::EN, output::EN, settings::EN]
-        .iter().any(|catalog| catalog.iter().any(|(each, _)| *each == key))
+/// Keys of the modules translated into Spanish.
+fn spanish_keys() -> std::collections::HashSet<&'static str> {
+    [EN, office::EN, doc::EN, refs::EN, tools::EN, table::EN, calc::EN, data::EN, analysis::EN, output::EN, settings::EN]
+        .iter()
+        .flat_map(|catalog| catalog.iter().map(|(key, _)| *key))
+        .collect()
 }
 
 /// `ELY_LOCALE`, then the language setting, then the system's.
