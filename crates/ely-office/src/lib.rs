@@ -87,6 +87,8 @@ pub trait Host: Sized + 'static {
     }
     /// Runs as tab `tab` leaves, saved, clean or discarded.
     fn tab_closed(&mut self, _tab: &Tab<Self::Extra, Self::Engine>, _: &mut Context<Self>) {}
+    /// Runs when tab `id` comes to the front.
+    fn tab_shown(&mut self, _id: u64, _: &mut Context<Self>) {}
 
     /// Tab `tab`'s document as last seen; reads and numbered commands.
     fn read_at(&self, _tab: u64, _cx: &App) -> Option<<Self::Engine as Engine>::Doc> {
@@ -173,6 +175,8 @@ pub struct Core<H: Host> {
     pub sessions: Sessions,
     pub tabs: Vec<Tab<H::Extra, H::Engine>>,
     pub active: Option<u64>,
+    /// The tab last brought to the front.
+    shown: Option<u64>,
     /// Loads in flight: tab id and name.
     pub loading: Vec<(u64, SharedString)>,
     pub focus: FocusHandle,
@@ -210,11 +214,13 @@ pub struct Core<H: Host> {
 impl<H: Host> Core<H> {
     /// `stop` comes before sharing; never lock the worker here.
     pub fn new(worker: Arc<Mutex<WorkerOf<H>>>, stop: Option<Stop>, work: PathBuf, cx: &mut Context<H>) -> Self {
+        cx.observe_self(chrome::follow_front).detach();
         Core {
             worker,
             sessions: Sessions::default(),
             tabs: Vec::new(),
             active: None,
+            shown: None,
             loading: Vec::new(),
             focus: cx.focus_handle(),
             root: WeakEntity::new_invalid(),

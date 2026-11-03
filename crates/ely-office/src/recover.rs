@@ -1,7 +1,7 @@
 //! Recovery points of open documents, back after crashes (§6.3).
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     io,
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
@@ -83,6 +83,12 @@ impl Keeping {
     #[cfg(feature = "test-support")]
     pub fn in_folder(dir: PathBuf) -> io::Result<Self> {
         Self::start_in(dir)
+    }
+
+    /// Points being written now, for tests.
+    #[cfg(feature = "test-support")]
+    pub fn writing(&self) -> usize {
+        self.slots.values().filter(|slot| slot.writing).count()
     }
 
     fn start_in(dir: PathBuf) -> io::Result<Self> {
@@ -245,47 +251,57 @@ pub trait Recovering: Host {
         if self.core().window.is_some() {
             self.reopen_crashed(cx);
         }
-        let app = Self::KIND.app;
-        let due: Vec<(u64, u64)> = self
-            .core()
-            .tabs
-            .iter()
-            .filter(|tab| tab.dirty(cx) && !tab.exporting && Self::Engine::settled(tab.view.read(cx)))
-            .map(|tab| (tab.id, Self::Engine::edited(tab.view.read(cx))))
-            .filter(|(id, edited)| {
-                let slot = self.core().keeping.as_ref().and_then(|keeping| keeping.slots.get(id));
-                slot.is_some_and(|slot| !slot.writing && slot.written != Some(*edited))
-            })
-            .collect();
-        for (id, edited) in due {
-            let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
-            let slot = keeping.slots.get_mut(&id).expect("a due tab has a slot");
-            slot.writing = true;
-            let kept = slot.kept.clone();
-            let folder = keeping.folder(&kept.slot);
-            let work = self.tab(id).expect("a due tab").work.join(format!("recovery.{}", kept.format));
-            let sealed = kept.sealed;
-            self.read_in(
-                id,
-                move |worker, doc| {
-                    Self::Engine::snapshot(worker, doc, &work, &kept.format)?;
-                    let bytes = std::fs::read(&work)?;
-                    std::fs::remove_file(&work)?;
-                    Ok(bytes)
-                },
-                move |host, bytes, _, cx| {
-                    let Ok(bytes) = bytes else { return host.point_written(id, edited, bytes.map(drop), cx) };
-                    // Sealing and fsync never hold the worker.
-                    let task = cx.background_spawn(async move { write_point(app, folder, sealed, &bytes) });
-                    cx.spawn(async move |this: WeakEntity<Self>, cx: &mut AsyncApp| {
-                        let written = task.await;
-                        this.update(cx, |host, cx| host.point_written(id, edited, written, cx)).ok();
-                    })
-                    .detach();
-                },
-                cx,
-            );
+        // The last tick's points still run.
+        if self.core().keeping.as_ref().is_some_and(|keeping| keeping.slots.values().any(|slot| slot.writing)) {
+            return;
         }
+        let due = self.core().tabs.iter().map(|tab| tab.id).collect();
+        self.write_points(due, cx);
+    }
+
+    /// Edits of tab `id` a point is due for.
+    fn point_due(&self, id: u64, cx: &gpui::App) -> Option<u64> {
+        let tab = self.tab(id).filter(|tab| tab.dirty(cx) && !tab.exporting && Self::Engine::settled(tab.view.read(cx)))?;
+        let edited = Self::Engine::edited(tab.view.read(cx));
+        let slot = self.core().keeping.as_ref()?.slots.get(&id)?;
+        (!slot.writing && slot.written != Some(edited)).then_some(edited)
+    }
+
+    /// One snapshot at a time: keys wait for one.
+    fn write_points(&mut self, mut tabs: VecDeque<u64>, cx: &mut Context<Self>) {
+        let app = Self::KIND.app;
+        let Some((id, edited)) = std::iter::from_fn(|| tabs.pop_front()).find_map(|id| Some((id, self.point_due(id, cx)?))) else {
+            return;
+        };
+        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
+        let slot = keeping.slots.get_mut(&id).expect("a due tab has a slot");
+        slot.writing = true;
+        let kept = slot.kept.clone();
+        let folder = keeping.folder(&kept.slot);
+        let work = self.tab(id).expect("a due tab").work.join(format!("recovery.{}", kept.format));
+        let sealed = kept.sealed;
+        self.read_in(
+            id,
+            move |worker, doc| {
+                Self::Engine::snapshot(worker, doc, &work, &kept.format)?;
+                let bytes = std::fs::read(&work)?;
+                std::fs::remove_file(&work)?;
+                Ok(bytes)
+            },
+            move |host, bytes, _, cx| {
+                // The worker is free: the next tab's turn.
+                host.write_points(tabs, cx);
+                let Ok(bytes) = bytes else { return host.point_written(id, edited, bytes.map(drop), cx) };
+                // Sealing and fsync never hold the worker.
+                let task = cx.background_spawn(async move { write_point(app, folder, sealed, &bytes) });
+                cx.spawn(async move |this: WeakEntity<Self>, cx: &mut AsyncApp| {
+                    let written = task.await;
+                    this.update(cx, |host, cx| host.point_written(id, edited, written, cx)).ok();
+                })
+                .detach();
+            },
+            cx,
+        );
     }
 
     /// A point's write ended; a failure shows once.
