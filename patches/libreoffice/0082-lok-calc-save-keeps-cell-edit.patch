@@ -11,7 +11,9 @@ Now a save writes the cells as entered and the edit stays open. The
 the view. An entry Calc would discard stays open and the save fails
 with a reason (TerminateEditing now says whether the edit ended), so a
 close never drops it: one its validity rule refuses (any style but a
-shown info message, which lets it in), or input into a pivot table. While a cell edit holds typed text,
+shown info message, which lets it in), or input a pivot table refuses
+(DataPilotInput now says whether it took the input; a rename it takes
+is entered and saved). While a cell edit holds typed text,
 LOK keeps the document modified, so a save no longer clears it. LOK
 marked it modified on the first key only; text typed through
 postExtTextInputEvent (how clients type characters) now marks it too.
@@ -75,7 +77,7 @@ index 4ac9045..da3bbb6 100644
      bool                        LoadOwnFormat( SfxMedium& pMedium );
      virtual bool                SaveAsOwnFormat( SfxMedium& pMedium );
 diff --git a/sc/source/ui/app/inputhdl.cxx b/sc/source/ui/app/inputhdl.cxx
-index 7014b7d..e98d82d 100644
+index 7014b7d..e153b5b 100644
 --- a/sc/source/ui/app/inputhdl.cxx
 +++ b/sc/source/ui/app/inputhdl.cxx
 @@ -849,6 +849,7 @@ ScInputHandler::ScInputHandler()
@@ -86,23 +88,7 @@ index 7014b7d..e98d82d 100644
          nValidation( 0 ),
          eAttrAdjust( SvxCellHorJustify::Standard ),
          aScaleX( 1,1 ),
-@@ -3185,6 +3186,15 @@ void ScInputHandler::EnterHandler( ScEnterMode nBlockMode, bool bBeforeSavingInL
-     lcl_RemoveTabs(aString);
-     lcl_RemoveTabs(aPreAutoCorrectString);
- 
-+    // Pivot input is no plain entry; it stays open.
-+    if (bBeforeSavingInLOK && bModified
-+        && pActiveViewSh->GetViewData().GetDocument().GetDPAtCursor(aCursorPos.Col(), aCursorPos.Row(), aCursorPos.Tab()))
-+    {
-+        bInOwnChange = false;
-+        bInEnterHandler = false;
-+        return;
-+    }
-+
-     // Test if valid (always with simple string)
-     if (bModified && nValidation)
-     {
-@@ -3219,7 +3229,11 @@ void ScInputHandler::EnterHandler( ScEnterMode nBlockMode, bool bBeforeSavingInL
+@@ -3219,7 +3220,11 @@ void ScInputHandler::EnterHandler( ScEnterMode nBlockMode, bool bBeforeSavingInL
                          pSelEngine->ReleaseMouse();
                  }
  
@@ -115,7 +101,45 @@ index 7014b7d..e98d82d 100644
                  {
                      // Invalid entry but not applied to the document model.
                      // Exit to complete the "save", leaving the edit view as it is
-@@ -4222,6 +4236,7 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
+@@ -3231,17 +3236,17 @@ void ScInputHandler::EnterHandler( ScEnterMode nBlockMode, bool bBeforeSavingInL
+ 
+                 pData->DoError(
+                     pActiveViewSh->GetFrameWeld(), aString, aCursorPos,
+-                    [this, nBlockMode, aString, aPreAutoCorrectString](bool bForget)
+-                    { EnterHandler2(nBlockMode, bForget, aString, aPreAutoCorrectString); });
++                    [this, nBlockMode, aString, aPreAutoCorrectString, bBeforeSavingInLOK](bool bForget)
++                    { EnterHandler2(nBlockMode, bForget, aString, aPreAutoCorrectString, bBeforeSavingInLOK); });
+                 return;
+             }
+         }
+     }
+-    EnterHandler2(nBlockMode, false, aString, aPreAutoCorrectString);
++    EnterHandler2(nBlockMode, false, aString, aPreAutoCorrectString, bBeforeSavingInLOK);
+ }
+ 
+ void ScInputHandler::EnterHandler2(ScEnterMode nBlockMode, bool bForget, OUString aString,
+-                                   const OUString& aPreAutoCorrectString)
++                                   const OUString& aPreAutoCorrectString, bool bBeforeSavingInLOK)
+ {
+     std::unique_ptr<EditTextObject> pObject;
+     std::unique_ptr<ScPatternAttr> pCellAttrs;
+@@ -3257,7 +3262,14 @@ void ScInputHandler::EnterHandler2(ScEnterMode nBlockMode, bool bForget, OUStrin
+         {
+             // Any input within the DataPilot table is either a valid renaming
+             // or an invalid action - normal cell input is always aborted
+-            pActiveViewSh->DataPilotInput( aCursorPos, aString );
++            const bool bTaken = pActiveViewSh->DataPilotInput( aCursorPos, aString, !bBeforeSavingInLOK );
++            if (!bTaken && bBeforeSavingInLOK)
++            {
++                // Refused pivot input stays open for the user.
++                bInOwnChange = false;
++                bInEnterHandler = false;
++                return;
++            }
+             bForget = true;
+         }
+     }
+@@ -4222,6 +4234,7 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
          {
              if (bNewView)                           // create new edit view
              {
@@ -123,7 +147,7 @@ index 7014b7d..e98d82d 100644
                  pActiveViewSh->GetViewData().GetDocShell()->PostEditView(*mpEditEngine, aCursorPos);
                  UpdateActiveView();
                  if (eMode==SC_INPUT_NONE)
-@@ -4264,7 +4279,26 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
+@@ -4264,7 +4277,26 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
                  }
              }
  
@@ -203,6 +227,20 @@ index 923a972..028d205 100644
      if ( SfxObjectShell::IsEnableSetModified() )
      {
          SfxObjectShell::SetModified( bModified );
+diff --git a/sc/source/ui/inc/dbfunc.hxx b/sc/source/ui/inc/dbfunc.hxx
+index 0a9463e..ee3295f 100644
+--- a/sc/source/ui/inc/dbfunc.hxx
++++ b/sc/source/ui/inc/dbfunc.hxx
+@@ -84,7 +84,8 @@ public:
+     void            DateGroupDataPilot( const ScDPNumGroupInfo& rInfo, sal_Int32 nParts );
+     void            NumGroupDataPilot( const ScDPNumGroupInfo& rInfo );
+     void            UngroupDataPilot();
+-    void DataPilotInput( const ScAddress& rPos, const OUString& rString );
++    /// Whether the input was taken; refused input changes nothing.
++    bool DataPilotInput( const ScAddress& rPos, const OUString& rString, bool bShowError = true );
+ 
+     void            DataPilotSort(ScDPObject* pDPObject, tools::Long nDimIndex, bool bAscending, const sal_uInt16* pUserListId = nullptr);
+     bool            DataPilotMove( const ScRange& rSource, const ScAddress& rDest );
 diff --git a/sc/source/ui/inc/docsh.hxx b/sc/source/ui/inc/docsh.hxx
 index bf76665..9ef129e 100644
 --- a/sc/source/ui/inc/docsh.hxx
@@ -217,7 +255,7 @@ index bf76665..9ef129e 100644
      using SfxObjectShell::GetVisArea;
      virtual tools::Rectangle GetVisArea( sal_uInt16 nAspect ) const override;
 diff --git a/sc/source/ui/inc/inputhdl.hxx b/sc/source/ui/inc/inputhdl.hxx
-index 2f3ac5c..b8e81bd 100644
+index 2f3ac5c..a1025d1 100644
 --- a/sc/source/ui/inc/inputhdl.hxx
 +++ b/sc/source/ui/inc/inputhdl.hxx
 @@ -108,6 +108,8 @@ private:
@@ -229,6 +267,15 @@ index 2f3ac5c..b8e81bd 100644
  
      sal_uLong                   nValidation;
      SvxCellHorJustify       eAttrAdjust;
+@@ -204,7 +206,7 @@ public:
+     bool            KeyInput( const KeyEvent& rKEvt, bool bStartEdit );
+     void            EnterHandler( ScEnterMode nBlockMode = ScEnterMode::NORMAL, bool bBeforeSavingInLOK = false );
+     void            EnterHandler2(ScEnterMode nBlockMode, bool bForget, OUString aString,
+-                       const OUString& aPreAutoCorrectString);
++                       const OUString& aPreAutoCorrectString, bool bBeforeSavingInLOK);
+     void            CancelHandler();
+     void            SetReference( const ScRange& rRef, const ScDocument& rDoc );
+     void            AddRefEntry();
 @@ -251,6 +253,7 @@ public:
      bool            TakesReturn() const     { return ( nTipVisible != nullptr ); }
  
@@ -237,6 +284,54 @@ index 2f3ac5c..b8e81bd 100644
  
      bool            GetSelIsRef() const     { return bSelIsRef; }
      void            SetSelIsRef(bool bSet)  { bSelIsRef = bSet; }
+diff --git a/sc/source/ui/view/dbfunc3.cxx b/sc/source/ui/view/dbfunc3.cxx
+index b7d43f3..a8d97e0 100644
+--- a/sc/source/ui/view/dbfunc3.cxx
++++ b/sc/source/ui/view/dbfunc3.cxx
+@@ -1374,21 +1374,21 @@ static OUString lcl_replaceMemberNameInSubtotal(const OUString& rSubtotal, std::
+     return aBuf.makeStringAndClear();
+ }
+ 
+-void ScDBFunc::DataPilotInput( const ScAddress& rPos, const OUString& rString )
++bool ScDBFunc::DataPilotInput( const ScAddress& rPos, const OUString& rString, bool bShowError )
+ {
+     using namespace ::com::sun::star::sheet;
+ 
+     ScDocument& rDoc = GetViewData().GetDocument();
+     ScDPObject* pDPObj = rDoc.GetDPAtCursor( rPos.Col(), rPos.Row(), rPos.Tab() );
+     if (!pDPObj)
+-        return;
++        return false;
+ 
+     OUString aOldText = rDoc.GetString(rPos.Col(), rPos.Row(), rPos.Tab());
+ 
+     if ( aOldText == rString )
+     {
+         // nothing to do: silently exit
+-        return;
++        return true;
+     }
+ 
+     TranslateId pErrorId;
+@@ -1647,13 +1647,13 @@ void ScDBFunc::DataPilotInput( const ScAddress& rPos, const OUString& rString )
+             } // pDPs
+         } // bNeedReloadGroups
+         aFunc.UpdatePivotTable(*pDPObj, true, false);
++        return true;
+     }
+-    else
+-    {
+-        if (!pErrorId)
+-            pErrorId = STR_ERR_DATAPILOT_INPUT;
++    if (!pErrorId)
++        pErrorId = STR_ERR_DATAPILOT_INPUT;
++    if (bShowError)
+         ErrorMessage(pErrorId);
+-    }
++    return false;
+ }
+ 
+ static void lcl_MoveToEnd( ScDPSaveDimension& rDim, const OUString& rItemName )
 diff --git a/sfx2/source/doc/objstor.cxx b/sfx2/source/doc/objstor.cxx
 index 9c23ef5..84c72b3 100644
 --- a/sfx2/source/doc/objstor.cxx

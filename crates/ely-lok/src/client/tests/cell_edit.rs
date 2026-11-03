@@ -136,22 +136,29 @@ fn a_closing_save_enters_what_an_info_rule_lets_in() {
     assert!(xml.contains("Hello 世界Z</text:p>"), "the entry is written");
 }
 
-#[test]
-fn a_closing_save_leaves_a_pivot_cell_edit_open() {
-    let Some(install) = install() else {
-        return eprintln!("SKIP: no pinned LOK build");
-    };
-    let dir = tempfile::tempdir().expect("a temp dir");
+/// `pivot.xlsx` with `typed` over `cell`, which shows `was`.
+fn pivot_edit(dir: &tempfile::TempDir, cell: &str, was: &str, typed: &str) -> (Worker, Doc, Events) {
+    let install = install().expect("the pinned LOK build");
     let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/table/pivot.xlsx");
     let doc = worker.load(&crate::file_url(&fixture)).expect("loads");
-    worker.run(&doc, "cell.goto", &["F5"]).expect("F5, a pivot value");
-    let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| seen.a11y.text == "1");
-    assert_eq!(base.a11y.text, "1", "F5 shows the pivot's 1");
-    worker.post_text(&doc, false, "9").expect("9 types");
-    worker.post_text(&doc, true, "").expect("9 commits");
-    let typed = poll_until(&mut worker, &doc, &base, SETTLE, |seen| seen.a11y.text == "9");
-    assert_eq!(typed.a11y.text, "9", "the edit is open");
+    worker.run(&doc, "cell.goto", &[cell]).expect("the pivot cell");
+    let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| seen.a11y.text == was);
+    assert_eq!(base.a11y.text, was, "{cell} shows the pivot's {was}");
+    worker.post_text(&doc, false, typed).expect("types");
+    worker.post_text(&doc, true, "").expect("commits");
+    let typed_in = poll_until(&mut worker, &doc, &base, SETTLE, |seen| seen.a11y.text == typed);
+    assert_eq!(typed_in.a11y.text, typed, "the edit is open");
+    (worker, doc, typed_in)
+}
+
+#[test]
+fn a_closing_save_leaves_a_refused_pivot_edit_open() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let (mut worker, doc, typed) = pivot_edit(&dir, "F5", "1", "9");
     let out = dir.path().join("closing.xlsx");
     let refused = doc.save_closing(&mut worker, &crate::file_url(&out), "xlsx").expect_err("the save stops");
     assert!(refused.to_string().contains(REFUSED), "the kernel says why: {refused}");
@@ -160,6 +167,19 @@ fn a_closing_save_leaves_a_pivot_cell_edit_open() {
     worker.post_text(&doc, true, "").expect("8 commits");
     let more = poll_until(&mut worker, &doc, &typed, SETTLE, |seen| seen.a11y.text == "98");
     assert_eq!(more.a11y.text, "98", "the edit stays open");
+}
+
+#[test]
+fn a_closing_save_enters_a_pivot_rename() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let (mut worker, doc, _) = pivot_edit(&dir, "E5", "East", "Eastern");
+    let out = dir.path().join("closing.fods");
+    doc.save_closing(&mut worker, &crate::file_url(&out), "fods").expect("saves");
+    let xml = std::fs::read_to_string(&out).expect("the saved file");
+    assert!(xml.contains(">Eastern</text:p>"), "the rename is written");
 }
 
 #[test]
