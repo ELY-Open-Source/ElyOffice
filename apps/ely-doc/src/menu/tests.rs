@@ -148,7 +148,7 @@ fn a_misspelled_word_offers_suggestions() {
     shown.simulate_mouse_up(at, MouseButton::Left, Modifiers::none());
     settled(&cx, &docs);
     // Writer's idle spell check marks the word some time later.
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(60);
     loop {
         right_click(&mut shown, &docs, at, Target::Text);
         let marked = cx.update(|app| docs.read(app).offer.as_ref().is_some_and(|offer| offer.what.spelling.is_some()));

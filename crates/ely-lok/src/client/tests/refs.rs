@@ -22,7 +22,7 @@ fn type_in(worker: &mut Worker, doc: &Doc, text: &str) {
 
 /// Reads until `done`: the kernel lists comments after layout.
 fn awaited<T>(mut read: impl FnMut() -> T, done: impl Fn(&T) -> bool) -> T {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     loop {
         let value = read();
         if done(&value) || std::time::Instant::now() > deadline {

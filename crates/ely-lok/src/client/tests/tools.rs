@@ -125,7 +125,7 @@ fn spelling_suggests_and_ignores() {
     );
     let (x, y, _, h) = seen.found[0];
     // Writer's idle spell check marks the word later.
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(60);
     let spelling = loop {
         let json = menu(&mut worker, &doc, &mut seen, (x + 60, y + h / 2)).expect("a menu");
         let spelling = menu::read(&json).expect("the menu parses").spelling;

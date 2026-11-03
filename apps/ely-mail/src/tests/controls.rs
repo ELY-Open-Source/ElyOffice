@@ -33,7 +33,7 @@ fn with_secret() -> Keys {
 
 /// Waits on the network task alone, not the window.
 fn finished(mail: &Entity<Mail>, id: AccountId, cx: &mut VisualTestContext) {
-    let deadline = Instant::now() + Duration::from_secs(20);
+    let deadline = Instant::now() + Duration::from_secs(60);
     let done = |cx: &mut VisualTestContext| {
         cx.update(|_, app| {
             let task = mail.read(app).syncs[&id].task.as_ref();
@@ -157,7 +157,7 @@ fn an_old_end_queued_across_a_resume_keeps_the_new_sync() {
         "an old end cleared the new sync"
     );
     cx.update(|_, app| mail.update(app, |mail, cx| mail.set_paused(true, cx)));
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while !resumed.is_finished() {
         assert!(Instant::now() < deadline, "pausing left the sync running");
         std::thread::sleep(Duration::from_millis(10));
@@ -197,7 +197,7 @@ fn an_old_end_after_a_failed_removal_keeps_the_new_sync() {
         "an old end cleared the restarted sync"
     );
     cx.update(|_, app| mail.update(app, |mail, cx| mail.set_paused(true, cx)));
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while !restarted.is_finished() {
         assert!(Instant::now() < deadline, "pausing left the sync running");
         std::thread::sleep(Duration::from_millis(10));

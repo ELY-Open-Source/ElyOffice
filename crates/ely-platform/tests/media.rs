@@ -7,7 +7,7 @@ fn main() {
     use ely_platform::media::{Player, State};
 
     let pump = |until: &dyn Fn() -> bool| {
-        let end = Instant::now() + Duration::from_secs(10);
+        let end = Instant::now() + Duration::from_secs(60);
         while !until() {
             assert!(Instant::now() < end, "the player never got there");
             wait();

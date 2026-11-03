@@ -1,20 +1,26 @@
 //! Kernel reads off the UI thread.
 
 use std::{
+    collections::HashMap,
     io,
-    sync::{Arc, Mutex},
+    sync::{Arc, LazyLock, Mutex, PoisonError},
 };
 
 use gpui::Context;
 
 use crate::{Doc, Worker};
 
-/// Background work queues here; views lock the worker directly.
-static TURN: Mutex<()> = Mutex::new(());
+/// Each worker's turn, by its lock's address.
+static TURNS: LazyLock<Mutex<HashMap<usize, Arc<Mutex<()>>>>> = LazyLock::new(Mutex::default);
 
-/// Runs `work` once no other background work holds the turn.
+/// Runs `work` once no other background work holds `worker`'s turn.
 pub fn behind<W, T>(worker: &Mutex<W>, work: impl FnOnce(&mut W) -> T) -> T {
-    let _turn = TURN.lock().expect("the background turn");
+    let turn = {
+        // An insert never leaves the map half changed.
+        let mut turns = TURNS.lock().unwrap_or_else(PoisonError::into_inner);
+        Arc::clone(turns.entry(std::ptr::from_ref(worker).addr()).or_default())
+    };
+    let _turn = turn.lock().expect("the background turn");
     work(&mut worker.lock().expect("the worker lock"))
 }
 

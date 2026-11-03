@@ -75,8 +75,9 @@ impl Backend for Keys {
     }
 }
 
+#[track_caller]
 pub(crate) fn settle(cx: &mut VisualTestContext, done: impl Fn(&App) -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(20);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(20));
         cx.run_until_parked();

@@ -39,6 +39,26 @@ fn input_waits_for_one_background_request_not_all() {
     assert!(before <= 2, "the input waited for {before} of 12 background reads");
 }
 
+/// One worker's background work never waits on another's.
+#[test]
+fn each_worker_has_its_own_turn() {
+    let (held, release) = (std::sync::mpsc::channel(), std::sync::mpsc::channel::<()>());
+    let holder = std::thread::spawn(move || {
+        crate::behind(&Mutex::new(()), |_| {
+            held.0.send(()).expect("the test waits");
+            release.1.recv().expect("the test lets go");
+        })
+    });
+    held.1.recv().expect("the turn is held");
+    let done = std::sync::mpsc::channel();
+    let other = std::thread::spawn(move || crate::behind(&Mutex::new(()), |_| done.0.send(()).expect("the test waits")));
+    let ran = done.1.recv_timeout(std::time::Duration::from_secs(60));
+    release.0.send(()).expect("the holder runs");
+    holder.join().expect("the holder ends");
+    other.join().expect("the other ends");
+    assert!(ran.is_ok(), "the other worker waited for the busy one's turn");
+}
+
 /// A busy engine never stalls the window opening a view.
 #[test]
 fn a_view_opens_while_the_engine_is_busy() {
