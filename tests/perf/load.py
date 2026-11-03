@@ -193,6 +193,8 @@ def data_home(work, name):
 def first_place(app):
     """The window's screen rectangle once it is shown."""
     app.wait(r"ui: first frame presented", timeout=30)
+    # A pointer resting on the new window feeds it moves.
+    run.HOST.park(app.process.pid)
     app.place = run.HOST.rect(app.process.pid)
 
 
