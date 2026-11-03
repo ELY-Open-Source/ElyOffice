@@ -34,7 +34,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("show.layout.12", "제목, 내용 및 내용 2개"),
     ("show.layout.15", "제목, 내용 2개 및 내용"),
     ("show.layout.14", "제목, 내용 위에 내용"),
-    ("show.layout.16", "제목, 내용 2개 위에 내용"),
+    ("show.layout.16", "제목, 위에 내용 2개, 아래에 내용"),
     ("show.layout.18", "제목, 내용 4개"),
     ("show.layout.34", "제목, 내용 6개"),
     ("show.layout.other", "기타"),

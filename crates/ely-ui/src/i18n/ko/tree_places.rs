@@ -62,7 +62,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("tree.worktree.go", "추가"),
     ("tree.worktree.prune", "정리"),
     ("tree.worktree.prunable", "폴더 없음"),
-    ("tree.worktree.bare", "Bare"),
+    ("tree.worktree.bare", "간략한 저장소"),
     ("tree.worktree.on", "브랜치"),
     ("tree.worktree.locked", "잠김"),
     ("tree.worktree.open_it", "열기"),

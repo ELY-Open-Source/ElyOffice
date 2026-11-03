@@ -20,7 +20,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("mark.block.task", "작업 목록"),
     ("mark.block.before", "앞에 본문 삽입"),
     ("mark.block.after", "뒤에 본문 삽입"),
-    ("mark.block.link_reference", "링크"),
+    ("mark.block.link_reference", "링크 참조"),
     ("mark.block.footnote", "각주"),
     ("mark.block.rule", "수평선"),
     ("mark.block.toc", "목차"),
@@ -77,6 +77,6 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("mark.insert.after", "본문 (뒤)"),
     ("mark.kind.list", "목록"),
     ("mark.kind.alert", "알림"),
-    ("mark.kind.html", "HTML Block"),
+    ("mark.kind.html", "HTML 블록"),
     ("mark.refused.no_image", "먼저 캐럿을 그림에 두십시오"),
 ];

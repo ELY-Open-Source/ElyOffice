@@ -48,6 +48,11 @@ fn korean_catalog_renders_menus_counts_and_errors(cx: &mut gpui::TestAppContext)
         assert_eq!(super::text(cx, "table.error.div_zero", &[]), "오류: 영(0)으로 나눔");
         assert_eq!(super::text(cx, "table.style.warning", &[]), "경고");
         assert_eq!(super::text(cx, "show.layout.19", &[]), "제목만");
+        assert_eq!(super::text(cx, "show.layout.16", &[]), "제목, 위에 내용 2개, 아래에 내용");
+        assert_eq!(super::text(cx, "mark.block.link_reference", &[]), "링크 참조");
+        assert_eq!(super::text(cx, "mark.kind.html", &[]), "HTML 블록");
+        assert_eq!(super::text(cx, "tree.worktree.bare", &[]), "간략한 저장소");
+        assert_eq!(super::text(cx, "mail.contacts.empty", &[]), "아직 연락처가 없습니다. 메일을 보내는 상대가 여기에 추가됩니다.");
         assert_eq!(ely_gpui_component::i18n::text(cx, "find.replace_all", &[]), "모두 바꾸기");
         assert_eq!(ely_gpui_component::i18n::text(cx, "input.show_password", &[]), "암호 표시");
     });
