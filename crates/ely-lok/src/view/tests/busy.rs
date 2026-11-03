@@ -1,5 +1,44 @@
 use super::*;
 
+/// Queued background work lets a view's input go after one.
+#[test]
+fn input_waits_for_one_background_request_not_all() {
+    use std::{sync::atomic::{AtomicUsize, Ordering}, time::Duration};
+    let Some(install) = crate::client::tests::install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let shared = Arc::new(Mutex::new(crate::Worker::spawn(&install, &dir.path().join("profile")).expect("the worker")));
+    let ran = Arc::new(AtomicUsize::new(0));
+    let held = shared.lock().expect("the worker lock");
+    let queued: Vec<_> = (0..12)
+        .map(|_| {
+            let (shared, ran) = (Arc::clone(&shared), Arc::clone(&ran));
+            std::thread::spawn(move || {
+                crate::behind(&shared, |_| {
+                    std::thread::sleep(Duration::from_millis(20));
+                    ran.fetch_add(1, Ordering::SeqCst);
+                })
+            })
+        })
+        .collect();
+    std::thread::sleep(Duration::from_millis(300));
+    // The lane locks the worker itself, as here.
+    let input = {
+        let (shared, ran) = (Arc::clone(&shared), Arc::clone(&ran));
+        std::thread::spawn(move || {
+            let _engine = shared.lock().expect("the worker lock");
+            ran.load(Ordering::SeqCst)
+        })
+    };
+    std::thread::sleep(Duration::from_millis(300));
+    drop(held);
+    let before = input.join().expect("the input lands");
+    queued.into_iter().for_each(|read| read.join().expect("each read lands"));
+    assert_eq!(ran.load(Ordering::SeqCst), 12, "every read ran");
+    assert!(before <= 2, "the input waited for {before} of 12 background reads");
+}
+
 /// A busy engine never stalls the window opening a view.
 #[test]
 fn a_view_opens_while_the_engine_is_busy() {

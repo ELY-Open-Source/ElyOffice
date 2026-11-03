@@ -144,16 +144,17 @@ pub trait Opening: Host {
                         None => files::check_package(&written)?,
                     }
                     let asked = std::time::Instant::now();
-                    let mut worker = worker.lock().expect("the worker lock");
-                    log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
-                    let from = match &text {
-                        None => Load::File(&written, &password),
-                        Some((_, how)) => Load::Import(&written, how),
-                    };
-                    let began = std::time::Instant::now();
-                    let loaded = Self::Engine::load(&mut worker, from);
-                    log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());
-                    loaded
+                    ely_lok::behind(&worker, |worker| {
+                        log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
+                        let from = match &text {
+                            None => Load::File(&written, &password),
+                            Some((_, how)) => Load::Import(&written, how),
+                        };
+                        let began = std::time::Instant::now();
+                        let loaded = Self::Engine::load(worker, from);
+                        log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());
+                        loaded
+                    })
                 })
                 .await;
             in_window(&this, cx, |host, window, cx| {
