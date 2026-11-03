@@ -81,6 +81,30 @@ fn a_closing_save_enters_the_cell_edit_first() {
     assert!(xml.contains("Hello 世界Z</text:p>"), "the typed text is written");
 }
 
+/// What a closing save says when the edit stays.
+const REFUSED: &str = "must be entered or cancelled first";
+
+/// A1 ruled to Red in `style`, then typed into.
+fn ruled_edit(worker: &mut Worker, doc: &Doc, style: &str) -> Events {
+    let rule = sheet::Validation {
+        kind: "list".into(),
+        operator: "equal".into(),
+        list: vec!["Red".into()],
+        show_error: true,
+        error_style: style.into(),
+        ..sheet::Validation::default()
+    };
+    worker.run(doc, "rules.validation", &[&rule.to_json()]).expect("the rule");
+    let ruled = poll_until(worker, doc, &Events::default(), SETTLE, |_| false);
+    // The rule already marked the document modified.
+    worker.post_key(doc, 0, 769).expect("F2 edits A1");
+    worker.post_text(doc, false, "Z").expect("Z types");
+    worker.post_text(doc, true, "").expect("Z commits");
+    let typed = poll_until(worker, doc, &ruled, SETTLE, |seen| seen.a11y.text == "Hello 世界Z");
+    assert_eq!(typed.a11y.text, "Hello 世界Z", "{style}: the edit is open");
+    typed
+}
+
 #[test]
 fn a_closing_save_refuses_an_entry_its_rule_refuses() {
     if install().is_none() {
@@ -88,29 +112,54 @@ fn a_closing_save_refuses_an_entry_its_rule_refuses() {
         return;
     }
     let (dir, mut worker, doc) = open_sheet();
-    let rule = sheet::Validation {
-        kind: "list".into(),
-        operator: "equal".into(),
-        list: vec!["Red".into()],
-        show_error: true,
-        error_style: "stop".into(),
-        ..sheet::Validation::default()
-    };
-    worker.run(&doc, "rules.validation", &[&rule.to_json()]).expect("the rule");
-    let ruled = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
-    // The rule already marked the document modified.
-    worker.post_key(&doc, 0, 769).expect("F2 edits A1");
-    worker.post_text(&doc, false, "Z").expect("Z types");
-    worker.post_text(&doc, true, "").expect("Z commits");
-    let typed = poll_until(&mut worker, &doc, &ruled, SETTLE, |seen| seen.a11y.text == "Hello 世界Z");
-    assert_eq!(typed.a11y.text, "Hello 世界Z", "the edit is open");
+    let typed = ruled_edit(&mut worker, &doc, "stop");
     let out = dir.path().join("closing.fods");
     let refused = doc.save_closing(&mut worker, &crate::file_url(&out), "fods").expect_err("the entry is refused");
-    assert!(refused.to_string().contains("not accepted"), "the kernel says why: {refused}");
+    assert!(refused.to_string().contains(REFUSED), "the kernel says why: {refused}");
     assert!(!out.exists(), "nothing is written");
     worker.post_key(&doc, 'Y' as u32, 536 | 0x1000).expect("Y types");
     let more = poll_until(&mut worker, &doc, &typed, SETTLE, |seen| seen.a11y.text.ends_with('Y'));
     assert_eq!(more.a11y.text, "Hello 世界ZY", "the edit stays open to fix");
+}
+
+#[test]
+fn a_closing_save_enters_what_an_info_rule_lets_in() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (dir, mut worker, doc) = open_sheet();
+    ruled_edit(&mut worker, &doc, "info");
+    let out = dir.path().join("closing.fods");
+    doc.save_closing(&mut worker, &crate::file_url(&out), "fods").expect("saves");
+    let xml = std::fs::read_to_string(&out).expect("the saved file");
+    assert!(xml.contains("Hello 世界Z</text:p>"), "the entry is written");
+}
+
+#[test]
+fn a_closing_save_leaves_a_pivot_cell_edit_open() {
+    let Some(install) = install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/table/pivot.xlsx");
+    let doc = worker.load(&crate::file_url(&fixture)).expect("loads");
+    worker.run(&doc, "cell.goto", &["F5"]).expect("F5, a pivot value");
+    let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| seen.a11y.text == "1");
+    assert_eq!(base.a11y.text, "1", "F5 shows the pivot's 1");
+    worker.post_text(&doc, false, "9").expect("9 types");
+    worker.post_text(&doc, true, "").expect("9 commits");
+    let typed = poll_until(&mut worker, &doc, &base, SETTLE, |seen| seen.a11y.text == "9");
+    assert_eq!(typed.a11y.text, "9", "the edit is open");
+    let out = dir.path().join("closing.xlsx");
+    let refused = doc.save_closing(&mut worker, &crate::file_url(&out), "xlsx").expect_err("the save stops");
+    assert!(refused.to_string().contains(REFUSED), "the kernel says why: {refused}");
+    assert!(!out.exists(), "nothing is written");
+    worker.post_text(&doc, false, "8").expect("8 types");
+    worker.post_text(&doc, true, "").expect("8 commits");
+    let more = poll_until(&mut worker, &doc, &typed, SETTLE, |seen| seen.a11y.text == "98");
+    assert_eq!(more.a11y.text, "98", "the edit stays open");
 }
 
 #[test]
