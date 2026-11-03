@@ -35,7 +35,7 @@ fn spanish_translates_every_module_once_with_its_arguments() {
         let translated: BTreeSet<_> = spanish.iter().map(|(key, _)| *key).collect();
         assert_eq!(source, translated, "a module's keys");
     }
-    let [en, _, spanish, _] = catalogs();
+    let [en, _, spanish, ..] = catalogs();
     let es: BTreeMap<_, _> = spanish.iter().copied().collect();
     assert_eq!(es.len(), spanish.len(), "duplicate Spanish key");
     for (key, english) in en {

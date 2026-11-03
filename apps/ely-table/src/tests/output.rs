@@ -439,6 +439,7 @@ fn the_default_encoding_follows_the_apps_language() {
         ("en-US", Encoding::Windows1252),
         ("es-ES", Encoding::Windows1252),
         ("ja-JP", Encoding::ShiftJis),
+        ("ko-KR", Encoding::Windows949),
     ];
     for (tag, expected) in pages {
         cx.update(|app| I18n::set_locale(tag, app));
@@ -454,4 +455,32 @@ fn the_default_encoding_follows_the_apps_language() {
             cx.notify();
         });
     }
+}
+
+#[test]
+fn a_korean_windows_csv_imports_beyond_euc_kr() {
+    use ely_gpui_component::i18n::I18n;
+    use ely_lok::sheet::csv::Encoding;
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((_window, book)) = book(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let path = dir.path().join("ko.csv");
+    // 똠방각하 in Windows-949; 똠 is outside EUC-KR.
+    std::fs::write(&path, [0x8C, 0x63, 0xB9, 0xE6, 0xB0, 0xA2, 0xC7, 0xCF, b',', b'1', b'\n']).expect("writes");
+    cx.update(|app| I18n::set_locale("ko-KR", app));
+    update(&mut cx, &book, |book, cx| book.ask_import(path.clone(), cx));
+    asked(&cx, &book, |dialog| matches!(dialog, Dialog::Import(pending) if !pending.reading));
+    cx.update(|app| match book.read(app).dialog.as_ref() {
+        Some(Dialog::Import(pending)) => {
+            assert_eq!(pending.how.encoding, Encoding::Windows949);
+            assert_eq!(pending.rows[0], ["똠방각하", "1"], "the preview");
+        }
+        _ => unreachable!("an import dialog"),
+    });
+    update(&mut cx, &book, |book, cx| book.import_asked(cx));
+    settle(&cx, |app| book.read(app).active_tab().is_some_and(|tab| tab.name == "ko.csv"));
+    assert_eq!(cells(&mut cx, &book, "A1"), "똠방각하", "the kernel reads Windows-949");
 }

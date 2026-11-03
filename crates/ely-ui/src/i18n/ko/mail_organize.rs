@@ -1,0 +1,28 @@
+//! Korean mail organize messages.
+
+pub(super) const KO: &[(&str, &str)] = &[
+    ("mail.act.read", "읽음으로 표시"),
+    ("mail.act.unread", "읽지 않음으로 표시"),
+    ("mail.act.flag", "플래그 지정"),
+    ("mail.act.unflag", "플래그 제거"),
+    ("mail.act.archive", "보관"),
+    ("mail.act.delete", "삭제"),
+    ("mail.act.restore", "받은 편지함으로 이동"),
+    ("mail.act.move", "이동할 위치"),
+    ("mail.organize.failed", "바뀌지 않음: {error}"),
+    ("mail.organize.dropped", "서버에서 변경 {n}개가 이루어지지 않아 되돌렸습니다: {reason}"),
+    ("mail.organize.dropped.one", "서버에서 변경 하나가 이루어지지 않아 되돌렸습니다: {reason}"),
+    ("mail.organize.gone", "메시지가 더 이상 서버에 없습니다"),
+    ("mail.organize.renumbered", "서버에서 폴더를 다시 만들었습니다"),
+    ("mail.organize.unsupported", "서버가 {name}을(를) 지원하지 않습니다"),
+    ("mail.organize.unplaced", "서버가 메시지를 옮겼지만 어디로 옮겼는지 알려 주지 않았습니다"),
+    ("mail.organize.vanished", "{name} 폴더가 더 이상 서버에 없습니다"),
+    ("mail.erase.title", "메시지 {n}개를 영구히 삭제하시겠습니까?"),
+    ("mail.erase.title.one", "이 메시지를 영구히 삭제하시겠습니까?"),
+    ("mail.erase.message", "여기서도 서버에서도 복원할 수 없습니다."),
+    ("mail.erase.go", "영구 삭제"),
+    ("mail.sync.waiting", "변경 사항"),
+    ("mail.sync.waiting_value", "여기서 한 변경 {n}개가 서버를 기다립니다"),
+    ("mail.sync.waiting_value.one", "여기서 한 변경 1개가 서버를 기다립니다"),
+    ("mail.sync.waiting_none", "모든 변경이 서버에 있습니다"),
+];

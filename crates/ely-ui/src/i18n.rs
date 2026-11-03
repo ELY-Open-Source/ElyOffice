@@ -2,6 +2,9 @@ use ely_gpui_component::i18n::I18n;
 
 mod analysis;
 mod es;
+mod ko;
+#[cfg(test)]
+mod korean_tests;
 #[cfg(test)]
 mod spanish_tests;
 mod ja;
@@ -193,13 +196,14 @@ pub fn install(cx: &mut App) {
 pub fn install_as(locale: &'static str, cx: &mut App) {
     #[cfg(target_os = "windows")]
     gpui_windows::set_text_language(locale);
-    let [en, zh, es, ja] = catalogs();
+    let [en, zh, es, ja, ko] = catalogs();
     cx.set_global(
         I18n::new(locale)
             .catalog("en-US", &en)
             .catalog("zh-CN", &zh)
             .catalog("es-ES", &es)
-            .catalog("ja-JP", &ja),
+            .catalog("ja-JP", &ja)
+            .catalog("ko-KR", &ko),
     );
 }
 
@@ -281,8 +285,8 @@ const ZH_MODULES: [&[(&str, &str)]; 34] = [
 ];
 
 /// Every language's catalog, every module's messages.
-fn catalogs() -> [Catalog; 4] {
-    [EN_MODULES, ZH_MODULES, es::ES, ja::JA].map(|modules| modules.iter().flat_map(|module| module.iter().copied()).collect())
+fn catalogs() -> [Catalog; 5] {
+    [EN_MODULES, ZH_MODULES, es::ES, ja::JA, ko::KO].map(|modules| modules.iter().flat_map(|module| module.iter().copied()).collect())
 }
 
 /// `ELY_LOCALE`, then the language setting, then the system's.
