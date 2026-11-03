@@ -205,7 +205,7 @@ pub struct Core<H: Host> {
     pub stop: Option<Stop>,
     /// A load still unanswered after `stopped::SLOW`.
     pub slow: Option<u64>,
-    /// Edit counts at the last autosave look, per tab.
+    /// Edit counts at the last beat, per tab.
     pub quiet: std::collections::HashMap<u64, u64>,
     /// Other programs' saves, answered as each ends.
     pub saving: Vec<(u64, ely_ui::Ask)>,

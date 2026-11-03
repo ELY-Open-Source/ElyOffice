@@ -66,6 +66,8 @@ pub struct Keeping {
     pub(crate) last: Option<SystemTime>,
     /// The index on disk is behind; the failure shown.
     behind: Option<String>,
+    /// A round is due; it waits for typing to rest.
+    owed: bool,
     /// An index write runs; another follows it if asked.
     flushing: bool,
     flush_again: bool,
@@ -106,7 +108,7 @@ impl Keeping {
         };
         let crash = Crash::open(&dir, std::process::id())?;
         let (reopening, held) = (Vec::new(), Vec::new());
-        Ok(Self { dir, crash: Some(crash), slots: HashMap::new(), crashed, reopening, held, last: None, behind: None, flushing: false, flush_again: false, turns: Turns::default() })
+        Ok(Self { dir, crash: Some(crash), slots: HashMap::new(), crashed, reopening, held, last: None, behind: None, owed: false, flushing: false, flush_again: false, turns: Turns::default() })
     }
 
     /// A clean quit: the next start finds nothing to recover.
@@ -235,7 +237,7 @@ pub trait Recovering: Host {
         .detach();
     }
 
-    /// Reopens what a crash left, then writes due points.
+    /// Reopens what a crash left, then owes a round.
     fn keep_points(&mut self, cx: &mut Context<Self>) {
         // An idle engine reports no error when it ends.
         crate::Stopping::check_engine(self, cx);
@@ -251,12 +253,28 @@ pub trait Recovering: Host {
         if self.core().window.is_some() {
             self.reopen_crashed(cx);
         }
-        // The last tick's points still run.
-        if self.core().keeping.as_ref().is_some_and(|keeping| keeping.slots.values().any(|slot| slot.writing)) {
+        // Snapshots hold the kernel: they wait for a pause.
+        self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.owed = true);
+    }
+
+    /// An owed round, once every tab rested a whole beat.
+    fn points_after_pause(&mut self, rested: &[u64], cx: &mut Context<Self>) {
+        let core = self.core();
+        let Some(keeping) = core.keeping.as_ref() else { return };
+        let busy = core.stopped.is_some() || keeping.slots.values().any(|slot| slot.writing);
+        if !keeping.owed || busy || core.tabs.iter().any(|tab| !rested.contains(&tab.id)) {
             return;
         }
-        let due = self.core().tabs.iter().map(|tab| tab.id).collect();
-        self.write_points(due, cx);
+        log::info!("recovery: typing rested; points are written");
+        let all = core.tabs.iter().map(|tab| tab.id).collect();
+        self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.owed = false);
+        self.write_points(all, cx);
+    }
+
+    /// No tab took input since the last beat.
+    fn still(&self, cx: &gpui::App) -> bool {
+        let (quiet, views) = (&self.core().quiet, self.core().tabs.iter().map(|tab| (tab.id, tab.view.read(cx))));
+        views.into_iter().all(|(id, view)| Self::Engine::settled(view) && quiet.get(&id) == Some(&Self::Engine::edited(view)))
     }
 
     /// Edits of tab `id` a point is due for.
@@ -267,12 +285,16 @@ pub trait Recovering: Host {
         (!slot.writing && slot.written != Some(edited)).then_some(edited)
     }
 
-    /// One snapshot at a time: keys wait for one.
+    /// One snapshot at a time; typing again defers the rest.
     fn write_points(&mut self, mut tabs: VecDeque<u64>, cx: &mut Context<Self>) {
         let app = Self::KIND.app;
         let Some((id, edited)) = std::iter::from_fn(|| tabs.pop_front()).find_map(|id| Some((id, self.point_due(id, cx)?))) else {
             return;
         };
+        if !self.still(cx) {
+            log::info!("recovery: typing again; tab {id} waits for the next pause");
+            return self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.owed = true);
+        }
         let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
         let slot = keeping.slots.get_mut(&id).expect("a due tab has a slot");
         slot.writing = true;
