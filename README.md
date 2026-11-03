@@ -55,7 +55,7 @@ The scripts run on macOS, on Windows (LibreOffice under Cygwin, MuPDF with MSBui
 ElyTable can run local R macros on a selected range, including values, header
 formatting and column widths. See [docs/r-macros.md](docs/r-macros.md) for
 setup, the small API and its limits. Requires R (Rscript) and a LOK engine
-built with patch 0080.
+built with patch 0081.
 
 ## Release
 

@@ -56,7 +56,7 @@ fn unread() -> io::Error {
     refused("table.r.unreadable")
 }
 
-/// The message key for the kernel's refusal code (0080).
+/// The message key for the kernel's refusal code (0081).
 fn kernel_key(code: &str) -> Option<&'static str> {
     Some(match code {
         "range" => "table.r.range",

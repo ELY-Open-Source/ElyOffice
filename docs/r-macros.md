@@ -9,7 +9,7 @@ R 以当前用户的权限运行，**不是沙箱**：宏能读写用户能碰�
 - 装 R（https://cran.r-project.org；Linux 装发行版的 `r-base` 或 `R` 包）。
 - ElyTable 依次找 `Rscript`：环境变量 `ELY_RSCRIPT`，`PATH`，再找 R 自己的安装位置（Windows 读注册表 `HKCU`、`HKLM` 的 `SOFTWARE\R-core\R` 的 `InstallPath`；macOS 查 `/Library/Frameworks/R.framework/Resources/bin`、`/opt/homebrew/bin`、`/usr/local/bin`，因从访达启动的应用拿不到 shell 的 `PATH`）。都找不到即说明如何安装，不运行。
 - R（GPL）不随包，三端的安装包都不含它，只作用户自装的外部程序调用，不影响 Ely 的许可。Rscript 继承 ElyTable 的环境；打包脚本不设 `LD_LIBRARY_PATH` 之类的变量。
-- 内核须带补丁 `0080-lok-calc-r-macro-batches.patch`。没有它的内核读不出选区，运行即报错。
+- 内核须带补丁 `0081-lok-calc-r-macro-batches.patch`。没有它的内核读不出选区，运行即报错。
 
 ## 使用
 
@@ -35,7 +35,7 @@ ely$autofit_columns(selection)
 
 ## 运行方式与限制
 
-ElyTable 先取文档的版本号与选区的类型化副本（内核补丁 0080），放开 worker，再在自己的线程里以参数数组起 `Rscript --vanilla api.R 输入 宏 输出`，工作目录是一个私有临时目录；不经 shell，代码与数据都以文件交给 R。Windows 上 R 不弹控制台窗口，放进一个 Job 对象（结束即整树结束）；Unix 上 R 自成进程组，结束时整组 `SIGKILL`。
+ElyTable 先取文档的版本号与选区的类型化副本（内核补丁 0081），放开 worker，再在自己的线程里以参数数组起 `Rscript --vanilla api.R 输入 宏 输出`，工作目录是一个私有临时目录；不经 shell，代码与数据都以文件交给 R。Windows 上 R 不弹控制台窗口，放进一个 Job 对象（结束即整树结束）；Unix 上 R 自成进程组，结束时整组 `SIGKILL`。
 
 R 正常结束后，ElyTable 先校验整批（格式、类型、位置、公式不动、大小），再交 worker；worker 核对版本号，内核重读选区与快照比对、再校验一遍，然后在一个绑定当前视图的撤销组里写值、表头加粗（西文、亚洲与复杂文种三种字重）与列宽；中途出错即撤回这一组，并从重做里去掉。R 失败或校验不过时文档不动。内核拒绝时带一个代号（读选区时在结果里，写入时经 `.uno:ElyMacroRefusal` 取一次），ElyTable 按代号说明原因：超过一万格、不是一块区域、超过 4 MiB、只读、撤销已关、选区已变、受保护、含合并格。
 
