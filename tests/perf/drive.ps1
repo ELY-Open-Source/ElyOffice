@@ -143,6 +143,10 @@ switch ($Command) {
         Tap ([byte]$(if ($named.ContainsKey($Arg)) { $named[$Arg] } else { [char]$Arg.ToUpper() }))
         Key 0x11 $true
     }
+    'rect' {
+        $r = (Window).Current.BoundingRectangle
+        "$([int]$r.X),$([int]$r.Y),$([int]$r.Width),$([int]$r.Height)"
+    }
     'park' {
         # A pointer resting on the window feeds it moves.
         $r = (Window).Current.BoundingRectangle

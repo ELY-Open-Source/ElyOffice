@@ -191,26 +191,17 @@ def data_home(work, name):
 
 
 def first_place(app):
-    """Where the app put its window, saved once at start."""
-    app.wait(r"settings: window saved", timeout=30)
-    app.place = window_place(app)
+    """The window's screen rectangle once it is shown."""
+    app.wait(r"ui: first frame presented", timeout=30)
+    app.place = run.HOST.rect(app.process.pid)
 
 
-def window_place(app):
-    """The window place the app last saved."""
-    path = os.path.join(app.home, app.slug, "settings.json")
-    if not os.path.exists(path):
-        return None
-    with open(path, encoding="utf-8") as settings:
-        return json.load(settings).get("window")
-
-
-def interfered(app, since, place):
-    """Someone else clicked or moved the window."""
+def interfered(app, since, moves=False):
+    """Someone else clicked, or moved the window when `moves`."""
     others = [line[-90:] for line in app.lines()[since:] if OTHERS.search(line)]
-    moved = window_place(app)
-    if others or moved != place:
-        return f"{app.slug}: someone else clicked or moved the window: {others[:1] or [place, moved]}"
+    moved = run.HOST.rect(app.process.pid) if moves else app.place
+    if others or moved != app.place:
+        return f"{app.slug}: someone else clicked or moved the window: {others[:1] or [app.place, moved]}"
     return None
 
 
@@ -229,20 +220,20 @@ def type_keys(app, recipe, count, busy=None):
     """Keys to feedback, `count` at least and while `busy` runs."""
     run.HOST.park(app.process.pid)
     time.sleep(0.5)
-    since, place = len(app.lines()), app.place
+    since = len(app.lines())
     n = 0
     while n < count or (busy is not None and busy.is_alive()):
         recipe.send(app.process.pid)
         until = time.monotonic() + KEY_WAIT
         while sum(1 for line in app.lines()[since:] if re.search(recipe.answer, line)) <= n:
-            if interfered(app, since, place):
+            if interfered(app, since):
                 break
             if time.monotonic() > until:
                 raise NoFeedback(f"{app.slug}: key {n + 1} showed nothing in {KEY_WAIT} s{repainted(app, since)}")
             time.sleep(0.01)
         n += 1
         free_gb()
-        if why := interfered(app, since, place):
+        if why := interfered(app, since, moves=True):
             raise Interfered(why)
         time.sleep(0.15)
     lines = app.lines()[since:]
@@ -363,7 +354,7 @@ def one_app(slug, folder, work, args):
         out["memory edited MB"] = app.memory_mb()
         # The log flushes every two seconds.
         time.sleep(2.5)
-        if why := interfered(app, typing, app.place):
+        if why := interfered(app, typing, moves=True):
             raise Interfered(why)
         free_gb()
         lines = app.lines()

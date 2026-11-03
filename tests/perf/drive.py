@@ -365,6 +365,9 @@ class Windows(Host):
     def park(self, pid):
         self.ui("park", pid)
 
+    def rect(self, pid):
+        return self.ui("rect", pid).strip()
+
     def wheel(self, pid, notches):
         self.ui("wheel", pid, notches)
 
