@@ -5,6 +5,7 @@ use std::{
     sync::mpsc,
 };
 
+use crate::handshake::Check;
 use crate::ipc::{self, Pack, Unpack, tag};
 
 pub use crate::events::{A11y, Cell, Events, Function, MIXED, Mark, Rect, Request};
@@ -42,19 +43,12 @@ pub struct Worker {
     /// This worker among all spawned; its documents carry it.
     session: u64,
     stderr: ely_ipc::Relay,
-    check: Check,
+    pub(crate) check: Check,
     pub(crate) stopper: Stopper,
     /// The name new comments sign with, once set.
     author: Option<String>,
     /// The build, profile and probes it started with.
     start: (PathBuf, PathBuf, bool),
-}
-
-/// The start-up check: to run, passed, or why it failed.
-enum Check {
-    Pending(PathBuf),
-    Passed,
-    Failed(String),
 }
 
 /// One painted tile and the generation it matches (LOK-03).
@@ -135,28 +129,6 @@ impl Worker {
         let mut worker = Self::spawn_mode(install, profile_dir, true)?;
         worker.ready()?;
         Ok(worker)
-    }
-
-    /// Checks the pinned build and tiles, once (LOK-01).
-    pub fn ready(&mut self) -> io::Result<()> {
-        let profile = match &self.check {
-            Check::Passed => return Ok(()),
-            Check::Failed(why) => return Err(io::Error::other(format!("the worker failed its check: {why}"))),
-            Check::Pending(profile) => profile.clone(),
-        };
-        // Marked first: the checks' own requests pass through here.
-        self.check = Check::Passed;
-        let checked = self.version_checked().and_then(|build| self.verify(&build, &profile).map(|()| build));
-        match checked {
-            Ok(build) => {
-                log::info!("lok: worker up, {build}");
-                Ok(())
-            }
-            Err(error) => {
-                self.check = Check::Failed(error.to_string());
-                Err(error)
-            }
-        }
     }
 
     /// Spawns with or without the dev probes.
@@ -398,8 +370,14 @@ impl Worker {
         *self.stopper.gate() = true;
         let _ = self.child.kill();
         let status = self.child.wait().map(|status| status.to_string()).unwrap_or_else(|wait| wait.to_string());
-        log::error!("lok: the worker failed on request {request} ({status})");
-        let said = self.stderr.last_error().map_or_else(String::new, |said| format!(": {said}"));
+        let said = self.stderr.said();
+        // Before the check passes no document is open.
+        let said = match (&self.check, said.line, said.error) {
+            (Check::Checking, Some(line), _) => format!(": {line}"),
+            (_, _, Some(error)) => format!(": {error}"),
+            _ => String::new(),
+        };
+        log::error!("lok: the worker failed on request {request} ({status}){said}");
         io::Error::new(error.kind(), format!("the lok worker failed: {error} ({status}){said}"))
     }
 
