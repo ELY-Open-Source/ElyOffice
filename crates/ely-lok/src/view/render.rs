@@ -363,17 +363,11 @@ impl LokView {
         }
         self.keep_near((vw, vh));
         self.reveal_if_whole();
-        let mut ready = Vec::new();
-        for (key, place, clip) in slots {
-            let tile = self.tiles.get(&key);
-            if let Some(tile) = tile {
-                ready.push((place, Arc::clone(&tile.image), clip));
-            }
-            if tile.is_none_or(|tile| tile.stale) {
-                self.request_tile(key);
-            }
-        }
         self.want(vh / TILE_TWIPS + 1, extent);
+        let ready = slots
+            .into_iter()
+            .filter_map(|(key, place, clip)| self.tiles.get(&key).map(|tile| (place, Arc::clone(&tile.image), clip)))
+            .collect();
         let (pages, tiles) = self.screen(bounds.origin, pages, ready);
         let rect = |rect: Rect| self.screen_rect(rect);
         let caret = self.text_caret().filter(|_| self.cursor_visible);

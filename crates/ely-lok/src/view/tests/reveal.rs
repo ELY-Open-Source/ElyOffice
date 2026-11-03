@@ -47,8 +47,10 @@ fn a_jump_keeps_the_whole_old_screen_until_the_new_one_is_whole() {
     };
     let cx = gpui::TestAppContext::single();
     let (view, bounds) = long_view(&cx, &install);
+    cx.update(|app| view.update(app, |view, _| view.selection = vec![(1500, view.scroll.1 + 3000, 3000, 300)]));
     let before = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
     assert!(!before.tiles.is_empty(), "a whole first screen");
+    assert!(!before.selection.is_empty(), "the selection shows on it");
     let spot = point(px(100.0), px(100.0));
     let under = |cx: &gpui::TestAppContext| cx.update(|app| view.read(app).doc_point(spot));
     let old = under(&cx);
@@ -60,6 +62,7 @@ fn a_jump_keeps_the_whole_old_screen_until_the_new_one_is_whole() {
     assert_eq!(waiting.pages, before.pages, "its pages stay with it");
     assert_eq!(under(&cx), old, "a click lands on the screen it sees");
     assert_eq!(cx.update(|app| view.read(app).cursor_bounds()), caret, "the caret stays with it");
+    assert_eq!(waiting.selection, before.selection, "so does the selection");
     let after = (0..200)
         .find_map(|_| {
             cx.run_until_parked();
@@ -72,8 +75,61 @@ fn a_jump_keeps_the_whole_old_screen_until_the_new_one_is_whole() {
     let shown = cx.update(|app| view.read(app).on_screen.len());
     assert_eq!(after.tiles.len(), shown, "the new screen comes whole");
     assert_ne!(under(&cx), old, "then clicks land on the new one");
+    assert!(after.selection.is_empty(), "the old screen's selection lies off it");
     let old: HashSet<usize> = drawn(&before).into_iter().map(|(_, at)| at).collect();
     assert!(drawn(&after).iter().all(|(_, at)| !old.contains(at)), "and none of the old screen");
+}
+
+#[test]
+fn a_zoomed_sheet_maps_by_the_screen_it_holds() {
+    let Some(install) = crate::client::tests::install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let mut cx = gpui::TestAppContext::single();
+    let (view, geometry) = super::large::far_down(&mut cx, &install);
+    let bounds = Bounds { origin: point(px(0.0), px(0.0)), size: size(px(800.0), px(600.0)) };
+    cx.update(|app| view.update(app, |view, cx| view.set_frozen((0, geometry.rows.start(5)), cx)));
+    settle(&cx, &view, bounds);
+    let mid = point(px(400.0), px(300.0));
+    let row = cx.update(|app| geometry.rows.at(view.read(app).doc_point(mid).1));
+    let (x, y, w, h) = super::large::cell(&geometry, 1, row);
+    let centre = (x + w / 2, y + h / 2);
+    // Either side of the frozen rows' edge.
+    let edge = cx.update(|app| view.read(app).window_point((x, geometry.rows.start(5))));
+    let (above, below) = (edge - point(px(0.0), px(0.5)), edge + point(px(0.0), px(0.5)));
+    let shown = |cx: &gpui::TestAppContext| {
+        cx.update(|app| {
+            let view = view.read(app);
+            let rows = |at| geometry.rows.at(view.doc_point(at).1);
+            (view.window_point(centre), view.is_visible((x, y, w, h)), rows(mid), (rows(above), rows(below)), view.scrolled_start())
+        })
+    };
+    cx.update(|app| view.update(app, |view, _| view.selection = vec![(x, y, w, h)]));
+    let before = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
+    let seen = shown(&cx);
+    assert!(seen.1 && seen.3.0 == 4 && seen.3.1 > 4 && !before.selection.is_empty(), "the selected cell shows below the frozen rows");
+    cx.update(|app| view.update(app, |view, cx| view.set_zoom(0.8, cx)));
+    let waiting = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
+    assert_eq!(drawn(&waiting), drawn(&before), "the old screen stays");
+    assert_eq!(shown(&cx), seen, "cells, clicks, panes and headers map by it");
+    assert_eq!(waiting.selection, before.selection, "the selection stays on its cell");
+    let scroll = cx.update(|app| {
+        view.update(app, |view, _| {
+            let scroll = view.scroll().1;
+            view.keep_scroll(|_| {});
+            (scroll, view.scroll().1)
+        })
+    });
+    assert!(scroll.0.abs_diff(scroll.1) < 100, "a rescale keeps the view's own start: {scroll:?}");
+    cx.update(|app| {
+        view.update(app, |view, _| {
+            for kind in [0, 1] {
+                view.mouse(kind, seen.0, 1, 1, &gpui::Modifiers::default());
+            }
+        })
+    });
+    let want = format!("B{}", row + 1);
+    assert_eq!(super::large::selected(&view, &mut cx, &want), want, "a click picks the cell it shows");
 }
 
 #[test]

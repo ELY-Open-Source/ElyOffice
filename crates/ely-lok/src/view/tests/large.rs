@@ -74,7 +74,7 @@ const SHORT_ROWS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 </office:document>"#;
 
 /// A short-row sheet at 2× DPI, scrolled to `cell`'s row.
-fn far_down(cx: &mut gpui::TestAppContext, install: &std::path::Path) -> (Entity<LokView>, crate::sheet::Geometry) {
+pub(super) fn far_down(cx: &mut gpui::TestAppContext, install: &std::path::Path) -> (Entity<LokView>, crate::sheet::Geometry) {
     let (view, worker) = cx.update(|app| live_view_of(app, install, "short.fods", SHORT_ROWS));
     let json = cx.update(|app| {
         let read = view.read(app);
@@ -102,12 +102,12 @@ fn far_down(cx: &mut gpui::TestAppContext, install: &std::path::Path) -> (Entity
 }
 
 /// Column `x`, row `y` in print twips.
-fn cell(geometry: &crate::sheet::Geometry, x: u32, y: u32) -> crate::Rect {
+pub(super) fn cell(geometry: &crate::sheet::Geometry, x: u32, y: u32) -> crate::Rect {
     (geometry.columns.start(x), geometry.rows.start(y), geometry.columns.size(x), geometry.rows.size(y))
 }
 
 /// Waits until the kernel reports `want` as the selection.
-fn selected(view: &Entity<LokView>, cx: &mut gpui::TestAppContext, want: &str) -> String {
+pub(super) fn selected(view: &Entity<LokView>, cx: &mut gpui::TestAppContext, want: &str) -> String {
     let mut address = String::new();
     for _ in 0..200 {
         cx.executor().tick();

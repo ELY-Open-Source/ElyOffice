@@ -114,7 +114,7 @@ impl LokView {
             .collect()
     }
 
-    /// Lets the lane drop jobs nobody waits for; paints ahead.
+    /// Publishes the keys the lane may paint, then requests them.
     pub(super) fn want(&mut self, reach: i32, extent: (i32, i32)) {
         // The screen first; ahead only once it is whole.
         let ahead = if self.waiting() { Vec::new() } else { self.ahead(reach, extent) };
@@ -125,7 +125,9 @@ impl LokView {
                 *wanted = (self.geom, keys);
             }
         }
-        for key in ahead {
+        // Published first: the lane skips keys missing from it.
+        let screen = self.on_screen.clone();
+        for key in screen.into_iter().chain(ahead) {
             if self.tiles.get(&key).is_none_or(|tile| tile.stale) {
                 self.request_tile(key);
             }
