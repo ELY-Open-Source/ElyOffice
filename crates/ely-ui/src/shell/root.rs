@@ -196,9 +196,8 @@ impl Root {
         });
     }
 
-    /// An unopened output: logs the error, shows its words.
+    /// An unopened output's words; the caller logs it.
     pub(crate) fn open_failed(&mut self, error: &std::io::Error, cx: &mut Context<Self>) {
-        log::error!("apps: the output did not open: {}", ely_ipc::Worded::logged(error));
         let said = crate::i18n::text(cx, "toast.open_failed", &[("error", &crate::i18n::error(cx, error))]);
         self.toast(said, Severity::Danger, cx);
     }
@@ -226,6 +225,8 @@ impl Root {
                 cx.spawn(async move |cx| {
                     let opened = cx.background_spawn(async move { view(&path) }).await;
                     if let Err(error) = opened {
+                        // Logged even if the window has closed.
+                        log::error!("apps: the output did not open: {}", ely_ipc::Worded::logged(&error));
                         cx.update(|cx| root.update(cx, |root, cx| root.open_failed(&error, cx)).ok());
                     }
                 })

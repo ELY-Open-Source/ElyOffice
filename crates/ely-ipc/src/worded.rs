@@ -4,7 +4,7 @@ use std::io;
 
 /// Marks a worded error in a worker's reply.
 const WIRE: &str = "worded:";
-/// Parts of the wire form: key, then names and values.
+/// Ends the key; each name and value follows as `{bytes}:{text}`.
 const UNIT: char = '\u{1f}';
 
 /// An error Ely words: a catalog key and its arguments.
@@ -34,28 +34,33 @@ impl Worded {
         }
     }
 
-    /// `error` as reply text; a worded one keeps its key..
+    /// `error` as reply text; a worded one keeps its key.
     pub fn wire(error: &io::Error) -> String {
         let Some(worded) = error.get_ref().and_then(|inner| inner.downcast_ref::<Self>()) else {
             return error.to_string();
         };
-        let mut text = format!("{WIRE}{}", worded.key);
-        for (name, value) in &worded.args {
-            text.extend([UNIT.to_string(), name.clone(), UNIT.to_string(), value.clone()]);
+        let mut text = format!("{WIRE}{}{UNIT}", worded.key);
+        for field in worded.args.iter().flat_map(|(name, value)| [name, value]) {
+            text.push_str(&format!("{}:{field}", field.len()));
         }
         text
     }
 
     /// A reply `wire` wrote with one of `keys`.
     pub fn read(text: &str, keys: &[&'static str]) -> Option<io::Error> {
-        let mut parts = text.strip_prefix(WIRE)?.split(UNIT);
-        let named = parts.next()?;
+        let (named, mut rest) = text.strip_prefix(WIRE)?.split_once(UNIT)?;
         let key = *keys.iter().find(|key| **key == named)?;
-        let rest: Vec<&str> = parts.collect();
-        if !rest.len().is_multiple_of(2) {
+        let mut fields = Vec::new();
+        while !rest.is_empty() {
+            let (len, after) = rest.split_once(':')?;
+            let len: usize = len.parse().ok()?;
+            fields.push(after.get(..len)?.to_string());
+            rest = &after[len..];
+        }
+        if !fields.len().is_multiple_of(2) {
             return None;
         }
-        let args = rest.chunks(2).map(|pair| (pair[0].to_string(), pair[1].to_string())).collect();
+        let args = fields.chunks(2).map(|pair| (pair[0].clone(), pair[1].clone())).collect();
         Some(io::Error::other(Self { key, args }))
     }
 }
@@ -97,7 +102,13 @@ mod tests {
         let back = Worded::read(&wire, &["pdf.error.kind"]).expect("a known key");
         let worded = back.get_ref().and_then(|inner| inner.downcast_ref::<Worded>()).expect("worded");
         assert_eq!((worded.key, worded.args.as_slice()), ("pdf.error.kind", &[("name".to_string(), "a: b".to_string())][..]));
-        assert!(Worded::read("worded:pdf.error.kind\u{1f}name", &["pdf.error.kind"]).is_none(), "a cut pair stays text");
+        assert!(Worded::read("worded:pdf.error.kind\u{1f}4:name", &["pdf.error.kind"]).is_none(), "a cut pair stays text");
+        assert!(Worded::read("worded:pdf.error.kind\u{1f}9:name", &["pdf.error.kind"]).is_none(), "a long count stays text");
+        let odd = [("report", "before\u{1f}after"), ("note", "3:x:"), ("中", "é")];
+        let back = Worded::read(&Worded::wire(&Worded::error(io::ErrorKind::Other, "pdf.error.kind", &odd)), &["pdf.error.kind"]);
+        let worded = back.as_ref().and_then(|back| back.get_ref()).and_then(|inner| inner.downcast_ref::<Worded>()).expect("separators survive");
+        let given: Vec<_> = odd.iter().map(|(name, value)| (name.to_string(), value.to_string())).collect();
+        assert_eq!(worded.args, given);
         assert!(Worded::read(&wire, &["pdf.error.other"]).is_none(), "an unknown key stays text");
         assert_eq!(Worded::wire(&io::Error::other("plain")), "plain");
         assert!(Worded::read("plain", &["pdf.error.kind"]).is_none());
