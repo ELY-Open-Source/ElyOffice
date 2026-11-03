@@ -1,0 +1,2 @@
+#!/bin/sh
+printf 'ELY_R_1\nW\t999999\ttext\t61\nDONE\n' > "$5"

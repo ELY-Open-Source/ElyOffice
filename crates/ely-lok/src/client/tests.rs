@@ -37,6 +37,7 @@ mod playlist;
 mod print;
 mod profile;
 mod refs;
+mod r_macros;
 mod roundtrip;
 mod rules;
 mod seam;

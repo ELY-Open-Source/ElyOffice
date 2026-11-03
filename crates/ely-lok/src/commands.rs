@@ -18,6 +18,8 @@ mod tools;
 #[derive(Debug, PartialEq)]
 pub enum Arg {
     Text(&'static str),
+    /// Text made from a read; holds only in that state.
+    Read(&'static str),
     /// Text that may be empty.
     Loose(&'static str),
     /// A family the kernel lists under `.uno:CharFontName`.
@@ -68,7 +70,11 @@ impl Command {
     /// Names something the document numbers, as read.
     pub fn addressed(&self, values: &[&str]) -> bool {
         // An index of -1 names nothing: a new tab stop.
-        self.args.iter().zip(values).any(|(arg, value)| matches!(arg, Arg::Int(name, ..) if NUMBERED.contains(name)) && *value != "-1")
+        self.args.iter().zip(values).any(|(arg, value)| match arg {
+            Arg::Int(name, ..) => NUMBERED.contains(name) && *value != "-1",
+            Arg::Read(_) => true,
+            _ => false,
+        })
     }
 
     /// This command with `values`, checked now (LOK-02).
@@ -137,6 +143,8 @@ pub const VALUES: &[&str] = &[
     crate::sheet::PROTECTION,
     crate::sheet::LINKS,
     crate::sheet::KEPT,
+    crate::sheet::MACRO,
+    crate::sheet::MACRO_REFUSAL,
     crate::show::DESIGN,
     crate::show::OBJECTS,
     crate::show::NOTES,
@@ -244,7 +252,7 @@ impl Command {
         }
         for (arg, value) in taking.into_iter().zip(values) {
             let (name, kind) = match arg {
-                Arg::Text(name) | Arg::Font(name) | Arg::Loose(name) => (name, "string"),
+                Arg::Text(name) | Arg::Read(name) | Arg::Font(name) | Arg::Loose(name) => (name, "string"),
                 Arg::Points(name) => (name, "float"),
                 Arg::Int(name, kind, _, _) => (name, *kind),
                 Arg::Bool(name) => (name, "boolean"),
@@ -324,6 +332,7 @@ mod tests {
         assert!(tab.addressed(&["0", "0", "true"]), "removing stop 0 does");
         assert!(find("sheet.delete").expect("the row").addressed(&["1"]));
         assert!(!find("cell.enter").expect("the row").addressed(&["1"]));
+        assert!(find("macro.apply").expect("the row").addressed(&["{}"]), "a batch holds as read");
         assert!(find("notes.set").expect("the row").addressed(&["text", "1"]), "a slide by number");
         // Clicks renumber no row or column: never stale.
         assert!(!find("select.row").expect("the row").addressed(&["3", "0"]), "a header row");
