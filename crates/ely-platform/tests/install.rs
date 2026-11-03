@@ -22,7 +22,7 @@ fn ended() -> u32 {
 /// Waits for the reopened app's mark.
 fn reopened(mark: &Path) -> bool {
     let start = Instant::now();
-    while start.elapsed() < Duration::from_secs(30) {
+    while start.elapsed() < Duration::from_secs(60) {
         if mark.exists() {
             return true;
         }

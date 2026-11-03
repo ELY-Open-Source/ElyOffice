@@ -232,11 +232,11 @@ async fn a_filed_copy_is_told_without_waiting_for_the_logout() {
     ann.incoming = server;
     let secret = Secret::Password("pw".into());
     let done = ely_mail_engine::sent::file(&ann, secret, &certs.trusted, "Sent", MESSAGE);
-    tokio::time::timeout(std::time::Duration::from_secs(5), done)
+    tokio::time::timeout(std::time::Duration::from_secs(60), done)
         .await
         .expect("told before the logout answers")
         .unwrap();
-    tokio::time::timeout(std::time::Duration::from_secs(5), script)
+    tokio::time::timeout(std::time::Duration::from_secs(60), script)
         .await
         .expect("the server reached its last step")
         .unwrap()

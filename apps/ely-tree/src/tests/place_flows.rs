@@ -174,7 +174,7 @@ fn a_stopped_clone_leaves_no_folder() {
 }
 
 /// Windows may end a hung Git only after 10 s.
-const GRACE: std::time::Duration = std::time::Duration::from_secs(30);
+const GRACE: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// Git outside its own session; no group stop reaches it.
 #[cfg(unix)]

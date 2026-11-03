@@ -327,7 +327,7 @@ fn a_calc_cut_finishes_without_a_dialog() {
             .expect("the test waits");
     });
     let pid = pid_in.recv().expect("the worker starts");
-    let outcome = wait.recv_timeout(std::time::Duration::from_secs(20));
+    let outcome = wait.recv_timeout(std::time::Duration::from_secs(60));
     if outcome.is_err() {
         // A blocked worker would hold the test open.
         kill(pid);

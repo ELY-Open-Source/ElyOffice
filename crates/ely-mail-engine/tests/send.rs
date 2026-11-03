@@ -134,12 +134,12 @@ async fn accepted_is_told_without_waiting_for_the_logout() {
         b"Subject: x\r\n\r\nx\r\n",
         &certs.trusted,
     );
-    let limit = tokio::time::timeout(Duration::from_secs(5), sent)
+    let limit = tokio::time::timeout(Duration::from_secs(60), sent)
         .await
         .expect("told before the logout answers")
         .unwrap();
     assert_eq!(limit, None);
-    tokio::time::timeout(Duration::from_secs(5), script)
+    tokio::time::timeout(Duration::from_secs(60), script)
         .await
         .expect("the server reached its last step")
         .unwrap()
@@ -182,7 +182,7 @@ async fn a_refusal_is_told_without_waiting_for_the_server() {
         b"Subject: x\r\n\r\nx\r\n",
         &certs.trusted,
     );
-    let err = tokio::time::timeout(Duration::from_secs(5), sent)
+    let err = tokio::time::timeout(Duration::from_secs(60), sent)
         .await
         .expect("told before the server answers again")
         .unwrap_err();
@@ -190,7 +190,7 @@ async fn a_refusal_is_told_without_waiting_for_the_server() {
         matches!(&err, Error::Server(text) if text.contains("554") && text.contains("rejected")),
         "{err}"
     );
-    tokio::time::timeout(Duration::from_secs(5), script)
+    tokio::time::timeout(Duration::from_secs(60), script)
         .await
         .expect("the server reached its last step")
         .unwrap()

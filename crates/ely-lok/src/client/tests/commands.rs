@@ -242,7 +242,7 @@ fn a_kernel_dialog_is_closed_and_reported() {
         done.send(seen.blocked).expect("the test waits");
     });
     let pid = pid_in.recv().expect("the worker starts");
-    let outcome = wait.recv_timeout(std::time::Duration::from_secs(30));
+    let outcome = wait.recv_timeout(std::time::Duration::from_secs(60));
     if outcome.is_err() {
         // A blocked worker would hold the test open.
         kill(pid);

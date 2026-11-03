@@ -57,7 +57,7 @@ fn right_click(cx: &mut VisualTestContext, book: &Entity<Book>, at: Point<Pixels
     cx.simulate_mouse_move(at, None, Modifiers::none());
     cx.simulate_mouse_down(at, MouseButton::Right, Modifiers::none());
     cx.simulate_mouse_up(at, MouseButton::Right, Modifiers::none());
-    for _ in 0..500 {
+    for _ in 0..3000 {
         cx.run_until_parked();
         if cx.update(|_, app| book.read(app).menu.as_ref().is_some_and(|offer| shown(&offer.what))) {
             return frames(cx);

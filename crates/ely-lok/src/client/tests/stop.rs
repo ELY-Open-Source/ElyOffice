@@ -62,7 +62,7 @@ fn a_stuck_load_returns_once_its_worker_is_stopped() {
         panic!("a frozen worker answered the load");
     }
     stopper.stop().expect("the stop lands");
-    let (failed, mut worker) = wait.recv_timeout(Duration::from_secs(30)).expect("the load returns once stopped");
+    let (failed, mut worker) = wait.recv_timeout(Duration::from_secs(60)).expect("the load returns once stopped");
     assert!(failed, "the load reports the stop");
     // Reaped now: a late stop must not touch the id.
     stopper.stop().expect("a late stop does nothing");

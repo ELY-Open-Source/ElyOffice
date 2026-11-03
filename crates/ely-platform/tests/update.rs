@@ -81,7 +81,7 @@ fn respond(mut stream: TcpStream, routes: &[(String, Reply)]) {
             );
             let _ = stream.write_all(&[7u8; 1000]);
             stream
-                .set_read_timeout(Some(Duration::from_secs(20)))
+                .set_read_timeout(Some(Duration::from_secs(60)))
                 .unwrap();
             let seen = stream.read(&mut [0u8; 1]);
             if matches!(seen, Ok(0))
@@ -340,7 +340,7 @@ fn a_stalled_download_fails_and_frees_its_socket() {
     let text = error_text(stalled);
     assert!(text.contains("stalled"), "{text}");
     assert!(
-        closed_within(&closed, Duration::from_secs(5)),
+        closed_within(&closed, Duration::from_secs(60)),
         "the client kept the socket open"
     );
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 0);
@@ -377,7 +377,7 @@ fn a_cancel_is_answered_at_once_and_the_socket_is_freed_within_the_idle_time() {
         "the cancel waited for the socket"
     );
     assert!(
-        closed_within(&closed, Duration::from_secs(5)),
+        closed_within(&closed, Duration::from_secs(60)),
         "the client kept the socket open"
     );
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 0);

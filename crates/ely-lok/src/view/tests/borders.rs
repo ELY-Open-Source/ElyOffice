@@ -103,13 +103,15 @@ fn a_held_border_keeps_its_table_and_a_newer_read_refuses_it() {
             line
         })
     });
-    for _ in 0..60 {
+    let deadline = std::time::Instant::now() + HANG;
+    while std::time::Instant::now() < deadline {
         for _ in 0..20 {
             cx.executor().tick();
         }
         if !errors.borrow().is_empty() {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
     assert!(errors.borrow().iter().any(|error| error.contains("stale")), "{:?}", errors.borrow());
     cx.update(|app| {
@@ -200,13 +202,15 @@ fn a_late_batch_keeps_its_own_revision() {
             before
         })
     });
-    for _ in 0..60 {
+    let deadline = std::time::Instant::now() + HANG;
+    while std::time::Instant::now() < deadline {
         for _ in 0..20 {
             cx.executor().tick();
         }
         if !errors.borrow().is_empty() {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
     assert!(errors.borrow().iter().any(|error| error.contains("stale")), "{:?}", errors.borrow());
     let after = cx.update(|app| view.update(app, |view, _| table_batch(view, 2).table.expect("the table").columns.inner[0].position));

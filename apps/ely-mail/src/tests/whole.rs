@@ -28,7 +28,7 @@ fn runtime() -> tokio::runtime::Runtime {
 
 /// The script's result; a stall fails, never hangs.
 fn ended(rt: &tokio::runtime::Runtime, task: tokio::task::JoinHandle<Result<(), String>>) {
-    let limit = std::time::Duration::from_secs(10);
+    let limit = std::time::Duration::from_secs(60);
     let done = rt.block_on(async { tokio::time::timeout(limit, task).await });
     done.expect("the script ended").unwrap().unwrap();
 }

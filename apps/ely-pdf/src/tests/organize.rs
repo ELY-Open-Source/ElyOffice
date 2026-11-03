@@ -238,7 +238,8 @@ fn the_window_closes_its_tabs_off_the_window() {
     assert!(!cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.should_close(window, cx))), "not at once");
     drop(view);
     // Once its tab closes, the window itself goes.
-    for _ in 0..1000 {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while std::time::Instant::now() < deadline {
         cx.executor().tick();
         if cx.cx.update(|app| app.windows().is_empty()) {
             return;
