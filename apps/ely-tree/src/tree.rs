@@ -164,7 +164,7 @@ pub(crate) fn inside(root: &Path, file: &Path) -> io::Result<String> {
 
 impl Tree {
     pub(crate) fn new(recent_file: PathBuf, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let git = Git::find().inspect_err(|error| log::error!("tree: {error}"));
+        let git = Git::find().inspect_err(|error| log::error!("tree: no Git: {}", ely_ipc::Worded::logged(error)));
         let (recent, unread) = match ely_files::recent::recent(&recent_file) {
             Ok(list) => (list, None),
             Err(error) => (Vec::new(), Some(error)),
@@ -247,7 +247,7 @@ impl Tree {
 
     /// Logs `error` itself; only the toast reads its words.
     pub fn failed(&self, key: &str, error: &io::Error, cx: &mut App) {
-        log::warn!("tree: {key}: {error}");
+        log::warn!("tree: {key}: {}", ely_ipc::Worded::logged(error));
         let words = text(cx, key, &[("error", &ely_ui::i18n::error(cx, error))]);
         self.toast_unlogged(words, Severity::Danger, cx);
     }
@@ -297,7 +297,7 @@ impl Tree {
                     Some(Ok(rel)) => tree.file_log(&rel, cx),
                     Some(Err((file, error))) => {
                         let shown = file.display().to_string();
-                        log::warn!("tree: a file did not open: {error}");
+                        log::warn!("tree: a file did not open: {}", ely_ipc::Worded::logged(&error));
                         let words = text(cx, "tree.error.open", &[("path", &shown), ("error", &ely_ui::i18n::error(cx, &error))]);
                         tree.toast_unlogged(words, Severity::Danger, cx);
                     }
@@ -381,7 +381,7 @@ impl Tree {
     /// A recent entry that no longer opens leaves the list.
     fn not_opened(&mut self, path: &Path, error: &io::Error, cx: &mut Context<Self>) {
         // The path stays in the toast, out of the log.
-        log::warn!("tree: a repository did not open: {error}");
+        log::warn!("tree: a repository did not open: {}", ely_ipc::Worded::logged(error));
         let shown = path.display().to_string();
         if self.recent.iter().any(|known| known == path) {
             self.recent.retain(|known| known != path);

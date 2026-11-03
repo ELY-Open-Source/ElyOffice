@@ -186,7 +186,7 @@ impl SettingsView {
                     return log::info!("settings: Git check {asked} was overtaken");
                 }
                 this.git_error = checked.err().map(|error| {
-                    log::warn!("settings: Git setting refused: {error}");
+                    log::warn!("settings: Git setting refused: {}", ely_ipc::Worded::logged(&error));
                     text(cx, "settings.git.bad", &[("path", &typed), ("error", &crate::i18n::error(cx, &error))])
                 });
                 cx.notify();

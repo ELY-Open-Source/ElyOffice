@@ -196,7 +196,7 @@ impl Tree {
                         then: Choice::Publish(branch),
                     },
                     Err(error) => {
-                        log::warn!("tree: the remotes are unread: {error}");
+                        log::warn!("tree: the remotes are unread: {}", ely_ipc::Worded::logged(&error));
                         Ask::Failed { title: text(cx, "tree.remotes.unread", &[]), detail: ely_ui::i18n::error(cx, &error) }
                     }
                 };
@@ -238,7 +238,7 @@ impl Tree {
                 let ask = match plan {
                     Ok(plan) => Ask::Force { repo, plan },
                     Err(error) => {
-                        log::warn!("tree: a forced push is unready: {error}");
+                        log::warn!("tree: a forced push is unready: {}", ely_ipc::Worded::logged(&error));
                         Ask::Failed { title: text(cx, "tree.force.unready", &[]), detail: ely_ui::i18n::error(cx, &error) }
                     }
                 };

@@ -308,7 +308,7 @@ impl Deck {
 
     /// Logs `error` itself; only the toast reads its words.
     fn output_failed(&self, error: &io::Error, cx: &mut Context<Self>) {
-        log::warn!("show: the output failed: {error}");
+        log::warn!("show: the output failed: {}", ely_ipc::Worded::logged(error));
         let text = Deck::text(cx, "show.output.failed", &[("error", &ely_ui::i18n::error(cx, error))]);
         self.toast_unlogged(text, Severity::Danger, cx);
     }

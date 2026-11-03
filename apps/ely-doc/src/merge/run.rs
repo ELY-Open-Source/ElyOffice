@@ -129,7 +129,7 @@ impl Docs {
 
     /// Logs `error` itself; only the toast reads its words.
     fn merge_failed(&self, error: &io::Error, cx: &mut Context<Self>) {
-        log::warn!("doc: the merge failed: {error}");
+        log::warn!("doc: the merge failed: {}", Worded::logged(error));
         let text = Docs::text(cx, "office.error.engine", &[("error", &ely_ui::i18n::error(cx, error))]);
         self.toast_unlogged(text, Severity::Danger, cx);
     }

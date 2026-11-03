@@ -215,7 +215,7 @@ impl Tree {
             std::thread::spawn(move || done.send(settled(started, STARTUP)));
             cx.spawn(async move |this, cx| {
                 if let Ok(Err(error)) = result.await {
-                    log::warn!("tree: the terminal failed: {error}");
+                    log::warn!("tree: the terminal failed: {}", ely_ipc::Worded::logged(&error));
                     this.update(cx, |tree, cx| {
                         tree.failed("tree.error.tool", &error, cx)
                     })

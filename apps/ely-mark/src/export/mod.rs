@@ -230,7 +230,7 @@ impl Desk {
 
     /// Logs `error` itself; only the toast reads its words.
     fn export_failed(&self, error: &std::io::Error, cx: &mut Context<Self>) {
-        log::warn!("mark: the export failed: {error}");
+        log::warn!("mark: the export failed: {}", ely_ipc::Worded::logged(error));
         let said = text(cx, "mark.export.failed", &[("error", &ely_ui::i18n::error(cx, error))]);
         self.toast_unlogged(said, Severity::Danger, cx);
     }

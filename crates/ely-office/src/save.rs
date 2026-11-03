@@ -27,7 +27,7 @@ pub trait Saving: Host {
             match ely_files::same_file(open, &target) {
                 Ok(true) => return Ok(Some(tab.id)),
                 Ok(false) => {}
-                Err(error) => log::warn!("office: tab {} has no file to compare: {error}", tab.id),
+                Err(error) => log::warn!("office: tab {} has no file to compare: {}", tab.id, ely_ipc::Worded::logged(&error)),
             }
         }
         Ok(None)
@@ -248,7 +248,7 @@ pub trait Saving: Host {
         };
         let target = match identity(&path) {
             Ok(target) => target,
-            Err(error) => return self.refuse_save(&then, &error.to_string(), unsaved(error, cx), cx),
+            Err(error) => return self.refuse_save(&then, &ely_ipc::Worded::logged(&error), unsaved(error, cx), cx),
         };
         let Some(format) = files::save_as_format(&Self::KIND, &target) else {
             let formats = Self::KIND.save_as.join(", .");
@@ -257,7 +257,7 @@ pub trait Saving: Host {
         };
         let holder = match self.holder(&target) {
             Ok(holder) => holder,
-            Err(error) => return self.refuse_save(&then, &error.to_string(), unsaved(error, cx), cx),
+            Err(error) => return self.refuse_save(&then, &ely_ipc::Worded::logged(&error), unsaved(error, cx), cx),
         };
         if holder.is_some_and(|other| other != id) {
             let text = text(cx, "office.error.taken", &[("name", &file_name(&target))]);
@@ -469,7 +469,7 @@ pub trait Saving: Host {
                 state.to_string()
             }
             Err(SaveError::Io(error)) => {
-                log::warn!("{}: tab {id} save failed: {error}", Self::KIND.app.slug());
+                log::warn!("{}: tab {id} save failed: {}", Self::KIND.app.slug(), ely_ipc::Worded::logged(&error));
                 ely_ui::i18n::error(cx, &error).to_string()
             }
             Err(SaveError::Conflict) => {

@@ -26,6 +26,14 @@ impl Worded {
         io::Error::other(Then { error, left })
     }
 
+    /// A log's view of `error`: its key, else kind.
+    pub fn logged(error: &io::Error) -> String {
+        match error.get_ref() {
+            Some(inner) if inner.is::<Self>() || inner.is::<Then>() => inner.to_string(),
+            _ => format!("{:?}", error.kind()),
+        }
+    }
+
     /// `error` as reply text; a worded one keeps its key..
     pub fn wire(error: &io::Error) -> String {
         let Some(worded) = error.get_ref().and_then(|inner| inner.downcast_ref::<Self>()) else {
@@ -94,5 +102,8 @@ mod tests {
         assert_eq!(Worded::wire(&io::Error::other("plain")), "plain");
         assert!(Worded::read("plain", &["pdf.error.kind"]).is_none());
         assert_eq!(sent.to_string(), "pdf.error.kind", "logs name the key");
+        let then = Worded::then(io::Error::other("C:\\a"), io::Error::other("C:\\b"));
+        let logged = [&sent, &then, &io::Error::new(io::ErrorKind::NotFound, "C:\\private\\a.csv")].map(Worded::logged);
+        assert_eq!(logged, ["pdf.error.kind", "error.then", "NotFound"], "no path, no text");
     }
 }

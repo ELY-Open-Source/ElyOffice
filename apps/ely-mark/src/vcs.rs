@@ -173,7 +173,7 @@ impl Desk {
 
     /// ElyTree did not start: logs the error, shows its words.
     pub(crate) fn tree_failed(&self, error: &io::Error, cx: &mut Context<Self>) {
-        log::error!("mark: ElyTree did not open: {error}");
+        log::error!("mark: ElyTree did not open: {}", ely_ipc::Worded::logged(error));
         let said = text(cx, "mark.git.failed", &[("error", &ely_ui::i18n::error(cx, error))]);
         self.toast_unlogged(said, Severity::Danger, cx);
     }

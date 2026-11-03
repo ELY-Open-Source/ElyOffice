@@ -198,7 +198,7 @@ impl Root {
 
     /// An unopened output: logs the error, shows its words.
     pub(crate) fn open_failed(&mut self, error: &std::io::Error, cx: &mut Context<Self>) {
-        log::error!("apps: the output did not open: {error}");
+        log::error!("apps: the output did not open: {}", ely_ipc::Worded::logged(error));
         let said = crate::i18n::text(cx, "toast.open_failed", &[("error", &crate::i18n::error(cx, error))]);
         self.toast(said, Severity::Danger, cx);
     }
@@ -241,7 +241,7 @@ impl Root {
         cx.spawn(async move |root, cx| {
             let opened = cx.background_spawn(async move { ely_platform::apps::open(app, &[]) }).await;
             if let Err(error) = opened {
-                log::error!("apps: {} did not open: {error}", app.name());
+                log::error!("apps: {} did not open: {}", app.name(), ely_ipc::Worded::logged(&error));
                 root.update(cx, |root, cx| {
                     let said = crate::i18n::text(cx, "menu.app.switch_failed", &[("app", app.name()), ("error", &crate::i18n::error(cx, &error))]);
                     root.toast(said, Severity::Danger, cx);

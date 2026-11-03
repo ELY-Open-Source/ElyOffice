@@ -91,8 +91,7 @@ impl Docs {
                 });
             }
             Err(error) => {
-                // A worded error logs its key, never the columns.
-                log::warn!("doc: the merge data did not read: {error}");
+                log::warn!("doc: the merge data did not read: {}", ely_ipc::Worded::logged(&error));
                 let name = path.display().to_string();
                 let error = ely_ui::i18n::error(cx, &error);
                 let text = Docs::text(
