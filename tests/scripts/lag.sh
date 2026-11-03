@@ -40,5 +40,7 @@ line=$(grep -n "lok: input" "$(log)" | sed -n "$((start + 1))p" | cut -d: -f1)
 [ -n "$line" ] || { [ -z "${ELY_LAG_LOG:-}" ] || cp "$(log)" "$ELY_LAG_LOG"; fail "no typed input reached the view"; }
 echo "$app inputs: $(stats 'lok: input [0-9]+ [a-z._]+ waited' "$line")"
 echo "$app tiles: $(stats 'lok: tile .* in [0-9]+ ms' "$line")"
-echo "$app edit to tile: $(stats 'lok: edit to tile' "$line")"
+echo "$app edit to tile: $(stats 'lok: edit [0-9]+ (text|key) to tile' "$line")"
 [ -z "${ELY_LAG_LOG:-}" ] || { cp "$(log)" "$ELY_LAG_LOG"; cp "$work/err" "$ELY_LAG_LOG.err"; }
+# Every typed key draws, timed once.
+python3 "$root/tests/perf/feedback.py" "$(log)" "$line" || fail "a typed key has no single edit-to-tile time"

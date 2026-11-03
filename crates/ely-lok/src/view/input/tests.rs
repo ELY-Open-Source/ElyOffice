@@ -78,9 +78,36 @@ fn a_failed_input_still_reports_the_revision_it_reached() {
     let doc = worker.load(&crate::file_url(&source)).expect("the book loads");
     // Nothing merged to split: the kernel refuses.
     let input = Input::Run { commands: vec![("cells.split", Vec::new())], at: None };
-    let (outcome, now) = run(&mut worker, &doc, input);
+    let (outcome, now, picture) = run(&mut worker, &doc, input);
     assert!(outcome.is_err(), "the split fails");
     let reached = worker.now(&doc).expect("the state");
     assert_eq!(now, Some(reached.rev), "the view learns the revision anyway");
     assert!(reached.rev > doc.rev, "the request counted");
+    assert_eq!(picture, Err("it failed"), "a failed edit is never timed");
+}
+
+/// A typed key knows the tiles its own callbacks dirtied.
+#[test]
+fn a_key_knows_its_own_picture() {
+    let Some(install) = crate::client::tests::install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    for (name, body) in [("note.fodt", crate::client::tests::FODT), ("book.fods", crate::client::tests::input::FODS)] {
+        let source = dir.path().join(name);
+        std::fs::write(&source, body).expect("the fixture writes");
+        let doc = worker.load(&crate::file_url(&source)).expect("the document loads");
+        // A view paints first; the kernel invalidates painted tiles.
+        doc.paint_tile(&mut worker, (0, 0, 3840, 3840), (64, 64)).expect("a tile paints");
+        crate::client::tests::click(&mut worker, &doc, 150, 150);
+        for n in 0..10 {
+            let before = worker.state(&doc).expect("the state").1;
+            let (outcome, _, picture) = run(&mut worker, &doc, Input::Text { text: "7".into(), ends: true });
+            outcome.expect("the key posts");
+            let after = worker.state(&doc).expect("the state").1;
+            assert!(after > before, "{name} key {n} dirtied tiles");
+            assert_eq!(picture, Ok(Some(after)), "{name} key {n} saw its own callbacks");
+        }
+    }
 }

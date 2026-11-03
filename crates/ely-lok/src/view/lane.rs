@@ -9,6 +9,7 @@ use std::{
 use futures::{StreamExt, channel::mpsc, select_biased};
 use gpui::Context;
 
+use super::clock::Picture;
 use super::input::{Back, Input};
 use super::{Geom, LokError, LokView, Reported, TILE_TWIPS};
 use crate::{Doc, Tile, Worker};
@@ -25,7 +26,7 @@ pub(super) struct Job {
 /// What came back from the lane.
 enum Landed {
     /// Sequence, whether it edits, whether it switched part, outcome.
-    Input(u64, bool, bool, (io::Result<Option<Back>>, Option<u64>)),
+    Input(u64, bool, bool, (io::Result<Option<Back>>, Option<u64>, Picture)),
     Tile(Job, io::Result<Tile>),
     /// Off screen or old by the time its turn came.
     Skipped((i32, i32)),
@@ -128,12 +129,12 @@ impl LokView {
                         self.invalidate(cx);
                     }
                     self.edited += u64::from(edits);
-                    let (outcome, now) = outcome;
+                    let (outcome, now, picture) = outcome;
                     // A plain key took nothing; the menu may return.
                     let taken = matches!(outcome, Ok(Some(Back::Completed(true))));
                     self.completion.landed(seq, if taken { now } else { None });
                     if edits {
-                        self.clock.landed(now);
+                        self.clock.landed(seq, picture);
                     }
                     self.seen_revision(now.unwrap_or(0));
                     match outcome {

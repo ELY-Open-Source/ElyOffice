@@ -32,9 +32,10 @@ pub fn of(id: u64) -> io::Result<u64> {
     revisions.get(&id).copied().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such document"))
 }
 
-/// The revision now, answered.
+/// The revision and tile generation now, answered.
 pub fn current(unpack: &mut Unpack) -> io::Result<Vec<u8>> {
-    Ok(Pack::new().u64(of(unpack.u64()?)?).bytes())
+    let id = unpack.u64()?;
+    Ok(Pack::new().u64(of(id)?).u64(crate::events::generation(id)).bytes())
 }
 
 /// Refuses unless the document is at the revision asked for.
