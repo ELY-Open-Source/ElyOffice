@@ -131,7 +131,7 @@ mod tests {
             assert!(alive(helper), "the helper outlives R's exit");
         }
         run.finish().expect("finished");
-        let deadline = Instant::now() + Duration::from_secs(60);
+        let deadline = Instant::now() + Duration::from_secs(5);
         while alive(helper) && Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(20));
         }
