@@ -14,6 +14,33 @@ impl gpui::Render for Host {
     }
 }
 
+/// A deck's pictures and stale ones, and whether one paints.
+fn pictures(app: &gpui::App, deck: &Entity<crate::deck::Deck>, id: u64) -> (usize, usize, bool) {
+    let tab = ely_office::Tabs::tab(deck.read(app), id).expect("the tab");
+    (tab.extra.thumbs.len(), tab.extra.stale.len(), tab.extra.painting)
+}
+
+#[test]
+fn only_the_shown_deck_paints_its_pictures() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = blank(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let first = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    update(&mut cx, &deck, |deck, cx| deck.new_blank(cx));
+    settle(&cx, |app| deck.read(app).core.active != Some(first) && counts(app, &deck) == (1, 1));
+    // A hundred hidden decks would hold the engine.
+    update(&mut cx, &deck, |deck, cx| deck.repaint_all(first, cx));
+    cx.run_until_parked();
+    assert_eq!(cx.update(|app| pictures(app, &deck, first)), (1, 1, false), "a hidden deck paints nothing");
+    update(&mut cx, &deck, |deck, cx| {
+        deck.core.active = Some(first);
+        cx.notify();
+    });
+    settle(&cx, |app| pictures(app, &deck, first) == (1, 0, false));
+}
+
 #[test]
 fn the_wheel_scrolls_the_strip_to_its_last_slide() {
     let dir = tempfile::tempdir().expect("a temp dir");

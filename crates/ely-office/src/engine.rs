@@ -65,6 +65,8 @@ pub trait Engine: Sized + 'static {
     fn close(worker: &mut Self::Worker, doc: Self::Doc) -> io::Result<()>;
     /// A closing view's images, for the shell to free.
     fn retire(view: &Entity<Self::View>, cx: &mut App) -> ely_gpui_component::primitives::Retired;
+    /// Its tab left the screen; queued drawing stops.
+    fn hide(_view: &Entity<Self::View>, _cx: &mut App) {}
     /// Why the worker ended, if it did (§6.3).
     fn ended(_worker: &mut Self::Worker) -> Option<String> {
         None

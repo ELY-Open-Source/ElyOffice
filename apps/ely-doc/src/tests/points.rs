@@ -31,3 +31,25 @@ fn an_unsaved_tab_gets_a_point() {
     cx.update(|app| docs.update(app, |docs, cx| docs.keep_points(cx)));
     settle(&cx, |_| points(&kept) == 1);
 }
+
+#[test]
+fn points_are_written_one_tab_at_a_time() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let kept = dir.path().join("kept");
+    let keeping = ely_office::Keeping::in_folder(kept.clone()).expect("recovery starts");
+    cx.update(|app| docs.update(app, |docs, _| docs.core.keeping = Some(keeping)));
+    for text in ["one", "two", "three"] {
+        blank(&mut cx, &docs);
+        type_into(&mut cx, &docs, text);
+    }
+    let writing = |app: &gpui::App| docs.read(app).core.keeping.as_ref().expect("recovery").writing();
+    cx.update(|app| docs.update(app, |docs, cx| docs.keep_points(cx)));
+    // Snapshots queued at once keep a key waiting behind all.
+    assert_eq!(cx.update(|app| writing(app)), 1, "one snapshot holds the engine at a time");
+    settle(&cx, |app| points(&kept) == 3 && writing(app) == 0);
+}

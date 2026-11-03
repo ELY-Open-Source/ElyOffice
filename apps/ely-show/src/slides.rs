@@ -98,8 +98,12 @@ impl Deck {
         self.run_active(id, &[], cx);
     }
 
-    /// Paints the next missing or stale slide picture.
+    /// Paints the shown deck's next missing or stale picture.
     pub fn paint_next(&mut self, id: u64, cx: &mut Context<Self>) {
+        // Only the shown strip; others wait their turn.
+        if self.core.active != Some(id) {
+            return;
+        }
         let Some(tab) = self.tab(id) else {
             return;
         };
