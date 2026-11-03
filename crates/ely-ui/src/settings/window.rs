@@ -229,6 +229,7 @@ impl SettingsView {
         let language = choices("settings-language", &Language::ALL, &shared.language, |choice, cx| match choice {
             Language::System => text(cx, "settings.language.system", &[]),
             Language::English => "English".into(),
+            Language::Spanish => "Español".into(),
             Language::Chinese => "简体中文".into(),
         }, LANGUAGE, cx);
         let motion = choices("settings-motion", &Motion::ALL, &shared.motion, |choice, cx| match choice {

@@ -29,3 +29,14 @@
 | 非 ASCII 路径 | `paths_keep_spaces_cjk_and_case`（保存）；启动参数按当前目录取绝对路径（C20.1 修） | — |
 | 日期、数字、纸张用显式区域 | 内核载入选项固定 `Language=en-US`（`ely-lok/src/worker.rs` 的 `LOAD_OPTIONS`），公式为 Excel A1 语法；纸张取自文档本身并原样打印（C19.2） | — |
 | 改界面语言不重解释已存数值 | 同上：内核的数字区域不随界面语言，界面语言只改 Ely 的文案与选区统计的名称 | — |
+
+
+## Spanish interface
+
+ElyDoc and ElyTable offer **Español** in Settings → General → Language.
+Restart each app after changing it. **System** recognizes regional Spanish tags,
+including `es-PE`, `es-MX`, `es-419` and POSIX `es_PE.UTF-8`.
+The translation includes their shared settings and document dialogs. Other apps'
+dedicated messages are still English when this shared preference is Spanish.
+LibreOffice formula names and numeric input conventions are unchanged; this adds
+an interface language, not Spanish spelling dictionaries.

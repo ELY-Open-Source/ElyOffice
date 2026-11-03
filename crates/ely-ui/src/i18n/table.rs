@@ -1,6 +1,17 @@
 //! ElyTable's messages.
 
 pub(super) const EN: &[(&str, &str)] = &[
+    ("table.r.menu", "Macros"),
+    ("table.r.title", "Run R Macro — experimental"),
+    ("table.r.code", "R source"),
+    ("table.r.permissions", "R runs with your user permissions; this is not a sandbox. Only run code you trust. Execution is limited to 30 seconds."),
+    ("table.r.busy", "Wait for pending document input, then run again."),
+    ("table.r.done", "Macro applied. Undo reverts the whole batch."),
+    ("table.r.open", "Open .R…"),
+    ("table.r.save", "Save .R…"),
+    ("table.r.run", "Run"),
+    ("table.r.running", "Running…"),
+
     ("menu.sheet", "Sheet"),
     ("menu.cells", "Cells"),
     ("table.sheet.default", "Sheet{n}"),
@@ -97,6 +108,17 @@ pub(super) const EN: &[(&str, &str)] = &[
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
+    ("table.r.menu", "宏"),
+    ("table.r.title", "运行 R 宏 — 实验性"),
+    ("table.r.code", "R 源码"),
+    ("table.r.permissions", "R 使用当前用户的权限运行，并非沙箱。请只运行可信代码。执行限时 30 秒。"),
+    ("table.r.busy", "请等待文档输入完成后重试。"),
+    ("table.r.done", "宏已应用。可一步撤销整个批次。"),
+    ("table.r.open", "打开 .R…"),
+    ("table.r.save", "保存 .R…"),
+    ("table.r.run", "运行"),
+    ("table.r.running", "正在运行…"),
+
     ("menu.sheet", "工作表"),
     ("menu.cells", "单元格"),
     ("table.sheet.default", "工作表{n}"),

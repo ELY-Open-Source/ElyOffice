@@ -50,6 +50,13 @@ ElyMail needs a Microsoft client ID at build time: put `ELY_MICROSOFT_CLIENT_ID=
 
 The scripts run on macOS, on Windows (LibreOffice under Cygwin, MuPDF with MSBuild) and on Linux inside `packaging/linux/container.sh`, an AlmaLinux 8 image that keeps the binaries on glibc 2.28.
 
+## Experimental R macros
+
+ElyTable can run local R macros on a selected range, including values, header
+formatting and column widths. See [the one-minute demo](docs/r-macros.md) for
+setup, the small API and its limits. Requires Rscript and a rebuilt LOK engine
+with patch 0063.
+
 ## Release
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`. Self-hosted runners build macOS (arm64, and Intel under Rosetta), Windows and Linux with `scripts/ci.sh` and upload each app's packages, update manifests and the source archives to the GitHub release. macOS builds are signed and notarized.
