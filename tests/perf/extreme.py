@@ -19,7 +19,6 @@ import richfiles
 import run
 
 from load import RECIPES
-from loadfiles import TOKEN
 from run import APPS, App
 
 ZOOMS = [("reset", "0", 0), ("25", "minus", 4), ("67", "minus", 2), ("125", "plus", 1), ("400", "plus", 5), ("wheel+2", "0", 2), ("wheel-3", "0", -3)]
@@ -43,6 +42,7 @@ def start(name, slug, files, front=None):
     """`slug` with `files` open; `front` handed over last, active."""
     app = App(slug, load.data_home(WORK, f"{name[:3]}{slug[4:7]}"), files, frames=True)
     try:
+        load.first_place(app)
         load.wait_opened(app, len(files), 60 + 15 * len(files))
         if front:
             since = len(app.lines())
@@ -226,7 +226,7 @@ def save_while_typing():
             while not stop.is_set():
                 try:
                     saves.append(load.ask(app, [VERB[slug], "save", front]))
-                except RuntimeError as error:
+                except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
                     failures.append(str(error))
                 time.sleep(0.5)
 
@@ -245,9 +245,10 @@ def save_while_typing():
             said(app, VERB[slug], "save", front)
         finally:
             app.stop()
-        ok = load.typed(slug, front, 40) and not failures
+        slow = [tick for tick in ticks if tick > load.TARGET]
+        ok = load.typed(slug, front, 40) and not failures and not slow
         rows.append((f"{APPS[slug]}: saved {len(saves)} times while 40 keys went in", ok,
-                     f"keys P95 {load.percentile(ticks, 0.95)} max {max(ticks)} ms; every key saved: {load.typed(slug, front, 40)}; "
+                     f"keys P95 {load.percentile(ticks, 0.95)} max {max(ticks)} ms, {len(slow)} over {load.TARGET}; every key saved: {load.typed(slug, front, 40)}; "
                      f"save failures: {failures[:2] or 'none'}"))
     return rows
 
@@ -345,13 +346,15 @@ def zoom():
         shots = place("zoom", slug)
         path = os.path.join(shots, f"big.{loadfiles.EXT[slug]}")
         shutil.copy(os.path.join(folder, f"big.{loadfiles.EXT[slug]}"), path)
-        app = start("zoom", slug, [path])
+        app, missed = start("zoom", slug, [path]), []
         try:
             app.front()
             time.sleep(3)
             for name, key, times in ZOOMS:
                 run.HOST.chord(app.process.pid, "0")
-                time.sleep(0.5)
+                # The log reaches the file within two seconds.
+                time.sleep(2.5)
+                reset, since = load.zoomed(app.lines()), len(app.lines())
                 for _ in range(abs(times) if not name.startswith("wheel") else 0):
                     run.HOST.chord(app.process.pid, key)
                     time.sleep(0.3)
@@ -362,11 +365,13 @@ def zoom():
                     run.HOST.chord(app.process.pid, "home")
                 time.sleep(3)
                 run.HOST.shot(app.process.pid, os.path.join(shots, f"{slug[4:]}-{name}.png"))
+                if not load.reached(reset, now := load.zoomed(app.lines()[since:]) or reset, key, times):
+                    missed.append(f"{name}: {reset} to {now}")
             failed = lines_matching(app, run.PAINT_FAILED)
         finally:
             app.stop()
-        rows.append((f"{APPS[slug]}: zoom 25 % to 400 % and by wheel", not failed,
-                     f"tiles failed: {len(failed)}; screenshots for review in {shots}"))
+        rows.append((f"{APPS[slug]}: zoom 25 % to 400 % and by wheel", not failed and not missed,
+                     f"tiles failed: {len(failed)}; zoom not as asked: {missed or 'none'}; screenshots in {shots}"))
     return rows
 
 
@@ -420,25 +425,15 @@ def very_large():
 
 
 def huge(slug):
-    folder = place("large", slug)
-    path = os.path.join(folder, f"huge.{loadfiles.EXT[slug]}")
-    if slug == "ely-doc":
-        richfiles.pages_docx(path, 500)
-    elif slug == "ely-table":
-        loadfiles.workbook(path, 60000, typing=True)
-        richfiles.xlsx(path, 60000)
-    elif slug == "ely-show":
-        loadfiles.presentation(path, 20)
-    else:
-        with open(path, "w", encoding="utf-8", newline="\n") as note:
-            note.write(f"# Typing\n\nA paragraph.\n\n{TOKEN}0\n\n" + loadfiles.small_md(0).replace(f"{TOKEN}0", "") * 6000)
+    path = os.path.join(place("large", slug), f"huge.{loadfiles.EXT[slug]}")
+    richfiles.huge_sample(slug, path)
     size, began = os.path.getsize(path) / 2**20, time.monotonic()
     app = start("large", slug, [path])
     opened = (time.monotonic() - began) * 1000
     try:
         # ElyMark shows files past LARGEST_READ as source.
         typing_into(app, run.HOST.middle if slug == "ely-mark" else None)
-        ticks, _ = load.type_keys(app, RECIPES[slug], 20)
+        ticks, typed_lines = load.type_keys(app, RECIPES[slug], 20)
         RECIPES[slug].finish(app.process.pid)
         edit = [load.ask(app, words) for words in RECIPES[slug].edits(path, 1)]
         saved = load.ask(app, [VERB[slug], "save", path])
@@ -447,10 +442,13 @@ def huge(slug):
         app.stop()
     problems = [] if load.typed(slug, path, 20) else ["the 20 keys are not all saved"]
     problems += load.saved(slug, path, 1)
+    problems += [what for what, ok in richfiles.huge_kept(slug, path).items() if not ok]
+    seen = load.frames(typed_lines)
+    drawn = "no frame line" if seen is None else f"frames over 8.3 ms {seen[2]}/{seen[0]}, dirty to shown max {seen[4]:.1f} ms"
     slow = [tick for tick in ticks if tick > load.TARGET]
     return (f"{APPS[slug]}: a {size:.0f} MB file", not problems and not slow,
             f"open {opened:.0f} ms; keys P50 {load.percentile(ticks, 0.5)} P95 {load.percentile(ticks, 0.95)} "
-            f"max {max(ticks)} ms; edit {max(edit):.0f} ms; save {saved:.0f} ms; {memory:.0f} MB; problems {problems or 'none'}")
+            f"max {max(ticks)} ms; {drawn}; edit {max(edit):.0f} ms; save {saved:.0f} ms; {memory:.0f} MB; problems {problems or 'none'}")
 
 
 def main():
@@ -467,12 +465,14 @@ def main():
     WORK = os.path.join(run.ROOT, ".work", f"E{datetime.datetime.now():%H%M%S}")
     os.makedirs(WORK)
     run.HOST = drive.host(WORK)
+    load.watch_memory()
     load.build(list(RECIPES))
     rows = []
     for name in args.cases:
         for attempt in range(load.RETRIES + 1):
             try:
                 rows += CASES[name]()
+                load.free_gb()
             except load.Interfered as error:
                 if attempt < load.RETRIES:
                     print(f"{error}; again in 30 s", flush=True)

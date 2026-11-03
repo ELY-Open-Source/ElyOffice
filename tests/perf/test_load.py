@@ -56,6 +56,17 @@ class Logs(unittest.TestCase):
         self.assertEqual(load.frames(lines), (150, 1, 7, 9.5, 20.0))
         self.assertIsNone(load.frames(["[x] lok: edit to tile 5 ms"]))
 
+    def test_zoom_steps_are_judged(self):
+        self.assertEqual(load.zoomed(["[x] lok: zoom 50%", "[x] lok: zoom 125%"]), 125)
+        self.assertIsNone(load.zoomed(["[x] lok: edit to tile 5 ms"]))
+        self.assertTrue(load.reached(100, 25, "minus", 4))
+        self.assertTrue(load.reached(100, 400, "plus", 5))
+        self.assertTrue(load.reached(50, 25, "minus", 4))
+        self.assertFalse(load.reached(100, 100, "plus", 1))
+        self.assertTrue(load.reached(100, 132, "0", 2))
+        self.assertFalse(load.reached(100, 100, "0", -3))
+        self.assertFalse(load.reached(None, 100, "plus", 1))
+
     def test_stalls_are_read(self):
         self.assertEqual(load.stalls(["[x] ui: the main thread was busy 140 ms", "[x] other"]), [140])
 

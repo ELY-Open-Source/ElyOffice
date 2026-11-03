@@ -165,3 +165,42 @@ def held(slug, point):
         typed = loadfiles.cell(point, "Typing", "A1") or ""
         return typed.count("1"), loadfiles.cell(point, "Data", "H1")
     return loadfiles.text_of(point).count("x"), loadfiles.tokens(point)
+
+
+# Each huge sample's size: pages, rows, slide copies, notes.
+HUGE = {"ely-doc": 500, "ely-table": 60000, "ely-show": 20, "ely-mark": 6000}
+
+
+def huge_sample(slug, path):
+    n = HUGE[slug]
+    if slug == "ely-doc":
+        pages_docx(path, n)
+    elif slug == "ely-table":
+        loadfiles.workbook(path, n, typing=True)
+        xlsx(path, n)
+    elif slug == "ely-show":
+        loadfiles.presentation(path, n)
+    else:
+        with open(path, "w", encoding="utf-8", newline="\n") as note:
+            body = loadfiles.small_md(0).replace(f"{loadfiles.TOKEN}0", "") * n
+            note.write(f"# Typing\n\nA paragraph.\n\n{loadfiles.TOKEN}0\n\n{body}")
+
+
+def huge_kept(slug, path):
+    """What a saved huge sample must still hold."""
+    n = HUGE[slug]
+    if slug == "ely-table":
+        return {**xlsx_kept(path), f"Data!A{n} kept": loadfiles.cell(path, "Data", f"A{n}") is not None,
+                f"Calc!B{n} chain kept": loadfiles.formula(path, "Calc", f"B{n}") is not None}
+    if slug == "ely-mark":
+        return {f"{n} notes kept": loadfiles.text_of(path).count("| 19 | row 19 | 361 |") == n}
+    with zipfile.ZipFile(path) as archive:
+        names = archive.namelist()
+        if slug == "ely-show":
+            slides = [archive.read(name).decode("utf-8") for name in names if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)]
+            return {f"{9 * (n + 1)} slides kept": len(slides) == 9 * (n + 1),
+                    f"{9 * n} pictures kept": sum(xml.count("<p:pic>") for xml in slides) >= 9 * n}
+        xml = archive.read("word/document.xml").decode("utf-8")
+    pages = len(re.findall(r"Page \d+", loadfiles.text_of(path)))
+    return {f"{n} pages kept": pages == n, f"{n // 5} tables kept": xml.count("<w:tbl>") >= n // 5,
+            f"{n // 10} pictures kept": sum(name.startswith("word/media/") for name in names) >= n // 10}

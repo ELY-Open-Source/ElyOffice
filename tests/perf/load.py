@@ -40,8 +40,8 @@ class Interfered(RuntimeError):
     """Someone else used the desktop: the run is void."""
 
 
-# Lowest free memory seen, GB, per app run.
-lowest = [float("inf")]
+class NoFeedback(RuntimeError):
+    """A key showed nothing in time."""
 
 
 class Memory(ctypes.Structure):
@@ -49,17 +49,48 @@ class Memory(ctypes.Structure):
         (name, ctypes.c_ulonglong) for name in ("total", "free", "page", "page_free", "virtual", "virtual_free", "extended")]
 
 
-def free_gb():
-    """Physical memory free now; raises below the floor."""
+def free_now():
     status = Memory()
     status.size = ctypes.sizeof(Memory)
     if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
         raise RuntimeError("free memory could not be read")
-    free = status.free / 2**30
-    lowest[0] = min(lowest[0], free)
-    if free < FLOOR_GB:
-        raise RuntimeError(f"stopped: free memory {free:.1f} GB under {FLOOR_GB} GB")
-    return free
+    return status.free / 2**30
+
+
+class Floor(threading.Thread):
+    """Free memory twice a second, through every phase."""
+
+    def __init__(self):
+        super().__init__(daemon=True)
+        self.lowest, self.stop = free_now(), None
+
+    def run(self):
+        while self.stop is None:
+            try:
+                free = free_now()
+            except RuntimeError as error:
+                self.stop = str(error)
+                return
+            self.lowest = min(self.lowest, free)
+            if free < FLOOR_GB:
+                self.stop = f"stopped: free memory {free:.1f} GB under {FLOOR_GB} GB"
+            time.sleep(0.5)
+
+
+FLOOR = None
+
+
+def watch_memory():
+    global FLOOR
+    FLOOR = Floor()
+    FLOOR.start()
+
+
+def free_gb():
+    """Lowest free memory seen; raises once under the floor."""
+    if FLOOR.stop:
+        raise RuntimeError(FLOOR.stop)
+    return FLOOR.lowest
 
 
 def finish_enter(pid):
@@ -115,7 +146,7 @@ def at_once(app, jobs):
         for future in [pool.submit(ask, app, words) for words in jobs]:
             try:
                 times.append(future.result())
-            except (RuntimeError, subprocess.TimeoutExpired) as error:
+            except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
                 failures.append(str(error))
     return times, failures
 
@@ -159,6 +190,12 @@ def data_home(work, name):
     return home
 
 
+def first_place(app):
+    """Where the app put its window, saved once at start."""
+    app.wait(r"settings: window saved", timeout=30)
+    app.place = window_place(app)
+
+
 def window_place(app):
     """The window place the app last saved."""
     path = os.path.join(app.home, app.slug, "settings.json")
@@ -192,7 +229,7 @@ def type_keys(app, recipe, count, busy=None):
     """Keys to feedback, `count` at least and while `busy` runs."""
     run.HOST.park(app.process.pid)
     time.sleep(0.5)
-    since, place = len(app.lines()), window_place(app)
+    since, place = len(app.lines()), app.place
     n = 0
     while n < count or (busy is not None and busy.is_alive()):
         recipe.send(app.process.pid)
@@ -201,7 +238,7 @@ def type_keys(app, recipe, count, busy=None):
             if interfered(app, since, place):
                 break
             if time.monotonic() > until:
-                raise RuntimeError(f"{app.slug}: key {n + 1} showed nothing in {KEY_WAIT} s{repainted(app, since)}")
+                raise NoFeedback(f"{app.slug}: key {n + 1} showed nothing in {KEY_WAIT} s{repainted(app, since)}")
             time.sleep(0.01)
         n += 1
         free_gb()
@@ -216,9 +253,7 @@ def landed(app, recipe):
     """One key's time, or none when it showed nothing."""
     try:
         return type_keys(app, recipe, 1)[0]
-    except Interfered:
-        raise
-    except RuntimeError:
+    except NoFeedback:
         return []
 
 
@@ -230,6 +265,25 @@ def frames(lines):
         return None
     return (sum(int(m.group(1)) for m in found), sum(int(m.group(2)) for m in found), sum(int(m.group(5)) for m in found),
             max(float(m.group(3)) for m in found), max(float(m.group(4)) for m in found))
+
+
+def zoomed(lines):
+    """The last zoom the view logged, in percent."""
+    found = [int(m.group(1)) for line in lines if (m := re.search(r"lok: zoom (\d+)%", line))]
+    return found[-1] if found else None
+
+
+def reached(reset, now, key, times):
+    """Whether a step left the zoom where it should be."""
+    if reset is None or now is None:
+        return False
+    if key == "0":
+        return now < reset if times < 0 else now > reset if times > 0 else now == reset
+    steps = [25, 50, 67, 80, 100, 125, 150, 200, 300, 400]
+    for _ in range(times):
+        nearer = [s for s in steps if s > reset] if key == "plus" else [s for s in steps if s < reset][::-1]
+        reset = nearer[0] if nearer else reset
+    return now == reset
 
 
 def stalls(lines):
@@ -275,12 +329,13 @@ def saved(slug, path, rounds):
 def one_app(slug, folder, work, args):
     """Opens, types, edits, saves and reads back one app's documents."""
     recipe, out = RECIPES[slug], {"edits": [], "problems": []}
-    lowest[0] = free_gb()
+    FLOOR.lowest = free_now()
     home, place = data_home(work, slug), os.path.join(work, slug)
     os.makedirs(place, exist_ok=True)
     files, front = loadfiles.documents(folder, place, slug, args.docs)
     app = App(slug, home, files, frames=True)
     try:
+        first_place(app)
         out["open all ms"] = wait_opened(app, len(files), 60 + 15 * len(files))
         since = len(app.lines())
         handed = time.monotonic()
@@ -293,6 +348,7 @@ def one_app(slug, folder, work, args):
         recipe.into(app.process.pid)
         # Clicks reach the log at the next two-second flush.
         time.sleep(2.5)
+        typing = len(app.lines())
         out["idle"] = type_keys(app, recipe, args.keys)
         busy = threading.Thread(target=edit_rounds, args=(app, recipe, files, args.rounds, out))
         busy.start()
@@ -305,6 +361,11 @@ def one_app(slug, folder, work, args):
         out["saves"], failures = at_once(app, [["text" if slug != "ely-table" else "cell", "save", path] for path in files + [front]])
         out["problems"] += [f"save: {failure}" for failure in failures]
         out["memory edited MB"] = app.memory_mb()
+        # The log flushes every two seconds.
+        time.sleep(2.5)
+        if why := interfered(app, typing, app.place):
+            raise Interfered(why)
+        free_gb()
         lines = app.lines()
     finally:
         app.stop()
@@ -318,7 +379,7 @@ def one_app(slug, folder, work, args):
         out["problems"].append(f"front: the {keys} keys typed are not all saved")
     for path in files:
         out["problems"] += saved(slug, path, args.rounds)
-    out["stalls"], out["free GB"] = stalls(lines), lowest[0]
+    out["stalls"], out["free GB"] = stalls(lines), FLOOR.lowest
     return out
 
 
@@ -394,6 +455,7 @@ def main():
     work = os.path.join(run.ROOT, ".work", f"L{datetime.datetime.now():%H%M%S}")
     os.makedirs(work)
     run.HOST = drive.host(work)
+    watch_memory()
     build(args.apps)
     folder = loadfiles.made(os.path.join(run.ROOT, ".work", "load-samples"))
     rows, problems = [], []
