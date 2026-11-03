@@ -152,3 +152,14 @@ fn new_paper_follows_the_region_unless_chosen() {
         assert!(Shared::from_fields(&fields(bad)).is_err(), "{bad}");
     }
 }
+
+#[test]
+fn spanish_language_is_read_and_preserved() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = super::Store::at(dir.path().join("shared.json"));
+    store.set("language", json!("es-ES")).unwrap();
+    store.set("author", json!("Ana")).unwrap();
+    let fields = store.read().unwrap();
+    assert_eq!(super::Shared::from_fields(&fields).unwrap().language, super::Language::Spanish);
+    assert_eq!(fields["language"], "es-ES");
+}
