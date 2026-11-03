@@ -42,6 +42,9 @@ mod tools;
 mod tree;
 mod tree_ops;
 mod tree_places;
+mod vi;
+#[cfg(test)]
+mod vietnamese_tests;
 use ely_ipc::{Then, Worded};
 use ely_platform::settings::{LANGUAGES, Language};
 use gpui::{App, SharedString};
@@ -196,14 +199,15 @@ pub fn install(cx: &mut App) {
 pub fn install_as(locale: &'static str, cx: &mut App) {
     #[cfg(target_os = "windows")]
     gpui_windows::set_text_language(locale);
-    let [en, zh, es, ja, ko] = catalogs();
+    let [en, zh, es, ja, ko, vi] = catalogs();
     cx.set_global(
         I18n::new(locale)
             .catalog("en-US", &en)
             .catalog("zh-CN", &zh)
             .catalog("es-ES", &es)
             .catalog("ja-JP", &ja)
-            .catalog("ko-KR", &ko),
+            .catalog("ko-KR", &ko)
+            .catalog("vi-VN", &vi),
     );
 }
 
@@ -285,8 +289,8 @@ const ZH_MODULES: [&[(&str, &str)]; 34] = [
 ];
 
 /// Every language's catalog, every module's messages.
-fn catalogs() -> [Catalog; 5] {
-    [EN_MODULES, ZH_MODULES, es::ES, ja::JA, ko::KO].map(|modules| modules.iter().flat_map(|module| module.iter().copied()).collect())
+fn catalogs() -> [Catalog; 6] {
+    [EN_MODULES, ZH_MODULES, es::ES, ja::JA, ko::KO, vi::VI].map(|modules| modules.iter().flat_map(|module| module.iter().copied()).collect())
 }
 
 /// `ELY_LOCALE`, then the language setting, then the system's.

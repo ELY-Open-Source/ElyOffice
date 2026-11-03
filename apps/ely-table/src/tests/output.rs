@@ -440,6 +440,7 @@ fn the_default_encoding_follows_the_apps_language() {
         ("es-ES", Encoding::Windows1252),
         ("ja-JP", Encoding::ShiftJis),
         ("ko-KR", Encoding::Windows949),
+        ("vi-VN", Encoding::Windows1258),
     ];
     for (tag, expected) in pages {
         cx.update(|app| I18n::set_locale(tag, app));
