@@ -383,22 +383,17 @@ impl PdfView {
         let offset = self.scroll.offset();
         let (left, top) = self.go_to.unwrap_or((-f32::from(offset.x), -f32::from(offset.y)));
         let laid = self.laid_out();
-        let below: Vec<_> = laid.placed.iter().filter(|place| place.y + place.h > top).collect();
-        let row = below.iter().map(|place| place.row).min();
-        // In that row, the page nearest the top left.
-        let near = |place: &crate::layout::Placed| {
-            let across = (place.x - left).max(left - place.x - place.w).max(0.0);
-            (across, (place.y - top).max(0.0))
-        };
-        let anchor = (below.into_iter().filter(|place| Some(place.row) == row))
-            .min_by(|a, b| {
-                let ((a_across, a_down), (b_across, b_down)) = (near(a), near(b));
-                a_across.total_cmp(&b_across).then(a_down.total_cmp(&b_down))
-            });
-        // Down the page as a share; above it in pixels.
+        let row = laid.placed.iter().filter(|place| place.y + place.h > top).map(|place| place.row).min();
+        let in_row: Vec<_> = laid.placed.iter().filter(|place| Some(place.row) == row).collect();
+        // The row's tallest page starts it.
+        let row_top = in_row.iter().map(|place| place.y).fold(f32::INFINITY, f32::min);
+        // In that row, the page nearest the left edge.
+        let across = |place: &crate::layout::Placed| (place.x - left).max(left - place.x - place.w).max(0.0);
+        let anchor = in_row.into_iter().min_by(|a, b| across(a).total_cmp(&across(b)));
+        // In the row as a share; above it in pixels.
         let (anchor, spot) = anchor.map_or((self.current, (0.0, 0.0, 0.0)), |place| {
-            let down = ((top - place.y) / place.h).max(0.0);
-            (place.page, ((left - place.x) / place.w, down, (top - place.y).min(0.0)))
+            let down = (top.max(row_top) - place.y) / place.h;
+            (place.page, ((left - place.x) / place.w, down, (top - row_top).min(0.0)))
         });
         change(self, laid.scale);
         self.retire_tiles();
