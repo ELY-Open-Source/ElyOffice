@@ -265,7 +265,7 @@ def zooms(lines):
 
 
 def walk(ups, wheel):
-    """The zooms logged stepping up from 25 %, then one wheel step."""
+    """Zooms logged stepping up from 25 %, then a wheel."""
     steps = [25, 50, 67, 80, 100, 125, 150, 200, 300, 400]
     seen = steps[1:ups + 1]
     if wheel:

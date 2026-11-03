@@ -58,7 +58,7 @@ def start(name, slug, files, front=None):
 
 @contextlib.contextmanager
 def running(name, slug, files, front=None, clicks=False):
-    """The app for one case; void if someone used the desktop."""
+    """One case's app; void if someone used the desktop."""
     app = start(name, slug, files, front)
     try:
         yield app
