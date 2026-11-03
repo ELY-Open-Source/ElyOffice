@@ -394,6 +394,7 @@ mod chinese;
 mod aids;
 mod data;
 mod edges;
+mod editing;
 mod kept;
 mod links;
 mod menu;

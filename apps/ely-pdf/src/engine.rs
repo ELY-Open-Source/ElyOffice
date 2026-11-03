@@ -133,7 +133,7 @@ impl Engine for Pdf {
         worker.get()?.history(*doc)
     }
 
-    fn write(worker: &mut Mupdf, doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
+    fn write(worker: &mut Mupdf, doc: &Doc, path: &Path, format: &str, _: bool) -> io::Result<()> {
         match format {
             "pdf" => worker.get()?.save(*doc, path),
             other => Err(io::Error::new(io::ErrorKind::Unsupported, format!("writing .{other}"))),
@@ -142,7 +142,7 @@ impl Engine for Pdf {
 
     /// MuPDF's save writes a snapshot; the document is untouched.
     fn snapshot(worker: &mut Mupdf, doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
-        Self::write(worker, doc, path, format)
+        Self::write(worker, doc, path, format, false)
     }
 
     fn close(worker: &mut Mupdf, doc: Doc) -> io::Result<()> {

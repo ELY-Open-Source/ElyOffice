@@ -1,0 +1,138 @@
+LOK: a save leaves an open cell edit alone
+
+PreDoSaveAs_Impl ended Calc's cell edit before every LOK save, copies
+and recovery saves included (TerminateEditing commits the input). Keys
+typed after a background save then started a new edit that replaced the
+cell. Upstream Calc keeps the edit open on its own autosave for this
+reason (ScDocShell::PrepareSaveGuard).
+
+Now a save writes the cells as entered and the edit stays open. The
+"TerminateEditing" save option enters it first, for a save that ends
+the view. While a cell edit holds typed text, LOK keeps the document
+modified, so a save no longer clears it. LOK marked it modified on the
+first key only; text typed through postExtTextInputEvent (how clients
+type characters) now marks it too, or an open edit looked saved.
+
+diff --git a/desktop/source/lib/init.cxx b/desktop/source/lib/init.cxx
+index 6159f4b..7718581 100644
+--- a/desktop/source/lib/init.cxx
++++ b/desktop/source/lib/init.cxx
+@@ -3848,6 +3848,7 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+         // Other tokens pass verbatim: CSV options are positional.
+         std::vector<OUString> aFilteredOptionVec;
+         bool bTakeOwnership = false;
++        bool bTerminateEditing = false;
+         bool bCreateFromTemplate = false;
+         MediaDescriptor aSaveMediaDescriptor;
+         sal_Int32 nOption = aFilterOptions.isEmpty() ? -1 : 0;
+@@ -3857,6 +3858,8 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+             const OUString aKey = aOption.trim();
+             if (aKey == "TakeOwnership")
+                 bTakeOwnership = true;
++            else if (aKey == "TerminateEditing")
++                bTerminateEditing = true;
+             else if (aKey == "NoFileSync")
+                 aSaveMediaDescriptor[u"NoFileSync"_ustr] <<= true;
+             else if (aKey == "FromTemplate")
+@@ -3924,6 +3927,13 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+             aSaveMediaDescriptor[MediaDescriptor::PROP_INTERACTIONHANDLER] <<= uno::Reference<task::XInteractionHandler2>(pInteraction);
+         }
+ 
++        // Only a closing save enters the cell edit.
++        if (bTerminateEditing)
++        {
++            if (SfxObjectShell* pObjectShell = getSfxObjectShell(pThis))
++                pObjectShell->TerminateEditing();
++        }
++
+         if (bTakeOwnership)
+             xStorable->storeAsURL(aURL, aSaveMediaDescriptor.getAsConstPropertyValueList());
+         else
+diff --git a/sc/source/ui/app/inputhdl.cxx b/sc/source/ui/app/inputhdl.cxx
+index 7014b7d..855a267 100644
+--- a/sc/source/ui/app/inputhdl.cxx
++++ b/sc/source/ui/app/inputhdl.cxx
+@@ -4265,6 +4265,12 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
+             }
+ 
+             DataChanged();              //  calls UpdateParenthesis()
++
++            // Typed text marks the document modified, as keys do.
++            if (comphelper::LibreOfficeKit::isActive() && rCEvt.GetCommand() == CommandEventId::ExtTextInput
++                && !pActiveViewSh->GetViewData().GetDocShell()->IsModified())
++                pActiveViewSh->GetViewData().GetDocShell()->SetModified();
++
+             InvalidateAttribs();        //! in DataChanged ?
+         }
+ 
+diff --git a/sc/source/ui/docshell/docsh.cxx b/sc/source/ui/docshell/docsh.cxx
+index 923a972..93196b2 100644
+--- a/sc/source/ui/docshell/docsh.cxx
++++ b/sc/source/ui/docshell/docsh.cxx
+@@ -90,6 +90,7 @@
+ #include <filter.hxx>
+ #include <scmod.hxx>
+ #include <tabvwsh.hxx>
++#include <inputhdl.hxx>
+ #include <docfunc.hxx>
+ #include <imoptdlg.hxx>
+ #include <impex.hxx>
+@@ -3046,8 +3047,29 @@ SfxUndoManager* ScDocShell::GetUndoManager()
+     return m_pDocument->GetUndoManager();
+ }
+ 
++namespace {
++
++/// Whether a view holds a typed cell edit.
++bool HasTypedCellEdit( const ScDocShell& rShell )
++{
++    for (SfxViewFrame* pFrame = SfxViewFrame::GetFirst(&rShell, false); pFrame;
++         pFrame = SfxViewFrame::GetNext(*pFrame, &rShell, false))
++    {
++        auto pViewSh = dynamic_cast<ScTabViewShell*>(pFrame->GetViewShell());
++        ScInputHandler* pHdl = pViewSh ? pViewSh->GetInputHandler() : nullptr;
++        if (pHdl && pHdl->IsInputMode() && pHdl->IsModified())
++            return true;
++    }
++    return false;
++}
++
++}
++
+ void ScDocShell::SetModified( bool bModified )
+ {
++    // A typed cell edit keeps the document modified.
++    if ( !bModified && comphelper::LibreOfficeKit::isActive() && HasTypedCellEdit( *this ) )
++        return;
+     if ( SfxObjectShell::IsEnableSetModified() )
+     {
+         SfxObjectShell::SetModified( bModified );
+diff --git a/sc/source/ui/inc/inputhdl.hxx b/sc/source/ui/inc/inputhdl.hxx
+index 2f3ac5c..6f1b100 100644
+--- a/sc/source/ui/inc/inputhdl.hxx
++++ b/sc/source/ui/inc/inputhdl.hxx
+@@ -251,6 +251,7 @@ public:
+     bool            TakesReturn() const     { return ( nTipVisible != nullptr ); }
+ 
+     void            SetModified()       { bModified = true; }
++    bool            IsModified() const  { return bModified; }
+ 
+     bool            GetSelIsRef() const     { return bSelIsRef; }
+     void            SetSelIsRef(bool bSet)  { bSelIsRef = bSet; }
+diff --git a/sfx2/source/doc/objstor.cxx b/sfx2/source/doc/objstor.cxx
+index 9c23ef5..84c72b3 100644
+--- a/sfx2/source/doc/objstor.cxx
++++ b/sfx2/source/doc/objstor.cxx
+@@ -3428,12 +3428,6 @@ bool SfxObjectShell::PreDoSaveAs_Impl(const OUString& rFileName, const OUString&
+         return false;
+     }
+ 
+-    if (comphelper::LibreOfficeKit::isActive())
+-    {
+-        // Before saving, commit in-flight changes.
+-        TerminateEditing();
+-    }
+-
+     // check if a "SaveTo" is wanted, no "SaveAs"
+     const SfxBoolItem* pSaveToItem = xMergedParams->GetItem<SfxBoolItem>(SID_SAVETO, false);
+     bool bCopyTo = GetCreateMode() == SfxObjectCreateMode::EMBEDDED || (pSaveToItem && pSaveToItem->GetValue());
