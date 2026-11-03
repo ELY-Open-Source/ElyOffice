@@ -138,7 +138,7 @@ switch ($Command) {
     'key' { Tap (@{ pagedown = 0x22; tab = 0x09; escape = 0x1B })[$Arg] }
     'chord' {
         # powershell -File reads a leading '-' as a parameter.
-        $named = @{ 'plus' = 0xBB; 'minus' = 0xBD; 'tab' = 0x09 }
+        $named = @{ 'plus' = 0xBB; 'minus' = 0xBD; 'tab' = 0x09; 'home' = 0x24 }
         Key 0x11 $false
         Tap ([byte]$(if ($named.ContainsKey($Arg)) { $named[$Arg] } else { [char]$Arg.ToUpper() }))
         Key 0x11 $true

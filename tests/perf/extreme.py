@@ -22,7 +22,7 @@ from load import RECIPES
 from loadfiles import TOKEN
 from run import APPS, App
 
-ZOOMS = [("100", "0", 0), ("25", "minus", 4), ("67", "minus", 2), ("125", "plus", 1), ("400", "plus", 5), ("wheel+2", "0", 2), ("wheel-3", "0", -3)]
+ZOOMS = [("reset", "0", 0), ("25", "minus", 4), ("67", "minus", 2), ("125", "plus", 1), ("400", "plus", 5), ("wheel+2", "0", 2), ("wheel-3", "0", -3)]
 CASES = {}
 VERB = {**dict.fromkeys(RECIPES, "text"), "ely-table": "cell"}
 WORK = ""
@@ -62,13 +62,13 @@ def said(app, *words, timeout=300):
     return out.stdout
 
 
-def typing_into(app):
+def typing_into(app, into=None):
     """The app in front, the caret where keys land."""
     if app.slug != "ely-mark":
         app.wait(r"lok: first tile drawn", timeout=120)
         time.sleep(2)
     app.front()
-    RECIPES[app.slug].into(app.process.pid)
+    (into or RECIPES[app.slug].into)(app.process.pid)
     time.sleep(2.5)
 
 
@@ -349,8 +349,6 @@ def zoom():
         try:
             app.front()
             time.sleep(3)
-            if slug == "ely-table":
-                run.HOST.middle(app.process.pid)
             for name, key, times in ZOOMS:
                 run.HOST.chord(app.process.pid, "0")
                 time.sleep(0.5)
@@ -359,6 +357,9 @@ def zoom():
                     time.sleep(0.3)
                 if name.startswith("wheel"):
                     run.HOST.wheel(app.process.pid, times)
+                if slug == "ely-table":
+                    # A1's selection border, against its gridlines.
+                    run.HOST.chord(app.process.pid, "home")
                 time.sleep(3)
                 run.HOST.shot(app.process.pid, os.path.join(shots, f"{slug[4:]}-{name}.png"))
             failed = lines_matching(app, run.PAINT_FAILED)
@@ -435,7 +436,8 @@ def huge(slug):
     app = start("large", slug, [path])
     opened = (time.monotonic() - began) * 1000
     try:
-        typing_into(app)
+        # ElyMark shows files past LARGEST_READ as source.
+        typing_into(app, run.HOST.middle if slug == "ely-mark" else None)
         ticks, _ = load.type_keys(app, RECIPES[slug], 20)
         RECIPES[slug].finish(app.process.pid)
         edit = [load.ask(app, words) for words in RECIPES[slug].edits(path, 1)]
