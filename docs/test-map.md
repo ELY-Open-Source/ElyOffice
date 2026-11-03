@@ -152,6 +152,7 @@
 | PERF-07 | Markdown | C14.5、C14.6、C20.1（~）、决策 C20.1、决策 C14.4 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-08 | 资源释放 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-09 | 多会话 | C20.1（~） | `chord.swift` | tests/perf/bench.py、lag.sh |
+| PERF-10 | 极限负载 | 无 | — | tests/perf/bench.py、lag.sh |
 | QA-01 | 安装与离线启动 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-02 | 独立安装 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-03 | 统一界面 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
