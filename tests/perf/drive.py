@@ -107,7 +107,7 @@ class Mac(Host):
     # US layout virtual key codes.
     keycodes = dict(zip("asdfhgzxcvbqweryt123465=97-80]ou[ip lj'k;", map(str, [
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-        30, 31, 32, 33, 34, 35, 49, 37, 38, 39, 40, 41])), n="45", m="46", pagedown="121", tab="48")
+        30, 31, 32, 33, 34, 35, 49, 37, 38, 39, 40, 41])), n="45", m="46", pagedown="121", tab="48", escape="53")
 
     def __init__(self, work):
         self.work = work
@@ -247,6 +247,8 @@ class Linux(Host):
 
 class Windows(Host):
     name = "Windows"
+    # Clicks this driver made, so others can be told apart.
+    clicks = 0
     # Counts only, unnamed: bench.handles_steady judges them.
     system = None
 
@@ -351,13 +353,32 @@ class Windows(Host):
         self.ui("chord", pid, letter)
 
     def press(self, pid, name):
+        self.clicks += 1
         return sent(self.ui("press", pid, name))
 
     def shows(self, pid, name):
         return self.ui("shows", pid, name).strip() == "yes"
 
     def click_field(self, pid):
+        self.clicks += 1
         self.ui("field", pid)
+
+    def middle(self, pid):
+        self.clicks += 1
+        self.ui("middle", pid)
+
+    def park(self, pid):
+        self.ui("park", pid)
+
+    def rect(self, pid):
+        return self.ui("rect", pid).strip()
+
+    def wheel(self, pid, notches):
+        # powershell -File reads a leading '-' as a parameter.
+        self.ui("wheel", pid, f"n{notches}")
+
+    def shot(self, pid, path):
+        self.ui("shot", pid, path)
 
     def environment(self):
         info = self.ui("machine", 0).strip().split("|")
