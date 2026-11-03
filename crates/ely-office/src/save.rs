@@ -26,7 +26,12 @@ pub trait Saving: Host {
         let target = identity(target)?;
         // Open files are matched in memory, not per tab.
         if let Some(registry) = self.core().sessions.holding(&target)? {
-            return Ok(self.core().tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id));
+            let core = self.core();
+            let tab = core.tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id);
+            // A load in flight holds its file too.
+            let load = || core.loading.iter().find(|(.., held)| *held == Some(registry)).map(|(id, ..)| *id);
+            let holder = tab.or_else(load).ok_or_else(|| io::Error::other("a registered file has no tab"))?;
+            return Ok(Some(holder));
         }
         // A running Save As holds its target already.
         Ok(writer(&self.core().tabs, &target))

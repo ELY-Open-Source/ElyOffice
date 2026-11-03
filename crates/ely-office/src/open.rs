@@ -136,7 +136,11 @@ pub trait Opening: Host {
             ),
         };
         let written = path.clone();
-        self.core_mut().loading.push((id, file_name(&path)));
+        let registry = match &source {
+            Source::File(_, registry, _) => Some(*registry),
+            _ => None,
+        };
+        self.core_mut().loading.push((id, file_name(&path), registry));
         cx.notify();
         crate::Stopping::watch_slow(self, id, cx);
         let worker = Arc::clone(&self.core().worker);
@@ -179,7 +183,7 @@ pub trait Opening: Host {
     ) {
         self.core_mut()
             .loading
-            .retain(|(loading, _)| *loading != id);
+            .retain(|(loading, ..)| *loading != id);
         if self.core().slow == Some(id) {
             self.core_mut().slow = None;
         }

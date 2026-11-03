@@ -1,5 +1,7 @@
 //! Saves and looks touch the disk off the window (R15.41).
 
+use std::path::PathBuf;
+
 use ely_files::SaveState;
 use ely_office::prelude::*;
 use gpui::{Entity, TestAppContext, VisualTestContext};
@@ -199,13 +201,47 @@ fn the_recent_list_retries_a_path_it_missed(cx: &mut TestAppContext) {
     let track = |desk: &Entity<Desk>, cx: &mut VisualTestContext| {
         desk.update(cx, |desk, cx| desk.track_recent(id, &path, cx));
     };
-    // Gone mid-replace, then unwritable: both are retried.
+    // Gone mid-replace: the list waits, the window does not.
     std::fs::rename(&path, blocker.with_extension("away")).expect("moved away");
     track(&desk, cx);
+    cx.run_until_parked();
     std::fs::rename(blocker.with_extension("away"), &path).expect("moved back");
+    desk.update(cx, |desk, _| desk.recent_file = good.clone());
+    // Each notification meanwhile asks the disk nothing.
     track(&desk, cx);
-    desk.update(cx, |desk, _| desk.recent_file = good);
+    cx.run_until_parked();
+    assert!(!good.exists(), "a failure is retried per notification");
+    cx.executor().advance_clock(crate::places::RETRY);
+    cx.run_until_parked();
     track(&desk, cx);
+    assert!(!good.exists(), "the retry wrote on the window's turn");
+    cx.run_until_parked();
     let real = dunce::canonicalize(&path).expect("the real path");
     assert_eq!(desk.read_with(cx, |desk, _| desk.recent.first().cloned()), Some(real));
+}
+
+#[gpui::test]
+fn a_save_as_onto_a_file_still_loading_is_refused(cx: &mut TestAppContext) {
+    let (desk, cx, id, path, _dirs) = opened("one
+", cx);
+    let target = path.with_file_name("b.md");
+    std::fs::write(&target, "old
+").expect("the target");
+    edit(&desk, "mine
+", cx);
+    let to = target.clone();
+    let held = desk.update_in(cx, |desk, window, cx| {
+        desk.write_as(id, to, None, window, cx);
+        // Opened mid-export; its tab is not there yet.
+        desk.open_file(target.clone(), cx);
+        desk.holder(&target).expect("the holder")
+    });
+    assert!(held.is_some_and(|other| other != id), "a loading file has no holder");
+    settle(cx);
+    assert_eq!(std::fs::read_to_string(&target).expect("reads"), "old
+");
+    let paths = desk.read_with(cx, |desk, _| {
+        desk.core.tabs.iter().map(|tab| tab.session.path().map(PathBuf::from)).collect::<Vec<_>>()
+    });
+    assert_eq!(paths, [Some(path), Some(target)], "each file in one tab");
 }

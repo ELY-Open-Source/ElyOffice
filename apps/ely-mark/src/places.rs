@@ -1,14 +1,37 @@
 //! Folders, files, the recent list, going to a line.
 
-use std::path::PathBuf;
+use std::{
+    io,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use ely_gpui_component::primitives::Severity;
 use ely_office::prelude::*;
 use ely_ui::i18n::text;
-use gpui::{Context, Window};
+use gpui::{AppContext as _, Context, Window};
 
 use crate::desk::Desk;
 use crate::folder::{Folder, markdown_under};
+
+/// How long a failed recent-list entry waits to retry.
+pub(crate) const RETRY: Duration = Duration::from_secs(30);
+
+/// Puts `path` first; drops `old` once gone. Off the window.
+fn relist(file: &Path, path: &Path, old: Option<PathBuf>) -> io::Result<(PathBuf, Option<Vec<PathBuf>>)> {
+    let real = dunce::canonicalize(path)?;
+    if old.as_ref() == Some(&real) {
+        return Ok((real, None));
+    }
+    let mut list = ely_files::recent::remember(file, &real)?;
+    if let Some(old) = old
+        && !old.try_exists()?
+    {
+        ely_files::recent::forget(file, &old)?;
+        list.retain(|known| *known != old);
+    }
+    Ok((real, Some(list)))
+}
 
 impl Desk {
     /// A folder lists beside; a file opens in a tab.
@@ -67,50 +90,68 @@ impl Desk {
         }
     }
 
-    /// Puts `path` first in the recent list; whether it did.
-    pub fn remember(&mut self, path: &std::path::Path, cx: &mut Context<Self>) -> bool {
+    /// Puts `path` first in the recent list.
+    pub fn remember(&mut self, path: &Path, cx: &mut Context<Self>) {
         // One spelling per file: its real path.
         let remembered = dunce::canonicalize(path)
             .and_then(|path| ely_files::recent::remember(&self.recent_file, &path));
         match remembered {
-            Ok(list) => {
-                self.recent = list;
-                true
-            }
-            Err(error) => {
-                log::error!("mark: the recent list did not save: {error}");
-                self.toast(
-                    text(cx, "office.error.engine", &[("error", &error.to_string())]),
-                    Severity::Danger,
-                    cx,
-                );
-                false
-            }
+            Ok(list) => self.recent = list,
+            Err(error) => self.unlisted(&error, cx),
         }
     }
 
-    /// Tab `id` shows `path`; the recent list follows.
-    pub fn track_recent(&mut self, id: u64, path: &std::path::Path, cx: &mut Context<Self>) {
-        // The disk is asked until the list took this path.
-        if self.tab(id).is_none_or(|tab| tab.extra.tracked.as_deref() == Some(path)) {
+    fn unlisted(&mut self, error: &io::Error, cx: &mut Context<Self>) {
+        log::error!("mark: the recent list did not save: {error}");
+        let said = text(cx, "office.error.engine", &[("error", &error.to_string())]);
+        self.toast(said, Severity::Danger, cx);
+    }
+
+    /// Tab `id` shows `path`; the list follows off the window.
+    pub fn track_recent(&mut self, id: u64, path: &Path, cx: &mut Context<Self>) {
+        let old = self.remembered.get(&id).cloned();
+        let Some(tab) = self.tab_mut(id).filter(|tab| tab.extra.tracked.as_deref() != Some(path)) else {
             return;
-        }
-        let Ok(real) = dunce::canonicalize(path) else {
-            return log::warn!("mark: {} is gone; the recent list keeps it", path.display());
         };
-        if self.remembered.get(&id) != Some(&real) {
-            if !self.remember(path, cx) {
+        // One attempt at a time; a failure waits `RETRY`.
+        tab.extra.tracked = Some(path.to_path_buf());
+        let (file, path) = (self.recent_file.clone(), path.to_path_buf());
+        let seeking = path.clone();
+        cx.spawn(async move |desk, cx| {
+            let listed = cx.background_spawn(async move { relist(&file, &seeking, old) }).await;
+            desk.update(cx, |desk, cx| desk.listed(id, path, listed, cx)).ok();
+        })
+        .detach();
+    }
+
+    fn listed(&mut self, id: u64, path: PathBuf, listed: io::Result<(PathBuf, Option<Vec<PathBuf>>)>, cx: &mut Context<Self>) {
+        if self.tab(id).is_none_or(|tab| tab.extra.tracked.as_ref() != Some(&path)) {
+            return log::info!("mark: tab {id} moved on; its recent entry lapsed");
+        }
+        match listed {
+            Ok((real, list)) => {
+                self.remembered.insert(id, real);
+                if let Some(list) = list {
+                    self.recent = list;
+                    cx.notify();
+                }
                 return;
             }
-            if let Some(old) = self.remembered.insert(id, real)
-                && !old.exists()
-            {
-                self.forget(&old, cx);
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                log::warn!("mark: {} is gone; the recent list waits", path.display());
             }
+            Err(error) => self.unlisted(&error, cx),
         }
-        if let Some(tab) = self.tab_mut(id) {
-            tab.extra.tracked = Some(path.to_path_buf());
-        }
+        cx.spawn(async move |desk, cx| {
+            cx.background_executor().timer(RETRY).await;
+            desk.update(cx, |desk, _| {
+                if let Some(tab) = desk.tab_mut(id).filter(|tab| tab.extra.tracked.as_ref() == Some(&path)) {
+                    tab.extra.tracked = None;
+                }
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// Takes a path out of the recent list.
@@ -121,11 +162,7 @@ impl Desk {
                 log::info!("mark: a file left the recent list");
                 cx.notify();
             }
-            Err(error) => {
-                log::error!("mark: the recent list did not save: {error}");
-                let said = text(cx, "office.error.engine", &[("error", &error.to_string())]);
-                self.toast(said, Severity::Danger, cx);
-            }
+            Err(error) => self.unlisted(&error, cx),
         }
     }
 

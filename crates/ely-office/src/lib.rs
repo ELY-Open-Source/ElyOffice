@@ -177,8 +177,8 @@ pub struct Core<H: Host> {
     pub active: Option<u64>,
     /// The tab last brought to the front.
     shown: Option<u64>,
-    /// Loads in flight: tab id and name.
-    pub loading: Vec<(u64, SharedString)>,
+    /// Loads in flight: tab id, name and registry id.
+    pub loading: Vec<(u64, SharedString, Option<usize>)>,
     pub focus: FocusHandle,
     pub root: WeakEntity<Root>,
     pub work: PathBuf,
