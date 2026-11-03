@@ -191,6 +191,12 @@ impl LokView {
         self.tile_window_at(seen, self.tile_at(seen.1, at))
     }
 
+    /// Where a print-twips point was last drawn, for hit tests.
+    pub(super) fn hit_point(&self, at: (i32, i32)) -> gpui::Point<Pixels> {
+        let drawn = self.drawn();
+        self.tile_window_at(drawn, self.tile_at(drawn.1, at))
+    }
+
     /// The window point of a tile-twips point on screen `seen`.
     fn tile_window_at(&self, (scroll, geom, spare): Seen, (x, y): (i32, i32)) -> gpui::Point<Pixels> {
         let (ax, ay) = self.axes_at(scroll, geom);
