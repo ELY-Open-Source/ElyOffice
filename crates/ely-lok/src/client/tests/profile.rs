@@ -1,4 +1,4 @@
-//! Profiles near Windows' path limits start; a dying worker says why.
+//! Profiles near Windows path limits start; dying workers say why.
 
 use std::path::{Path, PathBuf};
 
