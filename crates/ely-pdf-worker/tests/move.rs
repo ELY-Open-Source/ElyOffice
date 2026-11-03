@@ -184,10 +184,11 @@ fn a_move_leaves_the_structure_tree_as_it_was() {
 
 #[test]
 fn a_tag_the_move_would_split_refuses_it() {
-    // Inline properties, and properties named in the resources.
-    for (tag, props) in [("<</MCID 0>>", ""), ("/MC0", " /Properties << /MC0 << /MCID 0 >> >>")] {
+    // By MCID, inline or named; else as written.
+    let named = " /Properties << /MC0 << /MCID 0 >> >>";
+    for (tag, props) in [("/P <</MCID 0>> BDC", ""), ("/P /MC0 BDC", named), ("/Span <</Alt (WHOLE)>> BDC", ""), ("/Artifact BMC", "")] {
         let dir = tempfile::tempdir().expect("a temp dir");
-        let content = format!("/P {tag} BDC BT /F1 18 Tf 72 700 Td (Hello) Tj ET BT /F1 18 Tf 72 300 Td (Far) Tj ET EMC");
+        let content = format!("{tag} BT /F1 18 Tf 72 700 Td (Hello) Tj ET BT /F1 18 Tf 72 300 Td (Far) Tj ET EMC");
         let objects = [
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string(),
             "<< /Type /StructTreeRoot /K [7 0 R] /ParentTree << /Nums [0 [7 0 R]] >> >>".to_string(),

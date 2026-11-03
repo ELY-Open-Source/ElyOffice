@@ -79,17 +79,15 @@ typedef struct
 	int marks, mcid;
 } open_tag;
 
-/* Whether `buf` opens the same tag: MCID, or named properties. */
+/* Whether `buf` opens this tag: MCID, else same line. */
 static int repeats(fz_buffer *buf, const unsigned char *s, open_tag *tag)
 {
 	size_t at, end;
-	int named = tag->mcid < 0 && is_op(s, tag->n, "BDC") && !memchr(s, '<', tag->n);
 	for (at = 0; at < buf->len; at = end + 1)
 	{
 		end = line_end(buf, at);
-		if (tag->mcid >= 0 && mcid_of(buf->data + at, end - at) == tag->mcid)
-			return 1;
-		if (named && end - at == tag->n && !memcmp(buf->data + at, s, tag->n))
+		if (tag->mcid >= 0 ? mcid_of(buf->data + at, end - at) == tag->mcid
+			: end - at == tag->n && !memcmp(buf->data + at, s, tag->n))
 			return 1;
 	}
 	return 0;
