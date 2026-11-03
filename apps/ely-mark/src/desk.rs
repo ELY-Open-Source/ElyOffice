@@ -39,7 +39,7 @@ pub struct Desk {
     pub recent: Vec<PathBuf>,
     pub recent_file: PathBuf,
     /// A file asked to open at a line and column.
-    pub going: Option<(PathBuf, (usize, usize))>,
+    pub going: Option<(u64, (usize, usize))>,
     /// The path each tab last put in the recent list.
     pub remembered: HashMap<u64, PathBuf>,
     /// Background list writes take turns.
@@ -149,7 +149,7 @@ impl Host for Desk {
             if self
                 .going
                 .as_ref()
-                .is_some_and(|(file, _)| *file == path)
+                .is_some_and(|(tab, _)| *tab == id)
                 && let Some((_, at)) = self.going.take()
             {
                 self.reveal_later(view.clone(), at, cx);

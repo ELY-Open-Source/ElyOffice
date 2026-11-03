@@ -224,9 +224,16 @@ impl Desk {
             }
             return cx.notify();
         }
-        // Its tab will carry this very spelling.
-        self.going = Some((file.clone(), at));
+        // A load in flight takes the line when it lands.
+        if let Some(id) = held.filter(|id| self.core.loading.iter().any(|(loading, ..)| loading == id)) {
+            self.going = Some((id, at));
+            return;
+        }
+        let next = self.core.next;
         self.open_file(file, cx);
+        if self.core.next > next {
+            self.going = Some((next, at));
+        }
     }
 
     /// The tab showing `path`, by real path.

@@ -79,6 +79,13 @@ pub(crate) fn file_id(_: &Path) -> io::Result<Option<(u64, u64)>> {
     Ok(None)
 }
 
+impl Key {
+    /// The file's real path.
+    pub fn path(&self) -> &Path {
+        &self.canonical
+    }
+}
+
 impl Sessions {
     /// The key of an existing file; missing fails loud.
     pub fn key(path: &Path) -> io::Result<Key> {

@@ -197,13 +197,13 @@ pub trait Saving: Host {
             self.core_mut().sessions.close(old);
         }
         let registry = match self.core_mut().sessions.adopt(done) {
-            Open::Fresh(registry) | Open::View(registry) => Some(registry),
+            Open::Fresh(registry) | Open::View(registry) => Ok(registry),
             // Never two editable tabs on one file.
             Open::Focus(other) => {
                 log::error!("office: tab {id} saved onto session {other}'s file");
                 let said = text(cx, "office.error.taken", &[("name", &file_name(&done.path))]);
                 self.toast(said, Severity::Danger, cx);
-                None
+                Err(other)
             }
         };
         // Ely's writes carry no signatures; macros may stay.
@@ -215,7 +215,12 @@ pub trait Saving: Host {
             }
         };
         let tab = self.tab_mut(id).expect("the tab is open");
-        tab.registry = registry;
+        // The text stays, unsaved, with no file of its own.
+        let Ok(registry) = registry else {
+            (tab.registry, tab.session) = (None, ely_files::Session::new_file());
+            return tab.session.edit();
+        };
+        tab.registry = Some(registry);
         tab.name = file_name(&done.path);
         tab.risk = risk;
     }

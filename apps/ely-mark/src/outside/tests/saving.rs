@@ -370,3 +370,54 @@ fn a_file_moved_onto_another_tabs_is_not_shared(cx: &mut TestAppContext) {
     assert_eq!(paths, [Some(path), Some(other)], "two tabs on one file");
     assert!(deleted, "the moved tab lost its file");
 }
+
+#[gpui::test]
+fn a_rename_onto_a_save_as_target_is_not_followed(cx: &mut TestAppContext) {
+    let (desk, cx, a, path, _dirs) = opened("one
+", cx);
+    let (other, target) = (path.with_file_name("b.md"), path.with_file_name("c.md"));
+    std::fs::write(&other, "two
+").expect("a file");
+    desk.update(cx, |desk, cx| desk.open_file(other.clone(), cx));
+    settle(cx);
+    let b = desk.read_with(cx, |desk, _| desk.core.active.expect("b's tab"));
+    desk.update(cx, |desk, _| desk.core.active = Some(a));
+    edit(&desk, "mine
+", cx);
+    let to = target.clone();
+    desk.update_in(cx, |desk, window, cx| desk.write_as(a, to, None, window, cx));
+    assert!(until_saving(&desk, a, cx), "the write runs apart from the window");
+    // B is renamed over A's target before A lands.
+    std::fs::rename(&other, &target).expect("moved over c");
+    let key = ely_files::Sessions::key(&target).expect("the key");
+    desk.update(cx, |desk, cx| desk.follow(b, target.clone(), key, cx));
+    settle(cx);
+    let (at_a, at_b) = desk.read_with(cx, |desk, _| {
+        let at = |id| desk.tab(id).expect("open").session.path().map(PathBuf::from);
+        (at(a), at(b))
+    });
+    assert_ne!(at_a, at_b, "two tabs on one file");
+    assert_eq!(at_a, Some(target), "the Save As lost its target");
+}
+
+#[gpui::test]
+fn a_line_asked_twice_during_a_load_lands_the_last(cx: &mut TestAppContext) {
+    let (desk, cx, _, path, _dirs) = opened("one
+", cx);
+    let other = path.with_file_name("b.md");
+    std::fs::write(&other, "x
+y
+z
+w
+").expect("a file");
+    let spelled = path.parent().expect("a folder").join(".").join("b.md");
+    desk.update_in(cx, |desk, window, cx| {
+        desk.open_at(None, other.clone(), (1, 0), window, cx);
+        desk.open_at(None, spelled, (3, 0), window, cx);
+    });
+    settle(cx);
+    let (tabs, going) = desk.read_with(cx, |desk, _| (desk.core.tabs.len(), desk.going.is_some()));
+    assert_eq!((tabs, going), (2, false), "a line was left waiting");
+    let line = desk.read_with(cx, |desk, cx| desk.active_view().expect("a tab").read(cx).place(cx).line);
+    assert_eq!(line, 3, "the later asked line was dropped");
+}

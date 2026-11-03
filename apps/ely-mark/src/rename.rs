@@ -131,6 +131,12 @@ impl Desk {
         let Some(registry) = self.tab(id).map(|tab| tab.registry) else {
             return;
         };
+        // Moved onto a file another tab is saving as.
+        let writer = self.core.tabs.iter().find(|tab| tab.id != id && tab.session.writing() == Some(key.path()));
+        if let Some(other) = writer.map(|tab| tab.id) {
+            log::warn!("mark: tab {id}'s file went onto tab {other}'s Save As");
+            return self.set_outside(id, crate::outside::Outside::Deleted, cx);
+        }
         // Moved onto another tab's file: this one lost it.
         if let Some(registry) = registry
             && let Err(other) = self.core_mut().sessions.track(registry, key)
