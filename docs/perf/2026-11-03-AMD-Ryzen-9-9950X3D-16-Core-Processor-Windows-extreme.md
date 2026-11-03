@@ -12,7 +12,7 @@ Format: docs/perf/README.md. Newest result of each case; run is the work folder.
 | ElyDoc: INCLUDETEXT follows its source changed while open | FAIL | kept the old text | E000625 |
 | ElyDoc: saved 61 times while 40 keys went in | pass | keys P95 38 max 67 ms; every key saved: True; save failures: none | E000625 |
 | ElyTable: saved 57 times while 40 keys went in | FAIL | keys P95 78 max 375 ms; every key saved: False; save failures: none | E000625 |
-| ElyShow: saved 50 times while 40 keys went in | pass | keys P95 326 max 353 ms; every key saved: True; save failures: none | E000625 |
+| ElyShow: saved 50 times while 40 keys went in | FAIL | keys P95 326 max 353 ms (over PERF-02's 100 ms); every key saved: True; save failures: none | E000625 |
 | ElyMark: saved 144 times while 40 keys went in | pass | keys P95 17 max 18 ms; every key saved: True; save failures: none | E000625 |
 | ElyDoc: the engine killed mid-edit | pass | workers killed 2; app alive True; noticed True; reopened as ['Untitled 1', 'Untitled 2', 'Untitled 3']; the points hold (keys, edit) {'other0.docx': (0, [1]), 'front.docx': (10, [0]), 'other1.docx': (0, [1])}: front keeps 10 of 15 keys, 10 typed before the last point; the 5 after it are lost by the 10 s point interval | E000625 |
 | ElyTable: the engine killed mid-edit | pass | workers killed 2; app alive True; noticed True; reopened as ['Untitled 1', 'Untitled 2', 'Untitled 3']; the points hold (keys, edit) {'other1.xlsx': (0, '1'), 'other0.xlsx': (0, '1'), 'front.xlsx': (10, None)}: front keeps 10 of 15 keys, 10 typed before the last point; the 5 after it are lost by the 10 s point interval | E000625 |
