@@ -273,8 +273,8 @@ impl<H: Host> Core<H> {
         self.front = Some(id);
     }
 
-    /// Load `id` failed; its claim on the front passes on.
-    fn failed_front(&mut self, id: u64) {
+    /// Load `id` failed; true when the active tab moved.
+    fn failed_front(&mut self, id: u64) -> bool {
         let chosen = self.active == Some(id);
         if chosen {
             self.active = self.tabs.last().map(|tab| tab.id);
@@ -282,6 +282,7 @@ impl<H: Host> Core<H> {
         if chosen || self.front == Some(id) {
             self.front = self.loading.last().map(|(id, ..)| *id);
         }
+        chosen
     }
 
     /// Whether load `id` takes the front when it lands.

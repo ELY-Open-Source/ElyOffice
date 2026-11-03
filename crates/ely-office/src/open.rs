@@ -82,8 +82,11 @@ pub trait Opening: Host {
                 let core = self.core_mut();
                 let open = core.tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id);
                 // Still loading: chosen as its loading tab is.
-                let open = open.or_else(|| core.loading.iter().find(|(.., of)| *of == Some(registry)).map(|(id, ..)| *id));
-                core.set_active(open);
+                let chosen = open.or_else(|| core.loading.iter().find(|(.., of)| *of == Some(registry)).map(|(id, ..)| *id));
+                core.set_active(chosen);
+                if let Some(id) = open {
+                    self.focus_later(id, cx);
+                }
                 cx.notify();
             }
             Ok(Open::Fresh(registry) | Open::View(registry)) => {
@@ -91,6 +94,21 @@ pub trait Opening: Host {
             }
             Err(error) => self.failed_open(&path.display().to_string(), &error, cx),
         }
+    }
+
+    /// Gives tab `id` the keys once the window is free.
+    fn focus_later(&self, id: u64, cx: &mut Context<Self>) {
+        let Some(handle) = self.core().window else {
+            return log::warn!("{}: no window to focus tab {id} in", Self::KIND.app.slug());
+        };
+        let host = cx.entity().downgrade();
+        cx.defer(move |cx| {
+            let Some(host) = host.upgrade() else { return };
+            let Some(focus) = host.read(cx).tab(id).map(|tab| Self::Engine::focus(tab.view.read(cx))) else { return };
+            if let Err(error) = handle.update(cx, |_, window, cx| window.focus(&focus, cx)) {
+                log::warn!("{}: tab {id} kept no focus: {error}", Self::KIND.app.slug());
+            }
+        });
     }
 
     fn failed_open(&self, name: &str, error: &io::Error, cx: &mut gpui::App) {
@@ -210,7 +228,11 @@ pub trait Opening: Host {
         let (doc, work, session, risk, view, mark) = match opened {
             Ok(opened) => opened,
             Err(error) => {
-                self.core_mut().failed_front(id);
+                if self.core_mut().failed_front(id)
+                    && let Some(tab) = self.active_tab()
+                {
+                    window.focus(&Self::Engine::focus(tab.view.read(cx)), cx);
+                }
                 if let Some(registry) = registry {
                     self.core_mut().sessions.close(registry);
                 }

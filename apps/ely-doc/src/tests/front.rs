@@ -108,6 +108,76 @@ fn a_chosen_load_that_fails_hands_the_front_on() {
     assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(landed));
 }
 
+/// Whether tab `id`'s page has the keys in `window`.
+fn focused(cx: &mut TestAppContext, docs: &Entity<Docs>, window: gpui::WindowHandle<Blank>, id: u64) -> bool {
+    cx.update_window(window.into(), |_, window, app| {
+        docs.read(app).tab(id).expect("the tab").view.read(app).focus_handle().is_focused(window)
+    })
+    .expect("the window lives")
+}
+
+/// A window that `docs` calls home.
+fn home(cx: &mut TestAppContext, docs: &Entity<Docs>) -> gpui::WindowHandle<Blank> {
+    let window = cx.add_window(|_, _| Blank);
+    cx.update_window(window.into(), |_, window, app| docs.update(app, |docs, _| docs.core.window = Some(window.window_handle())))
+        .expect("the window lives");
+    window
+}
+
+#[test]
+fn a_chosen_load_that_fails_gives_the_keys_back() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let typing = blank(&mut cx, &docs);
+    let bad = dir.path().join("b.docx");
+    std::fs::write(&bad, b"not a package").expect("the file writes");
+    let window = home(&mut cx, &docs);
+    cx.update(|app| {
+        docs.update(app, |docs, cx| {
+            docs.open_file(bad, cx);
+            let chosen = docs.core.loading.last().expect("a load in flight").0;
+            docs.core.set_active(Some(chosen));
+        })
+    });
+    settle(&cx, |app| docs.read(app).core.loading.is_empty());
+    assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(typing));
+    assert!(focused(&mut cx, &docs, window, typing), "the tab left in front has no keys");
+}
+
+#[test]
+fn reopening_an_open_file_gives_it_the_keys() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let fodt = cx.update(|app| Template::Report.fodt(app));
+    let (a, b) = (dir.path().join("a.fodt"), dir.path().join("b.fodt"));
+    for file in [&a, &b] {
+        std::fs::write(file, &fodt).expect("the file writes");
+    }
+    with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(a.clone(), cx));
+    settle(&cx, |app| docs.read(app).core.tabs.len() == 1);
+    let first = cx.update(|app| docs.read(app).core.tabs[0].id);
+    let window = home(&mut cx, &docs);
+    cx.update(|app| {
+        docs.update(app, |docs, cx| {
+            docs.open_file(b, cx);
+            let loading = docs.core.loading.last().expect("a load in flight").0;
+            docs.core.set_active(Some(loading));
+            docs.open_file(a, cx);
+        })
+    });
+    settle(&cx, |app| docs.read(app).core.tabs.len() == 2);
+    assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(first));
+    assert!(focused(&mut cx, &docs, window, first), "the reopened file has no keys");
+}
+
 #[test]
 fn reopening_a_file_still_loading_chooses_it() {
     let dir = tempfile::tempdir().expect("a temp dir");
