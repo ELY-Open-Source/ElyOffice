@@ -23,6 +23,9 @@ pub struct Loaded {
     laid: ely_lok::Layout,
     mark: String,
     feed: ely_lok::Feed,
+    links: Vec<String>,
+    /// Word links the kernel keeps as pictures.
+    pictured: bool,
 }
 
 impl Engine for Lok {
@@ -40,7 +43,16 @@ impl Engine for Lok {
         // Layout and history too: the window never waits.
         let laid = ely_lok::layout(worker, &doc)?;
         let mark = worker.values(&doc, ".uno:Undo")?;
-        Ok(Loaded { doc, laid, mark, feed: worker.feed() })
+        // Impress names no links.
+        let (links, pictured) = match (doc.is_deck(), doc.is_sheet()) {
+            (true, _) => (Vec::new(), false),
+            (false, sheet) => {
+                let listed = worker.values(&doc, ely_lok::links::LIST)?;
+                let pictured = !sheet && !ely_lok::links::pictured(&listed)?.is_empty();
+                (ely_lok::links::sources(&listed)?, pictured)
+            }
+        };
+        Ok(Loaded { doc, laid, mark, feed: worker.feed(), links, pictured })
     }
 
     fn open(
@@ -49,7 +61,7 @@ impl Engine for Lok {
         _: &mut Window,
         cx: &mut App,
     ) -> io::Result<(Doc, Entity<LokView>, String)> {
-        let Loaded { doc, laid, mark, feed } = loaded;
+        let Loaded { doc, laid, mark, feed, .. } = loaded;
         let view = LokView::open(Arc::clone(worker), doc.clone(), laid, feed, cx);
         let (zoom, deck) = (ely_ui::settings::current(cx).doc_zoom, doc.is_deck());
         let kind = match (doc.is_sheet(), deck) {
@@ -72,6 +84,21 @@ impl Engine for Lok {
         });
         log::info!("office: opens at {zoom:?}, deck {deck}");
         Ok((doc, view, mark))
+    }
+
+    fn risk(loaded: &Loaded) -> Option<crate::Risk> {
+        loaded.pictured.then(|| {
+            log::warn!("office: a Word link stays only a picture");
+            crate::Risk::Links
+        })
+    }
+
+    fn links(loaded: &Loaded) -> Vec<String> {
+        loaded.links.clone()
+    }
+
+    fn update_links(worker: &mut Worker, doc: &Doc) -> io::Result<Vec<String>> {
+        ely_lok::links::failed(&worker.values(doc, ely_lok::links::UPDATE)?)
     }
 
     fn history(worker: &mut Worker, doc: &Doc) -> io::Result<String> {

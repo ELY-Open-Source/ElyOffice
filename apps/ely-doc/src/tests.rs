@@ -468,6 +468,7 @@ mod pause;
 mod points;
 mod remote;
 mod slow;
+mod sources;
 mod start;
 mod words;
 

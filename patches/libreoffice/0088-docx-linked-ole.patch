@@ -1,0 +1,333 @@
+DOCX: Word's linked OLE objects stay links, in and out
+
+Word links an object to a file with o:OLEObject Type="Link" and an
+external oleObject relationship. DOCX import tried to read it as an
+embedded stream, failed, and kept only the preview picture; export
+wrote every object as Type="Embed".
+- The OOXML tokenizer hands the relationship's target to the mapper
+  (ooxml:linktarget). Word writes it as file:///C:\... with
+  backslashes, or as a path; either becomes a proper file URL. A
+  Type="Link" object of a known kind (Excel, Word, PowerPoint ProgIDs,
+  macro-enabled ones too) becomes a link object to that file, its
+  filter named from the ProgID, so a missing file still links. The
+  file is not read: the preview shows until the user updates links
+  (0086). Other kinds keep their picture, as before; their targets
+  go to the document grab bag (ElyPicturedLinks), and Writer's
+  .uno:ExternalLinks lists them as "pictured", so Ely keeps such a
+  file, encrypted ones too, from being saved over.
+- Export writes a linked object Word knew as Type="Link" with an
+  external relationship to its file, the preview kept.
+- LibreOffice links whole files: a range in Word's LINK code (such as
+  Rates!R1C1:R12C2) stays in the field code, but the link object
+  reads the whole file; the range is not applied.
+
+diff --git a/sw/source/filter/ww8/docxattributeoutput.cxx b/sw/source/filter/ww8/docxattributeoutput.cxx
+index 66209ae..00b753a 100644
+--- a/sw/source/filter/ww8/docxattributeoutput.cxx
++++ b/sw/source/filter/ww8/docxattributeoutput.cxx
+@@ -153,6 +153,7 @@
+ #include <com/sun/star/text/GraphicCrop.hpp>
+ #include <com/sun/star/embed/EmbedStates.hpp>
+ #include <com/sun/star/embed/Aspects.hpp>
++#include <com/sun/star/embed/XLinkageSupport.hpp>
+ #include <com/sun/star/text/ControlCharacter.hpp>
+ 
+ #include <algorithm>
+@@ -6137,8 +6138,15 @@ void DocxAttributeOutput::WriteOLE( SwOLENode& rNode, const Size& rSize, const S
+         }
+     }
+ 
+-    // write embedded file
+-    OString sId = m_rExport.WriteOLEObject(aObject, sProgID);
++    // A link writes its file's URL; an object its stream.
++    uno::Reference<embed::XLinkageSupport> xLinkage(xObj, uno::UNO_QUERY);
++    const bool bLink = xLinkage.is() && xLinkage->isLink() && !sProgID.isEmpty();
++    OString sId = bLink
++        ? GetExport().GetFilter()
++              .addRelation(m_pSerializer->getOutputStream(),
++                           oox::getRelationship(Relationship::OLEOBJECT), xLinkage->getLinkURL(), true)
++              .toUtf8()
++        : m_rExport.WriteOLEObject(aObject, sProgID);
+ 
+     if( sId.isEmpty() )
+     {
+@@ -6185,7 +6193,7 @@ void DocxAttributeOutput::WriteOLE( SwOLENode& rNode, const Size& rSize, const S
+ 
+     //OLE Object definition
+     m_pSerializer->singleElementNS(XML_o, XML_OLEObject,
+-                                   XML_Type, "Embed",
++                                   XML_Type, bLink ? "Link" : "Embed",
+                                    XML_ProgID, sProgID,
+                                    XML_ShapeID, sShapeId,
+                                    XML_DrawAspect, sDrawAspect,
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper.cxx b/sw/source/writerfilter/dmapper/DomainMapper.cxx
+index 46de2c3..6de3141 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper.cxx
+@@ -3287,11 +3287,25 @@ void DomainMapper::sprmWithProps( Sprm& rSprm, const PropertyMapPtr& rContext )
+             if ( pOLEHandler->isOLEObject( ) )
+             {
+                 OUString sStreamName = pOLEHandler->copyOLEOStream( m_pImpl->GetTextDocument() );
+-                if( !sStreamName.isEmpty() )
++                // A link has no stream: it names its file.
++                if( !sStreamName.isEmpty() || pOLEHandler->isLink() )
+                 {
+                     m_pImpl->appendOLE( sStreamName, pOLEHandler );
+                 }
+             }
++            else if (pOLEHandler->isPicturedLink() && m_pImpl->GetTextDocument())
++            {
++                // Saving drops such a link; LOK reports it.
++                comphelper::SequenceAsHashMap aGrabBag(
++                    m_pImpl->GetTextDocument()->getPropertyValue(u"InteropGrabBag"_ustr));
++                uno::Sequence<OUString> aLinks;
++                aGrabBag[u"ElyPicturedLinks"_ustr] >>= aLinks;
++                aLinks.realloc(aLinks.getLength() + 1);
++                aLinks.getArray()[aLinks.getLength() - 1] = pOLEHandler->getLinkTarget();
++                aGrabBag[u"ElyPicturedLinks"_ustr] <<= aLinks;
++                m_pImpl->GetTextDocument()->setPropertyValue(
++                    u"InteropGrabBag"_ustr, uno::Any(aGrabBag.getAsConstPropertyValueList()));
++            }
+         }
+     }
+     break;
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+index aee57ef..28b4802 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+@@ -168,6 +168,11 @@
+ #include <unotextbodyhf.hxx>
+ #include <unosett.hxx>
+ #include <unodraw.hxx>
++#include <com/sun/star/embed/OOoEmbeddedObjectFactory.hpp>
++#include <comphelper/storagehelper.hxx>
++#include <svl/urihelper.hxx>
++#include <osl/file.hxx>
++#include <tools/urlobj.hxx>
+ 
+ using namespace ::com::sun::star;
+ using namespace oox;
+@@ -3786,14 +3791,47 @@ void DomainMapper_Impl::moveWithRun(const uno::Reference<text::XTextContent>& xC
+         aChar, SvxEscapementItem(nEsc, 100, RES_CHRATR_ESCAPEMENT), SetAttrMode::DONTEXPAND);
+ }
+ 
++/// Word's link target as a file URL; Word writes backslashes.
++static OUString lcl_LinkURL(const OUString& rTarget, const OUString& rBaseUrl)
++{
++    OUString aURL;
++    const bool bSystem = (rTarget.getLength() > 2 && rTarget[1] == ':') || rTarget.startsWith("\\\\");
++    if (bSystem && osl::FileBase::getFileURLFromSystemPath(rTarget, aURL) == osl::FileBase::E_None)
++        return aURL;
++    return URIHelper::SmartRel2Abs(INetURLObject(rBaseUrl), rTarget.replace('\\', '/'),
++                                   Link<OUString*, bool>(), false);
++}
++
++/// Word's linked object, read only on update.
++static uno::Reference<embed::XEmbeddedObject> lcl_LinkedObject(const OLEHandler& rOLE,
++                                                               const OUString& rBaseUrl)
++{
++    const OUString aURL = lcl_LinkURL(rOLE.getLinkTarget(), rBaseUrl);
++    // The filter named: a missing file still links.
++    const uno::Sequence<beans::PropertyValue> aMedium{
++        comphelper::makePropertyValue(u"URL"_ustr, aURL),
++        comphelper::makePropertyValue(u"FilterName"_ustr, rOLE.getLinkFilter()),
++        comphelper::makePropertyValue(u"Referer"_ustr, rBaseUrl)
++    };
++    uno::Reference<embed::XEmbeddedObjectCreator> xFactory
++        = embed::OOoEmbeddedObjectFactory::create(comphelper::getProcessComponentContext());
++    return uno::Reference<embed::XEmbeddedObject>(
++        xFactory->createInstanceLink(comphelper::OStorageHelper::GetTemporaryStorage(),
++                                     u"DummyName"_ustr, aMedium, {}),
++        uno::UNO_QUERY_THROW);
++}
++
+ void DomainMapper_Impl::appendOLE( const OUString& rStreamName, const std::shared_ptr<OLEHandler>& pOLEHandler )
+ {
+     try
+     {
+         rtl::Reference<SwXTextEmbeddedObject> xOLE = m_xTextDocument->createTextEmbeddedObject();
+ 
+-        OUString aCLSID = pOLEHandler->getCLSID();
+-        if (aCLSID.isEmpty())
++        OUString aCLSID;
++        if (pOLEHandler->isLink())
++            xOLE->setPropertyValue(getPropertyName(PROP_EMBEDDED_OBJECT),
++                                   uno::Any(lcl_LinkedObject(*pOLEHandler, m_aBaseUrl)));
++        else if ((aCLSID = pOLEHandler->getCLSID()).isEmpty())
+             xOLE->setPropertyValue(getPropertyName( PROP_STREAM_NAME ),
+                             uno::Any( rStreamName ));
+         else
+@@ -3888,6 +3926,8 @@ void DomainMapper_Impl::appendOLE( const OUString& rStreamName, const std::share
+ 
+         if (!aCLSID.isEmpty())
+             pOLEHandler->importStream(m_xComponentContext, GetTextDocument(), xOLE);
++        else if (pOLEHandler->isLink())
++            pOLEHandler->keepLink(GetTextDocument(), xOLE);
+ 
+     }
+     catch( const uno::Exception& )
+diff --git a/sw/source/writerfilter/dmapper/OLEHandler.cxx b/sw/source/writerfilter/dmapper/OLEHandler.cxx
+index d48c26e..f77e644 100644
+--- a/sw/source/writerfilter/dmapper/OLEHandler.cxx
++++ b/sw/source/writerfilter/dmapper/OLEHandler.cxx
+@@ -43,6 +43,8 @@
+ #include <com/sun/star/text/WrapTextMode.hpp>
+ #include <com/sun/star/uno/XComponentContext.hpp>
+ #include <svx/xmleohlp.hxx>
++#include <com/sun/star/beans/XPropertySet.hpp>
++#include <unordered_map>
+ #include <unotxdoc.hxx>
+ 
+ namespace writerfilter::dmapper {
+@@ -69,6 +71,10 @@ void OLEHandler::lcl_attribute(Id rName, const Value & rVal)
+     switch( rName )
+     {
+         case NS_ooxml::LN_CT_OLEObject_Type:
++            m_sType = sStringValue;
++        break;
++        case NS_ooxml::LN_linktarget:
++            m_sLinkTarget = sStringValue;
+         break;
+         case NS_ooxml::LN_CT_OLEObject_ProgID:
+             m_sProgId = sStringValue;
+@@ -238,6 +244,45 @@ void OLEHandler::importStream(const uno::Reference<uno::XComponentContext>& xCom
+         m_sProgId);
+ }
+ 
++bool OLEHandler::isLink() const
++{
++    return m_sType == "Link" && !m_sLinkTarget.isEmpty() && !getLinkFilter().isEmpty();
++}
++
++bool OLEHandler::isPicturedLink() const
++{
++    return m_sType == "Link" && !isLink();
++}
++
++OUString OLEHandler::getLinkFilter() const
++{
++    static const std::unordered_map<OUString, OUString> aFilters{
++        { u"Excel.Sheet.12"_ustr, u"Calc MS Excel 2007 XML"_ustr },
++        { u"Excel.Sheet.8"_ustr, u"MS Excel 97"_ustr },
++        { u"Word.Document.12"_ustr, u"MS Word 2007 XML"_ustr },
++        { u"Word.Document.8"_ustr, u"MS Word 97"_ustr },
++        { u"PowerPoint.Show.12"_ustr, u"Impress MS PowerPoint 2007 XML"_ustr },
++        { u"PowerPoint.Show.8"_ustr, u"MS PowerPoint 97"_ustr },
++        { u"Excel.SheetMacroEnabled.12"_ustr, u"Calc MS Excel 2007 VBA XML"_ustr },
++        { u"Excel.SheetBinaryMacroEnabled.12"_ustr, u"Calc MS Excel 2007 Binary"_ustr },
++        { u"Word.DocumentMacroEnabled.12"_ustr, u"MS Word 2007 XML VBA"_ustr },
++        { u"PowerPoint.ShowMacroEnabled.12"_ustr, u"Impress MS PowerPoint 2007 XML VBA"_ustr },
++    };
++    auto it = aFilters.find(m_sProgId);
++    if (it != aFilters.end())
++        return it->second;
++    SAL_WARN_IF(m_sType == "Link", "writerfilter", "linked " << m_sProgId << " stays a picture");
++    return OUString();
++}
++
++void OLEHandler::keepLink(const uno::Reference<text::XTextDocument>& xTextDocument,
++                          const uno::Reference<text::XTextContent>& xOLE)
++{
++    uno::Reference<beans::XPropertySet> xPropertySet(xOLE, uno::UNO_QUERY_THROW);
++    ::oox::ole::SaveInteropProperties(xTextDocument,
++        xPropertySet->getPropertyValue(u"StreamName"_ustr).get<OUString>(), nullptr, m_sProgId);
++}
++
+ OUString OLEHandler::getCLSID() const
+ {
+     OUString aRet;
+diff --git a/sw/source/writerfilter/dmapper/OLEHandler.hxx b/sw/source/writerfilter/dmapper/OLEHandler.hxx
+index cd5d59d..136f0d7 100644
+--- a/sw/source/writerfilter/dmapper/OLEHandler.hxx
++++ b/sw/source/writerfilter/dmapper/OLEHandler.hxx
+@@ -48,6 +48,9 @@ class DomainMapper;
+ class OLEHandler : public LoggedProperties
+ {
+     OUString     m_sProgId;
++    /// Embed, or Link to the file at m_sLinkTarget.
++    OUString     m_sType;
++    OUString     m_sLinkTarget;
+     OUString     m_sDrawAspect;
+     OUString     m_sVisAreaWidth;
+     OUString     m_sVisAreaHeight;
+@@ -71,7 +74,18 @@ public:
+ 
+     const css::uno::Reference<css::drawing::XShape>& getShape() const { return m_xShape; };
+ 
+-    bool isOLEObject() const { return m_xInputStream.is(); }
++    bool isOLEObject() const { return m_xInputStream.is() || isLink(); }
++
++    /// A link of a known kind; others keep their picture.
++    bool isLink() const;
++    /// A link of another kind: import keeps its picture.
++    bool isPicturedLink() const;
++    const OUString& getLinkTarget() const { return m_sLinkTarget; }
++    /// The import filter of the linked file's kind.
++    OUString getLinkFilter() const;
++    /// Keeps the ProgID for export, as importStream does.
++    void keepLink(const css::uno::Reference<css::text::XTextDocument>& xTextDocument,
++                  const css::uno::Reference<css::text::XTextContent>& xOLE);
+ 
+     /// In case of a valid CLSID, import the native data to the previously created empty OLE object.
+     void importStream(const css::uno::Reference<css::uno::XComponentContext>& xComponentContext,
+diff --git a/sw/source/writerfilter/ooxml/Handler.cxx b/sw/source/writerfilter/ooxml/Handler.cxx
+index bed1a9b..c2bb87e 100644
+--- a/sw/source/writerfilter/ooxml/Handler.cxx
++++ b/sw/source/writerfilter/ooxml/Handler.cxx
+@@ -126,6 +126,9 @@ void OOXMLOLEHandler::attribute(Id name, const Value & val)
+     switch (name)
+     {
+     case NS_ooxml::LN_CT_OLEObject_r_id:
++        // A linked object's file lies outside the package.
++        mpFastContext->newProperty(NS_ooxml::LN_linktarget,
++                                   OOXMLValue::createString(mpFastContext->getTargetForId(val.getString())));
+         try {
+             mpFastContext->resolveData(val.getString());
+         }
+diff --git a/sw/source/writerfilter/ooxml/model.xml b/sw/source/writerfilter/ooxml/model.xml
+index 0d6d451..a09a3e3 100644
+--- a/sw/source/writerfilter/ooxml/model.xml
++++ b/sw/source/writerfilter/ooxml/model.xml
+@@ -39,6 +39,7 @@
+   <token tokenid="ooxml:shape"/>
+   <token tokenid="ooxml:token"/>
+   <token tokenid="ooxml:inputstream"/>
++  <token tokenid="ooxml:linktarget"/>
+   <token tokenid="ooxml:trackchange"/>
+   <token tokenid="ooxml:object"/>
+   <token tokenid="ooxml:tblStart"/>
+diff --git a/sw/source/uibase/uno/loktxdoc.cxx b/sw/source/uibase/uno/loktxdoc.cxx
+index c4ae071..29cb405 100644
+--- a/sw/source/uibase/uno/loktxdoc.cxx
++++ b/sw/source/uibase/uno/loktxdoc.cxx
+@@ -27,6 +27,7 @@
+ 
+ #include <comphelper/diagnose_ex.hxx>
+ #include <comphelper/sequence.hxx>
++#include <comphelper/sequenceashashmap.hxx>
+ #include <o3tl/string_view.hxx>
+ #include <tools/json_writer.hxx>
+ #include <tools/urlobj.hxx>
+@@ -1253,9 +1254,19 @@ void GetExternalLinks(tools::JsonWriter& rJsonWriter, SwDocShell* pDocShell)
+         if (OUString aSource = LinkSource(*rLink); !aSource.isEmpty())
+             aSources.insert(aSource);
+     }
+-    auto aArray = rJsonWriter.startArray("links");
+-    for (const OUString& rSource : aSources)
+-        rJsonWriter.putSimpleValue(rSource);
++    {
++        auto aArray = rJsonWriter.startArray("links");
++        for (const OUString& rSource : aSources)
++            rJsonWriter.putSimpleValue(rSource);
++    }
++    // Word's links DOCX import kept as pictures.
++    const comphelper::SequenceAsHashMap aGrabBag(
++        pDocShell->GetBaseModel()->getPropertyValue(u"InteropGrabBag"_ustr));
++    const auto aPictured = aGrabBag.getUnpackedValueOrDefault(u"ElyPicturedLinks"_ustr,
++                                                              uno::Sequence<OUString>());
++    auto aArray = rJsonWriter.startArray("pictured");
++    for (const OUString& rTarget : aPictured)
++        rJsonWriter.putSimpleValue(rTarget);
+ }
+ 
+ /// Implements getCommandValues(".uno:ElyUpdateLinks"): each link reads again.

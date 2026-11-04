@@ -1,5 +1,7 @@
 """Checks a saved DOCX's math and contents without LibreOffice."""
 import os
+import posixpath
+import re
 import sys
 import zipfile
 
@@ -176,9 +178,128 @@ def toc_shape(path):
     ends_first(path)
 
 
+def marks(paragraph):
+    """A paragraph as field marks, code and text, pieces joined."""
+    out = []
+    for node in paragraph.iter():
+        if node.tag == ooxml.W + "fldChar":
+            out.append(node.get(ooxml.W + "fldCharType"))
+        elif node.tag in (ooxml.W + "instrText", ooxml.W + "t"):
+            kind = "code:" if node.tag == ooxml.W + "instrText" else "text:"
+            if out and out[-1].startswith(kind):
+                out[-1] += node.text or ""
+            else:
+                out.append(kind + (node.text or ""))
+    return out
+
+
+INCLUDE = r'code: ?INCLUDETEXT +"[^"]*include\.docx" *'
+FIELD = ["begin", INCLUDE + r"\\\* MERGEFORMAT *$", "separate"]
+BESIDE = ["text:Beside ", "begin", INCLUDE + "$", "separate", "text:Included before", "end"]
+TWO = ["begin", INCLUDE + r"\\! *$", "separate"]
+
+
+def includes(path, wanted):
+    """Every paragraph as `wanted`, codes as patterns; one section."""
+    with zipfile.ZipFile(path) as archive:
+        body = ooxml.xml(archive, ooxml.main_part(archive)).find(ooxml.W + "body")
+    shown = [marks(p) for p in body.iter(ooxml.W + "p")]
+    same = len(shown) == len(wanted) and all(
+        len(got) == len(want) and all(g == w or (w.startswith("code:") and re.match(w, g)) for g, w in zip(got, want))
+        for got, want in zip(shown, wanted))
+    ooxml.check(same, f"the paragraphs are {shown}")
+    breaks = len(list(body.iter(ooxml.W + "sectPr")))
+    ooxml.check(breaks == 1, f"one section, not {breaks}")
+
+
+def included(path):
+    """INCLUDETEXT holds its updated paragraphs; text beside keeps it."""
+    includes(path, [["text:Before"], FIELD + ["text:Included after", "end"], BESIDE,
+                    TWO + ["text:Included after", "end"], ["text:After"]])
+
+
+def included_cached(path):
+    """INCLUDETEXT holds its saved paragraphs, switches kept."""
+    includes(path, [["text:Before"], FIELD + ["text:Included before", "end"], BESIDE,
+                    TWO + ["text:Line one"], ["text:Line two", "end"], ["text:After"]])
+
+
+def included_table(path):
+    """Sources opening with a table stay INCLUDETEXT; one section."""
+    with zipfile.ZipFile(path) as archive:
+        body = ooxml.xml(archive, ooxml.main_part(archive)).find(ooxml.W + "body")
+    codes = [m for p in body.iter(ooxml.W + "p") for m in marks(p) if m.startswith("code:") and "INCLUDETEXT" in m]
+    ooxml.check(len(codes) == 3, f"three INCLUDETEXT fields, not {codes}")
+    tables = len(list(body.iter(ooxml.W + "tbl")))
+    ooxml.check(tables == 2, f"each linked section holds the table, not {tables}")
+    breaks = len(list(body.iter(ooxml.W + "sectPr")))
+    ooxml.check(breaks == 1, f"one section, not {breaks}")
+
+
+OFFICE = "{urn:schemas-microsoft-com:office:office}"
+VML = "{urn:schemas-microsoft-com:vml}"
+
+
+def ole_link(path):
+    """The LINK field holds a Type="Link" object, its file outside."""
+    with zipfile.ZipFile(path) as archive:
+        main = ooxml.main_part(archive)
+        body = ooxml.xml(archive, main).find(ooxml.W + "body")
+        folder, name = posixpath.split(main)
+        listed = ooxml.xml(archive, posixpath.join(folder, "_rels", name + ".rels"))
+        names = set(archive.namelist())
+    rels = {rel.get("Id"): rel for rel in listed.iter(ooxml.REL + "Relationship")}
+    seen, depth, field = [], 0, ""
+    for node in body.iter():
+        if node.tag == ooxml.W + "fldChar":
+            depth += {"begin": 1, "end": -1}.get(node.get(ooxml.W + "fldCharType"), 0)
+        elif node.tag == ooxml.W + "instrText":
+            field += node.text or ""
+        elif node.tag == OFFICE + "OLEObject":
+            seen.append((node, depth))
+    ooxml.check(re.search(r'LINK Excel\.Sheet\.12 "[^"]*source\.xlsx" "Rates!R1C1:R12C2"', field), f"the LINK code stays: {field!r}")
+    if not ooxml.check(len(seen) == 1, f"one OLE object, not {len(seen)}"):
+        return
+    ole, inside = seen[0]
+    ooxml.check(inside == 1, "the object is the LINK field's result")
+    ooxml.check(ole.get("Type") == "Link" and ole.get("ProgID") == "Excel.Sheet.12", f"a linked worksheet: {ole.attrib}")
+    target = rels.get(ole.get(ooxml.R + "id"))
+    ooxml.check(target is not None and target.get("Type").endswith("/oleObject") and target.get("TargetMode") == "External"
+                and target.get("Target", "").endswith("source.xlsx"), f"the link names source.xlsx outside: {target is not None and target.attrib}")
+    url = target.get("Target", "") if target is not None else ""
+    ooxml.check("\\" not in url and "%5C" not in url.upper(), f"the link is a URL, not a Windows path: {url}")
+    images = [rels.get(data.get(ooxml.R + "id")) for data in body.iter(VML + "imagedata")]
+    ooxml.check(len(images) == 1 and images[0] is not None and images[0].get("TargetMode") != "External"
+                and posixpath.normpath(posixpath.join(folder, images[0].get("Target"))) in names, "the preview is in the package")
+
+
 CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape, "toc-alone": toc_alone,
-         "toc-native": toc_native}
+         "toc-native": toc_native, "included": included, "included-cached": included_cached,
+         "included-table": included_table, "ole-link": ole_link}
 MUTATIONS = {
+    "ole-link": [
+        ("word/document.xml", r'Type="Link"', 'Type="Embed"'),
+        ("word/_rels/document.xml.rels", r' TargetMode="External"', ""),
+        ("word/document.xml", r"R1C1:R12C2", "R1C1"),
+        ("word/_rels/document.xml.rels", r"source\.xlsx", "other.xlsx"),
+        ("word/_rels/document.xml.rels", r'(Target="file:[^"]*)/(source\.xlsx")', r"\1%5C\2"),
+    ],
+    "included": [
+        ("word/document.xml", r"Included after", "Included before"),
+        ("word/document.xml", r"INCLUDETEXT", "INCLUDEPICTURE"),
+        ("word/document.xml", r'(?s)(<w:r>(?:(?!<w:r>).)*?<w:fldChar w:fldCharType="end"/></w:r>)(</w:p>)(<w:p[ >].*?)(</w:p>)', r"\2\3\1\4"),
+        ("word/document.xml", r"(<w:t[^>]*>Before</w:t></w:r>)", r"\1<w:sectPr/>"),
+        ("word/document.xml", r"MERGEFORMAT", ""),
+    ],
+    "included-table": [
+        ("word/document.xml", r"INCLUDETEXT", "INCLUDEPICTURE"),
+        ("word/document.xml", r"(<w:t[^>]*>Before</w:t></w:r>)", r"\1<w:sectPr/>"),
+    ],
+    "included-cached": [
+        ("word/document.xml", r"Line two", "Line one"),
+        ("word/document.xml", r"(<w:t[^>]*>Before</w:t></w:r></w:p>)", r"\1<w:p/>"),
+        ("word/document.xml", r" \\!", ""),
+    ],
     "equation": [
         ("word/document.xml", r"<m:r>(<m:t[^>]*>)[-−](</m:t>)", r"<m:r><m:rPr><m:nor/></m:rPr>\1-\2"),
         ("word/document.xml", r"<m:nor/>", ""),

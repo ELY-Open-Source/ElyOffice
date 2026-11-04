@@ -47,8 +47,6 @@ pub struct Extra {
     pub ruled: Option<Spot>,
     /// A rule read is on its way.
     pub ruling: bool,
-    /// Linked sources shown as saved.
-    pub links: Vec<String>,
     /// Cells showing the file's results: unknown functions.
     pub kept: Vec<String>,
     /// The edit count the links were last asked at.
@@ -316,7 +314,7 @@ impl Book {
             &self.core.worker,
             &doc,
             |worker, doc| {
-                let links = ely_lok::sheet::links(&worker.values(doc, ely_lok::sheet::LINKS)?)?;
+                let links = ely_lok::links::sources(&worker.values(doc, ely_lok::links::LIST)?)?;
                 Ok((links, ely_lok::sheet::kept(&worker.values(doc, ely_lok::sheet::KEPT)?)?))
             },
             move |book: &mut Self, read, cx| {
@@ -328,7 +326,8 @@ impl Book {
                 match read {
                     Ok((links, kept)) => {
                         log::info!("table: tab {id} links {} sources, {} kept results", links.len(), kept.len());
-                        (tab.extra.links, tab.extra.kept) = (links, kept);
+                        tab.links.named(links);
+                        tab.extra.kept = kept;
                     }
                     Err(error) => book.engine_failed(&error.to_string(), cx),
                 }
@@ -338,17 +337,6 @@ impl Book {
             },
             cx,
         );
-    }
-
-    /// Linked values stay as saved; the banner says so (§9.3).
-    fn links_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
-        let links = &self.active_tab()?.extra.links;
-        if links.is_empty() {
-            return None;
-        }
-        let sources = links.join(", ");
-        let text = Self::text(cx, "table.links.stale", &[("sources", &sources)]);
-        Some(Banner::new("table-links", Severity::Info, text))
     }
 
     /// Results Calc cannot compute stay as saved (§9.3, D-02).

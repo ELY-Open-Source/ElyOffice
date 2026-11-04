@@ -48,7 +48,8 @@ impl Docs {
                 let warning = Self::text(cx, "doc.fonts.missing", &[("fonts", &fonts)]);
                 Banner::new("doc-fonts", Severity::Warning, warning)
             });
-            if risk.is_none() && fonts.is_none() {
+            let links = self.links_banner(cx);
+            if risk.is_none() && fonts.is_none() && links.is_none() {
                 return view;
             }
             return div()
@@ -56,6 +57,7 @@ impl Docs {
                 .flex()
                 .flex_col()
                 .children(risk)
+                .children(links)
                 .children(fonts)
                 .child(div().flex_1().min_h_0().child(view))
                 .into_any_element();

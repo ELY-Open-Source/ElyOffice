@@ -72,6 +72,5 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("table.protect.deleteRows", "行の削除"),
     ("table.protect.autofilter", "フィルターの使用"),
     ("table.protect.pivot", "ピボットテーブルの使用"),
-    ("table.links.stale", "リンクされた値は最後に保存したときのもので、更新されていません: {sources}"),
     ("table.kept.stale", "ファイルに保存された結果です。ElyTable はこれらの関数を計算できないため、入力を変更すると #NAME? と表示されます: {cells}"),
 ];

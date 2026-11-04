@@ -49,6 +49,14 @@ pub trait Engine: Sized + 'static {
     fn risk(_loaded: &Self::Loaded) -> Option<crate::Risk> {
         None
     }
+    /// The sources the document's links read (LOK-11).
+    fn links(_loaded: &Self::Loaded) -> Vec<String> {
+        Vec::new()
+    }
+    /// Reads every link again; the failed sources come back.
+    fn update_links(_worker: &mut Self::Worker, _doc: &Self::Doc) -> io::Result<Vec<String>> {
+        Err(io::Error::new(io::ErrorKind::Unsupported, "this engine has no links"))
+    }
     /// The undo history as a mark to compare.
     fn history(worker: &mut Self::Worker, doc: &Self::Doc) -> io::Result<String>;
     /// Writes `doc` as `format` to `path`; `closing` ends open edits.
