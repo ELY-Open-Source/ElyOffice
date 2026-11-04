@@ -53,7 +53,7 @@ impl Lane {
 }
 
 impl LokView {
-    /// When a key last went to the kernel, on gpui's clock.
+    /// The last key's time, on gpui's clock.
     pub fn typed_at(&self) -> Option<Instant> {
         self.lane.typed
     }

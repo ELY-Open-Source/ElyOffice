@@ -50,7 +50,7 @@ fn a_key_after_a_save_goes_first_and_into_the_file() {
     let held = cx.update(|app| exporting(&docs, id, app)) || std::fs::read(&own).expect("the file") != before;
     assert!(!held, "the save went ahead of the typing");
     commit(&mut cx, &docs, "three");
-    // A second program asks in the same pause; one write serves both.
+    // A second ask in the pause joins the first.
     let (again, answered_again) = ely_ui::Ask::for_tests(&serde_json::json!(["save", own.display().to_string()]).to_string());
     cx.update(|app| docs.update(app, |docs, cx| docs.answer_request(again, cx)));
     settle(&cx, |app| {

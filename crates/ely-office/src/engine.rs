@@ -86,7 +86,7 @@ pub trait Engine: Sized + 'static {
     fn edited(view: &Self::View) -> u64;
     /// An edit is sent but not landed.
     fn edit_pending(view: &Self::View) -> bool;
-    /// When a key last went in; a save holding it waits.
+    /// When a key last went in; saves wait on it.
     fn typed_at(_view: &Self::View) -> Option<std::time::Instant> {
         None
     }
