@@ -283,14 +283,14 @@ pub trait Opening: Host {
         }
         // Points from now on; a crash copy comes back unsaved.
         let tab = self.tab(id).expect("just opened");
-        let named = tab.name.clone();
+        let (named, size) = (tab.name.clone(), tab.session.fingerprint().map(|print| print.len));
         log::info!(
             "{}: opened {named} as tab {id}, risk {:?}, {} tabs open, in front {front}",
             Self::KIND.app.slug(),
             tab.risk,
             self.core().tabs.len()
         );
-        crate::Recovering::keep_tab(self, id, &named, tried, cx);
+        crate::Recovering::keep_tab(self, id, (&named, size), tried, cx);
         crate::Recovering::reopened(self, id, &path, cx);
         cx.notify();
     }

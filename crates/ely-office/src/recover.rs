@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Engine, Host, Tabs as _, text};
 
 mod disk;
+mod fit;
 mod reopen;
 mod slot;
 
@@ -200,36 +201,9 @@ pub trait Recovering: Host {
         if self.core().window.is_some() {
             self.reopen_crashed(cx);
         }
-        self.recheck_refused(cx);
+        fit::recheck(self, cx);
         // Snapshots hold the kernel: they wait for a pause.
         self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.owed = true);
-    }
-
-    /// Refused slots that fit the cap now take points again.
-    fn recheck_refused(&mut self, cx: &mut Context<Self>) {
-        let Some(keeping) = self.core().keeping.as_ref() else { return };
-        let slots = keeping.slots.iter();
-        let refused: Vec<_> = slots.filter_map(|(id, slot)| Some((*id, keeping.folder(&slot.kept.slot), slot.kept.sealed, slot.refused?))).collect();
-        if refused.is_empty() {
-            return;
-        }
-        let dir = keeping.dir.clone();
-        let task = cx.background_spawn(async move { disk::fitting(&dir, refused) });
-        cx.spawn(async move |this: WeakEntity<Self>, cx: &mut AsyncApp| {
-            let fitting = task.await;
-            this.update(cx, |host, _| {
-                let Some(keeping) = host.core_mut().keeping.as_mut() else { return };
-                // A save meanwhile measures again next tick.
-                for (id, size) in fitting {
-                    if let Some(slot) = keeping.slots.get_mut(&id).filter(|slot| slot.refused == Some(size)) {
-                        log::info!("recovery: tab {id} fits the cap again");
-                        slot.refused = None;
-                    }
-                }
-            })
-            .ok();
-        })
-        .detach();
     }
 
     /// An owed round, once every tab rested a whole beat.
@@ -381,7 +355,7 @@ pub trait Recovering: Host {
     }
 
     /// Each tab gets its own folder of points once open.
-    fn keep_tab(&mut self, id: u64, name: &str, sealed: bool, cx: &mut Context<Self>) {
+    fn keep_tab(&mut self, id: u64, (name, size): (&str, Option<u64>), sealed: bool, cx: &mut Context<Self>) {
         let format = name
             .rsplit_once('.')
             .map(|(_, ext)| ext.to_ascii_lowercase())
@@ -392,6 +366,9 @@ pub trait Recovering: Host {
         let kept = Kept { slot, name: name.to_string(), format, sealed, held: false };
         keeping.slots.insert(id, Slot { kept, written: None, writing: false, failed: None, refused: None, last: None });
         self.flush_index(cx);
+        if let Some(size) = size {
+            fit::opened(self, id, size, cx);
+        }
     }
 
     /// A closed tab's points go: closing decided its fate.

@@ -195,6 +195,40 @@ fn round(cx: &mut TestAppContext, docs: &Entity<Docs>) {
     beat(cx, docs);
 }
 
+fn limits(megabytes: u64) -> serde_json::Value {
+    serde_json::json!({ "keep": 20, "megabytes": megabytes })
+}
+
+fn open_big(cx: &mut TestAppContext, docs: &Entity<Docs>, dir: &std::path::Path) {
+    let file = big_fodt(cx, dir);
+    with_window(cx, docs, |docs, _, cx| docs.open_file(file, cx));
+    settle(cx, |app| docs.read(app).active_tab().is_some_and(|tab| tab.view.read(app).settled()));
+}
+
+#[test]
+fn a_file_opened_over_its_space_takes_no_snapshot() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((docs, kept)) = kept_docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let root = super::words::rooted(&mut cx, &docs);
+    ely_platform::settings::Store::of(&kept).set("recovery", limits(1)).expect("the space is set");
+    open_big(&mut cx, &docs, dir.path());
+    type_into(&mut cx, &docs, "big");
+    round(&mut cx, &docs);
+    // Its size on disk tells before any snapshot.
+    assert_eq!(cx.update(|app| writing(&docs, app)), 0, "no snapshot of a file over the space");
+    settle(&cx, |app| refused(&docs, app) == 1);
+    assert_eq!(points(&kept), 0);
+    let never = cx.update(|app| ely_ui::i18n::text(app, "office.stopped.never", &[]).to_string());
+    let args = [("name", "big.fodt"), ("limit", "1"), ("at", never.as_str())];
+    let said = cx.update(|app| ely_ui::i18n::text(app, "office.recovery.too_big", &args));
+    let toasts = cx.update(|app| root.read(app).toasts(app));
+    assert!(toasts.iter().any(|(text, _)| *text == said), "{toasts:?}");
+}
+
 #[test]
 fn a_document_over_its_space_is_not_snapshotted_again() {
     for locale in ["en-US", "zh-CN"] {
@@ -211,12 +245,10 @@ fn over_its_space(locale: &'static str) {
     };
     cx.update(|app| ely_ui::i18n::install_as(locale, app));
     let root = super::words::rooted(&mut cx, &docs);
-    let limits = |megabytes: u64| serde_json::json!({ "keep": 20, "megabytes": megabytes });
     let store = ely_platform::settings::Store::of(&kept);
+    open_big(&mut cx, &docs, dir.path());
+    // Shrunk after opening: the snapshot itself is refused.
     store.set("recovery", limits(1)).expect("the space is set");
-    let file = big_fodt(&mut cx, dir.path());
-    with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(file, cx));
-    settle(&cx, |app| docs.read(app).active_tab().is_some_and(|tab| tab.view.read(app).settled()));
     type_into(&mut cx, &docs, "big");
     round(&mut cx, &docs);
     settle(&cx, |app| refused(&docs, app) == 1 && writing(&docs, app) == 0);
