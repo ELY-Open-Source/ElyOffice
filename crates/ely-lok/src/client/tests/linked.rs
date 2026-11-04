@@ -132,6 +132,54 @@ fn a_dde_link_to_no_server_is_named_without_a_dialog() {
     assert!(after.blocked.is_empty(), "no dialog: {:?}", after.blocked);
 }
 
+/// A fresh flat book whose S1.A1 is 1.
+fn present() -> (tempfile::TempDir, String) {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let source = dir.path().join("source.fods");
+    rates(&source, 1);
+    (dir, crate::file_url(&source))
+}
+
+#[test]
+fn a_linked_sheet_not_in_its_file_keeps_its_cells() {
+    if skip() {
+        return;
+    }
+    let (_source, url) = present();
+    let sheet = format!(
+        r#"<table:table-source xlink:type="simple" xlink:href="{url}" table:filter-name="OpenDocument Spreadsheet Flat XML" table:table-name="Gone" table:mode="copy-all"/>"#
+    );
+    let cell = r#"<table:table-cell office:value-type="float" office:value="5"/>"#;
+    missing_stays(&sheets(&sheet, cell), &url, "5");
+}
+
+#[test]
+fn a_linked_range_not_in_its_file_keeps_its_cells() {
+    if skip() {
+        return;
+    }
+    let (_source, url) = present();
+    let cell = format!(
+        r#"<table:table-cell office:value-type="float" office:value="7"><table:cell-range-source table:name="NoSuchRange" xlink:type="simple" xlink:href="{url}" table:filter-name="OpenDocument Spreadsheet Flat XML" table:last-column-spanned="1" table:last-row-spanned="1"/></table:table-cell>"#
+    );
+    missing_stays(&sheets("", &cell), &url, "7");
+}
+
+#[test]
+fn a_linked_sheet_in_its_file_reads_it() {
+    if skip() {
+        return;
+    }
+    let (_source, url) = present();
+    let sheet = format!(
+        r#"<table:table-source xlink:type="simple" xlink:href="{url}" table:filter-name="OpenDocument Spreadsheet Flat XML" table:table-name="S1" table:mode="copy-all"/>"#
+    );
+    let cell = r#"<table:table-cell office:value-type="float" office:value="5"/>"#;
+    let (_dir, mut worker, doc) = open_book(&sheets(&sheet, cell));
+    assert_eq!(update(&mut worker, &doc), Vec::<String>::new());
+    assert_eq!(cells(&mut worker, &doc, "A1"), "1", "the sheet reads its file");
+}
+
 /// A document whose section links `include`, showing `cached`.
 fn linking(path: &Path, include: &Path, cached: &str) {
     let href = crate::file_url(include);
@@ -190,7 +238,6 @@ fn a_linked_section_reads_its_file_only_when_asked() {
     assert_eq!(update(&mut worker, &doc), [crate::file_url(&include)], "the failed file is named");
     assert_eq!(text(&dir, &mut worker, &doc), ["Before", "Two", "After"], "a missing file keeps the text");
 }
-
 
 #[test]
 fn includetext_is_a_linked_section_and_saves_as_one() {

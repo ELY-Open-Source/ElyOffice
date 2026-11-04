@@ -6,9 +6,11 @@ which LOK has none of. Ely shows the saved values and offers the
 update (LOK-11).
 - .uno:ElyUpdateLinks allows link updates for the document and reads
   every link again; the answer lists the sources not read; no dialog.
-  Calc: a linked sheet or area whose file is missing is not read (it
-  would overwrite the saved cells with "The link could not be
-  updated" or nothing); a DDE or WEBSERVICE link that fails is named;
+  Calc: a linked sheet or area is read only when its file loads and
+  holds every sheet or range it copies; otherwise it is named and its
+  saved cells stay (Calc would overwrite them with "The link could not
+  be updated" or nothing). ScAreaLink::FindExtRange is public for this.
+  A DDE or WEBSERVICE link that fails is named;
   sources no formula has read yet are linked first, then the external
   references read. Calc's own "Allow updating" path is unchanged.
   Writer updates each link of the link manager.
@@ -21,6 +23,26 @@ update (LOK-11).
   links read. Calc's lists the file it reads: a relative link
   follows the book.
 
+diff --git a/sc/inc/arealink.hxx b/sc/inc/arealink.hxx
+index cc5b6f8..6465d57 100644
+--- a/sc/inc/arealink.hxx
++++ b/sc/inc/arealink.hxx
+@@ -38,7 +38,6 @@ private:
+     bool            bAddUndo;
+     bool            bInCreate;
+     bool            bDoInsert;      // is set to FALSE for first update
+-    static bool FindExtRange( ScRange& rRange, const ScDocument& rSrcDoc, const OUString& rAreaName );
+ 
+ public:
+     SC_DLLPUBLIC ScAreaLink( ScDocShell& rShell, OUString aFile,
+@@ -64,6 +63,7 @@ public:
+     bool IsEqual( std::u16string_view rFile, std::u16string_view rFilter, std::u16string_view rOpt,
+                   std::u16string_view rSource, const ScRange& rDest ) const;
+ 
++    static bool FindExtRange( ScRange& rRange, const ScDocument& rSrcDoc, const OUString& rAreaName );
+     const OUString& GetFile() const         { return aFileName;     }
+     const OUString& GetFilter() const       { return aFilterName;   }
+     const OUString& GetOptions() const      { return aOptions;      }
 diff --git a/sc/inc/document.hxx b/sc/inc/document.hxx
 index 7230b67..3f659f4 100644
 --- a/sc/inc/document.hxx
@@ -61,10 +83,10 @@ index 3dfa335..e16265d 100644
          INetURLObject aUrl(aFile,INetURLObject::EncodeMechanism::WasEncoded);
          aFile = aUrl.GetMainURL(INetURLObject::DecodeMechanism::Unambiguous);
 diff --git a/sc/source/ui/docshell/docsh4.cxx b/sc/source/ui/docshell/docsh4.cxx
-index 78810ce..5b5dcc7 100644
+index 78810ce..08ad0b7 100644
 --- a/sc/source/ui/docshell/docsh4.cxx
 +++ b/sc/source/ui/docshell/docsh4.cxx
-@@ -71,6 +71,11 @@
+@@ -71,6 +71,13 @@
  #include <docuno.hxx>
  
  #include <docsh.hxx>
@@ -73,13 +95,76 @@ index 78810ce..5b5dcc7 100644
 +#include <ddelink.hxx>
 +#include <webservicelink.hxx>
 +#include <svl/fstathelper.hxx>
++#include <filter.hxx>
++#include <global.hxx>
  #include "docshimp.hxx"
  #include <docfunc.hxx>
  #include <scres.hrc>
-@@ -226,6 +231,59 @@ void ScDocShell::ReloadAllLinks()
+@@ -226,6 +233,120 @@ void ScDocShell::ReloadAllLinks()
      }
  }
  
++namespace
++{
++/// The link's file as it reads it; null when unreadable.
++std::unique_ptr<ScDocumentLoader> lcl_Load(ScDocShell& rShell, const OUString& rFile,
++                                           OUString aFilter, OUString aOptions)
++{
++    const OUString aURL = ScGlobal::GetAbsDocName(rFile, &rShell);
++    if (!FStatHelper::IsDocument(aURL))
++        return nullptr;
++    ScDocumentLoader::RemoveAppPrefix(aFilter);
++    auto pLoader = std::make_unique<ScDocumentLoader>(aURL, aFilter, aOptions);
++    return pLoader->IsError() ? nullptr : std::move(pLoader);
++}
++
++/// Every sheet the link copies is in its file.
++bool lcl_SheetReadable(ScDocShell& rShell, const ScTableLink& rLink)
++{
++    auto pLoader = lcl_Load(rShell, rLink.GetFileName(), rLink.GetFilterName(), rLink.GetOptions());
++    if (!pLoader)
++        return false;
++    const ScDocument& rSrc = *pLoader->GetDocument();
++    // Text filters name no sheet: their one sheet is read.
++    if (rSrc.GetTableCount() == 1 && ScDocShell::HasAutomaticTableName(rLink.GetFilterName()))
++        return true;
++    const ScDocument& rDoc = rShell.GetDocument();
++    for (SCTAB nTab = 0; nTab < rDoc.GetTableCount(); ++nTab)
++    {
++        SCTAB nSrc;
++        const OUString aName = rDoc.GetLinkTab(nTab);
++        if (rDoc.GetLinkMode(nTab) != ScLinkMode::NONE && rDoc.GetLinkDoc(nTab) == rLink.GetFileName()
++            && !aName.isEmpty() && !rSrc.GetTable(aName, nSrc))
++            return false;
++    }
++    return true;
++}
++
++/// Every range the link copies is in its file.
++bool lcl_AreaReadable(ScDocShell& rShell, const ScAreaLink& rLink)
++{
++    auto pLoader = lcl_Load(rShell, rLink.GetFile(), rLink.GetFilter(), rLink.GetOptions());
++    if (!pLoader)
++        return false;
++    ScDocument& rSrc = *pLoader->GetDocument();
++    OUString aArea = rLink.GetSource();
++    if (rLink.GetFilter() == SC_TEXT_CSV_FILTER_NAME && aArea == "CSV_all")
++        return true;
++    if (rLink.GetFilter() == ScDocShell::GetWebQueryFilterName())
++        aArea = ScFormatFilter::Get().GetHTMLRangeNameList(rSrc, aArea);
++    if (aArea.isEmpty())
++        return false;
++    sal_Int32 nIdx = 0;
++    do
++    {
++        ScRange aRange;
++        if (!ScAreaLink::FindExtRange(aRange, rSrc, aArea.getToken(0, ';', nIdx)))
++            return false;
++    } while (nIdx > 0);
++    return true;
++}
++}
++
 +void ScDocShell::UpdateLinksAsked(std::vector<OUString>& rFailed)
 +{
 +    AllowLinkUpdate();
@@ -94,14 +179,14 @@ index 78810ce..5b5dcc7 100644
 +        if (pSheet || pArea)
 +        {
 +            const OUString& rFile = pSheet ? pSheet->GetFileName() : pArea->GetFile();
-+            // A missing file would overwrite the saved cells.
-+            if (!FStatHelper::IsDocument(ScGlobal::GetAbsDocName(rFile, this)))
++            // An unread source would overwrite the saved cells.
++            const bool bReadable = pSheet ? lcl_SheetReadable(*this, *pSheet) : lcl_AreaReadable(*this, *pArea);
++            if (!bReadable || !xLink->Update())
 +            {
-+                SAL_WARN("sc.ui", "linked file not found: " << rFile);
++                SAL_WARN("sc.ui", "linked source not read: " << rFile);
 +                rFailed.push_back(rFile);
 +                continue;
 +            }
-+            xLink->Update();
 +            bSheets |= pSheet != nullptr;
 +        }
 +        else if (auto pDde = dynamic_cast<ScDdeLink*>(xLink.get()))
