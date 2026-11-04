@@ -1,5 +1,6 @@
 """Checks a saved DOCX's math and contents without LibreOffice."""
 import os
+import posixpath
 import re
 import sys
 import zipfile
@@ -223,9 +224,50 @@ def included_cached(path):
                     TWO + ["text:Line one"], ["text:Line two", "end"], ["text:After"]])
 
 
+OFFICE = "{urn:schemas-microsoft-com:office:office}"
+VML = "{urn:schemas-microsoft-com:vml}"
+
+
+def ole_link(path):
+    """The LINK field holds a Type="Link" object, its file outside."""
+    with zipfile.ZipFile(path) as archive:
+        main = ooxml.main_part(archive)
+        body = ooxml.xml(archive, main).find(ooxml.W + "body")
+        folder, name = posixpath.split(main)
+        listed = ooxml.xml(archive, posixpath.join(folder, "_rels", name + ".rels"))
+        names = set(archive.namelist())
+    rels = {rel.get("Id"): rel for rel in listed.iter(ooxml.REL + "Relationship")}
+    seen, depth, field = [], 0, ""
+    for node in body.iter():
+        if node.tag == ooxml.W + "fldChar":
+            depth += {"begin": 1, "end": -1}.get(node.get(ooxml.W + "fldCharType"), 0)
+        elif node.tag == ooxml.W + "instrText":
+            field += node.text or ""
+        elif node.tag == OFFICE + "OLEObject":
+            seen.append((node, depth))
+    ooxml.check(re.search(r'LINK Excel\.Sheet\.12 "[^"]*source\.xlsx" "Rates!R1C1:R12C2"', field), f"the LINK code stays: {field!r}")
+    if not ooxml.check(len(seen) == 1, f"one OLE object, not {len(seen)}"):
+        return
+    ole, inside = seen[0]
+    ooxml.check(inside == 1, "the object is the LINK field's result")
+    ooxml.check(ole.get("Type") == "Link" and ole.get("ProgID") == "Excel.Sheet.12", f"a linked worksheet: {ole.attrib}")
+    target = rels.get(ole.get(ooxml.R + "id"))
+    ooxml.check(target is not None and target.get("Type").endswith("/oleObject") and target.get("TargetMode") == "External"
+                and target.get("Target", "").endswith("source.xlsx"), f"the link names source.xlsx outside: {target is not None and target.attrib}")
+    images = [rels.get(data.get(ooxml.R + "id")) for data in body.iter(VML + "imagedata")]
+    ooxml.check(len(images) == 1 and images[0] is not None and images[0].get("TargetMode") != "External"
+                and posixpath.normpath(posixpath.join(folder, images[0].get("Target"))) in names, "the preview is in the package")
+
+
 CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape, "toc-alone": toc_alone,
-         "toc-native": toc_native, "included": included, "included-cached": included_cached}
+         "toc-native": toc_native, "included": included, "included-cached": included_cached, "ole-link": ole_link}
 MUTATIONS = {
+    "ole-link": [
+        ("word/document.xml", r'Type="Link"', 'Type="Embed"'),
+        ("word/_rels/document.xml.rels", r' TargetMode="External"', ""),
+        ("word/document.xml", r"R1C1:R12C2", "R1C1"),
+        ("word/_rels/document.xml.rels", r"source\.xlsx", "other.xlsx"),
+    ],
     "included": [
         ("word/document.xml", r"Included after", "Included before"),
         ("word/document.xml", r"INCLUDETEXT", "INCLUDEPICTURE"),

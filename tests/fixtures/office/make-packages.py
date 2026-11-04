@@ -1,7 +1,9 @@
 """Writes #49's packages and small Word structure samples."""
 import os
+import struct
 import sys
 import zipfile
+import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BACKSLASH = chr(92)
@@ -110,3 +112,31 @@ ALONE = field(f'INCLUDETEXT "include.docx" {BACKSLASH}* MERGEFORMAT', "Included 
 BESIDE = field('INCLUDETEXT "include.docx"', "Included before")
 TWO = field(f'INCLUDETEXT "include.docx" {BACKSLASH}!', "Line one").replace("</w:t></w:r>", "</w:t></w:r></w:p><w:p><w:r><w:t>Line two</w:t></w:r>", 1)
 package("includetext.docx", f'<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:p>{ALONE}</w:p><w:p><w:r><w:t xml:space="preserve">Beside </w:t></w:r>{BESIDE}</w:p><w:p>{TWO}</w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>')
+
+
+def png(width, height):
+    """A grey PNG of `width` by `height`."""
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    rows = b"".join(bytes([0]) + bytes([128]) * width for _ in range(height))
+    header = struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0)
+    return bytes([137]) + b"PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b"")
+
+
+# Word's linked worksheet: a LINK field around a Type="Link" object.
+REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+TYPES = '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'
+OBJECT = ('<w:r><w:object w:dxaOrig="2000" w:dyaOrig="1000"><v:shape id="_x0000_i1025" type="#_x0000_t75" style="width:100pt;height:50pt" o:ole="">'
+          '<v:imagedata r:id="rPreview" o:title=""/></v:shape><o:OLEObject Type="Link" ProgID="Excel.Sheet.12" ShapeID="_x0000_i1025" '
+          'DrawAspect="Content" r:id="rOle" UpdateMode="Always"><o:LinkType>EnhancedMetaFile</o:LinkType><o:LockedField>false</o:LockedField>'
+          '</o:OLEObject></w:object></w:r>')
+LINK = field(f'LINK Excel.Sheet.12 "source.xlsx" "Rates!R1C1:R12C2" {BACKSLASH}a {BACKSLASH}p', "").replace("<w:r><w:t></w:t></w:r>", OBJECT)
+with zipfile.ZipFile(os.path.join(sys.argv[1], "ole-link.docx"), "w", zipfile.ZIP_DEFLATED) as out:
+    for part, data in {
+        "[Content_Types].xml": HEAD + TYPES,
+        "_rels/.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{REL}/officeDocument" Target="word/document.xml"/></Relationships>',
+        "word/_rels/document.xml.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rOle" Type="{REL}/oleObject" Target="source.xlsx" TargetMode="External"/><Relationship Id="rPreview" Type="{REL}/image" Target="media/preview.png"/></Relationships>',
+        "word/document.xml": HEAD + f'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="{REL}" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><w:body><w:p><w:r><w:t>Before</w:t></w:r></w:p><w:p>{LINK}</w:p><w:sectPr/></w:body></w:document>',
+        "word/media/preview.png": png(40, 20),
+    }.items():
+        out.writestr(zipfile.ZipInfo(part, (2026, 11, 1, 0, 0, 0)), data)
