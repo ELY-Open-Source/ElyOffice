@@ -105,6 +105,8 @@ def field(code, cached):
             f'<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>{cached}</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>')
 
 
-# INCLUDETEXT alone in its paragraph, and beside other text.
-INCLUDE = field('INCLUDETEXT "include.docx"', "Included before")
-package("includetext.docx", f'<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:p>{INCLUDE}</w:p><w:p><w:r><w:t xml:space="preserve">Beside </w:t></w:r>{INCLUDE}</w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>')
+# INCLUDETEXT alone, beside other text, and over two paragraphs.
+ALONE = field(f'INCLUDETEXT "include.docx" {BACKSLASH}* MERGEFORMAT', "Included before")
+BESIDE = field('INCLUDETEXT "include.docx"', "Included before")
+TWO = field(f'INCLUDETEXT "include.docx" {BACKSLASH}!', "Line one").replace("</w:t></w:r>", "</w:t></w:r></w:p><w:p><w:r><w:t>Line two</w:t></w:r>", 1)
+package("includetext.docx", f'<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:p>{ALONE}</w:p><w:p><w:r><w:t xml:space="preserve">Beside </w:t></w:r>{BESIDE}</w:p><w:p>{TWO}</w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>')

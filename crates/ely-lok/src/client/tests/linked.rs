@@ -73,7 +73,7 @@ fn sheets(sheet: &str, cells: &str) -> String {
     )
 }
 
-/// A missing linked file: kept, named, no dialog.
+/// An unreadable linked source: kept, named, no dialog.
 fn missing_stays(book: &str, missing: &str, cell: &str) {
     let (_dir, mut worker, doc) = open_book(book);
     let quiet = std::time::Duration::from_secs(3);
@@ -109,27 +109,6 @@ fn a_linked_area_keeps_its_cells_when_its_file_is_missing() {
         r#"<table:table-cell office:value-type="float" office:value="7"><table:cell-range-source table:name="S1.A1:A1" xlink:type="simple" xlink:href="{missing}" table:filter-name="calc8" table:last-column-spanned="1" table:last-row-spanned="1"/></table:table-cell>"#
     );
     missing_stays(&sheets("", &cell), &missing, "7");
-}
-
-#[test]
-fn a_dde_link_to_no_server_is_named_without_a_dialog() {
-    if skip() {
-        return;
-    }
-    let (dir, mut worker, made) = open_book(&book(0));
-    worker.run(&made, "cell.goto", &["B1"]).expect("B1");
-    worker.run(&made, "cell.enter", &["=DDE(\"elynosuchapp\";\"nofile\";\"A1\")"]).expect("the link");
-    let saved = dir.path().join("dde.ods");
-    made.save_as(&mut worker, &crate::file_url(&saved), "ods").expect("saves");
-    worker.close_doc(made).expect("closes");
-    let doc = worker.load(&crate::file_url(&saved)).expect("reloads");
-    let quiet = std::time::Duration::from_secs(3);
-    let base = poll_until(&mut worker, &doc, &Events::default(), quiet, |_| false);
-    let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
-    assert_eq!(named, ["elynosuchapp|nofile"]);
-    assert_eq!(update(&mut worker, &doc), ["elynosuchapp|nofile"], "the failed server is named");
-    let after = poll_until(&mut worker, &doc, &base, quiet, |seen| !seen.blocked.is_empty());
-    assert!(after.blocked.is_empty(), "no dialog: {:?}", after.blocked);
 }
 
 /// A fresh flat book whose S1.A1 is 1.
@@ -178,6 +157,27 @@ fn a_linked_sheet_in_its_file_reads_it() {
     let (_dir, mut worker, doc) = open_book(&sheets(&sheet, cell));
     assert_eq!(update(&mut worker, &doc), Vec::<String>::new());
     assert_eq!(cells(&mut worker, &doc, "A1"), "1", "the sheet reads its file");
+}
+
+#[test]
+fn a_dde_link_to_no_server_is_named_without_a_dialog() {
+    if skip() {
+        return;
+    }
+    let (dir, mut worker, made) = open_book(&book(0));
+    worker.run(&made, "cell.goto", &["B1"]).expect("B1");
+    worker.run(&made, "cell.enter", &["=DDE(\"elynosuchapp\";\"nofile\";\"A1\")"]).expect("the link");
+    let saved = dir.path().join("dde.ods");
+    made.save_as(&mut worker, &crate::file_url(&saved), "ods").expect("saves");
+    worker.close_doc(made).expect("closes");
+    let doc = worker.load(&crate::file_url(&saved)).expect("reloads");
+    let quiet = std::time::Duration::from_secs(3);
+    let base = poll_until(&mut worker, &doc, &Events::default(), quiet, |_| false);
+    let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, ["elynosuchapp|nofile"]);
+    assert_eq!(update(&mut worker, &doc), ["elynosuchapp|nofile"], "the failed server is named");
+    let after = poll_until(&mut worker, &doc, &base, quiet, |seen| !seen.blocked.is_empty());
+    assert!(after.blocked.is_empty(), "no dialog: {:?}", after.blocked);
 }
 
 /// A document whose section links `include`, showing `cached`.
@@ -239,6 +239,7 @@ fn a_linked_section_reads_its_file_only_when_asked() {
     assert_eq!(text(&dir, &mut worker, &doc), ["Before", "Two", "After"], "a missing file keeps the text");
 }
 
+
 #[test]
 fn includetext_is_a_linked_section_and_saves_as_one() {
     if skip() {
@@ -260,11 +261,16 @@ fn includetext_is_a_linked_section_and_saves_as_one() {
     assert!(!super::docx::modified(&loaded), "the section made at load marked it modified");
     let shown = text(&dir, &mut worker, &doc);
     assert_eq!(shown[..2], ["Before", "Included before"], "opening shows the saved text: {shown:?}");
+    assert!(shown.iter().any(|p| p == "Line one") && shown.iter().any(|p| p == "Line two"), "{shown:?}");
     let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
     assert_eq!(named, [crate::file_url(&include)]);
+    let cached = dir.path().join("cached.docx");
+    doc.save_as(&mut worker, &crate::file_url(&cached), "docx").expect("saves");
+    super::independent::read_with("ooxml_word.py", &cached, "included-cached");
     assert_eq!(update(&mut worker, &doc), Vec::<String>::new());
     let shown = text(&dir, &mut worker, &doc);
     assert_eq!(shown[..2], ["Before", "Included after"], "the update reads the DOCX: {shown:?}");
+    assert_eq!(shown.iter().filter(|p| *p == "Included after").count(), 2, "both sections read: {shown:?}");
     let out = dir.path().join("out.docx");
     doc.save_as(&mut worker, &crate::file_url(&out), "docx").expect("saves");
     super::independent::read_with("ooxml_word.py", &out, "included");

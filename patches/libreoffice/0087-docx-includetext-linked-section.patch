@@ -8,9 +8,12 @@ no link. The .doc filter has always made a file-linked section.
   document) and bookmark become the link; the cached text stays shown
   until the user updates links. A field beside other text in its
   paragraph stays a field: a section holds whole paragraphs.
+- Word's switches (\* MERGEFORMAT, \!, \c ...) are kept in the
+  section format's grab bag and written back.
 - Word export writes a file-linked section as an INCLUDETEXT field:
   it begins at the section's first paragraph and ends at its last, the
-  section's text as the field result.
+  section's text as the field result. Like an index, such a section
+  starts and ends no Word section: no section breaks around it.
 - DeleteFieldmarkCommand and IsInsRegionAvailable are exported for the
   filter library.
 
@@ -41,34 +44,40 @@ index 07cc168..3473e0a 100644
      SW_DLLPUBLIC static SwSection* GetCurrSection( const SwPosition& rPos );
      SwSectionFormats& GetSections() { return *mpSectionFormatTable; }
 diff --git a/sw/source/filter/ww8/wrtw8nds.cxx b/sw/source/filter/ww8/wrtw8nds.cxx
-index a18aca8..02efb08 100644
+index a18aca8..2810788 100644
 --- a/sw/source/filter/ww8/wrtw8nds.cxx
 +++ b/sw/source/filter/ww8/wrtw8nds.cxx
-@@ -73,6 +73,8 @@
+@@ -73,6 +73,9 @@
  #include <swtable.hxx>
  #include <swtblfmt.hxx>
  #include <section.hxx>
 +#include <osl/file.hxx>
 +#include <sfx2/linkmgr.hxx>
++#include <svl/grabbagitem.hxx>
  #include <pagedesc.hxx>
  #include <swrect.hxx>
  #include <reffld.hxx>
-@@ -2321,6 +2323,35 @@ OUString lcl_GetSymbolFont(SwAttrPool& rPool, const SwTextNode& rTextNode, int n
+@@ -2321,6 +2324,45 @@ OUString lcl_GetSymbolFont(SwAttrPool& rPool, const SwTextNode& rTextNode, int n
  }
  }
  
++bool MSWordExportBase::IsIncludedText(const SwSectionNode& rSectNd)
++{
++    if (rSectNd.GetSection().GetType() != SectionType::FileLink)
++        return false;
++    // Word's field starts and ends in paragraphs.
++    const SwNodes& rNodes = rSectNd.GetNodes();
++    return rNodes[rSectNd.GetIndex() + 1]->IsTextNode() && rNodes[rSectNd.EndOfSectionIndex() - 1]->IsTextNode();
++}
++
 +/// The file-linked section `rNode` begins or ends, as INCLUDETEXT.
 +static const SwSection* lcl_IncludedAt(const SwTextNode& rNode, bool bStart)
 +{
 +    const SwSectionNode* pSectNd = rNode.FindSectionNode();
-+    if (!pSectNd || pSectNd->GetSection().GetType() != SectionType::FileLink)
++    if (!pSectNd || !MSWordExportBase::IsIncludedText(*pSectNd))
 +        return nullptr;
-+    const SwNodes& rNodes = rNode.GetNodes();
-+    const SwNodeOffset nFirst = pSectNd->GetIndex() + 1, nLast = pSectNd->EndOfSectionIndex() - 1;
-+    // Word's field starts and ends in paragraphs.
-+    if (!rNodes[nFirst]->IsTextNode() || !rNodes[nLast]->IsTextNode())
-+        return nullptr;
-+    return rNode.GetIndex() == (bStart ? nFirst : nLast) ? &pSectNd->GetSection() : nullptr;
++    const SwNodeOffset nAt = bStart ? pSectNd->GetIndex() + 1 : pSectNd->EndOfSectionIndex() - 1;
++    return rNode.GetIndex() == nAt ? &pSectNd->GetSection() : nullptr;
 +}
 +
 +/// INCLUDETEXT's code for a file-linked section.
@@ -83,13 +92,18 @@ index a18aca8..02efb08 100644
 +    OUString aCode = FieldString(ww::eINCLUDETEXT) + "\"" + aPath.replaceAll("\\", "\\\\") + "\" ";
 +    if (!aBookmark.isEmpty())
 +        aCode += "\"" + aBookmark + "\" ";
++    const SfxGrabBagItem* pBag = rSection.GetFormat()->GetAttrSet().GetItemIfSet(RES_FRMATR_GRABBAG, false);
++    if (!pBag)
++        return aCode;
++    if (auto it = pBag->GetGrabBag().find(u"IncludeTextSwitches"_ustr); it != pBag->GetGrabBag().end())
++        aCode += it->second.get<OUString>() + " ";
 +    return aCode;
 +}
 +
  void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
  {
      SAL_INFO( "sw.ww8", "<OutWW8_SwTextNode>" );
-@@ -2383,6 +2414,17 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
+@@ -2383,6 +2425,17 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
      SwWW8AttrIter aAttrIter( *this, rNode );
      rtl_TextEncoding eChrSet = aAttrIter.GetCharSet();
  
@@ -107,7 +121,7 @@ index a18aca8..02efb08 100644
      if ( m_bStartTOX )
      {
          // ignore TOX header section
-@@ -2853,6 +2895,8 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
+@@ -2853,6 +2906,8 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
                          AppendAnnotationMarks(aAttrIter, nEnd, 1);
                          if ( pTOXSect )
                              lcl_EndTOX(false);
@@ -116,7 +130,7 @@ index a18aca8..02efb08 100644
                          //For i120928,the position of the bullet's graphic is at end of doc
                          if (bLastCR && (!bExported))
                          {
-@@ -2912,6 +2956,8 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
+@@ -2912,6 +2967,8 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
  
                      if ( pTOXSect )
                          lcl_EndTOX(true);
@@ -125,11 +139,49 @@ index a18aca8..02efb08 100644
  
                      if (bIncludeEndOfParaCRInRedlineProperties)
                      {
+@@ -3467,7 +3524,9 @@ void MSWordExportBase::OutputSectionNode( const SwSectionNode& rSectionNode )
+         else
+             AttrOutput().SectionBreaks( rSectionNode );
+ 
+-        const bool bInTOX = rSection.GetType() == SectionType::ToxContent || rSection.GetType() == SectionType::ToxHeader;
++        // Neither an index nor INCLUDETEXT starts a Word section.
++        const bool bInTOX = rSection.GetType() == SectionType::ToxContent || rSection.GetType() == SectionType::ToxHeader
++                            || IsIncludedText(rSectionNode);
+         if ( !pSet && !bInTOX )
+         {
+             if (GetExportFormat() == MSWordExportBase::ExportFormat::DOC)
+diff --git a/sw/source/filter/ww8/wrtww8.cxx b/sw/source/filter/ww8/wrtww8.cxx
+index 7585765..8358e94 100644
+--- a/sw/source/filter/ww8/wrtww8.cxx
++++ b/sw/source/filter/ww8/wrtww8.cxx
+@@ -2982,7 +2982,8 @@ void MSWordExportBase::WriteText()
+             {
+                 //#120140# Do not need to insert a page/section break after a section end. Check this case first
+                 bool bNeedExportBreakHere = true;
+-                if ( rSect.GetType() == SectionType::ToxContent || rSect.GetType() == SectionType::ToxHeader )
++                if ( rSect.GetType() == SectionType::ToxContent || rSect.GetType() == SectionType::ToxHeader
++                     || IsIncludedText( *rNd.StartOfSectionNode()->GetSectionNode() ) )
+                     bNeedExportBreakHere = false;
+                 else if ( aIdx.GetNode().IsTextNode() )
+                 {
+diff --git a/sw/source/filter/ww8/wrtww8.hxx b/sw/source/filter/ww8/wrtww8.hxx
+index d584159..386bb2e 100644
+--- a/sw/source/filter/ww8/wrtww8.hxx
++++ b/sw/source/filter/ww8/wrtww8.hxx
+@@ -813,6 +813,8 @@ public:
+     virtual void DoFormText(const SwInputField * pField) = 0;
+ 
+     static bool NoPageBreakSection( const SfxItemSet *pSet );
++    /// A file-linked section Word reads as INCLUDETEXT.
++    static bool IsIncludedText( const SwSectionNode& rSectNd );
+ 
+     // Compute the number format for WW dates
+     bool GetNumberFormat(const SwField& rField, OUString& rStr);
 diff --git a/sw/source/writerfilter/filter/WriterFilter.cxx b/sw/source/writerfilter/filter/WriterFilter.cxx
-index f0c26c7..e823047 100644
+index f0c26c7..efd9f38 100644
 --- a/sw/source/writerfilter/filter/WriterFilter.cxx
 +++ b/sw/source/writerfilter/filter/WriterFilter.cxx
-@@ -48,6 +48,17 @@
+@@ -48,6 +48,20 @@
  #include <unodraw.hxx>
  #include <unotxdoc.hxx>
  #include <SwXDocumentSettings.hxx>
@@ -140,6 +192,9 @@ index f0c26c7..e823047 100644
 +#include <ndtxt.hxx>
 +#include <pam.hxx>
 +#include <section.hxx>
++#include <hintids.hxx>
++#include <svl/grabbagitem.hxx>
++#include <tuple>
 +#include <sfx2/docfile.hxx>
 +#include <sfx2/linkmgr.hxx>
 +#include <svl/urihelper.hxx>
@@ -147,10 +202,24 @@ index f0c26c7..e823047 100644
  
  using namespace ::com::sun::star;
  
-@@ -90,6 +101,61 @@ static OUString lcl_GetExceptionMessageRec(xml::sax::SAXException const& e)
+@@ -90,6 +104,79 @@ static OUString lcl_GetExceptionMessageRec(xml::sax::SAXException const& e)
  
  namespace
  {
++/// The code from its first switch on.
++OUString lcl_Switches(const OUString& rCode)
++{
++    bool bQuoted = false;
++    for (sal_Int32 i = 1; i + 1 < rCode.getLength(); ++i)
++    {
++        if (rCode[i] == '"')
++            bQuoted = !bQuoted;
++        else if (!bQuoted && rCode[i] == '\\' && rCode[i - 1] == ' ' && rCode[i + 1] != '\\')
++            return rCode.copy(i).trim();
++    }
++    return OUString();
++}
++
 +/// The section link of an INCLUDETEXT code; empty if none.
 +OUString lcl_IncludedLink(const OUString& rCode, const INetURLObject& rBase)
 +{
@@ -171,7 +240,7 @@ index f0c26c7..e823047 100644
 +    IDocumentMarkAccess& rMarks = *rDoc.getIDocumentMarkAccess();
 +    SfxMedium* pMedium = rDoc.GetDocShell() ? rDoc.GetDocShell()->GetMedium() : nullptr;
 +    const INetURLObject aBase(pMedium ? pMedium->GetBaseURL() : OUString());
-+    std::vector<std::pair<sw::mark::Fieldmark*, OUString>> aIncluded;
++    std::vector<std::tuple<sw::mark::Fieldmark*, OUString, OUString>> aIncluded;
 +    for (auto it = rMarks.getFieldmarksBegin(); it != rMarks.getFieldmarksEnd(); ++it)
 +    {
 +        if ((*it)->GetFieldname() != ODF_UNHANDLED)
@@ -181,9 +250,9 @@ index f0c26c7..e823047 100644
 +        if (aCode == (*it)->GetParameters()->end() || !(aCode->second >>= aText))
 +            continue;
 +        if (OUString aLink = lcl_IncludedLink(aText, aBase); !aLink.isEmpty())
-+            aIncluded.emplace_back(*it, aLink);
++            aIncluded.emplace_back(*it, aLink, lcl_Switches(aText));
 +    }
-+    for (const auto & [ pField, aLink ] : aIncluded)
++    for (const auto & [ pField, aLink, aSwitches ] : aIncluded)
 +    {
 +        SwTextNode* pFirst = pField->GetMarkStart().GetNode().GetTextNode();
 +        SwTextNode* pLast = pField->GetMarkEnd().GetNode().GetTextNode();
@@ -201,15 +270,19 @@ index f0c26c7..e823047 100644
 +        aSection.SetLinkFileName(aLink);
 +        aSection.SetProtectFlag(true);
 +        // Connected only: the saved text shows until an update.
-+        rDoc.InsertSwSection(SwPaM(*pFirst, 0, *pLast, pLast->GetText().getLength()), aSection, nullptr, nullptr,
-+                             false);
++        SwSection* pSection = rDoc.InsertSwSection(SwPaM(*pFirst, 0, *pLast, pLast->GetText().getLength()),
++                                                   aSection, nullptr, nullptr, false);
++        // Export writes Word's switches back.
++        if (pSection && !aSwitches.isEmpty())
++            pSection->GetFormat()->SetFormatAttr(SfxGrabBagItem(
++                RES_FRMATR_GRABBAG, { { u"IncludeTextSwitches"_ustr, uno::Any(aSwitches) } }));
 +    }
 +}
 +
  /// Common DOCX filter, calls DocxExportFilter via UNO or does the DOCX import.
  class WriterFilter
      : public cppu::WeakImplHelper<document::XFilter, document::XImporter, document::XExporter,
-@@ -288,6 +354,7 @@ sal_Bool WriterFilter::filter(const uno::Sequence<beans::PropertyValue>& rDescri
+@@ -288,6 +375,7 @@ sal_Bool WriterFilter::filter(const uno::Sequence<beans::PropertyValue>& rDescri
          pStream.clear();
  
          // note: pStream.clear calls RemoveLastParagraph()

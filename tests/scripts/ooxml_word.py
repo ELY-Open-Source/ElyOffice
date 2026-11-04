@@ -192,30 +192,51 @@ def marks(paragraph):
     return out
 
 
-def included(path):
-    """INCLUDETEXT holds its paragraph, updated; text beside keeps it."""
+INCLUDE = r'code: ?INCLUDETEXT +"[^"]*include\.docx" *'
+FIELD = ["begin", INCLUDE + r"\\\* MERGEFORMAT *$", "separate"]
+BESIDE = ["text:Beside ", "begin", INCLUDE + "$", "separate", "text:Included before", "end"]
+TWO = ["begin", INCLUDE + r"\\! *$", "separate"]
+
+
+def includes(path, wanted):
+    """Every paragraph as `wanted`, codes as patterns; one section."""
     with zipfile.ZipFile(path) as archive:
         body = ooxml.xml(archive, ooxml.main_part(archive)).find(ooxml.W + "body")
-    shown = [marks(p) for p in body.iter(ooxml.W + "p") if marks(p)]
-    code = r'^code: ?INCLUDETEXT +"[^"]*include\.docx" *$'
-    if not ooxml.check(len(shown) == 4, f"four paragraphs, not {shown}"):
-        return
-    ooxml.check(shown[0] == ["text:Before"] and shown[3] == ["text:After"], f"Before and After stay outside: {shown}")
-    alone = shown[1]
-    ooxml.check(len(alone) == 5 and alone[0] == "begin" and re.match(code, alone[1]) and alone[2:] == ["separate", "text:Included after", "end"],
-                f"the field holds the updated paragraph: {alone}")
-    beside = shown[2]
-    ooxml.check(len(beside) == 6 and beside[0] == "text:Beside " and beside[1] == "begin" and re.match(code, beside[2])
-                and beside[3:] == ["separate", "text:Included before", "end"], f"the field beside text stays: {beside}")
+    shown = [marks(p) for p in body.iter(ooxml.W + "p")]
+    same = len(shown) == len(wanted) and all(
+        len(got) == len(want) and all(g == w or (w.startswith("code:") and re.match(w, g)) for g, w in zip(got, want))
+        for got, want in zip(shown, wanted))
+    ooxml.check(same, f"the paragraphs are {shown}")
+    breaks = len(list(body.iter(ooxml.W + "sectPr")))
+    ooxml.check(breaks == 1, f"one section, not {breaks}")
+
+
+def included(path):
+    """INCLUDETEXT holds its updated paragraphs; text beside keeps it."""
+    includes(path, [["text:Before"], FIELD + ["text:Included after", "end"], BESIDE,
+                    TWO + ["text:Included after", "end"], ["text:After"]])
+
+
+def included_cached(path):
+    """INCLUDETEXT holds its saved paragraphs, switches kept."""
+    includes(path, [["text:Before"], FIELD + ["text:Included before", "end"], BESIDE,
+                    TWO + ["text:Line one"], ["text:Line two", "end"], ["text:After"]])
 
 
 CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape, "toc-alone": toc_alone,
-         "toc-native": toc_native, "included": included}
+         "toc-native": toc_native, "included": included, "included-cached": included_cached}
 MUTATIONS = {
     "included": [
         ("word/document.xml", r"Included after", "Included before"),
         ("word/document.xml", r"INCLUDETEXT", "INCLUDEPICTURE"),
         ("word/document.xml", r'(?s)(<w:r>(?:(?!<w:r>).)*?<w:fldChar w:fldCharType="end"/></w:r>)(</w:p>)(<w:p[ >].*?)(</w:p>)', r"\2\3\1\4"),
+        ("word/document.xml", r"(<w:t[^>]*>Before</w:t></w:r>)", r"\1<w:sectPr/>"),
+        ("word/document.xml", r"MERGEFORMAT", ""),
+    ],
+    "included-cached": [
+        ("word/document.xml", r"Line two", "Line one"),
+        ("word/document.xml", r"(<w:t[^>]*>Before</w:t></w:r></w:p>)", r"\1<w:p/>"),
+        ("word/document.xml", r" \\!", ""),
     ],
     "equation": [
         ("word/document.xml", r"<m:r>(<m:t[^>]*>)[-−](</m:t>)", r"<m:r><m:rPr><m:nor/></m:rPr>\1-\2"),
