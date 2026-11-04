@@ -1,7 +1,7 @@
 //! Keys, mouse, IME and clipboard for LokView (LOK-06, LOK-07).
 
 use ely_gpui_component::secondary;
-use std::{io, time::Instant};
+use std::io;
 
 use ely_platform::clipboard;
 use gpui::{
@@ -257,10 +257,7 @@ impl LokView {
             self.last_edit = self.sent;
             self.clock.sent(self.sent, input.kind());
         }
-        self.lane
-            .inputs
-            .unbounded_send((self.sent, input, Instant::now()))
-            .expect("the input queue lives with the view");
+        self.lane.queue(self.sent, input);
     }
 
     /// Shows part `part` after the input queued before it.

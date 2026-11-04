@@ -15,6 +15,7 @@ use crate::{After, Closing, Dialog, Engine, Host, Opening, Tabs, in_window, text
 mod gone;
 mod landing;
 mod paths;
+pub(crate) mod pause;
 pub use paths::folder;
 use landing::Target;
 use paths::identity;
@@ -54,13 +55,23 @@ pub trait Saving: Host {
         }
     }
 
-    /// Saves in place in its own format.
+    /// Saves in place at the next typing pause (R15.37).
     fn save(&mut self, id: u64, then: Option<After>, window: &mut Window, cx: &mut Context<Self>) {
+        // Save As asks first; nothing waits on typing.
+        if !self.tab(id).is_some_and(|tab| tab.session.path().is_some() && tab.risk.is_none()) {
+            return self.save_paused(id, then, window, cx);
+        }
+        let paused = move |host: &mut Self, window: &mut Window, cx: &mut Context<Self>| host.save_paused(id, then, window, cx);
+        pause::at_pause(self, id, Box::new(paused), window, cx);
+    }
+
+    /// Saves in place in its own format.
+    fn save_paused(&mut self, id: u64, then: Option<After>, window: &mut Window, cx: &mut Context<Self>) {
         if !self.settled(id, cx) {
-            return self.when_settled(id, move |host, window, cx| host.save(id, then, window, cx));
+            return self.when_settled(id, move |host, window, cx| host.save_paused(id, then, window, cx));
         }
         if self.exporting(id) {
-            return self.after_export(id, move |host, window, cx| host.save(id, then, window, cx));
+            return self.after_export(id, move |host, window, cx| host.save_paused(id, then, window, cx));
         }
         let Some(tab) = self.tab(id) else {
             return self.closed_first(id, then, window, cx);

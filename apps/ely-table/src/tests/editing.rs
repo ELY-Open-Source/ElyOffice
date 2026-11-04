@@ -16,6 +16,11 @@ fn shown(cx: &VisualTestContext, book: &Entity<Book>, text: &str) {
     });
 }
 
+/// Waits out the typing pause and the save after it.
+fn over(cx: &VisualTestContext, book: &Entity<Book>, id: u64) {
+    settle(cx, |app| book.read(app).tab(id).is_none_or(|tab| tab.pausing == 0 && !tab.exporting));
+}
+
 /// `cells` of the file at `path`, read from a copy.
 fn on_disk(cx: &mut VisualTestContext, book: &Entity<Book>, path: &Path, cells: &[&str]) -> Vec<String> {
     let copy = path.with_file_name("read.xlsx");
@@ -60,7 +65,7 @@ fn a_save_mid_edit_keeps_the_typing_and_a_closing_save_enters_it() {
     shown(cx, &book, "abc");
     // Autosave and other programs' saves take this path.
     cx.update(|window, app| book.update(app, |book, cx| book.save(id, None, window, cx)));
-    settle(cx, |app| !book.read(app).exporting(id));
+    over(cx, &book, id);
     assert!(cx.update(|_, app| book.read(app).core.tabs[0].dirty(app)), "the open edit stays unsaved");
     cx.simulate_keystrokes("d e f");
     shown(cx, &book, "abcdef");
@@ -96,7 +101,7 @@ fn a_closing_save_keeps_the_tab_when_the_entry_is_refused() {
     shown(cx, &book, "abc");
     let before = std::fs::read(&path).expect("the saved file");
     cx.update(|window, app| book.update(app, |book, cx| book.save(id, Some(ely_office::After::Tab), window, cx)));
-    settle(cx, |app| !book.read(app).exporting(id));
+    over(cx, &book, id);
     let state = cx.update(|_, app| book.read(app).core.tabs.first().map(|tab| tab.session.state()));
     assert_eq!(state, Some(ely_files::SaveState::SaveFailed), "the tab stays and says the save failed");
     shown(cx, &book, "abc");

@@ -142,6 +142,8 @@ pub struct Tab<E, G: Engine> {
     pub work: PathBuf,
     /// A save's export runs in the background.
     pub exporting: bool,
+    /// Saves waiting for a typing pause.
+    pub pausing: usize,
     /// Reopen from the file once memory matches it.
     pub reopen: bool,
     pub extra: E,
@@ -163,7 +165,7 @@ impl<E, G: Engine> Tab<E, G> {
             _ if self.risk == Some(Risk::Sections) => "office.state.sections",
             _ if self.risk == Some(Risk::Sealed) => "office.state.sealed",
             _ if self.risk == Some(Risk::Links) => "office.state.unlinked",
-            _ if self.exporting => "office.state.saving",
+            _ if self.exporting || self.pausing > 0 => "office.state.saving",
             SaveState::Saving => "office.state.saving",
             SaveState::ExternalModified => "office.state.external",
             SaveState::SaveFailed => "office.state.failed",
@@ -219,6 +221,8 @@ pub struct Core<H: Host> {
     pub quiet: std::collections::HashMap<u64, u64>,
     /// Other programs' saves, answered as each ends.
     pub saving: Vec<(u64, ely_ui::Ask)>,
+    /// Other programs' saves waiting for a typing pause.
+    pub asked: Vec<(u64, ely_ui::Ask)>,
 }
 
 impl<H: Host> Core<H> {
@@ -251,6 +255,7 @@ impl<H: Host> Core<H> {
             slow: None,
             quiet: Default::default(),
             saving: Vec::new(),
+            asked: Vec::new(),
         }
     }
 }

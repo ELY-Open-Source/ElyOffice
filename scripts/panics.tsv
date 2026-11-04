@@ -205,7 +205,7 @@ crates/ely-lok/src/view.rs	expect_used	self.lane .tiles .unbounded_send(job) .ex
 crates/ely-lok/src/view/formula.rs	expect_used	vcl_key(keystroke).expect("Enter and Tab are vcl keys")	linux,macos,windows	Enter and Tab are vcl keys
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("shift-tab").expect("a keystroke")	linux,macos,windows	a keystroke
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("tab").expect("a keystroke")	linux,macos,windows	a keystroke
-crates/ely-lok/src/view/input.rs	expect_used	self.lane .inputs .unbounded_send((self.sent, input, Instant::now())) .expect("the input queue lives with the view")	linux,macos,windows	the input queue lives with the view
+crates/ely-lok/src/view/lane.rs	expect_used	self.inputs.unbounded_send((seq, input, Instant::now())).expect("the input queue lives with the view")	linux,macos,windows	the input queue lives with the view
 crates/ely-lok/src/view/lane.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/lane.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/off.rs	expect_used	TURNS.lock().expect("the turns")	linux,macos,windows	the turns
