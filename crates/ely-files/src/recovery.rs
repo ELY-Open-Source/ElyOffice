@@ -7,6 +7,20 @@ use std::{
 #[cfg(test)]
 mod tests;
 
+/// A point over its cap of `cap` bytes.
+#[derive(Debug)]
+pub struct TooBig {
+    pub cap: u64,
+}
+
+impl std::fmt::Display for TooBig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "the recovery point exceeds its {} byte cap", self.cap)
+    }
+}
+
+impl std::error::Error for TooBig {}
+
 /// One recovery point and what it restores (§6.3).
 #[derive(Clone, Debug)]
 pub struct RecoveryPoint {
@@ -88,6 +102,15 @@ impl Recovery {
         self.dir.join(".discarded").try_exists()
     }
 
+    /// Whether a point of `bytes` stays under the cap.
+    pub fn fits(&self, bytes: u64) -> io::Result<()> {
+        let size = if self.key.is_some() { 1 + 4 + bytes + 16 + 12 } else { bytes };
+        if size > self.cap {
+            return Err(io::Error::new(io::ErrorKind::FileTooLarge, TooBig { cap: self.cap }));
+        }
+        Ok(())
+    }
+
     /// One point on disk, one task at a time.
     pub fn write_once(
         &mut self,
@@ -103,17 +126,7 @@ impl Recovery {
             return Ok(None);
         }
         let extra = cursor.map(|text| text.len() as u64).unwrap_or(0);
-        let size = if self.key.is_some() {
-            1 + 4 + extra + content.len() as u64 + 16 + 12
-        } else {
-            content.len() as u64 + extra
-        };
-        if size > self.cap {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("the recovery point exceeds its {} byte cap", self.cap),
-            ));
-        }
+        self.fits(content.len() as u64 + extra)?;
         self.running = true;
         let result = self.write_inner(content, cursor, now);
         self.running = false;

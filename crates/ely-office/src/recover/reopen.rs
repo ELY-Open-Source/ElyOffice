@@ -9,7 +9,7 @@ use std::{
 use ely_files::{Recovery, RecoveryKey};
 use gpui::{AppContext as _, AsyncApp, Context, WeakEntity};
 
-use super::{Kept, Recovering, remove};
+use super::{Kept, Recovering, disk::remove};
 use crate::{Opening as _, Source};
 
 /// Restores each slot's newest point, then opens the copy.

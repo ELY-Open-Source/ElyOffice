@@ -25,6 +25,10 @@ pub(super) const EN: &[(&str, &str)] = &[
         "A recovery copy was not written: {error}",
     ),
     (
+        "office.recovery.too_big",
+        "{name} is larger than its {limit} MB recovery space, so it gets no new recovery points. Save it smaller, or raise the space in Settings › Storage. Last recovery point: {at}.",
+    ),
+    (
         "office.recovery.off",
         "Recovery copies are off for this run: {error}",
     ),
@@ -153,6 +157,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("office.error.dialog", "内核打开了一个对话框，Ely 已将其关闭：{title}"),
     ("office.error.dialog_said", "内核打开了一个对话框，Ely 已将其关闭：{title}。内容：{body}"),
     ("office.recovery.failed", "恢复副本未能写入：{error}"),
+    ("office.recovery.too_big", "{name} 超出 {limit} MB 的恢复空间，不再写新的恢复点。存得更小，或在“设置 › 存储”中加大空间。最近的恢复点：{at}。"),
     ("office.recovery.off", "本次运行不写恢复副本：{error}"),
     ("office.recovery.lost", "{name} 未能恢复：{error}"),
     ("office.recovery.back", "{name}：恢复了 {at} 时未保存的内容；光标与撤销历史未恢复"),

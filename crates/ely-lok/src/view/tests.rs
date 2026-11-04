@@ -420,7 +420,10 @@ fn zooming_keeps_the_pointed_spot_and_walks_the_steps() {
             let after = spot(view);
             assert!((before.0 - after.0).abs() <= 1 && (before.1 - after.1).abs() <= 1, "{before:?} {after:?}");
             assert!(!view.fitting(), "a chosen zoom ends fitting");
+            let middle = |view: &LokView| view.scroll.1 + view.geom.twips_of(300.0);
+            let before = middle(view);
             view.set_zoom(1.0, cx);
+            assert!((middle(view) - before).abs() <= 1, "a page keeps its middle");
             view.zoom_step(true, cx);
             assert_eq!(view.zoom(), 1.25);
             view.zoom_step(false, cx);

@@ -15,6 +15,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("office.error.dialog", "エンジンが開いたダイアログを Ely が閉じました: {title}"),
     ("office.error.dialog_said", "エンジンが開いたダイアログを Ely が閉じました: {title}。内容: {body}"),
     ("office.recovery.failed", "復元用のコピーを書き込めませんでした: {error}"),
+    ("office.recovery.too_big", "{name} は復元用の容量 {limit} MB を超えるため、新しい復元ポイントを作りません。小さく保存するか、設定 › ストレージで容量を増やしてください。最後の復元ポイント: {at}。"),
     ("office.recovery.off", "今回の実行では復元用のコピーを書き込みません: {error}"),
     ("office.recovery.lost", "{name} を復元できませんでした: {error}"),
     ("office.recovery.back", "{name}: {at} 時点の未保存の内容を復元しました。カーソルと元に戻す履歴は復元されません"),

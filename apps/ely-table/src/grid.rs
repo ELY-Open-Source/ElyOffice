@@ -318,7 +318,7 @@ impl Book {
             .border_1()
             .border_color(edge)
             .cursor(CursorStyle::Crosshair)
-            .occlude()
+            .block_mouse_except_scroll()
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(|book, _: &MouseDownEvent, _, cx| {

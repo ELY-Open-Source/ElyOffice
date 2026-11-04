@@ -15,6 +15,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("office.error.dialog", "Die Engine hat einen Dialog geöffnet, den Ely geschlossen hat: {title}"),
     ("office.error.dialog_said", "Die Engine hat einen Dialog geöffnet, den Ely geschlossen hat: {title}. Er lautete: {body}"),
     ("office.recovery.failed", "Eine Wiederherstellungskopie wurde nicht geschrieben: {error}"),
+    ("office.recovery.too_big", "{name} ist größer als sein Wiederherstellungsspeicher von {limit} MB und erhält daher keine neuen Wiederherstellungspunkte. Speichern Sie es kleiner oder vergrößern Sie den Speicher unter Einstellungen › Speicher. Letzter Wiederherstellungspunkt: {at}."),
     ("office.recovery.off", "Wiederherstellungskopien sind in dieser Sitzung aus: {error}"),
     ("office.recovery.lost", "{name} konnte nicht wiederhergestellt werden: {error}"),
     ("office.recovery.back", "{name}: Der nicht gespeicherte Inhalt von {at} ist zurück; Cursor und Rückgängig-Verlauf nicht"),

@@ -87,6 +87,15 @@ def no_values(path):
     ooxml.check(table.find(ooxml.S + "dataFields") is None, "no value field written")
 
 
+def values(path, caption):
+    """Values on rows: E4 and dataCaption are the file's."""
+    columns(path, 6)
+    found, table = read(path)
+    shown = (found.get("E4") or (None, None, None))[2]
+    ooxml.check(shown == caption, f"the values header: {shown}")
+    ooxml.check(table.get("dataCaption") == caption, f"dataCaption: {table.get('dataCaption')}")
+
+
 def value_name(path):
     """The value field's name shows as plain text."""
     found, table = read(path)
@@ -100,7 +109,8 @@ CASES = {
     "pivot-named": lambda path: captions(path, NAMED, NAMED),
     "pivot-blank": lambda path: captions(path, ("", "", "Grand Total"), ("", "", None)),
     "pivot-columns": only_columns,
-    "pivot-values": lambda path: columns(path, 6),
+    "pivot-values": lambda path: values(path, "Values"),
+    "pivot-values-named": lambda path: values(path, "数值"),
     "pivot-empty": no_values,
     "pivot-name": value_name,
 }
@@ -138,6 +148,11 @@ MUTATIONS = {
     "pivot-values": [
         ("xl/sharedStrings.xml", r">列标签<", ">Product<"),
         ("xl/sharedStrings.xml", r">总计<", ">Total Result<"),
+        ("xl/sharedStrings.xml", r">Values<", ">Data<"),
+    ],
+    "pivot-values-named": [
+        ("xl/sharedStrings.xml", r">数值<", ">Data<"),
+        (DEFINITION, r'dataCaption="[^"]*"', 'dataCaption="Values"'),
     ],
 }
 

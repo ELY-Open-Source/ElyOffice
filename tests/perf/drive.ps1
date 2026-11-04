@@ -167,11 +167,13 @@ switch ($Command) {
         ClickAt ([int]($r.X + $r.Width / 2)) ([int]($r.Y + $r.Height / 2))
     }
     'wheel' {
-        # Ctrl and the wheel, $Arg notches, at the middle.
+        # Ctrl and the wheel: n<notches>, at the middle or @x,y.
+        $notches, $at = $Arg.TrimStart('n').Split('@')
         $r = (Window).Current.BoundingRectangle
-        [Input]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)) | Out-Null
+        if ($at) { $x, $y = $at.Split(',') } else { $x, $y = ($r.X + $r.Width / 2), ($r.Y + $r.Height / 2) }
+        [Input]::SetCursorPos([int]$x, [int]$y) | Out-Null
         Key 0x11 $false
-        $delta = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]([int]$Arg.TrimStart('n') * 120)), 0)
+        $delta = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]([int]$notches * 120)), 0)
         [Input]::mouse_event(0x0800, 0, 0, $delta, [UIntPtr]::Zero)
         Start-Sleep -Milliseconds 50
         Key 0x11 $true
@@ -192,6 +194,24 @@ switch ($Command) {
         if ($element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) { Sent; $invoke.Invoke() } else { Click $element }
     }
     'shows' { if (Named $Arg) { 'yes' } else { 'no' } }
+    'click' {
+        # A real click on the button, not its same-named tooltip.
+        $button = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+        $named = New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $Arg)
+        $element = (Window).FindFirst('Descendants', (New-Object System.Windows.Automation.AndCondition($button, $named)))
+        if (-not $element) { throw "no button named $Arg" }
+        Click $element
+    }
+    'named' {
+        # Each element whose name matches $Arg: name|x,y,w,h.
+        foreach ($element in (Window).FindAll('Descendants', [System.Windows.Automation.Condition]::TrueCondition)) {
+            $name = $element.Current.Name
+            if ($name -match $Arg) {
+                $r = $element.Current.BoundingRectangle
+                "$name|$([int]$r.X),$([int]$r.Y),$([int]$r.Width),$([int]$r.Height)"
+            }
+        }
+    }
     'field' {
         $edit = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
         $until = (Get-Date).AddSeconds(10)

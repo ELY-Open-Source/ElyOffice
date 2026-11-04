@@ -41,9 +41,9 @@ def empty(col_label, total):
     return [("E3", col_label), ("E4", "A"), ("F4", "B"), ("G4", total), ("H4", "NEIGHBOR")]
 
 
-def values(col_label, total):
+def values(col_label, total, caption="Values"):
     """Excel's cached table in E3:H6, two values on rows."""
-    return [("F3", col_label), ("E4", "Values"), ("F4", "A"), ("G4", "B"), ("H4", total),
+    return [("F3", col_label), ("E4", caption), ("F4", "A"), ("G4", "B"), ("H4", total),
             ("E5", "Sum of Revenue"), ("F5", 4), ("G5", 6), ("H5", 10),
             ("E6", "Count revenue"), ("F6", 2), ("G6", 2), ("H6", 4)]
 
@@ -81,7 +81,7 @@ SUM = '<dataField name="Sum of Revenue" fld="2" baseField="0" baseItem="0"/>'
 COUNT = '<dataField name="Count revenue" fld="2" subtotal="count" baseField="0" baseItem="0"/>'
 
 
-def table(captions, ref="E3:H7", name="Sum of Revenue"):
+def table(captions, ref="E3:H7", name="Sum of Revenue", caption="Values"):
     two = '<items count="3"><item x="0"/><item x="1"/><item t="default"/></items>'
     lines = '<i><x/></i><i><x v="1"/></i><i t="grand"><x/></i>'
     region = '<pivotField axis="axisRow" showAll="0">' if ref == "E3:H7" else '<pivotField showAll="0">'
@@ -98,7 +98,7 @@ def table(captions, ref="E3:H7", name="Sum of Revenue"):
     return HEAD + (
         f'<pivotTableDefinition {NS} name="PivotTable1" cacheId="1"{on_rows} applyNumberFormats="0" applyBorderFormats="0" '
         'applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" '
-        f'dataCaption="Values"{captions} updatedVersion="8" minRefreshableVersion="3" useAutoFormatting="1" '
+        f'dataCaption="{caption}"{captions} updatedVersion="8" minRefreshableVersion="3" useAutoFormatting="1" '
         'itemPrintTitles="1" createdVersion="8" indent="0" outline="1" outlineData="1" multipleFieldFilters="0">'
         f'<location ref="{ref}" firstHeaderRow="1" firstDataRow="2" firstDataCol="{first}"/>'
         f'<pivotFields count="3">{region}{two}</pivotField>'
@@ -110,7 +110,7 @@ def table(captions, ref="E3:H7", name="Sum of Revenue"):
     )
 
 
-def files(captions, cached, ref="E3:H7", name="Sum of Revenue"):
+def files(captions, cached, ref="E3:H7", name="Sum of Revenue", caption="Values"):
     override = "application/vnd.openxmlformats-officedocument.spreadsheetml."
     types = [("/xl/workbook.xml", "sheet.main+xml"), ("/xl/worksheets/sheet1.xml", "worksheet+xml"),
              ("/xl/pivotCache/pivotCacheDefinition1.xml", "pivotCacheDefinition+xml"),
@@ -130,7 +130,7 @@ def files(captions, cached, ref="E3:H7", name="Sum of Revenue"):
         "xl/pivotCache/pivotCacheDefinition1.xml": CACHE,
         "xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels": rels(("pivotCacheRecords", "pivotCacheRecords1.xml")),
         "xl/pivotCache/pivotCacheRecords1.xml": RECORDS,
-        "xl/pivotTables/pivotTable1.xml": table(captions, ref, name),
+        "xl/pivotTables/pivotTable1.xml": table(captions, ref, name, caption),
         "xl/pivotTables/_rels/pivotTable1.xml.rels": rels(("pivotCacheDefinition", "../pivotCache/pivotCacheDefinition1.xml")),
     }
 
@@ -142,6 +142,7 @@ for name, parts in [("pivot.xlsx", files("", cross("Row Labels", "Column Labels"
                     ("pivot-blank.xlsx", files(BLANK, cross("", "", "Grand Total"))),
                     ("pivot-columns.xlsx", files(NAMED, columns("列标签", "总计"), "E3:H5")),
                     ("pivot-values.xlsx", files(NAMED, values("列标签", "总计"), "E3:H6")),
+                    ("pivot-values-named.xlsx", files(NAMED, values("列标签", "总计", "数值"), "E3:H6", caption="数值")),
                     ("pivot-empty.xlsx", files(NAMED, empty("列标签", "总计"), "E3:G4"))] + [
                     # Value names that look like input stay text.
                     (f"pivot-name-{n}.xlsx", files(NAMED, columns("列标签", "总计", name), "E3:H5", name))

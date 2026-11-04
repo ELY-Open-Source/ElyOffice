@@ -2,13 +2,27 @@ use super::{Keeping, Kept, Slot};
 
 #[test]
 fn a_failing_point_says_so_once_until_the_reason_changes() {
-    let mut slot = Slot { kept: kept("s", false), written: None, writing: false, failed: None };
+    let mut slot = Slot { kept: kept("s", false), written: None, writing: false, failed: None, refused: None, last: None };
     let full = std::io::Error::other("disk full");
-    assert_eq!(slot.fail(1, &full).as_deref(), Some("disk full"));
-    assert_eq!(slot.fail(2, &full), None, "the same reason stays quiet");
-    let big = std::io::Error::new(std::io::ErrorKind::InvalidInput, "over the cap");
-    assert!(slot.fail(3, &big).is_some(), "a new reason shows");
-    assert_eq!(slot.written, Some(3), "too big waits for the next edit");
+    assert_eq!(slot.fail(None, &full).as_deref(), Some("disk full"));
+    assert_eq!(slot.fail(None, &full), None, "the same reason stays quiet");
+    let big = std::io::Error::new(std::io::ErrorKind::FileTooLarge, "over the cap");
+    assert!(slot.fail(Some(70), &big).is_some(), "a new reason shows");
+    assert_eq!(slot.written, None, "the refused edit still wants a point");
+    assert_eq!(slot.refused, Some(70), "the refused size is kept");
+}
+
+#[test]
+fn a_save_measures_a_refused_slot_again() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut keeping = Keeping::start_in(dir.path().to_path_buf()).expect("starts");
+    let slot = |refused| Slot { kept: kept("s", false), written: None, writing: false, failed: None, refused, last: None };
+    keeping.slots.insert(1, slot(Some(70)));
+    keeping.slots.insert(2, slot(None));
+    keeping.saved(1, 10);
+    keeping.saved(2, 10);
+    assert_eq!(keeping.slots[&1].refused, Some(10), "the saved size replaces the refused one");
+    assert_eq!(keeping.slots[&2].refused, None, "a slot that fits stays so");
 }
 
 fn kept(slot: &str, held: bool) -> Kept {
@@ -29,7 +43,7 @@ fn a_failed_index_write_keeps_the_last_one() {
     let failed = keeping.save_index();
     std::fs::set_permissions(&recovery, std::fs::Permissions::from_mode(0o755)).expect("unlocks");
     assert!(failed.is_err(), "the folder refused the write");
-    let read = super::read_index(dir.path()).expect("the old index still reads");
+    let read = super::disk::read_index(dir.path()).expect("the old index still reads");
     assert_eq!(read.len(), 1);
 }
 
@@ -73,7 +87,7 @@ fn a_quit_index_outlasts_a_background_write_begun_before_it() {
     let turn = keeping.turns.take();
     keeping.held.push(kept("1-1", false));
     keeping.save_index().expect("the quit index");
-    let late = keeping.turns.write(turn, || super::write_index(&path, &bytes));
+    let late = keeping.turns.write(turn, || super::disk::write_index(&path, &bytes));
     assert!(late.is_none(), "the older write never lands");
-    assert_eq!(super::read_index(dir.path()).expect("reads").len(), 2);
+    assert_eq!(super::disk::read_index(dir.path()).expect("reads").len(), 2);
 }

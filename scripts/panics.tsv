@@ -265,9 +265,9 @@ crates/ely-office/src/open.rs	expect_used	self.tab(id).expect("just opened")	lin
 crates/ely-office/src/panel.rs	expect_used	ely_lok::commands::find(command) .expect("a table command")	linux,macos,windows	a table command
 crates/ely-office/src/panel.rs	expect_used	swatches .iter() .position(|(_, swatch)| *swatch == color) .expect("the palette hands back its own colors")	linux,macos,windows	the palette hands back its own colors
 crates/ely-office/src/recover.rs	expect_used	keeping.slots.get_mut(&id).expect("a due tab has a slot")	linux,macos,windows	a due tab has a slot
-crates/ely-office/src/recover.rs	expect_used	path.parent().expect("the index has a folder")	linux,macos,windows	the index has a folder
 crates/ely-office/src/recover.rs	expect_used	self.tab(id).expect("a due tab")	linux,macos,windows	a due tab
 crates/ely-office/src/recover.rs	expect_used	wrote.expect("this thread took the newest turn")	linux,macos,windows	this thread took the newest turn
+crates/ely-office/src/recover/disk.rs	expect_used	path.parent().expect("the index has a folder")	linux,macos,windows	the index has a folder
 crates/ely-office/src/recover/reopen.rs	expect_used	host.core().keeping.as_ref().expect("keeping")	linux,macos,windows	keeping
 crates/ely-office/src/recover/reopen.rs	expect_used	host.core_mut().keeping.as_mut().expect("keeping")	linux,macos,windows	keeping
 crates/ely-office/src/save.rs	expect_used	self.tab(id).expect("the tab is open")	linux,macos,windows	the tab is open
