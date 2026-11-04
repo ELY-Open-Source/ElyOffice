@@ -224,6 +224,18 @@ def included_cached(path):
                     TWO + ["text:Line one"], ["text:Line two", "end"], ["text:After"]])
 
 
+def included_table(path):
+    """Sources opening with a table stay INCLUDETEXT; one section."""
+    with zipfile.ZipFile(path) as archive:
+        body = ooxml.xml(archive, ooxml.main_part(archive)).find(ooxml.W + "body")
+    codes = [m for p in body.iter(ooxml.W + "p") for m in marks(p) if m.startswith("code:") and "INCLUDETEXT" in m]
+    ooxml.check(len(codes) == 3, f"three INCLUDETEXT fields, not {codes}")
+    tables = len(list(body.iter(ooxml.W + "tbl")))
+    ooxml.check(tables == 2, f"each linked section holds the table, not {tables}")
+    breaks = len(list(body.iter(ooxml.W + "sectPr")))
+    ooxml.check(breaks == 1, f"one section, not {breaks}")
+
+
 OFFICE = "{urn:schemas-microsoft-com:office:office}"
 VML = "{urn:schemas-microsoft-com:vml}"
 
@@ -260,7 +272,8 @@ def ole_link(path):
 
 
 CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape, "toc-alone": toc_alone,
-         "toc-native": toc_native, "included": included, "included-cached": included_cached, "ole-link": ole_link}
+         "toc-native": toc_native, "included": included, "included-cached": included_cached,
+         "included-table": included_table, "ole-link": ole_link}
 MUTATIONS = {
     "ole-link": [
         ("word/document.xml", r'Type="Link"', 'Type="Embed"'),
@@ -274,6 +287,10 @@ MUTATIONS = {
         ("word/document.xml", r'(?s)(<w:r>(?:(?!<w:r>).)*?<w:fldChar w:fldCharType="end"/></w:r>)(</w:p>)(<w:p[ >].*?)(</w:p>)', r"\2\3\1\4"),
         ("word/document.xml", r"(<w:t[^>]*>Before</w:t></w:r>)", r"\1<w:sectPr/>"),
         ("word/document.xml", r"MERGEFORMAT", ""),
+    ],
+    "included-table": [
+        ("word/document.xml", r"INCLUDETEXT", "INCLUDEPICTURE"),
+        ("word/document.xml", r"(<w:t[^>]*>Before</w:t></w:r>)", r"\1<w:sectPr/>"),
     ],
     "included-cached": [
         ("word/document.xml", r"Line two", "Line one"),

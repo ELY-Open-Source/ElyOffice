@@ -341,6 +341,66 @@ fn includetext_is_a_linked_section_and_saves_as_one() {
     assert_eq!(named, [crate::file_url(&include)], "Ely's own file links again");
 }
 
+/// The INCLUDETEXT fixture beside an `include.docx` of `body`.
+fn includes(dir: &tempfile::TempDir, worker: &mut Worker, body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/includetext.docx");
+    let (main, flat, include) = (dir.path().join("main.docx"), dir.path().join("inc.fodt"), dir.path().join("include.docx"));
+    std::fs::copy(fixture, &main).expect("copies");
+    let xml = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+ office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:body><office:text>{body}</office:text></office:body>
+</office:document>"#
+    );
+    std::fs::write(&flat, xml).expect("writes the source");
+    let made = worker.load(&crate::file_url(&flat)).expect("loads");
+    made.save_as(worker, &crate::file_url(&include), "docx").expect("the source");
+    worker.close_doc(made).expect("closes");
+    (main, include)
+}
+
+#[test]
+fn a_source_opening_with_a_table_stays_includetext() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let install = install().expect("the pinned LOK build");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let table = r#"<table:table table:name="T"><table:table-column/><table:table-row><table:table-cell><text:p>Cell</text:p></table:table-cell></table:table-row></table:table><text:p>Tail</text:p>"#;
+    let (main, include) = includes(&dir, &mut worker, table);
+    let doc = worker.load(&crate::file_url(&main)).expect("loads");
+    assert_eq!(update(&mut worker, &doc), Vec::<String>::new());
+    let out = dir.path().join("out.docx");
+    doc.save_as(&mut worker, &crate::file_url(&out), "docx").expect("saves");
+    super::independent::read_with("ooxml_word.py", &out, "included-table");
+    let again = worker.load(&crate::file_url(&out)).expect("reloads");
+    let named = links::sources(&worker.values(&again, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, [crate::file_url(&include)], "the links survive the save");
+}
+
+#[test]
+fn a_linked_section_saved_as_doc_keeps_its_paragraphs() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let install = install().expect("the pinned LOK build");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let (mut source, _) = includes(&dir, &mut worker, "<text:p>Included after</text:p>");
+    let mut seen = Vec::new();
+    for round in 0..4 {
+        let doc = worker.load(&crate::file_url(&source)).expect("loads");
+        seen.push(text(&dir, &mut worker, &doc));
+        source = dir.path().join(format!("round{round}.doc"));
+        doc.save_as(&mut worker, &crate::file_url(&source), "doc").expect("saves");
+        worker.close_doc(doc).expect("closes");
+    }
+    assert!(seen.windows(2).skip(1).all(|pair| pair[0] == pair[1]), "each .doc save reads back the same: {seen:?}");
+}
+
 #[test]
 fn a_linked_worksheet_stays_a_link_through_saves() {
     if skip() {
