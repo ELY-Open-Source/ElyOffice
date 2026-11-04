@@ -7,30 +7,34 @@ use std::{
 
 use ely_files::{Open, SaveError, Saved};
 use ely_gpui_component::primitives::Severity;
-use gpui::{Context, TaskExt as _, Window};
+use gpui::{AppContext as _, Context, TaskExt as _, Window};
 
 use crate::files::{self, file_name};
 use crate::{After, Closing, Dialog, Engine, Host, Opening, Tabs, in_window, text};
 
 mod gone;
+mod landing;
 mod paths;
 pub use paths::folder;
+use landing::Target;
 use paths::identity;
+pub(crate) use paths::writer;
 
 pub trait Saving: Host {
     /// The tab whose source file is `target`.
     fn holder(&self, target: &Path) -> io::Result<Option<u64>> {
-        // Target errors stand; a tab's gone volume does not.
         let target = identity(target)?;
-        for tab in &self.core().tabs {
-            let Some(open) = tab.session.path() else { continue };
-            match ely_files::same_file(open, &target) {
-                Ok(true) => return Ok(Some(tab.id)),
-                Ok(false) => {}
-                Err(error) => log::warn!("office: tab {} has no file to compare: {}", tab.id, ely_ipc::Worded::logged(&error)),
-            }
+        // Open files are matched in memory, not per tab.
+        if let Some(registry) = self.core().sessions.holding(&target)? {
+            let core = self.core();
+            let tab = core.tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id);
+            // A load in flight holds its file too.
+            let load = || core.loading.iter().find(|(.., held)| *held == Some(registry)).map(|(id, ..)| *id);
+            let holder = tab.or_else(load).ok_or_else(|| io::Error::other("a registered file has no tab"))?;
+            return Ok(Some(holder));
         }
-        Ok(None)
+        // A running Save As holds its target already.
+        Ok(writer(&self.core().tabs, &target))
     }
 
     /// A save as refused unwritten; logs `why`, never the words.
@@ -69,24 +73,13 @@ pub trait Saving: Host {
         else {
             return self.save_as(id, then, cx);
         };
-        // Moved or deleted outside: ask where instead.
-        match path.try_exists() {
-            Ok(true) => {}
-            Ok(false) => return gone::gone(self, id, &path, then, cx),
-            Err(error) => {
-                let error = io::Error::new(error.kind(), format!("{}: {error}", path.display()));
-                return self.finish(id, Err(SaveError::Io(error)), None, then, window, cx);
-            }
-        }
         let format = match files::kept_format(&Self::KIND, &path) {
             Ok(format) => format,
             Err(error) => {
                 return self.finish(id, Err(SaveError::Io(error)), None, then, window, cx);
             }
         };
-        self.exported(id, format, then, true, cx, move |host, bytes, _, _| {
-            ely_files::save(&mut host.tab_mut(id).expect("open").session, &bytes)
-        });
+        landing::export(self, id, format, then, Target::Own, cx);
     }
 
     /// Whether tab `id` has an export running.
@@ -102,87 +95,6 @@ pub trait Saving: Host {
     ) {
         log::info!("office: a save of tab {id} waits for the running one");
         self.core_mut().queued_saves.push((id, Box::new(then)));
-    }
-
-    /// Exports `format` off the UI thread; `write` stores the bytes.
-    fn exported(
-        &mut self,
-        id: u64,
-        format: &'static str,
-        then: Option<After>,
-        overwrite: bool,
-        cx: &mut Context<Self>,
-        write: impl FnOnce(
-            &mut Self,
-            Vec<u8>,
-            &mut Window,
-            &mut Context<Self>,
-        ) -> Result<Saved, SaveError>
-        + 'static,
-    ) {
-        let Some(tab) = self.tab_mut(id) else {
-            return;
-        };
-        tab.exporting = true;
-        let (work, view) = (tab.work.clone(), tab.view.clone());
-        let edited = Self::Engine::edited(view.read(cx));
-        // Other saves leave an open edit as it is.
-        let closing = then.is_some();
-        cx.notify();
-        self.read_in(
-            id,
-            move |worker, doc| {
-                if overwrite && let Some(risk) = Self::Engine::unsound(worker, doc)? {
-                    return Ok(Err(risk));
-                }
-                let bytes = files::kernel_bytes::<Self::Engine>(worker, doc, &work, format, closing)?;
-                Ok(Ok((bytes, Self::Engine::history(worker, doc)?)))
-            },
-            move |host, read, window, cx| {
-                let (queued, rest): (Vec<_>, Vec<_>) = host
-                    .core_mut()
-                    .queued_saves
-                    .drain(..)
-                    .partition(|(tab, _)| *tab == id);
-                host.core_mut().queued_saves = rest;
-                let Some(tab) = host.tab_mut(id) else {
-                    // The end is told; the close and queue go on.
-                    host.core_mut().answer_saves(id, Err(format!("tab {id} closed during its save")));
-                    host.closed_first(id, then, window, cx);
-                    return queued.into_iter().for_each(|(_, save)| save(host, window, cx));
-                };
-                tab.exporting = false;
-                let (saved, history) = match read {
-                    Ok(Ok((bytes, history))) => (write(host, bytes, window, cx), Some(history)),
-                    Ok(Err(risk)) => {
-                        // Found at the last moment: write elsewhere instead.
-                        log::warn!("office: tab {id} is {risk:?}; its save becomes Save As");
-                        tab.risk = Some(risk);
-                        cx.notify();
-                        host.save_as(id, then, cx);
-                        for (_, save) in queued {
-                            save(host, window, cx);
-                        }
-                        return;
-                    }
-                    Err(error) => (Err(SaveError::Io(error)), None),
-                };
-                // Edits after the export stay unsaved; a close asks again.
-                let changed = Self::Engine::edited(view.read(cx)) != edited
-                    || Self::Engine::edit_pending(view.read(cx));
-                match then {
-                    Some(after) if changed && saved.is_ok() => {
-                        host.finish(id, saved, history, None, window, cx);
-                        host.request_close(id, after, window, cx);
-                    }
-                    then => host.finish(id, saved, history, then, window, cx),
-                }
-                for (_, save) in queued {
-                    save(host, window, cx);
-                }
-            },
-            cx,
-        );
     }
 
     /// Asks where, then writes the default format there.
@@ -276,43 +188,30 @@ pub trait Saving: Host {
         // The written file differs from the open one; reopen it.
         let reopen =
             matches!(tab.risk, Some(crate::Risk::Signed | crate::Risk::Repaired)) && then.is_none();
-        self.exported(id, format, then, false, cx, move |host, bytes, _, cx| {
-            // Another tab may have taken the target meanwhile.
-            match host.holder(&target) {
-                Ok(Some(other)) if other != id => {
-                    let name = file_name(&target);
-                    return Err(SaveError::Io(ely_ipc::Worded::error(io::ErrorKind::Other, "office.error.taken", &[("name", &name)])));
-                }
-                Err(error) => return Err(SaveError::Io(error)),
-                _ => {}
-            }
-            let session = &mut host.tab_mut(id).expect("open").session;
-            let saved = ely_files::save_as(session, &target, &bytes);
-            if let Ok(done) = &saved {
-                host.moved(id, done, cx);
-                host.tab_mut(id).expect("open").reopen = reopen;
-            }
-            saved
-        });
+        landing::export(self, id, format, then, Target::As(target, reopen), cx);
     }
 
     /// The tab now names the saved file: registry, title, risk.
-    fn moved(&mut self, id: u64, done: &Saved, cx: &mut Context<Self>) {
+    fn moved(&mut self, id: u64, done: &Saved, macros: io::Result<bool>, cx: &mut Context<Self>) -> io::Result<()> {
         let tab = self.tab(id).expect("the tab is open");
         if let Some(old) = tab.registry {
             self.core_mut().sessions.close(old);
         }
-        let registry = match self.core_mut().sessions.open(&done.path, false) {
-            Ok(Open::Fresh(registry) | Open::View(registry) | Open::Focus(registry)) => {
-                Some(registry)
+        let registry = match self.core_mut().sessions.adopt(done) {
+            Ok(Open::Fresh(registry) | Open::View(registry)) => Ok(registry),
+            // Never two editable tabs on one file.
+            Ok(Open::Focus(other)) => {
+                log::error!("office: tab {id} saved onto session {other}'s file");
+                let name = file_name(&done.path);
+                Err(ely_ipc::Worded::error(io::ErrorKind::Other, "office.error.taken", &[("name", &name)]))
             }
             Err(error) => {
-                self.report(id, Err(SaveError::Io(error)), cx);
-                None
+                log::error!("office: tab {id}'s saved file cannot be matched: {}", ely_ipc::Worded::logged(&error));
+                Err(error)
             }
         };
         // Ely's writes carry no signatures; macros may stay.
-        let risk = match files::macro_risk(&Self::KIND, &done.path) {
+        let risk = match macros {
             Ok(macros) => macros.then_some(crate::Risk::Macros),
             Err(error) => {
                 self.report(id, Err(SaveError::Io(error)), cx);
@@ -320,9 +219,19 @@ pub trait Saving: Host {
             }
         };
         let tab = self.tab_mut(id).expect("the tab is open");
-        tab.registry = registry;
+        // The text stays, unsaved, with no file of its own.
+        let registry = match registry {
+            Ok(registry) => registry,
+            Err(taken) => {
+                (tab.registry, tab.session) = (None, ely_files::Session::new_file());
+                tab.session.edit();
+                return Err(taken);
+            }
+        };
+        tab.registry = Some(registry);
         tab.name = file_name(&done.path);
         tab.risk = risk;
+        Ok(())
     }
 
     /// Keep Mine over the disk now; later changes conflict.
@@ -346,29 +255,48 @@ pub trait Saving: Host {
         let Some(tab) = self.tab(id) else {
             return self.closed_first(id, then, window, cx);
         };
-        let format = tab
-            .session
-            .path()
-            .ok_or_else(|| io::Error::other("no path"))
-            .and_then(|path| files::kept_format(&Self::KIND, path));
-        let format = match format {
-            Ok(format) => format,
+        let path = tab.session.path().map(PathBuf::from).ok_or_else(|| io::Error::other("no path"));
+        let (format, path) = match path.and_then(|path| Ok((files::kept_format(&Self::KIND, &path)?, path))) {
+            Ok(kept) => kept,
             Err(error) => {
                 return self.finish(id, Err(SaveError::Io(error)), None, then, window, cx);
             }
         };
-        let seen = tab.session.path().map(ely_files::Fingerprint::of);
+        // The disk is seen off the window, then kept against.
+        let seen = cx.background_spawn(async move { (ely_files::Fingerprint::of(&path), path) });
+        cx.spawn(async move |this, cx| {
+            let seen = seen.await;
+            in_window(&this, cx, |host, window, cx| host.keep_seen(id, format, seen, then, window, cx))
+        })
+        .detach_and_log_err(cx);
+    }
+
+    /// Keep Mine once the disk was seen.
+    fn keep_seen(
+        &mut self,
+        id: u64,
+        format: &'static str,
+        (seen, path): (io::Result<ely_files::Fingerprint>, PathBuf),
+        then: Option<After>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(tab) = self.tab_mut(id) else {
+            return self.closed_first(id, then, window, cx);
+        };
+        if tab.exporting || tab.session.path() != Some(path.as_path()) {
+            return self.keep_mine(id, then, window, cx);
+        }
         match seen {
-            Some(Ok(seen)) => {
-                self.tab_mut(id).expect("open").session.rebase(seen);
-                self.exported(id, format, then, true, cx, move |host, bytes, _, _| {
-                    ely_files::save(&mut host.tab_mut(id).expect("open").session, &bytes)
-                });
+            Ok(seen) => {
+                tab.session.rebase(seen);
+                landing::export(self, id, format, then, Target::Own, cx);
             }
-            // Gone from disk: nothing there to lose.
-            _ => self.exported(id, format, then, true, cx, move |host, bytes, _, _| {
-                ely_files::save_overwrite(&mut host.tab_mut(id).expect("open").session, &bytes)
-            }),
+            // Gone: written new; a file made meanwhile conflicts.
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                landing::export(self, id, format, then, Target::Gone, cx)
+            }
+            Err(error) => self.finish(id, Err(SaveError::Io(error)), None, then, window, cx),
         }
     }
 
@@ -427,11 +355,8 @@ pub trait Saving: Host {
                 log::info!("office: saved {}", done.path.display());
                 // A save may replace the file; the registry follows it.
                 let registry = self.tab(id).and_then(|tab| tab.registry);
-                if let Some(registry) = registry
-                    && let Err(error) = self.core_mut().sessions.track(registry, &done.path)
-                {
-                    log::error!("office: the saved file did not register: {error}");
-                    self.engine_failed(&error.to_string(), cx);
+                if let Some(registry) = registry {
+                    self.core_mut().sessions.saved(registry, &done);
                 }
                 if let (Some(history), Some(tab)) = (history, self.tab_mut(id)) {
                     Self::Engine::saved(&tab.view, &history, cx);

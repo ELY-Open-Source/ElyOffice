@@ -1,17 +1,21 @@
 use std::{
-    io::{self, Write},
+    io::{self, Write as _},
     path::{Path, PathBuf},
 };
 
-use crate::{Fingerprint, SaveState, Session};
+use crate::{Fingerprint, SaveState};
 
 mod attach;
+mod write;
 #[cfg(test)]
 mod tests;
 #[cfg(all(test, target_os = "macos"))]
 mod full;
 
 pub use attach::{import_attachment, write_attachment};
+#[cfg(test)]
+pub(crate) use write::{save, save_as};
+pub use write::{Done, Write};
 
 /// The largest name the filesystem takes.
 const NAME_MAX: usize = 255;
@@ -211,7 +215,7 @@ fn resolved(path: &Path) -> io::Result<PathBuf> {
 
 /// Whether two paths name one file, links resolved.
 pub fn same_file(a: &Path, b: &Path) -> io::Result<bool> {
-    if resolved(a)? == resolved(b)? {
+    if crate::same_name(&resolved(a)?, &resolved(b)?)? {
         return Ok(true);
     }
     // A missing side is another file.
@@ -235,126 +239,6 @@ pub struct Saved {
     pub written: Fingerprint,
     /// Some on non-atomic volumes; the previous file lives there.
     pub backup: Option<PathBuf>,
-}
-
-/// The whole save flow: conflict check, ticket, write, confirm (FILE-04/05).
-pub fn save(session: &mut Session, bytes: &[u8]) -> Result<Saved, SaveError> {
-    save_with_probe(session, bytes, atomic_capable)
-}
-
-/// The save flow with the volume probe handed in (§6.1).
-pub fn save_with_probe(
-    session: &mut Session,
-    bytes: &[u8],
-    probe: impl FnOnce(&Path) -> io::Result<bool>,
-) -> Result<Saved, SaveError> {
-    let Some(path) = session.path().map(Path::to_path_buf) else {
-        return Err(SaveError::Io(io::Error::new(
-            io::ErrorKind::NotFound,
-            "no path to save",
-        )));
-    };
-    let target = resolved(&path).map_err(SaveError::Io)?;
-    let backup = !probe(&target).map_err(SaveError::Io)?;
-    if backup {
-        log::warn!("files: {} sits on a non-atomic volume", target.display());
-    }
-    save_mode(session, &target, bytes, backup)
-}
-
-/// The save flow with the volume's capability decided.
-fn save_mode(
-    session: &mut Session,
-    path: &Path,
-    bytes: &[u8],
-    backup: bool,
-) -> Result<Saved, SaveError> {
-    if session.external_changed().map_err(SaveError::Io)? {
-        session.external_modified();
-        log::warn!("files: save to {} meets an external change", path.display());
-        return Err(SaveError::Conflict);
-    }
-    write_ticketed(session, path, bytes, backup, false)
-}
-
-/// Save As to a chosen path (FILE-04, FILE-05).
-pub fn save_as(session: &mut Session, path: &Path, bytes: &[u8]) -> Result<Saved, SaveError> {
-    let target = resolved(path).map_err(SaveError::Io)?;
-    let backup = !atomic_capable(&target).map_err(SaveError::Io)?;
-    // A file moved or deleted outside is written anew.
-    let own = match session.path() {
-        Some(current) if current.try_exists().map_err(|e| SaveError::Io(with_path(current, e)))? => {
-            same_file(current, &target).map_err(SaveError::Io)?
-        }
-        _ => false,
-    };
-    if own {
-        // The session's own file keeps its conflict check.
-        return save_mode(session, &target, bytes, backup);
-    }
-    log::info!("files: save as {}", target.display());
-    // A new file keeps the local version in a conflict.
-    let keep_local = session.state() == SaveState::ExternalModified;
-    write_ticketed(session, &target, bytes, backup, keep_local)
-}
-
-/// Keep-local in a conflict: overwrite the changed file (FILE-05).
-pub fn save_overwrite(session: &mut Session, bytes: &[u8]) -> Result<Saved, SaveError> {
-    let Some(path) = session.path().map(Path::to_path_buf) else {
-        return Err(SaveError::Io(io::Error::new(
-            io::ErrorKind::NotFound,
-            "no path to save",
-        )));
-    };
-    let target = resolved(&path).map_err(SaveError::Io)?;
-    let backup = !atomic_capable(&target).map_err(SaveError::Io)?;
-    write_ticketed(session, &target, bytes, backup, true)
-}
-
-/// Ticket, write, confirm: the shared tail of every save.
-fn write_ticketed(
-    session: &mut Session,
-    path: &Path,
-    bytes: &[u8],
-    backup: bool,
-    keep_local: bool,
-) -> Result<Saved, SaveError> {
-    let ticket = if keep_local {
-        session.begin_save_overwrite()
-    } else {
-        session.begin_save()
-    }
-    .map_err(SaveError::Refused)?;
-    let revision = session.revision();
-    let outcome = if backup {
-        save_with_backup(path, bytes, revision)
-    } else {
-        save_atomic(path, bytes, revision).map(|written| (written, None))
-    };
-    let (written, backup) = match outcome {
-        Ok(done) => done,
-        Err(error) => {
-            if session.fail_save(ticket).is_err() {
-                log::error!("files: the failed save left an unknown ticket");
-            }
-            return Err(SaveError::Io(error));
-        }
-    };
-    // Writes keep `\\?\`; the session shows plain.
-    let kept = dunce::simplified(path).to_path_buf();
-    session
-        .finish_save(ticket, kept.clone(), written)
-        .map_err(|_| {
-            SaveError::Io(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "stale save ticket",
-            ))
-        })?;
-    Ok(Saved {
-        path: kept,
-        written,
-        backup,
-    })
 }
 
 /// Whether the target's volume replaces files atomically (§6.1).

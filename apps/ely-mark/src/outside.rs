@@ -10,7 +10,7 @@ use ely_files::{Fingerprint, Policy, PolicyEngine, SaveState};
 use ely_gpui_component::{feedback::Banner, primitives::Severity};
 use ely_office::prelude::*;
 use futures::{StreamExt as _, channel::mpsc};
-use gpui::Context;
+use gpui::{AppContext as _, Context};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher as _};
 
 use crate::desk::Desk;
@@ -58,6 +58,10 @@ pub struct Extra {
     pub restored: bool,
     /// Disk reads started; only the newest lands.
     pub reads: u64,
+    /// Bumped by each outside state; older checks lapse.
+    pub stamp: u64,
+    /// The path the recent list last took from it.
+    pub tracked: Option<std::path::PathBuf>,
     /// The writing view reached its document.
     pub looked: bool,
     /// The text change last counted, and its count.
@@ -91,25 +95,14 @@ impl Default for Extra {
             point_failed: None,
             restored: false,
             reads: 0,
+            stamp: 0,
+            tracked: None,
             looked: false,
             counting: None,
             counts: None,
             selection: None,
         }
     }
-}
-
-/// The file's bytes and the fingerprint they match.
-fn read_still(path: &Path) -> io::Result<(Fingerprint, Source)> {
-    // A writer mid-way changes the fingerprint; read again.
-    for _ in 0..5 {
-        let before = Fingerprint::of(path)?;
-        let bytes = std::fs::read(path)?;
-        if Fingerprint::of(path)? == before {
-            return Ok((before, Source::decode(bytes)?));
-        }
-    }
-    Err(ely_ipc::Worded::error(io::ErrorKind::Other, "mark.error.unsettled", &[]))
 }
 
 impl Desk {
@@ -150,140 +143,74 @@ impl Desk {
         // A write, ours or not, may change what Git sees.
         self.ask_git(cx);
         let ids: Vec<u64> = self.core.tabs.iter().map(|tab| tab.id).collect();
-        for id in ids {
-            self.look(id, cx);
-        }
+        self.look_at(ids, cx);
     }
 
     /// Compares tab `id`'s file with its last read or write.
     pub fn look(&mut self, id: u64, cx: &mut Context<Self>) {
-        let Some(tab) = self.tab_mut(id) else {
-            return;
-        };
-        let Some(path) = tab.session.path().map(Path::to_path_buf) else {
-            return;
-        };
-        if tab.exporting || tab.session.state() == SaveState::Saving {
-            tab.extra.recheck = true;
+        self.look_at(vec![id], cx);
+    }
+
+    /// The tabs' files, read off the window at once.
+    fn look_at(&mut self, ids: Vec<u64>, cx: &mut Context<Self>) {
+        let mut asked = Vec::new();
+        for id in ids {
+            let Some(tab) = self.tab_mut(id) else { continue };
+            let Some(path) = tab.session.path().map(Path::to_path_buf) else { continue };
+            if tab.exporting || tab.session.state() == SaveState::Saving {
+                tab.extra.recheck = true;
+                continue;
+            }
+            tab.extra.recheck = false;
+            asked.push((id, path, tab.session.fingerprint(), tab.extra.stamp));
+        }
+        if asked.is_empty() {
             return;
         }
-        tab.extra.recheck = false;
-        let ours = tab.session.fingerprint();
-        match Fingerprint::of(&path) {
+        cx.spawn(async move |desk, cx| {
+            let seen = cx.background_spawn(async move {
+                let seen = asked.into_iter().map(|(id, path, ours, stamp)| {
+                    let now = Fingerprint::of(&path);
+                    (id, path, (ours, stamp), now)
+                });
+                seen.collect::<Vec<_>>()
+            });
+            let seen = seen.await;
+            desk.update(cx, |desk, cx| {
+                for (id, path, began, now) in seen {
+                    desk.compared(id, path, began, now, cx);
+                }
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// The disk as read against the tab now.
+    fn compared(
+        &mut self,
+        id: u64,
+        path: PathBuf,
+        (ours, stamp): (Option<Fingerprint>, u64),
+        now: io::Result<Fingerprint>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(tab) = self.checked(id, &path, stamp) else {
+            return log::info!("mark: a look at tab {id} lapsed");
+        };
+        // A save began or landed meanwhile: look again.
+        if tab.session.fingerprint() != ours || tab.exporting || tab.session.state() == SaveState::Saving {
+            return self.look(id, cx);
+        }
+        match now {
             Ok(now) if Some(now) == ours => {
-                if !matches!(tab.extra.outside, Outside::Changed(..)) {
+                if matches!(tab.extra.outside, Outside::Deleted | Outside::Unread(_)) {
                     self.set_outside(id, Outside::Clear, cx);
                 }
             }
             Ok(_) => self.read_disk(id, path, cx),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => self.missing(id, path, cx),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => self.missing(id, path, ours, cx),
             Err(error) => self.set_outside(id, Outside::Unread(ely_ui::i18n::error(cx, &error).to_string()), cx),
-        }
-    }
-
-    /// Gone: an atomic replace, a rename, or a delete.
-    fn missing(&mut self, id: u64, path: PathBuf, cx: &mut Context<Self>) {
-        cx.spawn(async move |desk, cx| {
-            cx.background_executor().timer(GAP).await;
-            desk.update(cx, |desk, cx| desk.still_missing(id, path, cx))
-                .ok();
-        })
-        .detach();
-    }
-
-    fn still_missing(&mut self, id: u64, path: PathBuf, cx: &mut Context<Self>) {
-        let Some(tab) = self.tab(id).filter(|tab| tab.session.path() == Some(&path)) else {
-            return;
-        };
-        if path.exists() {
-            return self.look(id, cx);
-        }
-        let found = match (tab.registry, path.parent()) {
-            (Some(registry), Some(dir)) => self.core.sessions.renamed_in(registry, dir),
-            _ => Ok(None),
-        };
-        match found {
-            Ok(Some(to)) => {
-                log::info!("mark: {} was renamed outside", path.display());
-                self.follow(id, to, cx);
-                self.look(id, cx);
-            }
-            Ok(None) => {
-                log::warn!("mark: {} was deleted outside", path.display());
-                self.set_outside(id, Outside::Deleted, cx);
-            }
-            Err(error) => self.set_outside(id, Outside::Unread(ely_ui::i18n::error(cx, &error).to_string()), cx),
-        }
-    }
-
-    /// Changed: a clean tab follows, a dirty one asks.
-    fn read_disk(&mut self, id: u64, path: PathBuf, cx: &mut Context<Self>) {
-        let Some(tab) = self.tab_mut(id) else {
-            return;
-        };
-        tab.extra.reads += 1;
-        let number = tab.extra.reads;
-        let reading = path.clone();
-        cx.spawn(async move |desk, cx| {
-            let read = cx
-                .background_executor()
-                .spawn(async move { read_still(&reading) })
-                .await;
-            desk.update(cx, |desk, cx| desk.disk_read(id, path, number, read, cx))
-                .ok();
-        })
-        .detach();
-    }
-
-    fn disk_read(
-        &mut self,
-        id: u64,
-        path: PathBuf,
-        number: u64,
-        read: io::Result<(Fingerprint, Source)>,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(tab) = self.tab(id).filter(|tab| tab.session.path() == Some(&path)) else {
-            return log::info!("mark: a read for a moved or closed tab was dropped");
-        };
-        if tab.extra.reads != number {
-            return log::info!("mark: read {number} of tab {id} lapsed");
-        }
-        let (fingerprint, disk) = match read {
-            Ok(read) => read,
-            Err(error) => return self.set_outside(id, Outside::Unread(ely_ui::i18n::error(cx, &error).to_string()), cx),
-        };
-        // The disk moved on since the read: look again.
-        if Fingerprint::of(&path).ok() != Some(fingerprint) {
-            log::info!("mark: tab {id}'s file changed while read");
-            return self.look(id, cx);
-        }
-        let current = tab.doc.lock().expect("the text lock").current.clone();
-        let kept = disk.text == tab.extra.base;
-        let dirty = tab.dirty(cx);
-        log::info!("mark: {} changed outside; unsaved {dirty}", path.display());
-        match (disk.text == current, dirty) {
-            // The same text: only the file underneath is new.
-            (true, _) => {
-                self.adopt_disk(id, &disk, fingerprint, cx);
-            }
-            // The text as last saved: the edits stay unsaved.
-            (false, true) if kept => self.keep_edits(id, disk, fingerprint, cx),
-            (false, false) => self.take_disk(id, disk, fingerprint, cx),
-            (false, true) => {
-                let tab = self.tab_mut(id).expect("open");
-                tab.session.external_modified();
-                tab.extra.policy.external_modified();
-                self.set_outside(id, Outside::Changed(disk, fingerprint), cx);
-                // An open comparison shows the newest disk text.
-                if self
-                    .comparing
-                    .as_ref()
-                    .is_some_and(|comparing| comparing.id == id)
-                {
-                    self.compare(id, cx);
-                }
-            }
         }
     }
 
@@ -315,11 +242,8 @@ impl Desk {
         tab.doc.lock().expect("the text lock").source = disk;
         // A conflict stopped autosave, maybe mid-write; it resumes.
         tab.extra.restart_autosave();
-        let (registry, path) = (tab.registry, tab.session.path().map(Path::to_path_buf));
-        if let (Some(registry), Some(path)) = (registry, path)
-            && let Err(error) = self.core.sessions.track(registry, &path)
-        {
-            log::warn!("mark: the replaced file did not register: {error}");
+        if let Some(registry) = tab.registry {
+            self.core.sessions.replaced(registry, fingerprint.id);
         }
         self.set_outside(id, Outside::Clear, cx);
         self.save_after_pause(id, cx);
@@ -346,23 +270,28 @@ impl Desk {
         // Its bytes (BOM, line ends) are what saves keep now.
         tab.doc.lock().expect("the text lock").source = disk.clone();
         let (view, registry) = (tab.view.clone(), tab.registry);
-        let path = tab.session.path().map(Path::to_path_buf);
         // An atomic replace is a new file underneath.
-        if let (Some(registry), Some(path)) = (registry, path)
-            && let Err(error) = self.core.sessions.track(registry, &path)
-        {
-            log::warn!("mark: the replaced file did not register: {error}");
+        if let Some(registry) = registry {
+            self.core.sessions.replaced(registry, fingerprint.id);
         }
         self.set_outside(id, Outside::Clear, cx);
         view.update(cx, |view, cx| view.saved(&saved, cx));
         Some(view)
     }
 
+    /// Tab `id`'s file state; checks begun before it lapse.
     pub fn set_outside(&mut self, id: u64, outside: Outside, cx: &mut Context<Self>) {
         if let Some(tab) = self.tab_mut(id) {
             tab.extra.outside = outside;
+            tab.extra.stamp += 1;
             cx.notify();
         }
+    }
+
+    /// Tab `id`, if a check begun at `stamp` holds.
+    fn checked(&self, id: u64, path: &Path, stamp: u64) -> Option<&ely_office::Tab<Extra, crate::engine::Mark>> {
+        let tab = self.tab(id).filter(|tab| tab.session.path() == Some(path))?;
+        (tab.extra.stamp == stamp).then_some(tab)
     }
 
     /// The active file's trouble on disk, with its way out.
@@ -443,6 +372,8 @@ fn watch(dirs: &[PathBuf], cx: &mut Context<Desk>) -> notify::Result<Recommended
     log::info!("mark: watching {} folders", dirs.len());
     Ok(watcher)
 }
+
+mod disk;
 
 #[cfg(test)]
 pub(crate) mod tests;
