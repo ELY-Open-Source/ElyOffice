@@ -87,7 +87,7 @@ fn a_program_save_waiting_for_a_pause_hears_its_tab_close() {
     assert!(answer.is_err_and(|why| why.contains("closed")), "the program hears the tab went");
 }
 
-/// A program's save of `own`, asked after a key; it waits.
+/// A program saves `own` after a key; it waits.
 fn program_save(cx: &mut TestAppContext, docs: &Entity<Docs>, own: &std::path::Path) -> std::sync::mpsc::Receiver<Result<String, String>> {
     commit(cx, docs, "two");
     run(cx);

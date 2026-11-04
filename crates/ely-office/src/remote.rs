@@ -124,7 +124,7 @@ pub trait Remote: Saving {
             .ok_or_else(|| format!("{file} is not open in {}", Self::KIND.app.name()))
     }
 
-    /// Saves at the next typing pause; asks in one pause share it.
+    /// Saves at the next pause; asks then share it.
     fn save_for(&mut self, id: u64, ask: Ask, window: &mut Window, cx: &mut Context<Self>) {
         let waiting = self.core().asked.iter().any(|(tab, _)| *tab == id);
         self.core_mut().asked.push((id, ask));
