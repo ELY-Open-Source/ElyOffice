@@ -239,6 +239,8 @@ fn a_kernel_dialog_is_closed_and_reported() {
         worker
             .post_key(&doc, 'z' as u32, 537)
             .expect("typing still works");
+        let copy = crate::file_url(&dir.path().join("after.fods"));
+        doc.save_as(&mut worker, &copy, "fods").expect("the worker answers after the dialog");
         done.send(seen.blocked).expect("the test waits");
     });
     let pid = pid_in.recv().expect("the worker starts");

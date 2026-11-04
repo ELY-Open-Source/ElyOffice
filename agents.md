@@ -219,6 +219,7 @@ tests/scripts/macos-names.sh    同上，经 macOS 的 AX（VoiceOver 所读，`
 tests/scripts/windows-save-as.py  真窗口 ElyDoc：另存为里键入无扩展名的名字即存为 .docx，同名先问再替换（键鼠真输入，须桌面空闲；非 Windows 时 SKIP）
 tests/scripts/windows-tab-keys.py  真窗口 ElyDoc 与 ElyShow 各开四份：真鼠标点标签、Ctrl+W、从外面再开一份，每次第一键只落在前台文档（经 `text get` 核对；键鼠真输入，须桌面空闲；非 Windows 时 SKIP）
 tests/scripts/windows-table-save-edit.py  真窗口 ElyTable：单元格键入中经命令行保存，编辑不断、其后的键接着输入（公式栏读回），盘上是保存时已输入的格，回车后再存即有全文（键盘真输入，须桌面空闲；非 Windows 时 SKIP）
+tests/scripts/windows-table-zoom.py 目录  真窗口 ElyTable：键、状态栏缩放钮（真点击）与 Ctrl+滚轮在 A1 上缩到 67%、125%、400%，首个行列标题是 A、1（UI Automation），截图里网格线量出 A1 与 B2 一般宽高、光标框正落在 A1 的线上，日志的视图起点为 (0, 0)；滚轮在 C7 上时它的角到指针的像素不变；全部报出；截图写入该目录（键鼠真输入，须桌面空闲；非 Windows 时 SKIP）
 tests/scripts/windows-types.sh  真安装程序以假类型 `.elyprobe` 写 HKCU：能打开、只在无处理程序时设默认与“新建”、假方案 `elyprobe:` 进“默认应用”而不接管、别的程序的登记与“新建”不动、换了文件夹后旧卸载不删新的、写不进即安装失败（缺 makensis 时 SKIP）
 tests/scripts/layout.sh        真窗口：六个应用在 640、800、1100 宽下无元素越出窗口左右，留截图（需辅助功能与屏幕录制权限）
 tests/perf/bench.py [--runs N] [--only PERF-..]  性能基准（PERF-01 至 08），release 构建，结果写 docs/perf；macOS、Windows 直接跑（驱动 tests/perf/drive.py、drive.ps1，Windows 上不在前台即拒发输入）

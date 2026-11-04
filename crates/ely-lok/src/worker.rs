@@ -56,11 +56,10 @@ pub fn run(
 fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Result<()> {
     let lok = Box::leak(Box::new(lok));
     pin(lok);
+    closing::watch()?;
     lok.register_callback(asked::on_kit);
     lok.register_any_input(waiting);
-    unsafe {
-        gcd::dispatch_async_f(gcd::main_queue(), std::ptr::null_mut(), mark_pumping);
-    }
+    unsafe { gcd::dispatch_async_f(gcd::main_queue(), std::ptr::null_mut(), mark_pumping) };
     std::thread::spawn(move || reader(input));
     std::thread::spawn(events::push);
     // Aqua never polls: GCD brings the requests.
