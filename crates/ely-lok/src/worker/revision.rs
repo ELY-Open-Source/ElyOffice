@@ -32,9 +32,17 @@ pub fn of(id: u64) -> io::Result<u64> {
     revisions.get(&id).copied().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such document"))
 }
 
-/// The revision now, answered.
+/// The revision, tile generation and blindness now, answered.
 pub fn current(unpack: &mut Unpack) -> io::Result<Vec<u8>> {
-    Ok(Pack::new().u64(of(unpack.u64()?)?).bytes())
+    let id = unpack.u64()?;
+    let revision = of(id)?;
+    let (at, clip) = super::with_doc(id, |doc| {
+        // A sheet's view paints past its data area.
+        let clip = (doc.kind() != 1).then(|| doc.size()).map(|(w, h)| (0, 0, w as i32, h as i32));
+        ((doc.part(), doc.edit_mode()), clip)
+    })?;
+    let blind = crate::events::blind(id, at, clip);
+    Ok(Pack::new().u64(revision).u64(crate::events::generation(id)).u64(u64::from(blind)).bytes())
 }
 
 /// Refuses unless the document is at the revision asked for.
