@@ -72,6 +72,5 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("table.protect.deleteRows", "Zeilen löschen"),
     ("table.protect.autofilter", "Filter verwenden"),
     ("table.protect.pivot", "Pivot-Tabellen verwenden"),
-    ("table.links.stale", "Verknüpfte Werte sind wie zuletzt gespeichert, nicht aktualisiert: {sources}"),
     ("table.kept.stale", "Ergebnisse wie in der Datei gespeichert: ElyTable kann ihre Funktionen nicht berechnen; eine geänderte Eingabe zeigt #NAME?: {cells}"),
 ];

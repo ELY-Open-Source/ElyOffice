@@ -72,6 +72,5 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("table.protect.deleteRows", "Xóa hàng"),
     ("table.protect.autofilter", "Dùng bộ lọc"),
     ("table.protect.pivot", "Dùng bảng tổng hợp"),
-    ("table.links.stale", "Giá trị liên kết là như lần lưu cuối; chưa làm mới: {sources}"),
     ("table.kept.stale", "Kết quả như đã lưu trong tệp: ElyTable không tính được các hàm của chúng; đổi một giá trị đầu vào sẽ hiện #NAME?: {cells}"),
 ];

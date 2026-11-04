@@ -94,10 +94,6 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("table.protect.autofilter", "Usar filtros"),
     ("table.protect.pivot", "Usar tablas dinámicas"),
     (
-        "table.links.stale",
-        "Los valores vinculados corresponden al último guardado; no se actualizaron: {sources}",
-    ),
-    (
         "table.kept.stale",
         "Resultados guardados en el archivo: ElyTable no puede calcular sus funciones; al cambiar una entrada se mostrará #NAME?: {cells}",
     ),

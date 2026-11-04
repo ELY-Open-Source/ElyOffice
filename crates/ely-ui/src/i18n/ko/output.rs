@@ -72,6 +72,5 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("table.protect.deleteRows", "행 삭제"),
     ("table.protect.autofilter", "필터 사용"),
     ("table.protect.pivot", "피벗 테이블 사용"),
-    ("table.links.stale", "연결된 값은 마지막으로 저장된 그대로이며 새로 고치지 않았습니다: {sources}"),
     ("table.kept.stale", "파일에 저장된 결과입니다. ElyTable은 이 함수들을 계산할 수 없어 입력을 바꾸면 #NAME?이 표시됩니다: {cells}"),
 ];

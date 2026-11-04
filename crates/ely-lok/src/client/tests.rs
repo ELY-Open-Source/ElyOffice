@@ -28,6 +28,7 @@ mod spill;
 pub(crate) mod input;
 mod latency;
 mod layout;
+mod linked;
 mod links;
 mod media;
 mod menus;

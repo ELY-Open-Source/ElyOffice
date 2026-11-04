@@ -12,8 +12,6 @@ pub const LIST: &str = ".uno:DataSelectValues";
 pub const VALIDATION: &str = ".uno:Validation";
 /// The shown sheet's conditional formats.
 pub const FORMATS: &str = ".uno:ConditionalFormats";
-/// Sources whose data shows as last saved (§9.3).
-pub const LINKS: &str = ".uno:ExternalLinks";
 /// Cells showing the file's result: their function is unknown.
 pub const KEPT: &str = ".uno:KeptResults";
 /// A typed copy of the selection for R (0081).
@@ -97,18 +95,13 @@ pub fn filter_values(json: &str) -> io::Result<Filter> {
     })
 }
 
-/// Parses `.uno:ExternalLinks`.
-pub fn links(json: &str) -> io::Result<Vec<String>> {
-    strings(json, "links")
-}
-
 /// Parses `.uno:KeptResults`: addresses with their sheet.
 pub fn kept(json: &str) -> io::Result<Vec<String>> {
     strings(json, "cells")
 }
 
 /// The array of strings at `key`.
-fn strings(json: &str, key: &str) -> io::Result<Vec<String>> {
+pub(crate) fn strings(json: &str, key: &str) -> io::Result<Vec<String>> {
     let value = parse(json, key)?;
     value[key]
         .as_array()

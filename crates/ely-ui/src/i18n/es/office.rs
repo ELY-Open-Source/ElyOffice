@@ -121,6 +121,11 @@ pub(super) const ES: &[(&str, &str)] = &[
         "office.sections",
         "{name} contiene secciones de diapositivas que Ely no puede conservar. Guardar como crea una copia {formats} sin ellas; el original conserva sus secciones.",
     ),
+    ("office.links.saved", "{name} está vinculado a otros archivos. Muestra lo que contenían cuando se guardó {name}."),
+    ("office.links.missing", "{name} está vinculado a otros archivos. Muestra lo que contenían cuando se guardó {name}. No se encontró: {sources}"),
+    ("office.links.failed", "Algunos vínculos de {name} no se actualizaron: {sources}"),
+    ("office.links.changed", "Un archivo vinculado cambió después de la última actualización: {sources}"),
+    ("office.links.update", "Actualizar vínculos"),
     (
         "office.repaired",
         "{name} está dañado. Ely abrió una copia reparada; Guardar como la escribe en un archivo nuevo y conserva el original dañado.",

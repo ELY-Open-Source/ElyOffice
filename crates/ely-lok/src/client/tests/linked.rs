@@ -1,0 +1,120 @@
+//! LOK-11: links keep saved values until the user asks.
+
+use std::path::Path;
+
+use super::analysis::{cells, skip};
+use super::input::{paragraphs, saved};
+use super::sheet::open_book;
+use super::*;
+use crate::links;
+
+/// A one-sheet book whose S1.A1 holds `value`.
+fn book(value: u32) -> String {
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+ <office:body><office:spreadsheet><table:table table:name="S1"><table:table-row>
+ <table:table-cell office:value-type="float" office:value="{value}"/></table:table-row></table:table>
+ </office:spreadsheet></office:body>
+</office:document>"#
+    )
+}
+
+fn rates(path: &Path, value: u32) {
+    std::fs::write(path, book(value)).expect("writes the source");
+}
+
+fn update(worker: &mut Worker, doc: &Doc) -> Vec<String> {
+    links::failed(&worker.values(doc, links::UPDATE).expect("updates")).expect("parses")
+}
+
+#[test]
+fn a_book_reads_its_source_only_when_asked() {
+    if skip() {
+        return;
+    }
+    let (dir, mut worker, reader) = open_book(&book(0));
+    let source = dir.path().join("source.fods");
+    rates(&source, 1);
+    let formula = format!("='{}/[source.fods]S1'!A1", dir.path().display());
+    worker.run(&reader, "cell.goto", &["H1"]).expect("H1");
+    worker.run(&reader, "cell.enter", &[&formula]).expect("the link");
+    assert_eq!(cells(&mut worker, &reader, "H1"), "1");
+    let saved = dir.path().join("reader.xlsx");
+    reader.save_as(&mut worker, &crate::file_url(&saved), "xlsx").expect("saves");
+    rates(&source, 2);
+    // The linking book stays open with its own copy.
+    let book = worker.load(&crate::file_url(&saved)).expect("reloads");
+    assert_eq!(cells(&mut worker, &book, "H1"), "1", "opening shows the saved value");
+    let named = links::sources(&worker.values(&book, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, [crate::file_url(&source)]);
+    assert_eq!(update(&mut worker, &book), Vec::<String>::new());
+    assert_eq!(cells(&mut worker, &book, "H1"), "2", "an update reads the source");
+    rates(&source, 3);
+    assert_eq!(cells(&mut worker, &book, "H1"), "2", "a later save waits for the user");
+    assert_eq!(update(&mut worker, &book), Vec::<String>::new());
+    assert_eq!(cells(&mut worker, &book, "H1"), "3", "a second update reads it again");
+    std::fs::remove_file(&source).expect("the source goes");
+    assert_eq!(update(&mut worker, &book), [crate::file_url(&source)], "the failed source is named");
+    assert_eq!(cells(&mut worker, &book, "H1"), "3", "a missing source keeps the value");
+}
+
+/// A document whose section links `include`, showing `cached`.
+fn linking(path: &Path, include: &Path, cached: &str) {
+    let href = crate::file_url(include);
+    let xml = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"
+ office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:body><office:text><text:p>Before</text:p>
+ <text:section text:name="S"><text:section-source xlink:href="{href}" xlink:type="simple"/>
+ <text:p>{cached}</text:p></text:section><text:p>After</text:p></office:text></office:body>
+</office:document>"#
+    );
+    std::fs::write(path, xml).expect("writes the document");
+}
+
+/// A text document of one paragraph.
+fn included(path: &Path, said: &str) {
+    let xml = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:body><office:text><text:p>{said}</text:p></office:text></office:body>
+</office:document>"#
+    );
+    std::fs::write(path, xml).expect("writes the source");
+}
+
+fn text(dir: &tempfile::TempDir, worker: &mut Worker, doc: &Doc) -> Vec<String> {
+    paragraphs(&saved(dir, worker, doc, "read.fodt"))
+}
+
+#[test]
+fn a_linked_section_reads_its_file_only_when_asked() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let install = install().expect("the pinned LOK build");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let (main, include) = (dir.path().join("main.fodt"), dir.path().join("include.fodt"));
+    linking(&main, &include, "Cached");
+    included(&include, "One");
+    let doc = worker.load(&crate::file_url(&main)).expect("loads");
+    assert_eq!(text(&dir, &mut worker, &doc), ["Before", "Cached", "After"], "opening shows the saved text");
+    let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, [crate::file_url(&include)]);
+    assert_eq!(update(&mut worker, &doc), Vec::<String>::new());
+    assert_eq!(text(&dir, &mut worker, &doc), ["Before", "One", "After"], "an update reads the file");
+    included(&include, "Two");
+    assert_eq!(text(&dir, &mut worker, &doc), ["Before", "One", "After"], "a later save waits for the user");
+    assert_eq!(update(&mut worker, &doc), Vec::<String>::new());
+    assert_eq!(text(&dir, &mut worker, &doc), ["Before", "Two", "After"]);
+    std::fs::remove_file(&include).expect("the file goes");
+    assert_eq!(update(&mut worker, &doc), [crate::file_url(&include)], "the failed file is named");
+    assert_eq!(text(&dir, &mut worker, &doc), ["Before", "Two", "After"], "a missing file keeps the text");
+}

@@ -6,6 +6,8 @@ import re
 import subprocess
 import time
 
+import drive
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 APPS = {"ely-doc": "ElyDoc", "ely-table": "ElyTable", "ely-show": "ElyShow", "ely-pdf": "ElyPDF",
         "ely-mail": "ElyMail", "ely-tree": "ElyTree", "ely-mark": "ElyMark"}
@@ -86,6 +88,24 @@ class App:
                 return (time.monotonic() - self.start) * 1000
             time.sleep(0.01)
         raise self.failed(pattern, timeout)
+
+    def said(self, *words, timeout=300):
+        """What the app's command line answers to `words`."""
+        out = subprocess.run([HOST.exe(self.slug, True), *words], env=self.env, capture_output=True, text=True,
+                             timeout=timeout, creationflags=drive.QUIET)
+        if out.returncode:
+            raise RuntimeError(f"{' '.join(words[:2])}: exit {out.returncode}: {out.stderr.strip()[:200]}")
+        return out.stdout
+
+    def update_links(self):
+        """Presses the banner's Update links once shown (LOK-11)."""
+        since, until = len(self.lines()), time.monotonic() + 60
+        while not HOST.shows(self.process.pid, "Update links"):
+            if time.monotonic() > until:
+                raise RuntimeError(f"{self.slug}: no Update links button in 60 s")
+            time.sleep(0.2)
+        HOST.press(self.process.pid, "Update links")
+        self.wait(r"links updated", timeout=120, since=since)
 
     def answer(self, pattern, sent, since, timeout=30):
         """Ms from the input `sent` to its answer, by clock."""
