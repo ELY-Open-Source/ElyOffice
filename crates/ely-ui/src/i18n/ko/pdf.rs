@@ -1,6 +1,9 @@
 //! Korean pdf messages.
 
 pub(super) const KO: &[(&str, &str)] = &[
+    ("pdf.page.go_to", "페이지로 이동"),
+    ("pdf.page.total", "/ {count}"),
+    ("pdf.reading.failed", "저장된 읽기 위치에 접근할 수 없습니다: {error}"),
     ("pdf.failed", "{what} 실패: {error}"),
     ("pdf.status.page", "{count}페이지 중 {n}페이지"),
     ("pdf.copy", "복사"),

@@ -2473,6 +2473,7 @@ dependencies = [
  "gpui-pre",
  "image",
  "log",
+ "serde_json",
  "tempfile",
 ]
 

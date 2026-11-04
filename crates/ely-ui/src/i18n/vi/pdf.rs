@@ -1,6 +1,9 @@
 //! Vietnamese PDF messages.
 
 pub(super) const VI: &[(&str, &str)] = &[
+    ("pdf.page.go_to", "Đi đến trang"),
+    ("pdf.page.total", "trên {count}"),
+    ("pdf.reading.failed", "Không thể truy cập vị trí đọc đã lưu: {error}"),
     ("pdf.failed", "Không thể {what}: {error}"),
     ("pdf.status.page", "Trang {n} trên {count}"),
     ("pdf.copy", "Sao chép"),

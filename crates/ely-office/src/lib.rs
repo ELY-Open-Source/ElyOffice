@@ -75,6 +75,8 @@ pub trait Host: Sized + 'static {
     fn core_mut(&mut self) -> &mut Core<Self>;
     /// Runs when the kernel reports on tab `id`.
     fn observed(&mut self, id: u64, view: &Entity<View<Self>>, cx: &mut Context<Self>);
+    /// Runs after a loaded tab joins the window.
+    fn tab_opened(&mut self, _id: u64, _: &mut Context<Self>) {}
     /// Runs before a search first moves the cursor.
     fn search_leaves(&mut self, _: &mut Context<Self>) {}
     /// Runs as a quit starts, before any tab closes.

@@ -10,6 +10,7 @@ mod document;
 mod editing;
 mod edits;
 mod engine;
+mod history;
 mod keys;
 mod layout;
 mod links;

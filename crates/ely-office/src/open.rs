@@ -296,6 +296,7 @@ pub trait Opening: Host {
         if front {
             self.core_mut().landed_front(id);
         }
+        self.tab_opened(id, cx);
         // Points from now on; a crash copy comes back unsaved.
         let tab = self.tab(id).expect("just opened");
         let (named, size) = (tab.name.clone(), tab.session.fingerprint().map(|print| print.len));

@@ -1,6 +1,9 @@
 //! Spanish PDF messages.
 
 pub(super) const ES: &[(&str, &str)] = &[
+    ("pdf.page.go_to", "Ir a la página"),
+    ("pdf.page.total", "de {count}"),
+    ("pdf.reading.failed", "No se pudo acceder a la posición de lectura guardada: {error}"),
     ("pdf.failed", "Error al {what}: {error}"),
     ("pdf.status.page", "Página {n} de {count}"),
     ("pdf.copy", "Copiar"),

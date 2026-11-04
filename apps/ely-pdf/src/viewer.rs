@@ -7,8 +7,10 @@ use std::{
 
 use ely_gpui_component::{
     feedback::EmptyState,
+    forms::NumberInput,
     primitives::IconName,
     shell::{StatusBar, StatusBarItem, ZoomControl},
+    theme::ControlSize,
 };
 use ely_office::{Core, Host, Kind, prelude::*};
 use ely_platform::AppId;
@@ -70,6 +72,14 @@ impl Host for Viewer {
 
     fn read_at(&self, tab: u64, cx: &gpui::App) -> Option<ely_pdf_engine::Doc> {
         self.tab(tab).map(|tab| tab.view.read(cx).doc)
+    }
+
+    fn tab_opened(&mut self, id: u64, cx: &mut Context<Self>) {
+        self.restore_reading_page(id, cx);
+    }
+
+    fn tab_closed(&mut self, tab: &ely_office::Tab<(), Pdf>, cx: &mut Context<Self>) {
+        self.keep_reading_page(tab, cx);
     }
 
     fn observed(&mut self, id: u64, view: &Entity<PdfView>, cx: &mut Context<Self>) {
@@ -208,10 +218,23 @@ impl Viewer {
         let Some(view) = self.active_view() else {
             return StatusBar::new().left(state);
         };
-        let view = view.read(cx);
-        let (n, count) = ((view.current + 1).to_string(), view.sizes.len().to_string());
-        let page = Self::text(cx, "pdf.status.page", &[("n", &n), ("count", &count)]);
-        let percent = view.percent();
+        let (current, count, percent) = {
+            let view = view.read(cx);
+            (view.current + 1, view.sizes.len(), view.percent())
+        };
+        let page = NumberInput::new(("pdf-page", view.entity_id()), current as f64)
+            .range(1.0, count as f64)
+            .size(ControlSize::Sm)
+            .label(Self::text(cx, "pdf.page.go_to", &[]))
+            .on_commit(move |value, _, cx| {
+                view.update(cx, |view, cx| {
+                    if value.is_finite() && !view.sizes.is_empty() {
+                        let page = (value.round() as usize).clamp(1, view.sizes.len()) - 1;
+                        view.show(page, 0.0, cx);
+                    }
+                });
+            });
+        let total = Self::text(cx, "pdf.page.total", &[("count", &count.to_string())]);
         let this = cx.entity().downgrade();
         let zoom = ZoomControl::new("pdf-zoom").owned(percent, move |step, _, cx| {
             if let Err(error) = this.update(cx, |viewer, cx| crate::keys::zoom(viewer, step, cx)) {
@@ -220,7 +243,8 @@ impl Viewer {
         });
         StatusBar::new()
             .left(state)
-            .left(StatusBarItem::new("pdf-page").label(page))
+            .left(div().w_24().debug_selector(|| "pdf-page-input".into()).child(page))
+            .left(StatusBarItem::new("pdf-page-total").label(total))
             .right(div().debug_selector(|| "pdf-zoom".into()).child(zoom))
     }
 }
