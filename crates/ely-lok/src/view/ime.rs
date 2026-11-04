@@ -50,14 +50,10 @@ impl LokView {
             _ => (text.to_string(), 0),
         };
         self.send(Input::Text {
-            commit: false,
             text: composed.clone(),
+            ends: composed.is_empty(),
         });
         if composed.is_empty() {
-            self.send(Input::Text {
-                commit: true,
-                text: String::new(),
-            });
             self.marked = None;
             return;
         }
@@ -82,12 +78,8 @@ impl LokView {
             _ => text.to_string(),
         };
         self.send(Input::Text {
-            commit: false,
             text: committed,
-        });
-        self.send(Input::Text {
-            commit: true,
-            text: String::new(),
+            ends: true,
         });
         self.marked = None;
     }

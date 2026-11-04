@@ -337,8 +337,14 @@ impl Worker {
 
     /// `doc` as of now: commands by number use this revision.
     pub fn now(&mut self, doc: &Doc) -> io::Result<Doc> {
+        Ok(Doc { rev: self.state(doc)?.0, ..doc.clone() })
+    }
+
+    /// `doc`'s revision, tile generation, and whether the kernel is blind.
+    pub(crate) fn state(&mut self, doc: &Doc) -> io::Result<(u64, u64, bool)> {
         let payload = self.request(tag::REVISION, &Pack::new().u64(self.doc_id(doc)?).bytes())?;
-        Ok(Doc { rev: Unpack::new(&payload).u64()?, ..doc.clone() })
+        let mut unpack = Unpack::new(&payload);
+        Ok((unpack.u64()?, unpack.u64()?, unpack.u64()? != 0))
     }
 
     /// `doc`'s number here; another worker's document is refused.

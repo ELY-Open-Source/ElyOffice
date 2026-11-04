@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import unittest
 
+import feedback
 import load
 import loadfiles
 import richfiles
@@ -96,10 +97,10 @@ class Logs(unittest.TestCase):
                  "[x] ui: frames 30 (lost 1): draw p50 1.0 p95 2.0 max 3.0 ms; "
                  "dirty to shown p50 4.0 p95 5.0 max 6.0 ms; over 8.3 ms 0"]
         self.assertEqual(load.frames(lines), (150, 1, 7, 9.5, 20.0))
-        self.assertIsNone(load.frames(["[x] lok: edit to tile 5 ms"]))
+        self.assertIsNone(load.frames(["[x] lok: edit 3 text to tile 5 ms"]))
 
     def test_zoom_steps_are_exact(self):
-        self.assertEqual(load.zooms(["[x] lok: zoom 50%", "[x] lok: edit to tile 5 ms", "[x] lok: zoom 125%"]), [50, 125])
+        self.assertEqual(load.zooms(["[x] lok: zoom 50%", "[x] lok: edit 3 text to tile 5 ms", "[x] lok: zoom 125%"]), [50, 125])
         self.assertEqual(load.walk(0, 0), [])
         self.assertEqual(load.walk(2, 0), [50, 67])
         self.assertEqual(load.walk(9, 0)[-1], 400)
@@ -110,6 +111,26 @@ class Logs(unittest.TestCase):
         self.assertIsNotNone(load.frames_failed(None))
         self.assertIsNotNone(load.frames_failed((10, 0, 9, 20.0, 150.0)))
         self.assertIsNone(load.frames_failed((10, 0, 9, 20.0, 62.0)))
+
+    def test_typed_keys_are_timed_or_never_drew(self):
+        lines = ["[x] lok: edit 4 text to tile 12 ms", "[x] lok: edit 5 .uno:Bold to tile 3 ms",
+                 "[x] lok: edit 6 text.replace never drawn: the view is hidden", "[x] lok: edit 7 key to tile 30 ms"]
+        self.assertEqual(feedback.answers(lines, feedback.TILE), 2, "only typed keys answer")
+        with self.assertRaisesRegex(RuntimeError, "edit 8 key never drawn: it changed no tile"):
+            feedback.answers(lines + ["[x] lok: edit 8 key never drawn: it changed no tile"], feedback.TILE)
+
+    def test_each_typed_input_has_one_timing(self):
+        typed = ["[x] lok: input 3 text waited 0, took 1 ms", "[x] lok: input 4 text waited 0, took 1 ms"]
+        both = typed + ["[x] lok: edit 3 text to tile 12 ms", "[x] lok: edit 4 text to tile 30 ms"]
+        self.assertEqual(feedback.timed(both), [12, 30])
+        with self.assertRaisesRegex(RuntimeError, "never drew"):
+            feedback.timed(both[:3] + ["[x] lok: edit 4 text never drawn: it changed no tile"])
+        with self.assertRaisesRegex(RuntimeError, "gave timings"):
+            feedback.timed(typed)
+        with self.assertRaisesRegex(RuntimeError, "gave timings"):
+            feedback.timed(both + ["[x] lok: edit 4 text to tile 31 ms"])
+        with self.assertRaisesRegex(RuntimeError, "gave timings"):
+            feedback.timed([])
 
     def test_stalls_are_read(self):
         self.assertEqual(load.stalls(["[x] ui: the main thread was busy 140 ms", "[x] other"]), [140])

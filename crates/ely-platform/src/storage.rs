@@ -111,7 +111,12 @@ const LIMITS: &str = "recovery";
 
 /// `app`'s recovery limits; a bad entry is an error.
 pub fn limits(app: AppId) -> io::Result<Limits> {
-    limits_of(crate::settings::Store::app(app)?.read()?.get(LIMITS))
+    limits_in(&crate::settings::Store::app(app)?)
+}
+
+/// The recovery limits `store` holds.
+pub fn limits_in(store: &crate::settings::Store) -> io::Result<Limits> {
+    limits_of(store.read()?.get(LIMITS))
 }
 
 fn limits_of(saved: Option<&serde_json::Value>) -> io::Result<Limits> {

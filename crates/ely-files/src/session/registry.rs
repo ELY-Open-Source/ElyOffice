@@ -27,7 +27,7 @@ pub enum Open {
 
 /// The dedup key: canonical path plus file identity.
 #[derive(Clone, Debug)]
-struct Key {
+pub struct Key {
     canonical: PathBuf,
     id: Option<(u64, u64)>,
 }
@@ -79,9 +79,16 @@ pub(crate) fn file_id(_: &Path) -> io::Result<Option<(u64, u64)>> {
     Ok(None)
 }
 
+impl Key {
+    /// The file's real path.
+    pub fn path(&self) -> &Path {
+        &self.canonical
+    }
+}
+
 impl Sessions {
     /// The key of an existing file; missing fails loud.
-    fn key(path: &Path) -> io::Result<Key> {
+    pub fn key(path: &Path) -> io::Result<Key> {
         Ok(Key {
             canonical: dunce::canonicalize(path)?,
             id: file_id(path)?,
@@ -150,20 +157,75 @@ impl Sessions {
     }
 
     /// Session `id` now names the file at `path`.
-    pub fn track(&mut self, id: usize, path: &Path) -> io::Result<()> {
-        let key = Self::key(path)?;
+    pub fn track(&mut self, id: usize, key: Key) -> io::Result<Result<(), usize>> {
+        // Another session holding it keeps it alone.
+        if let Some(other) = self.holders(&key.canonical, key.id)?.into_iter().find(|other| *other != id) {
+            return Ok(Err(other));
+        }
         for entry in self.open.iter_mut().filter(|(_, _, have)| *have == id) {
             (entry.0, entry.1) = (key.canonical.clone(), key.id);
         }
-        Ok(())
+        Ok(Ok(()))
     }
 
-    /// Where session `id`'s file went in `dir`, if renamed there.
-    pub fn renamed_in(&self, id: usize, dir: &Path) -> io::Result<Option<PathBuf>> {
-        let had = self.open.iter().find(|(_, _, have)| *have == id);
-        let Some(had) = had.and_then(|(_, had, _)| *had) else {
-            return Ok(None);
-        };
+    /// The session of what `saved` wrote, else new.
+    pub fn adopt(&mut self, saved: &crate::Saved) -> io::Result<Open> {
+        if let Some(id) = self.held(&saved.path, saved.written.id)? {
+            return Ok(Open::Focus(id));
+        }
+        let id = self.next;
+        self.next += 1;
+        self.open.push((saved.path.clone(), saved.written.id, id));
+        Ok(Open::Fresh(id))
+    }
+
+    /// The session holding `path`; only `path` is read.
+    pub fn holding(&self, path: &Path) -> io::Result<Option<usize>> {
+        match Self::key(path) {
+            Ok(key) => self.held(&key.canonical, key.id),
+            // Missing mid-replace: its recorded path still holds it.
+            Err(error) if error.kind() == io::ErrorKind::NotFound => self.held(path, None),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// A recorded path or file identity, matched in memory.
+    fn held(&self, canonical: &Path, id: Option<FileId>) -> io::Result<Option<usize>> {
+        Ok(self.holders(canonical, id)?.first().copied())
+    }
+
+    /// Paths match as their folder compares names.
+    fn holders(&self, canonical: &Path, id: Option<FileId>) -> io::Result<Vec<usize>> {
+        let mut found = Vec::new();
+        for (have, had, session) in &self.open {
+            if (id.is_some() && *had == id) || crate::same_name(have, canonical)? {
+                found.push(*session);
+            }
+        }
+        Ok(found)
+    }
+
+    /// Session `id`'s path now holds file `file`, as read.
+    pub fn replaced(&mut self, id: usize, file: Option<FileId>) {
+        for entry in self.open.iter_mut().filter(|(_, _, have)| *have == id) {
+            entry.1 = file;
+        }
+    }
+
+    /// Session `id` names what `saved` wrote; no disk read.
+    pub fn saved(&mut self, id: usize, saved: &crate::Saved) {
+        for entry in self.open.iter_mut().filter(|(_, _, have)| *have == id) {
+            (entry.0, entry.1) = (saved.path.clone(), saved.written.id);
+        }
+    }
+
+    /// The file identity session `id` last recorded.
+    pub fn identity_of(&self, id: usize) -> Option<FileId> {
+        self.open.iter().find(|(_, _, have)| *have == id).and_then(|(_, had, _)| *had)
+    }
+
+    /// The entry of `dir` that is file `had`, renamed there.
+    pub fn renamed_in(had: FileId, dir: &Path) -> io::Result<Option<PathBuf>> {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             // A link to the file is not the file.
@@ -202,7 +264,7 @@ mod tests {
         std::fs::rename(&a, &b).expect("renames");
         // Opened in the gap: the same file, so focus.
         assert_eq!(sessions.open(&b, false).expect("opens"), Open::Focus(id));
-        sessions.track(id, &b).expect("moves");
+        sessions.track(id, Sessions::key(&b).expect("the key")).expect("compares").expect("moves");
         assert_eq!(sessions.open(&b, false).expect("opens"), Open::Focus(id));
         sessions.close(id);
         assert!(matches!(
@@ -227,7 +289,7 @@ mod tests {
         // An atomic save: a new file takes the name.
         std::fs::write(&temp, "saved").expect("writes");
         std::fs::rename(&temp, &a).expect("replaces");
-        sessions.track(id, &a).expect("tracks");
+        sessions.track(id, Sessions::key(&a).expect("the key")).expect("compares").expect("tracks");
         std::fs::rename(&a, &b).expect("renames");
         assert_eq!(sessions.open(&b, false).expect("opens"), Open::Focus(id));
     }

@@ -97,7 +97,7 @@ impl Render for LokView {
                         }
                     },
                     move |bounds, painted, window, app| {
-                        let mut drawn = false;
+                        let (mut drawn, mut failed) = (false, false);
                         for page in &painted.pages {
                             window.paint_quad(fill(*page, paper));
                             window.with_content_mask(
@@ -116,18 +116,20 @@ impl Render for LokView {
                                             )
                                         });
                                         match painted {
-                                            Ok(()) => {
-                                                drawn = true;
-                                                let tile = Arc::as_ptr(image) as usize;
-                                                if this.read(app).clock.awaits(tile) {
-                                                    this.update(app, |view, _| view.clock.drawn(tile));
-                                                }
+                                            Ok(()) => drawn = true,
+                                            Err(error) => {
+                                                failed = true;
+                                                log::error!("lok: tile paint failed: {error}")
                                             }
-                                            Err(error) => log::error!("lok: tile paint failed: {error}"),
                                         }
                                     }
                                 },
                             );
+                        }
+                        if let Some(generation) = painted.shows.filter(|_| !failed)
+                            && this.read(app).clock.waiting()
+                        {
+                            this.update(app, |view, _| view.clock.drawn(generation));
                         }
                         if drawn && !this.read(app).drawn {
                             this.update(app, |view, _| view.drawn = true);
@@ -233,6 +235,8 @@ pub(super) struct Painted {
     pub(super) marks: Vec<(Bounds<Pixels>, gpui::Hsla)>,
     /// A held table border's guide line.
     pub(super) guide: Option<Bounds<Pixels>>,
+    /// The generation a whole screen shows; None while waiting.
+    pub(super) shows: Option<u64>,
 }
 
 impl LokView {
@@ -350,11 +354,15 @@ impl LokView {
         }
         self.keep_near((vw, vh));
         self.reveal_if_whole();
+        self.clock.showing();
         self.want(vh / TILE_TWIPS + 1, extent);
         let ready = slots
             .into_iter()
             .filter_map(|(key, place, clip)| self.tiles.get(&key).map(|tile| (place, Arc::clone(&tile.image), clip)))
             .collect();
+        // A failed tile leaves the screen short.
+        let fresh = self.on_screen.iter().all(|key| self.tiles.get(key).is_some_and(|tile| !tile.stale));
+        let shows = fresh.then_some(self.generation);
         let (pages, tiles) = self.screen(bounds.origin, pages, ready);
         let rect = |rect: Rect| self.screen_rect(rect);
         let caret = self.text_caret(self.seen()).filter(|_| self.cursor_visible);
@@ -378,6 +386,7 @@ impl LokView {
             frame,
             marks: self.marks(),
             guide: self.guide(),
+            shows,
         }
     }
 }

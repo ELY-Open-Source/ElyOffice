@@ -18,8 +18,14 @@ tempfile.workspace = true
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
 
+[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
+unicode-normalization.workspace = true
+
 [target.'cfg(windows)'.dependencies]
-windows-sys.workspace = true
+windows-sys = { workspace = true, features = ["Win32_System_SystemServices"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-foundation.workspace = true
 
 [dependencies.keyring]
 version = "3"

@@ -28,6 +28,9 @@ pub enum Source<I> {
     Import(PathBuf, Arc<Vec<u8>>, I),
 }
 
+/// A load read off the window: risk, work dir, session.
+type Prepared<L> = (L, Option<crate::Risk>, Option<(PathBuf, Session)>);
+
 pub trait Opening: Host {
     /// An untitled copy of a local template.
     fn new_from_file(&mut self, template: &Path, cx: &mut Context<Self>) {
@@ -77,6 +80,12 @@ pub trait Opening: Host {
 
     /// Opens a user file with its password.
     fn open_with(&mut self, path: PathBuf, password: String, cx: &mut Context<Self>) {
+        // A Save As writing there owns the file already.
+        if let Some(id) = crate::save::writer(&self.core().tabs, &path) {
+            log::info!("{}: tab {id} is saving as the file asked; it takes focus", Self::KIND.app.slug());
+            self.core_mut().active = Some(id);
+            return cx.notify();
+        }
         match self.core_mut().sessions.open(&path, false) {
             Ok(Open::Focus(registry)) => {
                 let core = self.core_mut();
@@ -152,7 +161,7 @@ pub trait Opening: Host {
         self.core_mut().asked_front(id);
         cx.notify();
         crate::Stopping::watch_slow(self, id, cx);
-        let worker = Arc::clone(&self.core().worker);
+        let (worker, root) = (Arc::clone(&self.core().worker), self.core().work.clone());
         let slug = Self::KIND.app.slug();
         log::info!("{slug}: tab {id} load queued");
         cx.spawn(async move |this, cx| {
@@ -163,18 +172,32 @@ pub trait Opening: Host {
                         None => files::check_package(&written)?,
                     }
                     let asked = std::time::Instant::now();
-                    ely_lok::behind(&worker, move |worker| {
+                    let reading = written.clone();
+                    let loaded = ely_lok::behind(&worker, move |worker| {
                         log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
                         let from = match &text {
-                            None => Load::File(&written, &password),
-                            Some((_, how)) => Load::Import(&written, how),
+                            None => Load::File(&reading, &password),
+                            Some((_, how)) => Load::Import(&reading, how),
                         };
                         let began = std::time::Instant::now();
                         let loaded = Self::Engine::load(worker, from);
                         log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());
                         loaded
                     })
-                    .await
+                    .await?;
+                    // The file's risks and session are read here too.
+                    let risk = match files::macro_risk(&Self::KIND, &written)? {
+                        true => Some(crate::Risk::Macros),
+                        false => files::section_risk(&Self::KIND, &written)?.or_else(|| Self::Engine::risk(&loaded)),
+                    };
+                    let kept = match registry {
+                        Some(_) => {
+                            let session = Session::load(written.clone())?;
+                            Some((files::work_dir(&root, id)?, session))
+                        }
+                        None => None,
+                    };
+                    Ok((loaded, risk, kept))
                 })
                 .await;
             in_window(&this, cx, |host, window, cx| {
@@ -188,7 +211,7 @@ pub trait Opening: Host {
         &mut self,
         id: u64,
         source: Source<ImportOf<Self>>,
-        loaded: io::Result<<Self::Engine as Engine>::Loaded>,
+        loaded: io::Result<Prepared<<Self::Engine as Engine>::Loaded>>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -204,25 +227,17 @@ pub trait Opening: Host {
             Source::Copy(path) | Source::Import(path, ..) => (path, None, false),
             Source::Locked(path, _) => (path, None, true),
         };
-        let opened = loaded.and_then(|loaded| {
+        let opened = loaded.and_then(|(loaded, risk, kept)| {
             let began = std::time::Instant::now();
-            let risk = match files::macro_risk(&Self::KIND, &path)? {
-                true => Some(crate::Risk::Macros),
-                false => files::section_risk(&Self::KIND, &path)?.or_else(|| Self::Engine::risk(&loaded)),
-            };
-            let (work, session) = match registry {
-                Some(_) => (
-                    files::work_dir(&self.core().work, id)?,
-                    Session::load(path.clone())?,
-                ),
+            let (work, session) = match kept {
+                Some(kept) => kept,
                 None => {
                     let dir = path.parent().expect("a copy sits in its work dir");
                     (dir.to_path_buf(), Session::new_file())
                 }
             };
-            let read = began.elapsed().as_millis();
             let (doc, view, mark) = Self::Engine::open(&self.core().worker, loaded, window, cx)?;
-            log::info!("{}: tab {id} risk read in {read} ms, view in {} ms", Self::KIND.app.slug(), began.elapsed().as_millis() - read);
+            log::info!("{}: tab {id} view in {} ms", Self::KIND.app.slug(), began.elapsed().as_millis());
             Ok((doc, work, session, risk, view, mark))
         });
         let (doc, work, session, risk, view, mark) = match opened {
@@ -283,14 +298,14 @@ pub trait Opening: Host {
         }
         // Points from now on; a crash copy comes back unsaved.
         let tab = self.tab(id).expect("just opened");
-        let named = tab.name.clone();
+        let (named, size) = (tab.name.clone(), tab.session.fingerprint().map(|print| print.len));
         log::info!(
             "{}: opened {named} as tab {id}, risk {:?}, {} tabs open, in front {front}",
             Self::KIND.app.slug(),
             tab.risk,
             self.core().tabs.len()
         );
-        crate::Recovering::keep_tab(self, id, &named, tried, cx);
+        crate::Recovering::keep_tab(self, id, (&named, size), tried, cx);
         crate::Recovering::reopened(self, id, &path, cx);
         cx.notify();
     }

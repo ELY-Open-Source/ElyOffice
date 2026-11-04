@@ -219,6 +219,14 @@ def repainted(app, since):
     return f"; the engine took it and the screen redrew {after:.0f} ms later: the edit clock missed it"
 
 
+def keys_answered(app, since, recipe):
+    """Keys answered; one that never drew is no feedback."""
+    try:
+        return feedback.answers(app.lines()[since:], recipe.answer)
+    except RuntimeError as error:
+        raise NoFeedback(f"{app.slug}: {error}") from None
+
+
 def type_keys(app, recipe, count, busy=None):
     """Keys to feedback, `count` at least and while `busy` runs."""
     run.HOST.park(app.process.pid)
@@ -228,7 +236,7 @@ def type_keys(app, recipe, count, busy=None):
     while n < count or (busy is not None and busy.is_alive()):
         recipe.send(app.process.pid)
         until = time.monotonic() + KEY_WAIT
-        while sum(1 for line in app.lines()[since:] if re.search(recipe.answer, line)) <= n:
+        while keys_answered(app, since, recipe) <= n:
             if interfered(app, since):
                 break
             if time.monotonic() > until:

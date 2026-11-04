@@ -39,9 +39,11 @@ pub struct Desk {
     pub recent: Vec<PathBuf>,
     pub recent_file: PathBuf,
     /// A file asked to open at a line and column.
-    pub going: Option<(PathBuf, (usize, usize))>,
+    pub going: Option<(u64, (usize, usize))>,
     /// The path each tab last put in the recent list.
     pub remembered: HashMap<u64, PathBuf>,
+    /// Background list writes take turns.
+    pub recording: Arc<Mutex<()>>,
     pub(crate) side: Entity<crate::side::Side>,
     pub watcher: Option<notify::RecommendedWatcher>,
     /// The folders the watcher covers.
@@ -144,11 +146,10 @@ impl Host for Desk {
                 view.update(cx, |view, cx| view.moved(folder.to_path_buf(), cx));
             }
             self.track_recent(id, &path, cx);
-            let real = dunce::canonicalize(&path).ok();
             if self
                 .going
                 .as_ref()
-                .is_some_and(|(file, _)| Some(file) == real.as_ref())
+                .is_some_and(|(tab, _)| *tab == id)
                 && let Some((_, at)) = self.going.take()
             {
                 self.reveal_later(view.clone(), at, cx);
@@ -202,6 +203,7 @@ pub(crate) fn open_in(
             recent_file,
             going: None,
             remembered: HashMap::new(),
+            recording: Arc::default(),
             side,
             watcher: None,
             watched: Vec::new(),
