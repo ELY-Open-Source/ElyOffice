@@ -86,7 +86,7 @@ fn a_failed_input_still_reports_the_revision_it_reached() {
     assert_eq!(picture, Err("it failed"), "a failed edit is never timed");
 }
 
-/// A typed key knows the screen that shows it, painted or not.
+/// A typed key knows its screen, painted or not.
 #[test]
 fn a_key_knows_its_own_picture() {
     let Some(install) = crate::client::tests::install() else {

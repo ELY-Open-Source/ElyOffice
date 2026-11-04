@@ -311,7 +311,7 @@ fn an_edit_is_timed_by_the_first_whole_fresh_screen() {
             view.commit(None, "7");
         })
     });
-    // The key lands and its screen comes whole, not yet drawn.
+    // The key lands; its screen comes whole, undrawn.
     let mut ready = None;
     for _ in 0..200 {
         cx.run_until_parked();
