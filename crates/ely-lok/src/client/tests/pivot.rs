@@ -50,6 +50,11 @@ fn values_on_rows_keep_the_column_caption() {
 }
 
 #[test]
+fn values_on_rows_keep_the_file_s_data_caption() {
+    round_trip("pivot-values-named.xlsx", "pivot-values-named");
+}
+
+#[test]
 fn a_pivot_with_no_values_leaves_its_neighbour() {
     round_trip("pivot-empty.xlsx", "pivot-empty");
 }
