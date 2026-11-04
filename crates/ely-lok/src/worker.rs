@@ -56,6 +56,7 @@ pub fn run(
 fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Result<()> {
     let lok = Box::leak(Box::new(lok));
     pin(lok);
+    closing::watch()?;
     lok.register_callback(asked::on_kit);
     lok.register_any_input(waiting);
     unsafe {
