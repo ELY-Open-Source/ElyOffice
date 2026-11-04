@@ -43,7 +43,7 @@ pub(super) fn shown(styles: &[Builtin], name: &str, cx: &App) -> SharedString {
     unmarked(name).to_string().into()
 }
 
-// From LibreOffice 26.2.6 sw: SwStyleNameMapper, strings.hrc, translations.
+// LibreOffice 26.2.6: SwStyleNameMapper, strings.hrc and its translations.
 pub(super) static PARAGRAPH: [Builtin; 126] = [
     ("Standard", "Default Paragraph Style", "默认段落样式", "Estilo de párrafo predeterminado", "標準段落スタイル", "기본 단락 스타일", "Kiểu đoạn văn mặc định", "Style de paragraphe par défaut", "Standard"),
     ("Text body", "Body Text", "正文", "Cuerpo de texto", "本文", "본문", "Thân văn bản", "Corps de texte", "Fließtext"),
