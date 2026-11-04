@@ -78,9 +78,48 @@ fn a_failed_input_still_reports_the_revision_it_reached() {
     let doc = worker.load(&crate::file_url(&source)).expect("the book loads");
     // Nothing merged to split: the kernel refuses.
     let input = Input::Run { commands: vec![("cells.split", Vec::new())], at: None };
-    let (outcome, now) = run(&mut worker, &doc, input);
+    let (outcome, now, picture) = run(&mut worker, &doc, input);
     assert!(outcome.is_err(), "the split fails");
     let reached = worker.now(&doc).expect("the state");
     assert_eq!(now, Some(reached.rev), "the view learns the revision anyway");
     assert!(reached.rev > doc.rev, "the request counted");
+    assert_eq!(picture, Err("it failed"), "a failed edit is never timed");
+}
+
+/// A typed key knows its screen, painted or not.
+#[test]
+fn a_key_knows_its_own_picture() {
+    let Some(install) = crate::client::tests::install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let area = (0, 0, 3840, 3840);
+    let key = || Input::Text { text: "7".into(), ends: true };
+    for (name, body) in [("note.fodt", crate::client::tests::FODT), ("book.fods", crate::client::tests::input::FODS)] {
+        let source = dir.path().join(name);
+        std::fs::write(&source, body).expect("the fixture writes");
+        let doc = worker.load(&crate::file_url(&source)).expect("the document loads");
+        doc.visible_area(&mut worker, area, (64, 3840)).expect("the area sets");
+        crate::client::tests::click(&mut worker, &doc, 150, 150);
+        // Nothing painted: the kernel drops every invalidation.
+        let (outcome, _, picture) = run(&mut worker, &doc, key());
+        outcome.expect("the key posts");
+        let (_, now, blind) = worker.state(&doc).expect("the state");
+        assert!(blind, "{name}: an unpainted screen is blind");
+        let Ok(Some(shows)) = picture else { panic!("{name}: an unseen key never timed: {picture:?}") };
+        assert!(shows <= now, "{name}: the first paint shows the key");
+        for n in 0..10 {
+            // As the view: the dirtied screen repaints after each edit.
+            doc.paint_tile(&mut worker, area, (64, 64)).expect("a tile paints");
+            let (_, before, blind) = worker.state(&doc).expect("the state");
+            assert!(!blind, "{name} key {n}: a painted screen is seen");
+            let (outcome, _, picture) = run(&mut worker, &doc, key());
+            outcome.expect("the key posts");
+            let after = worker.state(&doc).expect("the state").1;
+            // Seen, its callbacks land inside its own request.
+            assert!(after > before, "{name} key {n} dirtied tiles");
+            assert_eq!(picture, Ok(Some(after)), "{name} key {n} saw its own callbacks");
+        }
+    }
 }

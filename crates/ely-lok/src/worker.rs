@@ -261,7 +261,7 @@ fn answer(lok: &Lok, tag: u8, id: u64, payload: &[u8]) {
                     doc.set_client_zoom(pixels, twips);
                     doc.set_visible_area(x, y, w, h)
                 })
-                .inspect(|_| crate::events::rescaled(id, (pixels, twips)))
+                .inspect(|_| { crate::events::rescaled(id, (pixels, twips)); crate::events::shown(id, (x, y, w, h)) })
             })
             .map(|()| Vec::new()),
         tag::SELECTION_TEXT => unpack

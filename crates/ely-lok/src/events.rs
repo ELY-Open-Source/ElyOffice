@@ -11,11 +11,13 @@ use crate::ffi::{Document, Raw};
 
 mod cell;
 mod kinds;
+mod painted;
 mod parse;
 mod text;
 #[cfg(test)]
 mod tests;
 pub use text::TextAnchors;
+pub use painted::{blind, painted, shown};
 pub use cell::{Cell, Function, Mark, Request, offered};
 use cell::{functions_of, marks_of, request_of, usage_of};
 pub use parse::A11y;
@@ -98,6 +100,7 @@ struct Slot {
     zoom: (i32, i32),
     /// A spreadsheet: its links carry the click position.
     sheet: bool,
+    painted: painted::Painted,
 }
 
 impl Slot {
@@ -167,7 +170,10 @@ fn record(slot: &mut Slot, kind: i32, text: &str) -> Option<u32> {
             batch.generation += 1;
             match rect_in(batch, "invalidation", text) {
                 Some(rect) => batch.rects.push(rect),
-                None => batch.all = true,
+                None => {
+                    batch.all = true;
+                    slot.painted.emptied(text);
+                }
             }
         }
         CURSOR => text::cursor(batch, text),

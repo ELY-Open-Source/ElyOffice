@@ -413,7 +413,6 @@ impl LokView {
             return;
         }
         self.generation = batch.generation;
-        self.clock.bumped(batch.revision, batch.generation);
         let rects = &batch.rects;
         for (&(kx, ky), tile) in &mut self.tiles {
             let (tx, ty) = (kx * TILE_TWIPS, ky * TILE_TWIPS);
@@ -468,9 +467,7 @@ impl LokView {
                     log::warn!("lok: a tile came back the wrong size");
                     return;
                 };
-                let image = Arc::new(RenderImage::new([Frame::new(image)]));
-                self.clock.painted(tile.generation, Arc::as_ptr(&image) as usize);
-                self.land(key, image);
+                self.land(key, Arc::new(RenderImage::new([Frame::new(image)])));
                 cx.notify();
             }
             Ok(tile) => {

@@ -9,7 +9,9 @@ import time
 import run
 import search
 
-TILE = r"lok: edit to tile (\d+) ms"
+# A typed key's time, or why it never drew.
+TILE = r"lok: edit \d+ (?:text|key) to tile (\d+) ms"
+NEVER = r"lok: edit \d+ (?:text|key) never drawn: .+"
 FRAME = r"ui: key_down to frame (\d+) ms"
 STALL = r"main thread was busy (\d+) ms"
 
@@ -71,6 +73,25 @@ def keys(work, found):
     ]
 
 
+def answers(lines, answer):
+    """Keys answered so far; a key that never drew raises."""
+    never = next((line for line in lines if re.search(NEVER, line)), None)
+    if never:
+        raise RuntimeError(f"a key never drew: {never[-90:]}")
+    return sum(1 for line in lines if re.search(answer, line))
+
+
+def timed(lines):
+    """One timing per typed input; else it raises."""
+    answers(lines, TILE)
+    times = [m.groups() for line in lines if (m := re.search(r"lok: edit (\d+) text to tile (\d+) ms", line))]
+    typed = [m.group(1) for line in lines if (m := re.search(r"lok: input (\d+) text waited", line))]
+    seqs = [seq for seq, _ in times]
+    if not typed or sorted(seqs) != sorted(typed):
+        raise RuntimeError(f"typed inputs {typed} gave timings {seqs}")
+    return [int(ms) for _, ms in times]
+
+
 def typing(work, recipe, runs):
     """Ms from each key to feedback; stalls over 100 ms."""
     home = recipe.home() if recipe.home else os.path.join(work, "home-typing-" + recipe.slug)
@@ -79,13 +100,14 @@ def typing(work, recipe, runs):
         app.wait(recipe.ready)
         app.front()
         recipe.into(app.process.pid)
-        time.sleep(1)
+        # Getting in takes keys too; they reach the next flush.
+        time.sleep(2.5)
         since = len(app.lines())
         for n in range(runs):
             recipe.send(app.process.pid)
             # Each key must show; a lost one fails the run.
             for _ in range(800):
-                if sum(1 for line in app.lines()[since:] if re.search(recipe.answer, line)) > n:
+                if answers(app.lines()[since:], recipe.answer) > n:
                     break
                 time.sleep(0.01)
             else:
@@ -107,3 +129,14 @@ def typing(work, recipe, runs):
         shutil.copy(app.log, kept)
         print(f"{recipe.slug}: main thread busy {stalls} ms; its log: {kept}")
     return ticks, stalls
+
+
+if __name__ == "__main__":
+    # lag.sh: a log and its first measured line.
+    import sys
+    with open(sys.argv[1], encoding="utf-8", errors="replace") as log:
+        measured = log.read().splitlines()[int(sys.argv[2]) - 1:]
+    try:
+        timed(measured)
+    except RuntimeError as error:
+        sys.exit(str(error))
