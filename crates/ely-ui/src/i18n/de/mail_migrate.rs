@@ -1,0 +1,27 @@
+//! German import and export messages.
+
+pub(super) const DE: &[(&str, &str)] = &[
+    ("mail.boxes.imported", "{name} (auf diesem Computer)"),
+    ("mail.eml.save", "Als EML speichern…"),
+    ("mail.eml.title", "Nachrichtendatei"),
+    ("mail.eml.unread", "Die Nachrichtendatei konnte nicht gelesen werden"),
+    ("mail.eml.unopened", "Die Nachrichtendatei wurde nicht geöffnet: {error}"),
+    ("mail.eml.unsaved", "Die Nachricht wurde nicht gespeichert: {error}"),
+    ("mail.eml.saved", "Gespeichert unter {path}"),
+    ("mail.eml.incomplete", "Diese Nachricht ist noch nicht vollständig hier. Sie wird heruntergeladen; speichern Sie sie erneut, wenn das fertig ist."),
+    ("mail.eml.pictures", "{n} Bilder aus dem Web werden aus einer Nachrichtendatei nicht geladen."),
+    ("mail.mbox.import", "MBOX importieren…"),
+    ("mail.mbox.importing", "„{name}“ wird importiert…"),
+    ("mail.mbox.imported", "{n} Nachrichten in „{name}“ auf diesem Computer importiert"),
+    ("mail.mbox.imported.one", "Eine Nachricht in „{name}“ auf diesem Computer importiert"),
+    ("mail.mbox.unimported", "Die MBOX-Datei wurde nicht importiert: {error}"),
+    ("mail.mbox.export", "Als MBOX exportieren…"),
+    ("mail.mbox.unexported", "Der Ordner wurde nicht exportiert: {error}"),
+    ("mail.mbox.partial", "{n} Nachrichten wurden ausgelassen: nur Kopfzeilen hier, Dateien nicht heruntergeladen oder rohe Binärteile, die MBOX verändern würde."),
+    ("mail.mbox.partial.one", "Eine Nachricht wurde ausgelassen: nur Kopfzeilen hier, Dateien nicht heruntergeladen oder rohe Binärteile, die MBOX verändern würde."),
+    ("mail.mbox.remove", "Importierten Ordner entfernen…"),
+    ("mail.mbox.remove_title", "„{name}“ entfernen?"),
+    ("mail.mbox.remove_message", "Seine Nachrichten werden von diesem Computer gelöscht. Kein Server hat sie."),
+    ("mail.mbox.remove_go", "Entfernen"),
+    ("mail.mbox.unremoved", "Der Ordner wurde nicht entfernt: {error}"),
+];

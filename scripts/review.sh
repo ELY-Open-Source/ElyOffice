@@ -60,10 +60,17 @@ herdr agent start "$name" --kind claude --pane "$pane" --timeout 120000 -- \
   --model claude-opus-5-5 --effort high --dangerously-skip-permissions \
   >/dev/null 2>&1 || fail "did not start claude"
 herdr agent prompt "$name" "$prompt" --wait --timeout 5400000 >/dev/null 2>&1 || fail "took no prompt or ran past 90 minutes"
-s=$(herdr agent get "$name" | field '.result.agent.agent_status') || fail "status unreadable"
-[ "$s" = done ] || [ "$s" = idle ] || fail "ended $s"
-
-head -n 1 "$verdict" 2>/dev/null | tr -d '\r' | grep -qxE 'PASS|FAIL' || fail "left no verdict at $verdict"
+# Claude idles while its own background runs work.
+for ((i = 0; ; i++)); do
+  s=$(herdr agent get "$name" | field '.result.agent.agent_status') || fail "status unreadable"
+  case $s in
+    done | idle) head -n 1 "$verdict" 2>/dev/null | tr -d '\r' | grep -qxE 'PASS|FAIL' && break ;;
+    working) ;;
+    *) fail "ended $s" ;;
+  esac
+  [ "$i" -lt 180 ] || fail "left no verdict at $verdict in 90 more minutes"
+  sleep 30
+done
 err=$(herdr pane close "$pane" 2>&1) || fail "did not close: $err"
 rm -f "$last"
 cat "$verdict"

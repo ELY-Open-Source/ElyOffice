@@ -1,0 +1,28 @@
+//! French mail organizing messages.
+
+pub(super) const FR: &[(&str, &str)] = &[
+    ("mail.act.read", "Marquer comme lu"),
+    ("mail.act.unread", "Marquer comme non lu"),
+    ("mail.act.flag", "Marquer d’un drapeau"),
+    ("mail.act.unflag", "Retirer le drapeau"),
+    ("mail.act.archive", "Archiver"),
+    ("mail.act.delete", "Supprimer"),
+    ("mail.act.restore", "Déplacer vers la boîte de réception"),
+    ("mail.act.move", "Déplacer vers"),
+    ("mail.organize.failed", "Non modifié : {error}"),
+    ("mail.organize.dropped", "{n} modifications n’ont pas été faites sur le serveur et sont annulées : {reason}"),
+    ("mail.organize.dropped.one", "Une modification n’a pas été faite sur le serveur et est annulée : {reason}"),
+    ("mail.organize.gone", "le message n’est plus sur le serveur"),
+    ("mail.organize.renumbered", "le dossier a été reconstruit sur le serveur"),
+    ("mail.organize.unsupported", "le serveur ne prend pas en charge {name}"),
+    ("mail.organize.unplaced", "le serveur a déplacé le message sans dire où"),
+    ("mail.organize.vanished", "le dossier {name} n’est plus sur le serveur"),
+    ("mail.erase.title", "Supprimer définitivement {n} messages ?"),
+    ("mail.erase.title.one", "Supprimer définitivement ce message ?"),
+    ("mail.erase.message", "Ils ne pourront pas être restaurés, ni ici ni sur le serveur."),
+    ("mail.erase.go", "Supprimer définitivement"),
+    ("mail.sync.waiting", "Modifications"),
+    ("mail.sync.waiting_value", "{n} modifications faites ici attendent le serveur"),
+    ("mail.sync.waiting_value.one", "Une modification faite ici attend le serveur"),
+    ("mail.sync.waiting_none", "Toutes les modifications sont sur le serveur"),
+];

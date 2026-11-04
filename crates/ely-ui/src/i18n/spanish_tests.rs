@@ -15,7 +15,7 @@ fn spanish_regions_and_posix_tags_select_spanish() {
     ] {
         assert_eq!(resolve(tag), "es-ES", "{tag}");
     }
-    for tag in ["est", "esx-PE", "zhx", "fr-FR"] {
+    for tag in ["est", "esx-PE", "zhx", "frx"] {
         assert_eq!(resolve(tag), "en-US", "{tag}");
     }
 }
