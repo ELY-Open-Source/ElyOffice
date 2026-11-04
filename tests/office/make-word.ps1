@@ -83,7 +83,10 @@ try {
         Add-Chart $sel $doc | Out-Null
         $sel.EndKey(6) | Out-Null
         $sel.TypeParagraph()
-        $sel.InlineShapes.AddPicture($png) | Out-Null
+        $picture = $sel.InlineShapes.AddPicture($png)
+        # Word sizes a picture by the display's scaling.
+        $picture.Width = 300.0419
+        $picture.Height = 225.0314
         $sel.TypeParagraph()
         $doc.Bookmarks.Add("chapter$s", $sel.Range) | Out-Null
         $doc.Hyperlinks.Add($sel.Range, 'https://office.elygpui.com', [Type]::Missing, [Type]::Missing, "Ely site $s") | Out-Null
