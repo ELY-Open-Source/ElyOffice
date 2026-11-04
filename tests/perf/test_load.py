@@ -83,6 +83,16 @@ class ReadBack(unittest.TestCase):
             "<sheetData></sheetData>", '<sheetData><row r="1"><c r="A1" t="e"><v>#VALUE!</v></c></row></sheetData>', 1)})
         self.assertFalse(richfiles.typed("ely-table", book, 3))
 
+    def test_a_big_book_keeps_its_saved_link_value(self):
+        loadfiles.sources(self.work)
+        book = os.path.join(self.work, "table-000-big.xlsx")
+        loadfiles.workbook(book, 40, linked=True, typing=True)
+        links = lambda: [p for p in richfiles.saved("ely-table", book, 0) if "Links!" in p]
+        self.assertEqual(links(), [])
+        loadfiles.rewrite(book, {"xl/worksheets/sheet4.xml": lambda xml: xml.replace(
+            f"<v>{loadfiles.RATES_CACHED[0]}</v>", f"<v>{loadfiles.RATES_NOW[0]}</v>", 1)})
+        self.assertEqual(links(), ["table-000-big.xlsx: Links!A1 shows the value it should failed"])
+
     def test_typed_keys_must_all_be_there(self):
         path = os.path.join(self.work, "front.md")
         with open(path, "w", encoding="utf-8") as note:
