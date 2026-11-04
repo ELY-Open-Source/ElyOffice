@@ -6,7 +6,7 @@ use ely_gpui_component::{
     motion,
     navigation::EditorTabs,
     primitives::FocusScope,
-    shell::{ResizeBorder, StatusBar, TitleBar},
+    shell::{ResizeBorder, StatusBar, TitleBar, Toolbar},
     theme::{ActiveTheme, TextSize},
 };
 use gpui::{
@@ -33,6 +33,7 @@ pub struct Shell {
     left: Option<AnyView>,
     right: Option<AnyView>,
     status: Option<StatusBar>,
+    toolbar: Option<Toolbar>,
     page: Option<ElementId>,
     main: bool,
     body: Vec<AnyElement>,
@@ -47,6 +48,7 @@ impl Shell {
             left: None,
             right: None,
             status: None,
+            toolbar: None,
             page: None,
             main: true,
             body: Vec::new(),
@@ -73,6 +75,12 @@ impl Shell {
     /// The selection's properties. None leaves no strip.
     pub fn right(mut self, view: Option<AnyView>) -> Self {
         self.right = view;
+        self
+    }
+
+    /// Document tools beneath the tabs, above both side panels.
+    pub fn toolbar(mut self, bar: Option<Toolbar>) -> Self {
+        self.toolbar = bar;
         self
     }
 
@@ -141,7 +149,8 @@ impl RenderOnce for Shell {
             )
             .children(self.main.then(|| crate::updates::updater(cx)).flatten())
             .children(self.main.then(|| menu_bar(cx)).flatten())
-            .children(self.tabs);
+            .children(self.tabs)
+            .children(self.toolbar);
         let chosen = (crate::settings::panels::shown(true, cx), crate::settings::panels::shown(false, cx));
         let (left_view, right_view) = (self.left.filter(|_| chosen.0), self.right.filter(|_| chosen.1));
         // Panels give way so the content keeps its room.

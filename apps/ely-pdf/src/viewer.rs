@@ -9,7 +9,7 @@ use ely_gpui_component::{
     feedback::EmptyState,
     forms::NumberInput,
     primitives::IconName,
-    shell::{StatusBar, StatusBarItem, ZoomControl},
+    shell::{StatusBar, StatusBarItem, Toolbar, ZoomControl},
     theme::ControlSize,
 };
 use ely_office::{Core, Host, Kind, prelude::*};
@@ -213,14 +213,11 @@ impl Viewer {
         .detach();
     }
 
-    fn status(&self, cx: &mut Context<Self>) -> StatusBar {
-        let state = StatusBarItem::new("pdf-state").label(self.save_state(cx));
-        let Some(view) = self.active_view() else {
-            return StatusBar::new().left(state);
-        };
-        let (current, count, percent) = {
+    fn page_toolbar(&self, cx: &mut Context<Self>) -> Option<Toolbar> {
+        let view = self.active_view()?;
+        let (current, count) = {
             let view = view.read(cx);
-            (view.current + 1, view.sizes.len(), view.percent())
+            (view.current + 1, view.sizes.len())
         };
         let page = NumberInput::new(("pdf-page", view.entity_id()), current as f64)
             .range(1.0, count as f64)
@@ -235,6 +232,22 @@ impl Viewer {
                 });
             });
         let total = Self::text(cx, "pdf.page.total", &[("count", &count.to_string())]);
+        let navigation = div()
+            .debug_selector(|| "pdf-page-navigation".into())
+            .flex()
+            .items_center()
+            .gap_2()
+            .child(div().w_24().debug_selector(|| "pdf-page-input".into()).child(page))
+            .child(total);
+        Some(Toolbar::new().justify_center().child(navigation))
+    }
+
+    fn status(&self, cx: &mut Context<Self>) -> StatusBar {
+        let state = StatusBarItem::new("pdf-state").label(self.save_state(cx));
+        let Some(view) = self.active_view() else {
+            return StatusBar::new().left(state);
+        };
+        let percent = view.read(cx).percent();
         let this = cx.entity().downgrade();
         let zoom = ZoomControl::new("pdf-zoom").owned(percent, move |step, _, cx| {
             if let Err(error) = this.update(cx, |viewer, cx| crate::keys::zoom(viewer, step, cx)) {
@@ -243,8 +256,6 @@ impl Viewer {
         });
         StatusBar::new()
             .left(state)
-            .left(div().w_24().debug_selector(|| "pdf-page-input".into()).child(page))
-            .left(StatusBarItem::new("pdf-page-total").label(total))
             .right(div().debug_selector(|| "pdf-zoom".into()).child(zoom))
     }
 }
@@ -259,6 +270,7 @@ impl Render for Viewer {
         };
         let shell = Shell::new(title, &self.core.focus)
             .tabs(self.tab_strip(cx))
+            .toolbar(self.page_toolbar(cx))
             .left(self.active_view().map(|_| self.side.clone().into()))
             .right(self.active_view().and_then(|view| view.read(cx).panel_aim()).map(|aim| match aim {
                 crate::content::Aim::Note(_) => self.note_panel.clone().into(),

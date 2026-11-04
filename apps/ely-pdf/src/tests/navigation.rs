@@ -1,4 +1,4 @@
-//! Page navigation through the status bar.
+//! Page navigation through the centered toolbar.
 
 use super::{file, frames, settle, shown, windowed};
 use crate::layout::Mode;
@@ -41,7 +41,7 @@ fn a_page_jump_reports_the_new_page_in_every_view_mode() {
         cx.update(|_, app| view.update(app, |view, cx| view.show(2, 0.0, cx)));
         frames(cx);
         assert_eq!(cx.update(|_, app| view.read(app).current), 2);
-        assert!(reports.get() > before, "the status bar hears the jump");
+        assert!(reports.get() > before, "the page field hears the jump");
     }
 }
 
@@ -55,6 +55,14 @@ fn typing_a_page_waits_for_enter_and_respects_the_document_range() {
     let view = shown(cx, &viewer);
     settle(cx, |app| view.read(app).room.size.width > px(100.0));
     frames(cx);
+    for width in [640.0, 1100.0] {
+        cx.simulate_resize(gpui::size(px(width), px(800.0)));
+        frames(cx);
+        let navigation = cx.debug_bounds("pdf-page-navigation").expect("page navigation");
+        let viewport = cx.update(|window, _| window.viewport_size());
+        assert!((navigation.center().x - viewport.width / 2.0).abs() < px(1.0));
+        assert!(navigation.bottom() <= cx.update(|_, app| view.read(app).room.top()));
+    }
     let input = cx.debug_bounds("pdf-page-input").expect("page field");
     cx.simulate_click(input.center(), Modifiers::none());
     cx.simulate_keystrokes("secondary-a");
