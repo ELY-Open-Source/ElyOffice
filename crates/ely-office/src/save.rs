@@ -57,6 +57,10 @@ pub trait Saving: Host {
 
     /// Saves in place at the next typing pause (R15.37).
     fn save(&mut self, id: u64, then: Option<After>, window: &mut Window, cx: &mut Context<Self>) {
+        // Save As asks first; nothing waits on typing.
+        if !self.tab(id).is_some_and(|tab| tab.session.path().is_some() && tab.risk.is_none()) {
+            return self.save_paused(id, then, window, cx);
+        }
         // A waiting save starts later: it covers this one.
         if then.is_none() && self.tab(id).is_some_and(|tab| tab.pausing > 0) {
             return log::info!("office: tab {id}'s save joins the one waiting");

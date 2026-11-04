@@ -32,6 +32,61 @@ fn run(cx: &TestAppContext) {
     panic!("the window never went idle");
 }
 
+/// Steps tasks until `done`; the clock never moves.
+#[track_caller]
+fn without_time(cx: &TestAppContext, done: impl Fn(&gpui::App) -> bool) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while std::time::Instant::now() < deadline {
+        if !cx.executor().tick() {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        if cx.update(|app| done(app)) {
+            return;
+        }
+    }
+    panic!("nothing happened without the clock moving");
+}
+
+#[test]
+fn a_save_that_asks_where_never_waits_for_a_pause() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "abc");
+    commit(&mut cx, &docs, "d");
+    without_time(&cx, |app| docs.read(app).tab(id).is_some_and(|tab| tab.view.read(app).settled()));
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_save(&ely_ui::commands::Save, window, cx));
+    let state = cx.update(|app| docs.read(app).tab(id).expect("the tab").state_key(app));
+    assert_ne!(state, "office.state.saving", "nothing is saved before a place is chosen");
+    without_time(&cx, |_| cx.did_prompt_for_new_path());
+}
+
+#[test]
+fn a_program_save_waiting_for_a_pause_hears_its_tab_close() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let (id, own, _) = typed_file(&mut cx, &docs, dir.path());
+    commit(&mut cx, &docs, "two");
+    run(&cx);
+    let (ask, answered) = ely_ui::Ask::for_tests(&serde_json::json!(["save", own.display().to_string()]).to_string());
+    cx.update(|app| docs.update(app, |docs, cx| docs.answer_request(ask, cx)));
+    run(&cx);
+    assert!(cx.update(|app| docs.read(app).tab(id).is_some_and(|tab| tab.pausing == 1)), "the save waits for a pause");
+    cx.update(|app| docs.update(app, |docs, cx| docs.close_tab(id, cx)));
+    cx.executor().advance_clock(Duration::from_secs(1));
+    run(&cx);
+    let answer = answered.try_recv().expect("answered once its pause ends");
+    assert!(answer.is_err_and(|why| why.contains("closed")), "the program hears the tab went");
+}
+
 #[test]
 fn a_key_after_a_save_goes_first_and_into_the_file() {
     let dir = tempfile::tempdir().expect("a temp dir");
