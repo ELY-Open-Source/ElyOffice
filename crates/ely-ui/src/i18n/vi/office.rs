@@ -15,6 +15,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("office.error.dialog", "Bộ máy đã mở một hộp thoại và Ely đã đóng nó: {title}"),
     ("office.error.dialog_said", "Bộ máy đã mở một hộp thoại và Ely đã đóng nó: {title}. Nội dung: {body}"),
     ("office.recovery.failed", "Chưa ghi được một bản sao khôi phục: {error}"),
+    ("office.recovery.too_big", "{name} vượt quá dung lượng khôi phục {limit} MB nên không có điểm khôi phục mới. Hãy lưu nhỏ hơn hoặc tăng dung lượng trong Cài đặt › Lưu trữ. Điểm khôi phục gần nhất: {at}."),
     ("office.recovery.off", "Bản sao khôi phục bị tắt trong lần chạy này: {error}"),
     ("office.recovery.lost", "Không khôi phục được {name}: {error}"),
     ("office.recovery.back", "{name}: nội dung chưa lưu từ {at} đã trở lại; vị trí con trỏ và lịch sử hoàn tác thì không"),

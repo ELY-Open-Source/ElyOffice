@@ -15,6 +15,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("office.error.dialog", "Le moteur a ouvert une boîte de dialogue qu’Ely a fermée : {title}"),
     ("office.error.dialog_said", "Le moteur a ouvert une boîte de dialogue qu’Ely a fermée : {title}. Elle disait : {body}"),
     ("office.recovery.failed", "Une copie de récupération n’a pas été écrite : {error}"),
+    ("office.recovery.too_big", "{name} dépasse son espace de récupération de {limit} Mo ; il ne reçoit donc plus de nouveaux points de récupération. Enregistrez-le plus petit ou agrandissez l’espace dans Paramètres › Stockage. Dernier point de récupération : {at}."),
     ("office.recovery.off", "Les copies de récupération sont désactivées pour cette session : {error}"),
     ("office.recovery.lost", "{name} n’a pas pu être récupéré : {error}"),
     ("office.recovery.back", "{name} : le contenu non enregistré de {at} est revenu ; le curseur et l’historique d’annulation non"),
