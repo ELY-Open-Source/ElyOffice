@@ -130,10 +130,9 @@ impl PdfView {
         if self.measured == self.sizes.len()
             && self.room.size.width > px(0.0)
             && self.room.size.height > px(0.0)
-            && let Some(page) = self.restore_page.take()
+            && let Some(reading) = self.restore_view.take()
         {
-            self.show(page.min(self.sizes.len().saturating_sub(1)), 0.0, cx);
-            cx.emit(Reported);
+            self.restore_reading(reading, cx);
         }
         let sf = window.scale_factor();
         let (sunken, paper) = (cx.theme().colors.sunken, gpui::white());
@@ -263,7 +262,8 @@ impl PdfView {
                 })
             })
             .on_scroll(cx.listener(|view, _, _, cx| {
-                view.restore_page = None;
+                view.restore_view = None;
+                view.layout_anchor = None;
                 cx.notify();
             }))
             .child(div().relative().w(px(laid.size.0)).h(px(laid.size.1)).children(pages));
@@ -272,8 +272,7 @@ impl PdfView {
             move |bounds, _, cx| {
                 this.update(cx, |view, cx| {
                     if view.room != bounds {
-                        view.room = bounds;
-                        cx.notify();
+                        view.resize_reading(bounds, cx);
                     }
                 })
             },

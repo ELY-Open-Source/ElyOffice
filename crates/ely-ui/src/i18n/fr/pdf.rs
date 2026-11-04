@@ -1,6 +1,8 @@
 //! French ElyPDF messages.
 
 pub(super) const FR: &[(&str, &str)] = &[
+    ("pdf.page.previous", "Page précédente"),
+    ("pdf.page.next", "Page suivante"),
     ("pdf.page.go_to", "Aller à la page"),
     ("pdf.page.total", "sur {count}"),
     ("pdf.reading.failed", "Impossible d’accéder à la position de lecture enregistrée : {error}"),

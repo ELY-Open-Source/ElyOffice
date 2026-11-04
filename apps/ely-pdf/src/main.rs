@@ -30,6 +30,7 @@ mod search;
 mod select;
 mod side;
 mod sign;
+mod toolbar;
 mod view;
 mod visible;
 mod viewer;

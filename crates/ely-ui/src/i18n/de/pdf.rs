@@ -1,6 +1,8 @@
 //! German ElyPDF messages.
 
 pub(super) const DE: &[(&str, &str)] = &[
+    ("pdf.page.previous", "Vorherige Seite"),
+    ("pdf.page.next", "Nächste Seite"),
     ("pdf.page.go_to", "Zur Seite springen"),
     ("pdf.page.total", "von {count}"),
     ("pdf.reading.failed", "Auf die gespeicherte Leseposition konnte nicht zugegriffen werden: {error}"),

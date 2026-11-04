@@ -58,7 +58,9 @@ fn typing_a_page_waits_for_enter_and_respects_the_document_range() {
     for width in [640.0, 1100.0] {
         cx.simulate_resize(gpui::size(px(width), px(800.0)));
         frames(cx);
-        let navigation = cx.debug_bounds("pdf-page-navigation").expect("page navigation");
+        let navigation = cx
+            .debug_bounds("pdf-page-navigation")
+            .expect("page navigation");
         let viewport = cx.update(|window, _| window.viewport_size());
         assert!((navigation.center().x - viewport.width / 2.0).abs() < px(1.0));
         assert!(navigation.bottom() <= cx.update(|_, app| view.read(app).room.top()));
@@ -87,4 +89,21 @@ fn typing_a_page_waits_for_enter_and_respects_the_document_range() {
         frames(cx);
         assert_eq!(cx.update(|_, app| view.read(app).current), expected);
     }
+    for (selector, expected) in [("pdf-previous", 0), ("pdf-next", 1), ("pdf-previous", 0)] {
+        let button = cx.debug_bounds(selector).expect("page button");
+        cx.simulate_click(button.center(), Modifiers::none());
+        frames(cx);
+        assert_eq!(cx.update(|_, app| view.read(app).current), expected);
+    }
+    for (selector, expected) in [
+        ("pdf-fit-page", crate::layout::Zoom::Page),
+        ("pdf-fit-width", crate::layout::Zoom::Width),
+    ] {
+        let button = cx.debug_bounds(selector).expect("fit button");
+        cx.simulate_click(button.center(), Modifiers::none());
+        frames(cx);
+        assert_eq!(cx.update(|_, app| view.read(app).zoom), expected);
+    }
+    let zoom = cx.debug_bounds("pdf-zoom").expect("zoom control");
+    assert!(zoom.bottom() <= cx.update(|_, app| view.read(app).room.top()));
 }
