@@ -16,6 +16,7 @@ fn book(value: u32) -> String {
  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
  <office:body><office:spreadsheet><table:table table:name="S1"><table:table-row>
  <table:table-cell office:value-type="float" office:value="{value}"/></table:table-row></table:table>
+ <table:named-expressions><table:named-range table:name="Rates" table:base-cell-address="$S1.$A$1" table:cell-range-address="$S1.$A$1"/></table:named-expressions>
  </office:spreadsheet></office:body>
 </office:document>"#
     )
@@ -178,6 +179,67 @@ fn a_dde_link_to_no_server_is_named_without_a_dialog() {
     assert_eq!(update(&mut worker, &doc), ["elynosuchapp|nofile"], "the failed server is named");
     let after = poll_until(&mut worker, &doc, &base, quiet, |seen| !seen.blocked.is_empty());
     assert!(after.blocked.is_empty(), "no dialog: {:?}", after.blocked);
+}
+
+#[test]
+fn an_empty_csv_area_keeps_its_cells() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let csv = dir.path().join("empty.csv");
+    std::fs::write(&csv, "").expect("the file");
+    let url = crate::file_url(&csv);
+    let cell = format!(
+        r#"<table:table-cell office:value-type="float" office:value="7"><table:cell-range-source table:name="CSV_all" xlink:type="simple" xlink:href="{url}" table:filter-name="Text - txt - csv (StarCalc)" table:last-column-spanned="1" table:last-row-spanned="1"/></table:table-cell>"#
+    );
+    missing_stays(&sheets("", &cell), &url, "7");
+}
+
+/// An area link to `area`, read every second.
+fn every_second(source: &Path, area: &str) -> String {
+    let url = crate::file_url(source);
+    let cell = format!(
+        r#"<table:table-cell office:value-type="float" office:value="7"><table:cell-range-source table:name="{area}" xlink:type="simple" xlink:href="{url}" table:filter-name="OpenDocument Spreadsheet Flat XML" table:last-column-spanned="1" table:last-row-spanned="1" table:refresh-delay="PT1S"/></table:table-cell>"#
+    );
+    sheets("", &cell)
+}
+
+/// Lets the kernel's timers run for five seconds.
+fn later(worker: &mut Worker, doc: &Doc) {
+    poll_until(worker, doc, &Events::default(), std::time::Duration::from_secs(5), |_| false);
+}
+
+#[test]
+fn a_refresh_interval_waits_for_the_user() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let source = dir.path().join("source.fods");
+    rates(&source, 1);
+    let (_dir, mut worker, doc) = open_book(&every_second(&source, "Rates"));
+    later(&mut worker, &doc);
+    assert_eq!(cells(&mut worker, &doc, "A1"), "7", "no timer reads before the user asks");
+    assert_eq!(update(&mut worker, &doc), Vec::<String>::new());
+    assert_eq!(cells(&mut worker, &doc, "A1"), "1");
+    rates(&source, 2);
+    later(&mut worker, &doc);
+    assert_eq!(cells(&mut worker, &doc, "A1"), "1", "a later save waits for the user");
+}
+
+#[test]
+fn a_refresh_interval_keeps_an_unread_source_unread() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let source = dir.path().join("source.fods");
+    rates(&source, 1);
+    let (_dir, mut worker, doc) = open_book(&every_second(&source, "S1.A1"));
+    assert_eq!(update(&mut worker, &doc), [crate::file_url(&source)]);
+    later(&mut worker, &doc);
+    assert_eq!(cells(&mut worker, &doc, "A1"), "7", "no timer overwrites the saved value");
 }
 
 /// A document whose section links `include`, showing `cached`.

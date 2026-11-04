@@ -10,10 +10,15 @@ update (LOK-11).
   holds every sheet or range it copies; otherwise it is named and its
   saved cells stay (Calc would overwrite them with "The link could not
   be updated" or nothing). ScAreaLink::FindExtRange is public for this.
+  A whole-CSV area (CSV_all) is read only when the CSV has cells.
   A DDE or WEBSERVICE link that fails is named;
   sources no formula has read yet are linked first, then the external
   references read. Calc's own "Allow updating" path is unchanged.
   Writer updates each link of the link manager.
+- Under LOK, Calc's refresh timers (a link's "Update every n seconds")
+  never start: only the client's request reads linked data, so an
+  unread source is not overwritten later and a later save waits.
+  The interval itself is kept and saved.
 - Writer skips a file link whose file is missing: a linked section
   would empty itself and keep nothing.
 - Calc read a source from any open document of that URL, the hidden
@@ -43,6 +48,28 @@ index cc5b6f8..6465d57 100644
      const OUString& GetFile() const         { return aFileName;     }
      const OUString& GetFilter() const       { return aFilterName;   }
      const OUString& GetOptions() const      { return aOptions;      }
+diff --git a/sc/source/core/tool/refreshtimer.cxx b/sc/source/core/tool/refreshtimer.cxx
+index 1ad6734..2e5b84b 100644
+--- a/sc/source/core/tool/refreshtimer.cxx
++++ b/sc/source/core/tool/refreshtimer.cxx
+@@ -19,6 +19,7 @@
+ 
+ #include <refreshtimer.hxx>
+ #include <refreshtimerprotector.hxx>
++#include <comphelper/lok.hxx>
+ 
+ void ScRefreshTimerControl::SetAllowRefresh( bool b )
+ {
+@@ -133,7 +134,8 @@ void ScRefreshTimer::Invoke()
+ 
+ void ScRefreshTimer::Launch()
+ {
+-    if ( GetTimeout() )
++    // Under LOK only the client's request reads data.
++    if ( GetTimeout() && !comphelper::LibreOfficeKit::isActive() )
+         AutoTimer::Start();
+ }
+ 
 diff --git a/sc/inc/document.hxx b/sc/inc/document.hxx
 index 7230b67..3f659f4 100644
 --- a/sc/inc/document.hxx
@@ -83,7 +110,7 @@ index 3dfa335..e16265d 100644
          INetURLObject aUrl(aFile,INetURLObject::EncodeMechanism::WasEncoded);
          aFile = aUrl.GetMainURL(INetURLObject::DecodeMechanism::Unambiguous);
 diff --git a/sc/source/ui/docshell/docsh4.cxx b/sc/source/ui/docshell/docsh4.cxx
-index 78810ce..08ad0b7 100644
+index 78810ce..9b932a4 100644
 --- a/sc/source/ui/docshell/docsh4.cxx
 +++ b/sc/source/ui/docshell/docsh4.cxx
 @@ -71,6 +71,13 @@
@@ -100,7 +127,7 @@ index 78810ce..08ad0b7 100644
  #include "docshimp.hxx"
  #include <docfunc.hxx>
  #include <scres.hrc>
-@@ -226,6 +233,120 @@ void ScDocShell::ReloadAllLinks()
+@@ -226,6 +233,125 @@ void ScDocShell::ReloadAllLinks()
      }
  }
  
@@ -148,8 +175,13 @@ index 78810ce..08ad0b7 100644
 +        return false;
 +    ScDocument& rSrc = *pLoader->GetDocument();
 +    OUString aArea = rLink.GetSource();
++    // Calc reads a whole CSV only when it has cells.
 +    if (rLink.GetFilter() == SC_TEXT_CSV_FILTER_NAME && aArea == "CSV_all")
-+        return true;
++    {
++        SCCOL nEndCol = 0;
++        SCROW nEndRow = 0;
++        return rSrc.GetCellArea(0, nEndCol, nEndRow);
++    }
 +    if (rLink.GetFilter() == ScDocShell::GetWebQueryFilterName())
 +        aArea = ScFormatFilter::Get().GetHTMLRangeNameList(rSrc, aArea);
 +    if (aArea.isEmpty())
