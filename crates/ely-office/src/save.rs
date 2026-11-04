@@ -292,9 +292,9 @@ pub trait Saving: Host {
                 tab.session.rebase(seen);
                 landing::export(self, id, format, then, Target::Own, cx);
             }
-            // Gone from disk: nothing there to lose.
+            // Gone: written new; a file made meanwhile conflicts.
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                landing::export(self, id, format, then, Target::Over, cx)
+                landing::export(self, id, format, then, Target::Gone, cx)
             }
             Err(error) => self.finish(id, Err(SaveError::Io(error)), None, then, window, cx),
         }

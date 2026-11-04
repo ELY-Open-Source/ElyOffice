@@ -13,8 +13,8 @@ use crate::{After, Closing as _, Engine, Risk, Tabs as _, Waiting, in_window};
 pub(super) enum Target {
     /// The open file; an outside change conflicts.
     Own,
-    /// Keep Mine: over the changed file.
-    Over,
+    /// Keep Mine over a gone file; never over a new one.
+    Gone,
     /// Save As here; `true` reopens what was written.
     As(PathBuf, bool),
 }
@@ -104,7 +104,7 @@ fn write<H: Saving>(
     };
     let begun = match &target {
         Target::Own => Write::save(landing.stamp, &mut tab.session),
-        Target::Over => Write::overwrite(landing.stamp, &mut tab.session),
+        Target::Gone => Write::anew(landing.stamp, &mut tab.session),
         Target::As(path, _) => Write::save_as(landing.stamp, &mut tab.session, path),
     };
     let write = match begun {

@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{SaveError, Saved, atomic_capable, resolved, same_file, save_atomic, save_with_backup, with_path};
+use super::{SaveError, Saved, atomic_capable, resolved, same_file, save_atomic, save_new, save_with_backup, with_path};
 use crate::{Fingerprint, SaveState, SaveTicket, Session, Stamp};
 
 /// What the disk must still hold before the write.
@@ -14,8 +14,8 @@ enum Check {
     Seen(Option<Fingerprint>),
     /// Save As: as `Seen` when the target is this file.
     Own(Option<PathBuf>, Option<Fingerprint>),
-    /// Keep Mine: whatever is there is replaced.
-    Over,
+    /// Keep Mine over a gone file: only a new one.
+    Gone,
 }
 
 /// A save begun on its session; `run` touches the disk.
@@ -76,12 +76,12 @@ impl Write {
         Ok(Write { ticket: ticket.of(stamp), path: path.to_path_buf(), check: Check::Own(own, seen) })
     }
 
-    /// Keep Mine in a conflict: over the changed file.
-    pub fn overwrite(stamp: Stamp, session: &mut Session) -> Result<Write, SaveError> {
+    /// Keep Mine over a gone file; one made meanwhile conflicts.
+    pub fn anew(stamp: Stamp, session: &mut Session) -> Result<Write, SaveError> {
         current(session, stamp)?;
         let path = session_path(session)?;
         let ticket = session.begin_save_overwrite().map_err(SaveError::Refused)?;
-        Ok(Write { ticket: ticket.of(stamp), path, check: Check::Over })
+        Ok(Write { ticket: ticket.of(stamp), path, check: Check::Gone })
     }
 
     /// Checks the disk, then writes `bytes`; off the UI thread.
@@ -97,24 +97,24 @@ impl Write {
 
     fn write(&self, bytes: &[u8], probe: impl FnOnce(&Path) -> io::Result<bool>) -> Result<Saved, SaveError> {
         let target = resolved(&self.path).map_err(SaveError::Io)?;
-        let backup = !probe(&target).map_err(SaveError::Io)?;
-        if backup {
-            log::warn!("files: {} sits on a non-atomic volume", target.display());
-        }
         let held = match &self.check {
+            Check::Gone => return self.write_new(target, bytes),
             Check::Seen(seen) => seen.map(|seen| (self.path.clone(), seen)),
             Check::Own(Some(own), Some(seen)) if is_own(own, &target)? => Some((own.clone(), *seen)),
             Check::Own(..) => {
                 log::info!("files: save as {}", target.display());
                 None
             }
-            Check::Over => None,
         };
         if let Some((path, seen)) = held
             && Fingerprint::of(&path).map_err(SaveError::Io)? != seen
         {
             log::warn!("files: save to {} meets an external change", target.display());
             return Err(SaveError::Conflict);
+        }
+        let backup = !probe(&target).map_err(SaveError::Io)?;
+        if backup {
+            log::warn!("files: {} sits on a non-atomic volume", target.display());
         }
         let revision = self.ticket.revision();
         let (written, backup) = match backup {
@@ -125,6 +125,20 @@ impl Write {
         // Writes keep `\\?\`; the session shows plain.
         let path = dunce::simplified(&target).to_path_buf();
         Ok(Saved { path, written, backup })
+    }
+
+    /// Nothing to keep aside: the rename never replaces.
+    fn write_new(&self, target: PathBuf, bytes: &[u8]) -> Result<Saved, SaveError> {
+        let written = match save_new(&target, bytes, self.ticket.revision()) {
+            Ok(written) => written,
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+                log::warn!("files: {} appeared before keep mine wrote", target.display());
+                return Err(SaveError::Conflict);
+            }
+            Err(error) => return Err(SaveError::Io(error)),
+        };
+        let path = dunce::simplified(&target).to_path_buf();
+        Ok(Saved { path, written, backup: None })
     }
 }
 
@@ -172,9 +186,4 @@ pub(crate) fn save(session: &mut Session, bytes: &[u8]) -> Result<Saved, SaveErr
 #[cfg(test)]
 pub(crate) fn save_as(session: &mut Session, path: &Path, bytes: &[u8]) -> Result<Saved, SaveError> {
     Write::save_as(session.stamp(), session, path)?.run(bytes).land(session)
-}
-
-#[cfg(test)]
-pub(crate) fn save_overwrite(session: &mut Session, bytes: &[u8]) -> Result<Saved, SaveError> {
-    Write::overwrite(session.stamp(), session)?.run(bytes).land(session)
 }

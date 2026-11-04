@@ -472,7 +472,8 @@ fn overwrite_resolves_a_conflict_with_the_local_version() {
         save(&mut session, b"local"),
         Err(SaveError::Conflict)
     ));
-    save_overwrite(&mut session, b"local").expect("keep-local overwrites");
+    session.rebase(Fingerprint::of(&own).expect("the fingerprint"));
+    save(&mut session, b"local").expect("keep-local overwrites");
     assert_eq!(read(&own), "local");
     assert_eq!(session.state(), SaveState::Saved);
 }
