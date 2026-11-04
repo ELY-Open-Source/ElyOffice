@@ -16,7 +16,7 @@ pub use crash::{Crash, Marker, alive};
 pub use key::{Backend, RecoveryKey};
 pub use names::same_name;
 pub use policy::{Action, DEBOUNCE, Policy, PolicyEngine};
-pub use recovery::{Recovery, RecoveryPoint, restore_copy};
+pub use recovery::{Recovery, RecoveryPoint, TooBig, restore_copy};
 pub use rename::rename_new;
 pub use task::RecoveryTask;
 pub use turns::Turns;

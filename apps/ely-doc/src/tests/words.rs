@@ -9,7 +9,9 @@ use crate::files::Template;
 use crate::merge::{Table, read_csv};
 
 /// A window root that keeps Docs' toasts.
-fn rooted(cx: &mut TestAppContext, docs: &Entity<Docs>) -> Entity<ely_ui::Root> {
+pub(super) fn rooted(cx: &mut TestAppContext, docs: &Entity<Docs>) -> Entity<ely_ui::Root> {
+    // Toasts read the theme when they time out.
+    cx.update(ely_gpui_component::init_for_tests);
     let window = cx.add_window(|_, _| Blank);
     let shown = VisualTestContext::from_window(window.into(), cx).into_mut();
     shown.update(|window, app| {

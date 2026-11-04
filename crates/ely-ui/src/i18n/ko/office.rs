@@ -15,6 +15,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("office.error.dialog", "엔진이 연 대화 상자를 Ely가 닫았습니다: {title}"),
     ("office.error.dialog_said", "엔진이 연 대화 상자를 Ely가 닫았습니다: {title}. 내용: {body}"),
     ("office.recovery.failed", "복구 사본을 쓰지 못했습니다: {error}"),
+    ("office.recovery.too_big", "{name}이(가) 복구 공간 {limit}MB를 넘어 새 복구 지점을 만들지 않습니다. 더 작게 저장하거나 설정 › 저장 공간에서 공간을 늘리세요. 마지막 복구 지점: {at}."),
     ("office.recovery.off", "이번 실행에서는 복구 사본이 꺼져 있습니다: {error}"),
     ("office.recovery.lost", "{name}을(를) 복구하지 못했습니다: {error}"),
     ("office.recovery.back", "{name}: {at}의 저장되지 않은 내용이 돌아왔습니다. 커서와 실행 취소 기록은 돌아오지 않았습니다"),
