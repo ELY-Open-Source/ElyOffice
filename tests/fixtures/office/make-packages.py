@@ -98,3 +98,13 @@ with open(os.path.join(sys.argv[1], "toc-native.fodt"), "w", encoding="utf-8", n
                  f'{AFTER}</office:text></office:body></office:document>\n')
 
 package("redline.docx", '<w:p><w:bookmarkStart w:id="0" w:name="Target"/><w:r><w:t>Target</w:t></w:r><w:bookmarkEnd w:id="0"/></w:p><w:p><w:r><w:t xml:space="preserve">See page </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGEREF Target \\h </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p><w:p><w:r><w:t xml:space="preserve">Kept </w:t></w:r><w:ins w:id="1" w:author="Word" w:date="2026-01-01T00:00:00Z"><w:r><w:t>added</w:t></w:r></w:ins><w:del w:id="2" w:author="Word" w:date="2026-01-01T00:00:00Z"><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>')
+
+
+def field(code, cached):
+    return (f'<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> {code} </w:instrText></w:r>'
+            f'<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>{cached}</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>')
+
+
+# INCLUDETEXT alone in its paragraph, and beside other text.
+INCLUDE = field('INCLUDETEXT "include.docx"', "Included before")
+package("includetext.docx", f'<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:p>{INCLUDE}</w:p><w:p><w:r><w:t xml:space="preserve">Beside </w:t></w:r>{INCLUDE}</w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>')

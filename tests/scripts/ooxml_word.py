@@ -1,5 +1,6 @@
 """Checks a saved DOCX's math and contents without LibreOffice."""
 import os
+import re
 import sys
 import zipfile
 
@@ -176,9 +177,46 @@ def toc_shape(path):
     ends_first(path)
 
 
+def marks(paragraph):
+    """A paragraph as field marks, code and text, pieces joined."""
+    out = []
+    for node in paragraph.iter():
+        if node.tag == ooxml.W + "fldChar":
+            out.append(node.get(ooxml.W + "fldCharType"))
+        elif node.tag in (ooxml.W + "instrText", ooxml.W + "t"):
+            kind = "code:" if node.tag == ooxml.W + "instrText" else "text:"
+            if out and out[-1].startswith(kind):
+                out[-1] += node.text or ""
+            else:
+                out.append(kind + (node.text or ""))
+    return out
+
+
+def included(path):
+    """INCLUDETEXT holds its paragraph, updated; text beside keeps it."""
+    with zipfile.ZipFile(path) as archive:
+        body = ooxml.xml(archive, ooxml.main_part(archive)).find(ooxml.W + "body")
+    shown = [marks(p) for p in body.iter(ooxml.W + "p") if marks(p)]
+    code = r'^code: ?INCLUDETEXT +"[^"]*include\.docx" *$'
+    if not ooxml.check(len(shown) == 4, f"four paragraphs, not {shown}"):
+        return
+    ooxml.check(shown[0] == ["text:Before"] and shown[3] == ["text:After"], f"Before and After stay outside: {shown}")
+    alone = shown[1]
+    ooxml.check(len(alone) == 5 and alone[0] == "begin" and re.match(code, alone[1]) and alone[2:] == ["separate", "text:Included after", "end"],
+                f"the field holds the updated paragraph: {alone}")
+    beside = shown[2]
+    ooxml.check(len(beside) == 6 and beside[0] == "text:Beside " and beside[1] == "begin" and re.match(code, beside[2])
+                and beside[3:] == ["separate", "text:Included before", "end"], f"the field beside text stays: {beside}")
+
+
 CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape, "toc-alone": toc_alone,
-         "toc-native": toc_native}
+         "toc-native": toc_native, "included": included}
 MUTATIONS = {
+    "included": [
+        ("word/document.xml", r"Included after", "Included before"),
+        ("word/document.xml", r"INCLUDETEXT", "INCLUDEPICTURE"),
+        ("word/document.xml", r'(?s)(<w:r>(?:(?!<w:r>).)*?<w:fldChar w:fldCharType="end"/></w:r>)(</w:p>)(<w:p[ >].*?)(</w:p>)', r"\2\3\1\4"),
+    ],
     "equation": [
         ("word/document.xml", r"<m:r>(<m:t[^>]*>)[-−](</m:t>)", r"<m:r><m:rPr><m:nor/></m:rPr>\1-\2"),
         ("word/document.xml", r"<m:nor/>", ""),

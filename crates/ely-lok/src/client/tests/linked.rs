@@ -190,3 +190,38 @@ fn a_linked_section_reads_its_file_only_when_asked() {
     assert_eq!(update(&mut worker, &doc), [crate::file_url(&include)], "the failed file is named");
     assert_eq!(text(&dir, &mut worker, &doc), ["Before", "Two", "After"], "a missing file keeps the text");
 }
+
+
+#[test]
+fn includetext_is_a_linked_section_and_saves_as_one() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let install = install().expect("the pinned LOK build");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/includetext.docx");
+    let (main, flat, include) = (dir.path().join("main.docx"), dir.path().join("inc.fodt"), dir.path().join("include.docx"));
+    std::fs::copy(fixture, &main).expect("copies");
+    // Word's file, as Writer writes DOCX.
+    included(&flat, "Included after");
+    let made = worker.load(&crate::file_url(&flat)).expect("loads");
+    made.save_as(&mut worker, &crate::file_url(&include), "docx").expect("the source");
+    worker.close_doc(made).expect("closes");
+    let doc = worker.load(&crate::file_url(&main)).expect("loads");
+    let loaded = poll_until(&mut worker, &doc, &Events::default(), HANG, super::docx::modified);
+    assert!(!super::docx::modified(&loaded), "the section made at load marked it modified");
+    let shown = text(&dir, &mut worker, &doc);
+    assert_eq!(shown[..2], ["Before", "Included before"], "opening shows the saved text: {shown:?}");
+    let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, [crate::file_url(&include)]);
+    assert_eq!(update(&mut worker, &doc), Vec::<String>::new());
+    let shown = text(&dir, &mut worker, &doc);
+    assert_eq!(shown[..2], ["Before", "Included after"], "the update reads the DOCX: {shown:?}");
+    let out = dir.path().join("out.docx");
+    doc.save_as(&mut worker, &crate::file_url(&out), "docx").expect("saves");
+    super::independent::read_with("ooxml_word.py", &out, "included");
+    let again = worker.load(&crate::file_url(&out)).expect("reloads");
+    let named = links::sources(&worker.values(&again, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, [crate::file_url(&include)], "Ely's own file links again");
+}
