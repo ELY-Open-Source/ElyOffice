@@ -364,6 +364,7 @@ mod tests {
         assert_eq!(guess_encoding(&[0xC3, 0xFB], Encoding::Gb18030), Encoding::Gb18030);
         assert_eq!(guess_encoding(&[0xC3, 0xFB], Encoding::Windows1252), Encoding::Windows1252);
         assert_eq!(guess_encoding(b"Cr\xe8me;br\xfbl\xe9e\n", Encoding::Windows1252), Encoding::Windows1252);
+        assert_eq!(guess_encoding(b"Gr\xfc\xdfe;K\xf6ln\n", Encoding::Windows1252), Encoding::Windows1252);
         assert_eq!(guess_encoding(&[0xFF, 0xFE, b'a', 0], Encoding::Gb18030), Encoding::Utf16);
     }
 
@@ -371,6 +372,7 @@ mod tests {
     fn each_language_names_its_windows_code_page() {
         // Excel saves CSV in the system's ANSI code page.
         let pages = [
+            ("de-DE", Encoding::Windows1252),
             ("en-US", Encoding::Windows1252),
             ("es-ES", Encoding::Windows1252),
             ("fr-FR", Encoding::Windows1252),
