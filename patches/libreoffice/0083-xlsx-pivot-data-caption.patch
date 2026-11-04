@@ -1,0 +1,95 @@
+XLSX pivot tables keep the file's values caption
+
+Excel names the values field of a pivot table with the definition's
+dataCaption, "Values" by default, and shows it in the field's header
+cell when two or more values sit on rows or columns. The import
+dropped it, so Calc wrote its own "Data" in that cell, and the export
+always wrote dataCaption="Values" (Ely R15.11j). The import now names
+the data layout field with the file's caption, or "Values" when the
+file has none; the export writes the data layout field's name, or
+"Values" when it has none. testTdf112106 saves such a file as XLS and
+now reads Excel's "Values" back.
+diff --git a/sc/qa/unit/pivottable_filters_test.cxx b/sc/qa/unit/pivottable_filters_test.cxx
+index 12a3607..12d0f51 100644
+--- a/sc/qa/unit/pivottable_filters_test.cxx
++++ b/sc/qa/unit/pivottable_filters_test.cxx
+@@ -2243,7 +2243,8 @@ CPPUNIT_TEST_FIXTURE(ScPivotTableFiltersTest, testTdf112106)
+     CPPUNIT_ASSERT(pDim);
+     const std::optional<OUString>& pLayoutName = pDim->GetLayoutName();
+     CPPUNIT_ASSERT(pLayoutName);
+-    CPPUNIT_ASSERT_EQUAL(ScResId(STR_PIVOT_DATA), (*pLayoutName));
++    // The XLSX file's dataCaption, not Calc's "Data".
++    CPPUNIT_ASSERT_EQUAL(u"Values"_ustr, (*pLayoutName));
+ }
+ 
+ CPPUNIT_TEST_FIXTURE(ScPivotTableFiltersTest, testTdf123923)
+diff --git a/sc/source/filter/excel/xepivotxml.cxx b/sc/source/filter/excel/xepivotxml.cxx
+index 241fcee..7f1d1fa 100644
+--- a/sc/source/filter/excel/xepivotxml.cxx
++++ b/sc/source/filter/excel/xepivotxml.cxx
+@@ -1071,6 +1071,11 @@ void XclExpXmlPivotTables::SavePivotTableXml( XclExpXmlStream& rStrm, const ScDP
+         }
+     }
+ 
++    // Excel's word unless the table names its values.
++    OUString aDataCaption(u"Values"_ustr);
++    if (const ScDPSaveDimension* pDim = rSaveData.GetExistingDataLayoutDimension(); pDim && pDim->GetLayoutName())
++        aDataCaption = *pDim->GetLayoutName();
++
+     sax_fastparser::FSHelperPtr& pPivotStrm = rStrm.GetCurrentStream();
+     pPivotStrm->startElement(XML_pivotTableDefinition,
+         XML_xmlns, rStrm.getNamespaceURL(OOX_NS(xls)).toUtf8(),
+@@ -1083,7 +1088,7 @@ void XclExpXmlPivotTables::SavePivotTableXml( XclExpXmlStream& rStrm, const ScDP
+         XML_applyPatternFormats, ToPsz10(false),
+         XML_applyAlignmentFormats, ToPsz10(false),
+         XML_applyWidthHeightFormats, ToPsz10(false),
+-        XML_dataCaption, "Values",
++        XML_dataCaption, aDataCaption.toUtf8(),
+         XML_showDrill, ToPsz10(rSaveData.GetExpandCollapse()),
+         XML_useAutoFormatting, ToPsz10(false),
+         XML_itemPrintTitles, ToPsz10(true),
+diff --git a/sc/source/filter/inc/pivottablebuffer.hxx b/sc/source/filter/inc/pivottablebuffer.hxx
+index 78336ca..3256bde 100644
+--- a/sc/source/filter/inc/pivottablebuffer.hxx
++++ b/sc/source/filter/inc/pivottablebuffer.hxx
+@@ -228,7 +228,7 @@ private:
+ struct PTDefinitionModel : public AutoFormatModel
+ {
+     OUString     maName;
+-    OUString     maDataCaption;
++    std::optional<OUString> maDataCaption;
+     std::optional<OUString> maGrandTotalCaption;
+     std::optional<OUString> maRowHeaderCaption;
+     std::optional<OUString> maColHeaderCaption;
+diff --git a/sc/source/filter/oox/pivottablebuffer.cxx b/sc/source/filter/oox/pivottablebuffer.cxx
+index 40f67b6..e992a52 100644
+--- a/sc/source/filter/oox/pivottablebuffer.cxx
++++ b/sc/source/filter/oox/pivottablebuffer.cxx
+@@ -991,7 +991,7 @@ PivotTable::PivotTable( const WorkbookHelper& rHelper ) :
+ void PivotTable::importPivotTableDefinition( const AttributeList& rAttribs )
+ {
+     maDefModel.maName                = rAttribs.getXString( XML_name, OUString() );
+-    maDefModel.maDataCaption         = rAttribs.getXString( XML_dataCaption , OUString() );
++    maDefModel.maDataCaption         = rAttribs.getXString( XML_dataCaption );
+     maDefModel.maGrandTotalCaption   = rAttribs.getXString( XML_grandTotalCaption );
+     maDefModel.maRowHeaderCaption    = rAttribs.getXString( XML_rowHeaderCaption );
+     maDefModel.maColHeaderCaption    = rAttribs.getXString( XML_colHeaderCaption );
+@@ -1102,7 +1102,7 @@ void PivotTable::importPTDefinition( SequenceInputStream& rStrm )
+     maDefModel.mnCacheId = rStrm.readInt32();
+     rStrm >> maDefModel.maName;
+     if( getFlag( nFlags2, BIFF12_PTDEF_HASDATACAPTION ) )
+-        rStrm >> maDefModel.maDataCaption;
++        maDefModel.maDataCaption = BiffHelper::readString( rStrm );
+     if( getFlag( nFlags2, BIFF12_PTDEF_HASGRANDTOTALCAPTION ) )
+         maDefModel.maGrandTotalCaption = BiffHelper::readString( rStrm );
+     if( !getFlag( nFlags3, BIFF12_PTDEF_NOERRORCAPTION ) )   // missing flag indicates existing string
+@@ -1330,6 +1330,9 @@ void PivotTable::finalizeImport()
+             if( PivotTableField* pField = getTableField( rDataField.mnField ) )
+                 pField->convertDataField( rDataField );
+         }
++        // The values field shows the file's caption.
++        if (auto* pSaveData = mpDPObject->GetSaveData())
++            pSaveData->GetDataLayoutDimension()->SetLayoutName(maDefModel.maDataCaption.value_or(u"Values"_ustr));
+ 
+         // filters
+         maFilters.forEachMem( &PivotTableFilter::finalizeImport );

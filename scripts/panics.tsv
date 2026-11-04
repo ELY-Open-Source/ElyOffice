@@ -188,6 +188,9 @@ crates/ely-lok/src/events.rs	expect_used	slots().lock().expect("the events lock"
 crates/ely-lok/src/events.rs	expect_used	slots().lock().expect("the events lock")	linux,macos,windows	the events lock
 crates/ely-lok/src/events.rs	expect_used	slots().lock().expect("the events lock")	linux,macos,windows	the events lock
 crates/ely-lok/src/events/cell.rs	expect_used	super::slots().lock().expect("the events lock")	linux,macos,windows	the events lock
+crates/ely-lok/src/events/painted.rs	expect_used	slots().lock().expect("the events lock")	linux,macos,windows	the events lock
+crates/ely-lok/src/events/painted.rs	expect_used	slots().lock().expect("the events lock")	linux,macos,windows	the events lock
+crates/ely-lok/src/events/painted.rs	expect_used	slots().lock().expect("the events lock")	linux,macos,windows	the events lock
 crates/ely-lok/src/ffi.rs	expect_used	cstring(password).expect("no NUL")	linux,macos,windows	no NUL
 crates/ely-lok/src/ffi.rs	expect_used	cstring(url).expect("a url without NUL")	linux,macos,windows	a url without NUL
 crates/ely-lok/src/ffi.rs	expect_used	cstring(url).expect("a url")	linux,macos,windows	a url

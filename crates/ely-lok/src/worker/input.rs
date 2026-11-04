@@ -38,15 +38,13 @@ fn paint(unpack: &mut Unpack) -> io::Result<(u64, Vec<u8>)> {
     };
     // Read first: an invalidation mid-paint must outdate it.
     let generation = crate::events::generation(id);
-    let tile = with_doc(id, |doc| {
+    let rect = (x as i32, y as i32, w as i32, h as i32);
+    let (at, tile) = with_doc(id, |doc| {
         let mut tile = vec![0u8; len as usize];
-        doc.paint_rect(
-            &mut tile,
-            (pw as i32, ph as i32),
-            (x as i32, y as i32, w as i32, h as i32),
-        );
-        tile
+        doc.paint_rect(&mut tile, (pw as i32, ph as i32), rect);
+        ((doc.part(), doc.edit_mode()), tile)
     })?;
+    crate::events::painted(id, at, rect);
     Ok((generation, tile))
 }
 
@@ -60,18 +58,18 @@ pub(super) fn part_painted(unpack: &mut Unpack) -> io::Result<Vec<u8>> {
         .filter(|len| *len <= (ipc::MAX_FRAME - 16) as u64)
         .ok_or_else(|| invalid("bad part geometry"))?;
     let part = i32::try_from(part).map_err(|_| invalid("bad part"))?;
-    with_doc(id, |doc| {
+    let at = (part, i32::from(master));
+    let (size, pixels) = with_doc(id, |doc| {
         if part >= doc.parts() {
             return Err(invalid("no such part"));
         }
         let mut pixels = vec![0u8; len as usize];
-        doc.paint_part(
-            &mut pixels,
-            (part, i32::from(master)),
-            (pw as i32, ph as i32),
-        );
-        Ok(pixels)
-    })?
+        doc.paint_part(&mut pixels, at, (pw as i32, ph as i32));
+        Ok((doc.size(), pixels))
+    })??;
+    // The kernel counts the whole slide as painted.
+    crate::events::painted(id, at, (0, 0, size.0 as i32, size.1 as i32));
+    Ok(pixels)
 }
 
 /// A painted tile behind its generation.

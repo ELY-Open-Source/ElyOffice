@@ -16,7 +16,7 @@
 
 PERF-01、03、04、05、07 从启动进程计时，到日志里出现标记为止（脚本每 10 毫秒读一次日志）：PERF-01 到首帧（`ELY_SMOKE=1` 打印 `ready`），首次运行（新的用户目录）与日常启动分记，每次等上一次的进程（含仍在启动的内核）退出后再测；Doc、Table、Show 另记空白文档就绪（`opened Untitled`），它要等内核启动；PERF-03、04 到第一块图块真正画到窗口上（`lok: first tile drawn`，在 `paint_image` 成功之后记；其间内核画图块失败或窗口画图块失败即整次作废），PERF-03 之前先核对样本经内核排版恰为 100 页（`lok: 100 pages`）；PERF-05 到第一页的第一块画到窗口上（`pdf: first tile drawn, page 0`）；PERF-07 到可视模式可以键入（`mark: shown as "visual"`）。内存为应用及其全部子进程（内核 worker）的 RSS 之和，任一进程读不到即整次作废。PERF-07 另有内存预算 400 MB（H-02，`BUDGETS`）。
 
-PERF-02（`feedback.py`）七个应用各按 30 键，每键须各有一条反馈，缺即失败：Doc、Table、Show 为按键到显示该编辑的图块（`lok: edit to tile`；Show 先以 Tab、Enter 进入第一个文本框），PDF（1000 页样本上按 PageDown）、Mark、Tree、Mail 为按键到其后第一帧画出（`ui: key_down to frame`，取自 gpui 事件日志：按键派发之始到呈现之末）；并以 `ELY_STALLS=1` 记主线程连续忙于 100 毫秒以上的次数。
+PERF-02（`feedback.py`）七个应用各按 30 键，每键须各有一条反馈，缺即失败：Doc、Table、Show 为按键到第一个显示该编辑的整屏（`lok: edit <序号> text|key to tile`，每个编辑一条；从未画出的记 `never drawn` 及原因，键入的键出现即失败；Show 先以 Tab、Enter 进入第一个文本框），PDF（1000 页样本上按 PageDown）、Mark、Tree、Mail 为按键到其后第一帧画出（`ui: key_down to frame`，取自 gpui 事件日志：按键派发之始到呈现之末）；并以 `ELY_STALLS=1` 记主线程连续忙于 100 毫秒以上的次数。
 
 PERF-06（`search.py`）从驱动送出输入的时刻（驱动打印的墙上时间）计到应用日志里结果那一行的时间戳，驱动进程的启动与返回不计：ElyTree 在 10 万提交的仓库上按“历史”到首屏（`history shows`），按回车到查询结果（`searched true`）；ElyMail 在引擎写入的 10 万封已索引邮件上，于搜索框键入常见词 `report`，从最后一键到结果列表（`shows N messages, searched true`，含停手 200 毫秒的等待）。
 

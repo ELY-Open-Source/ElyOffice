@@ -276,6 +276,13 @@ impl Document {
         call!(class, 5, F, self.doc)
     }
 
+    /// The view's edit mode: 1 on an Impress master.
+    pub fn edit_mode(&self) -> i32 {
+        let class = unsafe { (*self.doc).class };
+        type F = unsafe extern "C" fn(*mut Doc) -> i32;
+        call!(class, 67, F, self.doc)
+    }
+
     /// Shows part `part`.
     pub fn set_part(&self, part: i32) {
         let class = unsafe { (*self.doc).class };
