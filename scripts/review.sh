@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Usage: review.sh <item-id> <round> [path...] — codex xhigh, fast review.
+# Usage: review.sh <item-id> <round> [path...] — Opus 5.5 high.
 set -euo pipefail
 
-[ "${HERDR_ENV:-}" = 1 ] || { echo "review.sh: not inside herdr" >&2; exit 2; }
+[ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || { echo "review.sh: not inside a herdr pane" >&2; exit 2; }
 id=${1:?item id}
 round=${2:?round}
 shift 2
@@ -28,33 +28,42 @@ Round 2 and later: read the previous verdict tasks/reviews/$id-r$((round - 1)).m
 Write the verdict to $verdict. Line one is PASS or FAIL. After that, one entry per defect: file:line, what is wrong, a concrete failing scenario, the direction of the fix.
 When done, reply with the single word PASS or FAIL."
 
-# An item's tab stays open until its next round.
-mkdir -p tasks/reviews/.tabs
-last=tasks/reviews/.tabs/$id
+# A pane left by a failed round closes first.
+mkdir -p tasks/reviews/.panes
+last=tasks/reviews/.panes/$id
 # Native Windows jq ends lines with CRLF.
 field() { jq -r "$@" | tr -d '\r'; }
 if [ -f "$last" ]; then
   old=$(cat "$last")
-  if ! said=$(herdr tab get "$old" 2>&1); then
-    # Only a tab herdr no longer knows is skipped.
-    code=$(field '.error.code' <<<"$said" 2>/dev/null) && [ "$code" = tab_not_found ] \
-      || { echo "review.sh: tab $old unreadable: $said" >&2; exit 1; }
+  if ! said=$(herdr pane get "$old" 2>&1); then
+    # Only a pane herdr no longer knows is skipped.
+    code=$(field '.error.code' <<<"$said" 2>/dev/null) && [ "$code" = pane_not_found ] \
+      || { echo "review.sh: pane $old unreadable: $said" >&2; exit 1; }
   else
-    err=$(herdr tab close "$old" 2>&1) || { echo "review.sh: tab $old did not close: $err" >&2; exit 1; }
+    err=$(herdr pane close "$old" 2>&1) || { echo "review.sh: pane $old did not close: $err" >&2; exit 1; }
   fi
+  rm -f "$last"
 fi
-made=$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$PWD" --label "$name" --no-focus)
-tab=$(field '.result.tab.tab_id' <<<"$made")
-pane=$(field '.result.root_pane.pane_id' <<<"$made")
-[ -n "$pane" ] && [ "$pane" != null ] || { echo "review.sh: no tab for $name" >&2; exit 1; }
-echo "$tab" >"$last"
-fail() { echo "review.sh: $name in $tab $*; tab left open" >&2; exit 1; }
-herdr agent start "$name" --kind codex --pane "$pane" --timeout 120000 -- \
-  --yolo --model gpt-6-astra -c 'model_reasoning_effort="xhigh"' -c 'service_tier="fast"' -c check_for_update_on_startup=false \
-  >/dev/null 2>&1 || fail "did not start codex"
+# Reviewers stack in one column right of the caller.
+right=$(herdr pane neighbor --direction right --pane "$HERDR_PANE_ID" | field '.result.neighbor.neighbor_pane_id // empty') \
+  || { echo "review.sh: no layout for $HERDR_PANE_ID" >&2; exit 1; }
+if [ -z "$right" ]; then
+  made=$(herdr pane split --pane "$HERDR_PANE_ID" --direction right --cwd "$PWD" --no-focus)
+else
+  made=$(herdr pane split --pane "$right" --direction down --cwd "$PWD" --no-focus)
+fi
+pane=$(field '.result.pane.pane_id' <<<"$made")
+[ -n "$pane" ] && [ "$pane" != null ] || { echo "review.sh: no pane for $name: $made" >&2; exit 1; }
+echo "$pane" >"$last"
+fail() { echo "review.sh: $name in $pane $*; pane left open" >&2; exit 1; }
+herdr agent start "$name" --kind claude --pane "$pane" --timeout 120000 -- \
+  --model claude-opus-5-5 --effort high --dangerously-skip-permissions \
+  >/dev/null 2>&1 || fail "did not start claude"
 herdr agent prompt "$name" "$prompt" --wait --timeout 5400000 >/dev/null 2>&1 || fail "took no prompt or ran past 90 minutes"
 s=$(herdr agent get "$name" | field '.result.agent.agent_status') || fail "status unreadable"
 [ "$s" = done ] || [ "$s" = idle ] || fail "ended $s"
 
 head -n 1 "$verdict" 2>/dev/null | tr -d '\r' | grep -qxE 'PASS|FAIL' || fail "left no verdict at $verdict"
+err=$(herdr pane close "$pane" 2>&1) || fail "did not close: $err"
+rm -f "$last"
 cat "$verdict"
