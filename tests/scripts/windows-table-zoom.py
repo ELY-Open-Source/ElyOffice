@@ -27,18 +27,25 @@ run.HOST = drive.host(tempfile.mkdtemp())
 run.HOST.exe = lambda slug, frames: os.path.join(target, "debug", f"{slug}.exe")
 
 
+class Missed(Exception):
+    """A step went unchecked: the window unread, or no zoom."""
+
+
 def headers(app):
     """Shown column and row headers, first first: (name, rect)."""
     found = run.HOST.named(app.process.pid, HEADER)
     columns = sorted(((n, r) for n, r in found.items() if n.startswith("Column")), key=lambda c: c[1][0])
     rows = sorted(((n, r) for n, r in found.items() if n.startswith("Row")), key=lambda c: c[1][1])
     if len(columns) < 3 or len(rows) < 7:
-        sys.exit(f"FAIL: too few headers read: {sorted(found)}")
+        raise Missed(f"too few headers read: {sorted(found)}")
     return columns, rows
 
 
 def zoomed(app, since, percent):
-    app.wait(rf"lok: zoom {percent}%", since=since, timeout=30)
+    try:
+        app.wait(rf"lok: zoom {percent}%", since=since, timeout=30)
+    except RuntimeError as why:
+        raise Missed(str(why).splitlines()[0])
     # Tiles and headers follow the zoom.
     time.sleep(2)
     return app.lines()[since:]
@@ -55,7 +62,13 @@ def shot(app, name):
     run.HOST.shot(app.process.pid, path)
     window = tuple(map(int, run.HOST.rect(app.process.pid).split(",")))
     image = Image.open(path).convert("RGB")
-    return path, lambda x, y: image.getpixel((x - window[0], y - window[1]))
+
+    def at(x, y):
+        (x, y) = (x - window[0], y - window[1])
+        if not (0 <= x < image.width and 0 <= y < image.height):
+            raise Missed(f"the scan left the window ({path})")
+        return image.getpixel((x, y))
+    return path, at
 
 
 def grid_line(pixel):
@@ -119,7 +132,10 @@ def a1(app, how, logged):
 def step(app, how, percent, act):
     since = len(app.lines())
     act()
-    a1(app, how, zoomed(app, since, percent))
+    try:
+        a1(app, how, zoomed(app, since, percent))
+    except Missed as why:
+        fail(f"{how}: {why}")
 
 
 def reset(app):
@@ -189,14 +205,21 @@ try:
     columns, rows = headers(app)
     spot = (columns[2][1][0] + 5, rows[6][1][1] + 5)
     for percent, notch in ((125, 1), (150, 1), (125, -1), (100, -1)):
-        before, since = under(app, spot), len(app.lines())
-        was, _ = corner(app, f"before {percent}", spot)
-        run.HOST.wheel(pid, notch, spot)
-        zoomed(app, since, percent)
-        now, path = corner(app, f"pointed {percent}", spot)
-        print(f"pointed {percent}: {before} became {under(app, spot)}; its lines {was} px away became {now} ({path})")
-        if under(app, spot) != before or now != was:
+        since = len(app.lines())
+        try:
+            before, (was, _) = under(app, spot), corner(app, f"before {percent}", spot)
+            run.HOST.wheel(pid, notch, spot)
+            zoomed(app, since, percent)
+            (now, path), after = corner(app, f"pointed {percent}", spot), under(app, spot)
+        except Missed as why:
+            fail(f"pointed {percent}: {why}")
+            break
+        print(f"pointed {percent}: {before} became {after}; its lines {was} px away became {now} ({path})")
+        if after != before or now != was:
             fail(f"wheel to {percent}% moved {before} from the pointer")
+except Missed as why:
+    # Later steps chain on this zoom: stop.
+    fail(f"the run stopped: {why}")
 finally:
     app.stop()
 if FAILED:
