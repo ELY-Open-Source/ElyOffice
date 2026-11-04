@@ -34,11 +34,31 @@ enum Landed {
 
 /// The lane's two queues.
 pub(super) struct Lane {
-    pub inputs: mpsc::UnboundedSender<(u64, Input, Instant)>,
+    inputs: mpsc::UnboundedSender<(u64, Input, Instant)>,
     pub tiles: mpsc::UnboundedSender<Job>,
+    /// gpui's clock: tests move it.
+    clock: gpui::BackgroundExecutor,
+    /// When a key last went in.
+    typed: Option<Instant>,
+}
+
+impl Lane {
+    /// Queues input `seq`; keys mark the typing time.
+    pub(super) fn queue(&mut self, seq: u64, input: Input) {
+        if matches!(input, Input::Key { .. } | Input::Text { .. } | Input::Complete { .. } | Input::Turn { key: Some(_), .. }) {
+            self.typed = Some(self.clock.now());
+        }
+        self.inputs.unbounded_send((seq, input, Instant::now())).expect("the input queue lives with the view");
+    }
 }
 
 impl LokView {
+    /// When a key last went to the kernel, on gpui's clock.
+    pub fn typed_at(&self) -> Option<Instant> {
+        self.lane.typed
+    }
+
+
     /// Starts the lane; it ends with the view.
     pub(super) fn lane(worker: Arc<Mutex<Worker>>, doc: Doc, wanted: super::reveal::Wanted, cx: &mut Context<Self>) -> Lane {
         let (inputs, mut input_queue) = mpsc::unbounded::<(u64, Input, Instant)>();
@@ -115,7 +135,7 @@ impl LokView {
             }
         })
         .detach();
-        Lane { inputs, tiles }
+        Lane { inputs, tiles, clock: cx.background_executor().clone(), typed: None }
     }
 
     fn take_landed(&mut self, batch: Vec<Landed>, cx: &mut Context<Self>) {

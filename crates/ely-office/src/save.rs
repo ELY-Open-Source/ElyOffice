@@ -15,6 +15,7 @@ use crate::{After, Closing, Dialog, Engine, Host, Opening, Tabs, in_window, text
 mod gone;
 mod landing;
 mod paths;
+mod pause;
 pub use paths::folder;
 use landing::Target;
 use paths::identity;
@@ -54,15 +55,27 @@ pub trait Saving: Host {
         }
     }
 
-    /// Saves in place in its own format.
+    /// Saves in place at the next typing pause (R15.37).
     fn save(&mut self, id: u64, then: Option<After>, window: &mut Window, cx: &mut Context<Self>) {
+        // A waiting save starts later: it covers this one.
+        if then.is_none() && self.tab(id).is_some_and(|tab| tab.pausing > 0) {
+            return log::info!("office: tab {id}'s save joins the one waiting");
+        }
+        let paused = move |host: &mut Self, window: &mut Window, cx: &mut Context<Self>| host.save_paused(id, then, window, cx);
+        pause::at_pause(self, id, Box::new(paused), window, cx);
+    }
+
+    /// Saves in place in its own format.
+    fn save_paused(&mut self, id: u64, then: Option<After>, window: &mut Window, cx: &mut Context<Self>) {
         if !self.settled(id, cx) {
-            return self.when_settled(id, move |host, window, cx| host.save(id, then, window, cx));
+            return self.when_settled(id, move |host, window, cx| host.save_paused(id, then, window, cx));
         }
         if self.exporting(id) {
-            return self.after_export(id, move |host, window, cx| host.save(id, then, window, cx));
+            return self.after_export(id, move |host, window, cx| host.save_paused(id, then, window, cx));
         }
         let Some(tab) = self.tab(id) else {
+            // A program's save may wait past its tab.
+            self.core_mut().answer_saves(id, Err(format!("tab {id} closed before its save")));
             return self.closed_first(id, then, window, cx);
         };
         let Some(path) = tab

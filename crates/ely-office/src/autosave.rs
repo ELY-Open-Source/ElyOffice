@@ -67,7 +67,8 @@ pub trait Autosaving: Host {
         // Rest stays: recovery reads it; saved tabs are not dirty.
         for id in due {
             log::info!("office: autosaving tab {id}");
-            self.save(id, None, window, cx);
+            // A whole beat rested: the pause is had.
+            self.save_paused(id, None, window, cx);
         }
     }
 }

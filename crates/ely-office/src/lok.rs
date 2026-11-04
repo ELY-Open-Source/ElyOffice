@@ -134,6 +134,10 @@ impl Engine for Lok {
         view.edit_pending()
     }
 
+    fn typed_at(view: &LokView) -> Option<std::time::Instant> {
+        view.typed_at()
+    }
+
     fn focus(view: &LokView) -> FocusHandle {
         view.focus_handle().clone()
     }

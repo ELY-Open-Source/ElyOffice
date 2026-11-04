@@ -464,6 +464,7 @@ mod focus;
 mod front;
 mod more;
 mod overlap;
+mod pause;
 mod points;
 mod remote;
 mod slow;

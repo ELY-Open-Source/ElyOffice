@@ -143,10 +143,13 @@ pub trait Remote: Saving {
 impl<H: Host + Saving> Remote for H {}
 
 impl<H: Host> Core<H> {
-    /// Answers the program whose save of tab `id` ended.
+    /// Answers every program whose save of tab `id` ended.
     pub(crate) fn answer_saves(&mut self, id: u64, saved: Result<&Path, String>) {
-        if let Some(at) = self.saving.iter().position(|(tab, _)| *tab == id) {
-            self.saving.remove(at).1.answer(saved.map(|path| path.display().to_string()));
+        // Each asked while no export ran: this one began after.
+        let (ended, rest) = std::mem::take(&mut self.saving).into_iter().partition(|(tab, _)| *tab == id);
+        self.saving = rest;
+        for (_, ask) in ended {
+            ask.answer(saved.clone().map(|path| path.display().to_string()));
         }
     }
 }

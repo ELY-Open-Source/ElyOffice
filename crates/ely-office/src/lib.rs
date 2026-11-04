@@ -136,6 +136,8 @@ pub struct Tab<E, G: Engine> {
     pub work: PathBuf,
     /// A save's export runs in the background.
     pub exporting: bool,
+    /// Saves waiting for a typing pause.
+    pub pausing: usize,
     /// Reopen from the file once memory matches it.
     pub reopen: bool,
     pub extra: E,
@@ -156,7 +158,7 @@ impl<E, G: Engine> Tab<E, G> {
             _ if self.risk == Some(Risk::Repaired) => "office.state.repaired",
             _ if self.risk == Some(Risk::Sections) => "office.state.sections",
             _ if self.risk == Some(Risk::Sealed) => "office.state.sealed",
-            _ if self.exporting => "office.state.saving",
+            _ if self.exporting || self.pausing > 0 => "office.state.saving",
             SaveState::Saving => "office.state.saving",
             SaveState::ExternalModified => "office.state.external",
             SaveState::SaveFailed => "office.state.failed",

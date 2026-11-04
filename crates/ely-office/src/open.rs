@@ -290,6 +290,7 @@ pub trait Opening: Host {
             mark,
             work,
             exporting: false,
+            pausing: 0,
             reopen: false,
             extra: Default::default(),
         });
