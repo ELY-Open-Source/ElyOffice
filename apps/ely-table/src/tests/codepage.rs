@@ -30,6 +30,32 @@ fn a_french_excel_csv_opens_in_its_code_page() {
 }
 
 #[test]
+fn a_german_excel_csv_opens_in_its_code_page() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((_window, book)) = book(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let path = dir.path().join("orte.csv");
+    // German Excel: semicolons, Windows-1252 bytes.
+    std::fs::write(&path, b"Ort;Preis\nGr\xfc\xdfe aus K\xf6ln;4,5\n").expect("writes");
+    cx.update(|app| ely_gpui_component::i18n::I18n::set_locale("de-DE", app));
+    update(&mut cx, &book, |book, cx| book.ask_import(path.clone(), cx));
+    asked(&cx, &book, |dialog| matches!(dialog, Dialog::Import(pending) if !pending.reading));
+    cx.update(|app| match book.read(app).dialog.as_ref() {
+        Some(Dialog::Import(pending)) => {
+            assert_eq!(pending.how.encoding, ely_lok::sheet::csv::Encoding::Windows1252);
+            assert_eq!(pending.how.separator, ';');
+        }
+        _ => unreachable!("an import dialog"),
+    });
+    update(&mut cx, &book, |book, cx| book.import_asked(cx));
+    settle(&cx, |app| book.read(app).active_tab().is_some_and(|tab| tab.name == "orte.csv"));
+    assert_eq!(cells(&mut cx, &book, "A2"), "Grüße aus Köln");
+}
+
+#[test]
 fn the_default_encoding_follows_the_apps_language() {
     use ely_gpui_component::i18n::I18n;
     use ely_lok::sheet::csv::Encoding;
@@ -47,6 +73,7 @@ fn the_default_encoding_follows_the_apps_language() {
         ("en-US", Encoding::Windows1252),
         ("es-ES", Encoding::Windows1252),
         ("fr-FR", Encoding::Windows1252),
+        ("de-DE", Encoding::Windows1252),
         ("ja-JP", Encoding::ShiftJis),
         ("ko-KR", Encoding::Windows949),
         ("vi-VN", Encoding::Windows1258),

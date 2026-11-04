@@ -1,0 +1,26 @@
+//! German pivot table and chart messages.
+
+pub(super) const DE: &[(&str, &str)] = &[
+    ("table.pivot.make", "Pivot-Tabelle…"),
+    ("table.pivot.refresh", "Pivot-Tabelle aktualisieren"),
+    ("table.pivot.title", "Pivot-Tabelle"),
+    ("table.pivot.source", "Quelle: {range}"),
+    ("table.pivot.unused", "Nicht verwendet"),
+    ("table.pivot.rows", "Zeilen"),
+    ("table.pivot.columns", "Spalten"),
+    ("table.pivot.pages", "Filter"),
+    ("table.pivot.data", "Werte"),
+    ("table.pivot.sum", "Summe"),
+    ("table.pivot.count", "Anzahl"),
+    ("table.pivot.average", "Mittelwert"),
+    ("table.pivot.max", "Maximum"),
+    ("table.pivot.min", "Minimum"),
+    ("table.pivot.other", "Andere"),
+    ("table.pivot.function_of", "Zusammenfassung von {field}"),
+    ("table.pivot.go", "Erstellen"),
+    ("table.pivot.apply", "Übernehmen"),
+    ("table.pivot.headers", "Für eine Pivot-Tabelle braucht jede Spalte eine Überschrift."),
+    ("table.pivot.none", "Der Cursor steht nicht in einer Pivot-Tabelle."),
+    ("table.chart.make", "Diagramm…"),
+    ("table.chart.range", "Datenbereich"),
+];

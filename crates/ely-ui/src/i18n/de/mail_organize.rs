@@ -1,0 +1,28 @@
+//! German organize messages.
+
+pub(super) const DE: &[(&str, &str)] = &[
+    ("mail.act.read", "Als gelesen markieren"),
+    ("mail.act.unread", "Als ungelesen markieren"),
+    ("mail.act.flag", "Markieren"),
+    ("mail.act.unflag", "Markierung entfernen"),
+    ("mail.act.archive", "Archivieren"),
+    ("mail.act.delete", "Löschen"),
+    ("mail.act.restore", "In den Posteingang verschieben"),
+    ("mail.act.move", "Verschieben nach"),
+    ("mail.organize.failed", "Nicht geändert: {error}"),
+    ("mail.organize.dropped", "{n} Änderungen wurden auf dem Server nicht ausgeführt und sind rückgängig gemacht: {reason}"),
+    ("mail.organize.dropped.one", "Eine Änderung wurde auf dem Server nicht ausgeführt und ist rückgängig gemacht: {reason}"),
+    ("mail.organize.gone", "die Nachricht ist nicht mehr auf dem Server"),
+    ("mail.organize.renumbered", "der Ordner wurde auf dem Server neu aufgebaut"),
+    ("mail.organize.unsupported", "der Server unterstützt {name} nicht"),
+    ("mail.organize.unplaced", "der Server hat die Nachricht verschoben, ohne zu sagen, wohin"),
+    ("mail.organize.vanished", "der Ordner {name} ist nicht mehr auf dem Server"),
+    ("mail.erase.title", "{n} Nachrichten endgültig löschen?"),
+    ("mail.erase.title.one", "Diese Nachricht endgültig löschen?"),
+    ("mail.erase.message", "Sie lassen sich weder hier noch auf dem Server wiederherstellen."),
+    ("mail.erase.go", "Endgültig löschen"),
+    ("mail.sync.waiting", "Änderungen"),
+    ("mail.sync.waiting_value", "{n} hier vorgenommene Änderungen warten auf den Server"),
+    ("mail.sync.waiting_value.one", "Eine hier vorgenommene Änderung wartet auf den Server"),
+    ("mail.sync.waiting_none", "Jede Änderung ist auf dem Server"),
+];
