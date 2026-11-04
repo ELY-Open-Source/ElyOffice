@@ -5,32 +5,21 @@ entry: alone in an empty paragraph, or before the text that follows it.
 The import keeps that paragraph inside the index only for a titled TOC
 whose end stands alone; otherwise the paragraph lands after the index
 section (untitled and bare TOCs, R15.11c; text or a shape after the
-end, patch 0078). Writer's own TOCs have no such paragraph at all. The
-export closed the field inside the last entry, and Word's Update Table
-left an extra empty line after the entries (Ely R15.11k). When a
-table of contents' last paragraph is not empty and a text paragraph
-follows its section, DOCX now closes the field at the start of that
-paragraph and keeps the paragraph inside the TOC content control; an
-empty last paragraph still holds the end, as before. Other indexes
-(bibliography, index) keep the old export.
-testFdo77129 and testTdf121561_tocTitleDocx now expect Word's layout:
-the end alone in the paragraph after the last entry, inside the
-control, so the body has one paragraph fewer outside it.
-diff --git a/sw/qa/extras/ooxmlexport/ooxmlexport11.cxx b/sw/qa/extras/ooxmlexport/ooxmlexport11.cxx
-index 08a1a14..ed68a5a 100644
---- a/sw/qa/extras/ooxmlexport/ooxmlexport11.cxx
-+++ b/sw/qa/extras/ooxmlexport/ooxmlexport11.cxx
-@@ -216,7 +216,9 @@ CPPUNIT_TEST_FIXTURE(Test, testTdf121561_tocTitleDocx)
-     CPPUNIT_ASSERT_EQUAL(u"Inhaltsverzeichnis"_ustr, getProperty<OUString>(xTOCIndex, u"Title"_ustr));
- 
-     // ensure TOC end-field mark is placed inside TOC section
--    assertXPath(pXmlDoc, "/w:document/w:body/w:sdt/w:sdtContent/w:p[16]/w:r/w:fldChar", "fldCharType", u"end");
-+    assertXPath(pXmlDoc, "/w:document/w:body/w:sdt/w:sdtContent/w:p[17]/w:r/w:fldChar", "fldCharType", u"end");
-+    // Like Word: alone, not in the last entry.
-+    assertXPath(pXmlDoc, "/w:document/w:body/w:sdt/w:sdtContent/w:p[16]/w:r/w:fldChar", 0);
- }
- 
- DECLARE_OOXMLEXPORT_TEST(testTdf106174_rtlParaAlign, "tdf106174_rtlParaAlign.docx")
+end, patch 0078). The export then closed the field inside the last
+entry, and Word's Update Table left an extra empty line after the
+entries (Ely R15.11k).
+
+The import now marks that paragraph with "TOCFieldEnd" in its grab
+bag. When a table of contents' last paragraph is not empty and the
+paragraph right after its section carries the mark, DOCX closes the
+field at the start of that paragraph and keeps the paragraph inside
+the TOC content control. Unmarked paragraphs, such as the body text
+after a TOC made in Writer, keep the old export: a shape-based guess
+would pull the user's heading into the field, and Word's "Remove Table
+of Contents" would delete it. Other indexes keep the old export too.
+testFdo77129 now expects the end paragraph inside the control, so the
+body has one paragraph fewer outside it.
+
 diff --git a/sw/qa/extras/ooxmlexport/ooxmlexport20.cxx b/sw/qa/extras/ooxmlexport/ooxmlexport20.cxx
 index ff797a8..18250a0 100644
 --- a/sw/qa/extras/ooxmlexport/ooxmlexport20.cxx
@@ -45,8 +34,24 @@ index ff797a8..18250a0 100644
  
      // tdf#170588: stop duplicating bookmarkStarts
      // Counts of bookmark Starts and Ends really ought to be identical...
+diff --git a/sw/source/filter/ww8/docxattributeoutput.cxx b/sw/source/filter/ww8/docxattributeoutput.cxx
+index c36e579..66209ae 100644
+--- a/sw/source/filter/ww8/docxattributeoutput.cxx
++++ b/sw/source/filter/ww8/docxattributeoutput.cxx
+@@ -10584,9 +10584,9 @@ void DocxAttributeOutput::ParaGrabBag(const SfxGrabBagItem& rItem)
+             uno::Sequence<beans::PropertyValue> aAttributes = rGrabBagElement.second.get< uno::Sequence<beans::PropertyValue> >();
+             m_pTableStyleExport->CnfStyle(aAttributes);
+         }
+-        else if (rGrabBagElement.first == "ParaSdtEndBefore")
++        else if (rGrabBagElement.first == "ParaSdtEndBefore" || rGrabBagElement.first == "TOCFieldEnd")
+         {
+-            // Handled already in StartParagraph().
++            // Handled already in StartParagraph() and OutputTextNode().
+         }
+         else if (rGrabBagElement.first == "ParaInlineHeading")
+             m_rExport.m_bParaInlineHeading = true;
 diff --git a/sw/source/filter/ww8/wrtw8nds.cxx b/sw/source/filter/ww8/wrtw8nds.cxx
-index ccbaf67..65bea9b 100644
+index ccbaf67..a18aca8 100644
 --- a/sw/source/filter/ww8/wrtw8nds.cxx
 +++ b/sw/source/filter/ww8/wrtw8nds.cxx
 @@ -2477,6 +2477,27 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
@@ -120,7 +125,7 @@ index ccbaf67..65bea9b 100644
          const SwNode& rEndTocNextNode = aEndTocNext.GetNode();
          const SwContentNode* pNodeAfterToc = rEndTocNextNode.GetContentNode();
          if (pNodeAfterToc)
-@@ -3586,6 +3613,20 @@ void MSWordExportBase::UpdateTocSectionNodeProperties(const SwSectionNode& rSect
+@@ -3586,6 +3613,23 @@ void MSWordExportBase::UpdateTocSectionNodeProperties(const SwSectionNode& rSect
      }
  }
  
@@ -135,7 +140,10 @@ index ccbaf67..65bea9b 100644
 +    const SwNodeOffset nNext = rSectionNode.EndOfSectionIndex() + 1;
 +    if (!pLast || pLast->GetText().isEmpty() || nNext > m_nCurEnd)
 +        return nullptr;
-+    return rNodes[nNext]->GetTextNode();
++    const SwTextNode* pNext = rNodes[nNext]->GetTextNode();
++    // Only the import's end paragraph, never body text
++    const SfxGrabBagItem* pBag = pNext ? pNext->GetSwAttrSet().GetItemIfSet(RES_PARATR_GRABBAG, false) : nullptr;
++    return pBag && pBag->GetGrabBag().contains(u"TOCFieldEnd"_ustr) ? pNext : nullptr;
 +}
 +
  void WW8Export::AppendSection( const SwPageDesc *pPageDesc, const SwSectionFormat* pFormat, sal_uLong nLnNum )
@@ -177,3 +185,79 @@ index a9991df..d584159 100644
  
      virtual void AppendSection( const SwPageDesc *pPageDesc, const SwSectionFormat* pFormat, sal_uLong nLnNum ) = 0;
  
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+index 040b63f..aee57ef 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+@@ -333,6 +333,26 @@ static void lcl_MoveOutOfSection(SwTextNode& rParagraph, sal_Int32 nAt)
+         throw uno::RuntimeException(u"TOC tail paragraph did not move"_ustr);
+ }
+ 
++/// Marks the paragraph after a TOC as holding its end.
++static void lcl_MarkTOCEnd(const uno::Reference<text::XTextRange>& xParagraph)
++{
++    uno::Reference<text::XTextCursor> xCursor = xParagraph->getText()->createTextCursorByRange(xParagraph->getStart());
++    auto pCursor = dynamic_cast<SwXTextCursor*>(xCursor.get());
++    SwPaM* pPaM = pCursor ? pCursor->GetPaM() : nullptr;
++    const SwNode* pNode = pPaM ? &pPaM->GetPointNode() : nullptr;
++    const SwNode* pBefore = pNode ? pNode->GetNodes()[pNode->GetIndex() - SwNodeOffset(1)] : nullptr;
++    const SwSectionNode* pTOC = pBefore && pBefore->IsEndNode() ? pBefore->StartOfSectionNode()->GetSectionNode() : nullptr;
++    if (!pTOC || pTOC->GetSection().GetType() != SectionType::ToxContent)
++    {
++        SAL_WARN("writerfilter.dmapper", "TOC end paragraph is not after its TOC");
++        return;
++    }
++    uno::Reference<beans::XPropertySet> xProps(xParagraph, uno::UNO_QUERY_THROW);
++    comphelper::SequenceAsHashMap aBag(xProps->getPropertyValue(u"ParaInteropGrabBag"_ustr));
++    aBag[u"TOCFieldEnd"_ustr] <<= true;
++    xProps->setPropertyValue(u"ParaInteropGrabBag"_ustr, uno::Any(aBag.getAsConstPropertyValueList()));
++}
++
+ /// Decides if the pInner field inside pOuter is allowed in Writer core, depending on their type.
+ static bool IsFieldNestingAllowed(const FieldContextPtr& pOuter, const FieldContextPtr& pInner)
+ {
+@@ -2321,7 +2341,10 @@ void DomainMapper_Impl::finishParagraph( const PropertyMapPtr& pPropertyMap, con
+         // Content after the field end is not index content
+         else if ((pTOCEnd->Len() > nAt || pTOCEnd->GetAnchoredFlys().size() > nFlys) && !IsInTOC()
+                  && !m_bStartIndex && !m_bStartBibliography)
++        {
+             lcl_MoveOutOfSection(*pTOCEnd, nAt);
++            m_StreamStateStack.top().bTOCEndPending = true;
++        }
+     }
+ 
+ #ifdef DBG_UTIL
+@@ -3049,6 +3072,11 @@ void DomainMapper_Impl::finishParagraph( const PropertyMapPtr& pPropertyMap, con
+                 }
+                 getTableManager( ).handle(xTextRange);
+                 m_aSmartTagHandler.handle(xTextRange);
++                if (m_StreamStateStack.top().bTOCEndPending && xTextRange.is() && !IsInShape())
++                {
++                    m_StreamStateStack.top().bTOCEndPending = false;
++                    lcl_MarkTOCEnd(xTextRange);
++                }
+ 
+                 if (xTextRange.is())
+                 {
+@@ -9312,6 +9340,8 @@ void DomainMapper_Impl::PopFieldContext()
+                                 xTextAppend->finishParagraphInsert(css::beans::PropertyValues(),
+                                     m_aTextAppendStack.top().xInsertPosition);
+                             }
++                            // Word ends the field at this paragraph's start
++                            m_StreamStateStack.top().bTOCEndPending = true;
+                         }
+                         else if (m_StreamStateStack.top().bParaChanged || m_StreamStateStack.top().bTOCInSdt)
+                             xKeptEnd = m_aTextAppendStack.top().xInsertPosition;
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
+index 854dbba..730ec6f 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
+@@ -270,6 +270,8 @@ struct SubstreamContext
+     css::uno::Reference<css::text::XTextRange> xTOCEndParagraph;
+     sal_Int32 nTOCEndAt = 0;
+     size_t nTOCEndFlys = 0;
++    /// The next paragraph starts with a TOC's field end.
++    bool bTOCEndPending = false;
+     OUString sCurrentParaStyleName; ///< highly inaccurate. Overwritten by "overlapping" paragraphs like flys.
+     bool bHasFootnoteStyle = false;
+     bool bCheckFootnoteStyle = false;

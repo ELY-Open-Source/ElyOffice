@@ -40,6 +40,11 @@ fn an_untitled_toc_ends_in_the_paragraph_after_it() {
 }
 
 #[test]
+fn a_writer_toc_keeps_the_text_after_it() {
+    saved_twice("toc-native.fodt", "toc-native");
+}
+
+#[test]
 fn text_after_a_toc_field_end_stays_outside_the_field() {
     saved_twice("toc-tail.docx", "toc-tail");
     saved_twice("toc-tail-untitled.docx", "toc-tail");

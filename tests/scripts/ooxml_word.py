@@ -128,10 +128,37 @@ def ends_first(path):
     ooxml.check(before == "", f"the TOC field ends after {before!r} in its paragraph")
 
 
+def toc_control(path):
+    """The body and its one TOC content control."""
+    with zipfile.ZipFile(path) as archive:
+        body = ooxml.xml(archive, ooxml.main_part(archive)).find(ooxml.W + "body")
+    sdts = [k for k in body if k.tag == ooxml.W + "sdt" and "Table of Contents" in ooxml.ET.tostring(k, encoding="unicode")]
+    ooxml.check(len(sdts) == 1, f"{len(sdts)} TOC content controls")
+    return body, sdts[0] if sdts else None
+
+
 def toc_alone(path):
-    """The field ends alone after the last entry."""
+    """The field ends alone, in the control, after the entries."""
     got = closing(path)
     ooxml.check(got == ("Beta1", "", "", "Alpha"), f"around the TOC field end: {got}")
+    body, sdt = toc_control(path)
+    depth, end = 0, None
+    for node in body.iter(ooxml.W + "fldChar"):
+        kind = node.get(ooxml.W + "fldCharType")
+        depth += {"begin": 1, "end": -1}.get(kind, 0)
+        if kind == "end" and depth == 0 and end is None:
+            end = node
+    inside = sdt is not None and any(node is end for node in sdt.iter())
+    ooxml.check(inside, "the TOC field ends outside its content control")
+
+
+def toc_native(path):
+    """A Writer TOC keeps the text after it outside."""
+    outside = after_toc(path)[1]
+    ooxml.check(outside == ["Alpha", "Body one.", "Beta", "Body two."], f"outside the TOC field: {outside}")
+    sdt = toc_control(path)[1]
+    held = [ooxml.texts(p, ooxml.W + "t") for p in sdt.iter(ooxml.W + "p")] if sdt is not None else []
+    ooxml.check(set(held) <= {"Alpha1", "Beta1", ""}, f"the TOC control holds {held}")
 
 
 def toc_tail(path):
@@ -149,7 +176,8 @@ def toc_shape(path):
     ends_first(path)
 
 
-CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape, "toc-alone": toc_alone}
+CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape, "toc-alone": toc_alone,
+         "toc-native": toc_native}
 MUTATIONS = {
     "equation": [
         ("word/document.xml", r"<m:r>(<m:t[^>]*>)[-−](</m:t>)", r"<m:r><m:rPr><m:nor/></m:rPr>\1-\2"),
@@ -168,6 +196,11 @@ MUTATIONS = {
     "toc-alone": [
         ("word/document.xml", r'(?s)(</w:p>)(<w:p[ >](?:(?!<w:p[ >]|</w:p>).)*?)(<w:r>(?:(?!<w:r>).)*?<w:fldChar w:fldCharType="end"/></w:r>)', r'\3\1\2'),
         ("word/document.xml", r'(<w:fldChar w:fldCharType="end"/></w:r>)', r'\1<w:r><w:t>x</w:t></w:r>'),
+        ("word/document.xml", r'(?s)(<w:p[ >](?:(?!<w:p[ >]).)*?<w:fldChar w:fldCharType="end"/>(?:(?!</w:sdtContent>).)*?)(</w:sdtContent></w:sdt>)', r'\2\1'),
+    ],
+    "toc-native": [
+        ("word/document.xml", r'(?s)(</w:sdtContent></w:sdt>)(<w:p[ >].*?</w:p>)', r'\2\1'),
+        ("word/document.xml", r'(?s)(<w:r>(?:(?!<w:r>).)*?<w:fldChar w:fldCharType="end"/></w:r>)(.*?</w:sdt><w:p[ >].*?)(</w:p>)', r'\2\1\3'),
     ],
     "toc-tail": [
         ("word/document.xml", r'(<w:fldChar w:fldCharType="end"/></w:r>)(.*?)(<w:r>(?:<w:rPr></w:rPr>)?<w:t[^>]*>After</w:t></w:r>)', r'\3\1\2'),
