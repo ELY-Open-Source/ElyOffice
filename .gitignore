@@ -17,3 +17,4 @@ node_modules/
 /TyporaRef
 /cred.txt
 /update-key.txt
+__pycache__/
