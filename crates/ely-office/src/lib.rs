@@ -221,6 +221,8 @@ pub struct Core<H: Host> {
     pub quiet: std::collections::HashMap<u64, u64>,
     /// Other programs' saves, answered as each ends.
     pub saving: Vec<(u64, ely_ui::Ask)>,
+    /// Other programs' saves waiting for a typing pause.
+    pub asked: Vec<(u64, ely_ui::Ask)>,
 }
 
 impl<H: Host> Core<H> {
@@ -253,6 +255,7 @@ impl<H: Host> Core<H> {
             slow: None,
             quiet: Default::default(),
             saving: Vec::new(),
+            asked: Vec::new(),
         }
     }
 }

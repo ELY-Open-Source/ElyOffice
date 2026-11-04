@@ -15,7 +15,7 @@ use crate::{After, Closing, Dialog, Engine, Host, Opening, Tabs, in_window, text
 mod gone;
 mod landing;
 mod paths;
-mod pause;
+pub(crate) mod pause;
 pub use paths::folder;
 use landing::Target;
 use paths::identity;
@@ -61,10 +61,6 @@ pub trait Saving: Host {
         if !self.tab(id).is_some_and(|tab| tab.session.path().is_some() && tab.risk.is_none()) {
             return self.save_paused(id, then, window, cx);
         }
-        // A waiting save starts later: it covers this one.
-        if then.is_none() && self.tab(id).is_some_and(|tab| tab.pausing > 0) {
-            return log::info!("office: tab {id}'s save joins the one waiting");
-        }
         let paused = move |host: &mut Self, window: &mut Window, cx: &mut Context<Self>| host.save_paused(id, then, window, cx);
         pause::at_pause(self, id, Box::new(paused), window, cx);
     }
@@ -78,8 +74,6 @@ pub trait Saving: Host {
             return self.after_export(id, move |host, window, cx| host.save_paused(id, then, window, cx));
         }
         let Some(tab) = self.tab(id) else {
-            // A program's save may wait past its tab.
-            self.core_mut().answer_saves(id, Err(format!("tab {id} closed before its save")));
             return self.closed_first(id, then, window, cx);
         };
         let Some(path) = tab

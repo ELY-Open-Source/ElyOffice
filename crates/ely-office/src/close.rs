@@ -243,6 +243,11 @@ pub trait Closing: Host {
         crate::Recovering::forget_tab(self, id, cx);
         let core = self.core_mut();
         core.waiting.retain(|(waiting, _)| *waiting != id);
+        let (asks, rest): (Vec<_>, Vec<_>) = std::mem::take(&mut core.asked).into_iter().partition(|(tab, _)| *tab == id);
+        core.asked = rest;
+        for (_, ask) in asks {
+            ask.answer(Err(format!("tab {id} closed before its save")));
+        }
         if let Some(registry) = tab.registry {
             core.sessions.close(registry);
         }

@@ -23,7 +23,7 @@ fn due<H: Tabs>(host: &H, id: u64, asked: Instant, cx: &App) -> Option<Duration>
 }
 
 /// Runs `then` once tab `id`'s typing pauses, `CAP` at most.
-pub(super) fn at_pause<H: Tabs>(host: &mut H, id: u64, then: Waiting<H>, window: &mut Window, cx: &mut Context<H>) {
+pub(crate) fn at_pause<H: Tabs>(host: &mut H, id: u64, then: Waiting<H>, window: &mut Window, cx: &mut Context<H>) {
     let asked = cx.background_executor().now();
     let Some(wait) = due(host, id, asked, cx) else {
         return then(host, window, cx);

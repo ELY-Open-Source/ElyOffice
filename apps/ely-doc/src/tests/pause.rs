@@ -87,6 +87,72 @@ fn a_program_save_waiting_for_a_pause_hears_its_tab_close() {
     assert!(answer.is_err_and(|why| why.contains("closed")), "the program hears the tab went");
 }
 
+/// A program's save of `own`, asked after a key; it waits.
+fn program_save(cx: &mut TestAppContext, docs: &Entity<Docs>, own: &std::path::Path) -> std::sync::mpsc::Receiver<Result<String, String>> {
+    commit(cx, docs, "two");
+    run(cx);
+    let (ask, answered) = ely_ui::Ask::for_tests(&serde_json::json!(["save", own.display().to_string()]).to_string());
+    cx.update(|app| docs.update(app, |docs, cx| docs.answer_request(ask, cx)));
+    run(cx);
+    answered
+}
+
+#[test]
+fn a_save_as_ending_in_the_pause_never_answers_a_program() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let (id, own, before) = typed_file(&mut cx, &docs, dir.path());
+    let answered = program_save(&mut cx, &docs, &own);
+    let other = dir.path().join("other.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, other.clone(), None, window, cx));
+    without_time(&cx, |app| other.exists() && docs.read(app).tab(id).is_some_and(|tab| !tab.exporting && tab.name == "other.docx"));
+    run(&cx);
+    assert!(answered.try_recv().is_err(), "the Save As answered the program");
+    assert_eq!(std::fs::read(&own).expect("own.docx"), before, "own.docx is not written");
+    cx.executor().advance_clock(Duration::from_secs(1));
+    let answer = std::cell::RefCell::new(None);
+    settle(&cx, |_| {
+        if answer.borrow().is_none() {
+            *answer.borrow_mut() = answered.try_recv().ok();
+        }
+        answer.borrow().is_some()
+    });
+    assert!(answer.into_inner().expect("answered").is_ok(), "the program's own save answers");
+    let saved = format!("office: saved {}", other.display());
+    let saves = ely_ui::logs::kept().iter().filter(|line| line.contains(&saved)).count();
+    assert_eq!(saves, 2, "the Save As, then the program's own write");
+}
+
+#[test]
+fn a_person_and_a_program_saving_a_gone_file_both_hear_it() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let (_, own, _) = typed_file(&mut cx, &docs, dir.path());
+    commit(&mut cx, &docs, "k");
+    run(&cx);
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_save(&ely_ui::commands::Save, window, cx));
+    let answered = program_save(&mut cx, &docs, &own);
+    std::fs::remove_file(&own).expect("deleted outside");
+    cx.executor().advance_clock(Duration::from_secs(1));
+    let (asked, answer) = (std::cell::Cell::new(false), std::cell::RefCell::new(None));
+    settle(&cx, |_| {
+        asked.set(asked.get() || cx.did_prompt_for_new_path());
+        if answer.borrow().is_none() {
+            *answer.borrow_mut() = answered.try_recv().ok();
+        }
+        asked.get() && answer.borrow().is_some()
+    });
+    assert!(answer.into_inner().expect("answered").is_err(), "the program hears the file went");
+}
+
 #[test]
 fn a_key_after_a_save_goes_first_and_into_the_file() {
     let dir = tempfile::tempdir().expect("a temp dir");

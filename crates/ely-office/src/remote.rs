@@ -124,19 +124,33 @@ pub trait Remote: Saving {
             .ok_or_else(|| format!("{file} is not open in {}", Self::KIND.app.name()))
     }
 
-    /// Saves once idle; the next save ending is this one.
+    /// Saves at the next typing pause; asks in one pause share it.
     fn save_for(&mut self, id: u64, ask: Ask, window: &mut Window, cx: &mut Context<Self>) {
+        let waiting = self.core().asked.iter().any(|(tab, _)| *tab == id);
+        self.core_mut().asked.push((id, ask));
+        if waiting {
+            return log::info!("{}: tab {id}'s program save joins the one waiting", Self::KIND.app.slug());
+        }
+        crate::save::pause::at_pause(self, id, Box::new(move |host: &mut Self, window: &mut Window, cx: &mut Context<Self>| host.save_asked(id, window, cx)), window, cx);
+    }
+
+    /// The waiting asks of tab `id` get their own save.
+    fn save_asked(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
         if !self.settled(id, cx) {
-            return self.when_settled(id, move |host, window, cx| host.save_for(id, ask, window, cx));
+            return self.when_settled(id, move |host, window, cx| host.save_asked(id, window, cx));
         }
         if self.exporting(id) {
-            return self.after_export(id, move |host, window, cx| host.save_for(id, ask, window, cx));
+            return self.after_export(id, move |host, window, cx| host.save_asked(id, window, cx));
         }
+        // A closed tab answered its asks already.
         if self.tab(id).is_none() {
-            return ask.answer(Err(format!("tab {id} closed before its save")));
+            return;
         }
-        self.core_mut().saving.push((id, ask));
-        self.save(id, None, window, cx);
+        let (asks, rest): (Vec<_>, Vec<_>) = std::mem::take(&mut self.core_mut().asked).into_iter().partition(|(tab, _)| *tab == id);
+        self.core_mut().asked = rest;
+        // Only this save's end answers them.
+        self.core_mut().saving.extend(asks);
+        self.save_paused(id, None, window, cx);
     }
 }
 
