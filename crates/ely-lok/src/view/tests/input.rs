@@ -155,12 +155,10 @@ fn a_drag_selects_and_events_carry_the_cursor() {
         })
     });
     let mut selected = false;
-    for _ in 0..40 {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while !selected && std::time::Instant::now() < deadline {
         flush(&cx);
         selected = cx.update(|app| !view.read(app).selection.is_empty());
-        if selected {
-            break;
-        }
     }
     assert!(selected, "the drag selection reaches the view");
     cx.update(|app| {
@@ -294,7 +292,8 @@ const DECK: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 /// Paints until tile (0, 0) is fresh, then its bytes.
 fn fresh_corner(view: &Entity<LokView>, cx: &mut TestAppContext, not: Option<&[u8]>) -> Vec<u8> {
     let bounds = Bounds { origin: point(px(0.0), px(0.0)), size: size(px(800.0), px(600.0)) };
-    for _ in 0..400 {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while std::time::Instant::now() < deadline {
         let bytes = cx.update(|app| {
             view.update(app, |view, _| view.prepare(bounds));
             let read = view.read(app);

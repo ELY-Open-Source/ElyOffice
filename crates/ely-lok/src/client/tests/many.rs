@@ -68,9 +68,9 @@ fn writer_dialog_keys_leave_every_document_working() {
         for key in [8971, 8962] {
             let base = poll_until(&mut worker, &second, &Events::default(), SETTLE, |_| false);
             worker.post_key(&second, 0, key).expect("the key posts");
-            let seen = poll_until(&mut worker, &second, &base, SETTLE, |seen| !seen.blocked.is_empty());
+            let seen = poll_until(&mut worker, &second, &base, HANG, |seen| !seen.blocked.is_empty());
             blocked.extend(seen.blocked.clone());
-            let ended = poll_until(&mut worker, &second, &seen, SETTLE, |e| e.dismissed > base.dismissed);
+            let ended = poll_until(&mut worker, &second, &seen, HANG, |e| e.dismissed > base.dismissed);
             assert!(ended.dismissed > base.dismissed, "the dialog of key {key} never ended");
             for doc in [&first, &second] {
                 worker.post_key(doc, 'z' as u32, 537).expect("typing still works");

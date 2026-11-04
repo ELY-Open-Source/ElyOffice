@@ -58,4 +58,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("error.closed", "ドキュメントが閉じられました"),
     ("error.open_there", "そこには開いているドキュメントがあります"),
     ("error.no_pixels", "画像にピクセルがありません"),
+    ("error.then", "{error}。書き込み済みのファイルも削除できませんでした: {left}"),
+    ("error.no_key", "復元用のキーがキーストアにありません"),
+    ("error.not_installed", "{app} がインストールされていません"),
 ];

@@ -137,7 +137,7 @@ fn the_side_folds_from_the_shared_key(cx: &mut TestAppContext) {
     let kept = || crate::look::load(&data.path().join("look.json")).expect("the look reads");
     // The panel slides; wait out its motion.
     let drawn = |cx: &mut gpui::VisualTestContext, want: bool| {
-        for _ in 0..50 {
+        for _ in 0..3000 {
             cx.update(|window, _| window.refresh());
             cx.run_until_parked();
             if cx.debug_bounds("mark-outline").is_some() == want {

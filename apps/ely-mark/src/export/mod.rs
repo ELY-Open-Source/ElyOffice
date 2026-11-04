@@ -113,7 +113,7 @@ impl Desk {
             return;
         };
         let Some(dir) = ely_office::folder(source) else {
-            return self.export_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
+            return self.export_failed(&ely_ipc::Worded::error(std::io::ErrorKind::NotFound, "error.no_documents", &[]), cx);
         };
         let stem = source
             .name
@@ -128,8 +128,8 @@ impl Desk {
         cx.spawn(async move |desk, cx| {
             let chosen = match chosen.await {
                 Ok(Ok(path)) => Ok(path),
-                Ok(Err(error)) => Err(error.to_string()),
-                Err(error) => Err(error.to_string()),
+                Ok(Err(error)) => Err(std::io::Error::other(error)),
+                Err(error) => Err(std::io::Error::other(error)),
             };
             desk.update(cx, |desk, cx| match chosen {
                 Ok(Some(path)) => desk.export_to(tab, path, format, cx),
@@ -151,8 +151,8 @@ impl Desk {
         };
         match self.holder(&path) {
             Ok(None) => {}
-            Ok(Some(_)) => return self.export_failed(&ely_ui::i18n::text(cx, "error.open_there", &[]), cx),
-            Err(error) => return self.export_failed(&error.to_string(), cx),
+            Ok(Some(_)) => return self.export_failed(&ely_ipc::Worded::error(std::io::ErrorKind::AlreadyExists, "error.open_there", &[]), cx),
+            Err(error) => return self.export_failed(&error, cx),
         }
         let session = source.session.path().map(PathBuf::from);
         let beside = session
@@ -188,7 +188,7 @@ impl Desk {
                     );
                     desk.toast(said, Severity::Danger, cx);
                 }
-                Err(error) => desk.export_failed(&error.to_string(), cx),
+                Err(error) => desk.export_failed(&error, cx),
             })
         })
         .detach_and_log_err(cx);
@@ -228,9 +228,11 @@ impl Desk {
         }
     }
 
-    fn export_failed(&self, error: &str, cx: &mut Context<Self>) {
-        let said = text(cx, "mark.export.failed", &[("error", error)]);
-        self.toast(said, Severity::Danger, cx);
+    /// Logs `error` itself; only the toast reads its words.
+    fn export_failed(&self, error: &std::io::Error, cx: &mut Context<Self>) {
+        log::warn!("mark: the export failed: {}", ely_ipc::Worded::logged(error));
+        let said = text(cx, "mark.export.failed", &[("error", &ely_ui::i18n::error(cx, error))]);
+        self.toast_unlogged(said, Severity::Danger, cx);
     }
 
     /// Prints the PDF export through the system panel.

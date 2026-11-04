@@ -2,6 +2,8 @@
 
 use std::{io, path::Path};
 
+use ely_ipc::Worded;
+
 use crate::git::Git;
 
 fn bad(what: &str) -> io::Error {
@@ -125,9 +127,7 @@ pub fn nothing_staged(git: &Git, root: &Path) -> io::Result<()> {
     {
         return Ok(());
     }
-    Err(io::Error::other(
-        "staged changes would be lost; commit or unstage them first",
-    ))
+    Err(Worded::error(io::ErrorKind::Other, "tree.error.staged", &[]))
 }
 
 pub fn plan_move(git: &Git, root: &Path, to: &str) -> io::Result<Move> {

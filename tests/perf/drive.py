@@ -383,6 +383,10 @@ class Windows(Host):
     def shot(self, pid, path):
         self.ui("shot", pid, path)
 
+    def values(self, pid):
+        """What the window's text fields show."""
+        return re.findall(r"^value (.*)$", self.ui("values", pid), re.M)
+
     def environment(self):
         info = self.ui("machine", 0).strip().split("|")
         cpu, cores, memory, gpu, system = info

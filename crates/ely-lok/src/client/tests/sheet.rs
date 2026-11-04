@@ -15,7 +15,7 @@ fn a11y_follows_calc_cells() {
     worker.post_key(&doc, 0, 1027).expect("Right to B1");
     let b1 = poll_until(&mut worker, &doc, &base, SETTLE, |_| false);
     worker.post_key(&doc, 0, 1026).expect("Left to A1");
-    let a1 = poll_until(&mut worker, &doc, &b1, SETTLE, |seen| {
+    let a1 = poll_until(&mut worker, &doc, &b1, HANG, |seen| {
         seen.a11y.text == "Hello 世界"
     });
     assert_eq!(
@@ -23,7 +23,7 @@ fn a11y_follows_calc_cells() {
         "the cell text bridges without editing"
     );
     worker.post_key(&doc, 0, 1027).expect("Right to B1 again");
-    let empty = poll_until(&mut worker, &doc, &a1, SETTLE, |seen| {
+    let empty = poll_until(&mut worker, &doc, &a1, HANG, |seen| {
         seen.a11y.text.is_empty()
     });
     assert_eq!(empty.a11y.text, "", "the empty B1 clears the bridge");
@@ -54,12 +54,12 @@ fn a_cancelled_cell_edit_restores_the_cell_text() {
     worker
         .post_key(&doc, 'Z' as u32, 537 | 0x1000)
         .expect("Z types");
-    let typed = poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+    let typed = poll_until(&mut worker, &doc, &base, HANG, |seen| {
         seen.a11y.text.ends_with('Z')
     });
     assert_eq!(typed.a11y.text, "Hello 世界Z", "the edit bridges");
     worker.post_key(&doc, 0, 1281).expect("Escape cancels");
-    let back = poll_until(&mut worker, &doc, &typed, SETTLE, |seen| {
+    let back = poll_until(&mut worker, &doc, &typed, HANG, |seen| {
         seen.a11y.text == "Hello 世界"
     });
     assert_eq!(back.a11y.text, "Hello 世界", "the cancel restores the cell");
@@ -83,21 +83,21 @@ fn undo_and_redo_work_inside_a_cell_edit() {
         worker
             .post_key(&doc, 'Z' as u32, 537 | 0x1000)
             .expect("Z types");
-        let typed = poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+        let typed = poll_until(&mut worker, &doc, &base, HANG, |seen| {
             seen.a11y.text == "Hello 世界Z"
         });
         assert_eq!(typed.a11y.text, "Hello 世界Z");
         worker
             .run(&doc, "edit.undo", &[])
             .expect("undo in the edit");
-        let undone = poll_until(&mut worker, &doc, &typed, SETTLE, |seen| {
+        let undone = poll_until(&mut worker, &doc, &typed, HANG, |seen| {
             seen.a11y.text == "Hello 世界"
         });
         assert_eq!(undone.a11y.text, "Hello 世界", "history {with_history}");
         worker
             .run(&doc, "edit.redo", &[])
             .expect("redo in the edit");
-        let redone = poll_until(&mut worker, &doc, &undone, SETTLE, |seen| {
+        let redone = poll_until(&mut worker, &doc, &undone, HANG, |seen| {
             seen.a11y.text == "Hello 世界Z"
         });
         assert_eq!(redone.a11y.text, "Hello 世界Z", "history {with_history}");
@@ -130,7 +130,7 @@ fn sheets_list_switch_and_the_cell_reports() {
         .collect();
     assert_eq!(names, [("S", true), ("T", false), ("U", true)]);
     assert_eq!(sheets.current, 0);
-    let first = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let first = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         seen.cell.address == "A1" && seen.cell.formula == "Hello 世界" && seen.cell.cursor.is_some()
     });
     assert!(first.cell.cursor.is_some(), "the cell cursor shows on load");
@@ -143,7 +143,7 @@ fn sheets_list_switch_and_the_cell_reports() {
     worker.post_key(&doc, 0, 1027).expect("Right to B1");
     worker.post_key(&doc, 0, 1024).expect("Down to B2");
     worker.post_key(&doc, 0, 1024).expect("Down to B3");
-    let b3 = poll_until(&mut worker, &doc, &first, SETTLE, |seen| {
+    let b3 = poll_until(&mut worker, &doc, &first, HANG, |seen| {
         seen.cell.address == "B3"
     });
     let (x, y, _, _) = b3.cell.cursor.expect("the cell cursor");
@@ -155,7 +155,7 @@ fn sheets_list_switch_and_the_cell_reports() {
     let first = b3;
     doc.show_sheet(&mut worker, 2).expect("U shows");
     assert_eq!(doc.sheets(&mut worker).expect("the sheets").current, 2);
-    let third = poll_until(&mut worker, &doc, &first, SETTLE, |seen| {
+    let third = poll_until(&mut worker, &doc, &first, HANG, |seen| {
         seen.cell.formula.starts_with('=')
     });
     assert!(
@@ -206,13 +206,13 @@ fn the_pointer_is_text_only_while_a_cell_edits() {
         worker.post_mouse(&doc, at).expect("hovers");
     };
     hover(&mut worker, 400);
-    let reading = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let reading = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         !seen.pointer.is_empty()
     });
     assert_eq!(reading.pointer, "default", "a cell shows the arrow");
     worker.post_key(&doc, 0, 769).expect("F2 edits A1");
     hover(&mut worker, 500);
-    let editing = poll_until(&mut worker, &doc, &reading, SETTLE, |seen| {
+    let editing = poll_until(&mut worker, &doc, &reading, HANG, |seen| {
         seen.pointer == "text"
     });
     assert_eq!(editing.pointer, "text", "the edited cell shows the text pointer");

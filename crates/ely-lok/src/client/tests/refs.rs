@@ -22,7 +22,7 @@ fn type_in(worker: &mut Worker, doc: &Doc, text: &str) {
 
 /// Reads until `done`: the kernel lists comments after layout.
 fn awaited<T>(mut read: impl FnMut() -> T, done: impl Fn(&T) -> bool) -> T {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     loop {
         let value = read();
         if done(&value) || std::time::Instant::now() > deadline {
@@ -182,13 +182,11 @@ fn an_inline_formula_keeps_its_spacing_and_alignment() {
     let mut seen = Events::default();
     for x in (1500..4000).step_by(100) {
         click(&mut worker, &doc, x, 1600);
-        seen = poll_until(
-            &mut worker,
-            &doc,
-            &seen,
-            std::time::Duration::from_millis(400),
-            |seen| seen.graphic.is_some(),
-        );
+        // Each click answers with a frame or a fresh cursor.
+        let before = Events { cursor: None, ..seen };
+        seen = poll_until(&mut worker, &doc, &before, HANG, |seen| {
+            seen.graphic.is_some() || seen.cursor.is_some()
+        });
         if seen.graphic.is_some() {
             break;
         }

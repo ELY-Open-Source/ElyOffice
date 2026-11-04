@@ -1,9 +1,7 @@
 use super::*;
-use crate::client::tests::{poll_until, show::DECK};
+use crate::client::tests::{HANG, poll_until, show::DECK};
 use crate::table::Table;
 use gpui::{Pixels, Point, TestAppContext};
-
-const WAIT: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// A line's place along its axis, in twips.
 type Place = fn(&Table) -> i32;
@@ -13,7 +11,7 @@ fn table_in(view: &mut LokView, (columns, rows): (&str, &str)) -> Table {
     let doc = view.doc.clone();
     let mut worker = view.worker.lock().expect("the worker lock");
     worker.run(&doc, "table.insert", &[columns, rows]).expect("a table");
-    let seen = poll_until(&mut worker, &doc, &Events::default(), WAIT, |seen| seen.table.is_some());
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| seen.table.is_some());
     assert!(seen.faults.is_empty(), "{:?}", seen.faults);
     let table = seen.table.expect("the selected table");
     view.doc = worker.now(&doc).expect("the revision");
@@ -25,7 +23,7 @@ fn table_in(view: &mut LokView, (columns, rows): (&str, &str)) -> Table {
 /// The view's table once `place` moves off `from`.
 fn moved(view: &mut LokView, place: Place, from: i32) -> Table {
     let mut worker = view.worker.lock().expect("the worker lock");
-    let seen = poll_until(&mut worker, &view.doc, &Events::default(), WAIT, |seen| {
+    let seen = poll_until(&mut worker, &view.doc, &Events::default(), HANG, |seen| {
         seen.table.as_ref().is_some_and(|table| place(table) != from)
     });
     let table = seen.table.expect("still the table");

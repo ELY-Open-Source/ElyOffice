@@ -5,6 +5,7 @@ use std::sync::Arc;
 use ely_gpui_component::{i18n::I18n, theme::Theme};
 use ely_ui::laid::LaidOut;
 use ely_office::panel::Panel as _;
+use ely_platform::settings::Paper;
 use gpui::{Entity, TestAppContext, TestDispatcher, VisualTestContext};
 
 use super::Props;
@@ -30,6 +31,8 @@ fn chinese_panel(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<Entit
         ely_gpui_component::init_for_tests(app);
         Theme::update(app, |theme| theme.reduced_motion = true);
         I18n::set_locale("zh-CN", app);
+        // A4 whatever the host's region.
+        app.global_mut::<ely_ui::settings::Current>().shared.paper = Paper::A4;
     });
     blank(cx, &docs);
     type_into(cx, &docs, "文字");
@@ -66,6 +69,14 @@ fn the_page_and_style_groups_speak_chinese() {
             }
         }
     });
+    // Every named state the panel draws.
+    settle(&cx, |app| {
+        let props = props.read(app);
+        [".uno:CharFontName", ".uno:StyleApply", ".uno:CharStyle", ".uno:PageStyleName"]
+            .into_iter()
+            .all(|uno| props.state(uno, app).is_some())
+            && props.sheet(app).is_some_and(|sheet| sheet.size.0.abs_diff(21_000) <= 2)
+    });
     let window = cx.add_window(|_, _| Shown(props.clone()));
     let mut drawn = VisualTestContext::from_window(window.into(), &cx);
     draw(&mut drawn);
@@ -73,15 +84,16 @@ fn the_page_and_style_groups_speak_chinese() {
     for title in titles {
         assert!(laid.saw(&title), "the panel drew {title}");
     }
-    assert_eq!(laid.english(&[]), Default::default());
+    // A font's name is its own.
+    let font = cx.update(|app| props.read(app).state(".uno:CharFontName", app)).expect("a font");
+    let mut allowed: Vec<&str> = font.split(|ch: char| !ch.is_ascii_alphabetic()).filter(|word| word.len() > 1).collect();
+    assert!(laid.saw(&font), "the panel drew the font");
+    assert_eq!(laid.english(&allowed), Default::default());
     cx.update(|app| props.update(app, |props, cx| props.set_paper("Letter", cx)));
     settle(&cx, |app| props.read(app).sheet(app).is_some_and(|sheet| sheet.size.0 == 21_590));
     draw(&mut drawn);
     // LibreOffice's Chinese keeps the code.
     assert!(laid.saw("美国信函 (Letter)"), "the paper reads in Chinese");
-    // A font's name is its own.
-    let font = cx.update(|app| props.read(app).state(".uno:CharFontName", app)).expect("a font");
-    let mut allowed: Vec<&str> = font.split(' ').collect();
     allowed.push("Letter");
     assert_eq!(laid.english(&allowed), Default::default());
 }

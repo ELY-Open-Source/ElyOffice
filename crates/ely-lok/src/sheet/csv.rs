@@ -41,21 +41,23 @@ pub enum Encoding {
     Gb18030,
     Big5,
     ShiftJis,
-    EucKr,
+    Windows949,
     Windows1252,
     Windows1251,
+    Windows1258,
     Latin1,
 }
 
-pub const ENCODINGS: [Encoding; 9] = [
+pub const ENCODINGS: [Encoding; 10] = [
     Encoding::Utf8,
     Encoding::Utf16,
     Encoding::Gb18030,
     Encoding::Big5,
     Encoding::ShiftJis,
-    Encoding::EucKr,
+    Encoding::Windows949,
     Encoding::Windows1252,
     Encoding::Windows1251,
+    Encoding::Windows1258,
     Encoding::Latin1,
 ];
 
@@ -68,9 +70,10 @@ impl Encoding {
             Encoding::Gb18030 => "GB18030",
             Encoding::Big5 => "Big5",
             Encoding::ShiftJis => "Shift_JIS",
-            Encoding::EucKr => "EUC-KR",
+            Encoding::Windows949 => "Windows-949",
             Encoding::Windows1252 => "Windows-1252",
             Encoding::Windows1251 => "Windows-1251",
+            Encoding::Windows1258 => "Windows-1258",
             Encoding::Latin1 => "ISO-8859-1",
         }
     }
@@ -83,9 +86,10 @@ impl Encoding {
             Encoding::Gb18030 => 85,
             Encoding::Big5 => 68,
             Encoding::ShiftJis => 64,
-            Encoding::EucKr => 79,
+            Encoding::Windows949 => 62,
             Encoding::Windows1252 => 1,
             Encoding::Windows1251 => 34,
+            Encoding::Windows1258 => 40,
             Encoding::Latin1 => 12,
         }
     }

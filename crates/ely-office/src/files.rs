@@ -47,11 +47,12 @@ pub fn kernel_bytes<G: Engine>(
     doc: &G::Doc,
     work: &Path,
     format: &str,
+    closing: bool,
 ) -> io::Result<Vec<u8>> {
     let copy = work.join(format!("save.{format}"));
-    G::write(worker, doc, &copy, format)?;
+    G::write(worker, doc, &copy, format, closing)?;
     let bytes = std::fs::read(&copy)?;
-    log::info!("office: the kernel wrote {} bytes of {format}", bytes.len());
+    log::info!("office: the kernel wrote {} bytes of {format}, closing {closing}", bytes.len());
     Ok(bytes)
 }
 
@@ -129,12 +130,12 @@ fn flat_odf_has_basic(bytes: &[u8]) -> io::Result<bool> {
 fn utf8(bytes: &[u8]) -> io::Result<Cow<'_, [u8]>> {
     let utf16 = |encoding: &'static encoding_rs::Encoding, rest: &[u8]| {
         let text = encoding.decode_without_bom_handling_and_without_replacement(rest);
-        let text = text.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, format!("bad {}", encoding.name())))?;
+        let text = text.ok_or_else(|| ely_ipc::Worded::error(io::ErrorKind::InvalidData, "office.error.damaged", &[]))?;
         Ok(Cow::Owned(text.into_owned().into_bytes()))
     };
     match bytes {
         [0xFF, 0xFE, 0, 0, ..] | [0, 0, 0xFE, 0xFF, ..] | [0x3C, 0, 0, 0, ..] | [0, 0, 0, 0x3C, ..] => {
-            Err(io::Error::new(io::ErrorKind::InvalidData, "UTF-32 XML is not read"))
+            Err(ely_ipc::Worded::error(io::ErrorKind::InvalidData, "office.error.utf32", &[]))
         }
         [0xEF, 0xBB, 0xBF, rest @ ..] => Ok(Cow::Borrowed(rest)),
         [0xFF, 0xFE, rest @ ..] => utf16(encoding_rs::UTF_16LE, rest),
@@ -391,8 +392,40 @@ mod tests {
         assert!(sections(&raw("le-bare.pptx", le.clone())).expect("UTF-16LE, no BOM"));
         assert!(sections(&raw("be.pptx", [&[0xFE, 0xFF][..], &be].concat())).expect("UTF-16BE"));
         let utf32: Vec<u8> = text.chars().flat_map(|c| (c as u32).to_le_bytes()).collect();
-        assert!(sections(&raw("32.pptx", utf32)).is_err(), "UTF-32 is an error, not absence");
-        assert!(sections(&raw("bad.pptx", vec![0xFF, 0xFE, 0x3C, 0, 0x00, 0xD8])).is_err(), "a lone surrogate");
+        let key = |error: io::Error| error.get_ref().and_then(|inner| inner.downcast_ref::<ely_ipc::Worded>()).map(|worded| worded.key);
+        assert_eq!(key(sections(&raw("32.pptx", utf32)).expect_err("UTF-32")), Some("office.error.utf32"), "an error, not absence");
+        let surrogate = sections(&raw("bad.pptx", vec![0xFF, 0xFE, 0x3C, 0, 0x00, 0xD8])).expect_err("a lone surrogate");
+        assert_eq!(key(surrogate), Some("office.error.damaged"));
+        let lzma = raw("lzma.pptx", text.into_bytes());
+        let mut bytes = std::fs::read(&lzma).expect("reads");
+        let central = bytes.windows(4).position(|at| at == b"PK\x01\x02").expect("a directory");
+        bytes[central + 10] = 14;
+        std::fs::write(&lzma, bytes).expect("writes");
+        assert_eq!(key(sections(&lzma).expect_err("LZMA")), Some("office.error.zip_method"));
+    }
+
+    #[gpui::test]
+    fn package_errors_read_in_chinese_and_spanish(cx: &mut gpui::TestAppContext) {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let deck = r#"<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>"#;
+        let wide = dir.path().join("32.pptx");
+        let utf32: Vec<u8> = deck.chars().flat_map(|c| (c as u32).to_le_bytes()).collect();
+        std::fs::write(&wide, stored("ppt/presentation.xml", &utf32)).expect("writes");
+        let mut lzma = stored("ppt/presentation.xml", deck.as_bytes());
+        let central = lzma.windows(4).position(|at| at == b"PK").expect("a directory");
+        lzma[central + 10] = 14;
+        let packed = dir.path().join("lzma.pptx");
+        std::fs::write(&packed, lzma).expect("writes");
+        let errors = [&wide, &packed].map(|path| sections(path).expect_err("refused"));
+        cx.update(|app| {
+            for (locale, said) in [("zh-CN", ["UTF-32 编码的 XML", "zip 压缩方式 14"]), ("es-ES", ["XML en UTF-32", "el método zip 14"])] {
+                ely_ui::i18n::install_as(locale, app);
+                for (error, said) in errors.iter().zip(said) {
+                    let shown = ely_ui::i18n::error(app, error);
+                    assert!(shown.contains(said), "{locale}: {shown}");
+                }
+            }
+        });
     }
 
     #[test]

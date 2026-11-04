@@ -66,10 +66,10 @@ fn a_docx_with_page_references_opens_unmodified() {
     let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/redline.docx");
     let doc = worker.load(&crate::file_url(&source)).expect("loads");
-    let wait = std::time::Duration::from_secs(3);
-    let loaded = poll_until(&mut worker, &doc, &Events::default(), wait, modified);
+    // A late mark fails too, however loaded the machine.
+    let loaded = poll_until(&mut worker, &doc, &Events::default(), HANG, modified);
     assert!(!modified(&loaded), "the load marked it modified");
     doc.paint_tile(&mut worker, (0, 0, 3840, 3840), (256, 256)).expect("the page paints");
-    let painted = poll_until(&mut worker, &doc, &loaded, wait, modified);
+    let painted = poll_until(&mut worker, &doc, &loaded, HANG, modified);
     assert!(!modified(&painted), "the first paint marked it modified");
 }

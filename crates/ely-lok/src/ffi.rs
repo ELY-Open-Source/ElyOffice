@@ -140,7 +140,7 @@ impl Lok {
     }
 
     /// The kit's current error text.
-    fn error(&self) -> String {
+    pub fn error(&self) -> String {
         let class = unsafe { (*self.kit).class };
         type Get = unsafe extern "C" fn(*mut Kit) -> *mut i8;
         type Free = unsafe extern "C" fn(*mut i8);

@@ -104,4 +104,8 @@ pub(super) const ES: &[(&str, &str)] = &[
         "doc.merge.failed",
         "La combinación se detuvo en el registro {n}: {error}",
     ),
+    ("doc.merge.unnamed", "la columna {n} no tiene nombre"),
+    ("doc.merge.guillemet", "la columna {name} contiene « o »"),
+    ("doc.merge.twice", "dos columnas se llaman {name}"),
+    ("doc.merge.no_rows", "el archivo no tiene filas"),
 ];

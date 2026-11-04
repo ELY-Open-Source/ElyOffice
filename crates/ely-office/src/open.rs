@@ -112,19 +112,19 @@ pub trait Opening: Host {
     }
 
     fn failed_open(&self, name: &str, error: &io::Error, cx: &mut gpui::App) {
-        log::error!("{}: {name} did not open: {error}", Self::KIND.app.slug());
+        log::error!("{}: a file did not open: {}", Self::KIND.app.slug(), ely_ipc::Worded::logged(error));
         let inner = error.get_ref();
         let error = match inner.and_then(|inner| inner.downcast_ref::<files::NotPackage>()) {
             Some(files::NotPackage(ext)) => text(cx, "office.error.not_package", &[("ext", ext)]).to_string(),
             None if inner.is_some_and(|inner| inner.is::<ely_lok::Damaged>()) => text(cx, "office.error.damaged", &[]).to_string(),
-            None => error.to_string(),
+            None => ely_ui::i18n::error(cx, error).to_string(),
         };
         let text = text(
             cx,
             "office.error.open",
             &[("name", name), ("error", &error)],
         );
-        self.toast(text, ely_gpui_component::primitives::Severity::Danger, cx);
+        self.toast_unlogged(text, ely_gpui_component::primitives::Severity::Danger, cx);
     }
 
     /// Loads off the main thread; the tab takes focus.
@@ -338,7 +338,10 @@ pub trait Opening: Host {
                 log::info!("office: tab {id} failed after it closed");
                 return;
             }
-            host.engine_failed(error, cx);
+            // Engines log their own detail; words may quote errors.
+            log::warn!("{}: tab {id} reported an engine failure", Self::KIND.app.slug());
+            let shown = text(cx, "office.error.engine", &[("error", error)]);
+            host.toast_unlogged(shown, ely_gpui_component::primitives::Severity::Danger, cx);
             crate::Stopping::check_engine(host, cx);
         });
     }

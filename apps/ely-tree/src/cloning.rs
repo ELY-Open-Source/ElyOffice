@@ -49,14 +49,14 @@ impl Tree {
             .map(PathBuf::from)
             .or_else(std::env::home_dir);
         let Some(near) = near else {
-            return self.failed("tree.error.clone", &ely_ui::i18n::text(cx, "error.no_home", &[]), cx);
+            return self.failed("tree.error.clone", &ely_ipc::Worded::error(io::ErrorKind::NotFound, "error.no_home", &[]), cx);
         };
         let picked = cx.prompt_for_new_path(&near, suggested(&url));
         cx.spawn(async move |this, cx| {
             let picked = picked
                 .await
-                .map_err(|error| error.to_string())
-                .and_then(|picked| picked.map_err(|error| error.to_string()));
+                .map_err(io::Error::other)
+                .and_then(|picked| picked.map_err(io::Error::other));
             this.update(cx, |tree, cx| match picked {
                 Ok(Some(into)) => tree.start_clone(url, into, cx),
                 Ok(None) => log::info!("tree: the clone folder panel was cancelled"),
@@ -71,7 +71,7 @@ impl Tree {
         let Some(git) = self.git(cx) else { return };
         let running = match git.clone_repo(&url, &into) {
             Ok(running) => running,
-            Err(error) => return self.failed("tree.error.clone", &error.to_string(), cx),
+            Err(error) => return self.failed("tree.error.clone", &error, cx),
         };
         self.cloning = Some(Cloning {
             into,
@@ -121,7 +121,7 @@ impl Tree {
                 let words = text(cx, "tree.clone.stopped", &[]);
                 self.toast(words, Severity::Info, cx);
             }
-            Err(error) => self.failed("tree.error.clone", &error.to_string(), cx),
+            Err(error) => self.failed("tree.error.clone", &error, cx),
         }
     }
 
@@ -133,7 +133,7 @@ impl Tree {
         // Only a stop asked for turns failure quiet.
         match cloning.stop.now() {
             Ok(()) => cloning.stopping = true,
-            Err(error) => self.failed("tree.error.stop", &error.to_string(), cx),
+            Err(error) => self.failed("tree.error.stop", &error, cx),
         }
         cx.notify();
     }

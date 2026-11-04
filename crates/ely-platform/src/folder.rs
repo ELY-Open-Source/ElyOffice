@@ -117,12 +117,13 @@ fn choose_in(home: &Path, parent: &Path) -> io::Result<State> {
     let at = dunce::canonicalize(&state.at)?;
     let target = dunce::canonicalize(parent)?.join(NAME);
     let target = if target.try_exists()? { dunce::canonicalize(&target)? } else { target };
-    let refuse = |why: String| Err(io::Error::new(io::ErrorKind::InvalidInput, why));
+    let shown = target.display().to_string();
+    let refuse = |key| Err(ely_ipc::Worded::error(io::ErrorKind::InvalidInput, key, &[("path", &shown)]));
     if target != at && target.starts_with(&at) {
-        return refuse(format!("{} is inside the data folder", target.display()));
+        return refuse("settings.storage.inside");
     }
     if target != at && content(&target)? == Content::Other {
-        return refuse(format!("{} holds files that are not Ely's", target.display()));
+        return refuse("settings.storage.not_ely");
     }
     state.next = (target != at).then_some(target);
     state.failed = None;

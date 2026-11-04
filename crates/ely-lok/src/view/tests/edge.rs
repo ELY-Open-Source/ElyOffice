@@ -61,12 +61,10 @@ fn a_drag_held_past_the_edge_scrolls_and_grows_the_range() {
         })
     });
     let mut address = String::new();
-    for _ in 0..200 {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while !address.contains(':') && std::time::Instant::now() < deadline {
         cx.executor().tick();
         address = cx.update(|app| view.read(app).cell().address.clone());
-        if address.contains(':') {
-            break;
-        }
     }
     let end = address.split(':').nth(1).expect("a range").trim_end_matches(char::is_numeric);
     let end = (end.bytes().fold(0, |at, b| at * 26 + u32::from(b - b'A' + 1))) - 1;

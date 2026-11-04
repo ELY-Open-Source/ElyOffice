@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 anyhow.workspace = true
 ely-gpui-component.workspace = true
+ely-ipc.workspace = true
 ely-platform.workspace = true
 gpui.workspace = true
 directories.workspace = true

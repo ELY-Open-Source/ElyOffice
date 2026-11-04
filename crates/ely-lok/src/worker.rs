@@ -421,13 +421,14 @@ fn save(unpack: &mut Unpack) -> io::Result<()> {
     let url = unpack.str()?;
     let format = unpack.str()?;
     let options = unpack.str()?;
-    if !options.is_empty() && options != "TakeOwnership" {
+    if !matches!(options.as_str(), "" | "TakeOwnership" | "TakeOwnership,TerminateEditing") {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "unknown save option",
         ));
     }
-    with_doc(id, |doc| doc.save_as(&url, &format, &options))??;
+    with_doc(id, |doc| doc.save_as(&url, &format, &options))?
+        .map_err(|error| io::Error::other(format!("{error}: {}", lok().error())))?;
     log::info!("lok-worker: saved as {format} to {url} ({options})");
     Ok(())
 }

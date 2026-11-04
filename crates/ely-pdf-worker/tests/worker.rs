@@ -226,7 +226,7 @@ fn a_failed_open_keeps_no_memory() {
     // MuPDF's 256 MB store fills first; then nothing grows.
     for _ in 0..70 {
         let refused = worker.open(&png).expect_err("neither a PDF nor an EPUB");
-        assert!(refused.to_string().contains("neither a PDF nor an EPUB"), "{refused}");
+        assert_eq!(refused.to_string(), "pdf.error.not_pdf");
     }
     let before = rss(worker.pid());
     for _ in 0..50 {

@@ -14,6 +14,7 @@ embed-resource.workspace = true
 dunce.workspace = true
 ely-files.workspace = true
 ely-gpui-component.workspace = true
+ely-ipc.workspace = true
 ely-platform.workspace = true
 ely-ui.workspace = true
 futures.workspace = true

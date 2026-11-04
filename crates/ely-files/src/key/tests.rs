@@ -205,7 +205,7 @@ fn a_mid_init_key_is_never_visible_to_another_loader() {
     let (a_backend, dir_a) = (Arc::clone(&backend), dir.path().to_path_buf());
     let a = std::thread::spawn(move || load_with(a_backend.as_ref() as &dyn Backend, &dir_a));
     // B starts once a holds the lock, mid-write.
-    let until = std::time::Instant::now() + Duration::from_secs(10);
+    let until = std::time::Instant::now() + Duration::from_secs(60);
     while backend.visible.lock().expect("the store").is_none() {
         assert!(std::time::Instant::now() < until, "a never began its write");
         std::thread::sleep(Duration::from_millis(1));

@@ -1,6 +1,9 @@
 //! Stashes, remotes, worktrees, submodules, LFS (TREE-10 to 12).
 
-use std::path::{Path, PathBuf};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 use ely_gpui_component::{forms::TextInput, git::StashAction, primitives::Severity};
 use gpui::{AppContext as _, Context, Window};
@@ -196,8 +199,8 @@ impl Tree {
         cx.spawn_in(window, async move |this, cx| {
             let picked = picked
                 .await
-                .map_err(|error| error.to_string())
-                .and_then(|picked| picked.map_err(|error| error.to_string()));
+                .map_err(io::Error::other)
+                .and_then(|picked| picked.map_err(io::Error::other));
             this.update_in(cx, |tree, window, cx| match picked {
                 Ok(Some(path)) => tree.ask_worktree(repo, path, window, cx),
                 Ok(None) => log::info!("tree: the worktree folder panel was cancelled"),

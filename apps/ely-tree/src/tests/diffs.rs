@@ -208,7 +208,7 @@ fn a_patch_from_an_older_diff_is_refused() {
         seen: Arc::new(seen),
     };
     let refused = work::run(&git(), &root, &write, &write.args(true)).expect_err("stale");
-    assert!(refused.to_string().contains("changed since"), "{refused}");
+    assert_eq!(refused.to_string(), "tree.error.patch_stale");
     assert_eq!(
         index(&root, "a.txt"),
         "one\ntwo\n",

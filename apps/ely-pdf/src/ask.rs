@@ -139,8 +139,10 @@ impl Viewer {
         if ely_pdf_engine::refused(error).is_some() {
             return self.failed(error, cx);
         }
-        let text = Self::text(cx, "office.error.save", &[("name", name), ("error", &error.to_string())]);
-        self.toast(text, Severity::Danger, cx);
+        // Engine text may quote the document: the user sees it.
+        log::error!("pdf: a write failed ({:?})", error.kind());
+        let text = Self::text(cx, "office.error.save", &[("name", name), ("error", &ely_ui::i18n::error(cx, error))]);
+        self.toast_unlogged(text, Severity::Danger, cx);
     }
 
     /// Asks for a folder, then writes the parts there.
@@ -175,12 +177,11 @@ impl Viewer {
                     copy_into(&work, file)
                 });
                 // A failure leaves none of this run's files.
-                if let Err(error) = &written
-                    && let Err(left) = targets.iter().try_for_each(std::fs::remove_file)
-                {
-                    return Err(io::Error::other(format!("{error}; then {left}")));
-                }
-                written.map(|()| targets.len())
+                written.map_err(|error| match targets.iter().try_for_each(std::fs::remove_file) {
+                    Ok(()) => error,
+                    Err(left) => ely_ipc::Worded::then(error, left),
+                })?;
+                Ok(targets.len())
             },
             move |viewer, done, _, cx| match done {
                 Ok(count) => viewer.toast_output(ely_ui::i18n::counted(cx, "pdf.split.done", count as u64, &[("count", &count.to_string())]), opened.clone(), cx),

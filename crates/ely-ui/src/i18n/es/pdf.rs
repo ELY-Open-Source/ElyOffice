@@ -238,4 +238,10 @@ pub(super) const ES: &[(&str, &str)] = &[
         "pdf.removal.warning",
         "Se escribe un archivo nuevo; este documento se mantiene intacto. El original, las copias de seguridad antiguas, el historial de sincronización y las copias ya enviadas aún pueden contener lo eliminado. Las copias de trabajo de Ely se eliminan de la forma habitual, sin borrarse de forma segura del disco.",
     ),
+    ("pdf.error.locked", "se necesita una contraseña"),
+    ("pdf.error.no_pages", "no hay páginas que mostrar"),
+    ("pdf.error.not_pdf", "el archivo no es ni PDF ni EPUB"),
+    ("pdf.error.password_changed", "el archivo del disco rechazó la contraseña del documento"),
+    ("pdf.error.repaired_password", "la copia reparada rechazó la contraseña"),
+    ("pdf.error.not_whole", "el documento no se leyó completo: {report}"),
 ];

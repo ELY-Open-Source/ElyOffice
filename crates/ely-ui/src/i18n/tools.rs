@@ -95,6 +95,10 @@ pub(super) const EN: &[(&str, &str)] = &[
         "doc.merge.failed",
         "The merge stopped at record {n}: {error}",
     ),
+    ("doc.merge.unnamed", "column {n} has no name"),
+    ("doc.merge.guillemet", "column {name} holds « or »"),
+    ("doc.merge.twice", "two columns are named {name}"),
+    ("doc.merge.no_rows", "the file has no rows"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -186,4 +190,8 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("doc.merge.done", "已写入 {n} 个文件到 {folder}"),
     ("doc.merge.done.one", "已写入 1 个文件到 {folder}"),
     ("doc.merge.failed", "合并在第 {n} 条停止：{error}"),
+    ("doc.merge.unnamed", "第 {n} 列没有名称"),
+    ("doc.merge.guillemet", "列 {name} 含有 « 或 »"),
+    ("doc.merge.twice", "有两列都叫 {name}"),
+    ("doc.merge.no_rows", "文件里没有数据行"),
 ];

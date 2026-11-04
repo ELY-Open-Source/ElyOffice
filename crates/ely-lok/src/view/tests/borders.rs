@@ -1,5 +1,5 @@
 use super::*;
-use crate::client::tests::poll_until;
+use crate::client::tests::{HANG, poll_until};
 use gpui::{CursorStyle, MouseButton, MouseDownEvent, MouseUpEvent, TestAppContext};
 
 const TABLE: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -11,14 +11,12 @@ const TABLE: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
  </table:table><text:p>after</text:p></office:text></office:body>
 </office:document>"#;
 
-const WAIT: std::time::Duration = std::time::Duration::from_secs(5);
-
 /// The view takes the cursor's table the kernel reports.
 fn borders_read(view: &mut LokView) -> crate::table::Table {
     let doc = view.doc.clone();
     let mut worker = view.worker.lock().expect("the worker lock");
     worker.post_key(&doc, 0, 1027).expect("Right moves the cursor");
-    let seen = poll_until(&mut worker, &doc, &Events::default(), WAIT, |seen| seen.table.is_some());
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| seen.table.is_some());
     let table = seen.table.expect("the cursor's table");
     let now = worker.now(&doc).expect("the revision");
     drop(worker);
@@ -63,7 +61,7 @@ fn a_dragged_border_moves_once_where_its_guide_shows() {
     cx.update(|app| {
         let view = view.read(app);
         let mut worker = view.worker.lock().expect("the worker lock");
-        let seen = poll_until(&mut worker, &view.doc, &Events::default(), WAIT, |seen| {
+        let seen = poll_until(&mut worker, &view.doc, &Events::default(), HANG, |seen| {
             seen.table.as_ref().is_some_and(|table| table.columns.offset + table.columns.inner[0].position != line)
         });
         let table = seen.table.expect("still in the table");
@@ -105,20 +103,22 @@ fn a_held_border_keeps_its_table_and_a_newer_read_refuses_it() {
             line
         })
     });
-    for _ in 0..60 {
+    let deadline = std::time::Instant::now() + HANG;
+    while std::time::Instant::now() < deadline {
         for _ in 0..20 {
             cx.executor().tick();
         }
         if !errors.borrow().is_empty() {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
     assert!(errors.borrow().iter().any(|error| error.contains("stale")), "{:?}", errors.borrow());
     cx.update(|app| {
         let view = view.read(app);
         let mut worker = view.worker.lock().expect("the worker lock");
         worker.post_key(&view.doc, 0, 1027).expect("Right moves the cursor");
-        let seen = poll_until(&mut worker, &view.doc, &Events::default(), WAIT, |seen| seen.table.is_some());
+        let seen = poll_until(&mut worker, &view.doc, &Events::default(), HANG, |seen| seen.table.is_some());
         let table = seen.table.expect("still in the table");
         assert_eq!(table.columns.offset + table.columns.inner[0].position, line, "the old drag never lands");
     });
@@ -164,7 +164,7 @@ fn a_click_in_a_short_row_reaches_the_document() {
 /// The batch whose table has `count` inner columns.
 fn table_batch(view: &LokView, count: usize) -> Events {
     let mut worker = view.worker.lock().expect("the worker lock");
-    let seen = poll_until(&mut worker, &view.doc, &Events::default(), WAIT, |seen| {
+    let seen = poll_until(&mut worker, &view.doc, &Events::default(), HANG, |seen| {
         seen.table.as_ref().is_some_and(|table| table.columns.inner.len() == count)
     });
     assert_eq!(seen.table.as_ref().map(|table| table.columns.inner.len()), Some(count));
@@ -202,13 +202,15 @@ fn a_late_batch_keeps_its_own_revision() {
             before
         })
     });
-    for _ in 0..60 {
+    let deadline = std::time::Instant::now() + HANG;
+    while std::time::Instant::now() < deadline {
         for _ in 0..20 {
             cx.executor().tick();
         }
         if !errors.borrow().is_empty() {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
     assert!(errors.borrow().iter().any(|error| error.contains("stale")), "{:?}", errors.borrow());
     let after = cx.update(|app| view.update(app, |view, _| table_batch(view, 2).table.expect("the table").columns.inner[0].position));
@@ -263,7 +265,7 @@ fn a_border_let_go_outside_the_view_lands_there() {
     let landed = vcx.update(|_, app| {
         let view = view.read(app);
         let mut worker = view.worker.lock().expect("the worker lock");
-        let seen = poll_until(&mut worker, &view.doc, &Events::default(), WAIT, |seen| {
+        let seen = poll_until(&mut worker, &view.doc, &Events::default(), HANG, |seen| {
             seen.table.as_ref().is_some_and(|table| table.columns.offset + table.columns.inner[0].position != line)
         });
         let table = seen.table.expect("still in the table");

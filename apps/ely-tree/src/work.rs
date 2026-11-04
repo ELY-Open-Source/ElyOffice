@@ -6,6 +6,7 @@ use ely_gpui_component::{
     git::{ChangeAction, ChangeSection},
     primitives::Severity,
 };
+use ely_ipc::Worded;
 use gpui::{AppContext as _, Context, SharedString};
 
 use crate::{
@@ -186,9 +187,7 @@ pub(crate) fn run(
             let file = root.join(path);
             // A link here now would carry the text elsewhere.
             if std::fs::symlink_metadata(&file).is_ok_and(|meta| meta.file_type().is_symlink()) {
-                return Err(io::Error::other(format!(
-                    "{path} is now a link; nothing was saved"
-                )));
+                return Err(Worded::error(io::ErrorKind::Other, "tree.error.now_link", &[("path", path)]));
             }
             std::fs::write(&file, text)
         }
@@ -201,9 +200,7 @@ pub(crate) fn run(
         } => {
             // A patch from an older diff is refused.
             if git.run(root, &strs(check))? != **seen {
-                return Err(io::Error::other(
-                    "the file changed since it was shown; nothing was staged",
-                ));
+                return Err(Worded::error(io::ErrorKind::Other, "tree.error.patch_stale", &[]));
             }
             git.run_input(root, &strs(args), patch.as_bytes()).map(drop)
         }
@@ -214,17 +211,13 @@ pub(crate) fn run(
                 &["rev-parse", "-q", "--verify", &format!("stash@{{{at}}}")],
             )?;
             if String::from_utf8_lossy(&now).trim() != oid {
-                return Err(io::Error::other(
-                    "the stash list changed since it was shown; nothing was done",
-                ));
+                return Err(Worded::error(io::ErrorKind::Other, "tree.error.stash_stale", &[]));
             }
             git.run(root, &strs(args)).map(drop)
         }
         Write::Move { branch, head, .. } => {
             if recover::head_now(git, root)? != (branch.clone(), head.clone()) {
-                return Err(io::Error::other(
-                    "HEAD moved since the preview; nothing was done",
-                ));
+                return Err(Worded::error(io::ErrorKind::Other, "tree.error.head_moved", &[]));
             }
             recover::nothing_staged(git, root)?;
             git.run(root, &strs(args)).map(drop)
@@ -258,11 +251,7 @@ pub(crate) fn run(
 
 /// A shown path: same kind, reached through no link.
 fn as_shown(root: &std::path::Path, path: &str, folder: bool) -> io::Result<()> {
-    let changed = || {
-        io::Error::other(format!(
-            "{path} changed since the preview; nothing was removed"
-        ))
-    };
+    let changed = || Worded::error(io::ErrorKind::Other, "tree.error.clean_stale", &[("path", path)]);
     let mut at = root.to_path_buf();
     let parts: Vec<&str> = path.trim_end_matches('/').split('/').collect();
     for (ix, part) in parts.iter().enumerate() {
@@ -426,7 +415,7 @@ impl Tree {
             (Write::Save { path, text }, Ok(())) => self.merge_saved(id, path, text, cx),
             // A file write, not Git: the result did not save.
             (Write::Save { .. }, Err(error)) => {
-                self.failed("tree.error.save", &error.to_string(), cx)
+                self.failed("tree.error.save", &error, cx)
             }
             // A conflict stop is no failure; Git says which.
             (
@@ -436,9 +425,9 @@ impl Tree {
                 | Write::Move { .. }
                 | Write::Clean { .. },
                 Err(error),
-            ) => self.git_failed(stopped, error.to_string(), cx),
+            ) => self.git_failed(stopped, ely_ui::i18n::error(cx, &error).to_string(), cx),
             (_, Ok(())) => {}
-            (_, Err(error)) => self.failed("tree.error.write", &error.to_string(), cx),
+            (_, Err(error)) => self.failed("tree.error.write", &error, cx),
         }
         self.read(id, cx);
         self.next_write(id, cx);

@@ -26,7 +26,7 @@ fn japanese_translates_every_module_once_with_its_arguments() {
         let translated: BTreeSet<_> = japanese.iter().map(|(key, _)| *key).collect();
         assert_eq!(source, translated, "a module's keys");
     }
-    let [en, .., japanese] = catalogs();
+    let [en, _, _, japanese, ..] = catalogs();
     let ja: BTreeMap<_, _> = japanese.iter().copied().collect();
     assert_eq!(ja.len(), japanese.len(), "duplicate Japanese key");
     for (key, english) in en {

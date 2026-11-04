@@ -165,4 +165,9 @@ pub(super) const ES: &[(&str, &str)] = &[
         "settings.app_unreadable",
         "No se pueden leer los ajustes de esta aplicación; se usan los valores predeterminados: {error}",
     ),
+    ("settings.storage.inside", "{path} está dentro de la carpeta de datos"),
+    ("settings.storage.not_ely", "{path} contiene archivos que no son de Ely"),
+    ("settings.git.not_git", "{path} no es Git; responde {said}"),
+    ("settings.git.old", "{version} en {path} es anterior a {least}"),
+    ("settings.git.failed", "{path} --version falló ({status}): {said}"),
 ];

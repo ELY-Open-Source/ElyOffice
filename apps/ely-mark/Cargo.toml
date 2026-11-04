@@ -18,6 +18,7 @@ ely-files.workspace = true
 ely-gpui-component.workspace = true
 ely-office.workspace = true
 ely-pdf-engine.workspace = true
+ely-ipc.workspace = true
 ely-platform.workspace = true
 ely-ui.workspace = true
 gpui.workspace = true

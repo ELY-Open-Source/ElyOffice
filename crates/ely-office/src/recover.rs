@@ -429,7 +429,7 @@ pub trait Recovering: Host {
             for (name, restored) in done {
                 if let Err(error) = restored {
                     log::error!("recovery: a crashed copy cannot open ({:?})", error.kind());
-                    let shown = text(cx, "office.recovery.lost", &[("name", &name), ("error", &error.to_string())]);
+                    let shown = text(cx, "office.recovery.lost", &[("name", &name), ("error", &ely_ui::i18n::error(cx, &error))]);
                     host.toast_unlogged(shown, Severity::Danger, cx);
                 }
             }
@@ -452,7 +452,7 @@ pub trait Recovering: Host {
                     Ok(false) => lost.push(name),
                     Err(error) => {
                         log::error!("office: a point does not open ({:?})", error.kind());
-                        lost.push(format!("{name} ({error})"));
+                        lost.push(format!("{name} ({})", ely_ui::i18n::error(cx, &error)));
                     }
                 }
             }

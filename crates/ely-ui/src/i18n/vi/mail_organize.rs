@@ -1,0 +1,28 @@
+//! Vietnamese ElyMail read, flag, move and delete messages.
+
+pub(super) const VI: &[(&str, &str)] = &[
+    ("mail.act.read", "Đánh dấu là đã đọc"),
+    ("mail.act.unread", "Đánh dấu là chưa đọc"),
+    ("mail.act.flag", "Gắn cờ"),
+    ("mail.act.unflag", "Bỏ cờ"),
+    ("mail.act.archive", "Lưu trữ"),
+    ("mail.act.delete", "Xóa"),
+    ("mail.act.restore", "Chuyển vào Hộp thư đến"),
+    ("mail.act.move", "Chuyển đến"),
+    ("mail.organize.failed", "Chưa thay đổi: {error}"),
+    ("mail.organize.dropped", "{n} thay đổi chưa được thực hiện trên máy chủ và đã được hoàn tác: {reason}"),
+    ("mail.organize.dropped.one", "Một thay đổi chưa được thực hiện trên máy chủ và đã được hoàn tác: {reason}"),
+    ("mail.organize.gone", "thư không còn trên máy chủ"),
+    ("mail.organize.renumbered", "thư mục đã được dựng lại trên máy chủ"),
+    ("mail.organize.unsupported", "máy chủ không hỗ trợ {name}"),
+    ("mail.organize.unplaced", "máy chủ đã chuyển thư mà không cho biết chuyển đến đâu"),
+    ("mail.organize.vanished", "thư mục {name} không còn trên máy chủ"),
+    ("mail.erase.title", "Xóa vĩnh viễn {n} thư?"),
+    ("mail.erase.title.one", "Xóa vĩnh viễn thư này?"),
+    ("mail.erase.message", "Không thể khôi phục chúng, ở đây hay trên máy chủ."),
+    ("mail.erase.go", "Xóa vĩnh viễn"),
+    ("mail.sync.waiting", "Thay đổi"),
+    ("mail.sync.waiting_value", "{n} thay đổi thực hiện ở đây đang đợi máy chủ"),
+    ("mail.sync.waiting_value.one", "1 thay đổi thực hiện ở đây đang đợi máy chủ"),
+    ("mail.sync.waiting_none", "Mọi thay đổi đều đã có trên máy chủ"),
+];

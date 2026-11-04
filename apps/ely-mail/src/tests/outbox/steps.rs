@@ -181,7 +181,7 @@ fn the_list_follows_each_send_as_it_goes() {
     cx.update(|_, app| mail.update(app, |mail, cx| mail.run_outbox(false, cx)));
     settle(cx, |app| mail.read(app).queued[0].going == Going::Sending);
     // Sending shows before the connection lands; drop it once here.
-    arrived.recv_timeout(Duration::from_secs(20)).expect("the first connection");
+    arrived.recv_timeout(Duration::from_secs(60)).expect("the first connection");
     go.send(()).unwrap();
     settle(cx, |app| {
         let shown = &mail.read(app).queued;

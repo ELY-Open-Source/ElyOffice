@@ -62,8 +62,8 @@ pub struct SettingsView {
     /// The latest author commit; older writes are dropped.
     author_asked: Arc<AtomicU64>,
     ui_font: Entity<TextInput>,
-    git: Option<Entity<TextInput>>,
-    git_error: Option<SharedString>,
+    pub(super) git: Option<Entity<TextInput>>,
+    pub(super) git_error: Option<SharedString>,
     /// The latest Git commit; older checks are dropped.
     git_asked: Arc<AtomicU64>,
     pub(super) diagnostics: super::diagnostics::Diagnostics,
@@ -186,8 +186,8 @@ impl SettingsView {
                     return log::info!("settings: Git check {asked} was overtaken");
                 }
                 this.git_error = checked.err().map(|error| {
-                    log::warn!("settings: Git setting refused: {error}");
-                    text(cx, "settings.git.bad", &[("path", &typed), ("error", &error.to_string())])
+                    log::warn!("settings: Git setting refused: {}", ely_ipc::Worded::logged(&error));
+                    text(cx, "settings.git.bad", &[("path", &typed), ("error", &crate::i18n::error(cx, &error))])
                 });
                 cx.notify();
             })
