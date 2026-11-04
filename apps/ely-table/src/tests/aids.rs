@@ -30,6 +30,39 @@ fn frames(cx: &mut VisualTestContext) {
 }
 
 #[test]
+fn ctrl_and_the_wheel_over_the_fill_handle_zoom() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((_window, book)) = book(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(ely_gpui_component::init_for_tests);
+    open(&mut cx, &book);
+    let window = cx.add_window(|_, _| Grid(book.clone()));
+    let mut shown = VisualTestContext::from_window(window.into(), &cx);
+    frames(&mut shown);
+    let (view, handle) = shown.update(|_, app| {
+        let view = book.read(app).active_tab().expect("a tab").view.clone();
+        let read = view.read(app);
+        let (x, y, w, h) = read.cell().cursor.expect("the cell cursor");
+        (view.clone(), read.origin() + read.place((x + w, y + h)) - point(px(1.0), px(1.0)))
+    });
+    let secondary = match cfg!(target_os = "macos") {
+        true => Modifiers { platform: true, ..Default::default() },
+        false => Modifiers { control: true, ..Default::default() },
+    };
+    shown.simulate_event(gpui::ScrollEvent {
+        position: handle,
+        delta: gpui::ScrollDelta::Lines(point(0.0, 1.0)),
+        modifiers: secondary,
+        ..Default::default()
+    });
+    frames(&mut shown);
+    assert_eq!(shown.update(|_, app| view.read(app).zoom()), 1.25, "the handle let the wheel through");
+}
+
+#[test]
 fn validation_choices_close_when_the_view_moves_and_can_reopen() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();

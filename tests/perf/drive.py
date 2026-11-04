@@ -376,9 +376,22 @@ class Windows(Host):
     def rect(self, pid):
         return self.ui("rect", pid).strip()
 
-    def wheel(self, pid, notches):
+    def wheel(self, pid, notches, at=None):
         # powershell -File reads a leading '-' as a parameter.
-        self.ui("wheel", pid, f"n{notches}")
+        self.ui("wheel", pid, f"n{notches}" + (f"@{at[0]},{at[1]}" if at else ""))
+
+    def click(self, pid, name):
+        self.clicks += 1
+        self.ui("click", pid, name)
+
+    def named(self, pid, pattern):
+        """Each matching element's name and screen rect."""
+        found = {}
+        for line in self.ui("named", pid, pattern).splitlines():
+            if "|" in line:
+                name, rect = line.rsplit("|", 1)
+                found[name] = tuple(map(int, rect.split(",")))
+        return found
 
     def shot(self, pid, path):
         self.ui("shot", pid, path)

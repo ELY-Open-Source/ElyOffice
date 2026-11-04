@@ -535,6 +535,6 @@
 - [ ] R15.44 ElyDoc 的 INCLUDETEXT 域只显示缓存的文字，不随源文件，保存时写回旧文字（PERF-10，R15.31 极端用例缺陷三）。
 - [ ] R15.45 OLE 链接存成静态图片，链接丢失，预览也不随源更新（PERF-10，R15.31 极端用例缺陷四）。
 - [ ] R15.46 ElyShow 超大演示（189 页、94 MB）键的 P95 964 毫秒（PERF-10，R15.31 极端用例缺陷十）。
-- [ ] R15.47 ElyTable 改缩放时视图离开原位（从 A1 滚开）（PERF-10，R15.31 极端用例缺陷十一）。
+- [~] R15.47 ElyTable 改缩放时视图离开原位（从 A1 滚开）（PERF-10，R15.31 极端用例缺陷十一）。原因：`LokView::zoom_at` 无指针时以视口正中为锚，放大把左上的格推走（125% 时左上成 E11）；有指针时保持指针下的点，Ctrl+滚轮在 A1 上放大即滚进 A1 半格；内核的 `setClientZoom`、`setClientVisibleArea` 都不滚动，与此无关。修法：表格无指针时以视图左上（滚动窗格首格）为锚，有指针时保持指针下那格的左上角，冻结方向以窗格起点为准；文档、演示照旧（ElyDoc、ElyShow 同一路径，锚本就守得住）；填充柄改 `block_mouse_except_scroll`，不再吞掉 Ctrl+滚轮。测试：`view::tests::zoom`、`large.rs` 两条、`tests.rs`、ElyTable `tests::aids`，改回皆败；真窗口 `tests/scripts/windows-table-zoom.py`：键、缩放钮、Ctrl+滚轮到 67%、125%、400%，A1 整格在左上、光标框正在其上，旧代码跑同一脚本 38 项失败（详见 docs/decisions.md）。
 - [ ] R15.48 应用日志的 `lok: edit to tile` 计时在恢复点同时落下时漏记已画出的键，读成约 9 秒的假延迟（PERF-10，R15.31 极端用例缺陷十二）。
 - [ ] R15.24 验收核对表：R15 逐条核对

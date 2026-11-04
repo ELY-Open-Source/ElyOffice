@@ -162,25 +162,24 @@ fn a_drag_far_down_a_sheet_selects_the_range_under_it() {
 }
 
 #[test]
-fn zooming_far_down_a_sheet_keeps_the_rows_in_view() {
+fn zooming_far_down_a_sheet_keeps_the_top_row() {
     let Some(install) = crate::client::tests::install() else {
         eprintln!("SKIP: no pinned LOK build");
         return;
     };
     let mut cx = gpui::TestAppContext::single();
     let (view, geometry) = far_down(&mut cx, &install);
-    let middle = |cx: &mut gpui::TestAppContext| {
+    let top = |cx: &mut gpui::TestAppContext| {
         cx.update(|app| {
             let read = view.read(app);
-            let (w, h) = read.viewport();
-            let at = read.origin() + point(px(w / 2.0), px(h / 2.0));
+            let at = read.origin() + point(px(read.viewport().0 / 2.0), px(1.0));
             geometry.rows.at(read.doc_point(at).1)
         })
     };
-    let before = middle(&mut cx);
+    let before = top(&mut cx);
     cx.update(|app| view.update(app, |view, cx| view.set_zoom(0.8, cx)));
-    let after = middle(&mut cx);
-    assert!(before.abs_diff(after) <= 1, "row {before} became {after}");
+    let after = top(&mut cx);
+    assert_eq!(before, after, "the top row moved");
 }
 
 #[test]
@@ -269,7 +268,7 @@ fn a_newly_selected_object_comes_into_view_a_moved_one_stays() {
 }
 
 /// Data out to the last cell sets the size.
-const FULL_SHEET: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+pub(super) const FULL_SHEET: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
@@ -322,7 +321,7 @@ fn a_zoom_measures_the_sheet_again() {
 }
 
 #[test]
-fn a_zoom_at_the_end_of_a_sheet_keeps_the_row_in_the_middle() {
+fn a_zoom_at_the_end_of_a_sheet_keeps_the_top_row() {
     let Some(install) = crate::client::tests::install() else {
         eprintln!("SKIP: no pinned LOK build");
         return;
@@ -347,25 +346,25 @@ fn a_zoom_at_the_end_of_a_sheet_keeps_the_row_in_the_middle() {
     for _ in 0..100 {
         cx.executor().tick();
     }
-    let middle = |cx: &mut gpui::TestAppContext| {
+    let top = |cx: &mut gpui::TestAppContext| {
         cx.update(|app| {
             let read = view.read(app);
-            let at = read.origin() + point(px(200.0), px(100.0));
+            let at = read.origin() + point(px(200.0), px(1.0));
             geometry.rows.at(read.doc_point(at).1)
         })
     };
-    let before = middle(&mut cx);
+    let before = top(&mut cx);
     cx.update(|app| view.update(app, |view, cx| {
         view.set_zoom(1.25, cx);
         view.prepare(bounds);
     }));
-    let right_after = middle(&mut cx);
+    let right_after = top(&mut cx);
     for _ in 0..400 {
         cx.executor().tick();
     }
-    let measured = middle(&mut cx);
-    assert!(before.abs_diff(right_after) <= 1, "row {before} became {right_after} at the zoom");
-    assert!(before.abs_diff(measured) <= 1, "row {before} became {measured} once measured");
+    let measured = top(&mut cx);
+    assert_eq!(before, right_after, "the top row moved at the zoom");
+    assert_eq!(before, measured, "the top row moved once measured");
 }
 
 #[test]
