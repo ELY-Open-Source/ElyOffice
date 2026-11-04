@@ -1,0 +1,27 @@
+//! Vietnamese rows on the settings storage page for ElyMail.
+
+pub(super) const VI: &[(&str, &str)] = &[
+    ("mail.storage.unread", "Không đọc được bộ nhớ lưu trữ của Thư: {error}"),
+    ("mail.storage.index", "Chỉ mục thư"),
+    ("mail.storage.index_hint", "Tài khoản, thư mục, phần đầu thư, thư nháp và Hộp thư đi: {size}; tìm kiếm: {search}"),
+    ("mail.storage.originals", "Thư đã tải xuống"),
+    ("mail.storage.originals_hint", "{size}. Dọn dẹp sẽ bỏ những thư mà máy chủ vẫn còn giữ; chúng sẽ được tải lại khi đồng bộ hoặc khi mở. Thư mục ngoại tuyến, POP3 và thư đã nhập vẫn được giữ."),
+    ("mail.storage.forget", "Dọn dẹp…"),
+    ("mail.storage.forget_title", "Dọn dẹp thư đã tải xuống?"),
+    ("mail.storage.forget_message", "Nội dung và tệp của thư trên máy chủ IMAP sẽ bị xóa khỏi máy tính này; phần đầu thư được giữ lại. Thư gần đây sẽ được tải lại ở lần đồng bộ tới, thư cũ hơn khi được mở."),
+    ("mail.storage.forget_go", "Dọn dẹp"),
+    ("mail.storage.forgot", "Đã bỏ {n} thư"),
+    ("mail.storage.forgot.one", "Đã bỏ 1 thư"),
+    ("mail.storage.unforgotten", "Chưa dọn dẹp được thư: {error}"),
+    ("mail.storage.cap", "Giới hạn thư đã tải xuống"),
+    ("mail.storage.cap_none", "Không giới hạn"),
+    ("mail.storage.cap_hint", "Khi vượt giới hạn, những thư tải xuống cũ nhất sẽ chỉ còn phần đầu. Thư mục ngoại tuyến và thư đã nhập vẫn được giữ."),
+    ("mail.storage.cap_unread", "Không đọc được giới hạn đã lưu, nên không áp dụng giới hạn nào: {error}"),
+    ("mail.storage.cap_unsaved", "Chưa lưu được giới hạn: {error}"),
+    ("mail.storage.untrimmed", "Chưa cắt bớt được thư tải xuống theo giới hạn: {error}"),
+    ("mail.storage.all", "Xuất toàn bộ thư"),
+    ("mail.storage.all_hint", "Mỗi thư mục thành một tệp mbox, trong một thư mục riêng cho mỗi tài khoản."),
+    ("mail.storage.export", "Xuất…"),
+    ("mail.storage.exported", "Đã xuất {n} thư mục; bỏ qua {left} thư (không có đầy đủ ở đây, hoặc là nhị phân thô)"),
+    ("mail.storage.exported.one", "Đã xuất 1 thư mục; bỏ qua {left} thư (không có đầy đủ ở đây, hoặc là nhị phân thô)"),
+];

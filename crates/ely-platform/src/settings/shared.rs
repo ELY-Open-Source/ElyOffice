@@ -25,7 +25,7 @@ pub enum Language {
 }
 
 /// Each interface language: its locale tag and own name.
-pub const LANGUAGES: [(&str, &str); 5] = [("en-US", "English"), ("es-ES", "Español"), ("ja-JP", "日本語"), ("ko-KR", "한국어"), ("zh-CN", "简体中文")];
+pub const LANGUAGES: [(&str, &str); 7] = [("en-US", "English"), ("es-ES", "Español"), ("fr-FR", "Français"), ("ja-JP", "日本語"), ("ko-KR", "한국어"), ("vi-VN", "Tiếng Việt"), ("zh-CN", "简体中文")];
 
 /// Interface motion; System follows the OS setting.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
