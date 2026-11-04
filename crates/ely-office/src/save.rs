@@ -437,6 +437,7 @@ pub trait Saving: Host {
                     Self::Engine::saved(&tab.view, &history, cx);
                     tab.mark = history;
                 }
+                self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.saved(id, done.written.len));
                 self.reopen_if_saved(id, cx);
                 cx.notify();
                 if let Some(after) = then {

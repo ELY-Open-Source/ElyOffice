@@ -36,7 +36,12 @@ impl Store {
 
     /// One app's own preferences.
     pub fn app(app: AppId) -> io::Result<Self> {
-        Ok(Self::at(crate::data_dir(app).map_err(io::Error::other)?.join("settings.json")))
+        Ok(Self::of(&crate::data_dir(app).map_err(io::Error::other)?))
+    }
+
+    /// The preferences kept in an app's data folder `dir`.
+    pub fn of(dir: &Path) -> Self {
+        Self::at(dir.join("settings.json"))
     }
 
     pub fn at(path: PathBuf) -> Self {

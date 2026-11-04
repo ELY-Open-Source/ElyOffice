@@ -174,3 +174,67 @@ fn an_autosave_keeps_the_round_going() {
     // No input since: the unsaved tab follows without a beat.
     settle(&cx, |app| points(&kept) == 2 && writing(&docs, app) == 0);
 }
+
+/// A flat document of about two megabytes of text.
+fn big_fodt(cx: &mut TestAppContext, dir: &std::path::Path) -> std::path::PathBuf {
+    let rows: String = (0..20_000).map(|n| format!("<text:p>Row {n} holds text that makes the document large.</text:p>")).collect();
+    let fodt = cx.update(|app| crate::files::Template::Blank.fodt(app));
+    let path = dir.join("big.fodt");
+    std::fs::write(&path, fodt.replace("</office:text>", &format!("{rows}</office:text>"))).expect("the file writes");
+    path
+}
+
+fn refused(docs: &Entity<Docs>, app: &gpui::App) -> usize {
+    docs.read(app).core.keeping.as_ref().expect("recovery").refused()
+}
+
+/// An owed round, then a pause of two beats.
+fn round(cx: &mut TestAppContext, docs: &Entity<Docs>) {
+    cx.update(|app| docs.update(app, |docs, cx| docs.keep_points(cx)));
+    beat(cx, docs);
+    beat(cx, docs);
+}
+
+#[test]
+fn a_document_over_its_space_is_not_snapshotted_again() {
+    for locale in ["en-US", "zh-CN"] {
+        over_its_space(locale);
+    }
+}
+
+fn over_its_space(locale: &'static str) {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((docs, kept)) = kept_docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(|app| ely_ui::i18n::install_as(locale, app));
+    let root = super::words::rooted(&mut cx, &docs);
+    let limits = |megabytes: u64| serde_json::json!({ "keep": 20, "megabytes": megabytes });
+    let store = ely_platform::settings::Store::of(&kept);
+    store.set("recovery", limits(1)).expect("the space is set");
+    let file = big_fodt(&mut cx, dir.path());
+    with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(file, cx));
+    settle(&cx, |app| docs.read(app).active_tab().is_some_and(|tab| tab.view.read(app).settled()));
+    type_into(&mut cx, &docs, "big");
+    round(&mut cx, &docs);
+    settle(&cx, |app| refused(&docs, app) == 1 && writing(&docs, app) == 0);
+    assert_eq!(points(&kept), 0, "over the space: no point");
+    // Says why and how, never that the file is kept.
+    let never = cx.update(|app| ely_ui::i18n::text(app, "office.stopped.never", &[]).to_string());
+    let args = [("name", "big.fodt"), ("limit", "1"), ("at", never.as_str())];
+    let said = cx.update(|app| ely_ui::i18n::text(app, "office.recovery.too_big", &args));
+    let toasts = cx.update(|app| root.read(app).toasts(app));
+    assert!(toasts.iter().any(|(text, _)| *text == said), "{locale}: {toasts:?}");
+    // Each snapshot of it would hold the engine for nothing.
+    type_into(&mut cx, &docs, "more");
+    round(&mut cx, &docs);
+    assert_eq!(cx.update(|app| writing(&docs, app)), 0, "no snapshot while it stays too big");
+    store.set("recovery", limits(64)).expect("the space is raised");
+    cx.update(|app| docs.update(app, |docs, cx| docs.keep_points(cx)));
+    settle(&cx, |app| refused(&docs, app) == 0);
+    beat(&mut cx, &docs);
+    beat(&mut cx, &docs);
+    settle(&cx, |app| points(&kept) == 1 && writing(&docs, app) == 0);
+}

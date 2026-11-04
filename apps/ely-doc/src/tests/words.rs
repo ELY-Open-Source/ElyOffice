@@ -9,7 +9,7 @@ use crate::files::Template;
 use crate::merge::{Table, read_csv};
 
 /// A window root that keeps Docs' toasts.
-fn rooted(cx: &mut TestAppContext, docs: &Entity<Docs>) -> Entity<ely_ui::Root> {
+pub(super) fn rooted(cx: &mut TestAppContext, docs: &Entity<Docs>) -> Entity<ely_ui::Root> {
     let window = cx.add_window(|_, _| Blank);
     let shown = VisualTestContext::from_window(window.into(), cx).into_mut();
     shown.update(|window, app| {

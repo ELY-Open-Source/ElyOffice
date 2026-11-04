@@ -34,6 +34,10 @@ pub(super) const ES: &[(&str, &str)] = &[
         "No se pudo escribir una copia de recuperación: {error}",
     ),
     (
+        "office.recovery.too_big",
+        "{name} supera su espacio de recuperación de {limit} MB, así que no recibe nuevos puntos de recuperación. Guárdelo más pequeño o aumente el espacio en Ajustes › Almacenamiento. Último punto de recuperación: {at}.",
+    ),
+    (
         "office.recovery.off",
         "Las copias de recuperación están desactivadas durante esta ejecución: {error}",
     ),
