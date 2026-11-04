@@ -56,7 +56,9 @@ case "$1 $2" in
     n=$(($(cat "$w/gets") + 1))
     echo "$n" >"$w/gets"
     [ "$n" != "$(cat "$w/late")" ] || cp "$w/verdict" "$w/tree/tasks/reviews/$FAKE_VERDICT"
-    s=$(cat "$w/status")
+    # Read n takes word n; the last word holds.
+    read -ra all <"$w/status"
+    s=${all[$((n <= ${#all[@]} ? n - 1 : ${#all[@]} - 1))]}
     [ "$s" != broken ] || exit 1
     echo "{\"result\":{\"agent\":{\"agent_status\":\"$s\"}}}" ;;
 esac
@@ -112,6 +114,9 @@ LATE=3 run T1.1 1 0 0 idle 'PASS
 '
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a late verdict: rc $rc, $said"
 [ "$(cat "$work/slept")" = "$(printf '30\n30')" ] || fail "late verdict slept: $(cat "$work/slept")"
+# It may work again before the verdict.
+LATE=3 run T1.1 1 0 0 'idle working idle' 'PASS\n'
+[ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a resumed reviewer: rc $rc, $said"
 # Each round's pane goes once its verdict is read.
 reset() { rm -f "$work/closed" "$work/panes" "$work/live" "$work/splits" "$work/tree/tasks/reviews/.panes/"*; }
 reset
