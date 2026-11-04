@@ -209,7 +209,7 @@ pub(super) fn run(worker: &mut Worker, doc: &Doc, input: Input) -> (io::Result<O
     // A failed input may have moved the revision too.
     let now = counts.then(|| state(worker)).flatten();
     let picture = super::clock::picture(before, now, done.is_err());
-    (done, now.map(|(rev, _)| rev), picture)
+    (done, now.map(|(rev, ..)| rev), picture)
 }
 
 fn apply(worker: &mut Worker, doc: &Doc, input: Input) -> io::Result<Option<Back>> {

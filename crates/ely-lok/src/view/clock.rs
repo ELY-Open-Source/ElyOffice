@@ -4,11 +4,15 @@ use std::{collections::VecDeque, time::Instant};
 /// The generation showing an edit; None: no tile changed.
 pub(super) type Picture = Result<Option<u64>, &'static str>;
 
-/// An edit's picture from the generations read around it.
-pub(super) fn picture(before: Option<(u64, u64)>, after: Option<(u64, u64)>, failed: bool) -> Picture {
+/// Revision, tile generation, and whether the kernel drops invalidations.
+pub(super) type State = (u64, u64, bool);
+
+/// An edit's picture from the states read around it.
+pub(super) fn picture(before: Option<State>, after: Option<State>, failed: bool) -> Picture {
     match (before, after) {
         _ if failed => Err("it failed"),
-        (Some((_, before)), Some((_, after))) => Ok((after > before).then_some(after)),
+        // A blind kernel drops its invalidations; the repaint shows it.
+        (Some((_, before, blind)), Some((_, after, _))) => Ok((after > before || blind).then_some(after)),
         _ => Err("its state is unread"),
     }
 }
@@ -91,6 +95,12 @@ impl EditClock {
     fn pending(&self) -> Vec<u64> {
         self.edits.iter().map(|edit| edit.seq).collect()
     }
+
+    /// The generation each waiting edit shows at.
+    #[cfg(test)]
+    pub(super) fn awaited(&self) -> Vec<Option<u64>> {
+        self.edits.iter().map(|edit| edit.shows).collect()
+    }
 }
 
 #[cfg(test)]
@@ -107,7 +117,7 @@ mod tests {
     fn a_recovery_point_between_edit_and_tile_still_pairs_them() {
         let mut clock = shown();
         clock.sent(1, "text");
-        clock.landed(1, picture(Some((7, 2)), Some((8, 3)), false));
+        clock.landed(1, picture(Some((7, 2, false)), Some((8, 3, false)), false));
         // The point's repaint stales the screen; older wholes show.
         clock.drawn(2);
         assert_eq!(clock.pending(), [1], "a screen from before the edit");
@@ -115,9 +125,22 @@ mod tests {
         assert!(clock.pending().is_empty(), "the screen after the point shows it");
         // A key that changed nothing is not timed by it.
         clock.sent(2, "key");
-        clock.landed(2, picture(Some((8, 4)), Some((9, 4)), false));
+        clock.landed(2, picture(Some((8, 4, false)), Some((9, 4, false)), false));
         clock.drawn(5);
         assert!(clock.pending().is_empty());
+    }
+
+    #[test]
+    fn a_key_the_kernel_was_blind_to_shows_on_the_repaint() {
+        let mut clock = shown();
+        // An EMPTY invalidation left nothing painted to invalidate.
+        clock.sent(1, "text");
+        clock.landed(1, picture(Some((3, 6, true)), Some((4, 6, false)), false));
+        assert_eq!(clock.pending(), [1], "it waits, not dropped as changing nothing");
+        clock.drawn(5);
+        assert_eq!(clock.pending(), [1], "a screen from before the EMPTY");
+        clock.drawn(6);
+        assert!(clock.pending().is_empty(), "the repainted screen shows it");
     }
 
     #[test]
@@ -158,9 +181,9 @@ mod tests {
     fn failed_and_unread_edits_never_draw() {
         let mut clock = shown();
         clock.sent(1, "text");
-        clock.landed(1, picture(Some((1, 1)), Some((2, 2)), true));
+        clock.landed(1, picture(Some((1, 1, false)), Some((2, 2, false)), true));
         clock.sent(2, "text");
-        clock.landed(2, picture(None, Some((2, 2)), false));
+        clock.landed(2, picture(None, Some((2, 2, false)), false));
         assert!(!clock.waiting());
     }
 }

@@ -86,7 +86,7 @@ fn a_failed_input_still_reports_the_revision_it_reached() {
     assert_eq!(picture, Err("it failed"), "a failed edit is never timed");
 }
 
-/// A typed key knows the tiles its own callbacks dirtied.
+/// A typed key knows the screen that shows it, painted or not.
 #[test]
 fn a_key_knows_its_own_picture() {
     let Some(install) = crate::client::tests::install() else {
@@ -94,20 +94,31 @@ fn a_key_knows_its_own_picture() {
     };
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let area = (0, 0, 3840, 3840);
+    let key = || Input::Text { text: "7".into(), ends: true };
     for (name, body) in [("note.fodt", crate::client::tests::FODT), ("book.fods", crate::client::tests::input::FODS)] {
         let source = dir.path().join(name);
         std::fs::write(&source, body).expect("the fixture writes");
         let doc = worker.load(&crate::file_url(&source)).expect("the document loads");
-        // A view paints first; the kernel invalidates painted tiles.
-        doc.paint_tile(&mut worker, (0, 0, 3840, 3840), (64, 64)).expect("a tile paints");
+        doc.visible_area(&mut worker, area, (64, 3840)).expect("the area sets");
         crate::client::tests::click(&mut worker, &doc, 150, 150);
+        // Nothing painted: the kernel drops every invalidation.
+        let (outcome, _, picture) = run(&mut worker, &doc, key());
+        outcome.expect("the key posts");
+        let (_, now, blind) = worker.state(&doc).expect("the state");
+        assert!(blind, "{name}: an unpainted screen is blind");
+        let Ok(Some(shows)) = picture else { panic!("{name}: an unseen key never timed: {picture:?}") };
+        assert!(shows <= now, "{name}: the first paint shows the key");
         for n in 0..10 {
+            // As the view: the dirtied screen repaints after each edit.
+            doc.paint_tile(&mut worker, area, (64, 64)).expect("a tile paints");
             let before = worker.state(&doc).expect("the state").1;
-            let (outcome, _, picture) = run(&mut worker, &doc, Input::Text { text: "7".into(), ends: true });
+            let (outcome, _, picture) = run(&mut worker, &doc, key());
             outcome.expect("the key posts");
             let after = worker.state(&doc).expect("the state").1;
-            assert!(after > before, "{name} key {n} dirtied tiles");
-            assert_eq!(picture, Ok(Some(after)), "{name} key {n} saw its own callbacks");
+            // Its callbacks land inside its own request.
+            let Ok(Some(shows)) = picture else { panic!("{name} key {n}: {picture:?}") };
+            assert!((before..=after).contains(&shows), "{name} key {n}: {before} {shows} {after}");
         }
     }
 }

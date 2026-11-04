@@ -274,6 +274,72 @@ fn a_hidden_view_drops_its_queued_screen() {
 }
 
 #[test]
+fn an_edit_is_timed_by_the_first_whole_fresh_screen() {
+    let Some(install) = crate::client::tests::install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let cx = gpui::TestAppContext::single();
+    let (view, bounds) = long_view(&cx, &install);
+    let frame = |cx: &gpui::TestAppContext| {
+        cx.update(|app| {
+            view.update(app, |view, _| {
+                // As the canvas: a shown generation times edits.
+                let shows = view.prepare(bounds).shows;
+                if let Some(generation) = shows {
+                    view.clock.drawn(generation);
+                }
+                (shows, view.clock.waiting())
+            })
+        })
+    };
+    let generation = cx.update(|app| view.read(app).generation);
+    assert_eq!(frame(&cx).0, Some(generation), "a settled screen shows its generation");
+    cx.update(|app| {
+        view.update(app, |view, _| {
+            let far = view.tiles.keys().copied().find(|key| !view.on_screen.contains(key)).expect("a tile ahead");
+            view.tiles.get_mut(&far).expect("the tile").stale = true;
+        })
+    });
+    assert_eq!(frame(&cx).0, Some(generation), "an off-screen stale tile leaves the screen whole");
+    cx.update(|app| {
+        view.update(app, |view, _| {
+            crate::client::tests::click(&mut view.worker.lock().expect("the worker lock"), &view.doc, 1500, 1500);
+            view.commit(None, "7");
+        })
+    });
+    // The key lands and its screen comes whole, not yet drawn.
+    let mut ready = None;
+    for _ in 0..200 {
+        cx.run_until_parked();
+        ready = cx.update(|app| {
+            view.update(app, |view, _| {
+                _ = view.prepare(bounds);
+                let whole = view.on_screen.iter().all(|key| view.tiles.get(key).is_some_and(|tile| !tile.stale));
+                view.clock.awaited().first().copied().flatten().filter(|_| whole && view.fetching.is_empty())
+            })
+        });
+        if ready.is_some() {
+            break;
+        }
+    }
+    let shows = ready.expect("the key landed and its screen came whole");
+    // A recovery point's repaint: every tile stale, no notice.
+    cx.update(|app| view.update(app, |view, cx| view.invalidate(cx)));
+    assert_eq!(frame(&cx), (None, true), "a stale screen times nothing");
+    let mut timed = false;
+    for _ in 0..200 {
+        cx.run_until_parked();
+        let (drawn, waiting) = frame(&cx);
+        if !waiting {
+            assert!(drawn.is_some_and(|drawn| drawn >= shows), "timed by a screen at {shows} or later");
+            timed = true;
+            break;
+        }
+    }
+    assert!(timed, "the fresh screen times the key");
+}
+
+#[test]
 fn page_keys_turn_parts_like_up_and_down() {
     let Some(install) = crate::client::tests::install() else {
         return eprintln!("SKIP: no pinned LOK build");
