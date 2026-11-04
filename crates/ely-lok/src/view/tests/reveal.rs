@@ -344,6 +344,26 @@ fn an_edit_is_timed_by_the_first_whole_fresh_screen() {
 }
 
 #[test]
+fn a_whole_screen_wider_than_the_page_is_seen() {
+    let Some(install) = crate::client::tests::install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let cx = gpui::TestAppContext::single();
+    let (view, _) = long_view(&cx, &install);
+    // The shown area runs past the page.
+    let wide = Bounds { origin: point(px(0.0), px(0.0)), size: size(px(2000.0), px(1200.0)) };
+    settle(&cx, &view, wide);
+    landed(&cx, &view);
+    let blind = cx.update(|app| {
+        let view = view.read(app);
+        assert!(view.geom.twips_of(2000.0) > view.extent().0, "the window is wider than the page");
+        let mut worker = view.worker.lock().expect("the worker lock");
+        worker.state(&view.doc).expect("the state").2
+    });
+    assert!(!blind, "a whole screen sees the next edit's invalidations");
+}
+
+#[test]
 fn page_keys_turn_parts_like_up_and_down() {
     let Some(install) = crate::client::tests::install() else {
         return eprintln!("SKIP: no pinned LOK build");

@@ -112,13 +112,14 @@ fn a_key_knows_its_own_picture() {
         for n in 0..10 {
             // As the view: the dirtied screen repaints after each edit.
             doc.paint_tile(&mut worker, area, (64, 64)).expect("a tile paints");
-            let before = worker.state(&doc).expect("the state").1;
+            let (_, before, blind) = worker.state(&doc).expect("the state");
+            assert!(!blind, "{name} key {n}: a painted screen is seen");
             let (outcome, _, picture) = run(&mut worker, &doc, key());
             outcome.expect("the key posts");
             let after = worker.state(&doc).expect("the state").1;
-            // Its callbacks land inside its own request.
-            let Ok(Some(shows)) = picture else { panic!("{name} key {n}: {picture:?}") };
-            assert!((before..=after).contains(&shows), "{name} key {n}: {before} {shows} {after}");
+            // Seen, its callbacks land inside its own request.
+            assert!(after > before, "{name} key {n} dirtied tiles");
+            assert_eq!(picture, Ok(Some(after)), "{name} key {n} saw its own callbacks");
         }
     }
 }
