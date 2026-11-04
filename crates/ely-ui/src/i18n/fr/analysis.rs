@@ -1,0 +1,26 @@
+//! French analysis messages.
+
+pub(super) const FR: &[(&str, &str)] = &[
+    ("table.pivot.make", "Table dynamique…"),
+    ("table.pivot.refresh", "Actualiser la table dynamique"),
+    ("table.pivot.title", "Table dynamique"),
+    ("table.pivot.source", "Source : {range}"),
+    ("table.pivot.unused", "Non utilisés"),
+    ("table.pivot.rows", "Lignes"),
+    ("table.pivot.columns", "Colonnes"),
+    ("table.pivot.pages", "Filtres"),
+    ("table.pivot.data", "Valeurs"),
+    ("table.pivot.sum", "Somme"),
+    ("table.pivot.count", "Nombre"),
+    ("table.pivot.average", "Moyenne"),
+    ("table.pivot.max", "Max"),
+    ("table.pivot.min", "Min"),
+    ("table.pivot.other", "Autre"),
+    ("table.pivot.function_of", "Synthèse de {field}"),
+    ("table.pivot.go", "Créer"),
+    ("table.pivot.apply", "Appliquer"),
+    ("table.pivot.headers", "Chaque colonne doit avoir un en-tête pour créer une table dynamique."),
+    ("table.pivot.none", "Le curseur n’est pas dans une table dynamique."),
+    ("table.chart.make", "Diagramme…"),
+    ("table.chart.range", "Plage de données"),
+];

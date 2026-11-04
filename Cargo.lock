@@ -2127,8 +2127,10 @@ dependencies = [
  "keyring",
  "libc",
  "log",
+ "objc2-core-foundation",
  "serde_json",
  "tempfile",
+ "unicode-normalization",
  "windows-sys 0.60.2",
 ]
 

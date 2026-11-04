@@ -84,13 +84,25 @@ fn a_save_as_target_another_tab_took_meanwhile_says_so_in_chinese_and_spanish() 
         cx.update(|app| ely_ui::i18n::install_as(locale, app));
         let (b, target) = (b.clone(), target.clone());
         with_window(&mut cx, &docs, move |docs, window, cx| {
-            docs.tab_mut(second).expect("b").session = ely_files::Session::load(b).expect("b");
+            take(docs, second, b);
             docs.write_as(first, target.clone(), None, window, cx);
             // Before the export lands, the other tab takes the target.
-            docs.tab_mut(second).expect("b").session = ely_files::Session::load(target).expect("the target");
+            take(docs, second, target);
         });
         settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| text.contains(said)));
     }
+}
+
+/// Tab `id` holds `path`, registered as an open does.
+fn take(docs: &mut Docs, id: u64, path: std::path::PathBuf) {
+    if let Some(old) = docs.tab(id).and_then(|tab| tab.registry) {
+        docs.core.sessions.close(old);
+    }
+    let Ok(ely_files::Open::Fresh(registry)) = docs.core.sessions.open(&path, false) else {
+        panic!("{} is free", path.display())
+    };
+    let tab = docs.tab_mut(id).expect("the tab");
+    (tab.registry, tab.session) = (Some(registry), ely_files::Session::load(path).expect("loads"));
 }
 
 #[test]

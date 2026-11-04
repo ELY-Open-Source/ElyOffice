@@ -1,0 +1,27 @@
+//! German mail storage messages.
+
+pub(super) const DE: &[(&str, &str)] = &[
+    ("mail.storage.unread", "Der E-Mail-Speicher konnte nicht gelesen werden: {error}"),
+    ("mail.storage.index", "E-Mail-Index"),
+    ("mail.storage.index_hint", "Konten, Ordner, Kopfzeilen, Entwürfe und Postausgang: {size}; Suche: {search}"),
+    ("mail.storage.originals", "Heruntergeladene E-Mails"),
+    ("mail.storage.originals_hint", "{size}. Aufräumen gibt E-Mails frei, die ein Server noch hat; sie werden beim Synchronisieren oder Öffnen erneut heruntergeladen. Offline-Ordner, POP3 und importierte E-Mails bleiben."),
+    ("mail.storage.forget", "Aufräumen…"),
+    ("mail.storage.forget_title", "Heruntergeladene E-Mails aufräumen?"),
+    ("mail.storage.forget_message", "Inhalte und Dateien von E-Mails auf IMAP-Servern werden von diesem Computer gelöscht; die Kopfzeilen bleiben. Neuere E-Mails werden bei der nächsten Synchronisierung erneut heruntergeladen, ältere beim Öffnen."),
+    ("mail.storage.forget_go", "Aufräumen"),
+    ("mail.storage.forgot", "{n} Nachrichten freigegeben"),
+    ("mail.storage.forgot.one", "Eine Nachricht freigegeben"),
+    ("mail.storage.unforgotten", "Die E-Mails wurden nicht aufgeräumt: {error}"),
+    ("mail.storage.cap", "Grenze für heruntergeladene E-Mails"),
+    ("mail.storage.cap_none", "Keine Grenze"),
+    ("mail.storage.cap_hint", "Über der Grenze werden die ältesten Downloads wieder auf ihre Kopfzeilen reduziert. Offline-Ordner und importierte E-Mails bleiben erhalten."),
+    ("mail.storage.cap_unread", "Die gespeicherte Grenze ist nicht lesbar, daher gilt keine: {error}"),
+    ("mail.storage.cap_unsaved", "Die Grenze wurde nicht gespeichert: {error}"),
+    ("mail.storage.untrimmed", "Die Downloads wurden nicht auf die Grenze gekürzt: {error}"),
+    ("mail.storage.all", "Alle E-Mails exportieren"),
+    ("mail.storage.all_hint", "Jeder Ordner wird zu einer MBOX-Datei, in einem Ordner pro Konto."),
+    ("mail.storage.export", "Exportieren…"),
+    ("mail.storage.exported", "{n} Ordner exportiert; {left} Nachrichten ausgelassen (nicht vollständig hier oder rohe Binärdaten)"),
+    ("mail.storage.exported.one", "Ein Ordner exportiert; {left} Nachrichten ausgelassen (nicht vollständig hier oder rohe Binärdaten)"),
+];

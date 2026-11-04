@@ -49,26 +49,37 @@ case "$1 $2" in
     # Without --wait the review is still running.
     case " $* " in *" --wait "*) ;; *) exit 0 ;; esac
     case " $* " in *" --timeout "*) ;; *) exit 0 ;; esac
-    cp "$w/verdict" "$w/tree/tasks/reviews/$FAKE_VERDICT"
+    [ "$(cat "$w/late")" != 0 ] || cp "$w/verdict" "$w/tree/tasks/reviews/$FAKE_VERDICT"
     exit "$(cat "$w/prompt")" ;;
   "agent get")
-    s=$(cat "$w/status")
+    # A late verdict lands after that many reads.
+    n=$(($(cat "$w/gets") + 1))
+    echo "$n" >"$w/gets"
+    [ "$n" != "$(cat "$w/late")" ] || cp "$w/verdict" "$w/tree/tasks/reviews/$FAKE_VERDICT"
+    # Read n takes word n; the last word holds.
+    read -ra all <"$w/status"
+    s=${all[$((n <= ${#all[@]} ? n - 1 : ${#all[@]} - 1))]}
     [ "$s" != broken ] || exit 1
     echo "{\"result\":{\"agent\":{\"agent_status\":\"$s\"}}}" ;;
 esac
 EOF
+# Polls cost no time.
+printf '#!/usr/bin/env bash\necho "$1" >>"$HERDR_FAKE/slept"\n' >"$work/bin/sleep"
 # Native Windows jq writes CRLF.
 cat >"$work/crlf/jq" <<EOF
 #!/usr/bin/env bash
 set -o pipefail
 "$(command -v jq)" "\$@" | awk '{ printf "%s\r\n", \$0 }'
 EOF
-chmod +x "$work/bin/herdr" "$work/crlf/jq"
+chmod +x "$work/bin/herdr" "$work/bin/sleep" "$work/crlf/jq"
 # Usage: run item round start prompt status verdict [path].
 run() {
   echo "${CLOSE:-0}" >"$work/close"
   echo "${GET:-0}" >"$work/get"
   echo "${NEAR:-0}" >"$work/near"
+  echo "${LATE:-0}" >"$work/late"
+  echo 0 >"$work/gets"
+  rm -f "$work/slept"
   echo "$3" >"$work/start"
   echo "$4" >"$work/prompt"
   echo "$5" >"$work/status"
@@ -96,6 +107,16 @@ run T1.1 1 0 1 done 'PASS\n'
 [ "$rc" = 1 ] || fail "a prompt that timed out passed"
 run T1.1 1 0 0 done ''
 [ "$rc" = 1 ] || fail "an empty verdict passed"
+case $said in *"90 more minutes"*) ;; *) fail "a missing verdict not named: $said" ;; esac
+[ "$(wc -l <"$work/slept")" = 180 ] || fail "polled $(wc -l <"$work/slept") times, not 180"
+# A reviewer idle on its own background run is awaited.
+LATE=3 run T1.1 1 0 0 idle 'PASS
+'
+[ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a late verdict: rc $rc, $said"
+[ "$(cat "$work/slept")" = "$(printf '30\n30')" ] || fail "late verdict slept: $(cat "$work/slept")"
+# It may work again before the verdict.
+LATE=3 run T1.1 1 0 0 'idle working idle' 'PASS\n'
+[ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a resumed reviewer: rc $rc, $said"
 # Each round's pane goes once its verdict is read.
 reset() { rm -f "$work/closed" "$work/panes" "$work/live" "$work/splits" "$work/tree/tasks/reviews/.panes/"*; }
 reset

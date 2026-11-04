@@ -1,0 +1,27 @@
+//! Vietnamese message files and mbox files for ElyMail.
+
+pub(super) const VI: &[(&str, &str)] = &[
+    ("mail.boxes.imported", "{name} (trên máy tính này)"),
+    ("mail.eml.save", "Lưu dạng EML…"),
+    ("mail.eml.title", "Tệp thư"),
+    ("mail.eml.unread", "Không đọc được tệp thư"),
+    ("mail.eml.unopened", "Tệp thư không mở được: {error}"),
+    ("mail.eml.unsaved", "Chưa lưu được thư: {error}"),
+    ("mail.eml.saved", "Đã lưu vào {path}"),
+    ("mail.eml.incomplete", "Thư này chưa có đủ ở đây. Thư đang được tải xuống; hãy lưu lại khi tải xong."),
+    ("mail.eml.pictures", "{n} ảnh từ web không được tải từ tệp thư."),
+    ("mail.mbox.import", "Nhập MBOX…"),
+    ("mail.mbox.importing", "Đang nhập “{name}”…"),
+    ("mail.mbox.imported", "Đã nhập {n} thư vào “{name}” trên máy tính này"),
+    ("mail.mbox.imported.one", "Đã nhập 1 thư vào “{name}” trên máy tính này"),
+    ("mail.mbox.unimported", "Chưa nhập được tệp mbox: {error}"),
+    ("mail.mbox.export", "Xuất dạng MBOX…"),
+    ("mail.mbox.unexported", "Chưa xuất được thư mục: {error}"),
+    ("mail.mbox.partial", "{n} thư bị bỏ qua: chỉ có phần đầu ở đây, tệp chưa tải xuống, hoặc có phần nhị phân thô mà mbox sẽ làm thay đổi."),
+    ("mail.mbox.partial.one", "1 thư bị bỏ qua: chỉ có phần đầu ở đây, tệp chưa tải xuống, hoặc có phần nhị phân thô mà mbox sẽ làm thay đổi."),
+    ("mail.mbox.remove", "Gỡ thư mục đã nhập…"),
+    ("mail.mbox.remove_title", "Gỡ “{name}”?"),
+    ("mail.mbox.remove_message", "Các thư trong đó sẽ bị xóa khỏi máy tính này. Không máy chủ nào giữ chúng."),
+    ("mail.mbox.remove_go", "Gỡ"),
+    ("mail.mbox.unremoved", "Chưa gỡ được thư mục: {error}"),
+];
