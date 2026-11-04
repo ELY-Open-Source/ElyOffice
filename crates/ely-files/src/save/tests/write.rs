@@ -107,3 +107,17 @@ fn keep_mine_over_a_gone_file_never_replaces_a_new_one() {
     Write::anew(session.stamp(), &mut session).expect("keep mine starts").run(b"mine").land(&mut session).expect("lands");
     assert_eq!(read(&target), "mine", "still gone: written anew");
 }
+
+#[test]
+fn a_failed_keep_mine_leaves_no_empty_file() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let target = dir.path().join("gone.md");
+    write(&target, "0");
+    let mut session = Session::load(target.clone()).expect("the file loads");
+    session.edit();
+    std::fs::remove_file(&target).expect("deleted outside");
+    let begun = Write::anew(session.stamp(), &mut session).expect("keep mine starts");
+    let done = begun.run_with(b"mine", |_| Err(std::io::Error::other("the volume failed")));
+    assert!(matches!(done.land(&mut session), Err(SaveError::Io(_))));
+    assert!(!target.exists(), "the claim is taken back");
+}

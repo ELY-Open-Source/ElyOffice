@@ -97,8 +97,32 @@ impl Write {
 
     fn write(&self, bytes: &[u8], probe: impl FnOnce(&Path) -> io::Result<bool>) -> Result<Saved, SaveError> {
         let target = resolved(&self.path).map_err(SaveError::Io)?;
+        let Check::Gone = self.check else {
+            return self.put(&target, None, bytes, probe);
+        };
+        let claimed = claim(&target)?;
+        let put = self.put(&target, Some(claimed), bytes, probe);
+        // A failed write leaves no empty file of ours behind.
+        if put.is_err()
+            && Fingerprint::of(&target).ok() == Some(claimed)
+            && let Err(error) = std::fs::remove_file(&target)
+        {
+            log::warn!("files: the empty claim {} stays: {error}", target.display());
+        }
+        put
+    }
+
+    /// Writes `bytes` to `target`; `claimed` is a gone file's claim.
+    fn put(
+        &self,
+        target: &Path,
+        claimed: Option<Fingerprint>,
+        bytes: &[u8],
+        probe: impl FnOnce(&Path) -> io::Result<bool>,
+    ) -> Result<Saved, SaveError> {
+        let target = target.to_path_buf();
         let held = match &self.check {
-            Check::Gone => Some((target.clone(), claim(&target)?)),
+            Check::Gone => claimed.map(|claimed| (target.clone(), claimed)),
             Check::Seen(seen) => seen.map(|seen| (self.path.clone(), seen)),
             Check::Own(Some(own), Some(seen)) if is_own(own, &target)? => Some((own.clone(), *seen)),
             Check::Own(..) => {
@@ -113,7 +137,8 @@ impl Write {
             return Err(SaveError::Conflict);
         }
         // An empty claim of ours needs no copy kept.
-        let backup = !matches!(self.check, Check::Gone) && !probe(&target).map_err(SaveError::Io)?;
+        let atomic = probe(&target).map_err(SaveError::Io)?;
+        let backup = claimed.is_none() && !atomic;
         if backup {
             log::warn!("files: {} sits on a non-atomic volume", target.display());
         }
