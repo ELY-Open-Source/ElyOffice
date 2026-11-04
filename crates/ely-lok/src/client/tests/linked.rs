@@ -60,6 +60,78 @@ fn a_book_reads_its_source_only_when_asked() {
     assert_eq!(cells(&mut worker, &book, "H1"), "3", "a missing source keeps the value");
 }
 
+/// A book whose `S` is `sheet` and holds `cells`.
+fn sheets(sheet: &str, cells: &str) -> String {
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"
+ office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+ <office:body><office:spreadsheet><table:table table:name="S">{sheet}<table:table-row>{cells}</table:table-row></table:table>
+ </office:spreadsheet></office:body>
+</office:document>"#
+    )
+}
+
+/// A missing linked file: kept, named, no dialog.
+fn missing_stays(book: &str, missing: &str, cell: &str) {
+    let (_dir, mut worker, doc) = open_book(book);
+    let quiet = std::time::Duration::from_secs(3);
+    let before = cells(&mut worker, &doc, "A1");
+    let base = poll_until(&mut worker, &doc, &Events::default(), quiet, |_| false);
+    let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, [missing], "{book}");
+    assert_eq!(update(&mut worker, &doc), [missing], "the missing source is named");
+    assert_eq!(cells(&mut worker, &doc, "A1"), before, "the saved value stays");
+    assert_eq!(before, cell);
+    let after = poll_until(&mut worker, &doc, &base, quiet, |seen| !seen.blocked.is_empty());
+    assert!(after.blocked.is_empty(), "no dialog: {:?}", after.blocked);
+}
+
+#[test]
+fn a_linked_sheet_keeps_its_cells_when_its_file_is_missing() {
+    if skip() {
+        return;
+    }
+    let missing = crate::file_url(&std::env::temp_dir().join("ely-nope").join("missing.ods"));
+    let sheet = format!(r#"<table:table-source xlink:type="simple" xlink:href="{missing}" table:filter-name="calc8" table:mode="copy-all"/>"#);
+    let cell = r#"<table:table-cell office:value-type="float" office:value="5"/>"#;
+    missing_stays(&sheets(&sheet, cell), &missing, "5");
+}
+
+#[test]
+fn a_linked_area_keeps_its_cells_when_its_file_is_missing() {
+    if skip() {
+        return;
+    }
+    let missing = crate::file_url(&std::env::temp_dir().join("ely-nope").join("missing.ods"));
+    let cell = format!(
+        r#"<table:table-cell office:value-type="float" office:value="7"><table:cell-range-source table:name="S1.A1:A1" xlink:type="simple" xlink:href="{missing}" table:filter-name="calc8" table:last-column-spanned="1" table:last-row-spanned="1"/></table:table-cell>"#
+    );
+    missing_stays(&sheets("", &cell), &missing, "7");
+}
+
+#[test]
+fn a_dde_link_to_no_server_is_named_without_a_dialog() {
+    if skip() {
+        return;
+    }
+    let (dir, mut worker, made) = open_book(&book(0));
+    worker.run(&made, "cell.goto", &["B1"]).expect("B1");
+    worker.run(&made, "cell.enter", &["=DDE(\"elynosuchapp\";\"nofile\";\"A1\")"]).expect("the link");
+    let saved = dir.path().join("dde.ods");
+    made.save_as(&mut worker, &crate::file_url(&saved), "ods").expect("saves");
+    worker.close_doc(made).expect("closes");
+    let doc = worker.load(&crate::file_url(&saved)).expect("reloads");
+    let quiet = std::time::Duration::from_secs(3);
+    let base = poll_until(&mut worker, &doc, &Events::default(), quiet, |_| false);
+    let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, ["elynosuchapp|nofile"]);
+    assert_eq!(update(&mut worker, &doc), ["elynosuchapp|nofile"], "the failed server is named");
+    let after = poll_until(&mut worker, &doc, &base, quiet, |seen| !seen.blocked.is_empty());
+    assert!(after.blocked.is_empty(), "no dialog: {:?}", after.blocked);
+}
+
 /// A document whose section links `include`, showing `cached`.
 fn linking(path: &Path, include: &Path, cached: &str) {
     let href = crate::file_url(include);

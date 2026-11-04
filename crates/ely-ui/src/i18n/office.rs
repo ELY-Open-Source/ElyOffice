@@ -99,6 +99,7 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("office.links.failed", "Some links in {name} were not updated: {sources}"),
     ("office.links.changed", "A linked file changed after the last update: {sources}"),
     ("office.links.update", "Update links"),
+    ("office.links.unwatched", "Ely cannot watch the files {name} links to, so it will not say when they change: {why}"),
     (
         "office.repaired",
         "{name} is damaged. Ely opened a repaired copy; Save As writes it to a new file and the damaged original stays as it is.",
@@ -213,6 +214,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("office.links.failed", "{name} 有链接未能更新：{sources}"),
     ("office.links.changed", "上次更新后，链接的文件已改动：{sources}"),
     ("office.links.update", "更新链接"),
+    ("office.links.unwatched", "Ely 无法监视 {name} 链接的文件，它们改动时不会提示：{why}"),
     (
         "office.repaired",
         "{name} 已损坏。Ely 打开的是修复后的副本；“另存为”把它写成新文件，损坏的原件保持原样。",

@@ -21,13 +21,16 @@ fn source(path: &Path, value: u32) {
     std::fs::write(path, xml).expect("writes the source");
 }
 
-/// `reader.xlsx`, whose A1 reads S1.A1 of `source.fods`.
-fn reader(cx: &mut TestAppContext, book: &Entity<Book>, dir: &Path) -> std::path::PathBuf {
-    source(&dir.join("source.fods"), 1);
+/// `reader.xlsx`; A1, A2… read S1.A1 of each source, made here.
+fn reader(cx: &mut TestAppContext, book: &Entity<Book>, dir: &Path, sources: &[&Path]) -> std::path::PathBuf {
     blank(cx, book);
-    let formula = format!("='{}/[source.fods]S1'!A1", dir.display());
-    run(cx, book, "cell.goto", &["A1"]);
-    run(cx, book, "cell.enter", &[&formula]);
+    for (row, path) in sources.iter().enumerate() {
+        source(path, 1);
+        let (folder, name) = (path.parent().expect("a folder"), path.file_name().expect("a name"));
+        let formula = format!("='{}/[{}]S1'!A1", folder.display(), name.to_string_lossy());
+        run(cx, book, "cell.goto", &[&format!("A{}", row + 1)]);
+        run(cx, book, "cell.enter", &[&formula]);
+    }
     let saved = dir.join("reader.xlsx");
     cx.update(|app| {
         let book = book.read(app);
@@ -58,8 +61,8 @@ fn the_user_updates_links_and_hears_of_a_later_save() {
         eprintln!("SKIP: no LOK build");
         return;
     };
-    let saved = reader(&mut cx, &book, dir.path());
     let path = dir.path().join("source.fods");
+    let saved = reader(&mut cx, &book, dir.path(), &[&path]);
     source(&path, 2);
     let id = opened(&mut cx, &book, &saved);
     linked(&cx, &book, Linked::Saved(Vec::new()));
@@ -88,10 +91,31 @@ fn a_missing_source_is_named_at_open() {
         eprintln!("SKIP: no LOK build");
         return;
     };
-    let saved = reader(&mut cx, &book, dir.path());
     let path = dir.path().join("source.fods");
+    let saved = reader(&mut cx, &book, dir.path(), &[&path]);
     std::fs::remove_file(&path).expect("the source goes");
     opened(&mut cx, &book, &saved);
     linked(&cx, &book, Linked::Saved(vec![path.display().to_string()]));
     assert_eq!(cells(&mut cx, &book, "A1"), "1", "the saved value stays");
+}
+
+#[test]
+fn a_source_in_a_missing_folder_leaves_the_others_watched() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((_window, book)) = book(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let (path, sub) = (dir.path().join("source.fods"), dir.path().join("sub"));
+    let gone = sub.join("gone.fods");
+    std::fs::create_dir(&sub).expect("the folder");
+    let saved = reader(&mut cx, &book, dir.path(), &[&path, &gone]);
+    std::fs::remove_dir_all(&sub).expect("the folder goes");
+    let id = opened(&mut cx, &book, &saved);
+    linked(&cx, &book, Linked::Saved(vec![gone.display().to_string()]));
+    update(&mut cx, &book, |book, cx| book.update_links(id, cx));
+    linked(&cx, &book, Linked::Updated(vec![gone.display().to_string()]));
+    source(&path, 2);
+    linked(&cx, &book, Linked::Changed(path.display().to_string()));
 }

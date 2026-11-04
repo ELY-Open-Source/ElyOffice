@@ -57,6 +57,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("office.links.failed", "Certains liens de {name} n’ont pas été mis à jour : {sources}"),
     ("office.links.changed", "Un fichier lié a changé depuis la dernière mise à jour : {sources}"),
     ("office.links.update", "Mettre à jour les liens"),
+    ("office.links.unwatched", "Ely ne peut pas surveiller les fichiers liés à {name} et ne signalera donc pas leurs changements : {why}"),
     ("office.repaired", "{name} est endommagé. Ely a ouvert une copie réparée ; Enregistrer sous l’écrit dans un nouveau fichier et l’original endommagé reste tel quel."),
     ("office.signed", "{name} est signé. Une modification rompt ses signatures : Enregistrer sous écrit donc une copie non signée ; le fichier signé reste tel quel."),
     ("office.state.saved", "Enregistré"),

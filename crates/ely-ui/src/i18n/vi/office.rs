@@ -57,6 +57,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("office.links.failed", "Một số liên kết trong {name} chưa cập nhật được: {sources}"),
     ("office.links.changed", "Một tệp được liên kết đã thay đổi sau lần cập nhật gần nhất: {sources}"),
     ("office.links.update", "Cập nhật liên kết"),
+    ("office.links.unwatched", "Ely không theo dõi được các tệp mà {name} liên kết tới nên sẽ không báo khi chúng thay đổi: {why}"),
     ("office.repaired", "{name} bị hỏng. Ely đã mở một bản sao đã sửa chữa; Lưu thành sẽ ghi nó ra một tệp mới và bản gốc bị hỏng giữ nguyên."),
     ("office.signed", "{name} đã được ký. Chỉnh sửa sẽ làm mất hiệu lực chữ ký, nên Lưu thành sẽ ghi ra một bản sao không ký; tệp đã ký giữ nguyên."),
     ("office.state.saved", "Đã lưu"),

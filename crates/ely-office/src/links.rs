@@ -83,6 +83,18 @@ fn look(sources: &[String]) -> Vec<Seen> {
         .collect()
 }
 
+/// The folders of the sources found.
+fn folders(seen: &[Seen]) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = seen
+        .iter()
+        .filter(|(_, seen)| seen.is_ok())
+        .filter_map(|(path, _)| path.parent().map(PathBuf::from))
+        .collect();
+    dirs.sort();
+    dirs.dedup();
+    dirs
+}
+
 /// A source as the user knows it: path or name.
 fn shown(source: &str) -> String {
     ely_lok::file_path(source).map_or_else(|_| source.to_string(), |path| path.display().to_string())
@@ -107,7 +119,8 @@ pub trait Linking: Host {
             move |worker, doc| {
                 // Seen first: a save during the read still shows.
                 let seen = look(&sources);
-                Ok((Self::Engine::update_links(worker, doc)?, seen))
+                let dirs = folders(&seen);
+                Ok((Self::Engine::update_links(worker, doc)?, seen, dirs))
             },
             move |host, read, _, cx| {
                 let Some(tab) = host.tab_mut(id) else {
@@ -115,14 +128,11 @@ pub trait Linking: Host {
                 };
                 tab.links.updating = false;
                 cx.notify();
-                let (failed, seen) = match read {
+                let (failed, seen, dirs) = match read {
                     Ok(read) => read,
                     Err(error) => return host.engine_failed(&error.to_string(), cx),
                 };
-                log::info!("{slug}: tab {id} links updated, {} failed", failed.len());
-                let mut dirs: Vec<PathBuf> = seen.iter().filter_map(|(path, _)| path.parent().map(PathBuf::from)).collect();
-                dirs.sort();
-                dirs.dedup();
+                log::info!("{slug}: tab {id} links updated, {} failed, {} folders watched", failed.len(), dirs.len());
                 let watcher = watch(id, &dirs, cx);
                 let Some(tab) = host.tab_mut(id) else {
                     return;
@@ -131,7 +141,7 @@ pub trait Linking: Host {
                 tab.links.seen = seen;
                 match watcher {
                     Ok(watcher) => tab.links.watcher = Some(watcher),
-                    Err(error) => host.engine_failed(&error.to_string(), cx),
+                    Err(error) => host.unwatched(id, &error.to_string(), cx),
                 }
             },
             cx,
@@ -141,7 +151,7 @@ pub trait Linking: Host {
     /// Something moved in a source's folder; looks again.
     fn sources_moved(&mut self, id: u64, failed: Option<String>, cx: &mut Context<Self>) {
         if let Some(why) = failed {
-            return self.engine_failed(&why, cx);
+            return self.unwatched(id, &why, cx);
         }
         let Some(tab) = self.tab(id) else {
             return;
@@ -166,6 +176,16 @@ pub trait Linking: Host {
             })
         })
         .detach_and_log_err(cx);
+    }
+
+    /// Later saves of tab `id`'s sources go unseen.
+    fn unwatched(&mut self, id: u64, why: &str, cx: &mut Context<Self>) {
+        let Some(tab) = self.tab_mut(id) else {
+            return;
+        };
+        tab.links.watcher = None;
+        let said = text(cx, "office.links.unwatched", &[("name", &tab.name), ("why", why)]);
+        self.toast(said, Severity::Danger, cx);
     }
 
     /// The active tab's links: as saved, failed or changed (LOK-11).

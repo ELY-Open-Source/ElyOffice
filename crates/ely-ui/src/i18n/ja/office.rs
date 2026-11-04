@@ -57,6 +57,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("office.links.failed", "{name} の一部のリンクを更新できませんでした: {sources}"),
     ("office.links.changed", "前回の更新後にリンク先のファイルが変更されました: {sources}"),
     ("office.links.update", "リンクを更新"),
+    ("office.links.unwatched", "Ely は {name} のリンク先ファイルを監視できないため、変更を知らせません: {why}"),
     ("office.repaired", "{name} は壊れています。Ely は修復したコピーを開きました。名前を付けて保存で新しいファイルに書き出し、壊れた元のファイルはそのまま残ります。"),
     ("office.signed", "{name} には署名があります。編集すると署名が無効になるため、名前を付けて保存では署名のないコピーを書き出し、署名されたファイルはそのまま残ります。"),
     ("office.state.saved", "保存済み"),
