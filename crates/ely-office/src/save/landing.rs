@@ -13,7 +13,7 @@ use crate::{After, Closing as _, Engine, Risk, Tabs as _, Waiting, in_window};
 pub(super) enum Target {
     /// The open file; an outside change conflicts.
     Own,
-    /// Keep Mine over a gone file; never over a new one.
+    /// Keep Mine over a gone file; never a new one.
     Gone,
     /// Save As here; `true` reopens what was written.
     As(PathBuf, bool),
