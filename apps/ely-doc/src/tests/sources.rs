@@ -65,3 +65,33 @@ fn a_linked_section_updates_when_asked_and_says_when_its_file_changes() {
     linked(&cx, &docs, Linked::Changed(include.display().to_string()));
     assert!(shown(&mut cx, &docs, dir.path()).contains(">One<"), "a later save waits for the user");
 }
+
+/// Opens `fixture`, whose Word link stays a picture.
+fn keeps_the_original(fixture: &str, password: &str) {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office").join(fixture);
+    let path = dir.path().join("main.docx");
+    std::fs::copy(&source, &path).expect("copies");
+    let original = std::fs::read(&path).expect("reads");
+    let password = password.to_string();
+    with_window(&mut cx, &docs, |docs, _, cx| docs.open_with(path.clone(), password, cx));
+    settle(&cx, |app| docs.read(app).active_tab().is_some());
+    settled(&cx, &docs);
+    let risk = cx.update(|app| docs.read(app).active_tab().expect("a tab").risk);
+    assert_eq!(risk, Some(ely_office::Risk::Links), "{fixture}");
+    let (ask, answered) = ely_ui::Ask::for_tests(&serde_json::json!(["save", path.display().to_string()]).to_string());
+    cx.update(|app| docs.update(app, |docs, cx| docs.answer_request(ask, cx)));
+    let refused = answered.try_recv().expect("answered at once");
+    assert!(refused.as_ref().is_err_and(|why| why.contains("another name")), "{fixture}: {refused:?}");
+    assert_eq!(std::fs::read(&path).expect("reads"), original, "{fixture}: the original stays");
+}
+
+#[test]
+fn a_word_link_kept_as_a_picture_saves_only_as_a_copy() {
+    keeps_the_original("ole-link-other.docx", "");
+    keeps_the_original("ole-link-other-locked.docx", "ely");
+}

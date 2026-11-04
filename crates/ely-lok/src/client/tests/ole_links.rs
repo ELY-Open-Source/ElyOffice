@@ -94,3 +94,26 @@ fn word_s_absolute_target_finds_its_file() {
     let main: PathBuf = made.join("ole-link-word.docx");
     stays_a_link(dir.path(), &mut worker, &main);
 }
+
+#[test]
+fn a_link_of_another_kind_is_named_even_in_a_locked_file() {
+    if super::analysis::skip() {
+        return;
+    }
+    let (dir, mut worker) = fresh();
+    let office = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office");
+    let cases = [
+        ("ole-link.docx", "", Vec::<&str>::new()),
+        ("includetext.docx", "", Vec::new()),
+        ("ole-link-other.docx", "", vec!["source.pdf"]),
+        ("ole-link-other-locked.docx", "ely", vec!["source.pdf"]),
+    ];
+    for (name, password, want) in cases {
+        let copy = dir.path().join(name);
+        std::fs::copy(office.join(name), &copy).expect("copies");
+        let doc = worker.unlock(&crate::file_url(&copy), password).expect(name);
+        let listed = worker.values(&doc, links::LIST).expect("reads");
+        assert_eq!(links::pictured(&listed).expect("parses"), want, "{name}");
+        worker.close_doc(doc).expect("closes");
+    }
+}

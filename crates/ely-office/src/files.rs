@@ -15,10 +15,7 @@ use quick_xml::{
 
 use crate::{Engine, Kind};
 
-mod ole;
 mod zip;
-
-pub use ole::link_risk;
 
 /// The lowercase extension of `path`.
 fn extension(path: &Path) -> String {

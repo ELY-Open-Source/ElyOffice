@@ -24,6 +24,8 @@ pub struct Loaded {
     mark: String,
     feed: ely_lok::Feed,
     links: Vec<String>,
+    /// Word links the kernel keeps as pictures.
+    pictured: bool,
 }
 
 impl Engine for Lok {
@@ -42,11 +44,15 @@ impl Engine for Lok {
         let laid = ely_lok::layout(worker, &doc)?;
         let mark = worker.values(&doc, ".uno:Undo")?;
         // Impress names no links.
-        let links = match doc.is_deck() {
-            true => Vec::new(),
-            false => ely_lok::links::sources(&worker.values(&doc, ely_lok::links::LIST)?)?,
+        let (links, pictured) = match (doc.is_deck(), doc.is_sheet()) {
+            (true, _) => (Vec::new(), false),
+            (false, sheet) => {
+                let listed = worker.values(&doc, ely_lok::links::LIST)?;
+                let pictured = !sheet && !ely_lok::links::pictured(&listed)?.is_empty();
+                (ely_lok::links::sources(&listed)?, pictured)
+            }
         };
-        Ok(Loaded { doc, laid, mark, feed: worker.feed(), links })
+        Ok(Loaded { doc, laid, mark, feed: worker.feed(), links, pictured })
     }
 
     fn open(
@@ -78,6 +84,13 @@ impl Engine for Lok {
         });
         log::info!("office: opens at {zoom:?}, deck {deck}");
         Ok((doc, view, mark))
+    }
+
+    fn risk(loaded: &Loaded) -> Option<crate::Risk> {
+        loaded.pictured.then(|| {
+            log::warn!("office: a Word link stays only a picture");
+            crate::Risk::Links
+        })
     }
 
     fn links(loaded: &Loaded) -> Vec<String> {

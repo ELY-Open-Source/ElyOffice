@@ -11,8 +11,10 @@ wrote every object as Type="Embed".
   macro-enabled ones too) becomes a link object to that file, its
   filter named from the ProgID, so a missing file still links. The
   file is not read: the preview shows until the user updates links
-  (0086). Other kinds keep their picture, as before; Ely reads the
-  package and keeps such a file from being saved over.
+  (0086). Other kinds keep their picture, as before; their targets
+  go to the document grab bag (ElyPicturedLinks), and Writer's
+  .uno:ExternalLinks lists them as "pictured", so Ely keeps such a
+  file, encrypted ones too, from being saved over.
 - Export writes a linked object Word knew as Type="Link" with an
   external relationship to its file, the preview kept.
 - LibreOffice links whole files: a range in Word's LINK code (such as
@@ -59,10 +61,10 @@ index 66209ae..00b753a 100644
                                     XML_ShapeID, sShapeId,
                                     XML_DrawAspect, sDrawAspect,
 diff --git a/sw/source/writerfilter/dmapper/DomainMapper.cxx b/sw/source/writerfilter/dmapper/DomainMapper.cxx
-index 46de2c3..5b822a9 100644
+index 46de2c3..6de3141 100644
 --- a/sw/source/writerfilter/dmapper/DomainMapper.cxx
 +++ b/sw/source/writerfilter/dmapper/DomainMapper.cxx
-@@ -3287,7 +3287,8 @@ void DomainMapper::sprmWithProps( Sprm& rSprm, const PropertyMapPtr& rContext )
+@@ -3287,11 +3287,25 @@ void DomainMapper::sprmWithProps( Sprm& rSprm, const PropertyMapPtr& rContext )
              if ( pOLEHandler->isOLEObject( ) )
              {
                  OUString sStreamName = pOLEHandler->copyOLEOStream( m_pImpl->GetTextDocument() );
@@ -72,6 +74,23 @@ index 46de2c3..5b822a9 100644
                  {
                      m_pImpl->appendOLE( sStreamName, pOLEHandler );
                  }
+             }
++            else if (pOLEHandler->isPicturedLink() && m_pImpl->GetTextDocument())
++            {
++                // Saving drops such a link; LOK reports it.
++                comphelper::SequenceAsHashMap aGrabBag(
++                    m_pImpl->GetTextDocument()->getPropertyValue(u"InteropGrabBag"_ustr));
++                uno::Sequence<OUString> aLinks;
++                aGrabBag[u"ElyPicturedLinks"_ustr] >>= aLinks;
++                aLinks.realloc(aLinks.getLength() + 1);
++                aLinks.getArray()[aLinks.getLength() - 1] = pOLEHandler->getLinkTarget();
++                aGrabBag[u"ElyPicturedLinks"_ustr] <<= aLinks;
++                m_pImpl->GetTextDocument()->setPropertyValue(
++                    u"InteropGrabBag"_ustr, uno::Any(aGrabBag.getAsConstPropertyValueList()));
++            }
+         }
+     }
+     break;
 diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
 index aee57ef..28b4802 100644
 --- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
@@ -148,7 +167,7 @@ index aee57ef..28b4802 100644
      }
      catch( const uno::Exception& )
 diff --git a/sw/source/writerfilter/dmapper/OLEHandler.cxx b/sw/source/writerfilter/dmapper/OLEHandler.cxx
-index d48c26e..81f12b5 100644
+index d48c26e..f77e644 100644
 --- a/sw/source/writerfilter/dmapper/OLEHandler.cxx
 +++ b/sw/source/writerfilter/dmapper/OLEHandler.cxx
 @@ -43,6 +43,8 @@
@@ -171,13 +190,18 @@ index d48c26e..81f12b5 100644
          break;
          case NS_ooxml::LN_CT_OLEObject_ProgID:
              m_sProgId = sStringValue;
-@@ -238,6 +244,40 @@ void OLEHandler::importStream(const uno::Reference<uno::XComponentContext>& xCom
+@@ -238,6 +244,45 @@ void OLEHandler::importStream(const uno::Reference<uno::XComponentContext>& xCom
          m_sProgId);
  }
  
 +bool OLEHandler::isLink() const
 +{
 +    return m_sType == "Link" && !m_sLinkTarget.isEmpty() && !getLinkFilter().isEmpty();
++}
++
++bool OLEHandler::isPicturedLink() const
++{
++    return m_sType == "Link" && !isLink();
 +}
 +
 +OUString OLEHandler::getLinkFilter() const
@@ -213,7 +237,7 @@ index d48c26e..81f12b5 100644
  {
      OUString aRet;
 diff --git a/sw/source/writerfilter/dmapper/OLEHandler.hxx b/sw/source/writerfilter/dmapper/OLEHandler.hxx
-index cd5d59d..0d9f87e 100644
+index cd5d59d..136f0d7 100644
 --- a/sw/source/writerfilter/dmapper/OLEHandler.hxx
 +++ b/sw/source/writerfilter/dmapper/OLEHandler.hxx
 @@ -48,6 +48,9 @@ class DomainMapper;
@@ -226,7 +250,7 @@ index cd5d59d..0d9f87e 100644
      OUString     m_sDrawAspect;
      OUString     m_sVisAreaWidth;
      OUString     m_sVisAreaHeight;
-@@ -71,7 +74,16 @@ public:
+@@ -71,7 +74,18 @@ public:
  
      const css::uno::Reference<css::drawing::XShape>& getShape() const { return m_xShape; };
  
@@ -235,6 +259,8 @@ index cd5d59d..0d9f87e 100644
 +
 +    /// A link of a known kind; others keep their picture.
 +    bool isLink() const;
++    /// A link of another kind: import keeps its picture.
++    bool isPicturedLink() const;
 +    const OUString& getLinkTarget() const { return m_sLinkTarget; }
 +    /// The import filter of the linked file's kind.
 +    OUString getLinkFilter() const;
@@ -270,3 +296,38 @@ index 0d6d451..a09a3e3 100644
    <token tokenid="ooxml:trackchange"/>
    <token tokenid="ooxml:object"/>
    <token tokenid="ooxml:tblStart"/>
+diff --git a/sw/source/uibase/uno/loktxdoc.cxx b/sw/source/uibase/uno/loktxdoc.cxx
+index c4ae071..29cb405 100644
+--- a/sw/source/uibase/uno/loktxdoc.cxx
++++ b/sw/source/uibase/uno/loktxdoc.cxx
+@@ -27,6 +27,7 @@
+ 
+ #include <comphelper/diagnose_ex.hxx>
+ #include <comphelper/sequence.hxx>
++#include <comphelper/sequenceashashmap.hxx>
+ #include <o3tl/string_view.hxx>
+ #include <tools/json_writer.hxx>
+ #include <tools/urlobj.hxx>
+@@ -1253,9 +1254,19 @@ void GetExternalLinks(tools::JsonWriter& rJsonWriter, SwDocShell* pDocShell)
+         if (OUString aSource = LinkSource(*rLink); !aSource.isEmpty())
+             aSources.insert(aSource);
+     }
+-    auto aArray = rJsonWriter.startArray("links");
+-    for (const OUString& rSource : aSources)
+-        rJsonWriter.putSimpleValue(rSource);
++    {
++        auto aArray = rJsonWriter.startArray("links");
++        for (const OUString& rSource : aSources)
++            rJsonWriter.putSimpleValue(rSource);
++    }
++    // Word's links DOCX import kept as pictures.
++    const comphelper::SequenceAsHashMap aGrabBag(
++        pDocShell->GetBaseModel()->getPropertyValue(u"InteropGrabBag"_ustr));
++    const auto aPictured = aGrabBag.getUnpackedValueOrDefault(u"ElyPicturedLinks"_ustr,
++                                                              uno::Sequence<OUString>());
++    auto aArray = rJsonWriter.startArray("pictured");
++    for (const OUString& rTarget : aPictured)
++        rJsonWriter.putSimpleValue(rTarget);
+ }
+ 
+ /// Implements getCommandValues(".uno:ElyUpdateLinks"): each link reads again.
