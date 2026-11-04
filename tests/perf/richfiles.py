@@ -243,12 +243,13 @@ def saved(slug, path, rounds):
                 problems.append(f"{name}: {sheet}!{ref} saved {got}, not {value}")
         kept = book_kept(path, ROWS.get(name.split("-")[-1].split(".")[0], HUGE["ely-table"]), rounds)
         if "-big" in name:
-            kept = {**kept, **loadfiles.book_links(path), **xlsx_kept(path)}
+            # Nobody pressed Update links: saved values stay (LOK-11).
+            kept = {**kept, **loadfiles.book_links(path, loadfiles.RATES_CACHED[0]), **xlsx_kept(path)}
         return problems + [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
     found = loadfiles.tokens(path)
     if found != [rounds]:
         problems.append(f"{name}: saved tokens {found}, not [{rounds}]")
-    kept = loadfiles.word_links(path) if "-linked" in name else original(slug, path, rounds)
+    kept = loadfiles.word_links(path, loadfiles.INCLUDED_CACHED) if "-linked" in name else original(slug, path, rounds)
     return problems + [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
 
 

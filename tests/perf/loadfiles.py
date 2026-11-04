@@ -406,13 +406,13 @@ def word_links(path, included=INCLUDED_NOW):
         xml = archive.read("word/document.xml").decode("utf-8")
         targets = external(archive, "word/document.xml")
     return {"INCLUDETEXT field kept": "INCLUDETEXT" in xml and "include.docx" in xml,
-            "INCLUDETEXT shows the source's text": included in text_of(path),
+            "INCLUDETEXT shows the text it should": included in text_of(path),
             "linked picture kept": any(t.endswith("picture.png") for t in targets),
             "OLE link kept": 'Type="Link"' in xml and any(t.endswith("source.xlsx") for t in targets)}
 
 
-def book_links(path):
-    """The external book, its formula and updated value."""
+def book_links(path, rate=RATES_NOW[0]):
+    """The external book, its formula and value."""
     with zipfile.ZipFile(path) as archive:
         books = [name for name in archive.namelist() if re.fullmatch(r"xl/externalLinks/externalLink\d+\.xml", name)]
         targets = [target for name in books for target in external(archive, name)]
@@ -420,7 +420,7 @@ def book_links(path):
     value = cell(path, "Links", "A1")
     return {"external book kept": any(t.endswith("source.xlsx") for t in targets),
             "Links!A1 formula kept": bool(re.search(r"\[\d+\]Rates!\$B\$1", used)),
-            "Links!A1 shows the source's value": richfiles.number(value) is not None and abs(richfiles.number(value) - RATES_NOW[0]) < 1e-9}
+            "Links!A1 shows the value it should": richfiles.number(value) is not None and abs(richfiles.number(value) - rate) < 1e-9}
 
 
 def word_updates(path, folder):
@@ -430,6 +430,6 @@ def word_updates(path, folder):
     links = word_links(path, "Included changed")
     picture = "file:///" + os.path.abspath(os.path.join(folder, "picture.png")).replace("\\", "/")
     # What the picture and OLE preview show needs a screen.
-    return {"INCLUDETEXT saved with the changed text": links["INCLUDETEXT shows the source's text"],
+    return {"INCLUDETEXT saved with the changed text": links["INCLUDETEXT shows the text it should"],
             "the linked picture keeps its link": picture in targets,
             "the OLE link stays": links["OLE link kept"]}
