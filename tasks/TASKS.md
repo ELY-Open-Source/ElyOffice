@@ -538,4 +538,5 @@
 - [ ] R15.47 ElyTable 改缩放时视图离开原位（从 A1 滚开）（PERF-10，R15.31 极端用例缺陷十一）。
 - [ ] R15.48 应用日志的 `lok: edit to tile` 计时在恢复点同时落下时漏记已画出的键，读成约 9 秒的假延迟（PERF-10，R15.31 极端用例缺陷十二）。
 - [x] R15.49 ElyDoc 测试 the_page_and_style_groups_speak_chinese 在负载下偶发失败：字体与页面状态在首次绘制前到达，断言不容字体名与 Letter（随本机地区）。另：负载下 ElyTable 15 个、ElyShow 64 个报 never settled（同一测试进程里各测试的 worker 共用 R15.36 的一把轮流锁，等待又以固定 10 秒为限）；轮流锁按 worker 分即 R15.42 也做的那一处，后并入者取 R15.42 的异步版。负载下（另一 cargo 构建，32 线程）各两轮：ElyDoc 84/84、84/84，ElyShow 104/104、104/104，ElyTable 99/105、99/105（6 个 R 宏集成测试因 lo-snap 早于补丁 0081，单跑也败；带全部补丁的 lo-src 上 105/105），never settled 皆 0；该测试连跑 20 次全过。
+- [x] R15.52 review.sh 改由另一个 Claude Code 审查（用户 2026-11-03 定：Opus 5.5，effort high，herdr 里调用者右侧分屏）。首个审查窗格分在调用者右侧，其后的叠在它下面；读到结论即关窗格；失败的留着、记下窗格号，本条下一轮先关它。替身测试 `tests/scripts/review-rules.sh`。第 1 轮：读错了 herdr 0.9.5 `pane neighbor` 的字段（`pane_id` 是被查的窗格，邻居在 `neighbor_pane_id`，无邻居即无此字段），从不往下叠；替身照真 herdr 改答，旧脚本即败，另测读不出版面即停。在真 herdr 上分出右侧窗格核对了字段。第 2 轮通过。
 - [ ] R15.24 验收核对表：R15 逐条核对
