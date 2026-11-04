@@ -27,12 +27,13 @@ class ReadBack(unittest.TestCase):
         path = os.path.join(self.work, "doc-001-linked.docx")
         loadfiles.linked_docx(path, self.work)
         links = loadfiles.word_links(path)
-        self.assertEqual(links, {"INCLUDETEXT field kept": True, "INCLUDETEXT shows the source's text": False,
+        self.assertEqual(links, {"INCLUDETEXT field kept": True, "INCLUDETEXT shows the text it should": False,
                                  "linked picture kept": True, "OLE link kept": True})
         book = os.path.join(self.work, "table-000-big.xlsx")
         loadfiles.workbook(book, 40, linked=True)
         self.assertEqual(loadfiles.book_links(book), {"external book kept": True, "Links!A1 formula kept": True,
-                                                      "Links!A1 shows the source's value": False})
+                                                      "Links!A1 shows the value it should": False})
+        self.assertEqual(richfiles.saved("ely-doc", path, 0), [])
 
     def test_an_unsaved_cell_is_named(self):
         path = os.path.join(self.work, "table-003-small.xlsx")
@@ -77,7 +78,7 @@ class ReadBack(unittest.TestCase):
         loadfiles.workbook(book, 40, linked=True, typing=True)
         loadfiles.rewrite(book, {"xl/worksheets/sheet4.xml": lambda xml: xml.replace(
             '<c r="A1"><f>', '<c r="A1" t="e"><f>', 1).replace("<v>1.01</v>", "<v>#VALUE!</v>", 1)})
-        self.assertFalse(loadfiles.book_links(book)["Links!A1 shows the source's value"])
+        self.assertFalse(loadfiles.book_links(book, loadfiles.RATES_CACHED[0])["Links!A1 shows the value it should"])
         loadfiles.rewrite(book, {"xl/worksheets/sheet1.xml": lambda xml: xml.replace(
             "<sheetData></sheetData>", '<sheetData><row r="1"><c r="A1" t="e"><v>#VALUE!</v></c></row></sheetData>', 1)})
         self.assertFalse(richfiles.typed("ely-table", book, 3))

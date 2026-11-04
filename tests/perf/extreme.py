@@ -35,8 +35,7 @@ def case(fn):
 
 
 def place(name, slug):
-    folder = os.path.join(WORK, name, slug)
-    os.makedirs(folder, exist_ok=True)
+    os.makedirs(folder := os.path.join(WORK, name, slug), exist_ok=True)
     return folder
 
 
@@ -135,7 +134,7 @@ def changed_sources():
         drive.sh(run.HOST.exe("ely-table", True), source, env=app.env, timeout=120)
         load.wait_opened(app, 2, 60)
         app.said("cell", "set", source, "Rates!B1", "9.99")
-        app.said("cell", "save", source)
+        held, why = load.refused_for(app, ["cell", "save", source])
         time.sleep(3)
         waited = a1()
         drive.sh(run.HOST.exe("ely-table", True), book, env=app.env, timeout=120)
@@ -145,36 +144,46 @@ def changed_sources():
              "Update links reads the source": (updated, loadfiles.RATES_NOW[0]),
              "a later save of the source waits for the user": (waited, loadfiles.RATES_NOW[0]),
              "Update links again reads the saved source": (again, 9.99)}
-    rows = [(f"ElyTable: {what}", got == want, f"Links!A1 shows {got}, wants {want}") for what, (got, want) in shown.items()]
+    return [("ElyTable: the source saves right after Update links read it", not why, f"refused for {held:.0f} s: {why}" if why else "saved at once")] + [
+        (f"ElyTable: {what}", got == want, f"Links!A1 shows {got}, wants {want}") for what, (got, want) in shown.items()]
+
+
+@case
+def changed_word_sources():
+    """INCLUDETEXT, linked picture and OLE preview (LOK-11)."""
     folder = place("changed", "ely-doc")
     loadfiles.sources(folder)
     path = os.path.join(folder, "linked.docx")
     loadfiles.linked_docx(path, folder)
     with running("changed", "ely-doc", [path]) as app:
+        shoot = lambda name: time.sleep(3) or run.HOST.shot(app.process.pid, os.path.join(folder, f"links-{name}.png"))
+        typing_into(app, run.HOST.park)
+        shoot("opened")
         opened = app.said("text", "get", path)
         app.update_links()
+        shoot("updated")
         updated = app.said("text", "get", path)
         loadfiles.word(os.path.join(folder, "include.docx"), [loadfiles.para("Included changed")])
         loadfiles.sources(folder, rates=[9 + m / 100 for m in range(1, 13)], seed=5)
-        time.sleep(3)
+        shoot("changed")
         waited = app.said("text", "get", path)
         app.update_links()
+        shoot("renewed")
         later = app.said("text", "get", path)
         app.said("text", "save", path)
     seen = {"INCLUDETEXT shows its saved text on opening": loadfiles.INCLUDED_CACHED in opened,
             "Update links reads INCLUDETEXT's source": loadfiles.INCLUDED_NOW in updated,
             "a later save of the source waits for the user": "Included changed" not in waited,
             "Update links again reads the saved source": "Included changed" in later}
-    rows += [(f"ElyDoc: {what}", ok, "read with text get") for what, ok in seen.items()]
-    rows += [(f"ElyDoc: {what}", ok, "read in the saved file after the sources changed")
+    rows = [(f"ElyDoc: {what}", ok, "read with text get") for what, ok in seen.items()]
+    rows += [(f"ElyDoc: {what}", ok, f"read in the saved file after the sources changed; screens {folder}\\links-*.png")
              for what, ok in loadfiles.word_updates(path, folder).items()]
     return rows
 
 
 def edit_others(app, files, rounds, problems):
     for r in range(1, rounds + 1):
-        _, failures = load.at_once(app, [words for path in files for words in RECIPES[app.slug].edits(path, r)])
-        problems += failures
+        problems += load.at_once(app, [words for path in files for words in RECIPES[app.slug].edits(path, r)])[1]
 
 
 @case
@@ -185,7 +194,7 @@ def three_switching():
         folder = place("switching", slug)
         front = loadfiles.front_file(folder, slug)
         files = [shutil.copy(front, os.path.join(folder, f"{name}.{loadfiles.EXT[slug]}")) for name in "abc"]
-        base = {path: loadfiles.text_of(path).count("x") for path in files}
+        base = {path: loadfiles.text_of(path).lower().count("x") for path in files}  # Autocorrect capitalizes some x.
         with running("switching", slug, files) as app:
             typed, problems, slow, focused = dict.fromkeys(files, 0), [], [], []
             app.front()
@@ -212,8 +221,8 @@ def three_switching():
             for path in files:
                 app.said("text", "save", path)
             alive = app.process.poll() is None
-        lost = {os.path.basename(path): (loadfiles.text_of(path).count("x") - base[path], keys) for path, keys in typed.items()
-                if loadfiles.text_of(path).count("x") - base[path] != keys}
+        lost = {os.path.basename(path): (loadfiles.text_of(path).lower().count("x") - base[path], keys) for path, keys in typed.items()
+                if loadfiles.text_of(path).lower().count("x") - base[path] != keys}
         tokens = {os.path.basename(path): loadfiles.tokens(path) for path in files}
         ok = alive and not lost and not problems and not slow and all(focused) and all(found == [3] for found in tokens.values())
         rows.append((f"{APPS[slug]}: three open, tabs switched while typing and while all are edited", ok,
@@ -240,7 +249,6 @@ def save_while_typing():
                     except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
                         failures.append(str(error))
                     time.sleep(0.5)
-
             typing_into(app)
             stop = threading.Event()
             saver = threading.Thread(target=keep_saving, args=(stop,), daemon=True)
@@ -286,10 +294,7 @@ def close_unsaved():
             time.sleep(1.5)
             kept = not lines_matching(app, r"office: closed front\.") and typed_now(app, front, 5) == 5
             run.HOST.chord(app.process.pid, "w")
-            for _ in range(40):
-                if run.HOST.shows(app.process.pid, "Save"):
-                    break
-                time.sleep(0.25)
+            any(run.HOST.shows(app.process.pid, "Save") or time.sleep(0.25) for _ in range(40))
             run.HOST.press(app.process.pid, "Save")
             closed = any(lines_matching(app, r"office: closed front\.") or time.sleep(0.25) for _ in range(80))
         written = richfiles.typed(slug, front, 5)
@@ -457,11 +462,9 @@ def main():
     args = parser.parse_args()
     if sys.platform != "win32":
         sys.exit("SKIP: the extreme cases drive Windows windows")
-    unknown = set(args.cases) - set(CASES)
-    if unknown:
+    if unknown := set(args.cases) - set(CASES):
         parser.error(f"unknown cases {sorted(unknown)}; known {list(CASES)}")
-    WORK = os.path.join(run.ROOT, ".work", f"E{datetime.datetime.now():%H%M%S}")
-    os.makedirs(WORK)
+    os.makedirs(WORK := os.path.join(run.ROOT, ".work", f"E{datetime.datetime.now():%H%M%S}"))
     run.HOST = drive.host(WORK)
     load.watch_memory()
     load.build(list(RECIPES))
@@ -487,8 +490,7 @@ def main():
     lines += [f"| {name} | {'pass' if ok else 'FAIL'} | {detail.replace('|', '/')} |" for name, ok, detail in rows]
     with open(path, "w", encoding="utf-8", newline="\n") as record:
         record.write("\n".join(lines) + "\n")
-    print(path)
-    print(f"the work and logs: {WORK}")
+    print(path, f"the work and logs: {WORK}", sep="\n")
     if not all(ok for _, ok, _ in rows):
         raise SystemExit(1)
 

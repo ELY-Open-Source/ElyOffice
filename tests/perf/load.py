@@ -139,6 +139,20 @@ def ask(app, words):
     return took
 
 
+def refused_for(app, words, most=300):
+    """Retries a refused save: seconds refused, the refusal."""
+    began, why = time.monotonic(), ""
+    while True:
+        try:
+            ask(app, words)
+            return time.monotonic() - began, why
+        except RuntimeError as error:
+            if time.monotonic() - began > most:
+                raise
+            why = str(error)[-90:]
+            time.sleep(5)
+
+
 def at_once(app, jobs):
     """Each job's words asked together; times and failures."""
     times, failures = [], []
