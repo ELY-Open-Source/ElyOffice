@@ -75,7 +75,7 @@ fn pdfs_take_pages_and_the_outline_has_places() {
         &mut worker,
         &doc,
         &Events::default(),
-        std::time::Duration::from_secs(5),
+        HANG,
         |seen| !seen.fonts.is_empty(),
     );
     let mut fonts = seen.fonts.clone();

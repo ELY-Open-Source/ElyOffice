@@ -5,7 +5,7 @@ use std::{
     io::{self, BufReader, BufWriter},
 };
 
-use ely_ipc::{Pack, Unpack, read_frame, write_frame};
+use ely_ipc::{Pack, Unpack, Worded, read_frame, write_frame};
 use ely_pdf_engine::proto::{may, page_box, tag};
 
 mod content;
@@ -348,7 +348,7 @@ impl Worker {
                     match self.mupdf.kind(&open)? {
                         1 => {}
                         2 => return Ok((false, false, false)),
-                        _ => return Err(io::Error::other("neither a PDF nor an EPUB")),
+                        _ => return Err(Worded::error(io::ErrorKind::InvalidData, "pdf.error.not_pdf", &[])),
                     }
                     let locked = self.mupdf.locked(&open)?;
                     // Unprotected files answer 1; owners carry bit 4.
@@ -478,7 +478,7 @@ fn main() -> io::Result<()> {
             Err(error) => {
                 // Text may quote the document: reply, never log.
                 log::warn!("pdf-worker: request {kind} failed ({:?})", error.kind());
-                write_frame(&mut output, tag::ERR, id, error.to_string().as_bytes())
+                write_frame(&mut output, tag::ERR, id, Worded::wire(&error).as_bytes())
             }
         };
         // An oversized answer is refused; the worker lives.

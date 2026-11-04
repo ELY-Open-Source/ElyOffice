@@ -109,12 +109,10 @@ pub(super) fn cell(geometry: &crate::sheet::Geometry, x: u32, y: u32) -> crate::
 /// Waits until the kernel reports `want` as the selection.
 pub(super) fn selected(view: &Entity<LokView>, cx: &mut gpui::TestAppContext, want: &str) -> String {
     let mut address = String::new();
-    for _ in 0..200 {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while address != want && std::time::Instant::now() < deadline {
         cx.executor().tick();
         address = cx.update(|app| view.read(app).cell().address.clone());
-        if address == want {
-            break;
-        }
     }
     address
 }
@@ -309,7 +307,8 @@ fn a_zoom_measures_the_sheet_again() {
     };
     // The kernel takes the zoom, then the view its size.
     let (mut seen, mut now) = (before, before);
-    for _ in 0..2000 {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while std::time::Instant::now() < deadline {
         cx.executor().tick();
         (seen, now) = (cx.update(|app| view.read(app).doc_size), kernel(&mut cx));
         if now != before && seen == now {

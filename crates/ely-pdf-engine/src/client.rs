@@ -305,6 +305,9 @@ pub fn refused(error: &io::Error) -> Option<&'static str> {
 
 /// A worker error; a refusal names a permission it knows.
 fn refusal(text: String) -> io::Error {
+    if let Some(worded) = ely_ipc::Worded::read(&text, proto::WORDED) {
+        return worded;
+    }
     let named = text
         .strip_prefix(crate::proto::may::REFUSED)
         .and_then(|needed| crate::proto::may::NAMES.iter().find(|(_, name)| *name == needed));

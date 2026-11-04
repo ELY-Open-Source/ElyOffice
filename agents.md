@@ -40,7 +40,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin bc8e5fb，gpui 为 crates.io 的 `gpui-pre` =0.3.10，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
+依赖 `ely-gpui-component`（pin 89bff04，gpui 为 crates.io 的 `gpui-pre` =0.3.10，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
 
 | 需要 | 用 |
 | --- | --- |
@@ -86,7 +86,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 | gpui 无 aria-disabled API（`AriaProperties` 无 disabled 字段） | 组件 7380afb 起以本地化 aria_description 表达；上游待办：gpui 补 API |
 | 组件内部文案未接 i18n（Ely 用到的组件已接：提示、默认占位、补全空行、字号示例，6df9ab0；查找框、排序与筛选、密码开关，a4bf696；`i18n/tests/shipped.rs` 防回退；其余组件之外：欢迎页标题、菜单项等） | 面板族文案已接 i18n（7380afb，内建 en/zh-CN），`CommentSidebar` 与 `RelativeTime` 同（408f2b0）；其余上游待办 |
 | PPTX 的章节：内核无此结构，导入即丢 | `ely_office::files::sections` 打开时读 `ppt/presentation.xml` 的 `p14:sectionLst`，有即 `Risk::Sections`（XML 按 BOM 与字节辨 UTF-16，UTF-32 报错）；加密的 PPTX（OLE 里的 `EncryptedPackage`）看不到章节，即 `Risk::Sealed`；二者皆横幅说明，保存改为另存副本（原文件不动），自动保存与命令行保存不写原文件 |
-| LOK 的 `.uno:StyleApply` 状态给英文界面名（`Default Paragraph Style`），样式列表给程序名（`Standard`），两者对不上；内核界面固定英文，内置样式名到不了中文 | ElyDoc `props/builtin.rs`：照 LibreOffice 26.2 的 SwStyleNameMapper、strings.hrc 与 zh-CN、es、ja 译文列出内置的段落、字符、页面样式（程序名、英文、中文、西班牙文、日文），状态里的界面名经它换回程序名，菜单按界面语言显示；用户自建的样式照原名。更新样式仍用状态里的界面名 |
+| LOK 的 `.uno:StyleApply` 状态给英文界面名（`Default Paragraph Style`），样式列表给程序名（`Standard`），两者对不上；内核界面固定英文，内置样式名到不了中文 | ElyDoc `props/builtin.rs`：照 LibreOffice 26.2 的 SwStyleNameMapper、strings.hrc 与 zh-CN、es、ja、ko 译文列出内置的段落、字符、页面样式（程序名、英文、中文、西班牙文、日文、韩文），状态里的界面名经它换回程序名，菜单按界面语言显示；用户自建的样式照原名。更新样式仍用状态里的界面名 |
 
 ## gpui 规则
 
@@ -128,8 +128,8 @@ scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 到 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核对散列；Mac 核对架构）
 tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架构（ci.sh 发布前调用）
-scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 的新标签页，每条任务一个，可并行；codex gpt-6-astra，effort xhigh，fast）
-tests/scripts/review-rules.sh   review.sh 对替身 herdr：codex 起不来、提示超时、阻塞、状态读不出、空结论皆败，CRLF 的 jq 照常，并行的两条任务互不关标签页，下一轮只关本条上一轮的（三端可跑）
+scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 里调用者右侧分屏，其后的审查叠在下面，可并行；Claude Code，Opus 5.5，effort high；读到结论即关窗格，失败的留到本条下一轮）
+tests/scripts/review-rules.sh   review.sh 对替身 herdr：claude 起不来、提示超时、阻塞、状态读不出、空结论、窗格关不掉皆败，CRLF 的 jq 照常，首个窗格在调用者右侧、其后叠在下面，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
 scripts/apply-lo-patches.sh engines/lo-src  找出源码已到补丁序列第几个，补上其余（构建脚本调用）
 tests/scripts/lo-patches.sh    补丁序列从中途接着打、再打一次为空操作
 tests/scripts/media-targets.sh 媒体播放接口在 Linux、Windows 目标可编译（缺目标时 SKIP）
@@ -218,6 +218,7 @@ tests/scripts/linux-names.sh    同上，并核对报给辅助技术的窗口位
 tests/scripts/macos-names.sh    同上，经 macOS 的 AX（VoiceOver 所读，`ax-names.swift`）：应用空闲后才接入，窗口按钮不算（系统自命名），Tab 停靠点至少两个（窗口按钮是原生的）（需辅助功能权限）
 tests/scripts/windows-save-as.py  真窗口 ElyDoc：另存为里键入无扩展名的名字即存为 .docx，同名先问再替换（键鼠真输入，须桌面空闲；非 Windows 时 SKIP）
 tests/scripts/windows-tab-keys.py  真窗口 ElyDoc 与 ElyShow 各开四份：真鼠标点标签、Ctrl+W、从外面再开一份，每次第一键只落在前台文档（经 `text get` 核对；键鼠真输入，须桌面空闲；非 Windows 时 SKIP）
+tests/scripts/windows-table-save-edit.py  真窗口 ElyTable：单元格键入中经命令行保存，编辑不断、其后的键接着输入（公式栏读回），盘上是保存时已输入的格，回车后再存即有全文（键盘真输入，须桌面空闲；非 Windows 时 SKIP）
 tests/scripts/windows-table-zoom.py 目录  真窗口 ElyTable：键、状态栏缩放钮（真点击）与 Ctrl+滚轮在 A1 上缩到 67%、125%、400%，首个行列标题是 A、1（UI Automation），截图里网格线量出 A1 与 B2 一般宽高、光标框正落在 A1 的线上，日志的视图起点为 (0, 0)；滚轮在 C7 上时它的角到指针的像素不变；全部报出；截图写入该目录（键鼠真输入，须桌面空闲；非 Windows 时 SKIP）
 tests/scripts/windows-types.sh  真安装程序以假类型 `.elyprobe` 写 HKCU：能打开、只在无处理程序时设默认与“新建”、假方案 `elyprobe:` 进“默认应用”而不接管、别的程序的登记与“新建”不动、换了文件夹后旧卸载不删新的、写不进即安装失败（缺 makensis 时 SKIP）
 tests/scripts/layout.sh        真窗口：六个应用在 640、800、1100 宽下无元素越出窗口左右，留截图（需辅助功能与屏幕录制权限）
@@ -258,7 +259,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - 首批发布 ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark；ElyAgent 第二批。
 - 数据只在 `ely_platform::data_dir` 给出的目录；用户文档永不碰；卸载先问。根默认在系统的本地数据目录；设置“存储”可换到所选文件夹下的 `ElyOffice`，指向文件 `folder.json` 留在默认位置，下次启动、无 Ely 应用在运行时搬动（`ely_platform::folder`）。
 - 文件类型只写在 `packaging/types.tsv`，只进“打开方式”，从不设为默认（Windows 的“新建”只在该类型无任何处理程序时设）。URL 方案也写在那里，第二列以冒号结尾（`mailto:`）：Linux 的 `x-scheme-handler` 与 `%U`，Windows 的 `Capabilities\URLAssociations` 与 `RegisteredApplications`（只进“默认应用”供选，从不写 `Classes\mailto`），macOS 的 `CFBundleURLTypes`；链接经 `ely_ui::mail_link` 原样交到应用，ElyMail 以引擎的 `mailto` 照 RFC 6068 填好新信（引号里的逗号不切、域名转 IDNA、主题解 MIME 编码词）。“打开方式”里不得出现 LibreOffice，任何脚本都不挂载 LibreOffice 镜像。
-- 语言：界面英文、简体中文、西班牙语（es-ES，系统 es-* 同用）与日语（ja-JP，系统 ja-* 同用），每个应用各语言都全，任一目录缺键即失败，不以英文补；内核界面固定英文，内核给出的固定文字（ElyTable 的状态与错误、单元格样式，ElyDoc 的内置样式名）由 Ely 按界面语言重写，译文照 LibreOffice 26.2.6.3 该语言的译文，文件与主题资源自带的名字（母版、主题色集、用户样式、字体）照原样；ElyTable 导入非 UTF-8 的文本时预选界面语言的 Windows 代码页（中文 GB18030，日文 Shift_JIS，即 Windows-932，英文、西班牙文 Windows-1252）；ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
+- 语言：界面英文、简体中文、西班牙语（es-ES，系统 es-* 同用）、日语（ja-JP，系统 ja-* 同用）与韩语（ko-KR，系统 ko-* 同用），每个应用各语言都全，任一目录缺键即失败，不以英文补；内核界面固定英文，内核给出的固定文字（ElyTable 的状态与错误、单元格样式，ElyDoc 的内置样式名）由 Ely 按界面语言重写，译文照 LibreOffice 26.2.6.3 该语言的译文，文件与主题资源自带的名字（母版、主题色集、用户样式、字体）照原样；ElyTable 导入非 UTF-8 的文本时预选界面语言的 Windows 代码页（中文 GB18030，日文 Shift_JIS，即 Windows-932，韩文 Windows-949，英文、西班牙文 Windows-1252）；ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
 - 外观：Doc、Table、Show、PDF 的页面照文件原色，只有四周的界面随深浅色；邮件正文、Mark、Agent 随深浅色。深色底 `#252525`，不用纯黑。有 Omarchy 时随 Omarchy。
 - 性能：八个应用都不许卡顿（120 FPS 手感，树莓派 3 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事。
 - LOK：worker 启动时关掉内核的 OpenCL（`SAL_DISABLE_OPENCL=1`：其启动自检在 AMD 驱动里会卡死，Calc 在 CPU 上算）；界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；内核弹出的对话框即刻关闭并报错，需要的对话框由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入。
@@ -270,4 +271,4 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。
 - 合并前：`.github/workflows/pr.yml` 在每个 PR 与 main 的推送上，以 GitHub 托管的 Ubuntu 建 MuPDF（PDF worker 才编得过）后跑 check.sh、deny.sh、panics.py（数量比 PR 的基线或推送前的提交）、整个工作区的 clippy（告警即败）与不需引擎的测试（严格模式）；PR 从不上自托管机器，带引擎的全部测试是发布的门（release-tests.sh）。
-- 审查：每条任务由 `scripts/review.sh` 交 codex 审查，至多三轮。
+- 审查：每条任务由 `scripts/review.sh` 交另一个 Claude Code（Opus 5.5，effort high）审查，至多三轮。

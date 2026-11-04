@@ -173,6 +173,103 @@ fn a_stopped_clone_leaves_no_folder() {
     assert!(cx.update(|_, app| tree.read(app).ask.is_none()), "a stop is no failure");
 }
 
+#[test]
+fn a_clone_into_a_full_folder_says_so_in_chinese_and_spanish() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let into = dir.path().join("into");
+    std::fs::create_dir(&into).expect("a folder");
+    std::fs::write(into.join("kept.txt"), "x").expect("a file");
+    let mut cx = TestAppContext::single();
+    let (tree, cx) = window(&mut cx, dir.path());
+    // The window's toasts live on its root.
+    let shell = cx.update(|window, app| {
+        let shell = ely_ui::tool_root(ely_platform::AppId::Tree, tree.clone().into(), Vec::new(), window, app);
+        tree.update(app, |tree, _| tree.root = shell.downgrade());
+        shell
+    });
+    for (locale, said) in [("zh-CN", "不是空文件夹"), ("es-ES", "no está vacía")] {
+        cx.update(|_, app| ely_ui::i18n::install_as(locale, app));
+        let url = "https://example.invalid/none.git".to_string();
+        cx.update(|_, app| tree.update(app, |tree, cx| tree.start_clone(url, into.clone(), cx)));
+        let toasts = cx.update(|_, app| shell.read(app).toasts(app));
+        assert!(toasts.iter().any(|(text, _)| text.contains(said)), "{locale}: {toasts:?}");
+    }
+    assert!(cx.update(|_, app| tree.read(app).cloning.is_none()), "no clone began");
+}
+
+#[test]
+fn a_refused_clone_logs_its_key_never_its_folder_or_words() {
+    ely_ui::logs::keep();
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let into = dir.path().join("ZqxFolder42");
+    std::fs::create_dir(&into).expect("a folder");
+    std::fs::write(into.join("kept.txt"), "x").expect("a file");
+    let mut cx = TestAppContext::single();
+    let (tree, cx) = window(&mut cx, dir.path());
+    // The window's toasts live on its root.
+    let shell = cx.update(|window, app| {
+        let shell = ely_ui::tool_root(ely_platform::AppId::Tree, tree.clone().into(), Vec::new(), window, app);
+        tree.update(app, |tree, _| tree.root = shell.downgrade());
+        shell
+    });
+    cx.update(|_, app| ely_ui::i18n::install_as("zh-CN", app));
+    let url = "https://example.invalid/none.git".to_string();
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.start_clone(url, into.clone(), cx)));
+    let toasts = cx.update(|_, app| shell.read(app).toasts(app));
+    assert!(toasts.iter().any(|(text, _)| text.contains("ZqxFolder42 不是空文件夹")), "{toasts:?}");
+    let kept = ely_ui::logs::kept();
+    assert!(kept.iter().any(|line| line.ends_with("tree: tree.error.clone: tree.error.not_empty")), "{kept:?}");
+    assert!(!kept.iter().any(|line| line.contains("ZqxFolder42") || line.contains("不是空文件夹")), "{kept:?}");
+}
+
+#[test]
+fn a_bare_repository_logs_its_key_never_its_path() {
+    ely_ui::logs::keep();
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let bare = dir.path().join("ZqxRecords42.git");
+    sh(dir.path(), &["init", "-q", "--bare", bare.to_str().expect("utf-8")]);
+    let mut cx = TestAppContext::single();
+    let (tree, cx) = window(&mut cx, dir.path());
+    // The window's toasts live on its root.
+    let shell = cx.update(|window, app| {
+        let shell = ely_ui::tool_root(ely_platform::AppId::Tree, tree.clone().into(), Vec::new(), window, app);
+        tree.update(app, |tree, _| tree.root = shell.downgrade());
+        shell
+    });
+    cx.update(|_, app| ely_ui::i18n::install_as("zh-CN", app));
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.open_path(bare.clone(), cx)));
+    settle(cx, |app| shell.read(app).toasts(app).iter().any(|(text, _)| text.contains("ZqxRecords42.git 是裸仓库")));
+    let kept = ely_ui::logs::kept();
+    assert!(kept.iter().any(|line| line.ends_with("tree: a repository did not open: tree.error.bare")), "{kept:?}");
+    assert!(!kept.iter().any(|line| line.contains("ZqxRecords42") || line.contains("裸仓库")), "{kept:?}");
+}
+
+#[test]
+fn opening_in_a_missing_elymark_says_so_in_chinese_and_spanish() {
+    // An installed one would start for real.
+    if ely_platform::apps::installed(ely_platform::AppId::Mark) {
+        return eprintln!("SKIP: ElyMark is installed here");
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let root = committed(dir.path());
+    let mut cx = TestAppContext::single();
+    let (tree, cx) = window(&mut cx, dir.path());
+    // The window's toasts live on its root.
+    let shell = cx.update(|window, app| {
+        let shell = ely_ui::tool_root(ely_platform::AppId::Tree, tree.clone().into(), Vec::new(), window, app);
+        tree.update(app, |tree, _| tree.root = shell.downgrade());
+        shell
+    });
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.open_path(root.clone(), cx)));
+    settle(cx, |app| branch(tree.read(app)).is_some());
+    for (locale, said) in [("zh-CN", "ElyMark 没有安装"), ("es-ES", "ElyMark no está instalado")] {
+        cx.update(|_, app| ely_ui::i18n::install_as(locale, app));
+        cx.update(|_, app| tree.update(app, |tree, cx| tree.open_in_mark("a.txt", cx)));
+        let toasts = cx.update(|_, app| shell.read(app).toasts(app));
+        assert!(toasts.iter().any(|(text, _)| text.contains(said)), "{locale}: {toasts:?}");
+    }
+}
+
 /// Windows may end a hung Git only after 10 s.
 const GRACE: std::time::Duration = std::time::Duration::from_secs(30);
 

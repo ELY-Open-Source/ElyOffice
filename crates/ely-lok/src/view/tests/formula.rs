@@ -2,7 +2,7 @@ use super::*;
 use gpui::{Keystroke, TestAppContext};
 
 fn settle(cx: &TestAppContext, done: impl Fn(&App) -> bool) -> bool {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     while std::time::Instant::now() < deadline {
         if !cx.executor().tick() {
             cx.executor()

@@ -110,6 +110,7 @@ pub(crate) fn legacy_encoding(locale: &str) -> Encoding {
     match locale {
         "zh-CN" => Encoding::Gb18030,
         "ja-JP" => Encoding::ShiftJis,
+        "ko-KR" => Encoding::Windows949,
         _ => Encoding::Windows1252,
     }
 }
@@ -150,7 +151,8 @@ fn decode(bytes: &[u8], encoding: Encoding) -> Option<String> {
         Encoding::Gb18030 => (encoding_rs::GB18030, &[]),
         Encoding::Big5 => (encoding_rs::BIG5, &[]),
         Encoding::ShiftJis => (encoding_rs::SHIFT_JIS, &[]),
-        Encoding::EucKr => (encoding_rs::EUC_KR, &[]),
+        // WHATWG's EUC-KR is Windows-949.
+        Encoding::Windows949 => (encoding_rs::EUC_KR, &[]),
         Encoding::Windows1252 => (encoding_rs::WINDOWS_1252, &[]),
         Encoding::Windows1251 => (encoding_rs::WINDOWS_1251, &[]),
         // Latin-1 maps each byte to its code point.
@@ -369,6 +371,7 @@ mod tests {
             ("en-US", Encoding::Windows1252),
             ("es-ES", Encoding::Windows1252),
             ("ja-JP", Encoding::ShiftJis),
+            ("ko-KR", Encoding::Windows949),
             ("zh-CN", Encoding::Gb18030),
         ];
         let listed: Vec<_> = ely_platform::settings::LANGUAGES.iter().map(|(tag, _)| *tag).collect();

@@ -51,12 +51,13 @@ pub trait Engine: Sized + 'static {
     }
     /// The undo history as a mark to compare.
     fn history(worker: &mut Self::Worker, doc: &Self::Doc) -> io::Result<String>;
-    /// Writes `doc` as `format` to `path`.
+    /// Writes `doc` as `format` to `path`; `closing` ends open edits.
     fn write(
         worker: &mut Self::Worker,
         doc: &Self::Doc,
         path: &Path,
         format: &str,
+        closing: bool,
     ) -> io::Result<()>;
     /// A copy of `doc` at `path`; `doc` stays.
     fn snapshot(_worker: &mut Self::Worker, _doc: &Self::Doc, _path: &Path, format: &str) -> io::Result<()> {

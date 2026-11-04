@@ -2,6 +2,9 @@ use ely_gpui_component::i18n::I18n;
 
 mod analysis;
 mod es;
+mod ko;
+#[cfg(test)]
+mod korean_tests;
 #[cfg(test)]
 mod spanish_tests;
 mod ja;
@@ -39,6 +42,7 @@ mod tools;
 mod tree;
 mod tree_ops;
 mod tree_places;
+use ely_ipc::{Then, Worded};
 use ely_platform::settings::{LANGUAGES, Language};
 use gpui::{App, SharedString};
 
@@ -106,6 +110,9 @@ const EN: &[(&str, &str)] = &[
     ("error.closed", "the document closed"),
     ("error.open_there", "an open document is there"),
     ("error.no_pixels", "the picture has no pixels"),
+    ("error.then", "{error}; removing the files already written failed too: {left}"),
+    ("error.no_key", "the recovery key is not in the key store"),
+    ("error.not_installed", "{app} is not installed"),
 ];
 
 const ZH_CN: &[(&str, &str)] = &[
@@ -166,6 +173,9 @@ const ZH_CN: &[(&str, &str)] = &[
     ("error.closed", "文档已关闭"),
     ("error.open_there", "那里有一个打开着的文档"),
     ("error.no_pixels", "图片没有像素"),
+    ("error.then", "{error}；已写出的文件也没能删除：{left}"),
+    ("error.no_key", "密钥存储里没有恢复密钥"),
+    ("error.not_installed", "{app} 没有安装"),
 ];
 
 /// The listed language of `tag`'s primary subtag; else en-US.
@@ -186,13 +196,14 @@ pub fn install(cx: &mut App) {
 pub fn install_as(locale: &'static str, cx: &mut App) {
     #[cfg(target_os = "windows")]
     gpui_windows::set_text_language(locale);
-    let [en, zh, es, ja] = catalogs();
+    let [en, zh, es, ja, ko] = catalogs();
     cx.set_global(
         I18n::new(locale)
             .catalog("en-US", &en)
             .catalog("zh-CN", &zh)
             .catalog("es-ES", &es)
-            .catalog("ja-JP", &ja),
+            .catalog("ja-JP", &ja)
+            .catalog("ko-KR", &ko),
     );
 }
 
@@ -274,8 +285,8 @@ const ZH_MODULES: [&[(&str, &str)]; 34] = [
 ];
 
 /// Every language's catalog, every module's messages.
-fn catalogs() -> [Catalog; 4] {
-    [EN_MODULES, ZH_MODULES, es::ES, ja::JA].map(|modules| modules.iter().flat_map(|module| module.iter().copied()).collect())
+fn catalogs() -> [Catalog; 5] {
+    [EN_MODULES, ZH_MODULES, es::ES, ja::JA, ko::KO].map(|modules| modules.iter().flat_map(|module| module.iter().copied()).collect())
 }
 
 /// `ELY_LOCALE`, then the language setting, then the system's.
@@ -289,6 +300,19 @@ fn locale_tag(cx: &App) -> String {
 
 pub fn text(cx: &App, key: &str, args: &[(&str, &str)]) -> SharedString {
     cx.global::<I18n>().text(key, args)
+}
+
+/// `error` in the window's language when Ely worded it.
+pub fn error(cx: &App, error: &std::io::Error) -> SharedString {
+    if let Some(then) = error.get_ref().and_then(|inner| inner.downcast_ref::<Then>()) {
+        let (first, left) = (self::error(cx, &then.error), self::error(cx, &then.left));
+        return text(cx, "error.then", &[("error", &first), ("left", &left)]);
+    }
+    let Some(said) = error.get_ref().and_then(|inner| inner.downcast_ref::<Worded>()) else {
+        return error.to_string().into();
+    };
+    let args: Vec<_> = said.args.iter().map(|(name, value)| (name.as_str(), value.as_str())).collect();
+    text(cx, said.key, &args)
 }
 
 /// The message for `n` things: `key.one` when one, else `key`.
@@ -337,6 +361,25 @@ mod tests {
             super::install_as("zh-CN", cx);
             assert_eq!((said(1, cx), said(2, cx)), ("1 个文件有改动".into(), "2 个文件有改动".into()));
         });
+    }
+
+    #[gpui::test]
+    fn errors_ely_words_read_in_each_language(cx: &mut gpui::TestAppContext) {
+        use std::io;
+        let locked = super::Worded::error(io::ErrorKind::PermissionDenied, "error.no_key", &[]);
+        let pixels = || super::Worded::error(io::ErrorKind::InvalidData, "error.no_pixels", &[]);
+        let then = super::Worded::then(pixels(), io::Error::other("B"));
+        cx.update(|cx| {
+            for (tag, key, both) in [
+                ("zh-CN", "密钥存储里没有恢复密钥", "图片没有像素；已写出的文件也没能删除：B"),
+                ("es-ES", "la clave de recuperación no está en el almacén de claves", "la imagen no tiene píxeles; tampoco se pudieron eliminar los archivos ya escritos: B"),
+            ] {
+                super::install_as(tag, cx);
+                assert_eq!((super::error(cx, &locked), super::error(cx, &then)), (key.into(), both.into()), "{tag}");
+                assert_eq!(super::error(cx, &io::Error::other("the system's")), "the system's", "{tag}");
+            }
+        });
+        assert_eq!((locked.to_string(), then.to_string()), ("error.no_key".into(), "error.then".into()), "logs name the key");
     }
 
     #[test]

@@ -87,4 +87,9 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("settings.unreadable", "設定ファイルを読み取れないため、変更は保存されません: {error}"),
     ("settings.unsaved", "最後の変更を保存できませんでした: {error}"),
     ("settings.app_unreadable", "このアプリの設定を読み取れないため、既定値を使っています: {error}"),
+    ("settings.storage.inside", "{path} はデータフォルダーの中にあります"),
+    ("settings.storage.not_ely", "{path} に Ely のものではないファイルがあります"),
+    ("settings.git.not_git", "{path} は Git ではありません。出力: {said}"),
+    ("settings.git.old", "{path} の {version} は {least} より古いバージョンです"),
+    ("settings.git.failed", "{path} --version が失敗しました ({status}): {said}"),
 ];

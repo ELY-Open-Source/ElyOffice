@@ -221,6 +221,13 @@ switch ($Command) {
         }
         Click $field
     }
+    'values' {
+        $edit = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+        foreach ($field in (Window).FindAll('Descendants', $edit)) {
+            $value = $null
+            if ($field.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$value)) { "value $($value.Current.Value)" }
+        }
+    }
     'machine' {
         $cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1)
         $os = Get-CimInstance Win32_OperatingSystem

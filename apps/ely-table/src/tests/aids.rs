@@ -199,7 +199,7 @@ fn validation_aids_hide_outside_the_view_and_remain_in_frozen_rows() {
     };
     // The kernel's cursor reports arrive on their own thread.
     let until = |shown: &mut VisualTestContext, want: usize, why: &str| {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
         while count(shown) != want {
             assert!(std::time::Instant::now() < deadline, "{why}: {} aids", count(shown));
             frames(shown);

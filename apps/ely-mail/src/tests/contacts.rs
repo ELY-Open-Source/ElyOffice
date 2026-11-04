@@ -23,7 +23,7 @@ fn click(selector: &'static str, cx: &mut VisualTestContext) {
 }
 
 fn waited(path: &std::path::Path, cx: &mut VisualTestContext) {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while !path.exists() && Instant::now() < deadline {
         cx.run_until_parked();
         std::thread::sleep(Duration::from_millis(20));

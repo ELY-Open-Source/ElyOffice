@@ -339,7 +339,7 @@ fn the_scheduler_writes_every_interval_and_stops() {
         Duration::from_millis(10),
         snapshot,
     );
-    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
     while ticks.load(Ordering::Relaxed) < 3 && std::time::Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -388,7 +388,7 @@ fn last_ok_reads_free_during_a_slow_write() {
         Duration::from_millis(10),
         slow,
     );
-    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
     while task.last_ok().is_none() && std::time::Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(5));
     }

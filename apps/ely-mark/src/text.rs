@@ -2,6 +2,8 @@
 
 use std::io;
 
+use ely_ipc::Worded;
+
 const BOM: &[u8] = b"\xEF\xBB\xBF";
 
 /// A file as read: its bytes, BOM and line ending.
@@ -19,19 +21,13 @@ impl Source {
     /// Reads UTF-8, with or without BOM; other bytes fail.
     pub fn decode(bytes: Vec<u8>) -> io::Result<Source> {
         if bytes.starts_with(b"\xFF\xFE") || bytes.starts_with(b"\xFE\xFF") {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "UTF-16 text is not read",
-            ));
+            return Err(Worded::error(io::ErrorKind::InvalidData, "mark.error.utf16", &[]));
         }
         let bom = bytes.starts_with(BOM);
         let body = &bytes[if bom { BOM.len() } else { 0 }..];
         let text = std::str::from_utf8(body).map_err(|error| {
             let at = error.valid_up_to();
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("not UTF-8 at byte {at}"),
-            )
+            Worded::error(io::ErrorKind::InvalidData, "mark.error.not_utf8", &[("at", &at.to_string())])
         })?;
         let crlfs = text.matches("\r\n").count();
         let crlf = crlfs > text.matches('\n').count() - crlfs;
@@ -98,7 +94,8 @@ mod tests {
     #[test]
     fn other_encodings_fail_with_the_place() {
         let error = Source::decode(b"ok \xFF".to_vec()).expect_err("not UTF-8");
-        assert!(error.to_string().contains("byte 3"), "{error}");
+        let said = error.get_ref().and_then(|inner| inner.downcast_ref::<ely_ipc::Worded>()).expect("worded");
+        assert_eq!((said.key, said.args.as_slice()), ("mark.error.not_utf8", &[("at".to_string(), "3".to_string())][..]));
         assert!(Source::decode(b"\xFF\xFEa\0".to_vec()).is_err());
     }
 }

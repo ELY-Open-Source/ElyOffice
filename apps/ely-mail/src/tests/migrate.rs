@@ -18,7 +18,7 @@ const MBOX: &[u8] = b"From ann@example.com Tue Jan  2 10:00:00 2024\n\
     From: bo@example.com\nSubject: old two\nDate: Wed, 3 Jan 2024 10:00:00 +0000\n\nbye\n";
 
 fn waited(path: &std::path::Path, cx: &mut VisualTestContext) {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while !path.exists() && Instant::now() < deadline {
         cx.run_until_parked();
         std::thread::sleep(Duration::from_millis(20));

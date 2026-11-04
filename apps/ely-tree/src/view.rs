@@ -148,7 +148,7 @@ impl Tree {
                 IconName::TriangleAlert,
                 text(cx, "tree.no_git", &[]),
             )
-            .detail(error.clone())
+            .detail(ely_ui::i18n::error(cx, error))
             .into_any_element();
         }
         if let Some(cloning) = &self.cloning {

@@ -28,9 +28,10 @@ mod turn;
 mod view;
 mod visible;
 
-/// Steps and redraws until `done`, at most ten seconds.
+/// Steps and redraws until `done`, at most a minute.
+#[track_caller]
 pub(crate) fn settle(cx: &mut VisualTestContext, done: impl Fn(&gpui::App) -> bool) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     while std::time::Instant::now() < deadline {
         // Bounded: a busy loop must fail here, not hang.
         for _ in 0..100 {

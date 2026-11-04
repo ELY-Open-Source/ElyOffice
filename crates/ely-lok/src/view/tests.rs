@@ -121,12 +121,10 @@ fn releasing_the_view_stops_the_watch() {
     drop(shared);
     cx.update(|_| drop(view));
     let mut released = false;
-    for _ in 0..20 {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while !released && std::time::Instant::now() < deadline {
         cx.executor().tick();
         released = weak.upgrade().is_none();
-        if released {
-            break;
-        }
     }
     assert!(released, "the idle watch releases the worker");
 }

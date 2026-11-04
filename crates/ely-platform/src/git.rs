@@ -45,12 +45,15 @@ pub fn parse_version(text: &str) -> Option<(u32, u32)> {
 /// What `git --version` says, once it succeeds.
 pub fn version_of(path: &Path) -> io::Result<(String, (u32, u32))> {
     let output = ely_ipc::windowless(&mut Command::new(path)).arg("--version").output()?;
+    let shown = path.display().to_string();
     if !output.status.success() {
-        let said = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(io::Error::other(format!("{} --version failed ({}): {said}", path.display(), output.status)));
+        let (status, said) = (output.status.to_string(), String::from_utf8_lossy(&output.stderr).trim().to_string());
+        let args = [("path", shown.as_str()), ("status", status.as_str()), ("said", said.as_str())];
+        return Err(ely_ipc::Worded::error(io::ErrorKind::Other, "settings.git.failed", &args));
     }
     let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let number = parse_version(&version).ok_or_else(|| io::Error::other(format!("{} is no Git: {version:?}", path.display())))?;
+    let number = parse_version(&version)
+        .ok_or_else(|| ely_ipc::Worded::error(io::ErrorKind::InvalidData, "settings.git.not_git", &[("path", &shown), ("said", &version)]))?;
     Ok((version, number))
 }
 
@@ -58,8 +61,9 @@ pub fn version_of(path: &Path) -> io::Result<(String, (u32, u32))> {
 pub fn system_version(path: &Path) -> io::Result<String> {
     let (version, number) = version_of(path)?;
     if number < LEAST {
-        let message = format!("{version} at {} is older than {}.{}", path.display(), LEAST.0, LEAST.1);
-        return Err(io::Error::new(io::ErrorKind::Unsupported, message));
+        let (shown, least) = (path.display().to_string(), format!("{}.{}", LEAST.0, LEAST.1));
+        let args = [("version", version.as_str()), ("path", shown.as_str()), ("least", least.as_str())];
+        return Err(ely_ipc::Worded::error(io::ErrorKind::Unsupported, "settings.git.old", &args));
     }
     Ok(version)
 }
@@ -121,7 +125,9 @@ mod tests {
         // Committed: one written here races other tests' forks.
         let fake = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/git/git-fails");
         let error = super::system_version(&fake).expect_err("a failed run");
-        assert!(error.to_string().contains("version query failed"), "{error}");
+        let worded = error.get_ref().and_then(|inner| inner.downcast_ref::<ely_ipc::Worded>()).expect("worded");
+        assert_eq!(worded.key, "settings.git.failed");
+        assert!(worded.args.iter().any(|(name, said)| name == "said" && said.contains("version query failed")), "{worded:?}");
         assert!(super::version_of(&fake).is_err());
     }
 
@@ -131,7 +137,7 @@ mod tests {
         let fake = |name: &str| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/git").join(name);
         let old = super::system_version(&fake("git-2.39")).expect_err("too old");
         assert_eq!(old.kind(), std::io::ErrorKind::Unsupported);
-        assert!(old.to_string().contains("older than 2.40"), "{old}");
+        assert_eq!(old.to_string(), "settings.git.old");
         assert_eq!(super::system_version(&fake("git-2.40")).expect("the floor"), "git version 2.40.0");
     }
 

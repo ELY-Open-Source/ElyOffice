@@ -108,4 +108,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("mark.rename.format", "名前は .{formats} で終わる必要があります"),
     ("mark.rename.untitled", "名前を変更する前にドキュメントを保存してください"),
     ("mark.rename.saving", "保存が完了するまでお待ちください"),
+    ("mark.error.utf16", "UTF-16 のテキストは読み取りません"),
+    ("mark.error.not_utf8", "{at} バイト目が UTF-8 ではありません"),
+    ("mark.error.unsettled", "読み取り中にファイルが変わり続けました"),
 ];

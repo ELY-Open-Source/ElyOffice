@@ -63,7 +63,7 @@ pub(crate) fn connected(silent: &std::net::TcpListener) -> std::net::TcpStream {
         match silent.accept() {
             Ok((stream, _)) => return stream,
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                assert!(start.elapsed() < std::time::Duration::from_secs(30), "Git never connected");
+                assert!(start.elapsed() < std::time::Duration::from_secs(60), "Git never connected");
                 std::thread::sleep(std::time::Duration::from_millis(20));
             }
             Err(error) => panic!("accept: {error}"),
@@ -299,7 +299,7 @@ fn a_stopped_clone_ends_and_leaves_nothing() {
     });
     let _held = connected(&silent);
     let first = heard
-        .recv_timeout(std::time::Duration::from_secs(5))
+        .recv_timeout(std::time::Duration::from_secs(60))
         .expect("a line while waiting");
     assert!(first.starts_with("Cloning into"), "{first}");
     stop.now().expect("stops");

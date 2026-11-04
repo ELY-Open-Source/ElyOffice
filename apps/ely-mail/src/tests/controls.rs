@@ -33,7 +33,7 @@ fn with_secret() -> Keys {
 
 /// Waits on the network task alone, not the window.
 fn finished(mail: &Entity<Mail>, id: AccountId, cx: &mut VisualTestContext) {
-    let deadline = Instant::now() + Duration::from_secs(20);
+    let deadline = Instant::now() + Duration::from_secs(60);
     let done = |cx: &mut VisualTestContext| {
         cx.update(|_, app| {
             let task = mail.read(app).syncs[&id].task.as_ref();

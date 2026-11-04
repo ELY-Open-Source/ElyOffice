@@ -108,6 +108,9 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("mark.rename.format", "The name must end in .{formats}"),
     ("mark.rename.untitled", "Save the document before renaming it"),
     ("mark.rename.saving", "Wait for the save to finish"),
+    ("mark.error.utf16", "UTF-16 text is not read"),
+    ("mark.error.not_utf8", "not UTF-8 at byte {at}"),
+    ("mark.error.unsettled", "the file kept changing while read"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -218,4 +221,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("mark.rename.format", "名称须以 .{formats} 结尾"),
     ("mark.rename.untitled", "请先保存文档再改名"),
     ("mark.rename.saving", "请等保存结束"),
+    ("mark.error.utf16", "不读取 UTF-16 文本"),
+    ("mark.error.not_utf8", "第 {at} 字节处不是 UTF-8"),
+    ("mark.error.unsettled", "读取时文件一直在变"),
 ];

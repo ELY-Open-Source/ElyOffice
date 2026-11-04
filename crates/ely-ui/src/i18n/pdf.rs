@@ -223,6 +223,12 @@ pub(super) const EN: &[(&str, &str)] = &[
         "pdf.removal.warning",
         "This writes a new file; this document stays as it is. The original, old backups, sync history and copies already sent may still hold what is removed. Ely's working copies are deleted the ordinary way, not wiped from the disk.",
     ),
+    ("pdf.error.locked", "a password is needed"),
+    ("pdf.error.no_pages", "no pages to show"),
+    ("pdf.error.not_pdf", "the file is neither a PDF nor an EPUB"),
+    ("pdf.error.password_changed", "the file on disk refused the document's password"),
+    ("pdf.error.repaired_password", "the repaired copy refused the password"),
+    ("pdf.error.not_whole", "the document did not read whole: {report}"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -424,4 +430,10 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
         "pdf.removal.warning",
         "将写成新文件，当前文档不变。原件、旧备份、同步历史与已发出的副本仍可能含有被删内容。Ely 的工作副本按普通方式删除，不是磁盘级擦除。",
     ),
+    ("pdf.error.locked", "需要密码"),
+    ("pdf.error.no_pages", "没有可显示的页面"),
+    ("pdf.error.not_pdf", "文件既不是 PDF 也不是 EPUB"),
+    ("pdf.error.password_changed", "磁盘上的文件不接受文档的密码"),
+    ("pdf.error.repaired_password", "修复后的副本不接受密码"),
+    ("pdf.error.not_whole", "文档没有完整读出：{report}"),
 ];

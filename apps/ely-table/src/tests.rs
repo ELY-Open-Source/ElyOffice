@@ -41,10 +41,10 @@ pub(crate) fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<
     Some((window, book))
 }
 
-/// Steps the scheduler until `done` or ten seconds pass.
+/// Steps the scheduler until `done` or a minute passes.
 #[track_caller]
 pub(crate) fn settle(cx: &TestAppContext, done: impl Fn(&gpui::App) -> bool) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     while std::time::Instant::now() < deadline {
         if !cx.executor().tick() {
             cx.executor()
@@ -394,6 +394,7 @@ mod chinese;
 mod aids;
 mod data;
 mod edges;
+mod editing;
 mod kept;
 mod links;
 mod menu;

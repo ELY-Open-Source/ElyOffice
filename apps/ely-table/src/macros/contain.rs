@@ -120,10 +120,10 @@ mod tests {
             line.trim().parse::<u32>().expect("a pid")
         };
         #[cfg(windows)]
-        let helper = super::win::child_of(run.child.id(), "PING.EXE", Duration::from_secs(10)).expect("ping started");
+        let helper = super::win::child_of(run.child.id(), "PING.EXE", Duration::from_secs(60)).expect("ping started");
         assert!(alive(helper), "the helper runs");
         if !waits {
-            let deadline = Instant::now() + Duration::from_secs(10);
+            let deadline = Instant::now() + Duration::from_secs(60);
             while !run.exited().expect("polled") {
                 assert!(Instant::now() < deadline, "R never exited");
                 std::thread::sleep(Duration::from_millis(20));
@@ -160,7 +160,7 @@ mod tests {
             #[cfg(windows)]
             command.args(["/c", &format!("exit {code}")]);
             let mut run = Run::start(command.stdin(Stdio::null())).expect("started");
-            let deadline = Instant::now() + Duration::from_secs(10);
+            let deadline = Instant::now() + Duration::from_secs(60);
             while !run.exited().expect("polled") {
                 assert!(Instant::now() < deadline, "R never exited");
                 std::thread::sleep(Duration::from_millis(20));

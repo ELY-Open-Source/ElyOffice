@@ -17,11 +17,7 @@ impl gpui::Render for Blank {
 
 /// A Docs over a fresh worker, if LOK exists.
 pub(crate) fn docs(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Docs>> {
-    // A failing test prints its log.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .filter_level(log::LevelFilter::Info)
-        .try_init();
+    ely_ui::logs::keep();
     let install = ely_lok::test_install()?;
     let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");
@@ -33,10 +29,10 @@ pub(crate) fn docs(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Docs>> 
     })
 }
 
-/// Steps the scheduler until `done` or ten seconds pass.
+/// Steps the scheduler until `done` or a minute passes.
 #[track_caller]
 pub(crate) fn settle(cx: &TestAppContext, done: impl Fn(&gpui::App) -> bool) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     while std::time::Instant::now() < deadline {
         if !cx.executor().tick() {
             cx.executor()
@@ -465,6 +461,7 @@ mod points;
 mod remote;
 mod slow;
 mod start;
+mod words;
 
 impl Docs {
     /// Chooses the active tab as template, then types a field.

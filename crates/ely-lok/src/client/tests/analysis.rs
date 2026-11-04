@@ -363,14 +363,14 @@ fn charted(sheet: &str, visible: (i32, i32, i32, i32), (source, stand): (&str, &
     let mut cell = |worker: &mut Worker, name: &str| {
         worker.run(&doc, "cell.goto", &[name]).expect("the cell");
         let before = seen.cell.cursor;
-        seen = poll_until(worker, &doc, &seen, SETTLE, |now| now.cell.cursor.is_some() && now.cell.cursor != before);
+        seen = poll_until(worker, &doc, &seen, HANG, |now| now.cell.cursor.is_some() && now.cell.cursor != before);
         seen.cell.cursor.expect("the cell's rect")
     };
     let spans: Vec<_> = data.iter().map(|(from, to)| (cell(&mut worker, from), cell(&mut worker, to))).collect();
     let all = written(&mut worker, &doc, source);
     worker.run(&doc, "cell.goto", &[stand]).expect("where the chart goes");
     worker.run(&doc, "chart.insert", &[&all, "false", &Look { kind: "column".into(), ..Look::default() }.to_json()]).expect("inserts");
-    let framed = poll_until(&mut worker, &doc, &seen, SETTLE, |now| now.graphic.is_some());
+    let framed = poll_until(&mut worker, &doc, &seen, HANG, |now| now.graphic.is_some());
     let (x, y, w, h) = framed.graphic.expect("the chart is selected");
     for ((a, b), (from, to)) in spans.iter().zip(data) {
         let clear = x >= b.0 + b.2 || x + w <= a.0 || y >= b.1 + b.3 || y + h <= a.1;

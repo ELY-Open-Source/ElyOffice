@@ -2,8 +2,6 @@ use super::sheet::open_book;
 use super::*;
 use crate::sheet;
 
-const SETTLE: std::time::Duration = std::time::Duration::from_secs(3);
-
 pub(super) fn row(cells: &[&str]) -> String {
     let cells: String = cells
         .iter()
@@ -41,7 +39,7 @@ fn data() -> String {
 
 fn open() -> (tempfile::TempDir, Worker, Doc, Events) {
     let (dir, mut worker, doc) = open_book(&data());
-    let seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         seen.cell.cursor.is_some()
     });
     (dir, worker, doc, seen)
@@ -105,7 +103,7 @@ fn number_formats_alignment_and_fills_apply() {
     );
     worker.run(&doc, "align.center", &[]).expect("center");
     worker.run(&doc, "cells.wrap", &["true"]).expect("wrap");
-    let states = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let states = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         state(seen, ".uno:AlignHorizontalCenter") == Some("true")
             && state(seen, ".uno:WrapText") == Some("true")
     });
@@ -215,7 +213,7 @@ fn a_filter_button_and_alt_down_ask_for_ely_menus() {
     worker.run(&doc, "data.autofilter", &[]).expect("buttons");
     let a1 = seen.cell.cursor.expect("the cursor");
     click(&mut worker, &doc, a1.0 + a1.2 - 60, a1.1 + a1.3 / 2);
-    let asked = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let asked = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         seen.cell.request.is_some()
     });
     assert_eq!(
@@ -259,7 +257,7 @@ fn a_filter_button_and_alt_down_ask_for_ely_menus() {
         ("list", true, "A color")
     );
     worker.post_key(&doc, 0, 1024 | 0x4000).expect("Alt+Down");
-    let listed = poll_until(&mut worker, &doc, &asked, SETTLE, |seen| {
+    let listed = poll_until(&mut worker, &doc, &asked, HANG, |seen| {
         seen.cell.requests > asked.cell.requests
     });
     assert_eq!(
@@ -270,7 +268,7 @@ fn a_filter_button_and_alt_down_ask_for_ely_menus() {
         worker.post_key(&doc, c as u32, 0).expect("a key");
     }
     worker.post_key(&doc, 13, 1280).expect("Enter");
-    let refused = poll_until(&mut worker, &doc, &listed, SETTLE, |seen| {
+    let refused = poll_until(&mut worker, &doc, &listed, HANG, |seen| {
         seen.cell.requests > listed.cell.requests
     });
     assert!(
@@ -282,11 +280,11 @@ fn a_filter_button_and_alt_down_ask_for_ely_menus() {
         refused.cell.request
     );
     worker.run(&doc, "cell.goto", &["E3"]).expect("E3");
-    let away = poll_until(&mut worker, &doc, &refused, SETTLE, |seen| {
+    let away = poll_until(&mut worker, &doc, &refused, HANG, |seen| {
         seen.cell.address == "E3"
     });
     worker.run(&doc, "cell.goto", &["E2"]).expect("E2");
-    let kept = poll_until(&mut worker, &doc, &away, SETTLE, |seen| {
+    let kept = poll_until(&mut worker, &doc, &away, HANG, |seen| {
         seen.cell.address == "E2"
     });
     assert_eq!(kept.cell.formula, "", "a stop keeps it out");
@@ -355,7 +353,7 @@ fn whole_numbers_text_columns_and_value_pastes() {
         worker.post_key(&doc, c as u32, 0).expect("a key");
     }
     worker.post_key(&doc, 13, 1280).expect("Enter");
-    let warned = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let warned = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         seen.cell.request.is_some()
     });
     assert!(
@@ -391,12 +389,12 @@ fn whole_numbers_text_columns_and_value_pastes() {
     worker.run(&doc, "cell.goto", &["G2"]).expect("G2");
     worker.run(&doc, "paste.formulas", &[]).expect("formulas");
     worker.run(&doc, "cell.goto", &["F2"]).expect("F2");
-    let pasted = poll_until(&mut worker, &doc, &warned, SETTLE, |seen| {
+    let pasted = poll_until(&mut worker, &doc, &warned, HANG, |seen| {
         seen.cell.address == "F2" && !seen.cell.formula.is_empty()
     });
     assert_eq!(pasted.cell.formula, "2", "the value alone");
     worker.run(&doc, "cell.goto", &["G2"]).expect("G2");
-    let formula = poll_until(&mut worker, &doc, &pasted, SETTLE, |seen| {
+    let formula = poll_until(&mut worker, &doc, &pasted, HANG, |seen| {
         seen.cell.address == "G2"
     });
     assert_eq!(formula.cell.formula, "=D3*2", "the reference moves along");
@@ -447,11 +445,11 @@ fn search_counts_and_replaces_cells() {
     let (_dir, mut worker, doc, seen) = open();
     let find = ["a", "false", "1", "256", "0", "1"];
     worker.run(&doc, "find.run", &find).expect("find all");
-    let all = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| seen.searched > 0);
+    let all = poll_until(&mut worker, &doc, &seen, HANG, |seen| seen.searched > 0);
     assert_eq!(all.found.len(), 3, "one per cell: {:?}", all.found);
     let step = ["a", "false", "0", "256", "0", "1"];
     worker.run(&doc, "find.run", &step).expect("find next");
-    let next = poll_until(&mut worker, &doc, &all, SETTLE, |seen| {
+    let next = poll_until(&mut worker, &doc, &all, HANG, |seen| {
         seen.searched > all.searched
     });
     let at = next.found.first().expect("a match");
@@ -470,18 +468,18 @@ fn enter_and_tab_move_the_cell_cursor() {
     }
     let (_dir, mut worker, doc, seen) = open();
     worker.run(&doc, "cell.goto", &["F1"]).expect("F1");
-    let at = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let at = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         seen.cell.address == "F1"
     });
     worker.post_text(&doc, true, "7").expect("typed text");
     worker.post_key(&doc, 0, 1280).expect("Enter");
-    let down = poll_until(&mut worker, &doc, &at, SETTLE, |seen| {
+    let down = poll_until(&mut worker, &doc, &at, HANG, |seen| {
         seen.cell.address == "F2"
     });
     assert_eq!(down.cell.address, "F2", "Enter moves down");
     worker.post_key(&doc, '8' as u32, 0).expect("a key");
     worker.post_key(&doc, 0, 1282).expect("Tab");
-    let right = poll_until(&mut worker, &doc, &down, SETTLE, |seen| {
+    let right = poll_until(&mut worker, &doc, &down, HANG, |seen| {
         seen.cell.address == "G2"
     });
     assert_eq!(right.cell.address, "G2", "Tab moves right");
