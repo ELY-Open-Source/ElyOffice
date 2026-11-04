@@ -121,3 +121,38 @@ fn a_failed_keep_mine_leaves_no_empty_file() {
     assert!(matches!(done.land(&mut session), Err(SaveError::Io(_))));
     assert!(!target.exists(), "the claim is taken back");
 }
+
+/// Keep Mine begun on `name`, deleted outside first.
+fn gone_keep_mine(dir: &std::path::Path, name: &str) -> (std::path::PathBuf, Session, Write) {
+    let target = dir.join(name);
+    write(&target, "0");
+    let mut session = Session::load(target.clone()).expect("the file loads");
+    session.edit();
+    std::fs::remove_file(&target).expect("deleted outside");
+    let begun = Write::anew(session.stamp(), &mut session).expect("keep mine starts");
+    (target, session, begun)
+}
+
+#[test]
+fn a_file_written_over_the_claim_is_never_replaced() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let (target, mut session, begun) = gone_keep_mine(dir.path(), "synced.md");
+    let done = begun.run_with(b"mine", |path| {
+        write(path, "theirs");
+        Ok(true)
+    });
+    assert!(matches!(done.land(&mut session), Err(SaveError::Conflict)));
+    assert_eq!(read(&target), "theirs", "the outside file stays");
+}
+
+#[test]
+fn a_failed_keep_mine_never_removes_a_file_written_over_the_claim() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let (target, mut session, begun) = gone_keep_mine(dir.path(), "synced.md");
+    let done = begun.run_with(b"mine", |path| {
+        write(path, "theirs");
+        Err(std::io::Error::other("the volume failed"))
+    });
+    assert!(matches!(done.land(&mut session), Err(SaveError::Io(_))));
+    assert_eq!(read(&target), "theirs", "the outside file stays");
+}

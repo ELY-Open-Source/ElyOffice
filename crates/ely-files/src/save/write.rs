@@ -121,6 +121,8 @@ impl Write {
         probe: impl FnOnce(&Path) -> io::Result<bool>,
     ) -> Result<Saved, SaveError> {
         let target = target.to_path_buf();
+        // Asked first: the check stays next to the write.
+        let atomic = probe(&target).map_err(SaveError::Io)?;
         let held = match &self.check {
             Check::Gone => claimed.map(|claimed| (target.clone(), claimed)),
             Check::Seen(seen) => seen.map(|seen| (self.path.clone(), seen)),
@@ -137,7 +139,6 @@ impl Write {
             return Err(SaveError::Conflict);
         }
         // An empty claim of ours needs no copy kept.
-        let atomic = probe(&target).map_err(SaveError::Io)?;
         let backup = claimed.is_none() && !atomic;
         if backup {
             log::warn!("files: {} sits on a non-atomic volume", target.display());
