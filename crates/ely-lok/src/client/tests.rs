@@ -33,6 +33,7 @@ mod links;
 mod media;
 mod menus;
 mod motion;
+mod ole_links;
 mod output;
 mod paint;
 mod playlist;

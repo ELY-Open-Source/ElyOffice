@@ -188,7 +188,9 @@ pub trait Opening: Host {
                     // The file's risks and session are read here too.
                     let risk = match files::macro_risk(&Self::KIND, &written)? {
                         true => Some(crate::Risk::Macros),
-                        false => files::section_risk(&Self::KIND, &written)?.or_else(|| Self::Engine::risk(&loaded)),
+                        false => files::section_risk(&Self::KIND, &written)?
+                            .or(files::link_risk(&Self::KIND, &written)?)
+                            .or_else(|| Self::Engine::risk(&loaded)),
                     };
                     let kept = match registry {
                         Some(_) => {

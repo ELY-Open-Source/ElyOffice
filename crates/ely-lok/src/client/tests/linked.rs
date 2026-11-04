@@ -22,11 +22,11 @@ fn book(value: u32) -> String {
     )
 }
 
-fn rates(path: &Path, value: u32) {
+pub(super) fn rates(path: &Path, value: u32) {
     std::fs::write(path, book(value)).expect("writes the source");
 }
 
-fn update(worker: &mut Worker, doc: &Doc) -> Vec<String> {
+pub(super) fn update(worker: &mut Worker, doc: &Doc) -> Vec<String> {
     links::failed(&worker.values(doc, links::UPDATE).expect("updates")).expect("parses")
 }
 
@@ -399,39 +399,4 @@ fn a_linked_section_saved_as_doc_keeps_its_paragraphs() {
         worker.close_doc(doc).expect("closes");
     }
     assert!(seen.windows(2).skip(1).all(|pair| pair[0] == pair[1]), "each .doc save reads back the same: {seen:?}");
-}
-
-#[test]
-fn a_linked_worksheet_stays_a_link_through_saves() {
-    if skip() {
-        return;
-    }
-    let dir = tempfile::tempdir().expect("a temp dir");
-    let install = install().expect("the pinned LOK build");
-    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/ole-link.docx");
-    let (main, flat, source) = (dir.path().join("main.docx"), dir.path().join("rates.fods"), dir.path().join("source.xlsx"));
-    std::fs::copy(fixture, &main).expect("copies");
-    rates(&flat, 4);
-    let made = worker.load(&crate::file_url(&flat)).expect("loads");
-    made.save_as(&mut worker, &crate::file_url(&source), "xlsx").expect("the source");
-    worker.close_doc(made).expect("closes");
-    let doc = worker.load(&crate::file_url(&main)).expect("loads");
-    let loaded = poll_until(&mut worker, &doc, &Events::default(), HANG, super::docx::modified);
-    assert!(!super::docx::modified(&loaded), "the link made at load marked it modified");
-    let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
-    assert_eq!(named, [crate::file_url(&source)]);
-    let saved = |worker: &mut Worker, doc: &Doc, name: &str| {
-        let out = dir.path().join(name);
-        doc.save_as(worker, &crate::file_url(&out), "docx").expect("saves");
-        super::independent::read_with("ooxml_word.py", &out, "ole-link");
-        out
-    };
-    saved(&mut worker, &doc, "opened.docx");
-    assert_eq!(update(&mut worker, &doc), Vec::<String>::new());
-    let out = saved(&mut worker, &doc, "updated.docx");
-    std::fs::remove_file(&source).expect("the source goes");
-    let again = worker.load(&crate::file_url(&out)).expect("reloads");
-    assert_eq!(update(&mut worker, &again), [crate::file_url(&source)], "the missing file is named");
-    saved(&mut worker, &again, "missing.docx");
 }

@@ -5,11 +5,14 @@ external oleObject relationship. DOCX import tried to read it as an
 embedded stream, failed, and kept only the preview picture; export
 wrote every object as Type="Embed".
 - The OOXML tokenizer hands the relationship's target to the mapper
-  (ooxml:linktarget). A Type="Link" object of a known kind (Excel,
-  Word, PowerPoint ProgIDs) becomes a link object to that file, its
+  (ooxml:linktarget). Word writes it as file:///C:\... with
+  backslashes, or as a path; either becomes a proper file URL. A
+  Type="Link" object of a known kind (Excel, Word, PowerPoint ProgIDs,
+  macro-enabled ones too) becomes a link object to that file, its
   filter named from the ProgID, so a missing file still links. The
   file is not read: the preview shows until the user updates links
-  (0086). Other kinds keep their picture, as before.
+  (0086). Other kinds keep their picture, as before; Ely reads the
+  package and keeps such a file from being saved over.
 - Export writes a linked object Word knew as Type="Link" with an
   external relationship to its file, the preview kept.
 - LibreOffice links whole files: a range in Word's LINK code (such as
@@ -70,30 +73,41 @@ index 46de2c3..5b822a9 100644
                      m_pImpl->appendOLE( sStreamName, pOLEHandler );
                  }
 diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
-index aee57ef..6f4ace3 100644
+index aee57ef..28b4802 100644
 --- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
 +++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
-@@ -168,6 +168,10 @@
+@@ -168,6 +168,11 @@
  #include <unotextbodyhf.hxx>
  #include <unosett.hxx>
  #include <unodraw.hxx>
 +#include <com/sun/star/embed/OOoEmbeddedObjectFactory.hpp>
 +#include <comphelper/storagehelper.hxx>
 +#include <svl/urihelper.hxx>
++#include <osl/file.hxx>
 +#include <tools/urlobj.hxx>
  
  using namespace ::com::sun::star;
  using namespace oox;
-@@ -3786,14 +3790,37 @@ void DomainMapper_Impl::moveWithRun(const uno::Reference<text::XTextContent>& xC
+@@ -3786,14 +3791,47 @@ void DomainMapper_Impl::moveWithRun(const uno::Reference<text::XTextContent>& xC
          aChar, SvxEscapementItem(nEsc, 100, RES_CHRATR_ESCAPEMENT), SetAttrMode::DONTEXPAND);
  }
  
++/// Word's link target as a file URL; Word writes backslashes.
++static OUString lcl_LinkURL(const OUString& rTarget, const OUString& rBaseUrl)
++{
++    OUString aURL;
++    const bool bSystem = (rTarget.getLength() > 2 && rTarget[1] == ':') || rTarget.startsWith("\\\\");
++    if (bSystem && osl::FileBase::getFileURLFromSystemPath(rTarget, aURL) == osl::FileBase::E_None)
++        return aURL;
++    return URIHelper::SmartRel2Abs(INetURLObject(rBaseUrl), rTarget.replace('\\', '/'),
++                                   Link<OUString*, bool>(), false);
++}
++
 +/// Word's linked object, read only on update.
 +static uno::Reference<embed::XEmbeddedObject> lcl_LinkedObject(const OLEHandler& rOLE,
 +                                                               const OUString& rBaseUrl)
 +{
-+    const OUString aURL = URIHelper::SmartRel2Abs(INetURLObject(rBaseUrl), rOLE.getLinkTarget(),
-+                                                  Link<OUString*, bool>(), false);
++    const OUString aURL = lcl_LinkURL(rOLE.getLinkTarget(), rBaseUrl);
 +    // The filter named: a missing file still links.
 +    const uno::Sequence<beans::PropertyValue> aMedium{
 +        comphelper::makePropertyValue(u"URL"_ustr, aURL),
@@ -124,7 +138,7 @@ index aee57ef..6f4ace3 100644
              xOLE->setPropertyValue(getPropertyName( PROP_STREAM_NAME ),
                              uno::Any( rStreamName ));
          else
-@@ -3888,6 +3915,8 @@ void DomainMapper_Impl::appendOLE( const OUString& rStreamName, const std::share
+@@ -3888,6 +3926,8 @@ void DomainMapper_Impl::appendOLE( const OUString& rStreamName, const std::share
  
          if (!aCLSID.isEmpty())
              pOLEHandler->importStream(m_xComponentContext, GetTextDocument(), xOLE);
@@ -134,7 +148,7 @@ index aee57ef..6f4ace3 100644
      }
      catch( const uno::Exception& )
 diff --git a/sw/source/writerfilter/dmapper/OLEHandler.cxx b/sw/source/writerfilter/dmapper/OLEHandler.cxx
-index d48c26e..2aebd03 100644
+index d48c26e..81f12b5 100644
 --- a/sw/source/writerfilter/dmapper/OLEHandler.cxx
 +++ b/sw/source/writerfilter/dmapper/OLEHandler.cxx
 @@ -43,6 +43,8 @@
@@ -157,7 +171,7 @@ index d48c26e..2aebd03 100644
          break;
          case NS_ooxml::LN_CT_OLEObject_ProgID:
              m_sProgId = sStringValue;
-@@ -238,6 +244,36 @@ void OLEHandler::importStream(const uno::Reference<uno::XComponentContext>& xCom
+@@ -238,6 +244,40 @@ void OLEHandler::importStream(const uno::Reference<uno::XComponentContext>& xCom
          m_sProgId);
  }
  
@@ -175,6 +189,10 @@ index d48c26e..2aebd03 100644
 +        { u"Word.Document.8"_ustr, u"MS Word 97"_ustr },
 +        { u"PowerPoint.Show.12"_ustr, u"Impress MS PowerPoint 2007 XML"_ustr },
 +        { u"PowerPoint.Show.8"_ustr, u"MS PowerPoint 97"_ustr },
++        { u"Excel.SheetMacroEnabled.12"_ustr, u"Calc MS Excel 2007 VBA XML"_ustr },
++        { u"Excel.SheetBinaryMacroEnabled.12"_ustr, u"Calc MS Excel 2007 Binary"_ustr },
++        { u"Word.DocumentMacroEnabled.12"_ustr, u"MS Word 2007 XML VBA"_ustr },
++        { u"PowerPoint.ShowMacroEnabled.12"_ustr, u"Impress MS PowerPoint 2007 XML VBA"_ustr },
 +    };
 +    auto it = aFilters.find(m_sProgId);
 +    if (it != aFilters.end())

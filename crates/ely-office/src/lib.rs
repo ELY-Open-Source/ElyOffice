@@ -118,6 +118,8 @@ pub enum Risk {
     Sections,
     /// An encrypted PPTX whose sections Ely cannot see.
     Sealed,
+    /// DOCX links of kinds the kernel keeps as pictures.
+    Links,
 }
 
 /// One open document.
@@ -160,6 +162,7 @@ impl<E, G: Engine> Tab<E, G> {
             _ if self.risk == Some(Risk::Repaired) => "office.state.repaired",
             _ if self.risk == Some(Risk::Sections) => "office.state.sections",
             _ if self.risk == Some(Risk::Sealed) => "office.state.sealed",
+            _ if self.risk == Some(Risk::Links) => "office.state.unlinked",
             _ if self.exporting => "office.state.saving",
             SaveState::Saving => "office.state.saving",
             SaveState::ExternalModified => "office.state.external",

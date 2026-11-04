@@ -57,6 +57,8 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("office.links.failed", "{name}의 일부 연결을 업데이트하지 못했습니다: {sources}"),
     ("office.links.changed", "마지막 업데이트 후 연결된 파일이 변경되었습니다: {sources}"),
     ("office.links.update", "연결 업데이트"),
+    ("office.state.unlinked", "연결 유지 안 됨"),
+    ("office.unlinked", "{name}에 Ely가 그림으로만 유지할 수 있는 연결된 개체가 있습니다. 다른 이름으로 저장하면 그 자리에 그림을 넣은 {formats} 사본을 씁니다. 원본의 연결은 그대로입니다."),
     ("office.links.unwatched", "Ely가 {name}에 연결된 파일을 감시할 수 없어 변경을 알리지 않습니다: {why}"),
     ("office.repaired", "{name}이(가) 손상되었습니다. Ely가 복구한 사본을 열었습니다. 다른 이름으로 저장하면 새 파일에 쓰며, 손상된 원본은 그대로 남습니다."),
     ("office.signed", "{name}에 서명이 있습니다. 편집하면 서명이 깨지므로 다른 이름으로 저장하면 서명 없는 사본을 쓰며, 서명된 파일은 그대로 남습니다."),

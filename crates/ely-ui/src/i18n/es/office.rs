@@ -126,6 +126,8 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("office.links.failed", "Algunos vínculos de {name} no se actualizaron: {sources}"),
     ("office.links.changed", "Un archivo vinculado cambió después de la última actualización: {sources}"),
     ("office.links.update", "Actualizar vínculos"),
+    ("office.state.unlinked", "Vínculos no conservados"),
+    ("office.unlinked", "{name} vincula objetos que Ely solo puede conservar como imágenes. Guardar como crea una copia {formats} con imágenes en su lugar; el original conserva sus vínculos."),
     ("office.links.unwatched", "Ely no puede vigilar los archivos vinculados a {name}, así que no avisará cuando cambien: {why}"),
     (
         "office.repaired",

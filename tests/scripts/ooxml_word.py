@@ -266,6 +266,8 @@ def ole_link(path):
     target = rels.get(ole.get(ooxml.R + "id"))
     ooxml.check(target is not None and target.get("Type").endswith("/oleObject") and target.get("TargetMode") == "External"
                 and target.get("Target", "").endswith("source.xlsx"), f"the link names source.xlsx outside: {target is not None and target.attrib}")
+    url = target.get("Target", "") if target is not None else ""
+    ooxml.check("\\" not in url and "%5C" not in url.upper(), f"the link is a URL, not a Windows path: {url}")
     images = [rels.get(data.get(ooxml.R + "id")) for data in body.iter(VML + "imagedata")]
     ooxml.check(len(images) == 1 and images[0] is not None and images[0].get("TargetMode") != "External"
                 and posixpath.normpath(posixpath.join(folder, images[0].get("Target"))) in names, "the preview is in the package")
@@ -280,6 +282,7 @@ MUTATIONS = {
         ("word/_rels/document.xml.rels", r' TargetMode="External"', ""),
         ("word/document.xml", r"R1C1:R12C2", "R1C1"),
         ("word/_rels/document.xml.rels", r"source\.xlsx", "other.xlsx"),
+        ("word/_rels/document.xml.rels", r'(Target="file:[^"]*)/(source\.xlsx")', r"\1%5C\2"),
     ],
     "included": [
         ("word/document.xml", r"Included after", "Included before"),
