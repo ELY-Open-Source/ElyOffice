@@ -1,0 +1,26 @@
+//! Vietnamese analysis messages.
+
+pub(super) const VI: &[(&str, &str)] = &[
+    ("table.pivot.make", "Bảng tổng hợp…"),
+    ("table.pivot.refresh", "Làm mới bảng tổng hợp"),
+    ("table.pivot.title", "Bảng tổng hợp"),
+    ("table.pivot.source", "Nguồn: {range}"),
+    ("table.pivot.unused", "Không dùng"),
+    ("table.pivot.rows", "Hàng"),
+    ("table.pivot.columns", "Cột"),
+    ("table.pivot.pages", "Bộ lọc"),
+    ("table.pivot.data", "Giá trị"),
+    ("table.pivot.sum", "Tổng"),
+    ("table.pivot.count", "Đếm"),
+    ("table.pivot.average", "Trung bình"),
+    ("table.pivot.max", "Cực đại"),
+    ("table.pivot.min", "Cực tiểu"),
+    ("table.pivot.other", "Khác"),
+    ("table.pivot.function_of", "Tổng hợp {field}"),
+    ("table.pivot.go", "Tạo"),
+    ("table.pivot.apply", "Áp dụng"),
+    ("table.pivot.headers", "Mỗi cột cần có tiêu đề để tạo bảng tổng hợp."),
+    ("table.pivot.none", "Con trỏ không nằm trong bảng tổng hợp."),
+    ("table.chart.make", "Biểu đồ…"),
+    ("table.chart.range", "Vùng dữ liệu"),
+];

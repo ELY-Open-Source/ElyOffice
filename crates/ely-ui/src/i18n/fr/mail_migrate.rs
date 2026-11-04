@@ -1,0 +1,27 @@
+//! French mail import and export messages.
+
+pub(super) const FR: &[(&str, &str)] = &[
+    ("mail.boxes.imported", "{name} (sur cet ordinateur)"),
+    ("mail.eml.save", "Enregistrer en EML…"),
+    ("mail.eml.title", "Fichier de message"),
+    ("mail.eml.unread", "Le fichier de message n’a pas pu être lu"),
+    ("mail.eml.unopened", "Le fichier de message ne s’est pas ouvert : {error}"),
+    ("mail.eml.unsaved", "Le message n’a pas été enregistré : {error}"),
+    ("mail.eml.saved", "Enregistré dans {path}"),
+    ("mail.eml.incomplete", "Ce message n’est pas encore complet ici. Il se télécharge ; enregistrez-le de nouveau une fois terminé."),
+    ("mail.eml.pictures", "{n} images web ne sont pas chargées depuis un fichier de message."),
+    ("mail.mbox.import", "Importer un MBOX…"),
+    ("mail.mbox.importing", "Importation de « {name} »…"),
+    ("mail.mbox.imported", "{n} messages importés dans « {name} » sur cet ordinateur"),
+    ("mail.mbox.imported.one", "Un message importé dans « {name} » sur cet ordinateur"),
+    ("mail.mbox.unimported", "Le fichier mbox n’a pas été importé : {error}"),
+    ("mail.mbox.export", "Exporter en MBOX…"),
+    ("mail.mbox.unexported", "Le dossier n’a pas été exporté : {error}"),
+    ("mail.mbox.partial", "{n} messages ont été laissés de côté : seulement les en-têtes ici, fichiers non téléchargés, ou parties binaires brutes que mbox modifierait."),
+    ("mail.mbox.partial.one", "Un message a été laissé de côté : seulement les en-têtes ici, fichiers non téléchargés, ou parties binaires brutes que mbox modifierait."),
+    ("mail.mbox.remove", "Supprimer le dossier importé…"),
+    ("mail.mbox.remove_title", "Supprimer « {name} » ?"),
+    ("mail.mbox.remove_message", "Ses messages sont supprimés de cet ordinateur. Aucun serveur ne les conserve."),
+    ("mail.mbox.remove_go", "Supprimer"),
+    ("mail.mbox.unremoved", "Le dossier n’a pas été supprimé : {error}"),
+];

@@ -1,0 +1,27 @@
+//! French mail storage messages.
+
+pub(super) const FR: &[(&str, &str)] = &[
+    ("mail.storage.unread", "Le stockage du courrier n’a pas pu être lu : {error}"),
+    ("mail.storage.index", "Index du courrier"),
+    ("mail.storage.index_hint", "Comptes, dossiers, en-têtes, brouillons et boîte d’envoi : {size} ; recherche : {search}"),
+    ("mail.storage.originals", "Courrier téléchargé"),
+    ("mail.storage.originals_hint", "{size}. Le nettoyage libère le courrier qu’un serveur conserve encore ; il se télécharge de nouveau à la synchronisation ou à l’ouverture. Les dossiers hors ligne, le POP3 et le courrier importé restent."),
+    ("mail.storage.forget", "Nettoyer…"),
+    ("mail.storage.forget_title", "Nettoyer le courrier téléchargé ?"),
+    ("mail.storage.forget_message", "Le corps et les fichiers du courrier des serveurs IMAP sont supprimés de cet ordinateur ; les en-têtes restent. Le courrier récent se télécharge de nouveau à la prochaine synchronisation, le plus ancien à l’ouverture."),
+    ("mail.storage.forget_go", "Nettoyer"),
+    ("mail.storage.forgot", "{n} messages libérés"),
+    ("mail.storage.forgot.one", "Un message libéré"),
+    ("mail.storage.unforgotten", "Le courrier n’a pas été nettoyé : {error}"),
+    ("mail.storage.cap", "Limite du courrier téléchargé"),
+    ("mail.storage.cap_none", "Aucune limite"),
+    ("mail.storage.cap_hint", "Au-delà de la limite, les téléchargements les plus anciens reviennent à leurs en-têtes. Les dossiers hors ligne et le courrier importé sont gardés."),
+    ("mail.storage.cap_unread", "La limite enregistrée est illisible ; aucune ne s’applique : {error}"),
+    ("mail.storage.cap_unsaved", "La limite n’a pas été enregistrée : {error}"),
+    ("mail.storage.untrimmed", "Les téléchargements n’ont pas été réduits à la limite : {error}"),
+    ("mail.storage.all", "Exporter tout le courrier"),
+    ("mail.storage.all_hint", "Chaque dossier devient un fichier mbox, dans un dossier par compte."),
+    ("mail.storage.export", "Exporter…"),
+    ("mail.storage.exported", "{n} dossiers exportés ; {left} messages laissés de côté (incomplets ici, ou binaires bruts)"),
+    ("mail.storage.exported.one", "Un dossier exporté ; {left} messages laissés de côté (incomplets ici, ou binaires bruts)"),
+];

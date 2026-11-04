@@ -106,6 +106,15 @@ mod tests {
         });
     }
 
+    #[gpui::test]
+    fn vietnamese_status_takes_libreoffice_words(cx: &mut gpui::TestAppContext) {
+        cx.update(|app| {
+            ely_ui::i18n::install_as("vi-VN", app);
+            assert_eq!(super::label("Average: 21; Sum: 42; Max: 30", app), "Trung bình 21  Tổng 42  Đại 30");
+            assert_eq!(super::label("Error: Division by zero", app), "Lỗi: chia cho không");
+        });
+    }
+
     #[test]
     fn kernel_status_takes_the_interface_language() {
         let cx = gpui::TestAppContext::single();
