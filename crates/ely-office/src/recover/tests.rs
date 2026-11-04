@@ -4,11 +4,11 @@ use super::{Keeping, Kept, Slot};
 fn a_failing_point_says_so_once_until_the_reason_changes() {
     let mut slot = Slot { kept: kept("s", false), written: None, writing: false, failed: None, refused: None, last: None };
     let full = std::io::Error::other("disk full");
-    assert_eq!(slot.fail(1, None, &full).as_deref(), Some("disk full"));
-    assert_eq!(slot.fail(2, None, &full), None, "the same reason stays quiet");
+    assert_eq!(slot.fail(None, &full).as_deref(), Some("disk full"));
+    assert_eq!(slot.fail(None, &full), None, "the same reason stays quiet");
     let big = std::io::Error::new(std::io::ErrorKind::FileTooLarge, "over the cap");
-    assert!(slot.fail(3, Some(70), &big).is_some(), "a new reason shows");
-    assert_eq!(slot.written, Some(3), "too big waits for the next edit");
+    assert!(slot.fail(Some(70), &big).is_some(), "a new reason shows");
+    assert_eq!(slot.written, None, "the refused edit still wants a point");
     assert_eq!(slot.refused, Some(70), "the refused size is kept");
 }
 

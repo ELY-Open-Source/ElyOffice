@@ -230,6 +230,46 @@ fn a_file_opened_over_its_space_takes_no_snapshot() {
 }
 
 #[test]
+fn a_reopened_copy_names_the_point_it_came_from() {
+    use ely_office::Closing as _;
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((docs, kept)) = kept_docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let root = super::words::rooted(&mut cx, &docs);
+    open_big(&mut cx, &docs, dir.path());
+    type_into(&mut cx, &docs, "big");
+    round(&mut cx, &docs);
+    settle(&cx, |app| points(&kept) == 1 && writing(&docs, app) == 0);
+    // The engine's restart: the copy takes over the point.
+    cx.update(|app| {
+        docs.update(app, |docs, cx| {
+            let id = docs.core.active().expect("a tab");
+            let taken = docs.take_slot(id, "big.fodt".into()).expect("its slot");
+            docs.release_tab(id, cx);
+            docs.reopen_taken(vec![taken], Vec::new(), cx);
+        })
+    });
+    settle(&cx, |app| docs.read(app).active_tab().is_some_and(|tab| tab.view.read(app).settled()));
+    let name = cx.update(|app| docs.read(app).active_tab().expect("the copy").name.to_string());
+    ely_platform::settings::Store::of(&kept).set("recovery", limits(1)).expect("the space is set");
+    type_into(&mut cx, &docs, "more");
+    round(&mut cx, &docs);
+    settle(&cx, |app| refused(&docs, app) == 1 && writing(&docs, app) == 0);
+    // The time between the message's two halves.
+    let marked = cx.update(|app| ely_ui::i18n::text(app, "office.recovery.too_big", &[("name", &name), ("limit", "1"), ("at", "\u{1}")]));
+    let (before, after) = marked.split_once('\u{1}').expect("the time's place");
+    let toasts = cx.update(|app| root.read(app).toasts(app));
+    let at = toasts.iter().find_map(|(text, _)| text.strip_prefix(before)?.strip_suffix(after)).expect("the too-big toast");
+    let never = cx.update(|app| ely_ui::i18n::text(app, "office.stopped.never", &[]).to_string());
+    assert_ne!(at, never, "the copy has a point: {toasts:?}");
+    let back = cx.update(|app| ely_ui::i18n::text(app, "office.recovery.back", &[("name", "big.fodt"), ("at", at)]));
+    assert!(toasts.iter().any(|(text, _)| *text == back), "the point it came back from: {toasts:?}");
+}
+
+#[test]
 fn a_document_over_its_space_is_not_snapshotted_again() {
     for locale in ["en-US", "zh-CN"] {
         over_its_space(locale);
@@ -247,10 +287,12 @@ fn over_its_space(locale: &'static str) {
     let root = super::words::rooted(&mut cx, &docs);
     let store = ely_platform::settings::Store::of(&kept);
     open_big(&mut cx, &docs, dir.path());
-    // Shrunk after opening: the snapshot itself is refused.
-    store.set("recovery", limits(1)).expect("the space is set");
     type_into(&mut cx, &docs, "big");
+    // Shrunk after the open check: the snapshot itself is refused.
+    store.set("recovery", limits(1)).expect("the space is set");
     round(&mut cx, &docs);
+    settle(&cx, |app| writing(&docs, app) == 1 || refused(&docs, app) == 1);
+    assert_eq!(cx.update(|app| writing(&docs, app)), 1, "the snapshot is taken, then refused");
     settle(&cx, |app| refused(&docs, app) == 1 && writing(&docs, app) == 0);
     assert_eq!(points(&kept), 0, "over the space: no point");
     // Says why and how, never that the file is kept.
@@ -260,9 +302,9 @@ fn over_its_space(locale: &'static str) {
     let toasts = cx.update(|app| root.read(app).toasts(app));
     assert!(toasts.iter().any(|(text, _)| *text == said), "{locale}: {toasts:?}");
     // Each snapshot of it would hold the engine for nothing.
-    type_into(&mut cx, &docs, "more");
     round(&mut cx, &docs);
     assert_eq!(cx.update(|app| writing(&docs, app)), 0, "no snapshot while it stays too big");
+    // No key since: the refused edit itself is kept.
     store.set("recovery", limits(64)).expect("the space is raised");
     cx.update(|app| docs.update(app, |docs, cx| docs.keep_points(cx)));
     settle(&cx, |app| refused(&docs, app) == 0);

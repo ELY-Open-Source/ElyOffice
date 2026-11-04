@@ -294,7 +294,7 @@ pub trait Recovering: Host {
             }
             Err(error) => {
                 log::error!("recovery: tab {id} point failed ({:?})", error.kind());
-                let Some(said) = slot.fail(edited, size, &error) else { return };
+                let Some(said) = slot.fail(size, &error) else { return };
                 let shown = match error.get_ref().and_then(|inner| inner.downcast_ref::<ely_files::TooBig>()) {
                     // Never claims the file is kept: names the last point.
                     Some(too_big) => {
@@ -438,6 +438,7 @@ pub trait Recovering: Host {
         if let Some(slot) = keeping.slots.get_mut(&id) {
             let sealed = slot.kept.sealed || kept.sealed;
             slot.kept = Kept { sealed, held: false, ..kept };
+            slot.last = Some(at);
         }
         // The point it took over is the latest kept.
         keeping.last = Some(keeping.last.map_or(at, |last| last.max(at)));

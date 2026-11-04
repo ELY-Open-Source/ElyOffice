@@ -19,10 +19,9 @@ pub(super) struct Slot {
 
 impl Slot {
     /// Notes a failed point; words to show, once each.
-    pub fn fail(&mut self, edited: u64, size: Option<u64>, error: &io::Error) -> Option<String> {
+    pub fn fail(&mut self, size: Option<u64>, error: &io::Error) -> Option<String> {
         // Too big: no points until it fits again.
         if error.kind() == io::ErrorKind::FileTooLarge {
-            self.written = Some(edited);
             self.refused = size;
         }
         let said = error.to_string();
