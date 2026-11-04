@@ -106,12 +106,6 @@ pub trait Remote: Saving {
             ask.answer(Err(format!("{} must be saved under another name in {}", words[1], Self::KIND.app.name())));
             return None;
         }
-        // The window saves a deleted file only as another.
-        let on_disk = self.tab(id).and_then(|tab| tab.session.path()).map(|path| Path::new(path).try_exists());
-        if let Some(Ok(false)) = on_disk {
-            ask.answer(Err(format!("{} is gone from disk; save it under another name in {}", words[1], Self::KIND.app.name())));
-            return None;
-        }
         cx.spawn(async move |this, cx| in_window(&this, cx, |host, window, cx| host.save_for(id, ask, window, cx)))
             .detach_and_log_err(cx);
         None
@@ -124,11 +118,10 @@ pub trait Remote: Saving {
         if let Some(tab) = named {
             return Ok(tab.id);
         }
-        let wanted = std::fs::canonicalize(file).map_err(|error| format!("{file}: {error}"))?;
-        // A tab whose file went cannot match.
-        let shows = |path: &Path| std::fs::canonicalize(path).is_ok_and(|real| real == wanted);
-        let tab = self.core().tabs.iter().find(|tab| tab.session.path().is_some_and(|path| shows(Path::new(path))));
-        tab.map(|tab| tab.id).ok_or_else(|| format!("{file} is not open in {}", Self::KIND.app.name()))
+        // Matched in memory; only `file` is read.
+        let held = self.holder(Path::new(file)).map_err(|error| format!("{file}: {error}"))?;
+        held.filter(|id| self.tab(*id).is_some())
+            .ok_or_else(|| format!("{file} is not open in {}", Self::KIND.app.name()))
     }
 
     /// Saves once idle; the next save ending is this one.
