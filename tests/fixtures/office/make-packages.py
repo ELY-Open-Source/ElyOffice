@@ -53,8 +53,8 @@ def package(name, body):
 
 # Math, literal, double-struck and normal-text hyphens.
 package("equation.docx", '<w:p><m:oMathPara><m:oMath><m:r><m:t>x</m:t></m:r><m:r><m:t>-</m:t></m:r><m:r><m:t>b-c</m:t></m:r><m:r><m:rPr><m:nor/></m:rPr><m:t>a-b</m:t></m:r><m:r><m:rPr><m:lit/></m:rPr><m:t>1-2</m:t></m:r><m:r><m:rPr><m:scr m:val="double-struck"/></m:rPr><m:t>3-4</m:t></m:r><m:r><m:rPr><m:nor/><m:scr m:val="double-struck"/></m:rPr><m:t>5-6</m:t></m:r><m:r><m:rPr><m:nor/><m:scr m:val="double-struck"/></m:rPr><m:t>"alpha"</m:t></m:r><m:r><m:rPr><m:lit/></m:rPr><m:t>"alpha"</m:t></m:r></m:oMath></m:oMathPara></w:p>')
-def toc(name, title, beta, tail, alone=True):
-    """A TOC in its content control, then its two headings."""
+def toc(name, title, beta, tail, alone=True, control=True):
+    """A TOC, in its content control or bare, then two headings."""
     head = '<w:p><w:pPr><w:pStyle w:val="TOCHeading"/></w:pPr><w:r><w:t>Contents</w:t></w:r></w:p>' if title else ""
     entry = '<w:p><w:pPr><w:pStyle w:val="TOC1"/></w:pPr>'
     field = '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>'
@@ -64,12 +64,16 @@ def toc(name, title, beta, tail, alone=True):
     headings = "".join(f'<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>{text}</w:t></w:r></w:p>' for text in ("Alpha", "Beta"))
     last = page if alone else page[:-len('</w:p>')]
     body = head + entry + field + '<w:r><w:t>Alpha</w:t></w:r>' + page + entry + beta + last + end
-    package(name, '<w:sdt>' + gallery + '<w:sdtContent>' + body + '</w:sdtContent></w:sdt>' + headings)
+    wrapped = '<w:sdt>' + gallery + '<w:sdtContent>' + body + '</w:sdtContent></w:sdt>' if control else body
+    package(name, wrapped + headings)
 
 
 BETA = '<w:r><w:t>Beta</w:t></w:r>'
 # Titled TOC in its content control; the field ends alone.
 toc("toc.docx", True, BETA, "")
+# Untitled, and a bare field with no content control.
+toc("toc-untitled.docx", False, BETA, "")
+toc("toc-bare.docx", False, BETA, "", control=False)
 # Body text after the field end, titled or not.
 toc("toc-tail.docx", True, BETA, '<w:r><w:t>After</w:t></w:r>')
 toc("toc-tail-untitled.docx", False, BETA, '<w:r><w:t>After</w:t></w:r>')
@@ -82,5 +86,15 @@ toc("toc-shape.docx", True, BETA, SHAPE, alone=False)
 toc("toc-shape-untitled.docx", False, BETA, SHAPE, alone=False)
 # An entry in its own inline content control.
 toc("toc-inline.docx", True, '<w:sdt><w:sdtPr><w:alias w:val="Entry"/></w:sdtPr><w:sdtContent>' + BETA + '</w:sdtContent></w:sdt>', "")
+
+# A Writer TOC; the heading after it is body text.
+ODF = 'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"'
+ENTRIES = "".join(f'<text:p>{text}<text:tab/>1</text:p>' for text in ("Alpha", "Beta"))
+SOURCE = '<text:table-of-content-source text:outline-level="3"><text:table-of-content-entry-template text:outline-level="1"><text:index-entry-text/><text:index-entry-tab-stop style:type="right"/><text:index-entry-page-number/></text:table-of-content-entry-template></text:table-of-content-source>'
+AFTER = "".join(f'<text:h text:outline-level="1">{h}</text:h><text:p>{p}</text:p>' for h, p in (("Alpha", "Body one."), ("Beta", "Body two.")))
+with open(os.path.join(sys.argv[1], "toc-native.fodt"), "w", encoding="utf-8", newline="\n") as native:
+    native.write(HEAD + f'<office:document {ODF} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:body><office:text>'
+                 f'<text:table-of-content text:name="Table of Contents1">{SOURCE}<text:index-body>{ENTRIES}</text:index-body></text:table-of-content>'
+                 f'{AFTER}</office:text></office:body></office:document>\n')
 
 package("redline.docx", '<w:p><w:bookmarkStart w:id="0" w:name="Target"/><w:r><w:t>Target</w:t></w:r><w:bookmarkEnd w:id="0"/></w:p><w:p><w:r><w:t xml:space="preserve">See page </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGEREF Target \\h </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p><w:p><w:r><w:t xml:space="preserve">Kept </w:t></w:r><w:ins w:id="1" w:author="Word" w:date="2026-01-01T00:00:00Z"><w:r><w:t>added</w:t></w:r></w:ins><w:del w:id="2" w:author="Word" w:date="2026-01-01T00:00:00Z"><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>')

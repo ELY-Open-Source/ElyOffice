@@ -1,0 +1,78 @@
+An Excel pivot with columns but no values ends at the column items
+
+Excel lays out a pivot table with only column fields and no value
+field as two rows: the column header and the column items. Calc keeps
+a third, empty data row below them ("single row will remain empty").
+The output clears its whole area before writing, so every refresh and
+every save erased the user's cells in that row, and the export wrote
+the table one row taller than Excel's (Ely R15.11l). For a pivot from
+an Excel file (it has a column caption, patch 0071) with column fields
+and no row or value field, the table now ends at the column items row;
+the data area gets no style and no frame. Calc's own pivots keep their
+layout.
+
+diff --git a/sc/inc/dpoutput.hxx b/sc/inc/dpoutput.hxx
+index 5375051..ee35f7d 100644
+--- a/sc/inc/dpoutput.hxx
++++ b/sc/inc/dpoutput.hxx
+@@ -107,6 +107,7 @@ private:
+     /// Computes number of columns needed to write row fields.
+     SCCOL           GetColumnsForRowFields() const;
+     bool            HasCaptionColumn() const;
++    bool            HasNoDataRow() const;
+     void            CalcSizes();
+ 
+     /** Query which sub-area of the table the cell is in. See
+diff --git a/sc/source/core/data/dpoutput.cxx b/sc/source/core/data/dpoutput.cxx
+index 138e0b5..1b9407d 100644
+--- a/sc/source/core/data/dpoutput.cxx
++++ b/sc/source/core/data/dpoutput.cxx
+@@ -877,6 +877,12 @@ bool ScDPOutput::HasCaptionColumn() const
+                            [](const ScDPOutLevelData& r) { return r.mbDataLayout; });
+ }
+ 
++// Excel stops at the column items without values
++bool ScDPOutput::HasNoDataRow() const
++{
++    return maColCaption.has_value() && !mbHasDataField && mpRowFields.empty() && !mpColFields.empty();
++}
++
+ void ScDPOutput::CalcSizes()
+ {
+     if (mbSizesValid)
+@@ -926,7 +932,9 @@ void ScDPOutput::CalcSizes()
+     // if page fields are involved, include the page selection cells
+     if (!mpPageFields.empty() && mnTabEndCol < mnTabStartCol + 1)
+         mnTabEndCol = mnTabStartCol + 1;
+-    if (mnRowCount > 0)
++    if (HasNoDataRow())
++        mnTabEndRow = mnDataStartRow - 1;
++    else if (mnRowCount > 0)
+         mnTabEndRow = mnDataStartRow + static_cast<SCROW>(mnRowCount) - 1;
+     else
+         mnTabEndRow = mnDataStartRow;     // single row will remain empty
+@@ -1248,7 +1256,9 @@ void ScDPOutput::Output()
+ 
+     if (mnDataStartRow > mnTabStartRow)
+         lcl_SetStyleById(mpDocument, nTab, mnTabStartCol, mnTabStartRow, mnTabEndCol, mnDataStartRow - 1, STR_PIVOT_STYLENAME_TOP);
+-    lcl_SetStyleById(mpDocument, nTab, mnDataStartCol, mnDataStartRow, mnTabEndCol, mnTabEndRow, STR_PIVOT_STYLENAME_INNER);
++    const bool bNoData = HasNoDataRow();
++    if (!bNoData)
++        lcl_SetStyleById(mpDocument, nTab, mnDataStartCol, mnDataStartRow, mnTabEndCol, mnTabEndRow, STR_PIVOT_STYLENAME_INNER);
+ 
+     ScDPOutputImpl aOutputImpl(mpDocument, nTab, mnTabStartCol, mnTabStartRow,
+                                mnDataStartCol, mnDataStartRow, mnTabEndCol, mnTabEndRow);
+@@ -1269,6 +1279,13 @@ void ScDPOutput::Output()
+         maFormatOutput.insertEmptyDataColumn(nCol, nRow);
+     }
+ 
++    if (bNoData)
++    {
++        maFormatOutput.apply(*mpDocument);
++        aOutputImpl.OutputBlockFrame(mnDataStartCol, mnTabStartRow, mnTabEndCol, mnTabEndRow);
++        return;
++    }
++
+     outputDataResults(nTab);
+ 
+     aOutputImpl.OutputDataArea();

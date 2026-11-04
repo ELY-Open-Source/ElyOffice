@@ -37,8 +37,9 @@ def columns(col_label, total, name="Sum of Revenue"):
 
 
 def empty(col_label, total):
-    """Excel's E3:G4 with no value field; H4 is the user's."""
-    return [("E3", col_label), ("E4", "A"), ("F4", "B"), ("G4", total), ("H4", "NEIGHBOR")]
+    """Excel's E3:G4, no value field; user cells H4, E5, G5."""
+    return [("E3", col_label), ("E4", "A"), ("F4", "B"), ("G4", total), ("H4", "NEIGHBOR"),
+            ("E5", "BELOW"), ("G5", 42)]
 
 
 def values(col_label, total, caption="Values"):

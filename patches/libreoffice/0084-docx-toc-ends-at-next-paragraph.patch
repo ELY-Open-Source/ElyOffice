@@ -1,0 +1,263 @@
+DOCX ends a table of contents at the next paragraph's start
+
+Word ends a TOC field at the start of the paragraph after the last
+entry: alone in an empty paragraph, or before the text that follows it.
+The import keeps that paragraph inside the index only for a titled TOC
+whose end stands alone; otherwise the paragraph lands after the index
+section (untitled and bare TOCs, R15.11c; text or a shape after the
+end, patch 0078). The export then closed the field inside the last
+entry, and Word's Update Table left an extra empty line after the
+entries (Ely R15.11k).
+
+The import now marks that paragraph with "TOCFieldEnd" in its grab
+bag. When a table of contents' last paragraph is not empty and the
+paragraph right after its section carries the mark, DOCX closes the
+field at the start of that paragraph and keeps the paragraph inside
+the TOC content control. Unmarked paragraphs, such as the body text
+after a TOC made in Writer, keep the old export: a shape-based guess
+would pull the user's heading into the field, and Word's "Remove Table
+of Contents" would delete it. Other indexes keep the old export too.
+testFdo77129 now expects the end paragraph inside the control, so the
+body has one paragraph fewer outside it.
+
+diff --git a/sw/qa/extras/ooxmlexport/ooxmlexport20.cxx b/sw/qa/extras/ooxmlexport/ooxmlexport20.cxx
+index ff797a8..18250a0 100644
+--- a/sw/qa/extras/ooxmlexport/ooxmlexport20.cxx
++++ b/sw/qa/extras/ooxmlexport/ooxmlexport20.cxx
+@@ -310,7 +310,8 @@ CPPUNIT_TEST_FIXTURE(Test, testFdo77129)
+     xmlDocUniquePtr pXmlDoc = parseExport(u"word/document.xml"_ustr);
+ 
+     // Data was lost from this paragraph.
+-    assertXPathContent(pXmlDoc, "/w:document/w:body/w:p[4]/w:r[1]/w:t", u"Abstract");
++    // The TOC field's end paragraph stays in the control.
++    assertXPathContent(pXmlDoc, "/w:document/w:body/w:p[3]/w:r[1]/w:t", u"Abstract");
+ 
+     // tdf#170588: stop duplicating bookmarkStarts
+     // Counts of bookmark Starts and Ends really ought to be identical...
+diff --git a/sw/source/filter/ww8/docxattributeoutput.cxx b/sw/source/filter/ww8/docxattributeoutput.cxx
+index c36e579..66209ae 100644
+--- a/sw/source/filter/ww8/docxattributeoutput.cxx
++++ b/sw/source/filter/ww8/docxattributeoutput.cxx
+@@ -10584,9 +10584,9 @@ void DocxAttributeOutput::ParaGrabBag(const SfxGrabBagItem& rItem)
+             uno::Sequence<beans::PropertyValue> aAttributes = rGrabBagElement.second.get< uno::Sequence<beans::PropertyValue> >();
+             m_pTableStyleExport->CnfStyle(aAttributes);
+         }
+-        else if (rGrabBagElement.first == "ParaSdtEndBefore")
++        else if (rGrabBagElement.first == "ParaSdtEndBefore" || rGrabBagElement.first == "TOCFieldEnd")
+         {
+-            // Handled already in StartParagraph().
++            // Handled already in StartParagraph() and OutputTextNode().
+         }
+         else if (rGrabBagElement.first == "ParaInlineHeading")
+             m_rExport.m_bParaInlineHeading = true;
+diff --git a/sw/source/filter/ww8/wrtw8nds.cxx b/sw/source/filter/ww8/wrtw8nds.cxx
+index ccbaf67..a18aca8 100644
+--- a/sw/source/filter/ww8/wrtw8nds.cxx
++++ b/sw/source/filter/ww8/wrtw8nds.cxx
+@@ -2477,6 +2477,27 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
+             }
+         }
+ 
++        // Like Word, a TOC may end at the next paragraph.
++        const SwTextNode* pTOXEndNode = nullptr;
++        if (pTOXSect && rNode.GetIndex() + 1 == rNode.EndOfSectionIndex())
++            pTOXEndNode = TOCEndParagraph(*rNode.FindSectionNode());
++        auto lcl_EndTOX = [&](bool bCareEnd)
++        {
++            m_aCurrentCharPropStarts.pop();
++            if (!pTOXEndNode)
++                return AttrOutput().EndTOX(*pTOXSect, bCareEnd);
++            m_bInWriteTOX = false;
++            m_bHideTabLeaderAndPageNumbers = false;
++            m_pTOXEndNode = pTOXEndNode;
++        };
++        if (m_pTOXEndNode == &rNode)
++        {
++            m_pTOXEndNode = nullptr;
++            AttrOutput().StartRun(nullptr, 0, false);
++            OutputField(nullptr, ww::eTOC, OUString(), FieldFlags::Close);
++            AttrOutput().EndRun(&rNode, 0, -1, false);
++        }
++
+         if ( aAttrIter.RequiresImplicitBookmark() )
+         {
+             OUString sBkmkName =  "_toc" + OUString::number( sal_Int32(rNode.GetIndex()) );
+@@ -2831,10 +2852,7 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
+                         AppendBookmarks( rNode, nEnd, 1 );
+                         AppendAnnotationMarks(aAttrIter, nEnd, 1);
+                         if ( pTOXSect )
+-                        {
+-                            m_aCurrentCharPropStarts.pop();
+-                            AttrOutput().EndTOX( *pTOXSect ,false);
+-                        }
++                            lcl_EndTOX(false);
+                         //For i120928,the position of the bullet's graphic is at end of doc
+                         if (bLastCR && (!bExported))
+                         {
+@@ -2893,10 +2911,7 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
+                     }
+ 
+                     if ( pTOXSect )
+-                    {
+-                        m_aCurrentCharPropStarts.pop();
+-                        AttrOutput().EndTOX( *pTOXSect );
+-                    }
++                        lcl_EndTOX(true);
+ 
+                     if (bIncludeEndOfParaCRInRedlineProperties)
+                     {
+@@ -3573,6 +3588,18 @@ void MSWordExportBase::UpdateTocSectionNodeProperties(const SwSectionNode& rSect
+     // see, DomainMapper::lcl_startParagraphGroup() for the same functionality during load
+     {
+         SwNodeIndex aEndTocNext( *rSectionNode.EndOfSectionNode(), 1 );
++        // The paragraph ending the field stays in the control.
++        if (const SwTextNode* pEnd = TOCEndParagraph(rSectionNode))
++        {
++            SwTextNode& rEnd = *const_cast<SwTextNode*>(pEnd);
++            if (const SfxGrabBagItem* pOld = rEnd.GetSwAttrSet().GetItemIfSet(RES_PARATR_GRABBAG, false))
++            {
++                std::map<OUString, css::uno::Any> aMap = pOld->GetGrabBag();
++                if (aMap.erase(u"ParaSdtEndBefore"_ustr))
++                    SetAttrNoBroadcast(rEnd, SfxGrabBagItem(RES_PARATR_GRABBAG, std::move(aMap)));
++            }
++            aEndTocNext.Assign(rEnd, 1);
++        }
+         const SwNode& rEndTocNextNode = aEndTocNext.GetNode();
+         const SwContentNode* pNodeAfterToc = rEndTocNextNode.GetContentNode();
+         if (pNodeAfterToc)
+@@ -3586,6 +3613,23 @@ void MSWordExportBase::UpdateTocSectionNodeProperties(const SwSectionNode& rSect
+     }
+ }
+ 
++const SwTextNode* MSWordExportBase::TOCEndParagraph(const SwSectionNode& rSectionNode) const
++{
++    const SwTOXBase* pTOX = rSectionNode.GetSection().GetTOXBase();
++    if (GetExportFormat() != ExportFormat::DOCX || !pTOX || pTOX->GetType() != TOX_CONTENT)
++        return nullptr;
++    // An empty last paragraph already ends it, as Word does.
++    const SwNodes& rNodes = m_rDoc.GetNodes();
++    const SwTextNode* pLast = rNodes[rSectionNode.EndOfSectionIndex() - 1]->GetTextNode();
++    const SwNodeOffset nNext = rSectionNode.EndOfSectionIndex() + 1;
++    if (!pLast || pLast->GetText().isEmpty() || nNext > m_nCurEnd)
++        return nullptr;
++    const SwTextNode* pNext = rNodes[nNext]->GetTextNode();
++    // Only the import's end paragraph, never body text
++    const SfxGrabBagItem* pBag = pNext ? pNext->GetSwAttrSet().GetItemIfSet(RES_PARATR_GRABBAG, false) : nullptr;
++    return pBag && pBag->GetGrabBag().contains(u"TOCFieldEnd"_ustr) ? pNext : nullptr;
++}
++
+ void WW8Export::AppendSection( const SwPageDesc *pPageDesc, const SwSectionFormat* pFormat, sal_uLong nLnNum )
+ {
+     m_pSepx->AppendSep(Fc2Cp(Strm().Tell()), pPageDesc, pFormat, nLnNum);
+diff --git a/sw/source/filter/ww8/wrtww8.cxx b/sw/source/filter/ww8/wrtww8.cxx
+index b960f62..7585765 100644
+--- a/sw/source/filter/ww8/wrtww8.cxx
++++ b/sw/source/filter/ww8/wrtww8.cxx
+@@ -3983,6 +3983,7 @@ MSWordExportBase::MSWordExportBase( SwDoc& rDocument, std::shared_ptr<SwUnoCurso
+     , m_bSuppressBidi(false)
+     , m_bHideTabLeaderAndPageNumbers(false)
+     , m_bExportModeRTF(false)
++    , m_pTOXEndNode(nullptr)
+     , m_bFontSizeWritten(false)
+     , m_bAddFootnoteTab(false)
+     , m_bHasBailsMetaData(false)
+diff --git a/sw/source/filter/ww8/wrtww8.hxx b/sw/source/filter/ww8/wrtww8.hxx
+index a9991df..d584159 100644
+--- a/sw/source/filter/ww8/wrtww8.hxx
++++ b/sw/source/filter/ww8/wrtww8.hxx
+@@ -564,6 +564,8 @@ public:
+ 
+     bool m_bHideTabLeaderAndPageNumbers : 1 ; // true: the 'z' field of TOC is set.
+     bool m_bExportModeRTF;
++    /// The paragraph whose start ends the open TOC field.
++    const SwTextNode* m_pTOXEndNode;
+     /// Is font size written already as part of the current character properties?
+     bool m_bFontSizeWritten;
+     bool m_bAddFootnoteTab;     // only one aesthetic spacing tab per footnote
+@@ -881,7 +883,9 @@ protected:
+ 
+     /// Output SwSectionNode
+     void OutputSectionNode( const SwSectionNode& );
+-    static void UpdateTocSectionNodeProperties(const SwSectionNode& rSectionNode);
++    void UpdateTocSectionNodeProperties(const SwSectionNode& rSectionNode);
++    /// DOCX: the paragraph after a TOC that ends its field.
++    const SwTextNode* TOCEndParagraph(const SwSectionNode& rSectionNode) const;
+ 
+     virtual void AppendSection( const SwPageDesc *pPageDesc, const SwSectionFormat* pFormat, sal_uLong nLnNum ) = 0;
+ 
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+index 040b63f..aee57ef 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+@@ -333,6 +333,26 @@ static void lcl_MoveOutOfSection(SwTextNode& rParagraph, sal_Int32 nAt)
+         throw uno::RuntimeException(u"TOC tail paragraph did not move"_ustr);
+ }
+ 
++/// Marks the paragraph after a TOC as holding its end.
++static void lcl_MarkTOCEnd(const uno::Reference<text::XTextRange>& xParagraph)
++{
++    uno::Reference<text::XTextCursor> xCursor = xParagraph->getText()->createTextCursorByRange(xParagraph->getStart());
++    auto pCursor = dynamic_cast<SwXTextCursor*>(xCursor.get());
++    SwPaM* pPaM = pCursor ? pCursor->GetPaM() : nullptr;
++    const SwNode* pNode = pPaM ? &pPaM->GetPointNode() : nullptr;
++    const SwNode* pBefore = pNode ? pNode->GetNodes()[pNode->GetIndex() - SwNodeOffset(1)] : nullptr;
++    const SwSectionNode* pTOC = pBefore && pBefore->IsEndNode() ? pBefore->StartOfSectionNode()->GetSectionNode() : nullptr;
++    if (!pTOC || pTOC->GetSection().GetType() != SectionType::ToxContent)
++    {
++        SAL_WARN("writerfilter.dmapper", "TOC end paragraph is not after its TOC");
++        return;
++    }
++    uno::Reference<beans::XPropertySet> xProps(xParagraph, uno::UNO_QUERY_THROW);
++    comphelper::SequenceAsHashMap aBag(xProps->getPropertyValue(u"ParaInteropGrabBag"_ustr));
++    aBag[u"TOCFieldEnd"_ustr] <<= true;
++    xProps->setPropertyValue(u"ParaInteropGrabBag"_ustr, uno::Any(aBag.getAsConstPropertyValueList()));
++}
++
+ /// Decides if the pInner field inside pOuter is allowed in Writer core, depending on their type.
+ static bool IsFieldNestingAllowed(const FieldContextPtr& pOuter, const FieldContextPtr& pInner)
+ {
+@@ -2321,7 +2341,10 @@ void DomainMapper_Impl::finishParagraph( const PropertyMapPtr& pPropertyMap, con
+         // Content after the field end is not index content
+         else if ((pTOCEnd->Len() > nAt || pTOCEnd->GetAnchoredFlys().size() > nFlys) && !IsInTOC()
+                  && !m_bStartIndex && !m_bStartBibliography)
++        {
+             lcl_MoveOutOfSection(*pTOCEnd, nAt);
++            m_StreamStateStack.top().bTOCEndPending = true;
++        }
+     }
+ 
+ #ifdef DBG_UTIL
+@@ -3049,6 +3072,11 @@ void DomainMapper_Impl::finishParagraph( const PropertyMapPtr& pPropertyMap, con
+                 }
+                 getTableManager( ).handle(xTextRange);
+                 m_aSmartTagHandler.handle(xTextRange);
++                if (m_StreamStateStack.top().bTOCEndPending && xTextRange.is() && !IsInShape())
++                {
++                    m_StreamStateStack.top().bTOCEndPending = false;
++                    lcl_MarkTOCEnd(xTextRange);
++                }
+ 
+                 if (xTextRange.is())
+                 {
+@@ -9312,6 +9340,8 @@ void DomainMapper_Impl::PopFieldContext()
+                                 xTextAppend->finishParagraphInsert(css::beans::PropertyValues(),
+                                     m_aTextAppendStack.top().xInsertPosition);
+                             }
++                            // Word ends the field at this paragraph's start
++                            m_StreamStateStack.top().bTOCEndPending = true;
+                         }
+                         else if (m_StreamStateStack.top().bParaChanged || m_StreamStateStack.top().bTOCInSdt)
+                             xKeptEnd = m_aTextAppendStack.top().xInsertPosition;
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
+index 854dbba..730ec6f 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
+@@ -270,6 +270,8 @@ struct SubstreamContext
+     css::uno::Reference<css::text::XTextRange> xTOCEndParagraph;
+     sal_Int32 nTOCEndAt = 0;
+     size_t nTOCEndFlys = 0;
++    /// The next paragraph starts with a TOC's field end.
++    bool bTOCEndPending = false;
+     OUString sCurrentParaStyleName; ///< highly inaccurate. Overwritten by "overlapping" paragraphs like flys.
+     bool bHasFootnoteStyle = false;
+     bool bCheckFootnoteStyle = false;

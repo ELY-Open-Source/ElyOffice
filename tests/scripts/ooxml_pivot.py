@@ -75,15 +75,15 @@ def read(path):
 
 
 def no_values(path):
-    """No value field: Excel's columns, H4 untouched."""
+    """No value field: Excel's E3:G4, the user's cells untouched."""
     found, table = read(path)
-    want = {"E3": "列标签", "F3": None, "G3": None, "E4": "A", "F4": "B", "G4": "总计", "H4": "NEIGHBOR", "E5": None}
+    want = {"E3": "列标签", "F3": None, "G3": None, "E4": "A", "F4": "B", "G4": "总计", "H4": "NEIGHBOR",
+            "E5": "BELOW", "F5": None, "G5": "42"}
     shown = {ref: (found.get(ref) or (None, None, None))[2] or None for ref in want}
     ooxml.check(shown == want, f"the cells: {shown}")
     place = table.find(ooxml.S + "location")
-    # Calc's empty data row is R15.11l
-    got = {"ref": place.get("ref")[:4], "firstDataCol": place.get("firstDataCol")}
-    ooxml.check(got == {"ref": "E3:G", "firstDataCol": "0"}, f"the location: {got}")
+    got = {name: place.get(name) for name in ("ref", "firstDataRow", "firstDataCol")}
+    ooxml.check(got == {"ref": "E3:G4", "firstDataRow": "2", "firstDataCol": "0"}, f"the location: {got}")
     ooxml.check(table.find(ooxml.S + "dataFields") is None, "no value field written")
 
 
@@ -139,7 +139,9 @@ MUTATIONS = {
     "pivot-empty": [
         (DEFINITION, r'firstDataCol="0"', 'firstDataCol="1"'),
         (DEFINITION, r'ref="E3:G\d"', 'ref="E3:H5"'),
+        (DEFINITION, r'ref="E3:G4"', 'ref="E3:G5"'),
         ("xl/worksheets/sheet1.xml", r'<c r="H4"[^>]*>.*?</c>', '<c r="H4" t="inlineStr"><is><t>总计</t></is></c>'),
+        ("xl/worksheets/sheet1.xml", r'<c r="E5"[^>]*>.*?</c>', ''),
     ],
     "pivot-name": [
         ("xl/worksheets/sheet1.xml", r'<c r="E5"[^>]*>.*?</c>', '<c r="E5"><f>1+1</f><v>2</v></c>'),
