@@ -108,15 +108,55 @@ fn equivalent(_: &OsStr, _: &OsStr) -> bool {
     false
 }
 
-/// No API tells; names match exactly.
+/// Equal as casefold folders match: NFD, then case.
 #[cfg(not(any(windows, target_os = "macos")))]
-fn folded_equal(_: &OsStr, _: &OsStr) -> bool {
-    false
+fn folded_equal(x: &OsStr, y: &OsStr) -> bool {
+    use std::os::unix::ffi::OsStrExt as _;
+    use unicode_normalization::UnicodeNormalization as _;
+    let (Some(x), Some(y)) = (x.to_str(), y.to_str()) else {
+        return x.as_bytes().eq_ignore_ascii_case(y.as_bytes());
+    };
+    let (x, y): (String, String) = (x.nfd().collect(), y.nfd().collect());
+    x.to_lowercase() == y.to_lowercase() || x.to_uppercase() == y.to_uppercase()
+}
+
+/// Asks the folder: is an entry's case variant itself?
+#[cfg(not(any(windows, target_os = "macos")))]
+fn case_sensitive(folder: &Path) -> io::Result<bool> {
+    use std::os::unix::ffi::OsStrExt as _;
+    for entry in std::fs::read_dir(folder)? {
+        let name = entry?.file_name();
+        let other: Vec<u8> = name.as_bytes().iter().map(swapped).collect();
+        if other == name.as_bytes() {
+            continue;
+        }
+        let Some(had) = identity(&folder.join(&name))? else { continue };
+        let found = identity(&folder.join(OsStr::from_bytes(&other)))?;
+        // Replaced meanwhile: ask another entry.
+        if identity(&folder.join(&name))? != Some(had) {
+            continue;
+        }
+        return Ok(found != Some(had));
+    }
+    Err(io::Error::other(format!("no name in {} tells whether case folds", folder.display())))
 }
 
 #[cfg(not(any(windows, target_os = "macos")))]
-fn case_sensitive(_: &Path) -> io::Result<bool> {
-    Ok(true)
+fn swapped(byte: &u8) -> u8 {
+    match byte.is_ascii_lowercase() {
+        true => byte.to_ascii_uppercase(),
+        false => byte.to_ascii_lowercase(),
+    }
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn identity(path: &Path) -> io::Result<Option<(u64, u64)>> {
+    use std::os::unix::fs::MetadataExt as _;
+    match std::fs::symlink_metadata(path) {
+        Ok(found) => Ok(Some((found.dev(), found.ino()))),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error),
+    }
 }
 
 #[cfg(test)]
@@ -132,8 +172,9 @@ mod tests {
         assert_eq!(same, cfg!(target_os = "macos"));
         let upper = folder.join("ELY-E\u{301}.md");
         assert!(!same_name_with(&composed, &upper, |_| Ok(true)).expect("compares"));
+        // Linux casefold normalizes too; NTFS does not.
         let folds = same_name_with(&composed, &upper, |_| Ok(false)).expect("compares");
-        assert_eq!(folds, cfg!(target_os = "macos"));
+        assert_eq!(folds, !cfg!(windows));
     }
 
     #[test]
@@ -150,5 +191,20 @@ mod tests {
         assert!(!same_name(&lower, &folder.join("x").join("B.md")).expect("compares"));
         // Two Save As targets, neither written yet.
         assert_eq!(crate::same_file(&lower, &upper).expect("compares"), folds);
+    }
+
+    #[cfg(not(any(windows, target_os = "macos")))]
+    #[test]
+    fn linux_folds_as_casefold_folders_do() {
+        let folded = |x: &str, y: &str| super::folded_equal(x.as_ref(), y.as_ref());
+        assert!(folded("Stra\u{df}e.md", "STRASSE.MD"));
+        assert!(folded("\u{c9}t\u{e9}.md", "e\u{301}TE\u{301}.md"));
+        assert!(!folded("a.md", "b.md"));
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let (lower, upper) = (dir.path().join("b.md"), dir.path().join("B.md"));
+        // Nothing in the folder tells; no guess.
+        assert!(same_name(&lower, &upper).is_err());
+        std::fs::write(dir.path().join("1"), "").expect("a caseless name");
+        assert!(same_name(&lower, &upper).is_err());
     }
 }

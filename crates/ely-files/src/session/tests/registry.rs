@@ -299,7 +299,8 @@ fn a_missing_target_is_held_across_case() {
     let Open::Fresh(id) = sessions.open(&lower, false).expect("the open") else {
         panic!("a fresh session")
     };
-    // Gone mid-replace: the name alone holds it.
+    // Gone mid-replace, its new copy staged beside it.
+    write(&folder.join("b.md.tmp"), "1");
     std::fs::remove_file(&lower).expect("the gap");
     assert_eq!(sessions.holding(&upper).expect("the holder"), folds.then_some(id));
 }
