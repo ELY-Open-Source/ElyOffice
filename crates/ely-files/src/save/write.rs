@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{SaveError, Saved, atomic_capable, resolved, same_file, save_atomic, save_new, save_with_backup, with_path};
+use super::{SaveError, Saved, atomic_capable, resolved, same_file, save_atomic, save_with_backup, with_path};
 use crate::{Fingerprint, SaveState, SaveTicket, Session, Stamp};
 
 /// What the disk must still hold before the write.
@@ -98,7 +98,7 @@ impl Write {
     fn write(&self, bytes: &[u8], probe: impl FnOnce(&Path) -> io::Result<bool>) -> Result<Saved, SaveError> {
         let target = resolved(&self.path).map_err(SaveError::Io)?;
         let held = match &self.check {
-            Check::Gone => return self.write_new(target, bytes),
+            Check::Gone => Some((target.clone(), claim(&target)?)),
             Check::Seen(seen) => seen.map(|seen| (self.path.clone(), seen)),
             Check::Own(Some(own), Some(seen)) if is_own(own, &target)? => Some((own.clone(), *seen)),
             Check::Own(..) => {
@@ -112,7 +112,8 @@ impl Write {
             log::warn!("files: save to {} meets an external change", target.display());
             return Err(SaveError::Conflict);
         }
-        let backup = !probe(&target).map_err(SaveError::Io)?;
+        // An empty claim of ours needs no copy kept.
+        let backup = !matches!(self.check, Check::Gone) && !probe(&target).map_err(SaveError::Io)?;
         if backup {
             log::warn!("files: {} sits on a non-atomic volume", target.display());
         }
@@ -126,19 +127,17 @@ impl Write {
         let path = dunce::simplified(&target).to_path_buf();
         Ok(Saved { path, written, backup })
     }
+}
 
-    /// Nothing to keep aside: the rename never replaces.
-    fn write_new(&self, target: PathBuf, bytes: &[u8]) -> Result<Saved, SaveError> {
-        let written = match save_new(&target, bytes, self.ticket.revision()) {
-            Ok(written) => written,
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-                log::warn!("files: {} appeared before keep mine wrote", target.display());
-                return Err(SaveError::Conflict);
-            }
-            Err(error) => return Err(SaveError::Io(error)),
-        };
-        let path = dunce::simplified(&target).to_path_buf();
-        Ok(Saved { path, written, backup: None })
+/// Takes a gone file's name; every volume honours create-new.
+fn claim(target: &Path) -> Result<Fingerprint, SaveError> {
+    match std::fs::OpenOptions::new().write(true).create_new(true).open(target) {
+        Ok(_) => Fingerprint::of(target).map_err(SaveError::Io),
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            log::warn!("files: {} appeared before keep mine wrote", target.display());
+            Err(SaveError::Conflict)
+        }
+        Err(error) => Err(SaveError::Io(with_path(target, error))),
     }
 }
 

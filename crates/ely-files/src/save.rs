@@ -94,18 +94,6 @@ pub fn save_atomic(path: &Path, bytes: &[u8], revision: u64) -> io::Result<Finge
     Fingerprint::of(&target)
 }
 
-/// Writes `bytes` as a new `path`; an existing file stays.
-fn save_new(path: &Path, bytes: &[u8], revision: u64) -> io::Result<Fingerprint> {
-    let mut staging =
-        tempfile::NamedTempFile::new_in(parent_dir(path)).map_err(|e| with_path(path, e))?;
-    staging.write_all(bytes).map_err(|e| with_path(path, e))?;
-    staging.as_file().sync_all().map_err(|e| with_path(path, e))?;
-    // A failed persist drops, and so deletes, the staged copy.
-    staging.persist_noclobber(path).map_err(|e| with_path(path, e.error))?;
-    log::info!("files: saved revision {revision} as new {}", path.display());
-    Fingerprint::of(path)
-}
-
 /// The access-control entries of an existing target (macOS).
 #[cfg(target_os = "macos")]
 fn copy_acl(from: &Path, to: &Path) -> io::Result<()> {
