@@ -4,12 +4,14 @@ use super::*;
 
 /// Prepares frames until one asks for nothing.
 fn settle(cx: &gpui::TestAppContext, view: &Entity<LokView>, bounds: Bounds<Pixels>) {
-    for _ in 0..200 {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while std::time::Instant::now() < deadline {
         cx.update(|app| view.update(app, |view, _| _ = view.prepare(bounds)));
         if cx.update(|app| view.read(app).fetching.is_empty()) {
             return;
         }
         cx.run_until_parked();
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
     panic!("the lane never rested");
 }
@@ -37,8 +39,10 @@ fn long_view(cx: &gpui::TestAppContext, install: &std::path::Path) -> (Entity<Lo
 
 /// Waits until every tile of the asked screen is in.
 fn landed(cx: &gpui::TestAppContext, view: &Entity<LokView>) {
-    for _ in 0..200 {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while std::time::Instant::now() < deadline {
         cx.run_until_parked();
+        std::thread::sleep(std::time::Duration::from_millis(5));
         let whole = cx.update(|app| {
             let view = view.read(app);
             view.on_screen.iter().all(|key| view.tiles.get(key).is_some_and(|tile| !tile.stale))

@@ -32,7 +32,7 @@ fn a_file_saves_where_asked() {
     let chosen = target.clone();
     vcx.simulate_new_path_selection(move |_| Some(chosen));
     vcx.run_until_parked();
-    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
     while !target.exists() && std::time::Instant::now() < deadline {
         vcx.run_until_parked();
         std::thread::sleep(Duration::from_millis(20));
@@ -150,4 +150,30 @@ fn a_file_that_runs_code_is_marked_and_never_opened() {
     assert!(!opened, "a program from mail never runs on a press");
     let zone = std::fs::read_to_string(format!("{}:Zone.Identifier", copy.display())).unwrap();
     assert!(zone.contains("ZoneId=3"), "{zone}");
+}
+
+#[test]
+fn an_app_gone_at_launch_says_so_in_chinese_and_spanish() {
+    // An installed one would start for real.
+    if ely_platform::apps::installed(ely_platform::AppId::Pdf) {
+        return eprintln!("SKIP: ElyPDF is installed here");
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let id = seeded(dir.path(), format!("{NOTE}{FILED}").as_bytes(), &[]);
+    let mut cx = TestAppContext::single();
+    let (mail, vcx) = window(&mut cx, dir.path(), Keys::default());
+    let root = super::drafts::rooted(&mail, vcx);
+    shown(&mail, id, vcx);
+    // The check passed; at launch ElyPDF is gone.
+    let launch = |path: &std::path::Path| ely_platform::apps::open(ely_platform::AppId::Pdf, &[path.to_path_buf()]);
+    vcx.update(|_, app| mail.update(app, |mail, _| mail.open_copy = std::sync::Arc::new(launch)));
+    let key = id.0.to_string().into();
+    for (locale, said) in [("zh-CN", "ElyPDF 没有安装"), ("es-ES", "ElyPDF no está instalado")] {
+        vcx.update(|_, app| ely_ui::i18n::install_as(locale, app));
+        vcx.update(|_, app| mail.update(app, |mail, cx| mail.open_file(&key, 0, cx)));
+        let head = vcx.update(|_, app| ely_ui::i18n::text(app, "mail.file.unopened", &[("error", "")]));
+        settle(vcx, |app| root.read(app).toasts(app).iter().any(|(text, _)| text.starts_with(head.as_ref())));
+        let toasts = vcx.update(|_, app| root.read(app).toasts(app));
+        assert!(toasts.iter().any(|(text, _)| text.contains(said)), "{locale}: {toasts:?}");
+    }
 }

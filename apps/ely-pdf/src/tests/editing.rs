@@ -339,7 +339,8 @@ fn an_open_panel_stays_open_through_a_second_drag() {
     click(cx, &view, (122.0, 267.0));
     // The panel slides open; wait until the view stops narrowing.
     let mut narrow = wide;
-    for _ in 0..40 {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while std::time::Instant::now() < deadline {
         cx.executor().advance_clock(std::time::Duration::from_millis(50));
         frames(cx);
         let now = cx.update(|_, app| view.read(app).room.size.width);

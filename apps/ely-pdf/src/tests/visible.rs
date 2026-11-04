@@ -101,3 +101,28 @@ fn the_dialog_hands_a_drawing_to_the_place_tool() {
     assert_eq!(tool, Tool::PlaceSignature);
     assert!(matches!(stamp, Some(Stamp::Ink { aspect, .. }) if (aspect - 0.25).abs() < 1e-6));
 }
+
+#[test]
+fn a_typed_signature_the_font_cannot_draw_says_so_in_chinese_and_spanish() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let path = super::file(dir.path(), "doc.pdf", &[(612.0, 792.0, &["Hello"])]);
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
+    let view = shown(cx, &viewer);
+    // The window's toasts live on its root.
+    let root = cx.update(|window, app| {
+        let root = ely_ui::document_root(ely_platform::AppId::Pdf, viewer.clone().into(), &ely_ui::commands::FILE, Vec::new(), window, app);
+        viewer.update(app, |viewer, _| viewer.core.root = root.downgrade());
+        root
+    });
+    for (locale, said) in [("zh-CN", "这种字体画不出“中”"), ("es-ES", "Esta fuente no puede dibujar «中»")] {
+        cx.update(|_, app| ely_ui::i18n::install_as(locale, app));
+        cx.update(|_, app| view.update(app, |view, cx| {
+            view.set_tool(Tool::PlaceSignature, cx);
+            view.stamp = Some(Stamp::Typed { text: "中".into(), font: "script".into() });
+            view.place_stamp(0, [100.0, 500.0, 100.0, 500.0], true, cx);
+        }));
+        settle(cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| text.contains(said)));
+    }
+    assert_eq!(cx.update(|_, app| view.read(app).edited), 0, "nothing written");
+}

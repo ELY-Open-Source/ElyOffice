@@ -271,9 +271,14 @@ impl Doc {
         Ok(())
     }
 
-    /// Saves and moves the document to `url`; modified clears.
+    /// Saves and moves to `url`; cell edits stay open.
     pub fn save_owned(&self, worker: &mut Worker, url: &str, format: &str) -> io::Result<()> {
         self.store(worker, url, format, "TakeOwnership")
+    }
+
+    /// As `save_owned`, entering an open cell edit first.
+    pub fn save_closing(&self, worker: &mut Worker, url: &str, format: &str) -> io::Result<()> {
+        self.store(worker, url, format, "TakeOwnership,TerminateEditing")
     }
 
     fn store(&self, worker: &mut Worker, url: &str, format: &str, options: &str) -> io::Result<()> {

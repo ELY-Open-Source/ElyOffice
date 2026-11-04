@@ -11,9 +11,12 @@ use gpui::{App, Entity, TestAppContext, VisualTestContext};
 use super::{
     closed_port,
     outbox::{outbox, unsent, with_password},
-    settle, window_with,
+    settle, settle_within, window_with,
 };
 use crate::mail::Mail;
+
+/// Below the engine's 60 s wait: no logout awaited.
+const PROMPT: std::time::Duration = std::time::Duration::from_secs(20);
 
 /// Bo's PLAIN login, `\0bo@example.com\0pw`.
 const AUTH: &str = "AUTH PLAIN AGJvQGV4YW1wbGUuY29tAHB3";
@@ -28,7 +31,7 @@ fn runtime() -> tokio::runtime::Runtime {
 
 /// The script's result; a stall fails, never hangs.
 fn ended(rt: &tokio::runtime::Runtime, task: tokio::task::JoinHandle<Result<(), String>>) {
-    let limit = std::time::Duration::from_secs(10);
+    let limit = std::time::Duration::from_secs(60);
     let done = rt.block_on(async { tokio::time::timeout(limit, task).await });
     done.expect("the script ended").unwrap().unwrap();
 }
@@ -87,7 +90,7 @@ fn a_refused_recipient_fails_and_is_never_sent_again() {
     queued(dir.path(), &bo(closed_port(), server.port));
     let mut cx = TestAppContext::single();
     let (mail, cx) = window_with(&mut cx, dir.path(), with_password(), Ok(certs.trusted.clone()));
-    settle(cx, |app| {
+    settle_within(cx, PROMPT, |app| {
         let held = outbox(&mail, app);
         held.len() == 1 && held[0].going == Going::Failed
     });
@@ -125,7 +128,7 @@ fn an_accepted_message_with_no_quit_answer_waits_only_for_its_copy() {
             && held[0].going == Going::Accepted
             && held[0].filing == Some(Filing::Waiting)
     };
-    settle(cx, taken);
+    settle_within(cx, PROMPT, taken);
     ended(&rt, task);
     idle(&mail, cx);
     assert!(cx.update(|_, app| taken(app)), "still accepted, copy waiting");

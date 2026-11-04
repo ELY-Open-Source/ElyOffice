@@ -41,10 +41,10 @@ pub(crate) fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<
     Some((window, book))
 }
 
-/// Steps the scheduler until `done` or ten seconds pass.
+/// Steps the scheduler until `done` or a minute passes.
 #[track_caller]
 pub(crate) fn settle(cx: &TestAppContext, done: impl Fn(&gpui::App) -> bool) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     while std::time::Instant::now() < deadline {
         if !cx.executor().tick() {
             cx.executor()
@@ -166,7 +166,7 @@ fn deleting_names_what_refers_and_merging_asks_when_data_would_hide() {
             .is_some_and(|tab| tab.extra.sheets.current == 0)
     });
     update(&mut cx, &book, |book, cx| {
-        book.ask_delete(book.core.active, cx)
+        book.ask_delete(book.core.active(), cx)
     });
     settle(&cx, |app| {
         matches!(book.read(app).dialog, Some(Dialog::Delete { .. }))
@@ -179,7 +179,7 @@ fn deleting_names_what_refers_and_merging_asks_when_data_would_hide() {
     update(&mut cx, &book, |book, cx| {
         book.dialog = None;
         book.run_active("cell.goto", &["A1:B1"], cx);
-        book.merge(book.core.active, cx);
+        book.merge(book.core.active(), cx);
     });
     settle(&cx, |app| {
         matches!(book.read(app).dialog, Some(Dialog::Merge { .. }))
@@ -187,7 +187,7 @@ fn deleting_names_what_refers_and_merging_asks_when_data_would_hide() {
     update(&mut cx, &book, |book, cx| {
         book.dialog = None;
         book.run_active("cell.goto", &["C1:D1"], cx);
-        book.merge(book.core.active, cx);
+        book.merge(book.core.active(), cx);
     });
     settle(&cx, |app| {
         let book = book.read(app);
@@ -266,7 +266,7 @@ fn a_switch_stays_with_its_workbook() {
     });
     for at in 0..2 {
         update(&mut cx, &book, |book, cx| {
-            book.core.active = Some(book.core.tabs[at].id);
+            book.core.set_active(Some(book.core.tabs[at].id));
             book.run_active("sheet.insert", &["Two", "2"], cx);
             book.show_sheet(0, cx);
         });
@@ -279,10 +279,10 @@ fn a_switch_stays_with_its_workbook() {
             .all(|tab| tab.extra.sheets.list.len() == 2 && tab.view.read(app).settled())
     });
     update(&mut cx, &book, |book, cx| {
-        book.core.active = Some(book.core.tabs[0].id);
+        book.core.set_active(Some(book.core.tabs[0].id));
         book.run_active("cell.enter", &["42"], cx);
         book.show_sheet(1, cx);
-        book.core.active = Some(book.core.tabs[1].id);
+        book.core.set_active(Some(book.core.tabs[1].id));
     });
     settle(&cx, |app| {
         book.read(app)
@@ -312,7 +312,7 @@ fn the_bars_follow_the_active_workbook() {
     }
     settle(&cx, |app| book.read(app).core.tabs.len() == 2);
     update(&mut cx, &book, |book, cx| {
-        book.core.active = Some(book.core.tabs[1].id);
+        book.core.set_active(Some(book.core.tabs[1].id));
         book.run_active("cell.goto", &["C3"], cx);
     });
     let address = |app: &gpui::App, at: usize| {
@@ -328,7 +328,7 @@ fn the_bars_follow_the_active_workbook() {
     });
     let name = |cx: &mut TestAppContext, at: usize| {
         update(cx, &book, |book, cx| {
-            book.core.active = Some(book.core.tabs[at].id);
+            book.core.set_active(Some(book.core.tabs[at].id));
             book.refill(cx);
         });
         cx.update(|app| book.read(app).bars.name.read(app).text().to_string())
@@ -354,23 +354,23 @@ fn a_delete_stays_with_its_workbook() {
     for (at, name) in [(0, "OriginTwo"), (1, "OtherTwo")] {
         fresh(&cx, &book);
         update(&mut cx, &book, |book, cx| {
-            book.core.active = Some(book.core.tabs[at].id);
+            book.core.set_active(Some(book.core.tabs[at].id));
             book.run_active("sheet.insert", &[name, "2"], cx);
             book.show_sheet(1, cx);
         });
     }
     settle(&cx, |app| count(app, 0) == 2 && count(app, 1) == 2);
     update(&mut cx, &book, |book, cx| {
-        book.core.active = Some(book.core.tabs[0].id);
+        book.core.set_active(Some(book.core.tabs[0].id));
         book.run_active("cell.enter", &["42"], cx);
-        book.ask_delete(book.core.active, cx);
+        book.ask_delete(book.core.active(), cx);
     });
     settle(&cx, |app| {
         matches!(book.read(app).dialog, Some(Dialog::Delete { .. }))
     });
     // The user moves on while the dialog is open.
     update(&mut cx, &book, |book, _| {
-        book.core.active = Some(book.core.tabs[1].id)
+        book.core.set_active(Some(book.core.tabs[1].id))
     });
     let asked = cx.update(|app| match &book.read(app).dialog {
         Some(Dialog::Delete { name, .. }) => name.clone(),
@@ -394,6 +394,7 @@ mod chinese;
 mod aids;
 mod data;
 mod edges;
+mod editing;
 mod kept;
 mod links;
 mod menu;

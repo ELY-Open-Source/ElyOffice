@@ -248,7 +248,7 @@ impl Deck {
 
     /// The menu's host, for the active deck.
     pub(crate) fn context_menu(&self, cx: &mut Context<Self>) -> Option<ContextMenu> {
-        let offer = self.menu.as_ref().filter(|offer| Some(offer.tab) == self.core.active)?;
+        let offer = self.menu.as_ref().filter(|offer| Some(offer.tab) == self.core.active())?;
         Some(offer.host("show-menu", menu_of(&cx.entity(), &offer.what, cx)))
     }
 

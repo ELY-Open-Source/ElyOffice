@@ -85,7 +85,7 @@ impl Deck {
     }
 
     fn probe_media(&mut self, path: PathBuf, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return;
         };
         let player = match Player::open(&path) {

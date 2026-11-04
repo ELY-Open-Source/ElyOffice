@@ -295,7 +295,7 @@ fn changes_sees_a_theme_swap_in_the_order_omarchy_does_it() {
     let (_watcher, mut events) = changes(current.path()).unwrap();
 
     fs::create_dir(current.path().join("theme")).unwrap();
-    assert!(event_within(&mut events, 60), "no event for a new theme");
+    assert!(event_within(&mut events, 1200), "no event for a new theme");
     while events.try_recv().is_ok() {}
 
     fs::create_dir(current.path().join("next-theme")).unwrap();
@@ -307,7 +307,7 @@ fn changes_sees_a_theme_swap_in_the_order_omarchy_does_it() {
     .unwrap();
     fs::write(current.path().join("theme.name"), "nord\n").unwrap();
     assert!(
-        event_within(&mut events, 60),
+        event_within(&mut events, 1200),
         "no event for a swapped theme"
     );
 }

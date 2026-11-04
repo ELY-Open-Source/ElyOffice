@@ -78,8 +78,12 @@ impl Engine for Lok {
         worker.values(doc, ".uno:Undo")
     }
 
-    fn write(worker: &mut Worker, doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
-        doc.save_owned(worker, &ely_lok::file_url(path), format)
+    /// Only a save before a close enters a cell edit.
+    fn write(worker: &mut Worker, doc: &Doc, path: &Path, format: &str, closing: bool) -> io::Result<()> {
+        match closing {
+            true => doc.save_closing(worker, &ely_lok::file_url(path), format),
+            false => doc.save_owned(worker, &ely_lok::file_url(path), format),
+        }
     }
 
     fn snapshot(worker: &mut Worker, doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
@@ -255,7 +259,7 @@ fn follow_author(worker: &Arc<Mutex<Worker>>, wanted: Arc<Mutex<String>>, cx: &m
 pub trait Commands: Host<Engine = Lok> {
     /// Runs a mapped command on the active tab.
     fn run_active(&mut self, id: &str, values: &[&str], cx: &mut Context<Self>) {
-        self.run_in(self.core().active, id, values, cx);
+        self.run_in(self.core().active(), id, values, cx);
     }
 
     /// Runs a mapped command on tab `tab`.

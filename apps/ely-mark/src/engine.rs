@@ -85,7 +85,7 @@ impl Engine for Mark {
         Ok(text.written.take().unwrap_or_else(|| mark(&text.current)))
     }
 
-    fn write(_: &mut (), doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
+    fn write(_: &mut (), doc: &Doc, path: &Path, format: &str, _: bool) -> io::Result<()> {
         if !matches!(format, "md" | "markdown") {
             return Err(io::Error::new(
                 io::ErrorKind::Unsupported,
@@ -169,7 +169,7 @@ mod tests {
         let source = Source::decode(b"Alpha.\n".to_vec()).expect("reads");
         let doc = Arc::new(Mutex::new(Text::new(source)));
         let path = dir.path().join("save.md");
-        Mark::write(&mut (), &doc, &path, "md").expect("writes");
+        Mark::write(&mut (), &doc, &path, "md", false).expect("writes");
         // An edit lands between the write and the history read.
         doc.lock().expect("the text lock").current = "xAlpha.\n".into();
         let saved = Mark::history(&mut (), &doc).expect("a mark");

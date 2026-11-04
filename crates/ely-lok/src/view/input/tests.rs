@@ -76,12 +76,11 @@ fn a_failed_input_still_reports_the_revision_it_reached() {
     let source = dir.path().join("book.fods");
     std::fs::write(&source, crate::client::tests::input::FODS).expect("the fixture writes");
     let doc = worker.load(&crate::file_url(&source)).expect("the book loads");
-    let worker = Mutex::new(worker);
     // Nothing merged to split: the kernel refuses.
     let input = Input::Run { commands: vec![("cells.split", Vec::new())], at: None };
-    let (outcome, now) = run(&worker, &doc, input);
+    let (outcome, now) = run(&mut worker, &doc, input);
     assert!(outcome.is_err(), "the split fails");
-    let reached = worker.lock().expect("the worker lock").now(&doc).expect("the state");
+    let reached = worker.now(&doc).expect("the state");
     assert_eq!(now, Some(reached.rev), "the view learns the revision anyway");
     assert!(reached.rev > doc.rev, "the request counted");
 }

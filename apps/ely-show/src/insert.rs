@@ -116,7 +116,7 @@ pub fn bind(root: Div, cx: &mut Context<Deck>) -> Div {
 impl Deck {
     /// Runs an object command; the next read shows the result.
     pub fn object_command(&mut self, id: &str, values: &[&str], cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return;
         };
         self.run_in(Some(tab), id, values, cx);

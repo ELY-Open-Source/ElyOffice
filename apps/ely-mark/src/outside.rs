@@ -210,7 +210,7 @@ impl Desk {
             }
             Ok(_) => self.read_disk(id, path, cx),
             Err(error) if error.kind() == io::ErrorKind::NotFound => self.missing(id, path, ours, cx),
-            Err(error) => self.set_outside(id, Outside::Unread(error.to_string()), cx),
+            Err(error) => self.set_outside(id, Outside::Unread(ely_ui::i18n::error(cx, &error).to_string()), cx),
         }
     }
 
@@ -259,7 +259,7 @@ impl Desk {
     ) -> Option<gpui::Entity<crate::view::MarkView>> {
         let tab = self.tab_mut(id)?;
         if let Err(error) = tab.session.reload_at(fingerprint) {
-            self.set_outside(id, Outside::Unread(error.to_string()), cx);
+            self.set_outside(id, Outside::Unread(ely_ui::i18n::error(cx, &error).to_string()), cx);
             return None;
         }
         tab.extra.base = disk.text.clone();

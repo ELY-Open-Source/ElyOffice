@@ -1,9 +1,6 @@
 use super::input::FODS;
 use super::*;
 
-/// How long the kernel may take to answer.
-const SETTLE: std::time::Duration = std::time::Duration::from_secs(3);
-
 /// The FODS fixture, loaded and its cursor read.
 fn open() -> (tempfile::TempDir, Worker, Doc, Events) {
     let install = install().expect("the pinned LOK build");
@@ -14,7 +11,7 @@ fn open() -> (tempfile::TempDir, Worker, Doc, Events) {
     let doc = worker
         .load(&crate::file_url(&source))
         .expect("the sheet loads");
-    let seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         seen.cell.cursor.is_some()
     });
     (dir, worker, doc, seen)
@@ -42,7 +39,7 @@ fn typing_a_formula_offers_functions_usage_and_marks() {
     let (_dir, mut worker, doc, seen) = open();
     worker.post_key(&doc, 0, 1024).expect("Down to A2");
     type_text(&mut worker, &doc, "=SU");
-    let offered = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let offered = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         seen.cell.functions.iter().any(|f| f.name == "SUMIF")
     });
     let sum = offered.cell.functions.iter().find(|f| f.name == "SUM");
@@ -52,12 +49,12 @@ fn typing_a_formula_offers_functions_usage_and_marks() {
     );
     let taken = doc.complete_function(&mut worker, Some("SUMIF"), None);
     assert!(taken.expect("the completion"), "SUMIF is on offer");
-    let done = poll_until(&mut worker, &doc, &offered, SETTLE, |seen| {
+    let done = poll_until(&mut worker, &doc, &offered, HANG, |seen| {
         seen.cell.formula == "=SUMIF()"
     });
     assert_eq!(done.cell.formula, "=SUMIF()", "the name completes");
     type_text(&mut worker, &doc, "A1,");
-    let usage = poll_until(&mut worker, &doc, &done, SETTLE, |seen| {
+    let usage = poll_until(&mut worker, &doc, &done, HANG, |seen| {
         seen.cell.formula == "=SUMIF(A1,)" && seen.cell.usage.contains('►')
     });
     assert_eq!(usage.cell.formula, "=SUMIF(A1,)", "typing goes on inside");
@@ -80,7 +77,7 @@ fn typing_a_formula_offers_functions_usage_and_marks() {
         };
         worker.post_mouse(&doc, click).expect("the click posts");
     }
-    let picked = poll_until(&mut worker, &doc, &usage, SETTLE, |seen| {
+    let picked = poll_until(&mut worker, &doc, &usage, HANG, |seen| {
         seen.cell.formula == "=SUMIF(A1,B3)" && !seen.cell.marks.is_empty()
     });
     assert_eq!(
@@ -90,7 +87,7 @@ fn typing_a_formula_offers_functions_usage_and_marks() {
     assert_eq!(picked.cell.marks.len(), 1, "the picked cell is marked");
     assert_eq!(picked.cell.marks[0].part, 0);
     type_text(&mut worker, &doc, "*2");
-    let typed = poll_until(&mut worker, &doc, &picked, SETTLE, |seen| {
+    let typed = poll_until(&mut worker, &doc, &picked, HANG, |seen| {
         seen.cell.formula == "=SUMIF(A1,B3*2)"
     });
     assert_eq!(
@@ -101,7 +98,7 @@ fn typing_a_formula_offers_functions_usage_and_marks() {
     // The first Escape may only close the kernel's hint.
     worker.post_key(&doc, 0, 1281).expect("Escape");
     worker.post_key(&doc, 0, 1281).expect("Escape cancels");
-    let done = poll_until(&mut worker, &doc, &picked, SETTLE, |seen| {
+    let done = poll_until(&mut worker, &doc, &picked, HANG, |seen| {
         seen.cell.marks.is_empty() && seen.cell.formula.is_empty()
     });
     assert!(done.cell.marks.is_empty(), "{:?}", done.cell);
@@ -110,12 +107,12 @@ fn typing_a_formula_offers_functions_usage_and_marks() {
         .expect("a formula");
     worker.run(&doc, "cell.goto", &["A2"]).expect("back to it");
     worker.post_key(&doc, 0, 769).expect("F2 edits it");
-    let edited = poll_until(&mut worker, &doc, &done, SETTLE, |seen| {
+    let edited = poll_until(&mut worker, &doc, &done, HANG, |seen| {
         seen.cell.marks.len() == 2
     });
     assert_eq!(edited.cell.marks.len(), 2, "each reference is marked");
     worker.post_key(&doc, 0, 1280).expect("Enter commits");
-    let entered = poll_until(&mut worker, &doc, &edited, SETTLE, |seen| {
+    let entered = poll_until(&mut worker, &doc, &edited, HANG, |seen| {
         seen.cell.marks.is_empty()
     });
     assert!(entered.cell.marks.is_empty(), "the commit clears the marks");
@@ -131,7 +128,7 @@ fn a_broken_formula_enters_as_typed_without_a_dialog() {
     worker.run(&doc, "cell.goto", &["C1"]).expect("C1");
     type_text(&mut worker, &doc, "=1+");
     worker.post_key(&doc, 0, 1280).expect("Enter");
-    let entered = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let entered = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         seen.cell.address == "C2"
     });
     assert!(
@@ -225,7 +222,7 @@ fn manual_calculation_waits_and_survives_a_save() {
     enter(&mut worker, &doc, &[("F1", "1"), ("F2", "=F1*2")]);
     assert_eq!(values(&mut worker, &doc, "F2"), "2");
     worker.run(&doc, "calc.auto", &["false"]).expect("manual");
-    let manual = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let manual = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         seen.states
             .contains(&(".uno:AutomaticCalculation".into(), "false".into()))
     });
@@ -246,7 +243,7 @@ fn manual_calculation_waits_and_survives_a_save() {
         let again = worker
             .load(&crate::file_url(&path))
             .expect("the copy loads");
-        let state = poll_until(&mut worker, &again, &Events::default(), SETTLE, |seen| {
+        let state = poll_until(&mut worker, &again, &Events::default(), HANG, |seen| {
             seen.states
                 .iter()
                 .any(|(name, _)| name == ".uno:AutomaticCalculation")
@@ -270,7 +267,7 @@ fn a_circular_reference_reports_its_error() {
     let (_dir, mut worker, doc, seen) = open();
     enter(&mut worker, &doc, &[("F1", "=F2+1"), ("F2", "=F1")]);
     worker.run(&doc, "cell.goto", &["F1"]).expect("F1");
-    let state = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let state = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         seen.states
             .iter()
             .any(|(name, value)| name == ".uno:StateTableCell" && value.contains("Circular"))
@@ -341,7 +338,7 @@ fn names_are_defined_changed_removed_and_flag_breaks() {
     assert_eq!(check(&mut worker, "a b&c"), "characters");
     worker.run(&doc, "cell.goto", &["Rate"]).expect("a jump");
     assert_eq!(
-        poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+        poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
             seen.cell.address == "Rate"
         })
         .cell
@@ -375,6 +372,6 @@ fn selection_figures_follow_the_cells_number_format() {
     let figures = |seen: &Events| {
         seen.states.iter().rfind(|(name, _)| name == ".uno:StateTableCell").map(|(_, value)| value.clone())
     };
-    let state = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| figures(seen).is_some_and(|v| v.contains("8128.33;")));
+    let state = poll_until(&mut worker, &doc, &seen, HANG, |seen| figures(seen).is_some_and(|v| v.contains("8128.33;")));
     assert!(figures(&state).is_some_and(|v| v.contains("Average: 8128.33;")), "{:?}", figures(&state));
 }

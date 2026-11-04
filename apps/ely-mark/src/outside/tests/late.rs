@@ -38,12 +38,16 @@ fn folds(folder: &Path) -> bool {
 /// B's file open behind A, nothing watched.
 fn beside(desk: &Entity<Desk>, path: &Path, cx: &mut VisualTestContext) -> (u64, PathBuf) {
     desk.update(cx, |desk, _| desk.watcher = None);
-    let a = desk.read_with(cx, |desk, _| desk.core.active.expect("a's tab"));
+    let a = desk.read_with(cx, |desk, _| desk.core.active().expect("a's tab"));
     let other = path.with_file_name("b.md");
     std::fs::write(&other, "two\n").expect("a file");
     desk.update(cx, |desk, cx| desk.open_file(other.clone(), cx));
     settle(cx);
-    let b = desk.update(cx, |desk, _| desk.core.active.replace(a).expect("b's tab"));
+    let b = desk.update(cx, |desk, _| {
+        let b = desk.core.active().expect("b's tab");
+        desk.core.set_active(Some(a));
+        b
+    });
     (b, other)
 }
 

@@ -90,6 +90,9 @@ impl Host for Deck {
     }
 
     fn tab_shown(&mut self, id: u64, cx: &mut Context<Self>) {
+        if let Some(view) = self.tab(id).map(|tab| tab.view.clone()) {
+            self.reread(id, &view, cx);
+        }
         self.paint_next(id, cx);
     }
 
@@ -109,7 +112,7 @@ impl Host for Deck {
         self.offer_menu(id, view, cx);
         self.reread(id, view, cx);
         // Undo's state can change with no new read.
-        if self.core.active == Some(id) {
+        if self.core.active() == Some(id) {
             self.sync_menus(cx);
         }
     }
@@ -214,6 +217,10 @@ impl Deck {
             read.caret(),
             read.graphic(),
         );
+        // Hidden decks read when shown; Replace All reports parts too.
+        if self.core.active() != Some(id) {
+            return;
+        }
         let Some(tab) = self.tab_mut(id) else {
             return;
         };

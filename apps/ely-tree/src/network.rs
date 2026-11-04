@@ -124,7 +124,7 @@ impl Tree {
         // Only a stop asked for turns failure quiet.
         match net.stop.now() {
             Ok(()) => net.stopping = true,
-            Err(error) => self.failed("tree.error.stop_remote", &error.to_string(), cx),
+            Err(error) => self.failed("tree.error.stop_remote", &error, cx),
         }
         cx.notify();
     }
@@ -195,10 +195,10 @@ impl Tree {
                         choices: list.into_iter().map(|remote| remote.name).collect(),
                         then: Choice::Publish(branch),
                     },
-                    Err(error) => Ask::Failed {
-                        title: text(cx, "tree.remotes.unread", &[]),
-                        detail: error.to_string().into(),
-                    },
+                    Err(error) => {
+                        log::warn!("tree: the remotes are unread: {}", ely_ipc::Worded::logged(&error));
+                        Ask::Failed { title: text(cx, "tree.remotes.unread", &[]), detail: ely_ui::i18n::error(cx, &error) }
+                    }
                 };
                 tree.offer(ask, cx);
             })
@@ -237,10 +237,10 @@ impl Tree {
                 }
                 let ask = match plan {
                     Ok(plan) => Ask::Force { repo, plan },
-                    Err(error) => Ask::Failed {
-                        title: text(cx, "tree.force.unready", &[]),
-                        detail: error.to_string().into(),
-                    },
+                    Err(error) => {
+                        log::warn!("tree: a forced push is unready: {}", ely_ipc::Worded::logged(&error));
+                        Ask::Failed { title: text(cx, "tree.force.unready", &[]), detail: ely_ui::i18n::error(cx, &error) }
+                    }
                 };
                 tree.offer(ask, cx);
             })

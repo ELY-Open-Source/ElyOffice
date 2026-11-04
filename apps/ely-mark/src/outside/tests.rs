@@ -52,7 +52,7 @@ pub(crate) fn opened(
     std::fs::write(&path, text).expect("a file");
     let (desk, cx) = start(cx, data.path());
     open(&desk, &path, cx);
-    let id = desk.read_with(cx, |desk, _| desk.core.active.expect("a tab"));
+    let id = desk.read_with(cx, |desk, _| desk.core.active().expect("a tab"));
     (desk, cx, id, path, [data, files])
 }
 

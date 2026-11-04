@@ -107,7 +107,7 @@ pub fn outline(view: &Entity<PdfView>, cx: &App) -> AnyElement {
 impl Viewer {
     /// Asks a title for a new or picked bookmark.
     pub fn ask_bookmark(&mut self, add: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let (Some(tab), Some(view)) = (self.core.active, self.active_view()) else {
+        let (Some(tab), Some(view)) = (self.core.active(), self.active_view()) else {
             return self.no_document(cx);
         };
         let read = view.read(cx);

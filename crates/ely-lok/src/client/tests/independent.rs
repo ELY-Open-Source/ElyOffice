@@ -86,9 +86,8 @@ fn an_xlsx_keeps_formulas_and_results_across_sessions() {
         ("H8", "=SUM(H1:H2)"),
     ]);
     let doc = reopened(&mut worker, doc, dir.path(), "sheet", "xlsx");
-    poll_until(&mut worker, &doc, &Events::default(), std::time::Duration::from_secs(3), |seen| {
-        seen.cell.cursor.is_some()
-    });
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| seen.cell.cursor.is_some());
+    assert!(seen.cell.cursor.is_some(), "the reopened sheet reports its cursor");
     enter(&mut worker, &doc, &[("H9", "=H3+1")]);
     checked(&mut worker, doc, dir.path(), "sheet", "xlsx");
 }

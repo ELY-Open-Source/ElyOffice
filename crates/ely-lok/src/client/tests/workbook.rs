@@ -2,9 +2,6 @@ use super::sheet::{SHEETS, open_book};
 use super::*;
 use crate::sheet;
 
-/// How long a command may take to report.
-const SETTLE: std::time::Duration = std::time::Duration::from_secs(5);
-
 fn names(worker: &mut Worker, doc: &Doc) -> Vec<(String, bool)> {
     doc.sheets(worker)
         .expect("the sheets")
@@ -114,7 +111,7 @@ fn ranges_fill_size_hide_merge_and_take_formulas() {
     run(&mut worker, &doc, "cell.goto", &["C1"]);
     run(&mut worker, &doc, "cell.enter", &["=SUM(A1:A5)"]);
     run(&mut worker, &doc, "cell.goto", &["C1"]);
-    let summed = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let summed = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         seen.cell.address == "C1" && seen.cell.formula == "=SUM(A1:A5)"
     });
     assert_eq!(summed.cell.formula, "=SUM(A1:A5)");
@@ -137,7 +134,7 @@ fn ranges_fill_size_hide_merge_and_take_formulas() {
     run(&mut worker, &doc, "select.row", &["2", "4096"]);
     run(&mut worker, &doc, "cell.goto", &["B2"]);
     run(&mut worker, &doc, "view.freeze", &[]);
-    let frozen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let frozen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         let state = |uno: &str| {
             seen.states
                 .iter()

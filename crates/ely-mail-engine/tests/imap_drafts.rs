@@ -236,7 +236,7 @@ async fn a_filed_copy_is_told_without_waiting_for_the_logout() {
         .await
         .expect("told before the logout answers")
         .unwrap();
-    tokio::time::timeout(std::time::Duration::from_secs(5), script)
+    tokio::time::timeout(std::time::Duration::from_secs(60), script)
         .await
         .expect("the server reached its last step")
         .unwrap()

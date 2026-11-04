@@ -69,7 +69,7 @@ fn bundle_of(binary: &Path) -> Option<&Path> {
 /// Starts `app` with `files`; a running one takes them.
 pub fn open(app: AppId, files: &[PathBuf]) -> io::Result<()> {
     let found = find(app)?.ok_or_else(|| {
-        io::Error::new(io::ErrorKind::NotFound, format!("{} is not installed", app.name()))
+        ely_ipc::Worded::error(io::ErrorKind::NotFound, "error.not_installed", &[("app", app.name())])
     })?;
     // Launch Services hands files to a running app.
     if let Some(bundle) = bundle_of(&found) {

@@ -72,13 +72,13 @@ pub enum Side {
 }
 
 pub struct Tree {
-    pub git: Result<Git, String>,
+    pub git: Result<Git, io::Error>,
     pub repos: Vec<Opened>,
     pub active: Option<u64>,
     next: u64,
     pub recent: Vec<PathBuf>,
     /// Why the recent list could not be read; shown once.
-    unread: Option<String>,
+    unread: Option<io::Error>,
     recent_file: PathBuf,
     pub tools: crate::tools::Tools,
     pub cloning: Option<crate::cloning::Cloning>,
@@ -134,7 +134,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
             tree.failed("tree.error.recent", &error, cx);
         }
         if let Some(error) = tree.tools.broken.clone() {
-            tree.failed("tree.error.tools_file", &error, cx);
+            tree.failed("tree.error.tools_file", &io::Error::other(error), cx);
         }
     });
     for path in ely_ui::launch_files(cx) {
@@ -164,13 +164,10 @@ pub(crate) fn inside(root: &Path, file: &Path) -> io::Result<String> {
 
 impl Tree {
     pub(crate) fn new(recent_file: PathBuf, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let git = Git::find().map_err(|error| error.to_string());
-        if let Err(error) = &git {
-            log::error!("tree: {error}");
-        }
+        let git = Git::find().inspect_err(|error| log::error!("tree: no Git: {}", ely_ipc::Worded::logged(error)));
         let (recent, unread) = match ely_files::recent::recent(&recent_file) {
             Ok(list) => (list, None),
-            Err(error) => (Vec::new(), Some(error.to_string())),
+            Err(error) => (Vec::new(), Some(error)),
         };
         let this = cx.entity();
         let changes = cx.new(|cx| Changes::new(&this, cx));
@@ -238,14 +235,21 @@ impl Tree {
 
     pub fn toast(&self, text: SharedString, severity: Severity, cx: &mut App) {
         log::warn!("tree: {text}");
+        self.toast_unlogged(text, severity, cx);
+    }
+
+    /// A toast the caller has logged without its words.
+    pub(crate) fn toast_unlogged(&self, text: SharedString, severity: Severity, cx: &mut App) {
         if let Some(root) = self.root.upgrade() {
             root.update(cx, |root, cx| root.toast(text, severity, cx));
         }
     }
 
-    pub fn failed(&self, key: &str, error: &str, cx: &mut App) {
-        let words = text(cx, key, &[("error", error)]);
-        self.toast(words, Severity::Danger, cx);
+    /// Logs `error` itself; only the toast reads its words.
+    pub fn failed(&self, key: &str, error: &io::Error, cx: &mut App) {
+        log::warn!("tree: {key}: {}", ely_ipc::Worded::logged(error));
+        let words = text(cx, key, &[("error", &ely_ui::i18n::error(cx, error))]);
+        self.toast_unlogged(words, Severity::Danger, cx);
     }
 
     /// The Git to run, or why there is none.
@@ -293,8 +297,9 @@ impl Tree {
                     Some(Ok(rel)) => tree.file_log(&rel, cx),
                     Some(Err((file, error))) => {
                         let shown = file.display().to_string();
-                        let words = text(cx, "tree.error.open", &[("path", &shown), ("error", &error.to_string())]);
-                        tree.toast(words, Severity::Danger, cx);
+                        log::warn!("tree: a file did not open: {}", ely_ipc::Worded::logged(&error));
+                        let words = text(cx, "tree.error.open", &[("path", &shown), ("error", &ely_ui::i18n::error(cx, &error))]);
+                        tree.toast_unlogged(words, Severity::Danger, cx);
                     }
                     None => {}
                 }
@@ -324,7 +329,7 @@ impl Tree {
         self.recent = match ely_files::recent::remember(&self.recent_file, &repo.root) {
             Ok(list) => list,
             Err(error) => {
-                self.failed("tree.error.recent", &error.to_string(), cx);
+                self.failed("tree.error.recent", &error, cx);
                 self.recent.clone()
             }
         };
@@ -341,7 +346,7 @@ impl Tree {
         let watcher = match crate::watch::start(id, &repo, cx) {
             Ok(watcher) => Some(watcher),
             Err(error) => {
-                self.failed("tree.error.watch", &error.to_string(), cx);
+                self.failed("tree.error.watch", &io::Error::other(error), cx);
                 None
             }
         };
@@ -375,25 +380,27 @@ impl Tree {
 
     /// A recent entry that no longer opens leaves the list.
     fn not_opened(&mut self, path: &Path, error: &io::Error, cx: &mut Context<Self>) {
+        // The path stays in the toast, out of the log.
+        log::warn!("tree: a repository did not open: {}", ely_ipc::Worded::logged(error));
         let shown = path.display().to_string();
         if self.recent.iter().any(|known| known == path) {
             self.recent.retain(|known| known != path);
             if let Err(error) = ely_files::recent::forget(&self.recent_file, path) {
-                self.failed("tree.error.recent", &error.to_string(), cx);
+                self.failed("tree.error.recent", &error, cx);
             }
             let words = text(
                 cx,
                 "tree.error.recent_gone",
-                &[("path", &shown), ("error", &error.to_string())],
+                &[("path", &shown), ("error", &ely_ui::i18n::error(cx, error))],
             );
-            self.toast(words, Severity::Danger, cx);
+            self.toast_unlogged(words, Severity::Danger, cx);
         } else {
             let words = text(
                 cx,
                 "tree.error.open",
-                &[("path", &shown), ("error", &error.to_string())],
+                &[("path", &shown), ("error", &ely_ui::i18n::error(cx, error))],
             );
-            self.toast(words, Severity::Danger, cx);
+            self.toast_unlogged(words, Severity::Danger, cx);
         }
         cx.notify();
     }

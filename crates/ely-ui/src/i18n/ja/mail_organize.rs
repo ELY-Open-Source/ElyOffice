@@ -1,0 +1,28 @@
+//! Japanese ElyMail read, flag, move and delete messages.
+
+pub(super) const JA: &[(&str, &str)] = &[
+    ("mail.act.read", "既読にする"),
+    ("mail.act.unread", "未読にする"),
+    ("mail.act.flag", "フラグを付ける"),
+    ("mail.act.unflag", "フラグを外す"),
+    ("mail.act.archive", "アーカイブ"),
+    ("mail.act.delete", "削除"),
+    ("mail.act.restore", "受信トレイに移動"),
+    ("mail.act.move", "移動先"),
+    ("mail.organize.failed", "変更されませんでした: {error}"),
+    ("mail.organize.dropped", "{n} 件の変更はサーバーで行われなかったため、元に戻しました: {reason}"),
+    ("mail.organize.dropped.one", "1 件の変更はサーバーで行われなかったため、元に戻しました: {reason}"),
+    ("mail.organize.gone", "メッセージはもうサーバーにありません"),
+    ("mail.organize.renumbered", "フォルダーがサーバー上で作り直されました"),
+    ("mail.organize.unsupported", "サーバーは {name} に対応していません"),
+    ("mail.organize.unplaced", "サーバーはメッセージを移動しましたが、移動先を知らせませんでした"),
+    ("mail.organize.vanished", "フォルダー {name} はもうサーバーにありません"),
+    ("mail.erase.title", "{n} 件のメッセージを完全に削除しますか?"),
+    ("mail.erase.title.one", "このメッセージを完全に削除しますか?"),
+    ("mail.erase.message", "ここでもサーバーでも復元できません。"),
+    ("mail.erase.go", "完全に削除"),
+    ("mail.sync.waiting", "変更"),
+    ("mail.sync.waiting_value", "ここで行った変更 {n} 件がサーバーへの反映を待っています"),
+    ("mail.sync.waiting_value.one", "ここで行った変更 1 件がサーバーへの反映を待っています"),
+    ("mail.sync.waiting_none", "すべての変更がサーバーに反映されています"),
+];

@@ -38,7 +38,7 @@ mod scroll;
 mod sheet;
 mod text;
 pub use input::{CONTEXT, Copy, Cut, Paste, init};
-pub use off::read_off;
+pub use off::{behind, read_off};
 pub use render::{SCHEME, paper};
 mod turn;
 pub use turn::notch;

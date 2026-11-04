@@ -53,7 +53,7 @@ fn records_fill_previews_and_files() {
         text_of(&mut cx, &docs, &preview).contains("Dear «City» of 上海"),
         "the preview takes queued input and keeps values literal"
     );
-    cx.update(|app| docs.update(app, |docs, _| docs.core.active = Some(docs.core.tabs[0].id)));
+    cx.update(|app| docs.update(app, |docs, _| docs.core.set_active(Some(docs.core.tabs[0].id))));
     let out = dir.path().join("out");
     std::fs::create_dir(&out).expect("the folder");
     let target = |n: usize, extension: &str| out.join(format!("{source} {n}.{extension}"));
@@ -173,7 +173,7 @@ fn a_merge_keeps_its_source_when_the_tab_changes() {
         docs.update(app, |docs, cx| {
             docs.field_here("Name", cx);
             docs.preview_record(source, &table, 0, cx);
-            docs.core.active = Some(other);
+            docs.core.set_active(Some(other));
         })
     });
     let name = cx.update(|app| {
@@ -194,7 +194,7 @@ fn a_merge_keeps_its_source_when_the_tab_changes() {
     // The preview is active now; the template stays.
     cx.update(|app| {
         docs.update(app, |docs, cx| {
-            docs.core.active = Some(id);
+            docs.core.set_active(Some(id));
             assert_eq!(docs.source(cx), Some(source), "the template stays after a preview");
             assert!(docs.merge.read(cx).previews.contains(&id), "the preview is known");
         })
@@ -210,7 +210,7 @@ fn a_merge_keeps_its_source_when_the_tab_changes() {
     std::fs::create_dir(&out).expect("the folder");
     cx.update(|app| {
         docs.update(app, |docs, cx| {
-            docs.core.active = Some(other);
+            docs.core.set_active(Some(other));
             docs.generate(source, table, false, out.clone(), cx)
         })
     });
@@ -296,7 +296,7 @@ fn the_template_chosen_with_the_data_stays_through_a_preview() {
         let source = docs.source(cx).expect("the template");
         docs.preview_record(source, &table, 0, cx);
     }));
-    settle(&cx, |app| tabs(app, &docs) == 2 && docs.read(app).core.active != Some(template));
+    settle(&cx, |app| tabs(app, &docs) == 2 && docs.read(app).core.active() != Some(template));
     let out = dir.path().join("out");
     std::fs::create_dir(&out).expect("the folder");
     cx.update(|app| docs.update(app, |docs, cx| {

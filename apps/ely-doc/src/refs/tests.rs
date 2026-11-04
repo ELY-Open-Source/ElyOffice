@@ -223,7 +223,7 @@ fn a_late_dialog_read_never_replaces_a_newer_dialog() {
     cx.run_until_parked();
     assert!(cx.update(|app| docs.read(app).dialog.is_none()), "nothing pops up later");
     // A close prompt shown and cancelled meanwhile counts too.
-    let id = cx.update(|app| docs.read(app).core.active.expect("a tab"));
+    let id = cx.update(|app| docs.read(app).core.active().expect("a tab"));
     type_into(&mut cx, &docs, "edited");
     settled(&cx, &docs);
     with_window(&mut cx, &docs, |docs, window, cx| {

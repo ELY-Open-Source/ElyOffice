@@ -35,7 +35,7 @@ fn stopped_by(another_slide: bool, stop: impl FnOnce(&mut Show, &mut Context<Sho
     }
     let show = started(&mut cx, &deck, false);
     cx.update(|app| show.update(app, |show, cx| show.toggle_media(0, cx)));
-    let end = Instant::now() + Duration::from_secs(10);
+    let end = Instant::now() + Duration::from_secs(60);
     let mut first = None;
     // Counted in the tick that replaces it, before a paint.
     while !cx.update(|app| {

@@ -48,7 +48,7 @@ fn read_still(path: &Path) -> io::Result<(Fingerprint, Source)> {
             return Ok((before, Source::decode(bytes)?));
         }
     }
-    Err(io::Error::other("the file kept changing while read"))
+    Err(ely_ipc::Worded::error(io::ErrorKind::Other, "mark.error.unsettled", &[]))
 }
 
 impl Desk {
@@ -95,7 +95,7 @@ impl Desk {
                 log::warn!("mark: {} was deleted outside", path.display());
                 self.set_outside(id, Outside::Deleted, cx);
             }
-            Err(error) => self.set_outside(id, Outside::Unread(error.to_string()), cx),
+            Err(error) => self.set_outside(id, Outside::Unread(ely_ui::i18n::error(cx, &error).to_string()), cx),
         }
     }
 
@@ -129,7 +129,7 @@ impl Desk {
         }
         let read = match read {
             Ok(read) => read,
-            Err(error) => return self.set_outside(id, Outside::Unread(error.to_string()), cx),
+            Err(error) => return self.set_outside(id, Outside::Unread(ely_ui::i18n::error(cx, &error).to_string()), cx),
         };
         let seeing = path.clone();
         cx.spawn(async move |desk, cx| {

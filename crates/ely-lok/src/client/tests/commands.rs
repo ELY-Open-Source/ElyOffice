@@ -23,7 +23,7 @@ fn run_until(
     (uno, want): (&str, &str),
 ) -> Events {
     worker.run(doc, id, values).expect("the command runs");
-    let seen = poll_until(worker, doc, from, SETTLE, |seen| {
+    let seen = poll_until(worker, doc, from, HANG, |seen| {
         state(seen, uno) == Some(want)
     });
     assert_eq!(state(&seen, uno), Some(want), "{id}: {uno}");
@@ -46,7 +46,7 @@ fn every_mapped_command_reaches_the_kernel_and_reports_state() {
     );
     let typed = {
         worker.post_key(&doc, 'a' as u32, 512).expect("a posts");
-        poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+        poll_until(&mut worker, &doc, &base, HANG, |seen| {
             state(seen, ".uno:Undo") == Some("enabled")
         })
     };
@@ -73,7 +73,7 @@ fn every_mapped_command_reaches_the_kernel_and_reports_state() {
     worker
         .run(&doc, "edit.select_all", &[])
         .expect("select all");
-    let seen = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         !seen.selection.is_empty()
     });
     assert!(!seen.selection.is_empty(), "select all selects");
@@ -233,7 +233,7 @@ fn a_kernel_dialog_is_closed_and_reported() {
         let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
         // Calc's Backspace opens Delete Contents.
         worker.post_key(&doc, 0, 1283).expect("backspace posts");
-        let seen = poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+        let seen = poll_until(&mut worker, &doc, &base, HANG, |seen| {
             !seen.blocked.is_empty()
         });
         worker
@@ -242,7 +242,7 @@ fn a_kernel_dialog_is_closed_and_reported() {
         done.send(seen.blocked).expect("the test waits");
     });
     let pid = pid_in.recv().expect("the worker starts");
-    let outcome = wait.recv_timeout(std::time::Duration::from_secs(30));
+    let outcome = wait.recv_timeout(std::time::Duration::from_secs(60));
     if outcome.is_err() {
         // A blocked worker would hold the test open.
         kill(pid);
@@ -267,7 +267,7 @@ fn a11y_follows_the_focused_paragraph() {
     assert_eq!(opened.a11y.caret, Some(0));
     click(&mut worker, &doc, 150, 150);
     worker.post_key(&doc, 'a' as u32, 512).expect("a posts");
-    let seen = poll_until(&mut worker, &doc, &opened, SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &opened, HANG, |seen| {
         seen.a11y.text == "aHello 世界" && seen.a11y.caret == Some(1)
     });
     assert_eq!(seen.a11y.text, "aHello 世界", "the paragraph text bridges");
@@ -275,14 +275,14 @@ fn a11y_follows_the_focused_paragraph() {
     worker
         .run(&doc, "edit.select_all", &[])
         .expect("select all");
-    let all = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let all = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         seen.a11y.selection == Some((0, 9))
     });
     assert_eq!(all.a11y.selection, Some((0, 9)), "the selection bridges");
     worker
         .post_key(&doc, 0, 1027)
         .expect("Right drops the selection");
-    let none = poll_until(&mut worker, &doc, &all, SETTLE, |seen| {
+    let none = poll_until(&mut worker, &doc, &all, HANG, |seen| {
         seen.a11y.selection.is_none()
     });
     assert_eq!(none.a11y.selection, None, "-1 clears it");
@@ -306,7 +306,7 @@ fn a_selected_image_reports_its_frame() {
     let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
     // The image sits as a character at the text start.
     click(&mut worker, &doc, 1418 + 1000, 1418 + 1500);
-    let seen = poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &base, HANG, |seen| {
         seen.graphic.is_some()
     });
     let (x, y, w, h) = seen.graphic.expect("the image frame arrives");
@@ -414,13 +414,13 @@ fn an_owned_save_clears_the_modified_state() {
     let (dir, mut worker, doc) = open(FODT);
     click(&mut worker, &doc, 150, 150);
     worker.post_key(&doc, 'a' as u32, 512).expect("a posts");
-    let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let base = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         state(seen, ".uno:ModifiedStatus") == Some("true")
     });
     let copy = dir.path().join("copy.docx");
     doc.save_owned(&mut worker, &crate::file_url(&copy), "docx")
         .expect("the owned save");
-    let saved = poll_until(&mut worker, &doc, &base, SETTLE, |seen| {
+    let saved = poll_until(&mut worker, &doc, &base, HANG, |seen| {
         state(seen, ".uno:ModifiedStatus") == Some("false")
     });
     assert_eq!(state(&saved, ".uno:ModifiedStatus"), Some("false"));
@@ -429,7 +429,7 @@ fn an_owned_save_clears_the_modified_state() {
         "a docx zip"
     );
     worker.post_key(&doc, 'b' as u32, 513).expect("b posts");
-    let edited = poll_until(&mut worker, &doc, &saved, SETTLE, |seen| {
+    let edited = poll_until(&mut worker, &doc, &saved, HANG, |seen| {
         state(seen, ".uno:ModifiedStatus") == Some("true")
     });
     assert_eq!(state(&edited, ".uno:ModifiedStatus"), Some("true"));

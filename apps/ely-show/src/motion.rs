@@ -95,7 +95,7 @@ impl Deck {
         all: bool,
         cx: &mut Context<Self>,
     ) {
-        let Some(tab) = self.core.active.and_then(|id| self.tab_mut(id)) else {
+        let Some(tab) = self.core.active().and_then(|id| self.tab_mut(id)) else {
             return;
         };
         let (Some(mut next), Some(slide)) = (

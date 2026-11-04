@@ -150,7 +150,7 @@ fn opening_a_file_being_saved_as_focuses_the_saving_tab(cx: &mut TestAppContext)
     assert!(until_saving(&desk, id, cx), "the write runs apart from the window");
     desk.update(cx, |desk, cx| desk.open_file(target.clone(), cx));
     settle(cx);
-    let (tabs, active) = desk.read_with(cx, |desk, _| (desk.core.tabs.len(), desk.core.active));
+    let (tabs, active) = desk.read_with(cx, |desk, _| (desk.core.tabs.len(), desk.core.active()));
     assert_eq!((tabs, active), (1, Some(id)), "one editable tab per file");
     assert_eq!(std::fs::read_to_string(&target).expect("reads"), "mine\n");
 }
@@ -380,8 +380,8 @@ fn a_rename_onto_a_save_as_target_is_not_followed(cx: &mut TestAppContext) {
 ").expect("a file");
     desk.update(cx, |desk, cx| desk.open_file(other.clone(), cx));
     settle(cx);
-    let b = desk.read_with(cx, |desk, _| desk.core.active.expect("b's tab"));
-    desk.update(cx, |desk, _| desk.core.active = Some(a));
+    let b = desk.read_with(cx, |desk, _| desk.core.active().expect("b's tab"));
+    desk.update(cx, |desk, _| desk.core.set_active(Some(a)));
     edit(&desk, "mine
 ", cx);
     let to = target.clone();

@@ -2,6 +2,8 @@
 
 use std::{collections::HashMap, io, path::Path};
 
+use ely_ipc::Worded;
+
 use crate::git::Git;
 
 /// A commit as blame names it.
@@ -37,7 +39,7 @@ fn bad(line: &str) -> io::Error {
 
 pub fn parse(bytes: &[u8]) -> io::Result<Blamed> {
     let text = std::str::from_utf8(bytes)
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "the file is not UTF-8 text"))?;
+        .map_err(|_| Worded::error(io::ErrorKind::InvalidData, "tree.error.not_utf8", &[]))?;
     let mut blamed = Blamed {
         code: String::new(),
         lines: Vec::new(),

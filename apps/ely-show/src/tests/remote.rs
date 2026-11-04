@@ -41,6 +41,56 @@ fn current(cx: &mut TestAppContext, deck: &Entity<Deck>) -> Option<usize> {
     cx.update(|app| deck.read(app).active_tab().map(|tab| tab.extra.slides.current))
 }
 
+/// Reads done and the revision read, of tab `id`.
+fn reads(app: &gpui::App, deck: &Entity<Deck>, id: u64) -> (u64, Option<ely_lok::Doc>) {
+    let tab = deck.read(app).tab(id).expect("the tab");
+    (tab.extra.reads, tab.extra.read_at.clone())
+}
+
+#[test]
+fn a_hidden_deck_edited_from_outside_reads_nothing_until_shown() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = super::deck(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let path = dir.path().join("deck.fodp");
+    std::fs::write(&path, DECK).expect("writes the deck");
+    update(&mut cx, &deck, |deck, cx| deck.open_file(path.clone(), cx));
+    settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.list.len() == 2));
+    quiet(&cx, &deck);
+    let hidden = cx.update(|app| deck.read(app).core.active()).expect("a tab");
+    update(&mut cx, &deck, |deck, cx| deck.new_blank(cx));
+    settle(&cx, |app| deck.read(app).core.active() != Some(hidden));
+    quiet(&cx, &deck);
+    let before = cx.update(|app| reads(app, &deck, hidden));
+    let view = |app: &gpui::App| deck.read(app).tab(hidden).expect("the tab").view.read(app).read_at();
+    let seen = cx.update(|app| view(app));
+    let file = path.display().to_string();
+    for (find, with) in [("cat", "dog"), ("dog", "cow")] {
+        assert_eq!(ask(&mut cx, &deck, &["replace", &file, find, with]), Ok(String::new()));
+    }
+    // The hidden view takes the kernel's report first.
+    settle(&cx, |app| view(app).newer_than(&seen));
+    cx.run_until_parked();
+    // A hundred hidden decks rereading would hold the engine.
+    assert_eq!(cx.update(|app| reads(app, &deck, hidden)), before, "a hidden deck reads nothing");
+    assert!(ask(&mut cx, &deck, &["save", &file]).is_ok(), "saved");
+    let on_disk = std::fs::read_to_string(&path).expect("reads the saved deck");
+    let after = "cow Cat 世界 😀 cow\x0ccow cell\ngrouped cow";
+    assert_eq!(ely_office::remote::slide_text(on_disk.as_bytes()).ok().as_deref(), Some(after), "both edits saved");
+    update(&mut cx, &deck, |deck, cx| {
+        deck.core.set_active(Some(hidden));
+        cx.notify();
+    });
+    // Shown, it reads the state the edits left.
+    settle(&cx, |app| {
+        let (done, at) = reads(app, &deck, hidden);
+        let seen = deck.read(app).tab(hidden).expect("the tab").view.read(app).read_at();
+        done > before.0 && at.is_some_and(|at| !seen.newer_than(&at))
+    });
+}
+
 #[test]
 fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     let dir = tempfile::tempdir().expect("a temp dir");
@@ -68,7 +118,7 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok(after.into()));
     quiet(&cx, &deck);
     assert_eq!(current(&mut cx, &deck), Some(1), "the user's slide stays");
-    update(&mut cx, &deck, |deck, cx| deck.force_reread(deck.core.active.expect("a tab"), cx));
+    update(&mut cx, &deck, |deck, cx| deck.force_reread(deck.core.active().expect("a tab"), cx));
     quiet(&cx, &deck);
     assert_eq!(cx.update(|app| marked(app, &deck)), vec![0], "the selection stays");
     cx.update(|app| {
@@ -98,7 +148,7 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     assert_eq!(ask(&mut cx, &deck, &["replace", &file, " ", "\t"]), Ok(String::new()));
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok(after.replace(' ', "\t")));
     // A shape picked inside the entered group (F3): refused, unchanged.
-    let id = cx.update(|app| deck.read(app).core.active).expect("a tab");
+    let id = cx.update(|app| deck.read(app).core.active()).expect("a tab");
     // Picks by number need a read after the replaces.
     update(&mut cx, &deck, |deck, cx| deck.force_reread(id, cx));
     quiet(&cx, &deck);

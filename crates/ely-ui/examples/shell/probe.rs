@@ -16,11 +16,11 @@ pub(crate) use support::run;
 
 impl Gallery {
     fn ready(&mut self, condition: bool) -> bool {
-        if self.frames >= 100 || condition {
-            self.frames = 0;
+        let began = *self.waited.get_or_insert_with(Instant::now);
+        if condition || began.elapsed() >= Duration::from_secs(60) {
+            self.waited = None;
             return true;
         }
-        self.frames += 1;
         false
     }
 

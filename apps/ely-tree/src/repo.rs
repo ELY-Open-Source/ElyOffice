@@ -5,6 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use ely_ipc::Worded;
+
 use crate::{git::Git, running::Running};
 
 /// A work tree and its Git directory.
@@ -26,10 +28,8 @@ fn text(bytes: Vec<u8>) -> io::Result<String> {
 /// The repository holding `path`; bare ones are refused.
 pub fn open(git: &Git, path: &Path) -> io::Result<Repo> {
     if text(git.run(path, &["rev-parse", "--is-bare-repository"])?)? == "true" {
-        return Err(io::Error::new(
-            io::ErrorKind::Unsupported,
-            format!("{} is a bare repository", path.display()),
-        ));
+        let path = path.display().to_string();
+        return Err(Worded::error(io::ErrorKind::Unsupported, "tree.error.bare", &[("path", &path)]));
     }
     let root = text(git.run(path, &["rev-parse", "--show-toplevel"])?)?;
     let git_dir = text(git.run(path, &["rev-parse", "--absolute-git-dir"])?)?;
@@ -55,10 +55,8 @@ impl Git {
     /// Starts `git clone url into`; never asks on a terminal.
     pub fn clone_repo(&self, url: &str, into: &Path) -> io::Result<Running> {
         if into.exists() && std::fs::read_dir(into)?.next().is_some() {
-            return Err(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                format!("{} is not empty", into.display()),
-            ));
+            let into = into.display().to_string();
+            return Err(Worded::error(io::ErrorKind::AlreadyExists, "tree.error.not_empty", &[("path", &into)]));
         }
         let parent = into
             .parent()

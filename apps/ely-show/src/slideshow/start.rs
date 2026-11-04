@@ -143,7 +143,7 @@ impl Deck {
             let text = Deck::text(cx, "show.play.busy", &[]);
             return self.toast(text, Severity::Warning, cx);
         }
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             return;
         };
         self.show_starting = true;
@@ -176,9 +176,9 @@ impl Deck {
                     true => Some(current).filter(|at| *at < slides.len()),
                     false => slides.iter().position(|slide| !slide.hidden),
                 };
-                let Some(first) = first.filter(|_| deck.core.active == Some(id)) else {
+                let Some(first) = first.filter(|_| deck.core.active() == Some(id)) else {
                     discard(worker, doc, path, cx);
-                    if deck.core.active != Some(id) {
+                    if deck.core.active() != Some(id) {
                         log::info!("show: tab {id} is no longer shown");
                         let text = Deck::text(cx, "show.play.gone", &[]);
                         return deck.toast(text, Severity::Warning, cx);

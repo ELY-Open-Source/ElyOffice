@@ -17,7 +17,7 @@ fn empty_cells_merge() {
             tab.view.read(app).settled() && tab.view.read(app).cell().address == "E1:F1"
         })
     });
-    update(&mut cx, &book, |book, cx| book.merge(book.core.active, cx));
+    update(&mut cx, &book, |book, cx| book.merge(book.core.active(), cx));
     let path = dir.path().join("merged.fods");
     // Saves until the merge shows in the file.
     settle(&cx, |app| {

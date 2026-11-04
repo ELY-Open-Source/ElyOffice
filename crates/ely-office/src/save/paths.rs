@@ -30,7 +30,7 @@ pub(crate) fn writer<E, G: Engine>(tabs: &[Tab<E, G>], path: &Path) -> Option<u6
         Ok(same) => same.then_some(tab.id),
         // A tab's gone volume is not this file.
         Err(error) => {
-            log::warn!("office: tab {}'s target cannot be compared: {error}", tab.id);
+            log::warn!("office: tab {}'s target cannot be compared: {}", tab.id, ely_ipc::Worded::logged(&error));
             None
         }
     })

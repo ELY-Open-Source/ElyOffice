@@ -3,7 +3,7 @@
 use std::io::{self, Read};
 
 fn bad() -> io::Error {
-    io::Error::new(io::ErrorKind::InvalidData, "a damaged zip directory")
+    ely_ipc::Worded::error(io::ErrorKind::InvalidData, "office.error.damaged", &[])
 }
 
 fn u16_at(bytes: &[u8], at: usize) -> io::Result<usize> {
@@ -68,6 +68,6 @@ pub(super) fn read(bytes: &[u8], name: &str) -> io::Result<Option<Vec<u8>>> {
             flate2::read::DeflateDecoder::new(data).read_to_end(&mut out)?;
             Ok(Some(out))
         }
-        method => Err(io::Error::new(io::ErrorKind::InvalidData, format!("{name} uses zip method {method}"))),
+        method => Err(ely_ipc::Worded::error(io::ErrorKind::InvalidData, "office.error.zip_method", &[("name", name), ("method", &method.to_string())])),
     }
 }

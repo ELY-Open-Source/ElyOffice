@@ -384,3 +384,50 @@ fn only_an_installed_app_offers_a_check_and_a_click_starts_one(cx: &mut TestAppC
     };
     assert!(said.starts_with("cannot fetch http://127.0.0.1:9/none.json"), "{said}");
 }
+
+/// Fake Gits: too old, not Git, failing.
+fn fake_gits(dir: &std::path::Path) -> [std::path::PathBuf; 3] {
+    #[cfg(unix)]
+    {
+        // Committed: one written here races other tests' forks.
+        let _ = dir;
+        let fixture = |name: &str| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/git").join(name);
+        [fixture("git-2.39"), "/bin/echo".into(), fixture("git-fails")]
+    }
+    #[cfg(windows)]
+    {
+        let said = ["@echo git version 2.39.5", "@echo hello", "@echo fatal: version query failed 1>&2\r\n@exit /b 7"];
+        std::array::from_fn(|at| {
+            let path = dir.join(format!("{}.cmd", ["old", "other", "fails"][at]));
+            std::fs::write(&path, said[at]).expect("writes");
+            path
+        })
+    }
+}
+
+#[gpui::test]
+fn a_refused_git_says_why_in_chinese_and_spanish(cx: &mut TestAppContext) {
+    installed(cx);
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let settings = cx.add_window(|window, cx| SettingsView::new(AppId::Tree, window, cx));
+    for (locale, said) in [
+        ("zh-CN", ["早于 2.40", "不是 Git，它报的是", "--version 失败（"]),
+        ("es-ES", ["es anterior a 2.40", "no es Git; responde", "--version falló ("]),
+    ] {
+        cx.update(|cx| crate::i18n::install_as(locale, cx));
+        for (git, said) in fake_gits(dir.path()).iter().zip(said) {
+            settings
+                .update(cx, |view, _, cx| {
+                    let field = view.git.clone().expect("ElyTree's field");
+                    field.update(cx, |field, cx| {
+                        field.set_text(git.display().to_string(), cx);
+                        cx.emit(ely_gpui_component::forms::InputEvent::Submit);
+                    });
+                })
+                .unwrap();
+            cx.run_until_parked();
+            let shown = settings.update(cx, |view, _, _| view.git_error.clone()).unwrap();
+            assert!(shown.as_ref().is_some_and(|shown| shown.contains(said)), "{locale}: {shown:?}");
+        }
+    }
+}

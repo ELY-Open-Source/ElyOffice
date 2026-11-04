@@ -63,11 +63,11 @@ pub struct Pdf;
 /// What a tab needs; locked or empty files fail.
 fn read(worker: &mut Worker, doc: Doc, locked: bool, password: &str) -> io::Result<Loaded> {
     if locked && !worker.unlock(doc, password)? {
-        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "a password is needed"));
+        return Err(ely_ipc::Worded::error(io::ErrorKind::PermissionDenied, "pdf.error.locked", &[]));
     }
     let pages = worker.pages(doc)?;
     if pages == 0 {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "no pages to show"));
+        return Err(ely_ipc::Worded::error(io::ErrorKind::InvalidData, "pdf.error.no_pages", &[]));
     }
     let first = worker.bounds(doc, 0, pages.min(MEASURE))?;
     let (marks, mark, allowed) = (worker.outline(doc)?, worker.history(doc)?, worker.permissions(doc)?);
@@ -133,7 +133,7 @@ impl Engine for Pdf {
         worker.get()?.history(*doc)
     }
 
-    fn write(worker: &mut Mupdf, doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
+    fn write(worker: &mut Mupdf, doc: &Doc, path: &Path, format: &str, _: bool) -> io::Result<()> {
         match format {
             "pdf" => worker.get()?.save(*doc, path),
             other => Err(io::Error::new(io::ErrorKind::Unsupported, format!("writing .{other}"))),
@@ -142,7 +142,7 @@ impl Engine for Pdf {
 
     /// MuPDF's save writes a snapshot; the document is untouched.
     fn snapshot(worker: &mut Mupdf, doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
-        Self::write(worker, doc, path, format)
+        Self::write(worker, doc, path, format, false)
     }
 
     fn close(worker: &mut Mupdf, doc: Doc) -> io::Result<()> {

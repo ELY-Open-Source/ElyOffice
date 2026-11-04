@@ -18,6 +18,7 @@ ely-lok = { workspace = true, features = ["view"] }
 gpui.workspace = true
 log.workspace = true
 quick-xml.workspace = true
+ely-ipc.workspace = true
 ely-platform.workspace = true
 jiff.workspace = true
 serde = { workspace = true, features = ["derive"] }
@@ -29,6 +30,7 @@ test-support = ["ely-ui/test-support", "ely-lok/test-support"]
 
 [dev-dependencies]
 tempfile.workspace = true
+gpui = { workspace = true, features = ["test-support"] }
 ely-lok = { workspace = true, features = ["view", "test-support"] }
 
 [lints]

@@ -53,7 +53,7 @@ enum Found {
 
 impl Book {
     pub(crate) fn ask(&mut self, asked: Asked, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             return self.warn_key("command.blocked.no_document", cx);
         };
         self.ask_here(id, asked, cx);

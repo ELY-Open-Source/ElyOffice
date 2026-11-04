@@ -1,6 +1,6 @@
 //! Export, print, and the repaired copy's report (PDF-13, PDF-14).
 
-use std::{io, path::PathBuf};
+use std::path::PathBuf;
 
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant, SegmentedControl},
@@ -66,7 +66,7 @@ fn stem(name: &str) -> String {
 
 impl Viewer {
     pub fn on_export(&mut self, _: &Export, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.no_document(cx);
         };
         let how = Optimizing { compress: true, from: 300, to: 150 };
@@ -75,7 +75,7 @@ impl Viewer {
     }
 
     pub fn on_print(&mut self, _: &Print, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             return self.no_document(cx);
         };
         self.print(tab, cx);
@@ -168,12 +168,11 @@ impl Viewer {
                     crate::ask::copy_into(&work, file)
                 });
                 // A failure leaves none of this run's files.
-                if let Err(error) = &written
-                    && let Err(left) = targets.iter().try_for_each(std::fs::remove_file)
-                {
-                    return Err(io::Error::other(format!("{error}; then {left}")));
-                }
-                written.map(|()| targets.len())
+                written.map_err(|error| match targets.iter().try_for_each(std::fs::remove_file) {
+                    Ok(()) => error,
+                    Err(left) => ely_ipc::Worded::then(error, left),
+                })?;
+                Ok(targets.len())
             },
             move |viewer, done, _, cx| match done {
                 Ok(count) => {

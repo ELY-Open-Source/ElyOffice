@@ -15,7 +15,7 @@ actions!(doc, [CompareWith]);
 
 impl Docs {
     pub fn on_compare(&mut self, _: &CompareWith, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             let text = Docs::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };

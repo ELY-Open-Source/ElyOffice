@@ -247,6 +247,8 @@ pub fn outline(json: &str) -> io::Result<Vec<Bookmark>> {
 pub const ANY: u64 = u64::MAX;
 /// How a refusal for a changed document begins.
 pub const STALE: &str = "stale: ";
+/// Catalog keys the worker words its errors by.
+pub const WORDED: &[&str] = &["pdf.error.not_pdf", "pdf.error.password_changed", "pdf.error.repaired_password", "pdf.error.not_whole"];
 
 #[cfg(test)]
 mod tests {

@@ -1,0 +1,351 @@
+LOK: a save leaves an open cell edit alone
+
+PreDoSaveAs_Impl ended Calc's cell edit before every LOK save, copies
+and recovery saves included (TerminateEditing commits the input). Keys
+typed after a background save then started a new edit that replaced the
+cell. Upstream Calc keeps the edit open on its own autosave for this
+reason (ScDocShell::PrepareSaveGuard).
+
+Now a save writes the cells as entered and the edit stays open. The
+"TerminateEditing" save option enters it first, for a save that ends
+the view. An entry Calc would discard stays open and the save fails
+with a reason (TerminateEditing now says whether the edit ended), so a
+close never drops it: one its validity rule refuses (any style but a
+shown info message, which lets it in), or input a pivot table refuses
+(DataPilotInput now says whether it took the input; a rename it takes
+is entered and saved). While a cell edit holds typed text,
+LOK keeps the document modified, so a save no longer clears it. LOK
+marked it modified on the first key only; text typed through
+postExtTextInputEvent (how clients type characters) now marks it too.
+A composition that opened an edit on a cell and ends empty (an IME
+cancel) cancels the edit, as Escape does, so no later commit empties
+the cell. The modified state stays, as after a key and Escape: other
+changes may have landed meanwhile.
+
+diff --git a/desktop/source/lib/init.cxx b/desktop/source/lib/init.cxx
+index 6159f4b..2f480a2 100644
+--- a/desktop/source/lib/init.cxx
++++ b/desktop/source/lib/init.cxx
+@@ -3848,6 +3848,7 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+         // Other tokens pass verbatim: CSV options are positional.
+         std::vector<OUString> aFilteredOptionVec;
+         bool bTakeOwnership = false;
++        bool bTerminateEditing = false;
+         bool bCreateFromTemplate = false;
+         MediaDescriptor aSaveMediaDescriptor;
+         sal_Int32 nOption = aFilterOptions.isEmpty() ? -1 : 0;
+@@ -3857,6 +3858,8 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+             const OUString aKey = aOption.trim();
+             if (aKey == "TakeOwnership")
+                 bTakeOwnership = true;
++            else if (aKey == "TerminateEditing")
++                bTerminateEditing = true;
+             else if (aKey == "NoFileSync")
+                 aSaveMediaDescriptor[u"NoFileSync"_ustr] <<= true;
+             else if (aKey == "FromTemplate")
+@@ -3924,6 +3927,17 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+             aSaveMediaDescriptor[MediaDescriptor::PROP_INTERACTIONHANDLER] <<= uno::Reference<task::XInteractionHandler2>(pInteraction);
+         }
+ 
++        // Only a closing save enters the cell edit.
++        if (bTerminateEditing)
++        {
++            SfxObjectShell* pObjectShell = getSfxObjectShell(pThis);
++            if (pObjectShell && !pObjectShell->TerminateEditing())
++            {
++                SetLastExceptionMsg(u"the entry in the edited cell must be entered or cancelled first"_ustr);
++                return false;
++            }
++        }
++
+         if (bTakeOwnership)
+             xStorable->storeAsURL(aURL, aSaveMediaDescriptor.getAsConstPropertyValueList());
+         else
+diff --git a/include/sfx2/objsh.hxx b/include/sfx2/objsh.hxx
+index 4ac9045..da3bbb6 100644
+--- a/include/sfx2/objsh.hxx
++++ b/include/sfx2/objsh.hxx
+@@ -318,8 +318,8 @@ public:
+ 
+     // TODO/LATER: currently only overridden in Calc, should be made non-virtual
+     virtual bool                DoSaveCompleted( SfxMedium* pNewStor=nullptr, bool bRegisterRecent=true );
+-    /// Terminate any in-flight editing. Used before saving, primarily by Calc to commit cell changes.
+-    virtual void                TerminateEditing() {}
++    /// Ends in-flight editing; false if it stays open.
++    virtual bool                TerminateEditing() { return true; }
+ 
+     bool                        LoadOwnFormat( SfxMedium& pMedium );
+     virtual bool                SaveAsOwnFormat( SfxMedium& pMedium );
+diff --git a/sc/source/ui/app/inputhdl.cxx b/sc/source/ui/app/inputhdl.cxx
+index 7014b7d..e153b5b 100644
+--- a/sc/source/ui/app/inputhdl.cxx
++++ b/sc/source/ui/app/inputhdl.cxx
+@@ -849,6 +849,7 @@ ScInputHandler::ScInputHandler()
+         mbDocumentDisposing(false),
+         mbPartialPrefix(false),
+         mbEditingExistingContent(false),
++        mbExtInputOpened(false),
+         nValidation( 0 ),
+         eAttrAdjust( SvxCellHorJustify::Standard ),
+         aScaleX( 1,1 ),
+@@ -3219,7 +3220,11 @@ void ScInputHandler::EnterHandler( ScEnterMode nBlockMode, bool bBeforeSavingInL
+                         pSelEngine->ReleaseMouse();
+                 }
+ 
+-                if (bBeforeSavingInLOK)
++                // Only a shown info message lets an invalid entry in.
++                OUString aErrTitle, aErrMsg;
++                ScValidErrorStyle eErrStyle;
++                const bool bAccepts = pData->GetErrMsg(aErrTitle, aErrMsg, eErrStyle) && eErrStyle == SC_VALERR_INFO;
++                if (bBeforeSavingInLOK && !bAccepts)
+                 {
+                     // Invalid entry but not applied to the document model.
+                     // Exit to complete the "save", leaving the edit view as it is
+@@ -3231,17 +3236,17 @@ void ScInputHandler::EnterHandler( ScEnterMode nBlockMode, bool bBeforeSavingInL
+ 
+                 pData->DoError(
+                     pActiveViewSh->GetFrameWeld(), aString, aCursorPos,
+-                    [this, nBlockMode, aString, aPreAutoCorrectString](bool bForget)
+-                    { EnterHandler2(nBlockMode, bForget, aString, aPreAutoCorrectString); });
++                    [this, nBlockMode, aString, aPreAutoCorrectString, bBeforeSavingInLOK](bool bForget)
++                    { EnterHandler2(nBlockMode, bForget, aString, aPreAutoCorrectString, bBeforeSavingInLOK); });
+                 return;
+             }
+         }
+     }
+-    EnterHandler2(nBlockMode, false, aString, aPreAutoCorrectString);
++    EnterHandler2(nBlockMode, false, aString, aPreAutoCorrectString, bBeforeSavingInLOK);
+ }
+ 
+ void ScInputHandler::EnterHandler2(ScEnterMode nBlockMode, bool bForget, OUString aString,
+-                                   const OUString& aPreAutoCorrectString)
++                                   const OUString& aPreAutoCorrectString, bool bBeforeSavingInLOK)
+ {
+     std::unique_ptr<EditTextObject> pObject;
+     std::unique_ptr<ScPatternAttr> pCellAttrs;
+@@ -3257,7 +3262,14 @@ void ScInputHandler::EnterHandler2(ScEnterMode nBlockMode, bool bForget, OUStrin
+         {
+             // Any input within the DataPilot table is either a valid renaming
+             // or an invalid action - normal cell input is always aborted
+-            pActiveViewSh->DataPilotInput( aCursorPos, aString );
++            const bool bTaken = pActiveViewSh->DataPilotInput( aCursorPos, aString, !bBeforeSavingInLOK );
++            if (!bTaken && bBeforeSavingInLOK)
++            {
++                // Refused pivot input stays open for the user.
++                bInOwnChange = false;
++                bInEnterHandler = false;
++                return;
++            }
+             bForget = true;
+         }
+     }
+@@ -4222,6 +4234,7 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
+         {
+             if (bNewView)                           // create new edit view
+             {
++                mbExtInputOpened = eMode == SC_INPUT_NONE;
+                 pActiveViewSh->GetViewData().GetDocShell()->PostEditView(*mpEditEngine, aCursorPos);
+                 UpdateActiveView();
+                 if (eMode==SC_INPUT_NONE)
+@@ -4264,7 +4277,26 @@ void ScInputHandler::InputCommand( const CommandEvent& rCEvt )
+                 }
+             }
+ 
++            if (rCEvt.GetCommand() == CommandEventId::EndExtTextInput)
++            {
++                const bool bOpened = mbExtInputOpened;
++                mbExtInputOpened = false;
++                // A composition that opened the edit, ended empty, cancels.
++                if (bOpened && comphelper::LibreOfficeKit::isActive() && GetEditText(mpEditEngine.get()).isEmpty())
++                {
++                    CancelHandler();
++                    return;
++                }
++            }
++
+             DataChanged();              //  calls UpdateParenthesis()
++
++            // Typed text marks the document modified, as keys do.
++            const CommandExtTextInputData* pText = rCEvt.GetExtTextInputData();
++            if (comphelper::LibreOfficeKit::isActive() && pText && !pText->GetText().isEmpty()
++                && !pActiveViewSh->GetViewData().GetDocShell()->IsModified())
++                pActiveViewSh->GetViewData().GetDocShell()->SetModified();
++
+             InvalidateAttribs();        //! in DataChanged ?
+         }
+ 
+diff --git a/sc/source/ui/docshell/docsh.cxx b/sc/source/ui/docshell/docsh.cxx
+index 923a972..028d205 100644
+--- a/sc/source/ui/docshell/docsh.cxx
++++ b/sc/source/ui/docshell/docsh.cxx
+@@ -90,6 +90,7 @@
+ #include <filter.hxx>
+ #include <scmod.hxx>
+ #include <tabvwsh.hxx>
++#include <inputhdl.hxx>
+ #include <docfunc.hxx>
+ #include <imoptdlg.hxx>
+ #include <impex.hxx>
+@@ -1881,12 +1882,27 @@ void popFileName(OUString& rPath)
+     }
+ }
+ 
++/// Whether a view holds a typed cell edit.
++bool HasTypedCellEdit( const ScDocShell& rShell )
++{
++    for (SfxViewFrame* pFrame = SfxViewFrame::GetFirst(&rShell, false); pFrame;
++         pFrame = SfxViewFrame::GetNext(*pFrame, &rShell, false))
++    {
++        auto pViewSh = dynamic_cast<ScTabViewShell*>(pFrame->GetViewShell());
++        ScInputHandler* pHdl = pViewSh ? pViewSh->GetInputHandler() : nullptr;
++        if (pHdl && pHdl->IsInputMode() && pHdl->IsModified())
++            return true;
++    }
++    return false;
+ }
+ 
+-void ScDocShell::TerminateEditing()
++}
++
++bool ScDocShell::TerminateEditing()
+ {
+-    // Commit any cell changes before saving.
+-    ScModule::get()->InputEnterHandler();
++    // An entry Calc would discard stays open.
++    ScModule::get()->InputEnterHandler(ScEnterMode::NORMAL, true);
++    return !HasTypedCellEdit(*this);
+ }
+ 
+ bool ScDocShell::SaveAs( SfxMedium& rMedium )
+@@ -3048,6 +3064,9 @@ SfxUndoManager* ScDocShell::GetUndoManager()
+ 
+ void ScDocShell::SetModified( bool bModified )
+ {
++    // A typed cell edit keeps the document modified.
++    if ( !bModified && comphelper::LibreOfficeKit::isActive() && HasTypedCellEdit( *this ) )
++        return;
+     if ( SfxObjectShell::IsEnableSetModified() )
+     {
+         SfxObjectShell::SetModified( bModified );
+diff --git a/sc/source/ui/inc/dbfunc.hxx b/sc/source/ui/inc/dbfunc.hxx
+index 0a9463e..ee3295f 100644
+--- a/sc/source/ui/inc/dbfunc.hxx
++++ b/sc/source/ui/inc/dbfunc.hxx
+@@ -84,7 +84,8 @@ public:
+     void            DateGroupDataPilot( const ScDPNumGroupInfo& rInfo, sal_Int32 nParts );
+     void            NumGroupDataPilot( const ScDPNumGroupInfo& rInfo );
+     void            UngroupDataPilot();
+-    void DataPilotInput( const ScAddress& rPos, const OUString& rString );
++    /// Whether the input was taken; refused input changes nothing.
++    bool DataPilotInput( const ScAddress& rPos, const OUString& rString, bool bShowError = true );
+ 
+     void            DataPilotSort(ScDPObject* pDPObject, tools::Long nDimIndex, bool bAscending, const sal_uInt16* pUserListId = nullptr);
+     bool            DataPilotMove( const ScRange& rSource, const ScAddress& rDest );
+diff --git a/sc/source/ui/inc/docsh.hxx b/sc/source/ui/inc/docsh.hxx
+index bf76665..9ef129e 100644
+--- a/sc/source/ui/inc/docsh.hxx
++++ b/sc/source/ui/inc/docsh.hxx
+@@ -204,7 +204,7 @@ public:
+ 
+     SC_DLLPUBLIC virtual void SetVisArea( const tools::Rectangle & rVisArea ) override;
+ 
+-    virtual void    TerminateEditing() override;
++    virtual bool    TerminateEditing() override;
+ 
+     using SfxObjectShell::GetVisArea;
+     virtual tools::Rectangle GetVisArea( sal_uInt16 nAspect ) const override;
+diff --git a/sc/source/ui/inc/inputhdl.hxx b/sc/source/ui/inc/inputhdl.hxx
+index 2f3ac5c..a1025d1 100644
+--- a/sc/source/ui/inc/inputhdl.hxx
++++ b/sc/source/ui/inc/inputhdl.hxx
+@@ -108,6 +108,8 @@ private:
+     /// To indicate if there is a partial prefix completion.
+     bool                    mbPartialPrefix:1;
+     bool                    mbEditingExistingContent:1;
++    /// A composition opened this edit.
++    bool                    mbExtInputOpened:1;
+ 
+     sal_uLong                   nValidation;
+     SvxCellHorJustify       eAttrAdjust;
+@@ -204,7 +206,7 @@ public:
+     bool            KeyInput( const KeyEvent& rKEvt, bool bStartEdit );
+     void            EnterHandler( ScEnterMode nBlockMode = ScEnterMode::NORMAL, bool bBeforeSavingInLOK = false );
+     void            EnterHandler2(ScEnterMode nBlockMode, bool bForget, OUString aString,
+-                       const OUString& aPreAutoCorrectString);
++                       const OUString& aPreAutoCorrectString, bool bBeforeSavingInLOK);
+     void            CancelHandler();
+     void            SetReference( const ScRange& rRef, const ScDocument& rDoc );
+     void            AddRefEntry();
+@@ -251,6 +253,7 @@ public:
+     bool            TakesReturn() const     { return ( nTipVisible != nullptr ); }
+ 
+     void            SetModified()       { bModified = true; }
++    bool            IsModified() const  { return bModified; }
+ 
+     bool            GetSelIsRef() const     { return bSelIsRef; }
+     void            SetSelIsRef(bool bSet)  { bSelIsRef = bSet; }
+diff --git a/sc/source/ui/view/dbfunc3.cxx b/sc/source/ui/view/dbfunc3.cxx
+index b7d43f3..a8d97e0 100644
+--- a/sc/source/ui/view/dbfunc3.cxx
++++ b/sc/source/ui/view/dbfunc3.cxx
+@@ -1374,21 +1374,21 @@ static OUString lcl_replaceMemberNameInSubtotal(const OUString& rSubtotal, std::
+     return aBuf.makeStringAndClear();
+ }
+ 
+-void ScDBFunc::DataPilotInput( const ScAddress& rPos, const OUString& rString )
++bool ScDBFunc::DataPilotInput( const ScAddress& rPos, const OUString& rString, bool bShowError )
+ {
+     using namespace ::com::sun::star::sheet;
+ 
+     ScDocument& rDoc = GetViewData().GetDocument();
+     ScDPObject* pDPObj = rDoc.GetDPAtCursor( rPos.Col(), rPos.Row(), rPos.Tab() );
+     if (!pDPObj)
+-        return;
++        return false;
+ 
+     OUString aOldText = rDoc.GetString(rPos.Col(), rPos.Row(), rPos.Tab());
+ 
+     if ( aOldText == rString )
+     {
+         // nothing to do: silently exit
+-        return;
++        return true;
+     }
+ 
+     TranslateId pErrorId;
+@@ -1647,13 +1647,13 @@ void ScDBFunc::DataPilotInput( const ScAddress& rPos, const OUString& rString )
+             } // pDPs
+         } // bNeedReloadGroups
+         aFunc.UpdatePivotTable(*pDPObj, true, false);
++        return true;
+     }
+-    else
+-    {
+-        if (!pErrorId)
+-            pErrorId = STR_ERR_DATAPILOT_INPUT;
++    if (!pErrorId)
++        pErrorId = STR_ERR_DATAPILOT_INPUT;
++    if (bShowError)
+         ErrorMessage(pErrorId);
+-    }
++    return false;
+ }
+ 
+ static void lcl_MoveToEnd( ScDPSaveDimension& rDim, const OUString& rItemName )
+diff --git a/sfx2/source/doc/objstor.cxx b/sfx2/source/doc/objstor.cxx
+index 9c23ef5..84c72b3 100644
+--- a/sfx2/source/doc/objstor.cxx
++++ b/sfx2/source/doc/objstor.cxx
+@@ -3428,12 +3428,6 @@ bool SfxObjectShell::PreDoSaveAs_Impl(const OUString& rFileName, const OUString&
+         return false;
+     }
+ 
+-    if (comphelper::LibreOfficeKit::isActive())
+-    {
+-        // Before saving, commit in-flight changes.
+-        TerminateEditing();
+-    }
+-
+     // check if a "SaveTo" is wanted, no "SaveAs"
+     const SfxBoolItem* pSaveToItem = xMergedParams->GetItem<SfxBoolItem>(SID_SAVETO, false);
+     bool bCopyTo = GetCreateMode() == SfxObjectCreateMode::EMBEDDED || (pSaveToItem && pSaveToItem->GetValue());

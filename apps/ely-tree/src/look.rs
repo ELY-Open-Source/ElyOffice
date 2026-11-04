@@ -186,8 +186,9 @@ impl Tree {
             async move { blame::read(&git, &root, &path) }
         });
         cx.spawn(async move |this, cx| {
-            let read = task.await.map_err(|error| error.to_string());
+            let read = task.await;
             this.update(cx, |tree, cx| {
+                let read = read.map_err(|error| ely_ui::i18n::error(cx, &error).to_string());
                 let Some(Look::Blame {
                     serial: now,
                     read: slot,

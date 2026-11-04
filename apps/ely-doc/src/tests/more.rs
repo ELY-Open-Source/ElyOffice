@@ -57,7 +57,7 @@ fn a_local_template_with_macros_opens_in_risk_mode() {
     with_window(&mut cx, &docs, |docs, _, cx| {
         docs.new_from_file(&template, cx)
     });
-    settle(&cx, |app| docs.read(app).core.active.is_some());
+    settle(&cx, |app| docs.read(app).core.active().is_some());
     cx.update(|app| {
         assert!(
             docs.read(app).active_tab().expect("a tab").risk.is_some(),

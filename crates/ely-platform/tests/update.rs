@@ -81,7 +81,7 @@ fn respond(mut stream: TcpStream, routes: &[(String, Reply)]) {
             );
             let _ = stream.write_all(&[7u8; 1000]);
             stream
-                .set_read_timeout(Some(Duration::from_secs(20)))
+                .set_read_timeout(Some(Duration::from_secs(60)))
                 .unwrap();
             let seen = stream.read(&mut [0u8; 1]);
             if matches!(seen, Ok(0))

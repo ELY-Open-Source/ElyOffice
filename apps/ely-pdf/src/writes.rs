@@ -9,6 +9,7 @@ use ely_gpui_component::{
 };
 use ely_office::{Closing as _, Tabs as _};
 use ely_pdf_engine::{Writing, Wrote};
+use ely_ipc::Worded;
 use gpui::{
     AnyElement, App, Context, IntoElement, KeyBinding, MenuItem, ParentElement as _, Styled as _, Window, actions,
     div, img, px,
@@ -44,6 +45,16 @@ pub fn items(cx: &App) -> [MenuItem; 3] {
 /// Pixels a point in a preview.
 const PREVIEW: f32 = 2.0;
 
+/// The chosen font cannot draw `c`.
+pub(crate) fn no_glyph(c: char) -> io::Error {
+    Worded::error(io::ErrorKind::InvalidInput, "pdf.text.missing", &[("char", &c.to_string())])
+}
+
+/// The document's own font cannot write new text.
+pub(crate) fn unwritable() -> io::Error {
+    Worded::error(io::ErrorKind::InvalidInput, "pdf.text.unwritable", &[])
+}
+
 impl Viewer {
     /// Turns `tool` on, or off when it is on.
     pub(crate) fn toggle_tool(&mut self, tool: Tool, cx: &mut Context<Self>) {
@@ -58,7 +69,7 @@ impl Viewer {
 
     /// Writes the panel's text, or empties the block when `erase`.
     pub fn write_text(&mut self, erase: bool, cx: &mut Context<Self>) {
-        let (Some(tab), Some(view)) = (self.core.active, self.active_view()) else {
+        let (Some(tab), Some(view)) = (self.core.active(), self.active_view()) else {
             return;
         };
         let Some(aim) = view.read(cx).aim else {
@@ -144,8 +155,8 @@ impl Viewer {
                 "pdf.doing.write",
                 move |worker, doc| match worker.put_text(doc, page, &writing, 0.0)? {
                     Wrote::Done(mark) => Ok(mark),
-                    Wrote::Missing(c) => Err(io::Error::other(format!("the font has no {c}"))),
-                    Wrote::Unwritable => Err(io::Error::other("the document's font cannot write")),
+                    Wrote::Missing(c) => Err(no_glyph(c)),
+                    Wrote::Unwritable => Err(unwritable()),
                     Wrote::Preview(..) => Err(io::Error::other("a write came back as a preview")),
                 },
                 cx,
@@ -155,8 +166,8 @@ impl Viewer {
 
     fn failed_read(&self, what: &str, error: &io::Error, cx: &mut App) {
         log::error!("pdf: {what} failed ({:?})", error.kind());
-        let text = Self::text(cx, "pdf.failed", &[("what", &Self::text(cx, what, &[])), ("error", &error.to_string())]);
-        self.toast(text, Severity::Danger, cx);
+        let text = Self::text(cx, "pdf.failed", &[("what", &Self::text(cx, what, &[])), ("error", &ely_ui::i18n::error(cx, error))]);
+        self.toast_unlogged(text, Severity::Danger, cx);
     }
 
     /// The aimed object: its page and index.

@@ -139,7 +139,7 @@ impl Desk {
                 log::warn!("mark: tab {id}'s file went onto {other}");
                 Some(crate::outside::Outside::Deleted)
             }
-            Err(error) => Some(crate::outside::Outside::Unread(error.to_string())),
+            Err(error) => Some(crate::outside::Outside::Unread(ely_ui::i18n::error(cx, &error).to_string())),
         };
         if let Some(lost) = lost {
             self.set_outside(id, lost, cx);

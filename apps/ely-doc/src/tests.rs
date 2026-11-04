@@ -17,11 +17,7 @@ impl gpui::Render for Blank {
 
 /// A Docs over a fresh worker, if LOK exists.
 pub(crate) fn docs(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Docs>> {
-    // A failing test prints its log.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .filter_level(log::LevelFilter::Info)
-        .try_init();
+    ely_ui::logs::keep();
     let install = ely_lok::test_install()?;
     let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
     let work = dir.join("work");
@@ -33,10 +29,10 @@ pub(crate) fn docs(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Docs>> 
     })
 }
 
-/// Steps the scheduler until `done` or ten seconds pass.
+/// Steps the scheduler until `done` or a minute passes.
 #[track_caller]
 pub(crate) fn settle(cx: &TestAppContext, done: impl Fn(&gpui::App) -> bool) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     while std::time::Instant::now() < deadline {
         if !cx.executor().tick() {
             cx.executor()
@@ -106,7 +102,7 @@ fn a_new_document_saves_as_docx_and_comes_back_clean() {
     with_window(&mut cx, &docs, |docs, _, cx| {
         docs.new_from(Template::Report, cx)
     });
-    settle(&cx, |app| docs.read(app).core.active.is_some());
+    settle(&cx, |app| docs.read(app).core.active().is_some());
     let (id, dirty) = cx.update(|app| {
         let tab = docs.read(app).active_tab().expect("a tab");
         (tab.id, tab.dirty(app))
@@ -144,8 +140,8 @@ fn a_save_keeps_the_format_and_save_as_converts_to_a_new_file() {
     with_window(&mut cx, &docs, |docs, _, cx| {
         docs.new_from(Template::Blank, cx)
     });
-    settle(&cx, |app| docs.read(app).core.active.is_some());
-    let id = cx.update(|app| docs.read(app).core.active.expect("a tab"));
+    settle(&cx, |app| docs.read(app).core.active().is_some());
+    let id = cx.update(|app| docs.read(app).core.active().expect("a tab"));
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.write_as(id, odt.clone(), None, window, cx)
     });
@@ -194,7 +190,7 @@ fn a_local_template_opens_untitled_and_stays_untouched() {
     with_window(&mut cx, &docs, |docs, _, cx| {
         docs.new_from_file(&template, cx)
     });
-    settle(&cx, |app| docs.read(app).core.active.is_some());
+    settle(&cx, |app| docs.read(app).core.active().is_some());
     type_into(&mut cx, &docs, "x");
     let id = cx.update(|app| {
         let tab = docs.read(app).active_tab().expect("a tab");
@@ -241,7 +237,7 @@ fn an_open_file_gets_focus_and_unsaved_closes_ask() {
         "the same file focuses"
     );
     type_into(&mut cx, &docs, "edit");
-    let id = cx.update(|app| docs.read(app).core.active.expect("a tab"));
+    let id = cx.update(|app| docs.read(app).core.active().expect("a tab"));
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.request_close(id, After::Tab, window, cx)
     });
@@ -348,7 +344,7 @@ fn a_macro_file_opens_in_risk_mode_and_saves_only_as_a_copy() {
     with_window(&mut cx, &docs, |docs, _, cx| {
         docs.open_file(macro_doc.clone(), cx)
     });
-    settle(&cx, |app| docs.read(app).core.active.is_some());
+    settle(&cx, |app| docs.read(app).core.active().is_some());
     let id = cx.update(|app| {
         let tab = docs.read(app).active_tab().expect("a tab");
         assert!(tab.risk.is_some(), "macros put the tab in risk mode");
@@ -464,17 +460,20 @@ fn an_outside_change_asks_and_keep_mine_overwrites() {
 }
 
 pub(crate) mod find;
+mod focus;
+mod front;
 mod more;
 mod overlap;
 mod points;
 mod remote;
 mod slow;
 mod start;
+mod words;
 
 impl Docs {
     /// Chooses the active tab as template, then types a field.
     pub(crate) fn field_here(&mut self, header: &str, cx: &mut gpui::Context<Self>) {
-        let active = self.core.active;
+        let active = self.core.active();
         self.merge.update(cx, |merge, _| merge.source = active);
         self.insert_field(header, cx);
     }

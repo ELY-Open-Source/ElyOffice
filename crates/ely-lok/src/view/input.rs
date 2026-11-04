@@ -1,7 +1,7 @@
 //! Keys, mouse, IME and clipboard for LokView (LOK-06, LOK-07).
 
 use ely_gpui_component::secondary;
-use std::{io, sync::Mutex, time::Instant};
+use std::{io, time::Instant};
 
 use ely_platform::clipboard;
 use gpui::{
@@ -203,10 +203,9 @@ fn lok_button(button: MouseButton) -> Option<i32> {
 }
 
 /// Runs one input; gives a copy's mark and the revision.
-pub(super) fn run(worker: &Mutex<Worker>, doc: &Doc, input: Input) -> (io::Result<Option<Back>>, Option<u64>) {
-    let mut worker = worker.lock().expect("the worker lock");
+pub(super) fn run(worker: &mut Worker, doc: &Doc, input: Input) -> (io::Result<Option<Back>>, Option<u64>) {
     let counts = !matches!(input, Input::Visible(..));
-    let copied = apply(&mut worker, doc, input);
+    let copied = apply(worker, doc, input);
     // A failed input may have moved the revision too.
     let now = match counts {
         true => worker.now(doc).inspect_err(|error| log::warn!("lok: revision unread: {error}")).ok().map(|now| now.rev),

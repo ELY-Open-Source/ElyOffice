@@ -37,9 +37,10 @@ pub trait Saving: Host {
         Ok(writer(&self.core().tabs, &target))
     }
 
-    /// A save as refused unwritten; a waiting close stops.
-    fn refuse_save(&mut self, then: &Option<After>, words: gpui::SharedString, cx: &mut Context<Self>) {
-        self.toast(words, Severity::Danger, cx);
+    /// A save as refused unwritten; logs `why`, never the words.
+    fn refuse_save(&mut self, then: &Option<After>, why: &str, words: gpui::SharedString, cx: &mut Context<Self>) {
+        log::warn!("{}: save as refused: {why}", Self::KIND.app.slug());
+        self.toast_unlogged(words, Severity::Danger, cx);
         if then.is_some() {
             self.close_stopped(cx);
         }
@@ -157,24 +158,24 @@ pub trait Saving: Host {
         };
         let name = tab.name.clone();
         let unsaved = |error: io::Error, cx: &mut Context<Self>| {
-            text(cx, "office.error.save", &[("name", &name), ("error", &error.to_string())])
+            text(cx, "office.error.save", &[("name", &name), ("error", &ely_ui::i18n::error(cx, &error))])
         };
         let target = match identity(&path) {
             Ok(target) => target,
-            Err(error) => return self.refuse_save(&then, unsaved(error, cx), cx),
+            Err(error) => return self.refuse_save(&then, &ely_ipc::Worded::logged(&error), unsaved(error, cx), cx),
         };
         let Some(format) = files::save_as_format(&Self::KIND, &target) else {
             let formats = Self::KIND.save_as.join(", .");
             let text = text(cx, "office.error.format", &[("formats", &formats)]);
-            return self.refuse_save(&then, text, cx);
+            return self.refuse_save(&then, "no format it writes", text, cx);
         };
         let holder = match self.holder(&target) {
             Ok(holder) => holder,
-            Err(error) => return self.refuse_save(&then, unsaved(error, cx), cx),
+            Err(error) => return self.refuse_save(&then, &ely_ipc::Worded::logged(&error), unsaved(error, cx), cx),
         };
         if holder.is_some_and(|other| other != id) {
             let text = text(cx, "office.error.taken", &[("name", &file_name(&target))]);
-            return self.refuse_save(&then, text, cx);
+            return self.refuse_save(&then, "the target is open in another tab", text, cx);
         }
         let own_format = tab
             .session
@@ -182,7 +183,7 @@ pub trait Saving: Host {
             .and_then(|open| files::kept_format(&Self::KIND, open).ok());
         if holder == Some(id) && (tab.risk.is_some() || own_format != Some(format)) {
             let text = text(cx, "office.error.convert", &[]);
-            return self.refuse_save(&then, text, cx);
+            return self.refuse_save(&then, "it would convert the open file", text, cx);
         }
         // The written file differs from the open one; reopen it.
         let reopen =
@@ -201,11 +202,12 @@ pub trait Saving: Host {
             // Never two editable tabs on one file.
             Ok(Open::Focus(other)) => {
                 log::error!("office: tab {id} saved onto session {other}'s file");
-                Err(text(cx, "office.error.taken", &[("name", &file_name(&done.path))]))
+                let name = file_name(&done.path);
+                Err(ely_ipc::Worded::error(io::ErrorKind::Other, "office.error.taken", &[("name", &name)]))
             }
             Err(error) => {
-                log::error!("office: tab {id}'s saved file cannot be matched: {error}");
-                Err(error.to_string().into())
+                log::error!("office: tab {id}'s saved file cannot be matched: {}", ely_ipc::Worded::logged(&error));
+                Err(error)
             }
         };
         // Ely's writes carry no signatures; macros may stay.
@@ -223,7 +225,7 @@ pub trait Saving: Host {
             Err(taken) => {
                 (tab.registry, tab.session) = (None, ely_files::Session::new_file());
                 tab.session.edit();
-                return Err(io::Error::other(taken.to_string()));
+                return Err(taken);
             }
         };
         tab.registry = Some(registry);
@@ -389,8 +391,14 @@ pub trait Saving: Host {
         let name = self.tab(id).map(|tab| tab.name.clone()).unwrap_or_default();
         let error = match saved {
             Ok(_) => return,
-            Err(SaveError::Refused(state)) => state.to_string(),
-            Err(SaveError::Io(error)) => error.to_string(),
+            Err(SaveError::Refused(state)) => {
+                log::warn!("{}: tab {id} save refused: {state}", Self::KIND.app.slug());
+                state.to_string()
+            }
+            Err(SaveError::Io(error)) => {
+                log::warn!("{}: tab {id} save failed: {}", Self::KIND.app.slug(), ely_ipc::Worded::logged(&error));
+                ely_ui::i18n::error(cx, &error).to_string()
+            }
             Err(SaveError::Conflict) => {
                 let text = text(cx, "office.error.conflict", &[("name", &name)]);
                 return self.toast(text, Severity::Danger, cx);
@@ -404,7 +412,7 @@ pub trait Saving: Host {
             "office.error.save",
             &[("name", &name), ("error", &error)],
         );
-        self.toast(text, Severity::Danger, cx);
+        self.toast_unlogged(text, Severity::Danger, cx);
         cx.notify();
     }
 }

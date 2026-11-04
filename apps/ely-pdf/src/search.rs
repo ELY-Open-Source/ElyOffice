@@ -48,7 +48,7 @@ impl Viewer {
     }
 
     pub fn open_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             let text = Self::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };
@@ -181,7 +181,7 @@ impl Viewer {
 
     /// The find box over the pages, while open.
     pub fn find_bar(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let find = self.find.as_ref().filter(|find| Some(find.tab) == self.core.active)?;
+        let find = self.find.as_ref().filter(|find| Some(find.tab) == self.core.active())?;
         let view = self.view_of(find.tab)?;
         let (chosen, count) = (view.read(cx).chosen, view.read(cx).found.len());
         let (step, close) = (cx.entity(), cx.entity());

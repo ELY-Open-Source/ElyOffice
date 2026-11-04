@@ -38,7 +38,7 @@ impl Desk {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             let said = text(cx, "command.blocked.no_document", &[]);
             return self.toast(said, Severity::Warning, cx);
         };
@@ -181,7 +181,7 @@ impl Desk {
         let find = self
             .finding
             .as_ref()
-            .filter(|find| Some(find.tab) == self.core.active)?;
+            .filter(|find| Some(find.tab) == self.core.active())?;
         let this = cx.entity();
         let mut widget = FindWidget::new("mark-find", &find.query, find.current, find.hits.len())
             .options(find.options)

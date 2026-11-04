@@ -237,7 +237,7 @@ impl Deck {
     }
 
     fn delete_remark(&mut self, id: &str, cx: &mut Context<Self>) {
-        if let Some(tab) = self.core.active {
+        if let Some(tab) = self.core.active() {
             self.active_remark = None;
             self.run_in(Some(tab), "remark.delete", &[id], cx);
             self.force_reread(tab, cx);

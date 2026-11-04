@@ -6,7 +6,8 @@ use ely_files::{Done, SaveError, Stamp, Write};
 use gpui::{AppContext as _, Context, TaskExt as _, Window};
 
 use super::{Saving, gone};
-use crate::{After, Closing as _, Engine, Risk, Tabs as _, Waiting, files, in_window};
+use crate::files::{self, file_name};
+use crate::{After, Closing as _, Engine, Risk, Tabs as _, Waiting, in_window};
 
 /// Where an export's bytes go.
 pub(super) enum Target {
@@ -43,6 +44,8 @@ pub(super) fn export<H: Saving>(
     tab.exporting = true;
     let (work, view, stamp) = (tab.work.clone(), tab.view.clone(), tab.session.stamp());
     let edited = H::Engine::edited(view.read(cx));
+    // Other saves leave an open edit as it is.
+    let closing = then.is_some();
     cx.notify();
     let sound = !matches!(target, Target::As(..));
     host.read_in(
@@ -51,7 +54,7 @@ pub(super) fn export<H: Saving>(
             if sound && let Some(risk) = H::Engine::unsound(worker, doc)? {
                 return Ok(Err(risk));
             }
-            let bytes = files::kernel_bytes::<H::Engine>(worker, doc, &work, format)?;
+            let bytes = files::kernel_bytes::<H::Engine>(worker, doc, &work, format, closing)?;
             Ok(Ok((bytes, H::Engine::history(worker, doc)?)))
         },
         move |host, read, window, cx| {
@@ -88,7 +91,8 @@ fn write<H: Saving>(
         // Another tab may have taken the target meanwhile.
         match host.holder(path) {
             Ok(Some(other)) if other != id => {
-                let taken = io::Error::other(format!("{} is open in another tab", path.display()));
+                let name = file_name(path);
+                let taken = ely_ipc::Worded::error(io::ErrorKind::Other, "office.error.taken", &[("name", &name)]);
                 return ended(host, id, Err(SaveError::Io(taken)), landing, window, cx);
             }
             Err(error) => return ended(host, id, Err(SaveError::Io(error)), landing, window, cx),

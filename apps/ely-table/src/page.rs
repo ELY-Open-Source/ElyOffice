@@ -123,7 +123,7 @@ fn span(text: &str, number: fn(&str) -> Option<u32>) -> Option<Option<Span>> {
 
 impl Book {
     pub(crate) fn ask_page(&mut self, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             return self.warn_key("command.blocked.no_document", cx);
         };
         if !self.settled(id, cx) {
@@ -204,7 +204,7 @@ impl Book {
 
     /// Removes the cursor's break; none says so.
     fn remove_break(&mut self, row: bool, cx: &mut Context<Self>) {
-        let Some(id) = self.core.active else {
+        let Some(id) = self.core.active() else {
             return self.warn_key("command.blocked.no_document", cx);
         };
         if !self.settled(id, cx) {

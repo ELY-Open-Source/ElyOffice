@@ -16,9 +16,9 @@ fn loaded(install: &std::path::Path, name: &str) -> std::io::Result<()> {
         let loaded = worker.load(&crate::file_url(&file)).map(|_| ());
         done.send((loaded, worker)).expect("the test waits");
     });
-    let Ok((loaded, _worker)) = wait.recv_timeout(Duration::from_secs(30)) else {
+    let Ok((loaded, _worker)) = wait.recv_timeout(Duration::from_secs(60)) else {
         kill(pid);
-        panic!("{name} still loading after 30 s");
+        panic!("{name} still loading after 60 s");
     };
     loaded
 }

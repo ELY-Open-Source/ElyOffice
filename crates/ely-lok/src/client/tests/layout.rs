@@ -68,7 +68,7 @@ fn page_setup_lands_and_reports() {
         (".uno:AttributePage", "true,0,4"),
         (".uno:AttributePageSize", "29700 x 21001"),
     ];
-    let seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         want.iter()
             .all(|(uno, value)| state(seen, uno) == Some(*value))
     });
@@ -104,7 +104,7 @@ fn headers_footers_and_sections_land() {
         (".uno:SwPageFooterItem", "true"),
         (".uno:SwPageHeaderLayout", "3"),
     ];
-    let seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         want.iter()
             .all(|(uno, value)| state(seen, uno) == Some(*value))
     });
@@ -112,7 +112,7 @@ fn headers_footers_and_sections_land() {
         assert_eq!(state(&seen, uno), Some(value), "{uno}");
     }
     run(&mut worker, &doc, "page.section", &["3", "Landscape"]);
-    let section = poll_until(&mut worker, &doc, &seen, SETTLE, |seen| {
+    let section = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
         state(seen, ".uno:PageStyleName") == Some("Landscape")
     });
     assert_eq!(state(&section, ".uno:PageStyleName"), Some("Landscape"));
@@ -151,7 +151,7 @@ fn tables_edit_and_land() {
     worker.post_key(&doc, 0, 1029).expect("end");
     worker.post_key(&doc, 13, 1280).expect("enter");
     run(&mut worker, &doc, "table.insert", &["3", "2"]);
-    let inside = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let inside = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         state(seen, ".uno:DeleteTable") == Some("enabled")
     });
     assert_eq!(
@@ -178,7 +178,7 @@ fn tables_edit_and_land() {
     ] {
         run(&mut worker, &doc, id, &values);
     }
-    let repeated = poll_until(&mut worker, &doc, &inside, SETTLE, |seen| {
+    let repeated = poll_until(&mut worker, &doc, &inside, HANG, |seen| {
         state(seen, ".uno:HeadingRowsRepeat") == Some("true")
     });
     assert_eq!(state(&repeated, ".uno:HeadingRowsRepeat"), Some("true"));
@@ -222,7 +222,7 @@ fn images_insert_scale_wrap_crop_and_stack() {
         (".uno:SetAnchorToPara", "true"),
         (".uno:WrapThrough", "true"),
     ];
-    let framed = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let framed = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         want.iter()
             .all(|(uno, value)| state(seen, uno) == Some(*value))
     });
@@ -231,11 +231,11 @@ fn images_insert_scale_wrap_crop_and_stack() {
     }
     let (x, y, w, h) = framed.graphic.expect("the image is selected");
     worker.post_key(&doc, 0, 1281).expect("escape");
-    let cleared = poll_until(&mut worker, &doc, &framed, SETTLE, |seen| {
+    let cleared = poll_until(&mut worker, &doc, &framed, HANG, |seen| {
         seen.graphic.is_none()
     });
     click(&mut worker, &doc, x + w / 2, y + h / 2);
-    let picked = poll_until(&mut worker, &doc, &cleared, SETTLE, |seen| {
+    let picked = poll_until(&mut worker, &doc, &cleared, HANG, |seen| {
         seen.graphic.is_some()
     });
     assert!(picked.graphic.is_some(), "the click selects the image");
@@ -373,7 +373,7 @@ fn a_section_keeps_its_own_page_style() {
     run(&mut worker, &doc, "page.columns", &["2"]);
     run(&mut worker, &doc, "footer.on", &["true"]);
     run(&mut worker, &doc, "footer.layout", &["2"]);
-    let seen = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
         state(seen, ".uno:SwPageFooterLayout") == Some("2")
     });
     assert_eq!(state(&seen, ".uno:PageStyleName"), Some("Section 2"));

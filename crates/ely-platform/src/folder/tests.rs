@@ -108,7 +108,7 @@ fn the_folder_in_use_calls_off_a_move_and_unfit_ones_are_refused() {
     std::fs::create_dir_all(away.join(NAME)).expect("a folder");
     std::fs::write(away.join(NAME).join("notes.txt"), b"mine").expect("a note");
     let other = choose_in(&home, &away).expect_err("not Ely's");
-    assert!(other.to_string().contains("not Ely's"), "{other}");
+    assert_eq!(other.to_string(), "settings.storage.not_ely");
     assert_eq!(read(&home).expect("read").next, None);
 }
 
@@ -299,7 +299,7 @@ fn a_link_into_the_data_folder_is_refused() {
     std::fs::write(home.join("ely-mail/settings.json"), b"{}").expect("its settings");
     link(&home.join("ely-mail"), &away.join(NAME));
     let inside = choose_in(&home, &away).expect_err("inside");
-    assert!(inside.to_string().contains("inside the data folder"), "{inside}");
+    assert_eq!(inside.to_string(), "settings.storage.inside");
     assert_eq!(read(&home).expect("read").next, None);
 }
 

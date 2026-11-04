@@ -103,7 +103,7 @@ pub fn bind(root: Div, cx: &mut Context<Book>) -> Div {
     let root = run!(root, cx, HideColumns, "columns.hide");
     let root = run!(root, cx, ShowColumns, "columns.show");
     let root = run!(root, cx, Freeze, "view.freeze");
-    root.on_action(cx.listener(|book, _: &Merge, _, cx| book.merge(book.core.active, cx)))
+    root.on_action(cx.listener(|book, _: &Merge, _, cx| book.merge(book.core.active(), cx)))
         .on_action(cx.listener(|book, _: &RowHeight, window, cx| book.ask_size(false, window, cx)))
         .on_action(cx.listener(|book, _: &ColumnWidth, window, cx| book.ask_size(true, window, cx)))
 }
@@ -151,7 +151,7 @@ impl Book {
     }
 
     pub(crate) fn ask_size(&mut self, column: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.core.active else {
+        let Some(tab) = self.core.active() else {
             let text = Book::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, ely_gpui_component::primitives::Severity::Warning, cx);
         };

@@ -14,7 +14,7 @@ from gi.repository import Atspi  # noqa: E402
 R = Atspi.Role
 SYM = Atspi.KeySynthType.SYM
 CONTROL, ENTER = 0xFFE3, 0xFF0D
-KEYS = {"pagedown": 0xFF56, "tab": 0xFF09}
+KEYS = {"pagedown": 0xFF56, "tab": 0xFF09, "escape": 0xFF1B}
 # When the last input left, for bench.py to time from.
 SENT = []
 

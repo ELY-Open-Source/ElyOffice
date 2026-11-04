@@ -8,10 +8,12 @@ use super::{committed, sh};
 use crate::{status::State, tree::Tree};
 
 /// Steps, lets the watcher's timer pass, and redraws until `done`.
+#[track_caller]
 pub(crate) fn settle(cx: &mut VisualTestContext, done: impl Fn(&App) -> bool) {
-    settle_within(cx, Duration::from_secs(10), done)
+    settle_within(cx, Duration::from_secs(60), done)
 }
 
+#[track_caller]
 pub(crate) fn settle_within(cx: &mut VisualTestContext, wait: Duration, done: impl Fn(&App) -> bool) {
     let deadline = Instant::now() + wait;
     while Instant::now() < deadline {

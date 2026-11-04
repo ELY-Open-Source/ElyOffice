@@ -116,3 +116,21 @@ fn a_wrong_owner_try_on_aes_128_keeps_the_text_readable() {
     let text: String = worker.text(doc, 0).expect("reads").iter().map(|c| c.c).collect();
     assert_eq!(text.trim(), "Hello");
 }
+
+#[test]
+fn a_file_now_under_another_password_says_so_by_key() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let out = locked(dir.path(), may::PRINT);
+    let other = dir.path().join("other");
+    std::fs::create_dir(&other).expect("a folder");
+    let (mut maker, made) = plain(&other);
+    let swapped = other.join("swapped.pdf");
+    let lock = Lock { user: "other".into(), owner: "owner".into(), allow: may::PRINT };
+    maker.protect(made, &swapped, Some(&lock)).expect("protects");
+    let mut worker = worker();
+    let doc = worker.open(&out).expect("opens").doc;
+    assert!(worker.unlock(doc, "user").expect("tries"));
+    let refused = worker.signatures(doc, &swapped).expect_err("another password");
+    let worded = refused.get_ref().and_then(|inner| inner.downcast_ref::<ely_ipc::Worded>()).expect("worded across the pipe");
+    assert_eq!(worded.key, "pdf.error.password_changed");
+}

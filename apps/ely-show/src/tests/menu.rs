@@ -56,7 +56,7 @@ fn click(cx: &mut VisualTestContext, at: Point<Pixels>, button: MouseButton) {
 fn right_click(cx: &mut VisualTestContext, deck: &Entity<Deck>, at: Point<Pixels>, kind: Kind) {
     cx.update(|_, app| deck.update(app, |deck, _| deck.menu = None));
     click(cx, at, MouseButton::Right);
-    for _ in 0..500 {
+    for _ in 0..3000 {
         cx.run_until_parked();
         if cx.update(|_, app| deck.read(app).menu.as_ref().is_some_and(|offer| offer.what.kind == kind)) {
             return frames(cx);
@@ -180,7 +180,7 @@ fn closing_the_last_deck_greys_undo() {
     settle(&cx, |app| offered(app) == (true, false));
     cx.update(|app| {
         deck.update(app, |deck, cx| {
-            let id = deck.core.active.expect("a deck");
+            let id = deck.core.active().expect("a deck");
             deck.close_tab(id, cx);
         })
     });

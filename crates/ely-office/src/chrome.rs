@@ -5,13 +5,13 @@ use ely_gpui_component::{
     navigation::{EditorTab, EditorTabs},
     primitives::Severity,
 };
-use gpui::{Context, SharedString};
+use gpui::{Context, SharedString, Window};
 
 use crate::{After, Closing, Engine, Host, Tabs, text};
 
 /// A tab switch: the one behind stops drawing.
 pub(crate) fn follow_front<H: Host>(host: &mut H, cx: &mut Context<H>) {
-    let front = host.core().active;
+    let front = host.core().active();
     let behind = std::mem::replace(&mut host.core_mut().shown, front);
     if behind == front {
         return;
@@ -39,12 +39,9 @@ pub trait Chrome: Host {
         let tabs = EditorTabs::new("office-tabs", open.chain(loading).collect::<Vec<_>>())
             .on_select({
                 let this = this.clone();
-                move |id, _, cx| {
+                move |id, window, cx| {
                     let id = id.parse().expect("tab ids are numbers");
-                    this.update(cx, |host, cx| {
-                        host.core_mut().active = Some(id);
-                        cx.notify();
-                    });
+                    this.update(cx, |host, cx| host.show_tab(id, window, cx));
                 }
             })
             .on_close(move |id, window, cx| {
@@ -53,10 +50,20 @@ pub trait Chrome: Host {
                     host.request_close(id, After::Tab, window, cx)
                 });
             });
-        match core.active {
+        match core.active() {
             Some(id) => tabs.selected(id.to_string()),
             None => tabs,
         }
+    }
+
+    /// The tab the user picked comes forward with the keys.
+    fn show_tab(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
+        self.core_mut().set_active(Some(id));
+        if let Some(tab) = self.active_tab() {
+            log::info!("{}: tab {id} picked", Self::KIND.app.slug());
+            window.focus(&<Self::Engine as Engine>::focus(tab.view.read(cx)), cx);
+        }
+        cx.notify();
     }
 
     /// The macro warning over a risky document (LOK-11).
