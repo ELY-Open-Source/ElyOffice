@@ -406,4 +406,5 @@ mod remote;
 mod output;
 mod protect;
 mod rules;
+mod sources;
 mod undo;

@@ -12,11 +12,13 @@ anyhow.workspace = true
 directories.workspace = true
 encoding_rs.workspace = true
 flate2.workspace = true
+futures.workspace = true
 ely-files.workspace = true
 ely-gpui-component.workspace = true
 ely-lok = { workspace = true, features = ["view"] }
 gpui.workspace = true
 log.workspace = true
+notify.workspace = true
 quick-xml.workspace = true
 ely-ipc.workspace = true
 ely-platform.workspace = true

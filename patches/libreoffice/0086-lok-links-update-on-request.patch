@@ -1,0 +1,429 @@
+LOK: links update when the client asks, each failure named
+
+LOK loads without an update mode, so Calc and Writer never read a
+linked source; the only way to update was the "Allow updating" bar,
+which LOK has none of. Ely shows the saved values and offers the
+update (LOK-11).
+- .uno:ElyUpdateLinks allows link updates for the document and reads
+  every link again; the answer lists the sources not read; no dialog.
+  Calc: a linked sheet or area is read only when its file loads and
+  holds every sheet or range it copies; otherwise it is named and its
+  saved cells stay (Calc would overwrite them with "The link could not
+  be updated" or nothing). ScAreaLink::FindExtRange is public for this.
+  A whole-CSV area (CSV_all) is read only when the CSV has cells.
+  A DDE or WEBSERVICE link that fails is named;
+  sources no formula has read yet are linked first, then the external
+  references read. Calc's own "Allow updating" path is unchanged.
+  Writer updates each link of the link manager.
+- Under LOK, Calc's refresh timers (a link's "Update every n seconds")
+  never start: only the client's request reads linked data, so an
+  unread source is not overwritten later and a later save waits.
+  The interval itself is kept and saved.
+- Writer skips a file link whose file is missing: a linked section
+  would empty itself and keep nothing.
+- Calc read a source from any open document of that URL, the hidden
+  copy another book loaded for its own link included: an update then
+  showed that copy's old values. Such copies are skipped.
+- .uno:ExternalLinks in Writer lists the files and DDE servers the
+  links read. Calc's lists the file it reads: a relative link
+  follows the book.
+
+diff --git a/sc/inc/arealink.hxx b/sc/inc/arealink.hxx
+index cc5b6f8..6465d57 100644
+--- a/sc/inc/arealink.hxx
++++ b/sc/inc/arealink.hxx
+@@ -38,7 +38,6 @@ private:
+     bool            bAddUndo;
+     bool            bInCreate;
+     bool            bDoInsert;      // is set to FALSE for first update
+-    static bool FindExtRange( ScRange& rRange, const ScDocument& rSrcDoc, const OUString& rAreaName );
+ 
+ public:
+     SC_DLLPUBLIC ScAreaLink( ScDocShell& rShell, OUString aFile,
+@@ -64,6 +63,7 @@ public:
+     bool IsEqual( std::u16string_view rFile, std::u16string_view rFilter, std::u16string_view rOpt,
+                   std::u16string_view rSource, const ScRange& rDest ) const;
+ 
++    static bool FindExtRange( ScRange& rRange, const ScDocument& rSrcDoc, const OUString& rAreaName );
+     const OUString& GetFile() const         { return aFileName;     }
+     const OUString& GetFilter() const       { return aFilterName;   }
+     const OUString& GetOptions() const      { return aOptions;      }
+diff --git a/sc/source/core/tool/refreshtimer.cxx b/sc/source/core/tool/refreshtimer.cxx
+index 1ad6734..2e5b84b 100644
+--- a/sc/source/core/tool/refreshtimer.cxx
++++ b/sc/source/core/tool/refreshtimer.cxx
+@@ -19,6 +19,7 @@
+ 
+ #include <refreshtimer.hxx>
+ #include <refreshtimerprotector.hxx>
++#include <comphelper/lok.hxx>
+ 
+ void ScRefreshTimerControl::SetAllowRefresh( bool b )
+ {
+@@ -133,7 +134,8 @@ void ScRefreshTimer::Invoke()
+ 
+ void ScRefreshTimer::Launch()
+ {
+-    if ( GetTimeout() )
++    // Under LOK only the client's request reads data.
++    if ( GetTimeout() && !comphelper::LibreOfficeKit::isActive() )
+         AutoTimer::Start();
+ }
+ 
+diff --git a/sc/inc/document.hxx b/sc/inc/document.hxx
+index 7230b67..3f659f4 100644
+--- a/sc/inc/document.hxx
++++ b/sc/inc/document.hxx
+@@ -1110,7 +1110,8 @@ public:
+     ScFormulaParserPool& GetFormulaParserPool() const;
+ 
+     bool            HasAreaLinks() const;
+-    void            UpdateExternalRefLinks(weld::Window* pWin);
++    /// With pFailed, each source not read goes there, no dialog.
++    void            UpdateExternalRefLinks(weld::Window* pWin, std::vector<OUString>* pFailed = nullptr);
+     void            UpdateAreaLinks();
+ 
+                     // originating DDE links
+diff --git a/sc/source/core/data/documen8.cxx b/sc/source/core/data/documen8.cxx
+index 3dfa335..e16265d 100644
+--- a/sc/source/core/data/documen8.cxx
++++ b/sc/source/core/data/documen8.cxx
+@@ -793,7 +793,7 @@ bool ScDocument::IsInLinkUpdate() const
+     return bInLinkUpdate || IsInDdeLinkUpdate();
+ }
+ 
+-void ScDocument::UpdateExternalRefLinks(weld::Window* pWin)
++void ScDocument::UpdateExternalRefLinks(weld::Window* pWin, std::vector<OUString>* pFailed)
+ {
+     if (!pExternalRefMgr)
+         return;
+@@ -836,6 +836,11 @@ void ScDocument::UpdateExternalRefLinks(weld::Window* pWin)
+ 
+         OUString aFile;
+         sfx2::LinkManager::GetDisplayNames(pRefLink, nullptr, &aFile);
++        if (pFailed)
++        {
++            pFailed->push_back(aFile);
++            continue;
++        }
+         // Decode encoded URL for display friendliness.
+         INetURLObject aUrl(aFile,INetURLObject::EncodeMechanism::WasEncoded);
+         aFile = aUrl.GetMainURL(INetURLObject::DecodeMechanism::Unambiguous);
+diff --git a/sc/source/ui/docshell/docsh4.cxx b/sc/source/ui/docshell/docsh4.cxx
+index 78810ce..9b932a4 100644
+--- a/sc/source/ui/docshell/docsh4.cxx
++++ b/sc/source/ui/docshell/docsh4.cxx
+@@ -71,6 +71,13 @@
+ #include <docuno.hxx>
+ 
+ #include <docsh.hxx>
++#include <externalrefmgr.hxx>
++#include <arealink.hxx>
++#include <ddelink.hxx>
++#include <webservicelink.hxx>
++#include <svl/fstathelper.hxx>
++#include <filter.hxx>
++#include <global.hxx>
+ #include "docshimp.hxx"
+ #include <docfunc.hxx>
+ #include <scres.hrc>
+@@ -226,6 +233,125 @@ void ScDocShell::ReloadAllLinks()
+     }
+ }
+ 
++namespace
++{
++/// The link's file as it reads it; null when unreadable.
++std::unique_ptr<ScDocumentLoader> lcl_Load(ScDocShell& rShell, const OUString& rFile,
++                                           OUString aFilter, OUString aOptions)
++{
++    const OUString aURL = ScGlobal::GetAbsDocName(rFile, &rShell);
++    if (!FStatHelper::IsDocument(aURL))
++        return nullptr;
++    ScDocumentLoader::RemoveAppPrefix(aFilter);
++    auto pLoader = std::make_unique<ScDocumentLoader>(aURL, aFilter, aOptions);
++    return pLoader->IsError() ? nullptr : std::move(pLoader);
++}
++
++/// Every sheet the link copies is in its file.
++bool lcl_SheetReadable(ScDocShell& rShell, const ScTableLink& rLink)
++{
++    auto pLoader = lcl_Load(rShell, rLink.GetFileName(), rLink.GetFilterName(), rLink.GetOptions());
++    if (!pLoader)
++        return false;
++    const ScDocument& rSrc = *pLoader->GetDocument();
++    // Text filters name no sheet: their one sheet is read.
++    if (rSrc.GetTableCount() == 1 && ScDocShell::HasAutomaticTableName(rLink.GetFilterName()))
++        return true;
++    const ScDocument& rDoc = rShell.GetDocument();
++    for (SCTAB nTab = 0; nTab < rDoc.GetTableCount(); ++nTab)
++    {
++        SCTAB nSrc;
++        const OUString aName = rDoc.GetLinkTab(nTab);
++        if (rDoc.GetLinkMode(nTab) != ScLinkMode::NONE && rDoc.GetLinkDoc(nTab) == rLink.GetFileName()
++            && !aName.isEmpty() && !rSrc.GetTable(aName, nSrc))
++            return false;
++    }
++    return true;
++}
++
++/// Every range the link copies is in its file.
++bool lcl_AreaReadable(ScDocShell& rShell, const ScAreaLink& rLink)
++{
++    auto pLoader = lcl_Load(rShell, rLink.GetFile(), rLink.GetFilter(), rLink.GetOptions());
++    if (!pLoader)
++        return false;
++    ScDocument& rSrc = *pLoader->GetDocument();
++    OUString aArea = rLink.GetSource();
++    // Calc reads a whole CSV only when it has cells.
++    if (rLink.GetFilter() == SC_TEXT_CSV_FILTER_NAME && aArea == "CSV_all")
++    {
++        SCCOL nEndCol = 0;
++        SCROW nEndRow = 0;
++        return rSrc.GetCellArea(0, nEndCol, nEndRow);
++    }
++    if (rLink.GetFilter() == ScDocShell::GetWebQueryFilterName())
++        aArea = ScFormatFilter::Get().GetHTMLRangeNameList(rSrc, aArea);
++    if (aArea.isEmpty())
++        return false;
++    sal_Int32 nIdx = 0;
++    do
++    {
++        ScRange aRange;
++        if (!ScAreaLink::FindExtRange(aRange, rSrc, aArea.getToken(0, ';', nIdx)))
++            return false;
++    } while (nIdx > 0);
++    return true;
++}
++}
++
++void ScDocShell::UpdateLinksAsked(std::vector<OUString>& rFailed)
++{
++    AllowLinkUpdate();
++    const sfx2::SvBaseLinks& rLinks = m_pDocument->GetLinkManager()->GetLinks();
++    // An update may add or drop links.
++    const std::vector<tools::SvRef<sfx2::SvBaseLink>> aLinks(rLinks.begin(), rLinks.end());
++    bool bSheets = false, bDde = false;
++    for (const auto& xLink : aLinks)
++    {
++        auto pSheet = dynamic_cast<ScTableLink*>(xLink.get());
++        auto pArea = dynamic_cast<ScAreaLink*>(xLink.get());
++        if (pSheet || pArea)
++        {
++            const OUString& rFile = pSheet ? pSheet->GetFileName() : pArea->GetFile();
++            // An unread source would overwrite the saved cells.
++            const bool bReadable = pSheet ? lcl_SheetReadable(*this, *pSheet) : lcl_AreaReadable(*this, *pArea);
++            if (!bReadable || !xLink->Update())
++            {
++                SAL_WARN("sc.ui", "linked source not read: " << rFile);
++                rFailed.push_back(rFile);
++                continue;
++            }
++            bSheets |= pSheet != nullptr;
++        }
++        else if (auto pDde = dynamic_cast<ScDdeLink*>(xLink.get()))
++        {
++            if (pDde->Update())
++                bDde = true;
++            else
++                rFailed.push_back(pDde->GetAppl() + "|" + pDde->GetTopic());
++        }
++        else if (auto pWeb = dynamic_cast<ScWebServiceLink*>(xLink.get()))
++        {
++            if (!pWeb->Update())
++                rFailed.push_back(pWeb->GetURL());
++        }
++    }
++    // Sources no formula has read yet are linked too.
++    m_pDocument->GetExternalRefManager()->addFilesToLinkManager();
++    m_pDocument->UpdateExternalRefLinks(GetActiveDialogParent(), &rFailed);
++    if (bDde)
++    {
++        m_pDocument->TrackFormulas();
++        Broadcast(SfxHint(SfxHintId::ScDataChanged));
++    }
++    if (bSheets)
++    {
++        PostPaint(ScRange(0, 0, 0, m_pDocument->MaxCol(), m_pDocument->MaxRow(), MAXTAB),
++                  PaintPartFlags::Grid | PaintPartFlags::Top | PaintPartFlags::Left);
++        SetDocumentModified();
++    }
++}
++
+ IMPL_LINK( ScDocShell, ReloadAllLinksHdl, weld::Button&, rButton, void )
+ {
+     ScDocument& rDoc = GetDocument();
+diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/externalrefmgr.cxx
+index d9f6639..1f599a8 100644
+--- a/sc/source/ui/docshell/externalrefmgr.cxx
++++ b/sc/source/ui/docshell/externalrefmgr.cxx
+@@ -2421,6 +2421,12 @@ ScDocument* ScExternalRefManager::getInMemorySrcDocument(sal_uInt16 nFileId)
+     ScDocShell* pShell = static_cast<ScDocShell*>(SfxObjectShell::GetFirst(checkSfxObjectShell<ScDocShell>, false));
+     while (pShell)
+     {
++        // Another book's hidden copy is as old as its update.
++        if (pShell->GetCreateMode() == SfxObjectCreateMode::INTERNAL)
++        {
++            pShell = static_cast<ScDocShell*>(SfxObjectShell::GetNext(*pShell, checkSfxObjectShell<ScDocShell>, false));
++            continue;
++        }
+         SfxMedium* pMedium = pShell->GetMedium();
+         if (pMedium && !pMedium->GetName().isEmpty())
+         {
+diff --git a/sc/source/ui/inc/docsh.hxx b/sc/source/ui/inc/docsh.hxx
+index 9ef129e..ecd0cb4 100644
+--- a/sc/source/ui/inc/docsh.hxx
++++ b/sc/source/ui/inc/docsh.hxx
+@@ -306,6 +306,8 @@ public:
+     SC_DLLPUBLIC void SetInitialLinkUpdate( const SfxMedium* pMedium );
+     void            AllowLinkUpdate();
+     SC_DLLPUBLIC void ReloadAllLinks();
++    /// The client asked: each link reads, failures named, no dialog.
++    void            UpdateLinksAsked(std::vector<OUString>& rFailed);
+     void            ReloadTabLinks();
+     ScLkUpdMode     GetLinkUpdateModeState() const;
+ 
+diff --git a/sc/source/ui/unoobj/docuno.cxx b/sc/source/ui/unoobj/docuno.cxx
+index 5815578..2e873ba 100644
+--- a/sc/source/ui/unoobj/docuno.cxx
++++ b/sc/source/ui/unoobj/docuno.cxx
+@@ -1022,7 +1022,8 @@ void lcl_ExternalLinks(tools::JsonWriter& rJson, ScDocument& rDoc)
+     std::set<OUString> aSources;
+     ScExternalRefManager* pRefs = rDoc.GetExternalRefManager();
+     for (sal_uInt16 i = 0, n = pRefs->getExternalFileCount(); i < n; ++i)
+-        if (const OUString* pName = pRefs->getExternalFileName(i, true))
++        // The file Calc reads: a relative link follows the book.
++        if (const OUString* pName = pRefs->getExternalFileName(i))
+             aSources.insert(*pName);
+     if (sfx2::LinkManager* pLinks = rDoc.GetDocLinkManager().getLinkManager(false))
+     {
+@@ -1133,7 +1134,8 @@ bool ScModelObj::supportsCommand(std::u16string_view rCommand)
+             u"NumberFormatCode", u"ConditionalFormats", u"Chart",
+             u"PivotTable",       u"PrintLayout",        u"SheetProtection",
+             u"ElyMacroSelection", u"ElyMacroRefusal",
+-            u"ExternalLinks",    u"CellAt",             u"KeptResults" };
++            u"ExternalLinks",    u"CellAt",             u"KeptResults",
++            u"ElyUpdateLinks" };
+     return std::find(std::begin(aCommands), std::end(aCommands), rCommand) != std::end(aCommands);
+ }
+ 
+@@ -1145,6 +1147,17 @@ void ScModelObj::getCommandValues(tools::JsonWriter& rJsonWriter, std::string_vi
+         return lcl_ExternalLinks(rJsonWriter, pDocShell->GetDocument());
+     if (pDocShell && rCommand == ".uno:KeptResults")
+         return lcl_KeptResults(rJsonWriter, pDocShell->GetDocument());
++    if (pDocShell && rCommand == ".uno:ElyUpdateLinks")
++    {
++        // The user asked: every link reads its source now.
++        std::vector<OUString> aFailed;
++        pDocShell->UpdateLinksAsked(aFailed);
++        rJsonWriter.put("commandName", ".uno:ElyUpdateLinks");
++        auto aArray = rJsonWriter.startArray("failed");
++        for (const OUString& rSource : std::set<OUString>(aFailed.begin(), aFailed.end()))
++            rJsonWriter.putSimpleValue(rSource);
++        return;
++    }
+     if (pDocShell && o3tl::starts_with(rCommand, ".uno:CellAt?"))
+         return lcl_CellAt(rJsonWriter, pDocShell->GetDocument(), rCommand);
+     if (pDocShell && rCommand == ".uno:ElyMacroSelection")
+diff --git a/sw/source/uibase/uno/loktxdoc.cxx b/sw/source/uibase/uno/loktxdoc.cxx
+index ef2a2c7..c4ae071 100644
+--- a/sw/source/uibase/uno/loktxdoc.cxx
++++ b/sw/source/uibase/uno/loktxdoc.cxx
+@@ -30,6 +30,10 @@
+ #include <o3tl/string_view.hxx>
+ #include <tools/json_writer.hxx>
+ #include <tools/urlobj.hxx>
++#include <sfx2/linkmgr.hxx>
++#include <svl/fstathelper.hxx>
++#include <IDocumentLinksAdministration.hxx>
++#include <set>
+ #include <xmloff/odffields.hxx>
+ #include <sfx2/lokhelper.hxx>
+ 
+@@ -1227,6 +1231,62 @@ void GetSections(tools::JsonWriter& rJsonWriter, SwDocShell* pDocShell,
+         rJsonWriter.put("name", pSection->GetName().toString());
+     }
+ }
++
++/// The file or server a link reads; empty inside.
++OUString LinkSource(const sfx2::SvBaseLink& rLink)
++{
++    OUString aServer, aFile;
++    if (!sfx2::LinkManager::GetDisplayNames(&rLink, &aServer, &aFile))
++        return OUString();
++    if (rLink.GetObjType() == sfx2::SvBaseLinkObjectType::ClientDde)
++        return aServer + "|" + aFile;
++    return aFile;
++}
++
++/// Implements getCommandValues(".uno:ExternalLinks").
++void GetExternalLinks(tools::JsonWriter& rJsonWriter, SwDocShell* pDocShell)
++{
++    std::set<OUString> aSources;
++    for (const auto& rLink :
++         pDocShell->GetDoc()->getIDocumentLinksAdministration().GetLinkManager().GetLinks())
++    {
++        if (OUString aSource = LinkSource(*rLink); !aSource.isEmpty())
++            aSources.insert(aSource);
++    }
++    auto aArray = rJsonWriter.startArray("links");
++    for (const OUString& rSource : aSources)
++        rJsonWriter.putSimpleValue(rSource);
++}
++
++/// Implements getCommandValues(".uno:ElyUpdateLinks"): each link reads again.
++void UpdateExternalLinks(tools::JsonWriter& rJsonWriter, SwDocShell* pDocShell)
++{
++    pDocShell->getEmbeddedObjectContainer().setUserAllowsLinkUpdate(true);
++    const sfx2::SvBaseLinks& rLinks
++        = pDocShell->GetDoc()->getIDocumentLinksAdministration().GetLinkManager().GetLinks();
++    // An update may add or drop links.
++    const std::vector<tools::SvRef<sfx2::SvBaseLink>> aLinks(rLinks.begin(), rLinks.end());
++    std::set<OUString> aFailed;
++    SwWrtShell* pShell = pDocShell->GetWrtShell();
++    if (pShell)
++        pShell->StartAllAction();
++    for (const auto& xLink : aLinks)
++    {
++        const OUString aSource = LinkSource(*xLink);
++        if (aSource.isEmpty())
++            continue;
++        // A missing file would empty a linked section.
++        const bool bFile = INetURLObject(aSource).GetProtocol() == INetProtocol::File;
++        if ((bFile && !FStatHelper::IsDocument(aSource)) || !xLink->Update())
++            aFailed.insert(aSource);
++    }
++    if (pShell)
++        pShell->EndAllAction();
++    rJsonWriter.put("commandName", ".uno:ElyUpdateLinks");
++    auto aArray = rJsonWriter.startArray("failed");
++    for (const OUString& rSource : aFailed)
++        rJsonWriter.putSimpleValue(rSource);
++}
+ }
+ 
+ bool SwXTextDocument::supportsCommand(std::u16string_view rCommand)
+@@ -1236,7 +1296,7 @@ bool SwXTextDocument::supportsCommand(std::u16string_view rCommand)
+             u"Bookmarks",      u"Fields",        u"Sections",
+             u"Bookmark",       u"Field",         u"Layout",
+             u"Formula",        u"WordCount",     u"Outline",
+-            u"CharFonts" };
++            u"CharFonts",      u"ExternalLinks", u"ElyUpdateLinks" };
+ 
+     return std::find(vForward.begin(), vForward.end(), rCommand) != vForward.end();
+ }
+@@ -1343,6 +1403,14 @@ void SwXTextDocument::getCommandValues(tools::JsonWriter& rJsonWriter, std::stri
+     {
+         GetLayout(rJsonWriter, m_pDocShell);
+     }
++    else if (rCommand == ".uno:ExternalLinks"sv)
++    {
++        GetExternalLinks(rJsonWriter, m_pDocShell);
++    }
++    else if (rCommand == ".uno:ElyUpdateLinks"sv)
++    {
++        UpdateExternalLinks(rJsonWriter, m_pDocShell);
++    }
+ }
+ 
+ /* vim:set shiftwidth=4 softtabstop=4 expandtab: */

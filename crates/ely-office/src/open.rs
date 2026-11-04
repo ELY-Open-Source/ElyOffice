@@ -28,8 +28,8 @@ pub enum Source<I> {
     Import(PathBuf, Arc<Vec<u8>>, I),
 }
 
-/// A load read off the window: risk, work dir, session.
-type Prepared<L> = (L, Option<crate::Risk>, Option<(PathBuf, Session)>);
+/// A load read off the window: risk, links, session.
+type Prepared<L> = (L, Option<crate::Risk>, crate::Links, Option<(PathBuf, Session)>);
 
 pub trait Opening: Host {
     /// An untitled copy of a local template.
@@ -197,7 +197,8 @@ pub trait Opening: Host {
                         }
                         None => None,
                     };
-                    Ok((loaded, risk, kept))
+                    let links = crate::Links::opened(Self::Engine::links(&loaded));
+                    Ok((loaded, risk, links, kept))
                 })
                 .await;
             in_window(&this, cx, |host, window, cx| {
@@ -227,7 +228,7 @@ pub trait Opening: Host {
             Source::Copy(path) | Source::Import(path, ..) => (path, None, false),
             Source::Locked(path, _) => (path, None, true),
         };
-        let opened = loaded.and_then(|(loaded, risk, kept)| {
+        let opened = loaded.and_then(|(loaded, risk, links, kept)| {
             let began = std::time::Instant::now();
             let (work, session) = match kept {
                 Some(kept) => kept,
@@ -238,9 +239,9 @@ pub trait Opening: Host {
             };
             let (doc, view, mark) = Self::Engine::open(&self.core().worker, loaded, window, cx)?;
             log::info!("{}: tab {id} view in {} ms", Self::KIND.app.slug(), began.elapsed().as_millis());
-            Ok((doc, work, session, risk, view, mark))
+            Ok((doc, work, session, risk, links, view, mark))
         });
-        let (doc, work, session, risk, view, mark) = match opened {
+        let (doc, work, session, risk, links, view, mark) = match opened {
             Ok(opened) => opened,
             Err(error) => {
                 if self.core_mut().failed_front(id)
@@ -287,6 +288,7 @@ pub trait Opening: Host {
             name,
             modified: false,
             risk,
+            links,
             mark,
             work,
             exporting: false,
@@ -300,9 +302,10 @@ pub trait Opening: Host {
         let tab = self.tab(id).expect("just opened");
         let (named, size) = (tab.name.clone(), tab.session.fingerprint().map(|print| print.len));
         log::info!(
-            "{}: opened {named} as tab {id}, risk {:?}, {} tabs open, in front {front}",
+            "{}: opened {named} as tab {id}, risk {:?}, {} linked sources, {} tabs open, in front {front}",
             Self::KIND.app.slug(),
             tab.risk,
+            tab.links.sources().len(),
             self.core().tabs.len()
         );
         crate::Recovering::keep_tab(self, id, (&named, size), tried, cx);

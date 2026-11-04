@@ -387,8 +387,8 @@ fn linked_values_stay_as_saved_and_are_named() {
         "the old value stays"
     );
     let links =
-        sheet::links(&worker.values(&offline, sheet::LINKS).expect("reads")).expect("parses");
+        crate::links::sources(&worker.values(&offline, crate::links::LIST).expect("reads")).expect("parses");
     assert_eq!(links, [crate::file_url(&source)], "the source is named");
-    let plain = sheet::links(&worker.values(&doc, sheet::LINKS).expect("reads")).expect("parses");
+    let plain = crate::links::sources(&worker.values(&doc, crate::links::LIST).expect("reads")).expect("parses");
     assert!(plain.is_empty());
 }

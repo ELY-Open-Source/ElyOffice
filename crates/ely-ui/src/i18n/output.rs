@@ -85,10 +85,6 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("table.protect.autofilter", "Use filters"),
     ("table.protect.pivot", "Use pivot tables"),
     (
-        "table.links.stale",
-        "Linked values are as last saved; not refreshed: {sources}",
-    ),
-    (
         "table.kept.stale",
         "Results as saved in the file: ElyTable cannot compute their functions; changing an input shows #NAME?: {cells}",
     ),
@@ -172,10 +168,6 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("table.protect.deleteRows", "删除行"),
     ("table.protect.autofilter", "使用筛选"),
     ("table.protect.pivot", "使用数据透视表"),
-    (
-        "table.links.stale",
-        "链接的值为上次保存时的值，未刷新：{sources}",
-    ),
     (
         "table.kept.stale",
         "以下单元格显示文件里存的结果：ElyTable 不能计算其中的函数，输入一改即显示 #NAME?：{cells}",

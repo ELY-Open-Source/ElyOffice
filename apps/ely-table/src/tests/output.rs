@@ -205,7 +205,7 @@ fn a_new_link_names_its_unrefreshed_source() {
     settle(&cx, |app| {
         book.read(app)
             .active_tab()
-            .is_some_and(|tab| tab.extra.links == [url.clone()])
+            .is_some_and(|tab| tab.links.sources() == [url.clone()])
     });
 }
 

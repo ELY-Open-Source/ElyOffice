@@ -8,6 +8,7 @@ mod dialogs;
 pub mod engine;
 pub mod files;
 mod find;
+mod links;
 pub mod lok;
 pub mod menu;
 mod open;
@@ -40,6 +41,7 @@ pub use close::{After, Closing};
 pub use dialogs::{Dialog, Dialogs, cancel};
 pub use engine::{Engine, Load, Stop};
 pub use find::{FindReplace, Finder, Finding};
+pub use links::{Linked, Linking, Links};
 pub use lok::{Commands, Lok, start};
 pub use open::{Opening, Source};
 pub use recover::{Keeping, Recovering};
@@ -51,7 +53,7 @@ pub use zoom::{ActualSize, ZoomIn, ZoomOut, Zooming, bind_zoom_keys, zoom_items}
 
 /// Every shared trait, for `use ely_office::prelude::*`.
 pub mod prelude {
-    pub use crate::{Chrome, Closing, Commands, Dialogs, Finding, Host, Opening, Remote, Saving, Stopping, Tabs, Undoing, Zooming};
+    pub use crate::{Chrome, Closing, Commands, Dialogs, Finding, Host, Linking, Opening, Remote, Saving, Stopping, Tabs, Undoing, Zooming};
 }
 
 /// What one app opens and writes.
@@ -116,6 +118,8 @@ pub enum Risk {
     Sections,
     /// An encrypted PPTX whose sections Ely cannot see.
     Sealed,
+    /// DOCX links of kinds the kernel keeps as pictures.
+    Links,
 }
 
 /// One open document.
@@ -131,6 +135,8 @@ pub struct Tab<E, G: Engine> {
     pub modified: bool,
     /// Why Save writes a copy, if it does.
     pub risk: Option<Risk>,
+    /// Other files it reads (LOK-11).
+    pub links: Links,
     /// The kernel's undo history at the last load or save.
     pub mark: String,
     pub work: PathBuf,
@@ -156,6 +162,7 @@ impl<E, G: Engine> Tab<E, G> {
             _ if self.risk == Some(Risk::Repaired) => "office.state.repaired",
             _ if self.risk == Some(Risk::Sections) => "office.state.sections",
             _ if self.risk == Some(Risk::Sealed) => "office.state.sealed",
+            _ if self.risk == Some(Risk::Links) => "office.state.unlinked",
             _ if self.exporting => "office.state.saving",
             SaveState::Saving => "office.state.saving",
             SaveState::ExternalModified => "office.state.external",

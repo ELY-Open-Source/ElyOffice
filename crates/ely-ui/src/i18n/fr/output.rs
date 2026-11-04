@@ -72,6 +72,5 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("table.protect.deleteRows", "Supprimer des lignes"),
     ("table.protect.autofilter", "Utiliser les filtres"),
     ("table.protect.pivot", "Utiliser les tables dynamiques"),
-    ("table.links.stale", "Les valeurs liées sont celles du dernier enregistrement ; non actualisées : {sources}"),
     ("table.kept.stale", "Résultats tels qu’enregistrés dans le fichier : ElyTable ne sait pas calculer leurs fonctions ; changer une entrée affiche #NAME? : {cells}"),
 ];

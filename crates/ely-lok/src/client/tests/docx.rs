@@ -64,7 +64,7 @@ fn an_inline_content_control_keeps_the_toc_end_alone() {
 }
 
 /// Whether the kernel has reported the document modified.
-fn modified(seen: &Events) -> bool {
+pub(super) fn modified(seen: &Events) -> bool {
     seen.states.iter().any(|(name, state)| name == ".uno:ModifiedStatus" && state == "true")
 }
 
