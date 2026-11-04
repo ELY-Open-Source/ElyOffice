@@ -96,10 +96,49 @@ def after_toc(path):
     return inside, outside
 
 
+def closing(path):
+    """Texts of the paragraphs around the TOC field's end."""
+    with zipfile.ZipFile(path) as archive:
+        body = ooxml.xml(archive, ooxml.main_part(archive)).find(ooxml.W + "body")
+    boxed = {id(p) for box in body.iter(ooxml.W + "txbxContent") for p in box.iter(ooxml.W + "p")}
+    paragraphs = [p for p in body.iter(ooxml.W + "p") if id(p) not in boxed]
+    depth = 0
+    for n, paragraph in enumerate(paragraphs):
+        said, ended = [], None
+        for node in paragraph.iter():
+            kind = node.get(ooxml.W + "fldCharType") if node.tag == ooxml.W + "fldChar" else None
+            depth += {"begin": 1, "end": -1}.get(kind, 0)
+            if kind == "end" and depth == 0 and ended is None:
+                ended = "".join(said)
+                said = []
+            elif node.tag == ooxml.W + "t":
+                said.append(node.text or "")
+            elif node.tag == ooxml.W + "tab":
+                said.append("\\t")
+        if ended is not None:
+            texts = [ooxml.texts(p, ooxml.W + "t") for p in (paragraphs[n - 1], paragraphs[n + 1])]
+            return texts[0], ended, "".join(said), texts[1]
+    ooxml.check(False, "the TOC field never ends")
+    return None, None, None, None
+
+
+def ends_first(path):
+    """Like Word, the field ends at a paragraph's start."""
+    before = closing(path)[1]
+    ooxml.check(before == "", f"the TOC field ends after {before!r} in its paragraph")
+
+
+def toc_alone(path):
+    """The field ends alone after the last entry."""
+    got = closing(path)
+    ooxml.check(got == ("Beta1", "", "", "Alpha"), f"around the TOC field end: {got}")
+
+
 def toc_tail(path):
     """Text after the TOC field end stays outside the field."""
     outside = after_toc(path)[1]
     ooxml.check(outside == ["After", "Alpha", "Beta"], f"outside the TOC field: {outside}")
+    ends_first(path)
 
 
 def toc_shape(path):
@@ -107,9 +146,10 @@ def toc_shape(path):
     inside, outside = after_toc(path)
     ooxml.check(outside == ["ObjectTail", "Alpha", "Beta"], f"outside the TOC field: {outside}")
     ooxml.check("ObjectTail" not in inside, "a copy of the text box is in the TOC field")
+    ends_first(path)
 
 
-CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape}
+CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape, "toc-alone": toc_alone}
 MUTATIONS = {
     "equation": [
         ("word/document.xml", r"<m:r>(<m:t[^>]*>)[-−](</m:t>)", r"<m:r><m:rPr><m:nor/></m:rPr>\1-\2"),
@@ -124,6 +164,10 @@ MUTATIONS = {
     "toc-shape": [
         ("word/document.xml", r'(?s)(<w:r>(?:<w:rPr></w:rPr>)?<w:fldChar w:fldCharType="end"/></w:r>)(.*?ObjectTail.*?)(</w:p>)', r'\2\1\3'),
         ("word/document.xml", r'ObjectTail', "Gone"),
+    ],
+    "toc-alone": [
+        ("word/document.xml", r'(?s)(</w:p>)(<w:p[ >](?:(?!<w:p[ >]|</w:p>).)*?)(<w:r>(?:(?!<w:r>).)*?<w:fldChar w:fldCharType="end"/></w:r>)', r'\3\1\2'),
+        ("word/document.xml", r'(<w:fldChar w:fldCharType="end"/></w:r>)', r'\1<w:r><w:t>x</w:t></w:r>'),
     ],
     "toc-tail": [
         ("word/document.xml", r'(<w:fldChar w:fldCharType="end"/></w:r>)(.*?)(<w:r>(?:<w:rPr></w:rPr>)?<w:t[^>]*>After</w:t></w:r>)', r'\3\1\2'),
