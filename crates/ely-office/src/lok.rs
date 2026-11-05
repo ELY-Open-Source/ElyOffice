@@ -35,6 +35,8 @@ impl Engine for Lok {
     type View = LokView;
     type Loaded = Loaded;
     type Import = Import;
+    // One kernel: a load behind blocks the front's keys.
+    const PARKS: bool = true;
 
     fn load(worker: &mut Worker, from: Load<Import>) -> io::Result<Loaded> {
         let doc = match from {

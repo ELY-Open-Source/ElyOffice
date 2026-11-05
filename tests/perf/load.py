@@ -173,16 +173,18 @@ def edit_rounds(app, recipe, files, rounds, out):
         out["problems"] += [f"edit round {r}: {failure}" for failure in failures]
 
 
-def wait_opened(app, count, timeout, since=0):
-    """Until `count` tabs are open; a failed open raises."""
-    pattern = re.compile(rf"{app.slug}: opened .+ as tab \d+, risk .*, (\d+) tabs open")
+def wait_opened(app, count, timeout, since=0, last=None):
+    """Until `count` tabs, `last` loaded; a failed open raises."""
+    name = re.escape(os.path.basename(last)) if last else ".+"
+    # Tabs behind the front wait unloaded (R15.57).
+    pattern = re.compile(rf"{app.slug}: opened {name} as tab \d+, risk .*, (\d+) tabs open(?:, (\d+) waiting)?")
     until = time.monotonic() + timeout
     while time.monotonic() < until:
         lines = app.lines()[since:]
         failed = [line for line in lines if " did not open" in line]
         if failed:
             raise RuntimeError(f"{app.slug}: {failed[0][-160:]}")
-        if any(int(m.group(1)) >= count for line in lines if (m := pattern.search(line))):
+        if any(int(m.group(1)) + int(m.group(2) or 0) >= count for line in lines if (m := pattern.search(line))):
             return (time.monotonic() - app.start) * 1000
         if app.process.poll() is not None:
             raise app.failed(pattern.pattern, timeout)
@@ -319,11 +321,11 @@ def one_app(slug, folder, work, args):
     app = App(slug, home, files, frames=True)
     try:
         first_place(app)
-        out["open all ms"] = wait_opened(app, len(files), 60 + 15 * len(files))
+        out["open all ms"] = wait_opened(app, len(files), 60 + 15 * len(files), last=files[-1])
         since = len(app.lines())
         handed = time.monotonic()
         drive.sh(run.HOST.exe(slug, True), front, env=app.env, timeout=120)
-        wait_opened(app, len(files) + 1, 120, since)
+        wait_opened(app, len(files) + 1, 120, since, last=front)
         out["open one more ms"] = (time.monotonic() - handed) * 1000
         time.sleep(2)
         out["memory open MB"] = app.memory_mb()

@@ -470,6 +470,7 @@ mod remote;
 mod slow;
 mod sources;
 mod start;
+mod waiting;
 mod words;
 
 impl Docs {

@@ -57,7 +57,8 @@ fn a_slow_load_offers_the_stop_and_the_stop_ends_the_engine() {
     // The first document hangs: no tab, only the loading page.
     with_window(&mut cx, &docs, |docs, _, cx| {
         docs.core.loading.push((7, "stuck.docx".into(), None));
-        docs.watch_slow(7, cx);
+        let flag = docs.core.flag(7, &ely_office::Source::Copy(file.clone()));
+        docs.watch_slow(7, flag, cx);
     });
     assert!(!drawn(shown, STOP), "not slow yet");
     cx.executor().advance_clock(Duration::from_secs(31));

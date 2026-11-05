@@ -145,6 +145,18 @@ pub trait Opening: Host {
 
     /// Loads into tab id `id`, taken earlier from `next`.
     fn load_into(&mut self, id: u64, source: Source<ImportOf<Self>>, cx: &mut Context<Self>) {
+        let (path, registry) = match &source {
+            Source::File(path, registry, _) => (path, Some(*registry)),
+            Source::Copy(path) | Source::Locked(path, _) | Source::Import(path, ..) => (path, None),
+        };
+        self.core_mut().loading.push((id, file_name(path), registry));
+        self.core_mut().asked_front(id);
+        self.start(id, source, cx);
+    }
+
+    /// Runs tab `id`'s load, unless its tab is behind then.
+    fn start(&mut self, id: u64, source: Source<ImportOf<Self>>, cx: &mut Context<Self>) {
+        let wanted = self.core_mut().flag(id, &source);
         let (path, password, text, registry) = match &source {
             Source::File(path, registry, password) => (path.clone(), password.clone(), None, Some(*registry)),
             Source::Copy(path) => (path.clone(), String::new(), None, None),
@@ -157,10 +169,8 @@ pub trait Opening: Host {
             ),
         };
         let written = path.clone();
-        self.core_mut().loading.push((id, file_name(&path), registry));
-        self.core_mut().asked_front(id);
         cx.notify();
-        crate::Stopping::watch_slow(self, id, cx);
+        crate::Stopping::watch_slow(self, id, Arc::clone(&wanted), cx);
         let (worker, root) = (Arc::clone(&self.core().worker), self.core().work.clone());
         let slug = Self::KIND.app.slug();
         log::info!("{slug}: tab {id} load queued");
@@ -174,6 +184,9 @@ pub trait Opening: Host {
                     let asked = std::time::Instant::now();
                     let reading = written.clone();
                     let loaded = ely_lok::behind(&worker, move |worker| {
+                        if !wanted.load(std::sync::atomic::Ordering::Acquire) {
+                            return Ok(None);
+                        }
                         log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
                         let from = match &text {
                             None => Load::File(&reading, &password),
@@ -182,9 +195,10 @@ pub trait Opening: Host {
                         let began = std::time::Instant::now();
                         let loaded = Self::Engine::load(worker, from);
                         log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());
-                        loaded
+                        loaded.map(Some)
                     })
                     .await?;
+                    let Some(loaded) = loaded else { return Ok(None) };
                     // The file's risks and session are read here too.
                     let risk = match files::macro_risk(&Self::KIND, &written)? {
                         true => Some(crate::Risk::Macros),
@@ -198,11 +212,13 @@ pub trait Opening: Host {
                         None => None,
                     };
                     let links = crate::Links::opened(Self::Engine::links(&loaded));
-                    Ok((loaded, risk, links, kept))
+                    Ok(Some((loaded, risk, links, kept)))
                 })
                 .await;
-            in_window(&this, cx, |host, window, cx| {
-                host.loaded(id, source, loaded, window, cx)
+            in_window(&this, cx, |host, window, cx| match loaded {
+                Ok(None) => host.parked(id, source, cx),
+                Ok(Some(loaded)) => host.loaded(id, source, Ok(loaded), window, cx),
+                Err(error) => host.loaded(id, source, Err(error), window, cx),
             })
         })
         .detach_and_log_err(cx);
@@ -219,6 +235,7 @@ pub trait Opening: Host {
         self.core_mut()
             .loading
             .retain(|(loading, ..)| *loading != id);
+        let asks = self.core_mut().ended(id);
         if self.core().slow == Some(id) {
             self.core_mut().slow = None;
         }
@@ -244,6 +261,9 @@ pub trait Opening: Host {
         let (doc, work, session, risk, links, view, mark) = match opened {
             Ok(opened) => opened,
             Err(error) => {
+                for ask in asks {
+                    ask.answer(Err(format!("{} did not open: {}", path.display(), ely_ipc::Worded::logged(&error))));
+                }
                 if self.core_mut().failed_front(id)
                     && let Some(tab) = self.active_tab()
                 {
@@ -303,15 +323,38 @@ pub trait Opening: Host {
         let tab = self.tab(id).expect("just opened");
         let (named, size) = (tab.name.clone(), tab.session.fingerprint().map(|print| print.len));
         log::info!(
-            "{}: opened {named} as tab {id}, risk {:?}, {} linked sources, {} tabs open, in front {front}",
+            "{}: opened {named} as tab {id}, risk {:?}, {} linked sources, {} tabs open, {} waiting, in front {front}",
             Self::KIND.app.slug(),
             tab.risk,
             tab.links.sources().len(),
-            self.core().tabs.len()
+            self.core().tabs.len(),
+            self.core().loading.len()
         );
         crate::Recovering::keep_tab(self, id, (&named, size), tried, cx);
         crate::Recovering::reopened(self, id, &path, cx);
+        // Programs that asked for it are answered now.
+        for ask in asks {
+            cx.defer(move |cx| ely_ui::ask_again(Self::KIND.app, ask, cx));
+        }
         cx.notify();
+    }
+
+    /// Load `id` found its tab behind: it waits until shown.
+    fn parked(&mut self, id: u64, source: Source<ImportOf<Self>>, cx: &mut Context<Self>) {
+        self.core_mut().park(id, source);
+        let core = self.core();
+        let name = core.loading.iter().find(|(of, ..)| *of == id).map_or_else(Default::default, |(_, name, _)| name.clone());
+        log::info!("{}: {name} waits as tab {id}, {} tabs open, {} waiting", Self::KIND.app.slug(), core.tabs.len(), core.loading.len());
+        self.wake_due(cx);
+        cx.notify();
+    }
+
+    /// Starts every waiting load whose tab is now wanted.
+    fn wake_due(&mut self, cx: &mut Context<Self>) {
+        for (id, source) in self.core_mut().due() {
+            log::info!("{}: tab {id} is wanted; its load starts", Self::KIND.app.slug());
+            self.start(id, source, cx);
+        }
     }
 
     /// Engine errors become toasts; kernel edits mark the session.

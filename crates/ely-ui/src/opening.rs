@@ -168,15 +168,20 @@ pub fn on_ask(cx: &mut App, answer: impl Fn(Ask, &mut App) + 'static) {
     cx.set_global(Answers(std::rc::Rc::new(answer)));
 }
 
+/// Hands `ask` to the answers, as when it arrived.
+pub fn ask_again(app: ely_platform::AppId, ask: Ask, cx: &mut App) {
+    match cx.try_global::<Answers>().map(|answers| answers.0.clone()) {
+        Some(answer) => answer(ask, cx),
+        None => ask.answer(Err(format!("{} takes no requests", app.name()))),
+    }
+}
+
 /// Each hand-over: the main window forward, then its files queued.
 pub(crate) fn home(app: ely_platform::AppId, hands: Hands, cx: &mut App) {
     let Hands { mut hands, queue, mut asks } = hands;
     cx.spawn(async move |cx| {
         while let Some(ask) = asks.next().await {
-            cx.update(|cx| match cx.try_global::<Answers>().map(|answers| answers.0.clone()) {
-                Some(answer) => answer(ask, cx),
-                None => ask.answer(Err(format!("{} takes no requests", app.name()))),
-            });
+            cx.update(|cx| ask_again(app, ask, cx));
         }
     })
     .detach();

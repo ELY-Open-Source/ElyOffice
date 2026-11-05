@@ -65,12 +65,15 @@ def check(slug, ext, into, sample):
     shown = {name: files[name] for name in NAMES[:4]}
     app = run.App(slug, os.path.join(work, "home"), args=list(shown.values()))
     try:
-        opened = r": opened (\w)\.\w+ as tab \d+, risk .*, 4 tabs open"
-        app.wait(opened, timeout=120)
+        # The last file asked loads in front; the rest wait.
+        opened = r": opened (\w)\.\w+ as tab \d+, .*, (\d+) tabs open, (\d+) waiting, in front true"
+        app.wait(rf": opened {NAMES[3]}\.\w+ as tab \d+, .*, in front true", timeout=120)
         time.sleep(2)
         app.front()
-        # The last load to end is in front.
-        last = next(re.search(opened, line).group(1) for line in app.lines() if re.search(opened, line))
+        landed = [re.search(opened, line) for line in app.lines() if re.search(opened, line)]
+        last = landed[-1].group(1)
+        if sum(map(int, landed[-1].groups()[1:])) != 4:
+            sys.exit(f"FAIL: {app.slug}: not four tabs: {landed[-1].group(0)}")
         first_key(app, shown, into, last, "opening four files")
         run.HOST.tab(app.process.pid, f"a.{ext}")
         first_key(app, shown, into, "a", "a click on a")

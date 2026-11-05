@@ -49,13 +49,13 @@ pub trait Stopping: Host {
     }
 
     /// Offers the stop if load `id` still runs after `SLOW`.
-    fn watch_slow(&mut self, id: u64, cx: &mut Context<Self>) {
+    fn watch_slow(&mut self, id: u64, flag: Arc<std::sync::atomic::AtomicBool>, cx: &mut Context<Self>) {
         if self.core().stop.is_none() {
             return;
         }
         cx.spawn(async move |this, cx| {
             cx.background_executor().timer(SLOW).await;
-            this.update(cx, |host, cx| host.slow_load(id, cx))
+            this.update(cx, |host, cx| host.slow_load(id, &flag, cx))
         })
         .detach_and_log_err(cx);
     }
@@ -80,8 +80,9 @@ pub trait Stopping: Host {
     }
 
     /// A load still running after `SLOW`: the stop is offered.
-    fn slow_load(&mut self, id: u64, cx: &mut Context<Self>) {
-        if !self.core().loading.iter().any(|(loading, ..)| *loading == id) {
+    fn slow_load(&mut self, id: u64, flag: &Arc<std::sync::atomic::AtomicBool>, cx: &mut Context<Self>) {
+        // A load that waited, or started again, is not slow.
+        if !self.core().loading.iter().any(|(loading, ..)| *loading == id) || !self.core().running(id, flag) {
             return;
         }
         log::warn!("{}: tab {id} has not opened after {} s", Self::KIND.app.slug(), SLOW.as_secs());

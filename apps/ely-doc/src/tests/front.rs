@@ -24,7 +24,7 @@ fn only_the_last_file_asked_takes_the_front() {
     let watched = Rc::clone(&seen);
     cx.update(|app| app.observe(&docs, move |docs, cx| watched.borrow_mut().push(docs.read(cx).core.active())).detach());
     with_window(&mut cx, &docs, |docs, _, cx| files.iter().for_each(|file| docs.open_file(file.clone(), cx)));
-    settle(&cx, |app| docs.read(app).core.tabs.len() == 4);
+    settle(&cx, |app| landed(app, &docs, "c.fodt") && waiting(app, &docs));
     let named = |name: &str| cx.update(|app| docs.read(app).core.tabs.iter().find(|tab| tab.name == name).expect("opened").id);
     let last = named("c.fodt");
     let fronts: Vec<_> = seen.borrow().iter().flatten().copied().filter(|id| *id != typing).collect();
@@ -49,7 +49,8 @@ fn going_back_during_a_load_keeps_the_tab_chosen() {
         docs.back.push((typing, (0, 0, 0, 0)));
         docs.on_back(&crate::navigate::GoBack, window, cx);
     });
-    settle(&cx, |app| docs.read(app).core.tabs.len() == 2);
+    // Left behind before it ran, it waits until shown.
+    settle(&cx, |app| waiting(app, &docs));
     assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(typing));
 }
 
@@ -106,6 +107,17 @@ fn a_chosen_load_that_fails_hands_the_front_on() {
     settle(&cx, |app| docs.read(app).core.loading.is_empty() && docs.read(app).core.tabs.len() == 2);
     let landed = cx.update(|app| docs.read(app).core.tabs.iter().find(|tab| tab.name == "b.fodt").expect("opened").id);
     assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(landed));
+}
+
+/// Whether a tab named `name` loaded.
+fn landed(app: &gpui::App, docs: &Entity<Docs>, name: &str) -> bool {
+    docs.read(app).core.tabs.iter().any(|tab| tab.name == name)
+}
+
+/// Whether loads are left, all waiting until shown.
+fn waiting(app: &gpui::App, docs: &Entity<Docs>) -> bool {
+    let core = &docs.read(app).core;
+    !core.loading.is_empty() && core.loading.iter().all(|(id, ..)| core.parked(*id))
 }
 
 /// Whether tab `id`'s page has the keys in `window`.
@@ -173,7 +185,7 @@ fn reopening_an_open_file_gives_it_the_keys() {
             docs.open_file(a, cx);
         })
     });
-    settle(&cx, |app| docs.read(app).core.tabs.len() == 2);
+    settle(&cx, |app| waiting(app, &docs));
     assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(first));
     assert!(focused(&mut cx, &docs, window, first), "the reopened file has no keys");
 }
@@ -198,7 +210,7 @@ fn reopening_a_file_still_loading_chooses_it() {
         docs.open_file(a, cx);
         assert_eq!(docs.core.loading.len(), 2, "the reopen loads nothing more");
     });
-    settle(&cx, |app| docs.read(app).core.tabs.len() == 3);
+    settle(&cx, |app| landed(app, &docs, "a.fodt") && waiting(app, &docs));
     let chosen = cx.update(|app| docs.read(app).core.tabs.iter().find(|tab| tab.name == "a.fodt").expect("opened").id);
     assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(chosen));
 }

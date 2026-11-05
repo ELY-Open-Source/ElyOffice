@@ -84,7 +84,8 @@ pub trait Remote: Saving {
         let slug = Self::KIND.app.slug();
         log::info!("{slug}: another program asks {}", words.first().map_or("nothing", String::as_str));
         if words.len() == 1 && words[0] == "docs" {
-            let files: Vec<String> = self.core().tabs.iter().filter_map(|tab| tab.session.path()).map(|path| Path::new(path).display().to_string()).collect();
+            let open = self.core().tabs.iter().filter_map(|tab| tab.session.path()).map(Path::new);
+            let files: Vec<String> = open.chain(self.core().parked_files()).map(|path| path.display().to_string()).collect();
             ask.answer(Ok(files.join("\n")));
             return None;
         }
@@ -99,6 +100,13 @@ pub trait Remote: Saving {
                 return None;
             }
         };
+        // Loading, or waiting to be shown: asked again once loaded.
+        if self.tab(id).is_none() {
+            log::info!("{slug}: tab {id} loads for another program first");
+            self.core_mut().wake(id, ask);
+            cx.notify();
+            return None;
+        }
         if !(words.len() == 2 && words[0] == "save") {
             return Some((id, words, ask));
         }
@@ -120,7 +128,8 @@ pub trait Remote: Saving {
         }
         // Matched in memory; only `file` is read.
         let held = self.holder(Path::new(file)).map_err(|error| format!("{file}: {error}"))?;
-        held.filter(|id| self.tab(*id).is_some())
+        let loading = |id: &u64| self.core().loading.iter().any(|(of, ..)| of == id);
+        held.filter(|id| self.tab(*id).is_some() || loading(id))
             .ok_or_else(|| format!("{file} is not open in {}", Self::KIND.app.name()))
     }
 

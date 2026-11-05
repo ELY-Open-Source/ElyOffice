@@ -11,6 +11,8 @@ use crate::{After, Closing, Engine, Host, Tabs, text};
 
 /// A tab switch: the one behind stops drawing.
 pub(crate) fn follow_front<H: Host>(host: &mut H, cx: &mut Context<H>) {
+    // A waiting file shown, or asked for, loads now.
+    crate::Opening::wake_due(host, cx);
     let front = host.core().active();
     let behind = std::mem::replace(&mut host.core_mut().shown, front);
     if behind == front {

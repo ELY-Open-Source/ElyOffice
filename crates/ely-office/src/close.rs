@@ -137,7 +137,7 @@ pub trait Closing: Host {
             });
         }
         let Some(tab) = self.tab(id) else {
-            return;
+            return self.close_waiting(id, cx);
         };
         if tab.dirty(cx) {
             return self.ask_unsaved(id, after, cx);
@@ -221,6 +221,19 @@ pub trait Closing: Host {
             }
         })
         .detach();
+    }
+
+    /// Drops tab `id` still waiting to load; it holds nothing.
+    fn close_waiting(&mut self, id: u64, cx: &mut Context<Self>) {
+        let Some(registry) = self.core_mut().unpark(id) else {
+            return log::info!("office: tab {id} is not open nor waiting");
+        };
+        let core = self.core_mut();
+        if let Some(registry) = registry {
+            core.sessions.close(registry);
+        }
+        log::info!("office: closed waiting tab {id}, {} tabs open, {} waiting", core.tabs.len(), core.loading.len());
+        cx.notify();
     }
 
     /// Drops `id` from the window; its kernel document is returned.

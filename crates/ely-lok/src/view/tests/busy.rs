@@ -99,6 +99,46 @@ fn each_worker_has_its_own_turn() {
     assert!(free, "a worker waited for another worker's turn");
 }
 
+/// An input's tile goes before work queued behind a load.
+#[test]
+fn an_inputs_tile_goes_before_queued_background_work() {
+    use std::{sync::mpsc::channel, time::Duration};
+    let worker = Arc::new(Mutex::new(Vec::new()));
+    let order = super::super::off::turn(&worker);
+    let (held, release) = (channel(), channel::<()>());
+    let load = {
+        let worker = Arc::clone(&worker);
+        std::thread::spawn(move || {
+            futures::executor::block_on(crate::behind(&worker, |_| {
+                held.0.send(()).expect("the test waits");
+                release.1.recv().expect("the test lets go");
+            }))
+        })
+    };
+    held.1.recv().expect("the load holds the worker");
+    let queued = {
+        let worker = Arc::clone(&worker);
+        std::thread::spawn(move || futures::executor::block_on(crate::behind(&worker, |seen| seen.push("next load"))))
+    };
+    std::thread::sleep(Duration::from_millis(100));
+    // As the lane does: input, then soon its tile.
+    let lane = {
+        let worker = Arc::clone(&worker);
+        std::thread::spawn(move || {
+            order.input();
+            worker.lock().expect("the worker lock").push("input");
+            order.ran();
+            std::thread::sleep(Duration::from_millis(30));
+            worker.lock().expect("the worker lock").push("tile");
+            order.painted();
+        })
+    };
+    std::thread::sleep(Duration::from_millis(100));
+    release.0.send(()).expect("the load lets go");
+    [load, queued, lane].into_iter().for_each(|thread| thread.join().expect("it ends"));
+    assert_eq!(*worker.lock().expect("the worker lock"), ["input", "tile", "next load"]);
+}
+
 /// A busy engine never stalls the window opening a view.
 #[test]
 fn a_view_opens_while_the_engine_is_busy() {

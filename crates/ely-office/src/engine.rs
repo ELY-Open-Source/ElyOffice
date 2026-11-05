@@ -31,6 +31,8 @@ pub trait Engine: Sized + 'static {
     type Loaded: Send + 'static;
     /// How text files are read.
     type Import: Clone + Send + 'static;
+    /// Files behind the front wait until shown (R15.57).
+    const PARKS: bool = false;
 
     /// Loads off the window; a locked file fails PermissionDenied.
     fn load(worker: &mut Self::Worker, from: Load<Self::Import>) -> io::Result<Self::Loaded>;
