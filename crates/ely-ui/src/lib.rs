@@ -24,6 +24,8 @@ pub use ending::at_thread_end;
 pub use opening::{Ask, launch_files, mail_link, on_ask, on_open};
 #[cfg(any(test, feature = "test-support"))]
 pub use opening::install_no_launch_files;
+#[cfg(any(test, feature = "test-support"))]
+pub use theme::install as install_theme;
 pub use run::{run, window_options};
 pub use shell::{Root, Shell, blank, document_root, root, set_document_menus, tool_root};
 pub use tasks::{LongTask, TaskState};

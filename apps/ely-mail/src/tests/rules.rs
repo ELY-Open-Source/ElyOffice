@@ -1,7 +1,14 @@
-use ely_mail_engine::{Action, Match, Role, Store};
+use ely_mail_engine::{Action, Key, Match, Role, Security, Store};
+use fake::{Step, expect, send};
 use gpui::{TestAppContext, px, size};
 
-use super::{Keys, account, settle, window};
+use super::{
+    Keys, account, closed_port,
+    drafts::rooted,
+    outbox::with_password,
+    settle, window, window_with,
+    whole::{bo, ended, runtime},
+};
 use crate::boxes::Open;
 
 #[test]
@@ -140,4 +147,87 @@ fn a_saved_move_names_its_folder_in_chinese() {
     let offered = vcx.update(|_, app| crate::rules::rule_actions(ely_mail_engine::Protocol::Imap, &folders, app));
     let moves = offered.iter().find(|choice| choice.value == drafts.0.to_string()).expect("a move to 草稿箱");
     assert_eq!(moves.label.as_ref(), "move it to 草稿箱");
+}
+
+/// Two new messages' headers, read and undated.
+fn arrived() -> String {
+    let mut lines = String::new();
+    for (at, uid, subject) in [(1, 2, "urgent: call"), (2, 3, "Your receipt")] {
+        // Sent lines gain CR; the literal counts them.
+        let head = format!("Subject: {subject}\nFrom: a@example.com\n\n");
+        let size = head.replace('\n', "\r\n").len();
+        lines.push_str(&format!("* {at} FETCH (UID {uid} FLAGS (\\Seen) BODY[HEADER] {{{size}}}\n{head})\n"));
+    }
+    lines.push_str("{tag} OK headers\n");
+    lines
+}
+
+/// Logged in as Bo, then `rest`, then out.
+fn session(rest: Vec<Step>) -> Vec<Step> {
+    let mut script = vec![
+        send("* OK ready\n"),
+        expect("{tag} LOGIN \"bo@example.com\" \"pw\""),
+        send("{tag} OK done\n"),
+    ];
+    script.extend(rest);
+    script.push(expect("{tag} LOGOUT"));
+    script.push(send("* BYE\n{tag} OK bye\n"));
+    script
+}
+
+#[test]
+fn a_sync_tells_a_refused_rule_and_sends_what_rules_did() {
+    let rt = runtime();
+    let certs = fake::certs();
+    let (open, gate) = std::sync::mpsc::channel::<()>();
+    let mut synced = vec![Step::Run(Box::new(move || gate.recv().unwrap()))];
+    synced.extend(session(vec![
+        expect("{tag} CAPABILITY"),
+        send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
+        expect("{tag} LIST \"\" *"),
+        send("* LIST (\\HasNoChildren) \"/\" INBOX\n{tag} OK listed\n"),
+        expect("{tag} EXAMINE \"INBOX\""),
+        send("* 2 EXISTS\n* OK [UIDVALIDITY 7] v\n{tag} OK in\n"),
+        expect("{tag} UID FETCH 1:* (UID FLAGS)"),
+        send("* 1 FETCH (UID 2 FLAGS (\\Seen))\n* 2 FETCH (UID 3 FLAGS (\\Seen))\n{tag} OK flags\n"),
+        Step::Prefix("{tag} UID SEARCH SINCE".into()),
+        send("* SEARCH\n{tag} OK found\n"),
+        expect("{tag} UID FETCH 2:3 (UID FLAGS BODY.PEEK[HEADER])"),
+        send(&arrived()),
+    ]));
+    let pushed = session(vec![
+        expect("{tag} CAPABILITY"),
+        send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
+        expect("{tag} SELECT \"INBOX\""),
+        send("* 2 EXISTS\n* OK [UIDVALIDITY 7] v\n{tag} OK [READ-WRITE] in\n"),
+        expect("{tag} UID FETCH 2 (UID)"),
+        send("* 1 FETCH (UID 2)\n{tag} OK fetched\n"),
+        expect("{tag} UID STORE 2 +FLAGS.SILENT (\\Flagged)"),
+        send("{tag} OK stored\n"),
+    ]);
+    let (server, task) = rt.block_on(fake::serve_each(&certs, Security::Tls, vec![synced, pushed], None));
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(dir.path()).unwrap();
+    let id = store.add_account(&bo(server.port, closed_port())).unwrap();
+    let folders = [("INBOX", Some(Role::Inbox)), ("Archive", Some(Role::Archive))];
+    let [inbox, _] = store.set_folders(id, &folders).unwrap().try_into().unwrap();
+    // Synced before: what comes now is news.
+    store.set_synced(id, 1).unwrap();
+    store.add_rule(id, Match::Subject, "urgent", Action::Flag).unwrap();
+    // The server drops Archive before the next sync.
+    store.add_rule(id, Match::Subject, "receipt", Action::Archive).unwrap();
+    drop(store);
+    let mut cx = TestAppContext::single();
+    let (mail, cx) = window_with(&mut cx, dir.path(), with_password(), Ok(certs.trusted.clone()));
+    let root = rooted(&mail, cx);
+    open.send(()).unwrap();
+    settle(cx, |app| task.is_finished() && mail.read(app).syncs[&id].task.is_none());
+    ended(&rt, task);
+    let toasts = cx.update(|_, app| root.read(app).toasts(app));
+    assert!(toasts.iter().any(|(words, _)| words.starts_with("A rule could not act:")), "{toasts:?}");
+    let store = Store::open(dir.path()).unwrap();
+    let key = Key::Imap { uidvalidity: 7, uid: 2 };
+    let flagged = store.get(store.find(inbox, &key).unwrap().unwrap()).unwrap().flags;
+    assert!(flagged.contains(&"\\Flagged".to_owned()), "{flagged:?}");
+    assert_eq!(store.synced(id).unwrap().waiting, 0);
 }

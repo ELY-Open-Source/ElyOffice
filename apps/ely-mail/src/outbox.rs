@@ -167,9 +167,10 @@ impl Mail {
         let file = copies(&account, copy);
         let vault = self.vault.clone();
         self.runner.sending = Some(id);
+        let providers = self.providers.clone();
         let work = async move {
             let bytes = without_bcc(&handed.bytes)?;
-            let secret = sync::secret(&account, &vault).await?;
+            let secret = sync::secret(&account, providers(account.auth), &vault).await?;
             account.send(secret, &handed.envelope, &bytes, &tls).await
         };
         self.on_runtime(cx, work, move |mail, done, cx| {
@@ -263,8 +264,9 @@ impl Mail {
             Err(error) => return self.filed_as(id, Filed::Failed(error), round, cx),
         };
         let vault = self.vault.clone();
+        let providers = self.providers.clone();
         let work = async move {
-            let secret = sync::secret(&account, &vault).await?;
+            let secret = sync::secret(&account, providers(account.auth), &vault).await?;
             sent::file(&account, secret, &tls, &mailbox, &bytes).await
         };
         self.on_runtime(cx, work, move |mail, done, cx| {

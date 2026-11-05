@@ -99,7 +99,7 @@ impl Mail {
             },
         );
         let oauth = adding.auth() != Auth::Password;
-        let unavailable = match adding.auth().provider() {
+        let unavailable = match (self.providers)(adding.auth()) {
             Some(Err(Error::Unavailable(name))) => {
                 Some(text(cx, &format!("mail.add.unavailable.{name}"), &[]))
             }
@@ -114,13 +114,22 @@ impl Mail {
         let go_label = text(cx, go_key, &[("method", &auth(adding.auth(), cx))]);
         let busy = adding.busy();
         let blocked = busy || (unavailable.is_some() && oauth);
-        let dialog = Dialog::new("mail-add", text(cx, "mail.add.title", &[]), dismiss)
-            .child(kinds)
+        // Signing in again shows only the sign-in.
+        let (title, kinds, fields) = match adding.again {
+            Some(id) => (self.again_title(id, cx), None, None),
+            None => (
+                text(cx, "mail.add.title", &[]),
+                Some(kinds),
+                Some(self.add_fields(adding, &this, cx)),
+            ),
+        };
+        let dialog = Dialog::new("mail-add", title, dismiss)
+            .children(kinds)
             .children(
                 unavailable
                     .map(|words| Banner::new("mail-add-unavailable", Severity::Danger, words)),
             )
-            .child(self.add_fields(adding, &this, cx))
+            .children(fields)
             .children(status(adding, cx))
             .action(move |close| {
                 Button::new("mail-add-cancel", cancel)

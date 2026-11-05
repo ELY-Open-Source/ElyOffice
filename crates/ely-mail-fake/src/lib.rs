@@ -1,5 +1,6 @@
 //! A scripted mail server over real TLS, for protocol tests.
 
+pub mod oauth;
 pub mod smtp;
 
 use std::sync::Arc;
@@ -7,7 +8,7 @@ use std::sync::Arc;
 use ely_mail_engine::{Account, Auth, Login, Protocol, Secret, Security, Server, TlsConnector};
 use rcgen::{CertificateParams, KeyPair};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::TcpListener,
     task::JoinHandle,
 };
@@ -31,8 +32,6 @@ pub enum Step {
     AnyData,
     /// One line that starts so; `{tag} ` as in `Expect`.
     Prefix(String),
-    /// The literal the last line announced, as `{N}`.
-    Literal,
     StartTls,
     /// Ends the script, holding the connection open unanswered.
     Hang,
@@ -155,7 +154,6 @@ pub async fn serve_each(
 async fn run(io: Box<dyn Io>, acceptor: &TlsAcceptor, steps: Vec<Step>) -> Result<(), String> {
     let mut io = BufReader::new(io);
     let mut tag = String::new();
-    let mut announced = 0;
     for step in steps {
         match step {
             Step::Send(text) => {
@@ -206,17 +204,6 @@ async fn run(io: Box<dyn Io>, acceptor: &TlsAcceptor, steps: Vec<Step>) -> Resul
                 };
                 if !got.starts_with(&want) {
                     return Err(format!("expected {want:?}..., got {got:?}"));
-                }
-                announced = match got.rsplit_once('{').and_then(|(_, size)| size.strip_suffix('}')) {
-                    Some(size) => size.parse().map_err(|_| format!("a literal size {size:?}"))?,
-                    None => 0,
-                };
-            }
-            Step::Literal => {
-                let mut bytes = vec![0; announced + 2];
-                io.read_exact(&mut bytes).await.map_err(|e| e.to_string())?;
-                if !bytes.ends_with(b"\r\n") {
-                    return Err("the literal did not end its line".into());
                 }
             }
             Step::StartTls => {

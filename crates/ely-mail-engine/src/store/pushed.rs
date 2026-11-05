@@ -2,7 +2,7 @@
 
 use rusqlite::{OptionalExtension, Transaction, params};
 
-use super::{AccountId, MailboxId, MessageId, Store, aside::Aside, messages};
+use super::{AccountId, MailboxId, MessageId, Store, aside::Aside, messages, rebuilt::record};
 use crate::{Error, Result, push::Dropped};
 
 /// A queued change, as read before it goes.
@@ -237,6 +237,16 @@ fn settle(
         Done::Moved(None) => {
             // The target's sync brings it down.
             forget(tx)?;
+            if let (Some(id), Some((target, _))) = (message, &pending.target) {
+                // Handled mail coming down anew is no news.
+                tx.execute(
+                    &format!(
+                        "{} WHERE m.id = ?2 AND m.id <= (SELECT handled FROM accounts WHERE id = ?3)",
+                        record("?1")
+                    ),
+                    params![target.0, id.0, account.0],
+                )?;
+            }
             if let Some(id) = message {
                 messages::delete(tx, aside, id)?;
             }

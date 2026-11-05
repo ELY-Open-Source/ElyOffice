@@ -145,4 +145,9 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("mail.sync.paused", "Đồng bộ đang tạm dừng. Không có gì được tải xuống cho đến khi bạn tiếp tục."),
     ("mail.sync.offline", "Giữ toàn bộ {name} để dùng ngoại tuyến"),
     ("mail.sync.offline_failed", "Chưa lưu được cài đặt thư mục: {error}"),
+    ("mail.again.go", "Đăng nhập lại"),
+    ("mail.again.title", "Đăng nhập lại vào {address}"),
+    ("mail.again.other", "Bạn đã đăng nhập bằng {signed}. Hãy đăng nhập bằng {address}."),
+    ("mail.again.done", "Đã đăng nhập lại vào {address}."),
+    ("mail.again.gone", "Tài khoản này đã bị xóa."),
 ];

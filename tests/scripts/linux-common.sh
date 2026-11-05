@@ -106,8 +106,8 @@ judge() { # slug, screenshot, words, app log
   blue=$(band "$2" b) || fail "magick cannot read $2"
   red=$(band "$2" r) || fail "magick cannot read $2"
   [ $((blue - red)) -gt 10 ] || fail "$1's title bar is not Catppuccin"
-  # Dark text, twice the size: Xvfb draws at scale 1.
-  magick "$2" -colorspace Gray -negate -resize 200% "$2.ocr.png"
+  # Opaque dark text, doubled; ImageMagick 7.1.2 negates alpha too.
+  magick "$2" -alpha off -colorspace Gray -negate -resize 200% "$2.ocr.png"
   # Sparse text: a page beside panels hides from layout analysis.
   text=$(tesseract "$2.ocr.png" - --psm 11 2>"$2.ocr") || fail "tesseract failed: $(cat "$2.ocr")"
   grep -qi "$3" <<<"$text" || fail "$1 shows no '$3': $text"

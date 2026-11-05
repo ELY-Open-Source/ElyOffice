@@ -316,7 +316,6 @@ impl Compose {
             return log::info!("mail: a discard waits out the send");
         }
         log::info!("mail: a message was discarded");
-        self.discarding = false;
         self.shelf.discarded = true;
         self.shelf.leaving = Some(Leave::Close);
         self.drop_draft(cx);
@@ -327,7 +326,6 @@ impl Compose {
         cx.notify();
     }
 
-    /// Sent: the draft goes; then closes, or keeps later edits.
     pub(crate) fn shelf_busy(&self) -> bool {
         self.shelf.busy
     }
@@ -338,6 +336,7 @@ impl Compose {
         self.shelf.kept = None;
     }
 
+    /// Sent: the draft goes; then closes, or keeps later edits.
     pub(super) fn sent_off(&mut self, closes: bool, cx: &mut Context<Self>) {
         if closes {
             self.shelf.discarded = true;
