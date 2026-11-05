@@ -554,7 +554,7 @@
 
 ## R16 审计余项与新议题（用户 2026-11-05 定：OPTIMIZATION 未结的各项与 GitHub 新议题，按 PRD 章节逐条做；主 agent 独自做，无 subagent、worktree、分支；每条经 herdr 右侧分屏的 Claude Code（Kimi K3.1 Pro）审查，至多三轮；不问，取推荐项）
 
-- [ ] R16.1 审查改用 Kimi K3.1 Pro：`review.sh`、本文件页首、agents.md、替身测试
+- [x] R16.1 审查改用 Kimi K3.1 Pro：`review.sh`、本文件页首、agents.md、替身测试 — R1 FAIL（替身不查模型），R2 PASS
 - [ ] R16.2 并入停下的各线（lane-a1、a2、a5、a6、a7、a7b、b、mac-lane、desktop、r15-56、r15-65）：已审的工作进 main，冲突逐处解，全量测试照过
 - [ ] R16.3 #16 上架 WinGet（§4）：各应用的 winget 清单随发布生成，README 写安装与升级命令
 - [ ] R16.4 #37 Windows arm64 原生构建（§4）
