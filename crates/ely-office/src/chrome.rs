@@ -61,9 +61,17 @@ pub trait Chrome: Host {
     /// The tab the user picked comes forward with the keys.
     fn show_tab(&mut self, id: u64, window: &mut Window, cx: &mut Context<Self>) {
         self.core_mut().set_active(Some(id));
-        if let Some(tab) = self.active_tab() {
-            log::info!("{}: tab {id} picked", Self::KIND.app.slug());
-            window.focus(&<Self::Engine as Engine>::focus(tab.view.read(cx)), cx);
+        match self.active_tab() {
+            Some(tab) => {
+                log::info!("{}: tab {id} picked", Self::KIND.app.slug());
+                window.focus(&<Self::Engine as Engine>::focus(tab.view.read(cx)), cx);
+                crate::hold::replay(self, id, window, cx);
+            }
+            None if Self::Engine::PARKS => {
+                log::info!("{}: tab {id} picked while it loads; its keys wait", Self::KIND.app.slug());
+                self.core().hold.update(cx, |hold, cx| hold.take_keys(id, window, cx));
+            }
+            None => log::info!("{}: tab {id} picked while it loads", Self::KIND.app.slug()),
         }
         cx.notify();
     }

@@ -294,7 +294,9 @@ pub trait Opening: Host {
         self.watch(id, &view, cx);
         // Hidden views never draw nor ask the engine.
         let front = self.core().takes_front(id);
-        if front {
+        // Keys typed while it loaded go first.
+        let held = front && crate::hold::holds(self, id, window, cx);
+        if front && !held {
             window.focus(&Self::Engine::focus(view.read(cx)), cx);
         }
         // Tabs keep the order their loads began.
@@ -318,6 +320,11 @@ pub trait Opening: Host {
         });
         if front {
             self.core_mut().landed_front(id);
+        }
+        match held {
+            true => crate::hold::hand_over::<Self>(id, window, cx),
+            false if front => crate::hold::replay(self, id, window, cx),
+            false => {}
         }
         // Points from now on; a crash copy comes back unsaved.
         let tab = self.tab(id).expect("just opened");

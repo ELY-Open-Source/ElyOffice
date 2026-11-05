@@ -9,6 +9,7 @@ pub mod engine;
 pub mod files;
 mod find;
 mod front;
+mod hold;
 mod links;
 pub mod lok;
 pub mod menu;
@@ -197,6 +198,8 @@ pub struct Core<H: Host> {
     front: Option<u64>,
     /// Loads waiting until their tab is shown.
     park: front::Parking<H>,
+    /// Keys typed into a loading tab.
+    hold: Entity<hold::Hold>,
     pub focus: FocusHandle,
     pub root: WeakEntity<Root>,
     pub work: PathBuf,
@@ -244,6 +247,7 @@ impl<H: Host> Core<H> {
             loading: Vec::new(),
             front: None,
             park: Default::default(),
+            hold: cx.new(hold::Hold::new),
             focus: cx.focus_handle(),
             root: WeakEntity::new_invalid(),
             work,

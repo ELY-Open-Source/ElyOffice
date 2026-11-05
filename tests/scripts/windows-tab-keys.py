@@ -31,15 +31,28 @@ def ask(app, *words):
     return out.stdout
 
 
-def marks(app, files):
-    """Each open file's count of the typed mark."""
+def loaded(app):
+    """The files loaded; reading one loads it."""
+    return {m.group(1) for m in (re.search(r": opened (\w)\.\w+ as tab", line) for line in app.lines()) if m}
+
+
+def marks(app, files, base):
+    """Each loaded file's mark count; waiting ones keep `base`."""
     time.sleep(1.5)
-    return {name: ask(app, "text", "get", path).count(MARK) for name, path in files.items()}
+    done = loaded(app)
+    return {name: ask(app, "text", "get", path).count(MARK) if name in done else base for name, path in files.items()}
 
 
-def first_key(app, files, into, expected, how):
-    """One key after `how`; it must land in `expected` alone."""
-    before = marks(app, files)
+def first_key(app, files, into, expected, how, base, act=None):
+    """One key right after `act`; it lands in `expected` alone."""
+    waiting = expected not in loaded(app)
+    before = marks(app, files, base)
+    since = len(app.lines())
+    if act:
+        act()
+    if waiting:
+        # A click on a waiting tab: its keys wait.
+        app.wait(r": tab \d+ picked while it loads; its keys wait", since=since)
     pid = app.process.pid
     if into:
         # Impress: Tab picks a box, Enter edits it.
@@ -49,11 +62,15 @@ def first_key(app, files, into, expected, how):
     if into:
         run.HOST.key(pid, "escape")
         run.HOST.key(pid, "escape")
-    after = marks(app, files)
+    held = False
+    if waiting:
+        app.wait(rf": opened {expected}\.\w+ as tab", since=since)
+        held = any("typed while it loaded" in line for line in app.lines()[since:])
+    after = marks(app, files, base)
     grew = [name for name in files if after[name] > before[name]]
     if grew != [expected]:
         sys.exit(f"FAIL: {app.slug}: after {how} the key reached {grew or 'nothing'}, not {expected}")
-    print(f"ok: {app.slug}: after {how} the first key landed in {expected}")
+    print(f"ok: {app.slug}: after {how} the first key landed in {expected}{' as it loaded' if held else ''}")
 
 
 def check(slug, ext, into, sample):
@@ -74,31 +91,34 @@ def check(slug, ext, into, sample):
         last = landed[-1].group(1)
         if sum(map(int, landed[-1].groups()[1:])) != 4:
             sys.exit(f"FAIL: {app.slug}: not four tabs: {landed[-1].group(0)}")
-        first_key(app, shown, into, last, "opening four files")
-        run.HOST.tab(app.process.pid, f"a.{ext}")
-        first_key(app, shown, into, "a", "a click on a")
+        base = ask(app, "text", "get", shown[last]).count(MARK)
+        key = lambda expected, how, act=None: first_key(app, shown, into, expected, how, base, act)
+        key(last, "opening four files")
+        click = lambda name: lambda: run.HOST.tab(app.process.pid, f"{name}.{ext}")
+        key("a", "a click on a", click("a"))
         # Clean, so Ctrl+W closes it without asking.
         gone = next(name for name in "cbd" if name != last)
+        since = len(app.lines())
         run.HOST.tab(app.process.pid, f"{gone}.{ext}")
+        if gone not in loaded(app):
+            app.wait(rf": opened {gone}\.\w+ as tab", since=since)
         time.sleep(1)
         since = len(app.lines())
         run.HOST.chord(app.process.pid, "w")
         app.wait(rf"office: closed {gone}\.{ext}", since=since)
         del shown[gone]
         # Tabs keep load order; the last one comes forward.
-        first_key(app, shown, into, max(shown), "Ctrl+W on the front tab")
+        key(max(shown), "Ctrl+W on the front tab")
         # Every click switches: there and back.
         for name in sorted(shown) + sorted(shown)[-2::-1]:
-            run.HOST.tab(app.process.pid, f"{name}.{ext}")
-            first_key(app, shown, into, name, f"a click on {name}")
+            key(name, f"a click on {name}", click(name))
         since = len(app.lines())
         ask(app, files["e"])
         app.wait(rf"opened e\.{ext} as tab", since=since)
         time.sleep(1)
         shown["e"] = files["e"]
-        first_key(app, shown, into, "e", "opening a file from outside")
-        run.HOST.tab(app.process.pid, f"a.{ext}")
-        first_key(app, shown, into, "a", "a click on a")
+        key("e", "opening a file from outside")
+        key("a", "a click on a", click("a"))
     finally:
         app.stop()
 

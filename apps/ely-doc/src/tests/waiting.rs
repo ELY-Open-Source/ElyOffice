@@ -88,3 +88,21 @@ fn a_program_asking_for_a_waiting_file_loads_it_first() {
     assert!(named(&mut cx, &docs, "a.fodt").1, "a loaded for the program");
     assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(c), "the program took the front");
 }
+
+#[test]
+fn with_every_tab_closed_the_newest_waiting_file_comes_forward() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((docs, _)) = three_behind(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let open: Vec<u64> = cx.update(|app| docs.read(app).core.tabs.iter().map(|tab| tab.id).collect());
+    assert_eq!(open.len(), 2, "the blank tab and c are open");
+    with_window(&mut cx, &docs, |docs, _, cx| open.iter().for_each(|id| docs.close_tab(*id, cx)));
+    settle(&cx, |app| !docs.read(app).core.tabs.is_empty());
+    let (b, b_loaded) = named(&mut cx, &docs, "b.fodt");
+    assert!(b_loaded, "b never came forward");
+    assert_eq!(cx.update(|app| docs.read(app).core.active()), Some(b));
+    assert!(!named(&mut cx, &docs, "a.fodt").1, "a loaded too");
+}

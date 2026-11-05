@@ -228,7 +228,9 @@ pub trait Closing: Host {
         let Some(registry) = self.core_mut().unpark(id) else {
             return log::info!("office: tab {id} is not open nor waiting");
         };
+        crate::hold::forget(self, id, cx);
         let core = self.core_mut();
+        core.closed_front(id);
         if let Some(registry) = registry {
             core.sessions.close(registry);
         }
@@ -254,6 +256,7 @@ pub trait Closing: Host {
         })
         .detach();
         crate::Recovering::forget_tab(self, id, cx);
+        crate::hold::forget(self, id, cx);
         let core = self.core_mut();
         core.waiting.retain(|(waiting, _)| *waiting != id);
         let (asks, rest): (Vec<_>, Vec<_>) = std::mem::take(&mut core.asked).into_iter().partition(|(tab, _)| *tab == id);
@@ -264,10 +267,7 @@ pub trait Closing: Host {
         if let Some(registry) = tab.registry {
             core.sessions.close(registry);
         }
-        // Not a choice: a file asked still takes the front.
-        if core.active == Some(id) {
-            core.active = core.tabs.last().map(|tab| tab.id);
-        }
+        core.closed_front(id);
         if let Err(error) = std::fs::remove_dir_all(&tab.work) {
             log::warn!("office: scratch {} stays: {error}", tab.work.display());
         }

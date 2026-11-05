@@ -9,7 +9,7 @@ use std::{
 use ely_lok::{Doc, LokError, LokView, Reported, Worker, sheet::csv::Import};
 use ely_gpui_component::primitives::Severity;
 use ely_platform::AppId;
-use gpui::{App, Context, Entity, FocusHandle, Window};
+use gpui::{App, Context, Entity, FocusHandle, Keystroke, Window};
 
 use crate::engine::{Engine, Load, Stop};
 use crate::{Host, Tabs, text};
@@ -150,6 +150,10 @@ impl Engine for Lok {
 
     fn hide(view: &Entity<LokView>, cx: &mut App) {
         view.update(cx, |view, _| view.hide());
+    }
+
+    fn replay(view: &Entity<LokView>, keys: Vec<Keystroke>, window: &mut Window, cx: &mut App) {
+        view.update(cx, |view, cx| view.replay(keys, window, cx));
     }
 
     fn ended(worker: &mut Worker) -> Option<String> {

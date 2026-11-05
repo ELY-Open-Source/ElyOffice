@@ -69,6 +69,20 @@ impl<H: Host> Core<H> {
         chosen
     }
 
+    /// Tab `id` closed; else the newest waiting tab comes.
+    pub(crate) fn closed_front(&mut self, id: u64) {
+        if self.active == Some(id) {
+            self.active = self.tabs.last().map(|tab| tab.id);
+        }
+        if self.front == Some(id) {
+            self.front = None;
+        }
+        if self.active.is_none() && self.front.is_none() {
+            self.front = self.loading.last().map(|(id, ..)| *id);
+        }
+        self.refresh();
+    }
+
     /// Whether load `id` takes the front when it lands.
     pub(crate) fn takes_front(&self, id: u64) -> bool {
         self.front == Some(id) || self.active.is_none() || self.active == Some(id)

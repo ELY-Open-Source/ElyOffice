@@ -7,7 +7,7 @@ use std::{
 };
 
 use ely_platform::AppId;
-use gpui::{App, Context, Entity, FocusHandle, Window};
+use gpui::{App, Context, Entity, FocusHandle, Keystroke, Window};
 
 use crate::Host;
 
@@ -86,6 +86,10 @@ pub trait Engine: Sized + 'static {
     fn retire(view: &Entity<Self::View>, cx: &mut App) -> ely_gpui_component::primitives::Retired;
     /// Its tab left the screen; queued drawing stops.
     fn hide(_view: &Entity<Self::View>, _cx: &mut App) {}
+    /// Input typed while it loaded; only parking engines hold.
+    fn replay(_view: &Entity<Self::View>, keys: Vec<Keystroke>, _window: &mut Window, _cx: &mut App) {
+        log::error!("office: {} held inputs reached an engine that never holds", keys.len());
+    }
     /// Why the worker ended, if it did (§6.3).
     fn ended(_worker: &mut Self::Worker) -> Option<String> {
         None
