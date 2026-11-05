@@ -73,4 +73,4 @@ esac
 [ -n "$got" ] || fail "the build in $src fetches nothing"
 missing=$(comm -23 <(printf '%s\n' "$got" | sort) <(sort "$list"))
 [ -z "$missing" ] || fail "packaging/lo-tarballs.tsv lacks what engines/lo-src fetches: $missing"
-echo "lo-tarballs: pinned hashes; all $(wc -l <<<"$got") of this build's fetches listed"
+echo "lo-tarballs: pinned hashes; all $(grep -c . <<<"$got") of this build's fetches listed"
