@@ -2,7 +2,7 @@
 
 进度真相。自上而下，逐条完成，不跳项。编号前缀是 PRD 章节号，`C00` 是用户指令的前置项。
 
-每条完成后：`scripts/review.sh ID 轮次` 在 herdr TUI 里开新标签页，codex --yolo（gpt-6-astra，effort xhigh，fast）审查，最多三轮。有问题先修，复审通过才勾选。审查只看缺陷，不收“建议增强”。每轮结论写入 `tasks/reviews/<编号>-r<轮>.md`。
+每条完成后：`scripts/review.sh ID 轮次` 在 herdr TUI 里调用者右侧分屏，另一个 Claude Code（Kimi K3.1 Pro，effort high）审查，最多三轮。有问题先修，复审通过才勾选。审查只看缺陷，不收“建议增强”。每轮结论写入 `tasks/reviews/<编号>-r<轮>.md`。
 
 状态：`[ ]` 未做　`[x]` 完成且审查通过　`[~]` 三轮用尽，末轮缺陷已修并有回归测试，未经复审　`[!]` 外部阻塞，写明原因与证据，不算完成。
 

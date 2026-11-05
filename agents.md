@@ -128,7 +128,7 @@ scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 到 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核对散列；Mac 核对架构）
 tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架构（ci.sh 发布前调用）
-scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 里调用者右侧分屏，其后的审查分在该列最高的窗格下面，每格的终端至少 10 行（herdr 的窗格框另占 2 行），列满即在调用者的工作区另开标签页；各工作树的调用者经 Git 公共目录里的 `review-place.lock` 逐个放窗格，可并行；Claude Code，Opus 5.5，effort high；读到结论即关窗格（标签页随之关），失败的留到本条下一轮；失败说明带 herdr 的错误码，提示卡住与 90 分钟超时分开报；阻塞 5 分钟即报出屏上文字并关掉窗格；审查者的构建、副本与日志都在 `.work/<ID>-r<轮次>/`）
+scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 里调用者右侧分屏，其后的审查分在该列最高的窗格下面，每格的终端至少 10 行（herdr 的窗格框另占 2 行），列满即在调用者的工作区另开标签页；各工作树的调用者经 Git 公共目录里的 `review-place.lock` 逐个放窗格，可并行；Claude Code，Kimi K3.1 Pro，effort high；读到结论即关窗格（标签页随之关），失败的留到本条下一轮；失败说明带 herdr 的错误码，提示卡住与 90 分钟超时分开报；阻塞 5 分钟即报出屏上文字并关掉窗格；审查者的构建、副本与日志都在 `.work/<ID>-r<轮次>/`）
 tests/scripts/review-rules.sh   review.sh 对替身 herdr：claude 起不来、提示超时、提示卡住、阻塞、状态读不出、空结论、窗格关不掉皆败，前三者报出 herdr 的错误码、卡住不说成超时，审查者空闲而结论晚到照等，CRLF 的 jq 照常，首个窗格在调用者右侧、其后分在该列最高的窗格下面，两半的终端都留 10 行才分（框占 2 行，24 行分得、23 行不分），列满即另开标签页、读完结论关掉、开不出即报，两个调用者同时放也不压到 10 行以下、锁 30 秒不放即报，阻塞 10 次即报出屏上文字并关窗格、短暂阻塞照等，提示要求一切留在 `.work/<ID>-r<轮次>/`，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
 scripts/apply-lo-patches.sh engines/lo-src  找出源码已到补丁序列第几个，补上其余（构建脚本调用）
 tests/scripts/lo-patches.sh    补丁序列从中途接着打、再打一次为空操作
@@ -274,4 +274,4 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。
 - 合并前：`.github/workflows/pr.yml` 在每个 PR 与 main 的推送上，以 GitHub 托管的 Ubuntu 建 MuPDF（PDF worker 才编得过）后跑 check.sh、deny.sh、panics.py（数量比 PR 的基线或推送前的提交）、整个工作区的 clippy（告警即败）与不需引擎的测试（严格模式）；PR 从不上自托管机器，带引擎的全部测试是发布的门（release-tests.sh）。
-- 审查：每条任务由 `scripts/review.sh` 交另一个 Claude Code（Opus 5.5，effort high）审查，至多三轮。
+- 审查：每条任务由 `scripts/review.sh` 交另一个 Claude Code（Kimi K3.1 Pro，effort high）审查，至多三轮。

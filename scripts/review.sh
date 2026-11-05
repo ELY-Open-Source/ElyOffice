@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: review.sh <item-id> <round> [path...] — Opus 5.5 high.
+# Usage: review.sh <item-id> <round> [path...] — Kimi K3.1 Pro.
 set -euo pipefail
 
 [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || { echo "review.sh: not inside a herdr pane" >&2; exit 2; }
@@ -79,7 +79,7 @@ fail() { echo "review.sh: $name in $pane $*; pane left open" >&2; exit 1; }
 # Herdr's error code and message, else its raw reply.
 why() { field -e '.error | select(.code) | "\(.code): \(.message)"' <<<"$1" 2>/dev/null || echo "$1"; }
 said=$(herdr agent start "$name" --kind claude --pane "$pane" --timeout 120000 -- \
-  --model claude-opus-5-5 --effort high --dangerously-skip-permissions 2>&1) || fail "did not start claude: $(why "$said")"
+  --model 'remote-magpie/kimi/k3.1-pro[1m]' --effort high --dangerously-skip-permissions 2>&1) || fail "did not start claude: $(why "$said")"
 if ! said=$(herdr agent prompt "$name" "$prompt" --wait --timeout 5400000 2>&1); then
   case $(field '.error.code' <<<"$said" 2>/dev/null) in
     agent_prompt_stalled) fail "never began the prompt: $(why "$said")" ;;
