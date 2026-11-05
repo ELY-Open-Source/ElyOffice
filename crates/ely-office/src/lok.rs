@@ -114,8 +114,12 @@ impl Engine for Lok {
         }
     }
 
-    /// Waiting input stops it: `ErrorKind::Interrupted`.
     fn snapshot(worker: &mut Worker, doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
+        doc.save_as(worker, &ely_lok::file_url(path), format)
+    }
+
+    /// Waiting input stops it: `ErrorKind::Interrupted`.
+    fn point(worker: &mut Worker, doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
         doc.snapshot(worker, &ely_lok::file_url(path), format)
     }
 

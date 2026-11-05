@@ -1,6 +1,6 @@
 //! One tab's points: what was written, what failed.
 
-use std::{io, time::SystemTime};
+use std::{io, time::{Instant, SystemTime}};
 
 use super::Kept;
 
@@ -15,6 +15,8 @@ pub(super) struct Slot {
     pub refused: Option<u64>,
     /// When the last point was written.
     pub last: Option<SystemTime>,
+    /// When input first stopped a point not yet written.
+    pub stopped: Option<Instant>,
 }
 
 impl Slot {

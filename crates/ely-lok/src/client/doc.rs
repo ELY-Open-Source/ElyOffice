@@ -246,7 +246,17 @@ impl Doc {
 
     /// A recovery point; a waiting request stops it.
     pub fn snapshot(&self, worker: &mut Worker, url: &str, format: &str) -> io::Result<()> {
-        self.store(worker, url, format, "Snapshot").map_err(|error| match error.to_string() == crate::ipc::STOPPED {
+        self.stoppable(worker, url, format, "Snapshot")
+    }
+
+    /// A dev worker's snapshot; input waits from check `from`.
+    #[cfg(test)]
+    pub fn snapshot_probed(&self, worker: &mut Worker, url: &str, format: &str, from: u64) -> io::Result<()> {
+        self.stoppable(worker, url, format, &format!("Snapshot:{from}"))
+    }
+
+    fn stoppable(&self, worker: &mut Worker, url: &str, format: &str, options: &str) -> io::Result<()> {
+        self.store(worker, url, format, options).map_err(|error| match error.to_string() == crate::ipc::STOPPED {
             true => io::Error::new(io::ErrorKind::Interrupted, crate::ipc::STOPPED),
             false => error,
         })

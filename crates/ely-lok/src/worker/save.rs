@@ -2,7 +2,7 @@
 
 use std::io;
 
-use super::{lok, with_doc};
+use super::{dev_mode, lok, waits, with_doc};
 use crate::ipc::{self, Unpack};
 
 /// The kernel's word for a snapshot it stopped.
@@ -13,14 +13,25 @@ pub(super) fn save(unpack: &mut Unpack) -> io::Result<()> {
     let id = unpack.u64()?;
     let url = unpack.str()?;
     let format = unpack.str()?;
-    let options = unpack.str()?;
+    let mut options = unpack.str()?;
+    let probed = probed(&options)?;
+    if probed.is_some() {
+        options = "Snapshot".into();
+    }
     if !matches!(options.as_str(), "" | "Snapshot" | "TakeOwnership" | "TakeOwnership,TerminateEditing") {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "unknown save option",
         ));
     }
-    with_doc(id, |doc| doc.save_as(&url, &format, &options))?.map_err(|error| match lok().error() {
+    if let Some(from) = probed {
+        waits::probe(from);
+    }
+    let saved = with_doc(id, |doc| doc.save_as(&url, &format, &options));
+    if let Some(from) = probed {
+        log::info!("lok-worker: a probed snapshot, input from check {from}, saw {} checks", waits::unprobe());
+    }
+    saved?.map_err(|error| match lok().error() {
         // Patch 0090 names the stop; the client reads it.
         said if said == KERNEL_STOPPED => {
             log::info!("lok-worker: a snapshot gave way to input");
@@ -30,6 +41,18 @@ pub(super) fn save(unpack: &mut Unpack) -> io::Result<()> {
     })?;
     log::info!("lok-worker: saved as {format} to {url} ({options})");
     Ok(())
+}
+
+/// `Snapshot:N`, a dev probe: the check input waits from.
+fn probed(options: &str) -> io::Result<Option<u64>> {
+    let Some(from) = options.strip_prefix("Snapshot:") else { return Ok(None) };
+    if !(dev_mode() && cfg!(debug_assertions)) {
+        return Err(io::Error::other("the snapshot stop probe is dev-only"));
+    }
+    match from.parse::<u64>() {
+        Ok(from) if from > 0 => Ok(Some(from)),
+        _ => Err(io::Error::new(io::ErrorKind::InvalidInput, "a probe counts checks from 1")),
+    }
 }
 
 /// Writes a PDF from typed options, never raw text.

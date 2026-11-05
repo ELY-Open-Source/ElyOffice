@@ -27,7 +27,26 @@ pub(super) fn noted(asked: u8, payload: &[u8]) -> bool {
     true
 }
 
+/// Dev probe: input waits from this check; 0 is off.
+static FROM: AtomicU64 = AtomicU64::new(0);
+/// Input checks since the probe began.
+static CHECKS: AtomicU64 = AtomicU64::new(0);
+
 /// Whether a client waits for the lock now.
 pub(super) fn any() -> bool {
-    WAITS.load(Ordering::SeqCst) > 0
+    let from = FROM.load(Ordering::SeqCst);
+    let probed = from > 0 && CHECKS.fetch_add(1, Ordering::SeqCst) + 1 >= from;
+    WAITS.load(Ordering::SeqCst) > 0 || probed
+}
+
+/// Starts the dev probe: check `from` on finds input.
+pub(super) fn probe(from: u64) {
+    CHECKS.store(0, Ordering::SeqCst);
+    FROM.store(from, Ordering::SeqCst);
+}
+
+/// Ends the dev probe; the checks it saw.
+pub(super) fn unprobe() -> u64 {
+    FROM.store(0, Ordering::SeqCst);
+    CHECKS.load(Ordering::SeqCst)
 }

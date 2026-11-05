@@ -34,7 +34,7 @@ impl Waiter {
         held.expect("the worker lock")
     }
 
-    fn note(&self, waits: bool) {
+    pub(super) fn note(&self, waits: bool) {
         let note = Pack::new().u64(u64::from(waits)).bytes();
         // A dead worker fails the request that follows.
         if let Err(error) = send(&self.0, tag::WAIT, 0, &note) {
