@@ -126,8 +126,8 @@
 | TREE-10 | 暂存工作 | C13.5、决策 C13.5 | — | apps/ely-tree/src/tests |
 | TREE-11 | 远程 | C13.5、决策 C13.5 | — | apps/ely-tree/src/tests |
 | TREE-12 | 仓库结构 | C13.5、决策 C13.5 | — | apps/ely-tree/src/tests |
-| TREE-13 | 恢复与清理 | C13.6（~）、决策 C13.6 | — | apps/ely-tree/src/tests |
-| TREE-14 | 外部工具 | C13.6（~）、决策 C13.6 | — | apps/ely-tree/src/tests |
+| TREE-13 | 恢复与清理 | C13.6（~）、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was` | apps/ely-tree/src/tests |
+| TREE-14 | 外部工具 | C13.6（~）、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was` | apps/ely-tree/src/tests |
 | MARK-01 | 本地文件 | C14.4、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-02 | 编辑模式 | C14.6、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-03 | Markdown | C14.7、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
@@ -172,8 +172,8 @@
 | QA-16 | Mail 离线 | C12.23（ ）、C22.2（ ） | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-17 | Mail 发送 | C12.14（~）、C12.23（ ）、C22.2（ ）、决策 C12.14 | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-18 | Mail 同步 | C12.6（~）、C12.23（ ）、C22.2（ ）、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-19 | Git 结果 | C13.6（~）、C22.2（ ）、决策 C13.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-20 | Git 异常 | C13.6（~）、C22.2（ ）、决策 C13.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-19 | Git 结果 | C13.6（~）、C22.2（ ）、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-20 | Git 异常 | C13.6（~）、C22.2（ ）、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-21 | Mark 原文 | C14.4、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-22 | Mark 外部变更 | C14.11、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-23 | Agent 能力 | C15.6（ ）、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
