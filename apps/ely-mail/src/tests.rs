@@ -37,6 +37,7 @@ mod providers;
 mod reading;
 mod rules;
 mod notices;
+mod offline;
 mod search;
 mod side;
 mod storage;
