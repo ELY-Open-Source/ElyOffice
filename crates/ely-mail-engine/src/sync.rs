@@ -29,10 +29,14 @@ pub struct Report {
     pub pushed: usize,
 }
 
-/// The password, or an access token from the refresh token.
-pub async fn secret(account: &Account, vault: &Vault) -> Result<Secret> {
+/// The password, or an access token from `provider`'s refresh.
+pub async fn secret(
+    account: &Account,
+    provider: Option<Result<oauth::Provider>>,
+    vault: &Vault,
+) -> Result<Secret> {
     let name = account.secret_name();
-    let provider = account.auth.provider().transpose()?;
+    let provider = provider.transpose()?;
     let kept = vault
         .get(&name)?
         .ok_or_else(|| Error::Vault(format!("no saved secret for {name}")))?;

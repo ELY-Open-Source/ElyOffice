@@ -22,7 +22,7 @@ pub enum Dropped {
     Unsupported(String),
     /// Moved with no new UID; a later change went.
     Unplaced,
-    /// The destination folder is no longer listed.
+    /// A folder it needed is no longer listed.
     Vanished(String),
 }
 
@@ -86,7 +86,7 @@ async fn one(
     let opened = match refused(imap.select(&name).await)? {
         Ok(opened) => opened,
         Err(why) => {
-            drop_all(group, why);
+            refuse_all(group, why);
             return Ok(());
         }
     };
@@ -99,7 +99,7 @@ async fn one(
     let present = match refused(imap.present(&uids).await)? {
         Ok(present) => present,
         Err(why) => {
-            drop_all(group, why);
+            refuse_all(group, why);
             return Ok(());
         }
     };
@@ -320,6 +320,22 @@ fn refuse(group: &mut [Entry], places: &[usize], why: Dropped, moving: bool) {
     }
 }
 
+/// Refused before anything ran: every change goes back.
+fn refuse_all(group: &mut [Entry], why: Dropped) {
+    for each in group {
+        for (flag, part) in [("\\Seen", seen as Part), ("\\Flagged", flagged)] {
+            if part(&each.pending).is_some() {
+                each.settled.refused.push(flag);
+            }
+        }
+        each.settled.done = Done::Stayed {
+            move_refused: each.pending.target.is_some(),
+        };
+        each.settled.dropped.push(why.clone());
+    }
+}
+
+/// UIDs void: nothing here holds on the server.
 fn drop_all(group: &mut [Entry], why: Dropped) {
     for each in group {
         each.settled.done = Done::Moot;

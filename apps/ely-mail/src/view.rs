@@ -133,7 +133,7 @@ impl Mail {
         id: AccountId,
         protocol: Protocol,
         details: DescriptionList,
-        cx: &App,
+        cx: &Context<Self>,
     ) -> (DescriptionList, Option<Banner>) {
         let Some(syncing) = self.syncs.get(&id) else {
             return (details, None);
@@ -178,11 +178,18 @@ impl Mail {
             details = details.text(label("mail.sync.waiting"), waiting);
         }
         let failed = syncing.failed.as_ref().map(|error| {
-            Banner::new(
+            let banner = Banner::new(
                 "mail-sync-failed",
                 Severity::Danger,
                 text(cx, "mail.sync.failed", &[("error", error)]),
-            )
+            );
+            if !syncing.signed_out {
+                return banner;
+            }
+            let this = cx.weak_entity();
+            banner.action(text(cx, "mail.again.go", &[]), move |window, cx| {
+                this.update(cx, |mail, cx| mail.sign_in_again(id, window, cx)).ok();
+            })
         });
         (details, failed)
     }

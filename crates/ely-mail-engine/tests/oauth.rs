@@ -1,4 +1,3 @@
-mod oauth_fake;
 
 use std::{
     thread,
@@ -10,7 +9,7 @@ use ely_mail_engine::{
     Error,
     oauth::{SignIn, refresh},
 };
-use oauth_fake::{browse, endpoint, id_token, provider, query, signed_in};
+use fake::oauth::{browse, endpoint, id_token, provider, query, signed_in};
 use sha2::{Digest, Sha256};
 
 #[tokio::test]
@@ -19,7 +18,7 @@ async fn sign_in_exchanges_the_code_with_pkce() {
         r#"{{"access_token":"at-1","expires_in":3600,"refresh_token":"rt-1","id_token":"{}"}}"#,
         id_token(r#"{"email":"ana@example.com"}"#)
     );
-    let (token, forms) = endpoint(200, body);
+    let (token, forms) = endpoint(vec![(200, body)]);
     let sign_in = SignIn::start(provider(token), "ana@example.com")
         .await
         .unwrap();
@@ -106,7 +105,7 @@ async fn the_username_stands_in_for_a_missing_email() {
 #[tokio::test]
 async fn refresh_rotates_the_token() {
     let body = r#"{"access_token":"at-2","expires_in":60,"refresh_token":"rt-2"}"#.to_owned();
-    let (token, forms) = endpoint(200, body);
+    let (token, forms) = endpoint(vec![(200, body)]);
     let tokens = refresh(&provider(token), "rt-1").await.unwrap();
     assert_eq!(
         (tokens.access.as_str(), tokens.refresh.as_deref()),
@@ -123,7 +122,7 @@ async fn refresh_rotates_the_token() {
 async fn a_revoked_refresh_token_needs_sign_in_again() {
     for error in ["invalid_grant", "interaction_required"] {
         let body = format!(r#"{{"error":"{error}","error_description":"revoked"}}"#);
-        let (token, _) = endpoint(400, body);
+        let (token, _) = endpoint(vec![(400, body)]);
         let err = refresh(&provider(token), "rt-1").await.err().unwrap();
         assert!(
             matches!(&err, Error::SignInAgain(text) if text == &format!("{error}: revoked")),
@@ -134,10 +133,10 @@ async fn a_revoked_refresh_token_needs_sign_in_again() {
 
 #[tokio::test]
 async fn other_refusals_stay_sign_in_errors() {
-    let (token, _) = endpoint(401, r#"{"error":"invalid_client"}"#.to_owned());
+    let (token, _) = endpoint(vec![(401, r#"{"error":"invalid_client"}"#.to_owned())]);
     let err = refresh(&provider(token), "rt-1").await.err().unwrap();
     assert!(matches!(err, Error::SignIn(text) if text == "invalid_client"));
-    let (token, _) = endpoint(502, "<html>bad gateway</html>".to_owned());
+    let (token, _) = endpoint(vec![(502, "<html>bad gateway</html>".to_owned())]);
     let err = refresh(&provider(token), "rt-1").await.err().unwrap();
     assert!(matches!(err, Error::SignIn(text) if text.contains("502")));
 }

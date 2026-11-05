@@ -145,4 +145,9 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("mail.sync.paused", "同期は一時停止中です。再開するまで何もダウンロードしません。"),
     ("mail.sync.offline", "{name} をオフライン用に丸ごと保持"),
     ("mail.sync.offline_failed", "フォルダーの設定を保存できませんでした: {error}"),
+    ("mail.again.go", "もう一度サインイン"),
+    ("mail.again.title", "{address} にもう一度サインイン"),
+    ("mail.again.other", "{signed} でサインインしました。{address} でサインインしてください。"),
+    ("mail.again.done", "{address} にもう一度サインインしました。"),
+    ("mail.again.gone", "このアカウントは削除されました。"),
 ];

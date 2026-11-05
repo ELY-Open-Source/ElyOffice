@@ -145,4 +145,9 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("mail.sync.paused", "Die Synchronisierung ist pausiert. Bis Sie sie fortsetzen, wird nichts heruntergeladen."),
     ("mail.sync.offline", "{name} vollständig offline behalten"),
     ("mail.sync.offline_failed", "Die Ordnereinstellung wurde nicht gespeichert: {error}"),
+    ("mail.again.go", "Erneut anmelden"),
+    ("mail.again.title", "Erneut bei {address} anmelden"),
+    ("mail.again.other", "Sie haben sich als {signed} angemeldet. Melden Sie sich als {address} an."),
+    ("mail.again.done", "Wieder bei {address} angemeldet."),
+    ("mail.again.gone", "Dieses Konto wurde entfernt."),
 ];

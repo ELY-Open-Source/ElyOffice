@@ -9,7 +9,8 @@ use std::{
 
 use ely_gpui_component::primitives::Severity;
 use ely_mail_engine::{
-    Account, AccountId, DraftId, Filter, MessageId, Queued, Shelved, Store, TlsConnector, Vault,
+    Account, AccountId, Auth, DraftId, Filter, MessageId, Queued, Shelved, Store, TlsConnector,
+    Vault, oauth,
 };
 use ely_platform::AppId;
 use ely_ui::Root;
@@ -33,11 +34,15 @@ use crate::{
 /// Opens a file in its app.
 pub type Opener = Arc<dyn Fn(&Path) -> std::io::Result<()> + Send + Sync>;
 
+/// The OAuth server for a way of signing in.
+pub type Providers = Arc<dyn Fn(Auth) -> Option<ely_mail_engine::Result<oauth::Provider>> + Send + Sync>;
+
 /// What the engine runs on and keeps to.
 pub struct Parts {
     pub store: Result<Store, String>,
     pub vault: Vault,
     pub tls: Result<TlsConnector, String>,
+    pub providers: Providers,
     /// Working copies of opened files go here.
     pub copies: PathBuf,
     /// The app's settings file.
@@ -51,6 +56,7 @@ impl Parts {
             store: Store::open(dir).map_err(|err| err.to_string()),
             vault: Vault::system(),
             tls: ely_mail_engine::system_tls().map_err(|err| err.to_string()),
+            providers: Arc::new(Auth::provider),
             copies: dir.join("opened"),
             settings: dir.join("settings.json"),
             open: Arc::new(ely_platform::apps::open_file),
@@ -63,6 +69,7 @@ pub struct Mail {
     pub read_only: Option<String>,
     pub vault: Arc<Vault>,
     pub tls: Result<TlsConnector, String>,
+    pub providers: Providers,
     pub(crate) runtime: Arc<Runtime>,
     /// None until read.
     pub accounts: Option<Result<Vec<(AccountId, Account)>, String>>,
@@ -162,7 +169,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
 const TRAY_PNG: &[u8] = include_bytes!("../../../assets/icons/ely-mail.png");
 
 /// The window's root around `mail`; `again` from the tray.
-fn attach(app: AppId, mail: &Entity<Mail>, again: bool, window: &mut Window, cx: &mut App) -> Entity<Root> {
+pub(crate) fn attach(app: AppId, mail: &Entity<Mail>, again: bool, window: &mut Window, cx: &mut App) -> Entity<Root> {
     let root = ely_ui::tool_root(app, mail.clone().into(), crate::menu::menus(cx), window, cx);
     mail.update(cx, |mail, cx| {
         if again {
@@ -209,6 +216,7 @@ impl Mail {
             read_only,
             vault: Arc::new(parts.vault),
             tls: parts.tls,
+            providers: parts.providers,
             runtime: Arc::new(runtime),
             accounts: None,
             folded: HashSet::new(),

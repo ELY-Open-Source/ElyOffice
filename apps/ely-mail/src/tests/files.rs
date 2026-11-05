@@ -56,8 +56,9 @@ fn a_file_opens_as_a_copy_beside_the_mail() {
         vcx.update(|_, app| mail.update(app, |mail, cx| mail.open_file(&key, 0, cx)));
     }
     settle(vcx, |_| mine(&copies).len() == 2);
+    // The two opens finish in either order.
     let opened = mine(&copies);
-    assert_eq!(opened[0], copies.join("plan.pdf"));
+    assert!(opened.contains(&copies.join("plan.pdf")), "{opened:?}");
     assert_ne!(opened[0], opened[1], "a second open never overwrites the first copy");
     assert!(opened.iter().all(|copy| std::fs::read(copy).unwrap() == b"%PDF-1.7 plan"));
 }
