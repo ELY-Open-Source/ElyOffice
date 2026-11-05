@@ -118,8 +118,8 @@
 | TREE-02 | 工作区 | C13.1、决策 C13.1 | — | apps/ely-tree/src/tests |
 | TREE-03 | 差异 | C13.2、决策 C13.2 | `a_picture_turned_into_a_link_shows_the_link_by_size` | apps/ely-tree/src/tests |
 | TREE-04 | 暂存 | C13.2、决策 C13.2 | `a_picture_turned_into_a_link_shows_the_link_by_size` | apps/ely-tree/src/tests |
-| TREE-05 | 提交 | C13.3（~）、决策 C13.3 | `a_commit_landing_between_pages_rereads_from_the_top` | apps/ely-tree/src/tests |
-| TREE-06 | 历史 | C13.3（~）、决策 C13.3 | `a_commit_landing_between_pages_rereads_from_the_top` | apps/ely-tree/src/tests |
+| TREE-05 | 提交 | C13.3、决策 C13.3 | `a_commit_landing_between_pages_rereads_from_the_top` | apps/ely-tree/src/tests |
+| TREE-06 | 历史 | C13.3、决策 C13.3 | `a_commit_landing_between_pages_rereads_from_the_top` | apps/ely-tree/src/tests |
 | TREE-07 | 分支与标签 | C13.4、决策 C13.4 | `a_git_am_skipped_onto_the_next_conflict_stops_without_a_dialog` | apps/ely-tree/src/tests |
 | TREE-08 | 合并与变基 | C13.4、决策 C13.4 | `a_git_am_skipped_onto_the_next_conflict_stops_without_a_dialog` | apps/ely-tree/src/tests |
 | TREE-09 | 冲突 | C13.4、决策 C13.4 | `a_git_am_skipped_onto_the_next_conflict_stops_without_a_dialog` | apps/ely-tree/src/tests |
