@@ -202,6 +202,46 @@ fn never_bare(cx: &mut VisualTestContext, view: &Entity<PdfView>) -> (gpui::Subs
     (watch, bare)
 }
 
+/// Each shown page's window rectangle, and its part in view.
+fn pages_in_view(cx: &mut VisualTestContext, view: &Entity<PdfView>) -> Vec<(usize, gpui::Bounds<gpui::Pixels>, gpui::Bounds<gpui::Pixels>)> {
+    cx.update(|window, app| {
+        let read = view.read(app);
+        let (room, offset) = (read.room, read.scroll.offset());
+        read.showing(window.scale_factor())
+            .iter()
+            .map(|s| {
+                let origin = point(room.origin.x + offset.x + px(s.place.x), room.origin.y + offset.y + px(s.place.y));
+                let page = gpui::Bounds::new(origin, gpui::size(px(s.place.w), px(s.place.h)));
+                (s.place.page, page, page.intersect(&room))
+            })
+            .collect()
+    })
+}
+
+/// Whether last frame's tiles cover every shown page in view.
+fn covered(cx: &mut VisualTestContext, view: &Entity<PdfView>) -> Result<(), String> {
+    let pages = pages_in_view(cx, view);
+    let painted: Vec<_> = cx.update(|_, app| view.read(app).painted.iter().map(|(at, _)| *at).collect());
+    for (page, _, seen) in pages {
+        let (x0, y0) = (f32::from(seen.origin.x), f32::from(seen.origin.y));
+        let (x1, y1) = (x0 + f32::from(seen.size.width), y0 + f32::from(seen.size.height));
+        // Each four-pixel cell's centre lies under a tile.
+        let mut y = y0;
+        while y < y1 {
+            let mut x = x0;
+            while x < x1 {
+                let at = point(px((x + 2.0).min(x1 - 0.25)), px((y + 2.0).min(y1 - 0.25)));
+                if !painted.iter().any(|tile| tile.contains(&at)) {
+                    return Err(format!("page {page} is bare at {at:?}; painted {painted:?}"));
+                }
+                x += 4.0;
+            }
+            y += 4.0;
+        }
+    }
+    Ok(())
+}
+
 /// The screen whole with new tiles, none on its way.
 fn repainted(view: &PdfView) -> bool {
     view.filling.is_none() && !view.painting && !view.tiles.is_empty()
@@ -227,7 +267,13 @@ fn an_edit_keeps_the_page_drawn_until_its_repaint_lands() {
     let before: Vec<_> = cx.update(|_, app| view.read(app).tiles.values().cloned().collect());
     let (_watch, bare) = never_bare(cx, &view);
     cx.update(|_, app| view.update(app, |view, cx| view.annotate("pdf.doing.add_note", vec![note()], cx)));
-    settle(cx, |app| view.read(app).edited == 1 && repainted(view.read(app)));
+    // Every frame until the repaint lands covers the page.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while !cx.update(|_, app| view.read(app).edited == 1 && repainted(view.read(app))) {
+        assert!(std::time::Instant::now() < deadline, "the repaint never landed");
+        super::frames(cx);
+        covered(cx, &view).unwrap_or_else(|gap| panic!("while repainting: {gap}"));
+    }
     assert!(!bare.get(), "the page never goes blank");
     let after = cx.update(|_, app| view.read(app).tiles.values().cloned().collect::<Vec<_>>());
     assert!(
@@ -300,29 +346,36 @@ fn old_tiles_are_painted_and_freed_with_their_tab() {
     let view = shown(cx, &viewer);
     settle(cx, |app| repainted(view.read(app)));
     // Nothing new is asked; only old tiles can paint.
-    let before = cx.update(|_, app| {
+    cx.update(|_, app| {
         view.update(app, |view, cx| {
             let keys: Vec<_> = view.tiles.keys().copied().collect();
             view.failed.extend(keys);
             view.retire_tiles();
             cx.notify();
-            view.painted
         })
     });
-    cx.run_until_parked();
-    let (painted, kept) = cx.update(|_, app| (view.read(app).painted, view.read(app).whole.values().map(Vec::len).sum::<usize>()));
-    // Old tiles cover what shows of the page.
-    let shown = cx.update(|window, app| {
-        let read = view.read(app);
-        let room = read.room;
-        read.showing(window.scale_factor()).iter().map(|s| {
-            let (left, top) = (-f32::from(read.scroll.offset().x), -f32::from(read.scroll.offset().y));
-            let w = (s.place.x + s.place.w).min(left + f32::from(room.size.width)) - s.place.x.max(left);
-            let h = (s.place.y + s.place.h).min(top + f32::from(room.size.height)) - s.place.y.max(top);
-            f64::from(w.max(0.0) * h.max(0.0))
-        }).sum::<f64>()
-    });
-    assert!(kept > 0 && painted - before >= shown * 0.99, "{kept} old tiles painted {} of {shown}", painted - before);
+    super::frames(cx);
+    assert!(cx.update(|_, app| view.read(app).tiles.is_empty()), "only old tiles are left");
+    covered(cx, &view).unwrap_or_else(|gap| panic!("old tiles: {gap}"));
+    // Each old tile paints where it sat on its page.
+    let sf = cx.update(|window, _| window.scale_factor());
+    for (page, at, _) in pages_in_view(cx, &view) {
+        let (kept, painted) = cx.update(|_, app| (view.read(app).whole[&page].clone(), view.read(app).painted.clone()));
+        assert!(!kept.is_empty(), "page {page} kept no tiles");
+        let (w, h) = (f32::from(at.size.width), f32::from(at.size.height));
+        let (dw, dh) = ((w * sf).ceil(), (h * sf).ceil());
+        let tile = crate::pages::TILE as f32;
+        for (key, image, _) in kept {
+            let (x, y) = (key.tx as f32 * tile, key.ty as f32 * tile);
+            let want = gpui::Bounds::new(
+                point(at.origin.x + px(x / dw * w), at.origin.y + px(y / dh * h)),
+                gpui::size(px(tile.min(dw - x) / dw * w), px(tile.min(dh - y) / dh * h)),
+            );
+            let (got, _) = painted.iter().find(|(_, drawn)| std::sync::Arc::ptr_eq(drawn, &image)).unwrap_or_else(|| panic!("{key:?} never painted"));
+            let off = [got.origin.x - want.origin.x, got.origin.y - want.origin.y, got.size.width - want.size.width, got.size.height - want.size.height];
+            assert!(off.iter().all(|d| d.abs() < px(0.5)), "{key:?} painted at {got:?}, not {want:?}");
+        }
+    }
     cx.update(|_, app| view.update(app, |view, _| view.retire_all()));
     assert!(cx.update(|_, app| view.read(app).whole.is_empty()), "closing hands every old tile over");
 }
