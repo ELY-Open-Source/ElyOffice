@@ -74,9 +74,8 @@ fn execute(
         .stdin(Stdio::null())
         .stdout(fs::File::create(&stdout)?)
         .stderr(fs::File::create(&stderr)?);
-    // R reads and writes Ely's files as UTF-8.
     #[cfg(unix)]
-    command.env_remove("LC_ALL").env("LC_CTYPE", "C.UTF-8");
+    utf8(&mut command, std::env::var_os("LC_ALL").filter(|all| !all.is_empty()));
     // A stop before R starts runs nothing.
     if stop.load(Ordering::Relaxed) {
         return Err(refused("table.r.stopped"));
@@ -134,6 +133,23 @@ fn execute(
     snapshot.instructions(&read_limited(&output)?)
 }
 
+#[cfg(unix)]
+const CATEGORIES: [&str; 11] = [
+    "LC_COLLATE", "LC_MESSAGES", "LC_MONETARY", "LC_NUMERIC", "LC_TIME", "LC_PAPER",
+    "LC_NAME", "LC_ADDRESS", "LC_TELEPHONE", "LC_MEASUREMENT", "LC_IDENTIFICATION",
+];
+
+/// R reads Ely's UTF-8 files; the user's other categories stay.
+#[cfg(unix)]
+fn utf8(command: &mut Command, all: Option<std::ffi::OsString>) {
+    if let Some(all) = all {
+        for category in CATEGORIES {
+            command.env(category, &all);
+        }
+    }
+    command.env_remove("LC_ALL").env("LC_CTYPE", "C.UTF-8");
+}
+
 /// R's own failure: its output says why.
 #[derive(Debug)]
 pub struct Exited(pub std::process::ExitStatus);
@@ -184,6 +200,23 @@ mod tests {
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/table")
             .join(name)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn only_the_character_class_leaves_the_users_locale() {
+        use std::{collections::HashMap, ffi::OsStr};
+        for all in [Some("de_DE.UTF-8"), None] {
+            let mut command = Command::new("Rscript");
+            utf8(&mut command, all.map(Into::into));
+            let env: HashMap<_, _> = command.get_envs().collect();
+            assert_eq!(env.get(OsStr::new("LC_ALL")), Some(&None), "LC_ALL removed");
+            assert_eq!(env.get(OsStr::new("LC_CTYPE")), Some(&Some(OsStr::new("C.UTF-8"))));
+            for category in CATEGORIES {
+                let kept = env.get(OsStr::new(category)).copied().flatten();
+                assert_eq!(kept, all.map(OsStr::new), "{category} from LC_ALL {all:?}");
+            }
+        }
     }
 
     #[cfg(unix)]
