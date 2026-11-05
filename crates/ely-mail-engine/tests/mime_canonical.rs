@@ -71,6 +71,11 @@ async fn binary_inside_an_eml_keeps_its_bytes() {
 }
 
 #[tokio::test]
+async fn a_nul_in_crlf_lines_goes_as_a_file() {
+    as_a_file("nul.eml", b"Subject: hi\r\n\r\nhel\0lo\r\n").await;
+}
+
+#[tokio::test]
 async fn an_eml_line_past_998_octets_goes_as_a_file() {
     let fits = format!("Subject: hi\r\n\r\n{}\r\n", "a".repeat(998));
     let got = delivered(compose::attachment("fits.eml", fits.clone().into_bytes())).await;
