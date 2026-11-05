@@ -236,6 +236,12 @@ def included_table(path):
     ooxml.check(breaks == 1, f"one section, not {breaks}")
 
 
+def included_edges(path):
+    """Edge tables: field marks in paragraphs of their own."""
+    includes(path, [["text:Before"], ["begin", INCLUDE + "$", "separate"], ["text:Cell"], ["text:Middle"],
+                    ["text:Last"], ["end"], ["text:After"]])
+
+
 OFFICE = "{urn:schemas-microsoft-com:office:office}"
 VML = "{urn:schemas-microsoft-com:vml}"
 
@@ -275,7 +281,7 @@ def ole_link(path):
 
 CASES = {"equation": equation, "toc-end": toc_end, "toc-tail": toc_tail, "toc-shape": toc_shape, "toc-alone": toc_alone,
          "toc-native": toc_native, "included": included, "included-cached": included_cached,
-         "included-table": included_table, "ole-link": ole_link}
+         "included-table": included_table, "included-edges": included_edges, "ole-link": ole_link}
 MUTATIONS = {
     "ole-link": [
         ("word/document.xml", r'Type="Link"', 'Type="Embed"'),
@@ -294,6 +300,12 @@ MUTATIONS = {
     "included-table": [
         ("word/document.xml", r"INCLUDETEXT", "INCLUDEPICTURE"),
         ("word/document.xml", r"(<w:t[^>]*>Before</w:t></w:r>)", r"\1<w:sectPr/>"),
+    ],
+    "included-edges": [
+        ("word/document.xml", r"INCLUDETEXT", "INCLUDEPICTURE"),
+        ("word/document.xml", r"(<w:t[^>]*>Before</w:t></w:r>)", r"\1<w:sectPr/>"),
+        ("word/document.xml", r'(?s)<w:p[ >](?:(?!</w:p>).)*?w:fldCharType="end"(?:(?!</w:p>).)*</w:p>', ""),
+        ("word/document.xml", r'(?s)<w:p[ >](?:(?!</w:p>).)*?w:fldCharType="begin"(?:(?!</w:p>).)*</w:p>', ""),
     ],
     "included-cached": [
         ("word/document.xml", r"Line two", "Line one"),

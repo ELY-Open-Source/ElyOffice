@@ -1,0 +1,200 @@
+DOCX: a linked section edged by a table is still INCLUDETEXT
+
+0087 wrote a file-linked section as INCLUDETEXT only when its first
+and last nodes were paragraphs; any other one fell back, without
+notice, to a Word section: the link was lost and section breaks were
+added (an .odt linked section opening with a table, saved as DOCX).
+0087 papered over the case after a link update by adding empty
+paragraphs to the document.
+- DOCX export writes every file-linked section as INCLUDETEXT. Where
+  the section opens with a table (or a section), a paragraph of its
+  own holds the field's start; where it ends with one, a paragraph of
+  its own holds the field's end. Reopened, these are the section's
+  edge paragraphs, so the next save is the same.
+- A cell can't take such a paragraph: a linked section inside a table
+  cell, edged by a nested table, is saved as its text, with a warning.
+- A link update no longer adds paragraphs beside a table.
+- The unreachable RTF branch around INCLUDETEXT's start is gone.
+
+diff --git a/sw/source/core/docnode/section.cxx b/sw/source/core/docnode/section.cxx
+index 0bc3adc..13e61ea 100644
+--- a/sw/source/core/docnode/section.cxx
++++ b/sw/source/core/docnode/section.cxx
+@@ -1103,18 +1103,6 @@ static void lcl_UpdateLinksInSect( const SwBaseLink& rUpdLnk, SwSectionNode& rSe
+     }
+ }
+ 
+-/// A table at a section edge gets a paragraph.
+-static void lcl_ParagraphsAtEdges(SwDoc& rDoc, const SwSectionNode& rSectNd)
+-{
+-    SwNodes& rNodes = rDoc.GetNodes();
+-    SwTextFormatColl* pColl = rDoc.getIDocumentStylePoolAccess().GetTextCollFromPool(RES_POOLCOLL_TEXT);
+-    // Word starts and ends INCLUDETEXT inside paragraphs.
+-    if (!rNodes[rSectNd.GetIndex() + 1]->IsTextNode())
+-        rNodes.MakeTextNode(*rNodes[rSectNd.GetIndex() + 1], pColl);
+-    if (!rNodes[rSectNd.EndOfSectionIndex() - 1]->IsTextNode())
+-        rNodes.MakeTextNode(*rSectNd.EndOfSectionNode(), pColl);
+-}
+-
+ ::sfx2::SvBaseLink::UpdateResult SwIntrnlSectRefLink::DataChanged(
+     const OUString& rMimeType, const uno::Any & rValue )
+ {
+@@ -1366,7 +1354,6 @@ static void lcl_ParagraphsAtEdges(SwDoc& rDoc, const SwSectionNode& rSectNd)
+                     oCpyRg.reset();
+                 }
+ 
+-                lcl_ParagraphsAtEdges( rDoc, *pSectNd );
+                 lcl_BreakSectionLinksInSect( *pSectNd );
+ 
+                 // Update all Links in this Section
+diff --git a/sw/source/filter/ww8/docxattributeoutput.cxx b/sw/source/filter/ww8/docxattributeoutput.cxx
+index 00b753a..1b3cf04 100644
+--- a/sw/source/filter/ww8/docxattributeoutput.cxx
++++ b/sw/source/filter/ww8/docxattributeoutput.cxx
+@@ -7244,6 +7244,27 @@ void DocxAttributeOutput::EndParaSdtBlock()
+     }
+ }
+ 
++void DocxAttributeOutput::StartIncludeText(const OUString& rCode)
++{
++    FieldInfos aInfos;
++    aInfos.eType = ww::eINCLUDETEXT;
++    aInfos.sCmd = rCode;
++    m_pSerializer->startElementNS(XML_w, XML_p);
++    StartField_Impl(nullptr, 0, aInfos, true);
++    CmdEndField_Impl(nullptr, 0, true);
++    m_pSerializer->endElementNS(XML_w, XML_p);
++}
++
++void DocxAttributeOutput::EndIncludeText()
++{
++    FieldInfos aInfos;
++    aInfos.eType = ww::eINCLUDETEXT;
++    aInfos.bClose = true;
++    m_pSerializer->startElementNS(XML_w, XML_p);
++    EndField_Impl(nullptr, 0, aInfos);
++    m_pSerializer->endElementNS(XML_w, XML_p);
++}
++
+ void DocxAttributeOutput::StartSection()
+ {
+     m_pSerializer->startElementNS(XML_w, XML_sectPr);
+diff --git a/sw/source/filter/ww8/docxattributeoutput.hxx b/sw/source/filter/ww8/docxattributeoutput.hxx
+index cfe93a2..1a01803 100644
+--- a/sw/source/filter/ww8/docxattributeoutput.hxx
++++ b/sw/source/filter/ww8/docxattributeoutput.hxx
+@@ -447,6 +447,10 @@ public:
+     void WriteAnnotationMarks_Impl( std::vector< SwMarkName >& rStarts, std::vector< SwMarkName >& rEnds );
+     /// End possibly opened paragraph sdt block.
+     void EndParaSdtBlock();
++    /// A paragraph holding only INCLUDETEXT's start.
++    void StartIncludeText(const OUString& rCode);
++    /// A paragraph holding only INCLUDETEXT's end.
++    void EndIncludeText();
+ 
+     void WriteFloatingTable(ww8::Frame const* pParentFrame);
+ 
+diff --git a/sw/source/filter/ww8/wrtw8nds.cxx b/sw/source/filter/ww8/wrtw8nds.cxx
+index 44bfd28..6a3806e 100644
+--- a/sw/source/filter/ww8/wrtw8nds.cxx
++++ b/sw/source/filter/ww8/wrtw8nds.cxx
+@@ -23,6 +23,7 @@
+ #include <iostream>
+ 
+ #include "docxexport.hxx"
++#include "docxattributeoutput.hxx"
+ 
+ #include <officecfg/Office/Common.hxx>
+ #include <i18nlangtag/mslangid.hxx>
+@@ -2324,14 +2325,20 @@ OUString lcl_GetSymbolFont(SwAttrPool& rPool, const SwTextNode& rTextNode, int n
+ }
+ }
+ 
++/// Whether the section starts and ends with a paragraph.
++static bool lcl_TextAtEdges(const SwSectionNode& rSectNd)
++{
++    const SwNodes& rNodes = rSectNd.GetNodes();
++    return rNodes[rSectNd.GetIndex() + 1]->IsTextNode() && rNodes[rSectNd.EndOfSectionIndex() - 1]->IsTextNode();
++}
++
+ bool MSWordExportBase::IsIncludedText(const SwSectionNode& rSectNd) const
+ {
+     // .doc and RTF keep the section, as their readers expect.
+     if (GetExportFormat() != ExportFormat::DOCX || rSectNd.GetSection().GetType() != SectionType::FileLink)
+         return false;
+-    // Word's field starts and ends in paragraphs.
+-    const SwNodes& rNodes = rSectNd.GetNodes();
+-    return rNodes[rSectNd.GetIndex() + 1]->IsTextNode() && rNodes[rSectNd.EndOfSectionIndex() - 1]->IsTextNode();
++    // A cell takes no paragraph of its own here.
++    return !rSectNd.FindTableNode() || lcl_TextAtEdges(rSectNd);
+ }
+ 
+ /// The file-linked section `rNode` begins or ends, as INCLUDETEXT.
+@@ -2364,6 +2371,25 @@ static OUString lcl_IncludeText(const SwSection& rSection)
+     return aCode;
+ }
+ 
++void MSWordExportBase::OutputIncludedEdge(const SwNode& rNode)
++{
++    const SwNodes& rNodes = rNode.GetNodes();
++    // Word holds the field's start and end in paragraphs.
++    if (const SwSectionNode* pSectNd = rNode.GetSectionNode())
++    {
++        if (IsIncludedText(*pSectNd) && !rNodes[rNode.GetIndex() + 1]->IsTextNode())
++            static_cast<DocxExport&>(*this).DocxAttrOutput().StartIncludeText(lcl_IncludeText(pSectNd->GetSection()));
++        else if (GetExportFormat() == ExportFormat::DOCX && pSectNd->GetSection().GetType() == SectionType::FileLink
++                 && !IsIncludedText(*pSectNd))
++            SAL_WARN("sw.ww8", "a linked section in a cell, edged by a table, is saved as text");
++    }
++    else if (const SwSectionNode* pEnded = rNode.IsEndNode() ? rNode.StartOfSectionNode()->GetSectionNode() : nullptr)
++    {
++        if (IsIncludedText(*pEnded) && !rNodes[rNode.GetIndex() - 1]->IsTextNode())
++            static_cast<DocxExport&>(*this).DocxAttrOutput().EndIncludeText();
++    }
++}
++
+ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
+ {
+     SAL_INFO( "sw.ww8", "<OutWW8_SwTextNode>" );
+@@ -2427,15 +2453,8 @@ void MSWordExportBase::OutputTextNode( SwTextNode& rNode )
+     rtl_TextEncoding eChrSet = aAttrIter.GetCharSet();
+ 
+     if (const SwSection* pIncluded = lcl_IncludedAt(*this, rNode, true))
+-    {
+-        const bool bRtf = GetExportFormat() == ExportFormat::RTF;
+-        if (bRtf)
+-            AttrOutput().StartRun(nullptr, -42, true);
+         OutputField(nullptr, ww::eINCLUDETEXT, lcl_IncludeText(*pIncluded),
+                     FieldFlags::Start | FieldFlags::CmdStart | FieldFlags::CmdEnd);
+-        if (bRtf)
+-            AttrOutput().EndRun(nullptr, -42, -1, true);
+-    }
+ 
+     if ( m_bStartTOX )
+     {
+diff --git a/sw/source/filter/ww8/wrtww8.cxx b/sw/source/filter/ww8/wrtww8.cxx
+index 4a29d89..b3d9f9d 100644
+--- a/sw/source/filter/ww8/wrtww8.cxx
++++ b/sw/source/filter/ww8/wrtww8.cxx
+@@ -2937,6 +2937,8 @@ void MSWordExportBase::WriteText()
+     {
+         SwNode& rNd = m_pCurPam->GetPointNode();
+ 
++        OutputIncludedEdge( rNd );
++
+         // no section breaks exported for Endnotes
+         if ( rNd.IsTextNode() && m_nTextTyp != TXT_EDN && m_nTextTyp != TXT_FTN )
+         {
+diff --git a/sw/source/filter/ww8/wrtww8.hxx b/sw/source/filter/ww8/wrtww8.hxx
+index e775173..fd89676 100644
+--- a/sw/source/filter/ww8/wrtww8.hxx
++++ b/sw/source/filter/ww8/wrtww8.hxx
+@@ -815,6 +815,8 @@ public:
+     static bool NoPageBreakSection( const SfxItemSet *pSet );
+     /// A file-linked section DOCX writes as INCLUDETEXT.
+     bool IsIncludedText( const SwSectionNode& rSectNd ) const;
++    /// INCLUDETEXT's own paragraph beside a table at the section's edge.
++    void OutputIncludedEdge( const SwNode& rNode );
+ 
+     // Compute the number format for WW dates
+     bool GetNumberFormat(const SwField& rField, OUString& rStr);

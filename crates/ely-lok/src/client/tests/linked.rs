@@ -242,17 +242,18 @@ fn a_refresh_interval_keeps_an_unread_source_unread() {
     assert_eq!(cells(&mut worker, &doc, "A1"), "7", "no timer overwrites the saved value");
 }
 
-/// A document whose section links `include`, showing `cached`.
+/// A document whose section links `include`, holding `cached`.
 fn linking(path: &Path, include: &Path, cached: &str) {
     let href = crate::file_url(include);
     let xml = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
  <office:body><office:text><text:p>Before</text:p>
  <text:section text:name="S"><text:section-source xlink:href="{href}" xlink:type="simple"/>
- <text:p>{cached}</text:p></text:section><text:p>After</text:p></office:text></office:body>
+ {cached}</text:section><text:p>After</text:p></office:text></office:body>
 </office:document>"#
     );
     std::fs::write(path, xml).expect("writes the document");
@@ -284,7 +285,7 @@ fn a_linked_section_reads_its_file_only_when_asked() {
     let install = install().expect("the pinned LOK build");
     let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
     let (main, include) = (dir.path().join("main.fodt"), dir.path().join("include.fodt"));
-    linking(&main, &include, "Cached");
+    linking(&main, &include, "<text:p>Cached</text:p>");
     included(&include, "One");
     let doc = worker.load(&crate::file_url(&main)).expect("loads");
     assert_eq!(text(&dir, &mut worker, &doc), ["Before", "Cached", "After"], "opening shows the saved text");
@@ -379,6 +380,65 @@ fn a_source_opening_with_a_table_stays_includetext() {
     let again = worker.load(&crate::file_url(&out)).expect("reloads");
     let named = links::sources(&worker.values(&again, links::LIST).expect("reads")).expect("parses");
     assert_eq!(named, [crate::file_url(&include)], "the links survive the save");
+}
+
+#[test]
+fn a_linked_section_edged_by_tables_saves_as_includetext() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let install = install().expect("the pinned LOK build");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let (mut source, include) = (dir.path().join("main.fodt"), dir.path().join("include.docx"));
+    let table = |said: &str| {
+        format!(r#"<table:table table:name="{said}"><table:table-column/><table:table-row><table:table-cell><text:p>{said}</text:p></table:table-cell></table:table-row></table:table>"#)
+    };
+    linking(&source, &include, &format!("{}<text:p>Middle</text:p>{}", table("Cell"), table("Last")));
+    // Saved twice, never updated: the second save reads the first.
+    for round in 0..2 {
+        let doc = worker.load(&crate::file_url(&source)).expect("loads");
+        source = dir.path().join(format!("round{round}.docx"));
+        doc.save_as(&mut worker, &crate::file_url(&source), "docx").expect("saves");
+        worker.close_doc(doc).expect("closes");
+        super::independent::read_with("ooxml_word.py", &source, "included-edges");
+    }
+    let again = worker.load(&crate::file_url(&source)).expect("reloads");
+    let named = links::sources(&worker.values(&again, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, [crate::file_url(&include)], "the link survives both saves");
+}
+
+#[test]
+fn a_linked_section_in_a_cell_edged_by_a_table_saves_its_text() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let install = install().expect("the pinned LOK build");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let (main, out) = (dir.path().join("main.fodt"), dir.path().join("out.docx"));
+    let href = crate::file_url(&dir.path().join("include.docx"));
+    let cell = |inner: &str| format!("<table:table><table:table-column/><table:table-row><table:table-cell>{inner}</table:table-cell></table:table-row></table:table>");
+    let section = format!(r#"<text:section text:name="S"><text:section-source xlink:href="{href}" xlink:type="simple"/>{}</text:section>"#, cell("<text:p>Inner</text:p>"));
+    let xml = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+ office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:body><office:text><text:p>Before</text:p>{}<text:p>After</text:p></office:text></office:body>
+</office:document>"#,
+        cell(&section)
+    );
+    std::fs::write(&main, xml).expect("writes the document");
+    let doc = worker.load(&crate::file_url(&main)).expect("loads");
+    doc.save_as(&mut worker, &crate::file_url(&out), "docx").expect("saves");
+    // No paragraph there for the field: the text stays.
+    let again = worker.load(&crate::file_url(&out)).expect("reloads");
+    // A Word cell ends in a paragraph, section or not.
+    assert_eq!(text(&dir, &mut worker, &again), ["Before", "Inner", "", "After"]);
+    let named = links::sources(&worker.values(&again, links::LIST).expect("reads")).expect("parses");
+    assert!(named.is_empty(), "the link goes: {named:?}");
 }
 
 #[test]
