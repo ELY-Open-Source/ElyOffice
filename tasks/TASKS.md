@@ -563,7 +563,7 @@
 ## R16 审计余项与新议题（用户 2026-11-05 定：OPTIMIZATION 未结的各项与 GitHub 新议题，按 PRD 章节逐条做；主 agent 独自做，无 subagent、worktree、分支；每条经 herdr 右侧分屏的 Claude Code（Kimi K3.1 Pro）审查，至多三轮；不问，取推荐项）
 
 - [x] R16.1 审查改用 Kimi K3.1 Pro：`review.sh`、本文件页首、agents.md、替身测试 — R1 FAIL（替身不查模型），R2 PASS
-- [ ] R16.2 并入停下的各线（lane-a1、a2、a5、a6、a7、a7b、b、mac-lane、desktop、r15-56、r15-65）：已审的工作进 main，冲突逐处解，全量测试照过
+- [ ] R16.2 并入停下的各线（lane-a1、a2、a5、a6、a7、a7b、b、mac-lane、desktop、r15-56、r15-65）：已审的工作进 main，冲突逐处解，全量测试照过。已做：十一条线的已提交工作以合并提交并入（lane-a7b 已含于 lane-a7）；冲突：TASKS 按编号三方合并（两边都改的行以一边为底、接上另一边新增的话），decisions 两边都留，test-map 重新生成；R15.65 无审查记录即并入，改回 `[ ]`；R15.57 的 `off::Order` 与 R15.36 的 `off::Ahead` 留后者（见 decisions）；C09.1 两线各写第 4 轮，mac-lane 的存为 `C09.1-r4-mac.md`；lane-a2 带进的 R15.60 行首多一个反引号、某线写进 TASKS 的六个 NUL 字节，皆改正。未提交的 r15-56（0090 的扩展）与 lane-a7b（R15.64）改动存为 `.work/R16.2/wip-*.patch`（本机，未入库），不并入；r15-56 的扩展曾写进共用的 `engines/lo-src`（xetable），已还原为补丁序列（96 个），Windows 内核重建。Windows 全量（`ELY_REQUIRE_ENGINES=1`，lo-src）2329 过、0 败、4 忽略，唯一 SKIP 为只在 macOS 的像素核对；check.sh、records.py、panics.py、clippy `-D warnings` 皆过。Mac 与 Linux 的共享内核尚未带 0092 至 0102 与新 0090，发布前须重建
 - [x] R16.2a Windows 上无清单的进程起来即感知 DPI（本机 2026-11-05 所见：WMI 起的空程序也是 2，`SetProcessDpiAwarenessContext` 拒以 5），LOK worker 照 R15.14a 一律拒绝启动，全部内核测试皆败：worker 把内核线程设为不感知（`SetThreadDpiAwarenessContext`），核对后才起内核，设不成即报；单测 `an_aware_thread_turns_unaware`（去掉设定即败）。本会话系统 DPI 为 96，图块大小核对不出感知与否（seam 测试两种皆过）；起因未明 — R1 PASS
 - [ ] R16.3 #16 上架 WinGet（§4）：各应用的 winget 清单随发布生成，README 写安装与升级命令
 - [ ] R16.4 #37 Windows arm64 原生构建（§4）
