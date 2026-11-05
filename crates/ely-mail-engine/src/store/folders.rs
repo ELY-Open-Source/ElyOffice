@@ -79,12 +79,13 @@ impl Store {
                     name.clone()
                 });
                 self.without_mail(MailboxId(id), None, false, |tx| {
-                    // Moves there go back; their flags stay queued.
+                    // Changes from or to it are told.
                     tx.execute(
                         "INSERT INTO dropped (account, kind, words)
-                         SELECT ?1, 'vanished', ?2 FROM changes WHERE target = ?3",
+                         SELECT ?1, 'vanished', ?2 FROM changes WHERE target = ?3 OR mailbox = ?3",
                         params![account.0, shown, id],
                     )?;
+                    // Moves there go back; their flags stay queued.
                     tx.execute("UPDATE messages SET moving = NULL WHERE moving = ?1", [id])?;
                     tx.execute(
                         "UPDATE changes SET target = NULL, version = version + 1 WHERE target = ?1",
