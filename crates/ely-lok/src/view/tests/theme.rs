@@ -61,7 +61,7 @@ fn a_dark_app_paints_the_page_white() {
     let mut started = crate::Worker::spawn(&install, &profile).expect("the worker");
     let doc = started.load(&crate::file_url(&source)).expect("the document loads");
     let laid = super::super::layout(&mut started, &doc).expect("the layout reads");
-    let feed = started.feed();
+    let feed = (started.feed(), started.waiter());
     let worker = Arc::new(Mutex::new(started));
     let shade = || {
         let mut worker = worker.lock().expect("the worker");

@@ -40,7 +40,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin 89bff04，gpui 为 crates.io 的 `gpui-pre` =0.3.10，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
+依赖 `ely-gpui-component`（pin 5070cf3，gpui 为 crates.io 的 `gpui-pre` =0.3.10，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
 
 | 需要 | 用 |
 | --- | --- |
@@ -128,8 +128,8 @@ scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 到 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核对散列；Mac 核对架构）
 tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架构（ci.sh 发布前调用）
-scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 里调用者右侧分屏，其后的审查叠在下面，可并行；Claude Code，Opus 5.5，effort high；读到结论即关窗格，失败的留到本条下一轮）
-tests/scripts/review-rules.sh   review.sh 对替身 herdr：claude 起不来、提示超时、阻塞、状态读不出、空结论、窗格关不掉皆败，审查者空闲而结论晚到照等，CRLF 的 jq 照常，首个窗格在调用者右侧、其后叠在下面，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
+scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 里调用者右侧分屏，其后的审查分在该列最高的窗格下面，每格的终端至少 10 行（herdr 的窗格框另占 2 行），列满即在调用者的工作区另开标签页；各工作树的调用者经 Git 公共目录里的 `review-place.lock` 逐个放窗格，可并行；Claude Code，Opus 5.5，effort high；读到结论即关窗格（标签页随之关），失败的留到本条下一轮；失败说明带 herdr 的错误码，提示卡住与 90 分钟超时分开报；阻塞 5 分钟即报出屏上文字并关掉窗格；审查者的构建、副本与日志都在 `.work/<ID>-r<轮次>/`）
+tests/scripts/review-rules.sh   review.sh 对替身 herdr：claude 起不来、提示超时、提示卡住、阻塞、状态读不出、空结论、窗格关不掉皆败，前三者报出 herdr 的错误码、卡住不说成超时，审查者空闲而结论晚到照等，CRLF 的 jq 照常，首个窗格在调用者右侧、其后分在该列最高的窗格下面，两半的终端都留 10 行才分（框占 2 行，24 行分得、23 行不分），列满即另开标签页、读完结论关掉、开不出即报，两个调用者同时放也不压到 10 行以下、锁 30 秒不放即报，阻塞 10 次即报出屏上文字并关窗格、短暂阻塞照等，提示要求一切留在 `.work/<ID>-r<轮次>/`，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
 scripts/apply-lo-patches.sh engines/lo-src  找出源码已到补丁序列第几个，补上其余（构建脚本调用）
 tests/scripts/lo-patches.sh    补丁序列从中途接着打、再打一次为空操作
 tests/scripts/media-targets.sh 媒体播放接口在 Linux、Windows 目标可编译（缺目标时 SKIP）
@@ -146,12 +146,15 @@ packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调用）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发布后提交）
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；nix/release.json 与 apps.tsv 一致；nixos/nix 容器里 flake 的许可与表相同、ElyMark 构建并在 Xvfb 下画出（缺 docker 时 SKIP 容器部分）
-packaging/source.sh dist        本提交的源码包与随包的 copyleft 上游源码（打过补丁的 MuPDF、Git），文件名带提交号；工作区有未提交改动即拒绝（macOS 的 release.sh 与 CI 的 Linux 调用，发布只上传 Linux 的；Windows 的检出把符号链接写成文件，不出源码包）
+packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`：四个发布构建所取之和，本机已取的照用、其余下载，散列不符即失败），文件名带提交号；工作区有未提交改动即拒绝（macOS 的 release.sh 与 CI 的 Linux 调用，发布只上传 Linux 的；Windows 的检出把符号链接写成文件，不出源码包）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝
 scripts/release-tests.sh         发布的门：建好两个 worker，严格模式跑 `cargo test --workspace`（ci.sh 打包前调用）
 scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务与其测试（pr.yml 核对它与提交一致）
 tests/scripts/records.py         TASKS、BUGS、BugList、decisions 引用的库内文件都在，否则标“（已移除）”；引用 .work/ 须标“（本机，未入库）”（pr.yml 调用）
 tests/scripts/workflows.py       release.yml 的任务互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 的 runs-on 恰为 ubuntu-24.04、以整行的 `[sudo] apt-get install` 装齐 README 的库、严格模式、panic 数比基线提交（各带反例）
+scripts/lo-tarballs.sh lo-src     列出该 LibreOffice 构建所取的压缩包（名字、SHA-256、地址），由其 `Makefile.fetch` 得出，不下载
+tests/scripts/lo-tarballs.sh     `packaging/lo-tarballs.tsv` 的散列与 `download.lst` 一致、地址是 LibreOffice 的镜像、本机构建所取都在其中（Windows 经 Cygwin）
+tests/scripts/source-rules.sh    source.sh 把已取与下载的外部库按内容打包，散列不符或取不到即失败、不出包（假 curl）
 tests/scripts/ci-upload.sh       ci.sh 的上传：测试失败即一个不传；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
 tests/scripts/linux-packages.sh  deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库
 tests/scripts/linux-pins.sh      Linux 打包工具（appimagetool、linuxdeploy、运行时、nfpm）的下载与钉的散列相符
@@ -261,7 +264,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - 文件类型只写在 `packaging/types.tsv`，只进“打开方式”，从不设为默认（Windows 的“新建”只在该类型无任何处理程序时设）。URL 方案也写在那里，第二列以冒号结尾（`mailto:`）：Linux 的 `x-scheme-handler` 与 `%U`，Windows 的 `Capabilities\URLAssociations` 与 `RegisteredApplications`（只进“默认应用”供选，从不写 `Classes\mailto`），macOS 的 `CFBundleURLTypes`；链接经 `ely_ui::mail_link` 原样交到应用，ElyMail 以引擎的 `mailto` 照 RFC 6068 填好新信（引号里的逗号不切、域名转 IDNA、主题解 MIME 编码词）。“打开方式”里不得出现 LibreOffice，任何脚本都不挂载 LibreOffice 镜像。
 - 语言：界面英文、简体中文、西班牙语（es-ES，系统 es-* 同用）、法语（fr-FR，系统 fr-* 同用）、德语（de-DE，“Deutsch”，系统 de-* 同用）、日语（ja-JP，系统 ja-* 同用）、韩语（ko-KR，系统 ko-* 同用）与越南语（vi-VN，“Tiếng Việt”，系统 vi-* 同用），每个应用各语言都全，任一目录缺键即失败，不以英文补；内核界面固定英文，内核给出的固定文字（ElyTable 的状态与错误、单元格样式，ElyDoc 的内置样式名）由 Ely 按界面语言重写，译文照 LibreOffice 26.2.6.3 该语言的译文，文件与主题资源自带的名字（母版、主题色集、用户样式、字体）照原样；ElyTable 导入非 UTF-8 的文本时预选界面语言的 Windows 代码页（中文 GB18030，日文 Shift_JIS，即 Windows-932，韩文 Windows-949，英文、西班牙文、法文、德文 Windows-1252，越南文 Windows-1258）；ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
 - 外观：Doc、Table、Show、PDF 的页面照文件原色，只有四周的界面随深浅色；邮件正文、Mark、Agent 随深浅色。深色底 `#252525`，不用纯黑。有 Omarchy 时随 Omarchy。
-- 性能：八个应用都不许卡顿（120 FPS 手感，树莓派 3 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事；ElyDoc、ElyTable、ElyShow 的就地保存（Ctrl+S、关闭前、命令行；只有 LOK 报键的时刻）在下一次打字停顿（500 毫秒无键）开始，至多等 2 秒，期间打的键一并存下，同一停顿里别的程序的保存合为一次（R15.37）。
+- 性能：八个应用都不许卡顿（120 FPS 手感，树莓派 3 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事；ElyDoc、ElyTable、ElyShow 的就地保存（Ctrl+S、关闭前、命令行；只有 LOK 报键的时刻）在下一次打字停顿（500 毫秒无键）开始，至多等 2 秒，期间打的键一并存下，同一停顿里别的程序的保存合为一次（R15.37）；恢复点以补丁 0090 的 `Snapshot` 选项导出，键等着 worker 时（`ely_lok::Waiter::hold` 经请求管道告诉 worker，不取锁）内核在导出开始前与每个 OOXML 部件开写时放弃，该轮仍欠、不提示，同一标签让路满 60 秒后下一次不让路（R15.56）；命令行读的副本从不让路；用户的保存、另存为与自动保存从不放弃。
 - LOK：worker 启动时关掉内核的 OpenCL（`SAL_DISABLE_OPENCL=1`：其启动自检在 AMD 驱动里会卡死，Calc 在 CPU 上算）；界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；外部链接打开时显示保存的值，用户点横幅的“更新链接”才经 `.uno:ElyUpdateLinks` 读源，源之后再存即重现横幅（`ely_office::Linking`）；内核弹出的对话框即刻关闭并报错，需要的对话框由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入。
 - 更新：每个应用每个平台一份清单，读 GitHub 的最新发布（`releases/latest/download`，不调 API）；清单以 ed25519 签名（`<清单>.sig`，签的是文件名加内容），公钥编进应用（`ely_platform::update::KEY`），缺签名或不符即拒；种子是组织机密 `ELY_UPDATE_KEY`，本机副本 `update-key.txt` 不入库，丢失即旧版再也收不到更新；自动检查默认关，从不静默安装；包管理器与 Nix 装的不自更新，只提示。
 - 每个应用只跑一份，再次启动把文件交给运行中的那份。

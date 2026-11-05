@@ -40,6 +40,12 @@ for part in mupdf-src/COPYING git/COPYING git/GIT-VERSION-GEN; do
 done
 tar -xzOf "$upstream" mupdf-src/include/mupdf/pdf/form.h | grep -q pdf_signature_set_value_said ||
   fail "the MuPDF source is not the patched one"
+external=$dist/ElyOffice-$version-$commit-libreoffice-external-source.tar
+[ -s "$external" ] || fail "no $external; run packaging/macos/release.sh"
+held=$(tar -tf "$external")
+while IFS=$'\t' read -r name _; do
+  grep -qxF "libreoffice-external/$name" <<<"$held" || fail "the LibreOffice external archive lacks $name"
+done <"$root/packaging/lo-tarballs.tsv"
 
 # Samples: fixtures, so no LibreOffice app ever runs here.
 files=$work/files

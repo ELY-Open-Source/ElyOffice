@@ -15,6 +15,8 @@ mod input;
 mod asked;
 pub(crate) mod closing;
 mod revision;
+mod save;
+mod waits;
 mod slides;
 mod teardown;
 mod text;
@@ -78,7 +80,7 @@ static PENDING: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize:
 /// Lets idle jobs yield to a waiting request.
 #[cfg(target_os = "macos")]
 extern "C" fn waiting(_: *mut std::ffi::c_void, _: i32) -> bool {
-    PENDING.load(std::sync::atomic::Ordering::SeqCst) > 0
+    PENDING.load(std::sync::atomic::Ordering::SeqCst) > 0 || waits::any()
 }
 
 /// The queue's first drained block.
@@ -105,6 +107,7 @@ fn reader(mut input: impl io::Read) {
     }
     loop {
         match ipc::read_frame(&mut input) {
+            Ok(Some((tag, _, payload))) if waits::noted(tag, &payload) => {}
             Ok(Some((tag, id, payload))) => {
                 let request = Box::into_raw(Box::new((tag, id, payload)));
                 PENDING.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -199,8 +202,8 @@ fn answer(lok: &Lok, tag: u8, id: u64, payload: &[u8]) {
                 let pack = Pack::new().i64(width).i64(height);
                 pack.i64(i64::from(pixels)).i64(i64::from(twips)).bytes()
             }),
-        tag::SAVE_AS => save(unpack).map(|()| Vec::new()),
-        tag::EXPORT_PDF => export_pdf(unpack).map(|()| Vec::new()),
+        tag::SAVE_AS => save::save(unpack).map(|()| Vec::new()),
+        tag::EXPORT_PDF => save::export_pdf(unpack).map(|()| Vec::new()),
         tag::CLOSE_DOC => unpack.u64().map(|id| {
             close(id);
             Vec::new()
@@ -409,57 +412,6 @@ fn sheets(doc: &Document) -> io::Result<Vec<u8>> {
         pack = pack.str(&doc.part_name(part)?).str(&doc.part_info(part)?);
     }
     Ok(pack.bytes())
-}
-
-/// Saves a document under a new url and format (LOK-09).
-fn save(unpack: &mut Unpack) -> io::Result<()> {
-    let id = unpack.u64()?;
-    let url = unpack.str()?;
-    let format = unpack.str()?;
-    let options = unpack.str()?;
-    if !matches!(options.as_str(), "" | "TakeOwnership" | "TakeOwnership,TerminateEditing") {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "unknown save option",
-        ));
-    }
-    with_doc(id, |doc| doc.save_as(&url, &format, &options))?
-        .map_err(|error| io::Error::other(format!("{error}: {}", lok().error())))?;
-    log::info!("lok-worker: saved as {format} to {url} ({options})");
-    Ok(())
-}
-
-/// Writes a PDF from typed options, never raw text.
-fn export_pdf(unpack: &mut Unpack) -> io::Result<()> {
-    let (id, url) = (unpack.u64()?, unpack.str()?);
-    let (from, to) = (unpack.u64()?, unpack.u64()?);
-    let (comments, changes) = (unpack.u64()? != 0, unpack.u64()? != 0);
-    let handouts = unpack.u64()?;
-    let flag = |on: bool| serde_json::json!({ "type": "boolean", "value": on.to_string() });
-    let mut options = serde_json::json!({
-        "ExportNotes": flag(false),
-        "ExportNotesInMargin": flag(comments),
-        "ExportTrackedChanges": flag(changes),
-    });
-    if handouts != 0 {
-        let per = handouts.to_string();
-        options["ExportHandouts"] = serde_json::json!({ "type": "long", "value": per });
-    }
-    if from != 0 {
-        if from > to {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "a page range ends first",
-            ));
-        }
-        let range = format!("{from}-{to}");
-        options["PageRange"] = serde_json::json!({ "type": "string", "value": range });
-    }
-    with_doc(id, |doc| doc.save_as(&url, "pdf", &options.to_string()))??;
-    log::info!(
-        "lok-worker: exported PDF pages {from}-{to}, comments {comments}, changes {changes}, handouts {handouts}"
-    );
-    Ok(())
 }
 
 /// The one shared output for every handler.

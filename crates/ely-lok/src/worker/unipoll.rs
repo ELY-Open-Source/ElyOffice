@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-use super::{answer, asked, closing, events, lok, pin, quit, teardown};
+use super::{answer, asked, closing, events, lok, pin, quit, teardown, waits};
 use crate::ffi::Lok;
 use crate::ipc;
 
@@ -50,6 +50,7 @@ pub(super) fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Resu
 fn reader(mut input: impl io::Read, notes: Sender<Note>) {
     loop {
         let note = match ipc::read_frame(&mut input) {
+            Ok(Some((tag, _, payload))) if waits::noted(tag, &payload) => continue,
             Ok(Some((tag, id, payload))) => {
                 PENDING.fetch_add(1, Ordering::SeqCst);
                 Note::Ask(tag, id, payload)
@@ -72,7 +73,7 @@ fn reader(mut input: impl io::Read, notes: Sender<Note>) {
 
 /// Idle jobs yield to a waiting request.
 extern "C" fn waiting(_: *mut c_void, _: i32) -> bool {
-    PENDING.load(Ordering::SeqCst) > 0
+    PENDING.load(Ordering::SeqCst) > 0 || waits::any()
 }
 
 /// The kernel's wait: one request answered, or its own wake.

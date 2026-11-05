@@ -35,14 +35,17 @@ pub struct Moved {
     /// What moved it, as Git wrote.
     pub said: String,
     pub at: i64,
-    /// Its count from the oldest; new moves leave it be.
+    /// Its count among identical moves, from the oldest.
     pub seq: usize,
+    /// How many identical moves there are.
+    pub twins: usize,
 }
 
 impl Moved {
-    /// The same event, wherever it now sits.
+    /// The same event; a lost twin leaves it unknown.
     pub fn same(&self, other: &Moved) -> bool {
-        (&self.oid, &self.said, self.at, self.seq) == (&other.oid, &other.said, other.at, other.seq)
+        (&self.oid, &self.said, self.at, self.seq, self.twins)
+            == (&other.oid, &other.said, other.at, other.seq, other.twins)
     }
 }
 
@@ -55,24 +58,12 @@ pub fn reflog(git: &Git, root: &Path) -> io::Result<Vec<Moved>> {
     }
     // With a date mode, `%gd` carries when HEAD moved.
     let format = "--format=%H%x00%gd%x00%gs";
-    let count = format!("-n{KEEP}");
+    // One read of all: twins count from the oldest.
     let out = git.run_or_one(
         root,
-        &[
-            "reflog",
-            "show",
-            "-z",
-            "--date=unix",
-            format,
-            &count,
-            "HEAD",
-            "--",
-        ],
+        &["reflog", "show", "-z", "--date=unix", format, "HEAD", "--"],
     )?;
-    // Every entry, to count each one's place from the oldest.
-    let all = git.run_or_one(root, &["reflog", "show", "-z", "--format=%h", "HEAD", "--"])?;
-    let total = records(&all, 1)?.len();
-    records(&out, 3)?
+    let mut moves = records(&out, 3)?
         .into_iter()
         .enumerate()
         .map(|(at, fields)| {
@@ -89,12 +80,23 @@ pub fn reflog(git: &Git, root: &Path) -> io::Result<Vec<Moved>> {
                 name: format!("HEAD@{{{at}}}"),
                 said: said.to_string(),
                 at: time,
-                seq: total
-                    .checked_sub(at + 1)
-                    .ok_or_else(|| bad("the reflog grew"))?,
+                seq: 0,
+                twins: 0,
             })
         })
-        .collect()
+        .collect::<io::Result<Vec<_>>>()?;
+    // New twins come newest; Git may drop any one.
+    let mut seen = std::collections::HashMap::new();
+    for moved in moves.iter_mut().rev() {
+        let count = seen.entry((moved.oid.clone(), moved.said.clone(), moved.at)).or_insert(0);
+        moved.seq = *count;
+        *count += 1;
+    }
+    for moved in &mut moves {
+        moved.twins = seen[&(moved.oid.clone(), moved.said.clone(), moved.at)];
+    }
+    moves.truncate(KEEP);
+    Ok(moves)
 }
 
 /// Moving HEAD's branch to a commit: what leaves it.

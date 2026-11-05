@@ -174,14 +174,21 @@ impl Tree {
         };
         hist.loading = false;
         hist.read = true;
+        // A page read under moved refs is dropped.
+        if !fresh && matches!(&read, Ok((refs, _)) if *refs != hist.refs) {
+            log::info!("tree: refs moved between history pages; rereading from the top");
+            hist.stale = false;
+            self.load_log(id, true, cx);
+            return;
+        }
         match read {
             Ok((refs, page)) => {
                 if fresh {
                     hist.logged.clear();
+                    hist.refs = refs;
                 }
                 hist.done = page.len() < PAGE;
                 hist.logged.extend(page);
-                hist.refs = refs;
                 hist.error = None;
                 hist.rows = Rc::new(rows(&hist.logged));
                 hist.graph = Rc::new(if hist.query.is_none() {

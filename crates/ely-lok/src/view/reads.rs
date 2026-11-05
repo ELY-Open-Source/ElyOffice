@@ -97,9 +97,11 @@ impl LokView {
         Some((menu, self.right_at.take()))
     }
 
-    /// The paragraph's own tab stops, in 1/100 mm.
-    pub fn tabs(&self) -> &[i32] {
-        &self.tabs
+    /// The paragraph's tab stops in 1/100 mm, and their document.
+    pub fn tabs(&self) -> (&[i32], crate::Doc) {
+        let mut doc = self.doc.clone();
+        doc.rev = self.tabs.1;
+        (&self.tabs.0, doc)
     }
 
     /// The handle apps focus to type into the document.

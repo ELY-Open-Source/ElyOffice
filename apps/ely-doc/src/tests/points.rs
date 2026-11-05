@@ -312,3 +312,96 @@ fn over_its_space(locale: &'static str) {
     beat(&mut cx, &docs);
     settle(&cx, |app| points(&kept) == 1 && writing(&docs, app) == 0);
 }
+
+/// `big_fodt` as DOCX: a snapshot of it stops between parts.
+fn big_docx(cx: &mut TestAppContext, docs: &Entity<Docs>, dir: &std::path::Path) -> std::path::PathBuf {
+    let flat = big_fodt(cx, dir);
+    let path = dir.join("big.docx");
+    let worker = cx.update(|app| docs.read(app).core.worker.clone());
+    let mut worker = worker.lock().expect("the worker");
+    let doc = worker.load(&ely_lok::file_url(&flat)).expect("the flat file opens");
+    doc.save_as(&mut worker, &ely_lok::file_url(&path), "docx").expect("the DOCX saves");
+    worker.close_doc(doc).expect("closes");
+    path
+}
+
+/// Another thread keeps asking for the worker, like keys.
+struct Asking(std::sync::Arc<std::sync::atomic::AtomicBool>, std::thread::JoinHandle<()>);
+
+impl Asking {
+    fn start(cx: &mut TestAppContext, docs: &Entity<Docs>) -> Self {
+        use std::sync::atomic::Ordering;
+        let worker = cx.update(|app| docs.read(app).core.worker.clone());
+        let waiter = worker.lock().expect("the worker").waiter();
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stopped = stop.clone();
+        let asking = std::thread::spawn(move || {
+            while !stopped.load(Ordering::SeqCst) {
+                drop(waiter.hold(&worker));
+                std::thread::yield_now();
+            }
+        });
+        Self(stop, asking)
+    }
+
+    fn end(self) {
+        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.1.join().expect("the asking thread");
+    }
+}
+
+/// The window, its points, and keys asking throughout.
+type Typed = (Entity<Docs>, Entity<ely_ui::Root>, std::path::PathBuf, Asking);
+
+/// A big DOCX typed in; input stopped its first snapshot.
+fn typed_big(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<Typed> {
+    let (docs, kept) = kept_docs(cx, dir)?;
+    let root = super::words::rooted(cx, &docs);
+    let file = big_docx(cx, &docs, dir);
+    with_window(cx, &docs, |docs, _, cx| docs.open_file(file, cx));
+    settle(cx, |app| docs.read(app).active_tab().is_some_and(|tab| tab.view.read(app).settled()));
+    type_into(cx, &docs, "big");
+    let asking = Asking::start(cx, &docs);
+    round(cx, &docs);
+    assert_eq!(cx.update(|app| writing(&docs, app)), 1, "the pause starts a snapshot");
+    settle(cx, |app| writing(&docs, app) == 0);
+    assert_eq!(points(&kept), 0, "a stopped snapshot leaves no point");
+    Some((docs, root, kept, asking))
+}
+
+#[test]
+fn a_snapshot_stopped_by_input_stays_owed_and_unshown() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((docs, root, kept, asking)) = typed_big(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    asking.end();
+    let toasts = cx.update(|app| root.read(app).toasts(app));
+    assert!(toasts.is_empty(), "a stopped snapshot shows nothing: {toasts:?}");
+    // No tick since: the round stayed owed.
+    beat(&mut cx, &docs);
+    beat(&mut cx, &docs);
+    settle(&cx, |app| points(&kept) == 1 && writing(&docs, app) == 0);
+    let texts = point_texts(&mut cx, &docs, &kept);
+    assert!(texts.iter().all(|text| text.starts_with("big") && text.ends_with("large.")), "the point is whole");
+}
+
+#[test]
+fn a_point_owed_a_minute_no_longer_gives_way() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((docs, _, kept, asking)) = typed_big(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.executor().advance_clock(std::time::Duration::from_secs(61));
+    round(&mut cx, &docs);
+    settle(&cx, |app| writing(&docs, app) == 0);
+    let written = points(&kept);
+    asking.end();
+    assert_eq!(written, 1, "owed a minute, the point is written through input");
+    let texts = point_texts(&mut cx, &docs, &kept);
+    assert!(texts.iter().all(|text| text.starts_with("big") && text.ends_with("large.")), "the point is whole");
+}

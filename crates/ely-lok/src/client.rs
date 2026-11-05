@@ -1,7 +1,7 @@
 use std::{
     io::{self, BufReader, BufWriter},
     path::{Path, PathBuf},
-    process::{Child, ChildStdin, Command, Stdio},
+    process::{Child, Command, Stdio},
     sync::mpsc,
 };
 
@@ -20,8 +20,10 @@ mod install;
 mod load;
 pub use load::Damaged;
 mod stop;
+mod wait;
 pub use install::{install_dir, templates};
 pub use stop::Stopper;
+pub use wait::Waiter;
 #[cfg(any(test, feature = "test-support"))]
 pub use install::test_install;
 use install::worker_bin;
@@ -33,7 +35,7 @@ pub(crate) mod tests;
 /// The LOK worker process: spawn, talk frames, shut down (LOK-01).
 pub struct Worker {
     pub(crate) child: Child,
-    stdin: BufWriter<ChildStdin>,
+    stdin: wait::Pipe,
     /// Answers to requests; None once the worker is gone.
     replies: mpsc::Receiver<io::Result<(u8, u64, Vec<u8>)>>,
     feed: Feed,
@@ -182,7 +184,7 @@ impl Worker {
         let worker = Self {
             child,
             stopper,
-            stdin: BufWriter::new(stdin),
+            stdin: std::sync::Arc::new(std::sync::Mutex::new(BufWriter::new(stdin))),
             replies,
             feed,
             down: false,
@@ -392,7 +394,7 @@ impl Worker {
         // Nothing reaches a worker that has not passed its checks.
         self.ready()?;
         self.asked += 1;
-        if let Err(error) = ipc::write_frame(&mut self.stdin, request, self.asked, payload) {
+        if let Err(error) = wait::send(&self.stdin, request, self.asked, payload) {
             return Err(self.broken(request, error));
         }
         let (reply, id, body) = match self.replies.recv() {
@@ -455,7 +457,7 @@ impl Worker {
     /// The shutdown round trip alone.
     fn answer_shutdown(&mut self) -> io::Result<()> {
         self.asked += 1;
-        ipc::write_frame(&mut self.stdin, tag::SHUTDOWN, self.asked, &[])?;
+        wait::send(&self.stdin, tag::SHUTDOWN, self.asked, &[])?;
         let reply = match self.replies.recv() {
             Ok(Ok(frame)) => frame,
             Ok(Err(error)) => return Err(self.broken(tag::SHUTDOWN, error)),
