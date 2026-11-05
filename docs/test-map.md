@@ -95,8 +95,8 @@
 | PDF-08 | OCR | C11.5、决策 C11.5 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-09 | 内容删除 | C11.6（~）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-10 | 文档清理 | C11.6（~）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-11 | 密码 | C11.7（~）、决策 C11.7 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-12 | 签名 | C11.7（~）、决策 C11.7 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-11 | 密码 | C11.7（~）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-12 | 签名 | C11.7（~）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-13 | 输出 | C11.8（~）、决策 C11.8 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-14 | 文件恢复 | C11.8（~）、决策 C11.8 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | MAIL-01 | 账号 | C12.1（~）、C12.5（~）、C12.7 | `a_failed_removal_puts_the_secret_back`、`two_saves_in_flight_add_an_address_once`、`a_uidl_listed_twice_comes_down_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
@@ -168,7 +168,7 @@
 | QA-12 | Show | C10.6（~）、C22.2（ ）、决策 C10.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-13 | PDF 编辑 | C11.8（~）、C22.2（ ）、决策 C11.8 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-14 | PDF 删除 | C11.6（~）、C22.2（ ）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out` | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-15 | PDF OCR 与签名 | C11.7（~）、C22.2（ ）、决策 C11.7 | — | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-15 | PDF OCR 与签名 | C11.7（~）、C22.2（ ）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-16 | Mail 离线 | C12.23（ ）、C22.2（ ） | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-17 | Mail 发送 | C12.14（~）、C12.23（ ）、C22.2（ ）、决策 C12.14 | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-18 | Mail 同步 | C12.6（~）、C12.23（ ）、C22.2（ ）、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
