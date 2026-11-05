@@ -3,15 +3,17 @@
 use std::path::Path;
 
 use ely_gpui_component::primitives::Severity;
-use gpui::Context;
+use gpui::{Context, Window};
 
 use super::Saving;
 use crate::{After, Tabs as _, text};
 
 /// A program hears at once; a person picks a place.
-pub(super) fn gone<H: Saving>(host: &mut H, id: u64, path: &Path, then: Option<After>, cx: &mut Context<H>) {
+pub(super) fn gone<H: Saving>(host: &mut H, id: u64, path: &Path, then: Option<After>, window: &mut Window, cx: &mut Context<H>) {
     log::warn!("office: {} is gone; tab {id} cannot save in place", path.display());
-    let Some(tab) = host.tab_mut(id) else { return };
+    let Some(tab) = host.tab_mut(id) else {
+        return host.closed_first(id, then, window, cx);
+    };
     let name = tab.name.clone();
     // Close still asks; autosave stops prompting.
     tab.session.save_failed();
@@ -23,5 +25,5 @@ pub(super) fn gone<H: Saving>(host: &mut H, id: u64, path: &Path, then: Option<A
     }
     let words = text(cx, "office.gone", &[("name", &name)]);
     host.toast(words, Severity::Warning, cx);
-    host.save_as(id, then, cx);
+    host.save_as(id, then, window, cx);
 }

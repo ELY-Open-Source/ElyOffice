@@ -145,7 +145,7 @@ pub trait Dialogs: Host {
                         "office-conflict-copy",
                         text(cx, "office.conflict.copy", &[]),
                         ButtonVariant::Secondary,
-                        move |host, _, cx| host.save_as(tab, then, cx),
+                        move |host, window, cx| host.save_as(tab, then, window, cx),
                     ))
                     .action(choice(
                         &this,

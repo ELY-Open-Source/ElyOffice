@@ -82,7 +82,7 @@ pub trait Saving: Host {
             .filter(|_| tab.risk.is_none())
             .map(PathBuf::from)
         else {
-            return self.save_as(id, then, cx);
+            return self.save_as(id, then, window, cx);
         };
         let format = match files::kept_format(&Self::KIND, &path) {
             Ok(format) => format,
@@ -109,9 +109,9 @@ pub trait Saving: Host {
     }
 
     /// Asks where, then writes the default format there.
-    fn save_as(&mut self, id: u64, then: Option<After>, cx: &mut Context<Self>) {
+    fn save_as(&mut self, id: u64, then: Option<After>, window: &mut Window, cx: &mut Context<Self>) {
         let Some(tab) = self.tab(id) else {
-            return;
+            return self.closed_first(id, then, window, cx);
         };
         let Some(dir) = folder(tab) else {
             self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);

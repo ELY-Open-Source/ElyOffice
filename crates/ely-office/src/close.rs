@@ -28,9 +28,9 @@ pub trait Closing: Host {
         }
     }
 
-    fn on_save_as(&mut self, _: &SaveAs, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_save_as(&mut self, _: &SaveAs, window: &mut Window, cx: &mut Context<Self>) {
         match self.core().active() {
-            Some(id) => self.save_as(id, None, cx),
+            Some(id) => self.save_as(id, None, window, cx),
             None => self.no_document(cx),
         }
     }

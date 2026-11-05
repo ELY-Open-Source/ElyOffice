@@ -180,3 +180,8 @@ fn a_tab_closed_during_its_history_read_lets_the_close_go_on(cx: &mut TestAppCon
     assert!(tabs(&desk, cx).is_empty(), "the close stopped at the gone tab");
     assert!(leaving(&desk, cx));
 }
+
+#[gpui::test]
+fn a_gone_tabs_save_as_prompt_goes_on(cx: &mut TestAppContext) {
+    a_gone_tabs_save_lets_the_close_go_on(cx, |desk, id, then, window, cx| desk.save_as(id, then, window, cx));
+}

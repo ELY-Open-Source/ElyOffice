@@ -165,8 +165,9 @@ fn landed<H: Saving>(
         (Err(SaveError::Io(error)), Target::Own, _) if error.kind() == io::ErrorKind::NotFound => {
             let path = host.tab(id).and_then(|tab| tab.session.path().map(PathBuf::from));
             let queued = settle(host, id);
-            if let Some(path) = path {
-                gone::gone(host, id, &path, landing.then, cx);
+            match path {
+                Some(path) => gone::gone(host, id, &path, landing.then, window, cx),
+                None => host.closed_first(id, landing.then, window, cx),
             }
             return run(host, queued, window, cx);
         }
@@ -180,7 +181,8 @@ fn risky<H: Saving>(host: &mut H, id: u64, risk: Risk, then: Option<After>, wind
     log::warn!("office: tab {id} is {risk:?}; its save becomes Save As");
     let queued = settle(host, id);
     let Some(tab) = host.tab_mut(id) else {
-        return run(host, queued, window, cx);
+        run(host, queued, window, cx);
+        return host.closed_first(id, then, window, cx);
     };
     tab.risk = Some(risk);
     let named = tab.session.path().map_or_else(|| tab.name.to_string(), |path| path.display().to_string());
@@ -191,7 +193,7 @@ fn risky<H: Saving>(host: &mut H, id: u64, risk: Risk, then: Option<After>, wind
         host.core_mut().answer_saves(id, Err(why));
         return run(host, queued, window, cx);
     }
-    host.save_as(id, then, cx);
+    host.save_as(id, then, window, cx);
     run(host, queued, window, cx);
 }
 

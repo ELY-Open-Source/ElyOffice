@@ -324,11 +324,11 @@ impl Desk {
         let said = text(cx, key, &[("name", &name), ("why", &why)]);
         let label = text(cx, action, &[]);
         let banner = Banner::new("mark-outside", severity, said);
-        Some(banner.action(label, move |_, cx| {
+        Some(banner.action(label, move |window, cx| {
             this.update(cx, |desk, cx| {
                 match desk.tab(id).map(|tab| &tab.extra.outside) {
                     Some(Outside::Changed(..)) => desk.compare(id, cx),
-                    Some(Outside::Deleted) => desk.save_as(id, None, cx),
+                    Some(Outside::Deleted) => desk.save_as(id, None, window, cx),
                     _ => desk.look(id, cx),
                 }
             })
