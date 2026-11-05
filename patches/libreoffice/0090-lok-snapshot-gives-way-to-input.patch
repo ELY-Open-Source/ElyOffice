@@ -14,7 +14,8 @@ input". Saves without the option never stop.
 The DOCX, XLSX and PPTX exporters now undo on any exit what they
 changed on the way: Writer's redline flags, parked cursors and its
 PaM ring; Calc's shortened sheet names, its external file id map and
-status indicator; the drawingml graphic cache level of all three.
+status indicator; Impress's temporary slide for each layout part; the
+drawingml graphic cache level of all three.
 ODF and binary formats check only before the store starts.
 
 diff --git a/comphelper/source/misc/lok.cxx b/comphelper/source/misc/lok.cxx
@@ -262,7 +263,7 @@ index e09776f..f19b6a6 100644
  }
  
 diff --git a/sd/source/filter/eppt/pptx-epptooxml.cxx b/sd/source/filter/eppt/pptx-epptooxml.cxx
-index 0607278..2925212 100644
+index 0607278..f8dd70e 100644
 --- a/sd/source/filter/eppt/pptx-epptooxml.cxx
 +++ b/sd/source/filter/eppt/pptx-epptooxml.cxx
 @@ -37,6 +37,7 @@
@@ -291,6 +292,23 @@ index 0607278..2925212 100644
      maShapeMap.clear();
      maAuthors.clear();
      maRelId.clear();
+@@ -2205,6 +2206,8 @@ void PowerPointExport::ImplWritePPTXLayout(sal_Int32 nOffset, sal_uInt32 nMaster
+ 
+     Reference< drawing::XDrawPages > xDrawPages = mXModel->getDrawPages();
+     Reference< drawing::XDrawPage > xSlide = xDrawPages->insertNewByIndex(xDrawPages->getCount());
++    // Ely: a stopped snapshot leaves no layout slide behind.
++    comphelper::ScopeGuard aSlide([&xDrawPages, &xSlide]() { xDrawPages->remove(xSlide); });
+ 
+ #if OSL_DEBUG_LEVEL >= 2
+     if (xSlide.is())
+@@ -2264,6 +2267,7 @@ void PowerPointExport::ImplWritePPTXLayout(sal_Int32 nOffset, sal_uInt32 nMaster
+ 
+     mnLayoutFileIdMax ++;
+ 
++    aSlide.dismiss();
+     xDrawPages->remove(xSlide);
+ 
+     pFS->endDocument();
 diff --git a/sw/source/filter/ww8/docxexport.cxx b/sw/source/filter/ww8/docxexport.cxx
 index d06f58e..2b3c630 100644
 --- a/sw/source/filter/ww8/docxexport.cxx
