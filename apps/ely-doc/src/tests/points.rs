@@ -312,3 +312,58 @@ fn over_its_space(locale: &'static str) {
     beat(&mut cx, &docs);
     settle(&cx, |app| points(&kept) == 1 && writing(&docs, app) == 0);
 }
+
+/// `big_fodt` as DOCX: a snapshot of it stops between parts.
+fn big_docx(cx: &mut TestAppContext, docs: &Entity<Docs>, dir: &std::path::Path) -> std::path::PathBuf {
+    let flat = big_fodt(cx, dir);
+    let path = dir.join("big.docx");
+    let worker = cx.update(|app| docs.read(app).core.worker.clone());
+    let mut worker = worker.lock().expect("the worker");
+    let doc = worker.load(&ely_lok::file_url(&flat)).expect("the flat file opens");
+    doc.save_as(&mut worker, &ely_lok::file_url(&path), "docx").expect("the DOCX saves");
+    worker.close_doc(doc).expect("closes");
+    path
+}
+
+#[test]
+fn a_snapshot_stopped_by_input_stays_owed_and_unshown() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((docs, kept)) = kept_docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let root = super::words::rooted(&mut cx, &docs);
+    let file = big_docx(&mut cx, &docs, dir.path());
+    with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(file, cx));
+    settle(&cx, |app| docs.read(app).active_tab().is_some_and(|tab| tab.view.read(app).settled()));
+    type_into(&mut cx, &docs, "big");
+    let worker = cx.update(|app| docs.read(app).core.worker.clone());
+    let waiter = worker.lock().expect("the worker").waiter();
+    let stop = std::sync::Arc::new(AtomicBool::new(false));
+    // Another thread keeps asking for the worker, like keys.
+    let asking = {
+        let (worker, stop) = (worker.clone(), stop.clone());
+        std::thread::spawn(move || {
+            while !stop.load(Ordering::SeqCst) {
+                drop(waiter.hold(&worker));
+                std::thread::yield_now();
+            }
+        })
+    };
+    round(&mut cx, &docs);
+    assert_eq!(cx.update(|app| writing(&docs, app)), 1, "the pause starts a snapshot");
+    settle(&cx, |app| writing(&docs, app) == 0);
+    stop.store(true, Ordering::SeqCst);
+    asking.join().expect("the asking thread");
+    assert_eq!(points(&kept), 0, "a stopped snapshot leaves no point");
+    let toasts = cx.update(|app| root.read(app).toasts(app));
+    assert!(toasts.is_empty(), "a stopped snapshot shows nothing: {toasts:?}");
+    // No tick since: the round stayed owed.
+    beat(&mut cx, &docs);
+    beat(&mut cx, &docs);
+    settle(&cx, |app| points(&kept) == 1 && writing(&docs, app) == 0);
+    let texts = point_texts(&mut cx, &docs, &kept);
+    assert!(texts.iter().all(|text| text.starts_with("big") && text.ends_with("large.")), "the point is whole");
+}

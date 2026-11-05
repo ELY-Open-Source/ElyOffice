@@ -23,6 +23,7 @@ pub struct Loaded {
     laid: ely_lok::Layout,
     mark: String,
     feed: ely_lok::Feed,
+    waiter: ely_lok::Waiter,
     links: Vec<String>,
     /// Word links the kernel keeps as pictures.
     pictured: bool,
@@ -52,7 +53,7 @@ impl Engine for Lok {
                 (ely_lok::links::sources(&listed)?, pictured)
             }
         };
-        Ok(Loaded { doc, laid, mark, feed: worker.feed(), links, pictured })
+        Ok(Loaded { doc, laid, mark, feed: worker.feed(), waiter: worker.waiter(), links, pictured })
     }
 
     fn open(
@@ -61,8 +62,8 @@ impl Engine for Lok {
         _: &mut Window,
         cx: &mut App,
     ) -> io::Result<(Doc, Entity<LokView>, String)> {
-        let Loaded { doc, laid, mark, feed, .. } = loaded;
-        let view = LokView::open(Arc::clone(worker), doc.clone(), laid, feed, cx);
+        let Loaded { doc, laid, mark, feed, waiter, .. } = loaded;
+        let view = LokView::open(Arc::clone(worker), doc.clone(), laid, (feed, waiter), cx);
         let (zoom, deck) = (ely_ui::settings::current(cx).doc_zoom, doc.is_deck());
         let kind = match (doc.is_sheet(), deck) {
             (true, _) => "office.view.sheet",
@@ -113,8 +114,9 @@ impl Engine for Lok {
         }
     }
 
+    /// Waiting input stops it: `ErrorKind::Interrupted`.
     fn snapshot(worker: &mut Worker, doc: &Doc, path: &Path, format: &str) -> io::Result<()> {
-        doc.save_as(worker, &ely_lok::file_url(path), format)
+        doc.snapshot(worker, &ely_lok::file_url(path), format)
     }
 
     fn close(worker: &mut Worker, doc: Doc) -> io::Result<()> {

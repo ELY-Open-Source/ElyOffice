@@ -15,7 +15,7 @@ use windows_sys::Win32::{
     },
 };
 
-use super::{answer, asked, closing, events, lok, pin, quit, teardown};
+use super::{answer, asked, closing, events, lok, pin, quit, teardown, waits};
 use crate::ffi::Lok;
 use crate::ipc;
 
@@ -99,6 +99,7 @@ fn window() -> io::Result<HWND> {
 fn reader(mut input: impl io::Read) {
     loop {
         let (message, request) = match ipc::read_frame(&mut input) {
+            Ok(Some((tag, _, payload))) if waits::noted(tag, &payload) => continue,
             Ok(Some(request)) => {
                 PENDING.fetch_add(1, Ordering::SeqCst);
                 (ASK, Box::into_raw(Box::new(request)))
@@ -132,7 +133,7 @@ pub(super) fn nudge() {
 
 /// Idle jobs yield to a waiting request.
 extern "C" fn waiting(_: *mut c_void, _: i32) -> bool {
-    PENDING.load(Ordering::SeqCst) > 0
+    PENDING.load(Ordering::SeqCst) > 0 || waits::any()
 }
 
 unsafe extern "system" fn procedure(

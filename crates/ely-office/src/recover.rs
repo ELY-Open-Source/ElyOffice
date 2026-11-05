@@ -261,6 +261,9 @@ pub trait Recovering: Host {
                 Ok(bytes)
             },
             move |host, bytes, _, cx| {
+                if bytes.as_ref().is_err_and(|error| error.kind() == io::ErrorKind::Interrupted) {
+                    return host.point_stopped(id);
+                }
                 // The worker is free: the next tab's turn.
                 host.write_points(tabs, cx);
                 let Ok(bytes) = bytes else { return host.point_written(id, (edited, None), bytes.map(drop), cx) };
@@ -275,6 +278,16 @@ pub trait Recovering: Host {
             },
             cx,
         );
+    }
+
+    /// Input stopped the snapshot: the round stays owed, unshown.
+    fn point_stopped(&mut self, id: u64) {
+        log::info!("recovery: tab {id}'s snapshot gave way to input; the round stays owed");
+        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
+        keeping.owed = true;
+        if let Some(slot) = keeping.slots.get_mut(&id) {
+            slot.writing = false;
+        }
     }
 
     /// A point's write ended; a failure shows once.

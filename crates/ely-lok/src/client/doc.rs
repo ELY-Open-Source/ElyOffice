@@ -244,6 +244,14 @@ impl Doc {
         self.store(worker, url, format, "")
     }
 
+    /// A recovery point; a waiting request stops it.
+    pub fn snapshot(&self, worker: &mut Worker, url: &str, format: &str) -> io::Result<()> {
+        self.store(worker, url, format, "Snapshot").map_err(|error| match error.to_string() == crate::ipc::STOPPED {
+            true => io::Error::new(io::ErrorKind::Interrupted, crate::ipc::STOPPED),
+            false => error,
+        })
+    }
+
     /// Writes the shown sheet as text split by `separator`.
     pub fn export_text(&self, worker: &mut Worker, url: &str, separator: char) -> io::Result<()> {
         let request = Pack::new()
