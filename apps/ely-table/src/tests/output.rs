@@ -273,25 +273,50 @@ fn the_preview_reads_what_the_kernel_imports() {
         eprintln!("SKIP: no LOK build");
         return;
     };
-    let path = dir.path().join("odd.csv");
-    let text = "Id,Code\n \"00123\",1\n\ny,-12345678901234567890\n";
-    std::fs::write(&path, text).expect("writes");
-    update(&mut cx, &book, |book, cx| book.ask_import(path.clone(), cx));
-    asked(&cx, &book, |dialog| matches!(dialog, Dialog::Import(pending) if !pending.reading));
-    let preview = cx.update(|app| match book.read(app).dialog.as_ref() {
-        Some(Dialog::Import(pending)) => pending.rows.clone(),
-        _ => unreachable!("an import dialog"),
-    });
-    update(&mut cx, &book, |book, cx| book.import_asked(cx));
-    settle(&cx, |app| book.read(app).active_tab().is_some());
-    // Row 4 lines up only if the empty line counted.
-    for (at, row) in preview.iter().enumerate().filter(|(_, row)| row.len() == 2) {
-        for (column, value) in ["A", "B"].iter().zip(row) {
-            let cell = format!("{column}{}", at + 1);
-            assert_eq!(&cells(&mut cx, &book, &cell), value, "{cell} as previewed");
+    let files = [
+        "Id,Code\n \"00123\",1\n\ny,-12345678901234567890\n",
+        // Inch marks, text after quotes, lines in fields.
+        "\"Screen 27\" wide, matte\",00123\n\"ab\"cd,x\n\"a \"\"b\"\"\"c,\"two\nlines\"\n\"x\ny\",z\na,\n",
+    ];
+    for (file, text) in files.into_iter().enumerate() {
+        let path = dir.path().join(format!("odd{file}.csv"));
+        std::fs::write(&path, text).expect("writes");
+        update(&mut cx, &book, |book, cx| book.ask_import(path.clone(), cx));
+        asked(&cx, &book, |dialog| matches!(dialog, Dialog::Import(pending) if !pending.reading));
+        let preview = cx.update(|app| match book.read(app).dialog.as_ref() {
+            Some(Dialog::Import(pending)) => pending.rows.clone(),
+            _ => unreachable!("an import dialog"),
+        });
+        update(&mut cx, &book, |book, cx| book.import_asked(cx));
+        settle(&cx, |app| {
+            let book = book.read(app);
+            book.core.tabs.len() == file + 1 && book.active_tab().is_some_and(|tab| !tab.extra.sheets.list.is_empty())
+        });
+        // Each row and the empty cell past it.
+        let empty = String::new();
+        for (row, values) in preview.iter().enumerate() {
+            for (column, value) in values.iter().chain([&empty]).enumerate() {
+                let cell = format!("{}{}", char::from(b'A' + column as u8), row + 1);
+                assert_eq!(&shown(&mut cx, &book, &cell), value, "{cell} of file {file} as previewed");
+            }
         }
+        assert!(preview.len() < crate::text::SHOWN, "the whole file shows");
+        let past = format!("A{}", preview.len() + 1);
+        assert_eq!(shown(&mut cx, &book, &past), "", "no row past the preview");
     }
-    assert_eq!(preview[3][1], "-12345678901234567890");
+}
+
+/// The active sheet's shown text at `cell`.
+fn shown(cx: &mut TestAppContext, book: &Entity<Book>, cell: &str) -> String {
+    quiet(cx, book);
+    cx.update(|app| {
+        let book = book.read(app);
+        let tab = book.active_tab().expect("a tab");
+        let sheet = &tab.extra.sheets.list[tab.extra.sheets.current].name;
+        let mut worker = book.core.worker.lock().expect("the worker lock");
+        let read = worker.values(&tab.doc, &sheet::cell_at_query(&format!("{sheet}!{cell}")));
+        sheet::cell_at(&read.expect("reads")).expect("a cell").text
+    })
 }
 
 #[test]
