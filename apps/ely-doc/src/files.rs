@@ -1,10 +1,14 @@
 //! The bundled templates (DOC-01).
 
 use ely_platform::settings::Paper;
+use ely_gpui_component::i18n::I18n;
 use gpui::App;
 
 /// LibreOffice's Letter regions (i18nutil paper.cxx).
 const LETTER_REGIONS: [&str; 14] = ["US", "PR", "CA", "VE", "CL", "MX", "CO", "PH", "BZ", "CR", "GT", "NI", "PA", "SV"];
+
+/// As Chinese Word: compressed punctuation, two-character tabs.
+const CHINESE: &str = "<office:settings><config:config-item-set config:name=\"ooo:configuration-settings\"><config:config-item config:name=\"CharacterCompressionType\" config:type=\"short\">1</config:config-item></config:config-item-set></office:settings><office:styles><style:default-style style:family=\"paragraph\"><style:paragraph-properties style:tab-stop-distance=\"21pt\"/></style:default-style></office:styles>";
 
 /// The three bundled templates (DOC-01).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -67,8 +71,10 @@ impl Template {
             })
             .collect();
         let (width, height) = page(ely_ui::settings::current(cx).paper);
+        let chinese = cx.global::<I18n>().locale().tag == "zh-CN";
+        let defaults = if chinese { CHINESE } else { "" };
         format!(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" office:version=\"1.3\" office:mimetype=\"application/vnd.oasis.opendocument.text\"><office:automatic-styles><style:page-layout style:name=\"pm1\"><style:page-layout-properties fo:page-width=\"{width}\" fo:page-height=\"{height}\" style:print-orientation=\"portrait\" fo:margin-top=\"2cm\" fo:margin-bottom=\"2cm\" fo:margin-left=\"2cm\" fo:margin-right=\"2cm\"/></style:page-layout></office:automatic-styles><office:master-styles><style:master-page style:name=\"Standard\" style:page-layout-name=\"pm1\"/></office:master-styles><office:body><office:text>{body}</office:text></office:body></office:document>\n"
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\" xmlns:ooo=\"http://openoffice.org/2004/office\" office:version=\"1.3\" office:mimetype=\"application/vnd.oasis.opendocument.text\">{defaults}<office:automatic-styles><style:page-layout style:name=\"pm1\"><style:page-layout-properties fo:page-width=\"{width}\" fo:page-height=\"{height}\" style:print-orientation=\"portrait\" fo:margin-top=\"2cm\" fo:margin-bottom=\"2cm\" fo:margin-left=\"2cm\" fo:margin-right=\"2cm\"/></style:page-layout></office:automatic-styles><office:master-styles><style:master-page style:name=\"Standard\" style:page-layout-name=\"pm1\"/></office:master-styles><office:body><office:text>{body}</office:text></office:body></office:document>\n"
         )
     }
 

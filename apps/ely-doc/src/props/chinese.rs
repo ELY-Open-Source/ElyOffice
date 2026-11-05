@@ -1,4 +1,4 @@
-//! The Chinese panel shows no English (I-03).
+//! The Chinese panel and new document (I-03, #61).
 
 use std::sync::Arc;
 
@@ -145,4 +145,34 @@ fn builtin_styles_read_in_the_interface_language(cx: &mut TestAppContext) {
         ely_ui::i18n::install_as("en-US", app);
         assert_eq!(builtin::shown(&PARAGRAPH, "Text body", app), "Body Text");
     });
+}
+
+/// The blank template under `locale`, loaded and flattened.
+fn blank_as(cx: &mut TestAppContext, docs: &Entity<Docs>, dir: &std::path::Path, locale: &'static str) -> String {
+    let fodt = cx.update(|app| {
+        I18n::set_locale(locale, app);
+        crate::files::Template::Blank.fodt(app)
+    });
+    let path = dir.join(format!("{locale}.fodt"));
+    std::fs::write(&path, fodt).expect("the template writes");
+    crate::tests::text_of(cx, docs, &path)
+}
+
+/// A Chinese new document as Chinese Word (GitHub #61).
+#[test]
+fn a_chinese_blank_compresses_punctuation_and_tabs_two_characters() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let compression = "\"CharacterCompressionType\" config:type=\"short\">1<";
+    // 21pt: two characters at the Chinese 10.5pt.
+    let tabs = "style:tab-stop-distance=\"0.2917in\"";
+    let chinese = blank_as(&mut cx, &docs, dir.path(), "zh-CN");
+    assert!(chinese.contains(compression), "punctuation is compressed");
+    assert!(chinese.contains(tabs), "tabs are two characters");
+    let english = blank_as(&mut cx, &docs, dir.path(), "en-US");
+    assert!(!english.contains(compression) && !english.contains(tabs), "English keeps the kernel's");
 }

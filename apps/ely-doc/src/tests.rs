@@ -334,7 +334,7 @@ fn a_macro_file_opens_in_risk_mode_and_saves_only_as_a_copy() {
     let body = cx.update(|app| Template::Report.fodt(app))
         .replace(
             "office:version=",
-            "xmlns:script=\"urn:oasis:names:tc:opendocument:xmlns:script:1.0\" xmlns:ooo=\"http://openoffice.org/2004/office\" office:version=",
+            "xmlns:script=\"urn:oasis:names:tc:opendocument:xmlns:script:1.0\" office:version=",
         )
         .replace(
             "<office:body>",
