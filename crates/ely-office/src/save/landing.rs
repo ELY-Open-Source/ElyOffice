@@ -179,10 +179,18 @@ fn landed<H: Saving>(
 fn risky<H: Saving>(host: &mut H, id: u64, risk: Risk, then: Option<After>, window: &mut Window, cx: &mut Context<H>) {
     log::warn!("office: tab {id} is {risk:?}; its save becomes Save As");
     let queued = settle(host, id);
-    if let Some(tab) = host.tab_mut(id) {
-        tab.risk = Some(risk);
-    }
+    let Some(tab) = host.tab_mut(id) else {
+        return run(host, queued, window, cx);
+    };
+    tab.risk = Some(risk);
+    let named = tab.session.path().map_or_else(|| tab.name.to_string(), |path| path.display().to_string());
     cx.notify();
+    // A program hears at once; a person picks a place.
+    if host.core().saving.iter().any(|(tab, _)| *tab == id) {
+        let why = format!("{named} must be saved under another name in {}", H::KIND.app.name());
+        host.core_mut().answer_saves(id, Err(why));
+        return run(host, queued, window, cx);
+    }
     host.save_as(id, then, cx);
     run(host, queued, window, cx);
 }
