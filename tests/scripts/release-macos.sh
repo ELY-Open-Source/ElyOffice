@@ -69,14 +69,17 @@ while IFS=$'\t' read -r slug name; do
   [ -s "$app/Contents/Resources/$icon.icns" ] || fail "$name has no icon"
   # Licences travel with the app (§21.3).
   licenses=$app/Contents/Resources/Licenses
+  # Never empty: bash 3.2 calls an empty array unbound.
+  parts=(LICENSE rust-crates.txt)
   case $slug in
-    ely-doc | ely-table | ely-show) engines=(LibreOffice) ;;
-    ely-pdf) engines=(MuPDF MuPDF/fonts/urw MuPDF/fonts/sil MuPDF/fonts/noto MuPDF/fonts/droid MuPDF/fonts/han OpenSSL tessdata GreatVibes) ;;
-    ely-tree) engines=(Git git-lfs) ;;
-    ely-mark) engines=(KaTeX MuPDF MuPDF/fonts/noto OpenSSL GreatVibes) ;;
-    ely-mail) engines=() ;;
+    ely-doc | ely-table | ely-show) parts+=(LibreOffice) ;;
+    ely-pdf) parts+=(MuPDF MuPDF/fonts/urw MuPDF/fonts/sil MuPDF/fonts/noto MuPDF/fonts/droid MuPDF/fonts/han OpenSSL tessdata GreatVibes) ;;
+    ely-tree) parts+=(Git git-lfs) ;;
+    ely-mark) parts+=(KaTeX MuPDF MuPDF/fonts/noto OpenSSL GreatVibes) ;;
+    ely-mail) ;;
+    *) fail "no licence list for $slug" ;;
   esac
-  for part in LICENSE rust-crates.txt "${engines[@]}"; do
+  for part in "${parts[@]}"; do
     [ -n "$(find "$licenses/$part" -type f -size +0 2>/dev/null)" ] || fail "$name lacks the licences of $part"
   done
   # Each font family needs a licence, not just a README.
@@ -160,4 +163,4 @@ osascript -e "tell application \"System Events\" to tell (first process whose un
 for _ in $(seq 40); do pgrep -f "$dist/ElyMark.app/Contents/MacOS/ely-mark" >/dev/null && break; sleep 0.25; done
 pgrep -f "$dist/ElyMark.app/Contents/MacOS/ely-mark" >/dev/null || fail "the menu did not start ElyMark"
 pkill -f "$dist/Ely[A-Za-z]*.app/Contents/MacOS/" || true
-echo "release-macos: 6 bundles open files on their own engines and start each other"
+echo "release-macos: 7 bundles open files on their own engines and start each other"
