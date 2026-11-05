@@ -312,3 +312,56 @@ fn a_worker_without_dev_refuses_the_stop_probe() {
     assert!(error.to_string().contains("dev-only"), "{error}");
     assert!(!point.exists(), "a refused probe writes nothing");
 }
+
+/// Stops `file`'s export at each input check in turn.
+fn every_stop_keeps(file: &Path, (format, flat_format): (&str, &str)) {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn_dev(&install().expect("LOK"), &dir.path().join("profile")).expect("the worker");
+    let doc = worker.load(&crate::file_url(file)).expect("the file loads");
+    let at = |name: &str, ext: &str| dir.path().join(format!("{name}.{ext}"));
+    let before = flat(&mut worker, &doc, &at("before", flat_format));
+    // Check 1 precedes the export; past the last: whole.
+    for from in 2..5000 {
+        let stopped = doc.snapshot_probed(&mut worker, &crate::file_url(&at("stopped", format)), format, from);
+        same(&flat(&mut worker, &doc, &at("after", flat_format)), &before, &format!("a stop at check {from}"));
+        match stopped {
+            Ok(()) => return eprintln!("{format}: {} checks, each stop kept the document", from - 1),
+            Err(error) => assert_eq!(error.kind(), ErrorKind::Interrupted, "check {from}: {error}"),
+        }
+        assert!(!at("stopped", format).exists(), "a stop at check {from} left a file");
+    }
+    panic!("the {format} export never ended its checks");
+}
+
+#[test]
+fn every_stop_of_a_writer_export_keeps_the_document() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let text = dir.path().join("small.fodt");
+    write(&text, &big_text(2));
+    every_stop_keeps(&text, ("docx", "fodt"));
+}
+
+#[test]
+fn every_stop_of_a_calc_export_keeps_the_document() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let book = dir.path().join("small.fods");
+    write(&book, &big_book(LONG, 3));
+    every_stop_keeps(&book, ("xlsx", "fods"));
+}
+
+#[test]
+fn every_stop_of_an_impress_export_keeps_the_deck() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let deck = dir.path().join("small.fodp");
+    write(&deck, &big_deck(3));
+    every_stop_keeps(&deck, ("pptx", "fodp"));
+}
