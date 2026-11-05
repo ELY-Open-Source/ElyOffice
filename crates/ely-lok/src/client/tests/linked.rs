@@ -342,7 +342,7 @@ fn includetext_is_a_linked_section_and_saves_as_one() {
 }
 
 /// The INCLUDETEXT fixture beside an `include.docx` of `body`.
-fn includes(dir: &tempfile::TempDir, worker: &mut Worker, body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+pub(super) fn includes(dir: &tempfile::TempDir, worker: &mut Worker, body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/includetext.docx");
     let (main, flat, include) = (dir.path().join("main.docx"), dir.path().join("inc.fodt"), dir.path().join("include.docx"));
     std::fs::copy(fixture, &main).expect("copies");

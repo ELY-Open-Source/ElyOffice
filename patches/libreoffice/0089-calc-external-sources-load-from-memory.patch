@@ -1,0 +1,52 @@
+Calc: an external reference's source loads from memory
+
+ScExternalRefManager keeps the hidden copy of a source it reads
+(a formula's first read, an update) until its purge timer closes it,
+about a minute later. The copy's SfxMedium opens a file URL with the
+own lock (on Windows no FILE_SHARE_DELETE) and holds that stream for
+the copy's whole life: meanwhile no program could replace the source
+and saving it failed with "Access is denied".
+The source now reads into memory and the copy loads from there; the
+file closes once read. The copy and its timer are as before.
+
+diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/externalrefmgr.cxx
+index 1f599a8..0b5531c 100644
+--- a/sc/source/ui/docshell/externalrefmgr.cxx
++++ b/sc/source/ui/docshell/externalrefmgr.cxx
+@@ -56,6 +56,9 @@
+ #include <unotools/charclass.hxx>
+ #include <comphelper/configuration.hxx>
+ #include <unotools/ucbhelper.hxx>
++#include <unotools/streamwrap.hxx>
++#include <unotools/ucbstreamhelper.hxx>
++#include <tools/stream.hxx>
+ #include <vcl/svapp.hxx>
+ #include <vcl/weld.hxx>
+ #include <stringutil.hxx>
+@@ -2594,6 +2597,26 @@ SfxObjectShellRef ScExternalRefManager::loadSrcDocument(sal_uInt16 nFileId, OUSt
+     if (pMedium->GetErrorIgnoreWarning() != ERRCODE_NONE)
+         return nullptr;
+ 
++    // Load from memory; the file stays free to replace.
++    std::unique_ptr<SvStream> pFile
++        = utl::UcbStreamHelper::CreateStream(aFile, StreamMode::STD_READ, nullptr, false);
++    if (!pFile)
++    {
++        SAL_WARN("sc.ui", "external source not opened: " << aFile);
++        return nullptr;
++    }
++    auto pBytes = std::make_unique<SvMemoryStream>();
++    pBytes->WriteStream(*pFile);
++    if (pFile->GetError() != ERRCODE_NONE || pBytes->GetError() != ERRCODE_NONE)
++    {
++        SAL_WARN("sc.ui", "external source not read: " << aFile << ": " << pFile->GetError());
++        return nullptr;
++    }
++    pFile.reset();
++    SAL_INFO("sc.ui", "external source read into memory: " << aFile << ", " << pBytes->TellEnd() << " bytes");
++    pBytes->Seek(0);
++    pMedium->setStreamToLoadFrom(new utl::OSeekableInputStreamWrapper(pBytes.release(), true), true);
++
+     // To load encrypted documents with password, user interaction needs to be enabled.
+     pMedium->UseInteractionHandler(mbUserInteractionEnabled);
+ 

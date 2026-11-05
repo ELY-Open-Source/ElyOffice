@@ -9,7 +9,7 @@ use super::*;
 use crate::links;
 
 /// `source` as an xlsx whose S1.A1 is `value`.
-fn worksheet(dir: &Path, worker: &mut Worker, source: &Path, value: u32) {
+pub(super) fn worksheet(dir: &Path, worker: &mut Worker, source: &Path, value: u32) {
     let flat = dir.join("rates.fods");
     rates(&flat, value);
     let made = worker.load(&crate::file_url(&flat)).expect("loads");

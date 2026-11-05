@@ -26,6 +26,7 @@ mod many;
 mod pivot;
 mod spill;
 pub(crate) mod input;
+mod freed;
 mod latency;
 mod layout;
 mod linked;
