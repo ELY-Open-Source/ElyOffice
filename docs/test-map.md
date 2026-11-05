@@ -28,8 +28,8 @@
 | FILE-10 | 对损坏、加密、缺少字体和不支持的内容给出可执行提示 | C06.2 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | LOK-01 | 使用随应用交付的固定 LOK 构建，隔离用户已安装的 LibreOffice 配置 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-02 | 每项界面操作有明确的内核命令、参数、结果和状态回调映射 | C07.4（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-03 | 处理内容区域失效通知，只更新必要图块；旧修订的画面不得覆盖新画面 | C07.2（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-04 | 统一转换文档坐标、视图缩放、滚动和平台 DPI；输入与选区使用同一坐标规则 | C07.2（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-03 | 处理内容区域失效通知，只更新必要图块；旧修订的画面不得覆盖新画面 | C07.2 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-04 | 统一转换文档坐标、视图缩放、滚动和平台 DPI；输入与选区使用同一坐标规则 | C07.2 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-05 | 字体、字号、样式、选择对象、修改状态和撤销可用性以内核为准 | C07.4（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-06 | 复制粘贴覆盖纯文本、富文本、图片和表格；不只实现键盘事件转发 | C07.3（~） | `lokview.sh` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-07 | 中文输入法包含组合开始、更新、提交和取消；不拆成普通按键模拟输入 | C07.3（~） | `lokview.sh` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
