@@ -145,11 +145,16 @@ fn a_write_overtaken_while_waiting_leaves_the_file() {
     let (_dir, store) = store();
     store.set("author", json!("Ana")).unwrap();
     let held = crate::lock::FileLock::take(&store.path().parent().unwrap().join(super::LOCK)).unwrap();
+    // Current when the write starts; overtaken only while it waits.
+    let current = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
     let waiting = {
-        let store = store.clone();
-        std::thread::spawn(move || store.set_if("author", json!("Bob"), || false).unwrap())
+        let (store, current) = (store.clone(), current.clone());
+        std::thread::spawn(move || {
+            store.set_if("author", json!("Bob"), || current.load(std::sync::atomic::Ordering::SeqCst)).unwrap()
+        })
     };
     std::thread::sleep(std::time::Duration::from_millis(200));
+    current.store(false, std::sync::atomic::Ordering::SeqCst);
     drop(held);
     assert!(!waiting.join().unwrap(), "the overtaken write is skipped");
     assert_eq!(store.read().unwrap()["author"], "Ana");
