@@ -32,11 +32,17 @@ const drawn = (page) =>
   page.$$eval("#world g[data-slab]", (groups) =>
     groups.map((g) => {
       const at = (m, x, y) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f];
-      const front = g.querySelector("polygon[data-front], polygon.left");
-      const points = front ? [...front.points].map((p) => at(front.getScreenCTM(), p.x, p.y)) : [];
+      const front = g.querySelector("polygon[data-front]");
+      const points = front ? [...front.points].map((p) => at(front.getScreenCTM(), p.x, p.y)) : null;
       const films = [...g.querySelectorAll("image")].map((el) => {
         const m = el.getScreenCTM();
-        return { href: el.getAttribute("href"), corners: [[0, 0], [1280, 0], [0, 720], [1280, 720]].map(([x, y]) => at(m, x, y)) };
+        // How much shows of it, against its group.
+        let shows = getComputedStyle(el).visibility === "visible" ? 1 : 0;
+        for (let n = el; n !== g; n = n.parentElement) {
+          const style = getComputedStyle(n);
+          shows *= style.display === "none" ? 0 : Number(style.opacity);
+        }
+        return { href: el.getAttribute("href"), shows, corners: [[0, 0], [1280, 0], [0, 720], [1280, 720]].map(([x, y]) => at(m, x, y)) };
       });
       const m = g.getScreenCTM();
       const group = [m.a, m.b, m.c, m.d, m.e, m.f];
@@ -87,7 +93,9 @@ try {
       // One recording a screen, one frame a frame on.
       const want = `rec/${rec}/${String(last[rec] + f - cut + 1).padStart(5, "0")}.jpg`;
       if (films.length !== 1 || films[0].href !== want) throw new Error(`frame ${f}: ${app} drew ${JSON.stringify(films.map((x) => x.href))}, not ${want}`);
-      const { corners } = films[0];
+      if (!points) throw new Error(`frame ${f}: ${app} draws no screen face`);
+      const { corners, shows } = films[0];
+      if (shows !== 1) throw new Error(`frame ${f}: ${app}'s recording shows at ${shows}`);
       if (!face(slab, angle, group).every((p, i) => near(p, corners[i]))) throw new Error(`frame ${f}: ${app}'s recording turns off its slab`);
       if (!same(corners, points)) throw new Error(`frame ${f}: ${app}'s recording is not on its screen: ${JSON.stringify(corners)} on ${JSON.stringify(points)}`);
     }
