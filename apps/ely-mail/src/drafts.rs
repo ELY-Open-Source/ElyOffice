@@ -167,9 +167,10 @@ impl Mail {
             }
         };
         let vault = self.vault.clone();
+        let providers = self.providers.clone();
         let work = async move {
             let built = prepare(&out)?;
-            let secret = sync::secret(&account, &vault).await?;
+            let secret = sync::secret(&account, providers(account.auth), &vault).await?;
             drafts::put(&account, secret, &tls, &mailbox, &built.bytes, old.as_ref()).await
         };
         self.on_runtime(cx, work, move |mail, done, cx| {
@@ -226,8 +227,9 @@ impl Mail {
             Err(error) => return self.failed("mail.drafts.server_stale", &error, cx),
         };
         let vault = self.vault.clone();
+        let providers = self.providers.clone();
         let work = async move {
-            let secret = sync::secret(&account, &vault).await?;
+            let secret = sync::secret(&account, providers(account.auth), &vault).await?;
             drafts::take(&account, secret, &tls, &left.remote).await
         };
         self.on_runtime(cx, work, |mail, done, cx| {

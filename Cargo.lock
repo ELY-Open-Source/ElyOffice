@@ -2270,6 +2270,7 @@ dependencies = [
 name = "ely-mail"
 version = "0.1.13"
 dependencies = [
+ "base64 0.23.1",
  "directories",
  "ely-files 0.1.13",
  "ely-gpui-component",
@@ -2328,6 +2329,7 @@ version = "0.1.13"
 dependencies = [
  "base64 0.23.1",
  "ely-mail-engine",
+ "form_urlencoded",
  "rcgen",
  "tokio",
  "tokio-rustls",

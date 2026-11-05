@@ -1,7 +1,7 @@
 //! The add-account dialog's fields and steps (MAIL-01, 02).
 
 use ely_gpui_component::forms::{InputEvent, TextInput};
-use ely_mail_engine::{Account, Auth, Checked, Security, Server};
+use ely_mail_engine::{Account, AccountId, Auth, Checked, Protocol, Security, Server};
 use gpui::{App, AppContext as _, Context, Entity, SharedString, Subscription, Window};
 use tokio::task::AbortHandle;
 
@@ -50,6 +50,8 @@ pub struct Adding {
     /// The request awaited; any other answer is dropped.
     pub asked: Option<u64>,
     pub task: Option<AbortHandle>,
+    /// The account whose refused token this replaces.
+    pub again: Option<AccountId>,
     _edits: Vec<Subscription>,
 }
 
@@ -115,9 +117,38 @@ impl Adding {
             filled: Default::default(),
             asked: None,
             task: None,
+            again: None,
             _edits: edits,
         };
         adding.set_ports(cx);
+        adding
+    }
+
+    /// Signs `account` in again, its servers as kept.
+    pub fn again(id: AccountId, account: &Account, window: &mut Window, cx: &mut Context<Mail>) -> Self {
+        let kind = match account.protocol {
+            Protocol::Imap => Kind::Imap,
+            Protocol::Pop { .. } => Kind::Pop,
+        };
+        let mut adding = Self::new(kind, window, cx);
+        adding.again = Some(id);
+        adding.auth = account.auth;
+        adding.incoming_security = account.incoming.security;
+        adding.outgoing_security = account.outgoing.security;
+        if let Protocol::Pop { keep } = account.protocol {
+            adding.keep = keep;
+        }
+        let fields = &adding.fields;
+        let values = [
+            (&fields.address, account.address.clone()),
+            (&fields.incoming, account.incoming.host.clone()),
+            (&fields.incoming_port, account.incoming.port.to_string()),
+            (&fields.outgoing, account.outgoing.host.clone()),
+            (&fields.outgoing_port, account.outgoing.port.to_string()),
+        ];
+        for (field, value) in values {
+            field.update(cx, |field, cx| field.set_text(value, cx));
+        }
         adding
     }
 

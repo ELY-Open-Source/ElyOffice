@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 base64.workspace = true
 ely-mail-engine.workspace = true
+form_urlencoded = "1"
 rcgen.workspace = true
 tokio.workspace = true
 tokio-rustls.workspace = true

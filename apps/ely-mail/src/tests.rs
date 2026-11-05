@@ -18,9 +18,10 @@ use gpui::{App, Entity, TestAppContext, VisualTestContext};
 use crate::{
     adding::Step,
     kinds::Kind,
-    mail::{Mail, Parts},
+    mail::{Mail, Parts, Providers},
 };
 
+mod again;
 mod contacts;
 mod controls;
 mod drafts;
@@ -110,6 +111,17 @@ pub(crate) fn window_with<'a>(
     keys: Keys,
     tls: Result<TlsConnector, String>,
 ) -> (Entity<Mail>, &'a mut VisualTestContext) {
+    window_of(cx, dir, keys, tls, Arc::new(Auth::provider))
+}
+
+/// As `window_with`, signing in at `providers`.
+pub(crate) fn window_of<'a>(
+    cx: &'a mut TestAppContext,
+    dir: &Path,
+    keys: Keys,
+    tls: Result<TlsConnector, String>,
+    providers: Providers,
+) -> (Entity<Mail>, &'a mut VisualTestContext) {
     cx.executor().allow_parking();
     cx.update(ely_gpui_component::init_for_tests);
     cx.update(|cx| {
@@ -130,6 +142,7 @@ pub(crate) fn window_with<'a>(
         store: Store::open(dir).map_err(|err| err.to_string()),
         vault: Vault::new(Box::new(keys)),
         tls,
+        providers,
         copies: dir.join("opened"),
         settings: dir.join("settings.json"),
         open: std::sync::Arc::new(|path| {

@@ -227,7 +227,7 @@ async fn a_gmail_account_from_oauth_loads_and_asks_to_be_added_again() {
     // A kept token, none (session only), and a locked keychain.
     for answer in [Ok(Some("refresh-1".into())), Ok(None), Err("locked".into())] {
         let vault = ely_mail_engine::Vault::new(Box::new(Kept(answer.clone())));
-        let err = ely_mail_engine::sync::secret(&kept[0].1, &vault).await.err().unwrap();
+        let err = ely_mail_engine::sync::secret(&kept[0].1, kept[0].1.auth.provider(), &vault).await.err().unwrap();
         assert!(matches!(err, Error::SignInAgain(_)), "{answer:?}: {err}");
         assert!(
             err.to_string().contains("app password; remove this account and add it again"),

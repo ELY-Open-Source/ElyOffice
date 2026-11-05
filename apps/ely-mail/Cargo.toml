@@ -32,6 +32,7 @@ ely-gpui-component = { workspace = true, features = ["test-support"] }
 gpui = { workspace = true, features = ["test-support"] }
 fake = { package = "ely-mail-fake", path = "../../crates/ely-mail-fake" }
 tempfile.workspace = true
+base64.workspace = true
 
 [lints]
 workspace = true

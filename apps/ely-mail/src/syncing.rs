@@ -5,7 +5,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use ely_mail_engine::{AccountId, LocalFolder, MailboxId, Protocol, Synced, sync};
+use ely_mail_engine::{AccountId, Auth, Error, LocalFolder, MailboxId, Protocol, Synced, sync};
 use gpui::Context;
 use tokio::{sync::mpsc::UnboundedReceiver, task::AbortHandle};
 
@@ -26,6 +26,8 @@ pub struct Syncing {
     pub push: bool,
     pub synced: Option<Synced>,
     pub failed: Option<String>,
+    /// The provider refused the token: sign in again.
+    pub signed_out: bool,
     pub folders: Vec<LocalFolder>,
 }
 
@@ -65,16 +67,20 @@ impl Mail {
             Ok(tls) => tls,
             Err(error) => {
                 log::warn!("mail: account {} cannot sync without TLS", id.0);
-                self.syncs.entry(id).or_default().failed = Some(error);
+                let syncing = self.syncs.entry(id).or_default();
+                syncing.failed = Some(error);
+                syncing.signed_out = false;
                 return self.read_synced(id, cx);
             }
         };
         let (account, vault) = (account.clone(), self.vault.clone());
+        let auth = account.auth;
         self.runs += 1;
         let run = self.runs;
         self.syncs.entry(id).or_default().run = run;
         let (told, steps) = tokio::sync::mpsc::unbounded_channel();
         self.follow_steps(id, run, steps, cx);
+        let providers = self.providers.clone();
         let work = async move {
             let step = move || {
                 if told.send(()).is_err() {
@@ -87,7 +93,7 @@ impl Mail {
                 .as_secs() as i64;
             // The first sync brings old mail, none of it new.
             let first = sync::lock(&store)?.synced(id)?.at.is_none();
-            let secret = sync::secret(&account, &vault).await?;
+            let secret = sync::secret(&account, providers(account.auth), &vault).await?;
             match (account.protocol, only_changes) {
                 (Protocol::Imap, true) => sync::changes(&account, id, secret, &tls, &store)
                     .await
@@ -117,6 +123,8 @@ impl Mail {
         let task = self.on_runtime(cx, work, move |mail, done, cx| {
             // Let go changes are told whatever broke after.
             mail.tell_dropped(id, cx);
+            // Gmail's OAuth is gone; Microsoft signs in again.
+            let signed_out = auth == Auth::Microsoft && matches!(done, Ok(Err(Error::SignInAgain(_))));
             let failed = match done {
                 Ok(Ok(None)) => None,
                 Ok(Ok(Some(arrivals))) => {
@@ -153,6 +161,7 @@ impl Mail {
             }
             syncing.task = None;
             syncing.failed = failed;
+            syncing.signed_out = signed_out;
             let again = std::mem::take(&mut syncing.again);
             let push = std::mem::take(&mut syncing.push);
             mail.read_synced(id, cx);

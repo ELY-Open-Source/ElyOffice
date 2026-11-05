@@ -1,5 +1,6 @@
 //! A scripted mail server over real TLS, for protocol tests.
 
+pub mod oauth;
 pub mod smtp;
 
 use std::sync::Arc;

@@ -1,9 +1,8 @@
 //! The real logger at trace, around token requests.
-mod oauth_fake;
 
 use ely_mail_engine::oauth::refresh;
 use ely_platform::AppId;
-use oauth_fake::{endpoint, id_token, provider, signed_in};
+use fake::oauth::{endpoint, id_token, provider, signed_in};
 
 const CODE_TOKEN: &str = "PRIVATE_FIRST";
 const ROTATED: &str = "PRIVATE_ROTATED";
@@ -23,7 +22,7 @@ async fn trace_logs_keep_no_token() {
     signed_in(body).await.unwrap();
     let body =
         format!(r#"{{"access_token":"{ROTATED}","expires_in":60,"refresh_token":"{ROTATED}"}}"#);
-    let (token, _) = endpoint(200, body);
+    let (token, _) = endpoint(vec![(200, body)]);
     refresh(&provider(token), CODE_TOKEN)
         .await
         .unwrap();

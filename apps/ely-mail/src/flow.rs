@@ -36,7 +36,7 @@ impl Mail {
     }
 
     /// Starts a request for the open dialog.
-    fn ask(&mut self) -> Option<u64> {
+    pub(crate) fn ask(&mut self) -> Option<u64> {
         let adding = self.adding.as_mut()?;
         adding.stop();
         self.asked += 1;
@@ -45,13 +45,13 @@ impl Mail {
     }
 
     /// The open dialog, if it awaits `asked`.
-    fn awaiting(&mut self, asked: u64) -> Option<&mut Adding> {
+    pub(crate) fn awaiting(&mut self, asked: u64) -> Option<&mut Adding> {
         self.adding
             .as_mut()
             .filter(|adding| adding.asked == Some(asked))
     }
 
-    fn halt(&mut self, words: SharedString, cx: &mut Context<Self>) {
+    pub(crate) fn halt(&mut self, words: SharedString, cx: &mut Context<Self>) {
         if let Some(adding) = &mut self.adding {
             adding.stop();
             adding.step = Step::Failed(words);
@@ -61,6 +61,9 @@ impl Mail {
 
     /// The words when the address is already here.
     fn taken(&self, address: &str, cx: &Context<Self>) -> Option<SharedString> {
+        if let Some(id) = self.adding.as_ref().and_then(|adding| adding.again) {
+            return self.not_its_own(id, address, cx);
+        }
         self.accounts()
             .iter()
             .any(|(_, account)| account.address.eq_ignore_ascii_case(address))
@@ -118,6 +121,8 @@ impl Mail {
             return log::info!("mail: a stale check dropped");
         };
         adding.task = None;
+        // Signing in again keeps a passing token at once.
+        let keep = adding.again.is_some() && done.as_ref().is_ok_and(Checked::passed);
         adding.step = match done {
             Ok(checked) => Step::Checked {
                 account,
@@ -126,12 +131,15 @@ impl Mail {
             },
             Err(error) => Step::Failed(text(cx, "mail.add.check_failed", &[("error", &error)])),
         };
+        if keep {
+            self.save(cx);
+        }
     }
 
     /// Opens the provider's page, then checks what it grants.
     pub fn sign_in(&mut self, cx: &mut Context<Self>) {
         let Some(adding) = &self.adding else { return };
-        let provider = match adding.auth().provider() {
+        let provider = match (self.providers)(adding.auth()) {
             Some(Ok(provider)) => provider,
             Some(Err(error)) => return self.halt(unsigned(&error, cx), cx),
             None => return log::error!("mail: sign-in asked of a password account"),
@@ -224,8 +232,15 @@ impl Mail {
         }
         let (account, kept) = (account.clone(), kept.clone());
         let Some(asked) = self.ask() else { return };
-        if let Some(adding) = &mut self.adding {
-            adding.step = Step::Saving;
+        let again = match &mut self.adding {
+            Some(adding) => {
+                adding.step = Step::Saving;
+                adding.again
+            }
+            None => None,
+        };
+        if let Some(id) = again {
+            return self.keep_again(id, asked, kept, cx);
         }
         let vault = self.vault.clone();
         let work = move |store: &mut ely_mail_engine::Store| {
