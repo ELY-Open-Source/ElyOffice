@@ -137,7 +137,7 @@ pub trait Closing: Host {
             });
         }
         let Some(tab) = self.tab(id) else {
-            return;
+            return self.close_waiting(id, cx);
         };
         if tab.dirty(cx) {
             return self.ask_unsaved(id, after, cx);
@@ -223,6 +223,21 @@ pub trait Closing: Host {
         .detach();
     }
 
+    /// Drops tab `id` still waiting to load; it holds nothing.
+    fn close_waiting(&mut self, id: u64, cx: &mut Context<Self>) {
+        let Some(registry) = self.core_mut().unpark(id) else {
+            return log::info!("office: tab {id} is not open nor waiting");
+        };
+        crate::hold::forget(self, id, cx);
+        let core = self.core_mut();
+        core.closed_front(id);
+        if let Some(registry) = registry {
+            core.sessions.close(registry);
+        }
+        log::info!("office: closed waiting tab {id}, {} tabs open, {} waiting", core.tabs.len(), core.loading.len());
+        cx.notify();
+    }
+
     /// Drops `id` from the window; its kernel document is returned.
     fn release_tab(&mut self, id: u64, cx: &mut Context<Self>) -> Option<crate::DocOf<Self>> {
         let core = self.core_mut();
@@ -241,6 +256,7 @@ pub trait Closing: Host {
         })
         .detach();
         crate::Recovering::forget_tab(self, id, cx);
+        crate::hold::forget(self, id, cx);
         let core = self.core_mut();
         core.waiting.retain(|(waiting, _)| *waiting != id);
         let (asks, rest): (Vec<_>, Vec<_>) = std::mem::take(&mut core.asked).into_iter().partition(|(tab, _)| *tab == id);
@@ -251,10 +267,7 @@ pub trait Closing: Host {
         if let Some(registry) = tab.registry {
             core.sessions.close(registry);
         }
-        // Not a choice: a file asked still takes the front.
-        if core.active == Some(id) {
-            core.active = core.tabs.last().map(|tab| tab.id);
-        }
+        core.closed_front(id);
         if let Err(error) = std::fs::remove_dir_all(&tab.work) {
             log::warn!("office: scratch {} stays: {error}", tab.work.display());
         }

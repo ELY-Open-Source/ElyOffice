@@ -7,7 +7,7 @@ use std::{
 };
 
 use ely_platform::AppId;
-use gpui::{App, Context, Entity, FocusHandle, Window};
+use gpui::{App, Context, Entity, FocusHandle, Keystroke, Window};
 
 use crate::Host;
 
@@ -31,6 +31,8 @@ pub trait Engine: Sized + 'static {
     type Loaded: Send + 'static;
     /// How text files are read.
     type Import: Clone + Send + 'static;
+    /// Files behind the front wait until shown (R15.57).
+    const PARKS: bool = false;
 
     /// Loads off the window; a locked file fails PermissionDenied.
     fn load(worker: &mut Self::Worker, from: Load<Self::Import>) -> io::Result<Self::Loaded>;
@@ -41,8 +43,12 @@ pub trait Engine: Sized + 'static {
         window: &mut Window,
         cx: &mut App,
     ) -> io::Result<(Self::Doc, Entity<Self::View>, String)>;
-    /// Checked before the file is overwritten; a risk stops it.
-    fn unsound(_worker: &mut Self::Worker, _doc: &Self::Doc) -> io::Result<Option<crate::Risk>> {
+    /// Checked before an overwrite as `format`; a risk stops it.
+    fn unsound(_worker: &mut Self::Worker, _doc: &Self::Doc, _format: &str) -> io::Result<Option<crate::Risk>> {
+        Ok(None)
+    }
+    /// What a copy as `format` loses; it says so.
+    fn lost(_worker: &mut Self::Worker, _doc: &Self::Doc, _format: &str) -> io::Result<Option<crate::Risk>> {
         Ok(None)
     }
     /// What saving in place would lose, macros aside.
@@ -80,6 +86,10 @@ pub trait Engine: Sized + 'static {
     fn retire(view: &Entity<Self::View>, cx: &mut App) -> ely_gpui_component::primitives::Retired;
     /// Its tab left the screen; queued drawing stops.
     fn hide(_view: &Entity<Self::View>, _cx: &mut App) {}
+    /// Input typed while it loaded; only parking engines hold.
+    fn replay(_view: &Entity<Self::View>, keys: Vec<Keystroke>, _window: &mut Window, _cx: &mut App) {
+        log::error!("office: {} held inputs reached an engine that never holds", keys.len());
+    }
     /// Why the worker ended, if it did (§6.3).
     fn ended(_worker: &mut Self::Worker) -> Option<String> {
         None

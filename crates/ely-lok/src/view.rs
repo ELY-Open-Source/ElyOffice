@@ -22,6 +22,8 @@ mod formula;
 mod geom;
 pub use geom::Geom;
 mod handles;
+mod held;
+pub use held::bound_keys;
 mod ime;
 mod input;
 mod lane;

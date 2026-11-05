@@ -8,6 +8,8 @@ mod dialogs;
 pub mod engine;
 pub mod files;
 mod find;
+mod front;
+mod hold;
 mod links;
 pub mod lok;
 pub mod menu;
@@ -120,6 +122,8 @@ pub enum Risk {
     Sealed,
     /// DOCX links of kinds the kernel keeps as pictures.
     Links,
+    /// Linked sections DOCX would save as text (0091).
+    Unkept,
 }
 
 /// One open document.
@@ -165,6 +169,7 @@ impl<E, G: Engine> Tab<E, G> {
             _ if self.risk == Some(Risk::Sections) => "office.state.sections",
             _ if self.risk == Some(Risk::Sealed) => "office.state.sealed",
             _ if self.risk == Some(Risk::Links) => "office.state.unlinked",
+            _ if self.risk == Some(Risk::Unkept) => "office.state.unkept",
             _ if self.exporting || self.pausing > 0 => "office.state.saving",
             SaveState::Saving => "office.state.saving",
             SaveState::ExternalModified => "office.state.external",
@@ -191,6 +196,10 @@ pub struct Core<H: Host> {
     pub loading: Vec<(u64, SharedString, Option<usize>)>,
     /// The newest load asked; only it takes the front.
     front: Option<u64>,
+    /// Loads waiting until their tab is shown.
+    park: front::Parking<H>,
+    /// Keys typed into a loading tab.
+    hold: Entity<hold::Hold>,
     pub focus: FocusHandle,
     pub root: WeakEntity<Root>,
     pub work: PathBuf,
@@ -237,6 +246,8 @@ impl<H: Host> Core<H> {
             shown: None,
             loading: Vec::new(),
             front: None,
+            park: Default::default(),
+            hold: cx.new(hold::Hold::new),
             focus: cx.focus_handle(),
             root: WeakEntity::new_invalid(),
             work,
@@ -257,49 +268,6 @@ impl<H: Host> Core<H> {
             saving: Vec::new(),
             asked: Vec::new(),
         }
-    }
-}
-
-impl<H: Host> Core<H> {
-    /// The tab in front.
-    pub fn active(&self) -> Option<u64> {
-        self.active
-    }
-
-    /// Puts `tab` in front; pending loads stay behind.
-    pub fn set_active(&mut self, tab: Option<u64>) {
-        self.active = tab;
-        self.front = None;
-    }
-
-    /// Load `id` landed in front; a newer load still may.
-    fn landed_front(&mut self, id: u64) {
-        self.active = Some(id);
-        if self.front == Some(id) {
-            self.front = None;
-        }
-    }
-
-    /// Load `id` was asked last; it lands in front.
-    fn asked_front(&mut self, id: u64) {
-        self.front = Some(id);
-    }
-
-    /// Load `id` failed; true when the active tab moved.
-    fn failed_front(&mut self, id: u64) -> bool {
-        let chosen = self.active == Some(id);
-        if chosen {
-            self.active = self.tabs.last().map(|tab| tab.id);
-        }
-        if chosen || self.front == Some(id) {
-            self.front = self.loading.last().map(|(id, ..)| *id);
-        }
-        chosen
-    }
-
-    /// Whether load `id` takes the front when it lands.
-    fn takes_front(&self, id: u64) -> bool {
-        self.front == Some(id) || self.active.is_none() || self.active == Some(id)
     }
 }
 

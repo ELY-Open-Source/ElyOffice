@@ -9,7 +9,7 @@ use std::{
 use ely_lok::{Doc, LokError, LokView, Reported, Worker, sheet::csv::Import};
 use ely_gpui_component::primitives::Severity;
 use ely_platform::AppId;
-use gpui::{App, Context, Entity, FocusHandle, Window};
+use gpui::{App, Context, Entity, FocusHandle, Keystroke, Window};
 
 use crate::engine::{Engine, Load, Stop};
 use crate::{Host, Tabs, text};
@@ -35,6 +35,8 @@ impl Engine for Lok {
     type View = LokView;
     type Loaded = Loaded;
     type Import = Import;
+    // One kernel: a load behind blocks the front's keys.
+    const PARKS: bool = true;
 
     fn load(worker: &mut Worker, from: Load<Import>) -> io::Result<Loaded> {
         let doc = match from {
@@ -94,6 +96,21 @@ impl Engine for Lok {
         })
     }
 
+    fn unsound(worker: &mut Worker, doc: &Doc, format: &str) -> io::Result<Option<crate::Risk>> {
+        Self::lost(worker, doc, format)
+    }
+
+    fn lost(worker: &mut Worker, doc: &Doc, format: &str) -> io::Result<Option<crate::Risk>> {
+        if format != "docx" || doc.is_sheet() || doc.is_deck() {
+            return Ok(None);
+        }
+        let unkept = ely_lok::links::unkept(&worker.values(doc, ely_lok::links::LIST)?)?;
+        Ok((!unkept.is_empty()).then(|| {
+            log::warn!("office: {} linked sections DOCX keeps only as text", unkept.len());
+            crate::Risk::Unkept
+        }))
+    }
+
     fn links(loaded: &Loaded) -> Vec<String> {
         loaded.links.clone()
     }
@@ -133,6 +150,10 @@ impl Engine for Lok {
 
     fn hide(view: &Entity<LokView>, cx: &mut App) {
         view.update(cx, |view, _| view.hide());
+    }
+
+    fn replay(view: &Entity<LokView>, keys: Vec<Keystroke>, window: &mut Window, cx: &mut App) {
+        view.update(cx, |view, cx| view.replay(keys, window, cx));
     }
 
     fn ended(worker: &mut Worker) -> Option<String> {

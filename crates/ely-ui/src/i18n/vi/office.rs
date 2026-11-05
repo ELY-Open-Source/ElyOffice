@@ -59,6 +59,8 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("office.links.update", "Cập nhật liên kết"),
     ("office.state.unlinked", "Không giữ liên kết"),
     ("office.unlinked", "{name} liên kết tới các đối tượng mà Ely chỉ giữ được dưới dạng hình. Lưu thành sẽ ghi ra một bản sao {formats} có hình thay cho chúng; tệp gốc giữ nguyên liên kết."),
+    ("office.state.unkept", "Không giữ phần liên kết"),
+    ("office.unkept", "{name} có một phần liên kết ở mép ô bảng, mà tệp Word chỉ giữ được dưới dạng chữ. Lưu thành sẽ ghi ra một bản sao {formats}; tệp gốc giữ nguyên liên kết."),
     ("office.links.unwatched", "Ely không theo dõi được các tệp mà {name} liên kết tới nên sẽ không báo khi chúng thay đổi: {why}"),
     ("office.repaired", "{name} bị hỏng. Ely đã mở một bản sao đã sửa chữa; Lưu thành sẽ ghi nó ra một tệp mới và bản gốc bị hỏng giữ nguyên."),
     ("office.signed", "{name} đã được ký. Chỉnh sửa sẽ làm mất hiệu lực chữ ký, nên Lưu thành sẽ ghi ra một bản sao không ký; tệp đã ký giữ nguyên."),

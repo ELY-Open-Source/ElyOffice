@@ -29,6 +29,8 @@ fn two_tabs(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<(Entity<Do
     let docs = docs(cx, dir)?;
     cx.update(|cx| {
         ely_gpui_component::init_for_tests(cx);
+        // The app binds the view's keys at start.
+        ely_lok::init(cx);
         Theme::update(cx, |theme| theme.reduced_motion = true);
         ely_ui::set_document_menus(ely_platform::AppId::Doc, &ely_ui::commands::FILE, Vec::new(), cx);
     });
@@ -145,4 +147,41 @@ fn a_find_box_that_leaves_with_its_tab_hands_the_keys_on() {
     }));
     frames(&mut shown);
     assert!(shown.update(|window, _| kept.is_focused(window)), "the user's control keeps the keys");
+}
+
+#[test]
+fn keys_typed_while_a_picked_tab_loads_reach_it() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((docs, mut shown, ..)) = two_tabs(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let fodt = shown.update(|_, app| crate::files::Template::Report.fodt(app));
+    let files = [dir.path().join("p.fodt"), dir.path().join("q.fodt")];
+    for file in &files {
+        std::fs::write(file, &fodt).expect("the file writes");
+    }
+    shown.update(|_, app| docs.update(app, |docs, cx| files.iter().for_each(|file| docs.open_file(file.clone(), cx))));
+    settle(&shown, |app| docs.read(app).core.tabs.iter().any(|tab| tab.name == "q.fodt"));
+    frames(&mut shown);
+    let loading = |shown: &mut VisualTestContext| {
+        shown.update(|_, app| docs.read(app).core.loading.iter().find(|(_, name, _)| name == "p.fodt").map(|(id, ..)| *id))
+    };
+    let p = loading(&mut shown).expect("p waits behind q");
+    let before = edits(&mut shown, &docs);
+    // Picked, then typed into before its load runs.
+    shown.update(|window, app| docs.update(app, |docs, cx| docs.show_tab(p, window, cx)));
+    shown.update(|window, app| {
+        for key in ["q", "z", "backspace", "tab"] {
+            window.dispatch_keystroke(gpui::Keystroke::parse(key).expect("a key"), app);
+        }
+    });
+    assert_eq!(loading(&mut shown), Some(p), "p loaded before the keys");
+    settle(&shown, |app| docs.read(app).tab(p).is_some());
+    shown.update(|window, app| window.simulate_next_frame(app));
+    frames(&mut shown);
+    assert!(holds_keys(&mut shown, &docs, p), "p has the keys");
+    let after = edits(&mut shown, &docs);
+    let grew: Vec<_> = after.into_iter().filter(|(id, n)| before.iter().find(|(of, _)| of == id).map_or(*n > 0, |(_, old)| n > old)).collect();
+    assert_eq!(grew, vec![(p, 4)], "q, z, backspace and Tab land in p alone");
 }

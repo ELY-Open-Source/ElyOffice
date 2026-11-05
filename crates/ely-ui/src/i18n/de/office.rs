@@ -59,6 +59,8 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("office.links.update", "Verknüpfungen aktualisieren"),
     ("office.state.unlinked", "Verknüpfungen nicht erhalten"),
     ("office.unlinked", "{name} verknüpft Objekte, die Ely nur als Bilder erhalten kann. Speichern unter schreibt eine {formats}-Kopie mit Bildern an ihrer Stelle; das Original behält seine Verknüpfungen."),
+    ("office.state.unkept", "Verknüpfter Bereich nicht erhalten"),
+    ("office.unkept", "{name} hat am Rand einer Tabellenzelle einen verknüpften Bereich, den eine Word-Datei nur als Text erhalten kann. Speichern unter schreibt eine {formats}-Kopie; das Original behält seine Verknüpfung."),
     ("office.links.unwatched", "Ely kann die mit {name} verknüpften Dateien nicht überwachen und meldet daher keine Änderungen: {why}"),
     ("office.repaired", "{name} ist beschädigt. Ely hat eine reparierte Kopie geöffnet; Speichern unter schreibt sie in eine neue Datei, und das beschädigte Original bleibt unverändert."),
     ("office.signed", "{name} ist signiert. Eine Bearbeitung macht die Signaturen ungültig, daher schreibt Speichern unter eine unsignierte Kopie; die signierte Datei bleibt unverändert."),

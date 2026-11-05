@@ -76,11 +76,12 @@ fn a_save_as_target_another_tab_took_meanwhile_says_so_in_chinese_and_spanish() 
     for path in [&a, &b, &target] {
         std::fs::write(path, &fodt).expect("writes");
     }
-    for path in [&a, &b] {
+    // One at a time: a file behind the front waits.
+    for (open, path) in [&a, &b].into_iter().enumerate() {
         let path = path.clone();
         with_window(&mut cx, &docs, move |docs, _, cx| docs.open_file(path, cx));
+        settle(&cx, |app| docs.read(app).core.tabs.len() == open + 1);
     }
-    settle(&cx, |app| docs.read(app).core.tabs.len() == 2 && docs.read(app).core.loading.is_empty());
     let (first, second) = cx.update(|app| (docs.read(app).core.tabs[0].id, docs.read(app).core.tabs[1].id));
     for (locale, said) in [("zh-CN", "copy.odt 已在另一个标签页打开"), ("es-ES", "copy.odt está abierto en otra pestaña")] {
         cx.update(|app| ely_ui::i18n::install_as(locale, app));

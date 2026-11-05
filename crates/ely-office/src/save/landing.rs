@@ -27,6 +27,8 @@ struct Landing {
     /// The session's content when the export began.
     stamp: Stamp,
     history: Option<String>,
+    /// What a Save As's copy lost.
+    lost: Option<Risk>,
 }
 
 /// Exports `format` in the background, then writes it there too.
@@ -51,18 +53,22 @@ pub(super) fn export<H: Saving>(
     host.read_in(
         id,
         move |worker, doc| {
-            if sound && let Some(risk) = H::Engine::unsound(worker, doc)? {
-                return Ok(Err(risk));
-            }
+            let lost = match sound {
+                true => match H::Engine::unsound(worker, doc, format)? {
+                    Some(risk) => return Ok(Err(risk)),
+                    None => None,
+                },
+                false => H::Engine::lost(worker, doc, format)?,
+            };
             let bytes = files::kernel_bytes::<H::Engine>(worker, doc, &work, format, closing)?;
-            Ok(Ok((bytes, H::Engine::history(worker, doc)?)))
+            Ok(Ok((bytes, H::Engine::history(worker, doc)?, lost)))
         },
         move |host, read, window, cx| {
-            let landing = Landing { then, edited, stamp, history: None };
+            let landing = Landing { then, edited, stamp, history: None, lost: None };
             match read {
                 _ if host.tab(id).is_none() => ended(host, id, Err(closed(id)), landing, window, cx),
-                Ok(Ok((bytes, history))) => {
-                    let landing = Landing { history: Some(history), ..landing };
+                Ok(Ok((bytes, history, lost))) => {
+                    let landing = Landing { history: Some(history), lost, ..landing };
                     write(host, id, bytes, target, landing, window, cx);
                 }
                 Ok(Err(risk)) => risky(host, id, risk, then, window, cx),
@@ -148,6 +154,11 @@ fn landed<H: Saving>(
             }
             if let Some(tab) = host.tab_mut(id) {
                 tab.reopen = reopen;
+                // The copy is what it lost; the banner says so.
+                if let Some(lost) = landing.lost {
+                    log::warn!("office: tab {id}'s Save As copy is {lost:?}");
+                    tab.risk = tab.risk.or(Some(lost));
+                }
             }
         }
         // Moved or deleted outside: ask where instead.
@@ -168,10 +179,18 @@ fn landed<H: Saving>(
 fn risky<H: Saving>(host: &mut H, id: u64, risk: Risk, then: Option<After>, window: &mut Window, cx: &mut Context<H>) {
     log::warn!("office: tab {id} is {risk:?}; its save becomes Save As");
     let queued = settle(host, id);
-    if let Some(tab) = host.tab_mut(id) {
-        tab.risk = Some(risk);
-    }
+    let Some(tab) = host.tab_mut(id) else {
+        return run(host, queued, window, cx);
+    };
+    tab.risk = Some(risk);
+    let named = tab.session.path().map_or_else(|| tab.name.to_string(), |path| path.display().to_string());
     cx.notify();
+    // A program hears at once; a person picks a place.
+    if host.core().saving.iter().any(|(tab, _)| *tab == id) {
+        let why = format!("{named} must be saved under another name in {}", H::KIND.app.name());
+        host.core_mut().answer_saves(id, Err(why));
+        return run(host, queued, window, cx);
+    }
     host.save_as(id, then, cx);
     run(host, queued, window, cx);
 }

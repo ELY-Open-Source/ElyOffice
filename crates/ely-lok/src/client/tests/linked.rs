@@ -242,17 +242,18 @@ fn a_refresh_interval_keeps_an_unread_source_unread() {
     assert_eq!(cells(&mut worker, &doc, "A1"), "7", "no timer overwrites the saved value");
 }
 
-/// A document whose section links `include`, showing `cached`.
-fn linking(path: &Path, include: &Path, cached: &str) {
+/// A document whose section links `include`, holding `cached`.
+pub(super) fn linking(path: &Path, include: &Path, cached: &str) {
     let href = crate::file_url(include);
     let xml = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
  <office:body><office:text><text:p>Before</text:p>
  <text:section text:name="S"><text:section-source xlink:href="{href}" xlink:type="simple"/>
- <text:p>{cached}</text:p></text:section><text:p>After</text:p></office:text></office:body>
+ {cached}</text:section><text:p>After</text:p></office:text></office:body>
 </office:document>"#
     );
     std::fs::write(path, xml).expect("writes the document");
@@ -271,7 +272,7 @@ fn included(path: &Path, said: &str) {
     std::fs::write(path, xml).expect("writes the source");
 }
 
-fn text(dir: &tempfile::TempDir, worker: &mut Worker, doc: &Doc) -> Vec<String> {
+pub(super) fn text(dir: &tempfile::TempDir, worker: &mut Worker, doc: &Doc) -> Vec<String> {
     paragraphs(&saved(dir, worker, doc, "read.fodt"))
 }
 
@@ -284,7 +285,7 @@ fn a_linked_section_reads_its_file_only_when_asked() {
     let install = install().expect("the pinned LOK build");
     let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
     let (main, include) = (dir.path().join("main.fodt"), dir.path().join("include.fodt"));
-    linking(&main, &include, "Cached");
+    linking(&main, &include, "<text:p>Cached</text:p>");
     included(&include, "One");
     let doc = worker.load(&crate::file_url(&main)).expect("loads");
     assert_eq!(text(&dir, &mut worker, &doc), ["Before", "Cached", "After"], "opening shows the saved text");
@@ -379,6 +380,32 @@ fn a_source_opening_with_a_table_stays_includetext() {
     let again = worker.load(&crate::file_url(&out)).expect("reloads");
     let named = links::sources(&worker.values(&again, links::LIST).expect("reads")).expect("parses");
     assert_eq!(named, [crate::file_url(&include)], "the links survive the save");
+}
+
+#[test]
+fn a_linked_section_edged_by_tables_saves_as_includetext() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let install = install().expect("the pinned LOK build");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let (mut source, include) = (dir.path().join("main.fodt"), dir.path().join("include.docx"));
+    let table = |said: &str| {
+        format!(r#"<table:table table:name="{said}"><table:table-column/><table:table-row><table:table-cell><text:p>{said}</text:p></table:table-cell></table:table-row></table:table>"#)
+    };
+    linking(&source, &include, &format!("{}<text:p>Middle</text:p>{}", table("Cell"), table("Last")));
+    // Saved twice, never updated: the second save reads the first.
+    for round in 0..2 {
+        let doc = worker.load(&crate::file_url(&source)).expect("loads");
+        source = dir.path().join(format!("round{round}.docx"));
+        doc.save_as(&mut worker, &crate::file_url(&source), "docx").expect("saves");
+        worker.close_doc(doc).expect("closes");
+        super::independent::read_with("ooxml_word.py", &source, "included-edges");
+    }
+    let again = worker.load(&crate::file_url(&source)).expect("reloads");
+    let named = links::sources(&worker.values(&again, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, [crate::file_url(&include)], "the link survives both saves");
 }
 
 #[test]

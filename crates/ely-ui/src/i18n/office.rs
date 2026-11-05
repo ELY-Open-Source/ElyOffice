@@ -101,6 +101,8 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("office.links.update", "Update links"),
     ("office.state.unlinked", "Links not kept"),
     ("office.unlinked", "{name} links objects Ely can keep only as pictures. Save As writes a {formats} copy with pictures in their place; the original keeps its links."),
+    ("office.state.unkept", "Linked section not kept"),
+    ("office.unkept", "{name} has a linked section at the edge of a table cell, which a Word file can keep only as its text. Save As writes a {formats} copy; the original keeps its link."),
     ("office.links.unwatched", "Ely cannot watch the files {name} links to, so it will not say when they change: {why}"),
     (
         "office.repaired",
@@ -218,6 +220,8 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("office.links.update", "更新链接"),
     ("office.state.unlinked", "链接不保留"),
     ("office.unlinked", "{name} 链接了 Ely 只能存成图片的对象。“另存为”写出以图片代替它们的 {formats} 副本；原文件的链接照旧。"),
+    ("office.state.unkept", "链接节不保留"),
+    ("office.unkept", "{name} 的表格单元格边上有链接节，Word 文件只能存下它的文字。“另存为”写出 {formats} 副本；原文件的链接照旧。"),
     ("office.links.unwatched", "Ely 无法监视 {name} 链接的文件，它们改动时不会提示：{why}"),
     (
         "office.repaired",

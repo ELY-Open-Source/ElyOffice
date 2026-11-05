@@ -49,39 +49,47 @@ pub trait Stopping: Host {
     }
 
     /// Offers the stop if load `id` still runs after `SLOW`.
-    fn watch_slow(&mut self, id: u64, cx: &mut Context<Self>) {
+    fn watch_slow(&mut self, id: u64, flag: Arc<std::sync::atomic::AtomicBool>, cx: &mut Context<Self>) {
         if self.core().stop.is_none() {
             return;
         }
         cx.spawn(async move |this, cx| {
             cx.background_executor().timer(SLOW).await;
-            this.update(cx, |host, cx| host.slow_load(id, cx))
+            this.update(cx, |host, cx| host.slow_load(id, &flag, cx))
         })
         .detach_and_log_err(cx);
     }
 
     /// No document shown: loading or empty, under the engine's banner.
     fn empty_body(&self, id: &'static str, icon: IconName, cx: &mut Context<Self>) -> AnyElement {
-        let title = match self.core().loading.first() {
+        let core = self.core();
+        // A picked tab still loading takes the keys.
+        let picked = core.loading.iter().find(|(of, ..)| Some(*of) == core.active());
+        let title = match picked.or(core.loading.first()) {
             Some((_, name, _)) => text(cx, "office.loading", &[("name", name)]),
             None => text(cx, "command.blocked.no_document", &[]),
         };
-        let empty = EmptyState::new(id, icon, title);
-        let Some(banner) = self.stopped_banner(cx) else {
-            return empty.into_any_element();
+        let empty = EmptyState::new(id, icon, title).into_any_element();
+        let body = match self.stopped_banner(cx) {
+            Some(banner) => div()
+                .size_full()
+                .flex()
+                .flex_col()
+                .child(banner)
+                .child(div().flex_1().min_h_0().child(empty))
+                .into_any_element(),
+            None => empty,
         };
-        div()
-            .size_full()
-            .flex()
-            .flex_col()
-            .child(banner)
-            .child(div().flex_1().min_h_0().child(empty))
-            .into_any_element()
+        match picked {
+            Some(_) => crate::hold::around(&self.core().hold, body, cx),
+            None => body,
+        }
     }
 
     /// A load still running after `SLOW`: the stop is offered.
-    fn slow_load(&mut self, id: u64, cx: &mut Context<Self>) {
-        if !self.core().loading.iter().any(|(loading, ..)| *loading == id) {
+    fn slow_load(&mut self, id: u64, flag: &Arc<std::sync::atomic::AtomicBool>, cx: &mut Context<Self>) {
+        // A load that waited, or started again, is not slow.
+        if !self.core().loading.iter().any(|(loading, ..)| *loading == id) || !self.core().running(id, flag) {
             return;
         }
         log::warn!("{}: tab {id} has not opened after {} s", Self::KIND.app.slug(), SLOW.as_secs());
