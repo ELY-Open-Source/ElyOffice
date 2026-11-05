@@ -54,8 +54,8 @@
 | DOC-14 | 邮件合并文档 | C08.5（~） | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-15 | 打印与导出 | C08.6（~） | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-16 | 长文档导航 | C08.6（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| TABLE-01 | 工作簿 | C09.1（~）、决策 C09.1 | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
-| TABLE-02 | 区域编辑 | C09.1（~） | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
+| TABLE-01 | 工作簿 | C09.1（~）、决策 C09.1 | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook` | apps/ely-table/src/tests、theme.sh |
+| TABLE-02 | 区域编辑 | C09.1（~） | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook` | apps/ely-table/src/tests、theme.sh |
 | TABLE-03 | 公式输入 | C09.2（~）、决策 C09.2 | — | apps/ely-table/src/tests、theme.sh |
 | TABLE-04 | 公式计算 | C09.2（~）、决策 C09.2 | — | apps/ely-table/src/tests、theme.sh |
 | TABLE-05 | 计算控制 | C09.2（~）、决策 C09.2 | — | apps/ely-table/src/tests、theme.sh |
@@ -69,7 +69,7 @@
 | TABLE-13 | 导出 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
 | TABLE-14 | 打印 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
 | TABLE-15 | 保护 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-16 | 大数据浏览 | C09.1（~）、C09.5（~）、决策 C09.5 | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
+| TABLE-16 | 大数据浏览 | C09.1（~）、C09.5（~）、决策 C09.5 | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook` | apps/ely-table/src/tests、theme.sh |
 | TABLE-17 | R 宏（实验性） | 无 | — | apps/ely-table/src/tests、theme.sh |
 | SHOW-01 | 幻灯片管理 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
 | SHOW-02 | 模板与母版 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
