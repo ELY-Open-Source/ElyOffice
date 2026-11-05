@@ -448,3 +448,32 @@ fn a_link_compares_by_its_own_path_whatever_it_points_at() {
         "a link to bytes is text"
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn a_picture_turned_into_a_link_shows_the_link_by_size() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let root = committed(dir.path());
+    let png = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+    std::fs::write(root.join("p.png"), &png).expect("writes");
+    sh(&root, &["add", "p.png"]);
+    sh(&root, &["commit", "-qm", "picture"]);
+    std::fs::remove_file(root.join("p.png")).expect("removes");
+    std::os::unix::fs::symlink("q.png", root.join("p.png")).expect("links");
+    for section in [ChangeSection::Unstaged, ChangeSection::Staged] {
+        if section == ChangeSection::Staged {
+            sh(&root, &["add", "p.png"]);
+        }
+        let found = shown::read(&git(), &root, &entry(&root, "p.png"), section, Space::Exact, true)
+            .expect("reads");
+        let want = (Some(png.len() as u64), Some("q.png".len() as u64));
+        assert!(
+            matches!(found, Found::Binary { old, new } if (old, new) == want),
+            "{section:?}: the link is no picture"
+        );
+    }
+    let seen = sh(&root, &["diff", "--cached", "--", "p.png"]);
+    let diff = diff::parse(seen.as_bytes()).expect("parses");
+    assert_eq!(diff.sections(), 2, "both sections read: {seen}");
+    assert_eq!(diff.body, Body::Binary);
+}

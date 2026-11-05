@@ -115,8 +115,8 @@ names=()
 for file in "$dist"/*; do
   [ -f "$file" ] || continue
   name=$(basename "$file")
-  # Linux alone publishes the source pair.
-  if [ "$os" != linux ] && [[ $name == *-source.tar.gz ]]; then
+  # Linux alone publishes the source.
+  if [ "$os" != linux ] && [[ $name == *-source.tar* ]]; then
     echo "ci.sh: $name is Linux's to upload"
     continue
   fi

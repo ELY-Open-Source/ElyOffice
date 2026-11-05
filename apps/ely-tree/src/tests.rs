@@ -22,6 +22,7 @@ mod place_flows;
 mod places;
 mod cleaning;
 mod narrow;
+mod paging;
 mod recovery;
 mod window;
 

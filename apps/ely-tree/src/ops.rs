@@ -46,7 +46,7 @@ pub struct Doing {
 pub fn stopped(git: &Git, root: &Path, args: &[String], said: &str) -> bool {
     let operation = matches!(
         args.first().map(String::as_str),
-        Some("merge" | "rebase" | "cherry-pick" | "revert" | "pull")
+        Some("merge" | "rebase" | "cherry-pick" | "revert" | "pull" | "am")
     );
     if !operation || !said.lines().any(|line| line.starts_with("CONFLICT (")) {
         return false;

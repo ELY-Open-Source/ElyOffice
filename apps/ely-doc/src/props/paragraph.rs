@@ -161,15 +161,14 @@ impl Props {
     /// The paragraph's stops, each removable, and an adder in cm.
     fn tabs(&self, cx: &Context<Self>) -> AnyElement {
         let this = cx.entity();
-        let stops = self
-            .shown
-            .as_ref()
-            .map(|shown| shown.view.read(cx).tabs().to_vec())
-            .unwrap_or_default();
-        let chips: Vec<AnyElement> = stops
+        let shown = self.shown.as_ref().map(|shown| {
+            let (stops, read) = shown.view.read(cx).tabs();
+            (stops.to_vec(), read)
+        });
+        let chips: Vec<AnyElement> = shown
             .into_iter()
-            .enumerate()
-            .map(|(at, mm100)| {
+            .flat_map(|(stops, read)| stops.into_iter().enumerate().map(move |(at, mm100)| (at, mm100, read.clone())))
+            .map(|(at, mm100, read)| {
                 let this = this.clone();
                 let cm = format!("{:.2}", f64::from(mm100) / 1000.0);
                 let label = Docs::text(cx, "doc.props.cm", &[("n", &cm)]);
@@ -177,7 +176,8 @@ impl Props {
                     .size(ControlSize::Sm)
                     .trailing_icon(IconName::X)
                     .on_click(move |_, _, cx| {
-                        send(&this, "paragraph.tab", &[&at.to_string(), "0", "true"], cx)
+                        let at = at.to_string();
+                        this.update(cx, |props, cx| props.run_at(&read, "paragraph.tab", &[&at, "0", "true"], cx))
                     })
                     .into_any_element()
             })

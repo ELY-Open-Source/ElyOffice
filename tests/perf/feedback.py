@@ -92,6 +92,18 @@ def timed(lines):
     return [int(ms) for _, ms in times]
 
 
+def judged(recipe, lines, since, runs):
+    """Key times and stalls; a failed draw voids them."""
+    failed = [line for line in lines if re.search(run.PAINT_FAILED, line)]
+    if failed:
+        raise RuntimeError(f"{recipe.slug}: a page failed to draw while typing: {failed[0]}")
+    ticks = [int(m.group(1)) for line in lines[since:] if (m := re.search(recipe.answer, line))]
+    if len(ticks) != runs:
+        raise RuntimeError(f"{recipe.slug}: {runs} keys gave {len(ticks)} timings")
+    stalls = [int(m.group(1)) for line in lines[since:] if (m := re.search(STALL, line))]
+    return ticks, stalls
+
+
 def typing(work, recipe, runs):
     """Ms from each key to feedback; stalls over 100 ms."""
     home = recipe.home() if recipe.home else os.path.join(work, "home-typing-" + recipe.slug)
@@ -116,13 +128,7 @@ def typing(work, recipe, runs):
         lines = app.lines()
     finally:
         app.stop()
-    failed = [line for line in lines if re.search(run.PAINT_FAILED, line)]
-    if failed:
-        raise RuntimeError(f"{recipe.slug}: a page failed to draw while typing: {failed[0]}")
-    ticks = [int(m.group(1)) for line in lines[since:] if (m := re.search(recipe.answer, line))]
-    if len(ticks) != runs:
-        raise RuntimeError(f"{recipe.slug}: {runs} keys gave {len(ticks)} timings")
-    stalls = [int(m.group(1)) for line in lines[since:] if (m := re.search(STALL, line))]
+    ticks, stalls = judged(recipe, lines, since, runs)
     if stalls:
         # What the main thread did is in the log.
         kept = tempfile.mkdtemp(prefix=f"ely-bench-stall-{recipe.slug}-")

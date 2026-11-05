@@ -71,6 +71,10 @@ pub trait Engine: Sized + 'static {
     fn snapshot(_worker: &mut Self::Worker, _doc: &Self::Doc, _path: &Path, format: &str) -> io::Result<()> {
         Err(io::Error::new(io::ErrorKind::Unsupported, format!("no snapshot as .{format}")))
     }
+    /// A recovery point; input may stop it (`Interrupted`).
+    fn point(worker: &mut Self::Worker, doc: &Self::Doc, path: &Path, format: &str) -> io::Result<()> {
+        Self::snapshot(worker, doc, path, format)
+    }
     fn close(worker: &mut Self::Worker, doc: Self::Doc) -> io::Result<()>;
     /// A closing view's images, for the shell to free.
     fn retire(view: &Entity<Self::View>, cx: &mut App) -> ely_gpui_component::primitives::Retired;

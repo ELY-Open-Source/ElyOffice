@@ -5,16 +5,63 @@ import os
 import re
 import tempfile
 import unittest
+import unittest.mock
 
 import bench
 import cycles
 import drive
+import feedback
 import run
 
 MAC = drive.Mac.system
 
 
+class Log:
+    """A made-up app whose log the recipe writes."""
+
+    def __init__(self, lines):
+        self.log = list(lines)
+
+    def lines(self):
+        return list(self.log)
+
+    def wait(self, pattern, since=0, timeout=0):
+        return 0
+
+
+class Counting(cycles.Cycle):
+    """Each close logs `after`."""
+
+    def __init__(self, after):
+        super().__init__("app", [], "ready", [r"(\d+) tabs open"])
+        self.after = after
+
+    def open(self, app, n):
+        app.log.append("opened")
+        return "opened"
+
+    def close(self, app, n):
+        app.log.extend(["closed", *self.after])
+        return "closed"
+
+
 class Verdicts(unittest.TestCase):
+    def test_typing_with_a_failed_draw_fails(self):
+        keys = feedback.Keys("ely-doc", [], "ready", feedback.TILE, feedback.into_document)
+        typed = ["lok: edit 1 text to tile 30 ms", "lok: edit 2 text to tile 40 ms"]
+        self.assertEqual(feedback.judged(keys, typed, 0, 2), ([30, 40], []))
+        with self.assertRaisesRegex(RuntimeError, "failed to draw"):
+            feedback.judged(keys, typed + ["lok: tile paint failed: atlas full"], 0, 2)
+
+    def test_a_cycle_needs_a_fresh_count_back_at_the_baseline(self):
+        with unittest.mock.patch.object(cycles.time, "sleep"):
+            cycles.one(Log(["1 tabs open"]), Counting(["1 tabs open"]), 1, (1,))
+            # Only the count logged before the cycle.
+            with self.assertRaisesRegex(RuntimeError, "never returned"):
+                cycles.one(Log(["1 tabs open"]), Counting([]), 1, (1,))
+            with self.assertRaisesRegex(RuntimeError, "never returned"):
+                cycles.one(Log(["1 tabs open"]), Counting(["2 tabs open"]), 1, (1,))
+
     def test_a_failed_draw_voids_the_run(self):
         for line in ["lok: tile paint failed: atlas full", "lok: tile (0, 1) failed: kernel",
                      "pdf: drawing a page failed (Other)"]:

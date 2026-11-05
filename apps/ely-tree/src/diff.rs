@@ -82,6 +82,14 @@ impl FileDiff {
                 .iter()
                 .any(|line| WHOLE.iter().any(|w| line.starts_with(w)))
     }
+
+    /// Either side is a symbolic link (mode 120000).
+    pub fn link(&self) -> bool {
+        const MODES: [&str; 5] = ["new file mode ", "deleted file mode ", "old mode ", "new mode ", "index "];
+        self.head.iter().any(|line| {
+            MODES.iter().any(|m| line.starts_with(m)) && line.ends_with(" 120000")
+        })
+    }
 }
 
 fn bad(line: &str) -> io::Error {
@@ -114,6 +122,7 @@ pub fn parse(bytes: &[u8]) -> io::Result<FileDiff> {
     let mut lines = text.split('\n').peekable();
     // A type change prints one path as two sections.
     let mut in_head = true;
+    let mut binary = false;
     while let Some(line) = lines.next() {
         if line.is_empty() && lines.peek().is_none() {
             break;
@@ -132,11 +141,10 @@ pub fn parse(bytes: &[u8]) -> io::Result<FileDiff> {
         }
         in_head |= line.starts_with("diff --git ");
         let Some(hunk) = hunks.last_mut().filter(|_| !in_head) else {
+            // Later sections still give their headers.
             if line.starts_with("Binary files ") {
-                return Ok(FileDiff {
-                    head,
-                    body: Body::Binary,
-                });
+                binary = true;
+                continue;
             }
             head.push(line.to_string());
             continue;
@@ -157,10 +165,12 @@ pub fn parse(bytes: &[u8]) -> io::Result<FileDiff> {
             newline: true,
         });
     }
-    Ok(FileDiff {
-        head,
-        body: Body::Text(hunks),
-    })
+    let body = if binary {
+        Body::Binary
+    } else {
+        Body::Text(hunks)
+    };
+    Ok(FileDiff { head, body })
 }
 
 /// Lines before a range: the start, less one unless empty.

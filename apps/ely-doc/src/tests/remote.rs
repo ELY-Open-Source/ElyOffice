@@ -83,3 +83,36 @@ fn text_reads_replaces_in_one_step_and_saves_with_the_cursor_kept() {
     assert_eq!(ask(&mut cx, &docs, &["get", &two.display().to_string()]), Ok("second".into()));
     assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("dog Cat 世界 😀 dog".into()), "each open document reads");
 }
+
+#[test]
+fn a_read_never_gives_way_to_waiting_input() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let file = dir.path().join("read.fodt");
+    let flat = r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:body><office:text><text:p>Read me</text:p></office:text></office:body>
+</office:document>"#;
+    std::fs::write(&file, flat).expect("the file writes");
+    let worker = cx.update(|app| docs.read(app).core.worker.clone());
+    let waiter = worker.lock().expect("the worker").waiter();
+    let mut held = worker.lock().expect("the worker");
+    let doc = held.load(&ely_lok::file_url(&file)).expect("the file opens");
+    // A key waits for the worker all through the read.
+    let waiting = {
+        let worker = worker.clone();
+        std::thread::spawn(move || drop(waiter.hold(&worker)))
+    };
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    let read = ely_office::remote::copy::<ely_office::Lok>(&mut held, &doc, &dir.path().join("copy.fodt"), "fodt");
+    held.close_doc(doc).expect("closes");
+    drop(held);
+    waiting.join().expect("the waiting key");
+    let read = read.expect("a waiting key never stops a read");
+    assert_eq!(ely_office::remote::body_text(&read).expect("a body").trim(), "Read me");
+}

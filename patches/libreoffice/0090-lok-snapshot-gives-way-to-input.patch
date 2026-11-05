@@ -1,0 +1,392 @@
+LOK: a snapshot save gives way to waiting input
+
+doc_saveAs holds the SolarMutex for the whole store, and a key takes
+the same lock. Ely writes recovery points with it; a key pressed while
+a large presentation was being snapshotted waited out the rest, 70 to
+270 ms.
+The save option Snapshot marks a copy that waiting input may stop.
+comphelper::LibreOfficeKit::checkSnapshot asks the client's anyInput
+callback: once before the store, then as each OOXML part's serializer
+opens (sax FastSerializerHelper). A stop throws a RuntimeException;
+once stopped, every later check throws too, so a filter that catches
+one still ends soon. doc_saveAs then fails with "ely: stopped for
+input". Saves without the option never stop.
+The DOCX, XLSX and PPTX exporters now undo on any exit what they
+changed on the way: Writer's redline flags, parked cursors and its
+PaM ring; Calc's shortened sheet names, its external file id map and
+status indicator; the drawingml graphic cache level of all three.
+ODF and binary formats check only before the store starts.
+
+diff --git a/comphelper/source/misc/lok.cxx b/comphelper/source/misc/lok.cxx
+index c8330f9..41ceb30 100644
+--- a/comphelper/source/misc/lok.cxx
++++ b/comphelper/source/misc/lok.cxx
+@@ -8,8 +8,10 @@
+  */
+ 
+ #include <comphelper/lok.hxx>
++#include <comphelper/snapshot.hxx>
+ 
+ #include <com/sun/star/awt/Rectangle.hpp>
++#include <com/sun/star/uno/RuntimeException.hpp>
+ 
+ #include <osl/process.h>
+ #include <i18nlangtag/languagetag.hxx>
+@@ -367,6 +369,26 @@ bool anyInput()
+     return bRet;
+ }
+ 
++static bool g_bSnapshot = false;
++static bool g_bSnapshotStopped = false;
++
++void setSnapshot(bool bSnapshot)
++{
++    g_bSnapshot = bSnapshot;
++    g_bSnapshotStopped = false;
++}
++
++bool isSnapshotStopped() { return g_bSnapshotStopped; }
++
++void checkSnapshot()
++{
++    // Once stopped, every later check throws too.
++    if (!g_bSnapshot || (!g_bSnapshotStopped && !anyInput()))
++        return;
++    g_bSnapshotStopped = true;
++    throw css::uno::RuntimeException(u"ely: the snapshot gave way to input"_ustr);
++}
++
+ void setViewSetter(const std::function<void(int)>& pViewSetter)
+ {
+     g_pViewSetter = pViewSetter;
+diff --git a/desktop/source/lib/init.cxx b/desktop/source/lib/init.cxx
+index 2f480a2..eee9cca 100644
+--- a/desktop/source/lib/init.cxx
++++ b/desktop/source/lib/init.cxx
+@@ -90,6 +90,7 @@
+ #include <comphelper/propertysequence.hxx>
+ #include <comphelper/propertyvalue.hxx>
+ #include <comphelper/scopeguard.hxx>
++#include <comphelper/snapshot.hxx>
+ #include <comphelper/threadpool.hxx>
+ #include <comphelper/types.hxx>
+ #include <comphelper/sequenceashashmap.hxx>
+@@ -3714,6 +3715,7 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+         return false;
+     }
+ 
++    bool bStopped = false;
+     try
+     {
+         std::span<const ExtensionMap> pMap;
+@@ -3849,6 +3851,7 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+         std::vector<OUString> aFilteredOptionVec;
+         bool bTakeOwnership = false;
+         bool bTerminateEditing = false;
++        bool bSnapshot = false;
+         bool bCreateFromTemplate = false;
+         MediaDescriptor aSaveMediaDescriptor;
+         sal_Int32 nOption = aFilterOptions.isEmpty() ? -1 : 0;
+@@ -3860,6 +3863,8 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+                 bTakeOwnership = true;
+             else if (aKey == "TerminateEditing")
+                 bTerminateEditing = true;
++            else if (aKey == "Snapshot")
++                bSnapshot = true;
+             else if (aKey == "NoFileSync")
+                 aSaveMediaDescriptor[u"NoFileSync"_ustr] <<= true;
+             else if (aKey == "FromTemplate")
+@@ -3938,17 +3943,34 @@ static int doc_saveAs(LibreOfficeKitDocument* pThis, const char* sUrl, const cha
+             }
+         }
+ 
++        // A snapshot is a copy that waiting input may stop.
++        if (bSnapshot && bTakeOwnership)
++        {
++            SetLastExceptionMsg(u"a snapshot never takes ownership"_ustr);
++            return false;
++        }
++        comphelper::LibreOfficeKit::setSnapshot(bSnapshot);
++        comphelper::ScopeGuard aSnapshotGuard([&bStopped]() {
++            bStopped = comphelper::LibreOfficeKit::isSnapshotStopped();
++            comphelper::LibreOfficeKit::setSnapshot(false);
++        });
++        comphelper::LibreOfficeKit::checkSnapshot();
++
+         if (bTakeOwnership)
+             xStorable->storeAsURL(aURL, aSaveMediaDescriptor.getAsConstPropertyValueList());
+         else
+             xStorable->storeToURL(aURL, aSaveMediaDescriptor.getAsConstPropertyValueList());
+ 
+-        return true;
++        // A filter may report the stop as a plain failure.
++        if (!comphelper::LibreOfficeKit::isSnapshotStopped())
++            return true;
+     }
+     catch (const uno::Exception& exception)
+     {
+         SetLastExceptionMsg("exception: " + exception.Message);
+     }
++    if (bStopped)
++        SetLastExceptionMsg(u"ely: stopped for input"_ustr);
+     return false;
+ }
+ 
+diff --git a/include/comphelper/snapshot.hxx b/include/comphelper/snapshot.hxx
+new file mode 100644
+index 0000000..7a96d91
+--- /dev/null
++++ b/include/comphelper/snapshot.hxx
+@@ -0,0 +1,25 @@
++/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++/*
++ * This file is part of the LibreOffice project.
++ *
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
++ */
++
++#pragma once
++
++#include <comphelper/comphelperdllapi.h>
++
++// Ely: a recovery snapshot gives way to waiting input.
++namespace comphelper::LibreOfficeKit
++{
++/// A snapshot export runs; waiting input stops it.
++COMPHELPER_DLLPUBLIC void setSnapshot(bool bSnapshot);
++/// Whether the running snapshot gave way to input.
++COMPHELPER_DLLPUBLIC bool isSnapshotStopped();
++/// Throws if a snapshot runs and input waits.
++COMPHELPER_DLLPUBLIC void checkSnapshot();
++}
++
++/* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sax/source/tools/fshelper.cxx b/sax/source/tools/fshelper.cxx
+index 744fbef..ef9d621 100644
+--- a/sax/source/tools/fshelper.cxx
++++ b/sax/source/tools/fshelper.cxx
+@@ -17,6 +17,7 @@
+  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
+  */
+ 
++#include <comphelper/snapshot.hxx>
+ #include <sal/log.hxx>
+ #include <sax/fshelper.hxx>
+ #include "fastserializer.hxx"
+@@ -29,6 +30,8 @@ namespace sax_fastparser {
+ FastSerializerHelper::FastSerializerHelper(const Reference< io::XOutputStream >& xOutputStream, bool bWriteHeader ) :
+     mpSerializer(new FastSaxSerializer(xOutputStream))
+ {
++    // Ely: a snapshot stops between parts for input.
++    comphelper::LibreOfficeKit::checkSnapshot();
+     if( bWriteHeader )
+         startDocument();
+ }
+diff --git a/sc/source/filter/excel/xestream.cxx b/sc/source/filter/excel/xestream.cxx
+index e09776f..f19b6a6 100644
+--- a/sc/source/filter/excel/xestream.cxx
++++ b/sc/source/filter/excel/xestream.cxx
+@@ -71,6 +71,7 @@
+ 
+ #include <com/sun/star/task/XStatusIndicator.hpp>
+ #include <memory>
++#include <comphelper/scopeguard.hxx>
+ #include <comphelper/servicehelper.hxx>
+ #include <comphelper/storagehelper.hxx>
+ 
+@@ -1048,11 +1049,20 @@ bool XclExpXmlStream::exportDocument()
+     {
+         validateTabNames(aOriginalTabNames);
+     }
++    // Ely: a stopped snapshot leaves the names whole.
++    comphelper::ScopeGuard aNames([this, bValidateTabNames, &aOriginalTabNames]() {
++        if (bValidateTabNames)
++            restoreTabNames(aOriginalTabNames);
++    });
+ 
+     uno::Reference<task::XStatusIndicator> xStatusIndicator = getStatusIndicator();
+ 
+     if (xStatusIndicator.is())
+         xStatusIndicator->start(ScResId(STR_SAVE_DOC), 100);
++    comphelper::ScopeGuard aIndicator([&xStatusIndicator]() {
++        if (xStatusIndicator.is())
++            xStatusIndicator->end();
++    });
+ 
+     // NOTE: Don't use SotStorage or SvStream any more, and never call
+     // SfxMedium::GetOutStream() anywhere in the xlsx export filter code!
+@@ -1062,6 +1072,10 @@ bool XclExpXmlStream::exportDocument()
+     auto& rGraphicExportCache = drawingml::GraphicExportCache::get();
+ 
+     rGraphicExportCache.push();
++    comphelper::ScopeGuard aPop([this, &rGraphicExportCache]() {
++        mpRoot = nullptr;
++        rGraphicExportCache.pop();
++    });
+ 
+     XclExpRootData aData(
+         EXC_BIFF8, *pShell->GetMedium (), rStorage, rDoc,
+@@ -1150,13 +1164,13 @@ bool XclExpXmlStream::exportDocument()
+     // destruct at the end of the block
+     {
+         ExcDocument aDocRoot( aRoot );
++        comphelper::ScopeGuard aFileIds([&rDoc]() { rDoc.GetExternalRefManager()->disableSkipUnusedFileIds(); });
+         if (xStatusIndicator.is())
+             xStatusIndicator->setValue(10);
+         aDocRoot.ReadDoc();
+         if (xStatusIndicator.is())
+             xStatusIndicator->setValue(40);
+         aDocRoot.WriteXml( *this );
+-        rDoc.GetExternalRefManager()->disableSkipUnusedFileIds();
+     }
+ 
+     PopStream();
+@@ -1171,17 +1185,6 @@ bool XclExpXmlStream::exportDocument()
+ 
+     commitStorage();
+ 
+-    if (bValidateTabNames)
+-    {
+-        restoreTabNames(aOriginalTabNames);
+-    }
+-
+-    if (xStatusIndicator.is())
+-        xStatusIndicator->end();
+-    mpRoot = nullptr;
+-
+-    rGraphicExportCache.pop();
+-
+     return true;
+ }
+ 
+diff --git a/sd/source/filter/eppt/pptx-epptooxml.cxx b/sd/source/filter/eppt/pptx-epptooxml.cxx
+index 0607278..2925212 100644
+--- a/sd/source/filter/eppt/pptx-epptooxml.cxx
++++ b/sd/source/filter/eppt/pptx-epptooxml.cxx
+@@ -37,6 +37,7 @@
+ #include <editeng/section.hxx>
+ #include <editeng/editeng.hxx>
+ 
++#include <comphelper/scopeguard.hxx>
+ #include <comphelper/sequenceashashmap.hxx>
+ #include <comphelper/storagehelper.hxx>
+ #include <comphelper/string.hxx>
+@@ -445,6 +446,8 @@ bool PowerPointExport::exportDocument()
+     auto& rGraphicExportCache = drawingml::GraphicExportCache::get();
+ 
+     rGraphicExportCache.push();
++    // Ely: popped even when a snapshot stops.
++    comphelper::ScopeGuard aPop([&rGraphicExportCache]() { rGraphicExportCache.pop(); });
+ 
+     maShapeMap.clear();
+ 
+@@ -546,8 +549,6 @@ bool PowerPointExport::exportDocument()
+ 
+     commitStorage();
+ 
+-    rGraphicExportCache.pop();
+-
+     maShapeMap.clear();
+     maAuthors.clear();
+     maRelId.clear();
+diff --git a/sw/source/filter/ww8/docxexport.cxx b/sw/source/filter/ww8/docxexport.cxx
+index d06f58e..2b3c630 100644
+--- a/sw/source/filter/ww8/docxexport.cxx
++++ b/sw/source/filter/ww8/docxexport.cxx
+@@ -98,6 +98,7 @@
+ #include <comphelper/sequence.hxx>
+ #include <comphelper/storagehelper.hxx>
+ #include <comphelper/sequenceashashmap.hxx>
++#include <comphelper/scopeguard.hxx>
+ #include <o3tl/any.hxx>
+ #include <sal/log.hxx>
+ #include <unotools/ucbstreamhelper.hxx>
+@@ -610,6 +611,8 @@ ErrCode DocxExport::ExportDocument_Impl()
+ 
+     // Make sure images are counted from one, even when exporting multiple documents.
+     rGraphicExportCache.push();
++    // Ely: popped even when a snapshot stops.
++    comphelper::ScopeGuard aPop([&rGraphicExportCache]() { rGraphicExportCache.pop(); });
+ 
+     CollectFloatingTables();
+ 
+@@ -640,8 +643,6 @@ ErrCode DocxExport::ExportDocument_Impl()
+     m_pStyles.reset();
+     m_pSections.reset();
+ 
+-    rGraphicExportCache.pop();
+-
+     return ERRCODE_NONE;
+ }
+ 
+diff --git a/sw/source/filter/ww8/docxexportfilter.cxx b/sw/source/filter/ww8/docxexportfilter.cxx
+index 258461d..66c82b5 100644
+--- a/sw/source/filter/ww8/docxexportfilter.cxx
++++ b/sw/source/filter/ww8/docxexportfilter.cxx
+@@ -28,6 +28,7 @@
+ #include <IDocumentLayoutAccess.hxx>
+ #include <viewsh.hxx>
+ 
++#include <comphelper/scopeguard.hxx>
+ #include <unotools/mediadescriptor.hxx>
+ 
+ #include <wrtsh.hxx>
+@@ -104,6 +105,11 @@ bool DocxExportFilter::exportDocument()
+     std::shared_ptr<SwUnoCursor> pCurPam(pDoc->CreateUnoCursor(*aPam.End(), false));
+     pCurPam->SetMark();
+     *pCurPam->GetPoint() = *aPam.Start();
++    // delete the pCurPam's ring, even when a snapshot stops
++    comphelper::ScopeGuard aRing([&pCurPam]() {
++        while ( pCurPam->GetNext() != pCurPam.get() )
++            delete pCurPam->GetNext();
++    });
+ 
+     // export the document
+     // (in a separate block so that it's destructed before the commit)
+@@ -114,10 +120,6 @@ bool DocxExportFilter::exportDocument()
+ 
+     commitStorage();
+ 
+-    // delete the pCurPam
+-    while ( pCurPam->GetNext() != pCurPam.get() )
+-        delete pCurPam->GetNext();
+-
+     return true;
+ }
+ 
+diff --git a/sw/source/filter/ww8/wrtww8.cxx b/sw/source/filter/ww8/wrtww8.cxx
+index 8358e94..4a29d89 100644
+--- a/sw/source/filter/ww8/wrtww8.cxx
++++ b/sw/source/filter/ww8/wrtww8.cxx
+@@ -93,6 +93,7 @@
+ 
+ #include <comphelper/sequenceashashmap.hxx>
+ #include <comphelper/processfactory.hxx>
++#include <comphelper/scopeguard.hxx>
+ #include "writerhelper.hxx"
+ #include "writerwordglue.hxx"
+ #include "ww8attributeoutput.hxx"
+@@ -3475,8 +3476,8 @@ ErrCode MSWordExportBase::ExportDocument( bool bWriteAll )
+     if ( m_rDoc.getIDocumentDrawModelAccess().GetDrawModel() )
+         m_rDoc.getIDocumentDrawModelAccess().GetDrawModel()->GetPage( 0 )->RecalcObjOrdNums();
+ 
+-    ErrCode err = ExportDocument_Impl();
+-
++    // Ely: a stopped snapshot unwinds through here too.
++    comphelper::ScopeGuard aRestore([this]() {
+     m_aFrames.clear();
+ 
+     // park m_pCurPam in a "safe place" now that document is fully exported
+@@ -3488,8 +3489,9 @@ ErrCode MSWordExportBase::ExportDocument( bool bWriteAll )
+     static_cast<SwPaM&>(*m_pCurPam) = *m_pOrigPam;
+ 
+     m_rDoc.getIDocumentRedlineAccess().SetRedlineFlags(m_nOrigRedlineFlags);
++    });
+ 
+-    return err;
++    return ExportDocument_Impl();
+ }
+ 
+ bool SwWW8Writer::InitStd97CodecUpdateMedium( ::msfilter::MSCodec_Std97& rCodec )

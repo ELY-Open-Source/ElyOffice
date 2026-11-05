@@ -30,3 +30,29 @@ upstream=$dist/ElyOffice-$version-$commit-upstream-source.tar.gz
 }
 tar -czf "$upstream" --exclude .git --exclude .DS_Store -C "$root/engines" mupdf-src -C "$root/reference" git
 echo "$upstream"
+# Libraries LibreOffice's builds fetch, every platform's; hashes checked.
+external=$dist/ElyOffice-$version-$commit-libreoffice-external-source.tar
+built=$root/engines/lo-src/external/tarballs
+pack=$(mktemp -d)
+trap 'rm -rf "$pack"' EXIT
+mkdir "$pack/libreoffice-external"
+cp "$root/packaging/lo-tarballs.tsv" "$pack/libreoffice-external/"
+while IFS=$'\t' read -r name hash url; do
+  file=$pack/libreoffice-external/$name
+  if [ -f "$built/$name" ]; then
+    ln -s "$built/$name" "$file"
+  else
+    echo "source.sh: fetching $url"
+    curl -fsSL -o "$file" "$url" || {
+      echo "source.sh: cannot fetch $url" >&2
+      exit 1
+    }
+  fi
+  got=$(shasum -a 256 "$file" | cut -d ' ' -f 1)
+  [ "$got" = "$hash" ] || {
+    echo "source.sh: $name has sha256 $got, not $hash" >&2
+    exit 1
+  }
+done <"$root/packaging/lo-tarballs.tsv"
+tar -chf "$external" -C "$pack" libreoffice-external
+echo "$external"
