@@ -159,6 +159,8 @@ impl Worker {
         if dev {
             command.arg("--dev");
         }
+        // A log file would keep patch lines from the app.
+        command.env_remove("SAL_LOG_FILE");
         if let Ok(sal_log) = std::env::var("ELY_LOK_SAL_LOG") {
             command.env("SAL_LOG", sal_log);
         }
