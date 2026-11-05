@@ -46,12 +46,12 @@
 | DOC-06 | 页眉页脚 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-07 | 表格 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-08 | 图片与对象 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-09 | 引用结构 | C08.4（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-10 | 公式 | C08.4（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-11 | 审阅 | C08.4（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-12 | 查找与检查 | C08.5（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-13 | 文档比较 | C08.5（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-14 | 邮件合并文档 | C08.5（~） | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-09 | 引用结构 | C08.4 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-10 | 公式 | C08.4 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-11 | 审阅 | C08.4 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-12 | 查找与检查 | C08.5（~） | `two_generations_keep_their_own_templates` | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-13 | 文档比较 | C08.5（~） | `two_generations_keep_their_own_templates` | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-14 | 邮件合并文档 | C08.5（~） | `two_generations_keep_their_own_templates` | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-15 | 打印与导出 | C08.6（~） | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-16 | 长文档导航 | C08.6（~） | — | apps/ely-doc/src/tests、doc-props.sh |
 | TABLE-01 | 工作簿 | C09.1（~）、决策 C09.1 | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |

@@ -266,6 +266,14 @@ fn two_generations_keep_their_own_templates() {
     settle(&cx, |_| {
         targets.iter().all(|target| target.exists()) && worker.try_lock().is_ok()
     });
+    // Each run's scratch folder goes once it ends.
+    let work = dir.path().join("work");
+    let stray = |app: &gpui::App| -> Vec<std::path::PathBuf> {
+        let kept: Vec<_> = docs.read(app).core.tabs.iter().map(|tab| tab.work.clone()).collect();
+        let entries = std::fs::read_dir(&work).expect("the work dir");
+        entries.map(|entry| entry.expect("an entry").path()).filter(|path| !kept.contains(path)).collect()
+    };
+    settle(&cx, |app| stray(app).is_empty());
     for (target, want) in targets.iter().zip(["SourceA Ada", "SourceB Ada"]) {
         assert!(
             text_of(&mut cx, &docs, target).contains(want),
