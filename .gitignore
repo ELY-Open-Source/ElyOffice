@@ -18,3 +18,4 @@ node_modules/
 /cred.txt
 /update-key.txt
 __pycache__/
+/*.csr

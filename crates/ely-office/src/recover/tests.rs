@@ -2,7 +2,7 @@ use super::{Keeping, Kept, Slot};
 
 #[test]
 fn a_failing_point_says_so_once_until_the_reason_changes() {
-    let mut slot = Slot { kept: kept("s", false), written: None, writing: false, failed: None, refused: None, last: None };
+    let mut slot = Slot { kept: kept("s", false), written: None, writing: false, failed: None, refused: None, last: None, stopped: None };
     let full = std::io::Error::other("disk full");
     assert_eq!(slot.fail(None, &full).as_deref(), Some("disk full"));
     assert_eq!(slot.fail(None, &full), None, "the same reason stays quiet");
@@ -16,7 +16,7 @@ fn a_failing_point_says_so_once_until_the_reason_changes() {
 fn a_save_measures_a_refused_slot_again() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut keeping = Keeping::start_in(dir.path().to_path_buf()).expect("starts");
-    let slot = |refused| Slot { kept: kept("s", false), written: None, writing: false, failed: None, refused, last: None };
+    let slot = |refused| Slot { kept: kept("s", false), written: None, writing: false, failed: None, refused, last: None, stopped: None };
     keeping.slots.insert(1, slot(Some(70)));
     keeping.slots.insert(2, slot(None));
     keeping.saved(1, 10);

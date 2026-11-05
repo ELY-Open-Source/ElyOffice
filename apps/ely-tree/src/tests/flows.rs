@@ -361,3 +361,43 @@ fn a_stop_that_does_not_read_says_why() {
     let alert = cx.update(|_, app| tree.update(app, |tree, cx| tree.op_alert(cx).is_some()));
     assert!(alert, "the failure shows above the work tree");
 }
+
+#[test]
+fn a_git_am_skipped_onto_the_next_conflict_stops_without_a_dialog() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let (root, main) = conflicted(dir.path());
+    // Three patches, each on the line main changed.
+    sh(&root, &["checkout", "-q", "side"]);
+    for text in ["one\nside two\n", "one\nside three\n"] {
+        std::fs::write(root.join("a.txt"), text).expect("writes");
+        sh(&root, &["commit", "-qam", text]);
+    }
+    sh(&root, &["checkout", "-q", &main]);
+    let patches = sh(&root, &["format-patch", &format!("{main}..side"), "--stdout"]);
+    let at = dir.path().join("p.mbox");
+    std::fs::write(&at, patches).expect("writes");
+    let stopped = super::git().run(&root, &["am", "--3way", at.to_str().expect("utf-8")]);
+    assert!(stopped.is_err(), "the first patch conflicts");
+    let mut cx = TestAppContext::single();
+    let (tree, cx) = window(&mut cx, dir.path());
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.open_path(root.clone(), cx)));
+    let theirs = |app: &App| match tree.read(app).active().and_then(|o| o.doing.clone()) {
+        Some(Ok(Some(doing))) => Some(doing.theirs),
+        _ => None,
+    };
+    settle(cx, |app| theirs(app).as_deref() == Some("1/3"));
+    cx.update(|_, app| tree.update(app, |tree, cx| tree.op_skip(crate::ops::Op::Am, cx)));
+    let write = cx.update(|_, app| match &tree.read(app).ask {
+        Some(Ask::Confirm { write, .. }) => write.clone(),
+        _ => panic!("a confirm"),
+    });
+    cx.update(|_, app| {
+        tree.update(app, |tree, cx| {
+            tree.ask = None;
+            tree.write(1, write, cx)
+        })
+    });
+    settle(cx, |app| theirs(app).as_deref() == Some("2/3") && conflicts(tree.read(app)) == 1);
+    let failed = cx.update(|_, app| matches!(tree.read(app).ask, Some(Ask::Failed { .. })));
+    assert!(!failed, "a stop on the next patch is no failure");
+}
