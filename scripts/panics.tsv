@@ -168,10 +168,7 @@ crates/ely-lok/src/commands.rs	unreachable	unreachable!("lines take no value")	l
 crates/ely-lok/src/events.rs	expect_used	formula_text(text).expect("checked above")	linux,macos,windows	checked above
 crates/ely-lok/src/events.rs	expect_used	signal() .wait_timeout(slots, deadline - now) .expect("the events wait")	linux,macos,windows	the events wait
 crates/ely-lok/src/events.rs	expect_used	signal() .wait_timeout(slots, deadline - now) .expect("the events wait")	linux,macos,windows	the events wait
-crates/ely-lok/src/events.rs	expect_used	signal() .wait_timeout(slots, deadline - now) .expect("the events wait")	linux,macos,windows	the events wait
 crates/ely-lok/src/events.rs	expect_used	signal().wait(slots).expect("the events wait")	linux,macos,windows	the events wait
-crates/ely-lok/src/events.rs	expect_used	slots() .lock() .expect("the events lock")	linux,macos,windows	the events lock
-crates/ely-lok/src/events.rs	expect_used	slots().lock().expect("the events lock")	linux,macos,windows	the events lock
 crates/ely-lok/src/events.rs	expect_used	slots().lock().expect("the events lock")	linux,macos,windows	the events lock
 crates/ely-lok/src/events.rs	expect_used	slots().lock().expect("the events lock")	linux,macos,windows	the events lock
 crates/ely-lok/src/events.rs	expect_used	slots().lock().expect("the events lock")	linux,macos,windows	the events lock

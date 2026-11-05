@@ -27,17 +27,17 @@
 | FILE-09 | 路径支持空格、中文、非 ASCII 字符和长文件名；保留原有大小写 | C06.2 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | FILE-10 | 对损坏、加密、缺少字体和不支持的内容给出可执行提示 | C06.2 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | LOK-01 | 使用随应用交付的固定 LOK 构建，隔离用户已安装的 LibreOffice 配置 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-02 | 每项界面操作有明确的内核命令、参数、结果和状态回调映射 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-02 | 每项界面操作有明确的内核命令、参数、结果和状态回调映射 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-03 | 处理内容区域失效通知，只更新必要图块；旧修订的画面不得覆盖新画面 | C07.2 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-04 | 统一转换文档坐标、视图缩放、滚动和平台 DPI；输入与选区使用同一坐标规则 | C07.2 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-05 | 字体、字号、样式、选择对象、修改状态和撤销可用性以内核为准 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-05 | 字体、字号、样式、选择对象、修改状态和撤销可用性以内核为准 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-06 | 复制粘贴覆盖纯文本、富文本、图片和表格；不只实现键盘事件转发 | C07.3（~） | `lokview.sh` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-07 | 中文输入法包含组合开始、更新、提交和取消；不拆成普通按键模拟输入 | C07.3（~） | `lokview.sh` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-08 | 页面设置、图表、样式、批注等需要的对话框由 Ely 实现；上游原生对话框不得泄露 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-08 | 页面设置、图表、样式、批注等需要的对话框由 Ely 实现；上游原生对话框不得泄露 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-09 | 保存与导出只通过内核支持的过滤器；错误码不能被当成成功 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-10 | 关闭文档释放内核对象、图块和临时文件；不终止其他应用的会话 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-11 | 不执行宏和自动更新外部链接；打开后明确显示这些内容的处理状态 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-12 | 维护功能到接口的映射表和三端测试，不以“LOK 本身支持”作为交付证据 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-12 | 维护功能到接口的映射表和三端测试，不以“LOK 本身支持”作为交付证据 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | DOC-01 | 新建与模板 | C08.1（~） | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-02 | 文字编辑 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-03 | 段落 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |

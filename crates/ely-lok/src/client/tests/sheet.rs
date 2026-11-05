@@ -141,6 +141,33 @@ fn nothing_to_undo_in_calc_answers_at_once() {
     }
 }
 
+#[test]
+fn a_format_step_in_a_cell_edit_undoes_and_redoes_at_once() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let quick = |worker: &mut Worker, doc: &Doc, id: &str| {
+        let start = std::time::Instant::now();
+        worker.run(doc, id, &[]).unwrap_or_else(|error| panic!("{id}: {error}"));
+        assert!(start.elapsed() < std::time::Duration::from_millis(500), "{id}: {:?}", start.elapsed());
+    };
+    let (_dir, mut worker, doc) = open_sheet();
+    let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
+    worker.post_key(&doc, 0, 769).expect("F2 edits A1");
+    worker.post_key(&doc, 'Z' as u32, 537 | 0x1000).expect("Z types");
+    let typed = poll_until(&mut worker, &doc, &base, HANG, |seen| seen.a11y.text == "Hello 世界Z");
+    worker.post_key(&doc, 0, 1026 | 0x1000).expect("select the Z");
+    worker.run(&doc, "format.bold", &[]).expect("bold in the edit");
+    quick(&mut worker, &doc, "edit.undo");
+    quick(&mut worker, &doc, "edit.redo");
+    quick(&mut worker, &doc, "edit.undo");
+    // The bold step went; the next undo takes the Z.
+    quick(&mut worker, &doc, "edit.undo");
+    let undone = poll_until(&mut worker, &doc, &typed, HANG, |seen| seen.a11y.text == "Hello 世界");
+    assert_eq!(undone.a11y.text, "Hello 世界");
+}
+
 /// Three sheets; T hides, U refers to S.
 pub(super) const SHEETS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">

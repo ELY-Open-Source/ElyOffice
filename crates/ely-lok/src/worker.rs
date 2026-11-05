@@ -15,6 +15,7 @@ mod input;
 mod asked;
 pub(crate) mod closing;
 mod revision;
+mod sheet;
 mod slides;
 mod teardown;
 mod text;
