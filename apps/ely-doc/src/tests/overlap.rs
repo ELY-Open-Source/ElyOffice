@@ -18,18 +18,23 @@ fn typing_during_a_closing_save_is_never_lost() {
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.write_as(id, path.clone(), Some(After::Tab), window, cx)
     });
+    // The file is on disk; its landing has not run.
+    let exporting = |app: &gpui::App| docs.read(app).tab(id).is_some_and(|tab| tab.exporting);
+    while !path.exists() {
+        assert!(cx.update(|app| exporting(app)), "the save ended before its file was seen");
+        assert!(cx.executor().tick(), "the save stalled");
+    }
+    assert!(cx.update(|app| exporting(app)), "the landing waits");
     commit(&mut cx, &docs, "AfterExport");
     settle(&cx, |app| {
         let docs = docs.read(app);
         docs.tab(id).is_none() || matches!(docs.core.dialog, Some(Dialog::Unsaved { .. }))
     });
-    let closed = cx.update(|app| docs.read(app).tab(id).is_none());
+    let open = cx.update(|app| docs.read(app).tab(id).is_some());
+    assert!(open, "a close after later typing asks again");
     let text = text_of(&mut cx, &docs, &path);
     assert!(text.contains("BeforeExport"), "the export saved");
-    assert!(
-        !closed || text.contains("AfterExport"),
-        "a closed tab lost later typing"
-    );
+    assert!(!text.contains("AfterExport"), "later typing came after the export");
 }
 
 #[test]
