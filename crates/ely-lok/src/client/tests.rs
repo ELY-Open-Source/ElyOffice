@@ -448,7 +448,7 @@ fn a_worker_that_cannot_start_says_why() {
     };
     // The worker's own reason, not only a closed pipe.
     assert!(error.to_string().contains("lok-worker:"), "{error}");
-    // A record, or the relay keeps it from the app's log.
+    // Only records reach the app's log.
     let mut run = std::process::Command::new(super::install::worker_bin().expect("the worker binary"))
         .arg(dir.path().join("no-install"))
         .arg(dir.path().join("again"))
