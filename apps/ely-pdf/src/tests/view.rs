@@ -116,6 +116,29 @@ fn a_jump_to_the_right_page_brings_it_across() {
 }
 
 #[test]
+fn a_jump_to_a_page_barely_in_view_brings_it_across() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (view, cx) = zoomed_pair(&mut cx, dir.path());
+    // Only the right page's first 20 pixels show.
+    cx.update(|_, app| view.update(app, |view, cx| {
+        let (right, wide) = (view.laid_out().placed[1].x, f32::from(view.room.size.width));
+        let y = view.scroll.offset().y;
+        view.scroll.set_offset(point(px(wide - 20.0 - right), y));
+        cx.notify();
+    }));
+    frames(cx);
+    cx.update(|_, app| view.update(app, |view, cx| view.show(1, 0.0, cx)));
+    frames(cx);
+    let (place, left, wide) = cx.update(|_, app| {
+        let view = view.read(app);
+        (view.laid_out().placed[1], -f32::from(view.scroll.offset().x), f32::from(view.room.size.width))
+    });
+    let seen = (place.x + place.w).min(left + wide) - place.x.max(left);
+    assert!(seen + crate::layout::GAP >= place.w.min(wide) && place.x >= left, "{seen} of page {}..{} in view {left}..{}", place.x, place.x + place.w, left + wide);
+}
+
+#[test]
 fn ctrl_and_a_wheel_notch_step_the_zoom_once() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();

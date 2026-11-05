@@ -361,10 +361,11 @@ impl PdfView {
         Some((x.min((laid.size.0 - room_w).max(0.0)), y.min((laid.size.1 - room_h).max(0.0))))
     }
 
-    /// Across: stay unless the page's left is out of view.
+    /// Across: stay while the page shows whole or fills.
     fn across(&self, place: &crate::layout::Placed) -> f32 {
         let (left, wide) = (-f32::from(self.scroll.offset().x), f32::from(self.room.size.width));
-        match place.x >= left && place.x < left + wide {
+        let seen = (place.x + place.w).min(left + wide) - place.x.max(left);
+        match seen + crate::layout::GAP >= place.w.min(wide) {
             true => left,
             false => (place.x - crate::layout::GAP).max(0.0),
         }
