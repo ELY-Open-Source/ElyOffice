@@ -133,7 +133,8 @@ pub struct LokView {
     a11y: crate::A11y,
     /// What readers call the view.
     name: gpui::SharedString,
-    tabs: Vec<i32>,
+    /// The paragraph's tab stops and the revision that read them.
+    tabs: (Vec<i32>, u64),
 }
 
 /// A document's size and page frames, in twips.
@@ -235,7 +236,7 @@ impl LokView {
             fonts: Vec::new(),
             a11y: crate::A11y::default(),
             name: gpui::SharedString::default(),
-            tabs: Vec::new(),
+            tabs: (Vec::new(), 0),
             watching: None,
         };
         view.watching = Some(view.watch(feed, cx));
@@ -404,7 +405,10 @@ impl LokView {
             cx.emit(LokError(fault));
         }
         self.a11y = batch.a11y;
-        self.tabs = batch.tabs;
+        match batch.revision < self.tabs.1 {
+            true => log::debug!("lok: tab stops read at {} are older than {}", batch.revision, self.tabs.1),
+            false => self.tabs = (batch.tabs, batch.revision),
+        }
         self.states.extend(batch.states);
         self.relay(batch.blocked, batch.links, cx);
         cx.emit(Reported);

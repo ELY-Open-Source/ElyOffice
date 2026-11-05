@@ -11,6 +11,7 @@ mod input;
 mod large;
 mod reveal;
 mod show_borders;
+mod tabs;
 mod theme;
 mod text;
 mod zoom;
