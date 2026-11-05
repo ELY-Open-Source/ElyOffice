@@ -149,7 +149,7 @@
 | PERF-03 | 文档打开 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-04 | 表格打开 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-05 | PDF 浏览 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-06 | 本地搜索 | C12.16、C12.23（ ）、C20.1（~）、决策 C20.1、决策 C12.16 | `an_original_parked_by_a_crash_returns_before_reindexing`、`a_chosen_range_fits_a_narrow_window`、`plain_and_html_bodies_are_both_searched`、`upgrading_indexes_html_beside_plain_text`、`a_found_message_moves_within_its_own_account`、`release-macos.sh`、`chord.swift` | tests/perf/bench.py、lag.sh |
+| PERF-06 | 本地搜索 | C12.16、C12.23、C20.1（~）、决策 C20.1、决策 C12.16 | `an_original_parked_by_a_crash_returns_before_reindexing`、`a_chosen_range_fits_a_narrow_window`、`plain_and_html_bodies_are_both_searched`、`upgrading_indexes_html_beside_plain_text`、`a_found_message_moves_within_its_own_account`、`release-macos.sh`、`chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-07 | Markdown | C14.5、C14.6、C20.1（~）、决策 C20.1、决策 C14.4 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-08 | 资源释放 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-09 | 多会话 | C20.1（~） | `chord.swift` | tests/perf/bench.py、lag.sh |
@@ -169,9 +169,9 @@
 | QA-13 | PDF 编辑 | C11.8（~）、C22.2（ ）、决策 C11.8 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-14 | PDF 删除 | C11.6（~）、C22.2（ ）、决策 C11.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-15 | PDF OCR 与签名 | C11.7（~）、C22.2（ ）、决策 C11.7 | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-16 | Mail 离线 | C12.23（ ）、C22.2（ ） | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-17 | Mail 发送 | C12.14（~）、C12.23（ ）、C22.2（ ）、决策 C12.14 | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-18 | Mail 同步 | C12.6（~）、C12.23（ ）、C22.2（ ）、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-16 | Mail 离线 | C12.23、C22.2（ ） | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-17 | Mail 发送 | C12.14（~）、C12.23、C22.2（ ）、决策 C12.14 | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-18 | Mail 同步 | C12.6（~）、C12.23、C22.2（ ）、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-19 | Git 结果 | C13.6（~）、C22.2（ ）、决策 C13.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-20 | Git 异常 | C13.6（~）、C22.2（ ）、决策 C13.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-21 | Mark 原文 | C14.4、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
