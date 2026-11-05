@@ -21,7 +21,7 @@ const HELD_MOST: Duration = Duration::from_secs(1);
 #[derive(Default)]
 struct Turn {
     queue: futures::lock::Mutex<()>,
-    /// Each holding view and when its newest undrawn edit was sent.
+    /// Each holding view and its newest undrawn edit's send time.
     holds: Mutex<Vec<(u64, Instant)>>,
     clear: Condvar,
 }
@@ -86,7 +86,7 @@ impl Ahead {
         Ahead { turn: turn(worker), id: AHEADS.fetch_add(1, Ordering::Relaxed), since: None }
     }
 
-    /// Holds background work for the edit sent at `since`; None lets it go.
+    /// Holds for the edit sent at `since`; None releases.
     pub(super) fn hold(&mut self, since: Option<Instant>) {
         if since == self.since {
             return;
