@@ -37,12 +37,15 @@ pub struct Moved {
     pub at: i64,
     /// Its count among identical moves, from the oldest.
     pub seq: usize,
+    /// How many identical moves there are.
+    pub twins: usize,
 }
 
 impl Moved {
-    /// The same event, wherever it now sits.
+    /// The same event; a lost twin leaves it unknown.
     pub fn same(&self, other: &Moved) -> bool {
-        (&self.oid, &self.said, self.at, self.seq) == (&other.oid, &other.said, other.at, other.seq)
+        (&self.oid, &self.said, self.at, self.seq, self.twins)
+            == (&other.oid, &other.said, other.at, other.seq, other.twins)
     }
 }
 
@@ -78,15 +81,19 @@ pub fn reflog(git: &Git, root: &Path) -> io::Result<Vec<Moved>> {
                 said: said.to_string(),
                 at: time,
                 seq: 0,
+                twins: 0,
             })
         })
         .collect::<io::Result<Vec<_>>>()?;
-    // New twins come newest; expiry takes a second's twins whole.
+    // New twins come newest; Git may drop any one.
     let mut seen = std::collections::HashMap::new();
     for moved in moves.iter_mut().rev() {
         let count = seen.entry((moved.oid.clone(), moved.said.clone(), moved.at)).or_insert(0);
         moved.seq = *count;
         *count += 1;
+    }
+    for moved in &mut moves {
+        moved.twins = seen[&(moved.oid.clone(), moved.said.clone(), moved.at)];
     }
     moves.truncate(KEEP);
     Ok(moves)
