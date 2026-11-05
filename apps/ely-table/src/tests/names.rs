@@ -189,12 +189,12 @@ fn the_names_list_stays_with_its_workbook_and_scope() {
             book.act_on_name(crate::formulas::NameAct::Go, cx);
         });
     };
-    let shown = |cx: &mut TestAppContext| {
+    let mut window = drawn(&mut cx, &book);
+    let mut shown = |cx: &mut TestAppContext| {
         quiet(cx, &book);
         let active = cx.update(|app| book.read(app).core.active());
         assert_eq!(active, Some(first), "the jump shows its workbook");
-        update(cx, &book, |book, cx| book.refill(cx));
-        let named = cx.update(|app| book.read(app).bars.name.read(app).text().to_string());
+        let named = name_box(&mut window, &book);
         let address = cx.update(|app| {
             book.read(app).core.tabs[0]
                 .view

@@ -54,29 +54,29 @@
 | DOC-14 | 邮件合并文档 | C08.5 | `two_generations_keep_their_own_templates` | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-15 | 打印与导出 | C08.6 | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-16 | 长文档导航 | C08.6 | — | apps/ely-doc/src/tests、doc-props.sh |
-| TABLE-01 | 工作簿 | C09.1（~）、决策 C09.1 | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
-| TABLE-02 | 区域编辑 | C09.1（~） | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
-| TABLE-03 | 公式输入 | C09.2（~）、决策 C09.2 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-04 | 公式计算 | C09.2（~）、决策 C09.2 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-05 | 计算控制 | C09.2（~）、决策 C09.2 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-06 | 名称与引用 | C09.2（~）、决策 C09.2 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-07 | 格式 | C09.3（~）、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker` | apps/ely-table/src/tests、theme.sh |
-| TABLE-08 | 数据整理 | C09.3（~）、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker` | apps/ely-table/src/tests、theme.sh |
-| TABLE-09 | 规则 | C09.3（~）、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker` | apps/ely-table/src/tests、theme.sh |
-| TABLE-10 | 汇总分析 | C09.4（~）、决策 C09.4 | `undoing_a_new_kind_brings_the_whole_chart_back`、`enter_and_tab_move_the_cell_cursor`、`a_read_layout_applies_back_unchanged`、`a_dialog_asked_from_a_workbook_left_behind_is_dropped` | apps/ely-table/src/tests、theme.sh |
-| TABLE-11 | 图表 | C09.4（~）、决策 C09.4 | `undoing_a_new_kind_brings_the_whole_chart_back`、`enter_and_tab_move_the_cell_cursor`、`a_read_layout_applies_back_unchanged`、`a_dialog_asked_from_a_workbook_left_behind_is_dropped` | apps/ely-table/src/tests、theme.sh |
-| TABLE-12 | CSV/TSV | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-13 | 导出 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-14 | 打印 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-15 | 保护 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-16 | 大数据浏览 | C09.1（~）、C09.5（~）、决策 C09.5 | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
+| TABLE-01 | 工作簿 | C09.1（~）、决策 C09.1 | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook` | apps/ely-table/src/tests、theme.sh |
+| TABLE-02 | 区域编辑 | C09.1（~） | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook` | apps/ely-table/src/tests、theme.sh |
+| TABLE-03 | 公式输入 | C09.2、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
+| TABLE-04 | 公式计算 | C09.2、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
+| TABLE-05 | 计算控制 | C09.2、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
+| TABLE-06 | 名称与引用 | C09.2、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
+| TABLE-07 | 格式 | C09.3、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker`、`queued_input_reaches_the_save_and_the_close_prompt`、`typing_that_lands_during_a_closing_save_is_never_lost` | apps/ely-table/src/tests、theme.sh |
+| TABLE-08 | 数据整理 | C09.3、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker`、`queued_input_reaches_the_save_and_the_close_prompt`、`typing_that_lands_during_a_closing_save_is_never_lost` | apps/ely-table/src/tests、theme.sh |
+| TABLE-09 | 规则 | C09.3、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker`、`queued_input_reaches_the_save_and_the_close_prompt`、`typing_that_lands_during_a_closing_save_is_never_lost` | apps/ely-table/src/tests、theme.sh |
+| TABLE-10 | 汇总分析 | C09.4、决策 C09.4 | `undoing_a_new_kind_brings_the_whole_chart_back`、`enter_and_tab_move_the_cell_cursor`、`a_read_layout_applies_back_unchanged`、`a_dialog_asked_from_a_workbook_left_behind_is_dropped` | apps/ely-table/src/tests、theme.sh |
+| TABLE-11 | 图表 | C09.4、决策 C09.4 | `undoing_a_new_kind_brings_the_whole_chart_back`、`enter_and_tab_move_the_cell_cursor`、`a_read_layout_applies_back_unchanged`、`a_dialog_asked_from_a_workbook_left_behind_is_dropped` | apps/ely-table/src/tests、theme.sh |
+| TABLE-12 | CSV/TSV | C09.5（~）、决策 C09.5 | `a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
+| TABLE-13 | 导出 | C09.5（~）、决策 C09.5 | `a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
+| TABLE-14 | 打印 | C09.5（~）、决策 C09.5 | `a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
+| TABLE-15 | 保护 | C09.5（~）、决策 C09.5 | `a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
+| TABLE-16 | 大数据浏览 | C09.1（~）、C09.5（~）、决策 C09.5 | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook`、`a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
 | TABLE-17 | R 宏（实验性） | 无 | — | apps/ely-table/src/tests、theme.sh |
-| SHOW-01 | 幻灯片管理 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
-| SHOW-02 | 模板与母版 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
-| SHOW-03 | 文字 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |
-| SHOW-04 | 图形 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |
-| SHOW-05 | 图片 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |
-| SHOW-06 | 对象操作 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |
+| SHOW-01 | 幻灯片管理 | C10.1、决策 C10.1 | `an_edit_right_after_undo_still_repaints`、`undoing_a_master_edit_repaints_its_slides`、`past_the_undo_cap_an_edit_repaints_its_slide_alone` | apps/ely-show/src/tests |
+| SHOW-02 | 模板与母版 | C10.1、决策 C10.1 | `an_edit_right_after_undo_still_repaints`、`undoing_a_master_edit_repaints_its_slides`、`past_the_undo_cap_an_edit_repaints_its_slide_alone` | apps/ely-show/src/tests |
+| SHOW-03 | 文字 | C10.2、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
+| SHOW-04 | 图形 | C10.2、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
+| SHOW-05 | 图片 | C10.2、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
+| SHOW-06 | 对象操作 | C10.2、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
 | SHOW-07 | 表格与图表 | C10.3（~）、决策 C10.3 | `a_retitled_scatter_keeps_its_lines`、`a_scatter_with_words_for_x_keeps_its_draft_and_names_the_cell`、`a_comment_picked_on_another_slide_shows_its_slide_again` | apps/ely-show/src/tests |
 | SHOW-08 | 备注与审阅 | C10.3（~）、决策 C10.3 | `a_retitled_scatter_keeps_its_lines`、`a_scatter_with_words_for_x_keeps_its_draft_and_names_the_cell`、`a_comment_picked_on_another_slide_shows_its_slide_again` | apps/ely-show/src/tests |
 | SHOW-09 | 动画与切换 | C10.4（~）、决策 C10.4 | `media-targets.sh`、`typing_ends_a_preview_before_any_undo_step`、`two_fields_sent_before_a_read_both_land`、`an_undone_duration_is_not_sent_again`、`two_effects_take_the_same_value_before_a_read` | apps/ely-show/src/tests |
@@ -85,20 +85,20 @@
 | SHOW-12 | 多屏 | C10.5（~）、决策 C10.5 | — | apps/ely-show/src/tests |
 | SHOW-13 | 输出 | C10.6（~）、决策 C10.6 | — | apps/ely-show/src/tests |
 | SHOW-14 | 演示准备 | C10.6（~）、决策 C10.6 | — | apps/ely-show/src/tests |
-| PDF-01 | 阅读 | C11.1（~）、决策 C11.1 | `pdf-idle.sh` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-02 | 页面组织 | C11.2（~）、决策 C11.2 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-03 | 文字编辑 | C11.3（~）、决策 C11.3 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-04 | 图像与对象 | C11.3（~）、决策 C11.3 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-05 | 批注 | C11.4（~）、决策 C11.4 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-06 | 表单 | C11.4（~）、决策 C11.4 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-01 | 阅读 | C11.1、决策 C11.1 | `a_typed_password_opens_the_file`、`escape_gives_up_each_queued_file_in_turn`、`a_jump_to_a_thin_page_across_makes_it_current`、`pages_that_never_reach_the_left_still_turn_current`、`a_view_edge_on_a_tile_edge_takes_no_tile_beyond`、`a_jump_to_a_page_barely_in_view_brings_it_across`、`a_locked_file_asks_refuses_a_wrong_password_then_opens`、`pdf-idle.sh` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-02 | 页面组织 | C11.2、决策 C11.2 | `an_escaped_font_name_and_the_form_alignment_come_along`、`a_form_without_defaults_brings_its_own_not_the_targets`、`a_font_name_with_a_high_byte_is_renamed_byte_for_byte` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-03 | 文字编辑 | C11.3（~）、决策 C11.3 | `a_second_delete_before_the_first_lands_does_nothing`、`a_drag_while_an_edit_is_queued_does_nothing` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-04 | 图像与对象 | C11.3（~）、决策 C11.3 | `a_second_delete_before_the_first_lands_does_nothing`、`a_drag_while_an_edit_is_queued_does_nothing` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-05 | 批注 | C11.4（~）、决策 C11.4 | `a_default_name_avoids_a_field_with_no_widget`、`every_field_name_is_listed_widget_or_not` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-06 | 表单 | C11.4（~）、决策 C11.4 | `a_default_name_avoids_a_field_with_no_widget`、`every_field_name_is_listed_widget_or_not` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-07 | 文档结构 | C11.5、决策 C11.5 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-08 | OCR | C11.5、决策 C11.5 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-09 | 内容删除 | C11.6（~）、决策 C11.6 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-10 | 文档清理 | C11.6（~）、决策 C11.6 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-11 | 密码 | C11.7（~）、决策 C11.7 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-12 | 签名 | C11.7（~）、决策 C11.7 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-13 | 输出 | C11.8（~）、决策 C11.8 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-14 | 文件恢复 | C11.8（~）、决策 C11.8 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-09 | 内容删除 | C11.6（~）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-10 | 文档清理 | C11.6（~）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-11 | 密码 | C11.7（~）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-12 | 签名 | C11.7（~）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-13 | 输出 | C11.8（~）、决策 C11.8 | `a_picture_that_breaks_as_it_draws_stops_an_overwrite`、`a_picture_never_drawn_is_checked_before_an_overwrite`、`picked_pages_from_before_an_edit_export_nothing` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-14 | 文件恢复 | C11.8（~）、决策 C11.8 | `a_picture_that_breaks_as_it_draws_stops_an_overwrite`、`a_picture_never_drawn_is_checked_before_an_overwrite`、`picked_pages_from_before_an_edit_export_nothing` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | MAIL-01 | 账号 | C12.1、C12.5、C12.7 | `a_failed_removal_puts_the_secret_back`、`two_saves_in_flight_add_an_address_once`、`a_uidl_listed_twice_comes_down_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-02 | 授权 | C12.4、C12.5 | `a_failed_removal_puts_the_secret_back`、`two_saves_in_flight_add_an_address_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-03 | 邮箱视图 | C12.9 | `remove_needs_an_open_account`、`picking_every_one_of_many_messages_is_quick`、`the_side_scrolls_past_many_folders_to_the_next_account`、`a_rebuilt_mailbox_drops_the_pick`、`an_upgrade_leaving_a_row_without_its_parent_fails` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
@@ -164,11 +164,11 @@
 | QA-08 | 并发保存 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-09 | 崩溃恢复 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-10 | Doc | C08.6、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-11 | Table | C09.5（~）、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-11 | Table | C09.5（~）、C22.2（ ） | `a_1904_workbook_keeps_its_dates_through_saves` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-12 | Show | C10.6（~）、C22.2（ ）、决策 C10.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-13 | PDF 编辑 | C11.8（~）、C22.2（ ）、决策 C11.8 | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-14 | PDF 删除 | C11.6（~）、C22.2（ ）、决策 C11.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-15 | PDF OCR 与签名 | C11.7（~）、C22.2（ ）、决策 C11.7 | — | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-13 | PDF 编辑 | C11.8（~）、C22.2（ ）、决策 C11.8 | `a_picture_that_breaks_as_it_draws_stops_an_overwrite`、`a_picture_never_drawn_is_checked_before_an_overwrite`、`picked_pages_from_before_an_edit_export_nothing` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-14 | PDF 删除 | C11.6（~）、C22.2（ ）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-15 | PDF OCR 与签名 | C11.7（~）、C22.2（ ）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-16 | Mail 离线 | C12.23、C22.2（ ） | `release-macos.sh`、`offline_mail_reads_searches_keeps_drafts_and_queues`、`a_refused_recipient_fails_and_is_never_sent_again`、`an_accepted_message_with_no_quit_answer_waits_only_for_its_copy`、`a_new_uidvalidity_rebuilds_and_a_refused_login_keeps_local_mail` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-17 | Mail 发送 | C12.14、C12.23、C22.2（ ）、决策 C12.14 | `a_quit_from_the_tray_opens_the_window_to_ask`、`release-macos.sh`、`offline_mail_reads_searches_keeps_drafts_and_queues`、`a_refused_recipient_fails_and_is_never_sent_again`、`an_accepted_message_with_no_quit_answer_waits_only_for_its_copy`、`a_new_uidvalidity_rebuilds_and_a_refused_login_keeps_local_mail` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-18 | Mail 同步 | C12.6、C12.23、C22.2（ ）、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`a_sign_in_while_paused_clears_the_refusal`、`a_sign_in_during_a_sync_starts_over_on_the_new_token`、`release-macos.sh`、`offline_mail_reads_searches_keeps_drafts_and_queues`、`a_refused_recipient_fails_and_is_never_sent_again`、`an_accepted_message_with_no_quit_answer_waits_only_for_its_copy`、`a_new_uidvalidity_rebuilds_and_a_refused_login_keeps_local_mail` | 无库内证据：C22.2 的记录已移除，须重做 |

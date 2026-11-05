@@ -77,3 +77,8 @@ impl Extra {
         }
     }
 }
+
+/// Undid or redid; a capped list only drops its oldest.
+pub fn undid((undo, redo): &(Vec<Step>, Vec<Step>), now: &(Vec<Step>, Vec<Step>)) -> bool {
+    undo.first().is_some_and(|newest| !now.0.contains(newest)) || now.0.iter().any(|step| redo.contains(step))
+}

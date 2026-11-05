@@ -299,10 +299,7 @@ impl Deck {
                         let global =
                             |design: &Design| (design.theme.clone(), design.masters.clone());
                         // Undo and redo may reach any slide.
-                        let undone = tab.extra.history.as_ref().is_some_and(|(undo, redo)| {
-                            undo.iter().any(|step| !history.0.contains(step))
-                                || history.0.iter().any(|step| redo.contains(step))
-                        });
+                        let undone = tab.extra.history.as_ref().is_some_and(|before| crate::extra::undid(before, &history));
                         if undone {
                             log::info!("show: tab {id} undid or redid; repainting all");
                         }

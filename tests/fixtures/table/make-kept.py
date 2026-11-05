@@ -147,6 +147,15 @@ SHARED = (
     """</sst>"""
 )
 
+# Excel for Mac's 1904 dates: serial 43890 is 2024-03-01.
+DATES = (
+    """<row r="1">"""
+    """<c r="A1"><v>43890</v></c>"""
+    """<c r="B1" t="str"><f>TEXT(A1,"yyyy-mm-dd")</f><v>2024-03-01</v></c>"""
+    """<c r="C1"><f>DATE(2024,3,1)</f><v>43890</v></c>"""
+    """</row>"""
+)
+
 # ODS as Ely writes it, the string value moved before the formula.
 ODS = (
     """<?xml version="1.0" encoding="UTF-8"?>\n"""
@@ -195,7 +204,7 @@ META_REL = """<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/of
 SHARED_REL = """<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>"""
 
 
-def files(rows, names="", shared=None, meta=None):
+def files(rows, names="", shared=None, meta=None, book=""):
     parts = {
         "[Content_Types].xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>""" + (SHARED_TYPE if shared else "") + (META_TYPE if meta is not None else "") + """</Types>""",
@@ -204,7 +213,7 @@ def files(rows, names="", shared=None, meta=None):
         "docProps/app.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Microsoft Excel</Application><AppVersion>16.0300</AppVersion></Properties>""",
         "xl/workbook.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>""" + names + """<calcPr calcId="191029"/></workbook>""",
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""" + book + """<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>""" + names + """<calcPr calcId="191029"/></workbook>""",
         "xl/_rels/workbook.xml.rels": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>""" + (SHARED_REL if shared else "") + (META_REL if meta is not None else "") + """</Relationships>""",
         "xl/worksheets/sheet1.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -232,7 +241,8 @@ for name, parts in [("kept.xlsx", files(KEPT)), ("kept-more.xlsx", files(MORE)),
                     ("spill.xlsx", files(SPILL, meta=METADATA)),
                     ("spill-broken.xlsx", files(SPILL, meta="<metadata")),
                     ("spill-empty.xlsx", files(SPILL, meta="")),
-                    ("booleans.xlsx", files(BOOLEANS))]:
+                    ("booleans.xlsx", files(BOOLEANS)),
+                    ("date1904.xlsx", files(DATES, book='<workbookPr date1904="1"/>'))]:
     with zipfile.ZipFile(os.path.join(sys.argv[1], name), "w", zipfile.ZIP_DEFLATED) as out:
         for part, text in parts.items():
             info = zipfile.ZipInfo(part, (2026, 10, 28, 0, 0, 0))

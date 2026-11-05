@@ -1,9 +1,7 @@
 //! CSV and TSV files: read before opening (TABLE-12, §9.3).
 
 use std::{
-    iter::Peekable,
     path::{Path, PathBuf},
-    str::Chars,
     sync::Arc,
 };
 
@@ -15,6 +13,7 @@ use gpui::{AppContext as _, Context, TaskExt as _, Window};
 use crate::book::Book;
 use crate::dialog::Dialog;
 
+mod calc;
 mod dialogs;
 pub use dialogs::import_dialog;
 
@@ -83,9 +82,14 @@ fn scan(bytes: &[u8], how: &Import) -> Scan {
             broken: true,
         };
     };
+    // Calc reads UTF-16 lines without their NULs.
+    let text = match how.encoding {
+        Encoding::Utf16 => text.replace('\0', ""),
+        _ => text,
+    };
     let mut columns = Vec::new();
     let mut rows = Vec::new();
-    for row in split(&text, how) {
+    for row in calc::rows(&text, how) {
         if columns.len() < row.len() {
             columns.resize(row.len(), Column::Standard);
         }
@@ -164,55 +168,6 @@ fn decode(bytes: &[u8], encoding: Encoding) -> Option<String> {
     codec
         .decode_without_bom_handling_and_without_replacement(body)
         .map(|text| text.into_owned())
-}
-
-/// Calc's text-import rows (impex.cxx), one at a time.
-fn split<'a>(text: &'a str, how: &'a Import) -> impl Iterator<Item = Vec<String>> + 'a {
-    let mut chars = text.chars().peekable();
-    std::iter::from_fn(move || {
-        chars.peek()?;
-        let mut row = Vec::new();
-        loop {
-            let (value, more) = field(&mut chars, how);
-            row.push(value);
-            if !more {
-                return Some(row);
-            }
-        }
-    })
-}
-
-/// One field, and whether the record goes on.
-fn field(chars: &mut Peekable<Chars>, how: &Import) -> (String, bool) {
-    let mut value = String::new();
-    if let Some(quote) = how.quote {
-        // Calc skips blanks before a quote unless blank splits.
-        let mut ahead = chars.clone();
-        while how.separator != ' ' && ahead.next_if_eq(&' ').is_some() {}
-        if ahead.peek() == Some(&quote) {
-            *chars = ahead;
-            chars.next();
-            while let Some(c) = chars.next() {
-                match c {
-                    c if c == quote && chars.next_if_eq(&quote).is_some() => value.push(quote),
-                    c if c == quote => break,
-                    c => value.push(c),
-                }
-            }
-        }
-    }
-    while let Some(c) = chars.next() {
-        match c {
-            '\n' => return (value, false),
-            '\r' => {
-                chars.next_if_eq(&'\n');
-                return (value, false);
-            }
-            c if c == how.separator => return (value, true),
-            c => value.push(c),
-        }
-    }
-    (value, false)
 }
 
 /// A plus sign, leading zeros, or over 15 digits.
@@ -417,7 +372,21 @@ mod tests {
         let calc = scan(b"Id,Note\n \"00123\",x\n\n\"a \"\"b\"\"\"c,\"two\nlines\"\r\n", &how);
         assert_eq!(calc.rows[1], ["00123", "x"], "blanks before a quote go");
         assert_eq!(calc.rows[2], [""], "an empty line is a row");
-        assert_eq!(calc.rows[3], ["a \"b\"c", "two\nlines"]);
+        // A quote before text closes nothing; it reads as typed.
+        assert_eq!(calc.rows[3], ["\"a \"\"b\"\"\"c", "\"two"]);
+        assert_eq!(calc.rows[4], ["lines\""], "an unclosed field spans no line");
+        let inch = scan(b"\"Screen 27\" wide, matte\",00123\n\"x\ny\",z\na,\n", &how);
+        assert_eq!(inch.rows[0], ["Screen 27\" wide, matte", "00123"]);
+        assert_eq!(inch.rows[1], ["x\ny", "z"], "a closed field spans lines");
+        assert_eq!(inch.rows[2], ["a"], "a trailing separator adds no cell");
+        let nul = scan(b"Id,Code\n1,00\x00123\n\"ab\"\x00,x\n", &how);
+        assert_eq!(nul.rows[1], ["1", "00123"], "a NUL goes before the split");
+        assert_eq!(nul.rows[2], ["ab", "x"], "a quote before a NUL closes");
+        assert_eq!(nul.columns[1], Column::Text, "the code keeps its zeros");
+        let wide: Vec<u8> = [0xFF, 0xFE].into_iter().chain("\"ab\"\0x,\"c\nd\",e\nf,g\n".encode_utf16().flat_map(u16::to_le_bytes)).collect();
+        let utf16 = Import { encoding: Encoding::Utf16, ..how.clone() };
+        let read = scan(&wide, &utf16);
+        assert_eq!(read.rows, [vec!["\"ab\"x", "\"c"], vec!["d\"", "e"], vec!["f", "g"]], "UTF-16 lines lose NULs first");
         assert_eq!(calc.columns, [Column::Text, Column::Standard]);
         how.quote = None;
         assert_eq!(scan(b"\"Doe, J\"\n", &how).rows[0], ["\"Doe", " J\""]);

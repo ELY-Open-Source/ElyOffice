@@ -7,7 +7,7 @@ use super::*;
 use crate::sheet::{KEPT, cell_at, cell_at_query, kept};
 
 /// Shown text and input of each cell on Sheet1.
-fn cells(worker: &mut Worker, doc: &Doc, wanted: &[(&str, &str, &str)]) {
+pub(super) fn cells(worker: &mut Worker, doc: &Doc, wanted: &[(&str, &str, &str)]) {
     cells_on(worker, doc, "Sheet1", wanted);
 }
 
@@ -82,7 +82,7 @@ fn unknown_functions_keep_the_files_results_until_an_input_changes() {
 }
 
 
-fn open_fixture(worker: &mut Worker, name: &str) -> Doc {
+pub(super) fn open_fixture(worker: &mut Worker, name: &str) -> Doc {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/table").join(name);
     worker.load(&crate::file_url(&source)).expect("loads")
 }

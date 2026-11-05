@@ -18,18 +18,65 @@ fn typing_during_a_closing_save_is_never_lost() {
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.write_as(id, path.clone(), Some(After::Tab), window, cx)
     });
+    // The file is on disk; its landing has not run.
+    let exporting = |app: &gpui::App| docs.read(app).tab(id).is_some_and(|tab| tab.exporting);
+    while !path.exists() {
+        assert!(cx.update(|app| exporting(app)), "the save ended before its file was seen");
+        assert!(cx.executor().tick(), "the save stalled");
+    }
+    assert!(cx.update(|app| exporting(app)), "the landing waits");
     commit(&mut cx, &docs, "AfterExport");
-    settle(&cx, |app| {
+    asks_again(&mut cx, &docs, id, &path);
+}
+
+#[test]
+fn typing_that_lands_during_a_closing_save_is_never_lost() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let dispatcher = gpui::TestDispatcher::new(0);
+    let mut cx = TestAppContext::build(dispatcher.clone(), None);
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "BeforeExport ");
+    let (copy, view) = cx.update(|app| {
+        let tab = docs.read(app).tab(id).expect("the tab");
+        (tab.work.join("save.odt"), tab.view.clone())
+    });
+    assert!(!copy.exists(), "no export yet");
+    let start = cx.update(|app| view.read(app).edited());
+    let path = dir.path().join("closing.odt");
+    with_window(&mut cx, &docs, |docs, window, cx| {
+        docs.write_as(id, path.clone(), Some(After::Tab), window, cx)
+    });
+    // The kernel's copy is read; nothing has landed.
+    while !copy.exists() {
+        assert!(cx.executor().tick(), "the export stalled");
+    }
+    commit(&mut cx, &docs, "AfterExport");
+    // The key reaches the kernel; windows wait.
+    while dispatcher.tick(true) {}
+    let exporting = |app: &gpui::App| docs.read(app).tab(id).is_some_and(|tab| tab.exporting);
+    while cx.update(|app| exporting(app)) {
+        assert!(cx.executor().tick(), "the save stalled");
+    }
+    let (pending, edited) = cx.update(|app| (view.read(app).edit_pending(), view.read(app).edited()));
+    assert!(!pending && edited > start, "the key landed before the save: {pending}, {start} to {edited}");
+    asks_again(&mut cx, &docs, id, &path);
+}
+
+/// The closing save kept the later typing and asked again.
+fn asks_again(cx: &mut TestAppContext, docs: &Entity<Docs>, id: u64, path: &std::path::Path) {
+    settle(cx, |app| {
         let docs = docs.read(app);
         docs.tab(id).is_none() || matches!(docs.core.dialog, Some(Dialog::Unsaved { .. }))
     });
-    let closed = cx.update(|app| docs.read(app).tab(id).is_none());
-    let text = text_of(&mut cx, &docs, &path);
+    let open = cx.update(|app| docs.read(app).tab(id).is_some());
+    assert!(open, "a close after later typing asks again");
+    let text = text_of(cx, docs, path);
     assert!(text.contains("BeforeExport"), "the export saved");
-    assert!(
-        !closed || text.contains("AfterExport"),
-        "a closed tab lost later typing"
-    );
+    assert!(!text.contains("AfterExport"), "later typing came after the export");
 }
 
 #[test]
