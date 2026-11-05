@@ -14,7 +14,9 @@ trap stop EXIT
 stop
 rm -rf "$work"
 mkdir -p "$work/data"
-(cd "$root" && cargo build -q -p ely-doc -p ely-lok -p ely-pdf -p ely-pdf-worker --bins)
+# Alone: with the apps it gets gpui's DPI manifest.
+(cd "$root" && cargo build -q -p ely-lok --bins)
+(cd "$root" && cargo build -q -p ely-doc -p ely-pdf -p ely-pdf-worker --bins)
 
 . "$root/tests/scripts/a11y-samples.sh"
 a11y_text_samples "$work"
@@ -40,10 +42,13 @@ $T = [System.Windows.Automation.TextPattern]
 $env:ELY_DATA_ROOT = $Data
 $env:ELY_NO_DIALOG = '1'
 $app = Start-Process -FilePath $Exe -ArgumentList "`"$File`"" -PassThru
+# A held handle keeps the exit code.
+$null = $app.Handle
 $owner = New-Object System.Windows.Automation.PropertyCondition($A::ProcessIdProperty, $app.Id)
 $texts = New-Object System.Windows.Automation.PropertyCondition($A::IsTextPatternAvailableProperty, $true)
 function Find-Text {
     foreach ($i in 1..120) {
+        if ($app.HasExited) { throw "the app exited with code $($app.ExitCode)" }
         $window = $A::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $owner)
         if ($window) {
             $found = $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $texts)
@@ -101,14 +106,17 @@ try {
     }
 } finally {
     [System.IO.File]::WriteAllLines($Out, $log)
-    Stop-Process -Id $app.Id -Force
+    if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
 }
 EOF
 
 w() { cygpath -w "$1"; }
 read_app() { # kind exe file
   powershell -NoProfile -ExecutionPolicy Bypass -File "$(w "$work/read.ps1")" -Kind "$1" -Exe "$(w "$root/target/debug/$2.exe")" \
-    -File "$(w "$work/$3")" -Data "$(w "$work/data")" -Out "$(w "$work/$1.log")"
+    -File "$(w "$work/$3")" -Data "$(w "$work/data")" -Out "$(w "$work/$1.log")" && return
+  echo "FAIL: $2 did not show $3 to UI Automation; its errors:" >&2
+  grep ERROR "$work/data/$2/ely.log" >&2 || true
+  exit 1
 }
 read_app doc ely-doc probe.fodt
 read_app pdf ely-pdf probe.pdf

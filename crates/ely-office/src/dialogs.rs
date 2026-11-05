@@ -47,7 +47,9 @@ pub trait Dialogs: Host {
         if self.core().dialog.is_some() {
             return self.core_mut().locked.push_back((path, wrong, copy));
         }
-        let field = cx.new(|cx| TextInput::new(window, cx).masked());
+        // PromptDialog's label never names its field.
+        let label = text(cx, if wrong { "office.locked.wrong" } else { "office.locked.label" }, &[]);
+        let field = cx.new(|cx| TextInput::new(window, cx).masked().label(label));
         self.core_mut().dialog = Some(Dialog::Password { path, wrong, copy, field });
         cx.notify();
     }

@@ -42,6 +42,35 @@ fn a_typed_password_opens_the_file() {
     assert_eq!(cx.update(|_, app| asking(app, &viewer)), Some(paths[1].clone()), "the next asks");
 }
 
+/// The asked field's name, as assistive technology reads it.
+fn field_name(app: &gpui::App, viewer: &Entity<Viewer>) -> String {
+    match &viewer.read(app).core.dialog {
+        Some(Dialog::Password { field, .. }) => field.read(app).label_text().to_string(),
+        _ => panic!("no password asked"),
+    }
+}
+
+#[test]
+fn the_password_field_is_named_by_its_label() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[], true);
+    let path = file(dir.path(), "a.pdf", &[(612.0, 792.0, &["a"])]);
+    let ask = |wrong, cx: &mut VisualTestContext| {
+        cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.ask_password(path.clone(), wrong, false, window, cx)));
+        frames(cx);
+        let (name, want) = cx.update(|_, app| {
+            let key = if wrong { "office.locked.wrong" } else { "office.locked.label" };
+            (field_name(app, &viewer), ely_office::text(app, key, &[]).to_string())
+        });
+        assert_eq!(name, want, "a field named by its label (C20.3)");
+        cx.simulate_keystrokes("escape");
+        settle(cx, |app| viewer.read(app).core.dialog.is_none());
+    };
+    ask(false, cx);
+    ask(true, cx);
+}
+
 #[test]
 fn escape_gives_up_each_queued_file_in_turn() {
     let dir = tempfile::tempdir().expect("a temp dir");
