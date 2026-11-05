@@ -31,7 +31,7 @@
 | 法语界面 | 系统的 fr-*（`fr_CA.UTF-8`、`fr-BE`）归到 fr-FR，设置可选 Français；八个应用的目录全译，缺键即失败（`french_tests.rs`）；内核固定文字照 LibreOffice 的 fr 译文（`builtin.rs`、`fr/calc.rs`） | 拼写词典只随英文 |
 | 德语界面 | 系统的 de-*（`de_AT.UTF-8`、`de-CH`）归到 de-DE，设置可选 Deutsch；八个应用的目录全译，缺键即失败（`german_tests.rs`）；内核固定文字照 LibreOffice 的 de 译文（`builtin.rs`、`de/calc.rs`） | 拼写词典只随英文 |
 | 中英文输入、组合输入、标点 | LOK 视图与 ElyMark 的编辑器都经输入法回调处理组字（`lokview.sh` 组“你好”；组件库的文档测试）；往返用例含中文（`independent.rs`） | 系统拼音输入法实机只做过人工检查，测试以输入法回调模拟 |
-| 混合字体 | 内核按字体回退排版；缺失字体在 ElyDoc 页面上方列出 | 字体缺失环境的分页对照未做（见 `docs/compatibility.md`） |
+| 混合字体 | 内核按字体回退排版；缺失字体在 ElyDoc 页面上方列出；有、无字体两种环境的分页对照见 `docs/compatibility.md`（C19.1） | 提示不说换成哪种字体：LOK 只报缺失的名字 |
 | 非 ASCII 路径 | `paths_keep_spaces_cjk_and_case`（保存）；启动参数按当前目录取绝对路径（C20.1 修） | — |
 | 日期、数字、纸张用显式区域 | 内核载入选项固定 `Language=en-US`（`ely-lok/src/worker.rs` 的 `LOAD_OPTIONS`），公式为 Excel A1 语法；纸张取自文档本身并原样打印（C19.2） | — |
 | 改界面语言不重解释已存数值 | 同上：内核的数字区域不随界面语言，界面语言只改 Ely 的文案与选区统计的名称 | — |
