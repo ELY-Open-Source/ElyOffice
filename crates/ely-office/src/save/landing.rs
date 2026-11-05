@@ -27,6 +27,8 @@ struct Landing {
     /// The session's content when the export began.
     stamp: Stamp,
     history: Option<String>,
+    /// What a Save As's copy lost.
+    lost: Option<Risk>,
 }
 
 /// Exports `format` in the background, then writes it there too.
@@ -51,18 +53,22 @@ pub(super) fn export<H: Saving>(
     host.read_in(
         id,
         move |worker, doc| {
-            if sound && let Some(risk) = H::Engine::unsound(worker, doc)? {
-                return Ok(Err(risk));
-            }
+            let lost = match sound {
+                true => match H::Engine::unsound(worker, doc, format)? {
+                    Some(risk) => return Ok(Err(risk)),
+                    None => None,
+                },
+                false => H::Engine::lost(worker, doc, format)?,
+            };
             let bytes = files::kernel_bytes::<H::Engine>(worker, doc, &work, format, closing)?;
-            Ok(Ok((bytes, H::Engine::history(worker, doc)?)))
+            Ok(Ok((bytes, H::Engine::history(worker, doc)?, lost)))
         },
         move |host, read, window, cx| {
-            let landing = Landing { then, edited, stamp, history: None };
+            let landing = Landing { then, edited, stamp, history: None, lost: None };
             match read {
                 _ if host.tab(id).is_none() => ended(host, id, Err(closed(id)), landing, window, cx),
-                Ok(Ok((bytes, history))) => {
-                    let landing = Landing { history: Some(history), ..landing };
+                Ok(Ok((bytes, history, lost))) => {
+                    let landing = Landing { history: Some(history), lost, ..landing };
                     write(host, id, bytes, target, landing, window, cx);
                 }
                 Ok(Err(risk)) => risky(host, id, risk, then, window, cx),
@@ -148,6 +154,11 @@ fn landed<H: Saving>(
             }
             if let Some(tab) = host.tab_mut(id) {
                 tab.reopen = reopen;
+                // The copy is what it lost; the banner says so.
+                if let Some(lost) = landing.lost {
+                    log::warn!("office: tab {id}'s Save As copy is {lost:?}");
+                    tab.risk = tab.risk.or(Some(lost));
+                }
             }
         }
         // Moved or deleted outside: ask where instead.

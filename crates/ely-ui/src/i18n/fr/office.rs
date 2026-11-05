@@ -59,6 +59,8 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("office.links.update", "Mettre à jour les liens"),
     ("office.state.unlinked", "Liens non conservés"),
     ("office.unlinked", "{name} lie des objets qu’Ely ne peut conserver que sous forme d’images. Enregistrer sous écrit une copie {formats} avec des images à leur place ; l’original conserve ses liens."),
+    ("office.state.unkept", "Section liée non conservée"),
+    ("office.unkept", "{name} a une section liée au bord d’une cellule de tableau, qu’un fichier Word ne peut conserver que sous forme de texte. Enregistrer sous écrit une copie {formats} ; l’original conserve son lien."),
     ("office.links.unwatched", "Ely ne peut pas surveiller les fichiers liés à {name} et ne signalera donc pas leurs changements : {why}"),
     ("office.repaired", "{name} est endommagé. Ely a ouvert une copie réparée ; Enregistrer sous l’écrit dans un nouveau fichier et l’original endommagé reste tel quel."),
     ("office.signed", "{name} est signé. Une modification rompt ses signatures : Enregistrer sous écrit donc une copie non signée ; le fichier signé reste tel quel."),

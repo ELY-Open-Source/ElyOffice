@@ -125,7 +125,7 @@ impl Engine for Pdf {
         }
     }
 
-    fn unsound(worker: &mut Mupdf, doc: &Doc) -> io::Result<Option<ely_office::Risk>> {
+    fn unsound(worker: &mut Mupdf, doc: &Doc, _format: &str) -> io::Result<Option<ely_office::Risk>> {
         Ok(worker.get()?.check_pictures(*doc)?.then_some(ely_office::Risk::Repaired))
     }
 

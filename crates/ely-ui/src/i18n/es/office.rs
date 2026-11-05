@@ -128,6 +128,8 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("office.links.update", "Actualizar vínculos"),
     ("office.state.unlinked", "Vínculos no conservados"),
     ("office.unlinked", "{name} vincula objetos que Ely solo puede conservar como imágenes. Guardar como crea una copia {formats} con imágenes en su lugar; el original conserva sus vínculos."),
+    ("office.state.unkept", "Sección vinculada no conservada"),
+    ("office.unkept", "{name} tiene una sección vinculada en el borde de una celda de tabla, que un archivo de Word solo puede conservar como texto. Guardar como crea una copia {formats}; el original conserva su vínculo."),
     ("office.links.unwatched", "Ely no puede vigilar los archivos vinculados a {name}, así que no avisará cuando cambien: {why}"),
     (
         "office.repaired",

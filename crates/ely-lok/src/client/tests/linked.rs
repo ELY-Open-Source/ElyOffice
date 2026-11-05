@@ -243,7 +243,7 @@ fn a_refresh_interval_keeps_an_unread_source_unread() {
 }
 
 /// A document whose section links `include`, holding `cached`.
-fn linking(path: &Path, include: &Path, cached: &str) {
+pub(super) fn linking(path: &Path, include: &Path, cached: &str) {
     let href = crate::file_url(include);
     let xml = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -272,7 +272,7 @@ fn included(path: &Path, said: &str) {
     std::fs::write(path, xml).expect("writes the source");
 }
 
-fn text(dir: &tempfile::TempDir, worker: &mut Worker, doc: &Doc) -> Vec<String> {
+pub(super) fn text(dir: &tempfile::TempDir, worker: &mut Worker, doc: &Doc) -> Vec<String> {
     paragraphs(&saved(dir, worker, doc, "read.fodt"))
 }
 
@@ -406,39 +406,6 @@ fn a_linked_section_edged_by_tables_saves_as_includetext() {
     let again = worker.load(&crate::file_url(&source)).expect("reloads");
     let named = links::sources(&worker.values(&again, links::LIST).expect("reads")).expect("parses");
     assert_eq!(named, [crate::file_url(&include)], "the link survives both saves");
-}
-
-#[test]
-fn a_linked_section_in_a_cell_edged_by_a_table_saves_its_text() {
-    if skip() {
-        return;
-    }
-    let dir = tempfile::tempdir().expect("a temp dir");
-    let install = install().expect("the pinned LOK build");
-    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
-    let (main, out) = (dir.path().join("main.fodt"), dir.path().join("out.docx"));
-    let href = crate::file_url(&dir.path().join("include.docx"));
-    let cell = |inner: &str| format!("<table:table><table:table-column/><table:table-row><table:table-cell>{inner}</table:table-cell></table:table-row></table:table>");
-    let section = format!(r#"<text:section text:name="S"><text:section-source xlink:href="{href}" xlink:type="simple"/>{}</text:section>"#, cell("<text:p>Inner</text:p>"));
-    let xml = format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
- xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"
- xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
- office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
- <office:body><office:text><text:p>Before</text:p>{}<text:p>After</text:p></office:text></office:body>
-</office:document>"#,
-        cell(&section)
-    );
-    std::fs::write(&main, xml).expect("writes the document");
-    let doc = worker.load(&crate::file_url(&main)).expect("loads");
-    doc.save_as(&mut worker, &crate::file_url(&out), "docx").expect("saves");
-    // No paragraph there for the field: the text stays.
-    let again = worker.load(&crate::file_url(&out)).expect("reloads");
-    // A Word cell ends in a paragraph, section or not.
-    assert_eq!(text(&dir, &mut worker, &again), ["Before", "Inner", "", "After"]);
-    let named = links::sources(&worker.values(&again, links::LIST).expect("reads")).expect("parses");
-    assert!(named.is_empty(), "the link goes: {named:?}");
 }
 
 #[test]

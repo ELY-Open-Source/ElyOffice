@@ -17,6 +17,11 @@ pub fn pictured(json: &str) -> io::Result<Vec<String>> {
     crate::sheet::strings(json, "pictured")
 }
 
+/// Parses a text's `LIST`: sections DOCX saves as text (0091).
+pub fn unkept(json: &str) -> io::Result<Vec<String>> {
+    crate::sheet::strings(json, "unkept")
+}
+
 /// Parses `UPDATE`: the sources not read.
 pub fn failed(json: &str) -> io::Result<Vec<String>> {
     crate::sheet::strings(json, "failed")

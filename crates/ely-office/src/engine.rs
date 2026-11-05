@@ -43,8 +43,12 @@ pub trait Engine: Sized + 'static {
         window: &mut Window,
         cx: &mut App,
     ) -> io::Result<(Self::Doc, Entity<Self::View>, String)>;
-    /// Checked before the file is overwritten; a risk stops it.
-    fn unsound(_worker: &mut Self::Worker, _doc: &Self::Doc) -> io::Result<Option<crate::Risk>> {
+    /// Checked before an overwrite as `format`; a risk stops it.
+    fn unsound(_worker: &mut Self::Worker, _doc: &Self::Doc, _format: &str) -> io::Result<Option<crate::Risk>> {
+        Ok(None)
+    }
+    /// What a copy as `format` loses; it says so.
+    fn lost(_worker: &mut Self::Worker, _doc: &Self::Doc, _format: &str) -> io::Result<Option<crate::Risk>> {
         Ok(None)
     }
     /// What saving in place would lose, macros aside.

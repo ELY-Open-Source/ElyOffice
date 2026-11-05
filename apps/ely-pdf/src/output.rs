@@ -243,7 +243,8 @@ impl Viewer {
             ely_office::Risk::Macros
             | ely_office::Risk::Sections
             | ely_office::Risk::Sealed
-            | ely_office::Risk::Links => return Some(banner),
+            | ely_office::Risk::Links
+            | ely_office::Risk::Unkept => return Some(banner),
         };
         let label = Self::text(cx, key, &[]);
         Some(banner.action(label, move |window, cx| window.dispatch_action(action.boxed_clone(), cx)))

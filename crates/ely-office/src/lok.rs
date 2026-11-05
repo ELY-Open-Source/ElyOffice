@@ -96,6 +96,21 @@ impl Engine for Lok {
         })
     }
 
+    fn unsound(worker: &mut Worker, doc: &Doc, format: &str) -> io::Result<Option<crate::Risk>> {
+        Self::lost(worker, doc, format)
+    }
+
+    fn lost(worker: &mut Worker, doc: &Doc, format: &str) -> io::Result<Option<crate::Risk>> {
+        if format != "docx" || doc.is_sheet() || doc.is_deck() {
+            return Ok(None);
+        }
+        let unkept = ely_lok::links::unkept(&worker.values(doc, ely_lok::links::LIST)?)?;
+        Ok((!unkept.is_empty()).then(|| {
+            log::warn!("office: {} linked sections DOCX keeps only as text", unkept.len());
+            crate::Risk::Unkept
+        }))
+    }
+
     fn links(loaded: &Loaded) -> Vec<String> {
         loaded.links.clone()
     }
