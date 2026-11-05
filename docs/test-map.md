@@ -56,10 +56,10 @@
 | DOC-16 | 长文档导航 | C08.6（~） | — | apps/ely-doc/src/tests、doc-props.sh |
 | TABLE-01 | 工作簿 | C09.1（~）、决策 C09.1 | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook` | apps/ely-table/src/tests、theme.sh |
 | TABLE-02 | 区域编辑 | C09.1（~） | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook` | apps/ely-table/src/tests、theme.sh |
-| TABLE-03 | 公式输入 | C09.2（~）、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
-| TABLE-04 | 公式计算 | C09.2（~）、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
-| TABLE-05 | 计算控制 | C09.2（~）、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
-| TABLE-06 | 名称与引用 | C09.2（~）、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
+| TABLE-03 | 公式输入 | C09.2、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
+| TABLE-04 | 公式计算 | C09.2、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
+| TABLE-05 | 计算控制 | C09.2、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
+| TABLE-06 | 名称与引用 | C09.2、决策 C09.2 | `the_names_list_stays_with_its_workbook_and_scope` | apps/ely-table/src/tests、theme.sh |
 | TABLE-07 | 格式 | C09.3（~）、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker` | apps/ely-table/src/tests、theme.sh |
 | TABLE-08 | 数据整理 | C09.3（~）、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker` | apps/ely-table/src/tests、theme.sh |
 | TABLE-09 | 规则 | C09.3（~）、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker` | apps/ely-table/src/tests、theme.sh |
