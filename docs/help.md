@@ -107,7 +107,7 @@ ElyShow 开着、文件已打开时，别的程序可经命令行读改幻灯片
 
 ## 邮件（ElyMail）
 
-- 账号：Microsoft 在浏览器里登录授权；Gmail 与 iCloud 用应用专用密码（添加页的按钮打开申请页）；Gmail 的应用专用密码要先开两步验证；两步验证只用安全密钥、账号加入高级保护计划，或工作、学校的管理员关了它时，Google 不给这个账号应用专用密码，ElyMail 便连不上，Google 拒绝密码时添加页会这样提示；其他邮箱填 IMAP 或 POP3 与 SMTP。0.1.10 里用 Google 登录添加的 Gmail 账户须移除后重新添加。Outlook.com 拒绝 IMAP（“authenticated but not connected”）时，先在 outlook.live.com 打开设置 → 邮件 → 转发和 IMAP，开启“允许设备和应用使用 IMAP”（Outlook.com 默认关闭）；已开启的，在 account.live.com/activity 的“最近的活动”里找到这次登录，选“这是我”，再试；仍不行，请联系 Microsoft 支持。Microsoft 关闭了邮箱的 SMTP 登录（“SmtpClientAuthentication is disabled”）时，个人账号没有开关可开，ElyMail 无法用它发信。密码与令牌只存在系统凭据库；凭据库不可用时只留在内存，退出即忘。
+- 账号：Microsoft 在浏览器里登录授权；Gmail 与 iCloud 用应用专用密码（添加页的按钮打开申请页）；Gmail 的应用专用密码要先开两步验证；两步验证只用安全密钥、账号加入高级保护计划，或工作、学校的管理员关了它时，Google 不给这个账号应用专用密码，ElyMail 便连不上，Google 拒绝密码时添加页会这样提示；其他邮箱填 IMAP 或 POP3 与 SMTP。0.1.10 里用 Google 登录添加的 Gmail 账户须移除后重新添加。Microsoft 的登录过期或被收回时，账号页的同步失败提示带“重新登录”，在浏览器里以同一账号登录后接着同步；换了别的账号登录即不收。Outlook.com 拒绝 IMAP（“authenticated but not connected”）时，先在 outlook.live.com 打开设置 → 邮件 → 转发和 IMAP，开启“允许设备和应用使用 IMAP”（Outlook.com 默认关闭）；已开启的，在 account.live.com/activity 的“最近的活动”里找到这次登录，选“这是我”，再试；仍不行，请联系 Microsoft 支持。Microsoft 关闭了邮箱的 SMTP 登录（“SmtpClientAuthentication is disabled”）时，个人账号没有开关可开，ElyMail 无法用它发信。密码与令牌只存在系统凭据库；凭据库不可用时只留在内存，退出即忘。
 - 同步：每 10 分钟一次，也可“立即同步”。邮件头全取，正文只取近 90 天的，附件在打开或下载时才取；把文件夹设为离线保留即取整封。暂停同步不停发件箱。
 - 读信：网络图片默认不载入，跟踪像素从不载入；可载入本信的图片，或总是载入某个发件人的。
 - 邮件链接：ElyMail 可选作 `mailto:` 链接的邮件程序（macOS 的“邮件”设置、Windows 的“默认应用”、Linux 的桌面设置里选它），装上时从不抢为默认。点链接即开一封新信，收件人、抄送、密送、主题与正文照链接填好；正文为纯文本。链接坏了即提示，不开信。
