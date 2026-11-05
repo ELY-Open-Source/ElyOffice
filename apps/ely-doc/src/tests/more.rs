@@ -3,7 +3,7 @@ use gpui::TestAppContext;
 use super::*;
 
 /// The report template with an embedded Basic library.
-fn macro_fodt(cx: &mut TestAppContext) -> String {
+pub(super) fn macro_fodt(cx: &mut TestAppContext) -> String {
     cx.update(|app| Template::Report.fodt(app))
         .replace(
             "office:version=",

@@ -38,7 +38,7 @@
 | LOK-10 | 关闭文档释放内核对象、图块和临时文件；不终止其他应用的会话 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-11 | 不执行宏和自动更新外部链接；打开后明确显示这些内容的处理状态 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-12 | 维护功能到接口的映射表和三端测试，不以“LOK 本身支持”作为交付证据 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| DOC-01 | 新建与模板 | C08.1（~） | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-01 | 新建与模板 | C08.1（~） | `utf32_flat_odf_with_basic_opens_in_risk_mode` | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-02 | 文字编辑 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-03 | 段落 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-04 | 样式 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |

@@ -1,4 +1,4 @@
-//! DOC-01: text that only looks like markup.
+//! DOC-01: files the macro check reads by their bytes.
 
 use gpui::TestAppContext;
 
@@ -54,4 +54,31 @@ fn text_the_check_cannot_decode_still_opens() {
             assert!(tab.risk.is_none(), "{name} has no macros");
         });
     }
+}
+
+#[test]
+fn utf32_flat_odf_with_basic_opens_in_risk_mode() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let body = super::more::macro_fodt(&mut cx).replace("encoding=\"UTF-8\"", "encoding=\"UTF-32\"");
+    let before: Vec<u8> = [0xFF, 0xFE, 0, 0].into_iter().chain(body.chars().flat_map(|c| (c as u32).to_le_bytes())).collect();
+    let path = dir.path().join("macro32.fodt");
+    std::fs::write(&path, &before).expect("the file writes");
+    with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(path.clone(), cx));
+    settle(&cx, |app| docs.read(app).core.tabs.iter().any(|tab| tab.name.as_ref() == "macro32.fodt"));
+    let id = cx.update(|app| {
+        let tab = docs.read(app).active_tab().expect("a tab");
+        assert!(tab.risk.is_some(), "Basic in UTF-32 is still Basic");
+        tab.id
+    });
+    type_into(&mut cx, &docs, "x");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.save(id, None, window, cx));
+    settle(&cx, |_| cx.did_prompt_for_new_path());
+    cx.simulate_new_path_selection(|_| None);
+    cx.run_until_parked();
+    assert_eq!(std::fs::read(&path).expect("the original"), before, "the original stays");
 }

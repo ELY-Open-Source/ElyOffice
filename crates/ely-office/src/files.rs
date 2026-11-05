@@ -119,9 +119,9 @@ const OOO: &[u8] = b"http://openoffice.org/2004/office";
 
 /// Whether flat ODF embeds a Basic library, namespaces in scope.
 fn flat_odf_has_basic(bytes: &[u8]) -> io::Result<bool> {
-    // Undecodable text cannot be flat ODF.
-    let Ok(text) = utf8(bytes) else {
-        log::info!("office: not UTF-8 or UTF-16 text, so no flat ODF");
+    // The kernel reads UCS-4 too; undecodable bytes are no ODF.
+    let Some(text) = utf32(bytes).map(Cow::Owned).or_else(|| utf8(bytes).ok()) else {
+        log::info!("office: not UTF-8, UTF-16 or UTF-32 text, so no flat ODF");
         return Ok(false);
     };
     if !text.trim_ascii_start().starts_with(b"<") || !flat_odf_root(&text) {
@@ -146,6 +146,18 @@ fn flat_odf_root(text: &[u8]) -> bool {
             Ok(_) => buf.clear(),
         }
     }
+}
+
+/// UTF-32 text as UTF-8, when it is UTF-32 and decodes.
+fn utf32(bytes: &[u8]) -> Option<Vec<u8>> {
+    let (rest, big) = match bytes {
+        [0xFF, 0xFE, 0, 0, rest @ ..] => (rest, false),
+        [0, 0, 0xFE, 0xFF, rest @ ..] => (rest, true),
+        [0x3C, 0, 0, 0, ..] | [0, 0, 0, 0x3C, ..] => (bytes, bytes[0] == 0),
+        _ => return None,
+    };
+    let unit = |c: &[u8]| c.try_into().ok().and_then(|c: [u8; 4]| char::from_u32(if big { u32::from_be_bytes(c) } else { u32::from_le_bytes(c) }));
+    rest.chunks(4).map(unit).collect::<Option<String>>().map(String::into_bytes)
 }
 
 /// XML bytes in an ASCII-compatible form; UTF-16 decoded.
@@ -374,6 +386,10 @@ mod tests {
         ] {
             assert!(!macro_risk(&KIND, &write(name, bytes)).expect(name), "{name} is text");
         }
+        let le: Vec<u8> = [0xFF, 0xFE, 0, 0].into_iter().chain(basic.chars().flat_map(|c| (c as u32).to_le_bytes())).collect();
+        assert!(macro_risk(&KIND, &write("le32.fodt", &le)).expect("UTF-32LE"), "UTF-32 flat ODF is read");
+        let be: Vec<u8> = basic.chars().flat_map(|c| (c as u32).to_be_bytes()).collect();
+        assert!(macro_risk(&KIND, &write("be32.fodt", &be)).expect("UTF-32BE"), "no BOM, big-endian");
         std::fs::remove_dir_all(&dir).expect("cleans");
     }
 
