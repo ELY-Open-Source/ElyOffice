@@ -44,22 +44,39 @@ if [ -f "$last" ]; then
   fi
   rm -f "$last"
 fi
-# Reviewers stack in one column right of the caller.
+# Reviewers stack right of the caller; each keeps ten rows.
+room=10
 right=$(herdr pane neighbor --direction right --pane "$HERDR_PANE_ID" | field '.result.neighbor.neighbor_pane_id // empty') \
+  && lay=$(herdr pane layout --pane "$HERDR_PANE_ID" | field -c '.result.layout') \
   || { echo "review.sh: no layout for $HERDR_PANE_ID" >&2; exit 1; }
 if [ -z "$right" ]; then
-  made=$(herdr pane split --pane "$HERDR_PANE_ID" --direction right --cwd "$PWD" --no-focus)
+  made=$(herdr pane split --pane "$HERDR_PANE_ID" --direction right --cwd "$PWD" --no-focus 2>&1) || :
 else
-  made=$(herdr pane split --pane "$right" --direction down --cwd "$PWD" --no-focus)
+  tall=$(field --arg r "$right" '.panes as $p | ($p[] | select(.pane_id == $r) | .rect.x) as $x
+    | [$p[] | select(.rect.x == $x)] | max_by(.rect.height) | "\(.pane_id) \(.rect.height)"' <<<"$lay")
+  [ -n "$tall" ] || { echo "review.sh: $right not in the layout: $lay" >&2; exit 1; }
+  if [ "${tall#* }" -ge $((2 * room)) ]; then
+    made=$(herdr pane split --pane "${tall% *}" --direction down --cwd "$PWD" --no-focus 2>&1) || :
+  else
+    # A full column sends the reviewer to its own tab.
+    made=$(herdr tab create --workspace "$(field .workspace_id <<<"$lay")" --cwd "$PWD" --label "$name" --no-focus 2>&1) || :
+  fi
 fi
-pane=$(field '.result.pane.pane_id' <<<"$made")
+pane=$(field '(.result.pane // .result.root_pane).pane_id' <<<"$made" 2>/dev/null) || :
 [ -n "$pane" ] && [ "$pane" != null ] || { echo "review.sh: no pane for $name: $made" >&2; exit 1; }
 echo "$pane" >"$last"
 fail() { echo "review.sh: $name in $pane $*; pane left open" >&2; exit 1; }
-herdr agent start "$name" --kind claude --pane "$pane" --timeout 120000 -- \
-  --model claude-opus-5-5 --effort high --dangerously-skip-permissions \
-  >/dev/null 2>&1 || fail "did not start claude"
-herdr agent prompt "$name" "$prompt" --wait --timeout 5400000 >/dev/null 2>&1 || fail "took no prompt or ran past 90 minutes"
+# Herdr's error code and message, else its raw reply.
+why() { field -e '.error | select(.code) | "\(.code): \(.message)"' <<<"$1" 2>/dev/null || echo "$1"; }
+said=$(herdr agent start "$name" --kind claude --pane "$pane" --timeout 120000 -- \
+  --model claude-opus-5-5 --effort high --dangerously-skip-permissions 2>&1) || fail "did not start claude: $(why "$said")"
+if ! said=$(herdr agent prompt "$name" "$prompt" --wait --timeout 5400000 2>&1); then
+  case $(field '.error.code' <<<"$said" 2>/dev/null) in
+    agent_prompt_stalled) fail "never began the prompt: $(why "$said")" ;;
+    timeout) fail "ran past 90 minutes: $(why "$said")" ;;
+    *) fail "took no prompt: $(why "$said")" ;;
+  esac
+fi
 # Claude idles while its own background runs work.
 for ((i = 0; ; i++)); do
   s=$(herdr agent get "$name" | field '.result.agent.agent_status') || fail "status unreadable"

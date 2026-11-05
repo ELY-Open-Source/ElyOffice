@@ -128,8 +128,8 @@ scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 到 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核对散列；Mac 核对架构）
 tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架构（ci.sh 发布前调用）
-scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 里调用者右侧分屏，其后的审查叠在下面，可并行；Claude Code，Opus 5.5，effort high；读到结论即关窗格，失败的留到本条下一轮）
-tests/scripts/review-rules.sh   review.sh 对替身 herdr：claude 起不来、提示超时、阻塞、状态读不出、空结论、窗格关不掉皆败，审查者空闲而结论晚到照等，CRLF 的 jq 照常，首个窗格在调用者右侧、其后叠在下面，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
+scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 里调用者右侧分屏，其后的审查分在该列最高的窗格下面，每格至少 10 行，列满即在调用者的工作区另开标签页，可并行；Claude Code，Opus 5.5，effort high；读到结论即关窗格（标签页随之关），失败的留到本条下一轮；失败说明带 herdr 的错误码，提示卡住与 90 分钟超时分开报）
+tests/scripts/review-rules.sh   review.sh 对替身 herdr：claude 起不来、提示超时、提示卡住、阻塞、状态读不出、空结论、窗格关不掉皆败，前三者报出 herdr 的错误码、卡住不说成超时，审查者空闲而结论晚到照等，CRLF 的 jq 照常，首个窗格在调用者右侧、其后分在该列最高的窗格下面，两半都留 10 行才分，列满即另开标签页、读完结论关掉、开不出即报，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
 scripts/apply-lo-patches.sh engines/lo-src  找出源码已到补丁序列第几个，补上其余（构建脚本调用）
 tests/scripts/lo-patches.sh    补丁序列从中途接着打、再打一次为空操作
 tests/scripts/media-targets.sh 媒体播放接口在 Linux、Windows 目标可编译（缺目标时 SKIP）
