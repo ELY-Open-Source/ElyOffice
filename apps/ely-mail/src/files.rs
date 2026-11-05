@@ -56,13 +56,14 @@ impl Mail {
         };
         let (vault, accounts) = (self.vault.clone(), self.accounts().to_vec());
         self.toast(text(cx, "mail.file.downloading", &[]), Severity::Info, cx);
+        let providers = self.providers.clone();
         let work = async move {
             let owner = sync::lock(&store)?.owner(id)?;
             let (_, account) = accounts
                 .into_iter()
                 .find(|(each, _)| *each == owner)
                 .ok_or_else(|| Error::Store("the message's account is gone".into()))?;
-            let secret = sync::secret(&account, &vault).await?;
+            let secret = sync::secret(&account, providers(account.auth), &vault).await?;
             whole(&account, owner, secret, &tls, &store, id).await
         };
         self.on_runtime(cx, work, move |mail, done, cx| {

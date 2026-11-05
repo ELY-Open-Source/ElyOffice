@@ -145,4 +145,9 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("mail.sync.paused", "La synchronisation est suspendue. Rien ne se télécharge avant la reprise."),
     ("mail.sync.offline", "Garder {name} en entier hors ligne"),
     ("mail.sync.offline_failed", "Le réglage du dossier n’a pas été enregistré : {error}"),
+    ("mail.again.go", "Se reconnecter"),
+    ("mail.again.title", "Se reconnecter à {address}"),
+    ("mail.again.other", "Vous vous êtes connecté avec {signed}. Connectez-vous avec {address}."),
+    ("mail.again.done", "Reconnecté à {address}."),
+    ("mail.again.gone", "Ce compte a été supprimé."),
 ];

@@ -235,6 +235,11 @@ pub(super) const EN: &[(&str, &str)] = &[
         "mail.sync.offline_failed",
         "The folder setting was not saved: {error}",
     ),
+    ("mail.again.go", "Sign In Again"),
+    ("mail.again.title", "Sign In to {address} Again"),
+    ("mail.again.other", "You signed in as {signed}. Sign in as {address}."),
+    ("mail.again.done", "Signed in to {address} again."),
+    ("mail.again.gone", "This account was removed."),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -421,4 +426,9 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("mail.sync.paused", "同步已暂停。恢复之前不下载任何内容。"),
     ("mail.sync.offline", "离线完整保留 {name}"),
     ("mail.sync.offline_failed", "文件夹设置未存下：{error}"),
+    ("mail.again.go", "重新登录"),
+    ("mail.again.title", "重新登录 {address}"),
+    ("mail.again.other", "你登录的是 {signed}。请以 {address} 登录。"),
+    ("mail.again.done", "已重新登录 {address}。"),
+    ("mail.again.gone", "这个账号已删除。"),
 ];

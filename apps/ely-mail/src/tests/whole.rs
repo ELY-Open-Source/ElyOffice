@@ -21,7 +21,7 @@ const PROMPT: std::time::Duration = std::time::Duration::from_secs(20);
 /// Bo's PLAIN login, `\0bo@example.com\0pw`.
 const AUTH: &str = "AUTH PLAIN AGJvQGV4YW1wbGUuY29tAHB3";
 
-fn runtime() -> tokio::runtime::Runtime {
+pub(super) fn runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -30,13 +30,13 @@ fn runtime() -> tokio::runtime::Runtime {
 }
 
 /// The script's result; a stall fails, never hangs.
-fn ended(rt: &tokio::runtime::Runtime, task: tokio::task::JoinHandle<Result<(), String>>) {
+pub(super) fn ended(rt: &tokio::runtime::Runtime, task: tokio::task::JoinHandle<Result<(), String>>) {
     let limit = std::time::Duration::from_secs(60);
     let done = rt.block_on(async { tokio::time::timeout(limit, task).await });
     done.expect("the script ended").unwrap().unwrap();
 }
 
-fn bo(incoming: u16, outgoing: u16) -> Account {
+pub(super) fn bo(incoming: u16, outgoing: u16) -> Account {
     let mut bo = fake::account("bo@example.com");
     bo.incoming.port = incoming;
     bo.outgoing.port = outgoing;
@@ -73,6 +73,13 @@ fn smtp(rest: Vec<Step>) -> Vec<Step> {
     script
 }
 
+/// One connection only; a second would end the server.
+fn retried(task: tokio::task::JoinHandle<Result<(), String>>, accepted: std::sync::mpsc::Receiver<usize>) {
+    assert_eq!(accepted.try_iter().collect::<Vec<_>>(), [0], "one connection, no retry");
+    assert!(!task.is_finished(), "the first script failed, or a retry came");
+    task.abort();
+}
+
 fn idle(mail: &Entity<Mail>, cx: &mut VisualTestContext) {
     cx.update(|_, app| mail.update(app, |mail, cx| mail.sync_all(cx)));
     settle(cx, |app| !mail.read(app).runner.busy);
@@ -84,7 +91,7 @@ fn a_refused_recipient_fails_and_is_never_sent_again() {
     let certs = fake::certs();
     let (seen, accepted) = std::sync::mpsc::channel();
     let script = smtp(vec![send("550 5.1.1 no such user\n"), Step::Hang]);
-    let serving = fake::serve_each(&certs, Security::Tls, vec![script], Some(seen));
+    let serving = fake::serve_each(&certs, Security::Tls, vec![script, Vec::new()], Some(seen));
     let (server, task) = rt.block_on(serving);
     let dir = tempfile::tempdir().unwrap();
     queued(dir.path(), &bo(closed_port(), server.port));
@@ -94,13 +101,12 @@ fn a_refused_recipient_fails_and_is_never_sent_again() {
         let held = outbox(&mail, app);
         held.len() == 1 && held[0].going == Going::Failed
     });
-    ended(&rt, task);
     idle(&mail, cx);
+    retried(task, accepted);
     let [held] = cx.update(|_, app| outbox(&mail, app)).try_into().unwrap();
     assert_eq!(held.going, Going::Failed);
     let error = held.error.unwrap();
     assert!(error.contains("550") && error.contains("no such user"), "{error}");
-    assert_eq!(accepted.try_iter().count(), 1, "one connection, no retry");
 }
 
 #[test]
@@ -116,7 +122,7 @@ fn an_accepted_message_with_no_quit_answer_waits_only_for_its_copy() {
         send("250 queued\n"),
         Step::Hang,
     ]);
-    let serving = fake::serve_each(&certs, Security::Tls, vec![script], Some(seen));
+    let serving = fake::serve_each(&certs, Security::Tls, vec![script, Vec::new()], Some(seen));
     let (server, task) = rt.block_on(serving);
     let dir = tempfile::tempdir().unwrap();
     queued(dir.path(), &bo(closed_port(), server.port));
@@ -129,10 +135,9 @@ fn an_accepted_message_with_no_quit_answer_waits_only_for_its_copy() {
             && held[0].filing == Some(Filing::Waiting)
     };
     settle_within(cx, PROMPT, taken);
-    ended(&rt, task);
     idle(&mail, cx);
+    retried(task, accepted);
     assert!(cx.update(|_, app| taken(app)), "still accepted, copy waiting");
-    assert_eq!(accepted.try_iter().count(), 1, "never sent twice");
 }
 
 /// A literal FETCH line with `head` as the header.

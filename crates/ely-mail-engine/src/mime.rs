@@ -222,16 +222,26 @@ fn attachment(part: &Part) -> Result<MimePart<'_>> {
         line("a file name", name)?;
     }
     line("a content type", &part.content_type)?;
-    let mut kind = ContentType::new(part.content_type.as_str());
-    for (key, value) in &part.params {
-        line("a content type parameter", key)?;
-        line("a content type parameter", value)?;
-        kind = kind.attribute(key.as_str(), value.as_str());
-    }
     let composite = ["multipart/", "message/"]
         .iter()
         .any(|prefix| part.content_type.starts_with(prefix));
-    let mut attachment = if composite {
+    // Unencoded composites must be canonical; others go as files.
+    let file = composite && !canonical(&part.bytes);
+    if file {
+        log::info!("mail: a {} attachment goes as a file", part.content_type);
+    }
+    let mut kind = ContentType::new(match file {
+        true => "application/octet-stream",
+        false => part.content_type.as_str(),
+    });
+    for (key, value) in &part.params {
+        line("a content type parameter", key)?;
+        line("a content type parameter", value)?;
+        if !file {
+            kind = kind.attribute(key.as_str(), value.as_str());
+        }
+    }
+    let mut attachment = if composite && !file {
         // RFC 2045 §6.4: composites stay unencoded.
         let body = composite_body(part)?;
         let encoding = if body.is_ascii() { "7bit" } else { "8bit" };
@@ -269,6 +279,25 @@ fn composite_body(part: &Part) -> Result<&[u8]> {
         .position(|end| end == b"\r\n\r\n")
         .map(|at| &part.bytes[at + 4..])
         .ok_or_else(|| Error::Invalid("a multipart attachment has no header end".into()))
+}
+
+/// RFC 2045 §2.8: CRLF lines under 999 octets, no NUL.
+fn canonical(bytes: &[u8]) -> bool {
+    let mut length = 0;
+    let mut at = 0;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'\r' if bytes.get(at + 1) == Some(&b'\n') => {
+                length = 0;
+                at += 1;
+            }
+            b'\r' | b'\n' | 0 => return false,
+            _ if length == 998 => return false,
+            _ => length += 1,
+        }
+        at += 1;
+    }
+    true
 }
 
 /// A random left side at the sender's domain.

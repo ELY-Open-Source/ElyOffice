@@ -145,4 +145,9 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("mail.sync.paused", "동기화가 일시 정지되었습니다. 다시 시작할 때까지 아무것도 다운로드하지 않습니다."),
     ("mail.sync.offline", "{name} 전체를 오프라인으로 보관"),
     ("mail.sync.offline_failed", "폴더 설정을 저장하지 못했습니다: {error}"),
+    ("mail.again.go", "다시 로그인"),
+    ("mail.again.title", "{address}에 다시 로그인"),
+    ("mail.again.other", "{signed}(으)로 로그인했습니다. {address}(으)로 로그인하세요."),
+    ("mail.again.done", "{address}에 다시 로그인했습니다."),
+    ("mail.again.gone", "이 계정은 제거되었습니다."),
 ];

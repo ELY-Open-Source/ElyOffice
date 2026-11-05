@@ -83,3 +83,28 @@ fn upgrading_gives_old_mail_the_identity_new_mail_gets() {
     assert!(ident(&store, kept).starts_with("unnamed:"));
     assert_eq!(ident(&store, kept), ident(&store, fresh), "a whole original and its headers agree");
 }
+
+#[test]
+fn mail_moved_to_the_inbox_without_a_uid_is_no_news() {
+    use crate::store::{Change, Done, Settled};
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = Store::open(dir.path()).unwrap();
+    let ann = store.add_account(&account("ann@example.com")).unwrap();
+    let folders = [("INBOX", Some(Role::Inbox)), ("Work", None)];
+    let [inbox, work] = store.set_folders(ann, &folders).unwrap().try_into().unwrap();
+    store.skip_arrivals(ann).unwrap();
+    store.open_mailbox(work, 1).unwrap();
+    store.open_mailbox(inbox, 1).unwrap();
+    let id = store.put(work, &Key::Imap { uidvalidity: 1, uid: 1 }, &[], Fetched::Whole(&bare("hi"))).unwrap();
+    assert!(store.handle_arrivals(ann).unwrap().arrived.is_empty());
+    store.add_rule(ann, Match::Subject, "urgent", Action::Flag).unwrap();
+    store.change(&[id], Change::Move(inbox)).unwrap();
+    let [pending] = store.queued_changes(ann).unwrap().try_into().unwrap();
+    let settled = Settled { done: Done::Moved(None), ..Settled::waiting() };
+    store.pushed(ann, &pending, &settled).unwrap();
+    // The inbox's sync brings it down anew.
+    store.put(inbox, &Key::Imap { uidvalidity: 1, uid: 5 }, &[], Fetched::Whole(&bare("hi"))).unwrap();
+    let again = store.handle_arrivals(ann).unwrap();
+    assert!(again.arrived.is_empty(), "a move is no news");
+    assert_eq!(again.ruled, 0, "nor meets a rule again");
+}
