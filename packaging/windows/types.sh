@@ -57,11 +57,11 @@ gone() { # indent key
   absent "$1" "$2"
 }
 # Reads who owns a registration; unreadable is a failure.
-owner() { # indent key
+owner() { # indent key [value]
   echo "$1ClearErrors"
-  echo "$1ReadRegStr \$0 HKCU \"$2\" \"\""
+  echo "$1ReadRegStr \$0 HKCU \"$2\" \"${3:-}\""
   echo "$1\${If} \${Errors}"
-  absent "$1  " "$2" ""
+  absent "$1  " "$2" "${3:-}"
   echo "$1\${EndIf}"
 }
 
@@ -135,12 +135,12 @@ if [ -n "$exts" ]; then
     drop "    " "$classes\\.$ext\\OpenWithProgids" "$progid"
   done
   for ext in $fresh; do
-    echo "    ReadRegStr \$0 HKCU \"$classes\\.$ext\\ShellNew\" \"FileName\""
+    owner "    " "$classes\\.$ext\\ShellNew" "FileName"
     echo "    \${If} \$0 == \"\$INSTDIR\\new.$ext\""
     drop "      " "$classes\\.$ext\\ShellNew" "FileName"
     echo "      DeleteRegKey /ifempty HKCU \"$classes\\.$ext\\ShellNew\""
     echo "    \${EndIf}"
-    echo "    ReadRegStr \$0 HKCU \"$classes\\.$ext\" \"\""
+    owner "    " "$classes\\.$ext"
     echo "    \${If} \$0 == \"$progid\""
     drop "      " "$classes\\.$ext" ""
     echo "    \${EndIf}"
