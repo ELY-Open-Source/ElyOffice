@@ -221,8 +221,8 @@ fn a_sign_in_while_paused_clears_the_refusal() {
     ended(&rt, scripts);
 }
 
-/// A token endpoint that holds its one request until told.
-fn held() -> (String, Receiver<()>, mpsc::Sender<()>) {
+/// A token endpoint that holds its one request, then answers.
+fn held(status: u16, body: &'static str) -> (String, Receiver<()>, mpsc::Sender<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}/token", listener.local_addr().unwrap());
     let (took, taken) = mpsc::channel();
@@ -238,40 +238,62 @@ fn held() -> (String, Receiver<()>, mpsc::Sender<()>) {
         took.send(()).unwrap();
         released.recv().unwrap();
         let reply = format!(
-            "HTTP/1.1 400 X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{EXPIRED}",
-            EXPIRED.len()
+            "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
         );
-        stream.write_all(reply.as_bytes()).unwrap();
+        // The abandoned sync may have gone.
+        stream.write_all(reply.as_bytes()).ok();
     });
     (url, taken, release)
 }
 
+/// Waits for `told`, the window running meanwhile.
+#[track_caller]
+fn heard(told: &Receiver<()>, cx: &mut VisualTestContext) {
+    let deadline = Instant::now() + Duration::from_secs(60);
+    while told.try_recv().is_err() {
+        assert!(Instant::now() < deadline, "never told");
+        std::thread::sleep(Duration::from_millis(20));
+        cx.run_until_parked();
+    }
+}
+
 #[test]
-fn a_sign_in_during_a_sync_syncs_once_more() {
+fn a_sign_in_during_a_sync_starts_over_on_the_new_token() {
     let rt = runtime();
     let certs = fake::certs();
-    let answers = vec![(400, EXPIRED.into()), (200, granted("ann@outlook.com")), (200, FRESH.into())];
-    let (token, asked) = oauth::endpoint(answers);
+    let (token, asked) = oauth::endpoint(vec![(400, EXPIRED.into()), (200, granted("ann@outlook.com"))]);
     let (incoming, outgoing, scripts) = servers(&rt, &certs, vec![imap("at-2", vec![]), listed("at-3")]);
     let dir = tempfile::tempdir().unwrap();
     let (id, keys) = ann(dir.path(), incoming.port, outgoing.port);
     let kept = keys.kept.clone();
-    let url = Arc::new(Mutex::new(token.clone()));
+    let url = Arc::new(Mutex::new(token));
     let mut cx = TestAppContext::single();
     let (mail, cx) = refused(&mut cx, dir.path(), id, keys, &certs, url.clone());
-    let (slow, taken, release) = held();
-    *url.lock().unwrap() = slow;
+    let (old, took_old, release_old) = held(400, EXPIRED);
+    *url.lock().unwrap() = old;
     cx.update(|_, app| mail.update(app, |mail, cx| mail.sync(id, cx)));
-    taken.recv_timeout(Duration::from_secs(60)).expect("the sync asks for a token");
-    *url.lock().unwrap() = token;
+    heard(&took_old, cx);
+    let (new, took_new, release_new) = held(200, FRESH);
+    *url.lock().unwrap() = new;
     oauth::approve(&cx.opened_url().unwrap()).join().unwrap();
-    settle(cx, |app| {
-        let mail = mail.read(app);
-        mail.adding.is_none() && mail.syncs[&id].again
-    });
-    release.send(()).unwrap();
+    heard(&took_new, cx);
+    release_old.send(()).unwrap();
+    let shown = |cx: &mut VisualTestContext| {
+        settle(cx, |_| true);
+        let syncing = cx.update(|_, app| {
+            let syncing = &mail.read(app).syncs[&id];
+            (syncing.task.is_some(), syncing.signed_out, syncing.failed.clone())
+        });
+        (syncing, cx.debug_bounds("banner-action Sign In Again").is_some())
+    };
+    for _ in 0..10 {
+        std::thread::sleep(Duration::from_millis(50));
+        assert_eq!(shown(cx), ((true, false, None), false), "the old refusal stays gone");
+    }
+    release_new.send(()).unwrap();
     synced(&mail, id, cx);
     assert_eq!(kept.lock().unwrap()["account:ann@outlook.com"], "rt-3");
-    assert_eq!(forms(&asked, 3)[2]["refresh_token"], "rt-2");
+    assert_eq!(forms(&asked, 2)[1]["grant_type"], "authorization_code");
     ended(&rt, scripts);
 }

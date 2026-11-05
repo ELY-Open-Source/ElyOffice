@@ -74,19 +74,19 @@ impl Mail {
             let words = text(cx, "mail.add.session_only", &[("error", &reason)]);
             self.toast(words, Severity::Warning, cx);
         }
-        let running = self.syncs.get_mut(&id).is_some_and(|syncing| {
+        if let Some(syncing) = self.syncs.get_mut(&id) {
             // The refusal no longer holds, paused or not.
             if syncing.signed_out {
                 syncing.failed = None;
                 syncing.signed_out = false;
             }
-            syncing.again |= syncing.task.is_some();
-            syncing.task.is_some()
-        });
-        match running {
-            true => log::info!("mail: account {} syncs again after this one", id.0),
-            false => self.sync(id, cx),
+            // A run on the old token would bring it back.
+            if let Some(task) = syncing.task.take() {
+                log::info!("mail: account {} starts its sync over on the new token", id.0);
+                task.abort();
+            }
         }
+        self.sync(id, cx);
         self.notify(cx);
     }
 }
