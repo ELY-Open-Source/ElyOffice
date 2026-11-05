@@ -82,6 +82,11 @@ fn scan(bytes: &[u8], how: &Import) -> Scan {
             broken: true,
         };
     };
+    // Calc reads UTF-16 lines without their NULs.
+    let text = match how.encoding {
+        Encoding::Utf16 => text.replace('\0', ""),
+        _ => text,
+    };
     let mut columns = Vec::new();
     let mut rows = Vec::new();
     for row in calc::rows(&text, how) {
@@ -378,6 +383,10 @@ mod tests {
         assert_eq!(nul.rows[1], ["1", "00123"], "a NUL goes before the split");
         assert_eq!(nul.rows[2], ["ab", "x"], "a quote before a NUL closes");
         assert_eq!(nul.columns[1], Column::Text, "the code keeps its zeros");
+        let wide: Vec<u8> = [0xFF, 0xFE].into_iter().chain("\"ab\"\0x,\"c\nd\",e\nf,g\n".encode_utf16().flat_map(u16::to_le_bytes)).collect();
+        let utf16 = Import { encoding: Encoding::Utf16, ..how.clone() };
+        let read = scan(&wide, &utf16);
+        assert_eq!(read.rows, [vec!["\"ab\"x", "\"c"], vec!["d\"", "e"], vec!["f", "g"]], "UTF-16 lines lose NULs first");
         assert_eq!(calc.columns, [Column::Text, Column::Standard]);
         how.quote = None;
         assert_eq!(scan(b"\"Doe, J\"\n", &how).rows[0], ["\"Doe", " J\""]);
