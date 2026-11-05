@@ -310,3 +310,40 @@ fn character_styles_mix_their_attributes() {
         assert_eq!(state(&seen, name), Some(crate::MIXED), "{name} is mixed");
     }
 }
+
+/// A paragraph default with Chinese as its Asian language.
+const ZH: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:styles><style:default-style style:family="paragraph"><style:text-properties fo:language="en" fo:country="US" style:language-asian="zh" style:country-asian="CN"/></style:default-style></office:styles>
+ <office:body><office:text><text:p/></office:text></office:body>
+</office:document>"#;
+
+/// The automatic style named `name` in `xml`.
+fn style_of<'a>(xml: &'a str, name: &str) -> &'a str {
+    let start = xml.find(&format!("<style:style style:name=\"{name}\"")).expect("the style");
+    let end = start + xml[start..].find("</style:style>").expect("its end");
+    &xml[start..end]
+}
+
+/// A size at a bare cursor sets every script (GitHub #62).
+#[test]
+fn a_size_on_an_empty_line_sets_every_script() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (dir, mut worker, doc) = open(ZH);
+    click(&mut worker, &doc, 150, 150);
+    worker.run(&doc, "format.size", &["14"]).expect("the size takes on the empty line");
+    worker.post_text(&doc, false, "中文").expect("the text posts");
+    worker.post_text(&doc, true, "").expect("the commit posts");
+    let xml = saved(&dir, &mut worker, &doc, "out.fodt");
+    let at = xml.find("中文</text:p>").expect("the typed text");
+    let tag = "<text:p text:style-name=\"";
+    let open = xml[..at].rfind(tag).expect("its paragraph") + tag.len();
+    let name = &xml[open..open + xml[open..].find('"').expect("the name")];
+    let style = style_of(&xml, name);
+    assert!(style.contains("fo:font-size=\"14pt\""), "Western: {style}");
+    assert!(style.contains("style:font-size-asian=\"14pt\""), "Asian: {style}");
+}

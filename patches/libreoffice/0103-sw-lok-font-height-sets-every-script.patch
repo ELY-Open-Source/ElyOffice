@@ -1,0 +1,23 @@
+LOK: a size at a bare cursor sets every script to it
+
+With no selection, Writer gives the chosen height to the input
+language's script and scales the other scripts by their standard sizes
+for the paragraph's languages (zh-CN: Western 12pt, Asian 10.5pt).
+Under LOK the input language is the worker host's keyboard, not the
+user's: on a host with a Chinese keyboard 14 on an empty line set
+Asian 14 and Western 16, the state showed 16 and ElyDoc undid the
+change (GitHub ElyOffice #62); on an English one Chinese typed after
+came out at 12.25pt. LOK now follows Word: one size for every script.
+
+--- a/sw/source/uibase/shells/basesh.cxx
++++ b/sw/source/uibase/shells/basesh.cxx
+@@ -2519,6 +2519,9 @@
+                         break;
+                         default: break;
+                     }
++                    // LOK as Word: one size for every script.
++                    if (comphelper::LibreOfficeKit::isActive())
++                        nWesternSize = nCJKSize = nCTLSize = static_cast<sal_Int32>(nHeight);
+                     aHeightSet.Put( SvxFontHeightItem( static_cast<sal_uInt32>(nWesternSize), 100, RES_CHRATR_FONTSIZE ));
+                     aHeightSet.Put( SvxFontHeightItem( static_cast<sal_uInt32>(nCJKSize), 100, RES_CHRATR_CJK_FONTSIZE ));
+                     aHeightSet.Put( SvxFontHeightItem( static_cast<sal_uInt32>(nCTLSize), 100, RES_CHRATR_CTL_FONTSIZE ));
