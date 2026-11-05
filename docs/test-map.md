@@ -97,8 +97,8 @@
 | PDF-10 | 文档清理 | C11.6（~）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-11 | 密码 | C11.7（~）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-12 | 签名 | C11.7（~）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-13 | 输出 | C11.8（~）、决策 C11.8 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-14 | 文件恢复 | C11.8（~）、决策 C11.8 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-13 | 输出 | C11.8（~）、决策 C11.8 | `a_picture_that_breaks_as_it_draws_stops_an_overwrite`、`a_picture_never_drawn_is_checked_before_an_overwrite`、`picked_pages_from_before_an_edit_export_nothing` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-14 | 文件恢复 | C11.8（~）、决策 C11.8 | `a_picture_that_breaks_as_it_draws_stops_an_overwrite`、`a_picture_never_drawn_is_checked_before_an_overwrite`、`picked_pages_from_before_an_edit_export_nothing` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | MAIL-01 | 账号 | C12.1（~）、C12.5（~）、C12.7 | `a_failed_removal_puts_the_secret_back`、`two_saves_in_flight_add_an_address_once`、`a_uidl_listed_twice_comes_down_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-02 | 授权 | C12.4、C12.5（~） | `a_failed_removal_puts_the_secret_back`、`two_saves_in_flight_add_an_address_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-03 | 邮箱视图 | C12.9 | `remove_needs_an_open_account`、`picking_every_one_of_many_messages_is_quick`、`the_side_scrolls_past_many_folders_to_the_next_account`、`a_rebuilt_mailbox_drops_the_pick`、`an_upgrade_leaving_a_row_without_its_parent_fails` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
@@ -166,7 +166,7 @@
 | QA-10 | Doc | C08.6（~）、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-11 | Table | C09.5（~）、C22.2（ ） | `a_1904_workbook_keeps_its_dates_through_saves` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-12 | Show | C10.6（~）、C22.2（ ）、决策 C10.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-13 | PDF 编辑 | C11.8（~）、C22.2（ ）、决策 C11.8 | — | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-13 | PDF 编辑 | C11.8（~）、C22.2（ ）、决策 C11.8 | `a_picture_that_breaks_as_it_draws_stops_an_overwrite`、`a_picture_never_drawn_is_checked_before_an_overwrite`、`picked_pages_from_before_an_edit_export_nothing` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-14 | PDF 删除 | C11.6（~）、C22.2（ ）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-15 | PDF OCR 与签名 | C11.7（~）、C22.2（ ）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-16 | Mail 离线 | C12.23（ ）、C22.2（ ） | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
