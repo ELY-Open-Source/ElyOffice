@@ -52,9 +52,9 @@ echo "$* | engines=${ELY_REQUIRE_ENGINES:-} incremental=${CARGO_INCREMENTAL:-}" 
 EOF
 chmod +x "$work/bin/cargo"
 
-# A clone writing one package and the source pair.
+# A clone writing one package and the three source files.
 clone() { # os
-  local at=$work/$1 source='d=$1; touch "$d/ElyOffice-V-c0ffee-source.tar.gz" "$d/ElyOffice-V-c0ffee-upstream-source.tar.gz"'
+  local at=$work/$1 source='d=$1; touch "$d/ElyOffice-V-c0ffee-source.tar.gz" "$d/ElyOffice-V-c0ffee-upstream-source.tar.gz" "$d/ElyOffice-V-c0ffee-libreoffice-external-source.tar"'
   mkdir -p "$at/scripts" "$at/packaging/macos" "$at/packaging/linux"
   cp "$root/scripts/ci.sh" "$root/scripts/release-tests.sh" "$at/scripts/"
   cp "$root/Cargo.toml" "$root/rust-toolchain.toml" "$at/"
@@ -98,7 +98,7 @@ for os in macos linux; do
   done
 done
 : >"$CARGO_LOG"
-# macOS first: it builds the pair and uploads neither.
+# macOS first: it builds the source and uploads none.
 run macos
 [ "$(cat "$CARGO_LOG")" = "$gate" ] || fail "macOS gate ran: $(cat "$CARGO_LOG")"
 [ "$(uploads 'source' macos)" -eq 0 ] || fail "macOS uploaded source: $(cat "$STATE")"
@@ -111,7 +111,7 @@ python3 -c 'import json, sys; assert json.load(open(sys.argv[1]))["prerelease"] 
 : >"$CARGO_LOG"
 run linux
 [ "$(cat "$CARGO_LOG")" = "$gate" ] || fail "Linux gate ran: $(cat "$CARGO_LOG")"
-[ "$(uploads '-source.tar.gz' linux)" -eq 2 ] || fail "Linux did not upload the pair: $(cat "$STATE")"
+[ "$(uploads '-source.tar' linux)" -eq 3 ] || fail "Linux did not upload the source: $(cat "$STATE")"
 [ "$(uploads 'ely-doc-linux.json.sig' linux)" -eq 1 ] || fail "Linux left a manifest unsigned: $(cat "$STATE")"
 # A rerun replaces its own files once and keeps macOS's.
 mac=$(grep ' macos$' "$STATE")
@@ -121,7 +121,7 @@ run linux
 grep -q "replacing ElyOffice-V-c0ffee-source.tar.gz" "$work/linux.out" || fail "rerun: $(cat "$work/linux.out")"
 [ "$(awk '{ print $2 }' "$STATE" | sort | uniq -d)" = "" ] || fail "a name twice: $(cat "$STATE")"
 [ "$(grep ' macos$' "$STATE")" = "$mac" ] || fail "the rerun touched macOS: $(cat "$STATE")"
-[ "$(uploads '-source.tar.gz' linux)" -eq 2 ] || fail "the rerun lost the pair: $(cat "$STATE")"
+[ "$(uploads '-source.tar' linux)" -eq 3 ] || fail "the rerun lost the source: $(cat "$STATE")"
 [ -z "$(comm -12 <(echo "$ids") <(awk '$3 == "linux" { print $1 }' "$STATE" | sort))" ] ||
   fail "an old upload stayed: $(cat "$STATE")"
 echo "ci-upload: strict gate first; Linux alone uploads source; reruns replace their own"

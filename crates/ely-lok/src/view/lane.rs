@@ -12,7 +12,7 @@ use gpui::Context;
 use super::clock::Picture;
 use super::input::{Back, Input};
 use super::{Geom, LokError, LokView, Reported, TILE_TWIPS};
-use crate::{Doc, Tile, Worker};
+use crate::{Doc, Tile, Waiter, Worker};
 
 /// An input slower than this is logged as a warning.
 const SLOW_MS: u128 = 100;
@@ -58,9 +58,8 @@ impl LokView {
         self.lane.typed
     }
 
-
     /// Starts the lane; it ends with the view.
-    pub(super) fn lane(worker: Arc<Mutex<Worker>>, doc: Doc, wanted: super::reveal::Wanted, cx: &mut Context<Self>) -> Lane {
+    pub(super) fn lane((worker, waiter): (Arc<Mutex<Worker>>, Waiter), doc: Doc, wanted: super::reveal::Wanted, cx: &mut Context<Self>) -> Lane {
         let (inputs, mut input_queue) = mpsc::unbounded::<(u64, Input, Instant)>();
         let (tiles, mut tile_queue) = mpsc::unbounded::<Job>();
         let (landing, mut landed) = mpsc::unbounded::<Landed>();
@@ -75,7 +74,8 @@ impl LokView {
                             while let Ok(more) = input_queue.try_recv() {
                                 batch.push(more);
                             }
-                            let mut held = worker.lock().expect("the worker lock");
+                            // A snapshot in the way gives up the worker.
+                            let mut held = waiter.hold(&worker);
                             let mut done = Vec::with_capacity(batch.len());
                             for (seq, input, sent) in batch {
                                 let (waited, edits, kind) = (sent.elapsed().as_millis(), input.edits(), input.kind());

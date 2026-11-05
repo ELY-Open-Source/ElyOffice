@@ -196,9 +196,10 @@ pub fn compare(
         .extension()
         .and_then(|e| e.to_str())
         .map(str::to_ascii_lowercase);
+    // A link is its path, never a picture.
     let picture = PICTURES
         .iter()
-        .find(|(e, _)| extension.as_deref() == Some(*e))
+        .find(|(e, _)| extension.as_deref() == Some(*e) && !diff.link())
         .map(|(_, f)| *f);
     match (&diff.body, picture) {
         (Body::Binary, Some(format)) => {

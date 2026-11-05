@@ -177,9 +177,17 @@ impl Props {
         let Some(shown) = &self.shown else {
             return;
         };
+        let at = shown.view.read(cx).read_at();
+        self.run_at(&at, id, values, cx);
+    }
+
+    /// Runs `id` at `at`, the document its numbers came from.
+    pub(super) fn run_at(&mut self, at: &Doc, id: &str, values: &[&str], cx: &mut Context<Self>) {
+        let Some(shown) = &self.shown else {
+            return;
+        };
         log::info!("doc: panel runs {id}");
-        // Numbers here, like tab stops, are as the view shows.
-        let sent = shown.view.update(cx, |view, _| view.run_at(&view.read_at(), id, values));
+        let sent = shown.view.update(cx, |view, _| view.run_at(at, id, values));
         if let Err(error) = sent {
             cx.emit(LokError(format!("{id}: {error}")));
         }

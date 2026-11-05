@@ -14,6 +14,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Engine, Host, Tabs as _, text};
 
+/// Input stops a tab's points this long at most (C06.5).
+const GIVES_WAY_FOR: Duration = Duration::from_secs(60);
+
 mod disk;
 mod fit;
 mod reopen;
@@ -110,7 +113,9 @@ impl Keeping {
 
     /// Tab `id` saved `bytes`; a refused slot measures by them.
     pub(crate) fn saved(&mut self, id: u64, bytes: u64) {
-        if let Some(refused) = self.slots.get_mut(&id).and_then(|slot| slot.refused.as_mut()) {
+        let Some(slot) = self.slots.get_mut(&id) else { return };
+        slot.stopped = None;
+        if let Some(refused) = slot.refused.as_mut() {
             *refused = bytes;
         }
     }
@@ -244,10 +249,16 @@ pub trait Recovering: Host {
             log::info!("recovery: typing again; tab {id} waits for the next pause");
             return self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.owed = true);
         }
+        let now = cx.background_executor().now();
         let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
         let dir = keeping.dir.clone();
         let slot = keeping.slots.get_mut(&id).expect("a due tab has a slot");
         slot.writing = true;
+        let owed = slot.stopped.map(|at| now.saturating_duration_since(at));
+        let whole = owed.is_some_and(|owed| owed >= GIVES_WAY_FOR);
+        if whole {
+            log::info!("recovery: tab {id}'s point stopped {owed:?} ago; this one does not give way");
+        }
         let kept = slot.kept.clone();
         let folder = keeping.folder(&kept.slot);
         let work = self.tab(id).expect("a due tab").work.join(format!("recovery.{}", kept.format));
@@ -255,12 +266,18 @@ pub trait Recovering: Host {
         self.read_in(
             id,
             move |worker, doc| {
-                Self::Engine::snapshot(worker, doc, &work, &kept.format)?;
+                match whole {
+                    true => Self::Engine::snapshot(worker, doc, &work, &kept.format)?,
+                    false => Self::Engine::point(worker, doc, &work, &kept.format)?,
+                }
                 let bytes = std::fs::read(&work)?;
                 std::fs::remove_file(&work)?;
                 Ok(bytes)
             },
             move |host, bytes, _, cx| {
+                if bytes.as_ref().is_err_and(|error| error.kind() == io::ErrorKind::Interrupted) {
+                    return host.point_stopped(id, cx);
+                }
                 // The worker is free: the next tab's turn.
                 host.write_points(tabs, cx);
                 let Ok(bytes) = bytes else { return host.point_written(id, (edited, None), bytes.map(drop), cx) };
@@ -277,6 +294,18 @@ pub trait Recovering: Host {
         );
     }
 
+    /// Input stopped the snapshot: the round stays owed, unshown.
+    fn point_stopped(&mut self, id: u64, cx: &mut Context<Self>) {
+        log::info!("recovery: tab {id}'s snapshot gave way to input; the round stays owed");
+        let now = cx.background_executor().now();
+        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
+        keeping.owed = true;
+        if let Some(slot) = keeping.slots.get_mut(&id) {
+            slot.writing = false;
+            slot.stopped.get_or_insert(now);
+        }
+    }
+
     /// A point's write ended; a failure shows once.
     fn point_written(&mut self, id: u64, (edited, size): (u64, Option<u64>), written: io::Result<()>, cx: &mut Context<Self>) {
         let name = self.tab(id).map(|tab| tab.name.to_string()).unwrap_or_default();
@@ -286,7 +315,7 @@ pub trait Recovering: Host {
         match written {
             Ok(()) => {
                 slot.written = Some(edited);
-                (slot.failed, slot.refused, slot.last) = (None, None, Some(SystemTime::now()));
+                (slot.failed, slot.refused, slot.last, slot.stopped) = (None, None, Some(SystemTime::now()), None);
                 keeping.last = Some(SystemTime::now());
                 if keeping.behind.is_some() {
                     self.flush_index(cx);
@@ -364,7 +393,7 @@ pub trait Recovering: Host {
         let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
         let slot = format!("{}-{id}", std::process::id());
         let kept = Kept { slot, name: name.to_string(), format, sealed, held: false };
-        keeping.slots.insert(id, Slot { kept, written: None, writing: false, failed: None, refused: None, last: None });
+        keeping.slots.insert(id, Slot { kept, written: None, writing: false, failed: None, refused: None, last: None, stopped: None });
         self.flush_index(cx);
         if let Some(size) = size {
             fit::opened(self, id, size, cx);

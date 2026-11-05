@@ -50,6 +50,8 @@ pub fn path_of_file_url(url: &str) -> std::io::Result<std::path::PathBuf> {
 pub const LOCKED: &str = "the document needs its password";
 /// The load error a broken package gives.
 pub const DAMAGED: &str = "the file is damaged";
+/// The error of a snapshot that gave way to input.
+pub const STOPPED: &str = "the snapshot gave way to input";
 
 /// Request tags from the client.
 pub mod tag {
@@ -92,6 +94,8 @@ pub mod tag {
     pub const SLIDE_LAYER: u8 = 35;
     /// Turns parts; an arrow with something picked goes in.
     pub const TURN: u8 = 36;
+    /// Unanswered: a request waits (1) or holds the lock (0).
+    pub const WAIT: u8 = 37;
     pub const OK: u8 = 100;
     pub const ERR: u8 = 101;
 }
