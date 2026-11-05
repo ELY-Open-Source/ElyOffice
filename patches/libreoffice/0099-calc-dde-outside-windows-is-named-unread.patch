@@ -1,0 +1,27 @@
+Calc: outside Windows an asked update names every DDE source
+
+0086 names a DDE source when its update fails. Outside Windows svl's
+DDE is a stub (svl/unx/source/svdde/ddedummy.cxx): every connection
+reports no error and carries no data, so a link to a server that is
+not there updated as if it were read. No DDE server can answer there,
+so the update leaves the link alone and names it as not read.
+
+diff --git a/sc/source/ui/docshell/docsh4.cxx b/sc/source/ui/docshell/docsh4.cxx
+--- a/sc/source/ui/docshell/docsh4.cxx
++++ b/sc/source/ui/docshell/docsh4.cxx
+@@ -325,10 +325,15 @@
+         }
+         else if (auto pDde = dynamic_cast<ScDdeLink*>(xLink.get()))
+         {
++#ifdef _WIN32
+             if (pDde->Update())
+                 bDde = true;
+             else
+                 rFailed.push_back(pDde->GetAppl() + "|" + pDde->GetTopic());
++#else
++            // DDE is Windows only; elsewhere it never reads.
++            rFailed.push_back(pDde->GetAppl() + "|" + pDde->GetTopic());
++#endif
+         }
+         else if (auto pWeb = dynamic_cast<ScWebServiceLink*>(xLink.get()))
+         {
