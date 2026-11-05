@@ -448,4 +448,17 @@ fn a_worker_that_cannot_start_says_why() {
     };
     // The worker's own reason, not only a closed pipe.
     assert!(error.to_string().contains("lok-worker:"), "{error}");
+    // A record, or the relay keeps it from the app's log.
+    let mut run = std::process::Command::new(super::install::worker_bin().expect("the worker binary"))
+        .arg(dir.path().join("no-install"))
+        .arg(dir.path().join("again"))
+        .env_remove("ELY_LOG")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("the worker runs");
+    let said = ely_ipc::relay(run.stderr.take().expect("piped stderr"), "test").said();
+    assert!(!run.wait().expect("the worker exits").success(), "the worker started without a kernel");
+    assert!(said.error.as_deref().is_some_and(|reason| reason.starts_with("lok-worker:")), "{said:?}");
 }
