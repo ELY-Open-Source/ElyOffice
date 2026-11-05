@@ -65,17 +65,11 @@ shown=$(kb "This app's log")
 [ "${shown:-0}" -ge 8 ] || fail "the log shows ${shown:-nothing} KB, not at least 8"
 # Each clear asks first; nothing goes before the yes.
 "$work/ax-press" "$pid" Clear AXButton >/dev/null
-seen "title=Delete" || fail "clearing the log did not ask"
+seen "AXButton.*title=Delete[[:space:]]" || fail "clearing the log did not ask"
 [ "$(wc -c <"$data/ely.log")" -gt 4096 ] || fail "the log went before the yes"
 "$work/ax-press" "$pid" Delete AXButton >/dev/null
 sleep 1
 [ "$(wc -c <"$data/ely.log")" -lt 4096 ] || fail "the log was not cleared"
-"$work/ax-press" "$pid" "Clear at next start" AXButton >/dev/null
-seen "title=Delete" || fail "clearing the copies did not ask"
-[ ! -e "$data/.clear-recovery" ] || fail "the copies were marked before the yes"
-"$work/ax-press" "$pid" Delete AXButton >/dev/null
-seen "Clears at next start" || fail "the copies clear is not shown as pending"
-[ -e "$data/.clear-recovery" ] || fail "the copies clear was not marked"
 # Ten points kept per document, once twelve were made.
 "$work/ax-press" "$pid" 10 >/dev/null
 for _ in $(seq 20); do grep -q '"keep": 10' "$data/settings.json" 2>/dev/null && break; sleep 0.25; done
@@ -107,6 +101,13 @@ seen "title=256" || fail "no space choices"
 shown=$(kb "Recovery copies")
 [ "$shown" = "$(disk_kb "$data/recovery")" ] || fail "recovery copies show ${shown:-nothing} KB, not $(disk_kb "$data/recovery")"
 [ "$shown" -gt 0 ] || fail "recovery copies show nothing"
+# Copies exist now, so their clear is offered.
+"$work/ax-press" "$pid" "Clear at next start" AXButton >/dev/null
+seen "AXButton.*title=Delete[[:space:]]" || fail "clearing the copies did not ask"
+[ ! -e "$data/.clear-recovery" ] || fail "the copies were marked before the yes"
+"$work/ax-press" "$pid" Delete AXButton >/dev/null
+seen "Clears at next start" || fail "the copies clear is not shown as pending"
+[ -e "$data/.clear-recovery" ] || fail "the copies clear was not marked"
 python3 -c 'import fcntl, sys, time; f = open(sys.argv[1], "a"); fcntl.flock(f, fcntl.LOCK_EX); time.sleep(5)' "$data/.settings.lock" &
 sleep 0.3
 "$work/ax-press" "$pid" 20 >/dev/null
@@ -140,7 +141,7 @@ seen "Not done" || fail "the failed limit save is not told"
 rmdir "$data/.settings.lock"
 mv "$work/lock" "$data/.settings.lock"
 "$work/ax-press" "$pid" Clear AXButton >/dev/null
-seen "title=Delete" || fail "clearing the log did not ask the second time"
+seen "AXButton.*title=Delete[[:space:]]" || fail "clearing the log did not ask the second time"
 "$work/ax-press" "$pid" Delete AXButton >/dev/null
 sleep 1
 "$work/ax-values" "$pid" | grep -q "Not done" || fail "a clear hid the failed limit save"
