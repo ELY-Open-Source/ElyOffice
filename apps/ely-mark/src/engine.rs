@@ -202,7 +202,7 @@ mod tests {
         doc.lock().expect("the text lock").current = text.clone();
         let writing = {
             let doc = Arc::clone(&doc);
-            std::thread::spawn(move || Mark::write(&mut (), &doc, &path, "md"))
+            std::thread::spawn(move || Mark::write(&mut (), &doc, &path, "md", false))
         };
         let mut reader = reader();
         // The write waits on its reader; the window still reads.
