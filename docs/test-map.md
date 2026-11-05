@@ -71,8 +71,8 @@
 | TABLE-15 | 保护 | C09.5（~）、决策 C09.5 | `a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
 | TABLE-16 | 大数据浏览 | C09.1（~）、C09.5（~）、决策 C09.5 | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook`、`a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
 | TABLE-17 | R 宏（实验性） | 无 | — | apps/ely-table/src/tests、theme.sh |
-| SHOW-01 | 幻灯片管理 | C10.1（~）、决策 C10.1 | `an_edit_right_after_undo_still_repaints`、`undoing_a_master_edit_repaints_its_slides`、`past_the_undo_cap_an_edit_repaints_its_slide_alone` | apps/ely-show/src/tests |
-| SHOW-02 | 模板与母版 | C10.1（~）、决策 C10.1 | `an_edit_right_after_undo_still_repaints`、`undoing_a_master_edit_repaints_its_slides`、`past_the_undo_cap_an_edit_repaints_its_slide_alone` | apps/ely-show/src/tests |
+| SHOW-01 | 幻灯片管理 | C10.1、决策 C10.1 | `an_edit_right_after_undo_still_repaints`、`undoing_a_master_edit_repaints_its_slides`、`past_the_undo_cap_an_edit_repaints_its_slide_alone` | apps/ely-show/src/tests |
+| SHOW-02 | 模板与母版 | C10.1、决策 C10.1 | `an_edit_right_after_undo_still_repaints`、`undoing_a_master_edit_repaints_its_slides`、`past_the_undo_cap_an_edit_repaints_its_slide_alone` | apps/ely-show/src/tests |
 | SHOW-03 | 文字 | C10.2、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
 | SHOW-04 | 图形 | C10.2、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
 | SHOW-05 | 图片 | C10.2、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
