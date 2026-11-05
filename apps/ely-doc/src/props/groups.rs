@@ -1,7 +1,7 @@
 //! The panel's text group and its kernel hookup.
 
 use ely_gpui_component::{data_display::PropertyGroup, primitives::IconName};
-use ely_office::panel::{Panel, color_state, font_box, palette, row, size_menu, toggle};
+use ely_office::panel::{Panel, color_state, font_box, palette, row, size_box, toggle};
 use gpui::{App, Context, InteractiveElement, ParentElement, SharedString, Window, div};
 
 use super::Props;
@@ -74,10 +74,11 @@ impl Props {
         let highlight = color_state(self, ".uno:CharBackColor", cx);
         let name = Docs::text(cx, "doc.props.font", &[]);
         let font = font_box(self, ("doc-props-font", name), &self.fonts, window, cx);
+        let size = size_box(self, ("doc-props-size", Docs::text(cx, "doc.props.size", &[])), window, cx);
         let tip = |key: &str| Docs::text(cx, key, &[]);
         PropertyGroup::new(tip("doc.props.text"))
             .row(tip("doc.props.font"), font)
-            .row(tip("doc.props.size"), size_menu(self, ("doc-props-size", tip("doc.props.size")), cx))
+            .row(tip("doc.props.size"), size)
             .row(
                 tip("doc.props.effects"),
                 div()

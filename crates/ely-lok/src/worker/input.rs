@@ -189,7 +189,7 @@ fn run_checked(
         }
     }
     if command.check == Check::History && doc.kind() == 1 {
-        return sheet_history(id, doc, command, args);
+        return super::sheet::history(doc, command, args);
     }
     let history = format!("{}Count", command.uno);
     let before = if command.check == Check::History {
@@ -276,30 +276,8 @@ fn run_checked(
     checked
 }
 
-/// Calc undo acts on the sheet or the edited cell.
-fn sheet_history(id: u64, doc: &Document, command: &Command, args: Option<&str>) -> io::Result<()> {
-    let gone = || io::Error::other("the document left the event watch");
-    let history = format!("{}Count", command.uno);
-    let (count, text) = (
-        history_count(doc, &history)?,
-        crate::events::a11y_text(id).ok_or_else(gone)?,
-    );
-    doc.post_uno(command.uno, args)?;
-    if history_count(doc, &history)? + 1 == count {
-        return Ok(());
-    }
-    let after = crate::events::wait_a11y_change(id, &text, STATE_WAIT).ok_or_else(gone)?;
-    if after == text {
-        // An empty history in no cell edit: nothing to do.
-        let nothing = if count == 0 { ipc::NOTHING } else { "" };
-        return Err(io::Error::other(format!("{nothing}{}: neither {history} nor the cell edit moved", command.id)));
-    }
-    log::info!("lok-worker: {} in a cell edit", command.id);
-    Ok(())
-}
-
 /// The kernel's synchronous history depth.
-fn history_count(doc: &Document, command: &str) -> io::Result<usize> {
+pub(super) fn history_count(doc: &Document, command: &str) -> io::Result<usize> {
     let count = doc.command_values(command)?;
     count
         .trim()

@@ -68,7 +68,7 @@ pub fn runs(worker: &mut Worker, doc: &Doc, commands: &[&str]) -> io::Result<Run
 }
 
 /// Reads the answer; every asked command must be in it.
-fn read_runs(json: &str, commands: &[&str]) -> io::Result<Runs> {
+pub(crate) fn read_runs(json: &str, commands: &[&str]) -> io::Result<Runs> {
     let value = parse(json)?;
     let states = value["commandStates"]
         .as_object()

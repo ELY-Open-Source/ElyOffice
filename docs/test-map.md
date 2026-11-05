@@ -27,33 +27,33 @@
 | FILE-09 | 路径支持空格、中文、非 ASCII 字符和长文件名；保留原有大小写 | C06.2 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | FILE-10 | 对损坏、加密、缺少字体和不支持的内容给出可执行提示 | C06.2 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | LOK-01 | 使用随应用交付的固定 LOK 构建，隔离用户已安装的 LibreOffice 配置 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-02 | 每项界面操作有明确的内核命令、参数、结果和状态回调映射 | C07.4（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-03 | 处理内容区域失效通知，只更新必要图块；旧修订的画面不得覆盖新画面 | C07.2（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-04 | 统一转换文档坐标、视图缩放、滚动和平台 DPI；输入与选区使用同一坐标规则 | C07.2（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-05 | 字体、字号、样式、选择对象、修改状态和撤销可用性以内核为准 | C07.4（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-02 | 每项界面操作有明确的内核命令、参数、结果和状态回调映射 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-03 | 处理内容区域失效通知，只更新必要图块；旧修订的画面不得覆盖新画面 | C07.2 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-04 | 统一转换文档坐标、视图缩放、滚动和平台 DPI；输入与选区使用同一坐标规则 | C07.2 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-05 | 字体、字号、样式、选择对象、修改状态和撤销可用性以内核为准 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-06 | 复制粘贴覆盖纯文本、富文本、图片和表格；不只实现键盘事件转发 | C07.3（~） | `lokview.sh` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-07 | 中文输入法包含组合开始、更新、提交和取消；不拆成普通按键模拟输入 | C07.3（~） | `lokview.sh` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-08 | 页面设置、图表、样式、批注等需要的对话框由 Ely 实现；上游原生对话框不得泄露 | C07.4（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-08 | 页面设置、图表、样式、批注等需要的对话框由 Ely 实现；上游原生对话框不得泄露 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-09 | 保存与导出只通过内核支持的过滤器；错误码不能被当成成功 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-10 | 关闭文档释放内核对象、图块和临时文件；不终止其他应用的会话 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-11 | 不执行宏和自动更新外部链接；打开后明确显示这些内容的处理状态 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-12 | 维护功能到接口的映射表和三端测试，不以“LOK 本身支持”作为交付证据 | C07.4（~） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| DOC-01 | 新建与模板 | C08.1（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-02 | 文字编辑 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-03 | 段落 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-04 | 样式 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-05 | 页面与分节 | C08.3（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-06 | 页眉页脚 | C08.3（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-07 | 表格 | C08.3（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-08 | 图片与对象 | C08.3（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-09 | 引用结构 | C08.4（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-10 | 公式 | C08.4（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-11 | 审阅 | C08.4（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-12 | 查找与检查 | C08.5（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-13 | 文档比较 | C08.5（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-14 | 邮件合并文档 | C08.5（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-15 | 打印与导出 | C08.6（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-16 | 长文档导航 | C08.6（~） | — | apps/ely-doc/src/tests、doc-props.sh |
+| LOK-12 | 维护功能到接口的映射表和三端测试，不以“LOK 本身支持”作为交付证据 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| DOC-01 | 新建与模板 | C08.1（~） | `utf32_flat_odf_with_basic_opens_in_risk_mode` | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-02 | 文字编辑 | C08.2（~） | `doc-props.sh`、`typed_sizes_go_once_and_a_refused_one_reverts` | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-03 | 段落 | C08.2（~） | `doc-props.sh`、`typed_sizes_go_once_and_a_refused_one_reverts` | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-04 | 样式 | C08.2（~） | `doc-props.sh`、`typed_sizes_go_once_and_a_refused_one_reverts` | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-05 | 页面与分节 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-06 | 页眉页脚 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-07 | 表格 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-08 | 图片与对象 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-09 | 引用结构 | C08.4 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-10 | 公式 | C08.4 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-11 | 审阅 | C08.4 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-12 | 查找与检查 | C08.5 | `two_generations_keep_their_own_templates` | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-13 | 文档比较 | C08.5 | `two_generations_keep_their_own_templates` | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-14 | 邮件合并文档 | C08.5 | `two_generations_keep_their_own_templates` | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-15 | 打印与导出 | C08.6 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-16 | 长文档导航 | C08.6 | — | apps/ely-doc/src/tests、doc-props.sh |
 | TABLE-01 | 工作簿 | C09.1（~）、决策 C09.1 | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
 | TABLE-02 | 区域编辑 | C09.1（~） | `a11y_follows_the_focused_paragraph` | apps/ely-table/src/tests、theme.sh |
 | TABLE-03 | 公式输入 | C09.2（~）、决策 C09.2 | — | apps/ely-table/src/tests、theme.sh |
@@ -163,7 +163,7 @@
 | QA-07 | 外部冲突 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-08 | 并发保存 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-09 | 崩溃恢复 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-10 | Doc | C08.6（~）、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-10 | Doc | C08.6、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-11 | Table | C09.5（~）、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-12 | Show | C10.6（~）、C22.2（ ）、决策 C10.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-13 | PDF 编辑 | C11.8（~）、C22.2（ ）、决策 C11.8 | — | 无库内证据：C22.2 的记录已移除，须重做 |

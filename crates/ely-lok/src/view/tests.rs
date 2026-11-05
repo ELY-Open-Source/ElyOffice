@@ -306,7 +306,11 @@ fn scroll_stays_inside_after_shrink_zoom_and_resize() {
                 all: true,
                 ..crate::Events::default()
             };
-            view.apply_batch(batch(1), None, cx);
+            let opened = view.doc_size;
+            let measured = super::measure(&view.worker, &view.doc);
+            view.apply_batch(batch(1), Some(measured), cx);
+            let grown = view.doc_size;
+            assert!(grown.1 > opened.1, "the document grew: {opened:?} to {grown:?}");
             view.scroll_by(0.0, -1_000_000.0, cx);
             assert_eq!(view.scroll.1, bottom(view), "scrolled to the grown bottom");
             {
@@ -316,7 +320,10 @@ fn scroll_stays_inside_after_shrink_zoom_and_resize() {
                     .expect("select all");
                 worker.cut(&view.doc).expect("the cut runs");
             }
-            view.apply_batch(batch(2), None, cx);
+            let measured = super::measure(&view.worker, &view.doc);
+            view.apply_batch(batch(2), Some(measured), cx);
+            assert!(view.doc_size.1 < grown.1, "the document shrank: {:?}", view.doc_size);
+            assert!(view.scroll.1 > 0, "the shrink leaves room to scroll");
             assert_eq!(
                 view.scroll.1,
                 bottom(view),

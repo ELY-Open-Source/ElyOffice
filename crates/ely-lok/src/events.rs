@@ -349,37 +349,6 @@ pub fn take_result(id: u64) -> Option<(String, bool)> {
     slots().lock().expect("the events lock").get_mut(&id)?.result.take()
 }
 
-/// The bridged a11y text now.
-pub fn a11y_text(id: u64) -> Option<String> {
-    Some(
-        slots()
-            .lock()
-            .expect("the events lock")
-            .get(&id)?
-            .batch
-            .a11y
-            .text
-            .clone(),
-    )
-}
-
-/// Waits for the a11y text to leave `before`.
-pub fn wait_a11y_change(id: u64, before: &str, timeout: Duration) -> Option<String> {
-    let deadline = Instant::now() + timeout;
-    let mut slots = slots().lock().expect("the events lock");
-    loop {
-        let text = slots.get(&id)?.batch.a11y.text.clone();
-        let now = Instant::now();
-        if text != before || now >= deadline {
-            return Some(text);
-        }
-        slots = signal()
-            .wait_timeout(slots, deadline - now)
-            .expect("the events wait")
-            .0;
-    }
-}
-
 /// Waits for `uno` to read `want`; returns the last state.
 pub fn wait_state(id: u64, uno: &str, want: &str, timeout: Duration) -> Option<String> {
     let deadline = Instant::now() + timeout;

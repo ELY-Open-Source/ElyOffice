@@ -121,7 +121,12 @@ impl Docs {
             move |worker, doc| doc.save_as(worker, &url, "odt"),
             move |docs, saved, _, cx| match saved {
                 Ok(()) => then(docs, name, copy, cx),
-                Err(error) => docs.merge_failed(&error, cx),
+                Err(error) => {
+                    docs.merge_failed(&error, cx);
+                    if let Err(error) = drop_scratch(&copy) {
+                        docs.merge_failed(&error, cx);
+                    }
+                }
             },
             cx,
         );
@@ -242,6 +247,7 @@ impl Docs {
     ) {
         log::info!("doc: merging {} records", targets.len());
         let worker = Arc::clone(&self.core.worker);
+        let scratch = template.clone();
         cx.spawn(async move |this, cx| {
             let written = cx
                 .background_spawn(async move {
@@ -262,7 +268,11 @@ impl Docs {
                     Ok(targets.len())
                 })
                 .await;
+            let dropped = cx.background_spawn(async move { drop_scratch(&scratch) }).await;
             in_window(&this, cx, |docs, _, cx| {
+                if let Err(error) = dropped {
+                    docs.merge_failed(&error, cx);
+                }
                 let folder = folder.display().to_string();
                 let text = match written {
                     Ok(count) => {
@@ -281,6 +291,13 @@ impl Docs {
         })
         .detach_and_log_err(cx);
     }
+}
+
+/// Removes a run's scratch folder: a copy and filled records.
+fn drop_scratch(template: &Path) -> io::Result<()> {
+    let dir = template.parent().ok_or_else(|| io::Error::other("a merge template has no folder"))?;
+    log::info!("doc: the merge scratch folder goes");
+    std::fs::remove_dir_all(dir)
 }
 
 #[cfg(test)]

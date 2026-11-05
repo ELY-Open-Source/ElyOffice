@@ -3,7 +3,7 @@ use gpui::TestAppContext;
 use super::*;
 
 /// The report template with an embedded Basic library.
-fn macro_fodt(cx: &mut TestAppContext) -> String {
+pub(super) fn macro_fodt(cx: &mut TestAppContext) -> String {
     cx.update(|app| Template::Report.fodt(app))
         .replace(
             "office:version=",
@@ -192,8 +192,13 @@ fn an_edit_that_just_landed_still_asks_and_selection_does_not() {
     let id = blank(&mut cx, &docs);
     commit(&mut cx, &docs, "JustLanded");
     let view = cx.update(|app| docs.read(app).active_tab().expect("a tab").view.clone());
-    settle(&cx, |app| view.read(app).settled());
+    settle(&cx, |app| view.read(app).settled() && docs.read(app).tab(id).is_some_and(|tab| tab.modified));
+    // Rewound to before the modified status arrived.
     with_window(&mut cx, &docs, |docs, window, cx| {
+        let tab = docs.tab_mut(id).expect("open");
+        tab.modified = false;
+        tab.session.reverted();
+        assert!(!tab.dirty(cx), "only the undo history shows the edit");
         docs.request_close(id, After::Tab, window, cx)
     });
     settle(&cx, |app| {
