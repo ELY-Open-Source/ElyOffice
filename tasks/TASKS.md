@@ -568,7 +568,7 @@
 - [!] R16.3 #16 上架 WinGet（§4）：各应用的 winget 清单随发布生成，README 写安装与升级命令。已做：`packaging/winget.sh <标签>` 由该发布的 Windows 更新清单写首批七个应用的 WinGet 清单（`ZacharyZhang.<名字>`，nullsoft、按用户装、卸载键为 ProductCode，简介取 apps.tsv 新的第六列）到 dist/winget；v0.1.13 的七份经 `winget validate`（1.29.380）皆过；`tests/scripts/winget.sh`（Windows 与 WSL 皆过，改坏清单即败）。未做：交 microsoft/winget-pkgs 要以用户的 GitHub 账号开 fork 与 PR，本机 `gh` 令牌失效；README 的 `winget install` 命令待收录后写 — R1 PASS；外部阻塞：交 winget-pkgs 待用户重新登录 gh
 - [!] R16.4 #37 Windows arm64 原生构建（§4）。核对（2026-11-05）：无 arm64 的 Windows 可测——本机 x64，Mac（arm64）无虚拟机软件；本机无 `aarch64-pc-windows-msvc` 目标与 MSVC arm64 工具；内核须先为 arm64 的 Windows 交叉构建 LibreOffice（数小时），MuPDF、Tesseract、随包 Git 同；#37 下 10-24 有人说在做，至今无 PR。建出而跑不了即是未验证的能力（规则 10），不做；x64 包在 Windows 11 ARM 的 x64 模拟下照常运行。外部阻塞：一台 Windows on ARM 的机器或虚拟机 — R1 FAIL（状态未标 `[!]`），R2 PASS
 - [x] R16.5 #64 Windows 右键“新建”（§4）：核对现状与常设决定，答复。核对：常设决定是“新建”只在该类型无处理程序时设（`packaging/windows/types.sh`）；`tests/scripts/windows-types.sh` 以真安装程序照过；本机（无 Office、WPS）HKCR 的 .docx、.xlsx、.pptx 归 ElyDoc、ElyTable、ElyShow，`ShellNew` 指向各自的 new.*，右键“新建”有三项。报告者装着 WPS，类型归 WPS，Ely 不写“新建”，照决定不改。答复见 R16.28 — R1 PASS
-- [ ] R16.6 R14.53 收尾：macOS 无障碍复核（§5，I-02）
+- [x] R16.6 R14.53 收尾：macOS 无障碍复核（§5，I-02） — mac-lane 做完，R14.53 第 4 轮 PASS（`tasks/reviews/R14.53-r4.md`，Mac 上 `macos-names.sh` 七个应用皆过），随 R16.2 并入
 - [ ] R16.7 R14.10 收尾：关闭链悬空 X-08（§6.2）
 - [ ] R16.8 #62 ElyDoc 空行改字号报错且改不了（§8）
 - [ ] R16.9 #61 ElyDoc 中文首行缩进两字不准、引号前后不一（§8）
