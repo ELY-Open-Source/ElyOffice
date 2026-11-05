@@ -203,21 +203,32 @@ CLOSE=1 run T1.1 1 0 0 done 'PASS
 '
 [ "$rc" = 1 ] || fail "a refused final close passed: $said"
 [ "$(cat "$work/tree/tasks/reviews/.panes/T1.1")" = w1:p2 ] || fail "the unclosed pane's id was lost"
-# The tallest pane splits while both halves keep ten rows.
+# Halves keep ten terminal rows; chrome takes two of each.
 reset
-for t in 1 2 3 4 5; do run T1.$t 1 0 0 blocked 'PASS\n'; done
-[ "$(cat "$work/splits")" = "$(printf 'w1:p1 right\nw1:p2 down\nw1:p2 down\nw1:p3 down')" ] || fail "column splits: $(cat "$work/splits")"
+for t in 1 2 3; do run T1.$t 1 0 0 blocked 'PASS\n'; done
+[ "$(cat "$work/splits")" = "$(printf 'w1:p1 right\nw1:p2 down')" ] || fail "column splits: $(cat "$work/splits")"
+[ -z "$(awk '$2 - 2 < 10' "$work/rows")" ] || fail "a pane under ten terminal rows: $(cat "$work/rows")"
 # A full column sends the next one to a tab.
-[ "$(cat "$work/tabs" 2>/dev/null)" = "--workspace w1 --cwd $work/tree --label rv-t1-5-r1 --no-focus" ] || fail "no tab for a full column: $(cat "$work/tabs" 2>/dev/null)"
-[ "$(cat "$work/tree/tasks/reviews/.panes/T1.5")" = w1:p6 ] || fail "the tab's pane was not kept"
-run T1.5 2 0 0 done 'PASS\n'
+[ "$(cat "$work/tabs" 2>/dev/null)" = "--workspace w1 --cwd $work/tree --label rv-t1-3-r1 --no-focus" ] || fail "no tab for a full column: $(cat "$work/tabs" 2>/dev/null)"
+[ "$(cat "$work/tree/tasks/reviews/.panes/T1.3")" = w1:p4 ] || fail "the tab's pane was not kept"
+run T1.3 2 0 0 done 'PASS\n'
 [ "$rc" = 0 ] || fail "a review in a tab: rc $rc, $said"
-[ "$(cat "$work/closed")" = "$(printf 'w1:p6\nw1:p7')" ] || fail "tab panes left open: $(cat "$work/closed")"
-[ "$(wc -l <"$work/splits")" = 4 ] || fail "a full column split again: $(cat "$work/splits")"
+[ "$(cat "$work/closed")" = "$(printf 'w1:p4\nw1:p5')" ] || fail "tab panes left open: $(cat "$work/closed")"
+[ "$(wc -l <"$work/splits")" = 2 ] || fail "a full column split again: $(cat "$work/splits")"
+# The tallest pane splits, from exactly 24 rows.
+reset
+printf 'w1:p2 23\nw1:p3 24\n' >"$work/rows"
+printf 'w1:p2\nw1:p3\n' >"$work/live"
+echo 3 >"$work/panes"
+run T1.4 1 0 0 blocked 'PASS\n'
+[ "$(cat "$work/splits")" = "w1:p3 down" ] || fail "not the tallest pane split: $(cat "$work/splits")"
+run T1.5 1 0 0 blocked 'PASS\n'
+[ "$(wc -l <"$work/splits")" = 1 ] || fail "23 rows split: $(cat "$work/splits")"
+grep -q -- "--label rv-t1-5-r1 " "$work/tabs" || fail "23 rows did not send a tab: $(cat "$work/tabs" 2>/dev/null)"
 # A tab herdr refuses is named.
-TAB=1 run T1.5 3 0 0 done 'PASS\n'
+TAB=1 run T1.1 1 0 0 done 'PASS\n'
 [ "$rc" = 1 ] || fail "a refused tab passed"
-case $said in *"no pane for rv-t1-5-r3"*workspace_not_found*) ;; *) fail "tab refusal not named: $said" ;; esac
+case $said in *"no pane for rv-t1-1-r1"*workspace_not_found*) ;; *) fail "tab refusal not named: $said" ;; esac
 # A layout herdr cannot read stops it.
 reset
 NEAR=1 run T1.1 1 0 0 done 'PASS

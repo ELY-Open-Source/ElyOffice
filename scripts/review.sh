@@ -44,8 +44,8 @@ if [ -f "$last" ]; then
   fi
   rm -f "$last"
 fi
-# Reviewers stack right of the caller; each keeps ten rows.
-room=10
+# Each reviewer keeps ten terminal rows; herdr's chrome takes two.
+room=10 chrome=2
 right=$(herdr pane neighbor --direction right --pane "$HERDR_PANE_ID" | field '.result.neighbor.neighbor_pane_id // empty') \
   && lay=$(herdr pane layout --pane "$HERDR_PANE_ID" | field -c '.result.layout') \
   || { echo "review.sh: no layout for $HERDR_PANE_ID" >&2; exit 1; }
@@ -55,7 +55,7 @@ else
   tall=$(field --arg r "$right" '.panes as $p | ($p[] | select(.pane_id == $r) | .rect.x) as $x
     | [$p[] | select(.rect.x == $x)] | max_by(.rect.height) | "\(.pane_id) \(.rect.height)"' <<<"$lay")
   [ -n "$tall" ] || { echo "review.sh: $right not in the layout: $lay" >&2; exit 1; }
-  if [ "${tall#* }" -ge $((2 * room)) ]; then
+  if [ "${tall#* }" -ge $((2 * (room + chrome))) ]; then
     made=$(herdr pane split --pane "${tall% *}" --direction down --cwd "$PWD" --no-focus 2>&1) || :
   else
     # A full column sends the reviewer to its own tab.
