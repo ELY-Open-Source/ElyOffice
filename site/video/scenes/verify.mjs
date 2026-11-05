@@ -27,33 +27,33 @@ async function open(path, asked = []) {
   return page;
 }
 
-/** Each drawn recording: its source, its corners and its slab's. */
-const drawn = (page, faces) =>
-  page.$$eval(
-    "#world image",
-    (els, faces) =>
-      els.map((el) => {
-        const href = el.getAttribute("href");
-        const at = (m, [x, y]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f];
-        const own = el.getScreenCTM();
-        // The group's matrix, without the image's own.
-        const group = el.parentElement.getScreenCTM();
-        const face = faces[href.split("/")[1]];
-        return { href, corners: [[0, 0], [1280, 0], [0, 720]].map((p) => at(own, p)), face: face.map((p) => at(group, p)) };
-      }),
-    faces,
-  );
-
-/** Each slab's top-left, top-right and bottom-left screen corners. */
-const faces = (angle) =>
-  Object.fromEntries(
-    recs.apps.map(({ rec }, i) => {
-      const b = slabs[i];
-      const Y = b.y + b.d;
-      return [rec, [turned(angle, b.x, Y, b.z + b.h), turned(angle, b.x + b.w, Y, b.z + b.h), turned(angle, b.x, Y, b.z)]];
+/** Each drawn screen: its slab, opacity, front face and recordings. */
+const drawn = (page) =>
+  page.$$eval("#world g[data-slab]", (groups) =>
+    groups.map((g) => {
+      const at = (m, x, y) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f];
+      const front = g.querySelector("polygon[data-front], polygon.left");
+      const points = front ? [...front.points].map((p) => at(front.getScreenCTM(), p.x, p.y)) : [];
+      const films = [...g.querySelectorAll("image")].map((el) => {
+        const m = el.getScreenCTM();
+        return { href: el.getAttribute("href"), corners: [[0, 0], [1280, 0], [0, 720], [1280, 720]].map(([x, y]) => at(m, x, y)) };
+      });
+      const m = g.getScreenCTM();
+      const group = [m.a, m.b, m.c, m.d, m.e, m.f];
+      return { slab: Number(g.dataset.slab), opacity: Number(g.getAttribute("opacity") ?? 1), group, points, films };
     }),
   );
-const apart = (p, q) => Math.max(...p.map((c, i) => Math.hypot(c[0] - q[i][0], c[1] - q[i][1])));
+
+/** A slab's top-left, top-right and bottom-left at `angle`, through `m`. */
+function face(slab, angle, m) {
+  const b = slabs[slab];
+  const Y = b.y + b.d;
+  const on = ([x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+  return [turned(angle, b.x, Y, b.z + b.h), turned(angle, b.x + b.w, Y, b.z + b.h), turned(angle, b.x, Y, b.z)].map(on);
+}
+const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.5;
+/** Two corner lists naming the same points, in any order. */
+const same = (ps, qs) => ps.length === qs.length && ps.every((p) => qs.some((q) => near(p, q)));
 
 try {
   const cut = recs.first + 129;
@@ -71,36 +71,44 @@ try {
   );
   if (Object.keys(last).length !== recs.apps.length) throw new Error(`the montage loaded ${JSON.stringify(asked)}`);
   const exit = await open("video/scenes/index.html");
-  // Every exit frame until the last screen has gone.
-  for (let f = cut; ; f++) {
+  // Screens drawn last frame, by slab, with their opacity.
+  let before = new Map();
+  const gone = new Set();
+  for (let f = cut; f === cut || before.size; f++) {
+    if (f > cut + 300) throw new Error("the screens never leave");
     await exit.evaluate((f) => window.ely.render("files", f), f);
-    const m = moment(f / 30);
-    const shown = await drawn(exit, faces(m.angle));
-    // Each slab still up plays on, one frame a frame.
-    const want = m.pieces
-      .filter(({ box, land }) => land > 0 && slabs.includes(box))
-      .map(({ box }) => recs.apps[slabs.indexOf(box)].rec)
-      .map((rec) => `rec/${rec}/${String(last[rec] + f - cut + 1).padStart(5, "0")}.jpg`);
-    const got = shown.map((s) => s.href);
-    if (JSON.stringify([...got].sort()) !== JSON.stringify([...want].sort())) {
-      throw new Error(`frame ${f}: drew ${JSON.stringify(got)}, not ${JSON.stringify(want)}`);
-    }
-    for (const { href, corners, face } of shown) {
-      if (apart(corners, face) > 0.5) throw new Error(`frame ${f}: ${href} leaves its screen: ${JSON.stringify(corners)}, not ${JSON.stringify(face)}`);
+    // A screen faded to nothing has gone.
+    const shown = (await drawn(exit)).filter(({ opacity }) => opacity > 0);
+    const angle = moment(f / 30).angle;
+    for (const { slab, opacity, group, points, films } of shown) {
+      const { app, rec } = recs.apps[slab];
+      if (gone.has(slab)) throw new Error(`frame ${f}: ${app} comes back`);
+      if (opacity > (before.get(slab) ?? 1) + 1e-6) throw new Error(`frame ${f}: ${app} brightens to ${opacity}`);
+      // One recording a screen, one frame a frame on.
+      const want = `rec/${rec}/${String(last[rec] + f - cut + 1).padStart(5, "0")}.jpg`;
+      if (films.length !== 1 || films[0].href !== want) throw new Error(`frame ${f}: ${app} drew ${JSON.stringify(films.map((x) => x.href))}, not ${want}`);
+      const { corners } = films[0];
+      if (!face(slab, angle, group).every((p, i) => near(p, corners[i]))) throw new Error(`frame ${f}: ${app}'s recording turns off its slab`);
+      if (!same(corners, points)) throw new Error(`frame ${f}: ${app}'s recording is not on its screen: ${JSON.stringify(corners)} on ${JSON.stringify(points)}`);
     }
     if (f === cut) {
-      if (got.length !== 6) throw new Error(`the cut shows ${got.length} screens`);
-      // The montage pins top-left, top-right, bottom-right, bottom-left.
-      for (const { href, corners } of shown) {
-        const app = recs.apps.find((a) => href.startsWith(`rec/${a.rec}/`)).app;
-        const pin = pins[app];
-        const near = [pin[0], pin[1], pin[3]].every((p, i) => Math.hypot(p[0] - corners[i][0], p[1] - corners[i][1]) < 1);
-        if (!near) throw new Error(`${app} moves at the cut: ${JSON.stringify(pin)} to ${JSON.stringify(corners)}`);
+      if (shown.length !== recs.apps.length) throw new Error(`the cut shows ${shown.length} screens`);
+      for (const { slab, points } of shown) {
+        const { app } = recs.apps[slab];
+        if (!same(points, pins[app])) throw new Error(`${app} moves at the cut: ${JSON.stringify(pins[app])} to ${JSON.stringify(points)}`);
       }
     }
-    if (!want.length) break;
+    const now = new Map(shown.map(({ slab, opacity }) => [slab, opacity]));
+    // A screen leaves only once faded out.
+    for (const [slab, opacity] of before) {
+      if (now.has(slab)) continue;
+      if (opacity > 0.1) throw new Error(`frame ${f}: ${recs.apps[slab].app} vanishes at opacity ${opacity}`);
+      gone.add(slab);
+    }
+    before = now;
   }
-  console.log("verify: screens hold still across the cut and play their own frames");
+  if (gone.size !== recs.apps.length) throw new Error(`only ${gone.size} screens left`);
+  console.log("verify: screens hold still across the cut, play their own frames and fade out");
 } finally {
   await browser.close();
   await server.close();

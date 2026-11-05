@@ -113,7 +113,10 @@ export function turnedBlock(b: Box, a: number): SVGGElement {
   for (const { n, c } of sides) {
     const [nx, ny] = [n[0] * Math.cos(a) - n[1] * Math.sin(a), n[0] * Math.sin(a) + n[1] * Math.cos(a)];
     if (nx + ny <= 1e-9) continue;
-    g.append(polygon(c.map(([px, py, pz]) => P(px, py, pz)), shade(darkness(nx, ny))));
+    const face = polygon(c.map(([px, py, pz]) => P(px, py, pz)), shade(darkness(nx, ny)));
+    // The +y face carries a screen's recording.
+    if (n[1] === 1) face.dataset.front = "";
+    g.append(face);
   }
   g.append(polygon([P(x, y, Z), P(X, y, Z), P(X, Y, Z), P(x, Y, Z)], b.tone));
   return g;
