@@ -169,7 +169,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
 const TRAY_PNG: &[u8] = include_bytes!("../../../assets/icons/ely-mail.png");
 
 /// The window's root around `mail`; `again` from the tray.
-fn attach(app: AppId, mail: &Entity<Mail>, again: bool, window: &mut Window, cx: &mut App) -> Entity<Root> {
+pub(crate) fn attach(app: AppId, mail: &Entity<Mail>, again: bool, window: &mut Window, cx: &mut App) -> Entity<Root> {
     let root = ely_ui::tool_root(app, mail.clone().into(), crate::menu::menus(cx), window, cx);
     mail.update(cx, |mail, cx| {
         if again {

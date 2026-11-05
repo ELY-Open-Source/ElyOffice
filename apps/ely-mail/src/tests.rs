@@ -42,6 +42,7 @@ mod side;
 mod storage;
 mod syncs;
 mod threads;
+mod tray;
 mod whole;
 mod writing;
 
