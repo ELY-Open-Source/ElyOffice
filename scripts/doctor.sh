@@ -60,7 +60,6 @@ case $(uname -s) in
     check pkg-config --version
     check cmake --version
     check ninja --version
-    need metal xcrun -sdk macosx metal --version
     # What build-libreoffice.sh puts first on PATH.
     for formula in gnu-sed bison flex gettext; do
       need "$formula" brew list --versions "$formula"
