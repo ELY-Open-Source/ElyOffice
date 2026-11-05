@@ -18,6 +18,31 @@ impl gpui::Render for Blank {
     }
 }
 
+/// The whole Book, drawn as the app draws it.
+pub(crate) struct Whole(pub(crate) Entity<Book>);
+
+impl gpui::Render for Whole {
+    fn render(&mut self, _: &mut gpui::Window, _: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
+        self.0.clone()
+    }
+}
+
+/// A window drawing `book` whole.
+pub(crate) fn drawn(cx: &mut TestAppContext, book: &Entity<Book>) -> gpui::VisualTestContext {
+    cx.update(|app| {
+        ely_gpui_component::init_for_tests(app);
+        ely_ui::set_document_menus(ely_platform::AppId::Table, &ely_ui::commands::FILE, Vec::new(), app);
+    });
+    let window = cx.add_window(|_, _| Whole(book.clone()));
+    gpui::VisualTestContext::from_window(window.into(), cx)
+}
+
+/// The name box once the window draws again.
+pub(crate) fn name_box(shown: &mut gpui::VisualTestContext, book: &Entity<Book>) -> String {
+    menu::frames(shown);
+    shown.update(|_, app| book.read(app).bars.name.read(app).text().to_string())
+}
+
 /// An unrendered Book over a fresh worker, if LOK exists.
 pub(crate) fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<Blank>, Entity<Book>)> {
     let install = ely_lok::test_install()?;
@@ -326,12 +351,14 @@ fn the_bars_follow_the_active_workbook() {
     settle(&cx, |app| {
         address(app, 0) == "A1" && address(app, 1) == "C3"
     });
-    let name = |cx: &mut TestAppContext, at: usize| {
+    let mut shown = drawn(&mut cx, &book);
+    // As a tab click does: the next draw refills.
+    let mut name = |cx: &mut TestAppContext, at: usize| {
         update(cx, &book, |book, cx| {
             book.core.set_active(Some(book.core.tabs[at].id));
-            book.refill(cx);
+            cx.notify();
         });
-        cx.update(|app| book.read(app).bars.name.read(app).text().to_string())
+        name_box(&mut shown, &book)
     };
     assert_eq!(name(&mut cx, 0), "A1", "the first workbook's cell");
     assert_eq!(name(&mut cx, 1), "C3", "then the second's");
