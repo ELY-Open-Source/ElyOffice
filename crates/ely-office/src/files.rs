@@ -119,7 +119,11 @@ const OOO: &[u8] = b"http://openoffice.org/2004/office";
 
 /// Whether flat ODF embeds a Basic library, namespaces in scope.
 fn flat_odf_has_basic(bytes: &[u8]) -> io::Result<bool> {
-    let text = utf8(bytes)?;
+    // Undecodable text cannot be flat ODF.
+    let Ok(text) = utf8(bytes) else {
+        log::info!("office: not UTF-8 or UTF-16 text, so no flat ODF");
+        return Ok(false);
+    };
     if !text.trim_ascii_start().starts_with(b"<") || !flat_odf_root(&text) {
         return Ok(false);
     }
@@ -362,6 +366,13 @@ mod tests {
         ] {
             let text = write(name, text.as_bytes());
             assert!(!macro_risk(&KIND, &text).expect(name), "{name} is text");
+        }
+        for (name, bytes) in [
+            ("utf32.txt", &b"\xFF\xFE\0\0h\0\0\0i\0\0\0"[..]),
+            ("odd.txt", &b"\xFF\xFEh\0i\0!"[..]),
+            ("lone.txt", &b"\xFF\xFEh\0\x00\xD8i\0"[..]),
+        ] {
+            assert!(!macro_risk(&KIND, &write(name, bytes)).expect(name), "{name} is text");
         }
         std::fs::remove_dir_all(&dir).expect("cleans");
     }
