@@ -40,7 +40,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin 89bff04，gpui 为 crates.io 的 `gpui-pre` =0.3.10，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
+依赖 `ely-gpui-component`（pin 5070cf3，gpui 为 crates.io 的 `gpui-pre` =0.3.10，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
 
 | 需要 | 用 |
 | --- | --- |
@@ -146,12 +146,15 @@ packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调用）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发布后提交）
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；nix/release.json 与 apps.tsv 一致；nixos/nix 容器里 flake 的许可与表相同、ElyMark 构建并在 Xvfb 下画出（缺 docker 时 SKIP 容器部分）
-packaging/source.sh dist        本提交的源码包与随包的 copyleft 上游源码（打过补丁的 MuPDF、Git），文件名带提交号；工作区有未提交改动即拒绝（macOS 的 release.sh 与 CI 的 Linux 调用，发布只上传 Linux 的；Windows 的检出把符号链接写成文件，不出源码包）
+packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`：四个发布构建所取之和，本机已取的照用、其余下载，散列不符即失败），文件名带提交号；工作区有未提交改动即拒绝（macOS 的 release.sh 与 CI 的 Linux 调用，发布只上传 Linux 的；Windows 的检出把符号链接写成文件，不出源码包）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝
 scripts/release-tests.sh         发布的门：建好两个 worker，严格模式跑 `cargo test --workspace`（ci.sh 打包前调用）
 scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务与其测试（pr.yml 核对它与提交一致）
 tests/scripts/records.py         TASKS、BUGS、BugList、decisions 引用的库内文件都在，否则标“（已移除）”；引用 .work/ 须标“（本机，未入库）”（pr.yml 调用）
 tests/scripts/workflows.py       release.yml 的任务互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 的 runs-on 恰为 ubuntu-24.04、以整行的 `[sudo] apt-get install` 装齐 README 的库、严格模式、panic 数比基线提交（各带反例）
+scripts/lo-tarballs.sh lo-src     列出该 LibreOffice 构建所取的压缩包（名字、SHA-256、地址），由其 `Makefile.fetch` 得出，不下载
+tests/scripts/lo-tarballs.sh     `packaging/lo-tarballs.tsv` 的散列与 `download.lst` 一致、地址是 LibreOffice 的镜像、本机构建所取都在其中（Windows 经 Cygwin）
+tests/scripts/source-rules.sh    source.sh 把已取与下载的外部库按内容打包，散列不符或取不到即失败、不出包（假 curl）
 tests/scripts/ci-upload.sh       ci.sh 的上传：测试失败即一个不传；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
 tests/scripts/linux-packages.sh  deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库
 tests/scripts/linux-pins.sh      Linux 打包工具（appimagetool、linuxdeploy、运行时、nfpm）的下载与钉的散列相符

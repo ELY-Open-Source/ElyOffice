@@ -77,13 +77,16 @@ fn the_panel_formats_text_paragraphs_and_styles() {
     settle(&cx, |app| {
         let tab = docs.read(app).active_tab().expect("a tab");
         let view = tab.view.read(app);
-        view.settled() && view.tabs().len() == 1 && view.state(".uno:FontColor") == Some("16711680")
+        view.settled() && view.tabs().0.len() == 1 && view.state(".uno:FontColor") == Some("16711680")
     });
-    // The shown stop, removed by its number.
-    cx.update(|app| ely_office::panel::send(&props, "paragraph.tab", &["0", "0", "true"], app));
+    // The shown stop, removed at the revision that read it.
+    cx.update(|app| {
+        let read = docs.read(app).active_tab().expect("a tab").view.read(app).tabs().1;
+        props.update(app, |props, cx| props.run_at(&read, "paragraph.tab", &["0", "0", "true"], cx))
+    });
     settle(&cx, |app| {
         let view = docs.read(app).active_tab().expect("a tab").view.read(app);
-        view.settled() && view.tabs().is_empty()
+        view.settled() && view.tabs().0.is_empty()
     });
     run(&mut cx, &props, "paragraph.tab", &["-1", "1134", "false"]);
     let target = dir.path().join("panel.docx");

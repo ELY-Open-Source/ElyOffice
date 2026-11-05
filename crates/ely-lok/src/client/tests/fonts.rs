@@ -155,3 +155,43 @@ fn a_selection_past_the_kernel_lookup_still_takes_the_font() {
     assert!(western(&xml, "Liberation Mono"), "the font was undone");
     assert!(!chinese(&xml, "Liberation Mono"), "took the Chinese text");
 }
+
+/// Many lines in `font`: monospaced if present, else a fallback.
+fn in_font(font: &str) -> String {
+    let line = "<text:p>The quick brown fox jumps over the lazy dog, then naps in the warm sun.</text:p>";
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:font-face-decls><style:font-face style:name="F" svg:font-family="&apos;{font}&apos;" style:font-family-generic="swiss" style:font-pitch="variable"/></office:font-face-decls>
+ <office:styles><style:default-style style:family="paragraph"><style:text-properties style:font-name="F" fo:font-size="12pt"/></style:default-style></office:styles>
+ <office:body><office:text>{}</office:text></office:body>
+</office:document>"#,
+        line.repeat(400)
+    )
+}
+
+/// Pages and missing fonts once the layout has settled.
+fn laid_out(font: &str) -> (usize, Vec<String>) {
+    let (_dir, mut worker, doc) = open(&in_font(font));
+    // Missing fonts are reported soon after the load.
+    let seen = poll_until(&mut worker, &doc, &Events::default(), std::time::Duration::from_secs(5), |seen| {
+        !seen.fonts.is_empty()
+    });
+    let pages = doc.pages(&mut worker).expect("the pages").len();
+    (pages, seen.fonts)
+}
+
+#[test]
+fn a_missing_font_is_named_and_its_pages_counted_apart() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (here, none) = laid_out("DejaVu Sans Mono");
+    assert!(none.is_empty(), "a bundled font is not missing: {none:?}");
+    let (gone, missing) = laid_out("Nowhere Mono");
+    assert_eq!(missing, ["Nowhere Mono"], "the lost font is named");
+    eprintln!("pages: {here} with the font, {gone} without");
+    assert!(here > 1 && gone > 1, "both lay out pages: {here}, {gone}");
+    assert_ne!(here, gone, "a stand-in moves the pages, and they show");
+}
