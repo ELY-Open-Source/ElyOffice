@@ -12,6 +12,8 @@ pub(super) fn rows<'a>(text: &'a str, how: &'a Import) -> impl Iterator<Item = V
         if let Some(quote) = how.quote {
             next = join(&lines, next, &mut record, quote, how.separator);
         }
+        // EmbeddedNullTreatment: Calc and Excel drop NULs.
+        record.retain(|c| *c != '\0');
         Some(fields(&record, how.quote, how.separator))
     })
 }
@@ -53,7 +55,7 @@ fn ends_field(record: &[char], mut at: usize, separator: char) -> bool {
     while record.get(at + 1) == Some(&' ') {
         at += 1;
     }
-    record.get(at + 1).is_none_or(|next| *next == separator)
+    record.get(at + 1).is_none_or(|next| *next == separator || *next == '\0')
 }
 
 /// After a blank or separator a field may start.
@@ -68,6 +70,10 @@ fn join(lines: &[&str], mut next: usize, record: &mut Vec<char>, quote: char, se
     loop {
         for at in from..record.len() {
             let c = record[at];
+            // NUL changes nothing here; it goes before the split.
+            if c == '\0' {
+                continue;
+            }
             if c == quote && start {
                 quotes += 1;
                 (state, start, kept, back) = (Quote::Open, false, record.len(), next);

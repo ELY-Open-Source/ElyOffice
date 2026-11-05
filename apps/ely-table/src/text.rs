@@ -374,6 +374,10 @@ mod tests {
         assert_eq!(inch.rows[0], ["Screen 27\" wide, matte", "00123"]);
         assert_eq!(inch.rows[1], ["x\ny", "z"], "a closed field spans lines");
         assert_eq!(inch.rows[2], ["a"], "a trailing separator adds no cell");
+        let nul = scan(b"Id,Code\n1,00\x00123\n\"ab\"\x00,x\n", &how);
+        assert_eq!(nul.rows[1], ["1", "00123"], "a NUL goes before the split");
+        assert_eq!(nul.rows[2], ["ab", "x"], "a quote before a NUL closes");
+        assert_eq!(nul.columns[1], Column::Text, "the code keeps its zeros");
         assert_eq!(calc.columns, [Column::Text, Column::Standard]);
         how.quote = None;
         assert_eq!(scan(b"\"Doe, J\"\n", &how).rows[0], ["\"Doe", " J\""]);

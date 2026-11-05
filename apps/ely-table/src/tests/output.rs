@@ -277,6 +277,8 @@ fn the_preview_reads_what_the_kernel_imports() {
         "Id,Code\n \"00123\",1\n\ny,-12345678901234567890\n",
         // Inch marks, text after quotes, lines in fields.
         "\"Screen 27\" wide, matte\",00123\n\"ab\"cd,x\n\"a \"\"b\"\"\"c,\"two\nlines\"\n\"x\ny\",z\na,\n",
+        // NULs drop before the split (fdo#57841).
+        "Id,Code\n1,00\u{0}123\n\"ab\"\u{0},x\n",
     ];
     for (file, text) in files.into_iter().enumerate() {
         let path = dir.path().join(format!("odd{file}.csv"));
