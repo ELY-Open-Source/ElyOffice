@@ -86,7 +86,7 @@
 | SHOW-13 | 输出 | C10.6（~）、决策 C10.6 | — | apps/ely-show/src/tests |
 | SHOW-14 | 演示准备 | C10.6（~）、决策 C10.6 | — | apps/ely-show/src/tests |
 | PDF-01 | 阅读 | C11.1（~）、决策 C11.1 | `a_typed_password_opens_the_file`、`escape_gives_up_each_queued_file_in_turn`、`a_jump_to_a_thin_page_across_makes_it_current`、`pages_that_never_reach_the_left_still_turn_current`、`a_view_edge_on_a_tile_edge_takes_no_tile_beyond`、`pdf-idle.sh` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-02 | 页面组织 | C11.2（~）、决策 C11.2 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-02 | 页面组织 | C11.2（~）、决策 C11.2 | `an_escaped_font_name_and_the_form_alignment_come_along` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-03 | 文字编辑 | C11.3（~）、决策 C11.3 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-04 | 图像与对象 | C11.3（~）、决策 C11.3 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-05 | 批注 | C11.4（~）、决策 C11.4 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
