@@ -127,7 +127,7 @@ pub trait Closing: Host {
         &mut self,
         id: u64,
         after: After,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         log::info!("office: closing tab {id} asked, then {after:?}");
@@ -137,7 +137,8 @@ pub trait Closing: Host {
             });
         }
         let Some(tab) = self.tab(id) else {
-            return self.close_waiting(id, cx);
+            self.close_waiting(id, cx);
+            return self.proceed(after, window, cx);
         };
         if tab.dirty(cx) {
             return self.ask_unsaved(id, after, cx);
@@ -149,7 +150,8 @@ pub trait Closing: Host {
             Self::Engine::history,
             move |host, read, window, cx| {
                 let Some(tab) = host.tab(id) else {
-                    return;
+                    log::info!("office: tab {id} closed during its history read");
+                    return host.proceed(after, window, cx);
                 };
                 if Self::Engine::edited(tab.view.read(cx)) != edited {
                     return host.request_close(id, after, window, cx);

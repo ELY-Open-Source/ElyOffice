@@ -114,7 +114,11 @@ pub trait Saving: Host {
             return;
         };
         let Some(dir) = folder(tab) else {
-            return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
+            self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
+            if then.is_some() {
+                self.close_stopped(cx);
+            }
+            return;
         };
         let stem = tab
             .name

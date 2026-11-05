@@ -157,3 +157,26 @@ fn a_gone_tabs_save_as_into_a_missing_folder_goes_on(cx: &mut TestAppContext) {
     };
     a_gone_tabs_save_lets_the_close_go_on(cx, elsewhere);
 }
+
+#[gpui::test]
+fn a_tab_closed_during_its_history_read_lets_the_close_go_on(cx: &mut TestAppContext) {
+    let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+    let (a, b) = (files.path().join("a.md"), files.path().join("b.md"));
+    std::fs::write(&a, "A\n").expect("a");
+    std::fs::write(&b, "B\n").expect("b");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &a, cx);
+    open(&desk, &b, cx);
+    let ids = tabs(&desk, cx);
+    cx.update(|window, cx| {
+        desk.update(cx, |desk, cx| {
+            desk.leave(cx);
+            // A's history is read off the thread.
+            desk.request_close(ids[0], After::Window, window, cx);
+            desk.close_tab(ids[0], cx);
+        })
+    });
+    cx.run_until_parked();
+    assert!(tabs(&desk, cx).is_empty(), "the close stopped at the gone tab");
+    assert!(leaving(&desk, cx));
+}
