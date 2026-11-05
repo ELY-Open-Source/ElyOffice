@@ -1,8 +1,8 @@
-ely-doc	ElyDoc	Office;WordProcessor;	1	MIT AND MPL-2.0
-ely-table	ElyTable	Office;Spreadsheet;	1	MIT AND MPL-2.0
-ely-show	ElyShow	Office;Presentation;	1	MIT AND MPL-2.0
-ely-pdf	ElyPDF	Office;Viewer;	1	MIT AND AGPL-3.0-or-later
-ely-mail	ElyMail	Network;Email;	1	MIT
-ely-tree	ElyTree	Development;RevisionControl;	1	MIT AND GPL-2.0-only
-ely-mark	ElyMark	Utility;TextEditor;	1	MIT AND AGPL-3.0-or-later AND GPL-2.0-only
-ely-agent	ElyAgent	Development;	2	MIT
+ely-doc	ElyDoc	Office;WordProcessor;	1	MIT AND MPL-2.0	Word processing (DOCX, ODT)
+ely-table	ElyTable	Office;Spreadsheet;	1	MIT AND MPL-2.0	Spreadsheets (XLSX, ODS, CSV)
+ely-show	ElyShow	Office;Presentation;	1	MIT AND MPL-2.0	Presentations (PPTX, ODP)
+ely-pdf	ElyPDF	Office;Viewer;	1	MIT AND AGPL-3.0-or-later	PDF reading and editing, OCR, signatures
+ely-mail	ElyMail	Network;Email;	1	MIT	Mail over IMAP, POP3 and SMTP
+ely-tree	ElyTree	Development;RevisionControl;	1	MIT AND GPL-2.0-only	Git client
+ely-mark	ElyMark	Utility;TextEditor;	1	MIT AND AGPL-3.0-or-later AND GPL-2.0-only	Markdown editor
+ely-agent	ElyAgent	Development;	2	MIT	Coding agent

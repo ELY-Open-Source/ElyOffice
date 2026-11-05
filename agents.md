@@ -28,7 +28,7 @@ reference/   上游源码，只读，不属于本项目，不审查
 engines/     下载的二进制与引擎构建产物，不入库，不审查；mupdf-src 是 reference/mupdf 加 patches/mupdf 的构建副本
 patches/     对上游的补丁，随源码发行（libreoffice、mupdf）
 vendor/      crates.io 上游 crate 的副本加本项目的修复，经工作区 `[patch.crates-io]` 换入（accesskit_atspi_common、accesskit_unix、gpui-pre、gpui-pre-linux、gpui-pre-macos、gpui-pre-windows、mail-parser、zbus）；首个提交为原样，其后是修复
-packaging/   三端打包脚本，apps.tsv 是八个应用的二进制名、名字、桌面分类、发布批次与许可（Linux 包与 Nix 的许可字段）；icons/ 由图标母版渲染各端格式；libreoffice/ely.xcd 是内核的默认配置层
+packaging/   三端打包脚本，apps.tsv 是八个应用的二进制名、名字、桌面分类、发布批次、许可（Linux 包、Nix 与 WinGet 的许可字段）与一句话简介（WinGet）；icons/ 由图标母版渲染各端格式；libreoffice/ely.xcd 是内核的默认配置层
 assets/      icons/ 是八个应用的图标母版（SVG）与渲染出的 icns、png、ico，规则见其 README
 dist/        打包产物，不入库
 docs/        兼容清单、无障碍、帮助、许可、性能记录、功能编号与测试的对照（test-map.md，由 scripts/test-map.py 生成）；验收的证据都在库里
@@ -147,6 +147,8 @@ tests/scripts/elfs-rules.sh      `packaging/linux/elfs.sh`（package.sh 调用�
 packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调用）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发布后提交）
+packaging/winget.sh 标签       由该发布 Windows 的更新清单写 dist/winget 下首批各应用的 WinGet 清单（`ZacharyZhang.<名字>`，照 winget-pkgs 的目录；发布后交 winget-pkgs）
+tests/scripts/winget.sh        winget.sh 按假发布写出清单，地址、散列、卸载键、许可与简介照 apps.tsv 与安装程序，`winget validate` 通过（无 winget 时 SKIP），版本不符、缺清单即拒
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；nix/release.json 与 apps.tsv 一致；nixos/nix 容器里 flake 的许可与表相同、ElyMark 构建并在 Xvfb 下画出（缺 docker 时 SKIP 容器部分）
 packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`：四个发布构建所取之和，本机已取的照用、其余下载，散列不符即失败），文件名带提交号；工作区有未提交改动即拒绝（macOS 的 release.sh 与 CI 的 Linux 调用，发布只上传 Linux 的；Windows 的检出把符号链接写成文件，不出源码包）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝

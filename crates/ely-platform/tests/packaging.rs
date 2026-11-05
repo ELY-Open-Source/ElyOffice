@@ -29,5 +29,6 @@ fn packaging_table_lists_the_apps_in_prd_order() {
             Mail | Agent => "MIT",
         };
         assert_eq!(row[4], license, "{}", app.slug());
+        assert!(!row[5].is_empty(), "{} has no summary", app.slug());
     }
 }
