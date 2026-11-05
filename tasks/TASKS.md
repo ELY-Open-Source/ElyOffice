@@ -190,7 +190,7 @@
 
 ## C21 开源与许可证（§21）
 
-- [ ] C21.1 AGPL 许可文件、第三方通知、锁定依赖清单、源码对应 — 已做：`docs/licenses.md`；`release.sh` 另出上游源码包（实际编译的打过补丁的 MuPDF 与随包 Git），`release-macos.sh` 核对其中为打过补丁的 MuPDF。未做：法律审查；LibreOffice 外部库的源码随包与否 — 未送审：用户 2026-10-09 定性能已够、先发首版
+- [ ] C21.1 AGPL 许可文件、第三方通知、锁定依赖清单、源码对应 — 已做：`docs/licenses.md`；`release.sh` 另出上游源码包（实际编译的打过补丁的 MuPDF 与随包 Git），`release-macos.sh` 核对其中为打过补丁的 MuPDF。— 用户 2026-11-04 定：外部库源码随包，不做外部法律审查。已做：`source.sh` 另出 `libreoffice-external-source.tar`（原样的上游压缩包与清单）；`packaging/lo-tarballs.tsv` 列 118 个（名字、SHA-256、地址），是四个发布构建所取之和，由 `scripts/lo-tarballs.sh` 以各构建自己的 `Makefile.fetch` 列出（Windows 113、macOS arm64 与 x86_64 各 102、Linux 107，与各自 `external/tarballs` 逐一相同）；本机已取的照用，其余从 LibreOffice 镜像下载，散列不符或取不到即失败、不出包；ci.sh 只由 Linux 上传三份源码。测试：`tests/scripts/lo-tarballs.sh`（散列与 `download.lst` 一致；本机构建所取都在清单里；删一行、改一个散列即失败）、`tests/scripts/source-rules.sh`（WSL 与 macOS；旧 source.sh 下失败）、`ci-upload.sh`（旧 ci.sh 下 macOS 上传了外部库包即失败）、`release-macos.sh` 核对外部库包含清单所列
 
 ## C22 测试与验收（§22）
 
