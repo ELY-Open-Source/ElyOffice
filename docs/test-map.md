@@ -116,8 +116,8 @@
 | MAIL-15 | 通知 | C12.21（~）、决策 C12.21 | `mail_delivered_while_away_is_news_whatever_its_date`、`a_rebuild_without_message_ids_is_no_news`、`a_new_mail_notice_clears_the_filters`、`a_rebuild_tells_unnamed_mail_apart_by_its_body`、`a_rebuild_knows_unnamed_mail_however_it_was_kept`、`upgrading_gives_old_mail_the_identity_new_mail_gets`、`an_earlier_switch_saved_late_leaves_the_latest` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | TREE-01 | 仓库 | C13.1、决策 C13.1 | — | apps/ely-tree/src/tests |
 | TREE-02 | 工作区 | C13.1、决策 C13.1 | — | apps/ely-tree/src/tests |
-| TREE-03 | 差异 | C13.2（~）、决策 C13.2 | — | apps/ely-tree/src/tests |
-| TREE-04 | 暂存 | C13.2（~）、决策 C13.2 | — | apps/ely-tree/src/tests |
+| TREE-03 | 差异 | C13.2（~）、决策 C13.2 | `a_picture_turned_into_a_link_shows_the_link_by_size` | apps/ely-tree/src/tests |
+| TREE-04 | 暂存 | C13.2（~）、决策 C13.2 | `a_picture_turned_into_a_link_shows_the_link_by_size` | apps/ely-tree/src/tests |
 | TREE-05 | 提交 | C13.3（~）、决策 C13.3 | — | apps/ely-tree/src/tests |
 | TREE-06 | 历史 | C13.3（~）、决策 C13.3 | — | apps/ely-tree/src/tests |
 | TREE-07 | 分支与标签 | C13.4（~）、决策 C13.4 | — | apps/ely-tree/src/tests |
