@@ -142,6 +142,7 @@ tests/scripts/wayland-clipboard.sh  无头 sway（无 Xwayland，X11 剪贴板�
 packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；引擎、应用、打包；目标在 target/alma8）
 tests/scripts/linux-glibc.sh     Linux 的应用、worker 与引擎要求的 glibc 不高于 2.31，GLIBCXX、CXXABI 不高于 GCC 10（Debian 11、Ubuntu 20.04），读版本需求表，`GLIBC_ABI_DT_RELR` 这类 ABI 标记也拒
 tests/scripts/linux-glibc-rules.sh  linux-glibc.sh 对 glibc 2.36 的符号与紧凑重定位（`GLIBC_ABI_DT_RELR`）报错，只要 2.2.5 的通过（现编的 ELF，只在 Linux）
+tests/scripts/elfs-rules.sh      `packaging/linux/elfs.sh`（package.sh 调用）只放行指向包内的 `$ORIGIN` 路径：首尾换行、绝对路径、出包、空项与带符号的 ELF 皆拒，报出包外所需的库（现编的 ELF，须 patchelf，在 container.sh 里跑）
 packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调用）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发布后提交）

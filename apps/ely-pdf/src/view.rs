@@ -50,8 +50,10 @@ pub struct PdfView {
     pub tiles: HashMap<TileKey, Arc<RenderImage>>,
     /// Images no longer drawn, freed at the next render.
     pub retired: ely_gpui_component::primitives::Retired,
-    /// Tile pixels painted; the first paint is logged (PERF-05).
-    pub painted: f64,
+    /// Tiles painted since the last render, where and which.
+    pub painted: Vec<(gpui::Bounds<gpui::Pixels>, Arc<RenderImage>)>,
+    /// A tile has painted; the first is logged (PERF-05).
+    pub drawn: bool,
     /// Tiles the worker could not draw; not asked again.
     pub failed: HashSet<TileKey>,
     /// Reads that failed; not asked again until an edit.
@@ -200,7 +202,8 @@ impl PdfView {
             scroll: ScrollHandle::new(),
             tiles: HashMap::new(),
             retired: Default::default(),
-            painted: 0.0,
+            painted: Vec::new(),
+            drawn: false,
             failed: HashSet::new(),
             unread: HashSet::new(),
             text: HashMap::new(),

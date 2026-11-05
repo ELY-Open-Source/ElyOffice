@@ -5,7 +5,7 @@ import { ACCENT, model } from "../../src/model.ts";
 import { type Box, DESK, PAPER, SCREEN, SHEET, lamp, props, screens, tiles } from "./parts.ts";
 import { BAR, BEAT, glide, toward } from "./time.ts";
 import { DESK_END, type Moment, SEED, TURN, moment } from "./timeline.ts";
-import { film, montage, recording, turnedBlock, turnedOrder } from "./turn.ts";
+import { film, montage, recording, slabs, turnedBlock, turnedOrder } from "./turn.ts";
 import { view } from "../opening/plan.ts";
 
 export const WIDTH = 1920;
@@ -176,6 +176,7 @@ function draw(m: Moment, cam: Camera, f: number): Promise<void>[] {
   const groups = m.pieces.map(({ box, land, dark }) => {
     const toned = { ...box, tone: tone(box.tone, dark) };
     const g = m.angle ? turnedBlock(toned, m.angle) : block(toned);
+    if (slabs.includes(box)) g.dataset.slab = String(slabs.indexOf(box));
     const href = recording(box, land, f);
     if (href) {
       const { el, ready } = film(box, m.angle, href);

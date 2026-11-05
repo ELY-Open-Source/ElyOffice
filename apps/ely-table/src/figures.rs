@@ -4,15 +4,15 @@ use gpui::{App, SharedString};
 
 use crate::book::Book;
 
-/// The kernel's English names of the selection figures.
+/// The kernel's figure names, in the order it writes them.
 const FIGURES: [(&str, &str); 7] = [
-    ("Sum", "table.figure.sum"),
-    ("Selection count", "table.figure.selected"),
+    ("Average", "table.figure.average"),
     ("Count", "table.figure.count"),
     ("CountA", "table.figure.counta"),
-    ("Average", "table.figure.average"),
     ("Max", "table.figure.max"),
     ("Min", "table.figure.min"),
+    ("Sum", "table.figure.sum"),
+    ("Selection count", "table.figure.selected"),
 ];
 
 /// The kernel's explanations of a cell's error.
@@ -58,38 +58,33 @@ pub fn label(status: &str, cx: &App) -> SharedString {
     if let Some((_, key)) = ERRORS.iter().find(|(known, _)| *known == status) {
         return Book::text(cx, key, &[]);
     }
-    let parts: Vec<String> = fields(status)
-        .into_iter()
-        .map(|part| {
-            let known = part.split_once(": ").and_then(|(name, value)| {
-                let (_, key) = FIGURES.iter().find(|(known, _)| *known == name)?;
-                Some(Book::text(cx, key, &[("value", value.trim())]).to_string())
-            });
-            known.unwrap_or_else(|| {
-                log::warn!("table: the kernel status {part:?} has no label");
-                part.to_string()
-            })
-        })
-        .collect();
+    let Some(parts) = fields(status) else {
+        // Values may hold the document's text; none is logged.
+        log::warn!("table: a kernel status of {} chars names no figure", status.chars().count());
+        return status.to_string().into();
+    };
+    let parts: Vec<String> = parts.into_iter().map(|(key, value)| Book::text(cx, key, &[("value", value.trim())]).to_string()).collect();
     parts.join("  ").into()
 }
 
-/// The status split at each "Name: "; values keep semicolons.
-fn fields(status: &str) -> Vec<&str> {
-    let starts = |rest: &str| {
-        rest.split_once(": ")
-            .is_some_and(|(name, _)| !name.is_empty() && name.chars().all(|c| c.is_ascii_alphabetic() || c == ' '))
-    };
+/// The figure from `from` on that `rest` opens.
+fn named(rest: &str, from: usize) -> Option<(usize, &'static str, &str)> {
+    FIGURES.iter().enumerate().skip(from).find_map(|(at, (name, key))| Some((at, *key, rest.strip_prefix(name)?.strip_prefix(": ")?)))
+}
+
+/// The figures; a value runs to a later name.
+fn fields(status: &str) -> Option<Vec<(&'static str, &str)>> {
+    let (mut at, mut key, mut value) = named(status, 0)?;
     let mut out = Vec::new();
-    let mut from = 0;
-    for (at, _) in status.match_indices("; ") {
-        if starts(&status[at + 2..]) {
-            out.push(&status[from..at]);
-            from = at + 2;
-        }
+    loop {
+        let next = value.match_indices("; ").find_map(|(cut, _)| Some((cut, named(&value[cut + 2..], at + 1)?)));
+        let Some((cut, found)) = next else {
+            out.push((key, value));
+            return Some(out);
+        };
+        out.push((key, &value[..cut]));
+        (at, key, value) = found;
     }
-    out.push(&status[from..]);
-    out
 }
 
 #[cfg(test)]
@@ -110,7 +105,7 @@ mod tests {
     fn vietnamese_status_takes_libreoffice_words(cx: &mut gpui::TestAppContext) {
         cx.update(|app| {
             ely_ui::i18n::install_as("vi-VN", app);
-            assert_eq!(super::label("Average: 21; Sum: 42; Max: 30", app), "Trung bình 21  Tổng 42  Đại 30");
+            assert_eq!(super::label("Average: 21; Max: 30; Sum: 42", app), "Trung bình 21  Đại 30  Tổng 42");
             assert_eq!(super::label("Error: Division by zero", app), "Lỗi: chia cho không");
         });
     }
@@ -121,17 +116,23 @@ mod tests {
         cx.update(|app| {
             ely_ui::settings::install_defaults(app);
             ely_ui::i18n::install(app);
-            let label = super::label("Average: 21; Sum: 42; Odd: 1", app);
+            let label = super::label("Average: 21; Sum: 42", app);
             let expect = format!(
-                "{}  {}  Odd: 1",
+                "{}  {}",
                 super::Book::text(app, "table.figure.average", &[("value", "21")]),
                 super::Book::text(app, "table.figure.sum", &[("value", "42")])
             );
-            assert_eq!(label.as_ref(), expect, "known names relabel, others stay");
+            assert_eq!(label.as_ref(), expect, "known names relabel");
+            assert_eq!(super::label("Odd: 1", app).as_ref(), "Odd: 1", "an unknown status stays");
             // The kernel's formatted values pass through untouched.
             ely_ui::i18n::install_as("en-US", app);
             let custom = super::label("Average: 8128.00 kg; net; Sum: 16256.00 kg; net", app);
             assert_eq!(custom.as_ref(), "Average 8128.00 kg; net  Sum 16256.00 kg; net", "a format's own semicolons stay");
+            // A literal shaped like a field is still the value.
+            let named = super::label("Average: 8128.00 kg; Net: ok; Sum: 16256.00 kg; Net: ok", app);
+            assert_eq!(named.as_ref(), "Average 8128.00 kg; Net: ok  Sum 16256.00 kg; Net: ok", "only figure names start a field");
+            let earlier = super::label("Sum: 1 x; Average: 2; Max: 3", app);
+            assert_eq!(earlier.as_ref(), "Sum 1 x; Average: 2; Max: 3", "an earlier figure's name is the value's text");
             for value in ["8128.00", "8128.33333333333", "0.0000000001", "1234567890.25", "$1,234.50"] {
                 assert_eq!(super::label(&format!("Sum: {value}"), app).as_ref(), format!("Sum {value}"));
             }

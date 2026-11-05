@@ -28,7 +28,7 @@ deny() { # key [rights]
     fail "the deny rule on $1 did not take"
 }
 clean() {
-  for key in "$class" "$app" "$listing" "$command" "$url"; do undeny "$key"; done
+  for key in "$class" "$app" "$listing" "$command" "$url" "$c\\.elyprobe" "$c\\.elyprobe\\ShellNew"; do undeny "$key"; done
   for key in "${keys[@]}"; do reg delete "HKCU\\$key" /f >/dev/null 2>&1 || true; done
   reg delete "HKCU\\$listed_apps" /v ElyProbe /f >/dev/null 2>&1 || true
   rm -f "$APPDATA/Microsoft/Windows/Start Menu/Programs/ElyProbe.lnk"
@@ -160,7 +160,8 @@ for key in "$app" "$listing" "$url"; do
 done
 
 # Uninstall fails, named, when it cannot delete or check.
-for denied in "$listing|SetValue" "$listing|SetValue, QueryValues" "$app|Delete, EnumerateSubKeys" "$command|QueryValues"; do
+for denied in "$listing|SetValue" "$listing|SetValue, QueryValues" "$app|Delete, EnumerateSubKeys" "$command|QueryValues" \
+  "$c\\.elyprobe|SetValue, QueryValues" "$c\\.elyprobe\\ShellNew|SetValue, QueryValues"; do
   key=${denied%%|*} rights=${denied#*|} g=$work/g
   [ "$(install "$g")" = 0 ] || fail "install before denying $rights on $key"
   deny "$key" "$rights"

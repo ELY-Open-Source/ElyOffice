@@ -67,13 +67,13 @@ pub(crate) fn span(from: f32, to: f32, sf: f32, side: i32) -> std::ops::RangeInc
 fn drawn_tile(image: Arc<RenderImage>, page: usize, view: gpui::Entity<PdfView>) -> gpui::Canvas<()> {
     canvas(
         |_, _, _| {},
-        move |bounds, _, window, cx| match window.paint_image(bounds, bounds, Default::default(), image, 0, false) {
+        move |bounds, _, window, cx| match window.paint_image(bounds, bounds, Default::default(), image.clone(), 0, false) {
             Ok(()) => view.update(cx, |view, _| {
-                let area = f64::from(f32::from(bounds.size.width) * f32::from(bounds.size.height));
-                if view.painted == 0.0 && area > 0.0 {
+                if !view.drawn && bounds.size.width > px(0.0) && bounds.size.height > px(0.0) {
                     log::info!("pdf: first tile drawn, page {page}");
+                    view.drawn = true;
                 }
-                view.painted += area;
+                view.painted.push((bounds, image));
             }),
             Err(error) => log::error!("pdf: drawing a page failed: {error}"),
         },
@@ -128,6 +128,7 @@ impl PdfView {
     /// Pages in view, and which; missing tiles asked.
     pub fn page_view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> (AnyElement, Vec<usize>) {
         let sf = window.scale_factor();
+        self.painted.clear();
         let (sunken, paper) = (cx.theme().colors.sunken, gpui::white());
         let laid = self.laid_out();
         if let Some((x, y)) = self.go_to.take() {
