@@ -327,3 +327,45 @@ fn an_escaped_font_name_and_the_form_alignment_come_along() {
     assert!(saved.contains("(/Custom_2 24 Tf 1 0 0 rg)"), "the escaped name is renamed too");
     assert!(saved.contains("/Q 2"), "right-aligned as in its own form");
 }
+
+/// Inserts `theirs` into `mine` and reads the saved bytes.
+fn inserted(theirs: &Extras, mine: &Extras) -> String {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = worker();
+    let page: &[(f32, f32, &[&str])] = &[(612.0, 792.0, &["x"])];
+    let other = dir.path().join("other.pdf");
+    std::fs::write(&other, pdf_with(page, &[], theirs)).expect("writes");
+    let mut doc = open(&mut worker, dir.path(), "mine.pdf", &pdf_with(page, &[], mine));
+    worker.insert_file(doc, 1, &other).expect("inserts");
+    doc = worker.now(doc).expect("the state");
+    let out = dir.path().join("out.pdf");
+    worker.save(doc, &out).expect("saves");
+    String::from_utf8_lossy(&std::fs::read(&out).expect("reads")).into_owned()
+}
+
+/// The saved object holding `/T(field0)`, the inserted field.
+fn inserted_field(saved: &str) -> &str {
+    let at = saved.find("/T(field0)").expect("the inserted field");
+    let start = saved[..at].rfind(" obj").expect("its object");
+    &saved[start..at + saved[at..].find("endobj").expect("its end")]
+}
+
+#[test]
+fn a_form_without_defaults_brings_its_own_not_the_targets() {
+    let theirs = Extras { fields: &[0], ..Extras::default() };
+    let mine = Extras { fields: &[0], prefix: Some("mine"), look: Some(("Custom", "Custom")), align: Some(2), ..Extras::default() };
+    let saved = inserted(&theirs, &mine);
+    let field = inserted_field(&saved);
+    assert!(field.contains("/Q 0"), "left-aligned as in its own form: {field}");
+    assert!(field.contains("(/Helv 12 Tf 0 g)"), "the default look, not the target's: {field}");
+}
+
+#[test]
+fn a_font_name_with_a_high_byte_is_renamed_byte_for_byte() {
+    let look = Some(("F#E9", r"F\351"));
+    let theirs = Extras { fields: &[0], look, ..Extras::default() };
+    let mine = Extras { fields: &[0], prefix: Some("mine"), look, ..Extras::default() };
+    let saved = inserted(&theirs, &mine);
+    let field = inserted_field(&saved);
+    assert!(field.contains("(/F#E9_2 24 Tf 1 0 0 rg)"), "renamed and escaped: {field}");
+}

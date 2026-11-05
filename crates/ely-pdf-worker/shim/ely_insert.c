@@ -153,31 +153,34 @@ static void merge_fonts(fz_context *ctx, pdf_document *pdf, pdf_graft_map *map, 
 		fz_rethrow(ctx);
 }
 
-/* `node`'s /DA with renamed fonts renamed. */
+/* `node`'s /DA bytes with renamed fonts renamed. */
 static void rename_fonts(fz_context *ctx, pdf_obj *node, pdf_obj *renames)
 {
-	const char *da = pdf_dict_get_text_string(ctx, node, PDF_NAME(DA));
+	size_t left = 0;
+	const char *da = pdf_dict_get_string(ctx, node, PDF_NAME(DA), &left);
 	fz_buffer *buf = NULL;
 	char *name = NULL;
 	fz_var(buf);
 	fz_var(name);
-	if (!*da || !pdf_dict_len(ctx, renames))
+	if (!left || !pdf_dict_len(ctx, renames))
 		return;
 	fz_try(ctx)
 	{
 		unsigned char *data;
 		size_t len;
 		buf = fz_new_buffer(ctx, 64);
-		while (*da)
+		while (left)
 		{
 			size_t word = 1;
 			pdf_obj *to;
 			if (*da != '/')
 			{
 				fz_append_byte(ctx, buf, *da++);
+				left--;
 				continue;
 			}
-			while (da[word] && !strchr(" \t\r\n\f/[]()<>{}%", da[word]))
+			/* A NUL byte ends the name, as strchr finds it. */
+			while (word < left && !strchr(" \t\r\n\f/[]()<>{}%", da[word]))
 				word++;
 			fz_free(ctx, name);
 			name = fz_malloc(ctx, word);
@@ -188,6 +191,7 @@ static void rename_fonts(fz_context *ctx, pdf_obj *node, pdf_obj *renames)
 			else
 				fz_append_data(ctx, buf, da, word);
 			da += word;
+			left -= word;
 		}
 		len = fz_buffer_storage(ctx, buf, &data);
 		pdf_dict_put_string(ctx, node, PDF_NAME(DA), (const char *)data, len);
@@ -207,9 +211,9 @@ static void restyle(fz_context *ctx, pdf_obj *node, form_look *look, int root)
 	pdf_obj *kids = pdf_dict_get(ctx, node, PDF_NAME(Kids));
 	int i;
 	/* The form's defaults a field inherits: look and alignment. */
-	if (root && look->da && !pdf_dict_get(ctx, node, PDF_NAME(DA)))
+	if (root && !pdf_dict_get(ctx, node, PDF_NAME(DA)))
 		pdf_dict_put(ctx, node, PDF_NAME(DA), look->da);
-	if (root && look->q && !pdf_dict_get(ctx, node, PDF_NAME(Q)))
+	if (root && !pdf_dict_get(ctx, node, PDF_NAME(Q)))
 		pdf_dict_put(ctx, node, PDF_NAME(Q), look->q);
 	rename_fonts(ctx, node, look->renames);
 	for (i = 0; i < pdf_array_len(ctx, kids); i++)
@@ -289,8 +293,9 @@ static void graft_annots(fz_context *ctx, pdf_document *pdf, pdf_graft_map *map,
 	fz_try(ctx)
 	{
 		look.renames = pdf_new_dict(ctx, pdf, 1);
-		look.da = da ? pdf_graft_mapped_object(ctx, map, da) : NULL;
-		look.q = q ? pdf_graft_mapped_object(ctx, map, q) : NULL;
+		/* Unset in the source: the defaults it was read with. */
+		look.da = da ? pdf_graft_mapped_object(ctx, map, da) : pdf_new_string(ctx, "/Helv 12 Tf 0 g", 15);
+		look.q = q ? pdf_graft_mapped_object(ctx, map, q) : pdf_new_int(ctx, 0);
 		merge_fonts(ctx, pdf, map, src, &look);
 		reconnect(ctx, pdf, map, src, at, &look);
 	}
