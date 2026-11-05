@@ -34,6 +34,7 @@ test-support = ["ely-ui/test-support", "ely-lok/test-support"]
 tempfile.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
 ely-lok = { workspace = true, features = ["view", "test-support"] }
+ely-gpui-component = { workspace = true, features = ["test-support"] }
 
 [lints]
 workspace = true

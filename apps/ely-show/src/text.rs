@@ -7,7 +7,7 @@ use ely_gpui_component::{
     theme::ControlSize,
 };
 use ely_lok::show::Selection;
-use ely_office::panel::{self as kernel, font_box, palette, row, size_menu, toggle};
+use ely_office::panel::{self as kernel, font_box, palette, row, size_box, toggle};
 use gpui::{AnyElement, Context, IntoElement, SharedString, Window};
 
 use crate::deck::Deck;
@@ -102,7 +102,7 @@ impl Panel {
         let fonts = self.fonts(cx);
         let name = Deck::text(cx, "show.object.font", &[]);
         let font = font_box(self, ("show-font", name), &fonts, window, cx);
-        let size = size_menu(self, ("show-size", Deck::text(cx, "show.object.font_size", &[])), cx);
+        let size = size_box(self, ("show-size", Deck::text(cx, "show.object.font_size", &[])), window, cx);
         let fit = self.fit(&sel.autofit, cx);
         let tip = |key: &str| Deck::text(cx, key, &[]);
         PropertyGroup::new(tip("show.object.text"))

@@ -2,7 +2,7 @@
 
 use ely_gpui_component::{
     buttons::{Button, ToggleButton, ToggleItem},
-    forms::{Choice, ColorPalette, ColorSwatch, Combobox, Select, TextInput},
+    forms::{Choice, ColorPalette, ColorSwatch, Combobox, TextInput},
     overlays::Popover,
     primitives::{IconName, Tooltip},
     theme::{ActiveTheme as _, ControlSize},
@@ -14,11 +14,8 @@ use gpui::{
     rgb,
 };
 
-/// Sizes the size menu offers, in points.
-const SIZES: [&str; 17] = [
-    "8", "9", "10", "10.5", "11", "12", "14", "16", "18", "20", "22", "24", "26", "28", "36", "48",
-    "72",
-];
+mod size;
+pub use size::size_box;
 
 /// Palette colors, 0xRRGGBB.
 pub const COLORS: [u32; 10] = [
@@ -217,34 +214,6 @@ pub fn font_box<P: Panel>(
         font = font.selected(name);
     }
     font.into_any_element()
-}
-
-/// The size menu, in points.
-pub fn size_menu<P: Panel>(panel: &P, (id, name): (&'static str, SharedString), cx: &Context<P>) -> AnyElement {
-    let this = cx.entity();
-    let reported = panel.state(".uno:FontHeight", cx);
-    let size = reported.clone().filter(|size| known(size));
-    let mut sizes: Vec<SharedString> = SIZES.iter().map(|size| (*size).into()).collect();
-    if let Some(size) = size.clone().filter(|size| !sizes.contains(size)) {
-        sizes.push(size);
-    }
-    let sizes = ordered(sizes);
-    let mut menu = Select::new(
-        id,
-        sizes
-            .into_iter()
-            .map(|size| Choice::new(size.clone(), size)),
-    )
-    .size(ControlSize::Sm)
-    .label(name)
-    .on_change(move |value, _, cx| send(&this, "format.size", &[value.as_ref()], cx));
-    if reported.as_deref() == Some(ely_lok::MIXED) {
-        menu = menu.placeholder(text(cx, "office.props.mixed"));
-    }
-    if let Some(size) = size {
-        menu = menu.selected(size);
-    }
-    menu.into_any_element()
 }
 
 /// Controls side by side, wrapping when narrow.
