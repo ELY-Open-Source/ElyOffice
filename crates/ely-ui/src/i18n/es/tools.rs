@@ -89,7 +89,7 @@ pub(super) const ES: &[(&str, &str)] = &[
         "doc.merge.from_preview",
         "Una vista previa no puede ser una plantilla. Cambie al documento original.",
     ),
-    ("doc.merge.choose", "Elegir CSV…"),
+    ("doc.merge.choose", "Elegir datos (CSV, XLSX, XLS, ODS)…"),
     ("doc.merge.fields", "Campos"),
     ("doc.merge.record", "Registro"),
     ("doc.merge.preview", "Vista previa"),

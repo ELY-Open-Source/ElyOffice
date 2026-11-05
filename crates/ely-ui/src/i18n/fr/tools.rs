@@ -74,7 +74,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("doc.merge.template", "Modèle"),
     ("doc.merge.gone", "Le modèle est fermé. Choisissez de nouveau les données."),
     ("doc.merge.from_preview", "Un aperçu ne peut pas servir de modèle. Revenez au document d’origine."),
-    ("doc.merge.choose", "Choisir un CSV…"),
+    ("doc.merge.choose", "Choisir les données (CSV, XLSX, XLS, ODS)…"),
     ("doc.merge.fields", "Champs"),
     ("doc.merge.record", "Enregistrement"),
     ("doc.merge.preview", "Aperçu"),

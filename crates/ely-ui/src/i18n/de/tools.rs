@@ -74,7 +74,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("doc.merge.template", "Vorlage"),
     ("doc.merge.gone", "Die Vorlage ist geschlossen. Wählen Sie die Daten erneut."),
     ("doc.merge.from_preview", "Eine Vorschau kann keine Vorlage sein. Wechseln Sie zum Originaldokument."),
-    ("doc.merge.choose", "CSV wählen…"),
+    ("doc.merge.choose", "Daten wählen (CSV, XLSX, XLS, ODS)…"),
     ("doc.merge.fields", "Felder"),
     ("doc.merge.record", "Datensatz"),
     ("doc.merge.preview", "Vorschau"),

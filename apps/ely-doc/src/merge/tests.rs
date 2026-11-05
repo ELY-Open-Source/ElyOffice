@@ -318,3 +318,5 @@ fn the_template_chosen_with_the_data_stays_through_a_preview() {
     let (first, second) = (text_of(&mut cx, &docs, &target(1)), text_of(&mut cx, &docs, &target(2)));
     assert!(first.contains("Dear Ada") && second.contains("Dear Grace"), "{first:?} {second:?}");
 }
+
+mod sheets;

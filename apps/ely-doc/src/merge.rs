@@ -1,4 +1,4 @@
-//! Mail merge from a CSV (DOC-14); never sends mail.
+//! Mail merge from a CSV or spreadsheet (DOC-14); never sends mail.
 
 mod run;
 
@@ -11,7 +11,7 @@ use ely_gpui_component::{
     theme::ControlSize,
 };
 use gpui::{
-    Context, IntoElement, ParentElement as _, Render, Styled as _, WeakEntity, Window, actions, div,
+    AppContext as _, Context, IntoElement, ParentElement as _, Render, Styled as _, WeakEntity, Window, actions, div,
 };
 
 use crate::docs::{Docs, Side};
@@ -80,7 +80,23 @@ impl Docs {
 
     /// Reads `path` as merge data, else says why.
     pub(crate) fn take_csv(&mut self, source: u64, path: &std::path::Path, cx: &mut Context<Self>) {
-        match read_csv(path) {
+        if !run::is_sheet(path) {
+            return self.took(source, path, read_csv(path), cx);
+        }
+        log::info!("doc: merge data from a spreadsheet");
+        let (worker, path) = (std::sync::Arc::clone(&self.core.worker), path.to_path_buf());
+        let scratch = self.core.work.join(format!("merge-{source}.csv"));
+        cx.spawn(async move |this, cx| {
+            let shown = path.clone();
+            let read = cx.background_spawn(async move { run::read_sheet(&worker, &path, &scratch) }).await;
+            ely_office::in_window(&this, cx, |docs, _, cx| docs.took(source, &shown, read, cx))
+        })
+        .detach();
+    }
+
+    /// Takes merge data read from `path`, else says why.
+    fn took(&mut self, source: u64, path: &std::path::Path, read: std::io::Result<Table>, cx: &mut Context<Self>) {
+        match read {
             Ok(table) => {
                 log::info!("doc: merge data has {} rows", table.rows.len());
                 self.merge.update(cx, |merge, cx| {

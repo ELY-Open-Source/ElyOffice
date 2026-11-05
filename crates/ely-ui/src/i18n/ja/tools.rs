@@ -74,7 +74,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("doc.merge.template", "テンプレート"),
     ("doc.merge.gone", "テンプレートが閉じられました。データをもう一度選んでください。"),
     ("doc.merge.from_preview", "プレビューはテンプレートにできません。元のドキュメントに切り替えてください。"),
-    ("doc.merge.choose", "CSV を選択…"),
+    ("doc.merge.choose", "データを選択（CSV、XLSX、XLS、ODS）…"),
     ("doc.merge.fields", "フィールド"),
     ("doc.merge.record", "レコード"),
     ("doc.merge.preview", "プレビュー"),

@@ -74,7 +74,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("doc.merge.template", "서식"),
     ("doc.merge.gone", "서식이 닫혔습니다. 데이터를 다시 고르십시오."),
     ("doc.merge.from_preview", "미리 보기는 서식이 될 수 없습니다. 원본 문서로 전환하십시오."),
-    ("doc.merge.choose", "CSV 선택…"),
+    ("doc.merge.choose", "데이터 선택(CSV, XLSX, XLS, ODS)…"),
     ("doc.merge.fields", "필드"),
     ("doc.merge.record", "레코드"),
     ("doc.merge.preview", "미리 보기"),

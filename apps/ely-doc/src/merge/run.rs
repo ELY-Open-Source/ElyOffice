@@ -5,7 +5,7 @@ use std::{
     hash::BuildHasher,
     io,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use ely_gpui_component::primitives::Severity;
@@ -19,12 +19,36 @@ use ely_office::{Source, in_window};
 
 use crate::docs::Docs;
 
-/// A CSV: its name, column names and rows.
+/// Merge data: its name, column names and rows.
 #[derive(Clone, Debug)]
 pub struct Table {
     pub name: SharedString,
     pub headers: Vec<String>,
     pub rows: Vec<Vec<String>>,
+}
+
+/// Spreadsheets the kernel reads as merge data (GitHub #67).
+const SHEETS: [&str; 3] = ["xlsx", "xls", "ods"];
+
+/// Whether `path` names a spreadsheet.
+pub fn is_sheet(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| SHEETS.iter().any(|sheet| sheet.eq_ignore_ascii_case(extension)))
+}
+
+/// Reads a spreadsheet's shown sheet through `scratch` as UTF-8 CSV.
+pub fn read_sheet(worker: &Mutex<Worker>, path: &Path, scratch: &Path) -> io::Result<Table> {
+    let mut held = worker.lock().map_err(|_| io::Error::other("the worker lock is poisoned"))?;
+    let doc = held.load(&ely_lok::file_url(path))?;
+    let exported = doc.export_text(&mut held, &ely_lok::file_url(scratch), ',');
+    // Closed even when the export failed.
+    let closed = held.close_doc(doc);
+    drop(held);
+    exported.and(closed)?;
+    let table = read_csv(scratch);
+    std::fs::remove_file(scratch)?;
+    Ok(Table { name: file_name(path), ..table? })
 }
 
 /// Reads a UTF-8 CSV whose first row names the columns.

@@ -572,7 +572,8 @@
 - [x] R16.7 R14.10 收尾：关闭链悬空 X-08（§6.2） — R14.10 第 4、5 轮 FAIL 各修，第 6 轮 PASS
 - [x] R16.8 #62 ElyDoc 空行改字号报错且改不了（§8）。根因（Writer `basesh.cxx`）：无选区时字号给输入语言的文字，其余文字按段落语言的标准字号折算（zh-CN：西文 12、中文 10.5）；LOK 下输入语言是 worker 主机的键盘：中文键盘上选 14 得中文 14、西文 16，状态报 16，ElyDoc 判失败并撤销（报告者所见 “reports Some(\"16\"), not 14”）；英文键盘上其后打的中文成 12.25 磅。补丁 0103：LOK 下光标处设字号即三种文字同为该值（照 Word，同 0055 的字体）。测试 `a_size_on_an_empty_line_sets_every_script`（中文为亚洲语言的空段设 14 后打中文，所在段西文与中文皆 14pt），未打补丁的内核上败于 “font-size-asian=12.25pt”；Windows 内核重建后 format、fonts、commands 24 个与 ElyDoc 属性栏 22 个过。Mac 与 Linux 的共享内核待重建（同 R16.2 所记） — R1 PASS
 - [x] R16.9 #61 ElyDoc 中文首行缩进两字不准、引号前后不一（§8）。核对：Tab 在段首插入制表符，Writer 默认制表位 1.25 厘米（约三字），中文 Word 为 2 字符（420 缇，21 磅）；中文引号两个都归亚洲文字（宋体，探针选中各字读字体状态），全角引号的空白一在外左、一在外右，中文 Word 默认“只压缩标点”（`characterSpacingControl` 为 compressPunctuation），Writer 默认不压缩。改：界面为中文时空白模板照中文 Word 设两项默认——文档设置 `CharacterCompressionType` 1 与段落默认制表位 21 磅（`apps/ely-doc/src/files.rs`）；flat ODF 的 `ooo:configuration-settings` 须声明 `xmlns:ooo` 才被读（未声明时整组设置被忽略，探针所见）。测试 `a_chinese_blank_compresses_punctuation_and_tabs_two_characters`（中文界面的空白文档经内核读出压缩为 1、默认制表位 0.2917in，英文界面两者皆无；去掉即败）；两处宏测试原自加 `xmlns:ooo`，模板已有即重复属性、内核拒读，改为不再自加。ElyDoc 127 个过。打开的 docx、odt 照其自身的设置 — R1 PASS
-- [ ] R16.10 #67 ElyDoc 邮件合并读 xlsx、xls；工具栏（§8）
+- [ ] R16.10 #67 ElyDoc 邮件合并读 xlsx、xls（§8）。已做：选数据可选 CSV、XLSX、XLS、ODS；表格经 worker 在后台载入、以内核导出所显示的工作表为 UTF-8 CSV（`export_text`，照显示的值）、读后删去暂存（`merge/run.rs` 的 `read_sheet`），名称取原文件名；按钮文案八种语言改为“选择数据（CSV、XLSX、XLS、ODS）…”，PRD DOC-14 随之。测试 `merge::tests::sheets`：同一表存为三种格式，经选择面板逐个读出列名与行（含“上海”），坏的 xlsx 报错且不留暂存；令 `is_sheet` 恒假即败。ElyDoc 128 个、clippy、panics.py、check.sh 过
+- [ ] R16.10a #67 ElyDoc 工具栏（§5、§8）：从未有过；agents.md 的缺口表写 Doc/Table/Show 工具栏“各 app，用 shell::Toolbar 组合”，三个应用实无，改正
 - [ ] R16.11 #66 ElyPDF 书签坐标小于 1 即打不开：worker 的 JSON 数值与字符串（§11）
 - [ ] R16.12 R14.21 收尾：ElyPDF 的 Windows 测试与证书信任（§11）
 - [ ] R16.13 PR #65 ElyPDF 阅读控件与按文档恢复视图（§11）：审、合并或说明不合

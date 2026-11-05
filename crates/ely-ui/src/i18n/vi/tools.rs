@@ -74,7 +74,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("doc.merge.template", "Mẫu"),
     ("doc.merge.gone", "Mẫu đã đóng. Hãy chọn lại dữ liệu."),
     ("doc.merge.from_preview", "Bản xem thử không thể làm mẫu. Hãy chuyển sang tài liệu gốc."),
-    ("doc.merge.choose", "Chọn CSV…"),
+    ("doc.merge.choose", "Chọn dữ liệu (CSV, XLSX, XLS, ODS)…"),
     ("doc.merge.fields", "Trường"),
     ("doc.merge.record", "Bản ghi"),
     ("doc.merge.preview", "Xem thử"),
