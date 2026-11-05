@@ -175,3 +175,47 @@ fn queued_keys_share_one_hold_of_the_worker() {
     let between: Vec<_> = seen.iter().filter(|at| **at > start && **at < end).collect();
     assert!(between.is_empty(), "other work ran between queued keys at {between:?}, from {start} to {end}");
 }
+
+/// Background work waits while an edit is off screen.
+#[test]
+fn background_work_waits_for_an_undrawn_edit() {
+    use std::{sync::mpsc::channel, time::Duration};
+    let worker = Arc::new(Mutex::new(()));
+    let mut clock = crate::view::clock::EditClock::ahead_of(crate::view::off::Ahead::of(&worker));
+    clock.showing();
+    let run = |worker: &Arc<Mutex<()>>| {
+        let (ran, seen) = channel();
+        let worker = Arc::clone(worker);
+        std::thread::spawn(move || futures::executor::block_on(crate::behind(&worker, |_| ran.send(()).expect("the test waits"))));
+        seen
+    };
+    clock.sent(1, "text");
+    let seen = run(&worker);
+    assert!(seen.recv_timeout(Duration::from_millis(300)).is_err(), "background work ran before the edit was drawn");
+    clock.landed(1, Ok(Some(7)));
+    assert!(seen.recv_timeout(Duration::from_millis(300)).is_err(), "background work ran before the edit was drawn");
+    clock.painted(Some(7), false);
+    seen.recv_timeout(Duration::from_millis(300)).expect("the drawn edit lets background work go");
+    // An edit that changes no tile holds nothing back.
+    clock.sent(2, "text");
+    clock.landed(2, Ok(None));
+    run(&worker).recv_timeout(Duration::from_millis(300)).expect("an unseen edit holds nothing back");
+    // A hidden view's edits never draw.
+    clock.sent(3, "text");
+    clock.hidden();
+    run(&worker).recv_timeout(Duration::from_millis(300)).expect("a hidden view holds nothing back");
+}
+
+/// An edit that never draws holds background work one second.
+#[test]
+fn an_edit_holds_background_work_one_second_at_most() {
+    use std::time::{Duration, Instant};
+    let worker = Arc::new(Mutex::new(()));
+    let mut clock = crate::view::clock::EditClock::ahead_of(crate::view::off::Ahead::of(&worker));
+    clock.showing();
+    clock.sent(1, "text");
+    let began = Instant::now();
+    futures::executor::block_on(crate::behind(&worker, |_| ()));
+    let waited = began.elapsed();
+    assert!(waited >= Duration::from_millis(900) && waited < Duration::from_secs(3), "waited {waited:?}");
+}
