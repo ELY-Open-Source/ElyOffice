@@ -8,7 +8,7 @@ R 以当前用户的权限运行，**不是沙箱**：宏能读写用户能碰�
 
 - 装 R（https://cran.r-project.org；Linux 装发行版的 `r-base` 或 `R` 包）。
 - ElyTable 依次找 `Rscript`：环境变量 `ELY_RSCRIPT`，`PATH`，再找 R 自己的安装位置（Windows 读注册表 `HKCU`、`HKLM` 的 `SOFTWARE\R-core\R` 的 `InstallPath`；macOS 查 `/Library/Frameworks/R.framework/Resources/bin`、`/opt/homebrew/bin`、`/usr/local/bin`，因从访达启动的应用拿不到 shell 的 `PATH`）。都找不到即说明如何安装，不运行。
-- R（GPL）不随包，三端的安装包都不含它，只作用户自装的外部程序调用，不影响 Ely 的许可。Rscript 继承 ElyTable 的环境；打包脚本不设 `LD_LIBRARY_PATH` 之类的变量。
+- R（GPL）不随包，三端的安装包都不含它，只作用户自装的外部程序调用，不影响 Ely 的许可。Rscript 继承 ElyTable 的环境，只在 Unix 上去掉 `LC_ALL`、设 `LC_CTYPE=C.UTF-8`（交换的文件是 UTF-8）；打包脚本不设 `LD_LIBRARY_PATH` 之类的变量。
 - 内核须带补丁 `0081-lok-calc-r-macro-batches.patch`。没有它的内核读不出选区，运行即报错。
 
 ## 使用

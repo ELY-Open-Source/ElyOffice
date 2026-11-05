@@ -74,6 +74,9 @@ fn execute(
         .stdin(Stdio::null())
         .stdout(fs::File::create(&stdout)?)
         .stderr(fs::File::create(&stderr)?);
+    // R reads and writes Ely's files as UTF-8.
+    #[cfg(unix)]
+    command.env_remove("LC_ALL").env("LC_CTYPE", "C.UTF-8");
     // A stop before R starts runs nothing.
     if stop.load(Ordering::Relaxed) {
         return Err(refused("table.r.stopped"));
@@ -191,6 +194,7 @@ mod tests {
         let exited = error.get_ref().and_then(|e| e.downcast_ref::<Exited>()).expect("R's exit");
         assert_eq!(exited.0.code(), Some(7));
         assert!(log.contains("áé") && log.contains("falló"));
+        assert!(log.contains("LC_ALL=unset LC_CTYPE=C.UTF-8"), "R reads UTF-8: {log}");
         let error = go(&fixture("rscript-invalid"), "", TIMEOUT, &mut log).expect_err("invalid");
         assert_eq!(refusal(&error), Some("table.r.invalid"));
         let error = go(&fixture("rscript-held"), "", Duration::from_millis(100), &mut log)
