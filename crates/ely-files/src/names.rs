@@ -120,41 +120,44 @@ fn folded_equal(x: &OsStr, y: &OsStr) -> bool {
     x.to_lowercase() == y.to_lowercase() || x.to_uppercase() == y.to_uppercase()
 }
 
-/// Asks the folder: is an entry's case variant itself?
+/// Asks the folder: does an unlisted case variant open?
 #[cfg(not(any(windows, target_os = "macos")))]
 fn case_sensitive(folder: &Path) -> io::Result<bool> {
-    use std::os::unix::ffi::OsStrExt as _;
-    for entry in std::fs::read_dir(folder)? {
-        let name = entry?.file_name();
-        let other: Vec<u8> = name.as_bytes().iter().map(swapped).collect();
-        if other == name.as_bytes() {
+    for name in listed(folder)? {
+        let other = swapped(&name);
+        if other == name {
             continue;
         }
-        let Some(had) = identity(&folder.join(&name))? else { continue };
-        let found = identity(&folder.join(OsStr::from_bytes(&other)))?;
-        // Replaced meanwhile: ask another entry.
-        if identity(&folder.join(&name))? != Some(had) {
+        let opens = present(&folder.join(&other))?;
+        // Gone, or the variant is a file of its own.
+        if !present(&folder.join(&name))? || (opens && listed(folder)?.contains(&other)) {
             continue;
         }
-        return Ok(found != Some(had));
+        return Ok(!opens);
     }
     Err(io::Error::other(format!("no name in {} tells whether case folds", folder.display())))
 }
 
 #[cfg(not(any(windows, target_os = "macos")))]
-fn swapped(byte: &u8) -> u8 {
-    match byte.is_ascii_lowercase() {
-        true => byte.to_ascii_uppercase(),
-        false => byte.to_ascii_lowercase(),
-    }
+fn listed(folder: &Path) -> io::Result<Vec<std::ffi::OsString>> {
+    std::fs::read_dir(folder)?.map(|entry| Ok(entry?.file_name())).collect()
 }
 
 #[cfg(not(any(windows, target_os = "macos")))]
-fn identity(path: &Path) -> io::Result<Option<(u64, u64)>> {
-    use std::os::unix::fs::MetadataExt as _;
+fn swapped(name: &OsStr) -> std::ffi::OsString {
+    use std::os::unix::ffi::{OsStrExt as _, OsStringExt as _};
+    let swap = |byte: &u8| match byte.is_ascii_lowercase() {
+        true => byte.to_ascii_uppercase(),
+        false => byte.to_ascii_lowercase(),
+    };
+    std::ffi::OsString::from_vec(name.as_bytes().iter().map(swap).collect())
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn present(path: &Path) -> io::Result<bool> {
     match std::fs::symlink_metadata(path) {
-        Ok(found) => Ok(Some((found.dev(), found.ino()))),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
         Err(error) => Err(error),
     }
 }
@@ -206,5 +209,23 @@ mod tests {
         assert!(same_name(&lower, &upper).is_err());
         std::fs::write(dir.path().join("1"), "").expect("a caseless name");
         assert!(same_name(&lower, &upper).is_err());
+    }
+
+    #[cfg(not(any(windows, target_os = "macos")))]
+    #[test]
+    fn a_variant_listed_as_its_own_file_is_no_answer() {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let folder = dunce::canonicalize(dir.path()).expect("the real folder");
+        std::fs::write(folder.join("a.md"), "").expect("a file");
+        std::fs::write(folder.join("A.MD"), "").expect("its variant");
+        let (lower, upper) = (folder.join("b.md"), folder.join("B.md"));
+        let kept = std::fs::read_dir(&folder).expect("the folder").count();
+        if kept == 1 {
+            assert!(same_name(&lower, &upper).expect("compares"));
+            return;
+        }
+        assert!(same_name(&lower, &upper).is_err());
+        std::fs::write(folder.join("c.md"), "").expect("a lone name");
+        assert!(!same_name(&lower, &upper).expect("compares"));
     }
 }

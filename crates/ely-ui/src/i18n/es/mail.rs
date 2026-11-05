@@ -274,4 +274,9 @@ pub(super) const ES: &[(&str, &str)] = &[
         "mail.sync.offline_failed",
         "No se guardó el ajuste de la carpeta: {error}",
     ),
+    ("mail.again.go", "Volver a iniciar sesión"),
+    ("mail.again.title", "Volver a iniciar sesión en {address}"),
+    ("mail.again.other", "Inició sesión como {signed}. Inicie sesión como {address}."),
+    ("mail.again.done", "Se volvió a iniciar sesión en {address}."),
+    ("mail.again.gone", "Esta cuenta se quitó."),
 ];

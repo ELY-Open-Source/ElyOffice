@@ -8,12 +8,16 @@ use sha2::{Digest, Sha256};
 use super::messages::load_at;
 use crate::{Error, Mail, Result, read};
 
-/// Records rebuilt mail; unnamed whole mail adds its body.
-pub(super) const RECORD: &str = "INSERT OR IGNORE INTO rebuilt (mailbox, ident, body)
-    SELECT m.mailbox, m.ident, CASE WHEN m.message_id IS NULL OR m.message_id = ''
+/// Marks mail known in `mailbox`; unnamed whole mail keeps body.
+pub(super) fn record(mailbox: &str) -> String {
+    format!(
+        "INSERT OR IGNORE INTO rebuilt (mailbox, ident, body)
+    SELECT {mailbox}, m.ident, CASE WHEN m.message_id IS NULL OR m.message_id = ''
         THEN CASE WHEN m.content IS NOT NULL AND m.missing = '[]' THEN m.content ELSE '' END
         ELSE '' END
-    FROM messages m";
+    FROM messages m"
+    )
+}
 
 /// Mail a rebuild brought back; bodies compared only when whole.
 pub(super) const REBUILT: &str = "EXISTS (SELECT 1 FROM rebuilt r

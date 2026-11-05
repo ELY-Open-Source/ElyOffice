@@ -39,12 +39,12 @@ program() { # slug
     *) fail "mode is installed or appimage, not $mode" ;;
   esac
 }
-# The one window's capture handle, once mapped.
+# The one window's capture handle and address, once mapped.
 window() {
   local id
   for _ in $(seq 120); do
     id=$(hyprctl clients -j | jq -r --argjson pid "$pid" \
-      '[.[] | select(.pid == $pid and .mapped)] | if length == 1 then .[0].stableId else "" end') || {
+      '[.[] | select(.pid == $pid and .mapped)] | if length == 1 then "\(.[0].stableId) \(.[0].address)" else "" end') || {
       echo "hyprctl or jq failed"
       return 1
     }
@@ -61,9 +61,27 @@ window() {
   echo "no single window"
   return 1
 }
+# Tiling beside other windows crops the page.
+float() { # address
+  local w="address:$1" got
+  for call in "float({ window = \"$w\", action = \"enable\" })" \
+    "resize({ window = \"$w\", x = 1280, y = 800 })" "center({ window = \"$w\" })"; do
+    hyprctl dispatch "hl.dsp.window.$call" >/dev/null || return 1
+  done
+  # A dispatch to a lost window still says ok.
+  for _ in $(seq 20); do
+    got=$(hyprctl clients -j | jq -r --arg a "$1" '.[] | select(.address == $a) | "\(.floating) \(.size)"') || return 1
+    [ "$got" = "true [1280,800]" ] && return
+    sleep 0.25
+  done
+  echo "$got"
+  return 1
+}
 shoot() { # slug, file; the window itself, wherever it is
-  local id
-  id=$(window) || fail "$1 showed no window ($id): $(tail -n 5 "$work/$1.err")"
+  local id address said
+  said=$(window) || fail "$1 showed no window ($said): $(tail -n 5 "$work/$1.err")"
+  read -r id address <<<"$said"
+  said=$(float "$address") || fail "Hyprland did not float $1 at 1280x800 (${said:-dispatch failed})"
   sleep 4
   grim -T "$id" "$2" || fail "grim cannot capture $1"
 }
