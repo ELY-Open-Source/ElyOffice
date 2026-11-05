@@ -42,10 +42,10 @@
 | DOC-02 | 文字编辑 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-03 | 段落 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-04 | 样式 | C08.2（~） | `doc-props.sh` | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-05 | 页面与分节 | C08.3（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-06 | 页眉页脚 | C08.3（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-07 | 表格 | C08.3（~） | — | apps/ely-doc/src/tests、doc-props.sh |
-| DOC-08 | 图片与对象 | C08.3（~） | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-05 | 页面与分节 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-06 | 页眉页脚 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-07 | 表格 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
+| DOC-08 | 图片与对象 | C08.3 | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-09 | 引用结构 | C08.4（~） | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-10 | 公式 | C08.4（~） | — | apps/ely-doc/src/tests、doc-props.sh |
 | DOC-11 | 审阅 | C08.4（~） | — | apps/ely-doc/src/tests、doc-props.sh |
