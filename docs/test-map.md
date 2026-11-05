@@ -99,10 +99,10 @@
 | PDF-12 | 签名 | C11.7（~）、决策 C11.7 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-13 | 输出 | C11.8（~）、决策 C11.8 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-14 | 文件恢复 | C11.8（~）、决策 C11.8 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| MAIL-01 | 账号 | C12.1（~）、C12.5（~）、C12.7 | `a_failed_removal_puts_the_secret_back`、`two_saves_in_flight_add_an_address_once`、`a_uidl_listed_twice_comes_down_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
-| MAIL-02 | 授权 | C12.4、C12.5（~） | `a_failed_removal_puts_the_secret_back`、`two_saves_in_flight_add_an_address_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
+| MAIL-01 | 账号 | C12.1、C12.5、C12.7 | `a_failed_removal_puts_the_secret_back`、`two_saves_in_flight_add_an_address_once`、`a_uidl_listed_twice_comes_down_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
+| MAIL-02 | 授权 | C12.4、C12.5 | `a_failed_removal_puts_the_secret_back`、`two_saves_in_flight_add_an_address_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-03 | 邮箱视图 | C12.9 | `remove_needs_an_open_account`、`picking_every_one_of_many_messages_is_quick`、`the_side_scrolls_past_many_folders_to_the_next_account`、`a_rebuilt_mailbox_drops_the_pick`、`an_upgrade_leaving_a_row_without_its_parent_fails` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
-| MAIL-04 | 阅读 | C12.2（~）、C12.10（~）、C12.11、决策 C12.10、决策 C12.11 | `mail_never_draws_svg`、`hidden_list_items_and_hidden_parts_of_code_stay_out`、`a_message_with_only_headers_says_so`、`a_body_that_arrives_replaces_the_headers_shown`、`a_flagged_headers_only_v5_message_upgrades_and_stays_writable`、`an_important_hidden_style_in_any_case_stays_out`、`mixed_bodies_read_in_order_and_alternatives_once`、`every_body_reads_in_order_with_pictures_once`、`every_body_of_a_mixed_letter_shows`、`a_trust_change_reaches_a_reply_still_being_read`、`a_damaged_letter_fails_alone` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
+| MAIL-04 | 阅读 | C12.2（~）、C12.10、C12.11、决策 C12.10、决策 C12.11 | `mail_never_draws_svg`、`hidden_list_items_and_hidden_parts_of_code_stay_out`、`a_message_with_only_headers_says_so`、`a_body_that_arrives_replaces_the_headers_shown`、`a_flagged_headers_only_v5_message_upgrades_and_stays_writable`、`an_important_hidden_style_in_any_case_stays_out`、`mixed_bodies_read_in_order_and_alternatives_once`、`every_body_reads_in_order_with_pictures_once`、`every_body_of_a_mixed_letter_shows`、`a_trust_change_reaches_a_reply_still_being_read`、`a_damaged_letter_fails_alone` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-05 | 写信 | C12.2（~）、C12.12（~）、决策 C12.12 | — | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-06 | 草稿 | C12.13（~）、决策 C12.13 | `a_new_sender_hands_back_the_old_accounts_copy`、`deleting_while_files_load_waits_for_them`、`a_file_unread_while_closing_keeps_the_window`、`spacing_alone_is_an_edit_and_spaces_alone_are_blank`、`deleting_a_draft_while_it_reopens_leaves_no_window`、`a_server_copy_failing_after_its_window_closed_says_so_here` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-07 | 发送 | C12.14（~）、决策 C12.14 | — | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
@@ -112,7 +112,7 @@
 | MAIL-11 | 规则 | C12.18（~）、决策 C12.18 | `mail_a_rebuild_brings_back_is_no_news`、`an_archive_rule_needs_an_archive_and_never_blocks_the_others`、`rules_move_only_to_server_folders` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-12 | 联系人 | C12.19（~）、决策 C12.19 | `comments.py`、`only_the_four_escapes_read`、`one_message_counts_an_address_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-13 | 迁移 | C12.20（~）、决策 C12.20 | `rules_move_only_to_server_folders`、`a_read_failure_names_the_message_and_leaves_no_folder`、`raw_binary_mail_and_gone_folders_never_export` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
-| MAIL-14 | 同步控制 | C12.6（~）、C12.8 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`two_saves_in_flight_add_an_address_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
+| MAIL-14 | 同步控制 | C12.6（~）、C12.8 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`a_sign_in_while_paused_clears_the_refusal`、`a_sign_in_during_a_sync_syncs_once_more`、`two_saves_in_flight_add_an_address_once` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | MAIL-15 | 通知 | C12.21（~）、决策 C12.21 | `mail_delivered_while_away_is_news_whatever_its_date`、`a_rebuild_without_message_ids_is_no_news`、`a_new_mail_notice_clears_the_filters`、`a_rebuild_tells_unnamed_mail_apart_by_its_body`、`a_rebuild_knows_unnamed_mail_however_it_was_kept`、`upgrading_gives_old_mail_the_identity_new_mail_gets`、`an_earlier_switch_saved_late_leaves_the_latest` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | TREE-01 | 仓库 | C13.1、决策 C13.1 | — | apps/ely-tree/src/tests |
 | TREE-02 | 工作区 | C13.1、决策 C13.1 | — | apps/ely-tree/src/tests |
@@ -149,7 +149,7 @@
 | PERF-03 | 文档打开 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-04 | 表格打开 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-05 | PDF 浏览 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-06 | 本地搜索 | C12.16、C12.23（ ）、C20.1（~）、决策 C20.1、决策 C12.16 | `an_original_parked_by_a_crash_returns_before_reindexing`、`a_chosen_range_fits_a_narrow_window`、`plain_and_html_bodies_are_both_searched`、`upgrading_indexes_html_beside_plain_text`、`a_found_message_moves_within_its_own_account`、`release-macos.sh`、`chord.swift` | tests/perf/bench.py、lag.sh |
+| PERF-06 | 本地搜索 | C12.16、C12.23（~）、C20.1（~）、决策 C20.1、决策 C12.16 | `an_original_parked_by_a_crash_returns_before_reindexing`、`a_chosen_range_fits_a_narrow_window`、`plain_and_html_bodies_are_both_searched`、`upgrading_indexes_html_beside_plain_text`、`a_found_message_moves_within_its_own_account`、`release-macos.sh`、`chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-07 | Markdown | C14.5、C14.6、C20.1（~）、决策 C20.1、决策 C14.4 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-08 | 资源释放 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
 | PERF-09 | 多会话 | C20.1（~） | `chord.swift` | tests/perf/bench.py、lag.sh |
@@ -169,9 +169,9 @@
 | QA-13 | PDF 编辑 | C11.8（~）、C22.2（ ）、决策 C11.8 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-14 | PDF 删除 | C11.6（~）、C22.2（ ）、决策 C11.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-15 | PDF OCR 与签名 | C11.7（~）、C22.2（ ）、决策 C11.7 | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-16 | Mail 离线 | C12.23（ ）、C22.2（ ） | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-17 | Mail 发送 | C12.14（~）、C12.23（ ）、C22.2（ ）、决策 C12.14 | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-18 | Mail 同步 | C12.6（~）、C12.23（ ）、C22.2（ ）、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-16 | Mail 离线 | C12.23（~）、C22.2（ ） | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-17 | Mail 发送 | C12.14（~）、C12.23（~）、C22.2（ ）、决策 C12.14 | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-18 | Mail 同步 | C12.6（~）、C12.23（~）、C22.2（ ）、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`a_sign_in_while_paused_clears_the_refusal`、`a_sign_in_during_a_sync_syncs_once_more`、`release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-19 | Git 结果 | C13.6（~）、C22.2（ ）、决策 C13.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-20 | Git 异常 | C13.6（~）、C22.2（ ）、决策 C13.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-21 | Mark 原文 | C14.4、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
