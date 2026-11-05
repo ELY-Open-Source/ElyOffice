@@ -1,0 +1,40 @@
+Calc: R macro numbers print without std::to_chars
+
+0081 wrote each number with std::to_chars for double, which libc++
+offers only from macOS 13.3; the kernel builds for macOS 11.0, so
+0081 did not compile there. rtl::math::doubleToString with the
+automatic format and the most decimals gives the shortest text that
+reads back to the same double (Dragonbox), as ODF export does.
+
+diff --git a/sc/source/ui/inc/elymacro.hxx b/sc/source/ui/inc/elymacro.hxx
+index 135b092..7d9a4dd 100644
+--- a/sc/source/ui/inc/elymacro.hxx
++++ b/sc/source/ui/inc/elymacro.hxx
+@@ -35,8 +35,6 @@
+ #include <comphelper/scopeguard.hxx>
+ #include <atomic>
+ #include <cmath>
+-#include <charconv>
+-#include <limits>
+ #include <string>
+ #include <set>
+ #include <sstream>
+@@ -120,14 +118,13 @@ inline bool logical(const Reference<css::frame::XModel>& xModel,
+     return nType & css::util::NumberFormat::LOGICAL;
+ }
+ 
++// Shortest round trip; std::to_chars needs macOS 13.3.
+ inline std::string decimal(double value)
+ {
+     require(std::isfinite(value), "unreadable");
+-    char buffer[64];
+-    const auto result = std::to_chars(buffer, buffer + sizeof(buffer), value,
+-        std::chars_format::general, std::numeric_limits<double>::max_digits10);
+-    require(result.ec == std::errc{}, "unreadable");
+-    return std::string(buffer, result.ptr);
++    const OString aText = rtl::math::doubleToString(value, rtl_math_StringFormat_Automatic,
++                                                    rtl_math_DecimalPlaces_Max, '.', true);
++    return std::string(aText.getStr(), aText.getLength());
+ }
+ 
+ // Subnormals included; stream extraction rejects them on libc++.
