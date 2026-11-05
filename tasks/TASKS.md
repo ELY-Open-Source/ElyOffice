@@ -570,7 +570,7 @@
 - [x] R16.5 #64 Windows 右键“新建”（§4）：核对现状与常设决定，答复。核对：常设决定是“新建”只在该类型无处理程序时设（`packaging/windows/types.sh`）；`tests/scripts/windows-types.sh` 以真安装程序照过；本机（无 Office、WPS）HKCR 的 .docx、.xlsx、.pptx 归 ElyDoc、ElyTable、ElyShow，`ShellNew` 指向各自的 new.*，右键“新建”有三项。报告者装着 WPS，类型归 WPS，Ely 不写“新建”，照决定不改。答复见 R16.28 — R1 PASS
 - [x] R16.6 R14.53 收尾：macOS 无障碍复核（§5，I-02） — mac-lane 做完，R14.53 第 4 轮 PASS（`tasks/reviews/R14.53-r4.md`，Mac 上 `macos-names.sh` 七个应用皆过），随 R16.2 并入
 - [x] R16.7 R14.10 收尾：关闭链悬空 X-08（§6.2） — R14.10 第 4、5 轮 FAIL 各修，第 6 轮 PASS
-- [ ] R16.8 #62 ElyDoc 空行改字号报错且改不了（§8）。根因（Writer `basesh.cxx`）：无选区时字号给输入语言的文字，其余文字按段落语言的标准字号折算（zh-CN：西文 12、中文 10.5）；LOK 下输入语言是 worker 主机的键盘：中文键盘上选 14 得中文 14、西文 16，状态报 16，ElyDoc 判失败并撤销（报告者所见 “reports Some(\"16\"), not 14”）；英文键盘上其后打的中文成 12.25 磅。补丁 0103：LOK 下光标处设字号即三种文字同为该值（照 Word，同 0055 的字体）。测试 `a_size_on_an_empty_line_sets_every_script`（中文为亚洲语言的空段设 14 后打中文，所在段西文与中文皆 14pt），未打补丁的内核上败于 “font-size-asian=12.25pt”；Windows 内核重建后 format、fonts、commands 24 个与 ElyDoc 属性栏 22 个过。Mac 与 Linux 的共享内核待重建（同 R16.2 所记）
+- [x] R16.8 #62 ElyDoc 空行改字号报错且改不了（§8）。根因（Writer `basesh.cxx`）：无选区时字号给输入语言的文字，其余文字按段落语言的标准字号折算（zh-CN：西文 12、中文 10.5）；LOK 下输入语言是 worker 主机的键盘：中文键盘上选 14 得中文 14、西文 16，状态报 16，ElyDoc 判失败并撤销（报告者所见 “reports Some(\"16\"), not 14”）；英文键盘上其后打的中文成 12.25 磅。补丁 0103：LOK 下光标处设字号即三种文字同为该值（照 Word，同 0055 的字体）。测试 `a_size_on_an_empty_line_sets_every_script`（中文为亚洲语言的空段设 14 后打中文，所在段西文与中文皆 14pt），未打补丁的内核上败于 “font-size-asian=12.25pt”；Windows 内核重建后 format、fonts、commands 24 个与 ElyDoc 属性栏 22 个过。Mac 与 Linux 的共享内核待重建（同 R16.2 所记） — R1 PASS
 - [ ] R16.9 #61 ElyDoc 中文首行缩进两字不准、引号前后不一（§8）
 - [ ] R16.10 #67 ElyDoc 邮件合并读 xlsx、xls；工具栏（§8）
 - [ ] R16.11 #66 ElyPDF 书签坐标小于 1 即打不开：worker 的 JSON 数值与字符串（§11）
