@@ -3,6 +3,11 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
+# Bash 3.2 exits 0 after a set -u abort.
+if [ "$(uname -s)" = Darwin ] && [ "${BASH_VERSINFO[0]}" -lt 5 ]; then
+  echo "ci.sh: bash $BASH_VERSION; macOS needs bash 5 (doctor.sh)" >&2
+  exit 1
+fi
 os=${1:?macos, windows or linux}
 tag=${2:?the release tag, such as v0.1.3}
 version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
@@ -18,6 +23,8 @@ if [ "$os" = macos ]; then
   : "${ELY_NOTARY_PROFILE:?the notarytool keychain profile}"
 fi
 [ -z "${ELY_PATH:-}" ] || PATH=$ELY_PATH:$PATH
+# Its scripts run this bash, not Homebrew's arm64 one.
+[ "$(uname -s)" != Darwin ] || PATH=$(dirname "$BASH"):$PATH
 cd "$root"
 # Linux builds and packages in the AlmaLinux 8 container.
 inside=()
