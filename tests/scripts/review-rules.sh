@@ -13,6 +13,8 @@ mkdir -p "$work/bin" "$work/crlf" "$work/tree/scripts" "$work/tree/tasks" "$work
 cp "$root/scripts/review.sh" "$work/tree/scripts/"
 printf -- '- [ ] T1.%s probe\n' 1 2 3 4 5 >"$work/tree/tasks/TASKS.md"
 touch "$work/tree/tasks/BUGS.md" "$work/tree/site/TASKS.md" "$work/tree/site/video/TASKS.md"
+git init -q "$work/tree"
+real_sleep=$(command -v sleep)
 cat >"$work/bin/herdr" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -30,6 +32,8 @@ case "$1 $2" in
     fi ;;
   "pane layout")
     [ "$4" = w1:p1 ] || { echo "layout of $4" >&2; exit 1; }
+    # A slow answer opens the race between callers.
+    [ ! -f "$w/slow" ] || sleep 1
     # The caller holds the left half; reviewers stack right.
     col=$(awk '{ printf ",{\"pane_id\":\"%s\",\"rect\":{\"x\":77,\"width\":77,\"height\":%s}}", $1, $2 }' "$w/rows" 2>/dev/null || true)
     echo "{\"result\":{\"layout\":{\"workspace_id\":\"w1\",\"panes\":[{\"pane_id\":\"w1:p1\",\"rect\":{\"x\":0,\"width\":77,\"height\":45}}$col]}}}" ;;
@@ -75,6 +79,7 @@ case "$1 $2" in
     # Without --wait the review is still running.
     case " $* " in *" --wait "*) ;; *) exit 0 ;; esac
     case " $* " in *" --timeout "*) ;; *) exit 0 ;; esac
+    printf '%s' "$4" >"$w/asked"
     [ "$(cat "$w/late")" != 0 ] || cp "$w/verdict" "$w/tree/tasks/reviews/$FAKE_VERDICT"
     p=$(cat "$w/prompt")
     [ "$p" = 0 ] || { echo "{\"error\":{\"code\":\"$p\",\"message\":\"said $p\"}}" >&2; exit 1; } ;;
@@ -88,10 +93,11 @@ case "$1 $2" in
     s=${all[$((n <= ${#all[@]} ? n - 1 : ${#all[@]} - 1))]}
     [ "$s" != broken ] || exit 1
     echo "{\"result\":{\"agent\":{\"agent_status\":\"$s\"}}}" ;;
+  "agent read") printf '\n Do you want to proceed?\n ❯ 1. Yes\n\n' ;;
 esac
 EOF
-# Polls cost no time.
-printf '#!/usr/bin/env bash\necho "$1" >>"$HERDR_FAKE/slept"\n' >"$work/bin/sleep"
+# Polls cost no time; shorter waits are real.
+printf '#!/usr/bin/env bash\n[ "$1" = 30 ] || exec "%s" "$1"\necho "$1" >>"$HERDR_FAKE/slept"\n' "$real_sleep" >"$work/bin/sleep"
 # Native Windows jq writes CRLF.
 cat >"$work/crlf/jq" <<EOF
 #!/usr/bin/env bash
@@ -124,9 +130,18 @@ run T1.1 1 0 0 idle 'PASS\n' "$work/crlf:"
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "CRLF jq: rc $rc, $said"
 run T1.1 1 0 0 done 'FAIL\nx.rs:1 bug\n'
 case $said in *"x.rs:1 bug"*) ;; *) fail "verdict body lost: $said" ;; esac
+case $(cat "$work/asked") in *"inside the project root, under .work/T1.1-r1/"*) ;; *) fail "the prompt allows work outside the tree" ;; esac
+# A reviewer blocked five minutes is shown, then closed.
+rm -f "$work/closed" "$work/tree/tasks/reviews/.panes/T1.1"
 run T1.1 1 0 0 blocked 'PASS\n'
 [ "$rc" = 1 ] || fail "a blocked reviewer passed"
-case $said in *blocked*) ;; *) fail "blocked not named: $said" ;; esac
+case $said in *"stayed blocked 5 minutes at:"*"Do you want to proceed?"*"pane closed"*) ;; *) fail "blocked screen not shown: $said" ;; esac
+[ "$(wc -l <"$work/slept")" = 10 ] || fail "blocked polled $(wc -l <"$work/slept") times, not 10"
+[ "$(cat "$work/closed" 2>/dev/null)" = "w1:p$(cat "$work/panes")" ] || fail "a blocked reviewer was left running"
+[ ! -f "$work/tree/tasks/reviews/.panes/T1.1" ] || fail "a closed blocked pane's id was kept"
+# A short block is waited out.
+LATE=3 run T1.1 1 0 0 'blocked working idle' 'PASS\n'
+[ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a reviewer blocked once: rc $rc, $said"
 run T1.1 1 0 0 broken 'PASS\n'
 [ "$rc" = 1 ] || fail "an unreadable status passed"
 # Herdr's own error reaches the message.
@@ -164,7 +179,7 @@ run T1.1 1 0 0 done 'PASS
 [ ! -f "$work/tree/tasks/reviews/.panes/T1.1" ] || fail "a closed pane's id was kept"
 # Failed rounds keep their pane; the next stacks below.
 reset
-run T1.2 1 0 0 blocked 'PASS
+run T1.2 1 0 0 unknown 'PASS
 '
 [ "$(cat "$work/tree/tasks/reviews/.panes/T1.2")" = w1:p2 ] || fail "the failed pane's id was lost"
 run T1.1 1 0 0 done 'PASS
@@ -176,7 +191,7 @@ run T1.2 2 0 0 done 'PASS
 [ "$(sed -n 2p "$work/closed")" = w1:p2 ] || fail "round 2 closed $(cat "$work/closed"), not its round 1 pane"
 # A live pane that will not close stops the review.
 reset
-run T1.1 1 0 0 blocked 'PASS
+run T1.1 1 0 0 unknown 'PASS
 '
 CLOSE=1 run T1.1 2 0 0 done 'PASS
 '
@@ -205,7 +220,7 @@ CLOSE=1 run T1.1 1 0 0 done 'PASS
 [ "$(cat "$work/tree/tasks/reviews/.panes/T1.1")" = w1:p2 ] || fail "the unclosed pane's id was lost"
 # Halves keep ten terminal rows; chrome takes two of each.
 reset
-for t in 1 2 3; do run T1.$t 1 0 0 blocked 'PASS\n'; done
+for t in 1 2 3; do run T1.$t 1 0 0 unknown 'PASS\n'; done
 [ "$(cat "$work/splits")" = "$(printf 'w1:p1 right\nw1:p2 down')" ] || fail "column splits: $(cat "$work/splits")"
 [ -z "$(awk '$2 - 2 < 10' "$work/rows")" ] || fail "a pane under ten terminal rows: $(cat "$work/rows")"
 # A full column sends the next one to a tab.
@@ -220,12 +235,37 @@ reset
 printf 'w1:p2 23\nw1:p3 24\n' >"$work/rows"
 printf 'w1:p2\nw1:p3\n' >"$work/live"
 echo 3 >"$work/panes"
-run T1.4 1 0 0 blocked 'PASS\n'
+run T1.4 1 0 0 unknown 'PASS\n'
 [ "$(cat "$work/splits")" = "w1:p3 down" ] || fail "not the tallest pane split: $(cat "$work/splits")"
-run T1.5 1 0 0 blocked 'PASS\n'
+run T1.5 1 0 0 unknown 'PASS\n'
 [ "$(wc -l <"$work/splits")" = 1 ] || fail "23 rows split: $(cat "$work/splits")"
 grep -q -- "--label rv-t1-5-r1 " "$work/tabs" || fail "23 rows did not send a tab: $(cat "$work/tabs" 2>/dev/null)"
+# Callers at once place one at a time.
+reset
+echo "w1:p2 45" >"$work/rows"
+echo w1:p2 >"$work/live"
+echo 2 >"$work/panes"
+touch "$work/slow"
+echo unknown >"$work/status"
+both() { HERDR_FAKE=$work HERDR_ENV=1 HERDR_PANE_ID=w1:p1 FAKE_VERDICT="$1-r1.md" PATH="$work/bin:$PATH" bash "$work/tree/scripts/review.sh" "$1" 1 >/dev/null 2>&1 || :; }
+both T1.4 &
+both T1.5 &
+wait
+rm "$work/slow"
+[ "$(cat "$work/splits")" = "w1:p2 down" ] || fail "two callers split at once: $(cat "$work/splits")"
+[ "$(wc -l <"$work/tabs")" = 1 ] || fail "the later caller made no tab: $(cat "$work/tabs" 2>/dev/null)"
+[ -z "$(awk '$2 - 2 < 10' "$work/rows")" ] || fail "a pane under ten terminal rows: $(cat "$work/rows")"
+[ ! -e "$work/tree/.git/review-place.lock" ] || fail "the placement lock was left"
+# A lock nobody frees stops it and is named.
+reset
+mkdir "$work/tree/.git/review-place.lock"
+run T1.1 1 0 0 done 'PASS\n'
+rmdir "$work/tree/.git/review-place.lock"
+[ "$rc" = 1 ] || fail "a held lock passed"
+case $said in *"review-place.lock held for 30 s"*) ;; *) fail "held lock not named: $said" ;; esac
+[ ! -f "$work/splits" ] || fail "split under a held lock: $(cat "$work/splits")"
 # A tab herdr refuses is named.
+echo "w1:p2 23" >"$work/rows"
 TAB=1 run T1.1 1 0 0 done 'PASS\n'
 [ "$rc" = 1 ] || fail "a refused tab passed"
 case $said in *"no pane for rv-t1-1-r1"*workspace_not_found*) ;; *) fail "tab refusal not named: $said" ;; esac

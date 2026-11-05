@@ -21,7 +21,7 @@ prompt="You review item $id of Ely Office, round $round. Work dir is the project
 Read the line for $id in $list and the PRD.md sections it cites (for tasks/BUGS.md: its entry in docs/BugList.md); the items before it in that list are done.
 Scope: $scope
 Find defects only: behavior that breaks the PRD, errors swallowed, silent fallbacks, dead code, files over 500 lines, comments over one line or ten words, boxes inside boxes or useless subtitles in UI, abstractions with one user, missing or weak tests, claims no evidence backs. Build and run the tests yourself.
-Copies of the tree you build for probes use their own CARGO_TARGET_DIR, never ./target: crates bake their source path in. Write the verdict first, then delete those copies and their target dirs; keep only small logs, in .work/ under the project root. If a deletion is refused, add a last line to the verdict naming what is left. Write nothing in the folder above the project.
+Every build, probe copy, CARGO_TARGET_DIR and log stays inside the project root, under .work/$id-r$round/: never C:\\, never the folder above the project, never any other place outside it. Copies of the tree you build for probes use their own CARGO_TARGET_DIR there, never ./target: crates bake their source path in. Write the verdict first, then delete those copies and their target dirs; keep only small logs. If a deletion is refused, add a last line to the verdict naming what is left.
 On Windows, build and run nothing under %TEMP%: Application Control blocks programs there. Linux runs in WSL (wsl -d Ubuntu); its clone at ~/Documents/Github/ElyOffice holds this tree's changes.
 Do not suggest enhancements. Do not reject for taste. Edit no file except the verdict.
 Round 2 and later: read the previous verdict tasks/reviews/$id-r$((round - 1)).md, confirm each defect is fixed, then look for new defects in changed code.
@@ -44,6 +44,14 @@ if [ -f "$last" ]; then
   fi
   rm -f "$last"
 fi
+# Callers in every worktree place one at a time.
+lock=$(git rev-parse --git-common-dir)/review-place.lock || { echo "review.sh: not in a git tree" >&2; exit 2; }
+for ((t = 0; ; t++)); do
+  mkdir "$lock" 2>/dev/null && break
+  [ "$t" -lt 30 ] || { echo "review.sh: $lock held for 30 s; remove it if no review.sh is placing" >&2; exit 1; }
+  sleep 1
+done
+trap 'rmdir "$lock"' EXIT
 # Each reviewer keeps ten terminal rows; herdr's chrome takes two.
 room=10 chrome=2
 right=$(herdr pane neighbor --direction right --pane "$HERDR_PANE_ID" | field '.result.neighbor.neighbor_pane_id // empty') \
@@ -65,6 +73,8 @@ fi
 pane=$(field '(.result.pane // .result.root_pane).pane_id' <<<"$made" 2>/dev/null) || :
 [ -n "$pane" ] && [ "$pane" != null ] || { echo "review.sh: no pane for $name: $made" >&2; exit 1; }
 echo "$pane" >"$last"
+rmdir "$lock"
+trap - EXIT
 fail() { echo "review.sh: $name in $pane $*; pane left open" >&2; exit 1; }
 # Herdr's error code and message, else its raw reply.
 why() { field -e '.error | select(.code) | "\(.code): \(.message)"' <<<"$1" 2>/dev/null || echo "$1"; }
@@ -77,12 +87,24 @@ if ! said=$(herdr agent prompt "$name" "$prompt" --wait --timeout 5400000 2>&1);
     *) fail "took no prompt: $(why "$said")" ;;
   esac
 fi
+# Blocked ten polls running: show the screen, then close.
+blocked() {
+  text=$(herdr agent read "$name" --source visible 2>&1) || text="unreadable: $text"
+  text=$(grep -v '^[[:space:]]*$' <<<"$text" | tail -n 8 || :)
+  err=$(herdr pane close "$pane" 2>&1) || fail "stayed blocked 5 minutes at: $text; did not close: $err"
+  rm -f "$last"
+  echo "review.sh: $name in $pane stayed blocked 5 minutes at: $text; pane closed" >&2
+  exit 1
+}
 # Claude idles while its own background runs work.
+b=0
 for ((i = 0; ; i++)); do
   s=$(herdr agent get "$name" | field '.result.agent.agent_status') || fail "status unreadable"
+  [ "$s" = blocked ] && b=$((b + 1)) || b=0
   case $s in
     done | idle) head -n 1 "$verdict" 2>/dev/null | tr -d '\r' | grep -qxE 'PASS|FAIL' && break ;;
     working) ;;
+    blocked) [ "$b" -le 10 ] || blocked ;;
     *) fail "ended $s" ;;
   esac
   [ "$i" -lt 180 ] || fail "left no verdict at $verdict in 90 more minutes"
