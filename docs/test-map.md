@@ -73,10 +73,10 @@
 | TABLE-17 | R 宏（实验性） | 无 | — | apps/ely-table/src/tests、theme.sh |
 | SHOW-01 | 幻灯片管理 | C10.1（~）、决策 C10.1 | `an_edit_right_after_undo_still_repaints`、`undoing_a_master_edit_repaints_its_slides` | apps/ely-show/src/tests |
 | SHOW-02 | 模板与母版 | C10.1（~）、决策 C10.1 | `an_edit_right_after_undo_still_repaints`、`undoing_a_master_edit_repaints_its_slides` | apps/ely-show/src/tests |
-| SHOW-03 | 文字 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |
-| SHOW-04 | 图形 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |
-| SHOW-05 | 图片 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |
-| SHOW-06 | 对象操作 | C10.2（~）、决策 C10.2 | `lo-patches.sh` | apps/ely-show/src/tests |
+| SHOW-03 | 文字 | C10.2（~）、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
+| SHOW-04 | 图形 | C10.2（~）、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
+| SHOW-05 | 图片 | C10.2（~）、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
+| SHOW-06 | 对象操作 | C10.2（~）、决策 C10.2 | `lo-patches.sh`、`a_connector_s_ends_glue_to_shapes_and_follow_a_move`、`fit_rules_set_both_growths_and_undo_keeps_the_text` | apps/ely-show/src/tests |
 | SHOW-07 | 表格与图表 | C10.3（~）、决策 C10.3 | `a_retitled_scatter_keeps_its_lines`、`a_scatter_with_words_for_x_keeps_its_draft_and_names_the_cell`、`a_comment_picked_on_another_slide_shows_its_slide_again` | apps/ely-show/src/tests |
 | SHOW-08 | 备注与审阅 | C10.3（~）、决策 C10.3 | `a_retitled_scatter_keeps_its_lines`、`a_scatter_with_words_for_x_keeps_its_draft_and_names_the_cell`、`a_comment_picked_on_another_slide_shows_its_slide_again` | apps/ely-show/src/tests |
 | SHOW-09 | 动画与切换 | C10.4（~）、决策 C10.4 | `media-targets.sh`、`typing_ends_a_preview_before_any_undo_step`、`two_fields_sent_before_a_read_both_land`、`an_undone_duration_is_not_sent_again`、`two_effects_take_the_same_value_before_a_read` | apps/ely-show/src/tests |

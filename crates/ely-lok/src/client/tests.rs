@@ -11,6 +11,7 @@ mod cell_looks;
 mod charts;
 mod dates;
 mod check;
+mod connectors;
 mod commands;
 mod docx;
 mod filter;
