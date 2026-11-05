@@ -155,19 +155,29 @@ fn a_folder_turned_link_stops_the_clean() {
     assert!(outside.join("early.txt").exists());
 }
 
-#[test]
-fn twin_reflog_events_stay_apart() {
-    let dir = tempfile::tempdir().expect("a temp dir");
-    let root = committed(dir.path());
+/// Two resets in one second: twin reflog entries.
+fn twins(root: &std::path::Path) {
+    twins_to(root, "HEAD");
+}
+
+/// Two resets to `to` in one second.
+fn twins_to(root: &std::path::Path, to: &str) {
     for _ in 0..2 {
         let reset = std::process::Command::new(&git().path)
-            .args(["reset", "-q", "--keep", "HEAD"])
-            .current_dir(&root)
+            .args(["reset", "-q", "--keep", to])
+            .current_dir(root)
             .env("GIT_COMMITTER_DATE", "2030-01-01T00:00:00Z")
             .status()
             .expect("runs");
         assert!(reset.success());
     }
+}
+
+#[test]
+fn twin_reflog_events_stay_apart() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let root = committed(dir.path());
+    twins(&root);
     let moves = recover::reflog(&git(), &root).expect("reads");
     assert_eq!((moves[0].at, &moves[0].said), (moves[1].at, &moves[1].said));
     assert!(!moves[0].same(&moves[1]), "two events, two identities");
@@ -178,6 +188,56 @@ fn twin_reflog_events_stay_apart() {
         .filter(|ix| again[*ix].same(&picked))
         .collect();
     assert_eq!(found, [2], "it moved one down, alone");
+}
+
+#[test]
+fn an_expired_older_move_leaves_the_pick_where_it_was() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let root = committed(dir.path());
+    twins(&root);
+    let picked = recover::reflog(&git(), &root).expect("reads")[1].clone();
+    // As gc does: entries before 2029 go, the twins stay.
+    sh(&root, &["reflog", "expire", "--expire=2029-01-01", "HEAD"]);
+    let again = recover::reflog(&git(), &root).expect("reads");
+    assert_eq!(again.len(), 2, "only the twins are left");
+    let found: Vec<usize> = (0..again.len())
+        .filter(|ix| again[*ix].same(&picked))
+        .collect();
+    assert_eq!(found, [1], "still the older twin");
+}
+
+/// Indices in `again` that pass for `picked`.
+fn matches(again: &[recover::Moved], picked: &recover::Moved) -> Vec<usize> {
+    (0..again.len()).filter(|ix| again[*ix].same(picked)).collect()
+}
+
+#[test]
+fn a_deleted_older_twin_is_no_longer_picked() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let root = committed(dir.path());
+    twins(&root);
+    let picked = recover::reflog(&git(), &root).expect("reads")[1].clone();
+    sh(&root, &["reflog", "delete", "HEAD@{1}"]);
+    let again = recover::reflog(&git(), &root).expect("reads");
+    assert!(matches(&again, &picked).is_empty(), "the pick is gone");
+}
+
+#[test]
+fn an_unreachable_older_twin_expired_is_no_longer_picked() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let root = committed(dir.path());
+    sh(&root, &["commit", "-q", "--allow-empty", "-m", "b"]);
+    let b = sh(&root, &["rev-parse", "HEAD"]).trim().to_string();
+    sh(&root, &["commit", "-q", "--allow-empty", "-m", "c"]);
+    // The first reset leaves C, which nothing reaches.
+    twins_to(&root, &b);
+    let moves = recover::reflog(&git(), &root).expect("reads");
+    let picked = moves[1].clone();
+    let expire = ["reflog", "expire", "--expire=never", "--expire-unreachable=2031-01-01", "HEAD"];
+    sh(&root, &expire);
+    let again = recover::reflog(&git(), &root).expect("reads");
+    assert_eq!(again.iter().filter(|m| m.at == picked.at).count(), 1, "one twin left");
+    assert!(matches(&again, &picked).is_empty(), "the pick is gone");
 }
 
 #[test]

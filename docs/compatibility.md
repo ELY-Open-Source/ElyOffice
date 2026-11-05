@@ -25,7 +25,7 @@
 | Windows | 系统打印对话框 | 真窗口，打印到 Microsoft Print to PDF |
 | Linux | 桌面门户；由 Ely 照对话框的选择排页（页码范围、奇偶页、倒序、份数与逐份、缩放、每张页数），只交出 PDF | 只对替身门户核对；GNOME、KDE 真桌面未核对 |
 
-字体：缺失字体由内核报出，ElyDoc 页面上方列出缺失的字体（`doc.fonts.missing`），分页可能与有字体时不同；字体一致与缺失两种环境的对照未做。产品不带微软字体。
+字体：缺失字体由内核报出，ElyDoc 页面上方列出缺失的字体（`doc.fonts.missing`），分页可能与有字体时不同。两种环境对照（`a_missing_font_is_named_and_its_pages_counted_apart`，Windows）：同一份 400 段的 FODT，字体为随包的 DejaVu Sans Mono 时 17 页、不报缺失；换成不存在的 Nowhere Mono 时内核以别的字体代替，9 页，缺失列表恰为 Nowhere Mono。替换规则不可见：提示只说已用别的字体代替，不说换成哪种；LOK 只报缺失的名字，要报替代字体须改内核，未做。产品不带微软字体。
 
 ## ElyDoc
 

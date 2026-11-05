@@ -111,7 +111,7 @@ fn a_view_opens_while_the_engine_is_busy() {
     std::fs::write(&source, crate::client::tests::FODT).expect("the fixture writes");
     let doc = worker.load(&crate::file_url(&source)).expect("the document loads");
     let laid = super::super::layout(&mut worker, &doc).expect("the layout reads");
-    let feed = worker.feed();
+    let feed = (worker.feed(), worker.waiter());
     let shared = Arc::new(Mutex::new(worker));
     let (held, release) = (std::sync::mpsc::channel(), std::sync::mpsc::channel::<()>());
     let holder = {

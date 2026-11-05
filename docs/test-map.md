@@ -116,18 +116,18 @@
 | MAIL-15 | 通知 | C12.21（~）、决策 C12.21 | `mail_delivered_while_away_is_news_whatever_its_date`、`a_rebuild_without_message_ids_is_no_news`、`a_new_mail_notice_clears_the_filters`、`a_rebuild_tells_unnamed_mail_apart_by_its_body`、`a_rebuild_knows_unnamed_mail_however_it_was_kept`、`upgrading_gives_old_mail_the_identity_new_mail_gets`、`an_earlier_switch_saved_late_leaves_the_latest` | apps/ely-mail/src/tests、crates/ely-mail-engine/tests |
 | TREE-01 | 仓库 | C13.1、决策 C13.1 | — | apps/ely-tree/src/tests |
 | TREE-02 | 工作区 | C13.1、决策 C13.1 | — | apps/ely-tree/src/tests |
-| TREE-03 | 差异 | C13.2（~）、决策 C13.2 | — | apps/ely-tree/src/tests |
-| TREE-04 | 暂存 | C13.2（~）、决策 C13.2 | — | apps/ely-tree/src/tests |
-| TREE-05 | 提交 | C13.3（~）、决策 C13.3 | — | apps/ely-tree/src/tests |
-| TREE-06 | 历史 | C13.3（~）、决策 C13.3 | — | apps/ely-tree/src/tests |
-| TREE-07 | 分支与标签 | C13.4（~）、决策 C13.4 | — | apps/ely-tree/src/tests |
-| TREE-08 | 合并与变基 | C13.4（~）、决策 C13.4 | — | apps/ely-tree/src/tests |
-| TREE-09 | 冲突 | C13.4（~）、决策 C13.4 | — | apps/ely-tree/src/tests |
+| TREE-03 | 差异 | C13.2、决策 C13.2 | `a_picture_turned_into_a_link_shows_the_link_by_size` | apps/ely-tree/src/tests |
+| TREE-04 | 暂存 | C13.2、决策 C13.2 | `a_picture_turned_into_a_link_shows_the_link_by_size` | apps/ely-tree/src/tests |
+| TREE-05 | 提交 | C13.3、决策 C13.3 | `a_commit_landing_between_pages_rereads_from_the_top` | apps/ely-tree/src/tests |
+| TREE-06 | 历史 | C13.3、决策 C13.3 | `a_commit_landing_between_pages_rereads_from_the_top` | apps/ely-tree/src/tests |
+| TREE-07 | 分支与标签 | C13.4、决策 C13.4 | `a_git_am_skipped_onto_the_next_conflict_stops_without_a_dialog` | apps/ely-tree/src/tests |
+| TREE-08 | 合并与变基 | C13.4、决策 C13.4 | `a_git_am_skipped_onto_the_next_conflict_stops_without_a_dialog` | apps/ely-tree/src/tests |
+| TREE-09 | 冲突 | C13.4、决策 C13.4 | `a_git_am_skipped_onto_the_next_conflict_stops_without_a_dialog` | apps/ely-tree/src/tests |
 | TREE-10 | 暂存工作 | C13.5、决策 C13.5 | — | apps/ely-tree/src/tests |
 | TREE-11 | 远程 | C13.5、决策 C13.5 | — | apps/ely-tree/src/tests |
 | TREE-12 | 仓库结构 | C13.5、决策 C13.5 | — | apps/ely-tree/src/tests |
-| TREE-13 | 恢复与清理 | C13.6（~）、决策 C13.6 | — | apps/ely-tree/src/tests |
-| TREE-14 | 外部工具 | C13.6（~）、决策 C13.6 | — | apps/ely-tree/src/tests |
+| TREE-13 | 恢复与清理 | C13.6、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was`、`a_deleted_older_twin_is_no_longer_picked`、`an_unreachable_older_twin_expired_is_no_longer_picked` | apps/ely-tree/src/tests |
+| TREE-14 | 外部工具 | C13.6、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was`、`a_deleted_older_twin_is_no_longer_picked`、`an_unreachable_older_twin_expired_is_no_longer_picked` | apps/ely-tree/src/tests |
 | MARK-01 | 本地文件 | C14.4、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-02 | 编辑模式 | C14.6、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-03 | Markdown | C14.7、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
@@ -144,15 +144,15 @@
 | MARK-14 | 大文件 | C14.6、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-15 | 格式命令 | 无 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-16 | 右键菜单 | 无 | — | apps/ely-mark 单测、mark-*.sh |
-| PERF-01 | 启动 | C20.1（~）、决策 C20.1、决策 C11.1 | `chord.swift`、`pdf-idle.sh` | tests/perf/bench.py、lag.sh |
-| PERF-02 | 交互 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-03 | 文档打开 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-04 | 表格打开 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-05 | PDF 浏览 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-06 | 本地搜索 | C12.16、C12.23（ ）、C20.1（~）、决策 C20.1、决策 C12.16 | `an_original_parked_by_a_crash_returns_before_reindexing`、`a_chosen_range_fits_a_narrow_window`、`plain_and_html_bodies_are_both_searched`、`upgrading_indexes_html_beside_plain_text`、`a_found_message_moves_within_its_own_account`、`release-macos.sh`、`chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-07 | Markdown | C14.5、C14.6、C20.1（~）、决策 C20.1、决策 C14.4 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-08 | 资源释放 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-09 | 多会话 | C20.1（~） | `chord.swift` | tests/perf/bench.py、lag.sh |
+| PERF-01 | 启动 | C20.1、决策 C20.1、决策 C11.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit`、`pdf-idle.sh` | tests/perf/bench.py、lag.sh |
+| PERF-02 | 交互 | C20.1、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-03 | 文档打开 | C20.1、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-04 | 表格打开 | C20.1、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-05 | PDF 浏览 | C20.1、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-06 | 本地搜索 | C12.16、C12.23（ ）、C20.1、决策 C20.1、决策 C12.16 | `an_original_parked_by_a_crash_returns_before_reindexing`、`a_chosen_range_fits_a_narrow_window`、`plain_and_html_bodies_are_both_searched`、`upgrading_indexes_html_beside_plain_text`、`a_found_message_moves_within_its_own_account`、`release-macos.sh`、`chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-07 | Markdown | C14.5、C14.6、C20.1、决策 C20.1、决策 C14.4 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-08 | 资源释放 | C20.1、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-09 | 多会话 | C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
 | PERF-10 | 极限负载 | 无 | — | tests/perf/bench.py、lag.sh |
 | QA-01 | 安装与离线启动 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-02 | 独立安装 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
@@ -172,8 +172,8 @@
 | QA-16 | Mail 离线 | C12.23（ ）、C22.2（ ） | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-17 | Mail 发送 | C12.14（~）、C12.23（ ）、C22.2（ ）、决策 C12.14 | `release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-18 | Mail 同步 | C12.6（~）、C12.23（ ）、C22.2（ ）、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`release-macos.sh` | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-19 | Git 结果 | C13.6（~）、C22.2（ ）、决策 C13.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-20 | Git 异常 | C13.6（~）、C22.2（ ）、决策 C13.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-19 | Git 结果 | C13.6、C22.2（ ）、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was`、`a_deleted_older_twin_is_no_longer_picked`、`an_unreachable_older_twin_expired_is_no_longer_picked` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-20 | Git 异常 | C13.6、C22.2（ ）、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was`、`a_deleted_older_twin_is_no_longer_picked`、`an_unreachable_older_twin_expired_is_no_longer_picked` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-21 | Mark 原文 | C14.4、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-22 | Mark 外部变更 | C14.11、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-23 | Agent 能力 | C15.6（ ）、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
