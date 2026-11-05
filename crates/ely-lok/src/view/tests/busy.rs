@@ -219,3 +219,22 @@ fn an_edit_holds_background_work_one_second_at_most() {
     let waited = began.elapsed();
     assert!(waited >= Duration::from_millis(900) && waited < Duration::from_secs(3), "waited {waited:?}");
 }
+
+/// A stuck edit costs later requests one second in all.
+#[test]
+fn a_stuck_edit_holds_later_requests_one_second_in_all() {
+    use std::time::{Duration, Instant};
+    let worker = Arc::new(Mutex::new(()));
+    let mut clock = crate::view::clock::EditClock::ahead_of(crate::view::off::Ahead::of(&worker));
+    clock.showing();
+    clock.sent(1, "text");
+    clock.landed(1, Ok(Some(7)));
+    // A failed frame keeps the edit undrawn.
+    clock.painted(Some(7), true);
+    let began = Instant::now();
+    for _ in 0..3 {
+        futures::executor::block_on(crate::behind(&worker, |_| ()));
+    }
+    let waited = began.elapsed();
+    assert!(waited >= Duration::from_millis(900) && waited < Duration::from_millis(1800), "three requests waited {waited:?}");
+}

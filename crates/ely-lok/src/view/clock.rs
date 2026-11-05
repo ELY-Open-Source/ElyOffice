@@ -42,10 +42,11 @@ impl EditClock {
         EditClock { ahead: Some(ahead), ..EditClock::default() }
     }
 
+    /// Each edit holds from when it was sent.
     fn hold(&mut self) {
-        let waiting = self.waiting();
+        let since = self.edits.back().map(|edit| edit.at);
         if let Some(ahead) = &mut self.ahead {
-            ahead.hold(waiting);
+            ahead.hold(since);
         }
     }
 

@@ -3,7 +3,10 @@
 use std::{
     any::Any,
     io,
-    sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError, Weak},
+    sync::{
+        Arc, Condvar, Mutex, MutexGuard, PoisonError, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -11,32 +14,39 @@ use gpui::Context;
 
 use crate::{Doc, Worker};
 
-/// Background work holds back this long at most.
+/// An undrawn edit holds background work this long at most.
 const HELD_MOST: Duration = Duration::from_secs(1);
 
 /// One worker's background queue and the edits it yields to.
 #[derive(Default)]
 struct Turn {
     queue: futures::lock::Mutex<()>,
-    /// Views whose edit is not yet on screen.
-    ahead: Mutex<usize>,
+    /// Each holding view and when its newest undrawn edit was sent.
+    holds: Mutex<Vec<(u64, Instant)>>,
     clear: Condvar,
 }
 
 impl Turn {
-    /// A bare count: a panic leaves it whole.
-    fn ahead(&self) -> MutexGuard<'_, usize> {
-        self.ahead.lock().unwrap_or_else(PoisonError::into_inner)
+    /// Plain data: a panic leaves it whole.
+    fn holds(&self) -> MutexGuard<'_, Vec<(u64, Instant)>> {
+        self.holds.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Waits until no edit is undrawn, or a second.
+    /// Waits while an undrawn edit is under a second old.
     fn yield_to_edits(&self) {
         let began = Instant::now();
-        let held = self.clear.wait_timeout_while(self.ahead(), HELD_MOST, |ahead| *ahead > 0);
-        let (ahead, waited) = held.unwrap_or_else(PoisonError::into_inner);
-        drop(ahead);
-        if waited.timed_out() {
-            log::warn!("lok: background work held {} ms by an undrawn edit; it goes", began.elapsed().as_millis());
+        let mut holds = self.holds();
+        loop {
+            let now = Instant::now();
+            let until = holds.iter().map(|(_, since)| *since + HELD_MOST).filter(|until| *until > now).max();
+            let Some(until) = until else { break };
+            holds = self.clear.wait_timeout(holds, until - now).unwrap_or_else(PoisonError::into_inner).0;
+        }
+        let stuck = !holds.is_empty();
+        drop(holds);
+        let waited = began.elapsed();
+        if stuck && !waited.is_zero() {
+            log::warn!("lok: background work held {} ms by an undrawn edit; it goes", waited.as_millis());
         }
     }
 }
@@ -61,38 +71,37 @@ fn turn<W: Send + 'static>(worker: &Arc<Mutex<W>>) -> Arc<Turn> {
     turn
 }
 
+/// Tells holding views apart.
+static AHEADS: AtomicU64 = AtomicU64::new(0);
+
 /// Holds a worker's background work while an edit is undrawn.
 pub(super) struct Ahead {
     turn: Arc<Turn>,
-    held: bool,
+    id: u64,
+    since: Option<Instant>,
 }
 
 impl Ahead {
     pub(super) fn of<W: Send + 'static>(worker: &Arc<Mutex<W>>) -> Self {
-        Ahead { turn: turn(worker), held: false }
+        Ahead { turn: turn(worker), id: AHEADS.fetch_add(1, Ordering::Relaxed), since: None }
     }
 
-    /// Holds background work back while `held`.
-    pub(super) fn hold(&mut self, held: bool) {
-        if held == self.held {
+    /// Holds background work for the edit sent at `since`; None lets it go.
+    pub(super) fn hold(&mut self, since: Option<Instant>) {
+        if since == self.since {
             return;
         }
-        self.held = held;
-        let mut ahead = self.turn.ahead();
-        if held {
-            *ahead += 1;
-        } else {
-            *ahead -= 1;
-            if *ahead == 0 {
-                self.turn.clear.notify_all();
-            }
-        }
+        self.since = since;
+        let mut holds = self.turn.holds();
+        holds.retain(|(id, _)| *id != self.id);
+        holds.extend(since.map(|since| (self.id, since)));
+        self.turn.clear.notify_all();
     }
 }
 
 impl Drop for Ahead {
     fn drop(&mut self) {
-        self.hold(false);
+        self.hold(None);
     }
 }
 
