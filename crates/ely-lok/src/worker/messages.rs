@@ -47,17 +47,29 @@ pub(super) fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Resu
     teardown::teardown(0);
 }
 
-/// Tiles assume 96 DPI; a DPI-aware worker draws them larger.
+/// Tiles assume 96 DPI; the kernel's thread draws unaware.
 pub(super) fn unaware() -> io::Result<()> {
     use windows_sys::Win32::UI::HiDpi::{
-        DPI_AWARENESS_UNAWARE, GetAwarenessFromDpiAwarenessContext, GetThreadDpiAwarenessContext,
+        DPI_AWARENESS_CONTEXT_UNAWARE, DPI_AWARENESS_UNAWARE, GetAwarenessFromDpiAwarenessContext,
+        GetThreadDpiAwarenessContext, SetThreadDpiAwarenessContext,
     };
-    let awareness = unsafe { GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext()) };
-    if awareness != DPI_AWARENESS_UNAWARE {
+    let awareness = || unsafe { GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext()) };
+    let was = awareness();
+    if was == DPI_AWARENESS_UNAWARE {
+        return Ok(());
+    }
+    // Windows may start a manifestless process aware.
+    if unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_UNAWARE) }.is_null() {
         return Err(io::Error::other(format!(
-            "this worker is DPI-aware ({awareness}): it was built with ely-lok's view feature and carries gpui's manifest; build it alone (cargo build -p ely-lok --bins)"
+            "this worker is DPI-aware ({was}) and its thread stays so: {}",
+            io::Error::last_os_error()
         )));
     }
+    let now = awareness();
+    if now != DPI_AWARENESS_UNAWARE {
+        return Err(io::Error::other(format!("this worker's thread is DPI-aware ({now}) after it set itself unaware")));
+    }
+    log::info!("lok-worker: the process started DPI-aware ({was}); the kernel's thread is unaware");
     Ok(())
 }
 
@@ -156,5 +168,26 @@ unsafe extern "system" fn procedure(
             0
         }
         _ => unsafe { DefWindowProcW(window, message, wparam, lparam) },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use windows_sys::Win32::UI::HiDpi::{
+        DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, DPI_AWARENESS_UNAWARE, GetAwarenessFromDpiAwarenessContext,
+        GetThreadDpiAwarenessContext, SetThreadDpiAwarenessContext,
+    };
+
+    /// An aware start leaves the kernel's thread unaware.
+    #[test]
+    fn an_aware_thread_turns_unaware() {
+        std::thread::spawn(|| {
+            assert!(!unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }.is_null());
+            super::unaware().expect("the thread turns unaware");
+            let now = unsafe { GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext()) };
+            assert_eq!(now, DPI_AWARENESS_UNAWARE);
+        })
+        .join()
+        .expect("the thread ends");
     }
 }

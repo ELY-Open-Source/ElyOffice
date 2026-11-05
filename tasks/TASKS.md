@@ -560,6 +560,7 @@
 
 - [x] R16.1 审查改用 Kimi K3.1 Pro：`review.sh`、本文件页首、agents.md、替身测试 — R1 FAIL（替身不查模型），R2 PASS
 - [ ] R16.2 并入停下的各线（lane-a1、a2、a5、a6、a7、a7b、b、mac-lane、desktop、r15-56、r15-65）：已审的工作进 main，冲突逐处解，全量测试照过
+- [ ] R16.2a Windows 上无清单的进程起来即感知 DPI（本机 2026-11-05 所见：WMI 起的空程序也是 2，`SetProcessDpiAwarenessContext` 拒以 5），LOK worker 照 R15.14a 一律拒绝启动，全部内核测试皆败：worker 把内核线程设为不感知（`SetThreadDpiAwarenessContext`），核对后才起内核，设不成即报；单测 `an_aware_thread_turns_unaware`（去掉设定即败）。本会话系统 DPI 为 96，图块大小核对不出感知与否（seam 测试两种皆过）；起因未明
 - [ ] R16.3 #16 上架 WinGet（§4）：各应用的 winget 清单随发布生成，README 写安装与升级命令
 - [ ] R16.4 #37 Windows arm64 原生构建（§4）
 - [ ] R16.5 #64 Windows 右键“新建”（§4）：核对现状与常设决定，答复
