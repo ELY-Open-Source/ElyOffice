@@ -56,8 +56,17 @@ impl EditClock {
         }
     }
 
+    /// A frame showing `shows` was drawn; failed tiles show nothing.
+    pub(super) fn painted(&mut self, shows: Option<u64>, failed: bool) {
+        match shows {
+            _ if failed => log::debug!("lok: a frame failed to draw; its edits wait"),
+            Some(generation) => self.drawn(generation),
+            None => {}
+        }
+    }
+
     /// A whole screen at `generation` reached the window.
-    pub(super) fn drawn(&mut self, generation: u64) {
+    fn drawn(&mut self, generation: u64) {
         self.edits.retain(|edit| {
             let shown = edit.shows.is_some_and(|shows| shows <= generation);
             if shown {
@@ -111,6 +120,17 @@ mod tests {
         let mut clock = EditClock::default();
         clock.showing();
         clock
+    }
+
+    #[test]
+    fn a_frame_with_a_failed_tile_times_no_edit() {
+        let mut clock = shown();
+        clock.sent(1, "text");
+        clock.landed(1, picture(Some((1, 1, false)), Some((2, 2, false)), false));
+        clock.painted(Some(2), true);
+        assert_eq!(clock.pending(), [1], "a failed frame shows nothing");
+        clock.painted(Some(2), false);
+        assert!(clock.pending().is_empty(), "the whole frame shows it");
     }
 
     #[test]

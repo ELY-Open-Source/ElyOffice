@@ -126,10 +126,8 @@ impl Render for LokView {
                                 },
                             );
                         }
-                        if let Some(generation) = painted.shows.filter(|_| !failed)
-                            && this.read(app).clock.waiting()
-                        {
-                            this.update(app, |view, _| view.clock.drawn(generation));
+                        if this.read(app).clock.waiting() {
+                            this.update(app, |view, _| view.clock.painted(painted.shows, failed));
                         }
                         if drawn && !this.read(app).drawn {
                             this.update(app, |view, _| view.drawn = true);

@@ -144,15 +144,15 @@
 | MARK-14 | 大文件 | C14.6、C14.16 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-15 | 格式命令 | 无 | — | apps/ely-mark 单测、mark-*.sh |
 | MARK-16 | 右键菜单 | 无 | — | apps/ely-mark 单测、mark-*.sh |
-| PERF-01 | 启动 | C20.1（~）、决策 C20.1、决策 C11.1 | `chord.swift`、`pdf-idle.sh` | tests/perf/bench.py、lag.sh |
-| PERF-02 | 交互 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-03 | 文档打开 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-04 | 表格打开 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-05 | PDF 浏览 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-06 | 本地搜索 | C12.16、C12.23（ ）、C20.1（~）、决策 C20.1、决策 C12.16 | `an_original_parked_by_a_crash_returns_before_reindexing`、`a_chosen_range_fits_a_narrow_window`、`plain_and_html_bodies_are_both_searched`、`upgrading_indexes_html_beside_plain_text`、`a_found_message_moves_within_its_own_account`、`release-macos.sh`、`chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-07 | Markdown | C14.5、C14.6、C20.1（~）、决策 C20.1、决策 C14.4 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-08 | 资源释放 | C20.1（~）、决策 C20.1 | `chord.swift` | tests/perf/bench.py、lag.sh |
-| PERF-09 | 多会话 | C20.1（~） | `chord.swift` | tests/perf/bench.py、lag.sh |
+| PERF-01 | 启动 | C20.1（~）、决策 C20.1、决策 C11.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit`、`pdf-idle.sh` | tests/perf/bench.py、lag.sh |
+| PERF-02 | 交互 | C20.1（~）、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-03 | 文档打开 | C20.1（~）、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-04 | 表格打开 | C20.1（~）、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-05 | PDF 浏览 | C20.1（~）、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-06 | 本地搜索 | C12.16、C12.23（ ）、C20.1（~）、决策 C20.1、决策 C12.16 | `an_original_parked_by_a_crash_returns_before_reindexing`、`a_chosen_range_fits_a_narrow_window`、`plain_and_html_bodies_are_both_searched`、`upgrading_indexes_html_beside_plain_text`、`a_found_message_moves_within_its_own_account`、`release-macos.sh`、`chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-07 | Markdown | C14.5、C14.6、C20.1（~）、决策 C20.1、决策 C14.4 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-08 | 资源释放 | C20.1（~）、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
+| PERF-09 | 多会话 | C20.1（~） | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
 | PERF-10 | 极限负载 | 无 | — | tests/perf/bench.py、lag.sh |
 | QA-01 | 安装与离线启动 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-02 | 独立安装 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
