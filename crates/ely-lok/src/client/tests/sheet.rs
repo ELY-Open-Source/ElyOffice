@@ -11,7 +11,10 @@ fn a11y_follows_calc_cells() {
         return;
     }
     let (_dir, mut worker, doc) = open_sheet();
-    let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
+    let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |seen| {
+        seen.a11y.text == "Hello 世界"
+    });
+    assert_eq!(base.a11y.text, "Hello 世界", "the cell text bridges on open");
     worker.post_key(&doc, 0, 1027).expect("Right to B1");
     let b1 = poll_until(&mut worker, &doc, &base, SETTLE, |_| false);
     worker.post_key(&doc, 0, 1026).expect("Left to A1");
@@ -100,6 +103,40 @@ fn undo_and_redo_work_inside_a_cell_edit() {
         let redone = poll_until(&mut worker, &doc, &undone, HANG, |seen| {
             seen.a11y.text == "Hello 世界Z"
         });
+        assert_eq!(redone.a11y.text, "Hello 世界Z", "history {with_history}");
+    }
+}
+
+#[test]
+fn nothing_to_undo_in_calc_answers_at_once() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let quiet = |worker: &mut Worker, doc: &Doc, id: &str, case: &str| {
+        let start = std::time::Instant::now();
+        let error = worker.run(doc, id, &[]).expect_err(case);
+        assert!(crate::is_nothing(&error), "{case}: {error}");
+        assert!(start.elapsed() < std::time::Duration::from_millis(500), "{case}: {:?}", start.elapsed());
+    };
+    for with_history in [false, true] {
+        let (_dir, mut worker, doc) = open_sheet();
+        let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
+        if with_history {
+            worker.run(&doc, "format.bold", &[]).expect("a document step");
+        } else {
+            quiet(&mut worker, &doc, "edit.undo", "a fresh sheet");
+        }
+        worker.post_key(&doc, 0, 769).expect("F2 edits A1");
+        quiet(&mut worker, &doc, "edit.undo", "F2 without typing");
+        worker.post_key(&doc, 'Z' as u32, 537 | 0x1000).expect("Z types");
+        let typed = poll_until(&mut worker, &doc, &base, HANG, |seen| seen.a11y.text == "Hello 世界Z");
+        assert_eq!(typed.a11y.text, "Hello 世界Z");
+        worker.run(&doc, "edit.undo", &[]).expect("undo in the edit");
+        quiet(&mut worker, &doc, "edit.undo", "a second undo");
+        worker.run(&doc, "edit.redo", &[]).expect("redo in the edit");
+        quiet(&mut worker, &doc, "edit.redo", "a second redo");
+        let redone = poll_until(&mut worker, &doc, &typed, SETTLE, |_| false);
         assert_eq!(redone.a11y.text, "Hello 世界Z", "history {with_history}");
     }
 }

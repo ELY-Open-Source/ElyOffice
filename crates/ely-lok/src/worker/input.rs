@@ -279,6 +279,11 @@ fn run_checked(
 /// Calc undo acts on the sheet or the edited cell.
 fn sheet_history(id: u64, doc: &Document, command: &Command, args: Option<&str>) -> io::Result<()> {
     let gone = || io::Error::other("the document left the event watch");
+    // The cell edit's shell decides, synchronously (patch 0045).
+    let asked = doc.command_values(&format!("{}?commands={}", crate::menu::STATES, command.uno))?;
+    if !crate::menu::read_runs(&asked, &[command.uno])?.allows(command.uno) {
+        return Err(io::Error::other(format!("{}{}: the kernel has no step", ipc::NOTHING, command.id)));
+    }
     let history = format!("{}Count", command.uno);
     let (count, text) = (
         history_count(doc, &history)?,
@@ -290,9 +295,7 @@ fn sheet_history(id: u64, doc: &Document, command: &Command, args: Option<&str>)
     }
     let after = crate::events::wait_a11y_change(id, &text, STATE_WAIT).ok_or_else(gone)?;
     if after == text {
-        // An empty history in no cell edit: nothing to do.
-        let nothing = if count == 0 { ipc::NOTHING } else { "" };
-        return Err(io::Error::other(format!("{nothing}{}: neither {history} nor the cell edit moved", command.id)));
+        return Err(io::Error::other(format!("{}: neither {history} nor the cell edit moved", command.id)));
     }
     log::info!("lok-worker: {} in a cell edit", command.id);
     Ok(())
