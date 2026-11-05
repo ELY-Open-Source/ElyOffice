@@ -64,6 +64,38 @@ for name, job in jobs.items():
         failed.append(f"release {name} waits for {job['needs']}: one platform's failure stops another")
     if "scripts/ci.sh" not in runs(job):
         failed.append(f"release {name} releases without scripts/ci.sh and its tests")
+# macOS jobs start ci.sh under bash 5, never 3.2.
+MAC_CI = {
+    "macos": '/opt/homebrew/bin/bash "$dir/scripts/ci.sh"',
+    "macos-intel": 'arch -x86_64 /Users/zacharyzhang/ely-share/bash-x86_64/bin/bash "$dir/scripts/ci.sh"',
+}
+
+
+def mac_faults(jobs):
+    faults = []
+    for name, call in MAC_CI.items():
+        lines = [line.strip() for line in runs(jobs[name]).splitlines()]
+        if not any(line.startswith(call + " ") for line in lines):
+            faults.append(f"release {name} starts ci.sh without its bash 5 ({call})")
+    return faults
+
+
+failed += mac_faults(jobs)
+for name, call in MAC_CI.items():
+    bash = call.split(' "$dir')[0]
+    for how, bad_call in {
+        "under /bin/bash": call.replace(bash.split()[-1], "/bin/bash"),
+        "by its shebang": '"$dir/scripts/ci.sh"',
+        "only in a comment": f"true\n# {call}",
+    }.items():
+        bad = copy.deepcopy(jobs)
+        for step in bad[name]["steps"]:
+            if "run" in step:
+                step["run"] = step["run"].replace(call, bad_call)
+        if bad == jobs:
+            failed.append("a counterexample changed nothing")
+        if not mac_faults(bad):
+            failed.append(f"release {name} starting ci.sh {how} passes")
 ci = read("scripts", "ci.sh")
 gate, package = ci.find("\nscripts/release-tests.sh\n"), ci.find("\ndist=$root/dist\n")
 if gate < 0 or package < 0 or gate > package:
@@ -116,5 +148,5 @@ if not pr_faults(bad, libraries):
 
 if failed:
     sys.exit("FAIL: " + "; ".join(failed))
-print(f"PASS: {len(jobs)} release jobs stand alone behind the test gate; {len(pr)} pr jobs stay on {HOSTED}, "
+print(f"PASS: {len(jobs)} release jobs stand alone behind the test gate, macOS under bash 5; {len(pr)} pr jobs stay on {HOSTED}, "
       "install README's libraries and count panics against the base")

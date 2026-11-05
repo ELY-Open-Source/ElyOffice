@@ -274,10 +274,14 @@ fn a11y_follows_the_focused_paragraph() {
     });
     assert_eq!(seen.a11y.text, "aHello 世界", "the paragraph text bridges");
     assert_eq!(seen.a11y.caret, Some(1), "the caret bridges");
+    // A move that leaves the text alone.
+    worker.post_key(&doc, 0, 1026).expect("Left posts");
+    let left = poll_until(&mut worker, &doc, &seen, HANG, |seen| seen.a11y.caret == Some(0));
+    assert_eq!(left.a11y.caret, Some(0), "a caret move alone bridges");
     worker
         .run(&doc, "edit.select_all", &[])
         .expect("select all");
-    let all = poll_until(&mut worker, &doc, &seen, HANG, |seen| {
+    let all = poll_until(&mut worker, &doc, &left, HANG, |seen| {
         seen.a11y.selection == Some((0, 9))
     });
     assert_eq!(all.a11y.selection, Some((0, 9)), "the selection bridges");

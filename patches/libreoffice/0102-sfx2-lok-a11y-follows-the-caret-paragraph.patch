@@ -1,0 +1,43 @@
+sfx2: LOK a11y follows the caret's paragraph, not window focus
+
+LOKDocumentFocusListener dropped a TEXT_SELECTION_CHANGED whose paragraph
+lacked the FOCUSED state, and on a CARET_CHANGED from such a paragraph
+it sent nothing unless the text had changed. FOCUSED follows the window's
+keyboard focus, which a LOK client does not control: on macOS the hidden
+document window now and then lacks it, and then a select-all reached the
+client as no selection at all (the paragraph had the caret and selection
+0..9 throughout). The listener's own definition of the view's paragraph
+is the one holding this view's caret (position >= 0): a selection from
+that paragraph is sent, and its caret moves are sent as such.
+
+diff --git a/sfx2/source/view/viewsh.cxx b/sfx2/source/view/viewsh.cxx
+--- a/sfx2/source/view/viewsh.cxx
++++ b/sfx2/source/view/viewsh.cxx
+@@ -1496,6 +1496,8 @@
+                         {
+                             if (updateParagraphInfo(xAccText, false, "CARET_CHANGED"))
+                                 notifyFocusedParagraphChanged(true);
++                            else
++                                notifyCaretChanged();
+                         }
+                         else
+                         {
+@@ -1533,7 +1535,9 @@
+             }
+             case AccessibleEventId::TEXT_SELECTION_CHANGED:
+             {
+-                if (!isFocused(aEvent))
++                uno::Reference<XAccessibleText> xAccText(getAccessible(aEvent), uno::UNO_QUERY);
++                // FOCUSED follows window focus; the caret marks this view's paragraph.
++                if (!isFocused(aEvent) && !(xAccText.is() && xAccText->getCaretPosition() >= 0))
+                 {
+                     SAL_WARN("lok.a11y",
+                              "LOKDocumentFocusListener::notifyEvent: TEXT_SELECTION_CHANGED: "
+@@ -1541,7 +1545,6 @@
+                     return;
+                 }
+ 
+-                uno::Reference<XAccessibleText> xAccText(getAccessible(aEvent), uno::UNO_QUERY);
+                 if (xAccText.is())
+                 {
+                     // We send a message to client also when start/end are -1, in this way the client knows

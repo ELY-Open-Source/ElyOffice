@@ -165,20 +165,56 @@ fn a_dde_link_to_no_server_is_named_without_a_dialog() {
     if skip() {
         return;
     }
-    let (dir, mut worker, made) = open_book(&book(0));
-    worker.run(&made, "cell.goto", &["B1"]).expect("B1");
-    worker.run(&made, "cell.enter", &["=DDE(\"elynosuchapp\";\"nofile\";\"A1\")"]).expect("the link");
-    let saved = dir.path().join("dde.ods");
-    made.save_as(&mut worker, &crate::file_url(&saved), "ods").expect("saves");
-    worker.close_doc(made).expect("closes");
-    let doc = worker.load(&crate::file_url(&saved)).expect("reloads");
+    // B1 and its link table both saved 42.
+    let book = r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+ <office:body><office:spreadsheet><table:table table:name="S1"><table:table-row>
+ <table:table-cell office:value-type="float" office:value="0"/>
+ <table:table-cell table:formula="of:=DDE(&quot;elynosuchapp&quot;;&quot;nofile&quot;;&quot;A1&quot;)" office:value-type="float" office:value="42"><text:p>42</text:p></table:table-cell>
+ </table:table-row></table:table>
+ <table:dde-links><table:dde-link><office:dde-source office:dde-application="elynosuchapp" office:dde-topic="nofile" office:dde-item="A1" office:automatic-update="true"/>
+ <table:table><table:table-column/><table:table-row><table:table-cell office:value-type="float" office:value="42"/></table:table-row></table:table>
+ </table:dde-link></table:dde-links></office:spreadsheet></office:body>
+</office:document>"#;
+    let (_dir, mut worker, doc) = open_book(book);
     let quiet = std::time::Duration::from_secs(3);
     let base = poll_until(&mut worker, &doc, &Events::default(), quiet, |_| false);
+    assert_eq!(cells(&mut worker, &doc, "B1"), "42", "the saved value shows");
     let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
     assert_eq!(named, ["elynosuchapp|nofile"]);
     assert_eq!(update(&mut worker, &doc), ["elynosuchapp|nofile"], "the failed server is named");
     let after = poll_until(&mut worker, &doc, &base, quiet, |seen| !seen.blocked.is_empty());
     assert!(after.blocked.is_empty(), "no dialog: {:?}", after.blocked);
+    assert_eq!(cells(&mut worker, &doc, "B1"), "42", "the saved value stays");
+}
+
+#[test]
+fn a_writer_dde_field_to_no_server_is_named_and_keeps_its_text() {
+    if skip() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install().expect("the pinned LOK build"), &dir.path().join("profile")).expect("the worker");
+    let source = dir.path().join("dde.fodt");
+    std::fs::write(
+        &source,
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:body><office:text>
+ <text:dde-connection-decls><text:dde-connection-decl office:name="Ely" office:dde-application="elynosuchapp" office:dde-topic="nofile" office:dde-item="A1" office:automatic-update="true"/></text:dde-connection-decls>
+ <text:p>Saved <text:dde-connection text:connection-name="Ely">42</text:dde-connection></text:p>
+ </office:text></office:body>
+</office:document>"#,
+    )
+    .expect("writes the document");
+    let doc = worker.load(&crate::file_url(&source)).expect("loads");
+    let named = links::sources(&worker.values(&doc, links::LIST).expect("reads")).expect("parses");
+    assert_eq!(named, ["elynosuchapp|nofile"]);
+    assert_eq!(update(&mut worker, &doc), ["elynosuchapp|nofile"], "the failed server is named");
+    assert_eq!(paragraphs(&saved(&dir, &mut worker, &doc, "after.fodt")), ["Saved 42"], "the saved text stays");
 }
 
 #[test]

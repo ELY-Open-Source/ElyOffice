@@ -1,0 +1,47 @@
+LOK: outside Windows an asked update names every DDE source
+
+0086 names a DDE source when its update fails. Outside Windows svl's
+DDE is a stub (svl/unx/source/svdde/ddedummy.cxx): every connection
+reports no error and carries no data. In Calc a link to a server that
+is not there updated as if it were read; in Writer the field's update
+succeeded with an empty answer, so its saved text became empty. No DDE
+server can answer there, so Calc and Writer leave each DDE link alone
+and name it as not read.
+
+diff --git a/sc/source/ui/docshell/docsh4.cxx b/sc/source/ui/docshell/docsh4.cxx
+--- a/sc/source/ui/docshell/docsh4.cxx
++++ b/sc/source/ui/docshell/docsh4.cxx
+@@ -325,10 +325,15 @@
+         }
+         else if (auto pDde = dynamic_cast<ScDdeLink*>(xLink.get()))
+         {
++#ifdef _WIN32
+             if (pDde->Update())
+                 bDde = true;
+             else
+                 rFailed.push_back(pDde->GetAppl() + "|" + pDde->GetTopic());
++#else
++            // DDE is Windows only; elsewhere it never reads.
++            rFailed.push_back(pDde->GetAppl() + "|" + pDde->GetTopic());
++#endif
+         }
+         else if (auto pWeb = dynamic_cast<ScWebServiceLink*>(xLink.get()))
+         {
+diff --git a/sw/source/uibase/uno/loktxdoc.cxx b/sw/source/uibase/uno/loktxdoc.cxx
+--- a/sw/source/uibase/uno/loktxdoc.cxx
++++ b/sw/source/uibase/uno/loktxdoc.cxx
+@@ -1297,6 +1297,14 @@
+         const OUString aSource = LinkSource(*xLink);
+         if (aSource.isEmpty())
+             continue;
++#ifndef _WIN32
++        // DDE is Windows only; elsewhere it never reads.
++        if (xLink->GetObjType() == sfx2::SvBaseLinkObjectType::ClientDde)
++        {
++            aFailed.insert(aSource);
++            continue;
++        }
++#endif
+         // A missing file would empty a linked section.
+         const bool bFile = INetURLObject(aSource).GetProtocol() == INetProtocol::File;
+         if ((bFile && !FStatHelper::IsDocument(aSource)) || !xLink->Update())

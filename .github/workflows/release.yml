@@ -31,7 +31,7 @@ jobs:
           git -C "$dir" remote set-url origin https://github.com/ELY-Open-Source/ElyOffice.git
           git -C "$dir" fetch --force --tags origin
           git -C "$dir" checkout --force "${{ github.sha }}"
-          "$dir/scripts/ci.sh" macos "${{ github.ref_name }}"
+          /opt/homebrew/bin/bash "$dir/scripts/ci.sh" macos "${{ github.ref_name }}"
   macos-intel:
     # The same Mac under Rosetta, own clone and engines.
     runs-on: [self-hosted, macos-signing]
@@ -56,7 +56,7 @@ jobs:
           git -C "$dir" remote set-url origin https://github.com/ELY-Open-Source/ElyOffice.git
           git -C "$dir" fetch --force --tags origin
           git -C "$dir" checkout --force "${{ github.sha }}"
-          arch -x86_64 /bin/bash "$dir/scripts/ci.sh" macos "${{ github.ref_name }}"
+          arch -x86_64 /Users/zacharyzhang/ely-share/bash-x86_64/bin/bash "$dir/scripts/ci.sh" macos "${{ github.ref_name }}"
   windows:
     runs-on: [self-hosted, ely-windows]
     timeout-minutes: 360

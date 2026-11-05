@@ -1,4 +1,4 @@
-// A window middle's mean shade and grid-line share.
+// Middle shade, grid-line share, title bar shade.
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -41,4 +41,12 @@ var tally = [Int](repeating: 0, count: 256)
 for shade in shades { tally[shade] += 1 }
 let common = tally.firstIndex(of: tally.max()!)!
 let lines = shades.filter { abs($0 - common) > 12 }.count * 1000 / shades.count
-print("\(shades.reduce(0, +) / shades.count) \(lines)")
+// The title bar, clear of buttons and title.
+var frame = [Int]()
+for y in (height / 100)..<(height * 3 / 100) {
+    for x in (width / 5)..<(width * 2 / 5) {
+        let at = (y * width + x) * 4
+        frame.append((Int(pixels[at]) + Int(pixels[at + 1]) + Int(pixels[at + 2])) / 3)
+    }
+}
+print("\(shades.reduce(0, +) / shades.count) \(lines) \(frame.reduce(0, +) / frame.count)")

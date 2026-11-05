@@ -57,7 +57,7 @@ use parking_lot::Mutex;
 use raw_window_handle as rwh;
 use smallvec::SmallVec;
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     ffi::{CStr, CString, c_void},
     mem,
     ops::Range,
@@ -73,6 +73,8 @@ use std::{
 };
 
 const WINDOW_STATE_IVAR: &CStr = c"windowState";
+// The view's AccessKit state; AX calls never take the window lock.
+const A11Y_IVAR: &CStr = c"a11yState";
 
 static RESTORES_WORKSPACE_AT_LAUNCH_DEFAULT: Once = Once::new();
 
@@ -105,6 +107,7 @@ unsafe fn build_classes() {
         VIEW_CLASS = {
             let mut decl = ClassBuilder::new(c"GPUIView", class!(NSView)).unwrap();
             decl.add_ivar::<*mut c_void>(WINDOW_STATE_IVAR);
+            decl.add_ivar::<*mut c_void>(A11Y_IVAR);
             decl.add_method(sel!(dealloc), dealloc_view as extern "C" fn(_, Sel));
 
             decl.add_method(
@@ -267,6 +270,20 @@ unsafe fn build_classes() {
             decl.add_method(
                 sel!(characterIndexForPoint:),
                 character_index_for_point as extern "C" fn(_, Sel, NSPoint) -> NSUInteger,
+            );
+
+            // AccessKit answers here; a dynamic subclass would break KVO.
+            decl.add_method(
+                sel!(accessibilityChildren),
+                accessibility_children as extern "C" fn(_, Sel) -> *mut AnyObject,
+            );
+            decl.add_method(
+                sel!(accessibilityFocusedUIElement),
+                accessibility_focused_element as extern "C" fn(_, Sel) -> *mut AnyObject,
+            );
+            decl.add_method(
+                sel!(accessibilityHitTest:),
+                accessibility_hit_test as extern "C" fn(_, Sel, NSPoint) -> *mut AnyObject,
             );
             decl.register()
         };
@@ -691,7 +708,7 @@ struct MacWindowState {
     toggle_tab_bar_callback: Option<Box<dyn FnMut()>>,
     activated_least_once: bool,
     closed: Arc<AtomicBool>,
-    accesskit_adapter: Option<accesskit_macos::SubclassingAdapter>,
+    accesskit: Option<Rc<RefCell<A11y>>>,
     // The parent window if this window is a sheet (Dialog kind)
     sheet_parent: Option<*mut AnyObject>,
 }
@@ -1119,7 +1136,7 @@ impl MacWindow {
                 toggle_tab_bar_callback: None,
                 activated_least_once: false,
                 closed: Arc::new(AtomicBool::new(false)),
-                accesskit_adapter: None,
+                accesskit: None,
                 sheet_parent: None,
             }));
             let mut window = Self(state, marker);
@@ -1356,14 +1373,6 @@ impl MacWindow {
 impl Drop for MacWindow {
     fn drop(&mut self) {
         let mut this = self.0.lock();
-        // `accesskit_macos::SubclassingAdapter` strong-retains the `GPUIView`.
-        // Together with the `Arc<Mutex<MacWindowState>>` parked in its
-        // `windowState` ivar, that forms
-        // `MacWindowState -> adapter -> GPUIView -> MacWindowState`,
-        // a cycle the delegate/`frame_source` teardown below cannot break. Drop
-        // the adapter here so the native view, its `CAMetalLayer` and the
-        // renderer's command queue are actually released with the window.
-        drop(this.accesskit_adapter.take());
         this.renderer.destroy();
         let window = this.native_window;
         let sheet_parent = this.sheet_parent.take();
@@ -2346,22 +2355,33 @@ impl PlatformWindow for MacWindow {
 
         // The first responder, so AppKit asks it for the focus.
         let adapter = unsafe {
-            accesskit_macos::SubclassingAdapter::new(
+            accesskit_macos::Adapter::new(
                 lock.native_view.as_ptr() as *mut c_void,
-                activation_handler,
+                false,
                 action_handler,
             )
         };
-        lock.accesskit_adapter = Some(adapter);
+        let a11y = Rc::new(RefCell::new(A11y {
+            adapter,
+            activation: activation_handler,
+        }));
+        let view = unsafe { lock.native_view.as_ref() };
+        unsafe {
+            let slot = view
+                .class()
+                .instance_variable(A11Y_IVAR)
+                .expect("GPUI a11y ivar")
+                .load_ptr::<*mut c_void>(view);
+            assert!((*slot).is_null(), "a11y_init twice on one view");
+            *slot = Rc::into_raw(a11y.clone()) as *mut c_void;
+        }
+        lock.accesskit = Some(a11y);
     }
 
     fn a11y_tree_update(&self, tree_update: accesskit::TreeUpdate) {
-        let events = {
-            let mut lock = self.0.lock();
-            lock.accesskit_adapter
-                .as_mut()
-                .and_then(|adapter| adapter.update_if_active(|| tree_update))
-        };
+        let a11y = self.0.lock().accesskit.clone();
+        let events =
+            a11y.and_then(|a11y| a11y.borrow_mut().adapter.update_if_active(|| tree_update));
         if let Some(events) = events {
             events.raise();
         }
@@ -2374,6 +2394,69 @@ impl PlatformWindow for MacWindow {
 
 struct A11yActivationHandler {
     callback: Box<dyn Fn() -> Option<accesskit::TreeUpdate> + Send + 'static>,
+}
+
+/// The view's AccessKit adapter and its tree source.
+struct A11y {
+    adapter: accesskit_macos::Adapter,
+    activation: A11yActivationHandler,
+}
+
+/// The view's adapter, once gpui has made one.
+fn view_a11y(this: &AnyObject) -> Option<Rc<RefCell<A11y>>> {
+    unsafe {
+        let raw = *this
+            .class()
+            .instance_variable(A11Y_IVAR)
+            .expect("GPUI a11y ivar")
+            .load::<*mut c_void>(this);
+        if raw.is_null() {
+            return None;
+        }
+        let a11y = mem::ManuallyDrop::new(Rc::from_raw(raw as *const RefCell<A11y>));
+        Some(Rc::clone(&a11y))
+    }
+}
+
+extern "C" fn accessibility_children(this: &AnyObject, _: Sel) -> *mut AnyObject {
+    match view_a11y(this) {
+        Some(a11y) => {
+            let A11y {
+                adapter,
+                activation,
+            } = &mut *a11y.borrow_mut();
+            adapter.view_children(activation).cast()
+        }
+        None => unsafe { msg_send![super(this, class!(NSView)), accessibilityChildren] },
+    }
+}
+
+extern "C" fn accessibility_focused_element(this: &AnyObject, _: Sel) -> *mut AnyObject {
+    match view_a11y(this) {
+        Some(a11y) => {
+            let A11y {
+                adapter,
+                activation,
+            } = &mut *a11y.borrow_mut();
+            adapter.focus(activation).cast()
+        }
+        None => unsafe { msg_send![super(this, class!(NSView)), accessibilityFocusedUIElement] },
+    }
+}
+
+extern "C" fn accessibility_hit_test(this: &AnyObject, _: Sel, point: NSPoint) -> *mut AnyObject {
+    match view_a11y(this) {
+        Some(a11y) => {
+            let A11y {
+                adapter,
+                activation,
+            } = &mut *a11y.borrow_mut();
+            adapter
+                .hit_test(accesskit_macos::NSPoint::new(point.x, point.y), activation)
+                .cast()
+        }
+        None => unsafe { msg_send![super(this, class!(NSView)), accessibilityHitTest: point] },
+    }
 }
 
 impl accesskit::ActivationHandler for A11yActivationHandler {
@@ -2472,6 +2555,14 @@ extern "C" fn dealloc_window(this: &AnyObject, _: Sel) {
 extern "C" fn dealloc_view(this: &AnyObject, _: Sel) {
     unsafe {
         drop_window_state(this);
+        let raw = *this
+            .class()
+            .instance_variable(A11Y_IVAR)
+            .expect("GPUI a11y ivar")
+            .load::<*mut c_void>(this);
+        if !raw.is_null() {
+            drop(Rc::from_raw(raw as *const RefCell<A11y>));
+        }
         let _: () = msg_send![super(this, class!(NSView)), dealloc];
     }
 }
@@ -3177,12 +3268,9 @@ extern "C" fn window_did_change_key_status(this: &AnyObject, selector: Sel, _: *
     let executor = lock.foreground_executor.clone();
     drop(lock);
 
-    let a11y_events = {
-        let mut lock = window_state.lock();
-        lock.accesskit_adapter
-            .as_mut()
-            .and_then(|adapter| adapter.update_view_focus_state(is_active))
-    };
+    let a11y = window_state.lock().accesskit.clone();
+    let a11y_events =
+        a11y.and_then(|a11y| a11y.borrow_mut().adapter.update_view_focus_state(is_active));
     if let Some(events) = a11y_events {
         events.raise();
     }

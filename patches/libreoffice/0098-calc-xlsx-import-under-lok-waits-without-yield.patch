@@ -1,0 +1,38 @@
+Calc: an xlsx import under LOK waits without yielding
+
+importSheetFragments parses sheets on pool threads and meanwhile runs
+Application::Yield on the main thread. Under LOK a yield runs the
+client's queued requests. When Calc's idle interprets a formula whose
+external source is an xlsx (the hidden copy loads inside Interpret),
+a request that reads that formula during the import finds it running
+and gets Err:522, a circular reference. Seen on macOS, where any yield
+drains the worker's requests: a cell read 1 s after a reader loads
+returns Err:522 while the source imports.
+Under LOK there is no window to keep painting: release the solar mutex
+and wait for the sheet threads; the yield loop then finds none left.
+Desktop builds still yield.
+
+diff --git a/sc/source/filter/oox/workbookfragment.cxx b/sc/source/filter/oox/workbookfragment.cxx
+--- a/sc/source/filter/oox/workbookfragment.cxx
++++ b/sc/source/filter/oox/workbookfragment.cxx
+@@ -68,6 +68,7 @@
+ #include <config_emscripten.h>
+ #include <oox/core/fastparser.hxx>
+ #include <svx/svdpage.hxx>
++#include <comphelper/lok.hxx>
+ #include <comphelper/threadpool.hxx>
+ #include <sal/log.hxx>
+ #include <osl/diagnose.h>
+@@ -342,6 +343,12 @@
+     // release the SolarMutex so that the WorkerThreads can proceed:
+     SolarMutexReleaser rel;
+ #else
++    if (comphelper::LibreOfficeKit::isActive())
++    {
++        // A yield here runs queued LOK requests mid-formula.
++        SolarMutexReleaser aReleaser;
++        rSharedPool.waitUntilDone(pTag);
++    }
+     // coverity[loop_top] - this isn't an infinite loop where nSheetsLeft gets decremented by the above threads
+     while( nSheetsLeft > 0 && !Application::IsQuit())
+     {

@@ -60,7 +60,6 @@ case $(uname -s) in
     check pkg-config --version
     check cmake --version
     check ninja --version
-    need metal xcrun -sdk macosx metal --version
     # What build-libreoffice.sh puts first on PATH.
     for formula in gnu-sed bison flex gettext; do
       need "$formula" brew list --versions "$formula"
@@ -68,6 +67,10 @@ case $(uname -s) in
     least make 4.2 "$(brew --prefix make 2>/dev/null)/libexec/gnubin/make" --version
     check autoconf --version
     check aclocal --version
+    # Bash 3.2 exits 0 after a set -u abort.
+    least bash 5.0 bash --version
+    # The Intel release's bash, under Rosetta (build-bash.sh).
+    least bash-x86_64 5.0 arch -x86_64 "$HOME/ely-share/bash-x86_64/bin/bash" --version
     ;;
   MINGW* | MSYS* | CYGWIN*)
     check cmake --version

@@ -40,6 +40,15 @@ windows() {
     -e 'set out to out & x & " " & y & " " & a & " " & b & linefeed' \
     -e 'end repeat' -e 'return out' -e 'end tell' 2>/dev/null || true
 }
+# Window names; the owner's name is localized.
+bars() {
+  swift -e 'import CoreGraphics
+let l = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as! [[String: Any]]
+for w in l { if let n = w["kCGWindowName"] as? String, ["Menubar", "Dock"].contains(n) { print(n) } }' | sort -u
+}
+# Unseen bars would pass; this proves we see them.
+before=$(bars)
+grep -qx Menubar <<<"$before" || { echo "SKIP: needs Screen Recording permission (no menu bar window seen)"; exit 0; }
 for _ in $(seq 60); do
   grep -q "lok: tile" "$work/out" 2>/dev/null && [ -n "$(windows)" ] && break
   sleep 1
@@ -52,7 +61,7 @@ for _ in $(seq 20); do
 done
 windows | grep -qx "0 0 $screen" || fail "no show window covers the screen ($screen): $(windows | tr '\n' ';')"
 # Menu bar and Dock hide; neither draws over the slide.
-bars=$(swift -e 'import CoreGraphics; let l = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as! [[String: Any]]; for w in l where ["Menubar", "Dock"].contains(w["kCGWindowName"] as? String ?? "") || (w["kCGWindowOwnerName"] as? String) == "Dock" && (w["kCGWindowLayer"] as? Int ?? 0) > 0 { print(w["kCGWindowName"] as? String ?? "Dock") }')
-[ -z "$bars" ] || fail "still on screen over the show: $bars"
+shown=$(bars)
+[ -z "$shown" ] || fail "still on screen over the show: $shown"
 osascript -e 'tell application "System Events" to key code 53' >/dev/null
-echo "ok: the show covers the whole screen"
+echo "ok: the show covers the whole screen and hides $(echo $before)"

@@ -1,0 +1,20 @@
+Calc: the XLSX sheet data reader includes the formula buffer
+
+0067 calls getFormulaBuffer().isDynamicCellMeta() and setDynamicArray()
+in sheetdatacontext.cxx, which saw FormulaBuffer only as a forward
+declaration from workbookhelper.hxx. Builds with precompiled headers
+got the full class from the precompiled set; the macOS build has none
+and failed with "member access into incomplete type".
+
+diff --git a/sc/source/filter/oox/sheetdatacontext.cxx b/sc/source/filter/oox/sheetdatacontext.cxx
+index 9992277..92596b1 100644
+--- a/sc/source/filter/oox/sheetdatacontext.cxx
++++ b/sc/source/filter/oox/sheetdatacontext.cxx
+@@ -33,6 +33,7 @@
+ #include <addressconverter.hxx>
+ #include <biffhelper.hxx>
+ #include <formulaparser.hxx>
++#include <formulabuffer.hxx>
+ #include <richstringcontext.hxx>
+ #include <sal/log.hxx>
+ #include <o3tl/string_view.hxx>
