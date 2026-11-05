@@ -82,7 +82,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 | 演示的参考线：LOK 不把参考线画进图块，也无参考线接口 | 补丁 0027 读写参考线；`apps/ely-show` 的 `guides.rs` 画在画布上，拖动移动，拖出幻灯片即删除 |
 | gpui 文本里不能嵌图片：行内公式无从排版 | 组件库 `render/math_text.rs`：以不断行的空格占出公式的宽（整个公式作一个词折行），排好的公式画在其上，按下处读回公式的原文 |
 | Omarchy 色板要照 `A11yChecker` 的同一套对照规则 | `ely-ui` 的 `omarchy/palette.rs` 抄了对照表；组件库自 70ab3c5 起公开 `devtools::audit`，待改用 |
-| 组件无 role/aria 语义：菜单、列表等控件在 AX 树仍不可见 | 上游已修核心控件（7380afb：Button、TextInput、Tabs、面板行、对话框等）；其余上游待办。项目自绘控件已自带 |
+| 组件无 role/aria 语义：菜单、列表等控件在 AX 树仍不可见 | 上游已修核心控件（7380afb：Button、TextInput、Tabs、面板行、对话框等）；其余上游待办。项目自绘控件已自带；`overlays::PromptDialog` 以标签给字段命名见 R15.68（组件库 3aab6d40，待改 pin） |
 | gpui 无 aria-disabled API（`AriaProperties` 无 disabled 字段） | 组件 7380afb 起以本地化 aria_description 表达；上游待办：gpui 补 API |
 | 组件内部文案未接 i18n（Ely 用到的组件已接：提示、默认占位、补全空行、字号示例，6df9ab0；查找框、排序与筛选、密码开关，a4bf696；`i18n/tests/shipped.rs` 防回退；其余组件之外：欢迎页标题、菜单项等） | 面板族文案已接 i18n（7380afb，内建 en/zh-CN），`CommentSidebar` 与 `RelativeTime` 同（408f2b0）；其余上游待办 |
 | PPTX 的章节：内核无此结构，导入即丢 | `ely_office::files::sections` 打开时读 `ppt/presentation.xml` 的 `p14:sectionLst`，有即 `Risk::Sections`（XML 按 BOM 与字节辨 UTF-16，UTF-32 报错）；加密的 PPTX（OLE 里的 `EncryptedPackage`）看不到章节，即 `Risk::Sealed`；二者皆横幅说明，保存改为另存副本（原文件不动），自动保存与命令行保存不写原文件 |

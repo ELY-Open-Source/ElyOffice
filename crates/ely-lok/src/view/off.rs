@@ -3,7 +3,10 @@
 use std::{
     any::Any,
     io,
-    sync::{Arc, Condvar, Mutex, PoisonError, Weak},
+    sync::{
+        Arc, Condvar, Mutex, MutexGuard, PoisonError, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -11,80 +14,51 @@ use gpui::Context;
 
 use crate::{Doc, Worker};
 
-/// How long an input's tile goes before background work.
-const KEEN: Duration = Duration::from_millis(100);
+/// An undrawn edit holds background work this long at most.
+const HELD_MOST: Duration = Duration::from_secs(1);
 
-/// Where the view's last input is.
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum Keen {
-    Free,
-    /// Running on the worker.
-    Running,
-    /// Ran; its tile is due by then.
-    Until(Instant),
+/// One worker's background queue and the edits it yields to.
+#[derive(Default)]
+struct Turn {
+    queue: futures::lock::Mutex<()>,
+    /// Each holding view and its newest undrawn edit's send time.
+    holds: Mutex<Vec<(u64, Instant)>>,
+    clear: Condvar,
 }
 
-/// Background work on one worker, after the view's input.
-#[derive(Debug)]
-pub(crate) struct Order {
-    lock: futures::lock::Mutex<()>,
-    keen: Mutex<Keen>,
-    moved: Condvar,
-}
-
-impl Default for Order {
-    fn default() -> Self {
-        Order { lock: Default::default(), keen: Mutex::new(Keen::Free), moved: Condvar::new() }
-    }
-}
-
-impl Order {
-    fn set(&self, keen: Keen) {
-        // A plain value: a panicked holder leaves it whole.
-        *self.keen.lock().unwrap_or_else(PoisonError::into_inner) = keen;
-        self.moved.notify_all();
+impl Turn {
+    /// Plain data: a panic leaves it whole.
+    fn holds(&self) -> MutexGuard<'_, Vec<(u64, Instant)>> {
+        self.holds.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// An input starts: background work waits.
-    pub(crate) fn input(&self) {
-        self.set(Keen::Running);
-    }
-
-    /// The input ran; its tile comes next.
-    pub(crate) fn ran(&self) {
-        self.set(Keen::Until(Instant::now() + KEEN));
-    }
-
-    /// A tile is painted: background work may go.
-    pub(crate) fn painted(&self) {
-        self.set(Keen::Free);
-    }
-
-    /// Blocks while an input or its tile is due.
-    fn wait(&self) -> Duration {
+    /// Waits while an undrawn edit is under a second old.
+    fn yield_to_edits(&self) {
         let began = Instant::now();
-        let mut keen = self.keen.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut holds = self.holds();
         loop {
-            keen = match *keen {
-                Keen::Free => break,
-                Keen::Running => self.moved.wait(keen).unwrap_or_else(PoisonError::into_inner),
-                Keen::Until(until) => match until.checked_duration_since(Instant::now()) {
-                    Some(left) if !left.is_zero() => self.moved.wait_timeout(keen, left).unwrap_or_else(PoisonError::into_inner).0,
-                    _ => break,
-                },
-            };
+            let now = Instant::now();
+            let until = holds.iter().map(|(_, since)| *since + HELD_MOST).filter(|until| *until > now).max();
+            let Some(until) = until else { break };
+            holds = self.clear.wait_timeout(holds, until - now).unwrap_or_else(PoisonError::into_inner).0;
         }
-        began.elapsed()
+        let stuck = !holds.is_empty();
+        drop(holds);
+        let waited = began.elapsed();
+        if stuck && !waited.is_zero() {
+            log::warn!("lok: background work held {} ms by an undrawn edit; it goes", waited.as_millis());
+        }
     }
 }
 
-type Turn = Arc<Order>;
+/// A worker, weakly held, and its turn.
+type Seen = (Weak<dyn Any + Send + Sync>, Arc<Turn>);
 
 /// Each worker's turn; tests run many workers at once.
-static TURNS: Mutex<Vec<(Weak<dyn Any + Send + Sync>, Turn)>> = Mutex::new(Vec::new());
+static TURNS: Mutex<Vec<Seen>> = Mutex::new(Vec::new());
 
 /// The turn background work on `worker` queues for.
-pub(crate) fn turn<W: Send + 'static>(worker: &Arc<Mutex<W>>) -> Turn {
+fn turn<W: Send + 'static>(worker: &Arc<Mutex<W>>) -> Arc<Turn> {
     let mut turns = TURNS.lock().expect("the turns");
     turns.retain(|(of, _)| of.strong_count() > 0);
     let any: Arc<dyn Any + Send + Sync> = worker.clone();
@@ -92,21 +66,52 @@ pub(crate) fn turn<W: Send + 'static>(worker: &Arc<Mutex<W>>) -> Turn {
     if let Some((_, turn)) = turns.iter().find(|(seen, _)| seen.ptr_eq(&of)) {
         return Arc::clone(turn);
     }
-    let turn = Turn::default();
+    let turn = Arc::new(Turn::default());
     turns.push((of, Arc::clone(&turn)));
     turn
+}
+
+/// Tells holding views apart.
+static AHEADS: AtomicU64 = AtomicU64::new(0);
+
+/// Holds a worker's background work while an edit is undrawn.
+pub(super) struct Ahead {
+    turn: Arc<Turn>,
+    id: u64,
+    since: Option<Instant>,
+}
+
+impl Ahead {
+    pub(super) fn of<W: Send + 'static>(worker: &Arc<Mutex<W>>) -> Self {
+        Ahead { turn: turn(worker), id: AHEADS.fetch_add(1, Ordering::Relaxed), since: None }
+    }
+
+    /// Holds for the edit sent at `since`; None releases.
+    pub(super) fn hold(&mut self, since: Option<Instant>) {
+        if since == self.since {
+            return;
+        }
+        self.since = since;
+        let mut holds = self.turn.holds();
+        holds.retain(|(id, _)| *id != self.id);
+        holds.extend(since.map(|since| (self.id, since)));
+        self.turn.clear.notify_all();
+    }
+}
+
+impl Drop for Ahead {
+    fn drop(&mut self) {
+        self.hold(None);
+    }
 }
 
 /// Runs `work` once no other background work holds the turn.
 pub async fn behind<W: Send + 'static, T>(worker: &Arc<Mutex<W>>, work: impl FnOnce(&mut W) -> T) -> T {
     let turn = turn(worker);
     // Awaited: a queued task holds no pool thread.
-    let _turn = turn.lock.lock().await;
-    // The view's input and its tile go first (R15.57).
-    let waited = turn.wait();
-    if !waited.is_zero() {
-        log::debug!("lok: background work waited {} ms for an input", waited.as_millis());
-    }
+    let _turn = turn.queue.lock().await;
+    // The key's own tiles go first (PERF-10).
+    turn.yield_to_edits();
     work(&mut worker.lock().expect("the worker lock"))
 }
 

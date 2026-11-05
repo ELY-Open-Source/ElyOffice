@@ -40,19 +40,8 @@ def saves(app):
     return [line[-90:] for line in app.lines() if "save" in line][-6:]
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--minutes", type=float, default=480)
-    args = parser.parse_args()
-    if sys.platform != "darwin":
-        sys.exit("SKIP: the soak drives macOS windows")
-    work = tempfile.mkdtemp()
-    run.HOST = host = drive.Mac(work)
-    fixture = os.path.join(run.ROOT, "tests", "fixtures", "office", "t.docx")
-    paths = {name: os.path.join(work, name) for name in ["a.docx", "b.docx"]}
-    for path in paths.values():
-        shutil.copy(fixture, path)
-    app = run.App("ely-doc", os.path.join(work, "home"), list(paths.values()))
+def mac_hands(host, app, work):
+    """Tab, type, undo and save through macOS events."""
     def save():
         """Saves through the menu: a keystroke can be lost."""
         drive.sh("osascript", "-e", f'tell application "System Events" to tell (first process whose unix id is {app.process.pid}) '
@@ -71,6 +60,43 @@ def main():
         host.keys("key code 119 using command down")
         time.sleep(0.3)
 
+    def type(text):
+        host.keys(f'keystroke "{text}"')
+
+    def undo():
+        host.keys('keystroke "z" using command down')
+
+    return press, type, undo, save
+
+
+def windows_hands(host, app):
+    """Tab, type, undo and save through real Windows input."""
+    pid = app.process.pid
+
+    def press(title):
+        # A tab click hands the keys to its document.
+        host.tab(pid, title)
+        time.sleep(0.5)
+        host.chord(pid, "end")
+        time.sleep(0.3)
+
+    return press, lambda text: host.type(pid, text), lambda: host.chord(pid, "z"), lambda: host.chord(pid, "s")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--minutes", type=float, default=480)
+    args = parser.parse_args()
+    if sys.platform not in ("darwin", "win32"):
+        sys.exit("SKIP: the soak drives macOS and Windows windows")
+    work = tempfile.mkdtemp()
+    run.HOST = host = drive.host(work)
+    fixture = os.path.join(run.ROOT, "tests", "fixtures", "office", "t.docx")
+    paths = {name: os.path.join(work, name) for name in ["a.docx", "b.docx"]}
+    for path in paths.values():
+        shutil.copy(fixture, path)
+    app = run.App("ely-doc", os.path.join(work, "home"), list(paths.values()))
+    press, type, undo, save = mac_hands(host, app, work) if sys.platform == "darwin" else windows_hands(host, app)
     try:
         app.wait("opened b.docx")
         app.front()
@@ -78,12 +104,12 @@ def main():
         while time.monotonic() < end:
             n += 1
             press("a.docx")
-            host.keys(f'keystroke " A{n} "')
+            type(f" A{n} ")
             save()
             press("b.docx")
-            host.keys(f'keystroke "B{n}"')
+            type(f"B{n}")
             time.sleep(0.3)
-            host.keys('keystroke "z" using command down')
+            undo()
             save()
             time.sleep(0.5)
             if n % 10 == 0:

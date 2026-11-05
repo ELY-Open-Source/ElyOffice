@@ -32,9 +32,24 @@ pub(super) struct EditClock {
     edits: VecDeque<Edit>,
     /// Whether the view draws; a hidden view's edits never show.
     shown: bool,
+    /// Background work held while an edit waits.
+    ahead: Option<super::off::Ahead>,
 }
 
 impl EditClock {
+    /// A clock that holds `ahead`'s background work for its edits.
+    pub(super) fn ahead_of(ahead: super::off::Ahead) -> Self {
+        EditClock { ahead: Some(ahead), ..EditClock::default() }
+    }
+
+    /// Each edit holds from when it was sent.
+    fn hold(&mut self) {
+        let since = self.edits.back().map(|edit| edit.at);
+        if let Some(ahead) = &mut self.ahead {
+            ahead.hold(since);
+        }
+    }
+
     /// Edit `seq` of `kind` was queued.
     pub(super) fn sent(&mut self, seq: u64, kind: &'static str) {
         if !self.shown {
@@ -42,6 +57,7 @@ impl EditClock {
             return;
         }
         self.edits.push_back(Edit { seq, kind, at: Instant::now(), shows: None });
+        self.hold();
     }
 
     /// Edit `seq` ran in the kernel with `picture`.
@@ -54,6 +70,7 @@ impl EditClock {
             Ok(None) => self.never(at, "it changed no tile"),
             Err(why) => self.never(at, why),
         }
+        self.hold();
     }
 
     /// A frame showing `shows` was drawn; failed tiles show nothing.
@@ -63,6 +80,7 @@ impl EditClock {
             Some(generation) => self.drawn(generation),
             None => {}
         }
+        self.hold();
     }
 
     /// A whole screen at `generation` reached the window.
@@ -87,6 +105,7 @@ impl EditClock {
         while !self.edits.is_empty() {
             self.never(0, "the view was hidden");
         }
+        self.hold();
     }
 
     /// Whether an edit waits for its screen.

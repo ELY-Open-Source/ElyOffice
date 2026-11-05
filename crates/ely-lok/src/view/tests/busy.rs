@@ -99,46 +99,6 @@ fn each_worker_has_its_own_turn() {
     assert!(free, "a worker waited for another worker's turn");
 }
 
-/// An input's tile goes before work queued behind a load.
-#[test]
-fn an_inputs_tile_goes_before_queued_background_work() {
-    use std::{sync::mpsc::channel, time::Duration};
-    let worker = Arc::new(Mutex::new(Vec::new()));
-    let order = super::super::off::turn(&worker);
-    let (held, release) = (channel(), channel::<()>());
-    let load = {
-        let worker = Arc::clone(&worker);
-        std::thread::spawn(move || {
-            futures::executor::block_on(crate::behind(&worker, |_| {
-                held.0.send(()).expect("the test waits");
-                release.1.recv().expect("the test lets go");
-            }))
-        })
-    };
-    held.1.recv().expect("the load holds the worker");
-    let queued = {
-        let worker = Arc::clone(&worker);
-        std::thread::spawn(move || futures::executor::block_on(crate::behind(&worker, |seen| seen.push("next load"))))
-    };
-    std::thread::sleep(Duration::from_millis(100));
-    // As the lane does: input, then soon its tile.
-    let lane = {
-        let worker = Arc::clone(&worker);
-        std::thread::spawn(move || {
-            order.input();
-            worker.lock().expect("the worker lock").push("input");
-            order.ran();
-            std::thread::sleep(Duration::from_millis(30));
-            worker.lock().expect("the worker lock").push("tile");
-            order.painted();
-        })
-    };
-    std::thread::sleep(Duration::from_millis(100));
-    release.0.send(()).expect("the load lets go");
-    [load, queued, lane].into_iter().for_each(|thread| thread.join().expect("it ends"));
-    assert_eq!(*worker.lock().expect("the worker lock"), ["input", "tile", "next load"]);
-}
-
 /// A busy engine never stalls the window opening a view.
 #[test]
 fn a_view_opens_while_the_engine_is_busy() {
@@ -214,4 +174,67 @@ fn queued_keys_share_one_hold_of_the_worker() {
     assert!(end > start, "the keys edited");
     let between: Vec<_> = seen.iter().filter(|at| **at > start && **at < end).collect();
     assert!(between.is_empty(), "other work ran between queued keys at {between:?}, from {start} to {end}");
+}
+
+/// Background work waits while an edit is off screen.
+#[test]
+fn background_work_waits_for_an_undrawn_edit() {
+    use std::{sync::mpsc::channel, time::Duration};
+    let worker = Arc::new(Mutex::new(()));
+    let mut clock = crate::view::clock::EditClock::ahead_of(crate::view::off::Ahead::of(&worker));
+    clock.showing();
+    let run = |worker: &Arc<Mutex<()>>| {
+        let (ran, seen) = channel();
+        let worker = Arc::clone(worker);
+        std::thread::spawn(move || futures::executor::block_on(crate::behind(&worker, |_| ran.send(()).expect("the test waits"))));
+        seen
+    };
+    clock.sent(1, "text");
+    let seen = run(&worker);
+    assert!(seen.recv_timeout(Duration::from_millis(300)).is_err(), "background work ran before the edit was drawn");
+    clock.landed(1, Ok(Some(7)));
+    assert!(seen.recv_timeout(Duration::from_millis(300)).is_err(), "background work ran before the edit was drawn");
+    clock.painted(Some(7), false);
+    seen.recv_timeout(Duration::from_millis(300)).expect("the drawn edit lets background work go");
+    // An edit that changes no tile holds nothing back.
+    clock.sent(2, "text");
+    clock.landed(2, Ok(None));
+    run(&worker).recv_timeout(Duration::from_millis(300)).expect("an unseen edit holds nothing back");
+    // A hidden view's edits never draw.
+    clock.sent(3, "text");
+    clock.hidden();
+    run(&worker).recv_timeout(Duration::from_millis(300)).expect("a hidden view holds nothing back");
+}
+
+/// An edit that never draws holds background work one second.
+#[test]
+fn an_edit_holds_background_work_one_second_at_most() {
+    use std::time::{Duration, Instant};
+    let worker = Arc::new(Mutex::new(()));
+    let mut clock = crate::view::clock::EditClock::ahead_of(crate::view::off::Ahead::of(&worker));
+    clock.showing();
+    clock.sent(1, "text");
+    let began = Instant::now();
+    futures::executor::block_on(crate::behind(&worker, |_| ()));
+    let waited = began.elapsed();
+    assert!(waited >= Duration::from_millis(900) && waited < Duration::from_secs(3), "waited {waited:?}");
+}
+
+/// A stuck edit costs later requests one second in all.
+#[test]
+fn a_stuck_edit_holds_later_requests_one_second_in_all() {
+    use std::time::{Duration, Instant};
+    let worker = Arc::new(Mutex::new(()));
+    let mut clock = crate::view::clock::EditClock::ahead_of(crate::view::off::Ahead::of(&worker));
+    clock.showing();
+    clock.sent(1, "text");
+    clock.landed(1, Ok(Some(7)));
+    // A failed frame keeps the edit undrawn.
+    clock.painted(Some(7), true);
+    let began = Instant::now();
+    for _ in 0..3 {
+        futures::executor::block_on(crate::behind(&worker, |_| ()));
+    }
+    let waited = began.elapsed();
+    assert!(waited >= Duration::from_millis(900) && waited < Duration::from_millis(1800), "three requests waited {waited:?}");
 }

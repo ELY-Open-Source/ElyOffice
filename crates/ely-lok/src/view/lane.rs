@@ -63,7 +63,6 @@ impl LokView {
         let (inputs, mut input_queue) = mpsc::unbounded::<(u64, Input, Instant)>();
         let (tiles, mut tile_queue) = mpsc::unbounded::<Job>();
         let (landing, mut landed) = mpsc::unbounded::<Landed>();
-        let order = super::off::turn(&worker);
         cx.background_executor()
             .spawn(async move {
                 'lane: loop {
@@ -76,7 +75,6 @@ impl LokView {
                                 batch.push(more);
                             }
                             // A snapshot in the way gives up the worker.
-                            order.input();
                             let mut held = waiter.hold(&worker);
                             let mut done = Vec::with_capacity(batch.len());
                             for (seq, input, sent) in batch {
@@ -91,7 +89,6 @@ impl LokView {
                                 }
                                 done.push(Landed::Input(seq, edits, switched, outcome));
                             }
-                            order.ran();
                             done
                         }
                         job = tile_queue.next() => {
@@ -111,7 +108,6 @@ impl LokView {
                                 let waited = started.elapsed().as_millis();
                                 let tile = doc.paint_tile(&mut held, (x, y, TILE_TWIPS, TILE_TWIPS), (side, side));
                                 drop(held);
-                                order.painted();
                                 let key = job.key;
                                 log::debug!("lok: tile {key:?} in {} ms, {waited} waiting for the worker", started.elapsed().as_millis());
                                 Landed::Tile(job, tile)

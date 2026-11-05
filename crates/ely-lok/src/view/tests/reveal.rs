@@ -325,6 +325,11 @@ fn an_edit_is_timed_by_the_first_whole_fresh_screen() {
         }
     }
     let shows = ready.expect("the key landed and its screen came whole");
+    // Background work waits for the key's screen (R15.36).
+    let (ran, seen) = std::sync::mpsc::channel();
+    let worker = cx.update(|app| Arc::clone(&view.read(app).worker));
+    std::thread::spawn(move || futures::executor::block_on(crate::behind(&worker, |_| ran.send(()).expect("the test waits"))));
+    assert!(seen.recv_timeout(std::time::Duration::from_millis(300)).is_err(), "background work ran before the key's screen");
     // A recovery point's repaint: every tile stale, no notice.
     cx.update(|app| view.update(app, |view, cx| view.invalidate(cx)));
     assert_eq!(frame(&cx), (None, true), "a stale screen times nothing");
@@ -339,6 +344,7 @@ fn an_edit_is_timed_by_the_first_whole_fresh_screen() {
         }
     }
     assert!(timed, "the fresh screen times the key");
+    seen.recv_timeout(std::time::Duration::from_millis(300)).expect("the drawn key lets background work go");
 }
 
 #[test]

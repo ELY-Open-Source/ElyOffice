@@ -177,6 +177,7 @@ impl LokView {
         log::info!("lok: {} pages", pages.len());
         let wanted: reveal::Wanted = Arc::new(Mutex::new((Geom { zoom: 1.0, dpi: 1.0 }, HashSet::new())));
         let lane = Self::lane((Arc::clone(&worker), waiter), doc.clone(), Arc::clone(&wanted), cx);
+        let clock = clock::EditClock::ahead_of(off::Ahead::of(&worker));
         let mut view = Self {
             worker,
             doc,
@@ -203,7 +204,7 @@ impl LokView {
             edited: 0,
             moves: 0,
             last_edit: 0,
-            clock: clock::EditClock::default(),
+            clock,
             drawn: false,
             filling: None,
             heading: 1,

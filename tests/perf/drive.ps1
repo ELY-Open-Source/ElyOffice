@@ -146,7 +146,7 @@ switch ($Command) {
     }
     'chord' {
         # powershell -File reads a leading '-' as a parameter.
-        $named = @{ 'plus' = 0xBB; 'minus' = 0xBD; 'tab' = 0x09; 'home' = 0x24 }
+        $named = @{ 'plus' = 0xBB; 'minus' = 0xBD; 'tab' = 0x09; 'home' = 0x24; 'end' = 0x23 }
         Key 0x11 $false
         Tap ([byte]$(if ($named.ContainsKey($Arg)) { $named[$Arg] } else { [char]$Arg.ToUpper() }))
         Key 0x11 $true
