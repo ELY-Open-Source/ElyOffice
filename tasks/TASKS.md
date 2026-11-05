@@ -550,4 +550,5 @@
 - [ ] R15.64 内核补丁里的日志到不了 Ely：引擎构建时 `ENABLE_SAL_LOG` 为空（Mac 与 Windows），`SAL_INFO`、`SAL_WARN` 被编掉，补丁 0089 等所记的日志（读源失败、所读字节数）实则不存在（2026-11-04 Mac 线查 R15.62 时所见）。须给补丁一条到 Ely 日志的路（如经 worker 的 stderr 转发，或 LOK 回调），核对各补丁声称的日志真能在应用日志里读到，并以测试守住；不开整个 SAL_LOG（性能）。
 - [ ] R15.65 R15.59 之后 review.sh 起审查仍偶发 `agent_prompt_stalled`：提示已打进窗格而回车未生效（2026-11-05 lane-a3 的 C12.18 r5 于 w7:p69、C12.21 r4 于 w7:p6F，各重试一次即过；列里有空间，非拥挤）。须找根因：查 herdr `agent prompt` 在 Claude Code 尚未就绪时的提交方式与 bracketed paste，复现后修；可依 herdr 的状态确认提交后再按回车，不靠加长等待，并以 review-rules.sh 守住。
 - [ ] R15.67 组件库与 ElyOffice 升到 `gpui-pre` =0.3.11：gpui-kit 0.9.0（crates.io，2026-11-02）要求 `gpui-pre =0.3.11`，组件库 `scripts/check.sh` 的 GPUI Kit 兼容检查因此在所有钉 0.3.10 的提交上失败（含 5070cf3、32b37744、e32d7f2f；2026-11-05 lane-a5 所见）。须升组件库与 ElyOffice 的钉、按上游差异重放 `vendor/` 下四个 gpui-pre 补丁 crate（首个提交原样，其后为修复），全工作区 clippy 与测试、三端构建；agents.md 的版本行同改。升好前此检查记为已知外部失败（常设授权下所选）。
+- [~] R15.68 组件库 `PromptDialog` 只画标签、不给 `TextInput` 名字：UI Automation 读 ElyPDF 的密码框与 Ely 其余提示对话框皆无名（2026-11-05 桌面线真窗口所见）。已修：输入框以对话框的标签为名、以校验不过的原因为说明（同 `FormField`），单测在旧码上失败。组件库 3aab6d4（已推送），随本批移 pin；pin 移后桌面线以真窗口核对
 - [ ] R15.24 验收核对表：R15 逐条核对
