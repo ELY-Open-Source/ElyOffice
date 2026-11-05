@@ -44,13 +44,13 @@ pub struct Worker {
     asked: u64,
     /// This worker among all spawned; its documents carry it.
     session: u64,
-    stderr: ely_ipc::Relay,
+    pub(crate) stderr: ely_ipc::Relay,
     pub(crate) check: Check,
     pub(crate) stopper: Stopper,
     /// The name new comments sign with, once set.
     author: Option<String>,
     /// The build, profile and probes it started with.
-    start: (PathBuf, PathBuf, bool),
+    pub(crate) start: (PathBuf, PathBuf, bool),
 }
 
 /// One painted tile and the generation it matches (LOK-03).
@@ -113,6 +113,14 @@ pub fn is_nothing(error: &io::Error) -> bool {
 
 static SESSIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
+/// A start error that names `path`, logged whole.
+fn at(path: &Path) -> impl FnOnce(io::Error) -> io::Error + '_ {
+    move |error| {
+        log::error!("lok: the worker did not start: {}: {error}", path.display());
+        io::Error::new(error.kind(), format!("{}: {error}", path.display()))
+    }
+}
+
 impl Worker {
     /// Spawns the worker against `install` with an isolated profile (LOK-01).
     pub fn spawn(install: &Path, profile_dir: &Path) -> io::Result<Self> {
@@ -135,10 +143,10 @@ impl Worker {
 
     /// Spawns with or without the dev probes.
     fn spawn_mode(install: &Path, profile_dir: &Path, dev: bool) -> io::Result<Self> {
-        std::fs::create_dir_all(profile_dir)?;
+        std::fs::create_dir_all(profile_dir).map_err(at(profile_dir))?;
         let worker_bin = worker_bin()?;
         log::info!("lok: worker from {}", worker_bin.display());
-        let mut command = Command::new(worker_bin);
+        let mut command = Command::new(&worker_bin);
         ely_ipc::windowless(&mut command)
             .arg(install)
             .arg(profile_dir)
@@ -165,7 +173,7 @@ impl Worker {
             command.env("SAL_LOG", sal_log);
         }
         let temp = profile_dir.join("tmp");
-        std::fs::create_dir_all(&temp)?;
+        std::fs::create_dir_all(&temp).map_err(at(&temp))?;
         // Unix reads TMPDIR; Windows reads TMP, then TEMP.
         command.env("TMPDIR", &temp).env("TMP", &temp).env("TEMP", &temp);
         let mut child = command
@@ -173,7 +181,7 @@ impl Worker {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|error| io::Error::new(error.kind(), format!("lok-worker spawn: {error}")))?;
+            .map_err(at(&worker_bin))?;
         let stderr = ely_ipc::relay(child.stderr.take().expect("piped stderr"), "lok-worker");
         let (stdin, stdout) = (
             child.stdin.take().expect("piped stdin"),
@@ -380,12 +388,10 @@ impl Worker {
         *self.stopper.gate() = true;
         let _ = self.child.kill();
         let status = self.child.wait().map(|status| status.to_string()).unwrap_or_else(|wait| wait.to_string());
-        let said = self.stderr.said();
-        // Before the check passes no document is open.
-        let said = match (&self.check, said.line, said.error) {
-            (Check::Checking, Some(line), _) => format!(": {line}"),
-            (_, _, Some(error)) => format!(": {error}"),
-            _ => String::new(),
+        let said = match (&self.check, self.stderr.said().error) {
+            // The start check adds the last lines.
+            (Check::Checking, _) | (_, None) => String::new(),
+            (_, Some(error)) => format!(": {error}"),
         };
         log::error!("lok: the worker failed on request {request} ({status}){said}");
         io::Error::new(error.kind(), format!("the lok worker failed: {error} ({status}){said}"))

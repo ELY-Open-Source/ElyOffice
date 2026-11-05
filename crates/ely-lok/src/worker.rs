@@ -21,6 +21,8 @@ mod slides;
 mod teardown;
 mod text;
 #[cfg(windows)]
+mod holders;
+#[cfg(windows)]
 mod messages;
 #[cfg(windows)]
 pub(crate) mod stdin;

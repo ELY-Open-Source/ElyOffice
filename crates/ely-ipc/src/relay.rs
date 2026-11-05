@@ -1,6 +1,7 @@
 //! A worker's stderr, carried into the app's log.
 
 use std::{
+    collections::VecDeque,
     io::{BufRead as _, BufReader, Read},
     sync::{Arc, Mutex},
     thread::JoinHandle,
@@ -12,13 +13,16 @@ pub struct Relay {
     thread: Option<JoinHandle<()>>,
 }
 
-/// The worker's last error record and its last line.
+/// The worker's last error record and its last lines.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Said {
     pub error: Option<String>,
     /// Raw; may hold engine text once documents are open.
-    pub line: Option<String>,
+    pub lines: VecDeque<String>,
 }
+
+/// How many last lines a relay keeps.
+const KEPT: usize = 20;
 
 impl Relay {
     /// After the worker exits: what it said last.
@@ -50,7 +54,10 @@ pub fn relay(stderr: impl Read + Send + 'static, who: &'static str) -> Relay {
             let record = parse(line);
             {
                 let mut said = kept.lock().expect("the relay lock");
-                said.line = Some(line.to_string());
+                if said.lines.len() == KEPT {
+                    said.lines.pop_front();
+                }
+                said.lines.push_back(line.to_string());
                 if let Some((log::Level::Error, _, message)) = record {
                     said.error = Some(message.to_string());
                 }
@@ -131,12 +138,21 @@ mod tests {
     }
 
     #[test]
-    fn the_last_line_is_kept_even_when_it_is_no_record() {
+    fn the_last_lines_are_kept_even_when_they_are_no_records() {
         let stderr: &[u8] = b"[2026-11-03T05:09:10Z ERROR ely_lok::worker] early\r\nfatal runtime error: aborting\r\n";
         let mut relay = super::relay(stderr, "test");
         let said = relay.said();
         assert_eq!(said.error.as_deref(), Some("early"));
-        assert_eq!(said.line.as_deref(), Some("fatal runtime error: aborting"));
+        let early = "[2026-11-03T05:09:10Z ERROR ely_lok::worker] early";
+        assert_eq!(said.lines, [early, "fatal runtime error: aborting"]);
+    }
+
+    #[test]
+    fn only_the_last_twenty_lines_are_kept() {
+        let stderr: Vec<u8> = (0..25).flat_map(|n| format!("line {n}\n").into_bytes()).collect();
+        let said = super::relay(std::io::Cursor::new(stderr), "test").said();
+        assert_eq!(said.lines.len(), super::KEPT);
+        assert_eq!((said.lines.front(), said.lines.back()), (Some(&"line 5".into()), Some(&"line 24".into())));
     }
 
     #[test]
