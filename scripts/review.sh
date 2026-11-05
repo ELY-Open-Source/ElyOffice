@@ -78,19 +78,31 @@ trap - EXIT
 fail() { echo "review.sh: $name in $pane $*; pane left open" >&2; exit 1; }
 # Herdr's error code and message, else its raw reply.
 why() { field -e '.error | select(.code) | "\(.code): \(.message)"' <<<"$1" 2>/dev/null || echo "$1"; }
-said=$(herdr agent start "$name" --kind claude --pane "$pane" --timeout 120000 -- \
-  --model claude-opus-5-5 --effort high --dangerously-skip-permissions 2>&1) || fail "did not start claude: $(why "$said")"
-if ! said=$(herdr agent prompt "$name" "$prompt" --wait --timeout 5400000 2>&1); then
-  case $(field '.error.code' <<<"$said" 2>/dev/null) in
-    agent_prompt_stalled) fail "never began the prompt: $(why "$said")" ;;
-    timeout) fail "ran past 90 minutes: $(why "$said")" ;;
-    *) fail "took no prompt: $(why "$said")" ;;
-  esac
-fi
+# The pane's last eight lines.
+screen() {
+  text=$(herdr pane read "$pane" --source visible 2>&1) || text="unreadable: $text"
+  grep -v '^[[:space:]]*$' <<<"$text" | tail -n 8 || :
+}
+# Typed text races Claude's startup; argv does not.
+ask=.work/$id-r$round/prompt.md
+mkdir -p "${ask%/*}"
+printf '%s\n' "$prompt" >"$ask"
+said=$(herdr pane run "$pane" "claude --model claude-opus-5-5 --effort high --dangerously-skip-permissions \"Do what $ask says.\"" 2>&1) \
+  || fail "did not start claude: $(why "$said")"
+# Herdr finds Claude a moment after it starts.
+for ((t = 0; ; t++)); do
+  if said=$(herdr agent get "$pane" 2>&1); then
+    s=$(field '.result.agent.agent_status' <<<"$said") || fail "status unreadable: $said"
+    case $s in working | blocked) break ;; esac
+  else
+    [ "$(field '.error.code' <<<"$said" 2>/dev/null)" = agent_not_found ] || fail "status unreadable: $(why "$said")"
+  fi
+  [ "$t" -lt 60 ] || fail "never began the prompt in 2 minutes, at: $(screen)"
+  sleep 2
+done
 # Blocked ten polls running: show the screen, then close.
 blocked() {
-  text=$(herdr agent read "$name" --source visible 2>&1) || text="unreadable: $text"
-  text=$(grep -v '^[[:space:]]*$' <<<"$text" | tail -n 8 || :)
+  text=$(screen)
   err=$(herdr pane close "$pane" 2>&1) || fail "stayed blocked 5 minutes at: $text; did not close: $err"
   rm -f "$last"
   echo "review.sh: $name in $pane stayed blocked 5 minutes at: $text; pane closed" >&2
@@ -99,7 +111,7 @@ blocked() {
 # Claude idles while its own background runs work.
 b=0
 for ((i = 0; ; i++)); do
-  s=$(herdr agent get "$name" | field '.result.agent.agent_status') || fail "status unreadable"
+  s=$(herdr agent get "$pane" | field '.result.agent.agent_status') || fail "status unreadable"
   [ "$s" = blocked ] && b=$((b + 1)) || b=0
   case $s in
     done | idle) head -n 1 "$verdict" 2>/dev/null | tr -d '\r' | grep -qxE 'PASS|FAIL' && break ;;
@@ -107,7 +119,7 @@ for ((i = 0; ; i++)); do
     blocked) [ "$b" -le 10 ] || blocked ;;
     *) fail "ended $s" ;;
   esac
-  [ "$i" -lt 180 ] || fail "left no verdict at $verdict in 90 more minutes"
+  [ "$i" -lt 360 ] || fail "left no verdict at $verdict in 3 hours"
   sleep 30
 done
 err=$(herdr pane close "$pane" 2>&1) || fail "did not close: $err"
