@@ -53,4 +53,19 @@ fn a_worker_that_dies_before_its_check_says_its_last_line() {
     let last = "fatal runtime error: Rust cannot catch foreign exceptions, aborting";
     assert!(error.starts_with("the lok worker failed"), "{error}");
     assert!(error.ends_with(last), "{error}");
+    let read = format!("{} now gives buildid {}", install.join("version.ini").display(), crate::client::BUILD_ID);
+    assert!(error.contains(&read), "{error}");
+    assert!(error.contains(&format!("profile {}", profile.display())), "{error}");
+}
+
+#[test]
+fn a_profile_that_cannot_be_made_is_named() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let file = dir.path().join("taken");
+    std::fs::write(&file, "").expect("the file is written");
+    let profile = file.join("profile");
+    let Err(error) = Worker::spawn(dir.path(), &profile) else {
+        panic!("a profile under a file started");
+    };
+    assert!(error.to_string().starts_with(&format!("{}: ", profile.display())), "{error}");
 }

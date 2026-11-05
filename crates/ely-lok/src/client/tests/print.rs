@@ -308,37 +308,20 @@ fn excel_caches_recompute_unless_the_function_is_unknown() {
     let xlsx = dir.path().join("saved.xlsx");
     doc.save_as(&mut worker, &crate::file_url(&xlsx), "xlsx")
         .expect("saves");
-    let unpacked = dir.path().join("x");
-    let unzip = std::process::Command::new("unzip")
-        .args(["-q", "-o"])
-        .arg(&xlsx)
-        .arg("-d")
-        .arg(&unpacked)
-        .status()
-        .expect("unzip runs");
-    assert!(unzip.success());
+    let mut parts = super::zip::entries(&std::fs::read(&xlsx).expect("reads the xlsx"));
+    let (_, sheet) = parts
+        .iter_mut()
+        .find(|(name, _)| name == "xl/worksheets/sheet1.xml")
+        .expect("the sheet");
     // Excel caches: an unknown function's and a stale one.
-    let sheet = unpacked.join("xl/worksheets/sheet1.xml");
-    let xml = std::fs::read_to_string(&sheet).expect("the sheet");
+    let xml = String::from_utf8(sheet.clone()).expect("UTF-8");
     let at = xml.find("<sheetData>").expect("sheet data") + "<sheetData>".len();
     let both = ooxml_cell("A", "FUTUREFN(1)", "42") + &ooxml_cell("B", "1+1", "7");
     let row = format!(r#"<row r="1">{both}</row>"#);
     let end = xml[at..].find("</row>").expect("row one") + at + "</row>".len();
-    std::fs::write(&sheet, format!("{}{row}{}", &xml[..at], &xml[end..])).expect("writes");
+    *sheet = format!("{}{row}{}", &xml[..at], &xml[end..]).into_bytes();
     let excel = dir.path().join("excel.xlsx");
-    // Python's zipfile, as ooxml.py uses: no zip on Windows.
-    let pack = "import os, sys, zipfile
-with zipfile.ZipFile(sys.argv[1], 'w', zipfile.ZIP_DEFLATED) as z:
-    for d, _, fs in os.walk('.'):
-        for f in fs:
-            z.write(os.path.join(d, f))";
-    let zip = std::process::Command::new("python3")
-        .current_dir(&unpacked)
-        .args(["-c", pack])
-        .arg(&excel)
-        .status()
-        .expect("zip runs");
-    assert!(zip.success());
+    std::fs::write(&excel, super::zip::stored(&parts)).expect("writes");
     let opened = worker.load(&crate::file_url(&excel)).expect("loads");
     // The file's result, which the banner names (D-02).
     assert_eq!(cells(&mut worker, &opened, "A1"), "42", "the file's result");

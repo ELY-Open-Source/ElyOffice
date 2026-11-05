@@ -54,6 +54,7 @@ mod stop;
 mod tools;
 mod word;
 mod workbook;
+mod zip;
 
 /// The pinned LibreOffice commit the build must report.
 const PINNED_BUILD: &str = "8221e31";

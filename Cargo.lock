@@ -2243,6 +2243,7 @@ dependencies = [
  "ely-platform",
  "ely-ui",
  "env_logger",
+ "flate2",
  "futures",
  "gpui-pre",
  "image",

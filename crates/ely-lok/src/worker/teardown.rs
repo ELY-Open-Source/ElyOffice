@@ -54,10 +54,8 @@ pub(super) fn teardown_work() -> io::Result<()> {
             std::fs::remove_file(&path)
         };
         gone.map_err(|error| {
-            io::Error::new(
-                error.kind(),
-                format!("temp {} stays: {error}", path.display()),
-            )
+            let held = held(&path, &error);
+            io::Error::new(error.kind(), format!("temp {} stays: {error}{held}", path.display()))
         })?;
     }
     log::info!("lok-worker: torn down");
@@ -71,6 +69,20 @@ pub(super) fn teardown(code: i32) -> ! {
         log::warn!("lok-worker: teardown failed: {error}");
     }
     quit(if outcome.is_ok() { code } else { 1 });
+}
+
+/// Who holds `path`, when Windows says it is in use.
+#[cfg(windows)]
+fn held(path: &Path, error: &io::Error) -> String {
+    match error.raw_os_error() {
+        Some(32) => format!("; {}", super::holders::holders(path)),
+        _ => String::new(),
+    }
+}
+
+#[cfg(not(windows))]
+fn held(_: &Path, _: &io::Error) -> String {
+    String::new()
 }
 
 /// Clears macOS's immutable flag on a kernel temp file.

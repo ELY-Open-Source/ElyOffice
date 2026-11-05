@@ -16,6 +16,14 @@ pub(crate) enum Check {
     Failed(String),
 }
 
+/// Where the kernel reads its buildid, from the install.
+#[cfg(target_os = "macos")]
+const VERSION_FILE: &str = "../Resources/versionrc";
+#[cfg(windows)]
+const VERSION_FILE: &str = "version.ini";
+#[cfg(all(unix, not(target_os = "macos")))]
+const VERSION_FILE: &str = "versionrc";
+
 /// Red text: a BGRA tile shows red in byte two.
 const VERIFY_DOC: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" office:version=\"1.3\" office:mimetype=\"application/vnd.oasis.opendocument.text\"><office:automatic-styles><style:style style:name=\"T1\" style:family=\"text\"><style:text-properties fo:color=\"#ff0000\" fo:font-size=\"28pt\" fo:font-weight=\"bold\"/></style:style></office:automatic-styles><office:body><office:text><text:p><text:span text:style-name=\"T1\">verify</text:span></text:p></office:text></office:body></office:document>";
 
@@ -37,32 +45,42 @@ impl Worker {
                 Ok(())
             }
             Err(error) => {
+                let error = self.start_failed(error);
                 self.check = Check::Failed(error.to_string());
                 Err(error)
             }
         }
     }
 
+    /// Stops a worker that failed its check; says why.
+    fn start_failed(&mut self, error: io::Error) -> io::Error {
+        *self.stopper.gate() = true;
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+        // No document but the check's own is open yet.
+        let lines = Vec::from(self.stderr.said().lines).join(" | ");
+        let (install, profile, _) = &self.start;
+        let message = format!(
+            "{error}; install {}; profile {}; {}; the worker said: {lines}",
+            install.display(),
+            profile.display(),
+            version_read(install),
+        );
+        log::error!("lok: the worker did not start: {message}");
+        io::Error::new(error.kind(), message)
+    }
+
     /// Rejects builds that are not the pinned one (LOK-01).
     pub(crate) fn verify(&mut self, build: &str, profile_dir: &Path) -> io::Result<()> {
         if !build.contains(BUILD_ID) {
-            return self.reject(format!("not the pinned build {BUILD_ID}: {build}"));
+            return reject(format!("not the pinned build {BUILD_ID}: {build}"));
         }
         if !self.tile_self_check(profile_dir)? {
-            return self.reject(format!(
+            return reject(format!(
                 "the pinned build {BUILD_ID} paints no BGRA red (unpatched, or another order)"
             ));
         }
         Ok(())
-    }
-
-    /// Kills the child and reports the rejection.
-    pub(crate) fn reject<T>(&mut self, reason: String) -> io::Result<T> {
-        log::warn!("lok: {reason}");
-        *self.stopper.gate() = true;
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-        Err(io::Error::new(io::ErrorKind::InvalidData, reason))
     }
 
     /// The version fields of the hooked library, checked strictly (LOK-01).
@@ -75,10 +93,10 @@ impl Worker {
         ];
         for (key, want) in fields {
             let Some(have) = version_field(&build, key) else {
-                return self.reject(format!("version misses {key}: {build}"));
+                return reject(format!("version misses {key}: {build}"));
             };
             if have != want {
-                return self.reject(format!("version {key} is {have}, not {want}"));
+                return reject(format!("version {key} is {have}, not {want}"));
             }
         }
         Ok(build)
@@ -93,6 +111,24 @@ impl Worker {
         let red = Unpack::new(&payload).u64()?;
         Ok(red > 0)
     }
+}
+
+/// A rejected build; the check then stops the worker.
+fn reject<T>(reason: String) -> io::Result<T> {
+    Err(io::Error::new(io::ErrorKind::InvalidData, reason))
+}
+
+/// The kernel's version file, and the buildid it gives now.
+fn version_read(install: &Path) -> String {
+    let file = install.join(VERSION_FILE);
+    let now = match std::fs::read_to_string(&file) {
+        Ok(text) => match text.lines().find_map(|line| line.strip_prefix("buildid=")) {
+            Some(id) => format!("buildid {id}"),
+            None => "no buildid".to_string(),
+        },
+        Err(error) => error.to_string(),
+    };
+    format!("{} now gives {now}", file.display())
 }
 
 /// One top-level field of a strict JSON object parse.
@@ -226,5 +262,25 @@ impl<'a> JsonFields<'a> {
             return false;
         }
         !dot || (!frac.is_empty() && frac.chars().all(|ch| ch.is_ascii_digit()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{VERSION_FILE, version_read};
+
+    #[test]
+    fn a_failed_start_names_the_version_file_and_what_it_gives() {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let install = dir.path().join("program");
+        let file = install.join(VERSION_FILE);
+        let gone = version_read(&install);
+        assert!(gone.starts_with(&format!("{} now gives ", file.display())), "{gone}");
+        assert!(!gone.contains("buildid"), "{gone}");
+        std::fs::create_dir_all(file.parent().expect("a folder")).expect("the folder is made");
+        std::fs::write(&file, "[Version]\r\nAllLanguages=en-US\r\nbuildid=abc123\r\n").expect("written");
+        assert_eq!(version_read(&install), format!("{} now gives buildid abc123", file.display()));
+        std::fs::write(&file, "[Version]\r\n").expect("written");
+        assert!(version_read(&install).ends_with("now gives no buildid"));
     }
 }
