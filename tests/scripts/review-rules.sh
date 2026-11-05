@@ -72,6 +72,7 @@ case "$1 $2" in
     awk -v p="$3" '$1 != p' "$w/rows" >"$w/rows.next" 2>/dev/null || true
     mv "$w/rows.next" "$w/rows" ;;
   "agent start")
+    echo "${*:3}" >"$w/started"
     # As herdr: errors are JSON on stderr.
     s=$(cat "$w/start")
     [ "$s" = 0 ] || { echo "{\"error\":{\"code\":\"$s\",\"message\":\"said $s\"}}" >&2; exit 1; } ;;
@@ -126,6 +127,7 @@ run() {
 }
 run T1.1 1 0 0 done 'PASS\n'
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "plain review: rc $rc, $said"
+case $(cat "$work/started") in *"--model remote-magpie/kimi/k3.1-pro[1m] --effort high "*) ;; *) fail "reviewer not Kimi high: $(cat "$work/started")" ;; esac
 run T1.1 1 0 0 idle 'PASS\n' "$work/crlf:"
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "CRLF jq: rc $rc, $said"
 run T1.1 1 0 0 done 'FAIL\nx.rs:1 bug\n'
