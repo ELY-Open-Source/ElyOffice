@@ -293,6 +293,9 @@ fn a_second_delete_before_the_first_lands_does_nothing() {
         viewer.delete_object(cx);
         viewer.delete_object(cx);
     }));
+    // The first runs; the second never reaches the queue.
+    let (editing, queued) = cx.update(|_, app| (view.read(app).editing, view.read(app).queue.len()));
+    assert_eq!((editing, queued), (true, 0), "one delete in flight, none queued");
     settle(cx, |app| view.read(app).settled() && view.read(app).layers.contains_key(&0));
     assert_eq!(cx.update(|_, app| view.read(app).layers[&0].drawn.len()), 1, "the picture stays");
 }
