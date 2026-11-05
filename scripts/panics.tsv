@@ -164,6 +164,7 @@ crates/ely-lok/src/client/feed.rs	expect_used	fresh.take().expect("checked above
 crates/ely-lok/src/client/feed.rs	expect_used	self .0 .1 .wait_timeout(docs, deadline - now) .expect("the feed wait")	linux,macos,windows	the feed wait
 crates/ely-lok/src/client/feed.rs	expect_used	self.0.0.lock().expect("the feed lock")	linux,macos,windows	the feed lock
 crates/ely-lok/src/client/load.rs	expect_used	found.expect("a listed choice")	linux,macos,windows	a listed choice
+crates/ely-lok/src/client/wait.rs	expect_used	held.expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/commands.rs	unreachable	unreachable!("lines take no value")	linux,macos,windows	lines take no value
 crates/ely-lok/src/events.rs	expect_used	formula_text(text).expect("checked above")	linux,macos,windows	checked above
 crates/ely-lok/src/events.rs	expect_used	signal() .wait_timeout(slots, deadline - now) .expect("the events wait")	linux,macos,windows	the events wait
@@ -206,7 +207,6 @@ crates/ely-lok/src/view/formula.rs	expect_used	vcl_key(keystroke).expect("Enter 
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("shift-tab").expect("a keystroke")	linux,macos,windows	a keystroke
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("tab").expect("a keystroke")	linux,macos,windows	a keystroke
 crates/ely-lok/src/view/lane.rs	expect_used	self.inputs.unbounded_send((seq, input, Instant::now())).expect("the input queue lives with the view")	linux,macos,windows	the input queue lives with the view
-crates/ely-lok/src/view/lane.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/lane.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/off.rs	expect_used	TURNS.lock().expect("the turns")	linux,macos,windows	the turns
 crates/ely-lok/src/view/off.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock

@@ -157,10 +157,10 @@ impl LokView {
         worker: Arc<Mutex<Worker>>,
         doc: Doc,
         (size, pages): Layout,
-        feed: crate::Feed,
+        (feed, waiter): (crate::Feed, crate::Waiter),
         cx: &mut App,
     ) -> Entity<Self> {
-        cx.new(|cx| Self::sized(worker, doc, size, pages, feed, cx))
+        cx.new(|cx| Self::sized(worker, doc, size, pages, (feed, waiter), cx))
     }
 
     fn sized(
@@ -168,12 +168,12 @@ impl LokView {
         doc: Doc,
         (width, height): (i64, i64),
         pages: Vec<Rect>,
-        feed: crate::Feed,
+        (feed, waiter): (crate::Feed, crate::Waiter),
         cx: &mut Context<Self>,
     ) -> Self {
         log::info!("lok: {} pages", pages.len());
         let wanted: reveal::Wanted = Arc::new(Mutex::new((Geom { zoom: 1.0, dpi: 1.0 }, HashSet::new())));
-        let lane = Self::lane(Arc::clone(&worker), doc.clone(), Arc::clone(&wanted), cx);
+        let lane = Self::lane((Arc::clone(&worker), waiter), doc.clone(), Arc::clone(&wanted), cx);
         let mut view = Self {
             worker,
             doc,
