@@ -89,8 +89,8 @@
 | PDF-02 | 页面组织 | C11.2（~）、决策 C11.2 | `an_escaped_font_name_and_the_form_alignment_come_along` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-03 | 文字编辑 | C11.3（~）、决策 C11.3 | `a_second_delete_before_the_first_lands_does_nothing`、`a_drag_while_an_edit_is_queued_does_nothing` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-04 | 图像与对象 | C11.3（~）、决策 C11.3 | `a_second_delete_before_the_first_lands_does_nothing`、`a_drag_while_an_edit_is_queued_does_nothing` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-05 | 批注 | C11.4（~）、决策 C11.4 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
-| PDF-06 | 表单 | C11.4（~）、决策 C11.4 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-05 | 批注 | C11.4（~）、决策 C11.4 | `a_default_name_avoids_a_field_with_no_widget`、`every_field_name_is_listed_widget_or_not` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
+| PDF-06 | 表单 | C11.4（~）、决策 C11.4 | `a_default_name_avoids_a_field_with_no_widget`、`every_field_name_is_listed_widget_or_not` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-07 | 文档结构 | C11.5、决策 C11.5 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-08 | OCR | C11.5、决策 C11.5 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-09 | 内容删除 | C11.6（~）、决策 C11.6 | — | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
