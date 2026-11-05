@@ -320,6 +320,14 @@ SPILL = {
 }
 # K1 pasted as formulas into O1:O2.
 PASTED = SPILL | {cell: (cell, SPILL["K1"][1], True) for cell in ("O1", "O2")}
+# 2024-03-01 is 43890 in 1904 dates; E1 was typed.
+DATES = {
+    "A1": (None, "n", "43890"),
+    "B1": ('TEXT(A1,"yyyy-mm-dd")', "str", "2024-03-01"),
+    "C1": ("DATE(2024,3,1)", "n", "43890"),
+    "E1": (None, "n", "43890"),
+    "F1": ("E1=C1", "b", "1"),
+}
 
 
 def spill(path, expected=SPILL):
@@ -355,6 +363,16 @@ def cells_are(path, expected):
             check(got == want, f"{ref} is {got!r}, not {want!r}")
 
 
+def dates1904(path):
+    """The 1904 flag and the serials it gives meaning to."""
+    with zipfile.ZipFile(path) as archive:
+        book = main_part(archive)
+        props = book and xml(archive, book).find(S + "workbookPr")
+        flag = props.get("date1904") if props is not None else None
+        check(flag in ("1", "true"), f"the workbook is in 1904 dates: {flag!r}")
+    cells_are(path, DATES)
+
+
 CASES = {
     "contract": contract,
     "sheet": sheet,
@@ -363,6 +381,7 @@ CASES = {
     "kept-edited": lambda path: cells_are(path, EDITED),
     "kept-more": lambda path: cells_are(path, MORE),
     "kept-copied": lambda path: cells_are(path, COPIED),
+    "dates1904": dates1904,
     "spill": spill,
     "spill-pasted": lambda path: spill(path, PASTED),
 }
@@ -409,6 +428,10 @@ MUTATIONS = {
     ],
     "spill-pasted": [
         ("xl/worksheets/sheet1.xml", r'(<c r="O2"[^>]*?) cm="1"', r"\1"),
+    ],
+    "dates1904": [
+        ("xl/workbook.xml", r'date1904="(1|true)"', 'date1904="false"'),
+        ("xl/worksheets/sheet1.xml", r'(<c r="E1"[^>]*><v>)43890(</v>)', r"\g<1>45352\g<2>"),
     ],
     "deck": [
         ("ppt/_rels/presentation.xml.rels", r"slides/slide2\.xml", "slides/missing.xml"),

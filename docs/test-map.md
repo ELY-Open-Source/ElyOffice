@@ -65,11 +65,11 @@
 | TABLE-09 | 规则 | C09.3（~）、决策 C09.3 | `typing_during_a_closing_save_is_never_lost`、`a_format_code_lands_in_the_workbook_that_asked`、`two_tabs_saving_as_one_path_keep_one_owner`、`interleaved_previews_keep_their_sources`、`closing_a_clean_tab_never_waits_for_the_worker` | apps/ely-table/src/tests、theme.sh |
 | TABLE-10 | 汇总分析 | C09.4（~）、决策 C09.4 | `undoing_a_new_kind_brings_the_whole_chart_back`、`enter_and_tab_move_the_cell_cursor`、`a_read_layout_applies_back_unchanged`、`a_dialog_asked_from_a_workbook_left_behind_is_dropped` | apps/ely-table/src/tests、theme.sh |
 | TABLE-11 | 图表 | C09.4（~）、决策 C09.4 | `undoing_a_new_kind_brings_the_whole_chart_back`、`enter_and_tab_move_the_cell_cursor`、`a_read_layout_applies_back_unchanged`、`a_dialog_asked_from_a_workbook_left_behind_is_dropped` | apps/ely-table/src/tests、theme.sh |
-| TABLE-12 | CSV/TSV | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-13 | 导出 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-14 | 打印 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-15 | 保护 | C09.5（~）、决策 C09.5 | — | apps/ely-table/src/tests、theme.sh |
-| TABLE-16 | 大数据浏览 | C09.1（~）、C09.5（~）、决策 C09.5 | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook` | apps/ely-table/src/tests、theme.sh |
+| TABLE-12 | CSV/TSV | C09.5（~）、决策 C09.5 | `a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
+| TABLE-13 | 导出 | C09.5（~）、决策 C09.5 | `a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
+| TABLE-14 | 打印 | C09.5（~）、决策 C09.5 | `a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
+| TABLE-15 | 保护 | C09.5（~）、决策 C09.5 | `a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
+| TABLE-16 | 大数据浏览 | C09.1（~）、C09.5（~）、决策 C09.5 | `a11y_follows_the_focused_paragraph`、`a_delete_stays_with_its_workbook`、`a_1904_workbook_keeps_its_dates_through_saves` | apps/ely-table/src/tests、theme.sh |
 | TABLE-17 | R 宏（实验性） | 无 | — | apps/ely-table/src/tests、theme.sh |
 | SHOW-01 | 幻灯片管理 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
 | SHOW-02 | 模板与母版 | C10.1（~）、决策 C10.1 | — | apps/ely-show/src/tests |
@@ -164,7 +164,7 @@
 | QA-08 | 并发保存 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-09 | 崩溃恢复 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-10 | Doc | C08.6（~）、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-11 | Table | C09.5（~）、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-11 | Table | C09.5（~）、C22.2（ ） | `a_1904_workbook_keeps_its_dates_through_saves` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-12 | Show | C10.6（~）、C22.2（ ）、决策 C10.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-13 | PDF 编辑 | C11.8（~）、C22.2（ ）、决策 C11.8 | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-14 | PDF 删除 | C11.6（~）、C22.2（ ）、决策 C11.6 | — | 无库内证据：C22.2 的记录已移除，须重做 |

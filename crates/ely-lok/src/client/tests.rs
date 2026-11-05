@@ -9,6 +9,7 @@ mod by_address;
 mod cell_edit;
 mod cell_looks;
 mod charts;
+mod dates;
 mod check;
 mod commands;
 mod docx;
