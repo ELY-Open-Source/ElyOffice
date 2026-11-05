@@ -21,7 +21,7 @@ const PROMPT: std::time::Duration = std::time::Duration::from_secs(20);
 /// Bo's PLAIN login, `\0bo@example.com\0pw`.
 const AUTH: &str = "AUTH PLAIN AGJvQGV4YW1wbGUuY29tAHB3";
 
-fn runtime() -> tokio::runtime::Runtime {
+pub(super) fn runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -30,13 +30,13 @@ fn runtime() -> tokio::runtime::Runtime {
 }
 
 /// The script's result; a stall fails, never hangs.
-fn ended(rt: &tokio::runtime::Runtime, task: tokio::task::JoinHandle<Result<(), String>>) {
+pub(super) fn ended(rt: &tokio::runtime::Runtime, task: tokio::task::JoinHandle<Result<(), String>>) {
     let limit = std::time::Duration::from_secs(60);
     let done = rt.block_on(async { tokio::time::timeout(limit, task).await });
     done.expect("the script ended").unwrap().unwrap();
 }
 
-fn bo(incoming: u16, outgoing: u16) -> Account {
+pub(super) fn bo(incoming: u16, outgoing: u16) -> Account {
     let mut bo = fake::account("bo@example.com");
     bo.incoming.port = incoming;
     bo.outgoing.port = outgoing;
