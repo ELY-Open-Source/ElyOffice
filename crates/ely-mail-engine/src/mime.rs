@@ -251,24 +251,43 @@ fn attachment(part: &Part) -> Result<MimePart<'_>> {
     Ok(attachment)
 }
 
-/// A multipart as read carries its headers.
-fn composite_body(part: &Part) -> Result<&[u8]> {
+/// In CRLF; a multipart as read carries its headers.
+fn composite_body(part: &Part) -> Result<Vec<u8>> {
+    let bytes = crlf(&part.bytes);
     if !part.content_type.starts_with("multipart/") {
-        return Ok(&part.bytes);
+        return Ok(bytes);
     }
     if !part.params.iter().any(|(key, _)| key == "boundary") {
         return Err(Error::Invalid(
             "a multipart attachment has no boundary".into(),
         ));
     }
-    if let Some(body) = part.bytes.strip_prefix(b"\r\n") {
-        return Ok(body);
+    if let Some(body) = bytes.strip_prefix(b"\r\n") {
+        return Ok(body.to_vec());
     }
-    part.bytes
+    bytes
         .windows(4)
         .position(|end| end == b"\r\n\r\n")
-        .map(|at| &part.bytes[at + 4..])
+        .map(|at| bytes[at + 4..].to_vec())
         .ok_or_else(|| Error::Invalid("a multipart attachment has no header end".into()))
+}
+
+/// RFC 2049 §4: lone CR and LF become CRLF.
+fn crlf(bytes: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'\r' if bytes.get(at + 1) == Some(&b'\n') => {
+                out.extend_from_slice(b"\r\n");
+                at += 1;
+            }
+            b'\r' | b'\n' => out.extend_from_slice(b"\r\n"),
+            byte => out.push(byte),
+        }
+        at += 1;
+    }
+    out
 }
 
 /// A random left side at the sender's domain.
