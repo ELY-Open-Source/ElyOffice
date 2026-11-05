@@ -127,6 +127,7 @@ scripts/fetch-tessdata.sh      取 OCR 语言数据到 engines/tessdata（钉提
 scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随包）
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 到 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核对散列；Mac 核对架构）
+scripts/build-bash.sh [目录]   构建钉住的 GNU bash 5.3 为 x86_64，默认装到 ~/ely-share/bash-x86_64（Intel 版发布在 Rosetta 下以它跑 ci.sh；核对散列与架构，散列曾对 GNU 的签名核过）
 tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架构（ci.sh 发布前调用）
 scripts/review.sh ID 轮次 路径  审查一条任务（herdr TUI 里调用者右侧分屏，其后的审查分在该列最高的窗格下面，每格的终端至少 10 行（herdr 的窗格框另占 2 行），列满即在调用者的工作区另开标签页；各工作树的调用者经 Git 公共目录里的 `review-place.lock` 逐个放窗格，可并行；Claude Code，Opus 5.5，effort high；读到结论即关窗格（标签页随之关），失败的留到本条下一轮；失败说明带 herdr 的错误码，提示卡住与 90 分钟超时分开报；阻塞 5 分钟即报出屏上文字并关掉窗格；审查者的构建、副本与日志都在 `.work/<ID>-r<轮次>/`）
 tests/scripts/review-rules.sh   review.sh 对替身 herdr：claude 起不来、提示超时、提示卡住、阻塞、状态读不出、空结论、窗格关不掉皆败，前三者报出 herdr 的错误码、卡住不说成超时，审查者空闲而结论晚到照等，CRLF 的 jq 照常，首个窗格在调用者右侧、其后分在该列最高的窗格下面，两半的终端都留 10 行才分（框占 2 行，24 行分得、23 行不分），列满即另开标签页、读完结论关掉、开不出即报，两个调用者同时放也不压到 10 行以下、锁 30 秒不放即报，阻塞 10 次即报出屏上文字并关窗格、短暂阻塞照等，提示要求一切留在 `.work/<ID>-r<轮次>/`，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
@@ -184,6 +185,7 @@ tests/scripts/pdf-idle.sh      真窗口 ElyPDF 无文件启动时无 worker 子
 scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、注释（comments.py，只查入库文件）、行尾（eol.sh），全部报出；JS、TS、TSX 与 HTML 脚本的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript 解析，须先在 `site/` 执行 `pnpm install`
 tests/scripts/build-deps.sh      干净的 Ubuntu 24.04、Fedora 44、Arch 容器只照 README 的 Linux 行安装：doctor.sh 装前报缺、装后整体通过、移走 make 即报缺，`ely-mail-engine`、整个工作区与官网建得成（缺 docker 时 SKIP）
 tests/scripts/doctor-rules.sh    doctor.sh 判过旧的工具为失败（替身 node，看退出码）；Cygwin 里跑也找得到其工具；Windows 上照 gpui 构建脚本的次序找 fxc：`GPUI_FXC_PATH`、PATH、SDK 注册表，皆无即报缺（替身 reg，各例自去调用者 PATH 里的 fxc）
+tests/scripts/mac-bash-rules.sh  macOS 上 ci.sh 在 bash 3.2 下不做事即失败、在 bash 5 下照常往下；doctor.sh 判 PATH 里的 bash 3.2 为过旧、5.3 照过，Intel 用的 bash 只认在 Rosetta 下跑得起的 bash 5（arm64 的即缺；只在 macOS）
 tests/scripts/check-rules.sh    check.sh 只数代码文件（末行无 LF 也计）、报出超长文件全名、注释与行尾的失败也使其失败
 tests/scripts/comments-rules.sh  comments.py 对长注释与跨行注释报错（含 JS、HTML 及其脚本、Python 行尾注释与文档字符串），字符串里的 # 不算，相邻的行尾注释不算跨行，未入库与 vendor 的文件不查
 tests/scripts/rpath-rules.sh     rpath.sh（release-macos.sh 逐个调用）对找不到或在包外（含 `..` 与链接）的 `@rpath` 依赖、otool 读不出的文件报错（替身 otool，任意系统可跑）
@@ -255,7 +257,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 完整记录（按日期，含实现细节与实测）在 `docs/decisions.md`。新的决定追加到那里；改变下列常规的，同时改本节。
 
 - 上游：LibreOffice 26.2.6、MuPDF 1.28.5、Git 2.56.0 加 git-lfs 3.8.0、`gpui-pre` =0.3.10，以 `scripts/fetch-references.sh` 为准；组件库跟随其 main，修复在组件库仓库里做并推上去，再改 pin。
-- 仓库与发布在 GitHub 组织 ELY-Open-Source（ElyOffice、Ely-GPUI-Components）。推 `v*` 标签即运行 `.github/workflows/release.yml`：自托管机器上以 `scripts/ci.sh` 构建 macOS（arm64，Rosetta 下的 Intel）、Windows、Linux（WSL 里的 AlmaLinux 8 容器）并上传；四个任务互不等待，`ci.sh` 打包前先以 `scripts/release-tests.sh` 跑全部测试（`ELY_REQUIRE_ENGINES=1`），一个失败即不出包；最先上传的平台把发布建成预发布，四端都上传、核对过后再改为正式并设为最新（`releases/latest` 是官网下载与应用更新所读）。引擎经 `ELY_SHARE` 共用，新的 LibreOffice 补丁须先在三台机器的共享引擎上重建。
+- 仓库与发布在 GitHub 组织 ELY-Open-Source（ElyOffice、Ely-GPUI-Components）。推 `v*` 标签即运行 `.github/workflows/release.yml`：自托管机器上以 `scripts/ci.sh` 构建 macOS（arm64，Rosetta 下的 Intel）、Windows、Linux（WSL 里的 AlmaLinux 8 容器）并上传；四个任务互不等待，`ci.sh` 打包前先以 `scripts/release-tests.sh` 跑全部测试（`ELY_REQUIRE_ENGINES=1`），一个失败即不出包；最先上传的平台把发布建成预发布，四端都上传、核对过后再改为正式并设为最新（`releases/latest` 是官网下载与应用更新所读）。引擎经 `ELY_SHARE` 共用，新的 LibreOffice 补丁须先在三台机器的共享引擎上重建。macOS 的两个任务以 bash 5 起 `ci.sh`（arm64 用 Homebrew 的 `/opt/homebrew/bin/bash`，Intel 用 `build-bash.sh` 建的 `~/ely-share/bash-x86_64`），`ci.sh` 在 macOS 上拒绝 bash 3.2 并把自己的 bash 放在 PATH 最前：系统的 3.2 遇 `set -u` 中止后有 EXIT 陷阱即以 0 退出。
 - Git：main 的历史不改写；提交签名，不写任何署名行。
 - 许可：自有代码 MIT；随包引擎照各自的许可，Linux 包的许可字段取 `packaging/apps.tsv`。
 - macOS 发布以 Developer ID 签名并公证（`ELY_SIGN_IDENTITY`、`ELY_NOTARY_PROFILE`），缺即失败，不出未公证的包。
