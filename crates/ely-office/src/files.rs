@@ -120,10 +120,28 @@ const OOO: &[u8] = b"http://openoffice.org/2004/office";
 /// Whether flat ODF embeds a Basic library, namespaces in scope.
 fn flat_odf_has_basic(bytes: &[u8]) -> io::Result<bool> {
     let text = utf8(bytes)?;
-    if !text.trim_ascii_start().starts_with(b"<") {
+    if !text.trim_ascii_start().starts_with(b"<") || !flat_odf_root(&text) {
         return Ok(false);
     }
     holds(&text, OOO, b"library-embedded")
+}
+
+/// The namespace of flat ODF's `office:document` root.
+const OFFICE: &[u8] = b"urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+
+/// Whether the first element is flat ODF's root.
+fn flat_odf_root(text: &[u8]) -> bool {
+    let mut reader = NsReader::from_reader(text);
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_resolved_event_into(&mut buf) {
+            Ok((bound, Event::Start(tag) | Event::Empty(tag))) => {
+                return bound == ResolveResult::Bound(Namespace(OFFICE)) && tag.local_name().as_ref() == b"document";
+            }
+            Ok((_, Event::Eof)) | Err(_) => return false,
+            Ok(_) => buf.clear(),
+        }
+    }
 }
 
 /// XML bytes in an ASCII-compatible form; UTF-16 decoded.
@@ -330,10 +348,21 @@ mod tests {
             !macro_risk(&KIND, &write("s.fodt", shadowed.as_bytes())).expect("shadowed"),
             "a prefix rebound elsewhere is not Basic"
         );
+        let broken = format!("{}<a></b>", root("ooo"));
         assert!(
-            macro_risk(&KIND, &write("bad.fodt", b"<office:document><a></b>")).is_err(),
-            "broken XML is an error"
+            macro_risk(&KIND, &write("bad.fodt", broken.as_bytes())).is_err(),
+            "broken flat ODF is an error"
         );
+        for (name, text) in [
+            ("heart.txt", "<3 my notes\nsecond line\n"),
+            ("crossed.txt", "<b>bold</i> text"),
+            ("open.txt", "<p>a<br></p>"),
+            ("spaced.txt", "< not a tag"),
+            ("page.txt", "<html><body>hi</body></html>"),
+        ] {
+            let text = write(name, text.as_bytes());
+            assert!(!macro_risk(&KIND, &text).expect(name), "{name} is text");
+        }
         std::fs::remove_dir_all(&dir).expect("cleans");
     }
 
