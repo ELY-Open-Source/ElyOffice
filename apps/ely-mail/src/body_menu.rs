@@ -25,12 +25,11 @@ fn picture_name(url: &str, format: ImageFormat, unnamed: &str) -> String {
         true => url.rsplit('/').next().unwrap_or_default(),
         false => "",
     };
-    let stem = tail.split(['?', '#', '@']).next().unwrap_or_default();
-    let name = match (stem.is_empty(), stem.contains('.')) {
-        (true, _) => format!("{unnamed}.{}", format.extension()),
-        (false, true) => stem.to_owned(),
-        (false, false) => format!("{stem}.{}", format.extension()),
-    };
+    let tail = tail.split(['?', '#']).next().unwrap_or_default();
+    // The bytes' format names the type, not the address.
+    let stem = tail.rsplit_once('.').map_or(tail, |(stem, _)| stem);
+    let stem = if stem.is_empty() { unnamed } else { stem };
+    let name = format!("{stem}.{}", format.extension());
     crate::migrate::file_name_of(&name, unnamed)
 }
 
@@ -125,7 +124,8 @@ mod tests {
     #[test]
     fn a_picture_takes_its_name_from_its_address() {
         let named = |url| picture_name(url, ImageFormat::Png, "picture");
-        assert_eq!(named("https://example.com/a/cat.jpg?size=2"), "cat.jpg");
+        assert_eq!(named("https://example.com/a/cat.png?size=2"), "cat.png");
+        assert_eq!(named("https://example.com/photo.jpg"), "photo.png", "a PNG served as .jpg");
         assert_eq!(named("https://example.com/logo#top"), "logo.png");
         assert_eq!(named("ely-inline:0"), "picture.png");
         assert_eq!(named("https://example.com/"), "picture.png");
