@@ -98,6 +98,14 @@ a::after { content: "</style-template>"; }
 </style>
 EOF
 ! check || fail "a long comment after </style-template> in a style passed"
+cat >"$work/site/video/a.html" <<'EOF'
+<svg><title><!-- One two three four five six seven eight nine ten eleven. --></title></svg>
+EOF
+! check || fail "a long comment in an SVG title passed"
+for end in '</script\xc2\xa0x>' '</\xc5\xbfcript>'; do
+  printf '<script>\nconst tag = "%b";\n// One two three four five six seven eight nine ten eleven.\n</script>\n' "$end" >"$work/site/video/a.html"
+  ! check || fail "a long comment after a false script end passed"
+done
 rm "$work/site/video/a.html"
 printf '/* first */ const a = 1;\n/* second */ const b = 2;\n' >"$work/site/video/lib/a.js"
 check || fail "leading .js comments on two code lines were joined"

@@ -30,9 +30,11 @@ LINE_COMMENT = {
 }
 # Parsed by TypeScript itself: regexes and JSX text included.
 PARSED = {".ts": "ts", ".tsx": "tsx", ".js": "js", ".mjs": "js"}
-TAG = re.compile(r"<(/?)([A-Za-z][\w-]*)")
+TAG = re.compile(r"<(/?)([A-Za-z][\w-]*)", re.ASCII)
 # Elements whose content is text, never markup.
 RAW = ("script", "style", "textarea", "title", "xmp", "iframe", "noembed", "noframes")
+# Their content is markup, raw names included.
+FOREIGN = ("svg", "math")
 
 
 def entry(text, start, end):
@@ -69,7 +71,7 @@ def css(text):
 
 def html(text):
     """Comment spans outside tags, styles' spans, and script bodies."""
-    spans, scripts, i = [], [], 0
+    spans, scripts, i, foreign = [], [], 0, 0
     while (i := text.find("<", i)) >= 0:
         if text.startswith("<!--", i):
             end = text.find("-->", i + 4)
@@ -88,11 +90,13 @@ def html(text):
             j += 1
         j += 1
         name = tag.group(2).lower()
-        if tag.group(1) or name not in RAW:
+        if name in FOREIGN and not text[i:j].endswith("/>"):
+            foreign = max(foreign + (-1 if tag.group(1) else 1), 0)
+        if tag.group(1) or name not in RAW or foreign:
             i = j
             continue
-        # Only the whole name ends it: not "</script-template>".
-        close = re.compile(rf"</{name}(?=[\s/>])", re.I).search(text, j)
+        # The whole name ends it, in ASCII as HTML reads.
+        close = re.compile(rf"</{name}(?=[\t\n\f\r />])", re.I | re.ASCII).search(text, j)
         stop = close.start() if close else len(text)
         if name == "style":
             spans += [(j + s, j + e) for s, e in css(text[j:stop])]
