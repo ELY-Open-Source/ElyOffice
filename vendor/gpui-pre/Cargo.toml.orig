@@ -1,9 +1,9 @@
 [package]
 name = "gpui-pre"
-version = "0.3.10"
+version = "0.3.11"
 edition = { workspace = true }
 authors = ["Nathan Sobo <nathan@zed.dev>"]
-description = "Zed's GPU-accelerated UI framework (gpui-pre snapshot of zed@08cbb88)"
+description = "Zed's GPU-accelerated UI framework (gpui-pre snapshot of zed@f816e1f)"
 repository = "https://github.com/zed-industries/zed"
 publish = true
 license = "Apache-2.0"
@@ -20,7 +20,7 @@ ignored-paths = ["src/_ownership_and_data_flow.rs", "benches/focus_cleanup.rs"]
 [package.metadata.gpui-pre]
 zed-crate = "gpui"
 zed-version = "0.2.2"
-zed-rev = "08cbb88a152c3751a43e853425a70e9f631a5918"
+zed-rev = "f816e1f9263e3a8ef63c4baaa02e1441ce1c6038"
 
 [lib]
 path = "src/gpui.rs"
@@ -29,6 +29,7 @@ name = "gpui"
 [features]
 default = ["font-kit", "wayland", "x11", "windows-manifest"]
 test-support = [
+    "bench_metrics?/test-support",
     "collections/test-support",
     "http_client/test-support",
     "wayland",
@@ -66,7 +67,6 @@ bitflags = { workspace = true }
 collections = { workspace = true }
 bench_metrics = { workspace = true, optional = true }
 criterion = { workspace = true, optional = true }
-ctor = { workspace = true }
 derive_more = { workspace = true, features = ["add", "add_assign", "mul", "mul_assign", "not"] }
 etagere = { workspace = true }
 futures = { workspace = true }
@@ -74,6 +74,7 @@ futures-concurrency = { workspace = true, optional = true }
 gpui_macros = { workspace = true }
 gpui_shared_string = { workspace = true }
 http_client = { workspace = true }
+icu_segmenter = { workspace = true }
 image = { workspace = true }
 inventory = { workspace = true }
 itertools = { workspace = true }
@@ -112,6 +113,7 @@ taffy = { workspace = true, features = [
     "content_size",
 ] }
 thiserror = { workspace = true }
+unicode-segmentation = { workspace = true }
 gpui_util = { workspace = true }
 hdrhistogram = { workspace = true, optional = true }
 waker-fn = "1.2.0"

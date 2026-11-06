@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "gpui-pre"
-version = "0.3.10"
+version = "0.3.11"
 authors = ["Nathan Sobo <nathan@zed.dev>"]
 build = "build.rs"
 publish = true
@@ -21,7 +21,7 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
-description = "Zed's GPU-accelerated UI framework (gpui-pre snapshot of zed@08cbb88)"
+description = "Zed's GPU-accelerated UI framework (gpui-pre snapshot of zed@f816e1f)"
 homepage = "https://gpui.rs"
 readme = "README.md"
 keywords = [
@@ -48,7 +48,7 @@ ignored-paths = [
 [package.metadata.gpui-pre]
 zed-crate = "gpui"
 zed-version = "0.2.2"
-zed-rev = "08cbb88a152c3751a43e853425a70e9f631a5918"
+zed-rev = "f816e1f9263e3a8ef63c4baaa02e1441ce1c6038"
 
 [features]
 bench = ["bench-support"]
@@ -77,6 +77,7 @@ profiler = ["dep:hdrhistogram"]
 screen-capture = ["scap"]
 stacker = ["dep:stacksafe"]
 test-support = [
+    "bench_metrics?/test-support",
     "collections/test-support",
     "http_client/test-support",
     "wayland",
@@ -288,7 +289,7 @@ version = "4.7"
 version = "0.3"
 
 [dependencies.bench_metrics]
-version = "=0.3.10"
+version = "=0.3.11"
 optional = true
 package = "gpui-pre-bench-metrics"
 
@@ -304,16 +305,13 @@ features = [
 default-features = true
 
 [dependencies.collections]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-collections"
 
 [dependencies.criterion]
 version = "0.8.2"
 features = ["html_reports"]
 optional = true
-
-[dependencies.ctor]
-version = "1.0.12"
 
 [dependencies.derive_more]
 version = "2.1"
@@ -339,15 +337,15 @@ version = "7.7.1"
 optional = true
 
 [dependencies.gpui_macros]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-macros"
 
 [dependencies.gpui_shared_string]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-shared-string"
 
 [dependencies.gpui_util]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-util"
 
 [dependencies.hdrhistogram]
@@ -359,8 +357,13 @@ default-features = false
 version = "0.9.2"
 
 [dependencies.http_client]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-http-client"
+
+[dependencies.icu_segmenter]
+version = "2.3.0"
+features = ["compiled_data"]
+default-features = false
 
 [dependencies.image]
 version = "0.25.1"
@@ -439,7 +442,7 @@ default-features = false
 version = "0.6"
 
 [dependencies.refineable]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-refineable"
 
 [dependencies.regex]
@@ -461,7 +464,7 @@ features = [
 default-features = false
 
 [dependencies.scheduler]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-scheduler"
 
 [dependencies.schemars]
@@ -518,7 +521,7 @@ version = "0.28"
 features = ["derive"]
 
 [dependencies.sum_tree]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-sum-tree"
 
 [dependencies.taffy]
@@ -539,6 +542,9 @@ version = "2.0.12"
 
 [dependencies.ttf-parser]
 version = "0.25"
+
+[dependencies.unicode-segmentation]
+version = "1.10"
 
 [dependencies.url]
 version = "2.2"

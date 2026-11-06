@@ -681,14 +681,17 @@ impl Asset for ImageAssetLoader {
                                     }
                                     frames.push(frame);
                                 }
-                                // A bad frame ends it: the decoder may never stop.
-                                Err(err) => return Err(ImageCacheError::Image(Arc::new(err))),
+                                Err(err) => {
+                                    log::debug!(
+                                        "Skipping GIF frame in {source:?} due to decode error: {err}"
+                                    );
+                                }
                             }
                         }
 
                         if frames.is_empty() {
                             return Err(ImageCacheError::Other(Arc::new(anyhow::anyhow!(
-                                "GIF could not be decoded: no frames"
+                                "GIF could not be decoded: all frames failed ({source:?})"
                             ))));
                         }
 
@@ -710,13 +713,17 @@ impl Asset for ImageAssetLoader {
                                         }
                                         frames.push(frame);
                                     }
-                                    Err(err) => return Err(ImageCacheError::Image(Arc::new(err))),
+                                    Err(err) => {
+                                        log::debug!(
+                                            "Skipping WebP frame in {source:?} due to decode error: {err}"
+                                        );
+                                    }
                                 }
                             }
 
                             if frames.is_empty() {
                                 return Err(ImageCacheError::Other(Arc::new(anyhow::anyhow!(
-                                    "WebP could not be decoded: no frames"
+                                    "WebP could not be decoded: all frames failed ({source:?})"
                                 ))));
                             }
 

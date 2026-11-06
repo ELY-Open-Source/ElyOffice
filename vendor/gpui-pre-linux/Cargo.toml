@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "gpui-pre-linux"
-version = "0.3.10"
+version = "0.3.11"
 build = false
 publish = true
 autolib = false
@@ -20,7 +20,7 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
-description = "Zed's `gpui_linux` crate (gpui-pre snapshot of zed@08cbb88)"
+description = "Zed's `gpui_linux` crate (gpui-pre snapshot of zed@f816e1f)"
 readme = false
 license = "Apache-2.0"
 repository = "https://github.com/zed-industries/zed"
@@ -32,7 +32,7 @@ ignored = ["scap"]
 [package.metadata.gpui-pre]
 zed-crate = "gpui_linux"
 zed-version = "0.1.0"
-zed-rev = "08cbb88a152c3751a43e853425a70e9f631a5918"
+zed-rev = "f816e1f9263e3a8ef63c4baaa02e1441ce1c6038"
 
 [features]
 default = [
@@ -117,7 +117,7 @@ version = "0.4.1"
 optional = true
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.collections]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-collections"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.filedescriptor]
@@ -128,22 +128,22 @@ optional = true
 version = "0.3.34"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.gpui]
-version = "=0.3.10"
+version = "=0.3.11"
 default-features = false
 package = "gpui-pre"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.gpui_util]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-util"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.gpui_wgpu]
-version = "=0.3.10"
+version = "=0.3.11"
 features = ["font-kit"]
 optional = true
 package = "gpui-pre-wgpu"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.http_client]
-version = "=0.3.10"
+version = "=0.3.11"
 package = "gpui-pre-http-client"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.libc]

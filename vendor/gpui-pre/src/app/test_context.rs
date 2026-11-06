@@ -218,11 +218,6 @@ impl TestAppContext {
         self.test_platform.did_prompt_for_new_path()
     }
 
-    /// How many times the app asked the platform to quit.
-    pub fn quit_requests(&self) -> usize {
-        self.test_platform.quit_requests()
-    }
-
     /// Returns the number of active idle sleep prevention tokens.
     pub fn active_idle_sleep_preventions(&self) -> usize {
         self.test_platform.active_idle_sleep_preventions()
@@ -762,7 +757,7 @@ impl<T: 'static> Entity<T> {
         Event: Send + Clone + 'static,
         T: EventEmitter<Event>,
     {
-        let (tx, mut rx) = oneshot::channel();
+        let (tx, rx) = oneshot::channel();
         let mut tx = Some(tx);
         let subscription = self.update(cx, |_, cx| {
             cx.subscribe(self, move |_, _, event, _| {
