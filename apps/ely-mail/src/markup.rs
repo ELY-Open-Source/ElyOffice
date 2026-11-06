@@ -16,6 +16,7 @@ pub fn html(words: &str) -> String {
         urls: HashMap::new(),
         notes: HashMap::new(),
         cited: Vec::new(),
+        mark: None,
         out: String::new(),
     };
     writer.gather(&tree);
@@ -31,6 +32,8 @@ struct Writer<'a> {
     notes: HashMap<&'a str, &'a FootnoteDefinition>,
     /// Footnotes in the order first cited.
     cited: Vec<&'a str>,
+    /// A task box for the next paragraph.
+    mark: Option<&'static str>,
     out: String,
 }
 
@@ -81,8 +84,18 @@ impl<'a> Writer<'a> {
                 self.blocks(&it.children, false);
                 self.push("</blockquote>\n");
             }
-            Node::Paragraph(it) if tight => self.inlines(&it.children),
-            Node::Paragraph(it) => self.wrapped("p", &it.children),
+            Node::Paragraph(it) => {
+                if !tight {
+                    self.push("<p>");
+                }
+                if let Some(mark) = self.mark.take() {
+                    self.push(mark);
+                }
+                self.inlines(&it.children);
+                if !tight {
+                    self.push("</p>\n");
+                }
+            }
             Node::Heading(it) => self.wrapped(&format!("h{}", it.depth), &it.children),
             Node::ThematicBreak(_) => self.push("<hr>\n"),
             Node::List(list) => {
@@ -96,10 +109,11 @@ impl<'a> Writer<'a> {
             }
             Node::ListItem(item) => {
                 self.push("<li>");
-                match item.checked {
-                    Some(true) => self.push("☑ "),
-                    Some(false) => self.push("☐ "),
-                    None => {}
+                let mark = item.checked.map(|done| if done { "☑ " } else { "☐ " });
+                // The box sits on its text's line.
+                match item.children.first() {
+                    Some(Node::Paragraph(_)) => self.mark = mark,
+                    _ => self.push(mark.unwrap_or_default()),
                 }
                 self.blocks(&item.children, tight);
                 self.push("</li>\n");
@@ -136,20 +150,24 @@ impl<'a> Writer<'a> {
         self.push(&format!("</{tag}>\n"));
     }
 
+    /// Every row has the header's columns, as GFM reads it.
     fn table(&mut self, rows: &'a [Node], align: &[AlignKind]) {
         self.push("<table>\n");
         for (at, row) in rows.iter().enumerate() {
             let cell = if at == 0 { "th" } else { "td" };
+            let cells = row.children().map_or(&[][..], Vec::as_slice);
             self.push("<tr>");
-            for (column, node) in row.children().into_iter().flatten().enumerate() {
-                let side = match align.get(column) {
-                    Some(AlignKind::Left) => " style=\"text-align:left\"",
-                    Some(AlignKind::Right) => " style=\"text-align:right\"",
-                    Some(AlignKind::Center) => " style=\"text-align:center\"",
-                    _ => "",
+            for (column, side) in align.iter().enumerate() {
+                let side = match side {
+                    AlignKind::Left => " style=\"text-align:left\"",
+                    AlignKind::Right => " style=\"text-align:right\"",
+                    AlignKind::Center => " style=\"text-align:center\"",
+                    AlignKind::None => "",
                 };
                 self.push(&format!("<{cell}{side}>"));
-                self.block(node, true);
+                if let Some(node) = cells.get(column) {
+                    self.block(node, true);
+                }
                 self.push(&format!("</{cell}>"));
             }
             self.push("</tr>\n");
@@ -228,7 +246,7 @@ impl<'a> Writer<'a> {
             let note = self.notes[id];
             at += 1;
             self.push("<li>");
-            self.blocks(&note.children, true);
+            self.blocks(&note.children, false);
             self.push("</li>\n");
         }
         self.push("</ol>\n");

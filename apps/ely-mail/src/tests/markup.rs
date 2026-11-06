@@ -30,7 +30,7 @@ fn lists_tables_references_and_notes() {
         "<td style=\"text-align:left\">1</td>",
         "<del>old</del> <a href=\"https://s.ex\">site</a>",
         "a note<sup>1</sup>.",
-        "<hr>\n<ol>\n<li>The <em>note</em>.</li>",
+        "<hr>\n<ol>\n<li><p>The <em>note</em>.</p>\n</li>",
     ] {
         assert!(made.contains(part), "{part} not in {made}");
     }
@@ -42,4 +42,19 @@ fn code_and_formulas_keep_their_text() {
     assert!(made.contains("<pre><code class=\"language-rust\">let a = 1 &lt; 2;</code></pre>"), "{made}");
     assert!(made.contains("<pre>$$\nx^2\n$$</pre>"), "{made}");
     assert!(made.contains("and $y$"), "{made}");
+}
+
+#[test]
+fn loose_tasks_and_long_notes_keep_their_shape() {
+    let made = html("- [x] first\n\n  second\n- [ ] next\n\na[^n]\n\n[^n]: one\n\n    two\n");
+    assert!(made.contains("<li><p>☑ first</p>\n<p>second</p>"), "{made}");
+    assert!(made.contains("<li><p>☐ next</p>"), "{made}");
+    assert!(made.contains("<li><p>one</p>\n<p>two</p>\n</li>"), "{made}");
+}
+
+#[test]
+fn rows_have_the_header_s_columns() {
+    let made = html("| a |\n|---|\n| shown | hidden |\n\n| a | b |\n|---|---|\n| only |\n");
+    assert!(made.contains("<tr><td>shown</td></tr>") && !made.contains("hidden"), "{made}");
+    assert!(made.contains("<tr><td>only</td><td></td></tr>"), "{made}");
 }
