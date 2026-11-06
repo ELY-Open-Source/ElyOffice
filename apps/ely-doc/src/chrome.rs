@@ -49,13 +49,11 @@ impl Docs {
                 Banner::new("doc-fonts", Severity::Warning, warning)
             });
             let links = self.links_banner(cx);
-            if risk.is_none() && fonts.is_none() && links.is_none() {
-                return view;
-            }
             return div()
                 .size_full()
                 .flex()
                 .flex_col()
+                .child(self.bar.clone())
                 .children(risk)
                 .children(links)
                 .children(fonts)

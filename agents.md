@@ -74,7 +74,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 | 组件库的大纲项（`lists::Outline`）无无障碍角色：屏幕阅读器读不到 | 上游待办；ElyMark 的搜索失败改为结果列表里的行。`feedback::Banner` 已修（fac20ab：危险与警告为 alert，其余为 status，名为其文字），`feedback::Alert` 同（105bf94，名为标题与正文） |
 | `documents::ZenMode` 把正文夹进 Sm 宽的列，与 ElyMark 的正文宽度设置冲突 | ElyMark 不用它，专注模式原生重做（C14.12） |
 | 表格公式栏与名称框（网格是 LOK 图块，`tables::Spreadsheet` 不用） | `apps/ely-table` |
-| Doc/Table/Show 工具栏（`documents::FixedFormatToolbar` 绑 `TextInput`，不接 LOK） | 各 app，用 `shell::Toolbar` 组合 |
+| Doc 工具栏（`documents::FixedFormatToolbar` 绑 `TextInput`，不接 LOK） | ElyDoc 页面上方 `props/bar.rs`，用 `shell::Toolbar` 组合属性面板的同一组命令；Table、Show 无 |
 | CSV 导入的编码、分隔符、引号、列类型（`misc::CsvImporter` 只读逗号 CSV、映射到属主字段，文案写死英文） | `apps/ely-table` 的 `text.rs`，内核按选项导入 |
 | 导出格式与说明（`misc::ExportDialog` 无 TSV，文案写死英文，不能附说明） | 各 app，用 `overlays::Dialog` 组合 |
 | 幻灯片缩略图条（`documents::PageThumbnailList` 只收图片路径，无隐藏标记、右键菜单与重排） | `apps/ely-show` 的 `slides.rs`，内核按页绘制到内存图 |

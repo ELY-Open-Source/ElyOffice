@@ -35,6 +35,7 @@ pub struct Docs {
     pub core: Core<Docs>,
     pub dialog: Option<Dialog>,
     pub props: Entity<Props>,
+    pub bar: Entity<crate::props::Bar>,
     pub review: Entity<Review>,
     /// What the right column shows.
     pub side: Side,
@@ -176,6 +177,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
 impl Docs {
     pub fn new(worker: Arc<Mutex<Worker>>, stop: Option<ely_office::Stop>, work: PathBuf, cx: &mut Context<Self>) -> Self {
         let props = cx.new(|_| Props::new(Arc::clone(&worker)));
+        let bar = cx.new(|cx| crate::props::Bar::new(props.clone(), cx));
         let review = cx.new(|_| Review::new(Arc::clone(&worker)));
         let weak = cx.weak_entity();
         let merge = cx.new(|_| crate::merge::Merge::new(weak.clone()));
@@ -197,6 +199,7 @@ impl Docs {
             core: Core::new(worker, stop, work, cx),
             dialog: None,
             props,
+            bar,
             review,
             side: Side::Props,
             offer: None,

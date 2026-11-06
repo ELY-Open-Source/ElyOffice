@@ -1,5 +1,8 @@
 //! The properties panel (DOC-02 to 08).
 
+mod bar;
+#[cfg(test)]
+mod bar_tests;
 mod builtin;
 #[cfg(test)]
 mod chinese;
@@ -32,6 +35,7 @@ use gpui::{
 };
 
 use crate::docs::Docs;
+pub use bar::Bar;
 
 /// The active document the panel edits.
 struct Shown {
