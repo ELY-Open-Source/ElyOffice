@@ -2,6 +2,7 @@
 
 #include <mupdf/fitz.h>
 #include <mupdf/pdf.h>
+#include <math.h>
 #include <string.h>
 
 static char last_error[512];
@@ -386,8 +387,12 @@ static void outline_json(fz_context *ctx, fz_output *out, fz_document *doc, fz_o
 		if (at.page < 0 && item->uri && !fz_is_external_link(ctx, item->uri))
 			at = fz_resolve_link(ctx, doc, item->uri, NULL, &y);
 		page = at.page >= 0 ? fz_page_number_from_location(ctx, doc, at) : -1;
-		fz_write_printf(ctx, out, "{%q:%q,%q:%d,%q:%g,%q:", "title", item->title ? item->title : "",
-			"page", page, "y", y, "down");
+		fz_write_string(ctx, out, "{\"title\":");
+		ely_json_string(ctx, out, item->title ? item->title : "");
+		fz_write_printf(ctx, out, ",\"page\":%d,\"y\":", page);
+		/* No position given: the page's top. */
+		ely_json_number(ctx, out, isnan(y) ? 0 : y);
+		fz_write_string(ctx, out, ",\"down\":");
 		outline_json(ctx, out, doc, item->down);
 		fz_write_string(ctx, out, item->next ? "}," : "}");
 	}

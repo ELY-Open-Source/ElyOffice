@@ -5,15 +5,14 @@ use gpui::TestAppContext;
 
 use super::{settle, shown, windowed};
 
-/// Two pages; the first's square has an unreadable rectangle.
+/// Two pages; the first's field is its own parent.
 fn bad_then_good() -> Vec<u8> {
-    let nines = "9".repeat(50);
     let objects = [
         "<< /Type /Catalog /Pages 2 0 R >>".to_string(),
         "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>".to_string(),
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Annots [5 0 R] >>".to_string(),
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Annots [6 0 R] >>".to_string(),
-        format!("<< /Type /Annot /Subtype /Square /Rect [0 0 {nines} 100] >>"),
+        "<< /Type /Annot /Subtype /Widget /FT /Tx /T (loop) /Parent 5 0 R /Rect [0 0 100 100] >>".to_string(),
         "<< /Type /Annot /Subtype /Text /Rect [100 500 120 520] /Contents (fine) >>".to_string(),
     ];
     let mut pdf = b"%PDF-1.7\n".to_vec();

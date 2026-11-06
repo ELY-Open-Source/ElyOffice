@@ -330,13 +330,15 @@ int ely_text_blocks(fz_context *ctx, fz_document *doc, int number, unsigned char
 			words = fz_new_buffer(ctx, 256);
 			block_text(ctx, words, block);
 			fz_terminate_buffer(ctx, words);
-			fz_write_printf(ctx, out, "%s{\"rect\":[%g,%g,%g,%g],\"text\":",
-				first ? "" : ",", block->bbox.x0, block->bbox.y0, block->bbox.x1, block->bbox.y1);
+			fz_write_string(ctx, out, first ? "{\"rect\":" : ",{\"rect\":");
+			ely_json_rect(ctx, out, block->bbox);
+			fz_write_string(ctx, out, ",\"text\":");
 			ely_json_string(ctx, out, fz_string_from_buffer(ctx, words));
 			fz_write_string(ctx, out, ",\"font\":");
 			ely_json_string(ctx, out, fz_font_name(ctx, ch->font));
-			fz_write_printf(ctx, out, ",\"size\":%g,\"color\":%d,\"editable\":%s}",
-				ch->size, (int)(ch->argb & 0xffffff), editable ? "true" : "false");
+			fz_write_string(ctx, out, ",\"size\":");
+			ely_json_number(ctx, out, ch->size);
+			fz_write_printf(ctx, out, ",\"color\":%d,\"editable\":%s}", (int)(ch->argb & 0xffffff), editable ? "true" : "false");
 			first = 0;
 		}
 		fz_write_string(ctx, out, "]");

@@ -113,9 +113,11 @@ int ely_objects(fz_context *ctx, fz_document *doc, int number, unsigned char **d
 	pdf_page *page = NULL;
 	drawn *list = NULL;
 	fz_buffer *buf = NULL;
+	fz_output *out = NULL;
 	fz_var(page);
 	fz_var(list);
 	fz_var(buf);
+	fz_var(out);
 	fz_try(ctx)
 	{
 		pdf_document *pdf = ely_pdf_of(ctx, doc);
@@ -123,15 +125,21 @@ int ely_objects(fz_context *ctx, fz_document *doc, int number, unsigned char **d
 		page = pdf_load_page(ctx, pdf, number);
 		n = take_inventory(ctx, pdf, page, &list);
 		buf = fz_new_buffer(ctx, 256);
-		fz_append_byte(ctx, buf, '[');
+		out = fz_new_output_with_buffer(ctx, buf);
+		fz_write_byte(ctx, out, '[');
 		for (i = 0; i < n; i++)
-			fz_append_printf(ctx, buf, "%s{\"kind\":\"%s\",\"rect\":[%g,%g,%g,%g]}", i ? "," : "",
-				list[i].form ? "form" : "image", list[i].rect.x0, list[i].rect.y0, list[i].rect.x1, list[i].rect.y1);
-		fz_append_byte(ctx, buf, ']');
+		{
+			fz_write_printf(ctx, out, "%s{\"kind\":\"%s\",\"rect\":", i ? "," : "", list[i].form ? "form" : "image");
+			ely_json_rect(ctx, out, list[i].rect);
+			fz_write_byte(ctx, out, '}');
+		}
+		fz_write_byte(ctx, out, ']');
+		fz_close_output(ctx, out);
 		*len = fz_buffer_extract(ctx, buf, data);
 	}
 	fz_always(ctx)
 	{
+		fz_drop_output(ctx, out);
 		fz_drop_buffer(ctx, buf);
 		fz_free(ctx, list);
 		fz_drop_page(ctx, (fz_page *)page);

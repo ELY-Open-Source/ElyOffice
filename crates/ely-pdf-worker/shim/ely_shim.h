@@ -46,6 +46,8 @@ pdf_obj *ely_append_content(fz_context *ctx, pdf_document *pdf, pdf_obj *page, f
 const char *ely_add_resource(fz_context *ctx, pdf_obj *page, pdf_obj *type, const char *stem,
 	pdf_obj *ref, char *name, size_t room);
 void ely_json_string(fz_context *ctx, fz_output *out, const char *s);
+void ely_json_number(fz_context *ctx, fz_output *out, double v);
+void ely_json_rect(fz_context *ctx, fz_output *out, fz_rect r);
 fz_json *ely_member(fz_context *ctx, fz_json *obj, const char *key, int type);
 float ely_number(fz_context *ctx, fz_json *array, int at);
 fz_rect ely_rect(fz_context *ctx, fz_json *array, float least);

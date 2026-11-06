@@ -193,8 +193,9 @@ static void put_field(fz_context *ctx, fz_output *out, pdf_document *pdf, pdf_ob
 	fz_var(r);
 	fz_try(ctx)
 	{
-		fz_write_printf(ctx, out, "%s{\"page\":%d,\"object\":%d,\"rect\":[%g,%g,%g,%g],\"signed\":%s,\"name\":",
-			*first ? "" : ",", number, pdf_to_num(ctx, field), r.x0, r.y0, r.x1, r.y1, signd ? "true" : "false");
+		fz_write_printf(ctx, out, "%s{\"page\":%d,\"object\":%d,\"rect\":", *first ? "" : ",", number, pdf_to_num(ctx, field));
+		ely_json_rect(ctx, out, r);
+		fz_write_printf(ctx, out, ",\"signed\":%s,\"name\":", signd ? "true" : "false");
 		*first = 0;
 		ely_json_string(ctx, out, name);
 		if (signd)

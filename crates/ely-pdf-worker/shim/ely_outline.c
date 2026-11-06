@@ -1,5 +1,6 @@
 /* Bookmarks and links: change, list (PDF-07). */
 
+#include <math.h>
 #include <string.h>
 
 #include "ely_shim.h"
@@ -140,10 +141,14 @@ int ely_links(fz_context *ctx, fz_document *doc, int number, unsigned char **dat
 			float x = 0, y = 0;
 			if (!fz_is_external_link(ctx, link->uri))
 				to = fz_page_number_from_location(ctx, doc, fz_resolve_link(ctx, doc, link->uri, &x, &y));
-			fz_write_printf(ctx, out, "%s{\"rect\":[%g,%g,%g,%g],\"uri\":", link == links ? "" : ",",
-				link->rect.x0, link->rect.y0, link->rect.x1, link->rect.y1);
+			fz_write_string(ctx, out, link == links ? "{\"rect\":" : ",{\"rect\":");
+			ely_json_rect(ctx, out, link->rect);
+			fz_write_string(ctx, out, ",\"uri\":");
 			ely_json_string(ctx, out, link->uri ? link->uri : "");
-			fz_write_printf(ctx, out, ",\"page\":%d,\"y\":%g}", to, y);
+			fz_write_printf(ctx, out, ",\"page\":%d,\"y\":", to);
+			/* No position given: the page's top. */
+			ely_json_number(ctx, out, isnan(y) ? 0 : y);
+			fz_write_byte(ctx, out, '}');
 		}
 		fz_write_byte(ctx, out, ']');
 		fz_close_output(ctx, out);

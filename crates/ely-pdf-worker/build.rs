@@ -28,6 +28,7 @@ fn main() {
         .file("shim/ely_pen.c")
         .file("shim/ely_place.c")
         .file("shim/ely_annot.c")
+        .file("shim/ely_json.c")
         .file("shim/ely_form.c")
         .file("shim/ely_ocr.c")
         .file("shim/ely_outline.c")

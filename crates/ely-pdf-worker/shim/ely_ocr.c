@@ -70,7 +70,9 @@ int ely_ocr_page(fz_context *ctx, fz_document *doc, int number, const char *lang
 				for (ch = line->first_char; ch; ch = ch->next)
 					fz_append_rune(ctx, words, ch->c);
 				fz_terminate_buffer(ctx, words);
-				fz_write_printf(ctx, out, "%s{\"rect\":[%g,%g,%g,%g],\"text\":", first ? "" : ",", r.x0, r.y0, r.x1, r.y1);
+				fz_write_string(ctx, out, first ? "{\"rect\":" : ",{\"rect\":");
+				ely_json_rect(ctx, out, r);
+				fz_write_string(ctx, out, ",\"text\":");
 				ely_json_string(ctx, out, fz_string_from_buffer(ctx, words));
 				fz_write_byte(ctx, out, '}');
 				first = 0;

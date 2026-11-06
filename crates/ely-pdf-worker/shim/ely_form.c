@@ -94,7 +94,9 @@ void ely_write_fields(fz_context *ctx, fz_output *out, pdf_page *page)
 			fz_write_printf(ctx, out, "%s{\"id\":%d,\"kind\":\"%s\",\"name\":", widget == pdf_first_widget(ctx, page) ? "" : ",",
 				pdf_to_num(ctx, obj), kind_name(type));
 			ely_json_string(ctx, out, name);
-			fz_write_printf(ctx, out, ",\"rect\":[%g,%g,%g,%g],\"value\":", r.x0, r.y0, r.x1, r.y1);
+			fz_write_string(ctx, out, ",\"rect\":");
+			ely_json_rect(ctx, out, r);
+			fz_write_string(ctx, out, ",\"value\":");
 			write_value(ctx, out, pdf_dict_get_inheritable(ctx, obj, PDF_NAME(V)));
 			fz_write_string(ctx, out, ",\"on\":");
 			ely_json_string(ctx, out, button ? pdf_to_name(ctx, pdf_button_field_on_state(ctx, obj)) : "");
