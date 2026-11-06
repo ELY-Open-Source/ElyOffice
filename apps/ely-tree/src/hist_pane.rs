@@ -1,5 +1,7 @@
 //! The middle in History: the picked commit (TREE-06).
 
+use ely_gpui_component::typography::SelectableText;
+
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant, IconButton},
     data_display::DescriptionList,
@@ -81,7 +83,7 @@ impl Tree {
                     .flex_1()
                     .min_w_0()
                     .text_color(colors.fg)
-                    .child(path.to_string()),
+                    .child(SelectableText::new("file-path", path.to_string())),
             )
             .children(self.look_buttons(path, cx))
             .into_any_element()
@@ -126,12 +128,12 @@ impl Tree {
             .split_once('\n')
             .unwrap_or((&detail.message, ""));
         let label = |key: &str| text(cx, key, &[]);
-        let mut rows =
-            DescriptionList::new().text(label("tree.commit.author"), person(&detail.author));
+        let mut rows = DescriptionList::new()
+            .selectable_text(label("tree.commit.author"), person(&detail.author));
         if (&detail.committer.name, &detail.committer.email)
             != (&detail.author.name, &detail.author.email)
         {
-            rows = rows.text(label("tree.commit.committer"), person(&detail.committer));
+            rows = rows.selectable_text(label("tree.commit.committer"), person(&detail.committer));
         }
         let parents = detail.parents.iter().map(|parent| {
             let (this, id) = (cx.weak_entity(), parent.clone());
@@ -150,11 +152,11 @@ impl Tree {
             signer => format!("{}, {signer}", label(signature(detail.signed))).into(),
         };
         rows = rows
-            .text(label("tree.commit.id"), detail.id.clone())
+            .selectable_text(label("tree.commit.id"), detail.id.clone())
             .item(label("tree.commit.parents"), div().flex().children(parents))
-            .text(label("tree.commit.signature"), signed);
+            .selectable_text(label("tree.commit.signature"), signed);
         if !detail.refs.is_empty() {
-            rows = rows.text(label("tree.commit.refs"), detail.refs.clone());
+            rows = rows.selectable_text(label("tree.commit.refs"), detail.refs.clone());
         }
         div()
             .id("tree-commit-head")
@@ -174,7 +176,10 @@ impl Tree {
                     .aria_label(SharedString::from(subject.to_string()))
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(colors.fg)
-                    .child(subject.to_string()),
+                    .child(SelectableText::new(
+                        "commit-subject-text",
+                        subject.to_string(),
+                    )),
             )
             .when(!body.trim().is_empty(), |head| {
                 let body = SharedString::from(body.trim().to_string());
@@ -184,7 +189,7 @@ impl Tree {
                         .role(Role::Label)
                         .aria_label(body.clone())
                         .text_color(colors.fg_muted)
-                        .child(body),
+                        .child(SelectableText::new("commit-body-text", body)),
                 )
             })
             .child(rows)
@@ -258,6 +263,7 @@ impl Tree {
                     None => file.status.to_string(),
                 };
                 ListItem::new(SharedString::from(format!("tree-touched-{at}")), title)
+                    .selectable_text()
                     .description(about)
                     .selected(picked == Some(at))
                     .on_click(move |_, _, cx| {

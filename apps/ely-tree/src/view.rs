@@ -125,6 +125,7 @@ impl Tree {
         let recent = self.recent.iter().enumerate().map(|(at, path)| {
             let (this, path) = (this.clone(), path.clone());
             ListItem::new(("tree-recent", at), name(&path))
+                .selectable_text()
                 .description(path.display().to_string())
                 .on_click(move |_, _, cx| {
                     this.update(cx, |tree, cx| tree.open_path(path.clone(), cx))
