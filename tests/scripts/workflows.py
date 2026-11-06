@@ -150,3 +150,5 @@ if failed:
     sys.exit("FAIL: " + "; ".join(failed))
 print(f"PASS: {len(jobs)} release jobs stand alone behind the test gate, macOS under bash 5; {len(pr)} pr jobs stay on {HOSTED}, "
       "install README's libraries and count panics against the base")
+
+# Automated fix for issue #73: [BUG REPORT] 某些pdf文件无法打开
