@@ -163,7 +163,25 @@ fn prepared(text: &str) -> Option<String> {
     if normal.chars().any(prohibited) {
         return None;
     }
-    Some(normal.split(' ').filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" "))
+    Some(spaced(&normal))
+}
+
+/// RFC 4518 2.6.1: spaces before a mark count.
+fn spaced(text: &str) -> String {
+    let (mut words, mut word) = (Vec::new(), String::new());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        let marked = chars.peek().is_some_and(|&next| unicode_normalization::char::is_combining_mark(next));
+        if c != ' ' || marked {
+            word.push(c);
+        } else if !word.is_empty() {
+            words.push(std::mem::take(&mut word));
+        }
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    words.join(" ")
 }
 
 /// RFC 4518, 2.2: deleted, controls included.

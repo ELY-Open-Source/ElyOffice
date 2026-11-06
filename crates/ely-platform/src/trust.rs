@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn names_drop_controls_and_refuse_private_use() {
         let one = rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
-        for (root, name, same) in [("Ely test root", "Ely test \0ro\u{200C}ot", true), ("Ely root\u{E000}", "ELY root\u{E000}", false)] {
+        for (root, name, same) in [("Ely test root", "Ely test \0ro\u{200C}ot", true), ("Ely root\u{E000}", "ELY root\u{E000}", false), ("Ely \u{301}root", "Ely  \u{301}root", false)] {
             let root = made(root, NOW, one, None, vec![]);
             let middle = made(name, NOW, ca(), Some(&root), vec![]);
             let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
