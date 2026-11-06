@@ -19,6 +19,7 @@ mod identity;
 mod kinds;
 mod letter;
 mod mail;
+mod markup;
 mod menu;
 mod migrate;
 mod notices;

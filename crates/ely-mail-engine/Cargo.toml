@@ -19,7 +19,6 @@ log.workspace = true
 mail-builder.workspace = true
 mail-parser.workspace = true
 mail-send.workspace = true
-markdown.workspace = true
 mime_guess = "2"
 nom.workspace = true
 percent-encoding = "2"

@@ -191,7 +191,7 @@ fn within<T>(ranges: Vec<(Range<usize>, T)>, start: usize, end: usize) -> Vec<(R
 }
 
 /// Browsers drop these from an address.
-pub(crate) fn link(href: &str) -> Option<String> {
+pub fn link(href: &str) -> Option<String> {
     let cut = |ch: char| ch <= ' ';
     let href: String = href
         .trim_matches(cut)

@@ -30,6 +30,7 @@ mod files;
 mod flows;
 mod leaving;
 mod links;
+mod markup;
 mod migrate;
 mod organize;
 mod outbox;

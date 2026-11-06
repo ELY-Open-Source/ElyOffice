@@ -113,14 +113,13 @@ fn the_original_leaves_hidden_words_out_and_keeps_its_shape() {
 fn plain_text_sends_no_html() {
     let made = bodies(&Writing {
         words: "Yes.\n**not bold**\n\n",
-        markdown: false,
+        html: None,
         signature: "Ana\nAtrium",
         earlier: Some(&Earlier::Quoted {
             lead: "Ben wrote:".into(),
             text: "Lunch?\n\nAt one.".into(),
         }),
-    })
-    .unwrap();
+    });
     assert_eq!(
         made,
         Bodies {
@@ -132,22 +131,19 @@ fn plain_text_sends_no_html() {
 }
 
 #[test]
-fn markdown_sends_html_and_its_source() {
+fn html_goes_with_its_source() {
     let made = bodies(&Writing {
         words: "**Yes** <script>x()</script> [go](javascript:x)",
-        markdown: true,
+        html: Some("<p><strong>Yes</strong></p>\n"),
         signature: "",
         earlier: Some(&Earlier::Quoted {
             lead: "Ben <b@x> wrote:".into(),
             text: "a < b".into(),
         }),
-    })
-    .unwrap();
+    });
     assert!(made.text.starts_with("**Yes** <script>"), "{}", made.text);
     let html = made.html.unwrap();
-    assert!(html.contains("<strong>Yes</strong>"), "{html}");
-    assert!(html.contains("&lt;script&gt;"), "raw HTML escaped: {html}");
-    assert!(!html.contains("javascript:"), "{html}");
+    assert!(html.starts_with("<p><strong>Yes</strong></p>\n<p>Ben"), "{html}");
     assert!(html.contains("<p>Ben &lt;b@x&gt; wrote:</p>"), "{html}");
     assert!(html.contains("a &lt; b</blockquote>"), "{html}");
 }
@@ -160,14 +156,13 @@ fn a_forward_carries_its_header_lines_unquoted() {
     ];
     let made = bodies(&Writing {
         words: "",
-        markdown: true,
+        html: Some(""),
         signature: "Ben",
         earlier: Some(&Earlier::Forwarded {
             lead: lead.to_vec(),
             text: "Hi\nthere".into(),
         }),
-    })
-    .unwrap();
+    });
     assert_eq!(
         made.text,
         "-- \nBen\n\n---------- Forwarded ----------\nFrom: Ana\n\nHi\nthere"

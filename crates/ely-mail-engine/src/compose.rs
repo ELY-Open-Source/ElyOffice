@@ -1,6 +1,6 @@
 //! Answers, forwards and the bodies they send (C12.12, MAIL-05).
 
-use crate::{Error, Mail, Mailbox, Part, Result, page};
+use crate::{Mail, Mailbox, Part, page};
 use serde::{Deserialize, Serialize};
 
 /// Where an answer or a forward starts.
@@ -115,8 +115,8 @@ pub enum Earlier {
 /// What the writer wrote, and what goes under it.
 pub struct Writing<'a> {
     pub words: &'a str,
-    /// The words are Markdown; plain text only otherwise.
-    pub markdown: bool,
+    /// The words as HTML; plain text only without.
+    pub html: Option<&'a str>,
     /// Empty for none.
     pub signature: &'a str,
     pub earlier: Option<&'a Earlier>,
@@ -129,7 +129,7 @@ pub struct Bodies {
     pub html: Option<String>,
 }
 
-pub fn bodies(writing: &Writing) -> Result<Bodies> {
+pub fn bodies(writing: &Writing) -> Bodies {
     let words = writing.words.trim_end();
     let signature = writing.signature.trim();
     let mut text = Vec::new();
@@ -156,11 +156,10 @@ pub fn bodies(writing: &Writing) -> Result<Bodies> {
         None => {}
     }
     let text = text.join("\n\n");
-    if !writing.markdown {
-        return Ok(Bodies { text, html: None });
-    }
-    let mut html = markdown::to_html_with_options(words, &markdown::Options::gfm())
-        .map_err(|err| Error::Mime(err.to_string()))?;
+    let Some(html) = writing.html else {
+        return Bodies { text, html: None };
+    };
+    let mut html = html.to_owned();
     if !signature.is_empty() {
         html.push_str(&format!("<p>-- <br>\n{}</p>\n", lines(signature)));
     }
@@ -177,10 +176,10 @@ pub fn bodies(writing: &Writing) -> Result<Bodies> {
         )),
         None => {}
     }
-    Ok(Bodies {
+    Bodies {
         text,
         html: Some(html),
-    })
+    }
 }
 
 /// Each line behind `> `; a blank one behind `>`.

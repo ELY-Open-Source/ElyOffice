@@ -78,10 +78,10 @@ pub struct Outgoing {
 pub fn prepare(out: &Outgoing) -> Result<Letter> {
     let bodies = compose::bodies(&Writing {
         words: &out.words,
-        markdown: out.markdown,
+        html: out.markdown.then(|| crate::markup::html(&out.words)).as_deref(),
         signature: &out.signature,
         earlier: out.before.as_ref(),
-    })?;
+    });
     let built = build(&Draft {
         from: out.from.clone(),
         to: out.to.clone(),

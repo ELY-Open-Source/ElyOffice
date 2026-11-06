@@ -378,7 +378,7 @@ XFA 动态表单、任意嵌入脚本执行、专业印前分色及 PDF 到 Offi
 
 提供多账号邮件客户端，不建设邮件托管服务。协议与 MIME 用 Rust crate（用户 2026-10-19 定，取代 MailCore 2）：IMAP（imap-proto 解析）与 POP3 由 Ely 自写（async-imap 与 async-pop 有数处缺陷，C12.1 审查查出），mail-send 发 SMTP，mail-parser 读 MIME，mail-builder 写 MIME。它们在应用进程的后台任务里运行，不另起工作进程。Ely 负责账号流程、本地存储、搜索、同步队列和界面。
 
-默认布局为账号与文件夹、邮件列表、阅读区。写信可在独立窗口打开。HTML 正文与写信不用 CEF 与 Electron（用户 2026-10-19 定）：正文以 html5ever 解析，净化后按块的子集由 GPUI 绘制（段落、标题、列表、引用、表格、图片、链接、粗斜体与颜色），脚本、定位、浮动与样式表之外的版式不画，不当作完整页面渲染；写信用组件库的 Markdown 文档组件，发出纯文本与由 markdown-rs 生成的 HTML 两部分。
+默认布局为账号与文件夹、邮件列表、阅读区。写信可在独立窗口打开。HTML 正文与写信不用 CEF 与 Electron（用户 2026-10-19 定）：正文以 html5ever 解析，净化后按块的子集由 GPUI 绘制（段落、标题、列表、引用、表格、图片、链接、粗斜体与颜色），脚本、定位、浮动与样式表之外的版式不画，不当作完整页面渲染；写信用组件库的 Markdown 文档组件，发出纯文本与 HTML 两部分，HTML 由组件库的 Markdown 树（与写信框同一份读法）写出，原始 HTML 照文字，只留 http、https 与 mailto 的链接。
 
 内置登录：Microsoft 走 OAuth；Gmail 走应用专用密码（用户 2026-10-22 定：未经 Google 验证的客户端见警告、上限 100 人，Gmail 范围须过 CASA 评估）。应用专用密码要求开启两步验证，两步验证只用安全密钥、账号加入高级保护计划或组织管理员关掉时 Google 不提供，添加页写明此前提、被拒时写明怎么办。Gmail 的 OAuth 计划：先过 Google 的应用验证与受限范围 `https://mail.google.com/` 每年一次的 CASA 评估，过了再加 OAuth 登录、与应用专用密码并存；何时启动由用户定，未启动前不写进发布说明；iCloud 不给第三方 OAuth，走应用专用密码向导（服务器 `imap.mail.me.com:993`、`smtp.mail.me.com:587`，无 POP3）[S10]。网络随系统代理（HTTP CONNECT、SOCKS5）。OAuth 的客户端 ID 在构建时注入，缺 ID 的构建里该登录写明不可用。
 
@@ -646,7 +646,7 @@ Ely 主题 token 用于内容区。键盘、焦点、选择、缩放、右键菜
 
 不引入 Kubernetes、Docker 运行依赖、远程数据库、消息中间件、事件溯源系统、通用插件市场、统一知识图谱、分布式搜索或独立账号中心。
 
-应用间不做 RPC 服务发现。Agent 不以独立后台服务器为前提。Git 不同时接入多个 Git 内核。Markdown 只有一个解析内核（pulldown-cmark）；ElyMail 写信转 HTML 仍用 markdown-rs，R16.31 改掉之前此条未满足。新抽象必须服务于已有的重复需求。
+应用间不做 RPC 服务发现。Agent 不以独立后台服务器为前提。Git 不同时接入多个 Git 内核。Markdown 只有一个解析内核（pulldown-cmark，经组件库的 Markdown 树）。新抽象必须服务于已有的重复需求。
 
 ## 18. 数据、配置与隐私
 
@@ -774,7 +774,7 @@ Doc、Table、Show 的 PDF 输出由 LOK 完成，不要求安装 ElyPDF。ElyMa
 | MuPDF | 按锁定版本的 AGPL 条款提供对应源码、修改、集成和构建资料；不把公开 UI 仓库当成已完成合规 [S8][S9] |
 | LibreOffice/LOK | 保留 MPL 2.0 及附带依赖的相应声明；发布对受约束文件的修改与所需资料 [S5] |
 | Git | 作为独立程序分发并遵守其 GPLv2 等实际适用条款；提供所发行版本的源码取得方式 [S23] |
-| Markdown | 保留 pulldown-cmark、RaTeX（含随带字体）、mermaid-rs-renderer 及其依赖的许可，R16.31 之前另有 ElyMail 的 markdown-rs；逐项检查实际发行包 [S14][S15][S16] |
+| Markdown | 保留 pulldown-cmark、RaTeX（含随带字体）、mermaid-rs-renderer 及其依赖的许可；逐项检查实际发行包 [S14][S15][S16] |
 | OCR、字体、词典和媒体组件 | 记录每个资源的来源、版本和再分发条件，不从系统目录随意拷贝受限资源 |
 
 MuPDF 的 AGPL 路线允许符合条件的开源集成；“项目开源”本身不足以证明整个发行包已经符合条件。是否收费与源码义务分开处理。[S8][S9]

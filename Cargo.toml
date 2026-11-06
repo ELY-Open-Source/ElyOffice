@@ -27,7 +27,6 @@ gpui_platform = { package = "gpui-pre-platform", version = "=0.3.11", features =
 futures = "0.3"
 libc = "0.2"
 log = "0.4"
-markdown = "=1.0.0"
 metal = "0.33"
 notify = "8"
 quick-xml = "0.41"
