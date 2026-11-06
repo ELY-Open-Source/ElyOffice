@@ -14,7 +14,7 @@
 | Doc / Table / Show | LibreOfficeKit，独立工作进程 |
 | Show 媒体 | 各平台原生：macOS AVFoundation，Windows Media Foundation，Linux GStreamer（LOK 不放媒体） |
 | PDF | MuPDF（C 接口），Tesseract OCR，独立工作进程 |
-| Mail | mail-send、mail-parser、mail-builder，IMAP（imap-proto 解析）与 POP3 由引擎自写（`crates/ely-mail-engine`，应用进程内的后台任务，无 worker）+ SQLite（FTS5）；网络随系统代理（HTTP CONNECT、SOCKS5）；正文以 html5ever 解析、净化后按块的子集由 GPUI 绘制；写信用 `documents::MarkdownDocument`，发出纯文本与 HTML；Microsoft 走 OAuth，Gmail 与 iCloud 走应用专用密码 |
+| Mail | mail-send、mail-parser、mail-builder，IMAP（imap-proto 解析）与 POP3 由引擎自写（`crates/ely-mail-engine`，应用进程内的后台任务，无 worker）+ SQLite（FTS5）；网络随系统代理（HTTP CONNECT、SOCKS5）；正文以 html5ever 解析、净化后按块的子集由 GPUI 绘制；写信用 `documents::MarkdownDocument`，发出纯文本与 HTML；Microsoft 走 OAuth，Gmail 与 iCloud 走应用专用密码，QQ 邮箱、163 邮箱、126 邮箱走授权码 |
 | Tree | Git CLI，参数数组启动 |
 | Mark | 组件库 `documents::MarkdownDocument`（GPUI，原文即文本，无序列化）；组件库的 Markdown 树（`documents::mdast`，pulldown-cmark 建）解析与导出 HTML，RaTeX 公式，mermaid-rs-renderer 图；PDF 经 `ely-pdf-worker` 由 MuPDF 排版 |
 | Agent | Kigi CLI 的 Rust 代码直接嵌入（不用 ACP），沿用其提供商登录与模型配置 |
@@ -277,7 +277,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - 本机别的程序经 `ely-table cell docs|get|set|save` 读写 ElyTable 已打开工作簿的单元格并保存：请求走实例门（本机回环、令牌文件只给同一用户），由应用以 `ely_ui::on_ask` 作答；始终开着；按地址读写由内核补丁 0058 完成，不动用户的光标与选区。ElyDoc 同样经 `ely-doc text docs|get|replace|save`：读的是内核导出的 fodt 副本里正文的段落（`ely_office::remote::body_text`，不含脚注、批注、文本框与删除的修订），替换是 Writer 的全部替换（精确、区分大小写、静默，光标照旧，一步撤销，一处没有即报错）。ElyShow 经 `ely-show text docs|get|replace|save`：读 fodp 副本里每张幻灯片的文本对象（`ely_office::remote::slide_text`，一段一行，幻灯片之间换页符，不含备注与批注，正是 LOK 下 Impress 全部替换所及），替换同为 `text.replace`，照 Impress 每个改到的文本框一步撤销；Impress 有选中对象时只在其中替换，故先取消选中、替换后按序号重选（重读对象核对未变，再以新版本号选），所在幻灯片与选中照旧。ElyMark 经 `ely-mark text docs|get|replace|save`：读的是文档此刻的 Markdown 原文（含未写回的键入），替换是原文里精确、区分大小写的全部替换，经组件库 `MarkdownDocument::replace` 先写回开着的块、一步撤销；预览模式拒绝。命令行、`docs`、`save` 与按文件找标签在 `ely_office::remote`，各应用只写自己的动词。
 - ElyTable 的 R 宏（实验性，TABLE-17）：只在用户点运行时以参数数组起 `Rscript --vanilla`（不经 shell），处理所选区域的类型化副本，只用 base R；Rscript 依次取 `ELY_RSCRIPT`、PATH、R 的安装位置，找不到即说明如何安装，从不代装；R 不是沙箱，以用户权限运行；Windows 上进 Job 对象、Unix 上自成进程组，停止、关对话框或 30 秒即整树结束；返回的整批先校验，worker 核对版本号，内核（补丁 0081）重读选区后在一个撤销组里写值、表头与列宽；公式只读；日志不含代码、单元格值与 R 的输出。详见 `docs/r-macros.md`。
 - ElyMark 原生实现（组件库 Markdown 组件与其 Markdown 树），不用 CEF、Electron；Typora 只作参照，读同一文件不同时随 GitHub（GFM）。
-- ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码。网络随系统代理。
+- ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码，QQ 邮箱、163 邮箱、126 邮箱走授权码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。
 - 合并前：`.github/workflows/pr.yml` 在每个 PR 与 main 的推送上，以 GitHub 托管的 Ubuntu 建 MuPDF（PDF worker 才编得过）后跑 check.sh、deny.sh、panics.py（数量比 PR 的基线或推送前的提交）、整个工作区的 clippy（告警即败）与不需引擎的测试（严格模式）；PR 从不上自托管机器，带引擎的全部测试是发布的门（release-tests.sh）。
 - 审查：每条任务由 `scripts/review.sh` 交另一个 Claude Code（Kimi K3.1 Pro，effort high）审查，至多三轮。

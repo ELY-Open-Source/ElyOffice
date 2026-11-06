@@ -70,7 +70,7 @@ R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五�
 
 ## ElyMark 的跨段选取
 
-R14.29（过审：R16.18 加审 r4 PASS，bda2e9a0）：可视模式拖动与 Shift 加上下越出所开的块，所跨的块合成一个原文文本框，复制、删除、键入随之，一步撤销，行内格式逐块施加。修在组件库；2026-10-30 在 pin 9d922a3 上重跑组件库 `ely-documents` 的 `document::tests::span`、`document::tests::format` 与 `blocks::tests::span`，49 个皆过；现 pin 01fe68d 推送前组件库全部库测试皆过。
+R14.29（过审：R16.18 加审 r4 PASS，bda2e9a0）：可视模式拖动与 Shift 加上下越出所开的块，所跨的块合成一个原文文本框，复制、删除、键入随之，一步撤销，行内格式逐块施加。修在组件库；2026-10-30 在 pin 9d922a3 上重跑组件库 `ely-documents` 的 `document::tests::span`、`document::tests::format` 与 `blocks::tests::span`，49 个皆过；当时的 pin 01fe68d 推送前组件库全部库测试皆过。
 
 ## GitHub issue
 
