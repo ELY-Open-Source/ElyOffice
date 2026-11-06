@@ -2,7 +2,7 @@
 
 ## 打开与保存
 
-- 文件菜单在 ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMark 里相同：新建、打开、保存（Cmd+S）、另存为、导出（Cmd+E）、打印（Cmd+P）；ElyMail 与 ElyTree 的文件菜单只有新建与打开；Cmd+W 关闭标签，Cmd+, 打开设置。
+- 文件菜单在 ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMark 里相同：新建、打开、保存（Cmd+S）、另存为、导出（Cmd+E）、打印（Cmd+P）；ElyMark 另在另存为之后有重命名（F2）；ElyMail 与 ElyTree 的文件菜单只有新建与打开；Cmd+W 关闭标签，Cmd+, 打开设置。
 - 新建的文档在第一次保存时才选位置。保存保留原格式；另存为写新文件，原文件不动。
 - 含宏的文件、已签名的 PDF、修复过的 PDF 只能另存副本，上方提示条写明原因。
 - 外部程序改了你正在编辑的文件时，Ely 不覆盖，询问从磁盘重载、保留你的版本或另存副本（ElyMark 另可逐处比较合并）。

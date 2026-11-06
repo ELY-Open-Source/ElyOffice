@@ -4,7 +4,7 @@
 
 ## 自有代码
 
-Ely Office 的自有代码以 MIT 发布，全文在仓库根的 `LICENSE`，并随每个应用包放在其许可目录：macOS 为 `.app` 里的 `Resources/Licenses/`，Windows 为安装目录的 `licenses/`，Linux 为 AppImage 与各包里 `usr/bin/licenses/`。随包的引擎不随之改许可：ElyPDF 链接的 MuPDF 是 AGPL-3.0，ElyPDF 的发行包整体须按 AGPL 履行（对应源码见上游源码包）；ElyDoc、ElyTable、ElyShow 的 LibreOffice 仍为 MPL-2.0 等；ElyTree 带的 Git 仍为 GPL-2.0。组件库 Ely-GPUI-Components 保留其 MIT/Apache-2.0。
+Ely Office 的自有代码以 MIT 发布，全文在仓库根的 `LICENSE`，并随每个应用包放在其许可目录：macOS 为 `.app` 里的 `Resources/Licenses/`，Windows 为安装目录的 `licenses/`，Linux 的 AppImage 为其内的 `usr/bin/licenses/`，deb、rpm、Arch 包装好后为 `/opt/ely-office/<应用>/bin/licenses/`。随包的引擎不随之改许可：ElyPDF 链接的 MuPDF 是 AGPL-3.0，ElyPDF 的发行包整体须按 AGPL 履行（对应源码见上游源码包）；ElyDoc、ElyTable、ElyShow 的 LibreOffice 仍为 MPL-2.0 等；ElyTree 带的 Git 仍为 GPL-2.0。组件库 Ely-GPUI-Components 保留其 MIT/Apache-2.0。
 
 ## 每个发行版附带
 
