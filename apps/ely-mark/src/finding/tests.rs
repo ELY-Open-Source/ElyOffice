@@ -104,6 +104,29 @@ fn a_step_shows_the_next_match(cx: &mut TestAppContext) {
     assert_eq!(current, Some(1));
 }
 
+/// Enter in the find box steps on and edits nothing (#60).
+#[gpui::test]
+fn enter_steps_through_matches_and_escape_lands_in_one(cx: &mut TestAppContext) {
+    let source = "one\n\ntwo one\n\nthree one\n";
+    let (desk, cx, _files) = opened(source, cx);
+    query(&desk, "one", cx);
+    let at = |desk: &Entity<Desk>, cx: &mut VisualTestContext| {
+        desk.read_with(cx, |desk, _| desk.finding.as_ref().and_then(|find| find.current))
+    };
+    for want in [0, 1, 2, 0] {
+        cx.simulate_keystrokes("enter");
+        cx.run_until_parked();
+        assert_eq!(at(&desk, cx), Some(want), "Enter steps on");
+    }
+    assert_eq!(current_text(&desk, cx), source, "Enter edits nothing");
+    cx.simulate_keystrokes("enter escape");
+    cx.run_until_parked();
+    assert!(desk.read_with(cx, |desk, _| desk.finding.is_none()), "Escape closes");
+    cx.simulate_input("1");
+    cx.run_until_parked();
+    assert_eq!(current_text(&desk, cx), "one\n\ntwo 1\n\nthree one\n", "typing takes the match");
+}
+
 #[gpui::test]
 fn the_table_menu_inserts_and_edits_a_table(cx: &mut TestAppContext) {
     let (desk, cx, _files) = opened("Intro\n", cx);

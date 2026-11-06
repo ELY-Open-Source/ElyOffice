@@ -116,7 +116,7 @@ impl Desk {
         }
         let document = view.read(cx).document().clone();
         mark(&document, &hits, Some(current), cx);
-        document.update(cx, |document, cx| document.show_match(range, window, cx));
+        document.update(cx, |document, cx| document.point_match(range, window, cx));
         cx.notify();
     }
 
@@ -161,9 +161,10 @@ impl Desk {
         };
         let hits = find.hits.clone();
         mark(&document, &hits, find.current, cx);
-        document.update(cx, |document, cx| document.show_match(range, window, cx));
+        document.update(cx, |document, cx| document.point_match(range, window, cx));
     }
 
+    /// Closes the box; the current match takes the keys.
     fn close_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(find) = self.finding.take() else {
             return;
@@ -172,6 +173,10 @@ impl Desk {
             let document = tab.view.read(cx).document().clone();
             mark(&document, &[], None, cx);
             window.focus(&tab.view.read(cx).focus.clone(), cx);
+            let shown = Some(find.tab) == self.core.active();
+            if let Some(range) = find.current.and_then(|at| find.hits.get(at).cloned()).filter(|_| shown) {
+                document.update(cx, |document, cx| document.show_match(range, window, cx));
+            }
         }
         cx.notify();
     }
