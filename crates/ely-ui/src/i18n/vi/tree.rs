@@ -99,6 +99,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("tree.find.author", "Tác giả"),
     ("tree.find.hash", "Mã lần chuyển giao"),
     ("tree.find.content", "Văn bản đã thay đổi"),
+    ("tree.log.graph", "Hiển thị đồ thị commit"),
     ("tree.log.none", "Chưa có lần chuyển giao nào"),
     ("tree.log.none_found", "Không có lần chuyển giao nào khớp"),
     ("tree.log.unread", "Không đọc được lịch sử"),
