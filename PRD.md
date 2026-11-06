@@ -24,7 +24,7 @@ Ely Office 提供八个桌面应用。用户可以写文档、计算表格、制
 | ElyPDF | PDF 阅读、编辑、批注、表单和页面处理 | MuPDF；OCR 复用 Tesseract | PDF |
 | ElyMail | 邮件收发、本地存储和搜索 | Rust 的 mail-send、mail-parser、mail-builder（IMAP 与 POP3 由引擎自写），加本地同步与存储 | 邮件、附件、草稿 |
 | ElyTree | Git 图形化版本管理 | Git CLI | 本地 Git 仓库 |
-| ElyMark | 本地 Markdown 编辑 | Ely-GPUI-Components 的 Markdown 文档组件，markdown-rs 解析；参考 MarkText、ColaMD、Markion | Markdown 与本地附件 |
+| ElyMark | 本地 Markdown 编辑 | Ely-GPUI-Components 的 Markdown 文档组件，pulldown-cmark 解析；参考 MarkText、ColaMD、Markion | Markdown 与本地附件 |
 | ElyAgent | 独立的 Agent 配置与会话管理 | 嵌入的 Kigi CLI Rust 代码 | 配置、会话记录、运行状态 |
 
 LOK、MuPDF 和 GPUI 是已确定的方向。邮件协议 crate、Markdown 文档组件、邮件正文渲染和下文的发行默认值，是本 PRD 采用的工程基线，仍须通过三端接入验收。不得把未测试的接口写成已支持功能。
@@ -477,7 +477,7 @@ Git 托管、PR 审核平台、Issue 系统、CI 平台和远程开发环境不�
 
 提供以本地 Markdown 文件为中心的编辑器。支持可视化编辑、源码编辑和只读预览。文件可由其他编辑器、Git 或 Agent 修改，不要求导入专有知识库。
 
-界面用 Ely-GPUI-Components 的 Markdown 文档组件，全部原生 GPUI：全文只在一个源码编辑器里，可视模式按块渲染，按下的块以原文编辑；源码与预览共用同一份文本。解析用 markdown-rs，公式用 RaTeX，Mermaid 用 mermaid-rs-renderer。文本即文件原文，不经编辑模型序列化。[S14][S15][S16]
+界面用 Ely-GPUI-Components 的 Markdown 文档组件，全部原生 GPUI：全文只在一个源码编辑器里，可视模式按块渲染，按下的块以原文编辑；源码与预览共用同一份文本。解析用 pulldown-cmark（组件库的 Markdown 树），公式用 RaTeX，Mermaid 用 mermaid-rs-renderer。文本即文件原文，不经编辑模型序列化。[S14][S15][S16]
 
 参考 MarkText 的 Markdown 编辑行为、ColaMD 的本地文件同步和内容保留规则、Markion 的 GPUI 原生 Markdown 编辑，不复制其整个应用窗口。不用 Electron，不用 CEF 或其他网页内容宿主。[S17][S18]
 
@@ -646,7 +646,7 @@ Ely 主题 token 用于内容区。键盘、焦点、选择、缩放、右键菜
 
 不引入 Kubernetes、Docker 运行依赖、远程数据库、消息中间件、事件溯源系统、通用插件市场、统一知识图谱、分布式搜索或独立账号中心。
 
-应用间不做 RPC 服务发现。Agent 不以独立后台服务器为前提。Git 不同时接入多个 Git 内核。Markdown 只有一个解析内核（markdown-rs）。新抽象必须服务于已有的重复需求。
+应用间不做 RPC 服务发现。Agent 不以独立后台服务器为前提。Git 不同时接入多个 Git 内核。Markdown 只有一个解析内核（pulldown-cmark）；ElyMail 写信转 HTML 仍用 markdown-rs，R16.31 改掉之前此条未满足。新抽象必须服务于已有的重复需求。
 
 ## 18. 数据、配置与隐私
 
@@ -774,7 +774,7 @@ Doc、Table、Show 的 PDF 输出由 LOK 完成，不要求安装 ElyPDF。ElyMa
 | MuPDF | 按锁定版本的 AGPL 条款提供对应源码、修改、集成和构建资料；不把公开 UI 仓库当成已完成合规 [S8][S9] |
 | LibreOffice/LOK | 保留 MPL 2.0 及附带依赖的相应声明；发布对受约束文件的修改与所需资料 [S5] |
 | Git | 作为独立程序分发并遵守其 GPLv2 等实际适用条款；提供所发行版本的源码取得方式 [S23] |
-| Markdown | 保留 markdown-rs、RaTeX（含随带字体）、mermaid-rs-renderer 及其依赖的许可；逐项检查实际发行包 [S14][S15][S16] |
+| Markdown | 保留 pulldown-cmark、RaTeX（含随带字体）、mermaid-rs-renderer 及其依赖的许可，R16.31 之前另有 ElyMail 的 markdown-rs；逐项检查实际发行包 [S14][S15][S16] |
 | OCR、字体、词典和媒体组件 | 记录每个资源的来源、版本和再分发条件，不从系统目录随意拷贝受限资源 |
 
 MuPDF 的 AGPL 路线允许符合条件的开源集成；“项目开源”本身不足以证明整个发行包已经符合条件。是否收费与源码义务分开处理。[S8][S9]
@@ -913,8 +913,8 @@ UI 自动测试、内核测试和手工交互测试互相补充。三端的输�
 [S13] Git 官方文档，git-status 与 porcelain 输出格式。  
 `https://git-scm.com/docs/git-status`
 
-[S14] markdown-rs 官方仓库，CommonMark、GFM 与扩展语法解析，许可证。  
-`https://github.com/wooorm/markdown-rs`
+[S14] pulldown-cmark 官方仓库，CommonMark 与 GFM 扩展的解析，许可证。  
+`https://github.com/pulldown-cmark/pulldown-cmark`
 
 [S15] RaTeX 官方仓库，LaTeX 公式排版与许可证。  
 `https://github.com/erweixin/RaTeX`

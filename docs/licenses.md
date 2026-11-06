@@ -28,9 +28,9 @@ Ely Office 的自有代码以 MIT 发布，全文在仓库根的 `LICENSE`，并
 | Git 2.56.0 | GPL-2.0（部分 LGPL-2.1） | COPYING、LGPL-2.1；源码在上游源码包 | Tree（Mark 使用同级 Tree 包内的 Git） |
 | git-lfs 3.8.0 | MIT | LICENSE.md（按标签与散列取得） | Tree |
 | KaTeX 字体（随 RaTeX 嵌入） | OFL-1.1 | OFL、FONT_NOTICE | Mark |
-| 媒体播放 | 系统框架（AVFoundation），不随包 | — | Show |
+| 媒体播放 | 系统框架（macOS AVFoundation、Windows Media Foundation、Linux GStreamer），不随包 | — | Show |
 
 ## 未尽之处
 
 - ElyAgent 的依赖随第二批补上；ElyMail 的 crate 由 `rust-crates.txt` 收集。
-- Windows 与 Linux 的打包脚本未在本机运行，其许可收集未验证。
+- Windows 与 Linux 包的许可同经 `packaging/stage.sh` 收集，0.1.11 起三端发布皆经它；但只有 macOS 包由 `tests/scripts/release-macos.sh` 核对许可齐全，Windows 与 Linux 包里的许可未经测试核对。

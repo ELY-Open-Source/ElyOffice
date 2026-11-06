@@ -12,10 +12,10 @@ Download from [office.elygpui.com](https://office.elygpui.com) or the [latest re
 | ElyPDF | PDF reading and editing, OCR, signatures | MuPDF, Tesseract |
 | ElyMail | Mail over IMAP, POP3 and SMTP; follows the system proxy | own IMAP and POP3, mail-send, SQLite |
 | ElyTree | Git client | Git |
-| ElyMark | Markdown | markdown-rs, RaTeX, mermaid-rs-renderer |
+| ElyMark | Markdown | pulldown-cmark, RaTeX, mermaid-rs-renderer; MuPDF for PDF export |
 | ElyAgent | Second release | Kigi CLI |
 
-ElyMail signs in to Microsoft with OAuth, and to Gmail and iCloud with an app password.
+ElyMail signs in to Microsoft with OAuth, to Gmail and iCloud with an app password, and to QQ Mail, 163 and 126 with an authorization code.
 
 ## Build
 
@@ -74,10 +74,11 @@ Pushing a `v*` tag runs `.github/workflows/release.yml`. Self-hosted runners bui
 | `tasks/TASKS.md` | Progress |
 | `docs/decisions.md` | Decision log, by date |
 | `docs/help.md` | Help: opening and saving, panels, recovery, offline limits, repositories, mail |
-| `docs/compatibility.md` | Compatibility list for the current release |
+| `docs/compatibility.md` | Compatibility list, last verified for 0.1.11 |
 | `docs/accessibility.md` | Accessibility and language review |
 | `docs/perf/` | Benchmark records |
 | `docs/licenses.md` | Licences and sources |
+| `docs/acceptance.md` | Audit acceptance: each item, its task and its last review |
 | `CONTRIBUTING.md` | Opening a pull request |
 
 ## Licence
