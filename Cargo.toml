@@ -45,6 +45,7 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 html5ever = "0.39"
 sha2 = "0.10"
 ring = "0.17"
+stringprep = "0.1"
 tempfile = "3"
 unicase = "2.10"
 ureq = { version = "3", features = ["socks-proxy"] }

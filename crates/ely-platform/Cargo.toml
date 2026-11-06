@@ -52,6 +52,8 @@ lopdf.workspace = true
 rustls-native-certs.workspace = true
 rustls-pki-types.workspace = true
 rustls-webpki.workspace = true
+stringprep.workspace = true
+unicode-normalization.workspace = true
 x509-parser.workspace = true
 zbus.workspace = true
 rfd = { workspace = true, features = ["xdg-portal"] }

@@ -150,6 +150,19 @@ mod tests {
         let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
         assert!(!untrusted(&[signer.der, middle.der], &root));
     }
+
+    /// RFC 4518 compares names after NFKC and case folding.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_rollover_ca_keeps_its_name_composed_otherwise() {
+        let root = made("Ely test \u{E9}", NOW, rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0)), None, vec![]);
+        let middle = made("ELY  test e\u{301}", NOW, ca(), Some(&root), vec![]);
+        let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
+        assert!(!untrusted(&[signer.der, middle.der], &root), "the same name, prepared");
+        let other = made("Ely test e", NOW, ca(), Some(&root), vec![]);
+        let signer = made("Ely test signer", NOW, ca(), Some(&other), vec![]);
+        assert!(untrusted(&[signer.der, other.der], &root), "another name counts in the path");
+    }
 }
 
 #[cfg(target_os = "macos")]

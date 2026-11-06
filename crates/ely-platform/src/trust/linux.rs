@@ -3,6 +3,7 @@
 use std::io;
 
 use rustls_pki_types::{CertificateDer, UnixTime};
+use unicode_normalization::UnicodeNormalization as _;
 use webpki::{ALL_VERIFICATION_ALGS, EndEntityCert, ExtendedKeyUsageValidator, KeyPurposeIdIter, anchor_from_trusted_cert};
 use x509_parser::prelude::{
     AttributeTypeAndValue, ParsedExtension, X509Certificate, X509Extension, X509Name, parse_x509_certificate,
@@ -117,7 +118,7 @@ fn reaches(
 /// An attribute's type and folded value.
 type Attr = (String, Result<String, Vec<u8>>);
 
-/// Names equal by RFC 5280, 7.1: case and spacing aside.
+/// Names equal by RFC 5280 7.1 and RFC 4518.
 fn same_name(a: &X509Name, b: &X509Name) -> bool {
     let rdns = |name: &X509Name| -> Vec<Vec<Attr>> {
         name.iter()
@@ -131,12 +132,14 @@ fn same_name(a: &X509Name, b: &X509Name) -> bool {
     a.as_raw() == b.as_raw() || rdns(a) == rdns(b)
 }
 
-/// A string value folded; any other value as bytes.
+/// A string prepared by RFC 4518; else its bytes.
 fn folded(attr: &AttributeTypeAndValue) -> Result<String, Vec<u8>> {
-    match attr.as_str() {
-        Ok(text) => Ok(text.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()),
-        Err(_) => Err(attr.as_slice().to_vec()),
-    }
+    let bytes = || attr.as_slice().to_vec();
+    let text = attr.as_str().map_err(|_| bytes())?;
+    // Map, B.2 fold, prohibit; the crate skips NFKC.
+    let mapped = stringprep::x520prep(text, true).map_err(|_| bytes())?;
+    let normal: String = mapped.nfkc().collect();
+    Ok(normal.split(' ').filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" "))
 }
 
 /// Refuses an unreadable extension, or a critical one left unchecked.
