@@ -201,8 +201,8 @@ impl RenderOnce for SidePanel {
                 cx.new(|_| EmptyView)
             });
         let grip = match self.side {
-            Side::Left => grip.right_0(),
-            Side::Right => grip.left_0(),
+            Side::Left => grip.right_0().justify_end(),
+            Side::Right => grip.left_0().justify_start(),
         };
         let side = self.side;
         div()

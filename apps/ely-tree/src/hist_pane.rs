@@ -4,14 +4,15 @@ use ely_gpui_component::{
     buttons::{Button, ButtonVariant, IconButton},
     data_display::DescriptionList,
     feedback::{EmptyState, ErrorView},
+    layout::SplitPane,
     lists::{List, ListItem},
     primitives::IconName,
     theme::{ActiveTheme as _, ControlSize},
 };
 use gpui::{
-    AnyElement, Context, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
+    AnyElement, Axis, Context, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
     Role, SharedString, StatefulInteractiveElement as _, Styled as _, div,
-    prelude::FluentBuilder as _, px, relative,
+    prelude::FluentBuilder as _,
 };
 
 use crate::{
@@ -158,15 +159,13 @@ impl Tree {
         }
         div()
             .id("tree-commit-head")
-            .flex_none()
-            .max_h(px(280.0))
+            .debug_selector(|| "tree-commit-head".into())
+            .size_full()
             .overflow_y_scroll()
             .flex()
             .flex_col()
             .gap_2()
             .p_3()
-            .border_b_1()
-            .border_color(colors.border)
             .child(
                 div()
                     .id("tree-commit-subject")
@@ -240,7 +239,7 @@ impl Tree {
         head: AnyElement,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let colors = cx.theme().colors.clone();
+        let min = gpui::px(96.0);
         let picked = pick.file.as_ref().map(|(at, _)| *at);
         let weak = cx.weak_entity();
         let files: Vec<AnyElement> = detail
@@ -291,31 +290,22 @@ impl Tree {
             )
             .into_any_element(),
         };
-        div()
-            .size_full()
-            .flex()
-            .flex_col()
-            .child(head)
-            .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .flex()
-                    .child(
+        SplitPane::new("tree-commit-vertical", Axis::Vertical, min)
+            .sizes(&[0.3, 0.7])
+            .pane(head)
+            .pane(
+                SplitPane::new("tree-commit-horizontal", Axis::Horizontal, min)
+                    .sizes(&[0.25, 0.75])
+                    .pane(
                         div()
                             .id("tree-touched")
                             .debug_selector(|| "tree-touched".into())
-                            .flex_none()
-                            .w(relative(0.4))
-                            .max_w_72()
-                            .h_full()
+                            .size_full()
                             .overflow_y_scroll()
                             .p_2()
-                            .border_r_1()
-                            .border_color(colors.border)
                             .child(List::new().children(files)),
                     )
-                    .child(div().debug_selector(|| "tree-touched-shown".into()).flex_1().min_w_0().h_full().child(shown)),
+                    .pane(div().debug_selector(|| "tree-touched-shown".into()).size_full().child(shown)),
             )
             .into_any_element()
     }
