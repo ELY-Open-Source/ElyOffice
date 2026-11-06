@@ -9,8 +9,6 @@ use super::{Keys, settle, window, writing::{NOTE, seeded}};
 const APP: AppId = AppId::Agent;
 const PNG: &[u8] = include_bytes!("../../../../assets/icons/ely-mail.png");
 
-// AppKit's status item needs the main thread.
-#[cfg(not(target_os = "macos"))]
 #[test]
 fn a_quit_from_the_tray_opens_the_window_to_ask() {
     let dir = tempfile::tempdir().unwrap();

@@ -43,6 +43,8 @@ mod side;
 mod storage;
 mod syncs;
 mod threads;
+// AppKit's status item needs the main thread.
+#[cfg(not(target_os = "macos"))]
 mod tray;
 mod whole;
 mod writing;
