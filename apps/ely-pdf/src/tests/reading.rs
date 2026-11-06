@@ -1,6 +1,6 @@
 //! Reading position through the tab lifecycle.
 
-use ely_office::{After, Closing as _, Opening as _};
+use ely_office::{After, Chrome as _, Closing as _, Opening as _};
 use gpui::{TestAppContext, px};
 
 use super::{file, frames, settle, shown, windowed};
@@ -119,7 +119,7 @@ fn reopening_restores_zoom_mode_rotation_scroll_and_sidebar() {
         })
     });
     settle(cx, |app| viewer.read(app).core.tabs.is_empty());
-    cx.update(|_, app| viewer.update(app, |v, cx| v.open_file(b, cx)));
+    cx.update(|_, app| viewer.update(app, |v, cx| v.open_file(b.clone(), cx)));
     settle(cx, |app| viewer.read(app).core.tabs.len() == 1);
     cx.update(|_, app| {
         viewer.update(app, |v, cx| {
@@ -137,8 +137,18 @@ fn reopening_restores_zoom_mode_rotation_scroll_and_sidebar() {
         })
     });
     settle(cx, |app| viewer.read(app).core.tabs.is_empty());
-    cx.update(|_, app| viewer.update(app, |v, cx| v.open_file(a, cx)));
+    // A is picked and drawn while loading, over B.
+    cx.update(|_, app| viewer.update(app, |v, cx| v.open_file(b.clone(), cx)));
     settle(cx, |app| viewer.read(app).core.tabs.len() == 1);
+    cx.update(|window, app| {
+        viewer.update(app, |v, cx| {
+            v.open_file(a, cx);
+            let loading = v.core.loading.last().expect("A loads").0;
+            v.show_tab(loading, window, cx);
+        });
+        window.draw(app).clear(app);
+    });
+    settle(cx, |app| viewer.read(app).core.tabs.len() == 2);
     let restored = shown(cx, &viewer);
     settle(cx, |app| restored.read(app).restore_view.is_none());
     frames(cx);

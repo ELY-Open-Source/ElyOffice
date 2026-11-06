@@ -191,8 +191,10 @@ impl Viewer {
 
     pub(crate) fn show_reading_sidebar(&mut self, id: u64, cx: &mut Context<Self>) {
         let previous = self.reading_sidebar(cx);
+        // A tab loading in front keeps its own side.
         if let Some(view) = self
             .sidebar_tab
+            .filter(|&old| old != id)
             .and_then(|old| self.tab(old))
             .map(|tab| tab.view.clone())
         {

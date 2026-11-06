@@ -75,6 +75,9 @@ impl Host for Viewer {
 
     fn tab_opened(&mut self, id: u64, cx: &mut Context<Self>) {
         self.restore_reading_view(id, cx);
+        if self.core.active() == Some(id) {
+            self.show_reading_sidebar(id, cx);
+        }
     }
 
     fn tab_shown(&mut self, id: u64, cx: &mut Context<Self>) {
