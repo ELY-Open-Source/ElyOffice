@@ -171,6 +171,8 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("office.chart.apply", "Aplicar"),
     ("office.undo", "Deshacer"),
     ("office.redo", "Rehacer"),
+    ("office.why.undo", "No hay nada que deshacer"),
+    ("office.why.redo", "No hay nada que rehacer"),
     ("office.zoom.in", "Acercar"),
     ("office.zoom.out", "Alejar"),
     ("office.zoom.actual", "Tamaño real"),

@@ -17,12 +17,16 @@ impl gpui::Render for Host {
     }
 }
 
-fn click(shown: &mut VisualTestContext, selector: &'static str) {
+fn frames(shown: &mut VisualTestContext) {
     for _ in 0..3 {
         std::thread::sleep(std::time::Duration::from_millis(2));
         shown.update(|window, _| window.refresh());
         shown.run_until_parked();
     }
+}
+
+fn click(shown: &mut VisualTestContext, selector: &'static str) {
+    frames(shown);
     let bounds = shown.debug_bounds(selector).expect(selector);
     shown.simulate_click(bounds.center(), gpui::Modifiers::none());
     shown.run_until_parked();
@@ -47,10 +51,13 @@ fn the_toolbar_bolds_centers_and_undoes() {
         ely_ui::set_document_menus(ely_platform::AppId::Doc, &ely_ui::commands::FILE, Vec::new(), cx);
     });
     let id = blank(&mut cx, &docs);
-    type_into(&mut cx, &docs, "Bold");
-    cx.update(|app| docs.update(app, |docs, cx| docs.run_active("edit.select_all", &[], cx)));
     let window = cx.add_window(|_, _| Host(docs.clone()));
     let mut shown = VisualTestContext::from_window(window.into(), &cx);
+    frames(&mut shown);
+    assert!(shown.debug_bounds("doc-bar-undo Nothing to undo").is_some(), "Undo says why it is grey");
+    assert!(shown.debug_bounds("doc-bar-redo Nothing to redo").is_some(), "Redo says why it is grey");
+    type_into(&mut cx, &docs, "Bold");
+    cx.update(|app| docs.update(app, |docs, cx| docs.run_active("edit.select_all", &[], cx)));
     shown.update(|window, app| {
         docs.update(app, |docs, cx| {
             docs.own_window(window, cx);
@@ -63,9 +70,9 @@ fn the_toolbar_bolds_centers_and_undoes() {
     settle(&cx, |app| state(app, &docs, ".uno:Bold").as_deref() == Some("true"));
     click(&mut shown, "doc-bar paragraph.center");
     settle(&cx, |app| state(app, &docs, ".uno:CenterPara").as_deref() == Some("true"));
-    click(&mut shown, "doc-bar-undo");
+    click(&mut shown, "doc-bar-undo Undo");
     settle(&cx, |app| state(app, &docs, ".uno:CenterPara").as_deref() == Some("false"));
     assert_eq!(cx.update(|app| state(app, &docs, ".uno:Bold")).as_deref(), Some("true"), "one step back");
-    click(&mut shown, "doc-bar-redo");
+    click(&mut shown, "doc-bar-redo Redo");
     settle(&cx, |app| state(app, &docs, ".uno:CenterPara").as_deref() == Some("true"));
 }

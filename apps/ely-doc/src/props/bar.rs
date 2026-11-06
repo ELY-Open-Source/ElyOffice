@@ -46,8 +46,8 @@ impl Props {
             div().debug_selector(move || format!("doc-bar {command}")).child(button)
         };
         let history = ToolbarGroup::new()
-            .child(history(("doc-bar-undo", IconName::Undo2, "office.undo"), undo, ely_office::Undo, cx))
-            .child(history(("doc-bar-redo", IconName::Redo2, "office.redo"), redo, ely_office::Redo, cx));
+            .child(history(("doc-bar-undo", IconName::Undo2, "office.undo", "office.why.undo"), undo, ely_office::Undo, cx))
+            .child(history(("doc-bar-redo", IconName::Redo2, "office.redo", "office.why.redo"), redo, ely_office::Redo, cx));
         let name = Docs::text(cx, "doc.props.font", &[]);
         let font = font_box(self, ("doc-bar-font", name), &self.fonts, window, cx);
         let size = size_box(self, ("doc-bar-size", Docs::text(cx, "doc.props.size", &[])), window, cx);
@@ -89,17 +89,19 @@ impl Props {
     }
 }
 
-/// Undo or Redo, as the Edit menu runs them.
+/// Undo or Redo; greyed, it says why.
 fn history<A: gpui::Action + Clone>(
-    (id, icon, tip): (&'static str, IconName, &str),
+    (id, icon, tip, why): (&'static str, IconName, &str, &str),
     able: bool,
     action: A,
     cx: &Context<Props>,
 ) -> impl IntoElement {
+    let said = Docs::text(cx, if able { tip } else { why }, &[]);
+    let selector = format!("{id} {said}");
     let button = IconButton::new(id, icon)
         .size(ControlSize::Sm)
-        .tooltip(Docs::text(cx, tip, &[]))
+        .tooltip(said)
         .disabled(!able)
         .on_click(move |_, window, cx| window.dispatch_action(Box::new(action.clone()), cx));
-    div().debug_selector(move || id.into()).child(button)
+    div().debug_selector(move || selector).child(button)
 }

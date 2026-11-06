@@ -93,6 +93,8 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("office.chart.apply", "適用"),
     ("office.undo", "元に戻す"),
     ("office.redo", "やり直し"),
+    ("office.why.undo", "元に戻す操作はありません"),
+    ("office.why.redo", "やり直す操作はありません"),
     ("office.zoom.in", "拡大"),
     ("office.zoom.out", "縮小"),
     ("office.zoom.actual", "実際のサイズ"),

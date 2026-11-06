@@ -93,6 +93,8 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("office.chart.apply", "적용"),
     ("office.undo", "실행 취소"),
     ("office.redo", "다시 실행"),
+    ("office.why.undo", "실행 취소할 작업이 없습니다"),
+    ("office.why.redo", "다시 실행할 작업이 없습니다"),
     ("office.zoom.in", "확대"),
     ("office.zoom.out", "축소"),
     ("office.zoom.actual", "실제 크기"),

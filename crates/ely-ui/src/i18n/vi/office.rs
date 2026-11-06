@@ -93,6 +93,8 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("office.chart.apply", "Áp dụng"),
     ("office.undo", "Hoàn tác"),
     ("office.redo", "Làm lại"),
+    ("office.why.undo", "Không có gì để hoàn tác"),
+    ("office.why.redo", "Không có gì để làm lại"),
     ("office.zoom.in", "Phóng to"),
     ("office.zoom.out", "Thu nhỏ"),
     ("office.zoom.actual", "Kích thước thực"),
