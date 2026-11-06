@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use ely_gpui_component::documents::{
-    AlignKind, markdown_tree,
+    AlignKind, Shortcodes, markdown_tree,
     mdast::{FootnoteDefinition, Node},
 };
 use ely_mail_engine::page::link;
@@ -17,6 +17,8 @@ pub fn html(words: &str) -> String {
         notes: HashMap::new(),
         cited: Vec::new(),
         mark: None,
+        shortcodes: Shortcodes::default(),
+        verbatim: false,
         out: String::new(),
     };
     writer.gather(&tree);
@@ -34,6 +36,10 @@ struct Writer<'a> {
     cited: Vec<&'a str>,
     /// A task box for the next paragraph.
     mark: Option<&'static str>,
+    /// The current DOM text node's shortcodes.
+    shortcodes: Shortcodes,
+    /// Inside an autolink: no shortcodes.
+    verbatim: bool,
     out: String,
 }
 
@@ -77,6 +83,7 @@ impl<'a> Writer<'a> {
 
     /// `tight`: a tight list's paragraph, without `<p>`.
     fn block(&mut self, node: &'a Node, tight: bool) {
+        self.shortcodes.split();
         match node {
             Node::Root(it) => self.blocks(&it.children, false),
             Node::Blockquote(it) => {
@@ -176,15 +183,28 @@ impl<'a> Writer<'a> {
     }
 
     fn inline(&mut self, node: &'a Node) {
+        // Any element ends the DOM text node.
+        if !matches!(node, Node::Text(_) | Node::Html(_)) {
+            self.shortcodes.split();
+        }
         match node {
-            Node::Text(it) => self.push(&escape(&it.value)),
+            Node::Text(it) if self.verbatim => self.push(&escape(&it.value)),
+            Node::Text(it) => {
+                let shown = self.shortcodes.read(&it.value);
+                self.push(&escape(&shown));
+            }
             Node::Strong(it) => self.styled("strong", &it.children),
             Node::Emphasis(it) => self.styled("em", &it.children),
             Node::Delete(it) => self.styled("del", &it.children),
             Node::InlineCode(it) => self.push(&format!("<code>{}</code>", escape(&it.value))),
             Node::InlineMath(_) | Node::Html(_) => self.written(node),
             Node::Break(_) => self.push("<br>\n"),
-            Node::Link(it) => self.anchor(&it.url, &it.children),
+            Node::Link(it) => {
+                let outer = self.verbatim;
+                self.verbatim |= !self.source[node.position().clone()].starts_with('[');
+                self.anchor(&it.url, &it.children);
+                self.verbatim = outer;
+            }
             Node::LinkReference(it) => match self.urls.get(it.identifier.as_str()) {
                 Some(url) => self.anchor(url, &it.children),
                 None => self.written(node),

@@ -58,3 +58,11 @@ fn rows_have_the_header_s_columns() {
     assert!(made.contains("<tr><td>shown</td></tr>") && !made.contains("hidden"), "{made}");
     assert!(made.contains("<tr><td>only</td><td></td></tr>"), "{made}");
 }
+
+#[test]
+fn shortcodes_read_as_the_composer_reads_them() {
+    let made = html("Hi :smile: `:smile:` https://ex.am/:smile: at 10:30\n\n| a |\n|---|\n| :+1: |\n");
+    assert!(made.contains("<p>Hi 😄 <code>:smile:</code>"), "{made}");
+    assert!(made.contains(">https://ex.am/:smile</a>: at 10:30</p>"), "{made}");
+    assert!(made.contains("<td>👍</td>"), "{made}");
+}
