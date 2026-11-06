@@ -127,6 +127,13 @@ impl PdfView {
 
     /// Pages in view, and which; missing tiles asked.
     pub fn page_view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> (AnyElement, Vec<usize>) {
+        if self.measured == self.sizes.len()
+            && self.room.size.width > px(0.0)
+            && self.room.size.height > px(0.0)
+            && let Some(reading) = self.restore_view.take()
+        {
+            self.restore_reading(reading, cx);
+        }
         let sf = window.scale_factor();
         self.painted.clear();
         let (sunken, paper) = (cx.theme().colors.sunken, gpui::white());
@@ -255,15 +262,18 @@ impl PdfView {
                     _ => view.sketch_end(cx),
                 })
             })
-            .on_scroll(cx.listener(|_, _, _, cx| cx.notify()))
+            .on_scroll(cx.listener(|view, _, _, cx| {
+                view.restore_view = None;
+                view.layout_anchor = None;
+                cx.notify();
+            }))
             .child(div().relative().w(px(laid.size.0)).h(px(laid.size.1)).children(pages));
         // Measures the view itself, which does not scroll.
         let measure = canvas(
             move |bounds, _, cx| {
                 this.update(cx, |view, cx| {
                     if view.room != bounds {
-                        view.room = bounds;
-                        cx.notify();
+                        view.resize_reading(bounds, cx);
                     }
                 })
             },

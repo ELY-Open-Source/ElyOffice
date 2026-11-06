@@ -1,8 +1,12 @@
 //! Japanese PDF messages.
 
 pub(super) const JA: &[(&str, &str)] = &[
+    ("pdf.page.previous", "前のページ"),
+    ("pdf.page.next", "次のページ"),
+    ("pdf.page.go_to", "ページに移動"),
+    ("pdf.page.total", "/ {count}"),
+    ("pdf.reading.failed", "保存された閲覧位置にアクセスできませんでした: {error}"),
     ("pdf.failed", "{what}に失敗しました: {error}"),
-    ("pdf.status.page", "{n}/{count} ページ"),
     ("pdf.copy", "コピー"),
     ("pdf.find", "検索…"),
     ("pdf.document", "PDF ドキュメント"),

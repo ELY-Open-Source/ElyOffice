@@ -1,7 +1,7 @@
 //! Where pages sit for a mode, zoom and turn (PDF-01).
 
 /// How pages follow one another.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Mode {
     Continuous,
     Single,
@@ -11,7 +11,7 @@ pub enum Mode {
 }
 
 /// How big pages are drawn.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Zoom {
     Width,
     Page,

@@ -29,7 +29,7 @@ const EDGE: f32 = 32.0;
 const STEP: f32 = 16.0;
 const TICK: Duration = Duration::from_millis(16);
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum Pane {
     Pages,
     Marks,

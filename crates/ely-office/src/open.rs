@@ -321,6 +321,7 @@ pub trait Opening: Host {
         if front {
             self.core_mut().landed_front(id);
         }
+        self.tab_opened(id, cx);
         match held {
             true => crate::hold::hand_over::<Self>(id, window, cx),
             false if front => crate::hold::replay(self, id, window, cx),

@@ -8,7 +8,7 @@ use std::{
 use ely_gpui_component::{
     feedback::EmptyState,
     primitives::IconName,
-    shell::{StatusBar, StatusBarItem, ZoomControl},
+    shell::{StatusBar, StatusBarItem},
 };
 use ely_office::{Core, Host, Kind, prelude::*};
 use ely_platform::AppId;
@@ -24,6 +24,7 @@ use crate::view::PdfView;
 pub struct Viewer {
     pub core: Core<Viewer>,
     pub side: Entity<crate::side::Side>,
+    pub sidebar_tab: Option<u64>,
     /// Crop or split, while asked.
     pub ask: Option<crate::ask::Ask>,
     pub edit_panel: Entity<crate::editing::EditPanel>,
@@ -70,6 +71,18 @@ impl Host for Viewer {
 
     fn read_at(&self, tab: u64, cx: &gpui::App) -> Option<ely_pdf_engine::Doc> {
         self.tab(tab).map(|tab| tab.view.read(cx).doc)
+    }
+
+    fn tab_opened(&mut self, id: u64, cx: &mut Context<Self>) {
+        self.restore_reading_view(id, cx);
+    }
+
+    fn tab_shown(&mut self, id: u64, cx: &mut Context<Self>) {
+        self.show_reading_sidebar(id, cx);
+    }
+
+    fn tab_closed(&mut self, tab: &ely_office::Tab<(), Pdf>, cx: &mut Context<Self>) {
+        self.keep_reading_view(tab, cx);
     }
 
     fn observed(&mut self, id: u64, view: &Entity<PdfView>, cx: &mut Context<Self>) {
@@ -140,6 +153,7 @@ impl Viewer {
         Viewer {
             core: Core::new(worker, stop, work, cx),
             side: cx.new(|cx| crate::side::Side::new(&this, cx)),
+            sidebar_tab: None,
             ask: None,
             edit_panel: cx.new(|_| crate::editing::EditPanel::new(weak.clone())),
             note_panel: cx.new(|_| crate::notes::NotePanel::new(weak.clone())),
@@ -204,24 +218,7 @@ impl Viewer {
     }
 
     fn status(&self, cx: &mut Context<Self>) -> StatusBar {
-        let state = StatusBarItem::new("pdf-state").label(self.save_state(cx));
-        let Some(view) = self.active_view() else {
-            return StatusBar::new().left(state);
-        };
-        let view = view.read(cx);
-        let (n, count) = ((view.current + 1).to_string(), view.sizes.len().to_string());
-        let page = Self::text(cx, "pdf.status.page", &[("n", &n), ("count", &count)]);
-        let percent = view.percent();
-        let this = cx.entity().downgrade();
-        let zoom = ZoomControl::new("pdf-zoom").owned(percent, move |step, _, cx| {
-            if let Err(error) = this.update(cx, |viewer, cx| crate::keys::zoom(viewer, step, cx)) {
-                log::warn!("pdf: zoom without a viewer: {error}");
-            }
-        });
-        StatusBar::new()
-            .left(state)
-            .left(StatusBarItem::new("pdf-page").label(page))
-            .right(div().debug_selector(|| "pdf-zoom".into()).child(zoom))
+        StatusBar::new().left(StatusBarItem::new("pdf-state").label(self.save_state(cx)))
     }
 }
 
@@ -235,6 +232,7 @@ impl Render for Viewer {
         };
         let shell = Shell::new(title, &self.core.focus)
             .tabs(self.tab_strip(cx))
+            .toolbar(self.page_toolbar(cx))
             .left(self.active_view().map(|_| self.side.clone().into()))
             .right(self.active_view().and_then(|view| view.read(cx).panel_aim()).map(|aim| match aim {
                 crate::content::Aim::Note(_) => self.note_panel.clone().into(),

@@ -2,7 +2,11 @@
 
 pub(super) const EN: &[(&str, &str)] = &[
     ("pdf.failed", "{what} failed: {error}"),
-    ("pdf.status.page", "Page {n} of {count}"),
+    ("pdf.reading.failed", "Could not access the saved reading position: {error}"),
+    ("pdf.page.go_to", "Go to page"),
+    ("pdf.page.previous", "Previous page"),
+    ("pdf.page.next", "Next page"),
+    ("pdf.page.total", "of {count}"),
     ("pdf.copy", "Copy"),
     ("pdf.find", "Find…"),
     ("pdf.document", "PDF document"),
@@ -232,8 +236,12 @@ pub(super) const EN: &[(&str, &str)] = &[
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
+    ("pdf.reading.failed", "无法访问阅读位置记录：{error}"),
     ("pdf.failed", "{what}失败：{error}"),
-    ("pdf.status.page", "第 {n} 页，共 {count} 页"),
+    ("pdf.page.go_to", "跳转到页"),
+    ("pdf.page.previous", "上一页"),
+    ("pdf.page.next", "下一页"),
+    ("pdf.page.total", "共 {count} 页"),
     ("pdf.copy", "复制"),
     ("pdf.find", "查找…"),
     ("pdf.document", "PDF 文档"),

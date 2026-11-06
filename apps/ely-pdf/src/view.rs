@@ -46,6 +46,10 @@ pub struct PdfView {
     pub rotate: i32,
     /// The page at the top, or the one shown.
     pub current: usize,
+    pub restore_view: Option<crate::history::Reading>,
+    pub layout_anchor: Option<crate::history::Reading>,
+    pub sidebar: Option<crate::history::Sidebar>,
+    pub measured: usize,
     pub scroll: ScrollHandle,
     pub tiles: HashMap<TileKey, Arc<RenderImage>>,
     /// Images no longer drawn, freed at the next render.
@@ -199,6 +203,10 @@ impl PdfView {
             zoom: Zoom::Width,
             rotate: 0,
             current: 0,
+            restore_view: None,
+            layout_anchor: None,
+            sidebar: None,
+            measured,
             scroll: ScrollHandle::new(),
             tiles: HashMap::new(),
             retired: Default::default(),
@@ -330,6 +338,7 @@ impl PdfView {
                     for (at, b) in boxes.iter().enumerate() {
                         view.sizes[from + at] = (b[2] - b[0], b[3] - b[1]);
                     }
+                    view.measured = from + boxes.len();
                     cx.emit(Reported);
                     cx.notify();
                     view.measure(from + count, cx);
@@ -342,10 +351,16 @@ impl PdfView {
 
     /// Scrolls `page` into view, `y` points near the top.
     pub fn show(&mut self, page: usize, y: f32, cx: &mut Context<Self>) {
+        let changed = self.current != page;
+        self.restore_view = None;
+        self.layout_anchor = None;
         self.current = page;
         if let Some(at) = self.landing(&self.laid_out(), page, y) {
             self.go_to = Some(at);
             self.filling.get_or_insert_with(std::time::Instant::now);
+        }
+        if changed {
+            cx.emit(Reported);
         }
         cx.notify();
     }
@@ -383,6 +398,8 @@ impl PdfView {
 
     /// Changes how pages show; the spot read stays put.
     pub fn change(&mut self, change: impl FnOnce(&mut Self, f32), cx: &mut Context<Self>) {
+        self.restore_view = None;
+        self.layout_anchor = None;
         // A scroll not yet drawn counts.
         let offset = self.scroll.offset();
         let (left, top) = self.go_to.unwrap_or((-f32::from(offset.x), -f32::from(offset.y)));

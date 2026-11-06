@@ -91,7 +91,7 @@ pub fn menus(cx: &App) -> Vec<Menu> {
     .collect()
 }
 
-/// A zoom step: key, menu or status bar.
+/// A zoom step: key, menu or toolbar.
 pub fn zoom(viewer: &Viewer, step: ZoomStep, cx: &mut App) {
     let to = move |now| match step {
         ZoomStep::In => stepped(now, true),
