@@ -244,6 +244,9 @@ fn an_edit_leaving_a_page_out_of_sizes_is_refused_and_keeps_the_redo() {
     let thin = dir.path().join("thin.pdf");
     std::fs::write(&thin, pdf_with(&[(1.5, 792.0, &["y"])], &[], &half)).expect("writes");
     assert!(worker.insert_file(doc, 1, &thin).is_err(), "a page 0.75 points wide");
+    let up = Extras { inherited: true, ..half };
+    std::fs::write(&thin, pdf_with(&[(1.5, 792.0, &["y"])], &[], &up)).expect("writes");
+    assert!(worker.insert_file(doc, 1, &thin).is_err(), "the unit comes from /Pages");
     assert!(worker.insert_blank(doc, 1, (612.0, 2.0e9)).is_err(), "a page too tall");
     assert_eq!(worker.history(doc).expect("a mark"), mark, "nothing changed");
     assert_eq!(worker.bounds(doc, 0, 1).expect("bounds"), page);

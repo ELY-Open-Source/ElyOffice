@@ -435,11 +435,11 @@ void ely_free(fz_context *ctx, void *data)
 	fz_free(ctx, data);
 }
 
-/* Throws unless `used` shows within `sides`. */
-void ely_fit_sides(fz_context *ctx, pdf_obj *page, fz_rect used, const float sides[2], int number)
+/* Throws unless `used` at `unit` fits `sides`. */
+void ely_fit_sides(fz_context *ctx, fz_rect used, float unit, const float sides[2], int number)
 {
-	float unit = fabsf(pdf_dict_get_real_default(ctx, page, PDF_NAME(UserUnit), 1));
 	float w, h;
+	unit = fabsf(unit);
 	/* MuPDF's own fallbacks, in order. */
 	if (fz_is_empty_rect(used))
 		used = fz_make_rect(0, 0, 612, 792);

@@ -348,7 +348,9 @@ int ely_insert_file(fz_context *ctx, fz_document *doc, int at, const char *path,
 			fz_rect used;
 			fz_matrix ctm;
 			pdf_page_obj_transform_box(ctx, one, &used, &ctm, FZ_CROP_BOX);
-			ely_fit_sides(ctx, one, used, sides, at + i);
+			/* Grafting copies an inherited unit. */
+			pdf_obj *unit = pdf_dict_get_inheritable(ctx, one, PDF_NAME(UserUnit));
+			ely_fit_sides(ctx, used, pdf_is_number(ctx, unit) ? pdf_to_real(ctx, unit) : 1, sides, at + i);
 			room += pdf_array_len(ctx, pdf_dict_get(ctx, one, PDF_NAME(Annots)));
 		}
 		links = fz_calloc(ctx, room + 1, sizeof *links);

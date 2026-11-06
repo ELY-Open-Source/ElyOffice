@@ -353,7 +353,7 @@ static void crop_one(fz_context *ctx, pdf_document *pdf, int number, const float
 		pdf_obj *up = pdf_dict_get_inheritable(ctx, pdf_dict_get(ctx, page, PDF_NAME(Parent)), PDF_NAME(CropBox));
 		if (none)
 			crop = up ? pdf_to_rect(ctx, up) : media;
-		ely_fit_sides(ctx, page, fz_intersect_rect(media, crop), sides, number);
+		ely_fit_sides(ctx, fz_intersect_rect(media, crop), pdf_dict_get_real_default(ctx, page, PDF_NAME(UserUnit), 1), sides, number);
 	}
 	else if (none)
 		pdf_dict_del(ctx, page, PDF_NAME(CropBox));

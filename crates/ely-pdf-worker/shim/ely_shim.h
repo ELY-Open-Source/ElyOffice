@@ -12,7 +12,7 @@ int ely_render(fz_context *ctx, fz_document *doc, int number, float scale, int r
 void ely_fail_also(fz_context *ctx, const char *what);
 pdf_document *ely_pdf_of(fz_context *ctx, fz_document *doc);
 int ely_edit_failed(fz_context *ctx, pdf_document *pdf, int begun);
-void ely_fit_sides(fz_context *ctx, pdf_obj *page, fz_rect used, const float sides[2], int number);
+void ely_fit_sides(fz_context *ctx, fz_rect used, float unit, const float sides[2], int number);
 void ely_forget_resources(fz_context *ctx, pdf_document *pdf);
 pdf_obj *ely_target(fz_context *ctx, pdf_document *pdf, pdf_obj *obj);
 typedef void (ely_change)(fz_context *ctx, fz_document *copy, void *arg);

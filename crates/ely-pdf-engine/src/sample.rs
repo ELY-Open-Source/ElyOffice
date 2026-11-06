@@ -16,6 +16,8 @@ pub struct Extras<'a> {
     pub loose: bool,
     /// Every page's /UserUnit, if not one.
     pub unit: Option<f32>,
+    /// With `unit`: on /Pages, not each page.
+    pub inherited: bool,
     /// Field names start with this, else "field".
     pub prefix: Option<&'a str>,
     /// The form's look: red 24 pt; font key, DA token.
@@ -71,9 +73,14 @@ pub fn pdf_with(pages: &[(f32, f32, &[&str])], marks: &[Mark], extras: &Extras) 
     }
     objs.push(format!("{catalog} >>").into_bytes());
     let kids: Vec<String> = page_ids.iter().map(|id| format!("{id} 0 R")).collect();
+    let (on_pages, on_page) = match extras.unit {
+        Some(unit) if extras.inherited => (format!(" /UserUnit {unit}"), String::new()),
+        Some(unit) => (String::new(), format!(" /UserUnit {unit}")),
+        None => (String::new(), String::new()),
+    };
     objs.push(
         format!(
-            "<< /Type /Pages /Kids [{}] /Count {} >>",
+            "<< /Type /Pages /Kids [{}] /Count {}{on_pages} >>",
             kids.join(" "),
             pages.len()
         )
@@ -117,8 +124,7 @@ pub fn pdf_with(pages: &[(f32, f32, &[&str])], marks: &[Mark], extras: &Extras) 
         let fields = (extras.fields.iter().enumerate()).filter(|(_, page)| **page == n).map(|(at, _)| field_ids[at]);
         let attached = extras.attached.filter(|_| n == 0).map(|_| attach_id);
         let annots: Vec<String> = links.chain(fields).chain(attached).map(|id| format!("{id} 0 R")).collect();
-        let unit = extras.unit.map_or_else(String::new, |unit| format!(" /UserUnit {unit}"));
-        objs.push(format!("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {w} {h}]{unit} /Contents {} 0 R /Resources << /Font << /F1 {font} 0 R >>{xobjects} >> /Annots [{}] >>", page_ids[n] + 1, annots.join(" ")).into_bytes());
+        objs.push(format!("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {w} {h}]{on_page} /Contents {} 0 R /Resources << /Font << /F1 {font} 0 R >>{xobjects} >> /Annots [{}] >>", page_ids[n] + 1, annots.join(" ")).into_bytes());
         objs.push(
             format!(
                 "<< /Length {} >>\nstream\n{stream}\nendstream",
