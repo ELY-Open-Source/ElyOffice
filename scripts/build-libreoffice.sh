@@ -117,6 +117,11 @@ if [ "$(uname)" = Darwin ]; then
 fi
 
 cd "$src"
+sdk=$(sed -n 's/^export MACOSX_SDK_PATH=//p' config_host.mk 2>/dev/null)
+if [ -n "$sdk" ] && [ ! -d "$sdk" ]; then
+  echo "build-libreoffice.sh: configured SDK $sdk is gone; reconfiguring" >&2
+  rm config_host.mk
+fi
 if [ ! -f config_host.mk ] || ! printf '%s\n' "${options[@]}" | cmp -s - autogen.lastrun; then
   ./autogen.sh "${options[@]}"
 fi
