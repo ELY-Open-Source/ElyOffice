@@ -9,7 +9,7 @@ use std::{
 use anyhow::Context;
 use gpui_util::ResultExt;
 use windows::Win32::{
-    Foundation::{FILETIME, LPARAM, WPARAM},
+    Foundation::{ERROR_INVALID_WINDOW_HANDLE, FILETIME, LPARAM, WPARAM},
     Media::{timeBeginPeriod, timeEndPeriod},
     System::Threading::{
         CloseThreadpoolTimer, CreateThreadpoolTimer, GetCurrentThread, PTP_CALLBACK_INSTANCE,
@@ -119,14 +119,22 @@ impl PlatformDispatcher for WindowsDispatcher {
         match self.main_sender.send(priority, runnable) {
             Ok(_) => {
                 if !self.wake_posted.swap(true, Ordering::AcqRel) {
-                    unsafe {
+                    let posted = unsafe {
                         PostMessageW(
                             Some(self.platform_window_handle.as_raw()),
                             WM_GPUI_TASK_DISPATCHED_ON_MAIN_THREAD,
                             WPARAM(self.validation_number),
                             LPARAM(0),
                         )
-                        .log_err();
+                    };
+                    match posted {
+                        // The platform window is gone: the app has quit.
+                        Err(e) if e.code() == ERROR_INVALID_WINDOW_HANDLE.to_hresult() => {
+                            log::debug!("main-thread task after quit, dropped");
+                        }
+                        result => {
+                            result.log_err();
+                        }
                     }
                 }
             }

@@ -213,6 +213,7 @@ fn a_default_zoom_opens_each_file_at_it() {
 fn units(cx: &mut VisualTestContext) -> usize {
     const DIGITS: [&str; 10] = ["rolling-0", "rolling-1", "rolling-2", "rolling-3", "rolling-4", "rolling-5", "rolling-6", "rolling-7", "rolling-8", "rolling-9"];
     std::thread::sleep(std::time::Duration::from_millis(5));
+    cx.executor().advance_clock(std::time::Duration::from_millis(5));
     frames(cx);
     // The last cell drawn holds the units.
     let cell = cx.debug_bounds("rolling-cell").expect("the control's digits");

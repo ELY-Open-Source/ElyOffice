@@ -21,7 +21,7 @@ notify.workspace = true
 serde_json.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
-gpui_windows = { package = "gpui-pre-windows", version = "=0.3.10" }
+gpui_windows = { package = "gpui-pre-windows", version = "=0.3.11" }
 
 [features]
 frames = ["gpui/profiler"]

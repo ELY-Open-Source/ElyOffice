@@ -1806,7 +1806,10 @@ impl Window {
                 .spawn(async move {
                     while activation_receiver.recv().await.is_ok() {
                         handle
-                            .update(&mut async_cx, |_, window, _| window.refresh())
+                            .update(&mut async_cx, |_, window, _| {
+                                window.platform_window.a11y_update_window_bounds();
+                                window.refresh()
+                            })
                             .with_context(|| {
                                 format!(
                                     "handling accessibility activation for window {:?}",
@@ -2252,12 +2255,15 @@ impl Window {
             Box::new(move || {
                 handle
                     .update(&mut cx, |_, window, _cx| {
-                        for (area, hitbox) in &window.rendered_frame.window_control_hitboxes {
-                            if window.mouse_hit_test.ids.contains(&hitbox.id) {
-                                return Some(*area);
-                            }
-                        }
-                        None
+                        // Topmost first: a button wins over its bar.
+                        let areas = &window.rendered_frame.window_control_hitboxes;
+                        let hit = &window.mouse_hit_test;
+                        hit.ids.iter().take(hit.hover_hitbox_count).find_map(|id| {
+                            areas
+                                .iter()
+                                .find(|(_, hitbox)| hitbox.id == *id)
+                                .map(|(area, _)| *area)
+                        })
                     })
                     .with_context(|| {
                         format!(
@@ -3001,6 +3007,8 @@ impl Window {
         self.scale_factor = self.platform_window.scale_factor();
         self.viewport_size = self.platform_window.content_size();
         self.mouse_position = self.platform_window.mouse_position();
+        // X11's AT-SPI places nodes by the window's screen position.
+        self.platform_window.a11y_update_window_bounds();
 
         self.refresh();
 
