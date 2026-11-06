@@ -104,7 +104,7 @@ fn a_step_shows_the_next_match(cx: &mut TestAppContext) {
     assert_eq!(current, Some(1));
 }
 
-/// Enter in the find box steps on and edits nothing (#60).
+/// Enter in find steps on, editing nothing (#60).
 #[gpui::test]
 fn enter_steps_through_matches_and_escape_lands_in_one(cx: &mut TestAppContext) {
     let source = "one\n\ntwo one\n\nthree one\n";
