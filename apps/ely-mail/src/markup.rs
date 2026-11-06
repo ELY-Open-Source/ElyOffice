@@ -235,16 +235,19 @@ impl<'a> Writer<'a> {
         self.push(&format!("<{tag}>"));
         self.inlines(children);
         self.push(&format!("</{tag}>"));
+        self.shortcodes.split();
     }
 
     /// An unsafe address keeps its text, not its link.
     fn anchor(&mut self, url: &str, children: &'a [Node]) {
         let Some(url) = link(url) else {
-            return self.inlines(children);
+            self.inlines(children);
+            return self.shortcodes.split();
         };
         self.push(&format!("<a href=\"{}\">", escape(&url)));
         self.inlines(children);
         self.push("</a>");
+        self.shortcodes.split();
     }
 
     fn picture(&mut self, url: &str, alt: &str) {

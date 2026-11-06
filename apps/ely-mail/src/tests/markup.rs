@@ -66,3 +66,10 @@ fn shortcodes_read_as_the_composer_reads_them() {
     assert!(made.contains(">https://ex.am/:smile</a>: at 10:30</p>"), "{made}");
     assert!(made.contains("<td>👍</td>"), "{made}");
 }
+
+#[test]
+fn text_after_an_element_reads_its_own_shortcodes() {
+    let made = html("**x**:smile: and [x](https://e.x):smile:");
+    assert!(made.contains("<strong>x</strong>😄"), "{made}");
+    assert!(made.contains("<a href=\"https://e.x\">x</a>😄"), "{made}");
+}
