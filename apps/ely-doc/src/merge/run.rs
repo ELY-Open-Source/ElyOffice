@@ -37,8 +37,10 @@ pub fn is_sheet(path: &Path) -> bool {
         .is_some_and(|extension| SHEETS.iter().any(|sheet| sheet.eq_ignore_ascii_case(extension)))
 }
 
-/// Reads a spreadsheet's shown sheet through `scratch` as UTF-8 CSV.
-pub fn read_sheet(worker: &Mutex<Worker>, path: &Path, scratch: &Path) -> io::Result<Table> {
+/// Reads the shown sheet as CSV via a private folder.
+pub fn read_sheet(worker: &Mutex<Worker>, path: &Path, work: &Path) -> io::Result<Table> {
+    let folder = tempfile::Builder::new().prefix("merge-").tempdir_in(work)?;
+    let scratch = &folder.path().join("data.csv");
     let mut held = worker.lock().map_err(|_| io::Error::other("the worker lock is poisoned"))?;
     let doc = held.load(&ely_lok::file_url(path))?;
     let exported = doc.export_text(&mut held, &ely_lok::file_url(scratch), ',');
@@ -47,7 +49,7 @@ pub fn read_sheet(worker: &Mutex<Worker>, path: &Path, scratch: &Path) -> io::Re
     drop(held);
     exported.and(closed)?;
     let table = read_csv(scratch);
-    std::fs::remove_file(scratch)?;
+    folder.close()?;
     Ok(Table { name: file_name(path), ..table? })
 }
 

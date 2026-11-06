@@ -91,11 +91,10 @@ impl Docs {
             return self.took(chosen, source, path, read_csv(path), cx);
         }
         log::info!("doc: merge data {chosen} from a spreadsheet");
-        let (worker, path) = (std::sync::Arc::clone(&self.core.worker), path.to_path_buf());
-        let scratch = self.core.work.join(format!("merge-{source}-{chosen}.csv"));
+        let (worker, path, work) = (std::sync::Arc::clone(&self.core.worker), path.to_path_buf(), self.core.work.clone());
         cx.spawn(async move |this, cx| {
             let shown = path.clone();
-            let read = cx.background_spawn(async move { run::read_sheet(&worker, &path, &scratch) }).await;
+            let read = cx.background_spawn(async move { run::read_sheet(&worker, &path, &work) }).await;
             ely_office::in_window(&this, cx, |docs, _, cx| docs.took(chosen, source, &shown, read, cx))
         })
         .detach();

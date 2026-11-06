@@ -46,9 +46,45 @@ fn spreadsheets_read_as_merge_data() {
     }
     let bad = dir.path().join("bad.xlsx");
     std::fs::write(&bad, "not a workbook").expect("writes");
-    let scratch = dir.path().join("scratch.csv");
-    assert!(read_sheet(&worker, &bad, &scratch).is_err(), "a broken workbook fails");
-    assert!(!scratch.exists(), "no scratch is left");
+    let work = dir.path().join("reads");
+    std::fs::create_dir(&work).expect("the work dir");
+    assert!(read_sheet(&worker, &bad, &work).is_err(), "a broken workbook fails");
+    assert_eq!(std::fs::read_dir(&work).expect("reads").count(), 0, "no scratch is left");
+}
+
+#[test]
+fn overlapping_reads_keep_their_own_rows() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let worker = cx.update(|app| docs.read(app).core.worker.clone());
+    let work = dir.path().join("reads");
+    std::fs::create_dir(&work).expect("the work dir");
+    let names = ["Ada", "Bob", "Cy", "Di"];
+    let sheets: Vec<_> = names.iter().map(|name| dir.path().join(format!("{name}.xlsx"))).collect();
+    for (name, sheet) in names.iter().zip(&sheets) {
+        let flat = dir.path().join(format!("{name}.fods"));
+        std::fs::write(&flat, FODS.replace("Ada", name)).expect("the sheet writes");
+        let mut held = worker.lock().expect("the worker lock");
+        let doc = held.load(&ely_lok::file_url(&flat)).expect("the sheet loads");
+        doc.save_as(&mut held, &ely_lok::file_url(sheet), "xlsx").expect("the sheet saves");
+        held.close_doc(doc).expect("closes");
+    }
+    let reads: Vec<_> = sheets
+        .into_iter()
+        .map(|sheet| {
+            let (worker, work) = (worker.clone(), work.clone());
+            std::thread::spawn(move || read_sheet(&worker, &sheet, &work))
+        })
+        .collect();
+    for (name, read) in names.iter().zip(reads) {
+        let table = read.join().expect("the read ends").expect("the sheet reads");
+        assert_eq!(table.rows, [[*name, "上海", "36"]], "{name}");
+    }
+    assert_eq!(std::fs::read_dir(&work).expect("reads").count(), 0, "no scratch is left");
 }
 
 #[test]
