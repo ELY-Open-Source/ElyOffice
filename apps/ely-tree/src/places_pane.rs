@@ -1,5 +1,7 @@
 //! The middle in Repository: the picked stash, remote and more.
 
+use ely_gpui_component::typography::SelectableText;
+
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant},
     data_display::DescriptionList,
@@ -70,7 +72,7 @@ impl Tree {
                     .aria_label(SharedString::from(title.clone()))
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(colors.fg)
-                    .child(title),
+                    .child(SelectableText::new("place-title-text", title)),
             )
             .child(rows)
             .child(acts)
@@ -86,8 +88,8 @@ impl Tree {
         let subject = detail.message.lines().next().unwrap_or("").to_string();
         let label = |key: &str| text(cx, key, &[]);
         let rows = DescriptionList::new()
-            .text(label("tree.stash.when"), when(detail.author.at))
-            .text(label("tree.commit.id"), detail.id.clone());
+            .selectable_text(label("tree.stash.when"), when(detail.author.at))
+            .selectable_text(label("tree.commit.id"), detail.id.clone());
         let acts = match at {
             Some(at) => self.acts(
                 vec![
@@ -142,10 +144,10 @@ impl Tree {
         let mut rows = DescriptionList::new();
         if let Some(moved) = &moved {
             rows = rows
-                .text(label("tree.reflog.where"), moved.name.clone())
-                .text(label("tree.reflog.when"), when(moved.at));
+                .selectable_text(label("tree.reflog.where"), moved.name.clone())
+                .selectable_text(label("tree.reflog.when"), when(moved.at));
         }
-        rows = rows.text(label("tree.commit.id"), detail.id.clone());
+        rows = rows.selectable_text(label("tree.commit.id"), detail.id.clone());
         let (branch, back) = (detail.id.clone(), detail.id.clone());
         let acts = self.acts(
             vec![
@@ -204,8 +206,8 @@ impl Tree {
                     false => remote.push.join("\n").into(),
                 };
                 let rows = DescriptionList::new()
-                    .text(label("tree.remote.url"), remote.urls.join("\n"))
-                    .text(label("tree.remote.push_url"), push);
+                    .selectable_text(label("tree.remote.url"), remote.urls.join("\n"))
+                    .selectable_text(label("tree.remote.push_url"), push);
                 let (fetch, edit, remove) = (name.clone(), remote.clone(), name.clone());
                 let acts = self.acts(
                     vec![
@@ -237,17 +239,21 @@ impl Tree {
                 };
                 let mut rows = DescriptionList::new();
                 rows = match (&tree.branch, &tree.head) {
-                    (Some(branch), _) => rows.text(label("tree.worktree.on"), branch.clone()),
-                    (None, Some(head)) => rows.text(label("tree.commit.id"), head.clone()),
+                    (Some(branch), _) => {
+                        rows.selectable_text(label("tree.worktree.on"), branch.clone())
+                    }
+                    (None, Some(head)) => {
+                        rows.selectable_text(label("tree.commit.id"), head.clone())
+                    }
                     (None, None) => {
-                        rows.text(label("tree.worktree.on"), label("tree.worktree.bare"))
+                        rows.selectable_text(label("tree.worktree.on"), label("tree.worktree.bare"))
                     }
                 };
                 if let Some(why) = &tree.locked {
-                    rows = rows.text(label("tree.worktree.locked"), why.clone());
+                    rows = rows.selectable_text(label("tree.worktree.locked"), why.clone());
                 }
                 if let Some(why) = &tree.prunable {
-                    rows = rows.text(label("tree.worktree.prunable"), why.clone());
+                    rows = rows.selectable_text(label("tree.worktree.prunable"), why.clone());
                 }
                 // The main worktree and this one stay.
                 let main = found(read, |read| &read.worktrees, |_| true)
@@ -283,8 +289,8 @@ impl Tree {
                     Checkout::Unread(error) => error.clone().into(),
                 };
                 let rows = DescriptionList::new()
-                    .text(label("tree.submodule.recorded"), sub.recorded.clone())
-                    .text(label("tree.submodule.held"), held);
+                    .selectable_text(label("tree.submodule.recorded"), sub.recorded.clone())
+                    .selectable_text(label("tree.submodule.held"), held);
                 let mut acts: Vec<(&'static str, bool, Act)> = Vec::new();
                 if !matches!(&sub.checkout, Checkout::At(head) if *head == sub.recorded) {
                     let update = sub.path.clone();

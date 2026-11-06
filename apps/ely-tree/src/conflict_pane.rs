@@ -1,5 +1,7 @@
 //! A conflict's middle, and the running operation's alert.
 
+use ely_gpui_component::typography::SelectableText;
+
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant},
     feedback::{Alert, EmptyState},
@@ -177,7 +179,7 @@ impl Tree {
                     .flex_1()
                     .min_w_0()
                     .text_color(colors.fg)
-                    .child(path.to_string()),
+                    .child(SelectableText::new("conflict-path", path.to_string())),
             )
             .children(buttons);
         let Some(merging) = text_view else {

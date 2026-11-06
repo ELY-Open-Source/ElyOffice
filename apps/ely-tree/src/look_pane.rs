@@ -1,5 +1,7 @@
 //! The middle for a file's history or blame (TREE-06).
 
+use ely_gpui_component::typography::SelectableText;
+
 use ely_gpui_component::{
     buttons::{ButtonVariant, IconButton},
     feedback::{EmptyState, ErrorView},
@@ -73,11 +75,16 @@ impl Tree {
             .py_1p5()
             .border_b_1()
             .border_color(colors.border)
-            .child(div().flex_1().min_w_0().text_color(colors.fg).child(text(
-                cx,
-                key,
-                &[("path", path)],
-            )))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .text_color(colors.fg)
+                    .child(SelectableText::new(
+                        "look-title",
+                        text(cx, key, &[("path", path)]),
+                    )),
+            )
             .child(
                 IconButton::new("tree-look-close", IconName::X)
                     .variant(ButtonVariant::Ghost)
