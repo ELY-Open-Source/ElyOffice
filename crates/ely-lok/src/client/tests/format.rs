@@ -326,7 +326,7 @@ fn style_of<'a>(xml: &'a str, name: &str) -> &'a str {
     &xml[start..end]
 }
 
-/// A size at a bare cursor sets every script (GitHub #62).
+/// Bare-cursor size sets every script (#62).
 #[test]
 fn a_size_on_an_empty_line_sets_every_script() {
     if install().is_none() {

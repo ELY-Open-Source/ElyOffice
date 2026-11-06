@@ -1,4 +1,4 @@
-//! Mail merge from a CSV or spreadsheet (DOC-14); never sends mail.
+//! Mail merge from CSV or spreadsheets (DOC-14).
 
 mod run;
 
@@ -42,6 +42,8 @@ pub struct Merge {
     pub previews: std::collections::HashSet<u64>,
     /// The record to preview, from 1.
     record: usize,
+    /// Counts data choices; only the newest lands.
+    chosen: u64,
     pdf: bool,
 }
 
@@ -53,6 +55,7 @@ impl Merge {
             source: None,
             previews: std::collections::HashSet::new(),
             record: 1,
+            chosen: 0,
             pdf: false,
         }
     }
@@ -80,22 +83,37 @@ impl Docs {
 
     /// Reads `path` as merge data, else says why.
     pub(crate) fn take_csv(&mut self, source: u64, path: &std::path::Path, cx: &mut Context<Self>) {
+        let chosen = self.merge.update(cx, |merge, _| {
+            merge.chosen += 1;
+            merge.chosen
+        });
         if !run::is_sheet(path) {
-            return self.took(source, path, read_csv(path), cx);
+            return self.took(chosen, source, path, read_csv(path), cx);
         }
-        log::info!("doc: merge data from a spreadsheet");
+        log::info!("doc: merge data {chosen} from a spreadsheet");
         let (worker, path) = (std::sync::Arc::clone(&self.core.worker), path.to_path_buf());
-        let scratch = self.core.work.join(format!("merge-{source}.csv"));
+        let scratch = self.core.work.join(format!("merge-{source}-{chosen}.csv"));
         cx.spawn(async move |this, cx| {
             let shown = path.clone();
             let read = cx.background_spawn(async move { run::read_sheet(&worker, &path, &scratch) }).await;
-            ely_office::in_window(&this, cx, |docs, _, cx| docs.took(source, &shown, read, cx))
+            ely_office::in_window(&this, cx, |docs, _, cx| docs.took(chosen, source, &shown, read, cx))
         })
         .detach();
     }
 
     /// Takes merge data read from `path`, else says why.
-    fn took(&mut self, source: u64, path: &std::path::Path, read: std::io::Result<Table>, cx: &mut Context<Self>) {
+    fn took(
+        &mut self,
+        chosen: u64,
+        source: u64,
+        path: &std::path::Path,
+        read: std::io::Result<Table>,
+        cx: &mut Context<Self>,
+    ) {
+        let newest = self.merge.read(cx).chosen;
+        if chosen != newest {
+            return log::info!("doc: merge data {chosen} dropped; {newest} is newer");
+        }
         match read {
             Ok(table) => {
                 log::info!("doc: merge data has {} rows", table.rows.len());
