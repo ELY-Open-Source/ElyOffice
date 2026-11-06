@@ -591,6 +591,6 @@
 - [x] R16.25 R14.44 收尾：合并前 CI（§22）
 - [x] R16.26 R14.46 收尾：记录的真实性（§24）
 - [x] R16.29 deny.sh 的新告警（§4）：RUSTSEC-2026-0433（pulldown-cmark 0.13.5，嵌套图片维基链接的二次方解析）、async-executor 1.14.0 被撤（R16.10 跑 deny.sh 时发现，与之无关）。已做（先于 R16.25：pr.yml 因它在 deny 一步失败，其后的 clippy 与测试皆被跳过）：锁文件 pulldown-cmark 0.13.5→0.13.6、async-executor 1.14.0→1.14.1，组件库的锁早已是这两版；两个项目都不开 `ENABLE_WIKILINKS`，未曾受影响；`deny.sh` 全过，ElyMail 161、ElyMark 215、ely-ui 95 与全工作区 clippy、`panics.py` 皆过；pr.yml 42211911872（995ae0ac）每步皆过；第 1 轮 PASS
-- [ ] R16.30 窗口打不开时 ElyDoc 先报“the window did not open”，随后在 `async_context.rs:178` 因 `RefCell already borrowed` panic（非交互窗口站里启动即现，R16.10a 截图时发现）：应只报错退出
+- [ ] R16.30 窗口打不开时 ElyDoc 先报“the window did not open”，随后在 `async_context.rs:178` 因 `RefCell already borrowed` panic（非交互窗口站里启动即现，R16.10a 截图时发现）：应只报错退出。已做：根因是启动失败的对话框——`startup::fail` 在 gpui 的回调里（App 已借出）调 rfd 的模态框，Windows 的模态消息循环把 gpui 的消息派回 App，即二次借用 panic；panic 钩子再调 `fail`，第二个对话框在不可见的窗口站里永远等着（不设 `ELY_NO_DIALOG` 时 5/5 复现，设了即无，故此前 15 次未见）。改为 Windows 上对话框在自己的线程里弹、主线程等它（消息队列按线程，gpui 的窗口不被派发）；窗口站无可见桌面（服务、SSH 登录，照 gpui 同一判断）即不弹、记一条警告。`tests/scripts/windows-headless-start.sh`：无可见桌面时只有一条启动错误、无 panic、记下未弹框、1 秒内以 1 退出；换回旧 `startup.rs` 即 30 秒超时并报出 `RefCell already borrowed`；有可见桌面时窗口照开即 SKIP。未验：可见桌面上真有启动失败时线程里的对话框（须有人点“确定”）
 - [ ] R16.28 答复各议题（#16、#37、#64 起，逐条随做随记在 `.work/R16/replies.md`（本机，未入库））：本机 `gh` 令牌失效，待用户重新登录后贴出并照各条结论关闭
 - [ ] R16.27 验收核对表：R16 逐条

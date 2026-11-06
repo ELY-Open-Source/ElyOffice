@@ -23,13 +23,56 @@ pub fn fail(app: AppId, reason: &str) -> ! {
     let text = message(app, reason, &log);
     eprintln!("{text}");
     if std::env::var_os("ELY_NO_DIALOG").is_none() {
-        rfd::MessageDialog::new()
-            .set_level(rfd::MessageLevel::Error)
-            .set_title(app.name())
-            .set_description(&text)
-            .show();
+        show(app.name(), text);
     }
     process::exit(1)
+}
+
+/// Its own thread: the modal loop must not run gpui.
+#[cfg(windows)]
+fn show(title: &'static str, text: String) {
+    if !visible() {
+        log::warn!("no visible desktop, so no dialog");
+        return;
+    }
+    let shown = std::thread::spawn(move || shown(title, &text)).join();
+    if shown.is_err() {
+        log::error!("the failed-start dialog panicked");
+    }
+}
+
+/// A service's or SSH login's station has none.
+#[cfg(windows)]
+fn visible() -> bool {
+    use windows_sys::Win32::System::StationsAndDesktops::{
+        GetProcessWindowStation, GetUserObjectInformationW, UOI_FLAGS, USEROBJECTFLAGS,
+    };
+    use windows_sys::Win32::UI::WindowsAndMessaging::WSF_VISIBLE;
+    let mut flags = USEROBJECTFLAGS::default();
+    // SAFETY: `flags` is valid for writes of the size passed.
+    let read = unsafe {
+        GetUserObjectInformationW(
+            GetProcessWindowStation(),
+            UOI_FLAGS,
+            (&raw mut flags).cast(),
+            size_of::<USEROBJECTFLAGS>() as u32,
+            std::ptr::null_mut(),
+        )
+    };
+    read != 0 && flags.dwFlags & WSF_VISIBLE as u32 != 0
+}
+
+#[cfg(not(windows))]
+fn show(title: &'static str, text: String) {
+    shown(title, &text);
+}
+
+fn shown(title: &str, text: &str) {
+    rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Error)
+        .set_title(title)
+        .set_description(text)
+        .show();
 }
 
 /// Until `started`, a panic is a failed start.
