@@ -91,8 +91,7 @@ impl Imap {
 
     /// Only UIDPLUS names one message to remove.
     async fn needs_uidplus(&mut self) -> Result<()> {
-        let can = self.capabilities().await?;
-        match can.iter().any(|it| it.eq_ignore_ascii_case("UIDPLUS")) {
+        match self.has("UIDPLUS") {
             true => Ok(()),
             false => Err(Error::Unsupported("UIDPLUS")),
         }

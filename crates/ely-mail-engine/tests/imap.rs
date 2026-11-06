@@ -72,6 +72,8 @@ async fn starttls_then_xoauth2() {
             send("+ \n"),
             expect(&STANDARD.encode(TOKEN_LINE)),
             send("{tag} OK welcome\n"),
+            expect("{tag} CAPABILITY"),
+            send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
             expect("{tag} LOGOUT"),
             send("* BYE\n{tag} OK bye\n"),
         ],
@@ -158,6 +160,8 @@ async fn a_missing_uid_is_none() {
             send("* OK ready\n"),
             expect("{tag} LOGIN \"ann@example.com\" \"pw\""),
             send("{tag} OK done\n"),
+            expect("{tag} CAPABILITY"),
+            send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
             expect("{tag} EXAMINE \"INBOX\""),
             send("* 1 EXISTS\n* OK [UIDVALIDITY 7] v\n{tag} OK in\n"),
             expect("{tag} UID FETCH 9 (UID FLAGS BODY.PEEK[])"),
@@ -251,6 +255,8 @@ async fn logged_in(steps: Vec<fake::Step>) -> (Imap, JoinHandle<Result<(), Strin
         send("* OK ready\n"),
         expect("{tag} LOGIN \"ann@example.com\" \"pw\""),
         send("{tag} OK done\n"),
+        expect("{tag} CAPABILITY"),
+        send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
     ];
     script.extend(steps);
     let (server, script) = serve(&certs, Security::Tls, script).await;
@@ -267,8 +273,6 @@ async fn logged_in(steps: Vec<fake::Step>) -> (Imap, JoinHandle<Result<(), Strin
 #[tokio::test]
 async fn listed_names_lose_quote_escapes_and_open_as_listed() {
     let (mut imap, script) = logged_in(vec![
-        expect("{tag} CAPABILITY"),
-        send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
         expect("{tag} LIST \"\" *"),
         send("* LIST () \"/\" \"a\\\"b\"\n"),
         send("* LIST () \"/\" \"c\\\\d\"\n"),
@@ -295,8 +299,6 @@ async fn listed_names_lose_quote_escapes_and_open_as_listed() {
 #[tokio::test]
 async fn a_refused_list_keeps_the_server_words() {
     let (mut imap, script) = logged_in(vec![
-        expect("{tag} CAPABILITY"),
-        send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
         expect("{tag} LIST \"\" *"),
         send("* LIST () \"/\" INBOX\n"),
         send("{tag} NO [UNAVAILABLE] Mailbox listing temporarily unavailable\n"),
@@ -355,8 +357,6 @@ async fn a_bye_after_login_keeps_the_server_words() {
     script.await.unwrap().unwrap();
 
     let (mut imap, script) = logged_in(vec![
-        expect("{tag} CAPABILITY"),
-        send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
         expect("{tag} LIST \"\" *"),
         send("* BYE Shutting down\n"),
     ])
@@ -385,6 +385,8 @@ async fn a_password_beyond_ascii_goes_as_a_literal() {
             send("+ go on\n"),
             expect(password),
             send("{tag} OK done\n"),
+            expect("{tag} CAPABILITY"),
+            send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
         ],
     )
     .await;
@@ -423,4 +425,31 @@ async fn bytes_before_tls_are_refused() {
         matches!(&err, Error::Protocol(text) if text.contains("before TLS")),
         "{err}"
     );
+}
+
+#[tokio::test]
+async fn a_server_offering_id_hears_the_client_name() {
+    let certs = certs();
+    let id = format!("{{tag}} ID (\"name\" \"ElyMail\" \"version\" \"{}\")", env!("CARGO_PKG_VERSION"));
+    let (server, script) = serve(
+        &certs,
+        Security::Tls,
+        vec![
+            send("* OK ready\n"),
+            expect("{tag} LOGIN \"ann@example.com\" \"pw\""),
+            send("{tag} OK done\n"),
+            expect("{tag} CAPABILITY"),
+            send("* CAPABILITY IMAP4rev1 ID\n{tag} OK caps\n"),
+            expect(&id),
+            send("* ID (\"name\" \"Coremail\")\n{tag} OK ID completed\n"),
+            expect("{tag} LOGOUT"),
+            send("* BYE\n{tag} OK bye\n"),
+        ],
+    )
+    .await;
+    let imap = Imap::connect(&server, &login(Secret::Password("pw".into())), &certs.trusted)
+        .await
+        .unwrap();
+    imap.logout().await.unwrap();
+    script.await.unwrap().unwrap();
 }

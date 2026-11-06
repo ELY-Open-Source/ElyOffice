@@ -25,6 +25,8 @@ async fn trace_logs_keep_no_password_token_or_mail() {
             send("* OK ready\n"),
             expect(&format!("{{tag}} LOGIN \"ann@example.com\" \"{PASSWORD}\"")),
             send("{tag} OK in\n"),
+            expect("{tag} CAPABILITY"),
+            send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
             expect("{tag} EXAMINE \"INBOX\""),
             send("* 1 EXISTS\n* OK [UIDVALIDITY 7] v\n{tag} OK done\n"),
             expect("{tag} UID FETCH 7 (UID FLAGS BODY.PEEK[])"),

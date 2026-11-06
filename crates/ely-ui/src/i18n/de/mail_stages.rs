@@ -10,6 +10,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("mail.stage.logout", "Abmelden"),
     ("mail.stage.mailboxes", "Auflisten der Postfächer"),
     ("mail.stage.capabilities", "Lesen der Serverfunktionen"),
+    ("mail.stage.identify", "Nennen des Programms gegenüber dem Server"),
     ("mail.stage.open", "Öffnen des Postfachs"),
     ("mail.stage.open_drafts", "Öffnen des Ordners „Entwürfe“"),
     ("mail.stage.open_change", "Öffnen des Postfachs zum Ändern"),

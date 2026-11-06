@@ -7,14 +7,20 @@ pub enum Kind {
     Gmail,
     Microsoft,
     ICloud,
+    Qq,
+    Mail163,
+    Mail126,
     Imap,
     Pop,
 }
 
-pub const KINDS: [Kind; 5] = [
+pub const KINDS: [Kind; 8] = [
     Kind::Gmail,
     Kind::Microsoft,
     Kind::ICloud,
+    Kind::Qq,
+    Kind::Mail163,
+    Kind::Mail126,
     Kind::Imap,
     Kind::Pop,
 ];
@@ -25,12 +31,20 @@ pub const APPLE_ACCOUNT: &str = "https://account.apple.com";
 /// Where Google makes app passwords.
 pub const GOOGLE_APP_PASSWORDS: &str = "https://myaccount.google.com/apppasswords";
 
+/// Where QQ Mail and NetEase make authorization codes.
+pub const QQ_MAIL: &str = "https://mail.qq.com";
+pub const MAIL_163: &str = "https://mail.163.com";
+pub const MAIL_126: &str = "https://mail.126.com";
+
 impl Kind {
     pub fn key(self) -> &'static str {
         match self {
             Kind::Gmail => "gmail",
             Kind::Microsoft => "microsoft",
             Kind::ICloud => "icloud",
+            Kind::Qq => "qq",
+            Kind::Mail163 => "163",
+            Kind::Mail126 => "126",
             Kind::Imap => "imap",
             Kind::Pop => "pop",
         }
@@ -72,6 +86,22 @@ impl Kind {
                 Auth::Password,
                 server("imap.mail.me.com", 993, Security::Tls),
                 server("smtp.mail.me.com", 587, Security::StartTls),
+            )),
+            // QQ and NetEase: the address signs in, with a code.
+            Kind::Qq => Some((
+                Auth::Password,
+                server("imap.qq.com", 993, Security::Tls),
+                server("smtp.qq.com", 465, Security::Tls),
+            )),
+            Kind::Mail163 => Some((
+                Auth::Password,
+                server("imap.163.com", 993, Security::Tls),
+                server("smtp.163.com", 465, Security::Tls),
+            )),
+            Kind::Mail126 => Some((
+                Auth::Password,
+                server("imap.126.com", 993, Security::Tls),
+                server("smtp.126.com", 465, Security::Tls),
             )),
             Kind::Imap | Kind::Pop => None,
         }

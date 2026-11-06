@@ -51,6 +51,8 @@ fn imap(token: &str, rest: Vec<Step>) -> Vec<Step> {
         send("+ \n"),
         expect(&bearer(token)),
         send("{tag} OK welcome\n"),
+        expect("{tag} CAPABILITY"),
+        send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
     ];
     script.extend(rest);
     script.push(expect("{tag} LOGOUT"));
@@ -61,8 +63,6 @@ fn imap(token: &str, rest: Vec<Step>) -> Vec<Step> {
 /// A sync with no folders, as `token`.
 fn listed(token: &str) -> Vec<Step> {
     let rest = vec![
-        expect("{tag} CAPABILITY"),
-        send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
         expect("{tag} LIST \"\" *"),
         send("{tag} OK listed\n"),
     ];

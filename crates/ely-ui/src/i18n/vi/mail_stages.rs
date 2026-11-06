@@ -10,6 +10,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("mail.stage.logout", "đăng xuất"),
     ("mail.stage.mailboxes", "liệt kê hộp thư"),
     ("mail.stage.capabilities", "đọc các tính năng máy chủ hỗ trợ"),
+    ("mail.stage.identify", "báo tên ứng dụng cho máy chủ"),
     ("mail.stage.open", "mở hộp thư"),
     ("mail.stage.open_drafts", "mở thư mục thư nháp"),
     ("mail.stage.open_change", "mở hộp thư để thay đổi"),

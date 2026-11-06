@@ -7,7 +7,7 @@ use queue::{caps, change, dropped, here, listed, present, push, select, steps, w
 #[tokio::test]
 async fn nothing_queued_sends_nothing() {
     let (here, _) = here(&[1]);
-    assert_eq!(push(&here, Vec::new()).await.unwrap(), []);
+    assert_eq!(push(&here, caps("")).await.unwrap(), []);
 }
 
 #[tokio::test]
@@ -29,7 +29,7 @@ async fn flags_go_to_the_server_once() {
     let pushed = push(&here, script).await.unwrap();
     assert_eq!(pushed, []);
     assert_eq!(waiting(&here), 0);
-    assert_eq!(push(&here, Vec::new()).await.unwrap(), []);
+    assert_eq!(push(&here, caps("")).await.unwrap(), []);
 }
 
 #[tokio::test]
@@ -370,8 +370,6 @@ async fn a_sync_sends_changes_first_and_keeps_one_made_meanwhile() {
         vec![
             expect("{tag} UID STORE 1 +FLAGS.SILENT (\\Seen)"),
             send("{tag} OK stored\n"),
-            expect("{tag} CAPABILITY"),
-            send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
             expect("{tag} LIST \"\" *"),
             send("* LIST () \"/\" INBOX\n{tag} OK listed\n"),
             expect("{tag} EXAMINE \"INBOX\""),
@@ -427,7 +425,7 @@ async fn a_change_undone_before_it_went_sends_nothing() {
     let (here, ids) = here(&[1]);
     change(&here, &ids, Change::Move(here.work));
     change(&here, &ids, Change::Move(here.inbox));
-    assert_eq!(push(&here, Vec::new()).await.unwrap(), []);
+    assert_eq!(push(&here, caps("")).await.unwrap(), []);
     assert_eq!(listed(&here, here.inbox), ids);
 }
 

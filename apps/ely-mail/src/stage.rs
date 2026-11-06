@@ -18,6 +18,7 @@ pub fn quiet(stage: Stage, cx: &App) -> SharedString {
         Stage::LoggingOut => "mail.stage.logout",
         Stage::ListingMailboxes => "mail.stage.mailboxes",
         Stage::ReadingCapabilities => "mail.stage.capabilities",
+        Stage::Identifying => "mail.stage.identify",
         Stage::OpeningMailbox => "mail.stage.open",
         Stage::OpeningDrafts => "mail.stage.open_drafts",
         Stage::OpeningMailboxToChange => "mail.stage.open_change",

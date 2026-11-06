@@ -10,6 +10,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("mail.stage.logout", "ログアウト"),
     ("mail.stage.mailboxes", "メールボックスの一覧取得"),
     ("mail.stage.capabilities", "サーバーの対応機能の読み取り"),
+    ("mail.stage.identify", "サーバーへのアプリ名の通知"),
     ("mail.stage.open", "メールボックスのオープン"),
     ("mail.stage.open_drafts", "下書きフォルダーのオープン"),
     ("mail.stage.open_change", "変更のためのメールボックスのオープン"),

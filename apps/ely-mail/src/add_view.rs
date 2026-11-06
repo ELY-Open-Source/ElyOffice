@@ -16,7 +16,7 @@ use gpui::{
 
 use crate::{
     adding::{Adding, Step},
-    kinds::{APPLE_ACCOUNT, GOOGLE_APP_PASSWORDS, KINDS, Kind},
+    kinds::{APPLE_ACCOUNT, GOOGLE_APP_PASSWORDS, KINDS, Kind, MAIL_126, MAIL_163, QQ_MAIL},
     mail::{Mail, text},
     view::auth,
 };
@@ -156,9 +156,12 @@ impl Mail {
             Kind::Microsoft => DescriptionList::new()
                 .item(label("mail.add.address_hint"), field(&fields.address))
                 .into_any_element(),
-            Kind::Gmail | Kind::ICloud => {
+            Kind::Gmail | Kind::ICloud | Kind::Qq | Kind::Mail163 | Kind::Mail126 => {
                 let (words, page) = match adding.kind {
                     Kind::Gmail => ("mail.gmail", GOOGLE_APP_PASSWORDS),
+                    Kind::Qq => ("mail.qq", QQ_MAIL),
+                    Kind::Mail163 => ("mail.netease", MAIL_163),
+                    Kind::Mail126 => ("mail.netease", MAIL_126),
                     _ => ("mail.icloud", APPLE_ACCOUNT),
                 };
                 let open = Button::new("mail-add-page", label(&format!("{words}.open")))

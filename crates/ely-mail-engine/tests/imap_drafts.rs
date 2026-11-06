@@ -119,8 +119,6 @@ fn appended() -> [Step; 7] {
 async fn put_with(old_goes: Vec<Step>) -> Placed {
     let mut steps = logged_in("IMAP4rev1 UIDPLUS");
     steps.extend(appended());
-    steps.push(expect("{tag} CAPABILITY"));
-    steps.push(send("* CAPABILITY IMAP4rev1 UIDPLUS\n{tag} OK caps\n"));
     steps.extend(old_goes);
     steps.extend([expect("{tag} LOGOUT"), send("* BYE\n{tag} OK bye\n")]);
     let certs = certs();
@@ -189,7 +187,6 @@ async fn pop_keeps_drafts_here() {
 #[tokio::test]
 async fn a_sent_copy_is_filed_read_and_needs_no_uidplus() {
     let mut steps = logged_in("IMAP4rev1");
-    steps.truncate(3);
     steps.extend([
         expect("{tag} APPEND \"Sent\" (\\Seen) {18}"),
         send("+ go\n"),
@@ -214,7 +211,6 @@ async fn a_sent_copy_is_filed_read_and_needs_no_uidplus() {
 #[tokio::test]
 async fn a_filed_copy_is_told_without_waiting_for_the_logout() {
     let mut steps = logged_in("IMAP4rev1");
-    steps.truncate(3);
     steps.extend([
         expect("{tag} APPEND \"Sent\" (\\Seen) {18}"),
         send("+ go\n"),

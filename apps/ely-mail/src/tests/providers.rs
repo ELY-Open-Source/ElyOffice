@@ -159,3 +159,37 @@ fn a_refused_gmail_password_says_what_to_do() {
         }
     }
 }
+
+#[test]
+fn qq_and_netease_take_their_servers_and_an_authorization_code() {
+    let cases = [
+        (Kind::Qq, "ann@qq.com", "https://mail.qq.com", "imap.qq.com", "smtp.qq.com"),
+        (Kind::Mail163, "ann@163.com", "https://mail.163.com", "imap.163.com", "smtp.163.com"),
+        (Kind::Mail126, "ann@126.com", "https://mail.126.com", "imap.126.com", "smtp.126.com"),
+    ];
+    for (kind, address, url, imap, smtp) in cases {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cx = TestAppContext::single();
+        let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
+        adding(&mail, kind, cx);
+        let page = cx.debug_bounds("mail-add-page").expect("a button to the web mail");
+        cx.simulate_click(page.center(), Modifiers::none());
+        assert_eq!(cx.opened_url().as_deref(), Some(url));
+        let wide = cx.update(|window, _| window.viewport_size().width);
+        let last = cx.debug_bounds("segment pop").expect("every kind is drawn");
+        assert!(last.right() <= wide, "the kinds fit: {last:?} in {wide:?}");
+        type_in(&mail, cx, |f| &f.address, address);
+        let account = cx
+            .update(|_, app| mail.read(app).adding.as_ref().unwrap().account(None, app))
+            .unwrap();
+        assert_eq!(
+            (account.incoming.host.as_str(), account.incoming.port, account.incoming.security),
+            (imap, 993, Security::Tls)
+        );
+        assert_eq!(
+            (account.outgoing.host.as_str(), account.outgoing.port, account.outgoing.security),
+            (smtp, 465, Security::Tls)
+        );
+        assert_eq!((account.user.as_str(), account.auth), (address, Auth::Password));
+    }
+}

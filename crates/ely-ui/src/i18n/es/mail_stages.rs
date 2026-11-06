@@ -13,6 +13,7 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("mail.stage.logout", "cerrar sesión"),
     ("mail.stage.mailboxes", "enumerar los buzones"),
     ("mail.stage.capabilities", "leer qué admite el servidor"),
+    ("mail.stage.identify", "decir al servidor qué aplicación es"),
     ("mail.stage.open", "abrir el buzón"),
     ("mail.stage.open_drafts", "abrir la carpeta Borradores"),
     ("mail.stage.open_change", "abrir el buzón para modificarlo"),

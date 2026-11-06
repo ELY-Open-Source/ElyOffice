@@ -102,7 +102,12 @@ async fn servers(
         send(imap_answer),
     ];
     if imap_answer.contains(" OK ") {
-        imap.extend([expect("{tag} LOGOUT"), send("* BYE\n{tag} OK bye\n")]);
+        imap.extend([
+            expect("{tag} CAPABILITY"),
+            send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
+            expect("{tag} LOGOUT"),
+            send("* BYE\n{tag} OK bye\n"),
+        ]);
     }
     let (incoming, imap) = serve(certs, Security::Tls, imap).await;
     let smtp = vec![

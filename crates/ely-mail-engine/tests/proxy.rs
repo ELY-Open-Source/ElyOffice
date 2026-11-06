@@ -113,6 +113,8 @@ async fn log_in() -> (u16, Result<()>) {
             send("* OK ready\n"),
             expect("{tag} LOGIN \"ann@example.com\" \"pw\""),
             send("{tag} OK done\n"),
+            expect("{tag} CAPABILITY"),
+            send("* CAPABILITY IMAP4rev1\n{tag} OK caps\n"),
             expect("{tag} LOGOUT"),
             send("* BYE\n{tag} OK bye\n"),
         ],

@@ -22,6 +22,8 @@ pub use parts::Node;
 /// A logged-in IMAP session over TLS.
 pub struct Imap {
     conn: Conn<Stream>,
+    /// Read once after login; fixed from then on.
+    can: Vec<String>,
 }
 
 /// What a folder is for (RFC 6154; INBOX by name).
@@ -120,15 +122,32 @@ impl Imap {
         };
         outcome.map_err(Error::Rejected)?;
         log::info!("mail: IMAP login on {}", server.host);
-        Ok(Self { conn })
+        let mut imap = Self { conn, can: Vec::new() };
+        imap.can = imap.capabilities().await?;
+        if imap.has("ID") {
+            imap.identify().await?;
+        }
+        Ok(imap)
+    }
+
+    fn has(&self, name: &str) -> bool {
+        self.can.iter().any(|it| it.eq_ignore_ascii_case(name))
+    }
+
+    /// RFC 2971; NetEase refuses mailboxes without it.
+    async fn identify(&mut self) -> Result<()> {
+        let names = format!("(\"name\" \"ElyMail\" \"version\" \"{}\")", env!("CARGO_PKG_VERSION"));
+        within(Stage::Identifying, self.conn.run("ID", &[Arg::Atom(&names)], |_, _| {}))
+            .await??
+            .map_err(Error::Server)?;
+        log::info!("mail: IMAP ID sent");
+        Ok(())
     }
 
     /// Every folder the server lists, with its role.
     pub async fn folders(&mut self) -> Result<Vec<Folder>> {
-        let can = self.capabilities().await?;
-        let has = |name: &str| can.iter().any(|it| it.eq_ignore_ascii_case(name));
         // RFC 6154 §2: roles may come only on request.
-        let extended = has("LIST-EXTENDED") && has("SPECIAL-USE");
+        let extended = self.has("LIST-EXTENDED") && self.has("SPECIAL-USE");
         let mut folders = Vec::new();
         let all = [
             Arg::Text(""),

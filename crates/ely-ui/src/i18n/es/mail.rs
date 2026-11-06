@@ -74,6 +74,9 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("mail.kind.icloud", "iCloud"),
     ("mail.kind.imap", "IMAP"),
     ("mail.kind.pop", "POP3"),
+    ("mail.kind.qq", "QQ Mail"),
+    ("mail.kind.163", "163 Mail"),
+    ("mail.kind.126", "126 Mail"),
     ("mail.add.address", "Dirección de correo electrónico"),
     (
         "mail.add.address_hint",
@@ -98,6 +101,12 @@ pub(super) const ES: &[(&str, &str)] = &[
     ),
     ("mail.icloud.open", "Abrir la cuenta de Apple"),
     ("mail.icloud.password", "Contraseña específica de app"),
+    ("mail.qq.steps", "QQ Mail necesita un código de autorización: en QQ Mail en la web, abre Configuración y luego Cuenta, activa el servicio IMAP/SMTP, genera un código de autorización y pégalo abajo. Tu contraseña de QQ no sirve aquí."),
+    ("mail.qq.open", "Abrir QQ Mail"),
+    ("mail.qq.password", "Código de autorización"),
+    ("mail.netease.steps", "NetEase Mail necesita un código de autorización: en 163 o 126 Mail en la web, abre Configuración y luego POP3/SMTP/IMAP, activa el servicio IMAP/SMTP, genera un código de autorización y pégalo abajo. Tu contraseña del correo no sirve aquí."),
+    ("mail.netease.open", "Abrir NetEase Mail"),
+    ("mail.netease.password", "Código de autorización"),
     (
         "mail.gmail.steps",
         "Gmail necesita una contraseña de aplicación: active la verificación en dos pasos en su cuenta de Google, abra Contraseñas de aplicación, cree una y péguela abajo. Si no aparece la página Contraseñas de aplicación, puede que Google no las ofrezca a esta cuenta, por ejemplo si la verificación en dos pasos está desactivada o solo usa llaves de seguridad, si la cuenta está en el Programa de Protección Avanzada o si un administrador del trabajo o del centro educativo las ha desactivado.",

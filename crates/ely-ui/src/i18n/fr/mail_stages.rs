@@ -10,6 +10,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("mail.stage.logout", "la déconnexion"),
     ("mail.stage.mailboxes", "la liste des boîtes aux lettres"),
     ("mail.stage.capabilities", "la lecture des capacités du serveur"),
+    ("mail.stage.identify", "l’envoi du nom de l’application au serveur"),
     ("mail.stage.open", "l’ouverture de la boîte aux lettres"),
     ("mail.stage.open_drafts", "l’ouverture du dossier des brouillons"),
     ("mail.stage.open_change", "l’ouverture de la boîte aux lettres pour la modifier"),

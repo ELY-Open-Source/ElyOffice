@@ -27,11 +27,9 @@ pub struct Moved {
 
 impl Imap {
     pub async fn can(&mut self) -> Result<Can> {
-        let can = self.capabilities().await?;
-        let has = |name: &str| can.iter().any(|it| it.eq_ignore_ascii_case(name));
         Ok(Can {
-            moves: has("MOVE"),
-            uidplus: has("UIDPLUS"),
+            moves: self.has("MOVE"),
+            uidplus: self.has("UIDPLUS"),
         })
     }
 

@@ -10,6 +10,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("mail.stage.logout", "로그아웃"),
     ("mail.stage.mailboxes", "사서함 목록 읽기"),
     ("mail.stage.capabilities", "서버 지원 기능 읽기"),
+    ("mail.stage.identify", "서버에 앱 이름 알리기"),
     ("mail.stage.open", "사서함 열기"),
     ("mail.stage.open_drafts", "임시 보관함 폴더 열기"),
     ("mail.stage.open_change", "변경할 사서함 열기"),
