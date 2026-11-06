@@ -74,7 +74,7 @@ impl Adding {
         };
         let address = field("mail.add.address", false, cx);
         let user = field("mail.add.user", false, cx);
-        let password = field("mail.add.password", true, cx);
+        let password = field(kind.password_key(), true, cx);
         let incoming = field("mail.add.incoming", false, cx);
         let incoming_port = field("mail.add.port", false, cx);
         let outgoing = field("mail.add.outgoing", false, cx);
@@ -163,6 +163,11 @@ impl Adding {
     pub fn set_kind(&mut self, kind: Kind, cx: &mut App) {
         self.stop();
         self.kind = kind;
+        let words = text(cx, kind.password_key(), &[]);
+        self.fields.password.update(cx, |input, cx| {
+            input.set_label(words.clone(), cx);
+            input.set_placeholder(words, cx);
+        });
         self.step = Step::Editing;
         self.set_ports(cx);
     }

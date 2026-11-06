@@ -191,5 +191,11 @@ fn qq_and_netease_take_their_servers_and_an_authorization_code() {
             (smtp, 465, Security::Tls)
         );
         assert_eq!((account.user.as_str(), account.auth), (address, Auth::Password));
+        let asked = cx.update(|_, app| {
+            let input = mail.read(app).adding.as_ref().unwrap().fields.password.read(app);
+            (input.label_text().to_string(), input.placeholder_text().to_string())
+        });
+        let code = "Authorization code".to_string();
+        assert_eq!(asked, (code.clone(), code), "the field asks for the code");
     }
 }

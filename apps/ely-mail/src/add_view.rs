@@ -168,7 +168,7 @@ impl Mail {
                     .on_click(move |_, _, cx| cx.open_url(page));
                 let rows = DescriptionList::new()
                     .item(label("mail.add.address"), field(&fields.address))
-                    .item(label(&format!("{words}.password")), password);
+                    .item(label(adding.kind.password_key()), password);
                 div()
                     .flex()
                     .flex_col()

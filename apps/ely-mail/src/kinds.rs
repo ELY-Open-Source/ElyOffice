@@ -50,6 +50,17 @@ impl Kind {
         }
     }
 
+    /// What the password field asks for.
+    pub fn password_key(self) -> &'static str {
+        match self {
+            Kind::Gmail => "mail.gmail.password",
+            Kind::ICloud => "mail.icloud.password",
+            Kind::Qq => "mail.qq.password",
+            Kind::Mail163 | Kind::Mail126 => "mail.netease.password",
+            Kind::Microsoft | Kind::Imap | Kind::Pop => "mail.add.password",
+        }
+    }
+
     pub fn from_key(key: &str) -> Option<Kind> {
         KINDS.into_iter().find(|kind| kind.key() == key)
     }
