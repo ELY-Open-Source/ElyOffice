@@ -22,6 +22,7 @@ use crate::{
 };
 
 mod again;
+mod body;
 mod contacts;
 mod controls;
 mod drafts;

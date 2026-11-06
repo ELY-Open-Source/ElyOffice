@@ -6,6 +6,7 @@ mod calc;
 mod data;
 mod doc;
 mod mail;
+mod mail_body;
 mod mail_contacts;
 mod mail_drafts;
 mod mail_migrate;
@@ -35,7 +36,7 @@ mod tree;
 mod tree_ops;
 mod tree_places;
 
-pub(super) const JA: [&[(&str, &str)]; 34] = [
+pub(super) const JA: [&[(&str, &str)]; 35] = [
     base::JA,
     office::JA,
     doc::JA,
@@ -50,6 +51,7 @@ pub(super) const JA: [&[(&str, &str)]; 34] = [
     mail_notify::JA,
     mail_storage::JA,
     mail_rules::JA,
+    mail_body::JA,
     mail_search::JA,
     mail_stages::JA,
     tools::JA,

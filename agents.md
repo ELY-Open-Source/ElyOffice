@@ -40,7 +40,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin 6d20201，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
+依赖 `ely-gpui-component`（pin 74beaa1，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
 
 | 需要 | 用 |
 | --- | --- |
@@ -53,7 +53,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 | 设置 | `settings::{SettingsLayout, SettingsSection, SettingsRow, ThemeSelector, KeyboardShortcutsList, StorageSettings, PrivacySettings}` |
 | Doc | `documents::{PrintPreview, TemplatePicker, WordCount, PageThumbnailList}` `editor::{FindWidget}` `collab::{CommentSidebar, Thread, Comment, Peer}` `lists::{List, ListItem}` |
 | Table | `tables::{PivotTable, FilterBuilder, SortBuilder}` `misc::{CsvImporter, ExportDialog}` `editor::{CompletionMenu, SignatureHelp, FindWidget}` `forms::{CheckboxGroup, ColorPalette}` |
-| Mail | `mail::{MailboxList, MailList, MailThreadView, MailReader, MailComposer, SignatureEditor, ScheduleSend}` |
+| Mail | `mail::{MailboxList, MailList, MailThreadView, MailReader, MailComposer, SignatureEditor, ScheduleSend}`；正文以 `documents::{MarkdownRenderer, RightPress}` 的 `selectable` 选中复制，右键菜单由 ElyMail 建 |
 | Tree | `git::{ChangesList, CommitInput, CommitList, lanes, DiffViewer, ConflictResolver, BlameView, BranchList, TagList, StashList, FileHistory}` |
 | Mark | `documents::{MarkdownDocument, MarkdownRenderer, ZenMode, MarkdownReader, MarkdownBlock, alert, is_toc, BlockCommand, InlineFormat, TableEdit, EditRefusal, TableRefusal, DocumentTarget, TargetBlock}` `editor::{CodeEditor, FindWidget}`；导出与复制调用可视同一组读法；段落、格式与表格菜单经文档的 `block`、`format`、`edit_table`；右键菜单听 `DocumentEvent::Pointed` |
 | Agent | `agent::{ToolCallCard, PermissionPrompt, ToolApprovalDialog, AgentStepList, FileChangeCard, MultiFileDiffReview, ArtifactPanel, CostBreakdown}` `chat::{MessageList, PromptInput, StreamingMarkdown, ConversationList}` |

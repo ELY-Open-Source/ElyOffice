@@ -26,6 +26,7 @@ mod mail_contacts;
 mod mail_migrate;
 mod mail_notify;
 mod mail_storage;
+mod mail_body;
 mod mail_rules;
 mod mail_search;
 mod mail_stages;
@@ -222,7 +223,7 @@ pub fn install_as(locale: &'static str, cx: &mut App) {
 /// Keys and messages of one language.
 type Catalog = Vec<(&'static str, &'static str)>;
 
-const EN_MODULES: [&[(&str, &str)]; 34] = [
+const EN_MODULES: [&[(&str, &str)]; 35] = [
     EN,
     office::EN,
     doc::EN,
@@ -237,6 +238,7 @@ const EN_MODULES: [&[(&str, &str)]; 34] = [
     mail_notify::EN,
     mail_storage::EN,
     mail_rules::EN,
+    mail_body::EN,
     mail_search::EN,
     mail_stages::EN,
     tools::EN,
@@ -259,7 +261,7 @@ const EN_MODULES: [&[(&str, &str)]; 34] = [
     settings::EN,
 ];
 
-const ZH_MODULES: [&[(&str, &str)]; 34] = [
+const ZH_MODULES: [&[(&str, &str)]; 35] = [
     ZH_CN,
     office::ZH_CN,
     doc::ZH_CN,
@@ -274,6 +276,7 @@ const ZH_MODULES: [&[(&str, &str)]; 34] = [
     mail_notify::ZH_CN,
     mail_storage::ZH_CN,
     mail_rules::ZH_CN,
+    mail_body::ZH_CN,
     mail_search::ZH_CN,
     mail_stages::ZH_CN,
     tools::ZH_CN,

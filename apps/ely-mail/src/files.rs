@@ -85,34 +85,46 @@ impl Mail {
                     Ok(part) => part,
                     Err(error) => return mail.failed("mail.file.unread", &error, cx),
                 };
-                let Some(dirs) = directories::UserDirs::new() else {
-                    return mail.failed("mail.file.unsaved", &ely_ui::i18n::text(cx, "error.no_home", &[]), cx);
-                };
-                let dir = dirs.download_dir().unwrap_or(dirs.home_dir()).to_path_buf();
-                let chosen = cx.prompt_for_new_path(&dir, Some(&named(&part, cx)));
-                cx.spawn(async move |this, cx| {
-                    let chosen = match chosen.await {
-                        Ok(Ok(chosen)) => chosen,
-                        Ok(Err(error)) => return this.update(cx, |mail, cx| mail.failed("mail.file.unsaved", &error.to_string(), cx)).ok(),
-                        Err(error) => return this.update(cx, |mail, cx| mail.failed("mail.file.unsaved", &error.to_string(), cx)).ok(),
-                    };
-                    let Some(path) = chosen else {
-                        log::info!("mail: saving a file was cancelled");
-                        return Some(());
-                    };
-                    let target = path.clone();
-                    let written = cx
-                        .background_spawn(async move { ely_files::export(&target, None, &part.bytes, 0) })
-                        .await;
-                    this.update(cx, |mail, cx| match written {
-                        Ok(_) => mail.saved_file(path, cx),
-                        Err(error) => mail.failed("mail.file.unsaved", &error.to_string(), cx),
-                    })
-                    .ok()
-                })
-                .detach();
+                let name = named(&part, cx);
+                mail.save_bytes(name, part.bytes, "mail.file.unsaved", cx);
             },
         );
+    }
+
+    /// Asks where `name` goes, then writes `bytes` there.
+    pub(crate) fn save_bytes(
+        &mut self,
+        name: String,
+        bytes: impl AsRef<[u8]> + Send + 'static,
+        unsaved: &'static str,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(dirs) = directories::UserDirs::new() else {
+            return self.failed(unsaved, &ely_ui::i18n::text(cx, "error.no_home", &[]), cx);
+        };
+        let dir = dirs.download_dir().unwrap_or(dirs.home_dir()).to_path_buf();
+        let chosen = cx.prompt_for_new_path(&dir, Some(&name));
+        cx.spawn(async move |this, cx| {
+            let chosen = match chosen.await {
+                Ok(Ok(chosen)) => chosen,
+                Ok(Err(error)) => return this.update(cx, |mail, cx| mail.failed(unsaved, &error.to_string(), cx)).ok(),
+                Err(error) => return this.update(cx, |mail, cx| mail.failed(unsaved, &error.to_string(), cx)).ok(),
+            };
+            let Some(path) = chosen else {
+                log::info!("mail: saving a file was cancelled");
+                return Some(());
+            };
+            let target = path.clone();
+            let written = cx
+                .background_spawn(async move { ely_files::export(&target, None, bytes.as_ref(), 0) })
+                .await;
+            this.update(cx, |mail, cx| match written {
+                Ok(_) => mail.saved_file(path, cx),
+                Err(error) => mail.failed(unsaved, &error.to_string(), cx),
+            })
+            .ok()
+        })
+        .detach();
     }
 
     pub(crate) fn saved_file(&mut self, path: PathBuf, cx: &mut Context<Self>) {

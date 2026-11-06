@@ -4,6 +4,7 @@
 mod add_view;
 mod adding;
 mod again;
+mod body_menu;
 mod boxes;
 mod capacity;
 mod compose;

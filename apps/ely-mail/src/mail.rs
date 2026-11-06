@@ -126,6 +126,8 @@ pub struct Mail {
     pub erasing: Option<Erasing>,
     /// Messages coming down whole for their files.
     pub downloading: HashSet<MessageId>,
+    /// The body menu asked for last.
+    pub body_asked: Option<ely_ui::menu::Offer<crate::body_menu::Asked>>,
     pub copies: PathBuf,
     pub open_copy: Opener,
     /// The quit question is showing.
@@ -251,6 +253,7 @@ impl Mail {
             pending: 0,
             erasing: None,
             downloading: HashSet::new(),
+            body_asked: None,
             copies: parts.copies,
             open_copy: parts.open,
             quitting: false,

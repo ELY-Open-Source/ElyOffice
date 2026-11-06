@@ -6,6 +6,7 @@ mod calc;
 mod data;
 mod doc;
 mod mail;
+mod mail_body;
 mod mail_contacts;
 mod mail_drafts;
 mod mail_migrate;
@@ -35,7 +36,7 @@ mod tree;
 mod tree_ops;
 mod tree_places;
 
-pub(super) const KO: [&[(&str, &str)]; 34] = [
+pub(super) const KO: [&[(&str, &str)]; 35] = [
     base::KO,
     office::KO,
     doc::KO,
@@ -50,6 +51,7 @@ pub(super) const KO: [&[(&str, &str)]; 34] = [
     mail_notify::KO,
     mail_storage::KO,
     mail_rules::KO,
+    mail_body::KO,
     mail_search::KO,
     mail_stages::KO,
     tools::KO,

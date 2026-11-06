@@ -6,6 +6,7 @@ mod calc;
 mod data;
 mod doc;
 mod mail;
+mod mail_body;
 mod mail_contacts;
 mod mail_drafts;
 mod mail_migrate;
@@ -35,7 +36,7 @@ mod tree;
 mod tree_ops;
 mod tree_places;
 
-pub(super) const VI: [&[(&str, &str)]; 34] = [
+pub(super) const VI: [&[(&str, &str)]; 35] = [
     base::VI,
     office::VI,
     doc::VI,
@@ -50,6 +51,7 @@ pub(super) const VI: [&[(&str, &str)]; 34] = [
     mail_notify::VI,
     mail_storage::VI,
     mail_rules::VI,
+    mail_body::VI,
     mail_search::VI,
     mail_stages::VI,
     tools::VI,

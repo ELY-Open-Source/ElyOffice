@@ -99,11 +99,11 @@ impl Mail {
             div().debug_selector(|| "thread-older".into()).child(alert)
         });
         let column = div().p_6().flex().flex_col().gap_4();
-        ScrollArea::new("mail-reader-scroll")
+        let scroll = ScrollArea::new("mail-reader-scroll")
             .vertical()
             .size_full()
-            .child(column.children(older).child(view))
-            .into_any_element()
+            .child(column.children(older).child(view));
+        self.body_menu_host(cx).size_full().child(scroll).into_any_element()
     }
 
     /// One letter's words, notices and headers.
@@ -147,6 +147,12 @@ impl Mail {
                 // The engine kept only web and mail links.
                 log::info!("mail: a link opens");
                 cx.open_url(url);
+            })
+            .selectable({
+                let this = cx.weak_entity();
+                move |press, _, cx| {
+                    this.update(cx, |mail, cx| mail.body_pressed(id, press, cx)).ok();
+                }
             });
         part.children(self.pictures_notice(each, open, body, cx))
             .children(body.short.then(|| {
@@ -157,7 +163,10 @@ impl Mail {
                     cut,
                 )
             }))
-            .child(drawn)
+            .child({
+                let named = format!("mail-body {}", id.0);
+                div().debug_selector(move || named).child(drawn)
+            })
             .child(self.headers(each, &letter.headers, cx))
             .into_any_element()
     }
