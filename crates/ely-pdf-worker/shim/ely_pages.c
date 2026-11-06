@@ -331,8 +331,38 @@ static fz_rect inset(fz_rect box, int rotate, const float seen[4])
 	return box;
 }
 
+/* Crops one page; unless `apply`, only checks it. */
+static void crop_one(fz_context *ctx, pdf_document *pdf, int number, const float margins[4], const float sides[2], int apply)
+{
+	int none = margins[0] == 0 && margins[1] == 0 && margins[2] == 0 && margins[3] == 0;
+	pdf_obj *page = pdf_lookup_page_obj(ctx, pdf, number);
+	fz_rect media = pdf_to_rect(ctx, pdf_dict_get_inheritable(ctx, page, PDF_NAME(MediaBox)));
+	int rotate = pdf_to_int(ctx, pdf_dict_get_inheritable(ctx, page, PDF_NAME(Rotate)));
+	/* Points as shown; user units may be larger. */
+	float unit = pdf_to_real(ctx, pdf_dict_get(ctx, page, PDF_NAME(UserUnit)));
+	float user[4];
+	int side;
+	for (side = 0; side < 4; side++)
+		user[side] = margins[side] / (unit > 0 ? unit : 1);
+	fz_rect crop = inset(media, rotate, user);
+	if (!none && (crop.x1 - crop.x0 < 1 || crop.y1 - crop.y0 < 1))
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "the margins leave nothing of page %d", number + 1);
+	if (!apply)
+	{
+		/* Uncropped, a parent's crop shows. */
+		pdf_obj *up = pdf_dict_get_inheritable(ctx, pdf_dict_get(ctx, page, PDF_NAME(Parent)), PDF_NAME(CropBox));
+		if (none)
+			crop = up ? pdf_to_rect(ctx, up) : media;
+		ely_fit_sides(ctx, page, fz_intersect_rect(media, crop), sides, number);
+	}
+	else if (none)
+		pdf_dict_del(ctx, page, PDF_NAME(CropBox));
+	else
+		pdf_dict_put_rect(ctx, page, PDF_NAME(CropBox), crop);
+}
+
 /* Crops `pages` by seen margins in points; zeros uncrop. */
-int ely_crop_pages(fz_context *ctx, fz_document *doc, const int *pages, int n, const float margins[4])
+int ely_crop_pages(fz_context *ctx, fz_document *doc, const int *pages, int n, const float margins[4], const float sides[2])
 {
 	pdf_document *pdf = NULL;
 	int begun = 0, i;
@@ -340,32 +370,15 @@ int ely_crop_pages(fz_context *ctx, fz_document *doc, const int *pages, int n, c
 	fz_var(begun);
 	fz_try(ctx)
 	{
-		int none = margins[0] == 0 && margins[1] == 0 && margins[2] == 0 && margins[3] == 0;
 		pdf = ely_pdf_of(ctx, doc);
 		check_pages(ctx, pdf, pages, n);
+		/* A change, even abandoned, drops redo. */
+		for (i = 0; i < n; i++)
+			crop_one(ctx, pdf, pages[i], margins, sides, 0);
 		pdf_begin_operation(ctx, pdf, "Crop pages");
 		begun = 1;
 		for (i = 0; i < n; i++)
-		{
-			pdf_obj *page = pdf_lookup_page_obj(ctx, pdf, pages[i]);
-			fz_rect media = pdf_to_rect(ctx, pdf_dict_get_inheritable(ctx, page, PDF_NAME(MediaBox)));
-			int rotate = pdf_to_int(ctx, pdf_dict_get_inheritable(ctx, page, PDF_NAME(Rotate)));
-			/* Points as shown; user units may be larger. */
-			float unit = pdf_to_real(ctx, pdf_dict_get(ctx, page, PDF_NAME(UserUnit)));
-			float user[4];
-			int side;
-			for (side = 0; side < 4; side++)
-				user[side] = margins[side] / (unit > 0 ? unit : 1);
-			fz_rect crop = inset(media, rotate, user);
-			if (none)
-			{
-				pdf_dict_del(ctx, page, PDF_NAME(CropBox));
-				continue;
-			}
-			if (crop.x1 - crop.x0 < 1 || crop.y1 - crop.y0 < 1)
-				fz_throw(ctx, FZ_ERROR_ARGUMENT, "the margins leave nothing of page %d", pages[i] + 1);
-			pdf_dict_put_rect(ctx, page, PDF_NAME(CropBox), crop);
-		}
+			crop_one(ctx, pdf, pages[i], margins, sides, 1);
 		pdf_end_operation(ctx, pdf);
 	}
 	fz_catch(ctx)

@@ -320,7 +320,7 @@ static void graft_annots(fz_context *ctx, pdf_document *pdf, pdf_graft_map *map,
 }
 
 /* Every page of the PDF at `path`, inserted at `at`. */
-int ely_insert_file(fz_context *ctx, fz_document *doc, int at, const char *path, int *count)
+int ely_insert_file(fz_context *ctx, fz_document *doc, int at, const char *path, const float sides[2], int *count)
 {
 	pdf_document *pdf = NULL, *src = NULL;
 	pdf_graft_map *map = NULL;
@@ -343,7 +343,14 @@ int ely_insert_file(fz_context *ctx, fz_document *doc, int at, const char *path,
 			fz_throw(ctx, FZ_ERROR_ARGUMENT, "the file to insert is locked");
 		*count = pdf_count_pages(ctx, src);
 		for (i = 0; i < *count; i++)
-			room += pdf_array_len(ctx, pdf_dict_get(ctx, pdf_lookup_page_obj(ctx, src, i), PDF_NAME(Annots)));
+		{
+			pdf_obj *one = pdf_lookup_page_obj(ctx, src, i);
+			fz_rect used;
+			fz_matrix ctm;
+			pdf_page_obj_transform_box(ctx, one, &used, &ctm, FZ_CROP_BOX);
+			ely_fit_sides(ctx, one, used, sides, at + i);
+			room += pdf_array_len(ctx, pdf_dict_get(ctx, one, PDF_NAME(Annots)));
+		}
 		links = fz_calloc(ctx, room + 1, sizeof *links);
 		unhook(ctx, src, links, room, &n);
 		map = pdf_new_graft_map(ctx, pdf);

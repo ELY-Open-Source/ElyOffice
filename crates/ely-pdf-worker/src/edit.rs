@@ -6,7 +6,12 @@ use std::{
     path::Path,
 };
 
+use ely_pdf_engine::proto::{SIDES, page_box};
+
 use crate::ffi::{Context, Document, Mupdf, Open, checked, page, text};
+
+/// `SIDES` as the shim reads it.
+const BOUNDS: [f32; 2] = [*SIDES.start(), *SIDES.end()];
 
 unsafe extern "C" {
     fn ely_journal(ctx: *mut Context, doc: *mut Document) -> c_int;
@@ -21,6 +26,7 @@ unsafe extern "C" {
         pages: *const c_int,
         n: c_int,
         margins: *const f32,
+        sides: *const f32,
     ) -> c_int;
     fn ely_insert_blank(ctx: *mut Context, doc: *mut Document, at: c_int, w: f32, h: f32) -> c_int;
     fn ely_insert_file(
@@ -28,6 +34,7 @@ unsafe extern "C" {
         doc: *mut Document,
         at: c_int,
         path: *const c_char,
+        sides: *const f32,
         count: *mut c_int,
     ) -> c_int;
     fn ely_save(
@@ -101,17 +108,18 @@ impl Mupdf {
 
     pub fn crop_pages(&self, doc: &Open, pages: &[usize], margins: [f32; 4]) -> io::Result<()> {
         let (pages, n) = numbers(pages)?;
-        checked(unsafe { ely_crop_pages(self.ctx, doc.0, pages.as_ptr(), n, margins.as_ptr()) }).map(|_| ())
+        checked(unsafe { ely_crop_pages(self.ctx, doc.0, pages.as_ptr(), n, margins.as_ptr(), BOUNDS.as_ptr()) }).map(|_| ())
     }
 
     pub fn insert_blank(&self, doc: &Open, at: usize, (w, h): (f32, f32)) -> io::Result<()> {
+        page_box([0.0, 0.0, w, h])?;
         checked(unsafe { ely_insert_blank(self.ctx, doc.0, page(at)?, w, h) }).map(|_| ())
     }
 
     /// Inserts the pages of `path`; how many came.
     pub fn insert_file(&self, doc: &Open, at: usize, path: &str) -> io::Result<usize> {
         let (path, mut count) = (text(path)?, 0);
-        checked(unsafe { ely_insert_file(self.ctx, doc.0, page(at)?, path.as_ptr(), &mut count) })?;
+        checked(unsafe { ely_insert_file(self.ctx, doc.0, page(at)?, path.as_ptr(), BOUNDS.as_ptr(), &mut count) })?;
         usize::try_from(count).map_err(io::Error::other)
     }
 

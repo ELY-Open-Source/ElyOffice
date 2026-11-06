@@ -5,6 +5,8 @@
 #include <math.h>
 #include <string.h>
 
+#include "ely_shim.h"
+
 static char last_error[512];
 
 /* Takes the caught error to Rust; MuPDF counts it handled. */
@@ -431,4 +433,20 @@ int ely_outline(fz_context *ctx, fz_document *doc, unsigned char **data, size_t 
 void ely_free(fz_context *ctx, void *data)
 {
 	fz_free(ctx, data);
+}
+
+/* Throws unless `used` shows within `sides`. */
+void ely_fit_sides(fz_context *ctx, pdf_obj *page, fz_rect used, const float sides[2], int number)
+{
+	float unit = fabsf(pdf_dict_get_real_default(ctx, page, PDF_NAME(UserUnit), 1));
+	float w, h;
+	/* MuPDF's own fallbacks, in order. */
+	if (fz_is_empty_rect(used))
+		used = fz_make_rect(0, 0, 612, 792);
+	if (used.x1 - used.x0 < 1 || used.y1 - used.y0 < 1)
+		used = fz_unit_rect;
+	w = (used.x1 - used.x0) * unit;
+	h = (used.y1 - used.y0) * unit;
+	if (!(w >= sides[0] && w <= sides[1] && h >= sides[0] && h <= sides[1]))
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "page %d of %g by %g points, outside the page sizes", number + 1, w, h);
 }

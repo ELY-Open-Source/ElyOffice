@@ -6,7 +6,7 @@ use std::{
 };
 
 use ely_ipc::{Pack, Unpack, Worded, read_frame, write_frame};
-use ely_pdf_engine::proto::{may, page_box, tag};
+use ely_pdf_engine::proto::{may, tag};
 
 mod content;
 mod edit;
@@ -132,26 +132,6 @@ impl Worker {
         Ok(doc.mark())
     }
 
-    /// Like `edited`; a page it leaves outside `SIDES` undoes it.
-    fn resized(&mut self, id: u64, edit: impl FnOnce(&Mupdf, &Open) -> io::Result<Vec<usize>>) -> io::Result<String> {
-        let mut changed = Vec::new();
-        let mark = self.edited(id, |mupdf, doc| {
-            changed = edit(mupdf, doc)?;
-            Ok(())
-        })?;
-        let doc = self.docs.get_mut(&id).ok_or_else(|| io::Error::other(format!("no document {id}")))?;
-        let checked = changed.iter().try_for_each(|&page| page_box(self.mupdf.bounds(&doc.open, page)?));
-        let Err(error) = checked else {
-            return Ok(mark);
-        };
-        log::warn!("pdf-worker: an edit left {error}; undone");
-        self.mupdf.undo(&doc.open, false)?;
-        // No edit made it, so redo never reaches it.
-        doc.steps[doc.at - 1] = None;
-        doc.sync(&self.mupdf, None)?;
-        Err(error)
-    }
-
     fn edit(&mut self, kind: u8, ask: &mut Unpack) -> io::Result<Vec<u8>> {
         let id = ask.u64()?;
         if let Some(answer) = self.read_only(id, kind)? {
@@ -183,18 +163,18 @@ impl Worker {
                 for side in &mut margins {
                     *side = f32::from_bits(ask.u64()? as u32);
                 }
-                self.resized(id, |mupdf, doc| mupdf.crop_pages(doc, &pages, margins).map(|()| pages))?
+                self.edited(id, |mupdf, doc| mupdf.crop_pages(doc, &pages, margins))?
             }
             tag::BLANK => {
                 let at = ask.u64()? as usize;
                 let size = (f32::from_bits(ask.u64()? as u32), f32::from_bits(ask.u64()? as u32));
-                self.resized(id, |mupdf, doc| mupdf.insert_blank(doc, at, size).map(|()| vec![at]))?
+                self.edited(id, |mupdf, doc| mupdf.insert_blank(doc, at, size))?
             }
             tag::INSERT => {
                 let (at, path, mut count) = (ask.u64()? as usize, ask.str()?, 0);
-                let mark = self.resized(id, |mupdf, doc| {
+                let mark = self.edited(id, |mupdf, doc| {
                     count = mupdf.insert_file(doc, at, &path)?;
-                    Ok((at..at + count).collect())
+                    Ok(())
                 })?;
                 return Ok(Pack::new().u64(count as u64).str(&mark).bytes());
             }
