@@ -163,6 +163,19 @@ mod tests {
         let signer = made("Ely test signer", NOW, ca(), Some(&other), vec![]);
         assert!(untrusted(&[signer.der, other.der], &root), "another name counts in the path");
     }
+
+    /// RFC 4518, 2.2 deletes controls; 2.4 refuses private use.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn names_drop_controls_and_refuse_private_use() {
+        let one = rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
+        for (root, name, same) in [("Ely test root", "Ely test \0ro\u{200C}ot", true), ("Ely root\u{E000}", "ELY root\u{E000}", false)] {
+            let root = made(root, NOW, one, None, vec![]);
+            let middle = made(name, NOW, ca(), Some(&root), vec![]);
+            let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
+            assert_eq!(!untrusted(&[signer.der, middle.der], &root), same, "{name:?}");
+        }
+    }
 }
 
 #[cfg(target_os = "macos")]

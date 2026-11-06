@@ -135,11 +135,45 @@ fn same_name(a: &X509Name, b: &X509Name) -> bool {
 /// A string prepared by RFC 4518; else its bytes.
 fn folded(attr: &AttributeTypeAndValue) -> Result<String, Vec<u8>> {
     let bytes = || attr.as_slice().to_vec();
-    let text = attr.as_str().map_err(|_| bytes())?;
-    // Map, B.2 fold, prohibit; the crate skips NFKC.
-    let mapped = stringprep::x520prep(text, true).map_err(|_| bytes())?;
+    attr.as_str().ok().and_then(prepared).ok_or_else(bytes)
+}
+
+/// RFC 4518, 2.2 to 2.6, for case-ignore matching.
+fn prepared(text: &str) -> Option<String> {
+    use stringprep::tables;
+    let mapped: String = text
+        .chars()
+        .filter(|&c| !mapped_to_nothing(c))
+        .map(|c| match c {
+            '\u{9}'..='\u{D}' | '\u{85}' => ' ',
+            _ if c.is_whitespace() => ' ',
+            _ => c,
+        })
+        .flat_map(tables::case_fold_for_nfkc)
+        .collect();
     let normal: String = mapped.nfkc().collect();
-    Ok(normal.split(' ').filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" "))
+    let prohibited = |c: char| {
+        tables::unassigned_code_point(c)
+            || tables::change_display_properties_or_deprecated(c)
+            || tables::private_use(c)
+            || tables::non_character_code_point(c)
+            || tables::surrogate_code(c)
+            || c == '\u{FFFD}'
+    };
+    if normal.chars().any(prohibited) {
+        return None;
+    }
+    Some(normal.split(' ').filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" "))
+}
+
+/// RFC 4518, 2.2: deleted, controls included.
+fn mapped_to_nothing(c: char) -> bool {
+    matches!(c,
+        '\u{AD}' | '\u{1806}' | '\u{34F}' | '\u{180B}'..='\u{180D}' | '\u{FE00}'..='\u{FE0F}' | '\u{FFFC}' | '\u{200B}'
+        | '\u{0}'..='\u{8}' | '\u{E}'..='\u{1F}' | '\u{7F}'..='\u{84}' | '\u{86}'..='\u{9F}' | '\u{6DD}' | '\u{70F}'
+        | '\u{180E}' | '\u{200C}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{2063}'
+        | '\u{206A}'..='\u{206F}' | '\u{FEFF}' | '\u{FFF9}'..='\u{FFFB}' | '\u{1D173}'..='\u{1D17A}' | '\u{E0001}'
+        | '\u{E0020}'..='\u{E007F}')
 }
 
 /// Refuses an unreadable extension, or a critical one left unchecked.
