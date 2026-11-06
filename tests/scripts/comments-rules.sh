@@ -102,6 +102,10 @@ cat >"$work/site/video/a.html" <<'EOF'
 <svg><title><!-- One two three four five six seven eight nine ten eleven. --></title></svg>
 EOF
 ! check || fail "a long comment in an SVG title passed"
+for inside in '<svg><foreignObject><script>' '<svg></svg/><script>' '<math><mtext><script>'; do
+  printf '%s\n// One two three four five six seven eight nine ten eleven.\n</script>\n' "$inside" >"$work/site/video/a.html"
+  ! check || fail "a long comment in an HTML script after $inside passed"
+done
 for end in '</script\xc2\xa0x>' '</\xc5\xbfcript>'; do
   printf '<script>\nconst tag = "%b";\n// One two three four five six seven eight nine ten eleven.\n</script>\n' "$end" >"$work/site/video/a.html"
   ! check || fail "a long comment after a false script end passed"

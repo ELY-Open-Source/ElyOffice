@@ -35,6 +35,8 @@ TAG = re.compile(r"<(/?)([A-Za-z][\w-]*)", re.ASCII)
 RAW = ("script", "style", "textarea", "title", "xmp", "iframe", "noembed", "noframes")
 # Their content is markup, raw names included.
 FOREIGN = ("svg", "math")
+# Foreign elements whose content is HTML again.
+POINTS = ("foreignobject", "desc", "title", "mi", "mo", "mn", "ms", "mtext", "annotation-xml")
 
 
 def entry(text, start, end):
@@ -71,7 +73,7 @@ def css(text):
 
 def html(text):
     """Comment spans outside tags, styles' spans, and script bodies."""
-    spans, scripts, i, foreign = [], [], 0, 0
+    spans, scripts, i, stack = [], [], 0, []
     while (i := text.find("<", i)) >= 0:
         if text.startswith("<!--", i):
             end = text.find("-->", i + 4)
@@ -90,9 +92,21 @@ def html(text):
             j += 1
         j += 1
         name = tag.group(2).lower()
-        if name in FOREIGN and not text[i:j].endswith("/>"):
-            foreign = max(foreign + (-1 if tag.group(1) else 1), 0)
-        if tag.group(1) or name not in RAW or foreign:
+        foreign = bool(stack) and stack[-1][1]
+        if tag.group(1):
+            # An end tag closes its element, a slash or not.
+            at = next((k for k in range(len(stack) - 1, -1, -1) if stack[k][0] == name), None)
+            del stack[len(stack) if at is None else at:]
+            i = j
+            continue
+        if not text[i:j].endswith("/>"):
+            if name in FOREIGN:
+                stack.append((name, True))
+            elif foreign and name in POINTS:
+                stack.append((name, False))
+                i = j
+                continue
+        if name not in RAW or foreign:
             i = j
             continue
         # The whole name ends it, in ASCII as HTML reads.
