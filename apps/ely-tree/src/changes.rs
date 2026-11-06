@@ -23,6 +23,7 @@ use crate::{
 pub struct Changes {
     tree: WeakEntity<Tree>,
     _follow: Subscription,
+    pub show_graph: bool,
 }
 
 impl Changes {
@@ -30,6 +31,7 @@ impl Changes {
         Changes {
             tree: tree.downgrade(),
             _follow: cx.observe(tree, |_, _, cx| cx.notify()),
+            show_graph: true,
         }
     }
 }
@@ -78,7 +80,7 @@ impl Render for Changes {
         let side = tree.read(cx).side;
         let panel = match side {
             Side::Changes => changes(&tree, cx),
-            Side::History => crate::side_log::history(&tree, cx),
+            Side::History => crate::side_log::history(&tree, self.show_graph, cx),
             Side::Branches => crate::side_refs::branches(&tree, cx),
             Side::Places => crate::side_places::places(&tree, cx),
         };
