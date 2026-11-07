@@ -320,6 +320,8 @@ fn reading_the_theme_is_no_change() {
     fs::write(theme_dir.join("colors.toml"), LATTE).unwrap();
     fs::write(current.path().join("theme.name"), "catppuccin-latte\n").unwrap();
     let (_watcher, mut events) = changes(current.path()).unwrap();
+    // FSEvents may report the setup writes late.
+    while event_within(&mut events, 10) {}
 
     load(current.path()).unwrap().expect("a theme");
     assert!(!event_within(&mut events, 10), "a read counted as a change");

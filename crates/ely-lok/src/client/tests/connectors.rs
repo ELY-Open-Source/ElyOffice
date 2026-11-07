@@ -62,15 +62,20 @@ fn a_connector_s_ends_glue_to_shapes_and_follow_a_move() {
     assert_eq!(kinds, ["shape", "shape", "connector"], "one new connector");
     let drawn = saved(&mut worker, "drawn.fodp");
     assert!(attr(&drawn, "draw:start-shape").is_none(), "it starts loose: {drawn}");
-    // The view drags an end handle the same way.
+    // Each step waits for the frame.
+    let wait = std::time::Duration::from_secs(5);
+    let settle = |worker: &mut Worker, done: &dyn Fn(crate::events::Rect) -> bool, what: &str| {
+        let seen = poll_until(worker, &doc, &Events::default(), wait, |seen| seen.graphic.is_some_and(done));
+        seen.graphic.filter(|&rect| done(rect)).unwrap_or_else(|| panic!("{what}: {:?}", seen.graphic))
+    };
+    let left = end(&drawn, '1').0.min(end(&drawn, '2').0);
+    let first = settle(&mut worker, &|rect| (rect.0 - left).abs() < 30, "the new connector is framed");
     worker.drag_graphic(&doc, end(&drawn, '1'), (cm(4.0), cm(6.5))).expect("start");
+    let second = settle(&mut worker, &|rect| (rect.0 - first.0).abs() > 30, "the frame follows the start");
     let half = saved(&mut worker, "half.fodp");
-    // The frame moves late; the next drag waits.
-    let left = end(&half, '1').0.min(end(&half, '2').0);
-    let framed = |seen: &Events| seen.graphic.is_some_and(|(x, ..)| (x - left).abs() < 30);
-    let seen = poll_until(&mut worker, &doc, &Events::default(), std::time::Duration::from_secs(5), framed);
-    assert!(framed(&seen), "the frame follows the start: {:?}, left {left}", seen.graphic);
+    assert_ne!(end(&half, '1'), end(&drawn, '1'), "the start moved: {half}");
     worker.drag_graphic(&doc, end(&half, '2'), (cm(18.0), cm(6.5))).expect("end");
+    settle(&mut worker, &|rect| (rect.2 - second.2).abs() > 30, "the frame follows the end");
     let glued = saved(&mut worker, "glued.fodp");
     let (start, finish) = (attr(&glued, "draw:start-shape"), attr(&glued, "draw:end-shape"));
     assert!(start.is_some() && finish.is_some() && start != finish, "{glued}");
