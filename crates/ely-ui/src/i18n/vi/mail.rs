@@ -42,6 +42,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("mail.file.unnamed", "Tệp đính kèm chưa có tên"),
     ("mail.error.trust", "Chưa lưu được cài đặt ảnh của người gửi: {error}"),
     ("mail.add.title", "Thêm tài khoản"),
+    ("mail.add.kind", "Loại tài khoản"),
     ("mail.kind.gmail", "Gmail"),
     ("mail.kind.microsoft", "Microsoft"),
     ("mail.kind.icloud", "iCloud"),

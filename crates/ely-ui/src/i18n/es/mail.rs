@@ -69,6 +69,7 @@ pub(super) const ES: &[(&str, &str)] = &[
         "No se guardó el ajuste de imágenes del remitente: {error}",
     ),
     ("mail.add.title", "Añadir cuenta"),
+    ("mail.add.kind", "Tipo de cuenta"),
     ("mail.kind.gmail", "Gmail"),
     ("mail.kind.microsoft", "Microsoft"),
     ("mail.kind.icloud", "iCloud"),

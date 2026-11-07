@@ -42,6 +42,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("mail.file.unnamed", "Unbenannter Anhang"),
     ("mail.error.trust", "Die Bildeinstellung des Absenders wurde nicht gespeichert: {error}"),
     ("mail.add.title", "Konto hinzufügen"),
+    ("mail.add.kind", "Kontotyp"),
     ("mail.kind.gmail", "Gmail"),
     ("mail.kind.microsoft", "Microsoft"),
     ("mail.kind.icloud", "iCloud"),

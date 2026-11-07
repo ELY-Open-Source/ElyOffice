@@ -42,6 +42,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("mail.file.unnamed", "Pièce jointe sans nom"),
     ("mail.error.trust", "Le réglage des images de l’expéditeur n’a pas été enregistré : {error}"),
     ("mail.add.title", "Ajouter un compte"),
+    ("mail.add.kind", "Type de compte"),
     ("mail.kind.gmail", "Gmail"),
     ("mail.kind.microsoft", "Microsoft"),
     ("mail.kind.icloud", "iCloud"),

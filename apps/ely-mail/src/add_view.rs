@@ -4,7 +4,7 @@ use ely_gpui_component::{
     buttons::{Button, ButtonVariant, SegmentedControl},
     data_display::DescriptionList,
     feedback::{Banner, InlineMessage},
-    forms::{Input, PasswordInput, Switch},
+    forms::{Choice, Input, PasswordInput, Select, Switch},
     overlays::Dialog,
     primitives::Severity,
 };
@@ -81,23 +81,27 @@ impl Mail {
                 this.update(cx, |mail, cx| mail.close_adding(cx)).ok();
             }
         };
-        let kinds = KINDS.map(|kind| {
-            (
-                kind.key(),
-                text(cx, &format!("mail.kind.{}", kind.key()), &[]),
-            )
-        });
-        let kinds = choice(
-            &this,
-            "mail-add-kind",
-            adding.kind.key(),
-            kinds,
-            |adding, key, cx| {
-                if let Some(kind) = Kind::from_key(key) {
-                    adding.set_kind(kind, cx);
-                }
-            },
-        );
+        let kinds = {
+            let this = this.clone();
+            let choices = KINDS.map(|kind| {
+                Choice::new(kind.key(), text(cx, &format!("mail.kind.{}", kind.key()), &[]))
+            });
+            let label = text(cx, "mail.add.kind", &[]);
+            let select = Select::new("mail-add-kind", choices)
+                .label(label.clone())
+                .selected(adding.kind.key())
+                .on_change(move |key, _, cx| {
+                    this.update(cx, |mail, cx| {
+                        if let (Some(adding), Some(kind)) = (&mut mail.adding, Kind::from_key(key)) {
+                            adding.set_kind(kind, cx);
+                            cx.notify();
+                        }
+                    })
+                    .ok();
+                });
+            let picker = div().w_full().debug_selector(|| "mail-add-kind".into());
+            DescriptionList::new().item(label, picker.child(select))
+        };
         let oauth = adding.auth() != Auth::Password;
         let unavailable = match (self.providers)(adding.auth()) {
             Some(Err(Error::Unavailable(name))) => {

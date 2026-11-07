@@ -42,6 +42,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("mail.file.unnamed", "이름 없는 첨부 파일"),
     ("mail.error.trust", "보낸 사람의 그림 설정을 저장하지 못했습니다: {error}"),
     ("mail.add.title", "계정 추가"),
+    ("mail.add.kind", "계정 유형"),
     ("mail.kind.gmail", "Gmail"),
     ("mail.kind.microsoft", "Microsoft"),
     ("mail.kind.icloud", "iCloud"),

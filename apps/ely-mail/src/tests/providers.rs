@@ -176,8 +176,8 @@ fn qq_and_netease_take_their_servers_and_an_authorization_code() {
         cx.simulate_click(page.center(), Modifiers::none());
         assert_eq!(cx.opened_url().as_deref(), Some(url));
         let wide = cx.update(|window, _| window.viewport_size().width);
-        let last = cx.debug_bounds("segment pop").expect("every kind is drawn");
-        assert!(last.right() <= wide, "the kinds fit: {last:?} in {wide:?}");
+        let pick = cx.debug_bounds("mail-add-kind").expect("the kind picker is drawn");
+        assert!(pick.right() <= wide, "the picker fits: {pick:?} in {wide:?}");
         type_in(&mail, cx, |f| &f.address, address);
         let account = cx
             .update(|_, app| mail.read(app).adding.as_ref().unwrap().account(None, app))
@@ -198,4 +198,28 @@ fn qq_and_netease_take_their_servers_and_an_authorization_code() {
         let code = "Authorization code".to_string();
         assert_eq!(asked, (code.clone(), code), "the field asks for the code");
     }
+}
+
+#[test]
+fn the_kind_picker_names_each_kind_in_full() {
+    let dir = tempfile::tempdir().unwrap();
+    let laid = Arc::new(LaidOut::default());
+    let mut cx = TestAppContext::build_with_text_system(TestDispatcher::new(0), None, laid.clone());
+    let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
+    cx.update(|_, app| ely_ui::i18n::install_as("zh-CN", app));
+    adding(&mail, Kind::Gmail, cx);
+    let at = cx.debug_bounds("mail-add-kind").expect("the kind picker is drawn").center();
+    assert!(!laid.saw("QQ 邮箱"), "closed, only the chosen kind shows");
+    cx.simulate_click(at, Modifiers::none());
+    cx.update(|window, _| window.refresh());
+    cx.run_until_parked();
+    for name in ["iCloud", "QQ 邮箱", "163 邮箱", "126 邮箱", "IMAP", "POP3"] {
+        assert!(laid.saw(name), "the open list names {name}");
+    }
+    for key in ["down", "down", "down", "enter"] {
+        cx.simulate_keystrokes(key);
+    }
+    let kind = cx.update(|_, app| mail.read(app).adding.as_ref().unwrap().kind);
+    assert_eq!(kind, Kind::Qq, "the picked row sets the kind");
+    assert!(cx.debug_bounds("mail-add-page").is_some(), "QQ shows its guidance");
 }

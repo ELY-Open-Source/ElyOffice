@@ -42,6 +42,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("mail.file.unnamed", "名前のない添付ファイル"),
     ("mail.error.trust", "差出人の画像の設定を保存できませんでした: {error}"),
     ("mail.add.title", "アカウントを追加"),
+    ("mail.add.kind", "アカウントの種類"),
     ("mail.kind.gmail", "Gmail"),
     ("mail.kind.microsoft", "Microsoft"),
     ("mail.kind.icloud", "iCloud"),
