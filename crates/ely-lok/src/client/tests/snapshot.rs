@@ -99,7 +99,15 @@ fn flat(worker: &mut Worker, doc: &Doc, path: &Path) -> String {
     // Each copy of an edited document dates itself anew.
     let (head, rest) = text.split_once("<office:meta>").expect("metadata");
     let (_, tail) = rest.split_once("</office:meta>").expect("the metadata's end");
-    format!("{head}{tail}")
+    unviewed(&format!("{head}{tail}"))
+}
+
+/// `text` less the view's geometry, which macOS exports move.
+fn unviewed(text: &str) -> String {
+    const VIEW: [&str; 8] =
+        ["ViewAreaTop", "ViewAreaLeft", "ViewAreaWidth", "ViewAreaHeight", "VisibleTop", "VisibleLeft", "VisibleRight", "VisibleBottom"];
+    let names = VIEW.map(|name| format!(r#"config:name="{name}""#));
+    text.lines().filter(|line| !names.iter().any(|name| line.contains(name.as_str()))).collect::<Vec<_>>().join("\n")
 }
 
 /// A point as flat XML, less what loads differ in.
@@ -112,14 +120,10 @@ fn reread(worker: &mut Worker, point: &Path, path: &Path) -> String {
 
 /// `text` less what two loads of one point differ in.
 fn comparable(text: &str) -> String {
-    // Window and view geometry, rsids, change ids, Calc's style order.
-    let drawn = [
-        "WindowState", "Rsid", "RsidRoot", "ViewAreaTop", "ViewAreaLeft", "ViewAreaWidth", "ViewAreaHeight", "VisibleTop", "VisibleLeft",
-        "VisibleRight", "VisibleBottom",
-    ]
-    .map(|name| format!(r#"config:name="{name}""#));
+    // WindowState, rsids, change ids, Calc's style order.
+    let drawn = ["WindowState", "Rsid", "RsidRoot"].map(|name| format!(r#"config:name="{name}""#));
     let kept = |line: &&str| !drawn.iter().any(|name| line.contains(name.as_str()));
-    let mut lines: Vec<String> = layouts_named(text).lines().filter(kept).map(unnumbered).collect();
+    let mut lines: Vec<String> = layouts_named(&unviewed(text)).lines().filter(kept).map(unnumbered).collect();
     lines.sort_unstable();
     lines.join("\n")
 }
