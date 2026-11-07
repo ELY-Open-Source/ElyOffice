@@ -509,7 +509,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 ## 2026-11-07 0.1.14 发布：Linux 的 orcus 与 macOS 的路径
 
-- 发布任务 Linux 失败：打开坏包、UTF-32 平面 ODF 等文件时，类型探测走到 Calc 的 orcus 过滤器，`liborcus-0.21.so.0` 首次载入即报 `undefined symbol: inflateInit2_`，动态链接器以 127 结束 worker。用内部 zlib 时上游不给 orcus 链 zlib，留待进程里别的库导出，而本构建没有库导出它（0.1.13 同样如此，只是那时无测试走到这条路）。补丁 0104 在 Linux 上让 orcus 链入内部的静态 zlib（`-fPIC` 构建）；macOS 与 Windows 的产物不变。
+- 发布任务 Linux 失败：打开坏包、UTF-32 平面 ODF 等文件时，类型探测走到 Calc 的 orcus 过滤器，`liborcus-0.21.so.0` 首次载入即报 `undefined symbol: inflateInit2_`，动态链接器以 127 结束 worker。orcus 自身不调 zlib，调它的是 orcus 链入的内部静态 boost_iostreams；用内部 zlib 时上游不给 orcus 链 zlib，留待进程里别的库导出，而本构建没有库导出它（0.1.13 同样如此，只是那时无测试走到这条路）。补丁 0104 在 Linux 上把内部的静态 zlib（`-fPIC` 构建）排在 boost 之后链入；排在其前则静态库不解析 boost 的调用，首版补丁即败在此。macOS 与 Windows 的产物不变。
+- Linux 的发布机（WSL 里的 CI 用户）原无 `~/.config/user-dirs.dirs`，`directories` 给不出“文档”文件夹，另存为面板照 R14.10 拒开，“先问位置的保存”测试即败。已照桌面的默认写入 `XDG_DOCUMENTS_DIR="$HOME/Documents"`；应用的行为不变。
 - macOS 的两条保存停顿测试失败在测试本身：`/var` 是 `/private/var` 的链接，日志记的是解析后的路径，测试按未解析的临时目录去数，数到 0。改用 `dunce::canonicalize`（Windows 上不带 `\?\`）。
 - Intel 的内核树曾按 Xcode 27.0 的 SDK 配置，Xcode 27.2 删了它：`build-libreoffice.sh` 见到配置的 SDK 不在即重跑 autogen（d71d7990）。arm64 的 lo-src 不在补丁序列的任何前缀上，按“HEAD 加全部补丁”改回 17 个文件后重建。
 - 未发布的 v0.1.14 标签（无 GitHub 发布、无上传）移到带修复的提交。
