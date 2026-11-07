@@ -514,3 +514,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - macOS 的两条保存停顿测试失败在测试本身：`/var` 是 `/private/var` 的链接，日志记的是解析后的路径，测试按未解析的临时目录去数，数到 0。改用 `dunce::canonicalize`（Windows 上不带 `\?\`）。
 - Intel 的内核树曾按 Xcode 27.0 的 SDK 配置，Xcode 27.2 删了它：`build-libreoffice.sh` 见到配置的 SDK 不在即重跑 autogen（d71d7990）。arm64 的 lo-src 不在补丁序列的任何前缀上，按“HEAD 加全部补丁”改回 17 个文件后重建。
 - 未发布的 v0.1.14 标签（无 GitHub 发布、无上传）移到带修复的提交。
+
+## 2026-11-07 Linux 发布任务改到 WSL 的 runner
+
+- 原先 Windows 与 Linux 两个发布任务都要 `ely-windows` 这一个 runner，Linux 排在 Windows 之后（0.1.14 第二轮等了约一小时）。WSL 里本有一个闲着的 runner（`wsl-ubuntu`，标签 `wsl`），Linux 任务改到它上面，直接在 WSL 里跑 `ci.sh`，不再经 `wsl.exe`；以登录 shell 起（runner 的 PATH 没有 `~/.cargo/bin`，却有 Windows 的 cargo.exe）。下一次发布才验得到；两台 Mac 任务仍共用 `macos-signing`。

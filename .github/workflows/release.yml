@@ -83,26 +83,24 @@ jobs:
           [ -z "$(stale)" ] || { echo "CRLF still in the checkout:"; stale; exit 1; }
           "$dir/scripts/ci.sh" windows "${{ github.ref_name }}"
   linux:
-    # WSL keeps a kernel; Windows failures never stop Linux.
-    runs-on: [self-hosted, ely-windows]
+    # The WSL runner: Linux no longer waits for Windows.
+    runs-on: [self-hosted, wsl]
     timeout-minutes: 360
     steps:
       - name: Build, package and upload for Linux
-        shell: bash
+        # A login shell: the runner's PATH lacks ~/.cargo/bin.
+        shell: bash -l {0}
         env:
           ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Organization secrets, built into ElyMail.
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
           # Signs the update manifests.
           ELY_UPDATE_KEY: ${{ secrets.ELY_UPDATE_KEY }}
-          WSLENV: ELY_RELEASE_TOKEN:ELY_MICROSOFT_CLIENT_ID:ELY_UPDATE_KEY
         run: |
-          wsl -d Ubuntu --exec bash -lc '
-            set -euo pipefail
-            dir=$HOME/ely-ci/ElyOffice
-            [ -d "$dir/.git" ] || git clone https://github.com/ELY-Open-Source/ElyOffice.git "$dir"
-            git -C "$dir" remote set-url origin https://github.com/ELY-Open-Source/ElyOffice.git
-            git -C "$dir" fetch --force --tags origin
-            git -C "$dir" checkout --force "${{ github.sha }}"
-            ELY_SHARE=$HOME/Documents/Github/ElyOffice "$dir/scripts/ci.sh" linux "${{ github.ref_name }}"
-          '
+          set -euo pipefail
+          dir=$HOME/ely-ci/ElyOffice
+          [ -d "$dir/.git" ] || git clone https://github.com/ELY-Open-Source/ElyOffice.git "$dir"
+          git -C "$dir" remote set-url origin https://github.com/ELY-Open-Source/ElyOffice.git
+          git -C "$dir" fetch --force --tags origin
+          git -C "$dir" checkout --force "${{ github.sha }}"
+          ELY_SHARE=$HOME/Documents/Github/ElyOffice "$dir/scripts/ci.sh" linux "${{ github.ref_name }}"
