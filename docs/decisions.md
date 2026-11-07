@@ -506,3 +506,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 2026-11-06（R16.31）：ElyMail 写信的 HTML 改由应用以组件库的 Markdown 树写出，不再在引擎里用 markdown-rs。不直接调 pulldown-cmark：它不把裸网址认作链接，组件库在建树时补上，直接调则发出的信与写信框所见不同；引擎不依赖 gpui，故树在应用里读，引擎的 `bodies` 只收写好的 HTML 并接上签名与引文。链接与图片的地址照读信的 `page::link`（http、https、mailto），读信与发信同一规则。公式与前言邮件里画不出，照原文放进 `<pre>`，收件人仍读得到。
 - 2026-11-06（R16.31 第 2 轮）：发出的 HTML 里 `:smile:` 照原文而写信框显示 😄。短码照 GitHub 按 DOM 文本节点读（首个短码前是否只有空白或空格定此节点读不读），组件库已有 `Shortcodes` 而未公开；照规则 1 在组件库公开（e0f355a），ElyMail 的写法照阅读器同样遇元素即分、代码与自动链接里不读，不另抄一份规则。
 - 2026-11-06（R16.31 第 3 轮，末轮）：强调与链接之后的文字另起短码状态，照阅读器遇元素关闭即分，已修未审。余一处不修：行内原始 HTML 在写信框里照 GitHub 是元素（`<code>` 里不读短码，`<span>` 另起文本节点），邮件为安全把它转义成文字，两边的短码读法因此不同；只改短码不改根因，原始 HTML 的发法另行定夺。R16.31 记为 `[~]`。
+
+## 2026-11-07 0.1.14 发布：Linux 的 orcus 与 macOS 的路径
+
+- 发布任务 Linux 失败：打开坏包、UTF-32 平面 ODF 等文件时，类型探测走到 Calc 的 orcus 过滤器，`liborcus-0.21.so.0` 首次载入即报 `undefined symbol: inflateInit2_`，动态链接器以 127 结束 worker。用内部 zlib 时上游不给 orcus 链 zlib，留待进程里别的库导出，而本构建没有库导出它（0.1.13 同样如此，只是那时无测试走到这条路）。补丁 0104 在 Linux 上让 orcus 链入内部的静态 zlib（`-fPIC` 构建）；macOS 与 Windows 的产物不变。
+- macOS 的两条保存停顿测试失败在测试本身：`/var` 是 `/private/var` 的链接，日志记的是解析后的路径，测试按未解析的临时目录去数，数到 0。改用 `dunce::canonicalize`（Windows 上不带 `\?\`）。
+- Intel 的内核树曾按 Xcode 27.0 的 SDK 配置，Xcode 27.2 删了它：`build-libreoffice.sh` 见到配置的 SDK 不在即重跑 autogen（d71d7990）。arm64 的 lo-src 不在补丁序列的任何前缀上，按“HEAD 加全部补丁”改回 17 个文件后重建。
+- 未发布的 v0.1.14 标签（无 GitHub 发布、无上传）移到带修复的提交。

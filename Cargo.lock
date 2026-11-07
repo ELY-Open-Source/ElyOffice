@@ -2160,6 +2160,7 @@ dependencies = [
  "anyhow",
  "csv",
  "directories",
+ "dunce",
  "ely-files 0.1.14",
  "ely-gpui-component",
  "ely-ipc",

@@ -1,0 +1,21 @@
+orcus links the internal zlib on Linux
+
+With the internal zlib, liborcus is linked with no zlib at all and
+leaves inflate and deflate for the process to supply. No loaded kernel
+library exports them, so the first load of liborcus (type detection
+of a damaged or unusual file walks Calc's orcus filters) ended the
+LOK worker with "symbol lookup error: undefined symbol: inflateInit2_"
+and exit status 127. The static internal zlib is built with -fPIC, so
+liborcus now links it.
+
+--- a/external/liborcus/ExternalProject_liborcus.mk
++++ b/external/liborcus/ExternalProject_liborcus.mk
+@@ -36,6 +36,8 @@
+ liborcus_LIBS=
+ ifneq ($(SYSTEM_ZLIB),)
+ liborcus_LIBS+=-lz
++else ifeq ($(OS),LINUX)
++liborcus_LIBS+=$(ZLIB_LIBS)
+ endif
+ ifneq ($(SYSTEM_BOOST),)
+ liborcus_LIBS+=$(BOOST_IOSTREAMS_LIB) $(BOOST_FILESYSTEM_LIB)

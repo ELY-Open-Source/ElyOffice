@@ -122,7 +122,7 @@ fn a_save_as_ending_in_the_pause_never_answers_a_program() {
         answer.borrow().is_some()
     });
     assert!(answer.into_inner().expect("answered").is_ok(), "the program's own save answers");
-    let saved = format!("office: saved {}", other.display());
+    let saved = format!("office: saved {}", dunce::canonicalize(&other).expect("other.docx").display());
     let saves = ely_ui::logs::kept().iter().filter(|line| line.contains(&saved)).count();
     assert_eq!(saves, 2, "the Save As, then the program's own write");
 }
@@ -191,7 +191,7 @@ fn a_key_after_a_save_goes_first_and_into_the_file() {
         cx.executor().advance_clock(Duration::from_millis(20));
         run(&cx);
     }
-    let saved = format!("office: saved {}", own.display());
+    let saved = format!("office: saved {}", dunce::canonicalize(&own).expect("own.docx").display());
     let saves = ely_ui::logs::kept().iter().filter(|line| line.contains(&saved)).count();
     assert_eq!(saves, 2, "the first Save As and one save for both programs");
     assert!(text_of(&mut cx, &docs, &own).contains("onetwothree"), "the key after the request is saved");

@@ -30,6 +30,7 @@ ely-ui.workspace = true
 ely-ui = { workspace = true, features = ["test-support"] }
 ely-office = { workspace = true, features = ["test-support"] }
 ely-gpui-component = { workspace = true, features = ["test-support"] }
+dunce.workspace = true
 image.workspace = true
 serde_json.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
