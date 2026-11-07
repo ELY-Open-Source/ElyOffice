@@ -65,6 +65,11 @@ fn a_connector_s_ends_glue_to_shapes_and_follow_a_move() {
     // The view drags an end handle the same way.
     worker.drag_graphic(&doc, end(&drawn, '1'), (cm(4.0), cm(6.5))).expect("start");
     let half = saved(&mut worker, "half.fodp");
+    // The frame moves late; the next drag waits.
+    let left = end(&half, '1').0.min(end(&half, '2').0);
+    let framed = |seen: &Events| seen.graphic.is_some_and(|(x, ..)| (x - left).abs() < 30);
+    let seen = poll_until(&mut worker, &doc, &Events::default(), std::time::Duration::from_secs(5), framed);
+    assert!(framed(&seen), "the frame follows the start: {:?}, left {left}", seen.graphic);
     worker.drag_graphic(&doc, end(&half, '2'), (cm(18.0), cm(6.5))).expect("end");
     let glued = saved(&mut worker, "glued.fodp");
     let (start, finish) = (attr(&glued, "draw:start-shape"), attr(&glued, "draw:end-shape"));
