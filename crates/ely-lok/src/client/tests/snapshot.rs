@@ -112,8 +112,12 @@ fn reread(worker: &mut Worker, point: &Path, path: &Path) -> String {
 
 /// `text` less what two loads of one point differ in.
 fn comparable(text: &str) -> String {
-    // WindowState, rsids, change ids, Calc's style order.
-    let drawn = ["WindowState", "Rsid", "RsidRoot"].map(|name| format!(r#"config:name="{name}""#));
+    // Window and view geometry, rsids, change ids, Calc's style order.
+    let drawn = [
+        "WindowState", "Rsid", "RsidRoot", "ViewAreaTop", "ViewAreaLeft", "ViewAreaWidth", "ViewAreaHeight", "VisibleTop", "VisibleLeft",
+        "VisibleRight", "VisibleBottom",
+    ]
+    .map(|name| format!(r#"config:name="{name}""#));
     let kept = |line: &&str| !drawn.iter().any(|name| line.contains(name.as_str()));
     let mut lines: Vec<String> = layouts_named(text).lines().filter(kept).map(unnumbered).collect();
     lines.sort_unstable();

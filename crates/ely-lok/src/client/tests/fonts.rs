@@ -189,8 +189,9 @@ fn a_missing_font_is_named_and_its_pages_counted_apart() {
     }
     let (here, none) = laid_out("DejaVu Sans Mono");
     assert!(none.is_empty(), "a bundled font is not missing: {none:?}");
-    let (gone, missing) = laid_out("Nowhere Mono");
-    assert_eq!(missing, ["Nowhere Mono"], "the lost font is named");
+    // "Mono" picks a stand-in; macOS's Menlo has DejaVu's widths.
+    let (gone, missing) = laid_out("Nowhere Sans");
+    assert_eq!(missing, ["Nowhere Sans"], "the lost font is named");
     eprintln!("pages: {here} with the font, {gone} without");
     assert!(here > 1 && gone > 1, "both lay out pages: {here}, {gone}");
     assert_ne!(here, gone, "a stand-in moves the pages, and they show");
