@@ -59,14 +59,24 @@ fn a_waiting_key_stops_a_snapshot() {
     };
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
-    let deck = dir.path().join("big.fodp");
-    write(&deck, &big_deck(400));
-    let doc = worker.load(&crate::file_url(&deck)).expect("the deck loads");
     let point = crate::file_url(&dir.path().join("point.pptx"));
-    let began = Instant::now();
-    doc.snapshot(&mut worker, &point, "pptx").expect("a whole snapshot");
-    let whole = began.elapsed();
-    assert!(whole > LAG * 4, "too quick a snapshot to tell: {whole:?}");
+    // A deck slow enough to stop on this machine.
+    let (mut slides, mut found) = (400, None);
+    while found.is_none() && slides <= 6400 {
+        let deck = dir.path().join(format!("big-{slides}.fodp"));
+        write(&deck, &big_deck(slides));
+        let doc = worker.load(&crate::file_url(&deck)).expect("the deck loads");
+        let began = Instant::now();
+        doc.snapshot(&mut worker, &point, "pptx").expect("a whole snapshot");
+        let whole = began.elapsed();
+        if whole > LAG * 4 {
+            found = Some((doc, whole));
+        } else {
+            worker.close_doc(doc).expect("closes");
+            slides *= 2;
+        }
+    }
+    let (doc, whole) = found.expect("a 6400-slide snapshot takes 400 ms");
     let waiter = worker.waiter();
     let shared = Arc::new(Mutex::new(worker));
     let (taken, held) = mpsc::channel();
