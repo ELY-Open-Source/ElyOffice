@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A platform's release. Usage: ci.sh <macos|windows|linux> <tag>
+# A platform's release. Usage: ci.sh <macos|windows|linux|linux-arm64> <tag>
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -8,7 +8,7 @@ if [ "$(uname -s)" = Darwin ] && [ "${BASH_VERSINFO[0]}" -lt 5 ]; then
   echo "ci.sh: bash $BASH_VERSION; macOS needs bash 5 (doctor.sh)" >&2
   exit 1
 fi
-os=${1:?macos, windows or linux}
+os=${1:?macos, windows, linux or linux-arm64}
 tag=${2:?the release tag, such as v0.1.3}
 version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
 [ "$tag" = "v$version" ] || {
@@ -28,7 +28,9 @@ fi
 cd "$root"
 # Linux builds and packages in the AlmaLinux 8 container.
 inside=()
-[ "$os" != linux ] || inside=(packaging/linux/container.sh)
+case $os in
+  linux | linux-arm64) inside=(packaging/linux/container.sh) ;;
+esac
 
 # Intel Macs run under Rosetta: x86_64 Rust, pinned OpenSSL.
 intel=
@@ -39,7 +41,7 @@ if [ "$os" = macos ] && [ "$(uname -s)-$(uname -m)" = Darwin-x86_64 ]; then
 fi
 # Linux's MuPDF links the pinned static OpenSSL too.
 pinned_ssl=
-if [ -n "$intel" ] || [ "$os" = linux ]; then
+if [ -n "$intel" ] || [ "$os" = linux ] || [ "$os" = linux-arm64 ]; then
   pinned_ssl=1
 fi
 
@@ -92,14 +94,16 @@ case $os in
     for slug in $batch; do packaging/windows/installer.sh "$slug"; done
     packaging/windows/bundle.sh
     ;;
-  linux) for slug in $batch; do ${inside[@]+"${inside[@]}"} packaging/linux/package.sh "$slug"; done ;;
+  linux | linux-arm64)
+    for slug in $batch; do ${inside[@]+"${inside[@]}"} packaging/linux/package.sh "$slug"; done
+    ;;
   *)
     echo "ci.sh: no release for $os" >&2
     exit 1
     ;;
 esac
 
-# Windows checkouts flatten symlinks; Linux and macOS write source.
+# Windows checkouts flatten symlinks; macOS and x86_64 Linux write source.
 if [ "$os" = linux ]; then
   packaging/source.sh "$dist"
 fi
@@ -122,9 +126,9 @@ names=()
 for file in "$dist"/*; do
   [ -f "$file" ] || continue
   name=$(basename "$file")
-  # Linux alone publishes the source.
+  # Only x86_64 Linux publishes the source.
   if [ "$os" != linux ] && [[ $name == *-source.tar* ]]; then
-    echo "ci.sh: $name is Linux's to upload"
+    echo "ci.sh: $name is x86_64 Linux's to upload"
     continue
   fi
   names+=("$name")

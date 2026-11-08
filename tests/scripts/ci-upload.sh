@@ -124,4 +124,26 @@ grep -q "replacing ElyOffice-V-c0ffee-source.tar.gz" "$work/linux.out" || fail "
 [ "$(uploads '-source.tar' linux)" -eq 3 ] || fail "the rerun lost the source: $(cat "$STATE")"
 [ -z "$(comm -12 <(echo "$ids") <(awk '$3 == "linux" { print $1 }' "$STATE" | sort))" ] ||
   fail "an old upload stayed: $(cat "$STATE")"
-echo "ci-upload: strict gate first; Linux alone uploads source; reruns replace their own"
+# GitHub's arm64 host: same gate, packages only, no source.
+linux=$(grep ' linux$' "$STATE")
+mac=$(grep ' macos$' "$STATE")
+: >"$CARGO_LOG"
+run linux-arm64
+[ "$(cat "$CARGO_LOG")" = "$gate" ] || fail "Linux arm64 gate ran: $(cat "$CARGO_LOG")"
+[ "$(uploads 'ely-doc-linux-arm64.json.sig' linux-arm64)" -eq 1 ] ||
+  fail "Linux arm64 left a manifest unsigned: $(cat "$STATE")"
+[ "$(uploads 'source' linux-arm64)" -eq 0 ] || fail "Linux arm64 uploaded source: $(cat "$STATE")"
+[ "$(awk '{ print $2 }' "$STATE" | sort | uniq -d)" = "" ] || fail "a name twice: $(cat "$STATE")"
+# A rerun replaces only Linux arm64's files.
+arm=$(awk '$3 == "linux-arm64" { print $1 }' "$STATE" | sort)
+rm -rf "$work/linux-arm64"
+run linux-arm64
+grep -q "replacing ely-doc-linux-arm64.json" "$work/linux-arm64.out" ||
+  fail "the arm64 rerun: $(cat "$work/linux-arm64.out")"
+[ "$(grep ' linux$' "$STATE")" = "$linux" ] || fail "the arm64 rerun touched x86_64 Linux: $(cat "$STATE")"
+[ "$(grep ' macos$' "$STATE")" = "$mac" ] || fail "the arm64 rerun touched macOS: $(cat "$STATE")"
+[ "$(uploads 'source' linux-arm64)" -eq 0 ] || fail "the arm64 rerun uploaded source: $(cat "$STATE")"
+[ -z "$(comm -12 <(echo "$arm") <(awk '$3 == "linux-arm64" { print $1 }' "$STATE" | sort))" ] ||
+  fail "an old arm64 upload stayed: $(cat "$STATE")"
+[ "$(awk '{ print $2 }' "$STATE" | sort | uniq -d)" = "" ] || fail "a name twice after the arm64 rerun: $(cat "$STATE")"
+echo "ci-upload: strict gate first; x86_64 Linux alone uploads source; reruns replace their own"
