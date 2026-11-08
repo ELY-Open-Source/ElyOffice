@@ -43,13 +43,28 @@ impl Package {
         Err(io::Error::new(io::ErrorKind::NotFound, format!("no package manager lists {slug}")))
     }
 
-    /// The release's file for this manager.
-    pub fn file(self, slug: &str, version: &Version) -> String {
-        match self {
-            Self::Deb => format!("{slug}_{version}-1_amd64.deb"),
-            Self::Rpm => format!("{slug}-{version}-1.x86_64.rpm"),
-            Self::Arch => format!("{slug}-{version}-1-x86_64.pkg.tar.zst"),
+    /// The CPU name this manager writes in file names.
+    fn cpu(self, arch: &str) -> &str {
+        match (self, arch) {
+            (Self::Deb, "x86_64") => "amd64",
+            (Self::Deb, "aarch64") => "arm64",
+            (_, arch) => arch,
         }
+    }
+
+    /// The release's file for `arch`, such as `amd64`.
+    pub fn file_for(self, slug: &str, version: &Version, arch: &str) -> String {
+        let cpu = self.cpu(arch);
+        match self {
+            Self::Deb => format!("{slug}_{version}-1_{cpu}.deb"),
+            Self::Rpm => format!("{slug}-{version}-1.{cpu}.rpm"),
+            Self::Arch => format!("{slug}-{version}-1-{cpu}.pkg.tar.zst"),
+        }
+    }
+
+    /// The release's file for this host.
+    pub fn file(self, slug: &str, version: &Version) -> String {
+        self.file_for(slug, version, std::env::consts::ARCH)
     }
 
     /// The command that installs the downloaded file.
