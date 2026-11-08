@@ -74,6 +74,14 @@ fn main() {
     // Tesseract inside MuPDF is C++.
     let cxx = if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") { "-lc++" } else { "-lstdc++" };
     println!("cargo:rustc-link-arg-bin={bin}={cxx}");
+    // aarch64 C archives come after rustc's libc.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
+        && std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("aarch64")
+    {
+        for lib in ["-lgcc", "-lc"] {
+            println!("cargo:rustc-link-arg-bin={bin}={lib}");
+        }
+    }
 }
 
 /// An OpenSSL directory: vcpkg's static build on Windows, else pkg-config's.
