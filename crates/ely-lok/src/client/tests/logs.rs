@@ -101,8 +101,11 @@ fn a_linked_object_s_class_name_stays_out_of_the_log() {
     worker.close_doc(doc).expect("closes");
     // Every line the worker wrote is in by now.
     worker.shutdown().expect("the worker ends");
-    worker.stderr.said();
-    assert!(heard(&["WARN writerfilter (OLEHandler.cxx:", "stays a picture"]).is_some(), "the unlisted class is not logged");
+    // Its own lines: other tests log the same warning.
+    let said = worker.stderr.said().lines;
+    let warned = said.iter().any(|line| line.starts_with("warn:ely.writerfilter:") && line.ends_with("stays a picture"));
+    assert!(warned, "this worker did not warn of the unlisted class: {said:?}");
+    assert!(!said.iter().any(|line| line.contains(CLASS)), "the worker wrote the class name: {said:?}");
     let leaked: Vec<String> = HEARD.lock().expect("the heard log").iter().filter(|line| line.contains(CLASS)).cloned().collect();
     assert!(leaked.is_empty(), "text from the document reached the app's log: {leaked:?}");
 }
