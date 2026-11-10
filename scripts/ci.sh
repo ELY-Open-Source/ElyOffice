@@ -17,7 +17,24 @@ version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
 }
 # The compatibility list names this version and its patches.
 python3 "$root/scripts/compatibility.py" --check
+# The notes count unreviewed fixes, explain a short gap.
+python3 "$root/scripts/release-gate.py" "$version"
+# This system's benchmark of this version, slowdowns explained.
+case $os in
+  macos | windows | linux) python3 "$root/tests/perf/baseline.py" --check "$version" "$os" ;;
+esac
 : "${ELY_RELEASE_TOKEN:?the GitHub token that uploads}"
+repo=ELY-Open-Source/ElyOffice
+api=https://api.github.com/repos/$repo
+auth=(-H "Authorization: Bearer $ELY_RELEASE_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+# pr.yml passed on this commit, or nothing ships.
+sha=$(git -C "$root" rev-parse HEAD)
+passed=$(curl -fsS "${auth[@]}" "$api/actions/workflows/pr.yml/runs?head_sha=$sha&status=success" |
+  python3 -c 'import json, sys; print(json.load(sys.stdin)["total_count"])' | tr -d '\r')
+[ "$passed" -ge 1 ] || {
+  echo "ci.sh: pr.yml has not passed on $sha; nothing is built" >&2
+  exit 1
+}
 : "${ELY_MICROSOFT_CLIENT_ID:?the Microsoft OAuth client ID}"
 : "${ELY_UPDATE_KEY:?the release key that signs update manifests}"
 if [ "$os" = macos ]; then
@@ -117,9 +134,6 @@ fi
 ${inside[@]+"${inside[@]}"} packaging/sign.sh "$dist"/*.json
 
 # A pre-release, made by whichever platform comes first.
-repo=ELY-Open-Source/ElyOffice
-api=https://api.github.com/repos/$repo
-auth=(-H "Authorization: Bearer $ELY_RELEASE_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
 release_id() { curl -fsS "${auth[@]}" "$api/releases/tags/$tag" | python3 -c 'import json, sys; print(json.load(sys.stdin)["id"])' | tr -d '\r'; }
 if ! id=$(release_id 2>/dev/null); then
   body="{\"tag_name\": \"$tag\", \"name\": \"Ely Office $version\", \"prerelease\": true}"

@@ -48,5 +48,7 @@ jobs:
         run: git fetch -q --depth 1 origin "$PANICS_BASE" && python3 scripts/panics.py
       - name: Clippy, warnings fail
         run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Release rules
+        run: tests/scripts/ci-upload.sh && tests/scripts/release-gate.sh && tests/scripts/compatibility-rules.sh
       - name: Tests that need no engine
         run: ELY_GIT=$(command -v git) cargo test $NO_ENGINES

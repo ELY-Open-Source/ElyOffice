@@ -12,6 +12,7 @@ import shutil
 import tempfile
 import time
 
+import baseline
 import cycles
 import drive
 import run
@@ -83,7 +84,9 @@ def perf01(work, runs):
 
 def environment(found):
     builds = {slug: hashlib.sha256(open(run.HOST.exe(slug), "rb").read()).hexdigest()[:16] for slug in APPS}
-    env = {"date": datetime.date.today().isoformat(), **run.HOST.environment()}
+    with open(os.path.join(run.ROOT, "Cargo.toml"), encoding="utf-8") as manifest:
+        version = re.search(r'^version = "(.+)"', manifest.read(), re.M).group(1)
+    env = {"date": datetime.date.today().isoformat(), "version": version, **run.HOST.environment()}
     # One PC runs both systems; each keeps its own record.
     if run.HOST.name != "macOS":
         env["machine"] = re.sub(r"[^A-Za-z0-9]+", "-", f"{env['machine']} {run.HOST.name}").strip("-")
@@ -180,6 +183,13 @@ def write(out, env, rows, held, runs):
     lines += ["", "PERF-09 (Agent sessions) belongs to the second release.", ""]
     with open(path, "w", encoding="utf-8", newline="\n") as record:
         record.write("\n".join(lines))
+    # Each wants its reason before a release (baseline.py).
+    record = baseline.read(path)
+    last = baseline.before(baseline.records(out), record)
+    found = baseline.slower(last, record) if last else []
+    if found:
+        with open(path, "a", encoding="utf-8", newline="\n") as record:
+            record.write("\n".join([baseline.HEAD, "", *baseline.lines(found), ""]))
     print(path)
 
 

@@ -5,6 +5,8 @@ on:
     tags: ['v*']
 permissions:
   contents: write
+  # ci.sh asks whether pr.yml passed on the tagged commit.
+  actions: read
 jobs:
   macos:
     # A GUI-session agent: daemons see no login keychain.

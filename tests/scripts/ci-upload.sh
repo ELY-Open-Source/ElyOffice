@@ -26,6 +26,7 @@ cat >"$work/bin/curl" <<'EOF'
 url=${!#}
 case "$* " in *" -X DELETE "*) method=DELETE ;; *" -d "*) method=POST ;; *) method=GET ;; esac
 case $method:$url in
+  GET:*/actions/workflows/pr.yml/runs\?head_sha=*\&status=success) echo "{\"total_count\": ${PR_PASSED:-1}}" ;;
   GET:*/releases/tags/*) [ -s "$STATE.made" ] || exit 22; echo '{"id": 1}' ;;
   POST:*/releases)
     for arg; do [ "${prev:-}" != -d ] || echo "$arg" >>"$STATE.made"; prev=$arg; done ;;
@@ -58,6 +59,11 @@ clone() { # os
   local at=$work/$1 source='d=$1; touch "$d/ElyOffice-V-c0ffee-source.tar.gz" "$d/ElyOffice-V-c0ffee-upstream-source.tar.gz" "$d/ElyOffice-V-c0ffee-libreoffice-external-source.tar"'
   mkdir -p "$at/scripts" "$at/packaging/macos" "$at/packaging/linux"
   cp "$root/scripts/ci.sh" "$root/scripts/release-tests.sh" "$at/scripts/"
+  # The gates' own rules are release-gate.sh's to test.
+  mkdir -p "$at/tests/perf"
+  printf 'import os, sys\nsys.exit(1 if os.environ.get("GATE_FAILS") == sys.argv[0].rsplit("/", 1)[1] else 0)\n' |
+    tee "$at/scripts/compatibility.py" "$at/scripts/release-gate.py" >"$at/tests/perf/baseline.py"
+  git -C "$at" init -q && git -C "$at" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m t
   cp "$root/Cargo.toml" "$root/rust-toolchain.toml" "$at/"
   cp "$root/packaging/apps.tsv" "$at/packaging/"
   write() { printf '#!/usr/bin/env bash\n%s\n' "$2" >"$at/$1" && chmod +x "$at/$1"; }
@@ -99,6 +105,18 @@ for os in macos linux; do
     [ ! -s "$STATE" ] || fail "$os uploaded past a failing $step: $(cat "$STATE")"
     rm -rf "${work:?}/$os"
   done
+done
+# A failed gate, or pr.yml not passed, builds nothing.
+for check in compatibility.py release-gate.py baseline.py pr; do
+  clone linux
+  : >"$CARGO_LOG"
+  case $check in
+    pr) ! PR_PASSED=0 go linux || fail "linux released a commit pr.yml did not pass" ;;
+    *) ! GATE_FAILS=$check go linux || fail "linux released past a failing $check" ;;
+  esac
+  [ ! -s "$CARGO_LOG" ] || fail "linux built past a failing $check: $(cat "$CARGO_LOG")"
+  [ ! -s "$STATE" ] || fail "linux uploaded past a failing $check: $(cat "$STATE")"
+  rm -rf "${work:?}/linux"
 done
 # Linux packages past the glibc ceiling upload nothing.
 clone linux
