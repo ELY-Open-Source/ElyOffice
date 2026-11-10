@@ -61,6 +61,7 @@ tests/scripts/mark-build.sh     由不带 engines 与 reference 的 `git archive
 tests/scripts/worker-rebuild.sh 改了 MuPDF 垫片（只动时间），worker 的构建脚本即重跑
 tests/scripts/data-folder.sh   指向文件要求搬动时，ElyMark 启动即把数据搬进所选文件夹、切换并记日志
 tests/scripts/one-instance.sh  第二份 ElyDoc 把文件交给第一份后退出，第一份开出它、工作目录不动
+tests/scripts/compatibility-rules.sh  `compatibility.py --check` 在兼容清单所写的版本、补丁范围与本构建不符，或上游钉的提交没有名字时失败；重写后通过（只抄脚本所读的文件到临时目录）
 tests/scripts/update.sh        装好的 ElyTree 从本机服务的新版下载、替换、重新打开（需辅助功能权限）
 tests/scripts/update-relay.sh  github.com 连不上（挂载命名空间里把它解析到本机）时，检查更新经官网的转发取到签名的清单，并下载一个安装包、核对所签的散列（Linux；连不上 office.elygpui.com 即 SKIP）
 tests/scripts/settings.sh      真窗口：ElyPDF 设置里选深色，ElyTree 即刻变深；作者名写入、不丢外观；ElyTree 拒绝非 Git 程序；设置文件读不出时提示且不覆盖；主窗口重开回到原处（需辅助功能与屏幕录制权限）

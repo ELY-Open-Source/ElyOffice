@@ -15,6 +15,8 @@ version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
   echo "ci.sh: tag $tag is not v$version" >&2
   exit 1
 }
+# The compatibility list names this version and its patches.
+python3 "$root/scripts/compatibility.py" --check
 : "${ELY_RELEASE_TOKEN:?the GitHub token that uploads}"
 : "${ELY_MICROSOFT_CLIENT_ID:?the Microsoft OAuth client ID}"
 : "${ELY_UPDATE_KEY:?the release key that signs update manifests}"

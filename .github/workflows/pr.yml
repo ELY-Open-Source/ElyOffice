@@ -41,7 +41,7 @@ jobs:
       - name: Vendored gpui is the release plus patches
         run: scripts/vendor-gpui.sh
       - name: Records cite what exists; the test map is current
-        run: python3 tests/scripts/records.py && python3 scripts/test-map.py && git diff --exit-code docs/test-map.md
+        run: python3 tests/scripts/records.py && python3 scripts/test-map.py && git diff --exit-code docs/test-map.md && python3 scripts/compatibility.py --check
       - name: Licences, advisories and sources
         run: scripts/deny.sh
       - name: Panics listed with reasons
