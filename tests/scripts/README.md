@@ -98,7 +98,7 @@ tests/perf/load.py [--docs N] [--big-every E] [--rounds R] [--keys K] [--apps ..
 tests/perf/extreme.py [--cases ...]  PERF-10 的极端情形，真窗口逐项核对：链接源缺失、源已改（关着与开着）、三份文档切标签时键入与同时编辑、键入中保存、关闭未保存（询问、取消、保存）、编辑中杀掉引擎后从恢复点重开、缩放 25% 至 400% 与滚轮（截图留看）、20 份同时交来再逐个关闭、单个超大文件（500 页 docx、6 万行 xlsx、189 页 pptx、7 MB md）；结果写 docs/perf/<日期>-<机型>-extreme.md（只在 Windows）
 tests/perf/bigtable.py 输出 行数 宽 高 jpeg|png inline|anchor|tight [英寸 [cantsplit]]  一张大表格的 DOCX：一列图片一列中文（R14.48 的样本）
 tests/perf/linux.sh [参数]      Linux 上的 bench.py：容器里的 Xvfb、私有 AT-SPI 总线（atspi.py）；`ELY_PERF_TOOL` 换成 load.py 或 pdfs.py，`ELY_PERF_DISPLAY` 换显示号（几个应用同时跑时各用一个）
-tests/perf/pdfs.py [--docs N]  ElyPDF 同时开 N 份 1000 页的 PDF（默认 20）：翻前台那份、逐个点到其余各份，每份须画出页面，记打开、翻页与内存，结果写 docs/perf/<日期>-<机型>-pdf-load-N.md
+tests/perf/pdfs.py [--docs N]  ElyPDF 同时开 N 份 1000 页的 PDF（默认 20）：翻前台那份、逐个切到其余各份，每份须画出页面，各插入一页空白页、保存并读盘核对，记打开、翻页与内存，结果写 docs/perf/<日期>-<机型>-pdf-load-N.md
 tests/scripts/ooxml.py <用例> <文件>  不经 LibreOffice 读 DOCX、XLSX、PPTX 并按自算的预期核对（往返用例调用）；ooxml_pivot.py 同法核对透视表的标签与标题属性，ooxml_motion.py 核对视频的淡入与触发序列，ooxml_formula.py 核对公式文字，ooxml_word.py 核对 Word 公式（减号、双线体）与目录
 tests/office/compare.ps1 目录   本机 Microsoft Office 经 COM 写出大而复杂的 DOCX、XLSX、PPTX，Ely 内核打开、写入、另存，新引擎重开核对；Office 读回两份，比内容摘要（文字、公式与重算的值、批注、备注、域的目标、动画，Word 更新域后每页的起始），不符即失败（已知差异钉住前后值；须 ELY_LOK_DIR，只在 Windows）
 tests/scripts/deny-rules.sh    deny.sh：列着的重复组过、多余或无着落的 skip 败、去掉的旧版回来败（临时 crate）

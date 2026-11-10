@@ -1,0 +1,23 @@
+LOK: .uno:SlideObjects says whether the marked object's text is being edited
+
+A client that must unmark the objects for a command (Impress narrows
+Replace All to the marked ones) restores the marks afterwards, and
+the text edit that unmarking ended. It knew of the edit only by the
+caret the kit had told it; the caret callback comes after the paint
+that follows entering the edit, so a command arriving in between
+found no caret, restored the marks alone, and the keys typed next
+went nowhere (Ely R18.8: a box entered as its tab finished loading,
+another program's replace 170 ms later).
+The selection now carries "editing", read in the same call that
+lists the marks.
+--- a/sd/source/ui/unoidl/unomodel.cxx
++++ b/sd/source/ui/unoidl/unomodel.cxx
+@@ -2180,6 +2180,8 @@
+     rJson.put("kind", aKind);
+     rJson.put("canGroup", rView.IsGroupPossible());
+     rJson.put("canUngroup", rView.IsUnGroupPossible());
++    // Ely: a caret told later is not yet known.
++    rJson.put("editing", rView.IsTextEdit());
+     const SfxItemSet aAttr(rView.GetAttrFromMarked(false));
+     rJson.put("fill", lcl_Color(aAttr, XATTR_FILLSTYLE, XATTR_FILLCOLOR, false));
+     rJson.put("line", lcl_Color(aAttr, XATTR_LINESTYLE, XATTR_LINECOLOR, true));

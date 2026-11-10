@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PERF-10 for ElyPDF: many large PDFs open, each paged through."""
+"""PERF-10 for ElyPDF: many large PDFs paged, edited, saved."""
 
 import argparse
 import datetime
@@ -17,6 +17,26 @@ import samples
 import search
 
 WORKER = re.compile(r"pdf-worker: opened document \d+, locked \w+, (\d+) documents open")
+PAGES = 1000
+SAVE_WAIT = 60
+
+
+def gained_a_page(app, path):
+    """Inserts a blank page and saves; the faults."""
+    name, pid = os.path.basename(path), app.process.pid
+    since = len(app.lines())
+    for control in ("Pages", "Insert Blank Page"):
+        run.HOST.press(pid, control)
+        time.sleep(0.3)
+    run.HOST.chord(pid, "s")
+    until = time.monotonic() + SAVE_WAIT
+    while not any(f"office: saved {path}" in line for line in app.lines()[since:]):
+        if time.monotonic() > until:
+            return [f"{name}: no save was logged in {SAVE_WAIT} s"]
+        time.sleep(0.1)
+    with open(path, "rb") as pdf:
+        counts = [int(count) for count in re.findall(rb"/Count (\d+)", pdf.read())]
+    return [] if max(counts, default=0) == PAGES + 1 else [f"{name}: saved with page counts {sorted(set(counts))[-3:]}, not {PAGES + 1}"]
 
 
 def build():
@@ -41,7 +61,7 @@ def documents(place, count):
 
 
 def one_run(work, args):
-    """Opens every PDF, pages the front one, then the rest."""
+    """Every PDF opened, paged, given a page and saved."""
     out, place = {"problems": []}, os.path.join(work, "ely-pdf")
     os.makedirs(place)
     files = documents(place, args.docs)
@@ -53,16 +73,19 @@ def one_run(work, args):
         app.front()
         time.sleep(2.5)
         out["front"] = load.type_keys(app, recipe, args.keys)
+        out["problems"] += gained_a_page(app, files[-1])
         out["each"] = []
         # A tab behind loads when first shown (R15.57).
         for path in files[:-1]:
-            run.HOST.press(app.process.pid, os.path.basename(path))
-            # The click reaches the log at the next flush.
+            # A tab scrolled out of the strip takes no press.
+            drive.sh(run.HOST.exe("ely-pdf", True), path, env=app.env, timeout=60)
+            app.front()
             time.sleep(2.5)
             took = load.landed(app, recipe)
             out["each"] += took
             if not took:
                 out["problems"].append(f"{os.path.basename(path)}: a key showed nothing in {load.KEY_WAIT} s")
+            out["problems"] += gained_a_page(app, path)
         out["memory MB"] = app.memory_mb()
         time.sleep(2.5)
         lines = app.lines()
@@ -100,8 +123,8 @@ def main():
              f"{len(front)}: {run.percentile(front, 0.5)} / {run.percentile(front, 0.95)} / {max(front)}",
              f"{len(each)}: {run.percentile(each, 0.5)} / {run.percentile(each, 0.95)} / {max(each)}" if each else "none",
              f"{len(out['stalls'])}, max {max(out['stalls'], default=0)}"]
-    lines = [f"# PERF-10 ElyPDF load {datetime.date.today().isoformat()}, {args.docs} PDFs of 1000 pages", "",
-             f"{env['machine']}, {env['system']}.", "",
+    lines = [f"# PERF-10 ElyPDF load {datetime.date.today().isoformat()}, {args.docs} PDFs of {PAGES} pages", "",
+             f"{env['machine']}, {env['system']}. Each PDF was paged, given a blank page, saved and read back.", "",
              "| Open all ms | Memory MB | Free GB, lowest | Keys in front: P50 / P95 / max ms | First key in each other tab | Stalls |",
              "| --- | --- | --- | --- | --- | --- |", "| " + " | ".join(cells) + " |", "", "Problems:", ""]
     lines += [f"- {problem}" for problem in out["problems"]] or ["- none"]

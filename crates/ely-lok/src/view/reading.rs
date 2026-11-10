@@ -33,7 +33,7 @@ impl LokView {
     fn listened(&mut self, heard: bool, cx: &mut Context<Self>) {
         let arrived = heard && !self.reading.heard;
         self.reading.heard = heard;
-        if arrived {
+        if arrived && self.flows() {
             return self.read_on(cx);
         }
         if !heard {
@@ -45,10 +45,14 @@ impl LokView {
         }
     }
 
+    /// Only a text document's body flows on.
+    fn flows(&self) -> bool {
+        !self.doc.is_sheet() && !self.doc.is_deck()
+    }
+
     /// Takes the kernel's paragraph; `changed` is a changed page.
     pub(super) fn take_a11y(&mut self, a11y: A11y, changed: bool, cx: &mut Context<Self>) {
-        // Only a text document's body flows on.
-        if !self.reading.heard || self.doc.is_sheet() || self.doc.is_deck() {
+        if !self.reading.heard || !self.flows() {
             self.a11y = a11y;
             return;
         }
@@ -174,5 +178,18 @@ mod tests {
         cx.update(|app| view.update(app, |view, cx| view.listened(true, cx)));
         let body = || cx.update(|app| view.read(app).body().map(|(_, caret)| caret));
         assert!(until(&cx, || body() == Some(1)), "the returning reader's body: {:?}", body());
+    }
+
+    #[test]
+    fn a_deck_is_asked_for_no_body_when_a_reader_arrives() {
+        let Some(install) = install() else {
+            return eprintln!("SKIP: no pinned LOK build");
+        };
+        let cx = TestAppContext::single();
+        cx.executor().allow_parking();
+        let (view, _) = cx.update(|app| live_view_of(app, &install, "deck.fodp", crate::client::tests::show::DECK));
+        cx.update(|app| view.update(app, |view, cx| view.listened(true, cx)));
+        // Impress has no such list: asking logged an error.
+        assert!(!cx.update(|app| view.read(app).reading.busy), "a deck was asked for a text body");
     }
 }

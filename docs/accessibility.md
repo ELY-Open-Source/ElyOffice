@@ -16,7 +16,7 @@
 | 要求 | 依据 | 缺口 |
 | --- | --- | --- |
 | 控件有角色与名称 | 组件库核心控件、对话框、列表、树、提交与差异行、设置行（组与说明）、提示（Toast 有角色与名称）；真窗口测试都经 AX 树操作（`ax-values`、`ax-press`）；图标按钮的名字只取提示文字，不再以图标编号（x、zoom-out）充数（组件库 76047a6，六种语言）；文档视图名为“文档”“电子表格”“演示文稿”“PDF 文档”；属性栏与对话框的数字框、下拉框取其行的标签；`windows-names.sh`（UI Automation）与 `linux-names.sh`（AT-SPI）核对七个应用每个可操作节点与每个 Tab 停靠点都有名字，`macos-names.sh`（AX，VoiceOver 所读）在 macOS 上同；macOS 上辅助技术问焦点原先总得到窗口（gpui-pre-macos 把 AccessKit 挂在内容视图上，第一响应者却是其中的 gpui 视图），改挂到 gpui 视图 | `lists::Outline` 无角色（上游待办；`feedback::Alert` 已有，组件库 105bf94）；gpui 无 aria-disabled，以说明文字表达 |
-| 文档内容可达 | LOK 视图以 `MultilineTextInput` 交给 AX：ElyDoc 交出正文的全部段落，一段一个文本串，插入点与选区落在光标所在的那段（R18.7，内核补丁 0105 的 `.uno:ElyReading`；光标在脚注、页眉、文本框或形状里时只交当前段落）；Calc 交当前单元格与输入行，Impress 交当前段落（R14.7）；ElyPDF 以 `Document` 交出所显示页面的逐行文字与拖选的选区；`windows-a11y.sh` 经 UI Automation 的 TextPattern（NVDA 所读）读到段落、插入点、跨 emoji 的选区与 PDF 的页文与选区 | Orca 51.1 实测（`linux-a11y.sh`，R18.7）：方向键到哪行读哪行，“全文朗读”从插入点所在的句子读到文末，中文句号也断句（AT-SPI 桥原先不答“句”的查询，`vendor/accesskit_atspi_common` 补上）；NVDA 的连读未测：Windows 的内核须先带补丁 0105 重建；正文很长时每帧要重交全部段落，5000 段（1.3 MB）在调试构建里每帧约 25 毫秒，内核读一次约 70 毫秒，只在辅助技术连着时发生；表格与演示仍只到当前单元格、当前段落；VoiceOver 朗读不测（用户定）；AT-SPI 的树、名字与焦点（`linux-names.sh`）已实测；ElyMark 的节点与名字由三端 names 走查核对，块的文字经辅助技术读出未核对（须真窗口） |
+| 文档内容可达 | LOK 视图以 `MultilineTextInput` 交给 AX：ElyDoc 交出正文的全部段落，一段一个文本串，插入点与选区落在光标所在的那段（R18.7，内核补丁 0105 的 `.uno:ElyReading`；光标在脚注、页眉、文本框或形状里时只交当前段落）；Calc 交当前单元格与输入行，Impress 交当前段落（R14.7；读屏连上时不再向表格与演示要正文，原先每次都记一条错误）；ElyPDF 以 `Document` 交出所显示页面的逐行文字与拖选的选区；`windows-a11y.sh` 经 UI Automation 的 TextPattern（NVDA 所读）读到段落、插入点、跨 emoji 的选区与 PDF 的页文与选区 | Orca 51.1 实测（`linux-a11y.sh`，R18.7）：方向键到哪行读哪行，“全文朗读”从插入点所在的句子读到文末，中文句号也断句（AT-SPI 桥原先不答“句”的查询，`vendor/accesskit_atspi_common` 补上）；NVDA 的连读未测：Windows 的内核须先带补丁 0105 重建；正文很长时每帧要重交全部段落，5000 段（1.3 MB）在调试构建里每帧约 25 毫秒，内核读一次约 70 毫秒，只在辅助技术连着时发生；表格与演示仍只到当前单元格、当前段落；VoiceOver 朗读不测（用户定）；AT-SPI 的树、名字与焦点（`linux-names.sh`）已实测；ElyMark 的节点与名字由三端 names 走查核对，块的文字经辅助技术读出未核对（须真窗口） |
 | 编辑状态可达 | 保存状态与风险以状态栏文字表达；引擎停止与变慢以提示条（`office-stopped`、`office-slow`）表达，提示条有角色与名字（组件库 fac20ab） | 状态栏文字是否进 AX 树未核对（须真窗口）：保存状态与风险是不可点的 `StatusBarItem` 标签（如 ElyDoc `chrome.rs`），组件库的 `shell::StatusBar` 只给可点的项角色与名字 |
 
 ## 国际化
@@ -84,6 +84,7 @@
 | 缺口 | 现状 |
 | --- | --- |
 | 组件无 role/aria 语义：菜单、列表等控件在 AX 树仍不可见 | 上游已修核心控件（7380afb：Button、TextInput、Tabs、面板行、对话框等）；其余上游待办。项目自绘控件已自带；`overlays::PromptDialog` 以标签给字段命名见 R15.68（组件库 3aab6d4 起，现 pin 已含；真窗口核对待做） |
+| 标签栏里滚出可见范围的标签：辅助技术的“按下”落空 | gpui 对一个节点的默认动作是点它的中心，标签滚到栏外时中心不在窗口里，点不到（2026-11-10，R18.28：ElyPDF 开 20 份时前 11 个标签按不到，测试工具改为把文件再交给应用来切换）；“全部标签”按钮里的列表可达。上游待办：按下前先把节点滚进可见处 |
 | gpui 无 aria-disabled API（`AriaProperties` 无 disabled 字段） | 组件 7380afb 起以本地化 aria_description 表达；上游待办：gpui 补 API |
 | 组件内部文案未接 i18n（Ely 用到的组件已接：提示、默认占位、补全空行、字号示例，6df9ab0；查找框、排序与筛选、密码开关，a4bf696；`i18n/tests/shipped.rs` 防回退；其余组件之外：欢迎页标题、菜单项等） | 面板族文案已接 i18n（7380afb，内建 en/zh-CN），`CommentSidebar` 与 `RelativeTime` 同（408f2b0）；其余上游待办 |
 | 反馈条的角色与名字 | 已修：`feedback::Banner`（fac20ab：危险与警告为 alert，其余为 status，名为其文字），`feedback::Alert` 同（105bf94，名为标题与正文） |

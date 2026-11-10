@@ -38,6 +38,8 @@ pub struct Selection {
     pub kind: String,
     pub can_group: bool,
     pub can_ungroup: bool,
+    /// The one marked object's text is being edited.
+    pub editing: bool,
     pub fill: Paint,
     pub line: Paint,
     /// 1/100 mm.
@@ -133,6 +135,7 @@ fn selection(value: &Value) -> io::Result<Option<Selection>> {
         kind: text(value, "kind")?,
         can_group: self::flag(value, "canGroup")?,
         can_ungroup: self::flag(value, "canUngroup")?,
+        editing: self::flag(value, "editing")?,
         fill: paint(value, "fill")?,
         line: paint(value, "line")?,
         line_width: maybe(value, "lineWidth")?,

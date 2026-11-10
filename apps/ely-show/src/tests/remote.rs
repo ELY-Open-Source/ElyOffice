@@ -214,3 +214,34 @@ fn typing_in_a_box_goes_on_after_another_program_replaces() {
     }
     assert_eq!(current(&mut cx, &deck), Some(0), "the user's slide stays");
 }
+
+#[test]
+fn a_replace_before_the_caret_is_told_leaves_the_box_typed_in() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = super::deck(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let path = dir.path().join("deck.fodp");
+    std::fs::write(&path, DECK).expect("writes the deck");
+    update(&mut cx, &deck, |deck, cx| deck.open_file(path.clone(), cx));
+    settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.list.len() == 2));
+    quiet(&cx, &deck);
+    cx.update(|app| {
+        let deck = deck.read(app);
+        let doc = deck.active_tab().expect("a tab").doc.clone();
+        let mut worker = deck.core.worker.lock().expect("the worker lock");
+        for kind in [0, 1] {
+            worker.post_mouse(&doc, ely_lok::Mouse { kind, x: 11000, y: 1500, count: 1, buttons: 1, modifiers: 0 }).expect("clicks");
+        }
+        worker.post_key(&doc, 'a' as u32, 0).expect("types");
+        // The kit tells the caret after the next paint: none yet.
+        crate::remote::replace_all(&mut worker, &doc, "cell", "CELL", None).expect("replaces");
+    });
+    quiet(&cx, &deck);
+    typed(&mut cx, &deck, "z");
+    quiet(&cx, &deck);
+    let read = ask(&mut cx, &deck, &["get", &path.display().to_string()]).expect("the text");
+    let first = read.split('\x0c').next().expect("a slide");
+    assert!(first.contains('z') && read.contains("CELL"), "the key after the replace is lost: {read:?}");
+}

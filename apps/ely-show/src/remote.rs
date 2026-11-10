@@ -68,12 +68,16 @@ impl Deck {
     }
 }
 
+/// The vcl code of Enter, which opens a marked box's text.
+const RETURN: i32 = 1280;
+
 /// Impress narrows Replace All to marked objects; unmark, then restore.
-fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, with: &str, caret: Option<ely_lok::Rect>) -> std::io::Result<()> {
+pub(crate) fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, with: &str, caret: Option<ely_lok::Rect>) -> std::io::Result<()> {
     let read = |worker: &mut ely_lok::Worker, doc: &ely_lok::Doc| {
         ely_lok::show::objects(&worker.values(doc, ely_lok::show::OBJECTS)?)
     };
     let shown = read(worker, doc)?;
+    let editing = shown.selection.as_ref().is_some_and(|selection| selection.editing);
     let before = shown.objects;
     let marked: Vec<String> =
         before.iter().enumerate().filter(|(_, object)| object.selected).map(|(at, _)| at.to_string()).collect();
@@ -98,12 +102,20 @@ fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, wit
         let commands: Vec<(&str, &[&str])> = picks.iter().map(|values| ("object.select", values.as_slice())).collect();
         worker.run_all(&now, &commands)?;
         // Unmarking ended the edit; a click reopens it.
-        if let (Some((x, y, width, height)), [_]) = (caret, marked.as_slice()) {
-            log::info!("show: the text edit a replace ended opens again at its caret");
-            for kind in [0, 1] {
-                let at = ely_lok::Mouse { kind, x: x + width / 2, y: y + height / 2, count: 1, buttons: 1, modifiers: 0 };
-                worker.post_mouse(&now, at)?;
+        match (caret, marked.as_slice()) {
+            (Some((x, y, width, height)), [_]) => {
+                log::info!("show: the text edit a replace ended opens again at its caret");
+                for kind in [0, 1] {
+                    let at = ely_lok::Mouse { kind, x: x + width / 2, y: y + height / 2, count: 1, buttons: 1, modifiers: 0 };
+                    worker.post_mouse(&now, at)?;
+                }
             }
+            // Just entered: its caret, not yet told, is the end.
+            (None, [_]) if editing => {
+                log::info!("show: the text edit a replace ended opens again at its end");
+                worker.post_key(&now, 0, RETURN)?;
+            }
+            _ => {}
         }
     }
     replaced.map_err(|error| std::io::Error::other(format!("nothing replaced: {error}")))

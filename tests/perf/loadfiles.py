@@ -1,5 +1,6 @@
 """PERF-10 samples, written by Python, and their read-back."""
 
+import io
 import os
 import re
 import shutil
@@ -320,19 +321,23 @@ def documents(folder, work, slug, n, every=10):
             with open(path, "w", encoding="utf-8", newline="\n") as note:
                 note.write(small_md(i))
         files.append(path)
-    return files, front_file(work, slug)
+    return files, front_file(work, slug, folder if every == 1 else None)
 
 
-def front_file(folder, slug):
-    """A small document the keys go into."""
+def front_file(folder, slug, big=None):
+    """The document typed into; a big one from `big`."""
     front = os.path.join(folder, f"front.{EXT[slug]}")
     if slug == "ely-mark":
+        with open(os.path.join(big, "big.md"), encoding="utf-8") if big else io.StringIO(f"{TOKEN}0\n") as rest:
+            body = rest.read()
         with open(front, "w", encoding="utf-8", newline="\n") as note:
-            note.write(f"# Typing\n\nA paragraph.\n\n{TOKEN}0\n")
+            note.write(f"# Typing\n\nA paragraph.\n\n{body}")
+    elif slug == "ely-table":
+        workbook(front, 20000 if big else 500, typing=True)
+    elif big:
+        shutil.copy(os.path.join(big, f"big.{EXT[slug]}"), front)
     elif slug == "ely-doc":
         small_docx(front, 0)
-    elif slug == "ely-table":
-        workbook(front, 500, typing=True)
     else:
         presentation(front, 0)
     return front
