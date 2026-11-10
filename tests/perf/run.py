@@ -56,7 +56,7 @@ class App:
         if os.path.exists(self.log):
             os.remove(self.log)
         env = dict(os.environ, ELY_DATA_ROOT=home, ELY_SMOKE=smoke, ELY_LOCALE="en", ELY_NO_DIALOG="1",
-                   ELY_LOG="debug", ELY_STALLS="1")
+                   ELY_LOG="debug,zbus=warn", ELY_STALLS="1")
         if frames:
             env["ELY_FRAMES"] = "1"
         self.env, self.start = env, time.monotonic()

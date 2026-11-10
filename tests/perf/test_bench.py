@@ -74,6 +74,13 @@ class Verdicts(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "leaves handles"):
             cycles.handles_kept("app", before, now, 1, MAC)
 
+    def test_an_unnamed_socket_in_flight_is_left_to_the_trend(self):
+        # A background sync's bus call, as ElyMail's on Linux.
+        before = collections.Counter({("fd", "socket"): 30})
+        cycles.handles_kept("app", before, before + collections.Counter({("fd", "socket"): 1}), 123, drive.Linux.system)
+        with self.assertRaisesRegex(RuntimeError, "leaves handles"):
+            cycles.handles_kept("app", before, before + collections.Counter({("fd", "/tmp/kept"): 1}), 1, drive.Linux.system)
+
     def test_system_resources_pass_and_their_count_must_settle(self):
         before = collections.Counter({("REG", "/tmp/a"): 1})
         font = collections.Counter({("REG", "/System/Library/Fonts/SFNSItalic.ttf"): 1})

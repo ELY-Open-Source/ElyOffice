@@ -801,3 +801,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Mac 十次（R18.34）：合并测试那次是内核崩溃，不是测试慢。worker 在 PDF 导出第一步 SIGSEGV；反汇编看出崩在 `PDFFilter::filter` 调 `vcl::Window::AddEventListener` 之处：等待光标加在 `Application::GetFocusWindow()` 上，而那是刚关掉的那份文档已销毁的窗口，`dispose` 已释放其 `WindowImpl`。vcl 自己在 `ImplNewInputContext` 里就查这种情况。macOS 的 worker 用 Cocoa 后端，Linux 用无头后端，故只在 Mac 见到。补丁 0119：PDF、SVG 导出跳过已销毁的焦点窗口并记 `ELY_WARN`。焦点为何留在已销毁的窗口上，未查明；警告会给出下次的线索。
 - 同一轮另两处：工具栏测试在撤销按钮的名字还没变时找它，改为等它出现；ElyMail 十万封全选的绝对时限在负载 40 的机器上量的是机器，改为量十万与一万之比。
 - Mac 十次（0119 内核）第一次败在 ElyShow 的命令行替换测试：文本是 `catabc`，Ctrl+Home 没有移动插入点。原因：选中文本框后按的第一个可打印键（或 Enter）经 `SfxCallMode::ASYNCHRON` 的 `SID_ATTR_CHAR` 进入编辑；LOK 把每个键作为单独的事件排队，已排在后面的键先于进入编辑执行。Linux 上内核总在下一个键到之前跑完排队的工作，故只在负载下的 Mac 出现；用户在机器忙时快打也会错序。补丁 0120：LOK 下改为同步派发；同步派发会在 `KeyInput` 里换掉当前功能，`ViewShell::KeyInput` 处理键时先持一份引用，免得正在运行的对象被释放。
+
+## 2026-11-10 Linux 全量基准停在 ElyMail 第 123 轮：一次未完的钥匙环调用；zbus 的日志默认关掉（R18.30）
+
+- 现象：`ely-mail: cycle 123 leaves handles: [('fd', 'socket')]`。ElyMail 的日志：每十分钟一次的后台同步向钥匙环取测试账号的密码（20:54:59、21:04:59），2 秒后记“did not sync”，而这次调用本身要等 120 秒——基准的私有会话总线上没有 `org.freedesktop.secrets`，激活超时。第 123 轮恰在其间，多出的是这次调用的连接，不是每轮留下的句柄。
+- 改：Linux 把套接字与管道只记成种类（`socket`、`pipe`），无从分辨是谁的；逐轮核对只管有名字的句柄，无名的照总数的走势判（`steady`）：每轮漏一个仍会失败。`test_bench.py` 加一例。
+- 同一份日志 391 MB：`zbus` 把每次总线握手与每个无障碍调用都记成 info，基准设 `ELY_LOG=debug` 时全进日志。用户默认的 `info` 也会记：本机各应用的日志里有握手的几百行；开着读屏软件时每个调用一行，日志只在启动时裁剪。默认改为 `info,zbus=warn`（`ely_platform::logging`，有测试）；基准改为 `debug,zbus=warn`。

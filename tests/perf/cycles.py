@@ -27,10 +27,14 @@ def counted(lines, pattern):
     return counts[-1]
 
 
+# Anonymous kinds, judged by trend: a sync may hold one.
+UNNAMED = ("socket", "pipe")
+
+
 def handles_kept(who, before, now, cycle, system):
-    """Handles past baseline: only `system` ones."""
+    """Named handles past baseline: only `system` ones."""
     # Read-only system resources load on first use.
-    left = sorted(handle for handle in now - before if not handle[1].startswith(system))
+    left = sorted(handle for handle in now - before if not handle[1].startswith(system) and handle[1] not in UNNAMED)
     if left:
         raise RuntimeError(f"{who}: cycle {cycle} leaves handles: {left}")
 

@@ -65,6 +65,9 @@ pub fn path() -> Option<&'static Path> {
     LOG_PATH.get().map(PathBuf::as_path)
 }
 
+/// zbus logs each bus call at info: noise.
+const DEFAULT: &str = "info,zbus=warn";
+
 /// Past this a log keeps only its newer half (§18.3).
 const LOG_CAP: u64 = 8 * 1024 * 1024;
 
@@ -104,7 +107,7 @@ pub fn init_in(app: AppId, dir: &Path) -> Result<()> {
         .open(&path)
         .with_context(|| format!("cannot open {}", path.display()))?;
     let logger = built(
-        &mut Builder::from_env(Env::new().filter_or("ELY_LOG", "info")),
+        &mut Builder::from_env(Env::new().filter_or("ELY_LOG", DEFAULT)),
         Target::Pipe(Box::new(Tee(file))),
     );
     let level = logger.filter();
@@ -189,6 +192,15 @@ mod filter_tests {
         assert!(other.contains("something else"), "{other}");
         let wire = logged("ureq::unit", Level::Debug, format_args!("bytes"));
         assert!(wire.is_empty(), "{wire}");
+    }
+
+    #[test]
+    fn by_default_bus_calls_stay_out_and_the_apps_stay_in() {
+        let logger = super::built(Builder::new().parse_filters(super::DEFAULT), Target::Stderr);
+        let at = |target, level| logger.enabled(&log::Metadata::builder().target(target).level(level).build());
+        assert!(!at("zbus::object_server", Level::Info), "a bus call");
+        assert!(at("zbus::proxy", Level::Warn), "a bus warning");
+        assert!(at("ely_mail::syncing", Level::Info), "an app line");
     }
 
     #[test]
