@@ -7,9 +7,9 @@ ELY_WARN_IF. They are always compiled, take the area "ely." plus the
 given one, skip the SAL_LOG selector and go through sal_detail_log,
 which writes to stderr unless SAL_LOG_FILE (or logging.ini on Windows)
 names a file; the Ely worker passes those lines on to the app's log. Every
-patch log moves to them. The pivot and chart messages drop their
-arguments, which can hold cell text. Only the twelve files that include
-the new header rebuild.
+patch log moves to them. The pivot, chart and linked-object messages
+drop their arguments, which can hold text from the document. Only the
+twelve files that include the new header rebuild.
 
 diff --git a/desktop/source/app/app.cxx b/desktop/source/app/app.cxx
 index 516203b..9ff19fa 100644
@@ -337,7 +337,7 @@ index f77e644..70fee00 100644
      if (it != aFilters.end())
          return it->second;
 -    SAL_WARN_IF(m_sType == "Link", "writerfilter", "linked " << m_sProgId << " stays a picture");
-+    ELY_WARN_IF(m_sType == "Link", "writerfilter", "linked " << m_sProgId << " stays a picture");
++    ELY_WARN_IF(m_sType == "Link", "writerfilter", "a linked object of an unlisted class stays a picture");
      return OUString();
  }
  

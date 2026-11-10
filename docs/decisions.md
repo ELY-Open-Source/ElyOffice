@@ -615,7 +615,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-10 内核补丁的日志进应用日志（R18.10，审计 N-08，R15.64）
 
 - 原因照 R15.64 所查：三端的内核都不带 `--enable-sal-log`（本机 Linux 的 `config_host.mk` 里 `ENABLE_SAL_LOG` 也是空的），`SAL_INFO`、`SAL_WARN` 被编掉，各补丁写的 20 处日志在用户机器上不存在。
-- 改：R15.64 备好的内核补丁（当时编号 0100，未入序列）照现在的序列重排为 0108。新头文件 `include/ely/log.hxx` 给出 `ELY_INFO`、`ELY_WARN`、`ELY_WARN_IF`：总是编入，区域为 `ely.<区域>`，不经 `SAL_LOG` 的筛选，经 `sal_detail_log` 写 stderr。20 处（补丁 0019、0020、0041、0050、0062、0067、0078、0081、0084、0086 至 0089 所加）全改用它；0091 至 0107 没有再加 `SAL_` 日志（逐个补丁查过新增行）。透视表与图表的三条消息去掉可能含单元格文字的参数。不动 `sal/log.hxx`，只重编十二个文件。此后的补丁记日志一律用 `ELY_*`。
+- 改：R15.64 备好的内核补丁（当时编号 0100，未入序列）照现在的序列重排为 0108。新头文件 `include/ely/log.hxx` 给出 `ELY_INFO`、`ELY_WARN`、`ELY_WARN_IF`：总是编入，区域为 `ely.<区域>`，不经 `SAL_LOG` 的筛选，经 `sal_detail_log` 写 stderr。20 处（补丁 0019、0020、0041、0050、0062、0067、0078、0081、0084、0086 至 0089 所加）全改用它；0091 至 0107 没有再加 `SAL_` 日志（逐个补丁查过新增行）。透视表与图表的四条消息（`pivot not made`、`chart look does not parse`、`chart range does not parse`、`chart look needs headers and must parse`）去掉可能含单元格文字的参数。不动 `sal/log.hxx`，只重编十二个文件。此后的补丁记日志一律用 `ELY_*`。
 - Ely 一侧在 R15.64 时已入库：`ely_ipc::relay` 认得 `warn:ely.<区域>:<pid>:<tid>:<文件>:<行>: <消息>`，按级别记进应用日志（目标 `lok-worker`，写作“区域（文件:行）：消息”）；上游的 `SAL_` 行与别的原生输出照旧不放。worker 启动时去掉继承来的 `SAL_LOG_FILE`，各安装不带 `logging.ini`。
 - 测试 `client/tests/logs.rs`（`a_source_read_and_a_failed_read_are_both_logged`）：装一个只收 `lok-worker` 的日志器；跨工作簿的引用读源一次，日志里有 `INFO sc.ui (externalrefmgr.cxx:…): external source read into memory: …logged-source.xlsx, … bytes`；链接到不存在的文件再“更新链接”，日志里有 `WARN sc.ui (docsh4.cxx:…): linked source not read: …logged-missing.ods`。这两行带文件路径，不带文件内容。
 - 实测：本机 Linux 内核带 0108 重建后通过，`ely-lok` 全量照过。未做：没有在不带 0108 的内核上先看这条测试失败（重建一次内核要十几分钟，未回退）；设了 `SAL_LOG_FILE` 的环境下那一行仍到应用日志，未以测试核对（测试进程的环境变量各测试共用，改它会波及别的测试）。Mac 与 Windows：其内核须带 0108 重建，这条测试不分平台，由各自的发布的门跑。
@@ -625,3 +625,15 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 照审计的改法只挑“纯缺陷修复、与 Ely 无关”的：逐个读了 LibreOffice 的 102 个补丁说明、MuPDF 的 8 个与 vendor 各 crate 的修复提交，挑出 25 处写进 `patches/UPSTREAM.md`（英文，便于照抄给上游）：LibreOffice 14 个（0032、0039、0060、0063、0065、0066、0068、0070、0073、0074、0075、0077、0080、0104），MuPDF 7 个（0001、0002、0004 至 0008），crate 4 处（zbus、mail-parser、accesskit_atspi_common、accesskit_unix）。每处写明所在模块、缺陷本身、不靠 Ely 怎样看到。
 - 不算在内的也写明了：改动过滤器取舍的较大补丁（0049、0059、0067、透视表几个、TOC 两个、0072）要上游自己权衡；0061、0093 只是给 0059、0067 补头文件；MuPDF 0003 与 AT-SPI 的按句查询是提议而非缺陷；gpui 的修改待 R18.23 的补丁目录。其余补丁是给 LOK 客户端加命令与行为的，留在本项目。
 - 没做的：没有一处交给上游。LibreOffice 走 Gerrit 且要贡献者本人的许可声明，MuPDF 要 Artifex 的贡献协议，crate 要以所有者的 GitHub 身份向别人的仓库开 PR；这些是所有者名下对外的动作，本次不代做。审计的验收“清单里至少一半有上游的 PR 或缺陷链接”因此未达成。
+
+## 2026-11-10 第 1 轮审查后的改正：链接对象的类名不进日志（R18.10）
+
+- 审查查出：0108 把 `linked <ProgID> stays a picture` 原样搬成了 `ELY_WARN_IF`。`ProgID` 取自 DOCX 里 OLE 对象的属性，是文件里的文字；原先这条日志被编掉，无人看见，0108 让它进了应用日志。改：消息改为固定的 `a linked object of an unlisted class stays a picture`，不带类名。逐条再看其余 19 处：带参数的只剩文件路径（外部源、链接源）、字节数、EQ 域里的出错位置、单元格地址、R 宏的拒绝代码与异常消息（内核自己的文字），没有取自文档内容的。
+- 回归 `a_linked_object_s_class_name_stays_out_of_the_log`：把样本 `ole-link-other.docx` 的 `ProgID` 换成 `ElyPrivateOleClass.1`，载入、关闭、等 worker 退出并读完它的 stderr，应用日志里有那条警告而没有这个类名（改前即败，审查的探针所见）。
+- 上一条记录里“透视表与图表的三条消息”数错了，是四条，已改正。
+
+## 2026-11-10 第 1 轮审查后的改正：上游清单补上内核自身接口的修复（R18.11）
+
+- 审查查出两处。一、漏了 0015（macOS 的 `AquaSalInstance` 在已有到期定时器时仍进入原生等待），与 Ely、与 LOK 都无关。二、清单的说明写“不需要任何 LibreOfficeKit 客户端”，表里的 0075 却只在 LOK 下出现；照“不依赖 Ely”这同一标准，修既有 LOK 调用与回调的补丁也该列，审查举出 0002、0005、0024。
+- 改：说明改为“都不需要 Ely：第一张表的缺陷在 LibreOffice 本体里看得到，第二张表的在上游发行的 LibreOfficeKit 里、对任何客户端都在”。0015 进第一张表。新增“LibreOfficeKit”一表十项：0002、0005、0011、0024、0025、0048、0052、0064、0069，加上从第一张表移来的 0075。为免再漏，把没有说明文字的 0001 至 0023 与其余以 LOK 开头的补丁逐个重读了一遍（看新增行与说明）：除上述十项，其余或是新命令、新取值（留在本项目），或要上游权衡（0026 新接口 `settleViews`、0082 保存不结束单元格编辑、0098 导入时不让出、0102 无障碍事件随插入点），或是把 LOK 搬到桌面 macOS 与 Windows 的移植（0001、0007、0033、0043、0044、0057，上游不在这两处跑 LOK），都在清单里各写了一句。
+- 清单现共 35 处：LibreOffice 本体 14、LibreOfficeKit 10、MuPDF 7、crate 4。仍然一处都没交上游。

@@ -76,3 +76,33 @@ fn a_source_read_and_a_failed_read_are_both_logged() {
     let failed = heard(&["WARN sc.ui (docsh4.cxx:", "linked source not read", folder, "logged-missing.ods"]);
     assert!(failed.is_some(), "the failed read is not in the app's log");
 }
+
+/// A class name no document of ours holds elsewhere.
+const CLASS: &str = "ElyPrivateOleClass.1";
+
+#[test]
+fn a_linked_object_s_class_name_stays_out_of_the_log() {
+    if skip() {
+        return;
+    }
+    listen();
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/ole-link-other.docx");
+    let renamed = dir.path().join("renamed.docx");
+    // The link's ProgID is text from the file.
+    let script = "import re, sys, zipfile\nsource, target, name = sys.argv[1:4]\nwith zipfile.ZipFile(source) as before, zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as after:\n    \
+                  for entry in before.infolist():\n        data = before.read(entry.filename)\n        \
+                  if entry.filename == 'word/document.xml':\n            text, count = re.subn(r'ProgID=\"[^\"]*\"', 'ProgID=\"' + name + '\"', data.decode())\n            \
+                  assert count == 1, count\n            data = text.encode()\n        after.writestr(entry, data)";
+    let made = std::process::Command::new("python3").args(["-I", "-c", script]).arg(&fixture).arg(&renamed).arg(CLASS).output().expect("python3 runs");
+    assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+    let mut worker = Worker::spawn(&install().expect("the pinned LOK build"), &dir.path().join("profile")).expect("the worker");
+    let doc = worker.load(&crate::file_url(&renamed)).expect("loads");
+    worker.close_doc(doc).expect("closes");
+    // Every line the worker wrote is in by now.
+    worker.shutdown().expect("the worker ends");
+    worker.stderr.said();
+    assert!(heard(&["WARN writerfilter (OLEHandler.cxx:", "stays a picture"]).is_some(), "the unlisted class is not logged");
+    let leaked: Vec<String> = HEARD.lock().expect("the heard log").iter().filter(|line| line.contains(CLASS)).cloned().collect();
+    assert!(leaked.is_empty(), "text from the document reached the app's log: {leaked:?}");
+}
