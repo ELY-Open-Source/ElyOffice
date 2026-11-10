@@ -1,7 +1,7 @@
 //! The commit box, and history in the left panel.
 
 use ely_gpui_component::{
-    buttons::{Button, ButtonVariant},
+    buttons::{Button, ButtonVariant, ToggleButton, ToggleItem},
     feedback::{EmptyState, ErrorView},
     forms::{Choice, SearchInput, Select},
     git::{CommitInput, CommitList},
@@ -90,7 +90,7 @@ fn find_key(find: Find) -> &'static str {
 }
 
 /// The search row, then the commits.
-pub fn history(tree: &Entity<Tree>, cx: &mut Context<Changes>) -> AnyElement {
+pub fn history(tree: &Entity<Tree>, show_graph: bool, cx: &mut Context<Changes>) -> AnyElement {
     let read = tree.read(cx);
     let Some(opened) = read.active() else {
         return div().into_any_element();
@@ -117,6 +117,24 @@ pub fn history(tree: &Entity<Tree>, cx: &mut Context<Changes>) -> AnyElement {
                 })
                 .ok();
         });
+    let toggling = cx.weak_entity();
+    let graph = ToggleButton::new(
+        "tree-graph",
+        ToggleItem::new("history-graph")
+            .icon(IconName::PanelLeft)
+            .tooltip(text(cx, "tree.log.graph", &[])),
+        show_graph,
+    )
+    .size(ControlSize::Sm)
+    .disabled(hist.query.is_some())
+    .on_toggle(move |on, _, cx| {
+        toggling
+            .update(cx, |panel, cx| {
+                panel.show_graph = on;
+                cx.notify();
+            })
+            .ok();
+    });
     let list = match (&hist.error, hist.rows.is_empty()) {
         (Some(error), _) => ErrorView::new(
             "tree-log-error",
@@ -141,7 +159,7 @@ pub fn history(tree: &Entity<Tree>, cx: &mut Context<Changes>) -> AnyElement {
         _ => {
             let (pick, more) = (tree.downgrade(), tree.downgrade());
             CommitList::new(("tree-log", id), hist.rows.clone())
-                .when(hist.query.is_none(), |list| list.graph(hist.graph.clone()))
+                .when(show_graph && hist.query.is_none(), |list| list.graph(hist.graph.clone()))
                 .when_some(hist.pick.commit.clone(), |list, picked| {
                     list.selected(picked)
                 })
@@ -160,7 +178,7 @@ pub fn history(tree: &Entity<Tree>, cx: &mut Context<Changes>) -> AnyElement {
         .flex()
         .flex_col()
         .child(
-            div().flex().gap_2().p_2().child(find).child(
+            div().flex().gap_2().p_2().child(graph).child(find).child(
                 div()
                     .flex_1()
                     .child(SearchInput::new("tree-search", &read.search).size(ControlSize::Sm)),

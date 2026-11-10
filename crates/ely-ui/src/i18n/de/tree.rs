@@ -99,6 +99,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("tree.find.author", "Autor"),
     ("tree.find.hash", "Commit-ID"),
     ("tree.find.content", "Geänderter Text"),
+    ("tree.log.graph", "Commit-Graph anzeigen"),
     ("tree.log.none", "Noch keine Commits"),
     ("tree.log.none_found", "Keine passenden Commits"),
     ("tree.log.unread", "Der Verlauf konnte nicht gelesen werden"),

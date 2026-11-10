@@ -99,6 +99,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("tree.find.author", "작성자"),
     ("tree.find.hash", "커밋 ID"),
     ("tree.find.content", "바뀐 텍스트"),
+    ("tree.log.graph", "커밋 그래프 표시"),
     ("tree.log.none", "아직 커밋 없음"),
     ("tree.log.none_found", "일치하는 커밋 없음"),
     ("tree.log.unread", "기록을 읽을 수 없습니다"),

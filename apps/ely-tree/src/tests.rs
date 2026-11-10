@@ -18,6 +18,7 @@ mod diffs;
 mod flows;
 mod head;
 mod history;
+mod history_layout;
 mod detail_resize;
 mod place_flows;
 mod places;

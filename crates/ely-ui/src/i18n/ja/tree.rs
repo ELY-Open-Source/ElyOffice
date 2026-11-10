@@ -99,6 +99,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("tree.find.author", "作成者"),
     ("tree.find.hash", "コミット ID"),
     ("tree.find.content", "変更されたテキスト"),
+    ("tree.log.graph", "コミットグラフを表示"),
     ("tree.log.none", "コミットはまだありません"),
     ("tree.log.none_found", "一致するコミットはありません"),
     ("tree.log.unread", "履歴を読み取れませんでした"),
