@@ -74,7 +74,7 @@ use std::{
 };
 
 const WINDOW_STATE_IVAR: &CStr = c"windowState";
-// The view's AccessKit state; AX calls never take the window lock.
+// The view's AccessKit state; AX calls skip the window lock.
 const A11Y_IVAR: &CStr = c"a11yState";
 
 static RESTORES_WORKSPACE_AT_LAUNCH_DEFAULT: Once = Once::new();

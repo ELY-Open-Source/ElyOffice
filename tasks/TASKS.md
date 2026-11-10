@@ -628,7 +628,7 @@
 - [ ] R18.20 #48 ElyMail：账号设置里未译的按钮；议题余项核对并答复（§12） — 已做（未送审）：账号页的按钮与标签无写死英文（逐项核对，并以中文界面画出账号页的测试核对）；查出并修的是同步失败横幅用引擎的英文原文：改与添加账号同一套成句，凭据库、本机邮件库、登录未完成三种失败各加一句（八种语言）。测试 `the_account_page_speaks_chinese`（改回即败）。议题余项：Gmail 发信超时仍缺报告者的日志（11 月 1 日起未回），已在议题里说明现状
 - [ ] R18.21 N-10 代理测试在无 IPv6 的机器上通过或明说跳过（§12、§22） — 已做（未送审）：末段真拨 `[::1]` 的代理，绑不上时打 `SKIP: no IPv6 loopback` 并跳过那一段，其余照跑；方括号地址的读法另有不用套接字的单测。关掉 IPv6 的网络命名空间里实测：改前失败（os error 99），改后 SKIP 并通过；有 IPv6 的本机全段通过
 - [!] R18.22 N-11 crate 重名：`cargo test -p ely-files` 直接可用（§17） — 外部阻塞：重名的另一方是组件库已发布在 crates.io 的 `ely-files`（另有 `ely-mail`、`ely-agent` 同样重名），改名须所有者以其 crates.io 账号换包名；改本仓库一方则 `-p ely-files` 会悄悄指向组件库的包，比现在的报错更误事，故不改。证据：`cargo metadata` 列出三对同名包；crates.io 的 `ely-files` 之 `repository` 为 Ely-GPUI-Components。现可用 `cargo test -p ely-files@0.1`（已写进 `agents.md`）。审计的验收未达成
-- [ ] R18.23 R-09 gpui 的修改导出为补丁目录，vendor 可由 crates.io 原版加补丁重建（§17）
+- [ ] R18.23 R-09 gpui 的修改导出为补丁目录，vendor 可由 crates.io 原版加补丁重建（§17） — 已做（未送审）：`5e6834c5` 压成一个的修改拆为 `patches/gpui/0001`–`0013`（一个修复一个补丁）；`scripts/vendor-gpui.sh` 自 crates.io 的 0.3.11（核散列）加补丁重建四个 gpui crate，默认与 `vendor/` 逐字节比对，`write` 重写；`pr.yml` 每次核对。实测：原样提交与 `.crate` 逐字节同；打完 13 个补丁与 HEAD 的 vendor 逐字节同；vendor 多一行即败。`patches/UPSTREAM.md` 加 gpui 一节
 - [x] R18.24 N-12 `agents.md` 不过 30 KB：测试脚本清单移到 tests/scripts 下的 README（§17） — 测试脚本与样本的清单移到 `tests/scripts/README.md`、`tests/fixtures/README.md`，上游待办移到 `docs/accessibility.md`；`check.sh` 守住 30000 字节（`93f8e769`、`5d0e70d1`）。R1 FAIL（把“不动光标”的承诺写到了 ElyMark 头上），R2 PASS
 - [ ] R18.25 R-11 更新的第二来源：自有域名；屏蔽 github.com 后检查更新仍成（§18）
 - [ ] R18.26 R-05 `compatibility.md` 的版本与补丁范围由脚本写出，打标签时与 `Cargo.toml` 不符即发布失败（§19）

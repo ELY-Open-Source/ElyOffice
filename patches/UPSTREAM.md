@@ -67,4 +67,23 @@ Larger changes to the filters fix real losses too, but each changes what Calc or
 | accesskit_atspi_common 0.19.1 | `ca4ee86b` | A dropped adapter leaves its nodes on the bus. |
 | accesskit_unix 0.22.1 | `3cf3652b` | Cache updates go out field by field; AT-SPI clients expect one struct, and a node that gains an interface is not announced again. |
 
-`accesskit_atspi_common` also answers sentence queries here (`85f6faca` and after): a feature for AccessKit to judge, with a splitter that knows eight languages' punctuation, not Unicode's rules. The gpui changes are not sorted here yet; they wait for their patch folder (task R18.23).
+`accesskit_atspi_common` also answers sentence queries here (`85f6faca` and after): a feature for AccessKit to judge, with a splitter that knows eight languages' punctuation, not Unicode's rules.
+
+## gpui (`patches/gpui`, against `gpui-pre` 0.3.11)
+
+`scripts/vendor-gpui.sh` rebuilds `vendor/gpui-pre*` from the crates.io release plus these patches. The defects below show in any gpui app; the fixes go to the gpui these crates repackage.
+
+| Patch | Platform | Defect |
+| --- | --- | --- |
+| 0001 | all | A GIF or WebP frame that does not decode is skipped and the next is asked for; on a damaged file the decoder may never stop. |
+| 0002 | Windows, Linux | Window control areas are hit in paint order: a title bar wins over the caption button drawn on it. |
+| 0004 | Windows | The accessibility debug record formats local time each frame; asking for the time zone on every caret blink stalls the main thread. |
+| 0005 | Linux | AT-SPI places nodes by the window's screen position, sent once: after a move, assistive positions are stale. |
+| 0006 | Linux | The XIM input context is made before the open's reply; fcitx5 under XWayland stops working. |
+| 0007 | macOS | The subclassing AccessKit adapter swaps the content view's class (breaks under KVO), keeps a retain cycle, and leaves VoiceOver without the focused control. |
+| 0008 | Windows | Dropping a window after `WM_DESTROY` hides and destroys it again; a deferred activation report finds no window. |
+| 0009 | Windows | A main-thread task after quit logs an error for the destroyed platform window. |
+| 0012 | Windows | Save As keeps a name typed without an extension bare. |
+| 0013 | Windows | AccessKit starts from the foreground-window test, which misses a window a click brought forward. |
+
+0003 (the test platform counts quit requests) and 0010 (an app names the language that leads Han layout; else the user's first Han language) add what a client asks for; 0011 (no process AppUserModelID) is Ely's choice for how pinned windows group. They are proposals, not defect reports.

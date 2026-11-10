@@ -1,0 +1,20 @@
+linux: no XIM input context before the open's reply
+
+Creating the input context before XIM answered the open broke fcitx5
+under XWayland (Ely R14.48d).
+
+diff --git a/vendor/gpui-pre-linux/src/linux/x11/client.rs b/vendor/gpui-pre-linux/src/linux/x11/client.rs
+--- a/vendor/gpui-pre-linux/src/linux/x11/client.rs
++++ b/vendor/gpui-pre-linux/src/linux/x11/client.rs
+@@ -823,6 +823,11 @@ impl X11Client {
+         let Some((mut ximc, xim_handler)) = state.take_xim() else {
+             return;
+         };
++        // Before the open's reply there is no input method id.
++        if !xim_handler.connected {
++            state.restore_xim(ximc, xim_handler);
++            return;
++        }
+         let mut ic_attributes = ximc
+             .build_ic_attributes()
+             .push(AttributeName::InputStyle, InputStyle::PREEDIT_CALLBACKS)

@@ -1,0 +1,25 @@
+windows: no process AppUserModelID
+
+With a process-wide ID, windows pinned to the taskbar did not group
+with the pinned shortcut.
+
+diff --git a/vendor/gpui-pre-windows/src/platform.rs b/vendor/gpui-pre-windows/src/platform.rs
+--- a/vendor/gpui-pre-windows/src/platform.rs
++++ b/vendor/gpui-pre-windows/src/platform.rs
+@@ -923,15 +923,7 @@ impl Platform for WindowsPlatform {
+             return;
+         }
+ 
+-        let identifier_utf16 = windows::core::HSTRING::from(identifier);
+-        // SAFETY: `identifier_utf16` outlives the call and is null-terminated.
+-        if let Err(error) = unsafe {
+-            windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(
+-                windows::core::PCWSTR(identifier_utf16.as_ptr()),
+-            )
+-        } {
+-            log::warn!("failed to set the process AppUserModelID: {error}");
+-        }
++        // Ely: no process AUMID, so pinned windows group.
+         *self.app_identity.borrow_mut() = Some((identifier.to_string(), name.to_string()));
+     }
+ 
