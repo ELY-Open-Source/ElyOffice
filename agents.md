@@ -141,8 +141,8 @@ tests/scripts/linux-xim.sh       X11 上的 ElyMark 与 fcitx5 经 XIM 建成输
 tests/scripts/xim-rules.sh       linux-xim.sh 对替身（cargo、fcitx5、应用）：跑 Cargo 报出的构建而非 target 里的旧程序，应用握手前退出即报其退出码与错误（只在 Linux）
 tests/scripts/wayland-clipboard.sh  无头 sway（无 Xwayland，X11 剪贴板为空）里与 wl-copy、wl-paste 互相复制粘贴文字、HTML、PNG（容器内构建与运行，缺 docker 时 SKIP）
 packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；引擎、应用、打包；目标在 target/alma8）
-tests/scripts/linux-glibc.sh     Linux 的应用、worker 与引擎要求的 glibc 不高于 2.28，GLIBCXX、CXXABI 不高于 GCC 8（AlmaLinux 8，即发布的构建容器），读版本需求表，`GLIBC_ABI_DT_RELR` 这类 ABI 标记也拒；ci.sh 在 Linux 打包后调用，不过即不上传
-tests/scripts/linux-glibc-rules.sh  linux-glibc.sh 对 glibc 2.30、2.36 的符号与紧凑重定位（`GLIBC_ABI_DT_RELR`）报错，只要 2.2.5 的通过（现编的 ELF，只在 Linux）
+tests/scripts/linux-glibc.sh     Linux 的应用、worker 与引擎要求的 glibc 不高于 2.28，GLIBCXX、CXXABI 不高于 GCC 8（AlmaLinux 8，即发布的构建容器），读版本需求表，`GLIBC_ABI_DT_RELR` 这类 ABI 标记也拒，缺 readelf 即失败、不跳过；ci.sh 在 Linux 打包后于构建容器里调用，不过即不上传
+tests/scripts/linux-glibc-rules.sh  linux-glibc.sh 对 glibc 2.30、2.36 的符号与紧凑重定位（`GLIBC_ABI_DT_RELR`）报错，PATH 里没有 readelf 也报错，只要 2.2.5 的通过（现编的 ELF，只在 Linux）
 tests/scripts/elfs-rules.sh      `packaging/linux/elfs.sh`（package.sh 调用）只放行指向包内的 `$ORIGIN` 路径：首尾换行、绝对路径、出包、空项与带符号的 ELF 皆拒，报出包外所需的库（现编的 ELF，须 patchelf，在 container.sh 里跑）
 packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）；包的依赖带 glibc 的版本下限，取包内文件所需的最高版本；libdbus 与它所载入的库用系统的，不随包
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调用）

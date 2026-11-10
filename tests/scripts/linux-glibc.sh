@@ -9,12 +9,8 @@ fail() {
   echo "FAIL: $*" >&2
   exit 1
 }
-for tool in readelf; do
-  command -v "$tool" >/dev/null || {
-    echo "SKIP: no $tool"
-    exit 0
-  }
-done
+# A gate: a missing tool fails, never skips.
+command -v readelf >/dev/null || fail "no readelf to read the versions with"
 release=$root/target/alma8/release
 lo=$root/engines/lo-src/instdir/program
 required=("$release"/ely-{doc,table,show,pdf,mail,tree,mark,lok-worker,pdf-worker} "$lo/libmergedlo.so"

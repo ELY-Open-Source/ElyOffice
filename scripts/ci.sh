@@ -97,7 +97,7 @@ case $os in
   linux | linux-arm64)
     for slug in $batch; do ${inside[@]+"${inside[@]}"} packaging/linux/package.sh "$slug"; done
     # The packaged binaries need AlmaLinux 8's glibc at most.
-    tests/scripts/linux-glibc.sh
+    ${inside[@]+"${inside[@]}"} tests/scripts/linux-glibc.sh
     ;;
   *)
     echo "ci.sh: no release for $os" >&2

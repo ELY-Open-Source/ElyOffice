@@ -50,4 +50,12 @@ cp "$work/new" "$tree/target/alma8/release/ely-mail"
 expect fail "ely-mail needs GLIBC 2.36, above 2.28" "a symbol from glibc 2.36"
 cp "$work/near" "$tree/target/alma8/release/ely-mail"
 expect fail "ely-mail needs GLIBC 2.30, above 2.28" "a symbol from glibc 2.30"
-echo "linux-glibc-rules: new versions and ABI tags fail"
+# Without readelf the check fails; it never skips.
+mkdir "$work/bin"
+ln -s "$(command -v dirname)" "$work/bin/dirname"
+cp "$work/old" "$tree/target/alma8/release/ely-mail"
+if PATH=$work/bin "$BASH" "$tree/tests/scripts/linux-glibc.sh" >"$work/out" 2>&1; then
+  fail "no readelf: linux-glibc.sh passed ($(cat "$work/out"))"
+fi
+grep -qF "no readelf" "$work/out" || fail "no readelf: said $(cat "$work/out")"
+echo "linux-glibc-rules: new versions, ABI tags and a missing readelf fail"
