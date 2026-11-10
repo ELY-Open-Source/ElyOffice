@@ -287,8 +287,14 @@ fn sign(worker: &mut Worker, wanted: &Mutex<String>) -> io::Result<()> {
 fn spawn(app: AppId) -> io::Result<Worker> {
     let data = ely_platform::data_dir(app).map_err(io::Error::other)?;
     let install = ely_lok::install_dir()?;
-    let worker = Worker::launch(&install, &data.join("lok-profile"))?;
-    log::info!("{}: worker from {}", app.slug(), install.display());
+    // The check loads the module this app needs anyway (#79).
+    let probe = match app {
+        AppId::Table => ely_lok::Probe::Sheet,
+        AppId::Show => ely_lok::Probe::Slides,
+        _ => ely_lok::Probe::Text,
+    };
+    let worker = Worker::launch(&install, &data.join("lok-profile"), probe)?;
+    log::info!("{}: worker from {}, start check {probe:?}", app.slug(), install.display());
     Ok(worker)
 }
 

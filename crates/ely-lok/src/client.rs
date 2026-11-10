@@ -51,6 +51,8 @@ pub struct Worker {
     author: Option<String>,
     /// The build, profile and probes it started with.
     pub(crate) start: (PathBuf, PathBuf, bool),
+    /// The module the start check loads.
+    pub(crate) probe: crate::Probe,
 }
 
 /// One painted tile and the generation it matches (LOK-03).
@@ -130,8 +132,10 @@ impl Worker {
     }
 
     /// Starts the process only; the first request checks it.
-    pub fn launch(install: &Path, profile_dir: &Path) -> io::Result<Self> {
-        Self::spawn_mode(install, profile_dir, false)
+    pub fn launch(install: &Path, profile_dir: &Path, probe: crate::Probe) -> io::Result<Self> {
+        let mut worker = Self::spawn_mode(install, profile_dir, false)?;
+        worker.probe = probe;
+        Ok(worker)
     }
 
     /// Spawns with the dev-only probes on, for tests.
@@ -204,6 +208,7 @@ impl Worker {
             check: Check::Pending(profile_dir.to_path_buf()),
             author: None,
             start: (install.to_path_buf(), profile_dir.to_path_buf(), dev),
+            probe: crate::Probe::default(),
         };
         Ok(worker)
     }

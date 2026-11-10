@@ -245,6 +245,27 @@ fn a_missing_file_is_an_error_never_a_success() {
 }
 
 #[test]
+fn the_start_check_loads_only_the_app_s_own_module() {
+    let Some(install) = install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    // Each probe's own library, as the kernel names it.
+    let modules = [(crate::Probe::Text, "swlo"), (crate::Probe::Sheet, "sclo"), (crate::Probe::Slides, "sdlo")];
+    for (probe, own) in modules {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let mut worker = Worker::launch(&install, &dir.path().join("profile"), probe).expect("the worker");
+        worker.ready().unwrap_or_else(|error| panic!("{probe:?} paints no red: {error}"));
+        // Linux lists what a process mapped.
+        let Ok(mapped) = std::fs::read_to_string(format!("/proc/{}/maps", worker.child.id())) else {
+            continue;
+        };
+        for (_, module) in modules {
+            assert_eq!(mapped.contains(&format!("lib{module}.so")), module == own, "{probe:?} and lib{module}");
+        }
+    }
+}
+
+#[test]
 fn a_failed_check_refuses_every_later_request() {
     let Some(install) = install() else {
         eprintln!("SKIP: no pinned LOK build");
@@ -254,7 +275,7 @@ fn a_failed_check_refuses_every_later_request() {
     let profile = dir.path().join("profile");
     // The self-check cannot write its sample over a folder.
     std::fs::create_dir_all(profile.join("lok-verify.fodt")).expect("the blocker");
-    let mut worker = Worker::launch(&install, &profile).expect("the worker");
+    let mut worker = Worker::launch(&install, &profile, crate::Probe::Text).expect("the worker");
     assert!(worker.ready().is_err(), "the check fails");
     assert!(worker.ready().is_err(), "and stays failed");
     assert!(worker.load("private:factory/swriter").is_err(), "no document reaches it");

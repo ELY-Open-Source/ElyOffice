@@ -24,8 +24,41 @@ const VERSION_FILE: &str = "version.ini";
 #[cfg(all(unix, not(target_os = "macos")))]
 const VERSION_FILE: &str = "versionrc";
 
-/// Red text: a BGRA tile shows red in byte two.
-const VERIFY_DOC: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" office:version=\"1.3\" office:mimetype=\"application/vnd.oasis.opendocument.text\"><office:automatic-styles><style:style style:name=\"T1\" style:family=\"text\"><style:text-properties fo:color=\"#ff0000\" fo:font-size=\"28pt\" fo:font-weight=\"bold\"/></style:style></office:automatic-styles><office:body><office:text><text:p><text:span text:style-name=\"T1\">verify</text:span></text:p></office:text></office:body></office:document>";
+/// Which module the start check loads: the app's own.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Probe {
+    #[default]
+    Text,
+    Sheet,
+    Slides,
+}
+
+const HEAD: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" office:version=\"1.3\" office:mimetype=\"application/vnd.oasis.opendocument.";
+
+impl Probe {
+    /// The sample's file name and text: red, top left.
+    fn sample(self) -> (&'static str, String) {
+        // A BGRA tile shows red in byte two.
+        let (name, kind, body) = match self {
+            Probe::Text => (
+                "lok-verify.fodt",
+                "text",
+                "<office:automatic-styles><style:style style:name=\"T1\" style:family=\"text\"><style:text-properties fo:color=\"#ff0000\" fo:font-size=\"28pt\" fo:font-weight=\"bold\"/></style:style></office:automatic-styles><office:body><office:text><text:p><text:span text:style-name=\"T1\">verify</text:span></text:p></office:text></office:body>",
+            ),
+            Probe::Sheet => (
+                "lok-verify.fods",
+                "spreadsheet",
+                "<office:automatic-styles><style:style style:name=\"ce1\" style:family=\"table-cell\"><style:table-cell-properties fo:background-color=\"#ff0000\"/></style:style></office:automatic-styles><office:body><office:spreadsheet><table:table table:name=\"S\"><table:table-row><table:table-cell table:style-name=\"ce1\"/></table:table-row></table:table></office:spreadsheet></office:body>",
+            ),
+            Probe::Slides => (
+                "lok-verify.fodp",
+                "presentation",
+                "<office:automatic-styles><style:style style:name=\"gr1\" style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#ff0000\" draw:stroke=\"none\"/></style:style></office:automatic-styles><office:body><office:presentation><draw:page draw:name=\"p\"><draw:rect draw:style-name=\"gr1\" svg:x=\"0cm\" svg:y=\"0cm\" svg:width=\"4cm\" svg:height=\"4cm\"/></draw:page></office:presentation></office:body>",
+            ),
+        };
+        (name, format!("{HEAD}{kind}\">{body}</office:document>"))
+    }
+}
 
 impl Worker {
     /// Checks the pinned build and tiles, once (LOK-01).
@@ -102,10 +135,11 @@ impl Worker {
         Ok(build)
     }
 
-    /// Paints the red text; whether BGRA red came out.
+    /// Paints the red sample; whether BGRA red came out.
     pub(crate) fn tile_self_check(&mut self, profile_dir: &Path) -> io::Result<bool> {
-        let doc = profile_dir.join("lok-verify.fodt");
-        std::fs::write(&doc, VERIFY_DOC)?;
+        let (name, sample) = self.probe.sample();
+        let doc = profile_dir.join(name);
+        std::fs::write(&doc, sample)?;
         let url = ipc::file_url_of(&dunce::canonicalize(&doc)?);
         let payload = self.request(tag::VERIFY, &Pack::new().str(&url).bytes())?;
         let red = Unpack::new(&payload).u64()?;

@@ -46,7 +46,7 @@ fn dropped_on(name: &str, body: &str, at: (i32, i32), paths: &[PathBuf]) -> Opti
 }
 
 fn path_of(url: String) -> PathBuf {
-    PathBuf::from(url.trim_start_matches("file://"))
+    crate::file_path(&url).expect("a file URL")
 }
 
 #[test]

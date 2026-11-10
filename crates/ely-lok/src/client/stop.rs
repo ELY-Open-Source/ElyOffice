@@ -41,7 +41,9 @@ impl Worker {
     /// A new worker on this one's build and profile, unchecked.
     pub fn relaunch(&self) -> io::Result<Self> {
         let (install, profile, dev) = &self.start;
-        Self::spawn_mode(install, profile, *dev)
+        let mut worker = Self::spawn_mode(install, profile, *dev)?;
+        worker.probe = self.probe;
+        Ok(worker)
     }
 
     /// Ends this worker's process without this worker's lock.

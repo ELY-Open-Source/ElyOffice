@@ -5,6 +5,7 @@ pub mod commands;
 mod events;
 mod ffi;
 mod handshake;
+pub use handshake::Probe;
 pub mod history;
 mod ipc;
 pub mod links;

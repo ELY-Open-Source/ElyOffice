@@ -11,7 +11,7 @@ fn a_restart_signs_with_the_newest_name_and_survives_a_failure() {
     };
     let home = tempfile::tempdir().expect("a temp dir");
     let profile = home.path().join("lok-profile");
-    let mut worker = ely_lok::Worker::launch(&install, &profile).expect("the worker");
+    let mut worker = ely_lok::Worker::launch(&install, &profile, ely_lok::Probe::Text).expect("the worker");
     worker.ready().expect("checks");
     worker.set_author("Ada").expect("signs");
     // The new worker's check cannot write its sample here.
