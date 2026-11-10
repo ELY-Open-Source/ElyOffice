@@ -30,6 +30,9 @@ cc -nostartfiles -fPIE -pie -Wl,-z,pack-relative-relocs -o "$work/relr" "$work/o
 # arc4random came in glibc 2.36.
 printf '#include <stdlib.h>\nvoid _start(void) { exit((int)(arc4random() & 0)); }\n' >"$work/new.c"
 cc -nostartfiles -fPIE -pie -o "$work/new" "$work/new.c"
+# gettid came in glibc 2.30, past AlmaLinux 8.
+printf '#define _GNU_SOURCE\n#include <stdlib.h>\n#include <unistd.h>\nvoid _start(void) { exit((int)(gettid() & 0)); }\n' >"$work/near.c"
+cc -nostartfiles -fPIE -pie -o "$work/near" "$work/near.c"
 for name in doc table show pdf mail tree mark lok-worker pdf-worker; do
   cp "$work/old" "$tree/target/alma8/release/ely-$name"
 done
@@ -40,9 +43,11 @@ expect() { # pass or fail, the said text, case
   [ "$got" = "$1" ] || fail "$3: linux-glibc.sh gave $got, want $1 ($(cat "$work/out"))"
   grep -qF "$2" "$work/out" || fail "$3: said $(cat "$work/out"), want $2"
 }
-expect pass "need GLIBC_2.31" "only GLIBC_2.2.5"
+expect pass "need GLIBC_2.28" "only GLIBC_2.2.5"
 cp "$work/relr" "$tree/target/alma8/release/ely-mail"
 expect fail "needs GLIBC_ABI_DT_RELR" "packed relocations"
 cp "$work/new" "$tree/target/alma8/release/ely-mail"
-expect fail "ely-mail needs GLIBC 2.36, above 2.31" "a symbol from glibc 2.36"
+expect fail "ely-mail needs GLIBC 2.36, above 2.28" "a symbol from glibc 2.36"
+cp "$work/near" "$tree/target/alma8/release/ely-mail"
+expect fail "ely-mail needs GLIBC 2.30, above 2.28" "a symbol from glibc 2.30"
 echo "linux-glibc-rules: new versions and ABI tags fail"

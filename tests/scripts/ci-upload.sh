@@ -63,6 +63,7 @@ clone() { # os
   write packaging/source.sh "$source"
   mkdir -p "$at/tests/scripts"
   write tests/scripts/engine-arch.sh :
+  write tests/scripts/linux-glibc.sh '[ -z "${GLIBC_FAILS:-}" ]'
   write packaging/sign.sh 'for f; do echo signed >"$f.sig"; done'
   write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.dmg dist/app-$1.json; packaging/source.sh dist"
   write packaging/linux/container.sh 'exec "$@"'
@@ -97,6 +98,11 @@ for os in macos linux; do
     rm -rf "${work:?}/$os"
   done
 done
+# Linux packages past the glibc ceiling upload nothing.
+clone linux
+! GLIBC_FAILS=1 go linux || fail "linux released past the glibc check"
+[ ! -s "$STATE" ] || fail "linux uploaded past the glibc check: $(cat "$STATE")"
+rm -rf "${work:?}/linux"
 : >"$CARGO_LOG"
 # macOS first: it builds the source and uploads none.
 run macos

@@ -111,6 +111,10 @@ for helper in ely-lok-worker ely-pdf-worker; do
   fi
 done
 
+# The system's libdbus serves, with all it loads.
+for lib in libdbus-1 libsystemd libmount libblkid libselinux libpcre2-8 libcap libgcrypt liblz4 liblzma; do
+  deployed+=(--exclude-library "$lib.so*")
+done
 # linuxdeploy bundles libraries and fails on a missing one.
 "$deploy" --appimage-extract-and-run --appdir "$appdir" "${deployed[@]}" \
   --desktop-file "$work/$slug.desktop" --icon-file "$icon"
@@ -131,13 +135,25 @@ needed=(libvulkan.so.1 libwayland-client.so.0)
 # Libraries the AppDir needs and does not bundle.
 listed=$("$root/packaging/linux/elfs.sh" "$appdir" "$work") || exit 1
 [ -z "$listed" ] || mapfile -t -O "${#needed[@]}" needed <<<"$listed"
-deb=() pacman=() rpm=()
+# The newest glibc a packaged file needs.
+find "$appdir" -type f -print0 >"$work/packaged.list" || broken "cannot list $appdir"
+glibc=$(while IFS= read -r -d '' file; do
+  magic=$(head -c 4 "$file" | od -An -c | tr -d ' ') || exit 1
+  [ "$magic" != '177ELF' ] || readelf -VW "$file" || exit 1
+done <"$work/packaged.list" | grep -o 'GLIBC_[0-9][0-9.]*' | sort -uV | tail -n 1) ||
+  broken "cannot read the glibc versions under $appdir"
+glibc=${glibc#GLIBC_}
+deb=() pacman=() rpm=("libc.so.6(GLIBC_$glibc)(64bit)")
 while IFS= read -r lib; do
   row=$(awk -F'\t' -v lib="$lib" '$1 == lib' "$root/packaging/linux/depends.tsv")
   [ -n "$row" ] || {
     broken "$lib is in no row of packaging/linux/depends.tsv"
   }
   IFS=$'\t' read -r _ deb_name pacman_name <<<"$row"
+  # glibc's libraries share that floor.
+  if [ "$pacman_name" = glibc ]; then
+    deb_name="libc6 (>= $glibc)" pacman_name="glibc>=$glibc"
+  fi
   deb+=("$deb_name")
   pacman+=("$pacman_name")
   rpm+=("$lib()(64bit)")

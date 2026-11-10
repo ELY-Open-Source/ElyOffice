@@ -4,7 +4,7 @@
 
 版本：Ely Office 0.1.11（首批七个应用：ElyDoc、ElyTable、ElyShow、ElyPDF、ElyTree、ElyMark、ElyMail）。日期 2026-10-23。
 内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0056）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0005）；Git 2.56.0（a018953）与 git-lfs 3.8.0。
-验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库，glibc 不高于 2.31。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。本机没有 Microsoft Office：与 Office 的交叉检查未做（待做）。
+验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。本机没有 Microsoft Office：与 Office 的交叉检查未做（待做）。
 
 ## 往返验证
 

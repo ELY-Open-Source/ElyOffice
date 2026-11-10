@@ -92,7 +92,11 @@ case $os in
     for slug in $batch; do packaging/windows/installer.sh "$slug"; done
     packaging/windows/bundle.sh
     ;;
-  linux) for slug in $batch; do ${inside[@]+"${inside[@]}"} packaging/linux/package.sh "$slug"; done ;;
+  linux)
+    for slug in $batch; do ${inside[@]+"${inside[@]}"} packaging/linux/package.sh "$slug"; done
+    # The packaged binaries need AlmaLinux 8's glibc at most.
+    tests/scripts/linux-glibc.sh
+    ;;
   *)
     echo "ci.sh: no release for $os" >&2
     exit 1

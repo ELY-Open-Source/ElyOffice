@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Linux builds run on Debian 11 and Ubuntu 20.04.
+# Linux builds need no more than AlmaLinux 8 has.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
-# Their glibc, and GCC 10's libstdc++.
-limits=(GLIBC_2.31 GLIBCXX_3.4.28 CXXABI_1.3.12)
+# Its glibc 2.28 and GCC 8's libstdc++.
+limits=(GLIBC_2.28 GLIBCXX_3.4.25 CXXABI_1.3.11)
 fail() {
   echo "FAIL: $*" >&2
   exit 1
