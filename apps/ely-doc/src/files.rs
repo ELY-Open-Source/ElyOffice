@@ -4,9 +4,6 @@ use ely_platform::settings::Paper;
 use ely_gpui_component::i18n::I18n;
 use gpui::App;
 
-/// LibreOffice's Letter regions (i18nutil paper.cxx).
-const LETTER_REGIONS: [&str; 14] = ["US", "PR", "CA", "VE", "CL", "MX", "CO", "PH", "BZ", "CR", "GT", "NI", "PA", "SV"];
-
 /// As Chinese Word: compressed punctuation, two-character tabs.
 const CHINESE: &str = "<office:settings><config:config-item-set config:name=\"ooo:configuration-settings\"><config:config-item config:name=\"CharacterCompressionType\" config:type=\"short\">1</config:config-item></config:config-item-set></office:settings><office:styles><style:default-style style:family=\"paragraph\"><style:paragraph-properties style:tab-stop-distance=\"21pt\"/></style:default-style></office:styles>";
 
@@ -95,18 +92,9 @@ impl Template {
 /// Width and height; margins stay the kernel's 2 cm.
 fn page(paper: Paper) -> (&'static str, &'static str) {
     let region = ely_platform::locale::region();
-    let letter = letter(paper, region.as_deref());
+    let letter = paper.letter(region.as_deref());
     log::info!("doc: new page {paper:?}, region {region:?}, letter {letter}");
     if letter { ("8.5in", "11in") } else { ("21cm", "29.7cm") }
-}
-
-/// Letter for `paper` in `region`; unnamed regions get A4.
-fn letter(paper: Paper, region: Option<&str>) -> bool {
-    match paper {
-        Paper::A4 => false,
-        Paper::Letter => true,
-        Paper::Region => region.is_some_and(|region| LETTER_REGIONS.contains(&region)),
-    }
 }
 
 /// XML-escapes template text.
@@ -123,19 +111,5 @@ mod tests {
     #[test]
     fn template_text_is_escaped() {
         assert_eq!(escape("a<b & c>"), "a&lt;b &amp; c&gt;");
-    }
-
-    #[test]
-    fn the_region_picks_the_paper() {
-        use ely_platform::locale::region_of;
-        let picks = |tag: &str| letter(Paper::Region, region_of(tag).as_deref());
-        assert!(picks("en-US"));
-        assert!(picks("en-US@calendar=japanese"), "a keyword keeps the US");
-        assert!(!picks("en-u-ca-gregory"), "a calendar is no region");
-        assert!(!picks("de-DE"));
-        assert!(!picks("en"), "no region, A4");
-        assert!(!picks("x-us"), "private use names no region");
-        assert!(letter(Paper::Letter, Some("DE")));
-        assert!(!letter(Paper::A4, Some("US")));
     }
 }

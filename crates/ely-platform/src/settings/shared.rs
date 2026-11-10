@@ -89,6 +89,18 @@ pub enum Paper {
 
 impl Paper {
     pub const ALL: [(Self, &'static str); 3] = [(Self::Region, "region"), (Self::A4, "a4"), (Self::Letter, "letter")];
+
+    /// LibreOffice's Letter regions (i18nutil paper.cxx).
+    const LETTER_REGIONS: [&'static str; 14] = ["US", "PR", "CA", "VE", "CL", "MX", "CO", "PH", "BZ", "CR", "GT", "NI", "PA", "SV"];
+
+    /// Letter in `region`; an unnamed one gets A4.
+    pub fn letter(self, region: Option<&str>) -> bool {
+        match self {
+            Paper::A4 => false,
+            Paper::Letter => true,
+            Paper::Region => region.is_some_and(|region| Self::LETTER_REGIONS.contains(&region)),
+        }
+    }
 }
 
 impl Sides {

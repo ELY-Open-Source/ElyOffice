@@ -322,9 +322,9 @@ impl SettingsView {
                             .description(text(cx, "settings.zoom.hint", &[]))
                             .control(div().w_full().max_w_64().child(super::picks::doc_zoom(current(cx).doc_zoom, cx))),
                     );
-                // Only ElyDoc makes paged documents.
+                // Their new documents are pages.
                 let section = match self.app {
-                    AppId::Doc => section.row(
+                    AppId::Doc | AppId::Pdf => section.row(
                         SettingsRow::new(text(cx, "settings.paper", &[]))
                             .description(text(cx, "settings.paper.hint", &[]))
                             .control(div().debug_selector(|| "settings-paper".into()).w_full().max_w_64().child(super::picks::paper(current(cx).paper, cx))),

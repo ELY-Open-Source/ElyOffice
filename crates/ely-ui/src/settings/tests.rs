@@ -225,16 +225,17 @@ fn the_two_sided_row_picks_what_is_chosen(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn only_doc_offers_the_new_paper(cx: &mut TestAppContext) {
+fn doc_and_pdf_offer_the_new_paper(cx: &mut TestAppContext) {
     installed(cx);
-    for (app, offered) in [(AppId::Doc, true), (AppId::Table, false)] {
+    for (app, offered) in [(AppId::Doc, true), (AppId::Pdf, true), (AppId::Table, false)] {
         let settings = cx.add_window(|window, cx| SettingsView::new(app, window, cx));
         let mut shown = gpui::VisualTestContext::from_window(settings.into(), cx);
         settings.update(&mut shown, |view, _, _| view.section = "documents".into()).unwrap();
         shown.update(|window, cx| window.draw(cx).clear(cx));
         let row = shown.debug_bounds("settings-paper");
         assert_eq!(row.is_some(), offered, "{app:?}");
-        if let Some(row) = row {
+        // The same row in both: one pick tells.
+        if let (AppId::Doc, Some(row)) = (app, row) {
             // By region, A4, Letter.
             choose(&mut shown, row, 2);
             let picked = shown.update(|_, cx| super::picks::waiting(ely_platform::settings::PAPER, cx));

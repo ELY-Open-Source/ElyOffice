@@ -173,3 +173,18 @@ fn new_paper_follows_the_region_unless_chosen() {
         assert!(Shared::from_fields(&fields(bad)).is_err(), "{bad}");
     }
 }
+
+#[test]
+fn the_region_picks_the_paper() {
+    use super::Paper;
+    use crate::locale::region_of;
+    let picks = |tag: &str| Paper::Region.letter(region_of(tag).as_deref());
+    assert!(picks("en-US"));
+    assert!(picks("en-US@calendar=japanese"), "a keyword keeps the US");
+    assert!(!picks("en-u-ca-gregory"), "a calendar is no region");
+    assert!(!picks("de-DE"));
+    assert!(!picks("en"), "no region, A4");
+    assert!(!picks("x-us"), "private use names no region");
+    assert!(Paper::Letter.letter(Some("DE")));
+    assert!(!Paper::A4.letter(Some("US")));
+}

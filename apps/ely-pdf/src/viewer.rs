@@ -255,6 +255,7 @@ impl Render for Viewer {
             .size_full()
             .key_context(context.as_str())
             .track_focus(&self.core.focus)
+            .on_action(cx.listener(|viewer, _: &commands::New, _, cx| viewer.new_blank(cx)))
             .on_action(cx.listener(Self::open_picked))
             .on_action(cx.listener(Self::on_save))
             .on_action(cx.listener(Self::on_save_as))

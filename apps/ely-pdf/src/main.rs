@@ -5,6 +5,7 @@ mod annotate;
 mod ask;
 mod attach;
 mod backdrop;
+mod blank;
 mod content;
 mod document;
 mod editing;
