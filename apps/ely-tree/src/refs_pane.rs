@@ -1,5 +1,7 @@
 //! The picked branch or tag, and its actions.
 
+use ely_gpui_component::typography::SelectableText;
+
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant},
     data_display::DescriptionList,
@@ -42,7 +44,7 @@ impl Tree {
         let colors = cx.theme().colors.clone();
         let label = |key: &str| text(cx, key, &[]);
         let mut rows = DescriptionList::new()
-            .text(
+            .selectable_text(
                 label("tree.ref.commit"),
                 format!(
                     "{} {}",
@@ -50,7 +52,7 @@ impl Tree {
                     found.subject
                 ),
             )
-            .text(
+            .selectable_text(
                 label("tree.ref.when"),
                 found.at.map_or_else(|| "—".into(), when),
             );
@@ -59,10 +61,10 @@ impl Tree {
                 Some((ahead, behind)) => format!("{upstream} ↑{ahead} ↓{behind}"),
                 None => text(cx, "tree.upstream_gone", &[("upstream", upstream)]).to_string(),
             };
-            rows = rows.text(label("tree.ref.upstream"), track);
+            rows = rows.selectable_text(label("tree.ref.upstream"), track);
         }
         if let Some(message) = &found.message {
-            rows = rows.text(label("tree.ref.message"), message.clone());
+            rows = rows.selectable_text(label("tree.ref.message"), message.clone());
         }
         let buttons = self.ref_actions(&found, cx);
         div()
@@ -75,7 +77,7 @@ impl Tree {
                 div()
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(colors.fg)
-                    .child(found.name.clone()),
+                    .child(SelectableText::new("ref-name", found.name.clone())),
             )
             .child(rows)
             .child(div().flex().flex_wrap().gap_2().children(buttons))

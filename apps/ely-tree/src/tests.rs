@@ -17,6 +17,7 @@ mod branching;
 mod diffs;
 mod flows;
 mod head;
+mod selection;
 mod history;
 mod history_layout;
 mod detail_resize;

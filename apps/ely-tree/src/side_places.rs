@@ -77,6 +77,7 @@ fn lfs_row(at: usize, file: &LfsFile, cx: &App) -> AnyElement {
         (false, false) => "tree.lfs.pointer",
     };
     ListItem::new(("tree-lfs", at), file.path.clone())
+        .selectable_text()
         .description(format!("{} · {}", text(cx, key, &[]), size(file.size)))
         .into_any_element()
 }
@@ -176,6 +177,7 @@ pub fn places(tree: &Entity<Tree>, cx: &mut Context<Changes>) -> AnyElement {
             .children(remotes.iter().enumerate().map(|(at, remote)| {
                 let place = Place::Remote(remote.name.clone());
                 ListItem::new(("tree-remote", at), remote.name.clone())
+                    .selectable_text()
                     .description(remote.urls.join(", "))
                     .selected(picked.as_ref() == Some(&place))
                     .on_click(pick(place))
@@ -222,6 +224,7 @@ pub fn places(tree: &Entity<Tree>, cx: &mut Context<Changes>) -> AnyElement {
                         |name| name.to_string_lossy().into_owned(),
                     ),
                 )
+                .selectable_text()
                 .description(about)
                 .selected(picked.as_ref() == Some(&place))
                 .on_click(pick(place))
@@ -251,6 +254,7 @@ pub fn places(tree: &Entity<Tree>, cx: &mut Context<Changes>) -> AnyElement {
                             (Checkout::Unread(_), _) => "tree.submodule.unread",
                         };
                         ListItem::new(("tree-submodule", at), sub.path.clone())
+                            .selectable_text()
                             .description(label(key))
                             .selected(picked.as_ref() == Some(&place))
                             .on_click(pick(place))
@@ -287,6 +291,7 @@ pub fn places(tree: &Entity<Tree>, cx: &mut Context<Changes>) -> AnyElement {
             .children(moves.iter().enumerate().map(|(at, moved)| {
                 let chosen = matches!(&picked, Some(Place::Reflog(was)) if was.same(moved));
                 ListItem::new(("tree-reflog", at), moved.said.clone())
+                    .selectable_text()
                     .description(format!("{} · {}", moved.name, when(moved.at)))
                     .selected(chosen)
                     .on_click(pick(Place::Reflog(moved.clone())))

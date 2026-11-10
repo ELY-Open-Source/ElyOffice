@@ -7,7 +7,7 @@ use ely_gpui_component::{
     git::{ChangeSection, DiffLayout, DiffStat, DiffViewer, LineKind, Stretch},
     primitives::{IconName, Image},
     theme::{ActiveTheme as _, ControlSize},
-    typography::format,
+    typography::{SelectableText, format},
 };
 use gpui::{
     AnyElement, Context, ElementId, IntoElement, ObjectFit, ParentElement as _, Styled as _, div,
@@ -134,7 +134,13 @@ impl Tree {
             .py_1p5()
             .border_b_1()
             .border_color(colors.border)
-            .child(div().flex_1().min_w_0().text_color(colors.fg).child(path))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .text_color(colors.fg)
+                    .child(SelectableText::new("diff-path", path)),
+            )
             .children(stat.map(|(added, removed)| DiffStat::new(added, removed)))
             .children(lines)
             .when(text_view, |head| head.child(space).child(layout))
