@@ -83,8 +83,12 @@ fn records_fill_previews_and_files() {
         })
     });
     std::fs::write(target(1, "pdf"), "EXTERNAL").expect("a file arrives late");
-    let worker = cx.update(|app| docs.read(app).core.worker.clone());
-    settle(&cx, |_| staged.exists() && worker.try_lock().is_ok());
+    // The merge ends by removing its scratch folder.
+    let (scratch, seen) = (staged.parent().expect("a folder").to_path_buf(), std::cell::Cell::new(false));
+    settle(&cx, |_| {
+        seen.set(seen.get() || scratch.exists());
+        seen.get() && !scratch.exists()
+    });
     assert_eq!(
         std::fs::read_to_string(target(1, "pdf")).expect("reads"),
         "EXTERNAL",

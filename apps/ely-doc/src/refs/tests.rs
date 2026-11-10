@@ -58,7 +58,8 @@ fn references_go_in_through_their_dialogs() {
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.on_reference(&InsertReference, window, cx)
     });
-    cx.run_until_parked();
+    // The bookmarks are read off the main thread first.
+    settle(&cx, |app| matches!(docs.read(app).dialog, Some(Dialog::Reference { .. })));
     cx.update(|app| docs.update(app, |docs, cx| docs.insert_reference(cx)));
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.on_link(&InsertLink, window, cx)
