@@ -117,7 +117,9 @@ if [ "$(uname)" = Darwin ]; then
 fi
 
 cd "$src"
-sdk=$(sed -n 's/^export MACOSX_SDK_PATH=//p' config_host.mk 2>/dev/null)
+# A fresh tree has no configuration to read.
+sdk=
+[ ! -f config_host.mk ] || sdk=$(sed -n 's/^export MACOSX_SDK_PATH=//p' config_host.mk)
 if [ -n "$sdk" ] && [ ! -d "$sdk" ]; then
   echo "build-libreoffice.sh: configured SDK $sdk is gone; reconfiguring" >&2
   rm config_host.mk
