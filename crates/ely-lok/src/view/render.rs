@@ -44,6 +44,7 @@ impl Render for LokView {
             self.retire_tiles();
         }
         self.paint_light();
+        self.hear(window, cx);
         let this = cx.entity().clone();
         let bars = Self::bars(&this);
         let focus = self.focus.clone();
@@ -61,7 +62,7 @@ impl Render for LokView {
             .role(Role::MultilineTextInput)
             .aria_label(self.name.clone())
             .aria_value(self.a11y.text.clone())
-            .when(window.is_a11y_active(), |view| view.a11y_synthetic_children(a11y::paragraph(&self.a11y)))
+            .when(window.is_a11y_active(), |view| view.a11y_synthetic_children(a11y::paragraphs(&self.a11y, self.body())))
             .key_context(CONTEXT)
             .track_focus(&self.focus)
             .cursor(self.border_pointer().unwrap_or(self.pointer))

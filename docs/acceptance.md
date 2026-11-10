@@ -53,7 +53,7 @@ R14.49：2026-10-27 的审计（`OPTIMIZATION.md`（本机，未入库），五�
 | H-02 | P1 | ElyMark 内存 | R14.31 过审（ee77c0b，审查 r2 PASS） |
 | H-03 | P2 | 性能项覆盖不全 | R14.39 过审（c4a0cb8，审查 r3 PASS） |
 | H-04 | P2 | 120 fps 未实测 | R14.39 过审（c4a0cb8，审查 r3 PASS）；120 Hz 未实测：本机显示器最高 75 Hz |
-| I-01 | P1 | 文档内容对读屏不可达 | R14.7 过审（2fce780，审查 r2 PASS）；R14.52 过审（3cf3652，审查 r2 PASS）；R14.49 过审（22efdb3，审查 r3 PASS）；VoiceOver 不测（用户 2026-10-30 定）；AT-SPI 的文本读取由 R14.52 实测（`linux-a11y.sh`）；整篇文档仍只到当前段落 |
+| I-01 | P1 | 文档内容对读屏不可达 | R14.7 过审（2fce780，审查 r2 PASS）；R14.52 过审（3cf3652，审查 r2 PASS）；R14.49 过审（22efdb3，审查 r3 PASS）；VoiceOver 不测（用户 2026-10-30 定）；AT-SPI 的文本读取由 R14.52 实测（`linux-a11y.sh`）；ElyDoc 的正文整篇交出，Orca 从插入点连读到文末（R18.7，`linux-a11y.sh`）；NVDA 的连读未测，表格与演示仍只到当前单元格、当前段落 |
 | I-02 | P1 | 无障碍复核范围 | R14.8 过审（c17f7df，审查 r3 PASS）；R14.53 过审（e2929f7；R16.6 加审 r4 PASS，dcfd7e27）；R14.49 过审（22efdb3，审查 r3 PASS）；macOS 七个应用（含 ElyMail）由 R14.53 复核（`macos-names.sh`），修 VoiceOver 焦点总报窗口（gpui-pre-macos）与 ElyMark 的 F6 只在块间走（组件库 63543a0）；三端的名字测试到页面即核 F6 出得去 |
 | I-03 | P2 | 国际化缺口 | R14.6 过审（a52d706，审查 r2 PASS） |
 

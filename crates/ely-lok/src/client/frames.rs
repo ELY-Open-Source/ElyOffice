@@ -50,6 +50,7 @@ fn unpack_pushed(body: &[u8]) -> io::Result<(u64, Events)> {
         text,
         caret,
         selection: marked,
+        focused: unpack.u64()?,
     };
     let cell = crate::events::Cell::unpack(&mut unpack)?;
     let table = crate::table::Table::unpack(&mut unpack)?;

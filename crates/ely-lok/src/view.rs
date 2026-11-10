@@ -29,6 +29,7 @@ mod input;
 mod lane;
 mod off;
 mod panes;
+mod reading;
 mod reads;
 mod relay;
 pub use relay::{Closed, Linked};
@@ -133,6 +134,7 @@ pub struct LokView {
     right_at: Option<Point<Pixels>>,
     fonts: Vec<String>,
     a11y: crate::A11y,
+    reading: reading::Reading,
     /// What readers call the view.
     name: gpui::SharedString,
     /// The paragraph's tab stops and the revision that read them.
@@ -238,6 +240,7 @@ impl LokView {
             right_at: None,
             fonts: Vec::new(),
             a11y: crate::A11y::default(),
+            reading: reading::Reading::default(),
             name: gpui::SharedString::default(),
             tabs: (Vec::new(), 0),
             watching: None,
@@ -407,7 +410,8 @@ impl LokView {
         for fault in batch.faults {
             cx.emit(LokError(fault));
         }
-        self.a11y = batch.a11y;
+        let changed = batch.generation != self.generation || batch.all || !batch.rects.is_empty();
+        self.take_a11y(batch.a11y, changed, cx);
         match batch.revision < self.tabs.1 {
             true => log::debug!("lok: tab stops read at {} are older than {}", batch.revision, self.tabs.1),
             false => self.tabs = (batch.tabs, batch.revision),
@@ -415,7 +419,7 @@ impl LokView {
         self.states.extend(batch.states);
         self.relay(batch.blocked, batch.links, cx);
         cx.emit(Reported);
-        if batch.generation == self.generation && !batch.all && batch.rects.is_empty() {
+        if !changed {
             cx.notify();
             return;
         }

@@ -64,6 +64,64 @@ pub(crate) fn text_position_from_offset<'a>(
     node.text_position_from_global_usv_index(index)
 }
 
+/// Whether `mark` can end a sentence.
+fn is_sentence_mark(mark: char) -> bool {
+    matches!(mark, '.' | '!' | '?' | '。' | '！' | '？')
+}
+
+/// The sentence around char `at`: its start and its end, in chars.
+///
+/// A CJK full stop ends a sentence anywhere; a Latin one only before
+/// whitespace or the end. The whitespace after belongs to the sentence.
+fn sentence_bounds(text: &[char], at: usize) -> (usize, usize) {
+    let ends = |index: usize| match text[index] {
+        '。' | '！' | '？' => true,
+        '.' | '!' | '?' => text
+            .get(index + 1)
+            .is_none_or(|next| next.is_whitespace() || is_sentence_mark(*next)),
+        _ => false,
+    };
+    let (mut start, mut index) = (0, 0);
+    while index < text.len() {
+        if !ends(index) {
+            index += 1;
+            continue;
+        }
+        let mut next = index + 1;
+        while next < text.len() && (is_sentence_mark(text[next]) || text[next].is_whitespace()) {
+            next += 1;
+        }
+        if at < next {
+            return (start, next);
+        }
+        (start, index) = (next, next);
+    }
+    (start, text.len())
+}
+
+/// The sentence at `offset`, found inside its paragraph.
+fn sentence_range_from_offset<'a>(
+    node: &'a Node,
+    offset: TextPosition<'a>,
+) -> Result<TextRange<'a>, Error> {
+    let first = match offset.is_paragraph_start() {
+        true => offset,
+        false => offset.backward_to_paragraph_start(),
+    };
+    let mut paragraph = first.to_degenerate_range();
+    paragraph.set_end(first.forward_to_paragraph_end());
+    let text: Vec<char> = paragraph.text().chars().collect();
+    let base = first.to_global_usv_index();
+    let (start, end) = sentence_bounds(&text, offset.to_global_usv_index() - base);
+    let at = |index: usize| {
+        node.text_position_from_global_usv_index(base + index)
+            .ok_or(Error::IndexOutOfRange)
+    };
+    let mut range = at(start)?.to_degenerate_range();
+    range.set_end(at(end)?);
+    Ok(range)
+}
+
 pub(crate) fn text_range_from_offset<'a>(
     node: &'a Node,
     offset: i32,
@@ -76,7 +134,7 @@ pub(crate) fn text_range_from_offset<'a>(
         Granularity::Line => start_offset.backward_to_line_start(),
         Granularity::Paragraph if start_offset.is_paragraph_start() => start_offset,
         Granularity::Paragraph => start_offset.backward_to_paragraph_start(),
-        Granularity::Sentence => return Err(Error::UnsupportedTextGranularity),
+        Granularity::Sentence => sentence_range_from_offset(node, start_offset)?.start(),
         Granularity::Word if start_offset.is_word_start() => start_offset,
         Granularity::Word => start_offset.backward_to_word_start(),
     };
@@ -85,7 +143,7 @@ pub(crate) fn text_range_from_offset<'a>(
         Granularity::Char => start.forward_to_character_end(),
         Granularity::Line => start.forward_to_line_end(),
         Granularity::Paragraph => start.forward_to_paragraph_end(),
-        Granularity::Sentence => return Err(Error::UnsupportedTextGranularity),
+        Granularity::Sentence => sentence_range_from_offset(node, start_offset)?.end(),
         Granularity::Word => start.forward_to_word_end(),
     };
     let mut range = start.to_degenerate_range();
@@ -130,5 +188,27 @@ pub(crate) fn atspi_scroll_type_to_scroll_hint(scroll_type: ScrollType) -> Optio
         ScrollType::LeftEdge => Some(ScrollHint::LeftEdge),
         ScrollType::RightEdge => Some(ScrollHint::RightEdge),
         ScrollType::Anywhere => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sentence_bounds;
+
+    fn bounds(text: &str, at: usize) -> (usize, usize) {
+        sentence_bounds(&text.chars().collect::<Vec<_>>(), at)
+    }
+
+    #[test]
+    fn a_sentence_runs_to_the_next_one_s_start() {
+        let text = "One. Two 2.5 now!  Three\n";
+        assert_eq!(bounds(text, 0), (0, 5));
+        assert_eq!(bounds(text, 4), (0, 5), "the space after belongs to it");
+        assert_eq!(bounds(text, 5), (5, 19), "a point inside a number ends nothing");
+        assert_eq!(bounds(text, 19), (19, 25), "the last runs to the end");
+        assert_eq!(bounds("一。二？！三", 2), (2, 5), "a CJK stop needs no space");
+        assert_eq!(bounds("一。二？！三", 5), (5, 6));
+        assert_eq!(bounds("no stop", 3), (0, 7));
+        assert_eq!(bounds("", 0), (0, 0));
     }
 }

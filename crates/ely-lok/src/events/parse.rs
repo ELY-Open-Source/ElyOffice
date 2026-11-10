@@ -11,6 +11,8 @@ pub struct A11y {
     /// Caret and selection in UTF-16 units; LOK's -1 is None.
     pub caret: Option<usize>,
     pub selection: Option<(usize, usize)>,
+    /// Counts the kernel's moves of focus to a paragraph.
+    pub focused: u64,
 }
 
 /// A kernel window event that matters to the guard.
@@ -269,7 +271,11 @@ pub fn a11y_update(a11y: &mut A11y, kind: i32, text: &str) {
                 a11y.text = json["text"].as_str().unwrap_or_default().to_string();
             }
         }
-        _ => fold_paragraph(a11y, &json),
+        _ => {
+            // 62: the caret reached another paragraph.
+            a11y.focused += u64::from(kind == 62);
+            fold_paragraph(a11y, &json)
+        }
     }
 }
 
@@ -442,10 +448,11 @@ mod tests {
             text: "Hello".into(),
             caret: Some(2),
             selection: Some((1, 3)),
+            focused: 1,
         };
         assert_eq!(a11y, want);
         a11y_update(&mut a11y, 63, r#"{"position":"5"}"#);
-        assert_eq!(a11y.caret, Some(5));
+        assert_eq!((a11y.caret, a11y.focused), (Some(5), 1), "a caret move is no new paragraph");
         a11y_update(&mut a11y, 64, r#"{"start":"-1","end":"-1"}"#);
         assert_eq!(a11y.selection, None, "-1 clears the selection");
         let cell = r#"{"paragraph":{"content":"B1","position":"0"}}"#;

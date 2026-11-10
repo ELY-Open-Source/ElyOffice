@@ -50,6 +50,32 @@ pub fn counts(json: &str) -> io::Result<Counts> {
     })
 }
 
+/// The kernel's list: the body and the caret's paragraph.
+pub const READING: &str = ".uno:ElyReading";
+
+/// The body's paragraphs; `caret` indexes the cursor's.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Body {
+    pub paragraphs: Vec<String>,
+    pub caret: usize,
+}
+
+/// What `READING` lists; None for a cursor outside the body.
+pub fn reading(json: &str) -> io::Result<Option<Body>> {
+    let list = parse(json)?;
+    if list["caret"].is_null() {
+        return Ok(None);
+    }
+    let texts = entries(&list, "paragraphs")?.iter().map(|entry| entry.as_str().map(str::to_string));
+    // The errors leave the document's text out.
+    let paragraphs: Vec<String> = texts.collect::<Option<_>>().ok_or_else(|| invalid("a listed paragraph is no text".into()))?;
+    let caret = list["caret"].as_u64().and_then(|caret| usize::try_from(caret).ok());
+    match caret.filter(|caret| *caret < paragraphs.len()) {
+        Some(caret) => Ok(Some(Body { paragraphs, caret })),
+        None => Err(invalid(format!("the caret is in none of {} paragraphs", paragraphs.len()))),
+    }
+}
+
 /// A heading from `.uno:Outline`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Heading {
@@ -231,6 +257,16 @@ pub(crate) fn invalid(message: String) -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_body_reads_with_its_caret_or_as_none() {
+        let body = reading(r#"{"paragraphs":["one","二"],"caret":1}"#).expect("a body");
+        assert_eq!(body, Some(Body { paragraphs: vec!["one".into(), "二".into()], caret: 1 }));
+        assert_eq!(reading(r#"{"paragraphs":["note"]}"#).expect("no caret"), None, "outside the body");
+        assert_eq!(reading("{}").expect("no caret"), None, "text typed into a shape");
+        let astray = reading(r#"{"paragraphs":["secret"],"caret":1}"#).expect_err("a caret past the list");
+        assert!(!astray.to_string().contains("secret"), "the error leaves the text out: {astray}");
+    }
 
     #[test]
     fn comments_and_changes_parse() {

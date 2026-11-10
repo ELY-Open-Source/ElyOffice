@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Orca reaches ElyDoc's and ElyPDF's text and selection, through AT-SPI.
+# AT-SPI gives ElyDoc's body and ElyPDF's pages; Orca reads on.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -12,7 +12,7 @@ launcher=
 for at in /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi-bus-launcher /usr/lib/at-spi2-core/at-spi-bus-launcher; do
   [ -x "$at" ] && launcher=$at && break
 done
-[ -n "$launcher" ] || { echo "SKIP: no at-spi-bus-launcher"; exit 0; }
+[ -x "${launcher%/*}/at-spi2-registryd" ] || { echo "SKIP: no at-spi-bus-launcher with its registry"; exit 0; }
 [ -n "${ELY_LOK_DIR:-}" ] || [ -d "$root/engines/lo-src/instdir/program" ] || { echo "SKIP: no LOK build"; exit 0; }
 [ -n "${ELY_MUPDF_DIR:-}" ] || [ -d "$root/engines/mupdf-build" ] || { echo "SKIP: no MuPDF build"; exit 0; }
 
@@ -45,7 +45,7 @@ gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi
 
 kind, exe, path, out = sys.argv[1:5]
-CTRL, SHIFT, HOME, END, RIGHT = 0xFFE3, 0xFFE1, 0xFF50, 0xFF57, 0xFF53
+CTRL, SHIFT, HOME, END, RIGHT, DOWN, KP_ADD = 0xFFE3, 0xFFE1, 0xFF50, 0xFF57, 0xFF53, 0xFF54, 0xFFAB
 log = []
 
 
@@ -108,7 +108,7 @@ def state(label):
     chosen = "+".join(Atspi.Text.get_text(node, r.start_offset, r.end_offset) for r in picks)
     row = f"{label}|{node.get_role_name()}|{text.replace(chr(10), '/')}|{chosen.replace(chr(10), '/')}"
     # The caret in characters, as Orca reads it.
-    log.append(row + (f"|{Atspi.Text.get_caret_offset(node)}" if kind == "doc" else ""))
+    log.append(row + (f"|{Atspi.Text.get_caret_offset(node)}" if kind in ("doc", "flow") else ""))
 
 
 def focus_window():
@@ -168,6 +168,22 @@ try:
         keys(RIGHT)
         keys(SHIFT, RIGHT, times=4)
         state("end")
+    elif kind == "flow":
+        click(box)
+        keys(CTRL, HOME)
+        state("whole")
+        keys(DOWN)
+        state("onward")
+        keys(DOWN)
+        state("last")
+    elif kind == "orca":
+        click(box)
+        keys(CTRL, HOME)
+        keys(DOWN)
+        time.sleep(2)
+        # Orca's Say All, on its desktop layout.
+        keys(KP_ADD)
+        time.sleep(10)
     elif kind == "pdf":
         state("page")
         drag(box, 0.1, box.height / 2 / box.width, 0.9, box.height / 2 / box.width)
@@ -199,10 +215,21 @@ Gio.bus_get_sync(Gio.BusType.SESSION).call_sync(\"org.a11y.Bus\", \"/org/a11y/bu
 " 2>/dev/null && break
   sleep 0.25
 done
+# A private bus has no systemd to start the registry.
+"${launcher%/*}/at-spi2-registryd" >>"$work/atspi.log" 2>&1 &
 read_app() { ELY_DATA_ROOT=$work/data python3 -I "$work/read.py" "$1" "$bin/$2" "$work/$3" "$work/$1.log" </dev/null; }
 read_app doc ely-doc probe.fodt
+read_app flow ely-doc flow.fodt
 read_app pdf ely-pdf probe.pdf
-read_app pages ely-pdf pages.pdf'
+read_app pages ely-pdf pages.pdf
+# Orca itself, where installed: its log has what it spoke.
+if command -v orca >/dev/null; then
+  mkdir "$work/home"
+  HOME=$work/home XDG_CONFIG_HOME=$work/home XDG_DATA_HOME=$work/home XDG_SESSION_TYPE=x11 GDK_BACKEND=x11 \
+    orca --debug-file "$work/orca.debug" >"$work/orca.out" 2>&1 &
+  sleep 5
+  read_app orca ely-doc flow.fodt
+fi'
 unset WAYLAND_DISPLAY
 ELY_NO_DIALOG=1 ELY_LOCALE=en-US dbus-run-session -- bash -c "$inside" _ "$launcher" "$work" "$bin" 2>"$work/session.log" ||
   { echo "FAIL: see $work" >&2; exit 1; }
@@ -212,10 +239,32 @@ line|entry|Hello 世界 😀 end|Hello 世界 😀 end|14
 moved|entry|Hello 世界 😀 end||9
 emoji|entry|Hello 世界 😀 end|😀|10
 end|entry|Hello 世界 😀 end|end|14
+whole|entry|First one. More/第二段。Second two/Third||0
+onward|entry|First one. More/第二段。Second two/Third||16
+last|entry|First one. More/第二段。Second two/Third||31
 page|document frame|Hello PDF reader/second line/|
 picked|document frame|Hello PDF reader/second line/|Hello PDF reader
 across|document frame|page one/page two/|page one/page two
 scrolled|document frame|page two/page three/|page two
 EOF
-cat "$work/doc.log" "$work/pdf.log" "$work/pages.log" | diff "$work/want.log" - || { echo "FAIL: the reader saw other text" >&2; exit 1; }
-echo "PASS: ElyDoc's paragraph and ElyPDF's page, with caret and selection, reach AT-SPI"
+cat "$work/doc.log" "$work/flow.log" "$work/pdf.log" "$work/pages.log" | diff "$work/want.log" - || { echo "FAIL: the reader saw other text" >&2; exit 1; }
+echo "PASS: ElyDoc's whole body and ElyPDF's page, with caret and selection, reach AT-SPI"
+if [ ! -f "$work/orca.debug" ]; then
+  echo "linux-a11y: no Orca here; what it speaks is not checked"
+  exit 0
+fi
+# Down speaks the line; Say All reads from the caret.
+python3 -I - "$work/orca.debug" >"$work/orca.log" <<'EOF'
+import re, sys
+
+log = open(sys.argv[1], encoding="utf-8").read()
+spoken = re.findall(r"SPEECH OUTPUT: '(.*?)'\{", log, re.S)
+print("line|" + "|".join(text.strip() for text in spoken if "第二段" in text))
+said = re.findall(r"Completed SAY ALL: \[[^\]]*\] '.*?' \((\d+)-(\d+), current: (\d+)\)", log, re.S)
+print("said|" + "|".join(f"{start}-{end} to {at}" for start, end, at in said))
+EOF
+diff - "$work/orca.log" <<'EOF' || { echo "FAIL: Orca spoke otherwise" >&2; exit 1; }
+line|第二段。Second two
+said|16-20 to 20|20-31 to 31|31-36 to 36
+EOF
+echo "PASS: Orca speaks the line the caret reaches and reads from the caret to ElyDoc's end"

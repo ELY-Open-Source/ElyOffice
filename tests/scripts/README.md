@@ -77,7 +77,7 @@ tests/scripts/windows-bundle.sh  合集安装程序逐个静默运行所选应�
 tests/scripts/windows-installer.sh  假应用的安装程序：所选目录原有的文件经两次安装与卸载都在，旧版按注册表清理，文件被占用或程序在运行时什么也不改，写不进时放回旧版（缺 makensis 时 SKIP）
 tests/scripts/types.sh         packaging/types.tsv 的文件类型与 URL 方案在 Linux 桌面项、Windows 安装程序与 macOS 的 plist 里一致，macOS 的 UTI 照 MIME 类型、级别为 Alternate，URL 方案从不被接管
 tests/scripts/windows-a11y.sh   真窗口 ElyDoc 与 ElyPDF：UI Automation 的 TextPattern 读到段落、插入点与选区（含 emoji），PDF 的页文与拖选（缺引擎时 SKIP）
-tests/scripts/linux-a11y.sh     同 windows-a11y.sh，经 AT-SPI 的 Text 接口（Orca 所读）：Xvfb 在容器里，私有 AT-SPI 总线，键鼠经 XTest（缺 docker、AT-SPI 的 Python 绑定或引擎时 SKIP）
+tests/scripts/linux-a11y.sh     同 windows-a11y.sh，经 AT-SPI 的 Text 接口：ElyDoc 的正文整篇、插入点随段落移动；Xvfb 在容器里，私有 AT-SPI 总线（自己起注册进程），键鼠经 XTest；装了 Orca 时再起真 Orca，由其调试日志核对方向键读出新行、“全文朗读”从插入点读到文末，没装则说明未查（缺 docker、xwininfo、AT-SPI 的 Python 绑定或引擎时 SKIP）
 tests/scripts/windows-names.sh  真窗口七个应用：UI Automation 里每个可操作节点与 Tab 停靠点都有名字，Tab 走得到文档、F6 出得去（样本取自 a11y-samples.sh；缺引擎时 SKIP）
 tests/scripts/linux-names.sh    同上，并核对报给辅助技术的窗口位置与 X 窗口相符，经 AT-SPI：Xvfb 在容器里经 TCP，应用与私有 D-Bus、AT-SPI 总线在本机（缺 docker、AT-SPI 的 Python 绑定或引擎时 SKIP）
 tests/scripts/macos-names.sh    同上，经 macOS 的 AX（VoiceOver 所读，`ax-names.swift`）：应用空闲后才接入，窗口按钮不算（系统自命名），Tab 停靠点至少两个（窗口按钮是原生的）（需辅助功能权限）

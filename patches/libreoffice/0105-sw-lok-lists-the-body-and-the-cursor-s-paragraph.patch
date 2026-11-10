@@ -1,0 +1,84 @@
+sw: LOK lists the body's paragraphs and the cursor's among them
+
+A LOK client's screen reader gets one paragraph at a time: the a11y
+events name only the paragraph that holds the caret, so "read to the
+end" stops at that paragraph's last word, and a move to another
+paragraph replaces the text instead of moving a caret through it.
+getCommandValues gains ".uno:ElyReading": the expanded text of each
+laid-out body paragraph in document order, and "caret", the index of
+the cursor's among them. A cursor in a footnote, header or frame, or
+text being typed into a shape, gets no "caret": those do not flow into
+the body.
+
+--- a/sw/source/uibase/uno/loktxdoc.cxx
++++ b/sw/source/uibase/uno/loktxdoc.cxx
+@@ -78,6 +78,7 @@
+ 
+ #include <sax/tools/converter.hxx>
+ #include <svtools/embedhlp.hxx>
++#include <svx/svdview.hxx>
+ #include <com/sun/star/beans/XPropertySet.hpp>
+ #include <com/sun/star/embed/XEmbeddedObject.hpp>
+ 
+@@ -1203,6 +1204,40 @@
+     }
+ }
+ 
++/// getCommandValues(".uno:ElyReading"): the body and the cursor's paragraph.
++void GetReading(tools::JsonWriter& rJsonWriter, SwDocShell* pDocShell)
++{
++    SwWrtShell* pWrtShell = pDocShell->GetWrtShell();
++    if (!pWrtShell)
++        return;
++    // Text typed into a shape is not the body's.
++    const SdrView* pDrawView = pWrtShell->GetDrawView();
++    if (pDrawView && pDrawView->IsTextEdit())
++        return;
++    const SwNodes& rNodes = pDocShell->GetDoc()->GetNodes();
++    const SwNodeOffset nCursor = pWrtShell->GetCursor()->GetPoint()->GetNodeIndex();
++    sal_Int32 nListed = 0;
++    sal_Int32 nCaret = -1;
++    {
++        auto aParagraphs = rJsonWriter.startArray("paragraphs");
++        // Footnotes, headers and frames lie before the body.
++        for (SwNodeOffset n = rNodes.GetEndOfExtras().GetIndex();
++             n < rNodes.GetEndOfContent().GetIndex(); ++n)
++        {
++            const SwTextNode* pText = rNodes[n]->GetTextNode();
++            if (!pText || !pText->getLayoutFrame(pWrtShell->GetLayout()))
++                continue;
++            if (n == nCursor)
++                nCaret = nListed;
++            rJsonWriter.putSimpleValue(pText->GetExpandText(pWrtShell->GetLayout()));
++            ++nListed;
++        }
++    }
++    // A cursor outside the body names no paragraph.
++    if (nCaret >= 0)
++        rJsonWriter.put("caret", nCaret);
++}
++
+ /// Implements getCommandValues(".uno:Sections").
+ ///
+ /// Parameters:
+@@ -1326,7 +1361,8 @@
+             u"Bookmarks",      u"Fields",        u"Sections",
+             u"Bookmark",       u"Field",         u"Layout",
+             u"Formula",        u"WordCount",     u"Outline",
+-            u"CharFonts",      u"ExternalLinks", u"ElyUpdateLinks" };
++            u"CharFonts",      u"ExternalLinks", u"ElyUpdateLinks",
++            u"ElyReading" };
+ 
+     return std::find(vForward.begin(), vForward.end(), rCommand) != vForward.end();
+ }
+@@ -1421,6 +1457,10 @@
+     {
+         GetWordCount(rJsonWriter, m_pDocShell);
+     }
++    else if (o3tl::starts_with(rCommand, ".uno:ElyReading"sv))
++    {
++        GetReading(rJsonWriter, m_pDocShell);
++    }
+     else if (o3tl::starts_with(rCommand, ".uno:CharFonts"sv))
+     {
+         GetCharFonts(rJsonWriter, m_pDocShell);

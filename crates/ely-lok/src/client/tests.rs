@@ -41,6 +41,7 @@ mod ole_links;
 mod output;
 mod paint;
 mod playlist;
+pub(crate) mod reading;
 mod print;
 mod profile;
 mod refs;

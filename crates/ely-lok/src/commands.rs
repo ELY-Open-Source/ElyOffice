@@ -131,6 +131,7 @@ pub const VALUES: &[&str] = &[
     ".uno:Formula",
     ".uno:WordCount",
     ".uno:Outline",
+    crate::review::READING,
     crate::sheet::GEOMETRY,
     crate::sheet::NAMES,
     crate::sheet::SELECTED,

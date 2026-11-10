@@ -71,6 +71,14 @@ a11y_text_samples() {
  <office:body><office:text><text:p>Hello 世界 😀 end</text:p></office:text></office:body>
 </office:document>
 EOF
+  # Three paragraphs, sentences in two: read on to the end.
+  cat >"$dir/flow.fodt" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:body><office:text><text:p>First one. More</text:p><text:p>第二段。Second two</text:p><text:p>Third</text:p></office:text></office:body>
+</office:document>
+EOF
 
   # A tall page, then three short ones.
   "$(command -v python3 || command -v python)" -I - "$(cygpath -w "$dir" 2>/dev/null || echo "$dir")" <<'EOF'

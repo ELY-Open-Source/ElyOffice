@@ -86,7 +86,8 @@ fn pack_events(batch: Events) -> Vec<u8> {
         .str(&a11y.text)
         .i64(signed(a11y.caret))
         .i64(signed(start))
-        .i64(signed(end));
+        .i64(signed(end))
+        .u64(a11y.focused);
     let pack = crate::table::Table::pack(batch.table.as_ref(), batch.cell.pack(pack));
     batch.text.pack(pack).bytes()
 }
