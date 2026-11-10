@@ -624,7 +624,7 @@
 - [ ] R18.16 #14 ElyShow 换版式后的灰色箭头：在本机试复现，查根因或写明所缺（§10）
 - [ ] R18.17 #80 ElyPDF 新建 PDF 无反应（§11） — 已做（未送审）：根因是 ElyPDF 没接文件菜单的“新建”（三端皆然）；现新建一页空白的未命名 PDF，纸张照“默认纸张”（选纸规则移到 `ely_platform` 与 ElyDoc 同用，设置那一行 ElyPDF 也有）。测试 `new_opens_an_untitled_page_that_saves_as_a_pdf`（去掉处理即败）、`the_table_points_at_each_object`、`doc_and_pdf_offer_the_new_paper`。未验证：Windows 真窗口
 - [ ] R18.18 #73 与 PR #74：核对 0.1.14 起已修，答复并关闭（§11）
-- [ ] R18.19 R-07（R14.21）证书信任：末次修复送审；自签名证书必显示为不可信的测试（§11）
+- [ ] R18.19 R-07（R14.21）证书信任：末次修复送审；自签名证书必显示为不可信的测试（§11） — 已做（未送审）：R14.21 末次修复 `3ed9bbca`（后随组合标记的空格并入其词）交 Cindy reviewer 审；“自签名即不受信”三端各有信任层的测试（`a_self_signed_signer_is_not_trusted_by_the_system`：`trust.rs` 的 macOS、`trust/windows.rs`、`trust/linux.rs`），ElyPDF 的 `a_signed_file_lists_its_checks_and_saves_as_a_copy` 原只核状态，现加核对话框那一行的字（“Certificate not trusted by this system: …”带系统给的理由）；三端由发布的门（`release-tests.sh`）跑。本机 Linux：ElyPDF 签名 12 项过
 - [ ] R18.20 #48 ElyMail：账号设置里未译的按钮；议题余项核对并答复（§12）
 - [ ] R18.21 N-10 代理测试在无 IPv6 的机器上通过或明说跳过（§12、§22）
 - [ ] R18.22 N-11 crate 重名：`cargo test -p ely-files` 直接可用（§17）

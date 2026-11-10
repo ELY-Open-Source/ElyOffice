@@ -94,7 +94,8 @@ fn integrity(signed: &Signed, cx: &App) -> gpui::SharedString {
     Viewer::text(cx, key, &[])
 }
 
-fn trusted(trust: &Option<Result<Trust, String>>, cx: &App) -> gpui::SharedString {
+/// The trust row: only a trusted chain reads trusted.
+pub(crate) fn trusted(trust: &Option<Result<Trust, String>>, cx: &App) -> gpui::SharedString {
     match trust {
         Some(Ok(Trust::Trusted)) => Viewer::text(cx, "pdf.sign.trusted", &[]),
         Some(Ok(Trust::Untrusted(why))) => Viewer::text(cx, "pdf.sign.untrusted", &[("why", why)]),

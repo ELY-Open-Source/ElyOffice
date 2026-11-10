@@ -57,6 +57,9 @@ fn a_signed_file_lists_its_checks_and_saves_as_a_copy() {
         let checked = &read.signatures.as_ref().expect("read").1[0];
         assert_eq!(checked.field.signed.as_ref().map(|s| s.digest), Some(Digest::Intact));
         assert!(matches!(checked.trust, Some(Ok(Trust::Untrusted(_)))), "self-signed");
+        // The row says so, with the system's reason.
+        let row = crate::sign::trusted(&checked.trust, app);
+        assert!(row.starts_with("Certificate not trusted by this system: ") && row.len() > 40, "{row}");
     });
     // The dialog draws every fact.
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.show_signatures(true, cx)));
