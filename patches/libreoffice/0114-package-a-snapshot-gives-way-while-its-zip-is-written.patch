@@ -1,0 +1,173 @@
+LOK: a snapshot gives way while its zip is written
+
+A snapshot (patch 0090) asked for waiting input while the filter
+wrote its XML parts, then never again: the package commit that
+follows copies every stream into the zip. On a deck of pictures that
+is the longer half; a key pressed in it waited the rest out (Ely
+R18.8: 105 ms of a 385 ms snapshot of 189 pictures, 152 ms on a
+slower machine).
+The commit now asks too: before each entry, at each 32 KB copied
+into the zip, at each batch of a large stream's deflate, and while
+it waits for the deflating threads. finish() polls for those threads
+as reduceScheduledThreadTasksToGivenNumberOrLess always did, so the
+wait can ask.
+A zip stream abandoned with entries still queued leaked them, their
+buffer files and their running tasks; any failed entry did that, a
+stop now does it often. The destructor waits for the tasks and
+frees the entries, and an entry leaves the queue before its copy
+may throw. A deflating task ends at its next 32 KB once the
+snapshot has stopped, so that wait is short; the stopped flag is
+atomic for it.
+--- a/comphelper/source/misc/lok.cxx
++++ b/comphelper/source/misc/lok.cxx
+@@ -8,6 +8,7 @@
+  */
+ 
+ #include <comphelper/lok.hxx>
++#include <atomic>
+ #include <comphelper/snapshot.hxx>
+ 
+ #include <com/sun/star/awt/Rectangle.hpp>
+@@ -370,7 +371,8 @@
+ }
+ 
+ static bool g_bSnapshot = false;
+-static bool g_bSnapshotStopped = false;
++// Ely: deflating threads read it.
++static std::atomic<bool> g_bSnapshotStopped = false;
+ 
+ void setSnapshot(bool bSnapshot)
+ {
+--- a/package/source/zipapi/ZipOutputEntry.cxx
++++ b/package/source/zipapi/ZipOutputEntry.cxx
+@@ -21,8 +21,11 @@
+ 
+ #include <com/sun/star/io/TempFile.hpp>
+ #include <com/sun/star/packages/zip/ZipConstants.hpp>
++#include <com/sun/star/uno/RuntimeException.hpp>
+ #include <com/sun/star/xml/crypto/CipherID.hpp>
+ 
++#include <comphelper/snapshot.hxx>
++
+ #include <osl/diagnose.h>
+ 
+ #include <PackageConstants.hxx>
+@@ -333,6 +336,9 @@
+     uno::Sequence< sal_Int8 > aSeq(n_ConstBufferSize);
+     do
+     {
++        // Ely: a stopped snapshot deflates no more.
++        if (comphelper::LibreOfficeKit::isSnapshotStopped())
++            throw uno::RuntimeException(u"ely: the snapshot gave way to input"_ustr);
+         nLength = xInStream->readBytes(aSeq, n_ConstBufferSize);
+         if (nLength != n_ConstBufferSize)
+             aSeq.realloc(nLength);
+@@ -362,6 +368,8 @@
+     ZipUtils::ThreadedDeflater deflater( DEFAULT_COMPRESSION );
+     deflater.deflateWrite(xInStream,
+             [this](const uno::Sequence< sal_Int8 >& rBuffer, sal_Int32 nLen) {
++                // Ely: no block is being deflated here.
++                comphelper::LibreOfficeKit::checkSnapshot();
+                 if (!m_bEncryptCurrentEntry)
+                     m_aCRC.updateSegment(rBuffer, nLen);
+             },
+--- a/package/source/zipapi/ZipOutputStream.cxx
++++ b/package/source/zipapi/ZipOutputStream.cxx
+@@ -22,6 +22,7 @@
+ #include <com/sun/star/packages/zip/ZipConstants.hpp>
+ #include <com/sun/star/io/IOException.hpp>
+ #include <com/sun/star/io/XInputStream.hpp>
++#include <comphelper/snapshot.hxx>
+ #include <comphelper/storagehelper.hxx>
+ 
+ #include <osl/time.h>
+@@ -51,6 +52,12 @@
+ 
+ ZipOutputStream::~ZipOutputStream()
+ {
++    // Ely: an abandoned zip frees its queued entries.
++    if (m_aEntries.empty())
++        return;
++    comphelper::ThreadPool::getSharedOptimalPool().waitUntilDone(mpThreadTaskTag);
++    for (ZipOutputEntryInThread* pEntry : m_aEntries)
++        delete pEntry;
+ }
+ 
+ void ZipOutputStream::setEntry(ZipEntry& rEntry)
+@@ -82,6 +89,8 @@
+ 
+ void ZipOutputStream::rawWrite( const Sequence< sal_Int8 >& rBuffer )
+ {
++    // Ely: a snapshot's copy gives way.
++    comphelper::LibreOfficeKit::checkSnapshot();
+     m_aChucker.WriteBytes( rBuffer );
+ }
+ 
+@@ -135,28 +144,26 @@
+ 
+ void ZipOutputStream::consumeFinishedScheduledThreadTaskEntries()
+ {
+-    std::vector< ZipOutputEntryInThread* > aNonFinishedEntries;
+-
+-    for(ZipOutputEntryInThread* pEntry : m_aEntries)
++    // Ely: an entry leaves the list before it may throw.
++    for (auto it = m_aEntries.begin(); it != m_aEntries.end();)
+     {
+-        if(pEntry->isFinished())
++        if (!(*it)->isFinished())
+         {
+-            consumeScheduledThreadTaskEntry(std::unique_ptr<ZipOutputEntryInThread>(pEntry));
+-        }
+-        else
+-        {
+-            aNonFinishedEntries.push_back(pEntry);
++            ++it;
++            continue;
+         }
++        std::unique_ptr<ZipOutputEntryInThread> pEntry(*it);
++        it = m_aEntries.erase(it);
++        consumeScheduledThreadTaskEntry(std::move(pEntry));
+     }
+-
+-    // always reset to non-consumed entries
+-    m_aEntries = std::move(aNonFinishedEntries);
+ }
+ 
+ void ZipOutputStream::reduceScheduledThreadTasksToGivenNumberOrLess(std::size_t nThreadTasks)
+ {
+     while(m_aEntries.size() > nThreadTasks)
+     {
++        // Ely: a snapshot's wait gives way.
++        comphelper::LibreOfficeKit::checkSnapshot();
+         consumeFinishedScheduledThreadTaskEntries();
+ 
+         if(m_aEntries.size() > nThreadTasks)
+@@ -170,6 +177,9 @@
+ {
+     assert(!m_aZipList.empty() && "Zip file must have at least one entry!");
+ 
++    // Ely: the wait below never blocks.
++    reduceScheduledThreadTasksToGivenNumberOrLess(0);
++
+     // Wait for all thread tasks to finish & write
+     comphelper::ThreadPool::getSharedOptimalPool().waitUntilDone(mpThreadTaskTag);
+ 
+--- a/package/source/zippackage/ZipPackageFolder.cxx
++++ b/package/source/zippackage/ZipPackageFolder.cxx
+@@ -27,6 +27,7 @@
+ #include <com/sun/star/packages/zip/ZipException.hpp>
+ #include <com/sun/star/embed/StorageFormats.hpp>
+ #include <comphelper/sequence.hxx>
++#include <comphelper/snapshot.hxx>
+ #include <comphelper/servicehelper.hxx>
+ #include <cppuhelper/supportsservice.hxx>
+ #include <sal/log.hxx>
+@@ -324,6 +325,8 @@
+     {
+         if ( !bMimeTypeStreamStored || rShortName != aMimeTypeStreamName )
+         {
++            // Ely: a snapshot's commit gives way.
++            comphelper::LibreOfficeKit::checkSnapshot();
+             if (rInfo.bFolder)
+             {
+                 if (!rInfo.pFolder->saveChild(rPath + rShortName, rManList, rZipOut,

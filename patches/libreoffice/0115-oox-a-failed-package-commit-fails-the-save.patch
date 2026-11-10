@@ -1,0 +1,28 @@
+oox: a failed package commit fails the save
+
+oox::ZipStorage::implCommit caught whatever the commit threw and
+only warned. The export went on and reported success, and the medium
+moved a zip without its central directory into place; a commit that
+runs out of disk does the same to any OOXML save. It no longer
+catches: the exception fails the filter and the save.
+Ely met it through patch 0114: a snapshot stopped inside its commit
+left a broken file behind and no error but the stop.
+--- a/oox/source/helper/zipstorage.cxx
++++ b/oox/source/helper/zipstorage.cxx
+@@ -188,14 +188,8 @@
+ 
+ void ZipStorage::implCommit() const
+ {
+-    try
+-    {
+-        Reference< XTransactedObject >( mxStorage, UNO_QUERY_THROW )->commit();
+-    }
+-    catch (Exception const&)
+-    {
+-        TOOLS_WARN_EXCEPTION("oox.storage", "commit");
+-    }
++    // Ely: a commit that fails fails the save.
++    Reference< XTransactedObject >( mxStorage, UNO_QUERY_THROW )->commit();
+ }
+ 
+ } // namespace oox

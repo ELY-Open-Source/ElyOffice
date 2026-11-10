@@ -198,7 +198,7 @@ fn same(left: &str, right: &str, what: &str) {
 }
 
 /// The edited `file`: stopped at input check `from`, then whole.
-fn stopped_then_whole(file: &Path, (format, flat_format): (&str, &str), from: u64, edit: impl FnOnce(&mut Worker, &Doc)) -> (String, String) {
+pub(super) fn stopped_then_whole(file: &Path, (format, flat_format): (&str, &str), from: u64, edit: impl FnOnce(&mut Worker, &Doc)) -> (String, String) {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut worker = Worker::spawn_dev(&install().expect("LOK"), &dir.path().join("profile")).expect("the worker");
     let doc = worker.load(&crate::file_url(file)).expect("the file loads");

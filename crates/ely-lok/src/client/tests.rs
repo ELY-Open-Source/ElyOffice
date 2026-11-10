@@ -43,6 +43,7 @@ mod menus;
 mod motion;
 mod ole_links;
 mod output;
+mod packed;
 mod paint;
 mod playlist;
 pub(crate) mod reading;
