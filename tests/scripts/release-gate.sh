@@ -31,6 +31,11 @@ grep -q "Released 3 days after 0.1.9" "$work/gate.err" || fail "the gap is not n
 notes 2026-11-04 "$said
 - Released 3 days after 0.1.9: a fix for lost typing could not wait."
 gate || fail "a short gap with its reason: $(cat "$work/gate.err")"
+printf '# 0.2.0\n\n### Known\n%s\n' "$said" >"$work/site/changelog/0.2.0.md"
+! gate || fail "notes with no date skip the gap"
+grep -q "must begin: # 0.2.0 <YYYY-MM-DD>" "$work/gate.err" || fail "the missing date is not named: $(cat "$work/gate.err")"
+printf '# 0.1.9 2026-11-04\n\n### Known\n%s\n' "$said" >"$work/site/changelog/0.2.0.md"
+! gate || fail "notes headed with another version"
 rm "$work/site/changelog/0.2.0.md"
 ! gate || fail "a release with no notes"
 
@@ -56,4 +61,11 @@ $(sed -n 1p "$work/told")
 - PERF-01 app daily start: P50 100 → 140, P95 100 → 140 ms — the window now waits for its fonts.
 "
 base 0.2.0 linux || fail "a slowdown with its reason: $(cat "$work/base.err")"
+# A record without the key case, as `--only PERF-01` leaves.
+sed -i '/| PERF-02 /d' "$work/perf/2026-11-20-Box-Linux.md"
+! base 0.2.0 linux || fail "a record missing a case the last one had"
+grep -q "PERF-02 app key to tile" "$work/base.err" || fail "the missing case is not named: $(cat "$work/base.err")"
+sed -i 's/"version": "0.2.0"/"version": "0.2.0", "partial": true/' "$work/perf/2026-11-20-Box-Linux.md"
+! base 0.2.0 linux || fail "a partial record stood for the release"
+grep -q "no benchmark record of 0.2.0" "$work/base.err" || fail "the partial record is not refused as none: $(cat "$work/base.err")"
 echo "release-gate: notes count unreviewed fixes, a short gap and a slowdown each want a reason"

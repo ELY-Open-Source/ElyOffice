@@ -82,11 +82,14 @@ def perf01(work, runs):
     return rows
 
 
-def environment(found):
+def environment(found, partial):
     builds = {slug: hashlib.sha256(open(run.HOST.exe(slug), "rb").read()).hexdigest()[:16] for slug in APPS}
     with open(os.path.join(run.ROOT, "Cargo.toml"), encoding="utf-8") as manifest:
         version = re.search(r'^version = "(.+)"', manifest.read(), re.M).group(1)
     env = {"date": datetime.date.today().isoformat(), "version": version, **run.HOST.environment()}
+    # A run of some cases is no release's record.
+    if partial:
+        env["partial"] = True
     # One PC runs both systems; each keeps its own record.
     if run.HOST.name != "macOS":
         env["machine"] = re.sub(r"[^A-Za-z0-9]+", "-", f"{env['machine']} {run.HOST.name}").strip("-")
@@ -156,12 +159,12 @@ def main():
         raise
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    write(args.out, environment(found), rows, held, args.runs)
+    write(args.out, environment(found, bool(args.only) or set(args.apps) != set(APPS)), rows, held, args.runs)
 
 
 def write(out, env, rows, held, runs):
     os.makedirs(out, exist_ok=True)
-    path = os.path.join(out, f"{env['date']}-{env['machine']}.md")
+    path = os.path.join(out, f"{env['date']}-{env['machine']}{'-partial' if env.get('partial') else ''}.md")
     lines = [f"# Benchmark {env['date']}", "", "Format: docs/perf/README.md.", "", "```json",
              json.dumps(env, indent=2), "```", "",
              "| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Total memory MB | Budget MB |",
@@ -185,7 +188,7 @@ def write(out, env, rows, held, runs):
         record.write("\n".join(lines))
     # Each wants its reason before a release (baseline.py).
     record = baseline.read(path)
-    last = baseline.before(baseline.records(out), record)
+    last = None if env.get("partial") else baseline.before(baseline.records(out), record)
     found = baseline.slower(last, record) if last else []
     if found:
         with open(path, "a", encoding="utf-8", newline="\n") as record:

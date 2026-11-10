@@ -36,18 +36,18 @@ def platform(machine):
 
 
 def records(folder):
-    """Benchmark records, oldest first."""
+    """Whole benchmark records, oldest first."""
     found = [read(path) for path in sorted(glob.glob(os.path.join(folder, "*.md")))]
-    return [record for record in found if record]
+    return [record for record in found if record and not record["env"].get("partial")]
 
 
 def slower(old, new):
-    """Cases of `new` over a third slower than in `old`."""
+    """Cases `new` lacks or ran a third slower."""
     found = []
-    for case, (p50, p95) in new["rows"].items():
-        was = old["rows"].get(case)
-        if was and any(now > then * SLOWER and now - then >= FLOOR_MS for then, now in zip(was, (p50, p95))):
-            found.append((case, was, (p50, p95)))
+    for case, was in old["rows"].items():
+        now = new["rows"].get(case)
+        if now is None or any(ms > then * SLOWER and ms - then >= FLOOR_MS for then, ms in zip(was, now)):
+            found.append((case, was, now or ("none", "none")))
     return found
 
 

@@ -24,7 +24,7 @@ PERF-08（`cycles.py`）七个应用各开关 150 次：Doc、Table、Show 以�
 
 记录开头的 JSON 写机型、CPU、核数、内存、GPU、系统、系统字体文件数、各应用发行二进制的散列与样本散列。冷启动未清系统文件缓存（需要管理员权限），“日常启动”即文件缓存已热时的启动。
 
-记录开头的 JSON 另写版本。写完后与同一台机器的上一份比：P50 或 P95 慢过三成且多出 10 毫秒的各项列在末尾“Slower than the last record by over 30%:”一节，每行以“— ”结尾，等人写上原因。`tests/perf/baseline.py <记录>` 可随时重列；`baseline.py --check <版本> <macos|windows|linux>` 是发布的门（`scripts/ci.sh` 调用）：没有这一版在本系统的记录，或有哪一行原因空着，即失败。
+记录开头的 JSON 另写版本。写完后与同一台机器的上一份比：P50 或 P95 慢过三成且多出 10 毫秒的各项列在末尾“Slower than the last record by over 30%:”一节，每行以“— ”结尾，等人写上原因。`tests/perf/baseline.py <记录>` 可随时重列；上一份有而这一份没有的项也列在那里（写作“→ none”），同样要写原因。`baseline.py --check <版本> <macos|windows|linux>` 是发布的门（`scripts/ci.sh` 调用）：没有这一版在本系统的记录，或有哪一行原因空着，即失败。带 `--only` 或只跑部分应用的运行是局部记录：JSON 里记 `partial`，文件名以 `-partial` 结尾，不覆盖当天的全量记录，门与比较都不认它。
 
 `tests/perf/folder-search.rs` 单独测 ElyMark 文件夹搜索的内存部分（不含读盘与界面），新旧实现成对计时并逐条核对结果；方法与结果见 `2026-10-23-folder-search.md`。
 

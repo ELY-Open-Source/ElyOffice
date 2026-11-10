@@ -79,7 +79,8 @@ mod tests {
         }
         let tab = cx.update(|_, app| viewer.read(app).active_tab().map(|tab| (tab.id, tab.session.path().is_none(), tab.registry))).expect("a tab");
         assert_eq!((tab.1, tab.2), (true, None), "the new page is no one's file yet");
-        let saved = dir.path().join("saved.pdf");
+        // A save keeps the real path; macOS links this one.
+        let saved = dir.path().canonicalize().expect("the real folder").join("saved.pdf");
         cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.write_as(tab.0, saved.clone(), None, window, cx)));
         settle(cx, |app| saved.is_file() && viewer.read(app).active_tab().is_some_and(|tab| tab.session.path() == Some(saved.as_path())));
         assert!(std::fs::read(&saved).expect("reads").starts_with(b"%PDF-"), "the saved file is no PDF");

@@ -39,9 +39,11 @@ def faults(version):
     said = re.search(r"^- (\d+) fixes? .*not been reviewed again", text, re.M)
     if not said or int(said.group(1)) != count:
         found.append(f"the notes must say: - {count} fixes were made after their last review failed and have not been reviewed again.")
-    head = re.match(r"# \S+ (\d{4}-\d{2}-\d{2})\n", text)
+    head = re.match(rf"# {re.escape(version)} (\d{{4}}-\d{{2}}-\d{{2}})\n", text)
+    if not head:
+        return found + [f"the notes must begin: # {version} <YYYY-MM-DD>"]
     last = last_tag(version)
-    if head and last:
+    if last:
         days = (datetime.date.fromisoformat(head.group(1)) - datetime.date.fromisoformat(last[1])).days
         why = re.search(rf"^- Released {days} days? after {re.escape(last[0][1:])}: \S", text, re.M)
         if days < APART_DAYS and not why:
