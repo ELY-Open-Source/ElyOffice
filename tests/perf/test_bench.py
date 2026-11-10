@@ -81,6 +81,11 @@ class Verdicts(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "leaves handles"):
             cycles.handles_kept("app", before, before + collections.Counter({("fd", "/tmp/kept"): 1}), 1, drive.Linux.system)
 
+    def test_a_memory_climb_names_the_process_that_grew(self):
+        # The engine worker grew; the app did not.
+        grown = cycles.grown(10, [{10: 300, 11: 100}, {10: 300, 11: 123, 12: 5}])
+        self.assertEqual(grown, {"app": (300, 300), 11: (100, 123), 12: (None, 5)})
+
     def test_system_resources_pass_and_their_count_must_settle(self):
         before = collections.Counter({("REG", "/tmp/a"): 1})
         font = collections.Counter({("REG", "/System/Library/Fonts/SFNSItalic.ttf"): 1})
@@ -132,6 +137,9 @@ class Verdicts(unittest.TestCase):
                 (139, 3), (140, 3), (141, 2), (142, 2), (143, 6), (144, 4), (145, 3), (147, 2), (149, 6), (150, 3), (151, 6)]
         tail = [173 + k / 256 for k, n in runs for _ in range(n)]
         cycles.steady("app", "MB", [173.4] * 76 + tail, cycles.PAGE_MB)
+        # ElyTable on Linux: the window's heap steps, then flat.
+        stepped = [435.2] * 76 + [436.8] * 5 + [448.8] * 4 + [456.1] * 11 + [457.96] * 17 + [458.0 + n / 768 for n in range(37)]
+        cycles.steady("app", "MB", stepped, cycles.PAGE_MB)
         with self.assertRaisesRegex(RuntimeError, "took the MB"):
             cycles.steady("app", "MB", [373 + n for n in range(20)], cycles.PAGE_MB)
         # A tenth of a MB every cycle.

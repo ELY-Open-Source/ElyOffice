@@ -2,7 +2,6 @@
 
 import re
 import shutil
-import statistics
 import subprocess
 import os
 import time
@@ -40,12 +39,19 @@ def handles_kept(who, before, now, cycle, system):
 
 
 def steady(who, what, counts, slack=0):
-    """Not climbing over `slack` a cycle at the end."""
+    """Not climbing over `slack` a cycle in the last quarter."""
     quarter = max(1, len(counts) // 4)
     late, prior = counts[-quarter:], counts[-2 * quarter:-quarter]
-    rate = (statistics.median(late) - statistics.median(prior)) / quarter
+    # A step that settled before it is not a climb.
+    rate = (late[-1] - prior[-1]) / quarter
     if min(late) > max(prior) and rate > slack:
         raise RuntimeError(f"{who}: {len(counts)} cycles still took the {what} from {prior} to {late}")
+
+
+def grown(root, families):
+    """Each pid's first and last KB; `root` is the app."""
+    pids = sorted(set(families[0]) | set(families[-1]))
+    return {("app" if pid == root else pid): (families[0].get(pid), families[-1].get(pid)) for pid in pids}
 
 
 def handles_steady(who, before, counts):
@@ -202,13 +208,14 @@ def cycles(work, recipe):
         one(app, recipe, 0, first)
         before = app.handles()
         baseline = (app.memory_mb(), sum(before.values()), first)
-        seen = []
+        seen, families = [], []
         for n in range(1, CYCLES + 1):
             since = one(app, recipe, n, first)
             now = app.handles()
             if run.HOST.system is not None:
                 handles_kept(recipe.slug, before, now, n, run.HOST.system)
-            seen.append((app.memory_mb(), sum(now.values()), recipe.live(app, since)))
+            families.append(app.family())
+            seen.append((sum(families[-1].values()) / 1024, sum(now.values()), recipe.live(app, since)))
         counts = [count for _, count, _ in seen]
         if run.HOST.system is None:
             handles_steady(recipe.slug, baseline[1], counts)
@@ -216,7 +223,10 @@ def cycles(work, recipe):
             # Named system handles may settle late.
             steady(recipe.slug, "handles", counts)
         # Thread arenas keep freed memory: settling is the test.
-        steady(recipe.slug, "MB", [memory for memory, _, _ in seen], PAGE_MB)
+        try:
+            steady(recipe.slug, "MB", [memory for memory, _, _ in seen], PAGE_MB)
+        except RuntimeError as error:
+            raise RuntimeError(f"{error}; KB per process, first cycle to last: {grown(app.process.pid, families)}") from error
     finally:
         app.stop()
     return baseline, seen
