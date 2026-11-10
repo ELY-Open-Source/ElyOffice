@@ -47,7 +47,8 @@ chmod +x "$work/bin/curl"
 export CARGO_LOG=$work/cargo.log
 cat >"$work/bin/cargo" <<'EOF'
 #!/usr/bin/env bash
-echo "$* | engines=${ELY_REQUIRE_ENGINES:-} incremental=${CARGO_INCREMENTAL:-}" >>"$CARGO_LOG"
+[ "$1" != metadata ] || { echo '{"target_directory": "/built"}'; exit 0; }
+echo "$* | engines=${ELY_REQUIRE_ENGINES:-} incremental=${CARGO_INCREMENTAL:-} workers=${ELY_LOK_WORKER:-},${ELY_PDF_WORKER:-}" >>"$CARGO_LOG"
 [ "$1" != "${CARGO_FAILS:-}" ] || { echo "cargo $1 failed"; exit 101; }
 EOF
 chmod +x "$work/bin/cargo"
@@ -83,9 +84,9 @@ uploads() { # name pattern, os
   awk -v n="$1" -v o="$2" '$2 ~ n && $3 == o' "$STATE" | wc -l
 }
 
-# The gate: both workers, then every test, engines required.
-gate="build -p ely-lok --bins -p ely-pdf-worker | engines=1 incremental=0
-test --workspace | engines=1 incremental=0"
+# The gate: both workers, then every test with them named.
+gate="build -p ely-lok --bins -p ely-pdf-worker | engines=1 incremental=0 workers=,
+test --workspace | engines=1 incremental=0 workers=/built/debug/ely-lok-worker,/built/debug/ely-pdf-worker"
 # A failed build or test uploads nothing.
 for os in macos linux; do
   for step in build test; do

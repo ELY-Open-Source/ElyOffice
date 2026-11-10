@@ -135,7 +135,7 @@ packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发布后提交）
 packaging/winget.sh 标签       由该发布 Windows 的更新清单写 dist/winget 下首批各应用的 WinGet 清单（`ZacharyZhang.<名字>`，照 winget-pkgs 的目录；发布后交 winget-pkgs）
 packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`，散列不符即失败），文件名带提交号；工作区有未提交改动即拒绝；发布只上传 Linux 的
-scripts/release-tests.sh         发布的门：建好两个 worker，严格模式跑 `cargo test --workspace`（ci.sh 打包前调用）
+scripts/release-tests.sh         发布的门：建好两个 worker、以 `ELY_LOK_WORKER` 与 `ELY_PDF_WORKER` 点名它们，严格模式跑 `cargo test --workspace`（ci.sh 打包前调用）
 scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务与其测试（pr.yml 核对它与提交一致）
 scripts/lo-tarballs.sh lo-src     列出该 LibreOffice 构建所取的压缩包（名字、SHA-256、地址），由其 `Makefile.fetch` 得出，不下载
 packaging/macos/bundle.sh ely-doc debug    出 dist/ElyDoc.app（带图标、文档类型与该应用的引擎）
@@ -167,7 +167,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 
 - 上游：LibreOffice 26.2.6、MuPDF 1.28.5、Git 2.56.0 加 git-lfs 3.8.0、`gpui-pre` =0.3.11，以 `scripts/fetch-references.sh` 为准；组件库跟随其 main，修复在组件库仓库里做并推上去，再改 pin。
 - 仓库与发布在 GitHub 组织 ELY-Open-Source（ElyOffice、Ely-GPUI-Components）。推 `v*` 标签即运行 `.github/workflows/release.yml`：自托管机器上以 `scripts/ci.sh` 构建 macOS（arm64，Rosetta 下的 Intel）、Windows、Linux x86_64（WSL 里的 AlmaLinux 8 容器）并上传，Linux arm64 在 GitHub 托管的 `ubuntu-24.04-arm` 上用同一个 AlmaLinux 8 容器构建并上传（自托管机队没有 arm64 Linux）；五个任务互不等待，`ci.sh` 打包前先以 `scripts/release-tests.sh` 跑全部测试（`ELY_REQUIRE_ENGINES=1`），一个失败即不出包；最先上传的平台把发布建成预发布，五端都上传、核对过后再改为正式并设为最新（`releases/latest` 是官网下载与应用更新所读）；源码包只由 x86_64 的 Linux 上传。引擎经 `ELY_SHARE` 共用，新的 LibreOffice 补丁须先在三台机器的共享引擎上重建；GitHub 的 arm64 机没有共享引擎，每次发布现场建。macOS 的两个任务以 bash 5 起 `ci.sh`，`ci.sh` 在 macOS 上拒绝 bash 3.2（R15.61）。
-- 本机构建用 [huacnlee/cargo](https://huacnlee.github.io/cargo/)（装一次即替换 `cargo`，项目里无配置）：中间产物在 `~/.cargo/targets/`，各工作树与项目共用、自动限额，二进制仍在 `./target`；它忽略 `--target-dir`、`CARGO_TARGET_DIR` 并告警，故 `tests/perf/bench.py`、`load.py`（frames 构建另放 `target/frames`）须在标准 Cargo 下跑。发布与 PR 的机器仍是标准 Cargo，脚本两者都得过。
+- 本机构建用 [huacnlee/cargo](https://huacnlee.github.io/cargo/)（装一次即替换 `cargo`，项目里无配置）：中间产物在 `~/.cargo/targets/`，各工作树与项目共用、自动限额，二进制仍在 `./target`；它忽略 `--target-dir`、`CARGO_TARGET_DIR` 并告警，故 `tests/perf/bench.py`、`load.py`（frames 构建另放 `target/frames`）须在标准 Cargo 下跑。它的测试程序不在 `./target` 下，找不到旁边的 worker：带内核的单测须设 `ELY_LOK_WORKER`、`ELY_PDF_WORKER`（`release-tests.sh` 自己设）。发布与 PR 的机器仍是标准 Cargo，脚本两者都得过。
 - Git：main 的历史不改写；提交签名，不写任何署名行。
 - 许可：自有代码 MIT；随包引擎照各自的许可，Linux 包的许可字段取 `packaging/apps.tsv`。
 - macOS 发布以 Developer ID 签名并公证（`ELY_SIGN_IDENTITY`、`ELY_NOTARY_PROFILE`），缺即失败，不出未公证的包。

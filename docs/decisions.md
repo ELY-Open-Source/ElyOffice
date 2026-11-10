@@ -546,3 +546,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - `agents.md` 两周里从 29 KB 长到 58 KB，每个会话都整份读入。测试脚本的清单（93 行）原样移到 `tests/scripts/README.md`，测试样本的清单移到 `tests/fixtures/README.md`，组件库与 gpui 的三行上游待办移到 `docs/accessibility.md` 的“上游待办”一节；`review.sh`、源码包、官网部署、命令行、R 宏、性能与内置样式名七处改为规则加指向（细节原已在 `docs/help.md`、`docs/r-macros.md` 与本文件）。移动由脚本按字节做，没有重打一个字。现 29.5 KB。
 - 防再长：`scripts/check.sh` 加一条规则，`agents.md` 超过 30000 字节即败（`check-rules.sh` 以 30000 与 30001 字节各一例核对）；新的细节写进 docs，`agents.md` 只留规则与指向。
+
+## 2026-11-10 本机（Linux）的内核与全量测试基线（R18.1）
+
+- 本机原无 `engines/`。在发布容器（AlmaLinux 8）里建 OpenSSL、MuPDF、Git 与 LibreOffice 26.2.6.3（98 个补丁），32 线程约 25 分钟。首次构建查出 `build-libreoffice.sh` 在干净源码树上无声退出：`config_host.mk` 还没有时 `sed` 返回 2，`set -e` 当场结束，不打一个字（2026-11-06 加 SDK 复查时带入，已有引擎的机器走不到）；改为文件在才读。PR #78 的作者在 arm64 上撞见同一处。
+- huacnlee/cargo 把测试程序放在 `~/.cargo/targets/<项目>/debug/build/<包>/<散列>/out/`，worker 仍在 `./target/debug`。`ely-lok` 与 `ely-pdf-engine` 找 worker 靠“测试程序在 worker 下一层”，此处不成立：`ELY_REQUIRE_ENGINES=1` 的全量里 ElyDoc 115 个测试报“no ely-lok-worker binary”。不恢复烘焙的源码路径（75a416c6 因它指向已删的副本而去掉）：`release-tests.sh` 建好 worker 后问 `cargo metadata` 目标目录，以 `ELY_LOK_WORKER`、`ELY_PDF_WORKER` 点名它们再跑测试，标准 Cargo 下同样成立；`ci-upload.sh` 核对测试那一步带着这两个变量。单跑某个包的内核测试，在 huacnlee/cargo 下须自己设这两个变量。
+- 基线（2026-11-10，Ryzen 9 9950X3D，Omarchy，huacnlee/cargo 0.102.0-9，同时在容器里打包）：`scripts/release-tests.sh` 2415 过、0 败、4 忽略，唯一 SKIP 是只在 macOS 的像素核对，10 分钟。`ely-lok` 里几条测试各等两个 60 秒（`HANG`，核对“迟到的修改标记也算失败”），是整套里最长的。
