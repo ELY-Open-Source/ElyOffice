@@ -59,3 +59,25 @@ fn two_characters_indent_the_first_line_by_two_of_its_own() {
     let flat = saved(&dir, &mut worker, &doc, "indent.fodt");
     assert!(flat.contains(r#"loext:text-indent="2ic""#), "ODF writes the unit");
 }
+
+#[test]
+fn a_value_sent_again_after_a_mixed_state_arrives() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    let (_dir, mut worker, doc) = open(TWICE);
+    click(&mut worker, &doc, 150, 150);
+    cursor_after(&mut worker, &doc, &[MOD1 | HOME]);
+    let mut seen = Events::default();
+    let mut reach = |worker: &mut Worker, id: &str, values: &[&str], want: &str| {
+        worker.run(&doc, id, values).expect("the command runs");
+        seen = poll_until(worker, &doc, &seen, HANG, |seen| state(seen, STATE) == Some(want));
+        assert_eq!(state(&seen, STATE), Some(want), "after {id}");
+    };
+    reach(&mut worker, "paragraph.first_line", &["200"], "200,ic");
+    reach(&mut worker, "edit.select_all", &[], crate::MIXED);
+    reach(&mut worker, "paragraph.first_line", &["-150"], "-150,ic");
+    reach(&mut worker, "edit.undo", &[], crate::MIXED);
+    // The same value as before the mixed state.
+    reach(&mut worker, "edit.redo", &[], "-150,ic");
+}

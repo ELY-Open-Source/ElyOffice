@@ -155,39 +155,44 @@ impl Props {
             .row(tip("doc.props.tabs"), self.tabs(cx))
     }
 
-    /// The first line's indent in characters; another unit beside.
-    fn first_line_field(&self, cx: &Context<Self>) -> AnyElement {
+    /// The first-line indent in characters; other units hint.
+    pub(super) fn first_line_field(&self, cx: &Context<Self>) -> AnyElement {
         let state = self.state(FIRST_LINE, cx);
         let mixed = state.as_deref() == Some(ely_lok::MIXED);
         let held = state.as_deref().and_then(first_line);
         if !mixed && held.is_none() {
             return muted("—".into(), cx);
         }
-        let (characters, beside) = match held {
+        // No count to show: the field stays empty.
+        let (characters, hint) = match held {
             Some(FirstLine::Characters(characters)) => (characters, None),
             Some(FirstLine::Centimeters(cm)) if cm != 0.0 => (0.0, Some(Docs::text(cx, "doc.props.cm", &[("n", &format!("{cm:.2}"))]))),
             Some(FirstLine::Ems(ems)) => (0.0, Some(format!("{ems} em").into())),
             Some(FirstLine::Centimeters(_)) => (0.0, None),
             None => (0.0, Some(Docs::text(cx, "office.props.mixed", &[]))),
         };
+        let hundredths = |characters: f64| (characters * 100.0).round() as i32;
+        let shown = hint.is_none().then(|| hundredths(characters));
         let this = cx.entity();
-        let set = held == Some(FirstLine::Characters(characters));
         let field = NumberInput::new("doc-props-first-line", characters)
             .label(Docs::text(cx, "doc.props.first_line", &[]))
             .range(-20.0, 20.0)
             .step(1.0)
-            .precision(1)
+            .precision(2)
             .size(ControlSize::Sm)
             .on_commit(move |wanted, _, cx| {
-                // The kernel makes no undo step for no change.
-                if set && wanted == characters {
+                // Leaving the field untyped commits what it shows.
+                if shown == Some(hundredths(wanted)) {
                     return;
                 }
-                let hundredths = ((wanted * 100.0).round() as i32).to_string();
-                this.update(cx, |props, cx| props.run("paragraph.first_line", &[&hundredths], cx))
+                let wanted = hundredths(wanted).to_string();
+                this.update(cx, |props, cx| props.run("paragraph.first_line", &[&wanted], cx))
             });
-        let field = div().w_full().max_w_32().child(field).into_any_element();
-        row([field].into_iter().chain(beside.map(|text| muted(text, cx))))
+        let field = match hint {
+            Some(hint) => field.blank(hint),
+            None => field,
+        };
+        div().w_full().max_w_32().child(field).into_any_element()
     }
 
     /// Space above or below, in points.

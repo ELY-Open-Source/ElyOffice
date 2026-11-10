@@ -1,0 +1,28 @@
+LOK: a JSON state ends the value a command sent before it
+
+The callback queue drops a ".uno:X=value" state that repeats the last
+value sent for X. A mixed selection is reported as JSON
+({"commandName":".uno:X","dontcare":true}), which never touched that
+record: after value, mixed, the same value again, the client was left
+showing mixed. A redo that brings the value back after an undo into a
+mixed selection did exactly that. A JSON state for a command now
+forgets the value recorded for it, so the next one is sent.
+
+--- a/desktop/source/lib/init.cxx
++++ b/desktop/source/lib/init.cxx
+@@ -2546,6 +2546,15 @@
+             }
+             else
+             {
++                // Ely: a JSON state ends the value sent before it.
++                static constexpr std::string_view aNamed = "{\"commandName\":\"";
++                if (type == LOK_CALLBACK_STATE_CHANGED && payload.startsWith(aNamed))
++                {
++                    const sal_Int32 nFrom = aNamed.size();
++                    const sal_Int32 nEnd = payload.indexOf('"', nFrom);
++                    if (nEnd != -1)
++                        m_lastStateChange.erase(payload.copy(nFrom, nEnd - nFrom));
++                }
+                 const auto stateIt = m_states.find(type);
+                 if (stateIt != m_states.end())
+                 {

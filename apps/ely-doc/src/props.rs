@@ -8,6 +8,8 @@ mod builtin;
 mod chinese;
 mod groups;
 #[cfg(test)]
+mod indent_tests;
+#[cfg(test)]
 mod layout_tests;
 mod object;
 mod page;
