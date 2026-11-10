@@ -1,0 +1,68 @@
+oox, sd: a snapshot checks for input between shapes, pictures and masters
+
+Patch 0122's sites showed where a PPTX snapshot ran unchecked: on
+t.pptx 46 ms between ppt/presentation.xml and the first slide master,
+spent in FindEquivalentMasterPages, which compares every pair of the
+deck's twelve masters; Windows measured 100 to 190 ms and keys waited
+behind it. The pair loop, ShapeExport::WriteShape and
+GraphicExport::writeNewEntryToStorage now call checkSnapshot. The
+master pass only reads the document; a stop inside a shape was
+already possible from the serializer's flush. On t.pptx the longest
+gap falls to 3 ms.
+--- a/oox/source/export/shapes.cxx
++++ b/oox/source/export/shapes.cxx
+@@ -17,6 +17,7 @@
+  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
+  */
+ 
++#include <comphelper/snapshot.hxx>
+ #include <config_wasm_strip.h>
+ 
+ #include <sal/config.h>
+@@ -2229,6 +2230,8 @@
+ {
+     if (!xShape)
+         throw lang::IllegalArgumentException();
++    // Ely: a snapshot stops between shapes for input.
++    comphelper::LibreOfficeKit::checkSnapshot();
+ 
+     OUString sShapeType = xShape->getShapeType();
+     SAL_INFO("oox.shape", "write shape: " << sShapeType);
+--- a/oox/source/export/drawingml.cxx
++++ b/oox/source/export/drawingml.cxx
+@@ -17,6 +17,7 @@
+  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
+  */
+ 
++#include <comphelper/snapshot.hxx>
+ #include <config_features.h>
+ 
+ #include <config_folders.h>
+@@ -1454,6 +1455,8 @@
+ 
+ OUString GraphicExport::writeNewEntryToStorage(const Graphic& rGraphic, bool bRelPathToMedia)
+ {
++    // Ely: a snapshot stops between pictures for input.
++    comphelper::LibreOfficeKit::checkSnapshot();
+     GfxLink const aLink = rGraphic.GetGfxLink();
+ 
+     OUString sMediaType;
+--- a/sd/source/filter/eppt/pptx-epptooxml.cxx
++++ b/sd/source/filter/eppt/pptx-epptooxml.cxx
+@@ -17,6 +17,7 @@
+  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
+  */
+ 
++#include <comphelper/snapshot.hxx>
+ #include <stdio.h>
+ #include <oox/drawingml/clrscheme.hxx>
+ #include <oox/token/namespaces.hxx>
+@@ -1942,6 +1943,8 @@
+         {
+             if (!maMastersLayouts[j].first || maEquivalentMasters[j] != SAL_MAX_UINT32)
+                 continue;
++            // Ely: the pairs cost a snapshot most.
++            comphelper::LibreOfficeKit::checkSnapshot();
+ 
+             if (lcl_ComparePageProperties(maMastersLayouts[i].first, maMastersLayouts[j].first)
+                 && lcl_ComparePageObjects(maMastersLayouts[i].first, maMastersLayouts[j].first))

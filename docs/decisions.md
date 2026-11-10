@@ -809,3 +809,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 同一份日志 391 MB：`zbus` 把每次总线握手与每个无障碍调用都记成 info，基准设 `ELY_LOG=debug` 时全进日志。用户默认的 `info` 也会记：本机各应用的日志里有握手的几百行；开着读屏软件时每个调用一行，日志只在启动时裁剪。默认改为 `info,zbus=warn`（`ely_platform::logging`，有测试）；基准改为 `debug,zbus=warn`。
 - Windows 主机带 0120 的三份切换（R18.8 后续）：无丢键，ElyDoc 9/9、ElyShow 8/9 次切换第一键落地；ElyDoc 1 键、ElyShow 2 键过 100 毫秒（检查要求一键不过）。ElyDoc 那一键在一次 320 毫秒的 DOCX 恢复点开始 40 毫秒后到，等了 283 毫秒：恢复点没有让路，而 OOXML 的序列化里有检查，日志只记恢复点何时结束。补丁 0121：每个恢复点结束时记 `ely.snapshot` 一行——检查次数、首次检查前、两次检查间最长、末次检查到结束——三段对应导出前、导出中、提交后，下一次就知道是哪一段；本机 ElyDoc 的恢复点 22 次检查、最长间隔 0 至 5 毫秒。
 - Mac 十次（0120 内核）第一次：ElyTable 的一个测试起 worker 时失败，“the worker's activation policy is 0, not accessory”。macOS 的 worker 要以附属应用运行（无程序坞图标、不抢焦点），起来后核对：原先只把“禁止”（2）转成附属，遇到“常规”（0）即报错退出——负载下会这样起来，用户的文档就打不开。改：凡不是附属都请求转为附属，等至多 2 秒仍不是才报错；起来是“常规”时记一条警告，看它多常见。
+
+## 2026-11-10 PPTX 恢复点在母版比对里久不查输入：补丁 0122、0123（R18.8）
+
+- Windows 主机带 0121 的三份切换：ElyDoc 通过；ElyShow 3 键过 100 毫秒。`ely.snapshot` 一行显示 DOCX 的恢复点两次检查间最长不过 25 毫秒，PPTX 的却有 104 至 188 毫秒，没说在哪。
+- 补丁 0122：`checkSnapshot` 默认取调用处的 `std::source_location`，调用方不改；日志写出最长间隔两端与末次检查的文件与行。本机 t.pptx：最长 46 毫秒，在 `ppt/presentation.xml` 与第一个母版之间，即 `FindEquivalentMasterPages` 两两比对全部 12 个母版。
+- 补丁 0123：母版比对的内层循环、`ShapeExport::WriteShape`、`GraphicExport::writeNewEntryToStorage` 各查一次输入。母版比对只读文档；形状内停下本就可能（序列化器 flush 时已查）。t.pptx：831 次检查，最长间隔 3 毫秒。两者都只为 Ely 的恢复点，不进 `patches/UPSTREAM.md`。
+- 同时：关掉标签时，视图的事件监听收到“no such document”，当作内核停止报错。现在 worker 客户端把它标为 `NotFound`，视图据此安静结束监听，记一行 info；测试 `a_dead_document_surfaces_an_error` 先核对关闭后无错误，再核对按键仍报错。

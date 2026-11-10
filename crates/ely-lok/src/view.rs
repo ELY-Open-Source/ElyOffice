@@ -331,6 +331,8 @@ impl LokView {
                 };
                 let batch = match batch {
                     Ok(batch) => batch,
+                    // Ely closed it with its tab.
+                    Err(error) if error.kind() == io::ErrorKind::NotFound => break log::info!("lok: event watch ends: the document closed"),
                     Err(error) => {
                         log::error!("lok: event watch ends: {error}");
                         let message = format!("the document engine stopped: {error}");
@@ -342,10 +344,7 @@ impl LokView {
                 };
                 let (batch, measured) = batch;
                 (known, resized) = (batch.seq, Some(batch.resized));
-                if this
-                    .update(cx, |view, cx| view.apply_batch(batch, measured, cx))
-                    .is_err()
-                {
+                if this.update(cx, |view, cx| view.apply_batch(batch, measured, cx)).is_err() {
                     break;
                 }
             }

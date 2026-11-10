@@ -1,0 +1,104 @@
+comphelper: under LOK a snapshot names the checks around its longest gap
+
+Patch 0121's timings showed PPTX snapshots on Windows running 100 to
+190 ms between two checks, while DOCX ones stayed under 25 ms; they did
+not say where. checkSnapshot takes the caller's source location by
+default, so no caller changes, and the log line gives the file and line
+of the checks that bound the longest gap and of the last one.
+--- a/include/comphelper/snapshot.hxx
++++ b/include/comphelper/snapshot.hxx
+@@ -10,6 +10,7 @@
+ #pragma once
+ 
+ #include <comphelper/comphelperdllapi.h>
++#include <source_location>
+ 
+ // Ely: a recovery snapshot gives way to waiting input.
+ namespace comphelper::LibreOfficeKit
+@@ -19,7 +20,7 @@
+ /// Whether the running snapshot gave way to input.
+ COMPHELPER_DLLPUBLIC bool isSnapshotStopped();
+ /// Throws if a snapshot runs and input waits.
+-COMPHELPER_DLLPUBLIC void checkSnapshot();
++COMPHELPER_DLLPUBLIC void checkSnapshot(const std::source_location& rWhere = std::source_location::current());
+ }
+ 
+ /* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+--- a/comphelper/source/misc/lok.cxx
++++ b/comphelper/source/misc/lok.cxx
+@@ -11,6 +11,7 @@
+ #include <atomic>
+ #include <chrono>
+ #include <mutex>
++#include <string>
+ #include <ely/log.hxx>
+ #include <comphelper/snapshot.hxx>
+ 
+@@ -383,10 +384,17 @@
+ struct SnapshotClock
+ {
+     std::mutex aMutex;
+-    std::chrono::steady_clock::time_point aStart, aLast;
++    std::chrono::steady_clock::time_point aStart, aLastTime;
+     sal_Int64 nFirst = -1, nLongest = 0, nChecks = 0;
++    std::string aLast, aGap;
+ };
+ 
++std::string site(const std::source_location& rWhere)
++{
++    std::string_view aFile(rWhere.file_name());
++    return std::string(aFile.substr(aFile.find_last_of("/\\") + 1)) + ":" + std::to_string(rWhere.line());
++}
++
+ SnapshotClock& snapshotClock()
+ {
+     static SnapshotClock aClock;
+@@ -405,13 +413,15 @@
+     std::scoped_lock aGuard(rClock.aMutex);
+     if (bSnapshot)
+     {
+-        rClock.aStart = rClock.aLast = std::chrono::steady_clock::now();
++        rClock.aStart = rClock.aLastTime = std::chrono::steady_clock::now();
+         rClock.nFirst = -1;
+         rClock.nLongest = rClock.nChecks = 0;
++        rClock.aLast = rClock.aGap = "start";
+     }
+     else if (g_bSnapshot)
+         ELY_INFO("snapshot", rClock.nChecks << " checks, first after " << rClock.nFirst << " ms, longest gap "
+-                 << rClock.nLongest << " ms, last to end " << msSince(rClock.aLast) << " ms"
++                 << rClock.nLongest << " ms (" << rClock.aGap << "), last to end " << msSince(rClock.aLastTime)
++                 << " ms (from " << rClock.aLast << ")"
+                  << (g_bSnapshotStopped ? ", stopped" : ""));
+     g_bSnapshot = bSnapshot;
+     g_bSnapshotStopped = false;
+@@ -419,20 +429,25 @@
+ 
+ bool isSnapshotStopped() { return g_bSnapshotStopped; }
+ 
+-void checkSnapshot()
++void checkSnapshot(const std::source_location& rWhere)
+ {
+     if (!g_bSnapshot)
+         return;
+     {
+         SnapshotClock& rClock = snapshotClock();
+         std::scoped_lock aGuard(rClock.aMutex);
+-        sal_Int64 nGap = msSince(rClock.aLast);
++        sal_Int64 nGap = msSince(rClock.aLastTime);
++        std::string aHere = site(rWhere);
+         if (rClock.nFirst < 0)
+             rClock.nFirst = msSince(rClock.aStart);
+-        else
+-            rClock.nLongest = std::max(rClock.nLongest, nGap);
++        else if (nGap > rClock.nLongest)
++        {
++            rClock.nLongest = nGap;
++            rClock.aGap = rClock.aLast + " to " + aHere;
++        }
++        rClock.aLast = aHere;
+         ++rClock.nChecks;
+-        rClock.aLast = std::chrono::steady_clock::now();
++        rClock.aLastTime = std::chrono::steady_clock::now();
+     }
+     // Once stopped, every later check throws too.
+     if (!g_bSnapshotStopped && !anyInput())

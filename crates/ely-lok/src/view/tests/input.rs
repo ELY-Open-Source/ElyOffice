@@ -189,6 +189,10 @@ fn a_dead_document_surfaces_an_error() {
             .expect("the worker lock")
             .close_doc(doc)
             .expect("the doc closes");
+    });
+    flush(&cx);
+    assert!(errors.borrow().is_empty(), "a closed document ends its watch quietly: {:?}", errors.borrow());
+    cx.update(|app| {
         view.update(app, |view, _| {
             view.key_down(&Keystroke::parse("enter").expect("enter"));
         });

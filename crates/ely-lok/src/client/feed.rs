@@ -120,7 +120,7 @@ impl Feed {
                 )));
             }
             let Some((_, fresh)) = docs.open.get_mut(&doc.id) else {
-                return Poll::Ready(Err(io::Error::other("no such document")));
+                return Poll::Ready(Err(io::Error::new(io::ErrorKind::NotFound, "no such document")));
             };
             if fresh.as_ref().is_some_and(|batch| batch.seq > known) {
                 return Poll::Ready(Ok(fresh.take().expect("checked above")));
@@ -144,7 +144,7 @@ impl Feed {
                 ));
             }
             let Some((last, fresh)) = docs.open.get_mut(&id) else {
-                return Err(io::Error::other("no such document"));
+                return Err(io::Error::new(io::ErrorKind::NotFound, "no such document"));
             };
             if fresh.as_ref().is_some_and(|batch| batch.seq > known) {
                 return Ok(fresh.take().expect("checked above"));
