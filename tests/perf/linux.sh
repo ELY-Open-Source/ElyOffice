@@ -46,4 +46,6 @@ done
 [ ! -x "${launcher%/*}/at-spi2-registryd" ] || "${launcher%/*}/at-spi2-registryd" >/dev/null 2>&1 &
 exec python3 "$bench" "$@"'
 unset WAYLAND_DISPLAY
+# lavapipe's thread per core each fills a malloc arena.
+export MALLOC_ARENA_MAX=${MALLOC_ARENA_MAX:-2}
 ELY_GIT=${ELY_GIT:-$(command -v git)} dbus-run-session -- bash -c "$inside" _ "$launcher" "$here/$tool" "$@"
