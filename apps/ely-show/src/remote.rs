@@ -68,7 +68,7 @@ impl Deck {
     }
 }
 
-/// The vcl code of Enter, which opens a marked box's text.
+/// Enter's vcl code: it opens a marked box's text.
 const RETURN: i32 = 1280;
 
 /// Impress narrows Replace All to marked objects; unmark, then restore.

@@ -235,7 +235,7 @@ fn a_replace_before_the_caret_is_told_leaves_the_box_typed_in() {
             worker.post_mouse(&doc, ely_lok::Mouse { kind, x: 11000, y: 1500, count: 1, buttons: 1, modifiers: 0 }).expect("clicks");
         }
         worker.post_key(&doc, 'a' as u32, 0).expect("types");
-        // The kit tells the caret after the next paint: none yet.
+        // The caret is told after the next paint.
         crate::remote::replace_all(&mut worker, &doc, "cell", "CELL", None).expect("replaces");
     });
     quiet(&cx, &deck);
