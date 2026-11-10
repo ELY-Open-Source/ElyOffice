@@ -84,7 +84,7 @@ R14.29（过审：R16.18 加审 r4 PASS，bda2e9a0）：可视模式拖动与 Sh
 
 | 任务 | 状态 | 缘由 |
 | --- | --- | --- |
-| D-01 与 Microsoft Office 交叉核对 | 用户定：不做 | 没有 Office |
+| D-01 与 Microsoft Office 交叉核对 | 已做（网页版，2026-11-10，R18.27）：三十份 Ely 存出的 DOCX、XLSX、PPTX 在 Office 网页版里全部以编辑模式打开，无一报修复 | `docs/compatibility.md` 的“与 Microsoft Office 的交叉核对”；桌面版 Office 与内容逐项比对未做 |
 | F-01 Windows 安装程序的 Authenticode 签名 | 用户定：暂缓 | 没有代码签名证书；已申请 SignPath Foundation，批下后再接 |
 | H-04 120 Hz 实测 | 用户定：不做 | 本机显示器最高 75 Hz |
 | B-07 Linux 发布任务上 GitHub 托管机器 | 用户定：不做 | Linux 照旧在 WSL 里构建、在 Omarchy 上实测；每次上托管机器要重建或缓存十余 GB 的内核；Linux 任务已不等 Windows |

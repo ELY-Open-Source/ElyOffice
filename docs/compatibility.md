@@ -6,7 +6,25 @@
 版本：Ely Office 0.1.15（首批应用：ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark）。
 内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0112，106 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0008，8 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.11（加 `patches/gpui` 0001–0013，13 个）。
 各节内容最近一次逐项核对是在 0.1.11（2026-10-23）；其后各版本的改动只在所涉的条目里更新，未整体重验。
-验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。本机没有 Microsoft Office：与 Office 的交叉检查未做（待做）。
+验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。与 Microsoft Office 的交叉核对见下节（网页版，三十份样本）。
+
+## 与 Microsoft Office 的交叉核对（网页版）
+
+2026-11-10，Ely Office 0.1.15 的内核（补丁至 0110）。三十份由 Ely 内核打开后存出的文件，传到 OneDrive，逐个在 Word、Excel、PowerPoint 网页版里打开：
+
+| 类型 | 份数 | 报“需要修复”或打不开 | 以编辑模式打开 |
+| --- | --- | --- | --- |
+| DOCX | 10 | 0 | 10 |
+| XLSX | 10 | 0 | 10 |
+| PPTX | 10 | 0 | 10 |
+
+- 样本（`tests/office/web_samples.py` 写出，再经 `cargo build -p ely-lok --example resave` 的 `resave` 以内核另存）：
+  - DOCX：word（公式）、redline（修订）、equation、toc、toc-shape（目录）、t、backslash（腾讯文档的反斜杠条目）、rich（目录、域、批注、插入与删除的修订）、pages（30 页，每 5 页一张表、每 10 页一张图）、big（100 页，7 MB）。
+  - XLSX：kept（未知函数的结果）、pivot、pivot-values（透视表）、spill（动态数组）、links（超链接，两张中文名的表）、booleans、date1904、t、rich（2000 行、折线图、跨表公式）、workbook（三张表，数组公式、定义名称、`SUMIFS`、`INDEX`/`MATCH`）。
+  - PPTX：t、sections、sections-utf16（章节，Ely 存出后章节不在，见 ElyShow 一节）、video、trouble 与 pair（由平面 ODF 写成：形状、文字、连线）、deck1、deck3、rich（带点击淡入的动画）、big（45 张，18 MB）。
+- 判据：页面标题是该文件，编辑器已载入（功能区、工作表标签或幻灯片窗格都在），顶部是“已保存”，没有修复、损坏或只读的对话框与横幅。big.pptx 另截屏看过：45 张幻灯片都有缩略图。
+- 没核对的：内容逐项是否与 Ely 所见相同（版式、字体、公式结果、动画），桌面版 Office，以及网页版不支持而静默略过的内容。这一节只回答“Office 认不认这份文件”。
+- 重做：`python3 tests/office/web_samples.py target/debug/examples/resave <文件夹>`（先设 `ELY_LOK_WORKER`），把文件夹里的三十份传上 OneDrive，逐个打开。上传与打开是人工或浏览器自动化做的，不在库里的脚本中。
 
 ## 往返验证
 

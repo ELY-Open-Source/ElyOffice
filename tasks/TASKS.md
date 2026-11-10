@@ -632,7 +632,7 @@
 - [x] R18.24 N-12 `agents.md` 不过 30 KB：测试脚本清单移到 tests/scripts 下的 README（§17） — 测试脚本与样本的清单移到 `tests/scripts/README.md`、`tests/fixtures/README.md`，上游待办移到 `docs/accessibility.md`；`check.sh` 守住 30000 字节（`93f8e769`、`5d0e70d1`）。R1 FAIL（把“不动光标”的承诺写到了 ElyMark 头上），R2 PASS
 - [ ] R18.25 R-11 更新的第二来源：自有域名；屏蔽 github.com 后检查更新仍成（§18） — 已做（未送审）：官网的 worker 转发 `/releases/latest/download/…` 与 `/releases/download/<标签>/…`（已部署）；应用先问 GitHub、失败再问转发，下载同理，签名与散列照核。`tests/scripts/update-relay.sh` 实测：屏蔽 github.com 后检查更新成功并下载 ElyMark 0.1.15 的 AppImage，散列与所签相同。限度（未做，待所有者定）：转发仍依赖 GitHub 上的发布还在，独立存放须付费的对象存储
 - [ ] R18.26 R-05 `compatibility.md` 的版本与补丁范围由脚本写出，打标签时与 `Cargo.toml` 不符即发布失败（§19） — 已做（未送审）：`scripts/compatibility.py` 写出清单的“版本”“内核”两行（版本、上游版本与提交、三个补丁目录的范围与个数）；`--check` 不符即败，`ci.sh`（核对标签之后）与 `pr.yml` 都跑。“最近一次逐项核对是在 0.1.11”留给人写。`tests/scripts/compatibility-rules.sh`：换版本、加补丁、未起名的钉各自失败
-- [ ] R18.27 R-01 与 Microsoft Office 的交叉核对：三十份 Ely 存出的 DOCX、XLSX、PPTX 交 Office 网页版打开，记下报修复的份数与清单，查出的问题逐个修（§19.2）
+- [ ] R18.27 R-01 与 Microsoft Office 的交叉核对：三十份 Ely 存出的 DOCX、XLSX、PPTX 交 Office 网页版打开，记下报修复的份数与清单，查出的问题逐个修（§19.2） — 已做（未送审）：三十份（DOCX、XLSX、PPTX 各十）由 Ely 内核存出，经 Cindy 浏览器传到用户 OneDrive 的 `ElyOffice-R18-check`，在 Word、Excel、PowerPoint 网页版逐个打开：30 份全部以编辑模式打开，0 份报修复；没有查出要修的问题。清单与判据在 `docs/compatibility.md` 新的一节；样本可由 `tests/office/web_samples.py` 加 `resave` 重做。未做：内容逐项比对、桌面版 Office
 - [ ] R18.28 极限测试：Doc、Table、Show、PDF 各 20 份复杂文件同时开着并编辑，内核不崩、互不锁死，输入落地与帧时间照 PERF-02；查出的问题逐个修（§20）
 - [ ] R18.29 人与命令行同时改一份文件：Doc、Table、Show、Mark 各一轮，键入中经命令行替换、写入、保存，核对两边的改动都在、光标与撤销照旧（§16、§20）
 - [ ] R18.30 R-10 性能基线：`bench.py` 进发布流程，较上次退步过三成须写明原因；本机 Linux 全量记一份；两处退步查明（§20）
