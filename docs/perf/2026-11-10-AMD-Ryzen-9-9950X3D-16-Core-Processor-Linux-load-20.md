@@ -2,7 +2,7 @@
 
 Format: docs/perf/README.md.
 
-ElyDoc, ElyTable, ElyShow, ElyMark and ElyPDF ran at the same time, each on its own Xvfb display and in its own `load.py` (ElyPDF: `pdfs.py`, its own record). Every document is the big sample (`--big-every 1`). The command line edits all twenty documents of an app at once, the one being typed in too, three rounds; then saves them all.
+ElyDoc, ElyTable, ElyShow, ElyMark and ElyPDF ran at the same time, each on its own Xvfb display and in its own `load.py` (ElyPDF: `pdfs.py`, its own record). Every document, the one typed into as well, is the big sample (`--big-every 1`). The command line edits all twenty documents of an app at once, the one being typed in too, three rounds; then saves them all.
 
 ```json
 {
@@ -19,11 +19,11 @@ ElyDoc, ElyTable, ElyShow, ElyMark and ElyPDF ran at the same time, each on its 
   "rounds": 3,
   "keys": 30,
   "builds": {
-    "ely-doc": "df0b49d08094ae4a",
-    "ely-lok-worker": "62874cd879aadfbf",
-    "ely-table": "d3248ff4a3808a08",
-    "ely-show": "db2eb2495f082d1f",
-    "ely-mark": "3e7d3357e8d8ea8c"
+    "ely-doc": "1bc4e18a24627321",
+    "ely-lok-worker": "8cbb693a3480be98",
+    "ely-table": "012915bdcb1dada4",
+    "ely-show": "b2fff644d7e5513f",
+    "ely-mark": "f31686591e2efa13"
   },
   "lok": "engines/"
 }
@@ -31,15 +31,15 @@ ElyDoc, ElyTable, ElyShow, ElyMark and ElyPDF ran at the same time, each on its 
 
 | App | Open all ms | Open one more ms | Memory MB open / edited | Free GB, lowest | Keys idle: P50 / P95 / max ms | Frames idle: over 8.3 ms / all, dirty to shown | Stalls idle | Keys editing: P50 / P95 / max ms | Frames editing | Stalls editing | Command edit P50 / P95 ms | Save P50 / max ms | Stalls whole run |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ElyDoc | 809 | 156 | 486 / 986 | 55 | 30: 17 / 37 / 51 | 62/62, p95 ≤39.9, max 43.5 | 0 | 30: 17 / 385 / 449 | 148/148, p95 ≤36.7, max 44.7 | 0 | 94 / 6767 | 622 / 1049 | 0, max 0 |
-| ElyTable | 833 | 106 | 504 / 1046 | 49 | 30: 14 / 19 / 31 | 58/58, p95 ≤34.7, max 36.6 | 0 | 30: 13 / 179 / 182 | 78/78, p95 ≤34.5, max 36.0 | 0 | 54 / 3243 | 3435 / 6541 | 0, max 0 |
-| ElyShow | 981 | 332 | 612 / 1813 | 53 | 30: 16 / 38 / 39 | 65/65, p95 ≤35.5, max 37.0 | 0 | 30: 86 / 168 / 234 | 110/110, p95 ≤34.9, max 34.9 | 0 | 199 / 8697 | 2753 / 5056 | 0, max 0 |
-| ElyMark | 732 | 50 | 566 / 936 | 49 | 30: 25 / 34 / 35 | 178/178, p95 ≤33.0, max 36.6 | 0 | 30: 28 / 32 / 32 | 187/187, p95 ≤52.8, max 57.3 | 0 | 64 / 74 | 97 / 102 | 0, max 0 |
+| ElyDoc | 937 | 484 | 505 / 1014 | 60 | 30: 16 / 41 / 57 | 64/64, p95 ≤36.5, max 42.7 | 0 | 30: 20 / 383 / 406 | 147/147, p95 ≤36.4, max 41.0 | 0 | 80 / 6722 | 615 / 1023 | 0, max 0 |
+| ElyTable | 647 | 215 | 508 / 1048 | 58 | 30: 15 / 19 / 33 | 58/58, p95 ≤35.6, max 37.2 | 0 | 30: 16 / 159 / 172 | 79/79, p95 ≤35.4, max 40.1 | 0 | 66 / 3179 | 3788 / 6978 | 0, max 0 |
+| ElyShow | 1029 | 548 | 696 / 1862 | 57 | 30: 14 / 21 / 36 | 62/62, p95 ≤37.5, max 43.0 | 0 | 30: 92 / 206 / 226 | 118/118, p95 ≤37.4, max 40.7 | 0 | 205 / 9460 | 4343 / 6543 | 0, max 0 |
+| ElyMark | 650 | 105 | 563 / 1014 | 57 | 30: 21 / 30 / 45 | 210/210, p95 ≤43.2, max 45.2 | 0 | 30: 20 / 28 / 29 | 212/212, p95 ≤59.6, max 67.6 | 0 | 57 / 92 | 90 / 111 | 0, max 0 |
 
 Problems:
 
-- ElyDoc: PERF-02: 6 of 30 keys over 100 ms editing, max 449 ms
-- ElyTable: PERF-02: 4 of 30 keys over 100 ms editing, max 182 ms
-- ElyShow: PERF-02: 13 of 30 keys over 100 ms editing, max 234 ms
+- ElyDoc: PERF-02: 7 of 30 keys over 100 ms editing, max 406 ms
+- ElyTable: PERF-02: 3 of 30 keys over 100 ms editing, max 172 ms
+- ElyShow: PERF-02: 14 of 30 keys over 100 ms editing, max 226 ms
 
 What the problems are: a key that arrives while the engine loads a big document for the command line, or replaces or recalculates across one, waits until that is done. No key was lost, every edit and every key was read back from the saved files, the main thread never stalled, no worker ended.

@@ -129,7 +129,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [x] N-04 签名验证的证书信任：Windows 系统信任库、Linux 系统 CA，禁网，不核吊销 — b7334ff 已做（`ely_platform::trust`：Windows 的 CryptoAPI 链引擎只读缓存、不自动更新根、不核吊销；Linux 的系统 CA 加 webpki，无网络）；R14.21 核对，三端测试皆过，Windows 上“一律受信”被测试抓住
 - [x] N-05 ElyTree 与系统：停止 Git（Windows 结束进程树）、打开终端、在文件管理器中显示，Windows、Linux（R14.27）
 - [ ] N-06 应用之间：Windows、Linux 的同级应用查找与启动、系统默认程序打开、单实例与诊断的崩溃报告位置
-- [ ] L-03 Linux 真窗口：七个应用开样本、编辑、保存、打印、设置、更新检查 — R18.31 改写（原写六个应用与“打印禁用说明”；打印已由 R7.6 做成）。已有的实测：装好的七个应用经 `tests/scripts/linux-installed.sh` 皆过（R14.45）；Xvfb 下 ElyDoc、ElyTable、ElyShow、ElyMark 各开 20 份、键入、经命令行编辑并保存后读盘核对；ElyPDF 开 20 份、逐份翻页，未编辑（R18.28）。所缺：真桌面上逐个应用过打印、设置、更新检查
+- [ ] L-03 Linux 真窗口：七个应用开样本、编辑、保存、打印、设置、更新检查 — R18.31 改写（原写六个应用与“打印禁用说明”；打印已由 R7.6 做成）。已有的实测：装好的七个应用经 `tests/scripts/linux-installed.sh` 皆过（R14.45）；Xvfb 下 ElyDoc、ElyTable、ElyShow、ElyMark 各开 20 份、键入、经命令行编辑并保存后读盘核对；ElyPDF 开 20 份、逐份翻页、各插入一页空白页、保存后读盘核对页数（R18.28）。所缺：真桌面上逐个应用过打印、设置、更新检查
 - [ ] O-01 Omarchy：外观为“系统”时随 Omarchy 主题，切换主题即刻跟随（Omarchy 虚拟机里实测）
 - [x] L-04 Linux 打包：六个 AppImage，带引擎、许可与桌面项；更新清单含 linux-x86_64（已关：0.1.12 发布含七个应用的 AppImage、deb、rpm 与 Arch 包，更新清单 `<应用>-linux-x86_64.json`；2026-10-30 Omarchy 上装好的七个应用经 `linux-installed.sh` 皆过（R14.45））
 - [x] W-01 Windows 的 LibreOffice：同一源码与补丁在 Windows 构建，LOK 探测通过（已关：0.1.12 的 Windows 安装程序带内核发布；2026-10-30 严格全量测试（握手含 LOK 探测）通过（R14.42））
