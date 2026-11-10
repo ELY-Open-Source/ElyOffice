@@ -86,6 +86,19 @@ pub fn check(current: &Version, manifest_url: &str, key: &str) -> Result<Check> 
     result
 }
 
+/// Asks each manifest in turn; the first good answer stands.
+pub fn check_any(current: &Version, manifests: &[String], key: &str) -> Result<Check> {
+    let mut failed = Vec::new();
+    for url in manifests {
+        match check(current, url, key) {
+            Ok(found) => return Ok(found),
+            Err(error) => failed.push(format!("{error:#}")),
+        }
+    }
+    ensure!(!failed.is_empty(), "no update source is named");
+    bail!("{}", failed.join("; "))
+}
+
 fn fetch_manifest(current: &Version, manifest_url: &str, key: &str) -> Result<Check> {
     let text = read_text(manifest_url, MANIFEST_LIMIT)?;
     let signature = read_text(&format!("{manifest_url}.sig"), SIGNATURE_LIMIT)?;
@@ -114,6 +127,27 @@ fn read_text(url: &str, limit: u64) -> Result<String> {
         .limit(limit)
         .read_to_string()
         .with_context(|| format!("cannot read {url}"))
+}
+
+/// As `download`; a failed address gives way to `mirror`.
+pub fn download_any(
+    release: &Release,
+    mirror: Option<&str>,
+    dir: &Path,
+    cancel: &AtomicBool,
+    idle: Duration,
+    progress: &mut dyn FnMut(u64, Option<u64>),
+) -> Result<Option<PathBuf>> {
+    let first = match download(release, dir, cancel, idle, progress) {
+        Err(error) => error,
+        done => return done,
+    };
+    let Some(mirror) = mirror else {
+        return Err(first);
+    };
+    log::warn!("update download: the first address failed; trying the second");
+    let second = Release { url: mirror.to_string(), ..release.clone() };
+    download(&second, dir, cancel, idle, progress).map_err(|error| anyhow!("{first:#}; {error:#}"))
 }
 
 /// Downloads into `dir`, calling `progress(done, total)`. `Ok(None)` means cancelled.

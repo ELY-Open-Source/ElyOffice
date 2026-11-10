@@ -620,7 +620,7 @@
 - [ ] R18.36 #81 ElyDoc：图片拖进文档即插入（§8 DOC-08；2026-11-10 新议题，按章节排在此处） — 已做（未送审）：`LokView` 接住拖到页面上的图片，在落点点一下后逐张插入（每张前发 Esc，否则后一张替换前一张），其余文件以 `Dropped` 事件交给应用照常打开；ElyTable、ElyShow 同用。测试 `view::tests::dropped` 两项、ElyDoc `a_dropped_file_that_is_no_picture_opens_as_files_do`。未验证：真窗口从文件管理器拖入
 - [ ] R18.13 #79 XLSX 打开慢：以议题所附文件复现，查根因并修（§9、§20）
 - [x] R18.14 N-06 R 宏：首次运行与载入外部 `.R` 后首次运行前必出警告（§9 TABLE-17） — 已做：每次启动后第一次点“运行”、每次“打开 .R…”载入代码后第一次点“运行”，对话框里先出警告，按钮换成“不运行”与“运行这段代码”，点后者才运行（`macros::Consent`，`execute_r`、`answer_r`）；八种语言各四条文案。测试 `unseen_code_runs_only_after_a_yes`：首次运行问、答否不运行且下次仍问、答是才往下走；文件的代码落进编辑器后再问，答否不运行 — R1 PASS
-- [ ] R18.15 N-09 之一（R17.2）Impress 连接线端点拖动偶发失败：查根因（§10）
+- [ ] R18.15 N-09 之一（R17.2）Impress 连接线端点拖动偶发失败：查根因（§10） — 已做（未送审）：Mac 上复现（空闲 20 次败 3 次），以内核临时日志与调用栈查到两处根因：`DrawViewShell::MouseMove` 在窗口无焦点、位置在窗口像素之外时中断动作（内核模式下坐标不是像素，拖动死活只看焦点；补丁 0112）；命令建形状后异步切回选择工具，按下先到即被绘制工具接走（补丁 0111）。两个补丁都打上后 Mac 空闲 100 次、负载 64 次全过（此前各轮 5%–20% 失败）。本机 Linux、Windows 的内核待带这两个补丁重建
 - [ ] R18.16 #14 ElyShow 换版式后的灰色箭头：在本机试复现，查根因或写明所缺（§10）
 - [ ] R18.17 #80 ElyPDF 新建 PDF 无反应（§11） — 已做：根因是 ElyPDF 没接文件菜单的“新建”（三端皆然）；现新建一页空白的未命名 PDF，纸张照“默认纸张”（选纸规则移到 `ely_platform` 与 ElyDoc 同用，设置那一行 ElyPDF 也有）。测试 `new_opens_an_untitled_page_that_saves_as_a_pdf`（去掉处理即败）、`the_table_points_at_each_object`、`doc_and_pdf_offer_the_new_paper`。未验证：Windows 真窗口 — R1 FAIL 一项已修：帮助里“页面属性里仍可改”限定为 ElyDoc
 - [ ] R18.18 #73 与 PR #74：核对 0.1.14 起已修，答复并关闭（§11） — 已做（未送审）：修复提交 6d0824e4 在 v0.1.14 与 v0.1.15 里（`git tag --contains`）；`cargo test -p ely-pdf-worker --test json` 今日在 HEAD 上过；报告者的书不在手，未能以原文件复测，答复里照实说明并请其更新后再试，议题按已修关闭（可重开）。PR #74 只给 `tests/scripts/workflows.py` 末尾加一行注释，不涉 PDF，说明后关闭
@@ -630,7 +630,7 @@
 - [!] R18.22 N-11 crate 重名：`cargo test -p ely-files` 直接可用（§17） — 外部阻塞：重名的另一方是组件库已发布在 crates.io 的 `ely-files`（另有 `ely-mail`、`ely-agent` 同样重名），改名须所有者以其 crates.io 账号换包名；改本仓库一方则 `-p ely-files` 会悄悄指向组件库的包，比现在的报错更误事，故不改。证据：`cargo metadata` 列出三对同名包；crates.io 的 `ely-files` 之 `repository` 为 Ely-GPUI-Components。现可用 `cargo test -p ely-files@0.1`（已写进 `agents.md`）。审计的验收未达成
 - [ ] R18.23 R-09 gpui 的修改导出为补丁目录，vendor 可由 crates.io 原版加补丁重建（§17） — 已做（未送审）：`5e6834c5` 压成一个的修改拆为 `patches/gpui/0001`–`0013`（一个修复一个补丁）；`scripts/vendor-gpui.sh` 自 crates.io 的 0.3.11（核散列）加补丁重建四个 gpui crate，默认与 `vendor/` 逐字节比对，`write` 重写；`pr.yml` 每次核对。实测：原样提交与 `.crate` 逐字节同；打完 13 个补丁与 HEAD 的 vendor 逐字节同；vendor 多一行即败。`patches/UPSTREAM.md` 加 gpui 一节
 - [x] R18.24 N-12 `agents.md` 不过 30 KB：测试脚本清单移到 tests/scripts 下的 README（§17） — 测试脚本与样本的清单移到 `tests/scripts/README.md`、`tests/fixtures/README.md`，上游待办移到 `docs/accessibility.md`；`check.sh` 守住 30000 字节（`93f8e769`、`5d0e70d1`）。R1 FAIL（把“不动光标”的承诺写到了 ElyMark 头上），R2 PASS
-- [ ] R18.25 R-11 更新的第二来源：自有域名；屏蔽 github.com 后检查更新仍成（§18）
+- [ ] R18.25 R-11 更新的第二来源：自有域名；屏蔽 github.com 后检查更新仍成（§18） — 已做（未送审）：官网的 worker 转发 `/releases/latest/download/…` 与 `/releases/download/<标签>/…`（已部署）；应用先问 GitHub、失败再问转发，下载同理，签名与散列照核。`tests/scripts/update-relay.sh` 实测：屏蔽 github.com 后检查更新成功并下载 ElyMark 0.1.15 的 AppImage，散列与所签相同。限度（未做，待所有者定）：转发仍依赖 GitHub 上的发布还在，独立存放须付费的对象存储
 - [ ] R18.26 R-05 `compatibility.md` 的版本与补丁范围由脚本写出，打标签时与 `Cargo.toml` 不符即发布失败（§19）
 - [ ] R18.27 R-01 与 Microsoft Office 的交叉核对：三十份 Ely 存出的 DOCX、XLSX、PPTX 交 Office 网页版打开，记下报修复的份数与清单，查出的问题逐个修（§19.2）
 - [ ] R18.28 极限测试：Doc、Table、Show、PDF 各 20 份复杂文件同时开着并编辑，内核不崩、互不锁死，输入落地与帧时间照 PERF-02；查出的问题逐个修（§20）

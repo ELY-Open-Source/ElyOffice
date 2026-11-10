@@ -1,5 +1,9 @@
-// Answers /release.json with the newest release and downloads.
+// Answers /release.json; relays release files under /releases.
 const REPO = "https://api.github.com/repos/ELY-Open-Source/ElyOffice";
+// GitHub's release files, for readers GitHub does not reach.
+const FILES = "https://github.com/ELY-Open-Source/ElyOffice/releases";
+// The newest release's file, or one of a tagged release.
+const FILE = /^\/releases\/(latest\/download|download\/v[0-9][0-9A-Za-z.-]*)\/([A-Za-z0-9][A-Za-z0-9._-]*)$/;
 // The old home keeps the downloads made before the move.
 const GITEA = "https://git.zacharyzhang.com/api/v1/repos/ZacharyZhang-NY/ElyOffice";
 const PAGE = 100;
@@ -125,8 +129,26 @@ async function giteaDownloads(): Promise<number> {
   }
 }
 
+/** A release file from GitHub, passed on as it comes. */
+async function relay(request: Request, path: string): Promise<Response> {
+  const named = FILE.exec(path);
+  if (!named) return new Response("Not found", { status: 404 });
+  if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
+  const from = await fetch(`${FILES}/${named[1]}/${named[2]}`, { method: request.method, headers: { "user-agent": "ely-office-site" } });
+  const headers = new Headers();
+  for (const name of ["content-type", "content-length", "etag", "last-modified"]) {
+    const value = from.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  // The newest release changes; a tagged file never does.
+  headers.set("cache-control", named[1] === "latest/download" ? "public, max-age=300" : "public, max-age=86400");
+  return new Response(from.body, { status: from.status, headers });
+}
+
 export default {
-  async fetch(_request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const path = new URL(request.url).pathname;
+    if (path.startsWith("/releases/")) return relay(request, path);
     try {
       const [{ version, installers, sources }, n, old] = await Promise.all([newest(env), downloads(env), giteaDownloads()]);
       return Response.json({ version, installers, sources, downloads: n + old }, { headers: { "cache-control": "public, max-age=300" } });

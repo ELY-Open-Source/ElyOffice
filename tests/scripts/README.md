@@ -62,6 +62,7 @@ tests/scripts/worker-rebuild.sh 改了 MuPDF 垫片（只动时间），worker �
 tests/scripts/data-folder.sh   指向文件要求搬动时，ElyMark 启动即把数据搬进所选文件夹、切换并记日志
 tests/scripts/one-instance.sh  第二份 ElyDoc 把文件交给第一份后退出，第一份开出它、工作目录不动
 tests/scripts/update.sh        装好的 ElyTree 从本机服务的新版下载、替换、重新打开（需辅助功能权限）
+tests/scripts/update-relay.sh  github.com 连不上（挂载命名空间里把它解析到本机）时，检查更新经官网的转发取到签名的清单，并下载一个安装包、核对所签的散列（Linux；连不上 office.elygpui.com 即 SKIP）
 tests/scripts/settings.sh      真窗口：ElyPDF 设置里选深色，ElyTree 即刻变深；作者名写入、不丢外观；ElyTree 拒绝非 Git 程序；设置文件读不出时提示且不覆盖；主窗口重开回到原处（需辅助功能与屏幕录制权限）
 tests/scripts/privacy.sh       真窗口 ElyDoc：键入的文字不进日志；worker 的日志进应用日志；设置里的诊断先列出所含内容，导出的文件去掉家目录与姓名、不含正文（需辅助功能权限）
 tests/scripts/panels.sh        真窗口 ElyDoc：左侧栏默认不宽于 230、拖动内侧边缘变宽、宽度存入设置、重启后照旧（需辅助功能权限）

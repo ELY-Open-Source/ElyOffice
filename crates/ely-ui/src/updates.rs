@@ -17,8 +17,10 @@ use ely_platform::{
 use futures::{StreamExt as _, channel::mpsc};
 use gpui::{App, AppContext as _, Context, Entity, EventEmitter, Global};
 
-/// The newest release's files; GitHub redirects, no API.
-const LATEST: &str = "https://github.com/ELY-Open-Source/ElyOffice/releases/latest/download";
+/// Where releases live; GitHub redirects, no API.
+const GITHUB: &str = "https://github.com/ELY-Open-Source/ElyOffice/releases";
+/// The same paths relayed by Ely's site, asked second.
+const MIRROR: &str = "https://office.elygpui.com/releases";
 
 #[derive(Clone, Debug, PartialEq)]
 enum Phase {
@@ -163,17 +165,23 @@ pub(crate) fn install(app: AppId, cx: &mut App) {
     }
 }
 
-/// This build's manifest and key, or the test's pair.
-fn manifest(app: AppId) -> anyhow::Result<(String, String)> {
+/// This build's manifests and key, or the test's pair.
+fn manifest(app: AppId) -> anyhow::Result<(Vec<String>, String)> {
     let Ok(url) = std::env::var("ELY_UPDATE_MANIFEST") else {
-        return Ok((latest(app), update::KEY.to_string()));
+        return Ok((latest(app).to_vec(), update::KEY.to_string()));
     };
     let key = std::env::var("ELY_UPDATE_PUBLIC_KEY").map_err(|_| anyhow::anyhow!("ELY_UPDATE_MANIFEST needs ELY_UPDATE_PUBLIC_KEY"))?;
-    Ok((url, key))
+    Ok((vec![url], key))
 }
 
-fn latest(app: AppId) -> String {
-    format!("{LATEST}/{}-{}.json", app.slug(), update::platform())
+/// The newest release's manifest: GitHub's, then the relay's.
+fn latest(app: AppId) -> [String; 2] {
+    [GITHUB, MIRROR].map(|home| format!("{home}/latest/download/{}-{}.json", app.slug(), update::platform()))
+}
+
+/// A GitHub release file's address on the relay.
+fn mirrored(url: &str) -> Option<String> {
+    url.strip_prefix(GITHUB).map(|file| format!("{MIRROR}{file}"))
 }
 
 impl Updates {
@@ -206,7 +214,7 @@ impl Updates {
         let current =
             semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("the build's version");
         // The lookup is a request too: off the window's thread.
-        let checked = cx.background_spawn(async move { manifest(app).and_then(|(url, key)| update::check(&current, &url, &key)) });
+        let checked = cx.background_spawn(async move { manifest(app).and_then(|(urls, key)| update::check_any(&current, &urls, &key)) });
         cx.spawn(async move |this, cx| {
             let checked = checked.await;
             this.update(cx, |this, cx| this.checked(checked, asked, cx)).ok();
@@ -274,7 +282,8 @@ impl Updates {
                     .map_or(0.0, |total| done as f32 / total as f32);
                 sender.unbounded_send(part).ok();
             };
-            let file = update::download(&fetching, &dir, &cancel, update::IDLE_TIMEOUT, &mut tell)
+            let mirror = mirrored(&fetching.url);
+            let file = update::download_any(&fetching, mirror.as_deref(), &dir, &cancel, update::IDLE_TIMEOUT, &mut tell)
                 .map_err(|error| format!("{error:#}"))?
                 .ok_or("the download stopped")?;
             update::verify_file(&file, &fetching.sha256).map_err(|error| format!("{error:#}"))?;

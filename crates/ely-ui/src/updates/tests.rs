@@ -84,7 +84,15 @@ fn a_packaged_app_names_its_command_and_downloads_nothing(cx: &mut gpui::TestApp
 }
 
 #[test]
-fn the_manifest_is_the_latest_releases_file() {
-    let want = format!("https://github.com/ELY-Open-Source/ElyOffice/releases/latest/download/ely-doc-{}.json", update::platform());
+fn the_manifest_is_the_latest_releases_file_on_github_then_on_the_relay() {
+    let file = format!("releases/latest/download/ely-doc-{}.json", update::platform());
+    let want = ["https://github.com/ELY-Open-Source/ElyOffice", "https://office.elygpui.com"].map(|home| format!("{home}/{file}"));
     assert_eq!(latest(AppId::Doc), want);
+}
+
+#[test]
+fn only_a_github_release_file_has_an_address_on_the_relay() {
+    let file = "download/v0.1.15/ElyDoc-0.1.15-arm64.dmg";
+    assert_eq!(mirrored(&format!("{GITHUB}/{file}")), Some(format!("https://office.elygpui.com/releases/{file}")));
+    assert_eq!(mirrored("https://example.com/releases/download/v1/a.dmg"), None);
 }

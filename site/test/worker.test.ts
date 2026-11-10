@@ -104,3 +104,36 @@ test("an unreachable, failing or odd Gitea leaves GitHub's count", async () => {
     assert.deepEqual(await answer(), { version: "0.1.9", installers, sources, downloads: 3 + 20 + 4 + 30 + 2 + 1 + 5 });
   }
 });
+
+test("release files are relayed from GitHub, and nothing else is", async () => {
+  const asked: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    asked.push(String(input));
+    return new Response("signed", { headers: { "content-type": "application/json", "content-length": "6", "set-cookie": "x=1" } });
+  }) as typeof fetch;
+  const home = "https://office.elygpui.com/releases";
+  const at = "https://github.com/ELY-Open-Source/ElyOffice/releases";
+  for (const file of ["latest/download/ely-doc-linux-x86_64.json", "latest/download/ely-doc-linux-x86_64.json.sig", "download/v0.1.15/ElyDoc-0.1.15-arm64.dmg"]) {
+    const res = await worker.fetch(new Request(`${home}/${file}`), {});
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), "signed");
+    assert.equal(asked.pop(), `${at}/${file}`);
+    assert.equal(res.headers.get("content-length"), "6");
+    assert.equal(res.headers.get("set-cookie"), null, "only the file's own headers pass");
+    assert.equal(res.headers.get("cache-control"), file.startsWith("latest") ? "public, max-age=300" : "public, max-age=86400");
+  }
+  // Other paths under /releases reach no one.
+  for (const path of ["/releases/", "/releases/tag/v0.1.15", "/releases/download/v0.1.15/x%2Fy", "/releases/download/main/x.dmg", "/releases/latest/download/a/b"]) {
+    const res = await worker.fetch(new Request(`https://office.elygpui.com${path}`), {});
+    assert.equal(res.status, 404, path);
+  }
+  const post = await worker.fetch(new Request(`${home}/latest/download/ely-doc.json`, { method: "POST" }), {});
+  assert.equal(post.status, 405);
+  assert.deepEqual(asked, [], "a refused request asks GitHub nothing");
+});
+
+test("a file GitHub lacks is missing here too", async () => {
+  globalThis.fetch = (async () => new Response("Not Found", { status: 404 })) as typeof fetch;
+  const res = await worker.fetch(new Request("https://office.elygpui.com/releases/latest/download/ely-none.json"), {});
+  assert.equal(res.status, 404);
+});

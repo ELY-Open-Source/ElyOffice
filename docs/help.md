@@ -113,7 +113,7 @@ ElyShow 开着、文件已打开时，别的程序可经命令行读改幻灯片
 - ElyMail 只连你的邮件服务器，登录 Microsoft 时另连其登录页；邮件里的网络图片不经你同意不取。系统设了代理时经代理连接（HTTP CONNECT 或 SOCKS5；PAC 不支持），环境变量 `ALL_PROXY`、`HTTPS_PROXY`、`HTTP_PROXY` 与 `NO_PROXY` 优先。
 - ElyMark 不连网：文档里的网络图片不加载，HTML 不运行。本机图片照文档里写的路径读：相对路径从文档所在文件夹算起，`..`、绝对路径与 `file:` 地址可指向别处。
 - ElyTree 只在你取回、拉取、推送、克隆时连网，凭据照用你的 Git 设置（credential helper、ssh-agent），Ely 不在终端问密码。
-- 检查更新只在你手动检查（应用菜单或设置›通用的“立即检查”），或打开了“启动时检查更新”时进行；下载后校验 SHA-256，按“重新启动以更新”才在退出后安装：macOS 换掉 .app，Windows 运行该应用的安装程序装回原文件夹，Linux 的 AppImage 换掉原文件。deb、rpm、Arch 包只提示新版本与升级命令，由包管理器安装；装的是合集包 `ely-office` 时，命令给的是合集包的文件。开发构建不检查。
+- 检查更新只在你手动检查（应用菜单或设置›通用的“立即检查”），或打开了“启动时检查更新”时进行；先问 github.com，连不上时改问官网（office.elygpui.com）转发的同一份文件，清单的签名与安装包的散列照样核对；下载后校验 SHA-256，按“重新启动以更新”才在退出后安装：macOS 换掉 .app，Windows 运行该应用的安装程序装回原文件夹，Linux 的 AppImage 换掉原文件。deb、rpm、Arch 包只提示新版本与升级命令，由包管理器安装；装的是合集包 `ely-office` 时，命令给的是合集包的文件。开发构建不检查。
 
 ## 仓库操作（ElyTree）
 

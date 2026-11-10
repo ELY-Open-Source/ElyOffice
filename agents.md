@@ -148,7 +148,7 @@ packaging/icons/build.sh       由母版渲染 icns、png、ico（只在 macOS�
 scripts/inert-lo.sh 路径.app    构建出的 LibreOffice.app 去掉文档类型、URL 类型、快速查看与聚焦插件并注销（build-libreoffice.sh 调用）
 scripts/extract-official-lo.sh 用 7zz 把官方镜像的 Frameworks 与 Resources 解到 engines/lo-official（不挂载，无包，“未打补丁即拒绝”的单测用）
 scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、本文件不超 30000 字节、注释（comments.py，只查入库文件）、行尾（eol.sh）；JS、TS、TSX 与 HTML 脚本的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript 解析，先在 `site/` 执行 `pnpm install`
-cd site && pnpm run deploy    官网构建并经 wrangler 发到 Cloudflare Workers：静态资源，另有 `site/worker` 只答 `/release.json`（最新版本、三个完整安装包的地址与下载总数，缓存 5 分钟）；地址 https://office.elygpui.com（workers.dev 地址 https://ely-office.zhangyanghaha0407.workers.dev 同站）
+cd site && pnpm run deploy    官网构建并经 wrangler 发到 Cloudflare Workers：另有 `site/worker` 答 `/release.json`（最新版本、安装包地址与下载总数，缓存 5 分钟）并转发 `/releases/` 下的发布文件；地址 https://office.elygpui.com（workers.dev 上同站）
 scripts/deny.sh [根] [检查...]  cargo-deny：安全公告、yanked、许可与来源；重复版本只许 deny.toml 里列着的组，组消失而 skip 还在即败
 scripts/panics.py [根]          非测试代码的 expect、unwrap、panic!、unreachable!（clippy 量，构建脚本、ely-mail-fake 除外）与 scripts/panics.tsv 逐条相符、各带理由，任一种类不多于 HEAD 的表；`--sites` 列出本机各处
 cargo check --workspace
@@ -179,7 +179,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - 外观：Doc、Table、Show、PDF 的页面照文件原色，只有四周的界面随深浅色；邮件正文、Mark、Agent 随深浅色。深色底 `#252525`，不用纯黑。有 Omarchy 时随 Omarchy。
 - 性能：八个应用都不许卡顿（120 FPS 手感，树莓派 3 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事；ElyDoc、ElyTable、ElyShow 的就地保存在下一次打字停顿（500 毫秒无键）开始，至多等 2 秒，期间打的键一并存下（R15.37）；恢复点给等着的键与图块让路（补丁 0090、0106），同一标签让路满 60 秒后下一次不让（R15.56）；命令行读的副本、用户的保存、另存为与自动保存从不让路；前台以外的用户文件首次显示（或别的程序问到）才载入，视图的输入与其图块先于排队的后台工作（R15.57）。
 - LOK：worker 启动时关掉内核的 OpenCL（`SAL_DISABLE_OPENCL=1`：其启动自检在 AMD 驱动里会卡死，Calc 在 CPU 上算）；界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；外部链接打开时显示保存的值，用户点横幅的“更新链接”才经 `.uno:ElyUpdateLinks` 读源，源之后再存即重现横幅（`ely_office::Linking`）；内核弹出的对话框即刻关闭并报错，需要的对话框由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入，其日志用 `ELY_WARN` 等（补丁 0108），经 worker 的 stderr 进应用日志。
-- 更新：每个应用每个平台一份清单，读 GitHub 的最新发布（`releases/latest/download`，不调 API）；清单以 ed25519 签名（`<清单>.sig`，签的是文件名加内容），公钥编进应用（`ely_platform::update::KEY`），缺签名或不符即拒；种子是组织机密 `ELY_UPDATE_KEY`，本机副本 `update-key.txt` 不入库，丢失即旧版再也收不到更新；自动检查默认关，从不静默安装；包管理器与 Nix 装的不自更新，只提示。
+- 更新：每个应用每个平台一份清单，读 GitHub 的最新发布（`releases/latest/download`，不调 API），不通则读官网转发的同一路径；清单以 ed25519 签名（`<清单>.sig`，签的是文件名加内容），公钥编进应用（`ely_platform::update::KEY`），缺签名或不符即拒；种子是组织机密 `ELY_UPDATE_KEY`，本机副本 `update-key.txt` 不入库，丢失即旧版再也收不到更新；自动检查默认关，从不静默安装；包管理器与 Nix 装的不自更新，只提示。
 - 每个应用只跑一份，再次启动把文件交给运行中的那份。
 - 本机别的程序经命令行读写已打开的文档并保存：`ely-table cell docs|get|set|save`，`ely-doc text`、`ely-show text`、`ely-mark text` 的 `docs|get|replace|save`。请求走实例门（本机回环、令牌文件只给同一用户），由应用以 `ely_ui::on_ask` 作答，始终开着；ElyTable、ElyDoc、ElyShow 的读写不动用户的光标、选区与所在幻灯片；替换是精确、区分大小写的全部替换，一步撤销（Impress 每个改到的文本框一步）；ElyMark 读写此刻的 Markdown 原文（含未写回的键入），预览模式拒绝；ElyTable 按地址读写由内核补丁 0058 完成。命令行、`docs`、`save` 与按文件找标签在 `ely_office::remote`，各应用只写自己的动词；各命令所读所改的范围见 `docs/help.md`。
 - ElyTable 的 R 宏（实验性，TABLE-17）：只在用户点运行时（首次与载入 .R 后先警告）以参数数组起 `Rscript --vanilla`，处理所选区域的类型化副本；R 不是沙箱，以用户权限运行，从不代装；停止、关对话框或 30 秒即整树结束；内核（补丁 0081）在一个撤销组里写回；日志不含代码、单元格值与 R 的输出。细则见 `docs/r-macros.md`。
