@@ -104,3 +104,23 @@ jobs:
           git -C "$dir" fetch --force --tags origin
           git -C "$dir" checkout --force "${{ github.sha }}"
           ELY_SHARE=$HOME/Documents/Github/ElyOffice "$dir/scripts/ci.sh" linux "${{ github.ref_name }}"
+  linux-arm64:
+    # GitHub's arm64 host: our fleet has no arm64 Linux.
+    # A probe was shut down after 2h02m; see docs/decisions.md.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: README's libraries and GStreamer (the gate runs on the host)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q build-essential pkg-config libdbus-1-dev libfontconfig-dev libxcb1-dev libxkbcommon-x11-dev libgstreamer-plugins-base1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
+      - name: Build, package and upload for Linux arm64
+        env:
+          ELY_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Organization secrets, built into ElyMail.
+          ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
+          # Signs the update manifests.
+          ELY_UPDATE_KEY: ${{ secrets.ELY_UPDATE_KEY }}
+        run: |
+          bash scripts/ci.sh linux-arm64 "${{ github.ref_name }}"

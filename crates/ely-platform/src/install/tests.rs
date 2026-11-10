@@ -68,9 +68,16 @@ fn a_package_names_its_manager_or_fails() {
 #[test]
 fn each_manager_gets_its_own_file_and_command() {
     let version = semver::Version::new(0, 1, 10);
-    assert_eq!(Package::Deb.command("ely-doc", &version), "sudo apt install ./ely-doc_0.1.10-1_amd64.deb");
-    assert_eq!(Package::Rpm.command("ely-doc", &version), "sudo dnf install ./ely-doc-0.1.10-1.x86_64.rpm");
-    assert_eq!(Package::Arch.command("ely-doc", &version), "sudo pacman -U ./ely-doc-0.1.10-1-x86_64.pkg.tar.zst");
+    let file = |package: Package, arch: &str| package.file_for("ely-doc", &version, arch);
+    assert_eq!(file(Package::Deb, "x86_64"), "ely-doc_0.1.10-1_amd64.deb");
+    assert_eq!(file(Package::Deb, "aarch64"), "ely-doc_0.1.10-1_arm64.deb");
+    assert_eq!(file(Package::Rpm, "aarch64"), "ely-doc-0.1.10-1.aarch64.rpm");
+    assert_eq!(file(Package::Arch, "aarch64"), "ely-doc-0.1.10-1-aarch64.pkg.tar.zst");
+    let host = std::env::consts::ARCH;
+    let deb = if host == "x86_64" { "amd64" } else { "arm64" };
+    assert_eq!(Package::Deb.command("ely-doc", &version), format!("sudo apt install ./ely-doc_0.1.10-1_{deb}.deb"));
+    assert_eq!(Package::Rpm.command("ely-doc", &version), format!("sudo dnf install ./ely-doc-0.1.10-1.{host}.rpm"));
+    assert_eq!(Package::Arch.command("ely-doc", &version), format!("sudo pacman -U ./ely-doc-0.1.10-1-{host}.pkg.tar.zst"));
 }
 
 #[test]

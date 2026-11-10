@@ -369,7 +369,7 @@ impl Document {
         let url_c = cstring(url)?;
         let format_c = cstring(format)?;
         let options_c = cstring(options)?;
-        type F = unsafe extern "C" fn(*mut Doc, *const i8, *const i8, *const i8) -> i32;
+        type F = unsafe extern "C" fn(*mut Doc, *const c_char, *const c_char, *const c_char) -> i32;
         let ok = call!(
             class,
             1,

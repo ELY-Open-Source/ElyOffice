@@ -28,7 +28,7 @@ struct Doc {
     class: *const DocClass,
 }
 
-type Hook2 = unsafe extern "C" fn(*const i8, *const i8) -> *mut Kit;
+type Hook2 = unsafe extern "C" fn(*const c_char, *const c_char) -> *mut Kit;
 
 /// A loaded LibreOfficeKit instance.
 pub struct Lok {
@@ -115,7 +115,7 @@ impl Lok {
     /// The BuildId string of the hooked library.
     pub fn build_id(&self) -> String {
         let class = unsafe { (*self.kit).class };
-        type F = unsafe extern "C" fn(*mut Kit) -> *mut i8;
+        type F = unsafe extern "C" fn(*mut Kit) -> *mut c_char;
         let raw = call!(class, 9, F, self.kit);
         unsafe { std::ffi::CStr::from_ptr(raw) }
             .to_string_lossy()
@@ -127,7 +127,7 @@ impl Lok {
         let class = unsafe { (*self.kit).class };
         let url_c = cstring(url)?;
         let options_c = cstring(options)?;
-        type F = unsafe extern "C" fn(*mut Kit, *const i8, *const i8) -> *mut Doc;
+        type F = unsafe extern "C" fn(*mut Kit, *const c_char, *const c_char) -> *mut Doc;
         let doc = call!(class, 3, F, self.kit, url_c.as_ptr(), options_c.as_ptr());
         if doc.is_null() {
             return Err(io::Error::other(self.error()));
@@ -142,8 +142,8 @@ impl Lok {
     /// The kit's current error text.
     pub fn error(&self) -> String {
         let class = unsafe { (*self.kit).class };
-        type Get = unsafe extern "C" fn(*mut Kit) -> *mut i8;
-        type Free = unsafe extern "C" fn(*mut i8);
+        type Get = unsafe extern "C" fn(*mut Kit) -> *mut c_char;
+        type Free = unsafe extern "C" fn(*mut c_char);
         let raw = call!(class, 2, Get, self.kit);
         if raw.is_null() {
             return "unknown LOK error".into();
@@ -192,7 +192,7 @@ impl Lok {
     pub fn run_macro(&self, url: &str) -> i32 {
         let class = unsafe { (*self.kit).class };
         let url_c = cstring(url).expect("a url");
-        type F = unsafe extern "C" fn(*mut Kit, *const i8) -> i32;
+        type F = unsafe extern "C" fn(*mut Kit, *const c_char) -> i32;
         call!(class, 10, F, self.kit, url_c.as_ptr())
     }
 
