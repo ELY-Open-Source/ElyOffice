@@ -45,6 +45,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("doc.props.line", "Interligne"),
     ("doc.props.above", "Espace avant"),
     ("doc.props.below", "Espace après"),
+    ("doc.props.first_line", "Première ligne (caractères)"),
     ("doc.props.less", "Moins"),
     ("doc.props.more", "Plus"),
     ("doc.props.lists", "Listes"),

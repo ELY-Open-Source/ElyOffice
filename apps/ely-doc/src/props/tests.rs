@@ -301,6 +301,42 @@ fn quick_spacing_edits_keep_each_other() {
     );
 }
 
+#[test]
+fn a_first_line_state_reads_in_its_own_unit() {
+    use super::paragraph::{FirstLine, first_line};
+    assert_eq!(first_line("200,ic"), Some(FirstLine::Characters(2.0)));
+    assert_eq!(first_line("-150,ic"), Some(FirstLine::Characters(-1.5)), "a hanging line");
+    assert_eq!(first_line("56700,twip"), Some(FirstLine::Centimeters(1.0)));
+    assert_eq!(first_line("200,em"), Some(FirstLine::Ems(2.0)));
+    assert_eq!(first_line("0,twip"), Some(FirstLine::Centimeters(0.0)));
+    for bad in ["", "200", "two,ic", "200,pt"] {
+        assert_eq!(first_line(bad), None, "{bad}");
+    }
+}
+
+#[test]
+fn two_characters_set_from_the_panel_reach_the_file() {
+    use super::paragraph::{FIRST_LINE, FirstLine, first_line};
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "首行缩进");
+    let props = panel(&mut cx, &docs);
+    let held = |app: &gpui::App| props.read(app).state(FIRST_LINE, app).as_deref().and_then(first_line);
+    settle(&cx, |app| held(app) == Some(FirstLine::Centimeters(0.0)));
+    cx.update(|app| props.update(app, |props, cx| props.run("paragraph.first_line", &["200"], cx)));
+    settle(&cx, |app| held(app) == Some(FirstLine::Characters(2.0)));
+    settled(&cx, &docs);
+    let path = dir.path().join("indent.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    written(&cx, &path, None);
+    assert!(text_of(&mut cx, &docs, &path).contains(r#"loext:text-indent="2ic""#), "the saved DOCX holds two characters");
+}
+
 /// A window root that shows the panel.
 struct Shown(Entity<Props>);
 

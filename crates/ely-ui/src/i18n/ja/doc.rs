@@ -45,6 +45,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("doc.props.line", "行間"),
     ("doc.props.above", "段落の前"),
     ("doc.props.below", "段落の後"),
+    ("doc.props.first_line", "最初の行の字下げ（文字）"),
     ("doc.props.less", "減らす"),
     ("doc.props.more", "増やす"),
     ("doc.props.lists", "リスト"),

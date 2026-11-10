@@ -45,6 +45,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("doc.props.line", "Giãn dòng"),
     ("doc.props.above", "Khoảng cách phía trên"),
     ("doc.props.below", "Khoảng cách phía dưới"),
+    ("doc.props.first_line", "Thụt dòng đầu (ký tự)"),
     ("doc.props.less", "Giảm"),
     ("doc.props.more", "Tăng"),
     ("doc.props.lists", "Danh sách"),

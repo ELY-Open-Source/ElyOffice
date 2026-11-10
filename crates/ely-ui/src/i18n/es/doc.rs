@@ -51,6 +51,7 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("doc.props.line", "Interlineado"),
     ("doc.props.above", "Espacio anterior"),
     ("doc.props.below", "Espacio posterior"),
+    ("doc.props.first_line", "Primera línea (caracteres)"),
     ("doc.props.less", "Menos"),
     ("doc.props.more", "Más"),
     ("doc.props.lists", "Listas"),

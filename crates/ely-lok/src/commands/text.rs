@@ -59,6 +59,12 @@ pub(super) const ROWS: &[Command] = &[
         &[],
         Check::Result,
     ),
+    command(
+        "paragraph.first_line",
+        ".uno:ElyFirstLineChars",
+        &[Arg::Int("Chars", "long", -2_000, 2_000)],
+        Check::Undoable,
+    ),
     command("paragraph.spacing_1", ".uno:SpacePara1", &[], Check::Result),
     command(
         "paragraph.spacing_15",

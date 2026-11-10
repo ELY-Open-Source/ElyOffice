@@ -45,6 +45,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("doc.props.line", "Zeilenabstand"),
     ("doc.props.above", "Abstand oben"),
     ("doc.props.below", "Abstand unten"),
+    ("doc.props.first_line", "Erste Zeile (Zeichen)"),
     ("doc.props.less", "Weniger"),
     ("doc.props.more", "Mehr"),
     ("doc.props.lists", "Listen"),

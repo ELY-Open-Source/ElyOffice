@@ -1,0 +1,130 @@
+Writer: a kit client sets the first-line indent in characters
+
+Chinese text indents a paragraph's first line by two characters. The
+core has held such an indent since 25.8 (SvxIndentValue in
+FONT_CJK_ADVANCE, laid out by the font's own advance and written to
+DOCX as w:firstLineChars), but FirstLineParaMargin's arguments carry
+only an absolute length, so a kit client could not ask for it.
+.uno:ElyFirstLineChars takes Chars, hundredths of a character, and
+sets the selected paragraphs' first-line indent to that many CJK
+advances. Its state is "hundredths,unit" for the indent in force, with
+unit ic, em or twip, so a client can show an indent it did not set.
+
+--- a/sfx2/source/control/unoctitm.cxx
++++ b/sfx2/source/control/unoctitm.cxx
+@@ -1283,6 +1283,7 @@
+         { u"StyleApply", { PayloadType::StyleApplyPayload, true } },
+         { u"CharStyle", { PayloadType::StyleApplyPayload, true } },
+         { u"ULSpacing", { PayloadType::ULSpacingPayload, true } },
++        { u"ElyFirstLineChars", { PayloadType::StringPayload, true } },
+         { u"AttributePageSize", { PayloadType::SizePayload, true } },
+         { u"AttributePage", { PayloadType::PageItemPayload, true } },
+         { u"PageLRMargin", { PayloadType::MarginsPayload, true } },
+--- a/sw/inc/cmdid.h
++++ b/sw/inc/cmdid.h
+@@ -510,6 +510,8 @@
+ #define FN_SYNC_LABELS                      (FN_FORMAT2 + 143)
+ 
+ #define FN_FORMAT_LINENUMBER                (FN_FORMAT2 + 144)
++// Ely: the first-line indent in CJK characters.
++#define FN_ELY_FIRST_LINE_CHARS             (FN_FORMAT2 + 145)
+ 
+ #define FN_TABLE_RELATIVE_WIDTH             (FN_FORMAT2 + 147)  /* UNO */
+ #define FN_TABLE_WIDTH                      (FN_FORMAT2 + 148)  /* UNO */
+--- a/sw/sdi/_textsh.sdi
++++ b/sw/sdi/_textsh.sdi
+@@ -1320,6 +1320,12 @@
+         StateMethod = GetAttrState ;
+         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+     ]
++    FN_ELY_FIRST_LINE_CHARS
++    [
++        ExecMethod = ExecParaAttr ;
++        StateMethod = GetAttrState ;
++        DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
++    ]
+     SID_ATTR_PARA_LINESPACE_20
+     [
+         ExecMethod = ExecParaAttr ;
+--- a/sw/sdi/swriter.sdi
++++ b/sw/sdi/swriter.sdi
+@@ -5435,6 +5435,23 @@
+     GroupId = SfxGroupId::Edit;
+ ]
+ 
++SfxStringItem ElyFirstLineChars FN_ELY_FIRST_LINE_CHARS
++(SfxInt32Item Chars FN_PARAM_1)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Format;
++]
++
+ SfxVoidItem ResetAttributes FN_FORMAT_RESET
+ ()
+ [
+--- a/sw/source/uibase/shells/txtattr.cxx
++++ b/sw/source/uibase/shells/txtattr.cxx
+@@ -55,6 +55,7 @@
+ #include <globals.h>
+ #include <SwStyleNameMapper.hxx>
+ #include <swabstdlg.hxx>
++#include <cmath>
+ #include <memory>
+ 
+ const sal_uInt32 nFontInc = 40;      // 2pt
+@@ -449,6 +450,19 @@
+             }
+         }
+         break;
++        case FN_ELY_FIRST_LINE_CHARS:
++        {
++            const SfxInt32Item* pChars = rReq.GetArg<SfxInt32Item>(FN_PARAM_1);
++            if (!pChars)
++                return;
++            // Ely: hundredths of a CJK character's advance.
++            SvxFirstLineIndentItem aFirstLine(RES_MARGIN_FIRSTLINE);
++            aFirstLine.SetTextFirstLineOffset(SvxIndentValue{
++                pChars->GetValue() / 100.0, css::util::MeasureUnit::FONT_CJK_ADVANCE });
++            GetShell().SetAttrItem(aFirstLine);
++            rReq.Done();
++            return;
++        }
+         case SID_ATTR_PARA_HYPHENZONE:
+         {
+             SfxItemSet aHyphSet(SfxItemSet::makeFixedSfxItemSet<RES_PARATR_HYPHENZONE, RES_PARATR_HYPHENZONE>(GetPool()));
+@@ -811,6 +825,25 @@
+             }
+             break;
+ 
++            case FN_ELY_FIRST_LINE_CHARS:
++            {
++                // Ely: "hundredths,unit"; ic counts CJK characters.
++                if (aCoreSet.GetItemState(RES_MARGIN_FIRSTLINE) >= SfxItemState::DEFAULT)
++                {
++                    const SvxIndentValue stOffset
++                        = aCoreSet.Get(RES_MARGIN_FIRSTLINE).GetTextFirstLineOffset();
++                    const bool bTwips = stOffset.m_nUnit == css::util::MeasureUnit::TWIP;
++                    const bool bChars = stOffset.m_nUnit == css::util::MeasureUnit::FONT_CJK_ADVANCE;
++                    const OUString aUnit = bTwips ? u"twip"_ustr : bChars ? u"ic"_ustr : u"em"_ustr;
++                    rSet.Put(SfxStringItem(
++                        nSlot, OUString::number(std::lround(stOffset.m_dValue * 100.0)) + ","
++                                   + aUnit));
++                }
++                else
++                    rSet.InvalidateItem(nSlot);
++                nSlot = 0;
++            }
++            break;
+             case SID_ATTR_PARA_LEFT_TO_RIGHT :
+             case SID_ATTR_PARA_RIGHT_TO_LEFT :
+             {

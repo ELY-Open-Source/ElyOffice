@@ -45,6 +45,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("doc.props.line", "줄 간격"),
     ("doc.props.above", "단락 앞 간격"),
     ("doc.props.below", "단락 뒤 간격"),
+    ("doc.props.first_line", "첫 줄 들여쓰기(글자)"),
     ("doc.props.less", "줄이기"),
     ("doc.props.more", "늘리기"),
     ("doc.props.lists", "목록"),

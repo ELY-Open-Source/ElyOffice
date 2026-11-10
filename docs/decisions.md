@@ -637,3 +637,19 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 审查查出两处。一、漏了 0015（macOS 的 `AquaSalInstance` 在已有到期定时器时仍进入原生等待），与 Ely、与 LOK 都无关。二、清单的说明写“不需要任何 LibreOfficeKit 客户端”，表里的 0075 却只在 LOK 下出现；照“不依赖 Ely”这同一标准，修既有 LOK 调用与回调的补丁也该列，审查举出 0002、0005、0024。
 - 改：说明改为“都不需要 Ely：第一张表的缺陷在 LibreOffice 本体里看得到，第二张表的在上游发行的 LibreOfficeKit 里、对任何客户端都在”。0015 进第一张表。新增“LibreOfficeKit”一表十项：0002、0005、0011、0024、0025、0048、0052、0064、0069，加上从第一张表移来的 0075。为免再漏，把没有说明文字的 0001 至 0023 与其余以 LOK 开头的补丁逐个重读了一遍（看新增行与说明）：除上述十项，其余或是新命令、新取值（留在本项目），或要上游权衡（0026 新接口 `settleViews`、0082 保存不结束单元格编辑、0098 导入时不让出、0102 无障碍事件随插入点），或是把 LOK 搬到桌面 macOS 与 Windows 的移植（0001、0007、0033、0043、0044、0057，上游不在这两处跑 LOK），都在清单里各写了一句。
 - 清单现共 35 处：LibreOffice 本体 14、LibreOfficeKit 10、MuPDF 7、crate 4。仍然一处都没交上游。
+
+## 2026-11-10 首行缩进按字符（R18.12，#76）
+
+- 议题要“首行缩进两个汉字”，并指出内核自 25.8 起已有按字体度量的单位。查内核：`SvxFirstLineIndentItem` 的缩进值带单位，`FONT_CJK_ADVANCE` 即一个 CJK 字符的前进宽度，排版按该行自己的字体与字号算，DOCX 导出写 `w:firstLineChars`，导入也读回这个单位。缺的只是入口：`.uno:FirstLineParaMargin` 的参数是 `SvxLRSpaceItem` 的各成员，只有绝对长度，带不了单位。
+- 改：内核补丁 0109 加 Writer 命令 `.uno:ElyFirstLineChars`，参数 `Chars` 为字符数的百分之一（整数，免去浮点参数），把所选各段的首行缩进设为这么多个 CJK 字符宽；其状态为“数值的百分之一,单位”（`ic`、`em`、`twip`），客户端因此也能显示不是自己设的缩进。Ely：命令表加 `paragraph.first_line`（-2000 至 2000，记一步撤销）；属性面板“段落”组加一行“首行缩进（字符）”，范围 -20 至 20（负为悬挂）；文件原有的缩进按厘米或 em 计时，输入框旁照原单位显示，不折算成字符（一个字符多宽随字体而变）；所选各段不一时显示“混合”。八种语言各加一条标签。
+- 测试：`client/tests/indent.rs`——两段同样的中文，首段设 200（两个字符）后状态为 `200,ic`；首行行首的插入点横坐标等于第二段里从行首右移两个字后的横坐标（本机 1838 对 1838，未缩进时 1418）；存成 DOCX 再载入，状态仍是 `200,ic`；存成平面 ODF 有 `loext:text-indent="2ic"`。ElyDoc 面板：状态各单位的解析一项；从面板发命令后另存，文件里是 `2ic`。命令总数由 255 改 256。
+- 没做：工具栏不加按钮（面板已有）；左右缩进仍只有“增加、减少缩进”两个按钮；Windows、macOS 的内核须带 0109 重建。
+
+## 2026-11-10 Windows 建内核要 clang-cl（R18.8、R18.9 的实测准备）
+
+- 为在 Windows 上实测 R18.8、R18.9，在用户给的 Windows 11 测试机（BuildTools 2022，无 Cygwin）上从头搭内核构建：装 Cygwin 与 LibreOffice 的构建工具后，`configure` 停在 `cannot determine the -showIncludes prefix`。原因：内核带 Skia，Windows 上 Skia 要 clang-cl 编；`configure` 只在 Visual Studio 的 `VC/Tools/Llvm` 与 `C:\Program Files\LLVM` 两处找，找不到时不说缺 clang-cl，而是拿空命令去试 `-showIncludes`。原先的开发机装了 Visual Studio 的“C++ Clang 工具”组件，所以 README 与 `doctor.sh` 都没写这一项。
+- 改：README 的 Windows 构建一行写明 clang-cl 的两个来处；`doctor.sh` 在 Windows 上照 `configure` 的次序找 clang-cl，缺即报。测试机上装 LLVM 23.1.5（winget）后 `doctor.sh` 报出 `clang-cl clang version 23.1.5`；装之前那一次 `configure` 的失败即上文所记。原开发机的是 19.1.5；23 能否编过这版 Skia，待这次构建见分晓。
+
+## 2026-11-10 第 2 轮审查后的改正：日志隐私测试只认本次 worker 的输出（R18.10）
+
+- 审查查出：`a_linked_object_s_class_name_stays_out_of_the_log` 里“警告确实出了”一条在整个测试进程共用的日志里按通用文字找，别的 OLE 测试的 worker 也出这条警告，能替本次 worker 作证。改：前提改由本次 worker 自己的 stderr 给出——worker 退出后读完的末 20 行里须有 `warn:ely.writerfilter:…stays a picture`，且这些原始行里没有类名；应用日志里没有类名一条照旧。反例实跑：把类名换成受支持的 `Excel.Sheet.12`、旁边同时跑别的 OLE 测试，这条测试即败（“this worker did not warn”）。

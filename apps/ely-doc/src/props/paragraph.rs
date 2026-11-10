@@ -13,8 +13,32 @@ use crate::docs::Docs;
 /// The kernel's spacing state: "upper,lower" in 1/100 mm.
 pub(super) const SPACING: &str = ".uno:ULSpacing";
 
+/// The kernel's first-line state: "hundredths,unit".
+pub(super) const FIRST_LINE: &str = ".uno:ElyFirstLineChars";
+
 /// Twips in one centimeter.
 const TWIPS_PER_CM: f64 = 567.0;
+
+/// A first-line indent as the kernel holds it.
+#[derive(Debug, PartialEq)]
+pub(super) enum FirstLine {
+    /// CJK characters of the line's own font.
+    Characters(f64),
+    Centimeters(f64),
+    Ems(f64),
+}
+
+/// Reads "200,ic", "42500,twip" or "200,em".
+pub(super) fn first_line(state: &str) -> Option<FirstLine> {
+    let (hundredths, unit) = state.split_once(',')?;
+    let value = f64::from(hundredths.parse::<i32>().ok()?) / 100.0;
+    match unit {
+        "ic" => Some(FirstLine::Characters(value)),
+        "twip" => Some(FirstLine::Centimeters(value / TWIPS_PER_CM)),
+        "em" => Some(FirstLine::Ems(value)),
+        _ => None,
+    }
+}
 
 impl Props {
     pub(super) fn paragraph_group(&self, cx: &mut Context<Self>) -> PropertyGroup {
@@ -123,11 +147,47 @@ impl Props {
                     ),
                 ]),
             )
+            .row(tip("doc.props.first_line"), self.first_line_field(cx))
             .row(tip("doc.props.line"), line)
             .row(tip("doc.props.above"), self.spacing(false, cx))
             .row(tip("doc.props.below"), self.spacing(true, cx))
             .row(tip("doc.props.lists"), lists)
             .row(tip("doc.props.tabs"), self.tabs(cx))
+    }
+
+    /// The first line's indent in characters; another unit beside.
+    fn first_line_field(&self, cx: &Context<Self>) -> AnyElement {
+        let state = self.state(FIRST_LINE, cx);
+        let mixed = state.as_deref() == Some(ely_lok::MIXED);
+        let held = state.as_deref().and_then(first_line);
+        if !mixed && held.is_none() {
+            return muted("—".into(), cx);
+        }
+        let (characters, beside) = match held {
+            Some(FirstLine::Characters(characters)) => (characters, None),
+            Some(FirstLine::Centimeters(cm)) if cm != 0.0 => (0.0, Some(Docs::text(cx, "doc.props.cm", &[("n", &format!("{cm:.2}"))]))),
+            Some(FirstLine::Ems(ems)) => (0.0, Some(format!("{ems} em").into())),
+            Some(FirstLine::Centimeters(_)) => (0.0, None),
+            None => (0.0, Some(Docs::text(cx, "office.props.mixed", &[]))),
+        };
+        let this = cx.entity();
+        let set = held == Some(FirstLine::Characters(characters));
+        let field = NumberInput::new("doc-props-first-line", characters)
+            .label(Docs::text(cx, "doc.props.first_line", &[]))
+            .range(-20.0, 20.0)
+            .step(1.0)
+            .precision(1)
+            .size(ControlSize::Sm)
+            .on_commit(move |wanted, _, cx| {
+                // The kernel makes no undo step for no change.
+                if set && wanted == characters {
+                    return;
+                }
+                let hundredths = ((wanted * 100.0).round() as i32).to_string();
+                this.update(cx, |props, cx| props.run("paragraph.first_line", &[&hundredths], cx))
+            });
+        let field = div().w_full().max_w_32().child(field).into_any_element();
+        row([field].into_iter().chain(beside.map(|text| muted(text, cx))))
     }
 
     /// Space above or below, in points.
