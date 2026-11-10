@@ -93,7 +93,17 @@ case $(uname -s) in
       folder=$(MSYS2_ARG_CONV_EXCL='*' reg query "$key" /v InstallationFolder | awk -F'REG_SZ' 'NF > 1 { sub(/^ +/, "", $2); print $2 }' | tr -d '\r') &&
         compgen -G "$(cygpath -u "$folder")bin/*/x64/fxc.exe" | tail -1
     }
+    # Where LibreOffice's configure looks, for Skia.
+    clang_cl() {
+        local found
+        for found in "$(msvc)/VC/Tools/Llvm/bin/clang-cl.exe" "$PROGRAMFILES/LLVM/bin/clang-cl.exe"; do
+            [ -x "$(cygpath -u "$found")" ] && "$(cygpath -u "$found")" --version && return
+        done
+        echo "no clang-cl in Visual Studio or $PROGRAMFILES/LLVM"
+        return 1
+    }
     need msvc msvc
+    need clang-cl clang_cl
     need fxc fxc
     # Cygwin builds LibreOffice; this shell's form of its root.
     cygwin=$(cygpath -u "${ELY_CYGWIN:-C:/cygwin64}")
