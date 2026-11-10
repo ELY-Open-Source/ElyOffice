@@ -800,3 +800,4 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 审查 R18.37 第 1 轮：`ended` 先拿停止器的门再等起进程的线程，后者也要这把门，互等；改为先等进程、再拿门，回收仍在门内。慢载入的“停止”原在界面回调里直接调，起进程未返回时界面线程会等它；改到后台执行。
 - Mac 十次（R18.34）：合并测试那次是内核崩溃，不是测试慢。worker 在 PDF 导出第一步 SIGSEGV；反汇编看出崩在 `PDFFilter::filter` 调 `vcl::Window::AddEventListener` 之处：等待光标加在 `Application::GetFocusWindow()` 上，而那是刚关掉的那份文档已销毁的窗口，`dispose` 已释放其 `WindowImpl`。vcl 自己在 `ImplNewInputContext` 里就查这种情况。macOS 的 worker 用 Cocoa 后端，Linux 用无头后端，故只在 Mac 见到。补丁 0119：PDF、SVG 导出跳过已销毁的焦点窗口并记 `ELY_WARN`。焦点为何留在已销毁的窗口上，未查明；警告会给出下次的线索。
 - 同一轮另两处：工具栏测试在撤销按钮的名字还没变时找它，改为等它出现；ElyMail 十万封全选的绝对时限在负载 40 的机器上量的是机器，改为量十万与一万之比。
+- Mac 十次（0119 内核）第一次败在 ElyShow 的命令行替换测试：文本是 `catabc`，Ctrl+Home 没有移动插入点。原因：选中文本框后按的第一个可打印键（或 Enter）经 `SfxCallMode::ASYNCHRON` 的 `SID_ATTR_CHAR` 进入编辑；LOK 把每个键作为单独的事件排队，已排在后面的键先于进入编辑执行。Linux 上内核总在下一个键到之前跑完排队的工作，故只在负载下的 Mac 出现；用户在机器忙时快打也会错序。补丁 0120：LOK 下改为同步派发；同步派发会在 `KeyInput` 里换掉当前功能，`ViewShell::KeyInput` 处理键时先持一份引用，免得正在运行的对象被释放。

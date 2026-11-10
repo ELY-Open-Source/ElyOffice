@@ -1,0 +1,67 @@
+sd: under LOK a key that starts text edit finishes before the next
+
+A printable key on a selected text object, or Enter on one, starts text
+edit through an asynchronous SID_ATTR_CHAR. LOK posts each key as its
+own event, so keys already queued behind the first run before the edit
+begins: Ctrl+Home after "a" moved nothing and the next letters landed at
+the end (Ely: macOS under load, 1 run in 10). Under LOK the dispatch is
+synchronous. ViewShell::KeyInput holds the current function while it
+handles the key, since the dispatch replaces that function.
+--- a/sd/source/ui/func/fupoor.cxx
++++ b/sd/source/ui/func/fupoor.cxx
+@@ -24,6 +24,7 @@
+ #include <svx/svdoole2.hxx>
+ #include <svx/svdograf.hxx>
+ #include <vcl/seleng.hxx>
++#include <comphelper/lok.hxx>
+ #include <sfx2/dispatch.hxx>
+ #include <sfx2/bindings.hxx>
+ #include <sfx2/request.hxx>
+@@ -253,7 +254,7 @@
+                     }
+                     else
+                     {
+-                        mrViewShell.GetViewFrame()->GetDispatcher()->Execute( SID_ATTR_CHAR, SfxCallMode::ASYNCHRON | SfxCallMode::RECORD );
++                        mrViewShell.GetViewFrame()->GetDispatcher()->Execute( SID_ATTR_CHAR, (comphelper::LibreOfficeKit::isActive() ? SfxCallMode::SYNCHRON : SfxCallMode::ASYNCHRON) | SfxCallMode::RECORD );
+                     }
+ 
+                     // consumed
+@@ -799,9 +800,10 @@
+                         // try to activate textedit mode for the selected object
+                         SfxStringItem aInputString(SID_ATTR_CHAR, OUString(rKEvt.GetCharCode()));
+ 
++                        // Ely: later keys wait for the edit.
+                         mrViewShell.GetViewFrame()->GetDispatcher()->ExecuteList(
+                             SID_ATTR_CHAR,
+-                            SfxCallMode::ASYNCHRON,
++                            comphelper::LibreOfficeKit::isActive() ? SfxCallMode::SYNCHRON : SfxCallMode::ASYNCHRON,
+                             { &aInputString });
+ 
+                         // consumed
+@@ -847,9 +849,10 @@
+                         mpView->MarkObj(pCandidate, mpView->GetSdrPageView());
+                         SfxStringItem aInputString(SID_ATTR_CHAR, OUString(rKEvt.GetCharCode()));
+ 
++                        // Ely: later keys wait for the edit.
+                         mrViewShell.GetViewFrame()->GetDispatcher()->ExecuteList(
+                             SID_ATTR_CHAR,
+-                            SfxCallMode::ASYNCHRON,
++                            comphelper::LibreOfficeKit::isActive() ? SfxCallMode::SYNCHRON : SfxCallMode::ASYNCHRON,
+                             { &aInputString });
+ 
+                         // consumed
+--- a/sd/source/ui/view/viewshel.cxx
++++ b/sd/source/ui/view/viewshel.cxx
+@@ -527,7 +527,11 @@
+                     if( !xSelectionController.is() || !xSelectionController->onKeyInput( rKEvt, pWin ) )
+                     {
+                         if(HasCurrentFunction())
+-                            bReturn = GetCurrentFunction()->KeyInput(rKEvt);
++                        {
++                            // Ely: a key may switch the function.
++                            rtl::Reference<FuPoor> xFunction(GetCurrentFunction());
++                            bReturn = xFunction->KeyInput(rKEvt);
++                        }
+                     }
+                     else
+                     {
