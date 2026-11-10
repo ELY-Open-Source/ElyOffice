@@ -10,10 +10,10 @@ const CYCLES: usize = 20;
 /// Opened once on first use, plus the thread pool's churn.
 const ONCE: u32 = 8;
 
-fn handles(worker: &Worker) -> u32 {
+fn handles(worker: &mut Worker) -> u32 {
     let mut count = 0;
     let done = unsafe {
-        windows_sys::Win32::System::Threading::GetProcessHandleCount(worker.child.as_raw_handle(), &mut count)
+        windows_sys::Win32::System::Threading::GetProcessHandleCount(worker.child.get().expect("the worker process").as_raw_handle(), &mut count)
     };
     assert_ne!(done, 0, "{}", std::io::Error::last_os_error());
     count
@@ -37,11 +37,11 @@ fn closed_documents_leave_no_handles() {
     for _ in 0..3 {
         cycle(&mut worker);
     }
-    let before = handles(&worker);
+    let before = handles(&mut worker);
     let counts: Vec<u32> = (0..CYCLES)
         .map(|_| {
             cycle(&mut worker);
-            handles(&worker)
+            handles(&mut worker)
         })
         .collect();
     if let Err(why) = settled(before, &counts) {

@@ -124,7 +124,7 @@ fn painting_a_video_slide_starts_no_player() {
     insert(&mut worker, &doc, &clip(), false).expect("inserts");
     doc.paint_part(&mut worker, (0, false), (320, 180)).expect("the thumbnail paints");
     doc.paint_tile(&mut worker, (0, 0, 15360, 15360), (512, 512)).expect("the slide paints");
-    let players: Vec<String> = windows_of(worker.child.id())
+    let players: Vec<String> = windows_of(worker.child.get().expect("the worker process").id())
         .into_iter()
         .filter(|class| class.starts_with("MFPlay."))
         .collect();

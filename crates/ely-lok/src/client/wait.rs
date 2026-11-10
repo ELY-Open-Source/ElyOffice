@@ -1,8 +1,7 @@
 //! A request waiting for the worker tells it, lock-free.
 
 use std::{
-    io::{self, BufWriter},
-    process::ChildStdin,
+    io::{self, BufWriter, PipeWriter},
     sync::{Arc, Mutex, MutexGuard},
 };
 
@@ -10,7 +9,7 @@ use super::Worker;
 use crate::ipc::{self, Pack, tag};
 
 /// The request pipe, shared by the worker and its waiters.
-pub(super) type Pipe = Arc<Mutex<BufWriter<ChildStdin>>>;
+pub(super) type Pipe = Arc<Mutex<BufWriter<PipeWriter>>>;
 
 /// Writes one frame; a poisoned pipe is a broken one.
 pub(super) fn send(pipe: &Pipe, request: u8, id: u64, payload: &[u8]) -> io::Result<()> {

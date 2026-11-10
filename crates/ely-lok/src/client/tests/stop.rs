@@ -49,7 +49,7 @@ fn a_stuck_load_returns_once_its_worker_is_stopped() {
     worker.ready().expect("the worker passes its checks");
     let source = dir.path().join("note.fodt");
     write(&source, FODT);
-    let (stopper, pid) = (worker.stopper(), worker.child.id());
+    let (stopper, pid) = (worker.stopper(), worker.child.get().expect("the worker process").id());
     freeze(pid);
     let (done, wait) = std::sync::mpsc::channel();
     std::thread::spawn(move || {

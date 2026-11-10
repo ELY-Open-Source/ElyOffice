@@ -1,7 +1,7 @@
 use std::{
     io::{self, BufReader, BufWriter},
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
+    process::Command,
     sync::mpsc,
 };
 
@@ -19,6 +19,8 @@ mod frames;
 mod install;
 mod load;
 pub use load::Damaged;
+mod process;
+pub(crate) use process::Process;
 mod stop;
 mod wait;
 pub use install::{install_dir, templates};
@@ -34,7 +36,7 @@ pub(crate) mod tests;
 
 /// The LOK worker process: spawn, talk frames, shut down (LOK-01).
 pub struct Worker {
-    pub(crate) child: Child,
+    pub(crate) child: Process,
     stdin: wait::Pipe,
     /// Answers to requests; None once the worker is gone.
     replies: mpsc::Receiver<io::Result<(u8, u64, Vec<u8>)>>,
@@ -180,21 +182,13 @@ impl Worker {
         std::fs::create_dir_all(&temp).map_err(at(&temp))?;
         // Unix reads TMPDIR; Windows reads TMP, then TEMP.
         command.env("TMPDIR", &temp).env("TMP", &temp).env("TEMP", &temp);
-        let mut child = command
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(at(&worker_bin))?;
-        let stderr = ely_ipc::relay(child.stderr.take().expect("piped stderr"), "lok-worker");
-        let (stdin, stdout) = (
-            child.stdin.take().expect("piped stdin"),
-            child.stdout.take().expect("piped stdout"),
-        );
+        let stopper = Stopper::new();
+        let (child, ends) = Process::start(command, worker_bin, &stopper)?;
+        let stderr = ely_ipc::relay(ends.stderr, "lok-worker");
+        let (stdin, stdout) = (ends.stdin, ends.stdout);
         let (feed, (sender, replies)) = (Feed::default(), mpsc::channel());
         let reading = feed.clone();
         std::thread::spawn(move || frames::read_frames(BufReader::new(stdout), &reading, &sender));
-        let stopper = Stopper::new(child.id());
         let worker = Self {
             child,
             stopper,
@@ -391,8 +385,7 @@ impl Worker {
     /// A worker whose output failed: stopped, reaped, and why.
     fn broken(&mut self, request: u8, error: io::Error) -> io::Error {
         *self.stopper.gate() = true;
-        let _ = self.child.kill();
-        let status = self.child.wait().map(|status| status.to_string()).unwrap_or_else(|wait| wait.to_string());
+        let status = self.child.end();
         let said = match (&self.check, self.stderr.said().error) {
             // The start check adds the last lines.
             (Check::Checking, _) | (_, None) => String::new(),
@@ -442,14 +435,15 @@ impl Worker {
         }
         self.down = true;
         let mut outcome = self.answer_shutdown();
+        let child = self.child.get()?;
         if outcome.is_err() {
-            let _ = self.child.kill();
+            let _ = child.kill();
         }
         *self.stopper.gate() = true;
-        let status = match self.child.wait() {
+        let status = match child.wait() {
             Ok(status) => status,
             Err(error) => {
-                let _ = self.child.kill();
+                let _ = child.kill();
                 return Err(io::Error::new(
                     error.kind(),
                     format!("the lok worker could not be reaped: {error}"),

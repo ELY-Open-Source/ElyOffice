@@ -257,7 +257,7 @@ fn the_start_check_loads_only_the_app_s_own_module() {
         let mut worker = Worker::launch(&install, &dir.path().join("profile"), probe).expect("the worker");
         worker.ready().unwrap_or_else(|error| panic!("{probe:?} paints no red: {error}"));
         // Linux lists what a process mapped.
-        let Ok(mapped) = std::fs::read_to_string(format!("/proc/{}/maps", worker.child.id())) else {
+        let Ok(mapped) = std::fs::read_to_string(format!("/proc/{}/maps", worker.child.get().expect("the worker process").id())) else {
             continue;
         };
         for (_, module) in modules {

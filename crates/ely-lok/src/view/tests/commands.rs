@@ -98,7 +98,7 @@ fn a_dead_worker_reaches_apps_while_idle() {
         })
         .detach();
     });
-    shared.lock().expect("the worker lock").child.kill().expect("the worker ends");
+    shared.lock().expect("the worker lock").child.get().expect("the worker process").kill().expect("the worker ends");
     let reported = settle(&cx, |_| !errors.borrow().is_empty());
     assert!(reported, "the idle watch reports the dead engine");
     assert!(

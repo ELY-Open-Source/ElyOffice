@@ -59,7 +59,7 @@ fn writer_dialog_keys_leave_every_document_working() {
     std::thread::spawn(move || {
         let dir = tempfile::tempdir().expect("a temp dir");
         let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
-        pid_out.send(worker.child.id()).expect("the test waits");
+        pid_out.send(worker.child.get().expect("the worker process").id()).expect("the test waits");
         let office = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office");
         let first = worker.load(&crate::file_url(&office.join("redline.docx"))).expect("loads");
         let second = worker.load(&crate::file_url(&office.join("equation.docx"))).expect("loads");

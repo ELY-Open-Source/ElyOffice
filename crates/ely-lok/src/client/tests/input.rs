@@ -309,7 +309,7 @@ fn a_calc_cut_finishes_without_a_dialog() {
     let root = dir.path().to_path_buf();
     std::thread::spawn(move || {
         let mut worker = Worker::spawn(&install, &root.join("profile")).expect("the worker");
-        pid_out.send(worker.child.id()).expect("the test waits");
+        pid_out.send(worker.child.get().expect("the worker process").id()).expect("the test waits");
         let source = root.join("in.fods");
         write(&source, FODS);
         let doc = worker

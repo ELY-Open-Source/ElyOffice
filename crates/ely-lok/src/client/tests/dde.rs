@@ -54,7 +54,7 @@ fn a_worker_answers_no_dde_service_name() {
     write(&source, FODT);
     // A loaded document: the kernel is up and pumping messages.
     let _doc = worker.load(&crate::file_url(&source)).expect("the document loads");
-    let pid = worker.child.id();
+    let pid = worker.child.get().expect("the worker process").id();
     let mut inst = 0;
     assert_eq!(unsafe { DdeInitializeW(&mut inst, Some(quiet), APPCMD_CLIENTONLY, 0) }, 0, "DDEML does not start");
     // Other programs may answer; this worker must not.

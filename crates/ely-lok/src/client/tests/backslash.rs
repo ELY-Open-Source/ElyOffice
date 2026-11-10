@@ -9,7 +9,7 @@ fn loaded(install: &std::path::Path, name: &str) -> std::io::Result<()> {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut worker = Worker::spawn(install, &dir.path().join("profile")).expect("the worker");
     worker.ready().expect("the worker passes its checks");
-    let pid = worker.child.id();
+    let pid = worker.child.get().expect("the worker process").id();
     let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office").join(name);
     let (done, wait) = std::sync::mpsc::channel();
     std::thread::spawn(move || {

@@ -156,9 +156,6 @@ crates/ely-ipc/src/lib.rs	expect_used	self.take(8)?.try_into().expect("a u64")	l
 crates/ely-ipc/src/lib.rs	expect_used	self.take(8)?.try_into().expect("an i64")	linux,macos,windows	an i64
 crates/ely-ipc/src/relay.rs	expect_used	kept.lock().expect("the relay lock")	linux,macos,windows	the relay lock
 crates/ely-ipc/src/relay.rs	expect_used	self.last.lock().expect("the relay lock")	linux,macos,windows	the relay lock
-crates/ely-lok/src/client.rs	expect_used	child.stderr.take().expect("piped stderr")	linux,macos,windows	piped stderr
-crates/ely-lok/src/client.rs	expect_used	child.stdin.take().expect("piped stdin")	linux,macos,windows	piped stdin
-crates/ely-lok/src/client.rs	expect_used	child.stdout.take().expect("piped stdout")	linux,macos,windows	piped stdout
 crates/ely-lok/src/client/feed.rs	expect_used	fresh.take().expect("checked above")	linux,macos,windows	checked above
 crates/ely-lok/src/client/feed.rs	expect_used	fresh.take().expect("checked above")	linux,macos,windows	checked above
 crates/ely-lok/src/client/feed.rs	expect_used	self .0 .1 .wait_timeout(docs, deadline - now) .expect("the feed wait")	linux,macos,windows	the feed wait

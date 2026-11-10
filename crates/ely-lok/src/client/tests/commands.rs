@@ -224,7 +224,7 @@ fn a_kernel_dialog_is_closed_and_reported() {
     std::thread::spawn(move || {
         let dir = tempfile::tempdir().expect("a temp dir");
         let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
-        pid_out.send(worker.child.id()).expect("the test waits");
+        pid_out.send(worker.child.get().expect("the worker process").id()).expect("the test waits");
         let source = dir.path().join("in.fods");
         write(&source, FODS);
         let doc = worker

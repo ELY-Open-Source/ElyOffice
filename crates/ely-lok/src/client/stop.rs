@@ -2,7 +2,7 @@
 
 use std::{
     io,
-    sync::{Arc, Mutex, MutexGuard, PoisonError},
+    sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError},
 };
 
 use super::Worker;
@@ -10,24 +10,33 @@ use super::Worker;
 /// The worker's process id, good until anything reaps it.
 #[derive(Clone)]
 pub struct Stopper {
-    pid: u32,
+    /// Set once the spawn returns.
+    pid: Arc<OnceLock<u32>>,
     reaped: Arc<Mutex<bool>>,
 }
 
 impl Stopper {
-    pub(super) fn new(pid: u32) -> Self {
-        Self { pid, reaped: Arc::new(Mutex::new(false)) }
+    pub(super) fn new() -> Self {
+        Self { pid: Arc::default(), reaped: Arc::new(Mutex::new(false)) }
+    }
+
+    /// The spawn returned this process.
+    pub(super) fn started(&self, pid: u32) {
+        if self.pid.set(pid).is_err() {
+            log::error!("lok: a worker's process started twice");
+        }
     }
 
     /// Kills the process unless something reaped it first.
     pub fn stop(&self) -> io::Result<()> {
         // Held while killing, so no reap slips between.
         let reaped = self.gate();
-        if *reaped {
+        // The spawn held the gate; no id means it failed.
+        let Some(&pid) = self.pid.get().filter(|_| !*reaped) else {
             return Ok(());
-        }
-        log::warn!("lok: the worker {} is stopped while it works", self.pid);
-        kill(self.pid)
+        };
+        log::warn!("lok: the worker {pid} is stopped while it works");
+        kill(pid)
     }
 
     /// Held across a reap: a reaped id may be reused.
@@ -54,7 +63,7 @@ impl Worker {
     /// Why the worker process ended, if it has.
     pub fn ended(&mut self) -> Option<String> {
         let mut reaped = self.stopper.gate();
-        match self.child.try_wait() {
+        match self.child.get().and_then(|child| child.try_wait()) {
             Ok(Some(status)) => {
                 *reaped = true;
                 Some(status.to_string())

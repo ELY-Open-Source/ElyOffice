@@ -88,8 +88,7 @@ impl Worker {
     /// Stops a worker that failed its check; says why.
     fn start_failed(&mut self, error: io::Error) -> io::Error {
         *self.stopper.gate() = true;
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        self.child.end();
         // No document but the check's own is open yet.
         let lines = Vec::from(self.stderr.said().lines).join(" | ");
         let (install, profile, _) = &self.start;
