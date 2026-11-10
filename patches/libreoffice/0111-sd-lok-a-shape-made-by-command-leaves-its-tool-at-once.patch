@@ -1,0 +1,27 @@
+LOK: a shape made by a command leaves its tool at once
+
+Under the kit a shape command makes its default object directly, then
+goes back to the selection tool with an asynchronous dispatch. Until
+that user event runs, the construction tool still owns the mouse. A
+client that presses on the new object first has the press taken by
+the old tool; the queued switch then ends that tool's action and the
+release finds nothing held. On macOS, where a client's calls and the
+kit's user events reach the main thread from two queues, about one
+press in ten on a new connector's end was lost this way (Ely R17.2).
+The direct path is not inside the tool's own handler, so under the
+kit the switch is dispatched synchronously.
+
+--- a/sd/source/ui/view/drviewse.cxx
++++ b/sd/source/ui/view/drviewse.cxx
+@@ -755,7 +755,10 @@
+ 
+     if (bRectangle && !bPermanent)
+     {
+-        GetViewFrame()->GetDispatcher()->Execute(SID_OBJECT_SELECT, SfxCallMode::ASYNCHRON);
++        // Ely: a kit client's input may beat a queued switch.
++        const SfxCallMode eMode = comphelper::LibreOfficeKit::isActive() ? SfxCallMode::SYNCHRON
++                                                                         : SfxCallMode::ASYNCHRON;
++        GetViewFrame()->GetDispatcher()->Execute(SID_OBJECT_SELECT, eMode);
+     }
+ }
+ 

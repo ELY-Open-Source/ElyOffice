@@ -1,0 +1,32 @@
+LOK: a drag in Impress outlives an unfocused window
+
+While an action runs, DrawViewShell::MouseMove asks whether the mouse
+left the window: a position outside the output area, with the window
+not focused, releases the mouse and breaks the action. Under the kit
+the event carries a logic position, which is almost never inside the
+window's few pixels, so the answer hangs on HasFocus() alone. On
+macOS, where the kit's window gains and loses focus on the system's
+own time, about one drag in ten posted through setGraphicSelection
+ended there: the handle was picked, the drag begun, and the move that
+follows the press dropped it (Ely R17.2). A kit client has no window
+edge to leave; the test is skipped under the kit.
+--- a/sd/source/ui/view/drviews4.cxx
++++ b/sd/source/ui/view/drviews4.cxx
+@@ -36,6 +36,7 @@
+ #include <sfx2/viewfrm.hxx>
+ #include <editeng/editview.hxx>
+ #include <comphelper/diagnose_ex.hxx>
++#include <comphelper/lok.hxx>
+ #include <vcl/cursor.hxx>
+ #include <vcl/commandevent.hxx>
+ #include <vcl/dialoghelper.hxx>
+@@ -357,7 +358,8 @@
+     if ( IsInputLocked() )
+         return;
+ 
+-    if ( mpDrawView->IsAction() )
++    // Ely: a kit position is no pixel.
++    if ( mpDrawView->IsAction() && !comphelper::LibreOfficeKit::isActive() )
+     {
+         ::tools::Rectangle aOutputArea(Point(0,0), GetActiveWindow()->GetOutputSizePixel());
+ 
