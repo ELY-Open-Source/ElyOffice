@@ -174,6 +174,32 @@ mod tests {
         assert!(!refused(ca()), "with no path length the chain stands");
     }
 
+    /// Unicode 4.0 changed five mappings; RFC 4518 reads 3.2.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn five_ideographs_fold_as_unicode_3_2_folded_them() {
+        let root = made("Ely test root", NOW, ca(), None, vec![]);
+        let none_below = || rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
+        let refused = |upper: char, middle: char| {
+            let upper = made(format!("Ely test {upper}"), NOW, none_below(), Some(&root), vec![]);
+            let middle = made(format!("Ely test {middle}"), NOW, ca(), Some(&upper), vec![]);
+            let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
+            untrusted(&[signer.der, middle.der, upper.der], &root)
+        };
+        // The ideograph, its 3.2 equivalent, today's.
+        let changed = [
+            ('\u{2F868}', '\u{2136A}', '\u{36FC}'),
+            ('\u{2F874}', '\u{5F33}', '\u{5F53}'),
+            ('\u{2F91F}', '\u{43AB}', '\u{243AB}'),
+            ('\u{2F95F}', '\u{7AAE}', '\u{7AEE}'),
+            ('\u{2F9BF}', '\u{4D57}', '\u{45D7}'),
+        ];
+        for (ideograph, then, now) in changed {
+            assert!(refused(now, ideograph), "{ideograph:?} under today's mapping is another name: it counts");
+            assert!(!refused(then, ideograph), "{ideograph:?} is the name 3.2 made it: a rollover");
+        }
+    }
+
     /// The same bytes under two string types are two names.
     #[cfg(target_os = "linux")]
     #[test]

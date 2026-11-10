@@ -14,7 +14,7 @@ root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().pare
 RULES = [
     ("crates/", (".rs", ".c", ".h")),
     ("apps/", (".rs",)),
-    ("scripts/", (".sh",)),
+    ("scripts/", (".sh", ".py")),
     ("tests/", (".sh", ".py", ".swift", ".c", ".js", ".mjs")),
     ("packaging/", (".sh", ".nsi", ".py", ".swift")),
     ("patches/", (".patch",)),

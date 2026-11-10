@@ -98,7 +98,7 @@ def read(output):
         found[(*at, kind)] = expression(span)
     taken = set()
     for at, kind, _ in spans:
-        # A call's own hit: the innermost of its kind within it.
+        # A call's own hit: the innermost of its kind.
         own = [
             hit for hit, (where, theirs, span) in enumerate(inside)
             if hit not in taken and theirs == kind and span.get("expansion") is None

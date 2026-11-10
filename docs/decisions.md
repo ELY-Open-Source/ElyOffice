@@ -703,3 +703,21 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
   - ElyMark：正在某段里打字时别的程序做替换，其后的键全丢。组件库的 `MarkdownDocument::replace` 一上来就把打开的块写回并收起，焦点留在已不存在的输入框上。改在组件库：替换没碰到打开的块时，块原样开着、范围随它之前的替换平移，替换的位置由“含未写回键入的文字”换算到编辑器里的字节；替换伸进打开的块时照旧先写回并收起（这一段的源已被改）。组件库测试 `typing_goes_on_after_a_replacement_before_or_after_the_block`、`a_replacement_inside_the_open_block_writes_it_back`，ElyMark 测试 `typing_goes_on_where_it_was_after_another_program_replaces`。帮助补上原先缺的“ElyMark 的命令行”一节。
 - 最终一次（五个应用同时：ElyDoc、ElyTable、ElyShow、ElyMark 各 20 份大样本，ElyPDF 20 份各 1000 页；命令行三轮改遍每个应用的 20 份、连前台那份，再全部保存）：没有崩溃，没有互相锁死，主线程无停顿，worker 都在；每个键、每处命令行的改动都从存下的文件里读回。空闲时按键 P95 为 19 至 38 毫秒。命令行忙时超过 100 毫秒的键：ElyDoc 30 键里 6 个（最长 449 毫秒），ElyTable 4 个（182 毫秒），ElyShow 13 个（234 毫秒），ElyMark 与 ElyPDF 没有。这些键各等的是内核里正在做的一次大载入、整份替换或重算——内核一个线程，做到一半不可打断；要根除须每份文档一个内核进程，不在这一轮。记录在 `docs/perf/2026-11-10-AMD-Ryzen-9-9950X3D-16-Core-Processor-Linux-load-20.md` 与同日的 `pdf-load-20`。Windows 与 macOS 的真窗口未跑这一项。
 
+## 2026-11-10 main 上的 `pr.yml` 红了三天：SQLite 的安全公告（R18.33 的前提）
+
+- 查 R18.26 的审查发现时看到：`pr.yml` 自 2026-11-07 的 `dc32744d` 之后在 main 上每次都失败，停在“许可、公告与来源”一步——RUSTSEC-2026-0459（CVE-2026-119375）：`libsqlite3-sys` 0.39.0 之前随带的 SQLite（3.54.0 之前）在打开数据库与页大小不符的 `-wal` 文件时会读出未初始化的内存；ElyMail 的本地邮件库经 `rusqlite` 的 `bundled` 用它。这一步先败，其后的 panics、clippy 与测试三十多个提交都没在 CI 上跑；`scripts/panics.tsv` 里一条已不存在的行（`crates/ely-lok/src/view/lane.rs` 的 worker 锁）因此没被查出。
+- 改法：`rusqlite` 由 0.40 升到 0.41（`libsqlite3-sys` 0.39.1，随带修好的 SQLite）；ElyMail 引擎、替身服务器与应用的测试照过。panics 表去掉那一行。ElyMail 只开自己数据目录下的库，受影响的前提（别人能写入该目录的 `-wal`）平时不成立，但随带的库照升。
+- 教训照实记：门是红的而提交照进，是因为没人看 main 上的结果；R18.33 让发布拒绝 `pr.yml` 不成功的提交。
+
+## 2026-11-10 第 3 轮审查后的改正（R18.19、R18.23、R18.26）
+
+- R18.19（信任，Linux，三轮用尽后修，记 `[~]`）：RFC 4518 的名字准备引的是 Unicode 3.2 的规范化。前两轮补了字符串类型与“3.2 未分配的字符”，第三轮查出还差一处：Unicode 4.0 改了五个兼容表意字的映射（Corrigendum 4：U+2F868、U+2F874、U+2F91F、U+2F95F、U+2F9BF），现行的 NFKC 把它们化成与 3.2 不同的字，路径长度可被绕过，合法的同名换钥又被拒。规范化前先把这五个字换成 3.2 给的字。以 Python 的 `unicodedata.ucd_3_2_0` 对全部码位逐个对照 NFC、NFKC、NFKD：3.2 已分配的字里，现行规范化与 3.2 不同的只有这五个。
+- R18.23：`scripts/vendor-gpui.sh` 的临时目录若落在某个 Git 仓库里（`TMPDIR` 设在工作树内），`git apply` 把路径当成仓库子目录之外而全部跳过、仍返回 0：check 报四个 crate 不符，write 会把未打补丁的原版盖进 vendor。临时目录先 `git init`。
+- R18.26：`scripts/compatibility.py` 一行注释十一个词。门漏查的根因是 `tests/scripts/comments.py` 对 `scripts/` 只查 `.sh`；补上 `.py`，随即查出 `scripts/panics.py` 与 `scripts/test-map.py` 各一行，一并缩短。
+
+## 2026-11-10 Windows 主机上的实测（R18.9）
+
+- Windows 主机（8 核，自建内核：Cygwin 加 clang-cl，`scripts/build-libreoffice.sh`，补丁到 0112）上跑带内核的 `ely-lok` 测试。R18.9 的 DDE 一项：带补丁 0107 通过；`git apply -R` 撤掉 0107、`make` 重建后同一测试失败（本 worker 出现在答应 DDE 服务名的进程里），再打上、重建后通过。
+- 同一次整套 `cargo test -p ely-lok --features view --lib`：439 项通过，35 项失败，失败的全是往返用例里调用 `python3` 的（那台机器的 `python3` 是应用商店的占位程序，Python 装的是 `python.exe`）：环境所缺，不是产品缺陷；补上 `python3` 后重跑的结果另记。
+- 顺带（N-09，未定论）：照 `pr.yml` 在本机跑“不需引擎的全部测试”时，ElyTree 的 `a_refused_credential_says_so` 失败一次（60 秒未等到“terminal prompts disabled”）；单跑与整套 ElyTree 连跑三次都过，没能复现。测试里的替身服务器一次只接一个连接、读到数据才答：某个连接若迟迟不发数据，后面的连接都得等。改为每个连接一个线程。是不是这次失败的原因没有证据，留给 R18.34 的十次连跑看。
+

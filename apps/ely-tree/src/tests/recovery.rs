@@ -170,14 +170,16 @@ fn a_refused_credential_says_so() {
         server.local_addr().expect("an address")
     );
     std::thread::spawn(move || {
-        for stream in server.incoming().flatten() {
-            use std::io::{Read as _, Write as _};
-            let mut stream = stream;
-            let mut buffer = [0u8; 4096];
-            let _ = stream.read(&mut buffer);
-            let _ = stream.write_all(
-                b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"x\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-            );
+        for mut stream in server.incoming().flatten() {
+            // A connection that sends nothing holds no other.
+            std::thread::spawn(move || {
+                use std::io::{Read as _, Write as _};
+                let mut buffer = [0u8; 4096];
+                let _ = stream.read(&mut buffer);
+                let _ = stream.write_all(
+                    b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"x\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                );
+            });
         }
     });
     sh(&root, &["remote", "add", "origin", &url]);

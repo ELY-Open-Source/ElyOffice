@@ -169,6 +169,7 @@ fn prepared(text: &str) -> Option<String> {
             _ if c.is_whitespace() => ' ',
             _ => c,
         })
+        .map(as_3_2)
         .flat_map(tables::case_fold_for_nfkc)
         .collect();
     let normal: String = mapped.nfkc().collect();
@@ -184,6 +185,18 @@ fn prepared(text: &str) -> Option<String> {
         return None;
     }
     Some(spaced(&normal))
+}
+
+/// The five ideographs Unicode 4.0 mapped anew, as 3.2 did.
+fn as_3_2(c: char) -> char {
+    match c {
+        '\u{2F868}' => '\u{2136A}',
+        '\u{2F874}' => '\u{5F33}',
+        '\u{2F91F}' => '\u{43AB}',
+        '\u{2F95F}' => '\u{7AAE}',
+        '\u{2F9BF}' => '\u{4D57}',
+        _ => c,
+    }
 }
 
 /// RFC 4518 2.6.1: spaces before a mark count.

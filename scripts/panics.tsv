@@ -204,7 +204,6 @@ crates/ely-lok/src/view/formula.rs	expect_used	vcl_key(keystroke).expect("Enter 
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("shift-tab").expect("a keystroke")	linux,macos,windows	a keystroke
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("tab").expect("a keystroke")	linux,macos,windows	a keystroke
 crates/ely-lok/src/view/lane.rs	expect_used	self.inputs.unbounded_send((seq, input, Instant::now())).expect("the input queue lives with the view")	linux,macos,windows	the input queue lives with the view
-crates/ely-lok/src/view/lane.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/off.rs	expect_used	TURNS.lock().expect("the turns")	linux,macos,windows	the turns
 crates/ely-lok/src/view/off.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
 crates/ely-lok/src/view/reveal.rs	expect_used	wanted.lock().expect("the wanted lock")	linux,macos,windows	the wanted lock

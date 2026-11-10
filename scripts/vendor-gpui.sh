@@ -17,6 +17,8 @@ gpui-pre-windows 5141a3db59bab761a16ab19529fe4117a86e91922e8fc00af6dfc4829cb1744
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir "$work/vendor"
+# Inside another repository git apply skips every path.
+git init -q "$work"
 while read -r name sum; do
   crate=$work/$name.crate
   curl -fsSL -o "$crate" "https://static.crates.io/crates/$name/$name-$version.crate"

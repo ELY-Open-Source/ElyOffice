@@ -53,7 +53,7 @@ def cites(line):
 
 
 def tasks():
-    """Task lines and decisions: a label, the PRD ids, the line."""
+    """Task lines and decisions: label, PRD ids, the line."""
     for line in read("tasks/TASKS.md").splitlines():
         if m := re.match(r"- \[(.)\] (C[\d.]+[a-z]?) ", line):
             yield m.group(2) + ("" if m.group(1) == "x" else f"（{m.group(1)}）"), set(cites(line)), line

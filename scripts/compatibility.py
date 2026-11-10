@@ -8,7 +8,7 @@ import sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 PAGE = "docs/compatibility.md"
 MARK = "<!-- 下两行由 scripts/compatibility.py 写出，勿手改 -->"
-# Each pinned commit's release name; a new pin is named here.
+# Each pinned commit's release name; a new pin goes here.
 NAMED = {
     "8221e31b3ac356a1623c672912a3d2b492f7e3d1": "26.2.6.3",
     "8ad45e92f0935d3d87f1db3f873086472a5e1b24": "1.28.5",
