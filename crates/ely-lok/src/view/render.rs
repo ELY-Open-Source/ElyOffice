@@ -85,6 +85,7 @@ impl Render for LokView {
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up_out))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
             .on_scroll(cx.listener(Self::on_wheel))
+            .on_drop(cx.listener(Self::on_drop))
             .on_pinch(cx.listener(Self::on_pinch))
             .child(
                 canvas(

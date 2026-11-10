@@ -30,7 +30,7 @@ fn pause(worker: &mut Worker, doc: &Doc) {
 }
 
 /// A solid PNG on disk, as a file URL.
-pub(super) fn png(dir: &std::path::Path, name: &str, rgba: [u8; 4]) -> String {
+pub(crate) fn png(dir: &std::path::Path, name: &str, rgba: [u8; 4]) -> String {
     let mut bytes = Vec::new();
     image::RgbaImage::from_pixel(300, 200, image::Rgba(rgba))
         .write_to(

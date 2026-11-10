@@ -222,6 +222,8 @@ impl Engine for Lok {
         })
         .detach();
         cx.subscribe(view, move |host, view, linked: &ely_lok::Linked, cx| follow(host, view, &linked.0, cx)).detach();
+        // Dropped files that are no pictures open as files do.
+        cx.subscribe(view, |_, _, dropped: &ely_lok::Dropped, cx| ely_ui::open_dropped(H::KIND.app, &dropped.0, cx)).detach();
         // The status shows the zoom.
         cx.subscribe(view, |_, _, _: &ely_lok::Zoomed, cx| cx.notify()).detach();
         cx.subscribe(view, move |host, view, _: &Reported, cx| {

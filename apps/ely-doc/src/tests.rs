@@ -459,6 +459,7 @@ fn an_outside_change_asks_and_keep_mine_overwrites() {
     );
 }
 
+mod dropped;
 pub(crate) mod find;
 mod focus;
 mod front;

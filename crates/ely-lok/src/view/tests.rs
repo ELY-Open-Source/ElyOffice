@@ -4,6 +4,7 @@ mod borders;
 mod busy;
 mod clip;
 mod commands;
+mod dropped;
 mod edge;
 mod fit;
 mod formula;
@@ -31,11 +32,7 @@ fn geom_converts_both_ways() {
         dpi: 2.0,
     };
     assert_eq!(base.px_of(TILE_TWIPS), 256.0, "one tile is 256 logical px");
-    assert_eq!(
-        base.twips_of(256.0),
-        TILE_TWIPS,
-        "256 logical px is one tile"
-    );
+    assert_eq!(base.twips_of(256.0), TILE_TWIPS, "256 logical px is one tile");
     assert_eq!(base.tile_pixels(), 512, "the texture is 512 device px");
 }
 

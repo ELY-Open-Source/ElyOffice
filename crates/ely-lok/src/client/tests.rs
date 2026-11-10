@@ -34,7 +34,7 @@ mod spill;
 pub(crate) mod input;
 mod freed;
 mod latency;
-mod layout;
+pub(crate) mod layout;
 mod linked;
 mod logs;
 mod links;

@@ -32,7 +32,7 @@ mod panes;
 mod reading;
 mod reads;
 mod relay;
-pub use relay::{Closed, Linked};
+pub use relay::{Closed, Dropped, Linked};
 mod render;
 mod reveal;
 mod zoom;
