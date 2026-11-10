@@ -11,8 +11,10 @@ mod runner;
 use crate::{book::Book, dialog::Dialog};
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant},
+    feedback::Alert,
     forms::{Input, TextInput},
     overlays::Dialog as Card,
+    primitives::Severity,
 };
 use ely_office::{in_window, prelude::*};
 use gpui::{
@@ -31,6 +33,16 @@ use std::{
 const EXAMPLE: &str = include_str!("example.R");
 actions!(ely_table, [RunRMacro]);
 
+/// What the user has said to running the code (TABLE-17).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Consent {
+    /// Nothing ran in this session yet.
+    First,
+    /// The code came from a file since the last yes.
+    File,
+    Given,
+}
+
 pub struct Editor {
     pub tab: u64,
     pub code: Entity<TextInput>,
@@ -39,6 +51,8 @@ pub struct Editor {
     pub running: Option<Arc<AtomicBool>>,
     /// The file request whose result this editor takes.
     pub asked: Option<u64>,
+    /// Run was pressed; this warning waits for an answer.
+    pub warned: Option<Consent>,
 }
 
 impl Editor {
@@ -95,7 +109,7 @@ impl Book {
             })
             .clone();
         let output = String::new();
-        self.open_dialog(Dialog::RMacro(Box::new(Editor { tab, code, output, running: None, asked: None })));
+        self.open_dialog(Dialog::RMacro(Box::new(Editor { tab, code, output, running: None, asked: None, warned: None })));
         cx.notify();
     }
 
@@ -130,12 +144,32 @@ impl Book {
         }
     }
 
+    /// The warning's answer: yes runs the code as it stands.
+    fn answer_r(&mut self, yes: bool, cx: &mut Context<Self>) {
+        let Some(Dialog::RMacro(editor)) = &mut self.dialog else {
+            return;
+        };
+        editor.warned = None;
+        log::info!("table: R macro warning answered {yes}");
+        if yes {
+            self.r_consent = Consent::Given;
+            return self.execute_r(cx);
+        }
+        cx.notify();
+    }
+
     fn execute_r(&mut self, cx: &mut Context<Self>) {
         let Some(Dialog::RMacro(editor)) = &mut self.dialog else {
             return;
         };
         if editor.running.is_some() {
             return;
+        }
+        // R is no sandbox: unseen code asks first.
+        if self.r_consent != Consent::Given {
+            log::info!("table: R macro waits for the user's yes ({:?})", self.r_consent);
+            editor.warned = Some(self.r_consent);
+            return cx.notify();
         }
         editor.output.clear();
         let (tab, script) = (editor.tab, editor.code.read(cx).text().to_string());
@@ -265,6 +299,19 @@ pub fn dialog(
         .child(Book::text(cx, "table.r.permissions", &[]))
         .child(Input::new(&editor.code))
         .child(div().id("r-output").max_h_40().overflow_y_scroll().child(editor.output.clone()));
+    if let Some(why) = editor.warned {
+        let key = if why == Consent::File { "table.r.warn.file" } else { "table.r.warn.first" };
+        let (no, yes) = (this.clone(), this);
+        let (no_label, yes_label) = (Book::text(cx, "table.r.decline", &[]), Book::text(cx, "table.r.agree", &[]));
+        return Card::new("table-r-macro", Book::text(cx, "table.r.title", &[]), dismiss)
+            .child(content.child(Alert::new("r-warning", Severity::Warning, Book::text(cx, key, &[]))))
+            .action(move |_| Button::new("r-decline", no_label).on_click(move |_, _, cx| no.update(cx, |book, cx| book.answer_r(false, cx))))
+            .action(move |_| {
+                Button::new("r-agree", yes_label)
+                    .variant(ButtonVariant::Danger)
+                    .on_click(move |_, _, cx| yes.update(cx, |book, cx| book.answer_r(true, cx)))
+            });
+    }
     let (open, save) = (this.clone(), this.clone());
     let running = editor.running.is_some();
     let open_label = Book::text(cx, "table.r.open", &[]);

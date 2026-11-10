@@ -72,6 +72,8 @@ pub struct Book {
     pub undo_menu: (bool, bool),
     /// The R editor's code, kept between openings.
     pub r_code: Option<Entity<ely_gpui_component::forms::TextInput>>,
+    /// Whether the user agreed to run the R code.
+    pub r_consent: crate::macros::Consent,
 }
 
 impl Host for Book {
@@ -220,6 +222,7 @@ impl Book {
             imports: Default::default(),
             undo_menu: (false, false),
             r_code: None,
+            r_consent: crate::macros::Consent::First,
         }
     }
 

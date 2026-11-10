@@ -75,6 +75,8 @@ impl Book {
         let note = match result {
             Ok(Some(text)) if editor.code.read(cx).text() == typed => {
                 editor.code.update(cx, |code, cx| code.set_text(text, cx));
+                // A file's code is unseen: the next run asks.
+                self.r_consent = super::Consent::File;
                 None
             }
             Ok(Some(_)) => Some(Self::text(cx, "table.r.kept", &[]).to_string()),
@@ -217,5 +219,50 @@ mod tests {
         opened(&mut cx);
         land(&mut cx, 4, "newer <- 2", "closed <- 4");
         assert_eq!(code(&mut cx, &book), "newer <- 2");
+    }
+
+    #[test]
+    fn unseen_code_runs_only_after_a_yes() {
+        use crate::macros::Consent;
+        let dir = tempfile::tempdir().expect("directory");
+        let mut cx = TestAppContext::single();
+        let Some((window, book)) = book(&mut cx, dir.path()) else {
+            return eprintln!("SKIP: no LOK build");
+        };
+        cx.update(ely_gpui_component::init_for_tests);
+        update(&mut cx, &book, |book, cx| book.new_blank(cx));
+        settle(&cx, |app| book.read(app).active_tab().is_some());
+        cx.update_window(window.into(), |_, window, app| book.update(app, |book, cx| book.on_r_macro(&RunRMacro, window, cx)))
+            .expect("the window lives");
+        // Warning shown, R started or said why not, consent.
+        let state = |cx: &mut TestAppContext| {
+            cx.update(|app| match &book.read(app).dialog {
+                Some(Dialog::RMacro(editor)) => (editor.warned, editor.running.is_some() || !editor.output.is_empty(), book.read(app).r_consent),
+                _ => panic!("the R editor is open"),
+            })
+        };
+        let press = |cx: &mut TestAppContext| update(cx, &book, |book, cx| book.execute_r(cx));
+        let answer = |cx: &mut TestAppContext, yes| update(cx, &book, |book, cx| book.answer_r(yes, cx));
+        press(&mut cx);
+        assert_eq!(state(&mut cx), (Some(Consent::First), false, Consent::First), "the session's first run asks");
+        answer(&mut cx, false);
+        assert_eq!(state(&mut cx), (None, false, Consent::First), "a no runs nothing and keeps asking");
+        press(&mut cx);
+        answer(&mut cx, true);
+        assert_eq!(state(&mut cx), (None, true, Consent::Given), "a yes goes on to run");
+        // A file's code lands: the yes is spent.
+        update(&mut cx, &book, |book, _| {
+            if let Some(Dialog::RMacro(editor)) = &mut book.dialog {
+                editor.running = None;
+                editor.output.clear();
+            }
+        });
+        let typed = code(&mut cx, &book);
+        ask(&mut cx, &book, 1);
+        update(&mut cx, &book, |book, cx| book.r_filed(1, &typed, Ok(Some("from_a_file <- 1".into())), cx));
+        press(&mut cx);
+        assert_eq!(state(&mut cx), (Some(Consent::File), false, Consent::File), "a file's code asks before it runs");
+        answer(&mut cx, false);
+        assert_eq!(state(&mut cx), (None, false, Consent::File), "and stays unrun after a no");
     }
 }
