@@ -59,11 +59,11 @@ built with patch 0081.
 
 ## Release
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`, five jobs that wait for no other. Self-hosted runners build macOS (arm64, and Intel under Rosetta), Windows and Linux x86_64 (in WSL) with `scripts/ci.sh`; GitHub's hosted `ubuntu-24.04-arm` runner builds Linux arm64 with the same container. Each job uploads its packages and update manifests; x86_64 Linux alone uploads the source archives. Each Linux job also builds `ely-office`, one deb, rpm and Arch package that holds every app and one copy of the LibreOffice kernel for ElyDoc, ElyTable and ElyShow (`packaging/linux/bundle.sh`). macOS builds are signed and notarized.
+Pushing a `v*` tag runs `.github/workflows/release.yml`, five jobs that wait for no other. Each job first checks the gates and builds nothing if one fails: the release notes state how many fixes were not reviewed again and why a release comes less than seven days after the last (`scripts/release-gate.py`); `docs/perf/` holds this version's benchmark for the system, with a reason for each case over 30% slower (`tests/perf/baseline.py`); `pr.yml` passed on the tagged commit. Self-hosted runners build macOS (arm64, and Intel under Rosetta), Windows and Linux x86_64 (in WSL) with `scripts/ci.sh`; GitHub's hosted `ubuntu-24.04-arm` runner builds Linux arm64 with the same container. Each job uploads its packages and update manifests; x86_64 Linux alone uploads the source archives. Each Linux job also builds `ely-office`, one deb, rpm and Arch package that holds every app and one copy of the LibreOffice kernel for ElyDoc, ElyTable and ElyShow (`packaging/linux/bundle.sh`). macOS builds are signed and notarized.
 
 ## Tests
 
-`cargo test --workspace`; the script tests in `tests/scripts`, listed in its README (the window tests need macOS Accessibility permission; Linux tests run in containers); the benchmarks `tests/perf/bench.py` and `tests/perf/folder-search.rs`.
+`cargo test --workspace`; the script tests in `tests/scripts`, listed in its README (the window tests need macOS Accessibility permission; Linux tests run in containers); the benchmarks `tests/perf/bench.py` and `tests/perf/folder-search.rs`; the load tests `tests/perf/load.py` (many large documents open and edited at once, the command line editing the one being typed in) and `tests/perf/pdfs.py`, on Linux through `tests/perf/linux.sh`.
 
 ## Documents
 
