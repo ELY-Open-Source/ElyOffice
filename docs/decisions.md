@@ -541,3 +541,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 包的依赖不写死数字：`package.sh` 读包内每个 ELF 的版本需求表，取最高的 glibc 版本写进依赖（deb `libc6 (>= 2.28)`，rpm `libc.so.6(GLIBC_2.28)(64bit)`，Arch `glibc>=2.28`）。二进制的需求变了，依赖随之变，不会再与检查各说各的。
 - 随包的 `libsystemd`、`libmount`、`libblkid` 等十个库都只因一条链进来：`keyring` 的 Secret Service 后端链接 libdbus，linuxdeploy 把容器里 libdbus 所载入的库一并拷进包。应用自己不用它们；包里带一份 EL8 的 libsystemd，既旧，也没有随带其许可。改为 libdbus 与它所载入的库都用系统的（linuxdeploy 的 `--exclude-library`，十个名字），`depends.tsv` 加 `libdbus-1.so.3` 一行，包管理器装上发行版自己的。包内别的文件若真要其中某个库，`elfs.sh` 会报出、`depends.tsv` 没有对应行即打包失败。AppImage 因此要求系统有 `libdbus-1.so.3`，与它本来就要的 libvulkan、libwayland、libxcb 同属桌面系统必有的库。
 - 实测（本机，容器里打包 ElyPDF）：包内 `lib/` 余 `libXau`、`libxcb-xkb`、`libxkbcommon`、`libxkbcommon-x11` 四个；deb 在 Debian 11、rpm 在 Fedora 44、Arch 包在 Arch 容器里装上，每个 ELF 都找得到库，libdbus 取自系统；AppImage 在 Omarchy 上 `ELY_SMOKE=1` 画出一帧。Nix：照 `flake.nix` 以 `appimageTools.wrapType2`（同样三个 `extraPkgs`）包这份 AppImage，在 nixos/nix 容器的 Xvfb 下开出窗口，其环境自带 libdbus，flake 不必改。七个应用的全量 `linux-packages.sh` 待内核建好后在 R18.1 一并跑。
+
+## 2026-11-10 agents.md 减到 30 KB 以内（R18.24，审计 N-12）
+
+- `agents.md` 两周里从 29 KB 长到 58 KB，每个会话都整份读入。测试脚本的清单（93 行）原样移到 `tests/scripts/README.md`，测试样本的清单移到 `tests/fixtures/README.md`，组件库与 gpui 的三行上游待办移到 `docs/accessibility.md` 的“上游待办”一节；`review.sh`、源码包、官网部署、命令行、R 宏、性能与内置样式名七处改为规则加指向（细节原已在 `docs/help.md`、`docs/r-macros.md` 与本文件）。移动由脚本按字节做，没有重打一个字。现 29.5 KB。
+- 防再长：`scripts/check.sh` 加一条规则，`agents.md` 超过 30000 字节即败（`check-rules.sh` 以 30000 与 30001 字节各一例核对）；新的细节写进 docs，`agents.md` 只留规则与指向。

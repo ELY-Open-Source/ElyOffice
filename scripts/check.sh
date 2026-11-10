@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The project's rules: file length, comments, line endings.
+# The project's rules: file length, guide size, comments, line endings.
 set -euo pipefail
 
 root=${1:-$(cd "$(dirname "$0")/.." && pwd)}
@@ -15,6 +15,12 @@ long=$(cd "$root" && xargs -0 awk 'FNR == 1 && NR > 1 && n > 500 {print name ": 
 if [ -n "$long" ]; then
   echo "FAIL: files over 500 lines:"
   echo "$long"
+  failed=1
+fi
+# Every session reads the whole agent guide.
+guide=$root/agents.md
+if [ -f "$guide" ] && [ "$(wc -c <"$guide")" -gt 30000 ]; then
+  echo "FAIL: agents.md is $(wc -c <"$guide") bytes, over 30000: move detail into docs"
   failed=1
 fi
 python3 "$here/tests/scripts/comments.py" "$root" || failed=1

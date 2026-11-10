@@ -63,7 +63,7 @@ Pushing a `v*` tag runs `.github/workflows/release.yml`, five jobs that wait for
 
 ## Tests
 
-`cargo test --workspace`; the script tests in `tests/scripts` (the window tests need macOS Accessibility permission; Linux tests run in containers); the benchmarks `tests/perf/bench.py` and `tests/perf/folder-search.rs`.
+`cargo test --workspace`; the script tests in `tests/scripts`, listed in its README (the window tests need macOS Accessibility permission; Linux tests run in containers); the benchmarks `tests/perf/bench.py` and `tests/perf/folder-search.rs`.
 
 ## Documents
 
@@ -71,6 +71,8 @@ Pushing a `v*` tag runs `.github/workflows/release.yml`, five jobs that wait for
 | --- | --- |
 | `PRD.md` | Requirements |
 | `agents.md` | Stack, rules and commands; the single source of truth |
+| `tests/scripts/README.md` | Each test script: what it checks and what it needs |
+| `tests/fixtures/README.md` | Each shared test sample |
 | `tasks/TASKS.md` | Progress |
 | `docs/decisions.md` | Decision log, by date |
 | `docs/help.md` | Help: opening and saving, panels, recovery, offline limits, repositories, mail |

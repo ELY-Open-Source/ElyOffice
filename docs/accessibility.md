@@ -35,3 +35,13 @@
 | 非 ASCII 路径 | `paths_keep_spaces_cjk_and_case`（保存）；启动参数按当前目录取绝对路径（C20.1 修） | — |
 | 日期、数字、纸张用显式区域 | 内核载入选项固定 `Language=en-US`（`ely-lok/src/worker.rs` 的 `LOAD_OPTIONS`），公式为 Excel A1 语法；纸张取自文档本身并原样打印（C19.2） | — |
 | 改界面语言不重解释已存数值 | 同上：内核的数字区域不随界面语言，界面语言只改 Ely 的文案与选区统计的名称 | — |
+
+## 上游待办
+
+组件库与 gpui 尚缺、须在上游补的项，及其现状。
+
+| 缺口 | 现状 |
+| --- | --- |
+| 组件无 role/aria 语义：菜单、列表等控件在 AX 树仍不可见 | 上游已修核心控件（7380afb：Button、TextInput、Tabs、面板行、对话框等）；其余上游待办。项目自绘控件已自带；`overlays::PromptDialog` 以标签给字段命名见 R15.68（组件库 3aab6d4 起，现 pin 已含；真窗口核对待做） |
+| gpui 无 aria-disabled API（`AriaProperties` 无 disabled 字段） | 组件 7380afb 起以本地化 aria_description 表达；上游待办：gpui 补 API |
+| 组件内部文案未接 i18n（Ely 用到的组件已接：提示、默认占位、补全空行、字号示例，6df9ab0；查找框、排序与筛选、密码开关，a4bf696；`i18n/tests/shipped.rs` 防回退；其余组件之外：欢迎页标题、菜单项等） | 面板族文案已接 i18n（7380afb，内建 en/zh-CN），`CommentSidebar` 与 `RelativeTime` 同（408f2b0）；其余上游待办 |

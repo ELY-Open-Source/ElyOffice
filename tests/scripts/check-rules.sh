@@ -34,6 +34,12 @@ lines 501 "src/with space/long.rs"
 ! check || fail "a 501-line .rs passed"
 case $said in *"src/with space/long.rs: 501 lines"*) ;; *) fail "the long file was not named: $said" ;; esac
 rm "$work/src/with space/long.rs"
+head -c 30000 /dev/zero | tr '\0' 'a' >"$work/agents.md"
+check || fail "a 30000-byte agents.md failed: $said"
+printf a >>"$work/agents.md"
+! check || fail "a 30001-byte agents.md passed"
+case $said in *"agents.md is 30001 bytes"*) ;; *) fail "the long guide was not named: $said" ;; esac
+rm "$work/agents.md"
 mkdir -p "$work/crates/a"
 printf '// One two three four five six seven eight nine ten eleven.\n' >"$work/crates/a/a.rs"
 ! check || fail "a long comment passed check.sh"
