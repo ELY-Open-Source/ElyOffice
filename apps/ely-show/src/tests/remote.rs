@@ -235,6 +235,15 @@ fn a_replace_before_the_caret_is_told_leaves_the_box_typed_in() {
             worker.post_mouse(&doc, ely_lok::Mouse { kind, x: 11000, y: 1500, count: 1, buttons: 1, modifiers: 0 }).expect("clicks");
         }
         worker.post_key(&doc, 'a' as u32, 0).expect("types");
+        let editing = |worker: &mut ely_lok::Worker| {
+            let objects = ely_lok::show::objects(&worker.values(&doc, ely_lok::show::OBJECTS).expect("the objects")).expect("parses");
+            objects.selection.is_some_and(|selection| selection.editing)
+        };
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while !editing(&mut worker) {
+            assert!(std::time::Instant::now() < until, "the box never entered text edit");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
         // The caret is told after the next paint.
         crate::remote::replace_all(&mut worker, &doc, "cell", "CELL", None).expect("replaces");
     });

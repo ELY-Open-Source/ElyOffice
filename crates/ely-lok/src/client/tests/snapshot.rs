@@ -118,8 +118,10 @@ fn flat(worker: &mut Worker, doc: &Doc, path: &Path) -> String {
 
 /// `text` less the view's geometry, which macOS exports move.
 fn unviewed(text: &str) -> String {
-    const VIEW: [&str; 8] =
-        ["ViewAreaTop", "ViewAreaLeft", "ViewAreaWidth", "ViewAreaHeight", "VisibleTop", "VisibleLeft", "VisibleRight", "VisibleBottom"];
+    const VIEW: [&str; 12] = [
+        "ViewAreaTop", "ViewAreaLeft", "ViewAreaWidth", "ViewAreaHeight", "VisibleTop", "VisibleLeft", "VisibleRight", "VisibleBottom",
+        "VisibleAreaTop", "VisibleAreaLeft", "VisibleAreaWidth", "VisibleAreaHeight",
+    ];
     let names = VIEW.map(|name| format!(r#"config:name="{name}""#));
     text.lines().filter(|line| !names.iter().any(|name| line.contains(name.as_str()))).collect::<Vec<_>>().join("\n")
 }
