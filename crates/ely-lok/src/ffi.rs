@@ -83,7 +83,9 @@ impl Lok {
         let install_str = install.to_string_lossy().into_owned();
         let install_c = cstring(&install_str)?;
         let profile_c = cstring(profile_url)?;
+        let began = std::time::Instant::now();
         let lib = Library::open(install)?;
+        let library = began.elapsed().as_millis();
         // Before the kit starts, so no Dock icon shows.
         #[cfg(target_os = "macos")]
         accessory::hide()?;
@@ -108,7 +110,9 @@ impl Lok {
         }
         #[cfg(target_os = "macos")]
         accessory::check()?;
-        log::info!("lok: hooked {}", install_str);
+        // A slow start shows which half was slow (#79).
+        let kernel = began.elapsed().as_millis() - library;
+        log::info!("lok: hooked {install_str}: library in {library} ms, kernel in {kernel} ms");
         Ok(Self { kit, _lib: lib })
     }
 
