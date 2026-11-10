@@ -100,7 +100,8 @@ pub(crate) fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find
         worker.run_all(&now, &commands)?;
         // Unmarking ended the edit; a click reopens it.
         match (caret, marked.as_slice()) {
-            (Some((x, y, width, height)), [_]) => {
+            // The view's caret may outlive an Escape.
+            (Some((x, y, width, height)), [_]) if editing => {
                 log::info!("show: the text edit a replace ended opens again at its caret");
                 for kind in [0, 1] {
                     let at = ely_lok::Mouse { kind, x: x + width / 2, y: y + height / 2, count: 1, buttons: 1, modifiers: 0 };

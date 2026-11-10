@@ -103,10 +103,13 @@ pub trait Stopping: Host {
         cx.notify();
         let Some(stop) = self.core().stop.clone() else { return };
         log::warn!("{}: the user stops the engine under a slow load", Self::KIND.app.slug());
-        // The stuck load then fails, which checks the engine.
-        if let Err(error) = stop() {
-            crate::Tabs::engine_failed(self, &error.to_string(), cx);
-        }
+        // A stop waits for a starting spawn: not here.
+        cx.spawn(async move |this, cx| {
+            // The stuck load then fails, which checks the engine.
+            let Err(error) = cx.background_executor().spawn(async move { stop() }).await else { return Ok(()) };
+            this.update(cx, |host, cx| crate::Tabs::engine_failed(host, &error.to_string(), cx))
+        })
+        .detach_and_log_err(cx);
     }
 
     /// A slow load and its stop.

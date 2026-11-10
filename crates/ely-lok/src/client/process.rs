@@ -91,6 +91,24 @@ impl Process {
         }
     }
 
+    /// Why it ended, if it has; reaped under the gate.
+    pub(crate) fn ended(&mut self, stopper: &Stopper) -> Option<String> {
+        // The spawn takes the gate; wait for it outside.
+        let child = match self.get() {
+            Ok(child) => child,
+            Err(error) => return Some(error.to_string()),
+        };
+        let mut reaped = stopper.gate();
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                *reaped = true;
+                Some(status.to_string())
+            }
+            Ok(None) => None,
+            Err(error) => Some(error.to_string()),
+        }
+    }
+
     /// Kills and reaps it; how it ended, or why not.
     pub(crate) fn end(&mut self) -> String {
         match self.get() {
@@ -123,5 +141,26 @@ mod tests {
         assert!(error.to_string().contains("ely-no-such-worker"), "{error}");
         assert_eq!(ends.stdout.read(&mut [0; 8]).expect("reads"), 0, "the output pipe ends");
         stopper.stop().expect("nothing to stop");
+    }
+
+    #[test]
+    fn asking_whether_it_ended_lets_a_waiting_spawn_take_the_gate() {
+        let (spawned, started) = mpsc::channel();
+        let (stopper, mut process) = (Stopper::new(), Process::Starting(started));
+        let (asking, asked) = mpsc::channel();
+        let (answer, answered) = mpsc::channel();
+        let gate = stopper.clone();
+        std::thread::spawn(move || {
+            asking.send(()).expect("the test waits");
+            answer.send(process.ended(&gate)).expect("the test waits");
+        });
+        asked.recv().expect("the question is asked");
+        // As the spawn thread does: the gate, then the result.
+        std::thread::spawn(move || {
+            let _held = stopper.gate();
+            spawned.send(Err(io::Error::other("no program"))).expect("the question waits");
+        });
+        let ended = answered.recv_timeout(std::time::Duration::from_secs(5)).expect("no deadlock with the spawn");
+        assert_eq!(ended.as_deref(), Some("no program"));
     }
 }

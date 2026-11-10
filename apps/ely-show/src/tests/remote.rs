@@ -254,3 +254,47 @@ fn a_replace_before_the_caret_is_told_leaves_the_box_typed_in() {
     let first = read.split('\x0c').next().expect("a slide");
     assert!(first.contains('z') && read.contains("CELL"), "the key after the replace is lost: {read:?}");
 }
+
+#[test]
+fn a_replace_after_escape_leaves_the_edit_closed_though_the_view_still_shows_a_caret() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = super::deck(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let path = dir.path().join("deck.fodp");
+    std::fs::write(&path, DECK).expect("writes the deck");
+    update(&mut cx, &deck, |deck, cx| deck.open_file(path.clone(), cx));
+    settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.list.len() == 2));
+    quiet(&cx, &deck);
+    cx.update(|app| {
+        let deck = deck.read(app);
+        let doc = deck.active_tab().expect("a tab").doc.clone();
+        let mut worker = deck.core.worker.lock().expect("the worker lock");
+        for kind in [0, 1] {
+            worker.post_mouse(&doc, ely_lok::Mouse { kind, x: 11000, y: 1500, count: 1, buttons: 1, modifiers: 0 }).expect("clicks");
+        }
+        worker.post_key(&doc, 'a' as u32, 0).expect("types");
+    });
+    settle(&cx, |app| deck.read(app).active_tab().expect("a tab").view.read(app).caret());
+    cx.update(|app| {
+        let deck = deck.read(app);
+        let tab = deck.active_tab().expect("a tab");
+        let caret = tab.view.read(app).cursor();
+        let mut worker = deck.core.worker.lock().expect("the worker lock");
+        let editing = |worker: &mut ely_lok::Worker| {
+            let objects = ely_lok::show::objects(&worker.values(&tab.doc, ely_lok::show::OBJECTS).expect("the objects")).expect("parses");
+            objects.selection.is_some_and(|selection| selection.editing)
+        };
+        // Escape, before the view hears the caret hide.
+        worker.post_key(&tab.doc, 0, 1281).expect("escapes");
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while editing(&mut worker) {
+            assert!(std::time::Instant::now() < until, "Escape never ended the edit");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        assert!(caret.is_some() && tab.view.read(app).caret(), "the view still shows the caret");
+        crate::remote::replace_all(&mut worker, &tab.doc, "cell", "CELL", caret).expect("replaces");
+        assert!(!editing(&mut worker), "the replace reopened the edit Escape closed");
+    });
+}

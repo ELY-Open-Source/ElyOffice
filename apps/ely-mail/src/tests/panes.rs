@@ -209,18 +209,22 @@ fn picking_every_one_of_many_messages_is_quick() {
     let mut cx = TestAppContext::single();
     let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
     shows(&mail, cx, &[]);
-    let rows: Vec<Row> = (0..100_000)
-        .map(|n| Row::undated(n.to_string(), "Ann", "hi"))
-        .collect();
-    let keys: Vec<SharedString> = rows.iter().map(|row| row.key.clone()).collect();
-    let listed = boxes::index(rows);
-    cx.update(|_, app| mail.update(app, |mail, _| mail.listing.show(Some(Ok(listed)))));
-    let started = Instant::now();
-    cx.update(|_, app| mail.update(app, |mail, cx| mail.select(&keys, cx)));
-    cx.update(|_, app| mail.update(app, |mail, cx| mail.select(&keys, cx)));
-    let took = started.elapsed();
-    assert!(took < Duration::from_secs(1), "picking took {took:?}");
-    cx.update(|_, app| assert_eq!(mail.read(app).listing.selected.len(), 100_000));
+    // Picking all, twice; a busy machine slows both sizes alike.
+    let mut pick = |count: usize| {
+        let rows: Vec<Row> = (0..count).map(|n| Row::undated(n.to_string(), "Ann", "hi")).collect();
+        let keys: Vec<SharedString> = rows.iter().map(|row| row.key.clone()).collect();
+        let listed = boxes::index(rows);
+        cx.update(|_, app| mail.update(app, |mail, _| mail.listing.show(Some(Ok(listed)))));
+        let started = Instant::now();
+        cx.update(|_, app| mail.update(app, |mail, cx| mail.select(&keys, cx)));
+        cx.update(|_, app| mail.update(app, |mail, cx| mail.select(&keys, cx)));
+        let took = started.elapsed();
+        cx.update(|_, app| assert_eq!(mail.read(app).listing.selected.len(), count));
+        took
+    };
+    let (small, large) = (pick(10_000), pick(100_000));
+    // Linear grows tenfold; quadratic grows a hundredfold.
+    assert!(large < small * 30 + Duration::from_millis(100), "10k took {small:?}, 100k took {large:?}");
 }
 
 #[test]

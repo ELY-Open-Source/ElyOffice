@@ -23,6 +23,8 @@ None has been sent yet (2026-11-10). Sending needs the owner's accounts: LibreOf
 | 0080 | sal, Windows | A path of exactly 248 characters gets no `\\?\` prefix; `CreateDirectoryW` fails with error 206. | A profile path of 149 to 162 characters; the extension manager's folders land on 248. |
 | 0104 | external/liborcus | With the internal zlib, liborcus links no zlib; the first load ends with `undefined symbol: inflateInit2_`. | A Linux build with `--without-system-zlib`; open a damaged spreadsheet. |
 | 0115 | oox `ZipStorage::implCommit` | Whatever the package commit throws is caught and only warned about: the export reports success and the medium moves a zip without its central directory into place. | Make the commit fail (not run here on a full volume; Ely saw it through a snapshot stopped inside its commit, patch 0114). |
+| 0118 | oox `PowerPointImport::importDocument`, `exportDocument` | The import notes the undo manager as locked when undo is merely off (the shell turns it off while loading), still calls `lock()`, and never unlocks. The lock count stays at one, so every later `XUndoManager::lock()` is a no-op: each PPTX export records its temporary layout slides as "Delete slides", and the next undo inserts a stray slide. | Lock only when it will unlock (Ely: `saving_as_pptx_adds_nothing_to_undo`). |
+| 0119 | filter `PDFFilter::filter`, `SVGFilter::filterImpressOrDraw` | The wait cursor goes on `Application::GetFocusWindow()`, which can be a disposed window (vcl already checks for this in `ImplNewInputContext`); `dispose()` freed its `WindowImpl`, so `AddEventListener` or `EnterWait` dereferences null (Ely: SIGSEGV on macOS exporting PDF after another document closed). | Skip a disposed focus window. |
 
 ## LibreOfficeKit (core, Gerrit)
 

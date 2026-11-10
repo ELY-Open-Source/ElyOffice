@@ -790,3 +790,13 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 补正（同日）：记录里的 `"gpu": "Mesa lavapipe under Xvfb"` 是 `drive.py` 写死的字，不是量的。本机没有装 lavapipe；gpui 在 Xvfb 下列出三个适配器（RTX 4090、核显 RADV、llvmpipe），选第一个通过自测的，即 RTX 4090（应用日志 `Selected GPU adapter`）。改：Linux 主机在每个应用停下时读它日志里选中的适配器，记录列出所见的；一个都没有即失败。11-10 的负载记录照日志改正；10-28、10-29 两份没有日志可查，改为“未量”。
 - 同一次全量基准停在 ElyMail 开关写信窗口：第 2 轮多出 `/dev/nvidia0`、`/dev/nvidia-modeset` 的描述符。逐轮计数：37 个，第三个窗口时涨到 43，其后 27 轮不变，是 NVIDIA 驱动迟一步打开设备，不是泄漏。原规则要 macOS、Linux 的系统句柄每轮集合完全相同；改为：非系统的句柄留下即失败（照旧），系统句柄（Linux 加 `/dev/nvidia`、`/dev/dri/`）的总数须平稳（与内存同一条 `steady`）。Windows 照旧。
 
+
+## 2026-11-10 PPTX 每次导出都往撤销里塞“删除幻灯片”（R18.8，补丁 0118）；审查 R18.8、R18.37 第 1 轮的改正
+
+- 现象：打开 t.pptx 隐藏一页，恢复点（快照）或保存为 PPTX 之后，撤销历史多出六步“删除幻灯片”；撤销一次，演示里多出一页（10 页对 9 页）。每次 PPTX 导出还发 12 次文档尺寸变化，视图随之重画。
+- 原因：PPTX 导出逐个版式借一页临时幻灯片，写完删掉；删除经 UNO 记撤销。上游导出本来锁了撤销，却不起作用：载入时 `DrawDocShell` 先关撤销，`PowerPointImport` 见 `isLocked()` 为真，记作“原已锁住”，但仍调 `lock()`，结束不调 `unlock()`。锁计数从此停在 1，而外壳直接把撤销开回来；之后每个 `XUndoManager::lock()` 只加计数、不关撤销。探针实测：导出锁之前、之后 `isLocked=0 enabled=1`，两个撤销管理器是同一个。
+- 改：补丁 0118，导入与导出只锁自己会解的。导出端不另加锁（第一稿在 `exportDocument` 里加锁，因同一原因无效，已撤）。测试 `saving_as_pptx_adds_nothing_to_undo`（改前即败）。DOCX、XLSX 的导出不借临时页，不受影响。尺寸变化的通知仍有，未改。
+- 审查 R18.8 第 1 轮：替换后恢复编辑时，有插入点的分支不看内核报的 `editing`；视图的插入点晚于 Esc 到时，替换把用户刚结束的编辑又点开。改为两条分支都以 `editing` 为前提。
+- 审查 R18.37 第 1 轮：`ended` 先拿停止器的门再等起进程的线程，后者也要这把门，互等；改为先等进程、再拿门，回收仍在门内。慢载入的“停止”原在界面回调里直接调，起进程未返回时界面线程会等它；改到后台执行。
+- Mac 十次（R18.34）：合并测试那次是内核崩溃，不是测试慢。worker 在 PDF 导出第一步 SIGSEGV；反汇编看出崩在 `PDFFilter::filter` 调 `vcl::Window::AddEventListener` 之处：等待光标加在 `Application::GetFocusWindow()` 上，而那是刚关掉的那份文档已销毁的窗口，`dispose` 已释放其 `WindowImpl`。vcl 自己在 `ImplNewInputContext` 里就查这种情况。macOS 的 worker 用 Cocoa 后端，Linux 用无头后端，故只在 Mac 见到。补丁 0119：PDF、SVG 导出跳过已销毁的焦点窗口并记 `ELY_WARN`。焦点为何留在已销毁的窗口上，未查明；警告会给出下次的线索。
+- 同一轮另两处：工具栏测试在撤销按钮的名字还没变时找它，改为等它出现；ElyMail 十万封全选的绝对时限在负载 40 的机器上量的是机器，改为量十万与一万之比。

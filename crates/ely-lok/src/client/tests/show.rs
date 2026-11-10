@@ -338,3 +338,23 @@ fn fit_rules_set_both_growths_and_undo_keeps_the_text() {
         "and the paragraph"
     );
 }
+
+#[test]
+fn saving_as_pptx_adds_nothing_to_undo() {
+    let Some(install) = install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let path = dir.path().join("t.pptx");
+    std::fs::copy(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/office/t.pptx"), &path).expect("copies");
+    let doc = worker.load(&crate::file_url(&path)).expect("loads");
+    worker.run(&doc, "slide.hide", &[]).expect("hides a slide");
+    let history = worker.values(&doc, ".uno:Undo").expect("the history");
+    // Each layout part borrows a slide while it is written.
+    doc.snapshot(&mut worker, &crate::file_url(&dir.path().join("point.pptx")), "pptx").expect("a snapshot");
+    doc.save_as(&mut worker, &crate::file_url(&dir.path().join("copy.pptx")), "pptx").expect("a save");
+    assert_eq!(worker.values(&doc, ".uno:Undo").expect("the history"), history, "the export left undo steps");
+    worker.run(&doc, "edit.undo", &[]).expect("undoes");
+    assert_eq!(doc.sheets(&mut worker).expect("the slides").list.len(), 9, "undo took back the hiding alone");
+}

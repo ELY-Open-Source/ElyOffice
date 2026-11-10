@@ -1,0 +1,35 @@
+oox: the PPTX import leaves the undo lock balanced
+
+DrawDocShell disables undo while a file loads, so PowerPointImport's
+isLocked() is true and it notes the manager as locked; it still calls
+lock() but never unlock(). The helper's lock count stays at one after
+the load, while the shell turns undo back on directly. Every later
+XUndoManager::lock() then only counts and leaves undo on: the PPTX
+export's own lock does nothing, and each layout's temporary slide is
+recorded as "Delete slides". A deck with six layouts gained six steps
+on every PPTX save, and the next undo put a stray slide into it (Ely:
+one undo after a recovery snapshot of t.pptx gave 10 slides for 9).
+Import and export now lock only what they unlock.
+--- a/oox/source/ppt/pptimport.cxx
++++ b/oox/source/ppt/pptimport.cxx
+@@ -95,7 +95,9 @@
+         if(xUndoManager.is())
+         {
+             bWasUnLocked = !xUndoManager->isLocked();
+-            xUndoManager->lock();
++            // Ely: unlocked only if locked here; else locks stay.
++            if (bWasUnLocked)
++                xUndoManager->lock();
+         }
+     }
+ 
+@@ -237,7 +239,8 @@
+                 if (xUndoManager.is())
+                 {
+                     bWasUnLocked = !xUndoManager->isLocked();
+-                    xUndoManager->lock();
++                    if (bWasUnLocked)
++                        xUndoManager->lock();
+                 }
+             }
+             comphelper::ScopeGuard aGuard([xUndoManager, bWasUnLocked] {

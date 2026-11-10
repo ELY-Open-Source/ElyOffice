@@ -62,15 +62,7 @@ impl Worker {
 
     /// Why the worker process ended, if it has.
     pub fn ended(&mut self) -> Option<String> {
-        let mut reaped = self.stopper.gate();
-        match self.child.get().and_then(|child| child.try_wait()) {
-            Ok(Some(status)) => {
-                *reaped = true;
-                Some(status.to_string())
-            }
-            Ok(None) => None,
-            Err(error) => Some(error.to_string()),
-        }
+        self.child.ended(&self.stopper)
     }
 }
 

@@ -25,9 +25,17 @@ fn frames(shown: &mut VisualTestContext) {
     }
 }
 
+/// Clicks `selector` once a frame shows it; states arrive late.
+#[track_caller]
 fn click(shown: &mut VisualTestContext, selector: &'static str) {
-    frames(shown);
-    let bounds = shown.debug_bounds(selector).expect(selector);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    let bounds = loop {
+        frames(shown);
+        if let Some(bounds) = shown.debug_bounds(selector) {
+            break bounds;
+        }
+        assert!(std::time::Instant::now() < deadline, "no {selector} in a minute");
+    };
     shown.simulate_click(bounds.center(), gpui::Modifiers::none());
     shown.run_until_parked();
 }
