@@ -605,7 +605,7 @@
 
 ## R18 第二次审计与新议题（用户 2026-11-10 定：`OPTIMIZATION-New.md`（本机，未入库）的二十四项与 GitHub 未关的议题全部修好，R-02 的 Windows 签名这次不做；先保兼容，再保流畅；极限测试为 Word、Excel、PDF、PPT 各 20 份复杂文件同时开着，内核不崩、互不锁死、照样流畅；Doc、Table、Show、Mark 另测人与命令行同时改一份文件；全部文档随之更新。按 PRD 章节逐条做，主 agent 独自做，无 subagent、worktree、分支；每条交 Cindy 的常驻审查者（Codex，gpt-6.1-sol，effort xhigh，只读）对抗审查，至多三轮，过审即勾选、提交、推送，三轮不过标 `[!]` 并写明余下的问题；不问，取推荐项。本机为 Linux（Omarchy），Windows 机器离线：只在 Windows 上验得了的写明未验）
 
-- [ ] R18.1 前置：本机在发布容器里建好 LibreOffice、MuPDF、OpenSSL 三个内核，`ELY_REQUIRE_ENGINES=1` 的全量测试跑一遍，记下基线（§4、§22）
+- [x] R18.1 前置：本机在发布容器里建好 LibreOffice、MuPDF、OpenSSL 三个内核，`ELY_REQUIRE_ENGINES=1` 的全量测试跑一遍，记下基线（§4、§22） — 三个内核在本机的 AlmaLinux 8 容器里建成；发布的门以 `cargo metadata` 找到 worker 并点名它们（`8ca4f023`），干净树上的 LibreOffice 构建脚本不再悄悄退出（`5765ca5e`）；基线 2415 过、0 败、4 忽略（见 decisions 2026-11-10）。R1 PASS
 - [x] R18.2 N-05 glibc 三处不一致：`linux-glibc.sh` 的上限改 2.28；deb、rpm 的依赖带版本；包里自带的 `libsystemd`、`libmount`、`libblkid` 写明理由或移除（§4） — 上限改为构建容器所有的 2.28（GLIBCXX 3.4.25、CXXABI 1.3.11），检查进了发布流程并在容器里跑，缺 readelf 即失败；依赖的 glibc 版本取自包内文件；libdbus 一串十个库改用系统的（`155107c7`、`78fbc887`，见 decisions 2026-11-10）。R1 FAIL（门在宿主机上会跳过），R2 PASS
 - [ ] R18.3 #77 Linux 合集包与 arm64（PR #78）；#42 体积一并答复（§4）
 - [!] R18.4 #16 WinGet 与 #37 Windows arm64：核对现状，答复（§4）— 2026-11-10 核对：WinGet 的七个提交（microsoft/winget-pkgs#472335、472336、472338 至 472342，0.1.13）都过了自动校验（Validation-Completed），仍开着，等微软人工审核，已在 #16 说明；#37 无新情况（无 arm64 的 Windows 可验，内核须另建），前一条答复仍成立。两条都卡在外部，同 R16.3、R16.4
@@ -628,7 +628,7 @@
 - [ ] R18.21 N-10 代理测试在无 IPv6 的机器上通过或明说跳过（§12、§22）
 - [ ] R18.22 N-11 crate 重名：`cargo test -p ely-files` 直接可用（§17）
 - [ ] R18.23 R-09 gpui 的修改导出为补丁目录，vendor 可由 crates.io 原版加补丁重建（§17）
-- [ ] R18.24 N-12 `agents.md` 不过 30 KB：测试脚本清单移到 tests/scripts 下的 README（§17）
+- [x] R18.24 N-12 `agents.md` 不过 30 KB：测试脚本清单移到 tests/scripts 下的 README（§17） — 测试脚本与样本的清单移到 `tests/scripts/README.md`、`tests/fixtures/README.md`，上游待办移到 `docs/accessibility.md`；`check.sh` 守住 30000 字节（`93f8e769`、`5d0e70d1`）。R1 FAIL（把“不动光标”的承诺写到了 ElyMark 头上），R2 PASS
 - [ ] R18.25 R-11 更新的第二来源：自有域名；屏蔽 github.com 后检查更新仍成（§18）
 - [ ] R18.26 R-05 `compatibility.md` 的版本与补丁范围由脚本写出，打标签时与 `Cargo.toml` 不符即发布失败（§19）
 - [ ] R18.27 R-01 与 Microsoft Office 的交叉核对：三十份 Ely 存出的 DOCX、XLSX、PPTX 交 Office 网页版打开，记下报修复的份数与清单，查出的问题逐个修（§19.2）
