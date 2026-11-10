@@ -26,7 +26,7 @@ for lib in libvulkan.so.1 libwayland-client.so.0; do
   ldconfig -p | grep "$lib" >/dev/null || { echo "no $lib"; exit 1; }
 done
 ldd "$entry" >/dev/null || { echo "$entry is not a dynamic executable"; exit 1; }
-find "/opt/ely-office/$slug" -type f -print0 >/tmp/files || { echo "cannot list files"; exit 1; }
+find -L "/opt/ely-office/$slug" -type f -print0 >/tmp/files || { echo "cannot list files"; exit 1; }
 checked=0
 while IFS= read -r -d "" file; do
   magic=$(head -c 4 "$file" | od -An -c | tr -d " ") || { echo "cannot read $file"; exit 1; }
@@ -67,4 +67,29 @@ for slug in $batch; do
   run "$fedora" "dnf install -y -q" "$rpm" "$slug"
   run "$arch" "pacman -Sy --noconfirm && pacman -U --noconfirm" "$pkg" "$slug"
 done
-echo "linux-packages: deb, rpm and Arch packages install and link"
+# The suite: one package for every app, replacing theirs.
+suite() { # image, install command, suite file, query for ElyTree's own package
+  docker run --rm -v "$dist:/dist:ro" "$1" bash -c "{ $2 /dist/${3##*/}; } >/tmp/install.log 2>&1 ||
+    { tail -20 /tmp/install.log; exit 1; }
+    ! { $4; } >/dev/null 2>&1 || { echo 'ely-tree keeps its own package'; exit 1; }
+    [ \"\$(readlink -f /opt/ely-office/ely-doc/bin/libreoffice)\" = /opt/ely-office/libreoffice ] ||
+      { echo 'ElyDoc has a kernel of its own'; exit 1; }
+    for slug in $(echo $batch); do bash -c '$check' _ \$slug || exit 1; done" ||
+    fail "$3 does not install, replace ely-tree or link in $1"
+}
+for file in "$dist/ely-office_$version-1_amd64.deb" "$dist/ely-office-$version-1.x86_64.rpm" \
+  "$dist/ely-office-$version-1-x86_64.pkg.tar.zst"; do
+  [ -f "$file" ] || fail "no $file; run packaging/linux/bundle.sh"
+done
+# dpkg knows a removed deb; pacman -Q answers for providers.
+kept="dpkg-query -W -f='\${db:Status-Status}' ely-tree | grep -qx installed"
+suite "$debian" "sed -i s#deb.debian.org#archive.debian.org# /etc/apt/sources.list && apt-get update -q &&
+  apt-get install -y -q /dist/ely-tree_$version-1_amd64.deb && apt-get install -y -q" \
+  "ely-office_$version-1_amd64.deb" "$kept"
+suite "$ubuntu" "apt-get update -q && apt-get install -y -q /dist/ely-tree_$version-1_amd64.deb &&
+  apt-get install -y -q" "ely-office_$version-1_amd64.deb" "$kept"
+suite "$fedora" "dnf install -y -q /dist/ely-tree-$version-1.x86_64.rpm && dnf install -y -q" \
+  "ely-office-$version-1.x86_64.rpm" "rpm -q ely-tree"
+suite "$arch" "pacman -Sy --noconfirm && pacman -U --noconfirm /dist/ely-tree-$version-1-x86_64.pkg.tar.zst &&
+  yes | pacman -U" "ely-office-$version-1-x86_64.pkg.tar.zst" "pacman -Qq ely-tree | grep -qx ely-tree"
+echo "linux-packages: deb, rpm and Arch packages install and link, the suite too"

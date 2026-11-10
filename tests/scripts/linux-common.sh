@@ -110,5 +110,6 @@ judge() { # slug, screenshot, words, app log
   magick "$2" -alpha off -colorspace Gray -negate -resize 200% "$2.ocr.png"
   # Sparse text: a page beside panels hides from layout analysis.
   text=$(tesseract "$2.ocr.png" - --psm 11 2>"$2.ocr") || fail "tesseract failed: $(cat "$2.ocr")"
-  grep -qi "$3" <<<"$text" || fail "$1 shows no '$3': $text"
+  # Sparse mode may put each word on its own line.
+  grep -qi "$3" <<<"$(tr -s '[:space:]' ' ' <<<"$text")" || fail "$1 shows no '$3': $text"
 }

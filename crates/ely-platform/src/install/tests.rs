@@ -52,17 +52,40 @@ fn a_package_names_its_manager_or_fails() {
     at("var/lib/pacman/local/ely-doc-extra-1.0-1");
     assert!(read().is_err(), "another package's name");
     at("var/lib/pacman/local/ely-doc-0.1.9-1");
-    assert_eq!(read().expect("reads"), Some(Installed::Package(Package::Arch)));
+    assert_eq!(read().expect("reads"), Some(Installed::Package(Package::Arch, "ely-doc".into())));
     at("var/lib/dpkg/info");
     std::fs::write(root.path().join("var/lib/dpkg/info/ely-doc.list"), "").expect("a list");
-    assert_eq!(read().expect("reads"), Some(Installed::Package(Package::Deb)));
+    assert_eq!(read().expect("reads"), Some(Installed::Package(Package::Deb, "ely-doc".into())));
     let rpm = tempfile::tempdir().expect("a temp dir");
     std::fs::create_dir_all(rpm.path().join("usr/lib/sysimage/rpm")).expect("an rpm db");
     let unlisted = installed("linux", exe, None, rpm.path(), "ely-doc", &no_rpm);
     assert!(unlisted.is_err(), "an rpm database that lists no ElyDoc");
     let lists = |slug: &str| Ok(slug == "ely-doc");
     let read = installed("linux", exe, None, rpm.path(), "ely-doc", &lists).expect("reads");
-    assert_eq!(read, Some(Installed::Package(Package::Rpm)));
+    assert_eq!(read, Some(Installed::Package(Package::Rpm, "ely-doc".into())));
+}
+
+#[test]
+fn the_suite_s_package_owns_an_app_without_its_own() {
+    let exe = Path::new("/opt/ely-office/ely-doc/bin/ely-doc");
+    let suite = |manager| Some(Installed::Package(manager, "ely-office".into()));
+    let arch = tempfile::tempdir().expect("a temp dir");
+    std::fs::create_dir_all(arch.path().join("var/lib/pacman/local/ely-office-0.1.16-1")).expect("a folder");
+    assert_eq!(installed("linux", exe, None, arch.path(), "ely-doc", &no_rpm).expect("reads"), suite(Package::Arch));
+    let deb = tempfile::tempdir().expect("a temp dir");
+    std::fs::create_dir_all(deb.path().join("var/lib/dpkg/info")).expect("a folder");
+    std::fs::write(deb.path().join("var/lib/dpkg/info/ely-office.list"), "").expect("a list");
+    assert_eq!(installed("linux", exe, None, deb.path(), "ely-doc", &no_rpm).expect("reads"), suite(Package::Deb));
+    // Its own package wins where both are listed.
+    std::fs::write(deb.path().join("var/lib/dpkg/info/ely-doc.list"), "").expect("a list");
+    let own = installed("linux", exe, None, deb.path(), "ely-doc", &no_rpm).expect("reads");
+    assert_eq!(own, Some(Installed::Package(Package::Deb, "ely-doc".into())));
+    let rpm = tempfile::tempdir().expect("a temp dir");
+    std::fs::create_dir_all(rpm.path().join("var/lib/rpm")).expect("an rpm db");
+    let lists = |name: &str| Ok(name == "ely-office");
+    assert_eq!(installed("linux", exe, None, rpm.path(), "ely-doc", &lists).expect("reads"), suite(Package::Rpm));
+    let version = semver::Version::new(0, 1, 16);
+    assert!(Package::Arch.command("ely-office", &version).starts_with("sudo pacman -U ./ely-office-0.1.16-1-"));
 }
 
 #[test]

@@ -40,7 +40,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin e0f355a，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自上级目录里的组件库检出 `../Ely-GPUI-Components`（与本仓库并列，不在 `reference/`）：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 读 `../Ely-GPUI-Components` 核对下表每个名字都是组件库公开项，那里没有检出即失败。
+依赖 `ely-gpui-component`（pin e0f355a，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自与本仓库并列的组件库检出 `../Ely-GPUI-Components`（不在 `reference/`；总包 `src/lib.rs` 列出各模块在哪个 crate，gpui 用法规则见其 `AGENTS.md`）；`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项，没有那个检出即失败。
 
 | 需要 | 用 |
 | --- | --- |
@@ -71,7 +71,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 | LOK 的无障碍事件只报当前段落（文本、插入点、选区，UTF-16 计），整篇文档到不了辅助技术 | `LokView` 以 gpui 的 `a11y_synthetic_children` 把段落交成文本串，插入点与选区换成字符（`view/render/a11y.rs`）；ElyPDF 把所显示页面的逐行文字与选区交成 `Document` 的文本串（`reading.rs`）；都只在辅助技术连上时做 |
 | 选中对象的框与手柄：LOK 不画进图块 | `LokView` 按图形选区画框与 8 个手柄；按住手柄拖动经 `setGraphicSelection` 交内核（缩放；裁剪模式下裁剪） |
 | 虚拟化 PDF 页面栈（`DocumentViewer` 一次铺全部页，不合 PERF-05） | `crates/ely-pdf-engine`、`crates/ely-pdf-worker`、`apps/ely-pdf` |
-| 组件库的大纲项（`lists::Outline`）无无障碍角色：屏幕阅读器读不到 | 上游待办；ElyMark 的搜索失败改为结果列表里的行。`feedback::Banner` 已修（fac20ab：危险与警告为 alert，其余为 status，名为其文字），`feedback::Alert` 同（105bf94，名为标题与正文） |
+| 组件库的大纲项（`lists::Outline`）无无障碍角色：屏幕阅读器读不到 | 上游待办；ElyMark 的搜索失败改为结果列表里的行 |
 | `documents::ZenMode` 把正文夹进 Sm 宽的列，与 ElyMark 的正文宽度设置冲突 | ElyMark 不用它，专注模式原生重做（C14.12） |
 | 表格公式栏与名称框（网格是 LOK 图块，`tables::Spreadsheet` 不用） | `apps/ely-table` |
 | Doc 工具栏（`documents::FixedFormatToolbar` 绑 `TextInput`，不接 LOK） | ElyDoc 页面上方 `props/bar.rs`，用 `shell::Toolbar` 组合属性面板的同一组命令；Table、Show 无 |
@@ -126,11 +126,11 @@ scripts/fetch-tessdata.sh      取 OCR 语言数据到 engines/tessdata（钉提
 scripts/build-git.sh           构建钉住的 Git 到 engines/git（ElyTree 随包）
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核对散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 到 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核对散列；Mac 核对架构）
-scripts/build-bash.sh [目录]   构建钉住的 GNU bash 5.3 为 x86_64，默认装到 ~/ely-share/bash-x86_64（Intel 版发布在 Rosetta 下以它跑 ci.sh；核对散列与架构，散列曾对 GNU 的签名核过）
+scripts/build-bash.sh [目录]   构建钉住的 GNU bash 5.3 为 x86_64，默认装到 ~/ely-share/bash-x86_64（Intel 版发布在 Rosetta 下以它跑 ci.sh；核对散列与架构）
 scripts/review.sh ID 轮次 路径  审查一条任务：herdr TUI 里开一格，另一个 Claude Code（Kimi K3.1 Pro，effort high）审查，结论进 `tasks/reviews/`，构建、副本与日志都在 `.work/<ID>-r<轮次>/`；放窗格、等待与失败的细则见 `tests/scripts/README.md` 的 review-rules.sh
 scripts/apply-lo-patches.sh engines/lo-src  找出源码已到补丁序列第几个，补上其余（构建脚本调用）
 packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；引擎、应用、打包；目标在 target/alma8）
-packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）；包的依赖带 glibc 的版本下限，取包内文件所需的最高版本；libdbus 与它所载入的库用系统的，不随包
+packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）；包的依赖带 glibc 的版本下限，取包内文件所需的最高版本；libdbus 与它所载入的库用系统的，不随包；`packaging/linux/bundle.sh` 再由各应用的包出装全部应用的 `ely-office` 包（deb、rpm、Arch），三个文档应用共用一份内核
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调用）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发布后提交）
 packaging/winget.sh 标签       由该发布 Windows 的更新清单写 dist/winget 下首批各应用的 WinGet 清单（`ZacharyZhang.<名字>`，照 winget-pkgs 的目录；发布后交 winget-pkgs）
@@ -174,7 +174,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 - 首批发布 ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark；ElyAgent 第二批。
 - 数据只在 `ely_platform::data_dir` 给出的目录；用户文档永不碰；卸载先问。根默认在系统的本地数据目录；设置“存储”可换到所选文件夹下的 `ElyOffice`，指向文件 `folder.json` 留在默认位置，下次启动、无 Ely 应用在运行时搬动（`ely_platform::folder`）。
 - 文件类型只写在 `packaging/types.tsv`，只进“打开方式”，从不设为默认（Windows 的“新建”只在该类型无任何处理程序时设）。URL 方案也写在那里，第二列以冒号结尾（`mailto:`）：Linux 的 `x-scheme-handler` 与 `%U`，Windows 的 `Capabilities\URLAssociations` 与 `RegisteredApplications`（只进“默认应用”供选，从不写 `Classes\mailto`），macOS 的 `CFBundleURLTypes`；链接经 `ely_ui::mail_link` 原样交到应用，ElyMail 以引擎的 `mailto` 照 RFC 6068 填好新信（引号里的逗号不切、域名转 IDNA、主题解 MIME 编码词）。“打开方式”里不得出现 LibreOffice，任何脚本都不挂载 LibreOffice 镜像。
-- 语言：界面英文、简体中文、西班牙语（es-ES，系统 es-* 同用）、法语（fr-FR，系统 fr-* 同用）、德语（de-DE，“Deutsch”，系统 de-* 同用）、日语（ja-JP，系统 ja-* 同用）、韩语（ko-KR，系统 ko-* 同用）与越南语（vi-VN，“Tiếng Việt”，系统 vi-* 同用），每个应用各语言都全，任一目录缺键即失败，不以英文补；内核界面固定英文，内核给出的固定文字（ElyTable 的状态与错误、单元格样式，ElyDoc 的内置样式名）由 Ely 按界面语言重写，译文照 LibreOffice 26.2.6.3 该语言的译文，文件与主题资源自带的名字（母版、主题色集、用户样式、字体）照原样；ElyTable 导入非 UTF-8 的文本时预选界面语言的 Windows 代码页（中文 GB18030，日文 Shift_JIS，即 Windows-932，韩文 Windows-949，英文、西班牙文、法文、德文 Windows-1252，越南文 Windows-1258）；ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
+- 语言：界面英文、简体中文、西班牙语（es-ES，系统 es-* 同用）、法语（fr-FR，系统 fr-* 同用）、德语（de-DE，“Deutsch”，系统 de-* 同用）、日语（ja-JP，系统 ja-* 同用）、韩语（ko-KR，系统 ko-* 同用）与越南语（vi-VN，“Tiếng Việt”，系统 vi-* 同用），每个应用各语言都全，任一目录缺键即失败，不以英文补；英文、中文以外的六种未经母语者校对，设置里标“预览”（`docs/accessibility.md` 的“译文校对”）；内核界面固定英文，内核给出的固定文字（ElyTable 的状态与错误、单元格样式，ElyDoc 的内置样式名）由 Ely 按界面语言重写，译文照 LibreOffice 26.2.6.3 该语言的译文，文件与主题资源自带的名字（母版、主题色集、用户样式、字体）照原样；ElyTable 导入非 UTF-8 的文本时预选界面语言的 Windows 代码页（中文 GB18030，日文 Windows-932，韩文 Windows-949，西欧各语 Windows-1252，越南文 Windows-1258）；ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
 - 外观：Doc、Table、Show、PDF 的页面照文件原色，只有四周的界面随深浅色；邮件正文、Mark、Agent 随深浅色。深色底 `#252525`，不用纯黑。有 Omarchy 时随 Omarchy。
 - 性能：八个应用都不许卡顿（120 FPS 手感，树莓派 3 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事；ElyDoc、ElyTable、ElyShow 的就地保存在下一次打字停顿（500 毫秒无键）开始，至多等 2 秒，期间打的键一并存下（R15.37）；恢复点给等着的键让路（补丁 0090 的 `Snapshot`），同一标签让路满 60 秒后下一次不让（R15.56）；命令行读的副本、用户的保存、另存为与自动保存从不让路；前台以外的用户文件首次显示（或别的程序问到）才载入，视图的输入与其图块先于排队的后台工作（R15.57）。
 - LOK：worker 启动时关掉内核的 OpenCL（`SAL_DISABLE_OPENCL=1`：其启动自检在 AMD 驱动里会卡死，Calc 在 CPU 上算）；界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；外部链接打开时显示保存的值，用户点横幅的“更新链接”才经 `.uno:ElyUpdateLinks` 读源，源之后再存即重现横幅（`ely_office::Linking`）；内核弹出的对话框即刻关闭并报错，需要的对话框由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入。

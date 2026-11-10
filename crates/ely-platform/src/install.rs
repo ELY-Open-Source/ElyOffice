@@ -22,8 +22,8 @@ pub enum Installed {
     Folder { dir: PathBuf, exe: PathBuf },
     /// A Linux AppImage file.
     AppImage(PathBuf),
-    /// A deb, rpm or Arch package: its manager updates it.
-    Package(Package),
+    /// A package's manager and name: the manager updates it.
+    Package(Package, String),
 }
 
 /// The list a Windows setup leaves in its folder.
@@ -64,7 +64,8 @@ fn installed(
             _ if exe.starts_with(NIX) => None,
             Some((image, _)) => Some(Installed::AppImage(image)),
             None if PACKAGED.iter().any(|prefix| exe.starts_with(prefix)) => {
-                Some(Installed::Package(Package::of(root, slug, rpm)?))
+                let (manager, name) = Package::of(root, slug, rpm)?;
+                Some(Installed::Package(manager, name))
             }
             None => None,
         },

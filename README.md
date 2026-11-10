@@ -59,7 +59,7 @@ built with patch 0081.
 
 ## Release
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`, five jobs that wait for no other. Self-hosted runners build macOS (arm64, and Intel under Rosetta), Windows and Linux x86_64 (in WSL) with `scripts/ci.sh`; GitHub's hosted `ubuntu-24.04-arm` runner builds Linux arm64 with the same container. Each job uploads its packages and update manifests; x86_64 Linux alone uploads the source archives. macOS builds are signed and notarized.
+Pushing a `v*` tag runs `.github/workflows/release.yml`, five jobs that wait for no other. Self-hosted runners build macOS (arm64, and Intel under Rosetta), Windows and Linux x86_64 (in WSL) with `scripts/ci.sh`; GitHub's hosted `ubuntu-24.04-arm` runner builds Linux arm64 with the same container. Each job uploads its packages and update manifests; x86_64 Linux alone uploads the source archives. Each Linux job also builds `ely-office`, one deb, rpm and Arch package that holds every app and one copy of the LibreOffice kernel for ElyDoc, ElyTable and ElyShow (`packaging/linux/bundle.sh`). macOS builds are signed and notarized.
 
 ## Tests
 

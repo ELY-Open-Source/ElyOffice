@@ -96,6 +96,7 @@ case $os in
     ;;
   linux | linux-arm64)
     for slug in $batch; do ${inside[@]+"${inside[@]}"} packaging/linux/package.sh "$slug"; done
+    ${inside[@]+"${inside[@]}"} packaging/linux/bundle.sh
     # The packaged binaries need AlmaLinux 8's glibc at most.
     ${inside[@]+"${inside[@]}"} tests/scripts/linux-glibc.sh
     ;;

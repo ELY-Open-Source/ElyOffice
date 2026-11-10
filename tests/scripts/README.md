@@ -24,11 +24,11 @@ tests/scripts/records.py         TASKS、BUGS、BugList、decisions 引用的库
 tests/scripts/workflows.py       release.yml 的任务互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 的 runs-on 恰为 ubuntu-24.04、以整行的 `[sudo] apt-get install` 装齐 README 的库、严格模式、panic 数比基线提交（各带反例）
 tests/scripts/lo-tarballs.sh     `packaging/lo-tarballs.tsv` 的散列与 `download.lst` 一致、地址是 LibreOffice 的镜像、本机构建所取都在其中（Windows 经 Cygwin）
 tests/scripts/source-rules.sh    source.sh 把已取与下载的外部库按内容打包，散列不符或取不到即失败、不出包（假 curl）
-tests/scripts/ci-upload.sh       ci.sh 的上传：测试的门建好 worker 后点名它们再跑测试，测试失败即一个不传，Linux 的包过不了 glibc 的上限也不传；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
-tests/scripts/linux-packages.sh  deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库
+tests/scripts/ci-upload.sh       ci.sh 的上传：测试的门建好 worker 后点名它们再跑测试，测试失败即一个不传，Linux 的包过不了 glibc 的上限也不传；Linux 另传装全部应用的 `ely-office` 包；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
+tests/scripts/linux-packages.sh  deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库；装全部应用的 `ely-office` 包同样装上，顶替先装的 ElyTree 单包，ElyDoc 的内核是共用的那一份
 tests/scripts/linux-pins.sh      Linux 打包工具（appimagetool、linuxdeploy、运行时、nfpm）的下载与钉的散列相符
 tests/scripts/linux-installed.sh installed|appimage  Hyprland 上装好的六个应用或 AppImage：一个窗口、随 Omarchy（Catppuccin）、读出页面文字（PDF、Markdown 经各自引擎），ElyTree 随换主题到 Latte（grim 按窗口截取）
-tests/scripts/linux-distros.sh   deb 在 Ubuntu 26.04、rpm 在 Fedora 44 容器里装上，各应用在 Xvfb（Mesa 软件 Vulkan）下画出窗口、随 Omarchy、读出页面文字（与 linux-installed.sh 共用 linux-common.sh）
+tests/scripts/linux-distros.sh   deb 在 Ubuntu 26.04、rpm 在 Fedora 44 容器里装上，各应用在 Xvfb（Mesa 软件 Vulkan）下画出窗口、随 Omarchy、读出页面文字；`ely-office` 的 rpm 在 Fedora 上也装上，各应用照样画出（与 linux-installed.sh 共用 linux-common.sh）
 cargo test -p ely-show --test compose  切换半程帧经 Metal 取像素（主线程，仅 macOS）
 tests/scripts/*.sh *.py        脚本测试（缺工具时报 SKIP）
 tests/scripts/icons.sh         八个图标齐全、未过期，macOS 为 squircle，其余无底形

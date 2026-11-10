@@ -158,7 +158,11 @@ while IFS= read -r lib; do
   pacman+=("$pacman_name")
   rpm+=("$lib()(64bit)")
 done < <(printf '%s\n' "${needed[@]}" | sort -u)
-yaml_list() { printf '      - "%s"\n' "$@" | sort -u; }
+# bundle.sh reads these lists for the suite.
+printf '%s\n' "${deb[@]}" | sort -u >"$work/depends.deb"
+printf '%s\n' "${rpm[@]}" | sort -u >"$work/depends.rpm"
+printf '%s\n' "${pacman[@]}" | sort -u >"$work/depends.archlinux"
+yaml_list() { sed 's/.*/      - "&"/' "$work/depends.$1"; }
 
 # deb, rpm and Arch: the AppDir's usr under /opt/ely-office.
 cat >"$work/nfpm.yaml" <<EOF
@@ -190,13 +194,13 @@ rpm:
 overrides:
   deb:
     depends:
-$(yaml_list "${deb[@]}")
+$(yaml_list deb)
   rpm:
     depends:
-$(yaml_list "${rpm[@]}")
+$(yaml_list rpm)
   archlinux:
     depends:
-$(yaml_list "${pacman[@]}")
+$(yaml_list archlinux)
 EOF
 for packager in deb rpm archlinux; do
   "$nfpm" package --config "$work/nfpm.yaml" --packager "$packager" --target "$dist/"

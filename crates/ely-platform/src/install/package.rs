@@ -12,17 +12,30 @@ pub enum Package {
     Arch,
 }
 
-/// Whether this system's rpm lists `slug`.
-pub(super) fn rpm_lists(slug: &str) -> io::Result<bool> {
-    let status = Command::new("rpm").args(["-q", "--quiet", slug]).status()?;
+/// The package that holds every first-batch app.
+const SUITE: &str = "ely-office";
+
+/// Whether this system's rpm lists `name`.
+pub(super) fn rpm_lists(name: &str) -> io::Result<bool> {
+    let status = Command::new("rpm").args(["-q", "--quiet", name]).status()?;
     Ok(status.success())
 }
 
 impl Package {
-    /// Reads the managers' own records under `root`.
-    pub(super) fn of(root: &Path, slug: &str, rpm: &dyn Fn(&str) -> io::Result<bool>) -> io::Result<Self> {
+    /// The manager and package holding `slug`.
+    pub(super) fn of(root: &Path, slug: &str, rpm: &dyn Fn(&str) -> io::Result<bool>) -> io::Result<(Self, String)> {
+        for name in [slug, SUITE] {
+            if let Some(manager) = Self::listing(root, name, rpm)? {
+                return Ok((manager, name.to_string()));
+            }
+        }
+        Err(io::Error::new(io::ErrorKind::NotFound, format!("no package manager lists {slug} or {SUITE}")))
+    }
+
+    /// The manager whose records under `root` list `slug`.
+    fn listing(root: &Path, slug: &str, rpm: &dyn Fn(&str) -> io::Result<bool>) -> io::Result<Option<Self>> {
         if root.join(format!("var/lib/dpkg/info/{slug}.list")).try_exists()? {
-            return Ok(Self::Deb);
+            return Ok(Some(Self::Deb));
         }
         let pacman = root.join("var/lib/pacman/local");
         if pacman.try_exists()? {
@@ -31,16 +44,13 @@ impl Package {
                 // pacman names it `<name>-<version>-<release>`.
                 let version = name.to_str().and_then(|name| name.strip_prefix(slug)?.strip_prefix('-'));
                 if version.is_some_and(|version| version.starts_with(|c: char| c.is_ascii_digit())) {
-                    return Ok(Self::Arch);
+                    return Ok(Some(Self::Arch));
                 }
             }
         }
         let database = root.join("usr/lib/sysimage/rpm").try_exists()? || root.join("var/lib/rpm").try_exists()?;
         // A database alone says nothing of this app.
-        if database && rpm(slug)? {
-            return Ok(Self::Rpm);
-        }
-        Err(io::Error::new(io::ErrorKind::NotFound, format!("no package manager lists {slug}")))
+        Ok((database && rpm(slug)?).then_some(Self::Rpm))
     }
 
     /// The CPU name this manager writes in file names.

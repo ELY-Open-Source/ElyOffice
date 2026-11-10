@@ -70,4 +70,6 @@ for case in "${cases[@]}"; do
   IFS='|' read -r slug words input <<<"$case"
   run ely-smoke-ubuntu "apt-get update -q && apt-get install -y -q" "${slug}_$version-1_amd64.deb" "$slug" "$input" "$words"
   run ely-smoke-fedora "dnf install -y -q" "$slug-$version-1.x86_64.rpm" "$slug" "$input" "$words"
+  # The suite's app, on the kernel all three share.
+  run ely-smoke-fedora "dnf install -y -q" "ely-office-$version-1.x86_64.rpm" "$slug" "$input" "$words"
 done

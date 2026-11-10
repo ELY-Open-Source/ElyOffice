@@ -73,7 +73,7 @@ pub fn after_quit(file: &Path, installed: &Installed, pid: u32, note: &Path, sai
             command.args(["-c", APPIMAGE, "sh"]).arg(pid.to_string()).arg(file).arg(image).arg(note);
             command
         }
-        Installed::Package(_) => {
+        Installed::Package(..) => {
             return Err(io::Error::new(io::ErrorKind::Unsupported, "the package manager installs this app"));
         }
     };

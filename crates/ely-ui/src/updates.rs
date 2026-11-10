@@ -179,11 +179,11 @@ fn latest(app: AppId) -> String {
 impl Updates {
     /// A package manager's command for an offered release.
     pub fn command(&self) -> Option<String> {
-        let Installed::Package(package) = self.installed else {
+        let Installed::Package(package, name) = &self.installed else {
             return None;
         };
         let (release, _) = self.offer.as_ref()?;
-        Some(package.command(self.app.slug(), &release.version))
+        Some(package.command(name, &release.version))
     }
 
     /// Asks for a newer release; `asked` reports every outcome.
@@ -244,7 +244,7 @@ impl Updates {
     }
 
     fn download(&mut self, cx: &mut Context<Self>) {
-        if matches!(self.installed, Installed::Package(_)) {
+        if matches!(self.installed, Installed::Package(..)) {
             return;
         }
         let Some((release, phase)) = self

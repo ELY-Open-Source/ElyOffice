@@ -70,7 +70,7 @@ fn a_check_keeps_its_outcome_for_the_settings(cx: &mut gpui::TestAppContext) {
 
 #[gpui::test]
 fn a_packaged_app_names_its_command_and_downloads_nothing(cx: &mut gpui::TestAppContext) {
-    let updates = cx.new(|_| made(Installed::Package(Package::Deb), None));
+    let updates = cx.new(|_| made(Installed::Package(Package::Deb, "ely-tree".into()), None));
     let deb = if std::env::consts::ARCH == "x86_64" { "amd64" } else { "arm64" };
     let command = format!("sudo apt install ./ely-tree_9.1.0-1_{deb}.deb");
     updates.update(cx, |updates, cx| {

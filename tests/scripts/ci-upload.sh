@@ -69,6 +69,7 @@ clone() { # os
   write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.dmg dist/app-$1.json; packaging/source.sh dist"
   write packaging/linux/container.sh 'exec "$@"'
   write packaging/linux/package.sh "mkdir -p dist; touch dist/\$1-$1.AppImage dist/\$1-$1.json"
+  write packaging/linux/bundle.sh "touch dist/ely-office-$1.deb"
 }
 go() { # os
   CI_OS=$1 PATH=$work/bin:$PATH ELY_SHARE=$work/share ELY_RELEASE_TOKEN=unused \
@@ -120,6 +121,7 @@ run linux
 [ "$(cat "$CARGO_LOG")" = "$gate" ] || fail "Linux gate ran: $(cat "$CARGO_LOG")"
 [ "$(uploads '-source.tar' linux)" -eq 3 ] || fail "Linux did not upload the source: $(cat "$STATE")"
 [ "$(uploads 'ely-doc-linux.json.sig' linux)" -eq 1 ] || fail "Linux left a manifest unsigned: $(cat "$STATE")"
+[ "$(uploads 'ely-office-linux.deb' linux)" -eq 1 ] || fail "Linux uploaded no suite package: $(cat "$STATE")"
 # A rerun replaces its own files once and keeps macOS's.
 mac=$(grep ' macos$' "$STATE")
 ids=$(awk '$3 == "linux" { print $1 }' "$STATE" | sort)

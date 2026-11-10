@@ -567,3 +567,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 没有母语者可请：照审计的过渡办法，设置的语言列表里 de、es、fr、ja、ko、vi 各带“预览”（`settings.language.preview`，随界面语言），语言一行的说明加一句“尚待母语者校对”。标与不标只在 `settings/picks.rs` 的 `PREVIEW` 一处；功能不变，系统语言照旧自动选中这些语言。
 - 能做的机器核对做了三项，结果与做法记在 `docs/accessibility.md` 的“译文校对”：对照 LibreOffice 26.2.6.3 的界面译文、英文分开的命令不得相混、同一命令不得两样译法。后两项成了测试（`i18n/wording_tests.rs`）；查出的五处不一（ja、ko 的剪切、粘贴、重命名）已改一。法语的“取消”与“撤销”同为 `Annuler`，是该语言 Office 的惯例，故“取消”不在“不得相混”之列。
 - 审计的验收要每种语言一条母语者校对记录：未达成，表里如实写“无”。
+
+## 2026-11-10 Linux 合集包 `ely-office`，三个文档应用共用一份内核（R18.3，#77、#42）
+
+- #77 要一个包装全部应用。`packaging/linux/bundle.sh` 由各应用已打好的包目录出 `ely-office` 的 deb、rpm 与 Arch 包（装在 `/opt/ely-office`）：ElyDoc、ElyTable、ElyShow 各自包里的内核逐文件比对相同后只留一份（`/opt/ely-office/libreoffice`，三处以符号链接指向它；ElyShow 的多一组演示模板，以它为准），其余文件照各应用的包。依赖取七个包的并集，许可取并集；与七个单独的包互斥并取代它们（`conflicts`、`replaces`、`provides`），装合集即换下已装的单个包。AppImage 不出合集：它一个文件一个应用。
+- 体积（#42，本机 0.1.15 的 x86_64 构建）：合集 deb 359 MiB，七个单独的 deb 合计 639 MiB，省下两份内核。单个应用的体积不变：ElyDoc 的 deb 160 MiB 里内核占绝大部分，离线优先的产品不把内核改成联网下载。
+- 更新：合集装的应用查自己属于哪个包时，认 `ely-office`（`ely_platform::install` 的 `SUITE`），更新提示里的包管理器命令写合集的名字；包管理器装的照旧不自更新。
+- arm64：PR #78 已并入，GitHub 托管的 `ubuntu-24.04-arm` 以同一个 AlmaLinux 8 容器出包与合集；本机没有 arm64 机器，arm64 的包未在本机装过。
+- 实测（本机，x86_64）：`tests/scripts/linux-packages.sh` 在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 上先装单独的 ely-tree 再装合集，核对 ely-tree 被换下、ElyDoc 的内核是共用的那份、七个应用的 ELF 都链接得上；`tests/scripts/linux-distros.sh` 在 Fedora 上由合集 rpm 起七个应用，各显示其文档。排查中两处是测试自己的错：OCR 把一行字拆成多行（判定改为不计空白），`dpkg-query -W` 对已卸的包仍返回成功（改查安装状态）。
