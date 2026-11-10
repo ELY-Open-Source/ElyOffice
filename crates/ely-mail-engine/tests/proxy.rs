@@ -234,11 +234,17 @@ async fn mail_and_sign_in_go_through_the_named_proxy() {
     let err = log_in().await.1.unwrap_err().to_string();
     assert!(err.contains("proxy settings unreadable: ALL_PROXY"), "{err}");
 
-    let (port, asked) = http_proxy_on("[::1]:0", "HTTP/1.1 200 Connection established\r\n\r\n").await;
-    named(&format!("http://[::1]:{port}"), None);
-    let (server, logged) = log_in().await;
-    logged.unwrap();
-    assert_eq!(*asked.lock().unwrap(), [format!("CONNECT 127.0.0.1:{server} HTTP/1.1")]);
+    // A machine without IPv6 cannot dial a proxy at [::1].
+    match std::net::TcpListener::bind("[::1]:0") {
+        Err(error) => eprintln!("SKIP: no IPv6 loopback ({error}); the proxy at [::1] is not dialed"),
+        Ok(_) => {
+            let (port, asked) = http_proxy_on("[::1]:0", "HTTP/1.1 200 Connection established\r\n\r\n").await;
+            named(&format!("http://[::1]:{port}"), None);
+            let (server, logged) = log_in().await;
+            logged.unwrap();
+            assert_eq!(*asked.lock().unwrap(), [format!("CONNECT 127.0.0.1:{server} HTTP/1.1")]);
+        }
+    }
 
     #[cfg(windows)]
     let garbled = <std::ffi::OsString as std::os::windows::ffi::OsStringExt>::from_wide(&[0xD800]);

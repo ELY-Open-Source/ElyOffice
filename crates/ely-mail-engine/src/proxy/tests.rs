@@ -71,6 +71,12 @@ fn windows_reads_one_proxy_or_one_per_scheme() {
 }
 
 #[test]
+fn a_proxy_at_an_ipv6_address_reads_with_its_port() {
+    let proxy = build(&named("http://[::1]:7890", false)).unwrap().proxy;
+    assert_eq!((proxy.protocol(), proxy.host(), proxy.port()), (ProxyProtocol::Http, "[::1]", 7890));
+}
+
+#[test]
 fn loopback_skips_the_system_proxy_but_not_a_named_one() {
     let system = build(&named("http://127.0.0.1:7890", true)).unwrap().proxy;
     let variable = build(&named("http://127.0.0.1:7890", false)).unwrap().proxy;
