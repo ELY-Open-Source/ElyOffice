@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use ely_gpui_component::documents::{
-    AlignKind, Shortcodes, markdown_tree,
+    AlignKind, ShortcodeRun, markdown_tree,
     mdast::{FootnoteDefinition, Node},
 };
 use ely_mail_engine::page::link;
@@ -17,7 +17,7 @@ pub fn html(words: &str) -> String {
         notes: HashMap::new(),
         cited: Vec::new(),
         mark: None,
-        shortcodes: Shortcodes::default(),
+        shortcodes: ShortcodeRun::default(),
         verbatim: false,
         out: String::new(),
     };
@@ -36,8 +36,8 @@ struct Writer<'a> {
     cited: Vec<&'a str>,
     /// A task box for the next paragraph.
     mark: Option<&'static str>,
-    /// The current DOM text node's shortcodes.
-    shortcodes: Shortcodes,
+    /// This block's shortcodes and open HTML elements.
+    shortcodes: ShortcodeRun,
     /// Inside an autolink: no shortcodes.
     verbatim: bool,
     out: String,
@@ -83,7 +83,8 @@ impl<'a> Writer<'a> {
 
     /// `tight`: a tight list's paragraph, without `<p>`.
     fn block(&mut self, node: &'a Node, tight: bool) {
-        self.shortcodes.split();
+        // An element left open ends with its block.
+        self.shortcodes = ShortcodeRun::default();
         match node {
             Node::Root(it) => self.blocks(&it.children, false),
             Node::Blockquote(it) => {
@@ -190,14 +191,19 @@ impl<'a> Writer<'a> {
         match node {
             Node::Text(it) if self.verbatim => self.push(&escape(&it.value)),
             Node::Text(it) => {
-                let shown = self.shortcodes.read(&it.value);
+                let shown = self.shortcodes.text(&it.value);
                 self.push(&escape(&shown));
             }
             Node::Strong(it) => self.styled("strong", &it.children),
             Node::Emphasis(it) => self.styled("em", &it.children),
             Node::Delete(it) => self.styled("del", &it.children),
             Node::InlineCode(it) => self.push(&format!("<code>{}</code>", escape(&it.value))),
-            Node::InlineMath(_) | Node::Html(_) => self.written(node),
+            Node::InlineMath(_) => self.written(node),
+            // Shown as text, yet its tags split the text.
+            Node::Html(_) => {
+                let shown = self.shortcodes.html(&self.source[node.position().clone()]);
+                self.push(&escape(&shown));
+            }
             Node::Break(_) => self.push("<br>\n"),
             Node::Link(it) => {
                 let outer = self.verbatim;

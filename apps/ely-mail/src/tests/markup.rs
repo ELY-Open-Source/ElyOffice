@@ -73,3 +73,18 @@ fn text_after_an_element_reads_its_own_shortcodes() {
     assert!(made.contains("<strong>x</strong>😄"), "{made}");
     assert!(made.contains("<a href=\"https://e.x\">x</a>😄"), "{made}");
 }
+
+#[test]
+fn raw_html_tags_split_the_text_as_the_composer_reads_them() {
+    // An HTML code element keeps its shortcodes.
+    let made = html("a <code>:smile:</code> b :smile:");
+    assert!(made.contains("a &lt;code&gt;:smile:&lt;/code&gt; b 😄"), "{made}");
+    let made = html("x<span>:smile:");
+    assert!(made.contains("x&lt;span&gt;😄"), "{made}");
+    // The first follows ink; the comment starts a new text.
+    let made = html("x:smile:<!-- c --> :smile:");
+    assert!(made.contains("x:smile:&lt;!-- c --&gt; 😄"), "{made}");
+    // A code element left open ends with its paragraph.
+    let made = html("<code>:smile:\n\n:smile:");
+    assert!(made.contains(":smile:</p>\n<p>😄</p>"), "{made}");
+}
