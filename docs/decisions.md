@@ -518,3 +518,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-07 Linux 发布任务改到 WSL 的 runner
 
 - 原先 Windows 与 Linux 两个发布任务都要 `ely-windows` 这一个 runner，Linux 排在 Windows 之后（0.1.14 第二轮等了约一小时）。WSL 里本有一个闲着的 runner（`wsl-ubuntu`，标签 `wsl`），Linux 任务改到它上面，直接在 WSL 里跑 `ci.sh`，不再经 `wsl.exe`；以登录 shell 起（runner 的 PATH 没有 `~/.cargo/bin`，却有 Windows 的 cargo.exe）。下一次发布才验得到；两台 Mac 任务仍共用 `macos-signing`。
+
+## 2026-11-09 本机构建改用 huacnlee/cargo
+
+- 用户定：开发机上的 `cargo` 换成 huacnlee/cargo（https://huacnlee.github.io/cargo/ ，Linux 上在 `~/.local/bin/cargo`，0.102.0-9），项目里不加任何配置。中间产物在 `~/.cargo/targets/<名字>-<散列>/`，依赖在 `shared-deps` 里各项目共用，大小由它自己限住；二进制仍在 `./target`，`target/debug/incremental` 不再有，“每次构建后删增量缓存”只对标准 Cargo 成立。它忽略 `--target-dir`、`CARGO_TARGET_DIR`（告警）：`tests/scripts/mark-build.sh` 照过（副本的产物在副本自己的 `target`，随副本删），审查者的源码副本同理各有各的构建目录；`tests/perf/bench.py`、`load.py` 靠 `--target-dir` 把 frames 构建与发行构建分开，在它之下两者会互相覆盖，须用标准 Cargo。实测（Linux，Rust 1.98.1）：`cargo check -p ely-ipc -p ely-files` 与 `mark-build.sh` 通过。组件库同日去掉 `scripts/check.sh` 里的 `--target-dir target/kit`（Kit 的产物改在 `compat/kit/target`）。

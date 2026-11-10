@@ -5,7 +5,10 @@ import sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-lib = root / "reference/Ely-GPUI-Components"
+# The library's checkout sits beside this one.
+lib = root.parent / "Ely-GPUI-Components"
+if not (lib / "src/lib.rs").is_file():
+    sys.exit(f"FAIL: no component library at {lib}: clone Ely-GPUI-Components beside ElyOffice")
 ITEM = re.compile(r"^pub\s+(?:struct|enum|fn|trait|type|const)\s+([A-Za-z_]\w*)", re.M)
 USE = re.compile(r"pub\s+use\s+([^;]+);")
 CLAIM = re.compile(r"([a-z_]+)::\{([^}]*)\}")

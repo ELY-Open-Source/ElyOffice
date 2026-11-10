@@ -40,7 +40,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin e0f355a，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自 `reference/Ely-GPUI-Components`：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项。
+依赖 `ely-gpui-component`（pin e0f355a，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自上级目录里的组件库检出 `../Ely-GPUI-Components`（与本仓库并列，不在 `reference/`）：总包 `src/lib.rs` 列出各模块在哪个 crate。gpui 用法规则见该仓库 `AGENTS.md`。`tests/scripts/agents_md.py` 读 `../Ely-GPUI-Components` 核对下表每个名字都是组件库公开项，那里没有检出即失败。
 
 | 需要 | 用 |
 | --- | --- |
@@ -248,7 +248,7 @@ tests/scripts/panics-rules.sh  panics.py：列着的过、测试模块与 build.
 cargo check --workspace
 cargo test --workspace
 ELY_GIT=路径 cargo test -p ely-tree  ElyTree 测试用该 Git（系统 Git 须 2.40 起）；不设即用 engines/git 的随包 Git，都没有即失败
-rm -rf target/debug/incremental   每次构建或测试后都删（用户定：增量缓存会占满磁盘）
+rm -rf target/debug/incremental   标准 Cargo 下每次构建或测试后都删（用户定：增量缓存会占满磁盘）；huacnlee/cargo 下无此目录，不必
 cargo build -p ely-lok --bins   LOK 单测前先建 worker；单测不会自动重建它
 ELY_REQUIRE_ENGINES=1 cargo test  缺 LOK 构建的测试即失败（不设时打 SKIP 后通过）
 cargo build -p ely-pdf-worker  ElyPDF 与 ElyMark 的 worker（链接 engines/mupdf-build，ELY_MUPDF_DIR 可改；运行时 ELY_PDF_WORKER 可指定）
@@ -262,6 +262,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 
 - 上游：LibreOffice 26.2.6、MuPDF 1.28.5、Git 2.56.0 加 git-lfs 3.8.0、`gpui-pre` =0.3.11，以 `scripts/fetch-references.sh` 为准；组件库跟随其 main，修复在组件库仓库里做并推上去，再改 pin。
 - 仓库与发布在 GitHub 组织 ELY-Open-Source（ElyOffice、Ely-GPUI-Components）。推 `v*` 标签即运行 `.github/workflows/release.yml`：自托管机器上以 `scripts/ci.sh` 构建 macOS（arm64，Rosetta 下的 Intel）、Windows、Linux（WSL 里的 AlmaLinux 8 容器）并上传；四个任务互不等待，`ci.sh` 打包前先以 `scripts/release-tests.sh` 跑全部测试（`ELY_REQUIRE_ENGINES=1`），一个失败即不出包；最先上传的平台把发布建成预发布，四端都上传、核对过后再改为正式并设为最新（`releases/latest` 是官网下载与应用更新所读）。引擎经 `ELY_SHARE` 共用，新的 LibreOffice 补丁须先在三台机器的共享引擎上重建。macOS 的两个任务以 bash 5 起 `ci.sh`（arm64 用 Homebrew 的 `/opt/homebrew/bin/bash`，Intel 用 `build-bash.sh` 建的 `~/ely-share/bash-x86_64`），`ci.sh` 在 macOS 上拒绝 bash 3.2 并把自己的 bash 放在 PATH 最前：系统的 3.2 遇 `set -u` 中止后有 EXIT 陷阱即以 0 退出。
+- 本机构建用 [huacnlee/cargo](https://huacnlee.github.io/cargo/)（装一次即替换 `cargo`，项目里无配置）：中间产物在 `~/.cargo/targets/`，各工作树与项目共用、自动限额，二进制仍在 `./target`；它忽略 `--target-dir`、`CARGO_TARGET_DIR` 并告警，故 `tests/perf/bench.py`、`load.py`（frames 构建另放 `target/frames`）须在标准 Cargo 下跑。发布与 PR 的机器仍是标准 Cargo，脚本两者都得过。
 - Git：main 的历史不改写；提交签名，不写任何署名行。
 - 许可：自有代码 MIT；随包引擎照各自的许可，Linux 包的许可字段取 `packaging/apps.tsv`。
 - macOS 发布以 Developer ID 签名并公证（`ELY_SIGN_IDENTITY`、`ELY_NOTARY_PROFILE`），缺即失败，不出未公证的包。
