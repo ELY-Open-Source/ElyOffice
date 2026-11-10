@@ -628,7 +628,7 @@
 - [ ] R18.21 N-10 代理测试在无 IPv6 的机器上通过或明说跳过（§12、§22）
 - [ ] R18.22 N-11 crate 重名：`cargo test -p ely-files` 直接可用（§17）
 - [ ] R18.23 R-09 gpui 的修改导出为补丁目录，vendor 可由 crates.io 原版加补丁重建（§17）
-- [ ] R18.24 N-12 `agents.md` 不过 30 KB：测试脚本清单移到 `tests/scripts/README.md`（§17）
+- [ ] R18.24 N-12 `agents.md` 不过 30 KB：测试脚本清单移到 tests/scripts 下的 README（§17）
 - [ ] R18.25 R-11 更新的第二来源：自有域名；屏蔽 github.com 后检查更新仍成（§18）
 - [ ] R18.26 R-05 `compatibility.md` 的版本与补丁范围由脚本写出，打标签时与 `Cargo.toml` 不符即发布失败（§19）
 - [ ] R18.27 R-01 与 Microsoft Office 的交叉核对：三十份 Ely 存出的 DOCX、XLSX、PPTX 交 Office 网页版打开，记下报修复的份数与清单，查出的问题逐个修（§19.2）
