@@ -50,6 +50,13 @@ class Memory(ctypes.Structure):
 
 
 def free_now():
+    """Free memory in GB; Linux counts what is available."""
+    if sys.platform == "linux":
+        with open("/proc/meminfo", encoding="ascii") as info:
+            found = re.search(r"^MemAvailable:\s+(\d+) kB", info.read(), re.M)
+        if not found:
+            raise RuntimeError("free memory could not be read")
+        return int(found.group(1)) / 2**20
     status = Memory()
     status.size = ctypes.sizeof(Memory)
     if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
@@ -317,7 +324,7 @@ def one_app(slug, folder, work, args):
     FLOOR.lowest = free_now()
     home, place = data_home(work, slug), os.path.join(work, slug)
     os.makedirs(place, exist_ok=True)
-    files, front = loadfiles.documents(folder, place, slug, args.docs)
+    files, front = loadfiles.documents(folder, place, slug, args.docs, args.big_every)
     app = App(slug, home, files, frames=True)
     try:
         first_place(app)
@@ -335,7 +342,8 @@ def one_app(slug, folder, work, args):
         time.sleep(2.5)
         typing = len(app.lines())
         out["idle"] = type_keys(app, recipe, args.keys)
-        busy = threading.Thread(target=edit_rounds, args=(app, recipe, files, args.rounds, out))
+        # The programs edit the typed document too.
+        busy = threading.Thread(target=edit_rounds, args=(app, recipe, files + [front], args.rounds, out))
         busy.start()
         try:
             out["editing"] = type_keys(app, recipe, args.keys, busy)
@@ -362,6 +370,7 @@ def one_app(slug, folder, work, args):
     keys = len(out["idle"][0]) + len(out["editing"][0])
     if not richfiles.typed(slug, front, keys):
         out["problems"].append(f"front: the {keys} keys typed are not all saved")
+    out["problems"] += richfiles.edited(slug, front, args.rounds)
     for path in files:
         out["problems"] += richfiles.saved(slug, path, args.rounds)
     free_gb()
@@ -408,7 +417,7 @@ def environment(args):
     builds = {name: hashlib.sha256(open(run.HOST.exe(name, True), "rb").read()).hexdigest()[:16]
               for name in [*args.apps, "ely-lok-worker"]}
     env = {"date": datetime.date.today().isoformat(), **run.HOST.environment(), "machine": machine()}
-    return {**env, "docs": args.docs, "rounds": args.rounds, "keys": args.keys, "builds": builds,
+    return {**env, "docs": args.docs, "big every": args.big_every, "rounds": args.rounds, "keys": args.keys, "builds": builds,
             "lok": os.environ.get("ELY_LOK_DIR", "engines/")}
 
 
@@ -431,13 +440,14 @@ def write(out_dir, env, rows, problems):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--docs", type=int, default=100)
+    parser.add_argument("--big-every", type=int, default=10, help="1 makes every document a big one")
     parser.add_argument("--rounds", type=int, default=3)
     parser.add_argument("--keys", type=int, default=30)
     parser.add_argument("--apps", nargs="*", default=list(RECIPES))
     parser.add_argument("--out", default=os.path.join(run.ROOT, "docs", "perf"))
     args = parser.parse_args()
-    if sys.platform != "win32":
-        sys.exit("SKIP: PERF-10 reads free memory on Windows only")
+    if sys.platform not in ("win32", "linux"):
+        sys.exit("SKIP: PERF-10 reads free memory on Windows and Linux only")
     if not 2 <= args.docs or args.rounds > 9:
         parser.error("--docs needs 2 or more; --rounds at most 9")
     work = os.path.join(run.ROOT, ".work", f"L{datetime.datetime.now():%H%M%S}")

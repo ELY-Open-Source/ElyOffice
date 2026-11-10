@@ -161,3 +161,56 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     assert!(refused.as_ref().is_err_and(|why| why.contains("inside a group")), "{refused:?}");
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok(after.replace(' ', "\t")), "nothing replaced");
 }
+
+/// Types `text` into the shown deck as the window does.
+fn typed(cx: &mut TestAppContext, deck: &Entity<Deck>, text: &str) {
+    cx.update(|app| {
+        let deck = deck.read(app);
+        let doc = deck.active_tab().expect("a tab").doc.clone();
+        let mut worker = deck.core.worker.lock().expect("the worker lock");
+        worker.post_text(&doc, false, text).expect("types");
+        worker.post_text(&doc, true, "").expect("commits");
+    });
+}
+
+#[test]
+fn typing_in_a_box_goes_on_after_another_program_replaces() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = super::deck(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let path = dir.path().join("deck.fodp");
+    std::fs::write(&path, DECK).expect("writes the deck");
+    update(&mut cx, &deck, |deck, cx| deck.open_file(path.clone(), cx));
+    settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.list.len() == 2));
+    quiet(&cx, &deck);
+    let caret = |app: &gpui::App| deck.read(app).active_tab().is_some_and(|tab| tab.view.read(app).caret());
+    // A key opens the picked box; Ctrl+Home leaves its end.
+    cx.update(|app| {
+        let deck = deck.read(app);
+        let doc = deck.active_tab().expect("a tab").doc.clone();
+        let mut worker = deck.core.worker.lock().expect("the worker lock");
+        for kind in [0, 1] {
+            worker.post_mouse(&doc, ely_lok::Mouse { kind, x: 11000, y: 1500, count: 1, buttons: 1, modifiers: 0 }).expect("clicks");
+        }
+        worker.post_key(&doc, 'a' as u32, 0).expect("types");
+        worker.post_key(&doc, 0, 0x2000 | 1028).expect("to the start");
+    });
+    settle(&cx, caret);
+    typed(&mut cx, &deck, "b");
+    quiet(&cx, &deck);
+    let file = path.display().to_string();
+    // A match on the other slide, then before the caret.
+    for (find, with, key, text) in [("cell", "CELL", "c", "bccat"), ("Cat", "Lion", "d", "d")] {
+        assert_eq!(ask(&mut cx, &deck, &["replace", &file, find, with]), Ok(String::new()));
+        quiet(&cx, &deck);
+        typed(&mut cx, &deck, key);
+        quiet(&cx, &deck);
+        let read = ask(&mut cx, &deck, &["get", &file]).expect("the text");
+        let first = read.split('\x0c').next().expect("a slide");
+        assert!(first.contains(text) && read.contains(with), "after {find}: {read:?}");
+        assert!(cx.update(|app| caret(app)), "after {find}: the box is no longer typed in");
+    }
+    assert_eq!(current(&mut cx, &deck), Some(0), "the user's slide stays");
+}

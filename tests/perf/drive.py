@@ -230,6 +230,12 @@ class Linux(Host):
     def click_field(self, pid):
         self.helper("field", pid)
 
+    def park(self, pid):
+        self.helper("park", pid)
+
+    def rect(self, pid):
+        return self.helper("rect", pid).splitlines()[0]
+
     def environment(self):
         cpu = re.search(r"model name\s*:\s*(.+)", open("/proc/cpuinfo").read()).group(1).strip()
         memory = int(re.search(r"MemTotal:\s*(\d+)", open("/proc/meminfo").read()).group(1))

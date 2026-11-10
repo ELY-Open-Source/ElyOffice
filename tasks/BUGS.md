@@ -123,18 +123,18 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 
 - [x] L-01 Linux 的 LibreOffice：钉住的源码加全部补丁在 Linux 构建，LOK 探测通过（已关：0.1.12 的 Linux 包带内核发布；2026-10-30 WSL 的共享引擎在 AlmaLinux 容器里按全部补丁清空重建，严格全量测试（握手含 LOK 探测）通过（R14.42））
 - [x] L-02 Linux 全工作区零警告构建，`cargo test --workspace` 通过（引擎齐全，无 SKIP）（已关：2026-10-30 Linux 上 `cargo clippy --workspace --all-targets` 无告警，`ELY_REQUIRE_ENGINES=1` 全量测试无 SKIP 全过（R14.42））
-- [ ] N-01 打印：Windows、Linux 交系统打印（与 macOS 同一份 PDF、纸张与取消规则），不再禁用
+- [~] N-01 打印：Windows、Linux 交系统打印（与 macOS 同一份 PDF、纸张与取消规则），不再禁用 — 已由 R7.6 做成（`crates/ely-platform/src/print/win.rs`、`crates/ely-platform/src/print/linux.rs`：Windows 的系统打印对话框，Linux 的桌面门户）；R7.6 末轮 r3 FAIL，修后未复审，故记 `[~]`（R18.31）
 - [x] N-02 ElyShow 媒体：Windows 以 Media Foundation、Linux 以 GStreamer 实现 `media::Player`（载入、可播、失败原因、帧、循环与播完） — Windows R14.17（`media/mf.rs`），Linux R14.18（`media/gst.rs`）
 - [x] N-03 自动更新的安装与重开：Windows 安装程序、Linux AppImage，照 macOS 的退出后替换、失败记录与重开 — 4a74360 已做（`install::after_quit`：Windows 等进程退出后静默运行安装程序并重开，AppImage 换文件后重开，失败写入 `updates/failed.txt`；`tests/install.rs` 核对）；R14.4 删去非 macOS 的 `install`、`reopen` 桩
 - [x] N-04 签名验证的证书信任：Windows 系统信任库、Linux 系统 CA，禁网，不核吊销 — b7334ff 已做（`ely_platform::trust`：Windows 的 CryptoAPI 链引擎只读缓存、不自动更新根、不核吊销；Linux 的系统 CA 加 webpki，无网络）；R14.21 核对，三端测试皆过，Windows 上“一律受信”被测试抓住
 - [x] N-05 ElyTree 与系统：停止 Git（Windows 结束进程树）、打开终端、在文件管理器中显示，Windows、Linux（R14.27）
 - [ ] N-06 应用之间：Windows、Linux 的同级应用查找与启动、系统默认程序打开、单实例与诊断的崩溃报告位置
-- [ ] L-03 Linux 真窗口：六个应用开样本、编辑、保存、打印禁用说明、设置、更新检查
+- [ ] L-03 Linux 真窗口：七个应用开样本、编辑、保存、打印、设置、更新检查 — R18.31 改写（原写六个应用与“打印禁用说明”；打印已由 R7.6 做成）。已有的实测：装好的七个应用经 `tests/scripts/linux-installed.sh` 皆过（R14.45）；Xvfb 下 ElyDoc、ElyTable、ElyShow、ElyMark、ElyPDF 各开 20 份、键入、经命令行编辑并保存后读盘核对（R18.28）。所缺：真桌面上逐个应用过打印、设置、更新检查
 - [ ] O-01 Omarchy：外观为“系统”时随 Omarchy 主题，切换主题即刻跟随（Omarchy 虚拟机里实测）
 - [x] L-04 Linux 打包：六个 AppImage，带引擎、许可与桌面项；更新清单含 linux-x86_64（已关：0.1.12 发布含七个应用的 AppImage、deb、rpm 与 Arch 包，更新清单 `<应用>-linux-x86_64.json`；2026-10-30 Omarchy 上装好的七个应用经 `linux-installed.sh` 皆过（R14.45））
 - [x] W-01 Windows 的 LibreOffice：同一源码与补丁在 Windows 构建，LOK 探测通过（已关：0.1.12 的 Windows 安装程序带内核发布；2026-10-30 严格全量测试（握手含 LOK 探测）通过（R14.42））
 - [x] W-02 Windows 全工作区零警告构建，`cargo test --workspace` 通过（引擎齐全，无 SKIP）（已关：2026-10-30 Windows 上 clippy 无告警，严格全量测试 90 个套件全过、唯一的 SKIP 是只在 macOS 跑的像素核对（R14.42）；偶发的 BuildId 见 P3-15）
-- [ ] W-03 Windows 真窗口：六个应用开样本、编辑、保存、设置、更新检查
+- [ ] W-03 Windows 真窗口：七个应用开样本、编辑、保存、设置、更新检查 — R18.31 改写（原写六个应用）。已有的实测：ElyDoc、ElyTable、ElyShow、ElyMark 的真窗口负载与极端情形（`tests/perf/load.py`、`tests/perf/extreme.py`，记录在 `docs/perf/`）。所缺：ElyPDF、ElyMail、ElyTree 的真窗口逐项，设置与更新检查
 - [x] W-04 Windows 打包：六个安装程序，带引擎、许可、文件类型；更新清单含 windows-x86_64（已关：0.1.12 发布含七个应用与合集的安装程序，更新清单 `<应用>-windows-x86_64.json`）
 - [x] CI-01 Gitea 工作流：打标签即在 macOS、Windows、Linux 运行器上构建、测试、打包并上传到发布（已关：已由 GitHub 的 `.github/workflows/release.yml` 取代（Gitea 工作流已移除））
 - [x] REL-3 版本号 0.1.3，打标签触发运行器，三端产物与清单上传，官网指向新发布（已关：过时：其后已发至 0.1.12）
@@ -156,7 +156,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [x] P3-13 Windows：ElyPDF 三个单测恒失败（2026-10-14 组件 6b033f3 下实测，与组件无关）：`reads::a_failed_read_is_not_asked_again` 用 `kill -9` 杀 worker（同 P3-07）；`sign::a_signed_file_lists_its_checks_and_saves_as_a_copy` 报 “self-signed”（证书信任在 Windows 未构建，未细查）；`organize::a_save_writes_the_edits_and_undo_after_it_is_unsaved_again` 报状态未落定（原因未查） — b7334ff 已修（见 R12.35：MuPDF 补丁 0006 令只读打开共享删除、`save_atomic` 以 `std::fs::rename` 替换、测试用 `Worker::kill`）；R14.21 核对，三个测试在 Windows 连过三次，放回 `persist` 即失败
 - [x] P3-14 Windows：ElyTree 九个单测恒失败：五个比对 Git 写出的文字，本机 Git 的 `core.autocrlf` 写成 CRLF（测试仓库未设 `core.autocrlf false`）；其余写 Windows 不许的文件名（os error 123）。代码行为未见错。b7334ff 修（测试设 `GIT_CONFIG_NOSYSTEM`，换掉不许的文件名），R14.28 核实
 - [x] P3-15 Windows：全量并行单测中偶有一个 LOK worker 读到的 BuildId 为 `development`（`desktop/source/app/app.cxx` 读不到 bootstrap 的 buildid 时的默认值），握手照规则拒绝；同一时刻别的 worker 读到正确的 8221e31，内核与 worker 都未重建，单独重跑即过（2026-10-14 ElyDoc `review::tests::one_unreadable_time_spares_the_other_notes`，三次重跑皆过）。疑为并发时读 `version.ini` 偶发失败，原因未查（已关：补丁 0062，BuildId 用时才读、读不到不存；Windows 的 `release-tests.sh` 修前三次皆现、修后两次皆过，见 decisions 2026-10-30 R14.43）
-- [ ] P3-16 发布：`ci.sh` 在三端各自调用 `packaging/source.sh` 并上传同名的源码包与上游源码包，发布里同名文件出现三份（Gitea 允许重名）；上游源码包打的是各机的 `engines/mupdf-src`，含构建留下的文件，三份大小不同（v0.1.5：Linux 108 MB，macOS 161 MB）。v0.1.5 手动删去后到的两份，留 Linux 的一份。应只出一份，且上游包只含源码
+- [x] P3-16 发布：`ci.sh` 在三端各自调用 `packaging/source.sh` 并上传同名的源码包与上游源码包，发布里同名文件出现三份（Gitea 允许重名）；上游源码包打的是各机的 `engines/mupdf-src`，含构建留下的文件，三份大小不同（v0.1.5：Linux 108 MB，macOS 161 MB）。v0.1.5 手动删去后到的两份，留 Linux 的一份。应只出一份，且上游包只含源码（已关，R18.31：发布已迁 GitHub，同名文件传不上去；源码包只由 x86_64 的 Linux 上传（`scripts/ci.sh`），重跑遇同名即失败、什么也不传（R7.7）；`scripts/build-mupdf.sh` 以 `OUT=engines/mupdf-build` 把产物建在源码目录之外）
 - [ ] P3-17 ElyTable（Windows，0.1.5 安装版，2026-10-15 录视频时见）：A1 选中后按两次 Ctrl+= 缩放到 150%，网格停在半滚动处：第 5 行被表头截去一半，第 1–4 行看不见，Ctrl+Home 也回不到 A1。应保持首行与首列在视图内（同 R2.7 的按键缩放）
 - [x] P3-18 Windows：`tests::menu::right_clicks_open_excel_rows_on_cells_and_headers` 第二次右键 A2（先 `cell.goto D9`）等不到菜单；不带 R9.3、R9.4 的源码同样失败，原因未查（已关：`tests::menu::right_clicks_open_excel_rows_on_cells_and_headers` 2026-10-30 Windows 严格全量测试（`release-tests.sh`）中通过）
 - [ ] P3-19 Windows：ElyTable 全量单测并行跑（默认线程数或 6）时，`output` 的测试与 worker 一起停在零 CPU、不再前进；逐个跑（`--test-threads=1`）不停，原因未查

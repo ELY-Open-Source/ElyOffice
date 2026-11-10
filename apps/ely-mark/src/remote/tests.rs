@@ -77,6 +77,31 @@ fn text_reads_typing_replaces_in_one_step_and_saves(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn typing_goes_on_where_it_was_after_another_program_replaces(cx: &mut TestAppContext) {
+    let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+    let path = files.path().join("a.md");
+    std::fs::write(&path, "# Typing\n\nA paragraph.\n\ntoken0\n").expect("a file");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &path, cx);
+    let file = path.display().to_string();
+    let block = cx.debug_bounds("markdown-block-1").expect("the paragraph is drawn");
+    let at = point(block.left() + px(4.0), block.top() + px(4.0));
+    cx.simulate_mouse_down(at, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_up(at, MouseButton::Left, Modifiers::none());
+    cx.run_until_parked();
+    cx.simulate_input("x");
+    // A match after the caret, then one before it.
+    for (round, (find, with)) in [("token0", "token1"), ("Typing", "Typed twice")].into_iter().enumerate() {
+        assert_eq!(ask(&desk, &["replace", &file, find, with], cx), Ok(String::new()));
+        cx.simulate_input("y");
+        cx.run_until_parked();
+        let text = ask(&desk, &["get", &file], cx).expect("read");
+        let typed = format!("x{}", "y".repeat(round + 1));
+        assert!(text.contains(&typed) && text.contains(with), "after {find}: {text:?}");
+    }
+}
+
+#[gpui::test]
 fn a_deleted_files_tab_still_reads_and_replaces(cx: &mut TestAppContext) {
     let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
     let path = files.path().join("gone.md");

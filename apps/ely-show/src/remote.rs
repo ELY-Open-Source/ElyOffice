@@ -54,9 +54,11 @@ impl Deck {
                     return ask.answer(Err("FIND must be text within one paragraph, and WITH too".into()));
                 }
                 let (find, with) = (find.clone(), with.clone());
+                // A box being typed in: where its caret shows.
+                let caret = self.tab(id).map(|tab| tab.view.read(cx)).filter(|view| view.caret()).and_then(|view| view.cursor());
                 self.read_in(
                     id,
-                    move |worker, doc| replace_all(worker, doc, &find, &with),
+                    move |worker, doc| replace_all(worker, doc, &find, &with, caret),
                     move |_, done, _, _| ask.answer(done.map(|()| String::new()).map_err(|error| error.to_string())),
                     cx,
                 );
@@ -67,7 +69,7 @@ impl Deck {
 }
 
 /// Impress narrows Replace All to marked objects; unmark, then restore.
-fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, with: &str) -> std::io::Result<()> {
+fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, with: &str, caret: Option<ely_lok::Rect>) -> std::io::Result<()> {
     let read = |worker: &mut ely_lok::Worker, doc: &ely_lok::Doc| {
         ely_lok::show::objects(&worker.values(doc, ely_lok::show::OBJECTS)?)
     };
@@ -95,6 +97,14 @@ fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, wit
             marked.iter().enumerate().map(|(n, at)| [at.as_str(), if n > 0 { "true" } else { "false" }]).collect();
         let commands: Vec<(&str, &[&str])> = picks.iter().map(|values| ("object.select", values.as_slice())).collect();
         worker.run_all(&now, &commands)?;
+        // Unmarking ended the edit; a click reopens it.
+        if let (Some((x, y, width, height)), [_]) = (caret, marked.as_slice()) {
+            log::info!("show: the text edit a replace ended opens again at its caret");
+            for kind in [0, 1] {
+                let at = ely_lok::Mouse { kind, x: x + width / 2, y: y + height / 2, count: 1, buttons: 1, modifiers: 0 };
+                worker.post_mouse(&now, at)?;
+            }
+        }
     }
     replaced.map_err(|error| std::io::Error::other(format!("nothing replaced: {error}")))
 }

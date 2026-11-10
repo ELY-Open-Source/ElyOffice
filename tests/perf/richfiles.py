@@ -232,23 +232,27 @@ def typed(slug, path, count):
     return "x" * count in loadfiles.text_of(path)
 
 
-def saved(slug, path, rounds):
-    """What a saved document lost of its edits and links."""
-    name, problems = os.path.basename(path), []
+def edited(slug, path, rounds):
+    """What a saved document lost of the programs' edits."""
+    name = os.path.basename(path)
     if slug == "ely-table":
         want = {("Data", "H1"): rounds, ("Data", "A1"): 1000 + rounds, ("Calc", "A1"): 2 * (1000 + rounds)}
-        for (sheet, ref), value in want.items():
-            got = loadfiles.cell(path, sheet, ref)
-            if number(got) != value:
-                problems.append(f"{name}: {sheet}!{ref} saved {got}, not {value}")
+        got = {at: loadfiles.cell(path, *at) for at in want}
+        return [f"{name}: {sheet}!{ref} saved {got[sheet, ref]}, not {value}"
+                for (sheet, ref), value in want.items() if number(got[sheet, ref]) != value]
+    found = loadfiles.tokens(path)
+    return [] if found == [rounds] else [f"{name}: saved tokens {found}, not [{rounds}]"]
+
+
+def saved(slug, path, rounds):
+    """What a saved document lost of its edits and links."""
+    name, problems = os.path.basename(path), edited(slug, path, rounds)
+    if slug == "ely-table":
         kept = book_kept(path, ROWS.get(name.split("-")[-1].split(".")[0], HUGE["ely-table"]), rounds)
         if "-big" in name:
             # Nobody pressed Update links: saved values stay (LOK-11).
             kept = {**kept, **loadfiles.book_links(path, loadfiles.RATES_CACHED[0]), **xlsx_kept(path)}
         return problems + [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
-    found = loadfiles.tokens(path)
-    if found != [rounds]:
-        problems.append(f"{name}: saved tokens {found}, not [{rounds}]")
     kept = loadfiles.word_links(path, loadfiles.INCLUDED_CACHED) if "-linked" in name else original(slug, path, rounds)
     return problems + [f"{name}: {what} failed" for what, ok in kept.items() if not ok]
 

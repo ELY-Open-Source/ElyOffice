@@ -1,0 +1,34 @@
+LOK: a sheet added to one document leaves another's cell edit
+
+ScDocument::InsertTab, under the kit, enters "any in-process input"
+so the cell being typed does not move to the next sheet. It asks the
+module, whose input handler is the active view's, whatever document
+that view shows. A workbook loading into a second view inserts its
+sheets while the first view is still the active one: the edit open
+there is entered, and the keys that follow start a new entry over
+the cell (Ely R18.28: thirty-one characters typed, a workbook of
+three sheets loads, the cell keeps only what came after). The
+edit is now entered only when the active view shows this document;
+a document without a shell (the clipboard's, an undo's) has no edit
+to enter.
+--- a/sc/source/core/data/document.cxx
++++ b/sc/source/core/data/document.cxx
+@@ -65,6 +65,7 @@
+ #include <detdata.hxx>
+ #include <dpobject.hxx>
+ #include <scmod.hxx>
++#include <tabvwsh.hxx>
+ #include <dociter.hxx>
+ #include <progress.hxx>
+ #include <autonamecache.hxx>
+@@ -493,7 +494,9 @@
+     SCTAB nPos, const OUString& rName, bool bExternalDocument, bool bUndoDeleteTab )
+ {
+     // auto-accept any in-process input to prevent move the cell into next sheet in online.
+-    if (comphelper::LibreOfficeKit::isActive())
++    // Ely: only an edit in this document.
++    ScTabViewShell* pActive = comphelper::LibreOfficeKit::isActive() ? ScTabViewShell::GetActiveViewShell() : nullptr;
++    if (pActive && pActive->GetViewData().GetDocShell() == mpShell)
+         if (ScModule* mod = ScModule::get(); !mod->IsFormulaMode())
+             mod->InputEnterHandler();
+ 

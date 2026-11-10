@@ -67,6 +67,52 @@ fn a_save_keeps_the_cell_edit_and_writes_the_cell_as_entered() {
     }
 }
 
+/// Y typed after `typed` joins the open edit.
+fn goes_on(worker: &mut Worker, doc: &Doc, typed: &Events, what: &str) {
+    let after = poll_until(worker, doc, typed, SETTLE, |_| false);
+    worker.post_text(doc, false, "Y").expect("Y types");
+    worker.post_text(doc, true, "").expect("Y commits");
+    let more = poll_until(worker, doc, &after, SETTLE, |seen| seen.a11y.text.ends_with('Y'));
+    assert_eq!(more.a11y.text, "Hello 世界ZY", "{what}: the keys go on in the edit");
+    assert_eq!(entered(worker, doc, &more), "Hello 世界ZY", "{what}");
+}
+
+#[test]
+fn a_document_loaded_meanwhile_leaves_the_cell_edit_open() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/table");
+    // Each sheet of a loading workbook is inserted (patch 0113).
+    for other in ["in.fods", "pivot.xlsx", "links.xlsx"] {
+        let (dir, mut worker, doc) = open_sheet();
+        let typed = editing(&mut worker, &doc, true);
+        let path = if other == "in.fods" { dir.path().join(other) } else { fixtures.join(other) };
+        let second = worker.load(&crate::file_url(&path)).expect("another document loads");
+        // Another program's edit of the tab just loaded.
+        let name = second.sheets(&mut worker).expect("its sheets").list[0].name.clone();
+        worker.run(&second, "cell.set", &[&format!("{name}!H1"), "7"]).expect("the cell is set");
+        goes_on(&mut worker, &doc, &typed, other);
+    }
+}
+
+#[test]
+fn a_cell_set_by_another_program_leaves_the_cell_edit_open() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    for address in ["S!B1", "S!A2", "Other!A1"] {
+        let (dir, mut worker, _) = open_sheet();
+        let two = dir.path().join("two.fods");
+        let other = r#"<table:table table:name="Other"><table:table-row><table:table-cell><text:p>x</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet>"#;
+        write(&two, &super::input::FODS.replace("</office:spreadsheet>", other));
+        let doc = worker.load(&crate::file_url(&two)).expect("two sheets load");
+        let typed = editing(&mut worker, &doc, true);
+        worker.run(&doc, "cell.set", &[address, "from another process"]).expect("another program's edit");
+        goes_on(&mut worker, &doc, &typed, address);
+    }
+}
+
 #[test]
 fn a_closing_save_enters_the_cell_edit_first() {
     if install().is_none() {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bench.py on Linux: Xvfb in a container, private AT-SPI bus.
+# A perf tool on Linux: Xvfb, a private AT-SPI bus.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -20,9 +20,12 @@ FROM ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb \
   && rm -rf /var/lib/apt/lists/*
 EOF
-xvfb=$(docker run -d --rm --network host ely-xvfb Xvfb :9 -listen tcp -ac -screen 0 1920x1080x24)
+# ELY_PERF_TOOL: bench.py, or load.py; one display each.
+tool=${ELY_PERF_TOOL:-bench.py}
+screen=${ELY_PERF_DISPLAY:-9}
+xvfb=$(docker run -d --rm --network host ely-xvfb Xvfb ":$screen" -listen tcp -ac -screen 0 1920x1080x24)
 trap 'docker stop -t 1 "$xvfb" >/dev/null' EXIT
-export DISPLAY=127.0.0.1:9
+export DISPLAY=127.0.0.1:$screen
 for _ in $(seq 40); do xwininfo -root >/dev/null 2>&1 && break; sleep 0.25; done
 xwininfo -root >/dev/null || { docker logs "$xvfb" >&2; exit 1; }
 
@@ -39,6 +42,8 @@ Gio.bus_get_sync(Gio.BusType.SESSION).call_sync(\"org.a11y.Bus\", \"/org/a11y/bu
 " 2>/dev/null && break
   sleep 0.25
 done
+# A private bus has no systemd to start the registry.
+[ ! -x "${launcher%/*}/at-spi2-registryd" ] || "${launcher%/*}/at-spi2-registryd" >/dev/null 2>&1 &
 exec python3 "$bench" "$@"'
 unset WAYLAND_DISPLAY
-ELY_GIT=${ELY_GIT:-$(command -v git)} dbus-run-session -- bash -c "$inside" _ "$launcher" "$here/bench.py" "$@"
+ELY_GIT=${ELY_GIT:-$(command -v git)} dbus-run-session -- bash -c "$inside" _ "$launcher" "$here/$tool" "$@"

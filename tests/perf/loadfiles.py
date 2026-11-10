@@ -283,9 +283,9 @@ def big_md(path):
         note.write(f"{TOKEN}0\n\n{text}")
 
 
-def role(slug, i):
-    """Every tenth big; Doc's next is linked; the rest small."""
-    if i % 10 == 0:
+def role(slug, i, every=10):
+    """Every `every`th big; Doc's next is linked; the rest small."""
+    if i % every == 0:
         return "big"
     return "linked" if slug == "ely-doc" and i % 10 == 1 else "small"
 
@@ -299,12 +299,12 @@ def sources(work, rates=RATES_NOW, seed=4):
         png.write(samples.noise_png(seed, 64, 64))
 
 
-def documents(folder, work, slug, n):
+def documents(folder, work, slug, n, every=10):
     """Documents opened at launch, and the front one."""
     sources(work)
     files = []
     for i in range(n - 1):
-        kind = role(slug, i)
+        kind = role(slug, i, every)
         path = os.path.join(work, f"{slug[4:]}-{i:03d}-{kind}.{EXT[slug]}")
         if kind == "big":
             shutil.copy(os.path.join(folder, f"big.{EXT[slug]}"), path)
@@ -328,7 +328,7 @@ def front_file(folder, slug):
     front = os.path.join(folder, f"front.{EXT[slug]}")
     if slug == "ely-mark":
         with open(front, "w", encoding="utf-8", newline="\n") as note:
-            note.write("# Typing\n\nA paragraph.\n")
+            note.write(f"# Typing\n\nA paragraph.\n\n{TOKEN}0\n")
     elif slug == "ely-doc":
         small_docx(front, 0)
     elif slug == "ely-table":

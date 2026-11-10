@@ -1,4 +1,4 @@
-"""Window input for bench.py on Linux, through AT-SPI and X11."""
+"""Window input for the Linux perf tools, by AT-SPI."""
 
 import ctypes
 import re
@@ -107,6 +107,23 @@ def key(name):
     xtest(send)
 
 
+def frame(pid):
+    """The app's window on screen: x, y, width, height."""
+    app = app_of(pid)
+    top = next((node for node in nodes(app) if node.get_role() == R.FRAME), None)
+    if top is None:
+        sys.exit(f"{app.get_name()} shows no window")
+    box = top.get_extents(Atspi.CoordType.SCREEN)
+    return box.x, box.y, box.width, box.height
+
+
+def park(pid):
+    """The pointer beside the window, never resting on it."""
+    x, y, width, height = frame(pid)
+    beside = x - 10 if x > 20 else x + width + 10
+    xtest(lambda x11, xtst, display: xtst.XTestFakeMotionEvent(display, -1, beside, y + height // 2, 0))
+
+
 def front(title):
     """Focuses the window, as a window manager would."""
     tree = subprocess.run(["xwininfo", "-root", "-children"], capture_output=True, text=True, check=True).stdout
@@ -152,6 +169,10 @@ def main():
             click(node)
     elif command == "shows":
         print("yes" if named(pid, arg) is not None else "no")
+    elif command == "rect":
+        print(",".join(map(str, frame(pid))))
+    elif command == "park":
+        park(pid)
     elif command == "field":
         app, until = app_of(pid), time.monotonic() + 10
         while (field := next((n for n in nodes(app) if n.get_role() == R.ENTRY), None)) is None:
