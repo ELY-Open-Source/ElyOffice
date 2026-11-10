@@ -28,7 +28,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("tree.tag.message", "メッセージ (注釈付きタグの場合)"),
     ("tree.tag.create", "作成"),
     ("tree.rename.title", "{name} の名前を変更"),
-    ("tree.rename.go", "名前を変更"),
+    ("tree.rename.go", "名前の変更"),
     ("tree.name.empty", "名前を入力してください。"),
     ("tree.commit.pick_it", "チェリーピック"),
     ("tree.commit.revert_it", "リバート"),

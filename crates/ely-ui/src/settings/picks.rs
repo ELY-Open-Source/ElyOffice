@@ -85,10 +85,17 @@ pub(super) fn doc_zoom(stored: DocZoom, cx: &App) -> Select {
     })
 }
 
+/// Languages no native speaker has proofread yet.
+const PREVIEW: [&str; 6] = ["de-DE", "es-ES", "fr-FR", "ja-JP", "ko-KR", "vi-VN"];
+
 /// System, then each language in its own name.
 pub(super) fn languages(cx: &App) -> Vec<Choice> {
+    let named = |(tag, name): (&'static str, &'static str)| match PREVIEW.contains(&tag) {
+        true => Choice::new(tag, text(cx, "settings.language.preview", &[("name", name)])),
+        false => Choice::new(tag, name),
+    };
     std::iter::once(Choice::new(Language::System.word(), text(cx, "settings.language.system", &[])))
-        .chain(LANGUAGES.map(|(tag, name)| Choice::new(tag, name)))
+        .chain(LANGUAGES.map(named))
         .collect()
 }
 

@@ -49,8 +49,9 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("settings.language.system", "Sistema"),
     (
         "settings.language.next",
-        "Se aplica la próxima vez que se inicie cada aplicación",
+        "Se aplica la próxima vez que se inicie cada aplicación. Los idiomas marcados como vista previa aún esperan la revisión de un hablante nativo.",
     ),
+    ("settings.language.preview", "{name} (vista previa)"),
     ("settings.motion", "Movimiento"),
     ("settings.motion.system", "Sistema"),
     ("settings.motion.reduce", "Reducido"),

@@ -52,6 +52,8 @@ mod tree_places;
 mod vi;
 #[cfg(test)]
 mod vietnamese_tests;
+#[cfg(test)]
+mod wording_tests;
 use ely_ipc::{Then, Worded};
 use ely_platform::settings::{LANGUAGES, Language};
 use gpui::{App, SharedString};

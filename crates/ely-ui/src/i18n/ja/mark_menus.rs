@@ -55,7 +55,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("mark.refused.busy", "直前の編集をまだ読み取っています"),
     ("mark.refused.changed", "編集の準備ができる前にテキストが変わりました。もう一度お試しください"),
     ("mark.refused.misread", "テキストの読まれ方が変わってしまうため、何も変更しませんでした"),
-    ("mark.edit.cut", "カット"),
+    ("mark.edit.cut", "切り取り"),
     ("mark.edit.copy", "コピー"),
     ("mark.edit.paste", "貼り付け"),
     ("mark.edit.delete", "選択されたものを削除"),

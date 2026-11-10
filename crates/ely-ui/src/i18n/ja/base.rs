@@ -45,7 +45,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("gallery.task.retry", "{error} · 再試行"),
     ("gallery.error.disk_full", "ディスクがいっぱいです"),
     ("gallery.rename.title", "ページの名前を変更"),
-    ("gallery.rename.submit", "名前を変更"),
+    ("gallery.rename.submit", "名前の変更"),
     ("gallery.rename.empty", "ページには名前が必要です"),
     ("gallery.rename.placeholder", "ページ名"),
     ("gallery.rename.failed", "ディスクがいっぱいのため、名前は保存されませんでした"),

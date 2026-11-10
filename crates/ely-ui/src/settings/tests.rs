@@ -262,12 +262,16 @@ fn the_language_row_lists_each_language_to_pick(cx: &mut TestAppContext) {
 fn each_language_is_named_in_its_own_words(cx: &mut TestAppContext) {
     installed(cx);
     let mut system = Vec::new();
-    for locale in ["en-US", "zh-CN"] {
+    // Only English and Chinese have had a native reader.
+    for (locale, preview) in [("en-US", " (preview)"), ("zh-CN", "（预览）")] {
         cx.update(|cx| {
             crate::i18n::install_as(locale, cx);
             let listed = super::picks::languages(cx);
             let words: Vec<_> = listed.iter().map(|choice| (choice.value.to_string(), choice.label.to_string())).collect();
-            let own = ely_platform::settings::LANGUAGES.map(|(tag, name)| (tag.to_string(), name.to_string()));
+            let own = ely_platform::settings::LANGUAGES.map(|(tag, name)| match tag {
+                "en-US" | "zh-CN" => (tag.to_string(), name.to_string()),
+                _ => (tag.to_string(), format!("{name}{preview}")),
+            });
             assert_eq!(words[1..], own, "{locale}");
             assert_eq!(words[0].0, "system");
             system.push(words[0].1.clone());
