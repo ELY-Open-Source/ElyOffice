@@ -48,6 +48,6 @@ fn keys_never_wait_behind_the_event_watch() {
     let (waited, called) = (stat(&mut waits), stat(&mut calls));
     log::info!("keys: lock wait {waited:?} ms, call {called:?} ms");
     assert!(waited.1 < 2.0, "keys wait for the lock: {waited:?} ms");
-    // Queued behind the 50 ms watch, every key would be slow.
+    // Behind the 50 ms watch, every key is slow.
     assert!(called.0 < 30.0, "a key round trip is slow: {called:?} ms");
 }
