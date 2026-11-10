@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A test's sleep polls for an event, or says what it stands for."""
+"""A test sleep polls for an event or says why."""
 import re
 import subprocess
 import sys
