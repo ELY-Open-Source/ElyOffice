@@ -599,3 +599,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - R18.5：交给别的应用的文件原先每份一个后台任务，先后不定。改为一批一个任务，逐份打开，前一份交出后才交下一份；失败的逐个报在主窗口。测试 `files_for_another_app_go_in_drop_order` 在 gpui 的随机调度下跑 20 轮（改回每份一个任务即败）。
 - R18.6：补上整句提示的对照（`docs/accessibility.md` 的“整句提示的对照”）：有 LibreOffice 对应句的十条逐语言并排，其余列为无对应项、未对照。没有查出要改的译文。
 - R18.7：一、读屏离开时还留着等正文的那段事件，迟到的正文落地后会把它盖回已更新的段落上。改：读屏一离开，留着的那段立刻换上（不会再有正文来）；没有听众时落地的正文丢弃。测试 `a_reader_that_leaves_takes_no_late_body`（去掉这两处即败）。二、断句把句号后的闭引号、闭括号留给了下一句。改：句末标点之后的闭引号、闭括号（`"`、`'`、`”`、`’`、`)`、`]`、`」`、`』`、`）`、`】`、`》`）归本句，拉丁句号要其后（越过这些）是空白或段末才算句末；空白之后的引号是下一句的开头。
+
+## 2026-11-10 LOK 下内核不起 DDE 服务（R18.9，审计 N-01，R15.70）
+
+- 原因：Windows 上 `SfxApplication::InitializeDde` 不分 LOK 与否都注册两个 DDE 服务；LOK 下 `Application::GetAppName()` 为空，第一个服务便答应任何服务名（`DNS_FILTEROFF`）。同一登录会话里任何程序可经它让 worker 按路径打开文档（`ImplDdeService::MakeTopic`）或执行 System 主题的命令，绕过 Ely 的检查；文档里指向不存在的服务器的 DDE 链接也会连到别的 worker 上。
+- 改：补丁 0107，`comphelper::LibreOfficeKit::isActive()` 时 `InitializeDde` 直接返回、不注册。调用处本就容得下没有服务：`AddDdeTopic` 见空即回，`RemoveDdeTopic` 无主题即回，文档壳先问 `GetDdeService()`。文档向外的 DDE 链接（客户端一侧）不动。
+- 测试：`client/tests/dde.rs`（只在 Windows）起一个 worker、载入一份文档，以 DDEML 的 `DdeConnectList` 列出答应 `soffice|System` 与 `elynosuchapp|nofile` 的全部进程，断言其中没有这个 worker。别的程序（真的 LibreOffice、旧版本的 worker）答应不算败。
+- 未验证：这段内核代码在 `#if defined(_WIN32)` 里，测试也只在 Windows 编译；本机是 Linux，两者都没编过、没跑过。须在 Windows 上以带 0107 的内核跑过，并在不带它的内核上见测试失败，R18.9 在那之前不打勾。R15.43 的 `a_dde_link_to_no_server_is_named_without_a_dialog` 在桌面上另有 worker 时是否随之通过，同样待 Windows 上核对。

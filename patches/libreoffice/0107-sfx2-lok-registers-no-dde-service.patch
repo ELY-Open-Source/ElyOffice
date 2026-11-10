@@ -1,0 +1,34 @@
+sfx2: a LOK kernel registers no DDE service
+
+On Windows SfxApplication::InitializeDde registers two DDE services in
+every process, LOK or not. Under LOK Application::GetAppName() is
+empty, so the first answers any service name (DNS_FILTEROFF): any
+program in the same session could have the kernel open a document by
+path (ImplDdeService::MakeTopic) or run a System topic command, past
+the client's own checks, and a DDE link to a server that is not there
+connected to another LOK process instead.
+With LibreOfficeKit active no service is registered. The callers
+already take a missing service: AddDdeTopic returns, RemoveDdeTopic
+finds no topics, the document shells test GetDdeService(). DDE links
+out of a document, the client side, are untouched.
+
+--- a/sfx2/source/appl/appdde.cxx
++++ b/sfx2/source/appl/appdde.cxx
+@@ -37,6 +37,7 @@
+ #include <tools/debug.hxx>
+ #include <tools/urlobj.hxx>
+ #include <comphelper/diagnose_ex.hxx>
++#include <comphelper/lok.hxx>
+ #include <unotools/pathoptions.hxx>
+ #include <vcl/svapp.hxx>
+ 
+@@ -407,6 +408,9 @@
+ {
+     int nError = 0;
+ #if defined(_WIN32)
++    // Ely: a LOK client's kernel serves no DDE.
++    if (comphelper::LibreOfficeKit::isActive())
++        return true;
+     DBG_ASSERT( !pImpl->pDdeService,
+                 "Dde can not be initialized multiple times" );
+ 

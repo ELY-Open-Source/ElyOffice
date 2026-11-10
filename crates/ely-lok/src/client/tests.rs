@@ -13,6 +13,8 @@ mod dates;
 mod check;
 mod connectors;
 mod commands;
+#[cfg(windows)]
+mod dde;
 mod docx;
 mod filter;
 mod fonts;
