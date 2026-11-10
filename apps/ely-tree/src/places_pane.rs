@@ -55,7 +55,7 @@ impl Tree {
         rows: DescriptionList,
         acts: AnyElement,
         cx: &mut Context<Self>,
-    ) -> AnyElement {
+    ) -> gpui::Div {
         let colors = cx.theme().colors.clone();
         div()
             .size_full()
@@ -74,7 +74,6 @@ impl Tree {
             )
             .child(rows)
             .child(acts)
-            .into_any_element()
     }
 
     /// A stash's head: its words, when, and its three actions.
@@ -111,12 +110,11 @@ impl Tree {
             ),
             None => div().into_any_element(),
         };
-        let colors = cx.theme().colors.clone();
         div()
-            .flex_none()
-            .border_b_1()
-            .border_color(colors.border)
-            .child(self.card(subject, rows, acts, cx))
+            .id("tree-stash-head")
+            .size_full()
+            .overflow_y_scroll()
+            .child(self.card(subject, rows, acts, cx).h_auto())
             .into_any_element()
     }
 
@@ -166,12 +164,11 @@ impl Tree {
             || detail.message.lines().next().unwrap_or("").to_string(),
             |moved| moved.said,
         );
-        let colors = cx.theme().colors.clone();
         div()
-            .flex_none()
-            .border_b_1()
-            .border_color(colors.border)
-            .child(self.card(title, rows, acts, cx))
+            .id("tree-reflog-head")
+            .size_full()
+            .overflow_y_scroll()
+            .child(self.card(title, rows, acts, cx).h_auto())
             .into_any_element()
     }
 
@@ -229,7 +226,7 @@ impl Tree {
                     ],
                     cx,
                 );
-                self.card(name.clone(), rows, acts, cx)
+                self.card(name.clone(), rows, acts, cx).into_any_element()
             }
             Place::Worktree(path) => {
                 let Some(tree) = found(read, |read| &read.worktrees, |t| &t.path == path) else {
@@ -271,7 +268,7 @@ impl Tree {
                     ));
                 }
                 let acts = self.acts(acts, cx);
-                self.card(tree.path.display().to_string(), rows, acts, cx)
+                self.card(tree.path.display().to_string(), rows, acts, cx).into_any_element()
             }
             Place::Submodule(path) => {
                 let Some(sub) = found(read, |read| &read.submodules, |s| &s.path == path) else {
@@ -303,7 +300,7 @@ impl Tree {
                     ));
                 }
                 let acts = self.acts(acts, cx);
-                self.card(sub.path.clone(), rows, acts, cx)
+                self.card(sub.path.clone(), rows, acts, cx).into_any_element()
             }
             // Gone from the reflog, the event shows nothing.
             Place::Reflog(was)
