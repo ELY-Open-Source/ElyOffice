@@ -606,7 +606,7 @@
 ## R18 第二次审计与新议题（用户 2026-11-10 定：`OPTIMIZATION-New.md`（本机，未入库）的二十四项与 GitHub 未关的议题全部修好，R-02 的 Windows 签名这次不做；先保兼容，再保流畅；极限测试为 Word、Excel、PDF、PPT 各 20 份复杂文件同时开着，内核不崩、互不锁死、照样流畅；Doc、Table、Show、Mark 另测人与命令行同时改一份文件；全部文档随之更新。按 PRD 章节逐条做，主 agent 独自做，无 subagent、worktree、分支；每条交 Cindy 的常驻审查者（Codex，gpt-6.1-sol，effort xhigh，只读）对抗审查，至多三轮，过审即勾选、提交、推送，三轮不过标 `[!]` 并写明余下的问题；不问，取推荐项。本机为 Linux（Omarchy），Windows 机器离线：只在 Windows 上验得了的写明未验）
 
 - [ ] R18.1 前置：本机在发布容器里建好 LibreOffice、MuPDF、OpenSSL 三个内核，`ELY_REQUIRE_ENGINES=1` 的全量测试跑一遍，记下基线（§4、§22）
-- [ ] R18.2 N-05 glibc 三处不一致：`linux-glibc.sh` 的上限改 2.28；deb、rpm 的依赖带版本；包里自带的 `libsystemd`、`libmount`、`libblkid` 写明理由或移除（§4）
+- [x] R18.2 N-05 glibc 三处不一致：`linux-glibc.sh` 的上限改 2.28；deb、rpm 的依赖带版本；包里自带的 `libsystemd`、`libmount`、`libblkid` 写明理由或移除（§4） — 上限改为构建容器所有的 2.28（GLIBCXX 3.4.25、CXXABI 1.3.11），检查进了发布流程并在容器里跑，缺 readelf 即失败；依赖的 glibc 版本取自包内文件；libdbus 一串十个库改用系统的（`155107c7`、`78fbc887`，见 decisions 2026-11-10）。R1 FAIL（门在宿主机上会跳过），R2 PASS
 - [ ] R18.3 #77 Linux 合集包与 arm64（PR #78）；#42 体积一并答复（§4）
 - [ ] R18.4 #16 WinGet 与 #37 Windows arm64：核对现状，答复（§4）
 - [ ] R18.5 #75 把文件拖进窗口即打开：七个应用，多份依次打开，不认的类型说明原因，悬停时有落点提示（§5）
