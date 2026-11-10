@@ -608,7 +608,7 @@
 - [ ] R18.1 前置：本机在发布容器里建好 LibreOffice、MuPDF、OpenSSL 三个内核，`ELY_REQUIRE_ENGINES=1` 的全量测试跑一遍，记下基线（§4、§22）
 - [x] R18.2 N-05 glibc 三处不一致：`linux-glibc.sh` 的上限改 2.28；deb、rpm 的依赖带版本；包里自带的 `libsystemd`、`libmount`、`libblkid` 写明理由或移除（§4） — 上限改为构建容器所有的 2.28（GLIBCXX 3.4.25、CXXABI 1.3.11），检查进了发布流程并在容器里跑，缺 readelf 即失败；依赖的 glibc 版本取自包内文件；libdbus 一串十个库改用系统的（`155107c7`、`78fbc887`，见 decisions 2026-11-10）。R1 FAIL（门在宿主机上会跳过），R2 PASS
 - [ ] R18.3 #77 Linux 合集包与 arm64（PR #78）；#42 体积一并答复（§4）
-- [ ] R18.4 #16 WinGet 与 #37 Windows arm64：核对现状，答复（§4）
+- [!] R18.4 #16 WinGet 与 #37 Windows arm64：核对现状，答复（§4）— 2026-11-10 核对：WinGet 的七个提交（microsoft/winget-pkgs#472335、472336、472338 至 472342，0.1.13）都过了自动校验（Validation-Completed），仍开着，等微软人工审核，已在 #16 说明；#37 无新情况（无 arm64 的 Windows 可验，内核须另建），前一条答复仍成立。两条都卡在外部，同 R16.3、R16.4
 - [ ] R18.5 #75 把文件拖进窗口即打开：七个应用，多份依次打开，不认的类型说明原因，悬停时有落点提示（§6 FILE-11）
 - [ ] R18.6 N-04 六种新语言在设置里标为“预览”，会造成数据后果的文案逐条对照 LibreOffice 的译文，留核对记录（§5、§20.3）
 - [ ] R18.7 R-12 读屏从当前位置连读到文末（Orca 所读的 AT-SPI 文本）（§5、§20.3）
