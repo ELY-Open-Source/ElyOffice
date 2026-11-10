@@ -677,4 +677,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
   - 改本仓库的包名更糟：`ely-mail`、`ely-agent` 是应用，包名即二进制名与 `packaging/apps.tsv` 的标识；而且改名之后 `-p ely-files` 不再报错，而是悄悄指向组件库的那个包，比现在明白的报错更误事。
   - 现状可用的写法：`cargo test -p ely-files@0.1`（部分版本号即可，补丁版本升级不必改；本仓库升到 0.2 时与组件库同版本，届时改用 `-p "$(cargo pkgid --manifest-path crates/ely-files/Cargo.toml)"`，打包脚本一直如此）。`agents.md` 的“命令”记了这一条。
   - 审计的验收（`cargo test -p ely-files` 直接可用）未达成；待所有者决定是否给组件库的包改名（如统一加 `ely-gpui-` 前缀）。
+- 第 2 轮与第 1 轮的修（R18.12、R18.17、R18.19）：
+  - R18.12 第 2 轮：文件里超出字段范围的字符缩进（如 25ic）未输入失焦仍被夹到 20 写回。改：超出 -20 到 20 的字符数与别的单位同样处理——字段留空、原值作占位字，空框失焦不提交；范围只限制主动输入。`leaving_the_field_untyped_keeps_the_indent_and_its_unit` 加 25ic 一例。
+  - R18.17 第 1 轮：帮助里“页面属性里仍可改”限定为 ElyDoc（ElyPDF 没有改纸张的入口）。
+  - R18.19 第 1 轮（信任，Linux）：名字的值转不成文字时原先只比内容字节，BMPString 与 UniversalString 又恰好都转不成（`x509-parser` 的 `as_str` 不读这两种），于是同字节、不同类型的两个不同名字被判相同，中间 CA 被当成自颁发而不计入路径长度——不受信的链可答“受信”。改：照 RFC 4518 2.1 先把 BMPString（UTF-16BE）、UniversalString（UTF-32BE）转成 Unicode 再准备、比较；仍转不成或被禁止的值连同 ASN.1 类型一起按字节比，类型不同即不同。测试 `string_types_are_read_before_names_compare`（审查者的链：同字节异类型的名字计入路径长度即不受信，去掉路径长度即受信）、`a_rollover_ca_keeps_its_name_in_another_encoding` 加 BMPString 与 UniversalString 两种编码的同名（受信）；旧实现两项皆败。macOS、Windows 用系统的校验，不经此路。
 

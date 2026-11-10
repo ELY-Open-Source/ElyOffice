@@ -70,6 +70,8 @@ fn leaving_the_field_untyped_keeps_the_indent_and_its_unit() {
         (r#"fo:text-indent="1cm""#, "56700,twip", "3", "300,ic"),
         (r#"fo:text-indent="0cm" loext:text-indent="2em""#, "200,em", "3", "300,ic"),
         (r#"fo:text-indent="0cm" loext:text-indent="1.25ic""#, "125,ic", "backspace", "120,ic"),
+        // Past what the field takes: shown as a hint, kept.
+        (r#"fo:text-indent="0cm" loext:text-indent="25ic""#, "2500,ic", "3", "300,ic"),
     ];
     for (indent, held, key, after) in cases {
         let dir = tempfile::tempdir().expect("a temp dir");

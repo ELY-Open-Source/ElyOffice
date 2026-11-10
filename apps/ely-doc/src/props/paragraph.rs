@@ -15,6 +15,8 @@ pub(super) const SPACING: &str = ".uno:ULSpacing";
 
 /// The kernel's first-line state: "hundredths,unit".
 pub(super) const FIRST_LINE: &str = ".uno:ElyFirstLineChars";
+/// Characters the field takes, as the command does.
+const FIRST_LINE_RANGE: std::ops::RangeInclusive<f64> = -20.0..=20.0;
 
 /// Twips in one centimeter.
 const TWIPS_PER_CM: f64 = 567.0;
@@ -163,9 +165,10 @@ impl Props {
         if !mixed && held.is_none() {
             return muted("—".into(), cx);
         }
-        // No count to show: the field stays empty.
+        // No count the field can show: it stays empty.
         let (characters, hint) = match held {
-            Some(FirstLine::Characters(characters)) => (characters, None),
+            Some(FirstLine::Characters(characters)) if FIRST_LINE_RANGE.contains(&characters) => (characters, None),
+            Some(FirstLine::Characters(characters)) => (0.0, Some(format!("{characters}").into())),
             Some(FirstLine::Centimeters(cm)) if cm != 0.0 => (0.0, Some(Docs::text(cx, "doc.props.cm", &[("n", &format!("{cm:.2}"))]))),
             Some(FirstLine::Ems(ems)) => (0.0, Some(format!("{ems} em").into())),
             Some(FirstLine::Centimeters(_)) => (0.0, None),
@@ -176,7 +179,7 @@ impl Props {
         let this = cx.entity();
         let field = NumberInput::new("doc-props-first-line", characters)
             .label(Docs::text(cx, "doc.props.first_line", &[]))
-            .range(-20.0, 20.0)
+            .range(*FIRST_LINE_RANGE.start(), *FIRST_LINE_RANGE.end())
             .step(1.0)
             .precision(2)
             .size(ControlSize::Sm)

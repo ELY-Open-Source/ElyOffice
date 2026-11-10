@@ -115,8 +115,8 @@ fn reaches(
     Err(why)
 }
 
-/// An attribute's type and folded value.
-type Attr = (String, Result<String, Vec<u8>>);
+/// An attribute's type; its folded value or tagged bytes.
+type Attr = (String, Result<String, (u32, Vec<u8>)>);
 
 /// Names equal by RFC 5280 7.1 and RFC 4518.
 fn same_name(a: &X509Name, b: &X509Name) -> bool {
@@ -132,10 +132,26 @@ fn same_name(a: &X509Name, b: &X509Name) -> bool {
     a.as_raw() == b.as_raw() || rdns(a) == rdns(b)
 }
 
-/// A string prepared by RFC 4518; else its bytes.
-fn folded(attr: &AttributeTypeAndValue) -> Result<String, Vec<u8>> {
-    let bytes = || attr.as_slice().to_vec();
-    attr.as_str().ok().and_then(prepared).ok_or_else(bytes)
+/// A string prepared by RFC 4518; else tag and bytes.
+fn folded(attr: &AttributeTypeAndValue) -> Result<String, (u32, Vec<u8>)> {
+    let value = attr.attr_value();
+    let (tag, bytes) = (value.tag().0, attr.as_slice());
+    // RFC 4518 2.1: each string type to Unicode first.
+    let text = match tag {
+        BMP => wide(bytes, 2).and_then(|units| char::decode_utf16(units.map(|unit| unit as u16)).collect::<Result<String, _>>().ok()),
+        UNIVERSAL => wide(bytes, 4).and_then(|units| units.map(char::from_u32).collect::<Option<String>>()),
+        _ => attr.as_str().ok().map(str::to_string),
+    };
+    text.as_deref().and_then(prepared).ok_or_else(|| (tag, bytes.to_vec()))
+}
+
+/// The ASN.1 tags of BMPString and UniversalString.
+const BMP: u32 = 30;
+const UNIVERSAL: u32 = 28;
+
+/// Big-endian units of `size` bytes; None on a ragged end.
+fn wide(bytes: &[u8], size: usize) -> Option<impl Iterator<Item = u32> + '_> {
+    bytes.len().is_multiple_of(size).then(|| bytes.chunks(size).map(|unit| unit.iter().fold(0, |sum, byte| sum << 8 | u32::from(*byte))))
 }
 
 /// RFC 4518, 2.2 to 2.6, for case-ignore matching.

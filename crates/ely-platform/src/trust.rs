@@ -144,11 +144,39 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn a_rollover_ca_keeps_its_name_in_another_encoding() {
+        use rcgen::{DnValue, string};
         let root = made("Ely test root", NOW, rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0)), None, vec![]);
-        let printable = rcgen::string::PrintableString::try_from("Ely test root").expect("printable");
-        let middle = made(rcgen::DnValue::PrintableString(printable), NOW, ca(), Some(&root), vec![]);
-        let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
-        assert!(!untrusted(&[signer.der, middle.der], &root));
+        let name = "Ely test root";
+        let encodings = [
+            DnValue::PrintableString(string::PrintableString::try_from(name).expect("printable")),
+            DnValue::BmpString(string::BmpString::try_from(name).expect("BMP")),
+            DnValue::UniversalString(string::UniversalString::try_from(name).expect("universal")),
+        ];
+        for encoded in encodings {
+            let middle = made(encoded.clone(), NOW, ca(), Some(&root), vec![]);
+            let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
+            assert!(!untrusted(&[signer.der, middle.der], &root), "{encoded:?}");
+        }
+    }
+
+    /// The same bytes under two string types are two names.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn string_types_are_read_before_names_compare() {
+        use rcgen::{DnValue, string::{BmpString, UniversalString}};
+        let bmp = BmpString::try_from("\u{1}\u{D400}").expect("a BMP string");
+        let universal = UniversalString::try_from("\u{1D400}").expect("a universal string");
+        assert_eq!(bmp.as_bytes(), universal.as_bytes(), "the same content bytes");
+        let root = made("Ely test root", NOW, ca(), None, vec![]);
+        let refused = |upper: rcgen::IsCa| {
+            let upper = made(DnValue::BmpString(bmp.clone()), NOW, upper, Some(&root), vec![]);
+            let middle = made(DnValue::UniversalString(universal.clone()), NOW, ca(), Some(&upper), vec![]);
+            let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
+            untrusted(&[signer.der, middle.der, upper.der], &root)
+        };
+        let none_below = rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
+        assert!(refused(none_below), "another name under the same bytes counts in the path");
+        assert!(!refused(ca()), "with no path length the chain stands");
     }
 
     /// RFC 4518 compares names after NFKC and case folding.
