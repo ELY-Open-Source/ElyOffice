@@ -1,0 +1,86 @@
+comphelper: under LOK a snapshot logs how long it ran unchecked
+
+A snapshot gives way to input only where it checks (patches 0090,
+0106, 0114). On Windows a key still waited 283 ms behind a 320 ms DOCX
+snapshot that never gave way, and nothing said which phase held it.
+setSnapshot(false) now logs the number of checks, the time to the
+first, the longest gap between two, and the time from the last to the
+end: the phase before export, inside it, or the commit after it.
+--- a/comphelper/source/misc/lok.cxx
++++ b/comphelper/source/misc/lok.cxx
+@@ -9,6 +9,9 @@
+ 
+ #include <comphelper/lok.hxx>
+ #include <atomic>
++#include <chrono>
++#include <mutex>
++#include <ely/log.hxx>
+ #include <comphelper/snapshot.hxx>
+ 
+ #include <com/sun/star/awt/Rectangle.hpp>
+@@ -374,8 +377,42 @@
+ // Ely: deflating threads read it.
+ static std::atomic<bool> g_bSnapshotStopped = false;
+ 
++namespace
++{
++// Ely: where a snapshot runs unchecked.
++struct SnapshotClock
++{
++    std::mutex aMutex;
++    std::chrono::steady_clock::time_point aStart, aLast;
++    sal_Int64 nFirst = -1, nLongest = 0, nChecks = 0;
++};
++
++SnapshotClock& snapshotClock()
++{
++    static SnapshotClock aClock;
++    return aClock;
++}
++
++sal_Int64 msSince(std::chrono::steady_clock::time_point aThen)
++{
++    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - aThen).count();
++}
++}
++
+ void setSnapshot(bool bSnapshot)
+ {
++    SnapshotClock& rClock = snapshotClock();
++    std::scoped_lock aGuard(rClock.aMutex);
++    if (bSnapshot)
++    {
++        rClock.aStart = rClock.aLast = std::chrono::steady_clock::now();
++        rClock.nFirst = -1;
++        rClock.nLongest = rClock.nChecks = 0;
++    }
++    else if (g_bSnapshot)
++        ELY_INFO("snapshot", rClock.nChecks << " checks, first after " << rClock.nFirst << " ms, longest gap "
++                 << rClock.nLongest << " ms, last to end " << msSince(rClock.aLast) << " ms"
++                 << (g_bSnapshotStopped ? ", stopped" : ""));
+     g_bSnapshot = bSnapshot;
+     g_bSnapshotStopped = false;
+ }
+@@ -384,8 +421,21 @@
+ 
+ void checkSnapshot()
+ {
++    if (!g_bSnapshot)
++        return;
++    {
++        SnapshotClock& rClock = snapshotClock();
++        std::scoped_lock aGuard(rClock.aMutex);
++        sal_Int64 nGap = msSince(rClock.aLast);
++        if (rClock.nFirst < 0)
++            rClock.nFirst = msSince(rClock.aStart);
++        else
++            rClock.nLongest = std::max(rClock.nLongest, nGap);
++        ++rClock.nChecks;
++        rClock.aLast = std::chrono::steady_clock::now();
++    }
+     // Once stopped, every later check throws too.
+-    if (!g_bSnapshot || (!g_bSnapshotStopped && !anyInput()))
++    if (!g_bSnapshotStopped && !anyInput())
+         return;
+     g_bSnapshotStopped = true;
+     throw css::uno::RuntimeException(u"ely: the snapshot gave way to input"_ustr);
