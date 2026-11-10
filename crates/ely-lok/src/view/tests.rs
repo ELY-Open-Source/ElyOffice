@@ -70,6 +70,18 @@ pub(super) fn live_view_of(
     (view, shared)
 }
 
+/// Runs the app until `done` or the hang limit.
+pub(super) fn until(cx: &gpui::TestAppContext, mut done: impl FnMut() -> bool) -> bool {
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    while std::time::Instant::now() < deadline && !done() {
+        for _ in 0..20 {
+            cx.executor().tick();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    done()
+}
+
 #[test]
 fn edits_grow_the_view_size() {
     let Some(install) = crate::client::tests::install() else {

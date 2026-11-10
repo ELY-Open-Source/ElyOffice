@@ -53,7 +53,7 @@ mod sheet;
 mod trigger;
 pub(crate) mod show;
 mod slides;
-mod snapshot;
+pub(crate) mod snapshot;
 mod stop;
 mod tools;
 mod word;

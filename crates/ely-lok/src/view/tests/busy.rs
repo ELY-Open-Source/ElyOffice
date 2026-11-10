@@ -238,3 +238,44 @@ fn a_stuck_edit_holds_later_requests_one_second_in_all() {
     let waited = began.elapsed();
     assert!(waited >= Duration::from_millis(900) && waited < Duration::from_millis(1800), "three requests waited {waited:?}");
 }
+
+/// A measurement more than a proof: timing varies by machine.
+#[test]
+fn a_shown_tab_s_tile_stops_another_tab_s_snapshot() {
+    use std::{io::ErrorKind, sync::mpsc::channel, time::Instant};
+    let Some(install) = crate::client::tests::install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let cx = gpui::TestAppContext::single();
+    cx.executor().allow_parking();
+    let (view, worker) = cx.update(|app| live_view(app, &install));
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let point = crate::file_url(&dir.path().join("point.pptx"));
+    // The other tab: a deck slow to snapshot.
+    let (deck, whole) = crate::client::tests::snapshot::slow_deck(&mut worker.lock().expect("the worker lock"), dir.path(), &point);
+    let (taken, held) = channel();
+    let snapshot = {
+        let (worker, point) = (Arc::clone(&worker), point.clone());
+        std::thread::spawn(move || {
+            let mut worker = worker.lock().expect("the worker lock");
+            taken.send(()).expect("the test waits");
+            deck.snapshot(&mut worker, &point, "pptx")
+        })
+    };
+    held.recv().expect("the snapshot holds the worker");
+    std::thread::sleep(whole / 4);
+    let began = Instant::now();
+    cx.update(|app| {
+        view.update(app, |view, _| {
+            *crate::view::reveal::wanted(&view.wanted) = (view.geom, [(0, 0)].into());
+            view.request_tile((0, 0));
+        })
+    });
+    assert!(until(&cx, || cx.update(|app| view.read(app).tiles.contains_key(&(0, 0)))), "the tile never landed");
+    let waited = began.elapsed();
+    let stopped = snapshot.join().expect("the snapshot thread");
+    eprintln!("a tile {:?} into a {whole:?} snapshot waited {waited:?}", whole / 4);
+    // Unstopped, it would wait three quarters of `whole`.
+    assert!(waited < whole / 2, "the tile waited {waited:?} behind a {whole:?} snapshot");
+    assert_eq!(stopped.expect_err("the tile stopped the snapshot").kind(), ErrorKind::Interrupted);
+}

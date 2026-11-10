@@ -51,6 +51,25 @@ fn a_noted_wait_stops_a_snapshot_before_it_starts() {
     saved.expect("a save never gives way");
 }
 
+/// A deck slow to snapshot here, and how slow.
+pub(crate) fn slow_deck(worker: &mut Worker, dir: &Path, point: &str) -> (Doc, Duration) {
+    let mut slides = 400;
+    while slides <= 6400 {
+        let deck = dir.join(format!("big-{slides}.fodp"));
+        write(&deck, &big_deck(slides));
+        let doc = worker.load(&crate::file_url(&deck)).expect("the deck loads");
+        let began = Instant::now();
+        doc.snapshot(worker, point, "pptx").expect("a whole snapshot");
+        let whole = began.elapsed();
+        if whole > LAG * 4 {
+            return (doc, whole);
+        }
+        worker.close_doc(doc).expect("closes");
+        slides *= 2;
+    }
+    panic!("a 6400-slide snapshot takes under 400 ms");
+}
+
 /// A measurement more than a proof: timing varies by machine.
 #[test]
 fn a_waiting_key_stops_a_snapshot() {
@@ -60,23 +79,7 @@ fn a_waiting_key_stops_a_snapshot() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
     let point = crate::file_url(&dir.path().join("point.pptx"));
-    // A deck slow enough to stop on this machine.
-    let (mut slides, mut found) = (400, None);
-    while found.is_none() && slides <= 6400 {
-        let deck = dir.path().join(format!("big-{slides}.fodp"));
-        write(&deck, &big_deck(slides));
-        let doc = worker.load(&crate::file_url(&deck)).expect("the deck loads");
-        let began = Instant::now();
-        doc.snapshot(&mut worker, &point, "pptx").expect("a whole snapshot");
-        let whole = began.elapsed();
-        if whole > LAG * 4 {
-            found = Some((doc, whole));
-        } else {
-            worker.close_doc(doc).expect("closes");
-            slides *= 2;
-        }
-    }
-    let (doc, whole) = found.expect("a 6400-slide snapshot takes 400 ms");
+    let (doc, whole) = slow_deck(&mut worker, dir.path(), &point);
     let waiter = worker.waiter();
     let shared = Arc::new(Mutex::new(worker));
     let (taken, held) = mpsc::channel();
@@ -278,9 +281,9 @@ fn a_stopped_writer_snapshot_keeps_the_document_and_its_changes() {
     assert!(again.contains("Typed"), "the point holds the edit");
 }
 
-/// About half of each export's input checks (407, 106, 409).
-const WRITER_CHECK: u64 = 200;
-const CALC_CHECK: u64 = 50;
+/// About half of each export's input checks (1469, 1706, 409).
+const WRITER_CHECK: u64 = 700;
+const CALC_CHECK: u64 = 850;
 const IMPRESS_CHECK: u64 = 200;
 
 /// Over Excel's 31 characters: the export shortens it.
@@ -337,6 +340,8 @@ fn every_stop_keeps(file: &Path, (format, flat_format): (&str, &str)) {
     let mut worker = Worker::spawn_dev(&install().expect("LOK"), &dir.path().join("profile")).expect("the worker");
     let doc = worker.load(&crate::file_url(file)).expect("the file loads");
     let at = |name: &str, ext: &str| dir.path().join(format!("{name}.{ext}"));
+    // Any export first makes the note styles it names.
+    doc.snapshot(&mut worker, &crate::file_url(&at("first", format)), format).expect("a whole snapshot");
     let before = flat(&mut worker, &doc, &at("before", flat_format));
     // Check 1 precedes the export; past the last: whole.
     for from in 2..5000 {
@@ -382,4 +387,75 @@ fn every_stop_of_an_impress_export_keeps_the_deck() {
     let deck = dir.path().join("small.fodp");
     write(&deck, &big_deck(3));
     every_stop_keeps(&deck, ("pptx", "fodp"));
+}
+
+/// Tables, footnotes and framed text, `blocks` times over.
+fn rich_text(blocks: usize) -> String {
+    let cell = |text: &str| format!("<table:table-cell><text:p>{text}</text:p></table:table-cell>");
+    let row = |n: usize| format!("<table:table-row>{}{}</table:table-row>", cell(&format!("left {n}")), cell("right"));
+    let block = |n: usize| {
+        format!(
+            r#"<table:table table:name="T{n}"><table:table-column table:number-columns-repeated="2"/>{}{}</table:table>
+<text:p>Noted {n}<text:note text:note-class="footnote"><text:note-citation>{n}</text:note-citation><text:note-body><text:p>Aside {n}</text:p></text:note-body></text:note>, page <text:page-number text:select-page="current"/>.</text:p>
+<text:p><draw:frame draw:name="F{n}" text:anchor-type="as-char" svg:width="4cm" svg:height="1cm"><draw:text-box><text:p>Framed {n}</text:p></draw:text-box></draw:frame></text:p>"#,
+            row(n),
+            row(n + 1)
+        )
+    };
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:body><office:text>{}</office:text></office:body>
+</office:document>"#,
+        (0..blocks).map(block).collect::<String>()
+    )
+}
+
+/// Patch 0106: a stop lands inside a part, at any element.
+#[test]
+fn every_stop_inside_a_rich_writer_part_keeps_the_document() {
+    if install().is_none() {
+        return eprintln!("SKIP: no pinned LOK build");
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let text = dir.path().join("rich.fodt");
+    write(&text, &rich_text(60));
+    every_stop_keeps(&text, ("docx", "fodt"));
+}
+
+/// The export's input checks: probes past the last end whole.
+fn checks(worker: &mut Worker, doc: &Doc, point: &str, format: &str) -> u64 {
+    let (mut stops, mut whole) = (1u64, 1u64 << 20);
+    while stops + 1 < whole {
+        let from = (stops + whole) / 2;
+        match doc.snapshot_probed(worker, point, format, from) {
+            Ok(()) => whole = from,
+            Err(error) => {
+                assert_eq!(error.kind(), ErrorKind::Interrupted, "check {from}: {error}");
+                stops = from;
+            }
+        }
+    }
+    stops
+}
+
+#[test]
+fn a_long_part_checks_for_input_inside() {
+    let Some(install) = install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    const PARAGRAPHS: usize = 6000;
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn_dev(&install, &dir.path().join("profile")).expect("the worker");
+    let text = dir.path().join("long.fodt");
+    let body: String = (0..PARAGRAPHS).map(|n| format!("<text:p>Paragraph {n} keeps the one part long.</text:p>")).collect();
+    write(&text, &FODT.replace("<text:p>", &format!("{body}<text:p>")));
+    let doc = worker.load(&crate::file_url(&text)).expect("the text loads");
+    let seen = checks(&mut worker, &doc, &crate::file_url(&dir.path().join("point.docx")), "docx");
+    // A paragraph is three elements at least; a check each 512.
+    let inside = (PARAGRAPHS * 3 / 512) as u64;
+    assert!(seen >= inside, "{seen} checks: the body alone owes {inside}");
 }

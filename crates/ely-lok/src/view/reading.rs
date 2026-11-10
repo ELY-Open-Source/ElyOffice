@@ -93,7 +93,7 @@ impl LokView {
 mod tests {
     use gpui::TestAppContext;
 
-    use super::super::tests::live_view_of;
+    use super::super::tests::{live_view_of, until};
     use super::LokView;
     use crate::Events;
     use crate::client::tests::{HANG, install, poll_until, reading::THREE};
@@ -103,18 +103,6 @@ mod tests {
         let mut worker = view.worker.lock().expect("the worker lock");
         worker.post_key(&view.doc, 0, key).expect("the key posts");
         poll_until(&mut worker, &view.doc, &Events::default(), HANG, |seen| seen.a11y.text.starts_with(text))
-    }
-
-    /// Runs the app until `done` or the hang limit.
-    fn until(cx: &TestAppContext, mut done: impl FnMut() -> bool) -> bool {
-        let deadline = std::time::Instant::now() + HANG;
-        while std::time::Instant::now() < deadline && !done() {
-            for _ in 0..20 {
-                cx.executor().tick();
-            }
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-        done()
     }
 
     #[test]

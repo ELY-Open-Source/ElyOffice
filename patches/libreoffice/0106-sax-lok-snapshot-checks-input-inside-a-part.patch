@@ -1,0 +1,66 @@
+sax: a LOK snapshot checks for input inside a long part
+
+A snapshot save asks for waiting input as each OOXML part's serializer
+opens. A part can be most of the export: a long document's
+word/document.xml, a large sheet's XML. A key pressed while such a part
+was written waited it out: 175 ms after the last check for a
+12000-paragraph DOCX.
+FastSaxSerializer now asks at every 512th element it starts. The stop
+throws from the same serializer, as the check at a part's opening
+does, so the exporters' guards cover it. Saves that are no snapshot
+ask nothing.
+
+--- a/sax/source/tools/fastserializer.cxx
++++ b/sax/source/tools/fastserializer.cxx
+@@ -24,6 +24,7 @@
+ #include <rtl/strbuf.hxx>
+ #include <sal/log.hxx>
+ #include <comphelper/processfactory.hxx>
++#include <comphelper/snapshot.hxx>
+ 
+ #include <cassert>
+ #include <optional>
+@@ -337,8 +338,16 @@
+     }
+ #endif
+ 
++    void FastSaxSerializer::checkSnapshot()
++    {
++        // Ely: a long part stops for input too.
++        if ((++mnStarted & 511) == 0)
++            comphelper::LibreOfficeKit::checkSnapshot();
++    }
++
+     void FastSaxSerializer::startFastElement( ::sal_Int32 Element, FastAttributeList const * pAttrList )
+     {
++        checkSnapshot();
+         if ( !mbMarkStackEmpty )
+         {
+             maCachedOutputStream.flush();
+@@ -401,6 +410,7 @@
+ 
+     void FastSaxSerializer::singleFastElement( ::sal_Int32 Element, FastAttributeList const * pAttrList )
+     {
++        checkSnapshot();
+         if ( !mbMarkStackEmpty )
+         {
+             maCachedOutputStream.flush();
+--- a/sax/source/tools/fastserializer.hxx
++++ b/sax/source/tools/fastserializer.hxx
+@@ -232,6 +232,8 @@
+     rtl_String *mpDoubleStr;
+     sal_Int32 mnDoubleStrCapacity;
+     TokenValueList maTokenValues;
++    /// Ely: elements started; a snapshot checks for input by it.
++    sal_uInt32 mnStarted = 0;
+     bool mbXescape;     ///< whether to escape invalid XML characters as _xHHHH_ in write(const char*,sal_Int32,true)
+ 
+ 
+@@ -240,6 +242,7 @@
+ #endif
+ 
+     void writeTokenValueList();
++    void checkSnapshot();
+     void writeFastAttributeList(FastAttributeList const & rAttrList);
+ 
+     /** Forward the call to the output stream, or write to the stack.

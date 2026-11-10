@@ -104,7 +104,8 @@ impl LokView {
                                 let started = Instant::now();
                                 let side = job.geom.tile_pixels();
                                 let (x, y) = (job.key.0 * TILE_TWIPS, job.key.1 * TILE_TWIPS);
-                                let mut held = worker.lock().expect("the worker lock");
+                                // Another tab's snapshot gives way to it too.
+                                let mut held = waiter.hold(&worker);
                                 let waited = started.elapsed().as_millis();
                                 let tile = doc.paint_tile(&mut held, (x, y, TILE_TWIPS, TILE_TWIPS), (side, side));
                                 drop(held);
