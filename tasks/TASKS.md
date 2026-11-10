@@ -603,7 +603,7 @@
 - [x] R17.2 Impress 新建连接线后立刻经 `setGraphicSelection` 拖端点，Mac 负载高时约五次一失：选框已到，按下却没抓到端点，不新增对象，五秒内不动；根因未查到，须在内核里查端点手柄何时可点 — 根因与修复见 R18.15（补丁 0111、0112），R18.15 R1 PASS
 - [ ] R17.3 Mac 机器本身：`coreaudiod` 停应（重启即好）、登录钥匙串在 SSH 里锁着使公证读不到 `ely-notary`；CI 前应先核对这两处
 
-## R18 第二次审计与新议题（用户 2026-11-10 定：`OPTIMIZATION-New.md`（本机，未入库）的二十四项与 GitHub 未关的议题全部修好，R-02 的 Windows 签名这次不做；先保兼容，再保流畅；极限测试为 Word、Excel、PDF、PPT 各 20 份复杂文件同时开着，内核不崩、互不锁死、照样流畅；Doc、Table、Show、Mark 另测人与命令行同时改一份文件；全部文档随之更新。按 PRD 章节逐条做，主 agent 独自做，无 subagent、worktree、分支；每条交 Cindy 的常驻审查者（Codex，gpt-6.1-sol，effort xhigh，只读）对抗审查，至多三轮，过审即勾选、提交、推送，三轮不过标 `[!]` 并写明余下的问题；不问，取推荐项。本机为 Linux（Omarchy），Windows 机器离线：只在 Windows 上验得了的写明未验）
+## R18 第二次审计与新议题（用户 2026-11-10 定：`OPTIMIZATION-New.md`（本机，未入库）的二十四项与 GitHub 未关的议题全部修好，R-02 的 Windows 签名这次不做；先保兼容，再保流畅；极限测试为 Word、Excel、PDF、PPT 各 20 份复杂文件同时开着，内核不崩、互不锁死、照样流畅；Doc、Table、Show、Mark 另测人与命令行同时改一份文件；全部文档随之更新。按 PRD 章节逐条做，主 agent 独自做，无 subagent、worktree、分支；每条交 Cindy 的常驻审查者（Codex，gpt-6.1-sol，effort xhigh，只读；2026-11-10 起改为 gpt-6-astra：Cindy 自带的 Codex 0.166.0 跑不了 gpt-6.1-sol，用户定换模型）对抗审查，至多三轮，过审即勾选、提交、推送，三轮不过标 `[!]` 并写明余下的问题；不问，取推荐项。本机为 Linux（Omarchy），Windows 机器离线：只在 Windows 上验得了的写明未验）
 
 - [x] R18.1 前置：本机在发布容器里建好 LibreOffice、MuPDF、OpenSSL 三个内核，`ELY_REQUIRE_ENGINES=1` 的全量测试跑一遍，记下基线（§4、§22） — 三个内核在本机的 AlmaLinux 8 容器里建成；发布的门以 `cargo metadata` 找到 worker 并点名它们（`8ca4f023`），干净树上的 LibreOffice 构建脚本不再悄悄退出（`5765ca5e`）；基线 2415 过、0 败、4 忽略（见 decisions 2026-11-10）。R1 PASS
 - [x] R18.2 N-05 glibc 三处不一致：`linux-glibc.sh` 的上限改 2.28；deb、rpm 的依赖带版本；包里自带的 `libsystemd`、`libmount`、`libblkid` 写明理由或移除（§4） — 上限改为构建容器所有的 2.28（GLIBCXX 3.4.25、CXXABI 1.3.11），检查进了发布流程并在容器里跑，缺 readelf 即失败；依赖的 glibc 版本取自包内文件；libdbus 一串十个库改用系统的（`155107c7`、`78fbc887`，见 decisions 2026-11-10）。R1 FAIL（门在宿主机上会跳过），R2 PASS
