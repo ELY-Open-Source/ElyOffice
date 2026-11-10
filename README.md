@@ -76,6 +76,7 @@ Pushing a `v*` tag runs `.github/workflows/release.yml`, five jobs that wait for
 | `tasks/TASKS.md` | Progress |
 | `docs/decisions.md` | Decision log, by date |
 | `docs/help.md` | Help: opening and saving, panels, recovery, offline limits, repositories, mail |
+| `patches/UPSTREAM.md` | The patches that fix upstream defects and could go upstream |
 | `docs/compatibility.md` | Compatibility list, last verified for 0.1.11 |
 | `docs/accessibility.md` | Accessibility and language review |
 | `docs/perf/` | Benchmark records |

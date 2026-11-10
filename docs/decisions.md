@@ -619,3 +619,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Ely 一侧在 R15.64 时已入库：`ely_ipc::relay` 认得 `warn:ely.<区域>:<pid>:<tid>:<文件>:<行>: <消息>`，按级别记进应用日志（目标 `lok-worker`，写作“区域（文件:行）：消息”）；上游的 `SAL_` 行与别的原生输出照旧不放。worker 启动时去掉继承来的 `SAL_LOG_FILE`，各安装不带 `logging.ini`。
 - 测试 `client/tests/logs.rs`（`a_source_read_and_a_failed_read_are_both_logged`）：装一个只收 `lok-worker` 的日志器；跨工作簿的引用读源一次，日志里有 `INFO sc.ui (externalrefmgr.cxx:…): external source read into memory: …logged-source.xlsx, … bytes`；链接到不存在的文件再“更新链接”，日志里有 `WARN sc.ui (docsh4.cxx:…): linked source not read: …logged-missing.ods`。这两行带文件路径，不带文件内容。
 - 实测：本机 Linux 内核带 0108 重建后通过，`ely-lok` 全量照过。未做：没有在不带 0108 的内核上先看这条测试失败（重建一次内核要十几分钟，未回退）；设了 `SAL_LOG_FILE` 的环境下那一行仍到应用日志，未以测试核对（测试进程的环境变量各测试共用，改它会波及别的测试）。Mac 与 Windows：其内核须带 0108 重建，这条测试不分平台，由各自的发布的门跑。
+
+## 2026-11-10 可交上游的补丁清单（R18.11，审计 R-08）
+
+- 照审计的改法只挑“纯缺陷修复、与 Ely 无关”的：逐个读了 LibreOffice 的 102 个补丁说明、MuPDF 的 8 个与 vendor 各 crate 的修复提交，挑出 25 处写进 `patches/UPSTREAM.md`（英文，便于照抄给上游）：LibreOffice 14 个（0032、0039、0060、0063、0065、0066、0068、0070、0073、0074、0075、0077、0080、0104），MuPDF 7 个（0001、0002、0004 至 0008），crate 4 处（zbus、mail-parser、accesskit_atspi_common、accesskit_unix）。每处写明所在模块、缺陷本身、不靠 Ely 怎样看到。
+- 不算在内的也写明了：改动过滤器取舍的较大补丁（0049、0059、0067、透视表几个、TOC 两个、0072）要上游自己权衡；0061、0093 只是给 0059、0067 补头文件；MuPDF 0003 与 AT-SPI 的按句查询是提议而非缺陷；gpui 的修改待 R18.23 的补丁目录。其余补丁是给 LOK 客户端加命令与行为的，留在本项目。
+- 没做的：没有一处交给上游。LibreOffice 走 Gerrit 且要贡献者本人的许可声明，MuPDF 要 Artifex 的贡献协议，crate 要以所有者的 GitHub 身份向别人的仓库开 PR；这些是所有者名下对外的动作，本次不代做。审计的验收“清单里至少一半有上游的 PR 或缺陷链接”因此未达成。
