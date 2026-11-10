@@ -67,8 +67,9 @@ impl Mail {
             Ok(tls) => tls,
             Err(error) => {
                 log::warn!("mail: account {} cannot sync without TLS", id.0);
+                let tls_failure = crate::mail::text(cx, "mail.error.tls", &[("error", &error)]).to_string();
                 let syncing = self.syncs.entry(id).or_default();
-                syncing.failed = Some(error);
+                syncing.failed = Some(tls_failure);
                 syncing.signed_out = false;
                 return self.read_synced(id, cx);
             }

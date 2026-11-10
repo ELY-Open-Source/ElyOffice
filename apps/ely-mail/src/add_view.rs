@@ -321,6 +321,7 @@ pub fn failure(error: &Error, cx: &App) -> SharedString {
         Error::Vault(detail) => ("mail.error.vault", detail.clone()),
         Error::Store(detail) => ("mail.error.local", detail.clone()),
         Error::SignIn(detail) => ("mail.error.sign_in", detail.clone()),
+        Error::SignInAgain(detail) => ("mail.error.sign_in_again", detail.clone()),
         other => ("mail.error.other", other.to_string()),
     };
     text(cx, key, &[("detail", &detail)])

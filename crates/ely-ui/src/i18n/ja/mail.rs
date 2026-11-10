@@ -112,6 +112,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("mail.error.vault", "システムの資格情報ストアでエラーが発生しました: {detail}"),
     ("mail.error.local", "このコンピューターに保存されたメールを読み書きできませんでした: {detail}"),
     ("mail.error.sign_in", "サインインが完了しませんでした: {detail}"),
+    ("mail.error.sign_in_again", "サインインの有効期限が切れました。もう一度サインインしてください: {detail}"),
     ("mail.error.other", "{detail}"),
     ("mail.error.tls", "安全な接続を使用できません: {error}"),
     ("mail.error.store", "メールの保存領域が開いていません: {error}"),

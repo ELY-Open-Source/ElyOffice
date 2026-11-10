@@ -87,7 +87,7 @@ fn a_missing_tls_is_the_sync_failure() {
         let syncing = &mail.read(app).syncs[&ann];
         assert_eq!(
             syncing.failed.as_deref(),
-            Some("platform trust store unavailable")
+            Some("Secure connections are not available: platform trust store unavailable")
         );
         assert!(syncing.task.is_none());
     });

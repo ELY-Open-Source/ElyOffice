@@ -115,6 +115,7 @@ pub(super) const FR: &[(&str, &str)] = &[
         "le courrier conservé sur cet ordinateur n’a pas pu être lu ou écrit : {detail}",
     ),
     ("mail.error.sign_in", "la connexion n’a pas abouti : {detail}"),
+    ("mail.error.sign_in_again", "la connexion a expiré ; reconnectez-vous : {detail}"),
     ("mail.error.other", "{detail}"),
     ("mail.error.tls", "Les connexions sécurisées ne sont pas disponibles : {error}"),
     ("mail.error.store", "Le stockage du courrier n’est pas ouvert : {error}"),

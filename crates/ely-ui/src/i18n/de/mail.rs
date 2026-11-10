@@ -115,6 +115,7 @@ pub(super) const DE: &[(&str, &str)] = &[
         "die auf diesem Computer gespeicherte Post ließ sich nicht lesen oder schreiben: {detail}",
     ),
     ("mail.error.sign_in", "die Anmeldung wurde nicht abgeschlossen: {detail}"),
+    ("mail.error.sign_in_again", "die Anmeldung ist abgelaufen; bitte erneut anmelden: {detail}"),
     ("mail.error.other", "{detail}"),
     ("mail.error.tls", "Sichere Verbindungen sind nicht verfügbar: {error}"),
     ("mail.error.store", "Der E-Mail-Speicher ist nicht geöffnet: {error}"),

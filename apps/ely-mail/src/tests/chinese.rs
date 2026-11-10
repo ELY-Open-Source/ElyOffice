@@ -34,6 +34,11 @@ fn the_account_page_speaks_chinese() {
         mail.ruling.as_ref().is_some_and(|ruling| ruling.rules.is_some()) && mail.syncs.get(&ann).is_some_and(|each| each.folders.len() == 2)
     });
     assert!(laid.saw("ann@example.com"), "the page drew the account");
+    // Each failure a sync may keep has a Chinese lead.
+    for error in [ely_mail_engine::Error::SignInAgain("invalid_grant".into()), ely_mail_engine::Error::Vault("locked".into())] {
+        let said = cx.update(|_, app| crate::add_view::failure(&error, app));
+        assert!(said.chars().next().is_some_and(|first| !first.is_ascii()), "{said}");
+    }
     // No secret is kept: the failure leads in Chinese.
     assert!(laid.saw("系统的凭据库出错："), "the failure has no Chinese lead");
     // The account's own words, names, the store's own words.

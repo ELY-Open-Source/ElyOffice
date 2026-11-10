@@ -159,6 +159,21 @@ mod tests {
         }
     }
 
+    /// U+1D43 came after Unicode 3.2; NFKC now makes it `a`.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_character_unicode_3_2_lacks_makes_another_name() {
+        let root = made("Ely test root", NOW, ca(), None, vec![]);
+        let refused = |upper: rcgen::IsCa| {
+            let upper = made("Ely test a", NOW, upper, Some(&root), vec![]);
+            let middle = made("Ely test \u{1D43}", NOW, ca(), Some(&upper), vec![]);
+            let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
+            untrusted(&[signer.der, middle.der, upper.der], &root)
+        };
+        assert!(refused(rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0))), "a name NFKC alone would fold counts in the path");
+        assert!(!refused(ca()), "with no path length the chain stands");
+    }
+
     /// The same bytes under two string types are two names.
     #[cfg(target_os = "linux")]
     #[test]

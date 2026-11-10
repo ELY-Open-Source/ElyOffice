@@ -112,6 +112,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("mail.error.vault", "kho thông tin đăng nhập của hệ thống gặp lỗi: {detail}"),
     ("mail.error.local", "không đọc hoặc ghi được thư lưu trên máy tính này: {detail}"),
     ("mail.error.sign_in", "chưa đăng nhập xong: {detail}"),
+    ("mail.error.sign_in_again", "phiên đăng nhập đã hết hạn; hãy đăng nhập lại: {detail}"),
     ("mail.error.other", "{detail}"),
     ("mail.error.tls", "Không có kết nối bảo mật: {error}"),
     ("mail.error.store", "Kho thư chưa được mở: {error}"),

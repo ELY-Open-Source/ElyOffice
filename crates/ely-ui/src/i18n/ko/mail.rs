@@ -112,6 +112,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("mail.error.vault", "시스템 자격 증명 저장소에 오류가 발생했습니다: {detail}"),
     ("mail.error.local", "이 컴퓨터에 저장된 메일을 읽거나 쓸 수 없습니다: {detail}"),
     ("mail.error.sign_in", "로그인이 완료되지 않았습니다: {detail}"),
+    ("mail.error.sign_in_again", "로그인이 만료되었습니다. 다시 로그인하세요: {detail}"),
     ("mail.error.other", "{detail}"),
     ("mail.error.tls", "보안 연결을 쓸 수 없습니다: {error}"),
     ("mail.error.store", "메일 저장소가 열려 있지 않습니다: {error}"),

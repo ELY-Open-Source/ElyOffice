@@ -193,6 +193,7 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("mail.error.vault", "falló el almacén de credenciales del sistema: {detail}"),
     ("mail.error.local", "no se pudo leer o escribir el correo guardado en este equipo: {detail}"),
     ("mail.error.sign_in", "no se completó el inicio de sesión: {detail}"),
+    ("mail.error.sign_in_again", "la sesión caducó; inicia sesión de nuevo: {detail}"),
     ("mail.error.other", "{detail}"),
     (
         "mail.error.tls",

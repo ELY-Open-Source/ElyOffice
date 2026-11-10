@@ -160,6 +160,7 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("mail.error.vault", "the system's credential store failed: {detail}"),
     ("mail.error.local", "the mail kept on this computer could not be read or written: {detail}"),
     ("mail.error.sign_in", "sign-in did not finish: {detail}"),
+    ("mail.error.sign_in_again", "the sign-in expired; sign in again: {detail}"),
     ("mail.error.other", "{detail}"),
     (
         "mail.error.tls",
@@ -391,6 +392,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("mail.error.vault", "系统的凭据库出错：{detail}"),
     ("mail.error.local", "本机的邮件库读写失败：{detail}"),
     ("mail.error.sign_in", "登录没有完成：{detail}"),
+    ("mail.error.sign_in_again", "登录已失效，请重新登录：{detail}"),
     ("mail.error.other", "{detail}"),
     ("mail.error.tls", "无法建立安全连接：{error}"),
     ("mail.error.store", "邮件存储没有打开：{error}"),

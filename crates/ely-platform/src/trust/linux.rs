@@ -157,6 +157,10 @@ fn wide(bytes: &[u8], size: usize) -> Option<impl Iterator<Item = u32> + '_> {
 /// RFC 4518, 2.2 to 2.6, for case-ignore matching.
 fn prepared(text: &str) -> Option<String> {
     use stringprep::tables;
+    // Unicode 3.2's list: a later NFKC would map some away.
+    if text.chars().any(tables::unassigned_code_point) {
+        return None;
+    }
     let mapped: String = text
         .chars()
         .filter(|&c| !mapped_to_nothing(c))
