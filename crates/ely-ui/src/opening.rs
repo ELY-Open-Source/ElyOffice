@@ -20,6 +20,17 @@ struct Asked(Option<mpsc::UnboundedReceiver<PathBuf>>);
 
 impl Global for Asked {}
 
+/// The sending end of what `on_open` reads.
+struct Queue(mpsc::UnboundedSender<PathBuf>);
+
+impl Global for Queue {}
+
+/// Hands `path` to `on_open`, as a launch or hand-over does.
+pub(crate) fn queue(path: PathBuf, cx: &App) -> io::Result<()> {
+    let queue = cx.try_global::<Queue>().ok_or_else(|| io::Error::other("the app takes no files yet"))?;
+    queue.0.unbounded_send(path).map_err(|_| io::Error::other("the app takes no more files"))
+}
+
 /// A second copy's files; `taken` answers once they are queued.
 pub(crate) struct Hand {
     files: Vec<PathBuf>,
@@ -132,13 +143,16 @@ pub(crate) fn listen(application: &Application, files: Vec<PathBuf>, door: Door)
 /// Keeps the files for `on_open`; the hand-overs go to `home`.
 pub(crate) fn keep(handed: Handed, cx: &mut App) -> Hands {
     cx.set_global(Asked(Some(handed.asked)));
+    cx.set_global(Queue(handed.hands.queue.clone()));
     handed.hands
 }
 
 /// No files asked at launch, for tests.
 #[cfg(any(test, feature = "test-support"))]
 pub fn install_no_launch_files(cx: &mut App) {
-    cx.set_global(Asked(Some(mpsc::unbounded().1)));
+    let (queue, asked) = mpsc::unbounded();
+    cx.set_global(Asked(Some(asked)));
+    cx.set_global(Queue(queue));
 }
 
 /// Files asked before the app started: arguments and Finder's.

@@ -8,7 +8,7 @@ use ely_platform::AppId;
 use std::path::{Path, PathBuf};
 
 use gpui::{
-    App, AppContext as _, Context, Entity, FocusHandle, InteractiveElement as _, IntoElement,
+    App, AppContext as _, Context, Entity, ExternalPaths, FocusHandle, InteractiveElement as _, IntoElement,
     Keystroke, ParentElement, Render, SharedString, Styled as _, Window, div,
     prelude::FluentBuilder as _,
 };
@@ -282,6 +282,11 @@ impl Render for Root {
             .text_color(cx.theme().colors.fg)
             .font_family(cx.theme().font_family.clone())
             .key_context(commands::CONTEXT)
+            .drag_over::<ExternalPaths>(|style, _, _, cx| style.border_1().border_color(cx.theme().colors.focus))
+            .on_drop({
+                let app = self.app;
+                move |dropped: &ExternalPaths, _, cx| crate::open_dropped(app, dropped.paths(), cx)
+            })
             .on_action(cx.listener(|this, _: &New, _, cx| this.attempt("file.new", cx)))
             .on_action(cx.listener(|this, _: &Open, _, cx| this.attempt("file.open", cx)))
             .when(has("file.save"), |frame| {

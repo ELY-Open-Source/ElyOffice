@@ -26,6 +26,7 @@
 | FILE-08 | 保存、导出、打印都针对可识别的文档修订，不输出一半新一半旧的内容 | C06.2 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | FILE-09 | 路径支持空格、中文、非 ASCII 字符和长文件名；保留原有大小写 | C06.2 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | FILE-10 | 对损坏、加密、缺少字体和不支持的内容给出可执行提示 | C06.2 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
+| FILE-11 | 文件从系统拖进窗口即打开：本应用的类型在本窗口开，别的 Ely 应用的类型交给那个应用（未安装即系统的默认应用），多份依次打开；打不开的照常说明原因；悬停时窗口边缘有落点提示 | 无 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | LOK-01 | 使用随应用交付的固定 LOK 构建，隔离用户已安装的 LibreOffice 配置 | C07.1（!） | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-02 | 每项界面操作有明确的内核命令、参数、结果和状态回调映射 | C07.4（~） | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-03 | 处理内容区域失效通知，只更新必要图块；旧修订的画面不得覆盖新画面 | C07.2 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |

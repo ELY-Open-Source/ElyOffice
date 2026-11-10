@@ -553,3 +553,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - huacnlee/cargo 把测试程序放在 `~/.cargo/targets/<项目>/debug/build/<包>/<散列>/out/`，worker 仍在 `./target/debug`。`ely-lok` 与 `ely-pdf-engine` 找 worker 靠“测试程序在 worker 下一层”，此处不成立：`ELY_REQUIRE_ENGINES=1` 的全量里 ElyDoc 115 个测试报“no ely-lok-worker binary”。不恢复烘焙的源码路径（75a416c6 因它指向已删的副本而去掉）：`release-tests.sh` 建好 worker 后问 `cargo metadata` 目标目录，以 `ELY_LOK_WORKER`、`ELY_PDF_WORKER` 点名它们再跑测试，标准 Cargo 下同样成立；`ci-upload.sh` 核对测试那一步带着这两个变量。单跑某个包的内核测试，在 huacnlee/cargo 下须自己设这两个变量。
 - 基线（2026-11-10，Ryzen 9 9950X3D，Omarchy，huacnlee/cargo 0.102.0-9，同时在容器里打包）：`scripts/release-tests.sh` 2415 过、0 败、4 忽略，唯一 SKIP 是只在 macOS 的像素核对，10 分钟。`ely-lok` 里几条测试各等两个 60 秒（`HANG`，核对“迟到的修改标记也算失败”），是整套里最长的。
 - 同日另见：huacnlee/cargo 下 `cargo check`、`cargo clippy` 默认把依赖的检查产物放进各项目共用的目录，本工作区经 `[patch.crates-io]` 换入的 `vendor/gpui-pre` 与组件库所见的 gpui 成了两份，`ely-lok`、`ely-ui` 报几百处“expected `gpui::geometry::Axis`, found `gpui::Axis`”一类的类型不符；`cargo build`、`cargo test` 不受影响。设 `CARGO_CHECK_SHARED_DEPS=0` 即过（整个工作区 `clippy --all-targets -D warnings` 无告警）。这是那个 Cargo 分支的缺陷，未向其作者报告；标准 Cargo（PR 与发布的机器）无此事。
+
+## 2026-11-10 把文件拖进窗口即打开（R18.5，议题 #75，FILE-11）
+
+- 七个应用共用 `ely_ui` 的窗口根，拖放只接一处：根元素听 gpui 的 `ExternalPaths`，交 `ely_ui::open_dropped`。规则照 `packaging/types.tsv`：扩展名属于别的 Ely 应用的，经已有的 `ely_platform::apps::open_file` 交给它（未安装即系统的默认应用，照 PRD §16）；其余（本应用的类型、无扩展名、文件夹、谁也不认的类型）进本应用 `on_open` 所读的那条队列，与命令行、访达交来的文件同一条路，打不开时由应用照旧说明原因。不另立“支持的类型”清单：清单会与各应用实际能开的格式各说各的。
+- 实测各应用对不认的类型（一张 PNG 作为启动文件）：ElyPDF 报“不是 PDF”，ElyDoc 载入失败后出错误提示，ElyTree 打开文件所在的仓库与该文件的历史，ElyMail 照 §16 以它建草稿。
+- ElyMark 的正文原先吞下一切拖入的文件，非图片即报“只能添加图片”。改为：某个 Ely 应用认的类型（含 `.md`）先交 `open_dropped`，图片照旧作附件，其余照旧拒绝。ElyMail 写信处的拖入照旧是添加附件（内层元素先收到）。
+- 悬停提示：根元素在拖入悬停时加一条焦点色的 1 像素边。
+- 测试：`dropping.rs` 以 gpui 的 `FileDropEvent` 对真窗口根投放三份文件，核对它们按序到达 `on_open` 的队列；类型到应用的判定另有单测；ElyMark 以真 desk 核对 `.md` 另开标签而同批的图片照旧附上。未做：没有在真桌面上用鼠标从文件管理器拖过文件（本机 Wayland 无法自动化跨窗口拖放）；平台把拖入变成 `ExternalPaths` 这一段是 gpui 的，MARK-07 的图片拖入一直走它。

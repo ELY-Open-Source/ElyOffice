@@ -7,6 +7,7 @@ pub mod laid;
 #[cfg(any(test, feature = "test-support"))]
 pub mod logs;
 pub mod menu;
+mod dropping;
 mod frames;
 mod opening;
 mod run;
@@ -21,6 +22,7 @@ pub mod wheel;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use ending::at_thread_end;
+pub use dropping::open_dropped;
 pub use opening::{Ask, ask_again, launch_files, mail_link, on_ask, on_open};
 #[cfg(any(test, feature = "test-support"))]
 pub use opening::install_no_launch_files;

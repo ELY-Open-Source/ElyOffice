@@ -93,6 +93,11 @@ pub fn kept(cx: &App) -> bool {
     cx.try_global::<Main>().is_some_and(|main| main.kept.is_some())
 }
 
+/// The main window, while one is open.
+pub(crate) fn main(cx: &App) -> Option<AnyWindowHandle> {
+    cx.try_global::<Main>()?.window
+}
+
 /// Brings the main window forward, reopening one the tray kept.
 pub fn show_main(cx: &mut App) -> Option<AnyWindowHandle> {
     let main = cx.try_global::<Main>()?;

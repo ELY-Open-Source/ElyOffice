@@ -19,6 +19,12 @@ enum Source {
     Bytes(String, Vec<u8>),
 }
 
+/// Whether an Ely app opens files of `path`'s type.
+fn opens(path: &Path) -> bool {
+    let ext = path.extension().and_then(|ext| ext.to_str());
+    ext.and_then(ely_platform::apps::for_extension).is_some()
+}
+
 fn said(key: &str, cx: &App) -> Failed {
     Failed(text(cx, key, &[]).to_string())
 }
@@ -26,6 +32,22 @@ fn said(key: &str, cx: &App) -> Failed {
 impl MarkView {
     /// Copies pictures off the window, then links them.
     pub(crate) fn attach(&mut self, attached: &Attachment, cx: &mut Context<Self>) {
+        // A file some Ely app opens is opened, not attached.
+        let rest;
+        let attached = match attached {
+            Attachment::Files(paths) => {
+                let (opened, kept): (Vec<PathBuf>, Vec<PathBuf>) = paths.iter().cloned().partition(|path| opens(path));
+                if !opened.is_empty() {
+                    ely_ui::open_dropped(ely_platform::AppId::Mark, &opened, cx);
+                }
+                if kept.is_empty() {
+                    return;
+                }
+                rest = Attachment::Files(kept);
+                &rest
+            }
+            pasted => pasted,
+        };
         if self.mode == Mode::Preview {
             return cx.emit(said("mark.attach.preview", cx));
         }
@@ -255,6 +277,22 @@ mod tests {
             .collect();
         assert_eq!(assets.len(), 1);
         assert!(current(&view, cx).contains("](assets/pasted-"));
+    }
+
+    #[gpui::test]
+    fn a_dropped_markdown_file_opens_in_a_tab_beside_its_picture(cx: &mut TestAppContext) {
+        let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+        let (first, other, shot) = (files.path().join("a.md"), files.path().join("other.md"), files.path().join("shot.png"));
+        std::fs::write(&first, "a\n").expect("a file");
+        std::fs::write(&other, "other\n").expect("a file");
+        std::fs::write(&shot, "png").expect("a picture");
+        let (desk, cx) = start(cx, data.path());
+        open(&desk, &first, cx);
+        let view = desk.read_with(cx, |desk: &Desk, _| desk.active_view().expect("a tab"));
+        attach(&view, Attachment::Files(vec![other, shot]), cx);
+        assert!(current(&view, cx).contains("![shot](assets/shot.png)"), "the picture attaches: {}", current(&view, cx));
+        assert!(!current(&view, cx).contains("other"), "the Markdown file is no attachment");
+        assert_eq!(desk.read_with(cx, |desk, _| desk.core.tabs.len()), 2, "the Markdown file has its own tab");
     }
 
     #[gpui::test]
