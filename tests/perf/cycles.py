@@ -27,18 +27,12 @@ def counted(lines, pattern):
     return counts[-1]
 
 
-def handles_kept(who, before, now, extra, cycle, system):
-    """Handles past baseline: only `system` ones, same each cycle."""
-    if system is None:
-        return None
-    grown = now - before
-    # Read-only system resources load once, on first use.
-    left = sorted(handle for handle in grown if not handle[1].startswith(system))
+def handles_kept(who, before, now, cycle, system):
+    """Handles past baseline: only `system` ones."""
+    # Read-only system resources load on first use.
+    left = sorted(handle for handle in now - before if not handle[1].startswith(system))
     if left:
         raise RuntimeError(f"{who}: cycle {cycle} leaves handles: {left}")
-    if extra is not None and grown != extra:
-        raise RuntimeError(f"{who}: cycle {cycle} changed the system handles: {sorted((grown - extra) + (extra - grown))}")
-    return grown
 
 
 def steady(who, what, counts, slack=0):
@@ -204,14 +198,19 @@ def cycles(work, recipe):
         one(app, recipe, 0, first)
         before = app.handles()
         baseline = (app.memory_mb(), sum(before.values()), first)
-        seen, extra = [], None
+        seen = []
         for n in range(1, CYCLES + 1):
             since = one(app, recipe, n, first)
             now = app.handles()
-            extra = handles_kept(recipe.slug, before, now, extra, n, run.HOST.system)
+            if run.HOST.system is not None:
+                handles_kept(recipe.slug, before, now, n, run.HOST.system)
             seen.append((app.memory_mb(), sum(now.values()), recipe.live(app, since)))
+        counts = [count for _, count, _ in seen]
         if run.HOST.system is None:
-            handles_steady(recipe.slug, baseline[1], [count for _, count, _ in seen])
+            handles_steady(recipe.slug, baseline[1], counts)
+        else:
+            # Named system handles may settle late.
+            steady(recipe.slug, "handles", counts)
         # Thread arenas keep freed memory: settling is the test.
         steady(recipe.slug, "MB", [memory for memory, _, _ in seen], PAGE_MB)
     finally:

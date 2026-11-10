@@ -72,16 +72,16 @@ class Verdicts(unittest.TestCase):
         before = collections.Counter({("REG", "/tmp/a"): 1})
         now = before + collections.Counter({("CHR", "/dev/null"): 1})
         with self.assertRaisesRegex(RuntimeError, "leaves handles"):
-            cycles.handles_kept("app", before, now, None, 1, MAC)
+            cycles.handles_kept("app", before, now, 1, MAC)
 
-    def test_system_resources_once_then_steady(self):
+    def test_system_resources_pass_and_their_count_must_settle(self):
         before = collections.Counter({("REG", "/tmp/a"): 1})
         font = collections.Counter({("REG", "/System/Library/Fonts/SFNSItalic.ttf"): 1})
-        extra = cycles.handles_kept("app", before, before + font, None, 1, MAC)
-        self.assertEqual(cycles.handles_kept("app", before, before + font, extra, 2, MAC), font)
-        more = before + font + collections.Counter({("REG", "/System/Library/Fonts/More.ttf"): 1})
-        with self.assertRaisesRegex(RuntimeError, "changed the system handles"):
-            cycles.handles_kept("app", before, more, extra, 3, MAC)
+        cycles.handles_kept("app", before, before + font, 1, MAC)
+        # A driver opening its device late, then flat.
+        cycles.steady("app", "handles", [37] * 2 + [43] * 148)
+        with self.assertRaisesRegex(RuntimeError, "took the handles"):
+            cycles.steady("app", "handles", [40 + n for n in range(40)])
 
     def test_unnamed_counts_may_jitter_but_not_climb(self):
         # Windows, 40 cycles after the liblangtag fix.

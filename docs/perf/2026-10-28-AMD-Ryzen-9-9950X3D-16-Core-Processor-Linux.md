@@ -9,7 +9,7 @@ Format: docs/perf/README.md.
   "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
   "cores": "32",
   "memory_gb": 45,
-  "gpu": "Mesa lavapipe under Xvfb",
+  "gpu": "not measured: the field was a fixed string (decisions 2026-11-10)",
   "system": "Ubuntu 26.04.1 LTS, kernel 6.18.54.1-microsoft-standard-WSL2",
   "fonts": 311,
   "builds": {

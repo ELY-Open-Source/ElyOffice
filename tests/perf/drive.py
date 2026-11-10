@@ -43,6 +43,9 @@ class Host:
 
     name = ""
 
+    def stopped(self, lines):
+        """An app's last log; Linux reads its GPU there."""
+
     def exe(self, slug, frames=False):
         target = target_dir(frames)
         return os.path.join(target, "release", slug + (".exe" if sys.platform == "win32" else ""))
@@ -187,7 +190,13 @@ class Linux(Host):
     """X under Xvfb, AT-SPI on a private bus: tests/perf/linux.sh."""
 
     name = "Linux"
-    system = ("/usr/", "/etc/fonts/", "/var/cache/fontconfig/")
+    system = ("/usr/", "/etc/fonts/", "/var/cache/fontconfig/", "/dev/nvidia", "/dev/dri/")
+    def __init__(self):
+        # Each app's chosen adapter, read as it stops.
+        self.gpus = set()
+
+    def stopped(self, lines):
+        self.gpus |= {m.group(1) for line in lines if (m := re.search(r'Selected GPU adapter: "(.+?)"', line))}
 
     def helper(self, *args):
         return sh(sys.executable, "-I", os.path.join(HERE, "atspi.py"), *map(str, args))
@@ -245,7 +254,7 @@ class Linux(Host):
             "cpu": cpu,
             "cores": str(os.cpu_count()),
             "memory_gb": memory // 2**20,
-            "gpu": os.environ.get("ELY_BENCH_GPU", "Mesa lavapipe under Xvfb"),
+            "gpu": ", ".join(sorted(self.gpus)) or sys.exit("no app logged the GPU it chose"),
             "system": f"{release.get('PRETTY_NAME', 'Linux').strip(chr(34))}, kernel {platform.release()}",
             "fonts": fonts(["/usr/share/fonts"]),
         }

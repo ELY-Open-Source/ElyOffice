@@ -11,7 +11,7 @@ ElyDoc, ElyTable, ElyShow, ElyMark and ElyPDF ran at the same time, each on its 
   "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
   "cores": "32",
   "memory_gb": 91,
-  "gpu": "Mesa lavapipe under Xvfb",
+  "gpu": "NVIDIA GeForce RTX 4090 (Vulkan), from the apps' logs",
   "system": "Omarchy, kernel 7.2.15-1-omarchy",
   "fonts": 917,
   "docs": 20,

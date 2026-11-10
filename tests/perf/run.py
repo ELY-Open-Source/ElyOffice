@@ -151,6 +151,7 @@ class App:
         time.sleep(0.5)
 
     def stop(self):
+        HOST.stopped(self.lines())
         for pid in HOST.pids(self.process.pid):
             try:
                 os.kill(pid, 9)
