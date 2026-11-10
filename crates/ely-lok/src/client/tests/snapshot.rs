@@ -92,6 +92,7 @@ fn a_waiting_key_stops_a_snapshot() {
         })
     };
     held.recv().expect("the snapshot holds the worker");
+    // A quarter in: the snapshot is under way.
     std::thread::sleep(whole / 4);
     let began = Instant::now();
     waiter.hold(&shared).post_key(&doc, 'x' as u32, 0).expect("the key");

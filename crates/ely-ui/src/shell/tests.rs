@@ -178,6 +178,7 @@ fn keeps_least(cx: &mut VisualTestContext, gone: &'static str) {
 fn fold_both(cx: &mut VisualTestContext, first: (&str, &'static str), second: (&str, &'static str)) {
     cx.simulate_keystrokes(first.0);
     frame(cx);
+    // The first fold is mid-motion.
     std::thread::sleep(std::time::Duration::from_millis(30));
     frame(cx);
     let before = cx.debug_bounds(second.1).expect("still open").size.width;

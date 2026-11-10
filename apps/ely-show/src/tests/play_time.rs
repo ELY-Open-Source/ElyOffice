@@ -87,6 +87,7 @@ fn a_slide_starts_its_clock_when_its_layers_come() {
     let busy = std::thread::spawn(move || {
         let _lock = worker.lock().expect("the worker lock");
         held.send(()).expect("told");
+        // The other read holds the engine this long.
         std::thread::sleep(Duration::from_millis(400));
     });
     hold.recv().expect("held");

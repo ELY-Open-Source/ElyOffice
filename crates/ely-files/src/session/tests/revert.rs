@@ -32,6 +32,7 @@ fn a_rebase_saves_against_the_seen_disk_only() {
     write(&target, "base");
     let mut session = Session::load(target.clone()).expect("the file loads");
     session.edit();
+    // The outside write needs a later mtime.
     std::thread::sleep(std::time::Duration::from_millis(20));
     write(&target, "seen change");
     session.external_modified();
@@ -39,6 +40,7 @@ fn a_rebase_saves_against_the_seen_disk_only() {
     session.rebase(seen);
     assert_eq!(session.state(), SaveState::Dirty);
     assert!(!session.external_changed().expect("the check"));
+    // The later write needs a later mtime.
     std::thread::sleep(std::time::Duration::from_millis(20));
     write(&target, "a later change");
     assert!(session.external_changed().expect("the check"), "a later write still conflicts");

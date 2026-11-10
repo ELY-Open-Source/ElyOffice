@@ -137,6 +137,7 @@ fn the_kernels_close_keys_are_refused() {
         let refused = worker.post_key(&doc, 0, MOD1 | key).expect_err("refused");
         assert!(refused.to_string().contains("closes the kernel's frame"), "{refused}");
     }
+    // A close the kernel took would land by now.
     std::thread::sleep(std::time::Duration::from_millis(500));
     let text = paragraphs(&saved(&dir, &mut worker, &doc, "out.fodt"));
     assert_eq!(text, ["Hello 世界"], "the document stays open");

@@ -108,6 +108,7 @@ fn a_read_never_gives_way_to_waiting_input() {
         let worker = worker.clone();
         std::thread::spawn(move || drop(waiter.hold(&worker)))
     };
+    // By now the key waits behind the lock.
     std::thread::sleep(std::time::Duration::from_millis(300));
     let read = ely_office::remote::copy::<ely_office::Lok>(&mut held, &doc, &dir.path().join("copy.fodt"), "fodt");
     held.close_doc(doc).expect("closes");

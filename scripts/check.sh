@@ -24,6 +24,7 @@ if [ -f "$guide" ] && [ "$(wc -c <"$guide")" -gt 30000 ]; then
   failed=1
 fi
 python3 "$here/tests/scripts/comments.py" "$root" || failed=1
+python3 "$here/tests/scripts/waits.py" "$root" || failed=1
 bash "$here/tests/scripts/eol.sh" "$root" || failed=1
 [ "$failed" = 0 ] || exit 1
 echo "check: every rule holds"

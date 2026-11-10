@@ -188,6 +188,7 @@ fn closing_a_clean_tab_never_waits_for_the_worker() {
     let holder = std::thread::spawn(move || {
         let _busy = worker.lock().expect("the worker lock");
         held.send(()).expect("the test waits");
+        // The engine stays held this long.
         std::thread::sleep(std::time::Duration::from_millis(400));
     });
     hold.recv().expect("the lock is held");

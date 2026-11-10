@@ -165,6 +165,7 @@ fn a_finished_exit_stays_gone_as_the_slide_leaves() {
     let show = started(&mut cx, &deck, false);
     settle(&cx, |app| show.read(app).stack(0).is_some());
     typed(&mut cx, &show, "right");
+    // The exit effect runs before the next key.
     std::thread::sleep(std::time::Duration::from_millis(300));
     typed(&mut cx, &show, "right");
     let (look, hash) = cx.update(|app| {

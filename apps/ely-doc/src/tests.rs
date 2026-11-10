@@ -437,6 +437,7 @@ fn an_outside_change_asks_and_keep_mine_overwrites() {
     });
     written(&cx, &own, None);
     type_into(&mut cx, &docs, "Mine");
+    // The outside write needs a later mtime.
     std::thread::sleep(std::time::Duration::from_millis(20));
     std::fs::write(&own, "EXTERNAL REVISION").expect("the outside write");
     with_window(&mut cx, &docs, |docs, window, cx| {

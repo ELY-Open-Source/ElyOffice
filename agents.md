@@ -148,7 +148,7 @@ packaging/icons/masters.py     写出 assets/icons 的 SVG 母版（图标设计
 packaging/icons/build.sh       由母版渲染 icns、png、ico（只在 macOS）
 scripts/inert-lo.sh 路径.app    构建出的 LibreOffice.app 去掉文档类型、URL 类型、快速查看与聚焦插件并注销（build-libreoffice.sh 调用）
 scripts/extract-official-lo.sh 用 7zz 把官方镜像的 Frameworks 与 Resources 解到 engines/lo-official（不挂载；“未打补丁即拒绝”的单测用）
-scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、本文件不超 30000 字节、注释（comments.py，只查入库文件）、行尾（eol.sh）；JS、TS、TSX 与 HTML 脚本的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript 解析，先在 `site/` 执行 `pnpm install`
+scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、本文件不超 30000 字节、注释（comments.py）、测试的等待（waits.py）、行尾（eol.sh）；JS、TS、TSX 与 HTML 脚本的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript 解析，先在 `site/` 执行 `pnpm install`
 cd site && pnpm run deploy    官网构建并经 wrangler 发到 Cloudflare Workers：另有 `site/worker` 答 `/release.json`（最新版本、安装包地址与下载总数，缓存 5 分钟）并转发 `/releases/` 下的发布文件；地址 https://office.elygpui.com（workers.dev 上同站）
 scripts/deny.sh [根] [检查...]  cargo-deny：安全公告、yanked、许可与来源；重复版本只许 deny.toml 里列着的组，组消失而 skip 还在即败
 scripts/panics.py [根]          非测试代码的 expect、unwrap、panic!、unreachable!（clippy 量，构建脚本、ely-mail-fake 除外）与 scripts/panics.tsv 逐条相符、各带理由，任一种类不多于 HEAD 的表；`--sites` 列出本机各处
@@ -169,7 +169,7 @@ ELY_FRAMES=1                  以 `--features frames` 构建的应用每 2 秒�
 
 - 上游：LibreOffice 26.2.6、MuPDF 1.28.5、Git 2.56.0 加 git-lfs 3.8.0、`gpui-pre` =0.3.11，以 `scripts/fetch-references.sh` 为准；组件库跟随其 main，修复在组件库仓库里做并推上去，再改 pin。
 - 仓库与发布在 GitHub 组织 ELY-Open-Source（ElyOffice、Ely-GPUI-Components）。推 `v*` 标签即运行 `.github/workflows/release.yml`：自托管机器上以 `scripts/ci.sh` 构建 macOS（arm64，Rosetta 下的 Intel）、Windows、Linux x86_64（WSL 里的 AlmaLinux 8 容器）并上传，Linux arm64 在 GitHub 托管的 `ubuntu-24.04-arm` 上用同一容器（自托管机队无 arm64 Linux）；五个任务互不等待。`ci.sh` 先过门，不过即不建：更新日志写明 `[~]` 的数目、距上一版不足七天的原因（`scripts/release-gate.py`），本系统有这一版的基准记录、慢过三成的各有原因（`tests/perf/baseline.py`），该提交的 `pr.yml` 已通过；打包前再以 `scripts/release-tests.sh` 跑全部测试（`ELY_REQUIRE_ENGINES=1`）；最先上传的平台把发布建成预发布，五端都上传、核对过后再改为正式并设为最新（`releases/latest` 是官网下载与应用更新所读）；源码包只由 x86_64 的 Linux 上传。引擎经 `ELY_SHARE` 共用，新的 LibreOffice 补丁须先在三台机器的共享引擎上重建；GitHub 的 arm64 机无共享引擎，现场建。macOS 上 `ci.sh` 须 bash 5，拒绝 3.2（R15.61）。
-- 本机构建用 [huacnlee/cargo](https://huacnlee.github.io/cargo/)（替换 `cargo`，无配置）：中间产物在 `~/.cargo/targets/`，各工作树与项目共用、自动限额，二进制仍在 `./target`；它忽略 `--target-dir`、`CARGO_TARGET_DIR` 并告警，故 `tests/perf/bench.py`、`load.py`（frames 构建另放 `target/frames`）须在标准 Cargo 下跑。它的测试程序不在 `./target` 下，找不到旁边的 worker：带内核的单测须设 `ELY_LOK_WORKER`、`ELY_PDF_WORKER`（`release-tests.sh` 自己设）；`cargo check` 与 clippy 须设 `CARGO_CHECK_SHARED_DEPS=0`，否则两份 gpui 混用、类型对不上。发布与 PR 的机器仍是标准 Cargo，脚本两者都得过。
+- 本机构建用 [huacnlee/cargo](https://huacnlee.github.io/cargo/)（替换 `cargo`）：中间产物在 `~/.cargo/targets/`，各工作树与项目共用、自动限额，二进制仍在 `./target`；它忽略 `--target-dir`、`CARGO_TARGET_DIR` 并告警，故 `tests/perf/bench.py`、`load.py`（frames 构建另放 `target/frames`）须在标准 Cargo 下跑。它的测试程序不在 `./target` 下，找不到旁边的 worker：带内核的单测须设 `ELY_LOK_WORKER`、`ELY_PDF_WORKER`（`release-tests.sh` 自己设）；`cargo check` 与 clippy 须设 `CARGO_CHECK_SHARED_DEPS=0`，否则两份 gpui 混用、类型对不上。发布与 PR 的机器仍是标准 Cargo，脚本两者都得过。
 - Git：main 的历史不改写；提交签名，不写任何署名行。
 - 许可：自有代码 MIT；随包引擎照各自的许可，Linux 包的许可字段取 `packaging/apps.tsv`。
 - macOS 发布以 Developer ID 签名并公证（`ELY_SIGN_IDENTITY`、`ELY_NOTARY_PROFILE`），缺即失败，不出未公证的包。

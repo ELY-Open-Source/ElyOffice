@@ -357,6 +357,7 @@ fn the_scheduler_writes_every_interval_and_stops() {
 fn a_dropped_task_never_writes_after_a_discard() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let slow = || {
+        // One point takes this long to write.
         std::thread::sleep(Duration::from_millis(100));
         (b"tick".to_vec(), None)
     };
@@ -365,12 +366,14 @@ fn a_dropped_task_never_writes_after_a_discard() {
         Duration::from_millis(10),
         slow,
     );
+    // A write is under way when the task drops.
     std::thread::sleep(Duration::from_millis(150));
     drop(task);
     let mut recovery = Recovery::new(dir.path().to_path_buf());
     recovery.discard().expect("the discard lands");
     assert!(recovery.discarded().expect("the marker stays"));
     assert_eq!(recovery.points().expect("the points list").len(), 0);
+    // Past the slow write: it must not land.
     std::thread::sleep(Duration::from_millis(150));
     assert!(recovery.discarded().expect("the marker survives"));
     assert_eq!(recovery.points().expect("the points list").len(), 0);
@@ -380,6 +383,7 @@ fn a_dropped_task_never_writes_after_a_discard() {
 fn last_ok_reads_free_during_a_slow_write() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let slow = || {
+        // One point takes this long to write.
         std::thread::sleep(Duration::from_millis(200));
         (b"tick".to_vec(), None)
     };
@@ -393,6 +397,7 @@ fn last_ok_reads_free_during_a_slow_write() {
         std::thread::sleep(Duration::from_millis(5));
     }
     assert!(task.last_ok().is_some(), "the first point landed");
+    // The next slow write has begun.
     std::thread::sleep(Duration::from_millis(30));
     let began = std::time::Instant::now();
     let read = task.last_ok();

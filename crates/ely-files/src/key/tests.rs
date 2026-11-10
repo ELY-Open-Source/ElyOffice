@@ -17,6 +17,7 @@ impl FakeBackend {
 impl Backend for FakeBackend {
     fn get(&self) -> io::Result<Option<Vec<u8>>> {
         if let Some(delay) = self.get_delay {
+            // A slow keychain read.
             std::thread::sleep(delay);
         }
         Ok(self.stored.lock().expect("the store").clone())
@@ -100,6 +101,7 @@ fn the_lock_holder_rechecks_before_generating() {
     let a = std::thread::spawn(move || {
         load_with(a_backend.as_ref() as &dyn Backend, &dir_a).expect("the load")
     });
+    // The first loader holds the lock by now.
     std::thread::sleep(Duration::from_millis(10));
     let b = load_with(b_backend.as_ref() as &dyn Backend, &dir_b).expect("the load");
     let a = a.join().expect("a joins");
@@ -115,6 +117,7 @@ fn a_slow_init_times_out_the_waiter_but_keeps_its_key() {
             Ok(self.0.lock().expect("the store").clone())
         }
         fn set(&self, key: &[u8]) -> io::Result<()> {
+            // A keychain write slower than the lock wait.
             std::thread::sleep(Duration::from_millis(1500));
             *self.0.lock().expect("the store") = Some(key.to_vec());
             Ok(())
@@ -125,6 +128,7 @@ fn a_slow_init_times_out_the_waiter_but_keeps_its_key() {
     let a = std::thread::spawn(move || {
         load_with(a_backend.as_ref() as &dyn Backend, &dir_a).expect("the load")
     });
+    // The first loader is inside its slow write.
     std::thread::sleep(Duration::from_millis(100));
     let timed_out = load_with(backend.as_ref() as &dyn Backend, dir.path());
     let a_key = a.join().expect("a joins");
@@ -183,6 +187,7 @@ fn a_mid_init_key_is_never_visible_to_another_loader() {
         }
         fn set(&self, key: &[u8]) -> io::Result<()> {
             *self.visible.lock().expect("the store") = Some(key.to_vec());
+            // The key shows before the write has landed.
             std::thread::sleep(self.persist_delay);
             let mut armed = self.armed.lock().expect("the flag");
             if *armed {

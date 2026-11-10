@@ -153,6 +153,7 @@ fn a_write_overtaken_while_waiting_leaves_the_file() {
             store.set_if("author", json!("Bob"), || current.load(std::sync::atomic::Ordering::SeqCst)).unwrap()
         })
     };
+    // The write now waits for the file lock.
     std::thread::sleep(std::time::Duration::from_millis(200));
     current.store(false, std::sync::atomic::Ordering::SeqCst);
     drop(held);

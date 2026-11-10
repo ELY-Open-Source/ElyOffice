@@ -16,12 +16,14 @@ fn input_waits_for_one_background_request_not_all() {
             let (shared, ran) = (Arc::clone(&shared), Arc::clone(&ran));
             std::thread::spawn(move || {
                 futures::executor::block_on(crate::behind(&shared, |_| {
+                    // Each background read takes this long.
                     std::thread::sleep(Duration::from_millis(20));
                     ran.fetch_add(1, Ordering::SeqCst);
                 }))
             })
         })
         .collect();
+    // All twelve reads wait behind the lock.
     std::thread::sleep(Duration::from_millis(300));
     // The lane locks the worker itself, as here.
     let input = {
@@ -31,6 +33,7 @@ fn input_waits_for_one_background_request_not_all() {
             ran.load(Ordering::SeqCst)
         })
     };
+    // The input now waits behind them.
     std::thread::sleep(Duration::from_millis(300));
     drop(held);
     let before = input.join().expect("the input lands");
@@ -263,6 +266,7 @@ fn a_shown_tab_s_tile_stops_another_tab_s_snapshot() {
         })
     };
     held.recv().expect("the snapshot holds the worker");
+    // A quarter in: the snapshot is under way.
     std::thread::sleep(whole / 4);
     let began = Instant::now();
     cx.update(|app| {

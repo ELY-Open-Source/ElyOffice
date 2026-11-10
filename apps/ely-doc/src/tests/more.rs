@@ -106,6 +106,7 @@ fn keep_mine_waits_and_two_queued_saves_never_crash() {
     });
     written(&cx, &mine, None);
     type_into(&mut cx, &docs, "x");
+    // The outside write needs a later mtime.
     std::thread::sleep(std::time::Duration::from_millis(20));
     std::fs::write(&mine, "EXTERNAL").expect("the outside write");
     with_window(&mut cx, &docs, |docs, window, cx| {

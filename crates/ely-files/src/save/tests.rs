@@ -435,6 +435,7 @@ fn save_as_onto_its_own_file_checks_for_outside_changes() {
     session.edit();
     save_as(&mut session, &own, b"mine").expect("the first save");
     session.edit();
+    // The outside write needs a later mtime.
     std::thread::sleep(std::time::Duration::from_millis(20));
     write(&own, "EXTERNAL REVISION");
     let alias = dir.path().join("alias.docx");
@@ -466,6 +467,7 @@ fn overwrite_resolves_a_conflict_with_the_local_version() {
     session.edit();
     save_as(&mut session, &own, b"mine").expect("the first save");
     session.edit();
+    // The outside write needs a later mtime.
     std::thread::sleep(std::time::Duration::from_millis(20));
     write(&own, "theirs");
     assert!(matches!(

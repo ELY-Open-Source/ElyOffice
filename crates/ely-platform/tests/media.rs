@@ -76,6 +76,7 @@ fn wait() {
 /// Media Foundation and GStreamer play on their own threads.
 #[cfg(any(windows, target_os = "linux"))]
 fn wait() {
+    // Their threads move the clock meanwhile.
     std::thread::sleep(std::time::Duration::from_millis(20));
 }
 

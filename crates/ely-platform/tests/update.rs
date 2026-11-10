@@ -244,6 +244,7 @@ fn a_cancel_is_answered_at_once_and_the_socket_is_freed_within_the_idle_time() {
     let started = Instant::now();
     let outcome = thread::scope(|scope| {
         scope.spawn(|| {
+            // The download stalls before it is cancelled.
             thread::sleep(Duration::from_millis(300));
             cancel.store(true, Ordering::Relaxed);
         });

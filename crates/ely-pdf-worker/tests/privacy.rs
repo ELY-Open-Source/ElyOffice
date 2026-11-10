@@ -53,6 +53,7 @@ fn a_broken_stream_keeps_its_text_out_of_the_log() {
     worker.render(book.doc, 0, (1.0, 0), [0, 0, 100, 100]).unwrap();
     worker.close(book.doc).unwrap();
     drop(worker);
+    // The dead worker's last output arrives.
     std::thread::sleep(Duration::from_millis(500));
     let records = kept().lock().unwrap().clone();
     assert!(records.iter().any(|r| r.contains("native output withheld")), "MuPDF spoke: {records:#?}");

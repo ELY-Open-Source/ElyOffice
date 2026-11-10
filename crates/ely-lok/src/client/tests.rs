@@ -309,6 +309,7 @@ fn a_macro_never_writes_its_marker() {
     let doc = worker
         .load(&crate::file_url(&source))
         .expect("the macro document loads");
+    // A macro that ran would have written by now.
     std::thread::sleep(std::time::Duration::from_millis(800));
     assert!(
         !marker.try_exists().expect("the marker check"),
