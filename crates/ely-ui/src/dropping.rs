@@ -1,4 +1,4 @@
-//! Files dropped on a window: opened here or in their Ely app.
+//! Dropped files open here or in their Ely app.
 
 use std::{
     io,
@@ -16,7 +16,7 @@ fn elsewhere(app: AppId, path: &Path) -> Option<AppId> {
     ely_platform::apps::for_extension(ext).filter(|owner| *owner != app)
 }
 
-/// Opens each dropped file here, or in its type's Ely app.
+/// Opens each dropped file here or in its app.
 pub fn open_dropped(app: AppId, paths: &[PathBuf], cx: &mut App) {
     for path in paths {
         match elsewhere(app, path) {
@@ -106,7 +106,7 @@ mod tests {
         let cx = &mut VisualTestContext::from_window(window.into(), cx);
         cx.run_until_parked();
         let at = point(px(200.0), px(200.0));
-        // Its own type, a type no Ely app has, a folder.
+        // Its own type, a foreign type, a folder.
         let dropped = [PathBuf::from("/a/letter.docx"), PathBuf::from("/a/photo.png"), PathBuf::from("/a/folder")];
         cx.simulate_event(FileDropEvent::Entered { position: at, paths: ExternalPaths(dropped.to_vec().into()) });
         cx.simulate_event(FileDropEvent::Submit { position: at });
