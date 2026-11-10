@@ -198,9 +198,9 @@ def three_switching():
         with running("switching", slug, files) as app:
             typed, problems, slow, focused = dict.fromkeys(files, 0), [], [], []
             app.front()
-            busy = threading.Thread(target=edit_others, args=(app, files, 3, problems), daemon=True)
-            busy.start()
-            for _ in range(3):
+            live, short = {path: app.said("text", "get", path).lower().count("x") for path in files}, None
+            (busy := threading.Thread(target=edit_others, args=(app, files, 3, problems), daemon=True)).start()
+            for visit in range(3):
                 for path in files:
                     run.HOST.press(app.process.pid, os.path.basename(path))
                     time.sleep(0.3)
@@ -217,17 +217,18 @@ def three_switching():
                     ticks += load.type_keys(app, RECIPES[slug], 2)[0]
                     typed[path] += len(ticks)
                     slow += [tick for tick in ticks if tick > load.TARGET]
+                    now = app.said("text", "get", path).lower().count("x") - live[path]
+                    short = short or (now < typed[path] and f"{os.path.basename(path)} visit {visit + 1}: {now} of {typed[path]}") or None
             busy.join()
             for path in files:
                 app.said("text", "save", path)
             alive = app.process.poll() is None
-        lost = {os.path.basename(path): (loadfiles.text_of(path).lower().count("x") - base[path], keys) for path, keys in typed.items()
-                if loadfiles.text_of(path).lower().count("x") - base[path] != keys}
+        lost = {os.path.basename(path): (loadfiles.text_of(path).lower().count("x") - base[path], keys) for path, keys in typed.items() if loadfiles.text_of(path).lower().count("x") - base[path] != keys}
         tokens = {os.path.basename(path): loadfiles.tokens(path) for path in files}
-        ok = alive and not lost and not problems and not slow and all(focused) and all(found == [3] for found in tokens.values())
+        ok = alive and not lost and short is None and not problems and not slow and all(focused) and all(found == [3] for found in tokens.values())
         rows.append((f"{APPS[slug]}: three open, tabs switched while typing and while all are edited", ok,
                      f"keys stay in the document after {focused.count(True)} of {len(focused)} tab switches; "
-                     f"{sum(typed.values())} keys, {len(slow)} over {load.TARGET} ms; keys lost (saved, typed): {lost or 'none'}; "
+                     f"{sum(typed.values())} keys, {len(slow)} over {load.TARGET} ms; keys lost (saved, typed): {lost or 'none'}; first short live: {short or 'none'}; "
                      f"edits saved {tokens}; command failures {problems[:2] or 'none'}"))
     return rows
 
