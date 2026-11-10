@@ -1,0 +1,364 @@
+Ely: patch logs reach the app in release builds
+
+The engines build without --enable-sal-log, so SAL_INFO and SAL_WARN
+compile to nothing: every log line the earlier Ely patches added was
+never written. include/ely/log.hxx adds ELY_INFO, ELY_WARN and
+ELY_WARN_IF. They are always compiled, take the area "ely." plus the
+given one, skip the SAL_LOG selector and go through sal_detail_log,
+which writes to stderr unless SAL_LOG_FILE (or logging.ini on Windows)
+names a file; the Ely worker passes those lines on to the app's log. Every
+patch log moves to them. The pivot and chart messages drop their
+arguments, which can hold cell text. Only the twelve files that include
+the new header rebuild.
+
+diff --git a/desktop/source/app/app.cxx b/desktop/source/app/app.cxx
+index 516203b..9ff19fa 100644
+--- a/desktop/source/app/app.cxx
++++ b/desktop/source/app/app.cxx
+@@ -83,6 +83,7 @@
+ 
+ #include <desktop/exithelper.h>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <toolkit/helper/vclunohelper.hxx>
+ #include <comphelper/lok.hxx>
+ #include <comphelper/configuration.hxx>
+@@ -422,7 +423,7 @@ OUString BuildId()
+     OUString sBuildId = utl::Bootstrap::getBuildIdData(OUString());
+     if (!sBuildId.isEmpty())
+         return sBuildId;
+-    SAL_WARN("desktop.app", "version.ini gave no buildid; saying development");
++    ELY_WARN("desktop.app", "version.ini gave no buildid; saying development");
+     return u"development"_ustr;
+ }
+ 
+diff --git a/include/ely/log.hxx b/include/ely/log.hxx
+new file mode 100644
+index 0000000..2527019
+--- /dev/null
++++ b/include/ely/log.hxx
+@@ -0,0 +1,31 @@
++/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++/*
++ * This file is part of the LibreOffice project.
++ *
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
++ */
++
++#pragma once
++
++#include <sal/log.hxx>
++
++// Ely: kept in release builds; never document text.
++#define ELY_LOG_IF(condition, level, area, stream) \
++    do \
++    { \
++        if (SAL_UNLIKELY(condition)) \
++        { \
++            SAL_DETAIL_LOG_STREAM_PRIVATE_(level, "ely." area, SAL_WHERE, stream) \
++        } \
++    } while (false)
++
++#define ELY_INFO(area, stream) ELY_LOG_IF(true, ::SAL_DETAIL_LOG_LEVEL_INFO, area, stream)
++
++#define ELY_WARN(area, stream) ELY_LOG_IF(true, ::SAL_DETAIL_LOG_LEVEL_WARN, area, stream)
++
++#define ELY_WARN_IF(condition, area, stream) \
++    ELY_LOG_IF((condition), ::SAL_DETAIL_LOG_LEVEL_WARN, area, stream)
++
++/* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sc/source/filter/oox/formulabuffer.cxx b/sc/source/filter/oox/formulabuffer.cxx
+index 58feaa6..7f5d078 100644
+--- a/sc/source/filter/oox/formulabuffer.cxx
++++ b/sc/source/filter/oox/formulabuffer.cxx
+@@ -24,6 +24,7 @@
+ #include <svl/sharedstringpool.hxx>
+ #include <svl/numformat.hxx>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <rtl/math.hxx>
+ #include <cellvalue.hxx>
+ #include <scmatrix.hxx>
+@@ -596,7 +597,7 @@ void FormulaBuffer::finalizeImport()
+         if (pCell && pCell->GetMatrixFlag() == ScMatrixMode::Formula)
+             pCell->SetDynamicArray();
+         else
+-            SAL_WARN("sc.filter", "dynamic array at " << rAddress.Format(ScRefFlags::VALID) << " has no array formula");
++            ELY_WARN("sc.filter", "dynamic array at " << rAddress.Format(ScRefFlags::VALID) << " has no array formula");
+     }
+ 
+     // With formula results being set and not recalculated we need to
+diff --git a/sc/source/ui/docshell/docsh4.cxx b/sc/source/ui/docshell/docsh4.cxx
+index 9b932a4..ea462cd 100644
+--- a/sc/source/ui/docshell/docsh4.cxx
++++ b/sc/source/ui/docshell/docsh4.cxx
+@@ -61,6 +61,7 @@
+ #include <unotools/securityoptions.hxx>
+ #include <LibreOfficeKit/LibreOfficeKitEnums.h>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <unotools/charclass.hxx>
+ #include <comphelper/diagnose_ex.hxx>
+ #include <o3tl/string_view.hxx>
+@@ -317,7 +318,7 @@ void ScDocShell::UpdateLinksAsked(std::vector<OUString>& rFailed)
+             const bool bReadable = pSheet ? lcl_SheetReadable(*this, *pSheet) : lcl_AreaReadable(*this, *pArea);
+             if (!bReadable || !xLink->Update())
+             {
+-                SAL_WARN("sc.ui", "linked source not read: " << rFile);
++                ELY_WARN("sc.ui", "linked source not read: " << rFile);
+                 rFailed.push_back(rFile);
+                 continue;
+             }
+@@ -1859,7 +1860,7 @@ void ScDocShell::ExecuteChartSource(SfxRequest& rReq)
+         && (!bColInit || !bRowInit || !ChartHelper::IsChartLook(pLook->GetValue())
+             || !sctools::chartRanges(rDoc, aRangeName)))
+     {
+-        SAL_WARN("sc.lok", "chart look needs headers and must parse: " << pLook->GetValue());
++        ELY_WARN("sc.lok", "chart look needs headers and must parse");
+         rReq.Ignore();
+         return;
+     }
+diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/externalrefmgr.cxx
+index 0b5531c..b2856f5 100644
+--- a/sc/source/ui/docshell/externalrefmgr.cxx
++++ b/sc/source/ui/docshell/externalrefmgr.cxx
+@@ -68,6 +68,7 @@
+ #include <com/sun/star/document/MacroExecMode.hpp>
+ #include <com/sun/star/document/UpdateDocMode.hpp>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ 
+ #include <memory>
+ #include <algorithm>
+@@ -2602,18 +2603,18 @@ SfxObjectShellRef ScExternalRefManager::loadSrcDocument(sal_uInt16 nFileId, OUSt
+         = utl::UcbStreamHelper::CreateStream(aFile, StreamMode::STD_READ, nullptr, false);
+     if (!pFile)
+     {
+-        SAL_WARN("sc.ui", "external source not opened: " << aFile);
++        ELY_WARN("sc.ui", "external source not opened: " << aFile);
+         return nullptr;
+     }
+     auto pBytes = std::make_unique<SvMemoryStream>();
+     pBytes->WriteStream(*pFile);
+     if (pFile->GetError() != ERRCODE_NONE || pBytes->GetError() != ERRCODE_NONE)
+     {
+-        SAL_WARN("sc.ui", "external source not read: " << aFile << ": " << pFile->GetError());
++        ELY_WARN("sc.ui", "external source not read: " << aFile << ": " << pFile->GetError());
+         return nullptr;
+     }
+     pFile.reset();
+-    SAL_INFO("sc.ui", "external source read into memory: " << aFile << ", " << pBytes->TellEnd() << " bytes");
++    ELY_INFO("sc.ui", "external source read into memory: " << aFile << ", " << pBytes->TellEnd() << " bytes");
+     pBytes->Seek(0);
+     pMedium->setStreamToLoadFrom(new utl::OSeekableInputStreamWrapper(pBytes.release(), true), true);
+ 
+diff --git a/sc/source/ui/drawfunc/fuins2.cxx b/sc/source/ui/drawfunc/fuins2.cxx
+index 121500d..19f14ec 100644
+--- a/sc/source/ui/drawfunc/fuins2.cxx
++++ b/sc/source/ui/drawfunc/fuins2.cxx
+@@ -43,6 +43,7 @@
+ #include <sfx2/msg.hxx>
+ #include <scmod.hxx>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <comphelper/diagnose_ex.hxx>
+ #include <vcl/weldutils.hxx>
+ 
+@@ -492,14 +493,14 @@ FuInsertChart::FuInsertChart(ScTabViewShell& rViewSh, vcl::Window* pWin, ScDrawV
+     const SfxStringItem* pLook = rReq.GetArg<SfxStringItem>(FN_PARAM_3);
+     if (pLook && !ChartHelper::IsChartLook(pLook->GetValue()))
+     {
+-        SAL_WARN("sc.lok", "chart look does not parse: " << pLook->GetValue());
++        ELY_WARN("sc.lok", "chart look does not parse");
+         return;
+     }
+     // A bad range would chart sample data.
+     const SfxStringItem* pRange = rReq.GetArg<SfxStringItem>(FN_PARAM_5);
+     if (pRange && !sctools::chartRanges(rViewSh.GetViewData().GetDocument(), pRange->GetValue()))
+     {
+-        SAL_WARN("sc.lok", "chart range does not parse: " << pRange->GetValue());
++        ELY_WARN("sc.lok", "chart range does not parse");
+         return;
+     }
+ 
+@@ -697,7 +698,7 @@ FuInsertChart::FuInsertChart(ScTabViewShell& rViewSh, vcl::Window* pWin, ScDrawV
+         oBeside = lcl_EmptyBeside(rData.GetDocument(), aNear, aSize);
+         if (!oBeside)
+         {
+-            SAL_WARN("sc.lok", "no empty cells hold the chart");
++            ELY_WARN("sc.lok", "no empty cells hold the chart");
+             if (xChartModel.is())
+                 xChartModel->unlockControllers();
+             rViewSh.GetObjectShell()->GetEmbeddedObjectContainer().RemoveEmbeddedObject(aName);
+diff --git a/sc/source/ui/inc/elymacro.hxx b/sc/source/ui/inc/elymacro.hxx
+index 135b092..da53dd9 100644
+--- a/sc/source/ui/inc/elymacro.hxx
++++ b/sc/source/ui/inc/elymacro.hxx
+@@ -29,6 +29,7 @@
+ #include <document.hxx>
+ #include <rtl/math.hxx>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <tools/json_writer.hxx>
+ #include <svl/undo.hxx>
+ #include <boost/property_tree/json_parser.hpp>
+@@ -390,7 +391,7 @@ inline void apply(const Reference<css::frame::XModel>& xModel, const ScDocument&
+             }
+             catch (...)
+             {
+-                SAL_WARN("sc.ui", "R macro rollback threw");
++                ELY_WARN("sc.ui", "R macro rollback threw");
+             }
+             rUndo.ClearRedo();
+             // Writes left in place: never report "nothing changed".
+diff --git a/sc/source/ui/view/cellsh2.cxx b/sc/source/ui/view/cellsh2.cxx
+index 11d4d1b..60a45c8 100644
+--- a/sc/source/ui/view/cellsh2.cxx
++++ b/sc/source/ui/view/cellsh2.cxx
+@@ -82,6 +82,7 @@
+ 
+ #include <o3tl/make_shared.hxx>
+ #include <memory>
++#include <ely/log.hxx>
+ 
+ using namespace com::sun::star;
+ 
+@@ -1100,7 +1101,7 @@ void ScCellShell::ExecuteDB( SfxRequest& rReq )
+                 if (pPivot)
+                 {
+                     const bool bMade = lcl_KitPivot(*pTabViewShell, GetViewData(), pPivot->GetValue());
+-                    SAL_WARN_IF(!bMade, "sc.lok", "pivot not made: " << pPivot->GetValue());
++                    ELY_WARN_IF(!bMade, "sc.lok", "pivot not made");
+                     rReq.SetReturnValue(SfxBoolItem(0, bMade));
+                     rReq.Done();
+                 }
+diff --git a/sc/source/ui/view/cellsh3.cxx b/sc/source/ui/view/cellsh3.cxx
+index ec0d7ee..94b0f07 100644
+--- a/sc/source/ui/view/cellsh3.cxx
++++ b/sc/source/ui/view/cellsh3.cxx
+@@ -19,6 +19,7 @@
+ 
+ #include <elymacro.hxx>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <svl/undo.hxx>
+ #include <scitems.hxx>
+ #include <editeng/editview.hxx>
+@@ -402,19 +403,19 @@ void ScCellShell::Execute( SfxRequest& rReq )
+                     }
+                     catch (const elymacro::Refusal& rRefusal)
+                     {
+-                        SAL_WARN("sc.ui", "R macro batch refused: " << rRefusal.code);
++                        ELY_WARN("sc.ui", "R macro batch refused: " << rRefusal.code);
+                         elymacro::lastRefusal() = { rRefusal.code, OUString() };
+                         rReq.Ignore();
+                     }
+                     catch (const css::uno::Exception& rError)
+                     {
+-                        SAL_WARN("sc.ui", "R macro batch failed: " << rError.Message);
++                        ELY_WARN("sc.ui", "R macro batch failed: " << rError.Message);
+                         elymacro::lastRefusal() = { "failed", rError.Message };
+                         rReq.Ignore();
+                     }
+                     catch (const std::exception& rError)
+                     {
+-                        SAL_WARN("sc.ui", "R macro batch failed: " << rError.what());
++                        ELY_WARN("sc.ui", "R macro batch failed: " << rError.what());
+                         elymacro::lastRefusal() = { "failed", OUString::fromUtf8(rError.what()) };
+                         rReq.Ignore();
+                     }
+diff --git a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+index 28b4802..6dece34 100644
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+@@ -132,6 +132,7 @@
+ #include <unotools/mediadescriptor.hxx>
+ #include <comphelper/diagnose_ex.hxx>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <o3tl/string_view.hxx>
+ #include <com/sun/star/drawing/FillStyle.hpp>
+ 
+@@ -349,7 +350,7 @@ static void lcl_MarkTOCEnd(const uno::Reference<text::XTextRange>& xParagraph)
+     const SwSectionNode* pTOC = pBefore && pBefore->IsEndNode() ? pBefore->StartOfSectionNode()->GetSectionNode() : nullptr;
+     if (!pTOC || pTOC->GetSection().GetType() != SectionType::ToxContent)
+     {
+-        SAL_WARN("writerfilter.dmapper", "TOC end paragraph is not after its TOC");
++        ELY_WARN("writerfilter.dmapper", "TOC end paragraph is not after its TOC");
+         return;
+     }
+     uno::Reference<beans::XPropertySet> xProps(xParagraph, uno::UNO_QUERY_THROW);
+@@ -2342,7 +2343,7 @@ void DomainMapper_Impl::finishParagraph( const PropertyMapPtr& pPropertyMap, con
+         const size_t nFlys = m_StreamStateStack.top().nTOCEndFlys;
+         SwTextNode* pTOCEnd = lcl_TOCEndParagraph(xTOCEnd);
+         if (!pTOCEnd)
+-            SAL_WARN("writerfilter.dmapper", "TOC end paragraph left the TOC, tail not moved");
++            ELY_WARN("writerfilter.dmapper", "TOC end paragraph left the TOC, tail not moved");
+         // Content after the field end is not index content
+         else if ((pTOCEnd->Len() > nAt || pTOCEnd->GetAnchoredFlys().size() > nFlys) && !IsInTOC()
+                  && !m_bStartIndex && !m_bStartBibliography)
+diff --git a/sw/source/writerfilter/dmapper/EqField.cxx b/sw/source/writerfilter/dmapper/EqField.cxx
+index d4667be..acc031f 100644
+--- a/sw/source/writerfilter/dmapper/EqField.cxx
++++ b/sw/source/writerfilter/dmapper/EqField.cxx
+@@ -12,6 +12,7 @@
+ #include <rtl/character.hxx>
+ #include <rtl/ustrbuf.hxx>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <unicode/uchar.h>
+ 
+ #include <map>
+@@ -59,7 +60,7 @@ private:
+ 
+     void fail(const char* pWhy)
+     {
+-        SAL_WARN("writerfilter.dmapper", "EQ field: " << pWhy << " at " << m_nPos);
++        ELY_WARN("writerfilter.dmapper", "EQ field: " << pWhy << " at " << m_nPos);
+         m_bFailed = true;
+     }
+ 
+diff --git a/sw/source/writerfilter/dmapper/OLEHandler.cxx b/sw/source/writerfilter/dmapper/OLEHandler.cxx
+index f77e644..70fee00 100644
+--- a/sw/source/writerfilter/dmapper/OLEHandler.cxx
++++ b/sw/source/writerfilter/dmapper/OLEHandler.cxx
+@@ -24,6 +24,7 @@
+ #include <ooxml/resourceids.hxx>
+ #include <rtl/ustring.hxx>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <osl/diagnose.h>
+ #include <comphelper/diagnose_ex.hxx>
+ #include <unotools/mediadescriptor.hxx>
+@@ -271,7 +272,7 @@ OUString OLEHandler::getLinkFilter() const
+     auto it = aFilters.find(m_sProgId);
+     if (it != aFilters.end())
+         return it->second;
+-    SAL_WARN_IF(m_sType == "Link", "writerfilter", "linked " << m_sProgId << " stays a picture");
++    ELY_WARN_IF(m_sType == "Link", "writerfilter", "linked " << m_sProgId << " stays a picture");
+     return OUString();
+ }
+ 
+diff --git a/sw/source/writerfilter/filter/WriterFilter.cxx b/sw/source/writerfilter/filter/WriterFilter.cxx
+index efd9f38..80ced60 100644
+--- a/sw/source/writerfilter/filter/WriterFilter.cxx
++++ b/sw/source/writerfilter/filter/WriterFilter.cxx
+@@ -43,6 +43,7 @@
+ #include <unotools/mediadescriptor.hxx>
+ #include <rtl/ref.hxx>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
+ #include <comphelper/diagnose_ex.hxx>
+ #include <comphelper/scopeguard.hxx>
+ #include <unodraw.hxx>
+@@ -159,7 +160,7 @@ void lcl_IncludedSections(SwDoc& rDoc)
+             || pField->GetMarkEnd().GetContentIndex() != pLast->GetText().getLength()
+             || !SwDoc::IsInsRegionAvailable(SwPaM(*pFirst, 0, *pLast, pLast->GetText().getLength())))
+         {
+-            SAL_INFO("writerfilter", "INCLUDETEXT beside other text stays a field");
++            ELY_INFO("writerfilter", "INCLUDETEXT beside other text stays a field");
+             continue;
+         }
+         IDocumentMarkAccess::DeleteFieldmarkCommand(*pField);

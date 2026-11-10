@@ -62,7 +62,7 @@ fn a_book_reads_its_source_only_when_asked() {
 }
 
 /// A book whose `S` is `sheet` and holds `cells`.
-fn sheets(sheet: &str, cells: &str) -> String {
+pub(super) fn sheets(sheet: &str, cells: &str) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"

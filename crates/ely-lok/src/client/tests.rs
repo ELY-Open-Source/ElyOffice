@@ -35,6 +35,7 @@ mod freed;
 mod latency;
 mod layout;
 mod linked;
+mod logs;
 mod links;
 mod media;
 mod menus;

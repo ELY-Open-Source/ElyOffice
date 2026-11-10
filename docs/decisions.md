@@ -611,3 +611,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - R18.3：`bundle.sh` 滤掉允许的那一处差异时，把含内核路径的整行当正则交给 grep，又以 `|| true` 吞掉 grep 的错；路径里有 `[` 时 grep 退出 2，差异清单变空，不同的内核被当作相同。改：在包目录里以相对名比对（`diff -rq <应用>/bin/libreoffice libreoffice`，`LC_ALL=C`），允许的那一行成了不含路径的常量，按字面整行匹配（`grep -vxF`）；grep 退出 2 即失败。相对名另免去一事：GNU diff 遇到带特殊字符的路径会给它加引号，绝对路径的常量就对不上了（改到一半时测试自己查出）。`linux-bundle-rules.sh` 的工作目录改在名为 `odd[` 的目录下（改前在此即败）。真包重出一遍，结果照旧。
 - R18.7：断句不认德、法文的闭引号。德语以 `“`、`«` 收尾（`„Hallo.“`、`»Halt.«`），法语的 `»` 前有不换行空格（`« Oui. »`）。改：紧跟句末标点的 `“`、`‘`、`»`、`«`、`›`、`‹` 也算闭引号（紧贴着句号、中间没有空白的引号只能是收尾的）；句末标点后“不换行空格加 `»` 或 `›`”一并归本句。空白之后的引号仍是下一句的开头。回归加进 `a_sentence_runs_to_the_next_one_s_start`：审查所举两例，另有 `»Halt.« Dann` 与只有不换行空格的 `Oui. Non.`。
+
+## 2026-11-10 内核补丁的日志进应用日志（R18.10，审计 N-08，R15.64）
+
+- 原因照 R15.64 所查：三端的内核都不带 `--enable-sal-log`（本机 Linux 的 `config_host.mk` 里 `ENABLE_SAL_LOG` 也是空的），`SAL_INFO`、`SAL_WARN` 被编掉，各补丁写的 20 处日志在用户机器上不存在。
+- 改：R15.64 备好的内核补丁（当时编号 0100，未入序列）照现在的序列重排为 0108。新头文件 `include/ely/log.hxx` 给出 `ELY_INFO`、`ELY_WARN`、`ELY_WARN_IF`：总是编入，区域为 `ely.<区域>`，不经 `SAL_LOG` 的筛选，经 `sal_detail_log` 写 stderr。20 处（补丁 0019、0020、0041、0050、0062、0067、0078、0081、0084、0086 至 0089 所加）全改用它；0091 至 0107 没有再加 `SAL_` 日志（逐个补丁查过新增行）。透视表与图表的三条消息去掉可能含单元格文字的参数。不动 `sal/log.hxx`，只重编十二个文件。此后的补丁记日志一律用 `ELY_*`。
+- Ely 一侧在 R15.64 时已入库：`ely_ipc::relay` 认得 `warn:ely.<区域>:<pid>:<tid>:<文件>:<行>: <消息>`，按级别记进应用日志（目标 `lok-worker`，写作“区域（文件:行）：消息”）；上游的 `SAL_` 行与别的原生输出照旧不放。worker 启动时去掉继承来的 `SAL_LOG_FILE`，各安装不带 `logging.ini`。
+- 测试 `client/tests/logs.rs`（`a_source_read_and_a_failed_read_are_both_logged`）：装一个只收 `lok-worker` 的日志器；跨工作簿的引用读源一次，日志里有 `INFO sc.ui (externalrefmgr.cxx:…): external source read into memory: …logged-source.xlsx, … bytes`；链接到不存在的文件再“更新链接”，日志里有 `WARN sc.ui (docsh4.cxx:…): linked source not read: …logged-missing.ods`。这两行带文件路径，不带文件内容。
+- 实测：本机 Linux 内核带 0108 重建后通过，`ely-lok` 全量照过。未做：没有在不带 0108 的内核上先看这条测试失败（重建一次内核要十几分钟，未回退）；设了 `SAL_LOG_FILE` 的环境下那一行仍到应用日志，未以测试核对（测试进程的环境变量各测试共用，改它会波及别的测试）。Mac 与 Windows：其内核须带 0108 重建，这条测试不分平台，由各自的发布的门跑。
