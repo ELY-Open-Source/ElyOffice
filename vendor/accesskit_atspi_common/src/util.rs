@@ -69,9 +69,25 @@ fn is_sentence_mark(mark: char) -> bool {
     matches!(mark, '.' | '!' | '?' | '。' | '！' | '？')
 }
 
-/// Whether `mark` closes a quotation or a bracket.
+/// Whether `mark`, right after a sentence mark, closes a quotation or
+/// a bracket. German closes with “ and «, so no space decides it.
 fn is_closer(mark: char) -> bool {
-    matches!(mark, '"' | '\'' | '”' | '’' | ')' | ']' | '」' | '』' | '）' | '】' | '》')
+    matches!(
+        mark,
+        '"' | '\'' | '”' | '’' | '“' | '‘' | '»' | '«' | '›' | '‹' | ')' | ']' | '」' | '』' | '）' | '】' | '》'
+    )
+}
+
+/// The end of the sentence marks and closers that start at `from`.
+/// French sets a no-break space before its closing » and ›.
+fn closed(text: &[char], mut from: usize) -> usize {
+    loop {
+        match text[from..] {
+            [mark, ..] if is_sentence_mark(mark) || is_closer(mark) => from += 1,
+            ['\u{a0}' | '\u{202f}', '»' | '›', ..] => from += 2,
+            _ => return from,
+        }
+    }
 }
 
 /// The sentence around char `at`: its start and its end, in chars.
@@ -80,12 +96,7 @@ fn is_closer(mark: char) -> bool {
 /// whitespace or the end follows it and any closing quotes. Those
 /// quotes and the whitespace after belong to the sentence.
 fn sentence_bounds(text: &[char], at: usize) -> (usize, usize) {
-    let closed = |from: usize| {
-        let more = text[from..]
-            .iter()
-            .take_while(|mark| is_sentence_mark(**mark) || is_closer(**mark));
-        from + more.count()
-    };
+    let closed = |from: usize| closed(text, from);
     let ends = |index: usize| match text[index] {
         '。' | '！' | '？' => true,
         '.' | '!' | '?' => text
@@ -228,6 +239,13 @@ mod tests {
         assert_eq!(bounds("「一。」二。", 4), (4, 6), "a CJK closing bracket too");
         assert_eq!(bounds("Go. \"Next\" one.", 5), (4, 15), "an opening quote starts the next");
         assert_eq!(bounds("(See 2.) Then", 9), (9, 13));
+        let german = "Er sagte: „Hallo.“ Weiter.";
+        assert_eq!(bounds(german, 20), (19, 26), "German closes with the upper quote");
+        assert_eq!(bounds("»Halt.« Dann", 9), (8, 12));
+        let french = "Il dit : «\u{a0}Oui.\u{a0}» Ensuite.";
+        assert_eq!(bounds(french, 20), (18, 26), "French sets a space before its closer");
+        assert_eq!(bounds(french, 12), (0, 18));
+        assert_eq!(bounds("Oui.\u{a0}Non.", 6), (5, 9), "a no-break space alone ends it");
         assert_eq!(bounds("", 0), (0, 0));
     }
 }

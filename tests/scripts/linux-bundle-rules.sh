@@ -7,8 +7,11 @@ root=$(cd "$(dirname "$0")/../.." && pwd)
   echo "SKIP: Linux only"
   exit 0
 }
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+base=$(mktemp -d)
+trap 'rm -rf "$base"' EXIT
+# A path that is no regular expression.
+work=$base/odd[
+mkdir "$work"
 fail() {
   echo "FAIL: $*" >&2
   exit 1

@@ -606,3 +606,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 改：补丁 0107，`comphelper::LibreOfficeKit::isActive()` 时 `InitializeDde` 直接返回、不注册。调用处本就容得下没有服务：`AddDdeTopic` 见空即回，`RemoveDdeTopic` 无主题即回，文档壳先问 `GetDdeService()`。文档向外的 DDE 链接（客户端一侧）不动。
 - 测试：`client/tests/dde.rs`（只在 Windows）起一个 worker、载入一份文档，以 DDEML 的 `DdeConnectList` 列出答应 `soffice|System` 与 `elynosuchapp|nofile` 的全部进程，断言其中没有这个 worker。别的程序（真的 LibreOffice、旧版本的 worker）答应不算败。
 - 未验证：这段内核代码在 `#if defined(_WIN32)` 里，测试也只在 Windows 编译；本机是 Linux，两者都没编过、没跑过。须在 Windows 上以带 0107 的内核跑过，并在不带它的内核上见测试失败，R18.9 在那之前不打勾。R15.43 的 `a_dde_link_to_no_server_is_named_without_a_dialog` 在桌面上另有 worker 时是否随之通过，同样待 Windows 上核对。
+
+## 2026-11-10 第 2 轮审查后的两处改正（R18.3、R18.7）
+
+- R18.3：`bundle.sh` 滤掉允许的那一处差异时，把含内核路径的整行当正则交给 grep，又以 `|| true` 吞掉 grep 的错；路径里有 `[` 时 grep 退出 2，差异清单变空，不同的内核被当作相同。改：在包目录里以相对名比对（`diff -rq <应用>/bin/libreoffice libreoffice`，`LC_ALL=C`），允许的那一行成了不含路径的常量，按字面整行匹配（`grep -vxF`）；grep 退出 2 即失败。相对名另免去一事：GNU diff 遇到带特殊字符的路径会给它加引号，绝对路径的常量就对不上了（改到一半时测试自己查出）。`linux-bundle-rules.sh` 的工作目录改在名为 `odd[` 的目录下（改前在此即败）。真包重出一遍，结果照旧。
+- R18.7：断句不认德、法文的闭引号。德语以 `“`、`«` 收尾（`„Hallo.“`、`»Halt.«`），法语的 `»` 前有不换行空格（`« Oui. »`）。改：紧跟句末标点的 `“`、`‘`、`»`、`«`、`›`、`‹` 也算闭引号（紧贴着句号、中间没有空白的引号只能是收尾的）；句末标点后“不换行空格加 `»` 或 `›`”一并归本句。空白之后的引号仍是下一句的开头。回归加进 `a_sentence_runs_to_the_next_one_s_start`：审查所举两例，另有 `»Halt.« Dann` 与只有不换行空格的 `Oui. Non.`。

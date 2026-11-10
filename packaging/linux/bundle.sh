@@ -54,12 +54,14 @@ mv "$work/opt/ely-show/bin/libreoffice" "$kernel"
 for slug in "${kernels[@]}"; do
   own=$work/opt/$slug/bin/libreoffice
   if [ -d "$own" ]; then
-    # diff ends 2 when it cannot read.
+    # Relative: diff quotes odd paths. 2: a failed read.
     status=0
-    differs=$(diff -rq "$own" "$kernel") || status=$?
+    differs=$(cd "$work/opt" && LC_ALL=C diff -rq "$slug/bin/libreoffice" libreoffice) || status=$?
     [ "$status" -le 1 ] || broken "$slug's kernel did not compare with ElyShow's"
     # ElyShow's holds the others' and its own templates.
-    extra=$(grep -vx "Only in $kernel/share/template/common: presnt" <<<"$differs" || true)
+    status=0
+    extra=$(grep -vxF "Only in libreoffice/share/template/common: presnt" <<<"$differs") || status=$?
+    [ "$status" -le 1 ] || broken "$slug's kernel differences did not filter"
     [ -z "$extra" ] || broken "$slug's kernel is not ElyShow's: $extra"
     rm -rf "$own"
   fi
