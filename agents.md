@@ -83,7 +83,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 | gpui 文本里不能嵌图片：行内公式无从排版 | 组件库 `render/math_text.rs`：以不断行的空格占出公式的宽（整个公式作一个词折行），排好的公式画在其上，按下处读回公式的原文 |
 | Omarchy 色板要照 `A11yChecker` 的同一套对照规则 | `ely-ui` 的 `omarchy/palette.rs` 抄了对照表；组件库自 70ab3c5 起公开 `devtools::audit`，待改用 |
 | 组件库与 gpui 在无障碍语义、禁用状态与内部文案上的缺口 | 上游待办，逐项的现状在 `docs/accessibility.md` 的“上游待办”一节；项目自绘控件已自带角色与名字 |
-| PPTX 的章节：内核无此结构，导入即丢 | `ely_office::files::sections` 打开时读 `ppt/presentation.xml` 的 `p14:sectionLst`，有即 `Risk::Sections`（XML 按 BOM 与字节辨 UTF-16，UTF-32 报错）；加密的 PPTX（OLE 里的 `EncryptedPackage`）看不到章节，即 `Risk::Sealed`；二者皆横幅说明，保存改为另存副本（原文件不动），自动保存与命令行保存不写原文件 |
+| PPTX 的章节：内核无此结构，导入即丢 | `ely_office::files::sections` 打开时读 `p14:sectionLst`，有即 `Risk::Sections`；加密的 PPTX 看不到章节，即 `Risk::Sealed`；二者皆横幅说明，保存改为另存副本，自动保存与命令行保存不写原文件 |
 | LOK 的 `.uno:StyleApply` 状态给英文界面名，样式列表给程序名，两者对不上；内核界面固定英文，内置样式名到不了别的语言 | ElyDoc `props/builtin.rs` 照 LibreOffice 26.2 的译文列出内置段落、字符、页面样式的程序名与八种界面语言的名字（vi 未译的条目自拟）：状态里的界面名经它换回程序名，菜单按界面语言显示；用户自建的样式照原名 |
 
 ## gpui 规则
@@ -132,11 +132,11 @@ scripts/review.sh ID 轮次 路径  审查一条任务：herdr 里另一个 Clau
 scripts/apply-lo-patches.sh engines/lo-src  源码已到补丁序列第几个，补上其余（构建脚本调用）
 packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；目标在 target/alma8）
 packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）；包的依赖带 glibc 的版本下限（包内文件所需的最高版本）；libdbus 与它载入的库用系统的；`bundle.sh` 再出装全部应用的 `ely-office` 包（deb、rpm、Arch），三个文档应用共用一份内核
-packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调用）
+packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发后提交）
 packaging/winget.sh 标签       由该发布 Windows 的更新清单写 dist/winget 下首批各应用的 WinGet 清单（`ZacharyZhang.<名字>`；发布后交 winget-pkgs）
 packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`，散列不符即失败），文件名带提交号；有未提交改动即拒绝；发布只上传 Linux 的
-scripts/release-tests.sh         发布的门：建好两个 worker、以 `ELY_LOK_WORKER` 与 `ELY_PDF_WORKER` 点名它们，严格模式跑 `cargo test --workspace`（ci.sh 打包前调用）
+scripts/release-tests.sh         发布的门：建好两个 worker、以 `ELY_LOK_WORKER` 与 `ELY_PDF_WORKER` 点名它们，严格模式跑 `cargo test --workspace`（ci.sh 打包前调）
 scripts/compatibility.py [--check]  写 docs/compatibility.md 的版本与内核两行；--check 不符即败（ci.sh、pr.yml）
 scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务与其测试（pr.yml 核对与提交一致）
 scripts/lo-tarballs.sh lo-src     列出该 LibreOffice 构建所取的压缩包（名字、SHA-256、地址），由其 `Makefile.fetch` 得出
