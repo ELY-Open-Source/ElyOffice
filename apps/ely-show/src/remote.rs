@@ -68,9 +68,6 @@ impl Deck {
     }
 }
 
-/// Enter's vcl code: it opens a marked box's text.
-const RETURN: i32 = 1280;
-
 /// Impress narrows Replace All to marked objects; unmark, then restore.
 pub(crate) fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find: &str, with: &str, caret: Option<ely_lok::Rect>) -> std::io::Result<()> {
     let read = |worker: &mut ely_lok::Worker, doc: &ely_lok::Doc| {
@@ -111,9 +108,10 @@ pub(crate) fn replace_all(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, find
                 }
             }
             // Just entered: its caret, not yet told, is the end.
-            (None, [_]) if editing => {
+            (None, [at]) if editing => {
                 log::info!("show: the text edit a replace ended opens again at its end");
-                worker.post_key(&now, 0, RETURN)?;
+                let marked = worker.now(doc)?;
+                worker.run(&marked, "object.edit", &[at.as_str(), "false", "true"])?;
             }
             _ => {}
         }

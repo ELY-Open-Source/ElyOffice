@@ -107,6 +107,13 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Int("Index", "long", 0, 9_999), Arg::Bool("Add")],
         Check::Finished,
     ),
+    // Patch 0117: the marked object's text edit opens.
+    command(
+        "object.edit",
+        ".uno:SelectObject",
+        &[Arg::Int("Index", "long", 0, 9_999), Arg::Bool("Add"), Arg::Bool("Edit")],
+        Check::Finished,
+    ),
     command(
         "object.deselect",
         ".uno:SelectObject",

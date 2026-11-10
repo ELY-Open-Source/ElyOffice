@@ -1,0 +1,36 @@
+LOK: .uno:SelectObject can enter the marked object's text edit at once
+
+A client that ended a text edit to run a command restores it by
+marking the object again; Enter then opens the edit, but Impress
+handles Enter by dispatching SID_ATTR_CHAR asynchronously, so a key
+that arrives before that dispatch runs meets a marked object that
+is not being edited and is lost (Ely R18.8: on a loaded Mac, one
+key in two after another program's replace).
+SelectObject's LOK branch takes a new Edit argument: with an index,
+it marks that object and dispatches SID_ATTR_CHAR synchronously, so
+the edit is open when the command returns, its caret where Enter
+puts it.
+--- a/svx/sdi/svx.sdi
++++ b/svx/sdi/svx.sdi
+@@ -8923,7 +8923,7 @@
+ 
+ 
+ SfxBoolItem SelectObject SID_OBJECT_SELECT
+-(SfxUInt32Item Index ID_VAL_INDEX, SfxBoolItem Add FN_PARAM_1)
++(SfxUInt32Item Index ID_VAL_INDEX, SfxBoolItem Add FN_PARAM_1, SfxBoolItem Edit FN_PARAM_2)
+ [
+     AutoUpdate = TRUE,
+     FastCall = FALSE,
+--- a/sd/source/ui/view/drviewse.cxx
++++ b/sd/source/ui/view/drviewse.cxx
+@@ -174,6 +174,10 @@
+             mpDrawView->UnmarkAllObj();
+         if (pIndex)
+             mpDrawView->MarkObj(aShapes[pIndex->GetValue()], mpDrawView->GetSdrPageView());
++        // Ely: edits in this call, as Enter does later.
++        const SfxBoolItem* pEdit = rReq.GetArg<SfxBoolItem>(FN_PARAM_2);
++        if (pIndex && pEdit && pEdit->GetValue())
++            GetViewFrame()->GetDispatcher()->Execute(SID_ATTR_CHAR, SfxCallMode::SYNCHRON);
+         rReq.Done();
+         return;
+     }
