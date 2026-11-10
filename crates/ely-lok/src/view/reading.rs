@@ -26,13 +26,22 @@ pub(super) struct Reading {
 impl LokView {
     /// At paint: a reader that just arrived gets the body.
     pub(super) fn hear(&mut self, window: &Window, cx: &mut Context<Self>) {
-        let heard = window.is_a11y_active();
+        self.listened(window.is_a11y_active(), cx);
+    }
+
+    /// Whether assistive tech listens now.
+    fn listened(&mut self, heard: bool, cx: &mut Context<Self>) {
         let arrived = heard && !self.reading.heard;
         self.reading.heard = heard;
         if arrived {
-            self.read_on(cx);
-        } else if !heard {
+            return self.read_on(cx);
+        }
+        if !heard {
             self.reading.body = None;
+            // No body is coming: the held paragraph shows now.
+            if let Some(next) = self.reading.next.take() {
+                self.a11y = next;
+            }
         }
     }
 
@@ -75,7 +84,12 @@ impl LokView {
     /// A read came back; a stale one is read again.
     fn landed(&mut self, read: io::Result<Option<Body>>, cx: &mut Context<Self>) {
         self.reading.busy = false;
-        if std::mem::take(&mut self.reading.stale) {
+        let stale = std::mem::take(&mut self.reading.stale);
+        // The reader left: its body is no one's.
+        if !self.reading.heard {
+            return;
+        }
+        if stale {
             return self.read_on(cx);
         }
         self.reading.body = read.unwrap_or_else(|error| {
@@ -130,5 +144,35 @@ mod tests {
         assert!(until(&cx, || shown() == Some((body.to_vec(), 0, "one".into()))), "at the first paragraph: {:?}", shown());
         cx.update(|app| view.update(app, |view, cx| view.apply_batch(moved(view, 1024, "two"), None, cx)));
         assert!(until(&cx, || shown() == Some((body.to_vec(), 1, "two 二1".into()))), "at the second: {:?}", shown());
+    }
+
+    #[test]
+    fn a_reader_that_leaves_takes_no_late_body() {
+        let Some(install) = install() else {
+            return eprintln!("SKIP: no pinned LOK build");
+        };
+        let cx = TestAppContext::single();
+        cx.executor().allow_parking();
+        let (view, _) = cx.update(|app| live_view_of(app, &install, "three.fodt", THREE));
+        let text = || cx.update(|app| view.read(app).a11y.text.clone());
+        cx.update(|app| {
+            view.update(app, |view, cx| {
+                view.apply_batch(moved(view, 1024, "two"), None, cx);
+                view.listened(true, cx);
+                view.apply_batch(moved(view, 1025, "one"), None, cx);
+                assert_eq!(view.a11y.text, "two 二1", "the first paragraph waits for its body");
+                view.listened(false, cx);
+                assert_eq!(view.a11y.text, "one", "no body is coming: it shows now");
+                view.apply_batch(moved(view, 1024, "two"), None, cx);
+            })
+        });
+        assert_eq!(text(), "two 二1", "no one listens: the paragraph follows at once");
+        assert!(until(&cx, || !cx.update(|app| view.read(app).reading.busy)), "the read never landed");
+        assert_eq!(text(), "two 二1", "the late body brought the old paragraph back");
+        assert!(cx.update(|app| view.read(app).body().is_none()), "a body was kept for no one");
+        // The reader returns: the body is read anew.
+        cx.update(|app| view.update(app, |view, cx| view.listened(true, cx)));
+        let body = || cx.update(|app| view.read(app).body().map(|(_, caret)| caret));
+        assert!(until(&cx, || body() == Some(1)), "the returning reader's body: {:?}", body());
     }
 }

@@ -18,6 +18,12 @@ fn elsewhere(app: AppId, path: &Path) -> Option<AppId> {
 
 /// Opens each dropped file here or in its app.
 pub fn open_dropped(app: AppId, paths: &[PathBuf], cx: &mut App) {
+    hand(app, paths, ely_platform::apps::open_file, cx);
+}
+
+/// Another app's files go through `open`, in drop order.
+fn hand(app: AppId, paths: &[PathBuf], open: impl Fn(&Path) -> io::Result<()> + Send + 'static, cx: &mut App) {
+    let mut away = Vec::new();
     for path in paths {
         match elsewhere(app, path) {
             None => {
@@ -28,17 +34,19 @@ pub fn open_dropped(app: AppId, paths: &[PathBuf], cx: &mut App) {
             }
             Some(owner) => {
                 log::info!("drop: a file goes to {}", owner.name());
-                let path = path.clone();
-                cx.spawn(async move |cx| {
-                    let opened = cx.background_spawn(async move { ely_platform::apps::open_file(&path) }).await;
-                    if let Err(error) = opened {
-                        cx.update(|cx| report(error, cx));
-                    }
-                })
-                .detach();
+                away.push(path.clone());
             }
         }
     }
+    if away.is_empty() {
+        return;
+    }
+    // One task: each file waits for the one before.
+    cx.spawn(async move |cx| {
+        let failed: Vec<io::Error> = cx.background_spawn(async move { away.iter().filter_map(|path| open(path).err()).collect() }).await;
+        cx.update(|cx| failed.into_iter().for_each(|error| report(error, cx)));
+    })
+    .detach();
 }
 
 /// Logs the failure; the main window, if open, shows it.
@@ -62,7 +70,10 @@ fn report(error: io::Error, cx: &mut App) {
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
+    use std::{
+        path::{Path, PathBuf},
+        sync::{Arc, Mutex},
+    };
 
     use ely_platform::AppId;
     use gpui::{ExternalPaths, FileDropEvent, IntoElement, Render, TestAppContext, VisualTestContext, div, point, px};
@@ -77,6 +88,22 @@ mod tests {
         assert_eq!(elsewhere(AppId::Doc, Path::new("/a/photo.png")), None, "no Ely app's type");
         assert_eq!(elsewhere(AppId::Tree, Path::new("/a/folder")), None, "no extension");
         assert_eq!(elsewhere(AppId::Pdf, Path::new("/a/notes.md")), Some(AppId::Mark));
+    }
+
+    #[gpui::test(iterations = 20)]
+    fn files_for_another_app_go_in_drop_order(cx: &mut TestAppContext) {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let dropped = [PathBuf::from("/a/first.xlsx"), PathBuf::from("/a/second.xlsx"), PathBuf::from("/a/third.pptx")];
+        let record = {
+            let seen = Arc::clone(&seen);
+            move |path: &Path| {
+                seen.lock().expect("the record").push(path.to_path_buf());
+                Ok(())
+            }
+        };
+        cx.update(|cx| super::hand(AppId::Doc, &dropped, record, cx));
+        cx.run_until_parked();
+        assert_eq!(*seen.lock().expect("the record"), dropped, "each waits for the one before");
     }
 
     struct Page;

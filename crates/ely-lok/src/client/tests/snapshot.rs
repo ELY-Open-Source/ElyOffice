@@ -414,7 +414,7 @@ fn rich_text(blocks: usize) -> String {
     )
 }
 
-/// Patch 0106: a stop lands inside a part, at any element.
+/// Patch 0106: a stop lands inside a part.
 #[test]
 fn every_stop_inside_a_rich_writer_part_keeps_the_document() {
     if install().is_none() {
@@ -455,7 +455,7 @@ fn a_long_part_checks_for_input_inside() {
     write(&text, &FODT.replace("<text:p>", &format!("{body}<text:p>")));
     let doc = worker.load(&crate::file_url(&text)).expect("the text loads");
     let seen = checks(&mut worker, &doc, &crate::file_url(&dir.path().join("point.docx")), "docx");
-    // A paragraph is three elements at least; a check each 512.
+    // Three elements a paragraph at least; a check each 512.
     let inside = (PARAGRAPHS * 3 / 512) as u64;
     assert!(seen >= inside, "{seen} checks: the body alone owes {inside}");
 }

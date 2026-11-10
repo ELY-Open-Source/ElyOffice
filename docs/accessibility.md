@@ -57,6 +57,26 @@
 - 两条规则由 `i18n/wording_tests.rs` 守住（七种非英文目录都查）：改回任一处即败。
 - 机器核对查不出语气、搭配与整句是否自然，这要母语者。
 
+### 整句提示的对照（R18.6 第 2 轮）
+
+上面的对照只比短标签。动手前先问一句的提示——删除、丢弃、覆盖、不可撤销——是整句，另列于此。取 LibreOffice 26.2.6.3 译文库的 sfx2、sc、sd、sw、svx、svtools、uui、fpicker、vcl、cui 十个模块（各语言的 `messages.po`），按英文找意思相当的句子；找得到的逐语言并排看关键词，找不到的记“无对应项”，未对照。
+
+有对应句的十条：
+
+| Ely 的键 | LibreOffice 的句子 | de | es | fr | ja | ko | vi |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `office.unsaved.title` | sfx2 `Save changes to document “$(DOC)” before closing?` | 同：`Änderungen … speichern?` | 同：`guardar los cambios` | 同：`Enregistrer les modifications` | 同：`への変更を保存しますか` | 同义：Ely `변경 사항을 저장하시겠습니까`，其 `변경 내용을 저장하겠습니까` | 其无译文 |
+| `office.unsaved.detail` | sfx2 `Your changes will be lost if you don’t save them.` | 同：`Änderungen gehen … verloren` | 同：`perder … los cambios` | 同：`perdre … les modifications` | 同：`変更…は失われます` | 同：`변경 사항이 사라집니다` | 其无译文 |
+| `table.merge.title` | sc `Merge Cells`、`Some cells are not empty.` | 同：`Zellen … verbinden` | 同：`Combinar celdas` | 同：`Fusionner … cellules` | 同：`セルを結合` | 同：`셀 … 병합` | 同：`Gộp … ô` |
+| `table.merge.detail`、`table.merge.move` | sc `Move the contents of the hidden cells into the first cell` | 同：`in die erste Zelle verschieben` | 同：`Mover a la primera celda` | 同：`Déplacer dans la première cellule` | 同义：Ely `最初のセルに移動`，其 `先頭セルに移動` | 同义：Ely `첫 셀로 옮기기`，其 `첫 번째 셀로 이동` | 同：`chuyển vào ô đầu tiên` |
+| `table.merge.keep` | sc `Keep the contents of the hidden cells` | 同义：Ely `Verborgen behalten`，其 `ausgeblendeten … erhalten` | 同：`Mantener … ocultos` | 同义：Ely `Garder masquées`，其 `Conserver … cachées` | 同义：Ely `隠したままにする`，其 `非表示… 保持する` | 同义：Ely `숨겨 두기`，其 `숨겨진 … 유지` | 其无译文 |
+| `settings.storage.ask_now`、`settings.storage.ask_later`、`tree.discard.tracked` 的末句 | cui `This action cannot be undone.` | 同：`nicht rückgängig` | 同：`no se puede deshacer` | 不同写法：Ely `Cette action est irréversible`，其 `ne peut pas être annulée`（法语的 `Annuler` 兼作“取消”，Ely 避开） | 不同写法：Ely `元に戻すことはできません`（与“撤销”一项同词），其 `やり直しはできません` | 同：`되돌릴 수 없습니다` | 同：`Không thể hoàn tác` |
+| `office.conflict.title` | uui `The file has been changed since it was opened …`（其问的是“仍要保存吗”，Ely 问留哪一份，只比“已被改动”一词） | 同：`geändert` | 同义：Ely `ha cambiado`，其 `fue modificado` | 同义：Ely `a changé`，其 `a été modifié` | 同：`変更されました` | 同义：Ely `바뀌었습니다`，其 `변경되었습니다` | 同：`đã … thay đổi` |
+
+所见：没有把后果说反或说漏的；“同义”各处是近义词或敬语的不同，未改。越南语有三句 LibreOffice 自己没译。
+
+无对应项、未对照的（LibreOffice 没有邮件与 Git，也没有这些功能的提示）：`doc.section.title`、`doc.section.detail`；`table.delete.title`、`table.delete.alone`、`table.delete.refs`、`table.delete.dynamic`（LibreOffice 删工作表不带这类说明）；`office.conflict.detail`；`gallery.delete.title`、`gallery.delete.message`；`mail.erase.title`、`mail.erase.message`、`mail.mbox.remove_title`、`mail.mbox.remove_message`、`mail.remove.title`、`mail.remove.message`、`mail.write.discard.title`、`mail.write.discard.message`、`mail.storage.forget_title`、`mail.storage.forget_message`、`mail.outbox.quit.title`、`mail.outbox.quit.message`、`mail.outbox.quit.sending`；`pdf.redact.count`、`pdf.removal.warning`；`settings.storage.ask_title`；`tree.abort`、`tree.clean`、`tree.conflict.delete`、`tree.delete_branch`、`tree.delete_tag`、`tree.discard`（除末句）、`tree.force`、`tree.force_delete`、`tree.move`、`tree.rebase`、`tree.remote.remove`、`tree.skip`、`tree.stash.drop`、`tree.worktree.remove` 各自的标题与说明（带 `.one` 的单数形式同）。这些句子在六种语言里没有任何外部译文可比，只有母语者能校。
+
 ## 上游待办
 
 组件库与 gpui 尚缺、须在上游补的项，及其现状。

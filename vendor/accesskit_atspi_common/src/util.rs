@@ -69,16 +69,28 @@ fn is_sentence_mark(mark: char) -> bool {
     matches!(mark, '.' | '!' | '?' | '。' | '！' | '？')
 }
 
+/// Whether `mark` closes a quotation or a bracket.
+fn is_closer(mark: char) -> bool {
+    matches!(mark, '"' | '\'' | '”' | '’' | ')' | ']' | '」' | '』' | '）' | '】' | '》')
+}
+
 /// The sentence around char `at`: its start and its end, in chars.
 ///
-/// A CJK full stop ends a sentence anywhere; a Latin one only before
-/// whitespace or the end. The whitespace after belongs to the sentence.
+/// A CJK full stop ends a sentence anywhere; a Latin one only when
+/// whitespace or the end follows it and any closing quotes. Those
+/// quotes and the whitespace after belong to the sentence.
 fn sentence_bounds(text: &[char], at: usize) -> (usize, usize) {
+    let closed = |from: usize| {
+        let more = text[from..]
+            .iter()
+            .take_while(|mark| is_sentence_mark(**mark) || is_closer(**mark));
+        from + more.count()
+    };
     let ends = |index: usize| match text[index] {
         '。' | '！' | '？' => true,
         '.' | '!' | '?' => text
-            .get(index + 1)
-            .is_none_or(|next| next.is_whitespace() || is_sentence_mark(*next)),
+            .get(closed(index + 1))
+            .is_none_or(|next| next.is_whitespace()),
         _ => false,
     };
     let (mut start, mut index) = (0, 0);
@@ -87,8 +99,9 @@ fn sentence_bounds(text: &[char], at: usize) -> (usize, usize) {
             index += 1;
             continue;
         }
-        let mut next = index + 1;
-        while next < text.len() && (is_sentence_mark(text[next]) || text[next].is_whitespace()) {
+        // An opening quote after the space starts the next one.
+        let mut next = closed(index + 1);
+        while next < text.len() && text[next].is_whitespace() {
             next += 1;
         }
         if at < next {
@@ -209,6 +222,12 @@ mod tests {
         assert_eq!(bounds("一。二？！三", 2), (2, 5), "a CJK stop needs no space");
         assert_eq!(bounds("一。二？！三", 5), (5, 6));
         assert_eq!(bounds("no stop", 3), (0, 7));
+        let quoted = "He said \"Go.\" Next.";
+        assert_eq!(bounds(quoted, 16), (14, 19), "a closing quote ends with its sentence");
+        assert_eq!(bounds(quoted, 12), (0, 14));
+        assert_eq!(bounds("「一。」二。", 4), (4, 6), "a CJK closing bracket too");
+        assert_eq!(bounds("Go. \"Next\" one.", 5), (4, 15), "an opening quote starts the next");
+        assert_eq!(bounds("(See 2.) Then", 9), (9, 13));
         assert_eq!(bounds("", 0), (0, 0));
     }
 }

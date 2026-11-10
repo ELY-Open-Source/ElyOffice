@@ -16,6 +16,7 @@ tests/scripts/xim-rules.sh       linux-xim.sh 对替身（cargo、fcitx5、应�
 tests/scripts/wayland-clipboard.sh  无头 sway（无 Xwayland，X11 剪贴板为空）里与 wl-copy、wl-paste 互相复制粘贴文字、HTML、PNG（容器内构建与运行，缺 docker 时 SKIP）
 tests/scripts/linux-glibc.sh     Linux 的应用、worker 与引擎要求的 glibc 不高于 2.28，GLIBCXX、CXXABI 不高于 GCC 8（AlmaLinux 8，即发布的构建容器），读版本需求表，`GLIBC_ABI_DT_RELR` 这类 ABI 标记也拒，缺 readelf 即失败、不跳过；ci.sh 在 Linux 打包后于构建容器里调用，不过即不上传
 tests/scripts/linux-glibc-rules.sh  linux-glibc.sh 对 glibc 2.30、2.36 的符号与紧凑重定位（`GLIBC_ABI_DT_RELR`）报错，PATH 里没有 readelf 也报错，只要 2.2.5 的通过（现编的 ELF，只在 Linux）
+tests/scripts/linux-bundle-rules.sh  bundle.sh 只在三份内核逐文件相同时才合成一份：一份不同、或有一份读不了（悬空链接）都失败且不出包（假的包目录与记录调用的 nfpm，只在 Linux）
 tests/scripts/elfs-rules.sh      `packaging/linux/elfs.sh`（package.sh 调用）只放行指向包内的 `$ORIGIN` 路径：首尾换行、绝对路径、出包、空项与带符号的 ELF 皆拒，报出包外所需的库（现编的 ELF，须 patchelf，在 container.sh 里跑）
 tests/scripts/winget.sh        winget.sh 按假发布写出清单，地址、散列、卸载键、许可与简介照 apps.tsv 与安装程序，`winget validate` 通过（无 winget 时 SKIP），版本不符、缺清单即拒
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；nix/release.json 与 apps.tsv 一致；nixos/nix 容器里 flake 的许可与表相同、ElyMark 构建并在 Xvfb 下画出（缺 docker 时 SKIP 容器部分）
