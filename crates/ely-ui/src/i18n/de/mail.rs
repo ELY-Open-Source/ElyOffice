@@ -109,6 +109,12 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("mail.error.server", "der Server hat abgelehnt: {detail}"),
     ("mail.error.protocol", "die Antwort des Servers ist nicht lesbar: {detail}"),
     ("mail.error.timeout", "keine Antwort beim {detail}"),
+    ("mail.error.vault", "der Anmeldedatenspeicher des Systems ist fehlgeschlagen: {detail}"),
+    (
+        "mail.error.local",
+        "die auf diesem Computer gespeicherte Post ließ sich nicht lesen oder schreiben: {detail}",
+    ),
+    ("mail.error.sign_in", "die Anmeldung wurde nicht abgeschlossen: {detail}"),
     ("mail.error.other", "{detail}"),
     ("mail.error.tls", "Sichere Verbindungen sind nicht verfügbar: {error}"),
     ("mail.error.store", "Der E-Mail-Speicher ist nicht geöffnet: {error}"),

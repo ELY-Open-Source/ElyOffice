@@ -23,6 +23,7 @@ use crate::{
 
 mod again;
 mod body;
+mod chinese;
 mod contacts;
 mod controls;
 mod drafts;

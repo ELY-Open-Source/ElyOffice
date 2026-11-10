@@ -62,7 +62,7 @@ fn an_account_without_its_secret_says_so() {
         let failed = mail.read(app).syncs[&ann].failed.clone().unwrap();
         assert_eq!(
             failed,
-            "credential store failed: no saved secret for account:ann@example.com"
+            "the system's credential store failed: no saved secret for account:ann@example.com"
         );
     });
 }

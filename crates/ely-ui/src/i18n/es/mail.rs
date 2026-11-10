@@ -190,6 +190,9 @@ pub(super) const ES: &[(&str, &str)] = &[
         "no se puede leer la respuesta del servidor: {detail}",
     ),
     ("mail.error.timeout", "no hubo respuesta al {detail}"),
+    ("mail.error.vault", "falló el almacén de credenciales del sistema: {detail}"),
+    ("mail.error.local", "no se pudo leer o escribir el correo guardado en este equipo: {detail}"),
+    ("mail.error.sign_in", "no se completó el inicio de sesión: {detail}"),
     ("mail.error.other", "{detail}"),
     (
         "mail.error.tls",

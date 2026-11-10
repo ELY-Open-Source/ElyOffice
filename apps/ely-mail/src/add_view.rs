@@ -318,6 +318,9 @@ pub fn failure(error: &Error, cx: &App) -> SharedString {
         Error::Server(detail) => ("mail.error.server", detail.clone()),
         Error::Protocol(detail) => ("mail.error.protocol", detail.clone()),
         Error::Timeout(stage) => return crate::stage::quiet(*stage, cx),
+        Error::Vault(detail) => ("mail.error.vault", detail.clone()),
+        Error::Store(detail) => ("mail.error.local", detail.clone()),
+        Error::SignIn(detail) => ("mail.error.sign_in", detail.clone()),
         other => ("mail.error.other", other.to_string()),
     };
     text(cx, key, &[("detail", &detail)])

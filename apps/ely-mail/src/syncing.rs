@@ -140,7 +140,8 @@ impl Mail {
                     }
                     None
                 }
-                Ok(Err(error)) => Some(error.to_string()),
+                // Worded as the sign-in check words it.
+                Ok(Err(error)) => Some(crate::add_view::failure(&error, cx).to_string()),
                 Err(error) => Some(error),
             };
             if failed.is_some() {

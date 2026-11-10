@@ -625,7 +625,7 @@
 - [ ] R18.17 #80 ElyPDF 新建 PDF 无反应（§11） — 已做（未送审）：根因是 ElyPDF 没接文件菜单的“新建”（三端皆然）；现新建一页空白的未命名 PDF，纸张照“默认纸张”（选纸规则移到 `ely_platform` 与 ElyDoc 同用，设置那一行 ElyPDF 也有）。测试 `new_opens_an_untitled_page_that_saves_as_a_pdf`（去掉处理即败）、`the_table_points_at_each_object`、`doc_and_pdf_offer_the_new_paper`。未验证：Windows 真窗口
 - [ ] R18.18 #73 与 PR #74：核对 0.1.14 起已修，答复并关闭（§11） — 已做（未送审）：修复提交 6d0824e4 在 v0.1.14 与 v0.1.15 里（`git tag --contains`）；`cargo test -p ely-pdf-worker --test json` 今日在 HEAD 上过；报告者的书不在手，未能以原文件复测，答复里照实说明并请其更新后再试，议题按已修关闭（可重开）。PR #74 只给 `tests/scripts/workflows.py` 末尾加一行注释，不涉 PDF，说明后关闭
 - [ ] R18.19 R-07（R14.21）证书信任：末次修复送审；自签名证书必显示为不可信的测试（§11） — 已做（未送审）：R14.21 末次修复 `3ed9bbca`（后随组合标记的空格并入其词）交 Cindy reviewer 审；“自签名即不受信”三端各有信任层的测试（`a_self_signed_signer_is_not_trusted_by_the_system`：`trust.rs` 的 macOS、`trust/windows.rs`、`trust/linux.rs`），ElyPDF 的 `a_signed_file_lists_its_checks_and_saves_as_a_copy` 原只核状态，现加核对话框那一行的字（“Certificate not trusted by this system: …”带系统给的理由）；三端由发布的门（`release-tests.sh`）跑。本机 Linux：ElyPDF 签名 12 项过
-- [ ] R18.20 #48 ElyMail：账号设置里未译的按钮；议题余项核对并答复（§12）
+- [ ] R18.20 #48 ElyMail：账号设置里未译的按钮；议题余项核对并答复（§12） — 已做（未送审）：账号页的按钮与标签无写死英文（逐项核对，并以中文界面画出账号页的测试核对）；查出并修的是同步失败横幅用引擎的英文原文：改与添加账号同一套成句，凭据库、本机邮件库、登录未完成三种失败各加一句（八种语言）。测试 `the_account_page_speaks_chinese`（改回即败）。议题余项：Gmail 发信超时仍缺报告者的日志（11 月 1 日起未回），已在议题里说明现状
 - [ ] R18.21 N-10 代理测试在无 IPv6 的机器上通过或明说跳过（§12、§22）
 - [ ] R18.22 N-11 crate 重名：`cargo test -p ely-files` 直接可用（§17）
 - [ ] R18.23 R-09 gpui 的修改导出为补丁目录，vendor 可由 crates.io 原版加补丁重建（§17）
