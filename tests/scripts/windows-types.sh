@@ -183,5 +183,15 @@ for denied in "$listing|SetValue" "$listing|SetValue, QueryValues" "$app|Delete,
   [ "$(value "$command")" = "$(opens "$g")" ] || fail "$rights on $key: the class went while still named"
   clean
 done
+# Types only: an unreadable command keeps the launcher's name.
+g=$work/h
+[ "$(install "$g")" = 0 ] || fail "install before the types-only check"
+reg delete "HKCU\\$url" /f >/dev/null
+reg delete "HKCU\\$c\\Directory\\shell\\ElyOffice.ElyProbe" /f >/dev/null
+deny "$command" QueryValues
+[ "$(uninstall "$g")" != 0 ] || fail "types only: the uninstall reported success"
+undeny "$command"
+[ "$(value "$start" FriendlyAppName)" = ElyProbe ] || fail "types only: the launcher's name went while still named"
+clean
 rm -rf "$work"
 echo "PASS: windows types"

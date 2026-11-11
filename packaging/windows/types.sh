@@ -35,14 +35,18 @@ put() { # indent key name value
   echo "$1IfErrors 0 +3"
   blame "$1" "$2"
 }
-# Only "not found" (2) is absence; denied reads fail.
-absent() { # indent key [value]
+# $4 gets 0, 2 for "not found", or the error.
+probe() { # indent key [value]
   echo "$1System::Call 'advapi32::RegOpenKeyExW(i 0x80000001, w \"$2\", i 0, i 0x20019, *p .r3) i .r5'"
   echo "$1StrCpy \$4 \$5"
   echo "$1\${If} \$5 == 0"
   [ $# -lt 3 ] || echo "$1  System::Call 'advapi32::RegQueryValueExW(p r3, w \"$3\", p 0, p 0, p 0, p 0) i .r4'"
   echo "$1  System::Call 'advapi32::RegCloseKey(p r3)'"
   echo "$1\${EndIf}"
+}
+# Only "not found" (2) is absence; denied reads fail.
+absent() { # indent key [value]
+  probe "$@"
   echo "$1\${If} \$4 != 2"
   echo "$1\${AndIf} \$2 == \"\""
   echo "$1  StrCpy \$2 \"HKCU\\$2\""
@@ -181,10 +185,15 @@ fi
 # The launcher's name goes once no command names it.
 echo '  StrCpy $6 ""'
 for key in "$classes\\$progid\\shell\\open\\command" "$classes\\Directory\\shell\\$progid\\command" "$classes\\$urlclass\\shell\\open\\command"; do
-  echo "  ClearErrors"
-  echo "  ReadRegStr \$0 HKCU \"$key\" \"\""
-  echo "  IfErrors +2"
+  probe "  " "$key" ""
+  echo "  \${If} \$4 != 2"
   echo "    StrCpy \$6 named"
+  echo "  \${EndIf}"
+  echo "  \${If} \$4 != 0"
+  echo "  \${AndIf} \$4 != 2"
+  echo "  \${AndIf} \$2 == \"\""
+  echo "    StrCpy \$2 \"HKCU\\$key\""
+  echo "  \${EndIf}"
 done
 echo "  \${If} \$6 == \"\""
 gone "    " "$classes\\Applications\\$start"
