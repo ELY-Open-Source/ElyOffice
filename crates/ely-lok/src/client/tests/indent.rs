@@ -20,14 +20,16 @@ fn state<'a>(seen: &'a Events, uno: &str) -> Option<&'a str> {
     seen.states.iter().rev().find(|(name, _)| name == uno).map(|(_, value)| value.as_str())
 }
 
-/// Posts `keys`; the cursor's left edge once it rests.
-fn cursor_after(worker: &mut Worker, doc: &Doc, keys: &[i32]) -> i32 {
+/// Posts `keys`; the resting cursor's edge and states seen.
+fn cursor_after(worker: &mut Worker, doc: &Doc, keys: &[i32]) -> (i32, Events) {
     let before = poll_until(worker, doc, &Events::default(), std::time::Duration::from_millis(300), |_| false);
     for key in keys {
         worker.post_key(doc, 0, *key).expect("a key");
     }
-    let seen = poll_until(worker, doc, &before, std::time::Duration::from_millis(600), |_| false);
-    seen.cursor.expect("a cursor").0
+    let mut seen = poll_until(worker, doc, &before, std::time::Duration::from_millis(600), |_| false);
+    // States come once; keep the earlier poll's.
+    seen.states.splice(0..0, before.states);
+    (seen.cursor.expect("a cursor").0, seen)
 }
 
 #[test]
@@ -37,15 +39,18 @@ fn two_characters_indent_the_first_line_by_two_of_its_own() {
     }
     let (dir, mut worker, doc) = open(TWICE);
     click(&mut worker, &doc, 150, 150);
-    let start = cursor_after(&mut worker, &doc, &[MOD1 | HOME]);
-    let none = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| state(seen, STATE).is_some());
+    let (start, early) = cursor_after(&mut worker, &doc, &[MOD1 | HOME]);
+    let none = match state(&early, STATE) {
+        Some(_) => early,
+        None => poll_until(&mut worker, &doc, &early, HANG, |seen| state(seen, STATE).is_some()),
+    };
     assert_eq!(state(&none, STATE), Some("0,twip"), "a plain paragraph has no indent");
     worker.run(&doc, "paragraph.first_line", &["200"]).expect("two characters");
     let set = poll_until(&mut worker, &doc, &none, HANG, |seen| state(seen, STATE) == Some("200,ic"));
     assert_eq!(state(&set, STATE), Some("200,ic"));
-    let indented = cursor_after(&mut worker, &doc, &[MOD1 | HOME]);
+    let (indented, _) = cursor_after(&mut worker, &doc, &[MOD1 | HOME]);
     // The second paragraph, unindented: two characters in.
-    let second = cursor_after(&mut worker, &doc, &[DOWN, HOME, RIGHT, RIGHT]);
+    let (second, _) = cursor_after(&mut worker, &doc, &[DOWN, HOME, RIGHT, RIGHT]);
     assert!(indented > start, "the first line moved in");
     assert_eq!(indented, second, "the indent is two of the line's own characters");
     // DOCX keeps it as characters, not as a length.
