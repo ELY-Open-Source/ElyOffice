@@ -1,7 +1,7 @@
 use gpui::{Entity, TestAppContext};
 
 use super::*;
-use crate::tests::{docs, settle, settled, text_of, with_window, written};
+use crate::tests::{docs, settle, settled, with_window, written};
 use ely_office::Dialog;
 
 /// Three pages, two headings, a font the system lacks.
@@ -252,10 +252,16 @@ fn pdfs_export_a_range_and_locked_files_ask() {
         docs.write_as(opened, out.clone(), None, window, cx)
     });
     written(&cx, &out, None);
-    assert!(
-        text_of(&mut cx, &docs, &out).contains("Teh cat"),
-        "the locked text opens"
-    );
+    let worker = cx.update(|app| docs.read(app).core.worker.clone());
+    let mut worker = worker.lock().expect("the worker lock");
+    let url = ely_lok::file_url(&out);
+    let refused = worker.load(&url).expect_err("the saved copy keeps its password");
+    assert_eq!(refused.kind(), std::io::ErrorKind::PermissionDenied, "{refused}");
+    let again = worker.unlock(&url, "secret").expect("the password opens the copy");
+    let flat = dir.path().join("opened.fodt");
+    again.save_as(&mut worker, &ely_lok::file_url(&flat), "fodt").expect("flattens");
+    worker.close_doc(again).expect("closes");
+    assert!(std::fs::read_to_string(&flat).expect("reads").contains("Teh cat"), "the locked text opens");
 }
 
 #[test]
