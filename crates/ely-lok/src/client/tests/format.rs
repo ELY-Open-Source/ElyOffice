@@ -52,7 +52,7 @@ fn tab_stops_add_and_remove_through_the_ruler() {
     let base = poll_until(&mut worker, &doc, &Events::default(), SETTLE, |_| false);
     let state = worker.now(&doc).expect("the state");
     worker
-        .run(&state, "paragraph.tab", &["-1", "1134", "false"])
+        .run(&state, "paragraph.tab", &["1134"])
         .expect("add a 2 cm stop");
     let added = poll_until(&mut worker, &doc, &base, HANG, |seen| {
         seen.tabs.len() == 1
@@ -66,7 +66,7 @@ fn tab_stops_add_and_remove_through_the_ruler() {
     let state = worker.now(&doc).expect("the state");
     // The removal names where the ruler showed it.
     worker
-        .run(&state, "paragraph.tab", &["0", &added.tabs[0].to_string(), "true"])
+        .run(&state, "paragraph.untab", &["0", &added.tabs[0].to_string()])
         .expect("remove it");
     let removed = poll_until(&mut worker, &doc, &added, HANG, |seen| {
         seen.tabs.is_empty()

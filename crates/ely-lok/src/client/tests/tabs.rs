@@ -30,11 +30,28 @@ fn a_stop_shown_for_the_last_paragraph_removes_none_in_the_next() {
     // The ruler lags the cursor: P1's stops still show.
     let moved = poll_until(&mut worker, &doc, &shown, HANG, |seen| seen.cursor.is_some_and(|at| at.1 > top));
     let read = worker.now(&doc).expect("the revision");
-    let refused = worker.run(&read, "paragraph.tab", &["1", "2540", "true"]);
+    let refused = worker.run(&read, "paragraph.untab", &["1", "2540"]);
     assert!(refused.is_err_and(|error| !crate::is_stale(&error)), "the kernel kept P2's stop");
     poll_until(&mut worker, &doc, &moved, HANG, |seen| seen.tabs == [3810, 5080]);
     assert_eq!(stops(&saved(&dir, &mut worker, &doc, "kept.fodt")), 4, "both paragraphs keep theirs");
     let read = worker.now(&doc).expect("the revision");
-    worker.run(&read, "paragraph.tab", &["1", "5080", "true"]).expect("the shown stop goes");
+    worker.run(&read, "paragraph.untab", &["1", "5080"]).expect("the shown stop goes");
+    assert_eq!(stops(&saved(&dir, &mut worker, &doc, "out.fodt")), 3, "one stop went");
+}
+
+#[test]
+fn a_stop_left_of_the_page_edge_is_removed_too() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    // A negative indent puts the ruler's stops below zero.
+    let body = TABS.replace(r#"style:family="paragraph"><style:paragraph-properties>"#, r#"style:family="paragraph"><style:paragraph-properties fo:margin-left="-1in">"#);
+    let (dir, mut worker, doc) = open(&body);
+    worker.post_key(&doc, 0, 1027).expect("Right posts");
+    let shown = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| seen.tabs.first().is_some_and(|at| *at < 0));
+    let at = shown.tabs[0].to_string();
+    let read = worker.now(&doc).expect("the revision");
+    worker.run(&read, "paragraph.untab", &["0", &at]).expect("the shown stop goes");
     assert_eq!(stops(&saved(&dir, &mut worker, &doc, "out.fodt")), 3, "one stop went");
 }

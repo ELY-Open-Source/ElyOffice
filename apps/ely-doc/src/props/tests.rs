@@ -55,7 +55,7 @@ fn the_panel_formats_text_paragraphs_and_styles() {
         ("format.color", vec!["16711680"]),
         ("format.highlight", vec!["65535"]),
         ("format.superscript", vec![]),
-        ("paragraph.tab", vec!["-1", "1134", "false"]),
+        ("paragraph.tab", vec!["1134"]),
         ("list.bullets", vec![]),
     ] {
         run(&mut cx, &props, command, &values);
@@ -83,13 +83,13 @@ fn the_panel_formats_text_paragraphs_and_styles() {
     cx.update(|app| {
         let (stops, read) = docs.read(app).active_tab().expect("a tab").view.read(app).tabs();
         let at = stops[0].to_string();
-        props.update(app, |props, cx| props.run_at(&read, "paragraph.tab", &["0", &at, "true"], cx))
+        props.update(app, |props, cx| props.run_at(&read, "paragraph.untab", &["0", &at], cx))
     });
     settle(&cx, |app| {
         let view = docs.read(app).active_tab().expect("a tab").view.read(app);
         view.settled() && view.tabs().0.is_empty()
     });
-    run(&mut cx, &props, "paragraph.tab", &["-1", "1134", "false"]);
+    run(&mut cx, &props, "paragraph.tab", &["1134"]);
     let target = dir.path().join("panel.docx");
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.write_as(id, target.clone(), None, window, cx)

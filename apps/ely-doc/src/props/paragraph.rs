@@ -246,7 +246,7 @@ impl Props {
                     .on_click(move |_, _, cx| {
                         // The kernel removes it only if still there.
                         let (at, mm100) = (at.to_string(), mm100.to_string());
-                        this.update(cx, |props, cx| props.run_at(&read, "paragraph.tab", &[&at, &mm100, "true"], cx))
+                        this.update(cx, |props, cx| props.run_at(&read, "paragraph.untab", &[&at, &mm100], cx))
                     })
                     .into_any_element()
             })
@@ -269,7 +269,7 @@ impl Props {
         .on_click(move |_, _, cx| {
             let twips = this.read(cx).tab_at * TWIPS_PER_CM;
             let twips = (twips.round() as i64).to_string();
-            send(&this, "paragraph.tab", &["-1", &twips, "false"], cx)
+            send(&this, "paragraph.tab", &[&twips], cx)
         });
         let at = div().w_full().max_w_32().child(at).into_any_element();
         row(chips.into_iter().chain([at, add.into_any_element()]))

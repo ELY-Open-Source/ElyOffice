@@ -31,6 +31,8 @@ pub enum Arg {
     Bool(&'static str),
     /// A fixed border line, solid or none; takes no value.
     Line(&'static str, bool),
+    /// A fixed value of LOK type `kind`; takes no value.
+    Fixed(&'static str, &'static str, &'static str),
 }
 
 /// How the worker confirms the kernel did the command.
@@ -235,7 +237,7 @@ impl Command {
         let (lines, taking): (Vec<&Arg>, Vec<&Arg>) = self
             .args
             .iter()
-            .partition(|arg| matches!(arg, Arg::Line(..)));
+            .partition(|arg| matches!(arg, Arg::Line(..) | Arg::Fixed(..)));
         if values.len() != taking.len() {
             return Err(invalid(format!(
                 "{} takes {} values",
@@ -248,9 +250,11 @@ impl Command {
         }
         let mut json = serde_json::Map::new();
         for arg in lines {
-            if let Arg::Line(name, solid) = arg {
-                json.insert((*name).to_string(), line_json(*solid));
-            }
+            match arg {
+                Arg::Line(name, solid) => json.insert((*name).to_string(), line_json(*solid)),
+                Arg::Fixed(name, kind, value) => json.insert((*name).to_string(), serde_json::json!({ "type": kind, "value": value })),
+                _ => unreachable!("only fixed args here"),
+            };
         }
         for (arg, value) in taking.into_iter().zip(values) {
             let (name, kind) = match arg {
@@ -258,7 +262,7 @@ impl Command {
                 Arg::Points(name) => (name, "float"),
                 Arg::Int(name, kind, _, _) => (name, *kind),
                 Arg::Bool(name) => (name, "boolean"),
-                Arg::Line(..) => unreachable!("lines take no value"),
+                Arg::Line(..) | Arg::Fixed(..) => unreachable!("fixed args take no value"),
             };
             if value.trim().is_empty() && !matches!(arg, Arg::Loose(_)) {
                 return Err(invalid(format!("{} needs {name}", self.id)));
@@ -329,9 +333,9 @@ mod tests {
 
     #[test]
     fn only_a_real_number_needs_the_read_state() {
-        let tab = find("paragraph.tab").expect("the tab stop row");
-        assert!(!tab.addressed(&["-1", "1134", "false"]), "a new stop names nothing");
-        assert!(tab.addressed(&["0", "0", "true"]), "removing stop 0 does");
+        let add = find("paragraph.tab").expect("the tab stop row");
+        assert!(!add.addressed(&["1134"]), "a new stop names nothing");
+        assert!(find("paragraph.untab").expect("the row").addressed(&["0", "-1270"]), "removing stop 0 does");
         assert!(find("sheet.delete").expect("the row").addressed(&["1"]));
         assert!(!find("cell.enter").expect("the row").addressed(&["1"]));
         assert!(find("macro.apply").expect("the row").addressed(&["{}"]), "a batch holds as read");
