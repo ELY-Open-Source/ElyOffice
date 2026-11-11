@@ -1,0 +1,55 @@
+sd: no space between Asian and Latin text from PowerPoint
+
+Edit engine puts a quarter-em gap between Asian and Latin text by
+default; Impress turns it off only for Korean and Japanese. PowerPoint
+never adds the gap, and DrawingML has no attribute for it, so a
+PowerPoint title like "北京市2025年" drew wider in Impress, with a gap
+around "2025" (Ely #83). PPTX and PPT import now turn the default off,
+for the slides read and the text added later.
+diff --git a/sd/source/filter/ppt/pptin.cxx b/sd/source/filter/ppt/pptin.cxx
+index 44244f0a6..94e6b43c3 100644
+--- a/sd/source/filter/ppt/pptin.cxx
++++ b/sd/source/filter/ppt/pptin.cxx
+@@ -34,6 +34,8 @@
+ #include <svl/style.hxx>
+ #include <svl/intitem.hxx>
+ #include <editeng/eeitem.hxx>
++#include <editeng/scriptspaceitem.hxx>
++#include <svl/itempool.hxx>
+ #include <editeng/editeng.hxx>
+ #include <svx/svdoutl.hxx>
+ #include <svx/xfillit0.hxx>
+@@ -1252,6 +1254,9 @@ bool ImplSdPPTImport::Import()
+     if ( mbDocumentFound )
+     {
+         mrDoc.SetSummationOfParagraphs();
++        // Ely: PowerPoint puts no space between Asian and Latin text.
++        mrDoc.GetPool().GetSecondaryPool()->SetUserDefaultItem(
++            SvxScriptSpaceItem(false, EE_PARA_ASIANCJKSPACING));
+         if ( pDocShell )
+         {
+             ::sd::FrameView* pFrameView = mrDoc.GetFrameView( 0 );
+diff --git a/sd/source/ui/docshell/docshel4.cxx b/sd/source/ui/docshell/docshel4.cxx
+index dcc843929..36de9fc8c 100644
+--- a/sd/source/ui/docshell/docshel4.cxx
++++ b/sd/source/ui/docshell/docshel4.cxx
+@@ -32,6 +32,8 @@
+ #include <editeng/editeng.hxx>
+ #include <editeng/editstat.hxx>
+ #include <editeng/flstitem.hxx>
++#include <editeng/scriptspaceitem.hxx>
++#include <editeng/eeitem.hxx>
+ #include <svl/flagitem.hxx>
+ #include <sot/storage.hxx>
+ #include <sfx2/dinfdlg.hxx>
+@@ -441,6 +443,10 @@ bool DrawDocShell::ImportFrom(SfxMedium &rMedium,
+         // TextParagraphPropertiesContext constructor. So default tab width
+         // of the LibreOffice is 1270 but MSO is 2540 on general settings.
+         mpDoc->SetDefaultTabulator( 2540 );
++
++        // Ely: PowerPoint puts no space between Asian and Latin text.
++        mpDoc->GetPool().GetSecondaryPool()->SetUserDefaultItem(
++            SvxScriptSpaceItem(false, EE_PARA_ASIANCJKSPACING));
+     }
+ 
+     comphelper::ScopeGuard undoGuard([this, wasUndo = mpDoc->IsUndoEnabled()]

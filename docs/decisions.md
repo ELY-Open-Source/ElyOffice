@@ -901,3 +901,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 实测（同一台 Windows，ely-start 加 ely-doc 的新拷贝）：启动画面在 115–191 毫秒出现（机器刚建完一次时 965），应用首帧 1596–5055，启动画面在首帧后 10–25 毫秒关掉；再开时启动画面 24–57，首帧 306–782。
 - 经系统的“打开”（与资源管理器双击同一条路）：在 HKCU 临时登记一种类型，命令照 `types.sh` 的写法，`Start-Process` 打开该类型的文件（`.work/R18/r41/shell.ps1`（本机，未入库），用后删去登记）。文件与类型都是新的第一次，启动画面 1521 毫秒出现、应用首帧后关掉；同一份程序再开两次，84 与 115 毫秒。直接起 ely-start 的新拷贝只要 115 至 191 毫秒，多出的约 1.3 秒在系统起 ely-start 之前，是新类型的第一次查找还是对所开文件的扫描，未查明。测试机缺 Visual Studio 2022 的 VC++ 运行库目录，建不出完整安装包，未在装好的应用上双击核对。
 - 测试：`crates/ely-start/tests/start.rs`（Windows）：缺应用即退出码 1 并说出路径；应用先退出则启动画面关；应用调用真正的 `close_splash` 后启动画面关、应用照常运行（把类名核对改错，此测试即败）。`tests/scripts/windows-types.sh` 核对登记的打开命令，并以 `AssocQueryStringW` 核对“打开方式”显示应用名（先清掉系统按程序路径缓存的名字；不写 `FriendlyAppName` 即显示替身程序自己的描述而败），换文件夹后旧卸载不删名字、末次卸载删去。
+
+## 2026-11-11 PowerPoint 的文字不加中西文间距（#83，R19.1，补丁 0125）
+
+- 报告：Windows 上的 ElyShow 把“北京市2025年算力星座……”画成“北京市 2025 年……”，整行比 PowerPoint 宽；另有微软雅黑粗体里个别字（“施”）细如 Light（见 R19.2）。
+- 复现：Windows 测试机上以 0124 内核把一张写着该标题（微软雅黑粗体）的幻灯片导出 PNG，“2025”两侧各空出约四分之一字宽；用户区域英文与 zh-CN 都一样。PDF 里嵌入的是 MicrosoftYaHei-Bold 与 MicrosoftYaHei，两种区域都没有 Light。
+- 根因：编辑引擎的段落属性“亚洲文字与西文之间加空”（`EE_PARA_ASIANCJKSPACING`）默认开，Impress 只在日文、韩文环境关掉（`SdDrawDocument` 的构造）。PowerPoint 不加这段空，DrawingML 也没有对应的属性，PPTX 导入从不设它。
+- 补丁 0125：PPTX（`DrawDocShell::ImportFrom`，与其他 PowerPoint 兼容设置一处）与 PPT（`ImplSdPPTImport::Import`）导入时把文档的默认改为关；读入的文字与之后加的文本框都不加空。ODP 照 LibreOffice 的默认。存成 ODP 时写出 `style:text-autospace="none"`。
+- 测试 `powerpoint_decks_put_no_gap_between_asian_and_latin_text`：同一张幻灯片存成 PPTX、PPT 后读入，存成平面 ODF 须为 `none`、不得有 `ideograph-alpha`；ODP 读入须为 `ideograph-alpha`。Linux 上撤下 0125 重建 sd，PPTX 一项即败；带上即过。
