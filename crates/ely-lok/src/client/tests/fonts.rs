@@ -204,22 +204,38 @@ const BOTH_NAMES: [&str; 2] = ["Ely Alias Sans", "别名黑体"];
 const BOTH_NAMES: [&str; 2] = ["PingFang SC", "苹方-简"];
 #[cfg(windows)]
 const BOTH_NAMES: [&str; 2] = ["Malgun Gothic", "맑은 고딕"];
+/// Its PostScript name, as a PDF embeds it.
+#[cfg(target_os = "linux")]
+const POSTSCRIPT: &str = "ElyAliasSans";
+#[cfg(target_os = "macos")]
+const POSTSCRIPT: &str = "PingFangSC";
+#[cfg(windows)]
+const POSTSCRIPT: &str = "MalgunGothic";
+/// An installed font, and its PostScript name.
+#[cfg(target_os = "linux")]
+const NEXT: [&str; 2] = ["DejaVu Sans", "DejaVuSans"];
+#[cfg(target_os = "macos")]
+const NEXT: [&str; 2] = ["Helvetica", "Helvetica"];
+#[cfg(windows)]
+const NEXT: [&str; 2] = ["Arial", "ArialMT"];
 
-/// A span in each of `fonts`.
-fn spans(fonts: &[&str]) -> String {
+/// A span per family list in `fonts`.
+fn spans(fonts: &[String]) -> String {
     let faces: String = fonts
         .iter()
-        .map(|font| format!(r#"<style:font-face style:name="{font}" svg:font-family="&apos;{font}&apos;"/>"#))
-        .collect();
-    let styles: String = fonts
-        .iter()
         .enumerate()
-        .map(|(n, font)| {
-            format!(r#"<style:style style:name="T{n}" style:family="text"><style:text-properties style:font-name="{font}" style:font-name-asian="{font}"/></style:style>"#)
+        .map(|(n, list)| {
+            let family: Vec<String> = list.split(';').map(|name| format!("&apos;{name}&apos;")).collect();
+            format!(r#"<style:font-face style:name="F{n}" svg:font-family="{}"/>"#, family.join(", "))
+        })
+        .collect();
+    let styles: String = (0..fonts.len())
+        .map(|n| {
+            format!(r#"<style:style style:name="T{n}" style:family="text"><style:text-properties style:font-name="F{n}" style:font-name-asian="F{n}"/></style:style>"#)
         })
         .collect();
     let text: String = (0..fonts.len())
-        .map(|n| format!(r#"<text:span text:style-name="T{n}">Abc {n}</text:span> "#))
+        .map(|n| format!(r#"<text:span text:style-name="T{n}">Abc{n}</text:span>"#))
         .collect();
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -231,12 +247,9 @@ fn spans(fonts: &[&str]) -> String {
     )
 }
 
-#[test]
-fn a_font_is_found_by_its_name_in_another_language() {
-    let Some(install) = install() else {
-        eprintln!("SKIP: no pinned LOK build");
-        return;
-    };
+/// `body` loaded by a worker that has the font.
+fn with_the_font(body: &str) -> (tempfile::TempDir, Worker, Doc) {
+    let install = install().expect("the pinned LOK build");
     let dir = tempfile::tempdir().expect("a temp dir");
     let profile = dir.path().join("profile");
     // Linux reads the profile's fonts; others have theirs.
@@ -248,10 +261,37 @@ fn a_font_is_found_by_its_name_in_another_language() {
     }
     let mut worker = Worker::spawn(&install, &profile).expect("the worker");
     let source = dir.path().join("in.fodt");
-    write(&source, &spans(&[BOTH_NAMES[0], BOTH_NAMES[1], "Nowhere Sans"]));
+    write(&source, body);
     let doc = worker.load(&crate::file_url(&source)).expect("the document loads");
+    (dir, worker, doc)
+}
+
+#[test]
+fn a_font_is_found_by_its_name_in_another_language() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let fonts = [BOTH_NAMES[0].to_string(), BOTH_NAMES[1].to_string(), "Nowhere Sans".to_string()];
+    let (_dir, mut worker, doc) = with_the_font(&spans(&fonts));
     let seen = poll_until(&mut worker, &doc, &Events::default(), std::time::Duration::from_secs(5), |seen| {
         !seen.fonts.is_empty()
     });
     assert_eq!(seen.fonts, ["Nowhere Sans"], "{BOTH_NAMES:?} name one font");
+}
+
+#[test]
+fn a_font_in_another_language_comes_before_the_next_in_its_list() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    for name in BOTH_NAMES {
+        let (dir, mut worker, doc) = with_the_font(&spans(&[format!("{name};{}", NEXT[0])]));
+        let pdf = dir.path().join("out.pdf");
+        doc.save_as(&mut worker, &crate::file_url(&pdf), "pdf").expect("the PDF exports");
+        let bytes = std::fs::read(&pdf).expect("the PDF reads");
+        let names = |font: &str| bytes.windows(font.len()).any(|window| window == font.as_bytes());
+        assert!(names(POSTSCRIPT) && !names(NEXT[1]), "{name} drew in another font");
+    }
 }

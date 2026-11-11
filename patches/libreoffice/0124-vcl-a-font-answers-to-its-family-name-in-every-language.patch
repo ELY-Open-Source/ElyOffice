@@ -11,8 +11,9 @@ check compared "思源宋体" with "Source Han Serif SC" and reported it
 missing (Ely #82).
 
 The lookup now tries the family names (name IDs 1 and 16, every
-language) read from the fonts' name tables, once, on the first
-document font name it misses; the time it took goes to the log. The
+language) read from the fonts' name tables, read once, on the first
+document font name it misses, for each name of a list before the
+next; the time it took goes to the log. The
 check names a used face by the document's name when the face carries
 that name.
 --- a/vcl/inc/font/PhysicalFontFace.hxx
@@ -210,17 +211,18 @@ that name.
  PhysicalFontFamily* PhysicalFontCollection::FindFontFamily(std::u16string_view rFontName) const
  {
      return ImplFindFontFamilyBySearchName( GetEnglishSearchFontName( rFontName ) );
-@@ -1114,6 +1162,10 @@
-         PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(rFSD.maSearchName);
-         if( pFoundData )
+@@ -1085,6 +1133,11 @@
+         if (PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(rFSD.maSearchName))
              return pFoundData;
-+        // A family named in another language.
-+        pFoundData = ImplFindFontFamilyByOtherName(rFSD.maSearchName);
-+        if( pFoundData )
-+            return pFoundData;
-     }
  
-     // if no font with a directly matching name is available use the
++        // This token named in another language, before the next.
++        if (PhysicalFontFamily* pFoundData
++            = ImplFindFontFamilyByOtherName(GetEnglishSearchFontName(aBaseFontName)))
++            return pFoundData;
++
+         // break after last font name token was checked unsuccessfully
+         if( nTokenPos == -1)
+             break;
 --- a/vcl/source/outdev/text.cxx
 +++ b/vcl/source/outdev/text.cxx
 @@ -25,6 +25,7 @@
