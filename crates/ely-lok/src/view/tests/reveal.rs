@@ -81,7 +81,6 @@ fn a_jump_keeps_the_whole_old_screen_until_the_new_one_is_whole() {
     let line = |at: i32| crate::table::Line { position: at, min: 0, max: 6000, hidden: false };
     let span = |offset, inner| crate::table::Lines { left: 0, right: 6000, offset, inner, ends: None };
     let table = crate::table::Table { columns: span(1500, vec![line(3000)]), rows: span(top + 3000, vec![]) };
-    cx.update(|app| view.update(app, |view, _| (view.graphic, view.handle_size) = (Some(frame), px(6.0))));
     cx.update(|app| view.update(app, |view, _| view.read_borders(Some(table), u64::MAX)));
     let corner = cx.update(|app| view.read(app).window_point((4500, top + 1500)));
     let border = cx.update(|app| view.read(app).window_point((4500, top + 4500)));
@@ -98,6 +97,8 @@ fn a_jump_keeps_the_whole_old_screen_until_the_new_one_is_whole() {
     assert_eq!(cx.update(|app| view.read(app).cursor_bounds()), caret, "so does the caret");
     cx.update(|app| {
         view.update(app, |view, _| {
+            // Any kernel batch replaces the graphic.
+            (view.graphic, view.handle_size) = (Some(frame), px(6.0));
             assert!(view.grab(corner), "and the handle where it shows");
             view.grip = None;
             assert!(view.hold_border(border), "and the table border");
