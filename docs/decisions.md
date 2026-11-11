@@ -889,3 +889,14 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 推送时 GitHub 提示 10 个；它的告警清单共 13 个：`site/pnpm-lock.yaml` 的 undici 7.29.1（8 个，修复版 7.30.1），`site/video/update-0.1.5/package-lock.json` 的 fast-uri（4 个，修复版 3.1.9）与 zod（1 个，修复版 4.6.6）。都只在构建与部署工具里，不进应用。修复推送后，13 个于 2026-11-11 09:06 UTC 都标为已修复，未关的 0 个。
 - undici 由 wrangler 经 miniflare 带入；最新的 miniflare 仍钉 7.28.0，升 wrangler 不解决。官网以 pnpm 的 `overrides` 钉 undici 7.30.2；视频工程以 npm 的 `overrides` 钉 fast-uri ^3.1.9、zod ^4.6.6。
 - 核对：官网安装、构建、测试与 `wrangler deploy --dry-run` 都过；视频工程 `npm ci` 报 0 个漏洞，类型检查只缺不入库的录屏文件。
+
+## 2026-11-11 Windows 双击文件先出启动画面（R18.41）
+
+- 实测（ElyDoc release，打开 t.docx，从启动到各步的毫秒数；`.work/R18/r41`（本机，未入库））：
+  - Linux（Ryzen 9950X3D，RTX 4090）：首帧 201–219，窗口 168–184；窗口前的时间大半是 wgpu 找显卡并试配置（约 155）。新拷贝的程序文件同样快。
+  - macOS（Mac mini）：首帧 206–326；刚建好后的第一次 727。
+  - Windows 11（虚拟机，Defender 实时保护开）：同一份文件再开，首帧 208–225；新文件（新装、更新后、新拷贝）首帧 1886–3851，第一行日志就晚了 1667–3500。
+- 查明：Windows 在程序的任何代码运行之前扫描新的可执行文件，耗时与文件大小成正比，约每 MB 45 毫秒：40 MB 的 ely-doc.exe 首次起进程 1785–2139 毫秒，再起 4 毫秒；5 MB 的 worker 213–270 对 15–22（`.work/R18/r41/scan.ps1`（本机，未入库））。应用自己画的启动画面出不来得比这更早；macOS、Linux 首帧本就在 0.2 至 0.3 秒，不加启动画面。
+- 做法：新包 `crates/ely-start`，370 KB 的 ely-start.exe，只依赖 windows-sys。Windows 的“打开”（文件、文件夹、链接）经 `ely-start <slug> <名字> "%1"`：它立刻画出应用图标与名字（随系统深浅色，按 DPI 缩放），另起线程起应用，把窗口句柄经 `ELY_SPLASH` 交给应用；应用画出首帧后（`ui: first frame presented`）由 `ely_platform::startup::close_splash` 关掉它，先核对句柄的窗口类仍是 `ElySplash`，免得句柄已被别的窗口重用；应用在首帧前退出（交给已开着的那份、启动失败）时启动画面随之关掉。起不来即报错框（`ELY_NO_DIALOG` 时只写 stderr），退出码 1。开始菜单的快捷方式仍指向应用本身：任务栏的固定与分组照旧。应用日志记下“距启动画面多少毫秒”（`ELY_START`）。
+- 实测（同一台 Windows，ely-start 加 ely-doc 的新拷贝）：启动画面在 115–191 毫秒出现（机器刚建完一次时 965），应用首帧 1596–5055，启动画面在首帧后 10–25 毫秒关掉；再开时启动画面 24–57，首帧 306–782。
+- 测试：`crates/ely-start/tests/start.rs`（Windows）：缺应用即退出码 1 并说出路径；应用先退出则启动画面关；应用调用真正的 `close_splash` 后启动画面关、应用照常运行（把类名核对改错，此测试即败）。`tests/scripts/windows-types.sh` 核对登记的打开命令。

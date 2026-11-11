@@ -119,6 +119,53 @@ pub fn started() {
     STARTED.store(true, Ordering::Relaxed);
 }
 
+/// Logs the time since Windows' splash launcher began.
+pub fn launched() {
+    let Some(at) = crate::env::value("ELY_START") else {
+        return;
+    };
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH);
+    match (at.parse::<u128>(), now) {
+        (Ok(at), Ok(now)) => log::info!("startup: {} ms after the splash launcher", now.as_millis().saturating_sub(at)),
+        (Err(error), _) => log::warn!("startup: ELY_START={at} is not a time: {error}"),
+        (_, Err(error)) => log::warn!("startup: the clock is before 1970: {error}"),
+    }
+}
+
+/// Closes the launcher's splash once the first frame shows.
+#[cfg(windows)]
+pub fn close_splash() {
+    use windows_sys::Win32::{
+        Foundation::HWND,
+        UI::WindowsAndMessaging::{GetClassNameW, PostMessageW, WM_CLOSE},
+    };
+    let Some(handle) = crate::env::value("ELY_SPLASH") else {
+        return;
+    };
+    let Ok(raw) = handle.parse::<isize>() else {
+        log::warn!("startup: ELY_SPLASH={handle} is not a window");
+        return;
+    };
+    let window = raw as HWND;
+    let mut class = [0u16; 16];
+    // SAFETY: `class` holds the length passed.
+    let len = unsafe { GetClassNameW(window, class.as_mut_ptr(), class.len() as i32) };
+    // A stale handle may name another window.
+    if String::from_utf16_lossy(&class[..len.max(0) as usize]) != "ElySplash" {
+        log::warn!("startup: the splash window {handle} is gone");
+        return;
+    }
+    // SAFETY: the handle names a live splash window.
+    if unsafe { PostMessageW(window, WM_CLOSE, 0, 0) } == 0 {
+        log::warn!("startup: the splash did not close: {}", std::io::Error::last_os_error());
+        return;
+    }
+    log::info!("startup: splash closed");
+}
+
+#[cfg(not(windows))]
+pub fn close_splash() {}
+
 #[cfg(test)]
 mod tests {
     use super::message;

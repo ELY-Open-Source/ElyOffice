@@ -92,7 +92,7 @@ uninstall() { cp "$1/uninstall.exe" "$work/uninstall.exe" && "$work/uninstall.ex
 value() {
   ELY_KEY=$1 ELY_NAME=${2:-} powershell -NoProfile -Command '$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($env:ELY_KEY); if ($k) { $k.GetValue($env:ELY_NAME) }' | tr -d '\r'
 }
-opens() { echo "\"$(cygpath -w "$1")\\ely-probe.exe\" \"%1\""; }
+opens() { echo "\"$(cygpath -w "$1")\\ely-start.exe\" ely-probe ElyProbe \"%1\""; }
 listed() { reg query "HKCU\\$listing" /v ElyOffice.ElyProbe >/dev/null 2>&1; }
 
 # A handlerless type: listed, New-able, and gone after uninstall.

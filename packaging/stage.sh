@@ -31,6 +31,11 @@ rm -rf "$out"
 mkdir -p "$out"
 build -p "$(cargo pkgid --manifest-path "$root/apps/$slug/Cargo.toml")"
 cp "$release/$slug$exe" "$out/"
+# Windows opens files through the small splash launcher.
+if [ -n "$exe" ]; then
+  build -p ely-start
+  cp "$release/ely-start.exe" "$out/"
+fi
 if uses ely-lok; then
   lo=${ELY_LO_DIR:-$root/engines/lo-src/instdir}
   need "$lo/program" scripts/build-libreoffice.sh

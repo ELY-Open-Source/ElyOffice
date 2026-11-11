@@ -23,7 +23,7 @@
 
 ```text
 apps/        八个应用，各自一个二进制
-crates/      ely-ui  ely-platform  ely-ipc（应用与引擎 worker 之间的帧）；ely-files ely-lok ely-office（文档应用共用的外壳：标签、会话、保存、关闭询问、冲突、密码；引擎为 LOK 或 MuPDF）ely-pdf-engine（PDF worker 的协议与客户端，纯 Rust）ely-pdf-worker（MuPDF worker，独立包，只它编 MuPDF）；ely-mail-engine（邮件协议、同步与本地存储）；ely-mail-fake（测试用的脚本邮件服务器，真 TLS）
+crates/      ely-ui  ely-platform  ely-ipc（应用与引擎 worker 之间的帧）；ely-files ely-lok ely-office（文档应用共用的外壳：标签、会话、保存、关闭询问、冲突、密码；引擎为 LOK 或 MuPDF）ely-pdf-engine（PDF worker 的协议与客户端，纯 Rust）ely-pdf-worker（MuPDF worker，独立包，只它编 MuPDF）；ely-mail-engine（邮件协议、同步与本地存储）；ely-mail-fake（测试用的脚本邮件服务器，真 TLS）；ely-start（Windows：双击文件即出启动画面）
 reference/   上游源码，只读，不属于本项目，不审查
 engines/     下载的二进制与引擎构建产物，不入库，不审查；mupdf-src 是 reference/mupdf 加 patches/mupdf 的构建副本
 patches/     对上游的补丁，随源码发行（libreoffice、mupdf、gpui）
@@ -128,7 +128,7 @@ scripts/build-git.sh           构建钉住的 Git 到 engines/git（随 ElyTree
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 至 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核散列；Mac 核架构）
 scripts/build-bash.sh [目录]   构建钉住的 GNU bash 5.3 为 x86_64，默认装到 ~/ely-share/bash-x86_64（Intel 版发布在 Rosetta 下以它跑 ci.sh；核散列与架构）
-scripts/review.sh ID 轮次 路径  审查一条任务：herdr 里另一个 Claude Code（Kimi K3.1 Pro）审查，结论进 `tasks/reviews/`，构建与日志在 `.work/<ID>-r<轮次>/`；细则见 `tests/scripts/README.md` 的 review-rules.sh
+scripts/review.sh ID 轮次 路径  审查一条任务：herdr 里另一个 Claude Code 审查，结论进 `tasks/reviews/`；细则见 `tests/scripts/README.md` 的 review-rules.sh
 scripts/apply-lo-patches.sh engines/lo-src  源码已到补丁序列第几个，补上其余（构建脚本调用）
 packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；目标在 target/alma8）
 packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）；包的依赖带 glibc 的版本下限（包内文件所需的最高版本）；libdbus 与它载入的库用系统的；`bundle.sh` 再出装全部应用的 `ely-office` 包（deb、rpm、Arch），三个文档应用共用一份内核

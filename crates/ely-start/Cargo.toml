@@ -1,0 +1,17 @@
+[package]
+name = "ely-start"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys.workspace = true
+
+[target.'cfg(windows)'.dev-dependencies]
+ely-platform.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

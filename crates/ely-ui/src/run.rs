@@ -35,6 +35,7 @@ pub fn run<V: Render>(
         startup::fail(app, &format!("logging did not start: {error:#}"));
     }
     moved.log();
+    startup::launched();
     if let Err(error) = graphics::check() {
         startup::fail(app, &format!("{error:#}"));
     }
@@ -149,7 +150,10 @@ pub(crate) fn main_window<V: Render>(
         log::info!("ui: window shown");
         window.on_next_frame(move |window, cx| {
             // Runs before the next draw: after the first present.
-            window.on_next_frame(|_, _| log::info!("ui: first frame presented"));
+            window.on_next_frame(|_, _| {
+                log::info!("ui: first frame presented");
+                startup::close_splash();
+            });
             startup::started();
             if smoke == Smoke::Once {
                 println!("ready {}", app.name());

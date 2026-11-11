@@ -8,7 +8,8 @@ name=$(awk -F'\t' -v slug="$slug" '$1 == slug { print $2 }' "$root/packaging/app
 [ -n "$name" ] || { echo "types.sh: unknown app $slug" >&2; exit 1; }
 progid="ElyOffice.$name"
 classes='Software\Classes'
-command="'\"\$INSTDIR\\$slug.exe\" \"%1\"'"
+# ely-start shows a splash while Windows scans the app.
+command="'\"\$INSTDIR\\ely-start.exe\" $slug $name \"%1\"'"
 exts=$(awk -F'\t' -v slug="$slug" '$1 == slug && $2 != "/" && $2 !~ /:$/ { print $2 }' "$root/packaging/types.tsv")
 folder=$(awk -F'\t' -v slug="$slug" '$1 == slug && $2 == "/" { print "yes" }' "$root/packaging/types.tsv")
 # URL schemes go to Default Apps, never taken over.
