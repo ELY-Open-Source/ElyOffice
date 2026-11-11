@@ -1,4 +1,4 @@
-//! The launcher: a missing app, an early exit, the app's close.
+//! The launcher's errors, early exits and the app's close.
 #![cfg(windows)]
 
 use std::{

@@ -122,16 +122,14 @@ fn dark() -> bool {
     read == 0 && light == 0
 }
 
-/// The splash state, set at creation.
-///
-/// SAFETY: `run` keeps it alive and untouched while messages run.
+/// SAFETY: `run` keeps the state alive while messages run.
 unsafe fn state<'a>(window: HWND) -> Option<&'a mut Shown> {
     // SAFETY: the slot holds null or `run`'s `Shown`.
     unsafe { (GetWindowLongPtrW(window, GWLP_USERDATA) as *mut Shown).as_mut() }
 }
 
 unsafe extern "system" fn proc_(window: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    // SAFETY: Windows calls this on the window's thread; no borrow spans DestroyWindow.
+    // SAFETY: window thread; no borrow spans DestroyWindow.
     unsafe {
         match message {
             WM_NCCREATE => {
