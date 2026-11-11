@@ -58,6 +58,10 @@ fn check_value(value: &str) -> io::Result<()> {
     if !bare.get(..5).is_some_and(|scheme| scheme.eq_ignore_ascii_case("data:")) {
         return Ok(());
     }
+    // Where escapes go, the engine's reading is unsure.
+    if value.contains('\\') {
+        return Err(invalid("an inline image has a backslash"));
+    }
     let kept = kept.trim_matches(|c: char| c.is_ascii_whitespace() || c.is_ascii_control());
     let Some(uri) = kept.get(..5).filter(|scheme| scheme.eq_ignore_ascii_case("data:")).map(|_| &kept[5..]) else {
         return Err(invalid("an inline image breaks its scheme"));

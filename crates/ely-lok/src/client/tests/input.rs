@@ -442,17 +442,20 @@ fn inline_images_paste_only_when_they_decode() {
         let text = saved(&dir, &mut worker, &doc, "kept.fodt");
         assert_eq!(paragraphs(&text), ["Hello 世界"], "{open}: the text went");
     }
+    // The engine reads no `;bas\e64`: a good image still drops.
+    let escaped = inline_html(r#"src="data:"#, &red_png()).replace(";base64", ";bas\\e64");
+    assert!(worker.paste(&doc, "text/html", escaped.as_bytes()).is_err(), "an escaped base64 pasted");
     worker
         .post_key(&doc, 0, 1029)
         .expect("End drops the selection");
-    for open in [r#"src="d\ata:"#, r#"src="d&#97;ta:"#, r#"src="da&#10;ta:"#, r#"data="data:"#] {
+    for open in [r#"src="d&#97;ta:"#, r#"src="da&#10;ta:"#, r#"data="data:"#] {
         let real = inline_html(open, &red_png());
         worker.paste(&doc, "text/html", real.as_bytes()).unwrap_or_else(|error| panic!("{open}: {error}"));
     }
     let mention = "<html><body><p>Use data:image/png here.</p></body></html>";
     worker.paste(&doc, "text/html", mention.as_bytes()).expect("text naming an image pastes");
     let text = saved(&dir, &mut worker, &doc, "image.fodt");
-    assert_eq!(text.matches("<draw:image").count(), 4, "the images land");
+    assert_eq!(text.matches("<office:binary-data").count(), 3, "the images land");
     assert!(text.contains("Use data:image/png here."), "the text lands");
 }
 
