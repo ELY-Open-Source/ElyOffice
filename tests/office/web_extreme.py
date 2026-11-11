@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Large and strange files Ely opens, edits and saves, for Office on the web."""
+"""Large and strange files Ely saves, for Office online."""
 
 import os
 import shutil
@@ -45,7 +45,7 @@ def column(n):
 
 
 def wide_xlsx(path, rows=1000, columns=1000):
-    """A million cells over a thousand columns, last column a formula."""
+    """A million cells; each row ends in a sum."""
     ns = f'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="{loadfiles.REL}"'
     last = column(columns)
     body = []
