@@ -415,11 +415,11 @@ fn a_foreign_paste_flavor_is_refused() {
     worker.post_key(&doc, 0, 1027).expect("the worker lives");
 }
 
-/// HTML carrying `png` behind `scheme` as an inline image.
-fn inline_html(scheme: &str, png: &[u8]) -> String {
+/// HTML carrying `png` as an image; `open` starts its URI.
+fn inline_html(open: &str, png: &[u8]) -> String {
     use base64::Engine;
     let data = base64::engine::general_purpose::STANDARD.encode(png);
-    format!(r#"<html><body><img src="{scheme}image/png;base64,{data}"></body></html>"#)
+    format!(r#"<html><body><img {open}image/png;base64,{data}"></body></html>"#)
 }
 
 #[test]
@@ -433,24 +433,26 @@ fn inline_images_paste_only_when_they_decode() {
     worker
         .run(&doc, "edit.select_all", &[])
         .expect("select all");
-    // The engine reads any case and decodes entities.
-    for scheme in ["data:", "DATA:", "d&#97;ta:"] {
-        let broken = inline_html(scheme, b"this is not a png");
-        assert!(worker.paste(&doc, "text/html", broken.as_bytes()).is_err(), "{scheme} pasted");
-        assert!(!worker.copy(&doc).expect("copy runs").is_empty(), "{scheme}: the selection went");
+    // Every way the engine still reads as a data URI.
+    let opens = [r#"src="data:"#, r#"src="DATA:"#, r#"src="d&#97;ta:"#, r#"src="da&#10;ta:"#, r#"src="d\ata:"#, r#"data="data:"#, r#"src="" data="data:"#];
+    for open in opens {
+        let broken = inline_html(open, b"this is not a png");
+        assert!(worker.paste(&doc, "text/html", broken.as_bytes()).is_err(), "{open} pasted");
+        assert!(!worker.copy(&doc).expect("copy runs").is_empty(), "{open}: the selection went");
         let text = saved(&dir, &mut worker, &doc, "kept.fodt");
-        assert_eq!(paragraphs(&text), ["Hello 世界"], "{scheme}: the text went");
+        assert_eq!(paragraphs(&text), ["Hello 世界"], "{open}: the text went");
     }
     worker
         .post_key(&doc, 0, 1029)
         .expect("End drops the selection");
-    worker
-        .paste(&doc, "text/html", inline_html("d&#97;ta:", &red_png()).as_bytes())
-        .expect("a real inline image pastes");
+    for open in [r#"src="d\ata:"#, r#"src="d&#97;ta:"#, r#"src="da&#10;ta:"#, r#"data="data:"#] {
+        let real = inline_html(open, &red_png());
+        worker.paste(&doc, "text/html", real.as_bytes()).unwrap_or_else(|error| panic!("{open}: {error}"));
+    }
     let mention = "<html><body><p>Use data:image/png here.</p></body></html>";
     worker.paste(&doc, "text/html", mention.as_bytes()).expect("text naming an image pastes");
     let text = saved(&dir, &mut worker, &doc, "image.fodt");
-    assert_eq!(text.matches("<draw:image").count(), 1, "the image lands");
+    assert_eq!(text.matches("<draw:image").count(), 4, "the images land");
     assert!(text.contains("Use data:image/png here."), "the text lands");
 }
 
