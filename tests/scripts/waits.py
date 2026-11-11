@@ -12,9 +12,11 @@ LOOP = re.compile(r"\b(while|loop|for)\b|\.any\(")
 POLL = re.compile(r"\b(while|loop)\b|\.any\(")
 # A counted retry, not a walk over items.
 RETRY = re.compile(r"\bfor\s+_\s+in\b")
-EXIT = re.compile(r"\b(break|return)\b")
+EXIT = re.compile(r"\b(break|return)\b(\s+'(\w+))?")
 SCOPE = re.compile(r"\bfn\b|\|[^|]*\|\s*\{?\s*$")
-TEST_MOD = re.compile(r"^\s*(pub(\([^)]*\))?\s+)?mod\s+(\w+)\s*;")
+MOD = re.compile(r"^\s*(pub(\([^)]*\))?\s+)?mod\s+(\w+)\s*;")
+INLINE = re.compile(r"\bmod\s+(\w+)\s*\{")
+ROOTS = re.compile(r"(^|/)(src/(lib|main)\.rs|src/bin/[^/]+\.rs|(tests|benches|examples)/[^/]+\.rs)$")
 
 
 def test_path(path):
@@ -64,9 +66,31 @@ def body(lines, head):
     return lines[head + 1:end]
 
 
+def code(line):
+    """The line without strings and comment."""
+    return re.sub(r'"(?:[^"\\]|\\.)*"', '""', line).split("//")[0]
+
+
+def leaves(lines, head):
+    """Whether the loop has its own break or return."""
+    label = re.match(r"\s*'(\w+):", lines[head])
+    start = head + 1
+    for at in range(start, start + len(body(lines, head))):
+        exit = EXIT.search(code(lines[at]))
+        if not exit:
+            continue
+        if label and exit.group(3) == label.group(1):
+            return True
+        inner = opener(lines, at)
+        while inner is not None and inner != head and not (LOOP.search(lines[inner]) or SCOPE.search(lines[inner])):
+            inner = opener(lines, inner)
+        if inner == head and not exit.group(3):
+            return True
+    return False
+
+
 def polls(lines, head):
-    retry = RETRY.search(lines[head]) and any(EXIT.search(line) for line in body(lines, head))
-    return bool(POLL.search(lines[head]) or retry)
+    return bool(POLL.search(lines[head]) or (RETRY.search(lines[head]) and leaves(lines, head)))
 
 
 def loop_of(lines, at):
@@ -101,17 +125,33 @@ def faults(name, lines, whole):
     return found
 
 
-def test_modules(paths, read):
-    """Files a #[cfg(test)] mod declaration brings in."""
-    found = set()
-    for path in paths:
-        lines = read(path)
-        here = Path(path)
-        base = here.parent if here.name in ("mod.rs", "lib.rs", "main.rs") else here.with_suffix("")
-        for at, line in enumerate(lines):
-            if (m := TEST_MOD.match(line)) and "#[cfg(test)]" in attributes(lines, at):
-                found |= {str(base / f"{m.group(3)}.rs"), str(base / m.group(3) / "mod.rs")}
-    return found
+def declared(path, lines, at, name):
+    """The files `mod name;` at line `at` may be."""
+    here = Path(path)
+    base = here.parent if here.name == "mod.rs" or ROOTS.search(path) else here.with_suffix("")
+    head, inline = opener(lines, at), []
+    while head is not None:
+        if m := INLINE.search(lines[head]):
+            inline.insert(0, m.group(1))
+        head = opener(lines, head)
+    base = base.joinpath(*inline)
+    return {str(base / f"{name}.rs"), str(base / name / "mod.rs")}
+
+
+def test_files(paths, texts):
+    """Test files: by path, or brought in by test code."""
+    whole = {path for path in paths if test_path(path)}
+    grown = True
+    while grown:
+        before = len(whole)
+        for path in paths:
+            lines = texts[path]
+            for at, line in enumerate(lines):
+                if (m := MOD.match(line)) and (path in whole or "#[cfg(test)]" in attributes(lines, at)
+                                                or in_test(lines, at)):
+                    whole |= declared(path, lines, at, m.group(3)) & set(paths)
+        grown = len(whole) > before
+    return whole
 
 
 def main():
@@ -120,7 +160,11 @@ def main():
            ["#[test]", "fn t() {", "    for key in keys {", "        send(key);", "        std::thread::sleep(MS);", "    }", "}"],
            ["#[test]", "fn t() {", "    for byte in bytes {", "        if write(byte).is_err() {", "            return;",
             "        }", "        std::thread::sleep(MS);", "    }", "}"],
-           ["#[cfg(test)]", "mod tests {", "    fn t() {", "        std::thread::sleep(MS);", "    }", "}"]]
+           ["#[cfg(test)]", "mod tests {", "    fn t() {", "        std::thread::sleep(MS);", "    }", "}"],
+           ["#[test]", "fn t() {", "    for _ in 0..3 {", "        for key in keys {", "            if send(key) {",
+            "                break;", "            }", "        }", "        std::thread::sleep(MS);", "    }", "}"],
+           ["#[test]", "fn t() {", "    for _ in 0..3 {", "        keys.iter().for_each(|key| {", "            return;",
+            "        });", "        send(\"return\"); // return", "        std::thread::sleep(MS);", "    }", "}"]]
     good = [["fn t() {", "    // The lock is held this long.", "    std::thread::sleep(MS);"],
             ["fn t() {", "    while !done(|| {", "        true", "    }) {", "        if !tick() {",
              "            std::thread::sleep(MS);", "        }", "    }"],
@@ -131,12 +175,17 @@ def main():
             ["fn t() {", "    for byte in [1, 2]", "        .into_iter()", "    {", "        // A slow writer's pace.",
              "        std::thread::sleep(MS);", "    }", "}"],
             ["fn work() {", "    std::thread::sleep(MS);", "}"]]
-    if not all(faults("bad", lines, False) for lines in bad) or any(faults("good", lines, False) for lines in good):
+    labeled = ["fn t() {", "    'retry: for _ in 0..50 {", "        for part in parts {", "            if ready(part) {",
+               "                break 'retry;", "            }", "        }", "        std::thread::sleep(MS);", "    }", "}"]
+    nested = {"src/lib.rs": ["mod support {", "    #[cfg(test)]", "    mod checks;", "}"],
+              "src/support/checks.rs": ["fn pause() {", "    std::thread::sleep(MS);", "}"]}
+    if (not all(faults("bad", lines, False) for lines in bad) or any(faults("good", lines, False) for lines in good + [labeled])
+            or test_files(list(nested), nested) != {"src/support/checks.rs"}):
         sys.exit("FAIL: waits.py misjudges its own samples")
     tracked = subprocess.run(["git", "ls-files", "apps", "crates"], cwd=root, capture_output=True, text=True, check=True)
     paths = [path for path in tracked.stdout.splitlines() if path.endswith(".rs")]
     texts = {path: (root / path).read_text(encoding="utf-8").split("\n") for path in paths}
-    whole = {path for path in paths if test_path(path)} | (test_modules(paths, texts.get) & set(paths))
+    whole = test_files(paths, texts)
     found = []
     for path in paths:
         found += faults(path, texts[path], path in whole)
