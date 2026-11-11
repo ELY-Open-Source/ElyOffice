@@ -139,15 +139,20 @@ impl Deck {
             let text = Deck::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };
-        let (id, masters) = (tab.id, tab.extra.masters);
-        // A page turn still queued decides the current slide.
-        if !self.settled(id, cx) {
-            return self.when_settled(id, move |deck, _, cx| match deck.active_tab().is_some_and(|tab| tab.id == id) {
-                true => deck.ask_output(print, cx),
-                false => log::info!("show: tab {id} left before its output dialog"),
-            });
-        }
+        let id = tab.id;
         let asked = self.ask_dialog();
+        self.read_output(id, print, asked, cx);
+    }
+
+    /// Ask `asked`'s read, once queued page turns land.
+    fn read_output(&mut self, id: u64, print: bool, asked: u64, cx: &mut Context<Self>) {
+        if !self.dialog_due(asked, id) {
+            return log::info!("show: the output dialog is no longer due");
+        }
+        if !self.settled(id, cx) {
+            return self.when_settled(id, move |deck, _, cx| deck.read_output(id, print, asked, cx));
+        }
+        let masters = self.tab(id).is_some_and(|tab| tab.extra.masters);
         self.read_in(
             id,
             |worker, doc| {

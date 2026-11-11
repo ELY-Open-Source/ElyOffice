@@ -305,3 +305,33 @@ fn current_after_a_turn(seed: u64) -> bool {
     assert_eq!(names(&folder), ["deck-2.png"], "seed {seed}: the current slide went out");
     true
 }
+
+#[test]
+fn a_check_asked_after_a_waiting_output_wins() {
+    // Seed 11 once let the waiting export win.
+    for seed in 0..16 {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let mut cx = TestAppContext::build(gpui::TestDispatcher::new(seed), None);
+        let Some(deck) = blank(&mut cx, dir.path()) else {
+            eprintln!("SKIP: no LOK build");
+            return;
+        };
+        three_slides(&mut cx, &deck);
+        super::quiet(&cx, &deck);
+        let window = cx.update(|app| deck.read(app).core.window.expect("a window"));
+        cx.update_window(window, |_, window, app| {
+            deck.update(app, |deck, cx| {
+                let view = deck.active_tab().expect("a tab").view.clone();
+                view.update(cx, |view, _| view.show_part(1));
+                deck.on_export(&ely_ui::commands::Export, window, cx);
+                deck.check_show(cx);
+            })
+        })
+        .expect("the window lives");
+        settle(&cx, |app| deck.read(app).dialog.is_some());
+        super::quiet(&cx, &deck);
+        cx.run_until_parked();
+        let check = cx.update(|app| matches!(deck.read(app).dialog, Some(Dialog::Check(_))));
+        assert!(check, "seed {seed}: the export asked first took the place of the check");
+    }
+}
