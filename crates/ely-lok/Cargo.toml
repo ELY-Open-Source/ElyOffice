@@ -18,6 +18,7 @@ ely-gpui-component = { workspace = true, optional = true }
 ely-platform = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 image.workspace = true
+html5ever.workspace = true
 
 [features]
 view = ["dep:gpui", "dep:ely-gpui-component", "dep:ely-platform", "dep:futures"]

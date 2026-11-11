@@ -13,7 +13,7 @@ const PASTE_ARGS: &str = r#"{"AnchorType":{"type":"unsigned short","value":"1"},
 const CLIP_MIMES: [&str; 3] = ["text/html", "text/plain;charset=utf-8", "image/png"];
 
 /// A failed request as its error text.
-fn invalid(what: &str) -> io::Error {
+pub(super) fn invalid(what: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, what.to_string())
 }
 
@@ -383,27 +383,6 @@ fn new_steps(before: &[Step], after: &[Step]) -> usize {
     }
 }
 
-/// Every image a `data:` URI carries must decode.
-fn check_html_images(html: &str) -> io::Result<()> {
-    use base64::Engine;
-    for (at, _) in html.match_indices("data:image/") {
-        let rest = &html[at..];
-        let Some(comma) = rest.find(";base64,") else {
-            return Err(invalid("an inline image is not base64"));
-        };
-        let body = &rest[comma + 8..];
-        let end = body
-            .find(|c: char| c == '"' || c == '\'' || c == ')' || c.is_whitespace())
-            .unwrap_or(body.len());
-        let bytes = base64::engine::general_purpose::STANDARD
-            .decode(&body[..end])
-            .map_err(|error| invalid(&format!("an inline image is bad base64: {error}")))?;
-        image::load_from_memory(&bytes)
-            .map_err(|error| invalid(&format!("an inline image does not decode: {error}")))?;
-    }
-    Ok(())
-}
-
 /// Refuses payloads the engine would drop half way.
 fn check_payload(mime: &str, data: &[u8]) -> io::Result<()> {
     if data.is_empty() {
@@ -416,7 +395,7 @@ fn check_payload(mime: &str, data: &[u8]) -> io::Result<()> {
     }
     let text = std::str::from_utf8(data).map_err(|_| invalid("the text is not UTF-8"))?;
     if mime == "text/html" {
-        check_html_images(text)?;
+        super::pasted::check_html_images(text)?;
     }
     Ok(())
 }

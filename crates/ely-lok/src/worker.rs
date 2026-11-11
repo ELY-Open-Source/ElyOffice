@@ -12,6 +12,7 @@ mod events;
 #[cfg(unix)]
 mod fatal;
 mod input;
+mod pasted;
 mod asked;
 pub(crate) mod closing;
 mod revision;
