@@ -282,6 +282,11 @@ impl LokView {
         self.sent
     }
 
+    /// The last input the kernel took.
+    pub fn applied(&self) -> u64 {
+        self.applied
+    }
+
     /// Whether input `seq` reached the kernel.
     pub fn reached(&self, seq: u64) -> bool {
         self.applied >= seq

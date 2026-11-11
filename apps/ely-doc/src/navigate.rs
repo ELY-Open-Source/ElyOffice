@@ -33,8 +33,8 @@ enum Pane {
 struct Shown {
     view: Entity<LokView>,
     doc: Doc,
-    /// Edits and cursor at the last read.
-    read: Option<(u64, Option<Rect>)>,
+    /// Edits, cursor and inputs taken at the last read.
+    read: Option<(u64, Option<Rect>, u64)>,
     /// A read is on its way.
     reading: bool,
     _observe: Subscription,
@@ -93,10 +93,12 @@ impl Navigator {
             return;
         };
         let view = shown.view.read(cx);
-        let seen = Some((view.edited(), view.cursor()));
+        // The kernel may be past the cursor seen here.
+        let seen = Some((view.edited(), view.cursor(), view.applied()));
         if shown.reading || shown.read == seen {
             return;
         }
+        log::debug!("doc: navigator reads at input {}", view.applied());
         (shown.read, shown.reading) = (seen, true);
         let reader = shown.view.entity_id();
         ely_lok::read_off(
