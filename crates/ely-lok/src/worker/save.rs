@@ -1,6 +1,8 @@
 //! Saves and exports (LOK-09); snapshots give way to input.
 
+use std::collections::HashMap;
 use std::io;
+use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};
 
 use super::{dev_mode, lok, waits, with_doc};
 use crate::ipc::{self, Unpack};
@@ -27,7 +29,12 @@ pub(super) fn save(unpack: &mut Unpack) -> io::Result<()> {
     if let Some(from) = probed {
         waits::probe(from);
     }
-    let saved = with_doc(id, |doc| doc.save_as(&url, &format, &options));
+    let sealed = options.starts_with("TakeOwnership").then(|| password(id)).flatten();
+    let sent = match &sealed {
+        Some(password) => format!("{options},Password={password}{PASSWORD_END}"),
+        None => options.clone(),
+    };
+    let saved = with_doc(id, |doc| doc.save_as(&url, &format, &sent));
     if let Some(from) = probed {
         log::info!("lok-worker: a probed snapshot, input from check {from}, saw {} checks", waits::unprobe());
     }
@@ -39,8 +46,33 @@ pub(super) fn save(unpack: &mut Unpack) -> io::Result<()> {
         }
         said => io::Error::other(format!("{error}: {said}")),
     })?;
-    log::info!("lok-worker: saved as {format} to {url} ({options})");
+    log::info!("lok-worker: saved as {format} to {url} ({options}, with its password: {})", sealed.is_some());
     Ok(())
+}
+
+/// Passwords by document: the user's saves keep them.
+fn passwords() -> MutexGuard<'static, HashMap<u64, String>> {
+    static PASSWORDS: OnceLock<Mutex<HashMap<u64, String>>> = OnceLock::new();
+    // Single inserts and removes leave no half state.
+    PASSWORDS.get_or_init(|| Mutex::new(HashMap::new())).lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// The kernel reads a save's password up to this word.
+pub(super) const PASSWORD_END: &str = "PASSWORDEND";
+
+/// Keeps the password document `id` opened with.
+pub(super) fn opened_with(id: u64, password: &str) {
+    if !password.is_empty() {
+        passwords().insert(id, password.to_owned());
+    }
+}
+
+pub(super) fn forget(id: u64) {
+    passwords().remove(&id);
+}
+
+fn password(id: u64) -> Option<String> {
+    passwords().get(&id).cloned()
 }
 
 /// `Snapshot:N`, a dev probe: the check input waits from.

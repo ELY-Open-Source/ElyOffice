@@ -65,6 +65,30 @@ fn a_locked_document_asks_for_its_password() {
 }
 
 #[test]
+fn a_locked_document_stays_locked_when_saved() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
+    let locked = [
+        (fixtures.join("office/ole-link-other-locked.docx"), "ely", "docx"),
+        (fixtures.join("show/sections-locked.pptx"), "ely", "pptx"),
+        (std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/client/tests/locked.odt"), "secret", "odt"),
+    ];
+    for (source, password, format) in locked {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let mut worker = Worker::spawn(&install().expect("lok"), &dir.path().join("profile")).expect("the worker");
+        let doc = worker.unlock(&crate::file_url(&source), password).expect("the password opens it");
+        let out = dir.path().join(format!("saved.{format}"));
+        doc.save_owned(&mut worker, &crate::file_url(&out), format).expect("saves");
+        let error = worker.load(&crate::file_url(&out)).expect_err("the saved copy asks for a password");
+        assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied, "{format}: {error}");
+        worker.unlock(&crate::file_url(&out), password).expect("the same password opens the copy");
+    }
+}
+
+#[test]
 fn pdfs_take_pages_and_the_outline_has_places() {
     if install().is_none() {
         eprintln!("SKIP: no pinned LOK build");

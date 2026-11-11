@@ -318,7 +318,10 @@ fn load(lok: &Lok, url: &str, password: String, filter: &str) -> io::Result<u64>
             "a password with NUL",
         ));
     }
-    asked::arm(Some(password).filter(|password| !password.is_empty()));
+    if password.contains(save::PASSWORD_END) {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "a password the kernel cannot save with"));
+    }
+    asked::arm(Some(password.clone()).filter(|password| !password.is_empty()));
     // LOK hands what it does not take to the filter.
     let options = match filter {
         "" => LOAD_OPTIONS.to_owned(),
@@ -345,6 +348,7 @@ fn load(lok: &Lok, url: &str, password: String, filter: &str) -> io::Result<u64>
         doc.set_client_zoom(zoom.0, zoom.1);
         crate::events::rescaled(id, zoom);
     }
+    save::opened_with(id, &password);
     let mut docs = docs().lock().expect("the docs lock");
     docs.insert(id, doc);
     log::info!("lok-worker: {} documents open", docs.len());
@@ -366,6 +370,7 @@ fn close(id: u64) {
         crate::events::unwatch(id, doc);
     }
     closing::forget(id);
+    save::forget(id);
     docs.remove(&id);
     revision::forget(id);
     slides::forget(id);

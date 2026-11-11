@@ -4,9 +4,9 @@
 
 <!-- 下两行由 scripts/compatibility.py 写出，勿手改 -->
 版本：Ely Office 0.1.15（首批应用：ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark）。
-内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0123，117 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0008，8 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.11（加 `patches/gpui` 0001–0013，13 个）。
+内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0124，118 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0008，8 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.11（加 `patches/gpui` 0001–0013，13 个）。
 各节内容最近一次逐项核对是在 0.1.11（2026-10-23）；其后各版本的改动只在所涉的条目里更新，未整体重验。
-验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。与 Microsoft Office 的交叉核对见下节（网页版，三十份样本）。
+验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。与 Microsoft Office 的交叉核对见下节（网页版，三十份样本，另十八份大、怪、极限的文件）。
 
 ## 与 Microsoft Office 的交叉核对（网页版）
 
@@ -25,6 +25,33 @@
 - 判据：页面标题是该文件，编辑器已载入（功能区、工作表标签或幻灯片窗格都在），顶部是“已保存”，没有修复、损坏或只读的对话框与横幅。big.pptx 另截屏看过：45 张幻灯片都有缩略图。
 - 没核对的：内容逐项是否与 Ely 所见相同（版式、字体、公式结果、动画），桌面版 Office，以及网页版不支持而静默略过的内容。这一节只回答“Office 认不认这份文件”。
 - 重做：`python3 tests/office/web_samples.py target/debug/examples/resave <文件夹>`（先设 `ELY_LOK_WORKER`），把文件夹里的三十份传上 OneDrive，逐个打开。上传与打开是人工或浏览器自动化做的，不在库里的脚本中。
+
+### 大、怪、极限的文件
+
+2026-11-11，内核补丁至 0124。十六份文件由 Ely 内核打开、改一处（文字文档插一个分页符，表格写一个单元格，演示稿插一张幻灯片）、照 Ely 的保存存出，另两份是 Word 自己加密的原件，传到 OneDrive，逐个在网页版打开：
+
+| 文件 | 内容 | 网页版 |
+| --- | --- | --- |
+| bigtable.docx | 400 行的表，每行一张图，22.5 MB | 编辑模式，图文都在 |
+| pages300.docx | 300 页，每 5 页一张表、每 10 页一张图 | 编辑模式 |
+| nested.docx | 表套表 12 层，列表 9 级 | 编辑模式，3 页 |
+| rich.docx | 目录、域、批注、插入与删除的修订 | 编辑模式 |
+| equation.docx | 公式 | 编辑模式 |
+| huge.xlsx | 10 万行，公式、定义名称、图表 | 编辑模式，公式有值 |
+| wide.xlsx | 1000 行 × 1000 列，每行末一个求和，中文表名 | 编辑模式 |
+| pivot.xlsx、spill.xlsx | 透视表、动态数组 | 编辑模式，透视表可用 |
+| kept-more.xlsx | 未知函数（测试用的假函数） | 编辑模式；Excel 重算后为 `#NAME?`，Ely 存的是原公式 |
+| slides207.pptx | 207 张，每张一张图，98.7 MB | 编辑模式，208 张 |
+| nested.pptx | 组合套组合 10 层 | 编辑模式，最里层的文字在 |
+| rich.pptx | 动画，37 张 | 编辑模式 |
+| video.pptx | 视频 | 编辑模式，视频可播 |
+| locked.docx、locked.pptx | 加密件（密码 ely），Ely 存出 | 问密码后打开，只读（网页版对加密件都如此） |
+| original-locked.docx、original-locked.pptx | Word 加密的原件 | 同上 |
+
+- 结果：18 份全部打开，0 份报修复或损坏。加密件在网页版只能读，Word 自己的加密件也一样。
+- 查出并修了一处：打开时输过密码的文件，Ely 保存后不再加密（内核的保存不带密码）。现在 worker 记下打开时的密码，保存与另存为照用；测试 `a_locked_document_stays_locked_when_saved`（DOCX、PPTX、ODT，改前 DOCX 即败）。
+- 未修：加密的 PPTX 存出后没有章节（内核不保留章节，见 ElyShow 一节；应用里加密的 PPTX 只写副本，不覆盖原件）。
+- 重做：`python3 tests/office/web_extreme.py target/debug/examples/resave <文件夹>`，其余同上。
 
 ## 往返验证
 

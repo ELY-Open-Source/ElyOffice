@@ -866,4 +866,12 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 测试 `ely-lok` 的 `a_font_is_found_by_its_name_in_another_language`：同一字体的两种名字各一段、另一段为不存在的字体，只许报后者。Linux 用 `tests/fixtures/office/alias.ttf`（DejaVu Sans 截到 ASCII、改名，英文 Ely Alias Sans、中文“别名黑体”）放进 worker 配置目录的 `user/fonts`；macOS 用苹方（PingFang SC、苹方-简）；Windows 用 Malgun Gothic（맑은 고딕）。两种名字都写，不论内核记的是哪一个，另一个都要靠新的查找。
 - 实测：Linux 上撤下 0124 重建内核，此测试败（报“别名黑体”缺失）；带上 0124 重建即过。Mac：0123 内核上此测试败，报的是 PingFang SC（Mac 的内核记中文名“苹方-简”，文档写英文名即落空），带上 0124 重建即过。r1 查出列表情形：初版的 0124 在 Mac 上把“PingFang SC;Helvetica”画成 Helvetica（`a_font_in_another_language_comes_before_the_next_in_its_list` 导出 PDF 查嵌入的字体，败）；Linux 上 fontconfig 认得两种名字，初版即过，测不出。改为逐个名字先按别名找之后：Mac 此测试与 `ely-lok` 全部 479 项过（`~/ely-scratch/mac-fonts-0124b.log`、`mac-lok-suite-0124b.log`）；Linux 发布测试 2480 项过、0 败、5 忽略。
 - Windows（测试机经 SSH，0123 内核）：两条测试皆败，报“맑은 고딕”缺失，列表“맑은 고딕;Arial”画成 Arial（`C:\ely\office\lok-fonts-0123.log`），与报告者的思源宋体同一情形；带 0124 重建内核后 6 项字体测试全过，`ely-lok` 全部 486 项里 484 项过、1 项忽略，1 项（`a_linked_object_s_class_name_stays_out_of_the_log`）败于测试机的 python3：那是一份要靠 PYTHONHOME 的拷贝，测试以 `-I` 调它即找不到标准库；在 Python 安装目录里放上 python3.exe 后单跑即过（`lok-fonts-0124.log`、`lok-suite-0124.log`）。
+- r2 查出：改到第一遍时别名的键换成了文档原写的名字，丢了去掉脚本后缀（“PingFang SC CYR”）与“总是替换”到别名两种匹配。改为先以去后缀、替换、预匹配之后的名字，再以替换后未去后缀的名字按别名找，第二遍直接查找落空后也按别名找。列表测试加两种名字各带“ CYR”的两例：第二轮的内核在 Mac 上“PingFang SC CYR”、在 Windows 上“맑은 고딕 CYR”皆画成别的字体，改后两机字体测试全过，Mac 的 `ely-lok` 全部 479 项过。r3 PASS。
 - 未做：Windows 上嵌入字体在文档里的名字与字体自身的家族名不同时，内核整个不载入（`WinSalGraphics::AddTempDevFont` 写明“font family renaming not implemented”），未改。
+
+## 2026-11-11 大、怪、极限的文件交 Office 网页版；加密件保存后不再加密（R18.42，审计 R-01）
+
+- 做法：`tests/office/web_extreme.py` 写出十六份文件（400 行带图的表、300 页、表套表 12 层、修订与批注、公式、10 万行、1000×1000、透视表、动态数组、未知函数、207 张幻灯片、组合套 10 层、动画、视频、Word 加密的 DOCX 与 PPTX），交 `examples/resave` 打开、改一处、照 Ely 的保存（`save_owned`）存出；加密的两份另把 Word 的原件一起上传。经用户 Chrome 里的 Cindy 扩展传到 OneDrive 的 `ElyOffice-R18-check/extreme`（页面里放一个文件框，再向列表发一次拖放），以 `_layouts/15/Doc.aspx?sourcedoc=<路径>` 逐个打开。
+- 结果：18 份全部打开，0 份报修复或损坏；14 份以编辑模式打开，加密的 4 份问密码后只读（网页版对加密件都如此，Word 的原件也一样）。kept-more.xlsx 的假函数在 Excel 里为 `#NAME?`，是样本本意。加密的 PPTX 存出后无章节：内核不保留章节，应用里加密的 PPTX 只写副本。
+- 查出的缺陷：打开时输过密码的文件，保存后不再加密。根因：LOK 的另存把密码放在过滤选项 `,Password=…PASSWORDEND` 里才会加密，Ely 从不传；用户的保存与另存为都走 `TakeOwnership`。修：worker 在载入时按文档记下密码（只在 worker 进程的内存里，日志只记“是否带密码”），`TakeOwnership` 的保存附上它；快照与内部副本（比较、放映、合并）不带，恢复点照旧由 Ely 自己加密；含 `PASSWORDEND` 的密码在载入前即拒。测试 `a_locked_document_stays_locked_when_saved`：Word 加密的 DOCX、PPTX 与加密的 ODT，`save_owned` 存出后无密码打不开、原密码打得开；改前 DOCX 即败。
+- 未核对：内容逐项是否与 Ely 所见相同，桌面版 Office。上传的十八份留在用户 OneDrive 的那个文件夹里，未删。
