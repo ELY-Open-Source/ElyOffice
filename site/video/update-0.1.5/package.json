@@ -22,5 +22,9 @@
   },
   "allowScripts": {
     "esbuild@0.28.1": true
+  },
+  "overrides": {
+    "fast-uri": "^3.1.9",
+    "zod": "^4.6.6"
   }
 }

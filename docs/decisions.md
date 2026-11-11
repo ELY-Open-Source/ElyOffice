@@ -883,3 +883,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 修：`test_worker` 自己建配置目录，在线程结束的收尾里先关 worker、再删目录；调用方不再传配置路径。`ely-lok` 的视图测试经 `view::tests::ended_with_thread` 做同一件事；它只持 worker 的弱引用，`releasing_the_view_stops_the_watch` 要看 worker 随视图释放（初版持强引用，此测试即败）。`saved()` 让目录活到读完；剪切测试把目录放进那条线程，并等线程结束；设置测试的数据根改为 `temp_dir()/ely-ui-settings-tests`，每次运行开头清空；先取旁边的 `ely-ui-settings-tests.lock`，同时起的两个测试进程依次进行，不互删。测试持 worker 的锁时 panic 会使锁中毒：收尾取回中毒的锁，照样先关 worker 再删目录（初版在此 `expect`，进程中止；`test_worker` 则不关 worker 即删目录）。剪切测试先等线程、再断言，超时也不丢目录。
 - 实测：见 TASKS 的 R18.40。
 - 清理：本机 `/tmp` 里本项目测试留下、两小时以前的目录（只含 `profile` 与测试样本名），以 `.work` 下的一次性脚本删去 1148 个。另有 3162 个只含 `cindy-elygpui-preferences.json` 的目录，是同机 Cindy 项目的测试留下的，不属本项目，未动。
+
+## 2026-11-11 官网与旧视频工程的依赖漏洞（R18.43）
+
+- GitHub 报 10 个：`site/pnpm-lock.yaml` 的 undici 7.29.1（6 个，修复版 7.30.1），`site/video/update-0.1.5/package-lock.json` 的 fast-uri（4 个，修复版 3.1.9）与 zod（1 个，修复版 4.6.6）。都只在构建与部署工具里，不进应用。
+- undici 由 wrangler 经 miniflare 带入；最新的 miniflare 仍钉 7.28.0，升 wrangler 不解决。官网以 pnpm 的 `overrides` 钉 undici 7.30.2；视频工程以 npm 的 `overrides` 钉 fast-uri ^3.1.9、zod ^4.6.6。
+- 核对：官网安装、构建、测试与 `wrangler deploy --dry-run` 都过；视频工程 `npm ci` 报 0 个漏洞，类型检查只缺不入库的录屏文件。
