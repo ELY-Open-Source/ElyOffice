@@ -1,0 +1,206 @@
+sc: LOK places a new chart off drawings, mirrored, and fast
+
+Patch 0041 puts a new chart in empty cells beside its data. Three
+defects remained (Ely R2.10):
+
+- On a right-to-left sheet the anchor was the cell's mirrored top
+  left, so the chart reached back over the data and off the sheet.
+  The chart now ends at the cell's start there.
+- Only cell contents and merges counted as taken; a second chart
+  landed on the first. Every object on the target page now holds
+  the cells under its bounds.
+- The scans stepped one chart size at a time and tested each cell
+  run; a sheet with one 100x25 gap off that grid was refused after
+  27 s, a full sheet after 73 s. Each scan now jumps past what
+  blocked it: by binary search to the last blocked index, and down
+  a column by merge runs, data areas and drawings, read from the
+  attribute runs rather than by walking to a merge's origin.
+--- a/sc/source/ui/drawfunc/fuins2.cxx
++++ b/sc/source/ui/drawfunc/fuins2.cxx
+@@ -50,6 +50,8 @@
+ #include <comphelper/lok.hxx>
+ #include <o3tl/unit_conversion.hxx>
+ #include <optional>
++#include <algorithm>
++#include <cstdlib>
+ #include <comphelper/storagehelper.hxx>
+ #include <comphelper/propertysequence.hxx>
+ #include <com/sun/star/embed/EmbedVerbs.hpp>
+@@ -239,45 +241,147 @@
+     return std::nullopt;
+ }
+ 
++/// The farthest index from nFrom toward nTo where bTaken holds.
++template <typename T, typename F> T lcl_Farthest(T nFrom, T nTo, F bTaken)
++{
++    const sal_Int64 nStep = nTo < nFrom ? -1 : 1;
++    sal_Int64 nLow = 0, nHigh = std::abs(sal_Int64(nTo) - nFrom);
++    while (nLow < nHigh)
++    {
++        const sal_Int64 nMid = (nLow + nHigh + 1) / 2;
++        if (bTaken(T(nFrom + nStep * nMid)))
++            nLow = nMid;
++        else
++            nHigh = nMid - 1;
++    }
++    return T(nFrom + nStep * nLow);
++}
++
+ /// LOK: empty cells right of rData, else below, left, above.
+-std::optional<Point> lcl_EmptyBeside(const ScDocument& rDoc, const ScRange& rData, const Size& rSize)
++std::optional<Point> lcl_EmptyBeside(const ScDocument& rDoc, const SdrPage& rPage, const ScRange& rData, const Size& rSize)
+ {
+     const SCTAB nTab = rData.aStart.Tab();
+     const tools::Long nWidth = o3tl::convert(rSize.Width(), o3tl::Length::mm100, o3tl::Length::twip);
+     const tools::Long nHeight = o3tl::convert(rSize.Height(), o3tl::Length::mm100, o3tl::Length::twip);
++    // Ely: charts and shapes hold their cells too.
++    std::vector<ScRange> aDrawn;
++    for (size_t i = 0; i < rPage.GetObjCount(); ++i)
++        aDrawn.push_back(rDoc.GetRange(nTab, rPage.GetObj(i)->GetCurrentBoundRect()));
+     // Merged cells take their whole area, anchor or not.
+-    const auto free = [&](SCCOL nCol1, SCROW nRow1, SCCOL nCol2, SCROW nRow2) {
+-        return rDoc.IsBlockEmpty(nCol1, nRow1, nCol2, nRow2, nTab)
+-            && !rDoc.HasAttrib(nCol1, nRow1, nTab, nCol2, nRow2, nTab, HasAttrFlags::Merged | HasAttrFlags::Overlapped);
++    const auto taken = [&](SCCOL nCol1, SCROW nRow1, SCCOL nCol2, SCROW nRow2) {
++        const ScRange aBlock(nCol1, nRow1, nTab, nCol2, nRow2, nTab);
++        return !rDoc.IsBlockEmpty(nCol1, nRow1, nCol2, nRow2, nTab)
++            || rDoc.HasAttrib(nCol1, nRow1, nTab, nCol2, nRow2, nTab, HasAttrFlags::Merged | HasAttrFlags::Overlapped)
++            || std::any_of(aDrawn.begin(), aDrawn.end(), [&](const ScRange& rDrawn) { return rDrawn.Intersects(aBlock); });
++    };
++    // The last taken row in nCol from nRow down.
++    const auto bottomOf = [&](SCCOL nCol, SCROW nRow) {
++        SCROW nEnd = nRow;
++        for (;;)
++        {
++            // Jumps by attribute runs, never walking to the origin.
++            SCROW nRunStart = nEnd, nRunEnd = nEnd;
++            SCROW nNext = nEnd;
++            if (rDoc.GetAttr(nCol, nEnd, nTab, ATTR_MERGE_FLAG, nRunStart, nRunEnd).IsVerOverlapped())
++                nNext = nRunEnd;
++            nNext = std::max<SCROW>(nNext, nEnd + rDoc.GetAttr(nCol, nEnd, nTab, ATTR_MERGE).GetRowMerge() - 1);
++            for (const ScRange& rDrawn : aDrawn)
++                if (rDrawn.Contains(ScAddress(nCol, nEnd, nTab)))
++                    nNext = std::max(nNext, rDrawn.aEnd.Row());
++            if (nEnd < rDoc.MaxRow() && !rDoc.IsBlockEmpty(nCol, nEnd, nCol, nEnd, nTab)
++                && !rDoc.IsBlockEmpty(nCol, nEnd + 1, nCol, nEnd + 1, nTab))
++            {
++                SCCOL nAreaCol = nCol;
++                SCROW nAreaRow = nEnd;
++                rDoc.FindAreaPos(nAreaCol, nAreaRow, nTab, SC_MOVE_DOWN);
++                nNext = std::max(nNext, nAreaRow);
++            }
++            if (nNext > nEnd)
++                nEnd = std::min(nNext, rDoc.MaxRow());
++            else if (nEnd < rDoc.MaxRow() && taken(nCol, nEnd + 1, nCol, nEnd + 1))
++                ++nEnd;
++            else
++                return nEnd;
++        }
++    };
++    // Ely: right-to-left, the chart ends where the cell starts.
++    const auto at = [&](SCCOL nCol, SCROW nRow) {
++        const tools::Rectangle aCell = rDoc.GetMMRect(nCol, nRow, nCol, nRow, nTab);
++        return rDoc.IsNegativePage(nTab) ? Point(aCell.Right() - rSize.Width(), aCell.Top()) : aCell.TopLeft();
+     };
+-    const auto at = [&](SCCOL nCol, SCROW nRow) { return rDoc.GetMMRect(nCol, nRow, nCol, nRow, nTab).TopLeft(); };
+     const SCROW nTop = rData.aStart.Row();
+     const SCCOL nLeft = rData.aStart.Col();
+-    // Sideways scans share rows; vertical scans share columns.
++    // Each scan jumps past what blocked it.
+     if (const auto oBottom = lcl_Down(rDoc, nTab, nTop, nHeight))
+     {
+-        for (SCCOL nCol = rData.aEnd.Col() + 2; nCol <= rDoc.MaxCol(); ++nCol)
+-            if (const auto oRight = lcl_Across(rDoc, nTab, nCol, nWidth); oRight && free(nCol, nTop, *oRight, *oBottom))
++        for (SCCOL nCol = rData.aEnd.Col() + 2; nCol <= rDoc.MaxCol();)
++        {
++            const auto oRight = lcl_Across(rDoc, nTab, nCol, nWidth);
++            if (!oRight)
++                break;
++            if (!taken(nCol, nTop, *oRight, *oBottom))
+                 return at(nCol, nTop);
++            nCol = lcl_Farthest(nCol, *oRight, [&](SCCOL nAt) { return taken(nAt, nTop, *oRight, *oBottom); }) + 1;
++        }
+     }
+     const auto oRight = lcl_Across(rDoc, nTab, nLeft, nWidth);
+-    for (SCROW nRow = rData.aEnd.Row() + 2; oRight && nRow <= rDoc.MaxRow(); ++nRow)
+-        if (const auto oBottom = lcl_Down(rDoc, nTab, nRow, nHeight); oBottom && free(nLeft, nRow, *oRight, *oBottom))
++    for (SCROW nRow = rData.aEnd.Row() + 2; oRight && nRow <= rDoc.MaxRow();)
++    {
++        const auto oBottom = lcl_Down(rDoc, nTab, nRow, nHeight);
++        if (!oBottom)
++            break;
++        if (!taken(nLeft, nRow, *oRight, *oBottom))
+             return at(nLeft, nRow);
++        const SCROW nLow = lcl_Farthest(nRow, *oBottom, [&](SCROW nAt) { return taken(nLeft, nAt, *oRight, *oBottom); });
++        const SCCOL nAt = lcl_Farthest(nLeft, *oRight, [&](SCCOL nCol) { return taken(nCol, nLow, *oRight, nLow); });
++        nRow = bottomOf(nAt, nLow) + 1;
++    }
+     if (const auto oBottom = lcl_Down(rDoc, nTab, nTop, nHeight))
+     {
+-        for (SCCOL nCol = nLeft - 2; nCol >= 0; --nCol)
+-            if (const auto oEnd = lcl_Across(rDoc, nTab, nCol, nWidth); oEnd && *oEnd < nLeft - 1 && free(nCol, nTop, *oEnd, *oBottom))
+-                return at(nCol, nTop);
++        for (SCCOL nCol = nLeft - 2; nCol >= 0;)
++        {
++            const auto oEnd = lcl_Across(rDoc, nTab, nCol, nWidth);
++            if (oEnd && *oEnd < nLeft - 1)
++            {
++                if (!taken(nCol, nTop, *oEnd, *oBottom))
++                    return at(nCol, nTop);
++                const SCCOL nFirst = lcl_Farthest(*oEnd, nCol, [&](SCCOL nAt) { return taken(nCol, nTop, nAt, *oBottom); });
++                while (nCol >= 0 && *lcl_Across(rDoc, nTab, nCol, nWidth) >= nFirst)
++                    --nCol;
++            }
++            else
++                --nCol;
++        }
+     }
+-    for (SCROW nRow = nTop - 2; oRight && nRow >= 0; --nRow)
+-        if (const auto oEnd = lcl_Down(rDoc, nTab, nRow, nHeight); oEnd && *oEnd < nTop - 1 && free(nLeft, nRow, *oRight, *oEnd))
+-            return at(nLeft, nRow);
+-    // Last, any chart-sized empty block, row bands first.
+-    for (SCROW nRow = 0; const auto oBottom = lcl_Down(rDoc, nTab, nRow, nHeight); nRow = *oBottom + 1)
+-        for (SCCOL nCol = 0; const auto oEnd = lcl_Across(rDoc, nTab, nCol, nWidth); nCol = *oEnd + 1)
+-            if (free(nCol, nRow, *oEnd, *oBottom))
++    for (SCROW nRow = nTop - 2; oRight && nRow >= 0;)
++    {
++        const auto oEnd = lcl_Down(rDoc, nTab, nRow, nHeight);
++        if (oEnd && *oEnd < nTop - 1)
++        {
++            if (!taken(nLeft, nRow, *oRight, *oEnd))
++                return at(nLeft, nRow);
++            const SCROW nFirst = lcl_Farthest(*oEnd, nRow, [&](SCROW nAt) { return taken(nLeft, nRow, *oRight, nAt); });
++            while (nRow >= 0 && *lcl_Down(rDoc, nTab, nRow, nHeight) >= nFirst)
++                --nRow;
++        }
++        else
++            --nRow;
++    }
++    // Last, any empty block; a band skips below its blocks.
++    for (SCROW nRow = 0; const auto oBottom = lcl_Down(rDoc, nTab, nRow, nHeight);)
++    {
++        SCROW nNext = rDoc.MaxRow() + 1;
++        for (SCCOL nCol = 0; const auto oEnd = lcl_Across(rDoc, nTab, nCol, nWidth);)
++        {
++            if (!taken(nCol, nRow, *oEnd, *oBottom))
+                 return at(nCol, nRow);
++            const SCCOL nLast = lcl_Farthest(nCol, *oEnd, [&](SCCOL nAt) { return taken(nAt, nRow, *oEnd, *oBottom); });
++            const SCROW nLow = lcl_Farthest(nRow, *oBottom, [&](SCROW nAt) { return taken(nLast, nAt, nLast, *oBottom); });
++            nNext = std::min(nNext, bottomOf(nLast, nLow) + 1);
++            nCol = nLast + 1;
++        }
++        nRow = nNext;
++    }
+     return std::nullopt;
+ }
+ 
+@@ -695,7 +799,8 @@
+         ScRange aNear = aPositionRange.aStart.Tab() == nTab ? aPositionRange : ScRange(rData.GetCurPos());
+         aNear.aStart.SetTab(nTab);
+         aNear.aEnd.SetTab(nTab);
+-        oBeside = lcl_EmptyBeside(rData.GetDocument(), aNear, aSize);
++        // The page the chart goes on.
++        oBeside = lcl_EmptyBeside(rData.GetDocument(), *pView->GetSdrPageView()->GetPage(), aNear, aSize);
+         if (!oBeside)
+         {
+             ELY_WARN("sc.lok", "no empty cells hold the chart");

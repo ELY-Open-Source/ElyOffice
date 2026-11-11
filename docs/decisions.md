@@ -930,3 +930,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Ely：`Events.fonts` 为（名字，所用家族）；`fonts_of` 要求两数组成对，缺 `fontsused`（未带 0128 的内核）即报读不懂的故障，不悄悄只显示名字。ElyDoc 提示与 ElyShow 的演示准备检查每项写作 `fonts.instead`（“{font}（以 {used} 代替）”），没有所用家族时只写名字。
 - 实测（Linux）：Nowhere Sans 以 Liberation Sans 画出，400 段的 FODT 17 页对 9 页。
 - 构建：Linux 用合并库，desktop/source/lib/init.cxx 与 vcl 编进 libmergedlo；只 `make desktop.build` 会重建 libsofficeapp 而 LOK 仍载旧的 libmergedlo，须再 `make Library_merged`。Mac、Windows 的共享内核待发布前带上重建（R19.4）。
+
+## 2026-11-11 新图表的放置：从右向左、绘图对象与搜索速度（R2.10 再审，补丁 0129）
+
+- 再审查出补丁 0041 的三处缺陷仍在，任务说明所等的“0101”从未存在：从右向左的表锚点取镜像后的左上角，图表回盖数据并越出表外；只把单元格内容与合并当作占用，连插两张图重叠；扫描每次只挪一个图表大小，空处不在这一格网上即找不到，一张只留 100×25 空处的表 27 秒后拒绝。
+- 0129：从右向左时图表右边对齐所找单元格的起点；目标页上每个对象的外框经 `ScDocument::GetRange`（已处理镜像）换成单元格，算作占用；每次被阻即跳过阻挡——以二分找到最后被占的列或行，向下按该列的合并标记属性段（`GetAttr` 带起止行的重载）、合并起点的行数、数据区（`FindAreaPos`）与绘图对象一次跳过。
+- 第一版逐列调 `ExtendOverlapped` 找合并起点：它向左一列一列走，一个 16,000 列宽的合并约 2,000 次调用共 16 秒；改读属性段后错位空处与整表占满都在 5 秒内（测试的上限）。
+- 构建：本机 gcc 16 编 sc 时 `fuins2.o` 引用 `SvLockBytes` 的内联析构，合并库不导出其 vtable，未改动的文件也链接失败；sc 在发布容器（AlmaLinux 8，gcc-toolset-15）里建过。Mac、Windows 的共享内核待发布前带上 0125–0129 重建（R19.4）。
