@@ -53,10 +53,14 @@ pub(super) fn live_view_of(
 pub(super) fn ended_with_thread(worker: &Arc<Mutex<crate::Worker>>, dir: tempfile::TempDir) {
     let ending = Arc::downgrade(worker);
     ely_ui::at_thread_end(move || {
-        if let Some(worker) = ending.upgrade()
-            && let Err(error) = worker.lock().expect("the worker lock").shutdown()
-        {
-            log::warn!("lok: test worker shutdown failed: {error}");
+        if let Some(worker) = ending.upgrade() {
+            let mut worker = worker.lock().unwrap_or_else(|poisoned| {
+                log::warn!("lok: a test panicked holding the worker");
+                poisoned.into_inner()
+            });
+            if let Err(error) = worker.shutdown() {
+                log::warn!("lok: test worker shutdown failed: {error}");
+            }
         }
         drop(dir);
     });

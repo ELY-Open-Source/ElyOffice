@@ -7,10 +7,11 @@ use gpui::TestAppContext;
 
 use super::{changed, window::SettingsView};
 
-/// The scratch root, emptied once per run.
+/// The scratch root; runs take it in turn.
 fn root() -> &'static std::path::Path {
-    static ROOT: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
-    ROOT.get_or_init(|| {
+    static ROOT: std::sync::OnceLock<(std::path::PathBuf, ely_platform::lock::FileLock)> = std::sync::OnceLock::new();
+    &ROOT.get_or_init(|| {
+        let held = ely_platform::lock::FileLock::take(&std::env::temp_dir().join("ely-ui-settings-tests.lock")).unwrap();
         let root = std::env::temp_dir().join("ely-ui-settings-tests");
         match std::fs::remove_dir_all(&root) {
             Err(error) if error.kind() != std::io::ErrorKind::NotFound => panic!("{}: {error}", root.display()),
@@ -19,8 +20,9 @@ fn root() -> &'static std::path::Path {
         std::fs::create_dir(&root).unwrap();
         // SAFETY: set before any test's first write.
         unsafe { std::env::set_var("ELY_DATA_ROOT", &root) };
-        root
+        (root, held)
     })
+    .0
 }
 
 /// A scratch root: gpui runs pending writes at test end.

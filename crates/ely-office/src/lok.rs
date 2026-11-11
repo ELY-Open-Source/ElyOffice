@@ -380,13 +380,14 @@ pub fn test_worker(install: &Path) -> (Arc<Mutex<Worker>>, Option<Stop>) {
     let worker = Arc::new(Mutex::new(worker));
     let ending = worker.clone();
     ely_ui::at_thread_end(move || {
-        match ending.lock() {
-            Ok(mut worker) => match worker.shutdown() {
-                Ok(()) => {}
-                Err(error) => log::warn!("lok: test worker shutdown failed: {error}"),
-            },
-            Err(_) => log::warn!("lok: a test panicked holding the worker"),
+        let mut worker = ending.lock().unwrap_or_else(|poisoned| {
+            log::warn!("lok: a test panicked holding the worker");
+            poisoned.into_inner()
+        });
+        if let Err(error) = worker.shutdown() {
+            log::warn!("lok: test worker shutdown failed: {error}");
         }
+        drop(worker);
         drop(profile);
     });
     (worker, stop)

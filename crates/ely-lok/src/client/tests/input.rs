@@ -333,8 +333,10 @@ fn a_calc_cut_finishes_without_a_dialog() {
         // A blocked worker would hold the test open.
         kill(pid);
     }
+    // Joined first: a failure still frees the dir.
+    let ended = cutting.join();
     let (flavors, kept) = outcome.expect("the cut never blocked on a dialog");
-    cutting.join().expect("the worker and its dir are gone");
+    ended.expect("the worker and its dir are gone");
     assert!(flavors > 0, "the cells copied");
     assert!(!kept, "the cut emptied A1");
 }
