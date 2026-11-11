@@ -82,11 +82,6 @@ fn scan(bytes: &[u8], how: &Import) -> Scan {
             broken: true,
         };
     };
-    // Calc reads UTF-16 lines without their NULs.
-    let text = match how.encoding {
-        Encoding::Utf16 => text.replace('\0', ""),
-        _ => text,
-    };
     let mut columns = Vec::new();
     let mut rows = Vec::new();
     for row in calc::rows(&text, how) {

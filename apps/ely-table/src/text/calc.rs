@@ -1,10 +1,19 @@
 //! Calc's text-import records and fields (sc impex.cxx).
 
-use ely_lok::sheet::csv::Import;
+use std::borrow::Cow;
+
+use ely_lok::sheet::csv::{Encoding, Import};
 
 /// Rows as the kernel reads them: no merge or trim.
 pub(super) fn rows<'a>(text: &'a str, how: &'a Import) -> impl Iterator<Item = Vec<String>> + 'a {
-    let lines = lines(text);
+    // Calc drops UTF-16 NULs per line, after the split.
+    let lines: Vec<Cow<str>> = lines(text)
+        .into_iter()
+        .map(|line| match how.encoding {
+            Encoding::Utf16 if line.contains('\0') => Cow::Owned(line.replace('\0', "")),
+            _ => Cow::Borrowed(line),
+        })
+        .collect();
     let mut next = 0;
     std::iter::from_fn(move || {
         let mut record: Vec<char> = lines.get(next)?.chars().collect();
@@ -64,7 +73,7 @@ fn starts(start: bool, c: char, separator: char) -> bool {
 }
 
 /// ReadCsvLine: lines join while a quoted field stays open.
-fn join(lines: &[&str], mut next: usize, record: &mut Vec<char>, quote: char, separator: char) -> usize {
+fn join(lines: &[Cow<str>], mut next: usize, record: &mut Vec<char>, quote: char, separator: char) -> usize {
     let (mut kept, mut back) = (record.len(), next);
     let (mut quotes, mut state, mut start, mut from) = (0u32, Quote::End, true, 0);
     loop {

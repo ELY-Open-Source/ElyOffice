@@ -273,7 +273,7 @@ fn the_preview_reads_what_the_kernel_imports() {
         eprintln!("SKIP: no LOK build");
         return;
     };
-    // NULs: dropped before the split; they decide joins too (fdo#57841).
+    // NULs: dropped after the line split; joins see them (fdo#57841).
     let nul = "Id,Code\n1,00\u{0}123\n\"ab\"\u{0},x\n\"ab\"\u{0}x,\"c\nd\",e\n\u{0}\"a\nb\",c\n";
     let files = [
         "Id,Code\n \"00123\",1\n\ny,-12345678901234567890\n".as_bytes().to_vec(),
@@ -282,6 +282,8 @@ fn the_preview_reads_what_the_kernel_imports() {
         nul.as_bytes().to_vec(),
         // UTF-16 lines lose their NULs as they are read.
         [0xFF, 0xFE].into_iter().chain(nul.encode_utf16().flat_map(u16::to_le_bytes)).collect(),
+        // A NUL keeps CR and LF apart: two line ends.
+        [0xFF, 0xFE].into_iter().chain("a,b\r\u{0}\nc,d\n\u{0}\re,f\r\n".encode_utf16().flat_map(u16::to_le_bytes)).collect(),
     ];
     for (file, text) in files.into_iter().enumerate() {
         let path = dir.path().join(format!("odd{file}.csv"));
