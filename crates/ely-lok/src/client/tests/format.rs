@@ -348,8 +348,8 @@ fn a_size_on_an_empty_line_sets_every_script() {
     assert!(style.contains("style:font-size-asian=\"14pt\""), "Asian: {style}");
 }
 
-/// "Alpha" and "Beta" in two looks; `kind` says how.
-fn two_looks(kind: &str) -> String {
+/// Two looks, `pairs` times; `kind` says how.
+fn two_looks(kind: &str, pairs: usize) -> String {
     let look = |name: &str, family: &str, font: &str, size: &str, ink: &str, back: &str| {
         format!(r#"<style:style style:name="{name}" style:family="{family}"><style:text-properties style:font-name="{font}" fo:font-size="{size}" fo:color="{ink}" fo:background-color="{back}"/></style:style>"#)
     };
@@ -363,9 +363,9 @@ fn two_looks(kind: &str) -> String {
  <office:font-face-decls><style:font-face style:name="Serif" svg:font-family="&apos;Liberation Serif&apos;"/><style:font-face style:name="Mono" svg:font-family="&apos;Liberation Mono&apos;"/></office:font-face-decls>
  <office:styles>{styles}</office:styles>
  <office:automatic-styles>{automatic}</office:automatic-styles>
- <office:body><office:text><text:p><text:span text:style-name="{}">Alpha</text:span> <text:span text:style-name="{}">Beta</text:span></text:p></office:text></office:body>
+ <office:body><office:text><text:p>{}</text:p></office:text></office:body>
 </office:document>"#,
-        span[0], span[1]
+        format!(r#"<text:span text:style-name="{}">Alpha</text:span> <text:span text:style-name="{}">Beta</text:span>"#, span[0], span[1]).repeat(pairs)
     )
 }
 
@@ -376,7 +376,7 @@ fn mixed_colors_and_highlights_report_dont_care() {
         return;
     }
     for kind in ["styles", "direct"] {
-        let (_dir, mut worker, doc) = open(&two_looks(kind));
+        let (_dir, mut worker, doc) = open(&two_looks(kind, 1));
         worker.run(&doc, "edit.select_all", &[]).expect("select all");
         let names = [".uno:FontColor", ".uno:CharBackColor", ".uno:FontHeight"];
         let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
@@ -395,10 +395,32 @@ fn one_size_and_font_go_over_two_character_styles() {
         return;
     }
     for (id, value, mark) in [("format.size", "14", "fo:font-size=\"14pt\""), ("format.font", "Liberation Sans", "Liberation Sans")] {
-        let (dir, mut worker, doc) = open(&two_looks("styles"));
+        let (dir, mut worker, doc) = open(&two_looks("styles", 1));
         worker.run(&doc, "edit.select_all", &[]).expect("select all");
         worker.run(&doc, id, &[value]).unwrap_or_else(|error| panic!("{id}: {error}"));
         let text = saved(&dir, &mut worker, &doc, "out.fodt");
         assert!(text.contains(mark), "{id} {value} is not in the file");
     }
+}
+
+#[test]
+fn a_long_paragraph_of_styles_answers_its_state_at_once() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = open(&two_looks("styles", 8000));
+    worker.run(&doc, "edit.select_all", &[]).expect("select all");
+    let asked = ".uno:CommandStates?commands=.uno:FontHeight";
+    worker.values(&doc, asked).expect("the state");
+    let fastest = (0..3)
+        .map(|_| {
+            let started = std::time::Instant::now();
+            worker.values(&doc, asked).expect("the state");
+            started.elapsed()
+        })
+        .min()
+        .expect("three asks");
+    // A scan per style and attribute took 400 ms.
+    assert!(fastest < std::time::Duration::from_millis(50), "16000 styled runs took {fastest:?}");
 }
