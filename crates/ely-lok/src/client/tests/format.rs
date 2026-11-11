@@ -64,8 +64,9 @@ fn tab_stops_add_and_remove_through_the_ruler() {
         added.tabs
     );
     let state = worker.now(&doc).expect("the state");
+    // The removal names where the ruler showed it.
     worker
-        .run(&state, "paragraph.tab", &["0", "0", "true"])
+        .run(&state, "paragraph.tab", &["0", &added.tabs[0].to_string(), "true"])
         .expect("remove it");
     let removed = poll_until(&mut worker, &doc, &added, HANG, |seen| {
         seen.tabs.is_empty()

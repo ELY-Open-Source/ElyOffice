@@ -87,7 +87,8 @@ pub(super) const ROWS: &[Command] = &[
         ".uno:ChangeTabStop",
         &[
             Arg::Int("Index", "long", -1, 99),
-            Arg::Int("Position", "long", 0, 31_680),
+            // Twips to add; the shown 1/100 mm to remove.
+            Arg::Int("Position", "long", 0, 55_880),
             Arg::Bool("Remove"),
         ],
         Check::Undoable,

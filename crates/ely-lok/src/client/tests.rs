@@ -4,6 +4,7 @@ use super::*;
 
 mod analysis;
 mod autospace;
+mod tabs;
 mod borders;
 mod backslash;
 mod by_address;

@@ -1,0 +1,44 @@
+sw: LOK removes a tab stop only where the ruler showed it
+
+.uno:ChangeTabStop removes by index in the current paragraph. The
+ruler, and so the client's list of stops, follows the cursor late:
+it updates when the bindings finish their next round, about half a
+second after a key. A client that removed stop 1 from the list it
+showed, right after Down, removed stop 1 of the next paragraph
+(Ely C17.1). Under LOK a removal now brings the bindings and the
+ruler up to date, then removes only if the stop at that index is
+shown at the given position (1/100 mm, as the ruler JSON says);
+else it removes nothing and logs why.
+--- a/sw/source/uibase/uiview/viewtab.cxx
++++ b/sw/source/uibase/uiview/viewtab.cxx
+@@ -57,6 +57,7 @@
+ #include <ndtxt.hxx>
+ #include <pam.hxx>
+ #include <comphelper/lok.hxx>
++#include <ely/log.hxx>
+ #include <LibreOfficeKit/LibreOfficeKitEnums.h>
+ #include <boost/property_tree/json_parser.hpp>
+ #include <osl/diagnose.h>
+@@ -657,6 +658,22 @@
+             const sal_Int32 nPosition = static_cast<const SfxInt32Item&>(pReqArgs->Get(SID_TABSTOP_ATTR_POSITION)).GetValue();
+             const bool bRemove = static_cast<const SfxBoolItem&>(pReqArgs->Get(SID_TABSTOP_ATTR_REMOVE)).GetValue();
+ 
++            // Ely: a removal names the stop the ruler showed.
++            if (bRemove && comphelper::LibreOfficeKit::isActive())
++            {
++                GetViewFrame().GetBindings().Update();
++                sal_Int32 nShown = 0;
++                std::optional<sal_Int32> oAt;
++                for (const RulerTab& rTab : GetHRuler().GetTabs())
++                    if (rTab.nStyle != RULER_TAB_DEFAULT && nShown++ == nIndex)
++                        oAt = convertTwipToMm100(rTab.nPos);
++                if (oAt != nPosition)
++                {
++                    ELY_WARN("sw.ui", "tab stop " << nIndex << " is not at " << nPosition << " but "
++                                                  << oAt.value_or(-1) << "; nothing removed");
++                    break;
++                }
++            }
+             SfxItemSetFixed<RES_PARATR_TABSTOP, RES_PARATR_TABSTOP> aItemSet(GetPool());
+             rSh.GetCurAttr(aItemSet);
+             SvxTabStopItem aTabStopItem(aItemSet.Get(RES_PARATR_TABSTOP));

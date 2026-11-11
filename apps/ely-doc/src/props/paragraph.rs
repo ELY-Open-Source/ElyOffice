@@ -244,8 +244,9 @@ impl Props {
                     .size(ControlSize::Sm)
                     .trailing_icon(IconName::X)
                     .on_click(move |_, _, cx| {
-                        let at = at.to_string();
-                        this.update(cx, |props, cx| props.run_at(&read, "paragraph.tab", &[&at, "0", "true"], cx))
+                        // The kernel removes it only if still there.
+                        let (at, mm100) = (at.to_string(), mm100.to_string());
+                        this.update(cx, |props, cx| props.run_at(&read, "paragraph.tab", &[&at, &mm100, "true"], cx))
                     })
                     .into_any_element()
             })

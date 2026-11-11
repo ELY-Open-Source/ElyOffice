@@ -81,8 +81,9 @@ fn the_panel_formats_text_paragraphs_and_styles() {
     });
     // The shown stop, removed at the revision that read it.
     cx.update(|app| {
-        let read = docs.read(app).active_tab().expect("a tab").view.read(app).tabs().1;
-        props.update(app, |props, cx| props.run_at(&read, "paragraph.tab", &["0", "0", "true"], cx))
+        let (stops, read) = docs.read(app).active_tab().expect("a tab").view.read(app).tabs();
+        let at = stops[0].to_string();
+        props.update(app, |props, cx| props.run_at(&read, "paragraph.tab", &["0", &at, "true"], cx))
     });
     settle(&cx, |app| {
         let view = docs.read(app).active_tab().expect("a tab").view.read(app);

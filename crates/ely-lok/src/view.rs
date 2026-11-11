@@ -411,10 +411,7 @@ impl LokView {
         }
         let changed = batch.generation != self.generation || batch.all || !batch.rects.is_empty();
         self.take_a11y(batch.a11y, changed, cx);
-        match batch.revision < self.tabs.1 {
-            true => log::debug!("lok: tab stops read at {} are older than {}", batch.revision, self.tabs.1),
-            false => self.tabs = (batch.tabs, batch.revision),
-        }
+        self.tabs = (batch.tabs, batch.revision);
         self.states.extend(batch.states);
         self.relay(batch.blocked, batch.links, cx);
         cx.emit(Reported);
