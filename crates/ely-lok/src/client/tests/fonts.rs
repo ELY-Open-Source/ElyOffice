@@ -196,3 +196,62 @@ fn a_missing_font_is_named_and_its_pages_counted_apart() {
     assert!(here > 1 && gone > 1, "both lay out pages: {here}, {gone}");
     assert_ne!(here, gone, "a stand-in moves the pages, and they show");
 }
+
+/// One font as each system names it, in two languages.
+#[cfg(target_os = "linux")]
+const BOTH_NAMES: [&str; 2] = ["Ely Alias Sans", "别名黑体"];
+#[cfg(target_os = "macos")]
+const BOTH_NAMES: [&str; 2] = ["PingFang SC", "苹方-简"];
+#[cfg(windows)]
+const BOTH_NAMES: [&str; 2] = ["Malgun Gothic", "맑은 고딕"];
+
+/// A span in each of `fonts`.
+fn spans(fonts: &[&str]) -> String {
+    let faces: String = fonts
+        .iter()
+        .map(|font| format!(r#"<style:font-face style:name="{font}" svg:font-family="&apos;{font}&apos;"/>"#))
+        .collect();
+    let styles: String = fonts
+        .iter()
+        .enumerate()
+        .map(|(n, font)| {
+            format!(r#"<style:style style:name="T{n}" style:family="text"><style:text-properties style:font-name="{font}" style:font-name-asian="{font}"/></style:style>"#)
+        })
+        .collect();
+    let text: String = (0..fonts.len())
+        .map(|n| format!(r#"<text:span text:style-name="T{n}">Abc {n}</text:span> "#))
+        .collect();
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:font-face-decls>{faces}</office:font-face-decls>
+ <office:automatic-styles>{styles}</office:automatic-styles>
+ <office:body><office:text><text:p>{text}</text:p></office:text></office:body>
+</office:document>"#
+    )
+}
+
+#[test]
+fn a_font_is_found_by_its_name_in_another_language() {
+    let Some(install) = install() else {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let profile = dir.path().join("profile");
+    // Linux reads the profile's fonts; others have theirs.
+    if cfg!(target_os = "linux") {
+        let fonts = profile.join("user").join("fonts");
+        std::fs::create_dir_all(&fonts).expect("the font folder");
+        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/alias.ttf");
+        std::fs::copy(fixture, fonts.join("alias.ttf")).expect("the font copies");
+    }
+    let mut worker = Worker::spawn(&install, &profile).expect("the worker");
+    let source = dir.path().join("in.fodt");
+    write(&source, &spans(&[BOTH_NAMES[0], BOTH_NAMES[1], "Nowhere Sans"]));
+    let doc = worker.load(&crate::file_url(&source)).expect("the document loads");
+    let seen = poll_until(&mut worker, &doc, &Events::default(), std::time::Duration::from_secs(5), |seen| {
+        !seen.fonts.is_empty()
+    });
+    assert_eq!(seen.fonts, ["Nowhere Sans"], "{BOTH_NAMES:?} name one font");
+}

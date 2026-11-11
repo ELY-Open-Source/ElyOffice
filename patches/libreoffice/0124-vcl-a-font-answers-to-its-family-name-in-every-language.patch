@@ -1,0 +1,273 @@
+vcl: a font answers to its family name in every language
+
+A font names its family in several languages: Source Han Serif SC is
+also "思源宋体". Each platform keeps one of the names: Windows the
+one for the system locale, macOS the one for the UI language,
+fontconfig the one for the kernel's UI language. A document from WPS
+asks for "思源宋体". On Windows and macOS the lookup missed whenever
+the kept name was the other one, and the text fell back to another
+font. On Linux fontconfig found the font, but the fonts-missing
+check compared "思源宋体" with "Source Han Serif SC" and reported it
+missing (Ely #82).
+
+The lookup now tries the family names (name IDs 1 and 16, every
+language) read from the fonts' name tables, once, on the first
+document font name it misses; the time it took goes to the log. The
+check names a used face by the document's name when the face carries
+that name.
+--- a/vcl/inc/font/PhysicalFontFace.hxx
++++ b/vcl/inc/font/PhysicalFontFace.hxx
+@@ -178,6 +178,8 @@
+ 
+     OUString GetName(NameID, const LanguageTag&) const;
+     OUString GetName(NameID aNameID) const { return GetName(aNameID, LanguageTag(LANGUAGE_NONE)); }
++    // The name in every language the font gives it.
++    std::vector<OUString> GetNames(NameID) const;
+ 
+     virtual hb_face_t* GetHbFace() const;
+     virtual hb_blob_t* GetHbTable(hb_tag_t) const
+--- a/vcl/source/font/PhysicalFontFace.cxx
++++ b/vcl/source/font/PhysicalFontFace.cxx
+@@ -496,6 +496,25 @@
+     return sName;
+ }
+ 
++std::vector<OUString> PhysicalFontFace::GetNames(NameID aNameID) const
++{
++    hb_face_t* pHbFace = GetHbFace();
++    unsigned int nCount = 0;
++    const hb_ot_name_entry_t* pEntries = hb_ot_name_list_names(pHbFace, &nCount);
++    std::vector<OUString> aNames;
++    for (unsigned int i = 0; i < nCount; ++i)
++    {
++        if (pEntries[i].name_id != aNameID)
++            continue;
++        unsigned int nName
++            = hb_ot_name_get_utf16(pHbFace, aNameID, pEntries[i].language, nullptr, nullptr);
++        std::vector<uint16_t> aBuf(++nName);
++        hb_ot_name_get_utf16(pHbFace, aNameID, pEntries[i].language, &nName, aBuf.data());
++        aNames.emplace_back(reinterpret_cast<sal_Unicode*>(aBuf.data()), nName);
++    }
++    return aNames;
++}
++
+ const std::vector<hb_variation_t>& PhysicalFontFace::GetVariations(const LogicalFontInstance&) const
+ {
+     if (!mxVariations)
+--- a/vcl/inc/font/PhysicalFontFamily.hxx
++++ b/vcl/inc/font/PhysicalFontFamily.hxx
+@@ -26,6 +26,8 @@
+ 
+ #include <unotools/fontcfg.hxx>
+ 
++#include <font/PhysicalFontFace.hxx>
++
+ namespace vcl::font
+ {
+ // flags for mnTypeFaces member
+@@ -83,6 +85,8 @@
+                                       const OUString& rSearchName);
+ 
+     void AddFontFace(PhysicalFontFace*);
++    // Its first face's name in every language.
++    SAL_DLLPRIVATE std::vector<OUString> GetNames(NameID) const;
+ 
+     SAL_DLLPRIVATE PhysicalFontFace*
+     FindBestFontFace(const vcl::font::FontSelectPattern& rFSD) const;
+--- a/vcl/source/font/PhysicalFontFamily.cxx
++++ b/vcl/source/font/PhysicalFontFamily.cxx
+@@ -107,6 +107,13 @@
+ {
+ }
+ 
++std::vector<OUString> PhysicalFontFamily::GetNames(NameID aNameID) const
++{
++    if (maFontFaces.empty())
++        return {};
++    return maFontFaces.front()->GetNames(aNameID);
++}
++
+ void PhysicalFontFamily::AddFontFace( PhysicalFontFace* pNewFontFace )
+ {
+     if( maFontFaces.empty() )
+--- a/vcl/inc/font/PhysicalFontCollection.hxx
++++ b/vcl/inc/font/PhysicalFontCollection.hxx
+@@ -59,6 +59,8 @@
+     vcl::font::PhysicalFontFamily* FindFontFamily( std::u16string_view rFontName ) const;
+     vcl::font::PhysicalFontFamily* FindOrCreateFontFamily( const OUString &rFamilyName );
+     SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* FindFontFamily( vcl::font::FontSelectPattern& ) const;
++    // Also by a family name in another language.
++    SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* FindFontFamilyByAnyName( std::u16string_view ) const;
+     vcl::font::PhysicalFontFamily* FindFontFamilyByTokenNames(std::u16string_view rTokenStr) const;
+     vcl::font::PhysicalFontFamily* FindFontFamilyByAttributes(ImplFontAttrs nSearchType, FontWeight, FontWidth,
+                                              FontItalic, std::u16string_view rSearchFamily) const;
+@@ -81,6 +83,9 @@
+ 
+     typedef std::unordered_map<OUString, std::unique_ptr<vcl::font::PhysicalFontFamily>> PhysicalFontFamilies;
+     PhysicalFontFamilies    maPhysicalFontFamilies;
++    // Other names' search names, read on the first miss.
++    mutable std::unordered_map<OUString, vcl::font::PhysicalFontFamily*> maOtherNames;
++    mutable bool            mbOtherNames;
+ 
+     vcl::font::PreMatchFontSubstitution* mpPreMatchHook;       // device specific prematch substitution
+     vcl::font::GlyphFallbackFontSubstitution* mpFallbackHook;  // device specific glyph fallback substitution
+@@ -92,6 +97,7 @@
+     SAL_DLLPRIVATE void ImplInitGenericGlyphFallback() const;
+ 
+     SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamilyBySearchName( const OUString& ) const;
++    SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamilyByOtherName( const OUString& ) const;
+     SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamilyBySubstFontAttr( const utl::FontNameAttr& ) const;
+ 
+     SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamilyOfDefaultFont() const;
+--- a/vcl/source/font/PhysicalFontCollection.cxx
++++ b/vcl/source/font/PhysicalFontCollection.cxx
+@@ -19,12 +19,15 @@
+ 
+ #include <sal/config.h>
+ 
++#include <algorithm>
++#include <chrono>
+ #include <memory>
+ 
+ #include <i18nlangtag/languagetag.hxx>
+ #include <i18nlangtag/mslangid.hxx>
+ #include <comphelper/configuration.hxx>
+ #include <unotools/fontdefs.hxx>
++#include <ely/log.hxx>
+ #include <o3tl/sorted_vector.hxx>
+ 
+ #include <font/PhysicalFontFaceCollection.hxx>
+@@ -70,6 +73,7 @@
+ 
+ PhysicalFontCollection::PhysicalFontCollection()
+     : mbMatchData( false )
++    , mbOtherNames( false )
+     , mpPreMatchHook( nullptr )
+     , mpFallbackHook( nullptr )
+     , mnFallbackCount( -1 )
+@@ -101,6 +105,8 @@
+ 
+     // match data must be recalculated too
+     mbMatchData = false;
++    maOtherNames.clear();
++    mbOtherNames = false;
+ }
+ 
+ void PhysicalFontCollection::ImplInitGenericGlyphFallback() const
+@@ -299,6 +305,8 @@
+     PhysicalFontFamily* pFoundData = FindOrCreateFontFamily(aSearchName);
+ 
+     pFoundData->AddFontFace( pNewData );
++    maOtherNames.clear();
++    mbOtherNames = false;
+ }
+ 
+ // find the font from the normalized font family name
+@@ -315,6 +323,46 @@
+     return pFoundData;
+ }
+ 
++PhysicalFontFamily* PhysicalFontCollection::ImplFindFontFamilyByOtherName(const OUString& rSearchName) const
++{
++    if (!mbOtherNames)
++    {
++        mbOtherNames = true;
++        const auto aStart = std::chrono::steady_clock::now();
++        std::vector<PhysicalFontFamily*> aFamilies;
++        for (auto const& family : maPhysicalFontFamilies)
++            aFamilies.push_back(family.second.get());
++        // Sorted, so a shared name always picks one family.
++        std::sort(aFamilies.begin(), aFamilies.end(),
++                  [](const PhysicalFontFamily* a, const PhysicalFontFamily* b)
++                  { return a->GetSearchName() < b->GetSearchName(); });
++        for (NameID aNameID : { NAME_ID_FONT_FAMILY, NAME_ID_TYPOGRAPHIC_FAMILY })
++            for (PhysicalFontFamily* pFamily : aFamilies)
++                for (const OUString& rName : pFamily->GetNames(aNameID))
++                {
++                    OUString aName = GetEnglishSearchFontName(rName);
++                    if (!maPhysicalFontFamilies.contains(aName))
++                        maOtherNames.emplace(aName, pFamily);
++                }
++        ELY_INFO("vcl.fonts", "read " << maOtherNames.size() << " other names of "
++                                      << aFamilies.size() << " font families in "
++                                      << std::chrono::duration_cast<std::chrono::milliseconds>(
++                                             std::chrono::steady_clock::now() - aStart)
++                                             .count()
++                                      << " ms");
++    }
++    auto it = maOtherNames.find(rSearchName);
++    return it == maOtherNames.end() ? nullptr : it->second;
++}
++
++PhysicalFontFamily* PhysicalFontCollection::FindFontFamilyByAnyName(std::u16string_view rFontName) const
++{
++    const OUString aSearchName = GetEnglishSearchFontName(rFontName);
++    if (PhysicalFontFamily* pFound = ImplFindFontFamilyBySearchName(aSearchName))
++        return pFound;
++    return ImplFindFontFamilyByOtherName(aSearchName);
++}
++
+ PhysicalFontFamily* PhysicalFontCollection::FindFontFamily(std::u16string_view rFontName) const
+ {
+     return ImplFindFontFamilyBySearchName( GetEnglishSearchFontName( rFontName ) );
+@@ -1114,6 +1162,10 @@
+         PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(rFSD.maSearchName);
+         if( pFoundData )
+             return pFoundData;
++        // A family named in another language.
++        pFoundData = ImplFindFontFamilyByOtherName(rFSD.maSearchName);
++        if( pFoundData )
++            return pFoundData;
+     }
+ 
+     // if no font with a directly matching name is available use the
+--- a/vcl/source/outdev/text.cxx
++++ b/vcl/source/outdev/text.cxx
+@@ -25,6 +25,7 @@
+ #include <tools/lineend.hxx>
+ #include <tools/debug.hxx>
+ #include <comphelper/configuration.hxx>
++#include <unotools/fontdefs.hxx>
+ 
+ #include <vcl/ctrl.hxx>
+ #include <vcl/metaact.hxx>
+@@ -1060,6 +1061,26 @@
+     return fontMappingUseData != nullptr;
+ }
+ 
++// The face's family, as the document names it.
++static OUString UsedFamilyName(const vcl::font::PhysicalFontFace* face, const OUString& requested)
++{
++    const OUString family = face->GetFamilyName();
++    const OUString familySearch = GetEnglishSearchFontName(family);
++    sal_Int32 index = 0;
++    do
++    {
++        const OUString token = requested.getToken(0, ';', index);
++        const OUString search = GetEnglishSearchFontName(token);
++        if (search == familySearch)
++            return family;
++        for (vcl::font::NameID id : { vcl::font::NAME_ID_FONT_FAMILY, vcl::font::NAME_ID_TYPOGRAPHIC_FAMILY })
++            for (const OUString& name : face->GetNames(id))
++                if (GetEnglishSearchFontName(name) == search)
++                    return token;
++    } while (index >= 0);
++    return family;
++}
++
+ static void TrackFontMappingUse( const vcl::Font& originalFont, const SalLayout* salLayout)
+ {
+     assert(fontMappingUseData);
+@@ -1072,9 +1093,10 @@
+     while( const SalLayoutGlyphsImpl* impl = glyphs.Impl(level++))
+     {
+         const vcl::font::PhysicalFontFace* face = impl->GetFont()->GetFontFace();
++        const OUString family = UsedFamilyName(face, originalFont.GetFamilyName());
+         OUString name = face->GetStyleName().isEmpty()
+-            ? face->GetFamilyName()
+-            : face->GetFamilyName() + "/" + face->GetStyleName();
++            ? family
++            : family + "/" + face->GetStyleName();
+         usedFontNames.push_back( name );
+     }
+     for( OutputDevice::FontMappingUseItem& item : *fontMappingUseData )

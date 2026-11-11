@@ -856,3 +856,13 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-10 发布测试两端各连跑十次（R18.34）
 
 - `4377e68e`（0123 内核，含上三节的修复）上 `scripts/release-tests.sh` 两端各连跑十次：Linux 十次全过，每次 2478 项、0 失败，543 至 575 秒；Mac 十次全过，每次 2445 项、0 失败，675 至 1004 秒。两端项数不同，是有些测试只在一端编译。N-09 的验收（发布测试连跑十次 0 失败）在两端都达成。
+
+## 2026-11-11 字体按任一语言的家族名找到（#82，R18.39，补丁 0124）
+
+- 报告：WPS 里以思源宋体写的文档，在 Windows 上的 ElyDoc 里出横幅“本机缺少字体：思源宋体”，本机装着该字体。
+- 根因：字体在 name 表里有多种语言的家族名（Source Han Serif SC 的简体中文名是“思源宋体”），内核每个平台只记一个：Windows 记 GDI 按系统区域给的名字，macOS 记界面语言的名字，Linux 的 fontconfig 记内核界面语言（英文）的名字。Windows 与 macOS 上，文档写的若是另一种语言的名字，查找落空，正文换成别的字体；Linux 上 fontconfig 找到了字体，缺失检查却拿文档的名字比内核记的名字，报缺失。补丁 0048 的名字表（`GetEnglishSearchFontName`）只认宋体、微软雅黑等几十个固定名字，没有思源、等线、仿宋、楷体、苹方。
+- 本机复现：装上思源宋体（私有 fontconfig 配置），文档写“思源宋体”，ElyDoc 报其缺失。
+- 补丁 0124：`PhysicalFontCollection` 在文档字体名于直接查找落空时，读一次各家族首个字体的 name 表（家族名、印刷家族名，各种语言），之后按任一名字找到家族；同名归排序在前的家族，家族名先于印刷家族名；读完的名字数、家族数与毫秒数记入日志（`vcl.fonts`）。缺失检查（`TrackFontMappingUse`）里，所用字体带着文档写的名字即以那个名字记，0048 的比对随之通过。只在文档的字体名落空时读，内核内部找替代字体的查找不读。
+- 测试 `ely-lok` 的 `a_font_is_found_by_its_name_in_another_language`：同一字体的两种名字各一段、另一段为不存在的字体，只许报后者。Linux 用 `tests/fixtures/office/alias.ttf`（DejaVu Sans 截到 ASCII、改名，英文 Ely Alias Sans、中文“别名黑体”）放进 worker 配置目录的 `user/fonts`；macOS 用苹方（PingFang SC、苹方-简）；Windows 用 Malgun Gothic（맑은 고딕）。两种名字都写，不论内核记的是哪一个，另一个都要靠新的查找。
+- 实测：Linux 上撤下 0124 重建内核，此测试败（报“别名黑体”缺失）；带上 0124 重建即过；带 0124 的 Linux 发布测试全过（2480 项）。Mac：0123 内核上此测试败，报的是 PingFang SC（Mac 的内核记中文名“苹方-简”，文档写英文名即落空），带上 0124 重建即过，`ely-lok` 全部 478 项过。
+- 未做：Windows 的内核未带 0124 重建，这条测试与报告者的情形在 Windows 上未跑（测试机离线）；Windows 上嵌入字体在文档里的名字与字体自身的家族名不同时，内核整个不载入（`WinSalGraphics::AddTempDevFont` 写明“font family renaming not implemented”），未改。
