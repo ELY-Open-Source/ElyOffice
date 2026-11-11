@@ -140,10 +140,16 @@ impl Deck {
             return self.toast(text, Severity::Warning, cx);
         };
         let (id, masters) = (tab.id, tab.extra.masters);
+        // A page turn still queued decides the current slide.
+        if !self.settled(id, cx) {
+            return self.when_settled(id, move |deck, _, cx| match deck.active_tab().is_some_and(|tab| tab.id == id) {
+                true => deck.ask_output(print, cx),
+                false => log::info!("show: tab {id} left before its output dialog"),
+            });
+        }
         let asked = self.ask_dialog();
         self.read_in(
             id,
-            // The shown slide, after queued page turns land.
             |worker, doc| {
                 let current = doc.sheets(worker)?.current;
                 Ok((current, ely_lok::show::slide_show(&worker.values(doc, ely_lok::show::SLIDE_SHOW)?)?))

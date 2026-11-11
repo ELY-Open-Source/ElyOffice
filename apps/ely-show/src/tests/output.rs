@@ -253,11 +253,21 @@ fn pictures_follow_the_slides_as_written_not_as_asked() {
 
 #[test]
 fn the_current_slide_is_the_one_just_picked() {
+    // Seed 2 once read the slide before the turn landed.
+    for seed in 0..4 {
+        if !current_after_a_turn(seed) {
+            eprintln!("SKIP: no LOK build");
+            return;
+        }
+    }
+}
+
+/// False when there is no kernel to ask.
+fn current_after_a_turn(seed: u64) -> bool {
     let dir = tempfile::tempdir().expect("a temp dir");
-    let mut cx = TestAppContext::single();
+    let mut cx = TestAppContext::build(gpui::TestDispatcher::new(seed), None);
     let Some(deck) = blank(&mut cx, dir.path()) else {
-        eprintln!("SKIP: no LOK build");
-        return;
+        return false;
     };
     three_slides(&mut cx, &deck);
     update(&mut cx, &deck, |deck, cx| {
@@ -282,7 +292,7 @@ fn the_current_slide_is_the_one_just_picked() {
         Some(Dialog::Output(output)) => output.clone(),
         _ => unreachable!("the output dialog"),
     });
-    assert_eq!(asked.current, Some(2), "the slide just picked is current");
+    assert_eq!(asked.current, Some(2), "seed {seed}: the slide just picked is current");
     update(&mut cx, &deck, |deck, _| deck.dialog = None);
     (asked.range, asked.kind) = (Range::Current, Kind::Pictures);
     let folder = dir.path().join("out");
@@ -292,5 +302,6 @@ fn the_current_slide_is_the_one_just_picked() {
         std::fs::read_dir(folder).expect("reads").map(|entry| entry.expect("an entry").file_name().to_string_lossy().into_owned()).collect()
     };
     settle(&cx, |_| !names(&folder).is_empty());
-    assert_eq!(names(&folder), ["deck-2.png"], "the current slide went out");
+    assert_eq!(names(&folder), ["deck-2.png"], "seed {seed}: the current slide went out");
+    true
 }
