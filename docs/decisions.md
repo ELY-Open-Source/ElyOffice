@@ -886,6 +886,6 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 ## 2026-11-11 官网与旧视频工程的依赖漏洞（R18.43）
 
-- GitHub 报 10 个：`site/pnpm-lock.yaml` 的 undici 7.29.1（6 个，修复版 7.30.1），`site/video/update-0.1.5/package-lock.json` 的 fast-uri（4 个，修复版 3.1.9）与 zod（1 个，修复版 4.6.6）。都只在构建与部署工具里，不进应用。
+- 推送时 GitHub 提示 10 个；它的告警清单共 13 个：`site/pnpm-lock.yaml` 的 undici 7.29.1（8 个，修复版 7.30.1），`site/video/update-0.1.5/package-lock.json` 的 fast-uri（4 个，修复版 3.1.9）与 zod（1 个，修复版 4.6.6）。都只在构建与部署工具里，不进应用。修复推送后，13 个于 2026-11-11 09:06 UTC 都标为已修复，未关的 0 个。
 - undici 由 wrangler 经 miniflare 带入；最新的 miniflare 仍钉 7.28.0，升 wrangler 不解决。官网以 pnpm 的 `overrides` 钉 undici 7.30.2；视频工程以 npm 的 `overrides` 钉 fast-uri ^3.1.9、zod ^4.6.6。
 - 核对：官网安装、构建、测试与 `wrangler deploy --dry-run` 都过；视频工程 `npm ci` 报 0 个漏洞，类型检查只缺不入库的录屏文件。
