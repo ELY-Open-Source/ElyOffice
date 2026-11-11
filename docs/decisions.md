@@ -908,4 +908,4 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 复现：Windows 测试机上以 0124 内核把一张写着该标题（微软雅黑粗体）的幻灯片导出 PNG，“2025”两侧各空出约四分之一字宽；用户区域英文与 zh-CN 都一样。PDF 里嵌入的是 MicrosoftYaHei-Bold 与 MicrosoftYaHei，两种区域都没有 Light。
 - 根因：编辑引擎的段落属性“亚洲文字与西文之间加空”（`EE_PARA_ASIANCJKSPACING`）默认开，Impress 只在日文、韩文环境关掉（`SdDrawDocument` 的构造）。PowerPoint 不加这段空，DrawingML 也没有对应的属性，PPTX 导入从不设它。
 - 补丁 0125：PPTX（`DrawDocShell::ImportFrom`，与其他 PowerPoint 兼容设置一处）与 PPT（`ImplSdPPTImport::Import`）导入时把文档的默认改为关；读入的文字与之后加的文本框都不加空。ODP 照 LibreOffice 的默认。存成 ODP 时写出 `style:text-autospace="none"`。
-- 测试 `powerpoint_decks_put_no_gap_between_asian_and_latin_text`：同一张幻灯片存成 PPTX、PPT 后读入，存成平面 ODF 须为 `none`、不得有 `ideograph-alpha`；ODP 读入须为 `ideograph-alpha`。Linux 上撤下 0125 重建 sd，PPTX 一项即败；带上即过。
+- 测试 `powerpoint_decks_put_no_gap_between_asian_and_latin_text`：同一张幻灯片存成 PPTX、PPT 后读入，存成平面 ODF 须为 `none`、不得有 `ideograph-alpha`；ODP 读入须为 `ideograph-alpha`。Linux 上撤下 0125 重建 sd，PPTX 一项即败；带上即过。Windows 上带 0125 重建 sd，此测试过；同一张幻灯片存成 PPTX 再出图，“2025”两侧不再有空隙。
