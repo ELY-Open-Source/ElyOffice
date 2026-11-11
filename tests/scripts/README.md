@@ -30,7 +30,7 @@ tests/scripts/source-rules.sh    source.sh 把已取与下载的外部库按内�
 tests/scripts/ci-upload.sh       ci.sh 的上传：测试的门建好 worker 后点名它们再跑测试，测试失败即一个不传，Linux 的包过不了 glibc 的上限也不传；兼容清单、发布说明、基准记录三道门任一失败或该提交的 `pr.yml` 未通过即不建也不传；Linux 另传装全部应用的 `ely-office` 包；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
 tests/scripts/linux-packages.sh  deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库；装全部应用的 `ely-office` 包同样装上，顶替先装的 ElyTree 单包，ElyDoc 的内核是共用的那一份
 tests/scripts/linux-pins.sh      Linux 打包工具（appimagetool、linuxdeploy、运行时、nfpm）的下载与钉的散列相符
-tests/scripts/linux-installed.sh installed|appimage  Hyprland 上装好的六个应用或 AppImage：一个窗口、随 Omarchy（Catppuccin）、读出页面文字（PDF、Markdown 经各自引擎），ElyTree 随换主题到 Latte（grim 按窗口截取）
+tests/scripts/linux-installed.sh installed|appimage  Hyprland 上装好的首批七个应用或 AppImage：一个窗口、随 Omarchy（Catppuccin）、读出页面文字（PDF、Markdown 经各自引擎），ElyTree 随换主题到 Latte（grim 按窗口截取）
 tests/scripts/linux-distros.sh   deb 在 Ubuntu 26.04、rpm 在 Fedora 44 容器里装上，各应用在 Xvfb（Mesa 软件 Vulkan）下画出窗口、随 Omarchy、读出页面文字；`ely-office` 的 rpm 在 Fedora 上也装上，各应用照样画出（与 linux-installed.sh 共用 linux-common.sh）
 cargo test -p ely-show --test compose  切换半程帧经 Metal 取像素（主线程，仅 macOS）
 tests/scripts/*.sh *.py        脚本测试（缺工具时报 SKIP）
@@ -91,7 +91,7 @@ tests/scripts/windows-tab-keys.py  真窗口 ElyDoc 与 ElyShow 各开四份：�
 tests/scripts/windows-table-save-edit.py  真窗口 ElyTable：单元格键入中经命令行保存，编辑不断、其后的键接着输入（公式栏读回），盘上是保存时已输入的格，回车后再存即有全文（键盘真输入，须桌面空闲；非 Windows 时 SKIP）
 tests/scripts/windows-table-zoom.py 目录  真窗口 ElyTable：键、状态栏缩放钮（真点击）与 Ctrl+滚轮在 A1 上缩到 67%、125%、400%，首个行列标题是 A、1（UI Automation），截图里网格线量出 A1 与 B2 一般宽高、光标框正落在 A1 的线上，日志的视图起点为 (0, 0)；滚轮在 C7 上时它的角到指针的像素不变；全部报出；截图写入该目录（键鼠真输入，须桌面空闲；非 Windows 时 SKIP）
 tests/scripts/windows-types.sh  真安装程序以假类型 `.elyprobe` 写 HKCU：能打开、只在无处理程序时设默认与“新建”、假方案 `elyprobe:` 进“默认应用”而不接管、别的程序的登记与“新建”不动、换了文件夹后旧卸载不删新的、写不进即安装失败（缺 makensis 时 SKIP）
-tests/scripts/layout.sh        真窗口：六个应用在 640、800、1100 宽下无元素越出窗口左右，留截图（需辅助功能与屏幕录制权限）
+tests/scripts/layout.sh        真窗口：首批七个应用在 640、800、1100 宽下无元素越出窗口左右，留截图（需辅助功能与屏幕录制权限）
 tests/perf/bench.py [--runs N] [--only PERF-..]  性能基准（PERF-01 至 08），release 构建，结果写 docs/perf；macOS、Windows 直接跑（驱动 tests/perf/drive.py、drive.ps1，Windows 上不在前台即拒发输入）
 tests/office/web_samples.py <resave> <文件夹>  写出三十份由 Ely 内核存出的 DOCX、XLSX、PPTX（各十份），供传到 Office 网页版逐个打开核对（`resave` 即 `cargo build -p ely-lok --example resave` 所建；须设 `ELY_LOK_WORKER`）
 tests/perf/load.py [--docs N] [--big-every E] [--rounds R] [--keys K] [--apps ...]  PERF-10 极限负载：Doc、Table、Show、Mark 各开 N 份（默认 100；每十份一份大的，`--big-every 1` 即每份都大，Doc 另有外部链接的，大工作簿含复杂公式与跨工作簿引用；样本由 loadfiles.py 以 Python 写，不经 Office），前台文档空闲时与全部文档（连前台正在打字的那份）同时经命令行编辑时各按键量反馈、帧与主线程停顿，全部保存后读盘核对编辑、按键与链接，结果写 docs/perf/<日期>-<机型>-load-N.md（frames 发行构建；Windows 直接跑，Linux 经 `ELY_PERF_TOOL=load.py tests/perf/linux.sh`）；可用内存低于 12 GB 即停；有人点击或挪动窗口即作废重来，至多三次
