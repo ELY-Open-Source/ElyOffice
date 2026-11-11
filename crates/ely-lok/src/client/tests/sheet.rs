@@ -344,3 +344,40 @@ fn a_skipped_trailing_column_keeps_its_cell() {
     };
     assert_eq!(["A3", "B3", "C3"].map(&mut cell), ["one", "two", "old"]);
 }
+
+const BOXED: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+ <office:body><office:spreadsheet><table:table table:name="S">
+  <table:shapes><draw:frame svg:x="1cm" svg:y="1cm" svg:width="4cm" svg:height="2cm"><draw:text-box><text:p>Box</text:p></draw:text-box></draw:frame></table:shapes>
+  <table:table-row><table:table-cell><text:p>Cell</text:p></table:table-cell></table:table-row>
+ </table:table></office:spreadsheet></office:body>
+</office:document>"#;
+
+#[test]
+fn undo_and_redo_work_inside_a_shape_text_edit() {
+    let Some(install) = install() else {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    };
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    write(&dir.path().join("in.fods"), BOXED);
+    let doc = worker.load(&crate::file_url(&dir.path().join("in.fods"))).expect("the sheet loads");
+    // The box's middle, in twips.
+    for (kind, count) in [(0, 1), (1, 1), (0, 2), (1, 2)] {
+        let press = Mouse { kind, x: 1701, y: 1134, count, buttons: 1, modifiers: 0 };
+        worker.post_mouse(&doc, press).expect("the double click posts");
+    }
+    worker.post_key(&doc, 'Q' as u32, 528 | 0x1000).expect("Q types");
+    let text = |worker: &mut Worker| {
+        let out = dir.path().join("out.fods");
+        doc.save_as(worker, &crate::file_url(&out), "fods").expect("the sheet saves");
+        std::fs::read_to_string(&out).expect("the save reads")
+    };
+    assert!(text(&mut worker).contains(">QBox<"), "Q went outside the box");
+    worker.run(&doc, "edit.undo", &[]).expect("undo in the box");
+    let undone = text(&mut worker);
+    assert!(undone.contains(">Box<"), "undo kept Q");
+    worker.run(&doc, "edit.redo", &[]).expect("redo in the box");
+    assert!(text(&mut worker).contains(">QBox<"), "redo lost Q");
+}
