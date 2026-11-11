@@ -92,6 +92,7 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("pdf.sign.location", "Ubicación"),
     ("pdf.sign.tail", "firmado"),
     ("pdf.sign.done", "Se guardó {name}, firmado y comprobado."),
+    ("pdf.sign.save_first", "Guarde primero el documento; la firma va sobre el archivo guardado."),
     ("pdf.visible.open", "Añadir firma visible…"),
     ("pdf.visible.title", "Firma visible"),
     (

@@ -184,7 +184,10 @@ impl Viewer {
             return if open { self.no_document(cx) } else { cx.notify() };
         };
         // Each opening checks the file as it is now.
-        view.update(cx, |view, _| view.signatures = None);
+        view.update(cx, |view, _| {
+            view.signatures = None;
+            view.unread.retain(|unread| !matches!(unread, Unread::Signatures(_)));
+        });
         self.signs_open = open;
         cx.notify();
     }
@@ -270,6 +273,11 @@ impl Viewer {
         let read = view.read(cx);
         if read.version != at.version || !read.settled() || read.sign_at != Some(at) {
             return self.toast(Self::text(cx, "pdf.object.changed", &[]), Severity::Warning, cx);
+        }
+        // Memory still holds what Save As left out.
+        if open.reopen {
+            log::info!("pdf: signing waits for the tab to reopen its file");
+            return self.toast(Self::text(cx, "pdf.sign.save_first", &[]), Severity::Warning, cx);
         }
         let (shown, opened) = (ely_office::files::file_name(&target), target.clone());
         match self.holder(&target) {

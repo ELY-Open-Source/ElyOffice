@@ -86,6 +86,7 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("pdf.sign.location", "Location"),
     ("pdf.sign.tail", "signed"),
     ("pdf.sign.done", "Saved {name}, signed and checked."),
+    ("pdf.sign.save_first", "Save the document first; the signature goes on the saved file."),
     ("pdf.visible.open", "Add Visible Signature…"),
     ("pdf.visible.title", "Visible signature"),
     (
@@ -212,6 +213,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("pdf.sign.location", "地点"),
     ("pdf.sign.tail", "已签名"),
     ("pdf.sign.done", "已保存 {name}，已签名并核对。"),
+    ("pdf.sign.save_first", "请先保存文档；签名要落在已保存的文件上。"),
     ("pdf.visible.open", "添加可视签名…"),
     ("pdf.visible.title", "可视签名"),
     (

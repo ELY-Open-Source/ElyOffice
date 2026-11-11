@@ -65,6 +65,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("pdf.sign.location", "場所"),
     ("pdf.sign.tail", "署名済み"),
     ("pdf.sign.done", "{name} を保存しました。署名して確認しました。"),
+    ("pdf.sign.save_first", "先に文書を保存してください。署名は保存したファイルに付けます。"),
     ("pdf.visible.open", "見える署名を追加…"),
     ("pdf.visible.title", "見える署名"),
     ("pdf.visible.detail", "ページ上の署名の画像です。デジタル署名ではなく、誰が署名したかを証明するものではありません。"),

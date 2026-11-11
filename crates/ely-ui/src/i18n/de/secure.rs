@@ -65,6 +65,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("pdf.sign.location", "Ort"),
     ("pdf.sign.tail", "signiert"),
     ("pdf.sign.done", "{name} gespeichert, signiert und geprüft."),
+    ("pdf.sign.save_first", "Speichern Sie das Dokument zuerst; die Signatur kommt auf die gespeicherte Datei."),
     ("pdf.visible.open", "Sichtbare Signatur hinzufügen…"),
     ("pdf.visible.title", "Sichtbare Signatur"),
     ("pdf.visible.detail", "Ein Bild einer Unterschrift auf der Seite. Es ist keine digitale Signatur und beweist nichts darüber, wer unterschrieben hat."),

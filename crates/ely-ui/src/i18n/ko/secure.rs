@@ -65,6 +65,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("pdf.sign.location", "위치"),
     ("pdf.sign.tail", "서명됨"),
     ("pdf.sign.done", "{name}을(를) 서명하고 확인하여 저장했습니다."),
+    ("pdf.sign.save_first", "먼저 문서를 저장하세요. 서명은 저장한 파일에 합니다."),
     ("pdf.visible.open", "보이는 서명 추가…"),
     ("pdf.visible.title", "보이는 서명"),
     ("pdf.visible.detail", "페이지에 넣는 서명 그림입니다. 디지털 서명이 아니며 누가 서명했는지 아무것도 증명하지 않습니다."),

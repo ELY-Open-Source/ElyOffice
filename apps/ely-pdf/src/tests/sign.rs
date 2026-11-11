@@ -231,3 +231,53 @@ fn reopening_the_dialog_checks_the_file_as_it_is_now() {
     std::fs::write(&path, bytes).expect("writes");
     assert_eq!(digest(cx), Some(Digest::Changed));
 }
+
+#[test]
+fn signing_waits_while_the_tab_holds_what_save_as_left_out() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let path = signed(dir.path());
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
+    let view = shown(cx, &viewer);
+    let id = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
+    let copy = dir.path().join("copy.pdf");
+    // An edit during Save As keeps the old document open.
+    cx.update(|window, app| {
+        viewer.update(app, |viewer, cx| {
+            viewer.write_as(id, copy.clone(), None, window, cx);
+            view.update(cx, |view, cx| view.edit("pdf.doing.turn", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx));
+        })
+    });
+    settle(cx, |app| {
+        copy.is_file() && view.read(app).edited == 1 && viewer.read(app).active_tab().is_some_and(|tab| !tab.exporting && tab.reopen)
+    });
+    let at = SignAt { page: 0, object: None, rect: [72.0, 300.0, 272.0, 360.0], version: cx.update(|_, app| view.read(app).version) };
+    cx.update(|_, app| view.update(app, |view, _| view.sign_at = Some(at)));
+    let target = dir.path().join("resigned.pdf");
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_signed(id, at, signing(""), target.clone(), cx)));
+    cx.run_until_parked();
+    assert!(!target.exists(), "a signature from the old document went out");
+    assert_eq!(cx.update(|_, app| view.read(app).sign_at), Some(at), "the placement waits");
+}
+
+#[test]
+fn a_failed_signature_read_is_tried_again_on_the_next_opening() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let path = signed(dir.path());
+    let (viewer, cx) = windowed(&mut cx, dir.path(), std::slice::from_ref(&path), true);
+    let view = shown(cx, &viewer);
+    let aside = dir.path().join("aside.pdf");
+    std::fs::rename(&path, &aside).expect("moves aside");
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.show_signatures(true, cx)));
+    settle(cx, |app| view.read(app).unread.contains(&crate::view::Unread::Signatures(path.clone())));
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.show_signatures(false, cx)));
+    std::fs::rename(&aside, &path).expect("moves back");
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.show_signatures(true, cx)));
+    settle(cx, |app| view.read(app).signatures.is_some());
+    let digest = cx.update(|_, app| {
+        let read = view.read(app);
+        read.signatures.as_ref().and_then(|(_, fields)| fields.first()).and_then(|checked| checked.field.signed.as_ref().map(|signed| signed.digest))
+    });
+    assert_eq!(digest, Some(Digest::Intact), "the file read again");
+}

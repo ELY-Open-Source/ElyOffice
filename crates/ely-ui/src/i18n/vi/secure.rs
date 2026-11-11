@@ -65,6 +65,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("pdf.sign.location", "Địa điểm"),
     ("pdf.sign.tail", "đã ký"),
     ("pdf.sign.done", "Đã lưu {name}, đã ký và kiểm tra."),
+    ("pdf.sign.save_first", "Hãy lưu tài liệu trước; chữ ký đặt trên tệp đã lưu."),
     ("pdf.visible.open", "Thêm chữ ký hiển thị…"),
     ("pdf.visible.title", "Chữ ký hiển thị"),
     ("pdf.visible.detail", "Hình ảnh của một chữ ký trên trang. Nó không phải là chữ ký số và không chứng minh được ai đã ký."),
