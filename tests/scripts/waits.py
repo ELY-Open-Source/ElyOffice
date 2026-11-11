@@ -13,7 +13,9 @@ POLL = re.compile(r"\b(while|loop)\b|\.any\(")
 # A counted retry, not a walk over items.
 RETRY = re.compile(r"\bfor\s+_\s+in\b")
 EXIT = re.compile(r"\b(break|return)\b(\s+'(\w+))?")
-SCOPE = re.compile(r"\bfn\b|\|[^|]*\|\s*\{?\s*$")
+SCOPE = re.compile(r"\bfn\b|\|[^|]*\|\s*(->[^{]*)?\{?\s*$")
+# A closure opened and left on one line.
+CLOSED = re.compile(r"\|[^|]*\|[^{]*\{[^}]*\b(break|return)\b")
 MOD = re.compile(r"^\s*(pub(\([^)]*\))?\s+)?mod\s+(\w+)\s*;")
 INLINE = re.compile(r"\bmod\s+(\w+)\s*\{")
 ROOTS = re.compile(r"(^|/)(src/(lib|main)\.rs|src/bin/[^/]+\.rs|(tests|benches|examples)/[^/]+\.rs)$")
@@ -68,6 +70,7 @@ def body(lines, head):
 
 def code(line):
     """The line without strings and comment."""
+    line = re.sub(r'r(#*)".*?"\1', '""', line)
     return re.sub(r'"(?:[^"\\]|\\.)*"', '""', line).split("//")[0]
 
 
@@ -77,12 +80,12 @@ def leaves(lines, head):
     start = head + 1
     for at in range(start, start + len(body(lines, head))):
         exit = EXIT.search(code(lines[at]))
-        if not exit:
+        if not exit or CLOSED.search(code(lines[at])):
             continue
         if label and exit.group(3) == label.group(1):
             return True
         inner = opener(lines, at)
-        while inner is not None and inner != head and not (LOOP.search(lines[inner]) or SCOPE.search(lines[inner])):
+        while inner is not None and inner != head and not (LOOP.search(code(lines[inner])) or SCOPE.search(code(lines[inner]))):
             inner = opener(lines, inner)
         if inner == head and not exit.group(3):
             return True
@@ -90,16 +93,16 @@ def leaves(lines, head):
 
 
 def polls(lines, head):
-    return bool(POLL.search(lines[head]) or (RETRY.search(lines[head]) and leaves(lines, head)))
+    return bool(POLL.search(code(lines[head])) or (RETRY.search(code(lines[head])) and leaves(lines, head)))
 
 
 def loop_of(lines, at):
     """The nearest loop of the function holding line `at`."""
     head = opener(lines, at)
     while head is not None:
-        if LOOP.search(lines[head]):
+        if LOOP.search(code(lines[head])):
             return head
-        if SCOPE.search(lines[head]):
+        if SCOPE.search(code(lines[head])):
             return None
         head = opener(lines, head)
     return None
@@ -175,6 +178,15 @@ def main():
             ["fn t() {", "    for byte in [1, 2]", "        .into_iter()", "    {", "        // A slow writer's pace.",
              "        std::thread::sleep(MS);", "    }", "}"],
             ["fn work() {", "    std::thread::sleep(MS);", "}"]]
+    bad += [["#[test]", "fn t() {", "    for _ in 0..3 {", "        let work = || -> Result<(), String> {",
+             "            if !valid() {", "                return Err(\"invalid\".into());", "            }", "            send()",
+             "        };", "        work();", "        std::thread::sleep(MS);", "    }", "}"],
+            ["#[test]", "fn t() {", "    for _ in 0..3 {", "        let work = || { return; };", "        std::thread::sleep(MS);",
+             "    }", "}"],
+            ["#[test]", "fn t() {", "    for _ in 0..3 {", "        send(r#\"before \"return\" after\"#);",
+             "        std::thread::sleep(MS);", "    }", "}"]]
+    good += [["fn t() {", "    for _ in 0..50 {", "        if ready(\"for\") {", "            break;", "        }",
+              "        std::thread::sleep(MS);", "    }", "}"]]
     labeled = ["fn t() {", "    'retry: for _ in 0..50 {", "        for part in parts {", "            if ready(part) {",
                "                break 'retry;", "            }", "        }", "        std::thread::sleep(MS);", "    }", "}"]
     nested = {"src/lib.rs": ["mod support {", "    #[cfg(test)]", "    mod checks;", "}"],
