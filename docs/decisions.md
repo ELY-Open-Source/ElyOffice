@@ -829,3 +829,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - Cindy 自带的 Codex 是 0.166.0；服务端拒绝 `gpt-6.1-sol`（“requires a newer version of Codex”）。Cindy 升到 0.1.130 后仍带 0.166.0，设置里无处换 Codex。R18.8 第 3 轮三次派出，三次未执行。
 - 用户定：审查者改为 `remote-magpie/codex/gpt-6-astra`，effort xhigh，只读。新建常驻 Worker（旧团队随 Cindy 重启已清空）。此前的审查记录照旧有效；之后的记录写明新模型。
+
+## 2026-11-10 本机 Linux 全量基准（R18.30）
+
+- 第七次全量跑完（`7937f129`，0123 内核）：七个应用全部达标，记录 `docs/perf/2026-11-10-AMD-Ryzen-9-9950X3D-16-Core-Processor-Linux.md`。第六次在 Cindy 重启时随会话一起停下，未留记录；第七次脱离会话运行，写完以 `bench7.done` 示意。脚本以 1 退出，来自收尾的 `docker stop`：Xvfb 容器已先退出，测量不受影响。
+- 与上一份（10-29）比，三行慢过三成：ElyPDF、ElyMark、ElyMail 的按键到帧。逐一核对：上一份在 WSL2 的 Ubuntu 里跑（311 种字体），这一份在本机 Omarchy 上跑（917 种字体，RTX 4090 绘制，经 Docker 里的 Xvfb 显示）。重跑并留下日志：绘制 1 至 5 毫秒，从弄脏到显示 15 至 31 毫秒；未被标出的 ElyTree 同样从 18 毫秒到 24 毫秒。慢在呈现这一段，随环境变，不在应用代码。原因写进记录，`baseline.py --check 0.1.15 linux` 通过。
