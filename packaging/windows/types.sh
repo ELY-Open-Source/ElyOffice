@@ -9,7 +9,8 @@ name=$(awk -F'\t' -v slug="$slug" '$1 == slug { print $2 }' "$root/packaging/app
 progid="ElyOffice.$name"
 classes='Software\Classes'
 # ely-start shows a splash while Windows scans the app.
-command="'\"\$INSTDIR\\ely-start.exe\" $slug $name \"%1\"'"
+start="$slug-start.exe"
+command="'\"\$INSTDIR\\$start\" $slug $name \"%1\"'"
 exts=$(awk -F'\t' -v slug="$slug" '$1 == slug && $2 != "/" && $2 !~ /:$/ { print $2 }' "$root/packaging/types.tsv")
 folder=$(awk -F'\t' -v slug="$slug" '$1 == slug && $2 == "/" { print "yes" }' "$root/packaging/types.tsv")
 # URL schemes go to Default Apps, never taken over.
@@ -69,6 +70,8 @@ owner() { # indent key [value]
 # Open With lists the app; the user's default stays theirs.
 echo '!macro ElyTypesInstall'
 echo '  StrCpy $2 ""'
+# Open With names the app, not its launcher.
+put "  " "$classes\\Applications\\$start" "FriendlyAppName" "\"$name\""
 if [ -n "$exts" ]; then
   put "  " "$classes\\$progid" "" "\"$name Document\""
   put "  " "$classes\\$progid\\DefaultIcon" "" "\"\$INSTDIR\\$slug.ico\""
@@ -175,6 +178,17 @@ if [ -n "$schemes" ]; then
   echo "    \${EndIf}"
   echo "  \${EndIf}"
 fi
+# The launcher's name goes once no command names it.
+echo '  StrCpy $6 ""'
+for key in "$classes\\$progid\\shell\\open\\command" "$classes\\Directory\\shell\\$progid\\command" "$classes\\$urlclass\\shell\\open\\command"; do
+  echo "  ClearErrors"
+  echo "  ReadRegStr \$0 HKCU \"$key\" \"\""
+  echo "  IfErrors +2"
+  echo "    StrCpy \$6 named"
+done
+echo "  \${If} \$6 == \"\""
+gone "    " "$classes\\Applications\\$start"
+echo "  \${EndIf}"
 echo '  System::Call "shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)"'
 echo '  ClearErrors'
 echo '  StrCmp $2 "" +2'

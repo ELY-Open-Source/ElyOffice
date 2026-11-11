@@ -31,10 +31,10 @@ rm -rf "$out"
 mkdir -p "$out"
 build -p "$(cargo pkgid --manifest-path "$root/apps/$slug/Cargo.toml")"
 cp "$release/$slug$exe" "$out/"
-# Windows opens files through the small splash launcher.
+# Windows opens through a splash launcher named per app.
 if [ -n "$exe" ]; then
   build -p ely-start
-  cp "$release/ely-start.exe" "$out/"
+  cp "$release/ely-start.exe" "$out/$slug-start.exe"
 fi
 if uses ely-lok; then
   lo=${ELY_LO_DIR:-$root/engines/lo-src/instdir}

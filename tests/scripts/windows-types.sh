@@ -12,10 +12,11 @@ work=$root/target/types-test
 c='Software\Classes'
 # A made-up app and type keep real types out.
 class="$c\\ElyOffice.ElyProbe" app="$c\\Applications\\ely-probe.exe" listing="$c\\.elyprobe\\OpenWithProgids"
+start="$c\\Applications\\ely-probe-start.exe"
 command="$class\\shell\\open\\command"
 # A made-up scheme for Default Apps.
 url="$c\\ElyOffice.ElyProbe.Url" caps='Software\ElyOffice\ElyProbe\Capabilities' listed_apps='Software\RegisteredApplications'
-keys=("$class" "$c\\.elyprobe" "$c\\Other.ElyProbe" "$app" "$c\\Directory\\shell\\ElyOffice.ElyProbe" "$url" "$c\\elyprobe" 'Software\ElyOffice\ElyProbe'
+keys=("$class" "$start" "$c\\.elyprobe" "$c\\Other.ElyProbe" "$app" "$c\\Directory\\shell\\ElyOffice.ElyProbe" "$url" "$c\\elyprobe" 'Software\ElyOffice\ElyProbe'
   'Software\Ely Office\ElyProbe' 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Ely Office ElyProbe')
 # Set-Acl wants write access, which the rule denies.
 undeny() {
@@ -32,6 +33,8 @@ clean() {
   for key in "${keys[@]}"; do reg delete "HKCU\\$key" /f >/dev/null 2>&1 || true; done
   reg delete "HKCU\\$listed_apps" /v ElyProbe /f >/dev/null 2>&1 || true
   rm -f "$APPDATA/Microsoft/Windows/Start Menu/Programs/ElyProbe.lnk"
+  # The shell caches names by exe path.
+  ELY_WORK=$(cygpath -w "$work") powershell -NoProfile -Command '$k = "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"; if (Test-Path $k) { (Get-Item $k).Property | Where-Object { $_ -like "$env:ELY_WORK*" } | ForEach-Object { Remove-ItemProperty $k -Name $_ } }'
   ! reg query "HKCU\\$class" >/dev/null 2>&1 || { echo "FAIL: the probe class stays" >&2; exit 1; }
 }
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -51,6 +54,7 @@ printf 'ely-probe\telyprobe\tapplication/x-elyprobe\nely-probe\t/\tinode/directo
 stage=$work/stage
 mkdir -p "$stage"
 cp /c/Windows/System32/PING.EXE "$stage/ely-probe.exe"
+cp /c/Windows/System32/PING.EXE "$stage/ely-probe-start.exe"
 : >"$stage/new.elyprobe"
 "$root/packaging/windows/files.sh" "$stage" ely-probe >"$work/files.txt"
 "$makensis" -V1 -INPUTCHARSET UTF8 -DAPP_NAME=ElyProbe -DAPP_SLUG=ely-probe -DVERSION=1 \
@@ -92,8 +96,13 @@ uninstall() { cp "$1/uninstall.exe" "$work/uninstall.exe" && "$work/uninstall.ex
 value() {
   ELY_KEY=$1 ELY_NAME=${2:-} powershell -NoProfile -Command '$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($env:ELY_KEY); if ($k) { $k.GetValue($env:ELY_NAME) }' | tr -d '\r'
 }
-opens() { echo "\"$(cygpath -w "$1")\\ely-start.exe\" ely-probe ElyProbe \"%1\""; }
+opens() { echo "\"$(cygpath -w "$1")\\ely-probe-start.exe\" ely-probe ElyProbe \"%1\""; }
 listed() { reg query "HKCU\\$listing" /v ElyOffice.ElyProbe >/dev/null 2>&1; }
+# The name the shell shows for a class's open command.
+named() {
+  ELY_CLASS=$1 ELY_SIG='[DllImport("shlwapi.dll", CharSet = CharSet.Unicode)] public static extern int AssocQueryStringW(int flags, int str, string assoc, string extra, System.Text.StringBuilder outs, ref int size);' \
+    powershell -NoProfile -Command 'Add-Type -Namespace Ely -Name Assoc -MemberDefinition $env:ELY_SIG; $b = New-Object Text.StringBuilder 260; $n = 260; [void][Ely.Assoc]::AssocQueryStringW(0, 4, $env:ELY_CLASS, "open", $b, [ref]$n); $b.ToString()' | tr -d '\r'
+}
 
 # A handlerless type: listed, New-able, and gone after uninstall.
 a=$work/a
@@ -101,6 +110,7 @@ a=$work/a
 [ "$(value "$class\\shell\\open\\command")" = "$(opens "$a")" ] || fail "fresh: no open command"
 [ "$(value "$c\\Directory\\shell\\ElyOffice.ElyProbe\\command")" = "$(opens "$a")" ] || fail "fresh: no folder command"
 listed || fail "fresh: Open With misses it"
+[ "$(named ElyOffice.ElyProbe)" = ElyProbe ] || fail "fresh: Open With names $(named ElyOffice.ElyProbe), not ElyProbe"
 [ "$(value "$c\\.elyprobe")" = ElyOffice.ElyProbe ] || fail "fresh: New has no class"
 [ "$(value "$c\\.elyprobe\\ShellNew" FileName)" = "$(cygpath -w "$a")\\new.elyprobe" ] || fail "fresh: no New"
 [ "$(value "$url\\shell\\open\\command")" = "$(opens "$a")" ] || fail "fresh: links do not open"
@@ -116,6 +126,7 @@ b=$work/b
 [ "$(value "$class\\shell\\open\\command")" = "$(opens "$b")" ] || fail "moved: the old uninstall took the open command"
 [ "$(value "$c\\Directory\\shell\\ElyOffice.ElyProbe\\command")" = "$(opens "$b")" ] || fail "moved: the old uninstall took the folder menu"
 listed || fail "moved: the old uninstall took Open With"
+[ "$(value "$start" FriendlyAppName)" = ElyProbe ] || fail "moved: the old uninstall took the launcher's name"
 [ "$(value "$url\\shell\\open\\command")" = "$(opens "$b")" ] || fail "moved: the old uninstall took links"
 [ "$(value "$listed_apps" ElyProbe)" = "$caps" ] || fail "moved: the old uninstall took Default Apps"
 [ "$(uninstall "$b")" = 0 ] || fail "last uninstall"
@@ -123,6 +134,7 @@ for key in "$class" "$c\\Directory\\shell\\ElyOffice.ElyProbe" "$c\\.elyprobe\\S
   ! reg query "HKCU\\$key" >/dev/null 2>&1 || fail "uninstall left $key"
 done
 ! listed || fail "uninstall left Open With"
+! reg query "HKCU\\$start" >/dev/null 2>&1 || fail "uninstall left the launcher's name"
 [ -z "$(value "$c\\.elyprobe")" ] || fail "uninstall left the class"
 for key in "$url" 'Software\ElyOffice\ElyProbe'; do
   ! reg query "HKCU\\$key" >/dev/null 2>&1 || fail "uninstall left $key"
