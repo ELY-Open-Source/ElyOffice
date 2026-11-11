@@ -101,14 +101,15 @@ pub fn found_of(text: &str) -> Option<Vec<Rect>> {
         .collect()
 }
 
-/// The missing font families of a FONTS_MISSING payload.
-pub fn fonts_of(text: &str) -> Option<Vec<String>> {
+/// Each missing family and what drew it (patch 0128).
+pub fn fonts_of(text: &str) -> Option<Vec<(String, Vec<String>)>> {
     let json: Value = serde_json::from_str(text).ok()?;
-    json["fontsmissing"]
-        .as_array()?
-        .iter()
-        .map(|font| font.as_str().map(str::to_string))
-        .collect()
+    let strings = |list: &Value| -> Option<Vec<String>> { list.as_array()?.iter().map(|font| font.as_str().map(str::to_string)).collect() };
+    let (missing, used) = (strings(&json["fontsmissing"])?, json["fontsused"].as_array()?);
+    if missing.len() != used.len() {
+        return None;
+    }
+    missing.into_iter().zip(used).map(|(font, used)| Some((font, strings(used)?))).collect()
 }
 
 /// A STATE_CHANGED payload: ".uno:X=v" or JSON with commandName.
@@ -356,6 +357,15 @@ mod tests {
             state_of(".uno:Bold=false"),
             Some((".uno:Bold".into(), "false".into()))
         );
+    }
+
+    #[test]
+    fn a_missing_font_comes_with_what_drew_it() {
+        let both = r#"{ "fontsmissing": [ "Nowhere Sans", "Gone" ], "fontsused": [ [ "DejaVu Sans" ], [ ] ] }"#;
+        let read = fonts_of(both).expect("reads");
+        assert_eq!(read, [("Nowhere Sans".to_string(), vec!["DejaVu Sans".to_string()]), ("Gone".to_string(), vec![])]);
+        assert_eq!(fonts_of(r#"{ "fontsmissing": [ "Nowhere Sans" ] }"#), None, "an old kernel's list is refused");
+        assert_eq!(fonts_of(r#"{ "fontsmissing": [ "A" ], "fontsused": [ ] }"#), None, "lists must pair");
     }
 
     #[test]

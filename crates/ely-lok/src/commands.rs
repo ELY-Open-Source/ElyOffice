@@ -250,11 +250,11 @@ impl Command {
         }
         let mut json = serde_json::Map::new();
         for arg in lines {
-            match arg {
-                Arg::Line(name, solid) => json.insert((*name).to_string(), line_json(*solid)),
-                Arg::Fixed(name, kind, value) => json.insert((*name).to_string(), serde_json::json!({ "type": kind, "value": value })),
-                _ => unreachable!("only fixed args here"),
-            };
+            if let Arg::Line(name, solid) = arg {
+                json.insert((*name).to_string(), line_json(*solid));
+            } else if let Arg::Fixed(name, kind, value) = arg {
+                json.insert((*name).to_string(), serde_json::json!({ "type": kind, "value": value }));
+            }
         }
         for (arg, value) in taking.into_iter().zip(values) {
             let (name, kind) = match arg {

@@ -1,0 +1,72 @@
+lok: a missing font names the font drawn instead
+
+LOK_CALLBACK_FONTS_MISSING listed the families a document asks for
+and the system lacks, but not what was drawn in their place. The
+font-mapping data collected at load holds it. The payload now adds
+"fontsused", one array per entry of "fontsmissing", with the
+families that drew it (style dropped), so a client can say "Nowhere
+Sans, shown in Liberation Sans" (Ely C19.1, PRD: the substitution
+rule must be visible).
+--- a/desktop/inc/lib/init.hxx
++++ b/desktop/inc/lib/init.hxx
+@@ -255,7 +255,8 @@
+         std::shared_ptr< LibreOfficeKitDocumentClass > m_pDocumentClass;
+         std::map<size_t, std::shared_ptr<CallbackFlushHandler>> mpCallbackFlushHandlers;
+         const int mnDocumentId;
+-        std::set<OUString> maFontsMissing;
++        // Ely: each missing font, and the families drawing it.
++        std::map<OUString, std::set<OUString>> maFontsMissing;
+ 
+         explicit LibLODocument_Impl(css::uno::Reference<css::lang::XComponent> xComponent,
+                                     int nDocumentId);
+--- a/desktop/source/lib/init.cxx
++++ b/desktop/source/lib/init.cxx
+@@ -3122,9 +3122,11 @@
+             }
+         }
+ 
+-        for (std::size_t i = 0; i < aFontMappingUseData.size(); ++i)
++        for (const auto& rItem : aFontMappingUseData)
+         {
+-            pDocument->maFontsMissing.insert(aFontMappingUseData[i].mOriginalFont);
++            std::set<OUString>& rUsed = pDocument->maFontsMissing[rItem.mOriginalFont];
++            for (const auto& rFace : rItem.mUsedFonts)
++                rUsed.insert(rFace.getToken(0, '/'));
+         }
+ 
+         SAL_INFO("lok", "lo_documentLoadWithOptions: finished @ " << osl_getGlobalTimer());
+@@ -4807,18 +4809,23 @@
+ 
+         if (!pDocument->maFontsMissing.empty())
+         {
+-            OStringBuffer sPayload("{ \"fontsmissing\": [ ");
+-            bool bFirst = true;
+-            for (const auto &f : pDocument->maFontsMissing)
+-            {
+-                if (bFirst)
+-                    bFirst = false;
+-                else
+-                    sPayload.append(", ");
+-                sPayload.append("\"" + f.toUtf8() + "\"");
++            // Ely: "fontsused" lists what drew each missing font.
++            tools::JsonWriter aJson;
++            {
++                auto aMissing = aJson.startArray("fontsmissing");
++                for (const auto& rMissing : pDocument->maFontsMissing)
++                    aJson.putSimpleValue(rMissing.first);
++            }
++            {
++                auto aUsed = aJson.startArray("fontsused");
++                for (const auto& rMissing : pDocument->maFontsMissing)
++                {
++                    auto aFamilies = aJson.startAnonArray();
++                    for (const auto& rFamily : rMissing.second)
++                        aJson.putSimpleValue(rFamily);
++                }
+             }
+-            sPayload.append(" ] }");
+-            pCallback(LOK_CALLBACK_FONTS_MISSING, sPayload.toString().getStr(), pData);
++            pCallback(LOK_CALLBACK_FONTS_MISSING, aJson.finishAndGetAsOString().getStr(), pData);
+             pDocument->maFontsMissing.clear();
+         }
+ 

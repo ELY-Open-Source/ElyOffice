@@ -28,6 +28,8 @@ pub enum Problem {
 pub struct Finding {
     pub problem: Problem,
     pub name: String,
+    /// What draws a missing font.
+    pub instead: Vec<String>,
     pub missing: bool,
     /// Slide indexes from zero.
     pub slides: Vec<usize>,
@@ -48,6 +50,7 @@ fn add(found: &mut Vec<Finding>, (problem, name, missing): (Problem, &str, bool)
             found.push(Finding {
                 problem,
                 name: name.to_string(),
+                instead: Vec::new(),
                 missing,
                 slides: Vec::new(),
                 masters: Vec::new(),
@@ -65,20 +68,24 @@ fn add(found: &mut Vec<Finding>, (problem, name, missing): (Problem, &str, bool)
 }
 
 /// Missing fonts, missing media, links, then broken objects.
-pub fn findings(check: &Check, slides: &[ShowSlide], missing_fonts: &[String]) -> Vec<Finding> {
+pub fn findings(check: &Check, slides: &[ShowSlide], missing_fonts: &[(String, Vec<String>)]) -> Vec<Finding> {
     let mut found = Vec::new();
-    for font in missing_fonts {
+    for (font, instead) in missing_fonts {
         let fonts = (Problem::Font, font.as_str(), true);
         let mut placed = false;
         for (at, _) in pages(check).filter(|(_, page)| page.fonts.contains(font)) {
             add(&mut found, fonts, at);
             placed = true;
         }
+        if let Some(finding) = found.iter_mut().find(|f| f.problem == Problem::Font && f.name == *font) {
+            finding.instead = instead.clone();
+        }
         // Missing, yet no slide text asks for it.
         if !placed {
             found.push(Finding {
                 problem: Problem::Font,
                 name: font.clone(),
+                instead: instead.clone(),
                 missing: true,
                 slides: Vec::new(),
                 masters: Vec::new(),
@@ -183,9 +190,10 @@ impl Deck {
             places.extend(finding.masters.iter().map(|name| {
                 Deck::text(cx, "show.check.master", &[("name", name)]).to_string()
             }));
-            let name = match finding.name.is_empty() {
-                true => text("show.check.unnamed"),
-                false => SharedString::from(finding.name.clone()),
+            let name = match (finding.name.is_empty(), finding.instead.is_empty()) {
+                (true, _) => text("show.check.unnamed"),
+                (false, true) => SharedString::from(finding.name.clone()),
+                (false, false) => Deck::text(cx, "fonts.instead", &[("font", &finding.name), ("used", &finding.instead.join(", "))]),
             };
             let place = match places.is_empty() {
                 true => text("show.check.nowhere").to_string(),
@@ -253,8 +261,9 @@ mod tests {
             masters: vec![("Plain".into(), page(&["Lost"], &[("file:///a.png", true)], &[]))],
         };
         let slides = [slide(vec![media("file:///clip.mp4", false, true)]), slide(vec![media("file:///b.mp3", true, false)])];
-        let missing = ["Lost".to_string(), "Gone".to_string()];
+        let missing = [("Lost".to_string(), vec!["Inter".to_string()]), ("Gone".to_string(), vec![])];
         let found = findings(&check, &slides, &missing);
+        assert_eq!(found[0].instead, ["Inter"], "the stand-in rides along");
         let short: Vec<(Problem, &str, Vec<usize>, Vec<String>)> = found
             .iter()
             .map(|f| (f.problem, f.name.as_str(), f.slides.clone(), f.masters.clone()))

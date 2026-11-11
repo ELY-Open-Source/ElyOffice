@@ -4,7 +4,7 @@
 
 <!-- 下两行由 scripts/compatibility.py 写出，勿手改 -->
 版本：Ely Office 0.1.15（首批应用：ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark）。
-内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0127，121 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0008，8 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.11（加 `patches/gpui` 0001–0013，13 个）。
+内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0128，122 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0008，8 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.11（加 `patches/gpui` 0001–0013，13 个）。
 各节内容最近一次逐项核对是在 0.1.11（2026-10-23）；其后各版本的改动只在所涉的条目里更新，未整体重验。
 验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。与 Microsoft Office 的交叉核对见下节（网页版，三十份样本，另十八份大、怪、极限的文件）。
 
@@ -72,7 +72,7 @@
 | Windows | 系统打印对话框 | 真窗口，打印到 Microsoft Print to PDF |
 | Linux | 桌面门户；由 Ely 照对话框的选择排页（页码范围、奇偶页、倒序、份数与逐份、缩放、每张页数），只交出 PDF | 只对替身门户核对；GNOME、KDE 真桌面未核对 |
 
-字体：缺失字体由内核报出，ElyDoc 页面上方列出缺失的字体（`doc.fonts.missing`），分页可能与有字体时不同。两种环境对照（`a_missing_font_is_named_and_its_pages_counted_apart`，Windows）：同一份 400 段的 FODT，字体为随包的 DejaVu Sans Mono 时 17 页、不报缺失；换成不存在的 Nowhere Mono 时内核以别的字体代替，9 页，缺失列表恰为 Nowhere Mono。字体按它在任一语言里的家族名找到（补丁 0124）：文档写“思源宋体”、本机装的是 Source Han Serif SC，即用它，不报缺失；三端照同一张名字表（字体的 name 表，家族名与印刷家族名），测试 `a_font_is_found_by_its_name_in_another_language`（Linux 用随测试的双语字体，macOS 用苹方，Windows 用 Malgun Gothic）。替换规则不可见：提示只说已用别的字体代替，不说换成哪种；LOK 只报缺失的名字，要报替代字体须改内核，未做。产品不带微软字体。
+字体：缺失字体由内核报出，ElyDoc 页面上方列出缺失的字体（`doc.fonts.missing`），分页可能与有字体时不同。两种环境对照（`a_missing_font_is_named_and_its_pages_counted_apart`，Windows）：同一份 400 段的 FODT，字体为随包的 DejaVu Sans Mono 时 17 页、不报缺失；换成不存在的 Nowhere Mono 时内核以别的字体代替，9 页，缺失列表恰为 Nowhere Mono。字体按它在任一语言里的家族名找到（补丁 0124）：文档写“思源宋体”、本机装的是 Source Han Serif SC，即用它，不报缺失；三端照同一张名字表（字体的 name 表，家族名与印刷家族名），测试 `a_font_is_found_by_its_name_in_another_language`（Linux 用随测试的双语字体，macOS 用苹方，Windows 用 Malgun Gothic）。替换规则可见：提示逐个写出缺失的字体与实际所用的字体（“Nowhere Sans（以 Liberation Sans 代替）”），内核随缺失列表报出所用的家族（补丁 0128）。产品不带微软字体。
 
 ## ElyDoc
 

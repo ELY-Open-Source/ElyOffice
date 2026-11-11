@@ -86,8 +86,8 @@ impl LokView {
         (self.search.0, &self.search.1)
     }
 
-    /// Fonts the document names and the system lacks.
-    pub fn missing_fonts(&self) -> &[String] {
+    /// Missing fonts, each with the families drawn instead.
+    pub fn missing_fonts(&self) -> &[(String, Vec<String>)] {
         &self.fonts
     }
 

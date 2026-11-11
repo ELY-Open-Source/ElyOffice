@@ -67,7 +67,7 @@ fn headings_and_pages_jump_and_back_returns() {
     open_long(&mut cx, &docs, dir.path());
     settle(&cx, |app| {
         let tab = docs.read(app).active_tab().expect("a tab");
-        tab.view.read(app).missing_fonts() == ["Nowhere Sans"]
+        tab.view.read(app).missing_fonts().iter().map(|(name, _)| name.as_str()).eq(["Nowhere Sans"])
             && tab.view.read(app).cursor().is_some()
     });
     let navigator = cx.update(|app| docs.read(app).navigator.clone());
@@ -369,7 +369,7 @@ fn a_font_found_by_its_search_name_is_not_missing() {
     });
     let missing = cx.update(|app| {
         let tab = docs.read(app).active_tab().expect("a tab");
-        tab.view.read(app).missing_fonts().to_vec()
+        tab.view.read(app).missing_fonts().iter().map(|(name, _)| name.clone()).collect::<Vec<_>>()
     });
     assert_eq!(missing, ["Nowhere Sans"], "the lookup found DejaVu Sans");
 }

@@ -28,7 +28,7 @@ fn unpack_pushed(body: &[u8]) -> io::Result<(u64, Events)> {
         .map(|_| unpack.str())
         .collect::<io::Result<_>>()?;
     let fonts = (0..unpack.u64()?)
-        .map(|_| unpack.str())
+        .map(|_| Ok((unpack.str()?, (0..unpack.u64()?).map(|_| unpack.str()).collect::<io::Result<_>>()?)))
         .collect::<io::Result<_>>()?;
     let states = (0..unpack.u64()?)
         .map(|_| Ok((unpack.str()?, unpack.str()?)))

@@ -56,8 +56,8 @@ fn pack_events(batch: Events) -> Vec<u8> {
     let pack = batch
         .fonts
         .iter()
-        .fold(pack.u64(batch.fonts.len() as u64), |pack, font| {
-            pack.str(font)
+        .fold(pack.u64(batch.fonts.len() as u64), |pack, (font, used)| {
+            used.iter().fold(pack.str(font).u64(used.len() as u64), |pack, family| pack.str(family))
         });
     let pack = batch.states.iter().fold(
         pack.u64(batch.states.len() as u64),

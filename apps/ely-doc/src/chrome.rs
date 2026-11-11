@@ -43,7 +43,14 @@ impl Docs {
                 .children(self.context_menu(cx))
                 .into_any_element();
             let risk = self.stopped_banner(cx).or_else(|| self.risk_banner(cx));
-            let fonts = tab.view.read(cx).missing_fonts().join(", ");
+            // Each lost font names what drew it.
+            let fonts: Vec<String> = (tab.view.read(cx).missing_fonts().iter())
+                .map(|(font, used)| match used.is_empty() {
+                    true => font.clone(),
+                    false => Self::text(cx, "fonts.instead", &[("font", font), ("used", &used.join(", "))]).to_string(),
+                })
+                .collect();
+            let fonts = fonts.join(", ");
             let fonts = (!fonts.is_empty()).then(|| {
                 let warning = Self::text(cx, "doc.fonts.missing", &[("fonts", &fonts)]);
                 Banner::new("doc-fonts", Severity::Warning, warning)

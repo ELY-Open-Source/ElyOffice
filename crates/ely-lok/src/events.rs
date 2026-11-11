@@ -70,8 +70,8 @@ pub struct Events {
     pub menu: Option<String>,
     /// Kernel messages Ely could not read.
     pub faults: Vec<String>,
-    /// Font families the document names and the system lacks.
-    pub fonts: Vec<String>,
+    /// Families the system lacks, and those drawn instead.
+    pub fonts: Vec<(String, Vec<String>)>,
     /// Kernel states changed since the last drain (LOK-05).
     pub states: Vec<(String, String)>,
     /// Dialogs the kernel opened and Ely closed: title, body (LOK-08).

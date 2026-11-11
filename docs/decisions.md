@@ -922,3 +922,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 再审查出：属性栏的制表位来自标尺回调，标尺在 bindings 下一轮结束时才更新（按键后约半秒），且与上次相同就不再发。按下键后第一批已带新修订、光标已在下一段，制表位仍是上一段的；以此删除“第 2 个”，内核按序号删了下一段的。修订编号分不出所示的是哪一段，视图里“旧批不覆盖新批”的比较在真实事件流里也走不到。
 - 0127：LOK 下 `.uno:ChangeTabStop` 删除时先 `SfxBindings::Update()` 让标尺跟上当前段落，再看标尺上该序号（不计默认制表位）的位置是否等于请求所带的位置（1/100 毫米，与标尺 JSON 同一换算）；不等即不删、以 `ELY_WARN` 记下，Ely 因无撤销步骤报未执行。属性栏删除时送出所示的位置；新增制表位仍送缇。r7 查出负缩进段落的所示位置为负，被 0 起的参数范围挡下；新增与删除分成 `paragraph.tab`（缇，0 至 31,680）与 `paragraph.untab`（有符号的 1/100 毫米，±55,880），参数表加固定值 `Arg::Fixed`。
 - 测试 `client::tests::tabs::a_stop_shown_for_the_last_paragraph_removes_none_in_the_next`：Linux 上不带 0127 即败，带上即过。Mac、Windows 的共享内核待发布前带上重建（R19.4）。
+
+## 2026-11-11 缺失字体写出实际所用的字体（C19.1 再审，补丁 0128）
+
+- PRD §19.2 要求“替换规则和缺失字体列表必须可见”。此前 ElyDoc 只列缺失的名字，说已用别的字体代替；LOK 的 `fontsmissing` 只有名字。
+- 内核载入时的字体映射记录（`OutputDevice::FinishTrackingFontMappingUse`）本有每个原字体实际画出它的字体。0128 把文档的 `maFontsMissing` 改为“名字 → 所用家族集合”，回调载荷以 `tools::JsonWriter` 写出 `fontsmissing` 与逐项对应的 `fontsused`（家族，去掉 `/样式`）。
+- Ely：`Events.fonts` 为（名字，所用家族）；`fonts_of` 要求两数组成对，缺 `fontsused`（未带 0128 的内核）即报读不懂的故障，不悄悄只显示名字。ElyDoc 提示与 ElyShow 的演示准备检查每项写作 `fonts.instead`（“{font}（以 {used} 代替）”），没有所用家族时只写名字。
+- 实测（Linux）：Nowhere Sans 以 Liberation Sans 画出，400 段的 FODT 17 页对 9 页。
+- 构建：Linux 用合并库，desktop/source/lib/init.cxx 与 vcl 编进 libmergedlo；只 `make desktop.build` 会重建 libsofficeapp 而 LOK 仍载旧的 libmergedlo，须再 `make Library_merged`。Mac、Windows 的共享内核待发布前带上重建（R19.4）。

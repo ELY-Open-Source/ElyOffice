@@ -93,7 +93,7 @@ apps/ely-show/src/check.rs	expect_used	found.last_mut().expect("just pushed")	li
 apps/ely-show/src/dialog.rs	unreachable	unreachable!("drawn above")	linux,macos,windows	drawn above
 apps/ely-show/src/media.rs	expect_used	self.probe.take().expect("checked above")	linux,macos,windows	checked above
 apps/ely-show/src/new.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
-apps/ely-show/src/output.rs	expect_used	u32::try_from(tab.extra.slides.current + 1).expect("a slide number")	linux,macos,windows	a slide number
+apps/ely-show/src/output.rs	expect_used	u32::try_from(shown + 1).expect("a slide number")	linux,macos,windows	a slide number
 apps/ely-show/src/output/dialog.rs	expect_used	value.parse().expect("listed numbers")	linux,macos,windows	listed numbers
 apps/ely-show/src/preview.rs	expect_used	ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, pixels) .expect("the worker paints the asked size")	linux,macos,windows	the worker paints the asked size
 apps/ely-show/src/remarks.rs	expect_used	authors .iter() .position(|name| *name == remark.author) .expect("the author is listed")	linux,macos,windows	the author is listed
@@ -162,7 +162,7 @@ crates/ely-lok/src/client/feed.rs	expect_used	self .0 .1 .wait_timeout(docs, dea
 crates/ely-lok/src/client/feed.rs	expect_used	self.0.0.lock().expect("the feed lock")	linux,macos,windows	the feed lock
 crates/ely-lok/src/client/load.rs	expect_used	found.expect("a listed choice")	linux,macos,windows	a listed choice
 crates/ely-lok/src/client/wait.rs	expect_used	held.expect("the worker lock")	linux,macos,windows	the worker lock
-crates/ely-lok/src/commands.rs	unreachable	unreachable!("lines take no value")	linux,macos,windows	lines take no value
+crates/ely-lok/src/commands.rs	unreachable	unreachable!("fixed args take no value")	linux,macos,windows	lines and fixed args take no value
 crates/ely-lok/src/events.rs	expect_used	formula_text(text).expect("checked above")	linux,macos,windows	checked above
 crates/ely-lok/src/events.rs	expect_used	signal() .wait_timeout(slots, deadline - now) .expect("the events wait")	linux,macos,windows	the events wait
 crates/ely-lok/src/events.rs	expect_used	signal() .wait_timeout(slots, deadline - now) .expect("the events wait")	linux,macos,windows	the events wait

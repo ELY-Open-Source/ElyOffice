@@ -118,7 +118,7 @@ fn pdfs_take_pages_and_the_outline_has_places() {
         HANG,
         |seen| !seen.fonts.is_empty(),
     );
-    let mut fonts = seen.fonts.clone();
+    let mut fonts: Vec<String> = seen.fonts.iter().map(|(name, _)| name.clone()).collect();
     fonts.sort();
     assert_eq!(
         fonts,

@@ -73,10 +73,8 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("doc.nav.marks", "Marcadores"),
     ("doc.nav.page", "Página {n}"),
     ("doc.nav.gone", "Ese documento está cerrado."),
-    (
-        "doc.fonts.missing",
-        "Fuentes que no están en este equipo: {fonts}. Se sustituyen por otras, por lo que las líneas y las páginas pueden cambiar.",
-    ),
+    ("doc.fonts.missing", "Fuentes que no están en este equipo: {fonts}. Las líneas y las páginas pueden cambiar."),
+    ("fonts.instead", "{font} (sustituida por {used})"),
     ("doc.merge.open", "Combinar correspondencia…"),
     ("doc.merge.title", "Combinar correspondencia"),
     ("doc.merge.data", "Datos"),

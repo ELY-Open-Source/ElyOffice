@@ -122,6 +122,8 @@ fn the_check_lists_font_link_and_object_with_their_slides() {
     let short: Vec<(Problem, &str, Vec<usize>)> =
         found.iter().map(|f| (f.problem, f.name.as_str(), f.slides.clone())).collect();
     assert!(short.contains(&(Problem::Font, "Nowhere Sans", vec![0])), "{short:?}");
+    let lost = found.iter().find(|f| f.name == "Nowhere Sans").expect("the font finding");
+    assert!(!lost.instead.is_empty(), "the check names what drew it");
     assert!(short.contains(&(Problem::Link, "file:///nowhere/gone.png", vec![1])), "{short:?}");
     assert!(short.contains(&(Problem::Object, "Empty", vec![2])), "{short:?}");
 }

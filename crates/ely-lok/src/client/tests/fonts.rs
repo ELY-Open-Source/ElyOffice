@@ -171,7 +171,7 @@ fn in_font(font: &str) -> String {
 }
 
 /// Pages and missing fonts once the layout has settled.
-fn laid_out(font: &str) -> (usize, Vec<String>) {
+fn laid_out(font: &str) -> (usize, Vec<(String, Vec<String>)>) {
     let (_dir, mut worker, doc) = open(&in_font(font));
     // Missing fonts are reported soon after the load.
     let seen = poll_until(&mut worker, &doc, &Events::default(), std::time::Duration::from_secs(5), |seen| {
@@ -191,7 +191,11 @@ fn a_missing_font_is_named_and_its_pages_counted_apart() {
     assert!(none.is_empty(), "a bundled font is not missing: {none:?}");
     // "Mono" picks a stand-in; macOS's Menlo has DejaVu's widths.
     let (gone, missing) = laid_out("Nowhere Sans");
-    assert_eq!(missing, ["Nowhere Sans"], "the lost font is named");
+    let [(name, used)] = missing.as_slice() else { panic!("one lost font: {missing:?}") };
+    assert_eq!(name, "Nowhere Sans", "the lost font is named");
+    // The stand-in shows too (PRD §19.2).
+    assert!(!used.is_empty() && !used.contains(name), "what drew it: {used:?}");
+    eprintln!("Nowhere Sans drawn in {used:?}");
     eprintln!("pages: {here} with the font, {gone} without");
     assert!(here > 1 && gone > 1, "both lay out pages: {here}, {gone}");
     assert_ne!(here, gone, "a stand-in moves the pages, and they show");
@@ -277,7 +281,8 @@ fn a_font_is_found_by_its_name_in_another_language() {
     let seen = poll_until(&mut worker, &doc, &Events::default(), std::time::Duration::from_secs(5), |seen| {
         !seen.fonts.is_empty()
     });
-    assert_eq!(seen.fonts, ["Nowhere Sans"], "{BOTH_NAMES:?} name one font");
+    let names: Vec<&str> = seen.fonts.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(names, ["Nowhere Sans"], "{BOTH_NAMES:?} name one font");
 }
 
 #[test]

@@ -132,7 +132,7 @@ pub struct LokView {
     search: (u64, Vec<Rect>),
     menu: Option<String>,
     right_at: Option<Point<Pixels>>,
-    fonts: Vec<String>,
+    fonts: Vec<(String, Vec<String>)>,
     a11y: crate::A11y,
     reading: reading::Reading,
     /// What readers call the view.
