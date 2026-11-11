@@ -364,11 +364,11 @@ fn a_removed_annotation_leaves_the_structure_tree() {
     for (annot, form) in [(link, ""), (widget, " /AcroForm << /Fields [5 0 R] >>")] {
         for redact in [false, true] {
             let dir = tempfile::tempdir().expect("a temp dir");
-            // The element points at the annotation by OBJR.
+            // The element points at it by OBJR, and describes it.
             let objects = [
                 annot.to_string(),
                 "<< /Type /StructTreeRoot /K [7 0 R] /ParentTree 8 0 R /ParentTreeNextKey 2 >>".to_string(),
-                "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /K << /Type /OBJR /Pg 3 0 R /Obj 5 0 R >> >>".to_string(),
+                "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /Alt (SECRET-TAGGED) /ActualText (SECRET-TAGGED) /T (SECRET-TAGGED) /K << /Type /OBJR /Pg 3 0 R /Obj 5 0 R >> >>".to_string(),
                 "<< /Nums [1 7 0 R] >>".to_string(),
             ];
             let catalog = format!(" /MarkInfo << /Marked true >> /StructTreeRoot 6 0 R{form}");

@@ -123,32 +123,46 @@ static int dead_objr(fz_context *ctx, pdf_obj *kid, const unsigned char *live, i
 	return num > 0 && num < n && !live[num] && pdf_dict_get(ctx, obj, PDF_NAME(Rect));
 }
 
-static void drop_objr(fz_context *ctx, pdf_obj *elem, const unsigned char *live, int n)
+/* Drops dead references; what held one says nothing. */
+static int drop_objr(fz_context *ctx, pdf_obj *elem, const unsigned char *live, int n)
 {
 	pdf_obj *kids;
-	int i;
+	int i, gone = 0;
 	if (!pdf_is_dict(ctx, elem) || pdf_mark_obj(ctx, elem))
-		return;
+		return 0;
+	fz_var(gone);
 	fz_try(ctx)
 	{
 		kids = pdf_dict_get(ctx, elem, PDF_NAME(K));
 		if (dead_objr(ctx, kids, live, n))
+		{
 			pdf_dict_del(ctx, elem, PDF_NAME(K));
+			gone = 1;
+		}
 		else if (pdf_is_array(ctx, kids))
 		{
 			for (i = pdf_array_len(ctx, kids) - 1; i >= 0; i--)
 				if (dead_objr(ctx, pdf_array_get(ctx, kids, i), live, n))
+				{
 					pdf_array_delete(ctx, kids, i);
+					gone = 1;
+				}
 				else
-					drop_objr(ctx, pdf_array_get(ctx, kids, i), live, n);
+					gone |= drop_objr(ctx, pdf_array_get(ctx, kids, i), live, n);
 		}
 		else
-			drop_objr(ctx, kids, live, n);
+			gone = drop_objr(ctx, kids, live, n);
+		if (gone)
+		{
+			drop_said(ctx, elem);
+			pdf_dict_del(ctx, elem, PDF_NAME(T));
+		}
 	}
 	fz_always(ctx)
 		pdf_unmark_obj(ctx, elem);
 	fz_catch(ctx)
 		fz_rethrow(ctx);
+	return gone;
 }
 
 /* The structure tree lets go of removed annotations. */
