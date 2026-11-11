@@ -11,11 +11,12 @@
 | UX-05 | 长任务显示范围、状态、错误和可用的取消操作 | C05.4 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-06 | 失败提示保留用户输入，并提供重试或另存路径 | C05.4 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-07 | 危险操作说明具体对象和影响，不只显示“确定吗” | C05.4 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
-| UX-08 | 支持简体中文与英文；ElyDoc、ElyTable 另支持西班牙语；错误正文不用未解释的内部错误码替代 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
+| UX-08 | 支持英文、简体中文、西班牙语、法语、德语、日语、韩语与越南语，每个应用各语言都全；英文、中文以外的六种未经母语者校对，标“预览”；错误正文不用未解释的内部错误码替代 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-09 | 中文输入法组合输入、候选框、撤销与跨区域焦点一致 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-10 | 多屏缩放变化不造成点击偏移、选区漂移或浮层遮挡 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-11 | 正文、标签、错误和状态不只通过颜色表达 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-12 | 使用系统辅助技术所需的名称、角色、状态和文本信息 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
+| UX-13 | 双击文件到出现画面不留空白；系统在应用代码之前耗时（Windows 扫描新装或更新后的程序）时，先出带应用图标与名字的启动画面，应用首帧画出即换下 | 无 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | FILE-01 | 新建文件在首次保存前没有隐含目标路径；关闭前处理未保存内容 | C06.1 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | FILE-02 | 显示加载中、已保存、未保存、保存中、只读、外部已修改、保存失败等状态 | C06.1 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | FILE-03 | 保存任务记录对应修订号；旧修订保存完成不得把更新的编辑标为已保存 | C06.1 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
