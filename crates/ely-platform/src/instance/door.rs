@@ -385,6 +385,7 @@ mod tests {
             let real = forge(dir.path());
             let door = dir.path().join(FILE);
             let fixer = thread::spawn(move || {
+                // The stale door stays this long, then the fix.
                 thread::sleep(Duration::from_millis(100));
                 fs::write(door, real).expect("the real door");
             });

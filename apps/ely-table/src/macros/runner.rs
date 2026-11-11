@@ -242,6 +242,7 @@ mod tests {
         let started = Instant::now();
         let error = std::thread::scope(|scope| {
             scope.spawn(|| {
+                // R runs this long before the stop.
                 std::thread::sleep(Duration::from_millis(200));
                 stop.store(true, Ordering::Relaxed);
             });

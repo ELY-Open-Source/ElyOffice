@@ -21,7 +21,7 @@ tests/scripts/elfs-rules.sh      `packaging/linux/elfs.sh`（package.sh 调用�
 tests/scripts/winget.sh        winget.sh 按假发布写出清单，地址、散列、卸载键、许可与简介照 apps.tsv 与安装程序，`winget validate` 通过（无 winget 时 SKIP），版本不符、缺清单即拒
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；nix/release.json 与 apps.tsv 一致；nixos/nix 容器里 flake 的许可与表相同、ElyMark 构建并在 Xvfb 下画出（缺 docker 时 SKIP 容器部分）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝
-tests/scripts/waits.py           测试里的 `thread::sleep`：在轮询某个条件的循环里，或上一行以注释写明这段时间代表什么（check.sh 调用）
+tests/scripts/waits.py           测试里的 `thread::sleep`（测试文件、`#[cfg(test)]` 模块与 `#[test]` 函数）：在轮询某个条件的循环里（`while`、`loop`、`.any(`，或带 `break`、`return` 的 `for _ in`），或上一行、所在循环的上一行以注释写明这段时间代表什么（check.sh 调用）
 tests/scripts/release-gate.sh    发布的门的规则：更新日志里 `[~]` 的数目须与进度表相符，距上一版不足七天须写原因（`scripts/release-gate.py`）；本系统须有这一版的基准记录，较上一份慢过三成且多出 10 毫秒的各项须写原因（`tests/perf/baseline.py`）（pr.yml 调用）
 tests/scripts/records.py         TASKS、BUGS、BugList、decisions 引用的库内文件都在，否则标“（已移除）”；引用 .work/ 须标“（本机，未入库）”；`[x]` 而自己末轮审查是 FAIL 的条目，行里须写明“某编号 复审通过”且那个编号末轮是 PASS（pr.yml 调用）
 tests/scripts/workflows.py       release.yml 的任务互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 的 runs-on 恰为 ubuntu-24.04、以整行的 `[sudo] apt-get install` 装齐 README 的库、严格模式、panic 数比基线提交（各带反例）

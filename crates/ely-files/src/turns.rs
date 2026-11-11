@@ -89,6 +89,7 @@ mod tests {
             let (turns, order) = (turns.clone(), order.clone());
             std::thread::spawn(move || turns.write(late, || order.lock().expect("order").push("late")))
         };
+        // Time for a late write that skipped its turn.
         std::thread::sleep(Duration::from_millis(200));
         assert!(order.lock().expect("order").is_empty(), "the late write waits");
         release.0.send(()).expect("releases");

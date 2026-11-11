@@ -111,6 +111,7 @@ fn a_deleted_files_tab_still_reads_and_replaces(cx: &mut TestAppContext) {
     let file = path.display().to_string();
     assert_eq!(ask(&desk, &["replace", &file, "cat", "dog"], cx), Ok(String::new()));
     std::fs::remove_file(&path).expect("deleted");
+    // Time for the watcher to see the delete.
     for _ in 0..50 {
         std::thread::sleep(std::time::Duration::from_millis(20));
         cx.run_until_parked();

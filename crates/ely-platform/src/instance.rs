@@ -225,6 +225,7 @@ mod tests {
         match take(AppId::Doc, Path::new(&dir)) {
             Ok(()) => {
                 println!("HELD {} ", std::process::id());
+                // Holds the instance while the other copy tries.
                 std::thread::sleep(std::time::Duration::from_millis(1500));
             }
             Err(error) => println!("REFUSED {error}"),

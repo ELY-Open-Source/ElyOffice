@@ -287,6 +287,7 @@ fn a_sign_in_during_a_sync_starts_over_on_the_new_token() {
         });
         (syncing, cx.debug_bounds("banner-action Sign In Again").is_some())
     };
+    // Half a second the refusal must stay gone.
     for _ in 0..10 {
         std::thread::sleep(Duration::from_millis(50));
         assert_eq!(shown(cx), ((true, false, None), false), "the old refusal stays gone");

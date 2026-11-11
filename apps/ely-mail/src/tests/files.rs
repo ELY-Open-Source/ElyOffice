@@ -143,6 +143,7 @@ fn a_file_that_runs_code_is_marked_and_never_opened() {
     vcx.update(|_, app| mail.update(app, |mail, cx| mail.open_file(&key, 0, cx)));
     let copy = copies.join("run.exe");
     settle(vcx, |_| copy.exists());
+    // Time for a wrongly started opener to run.
     for _ in 0..20 {
         vcx.run_until_parked();
         std::thread::sleep(Duration::from_millis(20));

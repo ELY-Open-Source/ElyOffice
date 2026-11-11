@@ -55,6 +55,7 @@ fn all_mail_exports_once_a_file_per_folder() {
     // Again: everything is there, so nothing is written.
     std::fs::write(account.join("INBOX.mbox"), b"kept").unwrap();
     cx.update(|_, app| mail.update(app, |mail, cx| mail.export_all(out.clone(), cx)));
+    // Time for an unwanted write to land.
     for _ in 0..10 {
         cx.run_until_parked();
         std::thread::sleep(std::time::Duration::from_millis(20));
@@ -134,6 +135,7 @@ fn the_last_cap_chosen_is_the_one_kept_and_used() {
     });
     let saved = dir.path().join("settings.json");
     settle(vcx, |_| std::fs::read_to_string(&saved).is_ok_and(|text| text.contains("\"mail_cache\": null")));
+    // Time for a stale settings write to land.
     for _ in 0..20 {
         vcx.run_until_parked();
         std::thread::sleep(std::time::Duration::from_millis(20));

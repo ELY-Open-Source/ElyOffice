@@ -311,6 +311,7 @@ fn a_cell_set_waiting_for_the_worker_lands_after_the_batch() {
         while !asked.load(std::sync::atomic::Ordering::SeqCst) {
             std::thread::yield_now();
         }
+        // Time for a set skipping the lock to finish.
         std::thread::sleep(std::time::Duration::from_millis(200));
         assert!(!cli.is_finished(), "the cell set waits for the worker");
         // Check and write share the lock; the set waits.

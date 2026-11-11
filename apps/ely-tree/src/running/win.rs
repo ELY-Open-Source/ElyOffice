@@ -201,6 +201,7 @@ mod tests {
         let Some(marker) = std::env::var_os("ELY_DEAF") else { return };
         super::checked(unsafe { super::SetConsoleCtrlHandler(None, 1) }).expect("deaf");
         std::fs::write(marker, "").expect("marks");
+        // Outlives the test, which kills this process.
         std::thread::sleep(Duration::from_secs(60));
     }
 

@@ -18,6 +18,7 @@ impl gpui::Render for Host {
 }
 
 fn frames(shown: &mut VisualTestContext) {
+    // Frames past reduced motion's 1 ms folds.
     for _ in 0..3 {
         std::thread::sleep(std::time::Duration::from_millis(2));
         shown.update(|window, _| window.refresh());

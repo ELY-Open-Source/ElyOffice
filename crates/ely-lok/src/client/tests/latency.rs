@@ -37,6 +37,7 @@ fn keys_never_wait_behind_the_event_watch() {
         drop(worker);
         waits.push(locked.as_secs_f64() * 1000.0);
         calls.push((start.elapsed() - locked).as_secs_f64() * 1000.0);
+        // A typist's pace between keys.
         std::thread::sleep(std::time::Duration::from_millis(30));
     }
     stop.store(true, std::sync::atomic::Ordering::Relaxed);
