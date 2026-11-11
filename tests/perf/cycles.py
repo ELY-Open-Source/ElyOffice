@@ -2,6 +2,7 @@
 
 import re
 import shutil
+import statistics
 import subprocess
 import os
 import time
@@ -42,10 +43,17 @@ def steady(who, what, counts, slack=0):
     """Not climbing over `slack` a cycle in the last quarter."""
     quarter = max(1, len(counts) // 4)
     late, prior = counts[-quarter:], counts[-2 * quarter:-quarter]
-    # A step that settled before it is not a climb.
-    rate = (late[-1] - prior[-1]) / quarter
+    # Halves' medians: one late drop hides nothing.
+    tail = prior[-1:] + late
+    half = len(tail) // 2
+    rate = (statistics.median(tail[half:]) - statistics.median(tail[:half])) / half
     if min(late) > max(prior) and rate > slack:
         raise RuntimeError(f"{who}: {len(counts)} cycles still took the {what} from {prior} to {late}")
+
+
+def unnamed(handles):
+    """Sockets and pipes, which handles_kept passes."""
+    return sum(n for handle, n in handles.items() if handle[1] in UNNAMED)
 
 
 def grown(root, families):
@@ -208,7 +216,7 @@ def cycles(work, recipe):
         one(app, recipe, 0, first)
         before = app.handles()
         baseline = (app.memory_mb(), sum(before.values()), first)
-        seen, families = [], []
+        seen, families, kept = [], [], []
         for n in range(1, CYCLES + 1):
             since = one(app, recipe, n, first)
             now = app.handles()
@@ -216,12 +224,14 @@ def cycles(work, recipe):
                 handles_kept(recipe.slug, before, now, n, run.HOST.system)
             families.append(app.family())
             seen.append((sum(families[-1].values()) / 1024, sum(now.values()), recipe.live(app, since)))
+            kept.append(unnamed(now))
         counts = [count for _, count, _ in seen]
         if run.HOST.system is None:
             handles_steady(recipe.slug, baseline[1], counts)
         else:
             # Named system handles may settle late.
             steady(recipe.slug, "handles", counts)
+            handles_steady(recipe.slug + " sockets and pipes", unnamed(before), kept)
         # Thread arenas keep freed memory: settling is the test.
         try:
             steady(recipe.slug, "MB", [memory for memory, _, _ in seen], PAGE_MB)

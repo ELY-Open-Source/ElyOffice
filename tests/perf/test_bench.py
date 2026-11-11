@@ -145,6 +145,17 @@ class Verdicts(unittest.TestCase):
         # A tenth of a MB every cycle.
         with self.assertRaisesRegex(RuntimeError, "took the MB"):
             cycles.steady("app", "MB", [387 + n / 10 for n in range(100)], cycles.PAGE_MB)
+        # 8 KiB a cycle; the app frees 264 KiB last.
+        leak = [300 + n * 8 / 1024 for n in range(150)]
+        leak[-1] -= 264 / 1024
+        with self.assertRaisesRegex(RuntimeError, "took the MB"):
+            cycles.steady("app", "MB", leak, cycles.PAGE_MB)
+
+    def test_sockets_kept_every_other_cycle_fail(self):
+        before = collections.Counter({("fd", "socket"): 30, ("fd", "/tmp/a"): 1})
+        self.assertEqual(cycles.unnamed(before), 30)
+        with self.assertRaisesRegex(RuntimeError, "keep 57 handles"):
+            cycles.handles_steady("app", 30, [30 + (n + 1) // 2 for n in range(1, 151)])
 
     def test_counts_come_from_the_log(self):
         self.assertEqual(cycles.counted(["x", "lok-worker: 2 documents open", "lok-worker: 1 documents open"],
