@@ -139,15 +139,18 @@ impl Deck {
             let text = Deck::text(cx, "command.blocked.no_document", &[]);
             return self.toast(text, Severity::Warning, cx);
         };
-        let id = tab.id;
-        let current = (!tab.extra.masters)
-            .then(|| u32::try_from(tab.extra.slides.current + 1).expect("a slide number"));
+        let (id, masters) = (tab.id, tab.extra.masters);
         let asked = self.ask_dialog();
         self.read_in(
             id,
-            |worker, doc| ely_lok::show::slide_show(&worker.values(doc, ely_lok::show::SLIDE_SHOW)?),
+            // The shown slide, after queued page turns land.
+            |worker, doc| {
+                let current = doc.sheets(worker)?.current;
+                Ok((current, ely_lok::show::slide_show(&worker.values(doc, ely_lok::show::SLIDE_SHOW)?)?))
+            },
             move |deck, read, _, cx| match read {
-                Ok(slides) if deck.dialog_due(asked, id) => {
+                Ok((shown, slides)) if deck.dialog_due(asked, id) => {
+                    let current = (!masters).then(|| u32::try_from(shown + 1).expect("a slide number"));
                     // Refused while another dialog is open; it says so.
                     let output = Output {
                         tab: id,

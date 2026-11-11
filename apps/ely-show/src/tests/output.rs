@@ -9,6 +9,7 @@ use super::objects::blank;
 use super::play::three_slides;
 use super::{settle, undo_steps, update};
 use crate::deck::Deck;
+use crate::dialog::Dialog;
 use crate::output::{Kind, Output, Range};
 
 fn output(cx: &mut TestAppContext, deck: &Entity<Deck>, kind: Kind, range: Range) -> Output {
@@ -248,4 +249,48 @@ fn pictures_follow_the_slides_as_written_not_as_asked() {
         let picture = image::open(folder.join(format!("deck-{n}.png"))).expect("a readable PNG");
         assert_eq!(picture.width(), 1920);
     }
+}
+
+#[test]
+fn the_current_slide_is_the_one_just_picked() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = blank(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    three_slides(&mut cx, &deck);
+    update(&mut cx, &deck, |deck, cx| {
+        let view = deck.active_tab().expect("a tab").view.clone();
+        view.update(cx, |view, _| view.show_part(0));
+    });
+    settle(&cx, |app| {
+        deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.current == 0 && tab.view.read(app).settled() && !tab.extra.reading)
+    });
+    // The turn and the ask go in one update.
+    let window = cx.update(|app| deck.read(app).core.window.expect("a window"));
+    cx.update_window(window, |_, window, app| {
+        deck.update(app, |deck, cx| {
+            let view = deck.active_tab().expect("a tab").view.clone();
+            view.update(cx, |view, _| view.show_part(1));
+            deck.on_export(&ely_ui::commands::Export, window, cx);
+        })
+    })
+    .expect("the window lives");
+    settle(&cx, |app| matches!(deck.read(app).dialog, Some(Dialog::Output(_))));
+    let mut asked = cx.update(|app| match &deck.read(app).dialog {
+        Some(Dialog::Output(output)) => output.clone(),
+        _ => unreachable!("the output dialog"),
+    });
+    assert_eq!(asked.current, Some(2), "the slide just picked is current");
+    update(&mut cx, &deck, |deck, _| deck.dialog = None);
+    (asked.range, asked.kind) = (Range::Current, Kind::Pictures);
+    let folder = dir.path().join("out");
+    std::fs::create_dir_all(&folder).expect("a folder");
+    update(&mut cx, &deck, |deck, cx| deck.write_pictures(&asked, (folder.clone(), "deck".to_string()), cx));
+    let names = |folder: &Path| -> Vec<String> {
+        std::fs::read_dir(folder).expect("reads").map(|entry| entry.expect("an entry").file_name().to_string_lossy().into_owned()).collect()
+    };
+    settle(&cx, |_| !names(&folder).is_empty());
+    assert_eq!(names(&folder), ["deck-2.png"], "the current slide went out");
 }
