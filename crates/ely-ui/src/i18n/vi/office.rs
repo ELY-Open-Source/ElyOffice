@@ -31,6 +31,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("office.error.open", "Không mở được {name}: {error}"),
     ("office.error.not_package", "đây không phải tệp .{ext} thật; nội dung của nó là định dạng khác, ví dụ văn bản thuần"),
     ("office.error.damaged", "tệp bị hỏng; hãy xin một bản mới từ người gửi, hoặc lưu lại nó trong chương trình đã tạo ra nó"),
+    ("office.error.password_unkept", "mật khẩu này chứa chuỗi mà Ely không thể lưu kèm (như \",Password=\"); hãy đổi mật khẩu trong chương trình đã đặt nó, rồi mở lại tệp"),
     ("office.error.panel", "Bảng chọn tệp bị lỗi: {error}"),
     ("office.error.save", "Không lưu được {name}: {error}"),
     ("office.gone", "{name} đã bị di chuyển hoặc xóa; hãy chọn nơi lưu nó"),

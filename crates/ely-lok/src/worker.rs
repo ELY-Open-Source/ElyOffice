@@ -318,8 +318,8 @@ fn load(lok: &Lok, url: &str, password: String, filter: &str) -> io::Result<u64>
             "a password with NUL",
         ));
     }
-    if password.contains(save::PASSWORD_END) {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "a password the kernel cannot save with"));
+    if !save::keepable(&password) {
+        return Err(io::Error::other(ipc::UNKEPT));
     }
     asked::arm(Some(password.clone()).filter(|password| !password.is_empty()));
     // LOK hands what it does not take to the filter.

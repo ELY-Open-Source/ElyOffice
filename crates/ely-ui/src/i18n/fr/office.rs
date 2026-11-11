@@ -31,6 +31,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("office.error.open", "{name} ne s’est pas ouvert : {error}"),
     ("office.error.not_package", "ce n’est pas un vrai fichier .{ext} ; son contenu est d’un autre format, comme du texte brut"),
     ("office.error.damaged", "le fichier est endommagé ; demandez-en une nouvelle copie à son expéditeur, ou enregistrez-le de nouveau dans le programme qui l’a créé"),
+    ("office.error.password_unkept", "ce mot de passe contient des mots avec lesquels Ely ne peut pas enregistrer (comme « ,Password= ») ; changez le mot de passe dans le programme qui l’a défini, puis rouvrez le fichier"),
     ("office.error.panel", "Le sélecteur de fichiers a échoué : {error}"),
     ("office.error.save", "{name} n’a pas été enregistré : {error}"),
     ("office.gone", "{name} a été déplacé ou supprimé ; choisissez où l’enregistrer"),

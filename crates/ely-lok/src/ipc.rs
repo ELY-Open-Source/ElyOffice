@@ -48,6 +48,8 @@ pub fn path_of_file_url(url: &str) -> std::io::Result<std::path::PathBuf> {
 
 /// The load error a missing or wrong password gives.
 pub const LOCKED: &str = "the document needs its password";
+/// The load error of a password no save can carry.
+pub const UNKEPT: &str = "a password the kernel cannot save with";
 /// The load error a broken package gives.
 pub const DAMAGED: &str = "the file is damaged";
 /// The error of a snapshot that gave way to input.

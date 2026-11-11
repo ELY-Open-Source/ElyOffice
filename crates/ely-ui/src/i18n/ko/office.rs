@@ -31,6 +31,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("office.error.open", "{name}을(를) 열지 못했습니다: {error}"),
     ("office.error.not_package", "실제 .{ext} 파일이 아닙니다. 내용은 일반 텍스트 같은 다른 형식입니다"),
     ("office.error.damaged", "파일이 손상되었습니다. 보낸 사람에게서 새 사본을 받거나, 만든 프로그램에서 다시 저장하십시오"),
+    ("office.error.password_unkept", "이 암호에는 Ely가 저장할 때 다룰 수 없는 문자열(예: \",Password=\")이 들어 있습니다. 암호를 설정한 프로그램에서 다른 암호로 바꾼 뒤 다시 여십시오"),
     ("office.error.panel", "파일 창이 실패했습니다: {error}"),
     ("office.error.save", "{name}을(를) 저장하지 못했습니다: {error}"),
     ("office.gone", "{name}이(가) 옮겨졌거나 삭제되었습니다. 저장할 곳을 고르십시오"),

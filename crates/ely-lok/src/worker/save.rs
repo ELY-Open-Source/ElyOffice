@@ -58,7 +58,15 @@ fn passwords() -> MutexGuard<'static, HashMap<u64, String>> {
 }
 
 /// The kernel reads a save's password up to this word.
-pub(super) const PASSWORD_END: &str = "PASSWORDEND";
+const PASSWORD_END: &str = "PASSWORDEND";
+/// Words the kernel's save takes out before the password.
+const SAVE_WORDS: [&str; 6] =
+    [",Watermark=", "WATERMARKEND", ",FullSheetPreview=", "FULLSHEETPREVEND", ",Password=", PASSWORD_END];
+
+/// Whether a save can carry `password` whole.
+pub(super) fn keepable(password: &str) -> bool {
+    !SAVE_WORDS.iter().any(|word| password.contains(word))
+}
 
 /// Keeps the password document `id` opened with.
 pub(super) fn opened_with(id: u64, password: &str) {

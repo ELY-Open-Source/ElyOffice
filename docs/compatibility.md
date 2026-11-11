@@ -34,7 +34,7 @@
 | --- | --- | --- |
 | bigtable.docx | 400 行的表，每行一张图，22.5 MB | 编辑模式，图文都在 |
 | pages300.docx | 300 页，每 5 页一张表、每 10 页一张图 | 编辑模式 |
-| nested.docx | 表套表 12 层，列表 9 级 | 编辑模式，3 页 |
+| nested.docx | 表套表 12 层，九级编号列表（`numbering.xml`） | 编辑模式，3 页 |
 | rich.docx | 目录、域、批注、插入与删除的修订 | 编辑模式 |
 | equation.docx | 公式 | 编辑模式 |
 | huge.xlsx | 10 万行，公式、定义名称、图表 | 编辑模式，公式有值 |
@@ -49,7 +49,7 @@
 | original-locked.docx、original-locked.pptx | Word 加密的原件 | 同上 |
 
 - 结果：18 份全部打开，0 份报修复或损坏。加密件在网页版只能读，Word 自己的加密件也一样。
-- 查出并修了一处：打开时输过密码的文件，Ely 保存后不再加密（内核的保存不带密码）。现在 worker 记下打开时的密码，保存与另存为照用；测试 `a_locked_document_stays_locked_when_saved`（DOCX、PPTX、ODT，改前 DOCX 即败）。
+- 查出并修了一处：打开时输过密码的文件，Ely 保存后不再加密（内核的保存不带密码）。现在 worker 记下打开时的密码，保存与另存为照用；含内核保存会先行取走的字样（`,Watermark=`、`,FullSheetPreview=`、`,Password=` 与其结尾词）的密码，载入前即拒，提示换个密码，不会存成无密码或密码被改的文件；测试 `a_locked_document_stays_locked_when_saved`（DOCX、PPTX、ODT，改前 DOCX 即败）。
 - 未修：加密的 PPTX 存出后没有章节（内核不保留章节，见 ElyShow 一节；应用里加密的 PPTX 只写副本，不覆盖原件）。
 - 重做：`python3 tests/office/web_extreme.py target/debug/examples/resave <文件夹>`，其余同上。
 

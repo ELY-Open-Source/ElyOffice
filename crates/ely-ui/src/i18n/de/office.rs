@@ -31,6 +31,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("office.error.open", "{name} wurde nicht geöffnet: {error}"),
     ("office.error.not_package", "es ist keine echte .{ext}-Datei; ihr Inhalt hat ein anderes Format, etwa reinen Text"),
     ("office.error.damaged", "die Datei ist beschädigt; holen Sie eine neue Kopie beim Absender oder speichern Sie sie erneut in dem Programm, das sie erstellt hat"),
+    ("office.error.password_unkept", "dieses Kennwort enthält Zeichenfolgen, mit denen Ely nicht speichern kann (etwa „,Password=“); ändern Sie das Kennwort in dem Programm, das es gesetzt hat, und öffnen Sie die Datei erneut"),
     ("office.error.panel", "Die Dateiauswahl ist fehlgeschlagen: {error}"),
     ("office.error.save", "{name} wurde nicht gespeichert: {error}"),
     ("office.gone", "{name} wurde verschoben oder gelöscht; wählen Sie, wo es gespeichert werden soll"),

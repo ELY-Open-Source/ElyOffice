@@ -47,6 +47,7 @@ impl Worker {
             match error.to_string().as_str() {
                 crate::ipc::LOCKED => io::Error::new(io::ErrorKind::PermissionDenied, error.to_string()),
                 crate::ipc::DAMAGED => io::Error::new(io::ErrorKind::InvalidData, Damaged),
+                crate::ipc::UNKEPT => ely_ipc::Worded::error(io::ErrorKind::InvalidInput, "office.error.password_unkept", &[]),
                 _ => error,
             }
         })?;

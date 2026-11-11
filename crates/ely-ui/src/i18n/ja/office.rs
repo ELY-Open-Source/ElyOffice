@@ -31,6 +31,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("office.error.open", "{name} を開けませんでした: {error}"),
     ("office.error.not_package", "本物の .{ext} ファイルではありません。中身はプレーンテキストなど別の形式です"),
     ("office.error.damaged", "ファイルが壊れています。送信者から新しいコピーを入手するか、作成したプログラムで保存し直してください"),
+    ("office.error.password_unkept", "このパスワードには Ely が保存時に扱えない文字列（「,Password=」など）が含まれています。パスワードを設定したプログラムで別のパスワードに変更してから、もう一度開いてください"),
     ("office.error.panel", "ファイルパネルでエラーが発生しました: {error}"),
     ("office.error.save", "{name} を保存できませんでした: {error}"),
     ("office.gone", "{name} は移動または削除されました。保存先を選んでください"),

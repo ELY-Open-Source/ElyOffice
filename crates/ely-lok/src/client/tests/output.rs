@@ -89,6 +89,22 @@ fn a_locked_document_stays_locked_when_saved() {
 }
 
 #[test]
+fn a_password_the_save_would_split_is_refused_at_load() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install().expect("lok"), &dir.path().join("profile")).expect("the worker");
+    let locked = crate::file_url(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/client/tests/locked.odt"));
+    for password in [",Watermark=xWATERMARKEND", "secret,Watermark=xWATERMARKEND", "a,FullSheetPreview=b", "a,Password=b", "aPASSWORDEND"] {
+        let error = worker.unlock(&locked, password).expect_err("refused");
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput, "{password}: {error}");
+    }
+    worker.unlock(&locked, "secret").expect("the plain password still opens it");
+}
+
+#[test]
 fn pdfs_take_pages_and_the_outline_has_places() {
     if install().is_none() {
         eprintln!("SKIP: no pinned LOK build");

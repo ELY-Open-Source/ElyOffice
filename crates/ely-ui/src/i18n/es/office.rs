@@ -83,6 +83,10 @@ pub(super) const ES: &[(&str, &str)] = &[
         "el archivo está dañado; pida una copia nueva a quien lo envió o vuelva a guardarlo en el programa que lo creó",
     ),
     (
+        "office.error.password_unkept",
+        "esta contraseña contiene palabras con las que Ely no puede guardar (como «,Password=»); cambie la contraseña en el programa que la puso y vuelva a abrir el archivo",
+    ),
+    (
         "office.error.panel",
         "Error en el selector de archivos: {error}",
     ),

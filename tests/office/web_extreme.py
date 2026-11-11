@@ -10,6 +10,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, os.path.join(ROOT, "tests/perf"))
 import loadfiles  # noqa: E402
 import richfiles  # noqa: E402
+import samples  # noqa: E402
 
 FIXTURES = os.path.join(ROOT, "tests/fixtures")
 BIGTABLE = os.path.join(ROOT, "tests/perf/bigtable.py")
@@ -31,9 +32,19 @@ def nested_docx(path, depth=12):
     for level in range(depth, 0, -1):
         cell = f"<w:tc>{loadfiles.para(f'第 {level} 层 level {level}')}{table}<w:p/></w:tc>"
         table = f'<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/></w:tblPr><w:tr>{cell}<w:tc><w:p/></w:tc></w:tr></w:tbl>'
-    items = [f'<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:ind w:left="{360 * (k + 1)}"/></w:pPr>'
+    items = [f'<w:p><w:pPr><w:numPr><w:ilvl w:val="{k}"/><w:numId w:val="1"/></w:numPr></w:pPr>'
              f'<w:r><w:t>项 {k} item {k}</w:t></w:r></w:p>' for k in range(9)]
-    loadfiles.word(path, [loadfiles.para("嵌套 Nested")] + items + [table, loadfiles.para("末尾 End")])
+    levels = "".join(f'<w:lvl w:ilvl="{k}"><w:start w:val="1"/><w:numFmt w:val="decimal"/>'
+                     f'<w:lvlText w:val="{".".join(f"%{n + 1}" for n in range(k + 1))}."/>'
+                     f'<w:pPr><w:ind w:left="{360 * (k + 1)}" w:hanging="360"/></w:pPr></w:lvl>' for k in range(9))
+    numbering = (f'<w:numbering {samples.W}><w:abstractNum w:abstractNumId="0">{levels}</w:abstractNum>'
+                 '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>')
+    body = [loadfiles.para("嵌套 Nested")] + items + [table, loadfiles.para("末尾 End")]
+    document = f'<w:document {samples.W}><w:body>{"".join(body)}<w:sectPr/></w:body></w:document>'
+    rels = f'<Relationship Id="rNum" Type="{loadfiles.REL}/numbering" Target="numbering.xml"/>'
+    kind = "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"
+    loadfiles.package(path, "word/document.xml", loadfiles.DOC_MAIN,
+                      {"word/document.xml": document, "word/numbering.xml": numbering}, rels, {"word/numbering.xml": kind})
 
 
 def column(n):
