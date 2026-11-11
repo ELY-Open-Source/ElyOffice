@@ -652,7 +652,7 @@
 
 ## R19 0.1.16（用户 2026-11-11 定：修 #83；72 条 `[~]` 各再审至多三轮；发布 0.1.16。规矩同 R18）
 
-- [ ] R19.1 #83 ElyShow 中文与数字之间多出空隙（§9）：PowerPoint 的文字在 ElyShow 里“北京市 2025 年”两侧各多四分之一字宽 — 已做：编辑引擎默认在亚洲文字与西文之间加空，内核只对日文、韩文关掉，PowerPoint 从不加，DrawingML 也无此属性；补丁 0125 在 PPTX 与 PPT 导入时把这一默认关掉，读入的幻灯片与之后加的文本框都照 PowerPoint；ODP 照旧。测试 `ely-lok` 的 `powerpoint_decks_put_no_gap_between_asian_and_latin_text`：同一张幻灯片存成 PPTX 与 PPT 再读入、存成平面 ODF，须为 `text-autospace="none"`，ODP 须保留 `ideograph-alpha`；Linux 上撤下 0125 重建 sd，PPTX 一项即败，带上即过（`.work/R19/i83/test-old.log`（本机，未入库）、`.work/R19/i83/test-new2.log`（本机，未入库））。Windows 测试机（英文与 zh-CN 用户区域）上 0124 内核导出 PNG，复现了空隙；带 0125 重建 sd 后，同一张幻灯片存成 PPTX 再出图，空隙消失（`C:\ely\office\i83\out2\yahei.png`（本机，未入库）），此测试过（`C:\ely\office\i83\win-test.log`（本机，未入库））
+- [x] R19.1 #83 ElyShow 中文与数字之间多出空隙（§9）：PowerPoint 的文字在 ElyShow 里“北京市 2025 年”两侧各多四分之一字宽 — 已做：编辑引擎默认在亚洲文字与西文之间加空，内核只对日文、韩文关掉，PowerPoint 从不加，DrawingML 也无此属性；补丁 0125 在 PPTX 与 PPT 导入时把这一默认关掉，读入的幻灯片与之后加的文本框都照 PowerPoint；ODP 照旧。测试 `ely-lok` 的 `powerpoint_decks_put_no_gap_between_asian_and_latin_text`：同一张幻灯片存成 PPTX 与 PPT 再读入、存成平面 ODF，须为 `text-autospace="none"`，ODP 须保留 `ideograph-alpha`；Linux 上撤下 0125 重建 sd，PPTX 一项即败，带上即过（`.work/R19/i83/test-old.log`（本机，未入库）、`.work/R19/i83/test-new2.log`（本机，未入库））。Windows 测试机（英文与 zh-CN 用户区域）上 0124 内核导出 PNG，复现了空隙；带 0125 重建 sd 后，同一张幻灯片存成 PPTX 再出图，空隙消失（`C:\ely\office\i83\out2\yahei.png`（本机，未入库）），此测试过（`C:\ely\office\i83\win-test.log`（本机，未入库）） — R1 PASS
 - [ ] R19.2 #83 之二：ElyShow 里微软雅黑粗体的个别字（“施”）显示得像微软雅黑 Light（§9）
 - [ ] R19.3 72 条 `[~]` 逐条交审查者再审，每条至多三轮；过审改 `[x]`，三轮不过改 `[!]` 并写明余下的问题（§22）
 - [ ] R19.4 发布 0.1.16：版本号、更新日志（`[~]` 的数目、距 0.1.15 不足七天的原因）、三台机器的共享内核带上新补丁重建、三端基准、`pr.yml` 通过后推 `v0.1.16`，五端上传核对后转正式（§4）
