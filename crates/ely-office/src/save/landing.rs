@@ -153,7 +153,8 @@ fn landed<H: Saving>(
                 return ended(host, id, Err(SaveError::Io(taken)), landing, window, cx);
             }
             if let Some(tab) = host.tab_mut(id) {
-                tab.reopen = reopen;
+                // Memory differs from the file until the reload.
+                tab.reopen |= reopen;
                 // The copy is what it lost; the banner says so.
                 if let Some(lost) = landing.lost {
                     log::warn!("office: tab {id}'s Save As copy is {lost:?}");

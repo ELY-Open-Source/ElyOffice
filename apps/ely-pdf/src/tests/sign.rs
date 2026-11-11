@@ -281,3 +281,37 @@ fn a_failed_signature_read_is_tried_again_on_the_next_opening() {
     });
     assert_eq!(digest, Some(Digest::Intact), "the file read again");
 }
+
+#[test]
+fn a_second_save_as_keeps_the_reopen_and_signs_the_file_it_wrote() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let path = signed(dir.path());
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
+    let old = shown(cx, &viewer);
+    let id = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
+    let copy = dir.path().join("copy.pdf");
+    cx.update(|window, app| {
+        viewer.update(app, |viewer, cx| {
+            viewer.write_as(id, copy.clone(), None, window, cx);
+            old.update(cx, |view, cx| view.edit("pdf.doing.turn", |worker, doc| worker.rotate_pages(doc, &[0], 90), cx));
+        })
+    });
+    settle(cx, |app| copy.is_file() && old.read(app).edited == 1 && viewer.read(app).active_tab().is_some_and(|tab| !tab.exporting && tab.reopen));
+    // Nothing unsaved after this one: the tab reopens it.
+    let next = dir.path().join("next.pdf");
+    cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.write_as(id, next.clone(), None, window, cx)));
+    settle(cx, |app| viewer.read(app).active_tab().is_some_and(|tab| tab.view != old && tab.session.path() == Some(next.as_path())));
+    let view = shown(cx, &viewer);
+    settle(cx, |app| view.read(app).settled());
+    let at = SignAt { page: 0, object: None, rect: [72.0, 300.0, 272.0, 360.0], version: cx.update(|_, app| view.read(app).version) };
+    cx.update(|_, app| view.update(app, |view, _| view.sign_at = Some(at)));
+    let target = dir.path().join("resigned.pdf");
+    let tab = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_signed(tab, at, signing(""), target.clone(), cx)));
+    settle(cx, |_| target.is_file());
+    let mut checker = Worker::spawn().expect("a worker");
+    let doc = checker.open(&target).expect("the signed file").doc;
+    let fields = checker.signatures(doc, &target).expect("its fields");
+    assert_eq!(fields.iter().filter(|field| field.signed.is_some()).count(), 1, "a signature Save As left out came back");
+}
