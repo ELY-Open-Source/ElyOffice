@@ -128,3 +128,44 @@ fn no_room_refuses_the_chart_and_leaves_the_book() {
     let seen = poll_until(&mut worker, &doc, &Events::default(), std::time::Duration::ZERO, |_| true);
     assert!(seen.graphic.is_none(), "a chart is selected: {:?}", seen.graphic);
 }
+
+/// T: full but CW11:GR60, whose rows 11–21 hold `filled`.
+fn gap_under(filled: &str, hide: bool) -> String {
+    let span = |n: usize, rows: usize| {
+        format!(r#"<table:table-cell table:number-columns-spanned="{n}" table:number-rows-spanned="{rows}"><text:p>X</text:p></table:table-cell><table:covered-table-cell table:number-columns-repeated="{}"/>"#, n - 1)
+    };
+    let covered = |n: usize| format!(r#"<table:covered-table-cell table:number-columns-repeated="{n}"/>"#);
+    let middle: String = (0..50)
+        .map(|row| {
+            // Row 21 hidden, if asked.
+            let hidden = if hide && row == 10 { r#" table:visibility="collapse""# } else { "" };
+            let (left, right) = if row == 0 { (span(100, 50), span(16184, 50)) } else { (covered(100), covered(16184)) };
+            let gap = if row <= 10 { filled.repeat(100) } else { r#"<table:table-cell table:number-columns-repeated="100"/>"#.into() };
+            format!("<table:table-row{hidden}>{left}{gap}{right}</table:table-row>")
+        })
+        .collect();
+    format!(
+        r#"<table:table table:name="T"><table:table-row>{}</table:table-row><table:table-row table:number-rows-repeated="9">{}</table:table-row>{middle}<table:table-row>{}</table:table-row><table:table-row table:number-rows-repeated="1048515">{}</table:table-row></table:table>"#,
+        span(16384, 10),
+        covered(16384),
+        span(16384, 1048516),
+        covered(16384)
+    )
+}
+
+#[test]
+fn hidden_rows_and_lone_comments_hide_no_room() {
+    if skip() {
+        return;
+    }
+    let note = r#"<table:table-cell><office:annotation><text:p>N</text:p></office:annotation></table:table-cell>"#;
+    // Data-area navigation once jumped these to the sheet's end.
+    for (filled, hide) in [(ONE, true), (note, false)] {
+        let (_dir, mut worker, doc) = open_book(&book(false, &gap_under(filled, hide)));
+        let (first, last) = (cell(&mut worker, &doc, "T!CW22"), cell(&mut worker, &doc, "T!GR60"));
+        let data = source(&mut worker, &doc);
+        let chart = insert(&mut worker, &doc, &data, "T!A1");
+        let inside = chart.0 >= first.0 && chart.1 >= first.1 && chart.0 + chart.2 <= last.0 + last.2 && chart.1 + chart.3 <= last.1 + last.3;
+        assert!(inside, "hidden {hide}: the chart {chart:?} is not in CW22:GR60");
+    }
+}

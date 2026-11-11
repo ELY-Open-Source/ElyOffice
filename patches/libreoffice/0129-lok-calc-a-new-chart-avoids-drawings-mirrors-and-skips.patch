@@ -13,20 +13,23 @@ defects remained (Ely R2.10):
   run; a sheet with one 100x25 gap off that grid was refused after
   27 s, a full sheet after 73 s. Each scan now jumps past what
   blocked it: by binary search to the last blocked index, and down
-  a column by merge runs, data areas and drawings, read from the
-  attribute runs rather than by walking to a merge's origin.
+  a column by merge runs and drawings, read from the attribute runs
+  rather than by walking to a merge's origin. Filled cells are
+  stepped with the same test that calls a cell taken, so hidden rows
+  and comment-only cells hide no room; each column's run is kept.
 --- a/sc/source/ui/drawfunc/fuins2.cxx
 +++ b/sc/source/ui/drawfunc/fuins2.cxx
-@@ -50,6 +50,8 @@
+@@ -50,6 +50,9 @@
  #include <comphelper/lok.hxx>
  #include <o3tl/unit_conversion.hxx>
  #include <optional>
++#include <map>
 +#include <algorithm>
 +#include <cstdlib>
  #include <comphelper/storagehelper.hxx>
  #include <comphelper/propertysequence.hxx>
  #include <com/sun/star/embed/EmbedVerbs.hpp>
-@@ -239,45 +241,147 @@
+@@ -239,45 +242,146 @@
      return std::nullopt;
  }
  
@@ -68,11 +71,15 @@ defects remained (Ely R2.10):
 +            || std::any_of(aDrawn.begin(), aDrawn.end(), [&](const ScRange& rDrawn) { return rDrawn.Intersects(aBlock); });
 +    };
 +    // The last taken row in nCol from nRow down.
++    std::map<SCCOL, std::pair<SCROW, SCROW>> aRuns;
 +    const auto bottomOf = [&](SCCOL nCol, SCROW nRow) {
++        // A run once walked is not walked again.
++        if (const auto it = aRuns.find(nCol); it != aRuns.end() && it->second.first <= nRow && nRow <= it->second.second)
++            return it->second.second;
 +        SCROW nEnd = nRow;
 +        for (;;)
 +        {
-+            // Jumps by attribute runs, never walking to the origin.
++            // Merges and drawings jump; filled cells step.
 +            SCROW nRunStart = nEnd, nRunEnd = nEnd;
 +            SCROW nNext = nEnd;
 +            if (rDoc.GetAttr(nCol, nEnd, nTab, ATTR_MERGE_FLAG, nRunStart, nRunEnd).IsVerOverlapped())
@@ -81,20 +88,15 @@ defects remained (Ely R2.10):
 +            for (const ScRange& rDrawn : aDrawn)
 +                if (rDrawn.Contains(ScAddress(nCol, nEnd, nTab)))
 +                    nNext = std::max(nNext, rDrawn.aEnd.Row());
-+            if (nEnd < rDoc.MaxRow() && !rDoc.IsBlockEmpty(nCol, nEnd, nCol, nEnd, nTab)
-+                && !rDoc.IsBlockEmpty(nCol, nEnd + 1, nCol, nEnd + 1, nTab))
-+            {
-+                SCCOL nAreaCol = nCol;
-+                SCROW nAreaRow = nEnd;
-+                rDoc.FindAreaPos(nAreaCol, nAreaRow, nTab, SC_MOVE_DOWN);
-+                nNext = std::max(nNext, nAreaRow);
-+            }
 +            if (nNext > nEnd)
 +                nEnd = std::min(nNext, rDoc.MaxRow());
 +            else if (nEnd < rDoc.MaxRow() && taken(nCol, nEnd + 1, nCol, nEnd + 1))
 +                ++nEnd;
 +            else
++            {
++                aRuns[nCol] = { nRow, nEnd };
 +                return nEnd;
++            }
 +        }
 +    };
 +    // Ely: right-to-left, the chart ends where the cell starts.
