@@ -424,3 +424,26 @@ fn a_long_paragraph_of_styles_answers_its_state_at_once() {
     // A scan per style and attribute took 400 ms.
     assert!(fastest < std::time::Duration::from_millis(50), "16000 styled runs took {fastest:?}");
 }
+
+/// Two styles under one direct look, and an empty span.
+const EMPTY_SPAN: &str = r##"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:styles><style:style style:name="A" style:family="text"><style:text-properties fo:font-size="12pt" fo:color="#ff0000"/></style:style><style:style style:name="B" style:family="text"><style:text-properties fo:font-size="18pt" fo:color="#0000ff"/></style:style></office:styles>
+ <office:automatic-styles><style:style style:name="X" style:family="text"><style:text-properties fo:font-size="14pt" fo:color="#00aa00"/></style:style><style:style style:name="Z" style:family="text"><style:text-properties fo:font-size="16pt"/></style:style></office:automatic-styles>
+ <office:body><office:text><text:p><text:span text:style-name="A"><text:span text:style-name="X">Alpha<text:span text:style-name="Z"></text:span></text:span></text:span><text:span text:style-name="B"><text:span text:style-name="X">Beta</text:span></text:span></text:p></office:text></office:body>
+</office:document>"##;
+
+#[test]
+fn an_empty_span_hides_no_direct_formatting() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = open(EMPTY_SPAN);
+    worker.run(&doc, "edit.select_all", &[]).expect("select all");
+    let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
+        state(seen, ".uno:FontHeight") == Some("14") && state(seen, ".uno:FontColor").is_some()
+    });
+    assert_eq!(state(&seen, ".uno:FontHeight"), Some("14"), "one height covers both styles");
+    assert_ne!(state(&seen, ".uno:FontColor"), Some(crate::MIXED), "one color covers both styles");
+}

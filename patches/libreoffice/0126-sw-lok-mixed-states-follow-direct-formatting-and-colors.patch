@@ -7,7 +7,9 @@ styles of 12 and 18 pt the font height still read mixed, and Ely
 undid the change as failed (Ely C08.2). A style's attribute now
 counts only where no automatic format sets it over the span. The
 automatic formats are listed once per query and searched by start,
-as portions never overlap: 16,000 styled runs answer in 7 ms.
+as portions never overlap: 16,000 styled runs answer in 7 ms. An
+empty portion formats no text, so a range query skips it; one left
+at a word's end no longer made 14 pt over two styles read mixed.
 
 The font color and highlight states read the item with Get(), which
 gives the default for an invalid item: a selection in red and blue
@@ -24,7 +26,18 @@ don't-care.
  
              const size_t coArrSz = RES_TXTATR_WITHEND_END - RES_CHRATR_BEGIN;
  
-@@ -2353,6 +2355,43 @@
+@@ -2251,6 +2253,10 @@
+                 const sal_Int32* pAttrEnd = pHt->End();
+                 if ( ! pAttrEnd ) // no attributes without end
+                     continue;
++                // Ely: an empty portion formats no text in the range.
++                if (*pAttrEnd == nAttrStart && comphelper::LibreOfficeKit::isActive()
++                    && (RES_TXTATR_AUTOFMT == pHt->Which() || RES_TXTATR_CHARFMT == pHt->Which()))
++                    continue;
+ 
+                 bool bChkInvalid = false;
+                 if (nAttrStart <= nStt)        // before or exactly Start
+@@ -2353,6 +2359,46 @@
                      {
                          if (const SfxItemSet* pChrSet = CharFormat::GetItemSet(pHt->GetAttr()))
                          {
@@ -34,9 +47,12 @@ don't-care.
 +                                if (!oAutoFormats)
 +                                {
 +                                    oAutoFormats.emplace();
++                                    // An empty one covers nothing and breaks the order.
 +                                    for (size_t i = 0; i < nSize; ++i)
-+                                        if (RES_TXTATR_AUTOFMT == m_pSwpHints->Get(i)->Which())
-+                                            oAutoFormats->push_back(m_pSwpHints->Get(i));
++                                        if (const SwTextAttr* pAuto = m_pSwpHints->Get(i);
++                                            RES_TXTATR_AUTOFMT == pAuto->Which()
++                                            && pAuto->GetStart() < *pAuto->End())
++                                            oAutoFormats->push_back(pAuto);
 +                                }
 +                                const auto& rAutos = *oAutoFormats;
 +                                sal_Int32 nPos = std::max(nAttrStart, nStt);
@@ -68,7 +84,7 @@ don't-care.
                              SfxWhichIter aIter(*pChrSet);
                              for (sal_uInt16 nWhich = aIter.FirstWhich(); nWhich;
                                   nWhich = aIter.NextWhich())
-@@ -2360,7 +2399,8 @@
+@@ -2360,7 +2406,8 @@
                                  const SfxPoolItem* pChrItem = nullptr;
                                  if (isCHRATR(nWhich)
                                      && SfxItemState::SET
