@@ -347,3 +347,58 @@ fn a_size_on_an_empty_line_sets_every_script() {
     assert!(style.contains("fo:font-size=\"14pt\""), "Western: {style}");
     assert!(style.contains("style:font-size-asian=\"14pt\""), "Asian: {style}");
 }
+
+/// "Alpha" and "Beta" in two looks; `kind` says how.
+fn two_looks(kind: &str) -> String {
+    let look = |name: &str, family: &str, font: &str, size: &str, ink: &str, back: &str| {
+        format!(r#"<style:style style:name="{name}" style:family="{family}"><style:text-properties style:font-name="{font}" fo:font-size="{size}" fo:color="{ink}" fo:background-color="{back}"/></style:style>"#)
+    };
+    let (styles, automatic, span) = match kind {
+        "styles" => (look("ElyA", "text", "Serif", "12pt", "#ff0000", "#ffff00") + &look("ElyB", "text", "Mono", "18pt", "#0000ff", "#00ff00"), String::new(), ["ElyA", "ElyB"]),
+        _ => (String::new(), look("T1", "text", "Serif", "12pt", "#ff0000", "#ffff00") + &look("T2", "text", "Mono", "18pt", "#0000ff", "#00ff00"), ["T1", "T2"]),
+    };
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+ <office:font-face-decls><style:font-face style:name="Serif" svg:font-family="&apos;Liberation Serif&apos;"/><style:font-face style:name="Mono" svg:font-family="&apos;Liberation Mono&apos;"/></office:font-face-decls>
+ <office:styles>{styles}</office:styles>
+ <office:automatic-styles>{automatic}</office:automatic-styles>
+ <office:body><office:text><text:p><text:span text:style-name="{}">Alpha</text:span> <text:span text:style-name="{}">Beta</text:span></text:p></office:text></office:body>
+</office:document>"#,
+        span[0], span[1]
+    )
+}
+
+#[test]
+fn mixed_colors_and_highlights_report_dont_care() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    for kind in ["styles", "direct"] {
+        let (_dir, mut worker, doc) = open(&two_looks(kind));
+        worker.run(&doc, "edit.select_all", &[]).expect("select all");
+        let names = [".uno:FontColor", ".uno:CharBackColor", ".uno:FontHeight"];
+        let seen = poll_until(&mut worker, &doc, &Events::default(), HANG, |seen| {
+            names.iter().all(|name| state(seen, name) == Some(crate::MIXED))
+        });
+        for name in names {
+            assert_eq!(state(&seen, name), Some(crate::MIXED), "{kind}: {name} is mixed");
+        }
+    }
+}
+
+#[test]
+fn one_size_and_font_go_over_two_character_styles() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    for (id, value, mark) in [("format.size", "14", "fo:font-size=\"14pt\""), ("format.font", "Liberation Sans", "Liberation Sans")] {
+        let (dir, mut worker, doc) = open(&two_looks("styles"));
+        worker.run(&doc, "edit.select_all", &[]).expect("select all");
+        worker.run(&doc, id, &[value]).unwrap_or_else(|error| panic!("{id}: {error}"));
+        let text = saved(&dir, &mut worker, &doc, "out.fodt");
+        assert!(text.contains(mark), "{id} {value} is not in the file");
+    }
+}

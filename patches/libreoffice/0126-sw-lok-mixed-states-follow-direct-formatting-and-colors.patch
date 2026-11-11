@@ -1,0 +1,86 @@
+sw: LOK mixed states follow direct formatting, and colors report mixed
+
+Patch 0003 counts a character style's attributes when a selection
+spans styles. It counted them even where direct formatting covers
+the whole styled span, so after setting 14 pt over text in two
+styles of 12 and 18 pt the font height still read mixed, and Ely
+undid the change as failed (Ely C08.2). A style's attribute now
+counts only where no automatic format sets it over the span.
+
+The font color and highlight states read the item with Get(), which
+gives the default for an invalid item: a selection in red and blue
+read as automatic color. Under LOK an invalid item now reports
+don't-care.
+--- a/sw/source/core/txtnode/thints.cxx
++++ b/sw/source/core/txtnode/thints.cxx
+@@ -2353,6 +2353,27 @@
+                     {
+                         if (const SfxItemSet* pChrSet = CharFormat::GetItemSet(pHt->GetAttr()))
+                         {
++                            // Ely: direct formatting over the whole span wins.
++                            auto lcl_Covered = [&](sal_uInt16 nWhich)
++                            {
++                                sal_Int32 nPos = std::max(nAttrStart, nStt);
++                                const sal_Int32 nTo = std::min(nHintEnd, nEnd);
++                                for (size_t i = 0; i < nSize && nPos < nTo; ++i)
++                                {
++                                    const SwTextAttr* pAuto = m_pSwpHints->Get(i);
++                                    if (pAuto->GetStart() > nPos)
++                                        break;
++                                    const SfxItemSet* pAutoSet
++                                        = RES_TXTATR_AUTOFMT == pAuto->Which()
++                                              ? CharFormat::GetItemSet(pAuto->GetAttr())
++                                              : nullptr;
++                                    if (pAutoSet && *pAuto->End() > nPos
++                                        && SfxItemState::SET
++                                               == pAutoSet->GetItemState(nWhich, false))
++                                        nPos = *pAuto->End();
++                                }
++                                return nPos >= nTo;
++                            };
+                             SfxWhichIter aIter(*pChrSet);
+                             for (sal_uInt16 nWhich = aIter.FirstWhich(); nWhich;
+                                  nWhich = aIter.NextWhich())
+@@ -2360,7 +2381,8 @@
+                                 const SfxPoolItem* pChrItem = nullptr;
+                                 if (isCHRATR(nWhich)
+                                     && SfxItemState::SET
+-                                           == pChrSet->GetItemState(nWhich, true, &pChrItem))
++                                           == pChrSet->GetItemState(nWhich, true, &pChrItem)
++                                    && !lcl_Covered(nWhich))
+                                     lcl_Check(pChrItem);
+                             }
+                         }
+--- a/sw/source/uibase/shells/textsh1.cxx
++++ b/sw/source/uibase/shells/textsh1.cxx
+@@ -3833,6 +3833,13 @@
+             {
+                 SfxItemSet aSet( GetPool() );
+                 rSh.GetCurAttr( aSet );
++                // Ely: a mixed selection reports don't-care.
++                if (comphelper::LibreOfficeKit::isActive()
++                    && aSet.GetItemState(RES_CHRATR_COLOR) == SfxItemState::INVALID)
++                {
++                    rSet.InvalidateItem(nWhich);
++                    break;
++                }
+                 const SvxColorItem& aColorItem = aSet.Get(RES_CHRATR_COLOR);
+                 rSet.Put( aColorItem.CloneSetWhich(SID_ATTR_CHAR_COLOR2) );
+             }
+@@ -3844,6 +3851,16 @@
+                 SfxItemSet aSet( GetPool() );
+                 rSh.GetCurAttr( aSet );
+                 const SvxBrushItem& aBrushItem = aSet.Get(RES_CHRATR_HIGHLIGHT);
++                // Ely: a mixed highlight or background is don't-care.
++                if (comphelper::LibreOfficeKit::isActive()
++                    && (aSet.GetItemState(RES_CHRATR_HIGHLIGHT) == SfxItemState::INVALID
++                        || (aBrushItem.GetColor() == COL_TRANSPARENT
++                            && aSet.GetItemState(RES_CHRATR_BACKGROUND)
++                                   == SfxItemState::INVALID)))
++                {
++                    rSet.InvalidateItem(nWhich);
++                    break;
++                }
+                 if( aBrushItem.GetColor() != COL_TRANSPARENT )
+                 {
+                     rSet.Put(SvxColorItem(aBrushItem.GetColor(), aBrushItem.getComplexColor(), nWhich));

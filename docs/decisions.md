@@ -909,3 +909,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 根因：编辑引擎的段落属性“亚洲文字与西文之间加空”（`EE_PARA_ASIANCJKSPACING`）默认开，Impress 只在日文、韩文环境关掉（`SdDrawDocument` 的构造）。PowerPoint 不加这段空，DrawingML 也没有对应的属性，PPTX 导入从不设它。
 - 补丁 0125：PPTX（`DrawDocShell::ImportFrom`，与其他 PowerPoint 兼容设置一处）与 PPT（`ImplSdPPTImport::Import`）导入时把文档的默认改为关；读入的文字与之后加的文本框都不加空。ODP 照 LibreOffice 的默认。存成 ODP 时写出 `style:text-autospace="none"`。
 - 测试 `powerpoint_decks_put_no_gap_between_asian_and_latin_text`：同一张幻灯片存成 PPTX、PPT 后读入，存成平面 ODF 须为 `none`、不得有 `ideograph-alpha`；ODP 读入须为 `ideograph-alpha`。Linux 上撤下 0125 重建 sd，PPTX 一项即败；带上即过。Windows 上带 0125 重建 sd，此测试过；同一张幻灯片存成 PPTX 再出图，“2025”两侧不再有空隙。
+
+## 2026-11-11 混合选区的字体颜色、高亮与跨字符样式的字号（C08.2 再审，补丁 0126）
+
+- 再审查出：同段两个字符样式（12 pt 与 18 pt）全选设 14 pt，内核把 14 pt 写成两个样式 span 内的自动样式，`.uno:FontHeight` 仍报混合，Ely 判为失败并撤销；设字体同。根因在补丁 0003：它把字符样式的属性算入歧义，却不看那一段是否已被自动样式（直接格式）盖住。
+- 0126：字符样式的属性只在其所占段（与选区相交的部分）没有被设同一属性的自动样式连续盖满时才算入歧义。
+- 字体颜色与高亮：Writer 的 `SID_ATTR_CHAR_COLOR2`、`SID_ATTR_CHAR_BACK_COLOR` 状态以 `Get` 读项，无效项得默认的自动色，补丁 0003 的“不定”分支到不了。0126 在 LOK 下遇无效项即报不定（高亮为透明时再看背景）；属性栏随之显示“混合”。
+- 测试 `mixed_colors_and_highlights_report_dont_care`（字符样式与直接格式两种来源）、`one_size_and_font_go_over_two_character_styles`：Linux 上不带 0126 皆败，带上即过；`ely-lok` 全部 358 项过。Mac、Windows 的共享内核待发布前带上 0126 重建（R19.4）。
