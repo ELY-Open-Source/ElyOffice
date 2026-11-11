@@ -286,7 +286,9 @@ fn a_font_in_another_language_comes_before_the_next_in_its_list() {
         eprintln!("SKIP: no pinned LOK build");
         return;
     }
-    for name in BOTH_NAMES {
+    // A script suffix is stripped before the lookup.
+    let suffixed = format!("{} CYR", BOTH_NAMES[1]);
+    for name in BOTH_NAMES.into_iter().chain([suffixed.as_str()]) {
         let (dir, mut worker, doc) = with_the_font(&spans(&[format!("{name};{}", NEXT[0])]));
         let pdf = dir.path().join("out.pdf");
         doc.save_as(&mut worker, &crate::file_url(&pdf), "pdf").expect("the PDF exports");
