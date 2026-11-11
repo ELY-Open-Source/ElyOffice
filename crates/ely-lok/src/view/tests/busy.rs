@@ -116,6 +116,7 @@ fn a_view_opens_while_the_engine_is_busy() {
     let laid = super::super::layout(&mut worker, &doc).expect("the layout reads");
     let feed = (worker.feed(), worker.waiter());
     let shared = Arc::new(Mutex::new(worker));
+    super::ended_with_thread(&shared, dir);
     let (held, release) = (std::sync::mpsc::channel(), std::sync::mpsc::channel::<()>());
     let holder = {
         let shared = Arc::clone(&shared);

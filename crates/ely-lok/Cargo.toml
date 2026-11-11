@@ -32,7 +32,7 @@ windows-sys.workspace = true
 [dev-dependencies]
 flate2.workspace = true
 tempfile.workspace = true
-ely-ui.workspace = true
+ely-ui = { workspace = true, features = ["test-support"] }
 gpui = { workspace = true, features = ["test-support"] }
 ely-gpui-component = { workspace = true, features = ["test-support"] }
 

@@ -46,7 +46,7 @@ pub(crate) fn name_box(shown: &mut gpui::VisualTestContext, book: &Entity<Book>)
 /// An unrendered Book over a fresh worker, if LOK exists.
 pub(crate) fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<Blank>, Entity<Book>)> {
     let install = ely_lok::test_install()?;
-    let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
+    let (worker, stop) = ely_office::lok::test_worker(&install);
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");
     cx.update(|cx| {

@@ -31,10 +31,8 @@ fn goto(view: &Entity<LokView>, cx: &mut TestAppContext, cell: &str) {
 
 /// The workbook as flat XML.
 fn saved(view: &Entity<LokView>, cx: &mut TestAppContext) -> String {
-    let out = tempfile::tempdir()
-        .expect("a temp dir")
-        .keep()
-        .join("out.fods");
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let out = dir.path().join("out.fods");
     cx.update(|app| {
         let view = view.read(app);
         let mut worker = view.worker.lock().expect("the worker lock");

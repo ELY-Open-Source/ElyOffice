@@ -875,3 +875,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 结果：18 份全部打开，0 份报修复或损坏；14 份以编辑模式打开，加密的 4 份问密码后只读（网页版对加密件都如此，Word 的原件也一样）。kept-more.xlsx 的假函数在 Excel 里为 `#NAME?`，是样本本意。加密的 PPTX 存出后无章节：内核不保留章节，应用里加密的 PPTX 只写副本。
 - 查出的缺陷：打开时输过密码的文件，保存后不再加密。根因：LOK 的另存把密码放在过滤选项 `,Password=…PASSWORDEND` 里才会加密，Ely 从不传；用户的保存与另存为都走 `TakeOwnership`。修：worker 在载入时按文档记下密码（只在 worker 进程的内存里，日志只记“是否带密码”），`TakeOwnership` 的保存附上它；快照与内部副本（比较、放映、合并）不带，恢复点照旧由 Ely 自己加密；含内核保存先行取走的字样（`,Watermark=…WATERMARKEND`、`,FullSheetPreview=…FULLSHEETPREVEND`、`,Password=…PASSWORDEND`）的密码在载入前即拒：`doc_saveAs` 先从整串选项里取走水印与整表预览，再取密码，这类密码会被吞掉（r1 审查者实测：存出件无加密，或原密码打不开）；拒绝以译好的提示到达用户（`office.error.password_unkept`）。测试 `a_locked_document_stays_locked_when_saved`：Word 加密的 DOCX、PPTX 与加密的 ODT，`save_owned` 存出后无密码打不开、原密码打得开；改前 DOCX 即败。
 - 未核对：内容逐项是否与 Ely 所见相同，桌面版 Office。上传的十八份留在用户 OneDrive 的那个文件夹里，未删。
+
+## 2026-11-11 测试不再在临时目录留下内核配置（R18.40）
+
+- 查出：Linux 的 `/tmp`（tmpfs）积到两万多个 `.tmp*` 目录，inode 用到 99%，PERF-08 两次在 ElyMail 播种处报“No space left on device”，字节只用了三成。改前 `9b964711` 的发布测试一次新添 384 个。
+- 根因：worker 退出时内核把 `profile/user/registrymodifications.xcu` 写回配置目录；配置目录在测试的 `TempDir` 里，而 worker 活得比它久，退出时在已删的目录里重建出 `profile/`。三处：`ely_office::lok::test_worker` 在线程结束时才关 worker（gpui 的测试应用从不释放），测试函数的 `TempDir` 早已删掉；`ely-lok` 的 `live_view_of` 干脆 `std::mem::forget(dir)`；`busy.rs`、`theme.rs` 两个直接开视图的测试同；`input.rs` 的 `a_calc_cut_finishes_without_a_dialog` 在另起的线程里用 worker，测试不等那条线程就返回、删目录。另 `ely-lok` 的三个 `saved()` 用 `.keep()` 留下存出的文件，`ely-ui` 的设置测试每次留下 9 个数据根。
+- 修：`test_worker` 自己建配置目录，在线程结束的收尾里先关 worker、再删目录；调用方不再传配置路径。`ely-lok` 的视图测试经 `view::tests::ended_with_thread` 做同一件事；它只持 worker 的弱引用，`releasing_the_view_stops_the_watch` 要看 worker 随视图释放（初版持强引用，此测试即败）。`saved()` 让目录活到读完；剪切测试把目录放进那条线程，并等线程结束；设置测试的数据根改为 `temp_dir()/ely-ui-settings-tests`，每次运行开头清空。
+- 实测：见 TASKS 的 R18.40。
+- 清理：本机 `/tmp` 里本项目测试留下、两小时以前的目录（只含 `profile` 与测试样本名），以 `.work` 下的一次性脚本删去 1148 个。另有 3162 个只含 `cindy-elygpui-preferences.json` 的目录，是同机 Cindy 项目的测试留下的，不属本项目，未动。

@@ -12,10 +12,8 @@ fn flush(cx: &TestAppContext) {
 
 /// The document's paragraphs, saved through the shared worker.
 fn saved(view: &Entity<LokView>, cx: &mut TestAppContext) -> Vec<String> {
-    let out = tempfile::tempdir()
-        .expect("a temp dir")
-        .keep()
-        .join("out.fodt");
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let out = dir.path().join("out.fodt");
     cx.update(|app| {
         let view = view.read(app);
         let mut worker = view.worker.lock().expect("the worker lock");
@@ -265,10 +263,8 @@ fn the_clipboard_moves_html_tables_and_images() {
     clipboard::write(&Clip::Png(png)).expect("the image writes");
     cx.update(|app| view.update(app, |view, _| view.send(crate::view::input::Input::Paste)));
     flush(&cx);
-    let out = tempfile::tempdir()
-        .expect("a temp dir")
-        .keep()
-        .join("img.fodt");
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let out = dir.path().join("img.fodt");
     cx.update(|app| {
         let view = view.read(app);
         let mut worker = view.worker.lock().expect("the worker lock");

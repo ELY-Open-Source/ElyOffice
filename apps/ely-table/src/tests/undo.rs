@@ -15,7 +15,7 @@ impl gpui::Render for Shown {
 /// A drawn Book, its actions live.
 pub(super) fn drawn<'a>(cx: &'a mut TestAppContext, dir: &Path) -> Option<(Entity<Book>, &'a mut VisualTestContext)> {
     let install = ely_lok::test_install()?;
-    let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
+    let (worker, stop) = ely_office::lok::test_worker(&install);
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");
     cx.update(|cx| {

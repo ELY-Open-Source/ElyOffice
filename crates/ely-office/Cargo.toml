@@ -26,9 +26,10 @@ jiff.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 ely-ui.workspace = true
+tempfile = { workspace = true, optional = true }
 
 [features]
-test-support = ["ely-ui/test-support", "ely-lok/test-support"]
+test-support = ["ely-ui/test-support", "ely-lok/test-support", "dep:tempfile"]
 
 [dev-dependencies]
 tempfile.workspace = true

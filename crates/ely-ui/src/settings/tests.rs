@@ -7,11 +7,25 @@ use gpui::TestAppContext;
 
 use super::{changed, window::SettingsView};
 
+/// The scratch root, emptied once per run.
+fn root() -> &'static std::path::Path {
+    static ROOT: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+    ROOT.get_or_init(|| {
+        let root = std::env::temp_dir().join("ely-ui-settings-tests");
+        match std::fs::remove_dir_all(&root) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => panic!("{}: {error}", root.display()),
+            _ => {}
+        }
+        std::fs::create_dir(&root).unwrap();
+        // SAFETY: set before any test's first write.
+        unsafe { std::env::set_var("ELY_DATA_ROOT", &root) };
+        root
+    })
+}
+
 /// A scratch root: gpui runs pending writes at test end.
 fn installed(cx: &mut TestAppContext) {
-    static ROOT: std::sync::Once = std::sync::Once::new();
-    // SAFETY: set before any test's first write.
-    ROOT.call_once(|| unsafe { std::env::set_var("ELY_DATA_ROOT", tempfile::tempdir().unwrap().keep()) });
+    root();
     let shared = ely_platform::settings::Store::shared().unwrap();
     assert!(shared.path().starts_with(std::env::temp_dir()), "{}", shared.path().display());
     cx.update(|cx| {
@@ -131,7 +145,7 @@ fn press(shown: &mut gpui::VisualTestContext, size: u32) {
 #[gpui::test(iterations = 8)]
 fn the_latest_text_pick_is_kept_across_windows(cx: &mut TestAppContext) {
     installed(cx);
-    let root = tempfile::tempdir().unwrap().keep();
+    let root = tempfile::tempdir_in(root()).unwrap().keep();
     // SAFETY: only this test writes the shared file.
     unsafe { std::env::set_var("ELY_DATA_ROOT", &root) };
     let mut shown = opened(cx);

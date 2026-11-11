@@ -15,7 +15,7 @@ fn docs_build_while_the_engine_holds_its_lock() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let cx = TestAppContext::single();
     cx.update(ely_gpui_component::init_for_tests);
-    let (worker, stop) = ely_office::lok::test_worker(&install, &dir.path().join("profile"));
+    let (worker, stop) = ely_office::lok::test_worker(&install);
     let work = dir.path().join("work");
     std::fs::create_dir_all(&work).expect("the work dir");
     // As at launch: the engine's start holds the lock.

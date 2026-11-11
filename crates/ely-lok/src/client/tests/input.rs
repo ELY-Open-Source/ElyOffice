@@ -305,9 +305,9 @@ fn a_calc_cut_finishes_without_a_dialog() {
     };
     let (done, wait) = std::sync::mpsc::channel();
     let (pid_out, pid_in) = std::sync::mpsc::channel();
-    let dir = tempfile::tempdir().expect("a temp dir");
-    let root = dir.path().to_path_buf();
-    std::thread::spawn(move || {
+    let cutting = std::thread::spawn(move || {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let root = dir.path();
         let mut worker = Worker::spawn(&install, &root.join("profile")).expect("the worker");
         pid_out.send(worker.child.get().expect("the worker process").id()).expect("the test waits");
         let source = root.join("in.fods");
@@ -334,6 +334,7 @@ fn a_calc_cut_finishes_without_a_dialog() {
         kill(pid);
     }
     let (flavors, kept) = outcome.expect("the cut never blocked on a dialog");
+    cutting.join().expect("the worker and its dir are gone");
     assert!(flavors > 0, "the cells copied");
     assert!(!kept, "the cut emptied A1");
 }

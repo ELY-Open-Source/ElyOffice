@@ -18,24 +18,6 @@ mod text;
 mod zoom;
 use gpui::{App, Bounds, Entity, point, size};
 
-#[test]
-fn geom_converts_both_ways() {
-    let geom = Geom {
-        zoom: 2.0,
-        dpi: 2.0,
-    };
-    assert_eq!(geom.px_of(15), 2.0, "15 twips at 200% zoom is 2 logical px");
-    assert_eq!(geom.twips_of(2.0), 15, "2 logical px back to 15 twips");
-    assert_eq!(geom.tile_pixels(), 1024, "the texture is 1024 device px");
-    let base = Geom {
-        zoom: 1.0,
-        dpi: 2.0,
-    };
-    assert_eq!(base.px_of(TILE_TWIPS), 256.0, "one tile is 256 logical px");
-    assert_eq!(base.twips_of(256.0), TILE_TWIPS, "256 logical px is one tile");
-    assert_eq!(base.tile_pixels(), 512, "the texture is 512 device px");
-}
-
 pub(super) fn live_view(
     app: &mut App,
     install: &std::path::Path,
@@ -58,13 +40,26 @@ pub(super) fn live_view_of(
     let doc = worker
         .load(&crate::file_url(&source))
         .expect("the document loads");
-    std::mem::forget(dir);
     let feed = (worker.feed(), worker.waiter());
     let shared = Arc::new(Mutex::new(worker));
+    ended_with_thread(&shared, dir);
     let laid = super::layout(&mut shared.lock().expect("the worker lock"), &doc)
         .expect("the layout reads");
     let view = LokView::open(Arc::clone(&shared), doc, laid, feed, app);
     (view, shared)
+}
+
+/// A view's worker outlives its test: the app never drops.
+pub(super) fn ended_with_thread(worker: &Arc<Mutex<crate::Worker>>, dir: tempfile::TempDir) {
+    let ending = Arc::downgrade(worker);
+    ely_ui::at_thread_end(move || {
+        if let Some(worker) = ending.upgrade()
+            && let Err(error) = worker.lock().expect("the worker lock").shutdown()
+        {
+            log::warn!("lok: test worker shutdown failed: {error}");
+        }
+        drop(dir);
+    });
 }
 
 /// Runs the app until `done` or the hang limit.

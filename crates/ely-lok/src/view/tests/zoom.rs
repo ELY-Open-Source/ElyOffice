@@ -130,3 +130,21 @@ fn zooming_out_from_a_small_fit_never_enlarges() {
         });
     });
 }
+
+#[test]
+fn geom_converts_both_ways() {
+    let geom = Geom {
+        zoom: 2.0,
+        dpi: 2.0,
+    };
+    assert_eq!(geom.px_of(15), 2.0, "15 twips at 200% zoom is 2 logical px");
+    assert_eq!(geom.twips_of(2.0), 15, "2 logical px back to 15 twips");
+    assert_eq!(geom.tile_pixels(), 1024, "the texture is 1024 device px");
+    let base = Geom {
+        zoom: 1.0,
+        dpi: 2.0,
+    };
+    assert_eq!(base.px_of(TILE_TWIPS), 256.0, "one tile is 256 logical px");
+    assert_eq!(base.twips_of(256.0), TILE_TWIPS, "256 logical px is one tile");
+    assert_eq!(base.tile_pixels(), 512, "the texture is 512 device px");
+}

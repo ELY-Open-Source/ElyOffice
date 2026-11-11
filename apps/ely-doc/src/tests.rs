@@ -19,7 +19,7 @@ impl gpui::Render for Blank {
 pub(crate) fn docs(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Docs>> {
     ely_ui::logs::keep();
     let install = ely_lok::test_install()?;
-    let (worker, stop) = ely_office::lok::test_worker(&install, &dir.join("profile"));
+    let (worker, stop) = ely_office::lok::test_worker(&install);
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");
     cx.update(|app| {

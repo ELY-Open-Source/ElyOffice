@@ -63,6 +63,7 @@ fn a_dark_app_paints_the_page_white() {
     let laid = super::super::layout(&mut started, &doc).expect("the layout reads");
     let feed = (started.feed(), started.waiter());
     let worker = Arc::new(Mutex::new(started));
+    super::ended_with_thread(&worker, dir);
     let shade = || {
         let mut worker = worker.lock().expect("the worker");
         let tile = doc.paint_tile(&mut worker, (1440, 1440, 3840, 3840), (64, 64)).expect("a tile");
