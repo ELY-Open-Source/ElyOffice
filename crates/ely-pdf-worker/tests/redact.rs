@@ -356,3 +356,30 @@ fn hidden_links_and_fields_clean_out() {
     worker.clean(doc, Cleaning { hidden: true, ..Cleaning::default() }, &out).expect("cleans");
     assert!(!holds(&out, "SECRET-HIDDEN-LINK") && !holds(&out, "SECRET-HIDDEN-WIDGET"));
 }
+
+#[test]
+fn a_removed_annotation_leaves_the_structure_tree() {
+    let link = "<< /Type /Annot /Subtype /Link /F 2 /Rect [72 500 200 520] /Contents (SECRET-TAGGED) /A << /S /URI /URI (https://x.test/SECRET-TAGGED) >> /P 3 0 R /StructParent 1 >>";
+    let widget = "<< /Type /Annot /Subtype /Widget /F 2 /FT /Tx /T (f) /V (SECRET-TAGGED) /Rect [72 500 200 520] /P 3 0 R /StructParent 1 >>";
+    for (annot, form) in [(link, ""), (widget, " /AcroForm << /Fields [5 0 R] >>")] {
+        for redact in [false, true] {
+            let dir = tempfile::tempdir().expect("a temp dir");
+            // The element points at the annotation by OBJR.
+            let objects = [
+                annot.to_string(),
+                "<< /Type /StructTreeRoot /K [7 0 R] /ParentTree 8 0 R /ParentTreeNextKey 2 >>".to_string(),
+                "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /K << /Type /OBJR /Pg 3 0 R /Obj 5 0 R >> >>".to_string(),
+                "<< /Nums [1 7 0 R] >>".to_string(),
+            ];
+            let catalog = format!(" /MarkInfo << /Marked true >> /StructTreeRoot 6 0 R{form}");
+            let (mut worker, doc) = written(dir.path(), one_page(&catalog, " /Annots [5 0 R]", "", &objects));
+            let out = dir.path().join("out.pdf");
+            match redact {
+                true => drop(worker.redact(doc, &[Region { page: 0, rect: [60.0, 260.0, 220.0, 310.0] }], &out).expect("removes")),
+                false => drop(worker.clean(doc, Cleaning { hidden: true, ..Cleaning::default() }, &out).expect("cleans")),
+            }
+            assert!(!holds(&out, "SECRET-TAGGED"), "{annot} after {}", if redact { "removal" } else { "cleaning" });
+            assert!(holds(&out, "/StructTreeRoot"), "the tree stays");
+        }
+    }
+}

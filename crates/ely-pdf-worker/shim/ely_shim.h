@@ -55,6 +55,7 @@ fz_rect ely_rect(fz_context *ctx, fz_json *array, float least);
 pdf_annot *ely_find_annot(fz_context *ctx, pdf_page *page, int id, int widget);
 void ely_write_fields(fz_context *ctx, fz_output *out, pdf_page *page);
 void ely_unlink_field(fz_context *ctx, pdf_document *pdf, pdf_obj *field);
+void ely_drop_dead_objr(fz_context *ctx, pdf_document *pdf);
 void ely_unsign(fz_context *ctx, pdf_document *pdf);
 void ely_watch_begin(fz_context *ctx);
 int ely_watch_end(fz_context *ctx);

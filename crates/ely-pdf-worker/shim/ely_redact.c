@@ -116,6 +116,7 @@ static void redact(fz_context *ctx, pdf_document *pdf, region *regions, int n)
 		fz_drop_page(ctx, (fz_page *)page);
 	fz_catch(ctx)
 		fz_rethrow(ctx);
+	ely_drop_dead_objr(ctx, pdf);
 }
 
 /* A glyph box shrunk a tenth, as redaction judges. */

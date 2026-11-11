@@ -309,6 +309,7 @@ static reach sweep(fz_context *ctx, fz_document *doc, int mask)
 		fz_drop_page(ctx, (fz_page *)page);
 	fz_catch(ctx)
 		fz_rethrow(ctx);
+	ely_drop_dead_objr(ctx, pdf);
 	return r;
 }
 
