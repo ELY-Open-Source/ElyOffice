@@ -39,18 +39,25 @@ pub fn is_sheet(path: &Path) -> bool {
 
 /// Reads the shown sheet as CSV via a private folder.
 pub fn read_sheet(worker: &Mutex<Worker>, path: &Path, work: &Path) -> io::Result<Table> {
-    let folder = tempfile::Builder::new().prefix("merge-").tempdir_in(work)?;
-    let scratch = &folder.path().join("data.csv");
-    let mut held = worker.lock().map_err(|_| io::Error::other("the worker lock is poisoned"))?;
-    let doc = held.load(&ely_lok::file_url(path))?;
-    let exported = doc.export_text(&mut held, &ely_lok::file_url(scratch), ',');
-    // Closed even when the export failed.
-    let closed = held.close_doc(doc);
-    drop(held);
-    exported.and(closed)?;
-    let table = read_csv(scratch);
+    let folder = exported(worker, path, work)?;
+    let table = read_csv(&folder.path().join(CSV));
     folder.close()?;
     Ok(Table { name: file_name(path), ..table? })
+}
+
+/// The exported CSV's name in its folder.
+pub(super) const CSV: &str = "data.csv";
+
+/// The shown sheet as CSV in its own folder.
+pub(super) fn exported(worker: &Mutex<Worker>, path: &Path, work: &Path) -> io::Result<tempfile::TempDir> {
+    let folder = tempfile::Builder::new().prefix("merge-").tempdir_in(work)?;
+    let mut held = worker.lock().map_err(|_| io::Error::other("the worker lock is poisoned"))?;
+    let doc = held.load(&ely_lok::file_url(path))?;
+    let written = doc.export_text(&mut held, &ely_lok::file_url(&folder.path().join(CSV)), ',');
+    // Closed even when the export failed.
+    let closed = held.close_doc(doc);
+    written.and(closed)?;
+    Ok(folder)
 }
 
 /// Reads a UTF-8 CSV whose first row names the columns.

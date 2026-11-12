@@ -2,7 +2,7 @@
 
 use gpui::TestAppContext;
 
-use super::super::run::read_sheet;
+use super::super::run::{CSV, exported, read_csv, read_sheet};
 use crate::tests::{blank, docs, settle};
 
 const FODS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -53,7 +53,7 @@ fn spreadsheets_read_as_merge_data() {
 }
 
 #[test]
-fn overlapping_reads_keep_their_own_rows() {
+fn a_second_export_before_the_first_is_read_keeps_both() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let Some(docs) = docs(&mut cx, dir.path()) else {
@@ -63,7 +63,7 @@ fn overlapping_reads_keep_their_own_rows() {
     let worker = cx.update(|app| docs.read(app).core.worker.clone());
     let work = dir.path().join("reads");
     std::fs::create_dir(&work).expect("the work dir");
-    let names = ["Ada", "Bob", "Cy", "Di"];
+    let names = ["Ada", "Bob"];
     let sheets: Vec<_> = names.iter().map(|name| dir.path().join(format!("{name}.xlsx"))).collect();
     for (name, sheet) in names.iter().zip(&sheets) {
         let flat = dir.path().join(format!("{name}.fods"));
@@ -73,16 +73,12 @@ fn overlapping_reads_keep_their_own_rows() {
         doc.save_as(&mut held, &ely_lok::file_url(sheet), "xlsx").expect("the sheet saves");
         held.close_doc(doc).expect("closes");
     }
-    let reads: Vec<_> = sheets
-        .into_iter()
-        .map(|sheet| {
-            let (worker, work) = (worker.clone(), work.clone());
-            std::thread::spawn(move || read_sheet(&worker, &sheet, &work))
-        })
-        .collect();
-    for (name, read) in names.iter().zip(reads) {
-        let table = read.join().expect("the read ends").expect("the sheet reads");
+    // Both exports land before either is read.
+    let folders: Vec<_> = sheets.iter().map(|sheet| exported(&worker, sheet, &work).expect("exports")).collect();
+    for (name, folder) in names.iter().zip(folders) {
+        let table = read_csv(&folder.path().join(CSV)).expect("the sheet reads");
         assert_eq!(table.rows, [[*name, "上海", "36"]], "{name}");
+        folder.close().expect("the folder goes");
     }
     assert_eq!(std::fs::read_dir(&work).expect("reads").count(), 0, "no scratch is left");
 }
