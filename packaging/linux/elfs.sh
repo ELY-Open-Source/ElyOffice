@@ -55,6 +55,8 @@ while IFS= read -r -d '' file; do
       '${ORIGIN}' | '${ORIGIN}/'*) rest=${path#'${ORIGIN}'} ;;
       *) broken "${file#"$appdir"/} loads from $path, not from \$ORIGIN" ;;
     esac
+    # The loader expands $LIB and $PLATFORM; this check cannot.
+    [[ $rest != *'$'* ]] || broken "${file#"$appdir"/} loads from $path, a loader token after \$ORIGIN"
     resolve "${file%/*}$rest"
     [[ $resolved == "$real" || $resolved == "$real"/* ]] ||
       broken "${file#"$appdir"/} loads from $path, outside the package"

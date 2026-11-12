@@ -51,5 +51,7 @@ refused 'symbols' '$ORIGIN/../lib' 'keeps symbols' symbols
 # A link to a sibling whose name ends in newline.
 mkdir -p "$work/AppDir"$'\n'
 link=$'../../../AppDir\n' refused 'link out' '$ORIGIN/escape' 'outside the package'
+refused 'loader token' '$ORIGIN/$LIB' 'a loader token'
+refused 'braced token' '$ORIGIN/../${PLATFORM}' 'a loader token'
 link=../lib check '$ORIGIN/escape' || fail "an in-package link is refused: $(cat "$work/out")"
 echo "PASS: elfs rules"
