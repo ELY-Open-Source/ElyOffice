@@ -114,6 +114,10 @@ for inside in '<svg><script>' '<svg><font><script>' '<math><title><script>' '<ma
   printf '%s\n// One two three four five six seven eight nine ten eleven.\n</script>\n' "$inside" >"$work/site/video/a.html"
   check || fail "text in a foreign script after $inside was read as code"
 done
+printf '<script>\n// One two three four five six seven eight nine ten eleven.\n' >"$work/site/video/a.html"
+! check || fail "a long comment in a script left open passed"
+printf '<style>\n/* One two three four five six seven eight nine ten eleven. */\n' >"$work/site/video/a.html"
+! check || fail "a long comment in a style left open passed"
 printf '<p>It is fine.</p>\n<?x One two three four five six seven eight nine ten eleven. ?>\n' >"$work/site/video/a.html"
 ! check || fail "a long bogus comment passed"
 for end in '</script\xc2\xa0x>' '</\xc5\xbfcript>'; do

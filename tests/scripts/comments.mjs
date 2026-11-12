@@ -38,7 +38,8 @@ function html(text) {
     if (node.nodeName === "#comment" && at) out.push([at.startOffset, at.endOffset]);
     // Only HTML's script and style hold code, as browsers read.
     if (node.namespaceURI === XHTML && (node.tagName === "script" || node.tagName === "style") && at?.startTag) {
-      const [start, end] = [at.startTag.endOffset, at.endTag?.startOffset ?? at.endOffset];
+      // Unclosed, the body runs to the end, as browsers read.
+      const [start, end] = [at.startTag.endOffset, at.endTag?.startOffset ?? text.length];
       if (node.tagName === "style") out.push([start, end, "style"]);
       else for (const [s, e] of spans(text.slice(start, end), "js")) out.push([start + s, start + e]);
     }
