@@ -250,6 +250,23 @@ fn empty_marked_content_elsewhere_stays() {
     assert_eq!((count("/Artifact"), count("(EMPTY)"), count("/Stated")), (2, 1, 1), "the moved tag and the three empty ones");
 }
 
+#[test]
+fn marked_points_stay_put_and_refuse_nothing() {
+    let points = "/Point MP /Props <</Alt (POINT)>> DP";
+    for around in [format!("/Unrelated BMC {points} EMC"), points.to_string()] {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let (mut worker, doc) = drawn(dir.path(), &format!("{around} BT /F1 18 Tf 72 700 Td (Hello) Tj ET"));
+        let index = worker.text_blocks(doc, 0).expect("blocks").iter().position(|b| b.text == "Hello").expect("hello");
+        worker.move_text(doc, 0, (index, "Hello"), (20.0, 30.0)).expect(&around);
+        let doc = worker.now(doc).expect("the state");
+        let out = dir.path().join("moved.pdf");
+        worker.save(doc, &out).expect("saves");
+        let bytes = std::fs::read(&out).expect("reads");
+        let count = |what: &str| bytes.windows(what.len()).filter(|w| *w == what.as_bytes()).count();
+        assert_eq!((count("/Point MP"), count("(POINT)")), (1, 1), "{around}: each point once");
+    }
+}
+
 /// Helvetica and pattern `P0` (object 6), drawing `content`, opened.
 fn patterned(dir: &Path, pattern: &str, content: &str) -> (Worker, Doc) {
     let objects = ["<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string(), pattern.to_string()];

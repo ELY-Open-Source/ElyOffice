@@ -9,29 +9,6 @@ static void hold_buffer(fz_context *ctx, fz_buffer *buf, void *opaque)
 	*(fz_buffer **)opaque = fz_keep_buffer(ctx, buf);
 }
 
-/* `in` without its form drawing: each "/Name Do" line. */
-static fz_buffer *without_forms(fz_context *ctx, fz_buffer *in)
-{
-	fz_buffer *out = fz_new_buffer(ctx, in->len + 1);
-	size_t at = 0, end;
-	fz_try(ctx)
-		for (; at < in->len; at = end + 1)
-		{
-			for (end = at; end < in->len && in->data[end] != '\n'; end++)
-				;
-			if (end - at > 4 && in->data[at] == '/' && !memcmp(in->data + end - 3, " Do", 3))
-				continue;
-			fz_append_data(ctx, out, in->data + at, end - at);
-			fz_append_byte(ctx, out, '\n');
-		}
-	fz_catch(ctx)
-	{
-		fz_drop_buffer(ctx, out);
-		fz_rethrow(ctx);
-	}
-	return out;
-}
-
 /* Operators that mark nothing: state, text state, clip paths. */
 static const char *quiet[] = { "q", "Q", "cm", "gs", "w", "J", "j", "M", "d", "ri", "i", "BT", "ET", "Tc", "Tw",
 	"Tz", "TL", "Tf", "Tr", "Ts", "Td", "TD", "Tm", "T*", "CS", "cs", "SC", "SCN", "sc", "scn", "G", "g", "RG", "rg",
@@ -51,6 +28,31 @@ static int is_quiet(const unsigned char *s, size_t n)
 		if (is_op(s, n, quiet[i]))
 			return 1;
 	return 0;
+}
+
+/* `in` without form drawing or marked points: they stay put. */
+static fz_buffer *drawing_only(fz_context *ctx, fz_buffer *in)
+{
+	fz_buffer *out = fz_new_buffer(ctx, in->len + 1);
+	size_t at = 0, end;
+	fz_try(ctx)
+		for (; at < in->len; at = end + 1)
+		{
+			for (end = at; end < in->len && in->data[end] != '\n'; end++)
+				;
+			if (end - at > 4 && in->data[at] == '/' && !memcmp(in->data + end - 3, " Do", 3))
+				continue;
+			if (is_op(in->data + at, end - at, "MP") || is_op(in->data + at, end - at, "DP"))
+				continue;
+			fz_append_data(ctx, out, in->data + at, end - at);
+			fz_append_byte(ctx, out, '\n');
+		}
+	fz_catch(ctx)
+	{
+		fz_drop_buffer(ctx, out);
+		fz_rethrow(ctx);
+	}
+	return out;
 }
 
 static size_t line_end(fz_buffer *buf, size_t at)
@@ -337,7 +339,7 @@ static fz_buffer *block_content(fz_context *ctx, pdf_page *page, ely_shape *shap
 	fz_try(ctx)
 	{
 		follow(ctx, page, shape, &opts, ely_keep_block, t);
-		out = without_forms(ctx, all);
+		out = drawing_only(ctx, all);
 		unmark_empty(ctx, out, t);
 	}
 	fz_always(ctx)
