@@ -50,6 +50,10 @@ pub(super) struct Turning {
 impl Turning {
     /// The turn a wheel event makes; 0 for none.
     pub(super) fn wheel(&mut self, delta: ScrollDelta, phase: TouchPhase, now: Instant, notch: f32) -> i32 {
+        // Sideways lines (Shift+wheel) turn nothing and leave the run.
+        if matches!(delta, ScrollDelta::Lines(lines) if lines.y == 0.0) {
+            return 0;
+        }
         let paused = self.last.is_none_or(|last| now.duration_since(last) >= PAUSE);
         self.last = Some(now);
         // X11 lines mix wheels and touchpads; they carry no phase.
@@ -160,6 +164,17 @@ mod tests {
         assert_eq!(wheel(-1.0, now + PAUSE * 4), 0, "a third of a notch");
         let mut mac = Turning::default();
         assert_eq!(mac.wheel(lines(-1.0), TouchPhase::Moved, now, 1.0), 1, "macOS scrolls a line a notch");
+    }
+
+    #[test]
+    fn sideways_lines_leave_whole_notches_whole() {
+        let (mut turning, now) = (Turning::default(), std::time::Instant::now());
+        let sideways = ScrollDelta::Lines(point(3.0, 0.0));
+        assert_eq!(turning.wheel(sideways, TouchPhase::Moved, now, NOTCH), 0);
+        assert_eq!(turning.wheel(lines(-3.0), TouchPhase::Moved, now, NOTCH), 1);
+        assert_eq!(turning.wheel(lines(-3.0), TouchPhase::Moved, now, NOTCH), 1, "rapid notches each turn");
+        assert_eq!(turning.wheel(sideways, TouchPhase::Moved, now, NOTCH), 0);
+        assert_eq!(turning.wheel(lines(-6.0), TouchPhase::Moved, now, NOTCH), 2, "two notches in one event");
     }
 
     #[test]
