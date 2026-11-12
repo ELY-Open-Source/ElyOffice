@@ -321,3 +321,35 @@ fn an_elytree_gone_at_launch_says_so_in_chinese_and_spanish(cx: &mut TestAppCont
         assert!(toasts.iter().any(|(text, _)| text.contains(said)), "{locale}: {toasts:?}");
     }
 }
+
+/// `a.md` opened, then `asked` before the list writes land; the list after.
+fn reopen_and_clear(asked: fn(&mut Desk, &Path, &mut gpui::Context<Desk>), cx: &mut TestAppContext) -> (Vec<std::path::PathBuf>, Vec<std::path::PathBuf>, std::path::PathBuf) {
+    let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+    let file = files.path().join("a.md");
+    std::fs::write(&file, "A\n").expect("file");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &file, cx);
+    desk.update(cx, |desk, cx| asked(desk, &file, cx));
+    cx.run_until_parked();
+    let on_disk = ely_files::recent::recent(&data.path().join("recent.json")).expect("list");
+    let shown = desk.read_with(cx, |desk, _| desk.recent.clone());
+    (on_disk, shown, dunce::canonicalize(&file).expect("real"))
+}
+
+#[gpui::test(iterations = 16)]
+fn a_reopen_then_a_clear_leave_the_list_empty(cx: &mut TestAppContext) {
+    let (on_disk, shown, _) = reopen_and_clear(|desk, file, cx| {
+        desk.open_path(file.to_path_buf(), cx);
+        desk.clear_recent(cx);
+    }, cx);
+    assert!(on_disk.is_empty() && shown.is_empty(), "{on_disk:?} {shown:?}");
+}
+
+#[gpui::test(iterations = 16)]
+fn a_clear_then_a_reopen_leave_the_file_listed(cx: &mut TestAppContext) {
+    let (on_disk, shown, real) = reopen_and_clear(|desk, file, cx| {
+        desk.clear_recent(cx);
+        desk.open_path(file.to_path_buf(), cx);
+    }, cx);
+    assert_eq!((on_disk, shown), (vec![real.clone()], vec![real]));
+}

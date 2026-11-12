@@ -3,7 +3,6 @@
 use std::{
     io,
     path::{Path, PathBuf},
-    sync::Mutex,
     time::Duration,
 };
 
@@ -17,13 +16,6 @@ use crate::folder::{Folder, markdown_under};
 
 /// How long a failed recent-list entry waits to retry.
 pub(crate) const RETRY: Duration = Duration::from_secs(30);
-
-/// Runs `change` after any other list change; off the window.
-pub(crate) fn in_turn<T>(turn: &Mutex<()>, change: impl FnOnce() -> io::Result<T>) -> io::Result<T> {
-    // The list is read, changed and written whole.
-    let _turn = turn.lock().map_err(|_| io::Error::other("a recent-list write panicked"))?;
-    change()
-}
 
 /// Puts `path` first; drops `old` once gone. Off the window.
 pub(crate) fn record(file: &Path, path: &Path, old: Option<PathBuf>) -> io::Result<(PathBuf, Option<Vec<PathBuf>>)> {
@@ -105,25 +97,37 @@ impl Desk {
         self.change_recent(move |file| ely_files::recent::remember(file, &dunce::canonicalize(&path)?), cx);
     }
 
-    /// Changes the list off the window, after any other change.
+    /// Changes the list off the window, in the order asked.
+    fn in_turn<T: Send + 'static>(
+        &mut self,
+        change: impl FnOnce(&Path) -> io::Result<T> + Send + 'static,
+        done: impl FnOnce(&mut Self, io::Result<T>, &mut Context<Self>) + 'static,
+        cx: &mut Context<Self>,
+    ) {
+        let (file, before) = (self.recent_file.clone(), self.recording.take());
+        // The list is read, changed and written whole.
+        self.recording = Some(cx.spawn(async move |desk, cx| {
+            if let Some(before) = before {
+                before.await;
+            }
+            let changed = cx.background_spawn(async move { change(&file) }).await;
+            desk.update(cx, |desk, cx| done(desk, changed, cx)).ok();
+        }));
+    }
+
     fn change_recent(
         &mut self,
         change: impl FnOnce(&Path) -> io::Result<Vec<PathBuf>> + Send + 'static,
         cx: &mut Context<Self>,
     ) {
-        let (file, turn) = (self.recent_file.clone(), self.recording.clone());
-        cx.spawn(async move |desk, cx| {
-            let list = cx.background_spawn(async move { in_turn(&turn, || change(&file)) }).await;
-            desk.update(cx, |desk, cx| match list {
-                Ok(list) => {
-                    desk.recent = list;
-                    cx.notify();
-                }
-                Err(error) => desk.unlisted(&error, cx),
-            })
-            .ok();
-        })
-        .detach();
+        let done = |desk: &mut Self, list: io::Result<Vec<PathBuf>>, cx: &mut Context<Self>| match list {
+            Ok(list) => {
+                desk.recent = list;
+                cx.notify();
+            }
+            Err(error) => desk.unlisted(&error, cx),
+        };
+        self.in_turn(change, done, cx);
     }
 
     fn unlisted(&mut self, error: &io::Error, cx: &mut Context<Self>) {
@@ -140,13 +144,9 @@ impl Desk {
         };
         // One attempt per tab; a failure waits `RETRY`.
         tab.extra.tracked = Some(path.to_path_buf());
-        let (file, path, turn) = (self.recent_file.clone(), path.to_path_buf(), self.recording.clone());
-        let seeking = path.clone();
-        cx.spawn(async move |desk, cx| {
-            let listed = cx.background_spawn(async move { in_turn(&turn, || record(&file, &seeking, old)) }).await;
-            desk.update(cx, |desk, cx| desk.listed(id, path, listed, cx)).ok();
-        })
-        .detach();
+        let (path, seeking) = (path.to_path_buf(), path.to_path_buf());
+        let done = move |desk: &mut Self, listed, cx: &mut Context<Self>| desk.listed(id, path, listed, cx);
+        self.in_turn(move |file| record(file, &seeking, old), done, cx);
     }
 
     fn listed(&mut self, id: u64, path: PathBuf, listed: io::Result<(PathBuf, Option<Vec<PathBuf>>)>, cx: &mut Context<Self>) {

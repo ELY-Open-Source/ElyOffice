@@ -42,8 +42,8 @@ pub struct Desk {
     pub going: Option<(u64, (usize, usize))>,
     /// The path each tab last put in the recent list.
     pub remembered: HashMap<u64, PathBuf>,
-    /// Background list writes take turns.
-    pub recording: Arc<Mutex<()>>,
+    /// The last recent-list change; each waits for the one before.
+    pub recording: Option<gpui::Task<()>>,
     pub(crate) side: Entity<crate::side::Side>,
     pub watcher: Option<notify::RecommendedWatcher>,
     /// The folders the watcher covers.
@@ -203,7 +203,7 @@ pub(crate) fn open_in(
             recent_file,
             going: None,
             remembered: HashMap::new(),
-            recording: Arc::default(),
+            recording: None,
             side,
             watcher: None,
             watched: Vec::new(),

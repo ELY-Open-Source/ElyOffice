@@ -1,9 +1,6 @@
 //! Saves and looks touch the disk off the window (R15.41).
 
-use std::{
-    path::PathBuf,
-    sync::{Arc, Barrier, Mutex},
-};
+use std::path::PathBuf;
 
 use ely_files::SaveState;
 use ely_office::prelude::*;
@@ -266,27 +263,30 @@ fn a_target_gone_while_loading_keeps_its_holder(cx: &mut TestAppContext) {
     settle(cx);
 }
 
-#[test]
-fn tabs_opened_together_all_reach_the_recent_list() {
-    let dir = tempfile::tempdir().expect("a temp dir");
-    let file = dir.path().join("recent.json");
-    let (turn, start) = (Arc::new(Mutex::new(())), Arc::new(Barrier::new(16)));
-    let threads: Vec<_> = (0..16)
+#[gpui::test]
+fn recent_list_changes_land_in_the_order_asked(cx: &mut TestAppContext) {
+    let (desk, cx, _, path, _dirs) = opened("one\n", cx);
+    cx.run_until_parked();
+    let file = desk.read_with(cx, |desk, _| desk.recent_file.clone());
+    let others: Vec<PathBuf> = (0..16)
         .map(|n| {
-            let (file, turn, start) = (file.clone(), turn.clone(), start.clone());
-            let path = dir.path().join(format!("{n}.md"));
-            std::fs::write(&path, "").expect("a file");
-            std::thread::spawn(move || {
-                start.wait();
-                crate::places::in_turn(&turn, || crate::places::record(&file, &path, None))
-            })
+            let other = path.with_file_name(format!("{n}.md"));
+            std::fs::write(&other, "").expect("a file");
+            other
         })
         .collect();
-    for thread in threads {
-        thread.join().expect("the writer ends").expect("recorded");
-    }
-    let list = ely_files::recent::recent(&file).expect("the list");
-    assert_eq!(list.len(), 16, "a concurrent write lost entries");
+    // Asked at once, then a clear, then one more: only that one stays.
+    desk.update(cx, |desk, cx| {
+        for other in &others {
+            desk.remember(other, cx);
+        }
+        desk.clear_recent(cx);
+        desk.remember(&path, cx);
+    });
+    cx.run_until_parked();
+    let real = dunce::canonicalize(&path).expect("the real path");
+    assert_eq!(ely_files::recent::recent(&file).expect("the list"), [real.clone()]);
+    assert_eq!(desk.read_with(cx, |desk, _| desk.recent.clone()), [real]);
 }
 
 #[gpui::test]
