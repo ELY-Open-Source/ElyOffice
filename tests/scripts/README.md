@@ -49,7 +49,7 @@ tests/scripts/build-deps.sh      干净的 Ubuntu 24.04、Fedora 44、Arch 容�
 tests/scripts/doctor-rules.sh    doctor.sh 判过旧的工具为失败（替身 node，看退出码）；Cygwin 里跑也找得到其工具；Windows 上照 gpui 构建脚本的次序找 fxc：`GPUI_FXC_PATH`、PATH、SDK 注册表，皆无即报缺（替身 reg，各例自去调用者 PATH 里的 fxc）
 tests/scripts/mac-bash-rules.sh  macOS 上 ci.sh 在 bash 3.2 下不做事即失败、在 bash 5 下照常往下；doctor.sh 判 PATH 里的 bash 3.2 为过旧、5.3 照过，Intel 用的 bash 只认在 Rosetta 下跑得起的 bash 5（arm64 的即缺；只在 macOS）
 tests/scripts/check-rules.sh    check.sh 只数代码文件（末行无 LF 也计）、报出超长文件全名、30001 字节的 agents.md 即败、注释与行尾的失败也使其失败
-tests/scripts/comments-rules.sh  comments.py 对长注释与跨行注释报错（含 JS、HTML 及其脚本、Python 行尾注释与文档字符串），字符串里的 # 不算，相邻的行尾注释不算跨行，未入库与 vendor 的文件不查
+tests/scripts/comments-rules.sh  comments.py 对长注释与跨行注释报错（含 JS、HTML 及其脚本、HTML 的假注释，SVG、MathML 里的脚本照 Chromium 不当代码，Python 行尾注释与文档字符串），字符串里的 # 不算，相邻的行尾注释不算跨行，未入库与 vendor 的文件不查
 tests/scripts/rpath-rules.sh     rpath.sh（release-macos.sh 逐个调用）对找不到或在包外（含 `..` 与链接）的 `@rpath` 依赖、otool 读不出的文件报错（替身 otool，任意系统可跑）
 tests/scripts/bad-settings.sh  通用设置读不出时 ElyDoc 照样启动，文件不被覆盖
 tests/scripts/windows-headless-start.sh  无可见桌面（服务、SSH 登录）时 ElyDoc 只记一条启动错误、不弹对话框、以 1 退出（启动失败的对话框在自己的线程，不在 gpui 借用中跑消息循环）；有可见桌面时窗口照开即 SKIP（非 Windows 时 SKIP）

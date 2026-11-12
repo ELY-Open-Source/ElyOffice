@@ -30,20 +30,14 @@ LINE_COMMENT = {
 }
 # Parsed by TypeScript itself: regexes and JSX text included.
 PARSED = {".ts": "ts", ".tsx": "tsx", ".js": "js", ".mjs": "js"}
-TAG = re.compile(r"<(/?)([A-Za-z][\w-]*)", re.ASCII)
-# Elements whose content is text, never markup.
-RAW = ("script", "style", "textarea", "title", "xmp", "iframe", "noembed", "noframes")
-# Their content is markup, raw names included.
-FOREIGN = ("svg", "math")
-# Foreign elements whose content is HTML again.
-POINTS = ("foreignobject", "desc", "title", "mi", "mo", "mn", "ms", "mtext", "annotation-xml")
 
 
 def entry(text, start, end):
     """A span as (first, last, text, alone on its lines)."""
     raw = text[start:end]
-    if raw.startswith("<!--"):
-        said = raw[4:-3]
+    if raw.startswith("<"):
+        # HTML's comment, or a bogus one like "<?x>".
+        said = re.sub(r"--!?>$|>$", "", re.sub(r"^<(?:!--|[!?/])", "", raw))
     elif raw.startswith("//"):
         said = raw[2:].lstrip("/!")
     else:
@@ -71,57 +65,8 @@ def css(text):
     return found
 
 
-def html(text):
-    """Comment spans outside tags, styles' spans, and script bodies."""
-    spans, scripts, i, stack = [], [], 0, []
-    while (i := text.find("<", i)) >= 0:
-        if text.startswith("<!--", i):
-            end = text.find("-->", i + 4)
-            end = len(text) if end < 0 else end + 3
-            spans.append((i, end))
-            i = end
-            continue
-        tag = TAG.match(text, i)
-        if not tag:
-            i += 1
-            continue
-        # The tag runs to its ">", quoted values skipped.
-        j, quote = tag.end(), None
-        while j < len(text) and (quote or text[j] != ">"):
-            quote = None if text[j] == quote else quote or (text[j] if text[j] in "\"'" else None)
-            j += 1
-        j += 1
-        name = tag.group(2).lower()
-        foreign = bool(stack) and stack[-1][1]
-        if tag.group(1):
-            # An end tag closes its element, a slash or not.
-            at = next((k for k in range(len(stack) - 1, -1, -1) if stack[k][0] == name), None)
-            del stack[len(stack) if at is None else at:]
-            i = j
-            continue
-        if not text[i:j].endswith("/>"):
-            if name in FOREIGN:
-                stack.append((name, True))
-            elif foreign and name in POINTS:
-                stack.append((name, False))
-                i = j
-                continue
-        if name not in RAW or foreign:
-            i = j
-            continue
-        # The whole name ends it, in ASCII as HTML reads.
-        close = re.compile(rf"</{name}(?=[\t\n\f\r />])", re.I | re.ASCII).search(text, j)
-        stop = close.start() if close else len(text)
-        if name == "style":
-            spans += [(j + s, j + e) for s, e in css(text[j:stop])]
-        elif name == "script":
-            scripts.append((j, text[j:stop]))
-        i = stop
-    return spans, scripts
-
-
 def parsed(jobs):
-    """Spans from the TypeScript parser, one list per (body, kind)."""
+    """Spans from TypeScript and parse5, one list per (body, kind)."""
     if not jobs:
         return []
     here = Path(__file__).resolve()
@@ -134,7 +79,7 @@ def parsed(jobs):
     for (body, _), spans in zip(jobs, json.loads(ran.stdout)):
         # JavaScript counts UTF-16 units; Python counts characters.
         index = [i for i, c in enumerate(body) for _ in range(2 if ord(c) > 0xFFFF else 1)] + [len(body)]
-        out.append([(index[s], index[e]) for s, e in spans])
+        out.append([(index[s], index[e], *style) for s, e, *style in spans])
     return out
 
 
@@ -180,9 +125,8 @@ for name in sorted(filter(checked, listed.decode().split("\0"))):
     elif path.suffix == ".css":
         found[name] = [entry(text, s, e) for s, e in css(text)]
     elif path.suffix == ".html":
-        spans, scripts = html(text)
-        found[name] = [entry(text, s, e) for s, e in spans]
-        jobs += [(name, base, body, "js") for base, body in scripts]
+        found[name] = []
+        jobs.append((name, 0, text, "html"))
     elif path.suffix in PARSED:
         found[name] = []
         jobs.append((name, 0, text, PARSED[path.suffix]))
@@ -203,7 +147,10 @@ for name in sorted(filter(checked, listed.decode().split("\0"))):
                 repeated.setdefault(name, number)
             previous = number if match else None
 for (name, base, _, _), spans in zip(jobs, parsed([(body, kind) for _, _, body, kind in jobs])):
-    found[name] += [entry(texts[name], base + s, base + e) for s, e in spans]
+    for s, e, *style in spans:
+        text = texts[name]
+        inner = css(text[s:e]) if style else [(0, e - s)]
+        found[name] += [entry(text, base + s + a, base + s + b) for a, b in inner]
 for name, entries in found.items():
     last = None
     for first, final, said, alone in sorted(entries):

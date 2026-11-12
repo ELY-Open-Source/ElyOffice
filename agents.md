@@ -148,7 +148,7 @@ packaging/icons/masters.py     写出 assets/icons 的 SVG 母版（图标设计
 packaging/icons/build.sh       由母版渲染 icns、png、ico（只在 macOS）
 scripts/inert-lo.sh 路径.app    构建出的 LibreOffice.app 去掉文档类型、URL 类型、快速查看与聚焦插件并注销（build-libreoffice.sh 调用）
 scripts/extract-official-lo.sh 用 7zz 把官方镜像的 Frameworks 与 Resources 解到 engines/lo-official（不挂载；“未打补丁即拒绝”的单测用）
-scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、本文件不超 30000 字节、注释（comments.py）、测试的等待（waits.py）、行尾（eol.sh）；JS、TS、TSX 与 HTML 脚本的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript 解析，先在 `site/` 执行 `pnpm install`
+scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、本文件不超 30000 字节、注释（comments.py）、测试的等待（waits.py）、行尾（eol.sh）；JS、TS、TSX 与 HTML 的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript、parse5 解析，先在 `site/` 跑 `pnpm install`
 cd site && pnpm run deploy    官网构建并经 wrangler 发到 Cloudflare Workers：另有 `site/worker` 答 `/release.json`（最新版本、安装包地址与下载总数，缓存 5 分钟）并转发 `/releases/` 下的发布文件；地址 https://office.elygpui.com（workers.dev 上同站）
 scripts/deny.sh [根] [检查...]  cargo-deny：安全公告、yanked、许可与来源；重复版本只许 deny.toml 里列着的组，组消失而 skip 还在即败
 scripts/panics.py [根]          非测试代码的 expect、unwrap、panic!、unreachable!（clippy 量，构建脚本、ely-mail-fake 除外）与 scripts/panics.tsv 逐条相符、各带理由，任一种类不多于 HEAD 的表；`--sites` 列出本机各处

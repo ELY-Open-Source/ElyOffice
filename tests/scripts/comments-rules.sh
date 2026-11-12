@@ -102,10 +102,20 @@ cat >"$work/site/video/a.html" <<'EOF'
 <svg><title><!-- One two three four five six seven eight nine ten eleven. --></title></svg>
 EOF
 ! check || fail "a long comment in an SVG title passed"
-for inside in '<svg><foreignObject><script>' '<svg></svg/><script>' '<math><mtext><script>'; do
+# Namespaces as Chromium 156 put each script.
+for inside in '<svg><foreignObject><script>' '<svg></svg/><script>' '<math><mtext><script>' '<svg><p><script>' \
+  '<svg><font color=red><script>' '<math><annotation-xml encoding=text/html><script>' \
+  '<svg><foreignObject><foreignObject></foreignObject><script>' '<svg foo=/ /><script>'; do
   printf '%s\n// One two three four five six seven eight nine ten eleven.\n</script>\n' "$inside" >"$work/site/video/a.html"
   ! check || fail "a long comment in an HTML script after $inside passed"
 done
+for inside in '<svg><script>' '<svg><font><script>' '<math><title><script>' '<math><annotation-xml><script>' \
+  '<svg><mtext><script>' '<math><mtext><mglyph><script>' '<math><mtext><malignmark><script>' '<svg foo=/><script>'; do
+  printf '%s\n// One two three four five six seven eight nine ten eleven.\n</script>\n' "$inside" >"$work/site/video/a.html"
+  check || fail "text in a foreign script after $inside was read as code"
+done
+printf '<p>It is fine.</p>\n<?x One two three four five six seven eight nine ten eleven. ?>\n' >"$work/site/video/a.html"
+! check || fail "a long bogus comment passed"
 for end in '</script\xc2\xa0x>' '</\xc5\xbfcript>'; do
   printf '<script>\nconst tag = "%b";\n// One two three four five six seven eight nine ten eleven.\n</script>\n' "$end" >"$work/site/video/a.html"
   ! check || fail "a long comment after a false script end passed"
