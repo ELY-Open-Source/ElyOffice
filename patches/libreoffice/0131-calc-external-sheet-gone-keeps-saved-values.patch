@@ -7,28 +7,50 @@ the file still loads but S1 is renamed or deleted, refreshSrcDocument
 cleared the cache, recalculated to #REF! and returned true, so the
 update reported success and the saved value was lost (Ely R15.43).
 
-refreshSrcDocument now checks that every cached sheet that holds
-cells is still in the loaded file. If one is gone it closes the
-copy, logs the sheet and returns false; the cache and the cells stay
-and UpdateExternalRefLinks names the file.
+refreshSrcDocument now checks that every sheet a formula reads from
+the file is still in it: the sheet names of the external reference
+tokens in the cells registered for the file, and the sheets a 3D
+range spans. If one is gone it closes the copy, logs the sheet and
+returns false; the cache and the cells stay and
+UpdateExternalRefLinks names the file. Sheets only listed by an
+XLSX externalLink, or cached without cells (a blank operand), are
+judged by the formulas, not by the cache.
 
 --- a/sc/source/ui/docshell/externalrefmgr.cxx
 +++ b/sc/source/ui/docshell/externalrefmgr.cxx
-@@ -3034,6 +3034,24 @@
+@@ -3034,6 +3034,42 @@
      ScDocShell& rDocSh = static_cast<ScDocShell&>(*xDocShell);
      ScDocument& rSrcDoc = rDocSh.GetDocument();
  
-+    // A sheet read before, now gone, keeps its saved values.
++    // Sheets formulas read, now gone, keep their saved values.
 +    std::vector<OUString> aTabNames;
 +    maRefCache.getAllTableNames(nFileId, aTabNames);
-+    for (const OUString& rTabName : aTabNames)
++    std::set<OUString> aRead;
++    RefCellMap::const_iterator itrCells = maRefCells.find(nFileId);
++    if (itrCells != maRefCells.end())
++        for (const ScFormulaCell* pCell : itrCells->second)
++            for (const formula::FormulaToken* pToken : pCell->GetCode()->Tokens())
++            {
++                const formula::StackVar eType = pToken->GetType();
++                if ((eType != formula::svExternalSingleRef && eType != formula::svExternalDoubleRef)
++                    || pToken->GetIndex() != nFileId)
++                    continue;
++                const OUString aFirst = pToken->GetString().getString();
++                aRead.insert(aFirst);
++                if (eType != formula::svExternalDoubleRef)
++                    continue;
++                // A 3D range reads every sheet up to its last.
++                const ScComplexRefData& rRef = *pToken->GetDoubleRef();
++                const SCTAB nSpan = rRef.Ref2.Tab() - rRef.Ref1.Tab();
++                auto itrFirst = std::find_if(aTabNames.begin(), aTabNames.end(),
++                    [&aFirst](const OUString& rName) { return rName.equalsIgnoreAsciiCase(aFirst); });
++                for (SCTAB i = 1; i <= nSpan && itrFirst != aTabNames.end() && ++itrFirst != aTabNames.end(); ++i)
++                    aRead.insert(*itrFirst);
++            }
++    for (const OUString& rTabName : aRead)
 +    {
-+        ScExternalRefCache::TableTypeRef pTab = maRefCache.getCacheTable(nFileId, rTabName, false, nullptr, nullptr);
-+        std::vector<SCROW> aRows;
-+        if (pTab)
-+            pTab->getAllRows(aRows);
 +        SCTAB nSrcTab;
-+        if (!aRows.empty() && !rSrcDoc.GetTable(rTabName, nSrcTab))
++        if (!rSrcDoc.GetTable(rTabName, nSrcTab))
 +        {
 +            ELY_WARN("sc.ui", "external sheet gone: " << rTabName);
 +            xDocShell->DoClose();
