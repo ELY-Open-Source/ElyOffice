@@ -58,6 +58,7 @@ fn eq_fields_open_as_formulas() {
     assert!(fodt.contains("_{{&quot;g&quot;}} &quot;+h&quot;"), "a lowercase \\s\\do keeps its tail");
     assert!(fodt.contains("_{{{&quot;r&quot;} over {&quot;s&quot;}}}"), "and its nested fraction");
     assert!(fodt.contains(">lowered</text:span>"), "a plain \\s\\do stays lowered text");
+    assert!(fodt.contains(">sunk</text:span>"), "\\do with no amount lowers by 2 points");
 }
 
 #[test]
@@ -79,6 +80,7 @@ fn eq_formulas_survive_docx() {
     assert_eq!(subscripts(&fodt, ">p<"), 1, "one subscript still");
     assert!(fodt.contains("{&quot;&quot;} rsub {&quot;g&quot;} &quot;+h&quot;"), "the tail survives");
     assert!(!fodt.contains("&lt;?&gt;"), "no placeholder for a missing base");
+    assert!(fodt.contains("sunk"), "a default \\do survives");
 }
 
 /// Subscripts in the formula holding `mark`.

@@ -1,0 +1,23 @@
+sw: a lowered EQ field with no amount lowers by two points
+
+Patch 0051 keeps a plain `\s\do<n>(text)` EQ field as lowered text.
+With the amount left out, as in `\s\do(x)`, the opening parenthesis
+sat at the start and the field vanished: no text, no formula, no
+field code (Ely R8.2). Word reads a missing amount as 2 points; the
+field now lowers its text by that.
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+@@ -8381,10 +8381,10 @@
+                                 aCommand = aCommand.copy(3);
+                                 sal_Int32 nStartIndex = aCommand.indexOf('(');
+                                 sal_Int32 nEndIndex = aCommand.indexOf(')');
+-                                if (nStartIndex > 0 && nEndIndex > 0)
++                                if (nStartIndex >= 0 && nEndIndex > nStartIndex)
+                                 {
+-                                    // nDown is the requested "lower by" value in points.
+-                                    sal_Int32 nDown = o3tl::toInt32(aCommand.subView(0, nStartIndex));
++                                    // Points to lower by; Word's default is 2.
++                                    sal_Int32 nDown = nStartIndex > 0 ? o3tl::toInt32(aCommand.subView(0, nStartIndex)) : 2;
+                                     OUString aContent = aCommand.copy(nStartIndex + 1, nEndIndex - nStartIndex - 1);
+                                     PropertyMapPtr pCharContext = GetTopContext();
+                                     // dHeight is the font size of the current style.
