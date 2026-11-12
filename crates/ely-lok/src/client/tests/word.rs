@@ -59,6 +59,9 @@ fn eq_fields_open_as_formulas() {
     assert!(fodt.contains("_{{{&quot;r&quot;} over {&quot;s&quot;}}}"), "and its nested fraction");
     assert!(fodt.contains(">lowered</text:span>"), "a plain \\s\\do stays lowered text");
     assert!(fodt.contains(">sunk</text:span>"), "\\do with no amount lowers by 2 points");
+    // Word's cached results are not drawn twice.
+    assert_eq!(fodt.matches("once").count(), 1, "a lowered field's cache");
+    assert!(fodt.contains("{&quot;q&quot;} over {&quot;z&quot;}") && !fodt.contains(">qz<"), "a formula's cache");
 }
 
 #[test]
@@ -81,6 +84,7 @@ fn eq_formulas_survive_docx() {
     assert!(fodt.contains("{&quot;&quot;} rsub {&quot;g&quot;} &quot;+h&quot;"), "the tail survives");
     assert!(!fodt.contains("&lt;?&gt;"), "no placeholder for a missing base");
     assert!(fodt.contains("sunk"), "a default \\do survives");
+    assert_eq!(fodt.matches("once").count(), 1, "no cache comes back");
 }
 
 /// Subscripts in the formula holding `mark`.

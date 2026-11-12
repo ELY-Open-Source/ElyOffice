@@ -1,10 +1,16 @@
-sw: a lowered EQ field with no amount lowers by two points
+sw: an EQ field lowers by default and drops Word's cached result
 
-Patch 0051 keeps a plain `\s\do<n>(text)` EQ field as lowered text.
-With the amount left out, as in `\s\do(x)`, the opening parenthesis
-sat at the start and the field vanished: no text, no formula, no
-field code (Ely R8.2). Word reads a missing amount as 2 points; the
-field now lowers its text by that.
+Patch 0051 keeps a plain `\s\do<n>(text)` EQ field as lowered text and
+draws the rest as formulas. Two defects remained (Ely R8.2):
+
+- With the amount left out, as in `\s\do(x)`, the opening parenthesis
+  sat at the start and the field vanished: no text, no formula, no
+  field code. Word reads a missing amount as 2 points; the field now
+  lowers its text by that.
+- Word may write the field's last result after its separator. Ely
+  draws the field from its code, so that result was read as body text
+  and the content showed twice (`x` became `xx`, and saved so). The
+  result is now taken as the field's, as for other fields, and goes.
 --- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
 +++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
 @@ -8381,10 +8381,10 @@
@@ -21,3 +27,16 @@ field now lowers its text by that.
                                      OUString aContent = aCommand.copy(nStartIndex + 1, nEndIndex - nStartIndex - 1);
                                      PropertyMapPtr pCharContext = GetTopContext();
                                      // dHeight is the font size of the current style.
+@@ -9081,9 +9081,11 @@
+         if (pContext->GetTableDepth() != m_StreamStateStack.top().nTableDepth)
+             return false;
+ 
++        // An EQ field is drawn from its code; its cached result goes.
+         bRet = pContext->GetTextField().is()
+             || pContext->GetFieldId() == FIELD_FORMDROPDOWN
+-            || pContext->GetFieldId() == FIELD_FILLIN;
++            || pContext->GetFieldId() == FIELD_FILLIN
++            || pContext->GetFieldId() == FIELD_EQ;
+     }
+ 
+     if (!bRet)
