@@ -233,12 +233,14 @@ mod tests {
         assert!(untrusted(&[signer.der, other.der], &root), "another name counts in the path");
     }
 
-    /// RFC 4518, 2.2 deletes controls; 2.4 refuses private use.
+    /// RFC 4518: controls go, private use fails, marks fixed.
     #[cfg(target_os = "linux")]
     #[test]
     fn names_drop_controls_and_refuse_private_use() {
         let one = rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
-        for (root, name, same) in [("Ely test root", "Ely test \0ro\u{200C}ot", true), ("Ely root\u{E000}", "ELY root\u{E000}", false), ("Ely \u{301}root", "Ely  \u{301}root", false)] {
+        for (root, name, same) in [("Ely test root", "Ely test \0ro\u{200C}ot", true), ("Ely root\u{E000}", "ELY root\u{E000}", false), ("Ely \u{301}root", "Ely  \u{301}root", false),
+            // Unicode 3.2's marks, not today's (RFC 4518 appendix A).
+            ("Ely \u{6DE}root", "Ely  \u{6DE}root", false), ("Ely \u{1885}root", "Ely  \u{1885}root", true), ("Ely \u{1886}root", "Ely  \u{1886}root", true)] {
             let root = made(root, NOW, one, None, vec![]);
             let middle = made(name, NOW, ca(), Some(&root), vec![]);
             let signer = made("Ely test signer", NOW, ca(), Some(&middle), vec![]);
