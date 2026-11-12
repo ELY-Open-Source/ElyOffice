@@ -20,7 +20,7 @@ jiff = "0.2"
 anyhow = "1"
 directories = "6"
 dunce = "1"
-ely-gpui-component = { git = "https://github.com/ELY-Open-Source/Ely-GPUI-Components", rev = "cf19d6e0565d58165d59cb042fb9559574e28b98" }
+ely-gpui-component = { git = "https://github.com/ELY-Open-Source/Ely-GPUI-Components", rev = "a816aeb7485b850a84b3c3305e458e7ddab617c0" }
 env_logger = "0.11"
 gpui = { package = "gpui-pre", version = "=0.3.11", default-features = false, features = ["stacker"] }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.11", features = ["font-kit", "wayland", "x11"] }
@@ -98,4 +98,5 @@ gpui-pre-linux = { path = "vendor/gpui-pre-linux" }
 gpui-pre-macos = { path = "vendor/gpui-pre-macos" }
 gpui-pre-windows = { path = "vendor/gpui-pre-windows" }
 mail-parser = { path = "vendor/mail-parser" }
+pulldown-cmark = { path = "vendor/pulldown-cmark" }
 zbus = { path = "vendor/zbus" }

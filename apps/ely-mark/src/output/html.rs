@@ -302,9 +302,8 @@ impl Writer<'_, '_, '_> {
             (range.start, Reverse(range.end), whole)
         });
         let (mut open, mut at): (Vec<(usize, &str)>, usize) = (Vec::new(), 0);
-        let mut links = 0;
         for (range, mark) in marks {
-            links -= self.close_to(read, range.start, &mut open, &mut at);
+            self.close_to(read, range.start, &mut open, &mut at);
             assert!(
                 range.start >= at && open.last().is_none_or(|(end, _)| range.end <= *end),
                 "read marks nest"
@@ -319,13 +318,8 @@ impl Writer<'_, '_, '_> {
                 }
                 Mark::Style(Style::Footnote) => {
                     let number = atoms.notes.pop_front().expect("a note's number");
-                    // Links never nest.
-                    match links > 0 {
-                        true => self.push(&format!("<sup>{number}</sup>")),
-                        false => {
-                            self.push(&format!("<sup><a href=\"#fn-{number}\">{number}</a></sup>"))
-                        }
-                    }
+                    // A note ends the open link, as on GitHub.
+                    self.push(&format!("<sup><a href=\"#fn-{number}\">{number}</a></sup>"));
                     at = range.end;
                 }
                 Mark::Style(style) => {
@@ -339,7 +333,6 @@ impl Writer<'_, '_, '_> {
                         false => self.push("<a>"),
                     }
                     open.push((range.end, "a"));
-                    links += 1;
                 }
             }
         }
@@ -347,23 +340,20 @@ impl Writer<'_, '_, '_> {
         self.text(&read.text[at..]);
     }
 
-    /// Closes each mark ending by `to`; counts closed links.
+    /// Closes each mark ending by `to`.
     fn close_to(
         &mut self,
         read: &Inline,
         to: usize,
         open: &mut Vec<(usize, &str)>,
         at: &mut usize,
-    ) -> usize {
-        let mut links = 0;
+    ) {
         while let Some(&(end, name)) = open.last().filter(|(end, _)| *end <= to) {
             self.text(&read.text[*at..end]);
             self.push(&format!("</{name}>"));
             *at = end;
             open.pop();
-            links += usize::from(name == "a");
         }
-        links
     }
 
     fn text(&mut self, text: &str) {

@@ -195,12 +195,21 @@ fn a_blank_formula_is_dropped_with_its_text() {
 }
 
 #[test]
-fn a_note_in_a_link_keeps_the_link_whole() {
+fn a_note_in_a_link_ends_it_as_on_github() {
     let page = html("a <a href=\"https://example.test\">b[^n] c</a> after\n\n[^n]: note\n");
+    let note = "<sup><a href=\"#fn-1\">1</a></sup>";
     assert!(
-        page.contains("<a href=\"https://example.test\">b<sup>1</sup> c</a>"),
+        page.contains(&format!("<a href=\"https://example.test\">b</a>{note} c after")),
         "{page}"
     );
+}
+
+#[test]
+fn a_note_in_markdown_link_text_keeps_the_link() {
+    // pulldown-cmark dropped the link; GFM keeps it.
+    let page = html("[a [^n] b](/x)\n\n[^n]: note\n");
+    let note = "<sup><a href=\"#fn-1\">1</a></sup>";
+    assert!(page.contains(&format!("<a href=\"/x\">a </a>{note} b")), "{page}");
 }
 
 #[test]

@@ -814,7 +814,7 @@ impl<'input, F: BrokenLinkCallback<'input>> Parser<'input, F> {
                                     self.tree[footnote_ix].item.end = end;
                                     prev = Some(footnote_ix);
                                     cur = next;
-                                    self.link_stack.clear();
+                                    // As in GFM, a link may hold a footnote reference.
                                     continue;
                                 }
                             } else if let Some((ReferenceLabel::Link(link_label), end)) = label {

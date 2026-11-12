@@ -27,7 +27,7 @@ crates/      ely-ui  ely-platform  ely-ipc（应用与引擎 worker 之间的帧
 reference/   上游源码，只读，不属于本项目，不审查
 engines/     下载的二进制与引擎构建产物，不入库，不审查；mupdf-src 是 reference/mupdf 加 patches/mupdf 的构建副本
 patches/     对上游的补丁，随源码发行（libreoffice、mupdf、gpui）
-vendor/      crates.io 上游 crate 的副本加本项目的修复，经工作区 `[patch.crates-io]` 换入（accesskit_atspi_common、accesskit_unix、gpui-pre、gpui-pre-linux、gpui-pre-macos、gpui-pre-windows、mail-parser、zbus）；首个提交为原样，其后是修复；gpui 四个即 crates.io 原版加 `patches/gpui`
+vendor/      crates.io 上游 crate 的副本加本项目的修复，经工作区 `[patch.crates-io]` 换入（accesskit_atspi_common、accesskit_unix、gpui-pre、gpui-pre-linux、gpui-pre-macos、gpui-pre-windows、mail-parser、pulldown-cmark、zbus）；首个提交原样，其后修复；gpui 四个即 crates.io 原版加 `patches/gpui`
 packaging/   三端打包脚本，apps.tsv 是八个应用的二进制名、名字、桌面分类、发布批次、许可（Linux 包、Nix 与 WinGet 的许可字段）与一句话简介（WinGet）；icons/ 由图标母版渲染各端格式；libreoffice/ely.xcd 是内核的默认配置层
 assets/      icons/ 是八个应用的图标母版（SVG）与渲染出的 icns、png、ico，规则见其 README
 dist/        打包产物，不入库
@@ -40,7 +40,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin cf19d6e，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自与本仓库并列的组件库检出 `../Ely-GPUI-Components`（不在 `reference/`；总包 `src/lib.rs` 列出各模块在哪个 crate，gpui 用法规则见其 `AGENTS.md`）；`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项，没有那个检出即失败。
+依赖 `ely-gpui-component`（pin a816aeb，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自与本仓库并列的组件库检出 `../Ely-GPUI-Components`（不在 `reference/`；总包 `src/lib.rs` 列出各模块在哪个 crate，gpui 用法规则见其 `AGENTS.md`）；`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项，没有那个检出即失败。
 
 | 需要 | 用 |
 | --- | --- |
