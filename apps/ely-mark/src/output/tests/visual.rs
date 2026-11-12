@@ -225,7 +225,7 @@ fn marks_crossing_a_block_write_nested() {
 
 #[test]
 fn a_note_in_a_markdown_link_frees_the_math_after_it() {
-    // The vendored parser keeps the link; the note ends it and its kbd.
+    // The vendored parser keeps the link; the note ends it.
     for source in [
         "[<kbd>x[^n] \\(y\\)](/u)\n\n[^n]: note\n",
         "[<kbd>x[^n] \\(y\\)][link]\n\n[link]: /u\n\n[^n]: note\n",
