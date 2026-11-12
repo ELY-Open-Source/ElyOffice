@@ -1,0 +1,41 @@
+sc: an external sheet gone from its file keeps its saved values
+
+Patch 0086 lets the user update links on request and names every
+source it cannot read, keeping the saved cells. A plain formula's
+reference ('file:///…/[source.fods]S1'!A1) was not covered: when
+the file still loads but S1 is renamed or deleted, refreshSrcDocument
+cleared the cache, recalculated to #REF! and returned true, so the
+update reported success and the saved value was lost (Ely R15.43).
+
+refreshSrcDocument now checks that every cached sheet that holds
+cells is still in the loaded file. If one is gone it closes the
+copy, logs the sheet and returns false; the cache and the cells stay
+and UpdateExternalRefLinks names the file.
+
+--- a/sc/source/ui/docshell/externalrefmgr.cxx
++++ b/sc/source/ui/docshell/externalrefmgr.cxx
+@@ -3034,6 +3034,24 @@
+     ScDocShell& rDocSh = static_cast<ScDocShell&>(*xDocShell);
+     ScDocument& rSrcDoc = rDocSh.GetDocument();
+ 
++    // A sheet read before, now gone, keeps its saved values.
++    std::vector<OUString> aTabNames;
++    maRefCache.getAllTableNames(nFileId, aTabNames);
++    for (const OUString& rTabName : aTabNames)
++    {
++        ScExternalRefCache::TableTypeRef pTab = maRefCache.getCacheTable(nFileId, rTabName, false, nullptr, nullptr);
++        std::vector<SCROW> aRows;
++        if (pTab)
++            pTab->getAllRows(aRows);
++        SCTAB nSrcTab;
++        if (!aRows.empty() && !rSrcDoc.GetTable(rTabName, nSrcTab))
++        {
++            ELY_WARN("sc.ui", "external sheet gone: " << rTabName);
++            xDocShell->DoClose();
++            return false;
++        }
++    }
++
+     sc::ColumnSpanSet aCachedArea;
+     maRefCache.getAllCachedDataSpans(rSrcDoc, nFileId, aCachedArea);
+ 

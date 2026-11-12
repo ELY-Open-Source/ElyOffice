@@ -61,6 +61,27 @@ fn a_book_reads_its_source_only_when_asked() {
     assert_eq!(cells(&mut worker, &book, "H1"), "3", "a missing source keeps the value");
 }
 
+#[test]
+fn a_formula_whose_sheet_is_gone_keeps_its_value() {
+    if skip() {
+        return;
+    }
+    let (dir, mut worker, reader) = open_book(&book(0));
+    let source = dir.path().join("source.fods");
+    rates(&source, 1);
+    let formula = format!("='{}/[source.fods]S1'!A1", dir.path().display());
+    worker.run(&reader, "cell.goto", &["H1"]).expect("H1");
+    worker.run(&reader, "cell.enter", &[&formula]).expect("the link");
+    let saved = dir.path().join("reader.xlsx");
+    reader.save_as(&mut worker, &crate::file_url(&saved), "xlsx").expect("saves");
+    // S1 renamed: the file reads, the sheet does not.
+    let two = r#"<table:table-cell office:value-type="float" office:value="2"/>"#;
+    std::fs::write(&source, sheets("", two)).expect("renames the sheet");
+    let book = worker.load(&crate::file_url(&saved)).expect("reloads");
+    assert_eq!(update(&mut worker, &book), [crate::file_url(&source)], "the source is named");
+    assert_eq!(cells(&mut worker, &book, "H1"), "1", "the saved value stays");
+}
+
 /// A book whose `S` is `sheet` and holds `cells`.
 pub(super) fn sheets(sheet: &str, cells: &str) -> String {
     format!(
