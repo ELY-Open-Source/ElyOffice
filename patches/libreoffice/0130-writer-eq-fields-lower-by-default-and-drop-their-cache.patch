@@ -31,7 +31,7 @@ draws the rest as formulas. Two defects remained (Ely R8.2):
          if (pContext->GetTableDepth() != m_StreamStateStack.top().nTableDepth)
              return false;
  
-+        // An EQ field is drawn from its code; its cached result goes.
++        // EQ is drawn from its code; its cached result goes.
          bRet = pContext->GetTextField().is()
              || pContext->GetFieldId() == FIELD_FORMDROPDOWN
 -            || pContext->GetFieldId() == FIELD_FILLIN;
