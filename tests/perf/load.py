@@ -406,11 +406,12 @@ def machine():
 
 def build(apps):
     """The frames release builds of `apps` and the LOK worker."""
-    build = ("cargo", "build", "--release", "-q", "--bins", "--target-dir", drive.target_dir(frames=True))
+    build = ("cargo", "build", "--release", "-q", "--bins")
     # Alone: gpui's manifest would make the worker DPI-aware.
     drive.sh(*build, "-p", search.spec("crates/ely-lok"), cwd=run.ROOT)
     drive.sh(*build, "--features", "ely-ui/frames", *[a for slug in apps for a in ("-p", search.spec("apps/" + slug))],
              cwd=run.ROOT)
+    drive.frames_apart([*apps, "ely-lok-worker"])
 
 
 def environment(args):

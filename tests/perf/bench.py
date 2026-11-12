@@ -108,13 +108,14 @@ def main():
     work = tempfile.mkdtemp()
     run.HOST = drive.host(work)
     packages = [arg for slug in APPS for arg in ("-p", search.spec("apps/" + slug))]
-    # gpui's journal times each key to its frame (PERF-02).
-    for target, features in ((drive.target_dir(frames=False), []), (drive.target_dir(frames=True), ["--features", "ely-ui/frames"])):
-        build = ("cargo", "build", "--release", "-q", "--bins", "--target-dir", target)
-        # Alone: gpui's manifest would make the worker DPI-aware.
-        for worker in ("crates/ely-lok", "crates/ely-pdf-worker"):
-            drive.sh(*build, "-p", search.spec(worker), cwd=run.ROOT)
-        drive.sh(*build, *features, *packages, cwd=run.ROOT)
+    build = ("cargo", "build", "--release", "-q", "--bins")
+    # Alone: gpui's manifest would make the worker DPI-aware.
+    for worker in ("crates/ely-lok", "crates/ely-pdf-worker"):
+        drive.sh(*build, "-p", search.spec(worker), cwd=run.ROOT)
+    # Frames first, set aside; PERF-02 reads gpui's journal.
+    drive.sh(*build, "--features", "ely-ui/frames", *packages, cwd=run.ROOT)
+    drive.frames_apart([*APPS, "ely-lok-worker", "ely-pdf-worker"])
+    drive.sh(*build, *packages, cwd=run.ROOT)
     found = samples.made(os.path.join(run.ROOT, "engines", "bench"), run.HOST.git())
     rows, held = [], []
     try:

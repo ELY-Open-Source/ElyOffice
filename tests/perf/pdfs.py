@@ -41,9 +41,10 @@ def gained_a_page(app, path):
 
 def build():
     """The frames build of ElyPDF and its worker."""
-    cargo = ("cargo", "build", "--release", "-q", "--bins", "--target-dir", drive.target_dir(frames=True))
+    cargo = ("cargo", "build", "--release", "-q", "--bins")
     drive.sh(*cargo, "-p", search.spec("crates/ely-pdf-worker"), cwd=run.ROOT)
     drive.sh(*cargo, "--features", "ely-ui/frames", "-p", search.spec("apps/ely-pdf"), cwd=run.ROOT)
+    drive.frames_apart(["ely-pdf", "ely-pdf-worker"])
 
 
 def documents(place, count):

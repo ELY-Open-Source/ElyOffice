@@ -5,6 +5,7 @@ import ctypes
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -15,8 +16,17 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 
 def target_dir(frames=False):
     """Shipped builds; PERF-02's profiled ones apart."""
-    target = os.environ.get("CARGO_TARGET_DIR", os.path.join(ROOT, "target"))
+    target = os.path.join(ROOT, "target")
     return os.path.join(target, "frames") if frames else target
+
+
+def frames_apart(names):
+    """Copies a frames build aside; every cargo writes target/release."""
+    built, kept = os.path.join(target_dir(), "release"), os.path.join(target_dir(frames=True), "release")
+    os.makedirs(kept, exist_ok=True)
+    for name in names:
+        exe = name + (".exe" if sys.platform == "win32" else "")
+        shutil.copy2(os.path.join(built, exe), os.path.join(kept, exe))
 
 
 # A helper's own console would take the front.
