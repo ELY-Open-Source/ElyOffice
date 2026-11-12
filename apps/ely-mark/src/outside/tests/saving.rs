@@ -275,7 +275,7 @@ fn recent_list_changes_land_in_the_order_asked(cx: &mut TestAppContext) {
             other
         })
         .collect();
-    // Asked at once, then a clear, then one more: only that one stays.
+    // Many, a clear, then one: only the last stays.
     desk.update(cx, |desk, cx| {
         for other in &others {
             desk.remember(other, cx);
@@ -285,7 +285,7 @@ fn recent_list_changes_land_in_the_order_asked(cx: &mut TestAppContext) {
     });
     cx.run_until_parked();
     let real = dunce::canonicalize(&path).expect("the real path");
-    assert_eq!(ely_files::recent::recent(&file).expect("the list"), [real.clone()]);
+    assert_eq!(ely_files::recent::recent(&file).expect("the list"), std::slice::from_ref(&real));
     assert_eq!(desk.read_with(cx, |desk, _| desk.recent.clone()), [real]);
 }
 

@@ -322,7 +322,7 @@ fn an_elytree_gone_at_launch_says_so_in_chinese_and_spanish(cx: &mut TestAppCont
     }
 }
 
-/// `a.md` opened, then `asked` before the list writes land; the list after.
+/// `a.md` open, then `asked` before writes land; the lists.
 fn reopen_and_clear(asked: fn(&mut Desk, &Path, &mut gpui::Context<Desk>), cx: &mut TestAppContext) -> (Vec<std::path::PathBuf>, Vec<std::path::PathBuf>, std::path::PathBuf) {
     let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
     let file = files.path().join("a.md");
