@@ -186,8 +186,15 @@ impl Worker {
                 done?;
                 return Ok(Vec::new());
             }
-            tag::TEXT_BLOCKS => return self.mupdf.text_blocks(&self.record(id)?.open, ask.u64()? as usize),
-            tag::OBJECTS => return self.mupdf.objects(&self.record(id)?.open, ask.u64()? as usize),
+            // The editing layer reads pictures too: damage it meets counts.
+            tag::TEXT_BLOCKS => {
+                let page = ask.u64()? as usize;
+                return self.read(id, |mupdf, doc| mupdf.text_blocks(doc, page));
+            }
+            tag::OBJECTS => {
+                let page = ask.u64()? as usize;
+                return self.read(id, |mupdf, doc| mupdf.objects(doc, page));
+            }
             tag::PUT_TEXT => return self.put_text(id, ask),
             tag::PLACE => {
                 let at = ask.u64()? as usize;

@@ -354,3 +354,27 @@ fn a_broken_picture_read_before_is_still_damage() {
         assert!(worker.check_pictures(doc).expect("checks"), "the check finds it");
     }
 }
+
+#[test]
+fn the_editing_layer_read_keeps_picture_damage() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    // A bad mask counts before or after the font notes.
+    for fonts in [Some(true), Some(false)] {
+        let path = bad_mask(dir.path(), fonts);
+        let (mut worker, doc) = opened(&path);
+        worker.text_blocks(doc, 0).expect("reads the editing layer");
+        let tile = worker.render(doc, 0, (1.0, 0), [0, 0, 612, 792]).expect("draws");
+        assert!(tile.damaged, "fonts {fonts:?}");
+        assert!(worker.repair_report(doc).expect("asks").is_some());
+    }
+    let path = bad_mask(dir.path(), Some(true));
+    let (mut worker, doc) = opened(&path);
+    worker.objects(doc, 0).expect("reads the objects");
+    assert!(worker.render(doc, 0, (1.0, 0), [0, 0, 612, 792]).expect("draws").damaged);
+    let (mut worker, doc) = opened(&path);
+    worker.text_blocks(doc, 0).expect("reads the editing layer");
+    assert!(worker.check_pictures(doc).expect("checks before saving"));
+    let (mut worker, doc) = opened(&path);
+    worker.text_blocks(doc, 0).expect("reads the editing layer");
+    assert!(worker.export_image(doc, 0, 72.0, &dir.path().join("page.png")).is_err());
+}
