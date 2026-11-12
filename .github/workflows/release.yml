@@ -60,7 +60,8 @@ jobs:
           git -C "$dir" checkout --force "${{ github.sha }}"
           arch -x86_64 /Users/zacharyzhang/ely-share/bash-x86_64/bin/bash "$dir/scripts/ci.sh" macos "${{ github.ref_name }}"
   windows:
-    runs-on: [self-hosted, ely-windows]
+    # The VM; the desktop PC's runner is offline.
+    runs-on: [self-hosted, windows-build]
     timeout-minutes: 360
     steps:
       - name: Build, package and upload for Windows
@@ -71,8 +72,8 @@ jobs:
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
           # Signs the update manifests.
           ELY_UPDATE_KEY: ${{ secrets.ELY_UPDATE_KEY }}
-          ELY_SHARE: /c/Users/zhang/Documents/Github/ElyOffice
-          ELY_PATH: /c/Program Files/CMake/bin:/c/Users/zhang/AppData/Local/Microsoft/WinGet/Packages/Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe
+          ELY_SHARE: /c/ely/ElyOffice
+          ELY_PATH: /c/Program Files/CMake/bin:/c/Users/raidenmei/AppData/Local/Microsoft/WinGet/Links
         run: |
           dir=$HOME/ely-ci/ElyOffice
           [ -d "$dir/.git" ] || git clone https://github.com/ELY-Open-Source/ElyOffice.git "$dir"
@@ -85,8 +86,8 @@ jobs:
           [ -z "$(stale)" ] || { echo "CRLF still in the checkout:"; stale; exit 1; }
           "$dir/scripts/ci.sh" windows "${{ github.ref_name }}"
   linux:
-    # The WSL runner: Linux no longer waits for Windows.
-    runs-on: [self-hosted, wsl]
+    # Omarchy, its own host: Linux waits for no Windows.
+    runs-on: [self-hosted, omarchy-amd64]
     timeout-minutes: 360
     steps:
       - name: Build, package and upload for Linux

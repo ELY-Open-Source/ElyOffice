@@ -100,9 +100,9 @@ for name, call in MAC_CI.items():
             failed.append(f"release {name} starting ci.sh {how} passes")
 
 
-# Linux x86_64 stays in WSL; arm64 on GitHub's arm64 host.
+# Linux x86_64 on the Omarchy host; arm64 on GitHub's.
 LINUX_CI = {
-    "linux": (["self-hosted", "wsl"], '"$dir/scripts/ci.sh" linux "${{ github.ref_name }}"'),
+    "linux": (["self-hosted", "omarchy-amd64"], '"$dir/scripts/ci.sh" linux "${{ github.ref_name }}"'),
     "linux-arm64": (ARM, 'bash scripts/ci.sh linux-arm64 "${{ github.ref_name }}"'),
 }
 
@@ -135,7 +135,7 @@ def linux_run(name, old, new):
 failed += linux_faults(jobs)
 # Each must be caught: labels, platform, swap, shebang.
 bad = copy.deepcopy(jobs)
-bad["linux-arm64"]["runs-on"] = ["self-hosted", "wsl"]
+bad["linux-arm64"]["runs-on"] = ["self-hosted", "omarchy-amd64"]
 if not linux_faults(bad):
     failed.append("release linux-arm64 on a self-hosted runner passes")
 if not linux_faults(linux_run("linux-arm64", "linux-arm64", "linux")):
