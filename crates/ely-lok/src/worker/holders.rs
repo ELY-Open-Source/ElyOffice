@@ -2,6 +2,7 @@
 
 use std::{os::windows::ffi::OsStrExt as _, path::Path};
 
+use windows_sys::Win32::Foundation::ERROR_MORE_DATA;
 use windows_sys::Win32::System::RestartManager::{
     CCH_RM_SESSION_KEY, RM_PROCESS_INFO, RmEndSession, RmGetList, RmRegisterResources, RmStartSession,
 };
@@ -23,7 +24,7 @@ pub(super) fn holders(path: &Path) -> String {
     }
 }
 
-/// `name (pid)` for each holder; this process is marked.
+/// Every holder of `path`, however many.
 fn listed(session: u32, path: &Path) -> Result<Vec<String>, u32> {
     let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
     let files = [wide.as_ptr()];
@@ -33,24 +34,33 @@ fn listed(session: u32, path: &Path) -> Result<Vec<String>, u32> {
     if registered != 0 {
         return Err(registered);
     }
-    let mut infos = vec![RM_PROCESS_INFO::default(); 16];
-    let (mut needed, mut count, mut reasons) = (0u32, infos.len() as u32, 0u32);
-    let got = unsafe { RmGetList(session, &mut needed, &mut count, infos.as_mut_ptr(), &mut reasons) };
-    // Past 16 holders, the first 16 still name it.
-    if got != 0 && got != windows_sys::Win32::Foundation::ERROR_MORE_DATA {
-        return Err(got);
-    }
-    let own = std::process::id();
-    let names = infos.iter().take(count.min(16) as usize).map(|info| {
-        let end = info.strAppName.iter().position(|&unit| unit == 0).unwrap_or(info.strAppName.len());
-        let name = String::from_utf16_lossy(&info.strAppName[..end]);
-        let pid = info.Process.dwProcessId;
-        match pid == own {
-            true => format!("{name} ({pid}, this worker)"),
-            false => format!("{name} ({pid})"),
+    // Asked empty first: the answer says how many to hold.
+    let mut infos = Vec::new();
+    for _ in 0..8 {
+        let (mut needed, mut count, mut reasons) = (0u32, infos.len() as u32, 0u32);
+        let got = unsafe { RmGetList(session, &mut needed, &mut count, infos.as_mut_ptr(), &mut reasons) };
+        if got == 0 {
+            infos.truncate(count as usize);
+            return Ok(infos.iter().map(named).collect());
         }
-    });
-    Ok(names.collect())
+        if got != ERROR_MORE_DATA {
+            return Err(got);
+        }
+        // More holders came between asks: ask again for all.
+        infos = vec![RM_PROCESS_INFO::default(); needed as usize];
+    }
+    Err(ERROR_MORE_DATA)
+}
+
+/// `name (pid)`; this process is marked.
+fn named(info: &RM_PROCESS_INFO) -> String {
+    let end = info.strAppName.iter().position(|&unit| unit == 0).unwrap_or(info.strAppName.len());
+    let name = String::from_utf16_lossy(&info.strAppName[..end]);
+    let pid = info.Process.dwProcessId;
+    match pid == std::process::id() {
+        true => format!("{name} ({pid}, this worker)"),
+        false => format!("{name} ({pid})"),
+    }
 }
 
 #[cfg(test)]
@@ -58,6 +68,7 @@ mod tests {
     use std::os::windows::fs::OpenOptionsExt as _;
 
     #[test]
+    // One holder already overflows the empty first ask.
     fn a_file_held_without_delete_sharing_names_its_holder() {
         let dir = tempfile::tempdir().expect("a temp dir");
         let path = dir.path().join("lu1.tmp");
