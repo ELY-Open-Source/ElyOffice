@@ -224,6 +224,18 @@ fn marks_crossing_a_block_write_nested() {
 }
 
 #[test]
+fn a_note_in_a_markdown_link_frees_the_math_after_it() {
+    // The vendored parser keeps the link; the note ends it and its kbd.
+    for source in [
+        "[<kbd>x[^n] \\(y\\)](/u)\n\n[^n]: note\n",
+        "[<kbd>x[^n] \\(y\\)][link]\n\n[link]: /u\n\n[^n]: note\n",
+    ] {
+        let page = html(source);
+        assert!(page.contains("<sup><a href=\"#fn-1\">1</a></sup> <span class=\"math\">"), "{source:?}: {page}");
+    }
+}
+
+#[test]
 fn a_reference_reaches_its_own_note() {
     let page = html("[^1]: unused\n\nCall[^used].\n\n[^used]: right target\n");
     assert_eq!(page.matches("id=\"fn-1\"").count(), 1, "{page}");
