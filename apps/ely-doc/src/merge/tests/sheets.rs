@@ -66,7 +66,9 @@ fn each_read_writes_only_in_its_own_folder() {
     let work = dir.path().join("reads");
     std::fs::create_dir(&work).expect("the work dir");
     let names = ["Ada", "Bob"];
-    let sheets: Vec<_> = names.iter().map(|name| dir.path().join(format!("{name}.xlsx"))).collect();
+    let source = dir.path().join("sheets");
+    std::fs::create_dir(&source).expect("the sheets dir");
+    let sheets: Vec<_> = names.iter().map(|name| source.join(format!("{name}.xlsx"))).collect();
     for (name, sheet) in names.iter().zip(&sheets) {
         let flat = dir.path().join(format!("{name}.fods"));
         std::fs::write(&flat, FODS.replace("Ada", name)).expect("the sheet writes");
@@ -76,19 +78,24 @@ fn each_read_writes_only_in_its_own_folder() {
         held.close_doc(doc).expect("closes");
     }
     let folders: Vec<_> = names.iter().map(|_| tempfile::tempdir_in(&work).expect("a folder")).collect();
-    // A shared file beside the folders cannot be written.
+    // No shared file beside the folders or the sheets.
     #[cfg(unix)]
-    let locked = |mode| std::os::unix::fs::PermissionsExt::from_mode(mode);
+    let lock = |mode| {
+        for shared in [&work, &source] {
+            std::fs::set_permissions(shared, std::os::unix::fs::PermissionsExt::from_mode(mode)).expect("sets the mode");
+        }
+    };
     #[cfg(unix)]
-    std::fs::set_permissions(&work, locked(0o555)).expect("locks the work dir");
+    lock(0o555);
     let reads: Vec<_> = sheets.iter().zip(&folders).map(|(sheet, folder)| read_in(&worker, sheet, folder.path())).collect();
     #[cfg(unix)]
-    std::fs::set_permissions(&work, locked(0o755)).expect("unlocks the work dir");
+    lock(0o755);
     for ((name, read), folder) in names.iter().zip(reads).zip(folders) {
         assert_eq!(read.expect("the sheet reads").rows, [[*name, "上海", "36"]], "{name}");
         folder.close().expect("the folder goes");
     }
     assert_eq!(std::fs::read_dir(&work).expect("reads").count(), 0, "nothing beside the folders");
+    assert_eq!(std::fs::read_dir(&source).expect("reads").count(), 2, "nothing beside the sheets");
 }
 
 #[test]
