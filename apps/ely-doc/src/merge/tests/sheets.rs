@@ -2,7 +2,7 @@
 
 use gpui::TestAppContext;
 
-use super::super::run::{CSV, exported, read_csv, read_sheet};
+use super::super::run::{read_in, read_sheet};
 use crate::tests::{blank, docs, settle};
 
 const FODS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -49,11 +49,13 @@ fn spreadsheets_read_as_merge_data() {
     let work = dir.path().join("reads");
     std::fs::create_dir(&work).expect("the work dir");
     assert!(read_sheet(&worker, &bad, &work).is_err(), "a broken workbook fails");
+    let good = dir.path().join("people.xlsx");
+    assert_eq!(read_sheet(&worker, &good, &work).expect("reads").rows, [["Ada", "上海", "36"]]);
     assert_eq!(std::fs::read_dir(&work).expect("reads").count(), 0, "no scratch is left");
 }
 
 #[test]
-fn a_second_export_before_the_first_is_read_keeps_both() {
+fn each_read_writes_only_in_its_own_folder() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let Some(docs) = docs(&mut cx, dir.path()) else {
@@ -73,14 +75,20 @@ fn a_second_export_before_the_first_is_read_keeps_both() {
         doc.save_as(&mut held, &ely_lok::file_url(sheet), "xlsx").expect("the sheet saves");
         held.close_doc(doc).expect("closes");
     }
-    // Both exports land before either is read.
-    let folders: Vec<_> = sheets.iter().map(|sheet| exported(&worker, sheet, &work).expect("exports")).collect();
-    for (name, folder) in names.iter().zip(folders) {
-        let table = read_csv(&folder.path().join(CSV)).expect("the sheet reads");
-        assert_eq!(table.rows, [[*name, "上海", "36"]], "{name}");
+    let folders: Vec<_> = names.iter().map(|_| tempfile::tempdir_in(&work).expect("a folder")).collect();
+    // A shared file beside the folders cannot be written.
+    #[cfg(unix)]
+    let locked = |mode| std::os::unix::fs::PermissionsExt::from_mode(mode);
+    #[cfg(unix)]
+    std::fs::set_permissions(&work, locked(0o555)).expect("locks the work dir");
+    let reads: Vec<_> = sheets.iter().zip(&folders).map(|(sheet, folder)| read_in(&worker, sheet, folder.path())).collect();
+    #[cfg(unix)]
+    std::fs::set_permissions(&work, locked(0o755)).expect("unlocks the work dir");
+    for ((name, read), folder) in names.iter().zip(reads).zip(folders) {
+        assert_eq!(read.expect("the sheet reads").rows, [[*name, "上海", "36"]], "{name}");
         folder.close().expect("the folder goes");
     }
-    assert_eq!(std::fs::read_dir(&work).expect("reads").count(), 0, "no scratch is left");
+    assert_eq!(std::fs::read_dir(&work).expect("reads").count(), 0, "nothing beside the folders");
 }
 
 #[test]

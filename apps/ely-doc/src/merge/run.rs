@@ -39,25 +39,23 @@ pub fn is_sheet(path: &Path) -> bool {
 
 /// Reads the shown sheet as CSV via a private folder.
 pub fn read_sheet(worker: &Mutex<Worker>, path: &Path, work: &Path) -> io::Result<Table> {
-    let folder = exported(worker, path, work)?;
-    let table = read_csv(&folder.path().join(CSV));
+    let folder = tempfile::Builder::new().prefix("merge-").tempdir_in(work)?;
+    let table = read_in(worker, path, folder.path());
     folder.close()?;
-    Ok(Table { name: file_name(path), ..table? })
+    table
 }
 
-/// The exported CSV's name in its folder.
-pub(super) const CSV: &str = "data.csv";
-
-/// The shown sheet as CSV in its own folder.
-pub(super) fn exported(worker: &Mutex<Worker>, path: &Path, work: &Path) -> io::Result<tempfile::TempDir> {
-    let folder = tempfile::Builder::new().prefix("merge-").tempdir_in(work)?;
+/// Reads the shown sheet, writing only inside `folder`.
+pub(super) fn read_in(worker: &Mutex<Worker>, path: &Path, folder: &Path) -> io::Result<Table> {
+    let csv = folder.join("data.csv");
     let mut held = worker.lock().map_err(|_| io::Error::other("the worker lock is poisoned"))?;
     let doc = held.load(&ely_lok::file_url(path))?;
-    let written = doc.export_text(&mut held, &ely_lok::file_url(&folder.path().join(CSV)), ',');
+    let written = doc.export_text(&mut held, &ely_lok::file_url(&csv), ',');
     // Closed even when the export failed.
     let closed = held.close_doc(doc);
+    drop(held);
     written.and(closed)?;
-    Ok(folder)
+    Ok(Table { name: file_name(path), ..read_csv(&csv)? })
 }
 
 /// Reads a UTF-8 CSV whose first row names the columns.
