@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -125,10 +126,12 @@ class Mac(Host):
 
     def __init__(self, work):
         self.work = work
-        for tool in ["ax-values", "ax-press", "click", "chord", "key", "keyboard"]:
+        for tool in ["ax-values", "ax-press", "click", "chord", "key"]:
             sh("swiftc", "-O", "-o", os.path.join(work, tool), os.path.join(ROOT, "tests", "scripts", tool + ".swift"))
+        # Outside `work`: the restore runs after it is gone.
+        keyboard = os.path.join(tempfile.mkdtemp(prefix="ely-keyboard-"), "keyboard")
+        sh("swiftc", "-O", "-o", keyboard, os.path.join(ROOT, "tests", "scripts", "keyboard.swift"))
         # An input method such as Pinyin would take the letters.
-        keyboard = os.path.join(work, "keyboard")
         was, now = sh(keyboard).split()
         if not now.startswith("com.apple.keylayout."):
             raise RuntimeError(f"the keyboard is {now}, not a layout, after selecting one")
