@@ -141,7 +141,7 @@ impl LokView {
     fn border_at(&self, position: Point<Pixels>) -> Option<(Side, i32)> {
         let (table, _) = self.borders.table.as_ref()?;
         lines(table).into_iter().find_map(|(side, at, (start, end), room)| {
-            let reach = self.handle_size.min(px(self.geom.px_of(room) / 4.0));
+            let reach = self.handle_size.min(px(self.drawn().1.px_of(room) / 4.0));
             let (from, to) = if side.upright() {
                 (self.hit_point((at, start)), self.hit_point((at, end)))
             } else {

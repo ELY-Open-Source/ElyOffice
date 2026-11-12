@@ -2,6 +2,43 @@
 
 use super::*;
 
+/// A border's reach follows the scale on screen.
+#[test]
+fn a_held_screen_keeps_its_border_reach() {
+    let install = crate::client::tests::install().expect("the real kernel");
+    let mut results = Vec::new();
+    for (zoom, offset) in [(0.5, 3.5), (1.5, 5.0)] {
+        let cx = gpui::TestAppContext::single();
+        let (view, bounds) = long_view(&cx, &install);
+        let top = cx.update(|app| view.read(app).scroll.1) + 1500;
+        let columns = crate::table::Lines { left: 0, right: 240, offset: 1500, inner: vec![], ends: None };
+        let rows = crate::table::Lines { left: 0, right: 3000, offset: top, inner: vec![], ends: None };
+        let table = crate::table::Table { columns, rows };
+        let position = cx.update(|app| view.update(app, |view, _| {
+            view.read_borders(Some(table), u64::MAX);
+            view.handle_size = px(6.0);
+            view.window_point((1500, top + 1500)) + point(px(offset), px(0.0))
+        }));
+        let before = cx.update(|app| view.update(app, |view, cx| {
+            let hit = view.hold_border(position);
+            if hit { assert!(view.drop_border(position, cx)); }
+            hit
+        }));
+        let old = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
+        cx.update(|app| view.update(app, |view, cx| view.set_zoom(zoom, cx)));
+        let waiting = cx.update(|app| view.update(app, |view, _| view.prepare(bounds)));
+        assert_eq!(drawn(&old), drawn(&waiting), "the same old screen remains visible");
+        landed(&cx, &view);
+        let after = cx.update(|app| view.update(app, |view, _| {
+            assert_eq!(view.drawn().1.zoom, 1.0, "the old scale still shows");
+            assert_eq!(view.seen().1.zoom, zoom, "the target is ready, not yet drawn");
+            view.hold_border(position)
+        }));
+        results.push((zoom, offset, before, after));
+    }
+    assert!(results.iter().all(|(_, _, before, after)| before == after), "{results:?}");
+}
+
 /// Prepares frames until one asks for nothing.
 fn settle(cx: &gpui::TestAppContext, view: &Entity<LokView>, bounds: Bounds<Pixels>) {
     let deadline = std::time::Instant::now() + crate::client::tests::HANG;
