@@ -31,6 +31,7 @@ check() { # runpath [binary]
   cp "$work/libleaf.so" "$work/AppDir/usr/lib/"
   cp "$work/${2:-app}" "$work/AppDir/usr/bin/app"
   patchelf --set-rpath "$1" "$work/AppDir/usr/bin/app"
+  [ -z "${link:-}" ] || ln -s "$link" "$work/AppDir/usr/bin/escape"
   bash "$root/packaging/linux/elfs.sh" "$work/AppDir" "$work/scratch" >"$work/out" 2>&1
 }
 check '$ORIGIN/../lib' || fail "an in-package path is refused: $(cat "$work/out")"
@@ -47,4 +48,8 @@ refused 'absolute path' '/usr/lib' 'not from $ORIGIN'
 refused 'outside' '$ORIGIN/../../..' 'outside the package'
 refused 'empty entry' '$ORIGIN/../lib:' 'searches the working directory'
 refused 'symbols' '$ORIGIN/../lib' 'keeps symbols' symbols
+# A link to a sibling whose name ends in newline.
+mkdir -p "$work/AppDir"$'\n'
+link=$'../../../AppDir\n' refused 'link out' '$ORIGIN/escape' 'outside the package'
+link=../lib check '$ORIGIN/escape' || fail "an in-package link is refused: $(cat "$work/out")"
 echo "PASS: elfs rules"

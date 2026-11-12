@@ -15,21 +15,29 @@ mkdir -p "$share/engines" "$share/reference" "$share/engines"$'\n' "$share/refer
 mkdir -p "$share/engines/openssl/lib/pkgconfig"
 : >"$share/engines/openssl/lib/pkgconfig/libcrypto.pc"
 version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
+# pr.yml passed; ci-upload.sh tests the gates.
+mkdir -p "$work/bin"
+printf '#!/usr/bin/env bash\necho "{\\"total_count\\": 1}"\n' >"$work/bin/curl"
+chmod +x "$work/bin/curl"
 # A macOS clone whose packaging stub stops before any upload.
 attempt() { # name, setup; sets status, writes the output
   local clone=$work/$1
   mkdir -p "$clone/scripts" "$clone/packaging/macos"
   cp "$root/scripts/ci.sh" "$clone/scripts/"
+  mkdir -p "$clone/tests/perf"
+  : | tee "$clone/scripts/compatibility.py" "$clone/scripts/release-gate.py" >"$clone/tests/perf/baseline.py"
+  git -C "$clone" init -q
+  git -C "$clone" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m t
   printf '#!/usr/bin/env bash\necho "packaging reached"\nexit 1\n' >"$clone/packaging/macos/release.sh"
   chmod +x "$clone/packaging/macos/release.sh"
   cp "$root/Cargo.toml" "$root/rust-toolchain.toml" "$clone/"
   cp "$root/packaging/apps.tsv" "$clone/packaging/"
   mkdir -p "$clone/tests/scripts"
-  printf '#!/usr/bin/env bash\n' >"$clone/tests/scripts/engine-arch.sh"
-  chmod +x "$clone/tests/scripts/engine-arch.sh"
+  printf '#!/usr/bin/env bash\n' | tee "$clone/tests/scripts/engine-arch.sh" >"$clone/scripts/release-tests.sh"
+  chmod +x "$clone/tests/scripts/engine-arch.sh" "$clone/scripts/release-tests.sh"
   (cd "$clone" && eval "$2")
   status=0
-  ELY_SHARE=$share ELY_RELEASE_TOKEN=unused ELY_MICROSOFT_CLIENT_ID=unused ELY_UPDATE_KEY=unused ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused \
+  PATH=$work/bin:$PATH ELY_SHARE=$share ELY_RELEASE_TOKEN=unused ELY_MICROSOFT_CLIENT_ID=unused ELY_UPDATE_KEY=unused ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused \
     "$clone/scripts/ci.sh" macos "v$version" >"$work/$1.out" 2>&1 ||
     status=$?
 }

@@ -10,7 +10,14 @@ broken() {
 }
 find "$appdir" \( -type f -o -type l \) -name '*.so*' -print0 >"$work/libs.list" || broken "cannot list $appdir"
 find "$appdir" -type f -print0 >"$work/files.list" || broken "cannot list $appdir"
-real=$(realpath "$appdir")
+# Resolves $1 into `resolved`; keeps a final newline.
+resolve() {
+  resolved=$(realpath -m -- "$1" && printf x) || broken "cannot resolve $1"
+  resolved=${resolved%x}
+  resolved=${resolved%$'\n'}
+}
+resolve "$appdir"
+real=$resolved
 declare -A bundled=()
 while IFS= read -r -d '' file; do
   bundled[${file##*/}]=1
@@ -48,8 +55,8 @@ while IFS= read -r -d '' file; do
       '${ORIGIN}' | '${ORIGIN}/'*) rest=${path#'${ORIGIN}'} ;;
       *) broken "${file#"$appdir"/} loads from $path, not from \$ORIGIN" ;;
     esac
-    target=$(realpath -m "$(dirname "$file")$rest") || broken "cannot resolve $path for $file"
-    [[ $target == "$real" || $target == "$real"/* ]] ||
+    resolve "${file%/*}$rest"
+    [[ $resolved == "$real" || $resolved == "$real"/* ]] ||
       broken "${file#"$appdir"/} loads from $path, outside the package"
   done
   while IFS= read -r lib; do
