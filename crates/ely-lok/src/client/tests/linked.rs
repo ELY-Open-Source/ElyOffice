@@ -66,20 +66,20 @@ fn a_formula_whose_sheet_is_gone_keeps_its_value() {
     if skip() {
         return;
     }
-    // A blank operand caches no cell, yet reads the sheet.
-    for (cell, value) in [("A1", "1"), ("A2+5", "5")] {
+    // A blank operand caches no cell; INDIRECT hides its sheet.
+    for (cell, value, kept) in [("'{}/[source.fods]S1'!A1", "1", true), ("'{}/[source.fods]S1'!A2+5", "5", true), ("INDIRECT(\"'{}/[source.fods]S1'!A1\")", "1", false)] {
         let (dir, mut worker, reader) = open_book(&book(0));
         let source = dir.path().join("source.fods");
         rates(&source, 1);
-        let formula = format!("='{}/[source.fods]S1'!{cell}", dir.path().display());
+        let formula = format!("={}", cell.replace("{}", &dir.path().display().to_string()));
         worker.run(&reader, "cell.goto", &["H1"]).expect("H1");
         worker.run(&reader, "cell.enter", &[&formula]).expect("the link");
         let saved = dir.path().join("reader.xlsx");
         reader.save_as(&mut worker, &crate::file_url(&saved), "xlsx").expect("saves");
         // S1 renamed: the file reads, the sheet does not.
-        let two = r#"<table:table-cell office:value-type="float" office:value="2"/>"#;
-        std::fs::write(&source, sheets("", two)).expect("renames the sheet");
-        let book = worker.load(&crate::file_url(&saved)).expect("reloads");
+        let nine = r#"<table:table-cell office:value-type="float" office:value="9"/>"#;
+        std::fs::write(&source, sheets("", nine)).expect("renames the sheet");
+        let book = if kept { worker.load(&crate::file_url(&saved)).expect("reloads") } else { reader };
         assert_eq!(update(&mut worker, &book), [crate::file_url(&source)], "{cell}: the source is named");
         assert_eq!(cells(&mut worker, &book, "H1"), value, "{cell}: the saved value stays");
     }
