@@ -40,7 +40,7 @@ site/        官网（Vite 8、pnpm、TypeScript，无框架；`/docs` 命令行
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin b2986a2，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自与本仓库并列的组件库检出 `../Ely-GPUI-Components`（不在 `reference/`；总包 `src/lib.rs` 列出各模块在哪个 crate，gpui 用法规则见其 `AGENTS.md`）；`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项，没有那个检出即失败。
+依赖 `ely-gpui-component`（pin 405179d，gpui 为 crates.io 的 `gpui-pre` =0.3.11，Rust 1.98.1）。名字取自与本仓库并列的组件库检出 `../Ely-GPUI-Components`（不在 `reference/`；总包 `src/lib.rs` 列出各模块在哪个 crate，gpui 用法规则见其 `AGENTS.md`）；`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项，没有那个检出即失败。
 
 | 需要 | 用 |
 | --- | --- |
