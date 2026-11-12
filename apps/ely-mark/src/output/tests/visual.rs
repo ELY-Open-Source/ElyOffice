@@ -213,6 +213,17 @@ fn a_note_in_markdown_link_text_keeps_the_link() {
 }
 
 #[test]
+fn marks_crossing_a_block_write_nested() {
+    for source in [
+        "a <b>before<pre><i>x</b>y</i></pre> z\n",
+        "a <a href=/x>before<pre><i>x[^n]y</i></pre> z\n\n[^n]: note\n",
+    ] {
+        let page = html(source);
+        assert!(page.contains("y</em>"), "{source}: {page}");
+    }
+}
+
+#[test]
 fn a_reference_reaches_its_own_note() {
     let page = html("[^1]: unused\n\nCall[^used].\n\n[^used]: right target\n");
     assert_eq!(page.matches("id=\"fn-1\"").count(), 1, "{page}");
