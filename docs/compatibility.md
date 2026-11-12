@@ -3,7 +3,7 @@
 随发行说明发布，每个版本一份。支持某格式不等于支持它的全部功能；下表只写已验证的内容、已知限制与保存行为。
 
 <!-- 下两行由 scripts/compatibility.py 写出，勿手改 -->
-版本：Ely Office 0.1.15（首批应用：ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark）。
+版本：Ely Office 0.1.16（首批应用：ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark）。
 内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0131，125 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0008，8 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.11（加 `patches/gpui` 0001–0013，13 个）。
 各节内容最近一次逐项核对是在 0.1.11（2026-10-23）；其后各版本的改动只在所涉的条目里更新，未整体重验。
 验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。与 Microsoft Office 的交叉核对见下节（网页版，三十份样本，另十八份大、怪、极限的文件）。
