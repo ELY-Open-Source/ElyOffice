@@ -75,14 +75,14 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 - [x] M-08 页面重载后悬着的渲染回调永不完成，导出既不成功也不报错 — 页面失败后挂起与新到的渲染都以错误结束，载入成功才恢复（审查 2 轮）
 - [x] M-09 导出的保存面板出错被当作取消 — 面板出错走 panel_failed，取消只记日志（审查 1 轮）
 - [x] M-10 关闭查找框只清当前标签的高亮 — 关闭查找框对每个标签的页面清除高亮（审查 1 轮）
-- [~] M-11 页面把搜索词写进应用日志 — 控制台的文字与来源都可由文档伪造，只记行号；页面自己的诊断经 elyQuery；R1 前缀可伪造、R2 data 来源、R3 sourceURL、R4 编码路径与目录、R5 缺回归测试：已补并经变异核对（五轮上限，未再审）（末轮 r5 FAIL，修后未复审，R14.46 改标）
+- [x] M-11 页面把搜索词写进应用日志 — 控制台的文字与来源都可由文档伪造，只记行号；页面自己的诊断经 elyQuery；R1 前缀可伪造、R2 data 来源、R3 sourceURL、R4 编码路径与目录、R5 缺回归测试：已补并经变异核对（五轮上限，未再审）（末轮 r5 FAIL，修后未复审，R14.46 改标）；R19.3 第 6 轮 PASS（CEF 已删，回归 c5cb153f 曾入库）
 - [x] M-12 浏览器创建完成前 `WebView` 已释放，浏览器泄漏 — 浏览器在泵里同步建好即登记，视图要么在建前已走、要么有浏览器可关；webprobe 加建前丢弃与 0–27 毫秒丢弃，35 页都在保持前释放（审查 4 轮）
 - [x] M-13 编辑器构建失败时页面空白且不上报 — 可视建不成退回源码并告知，两者都建不成即报失败、留下文字、模式请求重建、不留容器；新测 mark-broken.mjs（审查 2 轮）
 - [x] M-14 `render_pdf` 在界面线程内嵌图片并写文件 — 打印页的内嵌、读样式与写入经 paper::stage 在后台执行，GPUI 单测证明执行器运行前未写（审查 2 轮）
 - [x] M-15 打印与导出 PDF 的暂存页执行文档里的脚本 — 打印与导出 PDF 的暂存页以 WebView::open_inert 打开，脚本关；webprobe 以同页开脚本为对照（审查 2 轮）
 - [x] G-01 打开“文件历史”或“逐行追溯”后，中间区不再响应任何别的选择 — 每个新选择（文件、提交、侧栏、分支、位置）都清掉文件历史与逐行追溯；测试窗口先装菜单（审查 2 轮）
 - [x] G-02 进行中操作读取失败被吞掉；`git am` 冲突无提示条无错误 — 读不出进行中的操作即以 Git 原话的红色提示与日志说明；无 onto 的 rebase-apply 视为 git am，跳过、中止有文案（审查 2 轮）
-- [~] G-03 新建的空仓库在“仓库”页显示两段 Git 致命错误（引用日志、LFS）（d59159c、30801ad；R14.25 核实）（末轮 r3 FAIL，修后未复审，R14.46 改标）
+- [x] G-03 新建的空仓库在“仓库”页显示两段 Git 致命错误（引用日志、LFS）（d59159c、30801ad；R14.25 核实）（末轮 r3 FAIL，修后未复审，R14.46 改标）；R19.3 第 4 轮 PASS
 - [x] G-04 停止取回/拉取/推送失败的提示写成“克隆没有停下”（d59159c；R14.25 补测试）
 - [x] G-05 合并结果保存失败报成“Git 失败”，`tree.error.save` 是死文案（d59159c；R14.25 核实）
 - [x] G-06 首次提交后紧接着取消暂存，按过期的“已有提交”判定跑成 `git rm --cached`（d59159c；R14.25 核实）
@@ -123,7 +123,7 @@ P0 次序：W-01、K-01、L-01、O-01、W-02、L-02、W-03、L-03、W-04、L-04�
 
 - [x] L-01 Linux 的 LibreOffice：钉住的源码加全部补丁在 Linux 构建，LOK 探测通过（已关：0.1.12 的 Linux 包带内核发布；2026-10-30 WSL 的共享引擎在 AlmaLinux 容器里按全部补丁清空重建，严格全量测试（握手含 LOK 探测）通过（R14.42））
 - [x] L-02 Linux 全工作区零警告构建，`cargo test --workspace` 通过（引擎齐全，无 SKIP）（已关：2026-10-30 Linux 上 `cargo clippy --workspace --all-targets` 无告警，`ELY_REQUIRE_ENGINES=1` 全量测试无 SKIP 全过（R14.42））
-- [~] N-01 打印：Windows、Linux 交系统打印（与 macOS 同一份 PDF、纸张与取消规则），不再禁用 — 已由 R7.6 做成（`crates/ely-platform/src/print/win.rs`、`crates/ely-platform/src/print/linux.rs`：Windows 的系统打印对话框，Linux 的桌面门户）；R7.6 末轮 r3 FAIL，修后未复审，故记 `[~]`（R18.31）
+- [x] N-01 打印：Windows、Linux 交系统打印（与 macOS 同一份 PDF、纸张与取消规则），不再禁用 — 已由 R7.6 做成（`crates/ely-platform/src/print/win.rs`、`crates/ely-platform/src/print/linux.rs`：Windows 的系统打印对话框，Linux 的桌面门户）；R7.6 末轮 r3 FAIL，修后未复审，故记 `[~]`（R18.31）；R19.3 第 1 轮 PASS（R7.6 已过）
 - [x] N-02 ElyShow 媒体：Windows 以 Media Foundation、Linux 以 GStreamer 实现 `media::Player`（载入、可播、失败原因、帧、循环与播完） — Windows R14.17（`media/mf.rs`），Linux R14.18（`media/gst.rs`）
 - [x] N-03 自动更新的安装与重开：Windows 安装程序、Linux AppImage，照 macOS 的退出后替换、失败记录与重开 — 4a74360 已做（`install::after_quit`：Windows 等进程退出后静默运行安装程序并重开，AppImage 换文件后重开，失败写入 `updates/failed.txt`；`tests/install.rs` 核对）；R14.4 删去非 macOS 的 `install`、`reopen` 桩
 - [x] N-04 签名验证的证书信任：Windows 系统信任库、Linux 系统 CA，禁网，不核吊销 — b7334ff 已做（`ely_platform::trust`：Windows 的 CryptoAPI 链引擎只读缓存、不自动更新根、不核吊销；Linux 的系统 CA 加 webpki，无网络）；R14.21 核对，三端测试皆过，Windows 上“一律受信”被测试抓住
