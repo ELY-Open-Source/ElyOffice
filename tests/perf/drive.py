@@ -1,5 +1,6 @@
 """Processes and window input for the bench, per platform."""
 
+import atexit
 import collections
 import ctypes
 import os
@@ -124,8 +125,15 @@ class Mac(Host):
 
     def __init__(self, work):
         self.work = work
-        for tool in ["ax-values", "ax-press", "click", "chord", "key"]:
+        for tool in ["ax-values", "ax-press", "click", "chord", "key", "keyboard"]:
             sh("swiftc", "-O", "-o", os.path.join(work, tool), os.path.join(ROOT, "tests", "scripts", tool + ".swift"))
+        # An input method such as Pinyin would take the letters.
+        keyboard = os.path.join(work, "keyboard")
+        was, now = sh(keyboard).split()
+        if not now.startswith("com.apple.keylayout."):
+            raise RuntimeError(f"the keyboard is {now}, not a layout, after selecting one")
+        if was != now:
+            atexit.register(sh, keyboard, was)
 
     def held(self, pid):
         found, kind = collections.Counter(), None
