@@ -13,8 +13,8 @@ import search
 
 # ElyDoc's memory settles by about cycle 100.
 CYCLES = 150
-# Opened once on first use, plus the thread pool's churn.
-ONCE = 8
+# First-use handles plus pool churn, seen up to 11.
+ONCE = 12
 # A page per cycle leaks; less is warm-up.
 PAGE_MB = 4 / 1024
 

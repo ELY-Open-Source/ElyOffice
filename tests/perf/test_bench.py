@@ -104,6 +104,11 @@ class Verdicts(unittest.TestCase):
         # One handle every second cycle, 19 in all.
         with self.assertRaisesRegex(RuntimeError, "took the handles"):
             cycles.handles_steady("app", 1400, [1400 + n // 2 for n in range(40)])
+        # The VM's pool: up 11, back down, settling 9 high.
+        swings = [1074] * 30 + [1066] * 30 + [1083] * 30 + [1076] * 30 + [1081] * 30
+        cycles.handles_steady("app", 1072, swings)
+        with self.assertRaisesRegex(RuntimeError, "keep 13 handles"):
+            cycles.handles_steady("app", 1072, [1085] * 40)
         # The first cycle keeps 50 and never gives them back.
         with self.assertRaisesRegex(RuntimeError, "keep 50 handles"):
             cycles.handles_steady("app", 1400, [1450] * 40)
