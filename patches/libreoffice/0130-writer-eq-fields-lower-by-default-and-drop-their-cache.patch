@@ -10,7 +10,8 @@ draws the rest as formulas. Two defects remained (Ely R8.2):
 - Word may write the field's last result after its separator. Ely
   draws the field from its code, so that result was read as body text
   and the content showed twice (`x` became `xx`, and saved so). The
-  result is now taken as the field's, as for other fields, and goes.
+  result is now taken as the field's, as for other fields, and goes;
+  a cached picture goes too.
 --- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
 +++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
 @@ -8381,10 +8381,10 @@
@@ -40,3 +41,19 @@ draws the rest as formulas. Two defects remained (Ely R8.2):
      }
  
      if (!bRet)
+@@ -9864,6 +9866,15 @@
+         ref->resolve( *m_pGraphicImport );
+     }
+ 
++    // An EQ field's cached picture goes as well.
++    if (IsOpenField() && m_aFieldStack.back()->GetFieldId() == FIELD_EQ
++        && m_aFieldStack.back()->IsCommandCompleted())
++    {
++        m_StreamStateStack.top().xEmbedded.clear();
++        m_pGraphicImport.clear();
++        return;
++    }
++
+     //insert it into the document at the current cursor position
+ 
+     uno::Reference<text::XTextContent> xTextContent

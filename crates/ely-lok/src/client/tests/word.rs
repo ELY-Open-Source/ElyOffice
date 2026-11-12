@@ -132,3 +132,20 @@ fn a_lowered_picture_moves_with_its_run_and_keeps_it() {
     let ink = bands(|px| px[0] < 80 && px[1] < 80 && px[2] < 80)[0];
     assert!(red.1 > ink.1 + 4, "the picture hangs below the text: red {red:?}, text {ink:?}");
 }
+
+#[test]
+fn an_eq_fields_cached_picture_is_not_drawn() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install().expect("a build"), &dir.path().join("profile")).expect("the worker");
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/eq-cached-picture.docx");
+    let doc = worker.load(&crate::file_url(&fixture)).expect("the document loads");
+    let fodt = saved(&dir, &mut worker, &doc, "cached.fodt");
+    // Drawn from its code; Word's cached picture goes.
+    assert_eq!(formulas(&fodt).len(), 1, "one fraction");
+    assert_eq!(fodt.matches("<draw:frame").count(), 1, "no cached picture beside it");
+}
+
