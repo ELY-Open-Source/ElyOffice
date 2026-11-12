@@ -378,3 +378,45 @@ fn the_editing_layer_read_keeps_picture_damage() {
     worker.text_blocks(doc, 0).expect("reads the editing layer");
     assert!(worker.export_image(doc, 0, 72.0, &dir.path().join("page.png")).is_err());
 }
+
+#[test]
+fn pages_sharing_contents_print_only_their_own_annotations() {
+    use lopdf::{Document, Object, Stream, dictionary};
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut document = Document::with_version("1.7");
+    let tree = document.new_object_id();
+    let content = document.add_object(Stream::new(dictionary! {}, b"0 0 1 rg 10 10 20 20 re f".to_vec()));
+    // Both pages name one contents array.
+    let shared = document.add_object(Object::Array(vec![content.into()]));
+    let resources = document.add_object(dictionary! {});
+    let pages: Vec<Object> = [50, 250]
+        .into_iter()
+        .map(|left: i64| {
+            let square = document.add_object(dictionary! {
+                "Type" => "Annot", "Subtype" => "Square", "F" => 4,
+                "Rect" => vec![left.into(), 100.into(), (left + 100).into(), 180.into()],
+                "C" => vec![1.into(), 0.into(), 0.into()], "IC" => vec![1.into(), 0.into(), 0.into()]
+            });
+            document
+                .add_object(dictionary! {
+                    "Type" => "Page", "Parent" => tree, "MediaBox" => vec![0.into(), 0.into(), 612.into(), 792.into()],
+                    "Resources" => resources, "Contents" => shared, "Annots" => vec![square.into()]
+                })
+                .into()
+        })
+        .collect();
+    document.objects.insert(tree, dictionary! { "Type" => "Pages", "Kids" => pages, "Count" => 2 }.into());
+    let catalog = document.add_object(dictionary! { "Type" => "Catalog", "Pages" => tree });
+    document.trailer.set("Root", catalog);
+    let (source, print) = (dir.path().join("shared.pdf"), dir.path().join("print.pdf"));
+    document.save(&source).expect("writes");
+    let (mut worker, doc) = opened(&source);
+    worker.print_copy(doc, &print).expect("prints");
+    let copy = worker.open(&print).expect("opens").doc;
+    let red = |pixels: &[u8]| pixels.as_chunks::<4>().0.iter().filter(|p| p[2] > 240 && p[1] < 10 && p[0] < 10).count();
+    for page in 0..2 {
+        let before = worker.render(doc, page, (1.0, 0), [0, 0, 612, 792]).expect("draws");
+        let after = worker.render(copy, page, (1.0, 0), [0, 0, 612, 792]).expect("draws");
+        assert_eq!(red(&after.bgra), red(&before.bgra), "page {page}");
+    }
+}

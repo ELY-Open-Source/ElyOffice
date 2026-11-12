@@ -230,14 +230,18 @@ static void flatten(fz_context *ctx, pdf_document *pdf, pdf_page *page, int numb
 			if (pdf_dict_get(ctx, pdf_array_get(ctx, annots, i), PDF_NAME(Subtype)) == PDF_NAME(Link))
 				pdf_array_push(ctx, links, pdf_array_get(ctx, annots, i));
 		pdf_dict_put(ctx, page->obj, PDF_NAME(Annots), links);
-		if (!pdf_is_array(ctx, contents))
+		/* The page's own array: others may share its old one. */
 		{
-			pdf_obj *all = pdf_dict_put_array(ctx, page->obj, PDF_NAME(Contents), 3);
-			if (contents)
+			pdf_obj *all = pdf_new_array(ctx, pdf, pdf_array_len(ctx, contents) + 2);
+			pdf_array_push(ctx, all, prologue);
+			if (pdf_is_array(ctx, contents))
+				for (i = 0; i < pdf_array_len(ctx, contents); i++)
+					pdf_array_push(ctx, all, pdf_array_get(ctx, contents, i));
+			else if (contents)
 				pdf_array_push(ctx, all, contents);
+			pdf_dict_put_drop(ctx, page->obj, PDF_NAME(Contents), all);
 			contents = all;
 		}
-		pdf_array_insert(ctx, contents, prologue, 0);
 		pdf_array_push_drop(ctx, contents, pdf_add_stream(ctx, pdf, buf, NULL, 0));
 	}
 	fz_always(ctx)

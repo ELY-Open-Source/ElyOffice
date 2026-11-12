@@ -207,7 +207,13 @@ fn arrange(choices: &Choices, sheets: usize) -> anyhow::Result<Vec<Option<usize>
         true => leaves.iter().cloned().cycle().take(leaves.len() * copies).collect(),
         false => leaves.into_iter().flat_map(|leaf| std::iter::repeat_n(leaf, copies)).collect(),
     };
-    Ok(leaves.concat())
+    let sheets = leaves.concat();
+    // CUPS keeps every other sheet: ours sit there.
+    Ok(match (choices.cups_set, choices.set) {
+        (true, Set::Even) => sheets.into_iter().flat_map(|sheet| [None, sheet]).collect(),
+        (true, Set::Odd) => sheets.into_iter().flat_map(|sheet| [sheet, None]).collect(),
+        _ => sheets,
+    })
 }
 
 /// Each sheet's pages: which page, and where it goes.

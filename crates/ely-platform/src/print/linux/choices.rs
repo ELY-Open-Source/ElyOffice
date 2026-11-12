@@ -29,6 +29,8 @@ pub(super) struct Choices {
     /// Pages from zero, both ends kept; None is every page.
     pub ranges: Option<Vec<(u32, u32)>>,
     pub set: Set,
+    /// CUPS keeps only the even or odd sheets sent.
+    pub cups_set: bool,
     pub reverse: bool,
     pub copies: u32,
     pub collate: bool,
@@ -55,11 +57,8 @@ pub(super) fn chosen(settings: &Map, setup: &Map) -> anyhow::Result<Choices> {
         "odd" => Set::Odd,
         other => bail!("the print dialog chose the page set {other}"),
     };
-    // GTK's CUPS backend sends even or odd to CUPS.
-    let set = match settings.contains_key("output-uri") || settings.contains_key("lpr-commandline") {
-        true => set,
-        false => Set::All,
-    };
+    // GTK's CUPS backend sends even or odd to CUPS too.
+    let cups_set = set != Set::All && !settings.contains_key("output-uri") && !settings.contains_key("lpr-commandline");
     let scale = number(settings, "scale", 100.0)? / 100.0;
     if !(scale.is_finite() && scale > 0.0) {
         bail!("the print dialog chose a scale of {}%", scale * 100.0);
@@ -81,6 +80,7 @@ pub(super) fn chosen(settings: &Map, setup: &Map) -> anyhow::Result<Choices> {
     Ok(Choices {
         ranges,
         set,
+        cups_set,
         reverse: flag(settings, "reverse", false)?,
         copies: count(settings, "n-copies")?,
         collate: flag(settings, "collate", true)?,
@@ -189,6 +189,7 @@ mod tests {
             Choices {
                 ranges: None,
                 set: Set::All,
+                cups_set: false,
                 reverse: false,
                 copies: 1,
                 collate: true,
@@ -230,12 +231,13 @@ mod tests {
         let set = |backend: &[(&str, Value<'static>)]| {
             let mut pairs = vec![("page-set", Value::from("even"))];
             pairs.extend_from_slice(backend);
-            chosen(&map(&pairs), &a4("portrait")).expect("reads").set
+            let choices = chosen(&map(&pairs), &a4("portrait")).expect("reads");
+            (choices.set, choices.cups_set)
         };
         // GTK's CUPS backend sends cups-page-set itself.
-        assert_eq!(set(&[("printer", Value::from("Office"))]), Set::All);
-        assert_eq!(set(&[("output-uri", Value::from("file:///tmp/out.pdf"))]), Set::Even);
-        assert_eq!(set(&[("lpr-commandline", Value::from("lpr"))]), Set::Even);
+        assert_eq!(set(&[("printer", Value::from("Office"))]), (Set::Even, true));
+        assert_eq!(set(&[("output-uri", Value::from("file:///tmp/out.pdf"))]), (Set::Even, false));
+        assert_eq!(set(&[("lpr-commandline", Value::from("lpr"))]), (Set::Even, false));
     }
 
     #[test]

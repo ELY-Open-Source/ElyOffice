@@ -35,6 +35,7 @@ fn choices(sheet: (f64, f64)) -> Choices {
     Choices {
         ranges: None,
         set: Set::All,
+        cups_set: false,
         reverse: false,
         copies: 1,
         collate: true,
@@ -207,6 +208,14 @@ fn sets_order_and_copies_choose_the_sheets() {
     assert_eq!(order(both()), [100, 110, 120, 0, 100, 110, 120, 0]);
     assert_eq!(order(Choices { collate: false, ..both() }), [100, 110, 100, 110, 120, 0, 120, 0]);
     assert_eq!(order(Choices { reverse: true, copies: 1, ..both() }), [120, 0, 100, 110]);
+    // CUPS keeps every other sheet sent: ours sit there.
+    let kept = |chosen: Choices, odd: bool| -> Vec<i64> {
+        order(chosen).into_iter().enumerate().filter(|(n, _)| (n % 2 == 0) == odd).map(|(_, w)| w).collect()
+    };
+    let cups = |set| Choices { set, cups_set: true, ..choices((595.0, 842.0)) };
+    assert_eq!(kept(Choices { reverse: true, ..cups(Set::Even) }, false), [110]);
+    assert_eq!(kept(Choices { reverse: true, ..cups(Set::Odd) }, true), [120, 100]);
+    assert_eq!(kept(Choices { copies: 2, ..cups(Set::Odd) }, true), [100, 120, 100, 120]);
     let none = compose(&pdf, &Choices { ranges: Some(vec![(5, 9)]), ..choices((595.0, 842.0)) });
     assert!(none.is_err(), "no chosen page is in the document");
 }
