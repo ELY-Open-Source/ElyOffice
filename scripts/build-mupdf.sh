@@ -38,7 +38,8 @@ case $(uname -s) in
   </ItemDefinitionGroup>
 </Project>
 PROPS
-    msbuild=$("/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" -latest -find 'MSBuild\**\Bin\MSBuild.exe' | tr -d '\r')
+    msbuild=$("/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -find 'MSBuild\**\Bin\MSBuild.exe' | tr -d '\r')
+    [ -n "$msbuild" ] || { echo "build-mupdf.sh: no MSBuild in any Visual Studio, Build Tools included" >&2; exit 1; }
     "$msbuild" "$(cygpath -w "$src/platform/win32/mupdf.sln")" -m -nologo -v:minimal \
       -t:libmupdf -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v143 \
       -p:ForceImportAfterCppTargets="$(cygpath -w "$src/ely.props")"
