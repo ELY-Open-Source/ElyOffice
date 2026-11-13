@@ -1,0 +1,6 @@
+node_modules/
+.work/
+renders/
+assets/audio/*.wav
+assets/audio/sfx/
+assets/fonts/*.ttf

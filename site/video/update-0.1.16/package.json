@@ -1,0 +1,14 @@
+{
+  "name": "update-0.1.16",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node tools/render.js",
+    "frame": "node tools/frame.js",
+    "check": "node tools/check.js"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "1.1.1",
+    "opentype.js": "2.0.0"
+  }
+}
