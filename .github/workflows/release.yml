@@ -73,7 +73,8 @@ jobs:
           # Signs the update manifests.
           ELY_UPDATE_KEY: ${{ secrets.ELY_UPDATE_KEY }}
           ELY_SHARE: /c/ely/ElyOffice
-          ELY_PATH: /c/Program Files/CMake/bin:/c/Users/raidenmei/AppData/Local/Microsoft/WinGet/Links
+          # GNU tools first: System32 has its own find.
+          ELY_PATH: /usr/bin:/c/Program Files/CMake/bin:/c/Users/raidenmei/AppData/Local/Microsoft/WinGet/Links
         run: |
           dir=$HOME/ely-ci/ElyOffice
           [ -d "$dir/.git" ] || git clone https://github.com/ELY-Open-Source/ElyOffice.git "$dir"

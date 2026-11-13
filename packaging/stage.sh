@@ -65,8 +65,9 @@ if uses ely-lok; then
     exit 1
   }
   if [ -n "$exe" ]; then
-    # The kernel needs the VC++ runtime; it ships beside it.
-    crt=$(ls -d "/c/Program Files/Microsoft Visual Studio/2022/"*/VC/Redist/MSVC/*/x64/Microsoft.VC143.CRT | tail -n 1)
+    # The VC++ runtime, from any Visual Studio, ships beside.
+    vs=$("/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -property installationPath | tr -d '\r')
+    crt=$(ls -d "$(cygpath -u "$vs")"/VC/Redist/MSVC/*/x64/Microsoft.VC143.CRT | tail -n 1)
     need "$crt" "the Visual Studio 2022 C++ tools"
     cp "$crt"/*.dll "$out/libreoffice/program/"
   fi
