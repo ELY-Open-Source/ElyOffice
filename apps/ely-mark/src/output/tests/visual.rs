@@ -136,29 +136,36 @@ fn every_toc_entry_has_its_heading() {
     }
 }
 
-/// The quickest of five: load only ever adds time.
-fn fastest(mut time: impl FnMut() -> std::time::Duration) -> std::time::Duration {
-    (0..5).map(|_| time()).min().expect("five runs")
+/// Each one's quickest, timed in turns: load slows both.
+fn quickest(
+    mut small: impl FnMut() -> std::time::Duration,
+    mut large: impl FnMut() -> std::time::Duration,
+) -> (std::time::Duration, std::time::Duration) {
+    let rounds: Vec<_> = (0..7).map(|_| (small(), large())).collect();
+    let least = |pick: fn(&(std::time::Duration, std::time::Duration)) -> std::time::Duration| {
+        rounds.iter().map(pick).min().expect("seven rounds")
+    };
+    (least(|round| round.0), least(|round| round.1))
 }
 
 #[test]
 fn a_long_html_block_writes_in_linear_time() {
-    let took = |count: usize| {
+    let timed = |count: usize| {
         let source = format!("<div>{}</div>\n", "<b>x</b> ".repeat(count));
-        fastest(|| {
+        move || {
             let start = std::time::Instant::now();
             html(&source);
             start.elapsed()
-        })
+        }
     };
-    let (small, large) = (took(8_000), took(32_000));
+    let (small, large) = quickest(timed(8_000), timed(32_000));
     // Four times the input; squared would be sixteen.
     assert!(large < small * 8, "{small:?} then {large:?}");
 }
 
 #[test]
 fn notes_under_deep_marks_write_in_linear_time() {
-    let took = |count: usize| {
+    let timed = |count: usize| {
         let source = format!(
             "start {}{}
 
@@ -168,15 +175,15 @@ fn notes_under_deep_marks_write_in_linear_time() {
             "x[^n] ".repeat(count)
         );
         let tree = markdown_tree(&source);
-        fastest(|| {
+        move || {
             let mut placed = Placed::new(None, &Pictures::Inline);
             let start = std::time::Instant::now();
             write(&tree, &source, &mut placed, &mut Page::default()).expect("written");
             start.elapsed()
-        })
+        }
     };
     // Parsing grows squared upstream; untimed.
-    let (small, large) = (took(4_000), took(16_000));
+    let (small, large) = quickest(timed(4_000), timed(16_000));
     assert!(large < small * 8, "{small:?} then {large:?}");
 }
 
@@ -320,17 +327,17 @@ fn cells_past_the_head_stay_out_as_they_stay_undrawn() {
 
 #[test]
 fn formulas_far_down_a_page_write_in_linear_time() {
-    let took = |count: usize| {
+    let timed = |count: usize| {
         let filler = "word ".repeat(40);
         let source = format!("x $\\frac{{a}}$ {filler}\n\n").repeat(count);
         let tree = markdown_tree(&source);
-        fastest(|| {
+        move || {
             let mut placed = Placed::new(None, &Pictures::Inline);
             let start = std::time::Instant::now();
             write(&tree, &source, &mut placed, &mut Page::default()).expect("written");
             start.elapsed()
-        })
+        }
     };
-    let (small, large) = (took(1_000), took(4_000));
+    let (small, large) = quickest(timed(1_000), timed(4_000));
     assert!(large < small * 8, "{small:?} then {large:?}");
 }
