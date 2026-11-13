@@ -8,6 +8,8 @@ if [ "$(uname -s)" = Darwin ] && [ "${BASH_VERSINFO[0]}" -lt 5 ]; then
   echo "ci.sh: bash $BASH_VERSION; macOS needs bash 5 (doctor.sh)" >&2
   exit 1
 fi
+# Python's UTF-8 mode: a service's console is cp1252 on Windows.
+export PYTHONUTF8=1
 os=${1:?macos, windows, linux or linux-arm64}
 tag=${2:?the release tag, such as v0.1.3}
 version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
