@@ -377,7 +377,8 @@ mod tests {
     #[test]
     fn the_terminal_starts_in_the_repository_even_on_a_share() {
         let dir = tempfile::tempdir().expect("a temp dir");
-        let local = dir.path().to_string_lossy().to_string();
+        // Long names: TEMP may say RAIDEN~1.
+        let local = dunce::canonicalize(dir.path()).expect("the real folder").to_string_lossy().to_string();
         assert_eq!(shell_dir(dir.path()), local);
         let (drive, rest) = local.split_once(":\\").expect("a drive path");
         let share = format!("\\\\localhost\\{drive}$\\{rest}");
