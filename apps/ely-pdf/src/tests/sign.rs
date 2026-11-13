@@ -301,7 +301,9 @@ fn a_second_save_as_keeps_the_reopen_and_signs_the_file_it_wrote() {
     // Nothing unsaved after this one: the tab reopens it.
     let next = dir.path().join("next.pdf");
     cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.write_as(id, next.clone(), None, window, cx)));
-    settle(cx, |app| viewer.read(app).active_tab().is_some_and(|tab| tab.view != old && tab.session.path() == Some(next.as_path())));
+    // The tab keeps the real path: /private/var on macOS.
+    let real = |path: &std::path::Path| dunce::canonicalize(path).ok();
+    settle(cx, |app| viewer.read(app).active_tab().is_some_and(|tab| tab.view != old && tab.session.path().and_then(real) == real(&next)));
     let view = shown(cx, &viewer);
     settle(cx, |app| view.read(app).settled());
     let at = SignAt { page: 0, object: None, rect: [72.0, 300.0, 272.0, 360.0], version: cx.update(|_, app| view.read(app).version) };
