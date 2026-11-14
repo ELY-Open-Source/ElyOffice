@@ -16,8 +16,8 @@ use windows_sys::Win32::{
 };
 
 use super::{answer, asked, closing, events, lok, pin, quit, teardown, waits};
+use crate::endpoint::Inbound;
 use crate::ffi::Lok;
-use crate::ipc;
 
 const ASK: u32 = WM_APP + 1;
 const CLOSED: u32 = WM_APP + 2;
@@ -29,7 +29,7 @@ static WINDOW: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 /// Requests posted and not yet answered.
 static PENDING: AtomicUsize = AtomicUsize::new(0);
 
-pub(super) fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Result<()> {
+pub(super) fn serve(lok: Lok, input: Inbound) -> io::Result<()> {
     let lok = Box::leak(Box::new(lok));
     pin(lok);
     lok.register_callback(asked::on_kit);
@@ -108,9 +108,9 @@ fn window() -> io::Result<HWND> {
     }
 }
 
-fn reader(mut input: impl io::Read) {
+fn reader(mut input: Inbound) {
     loop {
-        let (message, request) = match ipc::read_frame(&mut input) {
+        let (message, request) = match super::next_frame(&mut input) {
             Ok(Some((tag, _, payload))) if waits::noted(tag, &payload) => continue,
             Ok(Some(request)) => {
                 PENDING.fetch_add(1, Ordering::SeqCst);
@@ -118,6 +118,7 @@ fn reader(mut input: impl io::Read) {
             }
             Ok(None) => {
                 log::info!("lok-worker: the app closed its connection");
+                teardown::deadline();
                 (CLOSED, std::ptr::null_mut())
             }
             Err(error) => {

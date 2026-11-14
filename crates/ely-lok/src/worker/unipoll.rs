@@ -12,8 +12,8 @@ use std::{
 };
 
 use super::{answer, asked, closing, events, lok, pin, quit, teardown, waits};
+use crate::endpoint::Inbound;
 use crate::ffi::Lok;
-use crate::ipc;
 
 /// A request, the kernel's wake, or the end.
 enum Note {
@@ -30,7 +30,7 @@ static NOTES: OnceLock<Notes> = OnceLock::new();
 /// Requests read and not yet answered.
 static PENDING: AtomicUsize = AtomicUsize::new(0);
 
-pub(super) fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Result<()> {
+pub(super) fn serve(lok: Lok, input: Inbound) -> io::Result<()> {
     let lok = Box::leak(Box::new(lok));
     pin(lok);
     lok.register_callback(asked::on_kit);
@@ -47,9 +47,9 @@ pub(super) fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Resu
     teardown::teardown(0);
 }
 
-fn reader(mut input: impl io::Read, notes: Sender<Note>) {
+fn reader(mut input: Inbound, notes: Sender<Note>) {
     loop {
-        let note = match ipc::read_frame(&mut input) {
+        let note = match super::next_frame(&mut input) {
             Ok(Some((tag, _, payload))) if waits::noted(tag, &payload) => continue,
             Ok(Some((tag, id, payload))) => {
                 PENDING.fetch_add(1, Ordering::SeqCst);
@@ -57,6 +57,7 @@ fn reader(mut input: impl io::Read, notes: Sender<Note>) {
             }
             Ok(None) => {
                 log::info!("lok-worker: the app closed its connection");
+                teardown::deadline();
                 Note::Closed
             }
             Err(error) => {

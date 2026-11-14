@@ -1,11 +1,14 @@
 //! Unix: a socket in a private folder.
 
 use std::{
-    fs::{self, DirBuilder, Permissions},
+    fs::{self, DirBuilder, File, Permissions},
     io::{self, Write},
-    os::unix::{
-        fs::{DirBuilderExt, MetadataExt, PermissionsExt},
-        net::{UnixListener, UnixStream},
+    os::{
+        fd::AsRawFd,
+        unix::{
+            fs::{DirBuilderExt, MetadataExt, PermissionsExt},
+            net::{UnixListener, UnixStream},
+        },
     },
     path::{Path, PathBuf},
 };
@@ -59,26 +62,38 @@ fn path(name: &str) -> io::Result<PathBuf> {
     Ok(folder()?.join(format!("{name}.sock")))
 }
 
-/// A bound socket, waiting for its one app.
+/// A bound socket, waiting for an app.
 pub(crate) struct Listener {
     socket: UnixListener,
     path: PathBuf,
 }
 
 impl Listener {
-    pub(crate) fn bind(name: &str) -> io::Result<Self> {
+    /// The idle lock is ours: old sockets are stale.
+    pub(crate) fn bind(name: &str, idle: bool) -> io::Result<Self> {
         let path = path(name)?;
+        if idle {
+            match fs::remove_file(&path) {
+                Ok(()) => log::info!("lok-worker: removed the stale {}", path.display()),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                Err(error) => return Err(named(error, &path)),
+            }
+        }
         let socket = UnixListener::bind(&path).map_err(|error| named(error, &path))?;
         fs::set_permissions(&path, Permissions::from_mode(0o600)).map_err(|error| named(error, &path))?;
         log::info!("lok-worker: listening on {}", path.display());
         Ok(Self { socket, path })
     }
 
-    /// The first app; its name goes, no one else connects.
-    pub(crate) fn accept(self) -> io::Result<(Half, Half)> {
+    /// The next app in line.
+    pub(crate) fn accept(&self) -> io::Result<(Half, Half)> {
         let (stream, _) = self.socket.accept()?;
-        fs::remove_file(&self.path).map_err(|error| named(error, &self.path))?;
         Ok((stream.try_clone()?, stream))
+    }
+
+    /// Its name goes; no one else connects.
+    pub(crate) fn close(self) -> io::Result<()> {
+        fs::remove_file(&self.path).map_err(|error| named(error, &self.path))
     }
 }
 
@@ -94,8 +109,70 @@ pub(crate) fn announce(line: &str) -> io::Result<()> {
 }
 
 /// The worker's socket; the 0700 folder vouches for it.
-pub(crate) fn connect(name: &str, _pid: u32) -> io::Result<(Half, Half)> {
+pub(crate) fn connect(name: &str, _: super::Server) -> io::Result<(Half, Half, Peer)> {
     let path = path(name)?;
     let stream = UnixStream::connect(&path).map_err(|error| named(error, &path))?;
-    Ok((stream.try_clone()?, stream))
+    let peer = Peer(stream.try_clone()?);
+    Ok((stream.try_clone()?, stream, peer))
+}
+
+/// The engine behind a connection, ended by hanging up.
+pub(crate) struct Peer(UnixStream);
+
+impl Peer {
+    /// The folder vouches; no pid is checked.
+    pub(crate) fn server(&self) -> Option<u32> {
+        None
+    }
+
+    /// The engine sees EOF and exits within its grace.
+    pub(crate) fn end(&self) -> io::Result<()> {
+        match self.0.shutdown(std::net::Shutdown::Both) {
+            Err(error) if error.kind() != io::ErrorKind::NotConnected => Err(error),
+            _ => Ok(()),
+        }
+    }
+}
+
+/// A whole-file write lock for `path`, or AlreadyExists.
+pub(crate) fn hold(path: &Path) -> io::Result<File> {
+    let file = File::options().write(true).create(true).truncate(false).open(path).map_err(|error| named(error, path))?;
+    let mut lock = whole();
+    if unsafe { libc::fcntl(file.as_raw_fd(), libc::F_SETLK, &mut lock) } == -1 {
+        let error = io::Error::last_os_error();
+        return match error.raw_os_error() {
+            Some(libc::EAGAIN | libc::EACCES) => {
+                Err(io::Error::new(io::ErrorKind::AlreadyExists, "another idle engine waits for this app"))
+            }
+            _ => Err(named(error, path)),
+        };
+    }
+    Ok(file)
+}
+
+/// Whether another process holds `path`; takes nothing.
+pub(crate) fn held(path: &Path) -> io::Result<bool> {
+    let file = match File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(named(error, path)),
+    };
+    let mut lock = whole();
+    if unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETLK, &mut lock) } == -1 {
+        return Err(named(io::Error::last_os_error(), path));
+    }
+    Ok(lock.l_type != libc::F_UNLCK as libc::c_short)
+}
+
+/// A write lock over the whole file.
+fn whole() -> libc::flock {
+    let mut lock: libc::flock = unsafe { std::mem::zeroed() };
+    lock.l_type = libc::F_WRLCK as libc::c_short;
+    lock.l_whence = libc::SEEK_SET as libc::c_short;
+    lock
+}
+
+/// Ends both directions; the read clone sees it too.
+pub(crate) fn hang_up(half: Half) -> io::Result<()> {
+    half.shutdown(std::net::Shutdown::Both)
 }

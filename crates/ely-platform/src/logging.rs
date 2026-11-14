@@ -101,6 +101,27 @@ pub fn init_in(app: AppId, dir: &Path) -> Result<()> {
     fs::create_dir_all(dir).with_context(|| format!("cannot create {}", dir.display()))?;
     let path = dir.join("ely.log");
     trimmed(&path, LOG_CAP).with_context(|| format!("cannot trim {}", path.display()))?;
+    attach(app, path)
+}
+
+/// Logs into `app`'s log, which its running copy trims.
+pub fn join(app: AppId) -> Result<()> {
+    let dir = data_dir(app)?;
+    fs::create_dir_all(&dir).with_context(|| format!("cannot create {}", dir.display()))?;
+    attach(app, dir.join("ely.log"))
+}
+
+/// A log of its own, trimmed, for appending.
+pub fn kept(path: &Path) -> io::Result<File> {
+    trimmed(path, LOG_CAP).map_err(|error| io::Error::new(error.kind(), format!("cannot trim {}: {error}", path.display())))?;
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|error| io::Error::new(error.kind(), format!("cannot open {}: {error}", path.display())))
+}
+
+fn attach(app: AppId, path: PathBuf) -> Result<()> {
     let file = OpenOptions::new()
         .create(true)
         .append(true)

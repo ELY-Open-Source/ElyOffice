@@ -69,6 +69,12 @@ impl Worker {
             Check::Failed(why) => return Err(io::Error::other(format!("the worker failed its check: {why}"))),
             Check::Pending(profile) => profile.clone(),
         };
+        // Its starter checked it on this kernel id.
+        if self.child.adopted() {
+            self.check = Check::Passed;
+            log::info!("lok: the engine taken over was checked at its start");
+            return Ok(());
+        }
         self.check = Check::Checking;
         let checked = self.version_checked().and_then(|build| self.verify(&build, &profile).map(|()| build));
         match checked {

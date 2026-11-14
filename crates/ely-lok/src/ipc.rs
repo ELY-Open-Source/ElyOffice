@@ -100,6 +100,8 @@ pub mod tag {
     pub const WAIT: u8 = 37;
     /// The app's version and kernel id, first on a connection.
     pub const HELLO: u8 = 38;
+    /// The checker leaves; the engine waits for an app.
+    pub const RELEASE: u8 = 39;
     pub const OK: u8 = 100;
     pub const ERR: u8 = 101;
 }

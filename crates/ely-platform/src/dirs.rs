@@ -11,7 +11,7 @@ pub fn data_dir(app: AppId) -> Result<PathBuf> {
 }
 
 /// The suite's folder: each app's, and the shared settings.
-pub(crate) fn root() -> Result<PathBuf> {
+pub fn root() -> Result<PathBuf> {
     Ok(crate::folder::read(&home()?)?.at)
 }
 

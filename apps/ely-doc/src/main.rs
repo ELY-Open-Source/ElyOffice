@@ -19,6 +19,9 @@ mod review;
 use ely_platform::AppId;
 
 fn main() {
+    if let Some(code) = ely_office::resident::command_line(AppId::Doc) {
+        std::process::exit(code);
+    }
     if let Some(code) = remote::command_line() {
         std::process::exit(code);
     }

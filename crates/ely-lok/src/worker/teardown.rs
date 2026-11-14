@@ -29,24 +29,20 @@ pub(super) fn teardown_work() -> io::Result<()> {
             ));
         }
     }
-    let temp = profile.join("tmp");
-    let entries = match std::fs::read_dir(&temp) {
-        Ok(entries) => entries,
+    // Each engine's own folder, set by the app.
+    let temp = match dunce::canonicalize(std::env::temp_dir()) {
+        Ok(temp) => temp,
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => {
-            return Err(io::Error::new(
-                error.kind(),
-                format!("temp dir unreadable: {error}"),
-            ));
-        }
+        Err(error) => return Err(io::Error::new(error.kind(), format!("temp dir unreadable: {error}"))),
     };
+    // Never the system's temp folder.
+    if !temp.starts_with(profile.join("tmp")) {
+        return Err(io::Error::other(format!("temp dir {} is not the profile's", temp.display())));
+    }
+    let entries = std::fs::read_dir(&temp)
+        .map_err(|error| io::Error::new(error.kind(), format!("temp dir {} unreadable: {error}", temp.display())))?;
     for entry in entries {
-        let entry = entry?;
-        let name = entry.file_name();
-        if !name.to_string_lossy().starts_with("lu") {
-            continue;
-        }
-        let path = entry.path();
+        let path = entry?.path();
         unprotect(&path);
         let gone = if path.is_dir() {
             std::fs::remove_dir_all(&path)
@@ -58,6 +54,8 @@ pub(super) fn teardown_work() -> io::Result<()> {
             io::Error::new(error.kind(), format!("temp {} stays: {error}{held}", path.display()))
         })?;
     }
+    std::fs::remove_dir(&temp)
+        .map_err(|error| io::Error::new(error.kind(), format!("temp dir {} stays: {error}", temp.display())))?;
     log::info!("lok-worker: torn down");
     Ok(())
 }
@@ -69,6 +67,23 @@ pub(super) fn teardown(code: i32) -> ! {
         log::warn!("lok-worker: teardown failed: {error}");
     }
     quit(if outcome.is_ok() { code } else { 1 });
+}
+
+/// A teardown's limit after the app hangs up.
+const CLOSE_GRACE: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// A hung teardown still ends the engine.
+pub(super) fn deadline() {
+    let spawned = std::thread::Builder::new().name("lok-deadline".into()).spawn(|| {
+        std::thread::sleep(CLOSE_GRACE);
+        log::warn!("lok-worker: teardown passed {} s; quitting", CLOSE_GRACE.as_secs());
+        quit(1);
+    });
+    // No thread, no wait: quit now.
+    if let Err(error) = spawned {
+        log::warn!("lok-worker: no deadline thread: {error}");
+        quit(1);
+    }
 }
 
 /// Who holds `path`, when Windows says it is in use.

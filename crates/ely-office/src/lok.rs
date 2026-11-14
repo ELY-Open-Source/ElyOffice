@@ -224,6 +224,8 @@ impl Engine for Lok {
         cx.subscribe(view, move |host, view, linked: &ely_lok::Linked, cx| follow(host, view, &linked.0, cx)).detach();
         // Dropped files that are no pictures open as files do.
         cx.subscribe(view, |_, _, dropped: &ely_lok::Dropped, cx| ely_ui::open_dropped(H::KIND.app, &dropped.0, cx)).detach();
+        // The next start finds an engine waiting.
+        cx.subscribe(view, |_, _, _: &ely_lok::Drawn, _| crate::resident::successor(H::KIND.app)).detach();
         // The status shows the zoom.
         cx.subscribe(view, |_, _, _: &ely_lok::Zoomed, cx| cx.notify()).detach();
         cx.subscribe(view, move |host, view, _: &Reported, cx| {
@@ -283,17 +285,11 @@ fn sign(worker: &mut Worker, wanted: &Mutex<String>) -> io::Result<()> {
     worker.set_author(&ely_platform::user::named(&author)?)
 }
 
-/// A worker process on the app's profile, not yet checked.
+/// The idle engine, else a new one; checked later.
 fn spawn(app: AppId) -> io::Result<Worker> {
-    let data = ely_platform::data_dir(app).map_err(io::Error::other)?;
-    let install = ely_lok::install_dir()?;
-    // The check loads the module this app needs anyway (#79).
-    let probe = match app {
-        AppId::Table => ely_lok::Probe::Sheet,
-        AppId::Show => ely_lok::Probe::Slides,
-        _ => ely_lok::Probe::Text,
-    };
-    let worker = Worker::launch(&install, &data.join("lok-profile"), probe)?;
+    let (install, profile, probe) = crate::resident::place(app)?;
+    crate::resident::used(app)?;
+    let worker = Worker::take(&install, &profile, app.slug(), probe)?;
     log::info!("{}: worker from {}, start check {probe:?}", app.slug(), install.display());
     Ok(worker)
 }

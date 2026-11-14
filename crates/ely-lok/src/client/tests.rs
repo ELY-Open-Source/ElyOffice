@@ -26,6 +26,7 @@ mod formula;
 mod handouts;
 #[cfg(windows)]
 mod handles;
+mod idle;
 mod booleans;
 mod included;
 mod indent;
@@ -413,12 +414,11 @@ fn shutdown_leaves_no_locks_or_temp() {
             .expect("the profile lock check"),
         "no profile lock"
     );
-    let lu: Vec<_> = std::fs::read_dir(profile.join("tmp"))
+    let left: Vec<_> = std::fs::read_dir(profile.join("tmp"))
         .expect("the temp dir lists")
-        .filter_map(|entry| entry.ok())
-        .filter(|entry| entry.file_name().to_string_lossy().starts_with("lu"))
+        .map(|entry| entry.expect("an entry").path())
         .collect();
-    assert!(lu.is_empty(), "no kernel temp files: {lu:?}");
+    assert!(left.is_empty(), "the engine's temp folder is gone: {left:?}");
 }
 
 #[test]

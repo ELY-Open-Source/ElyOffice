@@ -17,6 +17,11 @@ use gpui::{Pixels, RenderImage, point, prelude::FluentBuilder as _};
 use super::{CONTEXT, LokView, TILE_TWIPS, TWIPS_PER_PIXEL, handles, input};
 use crate::Rect;
 
+/// The document's first tile is on screen.
+pub struct Drawn;
+
+impl gpui::EventEmitter<Drawn> for LokView {}
+
 /// Ely's kernel color scheme, from `ely.xcd`.
 pub const SCHEME: &str = "COLOR_SCHEME_ELY_LIGHT";
 
@@ -132,7 +137,10 @@ impl Render for LokView {
                             this.update(app, |view, _| view.clock.painted(painted.shows, failed));
                         }
                         if drawn && !this.read(app).drawn {
-                            this.update(app, |view, _| view.drawn = true);
+                            this.update(app, |view, cx| {
+                                view.drawn = true;
+                                cx.emit(Drawn);
+                            });
                             log::info!("lok: first tile drawn");
                         }
                         window.with_content_mask(Some(ContentMask { bounds }), |window| {

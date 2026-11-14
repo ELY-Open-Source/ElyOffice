@@ -15,6 +15,7 @@ pub mod lok;
 pub mod menu;
 mod open;
 mod recover;
+pub mod resident;
 pub mod remote;
 pub mod panel;
 mod save;

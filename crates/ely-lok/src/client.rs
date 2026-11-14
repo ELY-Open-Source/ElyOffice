@@ -1,7 +1,6 @@
 use std::{
-    io::{self, BufReader},
+    io,
     path::{Path, PathBuf},
-    process::Command,
     sync::mpsc,
 };
 
@@ -14,9 +13,12 @@ pub use crate::events::{A11y, Cell, Events, Function, MIXED, Mark, Rect, Request
 /// The pinned LibreOffice build the worker must report (LOK-01).
 pub const BUILD_ID: &str = "8221e31b3ac356a1623c672912a3d2b492f7e3d1";
 
+mod command;
 mod doc;
 mod feed;
 mod frames;
+mod idle;
+pub use idle::no_idle_engine;
 mod install;
 mod load;
 pub use load::Damaged;
@@ -90,6 +92,13 @@ pub fn is_nothing(error: &io::Error) -> bool {
     error.to_string().starts_with(ipc::NOTHING)
 }
 
+/// A start's channels: the request side and the replies.
+struct Wires {
+    wiring: mpsc::Receiver<io::Result<Half>>,
+    replies: mpsc::Receiver<io::Result<(u8, u64, Vec<u8>)>>,
+    feed: Feed,
+}
+
 static SESSIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 /// A start error that names `path`, logged whole.
@@ -103,100 +112,75 @@ fn at(path: &Path) -> impl FnOnce(io::Error) -> io::Error + '_ {
 impl Worker {
     /// Spawns the worker against `install` with an isolated profile (LOK-01).
     pub fn spawn(install: &Path, profile_dir: &Path) -> io::Result<Self> {
-        let mut worker = Self::spawn_mode(install, profile_dir, false)?;
+        let mut worker = Self::spawn_mode(install, profile_dir, false, None)?;
         worker.ready()?;
         Ok(worker)
     }
 
     /// Starts the process only; the first request checks it.
     pub fn launch(install: &Path, profile_dir: &Path, probe: crate::Probe) -> io::Result<Self> {
-        let mut worker = Self::spawn_mode(install, profile_dir, false)?;
+        let mut worker = Self::spawn_mode(install, profile_dir, false, None)?;
         worker.probe = probe;
         Ok(worker)
     }
 
     /// Spawns with the dev-only probes on, for tests.
     pub fn spawn_dev(install: &Path, profile_dir: &Path) -> io::Result<Self> {
-        let mut worker = Self::spawn_mode(install, profile_dir, true)?;
+        let mut worker = Self::spawn_mode(install, profile_dir, true, None)?;
         worker.ready()?;
         Ok(worker)
     }
 
-    /// Spawns with or without the dev probes.
-    fn spawn_mode(install: &Path, profile_dir: &Path, dev: bool) -> io::Result<Self> {
-        std::fs::create_dir_all(profile_dir).map_err(at(profile_dir))?;
-        let worker_bin = worker_bin()?;
-        log::info!("lok: worker from {}", worker_bin.display());
+    /// Spawns, with dev probes or idle on a name.
+    pub(crate) fn spawn_mode(
+        install: &Path,
+        profile_dir: &Path,
+        dev: bool,
+        idle: Option<(&str, std::fs::File)>,
+    ) -> io::Result<Self> {
         let session = SESSIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let name = endpoint::name(session);
-        let mut command = Command::new(&worker_bin);
-        ely_ipc::windowless(&mut command)
-            .arg(install)
-            .arg(profile_dir)
-            .arg(&name)
-            .env("SAL_FORCE_HIDPI_SCALING", "1")
-            // A killed worker's profile lock would hang the next.
-            .env("SAL_NOLOCK_PROFILE", "1")
-            // The kernel's OpenCL test can hang in AMD's driver.
-            .env("SAL_DISABLE_OPENCL", "1");
-        // Linux tiles via cairo are BGRA; Skia there is RGBA.
-        match cfg!(target_os = "linux") {
-            true => command.env("SAL_DISABLESKIA", "1"),
-            false => command.env("SAL_SKIA", "raster"),
-        };
-        // Calc reports in document twips; unipoll lends LOK's loop.
-        command.env("SAL_LOK_OPTIONS", "unipoll:sc_print_twips_msgs");
-        // LOK spells no language off this list.
-        command.env("LOK_ALLOWLIST_LANGUAGES", "en");
-        if dev {
-            command.arg("--dev");
-        }
-        // A log file would keep patch lines from the app.
-        command.env_remove("SAL_LOG_FILE");
-        if let Ok(sal_log) = std::env::var("ELY_LOK_SAL_LOG") {
-            command.env("SAL_LOG", sal_log);
-        }
-        let temp = profile_dir.join("tmp");
-        std::fs::create_dir_all(&temp).map_err(at(&temp))?;
-        // Unix reads TMPDIR; Windows reads TMP, then TEMP.
-        command.env("TMPDIR", &temp).env("TMP", &temp).env("TEMP", &temp);
+        let private = endpoint::name(session)?;
+        let (public, log) = idle.unzip();
+        let start = (install.to_path_buf(), profile_dir.to_path_buf(), dev);
+        let (command, bin) = command::build(&start, &private, public)?;
         let (feed, (sender, replies)) = (Feed::default(), mpsc::channel());
         let (wired, wiring) = mpsc::channel();
-        let (reading, kernel) = (feed.clone(), install.to_path_buf());
-        // The spawn thread connects, then reads the replies.
-        let then = move |pid, stdout| match endpoint::reach(stdout, &name, pid, &kernel) {
-            Ok((read, write)) => {
-                if wired.send(Ok(write)).is_ok() {
-                    frames::read_frames(BufReader::new(read), &reading, &sender);
-                }
-            }
-            Err(error) => {
-                log::error!("lok: worker {pid} did not connect: {error}");
-                let _ = wired.send(Err(io::Error::new(error.kind(), error.to_string())));
-                reading.died();
-                let _ = sender.send(Err(error));
-            }
-        };
+        let then = command::reach_then(private, install.to_path_buf(), feed.clone(), sender, wired);
         let stopper = Stopper::new();
-        let (child, stderr) = Process::start(command, worker_bin, &stopper, then)?;
-        let stderr = ely_ipc::relay(stderr, "lok-worker");
-        let worker = Self {
+        let (child, stderr) = Process::start(command, bin, &stopper, log, then)?;
+        Ok(Self::made(child, stopper, Wires { wiring, replies, feed }, session, stderr, start))
+    }
+
+    /// A worker around a start; `stderr` relays its lines.
+    fn made(
+        child: Process,
+        stopper: Stopper,
+        wires: Wires,
+        session: u64,
+        stderr: Option<std::io::PipeReader>,
+        start: (PathBuf, PathBuf, bool),
+    ) -> Self {
+        let stderr = match stderr {
+            Some(stderr) => ely_ipc::relay(stderr, "lok-worker"),
+            // A log file has the engine's lines.
+            None => ely_ipc::relay(io::empty(), "lok-worker"),
+        };
+        Self {
             child,
             stopper,
             requests: std::sync::Arc::new(std::sync::Mutex::new(None)),
-            wiring: Some(wiring),
-            replies,
-            feed,
+            wiring: Some(wires.wiring),
+            replies: wires.replies,
+            feed: wires.feed,
             down: false,
             asked: 0,
             session,
             stderr,
-            check: Check::Pending(profile_dir.to_path_buf()),
+            check: Check::Pending(start.1.clone()),
             author: None,
-            start: (install.to_path_buf(), profile_dir.to_path_buf(), dev),
+            start,
             probe: crate::Probe::default(),
-        };
-        Ok(worker)
+        }
     }
 
     /// The hooked library's BuildId.
@@ -427,6 +411,14 @@ impl Worker {
         }
         self.down = true;
         let mut outcome = self.answer_shutdown();
+        self.child.resolve();
+        if let Process::Adopted(pid, ..) = self.child {
+            if outcome.is_err() {
+                log::warn!("lok: {}", self.child.end());
+            }
+            log::info!("lok: engine {pid} down");
+            return outcome;
+        }
         let child = self.child.get()?;
         if outcome.is_err() {
             let _ = child.kill();

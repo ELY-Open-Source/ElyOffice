@@ -209,7 +209,7 @@ crates/ely-lok/src/worker.rs	expect_used	OUT.get().expect("the output is set")	l
 crates/ely-lok/src/worker.rs	expect_used	docs().lock().expect("the docs lock")	linux,macos,windows	the docs lock
 crates/ely-lok/src/worker.rs	expect_used	docs().lock().expect("the docs lock")	linux,macos,windows	the docs lock
 crates/ely-lok/src/worker.rs	expect_used	docs().lock().expect("the docs lock")	linux,macos,windows	the docs lock
-crates/ely-lok/src/worker.rs	expect_used	out.lock().expect("the output lock")	linux,macos,windows	the output lock
+crates/ely-lok/src/worker.rs	expect_used	OUT.get().expect("the output is set").lock().expect("the output lock")	linux,macos,windows	the output lock
 crates/ely-lok/src/worker/asked.rs	expect_used	GIVEN.lock().expect("the password lock")	linux,macos,windows	the password lock
 crates/ely-lok/src/worker/asked.rs	expect_used	GIVEN.lock().expect("the password lock")	linux,macos,windows	the password lock
 crates/ely-lok/src/worker/events.rs	expect_used	OUT.get().expect("the output is set")	linux,macos,windows	the output is set

@@ -124,6 +124,20 @@ ElyDoc 首次在第 30 秒出了“停止文档引擎”的横幅，用户按下
 
 交替量时有一次 ElyTable 没起来：复制引擎的程序没成，新应用起了旧引擎。旧引擎读不到标准输入即退出，新应用报“the worker did not listen”，窗口给出启动失败，没有挂起。
 
+### SF.4 常驻引擎（2026-11-14）
+
+空闲引擎经检查、交出后，量它 600 秒的 CPU：
+
+| 机器 | 600 秒内的 CPU |
+| --- | --- |
+| Linux，9950X3D | 0 个时钟节拍 |
+| macOS，M4 | 0.08 秒（关看门狗前 0.10 至 0.11 秒） |
+| Windows | 未量：测试机连不上 |
+
+macOS 那 0.1 秒来自内核的崩溃看门狗：Skia 起它，它每 0.25 秒醒一次。raster 模式下它只管卡死 500 秒的绘制，引擎起时以 `SAL_DISABLE_WATCHDOG=1` 关掉。Linux 不用 Skia，本无此线程。
+
+Windows 上的热启动对照（Office、自己起引擎、接管空闲引擎）未量：测试机自 SSH 握手起即被重置。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

@@ -6,18 +6,28 @@ use std::{
 };
 
 use super::Worker;
+use crate::endpoint::Peer;
 
 /// The worker's process id, good until anything reaps it.
 #[derive(Clone)]
 pub struct Stopper {
     /// Set once the spawn returns.
     pid: Arc<OnceLock<u32>>,
+    /// Set once an idle engine is taken.
+    peer: Arc<OnceLock<Arc<Peer>>>,
     reaped: Arc<Mutex<bool>>,
 }
 
 impl Stopper {
     pub(super) fn new() -> Self {
-        Self { pid: Arc::default(), reaped: Arc::new(Mutex::new(false)) }
+        Self { pid: Arc::default(), peer: Arc::default(), reaped: Arc::new(Mutex::new(false)) }
+    }
+
+    /// An idle engine was taken; it ends by its peer.
+    pub(super) fn adopted(&self, peer: Arc<Peer>) {
+        if self.peer.set(peer).is_err() {
+            log::error!("lok: a worker was taken twice");
+        }
     }
 
     /// The spawn returned this process.
@@ -29,6 +39,10 @@ impl Stopper {
 
     /// Kills the process unless something reaped it first.
     pub fn stop(&self) -> io::Result<()> {
+        if let Some(peer) = self.peer.get() {
+            log::warn!("lok: the taken engine is stopped while it works");
+            return peer.end();
+        }
         // Held while killing, so no reap slips between.
         let reaped = self.gate();
         // The spawn held the gate; no id means it failed.
@@ -50,7 +64,7 @@ impl Worker {
     /// A new worker on this one's build and profile, unchecked.
     pub fn relaunch(&self) -> io::Result<Self> {
         let (install, profile, dev) = &self.start;
-        let mut worker = Self::spawn_mode(install, profile, *dev)?;
+        let mut worker = Self::spawn_mode(install, profile, *dev, None)?;
         worker.probe = self.probe;
         Ok(worker)
     }
@@ -67,7 +81,7 @@ impl Worker {
 }
 
 #[cfg(unix)]
-fn kill(pid: u32) -> io::Result<()> {
+pub(super) fn kill(pid: u32) -> io::Result<()> {
     let pid = i32::try_from(pid).map_err(|_| io::Error::other(format!("process id {pid} is out of range")))?;
     if unsafe { libc::kill(pid, libc::SIGKILL) } != 0 {
         return Err(io::Error::last_os_error());
@@ -76,7 +90,7 @@ fn kill(pid: u32) -> io::Result<()> {
 }
 
 #[cfg(windows)]
-fn kill(pid: u32) -> io::Result<()> {
+pub(super) fn kill(pid: u32) -> io::Result<()> {
     use windows_sys::Win32::Foundation::CloseHandle;
     use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_TERMINATE, TerminateProcess};
     let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, pid) };

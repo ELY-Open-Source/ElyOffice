@@ -4,6 +4,7 @@ use std::{
     sync::Mutex,
 };
 
+use crate::endpoint::Inbound;
 use crate::ffi::{Document, Lok};
 use crate::ipc::{self, Pack, Unpack, tag};
 
@@ -40,7 +41,7 @@ const LOAD_OPTIONS: &str = "Language=en-US,DeviceFormFactor=desktop";
 pub fn run(
     install: &str,
     profile_dir: &str,
-    input: impl io::Read + Send + 'static,
+    input: Inbound,
     output: impl Write + Send + 'static,
 ) -> io::Result<()> {
     set_output(Box::new(output));
@@ -57,7 +58,7 @@ pub fn run(
 }
 
 #[cfg(target_os = "macos")]
-fn serve(lok: Lok, input: impl io::Read + Send + 'static) -> io::Result<()> {
+fn serve(lok: Lok, input: Inbound) -> io::Result<()> {
     let lok = Box::leak(Box::new(lok));
     pin(lok);
     closing::watch()?;
@@ -103,12 +104,12 @@ extern "C" fn quit_block(_: *mut std::ffi::c_void) {
 }
 
 #[cfg(target_os = "macos")]
-fn reader(mut input: impl io::Read) {
+fn reader(mut input: Inbound) {
     while !PUMPING.load(std::sync::atomic::Ordering::SeqCst) {
         std::thread::yield_now();
     }
     loop {
-        match ipc::read_frame(&mut input) {
+        match next_frame(&mut input) {
             Ok(Some((tag, _, payload))) if waits::noted(tag, &payload) => {}
             Ok(Some((tag, id, payload))) => {
                 let request = Box::into_raw(Box::new((tag, id, payload)));
@@ -116,12 +117,10 @@ fn reader(mut input: impl io::Read) {
                 unsafe {
                     gcd::dispatch_async_f(gcd::main_queue(), request.cast(), handle);
                 }
-                if tag == tag::SHUTDOWN {
-                    return;
-                }
             }
             Ok(None) => {
                 log::info!("lok-worker: the app closed its connection");
+                teardown::deadline();
                 unsafe {
                     gcd::dispatch_async_f(gcd::main_queue(), std::ptr::null_mut(), quit_block);
                 }
@@ -171,8 +170,7 @@ mod gcd {
 
 /// Handles one frame and writes its answer.
 fn answer(lok: &Lok, tag: u8, id: u64, payload: &[u8]) {
-    let out = OUT.get().expect("the output is set");
-    let mut out = out.lock().expect("the output lock");
+    let mut out = output();
     if tag == tag::SHUTDOWN {
         let outcome = teardown::teardown_work();
         let (reply_tag, body) = match &outcome {
@@ -423,6 +421,26 @@ fn sheets(doc: &Document) -> io::Result<Vec<u8>> {
 
 /// The one shared output for every handler.
 static OUT: std::sync::OnceLock<Mutex<Box<dyn Write + Send>>> = std::sync::OnceLock::new();
+
+/// The next request; RELEASE hands the engine to an app.
+fn next_frame(input: &mut Inbound) -> io::Result<Option<(u8, u64, Vec<u8>)>> {
+    loop {
+        match input.frame()? {
+            Some((tag::RELEASE, id, _)) => {
+                // Held while idle: nothing else writes.
+                let mut out = output();
+                ipc::write_frame(&mut *out, tag::OK, id, &[])?;
+                *out = Box::new(io::BufWriter::new(input.hand_over()?));
+            }
+            other => return Ok(other),
+        }
+    }
+}
+
+/// The locked response sink.
+fn output() -> std::sync::MutexGuard<'static, Box<dyn Write + Send>> {
+    OUT.get().expect("the output is set").lock().expect("the output lock")
+}
 
 /// Sets the response sink once.
 pub fn set_output(out: Box<dyn Write + Send>) {

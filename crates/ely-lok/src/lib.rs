@@ -9,6 +9,7 @@ mod handshake;
 pub use handshake::Probe;
 pub mod history;
 mod ipc;
+mod priority;
 pub mod links;
 pub mod menu;
 pub mod review;
@@ -19,13 +20,13 @@ mod worker;
 
 pub use client::{
     A11y, Cell, Damaged, Doc, Events, Feed, Function, MIXED, Mark, Mouse, Pdf, Rect, Request, Sheet, Sheets, Tile,
-    Waiter, Worker, install_dir, is_nothing, is_stale, templates,
+    Waiter, Worker, install_dir, is_nothing, is_stale, no_idle_engine, templates,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use client::test_install;
 #[cfg(feature = "view")]
 pub use view::{
-    CONTEXT, Closed, Copy, Cut, Dropped, Geom, bound_keys, Linked, Layout, LokError, LokView, Paste, Reported, ZOOM_STEPS, notch,
+    CONTEXT, Closed, Copy, Cut, Drawn, Dropped, Geom, bound_keys, Linked, Layout, LokError, LokView, Paste, Reported, ZOOM_STEPS, notch,
     SCHEME, Zoomed, behind, init, layout, paper, read_off,
 };
 #[cfg(feature = "view")]
@@ -38,5 +39,5 @@ pub(crate) const TWIPS_PER_PIXEL: f32 = 15.0;
 pub use ipc::STALE;
 pub use ipc::file_url_of as file_url;
 pub use ipc::path_of_file_url as file_path;
-pub use endpoint::take_app as worker_endpoint;
+pub use endpoint::{Start, take_app as worker_endpoint};
 pub use worker::run as worker_run;
