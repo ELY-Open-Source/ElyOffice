@@ -41,6 +41,12 @@ plant() {
   done <"$root/packaging/apps.tsv"
   # ElyShow alone carries the presentation templates.
   mkdir -p "$tree/target/package/ely-show/ElyShow.AppDir/usr/bin/libreoffice/share/template/common/presnt"
+  echo template >"$tree/target/package/ely-show/ElyShow.AppDir/usr/bin/libreoffice/share/template/common/presnt/a.otp"
+  # Each staged kernel carries its own id, as stage.sh writes.
+  local kernel
+  for kernel in "$tree"/target/package/*/*.AppDir/usr/bin/libreoffice; do
+    "$root/scripts/kernel-id.sh" "$kernel" "$kernel/program/ely-kernel-id" >/dev/null
+  done
 }
 kernel_of() { echo "$1/target/package/$2/$3.AppDir/usr/bin/libreoffice"; }
 bundle() { ELY_DIST=$1/dist "$1/packaging/linux/bundle.sh" >"$1/out.log" 2>&1; }
@@ -51,6 +57,9 @@ bundle "$work/same" || fail "equal kernels did not bundle: $(cat "$work/same/out
 shared=$work/same/target/package/ely-office/opt
 [ -f "$shared/libreoffice/program/libmergedlo.so" ] || fail "the shared kernel is missing"
 [ ! -e "$shared/ely-doc/bin/libreoffice" ] || fail "ElyDoc kept a kernel of its own"
+held=$(cat "$shared/libreoffice/program/ely-kernel-id")
+"$root/scripts/kernel-id.sh" "$shared/libreoffice" "$base/ely-kernel-id" >/dev/null
+[ "$held" = "$(cat "$base/ely-kernel-id")" ] || fail "the shared kernel's id is not its own"
 
 plant "$work/differs"
 echo other >"$(kernel_of "$work/differs" ely-table ElyTable)/program/libmergedlo.so"

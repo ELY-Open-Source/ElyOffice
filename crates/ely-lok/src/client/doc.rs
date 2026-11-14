@@ -2,8 +2,36 @@
 
 use std::io;
 
-use super::{Doc, Rect, Tile, Worker};
+use super::{Rect, Tile, Worker};
 use crate::ipc::{Pack, Unpack, tag};
+
+/// One open document: its worker, number and revision read.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Doc {
+    pub(super) worker: u64,
+    pub(super) id: u64,
+    /// The document's revision when this handle was taken.
+    pub(crate) rev: u64,
+    /// LOK_DOCTYPE: 0 text, 1 spreadsheet, 2 presentation.
+    pub(super) kind: u64,
+}
+
+impl Doc {
+    /// Whether this is a spreadsheet.
+    pub fn is_sheet(&self) -> bool {
+        self.kind == 1
+    }
+
+    /// Whether this is a presentation.
+    pub fn is_deck(&self) -> bool {
+        self.kind == 2
+    }
+
+    /// Whether this handle saw a later state than `other`.
+    pub fn newer_than(&self, other: &Doc) -> bool {
+        self.rev > other.rev
+    }
+}
 
 /// How a PDF goes out: pages, comments, tracked changes.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

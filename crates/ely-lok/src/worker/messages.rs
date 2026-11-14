@@ -117,7 +117,7 @@ fn reader(mut input: impl io::Read) {
                 (ASK, Box::into_raw(Box::new(request)))
             }
             Ok(None) => {
-                log::info!("lok-worker: stdin closed");
+                log::info!("lok-worker: the app closed its connection");
                 (CLOSED, std::ptr::null_mut())
             }
             Err(error) => {

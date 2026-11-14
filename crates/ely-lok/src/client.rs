@@ -1,10 +1,11 @@
 use std::{
-    io::{self, BufReader, BufWriter},
+    io::{self, BufReader},
     path::{Path, PathBuf},
     process::Command,
     sync::mpsc,
 };
 
+use crate::endpoint::{self, Half};
 use crate::handshake::Check;
 use crate::ipc::{self, Pack, Unpack, tag};
 
@@ -29,7 +30,7 @@ pub use wait::Waiter;
 #[cfg(any(test, feature = "test-support"))]
 pub use install::test_install;
 use install::worker_bin;
-pub use doc::{Pdf, Sheet, Sheets};
+pub use doc::{Doc, Pdf, Sheet, Sheets};
 pub use feed::Feed;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -37,7 +38,9 @@ pub(crate) mod tests;
 /// The LOK worker process: spawn, talk frames, shut down (LOK-01).
 pub struct Worker {
     pub(crate) child: Process,
-    stdin: wait::Pipe,
+    requests: wait::Pipe,
+    /// The request side, until the first request takes it.
+    wiring: Option<mpsc::Receiver<io::Result<Half>>>,
     /// Answers to requests; None once the worker is gone.
     replies: mpsc::Receiver<io::Result<(u8, u64, Vec<u8>)>>,
     feed: Feed,
@@ -75,34 +78,6 @@ pub struct Mouse {
     pub buttons: i32,
     /// vcl modifier bits.
     pub modifiers: i32,
-}
-
-/// One open document: its worker, number and revision read.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Doc {
-    worker: u64,
-    id: u64,
-    /// The document's revision when this handle was taken.
-    pub(crate) rev: u64,
-    /// LOK_DOCTYPE: 0 text, 1 spreadsheet, 2 presentation.
-    kind: u64,
-}
-
-impl Doc {
-    /// Whether this is a spreadsheet.
-    pub fn is_sheet(&self) -> bool {
-        self.kind == 1
-    }
-
-    /// Whether this is a presentation.
-    pub fn is_deck(&self) -> bool {
-        self.kind == 2
-    }
-
-    /// Whether this handle saw a later state than `other`.
-    pub fn newer_than(&self, other: &Doc) -> bool {
-        self.rev > other.rev
-    }
 }
 
 /// Whether `error` refused a request made for an older state.
@@ -152,10 +127,13 @@ impl Worker {
         std::fs::create_dir_all(profile_dir).map_err(at(profile_dir))?;
         let worker_bin = worker_bin()?;
         log::info!("lok: worker from {}", worker_bin.display());
+        let session = SESSIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let name = endpoint::name(session);
         let mut command = Command::new(&worker_bin);
         ely_ipc::windowless(&mut command)
             .arg(install)
             .arg(profile_dir)
+            .arg(&name)
             .env("SAL_FORCE_HIDPI_SCALING", "1")
             // A killed worker's profile lock would hang the next.
             .env("SAL_NOLOCK_PROFILE", "1")
@@ -182,22 +160,36 @@ impl Worker {
         std::fs::create_dir_all(&temp).map_err(at(&temp))?;
         // Unix reads TMPDIR; Windows reads TMP, then TEMP.
         command.env("TMPDIR", &temp).env("TMP", &temp).env("TEMP", &temp);
-        let stopper = Stopper::new();
-        let (child, ends) = Process::start(command, worker_bin, &stopper)?;
-        let stderr = ely_ipc::relay(ends.stderr, "lok-worker");
-        let (stdin, stdout) = (ends.stdin, ends.stdout);
         let (feed, (sender, replies)) = (Feed::default(), mpsc::channel());
-        let reading = feed.clone();
-        std::thread::spawn(move || frames::read_frames(BufReader::new(stdout), &reading, &sender));
+        let (wired, wiring) = mpsc::channel();
+        let (reading, kernel) = (feed.clone(), install.to_path_buf());
+        // The spawn thread connects, then reads the replies.
+        let then = move |pid, stdout| match endpoint::reach(stdout, &name, pid, &kernel) {
+            Ok((read, write)) => {
+                if wired.send(Ok(write)).is_ok() {
+                    frames::read_frames(BufReader::new(read), &reading, &sender);
+                }
+            }
+            Err(error) => {
+                log::error!("lok: worker {pid} did not connect: {error}");
+                let _ = wired.send(Err(io::Error::new(error.kind(), error.to_string())));
+                reading.died();
+                let _ = sender.send(Err(error));
+            }
+        };
+        let stopper = Stopper::new();
+        let (child, stderr) = Process::start(command, worker_bin, &stopper, then)?;
+        let stderr = ely_ipc::relay(stderr, "lok-worker");
         let worker = Self {
             child,
             stopper,
-            stdin: std::sync::Arc::new(std::sync::Mutex::new(BufWriter::new(stdin))),
+            requests: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            wiring: Some(wiring),
             replies,
             feed,
             down: false,
             asked: 0,
-            session: SESSIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
+            session,
             stderr,
             check: Check::Pending(profile_dir.to_path_buf()),
             author: None,
@@ -400,7 +392,7 @@ impl Worker {
         // Nothing reaches a worker that has not passed its checks.
         self.ready()?;
         self.asked += 1;
-        if let Err(error) = wait::send(&self.stdin, request, self.asked, payload) {
+        if let Err(error) = self.wire().and_then(|()| wait::send(&self.requests, request, self.asked, payload)) {
             return Err(self.broken(request, error));
         }
         let (reply, id, body) = match self.replies.recv() {
@@ -464,7 +456,8 @@ impl Worker {
     /// The shutdown round trip alone.
     fn answer_shutdown(&mut self) -> io::Result<()> {
         self.asked += 1;
-        wait::send(&self.stdin, tag::SHUTDOWN, self.asked, &[])?;
+        self.wire()?;
+        wait::send(&self.requests, tag::SHUTDOWN, self.asked, &[])?;
         let reply = match self.replies.recv() {
             Ok(Ok(frame)) => frame,
             Ok(Err(error)) => return Err(self.broken(tag::SHUTDOWN, error)),

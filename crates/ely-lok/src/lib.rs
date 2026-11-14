@@ -2,6 +2,7 @@
 
 mod client;
 pub mod commands;
+mod endpoint;
 mod events;
 mod ffi;
 mod handshake;
@@ -37,6 +38,5 @@ pub(crate) const TWIPS_PER_PIXEL: f32 = 15.0;
 pub use ipc::STALE;
 pub use ipc::file_url_of as file_url;
 pub use ipc::path_of_file_url as file_path;
+pub use endpoint::take_app as worker_endpoint;
 pub use worker::run as worker_run;
-#[cfg(windows)]
-pub use worker::stdin::private as worker_stdin;

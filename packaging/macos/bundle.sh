@@ -55,6 +55,8 @@ if uses ely-lok; then
   mkdir -p "$app/Contents/Frameworks"
   ditto "$lo/Contents/Frameworks" "$app/Contents/Frameworks"
   ditto "$lo/Contents/Resources" "$app/Contents/Resources"
+  # The copied kernel's id, never a stale one.
+  "$root/scripts/kernel-id.sh" "$lo/Contents" "$app/Contents/Resources/ely-kernel-id"
   inner+=("$app/Contents/MacOS/ely-lok-worker")
   while IFS= read -r binary; do
     if file -b "$binary" | grep -q '^Mach-O'; then

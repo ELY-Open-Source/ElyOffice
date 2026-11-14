@@ -29,4 +29,13 @@ out=$(ELY_SMOKE=1 HOME="$work" perl -e 'alarm 60; exec @ARGV' "$app/Contents/Mac
 if ELY_DIST="$work" "$root/packaging/macos/bundle.sh" ely-nope debug >/dev/null 2>&1; then
   fail "an unknown app built"
 fi
-echo "bundle-macos: valid, signed, starts"
+# A kernel with a stale id gets its own written.
+kernel=$work/kernel/LibreOffice.app/Contents
+mkdir -p "$kernel/Frameworks" "$kernel/Resources"
+for file in sofficerc LICENSE LICENSE.html NOTICE CREDITS.fodt; do echo kernel >"$kernel/Resources/$file"; done
+printf '%064d\n' 0 >"$kernel/Resources/ely-kernel-id"
+doc=$(ELY_DIST="$work" ELY_LO_APP="$work/kernel/LibreOffice.app" "$root/packaging/macos/bundle.sh" ely-doc debug | tail -n 1)
+"$root/scripts/kernel-id.sh" "$kernel" "$work/ely-kernel-id" >/dev/null
+[ "$(cat "$doc/Contents/Resources/ely-kernel-id")" = "$(cat "$work/ely-kernel-id")" ] ||
+  fail "the bundled kernel kept a stale id"
+echo "bundle-macos: valid, signed, starts, its kernel's own id"

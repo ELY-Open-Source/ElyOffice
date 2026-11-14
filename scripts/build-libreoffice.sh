@@ -181,3 +181,8 @@ fi
 if [ "$(uname)" = Darwin ]; then
   "$root/scripts/inert-lo.sh" "$src/instdir/LibreOffice.app"
 fi
+# The id the engine and the app agree on.
+case $(uname) in
+  Darwin) "$root/scripts/kernel-id.sh" "$src/instdir/LibreOffice.app/Contents" "$src/instdir/LibreOffice.app/Contents/Resources/ely-kernel-id" ;;
+  *) "$root/scripts/kernel-id.sh" "$src/instdir" "$src/instdir/program/ely-kernel-id" ;;
+esac

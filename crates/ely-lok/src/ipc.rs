@@ -98,6 +98,8 @@ pub mod tag {
     pub const TURN: u8 = 36;
     /// Unanswered: a request waits (1) or holds the lock (0).
     pub const WAIT: u8 = 37;
+    /// The app's version and kernel id, first on a connection.
+    pub const HELLO: u8 = 38;
     pub const OK: u8 = 100;
     pub const ERR: u8 = 101;
 }

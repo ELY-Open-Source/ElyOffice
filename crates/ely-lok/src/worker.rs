@@ -27,8 +27,6 @@ mod holders;
 #[cfg(windows)]
 mod messages;
 #[cfg(windows)]
-pub(crate) mod stdin;
-#[cfg(windows)]
 use messages::serve;
 #[cfg(target_os = "linux")]
 mod unipoll;
@@ -123,7 +121,7 @@ fn reader(mut input: impl io::Read) {
                 }
             }
             Ok(None) => {
-                log::info!("lok-worker: stdin closed");
+                log::info!("lok-worker: the app closed its connection");
                 unsafe {
                     gcd::dispatch_async_f(gcd::main_queue(), std::ptr::null_mut(), quit_block);
                 }

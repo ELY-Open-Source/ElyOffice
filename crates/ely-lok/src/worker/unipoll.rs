@@ -56,7 +56,7 @@ fn reader(mut input: impl io::Read, notes: Sender<Note>) {
                 Note::Ask(tag, id, payload)
             }
             Ok(None) => {
-                log::info!("lok-worker: stdin closed");
+                log::info!("lok-worker: the app closed its connection");
                 Note::Closed
             }
             Err(error) => {

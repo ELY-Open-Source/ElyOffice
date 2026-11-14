@@ -14,4 +14,6 @@ rm -rf "$out"
 mkdir -p "$out"
 # A plain folder, not a bundle, so nothing registers.
 mv "$work/LibreOffice/LibreOffice.app/Contents" "$out/Contents"
+# Handshakes pass, so the tile check rejects it.
+"$root/scripts/kernel-id.sh" "$out/Contents" "$out/Contents/Resources/ely-kernel-id"
 echo "extract-official-lo.sh: $out/Contents/Frameworks"

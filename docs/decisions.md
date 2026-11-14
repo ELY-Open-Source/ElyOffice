@@ -963,3 +963,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - `ci.sh` 在建任何东西前核对本机与（Linux）构建容器的 `cargo --version`，不带 `huacnlee/cargo` 即报错退出。
 - 其 Linux 发布版要 glibc 2.34，AlmaLinux 8 只有 2.28：镜像里以 Rust 1.100（其 cargo 要 1.99 起）从钉住的提交 e611c7a 建（`all-static`），换下 rustup 的代理（留作 `cargo.rustup`），关自更新。它不认 `CARGO_TARGET_DIR`，容器的产物不再在 `target/alma8`，与本机同在 `target/release`；实测容器建、本机建、容器再建，二进制依次要 glibc 2.28、2.34、2.28，容器再建即换回；打包后 `linux-glibc.sh` 仍把关。
 - `release.yml` 删 Linux arm64 任务（R19.7 所见它在托管机上建不完）；Linux 打包、OpenSSL、git-lfs 脚本的 aarch64 分支一并删。
+
+## 2026-11-14 应用与引擎经本用户的端点相连（SF.3，用户定）
+
+- 标准输入输出只给父进程用，常驻引擎（SF.4）要被别的应用进程接管，故改为端点；应用自己起的也走它，不留两路。
+- macOS 起初以 `TMPDIR` 定文件夹：应用给 worker 设的 `TMPDIR` 是内核私有的临时目录，worker 在那里听，应用在用户的临时目录里找，Mac 上 LOK 单测全败。改为 `confstr(_CS_DARWIN_USER_TEMP_DIR)`，与环境无关。
+- 官方 LibreOffice（“未打补丁即拒绝”的单测用）没有内核编号，握手先于图块自检失败；`extract-official-lo.sh` 为它写编号，单测仍验图块自检。
+- 实测（Windows，与 0.1.16 交替各 8 次）：首个图块与等引擎的中位数差都在噪声之内，数在 SuperFast.md。

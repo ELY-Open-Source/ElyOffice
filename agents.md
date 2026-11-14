@@ -157,7 +157,7 @@ rm -rf target/debug/incremental   标准 Cargo 下每次构建或测试后都删
 - 语言：英文、简体中文、西班牙语、法语、德语、日语、韩语、越南语，每个应用各语言都全，缺键即失败，不以英文补；英文、中文以外的六种标“预览”。内核界面固定英文，其固定文字由 Ely 按界面语言重写。ElyTable 公式为 Excel A1、数字按 en-US；拼写词典只随英文。
 - 外观：Doc、Table、Show、PDF 的页面照文件原色，只有四周的界面随深浅色；邮件正文、Mark、Agent 随深浅色。深色底 `#252525`，不用纯黑。有 Omarchy 时随 Omarchy。
 - 性能：八个应用都不许卡顿（120 FPS 手感，potato computer 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事；保存与恢复点给键入让路。
-- LOK：界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；外部链接打开时显示保存的值，用户点“更新链接”才读源；内核弹出的对话框即刻关闭并报错，需要的由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入；worker 启动时关掉 OpenCL。
+- LOK：界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；外部链接打开时显示保存的值，用户点“更新链接”才读源；内核弹出的对话框即刻关闭并报错，需要的由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入；worker 启动时关掉 OpenCL；应用与 worker 只经本用户的端点相连（Windows 命名管道，macOS、Linux 0600 套接字），握手核对版本与内核编号（`ely-kernel-id`）。
 - 更新：每个平台一份清单，更新整套，读 GitHub 的最新发布，不通则读官网转发的同一路径；清单以 ed25519 签名，缺签名或不符即拒；种子 `ELY_UPDATE_KEY`（本机 `update-key.txt`，不入库）丢失即旧版再也收不到更新；自动检查默认关，从不静默安装；包管理器与 Nix 装的只提示。
 - 每个应用只跑一份，再次启动把文件交给运行中的那份。
 - 命令行读写已打开的文档：`ely-table cell`，`ely-doc text`、`ely-show text`、`ely-mark text`；请求走实例门（本机回环、令牌只给同一用户），不动用户的光标与选区；范围见 `docs/help.md`。

@@ -1,7 +1,7 @@
 //! The worker process, started off the caller's thread.
 
 use std::{
-    io::{self, PipeReader, PipeWriter},
+    io::{self, PipeReader},
     path::PathBuf,
     process::{Child, Command, Stdio},
     sync::mpsc,
@@ -9,13 +9,6 @@ use std::{
 };
 
 use super::{Stopper, at};
-
-/// The ends a worker talks through, made before its process.
-pub(super) struct Ends {
-    pub stdin: PipeWriter,
-    pub stdout: PipeReader,
-    pub stderr: PipeReader,
-}
 
 /// The worker process, or the spawn still starting it.
 pub(crate) enum Process {
@@ -25,17 +18,17 @@ pub(crate) enum Process {
 }
 
 impl Process {
-    /// Spawns `command` off the caller's thread: cold spawns take seconds.
+    /// Spawns; `then` gets pid and stdout.
     pub(super) fn start(
         mut command: Command,
         bin: PathBuf,
         stopper: &Stopper,
-    ) -> io::Result<(Self, Ends)> {
-        let (stdin_read, stdin) = io::pipe()?;
+        then: impl FnOnce(u32, PipeReader) + Send + 'static,
+    ) -> io::Result<(Self, PipeReader)> {
         let (stdout, stdout_write) = io::pipe()?;
         let (stderr, stderr_write) = io::pipe()?;
         command
-            .stdin(Stdio::from(stdin_read))
+            .stdin(Stdio::null())
             .stdout(Stdio::from(stdout_write))
             .stderr(Stdio::from(stderr_write));
         let (sender, started) = mpsc::channel();
@@ -49,27 +42,21 @@ impl Process {
                 let child = command.spawn().map_err(at(&bin));
                 // Our copies of the child's ends close here.
                 drop(command);
-                if let Ok(child) = &child {
-                    stopper.started(child.id());
-                    log::info!(
-                        "lok: worker process {} started in {} ms",
-                        child.id(),
-                        began.elapsed().as_millis()
-                    );
+                let pid = child.as_ref().map(Child::id).ok();
+                if let Some(pid) = pid {
+                    stopper.started(pid);
+                    log::info!("lok: worker process {pid} started in {} ms", began.elapsed().as_millis());
                 }
                 drop(gate);
                 if sender.send(child).is_err() {
                     log::error!("lok: the worker was dropped before its process started");
                 }
+                match pid {
+                    Some(pid) => then(pid, stdout),
+                    None => drop(stdout),
+                }
             })?;
-        Ok((
-            Self::Starting(started),
-            Ends {
-                stdin,
-                stdout,
-                stderr,
-            },
-        ))
+        Ok((Self::Starting(started), stderr))
     }
 
     /// The process, once its spawn has returned.
@@ -134,12 +121,13 @@ mod tests {
     fn a_spawn_that_fails_says_so_when_first_needed_and_closes_its_pipes() {
         let bin = std::env::temp_dir().join("ely-no-such-worker");
         let stopper = Stopper::new();
-        let (mut process, mut ends) =
-            Process::start(Command::new(&bin), bin.clone(), &stopper).expect("starting returns at once");
+        let (mut process, mut stderr) =
+            Process::start(Command::new(&bin), bin.clone(), &stopper, |_, _| panic!("no process, no stdout"))
+                .expect("starting returns at once");
         let error = process.get().expect_err("no such program");
         assert_eq!(error.kind(), io::ErrorKind::NotFound, "{error}");
         assert!(error.to_string().contains("ely-no-such-worker"), "{error}");
-        assert_eq!(ends.stdout.read(&mut [0; 8]).expect("reads"), 0, "the output pipe ends");
+        assert_eq!(stderr.read(&mut [0; 8]).expect("reads"), 0, "the error pipe ends");
         stopper.stop().expect("nothing to stop");
     }
 

@@ -30,7 +30,8 @@ packaging/windows/templates.sh 以本构建的内核重写 packaging/windows/new
 packaging/icons/masters.py     写出 assets/icons 的 SVG 母版（图标设计只改这里）
 packaging/icons/build.sh       由母版渲染 icns、png、ico（只在 macOS）
 scripts/inert-lo.sh 路径.app    构建出的 LibreOffice.app 去掉文档类型、URL 类型、快速查看与聚焦插件并注销（build-libreoffice.sh 调用）
-scripts/extract-official-lo.sh 用 7zz 把官方镜像的 Frameworks 与 Resources 解到 engines/lo-official（不挂载；“未打补丁即拒绝”的单测用）
+scripts/kernel-id.sh 内核 文件   内核目录各文件的 SHA-256 与各链接的指向合成内核编号，写进 `ely-kernel-id`（在版本文件旁）；应用与引擎握手时核对（build-libreoffice.sh、stage.sh、macOS 的 bundle.sh 调用；已建的引擎跑一次）
+scripts/extract-official-lo.sh 用 7zz 把官方镜像的 Frameworks 与 Resources 解到 engines/lo-official 并写其内核编号（不挂载；“未打补丁即拒绝”的单测用）
 scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、agents.md 不超 30000 字节、注释（comments.py）、测试的等待（waits.py）、行尾（eol.sh）；JS、TS、TSX 与 HTML 的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript、parse5 解析，先在 `site/` 跑 `pnpm install`
 cd site && pnpm run deploy    官网构建并经 wrangler 发到 Cloudflare Workers：另有 `site/worker` 答 `/release.json`（最新版本、安装包地址与下载总数，缓存 5 分钟）并转发 `/releases/` 下的发布文件；地址 https://office.elygpui.com（workers.dev 上同站）
 scripts/deny.sh [根] [检查...]  cargo-deny：安全公告、yanked、许可与来源；重复版本只许 deny.toml 里列着的组，组消失而 skip 还在即败

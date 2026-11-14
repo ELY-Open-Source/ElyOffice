@@ -98,5 +98,9 @@ if [ -z "$exe" ]; then
   done <"$out.files"
   rm "$out.files"
 fi
+# The staged kernel's id, after every change to it.
+if uses ely-lok; then
+  "$root/scripts/kernel-id.sh" "$out/libreoffice" "$out/libreoffice/program/ely-kernel-id"
+fi
 "$root/packaging/licenses.sh" "$slug" "$out/licenses"
 echo "$out"
