@@ -660,3 +660,30 @@
 - [ ] R19.6 Windows 虚拟机（7877）的 0.1.16 基准所见两处（§20，PERF-01、PERF-02）：一、六个应用的首次启动超 3 秒（ElyDoc 3890、ElyTable 3610、ElyShow 3422、ElyPDF 10890、ElyMail 3437、ElyMark 3234 毫秒），日常启动皆在 0.2 至 0.7 秒；与 2026-11 所查相符：Defender 在新建的可执行文件跑任何代码前先扫描，约每 MB 45 毫秒，根治待安装包签名（R-02）；ElyPDF 的 10.9 秒远超其 29 MB 应得，待查。二、ElyMail 打字时主线程六次忙 134 至 511 毫秒，各在一次搜索答“0 messages”之后约 0.8 秒；R14.48f 的时区修复（`patches/gpui/0004`）仍在，另有原因，待取栈
 - [ ] R19.7 Linux arm64 的发布任务在 GitHub 托管机上跑不完（§4）：v0.1.16 两次都在约 2 小时处被关（第一次 32 分钟失联，第二次 2 小时 0 分收到关机信号，内核已建完、测试门编译中），与 2026-11-08 的探测（2 小时 1 分）一致；托管机每次现场建内核约 1 小时 55 分，余下的测试门与打包装不进去。改为能复用已建引擎的自托管 arm64 机，或把内核构建拆成缓存的前一任务；做成前发布不含 Linux arm64（0.1.15 亦无）
 - [ ] R19.8 ElyTable 图形文本的撤销测试 `undo_and_redo_work_inside_a_shape_text_edit` 偶发失败（Mac 发布任务，2026-11-13）：双击后立刻打字，负载下双击未进文本编辑，Q 落在框外；先等进入文本编辑再打字
+
+## SF 秒开（用户 2026-11-14 定，方案与实测在根目录 `SuperFast.md`；按其“顺序”逐条做，每条在对应测试机上重量、数字写回 `SuperFast.md`。规矩同 R18。SF.7 至 SF.21 之间不打发布标签）
+
+- [x] SF.1 改规定（〇）：PRD 的 PERF-01、UX-13、PERF-10 与 §2 第 4 条、§4.1、§4.2、QA-02 的单应用安装包，`agents.md` 规则 9、常设决定“首批发布”“更新”，新增“安装包”“常驻引擎”“横幅”，`docs/standing.md` 同改，`docs/decisions.md` 记一条
+- [ ] SF.2 构建工具与发布的平台（SF-21）：Windows 机（7877）装 huacnlee/cargo 并核对自托管任务用的是同一个；`scripts/ci.sh` 开头见标准 Cargo 即报错退出；`release.yml` 去掉 Linux arm64，“都上传才设为最新”改为四端；常设决定“仓库与发布”同改
+- [ ] SF.3 应用与引擎之间的通道改为只给本用户的端点（Windows 带访问控制的命名管道，macOS、Linux 0600 的 Unix 套接字），应用自己起的引擎也走它；握手交换应用版本与内核编号，内核编号文件由打包写进内核目录；`ely-ipc` 帧格式不变
+- [ ] SF.4 常驻引擎（SF-07）：`ely-doc|ely-table|ely-show engine` 与 `engine stop`；应用接管空闲的（含正在起的），握手不符的空闲引擎自己退出；文档画出后以最低优先级起接班的；按物理内存定留几个；空闲不在时自己起并记一行；Windows 测试机重量热启动
+- [ ] SF.5 旧版升级逐端查清：0.1.16 的 Windows 安装程序、macOS 的 dmg 换应用、AppImage 能否直接装下统一包，查清写进 `SuperFast.md`
+- [ ] SF.6 Windows 统一安装程序（SF-19）：一个 `ElyOffice-<版本>-windows-x86_64-setup.exe`，七个应用各一个勾，“应用和功能”只一项；保留事务性；从 0.1.16 单应用安装升上来并删其卸载项；`ci.sh` 与 `tests/scripts` 的安装布局脚本随之改
+- [ ] SF.7 Windows 共用内核（SF-04）：内核在 `Programs\Ely Office\Kernel`，内容取并集（带 Impress 模板），各应用的 `libreoffice` 是目录联接，内核是隐藏节、三个文档应用都没选时不装；卸载最后一个文档应用时删内核；不对含联接的目录用 `RMDir /r`；WinGet 一份 `ZacharyZhang.ElyOffice`
+- [ ] SF.8 Windows 登录后自启与安装时起引擎：当前用户 `Run` 值“Ely Office”指向内核旁的小程序，后台优先级起每个已装文档应用的引擎；安装前 `engine stop`、装完 `engine`；卸载时删 `Run` 值；量安装后首次
+- [ ] SF.9 更新改为每平台一份清单、更新整套：`manifest.sh`、`ely-ui` 的 `updates.rs`、`ely_platform::install`；更新前停常驻引擎、列出开着的应用由用户关；官网下载项与 README 随之改
+- [ ] SF.10 启动动画（SF-08）：一份规格，Windows 启动器小窗与应用首帧画同一场景，留到文档画出；减少动效下静止；小窗最多 3 秒；八个应用经 `ely_ui::run`
+- [ ] SF.11 SF-10 引擎与窗口同时起：单实例门之后即接管引擎，文件排上队即交后台
+- [ ] SF.12 SF-18 关窗、关标签不再等引擎：应用自己记每个标签改没改；关正在载入的标签 2 秒内放不下即换引擎
+- [ ] SF.13 删文档应用的横幅（SF-17 之一）：`office-slow` 删、`office-stopped` 改错误页、`office-risk` 七种改状态栏加保存时的确认、`office-links` 与 `table-kept` 改状态栏、ElyPDF `file_banner` 改状态栏；`docs/gaps.md` 的 PPTX 章节随之改
+- [ ] SF.14 删 Mark、Mail 与更新的横幅（SF-17 之二）：`mark-outside`、`mark-large`、`mail-*` 四种、`update-package` 与 `UpdateBanner`、设置窗口的错误行，照 `SuperFast.md` 第四节的去处
+- [ ] SF.15 守住横幅（SF-17 之三）：脚本测试守住 `Banner::new` 只在 `doc-fonts` 一处；八种语言删、加的键齐全；`docs/help.md` 改写
+- [ ] SF.16 SF-15 ElyDoc、ElyShow 载入完到首个图块的 0.55 秒查明并降到 0.07 秒量级
+- [ ] SF.17 SF-09 启动自检：常驻后重量，字体的其他语言名字仍挡着才按字体目录的变化缓存进配置目录；不挡如实写
+- [ ] SF.18 SF-16 14 MB DOCX 的载入 1.29 秒花在哪，能否先排出第一页就画；达不到如实写
+- [ ] SF.19 macOS 量冷启动与公证后首次，再做 `.pkg`（Developer ID Installer 签名、关可重定位、七个勾）与共用内核（SF-05）
+- [ ] SF.20 macOS LaunchAgent 常驻引擎；`.pkg` 的更新路径；Mac 测试机重量
+- [ ] SF.21 Linux 只留 `ely-office` 包与统一 AppImage（首次运行写七个应用的菜单项、解出引擎与内核到 `~/.local/lib/ely-office/<编号>`），Nix 一个包
+- [ ] SF.22 Linux systemd 用户服务常驻引擎；本机重量
+- [ ] SF.23 基准进发布的门（SF-13、SF-14）：XLSX 样本换有内容的；`tests/perf` 加安装后首次、重启后首次；与 Office 的对照只记录不设门（Office 一更新即变）；空闲引擎 10 分钟 CPU 为 0；三个常驻引擎的内存不超记录值一成
+- [ ] SF.24 ElyPDF 保存后文件暴涨（SF-20）：复现、比较对象大小找出长出来的一类；保存时新写与重写的流压缩、新嵌字体取子集、未动对象原样；每种编辑后保存的大小测试

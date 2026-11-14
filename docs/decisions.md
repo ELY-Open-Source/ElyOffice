@@ -949,3 +949,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 2026-11-12（R19.4）：Windows 的发布任务在第一道门即败：`compatibility.py` 打印带中文的版本行，7877 的运行器以服务运行，Python 的标准输出是 cp1252，编不出汉字（`UnicodeEncodeError`）。台式机的运行器未遇此事。`ci.sh` 起头设 `PYTHONUTF8=1`，其后各个 Python 脚本一律以 UTF-8 读写；v0.1.16 的标签已推，故 7877 运行器的 `.env` 另加同一变量，重跑该任务。基准工具读子进程输出时的 `UnicodeDecodeError` 同因。
 - 2026-11-12（R19.4）：v0.1.16 的两个 macOS 发布任务皆败于 ElyPDF 的 `a_second_save_as_keeps_the_reopen_and_signs_the_file_it_wrote`，Mac mini 上 10 次皆败、Linux 皆过：测试拿临时目录的路径（`/var/…`）去比标签页存的真实路径（`/private/var/…`），永远不等。应用无误；测试改为两边都取真实路径（同文件 `save_signed_as` 已如此），Mac 上 5 次皆过。标签尚无发布，故取消该次运行、把 `v0.1.16` 移到修好的提交重跑。
 - 2026-11-13（R19.4）：v0.1.16 的发布另修四处只在发布机上现形的问题。ElyMark 三个线性时间测试改为小、大两份输入交替各测 7 轮、各取最快再比（7877 上与全套并行时 3 轮败 1，改后 6 轮皆过）；ElyPDF 空白页的保存测试与 ElyTree 的终端测试改以 `dunce::canonicalize` 比路径（Windows 的标准 `canonicalize` 带 `\\?\` 前缀，7877 的 TEMP 是 8.3 短名 `RAIDEN~1`）；Windows 打包经 vswhere 找 VC++ 运行库（Build Tools 装在 Program Files (x86)），`ELY_PATH` 以 `/usr/bin` 打头（System32 的 find.exe 曾抢在 GNU find 前，`stage.sh` 的占位文件清理因此空转）。标签由 `00b0c15f` 移到 `7bdc36ed`；7877 上另加了 runner 的 `.path`（Git 的 usr/bin 在前）与 VS 2022 路径的目录联接，供同一提交重跑，下一版发布后联接可删。Linux 的媒体测试一次卡在 OpenAL 经 PipeWire 打开声卡（3 小时 37 分），复跑 6 次皆 2 秒内过。Linux arm64 在托管机上约 2 小时即被关，见 R19.7；0.1.16 不含 Linux arm64。
+
+## 2026-11-14 秒开：常驻引擎、统一安装包、启动动画、只留字体横幅（SF.1，用户定）
+
+- 方案、实测与用户定的 14 条在根目录 `SuperFast.md`；进度在 `tasks/TASKS.md` 的 SF 一节。
+- PRD 改：PERF-01 由“不预加载未使用内核”改为登录后每个文档应用常驻一个空闲引擎，按物理内存少留或不留；UX-13 的启动画面改为启动动画，留到文档画出、载入失败或要密码；PERF-10 的“更新链接”由横幅改为状态栏或菜单；§4.2 与 §2 的第 4 条、QA-02 改为每个平台一个 ElyOffice 安装包，Windows、macOS 可选装，Linux 全装，更新换整套。
+- agents.md 与 `docs/standing.md`：规则 9 允许等待中的进度动画循环到等待结束；新增“安装包”“常驻引擎”“横幅”三条；“更新”改为每平台一份清单。
+- 发布平台与构建工具（Linux arm64 不出）随 SF.2 改；`docs/gaps.md` 的 PPTX 章节与 `docs/help.md` 的横幅说明随 SF.13、SF.15 的代码改；打包命令随 SF.6 改。

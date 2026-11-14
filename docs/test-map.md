@@ -16,7 +16,7 @@
 | UX-10 | 多屏缩放变化不造成点击偏移、选区漂移或浮层遮挡 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-11 | 正文、标签、错误和状态不只通过颜色表达 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | UX-12 | 使用系统辅助技术所需的名称、角色、状态和文本信息 | C05.5 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
-| UX-13 | 双击文件到出现画面不留空白；系统在应用代码之前耗时（Windows 扫描新装或更新后的程序）时，先出带应用图标与名字的启动画面，应用首帧画出即换下 | 无 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
+| UX-13 | 双击文件到出现画面不留空白；系统在应用代码之前耗时（Windows 扫描新装或更新后的程序）时，先出带应用图标与名字的启动动画，留到文档画出（或载入失败、要密码）为止 | 无 | — | crates/ely-ui/tests、shell.sh、doc-shell.sh、settings.sh |
 | FILE-01 | 新建文件在首次保存前没有隐含目标路径；关闭前处理未保存内容 | C06.1 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | FILE-02 | 显示加载中、已保存、未保存、保存中、只读、外部已修改、保存失败等状态 | C06.1 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |
 | FILE-03 | 保存任务记录对应修订号；旧修订保存完成不得把更新的编辑标为已保存 | C06.1 | — | crates/ely-files、crates/ely-office、recovery.sh、autosave.sh |

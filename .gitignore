@@ -17,5 +17,7 @@ node_modules/
 /TyporaRef
 /cred.txt
 /update-key.txt
+/credential.md
 __pycache__/
 /*.csr
+/*.cer
