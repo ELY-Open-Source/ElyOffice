@@ -1,5 +1,19 @@
 ; One app's install: old files aside whole, or nothing changes.
 
+; FileWrite; a failure marks $R5.
+!macro ElyWrite HANDLE TEXT
+  ClearErrors
+  FileWrite ${HANDLE} "${TEXT}"
+  IfErrors 0 +2
+    StrCpy $R5 "unwritten"
+!macroend
+
+; A failed list: $R0 names none, so ElyAside refuses.
+!macro ElyUnlisted
+  Delete "$R0"
+  StrCpy $R0 "$PLUGINSDIR\unlisted"
+!macroend
+
 ; Lists a legacy folder's files and folders to $R2.
 Function ElyWalk
   Push "|"
@@ -7,17 +21,20 @@ Function ElyWalk
 walk:
   Pop $R1
   StrCmp $R1 "|" done
-  FileWrite $R2 "$R1\$\r$\n"
+  !insertmacro ElyWrite $R2 "$R1\$\r$\n"
   FindFirst $R3 $R4 "$INSTDIR\$R1\*"
 entry:
   StrCmp $R4 "" closed
   StrCmp $R4 "." skip
   StrCmp $R4 ".." skip
-  IfFileExists "$INSTDIR\$R1\$R4\*.*" 0 file
+  ; Junctions stay out: .ely-old's RMDir /r follows them.
+  System::Call 'kernel32::GetFileAttributesW(w "$INSTDIR\$R1\$R4") i .R6'
+  IntOp $R6 $R6 & 0x410
+  IntCmp $R6 0x10 0 file skip
   Push "$R1\$R4"
   Goto skip
 file:
-  FileWrite $R2 "$R1\$R4$\r$\n"
+  !insertmacro ElyWrite $R2 "$R1\$R4$\r$\n"
 skip:
   FindNext $R3 $R4
   Goto entry
@@ -27,8 +44,11 @@ closed:
 done:
 FunctionEnd
 
+; A real folder only, never a junction.
 !macro ElyLegacyDir NAME
-  IfFileExists "$INSTDIR\${NAME}\*.*" 0 +3
+  System::Call 'kernel32::GetFileAttributesW(w "$INSTDIR\${NAME}") i .R6'
+  IntOp $R6 $R6 & 0x410
+  IntCmp $R6 0x10 0 +3 +3
     StrCpy $R1 "${NAME}"
     Call ElyWalk
 !macroend
@@ -37,7 +57,7 @@ FunctionEnd
   FindFirst $R3 $R4 "$INSTDIR\${PATTERN}"
   ely_legacy_${ID}:
     StrCmp $R4 "" ely_legacy_end_${ID}
-    FileWrite $R2 "$R4$\r$\n"
+    !insertmacro ElyWrite $R2 "$R4$\r$\n"
     FindNext $R3 $R4
     Goto ely_legacy_${ID}
   ely_legacy_end_${ID}:
@@ -52,7 +72,7 @@ Function ElyOwned
   IfFileExists "$INSTDIR\.ely-installed" 0 unlisted
   StrCpy $R0 "$PLUGINSDIR\owned.txt"
   StrCpy $R7 "listed"
-  CopyFiles /SILENT "$INSTDIR\.ely-installed" "$R0"
+  Call ElyOwn
   Goto done
 unlisted:
   ; Older releases: only the folder our key names.
@@ -60,14 +80,20 @@ unlisted:
   StrCmp $R1 "$INSTDIR" 0 done
   IfFileExists "$INSTDIR\$AppSlug.exe" 0 done
   StrCpy $R0 "$PLUGINSDIR\legacy.txt"
+  StrCpy $R5 ""
+  ClearErrors
   FileOpen $R2 "$R0" w
+  IfErrors 0 walk
+    !insertmacro ElyUnlisted
+    Goto done
+walk:
   !insertmacro ElyLegacyDir libreoffice
   !insertmacro ElyLegacyDir tessdata
   !insertmacro ElyLegacyDir git
   !insertmacro ElyLegacyDir content
   !insertmacro ElyLegacyDir locales
   !insertmacro ElyLegacyDir licenses
-  FileWrite $R2 "$AppSlug.ico$\r$\n"
+  !insertmacro ElyWrite $R2 "$AppSlug.ico$\r$\n"
   !insertmacro ElyLegacy exe "*.exe"
   !insertmacro ElyLegacy dll "*.dll"
   !insertmacro ElyLegacy pak "*.pak"
@@ -75,10 +101,53 @@ unlisted:
   !insertmacro ElyLegacy dat "*.dat"
   !insertmacro ElyLegacy json "*.json"
   FileClose $R2
+  StrCmp $R5 "" done
+  !insertmacro ElyUnlisted
 done:
 FunctionEnd
 
 !macro ElyAside UN
+; The list to $R0; a junction's files are the kernel's.
+Function ${UN}ElyOwn
+  System::Call 'kernel32::GetFileAttributesW(w "$INSTDIR\libreoffice") i .R3'
+  StrCpy $R4 "own"
+  IntCmp $R3 -1 copy
+  IntOp $R3 $R3 & 0x400
+  IntCmp $R3 0 copy
+  StrCpy $R4 "kernel"
+copy:
+  StrCpy $R5 ""
+  ClearErrors
+  FileOpen $R2 "$INSTDIR\.ely-installed" r
+  IfErrors failed
+  FileOpen $R3 "$R0" w
+  IfErrors 0 line
+    FileClose $R2
+    Goto failed
+line:
+  ClearErrors
+  FileRead $R2 $R6
+  IfErrors done
+  StrCmp $R4 "own" keep
+  StrCpy $8 "$R6" 12
+  StrCmp $8 "libreoffice\" line
+keep:
+  !insertmacro ElyWrite $R3 "$R6"
+  Goto line
+done:
+  ; A read error also stops FileRead; only the end counts.
+  FileSeek $R2 0 CUR $8
+  FileSeek $R2 0 END $9
+  StrCmp $8 $9 +2
+    StrCpy $R5 "unread"
+  FileClose $R3
+  FileClose $R2
+  StrCmp $R5 "" 0 failed
+  Return
+failed:
+  !insertmacro ElyUnlisted
+FunctionEnd
+
 ; Next line of $R2: path $R3, kind $R6.
 Function ${UN}ElyNext
 next:
@@ -185,6 +254,9 @@ back:
   StrCmp $R6 "d" back
   IntOp $9 $9 + 1
   IfFileExists "$R9\$9" 0 back
+  ; Pruned folders return; the leaf stays free.
+  CreateDirectory "$INSTDIR\$R3"
+  RMDir "$INSTDIR\$R3"
   Rename "$R9\$9" "$INSTDIR\$R3"
   Goto back
 done:
@@ -208,7 +280,7 @@ listed:
   IfErrors busy
   FileClose $R4
   StrCpy $R0 "$PLUGINSDIR\owned.txt"
-  CopyFiles /SILENT "$R5" "$R0"
+  Call ${UN}ElyOwn
   Call ${UN}ElyAside
   StrCmp $R5 "" gone busy
 gone:
@@ -274,11 +346,15 @@ clear:
 done:
 FunctionEnd
 
-; Copied: old folders left empty and the backup go.
-Function ElyPlaced
+; Copied: old folders left empty go.
+Function ElyEmptied
   StrCmp $R0 "" +3
     StrCpy $R1 "$INSTDIR"
     Call ElyPrune
+FunctionEnd
+
+; Committed: the backup goes.
+Function ElyPlaced
   RMDir /r "$INSTDIR\.ely-old"
   IfFileExists "$INSTDIR\.ely-old" 0 +2
     MessageBox MB_ICONEXCLAMATION "$(Left)$\r$\n$INSTDIR\.ely-old" /SD IDOK

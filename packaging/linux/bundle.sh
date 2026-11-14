@@ -57,12 +57,7 @@ for slug in "${kernels[@]}"; do
     status=0
     differs=$(cd "$work/opt" && LC_ALL=C diff -rq "$slug/bin/libreoffice" libreoffice) || status=$?
     [ "$status" -le 1 ] || broken "$slug's kernel did not compare with ElyShow's"
-    # ElyShow's adds templates; its id covers them.
-    status=0
-    extra=$(grep -vxF -e "Only in libreoffice/share/template/common: presnt" \
-      -e "Files $slug/bin/libreoffice/program/ely-kernel-id and libreoffice/program/ely-kernel-id differ" <<<"$differs") || status=$?
-    [ "$status" -le 1 ] || broken "$slug's kernel differences did not filter"
-    [ -z "$extra" ] || broken "$slug's kernel is not ElyShow's: $extra"
+    [ -z "$differs" ] || broken "$slug's kernel is not ElyShow's: $differs"
     rm -rf "$own"
   fi
   cat >>"$entries" <<ENTRY

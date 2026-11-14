@@ -23,14 +23,18 @@ while IFS=$'\t' read -r slug name _ batch _; do
   mkdir -p "$stages/$slug"
   printf 'MZ' >"$stages/$slug/$slug.exe"
   "$root/packaging/windows/types.sh" "$slug" >"$stages/$slug-types.nsh"
-  "$root/packaging/windows/files.sh" "$stages/$slug" "$slug" >"$stages/$slug-files.txt"
-  printf '  !insertmacro ${M} %s %s\n' "$name" "$slug" >>"$apps"
+  cp "$root/assets/icons/$slug.ico" "$stages/$slug/"
+  "$root/packaging/windows/files.sh" "$stages/$slug" >"$stages/$slug-files.txt"
+  printf '  !insertmacro ${M} %s %s 1\n' "$name" "$slug" >>"$apps"
   count=$((count + 1))
 done <"$root/packaging/apps.tsv"
 echo '!macroend' >>"$apps"
+mkdir -p "$stages/kernel"
+echo kernel >"$stages/kernel/kernel.txt"
+"$root/packaging/windows/files.sh" "$stages/kernel" >"$stages/kernel-files.txt"
 [ "$count" -eq 7 ] || fail "the first batch has $count apps, expected 7"
 out=$work/setup.exe
-makensis -V1 -INPUTCHARSET UTF8 -DVERSION=0.1.0 -DAPPS="$apps" -DSTAGES="$stages" -DICONS="$root/assets/icons" \
+makensis -V1 -INPUTCHARSET UTF8 -DVERSION=0.1.0 -DAPPS="$apps" -DSTAGES="$stages" \
   -DOUTFILE="$out" "$nsi" >"$work/makensis.log" 2>&1 || fail "$(tail -n 5 "$work/makensis.log")"
 [ "$(head -c 2 "$out")" = MZ ] || fail "the setup is not a Windows executable"
 
@@ -49,7 +53,7 @@ if rustup target add x86_64-pc-windows-msvc >/dev/null 2>&1; then
 else
   echo "SKIP installer-windows: msvc target is not installable, so the runtime link was not checked"
 fi
-if makensis -V1 -DVERSION=1 -DSTAGES="$stages" -DICONS="$root/assets/icons" -DOUTFILE="$work/x.exe" "$nsi" >/dev/null 2>&1; then
+if makensis -V1 -DVERSION=1 -DSTAGES="$stages" -DOUTFILE="$work/x.exe" "$nsi" >/dev/null 2>&1; then
   fail "a setup without APPS built"
 fi
 echo "installer-windows: one setup with the first batch builds; uninstall keeps documents and asks before data"

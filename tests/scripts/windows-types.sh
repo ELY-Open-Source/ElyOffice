@@ -53,7 +53,6 @@ mkdir -p "$stage"
 cp /c/Windows/System32/PING.EXE "$stage/ely-probe.exe"
 cp /c/Windows/System32/PING.EXE "$stage/ely-probe-start.exe"
 : >"$stage/new.elyprobe"
-"$root/packaging/windows/files.sh" "$stage" ely-probe >"$stages/ely-probe-files.txt"
 setup "$work/setup.exe" 1 "$stages" ElyProbe:ely-probe
 # The macros alone, writing the key they blame.
 cat >"$work/probe.nsi" <<'NSI'
@@ -87,6 +86,7 @@ blamed() { # dir [UNDO]
 # Unkeyed, so the app goes in ROOT/ElyProbe.
 install() {
   reg delete 'HKCU\Software\Ely Office\ElyProbe' /f >/dev/null 2>&1 || true
+  unsuite
   nsis "$work/setup.exe" "/D=$(cygpath -w "$1")"
 }
 uninstall() {

@@ -14,23 +14,41 @@ stages=$root/target/stage
 apps=$stages/windows-apps.nsh
 mkdir -p "$stages" "$dist"
 batch=$(awk -F'\t' '$4 == 1 { print $1 }' "$root/packaging/apps.tsv")
+kernel=$stages/kernel
+rm -rf "$kernel"
 echo '!macro ElyAll M' >"$apps"
 for slug in $batch; do
   name=$(awk -F'\t' -v slug="$slug" '$1 == slug { print $2 }' "$root/packaging/apps.tsv")
   stage=$stages/$slug
   "$root/packaging/stage.sh" "$slug" "$stage"
+  cp "$root/assets/icons/$slug.ico" "$stage/"
+  # One kernel in Kernel; each app links to it.
+  shares=0
+  if [ -d "$stage/libreoffice" ]; then
+    shares=1
+    if [ -d "$kernel" ]; then
+      differs=$(diff -rq "$stage/libreoffice" "$kernel") || {
+        echo "installer.sh: $slug's kernel is not the first one: $differs" >&2
+        exit 1
+      }
+      rm -rf "$stage/libreoffice"
+    else
+      mv "$stage/libreoffice" "$kernel"
+    fi
+  fi
   # Explorer's New copies these; the install list owns them.
   for ext in $(awk -F'\t' -v slug="$slug" '$1 == slug { print $2 }' "$root/packaging/types.tsv"); do
     [ ! -e "$root/packaging/windows/new/new.$ext" ] || cp "$root/packaging/windows/new/new.$ext" "$stage/"
   done
   "$root/packaging/windows/types.sh" "$slug" >"$stages/$slug-types.nsh"
-  "$root/packaging/windows/files.sh" "$stage" "$slug" >"$stages/$slug-files.txt"
-  printf '  !insertmacro ${M} %s %s\n' "$name" "$slug" >>"$apps"
+  "$root/packaging/windows/files.sh" "$stage" >"$stages/$slug-files.txt"
+  printf '  !insertmacro ${M} %s %s %s\n' "$name" "$slug" "$shares" >>"$apps"
 done
 echo '!macroend' >>"$apps"
+"$root/packaging/windows/files.sh" "$kernel" >"$stages/kernel-files.txt"
 out=$dist/ElyOffice-$version-windows-x86_64-setup.exe
 "$makensis" -V2 -INPUTCHARSET UTF8 -DVERSION="$version" -DAPPS="$(cygpath -w "$apps")" \
-  -DSTAGES="$(cygpath -w "$stages")" -DICONS="$(cygpath -w "$root/assets/icons")" \
+  -DSTAGES="$(cygpath -w "$stages")" \
   -DOUTFILE="$(cygpath -w "$out")" "$(cygpath -w "$root/packaging/windows/installer.nsi")"
 echo "$out"
 # 0.1.16 reads its own app's manifest; each names this setup.

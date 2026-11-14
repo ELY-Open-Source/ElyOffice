@@ -17,7 +17,7 @@ packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.2
 packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）；包的依赖带 glibc 的版本下限（包内文件所需的最高版本）；libdbus 与它载入的库用系统的；`bundle.sh` 再出装全部应用的 `ely-office` 包（deb、rpm、Arch），三个文档应用共用一份内核
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发后提交）
-packaging/winget.sh 标签       由该发布 Windows 的更新清单写 dist/winget 下首批各应用的 WinGet 清单（`ZacharyZhang.<名字>`；发布后交 winget-pkgs）
+packaging/winget.sh 标签       由该发布 Windows 的更新清单写 dist/winget 下一份 WinGet 清单（`ZacharyZhang.ElyOffice`，即统一安装程序；首批各应用的清单须指同一个安装程序；发布后交 winget-pkgs）
 packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`，散列不符即失败），文件名带提交号；有未提交改动即拒绝；发布只上传 Linux 的
 scripts/release-tests.sh         发布的门：建好两个 worker 并点名，严格模式跑 `cargo test --workspace`（ci.sh 打包前调）
 scripts/compatibility.py [--check]  写 docs/compatibility.md 的版本与内核两行；--check 不符即败（ci.sh、pr.yml）

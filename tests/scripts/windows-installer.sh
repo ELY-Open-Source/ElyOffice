@@ -28,7 +28,6 @@ build() {
   echo "$version" >"$stage/data/info.txt"
   [ "$version" = 1 ] || { echo "$version" >"$stage/extra.txt"; mkdir -p "$stage/zz"; echo 2 >"$stage/zz/deep.txt"; }
   untyped ElyProbe "$stages/ely-probe-types.nsh"
-  "$root/packaging/windows/files.sh" "$stage" ely-probe >"$stages/ely-probe-files.txt"
   setup "$work/setup-$version.exe" "$version" "$stages" ElyProbe:ely-probe
 }
 build 1
@@ -36,7 +35,7 @@ build 2
 
 # install VERSION ROOT [keyed]: the app goes in ROOT/ElyProbe.
 install() {
-  [ -n "${3:-}" ] || reg delete "$key" /f >/dev/null 2>&1 || true
+  [ -n "${3:-}" ] || { reg delete "$key" /f >/dev/null 2>&1 || true; unsuite; }
   nsis "$work/setup-$1.exe" "/D=$(cygpath -w "$2")"
 }
 # Keyed to ROOT's app; a copy of the uninstaller runs.

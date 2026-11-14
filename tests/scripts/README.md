@@ -19,7 +19,7 @@ tests/scripts/linux-glibc-rules.sh  linux-glibc.sh 对 glibc 2.30、2.36 的符�
 tests/scripts/linux-bundle-rules.sh  bundle.sh 只在三份内核逐文件相同时才合成一份（ElyShow 多出的模板与各自的内核编号除外，合成的那份编号即其本身的）：一份不同、或有一份读不了（悬空链接）都失败且不出包（假的包目录与记录调用的 nfpm，只在 Linux）
 tests/scripts/kernel-id-rules.sh  kernel-id.sh：内容相同编号相同，改一个文件或改一个链接指向即换编号，编号文件本身不计，名字不是 ely-kernel-id 即拒；一个文件读不出、一个链接读不出、内核为空、内核目录不在、标准输出写不进，都失败且不留编号与半成品（旧的也删；PATH 里的替身；Windows 用真链接）（三端可跑）
 tests/scripts/elfs-rules.sh      `packaging/linux/elfs.sh`（package.sh 调用）只放行指向包内的 `$ORIGIN` 路径：首尾换行、绝对路径、出包、空项与带符号的 ELF 皆拒，报出包外所需的库（现编的 ELF，须 patchelf，在 container.sh 里跑）
-tests/scripts/winget.sh        winget.sh 按假发布写出清单，地址、散列、卸载键、许可与简介照 apps.tsv 与安装程序，`winget validate` 通过（无 winget 时 SKIP），版本不符、缺清单即拒
+tests/scripts/winget.sh        winget.sh 按假发布只写出 `ZacharyZhang.ElyOffice` 一份，地址、散列、卸载键照安装程序，许可含首批各应用的，`winget validate` 通过（无 winget 时 SKIP），版本不符、各应用清单指不同安装程序、缺清单即拒
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；nix/release.json 与 apps.tsv 一致；nixos/nix 容器里 flake 的许可与表相同、ElyMark 构建并在 Xvfb 下画出（缺 docker 时 SKIP 容器部分）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝
 tests/scripts/waits.py           测试里的 `thread::sleep`（测试文件、测试代码以 `mod x;` 引入的文件、`#[cfg(test)]` 模块与 `#[test]` 函数）：在轮询某个条件的循环里（`while`、`loop`、`.any(`，或以自己的 `break`、`return` 出来的 `for _ in`），或上一行、所在循环的上一行以注释写明这段时间代表什么（check.sh 调用）
@@ -79,7 +79,7 @@ cargo test -p ely-platform --test print  Windows 经“Microsoft Print to PDF”
 tests/scripts/show-fullscreen.sh  真窗口 ElyShow：F5 放映的窗口盖住整块屏幕，按 F5 前看得到的菜单栏与程序坞窗口放映中都不在（看不到菜单栏即 SKIP；需辅助功能与屏幕录制权限）
 tests/scripts/dock-macos.sh      dist 里第一批各 .app 与包外的 target/debug/ely-doc 各启动数次：应用自身是一个程序坞图标、观察期内不退出，子进程从未登记为程序坞应用；带内核的三个另核 worker 为 UIElement、图块照出
 tests/scripts/dock-rules.sh      dock-macos.sh 对假应用（替身 lsappinfo）：worker 类型张冠李戴、提前退出、查询失败、无用例的应用皆败（只在 macOS）
-tests/scripts/windows-setup.sh   统一安装程序对三个假应用：首装都进所选文件夹（带空格与撇号）、只一个卸载项、记下文件夹、去掉单个应用的旧卸载项；升级只装已装的、各在注册表所指处；某个被拒即退出码 2、其后的不装；卸载只列已装的、末个卸下即删卸载项与卸载程序（缺 makensis 时 SKIP；`windows-common.sh` 是三个 Windows 安装测试共用的构建与注册表复原）
+tests/scripts/windows-setup.sh   统一安装程序对三个假应用：首装都进所选文件夹（带空格与撇号）、只一个卸载项、记下文件夹、去掉单个应用的旧卸载项；升级只装已装的、各在注册表所指处；某个被拒即退出码 2、其后的不装；卸载只列已装的、末个卸下即删卸载项与卸载程序；共用内核：两个文档应用的 `libreoffice` 是指向 `Kernel` 的联接、升级后仍是，应用的安装清单不含内核，卸下一个不伤内核，没有文档应用即删内核（缺 makensis 时 SKIP；`windows-common.sh` 是三个 Windows 安装测试共用的构建与注册表复原）
 tests/scripts/windows-installer.sh  统一安装程序里的假应用：所选目录原有的文件经两次安装与卸载都在，旧版按注册表清理，文件被占用或程序在运行时什么也不改，写不进时放回旧版；0.1.16 的更新把应用自己的文件夹交给 `/D=`，装回原处（缺 makensis 时 SKIP）
 tests/scripts/types.sh         packaging/types.tsv 的文件类型与 URL 方案在 Linux 桌面项、Windows 安装程序与 macOS 的 plist 里一致，macOS 的 UTI 照 MIME 类型、级别为 Alternate，URL 方案从不被接管
 tests/scripts/windows-a11y.sh   真窗口 ElyDoc 与 ElyPDF：UI Automation 的 TextPattern 读到段落、插入点与选区（含 emoji），PDF 的页文与拖选（缺引擎时 SKIP）

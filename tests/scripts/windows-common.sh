@@ -10,11 +10,15 @@ saved=$(mktemp -d)
 for key in 'Software\Ely Office' 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Ely Office'; do
   ! reg query "HKCU\\$key" >/dev/null 2>&1 || reg export "HKCU\\$key" "$(cygpath -w "$saved/$(echo "$key" | tr '\\ ' '__').reg")" /y >/dev/null
 done
+# Forgets the suite, so /D picks a new root.
+unsuite() {
+  reg delete 'HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Ely Office' /f >/dev/null 2>&1 || true
+  reg delete 'HKCU\Software\Ely Office' /v Root /f >/dev/null 2>&1 || true
+}
 restore() {
   local bad=
   [ ! -e "$LOCALAPPDATA/Programs/Ely Office/ElyProbe" ] || { echo "FAIL: a probe landed in the real Ely Office folder" >&2; bad=1; }
-  reg delete 'HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Ely Office' /f >/dev/null 2>&1 || true
-  reg delete 'HKCU\Software\Ely Office' /v Root /f >/dev/null 2>&1 || true
+  unsuite
   for file in "$saved"/*.reg; do
     [ ! -e "$file" ] || reg import "$(cygpath -w "$file")" >/dev/null 2>&1 || { echo "FAIL: could not restore $file; it stays" >&2; bad=1; }
   done
@@ -32,17 +36,21 @@ nsis() {
 
 # setup OUT VERSION STAGES NAME:SLUG...; stage, list, types per slug.
 setup() {
-  local out=$1 version=$2 stages=$3 app
+  local out=$1 version=$2 stages=$3 app name slug shares
   shift 3
-  mkdir -p "$stages/icons"
+  # A one-file kernel, unless the test stages its own.
+  [ -d "$stages/kernel" ] || { mkdir -p "$stages/kernel/program"; echo id >"$stages/kernel/program/ely-kernel-id"; }
+  "$root/packaging/windows/files.sh" "$stages/kernel" >"$stages/kernel-files.txt"
   echo '!macro ElyAll M' >"$stages/apps.nsh"
   for app in "$@"; do
-    printf '  !insertmacro ${M} %s %s\n' "${app%%:*}" "${app#*:}" >>"$stages/apps.nsh"
-    cp "$root/assets/icons/ely-mark.ico" "$stages/icons/${app#*:}.ico"
+    IFS=: read -r name slug shares <<<"$app"
+    cp "$root/assets/icons/ely-mark.ico" "$stages/$slug/$slug.ico"
+    "$root/packaging/windows/files.sh" "$stages/$slug" >"$stages/$slug-files.txt"
+    printf '  !insertmacro ${M} %s %s %s\n' "$name" "$slug" "${shares:-0}" >>"$stages/apps.nsh"
   done
   echo '!macroend' >>"$stages/apps.nsh"
   "$makensis" -V1 -INPUTCHARSET UTF8 -DVERSION="$version" -DAPPS="$(cygpath -w "$stages/apps.nsh")" \
-    -DSTAGES="$(cygpath -w "$stages")" -DICONS="$(cygpath -w "$stages/icons")" \
+    -DSTAGES="$(cygpath -w "$stages")" \
     -DOUTFILE="$(cygpath -w "$out")" "$(cygpath -w "$root/packaging/windows/installer.nsi")"
 }
 

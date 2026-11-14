@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One setup: chosen folder, installed apps only, refusal stops.
+# One setup: chosen folder, installed apps, refusal stops, one kernel.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -37,7 +37,6 @@ for name in $names; do
   mkdir -p "$stages/$slug"
   echo "$name" >"$stages/$slug/$slug.exe"
   untyped "$name" "$stages/$slug-types.nsh"
-  "$root/packaging/windows/files.sh" "$stages/$slug" "$slug" >"$stages/$slug-files.txt"
   apps+=("$name:$slug")
 done
 setup "$work/setup.exe" 1 "$stages" "${apps[@]}"
@@ -83,6 +82,10 @@ installed "$chosen/ElyProbeTwo" || fail "ElyProbeTwo is gone"
 [ ! -e "$work/uninstall.exe" ] || fail "the update moved the suite's root"
 reg query "$entry\\Ely Office" /v UninstallString | grep -qF "$(cygpath -w "$chosen")\\uninstall.exe" ||
   fail "the entry left the chosen folder"
+
+# An installed suite never moves to another folder.
+[ "$(nsis "$work/setup.exe" "/D=$(cygpath -w "$work/elsewhere")")" = 2 ] || fail "the setup moved to another folder"
+[ ! -e "$work/elsewhere" ] || fail "the refused setup wrote another folder"
 
 # A refused app stops the setup; later apps never run.
 reg add "HKCU\Software\Ely Office\ElyProbeThree" /v InstallDir /d "$(cygpath -w "$chosen/ElyProbeThree")" /f >/dev/null
@@ -151,5 +154,137 @@ deny Remove QueryValues "HKCU\\Software\\Ely Office\\ElyProbe"
 installed "$chosen/ElyProbeTwo" || fail "an unlisted app was removed"
 [ ! -e "$chosen/uninstall.exe" ] || fail "the uninstaller stays"
 ! reg query "$entry\\Ely Office" >/dev/null 2>&1 || fail "the entry stays"
+reg delete "HKCU\Software\Ely Office\ElyProbe" /f >/dev/null 2>&1 || true
+rm -rf "$chosen"
+
+# Two apps share one kernel; the third has none.
+shared=$work/shared
+mkdir -p "$shared/kernel/program"
+echo kernel >"$shared/kernel/program/soffice.txt"
+echo id >"$shared/kernel/program/ely-kernel-id"
+for name in $names; do
+  slug=$(echo "$name" | sed 's/\([A-Z]\)/-\L\1/g; s/^-//')
+  cp -r "$stages/$slug" "$stages/$slug-types.nsh" "$shared/"
+done
+setup "$work/shared.exe" 1 "$shared" ElyProbe:ely-probe:1 ElyProbeTwo:ely-probe-two:1 ElyProbeThree:ely-probe-three:0
+share() { nsis "$work/shared.exe" "/D=$(cygpath -w "$chosen")"; }
+# linked DIR: DIR is a junction to the kernel.
+linked() {
+  [ "$(ELY_DIR=$(cygpath -w "$1") powershell -NoProfile -Command '$i=Get-Item $env:ELY_DIR; "$($i.LinkType) $($i.Target)"' | tr -d '\r')" = \
+    "Junction $(cygpath -w "$chosen/Kernel")" ]
+}
+key() { reg add "HKCU\Software\Ely Office\ElyProbe" /v InstallDir /d "$(cygpath -w "$1")" /f >/dev/null; }
+# unjoin DIR: only the link goes, never its target.
+unjoin() { ELY_DIR=$(cygpath -w "$1") powershell -NoProfile -Command '[IO.Directory]::Delete($env:ELY_DIR)'; }
+
+# No document app: an app in Kernel's place stays.
+mkdir -p "$chosen/Kernel"
+echo old >"$chosen/Kernel/ely-probe-three.exe"
+printf 'ely-probe-three.exe\r\n' >"$chosen/Kernel/.ely-installed"
+reg add "HKCU\Software\Ely Office\ElyProbeThree" /v InstallDir /d "$(cygpath -w "$chosen/Kernel")" /f >/dev/null
+[ "$(share)" = 0 ] || fail "the update with an app in the kernel's place failed"
+grep -q ElyProbeThree "$chosen/Kernel/ely-probe-three.exe" || fail "the update removed an app in the kernel's place"
+[ ! -e "$chosen/Kernel/program" ] || fail "the kernel went into an app's folder"
+reg delete "HKCU\Software\Ely Office\ElyProbeThree" /f >/dev/null
+rm -rf "$chosen/Kernel"
+
+# An app installed where the kernel goes stops the setup.
+mkdir -p "$chosen/Kernel"
+echo old >"$chosen/Kernel/ely-probe.exe"
+printf 'ely-probe.exe\r\n' >"$chosen/Kernel/.ely-installed"
+key "$chosen/Kernel"
+[ "$(share)" = 2 ] || fail "the kernel took an app's folder"
+grep -q old "$chosen/Kernel/ely-probe.exe" || fail "the app in the kernel's place changed"
+[ ! -e "$chosen/Kernel/program" ] || fail "the kernel went into an app's folder"
+rm -rf "$chosen/Kernel"
+
+# A link to another folder refuses; it is never re-pointed.
+old=$chosen/ElyProbe
+mkdir -p "$old" "$work/other/program"
+echo other >"$work/other/program/soffice.txt"
+echo old >"$old/ely-probe.exe"
+printf 'ely-probe.exe\r\n' >"$old/.ely-installed"
+ELY_LINK=$(cygpath -w "$old/libreoffice") ELY_TO=$(cygpath -w "$work/other") powershell -NoProfile -Command \
+  'New-Item -ItemType Junction -Path $env:ELY_LINK -Target $env:ELY_TO | Out-Null'
+key "$old"
+[ "$(share)" = 2 ] || fail "the setup took a link to another folder"
+grep -q old "$old/ely-probe.exe" || fail "the refused app did not come back"
+[ "$(ELY_DIR=$(cygpath -w "$old/libreoffice") powershell -NoProfile -Command '(Get-Item $env:ELY_DIR).Target' | tr -d '\r')" = \
+  "$(cygpath -w "$work/other")" ] || fail "the link was re-pointed"
+grep -q other "$work/other/program/soffice.txt" || fail "the other folder changed"
+reg delete "HKCU\Software\Ely Office\ElyProbe" /f >/dev/null
+unjoin "$old/libreoffice"
+rm -rf "$old" "$work/other"
+
+# An unlisted file in the old kernel refuses the link.
+old=$chosen/ElyProbe
+mkdir -p "$old/libreoffice/program"
+echo old >"$old/ely-probe.exe"
+echo old >"$old/libreoffice/program/old.txt"
+echo mine >"$old/libreoffice/keep.txt"
+printf 'libreoffice\\\r\nlibreoffice\\program\\\r\nely-probe.exe\r\nlibreoffice\\program\\old.txt\r\n' >"$old/.ely-installed"
+key "$old"
+[ "$(share)" = 2 ] || fail "the setup linked over a file it did not install"
+grep -q old "$old/ely-probe.exe" || fail "the refused app did not come back"
+grep -q old "$old/libreoffice/program/old.txt" || fail "the old kernel did not come back"
+grep -q mine "$old/libreoffice/keep.txt" || fail "the unlisted file went"
+rm "$old/libreoffice/keep.txt"
+[ "$(share)" = 0 ] || fail "the update from an old kernel failed"
+linked "$old/libreoffice" || fail "the old kernel did not give way to the link"
+[ ! -e "$old/.ely-old" ] || fail "the backup stays"
+reg delete "HKCU\Software\Ely Office\ElyProbe" /f >/dev/null
+unjoin "$old/libreoffice"
+rm -rf "$old"
+
+[ "$(share)" = 0 ] || fail "the shared install failed"
+installed "$chosen/Kernel" || fail "no kernel"
+for name in ElyProbe ElyProbeTwo; do
+  linked "$chosen/$name/libreoffice" || fail "$name does not link to the kernel"
+  grep -q kernel "$chosen/$name/libreoffice/program/soffice.txt" || fail "$name cannot read the kernel"
+  ! grep -qi libreoffice "$chosen/$name/.ely-installed" || fail "$name lists the kernel as its own"
+done
+[ ! -e "$chosen/ElyProbeThree/libreoffice" ] || fail "an app without a kernel links one"
+[ "$(share)" = 0 ] || fail "the shared update failed"
+linked "$chosen/ElyProbe/libreoffice" || fail "the update broke the link"
+# A lost list: the legacy walk never enters the link.
+rm "$chosen/ElyProbe/.ely-installed"
+[ "$(share)" = 0 ] || fail "the update without a list failed"
+grep -q kernel "$chosen/Kernel/program/soffice.txt" || fail "a legacy update took the kernel's files"
+linked "$chosen/ElyProbe/libreoffice" || fail "a legacy update broke the link"
+# A downgrade lists the kernel's files; they stay the kernel's.
+printf 'libreoffice\\\r\nlibreoffice\\program\\\r\nlibreoffice\\program\\soffice.txt\r\n' >>"$chosen/ElyProbe/.ely-installed"
+[ "$(share)" = 0 ] || fail "the update after a downgrade failed"
+grep -q kernel "$chosen/Kernel/program/soffice.txt" || fail "the update took the kernel's files"
+printf 'libreoffice\\program\\soffice.txt\r\n' >>"$chosen/ElyProbe/.ely-installed"
+
+# A refused app: the earlier one went, the kernel stays.
+cp "$chosen/uninstall.exe" "$work/uninstall.exe"
+rm -f "$work/held"
+ELY_HELD=$(cygpath -w "$chosen/ElyProbeTwo/ely-probe-two.exe") ELY_MARK=$(cygpath -w "$work/held") \
+  powershell -NoProfile -Command \
+  '$f=[IO.File]::Open($env:ELY_HELD,"Open","Read","Read"); New-Item $env:ELY_MARK | Out-Null; Start-Sleep 60' &
+holder=$!
+until [ -e "$work/held" ]; do
+  kill -0 "$holder" 2>/dev/null || fail "the file lock did not take"
+  sleep 0.2
+done
+result=$(nsis "$work/uninstall.exe" "_?=$(cygpath -w "$chosen")")
+kill %% 2>/dev/null; wait 2>/dev/null || true
+[ "$result" = 2 ] || fail "the uninstall exited $result over a refused app"
+[ ! -e "$chosen/ElyProbe" ] || fail "ElyProbe stays"
+grep -q kernel "$chosen/Kernel/program/soffice.txt" || fail "removing ElyProbe took the kernel's files"
+linked "$chosen/ElyProbeTwo/libreoffice" || fail "ElyProbeTwo lost its kernel"
+
+# No document app left: the kernel goes with the last.
+reg delete "HKCU\Software\Ely Office\ElyProbeTwo" /f >/dev/null
+unjoin "$chosen/ElyProbeTwo/libreoffice"
+rm -rf "$chosen/ElyProbeTwo"
+[ "$(share)" = 0 ] || fail "the update with only ElyProbeThree failed"
+[ ! -e "$chosen/Kernel" ] || fail "the kernel stays with no document app"
+installed "$chosen/ElyProbeThree" || fail "ElyProbeThree is gone"
+[ "$(share)" = 0 ] || fail "the reinstall failed"
+cp "$chosen/uninstall.exe" "$work/uninstall.exe"
+[ "$(nsis "$work/uninstall.exe" "_?=$(cygpath -w "$chosen")")" = 0 ] || fail "the shared uninstall failed"
+[ ! -e "$chosen" ] || fail "the chosen folder stays: $(cd "$chosen" && find .)"
 rm -rf "$work"
 echo "PASS: windows setup"

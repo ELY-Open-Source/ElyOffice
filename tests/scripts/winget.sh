@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# winget.sh writes valid manifests from a release; refuses wrong ones.
+# winget.sh writes one manifest from a release; refuses wrong ones.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -11,35 +11,36 @@ fail() {
 }
 release=$work/release/v9.9.9
 mkdir -p "$release"
-apps=$(awk -F'\t' '$4 == 1 { print $1 "\t" $2 }' "$root/packaging/apps.tsv")
-while IFS=$'\t' read -r slug name; do
-  printf '{"version": "9.9.9", "assets": {"windows-x86_64": {"url": "https://x.test/%s.exe", "sha256": "%064d"}}}\n' "$name" 7 >"$release/$slug-windows-x86_64.json"
-done <<<"$apps"
+slugs=$(awk -F'\t' '$4 == 1 { print $1 }' "$root/packaging/apps.tsv")
+for slug in $slugs; do
+  printf '{"version": "9.9.9", "assets": {"windows-x86_64": {"url": "https://x.test/setup.exe", "sha256": "%064d"}}}\n' 7 >"$release/$slug-windows-x86_64.json"
+done
 url="file://$(cd "$work/release" && pwd -W 2>/dev/null || pwd)"
 run() { ELY_WINGET_DOWNLOAD=$url ELY_DIST=$work/dist bash "$root/packaging/winget.sh" "$1"; }
 run v9.9.9 >/dev/null || fail "a good release was refused"
-while IFS=$'\t' read -r slug name; do
-  at=$work/dist/winget/manifests/z/ZacharyZhang/$name/9.9.9
-  row=$(awk -F'\t' -v slug="$slug" '$1 == slug' "$root/packaging/apps.tsv")
-  grep -qx "  InstallerUrl: https://x.test/$name.exe" "$at/ZacharyZhang.$name.installer.yaml" || fail "$name: wrong installer URL"
-  grep -qx "  InstallerSha256: $(printf '%064d' 7)" "$at/ZacharyZhang.$name.installer.yaml" || fail "$name: wrong hash"
-  grep -qx "ProductCode: Ely Office $name" "$at/ZacharyZhang.$name.installer.yaml" || fail "$name: product code is not the uninstall key"
-  grep -qx "License: $(cut -f5 <<<"$row")" "$at/ZacharyZhang.$name.locale.en-US.yaml" || fail "$name: licence differs from apps.tsv"
-  grep -qx "ShortDescription: $(cut -f6 <<<"$row")" "$at/ZacharyZhang.$name.locale.en-US.yaml" || fail "$name: summary differs from apps.tsv"
-done <<<"$apps"
-# The uninstall key the installer writes.
-grep -q '^!define UNINSTALL_KEY "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Ely Office ${APP_NAME}"' \
-  "$root/packaging/windows/installer.nsi" || fail "installer.nsi's uninstall key moved"
+at=$work/dist/winget/manifests/z/ZacharyZhang/ElyOffice/9.9.9
+[ "$(ls "$work/dist/winget/manifests/z/ZacharyZhang")" = ElyOffice ] || fail "more than one package"
+installer=$at/ZacharyZhang.ElyOffice.installer.yaml locale=$at/ZacharyZhang.ElyOffice.locale.en-US.yaml
+grep -qx "  InstallerUrl: https://x.test/setup.exe" "$installer" || fail "wrong installer URL"
+grep -qx "  InstallerSha256: $(printf '%064d' 7)" "$installer" || fail "wrong hash"
+# The uninstall key the setup writes.
+grep -qx "ProductCode: Ely Office" "$installer" || fail "product code is not the uninstall key"
+grep -qF '"${UNINSTALL}\Ely Office" "UninstallString"' "$root/packaging/windows/installer.nsi" ||
+  fail "installer.nsi's uninstall key moved"
+for license in $(awk -F'\t' '$4 == 1 { print $5 }' "$root/packaging/apps.tsv" | sed 's/ AND /\n/g' | sort -u); do
+  grep -q "^License: .*$license" "$locale" || fail "the licence lacks $license"
+done
 if command -v winget >/dev/null; then
-  for at in "$work"/dist/winget/manifests/z/ZacharyZhang/*/9.9.9; do
-    winget validate --manifest "$(cygpath -w "$at")" >/dev/null || fail "winget rejects $at"
-  done
+  winget validate --manifest "$(cygpath -w "$at")" >/dev/null || fail "winget rejects $at"
 else
-  echo "SKIP: no winget; manifests not validated"
+  echo "SKIP: no winget; manifest not validated"
 fi
 cp -r "$release" "$work/release/v9.9.8"
 said=$(run v9.9.8 2>&1) && fail "a manifest of another version passed"
 case $said in *"is 9.9.9, not v9.9.8"*) ;; *) fail "the version refusal says: $said" ;; esac
+sed -i 's/setup.exe/other.exe/' "$release/ely-mail-windows-x86_64.json"
+said=$(run v9.9.9 2>&1) && fail "manifests naming two setups passed"
+case $said in *"different setups"*) ;; *) fail "the setup refusal says: $said" ;; esac
 rm "$release/ely-mail-windows-x86_64.json"
 run v9.9.9 >/dev/null 2>&1 && fail "a missing manifest passed"
-echo "ok: winget manifests"
+echo "ok: winget manifest"

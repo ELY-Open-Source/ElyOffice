@@ -180,6 +180,30 @@ Windows 的代价：开着的每个旧应用各自下一份约 270 MB 的统一�
 
 三份内核占了大半：Doc、Table、Show 各四千八百个文件。SF.7 改为共用一份。
 
+### SF.7 Windows 共用内核（2026-11-14，测试机 7877）
+
+打包时三份 `libreoffice` 逐字相同（不再给 Doc、Table 去掉 Impress 模板），只留一份进 `Kernel`。安装程序 246,488,112 字节，建 577 秒，比 SF.6 小约 0.1 MB：固实压缩本来就只存一份。
+
+占用（不跟联接，字节）：
+
+| | SF.6 | SF.7 |
+| --- | --- | --- |
+| ElyDoc | 559,029,133 | 52,473,283 |
+| ElyTable | 550,104,457 | 43,548,607 |
+| ElyShow | 565,862,160 | 52,669,841 |
+| Kernel | — | 513,129,761 |
+| 全部七个 | 2,060,852,395 | 1,047,682,559 |
+
+省下 1.01 GB，约一半。
+
+从 0.1.16 直接升：删掉整个根目录与两处登记，放回 0.1.16 的七个应用与七个卸载项（`ElyDoc\libreoffice` 是普通文件夹），照 0.1.16 更新器跑 `setup.exe /S /D=<...\ElyDoc>`：退出码 0，218.10 秒，只剩“Ely Office”一项，根不变。再跑一次 `setup.exe /S`（整套原处更新）：退出码 0，84.36 秒。之后逐项查：`Kernel` 有 `program\ely-kernel-id`，4,792 个文件与其清单逐个相符；三个文档应用的 `libreoffice` 都是指向 `Kernel` 的联接，清单里只有 `licenses\LibreOffice` 的五条许可；无 `.ely-old`；七个应用 `ELY_SMOKE=1` 退出码 0；三个文档应用 `engine` 为 0、经联接起了一个引擎，`engine stop` 为 0。
+
+头一次真机升级（147.05 秒）后内核只剩空目录：0.1.16 的清单列着 `libreoffice` 下的文件，新版经联接把内核当成旧件搬走又删掉。现在应用的清单经过联接时，`libreoffice\` 下的行一律不算应用的；旧式（无清单）的扫描不列、不进任何联接，因为 `.ely-old` 的 `RMDir /r` 会穿过联接。
+
+安装程序另守几条：`libreoffice` 是普通文件夹、是指向别处的联接、或解析不了，即拒装并放回旧件，从不改指向；内核只认 `program\ely-kernel-id`，放在 `Kernel` 位置的别的应用不会被当内核删；套件装好后只在原根更新，`/D` 换别处即拒（退出码 2），`/D` 是某个已装应用的文件夹（0.1.16 更新器的传法）照旧用原根；旧清单读不全、写不进，即以“占用”拒装，什么也不动。
+
+`windows-setup.sh`、`windows-types.sh`、`windows-installer.sh` 在测试机上都过。逐一拆掉，各自的测试都失败：不比联接目标（“took a link to another folder”）、内核标记换回 `.ely-installed`（“removed an app in the kernel's place”）、不守原根（“moved to another folder”）、清单不滤内核（“took the kernel's files”）。早先四处同样拆过：不建联接、卸联接用 `RMDir /r`、不删内核、不选内核。读写失败那条路没有测试：测试里造不出稳定的盘满。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

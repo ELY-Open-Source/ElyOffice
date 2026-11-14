@@ -14,10 +14,7 @@ ManifestDPIAwareness PerMonitorV2
   !error "pass -DAPPS, the ElyAll macro"
 !endif
 !ifndef STAGES
-  !error "pass -DSTAGES, each app's stage, list and types"
-!endif
-!ifndef ICONS
-  !error "pass -DICONS"
+  !error "pass -DSTAGES: the kernel, each app's stage, list, types"
 !endif
 !ifndef OUTFILE
   !error "pass -DOUTFILE"
@@ -73,10 +70,14 @@ LangString Keyed ${LANG_SIMPCHINESE} "$AppName 的文件已装好，但快捷方
 LangString Keyed ${LANG_ENGLISH} "The files of $AppName are installed, but its shortcut or entry could not be written; the install stopped:"
 LangString Unread ${LANG_SIMPCHINESE} "$AppName 的登记读不出，已停止："
 LangString Unread ${LANG_ENGLISH} "The entry of $AppName cannot be read; stopped:"
+LangString Unlinked ${LANG_SIMPCHINESE} "$AppName 的文件已装好，但连不上共用的内核，安装已停止："
+LangString Unlinked ${LANG_ENGLISH} "The files of $AppName are installed, but it could not be linked to the shared kernel; the install stopped:"
 LangString Alone ${LANG_SIMPCHINESE} "等不到另一个 Ely Office 安装程序结束，未作任何改动："
 LangString Alone ${LANG_ENGLISH} "Could not wait for another Ely Office setup to finish; nothing was changed:"
 LangString Unkeyed ${LANG_SIMPCHINESE} "$AppName 已卸下，但其登记或快捷方式删不掉，仍留在："
 LangString Unkeyed ${LANG_ENGLISH} "$AppName is uninstalled, but its entry or shortcut could not be removed from:"
+LangString Rooted ${LANG_SIMPCHINESE} "Ely Office 已装在别处，只能在原处更新："
+LangString Rooted ${LANG_ENGLISH} "Ely Office is installed elsewhere; it updates only there:"
 LangString Untyped ${LANG_ENGLISH} "$AppName is uninstalled, but its file type registration could not be removed from:"
 
 !include "${__FILEDIR__}\transact.nsh"
@@ -139,7 +140,9 @@ LangString Untyped ${LANG_ENGLISH} "$AppName is uninstalled, but its file type r
   ${EndIf}
 !macroend
 
-!macro ElyApp NAME SLUG
+!include "${__FILEDIR__}\kernel.nsh"
+
+!macro ElyApp NAME SLUG SHARES
 !include "${STAGES}\${SLUG}-types.nsh"
 Section "${NAME}"
   StrCpy $AppName "${NAME}"
@@ -153,11 +156,15 @@ Section "${NAME}"
   ClearErrors
   SetOutPath "$INSTDIR"
   File /r "${STAGES}\${SLUG}\*.*"
-  File "/oname=${SLUG}.ico" "${ICONS}\${SLUG}.ico"
   CopyFiles /SILENT "$PLUGINSDIR\new.txt" "$INSTDIR\.ely-installed"
   ${If} ${Errors}
     Abort
   ${EndIf}
+  Call ElyEmptied
+  ; Linked before the commit: a failure restores the old.
+  !if ${SHARES} == 1
+    !insertmacro ElyLink
+  !endif
   StrCpy $R8 ""
   Call ElyPlaced
   ClearErrors
@@ -184,6 +191,7 @@ Section "un.${NAME}"
     StrCpy $AppName "${NAME}"
     StrCpy $INSTDIR $1
     Call un.ElyRemove
+    !insertmacro ElyUnlink ${SHARES}
     !insertmacro ElyForget ${NAME}
     ${If} $Data == ""
       StrCpy $Data "no"
@@ -198,13 +206,13 @@ SectionEnd
 !macroend
 
 ; Ticks the installed apps, or all on a first install.
-!macro ElyFound NAME SLUG
+!macro ElyFound NAME SLUG SHARES
   !insertmacro ElyKey ${NAME}
   ${If} $1 != ""
     StrCpy $0 "found"
   ${EndIf}
 !macroend
-!macro ElyTick NAME SLUG
+!macro ElyTick NAME SLUG SHARES
   !insertmacro ElyKey ${NAME}
   ${If} $1 == ""
     !insertmacro UnselectSection $Index
@@ -213,13 +221,14 @@ SectionEnd
 !macroend
 
 ; An installed app left unticked is removed.
-!macro ElyUntick NAME SLUG
+!macro ElyUntick NAME SLUG SHARES
   ${IfNot} ${SectionIsSelected} $Index
     !insertmacro ElyKey ${NAME}
     ${If} $1 != ""
       StrCpy $AppName "${NAME}"
       StrCpy $INSTDIR $1
       Call ElyRemove
+      !insertmacro ElyUnlink ${SHARES}
       !insertmacro ElyForget ${NAME}
     ${EndIf}
   ${EndIf}
@@ -256,6 +265,7 @@ Function .onInit
   ReadRegStr $2 HKCU "${UNINSTALL}\Ely Office" "UninstallString"
   ${If} $1 != ""
   ${AndIf} $2 == '"$1\uninstall.exe"'
+  ${AndIf} ${FileExists} "$1\uninstall.exe"
     StrCpy $Suite "yes"
   ${EndIf}
   ; An app's own folder, as the old updater passes.
@@ -266,12 +276,20 @@ Function .onInit
       ${GetParent} "$INSTDIR" $INSTDIR
     ${EndIf}
   ${EndIf}
+  ; An installed suite updates only where it is.
+  ${If} $Suite == "yes"
+  ${AndIf} $INSTDIR != $1
+    MessageBox MB_ICONSTOP "$(Rooted)$\r$\n$1" /SD IDOK
+    SetErrorLevel 2
+    Quit
+  ${EndIf}
   StrCpy $0 ""
   !insertmacro ElyAll ElyFound
   ${If} $0 == "found"
-    StrCpy $Index 1
+    StrCpy $Index 2
     !insertmacro ElyAll ElyTick
   ${EndIf}
+  Call ElyKernel
 FunctionEnd
 
 ; First: an app that fails later still has the entry.
@@ -305,6 +323,64 @@ Section "-Root"
   ${EndIf}
 SectionEnd
 
+; An app's own folder is never the kernel.
+!macro ElyClash NAME SLUG SHARES
+  !insertmacro ElyKey ${NAME}
+  ${If} $1 == "$Root\Kernel"
+    StrCpy $AppName "Ely Office"
+    MessageBox MB_ICONSTOP "$(Taken)$\r$\n$1" /SD IDOK
+    SetErrorLevel 2
+    Quit
+  ${EndIf}
+!macroend
+
+; Hidden: present while a document app is ticked.
+Section "-Kernel" Kernel
+  !insertmacro ElyAll ElyClash
+  StrCpy $AppName "Ely Office"
+  StrCpy $AppSlug "kernel"
+  StrCpy $INSTDIR "$Root\Kernel"
+  SetOutPath "$PLUGINSDIR"
+  File "/oname=new.txt" "${STAGES}\kernel-files.txt"
+  Call ElyPrepare
+  StrCpy $R8 "copying"
+  ClearErrors
+  SetOutPath "$INSTDIR"
+  File /r "${STAGES}\kernel\*.*"
+  CopyFiles /SILENT "$PLUGINSDIR\new.txt" "$INSTDIR\.ely-installed"
+  ${If} ${Errors}
+    Abort
+  ${EndIf}
+  Call ElyEmptied
+  StrCpy $R8 ""
+  Call ElyPlaced
+SectionEnd
+
+!macro ElyNeed NAME SLUG SHARES
+  !if ${SHARES} == 1
+    ${If} ${SectionIsSelected} $Index
+      StrCpy $0 "need"
+    ${EndIf}
+  !endif
+  IntOp $Index $Index + 1
+!macroend
+
+; Ticks the kernel to match the document apps.
+Function ElyKernel
+  StrCpy $0 ""
+  StrCpy $Index 2
+  !insertmacro ElyAll ElyNeed
+  ${If} $0 == "need"
+    !insertmacro SelectSection ${Kernel}
+  ${Else}
+    !insertmacro UnselectSection ${Kernel}
+  ${EndIf}
+FunctionEnd
+
+Function .onSelChange
+  Call ElyKernel
+FunctionEnd
+
 !insertmacro ElyAll ElyApp
 
 ; No app left: no entry, no uninstaller.
@@ -337,13 +413,14 @@ SectionEnd
 !macroend
 
 Section "-Entry"
-  StrCpy $Index 1
+  StrCpy $Index 2
   !insertmacro ElyAll ElyUntick
+  !insertmacro ElyUnkernel ""
   !insertmacro ElyLast
 SectionEnd
 
 ; The uninstaller lists only installed apps.
-!macro ElyHide NAME SLUG
+!macro ElyHide NAME SLUG SHARES
   !insertmacro ElyKey ${NAME}
   ${If} $1 == ""
     !insertmacro UnselectSection $Index
@@ -361,5 +438,6 @@ Function un.onInit
 FunctionEnd
 
 Section "-un.Entry"
+  !insertmacro ElyUnkernel "un."
   !insertmacro ElyLast
 SectionEnd

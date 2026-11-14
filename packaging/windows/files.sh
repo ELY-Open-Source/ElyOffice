@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Prints what an install owns: files.sh <stage> <slug>
+# Prints what an install owns: files.sh <stage>
 set -euo pipefail
 
 stage=${1:?staged folder from packaging/stage.sh}
-slug=${2:?app slug, such as ely-doc}
 cd "$stage"
 [ -z "$(find . -type l)" ] || {
   echo "files.sh: links in $stage" >&2
@@ -12,7 +11,7 @@ cd "$stage"
 # Folders first, parents before children; then files.
 {
   find . -mindepth 1 -type d | sort | sed 's|$|/|'
-  { find . -type f; echo "./$slug.ico"; } | sort -u
+  find . -type f | sort
 } | sed 's|^\./||' | while IFS= read -r path; do
   case $path in *\\* | *[[:cntrl:]]*)
     echo "files.sh: unsafe name $path" >&2

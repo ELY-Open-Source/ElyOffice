@@ -39,9 +39,6 @@ plant() {
       ;;
     esac
   done <"$root/packaging/apps.tsv"
-  # ElyShow alone carries the presentation templates.
-  mkdir -p "$tree/target/package/ely-show/ElyShow.AppDir/usr/bin/libreoffice/share/template/common/presnt"
-  echo template >"$tree/target/package/ely-show/ElyShow.AppDir/usr/bin/libreoffice/share/template/common/presnt/a.otp"
   # Each staged kernel carries its own id, as stage.sh writes.
   local kernel
   for kernel in "$tree"/target/package/*/*.AppDir/usr/bin/libreoffice; do

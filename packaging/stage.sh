@@ -51,10 +51,9 @@ if uses ely-lok; then
       rm "$stub"
     fi
   done < <(find "$out/libreoffice/program" -type f -size -64c)
-  # Unused by Ely: gallery, thesaurus; Impress templates outside ElyShow.
+  # Unused by Ely: gallery, thesaurus. One kernel serves all three.
   share=$out/libreoffice/share
   rm -rf "$share/gallery"
-  [ "$slug" = ely-show ] || rm -rf "$share/template/common/presnt"
   en=$share/extensions/dict-en
   rm "$en"/th_en_US_v2.*
   awk '/<node oor:name="ThesDic_/ { skip = 1 } !skip { print } skip && /<\/node>/ { skip = 0 }' \
