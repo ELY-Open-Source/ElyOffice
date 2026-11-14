@@ -79,8 +79,8 @@ cargo test -p ely-platform --test print  Windows 经“Microsoft Print to PDF”
 tests/scripts/show-fullscreen.sh  真窗口 ElyShow：F5 放映的窗口盖住整块屏幕，按 F5 前看得到的菜单栏与程序坞窗口放映中都不在（看不到菜单栏即 SKIP；需辅助功能与屏幕录制权限）
 tests/scripts/dock-macos.sh      dist 里第一批各 .app 与包外的 target/debug/ely-doc 各启动数次：应用自身是一个程序坞图标、观察期内不退出，子进程从未登记为程序坞应用；带内核的三个另核 worker 为 UIElement、图块照出
 tests/scripts/dock-rules.sh      dock-macos.sh 对假应用（替身 lsappinfo）：worker 类型张冠李戴、提前退出、查询失败、无用例的应用皆败（只在 macOS）
-tests/scripts/windows-bundle.sh  合集安装程序逐个静默运行所选应用的安装程序；某个被拒即停下并报出其名与退出码（缺 makensis 时 SKIP）
-tests/scripts/windows-installer.sh  假应用的安装程序：所选目录原有的文件经两次安装与卸载都在，旧版按注册表清理，文件被占用或程序在运行时什么也不改，写不进时放回旧版（缺 makensis 时 SKIP）
+tests/scripts/windows-setup.sh   统一安装程序对三个假应用：首装都进所选文件夹（带空格与撇号）、只一个卸载项、记下文件夹、去掉单个应用的旧卸载项；升级只装已装的、各在注册表所指处；某个被拒即退出码 2、其后的不装；卸载只列已装的、末个卸下即删卸载项与卸载程序（缺 makensis 时 SKIP；`windows-common.sh` 是三个 Windows 安装测试共用的构建与注册表复原）
+tests/scripts/windows-installer.sh  统一安装程序里的假应用：所选目录原有的文件经两次安装与卸载都在，旧版按注册表清理，文件被占用或程序在运行时什么也不改，写不进时放回旧版；0.1.16 的更新把应用自己的文件夹交给 `/D=`，装回原处（缺 makensis 时 SKIP）
 tests/scripts/types.sh         packaging/types.tsv 的文件类型与 URL 方案在 Linux 桌面项、Windows 安装程序与 macOS 的 plist 里一致，macOS 的 UTI 照 MIME 类型、级别为 Alternate，URL 方案从不被接管
 tests/scripts/windows-a11y.sh   真窗口 ElyDoc 与 ElyPDF：UI Automation 的 TextPattern 读到段落、插入点与选区（含 emoji），PDF 的页文与拖选（缺引擎时 SKIP）
 tests/scripts/linux-a11y.sh     同 windows-a11y.sh，经 AT-SPI 的 Text 接口：ElyDoc 的正文整篇、插入点随段落移动；Xvfb 在容器里，私有 AT-SPI 总线（自己起注册进程），键鼠经 XTest；装了 Orca 时再起真 Orca，由其调试日志核对方向键读出新行、“全文朗读”从插入点读到文末，没装则说明未查（缺 docker、xwininfo、AT-SPI 的 Python 绑定或引擎时 SKIP）

@@ -25,7 +25,7 @@ scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务�
 scripts/lo-tarballs.sh lo-src     列出该 LibreOffice 构建所取的压缩包（名字、SHA-256、地址），由其 `Makefile.fetch` 得出
 packaging/macos/bundle.sh ely-doc debug    出 dist/ElyDoc.app（带图标、文档类型与该应用的引擎）
 packaging/macos/release.sh [批次]          该批各应用的 release 包与 dmg，另有装全部的 dmg；ELY_SIGN_IDENTITY 加 ELY_NOTARY_PROFILE 即公证
-packaging/windows/bundle.sh   由 dist 里各应用的安装程序出合集 ElyOffice 安装程序（先跑 installer.sh）
+packaging/windows/installer.sh 出 dist 里唯一的 Windows 安装程序 ElyOffice-<版本>-windows-x86_64-setup.exe（首批各应用一个勾），另写各应用指向它的更新清单（0.1.16 读每应用的清单）
 packaging/windows/templates.sh 以本构建的内核重写 packaging/windows/new 的空白 DOCX、XLSX、PPTX（右键“新建”用）
 packaging/icons/masters.py     写出 assets/icons 的 SVG 母版（图标设计只改这里）
 packaging/icons/build.sh       由母版渲染 icns、png、ico（只在 macOS）

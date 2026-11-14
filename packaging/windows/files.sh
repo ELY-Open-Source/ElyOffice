@@ -12,7 +12,7 @@ cd "$stage"
 # Folders first, parents before children; then files.
 {
   find . -mindepth 1 -type d | sort | sed 's|$|/|'
-  { find . -type f; echo "./$slug.ico"; echo ./uninstall.exe; } | sort -u
+  { find . -type f; echo "./$slug.ico"; } | sort -u
 } | sed 's|^\./||' | while IFS= read -r path; do
   case $path in *\\* | *[[:cntrl:]]*)
     echo "files.sh: unsafe name $path" >&2

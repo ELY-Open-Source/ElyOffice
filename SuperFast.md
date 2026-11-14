@@ -162,6 +162,24 @@ Windows 上的热启动对照（2026-11-14，Windows 11 虚拟机，发行构建
 
 Windows 的代价：开着的每个旧应用各自下一份约 270 MB 的统一包。第一个装完后，其余的再装是同一版本的重装，结果相同。
 
+### SF.6 Windows 统一安装程序（2026-11-14，测试机 7877）
+
+`installer.sh` 在测试机上从头建，1607 秒，出一个 `ElyOffice-0.1.16-windows-x86_64-setup.exe`，246,594,840 字节（235 MB），七份每应用清单都指向它。
+
+真机升级：测试机装着 0.1.16 的七个应用、七个卸载项。照 0.1.16 更新器的办法跑 `setup.exe /S /D=<...\Ely Office\ElyDoc>`：
+
+| 量 | 结果 |
+| --- | --- |
+| 退出码、用时 | 0，214 秒（七个应用，Doc、Table、Show 各带一份内核） |
+| 卸载项 | 七个“Ely Office <名字>”删掉，只剩“Ely Office”，指向 `...\Ely Office\uninstall.exe` |
+| 安装根 | `Root` 是 `...\Programs\Ely Office`，没有套出 `ElyDoc\ElyDoc` |
+| 每个应用 | 原处升级；文件与 `.ely-installed` 逐个相符，无多余（Doc 4780，Table 4780，Show 4803，PDF 35，Mail 5，Tree 382，Mark 34）；无 `.ely-old` |
+| 启动 | 七个都以 `ELY_SMOKE=1` 画一帧退出，退出码 0 |
+
+探针测试（`windows-setup.sh`、`windows-installer.sh`、`windows-types.sh`）在测试机上都过。另有五条：根目录里别家的 `uninstall.exe` 拒装；删不掉的旧卸载项让安装停下；同一用户第二个安装程序等前一个退出；0.1.16 以应用文件夹为 `/D` 升级时沿用已登记的根，分散安装不再一次换一个根；应用的登记读不出（拒读）时停下，不当作未装。五处逐一拆掉，各自的测试都失败。另查得 NSIS 的 `RMDir /r` 会穿过目录联接删掉其目标里的文件，对联接本身用 `RMDir` 只删联接，SF.7 照此。安装界面里取消勾选、即卸下已装应用的那条路只在交互界面里走，测试机只有 SSH，未实测。
+
+三份内核占了大半：Doc、Table、Show 各四千八百个文件。SF.7 改为共用一份。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

@@ -72,7 +72,7 @@ owner() { # indent key [value]
 }
 
 # Open With lists the app; the user's default stays theirs.
-echo '!macro ElyTypesInstall'
+echo "!macro ElyTypesInstall$name"
 echo '  StrCpy $2 ""'
 # Open With names the app, not its launcher.
 put "  " "$classes\\Applications\\$start" "FriendlyAppName" "\"$name\""
@@ -133,7 +133,7 @@ echo '    SetErrors'
 echo '!macroend'
 
 # Only what this install wrote and still owns.
-echo '!macro ElyTypesUninstall'
+echo "!macro ElyTypesUninstall$name"
 echo '  StrCpy $2 ""'
 echo "  StrCpy \$1 $command"
 if [ -n "$exts" ]; then

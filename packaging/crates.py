@@ -9,11 +9,11 @@ NAMES = ("licen", "copying", "notice", "copyright", "unlicense")
 root = pathlib.Path(__file__).resolve().parent.parent
 standard = root / "packaging" / "licenses"
 host = next(line.split()[1] for line in subprocess.run(
-    ["rustc", "-vV"], check=True, capture_output=True, text=True).stdout.splitlines() if line.startswith("host:"))
+    ["rustc", "-vV"], check=True, capture_output=True, encoding="utf-8").stdout.splitlines() if line.startswith("host:"))
 meta = json.loads(subprocess.run(
     ["cargo", "metadata", "--format-version", "1", "--locked",
      "--manifest-path", str(root / "Cargo.toml")],
-    check=True, capture_output=True, text=True).stdout)
+    check=True, capture_output=True, encoding="utf-8").stdout)
 by_id = {package["id"]: package for package in meta["packages"]}
 own = set(meta["workspace_members"])
 members = [pid for pid in own if by_id[pid]["name"] in sys.argv[1:]]
@@ -23,7 +23,7 @@ if len(members) != len(sys.argv) - 1:
 tree = subprocess.run(
     ["cargo", "tree", "--locked", "-e", "normal", "--target", host, "--prefix", "none", "-f", "{p}",
      "--manifest-path", str(root / "Cargo.toml"), *[arg for pid in members for arg in ("-p", pid)]],
-    check=True, capture_output=True, text=True).stdout
+    check=True, capture_output=True, encoding="utf-8").stdout
 linked = {tuple(line.split()[:2]) for line in tree.splitlines() if line.strip()}
 wanted = {pid for pid, package in by_id.items() if (package["name"], "v" + package["version"]) in linked}
 
@@ -38,7 +38,7 @@ for pid in sorted(wanted - own, key=lambda pid: (by_id[pid]["name"], by_id[pid][
     head = f"{package['name']} {package['version']} — {package['license'] or 'no licence field'}"
     out.append("=" * 78 + f"\n{head}\n" + "=" * 78)
     if files:
-        out += [f"--- {path.name}\n{path.read_text(errors='replace')}" for path in dict.fromkeys(files)]
+        out += [f"--- {path.name}\n{path.read_text(encoding='utf-8', errors='replace')}" for path in dict.fromkeys(files)]
     else:
         # No file shipped: the expression's standard text, with its authors.
         ids = (package["license"] or "").replace("(", " ").replace(")", " ").replace("/", " ").split()
@@ -47,7 +47,7 @@ for pid in sorted(wanted - own, key=lambda pid: (by_id[pid]["name"], by_id[pid][
             missing.append(head)
             continue
         authors = ", ".join(package["authors"]) or package["name"] + " developers"
-        out.append(f"Copyright (c) {authors}\n--- {text.stem}\n{text.read_text()}")
+        out.append(f"Copyright (c) {authors}\n--- {text.stem}\n{text.read_text(encoding='utf-8')}")
 if missing:
     sys.exit("crates.py: no licence text for:\n  " + "\n  ".join(missing))
-print("\n".join(out))
+sys.stdout.buffer.write(("\n".join(out) + "\n").encode())

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The Windows installer builds, keeps data, links the runtime statically.
+# The one Windows setup builds, keeps data, static runtime.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -15,21 +15,29 @@ command -v makensis >/dev/null || {
   echo "SKIP installer-windows: makensis is not installed"
   exit 0
 }
-printf 'MZ' >"$work/app.exe"
+stages=$work/stages apps=$work/apps.nsh
+echo '!macro ElyAll M' >"$apps"
 count=0
-while IFS=$'\t' read -r slug name _; do
-  out=$work/$slug-setup.exe
-  makensis -V1 -DAPP_NAME="$name" -DAPP_SLUG="$slug" -DVERSION=0.1.0 -DEXE="$work/app.exe" \
-    -DICON="$root/assets/icons/$slug.ico" \
-    -DOUTFILE="$out" "$nsi" >"$work/makensis.log" 2>&1 || fail "$slug: $(tail -n 5 "$work/makensis.log")"
-  [ "$(head -c 2 "$out")" = MZ ] || fail "$slug installer is not a Windows executable"
+while IFS=$'\t' read -r slug name _ batch _; do
+  [ "$batch" = 1 ] || continue
+  mkdir -p "$stages/$slug"
+  printf 'MZ' >"$stages/$slug/$slug.exe"
+  "$root/packaging/windows/types.sh" "$slug" >"$stages/$slug-types.nsh"
+  "$root/packaging/windows/files.sh" "$stages/$slug" "$slug" >"$stages/$slug-files.txt"
+  printf '  !insertmacro ${M} %s %s\n' "$name" "$slug" >>"$apps"
   count=$((count + 1))
 done <"$root/packaging/apps.tsv"
-[ "$count" -eq 8 ] || fail "built $count installers, expected 8"
+echo '!macroend' >>"$apps"
+[ "$count" -eq 7 ] || fail "the first batch has $count apps, expected 7"
+out=$work/setup.exe
+makensis -V1 -INPUTCHARSET UTF8 -DVERSION=0.1.0 -DAPPS="$apps" -DSTAGES="$stages" -DICONS="$root/assets/icons" \
+  -DOUTFILE="$out" "$nsi" >"$work/makensis.log" 2>&1 || fail "$(tail -n 5 "$work/makensis.log")"
+[ "$(head -c 2 "$out")" = MZ ] || fail "the setup is not a Windows executable"
 
 [ "$(grep -c 'RMDir /r' "$nsi")" -eq 1 ] || fail "the uninstaller removes more than one tree"
-grep -qx '  RMDir /r "$LOCALAPPDATA\\ElyOffice\\${APP_SLUG}"' "$nsi" || fail "the removed tree is not the app's own data directory"
-grep -qx '  MessageBox MB_YESNO|MB_DEFBUTTON2 "$(DeleteData)" IDNO done' "$nsi" || fail "data removal is not confirmed with No as the default"
+grep -qx '      RMDir /r "$LOCALAPPDATA\\ElyOffice\\${SLUG}"' "$nsi" || fail "the removed tree is not the app's own data directory"
+grep -qx '      MessageBox MB_YESNO|MB_DEFBUTTON2 "$(DeleteData)" /SD IDNO IDNO +2' "$nsi" ||
+  fail "data removal is not confirmed with No as the default"
 if rustup target add x86_64-pc-windows-msvc >/dev/null 2>&1; then
   mkdir -p "$work/probe/src"
   printf '[package]\nname = "probe"\nversion = "0.0.0"\nedition = "2021"\n' >"$work/probe/Cargo.toml"
@@ -41,7 +49,7 @@ if rustup target add x86_64-pc-windows-msvc >/dev/null 2>&1; then
 else
   echo "SKIP installer-windows: msvc target is not installable, so the runtime link was not checked"
 fi
-if makensis -V1 -DAPP_SLUG=x -DVERSION=1 -DEXE="$work/app.exe" "$nsi" >/dev/null 2>&1; then
-  fail "an installer without APP_NAME built"
+if makensis -V1 -DVERSION=1 -DSTAGES="$stages" -DICONS="$root/assets/icons" -DOUTFILE="$work/x.exe" "$nsi" >/dev/null 2>&1; then
+  fail "a setup without APPS built"
 fi
-echo "installer-windows: 8 installers build; uninstall keeps documents and asks before data"
+echo "installer-windows: one setup with the first batch builds; uninstall keeps documents and asks before data"
