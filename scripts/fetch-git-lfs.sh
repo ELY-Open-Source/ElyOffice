@@ -11,7 +11,6 @@ case "$(uname -s)-$(uname -m)" in
   Darwin-arm64) asset=git-lfs-darwin-arm64-$version.zip sum=caff76a7d070d8160c89bc39b6e85d98f24135b6fed038a3b4de2590d25102d8 ;;
   Darwin-x86_64) asset=git-lfs-darwin-amd64-$version.zip sum=f1c17aeca0b4eaab9ea606226477dbed3b84b56fe0811a9f967d2ea2b2393c53 ;;
   Linux-x86_64) asset=git-lfs-linux-amd64-$version.tar.gz sum=e455e00f15d9b95661b8d53498ffb0c3367962cf1ec73c31ab7369516cd6ab8d ;;
-  Linux-aarch64) asset=git-lfs-linux-arm64-$version.tar.gz sum=ac9c8efac980bb0505ead384d087e2acb6486fd8498691a2165fa174ec6118c2 ;;
   MINGW*-x86_64 | MSYS*-x86_64)
     asset=git-lfs-windows-amd64-$version.zip sum=b62e7b8ceddee635f691233d77de8eaa4b213e9209e0173811d8cfa77f7882c1
     exec_dir=$root/engines/git/ucrt64/libexec/git-core git=$root/engines/git/cmd/git.exe exe=.exe

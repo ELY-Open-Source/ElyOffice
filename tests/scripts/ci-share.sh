@@ -19,6 +19,9 @@ version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
 mkdir -p "$work/bin"
 printf '#!/usr/bin/env bash\necho "{\\"total_count\\": 1}"\n' >"$work/bin/curl"
 chmod +x "$work/bin/curl"
+# The release check wants huacnlee/cargo; ci-upload.sh tests it.
+printf '#!/usr/bin/env bash\necho "cargo 1.101.0 (huacnlee/cargo 0.102.0-9)"\n' >"$work/bin/cargo"
+chmod +x "$work/bin/cargo"
 # A macOS clone whose packaging stub stops before any upload.
 attempt() { # name, setup; sets status, writes the output
   local clone=$work/$1

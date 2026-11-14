@@ -956,3 +956,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - PRD 改：PERF-01 由“不预加载未使用内核”改为登录后每个文档应用常驻一个空闲引擎，按物理内存少留或不留；UX-13 的启动画面改为启动动画，留到文档画出、载入失败或要密码；PERF-10 的“更新链接”由横幅改为状态栏或菜单；§4.2 与 §2 的第 4 条、QA-02 改为每个平台一个 ElyOffice 安装包，Windows、macOS 可选装，Linux 全装，更新换整套。
 - agents.md 与 `docs/standing.md`：规则 9 允许等待中的进度动画循环到等待结束；新增“安装包”“常驻引擎”“横幅”三条；“更新”改为每平台一份清单。
 - 发布平台与构建工具（Linux arm64 不出）随 SF.2 改；`docs/gaps.md` 的 PPTX 章节与 `docs/help.md` 的横幅说明随 SF.13、SF.15 的代码改；打包命令随 SF.6 改。
+
+## 2026-11-14 发布只用 huacnlee/cargo，不出 Linux arm64（SF.2，用户定）
+
+- Windows 构建机（7877）装上 huacnlee/cargo 0.102.0-9（`install.ps1`，原 rustup 代理留作 `cargo.rustup.exe`）；自托管运行器的服务以同一用户 `raidenmei` 运行，PATH 里是同一个 `~/.cargo/bin`。
+- `ci.sh` 在建任何东西前核对本机与（Linux）构建容器的 `cargo --version`，不带 `huacnlee/cargo` 即报错退出。
+- 其 Linux 发布版要 glibc 2.34，AlmaLinux 8 只有 2.28：镜像里以 Rust 1.100（其 cargo 要 1.99 起）从钉住的提交 e611c7a 建（`all-static`），换下 rustup 的代理（留作 `cargo.rustup`），关自更新。它不认 `CARGO_TARGET_DIR`，容器的产物不再在 `target/alma8`，与本机同在 `target/release`；实测容器建、本机建、容器再建，二进制依次要 glibc 2.28、2.34、2.28，容器再建即换回；打包后 `linux-glibc.sh` 仍把关。
+- `release.yml` 删 Linux arm64 任务（R19.7 所见它在托管机上建不完）；Linux 打包、OpenSSL、git-lfs 脚本的 aarch64 分支一并删。

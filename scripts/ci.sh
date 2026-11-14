@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A platform's release. Usage: ci.sh <macos|windows|linux|linux-arm64> <tag>
+# A platform's release. Usage: ci.sh <macos|windows|linux> <tag>
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -10,7 +10,7 @@ if [ "$(uname -s)" = Darwin ] && [ "${BASH_VERSINFO[0]}" -lt 5 ]; then
 fi
 # Python's UTF-8 mode: a service's console is cp1252 on Windows.
 export PYTHONUTF8=1
-os=${1:?macos, windows, linux or linux-arm64}
+os=${1:?macos, windows or linux}
 tag=${2:?the release tag, such as v0.1.3}
 version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
 [ "$tag" = "v$version" ] || {
@@ -22,9 +22,7 @@ python3 "$root/scripts/compatibility.py" --check
 # The notes count unreviewed fixes, explain a short gap.
 python3 "$root/scripts/release-gate.py" "$version"
 # This system's benchmark of this version, slowdowns explained.
-case $os in
-  macos | windows | linux) python3 "$root/tests/perf/baseline.py" --check "$version" "$os" ;;
-esac
+python3 "$root/tests/perf/baseline.py" --check "$version" "$os"
 : "${ELY_RELEASE_TOKEN:?the GitHub token that uploads}"
 repo=ELY-Open-Source/ElyOffice
 api=https://api.github.com/repos/$repo
@@ -50,8 +48,24 @@ cd "$root"
 # Linux builds and packages in the AlmaLinux 8 container.
 inside=()
 case $os in
-  linux | linux-arm64) inside=(packaging/linux/container.sh) ;;
+  macos | windows) ;;
+  linux) inside=(packaging/linux/container.sh) ;;
+  *)
+    echo "ci.sh: no release for $os" >&2
+    exit 1
+    ;;
 esac
+# Releases build with huacnlee/cargo only.
+fork() { # the command it runs in
+  local got
+  got=$("$@" cargo --version)
+  [[ $got == *huacnlee/cargo* ]] || {
+    echo "ci.sh: ${*:-this host} has $got, not huacnlee/cargo (https://huacnlee.github.io/cargo/)" >&2
+    exit 1
+  }
+}
+fork
+[ ${#inside[@]} -eq 0 ] || fork "${inside[@]}"
 
 # Intel Macs run under Rosetta: x86_64 Rust, pinned OpenSSL.
 intel=
@@ -62,7 +76,7 @@ if [ "$os" = macos ] && [ "$(uname -s)-$(uname -m)" = Darwin-x86_64 ]; then
 fi
 # Linux's MuPDF links the pinned static OpenSSL too.
 pinned_ssl=
-if [ -n "$intel" ] || [ "$os" = linux ] || [ "$os" = linux-arm64 ]; then
+if [ -n "$intel" ] || [ "$os" = linux ]; then
   pinned_ssl=1
 fi
 
@@ -115,15 +129,11 @@ case $os in
     for slug in $batch; do packaging/windows/installer.sh "$slug"; done
     packaging/windows/bundle.sh
     ;;
-  linux | linux-arm64)
+  linux)
     for slug in $batch; do ${inside[@]+"${inside[@]}"} packaging/linux/package.sh "$slug"; done
     ${inside[@]+"${inside[@]}"} packaging/linux/bundle.sh
     # The packaged binaries need AlmaLinux 8's glibc at most.
     ${inside[@]+"${inside[@]}"} tests/scripts/linux-glibc.sh
-    ;;
-  *)
-    echo "ci.sh: no release for $os" >&2
-    exit 1
     ;;
 esac
 

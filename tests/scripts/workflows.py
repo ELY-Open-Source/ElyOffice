@@ -14,8 +14,8 @@ except ImportError:
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # The one runner pull requests may use: GitHub's, by name.
 HOSTED = "ubuntu-24.04"
-# GitHub's free arm64 host, for Linux arm64 releases.
-ARM = "ubuntu-24.04-arm"
+# The release jobs, all on our own machines.
+RELEASES = {"macos", "macos-intel", "windows", "linux"}
 BASE = "${{ github.event.pull_request.base.sha || github.event.before }}"
 
 
@@ -59,8 +59,28 @@ def pr_faults(jobs, libraries):
     return faults
 
 
+def fleet_faults(jobs):
+    faults = []
+    if set(jobs) != RELEASES:
+        faults.append(f"release jobs are {sorted(jobs)}, not {sorted(RELEASES)}")
+    for name, job in jobs.items():
+        runner = job.get("runs-on")
+        if not isinstance(runner, list) or "self-hosted" not in runner:
+            faults.append(f"release {name} runs on {runner!r}, not our own machine")
+    return faults
+
+
 failed = []
 jobs = yaml.safe_load(read(".github", "workflows", "release.yml"))["jobs"]
+failed += fleet_faults(jobs)
+bad = copy.deepcopy(jobs)
+bad["linux"]["runs-on"] = "ubuntu-24.04"
+if not fleet_faults(bad):
+    failed.append("release linux on GitHub's host passes")
+bad = copy.deepcopy(jobs)
+bad["linux-arm64"] = copy.deepcopy(bad["linux"])
+if not fleet_faults(bad):
+    failed.append("a fifth release job passes")
 for name, job in jobs.items():
     if "needs" in job:
         failed.append(f"release {name} waits for {job['needs']}: one platform's failure stops another")
@@ -100,52 +120,28 @@ for name, call in MAC_CI.items():
             failed.append(f"release {name} starting ci.sh {how} passes")
 
 
-# Linux x86_64 on the Omarchy host; arm64 on GitHub's.
-LINUX_CI = {
-    "linux": (["self-hosted", "omarchy-amd64"], '"$dir/scripts/ci.sh" linux "${{ github.ref_name }}"'),
-    "linux-arm64": (ARM, 'bash scripts/ci.sh linux-arm64 "${{ github.ref_name }}"'),
-}
+# Linux x86_64 on the Omarchy host.
+LINUX_RUNNER = ["self-hosted", "omarchy-amd64"]
+LINUX_CALL = '"$dir/scripts/ci.sh" linux "${{ github.ref_name }}"'
 
 
 def linux_faults(jobs):
+    job = jobs["linux"]
     faults = []
-    for name, (runner, call) in LINUX_CI.items():
-        job = jobs.get(name)
-        if job is None:
-            faults.append(f"release {name} is missing")
-            continue
-        if job.get("runs-on") != runner:
-            faults.append(f"release {name} runs on {job.get('runs-on')!r}, not {runner!r}")
-        if not any(line.strip().endswith(call) for line in runs(job).splitlines()):
-            faults.append(f"release {name} does not start ci.sh for its platform ({call})")
+    if job.get("runs-on") != LINUX_RUNNER:
+        faults.append(f"release linux runs on {job.get('runs-on')!r}, not {LINUX_RUNNER!r}")
+    if not any(line.strip().endswith(LINUX_CALL) for line in runs(job).splitlines()):
+        faults.append(f"release linux does not start ci.sh for its platform ({LINUX_CALL})")
     return faults
 
 
-def linux_run(name, old, new):
-    """The jobs with one Linux job's ci.sh call changed."""
-    bad = copy.deepcopy(jobs)
-    for step in bad[name]["steps"]:
-        if "run" in step:
-            step["run"] = step["run"].replace(old, new)
-    if bad == jobs:
-        failed.append("a Linux counterexample changed nothing")
-    return bad
-
-
 failed += linux_faults(jobs)
-# Each must be caught: labels, platform, swap, shebang.
 bad = copy.deepcopy(jobs)
-bad["linux-arm64"]["runs-on"] = ["self-hosted", "omarchy-amd64"]
-if not linux_faults(bad):
-    failed.append("release linux-arm64 on a self-hosted runner passes")
-if not linux_faults(linux_run("linux-arm64", "linux-arm64", "linux")):
-    failed.append("release linux-arm64 as x86_64 passes")
-bad = copy.deepcopy(jobs)
-bad["linux"], bad["linux-arm64"] = bad["linux-arm64"], bad["linux"]
-if not linux_faults(bad):
-    failed.append("release Linux jobs swapped pass")
-if not linux_faults(linux_run("linux-arm64", "bash scripts/ci.sh", '"$GITHUB_WORKSPACE/scripts/ci.sh"')):
-    failed.append("release linux-arm64 started by its shebang passes")
+for step in bad["linux"]["steps"]:
+    if "run" in step:
+        step["run"] = step["run"].replace(LINUX_CALL, LINUX_CALL.replace(" linux ", " macos "))
+if bad == jobs or not linux_faults(bad):
+    failed.append("release linux started as another platform passes")
 
 ci = read("scripts", "ci.sh")
 gate, package = ci.find("\nscripts/release-tests.sh\n"), ci.find("\ndist=$root/dist\n")
@@ -155,30 +151,6 @@ if gate < 0 or package < 0 or gate > package:
 pr = yaml.safe_load(read(".github", "workflows", "pr.yml"))["jobs"]
 libraries = re.findall(r"\blib\S+-dev\b", re.search(r"^sudo apt install .*$", read("README.md"), re.M).group(0))
 failed += pr_faults(pr, libraries)
-
-# The arm64 host needs GStreamer for the gate.
-GSTREAMER = ["libgstreamer-plugins-base1.0-0", "gstreamer1.0-plugins-base", "gstreamer1.0-plugins-good", "gstreamer1.0-libav"]
-GATE_DEPS = set(libraries) | set(GSTREAMER)
-
-
-def host_faults(jobs):
-    """The arm64 job installs the gate's host packages."""
-    job = jobs.get("linux-arm64")
-    if job is None:
-        return ["release linux-arm64 is missing"]
-    missing = sorted(GATE_DEPS - installed(job))
-    if missing:
-        return [f"release linux-arm64 lacks {missing} on a plain apt-get install line"]
-    return []
-
-
-failed += host_faults(jobs)
-bad = copy.deepcopy(jobs)
-for step in bad["linux-arm64"]["steps"]:
-    if "run" in step:
-        step["run"] = step["run"].replace("gstreamer1.0-libav", "# gstreamer1.0-libav")
-if not host_faults(bad):
-    failed.append("GStreamer only in a comment passes")
 
 # Each must be caught: our labels, expressions, groups, comments.
 name = next(iter(pr))
@@ -223,5 +195,5 @@ if not pr_faults(bad, libraries):
 
 if failed:
     sys.exit("FAIL: " + "; ".join(failed))
-print(f"PASS: {len(jobs)} release jobs stand alone behind the test gate, macOS under bash 5, Linux arm64 on {ARM}; "
+print(f"PASS: {len(jobs)} release jobs stand alone behind the test gate, macOS under bash 5, all on our own machines; "
       f"{len(pr)} pr jobs stay on {HOSTED}, install README's libraries and count panics against the base")

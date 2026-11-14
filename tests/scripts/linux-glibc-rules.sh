@@ -21,7 +21,7 @@ fail() {
 }
 # A tree holding only what linux-glibc.sh reads.
 tree=$work/tree
-mkdir -p "$tree/tests/scripts" "$tree/target/alma8/release" "$tree/engines/lo-src/instdir/program" "$tree/engines/git/bin"
+mkdir -p "$tree/tests/scripts" "$tree/target/release" "$tree/engines/lo-src/instdir/program" "$tree/engines/git/bin"
 cp "$root/tests/scripts/linux-glibc.sh" "$tree/tests/scripts/"
 # No start files: only exit@GLIBC_2.2.5 is needed.
 printf '#include <stdlib.h>\nstatic int x;\nint *p = &x;\nvoid _start(void) { exit(*p); }\n' >"$work/old.c"
@@ -34,7 +34,7 @@ cc -nostartfiles -fPIE -pie -o "$work/new" "$work/new.c"
 printf '#define _GNU_SOURCE\n#include <stdlib.h>\n#include <unistd.h>\nvoid _start(void) { exit((int)(gettid() & 0)); }\n' >"$work/near.c"
 cc -nostartfiles -fPIE -pie -o "$work/near" "$work/near.c"
 for name in doc table show pdf mail tree mark lok-worker pdf-worker; do
-  cp "$work/old" "$tree/target/alma8/release/ely-$name"
+  cp "$work/old" "$tree/target/release/ely-$name"
 done
 cp "$work/old" "$tree/engines/lo-src/instdir/program/libmergedlo.so"
 cp "$work/old" "$tree/engines/git/bin/git"
@@ -44,16 +44,16 @@ expect() { # pass or fail, the said text, case
   grep -qF "$2" "$work/out" || fail "$3: said $(cat "$work/out"), want $2"
 }
 expect pass "need GLIBC_2.28" "only GLIBC_2.2.5"
-cp "$work/relr" "$tree/target/alma8/release/ely-mail"
+cp "$work/relr" "$tree/target/release/ely-mail"
 expect fail "needs GLIBC_ABI_DT_RELR" "packed relocations"
-cp "$work/new" "$tree/target/alma8/release/ely-mail"
+cp "$work/new" "$tree/target/release/ely-mail"
 expect fail "ely-mail needs GLIBC 2.36, above 2.28" "a symbol from glibc 2.36"
-cp "$work/near" "$tree/target/alma8/release/ely-mail"
+cp "$work/near" "$tree/target/release/ely-mail"
 expect fail "ely-mail needs GLIBC 2.30, above 2.28" "a symbol from glibc 2.30"
 # Without readelf the check fails; it never skips.
 mkdir "$work/bin"
 ln -s "$(command -v dirname)" "$work/bin/dirname"
-cp "$work/old" "$tree/target/alma8/release/ely-mail"
+cp "$work/old" "$tree/target/release/ely-mail"
 if PATH=$work/bin "$BASH" "$tree/tests/scripts/linux-glibc.sh" >"$work/out" 2>&1; then
   fail "no readelf: linux-glibc.sh passed ($(cat "$work/out"))"
 fi

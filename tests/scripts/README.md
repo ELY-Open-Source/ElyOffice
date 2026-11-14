@@ -24,10 +24,10 @@ tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享
 tests/scripts/waits.py           测试里的 `thread::sleep`（测试文件、测试代码以 `mod x;` 引入的文件、`#[cfg(test)]` 模块与 `#[test]` 函数）：在轮询某个条件的循环里（`while`、`loop`、`.any(`，或以自己的 `break`、`return` 出来的 `for _ in`），或上一行、所在循环的上一行以注释写明这段时间代表什么（check.sh 调用）
 tests/scripts/release-gate.sh    发布的门的规则：更新日志里 `[~]` 的数目须与进度表相符，距上一版不足七天须写原因（`scripts/release-gate.py`）；本系统须有这一版的基准记录，较上一份慢过三成且多出 10 毫秒的各项须写原因（`tests/perf/baseline.py`）（pr.yml 调用）
 tests/scripts/records.py         TASKS、BUGS、BugList、decisions 引用的库内文件都在，否则标“（已移除）”；引用 .work/ 须标“（本机，未入库）”；`[x]` 而自己末轮审查是 FAIL 的条目，行里须写明“某编号 复审通过”且那个编号末轮是 PASS（pr.yml 调用）
-tests/scripts/workflows.py       release.yml 的任务互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 的 runs-on 恰为 ubuntu-24.04、以整行的 `[sudo] apt-get install` 装齐 README 的库、严格模式、panic 数比基线提交（各带反例）
+tests/scripts/workflows.py       release.yml 恰为 macos、macos-intel、windows、linux 四个任务，都在自托管机器上，互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 的 runs-on 恰为 ubuntu-24.04、以整行的 `[sudo] apt-get install` 装齐 README 的库、严格模式、panic 数比基线提交（各带反例）
 tests/scripts/lo-tarballs.sh     `packaging/lo-tarballs.tsv` 的散列与 `download.lst` 一致、地址是 LibreOffice 的镜像、本机构建所取都在其中（Windows 经 Cygwin）
 tests/scripts/source-rules.sh    source.sh 把已取与下载的外部库按内容打包，散列不符或取不到即失败、不出包（假 curl）
-tests/scripts/ci-upload.sh       ci.sh 的上传：测试的门建好 worker 后点名它们再跑测试，测试失败即一个不传，Linux 的包过不了 glibc 的上限也不传；兼容清单、发布说明、基准记录三道门任一失败或该提交的 `pr.yml` 未通过即不建也不传；Linux 另传装全部应用的 `ely-office` 包；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
+tests/scripts/ci-upload.sh       ci.sh 的上传：本机或构建容器的 cargo 不是 huacnlee/cargo 即不建也不传；测试的门建好 worker 后点名它们再跑测试，测试失败即一个不传，Linux 的包过不了 glibc 的上限也不传；兼容清单、发布说明、基准记录三道门任一失败或该提交的 `pr.yml` 未通过即不建也不传；Linux 另传装全部应用的 `ely-office` 包；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
 tests/scripts/linux-packages.sh  deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库；装全部应用的 `ely-office` 包同样装上，顶替先装的 ElyTree 单包，ElyDoc 的内核是共用的那一份
 tests/scripts/linux-pins.sh      Linux 打包工具（appimagetool、linuxdeploy、运行时、nfpm）的下载与钉的散列相符
 tests/scripts/linux-installed.sh installed|appimage  Hyprland 上装好的首批七个应用或 AppImage：一个窗口、随 Omarchy（Catppuccin）、读出页面文字（PDF、Markdown 经各自引擎），ElyTree 随换主题到 Latte（grim 按窗口截取）

@@ -13,7 +13,7 @@ scripts/build-openssl.sh       构建钉住的静态 OpenSSL 至 engines/openssl
 scripts/build-bash.sh [目录]   构建钉住的 GNU bash 5.3 为 x86_64，默认装到 ~/ely-share/bash-x86_64（Intel 版发布在 Rosetta 下以它跑 ci.sh；核散列与架构）
 scripts/review.sh ID 轮次 路径  审查一条任务：herdr 里另一个 Claude Code 审查，结论进 `tasks/reviews/`；细则见 `tests/scripts/README.md` 的 review-rules.sh
 scripts/apply-lo-patches.sh engines/lo-src  源码已到补丁序列第几个，补上其余（构建脚本调用）
-packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；目标在 target/alma8）
+packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；cargo 是镜像里从源码建的 huacnlee/cargo，其发布版要 glibc 2.34；产物与本机同在 target/release，镜像里再建即换回）
 packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）；包的依赖带 glibc 的版本下限（包内文件所需的最高版本）；libdbus 与它载入的库用系统的；`bundle.sh` 再出装全部应用的 `ely-office` 包（deb、rpm、Arch），三个文档应用共用一份内核
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发后提交）

@@ -22,12 +22,9 @@ grep -q "$deploy/linuxdeploy-\$arch.AppImage" "$script" || fail "the script down
 grep -q "$runtime/runtime-\$arch" "$script" || fail "the script downloads another runtime"
 grep -q "$nfpm/nfpm_2.47.0_Linux_\$nfpm_arch.tar.gz" "$script" || fail "the script downloads another nfpm"
 grep -q -- '--runtime-file "\$runtime"' "$script" || fail "appimagetool fetches its own runtime"
-for pair in x86_64:x86_64 aarch64:arm64; do
-  arch=${pair%:*}
-  for url in "$pack/appimagetool-$arch.AppImage" "$deploy/linuxdeploy-$arch.AppImage" "$runtime/runtime-$arch" \
-    "$nfpm/nfpm_2.47.0_Linux_${pair#*:}.tar.gz"; do
-    sha=$(curl -fsSL "$url" | shasum -a 256 | cut -d' ' -f1)
-    grep -q "$sha" "$script" || fail "$url has sha256 $sha, which the script does not pin"
-  done
+for url in "$pack/appimagetool-x86_64.AppImage" "$deploy/linuxdeploy-x86_64.AppImage" "$runtime/runtime-x86_64" \
+  "$nfpm/nfpm_2.47.0_Linux_x86_64.tar.gz"; do
+  sha=$(curl -fsSL "$url" | shasum -a 256 | cut -d' ' -f1)
+  grep -q "$sha" "$script" || fail "$url has sha256 $sha, which the script does not pin"
 done
-echo "linux-pins: 8 downloads match their pins"
+echo "linux-pins: 4 downloads match their pins"

@@ -15,13 +15,19 @@ RUN dnf install -y dnf-plugins-core epel-release \
 # New C++ links in statically; old libstdc++ serves.
 ENV PATH=/opt/rh/gcc-toolset-15/root/usr/bin:/opt/cargo/bin:$PATH RUSTUP_HOME=/opt/rustup
 # As rust-toolchain.toml pins it.
-RUN case $(uname -m) in \
-      x86_64) sum=5be191e8c70a5007074254cb74d78dbfdd25cd5a61c27de7b8e5410122ec24f4 ;; \
-      aarch64) sum=a9c168dbea81a84671c6b7a5c1795cb0eb699020110d107ddfca427bd797e697 ;; \
-    esac \
-  && curl -fsSL -o /tmp/rustup-init "https://static.rust-lang.org/rustup/archive/1.29.2/$(uname -m)-unknown-linux-gnu/rustup-init" \
-  && echo "$sum  /tmp/rustup-init" | sha256sum -c - \
+RUN curl -fsSL -o /tmp/rustup-init https://static.rust-lang.org/rustup/archive/1.29.2/x86_64-unknown-linux-gnu/rustup-init \
+  && echo "5be191e8c70a5007074254cb74d78dbfdd25cd5a61c27de7b8e5410122ec24f4  /tmp/rustup-init" | sha256sum -c - \
   && chmod +x /tmp/rustup-init \
   && CARGO_HOME=/opt/cargo /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain 1.98.1 -c rustfmt,clippy \
   && rm /tmp/rustup-init \
+  && chmod -R a+rX /opt/rustup /opt/cargo
+# huacnlee/cargo 0.102.0-9; its release binary needs glibc 2.34.
+ENV CARGO_FORK_AUTO_UPDATE=0
+RUN CARGO_HOME=/opt/cargo rustup toolchain install 1.100.0 --profile minimal \
+  && CARGO_HOME=/tmp/fork-home cargo +1.100.0 install --locked --features all-static --root /tmp/fork \
+    --git https://github.com/huacnlee/cargo --rev e611c7a874df37e3a44338b6fb38993398f4bd94 cargo \
+  && mv /opt/cargo/bin/cargo /opt/cargo/bin/cargo.rustup \
+  && mv /tmp/fork/bin/cargo /opt/cargo/bin/cargo \
+  && rustup toolchain uninstall 1.100.0 \
+  && rm -rf /tmp/fork /tmp/fork-home \
   && chmod -R a+rX /opt/rustup /opt/cargo

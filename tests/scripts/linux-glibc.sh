@@ -11,7 +11,7 @@ fail() {
 }
 # A gate: a missing tool fails, never skips.
 command -v readelf >/dev/null || fail "no readelf to read the versions with"
-release=$root/target/alma8/release
+release=$root/target/release
 lo=$root/engines/lo-src/instdir/program
 required=("$release"/ely-{doc,table,show,pdf,mail,tree,mark,lok-worker,pdf-worker} "$lo/libmergedlo.so"
   "$root/engines/git/bin/git")

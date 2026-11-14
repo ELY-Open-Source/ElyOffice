@@ -52,14 +52,6 @@ case $arch in
     runtime_sha=2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
     nfpm_sha=0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783
     ;;
-  aarch64)
-    goarch=arm64
-    nfpm_arch=arm64
-    pack_sha=f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
-    deploy_sha=620095110d693282b8ebeb244a95b5e911cf8f65f76c88b4b47d16ae6346fcff
-    runtime_sha=00cbdfcf917cc6c0ff6d3347d59e0ca1f7f45a6df1a428a0d6d8a78664d87444
-    nfpm_sha=1c0f5f2999b9a974bfb04fdb0cc3306096de530ac5dbb25d739cc5f5219c919c
-    ;;
   *)
     echo "package.sh: no packaging tools for $arch" >&2
     exit 1

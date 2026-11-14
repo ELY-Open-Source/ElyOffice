@@ -11,7 +11,6 @@ broken() {
 arch=$(uname -m)
 case $arch in
   x86_64) goarch=amd64 ;;
-  aarch64) goarch=arm64 ;;
   *) broken "no package for $arch" ;;
 esac
 nfpm=$root/engines/nfpm-2.47.0-$arch

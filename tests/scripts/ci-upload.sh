@@ -49,6 +49,7 @@ export CARGO_LOG=$work/cargo.log
 cat >"$work/bin/cargo" <<'EOF'
 #!/usr/bin/env bash
 [ "$1" != metadata ] || { echo '{"target_directory": "/built"}'; exit 0; }
+[ "$1" != --version ] || { echo "cargo 1.101.0 (${CARGO_IS:-huacnlee/cargo 0.102.0-9})"; exit 0; }
 echo "$* | engines=${ELY_REQUIRE_ENGINES:-} incremental=${CARGO_INCREMENTAL:-} workers=${ELY_LOK_WORKER:-},${ELY_PDF_WORKER:-}" >>"$CARGO_LOG"
 [ "$1" != "${CARGO_FAILS:-}" ] || { echo "cargo $1 failed"; exit 101; }
 EOF
@@ -73,7 +74,8 @@ clone() { # os
   write tests/scripts/linux-glibc.sh '[ -z "${GLIBC_FAILS:-}" ]'
   write packaging/sign.sh 'for f; do echo signed >"$f.sig"; done'
   write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.dmg dist/app-$1.json; packaging/source.sh dist"
-  write packaging/linux/container.sh 'exec "$@"'
+  # The container's Cargo may differ from the host's.
+  write packaging/linux/container.sh 'CARGO_IS=${INSIDE_IS:-${CARGO_IS:-}} exec "$@"'
   write packaging/linux/package.sh "mkdir -p dist; touch dist/\$1-$1.AppImage dist/\$1-$1.json"
   write packaging/linux/bundle.sh "touch dist/ely-office-$1.deb"
 }
@@ -118,6 +120,20 @@ for check in compatibility.py release-gate.py baseline.py pr; do
   [ ! -s "$STATE" ] || fail "linux uploaded past a failing $check: $(cat "$STATE")"
   rm -rf "${work:?}/linux"
 done
+# Standard Cargo, on a host or inside, builds nothing.
+while read -r os host inside where; do
+  clone "$os"
+  : >"$CARGO_LOG"
+  ! CARGO_IS=${host#-} INSIDE_IS=${inside#-} go "$os" || fail "$os released with standard Cargo in $where"
+  grep -q "${where//-/ } has cargo .*, not huacnlee/cargo" "$work/$os.out" || fail "$os did not name $where: $(cat "$work/$os.out")"
+  [ ! -s "$CARGO_LOG" ] || fail "$os built with standard Cargo in $where: $(cat "$CARGO_LOG")"
+  [ ! -s "$STATE" ] || fail "$os uploaded with standard Cargo in $where: $(cat "$STATE")"
+  rm -rf "${work:?}/$os"
+done <<'EOF'
+macos rust-lang - this-host
+linux rust-lang - this-host
+linux - rust-lang packaging/linux/container.sh
+EOF
 # Linux packages past the glibc ceiling upload nothing.
 clone linux
 ! GLIBC_FAILS=1 go linux || fail "linux released past the glibc check"
@@ -151,26 +167,4 @@ grep -q "replacing ElyOffice-V-c0ffee-source.tar.gz" "$work/linux.out" || fail "
 [ "$(uploads '-source.tar' linux)" -eq 3 ] || fail "the rerun lost the source: $(cat "$STATE")"
 [ -z "$(comm -12 <(echo "$ids") <(awk '$3 == "linux" { print $1 }' "$STATE" | sort))" ] ||
   fail "an old upload stayed: $(cat "$STATE")"
-# GitHub's arm64 host: same gate, packages only, no source.
-linux=$(grep ' linux$' "$STATE")
-mac=$(grep ' macos$' "$STATE")
-: >"$CARGO_LOG"
-run linux-arm64
-[ "$(cat "$CARGO_LOG")" = "$gate" ] || fail "Linux arm64 gate ran: $(cat "$CARGO_LOG")"
-[ "$(uploads 'ely-doc-linux-arm64.json.sig' linux-arm64)" -eq 1 ] ||
-  fail "Linux arm64 left a manifest unsigned: $(cat "$STATE")"
-[ "$(uploads 'source' linux-arm64)" -eq 0 ] || fail "Linux arm64 uploaded source: $(cat "$STATE")"
-[ "$(awk '{ print $2 }' "$STATE" | sort | uniq -d)" = "" ] || fail "a name twice: $(cat "$STATE")"
-# A rerun replaces only Linux arm64's files.
-arm=$(awk '$3 == "linux-arm64" { print $1 }' "$STATE" | sort)
-rm -rf "$work/linux-arm64"
-run linux-arm64
-grep -q "replacing ely-doc-linux-arm64.json" "$work/linux-arm64.out" ||
-  fail "the arm64 rerun: $(cat "$work/linux-arm64.out")"
-[ "$(grep ' linux$' "$STATE")" = "$linux" ] || fail "the arm64 rerun touched x86_64 Linux: $(cat "$STATE")"
-[ "$(grep ' macos$' "$STATE")" = "$mac" ] || fail "the arm64 rerun touched macOS: $(cat "$STATE")"
-[ "$(uploads 'source' linux-arm64)" -eq 0 ] || fail "the arm64 rerun uploaded source: $(cat "$STATE")"
-[ -z "$(comm -12 <(echo "$arm") <(awk '$3 == "linux-arm64" { print $1 }' "$STATE" | sort))" ] ||
-  fail "an old arm64 upload stayed: $(cat "$STATE")"
-[ "$(awk '{ print $2 }' "$STATE" | sort | uniq -d)" = "" ] || fail "a name twice after the arm64 rerun: $(cat "$STATE")"
 echo "ci-upload: strict gate first; x86_64 Linux alone uploads source; reruns replace their own"

@@ -11,7 +11,6 @@ case "$(uname -s)-$arch" in
   Darwin-x86_64) target=darwin64-x86_64-cc ;;
   Darwin-arm64) target=darwin64-arm64-cc ;;
   Linux-x86_64) target=linux-x86_64 ;;
-  Linux-aarch64) target=linux-aarch64 ;;
   *)
     echo "build-openssl.sh: no build for $(uname -s)-$arch" >&2
     exit 1
