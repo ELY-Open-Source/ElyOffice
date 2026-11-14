@@ -146,6 +146,22 @@ Windows 上的热启动对照（2026-11-14，Windows 11 虚拟机，发行构建
 
 接管空闲引擎省下等引擎的 0.3 至 1.0 秒，冷启动省下 7 至 10 秒；冷启动 Doc、Table 已快过 Office，热启动三个都还慢 0.2 至 1.1 秒。剩下的差在载入与首个图块（SF.16、SF.18）。
 
+### SF.5 旧版升级（2026-11-14）
+
+查的是 0.1.16 的更新代码（`crates/ely-ui/src/updates.rs`、`ely_platform::install` 与 `update`，此后未改）、它的测试，与 Windows 测试机（7877）上装着的 0.1.16。
+
+0.1.16 怎么找新版：每个应用读 `<应用>-<平台>.json`（如 `ely-doc-windows-x86_64.json`），签名与文件名绑在一起（`signature::verify` 带上清单的文件名）。统一包若只出一份 `ely-office-<平台>.json`，旧版读不到，永远看不见新版。旧版要能升，每个平台照旧发七份每应用的清单，都指向统一包，散列相同。这七份是过渡，旧版都升完后删。
+
+| 平台 | 0.1.16 装更新的办法 | 能不能直接装下统一包 |
+| --- | --- | --- |
+| Windows | 应用退出后，PowerShell 等它的进程结束，跑 `setup.exe /S /D=<应用目录>`（测试 `a_windows_setup_runs_silent_into_the_folder_then_the_app_reopens` 核对过参数，不加引号）；退出码 2 即文件被占，每秒重试，至多 20 次；之后起原来的 `<应用目录>\<slug>.exe` | 能，统一安装程序须做到三条：静默安装时只勾注册表 `HKCU\Software\Ely Office\<名字>` 里已有的应用，每个装回它自己的 `InstallDir`，不论在哪（0.1.16 的单应用安装程序可让每个应用各选文件夹，名字也不必是 `<名字>`，如 `D:\Tools\文档`；0.1.16 每次安装都写这个值）；`/D` 指向带 `.ely-installed` 的应用目录时，把它的上一级当安装根，只用来放 `uninstall.exe`，分散安装时即第一个升级的应用的上一级；`<slug>.exe` 仍在该应用目录的顶层，旧版重开的正是它。测试机上的 0.1.16 是默认布局：七个 `InstallDir` 都在 `...\Programs\Ely Office\<名字>`，七个卸载项“Ely Office <名字>”。`windows-installer.sh` 的更新一例把应用目录交给 `/D`，`windows-setup.sh` 一例把一个应用挪到别处、只改它的 `InstallDir` |
+| macOS | 挂上 dmg，取出同名 `.app` 换上 | 不能：`.pkg` 不是磁盘映像，`hdiutil attach` 失败，记一条失败说明后重开旧版。macOS 不发每应用的清单，旧版用户手动下一次 `.pkg` |
+| AppImage | 新文件复制到旧 AppImage 的原路径（文件名不变，如 `ElyDoc-0.1.16-linux-x86_64.AppImage`），再起它 | 能换上，但换上的统一 AppImage 不带参数起来时须知道起哪个应用。0.1.16 只交出原路径，不带应用名；文件名里有应用名（下载时的名字）即由它定。用户改过名的（如 `doc.AppImage`）认不出：此时显示七个应用的选择窗，用户点哪个起哪个，不猜（SF.21 做）。七个旧 AppImage 各自下一份，每份约 390 MB |
+| deb、rpm、Arch | 包管理器 | 能：`ely-office` 已声明替换并冲突七个单包 |
+| Nix | 不查也不提示：`install::running` 见 `/nix/store` 即返回无，`updates.rs` 记一行“no check” | 用户改 flake 才升。常设决定要 Nix 只提示，0.1.16 没做到，SF.9 补上 |
+
+Windows 的代价：开着的每个旧应用各自下一份约 270 MB 的统一包。第一个装完后，其余的再装是同一版本的重装，结果相同。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：
@@ -287,7 +303,7 @@ Ely 与它的三处不同：三个应用都常驻，不只是文字；不给开�
 - Windows：统一安装程序读到已有的单应用安装（注册表 `Software\Ely Office\<名字>`），预先勾上它们，装到原位，删掉它们各自的卸载项。
 - macOS：`.pkg` 就地替换“应用程序”里的同名应用。
 - Linux：`ely-office` 包已声明替换并冲突七个单包，装上即换掉。
-- 旧版的自动更新是个坎：0.1.16 查的是每应用的清单（如 `ely-doc-windows-x86_64.json`）。macOS 的旧版只会从 dmg 里取同名应用，装不了 `.pkg`，这些用户要手动下载一次。Windows 与 AppImage 的旧版能不能直接装下统一包，未查。做之前逐端查清，查清前不写成“可自动升级”。
+- 旧版的自动更新是个坎：0.1.16 查的是每应用的清单（如 `ely-doc-windows-x86_64.json`）。macOS 的旧版只会从 dmg 里取同名应用，装不了 `.pkg`，这些用户要手动下载一次。Windows 与 AppImage 的旧版能装下统一包，条件见“SF.5 旧版升级”。
 
 **随之要改的。** `scripts/ci.sh`、`packaging/windows` 的 `installer.nsi` 与 `bundle.nsi`（合成一个）、`packaging/macos/release.sh`、`packaging/linux` 的 `package.sh` 与 `bundle.sh`、`packaging/nix.sh` 与 `flake.nix`、`packaging/winget.sh`、`packaging/manifest.sh`、`crates/ely-ui/src/updates.rs`、`ely_platform::install`、官网的 `site/worker`（下载项里 dmg 改 pkg，加 AppImage）、README、`docs/help.md`，以及 `tests/scripts` 里核对安装布局的脚本（`installer-windows.sh`、`windows-installer.sh`、`windows-bundle.sh`、`windows-types.sh` 等）。
 

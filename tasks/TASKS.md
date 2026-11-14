@@ -667,7 +667,7 @@
 - [x] SF.2 构建工具与发布的平台（SF-21）：Windows 机（7877）装 huacnlee/cargo 并核对自托管任务用的是同一个；`scripts/ci.sh` 开头见标准 Cargo 即报错退出；`release.yml` 去掉 Linux arm64，“都上传才设为最新”改为四端；常设决定“仓库与发布”同改
 - [x] SF.3 应用与引擎之间的通道改为只给本用户的端点（Windows 带访问控制的命名管道，macOS、Linux 0600 的 Unix 套接字），应用自己起的引擎也走它；握手交换应用版本与内核编号，内核编号文件由打包写进内核目录；`ely-ipc` 帧格式不变
 - [x] SF.4 常驻引擎（SF-07）：`ely-doc|ely-table|ely-show engine` 与 `engine stop`；应用接管空闲的（含正在起的），握手不符的空闲引擎自己退出；文档画出后以最低优先级起接班的；按物理内存定留几个；空闲不在时自己起并记一行；Windows 测试机重量热启动
-- [ ] SF.5 旧版升级逐端查清：0.1.16 的 Windows 安装程序、macOS 的 dmg 换应用、AppImage 能否直接装下统一包，查清写进 `SuperFast.md`
+- [x] SF.5 旧版升级逐端查清：0.1.16 的 Windows 安装程序、macOS 的 dmg 换应用、AppImage 能否直接装下统一包，查清写进 `SuperFast.md`
 - [ ] SF.6 Windows 统一安装程序（SF-19）：一个 `ElyOffice-<版本>-windows-x86_64-setup.exe`，七个应用各一个勾，“应用和功能”只一项；保留事务性；从 0.1.16 单应用安装升上来并删其卸载项；`ci.sh` 与 `tests/scripts` 的安装布局脚本随之改
 - [ ] SF.7 Windows 共用内核（SF-04）：内核在 `Programs\Ely Office\Kernel`，内容取并集（带 Impress 模板），各应用的 `libreoffice` 是目录联接，内核是隐藏节、三个文档应用都没选时不装；卸载最后一个文档应用时删内核；不对含联接的目录用 `RMDir /r`；WinGet 一份 `ZacharyZhang.ElyOffice`
 - [ ] SF.8 Windows 登录后自启与安装时起引擎：当前用户 `Run` 值“Ely Office”指向内核旁的小程序，后台优先级起每个已装文档应用的引擎；安装前 `engine stop`、装完 `engine`；卸载时删 `Run` 值；量安装后首次
