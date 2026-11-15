@@ -73,4 +73,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("table.protect.autofilter", "フィルターの使用"),
     ("table.protect.pivot", "ピボットテーブルの使用"),
     ("table.kept.stale", "ファイルに保存された結果です。ElyTable はこれらの関数を計算できないため、入力を変更すると #NAME? と表示されます: {cells}"),
+    ("table.kept.count", "保存された結果 {count} 件"),
+    ("table.kept.show", "保存された結果…"),
+    ("table.kept.none", "このブックの結果はすべて計算されています。"),
 ];

@@ -1005,3 +1005,13 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 换引擎时其他正在载入的文件会失败并提示，未做重试。
 - 不经输入队列写文档的命令（命令行 `cell set`、`text replace`，表格撤销保护，R 宏写回，邮件合并填充，更新链接）走 `Commands::write_in`：写作为一个输入排进该标签的输入队列（`Input::Write`），与按键同序，执行即算一次编辑（失败也算），再等修改报告；视图关掉时排着的写报错。原先另走一条不排队的路，撤销之后到达的写使未保存状态与恢复点计数出错。停止句柄移入 `ely_ipc::Stopper`（收尸后不再杀，防进程号重用；进程号登记前到的停止记在门里，登记时即杀），LOK 与 ElyPDF 共用；ElyPDF 在起进程前就公布句柄；ElyPDF 原无句柄，2 秒换引擎从不触发。`Linking` 随之只给 LOK 宿主。
 - 关掉的载入在后台关完内核里的文档前，仍算占着引擎，2 秒的换引擎照常判断。
+
+## 2026-11-15 文档应用的横幅去掉（SF.13，用户定）
+
+- `office-slow` 与 30 秒计时删掉；放弃一次载入就是关掉它的标签（SF.12 的 2 秒换引擎）。
+- 引擎停止是页面位置的 `feedback::ErrorView`，带“重新打开文档”；它取代文档，不盖在内容上。
+- 风险七种：`Chrome::state_item` 在保存状态项上加警告图标，点开 `Dialog::Risk`（说明、取消、“另存副本…”）；对着原文件的保存先弹同一对话框，不再直接打开另存为。显式的另存为、自动保存、命令行保存不变。
+- 链接：状态栏 `office-links` 项，悬停说明，点击更新；更新失败的源以 toast 列出。ElyDoc“工具”、ElyTable“数据”菜单各加 `ely_office::UpdateLinks`，作用于当前标签。
+- ElyTable 保持的结果：状态栏项带数目，点击以 toast 列出前五个与总数。ElyPDF 的签名、修复报告由保存状态项打开，`pdf.repair.show` 键随之删掉。
+- 状态栏的项在锁定的组件库里不是 Tab 停靠点（SF.13 审查第 1 轮），故每个可点的项在菜单里另有同一动作：`ely_office::ShowRisk`（ElyDoc 工具、ElyTable 数据、ElyShow 幻灯片），ElyTable 的 `ListKept`（数据），ElyPDF 的 `ShowRepairReport`（文档，标签 `pdf.repair.open`）；无可说时以 toast 说明（`office.risk.none`、`table.kept.none`、`pdf.repair.none`）。根因在组件库：其 main 已把可点的 `StatusBarItem` 改为停靠点，Enter、空格按下；换 pin 连带 gpui-pre 0.3.12 与 vendor 的四个 gpui 包重做，单列 SF.25。
+- Windows 的 SRW 锁不公平：后台读排在轮流锁之后仍能在每次放锁时抢在等着的输入之前（R15.36 的门测试在 Windows 上等了 12 个里的 4 个）。视图的输入与图块经 `off::Front` 登记等待，`behind` 过了轮流锁再等登记清零才取 worker 锁；回归 `background_work_waits_while_a_front_waits`（去掉等待即败）。

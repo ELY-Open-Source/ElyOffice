@@ -208,9 +208,6 @@ pub trait Closing: Host {
         }
         crate::hold::forget(self, id, cx);
         let core = self.core_mut();
-        if core.slow == Some(id) {
-            core.slow = None;
-        }
         core.closed_front(id);
         if let Some(registry) = registry {
             core.sessions.close(registry);
@@ -249,6 +246,17 @@ pub trait Closing: Host {
             core.sessions.close(registry);
         }
         core.closed_front(id);
+        if core.dialog.as_ref().and_then(Dialog::tab) == Some(id) {
+            log::info!("office: tab {id}'s question closes with it");
+            core.dialog = None;
+            // A locked file waiting behind it asks now.
+            cx.spawn(async move |this, cx| in_window(&this, cx, |host, window, cx| {
+                if host.core().dialog.is_none() {
+                    crate::Dialogs::dialog_done(host, window, cx);
+                }
+            }))
+            .detach_and_log_err(cx);
+        }
         if let Err(error) = std::fs::remove_dir_all(&tab.work) {
             log::warn!("office: scratch {} stays: {error}", tab.work.display());
         }

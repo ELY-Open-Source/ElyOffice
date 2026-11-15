@@ -5,13 +5,13 @@ use std::path::PathBuf;
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant, SegmentedControl},
     data_display::DescriptionList,
-    feedback::Banner,
     forms::{Checkbox, NumberInput},
     overlays::Dialog as Card,
     primitives::Severity,
+    shell::StatusBarItem,
     theme::ControlSize,
 };
-use ely_office::{Chrome as _, Closing as _, Saving as _, Stopping as _, Tabs as _, in_window};
+use ely_office::{Chrome as _, Closing as _, Saving as _, Tabs as _, in_window};
 use ely_pdf_engine::Optimizing;
 use ely_ui::commands::{Export, Print};
 use gpui::{AnyElement, App, Context, IntoElement, ParentElement as _, Styled as _, TaskExt as _, Window, div};
@@ -231,26 +231,21 @@ impl Viewer {
         );
     }
 
-    /// The shell's warning, with its details a press away.
-    pub fn file_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
-        if let Some(stopped) = self.stopped_banner(cx) {
-            return Some(stopped);
-        }
-        let banner = self.risk_banner(cx)?;
-        let (key, action): (&str, Box<dyn gpui::Action>) = match self.active_tab()?.risk? {
-            ely_office::Risk::Signed => ("pdf.sign.show", Box::new(crate::document::ShowSignatures)),
-            ely_office::Risk::Repaired => ("pdf.repair.show", Box::new(crate::document::ShowRepairReport)),
-            ely_office::Risk::Macros
-            | ely_office::Risk::Sections
-            | ely_office::Risk::Sealed
-            | ely_office::Risk::Links
-            | ely_office::Risk::Unkept => return Some(banner),
+    /// The save state; signed or repaired opens its details.
+    pub fn file_item(&self, cx: &mut Context<Self>) -> StatusBarItem {
+        let item = self.state_item("pdf-state", cx);
+        let action: Box<dyn gpui::Action> = match self.active_tab().and_then(|tab| tab.risk) {
+            Some(ely_office::Risk::Signed) => Box::new(crate::document::ShowSignatures),
+            Some(ely_office::Risk::Repaired) => Box::new(crate::document::ShowRepairReport),
+            _ => return item,
         };
-        let label = Self::text(cx, key, &[]);
-        Some(banner.action(label, move |window, cx| window.dispatch_action(action.boxed_clone(), cx)))
+        item.on_click(move |_, window, cx| window.dispatch_action(action.boxed_clone(), cx))
     }
 
     pub fn show_repair(&mut self, open: bool, cx: &mut Context<Self>) {
+        if open && self.active_view().is_none_or(|view| view.read(cx).repair.is_none()) {
+            return self.toast(Self::text(cx, "pdf.repair.none", &[]), Severity::Info, cx);
+        }
         self.repair_open = open;
         cx.notify();
     }

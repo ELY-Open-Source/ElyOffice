@@ -73,4 +73,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("table.protect.autofilter", "Filter verwenden"),
     ("table.protect.pivot", "Pivot-Tabellen verwenden"),
     ("table.kept.stale", "Ergebnisse wie in der Datei gespeichert: ElyTable kann ihre Funktionen nicht berechnen; eine geänderte Eingabe zeigt #NAME?: {cells}"),
+    ("table.kept.count", "{count} gespeicherte Ergebnisse"),
+    ("table.kept.show", "Gespeicherte Ergebnisse…"),
+    ("table.kept.none", "Jedes Ergebnis dieser Arbeitsmappe wird berechnet."),
 ];

@@ -7,7 +7,6 @@ use std::{
 };
 
 use ely_gpui_component::{
-    feedback::Banner,
     primitives::{IconName, Severity},
     shell::{StatusBar, StatusBarItem},
 };
@@ -343,13 +342,28 @@ impl Book {
     }
 
     /// Results Calc cannot compute stay as saved (§9.3, D-02).
-    fn kept_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
-        let kept = &self.active_tab()?.extra.kept;
-        if kept.is_empty() {
+    fn kept_item(&self, cx: &mut Context<Self>) -> Option<StatusBarItem> {
+        let count = self.active_tab()?.extra.kept.len();
+        if count == 0 {
             return None;
         }
-        let text = Self::text(cx, "table.kept.stale", &[("cells", &listed(kept))]);
-        Some(Banner::new("table-kept", Severity::Info, text))
+        let label = Self::text(cx, "table.kept.count", &[("count", &count.to_string())]);
+        let this = cx.entity();
+        let item = StatusBarItem::new("table-kept").icon(IconName::Info).label(label);
+        Some(item.on_click(move |_, _, cx| this.update(cx, |book, cx| book.list_kept(cx))))
+    }
+
+    /// The kept cells, in a toast.
+    pub fn list_kept(&mut self, cx: &mut Context<Self>) {
+        let Some(tab) = self.active_tab() else {
+            return self.toast(Self::text(cx, "command.blocked.no_document", &[]), Severity::Warning, cx);
+        };
+        let text = match tab.extra.kept.is_empty() {
+            true => Self::text(cx, "table.kept.none", &[]),
+            false => Self::text(cx, "table.kept.stale", &[("cells", &listed(&tab.extra.kept))]),
+        };
+        log::info!("table: lists {} kept results", tab.extra.kept.len());
+        self.toast_unlogged(text, Severity::Info, cx);
     }
 
     /// Holds the kernel's frozen rows and columns in place.
@@ -369,8 +383,9 @@ impl Book {
 
     /// The save state, and the kernel's statistics of the selection.
     fn status(&self, cx: &mut Context<Self>) -> StatusBar {
-        let state = self.save_state(cx);
-        let mut status = StatusBar::new().left(StatusBarItem::new("table-state").label(state));
+        let mut status = StatusBar::new().left(self.state_item("table-state", cx));
+        status = status.when_some(self.links_item(cx), |status, item| status.left(item));
+        status = status.when_some(self.kept_item(cx), |status, item| status.left(item));
         if self.automatic(cx) == Some(false) {
             let manual = Self::text(cx, "table.calc.manual", &[]);
             status = status.left(StatusBarItem::new("table-manual").label(manual));
@@ -391,14 +406,13 @@ impl Book {
         if self.active_tab().is_none() {
             return self.empty_body("table-empty", IconName::Table, cx);
         }
-        let risk = self.stopped_banner(cx).or_else(|| self.risk_banner(cx));
+        if let Some(page) = self.stopped_page(cx) {
+            return page;
+        }
         div()
             .size_full()
             .flex()
             .flex_col()
-            .children(risk)
-            .children(self.links_banner(cx))
-            .children(self.kept_banner(cx))
             .child(self.bars.render(cx))
             .child(self.grid(window, cx))
             .child(self.sheet_strip(cx))
@@ -450,6 +464,8 @@ impl Render for Book {
         let root = crate::page::bind(crate::protect::bind(root, cx), cx);
         crate::analysis::bind(crate::rules::bind(root, cx), cx)
             .on_action(cx.listener(Self::on_find))
+            .on_action(cx.listener(Self::on_update_links))
+            .on_action(cx.listener(Self::on_show_risk))
     }
 }
 

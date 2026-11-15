@@ -112,11 +112,6 @@ impl<H: Host> Core<H> {
         flag
     }
 
-    /// Whether `flag` is still load `id`'s, not a later one's.
-    pub(crate) fn running(&self, id: u64, flag: &Arc<AtomicBool>) -> bool {
-        self.park.flags.iter().any(|(of, held, _)| *of == id && Arc::ptr_eq(held, flag))
-    }
-
     /// Set once load `id` has the engine.
     pub(crate) fn entering(&mut self, id: u64) -> Arc<AtomicBool> {
         let inside = Arc::new(AtomicBool::new(false));

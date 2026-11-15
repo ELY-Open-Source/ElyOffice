@@ -3,12 +3,17 @@
 use std::{io, path::PathBuf, time::Duration};
 
 use ely_files::Fingerprint;
-use ely_gpui_component::{feedback::Banner, primitives::Severity};
+use ely_gpui_component::{
+    primitives::{IconName, Severity},
+    shell::StatusBarItem,
+};
 use futures::{StreamExt as _, channel::mpsc};
-use gpui::{AppContext as _, Context, TaskExt as _};
+use gpui::{AppContext as _, Context, TaskExt as _, Window, actions};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher as _};
 
 use crate::{Commands as _, Host, Tabs, engine::Engine, text};
+
+actions!(office, [UpdateLinks]);
 
 /// A save's bursts settle into one look.
 const SETTLE: Duration = Duration::from_millis(200);
@@ -101,6 +106,14 @@ fn shown(source: &str) -> String {
 }
 
 pub trait Linking: Host<Engine = crate::Lok> {
+    /// The menu's update, on the active tab.
+    fn on_update_links(&mut self, _: &UpdateLinks, _: &mut Window, cx: &mut Context<Self>) {
+        match self.core().active() {
+            Some(id) => self.update_links(id, cx),
+            None => self.toast(text(cx, "command.blocked.no_document", &[]), Severity::Warning, cx),
+        }
+    }
+
     /// Reads every link of tab `id` again; the user asked.
     fn update_links(&mut self, id: u64, cx: &mut Context<Self>) {
         let slug = Self::KIND.app.slug();
@@ -137,11 +150,16 @@ pub trait Linking: Host<Engine = crate::Lok> {
                 let Some(tab) = host.tab_mut(id) else {
                     return;
                 };
-                tab.links.state = Linked::Updated(failed.iter().map(|source| shown(source)).collect());
+                let failed: Vec<String> = failed.iter().map(|source| shown(source)).collect();
+                let said = (!failed.is_empty()).then(|| text(cx, "office.links.failed", &[("name", &tab.name), ("sources", &failed.join(", "))]));
+                tab.links.state = Linked::Updated(failed);
                 tab.links.seen = seen;
                 match watcher {
                     Ok(watcher) => tab.links.watcher = Some(watcher),
                     Err(error) => host.unwatched(id, &error.to_string(), cx),
+                }
+                if let Some(said) = said {
+                    host.toast_unlogged(said, Severity::Warning, cx);
                 }
             },
             cx,
@@ -189,24 +207,23 @@ pub trait Linking: Host<Engine = crate::Lok> {
     }
 
     /// The active tab's links: as saved, failed or changed (LOK-11).
-    fn links_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
+    fn links_item(&self, cx: &mut Context<Self>) -> Option<StatusBarItem> {
         let tab = self.active_tab()?;
         let links = &tab.links;
         if links.sources.is_empty() {
             return None;
         }
-        let (key, named, severity) = match &links.state {
-            Linked::Saved(missing) if missing.is_empty() => ("office.links.saved", String::new(), Severity::Info),
-            Linked::Saved(missing) => ("office.links.missing", missing.join(", "), Severity::Warning),
+        let (key, named, icon) = match &links.state {
+            Linked::Saved(missing) if missing.is_empty() => ("office.links.saved", String::new(), IconName::Link),
+            Linked::Saved(missing) => ("office.links.missing", missing.join(", "), IconName::TriangleAlert),
             Linked::Updated(failed) if failed.is_empty() => return None,
-            Linked::Updated(failed) => ("office.links.failed", failed.join(", "), Severity::Warning),
-            Linked::Changed(source) => ("office.links.changed", source.clone(), Severity::Info),
+            Linked::Updated(failed) => ("office.links.failed", failed.join(", "), IconName::TriangleAlert),
+            Linked::Changed(source) => ("office.links.changed", source.clone(), IconName::Link),
         };
         let said = text(cx, key, &[("name", &tab.name), ("sources", &named)]);
         let (this, id) = (cx.entity(), tab.id);
-        let label = text(cx, "office.links.update", &[]);
-        let banner = Banner::new("office-links", severity, said);
-        Some(banner.action(label, move |_, cx| this.update(cx, |host, cx| host.update_links(id, cx))))
+        let item = StatusBarItem::new("office-links").icon(icon).label(text(cx, "office.links.update", &[])).tooltip(said);
+        Some(item.on_click(move |_, _, cx| this.update(cx, |host, cx| host.update_links(id, cx))))
     }
 }
 

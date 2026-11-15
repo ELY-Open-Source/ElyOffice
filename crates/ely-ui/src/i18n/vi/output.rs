@@ -73,4 +73,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("table.protect.autofilter", "Dùng bộ lọc"),
     ("table.protect.pivot", "Dùng bảng tổng hợp"),
     ("table.kept.stale", "Kết quả như đã lưu trong tệp: ElyTable không tính được các hàm của chúng; đổi một giá trị đầu vào sẽ hiện #NAME?: {cells}"),
+    ("table.kept.count", "{count} kết quả đã lưu"),
+    ("table.kept.show", "Kết quả đã lưu…"),
+    ("table.kept.none", "Mọi kết quả trong sổ làm việc này đều được tính."),
 ];

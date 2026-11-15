@@ -81,6 +81,7 @@ fn a_damaged_file_opens_repaired_and_saves_as_a_new_file() {
     assert_eq!(cx.update(|_, app| viewer.read(app).active_tab().and_then(|tab| tab.risk)), Some(ely_office::Risk::Repaired));
     assert!(cx.update(|_, app| view.read(app).repair.as_ref().is_some_and(|report| !report.is_empty())));
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.show_repair(true, cx)));
+    assert!(cx.update(|_, app| viewer.read(app).repair_open), "the report opens");
     super::frames(cx);
     let id = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
     cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.write_as(id, path.clone(), None, window, cx)));
@@ -218,4 +219,22 @@ fn an_edited_document_does_not_quote_the_files_size() {
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_export(id, Kind::Optimized, how, out.clone(), cx)));
     let done = cx.update(|_, app| crate::viewer::Viewer::text(app, "pdf.export.done", &[("name", "small.pdf")]));
     settle(cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| *text == done));
+}
+
+#[test]
+fn a_sound_file_says_it_has_no_repair_report() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let path = file(dir.path(), "sound.pdf", &[(612.0, 792.0, &["Hello"])]);
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
+    shown(cx, &viewer);
+    let root = cx.update(|window, app| {
+        let root = ely_ui::document_root(ely_platform::AppId::Pdf, viewer.clone().into(), &ely_ui::commands::FILE, Vec::new(), window, app);
+        viewer.update(app, |viewer, _| viewer.core.root = root.downgrade());
+        root
+    });
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.show_repair(true, cx)));
+    assert!(!cx.update(|_, app| viewer.read(app).repair_open), "nothing opens");
+    let said = cx.update(|_, app| root.read(app).toasts(app));
+    assert!(said.iter().any(|(text, _)| text.contains("repaired nothing")), "the menu says why: {said:?}");
 }

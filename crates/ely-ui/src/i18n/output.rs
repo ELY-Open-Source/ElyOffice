@@ -88,6 +88,9 @@ pub(super) const EN: &[(&str, &str)] = &[
         "table.kept.stale",
         "Results as saved in the file: ElyTable cannot compute their functions; changing an input shows #NAME?: {cells}",
     ),
+    ("table.kept.count", "{count} saved results"),
+    ("table.kept.show", "Saved results…"),
+    ("table.kept.none", "Every result in this workbook is computed."),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -172,4 +175,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
         "table.kept.stale",
         "以下单元格显示文件里存的结果：ElyTable 不能计算其中的函数，输入一改即显示 #NAME?：{cells}",
     ),
+    ("table.kept.count", "{count} 个保存的结果"),
+    ("table.kept.show", "保存的结果…"),
+    ("table.kept.none", "这个工作簿的结果都是算出来的。"),
 ];

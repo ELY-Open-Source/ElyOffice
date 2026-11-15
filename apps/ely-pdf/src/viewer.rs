@@ -8,7 +8,7 @@ use std::{
 use ely_gpui_component::{
     feedback::EmptyState,
     primitives::IconName,
-    shell::{StatusBar, StatusBarItem},
+    shell::StatusBar,
 };
 use ely_office::{Core, Host, Kind, prelude::*};
 use ely_platform::AppId;
@@ -221,7 +221,7 @@ impl Viewer {
     }
 
     fn status(&self, cx: &mut Context<Self>) -> StatusBar {
-        StatusBar::new().left(StatusBarItem::new("pdf-state").label(self.save_state(cx)))
+        StatusBar::new().left(self.file_item(cx))
     }
 }
 
@@ -229,9 +229,10 @@ impl Render for Viewer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.retired.release(window);
         let title = self.active_tab().map_or_else(|| AppId::Pdf.name().into(), |tab| tab.name.clone());
-        let body = match self.active_view() {
-            Some(view) => view.into_any_element(),
-            None => EmptyState::new("pdf-empty", IconName::File, Self::text(cx, "command.blocked.no_document", &[])).into_any_element(),
+        let body = match (self.stopped_page(cx), self.active_view()) {
+            (Some(page), _) => page,
+            (None, Some(view)) => view.into_any_element(),
+            (None, None) => EmptyState::new("pdf-empty", IconName::File, Self::text(cx, "command.blocked.no_document", &[])).into_any_element(),
         };
         let shell = Shell::new(title, &self.core.focus)
             .tabs(self.tab_strip(cx))
@@ -242,7 +243,6 @@ impl Render for Viewer {
                 _ => self.edit_panel.clone().into(),
             }))
             .status(self.status(cx))
-            .children(self.file_banner(cx))
             .children(self.find_bar(cx))
             .child(body);
         // Esc leaves a tool from pages and panel alike.

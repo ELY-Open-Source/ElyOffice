@@ -51,6 +51,8 @@ pub fn menu(cx: &App) -> Menu {
         MenuItem::action(label("show.slide.down"), MoveSlideDown),
         MenuItem::action(label("show.slide.first"), MoveSlideFirst),
         MenuItem::action(label("show.slide.last"), MoveSlideLast),
+        MenuItem::separator(),
+        MenuItem::action(label("office.risk.show"), ely_office::ShowRisk),
     ])
 }
 

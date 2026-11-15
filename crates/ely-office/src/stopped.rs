@@ -3,18 +3,14 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use ely_gpui_component::{
-    feedback::{Banner, EmptyState},
-    primitives::{IconName, Severity},
+    buttons::{Button, ButtonVariant},
+    feedback::{EmptyState, ErrorView},
+    primitives::IconName,
 };
-use gpui::{
-    AnyElement, AppContext as _, Context, IntoElement as _, ParentElement as _, Styled as _, TaskExt as _,
-    div,
-};
+use gpui::{AnyElement, AppContext as _, Context, IntoElement as _, TaskExt as _};
 
-use crate::{Closing as _, Dialog, Engine, Host, Opening as _, Recovering as _, recover::clock, text};
+use crate::{Closing as _, Engine, Host, Opening as _, Recovering as _, recover::clock, text};
 
-/// How long a load runs before the stop is offered.
-pub(crate) const SLOW: Duration = Duration::from_secs(30);
 /// How long a closed tab's load may keep the engine.
 pub(crate) const LET_GO: Duration = Duration::from_secs(2);
 
@@ -48,18 +44,6 @@ pub trait Stopping: Host {
             }
         })
         .detach();
-    }
-
-    /// Offers the stop if load `id` still runs after `SLOW`.
-    fn watch_slow(&mut self, id: u64, flag: Arc<std::sync::atomic::AtomicBool>, cx: &mut Context<Self>) {
-        if self.core().stop.is_none() {
-            return;
-        }
-        cx.spawn(async move |this, cx| {
-            cx.background_executor().timer(SLOW).await;
-            this.update(cx, |host, cx| host.slow_load(id, &flag, cx))
-        })
-        .detach_and_log_err(cx);
     }
 
     /// Swaps engines if closed load `id` outlasts `LET_GO`.
@@ -98,7 +82,7 @@ pub trait Stopping: Host {
         .detach_and_log_err(cx);
     }
 
-    /// No document shown: loading or empty, under the engine's banner.
+    /// No document shown: loading, empty or stopped.
     fn empty_body(&self, id: &'static str, icon: IconName, cx: &mut Context<Self>) -> AnyElement {
         let core = self.core();
         // A picked tab still loading takes the keys.
@@ -107,80 +91,30 @@ pub trait Stopping: Host {
             Some((_, name, _)) => text(cx, "office.loading", &[("name", name)]),
             None => text(cx, "command.blocked.no_document", &[]),
         };
-        let empty = EmptyState::new(id, icon, title).into_any_element();
-        let body = match self.stopped_banner(cx) {
-            Some(banner) => div()
-                .size_full()
-                .flex()
-                .flex_col()
-                .child(banner)
-                .child(div().flex_1().min_h_0().child(empty))
-                .into_any_element(),
-            None => empty,
-        };
+        let body = self.stopped_page(cx).unwrap_or_else(|| EmptyState::new(id, icon, title).into_any_element());
         match picked {
             Some(_) => crate::hold::around(&self.core().hold, body, cx),
             None => body,
         }
     }
 
-    /// A load still running after `SLOW`: the stop is offered.
-    fn slow_load(&mut self, id: u64, flag: &Arc<std::sync::atomic::AtomicBool>, cx: &mut Context<Self>) {
-        // A load that waited, or started again, is not slow.
-        if !self.core().loading.iter().any(|(loading, ..)| *loading == id) || !self.core().running(id, flag) {
-            return;
-        }
-        log::warn!("{}: tab {id} has not opened after {} s", Self::KIND.app.slug(), SLOW.as_secs());
-        self.core_mut().slow = Some(id);
-        cx.notify();
-    }
-
-    /// Ends the worker under a stuck load, which then fails.
-    fn stop_engine(&mut self, cx: &mut Context<Self>) {
-        self.core_mut().slow = None;
-        cx.notify();
-        let Some(stop) = self.core().stop.clone() else { return };
-        log::warn!("{}: the user stops the engine under a slow load", Self::KIND.app.slug());
-        // A stop waits for a starting spawn: not here.
-        cx.spawn(async move |this, cx| {
-            // The stuck load then fails, which checks the engine.
-            let Err(error) = cx.background_executor().spawn(async move { stop() }).await else { return Ok(()) };
-            this.update(cx, |host, cx| crate::Tabs::engine_failed(host, &error.to_string(), cx))
-        })
-        .detach_and_log_err(cx);
-    }
-
-    /// A slow load and its stop.
-    fn slow_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
-        let id = self.core().slow?;
-        let (_, name, _) = self.core().loading.iter().find(|(loading, ..)| *loading == id)?;
-        let seconds = SLOW.as_secs().to_string();
-        let said = text(cx, "office.slow", &[("name", name), ("seconds", &seconds)]);
-        let this = cx.entity();
-        let stop = text(cx, "office.slow.stop", &[]);
-        Some(Banner::new("office-slow", Severity::Warning, said).action(stop, move |_, cx| {
-            this.update(cx, |host, cx| host.stop_engine(cx))
-        }))
-    }
-
-    /// The engine's end and way back, or a slow load.
-    fn stopped_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
-        let Some(stopped) = self.core().stopped.as_ref() else {
-            return self.slow_banner(cx);
-        };
+    /// The engine's end and way back, in the page's place.
+    fn stopped_page(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let stopped = self.core().stopped.as_ref()?;
         let at = match self.core().keeping.as_ref().and_then(|keeping| keeping.last) {
             Some(at) => clock(at),
             None => text(cx, "office.stopped.never", &[]).to_string(),
         };
         let said = text(cx, "office.stopped", &[("why", &stopped.why), ("at", &at)]);
-        let banner = Banner::new("office-stopped", Severity::Danger, said);
+        let page = ErrorView::new("office-stopped", IconName::CircleAlert, text(cx, "office.stopped.title", &[])).body(said);
         if stopped.restarting {
-            return Some(banner);
+            return Some(page.into_any_element());
         }
         let this = cx.entity();
-        Some(banner.action(text(cx, "office.stopped.reopen", &[]), move |_, cx| {
-            this.update(cx, |host, cx| host.restart_engine(cx))
-        }))
+        let reopen = Button::new("office-stopped-reopen", text(cx, "office.stopped.reopen", &[]))
+            .variant(ButtonVariant::Primary)
+            .on_click(move |_, _, cx| this.update(cx, |host, cx| host.restart_engine(cx)));
+        Some(page.action(reopen).into_any_element())
     }
 
     /// A new worker, then each tab from point or file.
@@ -242,10 +176,6 @@ pub trait Stopping: Host {
                 None => lost.push(name),
             }
             self.release_tab(id, cx);
-        }
-        // Questions about the released tabs have no answer now.
-        if matches!(self.core().dialog, Some(Dialog::Unsaved { .. } | Dialog::Conflict { .. })) {
-            self.core_mut().dialog = None;
         }
         self.reopen_taken(taken, lost, cx);
     }

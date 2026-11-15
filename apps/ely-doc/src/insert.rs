@@ -68,6 +68,8 @@ pub fn bind(root: Div, cx: &mut Context<Docs>) -> Div {
         .on_action(cx.listener(Docs::on_reject_all))
         .on_action(cx.listener(Docs::on_show_review))
         .on_action(cx.listener(Docs::on_find))
+        .on_action(cx.listener(Docs::on_update_links))
+        .on_action(cx.listener(Docs::on_show_risk))
         .on_action(cx.listener(Docs::on_compare))
         .on_action(cx.listener(Docs::on_merge))
         .on_action(cx.listener(Docs::on_export))

@@ -1,8 +1,8 @@
-//! A load that hangs can be stopped (GitHub #49).
+//! A stopped engine, and files that never reach it.
 
-use std::{path::Path, time::Duration};
+use std::path::Path;
 
-use gpui::{Entity, IntoElement, Modifiers, Render, TestAppContext, VisualTestContext, Window};
+use gpui::{Entity, IntoElement, Render, TestAppContext, VisualTestContext, Window};
 
 use ely_office::prelude::*;
 
@@ -19,26 +19,8 @@ impl Render for Body {
     }
 }
 
-const STOP: &str = "banner-action Stop the engine";
-const REOPEN: &str = "banner-action Reopen documents";
-
-/// Redraws the body; whether the banner action `selector` shows.
-fn drawn(shown: &mut VisualTestContext, selector: &'static str) -> bool {
-    shown.update(|window, _| window.refresh());
-    shown.run_until_parked();
-    shown.debug_bounds(selector).is_some()
-}
-
-/// Presses the banner action `selector` in the drawn body.
-fn press(shown: &mut VisualTestContext, selector: &'static str) {
-    assert!(drawn(shown, selector), "{selector} draws");
-    let at = shown.debug_bounds(selector).expect("drawn above");
-    shown.simulate_click(at.center(), Modifiers::none());
-    shown.run_until_parked();
-}
-
 #[test]
-fn a_slow_load_offers_the_stop_and_the_stop_ends_the_engine() {
+fn a_stopped_engine_shows_its_page_and_reopens() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     cx.update(ely_gpui_component::init_for_tests);
@@ -46,7 +28,6 @@ fn a_slow_load_offers_the_stop_and_the_stop_ends_the_engine() {
         eprintln!("SKIP: no LOK build");
         return;
     };
-    assert!(cx.update(|app| docs.read(app).core.stop.is_some()), "the engine can be stopped");
     // A restart signs as the app's author, set at start.
     cx.update(|app| docs.read(app).core.worker.lock().expect("the worker").set_author("Ada").expect("signs"));
     let file = dir.path().join("open.fodt");
@@ -54,33 +35,15 @@ fn a_slow_load_offers_the_stop_and_the_stop_ends_the_engine() {
     std::fs::write(&file, fodt).expect("the file writes");
     let window = cx.add_window(|_, _| Body(docs.clone()));
     let shown = VisualTestContext::from_window(window.into(), &cx).into_mut();
-    // The first document hangs: no tab, only the loading page.
-    with_window(&mut cx, &docs, |docs, _, cx| {
-        docs.core.loading.push((7, "stuck.docx".into(), None));
-        let flag = docs.core.flag(7, &ely_office::Source::Copy(file.clone()));
-        docs.watch_slow(7, flag, cx);
-    });
-    assert!(!drawn(shown, STOP), "not slow yet");
-    cx.executor().advance_clock(Duration::from_secs(31));
-    cx.run_until_parked();
-    assert_eq!(cx.update(|app| docs.read(app).core.slow), Some(7), "the timer marks it slow");
-    press(shown, STOP);
-    assert_eq!(cx.update(|app| docs.read(app).core.slow), None, "the offer is gone");
-    // The press ends the engine.
-    settle(&cx, |app| docs.read(app).core.worker.lock().expect("the worker").ended().is_some());
-    with_window(&mut cx, &docs, |docs, _, _| docs.core.loading.clear());
+    let stop = cx.update(|app| docs.read(app).core.stop.clone()).expect("the engine can be stopped");
+    stop().expect("the engine stops");
     fail_a_load(&mut cx, &docs, &file);
-    press(shown, REOPEN);
+    shown.update(|window, _| window.refresh());
+    shown.run_until_parked();
+    with_window(&mut cx, &docs, |docs, _, cx| docs.restart_engine(cx));
     settle(&cx, |app| docs.read(app).core.stopped.is_none());
-    // A load that answers in time never offers it.
     with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(file.clone(), cx));
     settle(&cx, |app| docs.read(app).core.tabs.len() == 1);
-    cx.executor().advance_clock(Duration::from_secs(31));
-    cx.run_until_parked();
-    assert_eq!(cx.update(|app| docs.read(app).core.slow), None, "an answered load is not slow");
-    // The restarted engine can be stopped too.
-    with_window(&mut cx, &docs, |docs, _, cx| docs.stop_engine(cx));
-    fail_a_load(&mut cx, &docs, &file);
 }
 
 /// A load on the stopped engine fails, reporting the end.

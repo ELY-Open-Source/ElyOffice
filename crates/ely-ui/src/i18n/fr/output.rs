@@ -73,4 +73,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("table.protect.autofilter", "Utiliser les filtres"),
     ("table.protect.pivot", "Utiliser les tables dynamiques"),
     ("table.kept.stale", "Résultats tels qu’enregistrés dans le fichier : ElyTable ne sait pas calculer leurs fonctions ; changer une entrée affiche #NAME? : {cells}"),
+    ("table.kept.count", "{count} résultats enregistrés"),
+    ("table.kept.show", "Résultats enregistrés…"),
+    ("table.kept.none", "Chaque résultat de ce classeur est calculé."),
 ];

@@ -73,4 +73,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("table.protect.autofilter", "필터 사용"),
     ("table.protect.pivot", "피벗 테이블 사용"),
     ("table.kept.stale", "파일에 저장된 결과입니다. ElyTable은 이 함수들을 계산할 수 없어 입력을 바꾸면 #NAME?이 표시됩니다: {cells}"),
+    ("table.kept.count", "저장된 결과 {count}개"),
+    ("table.kept.show", "저장된 결과…"),
+    ("table.kept.none", "이 통합 문서의 모든 결과는 계산됩니다."),
 ];

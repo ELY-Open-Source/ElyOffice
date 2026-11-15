@@ -52,13 +52,11 @@ fn a_linked_section_updates_when_asked_and_says_when_its_file_changes() {
     fodt(&main, "Before", Some((&include, "Cached")));
     with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(main.clone(), cx));
     linked(&cx, &docs, Linked::Saved(Vec::new()));
-    let (id, sources) = cx.update(|app| {
-        let tab = docs.read(app).active_tab().expect("the tab");
-        (tab.id, tab.links.sources().to_vec())
-    });
+    let sources = cx.update(|app| docs.read(app).active_tab().expect("the tab").links.sources().to_vec());
     assert_eq!(sources, [ely_lok::file_url(&include)]);
     assert!(shown(&mut cx, &docs, dir.path()).contains(">Cached<"), "opening shows the saved text");
-    cx.update(|app| docs.update(app, |docs, cx| docs.update_links(id, cx)));
+    // The menu updates the active tab.
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_update_links(&ely_office::UpdateLinks, window, cx));
     linked(&cx, &docs, Linked::Updated(Vec::new()));
     assert!(shown(&mut cx, &docs, dir.path()).contains(">One<"), "the update reads the file");
     fodt(&include, "Two", None);
@@ -122,7 +120,7 @@ fn a_section_docx_keeps_only_as_text_is_said_and_never_written_over() {
     settled(&cx, &docs);
     let id = cx.update(|app| docs.read(app).active_tab().expect("a tab").id);
     with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, docx.clone(), None, window, cx));
-    // The DOCX copy lost the link: the banner says so.
+    // The DOCX copy lost the link: the status says so.
     settle(&cx, |app| docs.read(app).tab(id).is_some_and(|tab| tab.name == "main.docx" && tab.risk.is_some()));
     assert_eq!(cx.update(|app| docs.read(app).tab(id).expect("the tab").risk), Some(ely_office::Risk::Unkept));
     let written = std::fs::read(&docx).expect("reads");

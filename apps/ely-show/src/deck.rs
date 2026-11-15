@@ -413,6 +413,9 @@ impl Deck {
         let Some(tab) = self.active_tab() else {
             return self.empty_body("show-empty", IconName::Monitor, cx);
         };
+        if let Some(page) = self.stopped_page(cx) {
+            return page;
+        }
         let view = tab.view.clone();
         let guides = self.guide_layer(&view, cx);
         let marks = self.remark_layer(&view, cx);
@@ -423,7 +426,6 @@ impl Deck {
             .size_full()
             .flex()
             .flex_col()
-            .children(self.stopped_banner(cx).or_else(|| self.risk_banner(cx)))
             .child(
                 div()
                     .flex_1()
@@ -449,9 +451,8 @@ impl Render for Deck {
             .active_tab()
             .map_or_else(|| AppId::Show.name().into(), |tab| tab.name.clone());
         let shown = self.active_tab().is_some();
-        let state = self.save_state(cx);
         let status = StatusBar::new()
-            .left(ely_gpui_component::shell::StatusBarItem::new("show-state").label(state))
+            .left(self.state_item("show-state", cx))
             .when_some(self.zoom_control(cx), |status, zoom| status.right(zoom));
         let shell = Shell::new(title, &self.core.focus)
             .tabs(self.tab_strip(cx))
@@ -473,6 +474,7 @@ impl Render for Deck {
             .on_action(cx.listener(Self::on_export))
             .on_action(cx.listener(Self::on_print))
             .on_action(cx.listener(Self::on_close_tab))
+            .on_action(cx.listener(Self::on_show_risk))
             .child(shell)
             .children(self.core_dialog(cx))
             .children(self.dialog_element(cx))

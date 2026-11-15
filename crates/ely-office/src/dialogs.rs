@@ -21,6 +21,12 @@ pub enum Dialog {
         tab: u64,
         then: Option<After>,
     },
+    /// Saving over the file would lose something.
+    Risk {
+        tab: u64,
+        then: Option<After>,
+        said: SharedString,
+    },
     Password {
         path: PathBuf,
         wrong: bool,
@@ -28,6 +34,16 @@ pub enum Dialog {
         copy: bool,
         field: Entity<TextInput>,
     },
+}
+
+impl Dialog {
+    /// The tab it asks about.
+    pub fn tab(&self) -> Option<u64> {
+        match self {
+            Dialog::Unsaved { tab, .. } | Dialog::Conflict { tab, .. } | Dialog::Risk { tab, .. } => Some(*tab),
+            Dialog::Password { .. } => None,
+        }
+    }
 }
 
 pub trait Dialogs: Host {
@@ -155,6 +171,29 @@ pub trait Dialogs: Host {
                         text(cx, "office.conflict.keep", &[]),
                         ButtonVariant::Primary,
                         move |host, window, cx| host.keep_mine(tab, then, window, cx),
+                    ))
+            }
+            Dialog::Risk { tab, then, said } => {
+                let (tab, then, said) = (*tab, *then, said.clone());
+                let title = text(cx, "office.risk.title", &[("name", &name(tab))]);
+                let owner = this.clone();
+                let cancelled = move |window: &mut Window, cx: &mut App| {
+                    owner.update(cx, |host, cx| {
+                        if then.is_some() {
+                            host.close_stopped(cx);
+                        }
+                        host.dialog_done(window, cx)
+                    })
+                };
+                Card::new("office-risk", title, cancelled)
+                    .detail(said)
+                    .action(cancel(cx))
+                    .action(choice(
+                        &this,
+                        "office-risk-copy",
+                        text(cx, "office.risk.copy", &[]),
+                        ButtonVariant::Primary,
+                        move |host, window, cx| host.save_as(tab, then, window, cx),
                     ))
             }
         };

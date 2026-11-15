@@ -76,14 +76,12 @@ pub trait Saving: Host {
         let Some(tab) = self.tab(id) else {
             return self.closed_first(id, then, window, cx);
         };
-        let Some(path) = tab
-            .session
-            .path()
-            .filter(|_| tab.risk.is_none())
-            .map(PathBuf::from)
-        else {
+        let Some(path) = tab.session.path().map(PathBuf::from) else {
             return self.save_as(id, then, window, cx);
         };
+        if tab.risk.is_some() {
+            return crate::Chrome::warn_risk(self, id, then, cx);
+        }
         let format = match files::kept_format(&Self::KIND, &path) {
             Ok(format) => format,
             Err(error) => {

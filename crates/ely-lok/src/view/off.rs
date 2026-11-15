@@ -5,7 +5,7 @@ use std::{
     io,
     sync::{
         Arc, Condvar, Mutex, MutexGuard, PoisonError, Weak,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -23,6 +23,8 @@ struct Turn {
     queue: futures::lock::Mutex<()>,
     /// Each holding view and its newest undrawn edit's send time.
     holds: Mutex<Vec<(u64, Instant)>>,
+    /// Inputs and tiles waiting for the worker lock.
+    fronts: AtomicUsize,
     clear: Condvar,
 }
 
@@ -42,11 +44,13 @@ impl Turn {
             let Some(until) = until else { break };
             holds = self.clear.wait_timeout(holds, until - now).unwrap_or_else(PoisonError::into_inner).0;
         }
-        let stuck = !holds.is_empty();
-        drop(holds);
         let waited = began.elapsed();
-        if stuck && !waited.is_zero() {
+        if !holds.is_empty() && !waited.is_zero() {
             log::warn!("lok: background work held {} ms by an undrawn edit; it goes", waited.as_millis());
+        }
+        // The lock is unfair on Windows: waiting input goes first.
+        while self.fronts.load(Ordering::SeqCst) > 0 {
+            holds = self.clear.wait(holds).unwrap_or_else(PoisonError::into_inner);
         }
     }
 }
@@ -102,6 +106,33 @@ impl Ahead {
 impl Drop for Ahead {
     fn drop(&mut self) {
         self.hold(None);
+    }
+}
+
+/// A view's front: background work waits while it waits.
+pub(super) struct Front(Arc<Turn>);
+
+/// Counts one front wait; dropped, it lets background go.
+struct Waiting<'a>(&'a Turn);
+
+impl Drop for Waiting<'_> {
+    fn drop(&mut self) {
+        self.0.fronts.fetch_sub(1, Ordering::SeqCst);
+        let _holds = self.0.holds();
+        self.0.clear.notify_all();
+    }
+}
+
+impl Front {
+    pub(super) fn of<W: Send + 'static>(worker: &Arc<Mutex<W>>) -> Self {
+        Front(turn(worker))
+    }
+
+    /// Takes the worker ahead of queued background work.
+    pub(super) fn take<G>(&self, take: impl FnOnce() -> G) -> G {
+        self.0.fronts.fetch_add(1, Ordering::SeqCst);
+        let _waiting = Waiting(&self.0);
+        take()
     }
 }
 

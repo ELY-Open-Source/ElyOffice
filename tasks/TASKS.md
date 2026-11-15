@@ -675,7 +675,7 @@
 - [x] SF.10 启动动画（SF-08）：一份规格，Windows 启动器小窗与应用首帧画同一场景，留到文档画出；减少动效下静止；小窗最多 3 秒；八个应用经 `ely_ui::run`
 - [x] SF.11 SF-10 引擎与窗口同时起：单实例门之后即接管引擎，文件排上队即交后台
 - [x] SF.12 SF-18 关窗、关标签不再等引擎：应用自己记每个标签改没改；关正在载入的标签 2 秒内放不下即换引擎
-- [ ] SF.13 删文档应用的横幅（SF-17 之一）：`office-slow` 删、`office-stopped` 改错误页、`office-risk` 七种改状态栏加保存时的确认、`office-links` 与 `table-kept` 改状态栏、ElyPDF `file_banner` 改状态栏；`docs/gaps.md` 的 PPTX 章节随之改
+- [x] SF.13 删文档应用的横幅（SF-17 之一）：`office-slow` 删、`office-stopped` 改错误页、`office-risk` 七种改状态栏加保存时的确认、`office-links` 与 `table-kept` 改状态栏、ElyPDF `file_banner` 改状态栏；`docs/gaps.md` 的 PPTX 章节随之改
 - [ ] SF.14 删 Mark、Mail 与更新的横幅（SF-17 之二）：`mark-outside`、`mark-large`、`mail-*` 四种、`update-package` 与 `UpdateBanner`、设置窗口的错误行，照 `SuperFast.md` 第四节的去处
 - [ ] SF.15 守住横幅（SF-17 之三）：脚本测试守住 `Banner::new` 只在 `doc-fonts` 一处；八种语言删、加的键齐全；`docs/help.md` 改写
 - [ ] SF.16 SF-15 ElyDoc、ElyShow 载入完到首个图块的 0.55 秒查明并降到 0.07 秒量级
@@ -686,6 +686,7 @@
 - [ ] SF.21 Linux 只留 `ely-office` 包与统一 AppImage（首次运行写七个应用的菜单项、解出引擎与内核到 `~/.local/lib/ely-office/<编号>`），Nix 一个包
 - [ ] SF.22 Linux systemd 用户服务常驻引擎；本机重量
 - [ ] SF.23 基准进发布的门（SF-13、SF-14）：XLSX 样本换有内容的；`tests/perf` 加安装后首次、重启后首次；与 Office 的对照只记录不设门（Office 一更新即变）；空闲引擎 10 分钟 CPU 为 0；三个常驻引擎的内存不超记录值一成
+- [ ] SF.25 组件库换 pin 到其 main：连带 gpui-pre 0.3.12（vendor 的四个 gpui 包照“首个提交原样，其后修复”重做），三端测试；可点的 `StatusBarItem` 成为 Tab 停靠点，Enter、空格按下（SF.13 审查第 1 轮）
 - [ ] SF.24 ElyPDF 保存后文件暴涨（SF-20）：复现、比较对象大小找出长出来的一类；保存时新写与重写的流压缩、新嵌字体取子集、未动对象原样；每种编辑后保存的大小测试
 
 ## 同一应用的第二个窗口（用户来信 2026-11-15；SF 各条做完后再做。规矩同 R18）

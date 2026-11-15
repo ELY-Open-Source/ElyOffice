@@ -25,11 +25,12 @@ fn input_waits_for_one_background_request_not_all() {
         .collect();
     // All twelve reads wait behind the lock.
     std::thread::sleep(Duration::from_millis(300));
-    // The lane locks the worker itself, as here.
+    // The lane takes the worker as its front, as here.
     let input = {
         let (shared, ran) = (Arc::clone(&shared), Arc::clone(&ran));
         std::thread::spawn(move || {
-            let _engine = shared.lock().expect("the worker lock");
+            let front = crate::view::off::Front::of(&shared);
+            let _engine = front.take(|| shared.lock().expect("the worker lock"));
             ran.load(Ordering::SeqCst)
         })
     };
@@ -283,4 +284,33 @@ fn a_shown_tab_s_tile_stops_another_tab_s_snapshot() {
     // Unstopped, it would wait three quarters of `whole`.
     assert!(waited < whole / 2, "the tile waited {waited:?} behind a {whole:?} snapshot");
     assert_eq!(stopped.expect_err("the tile stopped the snapshot").kind(), ErrorKind::Interrupted);
+}
+
+/// Background work waits while a front waits.
+#[test]
+fn background_work_waits_while_a_front_waits() {
+    use std::{sync::mpsc::channel, time::Duration};
+    let worker = Arc::new(Mutex::new(()));
+    let (waits, waiting) = channel();
+    let (release, released) = channel::<()>();
+    let front = {
+        let worker = Arc::clone(&worker);
+        std::thread::spawn(move || {
+            crate::view::off::Front::of(&worker).take(|| {
+                waits.send(()).expect("the test waits");
+                released.recv().expect("the test lets go");
+            })
+        })
+    };
+    waiting.recv().expect("the front waits");
+    let (ran, seen) = channel();
+    let background = {
+        let worker = Arc::clone(&worker);
+        std::thread::spawn(move || futures::executor::block_on(crate::behind(&worker, |_| ran.send(()).expect("the test waits"))))
+    };
+    assert!(seen.recv_timeout(Duration::from_millis(300)).is_err(), "background work ran past a waiting front");
+    release.send(()).expect("the front goes");
+    seen.recv_timeout(Duration::from_secs(2)).expect("background work goes after the front");
+    front.join().expect("the front lands");
+    background.join().expect("the background lands");
 }

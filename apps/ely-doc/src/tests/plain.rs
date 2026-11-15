@@ -75,10 +75,39 @@ fn utf32_flat_odf_with_basic_opens_in_risk_mode() {
         assert!(tab.risk.is_some(), "Basic in UTF-32 is still Basic");
         tab.id
     });
+    // The menu shows the same warning.
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_show_risk(&ely_office::ShowRisk, window, cx));
+    assert!(cx.update(|app| matches!(docs.read(app).core.dialog, Some(ely_office::Dialog::Risk { then: None, .. }))));
+    cx.update(|app| docs.update(app, |docs, _| docs.core.dialog = None));
     type_into(&mut cx, &docs, "x");
     with_window(&mut cx, &docs, |docs, window, cx| docs.save(id, None, window, cx));
+    settle(&cx, |app| matches!(docs.read(app).core.dialog, Some(ely_office::Dialog::Risk { .. })));
+    // The dialog's copy goes to Save As.
+    with_window(&mut cx, &docs, |docs, window, cx| {
+        docs.core.dialog = None;
+        docs.save_as(id, None, window, cx)
+    });
     settle(&cx, |_| cx.did_prompt_for_new_path());
     cx.simulate_new_path_selection(|_| None);
     cx.run_until_parked();
     assert_eq!(std::fs::read(&path).expect("the original"), before, "the original stays");
+}
+
+#[test]
+fn closing_a_tab_closes_its_risk_dialog() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let path = dir.path().join("macro.fodt");
+    std::fs::write(&path, super::more::macro_fodt(&mut cx)).expect("the file writes");
+    with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(path.clone(), cx));
+    settle(&cx, |app| docs.read(app).active_tab().is_some_and(|tab| tab.risk.is_some()));
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_show_risk(&ely_office::ShowRisk, window, cx));
+    assert!(cx.update(|app| matches!(docs.read(app).core.dialog, Some(ely_office::Dialog::Risk { .. }))));
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_close_tab(&ely_ui::commands::CloseTab, window, cx));
+    settle(&cx, |app| docs.read(app).core.tabs.is_empty());
+    assert!(cx.update(|app| docs.read(app).core.dialog.is_none()), "the dialog outlived its tab");
 }

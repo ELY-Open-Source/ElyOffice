@@ -39,12 +39,12 @@ use gpui::{
 };
 
 pub use autosave::Autosaving;
-pub use chrome::Chrome;
+pub use chrome::{Chrome, ShowRisk};
 pub use close::{After, Closing};
 pub use dialogs::{Dialog, Dialogs, cancel};
 pub use engine::{Engine, Load, Stop};
 pub use find::{FindReplace, Finder, Finding};
-pub use links::{Linked, Linking, Links};
+pub use links::{Linked, Linking, Links, UpdateLinks};
 pub use lok::{Commands, Lok, start, take_engine};
 pub use open::{Opening, Source};
 pub use recover::{Keeping, Recovering};
@@ -225,8 +225,6 @@ pub struct Core<H: Host> {
     pub stopped: Option<Stopped>,
     /// Ends a stuck worker; None when the engine cannot.
     pub stop: Option<Stop>,
-    /// A load still unanswered after `stopped::SLOW`.
-    pub slow: Option<u64>,
     /// Edit counts at the last beat, per tab.
     pub quiet: std::collections::HashMap<u64, u64>,
     /// Other programs' saves, answered as each ends.
@@ -264,7 +262,6 @@ impl<H: Host> Core<H> {
             recovery_off: None,
             stopped: None,
             stop,
-            slow: None,
             quiet: Default::default(),
             saving: Vec::new(),
             asked: Vec::new(),

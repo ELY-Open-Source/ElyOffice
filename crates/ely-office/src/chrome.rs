@@ -1,13 +1,15 @@
 //! The tab strip and the save state (FILE-02).
 
 use ely_gpui_component::{
-    feedback::Banner,
     navigation::{EditorTab, EditorTabs},
-    primitives::Severity,
+    primitives::{IconName, Severity},
+    shell::StatusBarItem,
 };
-use gpui::{Context, SharedString, Window};
+use gpui::{Context, SharedString, Window, actions};
 
 use crate::{After, Closing, Engine, Host, Tabs, text};
+
+actions!(office, [ShowRisk]);
 
 /// A tab switch: the one behind stops drawing.
 pub(crate) fn follow_front<H: Host>(host: &mut H, cx: &mut Context<H>) {
@@ -76,9 +78,9 @@ pub trait Chrome: Host {
         cx.notify();
     }
 
-    /// The macro warning over a risky document (LOK-11).
-    fn risk_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
-        let tab = self.active_tab()?;
+    /// What saving tab `id` in place would lose (LOK-11).
+    fn risk_words(&self, id: u64, cx: &mut Context<Self>) -> Option<SharedString> {
+        let tab = self.tab(id)?;
         let formats = Self::KIND.save_as.join("/").to_uppercase();
         let key = match tab.risk? {
             crate::Risk::Macros => "office.risk",
@@ -89,8 +91,44 @@ pub trait Chrome: Host {
             crate::Risk::Links => "office.unlinked",
             crate::Risk::Unkept => "office.unkept",
         };
-        let warning = text(cx, key, &[("name", &tab.name), ("formats", &formats)]);
-        Some(Banner::new("office-risk", Severity::Warning, warning))
+        Some(text(cx, key, &[("name", &tab.name), ("formats", &formats)]))
+    }
+
+    /// Asks before tab `id` is saved over its file.
+    fn warn_risk(&mut self, id: u64, then: Option<After>, cx: &mut Context<Self>) {
+        if self.core().dialog.is_some() {
+            log::warn!("{}: tab {id}'s risk is not shown behind a dialog", Self::KIND.app.slug());
+            if then.is_some() {
+                self.close_stopped(cx);
+            }
+            return;
+        }
+        let Some(said) = self.risk_words(id, cx) else {
+            return log::error!("{}: tab {id} has no risk to show", Self::KIND.app.slug());
+        };
+        log::info!("{}: tab {id}'s risk is shown", Self::KIND.app.slug());
+        self.core_mut().dialog = Some(crate::Dialog::Risk { tab: id, then, said });
+        cx.notify();
+    }
+
+    /// The menu's risk warning, on the active tab.
+    fn on_show_risk(&mut self, _: &ShowRisk, _: &mut Window, cx: &mut Context<Self>) {
+        match self.active_tab().map(|tab| (tab.id, tab.risk.is_some(), tab.name.clone())) {
+            Some((id, true, _)) => self.warn_risk(id, None, cx),
+            Some((_, false, name)) => self.toast(text(cx, "office.risk.none", &[("name", &name)]), Severity::Info, cx),
+            None => self.toast(text(cx, "command.blocked.no_document", &[]), Severity::Warning, cx),
+        }
+    }
+
+    /// The save state; a risky tab's opens its warning.
+    fn state_item(&self, id: &'static str, cx: &mut Context<Self>) -> StatusBarItem {
+        let item = StatusBarItem::new(id).label(self.save_state(cx));
+        let Some(tab) = self.active_tab().filter(|tab| tab.risk.is_some()).map(|tab| tab.id) else {
+            return item;
+        };
+        let this = cx.entity();
+        item.icon(IconName::TriangleAlert)
+            .on_click(move |_, _, cx| this.update(cx, |host, cx| host.warn_risk(tab, None, cx)))
     }
 
     /// The active tab's save state, or the load.

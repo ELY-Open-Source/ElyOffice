@@ -60,15 +60,15 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("office.stopped.held", "un documento cerrado lo mantenía ocupado"),
     ("office.stopped.never", "ninguno todavía"),
     ("office.stopped.reopen", "Volver a abrir documentos"),
+    ("office.stopped.title", "El motor de documentos se detuvo"),
+    ("office.risk.title", "Guardar sobre {name} puede perder contenido"),
+    ("office.risk.copy", "Guardar una copia…"),
+    ("office.risk.show", "Qué puede perderse al guardar…"),
+    ("office.risk.none", "Guardar sobre {name} no pierde nada."),
     (
         "office.stopped.lost",
         "No se volvieron a abrir: {names}. Sus cambios sin guardar no tenían un punto de recuperación.",
     ),
-    (
-        "office.slow",
-        "{name} no se ha abierto después de {seconds} segundos. Detener el motor cerrará todos los documentos abiertos en esta aplicación; se perderán los cambios posteriores al último punto de recuperación de cada uno. Después podrá volver a abrirlos.",
-    ),
-    ("office.slow.stop", "Detener el motor"),
     ("office.error.engine", "{error}"),
     (
         "office.error.format",

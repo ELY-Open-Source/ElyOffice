@@ -97,4 +97,7 @@ pub(super) const ES: &[(&str, &str)] = &[
         "table.kept.stale",
         "Resultados guardados en el archivo: ElyTable no puede calcular sus funciones; al cambiar una entrada se mostrará #NAME?: {cells}",
     ),
+    ("table.kept.count", "{count} resultados guardados"),
+    ("table.kept.show", "Resultados guardados…"),
+    ("table.kept.none", "Todos los resultados de este libro se calculan."),
 ];

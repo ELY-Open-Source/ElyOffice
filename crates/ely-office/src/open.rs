@@ -173,7 +173,6 @@ pub trait Opening: Host {
         };
         let written = path.clone();
         cx.notify();
-        crate::Stopping::watch_slow(self, id, Arc::clone(&wanted), cx);
         let (worker, root) = (Arc::clone(&self.core().worker), self.core().work.clone());
         let slug = Self::KIND.app.slug();
         log::info!("{slug}: tab {id} load queued");
@@ -285,9 +284,6 @@ pub trait Opening: Host {
             .loading
             .retain(|(loading, ..)| *loading != id);
         let asks = self.core_mut().ended(id);
-        if self.core().slow == Some(id) {
-            self.core_mut().slow = None;
-        }
         let imported = matches!(source, Source::Import(..));
         let (path, registry, tried) = match source {
             Source::File(path, registry, password) => (path, Some(registry), !password.is_empty()),

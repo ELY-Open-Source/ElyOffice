@@ -35,7 +35,8 @@ actions!(
         RemoveDuplicates,
         TextToColumns,
         PasteValues,
-        PasteFormulas
+        PasteFormulas,
+        ListKept
     ]
 );
 
@@ -52,6 +53,9 @@ pub fn menu(cx: &App) -> Menu {
         MenuItem::action(label("table.data.columns"), TextToColumns),
         MenuItem::separator(),
         MenuItem::action(label("office.find.open"), ely_office::FindReplace),
+        MenuItem::action(label("office.links.update"), ely_office::UpdateLinks),
+        MenuItem::action(label("table.kept.show"), ListKept),
+        MenuItem::action(label("office.risk.show"), ely_office::ShowRisk),
         MenuItem::action(label("table.data.paste_values"), PasteValues),
         MenuItem::action(label("table.data.paste_formulas"), PasteFormulas),
         MenuItem::separator(),
@@ -67,6 +71,7 @@ pub fn bind(root: Div, cx: &mut Context<Book>) -> Div {
             cx.listener(|book, _: &RemoveDuplicates, _, cx| book.ask_data(Asked::Dedupe, cx)),
         )
         .on_action(cx.listener(|book, _: &TextToColumns, _, cx| book.ask_columns(cx)))
+        .on_action(cx.listener(|book, _: &ListKept, _, cx| book.list_kept(cx)))
         .on_action(
             cx.listener(|book, _: &AutoFilter, _, cx| book.run_active("data.autofilter", &[], cx)),
         )

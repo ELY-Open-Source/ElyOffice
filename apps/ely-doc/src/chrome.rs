@@ -21,8 +21,8 @@ use crate::docs::{Docs, Side};
 impl Docs {
     /// The save state, and the kernel's word count.
     pub(crate) fn status(&self, cx: &mut Context<Self>) -> StatusBar {
-        let state = self.save_state(cx);
-        let status = StatusBar::new().left(StatusBarItem::new("doc-state").label(state));
+        let status = StatusBar::new().left(self.state_item("doc-state", cx));
+        let status = status.when_some(self.links_item(cx), |status, item| status.left(item));
         let zoom = self.zoom_control(cx);
         let Some(counts) = self.active_tab().and_then(|tab| tab.extra.counts) else {
             return status.when_some(zoom, |status, zoom| status.right(zoom));
@@ -34,6 +34,9 @@ impl Docs {
     }
 
     pub(crate) fn body(&self, cx: &mut Context<Self>) -> AnyElement {
+        if let Some(page) = self.stopped_page(cx) {
+            return page;
+        }
         if let Some(tab) = self.active_tab() {
             let view = div()
                 .relative()
@@ -42,7 +45,6 @@ impl Docs {
                 .children(self.find_box(cx))
                 .children(self.context_menu(cx))
                 .into_any_element();
-            let risk = self.stopped_banner(cx).or_else(|| self.risk_banner(cx));
             // Each lost font names what drew it.
             let fonts: Vec<String> = (tab.view.read(cx).missing_fonts().iter())
                 .map(|(font, used)| match used.is_empty() {
@@ -55,14 +57,11 @@ impl Docs {
                 let warning = Self::text(cx, "doc.fonts.missing", &[("fonts", &fonts)]);
                 Banner::new("doc-fonts", Severity::Warning, warning)
             });
-            let links = self.links_banner(cx);
             return div()
                 .size_full()
                 .flex()
                 .flex_col()
                 .child(self.bar.clone())
-                .children(risk)
-                .children(links)
                 .children(fonts)
                 .child(div().flex_1().min_h_0().child(view))
                 .into_any_element();

@@ -352,6 +352,10 @@ fn a_macro_file_opens_in_risk_mode_and_saves_only_as_a_copy() {
         tab.id
     });
     type_into(&mut cx, &docs, "x");
+    // A save over the file asks first.
+    with_window(&mut cx, &docs, |docs, window, cx| docs.save(id, None, window, cx));
+    settle(&cx, |app| matches!(docs.read(app).core.dialog, Some(Dialog::Risk { .. })));
+    cx.update(|app| docs.update(app, |docs, _| docs.core.dialog = None));
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.write_as(id, macro_doc.with_extension("docx"), None, window, cx)
     });

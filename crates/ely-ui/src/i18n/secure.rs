@@ -100,8 +100,9 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("pdf.visible.no_picture", "None chosen"),
     ("pdf.visible.place", "Place on Page"),
     ("pdf.font.script", "Script"),
-    ("pdf.repair.show", "Report…"),
     ("pdf.repair.title", "Repair report for {name}"),
+    ("pdf.repair.open", "Repair report…"),
+    ("pdf.repair.none", "MuPDF repaired nothing in this file."),
     (
         "pdf.repair.detail",
         "What MuPDF found broken while reading the file. The repaired copy is open; the file itself is untouched.",
@@ -227,8 +228,9 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("pdf.visible.no_picture", "未选择"),
     ("pdf.visible.place", "放到页面上"),
     ("pdf.font.script", "手写体"),
-    ("pdf.repair.show", "报告…"),
     ("pdf.repair.title", "{name} 的修复报告"),
+    ("pdf.repair.open", "修复报告…"),
+    ("pdf.repair.none", "MuPDF 没有修复这个文件。"),
     (
         "pdf.repair.detail",
         "MuPDF 读取文件时发现的损坏。打开的是修复后的副本；文件本身未改动。",

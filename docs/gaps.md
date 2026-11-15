@@ -21,5 +21,5 @@
 | gpui 文本里不能嵌图片：行内公式无从排版 | 组件库 `render/math_text.rs`：以不断行的空格占出公式的宽（整个公式作一个词折行），排好的公式画在其上，按下处读回公式的原文 |
 | Omarchy 色板要照 `A11yChecker` 的同一套对照规则 | `ely-ui` 的 `omarchy/palette.rs` 抄了对照表；组件库自 70ab3c5 起公开 `devtools::audit`，待改用 |
 | 组件库与 gpui 在无障碍语义、禁用状态与内部文案上的缺口 | 上游待办，逐项的现状在 `docs/accessibility.md` 的“上游待办”一节；项目自绘控件已自带角色与名字 |
-| PPTX 的章节：内核无此结构，导入即丢 | `ely_office::files::sections` 打开时读 `p14:sectionLst`，有即 `Risk::Sections`；加密的 PPTX 看不到章节，即 `Risk::Sealed`；二者皆横幅说明，保存改为另存副本，自动保存与命令行保存不写原文件 |
+| PPTX 的章节：内核无此结构，导入即丢 | `ely_office::files::sections` 打开时读 `p14:sectionLst`，有即 `Risk::Sections`；加密的 PPTX 看不到章节，即 `Risk::Sealed`；二者皆在状态栏说明，保存时先确认再另存副本，自动保存与命令行保存不写原文件 |
 | LOK 的 `.uno:StyleApply` 状态给英文界面名，样式列表给程序名，两者对不上；内核界面固定英文，内置样式名到不了别的语言 | ElyDoc `props/builtin.rs` 照 LibreOffice 26.2 的译文列出内置段落、字符、页面样式的程序名与八种界面语言的名字（vi 未译的条目自拟）：状态里的界面名经它换回程序名，菜单按界面语言显示；用户自建的样式照原名 |

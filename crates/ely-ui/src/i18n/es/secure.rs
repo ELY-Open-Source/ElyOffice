@@ -106,8 +106,9 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("pdf.visible.no_picture", "No se ha elegido ninguna"),
     ("pdf.visible.place", "Colocar en la página"),
     ("pdf.font.script", "Manuscrita"),
-    ("pdf.repair.show", "Informe…"),
     ("pdf.repair.title", "Informe de reparación de {name}"),
+    ("pdf.repair.open", "Informe de reparación…"),
+    ("pdf.repair.none", "MuPDF no reparó nada en este archivo."),
     (
         "pdf.repair.detail",
         "Lo que MuPDF encontró dañado al leer el archivo. Está abierta la copia reparada; el archivo en sí no se ha modificado.",

@@ -68,6 +68,7 @@ impl LokView {
         let (inputs, mut input_queue) = mpsc::unbounded::<(u64, Input, Instant)>();
         let (tiles, mut tile_queue) = mpsc::unbounded::<Job>();
         let (landing, mut landed) = mpsc::unbounded::<Landed>();
+        let front = super::off::Front::of(&worker);
         cx.background_executor()
             .spawn(async move {
                 'lane: loop {
@@ -80,7 +81,7 @@ impl LokView {
                                 batch.push(more);
                             }
                             // A snapshot in the way gives up the worker.
-                            let mut held = waiter.hold(&worker);
+                            let mut held = front.take(|| waiter.hold(&worker));
                             let mut done = Vec::with_capacity(batch.len());
                             for (seq, input, sent) in batch {
                                 let (waited, edits, kind) = (sent.elapsed().as_millis(), input.edits(), input.kind());
@@ -110,7 +111,7 @@ impl LokView {
                                 let side = job.geom.tile_pixels();
                                 let (x, y) = (job.key.0 * TILE_TWIPS, job.key.1 * TILE_TWIPS);
                                 // Another tab's snapshot gives way to it too.
-                                let mut held = waiter.hold(&worker);
+                                let mut held = front.take(|| waiter.hold(&worker));
                                 let waited = started.elapsed().as_millis();
                                 let tile = doc.paint_tile(&mut held, (x, y, TILE_TWIPS, TILE_TWIPS), (side, side));
                                 drop(held);

@@ -292,6 +292,12 @@ Windows 测试机，6 次中位，单位毫秒（第 0 至 5 次）。“关窗�
 
 载入中关窗不再等载入：ElyDoc 从约 1 秒降到 22，三项都在 30 以内。开着的文件关窗与 SF.11 持平，快过 Word、Excel，与 PowerPoint 相当。进程退出三项都在 130 左右，Office 都在 2.5 秒左右。测的是第 1 轮审查前的 release 版；其后只改写命令的未保存记号，不在关窗路径上。
 
+### SF.13 文档应用的横幅去掉（2026-11-15）
+
+Doc、Table、Show、PDF 打开文件时文档上方不再有条，只留 ElyDoc 的字体缺失。`office-slow` 与它的“停止”删掉，30 秒的计时也删掉；关掉载入中的标签就是放弃。引擎停了，页面位置换成错误页（`feedback::ErrorView`）：原因、最近的恢复点、“重新打开文档”。风险七种不在打开时说：状态栏的保存状态项带一个警告图标，点开是同一段说明与“另存副本…”；对着原文件保存时弹同一个对话框，自动保存与命令行保存照旧不写原文件。链接是状态栏的“更新链接”项，悬停是原来的说明，点即更新；有源更新失败用 toast 列出。ElyTable 保持保存值的单元格是状态栏一项带数目，点开用 toast 列出。ElyPDF 的签名、修复报告由状态栏的保存状态项打开。ElyDoc 的“工具”与 ElyTable 的“数据”菜单加“更新链接”。状态栏的项眼下按不到 Tab（锁定的组件库 `StatusBarItem` 不是停靠点），故每个可点的状态项在菜单里另有一条：“保存可能丢失什么…”（ElyDoc 工具、ElyTable 数据、ElyShow 幻灯片），“保存的结果…”（ElyTable 数据），“修复报告…”（ElyPDF 文档；签名已有“显示签名”）；无可说时 toast 说明。组件库 main 已改为停靠点、Enter 与空格按下；换 pin 连带 gpui-pre 0.3.12，归 SF.25。
+
+实测（2026-11-15，带引擎、严格模式，全部通过）：Linux 上 ElyDoc 142、ely-lok 502、ely-office 22、ElyPDF 191、ElyShow 112、ElyTable 120、ely-ui 103；Windows 上 ElyDoc 141、ely-lok 509、ely-office 24、ElyPDF 189、ElyShow 111、ElyTable 116、ely-ui 101。Windows 的读写锁不公平，键入曾排在 12 个后台读的 4 个之后；改为键入与图块等锁时后台让路，测试（至多等 2 个）连跑三遍都过。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

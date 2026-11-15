@@ -51,6 +51,7 @@ pub fn menu(cx: &App) -> Menu {
         MenuItem::action(label("pdf.owner.open"), OwnerPassword),
         MenuItem::action(label("pdf.protect.open"), ProtectDocument),
         MenuItem::action(label("pdf.sign.show"), ShowSignatures),
+        MenuItem::action(label("pdf.repair.open"), ShowRepairReport),
         MenuItem::action(label("pdf.sign.open"), SignDocument),
         MenuItem::action(label("pdf.visible.open"), AddVisibleSignature),
     ])
