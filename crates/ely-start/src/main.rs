@@ -12,7 +12,7 @@ fn main() {
 
 #[cfg(windows)]
 fn main() {
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::time::{Instant, SystemTime, UNIX_EPOCH};
     let mut args = std::env::args_os().skip(1);
     let (Some(slug), Some(name)) = (args.next(), args.next()) else {
         fail("ely-start", "usage: ely-start <slug> <name> [args...]");
@@ -24,12 +24,14 @@ fn main() {
     };
     let app = dir.join(&slug).with_extension("exe");
     let icon = dir.join(&slug).with_extension("ico");
+    // One zero for launcher and app.
+    let began = Instant::now();
     let at = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_else(|error| fail(&name, &format!("the clock is before 1970: {error}")));
     let mut command = std::process::Command::new(&app);
     command.args(args).env("ELY_START", at.as_millis().to_string());
-    if let Err(error) = splash::run(&name, &icon, command) {
+    if let Err(error) = splash::run(&name, &icon, command, began) {
         fail(&name, &format!("{}: {error}", app.display()));
     }
 }

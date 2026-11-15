@@ -1,16 +1,20 @@
-//! The splash window: the app's icon and name.
+//! The splash window: the start scene, drawn with GDI.
 
 use std::{
     io,
     path::Path,
     process::{Child, Command},
+    thread::JoinHandle,
+    time::Instant,
 };
+
+use ely_start::scene;
 
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
     Graphics::Gdi::{
         BeginPaint, CreateFontW, CreateSolidBrush, DT_CENTER, DT_SINGLELINE, DT_VCENTER, DeleteObject, DrawTextW,
-        EndPaint, FillRect, PAINTSTRUCT, SelectObject, SetBkMode, SetTextColor, TRANSPARENT, UpdateWindow,
+        EndPaint, FillRect, InvalidateRect, PAINTSTRUCT, SelectObject, SetBkMode, SetTextColor, TRANSPARENT, UpdateWindow,
     },
     System::{
         LibraryLoader::GetModuleHandleW,
@@ -19,20 +23,44 @@ use windows_sys::Win32::{
     UI::{HiDpi::{DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, GetDpiForSystem, SetProcessDpiAwarenessContext}, WindowsAndMessaging::*},
 };
 
-/// The spawn's result, boxed in the message.
+/// The spawn returned.
 const SPAWNED: u32 = WM_APP + 1;
 /// Sizes in 96-dpi pixels.
 const WIDTH: i32 = 360;
 const HEIGHT: i32 = 240;
-const ICON: i32 = 96;
+/// One frame, ms.
+const FRAME: u32 = 16;
 
 struct Shown {
     name: Vec<u16>,
     icon: HICON,
     scale: i32,
     dark: bool,
+    still: bool,
+    entered: bool,
+    began: Instant,
+    leaving: Option<Instant>,
+    spawner: Option<JoinHandle<io::Result<Child>>>,
     child: Option<Child>,
     failed: Option<io::Error>,
+}
+
+impl Shown {
+    fn px(&self, at96: f32) -> i32 {
+        (at96 * self.scale as f32 / 96.0).round() as i32
+    }
+
+    fn ms(&self) -> u64 {
+        self.began.elapsed().as_millis() as u64
+    }
+
+    /// Top of the icon box, the name line, the bar.
+    fn rows(&self, height: i32) -> (i32, i32, i32) {
+        let tall = scene::ICON + scene::GAP + scene::NAME * 1.4 + scene::GAP + scene::THICK;
+        let top = (height - self.px(tall)) / 2;
+        let name = top + self.px(scene::ICON + scene::GAP);
+        (top, name, name + self.px(scene::NAME * 1.4 + scene::GAP))
+    }
 }
 
 fn wide(text: &str) -> Vec<u16> {
@@ -40,18 +68,19 @@ fn wide(text: &str) -> Vec<u16> {
 }
 
 /// Shows the splash until the app closes it or exits.
-pub fn run(name: &str, icon: &Path, mut command: Command) -> io::Result<()> {
+pub fn run(name: &str, icon: &Path, mut command: Command, began: Instant) -> io::Result<()> {
     // SAFETY: plain Win32 calls on this thread's own window.
     unsafe {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         let scale = GetDpiForSystem() as i32;
-        let side = ICON * scale / 96;
+        let side = (scene::ICON * scale as f32 / 96.0).round() as i32;
         let path = wide(&icon.to_string_lossy());
         let handle = LoadImageW(std::ptr::null_mut(), path.as_ptr(), IMAGE_ICON, side, side, LR_LOADFROMFILE);
         if handle.is_null() {
             return Err(io::Error::other(format!("no icon at {}: {}", icon.display(), io::Error::last_os_error())));
         }
-        let mut shown = Shown { name: wide(name), icon: handle, scale, dark: dark(), child: None, failed: None };
+        let still = still();
+        let mut shown = Shown { name: wide(name), icon: handle, scale, dark: dark(), still, entered: still, began, leaving: None, spawner: None, child: None, failed: None };
         let module = GetModuleHandleW(std::ptr::null());
         let class = wide("ElySplash");
         let kind = WNDCLASSEXW {
@@ -70,7 +99,7 @@ pub fn run(name: &str, icon: &Path, mut command: Command) -> io::Result<()> {
         let (width, height) = (WIDTH * scale / 96, HEIGHT * scale / 96);
         let title = wide(name);
         let window = CreateWindowExW(
-            WS_EX_TOOLWINDOW,
+            WS_EX_TOOLWINDOW | WS_EX_LAYERED,
             class.as_ptr(),
             title.as_ptr(),
             WS_POPUP,
@@ -86,27 +115,52 @@ pub fn run(name: &str, icon: &Path, mut command: Command) -> io::Result<()> {
         if window.is_null() {
             return Err(io::Error::last_os_error());
         }
+        fade(window, scene::enter(0, still).0);
         ShowWindow(window, SW_SHOW);
         UpdateWindow(window);
+        SetTimer(window, 1, FRAME, None);
         // The app may take the foreground from us.
         AllowSetForegroundWindow(ASFW_ANY);
         let target = window as isize;
         // The app closes it at its first frame.
         command.env("ELY_SPLASH", target.to_string());
-        std::thread::spawn(move || {
-            let started = Box::into_raw(Box::new(command.spawn()));
-            PostMessageW(target as HWND, SPAWNED, 0, started as LPARAM);
-        });
+        shown.spawner = Some(std::thread::spawn(move || {
+            let started = command.spawn();
+            PostMessageW(target as HWND, SPAWNED, 0, 0);
+            started
+        }));
         let mut message: MSG = std::mem::zeroed();
         while GetMessageW(&mut message, std::ptr::null_mut(), 0, 0) > 0 {
             TranslateMessage(&message);
             DispatchMessageW(&message);
         }
-        match shown.failed {
-            Some(error) => Err(error),
+        if let Some(error) = shown.failed {
+            return Err(error);
+        }
+        // The splash may close first.
+        match shown.spawner.take() {
+            Some(spawner) => joined(spawner).map(drop),
             None => Ok(()),
         }
     }
+}
+
+fn joined(spawner: JoinHandle<io::Result<Child>>) -> io::Result<Child> {
+    spawner.join().map_err(|_| io::Error::other("the start thread panicked"))?
+}
+
+/// Windows' "animation effects" off: reduced motion.
+fn still() -> bool {
+    let mut on = 1i32;
+    // SAFETY: `on` holds the BOOL the call writes.
+    let read = unsafe { SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, (&raw mut on).cast(), 0) };
+    read != 0 && on == 0
+}
+
+/// The whole window at `opacity`.
+fn fade(window: HWND, opacity: f32) {
+    // SAFETY: a layered window of this thread.
+    unsafe { SetLayeredWindowAttributes(window, 0, (opacity.clamp(0.0, 1.0) * 255.0) as u8, LWA_ALPHA) };
 }
 
 /// Windows' app mode: dark unless apps use light.
@@ -144,28 +198,38 @@ unsafe extern "system" fn proc_(window: HWND, message: u32, wparam: WPARAM, lpar
                 0
             }
             SPAWNED => {
-                let started = *Box::from_raw(lparam as *mut io::Result<Child>);
-                let failed = match (state(window), started) {
-                    (Some(shown), Ok(child)) => {
+                let failed = match state(window).and_then(|shown| shown.spawner.take().map(|spawner| (shown, joined(spawner)))) {
+                    Some((shown, Ok(child))) => {
                         shown.child = Some(child);
                         false
                     }
-                    (Some(shown), Err(error)) => {
+                    Some((shown, Err(error))) => {
                         shown.failed = Some(error);
                         true
                     }
-                    (None, _) => true,
+                    None => false,
                 };
                 if failed {
                     DestroyWindow(window);
-                } else {
-                    SetTimer(window, 1, 30, None);
+                }
+                0
+            }
+            WM_CLOSE => {
+                match state(window) {
+                    Some(shown) if !shown.still && shown.leaving.is_none() => shown.leaving = Some(Instant::now()),
+                    _ => {
+                        DestroyWindow(window);
+                    }
                 }
                 0
             }
             WM_TIMER => {
-                if state(window).is_none_or(exited) {
-                    DestroyWindow(window);
+                let gone = state(window).is_none_or(exited);
+                match (gone, state(window)) {
+                    (false, Some(shown)) => tick(window, shown),
+                    _ => {
+                        DestroyWindow(window);
+                    }
                 }
                 0
             }
@@ -192,30 +256,103 @@ fn exited(shown: &mut Shown) -> bool {
     }
 }
 
-/// Background, icon and name.
+/// One frame: the fade, the entrance, the bar.
+unsafe fn tick(window: HWND, shown: &mut Shown) {
+    let ms = shown.ms();
+    match shown.leaving {
+        Some(left) => {
+            let opacity = scene::leave(left.elapsed().as_millis() as u64, false);
+            fade(window, opacity);
+            if opacity <= 0.0 {
+                // SAFETY: this thread's window; no borrow outlives it.
+                unsafe { DestroyWindow(window) };
+                return;
+            }
+        }
+        None if ms >= scene::LONGEST => {
+            match shown.still {
+                true => {
+                    // SAFETY: this thread's window; no borrow outlives it.
+                    unsafe { DestroyWindow(window) };
+                }
+                false => shown.leaving = Some(Instant::now()),
+            }
+            return;
+        }
+        None if shown.still => return,
+        None if !shown.entered => {
+            // A late tick lands at full.
+            shown.entered = ms >= scene::ENTER;
+            fade(window, scene::enter(ms, false).0);
+        }
+        None => {}
+    }
+    let mut whole: RECT = unsafe { std::mem::zeroed() };
+    // SAFETY: this thread's window.
+    unsafe { GetClientRect(window, &mut whole) };
+    // Past the entrance only the bar moves.
+    let only = shown.entered.then(|| track(shown, &whole));
+    // SAFETY: this thread's window; null repaints it all.
+    unsafe { InvalidateRect(window, only.as_ref().map_or(std::ptr::null(), |rect| rect as *const RECT), 0) };
+}
+
+/// The bar's lane.
+fn track(shown: &Shown, whole: &RECT) -> RECT {
+    let (_, _, top) = shown.rows(whole.bottom);
+    let width = shown.px(scene::TRACK);
+    let left = (whole.right - width) / 2;
+    RECT { left, top, right: left + width, bottom: top + shown.px(scene::THICK).max(1) }
+}
+
+/// Background, icon, name and bar.
 unsafe fn paint(window: HWND, shown: &Shown) {
     // SAFETY: a paint cycle on this thread's window.
     unsafe {
         let mut sheet: PAINTSTRUCT = std::mem::zeroed();
         let dc = BeginPaint(window, &mut sheet);
-        let (back, ink) = if shown.dark { (0x0025_2525, 0x00f0_f0f0) } else { (0x00ff_ffff, 0x0020_2020) };
-        let brush = CreateSolidBrush(back);
+        let (back, ink, lane) = match shown.dark {
+            true => (scene::DARK, 0x00f0_f0f0, 0x0040_4040),
+            false => (scene::LIGHT, 0x0020_2020, 0x00e0_e0e0),
+        };
+        let fill = |rect: &RECT, color: u32| {
+            let brush = CreateSolidBrush(color);
+            FillRect(dc, rect, brush);
+            DeleteObject(brush);
+        };
         let mut whole: RECT = std::mem::zeroed();
         GetClientRect(window, &mut whole);
-        FillRect(dc, &whole, brush);
-        DeleteObject(brush);
-        let side = ICON * shown.scale / 96;
-        let top = whole.bottom * 2 / 9;
-        DrawIconEx(dc, (whole.right - side) / 2, top, shown.icon, side, side, 0, std::ptr::null_mut(), DI_NORMAL);
-        let face = wide("Segoe UI Semibold");
-        let font = CreateFontW(-22 * shown.scale / 96, 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, face.as_ptr());
-        let old = SelectObject(dc, font);
-        SetBkMode(dc, TRANSPARENT as i32);
-        SetTextColor(dc, ink);
-        let mut line = RECT { left: 0, top: top + side, right: whole.right, bottom: top + side + 56 * shown.scale / 96 };
-        DrawTextW(dc, shown.name.as_ptr(), shown.name.len() as i32 - 1, &mut line, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
-        SelectObject(dc, old);
-        DeleteObject(font);
+        let ms = shown.ms();
+        let lane_at = track(shown, &whole);
+        // A bar-only repaint leaves the rest.
+        if sheet.rcPaint.top < lane_at.top || sheet.rcPaint.bottom > lane_at.bottom {
+            fill(&whole, back);
+            let (top, name, _) = shown.rows(whole.bottom);
+            let (_, scale) = scene::enter(ms, shown.still);
+            let (side, size) = (shown.px(scene::ICON), shown.px(scene::ICON * scale));
+            let (x, y) = ((whole.right - size) / 2, top + (side - size) / 2);
+            DrawIconEx(dc, x, y, shown.icon, size, size, 0, std::ptr::null_mut(), DI_NORMAL);
+            let face = wide("Segoe UI Semibold");
+            let font = CreateFontW(-shown.px(scene::NAME), 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, face.as_ptr());
+            let old = SelectObject(dc, font);
+            SetBkMode(dc, TRANSPARENT as i32);
+            SetTextColor(dc, ink);
+            let mut line = RECT { left: 0, top: name, right: whole.right, bottom: name + shown.px(scene::NAME * 1.4) };
+            DrawTextW(dc, shown.name.as_ptr(), shown.name.len() as i32 - 1, &mut line, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+            SelectObject(dc, old);
+            DeleteObject(font);
+        }
+        fill(&lane_at, lane);
+        let width = lane_at.right - lane_at.left;
+        let left = lane_at.left + (scene::bar(ms, shown.still) * width as f32) as i32;
+        let bar = RECT {
+            left: left.max(lane_at.left),
+            top: lane_at.top,
+            right: (left + (scene::BAR * width as f32) as i32).min(lane_at.right),
+            bottom: lane_at.bottom,
+        };
+        if bar.right > bar.left {
+            fill(&bar, ink);
+        }
         EndPaint(window, &sheet);
     }
 }

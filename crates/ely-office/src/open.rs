@@ -122,6 +122,8 @@ pub trait Opening: Host {
 
     fn failed_open(&self, name: &str, error: &io::Error, cx: &mut gpui::App) {
         log::error!("{}: a file did not open: {}", Self::KIND.app.slug(), ely_ipc::Worded::logged(error));
+        ely_platform::startup::document_shown("the file did not open");
+        cx.refresh_windows();
         let inner = error.get_ref();
         let error = match inner.and_then(|inner| inner.downcast_ref::<files::NotPackage>()) {
             Some(files::NotPackage(ext)) => text(cx, "office.error.not_package", &[("ext", ext)]).to_string(),

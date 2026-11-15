@@ -142,6 +142,8 @@ impl Render for LokView {
                                 cx.emit(Drawn);
                             });
                             log::info!("lok: first tile drawn");
+                            ely_platform::startup::document_shown("the first tile drew");
+                            window.refresh();
                         }
                         window.with_content_mask(Some(ContentMask { bounds }), |window| {
                             for rect in painted.selection {

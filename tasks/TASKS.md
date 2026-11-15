@@ -672,7 +672,7 @@
 - [x] SF.7 Windows 共用内核（SF-04）：内核在 `Programs\Ely Office\Kernel`，内容取并集（带 Impress 模板），各应用的 `libreoffice` 是目录联接，内核是隐藏节、三个文档应用都没选时不装；卸载最后一个文档应用时删内核；不对含联接的目录用 `RMDir /r`；WinGet 一份 `ZacharyZhang.ElyOffice`
 - [x] SF.8 Windows 登录后自启与安装时起引擎：当前用户 `Run` 值“Ely Office”指向内核旁的小程序，后台优先级起每个已装文档应用的引擎；安装前 `engine stop`、装完 `engine`；卸载时删 `Run` 值；量安装后首次
 - [x] SF.9 更新改为每平台一份清单、更新整套：`manifest.sh`、`ely-ui` 的 `updates.rs`、`ely_platform::install`；更新前停常驻引擎、列出开着的应用由用户关；官网下载项与 README 随之改
-- [ ] SF.10 启动动画（SF-08）：一份规格，Windows 启动器小窗与应用首帧画同一场景，留到文档画出；减少动效下静止；小窗最多 3 秒；八个应用经 `ely_ui::run`
+- [x] SF.10 启动动画（SF-08）：一份规格，Windows 启动器小窗与应用首帧画同一场景，留到文档画出；减少动效下静止；小窗最多 3 秒；八个应用经 `ely_ui::run`
 - [ ] SF.11 SF-10 引擎与窗口同时起：单实例门之后即接管引擎，文件排上队即交后台
 - [ ] SF.12 SF-18 关窗、关标签不再等引擎：应用自己记每个标签改没改；关正在载入的标签 2 秒内放不下即换引擎
 - [ ] SF.13 删文档应用的横幅（SF-17 之一）：`office-slow` 删、`office-stopped` 改错误页、`office-risk` 七种改状态栏加保存时的确认、`office-links` 与 `table-kept` 改状态栏、ElyPDF `file_banner` 改状态栏；`docs/gaps.md` 的 PPTX 章节随之改

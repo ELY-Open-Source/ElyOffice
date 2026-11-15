@@ -248,6 +248,20 @@ Windows 的代价：开着的每个旧应用各自下一份约 270 MB 的统一�
 
 PDF 的 10.8 秒是装完后第一次开，原因未查，这里只记数。Office 的更新这次没有可装的新版，未量。
 
+### SF.10 启动动画（2026-11-15，测试机 7877，热，毫秒）
+
+一份规格在 `ely_start::scene`：图标与名字 180 毫秒淡入放大，进度条 1280 毫秒一扫、高 3 像素、宽 120，文档画出后 150 毫秒淡出。启动器的 GDI 小窗与应用窗口照它画；启动器取一个时刻，自己从它数，也交给应用（`ELY_START`）；应用的进度条每帧按这个时刻算位置，小窗淡出时进度条照走，交接时不跳。应用窗口先显示但隐藏（`DWMWA_CLOAK`），文档画出、出错或要密码时才露出。小窗自己数 3 秒，到时即淡出；应用窗口那时若已在，也在 3 秒露出。小窗关了，启动器仍等应用进程起完；起不来照旧报错，退出码 1。不带文件、或 Mark、Mail、Tree、Agent 起来时，场景画在第一帧，第一帧呈现后淡出到起始页。macOS 从 Finder 打开的文件同样让场景等文档。
+
+测试机没有显卡（Microsoft Basic Render Driver），每帧都由 CPU 画。初版在隐藏的窗口里也播动画，抢走引擎的 CPU：ElyDoc 打开 big.docx，交替各六次，动画开时首块图块中位 4,705、载入 3,040；`ELY_REDUCE_MOTION=1` 时 2,590、1,135。所以隐藏时只画静止的一帧，露出后进度条才动。与 Office 比（第 1 至 5 次的中位）：
+
+| 应用 | Office 窗口标题 | Ely 首块图块 | Ely 载入 |
+| --- | --- | --- | --- |
+| Word / ElyDoc（big.docx） | 1,161 | 2,732 | 1,320 |
+| Excel / ElyTable（sheet.xlsx） | 940 | 1,101 | 615 |
+| PowerPoint / ElyShow（deck.ppt） | 1,232 | 1,946 | 317 |
+
+窗口在首块图块后 7 至 43 毫秒露出，场景再过 165 至 313 毫秒消失。每个应用的第 0 次是换 exe 后第一次起，Defender 向云端查新文件，答复前 exe 不运行：ElyDoc 的应用在启动器开始后 3,975 毫秒才有窗口，小窗在 3 秒淡出，窗口 4,100 毫秒露出，首块图块 8,995；ElyTable 窗口 3,235 出现、3,336 露出；ElyShow 窗口 3,243 出现、3,358 露出。其间约 1 秒屏上什么都没有。每次安装或更新后只发生一次。Ely 三项仍慢于 Office，差在载入之外的启动，留给 SF.11 起的各步。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

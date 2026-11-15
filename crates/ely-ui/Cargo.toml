@@ -11,6 +11,7 @@ anyhow.workspace = true
 ely-gpui-component.workspace = true
 ely-ipc.workspace = true
 ely-platform.workspace = true
+ely-start.workspace = true
 gpui.workspace = true
 directories.workspace = true
 futures.workspace = true
@@ -22,6 +23,8 @@ serde_json.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
 gpui_windows = { package = "gpui-pre-windows", version = "=0.3.11" }
+raw-window-handle = "0.6"
+windows-sys.workspace = true
 
 [features]
 frames = ["gpui/profiler"]
@@ -34,9 +37,6 @@ tempfile.workspace = true
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 zbus.workspace = true
-
-[target.'cfg(windows)'.dev-dependencies]
-windows-sys.workspace = true
 
 [lints]
 workspace = true

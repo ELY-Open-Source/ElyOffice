@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use ely_platform::instance::Door;
+use ely_platform::{AppId, instance::Door};
 use futures::{StreamExt, channel::mpsc};
 use gpui::{App, Application, Global};
 
@@ -103,8 +103,13 @@ pub fn mail_link(opened: &Path) -> Option<&str> {
     opened.to_str().filter(|text| is_mail_link(text))
 }
 
+/// Apps whose files draw late, behind the scene.
+pub(crate) fn paged(app: AppId) -> bool {
+    AppId::DOCUMENTS.contains(&app) || app == AppId::Pdf
+}
+
 /// Queues `files`, then files the system or copies ask for.
-pub(crate) fn listen(application: &Application, files: Vec<PathBuf>, door: Door) -> io::Result<Handed> {
+pub(crate) fn listen(app: AppId, application: &Application, files: Vec<PathBuf>, door: Door) -> io::Result<Handed> {
     let (queue, asked) = mpsc::unbounded();
     for path in files {
         queue.unbounded_send(path).ok();
@@ -131,6 +136,10 @@ pub(crate) fn listen(application: &Application, files: Vec<PathBuf>, door: Door)
             match file_path(&url) {
                 Some(path) => {
                     log::info!("run: the system asks to open a file");
+                    // macOS hands launch files here.
+                    if paged(app) && !ely_platform::startup::has_started() {
+                        ely_platform::startup::await_document();
+                    }
                     system.unbounded_send(path).ok();
                 }
                 None => log::warn!("run: not a file URL, ignored"),

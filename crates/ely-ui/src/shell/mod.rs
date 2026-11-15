@@ -17,12 +17,16 @@ use gpui::{
 mod page;
 mod panel;
 mod root;
+mod scene;
 #[cfg(test)]
 mod tests;
 
 use page::Fade;
 use panel::{Side, SidePanel};
 pub use root::{Root, blank, document_root, root, set_document_menus, tool_root};
+pub(crate) use scene::want as want_scene;
+#[cfg(windows)]
+pub(crate) use scene::{cloak, reveal};
 
 /// The window frame; empty panels take no room.
 #[derive(IntoElement)]

@@ -36,6 +36,10 @@ pub fn run<V: Render>(
     }
     moved.log();
     startup::launched();
+    // Paged apps draw files late; the scene waits for them.
+    if !files.is_empty() && crate::opening::paged(app) {
+        startup::await_document();
+    }
     if let Err(error) = graphics::check() {
         startup::fail(app, &format!("{error:#}"));
     }
@@ -43,7 +47,7 @@ pub fn run<V: Render>(
     startup::no_window_restore();
     let smoke = Smoke::from_env();
     let application = gpui_platform::application().with_assets(Assets);
-    let handed = crate::opening::listen(&application, files, door).unwrap_or_else(|error| startup::fail(app, &format!("the door for other copies did not open: {error}")));
+    let handed = crate::opening::listen(app, &application, files, door).unwrap_or_else(|error| startup::fail(app, &format!("the door for other copies did not open: {error}")));
     // The Dock icon brings back a window the tray kept.
     application.on_reopen(|cx| {
         crate::tray::show_main(cx);
@@ -103,6 +107,7 @@ fn open<V: Render>(
     crate::commands::bind_keys(cx);
     crate::commands::bind_quit(cx);
     cx.on_action(move |_: &crate::commands::OpenSettings, cx| crate::settings::open(app, cx));
+    crate::shell::want_scene();
     let main = match main_window(app, smoke, root, cx) {
         Ok(window) => window,
         Err(error) => startup::fail(app, &format!("the window did not open: {error:#}")),
@@ -145,16 +150,26 @@ pub(crate) fn main_window<V: Render>(
     if let Some(bounds) = crate::settings::restored_frame(app, cx) {
         options.window_bounds = Some(bounds);
     }
-    let opened = cx.open_window(options, |window, cx| {
+    // Windows' launcher stays up; the window draws cloaked.
+    let hidden = cfg!(windows) && startup::awaiting() && env::value("ELY_SPLASH").is_some();
+    options.show = !hidden;
+    let opened = cx.open_window(options, move |window, cx| {
         // The platform shows the window before its root exists.
         log::info!("ui: window shown");
+        #[cfg(windows)]
+        if hidden {
+            crate::shell::cloak(window, true);
+            window.activate_window();
+            longest(window, cx);
+        }
         window.on_next_frame(move |window, cx| {
             // Runs before the next draw: after the first present.
-            window.on_next_frame(|_, _| {
+            window.on_next_frame(move |_, _| {
                 log::info!("ui: first frame presented");
-                startup::close_splash();
             });
             startup::started();
+            // The scene may leave now.
+            window.refresh();
             if smoke == Smoke::Once {
                 println!("ready {}", app.name());
                 cx.quit();
@@ -167,6 +182,25 @@ pub(crate) fn main_window<V: Render>(
         root
     })?;
     Ok(opened.into())
+}
+
+/// The launcher's longest stay; then the window shows the scene.
+#[cfg(windows)]
+fn longest(window: &mut Window, cx: &mut App) {
+    let wait = Duration::from_millis(ely_start::scene::LONGEST.saturating_sub(startup::since_start()));
+    window
+        .spawn(cx, async move |cx| {
+            cx.background_executor().timer(wait).await;
+            if startup::awaiting() {
+                log::info!("startup: the document is slow, so the window shows");
+                cx.update(|window, _| {
+                    crate::shell::reveal(window);
+                    window.refresh();
+                })
+                .ok();
+            }
+        })
+        .detach();
 }
 
 /// Logs each main-thread stretch busy past 100 ms.

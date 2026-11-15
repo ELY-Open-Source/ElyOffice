@@ -30,6 +30,7 @@ pub struct Root {
     content: Option<gpui::AnyView>,
     document: bool,
     file: &'static [&'static commands::Command],
+    scene: Option<super::scene::Scene>,
 }
 
 /// A window with only its frame.
@@ -54,15 +55,7 @@ pub fn tool_root(
     window: &mut Window,
     cx: &mut App,
 ) -> Entity<Root> {
-    build(
-        app,
-        Some(content),
-        false,
-        &commands::OPENING,
-        menus,
-        window,
-        cx,
-    )
+    build(app, Some(content), false, &commands::OPENING, menus, window, cx)
 }
 
 /// A document window: File holds `file`; `menus` follow.
@@ -149,11 +142,18 @@ fn build(
             content,
             document,
             file,
+            scene: super::scene::Scene::new(app),
         }
     })
 }
 
 impl Root {
+    pub(super) fn scene_gone(&mut self, cx: &mut Context<Self>) {
+        self.scene = None;
+        log::info!("startup: the scene is gone");
+        cx.notify();
+    }
+
     pub fn palette_open(&self) -> bool {
         self.palette
     }
@@ -278,8 +278,10 @@ impl Root {
 }
 
 impl Render for Root {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let this = cx.entity();
+        let app = self.app;
+        let scene = self.scene.as_mut().map(|scene| super::scene::draw(scene, app, window, cx));
         let body = match &self.content {
             Some(view) => view.clone().into_any_element(),
             None => Shell::new(self.app.name(), &self.focus).into_any_element(),
@@ -334,10 +336,9 @@ impl Render for Root {
                 }
             }))
             .child(body);
-        let frame = frame.child(raise(
-            "toasts",
-            ToastViewport::new("toast-viewport", &self.toaster),
-        ));
+        let frame = frame
+            .when_some(scene, |frame, scene| frame.child(raise("start-scene", scene)))
+            .child(raise("toasts", ToastViewport::new("toast-viewport", &self.toaster)));
         if !self.palette {
             return frame.into_any_element();
         }

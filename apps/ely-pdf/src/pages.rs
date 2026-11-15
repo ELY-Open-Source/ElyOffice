@@ -72,6 +72,8 @@ fn drawn_tile(image: Arc<RenderImage>, page: usize, view: gpui::Entity<PdfView>)
                 if !view.drawn && bounds.size.width > px(0.0) && bounds.size.height > px(0.0) {
                     log::info!("pdf: first tile drawn, page {page}");
                     view.drawn = true;
+                    ely_platform::startup::document_shown("the first tile drew");
+                    window.refresh();
                 }
                 view.painted.push((bounds, image));
             }),

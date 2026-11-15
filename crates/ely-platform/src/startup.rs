@@ -6,6 +6,9 @@ use std::{
 use crate::{AppId, logging};
 
 static STARTED: AtomicBool = AtomicBool::new(false);
+static AWAITED: AtomicBool = AtomicBool::new(false);
+/// Unix milliseconds the start began.
+static BEGAN: std::sync::OnceLock<u128> = std::sync::OnceLock::new();
 
 /// The text a failed start shows, in both languages.
 pub fn message(app: AppId, reason: &str, log: &str) -> String {
@@ -119,8 +122,14 @@ pub fn started() {
     STARTED.store(true, Ordering::Relaxed);
 }
 
+/// Whether the first frame showed.
+pub fn has_started() -> bool {
+    STARTED.load(Ordering::Relaxed)
+}
+
 /// Logs the time since Windows' splash launcher began.
 pub fn launched() {
+    since_start();
     let Some(at) = crate::env::value("ELY_START") else {
         return;
     };
@@ -130,6 +139,33 @@ pub fn launched() {
         (Err(error), _) => log::warn!("startup: ELY_START={at} is not a time: {error}"),
         (_, Err(error)) => log::warn!("startup: the clock is before 1970: {error}"),
     }
+}
+
+/// A launch file loads; the start scene waits for it.
+pub fn await_document() {
+    AWAITED.store(true, Ordering::Relaxed);
+    log::info!("startup: the scene waits for the document");
+}
+
+/// Whether the start scene still waits.
+pub fn awaiting() -> bool {
+    AWAITED.load(Ordering::Relaxed)
+}
+
+/// The document drew, failed or asked; the scene ends.
+pub fn document_shown(why: &str) {
+    if AWAITED.swap(false, Ordering::Relaxed) {
+        log::info!("startup: the scene ends, {why}");
+    }
+}
+
+/// Milliseconds since the launcher, or else this process, began.
+pub fn since_start() -> u64 {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |now| now.as_millis());
+    let at = *BEGAN.get_or_init(|| {
+        crate::env::value("ELY_START").and_then(|at| at.parse().ok()).unwrap_or(now)
+    });
+    u64::try_from(now.saturating_sub(at)).unwrap_or(u64::MAX)
 }
 
 /// Closes the launcher's splash once the first frame shows.

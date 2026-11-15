@@ -44,6 +44,8 @@ pub trait Dialogs: Host {
             "office: {} is locked, a password failed: {wrong}",
             path.display()
         );
+        ely_platform::startup::document_shown("a password is asked");
+        window.refresh();
         if self.core().dialog.is_some() {
             return self.core_mut().locked.push_back((path, wrong, copy));
         }
