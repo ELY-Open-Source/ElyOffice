@@ -45,6 +45,12 @@ for slug in $batch; do
   printf '  !insertmacro ${M} %s %s %s\n' "$name" "$slug" "$shares" >>"$apps"
 done
 echo '!macroend' >>"$apps"
+# Beside the kernel: idle engines at login.
+if [ -d "$kernel" ]; then
+  cargo build --manifest-path "$root/Cargo.toml" --release -p ely-login
+  cp "${CARGO_TARGET_DIR:-$root/target}/release/ely-login.exe" "$kernel/"
+  "$root/scripts/kernel-id.sh" "$kernel" "$kernel/program/ely-kernel-id"
+fi
 "$root/packaging/windows/files.sh" "$kernel" >"$stages/kernel-files.txt"
 out=$dist/ElyOffice-$version-windows-x86_64-setup.exe
 "$makensis" -V2 -INPUTCHARSET UTF8 -DVERSION="$version" -DAPPS="$(cygpath -w "$apps")" \

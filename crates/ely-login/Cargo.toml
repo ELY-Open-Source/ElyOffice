@@ -1,0 +1,15 @@
+[package]
+name = "ely-login"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+ely-platform.workspace = true
+log.workspace = true
+windows-sys.workspace = true
+
+[lints]
+workspace = true

@@ -22,6 +22,8 @@ impl AppId {
         AppId::Mark,
         AppId::Agent,
     ];
+    /// The apps on the shared kernel, with idle engines.
+    pub const DOCUMENTS: [AppId; 3] = [AppId::Doc, AppId::Table, AppId::Show];
 
     /// The macOS bundle identifier `packaging/macos/bundle.sh` writes.
     pub fn bundle_id(self) -> String {

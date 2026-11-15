@@ -109,20 +109,19 @@ pub(crate) fn announce(line: &str) -> io::Result<()> {
 }
 
 /// The worker's socket; the 0700 folder vouches for it.
-pub(crate) fn connect(name: &str, _: super::Server) -> io::Result<(Half, Half, Peer)> {
+pub(crate) fn connect(name: &str) -> io::Result<(Half, Half)> {
     let path = path(name)?;
     let stream = UnixStream::connect(&path).map_err(|error| named(error, &path))?;
-    let peer = Peer(stream.try_clone()?);
-    Ok((stream.try_clone()?, stream, peer))
+    Ok((stream.try_clone()?, stream))
 }
 
 /// The engine behind a connection, ended by hanging up.
 pub(crate) struct Peer(UnixStream);
 
 impl Peer {
-    /// The folder vouches; no pid is checked.
-    pub(crate) fn server(&self) -> Option<u32> {
-        None
+    /// The folder vouches; the pid is not needed.
+    pub(crate) fn of(_: u32, stream: &Half) -> io::Result<Self> {
+        Ok(Self(stream.try_clone()?))
     }
 
     /// The engine sees EOF and exits within its grace.

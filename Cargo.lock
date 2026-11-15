@@ -2348,6 +2348,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ely-login"
+version = "0.1.16"
+dependencies = [
+ "ely-platform",
+ "log",
+ "windows-sys 0.60.2",
+]
+
+[[package]]
 name = "ely-lok"
 version = "0.1.16"
 dependencies = [

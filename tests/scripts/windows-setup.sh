@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One setup: chosen folder, installed apps, refusal stops, one kernel.
+# One setup: chosen folder, apps, refusals, one kernel, login.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -20,6 +20,8 @@ deny() {
 clean() {
   deny Remove Delete "$entry\\Ely Office ElyProbe" >/dev/null 2>&1 || true
   deny Remove QueryValues "HKCU\\Software\\Ely Office\\ElyProbe" >/dev/null 2>&1 || true
+  # The real document apps hide; restore brings them back.
+  for name in ElyDoc ElyTable ElyShow; do reg delete "HKCU\\Software\\Ely Office\\$name" /f >/dev/null 2>&1 || true; done
   for name in $names; do
     reg delete "HKCU\\Software\\Ely Office\\$name" /f >/dev/null 2>&1 || true
     reg delete "$entry\\Ely Office $name" /f >/dev/null 2>&1 || true
@@ -29,7 +31,11 @@ clean() {
 trap 'kill $(jobs -p) 2>/dev/null || true; clean; restore' EXIT
 clean
 rm -rf "$work"
-mkdir -p "$work"
+mkdir -p "$work/data"
+# ely-login logs here, never in the user's data.
+export ELY_DATA_ROOT=$(cygpath -w "$work/data")
+login=$(cargo build -q -p ely-login --message-format=json | sed -n 's/.*"executable":"\([^"]*\)".*/\1/p' | tail -n 1 | sed 's/\\\\/\\/g')
+[ -n "$login" ] || fail "ely-login did not build"
 
 stages=$work/stages apps=()
 for name in $names; do
@@ -162,6 +168,7 @@ shared=$work/shared
 mkdir -p "$shared/kernel/program"
 echo kernel >"$shared/kernel/program/soffice.txt"
 echo id >"$shared/kernel/program/ely-kernel-id"
+cp "$(cygpath -u "$login")" "$shared/kernel/"
 for name in $names; do
   slug=$(echo "$name" | sed 's/\([A-Z]\)/-\L\1/g; s/^-//')
   cp -r "$stages/$slug" "$stages/$slug-types.nsh" "$shared/"
@@ -177,12 +184,38 @@ key() { reg add "HKCU\Software\Ely Office\ElyProbe" /v InstallDir /d "$(cygpath 
 # unjoin DIR: only the link goes, never its target.
 unjoin() { ELY_DIR=$(cygpath -w "$1") powershell -NoProfile -Command '[IO.Directory]::Delete($env:ELY_DIR)'; }
 
+# A planted login never runs, on either run.
+plant() { mkdir -p "$chosen/Kernel"; cp "$(cygpath -u "$login")" "$chosen/Kernel/ely-login.exe"; }
+unrun() {
+  [ ! -s "$work/data/ely-login.log" ] || fail "$1 ran a planted login"
+  ! reg query "$runkey" /v "Ely Office" >/dev/null 2>&1 || fail "$1 starts a planted login"
+}
+plant
+for pass in first second; do
+  [ "$(run)" = 0 ] || fail "the $pass install without a kernel failed"
+  unrun "the $pass install without a kernel"
+done
+cp "$chosen/uninstall.exe" "$work/uninstall.exe"
+[ "$(nsis "$work/uninstall.exe" "_?=$(cygpath -w "$chosen")")" = 0 ] || fail "the uninstall beside a planted login failed"
+unrun "the uninstall"
+unsuite
+rm -rf "$chosen"
+plant
+for pass in first second; do
+  [ "$(share)" = 2 ] || fail "the $pass kernel took a planted login"
+  unrun "the $pass refused kernel"
+done
+unsuite
+rm -rf "$chosen"
+
 # No document app: an app in Kernel's place stays.
 mkdir -p "$chosen/Kernel"
 echo old >"$chosen/Kernel/ely-probe-three.exe"
 printf 'ely-probe-three.exe\r\n' >"$chosen/Kernel/.ely-installed"
 reg add "HKCU\Software\Ely Office\ElyProbeThree" /v InstallDir /d "$(cygpath -w "$chosen/Kernel")" /f >/dev/null
+plant
 [ "$(share)" = 0 ] || fail "the update with an app in the kernel's place failed"
+unrun "an app's list in the kernel's place"
 grep -q ElyProbeThree "$chosen/Kernel/ely-probe-three.exe" || fail "the update removed an app in the kernel's place"
 [ ! -e "$chosen/Kernel/program" ] || fail "the kernel went into an app's folder"
 reg delete "HKCU\Software\Ely Office\ElyProbeThree" /f >/dev/null
@@ -238,6 +271,10 @@ rm -rf "$old"
 
 [ "$(share)" = 0 ] || fail "the shared install failed"
 installed "$chosen/Kernel" || fail "no kernel"
+# started: the Run value names the kernel's login.
+started() { reg query "$runkey" /v "Ely Office" 2>/dev/null | tr -d '\r' | grep -qF "\"$(cygpath -w "$chosen/Kernel")\\ely-login.exe\""; }
+started || fail "no start at login"
+grep -q "ely-login .* started" "$work/data/ely-login.log" || fail "the setup did not warm the engines"
 for name in ElyProbe ElyProbeTwo; do
   linked "$chosen/$name/libreoffice" || fail "$name does not link to the kernel"
   grep -q kernel "$chosen/$name/libreoffice/program/soffice.txt" || fail "$name cannot read the kernel"
@@ -256,6 +293,20 @@ printf 'libreoffice\\\r\nlibreoffice\\program\\\r\nlibreoffice\\program\\soffice
 [ "$(share)" = 0 ] || fail "the update after a downgrade failed"
 grep -q kernel "$chosen/Kernel/program/soffice.txt" || fail "the update took the kernel's files"
 printf 'libreoffice\\program\\soffice.txt\r\n' >>"$chosen/ElyProbe/.ely-installed"
+
+# An engine that will not stop changes nothing.
+bad=$work/bad
+mkdir -p "$bad"
+cp "$SYSTEMROOT/System32/findstr.exe" "$bad/ely-doc.exe"
+reg add "HKCU\Software\Ely Office\ElyDoc" /v InstallDir /d "$(cygpath -w "$bad")" /f >/dev/null
+cp "$chosen/ElyProbe/.ely-installed" "$work/before"
+[ "$(share)" = 2 ] || fail "the setup went on past an engine that would not stop"
+cmp -s "$work/before" "$chosen/ElyProbe/.ely-installed" || fail "a refused stop changed an app"
+grep -q "ERROR.*ely-doc: .*engine stop exited" "$work/data/ely-login.log" || fail "the refused stop is not logged"
+"$(cygpath -u "$chosen/Kernel/ely-login.exe")" && fail "a failed engine exited 0"
+grep -q "ERROR.*ely-doc: .*engine exited" "$work/data/ely-login.log" || fail "the failed engine is not logged"
+reg delete "HKCU\Software\Ely Office\ElyDoc" /f >/dev/null
+rm -rf "$bad"
 
 # A refused app: the earlier one went, the kernel stays.
 cp "$chosen/uninstall.exe" "$work/uninstall.exe"
@@ -281,6 +332,7 @@ unjoin "$chosen/ElyProbeTwo/libreoffice"
 rm -rf "$chosen/ElyProbeTwo"
 [ "$(share)" = 0 ] || fail "the update with only ElyProbeThree failed"
 [ ! -e "$chosen/Kernel" ] || fail "the kernel stays with no document app"
+! reg query "$runkey" /v "Ely Office" >/dev/null 2>&1 || fail "the start at login stays without the kernel"
 installed "$chosen/ElyProbeThree" || fail "ElyProbeThree is gone"
 [ "$(share)" = 0 ] || fail "the reinstall failed"
 cp "$chosen/uninstall.exe" "$work/uninstall.exe"

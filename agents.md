@@ -23,7 +23,7 @@
 
 ```text
 apps/        八个应用，各自一个二进制
-crates/      ely-ui  ely-platform  ely-ipc（应用与 worker 之间的帧）  ely-files  ely-lok  ely-office（文档应用共用的外壳）  ely-pdf-engine  ely-pdf-worker（只它编 MuPDF）  ely-mail-engine  ely-mail-fake（测试用的邮件服务器）  ely-start（Windows 启动画面）
+crates/      ely-ui  ely-platform  ely-ipc（应用与 worker 之间的帧）  ely-files  ely-lok  ely-office（文档应用共用的外壳）  ely-pdf-engine  ely-pdf-worker（只它编 MuPDF）  ely-mail-engine  ely-mail-fake（测试用的邮件服务器）  ely-start（Windows 启动画面）  ely-login（Windows 登录后起空闲引擎）
 reference/   上游源码，只读，不属于本项目，不审查
 engines/     下载的二进制与引擎构建产物，不入库，不审查
 patches/     对上游的补丁，随源码发行（libreoffice、mupdf、gpui）

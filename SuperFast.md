@@ -204,6 +204,33 @@ Windows 的代价：开着的每个旧应用各自下一份约 270 MB 的统一�
 
 `windows-setup.sh`、`windows-types.sh`、`windows-installer.sh` 在测试机上都过。逐一拆掉，各自的测试都失败：不比联接目标（“took a link to another folder”）、内核标记换回 `.ely-installed`（“removed an app in the kernel's place”）、不守原根（“moved to another folder”）、清单不滤内核（“took the kernel's files”）。早先四处同样拆过：不建联接、卸联接用 `RMDir /r`、不删内核、不选内核。读写失败那条路没有测试：测试里造不出稳定的盘满。
 
+### SF.8 Windows 登录后自启与安装时起引擎（2026-11-14，测试机 7877，24 GB 内存）
+
+跑了两次（脚本 `s8m.ps1`；第一次结果 `C:\ely\s8m-first.log`，修了下面的缺陷后第二次 `C:\ely\s8m.log`）。下面的数取第二次，括号里是第一次。
+
+安装程序 247,283,573 字节，比 SF.7 多 0.8 MB（`ely-login.exe`）。在 SF.7 上跑 `setup.exe /S`：退出码 0，126.95 秒（127.18）。之前没有空闲引擎（SF.7 没有发布，没有 `ely-login.exe` 的旧装只有 0.1.16，它不起引擎）；`engine stop` 每个应用跑两次，都为 0，40 至 166 毫秒。装完：
+
+| 项 | 结果 |
+| --- | --- |
+| `Run` 值“Ely Office” | `"...\Ely Office\Kernel\ely-login.exe"` |
+| 安装时起的引擎 | 三个都在，命令行带 `idle-<应用>`；Doc 9.67、Table 4.19、Show 3.27 秒（10.73、3.79、3.48） |
+| `ely-login stop` | 退出码 0，270 毫秒，空闲引擎 0 个；再跑一次 0，163 毫秒 |
+| 照登录时跑一次 `Run` 值 | 退出码 0，12.49 秒（12.70）；Doc 4.14、Table 4.01、Show 4.30 秒（3.32、4.43、4.92）；空闲引擎 3 个 |
+
+装完后首次打开，对照 Office（同一批文件，每次各 1 次；Office 量到窗口标题，Ely 量到第一个图块）：
+
+| 应用 | Ely | 等引擎 | 载入 | Office |
+| --- | --- | --- | --- | --- |
+| Doc（14 MB DOCX） | 3.46 秒（4.08） | 0 | 1.64 秒（2.44） | Word 1.27 秒（3.24） |
+| Table（XLSX） | 1.13 秒（1.07） | 0 | 0.67 秒（0.66） | Excel 0.98 秒（1.21） |
+| Show（PPT） | 2.65 秒（5.07） | 0 | 1.26 秒（3.71） | PowerPoint 1.43 秒（1.81） |
+
+0.1.16 装完后首次开 Doc，30 秒还没到文件；现在 3.5 至 4.1 秒，三个都不再等引擎。对 Office：第一次 Table 快过 Excel，第二次 Office 已热，三个都慢 0.15 至 2.2 秒。剩下的差全在载入与首个图块，归 SF.16、SF.18。各 1 次，两次之间 Office 差了 2.5 倍，只看方向。
+
+空闲引擎 600 秒的 CPU：第一次 0.047、0.203、0.063 秒，第二次 0.094、0.125、0.015 秒，不是 0。归 SF.23 的门（原方案 SF-13：空闲 10 分钟 CPU 为 0），这里只记数。
+
+量出一个缺陷，已修：第一次跑时首个 `ely-login stop` 退出码 1，日志“idle-ely-doc is served by 5720, which says it is 2816”。应用接管了安装时起的引擎 5720，它的接班 2816 在同一个空闲名上监听；Windows 对同名管道报的服务进程是第一个建管道的，那个进程退了也不改（另写探针在测试机上证实）。按那个 pid 开的终止句柄可能落到别的进程。现在客户端核对管道的属主，终止句柄按引擎在握手里报的 pid 打开。`a_take_adopts_a_waiting_engine_and_else_starts_its_own` 加了“接班引擎在旧引擎还占着名字时被接管”一段：旧代码在测试机上失败，报同一句；新代码过。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

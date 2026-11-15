@@ -21,6 +21,7 @@ ManifestDPIAwareness PerMonitorV2
 !endif
 !include "${APPS}"
 !define UNINSTALL "Software\Microsoft\Windows\CurrentVersion\Uninstall"
+!define RUN "Software\Microsoft\Windows\CurrentVersion\Run"
 
 Name "Ely Office"
 OutFile "${OUTFILE}"
@@ -78,6 +79,12 @@ LangString Unkeyed ${LANG_SIMPCHINESE} "$AppName 已卸下，但其登记或快�
 LangString Unkeyed ${LANG_ENGLISH} "$AppName is uninstalled, but its entry or shortcut could not be removed from:"
 LangString Rooted ${LANG_SIMPCHINESE} "Ely Office 已装在别处，只能在原处更新："
 LangString Rooted ${LANG_ENGLISH} "Ely Office is installed elsewhere; it updates only there:"
+LangString Unstopped ${LANG_SIMPCHINESE} "Ely Office 的空闲引擎停不下，未作任何改动："
+LangString Unstopped ${LANG_ENGLISH} "The idle engines of Ely Office would not stop; nothing was changed:"
+LangString Unwarmed ${LANG_SIMPCHINESE} "Ely Office 已装好，但空闲引擎没起来，打开文档会慢一些："
+LangString Unwarmed ${LANG_ENGLISH} "Ely Office is installed, but its idle engines did not start; documents open slower:"
+LangString Unrun ${LANG_SIMPCHINESE} "Ely Office 已装好，但登录后自启的登记写不进或删不掉："
+LangString Unrun ${LANG_ENGLISH} "Ely Office is installed, but its start at login could not be written or removed:"
 LangString Untyped ${LANG_ENGLISH} "$AppName is uninstalled, but its file type registration could not be removed from:"
 
 !include "${__FILEDIR__}\transact.nsh"
@@ -304,6 +311,7 @@ Section "-Root"
     SetErrorLevel 2
     Quit
   ${EndIf}
+  !insertmacro ElyStop
   ; Entry first: a kill leaves no orphan uninstaller.
   ClearErrors
   WriteRegStr HKCU "Software\Ely Office" "Root" "$Root"
@@ -381,6 +389,11 @@ Function .onSelChange
   Call ElyKernel
 FunctionEnd
 
+; Uninstall's first: engines hold the kernel.
+Section "-un.Stop"
+  !insertmacro ElyStop
+SectionEnd
+
 !insertmacro ElyAll ElyApp
 
 ; No app left: no entry, no uninstaller.
@@ -416,6 +429,7 @@ Section "-Entry"
   StrCpy $Index 2
   !insertmacro ElyAll ElyUntick
   !insertmacro ElyUnkernel ""
+  !insertmacro ElyWarm
   !insertmacro ElyLast
 SectionEnd
 
@@ -433,11 +447,12 @@ Function un.onInit
   InitPluginsDir
   !insertmacro ElyAlone
   StrCpy $Root $INSTDIR
-  StrCpy $Index 0
+  StrCpy $Index 1
   !insertmacro ElyAll ElyHide
 FunctionEnd
 
 Section "-un.Entry"
   !insertmacro ElyUnkernel "un."
+  !insertmacro ElyWarm
   !insertmacro ElyLast
 SectionEnd

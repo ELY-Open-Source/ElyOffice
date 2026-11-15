@@ -670,7 +670,7 @@
 - [x] SF.5 旧版升级逐端查清：0.1.16 的 Windows 安装程序、macOS 的 dmg 换应用、AppImage 能否直接装下统一包，查清写进 `SuperFast.md`
 - [x] SF.6 Windows 统一安装程序（SF-19）：一个 `ElyOffice-<版本>-windows-x86_64-setup.exe`，七个应用各一个勾，“应用和功能”只一项；保留事务性；从 0.1.16 单应用安装升上来并删其卸载项；`ci.sh` 与 `tests/scripts` 的安装布局脚本随之改
 - [x] SF.7 Windows 共用内核（SF-04）：内核在 `Programs\Ely Office\Kernel`，内容取并集（带 Impress 模板），各应用的 `libreoffice` 是目录联接，内核是隐藏节、三个文档应用都没选时不装；卸载最后一个文档应用时删内核；不对含联接的目录用 `RMDir /r`；WinGet 一份 `ZacharyZhang.ElyOffice`
-- [ ] SF.8 Windows 登录后自启与安装时起引擎：当前用户 `Run` 值“Ely Office”指向内核旁的小程序，后台优先级起每个已装文档应用的引擎；安装前 `engine stop`、装完 `engine`；卸载时删 `Run` 值；量安装后首次
+- [x] SF.8 Windows 登录后自启与安装时起引擎：当前用户 `Run` 值“Ely Office”指向内核旁的小程序，后台优先级起每个已装文档应用的引擎；安装前 `engine stop`、装完 `engine`；卸载时删 `Run` 值；量安装后首次
 - [ ] SF.9 更新改为每平台一份清单、更新整套：`manifest.sh`、`ely-ui` 的 `updates.rs`、`ely_platform::install`；更新前停常驻引擎、列出开着的应用由用户关；官网下载项与 README 随之改
 - [ ] SF.10 启动动画（SF-08）：一份规格，Windows 启动器小窗与应用首帧画同一场景，留到文档画出；减少动效下静止；小窗最多 3 秒；八个应用经 `ely_ui::run`
 - [ ] SF.11 SF-10 引擎与窗口同时起：单实例门之后即接管引擎，文件排上队即交后台

@@ -5,9 +5,10 @@ makensis=${MAKENSIS:-"/c/Program Files (x86)/NSIS/makensis.exe"}
 export MSYS2_ARG_CONV_EXCL='*'
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# The setup's own entry and folder, saved for restore.
+# The setup's own entry, folder and login, saved for restore.
+runkey='HKCU\Software\Microsoft\Windows\CurrentVersion\Run'
 saved=$(mktemp -d)
-for key in 'Software\Ely Office' 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Ely Office'; do
+for key in 'Software\Ely Office' 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Ely Office' "${runkey#HKCU\\}"; do
   ! reg query "HKCU\\$key" >/dev/null 2>&1 || reg export "HKCU\\$key" "$(cygpath -w "$saved/$(echo "$key" | tr '\\ ' '__').reg")" /y >/dev/null
 done
 # Forgets the suite, so /D picks a new root.
@@ -19,6 +20,7 @@ restore() {
   local bad=
   [ ! -e "$LOCALAPPDATA/Programs/Ely Office/ElyProbe" ] || { echo "FAIL: a probe landed in the real Ely Office folder" >&2; bad=1; }
   unsuite
+  reg delete "$runkey" /v "Ely Office" /f >/dev/null 2>&1 || true
   for file in "$saved"/*.reg; do
     [ ! -e "$file" ] || reg import "$(cygpath -w "$file")" >/dev/null 2>&1 || { echo "FAIL: could not restore $file; it stays" >&2; bad=1; }
   done

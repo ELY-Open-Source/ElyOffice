@@ -78,6 +78,17 @@ fn a_take_adopts_a_waiting_engine_and_else_starts_its_own() {
     taken.ready().expect("the taken engine is ready");
     taken.child.resolve();
     assert!(matches!(taken.child, Process::Adopted(got, ..) if got == pid), "the waiting engine is taken");
+    // A successor waits while the taken engine keeps the name.
+    let log = std::fs::File::create(dir.path().join("next.log")).expect("the log");
+    let start = crate::Start::wait(&profile).expect("the start");
+    let next = Worker::idle(&start, &install, probe, &app, log)
+        .and_then(Worker::release)
+        .expect("a successor waits");
+    drop(start);
+    let mut successor = Worker::adopt(&install, &profile, &app, probe).expect("the successor is taken");
+    successor.child.resolve();
+    assert!(matches!(successor.child, Process::Adopted(got, ..) if got == next), "the successor, not the first engine");
+    successor.shutdown().expect("the successor shuts down");
     let mut own = Worker::take(&install, &profile, &app, probe).expect("the take starts");
     own.ready().expect("its own engine passes the check");
     own.child.resolve();

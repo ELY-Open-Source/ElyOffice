@@ -98,17 +98,22 @@ pub fn init(app: AppId) -> Result<()> {
 }
 
 pub fn init_in(app: AppId, dir: &Path) -> Result<()> {
+    init_at(app.name(), &dir.join("ely.log"))
+}
+
+/// Logs program `name` to `path`, trimmed.
+pub fn init_at(name: &str, path: &Path) -> Result<()> {
+    let dir = path.parent().with_context(|| format!("{} has no folder", path.display()))?;
     fs::create_dir_all(dir).with_context(|| format!("cannot create {}", dir.display()))?;
-    let path = dir.join("ely.log");
-    trimmed(&path, LOG_CAP).with_context(|| format!("cannot trim {}", path.display()))?;
-    attach(app, path)
+    trimmed(path, LOG_CAP).with_context(|| format!("cannot trim {}", path.display()))?;
+    attach(name, path.to_path_buf())
 }
 
 /// Logs into `app`'s log, which its running copy trims.
 pub fn join(app: AppId) -> Result<()> {
     let dir = data_dir(app)?;
     fs::create_dir_all(&dir).with_context(|| format!("cannot create {}", dir.display()))?;
-    attach(app, dir.join("ely.log"))
+    attach(app.name(), dir.join("ely.log"))
 }
 
 /// A log of its own, trimmed, for appending.
@@ -121,7 +126,7 @@ pub fn kept(path: &Path) -> io::Result<File> {
         .map_err(|error| io::Error::new(error.kind(), format!("cannot open {}: {error}", path.display())))
 }
 
-fn attach(app: AppId, path: PathBuf) -> Result<()> {
+fn attach(name: &str, path: PathBuf) -> Result<()> {
     let file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -141,7 +146,7 @@ fn attach(app: AppId, path: PathBuf) -> Result<()> {
         log::error!("panic: {info}");
         previous(info);
     }));
-    log::info!("{} {} started", app.name(), env!("CARGO_PKG_VERSION"));
+    log::info!("{name} {} started", env!("CARGO_PKG_VERSION"));
     Ok(())
 }
 

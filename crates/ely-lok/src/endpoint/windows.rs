@@ -9,10 +9,10 @@ use std::{
 };
 
 use windows_sys::Win32::{
-    Foundation::{CloseHandle, ERROR_LOCK_VIOLATION, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, GENERIC_READ, GENERIC_WRITE, GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree},
+    Foundation::{CloseHandle, ERROR_INVALID_PARAMETER, ERROR_LOCK_VIOLATION, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, GENERIC_READ, GENERIC_WRITE, GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree},
     Security::{
-        Authorization::{ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1},
-        GetTokenInformation, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER, TokenUser,
+        Authorization::{ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo, SDDL_REVISION_1, SE_KERNEL_OBJECT},
+        GetTokenInformation, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER, TokenUser,
     },
     Storage::FileSystem::{
         CreateFileW, FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_READ_ATTRIBUTES, OPEN_EXISTING, PIPE_ACCESS_INBOUND,
@@ -21,7 +21,7 @@ use windows_sys::Win32::{
     System::{
         Console::{GetStdHandle, STD_ERROR_HANDLE, STD_OUTPUT_HANDLE, SetStdHandle},
         Pipes::{
-            ConnectNamedPipe, CreateNamedPipeW, GetNamedPipeServerProcessId, PeekNamedPipe,
+            ConnectNamedPipe, CreateNamedPipeW, PeekNamedPipe,
             PIPE_READMODE_BYTE, PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_UNLIMITED_INSTANCES, PIPE_WAIT,
         },
         Threading::{GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE, TerminateProcess},
@@ -29,8 +29,6 @@ use windows_sys::Win32::{
 };
 
 pub(crate) type Half = File;
-
-use super::Server;
 
 unsafe extern "C" {
     fn _dup2(from: i32, to: i32) -> i32;
@@ -60,8 +58,12 @@ fn user_sid(process: HANDLE) -> io::Result<String> {
         return Err(failed);
     }
     let user = unsafe { &*buffer.as_ptr().cast::<TOKEN_USER>() };
+    sid_text(user.User.Sid)
+}
+
+fn sid_text(sid: PSID) -> io::Result<String> {
     let mut text = ptr::null_mut();
-    if unsafe { ConvertSidToStringSidW(user.User.Sid, &mut text) } == 0 {
+    if unsafe { ConvertSidToStringSidW(sid, &mut text) } == 0 {
         return Err(io::Error::last_os_error());
     }
     let len = (0..).take_while(|&at| unsafe { *text.add(at) } != 0).count();
@@ -86,7 +88,8 @@ impl Listener {
     pub(crate) fn bind(name: &str, idle: bool) -> io::Result<Self> {
         let sid = user_sid(unsafe { GetCurrentProcess() })?;
         let mut descriptor: PSECURITY_DESCRIPTOR = ptr::null_mut();
-        let rule = wide(&format!("D:P(A;;GA;;;{sid})"));
+        // The owner is named: clients check it, not a pid.
+        let rule = wide(&format!("O:{sid}D:P(A;;GA;;;{sid})"));
         let made = unsafe {
             ConvertStringSecurityDescriptorToSecurityDescriptorW(rule.as_ptr(), SDDL_REVISION_1, &mut descriptor, ptr::null_mut())
         };
@@ -156,43 +159,43 @@ pub(crate) fn announce(line: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// The worker's pipes and server, refused unless this user's.
-pub(crate) fn connect(name: &str, by: Server) -> io::Result<(Half, Half, Peer)> {
+/// The worker's pipes, refused unless this user owns them.
+pub(crate) fn connect(name: &str) -> io::Result<(Half, Half)> {
     let sid = user_sid(unsafe { GetCurrentProcess() })?;
-    let (input, server) = open(&path(&sid, name, "in"), GENERIC_WRITE | FILE_READ_ATTRIBUTES, &sid, by)?;
-    let (output, other) = open(&path(&sid, name, "out"), GENERIC_READ, &sid, Server::Spawned(server))?;
-    if other != server {
-        return Err(refused(format!("{name}'s pipes are served by {server} and {other}")));
-    }
-    let peer = Peer::of(server, &output)?;
-    Ok((output, input, peer))
+    let input = open(&path(&sid, name, "in"), GENERIC_WRITE | FILE_READ_ATTRIBUTES, &sid)?;
+    let output = open(&path(&sid, name, "out"), GENERIC_READ, &sid)?;
+    Ok((output, input))
 }
 
 /// The engine behind a connection, ended by handle.
 pub(crate) struct Peer {
     process: OwnedHandle,
-    server: u32,
 }
 
 impl Peer {
-    /// Opened while connected, so the pid is still its.
-    fn of(server: u32, pipe: &File) -> io::Result<Self> {
-        let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, server) };
+    /// The pid it gave; held while connected, so never reused.
+    pub(crate) fn of(pid: u32, pipe: &File) -> io::Result<Self> {
+        // Windows names the pipe's first creator, not the speaker.
+        let handle = unsafe { OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
         if handle.is_null() {
-            return Err(io::Error::last_os_error());
+            let error = io::Error::last_os_error();
+            // An exited pid opens as an invalid parameter.
+            let kind = match error.raw_os_error() == Some(ERROR_INVALID_PARAMETER as i32) {
+                true => io::ErrorKind::ConnectionReset,
+                false => error.kind(),
+            };
+            return Err(io::Error::new(kind, format!("engine {pid}: {error}")));
         }
         let process = unsafe { OwnedHandle::from_raw_handle(handle) };
-        // A live pipe means the handle is the server's.
+        let (user, ours) = (user_sid(handle)?, user_sid(unsafe { GetCurrentProcess() })?);
+        if user != ours {
+            return Err(refused(format!("engine {pid} runs as another user")));
+        }
         let peeked = unsafe { PeekNamedPipe(pipe.as_raw_handle() as HANDLE, ptr::null_mut(), 0, ptr::null_mut(), ptr::null_mut(), ptr::null_mut()) };
         if peeked == 0 {
-            return Err(io::Error::new(io::ErrorKind::ConnectionReset, format!("engine {server} left: {}", io::Error::last_os_error())));
+            return Err(io::Error::new(io::ErrorKind::ConnectionReset, format!("engine {pid} left: {}", io::Error::last_os_error())));
         }
-        Ok(Self { process, server })
-    }
-
-    /// Windows names the pipe's server.
-    pub(crate) fn server(&self) -> Option<u32> {
-        Some(self.server)
+        Ok(Self { process })
     }
 
     /// Ends the engine; its pid is never reused while held.
@@ -250,7 +253,7 @@ pub(crate) fn hang_up(half: Half) -> io::Result<()> {
     Ok(())
 }
 
-fn open(path: &str, access: u32, sid: &str, by: Server) -> io::Result<(File, u32)> {
+fn open(path: &str, access: u32, sid: &str) -> io::Result<File> {
     // The server may identify us, never act as us.
     let flags = SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION;
     let handle = unsafe { CreateFileW(wide(path).as_ptr(), access, 0, ptr::null(), OPEN_EXISTING, flags, ptr::null_mut()) };
@@ -263,23 +266,25 @@ fn open(path: &str, access: u32, sid: &str, by: Server) -> io::Result<(File, u32
         return Err(named(error, path));
     }
     let pipe = unsafe { File::from_raw_handle(handle) };
-    let mut server = 0u32;
-    if unsafe { GetNamedPipeServerProcessId(handle, &mut server) } == 0 {
-        return Err(named(io::Error::last_os_error(), path));
+    let owner = pipe_owner(handle).map_err(|error| named(error, path))?;
+    if owner != sid {
+        return Err(refused(format!("{path} is owned by {owner}, another user")));
     }
-    if matches!(by, Server::Spawned(pid) if pid != server) {
-        return Err(refused(format!("{path} is served by process {server}, not the spawned worker")));
+    Ok(pipe)
+}
+
+/// The SID that owns the pipe.
+fn pipe_owner(handle: HANDLE) -> io::Result<String> {
+    let (mut owner, mut descriptor): (PSID, PSECURITY_DESCRIPTOR) = (ptr::null_mut(), ptr::null_mut());
+    let code = unsafe {
+        GetSecurityInfo(handle, SE_KERNEL_OBJECT, OWNER_SECURITY_INFORMATION, &mut owner, ptr::null_mut(), ptr::null_mut(), ptr::null_mut(), &mut descriptor)
+    };
+    if code != 0 {
+        return Err(io::Error::from_raw_os_error(code as i32));
     }
-    let owner = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, server) };
-    if owner.is_null() {
-        return Err(named(io::Error::last_os_error(), path));
-    }
-    let user = user_sid(owner);
-    unsafe { CloseHandle(owner) };
-    if user? != sid {
-        return Err(refused(format!("{path} is served by process {server} of another user")));
-    }
-    Ok((pipe, server))
+    let text = sid_text(owner);
+    unsafe { LocalFree(descriptor) };
+    text
 }
 
 fn refused(why: String) -> io::Error {

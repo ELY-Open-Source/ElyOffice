@@ -979,3 +979,12 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 接管时先释放名字再握手：起初先握手，第二个来接管的应用连进了将要关的监听，得到连接重置；连接重置与“回答前就关了”一并当作没有空闲引擎，照常自己起。
 - 恢复正常优先级在回答 OK 之前，应用听到 OK 时引擎已是正常优先级。
 - 2026-11-14（SF.7，用户定）：Windows 的 Doc、Table、Show 共用 `<根>\Kernel` 一份内核。打包时三份 `libreoffice` 逐字相同才过（不同即构建失败），只留一份；安装程序里内核是隐藏节，选了任一文档应用即选上；各文档应用的 `libreoffice` 是 `mklink /J` 建的目录联接，建不成即停；应用的安装清单不含它，卸下应用只用 `RMDir` 去联接，不用 `RMDir /r`（会穿过联接删内核）；没有已登记的文档应用时内核随之删去。WinGet 改为一份 `ZacharyZhang.ElyOffice`，取代 R16.3 的每个应用一份。
+
+## 2026-11-14 Windows 登录后自启与安装时起引擎（SF.8，用户定）
+
+- 登录项是内核旁的 `ely-login.exe`（新 crate `ely-login`）：读 `HKCU\Software\Ely Office\<应用>` 的 `InstallDir`，给 Doc、Table、Show 依次跑 `<应用> engine`；它在内核的清单里，内核删去即随之删去。`ely-start` 是每个应用一份的启动画面，不兼此职。
+- 后台优先级由空闲引擎自己设（SF.4 的后台模式）；`ely-login` 不给子进程降优先级类：后台模式结束时回到继承的类，接管后的引擎会停在低于正常。
+- 安装程序在 `-Root`、卸载程序在首节 `-un.Stop` 跑 `ely-login stop`。只在内核旁有 `ely-login.exe` 时跑：0.1.16 的应用不认 `engine`，会把它当文件打开。
+- 只有内核的 `program\ely-kernel-id`、`.ely-installed` 与 `ely-login.exe` 同在，安装与卸载程序才停、才起空闲引擎：`.ely-installed` 是每个应用都有的清单，只有内核编号证明这是内核；别人放进去的 `ely-login.exe` 从不运行。
+- 预热即装完跑一次 `ely-login`，与登录时同一条路；失败不回滚（文件已装好，应用会自己起引擎），但提示并以退出码 2 结束，不静默。
+- Windows 不再用 `GetNamedPipeServerProcessId` 认引擎：同名管道的实例重叠时，它报的是第一个建管道的进程，即使那个进程已退出（测试机上实测）。应用接管引擎后，接班的引擎在同一空闲名上监听，`engine stop` 因此报“served by 5720, which says it is 2816”而失败，而且按那个 pid 开的终止句柄可能指向别的进程。现在管道的安全描述写明属主（`O:<本用户>`），客户端在管道上核对属主；终止句柄按引擎在握手里报的 pid 打开，并核对它是本用户的进程。

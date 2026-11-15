@@ -69,14 +69,6 @@ pub(crate) fn name(session: u64) -> io::Result<String> {
     Ok(format!("lok-{}-{session}-{:x}", std::process::id(), now.as_nanos()))
 }
 
-/// A name's server: a spawned pid, or idle.
-#[derive(Clone, Copy)]
-#[cfg_attr(unix, expect(dead_code, reason = "the 0700 folder vouches on Unix"))]
-pub(crate) enum Server {
-    Spawned(u32),
-    Idle,
-}
-
 /// The fixed name an app's idle engine waits on.
 pub(crate) fn idle_name(app: &str) -> String {
     format!("idle-{app}")
@@ -243,7 +235,7 @@ pub(crate) fn reach(stdout: impl Read, name: &str, pid: u32, install: &Path) -> 
             format!("the worker did not listen; it said {line:?}"),
         ));
     }
-    let (read, write, said, _) = join(name, Server::Spawned(pid), &identity(install)?)?;
+    let (read, write, said, _) = join(name, &identity(install)?)?;
     if said != pid {
         return Err(io::Error::new(io::ErrorKind::InvalidData, format!("worker {pid} answered as {said}")));
     }
@@ -256,7 +248,7 @@ pub(crate) fn adopt(name: &str, install: &Path, profile: &Path) -> io::Result<(H
     let ours = identity(install)?;
     let mut waited = false;
     loop {
-        match join(name, Server::Idle, &ours) {
+        match join(name, &ours) {
             Err(error) if starting(&error) && idle_waits(profile)? => {
                 if !waited {
                     log::info!("lok: the engine on {name} is starting ({error}); waiting");
@@ -276,23 +268,15 @@ fn starting(error: &io::Error) -> bool {
 }
 
 /// Connects and agrees; the answer names the engine's pid.
-fn join(name: &str, server: Server, (version, kernel): &(String, String)) -> io::Result<(Half, Half, u32, Peer)> {
-    let (mut read, mut write, peer) = os::connect(name, server)?;
+fn join(name: &str, (version, kernel): &(String, String)) -> io::Result<(Half, Half, u32, Peer)> {
+    let (mut read, mut write) = os::connect(name)?;
     let hello = Pack::new().str(version).str(kernel).bytes();
     ipc::write_frame(&mut write, tag::HELLO, ipc::UNASKED, &hello)?;
     match ipc::read_frame(&mut read)? {
         Some((tag::OK, _, body)) => {
             let said = u32::try_from(Unpack::new(&body).u64()?)
                 .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "the engine's pid is out of range"))?;
-            // Windows names the pipe's server; it must be the speaker.
-            if let Some(server) = peer.server()
-                && server != said
-            {
-                return Err(io::Error::new(
-                    io::ErrorKind::PermissionDenied,
-                    format!("{name} is served by {server:?}, which says it is {said}"),
-                ));
-            }
+            let peer = Peer::of(said, &read)?;
             log::info!("lok: connected to worker {said} on {name}");
             Ok((read, write, said, peer))
         }

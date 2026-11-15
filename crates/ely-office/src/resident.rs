@@ -12,8 +12,6 @@ use ely_lok::Worker;
 use ely_platform::AppId;
 
 const GB: u64 = 1 << 30;
-/// The apps an idle engine waits for.
-const DOCUMENT_APPS: [AppId; 3] = [AppId::Doc, AppId::Table, AppId::Show];
 /// Touched when an app opens; the newest is used last.
 const USED: &str = "engine-used";
 const USAGE: &str = "usage: engine [stop]";
@@ -70,7 +68,7 @@ fn wait(app: AppId) -> io::Result<()> {
     }
     // Under 8 GB only one app's engine waits.
     if memory < 8 * GB {
-        for other in DOCUMENT_APPS.into_iter().filter(|other| *other != app) {
+        for other in AppId::DOCUMENTS.into_iter().filter(|other| *other != app) {
             stop(other)?;
         }
     }
@@ -121,7 +119,7 @@ fn held_back(app: AppId, memory: u64) -> io::Result<Option<String>> {
 /// The document app opened most recently.
 fn last_used() -> io::Result<Option<AppId>> {
     let mut newest: Option<(SystemTime, AppId)> = None;
-    for app in DOCUMENT_APPS {
+    for app in AppId::DOCUMENTS {
         let stamp = ely_platform::data_dir(app).map_err(io::Error::other)?.join(USED);
         let at = match std::fs::metadata(&stamp).and_then(|meta| meta.modified()) {
             Ok(at) => at,

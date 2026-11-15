@@ -1,4 +1,5 @@
-; The shared kernel: links to it, and its removal.
+; The shared kernel: links, engines, removal.
+!define LOGIN "$Root\Kernel\ely-login.exe"
 
 ; $1 resolved through links, or "".
 Function ElyFinal
@@ -68,5 +69,53 @@ FunctionEnd
     StrCpy $AppName "Ely Office"
     StrCpy $INSTDIR "$Root\Kernel"
     Call ${UN}ElyRemove
+  ${EndIf}
+!macroend
+
+; Before any file changes: idle engines hold the kernel.
+!macro ElyStop
+  ; Ours only beside our kernel and its list.
+  ${If} ${FileExists} "${LOGIN}"
+  ${AndIf} ${FileExists} "$Root\Kernel\program\ely-kernel-id"
+  ${AndIf} ${FileExists} "$Root\Kernel\.ely-installed"
+    StrCpy $0 ""
+    ClearErrors
+    ExecWait '"${LOGIN}" stop' $0
+    ${If} ${Errors}
+    ${OrIf} $0 != 0
+      MessageBox MB_ICONSTOP "$(Unstopped)$\r$\n${LOGIN} ($0)" /SD IDOK
+      SetErrorLevel 2
+      Quit
+    ${EndIf}
+  ${EndIf}
+!macroend
+
+; Starts at login, and warms the engines now.
+!macro ElyWarm
+  ; Ours only beside our kernel and its list.
+  ${If} ${FileExists} "${LOGIN}"
+  ${AndIf} ${FileExists} "$Root\Kernel\program\ely-kernel-id"
+  ${AndIf} ${FileExists} "$Root\Kernel\.ely-installed"
+    ClearErrors
+    WriteRegStr HKCU "${RUN}" "Ely Office" '"${LOGIN}"'
+    ${If} ${Errors}
+      MessageBox MB_ICONSTOP "$(Unrun)$\r$\nHKCU\${RUN}" /SD IDOK
+      SetErrorLevel 2
+    ${EndIf}
+    StrCpy $0 ""
+    ClearErrors
+    ExecWait '"${LOGIN}"' $0
+    ${If} ${Errors}
+    ${OrIf} $0 != 0
+      MessageBox MB_ICONSTOP "$(Unwarmed)$\r$\n${LOGIN} ($0)" /SD IDOK
+      SetErrorLevel 2
+    ${EndIf}
+  ${Else}
+    System::Call 'advapi32::RegDeleteKeyValueW(p 0x80000001, w "${RUN}", w "Ely Office") i .r0'
+    ${If} $0 != 0
+    ${AndIf} $0 != 2
+      MessageBox MB_ICONSTOP "$(Unrun)$\r$\nHKCU\${RUN} ($0)" /SD IDOK
+      SetErrorLevel 2
+    ${EndIf}
   ${EndIf}
 !macroend
