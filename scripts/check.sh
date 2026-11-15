@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The project's rules: file length, guide size, comments, line endings.
+# The project's rules: length, guide, comments, banners, line endings.
 set -euo pipefail
 
 root=${1:-$(cd "$(dirname "$0")/.." && pwd)}
@@ -25,6 +25,7 @@ if [ -f "$guide" ] && [ "$(wc -c <"$guide")" -gt 30000 ]; then
 fi
 python3 "$here/tests/scripts/comments.py" "$root" || failed=1
 python3 "$here/tests/scripts/waits.py" "$root" || failed=1
+python3 "$here/tests/scripts/banners.py" "$root" || failed=1
 bash "$here/tests/scripts/eol.sh" "$root" || failed=1
 [ "$failed" = 0 ] || exit 1
 echo "check: every rule holds"

@@ -33,7 +33,6 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("pdf.protect.tail", "保護済み"),
     ("pdf.protect.bare", "保護なし"),
     ("pdf.protect.done", "{name} を保存しました。"),
-    ("pdf.side.signs", "署名"),
     ("pdf.sign.show", "署名…"),
     ("pdf.sign.close", "閉じる"),
     ("pdf.sign.state", "状態"),

@@ -45,7 +45,6 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("pdf.protect.tail", "protegido"),
     ("pdf.protect.bare", "desprotegido"),
     ("pdf.protect.done", "Se guardó {name}."),
-    ("pdf.side.signs", "Firmas"),
     ("pdf.sign.show", "Firmas…"),
     ("pdf.sign.close", "Cerrar"),
     ("pdf.sign.state", "Estado"),

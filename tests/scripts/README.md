@@ -23,6 +23,7 @@ tests/scripts/winget.sh        winget.sh 按假发布只写出 `ZacharyZhang.Ely
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；nix/release.json 与 apps.tsv 一致；nixos/nix 容器里 flake 的许可与表相同、ElyMark 构建并在 Xvfb 下画出（缺 docker 时 SKIP 容器部分）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝
 tests/scripts/waits.py           测试里的 `thread::sleep`（测试文件、测试代码以 `mod x;` 引入的文件、`#[cfg(test)]` 模块与 `#[test]` 函数）：在轮询某个条件的循环里（`while`、`loop`、`.any(`，或以自己的 `break`、`return` 出来的 `for _ in`），或上一行、所在循环的上一行以注释写明这段时间代表什么（check.sh 调用）
+tests/scripts/banners.py         入库 Rust 代码里的 `Banner::new` 只许 ElyDoc 的 `doc-fonts` 一处，按调用计数，多一处（含第二个 `doc-fonts`）或不带名字即败，`::` 与括号两边可有空白、换行（check.sh 调用）
 tests/scripts/release-gate.sh    发布的门的规则：更新日志里 `[~]` 的数目须与进度表相符，距上一版不足七天须写原因（`scripts/release-gate.py`）；本系统须有这一版的基准记录，较上一份慢过三成且多出 10 毫秒的各项须写原因（`tests/perf/baseline.py`）（pr.yml 调用）
 tests/scripts/records.py         TASKS、BUGS、BugList、decisions 引用的库内文件都在，否则标“（已移除）”；引用 .work/ 须标“（本机，未入库）”；`[x]` 而自己末轮审查是 FAIL 的条目，行里须写明“某编号 复审通过”且那个编号末轮是 PASS（pr.yml 调用）
 tests/scripts/workflows.py       release.yml 恰为 macos、macos-intel、windows、linux 四个任务，都在自托管机器上，互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 的 runs-on 恰为 ubuntu-24.04、以整行的 `[sudo] apt-get install` 装齐 README 的库、严格模式、panic 数比基线提交（各带反例）
@@ -49,7 +50,7 @@ tests/scripts/pdf-idle.sh      真窗口 ElyPDF 无文件启动时无 worker 子
 tests/scripts/build-deps.sh      干净的 Ubuntu 24.04、Fedora 44、Arch 容器只照 README 的 Linux 行安装：doctor.sh 装前报缺、装后整体通过、移走 make 即报缺，`ely-mail-engine`、整个工作区与官网建得成（缺 docker 时 SKIP）
 tests/scripts/doctor-rules.sh    doctor.sh 判过旧的工具为失败（替身 node，看退出码）；Cygwin 里跑也找得到其工具；Windows 上照 gpui 构建脚本的次序找 fxc：`GPUI_FXC_PATH`、PATH、SDK 注册表，皆无即报缺（替身 reg，各例自去调用者 PATH 里的 fxc）
 tests/scripts/mac-bash-rules.sh  macOS 上 ci.sh 在 bash 3.2 下不做事即失败、在 bash 5 下照常往下；doctor.sh 判 PATH 里的 bash 3.2 为过旧、5.3 照过，Intel 用的 bash 只认在 Rosetta 下跑得起的 bash 5（arm64 的即缺；只在 macOS）
-tests/scripts/check-rules.sh    check.sh 只数代码文件（末行无 LF 也计）、报出超长文件全名、30001 字节的 agents.md 即败、注释与行尾的失败也使其失败
+tests/scripts/check-rules.sh    check.sh 只数代码文件（末行无 LF 也计）、报出超长文件全名、30001 字节的 agents.md 即败、`doc-fonts` 之外多一条横幅即败并点名、注释与行尾的失败也使其失败
 tests/scripts/comments-rules.sh  comments.py 对长注释与跨行注释报错（含 JS、HTML 及其脚本、HTML 的假注释，SVG、MathML 里的脚本照 Chromium 不当代码，Python 行尾注释与文档字符串），字符串里的 # 不算，相邻的行尾注释不算跨行，未入库与 vendor 的文件不查
 tests/scripts/rpath-rules.sh     rpath.sh（release-macos.sh 逐个调用）对找不到或在包外（含 `..` 与链接）的 `@rpath` 依赖、otool 读不出的文件报错（替身 otool，任意系统可跑）
 tests/scripts/bad-settings.sh  通用设置读不出时 ElyDoc 照样启动，文件不被覆盖

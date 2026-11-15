@@ -121,7 +121,7 @@ site/        官网（Vite、pnpm、TypeScript，无框架）；site/video 是�
 
 ```text
 scripts/doctor.sh              本系统构建所需的工具与系统包
-scripts/check.sh [根]          规则检查：文件行数、本文件字节数、注释、测试的等待、行尾；先在 site/ 跑 pnpm install
+scripts/check.sh [根]          规则检查：文件行数、本文件字节数、注释、测试的等待、横幅、行尾；先在 site/ 跑 pnpm install
 scripts/deny.sh                cargo-deny：安全公告、yanked、许可、来源、重复版本
 scripts/panics.py              非测试代码的 expect、unwrap、panic! 与 scripts/panics.tsv 相符
 scripts/test-map.py            写 docs/test-map.md（勾任务的提交前跑）

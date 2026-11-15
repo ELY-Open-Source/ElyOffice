@@ -1027,3 +1027,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 更新对话框跟着下载走：进度、下好后的“重新启动”、失败后再给“下载”；提议撤下或换了版本即关闭。只开一个：再点按钮把它调到前面。Wayland 的合成器可能不理会调到前面，被挡住的对话框再点像没反应。
 - 用户点“检查磁盘上的文件”或状态栏那项时，读不到的原因再以 toast 说一次；后台重复检查不再说。
 - Windows 上 `a_refused_credential_says_so` 曾等满超时：Git Bash 的登录配置设 `SSH_ASKPASS`，Git 先于 `GIT_TERMINAL_PROMPT=0` 去问它，SSH 会话没有桌面，提示窗一直等。发布机的 `shell: bash` 不读该配置；测试脚本先 `unset SSH_ASKPASS GIT_ASKPASS`。产品不改：用户桌面上的 askpass 照常弹出。
+
+## 2026-11-15 守住横幅（SF.15，用户定）
+
+- `tests/scripts/banners.py`（check.sh 调用）：入库 Rust 代码里的 `Banner::new` 只许 `apps/ely-doc/src/chrome.rs` 的 `doc-fonts`，按调用计数，多一处（含同一文件里第二个 `doc-fonts`）或不带名字即败并点名；`::`、`(` 两边的空白与换行照认；`doc-fonts` 不在不算失败，规则只拦多出的。`check-rules.sh` 加四例：只有字体横幅即过；另一个文件里跨行写的 `mark-outside`、写成 `Banner :: new` 换行再接括号的 `mark-large` 即败且点名；两个 `doc-fonts` 即败（审查第 1 轮）。
+- 八种语言：SF.13、SF.14 删掉的键各语言都已删，加的键各语言都在（`every_catalog_holds_the_same_keys_and_singulars`）；另删一个无人用的 `pdf.side.signs`（签名早已不在侧栏）。
+- `docs/help.md`：载入等待、只能另存副本、引擎停止、Microsoft 重新登录、ElyMark 的外部改动与更新按钮改写为状态栏、对话框、错误页与 toast 的去处。
+- Windows 上 `waits.py` 自检一直失败：`declared` 用 `Path` 拼路径，Windows 上是反斜杠，与 git 列出的 `/` 路径对不上，`mod x;` 引入的测试文件在 Windows 上从不被查。改用 `PurePosixPath`；Windows 上 `check-rules.sh` 随之全过。

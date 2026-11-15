@@ -33,7 +33,6 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("pdf.protect.tail", "보호됨"),
     ("pdf.protect.bare", "보호 해제됨"),
     ("pdf.protect.done", "{name}을(를) 저장했습니다."),
-    ("pdf.side.signs", "서명"),
     ("pdf.sign.show", "서명…"),
     ("pdf.sign.close", "닫기"),
     ("pdf.sign.state", "상태"),

@@ -3,7 +3,7 @@
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2]
 SLEEP = re.compile(r"\bthread::sleep\(")
@@ -130,7 +130,7 @@ def faults(name, lines, whole):
 
 def declared(path, lines, at, name):
     """The files `mod name;` at line `at` may be."""
-    here = Path(path)
+    here = PurePosixPath(path)
     base = here.parent if here.name == "mod.rs" or ROOTS.search(path) else here.with_suffix("")
     head, inline = opener(lines, at), []
     while head is not None:

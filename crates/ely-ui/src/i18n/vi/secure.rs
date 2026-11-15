@@ -33,7 +33,6 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("pdf.protect.tail", "đã bảo vệ"),
     ("pdf.protect.bare", "không bảo vệ"),
     ("pdf.protect.done", "Đã lưu {name}."),
-    ("pdf.side.signs", "Chữ ký"),
     ("pdf.sign.show", "Chữ ký…"),
     ("pdf.sign.close", "Đóng"),
     ("pdf.sign.state", "Trạng thái"),

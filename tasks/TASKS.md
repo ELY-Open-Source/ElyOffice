@@ -677,7 +677,7 @@
 - [x] SF.12 SF-18 关窗、关标签不再等引擎：应用自己记每个标签改没改；关正在载入的标签 2 秒内放不下即换引擎
 - [x] SF.13 删文档应用的横幅（SF-17 之一）：`office-slow` 删、`office-stopped` 改错误页、`office-risk` 七种改状态栏加保存时的确认、`office-links` 与 `table-kept` 改状态栏、ElyPDF `file_banner` 改状态栏；`docs/gaps.md` 的 PPTX 章节随之改
 - [x] SF.14 删 Mark、Mail 与更新的横幅（SF-17 之二）：`mark-outside`、`mark-large`、`mail-*` 四种、`update-package` 与 `UpdateBanner`、设置窗口的错误行，照 `SuperFast.md` 第四节的去处
-- [ ] SF.15 守住横幅（SF-17 之三）：脚本测试守住 `Banner::new` 只在 `doc-fonts` 一处；八种语言删、加的键齐全；`docs/help.md` 改写
+- [x] SF.15 守住横幅（SF-17 之三）：脚本测试守住 `Banner::new` 只在 `doc-fonts` 一处；八种语言删、加的键齐全；`docs/help.md` 改写
 - [ ] SF.16 SF-15 ElyDoc、ElyShow 载入完到首个图块的 0.55 秒查明并降到 0.07 秒量级
 - [ ] SF.17 SF-09 启动自检：常驻后重量，字体的其他语言名字仍挡着才按字体目录的变化缓存进配置目录；不挡如实写
 - [ ] SF.18 SF-16 14 MB DOCX 的载入 1.29 秒花在哪，能否先排出第一页就画；达不到如实写
