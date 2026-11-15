@@ -46,5 +46,5 @@ mod tests;
 use ely_platform::AppId;
 
 fn main() {
-    ely_ui::run(AppId::Mail, mail::open);
+    ely_ui::run(AppId::Mail, |_| {}, mail::open);
 }

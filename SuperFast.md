@@ -262,6 +262,18 @@ PDF 的 10.8 秒是装完后第一次开，原因未查，这里只记数。Offi
 
 窗口在首块图块后 7 至 43 毫秒露出，场景再过 165 至 313 毫秒消失。每个应用的第 0 次是换 exe 后第一次起，Defender 向云端查新文件，答复前 exe 不运行：ElyDoc 的应用在启动器开始后 3,975 毫秒才有窗口，小窗在 3 秒淡出，窗口 4,100 毫秒露出，首块图块 8,995；ElyTable 窗口 3,235 出现、3,336 露出；ElyShow 窗口 3,243 出现、3,358 露出。其间约 1 秒屏上什么都没有。每次安装或更新后只发生一次。Ely 三项仍慢于 Office，差在载入之外的启动，留给 SF.11 起的各步。
 
+### SF.11 引擎与窗口同时起（2026-11-15，测试机 7877，热，毫秒）
+
+单实例门一过，`ely_ui::run` 调应用给的 `early`；Doc、Table、Show 用它在窗口前同步接管引擎（找常驻引擎、建命令，日志各 0 至 3 毫秒），再起 `engine-take` 线程持 worker 锁跑自检、写作者名。窗口拿到的 worker 已在，界面线程不等线程。文件排上队即交后台，不等窗口任务。与 Office 比（第 1 至 5 次的中位）：
+
+| 应用 | Office 窗口标题 | Ely 首块图块 | SF.10 | Ely 载入 | SF.10 |
+| --- | --- | --- | --- | --- | --- |
+| Word / ElyDoc（big.docx） | 1,235 | 2,696 | 2,732 | 1,427 | 1,320 |
+| Excel / ElyTable（sheet.xlsx） | 868 | 1,107 | 1,101 | 719 | 615 |
+| PowerPoint / ElyShow（deck.ppt） | 1,195 | 1,723 | 1,946 | 342 | 317 |
+
+日志里的时刻（自启动器开始，第 1 至 5 次）：标签拿到引擎从 SF.10 的 327 至 524 降到 211 至 299，早约 110。载入从那时起与窗口、首帧同跑；这台机器八核、没有显卡，首帧由 CPU 画。ElyDoc 的载入长了约 100，载入结束的时刻没提前（中位 1,664 对 1,757），首块图块与 SF.10 持平。ElyShow 的首块图块早约 220，ElyTable 不变。载入变长归于抢 CPU，是由时刻推出的，未单独证实。Ely 三项仍慢于 Office。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

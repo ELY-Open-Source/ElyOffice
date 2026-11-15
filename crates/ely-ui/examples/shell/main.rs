@@ -28,7 +28,7 @@ use gpui::{
 use props::Props;
 
 fn main() {
-    ely_ui::run(AppId::Doc, gallery);
+    ely_ui::run(AppId::Doc, |_| {}, gallery);
 }
 
 fn gallery(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {

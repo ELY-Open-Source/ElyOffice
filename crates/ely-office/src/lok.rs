@@ -3,7 +3,8 @@
 use std::{
     io,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, mpsc},
+    time::Instant,
 };
 
 use ely_lok::{Doc, LokError, LokView, Reported, Worker, sheet::csv::Import};
@@ -252,29 +253,61 @@ fn follow<H: Host<Engine = Lok>>(host: &mut H, view: Entity<LokView>, link: &str
     }
 }
 
+/// The worker, its stop, where the author goes.
+type Taken = (Arc<Mutex<Worker>>, Option<Stop>, mpsc::Sender<Arc<Mutex<String>>>);
+
+/// The engine `take_engine` hands to `start`.
+static TAKEN: Mutex<Option<Taken>> = Mutex::new(None);
+
+/// Takes `app`'s engine; a thread checks it.
+pub fn take_engine(app: AppId) {
+    let began = Instant::now();
+    let launched = spawn(app).unwrap_or_else(|error| {
+        ely_platform::startup::fail(app, &format!("the document engine did not start: {error}"))
+    });
+    log::info!("{}: engine taken in {} ms", app.slug(), began.elapsed().as_millis());
+    let stop = Lok::stopper(&launched);
+    let worker = Arc::new(Mutex::new(launched));
+    let (author, wanted) = mpsc::channel::<Arc<Mutex<String>>>();
+    let (locked, held_now) = mpsc::channel();
+    let shared = Arc::clone(&worker);
+    let thread = std::thread::Builder::new().name("engine-take".into()).spawn(move || {
+        // Locked before any load: the author signs first.
+        let mut held = worker.lock().expect("the worker lock");
+        if locked.send(()).is_err() {
+            return log::error!("{}: the take stopped waiting for the lock", app.slug());
+        }
+        let ready = held.ready().and_then(|()| {
+            let wanted = wanted.recv().map_err(|_| io::Error::other("the window sent no author"))?;
+            sign(&mut held, &wanted)
+        });
+        match ready {
+            Ok(()) => log::info!("{}: engine ready {} ms after the take began", app.slug(), began.elapsed().as_millis()),
+            Err(error) => ely_platform::startup::fail(app, &format!("the document engine did not start: {error}")),
+        }
+    });
+    if let Err(error) = thread {
+        ely_platform::startup::fail(app, &format!("the engine thread did not start: {error}"));
+    }
+    if held_now.recv().is_err() {
+        ely_platform::startup::fail(app, "the engine thread ended before it held the worker");
+    }
+    match TAKEN.lock() {
+        Ok(mut slot) => *slot = Some((shared, stop, author)),
+        Err(_) => ely_platform::startup::fail(app, "the engine slot is poisoned"),
+    }
+}
+
 /// The worker, its stop and the scratch root of `app`.
 pub fn start(app: AppId, cx: &mut App) -> io::Result<(Arc<Mutex<Worker>>, Option<Stop>, PathBuf)> {
     let data = ely_platform::data_dir(app).map_err(io::Error::other)?;
     let work = crate::fresh_work(&data)?;
-    let launched = spawn(app)?;
-    let stop = Lok::stopper(&launched);
-    let worker = Arc::new(Mutex::new(launched));
-    // The window opens now; the kernel finishes starting behind it.
-    let starting = Arc::clone(&worker);
+    let taken = TAKEN.lock().map_err(|_| io::Error::other("the engine slot is poisoned"))?.take();
+    let taken = taken.ok_or_else(|| io::Error::other("no engine was taken before the window"))?;
+    let (worker, stop, author) = taken;
     // Settings as read at launch; defaults if unreadable.
     let wanted = Arc::new(Mutex::new(ely_ui::settings::current(cx).author.clone()));
-    let first = Arc::clone(&wanted);
-    let started = cx.background_executor().spawn(async move {
-        let mut worker = starting.lock().expect("the worker lock");
-        worker.ready()?;
-        sign(&mut worker, &first)
-    });
-    cx.spawn(async move |_| {
-        if let Err(error) = started.await {
-            ely_platform::startup::fail(app, &format!("the document engine did not start: {error}"));
-        }
-    })
-    .detach();
+    author.send(Arc::clone(&wanted)).map_err(|_| io::Error::other("the engine thread ended"))?;
     follow_author(&worker, wanted, cx);
     Ok((worker, stop, work))
 }

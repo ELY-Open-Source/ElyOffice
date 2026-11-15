@@ -10,9 +10,10 @@ use gpui::{
 
 use crate::theme;
 
-/// Starts `app`; `ELY_SMOKE=1` draws a frame, `hold` stays up.
+/// Starts `app`; `early` runs past the single-instance gate.
 pub fn run<V: Render>(
     app: AppId,
+    early: fn(AppId),
     root: impl FnOnce(AppId, &mut Window, &mut App) -> Entity<V> + 'static,
 ) {
     // As the installer after an update, nothing else runs.
@@ -45,6 +46,7 @@ pub fn run<V: Render>(
     }
     startup::guard(app);
     startup::no_window_restore();
+    early(app);
     let smoke = Smoke::from_env();
     let application = gpui_platform::application().with_assets(Assets);
     let handed = crate::opening::listen(app, &application, files, door).unwrap_or_else(|error| startup::fail(app, &format!("the door for other copies did not open: {error}")));

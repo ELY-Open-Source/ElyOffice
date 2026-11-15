@@ -20,7 +20,7 @@ const TEXT_LEFT: i32 = 1420;
 const PAST_END: i32 = 8000;
 
 fn main() {
-    ely_ui::run(AppId::Doc, |app, window, cx| {
+    ely_ui::run(AppId::Doc, |_| {}, |app, window, cx| {
         ely_lok::init(cx);
         let install =
             PathBuf::from(std::env::var("ELY_LOK_DIR").expect("ELY_LOK_DIR names the LOK build"));

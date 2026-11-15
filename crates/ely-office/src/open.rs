@@ -176,47 +176,47 @@ pub trait Opening: Host {
         let (worker, root) = (Arc::clone(&self.core().worker), self.core().work.clone());
         let slug = Self::KIND.app.slug();
         log::info!("{slug}: tab {id} load queued");
+        // Starts now, not after the frame.
+        let loading = cx.background_spawn(async move {
+            match &text {
+                Some((bytes, _)) => std::fs::write(&written, bytes.as_slice())?,
+                None => files::check_package(&written)?,
+            }
+            let asked = std::time::Instant::now();
+            let reading = written.clone();
+            let loaded = ely_lok::behind(&worker, move |worker| {
+                if !wanted.load(std::sync::atomic::Ordering::Acquire) {
+                    return Ok(None);
+                }
+                log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
+                let from = match &text {
+                    None => Load::File(&reading, &password),
+                    Some((_, how)) => Load::Import(&reading, how),
+                };
+                let began = std::time::Instant::now();
+                let loaded = Self::Engine::load(worker, from);
+                log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());
+                loaded.map(Some)
+            })
+            .await?;
+            let Some(loaded) = loaded else { return Ok(None) };
+            // The file's risks and session are read here too.
+            let risk = match files::macro_risk(&Self::KIND, &written)? {
+                true => Some(crate::Risk::Macros),
+                false => files::section_risk(&Self::KIND, &written)?.or_else(|| Self::Engine::risk(&loaded)),
+            };
+            let kept = match registry {
+                Some(_) => {
+                    let session = Session::load(written.clone())?;
+                    Some((files::work_dir(&root, id)?, session))
+                }
+                None => None,
+            };
+            let links = crate::Links::opened(Self::Engine::links(&loaded));
+            Ok(Some((loaded, risk, links, kept)))
+        });
         cx.spawn(async move |this, cx| {
-            let loaded = cx
-                .background_spawn(async move {
-                    match &text {
-                        Some((bytes, _)) => std::fs::write(&written, bytes.as_slice())?,
-                        None => files::check_package(&written)?,
-                    }
-                    let asked = std::time::Instant::now();
-                    let reading = written.clone();
-                    let loaded = ely_lok::behind(&worker, move |worker| {
-                        if !wanted.load(std::sync::atomic::Ordering::Acquire) {
-                            return Ok(None);
-                        }
-                        log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
-                        let from = match &text {
-                            None => Load::File(&reading, &password),
-                            Some((_, how)) => Load::Import(&reading, how),
-                        };
-                        let began = std::time::Instant::now();
-                        let loaded = Self::Engine::load(worker, from);
-                        log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());
-                        loaded.map(Some)
-                    })
-                    .await?;
-                    let Some(loaded) = loaded else { return Ok(None) };
-                    // The file's risks and session are read here too.
-                    let risk = match files::macro_risk(&Self::KIND, &written)? {
-                        true => Some(crate::Risk::Macros),
-                        false => files::section_risk(&Self::KIND, &written)?.or_else(|| Self::Engine::risk(&loaded)),
-                    };
-                    let kept = match registry {
-                        Some(_) => {
-                            let session = Session::load(written.clone())?;
-                            Some((files::work_dir(&root, id)?, session))
-                        }
-                        None => None,
-                    };
-                    let links = crate::Links::opened(Self::Engine::links(&loaded));
-                    Ok(Some((loaded, risk, links, kept)))
-                })
-                .await;
+            let loaded = loading.await;
             in_window(&this, cx, |host, window, cx| match loaded {
                 Ok(None) => host.parked(id, source, cx),
                 Ok(Some(loaded)) => host.loaded(id, source, Ok(loaded), window, cx),

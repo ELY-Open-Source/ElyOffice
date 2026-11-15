@@ -45,7 +45,7 @@ pub use dialogs::{Dialog, Dialogs, cancel};
 pub use engine::{Engine, Load, Stop};
 pub use find::{FindReplace, Finder, Finding};
 pub use links::{Linked, Linking, Links};
-pub use lok::{Commands, Lok, start};
+pub use lok::{Commands, Lok, start, take_engine};
 pub use open::{Opening, Source};
 pub use recover::{Keeping, Recovering};
 pub use remote::Remote;
