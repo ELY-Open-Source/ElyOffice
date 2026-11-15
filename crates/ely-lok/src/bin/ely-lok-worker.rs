@@ -2,7 +2,7 @@ use std::io;
 
 fn main() {
     // As the app: ELY_LOG, info by default.
-    env_logger::Builder::from_env(env_logger::Env::new().filter_or("ELY_LOG", "info")).init();
+    env_logger::Builder::from_env(env_logger::Env::new().filter_or("ELY_LOG", "info")).format_timestamp_millis().init();
     let args: Vec<String> = std::env::args().collect();
     let Some(((install, profile), endpoint)) = args.get(1).zip(args.get(2)).zip(args.get(3)) else {
         log::error!("usage: ely-lok-worker <install-path> <profile-dir> <endpoint> [--idle <name>] [--dev]");
