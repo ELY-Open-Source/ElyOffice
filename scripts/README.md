@@ -25,7 +25,7 @@ scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务�
 scripts/lo-tarballs.sh lo-src     列出该 LibreOffice 构建所取的压缩包（名字、SHA-256、地址），由其 `Makefile.fetch` 得出
 packaging/macos/bundle.sh ely-doc debug    出 dist/ElyDoc.app（带图标、文档类型与该应用的 worker；worker 在辅助包 `Contents/Helpers/Ely Engine.app`，有自己的包标识；内核不在包内）
 packaging/macos/kernel.sh 目录             出三个文档应用共用的内核（Frameworks 与 Resources，去掉图库与同义词库，逐个签名后写内核编号）
-packaging/macos/release.sh [批次]          该批各应用与 dist/Kernel，合成一个 `ElyOffice-<版本>-<架构>.pkg`：“自定”页每个应用一个勾，不可重定位；内核是隐藏的选项，选了任一文档应用即装到 `/Library/Application Support/Ely Office/Kernel`，装前删去旧的；不写更新清单；ELY_INSTALLER_IDENTITY 即签名，再加 ELY_SIGN_IDENTITY 与 ELY_NOTARY_PROFILE 即公证
+packaging/macos/release.sh [批次]          该批各应用与 dist/Kernel，合成一个 `ElyOffice-<版本>-<架构>.pkg`：“自定”页每个应用一个勾，不可重定位；内核是隐藏的选项，选了任一文档应用即装到 `/Library/Application Support/Ely Office/Kernel`，装前以旧的 `ely-login stop` 停引擎、再删去旧的；同一选项装 `ely-login` 与登录项（LaunchAgent），装完预热；写指向它的 `ely-office-macos-<架构>.json`；ELY_INSTALLER_IDENTITY 即签名，再加 ELY_SIGN_IDENTITY 与 ELY_NOTARY_PROFILE 即公证
 packaging/windows/installer.sh 出 dist 里唯一的 Windows 安装程序 ElyOffice-<版本>-windows-x86_64-setup.exe（首批各应用一个勾，内核旁放 `ely-login.exe`），另写指向它的 `ely-office-windows-x86_64.json` 与各应用的更新清单（0.1.16 读每应用的清单）
 packaging/windows/templates.sh 以本构建的内核重写 packaging/windows/new 的空白 DOCX、XLSX、PPTX（右键“新建”用）
 packaging/icons/masters.py     写出 assets/icons 的 SVG 母版（图标设计只改这里）

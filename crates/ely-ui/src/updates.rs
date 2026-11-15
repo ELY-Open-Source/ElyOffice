@@ -99,41 +99,6 @@ fn note_path(app: AppId) -> io::Result<PathBuf> {
     Ok(ely_platform::data_dir(app).map_err(io::Error::other)?.join("updates/failed.txt"))
 }
 
-/// As the macOS installer: waits, installs, reopens; its exit code.
-#[cfg(target_os = "macos")]
-pub fn installer(app: AppId) -> Option<i32> {
-    let args: Vec<String> = std::env::args().collect();
-    let [_, flag, dmg, bundle, pid] = args.as_slice() else {
-        return None;
-    };
-    if flag != ely_platform::install::INSTALL {
-        return None;
-    }
-    let Ok(pid) = pid.parse() else {
-        eprintln!("update: {pid} is not a process number");
-        return Some(2);
-    };
-    ely_platform::install::wait_for_exit(pid);
-    let installed = ely_platform::install::install(std::path::Path::new(dmg), std::path::Path::new(bundle));
-    if let Err(error) = &installed {
-        // To the app's log; the reopened app shows it.
-        eprintln!("update: the install failed: {error}");
-        let note = note_path(app).and_then(|path| {
-            std::fs::create_dir_all(path.parent().expect("the note's folder"))?;
-            std::fs::write(path, error.to_string())
-        });
-        if let Err(lost) = note {
-            eprintln!("update: the failure note was not written: {lost}");
-        }
-    }
-    // Last: the note is written before the app reads it.
-    if let Err(error) = ely_platform::install::reopen(std::path::Path::new(bundle)) {
-        eprintln!("update: the app did not reopen: {error}");
-        return Some(1);
-    }
-    Some(i32::from(installed.is_err()))
-}
-
 /// An installed app's updater; checks at launch if chosen.
 pub(crate) fn install(app: AppId, cx: &mut App) {
     let installed = match ely_platform::install::running(app.slug()) {

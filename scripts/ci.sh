@@ -147,7 +147,6 @@ manifests=()
 for manifest in "$dist"/*.json; do
   if [ -e "$manifest" ]; then manifests+=("$manifest"); fi
 done
-# macOS writes none until its .pkg updates.
 [ ${#manifests[@]} = 0 ] || ${inside[@]+"${inside[@]}"} packaging/sign.sh "${manifests[@]}"
 
 # A pre-release, made by whichever platform comes first.

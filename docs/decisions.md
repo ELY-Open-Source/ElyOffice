@@ -1065,3 +1065,12 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - worker 移进应用自己的辅助包 `Contents/Helpers/Ely Engine.app`，包标识为 `<应用>.engine`，Info.plist 里 `LSUIElement` 为真。原先它在 `Contents/MacOS` 里，系统按应用的包标识登记它（2026-10-15 只在运行时改了 `LSUIElement`，去了程序坞图标，包标识照旧）。SF.17 的接班引擎在应用退出后仍在，系统把它当成运行中的 ElyDoc：Mac 上 `open -a ElyDoc 文件` 把文件交给它，什么也没开；AppleScript 的退出也发给它，答 -1708（0.1.16 实测）。辅助包之后，两次连开都画出首块图块，退出都成功。运行时改 `LSUIElement` 的代码随之删去，只留激活策略的核对。`release-macos.sh` 核对每个 worker 持的是自己的 `.engine` 标识，辅助包不声明文件与链接类型。
 - 签名用组织变量 `ELY_INSTALLER_IDENTITY`（Developer ID Installer），`ci.sh` 缺即失败；公证与订票对整个 `.pkg`。
 - 卸载：macOS 的 `.pkg` 没有卸载程序。把应用拖进废纸篓后，内核留在 `/Library`。未做。
+
+## 2026-11-15 macOS 登录项与 `.pkg` 的更新（SF.20）
+
+- 登录项是 `/Library/LaunchAgents/ely.zacharyzhang.office.login.plist`，对每个登录的用户起 `/Library/Application Support/Ely Office/ely-login`；`ely-login` 与 Windows 同一份代码，只换找已装应用的办法：`/Applications/<名>.app` 在、带 `Contents/Helpers/Ely Engine.app`、且版本与 `ely-login` 相同才算装了。0.1.16 的 dmg 版与本版同号，没有那个辅助应用，由此认出。版本只对发布版成立（每次发布升号）；同号的开发构建认不出。等 `engine` 不设期限。自定时没选的应用不被换，留着旧版与旧内核（0.1.16 的 dmg 版不认 `engine`，起来就不退，安装器会卡在装完那一步），所以跳过。
+- `ely-login` 放在内核外：内核装前整个删去，若它在里面，装前就没有旧的去停引擎。
+- `AbandonProcessGroup` 为真：`ely-login` 跑完即退出，launchd 默认会结束它起的整组进程，引擎也在其中。
+- 装完以控制台用户同步跑 `ely-login`，安装器关上时引擎已在；随后重新载入代理，下次登录照常起。没有控制台用户（远程装）即跳过。
+- 更新：清单 `ely-office-macos-<架构>.json` 指 `.pkg`；应用退出后交给“安装器”，用户在那里点。原先的 dmg 自换包删去：一个 `.app` 换不了共用的内核与登录项。
+- 未做：别的已登录用户的引擎不停；卸载仍无。

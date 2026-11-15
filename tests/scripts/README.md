@@ -37,7 +37,7 @@ tests/scripts/linux-distros.sh   deb 在 Ubuntu 26.04、rpm 在 Fedora 44 容器
 cargo test -p ely-show --test compose  切换半程帧经 Metal 取像素（主线程，仅 macOS）
 tests/scripts/*.sh *.py        脚本测试（缺工具时报 SKIP）
 tests/scripts/icons.sh         八个图标齐全、未过期，macOS 为 squircle，其余无底形
-tests/scripts/release-macos.sh dist 里的 `.pkg` 有七个应用的选项、跟随三个文档应用的隐藏内核、无可重定位的部分，设了 ELY_INSTALLER_IDENTITY 即核其签名；dist/Kernel 有编号、无图库、要求的系统不高于 14.0；首批七个 .app 不带内核，以访达的方式打开文件（启动与运行中，ElyMail 打开 .eml），worker 取自包内的辅助包且持其自己的 `.engine` 包标识、内核取自 dist/Kernel，带齐许可，除辅助包（不声明文件与链接）外不含系统会登记的内嵌包，每个二进制要求的系统不高于应用所写，可执行文件的 `@rpath` 依赖都在包内；源码包齐全
+tests/scripts/release-macos.sh dist 里的 `.pkg` 有七个应用的选项、跟随三个文档应用的隐藏内核、无可重定位的部分，登录项合法且 `AbandonProcessGroup` 为真、`ely-login` 可执行，内核装前先停引擎，更新清单的散列即此包，设了 ELY_INSTALLER_IDENTITY 即核其签名；dist/Kernel 有编号、无图库、要求的系统不高于 14.0；首批七个 .app 不带内核，以访达的方式打开文件（启动与运行中，ElyMail 打开 .eml），worker 取自包内的辅助包且持其自己的 `.engine` 包标识、内核取自 dist/Kernel，带齐许可，除辅助包（不声明文件与链接）外不含系统会登记的内嵌包，每个二进制要求的系统不高于应用所写，可执行文件的 `@rpath` 依赖都在包内；源码包齐全
 tests/engines/*.sh             引擎探测（LOK、MuPDF）；LOK 探测本构建的内核，不挂载官方镜像
 tests/scripts/lo-unregistered.sh  “打开方式”里没有 LibreOffice，构建出的包不声明任何文件类型
 tests/scripts/lokview.sh       真窗口里的 LokView：输入法、键入、点击、拖动，AX 树里的段落文本；ELY_CLIPBOARD_TEST=1 再测复制粘贴（会覆盖系统剪贴板）
@@ -66,7 +66,7 @@ tests/scripts/worker-rebuild.sh 改了 MuPDF 垫片（只动时间），worker �
 tests/scripts/data-folder.sh   指向文件要求搬动时，ElyMark 启动即把数据搬进所选文件夹、切换并记日志
 tests/scripts/one-instance.sh  第二份 ElyDoc 把文件交给第一份后退出，第一份开出它、工作目录不动
 tests/scripts/compatibility-rules.sh  `compatibility.py --check` 在兼容清单所写的版本、补丁范围与本构建不符，或上游钉的提交没有名字时失败；重写后通过（只抄脚本所读的文件到临时目录）
-tests/scripts/update.sh        装好的 ElyTree 从本机服务的新版下载、替换、重新打开（需辅助功能权限）
+tests/scripts/update.sh        装好的 ElyTree 从本机服务的清单下载 `.pkg`、核对散列；取消与只退出不开“安装器”，重新启动即在退出后以 `open -b com.apple.installer` 交出、不自己重开；“安装器”打不开即写说明，下次启动显示并删去（需辅助功能权限）
 tests/scripts/update-relay.sh  github.com 连不上（挂载命名空间里把它解析到本机）时，检查更新经官网的转发取到签名的清单，并下载一个安装包、核对所签的散列（Linux；连不上 office.elygpui.com 即 SKIP）
 tests/scripts/settings.sh      真窗口：ElyPDF 设置里选深色，ElyTree 即刻变深；作者名写入、不丢外观；ElyTree 拒绝非 Git 程序；设置文件读不出时提示且不覆盖；主窗口重开回到原处（需辅助功能与屏幕录制权限）
 tests/scripts/privacy.sh       真窗口 ElyDoc：键入的文字不进日志；worker 的日志进应用日志；设置里的诊断先列出所含内容，导出的文件去掉家目录与姓名、不含正文（需辅助功能权限）

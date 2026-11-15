@@ -16,11 +16,6 @@ pub fn run<V: Render>(
     early: fn(AppId),
     root: impl FnOnce(AppId, &mut Window, &mut App) -> Entity<V> + 'static,
 ) {
-    // As the installer after an update, nothing else runs.
-    #[cfg(target_os = "macos")]
-    if let Some(code) = crate::updates::installer(app) {
-        std::process::exit(code);
-    }
     let files = crate::opening::launch_args().unwrap_or_else(|error| startup::fail(app, &format!("a launch argument has no place: {error}")));
     // Before any lock is taken in the old folder.
     let (moved, admitted) = ely_platform::folder::at_start().unwrap_or_else(|error| startup::fail(app, &format!("the data folder is not ready: {error}")));

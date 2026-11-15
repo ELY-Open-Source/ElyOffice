@@ -25,9 +25,10 @@ func find(_ e: AXUIElement, _ depth: Int) -> AXUIElement? {
     return nil
 }
 let app = AXUIElementCreateApplication(pid)
-// Dialogs can be windows the app's children leave out.
+// The front window first; dialogs may sit outside the children.
+let front = attr(app, kAXFocusedWindowAttribute).map { [$0 as! AXUIElement] } ?? []
 let windows = attr(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
-let roots = [app] + windows
+let roots = front + [app] + windows
 guard let target = roots.lazy.compactMap({ find($0, 0) }).first else {
     print("none")
     exit(0)

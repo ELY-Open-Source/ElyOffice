@@ -29,11 +29,27 @@ pkgutil --expand "$pkg" "$work/pkg"
 [ "$(grep -c '<choice id="ely-' "$work/pkg/Distribution")" = 7 ] || fail "the package does not offer seven apps"
 grep -qF "<choice id=\"kernel\" visible=\"false\" enabled=\"false\" selected=\"choices['ely-doc'].selected || choices['ely-table'].selected || choices['ely-show'].selected\">" \
   "$work/pkg/Distribution" || fail "the kernel's choice does not follow the document apps"
-[ "$(find "$work/pkg" -name PackageInfo | wc -l | tr -d ' ')" = 8 ] || fail "the package lacks a part"
+[ "$(find "$work/pkg" -name PackageInfo | wc -l | tr -d ' ')" = 9 ] || fail "the package lacks a part"
 # An empty <relocate/> moves nothing.
 ! grep -l '<relocate>' "$work/pkg"/*/PackageInfo || fail "an app may install to a stray copy"
 grep -qF 'install-location="/Library/Application Support/Ely Office/Kernel"' "$work/pkg/kernel.pkg/PackageInfo" ||
   fail "the kernel installs elsewhere"
+# The login item: starts the engines, outlives none of them.
+agent=Library/LaunchAgents/ely.zacharyzhang.office.login.plist
+# pkgutil leaves payloads as archives.
+mkdir "$work/login"
+(cd "$work/login" && cpio -i --quiet <"$work/pkg/login.pkg/Payload") || fail "the login part does not unpack"
+plutil -lint -s "$work/login/$agent" || fail "no valid $agent"
+[ "$(/usr/libexec/PlistBuddy -c 'Print :AbandonProcessGroup' "$work/login/$agent")" = true ] ||
+  fail "launchd would end the engines with ely-login"
+[ -x "$work/login/Library/Application Support/Ely Office/ely-login" ] || fail "no ely-login"
+grep -q 'ely-login" stop || exit 2' "$work/pkg/kernel.pkg/Scripts/preinstall" || fail "the kernel replaces running engines"
+for script in kernel.pkg/Scripts/preinstall login.pkg/Scripts/postinstall; do
+  [ -x "$work/pkg/$script" ] || fail "$script cannot run"
+done
+cpu=$(uname -m | sed s/arm64/aarch64/)
+grep -qF "\"sha256\": \"$(shasum -a 256 "$pkg" | cut -d' ' -f1)\"" "$dist/ely-office-macos-$cpu.json" ||
+  fail "the update manifest does not name this package"
 [ -z "${ELY_INSTALLER_IDENTITY:-}" ] || pkgutil --check-signature "$pkg" | grep -qF "$ELY_INSTALLER_IDENTITY" ||
   fail "the package is not signed by $ELY_INSTALLER_IDENTITY"
 kernel=$dist/Kernel

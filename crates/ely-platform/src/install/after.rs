@@ -1,4 +1,4 @@
-//! What runs once the app has quit: install, then reopen.
+//! What runs once the app has quit: install, or reopen.
 
 use std::{
     io,
@@ -7,9 +7,6 @@ use std::{
 };
 
 use super::Installed;
-
-/// The argument that runs the app as the macOS installer.
-pub const INSTALL: &str = "--ely-install-update";
 
 /// Waits for this process, installs, reopens; failures go in `note`.
 const WINDOWS: &str = r#"
@@ -49,12 +46,22 @@ fi
 setsid "$target" </dev/null >/dev/null 2>&1 &
 "#;
 
+/// macOS: the Installer opens the `.pkg`; it asks first.
+const MACOS: &str = r#"
+pid=$1 pkg=$2 note=$3
+while kill -0 "$pid" 2>/dev/null; do sleep 0.2; done
+if ! said=$(open -b com.apple.installer "$pkg" 2>&1); then
+  echo "update: the Installer did not open $pkg: $said" >&2
+  mkdir -p "$(dirname "$note")" && printf '%s\n' "the Installer did not open: $said" >"$note"
+fi
+"#;
+
 /// Starts what installs `file` after process `pid` quits.
 pub fn after_quit(file: &Path, installed: &Installed, pid: u32, note: &Path, said: Stdio) -> io::Result<Child> {
     let mut command = match installed {
-        Installed::Bundle(bundle) => {
-            let mut command = Command::new(std::env::current_exe()?);
-            command.arg(INSTALL).arg(file).arg(bundle).arg(pid.to_string());
+        Installed::Bundle(_) => {
+            let mut command = Command::new("/bin/sh");
+            command.args(["-c", MACOS, "sh"]).arg(pid.to_string()).arg(file).arg(note);
             command
         }
         Installed::Folder { dir, exe } => {

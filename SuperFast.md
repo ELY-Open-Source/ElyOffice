@@ -388,6 +388,23 @@ Mac 上的载入已比 Windows 快三至四倍，时间花在起内核：热的�
 - 装后首次 8.3 秒，其中挂内核 3.7 秒：系统第一次读这 478 MB、核对每个库的签名。装完起一次引擎可以把它移进安装，归 SF.20。
 - 量的时候查出一个错：接班的引擎在 `Contents/MacOS` 里，持着应用的包标识，系统把它当成运行中的 ElyDoc。`open -a` 把文件交给它，什么也没开；`quit` 也发给它，回 -1708。上面那次 -1708 就是它。worker 移进 `Contents/Helpers/Ely Engine.app`，有自己的包标识后，19 次打开都画出首块图块，19 次退出都成功，没有一次要杀。
 
+### SF.20 macOS 登录项（2026-11-15，测试机 7885，毫秒）
+
+装的是公证过的 `ElyOffice-0.1.16-arm64.pkg`，装在 SF.19 的包之上。首块图块从应用日志的“started”算到“first tile drawn”，文件是 3.5 KB 的 `t.docx`、`t.xlsx`、`t.pptx`：
+
+| 情形 | ElyDoc | ElyTable | ElyShow |
+| --- | --- | --- | --- |
+| 装完，安装器里起引擎 | 11,955 | 4,375 | 2,308 |
+| 登录（`launchctl kickstart -k`），起引擎 | 5,365 | 2,921 | 2,664 |
+| 登录后首次打开，首块图块 | 424 | 1,000 | 1,590 |
+| 第二次打开（接班引擎），首块图块 | 356 | 534 | 768 |
+
+- `installer -pkg` 26 秒，内含停旧引擎、换内核、起三个引擎。装完 `launchctl print` 见登录项已载入、退出码 0；`ely-login` 退出后三个引擎都在。
+- SF.19 的装后首次是 8,332：系统第一次核对内核的签名。这笔账现在由安装器付，ElyDoc 起引擎的 12 秒就是它；装完第一次打开只剩 424。
+- 每次打开都日志 “took over engine”，没有一次自己起内核。
+- 三个空闲引擎 RSS 177、190、243 MB，共 610 MB；30 秒里 CPU 时间共增 0.01 秒。
+- 第一次量时安装失败：`preinstall` 在 `pkgbuild` 之后才加执行位，安装器报“文件不存在”。改在打包前加；`release-macos.sh` 现核两个脚本都可执行。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：
