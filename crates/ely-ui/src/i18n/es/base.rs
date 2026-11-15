@@ -13,7 +13,7 @@ pub(super) const ES: &[(&str, &str)] = &[
         "updates.package",
         "{app} {version} está disponible. Descargue su paquete desde la página de versiones y ejecute: {command}",
     ),
-    ("updates.copy", "Copiar comando"),
+    ("updates.button", "Actualización disponible"),
     ("updates.close", "Cierre primero {apps}. La actualización reemplaza todas las aplicaciones Ely."),
     ("updates.nix", "Ely Office {version} está disponible. Lo instaló Nix: actualice el flake que lo proporciona."),
     ("menu.app.switch", "Abrir aplicación Ely"),

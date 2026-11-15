@@ -94,7 +94,6 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("mark.git.open", "Verlauf dieser Datei in ElyTree zeigen"),
     ("mark.git.missing", "ElyTree ist nicht installiert. Installieren Sie ElyTree aus dem Ely-Office-Release, um den Verlauf dieser Datei zu sehen."),
     ("mark.git.failed", "ElyTree wurde nicht geöffnet: {error}"),
-    ("mark.large", "Diese Datei ist {size} MB groß: Sie wird als Quellcode angezeigt. Bearbeiten und Vorschau sind aus; beim Speichern bleibt jedes Byte erhalten."),
     ("mark.large.modes", "Große Dateien bleiben im Quellcodemodus"),
     ("mark.mode.visual", "Bearbeiten"),
     ("mark.caret", "Z. {line}, Sp. {column}"),

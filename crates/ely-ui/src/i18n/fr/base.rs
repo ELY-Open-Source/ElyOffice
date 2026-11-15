@@ -7,7 +7,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("updates.latest", "{app} {version} est la dernière version."),
     ("menu.app.updates", "Rechercher des mises à jour…"),
     ("updates.package", "{app} {version} est disponible. Téléchargez son paquet depuis la page des versions, puis exécutez : {command}"),
-    ("updates.copy", "Copier la commande"),
+    ("updates.button", "Mise à jour disponible"),
     ("updates.close", "Fermez d’abord {apps}. La mise à jour remplace toutes les applications Ely."),
     ("updates.nix", "Ely Office {version} est disponible. Nix l’a installé : mettez à jour le flake qui le fournit."),
     ("menu.app.switch", "Ouvrir une application Ely"),

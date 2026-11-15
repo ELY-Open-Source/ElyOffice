@@ -3,7 +3,7 @@
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant, SegmentedControl},
     data_display::DescriptionList,
-    feedback::{Banner, InlineMessage},
+    feedback::InlineMessage,
     forms::{Choice, Input, PasswordInput, Select, Switch},
     overlays::Dialog,
     primitives::Severity,
@@ -129,10 +129,7 @@ impl Mail {
         };
         let dialog = Dialog::new("mail-add", title, dismiss)
             .children(kinds)
-            .children(
-                unavailable
-                    .map(|words| Banner::new("mail-add-unavailable", Severity::Danger, words)),
-            )
+            .children(unavailable.map(|words| InlineMessage::new(Severity::Danger, words)))
             .children(fields)
             .children(status(adding, cx))
             .action(move |close| {

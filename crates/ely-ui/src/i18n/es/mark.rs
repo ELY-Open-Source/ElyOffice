@@ -164,10 +164,6 @@ pub(super) const ES: &[(&str, &str)] = &[
     ),
     ("mark.git.failed", "ElyTree no se abrió: {error}"),
     (
-        "mark.large",
-        "Este archivo ocupa {size} MB: se muestra como código fuente. La edición y la vista previa están desactivadas; al guardar se conservan todos los bytes.",
-    ),
-    (
         "mark.large.modes",
         "Los archivos grandes se quedan en modo código fuente",
     ),

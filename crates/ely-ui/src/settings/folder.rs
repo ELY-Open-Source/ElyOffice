@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use ely_gpui_component::{buttons::Button, feedback::Banner, primitives::Severity, settings::SettingsRow};
+use ely_gpui_component::{buttons::Button, primitives::Severity, settings::SettingsRow};
 use ely_platform::folder::{self, State};
 use gpui::{AnyElement, App, Context, IntoElement, PathPromptOptions, SharedString, WeakEntity};
 
@@ -14,7 +14,7 @@ impl SettingsView {
     pub(super) fn folder_rows(&self, this: WeakEntity<Self>, cx: &App) -> Vec<AnyElement> {
         let state = match &self.storage.folder {
             None => return Vec::new(),
-            Some(Err(error)) => return vec![Banner::new("storage-folder-unread", Severity::Danger, error.clone()).into_any_element()],
+            Some(Err(error)) => return vec![super::said::line("storage-folder-unread", Severity::Danger, error.clone(), cx)],
             Some(Ok(state)) => state,
         };
         let choose = Button::new("storage-folder-choose", text(cx, "settings.storage.folder_choose", &[])).on_click(move |_, _, cx| {
@@ -23,7 +23,7 @@ impl SettingsView {
         let row = SettingsRow::new(text(cx, "settings.storage.folder", &[])).description(shown(state, cx)).control(choose);
         let mut rows = vec![row.into_any_element()];
         if let Some(failed) = failed(state, cx) {
-            rows.push(Banner::new("storage-folder-failed", Severity::Danger, failed).into_any_element());
+            rows.push(super::said::line("storage-folder-failed", Severity::Danger, failed, cx));
         }
         rows
     }

@@ -356,9 +356,13 @@ fn only_the_main_window_carries_menus_and_updates(cx: &mut TestAppContext) {
     }
     cx.update(crate::updates::offer_for_tests);
     let main = cx.add_window(|_, cx| Main(cx.focus_handle()));
-    assert!(below_title(cx, main.into()) > menus, "the main window shows the update");
+    assert_eq!(below_title(cx, main.into()), menus, "the update is no bar");
+    let mut shown = gpui::VisualTestContext::from_window(main.into(), cx);
+    assert!(shown.debug_bounds("update-button").is_some(), "the title bar offers the update");
     let settings = cx.add_window(|window, cx| SettingsView::new(AppId::Mark, window, cx));
     assert_eq!(below_title(cx, settings.into()), gpui::px(0.0), "settings repeats neither");
+    let mut shown = gpui::VisualTestContext::from_window(settings.into(), cx);
+    assert!(shown.debug_bounds("update-button").is_none(), "settings offers no update");
 }
 
 #[gpui::test]

@@ -1,6 +1,6 @@
 //! Sync now, pause, and folders kept whole.
 
-use ely_gpui_component::{buttons::Button, feedback::Banner, forms::Switch, primitives::Severity};
+use ely_gpui_component::{buttons::Button, forms::Switch};
 use ely_mail_engine::{AccountId, LocalFolder, Protocol};
 use gpui::{
     AnyElement, App, Context, InteractiveElement as _, IntoElement, ParentElement as _, SharedString, Styled as _,
@@ -36,16 +36,6 @@ impl Mail {
             .child(now)
             .child(pause)
             .into_any_element()
-    }
-
-    pub fn paused_banner(&self, cx: &Context<Self>) -> Option<Banner> {
-        self.paused.then(|| {
-            Banner::new(
-                "mail-sync-paused",
-                Severity::Info,
-                text(cx, "mail.sync.paused", &[]),
-            )
-        })
     }
 
     /// One switch per IMAP folder.

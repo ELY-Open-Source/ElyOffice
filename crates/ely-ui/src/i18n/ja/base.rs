@@ -7,7 +7,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("updates.latest", "{app} {version} は最新バージョンです。"),
     ("menu.app.updates", "アップデートを確認…"),
     ("updates.package", "{app} {version} が公開されました。リリースページからパッケージをダウンロードして、次を実行してください: {command}"),
-    ("updates.copy", "コマンドをコピー"),
+    ("updates.button", "アップデートあり"),
     ("updates.close", "先に {apps} を閉じてください。更新ですべての Ely アプリが置き換わります。"),
     ("updates.nix", "Ely Office {version} が公開されました。Nix でインストールされています。提供元の flake を更新してください。"),
     ("menu.app.switch", "Ely アプリを開く"),

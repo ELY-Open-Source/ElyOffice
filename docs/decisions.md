@@ -1015,3 +1015,15 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - ElyTable 保持的结果：状态栏项带数目，点击以 toast 列出前五个与总数。ElyPDF 的签名、修复报告由保存状态项打开，`pdf.repair.show` 键随之删掉。
 - 状态栏的项在锁定的组件库里不是 Tab 停靠点（SF.13 审查第 1 轮），故每个可点的项在菜单里另有同一动作：`ely_office::ShowRisk`（ElyDoc 工具、ElyTable 数据、ElyShow 幻灯片），ElyTable 的 `ListKept`（数据），ElyPDF 的 `ShowRepairReport`（文档，标签 `pdf.repair.open`）；无可说时以 toast 说明（`office.risk.none`、`table.kept.none`、`pdf.repair.none`）。根因在组件库：其 main 已把可点的 `StatusBarItem` 改为停靠点，Enter、空格按下；换 pin 连带 gpui-pre 0.3.12 与 vendor 的四个 gpui 包重做，单列 SF.25。
 - Windows 的 SRW 锁不公平：后台读排在轮流锁之后仍能在每次放锁时抢在等着的输入之前（R15.36 的门测试在 Windows 上等了 12 个里的 4 个）。视图的输入与图块经 `off::Front` 登记等待，`behind` 过了轮流锁再等登记清零才取 worker 锁；回归 `background_work_waits_while_a_front_waits`（去掉等待即败）。
+
+## 2026-11-15 Mark、Mail、更新与设置的横幅去掉（SF.14，用户定）
+
+- ElyMark：外面改了、删了、读不到是状态栏 `mark-outside` 一项（悬停说明，点击比较、另存为或再看）；读不到另以 toast 说一次。保存撞上外面的改动，读完磁盘后弹“比较、另存为、覆盖”。`mark.large` 删掉，大文件仍只给源码模式。状态栏的项在锁定的组件库里不是停靠点，键盘的路：保存（Ctrl+S）撞上改动即弹同一对话框，删掉的另存为，读不到的“文件”菜单“检查磁盘上的文件”。
+- ElyMail 加状态栏：同步一项（暂停、失败、同步中、已同步，点击暂停即恢复，点击失败打开该账户），本地库只读另一项。组件库的 `feedback::SyncStatus` 文字写死英文，违背缺键即失败，故用同样图标的 `StatusBarItem` 与本地化文字；组件库的文字本地化后改用它，随 SF.25。
+- 失败的账户在侧栏的“设置”行换成警告图标；账户页的“上次同步失败”一行为危险色，需要时带“重新登录”。只读在启动时以 `AlertDialog` 说一次，状态栏的项可再打开它。
+- 添加账户与写信页的错误改为表单里的 `InlineMessage`，写信页的放在写信区下方。写信窗口没有 toast 层，发送失败也留在这里，不发到主窗口看不见的 toast。
+- 有新版是标题栏右边一个按钮（下载中显示百分比，下好后是“重新启动以更新”），点开组件库的 `shell::UpdateDialog`。包管理器装的，对话框里写出命令，不再有“复制命令”（`updates.copy` 删掉）。对话框打不开以 toast 报错。
+- 设置窗口的错误行改为危险色的文字（`settings::said::line`），导出诊断的结果照其轻重上色。
+- 更新对话框跟着下载走：进度、下好后的“重新启动”、失败后再给“下载”；提议撤下或换了版本即关闭。只开一个：再点按钮把它调到前面。Wayland 的合成器可能不理会调到前面，被挡住的对话框再点像没反应。
+- 用户点“检查磁盘上的文件”或状态栏那项时，读不到的原因再以 toast 说一次；后台重复检查不再说。
+- Windows 上 `a_refused_credential_says_so` 曾等满超时：Git Bash 的登录配置设 `SSH_ASKPASS`，Git 先于 `GIT_TERMINAL_PROMPT=0` 去问它，SSH 会话没有桌面，提示窗一直等。发布机的 `shell: bash` 不读该配置；测试脚本先 `unset SSH_ASKPASS GIT_ASKPASS`。产品不改：用户桌面上的 askpass 照常弹出。

@@ -2,7 +2,6 @@
 
 use ely_gpui_component::{
     buttons::Button,
-    feedback::Banner,
     forms::Switch,
     primitives::Severity,
     settings::{SettingsRow, SettingsSection},
@@ -91,7 +90,7 @@ impl SettingsView {
                 ),
             );
         if let Some((severity, said)) = self.diagnostics.status.clone() {
-            section = section.row(Banner::new("settings-export-status", severity, said));
+            section = section.row(super::said::line("settings-export-status", severity, said, cx));
         }
         section.into_any_element()
     }

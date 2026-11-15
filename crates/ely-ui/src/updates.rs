@@ -15,7 +15,8 @@ use ely_platform::{
     update::{self, Check, Release},
 };
 use futures::{StreamExt as _, channel::mpsc};
-use gpui::{App, AppContext as _, Context, Entity, EventEmitter, Global};
+use ely_gpui_component::shell::{Hosted, UpdateDialog};
+use gpui::{App, AppContext as _, Context, Entity, EventEmitter, Global, Subscription, WindowHandle};
 
 /// Where releases live; GitHub redirects, no API.
 const GITHUB: &str = "https://github.com/ELY-Open-Source/ElyOffice/releases";
@@ -49,6 +50,8 @@ pub struct Updates {
     pub checked: Option<Checked>,
     /// Why the last install failed, for the window to say.
     pub note: Option<String>,
+    /// The open dialog follows the offer.
+    dialog: Option<(WindowHandle<Hosted<UpdateDialog>>, Subscription)>,
 }
 
 /// What an update says to the window.
@@ -158,6 +161,7 @@ pub(crate) fn install(app: AppId, cx: &mut App) {
             pending: None,
             checked: None,
             note,
+            dialog: None,
         }
     });
     cx.set_global(Updater(updates.clone()));

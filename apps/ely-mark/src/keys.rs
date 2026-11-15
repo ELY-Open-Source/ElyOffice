@@ -147,7 +147,7 @@ impl Desk {
     }
 
     pub fn mode_actions(root: gpui::Div, cx: &mut Context<Self>) -> gpui::Div {
-        root.on_action(cx.listener(|desk, _: &CheckDisk, _, cx| desk.look_all(cx)))
+        root.on_action(cx.listener(|desk, _: &CheckDisk, _, cx| desk.check_disk(cx)))
             .on_action(
                 cx.listener(|desk, _: &ToggleSource, window, cx| desk.toggle_source(window, cx)),
             )

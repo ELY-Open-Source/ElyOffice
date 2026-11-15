@@ -2,7 +2,6 @@
 
 use ely_gpui_component::{
     buttons::{Button, SegmentedControl},
-    feedback::Banner,
     layout::ScrollArea,
     forms::{FontPicker, Input, InputEvent, Switch, TextInput},
     primitives::{IconName, Severity},
@@ -341,7 +340,7 @@ impl SettingsView {
                         .control(div().w_full().max_w_64().child(Input::new(&field).invalid(self.git_error.is_some()))),
                 );
                 match self.git_error.clone() {
-                    Some(error) => section.row(Banner::new("settings-git-error", Severity::Danger, error)),
+                    Some(error) => section.row(super::said::line("settings-git-error", Severity::Danger, error, cx)),
                     None => section,
                 }
                 .into_any_element()
@@ -435,21 +434,21 @@ impl Render for SettingsView {
         .page(page);
         let current = cx.global::<super::Current>();
         let unreadable = current.error.clone().map(|error| {
-            Banner::new("settings-unreadable", Severity::Danger, text(cx, "settings.unreadable", &[("error", &error)]))
+            super::said::line("settings-unreadable", Severity::Danger, text(cx, "settings.unreadable", &[("error", &error)]), cx)
         });
         let app_error: Vec<_> = current
             .app_error
             .iter()
             .map(|(kind, error)| {
                 let id = SharedString::from(format!("settings-app-unreadable-{kind}"));
-                Banner::new(id, Severity::Danger, text(cx, "settings.app_unreadable", &[("error", error)]))
+                super::said::line(id, Severity::Danger, text(cx, "settings.app_unreadable", &[("error", error)]), cx)
             })
             .collect();
         let unsaved: Vec<_> = current
             .unsaved
             .iter()
             .map(|(kind, error)| {
-                Banner::new(SharedString::from(format!("settings-unsaved-{kind}")), Severity::Danger, text(cx, "settings.unsaved", &[("error", error)]))
+                super::said::line(format!("settings-unsaved-{kind}"), Severity::Danger, text(cx, "settings.unsaved", &[("error", error)]), cx)
             })
             .collect();
         Shell::new(text(cx, "settings.title", &[]), &self.focus)

@@ -95,14 +95,7 @@ impl Desk {
         match choice {
             Choice::Disk => self.take_disk(id, disk, fingerprint, cx),
             // The checked save: a later disk change conflicts again.
-            Choice::Mine => {
-                if let Some(tab) = self.tab_mut(id) {
-                    tab.session.rebase(fingerprint);
-                    tab.extra.restart_autosave();
-                }
-                self.set_outside(id, Outside::Clear, cx);
-                self.save(id, None, window, cx);
-            }
+            Choice::Mine => self.overwrite(id, fingerprint, window, cx),
             Choice::Merged => {
                 let (merged, open) = merging::result(&regions, &takes);
                 if open > 0 {
@@ -114,6 +107,60 @@ impl Desk {
                 }
             }
         }
+    }
+
+    /// The checked save: a later disk change conflicts again.
+    pub(crate) fn overwrite(&mut self, id: u64, fingerprint: Fingerprint, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(tab) = self.tab_mut(id) {
+            tab.session.rebase(fingerprint);
+            tab.extra.restart_autosave();
+        }
+        self.set_outside(id, Outside::Clear, cx);
+        self.save(id, None, window, cx);
+    }
+
+    /// A save met the disk: compare, save elsewhere, or overwrite.
+    pub fn clash_dialog(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let id = self.clash?;
+        let tab = self.tab(id)?;
+        let Outside::Changed(_, fingerprint) = &tab.extra.outside else {
+            return None;
+        };
+        let (fingerprint, name) = (*fingerprint, tab.name.to_string());
+        let this = cx.entity();
+        let close = {
+            let this = this.clone();
+            move |_: &mut Window, cx: &mut gpui::App| this.update(cx, |desk, cx| desk.end_clash(cx))
+        };
+        let title = text(cx, "office.conflict.title", &[("name", &name)]);
+        let detail = text(cx, "mark.outside.changed", &[("name", &name)]);
+        let mut dialog = Dialog::new("mark-clash", title, close).detail(detail).action(ely_office::cancel(cx));
+        for (key, variant, clash) in [
+            ("mark.outside.compare", ButtonVariant::Secondary, Clash::Compare),
+            ("mark.outside.save_as", ButtonVariant::Secondary, Clash::SaveAs),
+            ("office.conflict.keep", ButtonVariant::Primary, Clash::Overwrite),
+        ] {
+            let (label, this) = (text(cx, key, &[]), this.clone());
+            dialog = dialog.action(move |_| {
+                Button::new(key, label).variant(variant).on_click(move |_, window, cx| {
+                    this.update(cx, |desk, cx| {
+                        desk.end_clash(cx);
+                        log::info!("mark: tab {id}'s clash goes {clash:?}");
+                        match clash {
+                            Clash::Compare => desk.compare(id, cx),
+                            Clash::SaveAs => desk.save_as(id, None, window, cx),
+                            Clash::Overwrite => desk.overwrite(id, fingerprint, window, cx),
+                        }
+                    })
+                })
+            });
+        }
+        Some(dialog.into_any_element())
+    }
+
+    fn end_clash(&mut self, cx: &mut Context<Self>) {
+        self.clash = None;
+        cx.notify();
     }
 
     pub fn compare_dialog(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -181,6 +228,14 @@ impl Desk {
         }
         Some(dialog.into_any_element())
     }
+}
+
+/// How a save that met the disk goes on.
+#[derive(Clone, Copy, Debug)]
+enum Clash {
+    Compare,
+    SaveAs,
+    Overwrite,
 }
 
 /// How a comparison ends.

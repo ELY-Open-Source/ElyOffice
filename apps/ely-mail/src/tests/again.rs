@@ -125,7 +125,7 @@ fn refused<'a>(
     assert!(failed.contains("invalid_grant"), "{failed}");
     cx.update(|_, app| mail.update(app, |mail, cx| mail.open_box(Open::Account(id), cx)));
     settle(cx, |_| true);
-    let again = cx.debug_bounds("banner-action Sign In Again").expect("the failure offers to sign in again");
+    let again = cx.debug_bounds("mail-sign-in-again").expect("the failure offers to sign in again");
     cx.simulate_click(again.center(), Modifiers::none());
     assert_eq!(cx.update(|_, app| mail.read(app).adding.as_ref().map(|adding| adding.again)), Some(Some(id)));
     cx.update(|_, app| mail.update(app, |mail, cx| mail.sign_in(cx)));
@@ -216,7 +216,7 @@ fn a_sign_in_while_paused_clears_the_refusal() {
         assert!(syncing.task.is_none(), "paused, nothing syncs");
     });
     settle(cx, |_| true);
-    assert!(cx.debug_bounds("banner-action Sign In Again").is_none());
+    assert!(cx.debug_bounds("mail-sign-in-again").is_none());
     assert_eq!(kept.lock().unwrap()["account:ann@outlook.com"], "rt-2");
     ended(&rt, scripts);
 }
@@ -285,7 +285,7 @@ fn a_sign_in_during_a_sync_starts_over_on_the_new_token() {
             let syncing = &mail.read(app).syncs[&id];
             (syncing.task.is_some(), syncing.signed_out, syncing.failed.clone())
         });
-        (syncing, cx.debug_bounds("banner-action Sign In Again").is_some())
+        (syncing, cx.debug_bounds("mail-sign-in-again").is_some())
     };
     // Half a second the refusal must stay gone.
     for _ in 0..10 {

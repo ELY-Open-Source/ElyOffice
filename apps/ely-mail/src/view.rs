@@ -3,10 +3,11 @@
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant},
     data_display::DescriptionList,
-    feedback::{Banner, EmptyState, ErrorView},
+    feedback::{EmptyState, ErrorView},
     layout::ScrollArea,
     overlays::ConfirmDialog,
-    primitives::{IconName, Severity},
+    primitives::IconName,
+    theme::ActiveTheme as _,
     typography::format,
 };
 use ely_mail_engine::{AccountId, Auth, LocalFolder, Protocol, Security, Server, sync};
@@ -100,7 +101,7 @@ impl Mail {
             )
             .text(label("mail.account.auth"), auth(account.auth, cx));
         let (id, protocol) = (*id, account.protocol);
-        let (details, failed) = self.sync_rows(id, protocol, details, cx);
+        let details = self.sync_rows(id, protocol, details, cx);
         let remove = Button::new("mail-remove", label("mail.remove.open"))
             .on_click(|_, window, cx| window.dispatch_action(Box::new(menu::RemoveAccount), cx));
         let page = div()
@@ -109,8 +110,6 @@ impl Mail {
             .flex_col()
             .gap_4()
             .max_w_128()
-            .children(self.paused_banner(cx))
-            .children(failed)
             .child(details)
             .children(self.identity_editor(id, window, cx))
             .children(self.rules_editor(id, protocol, window, cx))
@@ -134,9 +133,9 @@ impl Mail {
         protocol: Protocol,
         details: DescriptionList,
         cx: &Context<Self>,
-    ) -> (DescriptionList, Option<Banner>) {
+    ) -> DescriptionList {
         let Some(syncing) = self.syncs.get(&id) else {
-            return (details, None);
+            return details;
         };
         let label = |key: &str| text(cx, key, &[]);
         let last = match (&syncing.task, syncing.synced.and_then(|synced| synced.at)) {
@@ -177,21 +176,10 @@ impl Mail {
             };
             details = details.text(label("mail.sync.waiting"), waiting);
         }
-        let failed = syncing.failed.as_ref().map(|error| {
-            let banner = Banner::new(
-                "mail-sync-failed",
-                Severity::Danger,
-                text(cx, "mail.sync.failed", &[("error", error)]),
-            );
-            if !syncing.signed_out {
-                return banner;
-            }
-            let this = cx.weak_entity();
-            banner.action(text(cx, "mail.again.go", &[]), move |window, cx| {
-                this.update(cx, |mail, cx| mail.sign_in_again(id, window, cx)).ok();
-            })
-        });
-        (details, failed)
+        match &syncing.failed {
+            Some(error) => details.item(label("mail.status.failed"), failed_row(id, error, syncing.signed_out, cx)),
+            None => details,
+        }
     }
 
     fn remove_dialog(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -234,6 +222,21 @@ impl Mail {
     }
 }
 
+/// Why the last sync failed, in danger.
+fn failed_row(id: AccountId, error: &str, signed_out: bool, cx: &Context<Mail>) -> AnyElement {
+    let said = div()
+        .text_color(cx.theme().colors.danger)
+        .child(text(cx, "mail.sync.failed", &[("error", error)]));
+    let this = cx.weak_entity();
+    let again = signed_out.then(|| {
+        let button = Button::new("mail-sign-in-again", text(cx, "mail.again.go", &[])).on_click(move |_, window, cx| {
+            this.update(cx, |mail, cx| mail.sign_in_again(id, window, cx)).ok();
+        });
+        div().debug_selector(|| "mail-sign-in-again".into()).child(button)
+    });
+    div().flex().flex_col().items_start().gap_2().child(said).children(again).into_any_element()
+}
+
 /// What the rest download, then folders kept whole.
 pub fn imap_range(folders: &[LocalFolder], cx: &App) -> Vec<(SharedString, SharedString)> {
     let synced = folders.iter().filter(|folder| !folder.local);
@@ -268,16 +271,9 @@ impl Render for Mail {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Contacts need no account, so the side shows once read.
         let left = matches!(self.accounts, Some(Ok(_))).then(|| self.side.clone().into());
-        let read_only = self.read_only.as_ref().map(|reason| {
-            Banner::new(
-                "mail-read-only",
-                Severity::Warning,
-                text(cx, "mail.store.read_only", &[("error", reason)]),
-            )
-        });
         let shell = Shell::new(AppId::Mail.name(), &self.focus)
             .left(left)
-            .children(read_only)
+            .status(self.status_bar(cx))
             .child(self.body(window, cx));
         div()
             .size_full()
@@ -297,6 +293,7 @@ impl Render for Mail {
             .children(self.erase_dialog(cx))
             .children(self.unimport_dialog(cx))
             .children(self.quit_dialog(cx))
+            .children(self.read_only_dialog(cx))
     }
 }
 

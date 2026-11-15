@@ -7,7 +7,6 @@ use std::sync::{
 
 use ely_gpui_component::{
     buttons::{Button, SegmentedControl},
-    feedback::Banner,
     overlays::ConfirmDialog,
     primitives::Severity,
     settings::{SettingsRow, SettingsSection},
@@ -101,7 +100,7 @@ impl SettingsView {
         }
         match &self.storage.usage {
             None => {}
-            Some(Err(error)) => section = section.row(Banner::new("storage-unread", Severity::Danger, error.clone())),
+            Some(Err(error)) => section = section.row(super::said::line("storage-unread", Severity::Danger, error.clone(), cx)),
             Some(Ok(usage)) => {
                 for (kind, bytes, clearing) in usage {
                     section = section.row(row(*kind, *bytes, *clearing, this.clone(), cx));
@@ -110,7 +109,7 @@ impl SettingsView {
         }
         match &self.storage.limits {
             None => {}
-            Some(Err(error)) => section = section.row(Banner::new("storage-limits", Severity::Danger, error.clone())),
+            Some(Err(error)) => section = section.row(super::said::line("storage-limits", Severity::Danger, error.clone(), cx)),
             Some(Ok(limits)) => {
                 let keep = choices("storage-keep", &[10, 20, 50], limits.keep as u64, this.clone(), |limits, n| Limits {
                     keep: n as usize,
@@ -127,10 +126,10 @@ impl SettingsView {
         }
         let unsaved = cx.try_global::<Limiting>().and_then(|limiting| limiting.failed.clone());
         if let Some(failed) = unsaved {
-            section = section.row(Banner::new("storage-unsaved", Severity::Danger, failed));
+            section = section.row(super::said::line("storage-unsaved", Severity::Danger, failed, cx));
         }
         if let Some(failed) = self.storage.failed.clone() {
-            section = section.row(Banner::new("storage-failed", Severity::Danger, failed));
+            section = section.row(super::said::line("storage-failed", Severity::Danger, failed, cx));
         }
         if let Some(own) = cx.try_global::<AppStorage>() {
             for row in (own.rows)(cx) {

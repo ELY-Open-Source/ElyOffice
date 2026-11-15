@@ -184,5 +184,6 @@ fn a_stale_read_never_lands(cx: &mut TestAppContext) {
     }
 }
 
+mod clash;
 mod late;
 mod saving;

@@ -149,9 +149,11 @@ impl RenderOnce for Shell {
             .child(
                 div()
                     .debug_selector(|| "shell-title".into())
-                    .child(TitleBar::new("titlebar").title(self.title)),
+                    .child(match self.main.then(|| crate::updates::updater(cx)).flatten() {
+                        Some(updates) => TitleBar::new("titlebar").title(self.title).action(updates),
+                        None => TitleBar::new("titlebar").title(self.title),
+                    }),
             )
-            .children(self.main.then(|| crate::updates::updater(cx)).flatten())
             .children(self.main.then(|| menu_bar(cx)).flatten())
             .children(self.tabs)
             .children(self.toolbar);

@@ -67,6 +67,8 @@ impl Parts {
 pub struct Mail {
     pub store: Result<Arc<Mutex<Store>>, String>,
     pub read_only: Option<String>,
+    /// The read-only dialog shows.
+    pub read_only_shown: bool,
     pub vault: Arc<Vault>,
     pub tls: Result<TlsConnector, String>,
     pub providers: Providers,
@@ -215,6 +217,7 @@ impl Mail {
         let this = cx.weak_entity();
         let mut mail = Mail {
             store: store.map(|store| Arc::new(Mutex::new(store))),
+            read_only_shown: read_only.is_some(),
             read_only,
             vault: Arc::new(parts.vault),
             tls: parts.tls,

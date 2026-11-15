@@ -49,6 +49,8 @@ pub struct Desk {
     /// The folders the watcher covers.
     pub watched: Vec<PathBuf>,
     pub comparing: Option<crate::compare::Comparing>,
+    /// A save met an outside change: tab asked about.
+    pub clash: Option<u64>,
     /// The body font picker, while open.
     pub font_picking: Option<Entity<ely_gpui_component::forms::TextInput>>,
     pub keeping: crate::restore::Keeping,
@@ -100,6 +102,7 @@ impl Host for Desk {
         log::info!("mark: a save of tab {id} met an outside change");
         if let Some(tab) = self.tab_mut(id) {
             tab.extra.policy.external_modified();
+            tab.extra.ask = true;
         }
         self.look(id, cx);
         true
@@ -208,6 +211,7 @@ pub(crate) fn open_in(
             watcher: None,
             watched: Vec::new(),
             comparing: None,
+            clash: None,
             font_picking: None,
             keeping,
             look: look.clone(),
@@ -408,6 +412,10 @@ impl Desk {
             }
         });
         let bar = StatusBar::new().left(state);
+        let bar = match self.outside_item(cx) {
+            Some(outside) => bar.left(outside),
+            None => bar,
+        };
         let bar = match git {
             Some(git) => bar.left(git),
             None => bar,
@@ -431,8 +439,6 @@ impl Render for Desk {
                 .size_full()
                 .flex()
                 .flex_col()
-                .children(self.outside_banner(cx))
-                .children(large_banner(&tab.view, cx))
                 // Digits keep one width, so columns line up.
                 .child(tabular(div().flex_1().min_h_0()).child(tab.view.clone()))
                 .into_any_element(),
@@ -465,6 +471,7 @@ impl Render for Desk {
             .children(self.core_dialog(cx))
             .children(self.naming_element(cx))
             .children(self.compare_dialog(cx))
+            .children(self.clash_dialog(cx))
             .children(self.font_dialog(cx))
             .children(self.find_box(cx))
             .children(self.export_dialog(cx))
@@ -473,23 +480,6 @@ impl Render for Desk {
         let root = Self::block_actions(Self::table_actions(root, cx), cx);
         Self::output_actions(Self::clip_actions(root, cx), cx)
     }
-}
-
-/// A large file says why it shows as source.
-fn large_banner(
-    view: &Entity<MarkView>,
-    cx: &mut Context<Desk>,
-) -> Option<ely_gpui_component::feedback::Banner> {
-    if !view.read(cx).large() {
-        return None;
-    }
-    let size = view.read(cx).bytes() as f64 / (1024.0 * 1024.0);
-    let said = text(cx, "mark.large", &[("size", &format!("{size:.1}"))]);
-    Some(ely_gpui_component::feedback::Banner::new(
-        "mark-large",
-        ely_gpui_component::primitives::Severity::Info,
-        said,
-    ))
 }
 
 #[cfg(test)]

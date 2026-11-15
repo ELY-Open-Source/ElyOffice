@@ -94,7 +94,6 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("mark.git.open", "Xem lịch sử của tệp này trong ElyTree"),
     ("mark.git.missing", "ElyTree chưa được cài. Hãy cài ElyTree từ bản phát hành Ely Office để xem lịch sử của tệp này."),
     ("mark.git.failed", "ElyTree không mở được: {error}"),
-    ("mark.large", "Tệp này có dung lượng {size} MB: tệp được hiển thị dưới dạng mã nguồn. Chỉnh sửa và xem trước bị tắt; lưu sẽ giữ nguyên từng byte."),
     ("mark.large.modes", "Tệp lớn luôn ở chế độ mã nguồn"),
     ("mark.mode.visual", "Chỉnh sửa"),
     ("mark.caret", "Dòng {line}, Cột {column}"),

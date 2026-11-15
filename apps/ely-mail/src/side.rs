@@ -156,11 +156,10 @@ impl Render for Side {
                     false => boxes.push(box_of(*id, folder, name)),
                 }
             }
-            boxes.push(Mailbox::new(
-                Open::Account(*id).key(),
-                text(cx, "mail.boxes.settings", &[]),
-                IconName::Settings,
-            ));
+            // A failed sync marks the account's row.
+            let failed = mail.syncs.get(id).is_some_and(|each| each.failed.is_some());
+            let mark = if failed { IconName::CloudAlert } else { IconName::Settings };
+            boxes.push(Mailbox::new(Open::Account(*id).key(), text(cx, "mail.boxes.settings", &[]), mark));
             accounts.push((account.address.clone(), boxes));
         }
         let folded = mail

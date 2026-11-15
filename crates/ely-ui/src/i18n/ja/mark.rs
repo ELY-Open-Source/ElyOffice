@@ -94,7 +94,6 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("mark.git.open", "このファイルの履歴を ElyTree で表示"),
     ("mark.git.missing", "ElyTree がインストールされていません。このファイルの履歴を見るには、Ely Office のリリースから ElyTree をインストールしてください。"),
     ("mark.git.failed", "ElyTree を開けませんでした: {error}"),
-    ("mark.large", "このファイルは {size} MB あるため、ソースコードとして表示します。編集モードとプレビューはオフで、保存してもすべてのバイトはそのまま残ります。"),
     ("mark.large.modes", "大きなファイルはソースコードモードのままです"),
     ("mark.mode.visual", "編集"),
     ("mark.caret", "{line} 行、{column} 列"),

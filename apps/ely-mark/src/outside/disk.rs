@@ -165,7 +165,8 @@ impl Desk {
 
     /// The disk's text meets the tab's: follow, keep, or ask.
     fn take_read(&mut self, id: u64, path: &Path, (fingerprint, disk): (Fingerprint, Source), cx: &mut Context<Self>) {
-        let Some(tab) = self.tab(id) else { return };
+        let Some(tab) = self.tab_mut(id) else { return };
+        let ask = std::mem::take(&mut tab.extra.ask);
         let current = tab.doc.lock().expect("the text lock").current.clone();
         let kept = disk.text == tab.extra.base;
         let dirty = tab.dirty(cx);
@@ -183,6 +184,10 @@ impl Desk {
                 tab.session.external_modified();
                 tab.extra.policy.external_modified();
                 self.set_outside(id, Outside::Changed(disk, fingerprint), cx);
+                if ask {
+                    log::info!("mark: tab {id}'s save asks how to meet the disk");
+                    self.clash = Some(id);
+                }
                 // An open comparison shows the newest disk text.
                 if self
                     .comparing

@@ -94,7 +94,6 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("mark.git.open", "ElyTree에서 이 파일의 기록 보기"),
     ("mark.git.missing", "ElyTree가 설치되어 있지 않습니다. 이 파일의 기록을 보려면 Ely Office 릴리스에서 ElyTree를 설치하십시오."),
     ("mark.git.failed", "ElyTree를 열지 못했습니다: {error}"),
-    ("mark.large", "이 파일은 {size}MB여서 소스로 표시됩니다. 편집과 미리 보기는 꺼지며, 저장하면 모든 바이트가 그대로 유지됩니다."),
     ("mark.large.modes", "큰 파일은 소스 모드로 유지됩니다"),
     ("mark.mode.visual", "편집"),
     ("mark.caret", "{line}줄, {column}열"),

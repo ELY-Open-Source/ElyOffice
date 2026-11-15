@@ -7,7 +7,10 @@ use std::{
 };
 
 use ely_files::{Fingerprint, Policy, PolicyEngine, SaveState};
-use ely_gpui_component::{feedback::Banner, primitives::Severity};
+use ely_gpui_component::{
+    primitives::{IconName, Severity},
+    shell::StatusBarItem,
+};
 use ely_office::prelude::*;
 use futures::{StreamExt as _, channel::mpsc};
 use gpui::{AppContext as _, Context};
@@ -60,6 +63,8 @@ pub struct Extra {
     pub reads: u64,
     /// Bumped by each outside state; older checks lapse.
     pub stamp: u64,
+    /// The path the user asked to check.
+    pub asked: Option<PathBuf>,
     /// The path the recent list last took from it.
     pub tracked: Option<std::path::PathBuf>,
     /// The writing view reached its document.
@@ -69,6 +74,8 @@ pub struct Extra {
     pub counts: Option<crate::count::Counts>,
     /// The selection, and its words once counted.
     pub selection: Option<(std::sync::Arc<str>, Option<u64>)>,
+    /// A save met the disk: ask once it is read.
+    pub ask: bool,
 }
 
 impl Extra {
@@ -96,11 +103,13 @@ impl Default for Extra {
             restored: false,
             reads: 0,
             stamp: 0,
+            asked: None,
             tracked: None,
             looked: false,
             counting: None,
             counts: None,
             selection: None,
+            ask: false,
         }
     }
 }
@@ -144,6 +153,15 @@ impl Desk {
         self.ask_git(cx);
         let ids: Vec<u64> = self.core.tabs.iter().map(|tab| tab.id).collect();
         self.look_at(ids, cx);
+    }
+
+    /// The user's check: each failure is said again.
+    pub fn check_disk(&mut self, cx: &mut Context<Self>) {
+        log::info!("mark: the disk check was asked");
+        for tab in &mut self.core.tabs {
+            tab.extra.asked = tab.session.path().map(Path::to_path_buf);
+        }
+        self.look_all(cx);
     }
 
     /// Compares tab `id`'s file with its last read or write.
@@ -206,6 +224,8 @@ impl Desk {
             Ok(now) if Some(now) == ours => {
                 if matches!(tab.extra.outside, Outside::Deleted | Outside::Unread(_)) {
                     self.set_outside(id, Outside::Clear, cx);
+                } else if let Some(tab) = self.tab_mut(id) {
+                    tab.extra.asked = None;
                 }
             }
             Ok(_) => self.read_disk(id, path, cx),
@@ -280,11 +300,22 @@ impl Desk {
 
     /// Tab `id`'s file state; checks begun before it lapse.
     pub fn set_outside(&mut self, id: u64, outside: Outside, cx: &mut Context<Self>) {
-        if let Some(tab) = self.tab_mut(id) {
-            tab.extra.outside = outside;
-            tab.extra.stamp += 1;
-            cx.notify();
+        let Some(tab) = self.tab_mut(id) else { return };
+        let asked = tab.extra.asked.take().is_some_and(|asked| tab.session.path() == Some(asked.as_path()));
+        let told = matches!(tab.extra.outside, Outside::Unread(_)) && !asked;
+        tab.extra.outside = outside;
+        tab.extra.stamp += 1;
+        let name = tab.name.to_string();
+        if let Outside::Unread(why) = &tab.extra.outside
+            && !told
+        {
+            let said = text(cx, "mark.outside.unread", &[("name", &name), ("why", why)]);
+            self.toast(said, Severity::Danger, cx);
         }
+        if !matches!(self.tab(id).map(|tab| &tab.extra.outside), Some(Outside::Changed(..))) && self.clash == Some(id) {
+            self.clash = None;
+        }
+        cx.notify();
     }
 
     /// Tab `id`, if a check begun at `stamp` holds.
@@ -294,41 +325,27 @@ impl Desk {
     }
 
     /// The active file's trouble on disk, with its way out.
-    pub fn outside_banner(&self, cx: &mut Context<Self>) -> Option<Banner> {
+    pub fn outside_item(&self, cx: &mut Context<Self>) -> Option<StatusBarItem> {
         let tab = self.active_tab()?;
         let (id, name) = (tab.id, tab.name.to_string());
-        let this = cx.entity();
-        let (key, why, action, severity) = match &tab.extra.outside {
+        let (key, why, action, icon) = match &tab.extra.outside {
             Outside::Clear => return None,
-            Outside::Changed(..) => (
-                "mark.outside.changed",
-                None,
-                "mark.outside.compare",
-                Severity::Warning,
-            ),
-            Outside::Deleted => (
-                "mark.outside.deleted",
-                None,
-                "mark.outside.save_as",
-                Severity::Warning,
-            ),
-            Outside::Unread(why) => (
-                "mark.outside.unread",
-                Some(why.clone()),
-                "mark.outside.refresh",
-                Severity::Danger,
-            ),
+            Outside::Changed(..) => ("mark.outside.changed", "", "mark.outside.compare", IconName::TriangleAlert),
+            Outside::Deleted => ("mark.outside.deleted", "", "mark.outside.save_as", IconName::TriangleAlert),
+            Outside::Unread(why) => ("mark.outside.unread", why.as_str(), "mark.outside.refresh", IconName::CircleAlert),
         };
-        let why = why.unwrap_or_default();
-        let said = text(cx, key, &[("name", &name), ("why", &why)]);
-        let label = text(cx, action, &[]);
-        let banner = Banner::new("mark-outside", severity, said);
-        Some(banner.action(label, move |window, cx| {
-            this.update(cx, |desk, cx| {
-                match desk.tab(id).map(|tab| &tab.extra.outside) {
-                    Some(Outside::Changed(..)) => desk.compare(id, cx),
-                    Some(Outside::Deleted) => desk.save_as(id, None, window, cx),
-                    _ => desk.look(id, cx),
+        let said = text(cx, key, &[("name", &name), ("why", why)]);
+        let this = cx.entity();
+        let item = StatusBarItem::new("mark-outside").icon(icon).label(text(cx, action, &[])).tooltip(said);
+        Some(item.on_click(move |_, window, cx| {
+            this.update(cx, |desk, cx| match desk.tab(id).map(|tab| &tab.extra.outside) {
+                Some(Outside::Changed(..)) => desk.compare(id, cx),
+                Some(Outside::Deleted) => desk.save_as(id, None, window, cx),
+                _ => {
+                    if let Some(tab) = desk.tab_mut(id) {
+                        tab.extra.asked = tab.session.path().map(Path::to_path_buf);
+                    }
+                    desk.look(id, cx)
                 }
             })
         }))

@@ -49,7 +49,7 @@ site/        官网（Vite、pnpm、TypeScript，无框架）；site/video 是�
 | 导航 | `navigation::{EditorTabs, Tabs, Breadcrumb, TableOfContents}` `lists::{Tree, Outline, FileTree, SelectableList}` |
 | 属性与表单 | `data_display::{PropertyGrid, DescriptionList}` `forms::{Select, FontPicker, ColorPicker, NumberInput, ScrubInput, Switch, SearchInput, TextInput}` `buttons::{Button, IconButton, ToggleButton, SegmentedControl}` |
 | 对话框 | `overlays::{Dialog, ConfirmDialog, AlertDialog, PromptDialog, Popover}` |
-| 反馈 | `feedback::{Toaster, ToastViewport, SaveState, SavingIndicator, SyncStatus, Alert, Banner, EmptyState, ErrorView}` `shell::{OfflineIndicator, CrashReporter, UpdateBanner, UpdateDialog}` |
+| 反馈 | `feedback::{Toaster, ToastViewport, SaveState, SavingIndicator, SyncStatus, Alert, Banner, EmptyState, ErrorView}` `shell::{OfflineIndicator, CrashReporter, UpdateDialog}` |
 | 设置 | `settings::{SettingsLayout, SettingsSection, SettingsRow, ThemeSelector, KeyboardShortcutsList, StorageSettings, PrivacySettings}` |
 | Doc | `documents::{PrintPreview, TemplatePicker, WordCount, PageThumbnailList}` `editor::{FindWidget}` `collab::{CommentSidebar, Thread, Comment, Peer}` `lists::{List, ListItem}` |
 | Table | `tables::{PivotTable, FilterBuilder, SortBuilder}` `misc::{CsvImporter, ExportDialog}` `editor::{CompletionMenu, SignatureHelp, FindWidget}` `forms::{CheckboxGroup, ColorPalette}` |

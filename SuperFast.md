@@ -298,6 +298,12 @@ Doc、Table、Show、PDF 打开文件时文档上方不再有条，只留 ElyDoc
 
 实测（2026-11-15，带引擎、严格模式，全部通过）：Linux 上 ElyDoc 142、ely-lok 502、ely-office 22、ElyPDF 191、ElyShow 112、ElyTable 120、ely-ui 103；Windows 上 ElyDoc 141、ely-lok 509、ely-office 24、ElyPDF 189、ElyShow 111、ElyTable 116、ely-ui 101。Windows 的读写锁不公平，键入曾排在 12 个后台读的 4 个之后；改为键入与图块等锁时后台让路，测试（至多等 2 个）连跑三遍都过。
 
+### SF.14 Mark、Mail、更新与设置的横幅去掉（2026-11-15）
+
+ElyMark：外面改了、删了、读不到是状态栏一项，悬停是原来的说明，点开比较、另存为或再看；读不到另用 toast 说一次。保存撞上外面的改动，读完磁盘后弹对话框：“比较…”“另存为…”“保留我的”。`mark-large` 删掉。ElyMail 加了状态栏：同步一项（已同步、同步中、已暂停、同步失败；点暂停即恢复，点失败打开那个账户），本地库只读另一项，启动时以对话框说一次。失败的账户在侧栏的“设置”行换成警告图标，账户页的失败原因是危险色，需要时带“重新登录”。添加账户、写信页的错误在表单里；写信窗口没有 toast 层，发送失败也留在写信区下方。组件库的 `SyncStatus` 文字写死英文，这里用同样图标的状态项与八种语言的文字，换用归 SF.25。有新版是标题栏右边的按钮（下载中显示百分比，下好是“重新启动以更新”），点开 `UpdateDialog`；包管理器装的，对话框写出命令。设置窗口的错误是危险色的文字。入库代码里 `Banner::new` 只剩 `doc-fonts`。
+
+实测（2026-11-15，带引擎、严格模式，全部通过）：Linux 上 ElyMark 229、ElyMail 171、ElyTree 151、ely-ui 104；Windows 上 ElyMark 227、ElyMail 172、ElyTree 140（1 项忽略）、ely-ui 102。Windows 的凭据测试须在无 `SSH_ASKPASS` 的 shell 里跑。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

@@ -3,7 +3,7 @@
 use ely_gpui_component::{
     buttons::SegmentedControl,
     chat::Attachment,
-    feedback::{Alert, Banner},
+    feedback::{Alert, InlineMessage},
     forms::{Choice, Select},
     layout::ScrollArea,
     mail::{MailComposer, QuotedText},
@@ -234,17 +234,17 @@ impl Render for Compose {
         let problem = self.problem.clone().map(|(severity, words)| {
             div()
                 .debug_selector(|| "write-problem".into())
-                .child(Banner::new("mail-write-problem", severity, words))
+                .child(InlineMessage::new(severity, words))
         });
         let page = div()
             .p_6()
             .flex()
             .flex_col()
             .gap_4()
-            .children(problem)
             .children(self.sender_picker(cx))
             .child(div().flex().child(self.mode(cx)))
             .child(composer)
+            .children(problem)
             .children(self.notices(cx));
         Shell::new(text(cx, "mail.write.title", &[]), &self.focus)
             .secondary()

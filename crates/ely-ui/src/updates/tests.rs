@@ -18,6 +18,7 @@ fn made(installed: Installed, offer: Option<(Release, Phase)>) -> Updates {
         pending: None,
         checked: None,
         note: None,
+        dialog: None,
     }
 }
 
@@ -102,4 +103,41 @@ fn only_a_github_release_file_has_an_address_on_the_relay() {
     let file = "download/v0.1.15/ElyDoc-0.1.15-arm64.dmg";
     assert_eq!(mirrored(&format!("{GITHUB}/{file}")), Some(format!("https://office.elygpui.com/releases/{file}")));
     assert_eq!(mirrored("https://example.com/releases/download/v1/a.dmg"), None);
+}
+
+#[gpui::test]
+fn the_dialog_follows_the_offer_and_closes_with_it(cx: &mut gpui::TestAppContext) {
+    cx.update(|cx| {
+        ely_gpui_component::init_for_tests(cx);
+        crate::i18n::install_as("en-US", cx);
+    });
+    let updates = cx.new(|_| made(bundle(), Some((release("9.0.0", "https://a"), Phase::Offered))));
+    let open = |cx: &mut gpui::TestAppContext| {
+        cx.update(|cx| view::open(&updates, cx));
+        cx.run_until_parked();
+    };
+    let phase = |phase: Phase, cx: &mut gpui::TestAppContext| {
+        updates.update(cx, |updates, cx| {
+            updates.offer.as_mut().expect("an offer").1 = phase;
+            cx.notify();
+        });
+        cx.run_until_parked();
+    };
+    open(cx);
+    open(cx);
+    assert_eq!(cx.windows().len(), 1, "a second click brings the first forward");
+    let first = cx.windows()[0];
+    cx.update(|cx| first.update(cx, |_, window, _| window.remove_window())).expect("the dialog");
+    cx.run_until_parked();
+    open(cx);
+    assert_eq!(cx.windows().len(), 1, "a closed dialog opens again");
+    phase(Phase::Fetching(0.5), cx);
+    phase(Phase::Fetched(PathBuf::from("9.dmg")), cx);
+    assert_eq!(cx.windows().len(), 1, "the dialog stays while the offer does");
+    let shown = updates.read_with(cx, |updates, _| updates.dialog.as_ref().map(|(shown, _)| shown.window_id()));
+    assert_eq!(shown, Some(cx.windows()[0].window_id()), "it follows the new window");
+    updates.update(cx, |updates, cx| updates.later(cx));
+    cx.run_until_parked();
+    assert!(cx.windows().is_empty(), "a dismissed offer closes its dialog");
+    assert!(updates.read_with(cx, |updates, _| updates.dialog.is_none()));
 }
