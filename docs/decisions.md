@@ -1048,3 +1048,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 挡路的是样本载入（5.3 至 5.5 秒，内核线程一直在算）与图块自检（约 1.6 秒）；去处未查明。
 - 字体其他语言名字每次 103 至 174 毫秒（立项时测），缓存最多省下这么多，改变不了几秒的等待，故不按字体目录缓存。
 - worker 的日志时间戳改到毫秒，后台各段才看得出长短。
+
+## 2026-11-15 内核不找打印机，空闲活给请求让路（SF.18）
+
+- worker 带 `SAL_DISABLE_PRINTERLIST`、`SAL_DISABLE_DEFAULTPRINTER` 启动，常驻引擎同样：Ely 打印走 PDF 导出加 `ely_platform::print`，内核不问 spooler。Windows 上每次载入省下约 0.4 至 0.7 秒。补丁 0133：按打印机度量排版的文档（Word 的 usePrinterMetrics、DOC 的 fUsePrinterMetrics、Writer 与 Impress 的 PrinterIndependentLayout 为 disabled）载入时内核才问 spooler，照旧以打印机排版；文件点名打印机（ODF 的 PrinterName、PrinterSetup）时，查名字之前先问，名字、打印设置与保存都与上游相同。只开一次，之后该 worker 照常问。
+- 审查第一轮：只关不问会让上述文档静默换成虚拟设备排版，断行与分页改变，故加 0133。
+- 审查第二轮：开关让“按名字查打印机”把“没去问”答成“本机没装”，文件点名的打印机与打印设置被当作缺失丢掉，重建的是默认打印机。改为点名即先问。代价：桌面 LibreOffice 存的 ODF 常带打印机名，这类文件在 Windows 上照付 spooler 那笔；DOCX、PPTX、XLSX 不带。
+- 补丁 0132：`Application::AnyInput` 在 LOK 下问钩子，Writer 的空闲活在每个后端都给等着的请求让路。Linux 上 big.docx 载入降到约 0.24 秒；各机的共享引擎须重建。
+- 没做到先排出第一页就画；Windows 上 big.docx 剩约 0.8 秒随内容长，去处未查明。

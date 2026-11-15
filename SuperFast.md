@@ -327,6 +327,37 @@ ElyShow 头一次快过 PowerPoint。ElyDoc 仍慢 1.2 秒，其中载入 1.38 �
 
 挡路的是自检本身：样本载入 5.3 至 5.5 秒，图块自检约 1.6 秒。带探针的 worker 量过，这段里内核线程的 CPU 时间与墙钟相当（7.2 秒里 6.8 秒），是算，不是等盘；花在内核哪里，未查明。字体的其他语言名字不缓存：它每次重读 103 至 174 毫秒（SF-09 立项时测的，不是本轮），热打开里它不在路上，第一种情况里缓存最多也只省下这么多，改变不了几秒的等待。
 
+### SF.18 big.docx 的载入（2026-11-15，Linux 本机与测试机 7877，热，毫秒）
+
+查明两处。一是 Writer 的空闲活（在线拼写等）在载入里跑完才交还。上游 `CheckIdleEnd` 问 LOK 的钩子，排版肯让路，空闲活不问；Aqua 有补丁 0007，headless 与 Windows 没有。补丁 0132 让 `Application::AnyInput` 在 LOK 下也问钩子。Linux 上 big.docx 载入 831 至 1,049 降到 241 至 247，载入后 106 左右画出首块图块。Windows 上它不改载入：1,351 至 1,459。
+
+二是 Windows 上每次载入都向打印后台要默认打印机。`Printer::Printer()` 调 `GetDefaultPrinterName()`，经 `ImplGetQueueInfo` 进 spooler；Writer 建无窗口的视图、读纸盒、设文档属性时都会建打印机。同一个 exe 停掉 spooler 与开着各跑 4 次：1 KB 的 tiny.docx 载入 196 至 236 对 680 至 918，big.docx 981 至 1,355 对 1,293 至 1,528。Ely 打印走 PDF 导出加 `ely_platform::print`，内核用不着打印机；Linux 的内核编时已 `--disable-cups`。worker 现在带 `SAL_DISABLE_PRINTERLIST` 与 `SAL_DISABLE_DEFAULTPRINTER` 启动，常驻引擎同样。只关不问会让按打印机度量排版的文档（Word 的 usePrinterMetrics 等）静默改用虚拟设备，断行与分页都变；补丁 0133 让这类文档载入时内核才问 spooler；文件点名打印机时（桌面 LibreOffice 存的 ODF 常带），查名字前先问，否则名字与打印设置会被当作“本机没装”丢掉。其余文档照旧不问。spooler 开着，各 4 次：
+
+| 文件 | 载入 | 改前 | 首块图块 | 改前 |
+| --- | --- | --- | --- | --- |
+| tiny.docx | 132 至 191 | 680 至 918 | 512 至 637 | 1,147 至 1,362 |
+| big.docx | 926 至 977 | 1,351 至 1,459 | 1,832 至 2,073 | 2,338 至 2,505 |
+| deck.ppt（ElyShow） | 324 至 396 | 309 至 358 | 1,587 至 1,830 | 1,190 至 1,402 |
+
+装上带 0133 的内核（编号 f5501aca…）再跑，spooler 开着，Doc 各 4 次、Show 4 次：tiny.docx 载入 123 至 209，首块图块 577 至 1,124；big.docx 载入 1,013 至 1,221，首块图块 2,040 至 2,443；deck.ppt 载入 313 至 477，首块图块 1,544 至 2,182。三者各自的第一次最慢，其余落在上表的范围附近；big.docx 的载入比上表多约 0.1 秒，仍低于改前。这三份文件都不按打印机度量排版，也不点名打印机，0133 不问 spooler。
+
+第三轮的内核（编号 2520ec64…）：查点名的打印机前先问。big.docx 存成 ODT，一份不点名，一份点名“Microsoft Print to PDF”，与两份 DOCX 交替各跑 4 次，spooler 开着：
+
+| 文件 | 载入 | 首块图块 |
+| --- | --- | --- |
+| plain.odt | 821 至 1,145 | 1,617 至 1,891 |
+| named.odt | 1,276 至 1,806 | 2,148 至 2,823 |
+| tiny.docx | 141 至 211 | 569 至 750 |
+| big.docx | 904 至 951 | 1,916 至 2,025 |
+
+点名打印机的文件多付 0.4 至 0.7 秒，换来名字与打印设置照存。DOCX、PPTX、XLSX 不点名打印机，不付这笔。Windows 上 `printers::` 测试载入点名的 ODT、ODP 各存两次，名字与设置都在。
+
+ElyShow 的首块图块这一轮慢了。同一台机器上有无这两个开关的两份 exe 交替跑（A 无、B 有，各 6 次）：A 1,582 至 2,501，B 854 至 2,084，载入都在 316 至 378。不是开关。慢在载入后第一次给可见区域的那次调用，这轮 889，SF.16 时约 379；为什么变长，未查明。
+
+排除过的：关在线拼写，载入 1,277 至 1,518；去掉图片的 noimg.docx，1,224 至 1,264；Defender 排除目录，big.docx 1,260 至 1,391。都不是。
+
+没做到先排出第一页就画。Windows 上 big.docx 还剩约 0.8 秒随文件内容长，Linux 上同一份文件 0.24 秒；差在哪，日志看不出，需在 Windows 的内核里采样。与 Word 比：Word 窗口标题 1,235，ElyDoc 首块图块中位约 1,965，仍慢约 0.7 秒。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

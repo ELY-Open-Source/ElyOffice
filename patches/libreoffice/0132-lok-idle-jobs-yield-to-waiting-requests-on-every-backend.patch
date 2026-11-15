@@ -1,0 +1,26 @@
+vcl: LOK idle jobs yield to the client's waiting requests
+
+Writer's idle jobs (online spelling, autocomplete words, word count,
+smart tags) stop when Application::AnyInput says input waits. The
+headless backend answers only for timers, and Windows only for its
+own message queue; neither asks the LOK client. A 14 MB DOCX spent
+0.6 to 1.3 seconds in online spelling before the client's next
+request ran (Ely SF.18). Patch 0007 did this for Aqua alone.
+
+Application::AnyInput now returns true when the LOK any-input
+callback reports a waiting request, then asks the backend as before.
+
+diff --git a/vcl/source/app/svapp.cxx b/vcl/source/app/svapp.cxx
+index 3034b7204..6df2bfe57 100644
+--- a/vcl/source/app/svapp.cxx
++++ b/vcl/source/app/svapp.cxx
+@@ -565,6 +565,9 @@ sal_uInt16 Application::GetDispatchLevel()
+ 
+ bool Application::AnyInput( VclInputFlags nType )
+ {
++    // LOK: the client's waiting requests are input too.
++    if (comphelper::LibreOfficeKit::isActive() && comphelper::LibreOfficeKit::anyInput())
++        return true;
+     return ImplGetSVData()->mpDefInst->AnyInput( nType );
+ }
+ 

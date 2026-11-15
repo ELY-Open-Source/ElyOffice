@@ -39,6 +39,8 @@ pub(super) fn build(start: &(PathBuf, PathBuf, bool), private: &str, idle: Optio
     command.env("SAL_DISABLE_WATCHDOG", "1");
     // Calc reports in document twips; unipoll lends LOK's loop.
     command.env("SAL_LOK_OPTIONS", "unipoll:sc_print_twips_msgs");
+    // Only printer-metrics documents ask the spooler (0133).
+    command.env("SAL_DISABLE_PRINTERLIST", "1").env("SAL_DISABLE_DEFAULTPRINTER", "1");
     // LOK spells no language off this list.
     command.env("LOK_ALLOWLIST_LANGUAGES", "en");
     if *dev {

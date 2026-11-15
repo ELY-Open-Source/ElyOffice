@@ -1,0 +1,196 @@
+vcl, sw, sd: ask the spooler only for printer metrics
+
+Ely starts the kernel with SAL_DISABLE_PRINTERLIST and
+SAL_DISABLE_DEFAULTPRINTER: on Windows each load asked the spooler
+for the default printer, about 0.5 seconds (Ely SF.18). Ely prints
+through PDF export. But a document that lays out by printer metrics
+(Word's usePrinterMetrics, DOC's fUsePrinterMetrics, a Writer or
+Impress PrinterIndependentLayout of DISABLED) then got a display
+printer, and Writer and Impress fell back to the virtual device:
+lines and pages broke differently.
+
+A printer the document names read as not installed, so its
+JobSetup was dropped too.
+
+ely::AskPrinterQueues lifts both switches once. Looking up a named
+printer calls it first. Writer calls it when
+its reference device must be the printer, Impress when its layout
+is printer-dependent; each drops the display printer made before.
+
+diff --git a/include/ely/printer.hxx b/include/ely/printer.hxx
+new file mode 100644
+--- /dev/null
++++ b/include/ely/printer.hxx
+@@ -0,0 +1,20 @@
++/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
++/*
++ * This file is part of the LibreOffice project.
++ *
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
++ */
++
++#pragma once
++
++#include <vcl/dllapi.h>
++
++namespace ely
++{
++/// Lifts SAL_DISABLE_PRINTERLIST and _DEFAULTPRINTER; true if they held.
++VCL_DLLPUBLIC bool AskPrinterQueues(const char* pWhy);
++}
++
++/* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sd/source/ui/docshell/docshel4.cxx b/sd/source/ui/docshell/docshel4.cxx
+--- a/sd/source/ui/docshell/docshel4.cxx
++++ b/sd/source/ui/docshell/docshel4.cxx
+@@ -43,6 +43,7 @@
+ #include <sfx2/infobar.hxx>
+ #include <svx/svdotext.hxx>
+ #include <sfx2/printer.hxx>
++#include <ely/printer.hxx>
+ #include <svtools/ctrltool.hxx>
+ #include <comphelper/classids.hxx>
+ #include <comphelper/scopeguard.hxx>
+@@ -218,6 +219,14 @@ void DrawDocShell::UpdateRefDevice()
+     switch (mpDoc->GetPrinterIndependentLayout())
+     {
+         case css::document::PrinterIndependentLayout::DISABLED:
++            // Ely: the printer made while the spooler was skipped goes.
++            if ( ely::AskPrinterQueues("a document lays out by printer metrics") && mpPrinter && mbOwnPrinter )
++            {
++                mpPrinter.disposeAndClear();
++                GetPrinter( true );
++                UpdateFontList();
++                return;
++            }
+             pRefDevice = mpPrinter.get();
+             break;
+ 
+diff --git a/sw/source/core/doc/DocumentDeviceManager.cxx b/sw/source/core/doc/DocumentDeviceManager.cxx
+--- a/sw/source/core/doc/DocumentDeviceManager.cxx
++++ b/sw/source/core/doc/DocumentDeviceManager.cxx
+@@ -29,6 +29,7 @@
+ #include <IDocumentLayoutAccess.hxx>
+ #include <osl/diagnose.h>
+ #include <sfx2/printer.hxx>
++#include <ely/printer.hxx>
+ #include <vcl/virdev.hxx>
+ #include <vcl/outdev.hxx>
+ #include <vcl/jobset.hxx>
+@@ -125,6 +126,8 @@ OutputDevice* DocumentDeviceManager::getReferenceDevice(/*[in]*/ bool bCreate )
+     OutputDevice* pRet = nullptr;
+     if ( !m_rDoc.GetDocumentSettingManager().get(DocumentSettingId::USE_VIRTUAL_DEVICE) )
+     {
++        if ( bCreate )
++            AskSpooler();
+         pRet = getPrinter( bCreate );
+ 
+         if ( bCreate && !mpPrt->IsValid() )
+@@ -167,6 +170,7 @@ void DocumentDeviceManager::setReferenceDeviceType(/*[in]*/ bool bNewVirtual, /*
+         // triggers this funny situation:
+         // getReferenceDevice()->getPrinter()->CreatePrinter_()
+         // ->setPrinter()-> PrtDataChanged()
++        AskSpooler();
+         SfxPrinter* pPrinter = getPrinter( true );
+         if( m_rDoc.getIDocumentDrawModelAccess().GetDrawModel() )
+             m_rDoc.getIDocumentDrawModelAccess().GetDrawModel()->SetRefDevice( pPrinter );
+@@ -278,6 +282,13 @@ VirtualDevice& DocumentDeviceManager::CreateVirtualDevice_() const
+     return *mpVirDev;
+ }
+ 
++// Ely: the printer made while the spooler was skipped goes.
++void DocumentDeviceManager::AskSpooler() const
++{
++    if ( ely::AskPrinterQueues("a document lays out by printer metrics") && mpPrt )
++        const_cast<DocumentDeviceManager*>(this)->setPrinter( nullptr, true, false );
++}
++
+ SfxPrinter& DocumentDeviceManager::CreatePrinter_() const
+ {
+     OSL_ENSURE( ! mpPrt, "Do not call CreatePrinter_(), call getPrinter() instead" );
+diff --git a/sw/source/core/inc/DocumentDeviceManager.hxx b/sw/source/core/inc/DocumentDeviceManager.hxx
+--- a/sw/source/core/inc/DocumentDeviceManager.hxx
++++ b/sw/source/core/inc/DocumentDeviceManager.hxx
+@@ -64,6 +64,7 @@ private:
+ 
+     VirtualDevice& CreateVirtualDevice_() const;
+     SfxPrinter& CreatePrinter_() const;
++    void AskSpooler() const; ///< Ely: printer metrics need a real printer.
+     void PrtDataChanged(); /**< Printer or JobSetup altered.
+                                 Care has to be taken of the necessary
+                                 invalidations and notifications. */
+diff --git a/vcl/source/gdi/print.cxx b/vcl/source/gdi/print.cxx
+--- a/vcl/source/gdi/print.cxx
++++ b/vcl/source/gdi/print.cxx
+@@ -21,6 +21,8 @@
+ 
+ #include <sal/types.h>
+ #include <sal/log.hxx>
++#include <ely/log.hxx>
++#include <ely/printer.hxx>
+ #include <comphelper/processfactory.hxx>
+ #include <o3tl/safeint.hxx>
+ #include <tools/debug.hxx>
+@@ -363,14 +365,23 @@ ImplPrnQueueData* ImplPrnQueueList::Get( const OUString& rPrinter )
+     return pData;
+ }
+ 
++static bool ImplEnvSet( const char* pName )
++{
++    const char* pEnv = getenv( pName );
++    return pEnv && *pEnv;
++}
++
++// Ely: skipped until a document needs a real printer.
++static bool bSkipQueueList = ImplEnvSet( "SAL_DISABLE_PRINTERLIST" );
++static bool bSkipDefaultPrinter = ImplEnvSet( "SAL_DISABLE_DEFAULTPRINTER" );
++
+ static void ImplInitPrnQueueList()
+ {
+     ImplSVData* pSVData = ImplGetSVData();
+ 
+     pSVData->maGDIData.mpPrinterQueueList.reset(new ImplPrnQueueList);
+ 
+-    static const char* pEnv = getenv( "SAL_DISABLE_PRINTERLIST" );
+-    if( !pEnv || !*pEnv )
++    if( !bSkipQueueList )
+         pSVData->mpDefInst->GetPrinterQueueInfo( pSVData->maGDIData.mpPrinterQueueList.get() );
+ }
+ 
+@@ -419,10 +430,22 @@ const QueueInfo* Printer::GetQueueInfo( const OUString& rPrinterName, bool bStat
+     return nullptr;
+ }
+ 
++bool ely::AskPrinterQueues(const char* pWhy)
++{
++    if( !bSkipQueueList && !bSkipDefaultPrinter )
++        return false;
++    ELY_INFO("vcl.print", pWhy << "; asking the spooler");
++    // The skipped list is empty; no printer points into it.
++    if( bSkipQueueList )
++        ImplDeletePrnQueueList();
++    bSkipQueueList = false;
++    bSkipDefaultPrinter = false;
++    return true;
++}
++
+ OUString Printer::GetDefaultPrinterName()
+ {
+-    static const char* pEnv = getenv( "SAL_DISABLE_DEFAULTPRINTER" );
+-    if( !pEnv || !*pEnv )
++    if( !bSkipDefaultPrinter )
+     {
+         ImplSVData* pSVData = ImplGetSVData();
+ 
+@@ -754,6 +777,9 @@ void Printer::DrawDeviceMask( const Bitmap& rMask, const Color& rMaskColor,
+ SalPrinterQueueInfo* Printer::ImplGetQueueInfo( const OUString& rPrinterName,
+                                                 const OUString* pDriver )
+ {
++    // A named printer is the document's own; look it up.
++    if ( !rPrinterName.isEmpty() )
++        ely::AskPrinterQueues( "a document names a printer" );
+     ImplSVData* pSVData = ImplGetSVData();
+     if ( !pSVData->maGDIData.mpPrinterQueueList )
+         ImplInitPrnQueueList();

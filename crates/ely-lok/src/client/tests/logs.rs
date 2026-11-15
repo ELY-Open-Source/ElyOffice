@@ -6,7 +6,10 @@ use super::analysis::{cells, skip};
 use super::linked::{rates, sheets, update};
 use super::ole_links::worksheet;
 use super::sheet::open_book;
+use super::show::DECK;
 use super::*;
+
+mod printers;
 
 /// What the workers' relays logged: level and message.
 static HEARD: Mutex<Vec<String>> = Mutex::new(Vec::new());
@@ -108,4 +111,70 @@ fn a_linked_object_s_class_name_stays_out_of_the_log() {
     assert!(!said.iter().any(|line| line.contains(CLASS)), "the worker wrote the class name: {said:?}");
     let leaked: Vec<String> = HEARD.lock().expect("the heard log").iter().filter(|line| line.contains(CLASS)).cloned().collect();
     assert!(leaked.is_empty(), "text from the document reached the app's log: {leaked:?}");
+}
+
+/// SF.18: copies a zip, swapping one text per part.
+fn edited(source: &std::path::Path, target: &std::path::Path, swaps: &[(&str, &str, &str)], added: Option<(&str, &str)>) {
+    let script = r#"import json, sys, zipfile
+source, target, swaps, added = sys.argv[1], sys.argv[2], json.loads(sys.argv[3]), json.loads(sys.argv[4])
+left = {name: (old, new) for name, old, new in swaps}
+with zipfile.ZipFile(source) as before, zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as after:
+    for entry in before.infolist():
+        data = before.read(entry.filename)
+        if entry.filename in left:
+            old, new = left.pop(entry.filename)
+            assert data.count(old.encode()) == 1, entry.filename
+            data = data.replace(old.encode(), new.encode())
+        after.writestr(entry, data)
+    assert not left, left
+    if added:
+        after.writestr(added[0], added[1])"#;
+    let swaps = serde_json::to_string(swaps).expect("json");
+    let added = serde_json::to_string(&added).expect("json");
+    let made = std::process::Command::new("python3").args(["-I", "-c", script]).arg(source).arg(target).arg(swaps).arg(added).output().expect("python3 runs");
+    assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+}
+
+/// Why loading `path` made a new worker ask the spooler.
+fn asked(dir: &std::path::Path, path: &std::path::Path) -> Option<String> {
+    let mut worker = Worker::spawn(&install().expect("the pinned LOK build"), &dir.join("profile")).expect("the worker");
+    let doc = worker.load(&crate::file_url(path)).expect("loads");
+    worker.close_doc(doc).expect("closes");
+    // Every line the worker wrote is in by now.
+    worker.shutdown().expect("the worker ends");
+    let said = worker.stderr.said().lines;
+    let why = said.iter().find_map(|line| line.strip_prefix("info:ely.vcl.print:")?.strip_suffix("; asking the spooler"));
+    why.map(|why| why.rsplit(':').next().expect("a reason").trim().to_owned())
+}
+
+#[test]
+fn only_documents_needing_a_printer_ask_the_spooler() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let word = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/word.docx");
+    let metrics = dir.path().join("metrics.docx");
+    let settings = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:compat><w:usePrinterMetrics/></w:compat></w:settings>"#;
+    edited(&word, &metrics, &[
+        ("[Content_Types].xml", "</Types>", r#"<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>"#),
+        ("word/_rels/document.xml.rels", "</Relationships>", r#"<Relationship Id="rIdEly1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/></Relationships>"#),
+    ], Some(("word/settings.xml", settings)));
+    // Flat decks drop settings; zipped ones keep them.
+    let (flat, deck) = (dir.path().join("deck.fodp"), dir.path().join("plain.odp"));
+    let (metrics_deck, named_deck) = (dir.path().join("metrics.odp"), dir.path().join("named.odp"));
+    std::fs::write(&flat, DECK).expect("writes");
+    let mut worker = Worker::spawn(&install().expect("the pinned LOK build"), &dir.path().join("saver")).expect("the worker");
+    let doc = worker.load(&crate::file_url(&flat)).expect("loads");
+    doc.save_as(&mut worker, &crate::file_url(&deck), "odp").expect("saves");
+    worker.close_doc(doc).expect("closes");
+    let layout = r#"PrinterIndependentLayout" config:type="string">"#;
+    edited(&deck, &metrics_deck, &[("settings.xml", &format!("{layout}low-resolution"), &format!("{layout}disabled"))], None);
+    let name = r#"<config:config-item config:name="PrinterName" config:type="string">Ely Absent Printer</config:config-item>"#;
+    edited(&deck, &named_deck, &[("settings.xml", printers::UNNAMED, name)], None);
+    let (metrics_why, named_why) = (Some("a document lays out by printer metrics"), Some("a document names a printer"));
+    for (path, why) in [(&word, None), (&deck, None), (&metrics, metrics_why), (&metrics_deck, metrics_why), (&named_deck, named_why)] {
+        assert_eq!(asked(dir.path(), path).as_deref(), why, "{} asked the spooler", path.display());
+    }
 }
