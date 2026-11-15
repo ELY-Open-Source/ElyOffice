@@ -29,18 +29,16 @@ pub fn init(cx: &mut App) {
     ]);
 }
 
+/// A write the app queues.
+pub(super) type Write = Box<dyn FnOnce(&mut Worker, &Doc) + Send>;
+
 /// One queued request; the queue keeps input order.
 pub(super) enum Input {
-    Key {
-        char_code: u32,
-        key_code: i32,
-    },
+    Key { char_code: u32, key_code: i32 },
     Mouse(Mouse),
     /// The composition becomes `text`; `ends` commits it.
     Text { text: String, ends: bool },
-    Copy {
-        cut: bool,
-    },
+    Copy { cut: bool },
     Paste,
     /// Values or formulas alone: `paste.values` or `paste.formulas`.
     PasteOnly(&'static str),
@@ -58,16 +56,15 @@ pub(super) enum Input {
         at: Option<crate::Doc>,
     },
     /// A handle of the selected object, moved.
-    Drag {
-        from: (i32, i32),
-        to: (i32, i32),
-    },
+    Drag { from: (i32, i32), to: (i32, i32) },
     /// The area shown in twips, and the tile scale.
     Visible(Rect, (u32, i32)),
     /// Shows sheet or slide `part`, from 0.
     Part(usize),
     /// Turns `step` parts; a picked object takes the arrow `key`.
     Turn { step: i32, key: Option<(u32, i32)> },
+    /// A write the app made; its caller gets the outcome.
+    Write(Write),
 }
 
 /// What an input gives back.
@@ -93,6 +90,7 @@ impl Input {
             Input::Drag { .. } => "drag",
             Input::Visible(..) => "visible",
             Input::Part(_) | Input::Turn { .. } => "part",
+            Input::Write(_) => "write",
         }
     }
 
@@ -113,7 +111,8 @@ impl Input {
             | Input::Paste
             | Input::PasteOnly(_)
             | Input::Drag { .. }
-            | Input::Complete { .. } => true,
+            | Input::Complete { .. }
+            | Input::Write(_) => true,
         }
     }
 }
@@ -214,10 +213,7 @@ pub(super) fn run(worker: &mut Worker, doc: &Doc, input: Input) -> (io::Result<O
 
 fn apply(worker: &mut Worker, doc: &Doc, input: Input) -> io::Result<Option<Back>> {
     let done = match input {
-        Input::Key {
-            char_code,
-            key_code,
-        } => worker.post_key(doc, char_code, key_code),
+        Input::Key { char_code, key_code } => worker.post_key(doc, char_code, key_code),
         Input::Turn { step, key } => return Ok(worker.turn(doc, step, key)?.map(Back::Shown)),
         Input::Mouse(event) => worker.post_mouse(doc, event),
         Input::Drag { from, to } => worker.drag_graphic(doc, from, to),
@@ -245,6 +241,10 @@ fn apply(worker: &mut Worker, doc: &Doc, input: Input) -> io::Result<Option<Back
         Input::Paste => clip::paste(worker, doc),
         // The kernel's own cells: the app checked the clipboard.
         Input::PasteOnly(id) => worker.run(doc, id, &[]),
+        Input::Write(write) => {
+            write(worker, doc);
+            Ok(())
+        }
     };
     done.map(|()| None)
 }

@@ -73,7 +73,9 @@ pub(super) fn spawn(
     drop(command);
     let pid = child.as_ref().map(Child::id).ok();
     if let Some(pid) = pid {
-        stopper.started(pid);
+        if let Err(error) = stopper.started(&gate, pid) {
+            log::error!("lok: the worker {pid}, stopped before it started, did not end: {error}");
+        }
         log::info!("lok: worker process {pid} started in {} ms", began.elapsed().as_millis());
     }
     drop(gate);

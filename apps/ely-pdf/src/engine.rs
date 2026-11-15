@@ -18,27 +18,41 @@ pub const MEASURE: usize = 100;
 
 /// The worker, started on the first open.
 #[derive(Default)]
-pub struct Mupdf(Option<Worker>);
+pub struct Mupdf {
+    worker: Option<Worker>,
+    /// The running worker's stop, read outside the lock.
+    current: Arc<Mutex<ely_ipc::Stopper>>,
+}
 
 impl Mupdf {
     /// A holder around a running worker, for tests.
     #[cfg(test)]
     pub fn with(worker: Worker) -> Self {
-        Mupdf(Some(worker))
+        let current = Arc::new(Mutex::new(worker.stopper()));
+        Mupdf { worker: Some(worker), current }
     }
 
     #[cfg(test)]
     pub fn started(&self) -> bool {
-        self.0.is_some()
+        self.worker.is_some()
+    }
+
+    /// The running worker's process id.
+    #[cfg(test)]
+    pub fn pid(&self) -> Option<u32> {
+        self.worker.as_ref().map(Worker::pid)
     }
 
     /// The worker, started now if need be.
     pub fn get(&mut self) -> io::Result<&mut Worker> {
-        if self.0.is_none() {
+        if self.worker.is_none() {
             log::info!("pdf: starts the worker");
-            self.0 = Some(Worker::spawn()?);
+            // Published first: a stuck start can be stopped.
+            let stopper = ely_ipc::Stopper::default();
+            *self.current.lock().map_err(|_| io::Error::other("the pdf stop lock is poisoned"))? = stopper.clone();
+            self.worker = Some(Worker::spawn_with(stopper)?);
         }
-        Ok(self.0.as_mut().expect("just started"))
+        Ok(self.worker.as_mut().expect("just started"))
     }
 }
 
@@ -102,8 +116,8 @@ impl Engine for Pdf {
         loaded: Loaded,
         _: &mut Window,
         cx: &mut App,
-    ) -> io::Result<(Doc, Entity<PdfView>, String)> {
-        let (doc, mark) = (loaded.doc, loaded.mark.clone());
+    ) -> io::Result<(Doc, Entity<PdfView>)> {
+        let doc = loaded.doc;
         let zoom = ely_ui::settings::current(cx).doc_zoom;
         let view = cx.new(|cx| {
             let mut view = PdfView::new(Arc::clone(worker), loaded, cx);
@@ -114,7 +128,11 @@ impl Engine for Pdf {
             }
             view
         });
-        Ok((doc, view, mark))
+        Ok((doc, view))
+    }
+
+    fn discard(worker: &mut Mupdf, loaded: Loaded) -> io::Result<()> {
+        Self::close(worker, loaded.doc)
     }
 
     fn risk(loaded: &Loaded) -> Option<ely_office::Risk> {
@@ -154,13 +172,22 @@ impl Engine for Pdf {
     }
 
     fn ended(worker: &mut Mupdf) -> Option<String> {
-        worker.0.as_mut()?.ended()
+        worker.worker.as_mut()?.ended()
     }
 
     /// The next load starts a new worker.
     fn restart(_: ely_platform::AppId, worker: &mut Mupdf) -> io::Result<()> {
-        worker.0 = None;
+        worker.worker = None;
         Ok(())
+    }
+
+    /// Whichever worker runs then; none, nothing to stop.
+    fn stopper(worker: &Mupdf) -> Option<ely_office::Stop> {
+        let current = Arc::clone(&worker.current);
+        Some(Arc::new(move || {
+            let stopper = current.lock().map_err(|_| io::Error::other("the pdf stop lock is poisoned"))?.clone();
+            stopper.stop()
+        }))
     }
 
     fn settled(view: &PdfView) -> bool {

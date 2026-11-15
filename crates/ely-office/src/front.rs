@@ -20,11 +20,15 @@ pub struct Parking<H: Host> {
     woken: Vec<u64>,
     /// Those programs' asks, put again once loaded.
     asks: Vec<(u64, ely_ui::Ask)>,
+    /// Whether each running load has the engine.
+    inside: Vec<(u64, Arc<AtomicBool>)>,
+    /// Running loads whose tab closed, and that flag.
+    dropped: Vec<(u64, Arc<AtomicBool>)>,
 }
 
 impl<H: Host> Default for Parking<H> {
     fn default() -> Self {
-        Parking { flags: Vec::new(), parked: Vec::new(), woken: Vec::new(), asks: Vec::new() }
+        Parking { flags: Vec::new(), parked: Vec::new(), woken: Vec::new(), asks: Vec::new(), inside: Vec::new(), dropped: Vec::new() }
     }
 }
 
@@ -113,6 +117,14 @@ impl<H: Host> Core<H> {
         self.park.flags.iter().any(|(of, held, _)| *of == id && Arc::ptr_eq(held, flag))
     }
 
+    /// Set once load `id` has the engine.
+    pub(crate) fn entering(&mut self, id: u64) -> Arc<AtomicBool> {
+        let inside = Arc::new(AtomicBool::new(false));
+        self.park.inside.retain(|(of, _)| *of != id);
+        self.park.inside.push((id, Arc::clone(&inside)));
+        inside
+    }
+
     /// Load `id` found its tab behind; it waits.
     pub(crate) fn park(&mut self, id: u64, source: Kept<H>) {
         self.park.flags.retain(|(of, ..)| *of != id);
@@ -151,17 +163,41 @@ impl<H: Host> Core<H> {
     /// Load `id` ended; the asks waiting for it.
     pub(crate) fn ended(&mut self, id: u64) -> Vec<ely_ui::Ask> {
         self.park.flags.retain(|(of, ..)| *of != id);
+        self.park.inside.retain(|(of, _)| *of != id);
         self.park.woken.retain(|of| *of != id);
         let (asks, rest) = std::mem::take(&mut self.park.asks).into_iter().partition(|(of, _)| *of == id);
         self.park.asks = rest;
         asks.into_iter().map(|(_, ask)| ask).collect()
     }
 
-    /// Drops waiting load `id`; its registry id, if any.
-    pub(crate) fn unpark(&mut self, id: u64) -> Option<Option<usize>> {
-        let at = self.park.parked.iter().position(|(of, _)| *of == id)?;
-        self.park.parked.remove(at);
+    /// Drops load `id`: registry id, running, its asks.
+    pub(crate) fn drop_load(&mut self, id: u64) -> Option<(Option<usize>, bool, Vec<ely_ui::Ask>)> {
         let at = self.loading.iter().position(|(of, ..)| *of == id)?;
-        Some(self.loading.remove(at).2)
+        let registry = self.loading.remove(at).2;
+        let waited = self.park.parked.len();
+        self.park.parked.retain(|(of, _)| *of != id);
+        let running = self.park.parked.len() == waited;
+        if running {
+            // Not yet in the engine: it stops there.
+            self.park.flags.iter().filter(|(of, ..)| *of == id).for_each(|(_, flag, _)| flag.store(false, Ordering::Release));
+            let inside = self.park.inside.iter().find(|(of, _)| *of == id).map(|(_, inside)| Arc::clone(inside));
+            self.park.dropped.push((id, inside.unwrap_or_default()));
+        }
+        Some((registry, running, self.ended(id)))
+    }
+
+    /// Whether load `id` was dropped.
+    pub(crate) fn dropped(&self, id: u64) -> bool {
+        self.park.dropped.iter().any(|(of, _)| *of == id)
+    }
+
+    /// Dropped load `id` left the engine; it is forgotten.
+    pub(crate) fn let_go(&mut self, id: u64) {
+        self.park.dropped.retain(|(of, _)| *of != id);
+    }
+
+    /// Whether dropped load `id` still runs inside the engine.
+    pub(crate) fn holding(&self, id: u64) -> bool {
+        self.park.dropped.iter().any(|(of, inside)| *of == id && inside.load(Ordering::Acquire))
     }
 }

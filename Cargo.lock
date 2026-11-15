@@ -2169,6 +2169,7 @@ dependencies = [
  "ely-platform",
  "ely-ui",
  "embed-resource",
+ "futures",
  "gpui-pre",
  "image",
  "jiff",
@@ -2344,7 +2345,9 @@ dependencies = [
 name = "ely-ipc"
 version = "0.1.16"
 dependencies = [
+ "libc",
  "log",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2601,6 +2604,7 @@ dependencies = [
  "embed-resource",
  "gpui-pre",
  "image",
+ "libc",
  "log",
  "serde",
  "serde_json",

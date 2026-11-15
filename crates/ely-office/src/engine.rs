@@ -36,13 +36,15 @@ pub trait Engine: Sized + 'static {
 
     /// Loads off the window; a locked file fails PermissionDenied.
     fn load(worker: &mut Self::Worker, from: Load<Self::Import>) -> io::Result<Self::Loaded>;
-    /// The view over a load, its document and history mark.
+    /// The view over a load, and its document.
     fn open(
         worker: &Arc<Mutex<Self::Worker>>,
         loaded: Self::Loaded,
         window: &mut Window,
         cx: &mut App,
-    ) -> io::Result<(Self::Doc, Entity<Self::View>, String)>;
+    ) -> io::Result<(Self::Doc, Entity<Self::View>)>;
+    /// Closes a load whose tab closed first.
+    fn discard(worker: &mut Self::Worker, loaded: Self::Loaded) -> io::Result<()>;
     /// Checked before an overwrite as `format`; a risk stops it.
     fn unsound(_worker: &mut Self::Worker, _doc: &Self::Doc, _format: &str) -> io::Result<Option<crate::Risk>> {
         Ok(None)
@@ -106,7 +108,7 @@ pub trait Engine: Sized + 'static {
     fn settled(view: &Self::View) -> bool;
     /// Edits landed so far.
     fn edited(view: &Self::View) -> u64;
-    /// An edit is sent but not landed.
+    /// An edit may have changed it, unreported yet.
     fn edit_pending(view: &Self::View) -> bool;
     /// When a key last went in; saves wait on it.
     fn typed_at(_view: &Self::View) -> Option<std::time::Instant> {

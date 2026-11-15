@@ -84,10 +84,11 @@ pub(crate) fn type_into(cx: &mut TestAppContext, docs: &Entity<Docs>, text: &str
         gpui::InputHandler::replace_text_in_range(&mut ime, None, text, window, app);
     })
     .expect("the window lives");
+    // The kernel's report, not only the app's guess.
     settle(cx, |app| {
         docs.read(app)
             .active_tab()
-            .is_some_and(|tab| tab.dirty(app) && tab.view.read(app).settled())
+            .is_some_and(|tab| tab.modified && tab.view.read(app).settled())
     });
 }
 
@@ -460,6 +461,7 @@ fn an_outside_change_asks_and_keep_mine_overwrites() {
     );
 }
 
+mod closing;
 mod dropped;
 pub(crate) mod find;
 mod focus;

@@ -8,7 +8,7 @@ use futures::{StreamExt as _, channel::mpsc};
 use gpui::{AppContext as _, Context, TaskExt as _};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher as _};
 
-use crate::{Host, Tabs, engine::Engine, text};
+use crate::{Commands as _, Host, Tabs, engine::Engine, text};
 
 /// A save's bursts settle into one look.
 const SETTLE: Duration = Duration::from_millis(200);
@@ -100,7 +100,7 @@ fn shown(source: &str) -> String {
     ely_lok::file_path(source).map_or_else(|_| source.to_string(), |path| path.display().to_string())
 }
 
-pub trait Linking: Host {
+pub trait Linking: Host<Engine = crate::Lok> {
     /// Reads every link of tab `id` again; the user asked.
     fn update_links(&mut self, id: u64, cx: &mut Context<Self>) {
         let slug = Self::KIND.app.slug();
@@ -114,7 +114,7 @@ pub trait Linking: Host {
         let sources = tab.links.sources.clone();
         log::info!("{slug}: tab {id} updates links to {} sources", sources.len());
         cx.notify();
-        self.read_in(
+        self.write_in(
             id,
             move |worker, doc| {
                 // Seen first: a save during the read still shows.
@@ -210,10 +210,10 @@ pub trait Linking: Host {
     }
 }
 
-impl<H: Host> Linking for H {}
+impl<H: Host<Engine = crate::Lok>> Linking for H {}
 
 /// Watches the folders of tab `id`'s sources.
-fn watch<H: Host>(id: u64, dirs: &[PathBuf], cx: &mut Context<H>) -> notify::Result<RecommendedWatcher> {
+fn watch<H: Linking>(id: u64, dirs: &[PathBuf], cx: &mut Context<H>) -> notify::Result<RecommendedWatcher> {
     let (sender, mut changes) = mpsc::unbounded();
     let mut watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
         // Reads, the kernel's included, are no change.

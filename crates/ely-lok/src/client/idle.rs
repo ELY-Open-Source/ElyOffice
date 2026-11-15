@@ -107,6 +107,7 @@ impl Worker {
         let wires = Wires { wiring, replies, feed };
         let mut worker = Self::made(Process::Starting(made), stopper, wires, session, stderr, start);
         worker.probe = probe;
+        worker.idle = Some(app.to_string());
         Ok(worker)
     }
 }

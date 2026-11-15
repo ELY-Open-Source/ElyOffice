@@ -57,6 +57,7 @@ pub(super) const ES: &[(&str, &str)] = &[
         "office.stopped",
         "El motor de documentos se detuvo ({why}). Último punto de recuperación: {at}.",
     ),
+    ("office.stopped.held", "un documento cerrado lo mantenía ocupado"),
     ("office.stopped.never", "ninguno todavía"),
     ("office.stopped.reopen", "Volver a abrir documentos"),
     (

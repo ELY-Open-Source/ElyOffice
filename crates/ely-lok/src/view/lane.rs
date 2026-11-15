@@ -53,6 +53,11 @@ impl Lane {
 }
 
 impl LokView {
+    /// Queues `write` behind the keys; it counts as an edit.
+    pub fn write(&mut self, write: impl FnOnce(&mut Worker, &Doc) + Send + 'static) {
+        self.send(Input::Write(Box::new(write)));
+    }
+
     /// The last key's time, on gpui's clock.
     pub fn typed_at(&self) -> Option<Instant> {
         self.lane.typed
@@ -156,6 +161,7 @@ impl LokView {
                     self.completion.landed(seq, if taken { now } else { None });
                     if edits {
                         self.clock.landed(seq, picture);
+                        self.states.edited(now, self.doc.rev);
                     }
                     self.seen_revision(now.unwrap_or(0));
                     match outcome {

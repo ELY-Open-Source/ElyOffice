@@ -71,12 +71,16 @@ impl Engine for Mark {
         loaded: Source,
         window: &mut Window,
         cx: &mut App,
-    ) -> io::Result<(Doc, Entity<MarkView>, String)> {
-        let mark = mark(&loaded.text);
+    ) -> io::Result<(Doc, Entity<MarkView>)> {
+        let saved = mark(&loaded.text);
         let doc = Arc::new(Mutex::new(Text::new(loaded)));
-        let saved = mark.clone();
         let view = cx.new(|cx| MarkView::new(Arc::clone(&doc), saved, window, cx));
-        Ok((doc, view, mark))
+        Ok((doc, view))
+    }
+
+    /// Nothing opened: the text is only read.
+    fn discard(_: &mut (), _: Source) -> io::Result<()> {
+        Ok(())
     }
 
     /// After a write, what it wrote: later edits stay unsaved.

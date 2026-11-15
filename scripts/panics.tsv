@@ -76,7 +76,7 @@ apps/ely-mark/src/view/menu.rs	expect_used	Keystroke::parse_with_os(stroke, cx.p
 apps/ely-pdf/src/annotate.rs	expect_used	sketch.points.last_mut().expect("two points")	linux,macos,windows	two points
 apps/ely-pdf/src/backdrop.rs	expect_used	self.tiles.remove(&key).expect("a tile just listed")	linux,macos,windows	a tile just listed
 apps/ely-pdf/src/editing.rs	expect_used	swatches.iter().position(|(_, swatch)| *swatch == color).expect("the palette hands back its own colors")	linux,macos,windows	the palette hands back its own colors
-apps/ely-pdf/src/engine.rs	expect_used	self.0.as_mut().expect("just started")	linux,macos,windows	just started
+apps/ely-pdf/src/engine.rs	expect_used	self.worker.as_mut().expect("just started")	linux,macos,windows	just started
 apps/ely-pdf/src/marks.rs	expect_used	path.last_mut().expect("a path has a step")	linux,macos,windows	a path has a step
 apps/ely-pdf/src/notes.rs	expect_used	(1..).map(|n| format!("{stem}{n}")).find(|name| !taken.contains(name)).expect("a free name")	linux,macos,windows	a free name
 apps/ely-pdf/src/notes.rs	expect_used	swatches.iter().position(|(_, swatch)| *swatch == color).expect("the palette hands back its own colors")	linux,macos,windows	the palette hands back its own colors

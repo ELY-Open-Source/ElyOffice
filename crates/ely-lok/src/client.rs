@@ -60,6 +60,8 @@ pub struct Worker {
     pub(crate) start: (PathBuf, PathBuf, bool),
     /// The module the start check loads.
     pub(crate) probe: crate::Probe,
+    /// The app whose idle engine it took.
+    pub(crate) idle: Option<String>,
 }
 
 /// One painted tile and the generation it matches (LOK-03).
@@ -180,6 +182,7 @@ impl Worker {
             author: None,
             start,
             probe: crate::Probe::default(),
+            idle: None,
         }
     }
 

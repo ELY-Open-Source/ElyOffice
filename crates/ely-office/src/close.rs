@@ -131,46 +131,16 @@ pub trait Closing: Host {
         cx: &mut Context<Self>,
     ) {
         log::info!("office: closing tab {id} asked, then {after:?}");
-        if !self.settled(id, cx) {
-            return self.when_settled(id, move |host, window, cx| {
-                host.request_close(id, after, window, cx)
-            });
-        }
         let Some(tab) = self.tab(id) else {
-            self.close_waiting(id, cx);
+            self.close_loading(id, cx);
             return self.proceed(after, window, cx);
         };
+        // The app's own record decides; the engine is not asked.
         if tab.dirty(cx) {
             return self.ask_unsaved(id, after, cx);
         }
-        // The undo history decides; it is read in the background.
-        let edited = Self::Engine::edited(tab.view.read(cx));
-        self.read_in(
-            id,
-            Self::Engine::history,
-            move |host, read, window, cx| {
-                let Some(tab) = host.tab(id) else {
-                    log::info!("office: tab {id} closed during its history read");
-                    return host.proceed(after, window, cx);
-                };
-                if Self::Engine::edited(tab.view.read(cx)) != edited {
-                    return host.request_close(id, after, window, cx);
-                }
-                let moved = match read {
-                    Ok(history) => history != tab.mark,
-                    Err(error) => {
-                        log::error!("office: the undo history of tab {id} is unreadable: {error}");
-                        true
-                    }
-                };
-                if moved || tab.dirty(cx) {
-                    return host.ask_unsaved(id, after, cx);
-                }
-                host.close_tab(id, cx);
-                host.proceed(after, window, cx);
-            },
-            cx,
-        );
+        self.close_tab(id, cx);
+        self.proceed(after, window, cx);
     }
 
     fn ask_unsaved(&mut self, id: u64, after: After, cx: &mut Context<Self>) {
@@ -198,7 +168,7 @@ pub trait Closing: Host {
         if self.core().tabs.is_empty() {
             return true;
         }
-        // Each tab's history is read in the background.
+        // Unsaved tabs ask first.
         self.proceed(After::Window, window, cx);
         false
     }
@@ -225,18 +195,27 @@ pub trait Closing: Host {
         .detach();
     }
 
-    /// Drops tab `id` still waiting to load; it holds nothing.
-    fn close_waiting(&mut self, id: u64, cx: &mut Context<Self>) {
-        let Some(registry) = self.core_mut().unpark(id) else {
-            return log::info!("office: tab {id} is not open nor waiting");
+    /// Drops loading tab `id`; a stuck load swaps engines.
+    fn close_loading(&mut self, id: u64, cx: &mut Context<Self>) {
+        let Some((registry, running, asks)) = self.core_mut().drop_load(id) else {
+            return log::info!("office: tab {id} is not open nor loading");
         };
+        for ask in asks {
+            ask.answer(Err(format!("tab {id} closed while it loaded")));
+        }
+        if running {
+            crate::Stopping::watch_let_go(self, id, cx);
+        }
         crate::hold::forget(self, id, cx);
         let core = self.core_mut();
+        if core.slow == Some(id) {
+            core.slow = None;
+        }
         core.closed_front(id);
         if let Some(registry) = registry {
             core.sessions.close(registry);
         }
-        log::info!("office: closed waiting tab {id}, {} tabs open, {} waiting", core.tabs.len(), core.loading.len());
+        log::info!("office: closed loading tab {id}, {} tabs open, {} waiting", core.tabs.len(), core.loading.len());
         cx.notify();
     }
 

@@ -56,7 +56,7 @@ impl Deck {
                 let (find, with) = (find.clone(), with.clone());
                 // A box being typed in: where its caret shows.
                 let caret = self.tab(id).map(|tab| tab.view.read(cx)).filter(|view| view.caret()).and_then(|view| view.cursor());
-                self.read_in(
+                self.write_in(
                     id,
                     move |worker, doc| replace_all(worker, doc, &find, &with, caret),
                     move |_, done, _, _| ask.answer(done.map(|()| String::new()).map_err(|error| error.to_string())),

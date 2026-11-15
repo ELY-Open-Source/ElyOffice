@@ -21,6 +21,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("office.recovery.back", "{name}: Der nicht gespeicherte Inhalt von {at} ist zurück; Cursor und Rückgängig-Verlauf nicht"),
     ("office.recovery.index", "Die Wiederherstellungspunkte lassen sich nicht auflisten, ein Absturz kann sie daher verlieren: {error}"),
     ("office.stopped", "Die Dokument-Engine wurde beendet ({why}). Letzter Wiederherstellungspunkt: {at}."),
+    ("office.stopped.held", "ein geschlossenes Dokument hielt sie besetzt"),
     ("office.stopped.never", "noch keiner"),
     ("office.stopped.reopen", "Dokumente wieder öffnen"),
     ("office.stopped.lost", "Nicht wieder geöffnet: {names}. Für ihre nicht gespeicherten Änderungen gab es keinen Wiederherstellungspunkt."),

@@ -13,7 +13,7 @@ impl LokView {
 
     /// The kernel's state for `uno`, as LOK reports it (LOK-05).
     pub fn state(&self, uno: &str) -> Option<&str> {
-        self.states.get(uno).map(String::as_str)
+        self.states.get(uno)
     }
 
     /// The selected object's frame in twips, if any.

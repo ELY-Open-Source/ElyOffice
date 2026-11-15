@@ -52,7 +52,7 @@ impl Book {
             }
             [verb, _, address, text] if verb == "set" => {
                 let (address, text) = (address.clone(), text.clone());
-                self.read_in(
+                self.write_in(
                     id,
                     move |worker, doc| worker.run(doc, "cell.set", &[&address, &text]),
                     move |_, done, _, _| ask.answer(done.map(|()| String::new()).map_err(failed)),

@@ -1,8 +1,10 @@
 //! Framed requests between an app and its engine worker.
 
 mod relay;
+mod stop;
 mod worded;
 pub use relay::{Relay, Said, relay};
+pub use stop::Stopper;
 pub use worded::{Then, Worded};
 
 use std::io::{self, Read, Write};

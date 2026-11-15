@@ -54,7 +54,7 @@ impl Docs {
                     return ask.answer(Err("FIND must be text within one paragraph, and WITH too".into()));
                 }
                 let (find, with) = (find.clone(), with.clone());
-                self.read_in(
+                self.write_in(
                     id,
                     move |worker, doc| worker.run(doc, "text.replace", &[&find, "false", "3", "0", "0", "1", &with, "true"]),
                     move |_, done, _, _| ask.answer(done.map(|()| String::new()).map_err(|error| format!("nothing replaced: {error}"))),

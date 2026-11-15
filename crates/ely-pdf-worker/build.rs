@@ -54,7 +54,10 @@ fn main() {
     }
     // Signing and checking need OpenSSL, linked in whole.
     let crypto = if windows { "libcrypto.lib" } else { "libcrypto.a" };
-    println!("cargo:rustc-link-arg-bin={bin}={}", PathBuf::from(openssl(&root, "libdir")).join(crypto).display());
+    println!("cargo:rerun-if-env-changed=PKG_CONFIG_PATH");
+    let crypto = PathBuf::from(openssl(&root, "libdir")).join(crypto);
+    assert!(crypto.is_file(), "no static {} (run scripts/build-openssl.sh, set PKG_CONFIG_PATH)", crypto.display());
+    println!("cargo:rustc-link-arg-bin={bin}={}", crypto.display());
     if windows {
         for lib in ["crypt32.lib", "ws2_32.lib", "advapi32.lib", "user32.lib"] {
             println!("cargo:rustc-link-arg-bin={bin}={lib}");

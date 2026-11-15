@@ -15,6 +15,8 @@ use crate::{Closing as _, Dialog, Engine, Host, Opening as _, Recovering as _, r
 
 /// How long a load runs before the stop is offered.
 pub(crate) const SLOW: Duration = Duration::from_secs(30);
+/// How long a closed tab's load may keep the engine.
+pub(crate) const LET_GO: Duration = Duration::from_secs(2);
 
 /// Why the engine ended, and whether it is coming back.
 pub struct Stopped {
@@ -56,6 +58,42 @@ pub trait Stopping: Host {
         cx.spawn(async move |this, cx| {
             cx.background_executor().timer(SLOW).await;
             this.update(cx, |host, cx| host.slow_load(id, &flag, cx))
+        })
+        .detach_and_log_err(cx);
+    }
+
+    /// Swaps engines if closed load `id` outlasts `LET_GO`.
+    fn watch_let_go(&mut self, id: u64, cx: &mut Context<Self>) {
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(LET_GO).await;
+            this.update(cx, |host, cx| {
+                if host.core().holding(id) {
+                    host.swap_engine(id, cx);
+                }
+            })
+        })
+        .detach_and_log_err(cx);
+    }
+
+    /// Ends the held engine; a new one reopens the tabs.
+    fn swap_engine(&mut self, id: u64, cx: &mut Context<Self>) {
+        let slug = Self::KIND.app.slug();
+        let Some(stop) = self.core().stop.clone() else {
+            return log::warn!("{slug}: closed tab {id} still loads; this engine cannot stop");
+        };
+        if self.core().stopped.is_some() {
+            return log::info!("{slug}: closed tab {id} still loads; the engine is already restarting");
+        }
+        log::warn!("{slug}: closed tab {id} holds the engine after {} s; a new engine takes over", LET_GO.as_secs());
+        let why = text(cx, "office.stopped.held", &[]).to_string();
+        self.core_mut().stopped = Some(Stopped { why, restarting: true });
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            // The stuck load fails and frees the lock.
+            if let Err(error) = cx.background_executor().spawn(async move { stop() }).await {
+                log::error!("{slug}: the held engine did not stop: {error}");
+            }
+            this.update(cx, |host, cx| host.relaunch_engine(cx))
         })
         .detach_and_log_err(cx);
     }
@@ -150,6 +188,11 @@ pub trait Stopping: Host {
         let Some(stopped) = self.core_mut().stopped.as_mut() else { return };
         stopped.restarting = true;
         cx.notify();
+        self.relaunch_engine(cx);
+    }
+
+    /// A new worker under the stopped one, then the tabs.
+    fn relaunch_engine(&mut self, cx: &mut Context<Self>) {
         let worker = Arc::clone(&self.core().worker);
         cx.spawn(async move |this, cx| {
             let restarted = cx

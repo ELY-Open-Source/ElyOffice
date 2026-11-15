@@ -21,6 +21,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("office.recovery.back", "{name}: {at} 時点の未保存の内容を復元しました。カーソルと元に戻す履歴は復元されません"),
     ("office.recovery.index", "復元ポイントの一覧を書き込めないため、クラッシュすると失われる可能性があります: {error}"),
     ("office.stopped", "ドキュメントエンジンが停止しました ({why})。最後の復元ポイント: {at}。"),
+    ("office.stopped.held", "閉じたドキュメントが使い続けていました"),
     ("office.stopped.never", "まだありません"),
     ("office.stopped.reopen", "ドキュメントを開き直す"),
     ("office.stopped.lost", "開き直せなかったもの: {names}。未保存の変更に復元ポイントがありませんでした。"),

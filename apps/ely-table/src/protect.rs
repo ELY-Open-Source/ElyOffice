@@ -90,7 +90,7 @@ impl Book {
         cx.notify();
         log::info!("table: unprotects tab {tab}");
         let json = sheet::unprotect_json(&password);
-        self.read_in(
+        self.write_in(
             tab,
             move |worker, doc| match worker.run(doc, "sheet.protect", &[&json]) {
                 Ok(()) => Ok(true),

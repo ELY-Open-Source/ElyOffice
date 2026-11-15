@@ -20,6 +20,7 @@ pub struct Worker {
     asked: u64,
     /// This worker among all spawned; its documents carry it.
     session: u64,
+    stopper: ely_ipc::Stopper,
 }
 
 static SESSIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -98,11 +99,22 @@ fn worker_bin() -> io::Result<PathBuf> {
 
 impl Worker {
     pub fn spawn() -> io::Result<Self> {
-        Self::spawn_from(&worker_bin()?)
+        Self::spawn_with(ely_ipc::Stopper::default())
+    }
+
+    /// Spawns; `stopper` ends it even before it answers.
+    pub fn spawn_with(stopper: ely_ipc::Stopper) -> io::Result<Self> {
+        Self::launch(&worker_bin()?, stopper)
     }
 
     /// Spawns `bin`; one from other sources is refused.
     pub fn spawn_from(bin: &Path) -> io::Result<Self> {
+        Self::launch(bin, ely_ipc::Stopper::default())
+    }
+
+    fn launch(bin: &Path, stopper: ely_ipc::Stopper) -> io::Result<Self> {
+        // Held: a stop waits for the id it kills.
+        let gate = stopper.gate();
         let mut child = ely_ipc::windowless(&mut Command::new(bin))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -113,13 +125,18 @@ impl Worker {
         drop(ely_ipc::relay(child.stderr.take().expect("piped stderr"), "pdf-worker"));
         let stdin = BufWriter::new(child.stdin.take().expect("piped stdin"));
         let stdout = BufReader::new(child.stdout.take().expect("piped stdout"));
+        let started = stopper.started(&gate, child.id());
+        drop(gate);
         let mut worker = Worker {
             child,
             stdin,
             stdout,
             asked: 0,
             session: SESSIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
+            stopper,
         };
+        // Dropped, the worker reaps what the stop killed.
+        started?;
         log::info!("pdf: worker from {}", bin.display());
         let reply = worker.request(tag::HELLO, &[])?;
         if Unpack::new(&reply).str()? != proto::BUILD {
@@ -141,10 +158,18 @@ impl Worker {
 
     /// Why the worker process ended, if it has.
     pub fn ended(&mut self) -> Option<String> {
-        match self.child.try_wait() {
+        match self.reap() {
             Ok(status) => status.map(|status| status.to_string()),
             Err(error) => Some(error.to_string()),
         }
+    }
+
+    /// Its exit, if any; a reap ends the stopper.
+    fn reap(&mut self) -> io::Result<Option<std::process::ExitStatus>> {
+        let mut reaped = self.stopper.gate();
+        let status = self.child.try_wait()?;
+        *reaped |= status.is_some();
+        Ok(status)
     }
 
     /// The worker's process id, for resource tests.
@@ -153,11 +178,19 @@ impl Worker {
         self.child.id()
     }
 
+    /// Ends this worker's process without this worker's lock.
+    pub fn stopper(&self) -> ely_ipc::Stopper {
+        self.stopper.clone()
+    }
+
     /// Ends the worker process, for crash tests.
     #[cfg(any(test, feature = "test-support"))]
     pub fn kill(&mut self) -> io::Result<()> {
+        let mut reaped = self.stopper.gate();
         self.child.kill()?;
-        self.child.wait().map(|_| ())
+        self.child.wait()?;
+        *reaped = true;
+        Ok(())
     }
 
     /// A request aimed at pages or objects `doc` saw.
@@ -189,7 +222,7 @@ impl Worker {
             Some((tag::OK, _, reply)) => Ok(reply),
             Some((tag::ERR, _, reply)) => Err(refusal(String::from_utf8_lossy(&reply).into_owned())),
             Some((other, _, _)) => Err(io::Error::other(format!("pdf-worker answered tag {other}"))),
-            None => Err(io::Error::other(match self.child.try_wait() {
+            None => Err(io::Error::other(match self.reap() {
                 Ok(Some(status)) => format!("the pdf worker exited: {status}"),
                 _ => "the pdf worker closed its pipe".to_string(),
             })),
@@ -276,6 +309,8 @@ impl Worker {
 
 impl Drop for Worker {
     fn drop(&mut self) {
+        // A stop never kills a reused id.
+        let mut reaped = self.stopper.gate();
         // The worker holds nothing that needs saving.
         if let Err(error) = self.child.kill() {
             log::info!("pdf: the worker was already gone: {error}");
@@ -283,6 +318,7 @@ impl Drop for Worker {
         if let Err(error) = self.child.wait() {
             log::warn!("pdf: the worker was not reaped: {error}");
         }
+        *reaped = true;
     }
 }
 
@@ -314,5 +350,47 @@ fn refusal(text: String) -> io::Error {
     match named {
         Some((_, name)) => io::Error::other(Refused(name)),
         None => io::Error::other(text),
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::{os::unix::fs::PermissionsExt as _, path::Path, sync::mpsc, time::Duration};
+
+    use super::Worker;
+
+    /// A worker that never answers HELLO.
+    fn mute(dir: &Path) -> std::path::PathBuf {
+        let bin = dir.join("mute");
+        std::fs::write(&bin, "#!/bin/sh\nexec sleep 600\n").expect("writes");
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("runs");
+        bin
+    }
+
+    /// One stop, before or during the start, ends it.
+    fn stopped_once(early: bool) {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let (bin, stopper) = (mute(dir.path()), ely_ipc::Stopper::default());
+        if early {
+            stopper.stop().expect("the stop");
+        }
+        let (held, (done, ended)) = (stopper.clone(), mpsc::channel());
+        std::thread::spawn(move || done.send(Worker::launch(&bin, held).map(drop)));
+        if !early {
+            stopper.stop().expect("the stop");
+        }
+        let start = ended.recv_timeout(Duration::from_secs(30)).expect("the stuck start ended");
+        assert!(start.is_err(), "a stopped start fails");
+        stopper.stop().expect("a reaped worker is left alone");
+    }
+
+    #[test]
+    fn a_stop_before_the_start_ends_it() {
+        stopped_once(true);
+    }
+
+    #[test]
+    fn a_stop_during_the_start_ends_it() {
+        stopped_once(false);
     }
 }

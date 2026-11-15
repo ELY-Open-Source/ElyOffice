@@ -21,6 +21,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("office.recovery.back", "{name}: {at}의 저장되지 않은 내용이 돌아왔습니다. 커서와 실행 취소 기록은 돌아오지 않았습니다"),
     ("office.recovery.index", "복구 지점 목록을 만들 수 없어 충돌하면 잃을 수 있습니다: {error}"),
     ("office.stopped", "문서 엔진이 멈췄습니다({why}). 마지막 복구 지점: {at}."),
+    ("office.stopped.held", "닫은 문서가 계속 붙잡고 있었습니다"),
     ("office.stopped.never", "아직 없음"),
     ("office.stopped.reopen", "문서 다시 열기"),
     ("office.stopped.lost", "다시 열지 않음: {names}. 저장하지 않은 변경 사항에 복구 지점이 없었습니다."),

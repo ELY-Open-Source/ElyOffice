@@ -249,7 +249,7 @@ impl Book {
         }
         log::info!("table: R macro applies {} bytes to tab {tab}", batch.len());
         let stop = Arc::clone(&run);
-        self.read_in(
+        self.write_in(
             tab,
             move |worker, _| apply(worker, &at, &batch, &stop),
             move |book, result, _, cx| {

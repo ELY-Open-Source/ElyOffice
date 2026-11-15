@@ -159,6 +159,7 @@ pub trait Opening: Host {
     /// Runs tab `id`'s load, unless its tab is behind then.
     fn start(&mut self, id: u64, source: Source<ImportOf<Self>>, cx: &mut Context<Self>) {
         let wanted = self.core_mut().flag(id, &source);
+        let inside = self.core_mut().entering(id);
         let (path, password, text, registry) = match &source {
             Source::File(path, registry, password) => (path.clone(), password.clone(), None, Some(*registry)),
             Source::Copy(path) => (path.clone(), String::new(), None, None),
@@ -188,6 +189,7 @@ pub trait Opening: Host {
                 if !wanted.load(std::sync::atomic::Ordering::Acquire) {
                     return Ok(None);
                 }
+                inside.store(true, std::sync::atomic::Ordering::Release);
                 log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
                 let from = match &text {
                     None => Load::File(&reading, &password),
@@ -218,10 +220,55 @@ pub trait Opening: Host {
         cx.spawn(async move |this, cx| {
             let loaded = loading.await;
             in_window(&this, cx, |host, window, cx| match loaded {
+                _ if host.core().dropped(id) => host.discard(id, &source, loaded, cx),
                 Ok(None) => host.parked(id, source, cx),
                 Ok(Some(loaded)) => host.loaded(id, source, Ok(loaded), window, cx),
                 Err(error) => host.loaded(id, source, Err(error), window, cx),
             })
+        })
+        .detach_and_log_err(cx);
+    }
+
+    /// A closed tab's load ends: the engine lets it go.
+    fn discard(
+        &mut self,
+        id: u64,
+        source: &Source<ImportOf<Self>>,
+        loaded: io::Result<Option<Prepared<<Self::Engine as Engine>::Loaded>>>,
+        cx: &mut Context<Self>,
+    ) {
+        let slug = Self::KIND.app.slug();
+        // A copy's work dir is its file's folder.
+        let scratch = match source {
+            Source::File(..) => None,
+            Source::Copy(path) | Source::Locked(path, _) | Source::Import(path, ..) => path.parent().map(Path::to_path_buf),
+        };
+        let loaded = match loaded {
+            Ok(Some((loaded, _, _, kept))) => Some((loaded, kept.map(|(work, _)| work).or(scratch))),
+            Ok(None) => {
+                log::info!("{slug}: closed tab {id} never took the engine");
+                forget_scratch(slug, scratch);
+                None
+            }
+            Err(error) => {
+                log::info!("{slug}: closed tab {id} ended its load: {error}");
+                forget_scratch(slug, scratch);
+                None
+            }
+        };
+        let Some((loaded, work)) = loaded else {
+            return self.core_mut().let_go(id);
+        };
+        forget_scratch(slug, work);
+        let worker = Arc::clone(&self.core().worker);
+        // Held until the engine closes it; the watch sees that.
+        let closing = cx.background_spawn(async move { ely_lok::behind(&worker, move |worker| Self::Engine::discard(worker, loaded)).await });
+        cx.spawn(async move |this, cx| {
+            match closing.await {
+                Ok(()) => log::info!("{slug}: closed tab {id} let its document go"),
+                Err(error) => log::error!("{slug}: closed tab {id} did not let go: {error}"),
+            }
+            this.update(cx, |host, _| host.core_mut().let_go(id))
         })
         .detach_and_log_err(cx);
     }
@@ -256,11 +303,11 @@ pub trait Opening: Host {
                     (dir.to_path_buf(), Session::new_file())
                 }
             };
-            let (doc, view, mark) = Self::Engine::open(&self.core().worker, loaded, window, cx)?;
+            let (doc, view) = Self::Engine::open(&self.core().worker, loaded, window, cx)?;
             log::info!("{}: tab {id} view in {} ms", Self::KIND.app.slug(), began.elapsed().as_millis());
-            Ok((doc, work, session, risk, links, view, mark))
+            Ok((doc, work, session, risk, links, view))
         });
-        let (doc, work, session, risk, links, view, mark) = match opened {
+        let (doc, work, session, risk, links, view) = match opened {
             Ok(opened) => opened,
             Err(error) => {
                 for ask in asks {
@@ -313,7 +360,6 @@ pub trait Opening: Host {
             modified: false,
             risk,
             links,
-            mark,
             work,
             exporting: false,
             pausing: 0,
@@ -420,3 +466,12 @@ pub trait Opening: Host {
 }
 
 impl<H: Host> Opening for H {}
+
+/// Removes a closed load's scratch folder.
+fn forget_scratch(slug: &str, scratch: Option<PathBuf>) {
+    let Some(scratch) = scratch else { return };
+    match std::fs::remove_dir_all(&scratch) {
+        Ok(()) => log::info!("{slug}: scratch {} removed", scratch.display()),
+        Err(error) => log::warn!("{slug}: scratch {} stays: {error}", scratch.display()),
+    }
+}

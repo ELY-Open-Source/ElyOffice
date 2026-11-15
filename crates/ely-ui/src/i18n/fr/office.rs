@@ -21,6 +21,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("office.recovery.back", "{name} : le contenu non enregistré de {at} est revenu ; le curseur et l’historique d’annulation non"),
     ("office.recovery.index", "Les points de récupération ne peuvent pas être listés ; un plantage pourrait les perdre : {error}"),
     ("office.stopped", "Le moteur de documents s’est arrêté ({why}). Dernier point de récupération : {at}."),
+    ("office.stopped.held", "un document fermé l’occupait encore"),
     ("office.stopped.never", "aucun pour l’instant"),
     ("office.stopped.reopen", "Rouvrir les documents"),
     ("office.stopped.lost", "Non rouverts : {names}. Leurs modifications non enregistrées n’avaient aucun point de récupération."),

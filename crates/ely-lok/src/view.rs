@@ -39,6 +39,7 @@ mod zoom;
 pub use zoom::{ZOOM_STEPS, Zoomed};
 mod scroll;
 mod sheet;
+mod states;
 mod text;
 pub use input::{CONTEXT, Copy, Cut, Paste, init};
 pub use off::{behind, read_off};
@@ -125,7 +126,7 @@ pub struct LokView {
     grip: Option<handles::Grip>,
     borders: borders::Borders,
     handle_size: Pixels,
-    states: HashMap<String, String>,
+    states: states::States,
     graphic: Option<Rect>,
     review: u64,
     /// The last search outcome: its count and matches.
@@ -232,7 +233,7 @@ impl LokView {
             grip: None,
             borders: Default::default(),
             handle_size: px(6.0),
-            states: HashMap::new(),
+            states: Default::default(),
             graphic: None,
             review: 0,
             search: (0, Vec::new()),
@@ -412,7 +413,7 @@ impl LokView {
         let changed = batch.generation != self.generation || batch.all || !batch.rects.is_empty();
         self.take_a11y(batch.a11y, changed, cx);
         self.tabs = (batch.tabs, batch.revision);
-        self.states.extend(batch.states);
+        self.states.take(batch.states, batch.revision);
         self.relay(batch.blocked, batch.links, cx);
         cx.emit(Reported);
         if !changed {

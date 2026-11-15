@@ -10,7 +10,7 @@ use std::{
 use ely_lok::{Doc, LokError, LokView, Reported, Worker, sheet::csv::Import};
 use ely_gpui_component::primitives::Severity;
 use ely_platform::AppId;
-use gpui::{App, Context, Entity, FocusHandle, Keystroke, Window};
+use gpui::{App, Context, Entity, FocusHandle, Keystroke, TaskExt as _, Window};
 
 use crate::engine::{Engine, Load, Stop};
 use crate::{Host, Tabs, text};
@@ -18,11 +18,10 @@ use crate::{Host, Tabs, text};
 /// The LOK engine.
 pub struct Lok;
 
-/// A load: the document, its layout, its history.
+/// A load: the document and its layout.
 pub struct Loaded {
     doc: Doc,
     laid: ely_lok::Layout,
-    mark: String,
     feed: ely_lok::Feed,
     waiter: ely_lok::Waiter,
     links: Vec<String>,
@@ -44,9 +43,8 @@ impl Engine for Lok {
             Load::File(path, password) => worker.unlock(&ely_lok::file_url(path), password)?,
             Load::Import(path, how) => worker.import(&ely_lok::file_url(path), how)?,
         };
-        // Layout and history too: the window never waits.
+        // Layout too: the window never waits.
         let laid = ely_lok::layout(worker, &doc)?;
-        let mark = worker.values(&doc, ".uno:Undo")?;
         // Impress names no links.
         let (links, pictured) = match (doc.is_deck(), doc.is_sheet()) {
             (true, _) => (Vec::new(), false),
@@ -56,7 +54,7 @@ impl Engine for Lok {
                 (ely_lok::links::sources(&listed)?, pictured)
             }
         };
-        Ok(Loaded { doc, laid, mark, feed: worker.feed(), waiter: worker.waiter(), links, pictured })
+        Ok(Loaded { doc, laid, feed: worker.feed(), waiter: worker.waiter(), links, pictured })
     }
 
     fn open(
@@ -64,8 +62,8 @@ impl Engine for Lok {
         loaded: Loaded,
         _: &mut Window,
         cx: &mut App,
-    ) -> io::Result<(Doc, Entity<LokView>, String)> {
-        let Loaded { doc, laid, mark, feed, waiter, .. } = loaded;
+    ) -> io::Result<(Doc, Entity<LokView>)> {
+        let Loaded { doc, laid, feed, waiter, .. } = loaded;
         let view = LokView::open(Arc::clone(worker), doc.clone(), laid, (feed, waiter), cx);
         let (zoom, deck) = (ely_ui::settings::current(cx).doc_zoom, doc.is_deck());
         let kind = match (doc.is_sheet(), deck) {
@@ -87,7 +85,11 @@ impl Engine for Lok {
             }
         });
         log::info!("office: opens at {zoom:?}, deck {deck}");
-        Ok((doc, view, mark))
+        Ok((doc, view))
+    }
+
+    fn discard(worker: &mut Worker, loaded: Loaded) -> io::Result<()> {
+        worker.close_doc(loaded.doc)
     }
 
     fn risk(loaded: &Loaded) -> Option<crate::Risk> {
@@ -186,7 +188,7 @@ impl Engine for Lok {
     }
 
     fn edit_pending(view: &LokView) -> bool {
-        view.edit_pending()
+        view.edit_pending() || view.unconfirmed()
     }
 
     fn typed_at(view: &LokView) -> Option<std::time::Instant> {
@@ -384,6 +386,37 @@ pub trait Commands: Host<Engine = Lok> {
         if let Err(error) = open.view.update(cx, |view, _| view.run_all_at(&at, commands)) {
             self.engine_failed(&error.to_string(), cx);
         }
+    }
+
+    /// Writes tab `id` in its input order, as an edit.
+    fn write_in<T: Send + 'static>(
+        &mut self,
+        id: u64,
+        write: impl FnOnce(&mut Worker, &Doc) -> io::Result<T> + Send + 'static,
+        then: impl FnOnce(&mut Self, io::Result<T>, &mut Window, &mut Context<Self>) + 'static,
+        cx: &mut Context<Self>,
+    ) {
+        let slug = Self::KIND.app.slug();
+        let Some(tab) = self.tab(id) else {
+            return log::warn!("{slug}: tab {id} is gone; nothing written");
+        };
+        let (done, outcome) = futures::channel::oneshot::channel();
+        tab.view.update(cx, |view, _| {
+            view.write(move |worker, doc| {
+                if done.send(write(worker, doc)).is_err() {
+                    log::warn!("{slug}: tab {id}'s write ended unheard");
+                }
+            })
+        });
+        cx.spawn(async move |this, cx| {
+            // A view gone with the write queued drops it.
+            let written = outcome.await.unwrap_or_else(|_| Err(io::Error::other(format!("tab {id} closed before its write"))));
+            if let Err(error) = &written {
+                log::warn!("{slug}: tab {id}'s write failed: {error}");
+            }
+            crate::in_window(&this, cx, |host, window, cx| then(host, written, window, cx))
+        })
+        .detach_and_log_err(cx);
     }
 
     /// Runs a numbered command against the read state `at`.

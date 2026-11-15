@@ -144,8 +144,6 @@ pub struct Tab<E, G: Engine> {
     pub risk: Option<Risk>,
     /// Other files it reads (LOK-11).
     pub links: Links,
-    /// The kernel's undo history at the last load or save.
-    pub mark: String,
     pub work: PathBuf,
     /// A save's export runs in the background.
     pub exporting: bool,

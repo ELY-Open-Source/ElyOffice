@@ -27,6 +27,7 @@ mod removal;
 mod row;
 mod sign;
 mod structure;
+mod swap;
 mod turn;
 mod view;
 mod visible;

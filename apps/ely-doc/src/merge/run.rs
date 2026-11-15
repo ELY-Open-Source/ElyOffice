@@ -214,7 +214,7 @@ impl Docs {
                 let n = (at + 1).to_string();
                 tab.name = Docs::text(cx, "doc.merge.preview_name", &[("name", &name), ("n", &n)]);
                 cx.notify();
-                docs.read_in(
+                docs.write_in(
                     into,
                     move |worker, doc| fill(worker, doc, &headers, &row),
                     |docs, filled, _, cx| {

@@ -21,6 +21,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("office.recovery.back", "{name}: nội dung chưa lưu từ {at} đã trở lại; vị trí con trỏ và lịch sử hoàn tác thì không"),
     ("office.recovery.index", "Không liệt kê được các điểm khôi phục, nên một sự cố có thể làm mất chúng: {error}"),
     ("office.stopped", "Bộ máy tài liệu đã dừng ({why}). Điểm khôi phục gần nhất: {at}."),
+    ("office.stopped.held", "một tài liệu đã đóng vẫn giữ nó"),
     ("office.stopped.never", "chưa có"),
     ("office.stopped.reopen", "Mở lại tài liệu"),
     ("office.stopped.lost", "Chưa mở lại: {names}. Các thay đổi chưa lưu của chúng không có điểm khôi phục."),
