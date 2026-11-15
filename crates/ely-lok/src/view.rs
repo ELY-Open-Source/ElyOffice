@@ -90,8 +90,6 @@ pub struct LokView {
     moves: u64,
     last_edit: u64,
     clock: clock::EditClock,
-    /// A tile reached the screen; logged once (PERF-03).
-    drawn: bool,
     /// Since when the screen has lacked tiles.
     filling: Option<std::time::Instant>,
     /// The way the view last moved: 1 down, -1 up.
@@ -208,7 +206,6 @@ impl LokView {
             moves: 0,
             last_edit: 0,
             clock,
-            drawn: false,
             filling: None,
             heading: 1,
             wanted,

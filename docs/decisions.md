@@ -1034,3 +1034,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 八种语言：SF.13、SF.14 删掉的键各语言都已删，加的键各语言都在（`every_catalog_holds_the_same_keys_and_singulars`）；另删一个无人用的 `pdf.side.signs`（签名早已不在侧栏）。
 - `docs/help.md`：载入等待、只能另存副本、引擎停止、Microsoft 重新登录、ElyMark 的外部改动与更新按钮改写为状态栏、对话框、错误页与 toast 的去处。
 - Windows 上 `waits.py` 自检一直失败：`declared` 用 `Path` 拼路径，Windows 上是反斜杠，与 git 列出的 `/` 路径对不上，`mod x;` 引入的测试文件在 Windows 上从不被查。改用 `PurePosixPath`；Windows 上 `check-rules.sh` 随之全过。
+
+## 2026-11-15 首屏先于后台读（SF.16）
+
+- 载入完，后台读（`ely_lok::behind`、`read_off`）抢在首屏图块前拿 worker 锁。`EditClock` 从视图建起即扣住后台活，首屏画出（`first_drawn`，同时发 `Drawn`）、视图隐藏或满 `HELD_MOST`（1 秒）放行；不在各个读者那里各设门，字体、样式、字数一并受管。
+- 后台活占 worker 超过 100 毫秒，记一条警告，带 `#[track_caller]` 取得的发起处。
+- 首帧的 `.uno:ChangeTheme` 留着：同一 exe 去掉它交替实测，首块图块不变，载入后内核的第一次调用照样付约 0.35 秒（ElyShow）；放进 `initializeForRendering` 时 Impress 同步发同一命令，也省不下。那 0.35 秒只在 Windows、每个引擎进程的第一份文件付一次；自检样本加文字也不消，去处未查明，需在 Windows 的内核里采样。

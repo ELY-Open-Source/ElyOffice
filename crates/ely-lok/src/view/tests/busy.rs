@@ -194,6 +194,11 @@ fn background_work_waits_for_an_undrawn_edit() {
         std::thread::spawn(move || futures::executor::block_on(crate::behind(&worker, |_| ran.send(()).expect("the test waits"))));
         seen
     };
+    // The first screen holds background work too.
+    let seen = run(&worker);
+    assert!(seen.recv_timeout(Duration::from_millis(300)).is_err(), "background work ran before the first screen");
+    clock.first_drawn();
+    seen.recv_timeout(Duration::from_millis(300)).expect("the first screen lets background work go");
     clock.sent(1, "text");
     let seen = run(&worker);
     assert!(seen.recv_timeout(Duration::from_millis(300)).is_err(), "background work ran before the edit was drawn");

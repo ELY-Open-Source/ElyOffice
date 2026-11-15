@@ -136,9 +136,9 @@ impl Render for LokView {
                         if this.read(app).clock.waiting() {
                             this.update(app, |view, _| view.clock.painted(painted.shows, failed));
                         }
-                        if drawn && !this.read(app).drawn {
+                        if drawn && !this.read(app).clock.drew() {
                             this.update(app, |view, cx| {
-                                view.drawn = true;
+                                view.clock.first_drawn();
                                 cx.emit(Drawn);
                             });
                             log::info!("lok: first tile drawn");

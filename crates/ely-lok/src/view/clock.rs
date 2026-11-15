@@ -34,17 +34,32 @@ pub(super) struct EditClock {
     shown: bool,
     /// Background work held while an edit waits.
     ahead: Option<super::off::Ahead>,
+    /// Since when the first screen is awaited.
+    first: Option<Instant>,
+    /// A tile reached the screen; logged once (PERF-03).
+    drew: bool,
 }
 
 impl EditClock {
     /// A clock that holds `ahead`'s background work for its edits.
     pub(super) fn ahead_of(ahead: super::off::Ahead) -> Self {
-        EditClock { ahead: Some(ahead), ..EditClock::default() }
+        let mut clock = EditClock { ahead: Some(ahead), ..EditClock::default() };
+        clock.await_first();
+        clock
     }
 
-    /// Each edit holds from when it was sent.
+    /// Background reads wait for the first screen.
+    fn await_first(&mut self) {
+        if !self.drew && self.first.is_none() {
+            log::debug!("lok: background work waits for the first screen");
+            self.first = Some(Instant::now());
+            self.hold();
+        }
+    }
+
+    /// Each edit, and the first screen, holds from its start.
     fn hold(&mut self) {
-        let since = self.edits.back().map(|edit| edit.at);
+        let since = self.edits.back().map(|edit| edit.at).max(self.first);
         if let Some(ahead) = &mut self.ahead {
             ahead.hold(since);
         }
@@ -97,11 +112,24 @@ impl EditClock {
     /// The view draws from now on.
     pub(super) fn showing(&mut self) {
         self.shown = true;
+        self.await_first();
+    }
+
+    /// The first screen reached the window.
+    pub(super) fn first_drawn(&mut self) {
+        self.drew = true;
+        self.first = None;
+        self.hold();
+    }
+
+    pub(super) fn drew(&self) -> bool {
+        self.drew
     }
 
     /// The view stopped drawing; its edits never show.
     pub(super) fn hidden(&mut self) {
         self.shown = false;
+        self.first = None;
         while !self.edits.is_empty() {
             self.never(0, "the view was hidden");
         }
@@ -139,6 +167,18 @@ mod tests {
         let mut clock = EditClock::default();
         clock.showing();
         clock
+    }
+
+    #[test]
+    fn the_first_screen_holds_until_drawn_or_hidden() {
+        let mut clock = shown();
+        assert!(clock.first.is_some(), "showing awaits the first screen");
+        clock.hidden();
+        assert!(clock.first.is_none(), "a hidden view holds nothing");
+        clock.showing();
+        clock.first_drawn();
+        clock.showing();
+        assert!(clock.first.is_none() && clock.drew(), "later screens hold nothing");
     }
 
     #[test]

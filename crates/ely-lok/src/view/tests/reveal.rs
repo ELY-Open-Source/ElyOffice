@@ -328,6 +328,9 @@ fn an_edit_is_timed_by_the_first_whole_fresh_screen() {
                 // As the canvas: a shown generation times edits.
                 let shows = view.prepare(bounds).shows;
                 view.clock.painted(shows, false);
+                if shows.is_some() {
+                    view.clock.first_drawn();
+                }
                 (shows, view.clock.waiting())
             })
         })

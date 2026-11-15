@@ -2,6 +2,7 @@
 
 use std::{
     any::Any,
+    panic::Location,
     io,
     sync::{
         Arc, Condvar, Mutex, MutexGuard, PoisonError, Weak,
@@ -14,8 +15,11 @@ use gpui::Context;
 
 use crate::{Doc, Worker};
 
-/// An undrawn edit holds background work this long at most.
+/// Undrawn work holds background work this long at most.
 const HELD_MOST: Duration = Duration::from_secs(1);
+
+/// Background work longer than this is logged.
+const HELD_LONG: Duration = Duration::from_millis(100);
 
 /// One worker's background queue and the edits it yields to.
 #[derive(Default)]
@@ -34,7 +38,7 @@ impl Turn {
         self.holds.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Waits while an undrawn edit is under a second old.
+    /// Waits while undrawn work is under a second old.
     fn yield_to_edits(&self) {
         let began = Instant::now();
         let mut holds = self.holds();
@@ -46,7 +50,7 @@ impl Turn {
         }
         let waited = began.elapsed();
         if !holds.is_empty() && !waited.is_zero() {
-            log::warn!("lok: background work held {} ms by an undrawn edit; it goes", waited.as_millis());
+            log::warn!("lok: background work held {} ms by undrawn work; it goes", waited.as_millis());
         }
         // The lock is unfair on Windows: waiting input goes first.
         while self.fronts.load(Ordering::SeqCst) > 0 {
@@ -78,7 +82,7 @@ fn turn<W: Send + 'static>(worker: &Arc<Mutex<W>>) -> Arc<Turn> {
 /// Tells holding views apart.
 static AHEADS: AtomicU64 = AtomicU64::new(0);
 
-/// Holds a worker's background work while an edit is undrawn.
+/// Holds a worker's background work while work is undrawn.
 pub(super) struct Ahead {
     turn: Arc<Turn>,
     id: u64,
@@ -137,16 +141,29 @@ impl Front {
 }
 
 /// Runs `work` once no other background work holds the turn.
-pub async fn behind<W: Send + 'static, T>(worker: &Arc<Mutex<W>>, work: impl FnOnce(&mut W) -> T) -> T {
-    let turn = turn(worker);
+#[track_caller]
+pub fn behind<W: Send + 'static, T>(worker: &Arc<Mutex<W>>, work: impl FnOnce(&mut W) -> T) -> impl Future<Output = T> {
+    queued(Arc::clone(worker), work, Location::caller())
+}
+
+async fn queued<W: Send + 'static, T>(worker: Arc<Mutex<W>>, work: impl FnOnce(&mut W) -> T, at: &'static Location<'static>) -> T {
+    let turn = turn(&worker);
     // Awaited: a queued task holds no pool thread.
     let _turn = turn.queue.lock().await;
     // The key's own tiles go first (PERF-10).
     turn.yield_to_edits();
-    work(&mut worker.lock().expect("the worker lock"))
+    let mut held = worker.lock().expect("the worker lock");
+    let began = Instant::now();
+    let done = work(&mut held);
+    let took = began.elapsed();
+    if took > HELD_LONG {
+        log::warn!("lok: background work from {at} held the worker {} ms", took.as_millis());
+    }
+    done
 }
 
 /// Runs `read` on a background thread; `then` takes its result.
+#[track_caller]
 pub fn read_off<E: 'static, T: Send + 'static>(
     worker: &Arc<Mutex<Worker>>,
     doc: &Doc,
@@ -154,11 +171,11 @@ pub fn read_off<E: 'static, T: Send + 'static>(
     then: impl FnOnce(&mut E, io::Result<T>, &mut Context<E>) + 'static,
     cx: &mut Context<E>,
 ) {
-    let (worker, doc) = (Arc::clone(worker), doc.clone());
+    let (worker, doc, at) = (Arc::clone(worker), doc.clone(), Location::caller());
     cx.spawn(async move |this, cx| {
         let read = cx
             .background_executor()
-            .spawn(async move { behind(&worker, |worker| read(worker, &doc)).await })
+            .spawn(async move { queued(worker, |worker| read(worker, &doc), at).await })
             .await;
         if this
             .update(cx, |entity, cx| then(entity, read, cx))

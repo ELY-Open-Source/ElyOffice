@@ -304,6 +304,21 @@ ElyMark：外面改了、删了、读不到是状态栏一项，悬停是原来�
 
 实测（2026-11-15，带引擎、严格模式，全部通过）：Linux 上 ElyMark 229、ElyMail 171、ElyTree 151、ely-ui 104；Windows 上 ElyMark 227、ElyMail 172、ElyTree 140（1 项忽略）、ely-ui 102。Windows 的凭据测试须在无 `SSH_ASKPASS` 的 shell 里跑。
 
+### SF.16 载入完到首个图块（2026-11-15，测试机 7877，热，毫秒）
+
+查明：载入一完，后台读（ElyDoc 的导航、样式、字数，ElyShow 的幻灯片列表）抢在首屏图块前拿 worker 锁。ElyDoc 一份 big.docx 的日志里，可见区域那次输入等了 369，一块图块排在导航后面等了 412。现在 `EditClock` 从视图建起就扣住后台活，直到首屏画出、视图隐藏或满 1 秒；首屏一画出即放行。后台活占 worker 超过 100 毫秒即记一条警告，写明发起处；剩下的长占者只有载入本身。
+
+载入完到首个图块，按日志：ElyDoc 1.41 秒降到 0.77，可见区域那次输入只等 63，首屏 569 画齐；ElyShow 0.84 降到 0.70。没到 0.07。剩下的在内核里：载入后内核的第一次调用要付 0.33 至 0.38 秒（ElyShow），无论那次调用是什么。首帧的 `.uno:ChangeTheme` 原先付它；同一个 exe 里去掉 ChangeTheme 交替各跑 5 次，可见区域那次输入照样 379，首块图块也不变（第 1 至 4 次，有 1,123 至 1,360，无 1,218 至 1,257）。所以 ChangeTheme 不是原因，留着。把方案放进 `initializeForRendering` 也省不下：Impress 在那里同步发同一个 ChangeTheme。常驻引擎的自检已载入并画过一张幻灯片，不是模块冷启动。它只在 Windows：Linux 上同一个 deck.ppt 载入 157，第一次调用 1，载入后 64 毫秒画出首块图块，已在 0.07 以内。它每个引擎进程只付一次：同一引擎里再开第二、第三份，第一次调用 24、17，首屏 117、94 画齐。给自检样本加一行文字，代价只换了地方（第一次调用有时 37 至 69，首屏却要 590），首块图块 1,139 至 1,243，不降；不是首次画字。这 0.35 至 0.7 秒是什么，日志看不出，需在 Windows 的内核里采样，留作线索。之后 12 块图块约 140，界面无显卡画一帧约 70。
+
+与 Office 比（Ely 是 SF.16 代码的 7 次中位，Office 取 SF.11）：
+
+| 应用 | Office 窗口标题 | Ely 首块图块 | SF.11 | Ely 载入 | SF.11 |
+| --- | --- | --- | --- | --- | --- |
+| Word / ElyDoc（big.docx） | 1,235 | 2,476 | 2,696 | 1,376 | 1,427 |
+| PowerPoint / ElyShow（deck.ppt） | 1,195 | 1,156 | 1,723 | 346 | 342 |
+
+ElyShow 头一次快过 PowerPoint。ElyDoc 仍慢 1.2 秒，其中载入 1.38 秒归 SF.18。SF.11 之后 SF.12 至 SF.15 也改了启动的路，首块图块的降幅不全归 SF.16。Linux 带引擎、严格模式：ely-lok 503（1 项忽略）、ElyDoc 142、ElyTable 120、ElyShow 112、ely-office 22，全过。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：
