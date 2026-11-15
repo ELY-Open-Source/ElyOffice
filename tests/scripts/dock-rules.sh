@@ -32,15 +32,21 @@ chmod +x "$work/bin/lsappinfo"
 printf '#include <unistd.h>\nint main(void) { sleep(3600); return 0; }\n' >"$work/sleeper.c"
 cc -o "$work/sleeper" "$work/sleeper.c"
 for name in ely-doc ely-mail ely-probe ely-lok-worker other-helper; do cp "$work/sleeper" "$work/real/$name"; done
-app() { # Name, slug, worker (yes/no), logged words, the script's end
+app() { # Name, slug, worker (yes/no/pid taken), logged words, the script's end
   local folder=$work/apps/$1.app/Contents/MacOS log="\$HOME/Library/Application Support/ElyOffice/$2/ely.log"
-  mkdir -p "$folder"
-  [ "$3" = no ] || cp "$work/real/ely-lok-worker" "$folder/ely-lok-worker"
+  local engine="$work/apps/$1.app/Contents/Helpers/Ely Engine.app/Contents/MacOS"
+  mkdir -p "$folder" "$engine"
+  [ "$3" = no ] || cp "$work/real/ely-lok-worker" "$engine/ely-lok-worker"
   {
     echo '#!/bin/bash'
+    # A taken engine: no child, a late log.
+    case $3 in
+      yes | no) echo "\"$work/real/ely-lok-worker\" &" ;;
+      *) echo "sleep 1" ;;
+    esac
     echo "mkdir -p \"\$(dirname \"$log\")\""
-    echo "\"$work/real/ely-lok-worker\" &"
     echo "\"$work/real/other-helper\" &"
+    case $3 in yes | no) ;; *) echo "echo \"lok: took over engine $3 on idle-ely-doc\" >>\"$log\"" ;; esac
     echo "echo \"$4\" >>\"$log\""
     echo "$5"
   } >"$folder/$2"
@@ -73,11 +79,18 @@ doc=$(app ElyDoc ely-doc yes "$ready" "exec \"$work/real/ely-doc\"")
 crash=$(app ElyMailCrash ely-mail no "$ready" "sleep 0.7; exit 42")
 mute=$(app ElyMailMute ely-mail no "starting" "exec \"$work/real/ely-mail\"")
 probe=$(app ElyProbe ely-probe no "$ready" "exec \"$work/real/ely-probe\"")
+"$work/real/ely-lok-worker" & disown
+taken=$(app ElyDocTaken ely-doc $! "$ready" "exec \"$work/real/ely-doc\"")
 
 run $'ely-mail Foreground' "$mail" || fail "a well app failed: $said"
 run $'ely-doc Foreground\nely-lok-worker UIElement' "$doc" || fail "a well kernel app failed: $said"
+[[ $said == *"ely-doc: engine own"* ]] || fail "its own engine was not the one checked: $said"
 ! run $'ely-doc Foreground\nely-lok-worker Background\nother-helper UIElement' "$doc" || fail "another helper's UIElement passed for the worker: $said"
 [[ $said == *"the worker was never UIElement"* ]] || fail "mixed: $said"
+run $'ely-doc Foreground\nely-lok-worker UIElement' "$taken" || fail "a kernel app that took an engine failed: $said"
+[[ $said == *"ely-doc: engine taken"* ]] || fail "the taken engine was not the one checked: $said"
+! run $'ely-doc Foreground\nely-lok-worker Foreground' "$taken" || fail "a taken engine in the Dock passed: $said"
+[[ $said == *"the worker was a Dock app"* ]] || fail "taken: $said"
 ! run $'ely-mail Foreground' "$crash" || fail "an app that quit early passed: $said"
 [[ $said == *"quit (exit 42)"* ]] || fail "crash: $said"
 # A live app is ended, not waited for.
@@ -87,4 +100,4 @@ run $'ely-doc Foreground\nely-lok-worker UIElement' "$doc" || fail "a well kerne
 [[ $said == *"never logged"* ]] && [ "$took" -lt 75 ] || fail "never ready, $took s: $said"
 ! run $'ely-probe Foreground' "$probe" || fail "an app with no case passed: $said"
 [[ $said == *"no Dock case for ely-probe"* ]] || fail "unknown: $said"
-echo "PASS: dock-macos.sh fails a mixed worker type, an early quit, a failed query, an app never ready and an unknown app, in bounded time"
+echo "PASS: dock-macos.sh fails a mixed worker type, a taken engine in the Dock, an early quit, a failed query, an app never ready and an unknown app, in bounded time"

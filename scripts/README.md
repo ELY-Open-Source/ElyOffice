@@ -23,14 +23,15 @@ scripts/release-tests.sh         发布的门：建好两个 worker 并点名，
 scripts/compatibility.py [--check]  写 docs/compatibility.md 的版本与内核两行；--check 不符即败（ci.sh、pr.yml）
 scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务与其测试（pr.yml 核对与提交一致）
 scripts/lo-tarballs.sh lo-src     列出该 LibreOffice 构建所取的压缩包（名字、SHA-256、地址），由其 `Makefile.fetch` 得出
-packaging/macos/bundle.sh ely-doc debug    出 dist/ElyDoc.app（带图标、文档类型与该应用的引擎）
-packaging/macos/release.sh [批次]          该批各应用的 release 包与 dmg，另有装全部的 dmg，不写更新清单；ELY_SIGN_IDENTITY 加 ELY_NOTARY_PROFILE 即公证
+packaging/macos/bundle.sh ely-doc debug    出 dist/ElyDoc.app（带图标、文档类型与该应用的 worker；worker 在辅助包 `Contents/Helpers/Ely Engine.app`，有自己的包标识；内核不在包内）
+packaging/macos/kernel.sh 目录             出三个文档应用共用的内核（Frameworks 与 Resources，去掉图库与同义词库，逐个签名后写内核编号）
+packaging/macos/release.sh [批次]          该批各应用与 dist/Kernel，合成一个 `ElyOffice-<版本>-<架构>.pkg`：“自定”页每个应用一个勾，不可重定位；内核是隐藏的选项，选了任一文档应用即装到 `/Library/Application Support/Ely Office/Kernel`，装前删去旧的；不写更新清单；ELY_INSTALLER_IDENTITY 即签名，再加 ELY_SIGN_IDENTITY 与 ELY_NOTARY_PROFILE 即公证
 packaging/windows/installer.sh 出 dist 里唯一的 Windows 安装程序 ElyOffice-<版本>-windows-x86_64-setup.exe（首批各应用一个勾，内核旁放 `ely-login.exe`），另写指向它的 `ely-office-windows-x86_64.json` 与各应用的更新清单（0.1.16 读每应用的清单）
 packaging/windows/templates.sh 以本构建的内核重写 packaging/windows/new 的空白 DOCX、XLSX、PPTX（右键“新建”用）
 packaging/icons/masters.py     写出 assets/icons 的 SVG 母版（图标设计只改这里）
 packaging/icons/build.sh       由母版渲染 icns、png、ico（只在 macOS）
 scripts/inert-lo.sh 路径.app    构建出的 LibreOffice.app 去掉文档类型、URL 类型、快速查看与聚焦插件并注销（build-libreoffice.sh 调用）
-scripts/kernel-id.sh 内核 文件   内核目录各文件的 SHA-256 与各链接的指向合成内核编号，写进 `ely-kernel-id`（在版本文件旁）；应用与引擎握手时核对（build-libreoffice.sh、stage.sh、macOS 的 bundle.sh 调用；已建的引擎跑一次）
+scripts/kernel-id.sh 内核 文件   内核目录各文件的 SHA-256 与各链接的指向合成内核编号，写进 `ely-kernel-id`（在版本文件旁）；应用与引擎握手时核对（build-libreoffice.sh、stage.sh、macOS 的 kernel.sh 调用；已建的引擎跑一次）
 scripts/extract-official-lo.sh 用 7zz 把官方镜像的 Frameworks 与 Resources 解到 engines/lo-official 并写其内核编号（不挂载；“未打补丁即拒绝”的单测用）
 scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、agents.md 不超 30000 字节、注释（comments.py）、测试的等待（waits.py）、横幅只有 `doc-fonts`（banners.py）、行尾（eol.sh）；JS、TS、TSX 与 HTML 的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript、parse5 解析，先在 `site/` 跑 `pnpm install`
 cd site && pnpm run deploy    官网构建并经 wrangler 发到 Cloudflare Workers：另有 `site/worker` 答 `/release.json`（最新版本、安装包地址与下载总数，缓存 5 分钟）并转发 `/releases/` 下的发布文件；地址 https://office.elygpui.com（workers.dev 上同站）

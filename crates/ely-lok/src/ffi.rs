@@ -86,9 +86,6 @@ impl Lok {
         let began = std::time::Instant::now();
         let lib = Library::open(install)?;
         let library = began.elapsed().as_millis();
-        // Before the kit starts, so no Dock icon shows.
-        #[cfg(target_os = "macos")]
-        accessory::hide()?;
         let hook: Hook2 = unsafe {
             lib.symbol(b"libreofficekit_hook_2\0")
                 .or_else(|_| lib.symbol(b"libreofficekit_hook\0"))

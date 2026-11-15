@@ -22,6 +22,28 @@ while IFS=$'\t' read -r slug name; do
   [ -d "$dist/$name.app" ] || fail "no $dist/$name.app; run packaging/macos/release.sh"
 done <<<"$apps"
 version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
+# One package: seven choices, a hidden kernel, none relocatable.
+pkg=$dist/ElyOffice-$version-$(uname -m).pkg
+[ -s "$pkg" ] || fail "no $pkg; run packaging/macos/release.sh"
+pkgutil --expand "$pkg" "$work/pkg"
+[ "$(grep -c '<choice id="ely-' "$work/pkg/Distribution")" = 7 ] || fail "the package does not offer seven apps"
+grep -qF "<choice id=\"kernel\" visible=\"false\" enabled=\"false\" selected=\"choices['ely-doc'].selected || choices['ely-table'].selected || choices['ely-show'].selected\">" \
+  "$work/pkg/Distribution" || fail "the kernel's choice does not follow the document apps"
+[ "$(find "$work/pkg" -name PackageInfo | wc -l | tr -d ' ')" = 8 ] || fail "the package lacks a part"
+# An empty <relocate/> moves nothing.
+! grep -l '<relocate>' "$work/pkg"/*/PackageInfo || fail "an app may install to a stray copy"
+grep -qF 'install-location="/Library/Application Support/Ely Office/Kernel"' "$work/pkg/kernel.pkg/PackageInfo" ||
+  fail "the kernel installs elsewhere"
+[ -z "${ELY_INSTALLER_IDENTITY:-}" ] || pkgutil --check-signature "$pkg" | grep -qF "$ELY_INSTALLER_IDENTITY" ||
+  fail "the package is not signed by $ELY_INSTALLER_IDENTITY"
+kernel=$dist/Kernel
+[ -s "$kernel/Resources/ely-kernel-id" ] || fail "no kernel id in $kernel"
+[ ! -e "$kernel/Resources/gallery" ] || fail "the kernel carries the gallery"
+while IFS= read -r binary; do
+  minos=$(vtool -show-build "$binary" | awk '/minos/ && !v { v = $2 } END { print v }')
+  [ -z "$minos" ] || [ "$(printf '%s\n%s\n' "$minos" 14.0 | sort -V | tail -n 1)" = 14.0 ] ||
+    fail "the kernel's ${binary#"$kernel"/} needs macOS $minos"
+done < <(find "$kernel/Frameworks" -type f)
 commit=$(git -C "$root" rev-parse --short=12 HEAD)
 source=$dist/ElyOffice-$version-$commit-source.tar.gz
 [ -s "$source" ] || fail "no $source; run packaging/macos/release.sh"
@@ -94,9 +116,14 @@ while IFS=$'\t' read -r slug name; do
     [ -n "$(find "$family" -type f -size +0 \( -iname 'licen[cs]e*' -o -iname 'copying*' -o -iname 'notice*' -o -iname 'ofl*' \))" ] ||
       fail "$name lacks the licence of the ${family##*/} fonts"
   done
-  # Nothing inside registers with macOS.
-  extra=$(find "$app/Contents" \( -name '*.app' -o -name '*.appex' -o -name '*.mdimporter' -o -name '*.qlgenerator' \))
+  [ ! -e "$app/Contents/Frameworks" ] || fail "$name carries its own kernel"
+  # Only the engine registers; it claims no file.
+  extra=$(find "$app/Contents" \( -name '*.app' -o -name '*.appex' -o -name '*.mdimporter' -o -name '*.qlgenerator' \) ! -path "$app/Contents/Helpers/Ely Engine.app")
   [ -z "$extra" ] || fail "$name carries bundles macOS registers: $extra"
+  if [ -e "$app/Contents/Helpers/Ely Engine.app" ]; then
+    ! grep -qE 'CFBundle(Document|URL)Types' "$app/Contents/Helpers/Ely Engine.app/Contents/Info.plist" ||
+      fail "$name's engine claims files or links"
+  fi
   # No binary may need a newer macOS than the app.
   least=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$app/Contents/Info.plist")
   while IFS= read -r binary; do
@@ -117,7 +144,7 @@ while IFS=$'\t' read -r slug name; do
     ely-mail) first=t.eml second=u.eml ;;
   esac
   # Finder's launch: no arguments, an open request.
-  open -n -a "$app" --env "HOME=$home" --env ELY_LOG=info --env ELY_NO_DIALOG=1 "$files/$first"
+  open -n -a "$app" --env "HOME=$home" --env ELY_LOG=info --env ELY_NO_DIALOG=1 --env "ELY_LOK_DIR=$kernel/Frameworks" "$files/$first"
   case $slug in
     ely-tree) opened() { echo "tree: opened $(cd "$files/$1" && pwd -P)"; } ;;
     # No file in its log: count the second open.
@@ -128,10 +155,24 @@ while IFS=$'\t' read -r slug name; do
   log=$(log_of "$slug")
   case $slug in
     ely-doc | ely-table | ely-show)
-      grep -qF "lok: worker from $app/Contents/MacOS/ely-lok-worker" "$log" || fail "$name used another LOK worker"
-      grep -qF "worker from $app/Contents/MacOS/../Frameworks" "$log" ||
+      grep -qF "lok: worker from $app/Contents/Helpers/Ely Engine.app/Contents/MacOS/ely-lok-worker" "$log" || fail "$name used another LOK worker"
+      grep -qF "worker from $kernel/Frameworks" "$log" ||
         fail "$name used another kernel: $(grep 'worker from' "$log")"
       ! grep -q "opened Untitled" "$log" || fail "$name opened a blank document beside the file"
+      # Else Finder's opens and quits reach the engine.
+      for worker in $(pgrep -f "$app/Contents/Helpers/Ely Engine.app/Contents/MacOS/ely-lok-worker"); do
+        # A new engine registers a moment later.
+        asn=
+        for _ in $(seq 40); do
+          asn=$(lsappinfo find "pid=$worker")
+          [ -z "$asn" ] && kill -0 "$worker" 2>/dev/null || break
+          sleep 0.25
+        done
+        [ -n "$asn" ] || kill -0 "$worker" 2>/dev/null || continue
+        [ -n "$asn" ] || fail "$name's engine $worker never registered"
+        lsappinfo info -only bundleid "$asn" | grep -qF ".${slug#ely-}.engine\"" ||
+          fail "$name's engine $worker holds another bundle id: $(lsappinfo info -only bundleid "$asn")"
+      done
       ;;
     ely-pdf) grep -qF "pdf: worker from $app/Contents/MacOS/ely-pdf-worker" "$log" || fail "ElyPDF used another worker" ;;
     ely-tree)
@@ -158,7 +199,7 @@ while IFS=$'\t' read -r slug name; do
 done <<<"$apps"
 # The app menu starts another installed app (§16).
 opens=$(grep -c "ElyDoc window open" "$(log_of ely-doc)")
-open -n -a "$dist/ElyDoc.app" --env "HOME=$home" --env ELY_LOCALE=en --env ELY_NO_DIALOG=1
+open -n -a "$dist/ElyDoc.app" --env "HOME=$home" --env ELY_LOCALE=en --env ELY_NO_DIALOG=1 --env "ELY_LOK_DIR=$kernel/Frameworks"
 for _ in $(seq 120); do [ "$(grep -c "ElyDoc window open" "$(log_of ely-doc)")" -gt "$opens" ] && break; sleep 0.25; done
 doc=$(pgrep -f "$dist/ElyDoc.app/Contents/MacOS/ely-doc" | head -n 1)
 [ -n "$doc" ] || fail "ElyDoc did not start"
@@ -169,4 +210,4 @@ osascript -e "tell application \"System Events\" to tell (first process whose un
 for _ in $(seq 40); do pgrep -f "$dist/ElyMark.app/Contents/MacOS/ely-mark" >/dev/null && break; sleep 0.25; done
 pgrep -f "$dist/ElyMark.app/Contents/MacOS/ely-mark" >/dev/null || fail "the menu did not start ElyMark"
 pkill -f "$dist/Ely[A-Za-z]*.app/Contents/MacOS/" || true
-echo "release-macos: 7 bundles open files on their own engines and start each other"
+echo "release-macos: one package of 7 apps and a hidden kernel; they open files and start each other"

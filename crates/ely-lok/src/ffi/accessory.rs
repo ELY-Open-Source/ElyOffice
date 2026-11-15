@@ -40,24 +40,6 @@ fn get(object: Id, selector: &std::ffi::CStr) -> io::Result<Id> {
     Ok(result)
 }
 
-/// Marks the process a UI element before registration.
-pub fn hide() -> io::Result<()> {
-    // The kit reads the bundle's LSUIElement when it registers.
-    let info = get(get(class(c"NSBundle")?, c"mainBundle")?, c"infoDictionary")?;
-    type Text = unsafe extern "C" fn(Id, Id, *const c_char) -> Id;
-    type Flag = unsafe extern "C" fn(Id, Id, i8) -> Id;
-    type Set = unsafe extern "C" fn(Id, Id, Id, Id);
-    let text: Text = unsafe { std::mem::transmute(send()) };
-    let flag: Flag = unsafe { std::mem::transmute(send()) };
-    let set: Set = unsafe { std::mem::transmute(send()) };
-    unsafe {
-        let key = text(class(c"NSString")?, sel_registerName(c"stringWithUTF8String:".as_ptr()), c"LSUIElement".as_ptr());
-        let yes = flag(class(c"NSNumber")?, sel_registerName(c"numberWithBool:".as_ptr()), 1);
-        set(info, sel_registerName(c"setObject:forKey:".as_ptr()), yes, key);
-    }
-    Ok(())
-}
-
 /// Fails unless the kernel's application came up an accessory.
 pub fn check() -> io::Result<()> {
     type Policy = unsafe extern "C" fn(Id, Id) -> isize;

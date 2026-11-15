@@ -73,7 +73,7 @@ clone() { # os
   write tests/scripts/engine-arch.sh :
   write tests/scripts/linux-glibc.sh '[ -z "${GLIBC_FAILS:-}" ]'
   write packaging/sign.sh 'for f; do echo signed >"$f.sig"; done'
-  write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.dmg dist/app-$1.json; packaging/source.sh dist"
+  write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.pkg dist/app-$1.json; packaging/source.sh dist"
   # The container's Cargo may differ from the host's.
   write packaging/linux/container.sh 'CARGO_IS=${INSIDE_IS:-${CARGO_IS:-}} exec "$@"'
   write packaging/linux/package.sh "mkdir -p dist; touch dist/\$1-$1.AppImage dist/\$1-$1.json"
@@ -82,7 +82,7 @@ clone() { # os
 go() { # os
   CI_OS=$1 PATH=$work/bin:$PATH ELY_SHARE=$work/share ELY_RELEASE_TOKEN=unused \
     ELY_MICROSOFT_CLIENT_ID=unused ELY_UPDATE_KEY=unused \
-    ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused \
+    ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused ELY_INSTALLER_IDENTITY=unused \
     "$work/$1/scripts/ci.sh" "$1" "v$version" >"$work/$1.out" 2>&1
 }
 run() { # os
@@ -144,7 +144,7 @@ rm -rf "${work:?}/linux"
 run macos
 [ "$(cat "$CARGO_LOG")" = "$gate" ] || fail "macOS gate ran: $(cat "$CARGO_LOG")"
 [ "$(uploads 'source' macos)" -eq 0 ] || fail "macOS uploaded source: $(cat "$STATE")"
-[ "$(uploads 'App-macos.dmg' macos)" -eq 1 ] || fail "macOS skipped its dmg"
+[ "$(uploads 'App-macos.pkg' macos)" -eq 1 ] || fail "macOS skipped its pkg"
 [ "$(uploads 'app-macos.json.sig' macos)" -eq 1 ] || fail "macOS left its manifest unsigned: $(cat "$STATE")"
 # Made once, as a pre-release.
 [ "$(wc -l <"$STATE.made")" -eq 1 ] || fail "releases made: $(cat "$STATE.made")"

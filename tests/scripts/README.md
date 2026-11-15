@@ -37,7 +37,7 @@ tests/scripts/linux-distros.sh   deb 在 Ubuntu 26.04、rpm 在 Fedora 44 容器
 cargo test -p ely-show --test compose  切换半程帧经 Metal 取像素（主线程，仅 macOS）
 tests/scripts/*.sh *.py        脚本测试（缺工具时报 SKIP）
 tests/scripts/icons.sh         八个图标齐全、未过期，macOS 为 squircle，其余无底形
-tests/scripts/release-macos.sh dist 里首批七个 .app：以访达的方式打开文件（启动与运行中，ElyMail 打开 .eml），引擎都取自包内，带齐许可，不含系统会登记的内嵌包，每个二进制要求的系统不高于应用所写，可执行文件的 `@rpath` 依赖都在包内；源码包齐全
+tests/scripts/release-macos.sh dist 里的 `.pkg` 有七个应用的选项、跟随三个文档应用的隐藏内核、无可重定位的部分，设了 ELY_INSTALLER_IDENTITY 即核其签名；dist/Kernel 有编号、无图库、要求的系统不高于 14.0；首批七个 .app 不带内核，以访达的方式打开文件（启动与运行中，ElyMail 打开 .eml），worker 取自包内的辅助包且持其自己的 `.engine` 包标识、内核取自 dist/Kernel，带齐许可，除辅助包（不声明文件与链接）外不含系统会登记的内嵌包，每个二进制要求的系统不高于应用所写，可执行文件的 `@rpath` 依赖都在包内；源码包齐全
 tests/engines/*.sh             引擎探测（LOK、MuPDF）；LOK 探测本构建的内核，不挂载官方镜像
 tests/scripts/lo-unregistered.sh  “打开方式”里没有 LibreOffice，构建出的包不声明任何文件类型
 tests/scripts/lokview.sh       真窗口里的 LokView：输入法、键入、点击、拖动，AX 树里的段落文本；ELY_CLIPBOARD_TEST=1 再测复制粘贴（会覆盖系统剪贴板）
@@ -78,7 +78,7 @@ tests/scripts/autosave.sh      真窗口 ElyDoc：自动保存开关、停手即
 tests/scripts/print.sh         真窗口 ElyDoc：打印用文档自己的纸张，取消不动文档（需辅助功能权限）
 cargo test -p ely-platform --test print  Windows 经“Microsoft Print to PDF”出作业，核对纸张、方向与页面位置；Linux 起私有会话总线与替身打印门户，核对页面设置、双面、令牌与交出的字节、取消（缺 dbus-daemon 时 SKIP）
 tests/scripts/show-fullscreen.sh  真窗口 ElyShow：F5 放映的窗口盖住整块屏幕，按 F5 前看得到的菜单栏与程序坞窗口放映中都不在（看不到菜单栏即 SKIP；需辅助功能与屏幕录制权限）
-tests/scripts/dock-macos.sh      dist 里第一批各 .app 与包外的 target/debug/ely-doc 各启动数次：应用自身是一个程序坞图标、观察期内不退出，子进程从未登记为程序坞应用；带内核的三个另核 worker 为 UIElement、图块照出
+tests/scripts/dock-macos.sh      dist 里第一批各 .app 与包外的 target/debug/ely-doc 各启动数次：应用自身是一个程序坞图标、观察期内不退出，子进程从未登记为程序坞应用；带内核的三个应用的 worker 在辅助包里、为 UIElement、图块照出
 tests/scripts/dock-rules.sh      dock-macos.sh 对假应用（替身 lsappinfo）：worker 类型张冠李戴、提前退出、查询失败、无用例的应用皆败（只在 macOS）
 tests/scripts/windows-setup.sh   统一安装程序对三个假应用：首装都进所选文件夹（带空格与撇号）、只一个卸载项、记下文件夹、去掉单个应用的旧卸载项；升级只装已装的、各在注册表所指处；某个被拒即退出码 2、其后的不装；卸载只列已装的、末个卸下即删卸载项与卸载程序；共用内核：两个文档应用的 `libreoffice` 是指向 `Kernel` 的联接、升级后仍是，应用的安装清单不含内核，卸下一个不伤内核，装完 `Run` 值“Ely Office”指向 `Kernel\ely-login.exe` 并预热；引擎停不下即退出码 2、不动文件，`ely-login` 的失败进其日志；没有文档应用即删内核与 `Run` 值（缺 makensis 时 SKIP；`windows-common.sh` 是三个 Windows 安装测试共用的构建与注册表复原，含 `Run` 键）
 tests/scripts/windows-installer.sh  统一安装程序里的假应用：所选目录原有的文件经两次安装与卸载都在，旧版按注册表清理，文件被占用或程序在运行时什么也不改，写不进时放回旧版；0.1.16 的更新把应用自己的文件夹交给 `/D=`，装回原处（缺 makensis 时 SKIP）

@@ -684,7 +684,7 @@
   - 热打开不挡（等引擎 0）；接班未就绪时挡，整段自检 7.2 至 12.4 秒，花在样本载入，去处未查明；字体名不缓存
 - [x] SF.18 SF-16 14 MB DOCX 的载入 1.29 秒花在哪，能否先排出第一页就画；达不到如实写
   - 先排第一页未做：Windows big.docx 载入 904 至 951，首块图块仍比 Word 慢约 0.7 秒，余下需内核采样；点名打印机的 ODF 多付 0.4 至 0.7 秒；ElyShow 首块图块变慢未查明
-- [ ] SF.19 macOS 量冷启动与公证后首次，再做 `.pkg`（Developer ID Installer 签名、关可重定位、七个勾）与共用内核（SF-05）
+- [x] SF.19 macOS 量冷启动与公证后首次，再做 `.pkg`（Developer ID Installer 签名、关可重定位、七个勾）与共用内核（SF-05）
 - [ ] SF.20 macOS LaunchAgent 常驻引擎；`.pkg` 的更新路径；Mac 测试机重量
 - [ ] SF.21 Linux 只留 `ely-office` 包与统一 AppImage（首次运行写七个应用的菜单项、解出引擎与内核到 `~/.local/lib/ely-office/<编号>`），Nix 一个包
 - [ ] SF.22 Linux systemd 用户服务常驻引擎；本机重量

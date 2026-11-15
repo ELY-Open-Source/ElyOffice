@@ -47,28 +47,29 @@ cp "$icon" "$app/Contents/Resources/$slug.icns"
 # Code inside the app, signed before it.
 inner=()
 if uses ely-lok; then
-  lo=${ELY_LO_APP:-$root/engines/lo-src/instdir/LibreOffice.app}
-  need "$lo/Contents/Frameworks" scripts/build-libreoffice.sh
+  # The kernel is shared: packaging/macos/kernel.sh.
   build -p ely-lok --bin ely-lok-worker
-  cp "$root/target/$profile/ely-lok-worker" "$app/Contents/MacOS/"
-  # The kernel alone, in LibreOffice's layout: nothing to register.
-  mkdir -p "$app/Contents/Frameworks"
-  ditto "$lo/Contents/Frameworks" "$app/Contents/Frameworks"
-  ditto "$lo/Contents/Resources" "$app/Contents/Resources"
-  # The copied kernel's id, never a stale one.
-  "$root/scripts/kernel-id.sh" "$lo/Contents" "$app/Contents/Resources/ely-kernel-id"
-  inner+=("$app/Contents/MacOS/ely-lok-worker")
-  while IFS= read -r binary; do
-    if file -b "$binary" | grep -q '^Mach-O'; then
-      inner+=("$binary")
-    elif [ "$(cat "$binary")" = "invalid - merged lib" ]; then
-      # Merged-library builds leave these placeholders.
-      rm "$binary"
-    else
-      echo "bundle.sh: $binary is not code; Frameworks holds only code" >&2
-      exit 1
-    fi
-  done < <(find "$app/Contents/Frameworks" -type f)
+  # Its own bundle id: opens and quits reach the app.
+  engine="$app/Contents/Helpers/Ely Engine.app"
+  mkdir -p "$engine/Contents/MacOS"
+  cp "$root/target/$profile/ely-lok-worker" "$engine/Contents/MacOS/"
+  cat >"$engine/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key><string>ely-lok-worker</string>
+  <key>CFBundleIdentifier</key><string>$prefix.${slug#ely-}.engine</string>
+  <key>CFBundleName</key><string>$name Engine</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>$version</string>
+  <key>CFBundleVersion</key><string>$version</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>LSUIElement</key><true/>
+</dict>
+</plist>
+PLIST
+  inner+=("$engine")
 fi
 if uses ely-pdf-engine; then
   build -p ely-pdf-worker
@@ -114,7 +115,7 @@ PLIST
 for target in ${inner[@]+"${inner[@]}"} "$app"; do
   if [ "$identity" = - ]; then
     codesign --force --sign - "$target"
-  elif [ "$(basename "$target")" = ely-lok-worker ]; then
+  elif [ "$target" = "${engine:-}" ]; then
     # UNO's bridge maps its vtables with MAP_JIT.
     codesign --force --options runtime --timestamp --entitlements "$root/packaging/macos/lok-worker.entitlements" --sign "$identity" "$target"
   else

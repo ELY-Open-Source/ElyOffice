@@ -24,9 +24,10 @@ jobs:
           # Shared engines outside Documents, which macOS guards.
           ELY_SHARE: /Users/zacharyzhang/ely-share
           ELY_PATH: /Users/zacharyzhang/.cargo/bin:/opt/homebrew/bin
-          # Repository variables; both live in the runner's keychain.
+          # Organization variables; all live in the runner's keychain.
           ELY_SIGN_IDENTITY: ${{ vars.ELY_SIGN_IDENTITY }}
           ELY_NOTARY_PROFILE: ${{ vars.ELY_NOTARY_PROFILE }}
+          ELY_INSTALLER_IDENTITY: ${{ vars.ELY_INSTALLER_IDENTITY }}
         run: |
           dir=$HOME/ely-ci/ElyOffice
           [ -d "$dir/.git" ] || git clone https://github.com/ELY-Open-Source/ElyOffice.git "$dir"
@@ -52,6 +53,7 @@ jobs:
           ELY_PATH: /Users/zacharyzhang/.cargo/bin:/opt/homebrew/bin
           ELY_SIGN_IDENTITY: ${{ vars.ELY_SIGN_IDENTITY }}
           ELY_NOTARY_PROFILE: ${{ vars.ELY_NOTARY_PROFILE }}
+          ELY_INSTALLER_IDENTITY: ${{ vars.ELY_INSTALLER_IDENTITY }}
         run: |
           dir=$HOME/ely-ci-x86_64/ElyOffice
           [ -d "$dir/.git" ] || git clone https://github.com/ELY-Open-Source/ElyOffice.git "$dir"

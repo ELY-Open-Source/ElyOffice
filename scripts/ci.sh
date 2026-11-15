@@ -40,6 +40,7 @@ passed=$(curl -fsS "${auth[@]}" "$api/actions/workflows/pr.yml/runs?head_sha=$sh
 if [ "$os" = macos ]; then
   : "${ELY_SIGN_IDENTITY:?the Developer ID Application certificate}"
   : "${ELY_NOTARY_PROFILE:?the notarytool keychain profile}"
+  : "${ELY_INSTALLER_IDENTITY:?the Developer ID Installer certificate}"
 fi
 [ -z "${ELY_PATH:-}" ] || PATH=$ELY_PATH:$PATH
 # Its scripts run this bash, not Homebrew's arm64 one.

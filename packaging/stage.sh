@@ -51,18 +51,7 @@ if uses ely-lok; then
       rm "$stub"
     fi
   done < <(find "$out/libreoffice/program" -type f -size -64c)
-  # Unused by Ely: gallery, thesaurus. One kernel serves all three.
-  share=$out/libreoffice/share
-  rm -rf "$share/gallery"
-  en=$share/extensions/dict-en
-  rm "$en"/th_en_US_v2.*
-  awk '/<node oor:name="ThesDic_/ { skip = 1 } !skip { print } skip && /<\/node>/ { skip = 0 }' \
-    "$en/dictionaries.xcu" >"$en/dictionaries.xcu.next"
-  mv "$en/dictionaries.xcu.next" "$en/dictionaries.xcu"
-  ! grep -q 'DICT_THES' "$en/dictionaries.xcu" || {
-    echo "stage.sh: the thesaurus is still in $en/dictionaries.xcu" >&2
-    exit 1
-  }
+  "$root/packaging/lean.sh" "$out/libreoffice/share"
   if [ -n "$exe" ]; then
     # The VC++ runtime, from any Visual Studio, ships beside.
     vs=$("/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -property installationPath | tr -d '\r')

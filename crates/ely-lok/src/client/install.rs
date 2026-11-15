@@ -22,13 +22,26 @@ pub fn templates(kind: &str) -> io::Result<Vec<PathBuf>> {
     Ok(found)
 }
 
-/// The kernel's folder beside the app, and in this build.
+/// The kernel in this build.
 #[cfg(target_os = "macos")]
-const LAYOUT: (&str, &str) = ("../Frameworks", "instdir/LibreOffice.app/Contents/Frameworks");
+const BUILT: &str = "instdir/LibreOffice.app/Contents/Frameworks";
 #[cfg(not(target_os = "macos"))]
-const LAYOUT: (&str, &str) = ("libreoffice/program", "instdir/program");
+const BUILT: &str = "instdir/program";
 
-/// The LOK build: `ELY_LOK_DIR`, the app bundle's, or engines/.
+/// The `.pkg`'s shared kernel, for an app bundle only.
+#[cfg(target_os = "macos")]
+fn installed(exe: &Path) -> Option<PathBuf> {
+    let bundled = exe.parent().is_some_and(|dir| dir.ends_with("Contents/MacOS"));
+    bundled.then(|| PathBuf::from("/Library/Application Support/Ely Office/Kernel/Frameworks"))
+}
+
+/// The kernel beside the app.
+#[cfg(not(target_os = "macos"))]
+fn installed(exe: &Path) -> Option<PathBuf> {
+    exe.parent().map(|dir| dir.join("libreoffice/program"))
+}
+
+/// The LOK build: `ELY_LOK_DIR`, the installed one, or engines/.
 pub fn install_dir() -> io::Result<PathBuf> {
     if let Ok(dir) = std::env::var("ELY_LOK_DIR") {
         let path = PathBuf::from(dir);
@@ -41,14 +54,13 @@ pub fn install_dir() -> io::Result<PathBuf> {
             ))
         };
     }
-    let (beside, built) = LAYOUT;
     let library = crate::ffi::KERNEL;
-    let exe = std::env::current_exe()?;
-    let bundled = exe.parent().unwrap_or(Path::new(".")).join(beside);
-    if bundled.join(library).try_exists()? {
-        return Ok(bundled);
+    if let Some(installed) = installed(&std::env::current_exe()?)
+        && installed.join(library).try_exists()?
+    {
+        return Ok(installed);
     }
-    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../engines/lo-src").join(built);
+    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../engines/lo-src").join(BUILT);
     if dev.join(library).try_exists()? {
         return Ok(dev);
     }
@@ -73,7 +85,7 @@ pub fn test_install() -> Option<PathBuf> {
     }
 }
 
-/// The worker binary: env override, else beside this exe.
+/// The worker: env override, beside this exe, or its helper.
 pub(super) fn worker_bin() -> io::Result<PathBuf> {
     if let Ok(bin) = std::env::var("ELY_LOK_WORKER") {
         if bin.is_empty() {
@@ -94,7 +106,12 @@ pub(super) fn worker_bin() -> io::Result<PathBuf> {
     }
     let name = if cfg!(windows) { "ely-lok-worker.exe" } else { "ely-lok-worker" };
     let exe = std::env::current_exe()?;
-    let sibling = exe.parent().unwrap_or(Path::new(".")).join(name);
+    let dir = exe.parent().unwrap_or(Path::new("."));
+    // A Mac app keeps it in its own helper bundle.
+    let sibling = match cfg!(target_os = "macos") && dir.ends_with("Contents/MacOS") {
+        true => dir.with_file_name("Helpers/Ely Engine.app/Contents/MacOS").join(name),
+        false => dir.join(name),
+    };
     if sibling.try_exists()? {
         return Ok(sibling);
     }
