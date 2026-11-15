@@ -111,6 +111,15 @@ fn build(
                         let text = crate::i18n::text(cx, "updates.failed", &[("error", error)]);
                         root.toast(text, Severity::Danger, cx);
                     }
+                    crate::updates::UpdateNews::Open(apps) => {
+                        let names = apps.iter().map(|app| app.name()).collect::<Vec<_>>().join(", ");
+                        let text = crate::i18n::text(cx, "updates.close", &[("apps", &names)]);
+                        root.toast(text, Severity::Warning, cx);
+                    }
+                    crate::updates::UpdateNews::Nix(version) => {
+                        let text = crate::i18n::text(cx, "updates.nix", &[("version", &version.to_string())]);
+                        root.toast(text, Severity::Info, cx);
+                    }
                     crate::updates::UpdateNews::Latest => {
                         let args = [
                             ("app", root.app.name()),

@@ -96,8 +96,8 @@ test.describe("English locale", () => {
     for (const button of await page.locator("a.button").all()) await expect(button).toHaveAttribute("href", INSTALLERS.windows);
     await expect(page.locator("a.button")).toHaveCount(2);
     const cards = page.locator("#download a.card");
-    await expect(cards).toHaveText(["Mac, Apple siliconFull installer", "Mac, IntelFull installer", "WindowsFull installer", "LinuxPackages on GitHub"]);
-    const hrefs = [INSTALLERS.macArm, INSTALLERS.macIntel, INSTALLERS.windows, RELEASES];
+    await expect(cards).toHaveText(["Mac, Apple siliconFull installer", "Mac, IntelFull installer", "WindowsFull installer", "LinuxFull installer"]);
+    const hrefs = [INSTALLERS.macArm, INSTALLERS.macIntel, INSTALLERS.windows, INSTALLERS.linux];
     for (const [i, href] of hrefs.entries()) await expect(cards.nth(i)).toHaveAttribute("href", href);
     for (const a of await page.getByRole("link", { name: "GitHub Releases" }).all()) await expect(a).toHaveAttribute("href", RELEASES);
     await expect(page.getByRole("link", { name: "GitHub Releases" })).toHaveCount(2);
@@ -220,7 +220,7 @@ for (const [name, ua, chip, button, href] of [
   ["a Mac without a chip hint", MAC, null, "Download for Mac (Apple silicon)", INSTALLERS.macArm],
   ["an Apple silicon Mac", MAC, "arm", "Download for Mac (Apple silicon)", INSTALLERS.macArm],
   ["an Intel Mac", MAC, "x86", "Download for Mac (Intel)", INSTALLERS.macIntel],
-  ["Linux", LINUX, null, "Download for Linux", RELEASES],
+  ["Linux", LINUX, null, "Download for Linux", INSTALLERS.linux],
 ] as const) {
   test.describe(`on ${name}`, () => {
     test.use({ userAgent: ua, locale: "en-US" });
@@ -234,7 +234,7 @@ for (const [name, ua, chip, button, href] of [
       await expect(page.locator("#download h2")).toHaveText(`Ely Office ${VERSION}`);
       await expect(page.locator(".hero a.button")).toHaveText(button);
       await expect(page.locator(".hero a.button")).toHaveAttribute("href", href);
-      await expect(page.locator(".hero [data-t=whole]")).toBeVisible({ visible: href !== RELEASES });
+      await expect(page.locator(".hero [data-t=whole]")).toBeVisible();
     });
   });
 }

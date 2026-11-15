@@ -2,7 +2,7 @@
 export const RELEASES = "https://github.com/ELY-Open-Source/ElyOffice/releases/latest";
 
 /** The newest release's full installers; one still building lacks some. */
-export type Installers = Partial<Record<"macArm" | "macIntel" | "windows", string>>;
+export type Installers = Partial<Record<"macArm" | "macIntel" | "windows" | "linux", string>>;
 
 /** The release's own source archive and its patched upstreams. */
 export type Sources = Partial<Record<"own" | "upstream", string>>;

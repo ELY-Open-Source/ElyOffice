@@ -142,7 +142,12 @@ if [ "$os" = linux ]; then
 fi
 
 # The apps take no manifest without its signature.
-${inside[@]+"${inside[@]}"} packaging/sign.sh "$dist"/*.json
+manifests=()
+for manifest in "$dist"/*.json; do
+  if [ -e "$manifest" ]; then manifests+=("$manifest"); fi
+done
+# macOS writes none until its .pkg updates.
+[ ${#manifests[@]} = 0 ] || ${inside[@]+"${inside[@]}"} packaging/sign.sh "${manifests[@]}"
 
 # A pre-release, made by whichever platform comes first.
 release_id() { curl -fsS "${auth[@]}" "$api/releases/tags/$tag" | python3 -c 'import json, sys; print(json.load(sys.stdin)["id"])' | tr -d '\r'; }

@@ -17,15 +17,15 @@ packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.2
 packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）；包的依赖带 glibc 的版本下限（包内文件所需的最高版本）；libdbus 与它载入的库用系统的；`bundle.sh` 再出装全部应用的 `ely-office` 包（deb、rpm、Arch），三个文档应用共用一份内核
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调）
 packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发后提交）
-packaging/winget.sh 标签       由该发布 Windows 的更新清单写 dist/winget 下一份 WinGet 清单（`ZacharyZhang.ElyOffice`，即统一安装程序；首批各应用的清单须指同一个安装程序；发布后交 winget-pkgs）
+packaging/winget.sh 标签       由该发布的 `ely-office-windows-x86_64.json` 写 dist/winget 下一份 WinGet 清单（`ZacharyZhang.ElyOffice`，即统一安装程序；发布后交 winget-pkgs）
 packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`，散列不符即失败），文件名带提交号；有未提交改动即拒绝；发布只上传 Linux 的
 scripts/release-tests.sh         发布的门：建好两个 worker 并点名，严格模式跑 `cargo test --workspace`（ci.sh 打包前调）
 scripts/compatibility.py [--check]  写 docs/compatibility.md 的版本与内核两行；--check 不符即败（ci.sh、pr.yml）
 scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务与其测试（pr.yml 核对与提交一致）
 scripts/lo-tarballs.sh lo-src     列出该 LibreOffice 构建所取的压缩包（名字、SHA-256、地址），由其 `Makefile.fetch` 得出
 packaging/macos/bundle.sh ely-doc debug    出 dist/ElyDoc.app（带图标、文档类型与该应用的引擎）
-packaging/macos/release.sh [批次]          该批各应用的 release 包与 dmg，另有装全部的 dmg；ELY_SIGN_IDENTITY 加 ELY_NOTARY_PROFILE 即公证
-packaging/windows/installer.sh 出 dist 里唯一的 Windows 安装程序 ElyOffice-<版本>-windows-x86_64-setup.exe（首批各应用一个勾，内核旁放 `ely-login.exe`），另写各应用指向它的更新清单（0.1.16 读每应用的清单）
+packaging/macos/release.sh [批次]          该批各应用的 release 包与 dmg，另有装全部的 dmg，不写更新清单；ELY_SIGN_IDENTITY 加 ELY_NOTARY_PROFILE 即公证
+packaging/windows/installer.sh 出 dist 里唯一的 Windows 安装程序 ElyOffice-<版本>-windows-x86_64-setup.exe（首批各应用一个勾，内核旁放 `ely-login.exe`），另写指向它的 `ely-office-windows-x86_64.json` 与各应用的更新清单（0.1.16 读每应用的清单）
 packaging/windows/templates.sh 以本构建的内核重写 packaging/windows/new 的空白 DOCX、XLSX、PPTX（右键“新建”用）
 packaging/icons/masters.py     写出 assets/icons 的 SVG 母版（图标设计只改这里）
 packaging/icons/build.sh       由母版渲染 icns、png、ico（只在 macOS）

@@ -81,13 +81,20 @@ fn a_packaged_app_names_its_command_and_downloads_nothing(cx: &mut gpui::TestApp
     });
     let bundled = cx.new(|_| made(bundle(), Some((release("9.1.0", "https://c"), Phase::Offered))));
     assert_eq!(bundled.read_with(cx, |updates, _| updates.command()), None);
+    let nix = cx.new(|_| made(Installed::Nix, None));
+    nix.update(cx, |updates, cx| {
+        updates.checked(Ok(Check::Available(release("9.1.0", "https://c"))), false, cx);
+        assert_eq!(updates.checked, Some(Checked::Newer(semver::Version::new(9, 1, 0))), "the settings show it");
+        assert_eq!(updates.offer, None, "Nix installs it; nothing downloads");
+    });
 }
 
 #[test]
-fn the_manifest_is_the_latest_releases_file_on_github_then_on_the_relay() {
-    let file = format!("releases/latest/download/ely-doc-{}.json", update::platform());
+fn the_manifest_is_the_latest_file_on_github_then_on_the_relay() {
+    let name = if cfg!(target_os = "linux") { "ely-mark" } else { "ely-office" };
+    let file = format!("releases/latest/download/{name}-{}.json", update::platform());
     let want = ["https://github.com/ELY-Open-Source/ElyOffice", "https://office.elygpui.com"].map(|home| format!("{home}/{file}"));
-    assert_eq!(latest(AppId::Doc), want);
+    assert_eq!(latest(AppId::Mark), want);
 }
 
 #[test]

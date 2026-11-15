@@ -57,5 +57,6 @@ out=$dist/ElyOffice-$version-windows-x86_64-setup.exe
   -DSTAGES="$(cygpath -w "$stages")" \
   -DOUTFILE="$(cygpath -w "$out")" "$(cygpath -w "$root/packaging/windows/installer.nsi")"
 echo "$out"
+"$root/packaging/manifest.sh" ely-office windows-x86_64 "$out"
 # 0.1.16 reads its own app's manifest; each names this setup.
 for slug in $batch; do "$root/packaging/manifest.sh" "$slug" windows-x86_64 "$out"; done

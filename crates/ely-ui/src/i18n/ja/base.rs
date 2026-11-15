@@ -8,6 +8,8 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("menu.app.updates", "アップデートを確認…"),
     ("updates.package", "{app} {version} が公開されました。リリースページからパッケージをダウンロードして、次を実行してください: {command}"),
     ("updates.copy", "コマンドをコピー"),
+    ("updates.close", "先に {apps} を閉じてください。更新ですべての Ely アプリが置き換わります。"),
+    ("updates.nix", "Ely Office {version} が公開されました。Nix でインストールされています。提供元の flake を更新してください。"),
     ("menu.app.switch", "Ely アプリを開く"),
     ("toast.open", "開く"),
     ("toast.open_failed", "ファイルを開けませんでした: {error}"),

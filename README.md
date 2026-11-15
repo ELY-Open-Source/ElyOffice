@@ -2,7 +2,7 @@
 
 Offline-first desktop apps in Rust and GPUI. Files stay in your folders; no account, no cloud service.
 
-Download from [office.elygpui.com](https://office.elygpui.com) or the [latest release](https://github.com/ELY-Open-Source/ElyOffice/releases/latest): Windows, macOS (Apple silicon and Intel) and Linux (AppImage, deb, rpm, Arch, Nix; Debian 11 and Ubuntu 20.04 or newer).
+Download from [office.elygpui.com](https://office.elygpui.com) or the [latest release](https://github.com/ELY-Open-Source/ElyOffice/releases/latest): Windows, macOS (Apple silicon and Intel) and Linux (AppImage, deb, rpm, Arch, Nix; Debian 11 and Ubuntu 20.04 or newer). Each platform has one installer with every app, and an update replaces them all.
 
 | App | Does | Engine |
 | --- | --- | --- |

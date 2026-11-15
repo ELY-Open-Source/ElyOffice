@@ -11,10 +11,7 @@ fail() {
 }
 release=$work/release/v9.9.9
 mkdir -p "$release"
-slugs=$(awk -F'\t' '$4 == 1 { print $1 }' "$root/packaging/apps.tsv")
-for slug in $slugs; do
-  printf '{"version": "9.9.9", "assets": {"windows-x86_64": {"url": "https://x.test/setup.exe", "sha256": "%064d"}}}\n' 7 >"$release/$slug-windows-x86_64.json"
-done
+printf '{"version": "9.9.9", "assets": {"windows-x86_64": {"url": "https://x.test/setup.exe", "sha256": "%064d"}}}\n' 7 >"$release/ely-office-windows-x86_64.json"
 url="file://$(cd "$work/release" && pwd -W 2>/dev/null || pwd)"
 run() { ELY_WINGET_DOWNLOAD=$url ELY_DIST=$work/dist bash "$root/packaging/winget.sh" "$1"; }
 run v9.9.9 >/dev/null || fail "a good release was refused"
@@ -38,9 +35,7 @@ fi
 cp -r "$release" "$work/release/v9.9.8"
 said=$(run v9.9.8 2>&1) && fail "a manifest of another version passed"
 case $said in *"is 9.9.9, not v9.9.8"*) ;; *) fail "the version refusal says: $said" ;; esac
-sed -i 's/setup.exe/other.exe/' "$release/ely-mail-windows-x86_64.json"
-said=$(run v9.9.9 2>&1) && fail "manifests naming two setups passed"
-case $said in *"different setups"*) ;; *) fail "the setup refusal says: $said" ;; esac
-rm "$release/ely-mail-windows-x86_64.json"
-run v9.9.9 >/dev/null 2>&1 && fail "a missing manifest passed"
+# 0.1.16's per-app manifests do not count.
+mv "$release/ely-office-windows-x86_64.json" "$release/ely-doc-windows-x86_64.json"
+run v9.9.9 >/dev/null 2>&1 && fail "a missing suite manifest passed"
 echo "ok: winget manifest"

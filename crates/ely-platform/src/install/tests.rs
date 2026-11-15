@@ -35,7 +35,7 @@ fn each_system_names_its_own_install() {
     assert_eq!(none("linux", dev, tree), None, "the environment is another app's");
     let store = Path::new("/nix/store/abc-ely-doc-0.1.9-extracted/usr/bin/ely-doc");
     let wrapped = Some(("/nix/store/abc.AppImage".into(), "/nix/store/abc-ely-doc-0.1.9-extracted".into()));
-    assert_eq!(none("linux", store, wrapped), None, "Nix updates it");
+    assert_eq!(none("linux", store, wrapped), Some(Installed::Nix), "Nix updates it");
     let app = Path::new("/Applications/ElyDoc.app/Contents/MacOS/ely-doc");
     assert_eq!(none("macos", app, None), Some(Installed::Bundle("/Applications/ElyDoc.app".into())));
 }

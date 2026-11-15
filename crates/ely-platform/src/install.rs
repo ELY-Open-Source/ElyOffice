@@ -24,6 +24,8 @@ pub enum Installed {
     AppImage(PathBuf),
     /// A package's manager and name: the manager updates it.
     Package(Package, String),
+    /// The Nix store: Nix updates it, Ely only tells.
+    Nix,
 }
 
 /// The list a Windows setup leaves in its folder.
@@ -33,7 +35,7 @@ const PACKAGED: [&str; 4] = ["/usr", "/opt", "/app", "/snap"];
 /// The Nix store: Nix updates what it holds.
 const NIX: &str = "/nix/store";
 
-/// How the running app updates; none for dev or Nix.
+/// How the running app updates; none for a dev build.
 pub fn running(slug: &str) -> io::Result<Option<Installed>> {
     let exe = std::env::current_exe()?;
     let image = std::env::var_os("APPIMAGE").map(PathBuf::from);
@@ -61,7 +63,7 @@ fn installed(
         // An AppImage's terminal passes its variables on.
         "linux" => match image.filter(|(_, mount)| exe.starts_with(mount)) {
             // Nix wraps the AppImage; its store is read-only.
-            _ if exe.starts_with(NIX) => None,
+            _ if exe.starts_with(NIX) => Some(Installed::Nix),
             Some((image, _)) => Some(Installed::AppImage(image)),
             None if PACKAGED.iter().any(|prefix| exe.starts_with(prefix)) => {
                 let (manager, name) = Package::of(root, slug, rpm)?;

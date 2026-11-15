@@ -7,26 +7,18 @@ tag=${1:?the release tag}
 # ELY_WINGET_DOWNLOAD replaces the release URL; tests use it.
 download=${ELY_WINGET_DOWNLOAD:-https://github.com/ELY-Open-Source/ElyOffice/releases/download}/$tag
 out=${ELY_DIST:-$root/dist}/winget
-manifests=$(mktemp -d)
-trap 'rm -rf "$manifests"' EXIT
-# Each first-batch manifest names the one setup.
-for slug in $(awk -F'\t' '$4 == 1 { print $1 }' "$root/packaging/apps.tsv"); do
-  curl -fsSL -o "$manifests/$slug.json" "$download/$slug-windows-x86_64.json"
-done
+manifest=$(mktemp)
+trap 'rm -f "$manifest"' EXIT
+curl -fsSL -o "$manifest" "$download/ely-office-windows-x86_64.json"
 rm -rf "$out"
-python3 - "$tag" "$manifests" "$out" "$root/packaging/apps.tsv" <<'EOF'
-import glob, json, os, sys
-tag, manifests, out, apps = sys.argv[1:]
+python3 - "$tag" "$manifest" "$out" "$root/packaging/apps.tsv" <<'EOF'
+import json, os, sys
+tag, manifest, out, apps = sys.argv[1:]
 schema = "1.10.0"
-seen = {}
-for path in sorted(glob.glob(f"{manifests}/*.json")):
-    manifest = json.load(open(path))
-    if "v" + manifest["version"] != tag:
-        sys.exit(f"winget.sh: {os.path.basename(path)} is {manifest['version']}, not {tag}")
-    seen[path] = (manifest["version"], manifest["assets"]["windows-x86_64"])
-if len({json.dumps(s, sort_keys=True) for s in seen.values()}) != 1:
-    sys.exit("winget.sh: the apps' manifests name different setups")
-version, asset = next(iter(seen.values()))
+manifest = json.load(open(manifest))
+if "v" + manifest["version"] != tag:
+    sys.exit(f"winget.sh: the manifest is {manifest['version']}, not {tag}")
+version, asset = manifest["version"], manifest["assets"]["windows-x86_64"]
 licenses = []
 for row in open(apps).read().splitlines():
     cols = row.split("\t")

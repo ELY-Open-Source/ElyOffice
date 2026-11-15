@@ -45,9 +45,10 @@ async function readGitea<T>(path: string): Promise<T> {
 
 // The full installers: every app in one download.
 const BUNDLES = {
-  macArm: (v: string) => `ElyOffice-${v}-arm64.dmg`,
-  macIntel: (v: string) => `ElyOffice-${v}-x86_64.dmg`,
+  macArm: (v: string) => `ElyOffice-${v}-arm64.pkg`,
+  macIntel: (v: string) => `ElyOffice-${v}-x86_64.pkg`,
   windows: (v: string) => `ElyOffice-${v}-windows-x86_64-setup.exe`,
+  linux: (v: string) => `ElyOffice-${v}-linux-x86_64.AppImage`,
 };
 export type Bundle = keyof typeof BUNDLES;
 

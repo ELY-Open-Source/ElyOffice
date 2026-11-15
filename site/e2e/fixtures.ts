@@ -10,9 +10,10 @@ export const SOURCES = {
   upstream: `${DL}/ElyOffice-${VERSION}-c0ffee12-upstream-source.tar.gz`,
 };
 export const INSTALLERS = {
-  macArm: `${DL}/ElyOffice-${VERSION}-arm64.dmg`,
-  macIntel: `${DL}/ElyOffice-${VERSION}-x86_64.dmg`,
+  macArm: `${DL}/ElyOffice-${VERSION}-arm64.pkg`,
+  macIntel: `${DL}/ElyOffice-${VERSION}-x86_64.pkg`,
   windows: `${DL}/ElyOffice-${VERSION}-windows-x86_64-setup.exe`,
+  linux: `${DL}/ElyOffice-${VERSION}-linux-x86_64.AppImage`,
 };
 
 // Every page reads this version.

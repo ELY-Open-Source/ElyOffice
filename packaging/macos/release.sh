@@ -38,10 +38,6 @@ awk -F'\t' -v batch="$batch" '$4 == batch { print $1 "\t" $2 }' "$root/packaging
     codesign --verify --deep --strict "$dist/$name.app"
     out=$dist/$name-$version-$arch.dmg
     dmg "$out" "$name" "$dist/$name.app"
-    # What the app's update check reads from the latest release.
-    "$root/packaging/manifest.sh" "$slug" "macos-${arch/arm64/aarch64}" "$out"
-    # Apps up to 0.1.9 read <slug>.json; all are Apple silicon.
-    [ "$arch" != arm64 ] || cp "$dist/$slug-macos-aarch64.json" "$dist/$slug.json"
   done
 # Every app of the batch in one dmg.
 apps=()

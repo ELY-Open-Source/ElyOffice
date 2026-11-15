@@ -8,6 +8,8 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("menu.app.updates", "Kiểm tra cập nhật…"),
     ("updates.package", "{app} {version} đã phát hành. Hãy tải gói cài đặt từ trang phát hành rồi chạy: {command}"),
     ("updates.copy", "Sao chép lệnh"),
+    ("updates.close", "Hãy đóng {apps} trước. Bản cập nhật thay thế mọi ứng dụng Ely."),
+    ("updates.nix", "Ely Office {version} đã phát hành. Ứng dụng được cài bằng Nix: hãy cập nhật flake cung cấp nó."),
     ("menu.app.switch", "Mở ứng dụng Ely"),
     ("toast.open", "Mở"),
     ("toast.open_failed", "Không mở được tệp: {error}"),

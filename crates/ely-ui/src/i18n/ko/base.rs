@@ -8,6 +8,8 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("menu.app.updates", "업데이트 확인…"),
     ("updates.package", "{app} {version}이(가) 나왔습니다. 릴리스 페이지에서 패키지를 내려받은 뒤 다음을 실행하십시오: {command}"),
     ("updates.copy", "명령 복사"),
+    ("updates.close", "먼저 {apps}을(를) 닫으십시오. 업데이트는 모든 Ely 앱을 바꿉니다."),
+    ("updates.nix", "Ely Office {version}이(가) 나왔습니다. Nix로 설치되었으므로 이를 제공하는 flake를 업데이트하십시오."),
     ("menu.app.switch", "Ely 앱 열기"),
     ("toast.open", "열기"),
     ("toast.open_failed", "파일을 열지 못했습니다: {error}"),

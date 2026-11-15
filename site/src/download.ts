@@ -31,9 +31,9 @@ async function chip(): Promise<Platform | null> {
 }
 
 /** Where `p` downloads: its installer, else the release page. */
-const target = (p: Platform, installers: Installers | null) => (p === "linux" ? RELEASES : installers?.[p] ?? RELEASES);
+const target = (p: Platform, installers: Installers | null) => installers?.[p] ?? RELEASES;
 
-/** Download block: this platform's button, a note on single apps. */
+/** Download block: this platform's button, a note on Linux packages. */
 export function downloads(cards: boolean) {
   let platform = guess();
   let installers: Installers | null = null;
@@ -49,13 +49,13 @@ export function downloads(cards: boolean) {
   const whole = said("p", "whole");
   whole.className = "small";
 
-  const apart = document.createElement("p");
-  apart.className = "small";
+  const distro = document.createElement("p");
+  distro.className = "small";
   const releases = document.createElement("a");
   releases.href = RELEASES;
   releases.textContent = "GitHub Releases";
-  apart.append(said("span", "apart"), releases, said("span", "apartEnd"));
-  block.append(button, whole, apart);
+  distro.append(said("span", "distro"), releases, said("span", "distroEnd"));
+  block.append(button, whole, distro);
 
   const links = PLATFORMS.map((p) => {
     const card = document.createElement("a");
@@ -63,7 +63,7 @@ export function downloads(cards: boolean) {
     card.dataset.platform = p;
     card.innerHTML = ICONS[GLYPH[p]];
     card.firstElementChild!.setAttribute("aria-hidden", "true");
-    card.append(said("span", CARD[p]), said("span", p === "linux" ? "packages" : "installer"));
+    card.append(said("span", CARD[p]), said("span", "installer"));
     return card;
   });
   if (cards) {
@@ -78,7 +78,6 @@ export function downloads(cards: boolean) {
     label.textContent = word(spoken(), BUTTON[platform]);
     button.dataset.platform = platform;
     button.href = target(platform, installers);
-    whole.hidden = platform === "linux";
     for (const card of links) card.href = target(card.dataset.platform as Platform, installers);
   };
   point();

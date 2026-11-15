@@ -54,6 +54,10 @@ pub struct Updates {
 /// What an update says to the window.
 pub enum UpdateNews {
     Failed(String),
+    /// These apps must close first: the update replaces all.
+    Open(Vec<AppId>),
+    /// A newer release Nix must install.
+    Nix(semver::Version),
     /// A check the user asked for found nothing newer.
     Latest,
 }
@@ -131,7 +135,7 @@ pub fn installer(app: AppId) -> Option<i32> {
 pub(crate) fn install(app: AppId, cx: &mut App) {
     let installed = match ely_platform::install::running(app.slug()) {
         Ok(Some(installed)) => installed,
-        Ok(None) => return log::info!("update: a dev build or a Nix install; no check"),
+        Ok(None) => return log::info!("update: a dev build; no check"),
         Err(error) => return log::warn!("update: how this app was installed is unknown: {error}"),
     };
     log::info!("update: installed as {installed:?}");
@@ -174,9 +178,11 @@ fn manifest(app: AppId) -> anyhow::Result<(Vec<String>, String)> {
     Ok((vec![url], key))
 }
 
-/// The newest release's manifest: GitHub's, then the relay's.
+/// The newest manifest: GitHub's, then the relay's.
 fn latest(app: AppId) -> [String; 2] {
-    [GITHUB, MIRROR].map(|home| format!("{home}/latest/download/{}-{}.json", app.slug(), update::platform()))
+    // Linux AppImages stay per app until the suite's.
+    let name = if cfg!(target_os = "linux") { app.slug() } else { "ely-office" };
+    [GITHUB, MIRROR].map(|home| format!("{home}/latest/download/{name}-{}.json", update::platform()))
 }
 
 /// A GitHub release file's address on the relay.
@@ -210,10 +216,10 @@ impl Updates {
         }
         self.checked = Some(Checked::Asking);
         cx.notify();
-        let app = self.app;
         let current =
             semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("the build's version");
         // The lookup is a request too: off the window's thread.
+        let app = self.app;
         let checked = cx.background_spawn(async move { manifest(app).and_then(|(urls, key)| update::check_any(&current, &urls, &key)) });
         cx.spawn(async move |this, cx| {
             let checked = checked.await;
@@ -234,6 +240,10 @@ impl Updates {
                     self.offer,
                     Some((_, Phase::Fetching(_) | Phase::Fetched(_)))
                 ) => {}
+            Ok(Check::Available(release)) if self.installed == Installed::Nix => {
+                log::info!("update: {} is out; Nix installs it", release.version);
+                cx.emit(UpdateNews::Nix(release.version));
+            }
             Ok(Check::Available(release)) => {
                 (self.offer, self.dismissed) = (Some((release, Phase::Offered)), false);
             }
@@ -337,6 +347,14 @@ impl Updates {
         let Some((_, Phase::Fetched(file))) = self.offer.as_ref() else {
             return;
         };
+        match ely_platform::instance::open_besides(self.app) {
+            Ok(open) if open.is_empty() => {}
+            Ok(open) => {
+                log::info!("update: waits for {open:?} to close");
+                return cx.emit(UpdateNews::Open(open));
+            }
+            Err(error) => return cx.emit(UpdateNews::Failed(format!("which Ely apps are open is unknown: {error}"))),
+        }
         self.pending = Some(file.clone());
         crate::commands::quit(cx);
     }

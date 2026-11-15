@@ -80,6 +80,28 @@ pub(crate) fn closed(root: &Path) -> io::Result<Result<Vec<File>, AppId>> {
     Ok(Ok(held))
 }
 
+/// The apps besides `me` running now.
+pub fn open_besides(me: AppId) -> io::Result<Vec<AppId>> {
+    open_in(&crate::root().map_err(io::Error::other)?, me)
+}
+
+fn open_in(root: &Path, me: AppId) -> io::Result<Vec<AppId>> {
+    let mut open = Vec::new();
+    // Our own lock: probing it would drop it.
+    for app in AppId::ALL.into_iter().filter(|app| *app != me) {
+        let path = root.join(app.slug()).join("instance.lock");
+        let file = match std::fs::OpenOptions::new().write(true).open(&path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(io::Error::new(error.kind(), format!("{}: {error}", path.display()))),
+        };
+        if lock(&file)?.is_some() {
+            open.push(app);
+        }
+    }
+    Ok(open)
+}
+
 /// Locks `file`, or names its holder as the OS reports.
 #[cfg(unix)]
 fn lock(file: &File) -> io::Result<Option<String>> {
@@ -154,6 +176,28 @@ mod tests {
         for out in refused {
             assert!(out.contains(&named), "{out}");
         }
+    }
+
+    #[test]
+    fn only_other_running_apps_count_as_open() {
+        use std::io::BufRead;
+        let root = tempfile::tempdir().expect("a temp dir");
+        let doc = root.path().join(AppId::Doc.slug());
+        std::fs::create_dir_all(&doc).expect("a folder");
+        std::fs::create_dir_all(root.path().join(AppId::Table.slug())).expect("a folder");
+        std::fs::write(root.path().join(AppId::Table.slug()).join("instance.lock"), "").expect("a free lock");
+        let mut copy = std::process::Command::new(std::env::current_exe().expect("this test"))
+            .args(["--exact", "instance::tests::one_copy", "--nocapture"])
+            .env("ELY_INSTANCE_DIR", &doc)
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("a copy");
+        let mut said = std::io::BufReader::new(copy.stdout.take().expect("its output")).lines();
+        assert!(said.any(|line| line.expect("a line").contains("HELD")), "the copy did not hold");
+        assert_eq!(open_in(root.path(), AppId::Mark).expect("read"), vec![AppId::Doc]);
+        assert_eq!(open_in(root.path(), AppId::Doc).expect("read"), vec![], "itself never counts");
+        assert!(copy.wait().expect("ends").success());
+        assert_eq!(open_in(root.path(), AppId::Mark).expect("read"), vec![], "a quit app is closed");
     }
 
     #[test]
