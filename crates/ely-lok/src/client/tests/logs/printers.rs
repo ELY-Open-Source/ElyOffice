@@ -18,12 +18,13 @@ fn installed() -> Option<String> {
         assert!(names.status.success(), "Get-Printer: {}", String::from_utf8_lossy(&names.stderr));
         return String::from_utf8(names.stdout).expect("UTF-8 names").lines().map(str::trim).find(|name| !name.is_empty()).map(str::to_owned);
     }
+    // lpstat speaks the system's language; read names and exits only.
+    let names = listed("lpstat", &["-e"])?;
+    assert!(names.status.success(), "lpstat -e: {}", String::from_utf8_lossy(&names.stderr));
+    let names = String::from_utf8(names.stdout).expect("UTF-8 names");
     // Queues only: the kernel skips discovered printers.
-    let queues = listed("lpstat", &["-p"])?;
-    let said = String::from_utf8_lossy(&queues.stderr);
-    assert!(queues.status.success() || said.contains("No destinations added"), "lpstat -p: {said}");
-    let queues = String::from_utf8(queues.stdout).expect("UTF-8 names");
-    queues.lines().find_map(|line| line.strip_prefix("printer ")?.split_whitespace().next().map(str::to_owned))
+    let queue = |name: &&str| listed("lpstat", &["-p", name]).is_some_and(|queue| queue.status.success());
+    names.lines().map(str::trim).filter(|name| !name.is_empty()).find(queue).map(str::to_owned)
 }
 
 /// The value of the settings item `name`; empty when absent.

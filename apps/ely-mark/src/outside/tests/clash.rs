@@ -11,7 +11,8 @@ fn a_save_over_an_outside_change_asks_then_overwrites(cx: &mut TestAppContext) {
     let (desk, cx, id, path, _dirs) = opened("one\n", cx);
     edit(&desk, "mine\n", cx);
     std::fs::write(&path, "theirs\n").expect("an outside write");
-    settle(cx);
+    // The watcher runs on real time; look as it would.
+    super::look(&desk, id, cx);
     let (changed, asked) = desk.read_with(cx, |desk, _| {
         (matches!(desk.tab(id).expect("open").extra.outside, Outside::Changed(..)), desk.clash)
     });
@@ -39,7 +40,7 @@ fn a_deleted_file_shows_in_the_status_bar(cx: &mut TestAppContext) {
     let (desk, cx, id, path, _dirs) = opened("one\n", cx);
     edit(&desk, "mine\n", cx);
     std::fs::remove_file(&path).expect("an outside delete");
-    settle(cx);
+    super::look(&desk, id, cx);
     let item = desk.update(cx, |desk, cx| desk.outside_item(cx).is_some());
     assert!(item, "a deleted file shows in the status bar");
     assert!(desk.read_with(cx, |desk, _| matches!(desk.tab(id).expect("open").extra.outside, Outside::Deleted)));

@@ -368,7 +368,14 @@ fn undo_and_redo_work_inside_a_shape_text_edit() {
         let press = Mouse { kind, x: 1701, y: 1134, count, buttons: 1, modifiers: 0 };
         worker.post_mouse(&doc, press).expect("the double click posts");
     }
+    // Input lands late; the caret must enter the box first.
+    let inside = |seen: &Events| seen.cursor_visible && seen.cursor.is_some_and(|at| (450..2950).contains(&at.0) && (450..1820).contains(&at.1));
+    let editing = poll_until(&mut worker, &doc, &Events::default(), SETTLE, inside);
+    assert!(inside(&editing), "the double click opens the box's text: {:?}", editing.cursor);
+    let before = editing.cursor.expect("a caret").0;
     worker.post_key(&doc, 'Q' as u32, 528 | 0x1000).expect("Q types");
+    let typed = poll_until(&mut worker, &doc, &editing, SETTLE, |seen| seen.cursor.is_some_and(|at| at.0 > before));
+    assert!(typed.cursor.is_some_and(|at| at.0 > before), "Q moves the caret: {:?}", typed.cursor);
     let text = |worker: &mut Worker| {
         let out = dir.path().join("out.fods");
         doc.save_as(worker, &crate::file_url(&out), "fods").expect("the sheet saves");

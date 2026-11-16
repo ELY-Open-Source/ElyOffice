@@ -1123,3 +1123,12 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - `ely_save_copy` 移进 `ely_save.c`：`ely_pages.c` 超了 500 行，六个文件都调它。
 - 测试按字节查保存后的内容时，先经 `tests/decoded` 解压；查修订数、签名字节的仍读原文件。
 - 未验：用户那份 30 MB 的文件没拿到；Acrobat 没测。
+
+## 2026-11-16 macOS 上时败的测试，与停了的 CI（SF.27）
+
+- 空闲引擎的两项：测试拼的应用名让套接字路径到 104 与 111 字节，macOS 的 `sun_path` 只容 103（临时目录下的 `ely-office/` 已占 60）。worker 绑不上即以 1 退出，什么也没说。应用名最长 9 字，路径 96 字节，不受影响；测试名去掉 `test-` 前缀，`take-or-start` 改为 `either`。
+- ElyMark 的两项：它们靠真的文件监视发现外部改动，`settle` 只拨测试的钟；macOS 的 FSEvents 按真实时间送，时到时不到。改为同旁边各项一样调 `look`。Mac 上原样五次各败一两项，改后十次全过。
+- 打印机一项：`lpstat` 的话随系统语言（这台 Mac 说中文），`LC_ALL`、`LANG` 改不了它。改为不读文字：`lpstat -e` 列名字，`lpstat -p 名字` 退出为 0 的才是已装的队列（发现到的打印机退出 1）。
+- 表格形状文字一项（`sheet::undo_and_redo_work_inside_a_shape_text_edit`，Mac 上五次败一次）：双击与按键是投递的，保存可能先于它们。改为等光标进了框，再等 Q 让光标右移，才保存。
+- CI 自 SF.22 起每次都败在头一个坏步上，后面的步从没跑到：`docs/compatibility.md` 少记补丁 0134；`ci-upload.sh` 的假 cargo 没有 SF.23 起空闲引擎要的三个应用与 `idle.py`。都已补；本机照 `pr.yml` 逐步跑过。
+- 本机 shell 设了 `GIT_ASKPASS`（Cindy 的），ElyTree 的 `a_refused_credential_says_so` 会去问它而不报 “terminal prompts disabled”；去掉这些变量即过，CI 没有它们。

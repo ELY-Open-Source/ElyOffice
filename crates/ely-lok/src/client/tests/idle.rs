@@ -2,9 +2,10 @@
 
 use super::*;
 
-/// An app name no other test run shares.
+/// A short app name no other test run shares.
 fn app(test: &str) -> String {
-    format!("test-{test}-{}", std::process::id())
+    // macOS sockets hold 103 bytes; the temp folder takes 60.
+    format!("{test}-{}", std::process::id())
 }
 
 #[test]
@@ -76,7 +77,7 @@ fn a_take_adopts_a_waiting_engine_and_else_starts_its_own() {
         return;
     };
     let dir = tempfile::tempdir().expect("a temp dir");
-    let (profile, app) = (dir.path().join("profile"), app("take-or-start"));
+    let (profile, app) = (dir.path().join("profile"), app("either"));
     let probe = crate::Probe::default();
     let log = std::fs::File::create(dir.path().join("engine.log")).expect("the log");
     let start = crate::Start::wait(&profile).expect("the start");
