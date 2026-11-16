@@ -1185,3 +1185,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Mac 测试机的共享内核没带补丁 0134（Calc 的空闲计时器停手），重建后 Table 的空闲 CPU 从 170 万 mach 单位降到 2.5 万。
 - 静置 200 秒仍不过：每 2 秒记一次 `proc_pid_rusage`，Show 约 192 秒醒一次，三个引擎各在约 302 至 311 秒醒一次，354.8 至 358.8 秒三个同时醒；这一回逐 2 秒看到 560 秒，358.8 秒之后为 0。300 秒那次不到 1 毫秒，`sample` 抓不到栈，来由未查明。
 - 静置改 400 秒：另一次静置 400 秒后量 600 秒，Mac 与 Linux 的三个引擎都是 0 单位；Windows 仍不过（SF.30）。Mac 内存 87、82、83 MB 记入 `tests/perf/idle.json`。门多跑 200 秒。
+
+## 2026-11-16 Linux 与 Windows 不出 ARM 构建（R20.2）
+
+- 用户定：#37 的 Windows arm64 与 Linux arm64 都不做。Windows 11 ARM 照常以 x64 模拟运行 x64 包。macOS 照旧出 arm64 与 Intel。
