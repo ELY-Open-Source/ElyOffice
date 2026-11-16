@@ -63,4 +63,5 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("error.then", "{error} ; la suppression des fichiers déjà écrits a aussi échoué : {left}"),
     ("error.no_key", "la clé de récupération n’est pas dans le trousseau"),
     ("error.not_installed", "{app} n’est pas installé"),
+    ("pick.title", "Choisissez une app à ouvrir."),
 ];

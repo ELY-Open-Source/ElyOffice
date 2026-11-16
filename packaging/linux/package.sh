@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: package.sh [--desktop] <slug>; AppImage, deb, rpm, Arch.
+# Usage: package.sh [--desktop] <slug>; the AppDir bundle.sh packs.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -9,7 +9,6 @@ desktop_only=
   shift
 }
 slug=${1:?app slug, such as ely-doc}
-dist=${ELY_DIST:-$root/dist}
 
 row=$(awk -F'\t' -v slug="$slug" '$1 == slug { print $2 "\t" $3 }' "$root/packaging/apps.tsv")
 [ -n "$row" ] || {
@@ -45,7 +44,6 @@ command -v patchelf >/dev/null || {
 arch=$(uname -m)
 case $arch in
   x86_64)
-    goarch=amd64
     nfpm_arch=x86_64
     pack_sha=ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
     deploy_sha=c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d
@@ -111,12 +109,6 @@ done
 "$deploy" --appimage-extract-and-run --appdir "$appdir" "${deployed[@]}" \
   --desktop-file "$work/$slug.desktop" --icon-file "$icon"
 
-mkdir -p "$dist"
-version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
-out=$dist/$name-$version-linux-$arch.AppImage
-ARCH=$arch "$pack" --appimage-extract-and-run --runtime-file "$runtime" "$appdir" "$out"
-echo "$out"
-"$root/packaging/manifest.sh" "$slug" "linux-$arch" "$out"
 
 broken() {
   echo "package.sh: $*" >&2
@@ -154,46 +146,4 @@ done < <(printf '%s\n' "${needed[@]}" | sort -u)
 printf '%s\n' "${deb[@]}" | sort -u >"$work/depends.deb"
 printf '%s\n' "${rpm[@]}" | sort -u >"$work/depends.rpm"
 printf '%s\n' "${pacman[@]}" | sort -u >"$work/depends.archlinux"
-yaml_list() { sed 's/.*/      - "&"/' "$work/depends.$1"; }
-
-# deb, rpm and Arch: the AppDir's usr under /opt/ely-office.
-cat >"$work/nfpm.yaml" <<EOF
-name: $slug
-arch: $goarch
-platform: linux
-version: $version
-release: 1
-maintainer: ZacharyZhang
-vendor: ZacharyZhang
-description: $name, part of Ely Office
-homepage: https://github.com/ELY-Open-Source/ElyOffice
-license: $license
-contents:
-  - src: $appdir/usr
-    dst: /opt/ely-office/$slug
-    type: tree
-  - src: /opt/ely-office/$slug/bin/$slug
-    dst: /usr/bin/$slug
-    type: symlink
-  - src: $work/$slug.desktop
-    dst: /usr/share/applications/$slug.desktop
-  - src: $icon
-    dst: /usr/share/icons/hicolor/512x512/apps/$slug.png
-deb:
-  compression: xz
-rpm:
-  compression: xz
-overrides:
-  deb:
-    depends:
-$(yaml_list deb)
-  rpm:
-    depends:
-$(yaml_list rpm)
-  archlinux:
-    depends:
-$(yaml_list archlinux)
-EOF
-for packager in deb rpm archlinux; do
-  "$nfpm" package --config "$work/nfpm.yaml" --packager "$packager" --target "$dist/"
-done
+echo "$appdir"

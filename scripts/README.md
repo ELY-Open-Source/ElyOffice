@@ -14,9 +14,9 @@ scripts/build-bash.sh [目录]   构建钉住的 GNU bash 5.3 为 x86_64，默�
 scripts/review.sh ID 轮次 路径  审查一条任务：herdr 里另一个 Claude Code 审查，结论进 `tasks/reviews/`；细则见 `tests/scripts/README.md` 的 review-rules.sh
 scripts/apply-lo-patches.sh engines/lo-src  源码已到补丁序列第几个，补上其余（构建脚本调用）
 packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；cargo 是镜像里从源码建的 huacnlee/cargo，其发布版要 glibc 2.34；产物与本机同在 target/release，镜像里再建即换回）
-packaging/linux/package.sh 应用  出该应用的 AppImage、deb、rpm 与 Arch 包到 dist/（在容器里运行）；包的依赖带 glibc 的版本下限（包内文件所需的最高版本）；libdbus 与它载入的库用系统的；`bundle.sh` 再出装全部应用的 `ely-office` 包（deb、rpm、Arch），三个文档应用共用一份内核
+packaging/linux/package.sh 应用  出该应用的 AppDir 与包的依赖（在容器里运行）；依赖带 glibc 的版本下限（包内文件所需的最高版本）；libdbus 与它载入的库用系统的；`bundle.sh` 再出装全部应用的 `ely-office` 包（deb、rpm、Arch）与一个 `ElyOffice-版本-linux-架构.AppImage`，三个文档应用共用一份内核
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调）
-packaging/nix.sh 标签          由该发布各 AppImage 的更新清单写 nix/release.json（flake.nix 读它；发后提交）
+packaging/nix.sh 标签          由该发布的每应用清单写 nix/release.json（flake.nix 读它；发后提交）；首个统一发布前须换成读 `ely-office-linux-x86_64.json`，否则对它即失败
 packaging/winget.sh 标签       由该发布的 `ely-office-windows-x86_64.json` 写 dist/winget 下一份 WinGet 清单（`ZacharyZhang.ElyOffice`，即统一安装程序；发布后交 winget-pkgs）
 packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`，散列不符即失败），文件名带提交号；有未提交改动即拒绝；发布只上传 Linux 的
 scripts/release-tests.sh         发布的门：建好两个 worker 并点名，严格模式跑 `cargo test --workspace`（ci.sh 打包前调）

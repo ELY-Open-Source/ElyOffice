@@ -4,7 +4,7 @@ use ely_gpui_component::{primitives::Severity, theme::ActiveTheme as _};
 use gpui::{AnyElement, App, InteractiveElement as _, IntoElement as _, ParentElement as _, Role, SharedString, StatefulInteractiveElement as _, Styled as _, div};
 
 /// `words` under a row, in `severity`'s color.
-pub(super) fn line(id: impl Into<SharedString>, severity: Severity, words: impl Into<SharedString>, cx: &App) -> AnyElement {
+pub(crate) fn line(id: impl Into<SharedString>, severity: Severity, words: impl Into<SharedString>, cx: &App) -> AnyElement {
     let colors = &cx.theme().colors;
     let color = match severity {
         Severity::Danger => colors.danger,

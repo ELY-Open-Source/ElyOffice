@@ -63,4 +63,5 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("error.then", "{error}。書き込み済みのファイルも削除できませんでした: {left}"),
     ("error.no_key", "復元用のキーがキーストアにありません"),
     ("error.not_installed", "{app} がインストールされていません"),
+    ("pick.title", "開くアプリを選んでください。"),
 ];

@@ -76,8 +76,8 @@ clone() { # os
   write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.pkg dist/app-$1.json; packaging/source.sh dist"
   # The container's Cargo may differ from the host's.
   write packaging/linux/container.sh 'CARGO_IS=${INSIDE_IS:-${CARGO_IS:-}} exec "$@"'
-  write packaging/linux/package.sh "mkdir -p dist; touch dist/\$1-$1.AppImage dist/\$1-$1.json"
-  write packaging/linux/bundle.sh "touch dist/ely-office-$1.deb"
+  write packaging/linux/package.sh :
+  write packaging/linux/bundle.sh "mkdir -p dist; touch dist/ely-office-$1.deb dist/ElyOffice-$1.AppImage dist/ely-office-$1.json dist/ely-doc-$1.json"
 }
 go() { # os
   CI_OS=$1 PATH=$work/bin:$PATH ELY_SHARE=$work/share ELY_RELEASE_TOKEN=unused \
@@ -156,6 +156,8 @@ run linux
 [ "$(uploads '-source.tar' linux)" -eq 3 ] || fail "Linux did not upload the source: $(cat "$STATE")"
 [ "$(uploads 'ely-doc-linux.json.sig' linux)" -eq 1 ] || fail "Linux left a manifest unsigned: $(cat "$STATE")"
 [ "$(uploads 'ely-office-linux.deb' linux)" -eq 1 ] || fail "Linux uploaded no suite package: $(cat "$STATE")"
+[ "$(uploads 'ElyOffice-linux.AppImage' linux)" -eq 1 ] || fail "Linux uploaded no AppImage: $(cat "$STATE")"
+[ "$(uploads 'ely-office-linux.json.sig' linux)" -eq 1 ] || fail "Linux left its manifest unsigned: $(cat "$STATE")"
 # A rerun replaces its own files once and keeps macOS's.
 mac=$(grep ' macos$' "$STATE")
 ids=$(awk '$3 == "linux" { print $1 }' "$STATE" | sort)

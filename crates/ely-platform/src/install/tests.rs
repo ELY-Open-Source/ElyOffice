@@ -27,7 +27,7 @@ fn each_system_names_its_own_install() {
     let mount = PathBuf::from("/tmp/.mount_ElyDoc");
     let mounted = Path::new("/tmp/.mount_ElyDoc/usr/bin/ely-doc");
     let ours = Some((image.clone(), mount));
-    assert_eq!(none("linux", mounted, ours), Some(Installed::AppImage(image)));
+    assert_eq!(none("linux", mounted, ours), Some(Installed::AppImage { image, slug: "ely-doc".into() }));
     let dev = Path::new("/home/me/ely/target/ely-doc");
     assert_eq!(none("linux", dev, None), None);
     // Started from another AppImage's terminal.

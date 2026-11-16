@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installed apps or AppImages show themed windows. Usage: linux-installed.sh <installed|appimage>
+# Themed windows. Usage: linux-installed.sh <installed|appimage>
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -22,7 +22,13 @@ version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
 fixtures=$root/crates/ely-ui/tests/fixtures/omarchy
 work=$(mktemp -d)
 pid=
-trap '[ -z "$pid" ] || stop_app "$pid"; rm -rf "$work"' EXIT
+trap '[ -z "$pid" ] || stop_app "$pid"; ours | xargs -r kill; rm -rf "$work"' EXIT
+ours() { # pids of this test's HOME
+  local each
+  for each in $(pgrep -u "$(id -u)"); do
+    ! grep -qzx "HOME=$work" "/proc/$each/environ" 2>/dev/null || echo "$each"
+  done
+}
 # shellcheck source=tests/scripts/linux-common.sh
 . "$root/tests/scripts/linux-common.sh"
 linux_inputs "$root" "$work"
@@ -31,11 +37,7 @@ current=$work/omarchy/current
 program() { # slug
   case $mode in
     installed) echo "/usr/bin/$1" ;;
-    appimage)
-      local name
-      name=$(awk -F'\t' -v slug="$1" '$1 == slug { print $2 }' "$root/packaging/apps.tsv")
-      echo "$root/dist/$name-$version-linux-$(uname -m).AppImage"
-      ;;
+    appimage) echo "$root/dist/ElyOffice-$version-linux-$(uname -m).AppImage" ;;
     *) fail "mode is installed or appimage, not $mode" ;;
   esac
 }
@@ -90,6 +92,8 @@ check() { # slug, words, args
   shift 2
   exe=$(program "$slug")
   [ -x "$exe" ] || fail "no $exe"
+  # The one AppImage: its first word names the app.
+  [ "$mode" = installed ] || set -- "$slug" "$@"
   ELY_OMARCHY_DIR="$current" ELY_SMOKE=hold ELY_LOCALE=en-US HOME="$work" XDG_DATA_HOME="$work/data" \
     setsid "$exe" "$@" 2>"$work/$slug.err" &
   pid=$!
@@ -121,3 +125,18 @@ for case in "${cases[@]}"; do
     check "$slug" "$words"
   fi
 done
+# Idle engines stay; the AppImage's mount does not.
+image=$(program ely-doc)
+mounted() { for each in $(ours); do [ "$(readlink "/proc/$each/exe")" != "$image" ] || echo "$each"; done; }
+if [ "$mode" = appimage ]; then
+  for _ in $(seq 150); do [ -n "$(mounted)" ] || break; sleep 0.2; done
+  [ -z "$(mounted)" ] || fail "the AppImage stays mounted for: $(for each in $(mounted); do tr '\0' ' ' <"/proc/$each/cmdline"; done)"
+fi
+[ -n "$(ours)" ] || fail "no idle engine stayed"
+for slug in ely-doc ely-table ely-show; do
+  if [ "$mode" = installed ]; then set -- "$(program "$slug")"; else set -- "$image" "$slug"; fi
+  HOME="$work" XDG_DATA_HOME="$work/data" "$@" engine stop || fail "$slug engine stop failed"
+done
+for _ in $(seq 50); do [ -n "$(ours)" ] || break; sleep 0.2; done
+[ -z "$(ours)" ] || fail "processes outlived engine stop: $(ours)"
+echo "linux: $mode idle engines stay without the mount; engine stop ends them"

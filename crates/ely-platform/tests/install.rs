@@ -95,12 +95,14 @@ fn an_appimage_is_swapped_then_reopened() {
     std::fs::write(&image, "old").expect("the old image");
     let new = root.path().join("new.AppImage");
     let mark = root.path().join("opened");
-    std::fs::write(&new, format!("#!/bin/sh\necho yes > '{}'\n", mark.display())).expect("the new image");
+    std::fs::write(&new, format!("#!/bin/sh\necho \"$1\" > '{0}.part' && mv '{0}.part' '{0}'\n", mark.display())).expect("the new image");
     let note = root.path().join("notes/failed.txt");
-    let installed = Installed::AppImage(image.clone());
+    let installed = Installed::AppImage { image: image.clone(), slug: "ely-doc".into() };
     let mut child = after_quit(&new, &installed, ended(), &note, Stdio::null()).expect("starts");
     assert!(child.wait().expect("ends").success());
     assert!(reopened(&mark), "the new image runs");
+    // The unified image needs the app's name.
+    assert_eq!(std::fs::read_to_string(&mark).expect("reads"), "ely-doc\n");
     assert_eq!(std::fs::read(&image).expect("reads"), std::fs::read(&new).expect("reads"));
     let mode = std::fs::metadata(&image).expect("its mode").permissions().mode();
     assert_eq!(mode & 0o777, 0o755);
@@ -115,7 +117,7 @@ fn an_appimage_that_cannot_be_replaced_leaves_a_note() {
     let note = root.path().join("notes/failed.txt");
     let new = root.path().join("new.AppImage");
     std::fs::write(&new, "#!/bin/sh\n").expect("the new image");
-    let installed = Installed::AppImage(image.clone());
+    let installed = Installed::AppImage { image: image.clone(), slug: "ely-doc".into() };
     let mut child = after_quit(&new, &installed, ended(), &note, Stdio::null()).expect("starts");
     assert!(child.wait().expect("ends").success());
     let said = std::fs::read_to_string(&note).expect("a note");

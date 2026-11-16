@@ -75,4 +75,5 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("error.then", "{error}; tampoco se pudieron eliminar los archivos ya escritos: {left}"),
     ("error.no_key", "la clave de recuperación no está en el almacén de claves"),
     ("error.not_installed", "{app} no está instalado"),
+    ("pick.title", "Elige una app para abrir."),
 ];

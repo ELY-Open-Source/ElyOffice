@@ -127,6 +127,7 @@ const EN: &[(&str, &str)] = &[
     ("error.then", "{error}; removing the files already written failed too: {left}"),
     ("error.no_key", "the recovery key is not in the key store"),
     ("error.not_installed", "{app} is not installed"),
+    ("pick.title", "Choose an app to open."),
 ];
 
 const ZH_CN: &[(&str, &str)] = &[
@@ -192,6 +193,7 @@ const ZH_CN: &[(&str, &str)] = &[
     ("error.then", "{error}；已写出的文件也没能删除：{left}"),
     ("error.no_key", "密钥存储里没有恢复密钥"),
     ("error.not_installed", "{app} 没有安装"),
+    ("pick.title", "选一个应用打开。"),
 ];
 
 /// The listed language of `tag`'s primary subtag; else en-US.

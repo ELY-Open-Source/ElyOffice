@@ -63,4 +63,5 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("error.then", "{error}; cũng không xóa được các tệp đã ghi: {left}"),
     ("error.no_key", "khóa khôi phục không có trong kho khóa"),
     ("error.not_installed", "{app} chưa được cài"),
+    ("pick.title", "Chọn ứng dụng để mở."),
 ];

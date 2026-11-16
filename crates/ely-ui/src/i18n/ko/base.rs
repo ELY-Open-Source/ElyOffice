@@ -63,4 +63,5 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("error.then", "{error}. 이미 쓴 파일도 지우지 못했습니다: {left}"),
     ("error.no_key", "복구 키가 키 저장소에 없습니다"),
     ("error.not_installed", "{app}이(가) 설치되어 있지 않습니다"),
+    ("pick.title", "열 앱을 고르세요."),
 ];

@@ -38,10 +38,12 @@ shift 3
 eval "$INSTALL /dist/$file" >/tmp/install.log 2>&1 || { tail -20 /tmp/install.log; exit 1; }
 user=$(getent passwd "$OWNER" | cut -d: -f1) || { useradd -u "$OWNER" -m ely; user=ely; }
 home=$(getent passwd "$user" | cut -d: -f6)
+# The runtime folder logind makes.
+install -d -m 0700 -o "$user" "/run/user/$OWNER"
 Xvfb :9 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 &
 for _ in $(seq 40); do [ -e /tmp/.X11-unix/X9 ] && break; sleep 0.25; done
 runuser -u "$user" -- env DISPLAY=:9 ELY_OMARCHY_DIR="$work/omarchy/current" ELY_SMOKE=hold ELY_LOCALE=en-US \
-  HOME="$home" "/usr/bin/$slug" "$@" 2>"$work/$slug.err" &
+  HOME="$home" XDG_RUNTIME_DIR="/run/user/$OWNER" "/usr/bin/$slug" "$@" 2>"$work/$slug.err" &
 pid=$!
 id=
 for _ in $(seq 120); do
@@ -57,7 +59,7 @@ xwd -display :9 -id "$id" -out "$work/$slug.xwd"
 kill "$pid"'
 run() { # image, install command, package file, slug, input
   local slug=$4 shot=$work/$4.png args=()
-  [ -f "$dist/$3" ] || fail "no $dist/$3; run packaging/linux/package.sh $slug"
+  [ -f "$dist/$3" ] || fail "no $dist/$3; run packaging/linux/bundle.sh"
   [ -z "$5" ] || args=("$work/$5")
   docker run --rm -e INSTALL="$2" -e OWNER="$(id -u)" -v "$dist:/dist:ro" -v "$work:$work" "$1" \
     bash -c "$inside" _ "$slug" "$work" "$3" "${args[@]}" ||
@@ -68,8 +70,7 @@ run() { # image, install command, package file, slug, input
 }
 for case in "${cases[@]}"; do
   IFS='|' read -r slug words input <<<"$case"
-  run ely-smoke-ubuntu "apt-get update -q && apt-get install -y -q" "${slug}_$version-1_amd64.deb" "$slug" "$input" "$words"
-  run ely-smoke-fedora "dnf install -y -q" "$slug-$version-1.x86_64.rpm" "$slug" "$input" "$words"
-  # The suite's app, on the kernel all three share.
+  # Each app of ely-office, one kernel.
+  run ely-smoke-ubuntu "apt-get update -q && apt-get install -y -q" "ely-office_$version-1_amd64.deb" "$slug" "$input" "$words"
   run ely-smoke-fedora "dnf install -y -q" "ely-office-$version-1.x86_64.rpm" "$slug" "$input" "$words"
 done

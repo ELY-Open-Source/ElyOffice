@@ -405,6 +405,23 @@ Mac 上的载入已比 Windows 快三至四倍，时间花在起内核：热的�
 - 三个空闲引擎 RSS 177、190、243 MB，共 610 MB；30 秒里 CPU 时间共增 0.01 秒。
 - 第一次量时安装失败：`preinstall` 在 `pkgbuild` 之后才加执行位，安装器报“文件不存在”。改在打包前加；`release-macos.sh` 现核两个脚本都可执行。
 
+### SF.21 Linux 一个 AppImage（2026-11-15，本机 9950X3D，毫秒）
+
+`dist` 里一个 `ElyOffice-0.1.16-linux-x86_64.AppImage`，364,366,328 字节；`ely-office` 的 deb 379 MB、rpm 380 MB、Arch 439 MB。首块图块从起 AppImage 算到日志的 “first tile drawn”，文件是 `backslash.docx`，每轮一个新的 HOME：
+
+| 情形 | ElyDoc 首块图块 |
+| --- | --- |
+| 首次（解出内核） | 948 至 995 |
+| 之后，无空闲引擎 | 284 至 297 |
+| 之后，有空闲引擎 | 284 至 296 |
+
+- 首次多出的约 650 毫秒里，483 至 539 毫秒是把 474 MB 的内核解到 `~/.local/lib/ely-office/<内核编号>`，每个内核编号只解一次。
+- 文件小，有无引擎差不到 10 毫秒：时间花在挂 AppImage 与起应用。
+- 量的时候查出两个错：空闲引擎继承了 AppImage 运行时的描述符，挂载卸不掉，重打包报 “Text file busy”；引擎起前现给 3 以上的描述符设 CLOEXEC，接班引擎经 `$APPIMAGE` 起。Debian 11 装不上 deb：SF.18 的内核在本机重链，要 glibc 2.43；在容器里重建后最高 2.28。
+- `linux-packages.sh`（Debian 11、Ubuntu、Fedora、Arch）、`linux-distros.sh`、`linux-installed.sh appimage`、`nix.sh` 都过；七个应用退出后挂载都卸掉，`engine stop` 后不留进程。
+- Nix 现在只给一个 `ely-office` 包，但仍由 0.1.16 的七个 AppImage 拼成；读统一映像的 flake 与首个统一发布一起入库（SF.26）。
+- 映像路径里有 `%` 时 GLib 起不了菜单项：它在展开 `%%` 前就找程序。Exec 改以 `/usr/bin/env` 开头，`gio launch` 实测起得来。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：
@@ -502,7 +519,7 @@ Ely 与它的三处不同：三个应用都常驻，不只是文字；不给开�
 | Windows | 七个单应用安装程序，加合集（477 MB，里面是七个安装程序、三份内核） | `ElyOffice-<版本>-windows-x86_64-setup.exe` | 预计约 270 MB |
 | macOS | 七个 dmg，加合集 dmg（arm64 814 MB、Intel 871 MB，三份内核） | `ElyOffice-<版本>-arm64.pkg` 与 `-x86_64.pkg`，签名并公证 | 预计 arm64 约 410 MB、Intel 约 440 MB |
 | Linux：deb、rpm（Fedora）、Arch | 七个单包，加 `ely-office`（已是一份内核） | 只剩 `ely-office` | 0.1.16 实际：deb 360 MB、rpm 361 MB、Arch 418 MB |
-| Linux：AppImage | 七个单应用的 AppImage，没有合集 | `ElyOffice-<版本>-linux-x86_64.AppImage` | 预计约 380 至 400 MB |
+| Linux：AppImage | 七个单应用的 AppImage，没有合集 | `ElyOffice-<版本>-linux-x86_64.AppImage` | SF.21 实际 364 MB（原七个各约 390 MB） |
 | Nix | flake 里每个应用一个包，`default` 把它们并起来 | 只有 `ely-office` 一个包，由统一的 AppImage 解出 | 同 AppImage |
 | WinGet | 每个应用一份清单 `ZacharyZhang.<名字>` | 一份 `ZacharyZhang.ElyOffice` | 同 Windows |
 

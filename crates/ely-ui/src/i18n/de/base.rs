@@ -63,4 +63,5 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("error.then", "{error}; auch das Entfernen der bereits geschriebenen Dateien ist fehlgeschlagen: {left}"),
     ("error.no_key", "der Wiederherstellungsschlüssel ist nicht im Schlüsselspeicher"),
     ("error.not_installed", "{app} ist nicht installiert"),
+    ("pick.title", "Wählen Sie eine App zum Öffnen."),
 ];

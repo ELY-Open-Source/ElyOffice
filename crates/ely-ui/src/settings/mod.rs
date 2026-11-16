@@ -22,7 +22,7 @@ mod folder;
 mod storage;
 pub mod panels;
 mod picks;
-mod said;
+pub(crate) mod said;
 #[cfg(test)]
 mod tests;
 mod window;

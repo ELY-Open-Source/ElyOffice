@@ -1,0 +1,83 @@
+#!/bin/sh
+# The unified AppImage: menu items, the kernel, then the app.
+set -eu
+
+here=$(dirname "$(readlink -f "$0")")
+image=${APPIMAGE:?AppRun runs inside the AppImage}
+say() { echo "ely-office: $*" >&2; }
+
+# The app: a first word, else the file's name, else ask.
+slug=
+if [ $# -gt 0 ] && awk -F'\t' -v want="$1" '$1 == want { found = 1 } END { exit !found }' "$here/apps.tsv"; then
+  slug=$1
+  shift
+else
+  base=$(basename "$image")
+  while IFS='	' read -r each name; do
+    case $base in "$name"-* | "$name".AppImage) slug=$each ;; esac
+  done <"$here/apps.tsv"
+fi
+
+# Menu items and icons follow the file wherever it moves.
+data=${XDG_DATA_HOME:-$HOME/.local/share}
+menu=$data/applications
+icons=$data/icons/hicolor/512x512/apps
+mkdir -p "$menu" "$icons"
+# Exec's quoting, then the string's: \\\\ and \\" ` $.
+quoted=$(printf '%s' "$image" | sed -e 's/\\/\\\\\\\\/g' -e 's/["`$]/\\\\&/g' -e 's/%/%%/g')
+changed=
+while IFS='	' read -r each _; do
+  entry=$menu/$each.desktop
+  # GLib checks the program before it expands %%.
+  EXEC="/usr/bin/env \"$quoted\" $each" awk '/^Exec=/ { sub(/^Exec=[^ ]+/, ""); print "Exec=" ENVIRON["EXEC"] $0; next } { print }' \
+    "$here/$each/share/applications/$each.desktop" >"$entry.$$"
+  if cmp -s "$entry.$$" "$entry"; then
+    rm "$entry.$$"
+  else
+    mv "$entry.$$" "$entry"
+    changed=1
+  fi
+  icon=$here/$each/share/icons/hicolor/512x512/apps/$each.png
+  if ! cmp -s "$icon" "$icons/$each.png"; then
+    cp "$icon" "$icons/$each.png.$$"
+    mv "$icons/$each.png.$$" "$icons/$each.png"
+  fi
+done <"$here/apps.tsv"
+if [ -n "$changed" ]; then
+  say "menu items now open $image"
+  # "Open With" reads this cache.
+  if command -v update-desktop-database >/dev/null; then
+    update-desktop-database "$menu"
+  fi
+fi
+
+# The kernel and engine outlive the mount.
+lib=$HOME/.local/lib/ely-office
+keep() { # from, to, what: copied once, whole
+  [ ! -e "$2" ] || return 0
+  began=$(date +%s%N)
+  part=$lib/.$(basename "$2").$$
+  trap 'rm -rf "$part"' EXIT
+  mkdir -p "$part"
+  cp -R "$1" "$part/"
+  # Another start may have won.
+  if ! mv -T "$part" "$2" && [ ! -e "$2" ]; then
+    say "$3 could not be kept in $2"
+    exit 1
+  fi
+  trap - EXIT
+  rm -rf "$part"
+  say "$3 kept in $2 in $((($(date +%s%N) - began) / 1000000)) ms"
+}
+id=$(cat "$here/libreoffice/program/ely-kernel-id")
+keep "$here/libreoffice" "$lib/$id" "kernel $id"
+# The worker changes without the kernel.
+worker=$(cat "$here/ely-worker-id")
+keep "$here/ely-doc/bin/ely-lok-worker" "$lib/worker-$worker" "worker $worker"
+export ELY_LOK_DIR=$lib/$id/libreoffice/program ELY_LOK_WORKER=$lib/worker-$worker/ely-lok-worker
+
+if [ -z "$slug" ]; then
+  say "$(basename "$image") names no app; asking"
+  ELY_PICK=1 exec "$here/ely-mark/bin/ely-mark" "$@"
+fi
+exec "$here/$slug/bin/$slug" "$@"

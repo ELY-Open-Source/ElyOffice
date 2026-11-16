@@ -10,6 +10,7 @@ pub mod menu;
 mod dropping;
 mod frames;
 mod opening;
+mod pick;
 mod run;
 pub mod settings;
 mod shell;

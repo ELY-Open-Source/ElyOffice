@@ -1074,3 +1074,14 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 装完以控制台用户同步跑 `ely-login`，安装器关上时引擎已在；随后重新载入代理，下次登录照常起。没有控制台用户（远程装）即跳过。
 - 更新：清单 `ely-office-macos-<架构>.json` 指 `.pkg`；应用退出后交给“安装器”，用户在那里点。原先的 dmg 自换包删去：一个 `.app` 换不了共用的内核与登录项。
 - 未做：别的已登录用户的引擎不停；卸载仍无。
+
+## 2026-11-15 Linux 只一个 AppImage（SF.21）
+
+- Linux 只出 `ely-office` 的 deb、rpm、Arch 包与 `ElyOffice-<版本>-linux-<架构>.AppImage`；`package.sh` 只出 AppDir 与依赖，`bundle.sh` 出两样合集。AppImage 里内核只一份。
+- 选应用：首个参数是应用名即开它；否则看文件名，`<名>-*` 或 `<名>.AppImage`（0.1.16 的旧文件被更新换掉后名字照旧，开的仍是原应用）；都不是即以 `ELY_PICK=1` 起 ElyMark 的二进制画选择窗口，传来的文件随所选应用一起交过去。
+- AppRun 每次启动把七个菜单项写进 `~/.local/share/applications`，Exec 指当前的映像文件（文件挪了即改写）；内核解到 `~/.local/lib/ely-office/<内核编号>`，worker 解到 `worker-<其散列>`（`bundle.sh` 写 `ely-worker-id`）：只换应用不换内核时，握手要的是新 worker。各先进本次启动独有的临时目录再 `mv -T`，只解一次；菜单项与图标也先写本次启动独有的临时文件再改名，同时起几个不相撞：挂载随首个应用退出而消失，空闲引擎与别的应用要活得比它久。Exec 的转义按桌面规范两层：反斜杠写四个，引号、反引号、`$` 前写两个，`%` 写 `%%`；GLib（`gio launch`）在展开 `%%` 前就查程序在不在，路径里的 `%` 使它找不到映像，故 Exec 以 `/usr/bin/env` 开头，映像作它的参数；菜单项没有 `TryExec`。
+- 映像里的应用起别的应用经 `$APPIMAGE <应用名>`，不走挂载里的路径。
+- Nix：在首个统一发布之前，`flake.nix` 仍按 0.1.16 的 `nix/release.json` 每应用包一个 `wrapType2`，只对外给一个 `ely-office`（`symlinkJoin` 七个，许可取并集），`default` 即它；`packaging/nix.sh` 仍读每应用清单。统一映像要 `buildFHSEnv`（`wrapType2` 不设 `APPIMAGE`，AppRun 跑不起来）；它与读统一清单的 `nix.sh` 在首个统一发布的同一提交里换入，与新的 release.json 一起，树里只留一种读法。在此之前，对统一发布跑 `nix.sh` 即失败。`tests/scripts/nix.sh` 拿入库的 flake 与 release.json 在 nixos/nix 容器里建；`pr.yml` 不跑它（要 docker 与 Nix）。
+- AppImage 的运行时以一根管道与挂载目录的句柄（fd 1023）判定挂载还在用，两者不带 CLOEXEC。接班引擎的 worker 继承了它们，应用退出后挂载与运行时一直在，映像文件“Text file busy”，重新打包失败。文档应用与其 `engine` 一启动即给 3 号以上的描述符加 CLOEXEC（`ely_platform::apps::hold_mount_alone`），只它自己撑着挂载；接班的 `engine` 经 `$APPIMAGE <应用> engine` 起（`apps::starter`），不从挂载里起，否则应用先退出时它的代码页没了。`linux-installed.sh appimage` 核对应用都关后，引擎还在而映像的运行时已退出，`engine stop` 再结束全部。
+- 量时 Debian 11 装不上 deb：要 glibc 2.43。SF.18 改了补丁后在本机而非容器里重建内核，九个库（`libmergedlo.so` 等）链到本机的 glibc。发布不受影响，`ci.sh` 打包前的 `linux-glibc.sh` 会拦下。删去本机建的 199 个目标文件与库，在容器里重建，各文件至多要 2.28。`linux-distros.sh` 的容器没有 `XDG_RUNTIME_DIR`，SF.3 起 worker 拒跑；容器里照 logind 建 `/run/user/<uid>`。
+- 未做：旧编号的内核不删（SF.22 再定）；合集映像的图标借 ElyDoc 的，没有 Ely Office 自己的图标。

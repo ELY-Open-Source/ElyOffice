@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One deb, rpm and Arch package holding every first-batch app.
+# The ely-office packages and the one AppImage.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -15,6 +15,9 @@ case $arch in
 esac
 nfpm=$root/engines/nfpm-2.47.0-$arch
 [ -x "$nfpm" ] || broken "no $nfpm; run package.sh first"
+pack=$root/engines/appimagetool-1.9.1-$arch.AppImage
+runtime=$root/engines/type2-runtime-20251108-$arch
+[ -x "$pack" ] && [ -f "$runtime" ] || broken "no appimagetool or runtime; run package.sh first"
 version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
 packages=$root/target/package
 work=$packages/ely-office
@@ -23,7 +26,7 @@ mkdir -p "$work/opt"
 
 slugs=() kernels=()
 entries=$work/entries.yaml
-: >"$entries" >"$work/licenses"
+: >"$entries" >"$work/licenses" >"$work/apps.tsv"
 while IFS=$'\t' read -r slug name _ batch license _; do
   [ "$batch" = 1 ] || continue
   usr=$packages/$slug/$name.AppDir/usr
@@ -31,6 +34,7 @@ while IFS=$'\t' read -r slug name _ batch license _; do
   # Links, not copies: a kernel alone is 500 MB.
   cp -al "$usr" "$work/opt/$slug"
   slugs+=("$slug")
+  printf '%s\t%s\n' "$slug" "$name" >>"$work/apps.tsv"
   [ ! -d "$usr/bin/libreoffice" ] || kernels+=("$slug")
   for kind in deb rpm archlinux; do
     cat "$packages/$slug/depends.$kind" >>"$work/depends.$kind"
@@ -110,3 +114,30 @@ YAML
 for packager in deb rpm archlinux; do
   "$nfpm" package --config "$work/nfpm.yaml" --packager "$packager" --target "$dist/"
 done
+
+# The AppImage: the same tree, its links relative.
+appdir=$work/ElyOffice.AppDir
+cp -al "$work/opt" "$appdir"
+[ -s "$appdir/libreoffice/program/ely-kernel-id" ] || broken "the kernel has no ely-kernel-id"
+for slug in "${kernels[@]}"; do ln -s ../../libreoffice "$appdir/$slug/bin/libreoffice"; done
+cp "$work/apps.tsv" "$appdir/apps.tsv"
+# AppRun keeps the worker by this.
+sha256sum "$appdir/ely-doc/bin/ely-lok-worker" | cut -c1-16 >"$appdir/ely-worker-id"
+cp "$root/packaging/linux/AppRun" "$appdir/AppRun"
+cp "$root/assets/icons/ely-doc.png" "$appdir/ely-doc.png"
+ln -s ely-doc.png "$appdir/.DirIcon"
+cat >"$appdir/ely-office.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Ely Office
+Exec=AppRun
+Icon=ely-doc
+Categories=Office;
+Terminal=false
+DESKTOP
+image=$dist/ElyOffice-$version-linux-$arch.AppImage
+ARCH=$arch "$pack" --appimage-extract-and-run --runtime-file "$runtime" "$appdir" "$image"
+"$root/packaging/manifest.sh" ely-office "linux-$arch" "$image"
+# 0.1.16 reads its own app's manifest; each names this image.
+for slug in "${slugs[@]}"; do "$root/packaging/manifest.sh" "$slug" "linux-$arch" "$image"; done
+echo "$image"

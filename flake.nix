@@ -44,11 +44,13 @@
       apps = lib.mapAttrs app release.apps;
     in
     {
-      packages.${system} = apps // {
-        default = pkgs.symlinkJoin {
+      packages.${system} = rec {
+        ely-office = pkgs.symlinkJoin {
           name = "ely-office-${release.version}";
           paths = lib.attrValues apps;
+          meta.license = lib.unique (lib.concatMap (each: each.meta.license) (lib.attrValues apps));
         };
+        default = ely-office;
       };
     };
 }

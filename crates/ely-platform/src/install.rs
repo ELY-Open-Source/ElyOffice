@@ -18,8 +18,8 @@ pub enum Installed {
     Bundle(PathBuf),
     /// The folder a Windows setup wrote, and the app.
     Folder { dir: PathBuf, exe: PathBuf },
-    /// A Linux AppImage file.
-    AppImage(PathBuf),
+    /// A Linux AppImage file, and the app it ran.
+    AppImage { image: PathBuf, slug: String },
     /// A package's manager and name: the manager updates it.
     Package(Package, String),
     /// The Nix store: Nix updates it, Ely only tells.
@@ -62,7 +62,7 @@ fn installed(
         "linux" => match image.filter(|(_, mount)| exe.starts_with(mount)) {
             // Nix wraps the AppImage; its store is read-only.
             _ if exe.starts_with(NIX) => Some(Installed::Nix),
-            Some((image, _)) => Some(Installed::AppImage(image)),
+            Some((image, _)) => Some(Installed::AppImage { image, slug: slug.to_owned() }),
             None if PACKAGED.iter().any(|prefix| exe.starts_with(prefix)) => {
                 let (manager, name) = Package::of(root, slug, rpm)?;
                 Some(Installed::Package(manager, name))

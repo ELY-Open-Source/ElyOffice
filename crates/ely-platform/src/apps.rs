@@ -81,10 +81,48 @@ pub fn open(app: AppId, files: &[PathBuf]) -> io::Result<()> {
         log::info!("apps: opened {} with {} files", app.name(), files.len());
         return Ok(());
     }
-    let mut command = Command::new(&found);
+    let mut command = starter(app, &found);
     command.args(files);
     let child = command.spawn()?;
     log::info!("apps: started {} as {}", app.name(), child.id());
+    Ok(())
+}
+
+/// Runs `binary` of `app`; from an AppImage, through the image.
+pub fn starter(app: AppId, binary: &Path) -> Command {
+    let mounted = std::env::var_os("APPDIR").is_some_and(|mount| binary.starts_with(mount));
+    match std::env::var_os("APPIMAGE") {
+        // The mount goes when its first app quits.
+        Some(image) if mounted => {
+            let mut command = Command::new(image);
+            command.arg(app.slug());
+            command
+        }
+        _ => Command::new(binary),
+    }
+}
+
+/// In an AppImage, children must not hold the mount.
+#[cfg(target_os = "linux")]
+pub fn hold_mount_alone() -> io::Result<()> {
+    if std::env::var_os("APPIMAGE").is_none() {
+        return Ok(());
+    }
+    // The runtime's pipe and mount handle lack CLOEXEC.
+    for entry in std::fs::read_dir("/proc/self/fd")? {
+        let name = entry?.file_name();
+        let fd: libc::c_int = name.to_string_lossy().parse().map_err(|_| io::Error::other(format!("/proc/self/fd holds {name:?}")))?;
+        if fd < 3 {
+            continue;
+        }
+        // SAFETY: only descriptor flags change.
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+        // SAFETY: as above.
+        if flags < 0 || unsafe { libc::fcntl(fd, libc::F_SETFD, flags | libc::FD_CLOEXEC) } < 0 {
+            let error = io::Error::last_os_error();
+            return Err(io::Error::new(error.kind(), format!("fd {fd}: {error}")));
+        }
+    }
     Ok(())
 }
 

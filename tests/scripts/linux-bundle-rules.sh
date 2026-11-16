@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bundle.sh shares one kernel only when the copies match.
+# One kernel shared only when the copies match.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -27,6 +27,14 @@ plant() {
   echo 'version = "9.9.9"' >"$tree/Cargo.toml"
   printf '#!/bin/sh\necho "$@" >>"%s/nfpm.log"\n' "$tree" >"$tree/engines/nfpm-2.47.0-$arch"
   chmod +x "$tree/engines/nfpm-2.47.0-$arch"
+  cp "$root/packaging/linux/AppRun" "$tree/packaging/linux/"
+  cp "$root/packaging/manifest.sh" "$tree/packaging/"
+  mkdir -p "$tree/assets/icons"
+  echo icon >"$tree/assets/icons/ely-doc.png"
+  # appimagetool: the last word is the image.
+  printf '#!/bin/sh\necho "$@" >>"%s/pack.log"\nfor last; do :; done\necho image >"$last"\n' "$tree" >"$tree/engines/appimagetool-1.9.1-$arch.AppImage"
+  chmod +x "$tree/engines/appimagetool-1.9.1-$arch.AppImage"
+  echo runtime >"$tree/engines/type2-runtime-20251108-$arch"
   while IFS=$'\t' read -r slug name _ batch _; do
     [ "$batch" = 1 ] || continue
     local package=$tree/target/package/$slug
@@ -36,6 +44,7 @@ plant() {
     case $slug in ely-doc | ely-table | ely-show)
       mkdir -p "$package/$name.AppDir/usr/bin/libreoffice/program" "$package/$name.AppDir/usr/bin/libreoffice/share/template/common"
       echo kernel >"$package/$name.AppDir/usr/bin/libreoffice/program/libmergedlo.so"
+      echo worker >"$package/$name.AppDir/usr/bin/ely-lok-worker"
       ;;
     esac
   done <"$root/packaging/apps.tsv"
@@ -58,11 +67,30 @@ held=$(cat "$shared/libreoffice/program/ely-kernel-id")
 "$root/scripts/kernel-id.sh" "$shared/libreoffice" "$base/ely-kernel-id" >/dev/null
 [ "$held" = "$(cat "$base/ely-kernel-id")" ] || fail "the shared kernel's id is not its own"
 
+# The AppImage: the same tree, links relative, eight manifests.
+appdir=$work/same/target/package/ely-office/ElyOffice.AppDir
+[ "$(wc -l <"$work/same/pack.log")" = 1 ] || fail "appimagetool did not run once"
+grep -qF -- "--runtime-file $work/same/engines/type2-runtime-20251108-$arch $appdir" "$work/same/pack.log" ||
+  fail "appimagetool packed another folder: $(cat "$work/same/pack.log")"
+for slug in ely-doc ely-table ely-show; do
+  [ "$(readlink "$appdir/$slug/bin/libreoffice")" = ../../libreoffice ] || fail "$slug's kernel link is not relative"
+  [ -f "$appdir/$slug/bin/libreoffice/program/libmergedlo.so" ] || fail "$slug's kernel link leads nowhere"
+done
+[ "$(cat "$appdir/ely-worker-id")" = "$(echo worker | sha256sum | cut -c1-16)" ] || fail "the worker id is not the worker's"
+[ -x "$appdir/AppRun" ] && [ -f "$appdir/ely-office.desktop" ] && [ -f "$appdir/ely-doc.png" ] || fail "the AppDir lacks its entry"
+[ "$(cut -f1 "$appdir/apps.tsv" | paste -sd' ')" = "$(awk -F'\t' '$4 == 1 { print $1 }' "$root/packaging/apps.tsv" | paste -sd' ')" ] ||
+  fail "the AppDir's apps: $(cat "$appdir/apps.tsv")"
+image=$work/same/dist/ElyOffice-9.9.9-linux-$arch.AppImage
+sha=$(sha256sum "$image" | cut -d' ' -f1)
+for name in ely-office $(cut -f1 "$appdir/apps.tsv"); do
+  grep -qF "\"sha256\": \"$sha\"" "$work/same/dist/$name-linux-$arch.json" || fail "$name's manifest does not name the AppImage"
+done
+
 plant "$work/differs"
 echo other >"$(kernel_of "$work/differs" ely-table ElyTable)/program/libmergedlo.so"
 ! bundle "$work/differs" || fail "a differing kernel was shared"
 grep -q "ely-table's kernel is not ElyShow's" "$work/differs/out.log" || fail "the differing kernel is not named"
-[ ! -e "$work/differs/nfpm.log" ] || fail "a package was made after a differing kernel"
+[ ! -e "$work/differs/nfpm.log" ] && [ ! -e "$work/differs/pack.log" ] || fail "a package was made after a differing kernel"
 
 # A link to nothing: diff cannot read it.
 plant "$work/unread"
@@ -72,4 +100,4 @@ ln -s /nonexistent/library "$library"
 ! bundle "$work/unread" || fail "a kernel that could not be read was shared"
 grep -q "ely-doc's kernel did not compare" "$work/unread/out.log" || fail "the unread kernel is not named"
 [ ! -e "$work/unread/nfpm.log" ] || fail "a package was made after an unread kernel"
-echo "linux-bundle-rules: one kernel is shared only when every copy compares equal"
+echo "linux-bundle-rules: one kernel is shared only when every copy compares equal; the AppImage holds it once"

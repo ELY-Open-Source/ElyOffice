@@ -139,19 +139,17 @@ pub(crate) fn install(app: AppId, cx: &mut App) {
 }
 
 /// This build's manifests and key, or the test's pair.
-fn manifest(app: AppId) -> anyhow::Result<(Vec<String>, String)> {
+fn manifest() -> anyhow::Result<(Vec<String>, String)> {
     let Ok(url) = std::env::var("ELY_UPDATE_MANIFEST") else {
-        return Ok((latest(app).to_vec(), update::KEY.to_string()));
+        return Ok((latest().to_vec(), update::KEY.to_string()));
     };
     let key = std::env::var("ELY_UPDATE_PUBLIC_KEY").map_err(|_| anyhow::anyhow!("ELY_UPDATE_MANIFEST needs ELY_UPDATE_PUBLIC_KEY"))?;
     Ok((vec![url], key))
 }
 
 /// The newest manifest: GitHub's, then the relay's.
-fn latest(app: AppId) -> [String; 2] {
-    // Linux AppImages stay per app until the suite's.
-    let name = if cfg!(target_os = "linux") { app.slug() } else { "ely-office" };
-    [GITHUB, MIRROR].map(|home| format!("{home}/latest/download/{name}-{}.json", update::platform()))
+fn latest() -> [String; 2] {
+    [GITHUB, MIRROR].map(|home| format!("{home}/latest/download/ely-office-{}.json", update::platform()))
 }
 
 /// A GitHub release file's address on the relay.
@@ -188,8 +186,7 @@ impl Updates {
         let current =
             semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("the build's version");
         // The lookup is a request too: off the window's thread.
-        let app = self.app;
-        let checked = cx.background_spawn(async move { manifest(app).and_then(|(urls, key)| update::check_any(&current, &urls, &key)) });
+        let checked = cx.background_spawn(async move { manifest().and_then(|(urls, key)| update::check_any(&current, &urls, &key)) });
         cx.spawn(async move |this, cx| {
             let checked = checked.await;
             this.update(cx, |this, cx| this.checked(checked, asked, cx)).ok();

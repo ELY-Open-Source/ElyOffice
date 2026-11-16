@@ -70,8 +70,8 @@ set -eu
 nixc() { nix --extra-experimental-features "nix-command flakes" "$@"; }
 cp -r /src /tmp/flake && cd /tmp/flake
 nixc eval --json path:/tmp/flake#packages.x86_64-linux \
-  --apply 'ps: builtins.mapAttrs (n: p: map (l: l.spdxId) p.meta.license) (removeAttrs ps ["default"])' >/out/licenses.json
-nixc build path:/tmp/flake#ely-mark --print-out-paths >/dev/null
+  --apply 'ps: { names = builtins.attrNames ps; licenses = map (l: l.spdxId) ps.ely-office.meta.license; }' >/out/licenses.json
+nixc build path:/tmp/flake#ely-office --print-out-paths >/dev/null
 cp result/share/applications/ely-mark.desktop /out/
 test -s result/share/icons/hicolor/512x512/apps/ely-mark.png
 icd=$(nixc build --no-link --print-out-paths nixpkgs#mesa)/share/vulkan/icd.d/lvp_icd.x86_64.json
@@ -88,9 +88,10 @@ python3 - "$apps" "$work/out/licenses.json" <<'EOF' || fail "the flake's license
 import json, sys
 rows = [r.split("\t") for r in open(sys.argv[1]).read().splitlines()]
 got = json.load(open(sys.argv[2]))
-want = {r[0]: r[4].split(" AND ") for r in rows if r[3] == "1"}
-assert got == want, (got, want)
+want = {l for r in rows if r[3] == "1" for l in r[4].split(" AND ")}
+assert got["names"] == ["default", "ely-office"], got["names"]
+assert sorted(got["licenses"]) == sorted(want), (got["licenses"], want)
 EOF
 grep -qx 'Exec=ely-mark %F' "$work/out/ely-mark.desktop" || fail "the desktop entry does not run ely-mark"
 grep -q 'ElyMark window open' "$work/out/smoke.log" || fail "ElyMark did not open a window"
-echo "flake: licenses match, ElyMark built and drew"
+echo "flake: one ely-office package, licenses match, ElyMark built and drew"

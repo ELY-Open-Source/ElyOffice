@@ -16,6 +16,10 @@ pub fn run<V: Render>(
     early: fn(AppId),
     root: impl FnOnce(AppId, &mut Window, &mut App) -> Entity<V> + 'static,
 ) {
+    // The AppImage named no app.
+    if env::value("ELY_PICK").is_some() {
+        return crate::pick::run(app);
+    }
     let files = crate::opening::launch_args().unwrap_or_else(|error| startup::fail(app, &format!("a launch argument has no place: {error}")));
     // Before any lock is taken in the old folder.
     let (moved, admitted) = ely_platform::folder::at_start().unwrap_or_else(|error| startup::fail(app, &format!("the data folder is not ready: {error}")));

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deb, rpm and Arch packages install cleanly and link.
+# The ely-office deb, rpm and Arch package install and link.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -43,33 +43,22 @@ while IFS= read -r -d "" file; do
 done </tmp/files
 [ "$checked" -gt 0 ] || { echo "no ELF files"; exit 1; }
 echo "$slug: $checked ELF files link"'
-run() { # image, install command, package file, slug
-  docker run --rm -v "$dist:/dist:ro" "$1" bash -c "{ $2 /dist/${3##*/}; } >/tmp/install.log 2>&1 ||
-    { tail -20 /tmp/install.log; exit 1; }; bash -c '$check' _ $4" ||
-    fail "$3 does not install or link in $1"
-}
 # The oldest glibc served: 2.31.
 debian=debian:11@sha256:6f519a81440354a85eb592c5f32109ab80605f6b892455983a6f618bf87fabe9
 ubuntu=ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
 fedora=fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
 arch=archlinux@sha256:4e77cf2ea5f410e6f8be5abf93ccf17ce2436e87a138c167208356711a405dbd
-for slug in $batch; do
-  deb=$dist/${slug}_$version-1_amd64.deb
-  rpm=$dist/$slug-$version-1.x86_64.rpm
-  pkg=$dist/$slug-$version-1-x86_64.pkg.tar.zst
-  for file in "$deb" "$rpm" "$pkg"; do
-    [ -f "$file" ] || fail "no $file; run packaging/linux/package.sh $slug"
-  done
-  # Debian 11 now lives on the archive.
-  run "$debian" "sed -i s#deb.debian.org#archive.debian.org# /etc/apt/sources.list &&
-    apt-get update -q && apt-get install -y -q" "$deb" "$slug"
-  run "$ubuntu" "apt-get update -q && apt-get install -y -q" "$deb" "$slug"
-  run "$fedora" "dnf install -y -q" "$rpm" "$slug"
-  run "$arch" "pacman -Sy --noconfirm && pacman -U --noconfirm" "$pkg" "$slug"
-done
+# 0.1.16's own ElyTree package, faked: the suite replaces it.
+nfpm=$root/engines/nfpm-2.47.0-x86_64
+[ -x "$nfpm" ] || fail "no $nfpm; run packaging/linux/package.sh"
+old=$(mktemp -d)
+trap 'rm -rf "$old"' EXIT
+echo old >"$old/old"
+printf 'name: ely-tree\narch: amd64\nplatform: linux\nversion: 0.1.15\nrelease: 1\nmaintainer: test\ndescription: the old ElyTree\nlicense: MIT\ncontents:\n  - src: %s/old\n    dst: /opt/ely-office/ely-tree/old\n' "$old" >"$old/nfpm.yaml"
+for packager in deb rpm archlinux; do "$nfpm" package --config "$old/nfpm.yaml" --packager "$packager" --target "$old/" >/dev/null; done
 # The suite: one package for every app, replacing theirs.
 suite() { # image, install command, suite file, query for ElyTree's own package
-  docker run --rm -v "$dist:/dist:ro" "$1" bash -c "{ $2 /dist/${3##*/}; } >/tmp/install.log 2>&1 ||
+  docker run --rm -v "$dist:/dist:ro" -v "$old:/old:ro" "$1" bash -c "{ $2 /dist/${3##*/}; } >/tmp/install.log 2>&1 ||
     { tail -20 /tmp/install.log; exit 1; }
     ! { $4; } >/dev/null 2>&1 || { echo 'ely-tree keeps its own package'; exit 1; }
     [ \"\$(readlink -f /opt/ely-office/ely-doc/bin/libreoffice)\" = /opt/ely-office/libreoffice ] ||
@@ -84,12 +73,12 @@ done
 # dpkg knows a removed deb; pacman -Q answers for providers.
 kept="dpkg-query -W -f='\${db:Status-Status}' ely-tree | grep -qx installed"
 suite "$debian" "sed -i s#deb.debian.org#archive.debian.org# /etc/apt/sources.list && apt-get update -q &&
-  apt-get install -y -q /dist/ely-tree_$version-1_amd64.deb && apt-get install -y -q" \
+  apt-get install -y -q /old/ely-tree_0.1.15-1_amd64.deb && apt-get install -y -q" \
   "ely-office_$version-1_amd64.deb" "$kept"
-suite "$ubuntu" "apt-get update -q && apt-get install -y -q /dist/ely-tree_$version-1_amd64.deb &&
+suite "$ubuntu" "apt-get update -q && apt-get install -y -q /old/ely-tree_0.1.15-1_amd64.deb &&
   apt-get install -y -q" "ely-office_$version-1_amd64.deb" "$kept"
-suite "$fedora" "dnf install -y -q /dist/ely-tree-$version-1.x86_64.rpm && dnf install -y -q" \
+suite "$fedora" "dnf install -y -q /old/ely-tree-0.1.15-1.x86_64.rpm && dnf install -y -q" \
   "ely-office-$version-1.x86_64.rpm" "rpm -q ely-tree"
-suite "$arch" "pacman -Sy --noconfirm && pacman -U --noconfirm /dist/ely-tree-$version-1-x86_64.pkg.tar.zst &&
+suite "$arch" "pacman -Sy --noconfirm && pacman -U --noconfirm /old/ely-tree-0.1.15-1-x86_64.pkg.tar.zst &&
   yes | pacman -U" "ely-office-$version-1-x86_64.pkg.tar.zst" "pacman -Qq ely-tree | grep -qx ely-tree"
-echo "linux-packages: deb, rpm and Arch packages install and link, the suite too"
+echo "linux-packages: the ely-office deb, rpm and Arch package install, replace the old ElyTree, link"

@@ -92,10 +92,9 @@ fn a_packaged_app_names_its_command_and_downloads_nothing(cx: &mut gpui::TestApp
 
 #[test]
 fn the_manifest_is_the_latest_file_on_github_then_on_the_relay() {
-    let name = if cfg!(target_os = "linux") { "ely-mark" } else { "ely-office" };
-    let file = format!("releases/latest/download/{name}-{}.json", update::platform());
+    let file = format!("releases/latest/download/ely-office-{}.json", update::platform());
     let want = ["https://github.com/ELY-Open-Source/ElyOffice", "https://office.elygpui.com"].map(|home| format!("{home}/{file}"));
-    assert_eq!(latest(AppId::Mark), want);
+    assert_eq!(latest(), want);
 }
 
 #[test]

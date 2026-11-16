@@ -3,7 +3,7 @@
 use std::{
     io,
     path::PathBuf,
-    process::{Command, Stdio},
+    process::Stdio,
     sync::Once,
     time::{Instant, SystemTime},
 };
@@ -18,6 +18,11 @@ const USAGE: &str = "usage: engine [stop]";
 
 /// Runs `engine` or `engine stop`; None for other arguments.
 pub fn command_line(app: AppId) -> Option<i32> {
+    #[cfg(target_os = "linux")]
+    if let Err(error) = ely_platform::apps::hold_mount_alone() {
+        eprintln!("{}: the AppImage mount stays shared: {error}", app.slug());
+        return Some(1);
+    }
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     if args.first().is_none_or(|first| first != "engine") {
         return None;
@@ -151,7 +156,7 @@ pub(crate) fn successor(app: AppId) {
 }
 
 fn start_successor(app: AppId) -> io::Result<()> {
-    let mut command = Command::new(std::env::current_exe()?);
+    let mut command = ely_platform::apps::starter(app, &std::env::current_exe()?);
     ely_ipc::windowless(&mut command).arg("engine").stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     let mut child = command.spawn()?;
     log::info!("{}: successor engine started as {}", app.slug(), child.id());

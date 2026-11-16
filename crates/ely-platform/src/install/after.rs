@@ -35,7 +35,7 @@ Start-Process -FilePath $env:ELY_EXE
 
 /// The same for an AppImage: swap the file, then reopen.
 const APPIMAGE: &str = r#"
-pid=$1 new=$2 target=$3 note=$4
+pid=$1 new=$2 target=$3 note=$4 slug=$5
 while kill -0 "$pid" 2>/dev/null; do sleep 0.2; done
 staged="$(dirname "$target")/.$(basename "$target").new"
 if ! said=$({ cp "$new" "$staged" && chmod 755 "$staged" && mv -f "$staged" "$target"; } 2>&1); then
@@ -43,7 +43,7 @@ if ! said=$({ cp "$new" "$staged" && chmod 755 "$staged" && mv -f "$staged" "$ta
   echo "update: $target was not replaced: $said" >&2
   mkdir -p "$(dirname "$note")" && printf '%s\n' "$target was not replaced: $said" >"$note"
 fi
-setsid "$target" </dev/null >/dev/null 2>&1 &
+setsid "$target" "$slug" </dev/null >/dev/null 2>&1 &
 "#;
 
 /// macOS: the Installer opens the `.pkg`; it asks first.
@@ -75,9 +75,9 @@ pub fn after_quit(file: &Path, installed: &Installed, pid: u32, note: &Path, sai
                 .env("ELY_NOTE", note);
             command
         }
-        Installed::AppImage(image) => {
+        Installed::AppImage { image, slug } => {
             let mut command = Command::new("/bin/sh");
-            command.args(["-c", APPIMAGE, "sh"]).arg(pid.to_string()).arg(file).arg(image).arg(note);
+            command.args(["-c", APPIMAGE, "sh"]).arg(pid.to_string()).arg(file).arg(image).arg(note).arg(slug);
             command
         }
         Installed::Package(..) | Installed::Nix => {
