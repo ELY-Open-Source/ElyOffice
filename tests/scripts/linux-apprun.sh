@@ -21,7 +21,7 @@ fail() {
 # An AppDir of fake apps that print what they got.
 dir=$work/ElyOffice.AppDir
 mkdir -p "$dir/libreoffice/program"
-cp "$root/packaging/linux/AppRun" "$dir/"
+cp "$root/packaging/linux/AppRun" "$root/packaging/linux/ely-engine@.service" "$dir/"
 echo kernel >"$dir/libreoffice/program/libmergedlo.so"
 echo k1 >"$dir/libreoffice/program/ely-kernel-id"
 awk -F'\t' '$4 == 1 { print $1 "\t" $2 }' "$root/packaging/apps.tsv" >"$dir/apps.tsv"
@@ -32,13 +32,18 @@ while IFS=$'\t' read -r slug name; do
   printf '[Desktop Entry]\nType=Application\nName=%s\nExec=%s %%F\nIcon=%s\n' "$name" "$slug" "$slug" >"$dir/$slug/share/applications/$slug.desktop"
   echo "$slug" >"$dir/$slug/share/icons/hicolor/512x512/apps/$slug.png"
 done <"$dir/apps.tsv"
+for slug in ely-doc ely-table ely-show; do ln -s ../../libreoffice "$dir/$slug/bin/libreoffice"; done
 echo worker >"$dir/ely-doc/bin/ely-lok-worker"
 echo w1 >"$dir/ely-worker-id"
 home=$work/home
+# The user's own manager stays untouched.
+mkdir "$work/bin"
+printf '#!/bin/sh\necho "$*" >>"%s/systemctl"\n' "$work" >"$work/bin/systemctl"
+chmod +x "$work/bin/systemctl"
 run() { # image path, args
   local image=$1
   shift
-  HOME=$home XDG_DATA_HOME= APPIMAGE=$image "$dir/AppRun" "$@" 2>>"$work/said"
+  HOME=$home XDG_DATA_HOME= XDG_CONFIG_HOME= APPIMAGE=$image PATH=$work/bin:$PATH "$dir/AppRun" "$@" 2>>"$work/said"
 }
 
 # The first word names the app; files follow.
@@ -57,14 +62,28 @@ done
 want='Exec=/usr/bin/env "/apps/my \\"odd\\" \\$dir/Ely%%Office.AppImage" ely-doc %F'
 grep -qxF "$want" "$menu/ely-doc.desktop" || fail "Exec reads: $(grep Exec "$menu/ely-doc.desktop")"
 grep -qx 'Name=ElyDoc' "$menu/ely-doc.desktop" || fail "the item lost its other lines"
+# The engine unit: systemd's quoting, three wants, one reload.
+units=$home/.config/systemd/user
+want='ExecStart=/usr/bin/env "/apps/my \"odd\" $$dir/Ely%%Office.AppImage" %i engine'
+grep -qxF "$want" "$units/ely-engine@.service" || fail "the unit reads: $(grep Exec "$units/ely-engine@.service")"
+[ "$(cd "$units/graphical-session.target.wants" && echo *)" = "ely-engine@ely-doc.service ely-engine@ely-show.service ely-engine@ely-table.service" ] ||
+  fail "login wants: $(ls "$units/graphical-session.target.wants")"
+[ "$(cat "$work/systemctl")" = "--user daemon-reload" ] || fail "systemctl ran: $(cat "$work/systemctl")"
 
 # Kept once: a second start copies nothing.
 : >"$work/said"
 run "$odd" ely-doc >/dev/null
 ! grep -q kept "$work/said" || fail "the kernel was copied twice"
 ! grep -q "menu items" "$work/said" || fail "unchanged items were rewritten"
+[ "$(wc -l <"$work/systemctl")" = 1 ] || fail "an unchanged unit reloaded systemd"
+# A link a failed start missed comes back.
+rm "$units/graphical-session.target.wants/ely-engine@ely-show.service"
+run "$odd" ely-doc >/dev/null
+[ "$(readlink "$units/graphical-session.target.wants/ely-engine@ely-show.service")" = "$units/ely-engine@.service" ] ||
+  fail "the missing link stayed missing"
+[ "$(wc -l <"$work/systemctl")" = 2 ] || fail "a new link did not reload systemd"
 
-# 0.1.16's file name names the app; a move rewrites the items.
+# 0.1.16's name picks the app; a move rewrites items.
 got=$(run /apps/ElyShow-0.1.16-linux-x86_64.AppImage /x/b.pptx)
 case $got in "ely-show pick= "*"args=/x/b.pptx") ;; *) fail "by name: $got" ;; esac
 grep -qxF 'Exec=/usr/bin/env "/apps/ElyShow-0.1.16-linux-x86_64.AppImage" ely-mark %F' "$menu/ely-mark.desktop" || fail "the move left old items"
@@ -110,4 +129,17 @@ XDG_DATA_HOME=$home/.local/share dbus-run-session -- gio launch "$home/.local/sh
   fail "gio cannot launch the item: $(tail -n 1 "$work/said")"
 for _ in $(seq 50); do [ -s "$work/launched" ] && break; sleep 0.1; done
 [ "$(cat "$work/launched" 2>/dev/null)" = "ely-doc /x/d.docx" ] || fail "the item did not start $odd/doc.AppImage: $(grep Exec "$home/.local/share/applications/ely-doc.desktop")"
-echo "linux-apprun: word, name or the picker; quoted menu items; the kernel kept once per id, the worker per build; starts at once; gio launches paths with % and quotes"
+# systemd runs the unit from the same odd path.
+if systemctl --user is-system-running >/dev/null 2>&1 || [ "$(systemctl --user is-system-running 2>/dev/null)" = degraded ]; then
+  probe=ely-apprun-$$
+  printf '#!/bin/sh\necho "$@" >>"%s/engine"\n' "$work" >"$odd/doc.AppImage"
+  sed "s/^Description=.*/Description=linux-apprun probe/" "$home/.config/systemd/user/ely-engine@.service" >"$work/$probe@.service"
+  systemctl --user link "$work/$probe@.service" >/dev/null 2>&1
+  trap 'systemctl --user disable "$probe@.service" >/dev/null 2>&1; rm -rf "$work"' EXIT
+  systemctl --user start "$probe@ely-doc.service" && systemctl --user stop "$probe@ely-doc.service" ||
+    fail "systemd cannot run the unit: $(systemctl --user status "$probe@ely-doc.service" 2>&1 | tail -n 3)"
+  [ "$(cat "$work/engine")" = "$(printf 'ely-doc engine\nely-doc engine stop')" ] || fail "the unit ran: $(cat "$work/engine")"
+else
+  echo "SKIP: no user systemd for the unit's run"
+fi
+echo "linux-apprun: word, name or the picker; quoted menu items; the kernel kept once per id, the worker per build; starts at once; gio and systemd start paths with % and quotes"

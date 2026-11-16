@@ -87,6 +87,7 @@ ElyShow 开着、文件已打开时，别的程序可经命令行读改幻灯片
 - 物理内存 8 GB 起每个应用一个；4 至 8 GB 只给最近用过的那一个；不到 4 GB 不留，打开照常，只是慢一点。没有开关。
 - `ely-doc engine`（`ely-table`、`ely-show` 同）起一个空闲引擎，等它就绪后退出；已有一个在等时什么也不做。`ely-doc engine stop` 让它退出。结果写进该应用的日志，失败时退出码为 1。
 - 空闲引擎不在时（比如它崩了），应用自己起一个，只是慢回原来的速度。
+- Linux 上它们是 systemd 用户服务 `ely-engine@ely-doc`、`ely-engine@ely-table`、`ely-engine@ely-show`，用 `systemctl --user status 'ely-engine@*'` 查看。AppImage 第一次运行时写进 `~/.config/systemd/user`，下次登录起效。
 
 ## ElyPDF 的页面
 

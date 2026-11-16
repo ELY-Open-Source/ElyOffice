@@ -69,9 +69,15 @@ pub(crate) fn name(session: u64) -> io::Result<String> {
     Ok(format!("lok-{}-{session}-{:x}", std::process::id(), now.as_nanos()))
 }
 
-/// The fixed name an app's idle engine waits on.
-pub(crate) fn idle_name(app: &str) -> String {
-    format!("idle-{app}")
+/// The name `app`'s idle engine in `profile` waits on.
+pub(crate) fn idle_name(app: &str, profile: &Path) -> io::Result<String> {
+    use std::hash::{Hash, Hasher};
+    // The locks' folder, whatever path names it.
+    std::fs::create_dir_all(profile)?;
+    let folder = std::fs::canonicalize(profile)?;
+    let mut hasher = std::hash::DefaultHasher::new();
+    folder.hash(&mut hasher);
+    Ok(format!("idle-{app}-{:016x}", hasher.finish()))
 }
 
 /// The worker's frames in; an idle engine changes apps once.

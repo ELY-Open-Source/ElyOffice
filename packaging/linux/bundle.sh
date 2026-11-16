@@ -71,6 +71,48 @@ for slug in "${kernels[@]}"; do
 ENTRY
 done
 
+# Login starts each kernel app's idle engine.
+unit=/usr/lib/systemd/user/ely-engine@.service
+wants=/etc/systemd/user/graphical-session.target.wants
+links=$(printf "$wants/ely-engine@%s.service " "${kernels[@]}")
+cat >>"$entries" <<ENTRY
+  - src: $root/packaging/linux/ely-engine@.service
+    dst: $unit
+ENTRY
+# What systemctl --global enable writes.
+printf '#!/bin/sh\nmkdir -p %s || exit 1\nfor link in %s; do ln -sf %s "$link" || exit 1; done\n' \
+  "$wants" "$links" "$unit" >"$work/postinstall"
+# Each user's idle engines stop, or the files stay.
+printf '#!/bin/sh\nkernels="%s"\n' "${kernels[*]}" >"$work/preremove"
+cat >>"$work/preremove" <<'STOP'
+[ -d /run/systemd/system ] || exit 0
+# In the user's manager; systemd 247 lacks --user -M.
+as() { runuser -u "$user" -- env XDG_RUNTIME_DIR="$dir" "$@"; }
+for dir in /run/user/*; do
+  [ -d "$dir" ] || continue
+  uid=${dir##*/}
+  if ! systemctl is-active --quiet "user@$uid.service"; then
+    echo "ely-office: user $uid has no systemd manager; skipped" >&2
+    continue
+  fi
+  user=$(id -nu "$uid") || exit 1
+  for slug in $kernels; do
+    # Whoever started it: the engine itself stops.
+    if ! as systemd-run --user --wait --quiet --collect -p RuntimeMaxSec=60 "/usr/bin/$slug" engine stop; then
+      echo "ely-office: $user's $slug idle engine did not stop; removal stops. Retry: runuser -u $user -- env XDG_RUNTIME_DIR=$dir systemd-run --user --wait /usr/bin/$slug engine stop" >&2
+      exit 1
+    fi
+  done
+  # The units stop claiming a live engine.
+  if ! as systemctl --user stop 'ely-engine@*.service'; then
+    echo "ely-office: $user's engine units did not stop; removal stops" >&2
+    exit 1
+  fi
+done
+STOP
+# An upgrade keeps the unit.
+printf '#!/bin/sh\n[ -e %s ] || rm -f %s\n' "$unit" "$links" >"$work/postremove"
+
 license=$(awk '!seen[$0]++' "$work/licenses" | paste -sd'|' | sed 's/|/ AND /g')
 names=$(printf '  - %s\n' "${slugs[@]}")
 yaml_list() { sort -u "$work/depends.$1" | sed 's/.*/      - "&"/'; }
@@ -90,6 +132,10 @@ contents:
     dst: /opt/ely-office
     type: tree
 $(cat "$entries")
+scripts:
+  postinstall: $work/postinstall
+  preremove: $work/preremove
+  postremove: $work/postremove
 conflicts:
 $names
 replaces:
@@ -124,6 +170,7 @@ cp "$work/apps.tsv" "$appdir/apps.tsv"
 # AppRun keeps the worker by this.
 sha256sum "$appdir/ely-doc/bin/ely-lok-worker" | cut -c1-16 >"$appdir/ely-worker-id"
 cp "$root/packaging/linux/AppRun" "$appdir/AppRun"
+cp "$root/packaging/linux/ely-engine@.service" "$appdir/"
 cp "$root/assets/icons/ely-doc.png" "$appdir/ely-doc.png"
 ln -s ely-doc.png "$appdir/.DirIcon"
 cat >"$appdir/ely-office.desktop" <<DESKTOP

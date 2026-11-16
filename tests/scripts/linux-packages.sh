@@ -56,15 +56,23 @@ trap 'rm -rf "$old"' EXIT
 echo old >"$old/old"
 printf 'name: ely-tree\narch: amd64\nplatform: linux\nversion: 0.1.15\nrelease: 1\nmaintainer: test\ndescription: the old ElyTree\nlicense: MIT\ncontents:\n  - src: %s/old\n    dst: /opt/ely-office/ely-tree/old\n' "$old" >"$old/nfpm.yaml"
 for packager in deb rpm archlinux; do "$nfpm" package --config "$old/nfpm.yaml" --packager "$packager" --target "$old/" >/dev/null; done
+# What systemctl --global enable would write.
+wants="for slug in ely-doc ely-table ely-show; do [ \"\$(readlink /etc/systemd/user/graphical-session.target.wants/ely-engine@\$slug.service)\" = /usr/lib/systemd/user/ely-engine@.service ] || exit 1; done"
+gone="[ -z \"\$(ls /etc/systemd/user/graphical-session.target.wants)\" ]"
 # The suite: one package for every app, replacing theirs.
-suite() { # image, install command, suite file, query for ElyTree's own package
+suite() { # image, install command, suite file, query for ElyTree's own package, reinstall, remove
   docker run --rm -v "$dist:/dist:ro" -v "$old:/old:ro" "$1" bash -c "{ $2 /dist/${3##*/}; } >/tmp/install.log 2>&1 ||
     { tail -20 /tmp/install.log; exit 1; }
     ! { $4; } >/dev/null 2>&1 || { echo 'ely-tree keeps its own package'; exit 1; }
     [ \"\$(readlink -f /opt/ely-office/ely-doc/bin/libreoffice)\" = /opt/ely-office/libreoffice ] ||
       { echo 'ElyDoc has a kernel of its own'; exit 1; }
-    for slug in $(echo $batch); do bash -c '$check' _ \$slug || exit 1; done" ||
-    fail "$3 does not install, replace ely-tree or link in $1"
+    for slug in $(echo $batch); do bash -c '$check' _ \$slug || exit 1; done
+    { $wants; } || { echo 'login does not want the engines'; exit 1; }
+    { $5 /dist/${3##*/}; } >/tmp/again.log 2>&1 || { tail -20 /tmp/again.log; exit 1; }
+    { $wants; } || { echo 'a reinstall dropped the engines'; exit 1; }
+    { $6; } >/tmp/remove.log 2>&1 || { tail -20 /tmp/remove.log; exit 1; }
+    { $gone; } || { echo 'the removal left login links'; exit 1; }" ||
+    fail "$3 does not install, replace ely-tree, link, enable the engines or remove in $1"
 }
 for file in "$dist/ely-office_$version-1_amd64.deb" "$dist/ely-office-$version-1.x86_64.rpm" \
   "$dist/ely-office-$version-1-x86_64.pkg.tar.zst"; do
@@ -74,11 +82,12 @@ done
 kept="dpkg-query -W -f='\${db:Status-Status}' ely-tree | grep -qx installed"
 suite "$debian" "sed -i s#deb.debian.org#archive.debian.org# /etc/apt/sources.list && apt-get update -q &&
   apt-get install -y -q /old/ely-tree_0.1.15-1_amd64.deb && apt-get install -y -q" \
-  "ely-office_$version-1_amd64.deb" "$kept"
+  "ely-office_$version-1_amd64.deb" "$kept" "apt-get install -y -q --reinstall" "apt-get remove -y -q ely-office"
 suite "$ubuntu" "apt-get update -q && apt-get install -y -q /old/ely-tree_0.1.15-1_amd64.deb &&
-  apt-get install -y -q" "ely-office_$version-1_amd64.deb" "$kept"
+  apt-get install -y -q" "ely-office_$version-1_amd64.deb" "$kept" "apt-get install -y -q --reinstall" "apt-get remove -y -q ely-office"
 suite "$fedora" "dnf install -y -q /old/ely-tree-0.1.15-1.x86_64.rpm && dnf install -y -q" \
-  "ely-office-$version-1.x86_64.rpm" "rpm -q ely-tree"
+  "ely-office-$version-1.x86_64.rpm" "rpm -q ely-tree" "rpm -U --replacepkgs" "rpm -e ely-office"
 suite "$arch" "pacman -Sy --noconfirm && pacman -U --noconfirm /old/ely-tree-0.1.15-1-x86_64.pkg.tar.zst &&
-  yes | pacman -U" "ely-office-$version-1-x86_64.pkg.tar.zst" "pacman -Qq ely-tree | grep -qx ely-tree"
-echo "linux-packages: the ely-office deb, rpm and Arch package install, replace the old ElyTree, link"
+  yes | pacman -U" "ely-office-$version-1-x86_64.pkg.tar.zst" "pacman -Qq ely-tree | grep -qx ely-tree" \
+  "pacman -U --noconfirm" "pacman -R --noconfirm ely-office"
+echo "linux-packages: the ely-office deb, rpm and Arch package install, replace the old ElyTree, link, enable the engines at login and remove them"

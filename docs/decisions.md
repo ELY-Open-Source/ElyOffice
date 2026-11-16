@@ -1085,3 +1085,13 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - AppImage 的运行时以一根管道与挂载目录的句柄（fd 1023）判定挂载还在用，两者不带 CLOEXEC。接班引擎的 worker 继承了它们，应用退出后挂载与运行时一直在，映像文件“Text file busy”，重新打包失败。文档应用与其 `engine` 一启动即给 3 号以上的描述符加 CLOEXEC（`ely_platform::apps::hold_mount_alone`），只它自己撑着挂载；接班的 `engine` 经 `$APPIMAGE <应用> engine` 起（`apps::starter`），不从挂载里起，否则应用先退出时它的代码页没了。`linux-installed.sh appimage` 核对应用都关后，引擎还在而映像的运行时已退出，`engine stop` 再结束全部。
 - 量时 Debian 11 装不上 deb：要 glibc 2.43。SF.18 改了补丁后在本机而非容器里重建内核，九个库（`libmergedlo.so` 等）链到本机的 glibc。发布不受影响，`ci.sh` 打包前的 `linux-glibc.sh` 会拦下。删去本机建的 199 个目标文件与库，在容器里重建，各文件至多要 2.28。`linux-distros.sh` 的容器没有 `XDG_RUNTIME_DIR`，SF.3 起 worker 拒跑；容器里照 logind 建 `/run/user/<uid>`。
 - 未做：旧编号的内核不删（SF.22 再定）；合集映像的图标借 ElyDoc 的，没有 Ely Office 自己的图标。
+
+## 2026-11-16 Linux 以 systemd 用户单元常驻引擎（SF.22）
+
+- 单元是模板 `packaging/linux/ely-engine@.service`，Doc、Table、Show 各一个实例，挂在 `graphical-session.target`。`Type=oneshot` 加 `RemainAfterExit`：`engine` 交出空闲引擎即退出，引擎留在单元的 cgroup 里。`ExecStop` 是 `engine stop`。`KillMode=process`：停单元不连带应用已接管的引擎。不设 `Nice`，worker 自己降优先级（`ely_lok::priority`）。
+- 包把单元装进 `/usr/lib/systemd/user`。装后脚本自己写 `/etc/systemd/user/graphical-session.target.wants` 里的三个链接，与 `systemctl --global enable` 写的相同：容器与无 systemd 的系统里没有 systemctl，也得装上。卸前脚本对每个用户管理器在跑（`user@<uid>.service` 为 active）的用户，在其管理器里以 `systemd-run --wait`（上限 60 秒）跑 `/usr/bin/<应用> engine stop`，三个各一次，再停 `ely-engine@*` 让单元不再报 active。不经单元：空闲引擎有两个来源，单元起的与应用首块图块后起的接班；单元未起（装后未重新登录）时 `systemctl stop` 不跑 `ExecStop`，接班的引擎留下（审查第 2 轮复现）。任一停不下即退出码 1、写明用户、应用与重试的命令，包管理器不删文件；没有 systemd 或该用户没有管理器即跳过并记一行。范围：管理器不在而引擎还在（非 systemd 会话里起的应用留下的）够不着；卸载时开着的应用之后仍会起接班，“卸后必无引擎”不作保证。停的只是空闲的，应用已接管的不在名字上。卸后单元不在才删链接，升级时单元还在，链接留着。
+- AppImage 每次启动把单元写进 `~/.config/systemd/user`，`ExecStart` 以 `/usr/bin/env` 起映像：systemd 不认带引号等特殊字符的程序路径，`systemd-analyze verify` 即报错。路径按 systemd 转义（`\` 写 `\\`、`"` 写 `\"`、`%` 写 `%%`、`$` 写 `$$`）。内容变了才写；三个链接每次都核对，缺了即补（单元写好而链接失败的那次启动，下次补上）；写了或补了才 `daemon-reload`；没有 systemctl 或重载失败记一行，不拦应用。
+- Linux 不用 `ely-login`：systemd 已管起停与登录。
+- 旧编号的内核仍不删：另一份映像（用户留着的旧版）可能还在从它起应用与引擎，AppRun 不知道还有哪些映像。每个编号 474 MB，只在换内核时多一份。
+- 实测：本机窗口是关键路径，热、冷缓存下接管都不省时间；应用只给一核时省约 95 毫秒（469 至 479 降到 363 至 384）。
+- 空闲引擎的名字带配置目录规范化路径的散列（`idle-<应用>-<16 位>`；符号链接与别名指向同一目录即同一名字，与目录里的锁一致）：原先只按应用命名，同一用户下别的 HOME 或换过数据文件夹的应用会接管用另一份配置的引擎；`linux-installed.sh` 的应用就接管了本机单元起的引擎，其日志落进别处。

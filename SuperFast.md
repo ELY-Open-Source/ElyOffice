@@ -422,6 +422,22 @@ Mac 上的载入已比 Windows 快三至四倍，时间花在起内核：热的�
 - Nix 现在只给一个 `ely-office` 包，但仍由 0.1.16 的七个 AppImage 拼成；读统一映像的 flake 与首个统一发布一起入库（SF.26）。
 - 映像路径里有 `%` 时 GLib 起不了菜单项：它在展开 `%%` 前就找程序。Exec 改以 `/usr/bin/env` 开头，`gio launch` 实测起得来。
 
+### SF.22 Linux systemd 用户服务（2026-11-16，本机 9950X3D，毫秒）
+
+统一 AppImage 首次运行写下单元与三个链接，并解出内核，共 542。`systemctl --user start` 三个单元 459，三个都 active，各引擎 93 至 110 就绪。RSS：Doc 207 MB、Table 219 MB、Show 202 MB。30 秒 CPU 0 tick。首块图块从起 AppImage 算到 “first tile drawn”，文件 `backslash.docx`，真实 HOME：
+
+| 情形 | 无空闲引擎 | 接管单元的引擎 |
+| --- | --- | --- |
+| 热缓存 | 352 至 384 | 369 至 385 |
+| 清空页缓存（`drop_caches`），单元刚起 | 779 至 914 | 785 至 874 |
+| 应用只给一核（`taskset -c 0`） | 469 至 479 | 363 至 384 |
+
+- 接管每次都日志 “took over engine”。
+- 本机上窗口是关键路径：“engine ready” 紧跟 “window shown”，不到 1 毫秒。冷缓存时自起的引擎 350 毫秒过完自检，窗口要 560 至 694；热缓存时两者都约 190。引擎藏在窗口后面，接管省不下时间。
+- 只给一核时，引擎与窗口抢同一个核，接管省 95 毫秒左右，约两成。慢机器上就是这一笔。
+- 单元起到 active 要 720 左右（清空缓存后）：`systemctl start` 等 oneshot 的 `engine` 交出才返回，登录时它在后台，不挡桌面。
+- 本机现有 `~/.config/systemd/user/ely-engine@.service` 与三个链接，指 `dist` 里的映像。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

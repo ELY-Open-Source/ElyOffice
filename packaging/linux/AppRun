@@ -51,6 +51,37 @@ if [ -n "$changed" ]; then
   fi
 fi
 
+# Login starts each kernel app's idle engine.
+units=${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user
+wants=$units/graphical-session.target.wants
+mkdir -p "$wants"
+# systemd's quoting: \\ \" %% $$.
+spelled=$(printf '%s' "$image" | sed -e 's/[\\"]/\\&/g' -e 's/%/%%/g' -e 's/\$/$$/g')
+sed "s|/usr/bin/%i|/usr/bin/env \"$(printf '%s' "$spelled" | sed 's/[&|\\]/\\&/g')\" %i|" \
+  "$here/ely-engine@.service" >"$units/ely-engine@.service.$$"
+reload=
+if cmp -s "$units/ely-engine@.service.$$" "$units/ely-engine@.service"; then
+  rm "$units/ely-engine@.service.$$"
+else
+  mv "$units/ely-engine@.service.$$" "$units/ely-engine@.service"
+  reload=1
+fi
+# A link a failed start missed is made now.
+while IFS='	' read -r each _; do
+  link=$wants/ely-engine@$each.service
+  if [ -e "$here/$each/bin/libreoffice" ] && [ "$(readlink "$link")" != "$units/ely-engine@.service" ]; then
+    ln -sf "$units/ely-engine@.service" "$link"
+    reload=1
+  fi
+done <"$here/apps.tsv"
+if [ -n "$reload" ] && ! command -v systemctl >/dev/null; then
+  say "no systemctl: no idle engine at login"
+elif [ -n "$reload" ] && ! systemctl --user daemon-reload; then
+  say "systemd did not reload; engines wait from next login"
+elif [ -n "$reload" ]; then
+  say "idle engines now start from $image at login"
+fi
+
 # The kernel and engine outlive the mount.
 lib=$HOME/.local/lib/ely-office
 keep() { # from, to, what: copied once, whole

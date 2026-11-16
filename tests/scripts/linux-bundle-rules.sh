@@ -27,7 +27,7 @@ plant() {
   echo 'version = "9.9.9"' >"$tree/Cargo.toml"
   printf '#!/bin/sh\necho "$@" >>"%s/nfpm.log"\n' "$tree" >"$tree/engines/nfpm-2.47.0-$arch"
   chmod +x "$tree/engines/nfpm-2.47.0-$arch"
-  cp "$root/packaging/linux/AppRun" "$tree/packaging/linux/"
+  cp "$root/packaging/linux/AppRun" "$root/packaging/linux/ely-engine@.service" "$tree/packaging/linux/"
   cp "$root/packaging/manifest.sh" "$tree/packaging/"
   mkdir -p "$tree/assets/icons"
   echo icon >"$tree/assets/icons/ely-doc.png"
@@ -78,6 +78,46 @@ for slug in ely-doc ely-table ely-show; do
 done
 [ "$(cat "$appdir/ely-worker-id")" = "$(echo worker | sha256sum | cut -c1-16)" ] || fail "the worker id is not the worker's"
 [ -x "$appdir/AppRun" ] && [ -f "$appdir/ely-office.desktop" ] && [ -f "$appdir/ely-doc.png" ] || fail "the AppDir lacks its entry"
+cmp -s "$appdir/ely-engine@.service" "$root/packaging/linux/ely-engine@.service" || fail "the AppDir lacks the engine unit"
+# The packages: the unit, three login links.
+pkg=$work/same/target/package/ely-office
+grep -qx '    dst: /usr/lib/systemd/user/ely-engine@.service' "$pkg/nfpm.yaml" || fail "the packages lack the engine unit"
+wants=/etc/systemd/user/graphical-session.target.wants
+grep -qF "$wants/ely-engine@ely-doc.service $wants/ely-engine@ely-table.service $wants/ely-engine@ely-show.service" "$pkg/postinstall" ||
+  fail "postinstall links: $(cat "$pkg/postinstall")"
+grep -qF "[ -e /usr/lib/systemd/user/ely-engine@.service ] || rm -f" "$pkg/postremove" || fail "postremove: $(cat "$pkg/postremove")"
+grep -qx '  preremove: .*/preremove' "$pkg/nfpm.yaml" || fail "the packages lack the preremove"
+# Before removal: each user manager stops the engines.
+if [ -d /run/systemd/system ] && [ -d "/run/user/$(id -u)" ]; then
+  mkdir "$work/fake"
+  # Managers answer per $ACTIVE; engines exit $STOPPED.
+  printf '#!/bin/sh\ncase $1 in is-active) exit ${ACTIVE:-0} ;; esac\necho "systemctl $*" >>"%s/stopped"\n' "$work" >"$work/fake/systemctl"
+  printf '#!/bin/sh\necho "systemd-run $*" >>"%s/stopped"\nexit ${STOPPED:-0}\n' "$work" >"$work/fake/systemd-run"
+  # runuser: records the user, runs the rest.
+  printf '#!/bin/sh\necho "runuser $1 $2 $3" >>"%s/stopped"\nshift 3\nexec "$@"\n' "$work" >"$work/fake/runuser"
+  chmod +x "$work/fake/systemctl" "$work/fake/systemd-run" "$work/fake/runuser"
+  me=$(id -nu)
+  PATH=$work/fake:$PATH sh "$pkg/preremove" || fail "preremove failed"
+  for slug in ely-doc ely-table ely-show; do
+    grep -qxF "systemd-run --user --wait --quiet --collect -p RuntimeMaxSec=60 /usr/bin/$slug engine stop" "$work/stopped" ||
+      fail "$slug's engine was not stopped: $(cat "$work/stopped")"
+  done
+  grep -qxF -- "systemctl --user stop ely-engine@*.service" "$work/stopped" || fail "the units were not stopped: $(cat "$work/stopped")"
+  [ "$(grep -cxF -- "runuser -u $me --" "$work/stopped")" = 4 ] || fail "not each stop ran as $me: $(cat "$work/stopped")"
+  # A stop that fails keeps the files.
+  : >"$work/stopped"
+  status=0
+  STOPPED=29 PATH=$work/fake:$PATH sh "$pkg/preremove" 2>"$work/refused" || status=$?
+  [ "$status" = 1 ] || fail "a failed stop let removal go on: $status"
+  grep -q "idle engine did not stop; removal stops" "$work/refused" || fail "the failed stop is not named: $(cat "$work/refused")"
+  ! grep -q "^systemctl" "$work/stopped" || fail "the units stopped after a failed engine stop"
+  # No manager: skipped, said.
+  : >"$work/stopped"
+  ACTIVE=3 PATH=$work/fake:$PATH sh "$pkg/preremove" 2>"$work/skipped" || fail "a user without a manager failed removal"
+  [ ! -s "$work/stopped" ] && grep -q "has no systemd manager; skipped" "$work/skipped" || fail "the skip: $(cat "$work/stopped" "$work/skipped")"
+else
+  echo "SKIP: no user manager for the preremove's run"
+fi
 [ "$(cut -f1 "$appdir/apps.tsv" | paste -sd' ')" = "$(awk -F'\t' '$4 == 1 { print $1 }' "$root/packaging/apps.tsv" | paste -sd' ')" ] ||
   fail "the AppDir's apps: $(cat "$appdir/apps.tsv")"
 image=$work/same/dist/ElyOffice-9.9.9-linux-$arch.AppImage

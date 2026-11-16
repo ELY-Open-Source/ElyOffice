@@ -19,15 +19,25 @@ fn an_app_takes_the_checked_idle_engine_once() {
     let none = Worker::adopt(&install, &profile, &app, probe).err().expect("no engine waits yet");
     assert_eq!(none.kind(), io::ErrorKind::NotFound, "{none}");
     let log = std::fs::File::create(dir.path().join("engine.log")).expect("the log");
-    let mut starter = Worker::spawn_mode(&install, &profile, false, Some((&endpoint::idle_name(&app), log)))
-        .expect("the engine starts");
+    let name = endpoint::idle_name(&app, &profile).expect("the name");
+    let mut starter = Worker::spawn_mode(&install, &profile, false, Some((&name, log))).expect("the engine starts");
     // Its checker is connected; the check has not run.
     starter.wire().expect("the checker connects");
     assert!(endpoint::idle_waits(&profile).expect("the lock reads"), "the engine holds the idle lock");
     // A missing kernel id fails at once, lock or not.
     let bare = dir.path().join("no-kernel");
-    let missing = endpoint::adopt(&endpoint::idle_name(&app), &bare, &profile).err().expect("no kernel id");
+    let missing = endpoint::adopt(&name, &bare, &profile).err().expect("no kernel id");
     assert_eq!(missing.kind(), io::ErrorKind::NotFound, "{missing}");
+    // Another data folder never takes it.
+    let other = Worker::adopt(&install, &dir.path().join("other"), &app, probe).err().expect("not another profile's");
+    assert_eq!(other.kind(), io::ErrorKind::NotFound, "{other}");
+    #[cfg(unix)]
+    {
+        // A link to the folder names the same engine.
+        let alias = dir.path().join("alias");
+        std::os::unix::fs::symlink(&profile, &alias).expect("the link");
+        assert_eq!(endpoint::idle_name(&app, &alias).expect("the name"), name);
+    }
     // An app waits on the public name through the check.
     let (kernel, folder, name) = (install.clone(), profile.clone(), app.clone());
     let taker = std::thread::spawn(move || Worker::adopt(&kernel, &folder, &name, probe));
@@ -112,7 +122,7 @@ fn an_engine_whose_checker_never_connects_exits_and_frees_the_lock() {
     let (profile, app) = (dir.path().join("profile"), app("orphan"));
     let start = (install, profile.clone(), false);
     let private = endpoint::name(0).expect("a name");
-    let (mut command, _) = command::build(&start, &private, Some(&endpoint::idle_name(&app))).expect("the command");
+    let (mut command, _) = command::build(&start, &private, Some(&endpoint::idle_name(&app, &profile).expect("the name"))).expect("the command");
     let ((stdout, stdin), _) = process::pipes(&mut command, None).expect("the pipes");
     let mut child = command.spawn().expect("the engine starts");
     drop(command);

@@ -16,8 +16,8 @@ tests/scripts/xim-rules.sh       linux-xim.sh 对替身（cargo、fcitx5、应�
 tests/scripts/wayland-clipboard.sh  无头 sway（无 Xwayland，X11 剪贴板为空）里与 wl-copy、wl-paste 互相复制粘贴文字、HTML、PNG（容器内构建与运行，缺 docker 时 SKIP）
 tests/scripts/linux-glibc.sh     Linux 的应用、worker 与引擎要求的 glibc 不高于 2.28，GLIBCXX、CXXABI 不高于 GCC 8（AlmaLinux 8，即发布的构建容器），读版本需求表，`GLIBC_ABI_DT_RELR` 这类 ABI 标记也拒，缺 readelf 即失败、不跳过；ci.sh 在 Linux 打包后于构建容器里调用，不过即不上传
 tests/scripts/linux-glibc-rules.sh  linux-glibc.sh 对 glibc 2.30、2.36 的符号与紧凑重定位（`GLIBC_ABI_DT_RELR`）报错，PATH 里没有 readelf 也报错，只要 2.2.5 的通过（现编的 ELF，只在 Linux）
-tests/scripts/linux-bundle-rules.sh  bundle.sh 只在三份内核逐文件相同时才合成一份（ElyShow 多出的模板与各自的内核编号除外，合成的那份编号即其本身的）：一份不同、或有一份读不了（悬空链接）都失败且不出包；合成的 AppImage 只含这一份内核、各应用的入口与 apps.tsv，并写出 `ely-office` 与七个旧应用的更新清单（假的包目录与记录调用的 nfpm，只在 Linux）
-tests/scripts/linux-apprun.sh  合成 AppImage 的 AppRun：首个参数或文件名定应用，否则起选择窗口；菜单项的 Exec 引号转义、随文件移动改写；内核按编号、worker 按散列各只解出一次；选择窗口带着文件；32 个同时启动都起来；`gio launch` 起得了路径含反斜杠、引号、`$`、反引号、`%` 的菜单项（Exec 经 `/usr/bin/env`）（假的 AppDir，只在 Linux，缺 gio 时 SKIP）
+tests/scripts/linux-bundle-rules.sh  bundle.sh 只在三份内核逐文件相同时才合成一份（ElyShow 多出的模板与各自的内核编号除外，合成的那份编号即其本身的）：一份不同、或有一份读不了（悬空链接）都失败且不出包；合成的 AppImage 只含这一份内核、各应用的入口与 apps.tsv，包的卸前脚本在每个用户管理器里跑三个应用的 `engine stop` 再停 `ely-engine@*`，一个停不下即退出码 1、不停单元，管理器不在即跳过（假的 systemctl 与 systemd-run，缺用户管理器时 SKIP），并写出 `ely-office` 与七个旧应用的更新清单（假的包目录与记录调用的 nfpm，只在 Linux）
+tests/scripts/linux-apprun.sh  合成 AppImage 的 AppRun：首个参数或文件名定应用，否则起选择窗口；菜单项的 Exec 引号转义、随文件移动改写；内核按编号、worker 按散列各只解出一次；选择窗口带着文件；32 个同时启动都起来；`gio launch` 起得了路径含反斜杠、引号、`$`、反引号、`%` 的菜单项（Exec 经 `/usr/bin/env`）；引擎单元同样转义、登录要三个文档应用的实例，单元不变不重载，缺了的链接下次补上并重载，在本用户的 systemd 里起停一次（缺用户 systemd 时 SKIP 这一段）（假的 AppDir，只在 Linux，缺 gio 时 SKIP）
 tests/scripts/kernel-id-rules.sh  kernel-id.sh：内容相同编号相同，改一个文件或改一个链接指向即换编号，编号文件本身不计，名字不是 ely-kernel-id 即拒；一个文件读不出、一个链接读不出、内核为空、内核目录不在、标准输出写不进，都失败且不留编号与半成品（旧的也删；PATH 里的替身；Windows 用真链接）（三端可跑）
 tests/scripts/elfs-rules.sh      `packaging/linux/elfs.sh`（package.sh 调用）只放行指向包内的 `$ORIGIN` 路径：首尾换行、绝对路径、出包、空项与带符号的 ELF 皆拒，报出包外所需的库（现编的 ELF，须 patchelf，在 container.sh 里跑）
 tests/scripts/winget.sh        winget.sh 按假发布只写出 `ZacharyZhang.ElyOffice` 一份，地址、散列、卸载键照安装程序，许可含首批各应用的，`winget validate` 通过（无 winget 时 SKIP），版本不符、只有 0.1.16 的每应用清单即拒
@@ -31,7 +31,7 @@ tests/scripts/workflows.py       release.yml 恰为 macos、macos-intel、window
 tests/scripts/lo-tarballs.sh     `packaging/lo-tarballs.tsv` 的散列与 `download.lst` 一致、地址是 LibreOffice 的镜像、本机构建所取都在其中（Windows 经 Cygwin）
 tests/scripts/source-rules.sh    source.sh 把已取与下载的外部库按内容打包，散列不符或取不到即失败、不出包（假 curl）
 tests/scripts/ci-upload.sh       ci.sh 的上传：本机或构建容器的 cargo 不是 huacnlee/cargo 即不建也不传；测试的门建好 worker 后点名它们再跑测试，测试失败即一个不传，Linux 的包过不了 glibc 的上限也不传；兼容清单、发布说明、基准记录三道门任一失败或该提交的 `pr.yml` 未通过即不建也不传；Linux 另传装全部应用的 `ely-office` 包；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
-tests/scripts/linux-packages.sh  `ely-office` 的 deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库；顶替先装的 0.1.15 ElyTree 单包，ElyDoc 的内核是共用的那一份
+tests/scripts/linux-packages.sh  `ely-office` 的 deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库；顶替先装的 0.1.15 ElyTree 单包，ElyDoc 的内核是共用的那一份；登录启用三个引擎实例的链接，重装后仍在，卸载后删去
 tests/scripts/linux-pins.sh      Linux 打包工具（appimagetool、linuxdeploy、运行时、nfpm）的下载与钉的散列相符
 tests/scripts/linux-installed.sh installed|appimage  Hyprland 上装好的首批七个应用或合成的 AppImage（应用名作首个参数）：一个窗口、随 Omarchy（Catppuccin）、读出页面文字（PDF、Markdown 经各自引擎），ElyTree 随换主题到 Latte（grim 按窗口截取）
 tests/scripts/linux-distros.sh   `ely-office` 的 deb 在 Ubuntu 26.04、rpm 在 Fedora 44 容器里装上，各应用在 Xvfb（Mesa 软件 Vulkan）下画出窗口、随 Omarchy、读出页面文字（与 linux-installed.sh 共用 linux-common.sh）

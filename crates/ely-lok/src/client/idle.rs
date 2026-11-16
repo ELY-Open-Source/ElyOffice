@@ -27,7 +27,7 @@ pub fn no_idle_engine(error: &io::Error) -> bool {
 impl Worker {
     /// Starts `app`'s idle engine in `start`'s profile and checks it.
     pub fn idle(start: &Start, install: &Path, probe: crate::Probe, app: &str, log: File) -> io::Result<Self> {
-        let name = endpoint::idle_name(app);
+        let name = endpoint::idle_name(app, start.dir())?;
         let mut worker = Self::spawn_mode(install, start.dir(), false, Some((&name, log)))?;
         worker.probe = probe;
         worker.ready()?;
@@ -50,7 +50,7 @@ impl Worker {
 
     /// Takes over `app`'s idle engine now, or fails.
     pub fn adopt(install: &Path, profile_dir: &Path, app: &str, probe: crate::Probe) -> io::Result<Self> {
-        let found = endpoint::adopt(&endpoint::idle_name(app), install, profile_dir)?;
+        let found = endpoint::adopt(&endpoint::idle_name(app, profile_dir)?, install, profile_dir)?;
         Self::begin(install, profile_dir, app, probe, move |_, _, _| Ok(found))
     }
 
@@ -73,7 +73,7 @@ impl Worker {
         let (ends, stderr) = process::pipes(&mut command, None)?;
         let (feed, (sender, replies)) = (Feed::default(), mpsc::channel());
         let ((wired, wiring), (started, made)) = (mpsc::channel(), mpsc::channel());
-        let (stopper, idle, kernel) = (Stopper::new(), endpoint::idle_name(app), install.to_path_buf());
+        let (stopper, idle, kernel) = (Stopper::new(), endpoint::idle_name(app, profile_dir)?, install.to_path_buf());
         let (gate, reading, temp) = (stopper.clone(), feed.clone(), profile_dir.join("tmp").join(&private));
         let profile = profile_dir.to_path_buf();
         let take = move || match find(&idle, &kernel, &profile) {
