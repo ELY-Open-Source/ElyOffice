@@ -1,5 +1,7 @@
 //! Page edits, undo and saving against the real worker (PDF-02).
 
+mod decoded;
+
 use std::path::Path;
 
 use ely_pdf_engine::{
@@ -52,7 +54,7 @@ fn a_delete_drops_what_pointed_there_and_undoes() {
     assert_eq!(pointing, [("One".into(), Some(0)), ("Two".into(), None), ("Three".into(), Some(1))]);
     let out = dir.path().join("saved.pdf");
     worker.save(doc, &out).expect("saves");
-    let saved = String::from_utf8_lossy(&std::fs::read(&out).expect("reads")).into_owned();
+    let saved = String::from_utf8_lossy(&decoded::decoded(&out)).into_owned();
     assert!(saved.contains("(three)") && !saved.contains("(two)"), "the deleted page is gone from the file");
     assert_eq!(saved.matches("/Link").count(), 1, "only the link to page one stays");
     assert!(saved.contains("field1") && !saved.contains("field0"), "the field on the deleted page goes");
@@ -188,7 +190,7 @@ fn inserted_pages_keep_their_links_and_fields() {
     let saved = |worker: &mut Worker, doc: Doc, name: &str| {
         let out = dir.path().join(name);
         worker.save(doc, &out).expect("saves");
-        String::from_utf8_lossy(&std::fs::read(&out).expect("reads")).into_owned()
+        String::from_utf8_lossy(&decoded::decoded(&out)).into_owned()
     };
     let merged = saved(&mut worker, doc, "merged.pdf");
     assert_eq!(merged.matches("/Link").count(), 4, "three links of its own, one inserted");
@@ -210,7 +212,7 @@ fn a_field_without_its_page_named_still_goes_with_the_page() {
     doc = worker.now(doc).expect("the state");
     let out = dir.path().join("out.pdf");
     worker.save(doc, &out).expect("saves");
-    let saved = String::from_utf8_lossy(&std::fs::read(&out).expect("reads")).into_owned();
+    let saved = String::from_utf8_lossy(&decoded::decoded(&out)).into_owned();
     assert!(!saved.contains("value0"), "the field and its value are gone");
 }
 
@@ -283,7 +285,7 @@ fn long_clashing_field_names_still_get_a_number() {
         doc = worker.now(doc).expect("the state");
         worker.save(doc, &saved).expect("saves");
     });
-    let saved = String::from_utf8_lossy(&std::fs::read(&out).expect("reads")).into_owned();
+    let saved = String::from_utf8_lossy(&decoded::decoded(&out)).into_owned();
     assert!(saved.contains(&format!("({long}0 2)")), "the second is numbered");
 }
 
@@ -312,7 +314,7 @@ fn inserted_fields_keep_the_look_of_their_form() {
     worker.save(doc, &out).expect("saves");
     let merged = worker.open(&out).expect("opens").doc;
     assert_eq!(red(&mut worker, merged, 1), shown, "the same red, the same size");
-    let saved = String::from_utf8_lossy(&std::fs::read(&out).expect("reads")).into_owned();
+    let saved = String::from_utf8_lossy(&decoded::decoded(&out)).into_owned();
     assert!(saved.contains("(/Custom_2 24 Tf 1 0 0 rg)"), "the clashing font is renamed where it is used");
 }
 
@@ -330,7 +332,7 @@ fn an_escaped_font_name_and_the_form_alignment_come_along() {
     doc = worker.now(doc).expect("the state");
     let out = dir.path().join("out.pdf");
     worker.save(doc, &out).expect("saves");
-    let saved = String::from_utf8_lossy(&std::fs::read(&out).expect("reads")).into_owned();
+    let saved = String::from_utf8_lossy(&decoded::decoded(&out)).into_owned();
     assert!(saved.contains("(/Custom_2 24 Tf 1 0 0 rg)"), "the escaped name is renamed too");
     assert!(saved.contains("/Q 2"), "right-aligned as in its own form");
 }
@@ -347,7 +349,7 @@ fn inserted(theirs: &Extras, mine: &Extras) -> String {
     doc = worker.now(doc).expect("the state");
     let out = dir.path().join("out.pdf");
     worker.save(doc, &out).expect("saves");
-    String::from_utf8_lossy(&std::fs::read(&out).expect("reads")).into_owned()
+    String::from_utf8_lossy(&decoded::decoded(&out)).into_owned()
 }
 
 /// The saved object holding `/T(field0)`, the inserted field.

@@ -1,0 +1,376 @@
+The CFF subsetter runs each glyph through the subrs it calls.
+
+Subsetting Source Han Serif, the face a CJK signature reason draws
+in, failed for 127 of 128 batches of its glyphs ("Reserved
+charstring byte c=0x0", "Insufficient operators on the stack").
+scan_charstrings scanned each glyph and each subr apart, each on an
+empty stack: operands a subr left for its caller were lost, so the
+stem count, and with it the length of a hintmask, came out wrong,
+and mask bytes were read as operators. It also took a glyph's font
+dict from the next kept glyph and scanned local subrs in the wrong
+font dict. Each kept glyph now runs from a clean state in its own
+font dict, entering every subr it calls on the same stack and stem
+count, ten levels deep at most. Alongside: operands left at the
+first hintmask count as vstems whether or not an hstem came first;
+shortint is signed and may end a subr; mul pops its operand.
+
+--- a/source/fitz/subset-cff.c	2026-11-16 04:32:52.606675915 -0500
++++ b/source/fitz/subset-cff.c	2026-11-16 04:57:52.232140081 -0500
+@@ -898,16 +898,6 @@
+ }
+ 
+ static void
+-mark_subr_used(fz_context *ctx, cff_t *cff, int subr, int global, int local_subr_bias, usage_list_t *local_usage)
+-{
+-	usage_list_t *list = global ? &cff->global_usage : local_usage;
+-
+-	subr += global ? cff->gsubr_bias : local_subr_bias;
+-
+-	usage_list_add(ctx, list, subr);
+-}
+-
+-static void
+ use_sub_char(fz_context *ctx, cff_t *cff, int code)
+ {
+ 	/* code is a character code in 'standard encoding'. We
+@@ -938,32 +928,57 @@
+ 	usage_list_add(ctx, &cff->extra_gids_to_keep, gid);
+ }
+ 
++/* One glyph's run: subrs share its stack and stem count. */
++typedef struct
++{
++	double trans[32];
++	double stack[513];
++	int sp;
++	int stem_hints;
++	int ended;
++	/* The glyph's font dict: its locals, their bias and index. */
++	uint16_t subr_bias;
++	usage_list_t *local_usage;
++	index_t *local_index;
++} charstring_run;
++
++#define stack (run->stack)
++#define sp (run->sp)
++#define trans (run->trans)
+ #define ATLEAST(n) if (sp < n) goto atleast_fail
+ #define POP(n) do { if (sp < n) goto atleast_fail; sp -= n; } while (0)
+ #define PUSH(n) \
+ do { if (sp + n > (int)(sizeof(stack)/sizeof(*stack))) fz_throw(ctx, FZ_ERROR_FORMAT, "Stack overflow"); sp += n; } while (0)
+ 
++static void execute_charstring(fz_context *ctx, cff_t *cff, charstring_run *run, const uint8_t *pc, const uint8_t *end, int depth);
++
++/* Marks subr `subr`, then runs it on the caller's stack. */
+ static void
+-execute_charstring(fz_context *ctx, cff_t *cff, const uint8_t *pc, const uint8_t *end, uint16_t subr_bias, usage_list_t *local_usage)
++call_subr(fz_context *ctx, cff_t *cff, charstring_run *run, int subr, int global, int depth)
+ {
+-	double trans[32] = { 0 };
+-	double stack[513];
+-	int sp = 0;
+-	int stem_hints = 0;
+-	uint8_t c;
++	index_t *index = global ? &cff->global_index : run->local_index;
++	int n = subr + (global ? cff->gsubr_bias : run->subr_bias);
++	uint32_t offset, end;
+ 
+-	/* 0 => starting, 1 => had hstem, 2 => anything else */
+-	int start = 0;
++	if (depth >= 10)
++		fz_throw(ctx, FZ_ERROR_FORMAT, "Subr nesting too deep");
++	if (index == NULL || n < 0 || n >= index->count)
++		fz_throw(ctx, FZ_ERROR_FORMAT, "Subr %d out of range", n);
++	usage_list_add(ctx, global ? &cff->global_usage : run->local_usage, n);
++	offset = index_get(ctx, index, n);
++	end = index_get(ctx, index, n+1);
++	execute_charstring(ctx, cff, run, &cff->base[offset], &cff->base[end], depth+1);
++}
++
++static void
++execute_charstring(fz_context *ctx, cff_t *cff, charstring_run *run, const uint8_t *pc, const uint8_t *end, int depth)
++{
++	uint8_t c;
+ 
+-	while (pc < end)
++	while (pc < end && !run->ended)
+ 	{
+ 		c = *pc++;
+ 
+-		/* An operator other than one of the hint ones immediately
+-		 * disqualifies us from being in the hint extension state. */
+-		if (c < 32 && (c != 1 && c != 18 && c != 19 && c != 20))
+-			start = 2;
+-
+ 		switch (c)
+ 		{
+ 		case 0:
+@@ -977,20 +992,18 @@
+ 		/* Deal with all the hints together */
+ 		case 18: /* hstemhm */
+ 		case 1: /* hstem */
+-			start = 1;
+ 		case 23: /* vstemhm */
+ 		case 3: /* vstem */
+-			stem_hints += (sp/2);
++			run->stem_hints += (sp/2);
+ 			goto clear;
+ 
+ 		case 19: /* hintmask */
+ 		case 20: /* cntrmask */
+-			if (start == 1)
+-				stem_hints += (sp/2);
+-			pc += fz_bytes_from_bits(stem_hints);
++			/* Operands left here are implied vstems. */
++			run->stem_hints += (sp/2);
++			pc += fz_bytes_from_bits(run->stem_hints);
+ 			if (pc > end)
+ 				goto overflow;
+-			start = 2;
+ 			goto clear;
+ 
+ 		/* The operators all clear the stack. */
+@@ -1016,13 +1029,11 @@
+ 
+ 		case 10: /* callsubr */
+ 			ATLEAST(1);
+-			mark_subr_used(ctx, cff, stack[sp-1], 0, subr_bias, local_usage);
+ 			sp--;
++			call_subr(ctx, cff, run, (int)stack[sp], 0, depth);
+ 			break;
+ 		case 11: /* return */
+-			pc = end;
+-			sp = 0;
+-			break;
++			return;
+ 		case 12: /* escape */
+ 		{
+ 			if (pc == end)
+@@ -1118,6 +1129,7 @@
+ 			case 24: /* mul */
+ 				ATLEAST(2);
+ 				stack[sp-2] *= stack[sp-1];
++				sp--;
+ 				break;
+ 
+ 			case 26: /* sqrt */
+@@ -1197,7 +1209,7 @@
+ 			break;
+ 		}
+ 		case 14: /* endchar */
+-			pc = end;
++			run->ended = 1;
+ 			if (sp >= 4)
+ 			{
+ 				use_sub_char(ctx, cff, stack[sp-1]);
+@@ -1228,25 +1240,20 @@
+ 		}
+ 		case 29: /* callgsubr */
+ 			ATLEAST(1);
+-			mark_subr_used(ctx, cff, stack[sp-1], 1, subr_bias, local_usage);
+ 			sp--;
++			call_subr(ctx, cff, run, (int)stack[sp], 1, depth);
+ 			break;
+ 		case 28: /* shortint */
+-			if (pc + 2 >= end)
+-			{
+-				pc = end;
+-				break;
+-			}
++			/* A subr may end on its last operand. */
++			if (pc + 2 > end)
++				goto overflow;
+ 			PUSH(1);
+-			stack[sp-1] = (pc[0]<<8) | pc[1];
++			stack[sp-1] = (int16_t)((pc[0]<<8) | pc[1]);
+ 			pc += 2;
+ 			break;
+ 		case 255: /* number */
+-			if (pc + 4 >= end)
+-			{
+-				pc = end;
+-				break;
+-			}
++			if (pc + 4 > end)
++				goto overflow;
+ 			PUSH(1);
+ 			stack[sp-1] = fz_unpack_uint32(pc) / 65536.0;
+ 			pc += 4;
+@@ -1277,76 +1284,69 @@
+ 	fz_throw(ctx, FZ_ERROR_FORMAT, "Insufficient operators on the stack: op=%d", c);
+ }
+ 
++#undef stack
++#undef sp
++#undef trans
++
+ 
+-static usage_list_t *
+-get_font_locals(fz_context *ctx, cff_t *cff, int gid, int is_pdf_cidfont, uint16_t *subr_bias)
++/* Runs glyph `glyph` from a clean state in its font dict. */
++static void
++run_glyph(fz_context *ctx, cff_t *cff, int glyph, int is_pdf_cidfont)
+ {
+-	usage_t *gids = cff->gids_to_keep.list;
+-	int num_gids = cff->gids_to_keep.len;
++	charstring_run *run = fz_malloc_struct(ctx, charstring_run);
++	uint32_t offset, end;
+ 
+-	if (is_pdf_cidfont && cff->is_cidfont)
++	fz_try(ctx)
+ 	{
+-		uint8_t font = 0;
+-		if (gid < num_gids && gids[gid].num < cff->charstrings_index.count)
+-			font = cff->gid_to_font[gids[gid].num];
+-		else if (gid == 0)
+-			font = cff->gid_to_font[gid];
+-		if (font >= cff->fdarray_index.count)
+-			font = 0;
+-
+-		if (subr_bias)
+-			*subr_bias = cff->fdarray[font].subr_bias;
+-		return &cff->fdarray[font].local_usage;
++		if (is_pdf_cidfont && cff->is_cidfont)
++		{
++			uint8_t font = cff->gid_to_font[glyph];
++			if (font >= cff->fdarray_index.count)
++				fz_throw(ctx, FZ_ERROR_FORMAT, "Glyph %d names font dict %d", glyph, font);
++			run->subr_bias = cff->fdarray[font].subr_bias;
++			run->local_usage = &cff->fdarray[font].local_usage;
++			run->local_index = cff->fdarray[font].local_index_offset ? &cff->fdarray[font].local_index : NULL;
++		}
++		else
++		{
++			run->subr_bias = cff->subr_bias;
++			run->local_usage = &cff->local_usage;
++			run->local_index = cff->local_index_offset ? &cff->local_index : NULL;
++		}
++		offset = index_get(ctx, &cff->charstrings_index, glyph);
++		end = index_get(ctx, &cff->charstrings_index, glyph+1);
++		execute_charstring(ctx, cff, run, &cff->base[offset], &cff->base[end], 0);
+ 	}
+-
+-	if (subr_bias)
+-		*subr_bias = cff->subr_bias;
+-	return &cff->local_usage;
++	fz_always(ctx)
++		fz_free(ctx, run);
++	fz_catch(ctx)
++		fz_rethrow(ctx);
+ }
+ 
+ static void
+ scan_charstrings(fz_context *ctx, cff_t *cff, int is_pdf_cidfont)
+ {
+-	uint32_t offset, end;
+ 	int num_charstrings = (int)cff->charstrings_index.count;
+-	int i, gid, font;
++	int i, gid;
+ 	usage_t *gids = cff->gids_to_keep.list;
+ 	int num_gids = cff->gids_to_keep.len;
+ 	int changed;
+-	uint16_t subr_bias;
+-	usage_list_t *local_usage = NULL;
+ 
+-	/* Scan through the charstrings.*/
+-	offset = index_get(ctx, &cff->charstrings_index, 0);
++	/* Each kept glyph runs through every subr it calls. */
+ 	gid = 0;
+-	for (i = 0; i < num_charstrings; offset = end, i++)
++	for (i = 0; i < num_charstrings; i++)
+ 	{
+-		end = index_get(ctx, &cff->charstrings_index, i+1);
+ 		if (gid < num_gids && i == gids[gid].num)
+-		{
+-			/* Keep this */
+ 			gid++;
+-		}
+-		else if (i == 0)
+-		{
+-			/* Keep this. */
+-		}
+-		else
+-		{
+-			/* Drop this */
++		else if (i != 0)
+ 			continue;
+-		}
+-		local_usage = get_font_locals(ctx, cff, gid, is_pdf_cidfont, &subr_bias);
+-		execute_charstring(ctx, cff, &cff->base[offset], &cff->base[end], subr_bias, local_usage);
++		run_glyph(ctx, cff, i, is_pdf_cidfont);
+ 	}
+ 
+-	/* Now we search the 'extra' ones, the 'subrs' (local) and 'gsubrs' (globals)
+-	 * that are used. Searching each of these might find more that need to be
+-	 * searched, so we use a loop. */
++	/* Accented parts endchar named; they may name more. */
+ 	do
+ 	{
+ 		changed = 0;
+-		/* Extra (subsidiary) glyphs */
+ 		for (i = 0; i < cff->extra_gids_to_keep.len; i++)
+ 		{
+ 			if (cff->extra_gids_to_keep.list[i].scanned)
+@@ -1354,61 +1354,7 @@
+ 			cff->extra_gids_to_keep.list[i].scanned = 1;
+ 			gid = cff->extra_gids_to_keep.list[i].num;
+ 			usage_list_add(ctx, &cff->gids_to_keep, gid);
+-			offset = index_get(ctx, &cff->charstrings_index, gid);
+-			end = index_get(ctx, &cff->charstrings_index, gid+1);
+-
+-			local_usage = get_font_locals(ctx, cff, gid, is_pdf_cidfont, &subr_bias);
+-			execute_charstring(ctx, cff, &cff->base[offset], &cff->base[end], subr_bias, local_usage);
+-			changed = 1;
+-		}
+-
+-		/* Now, run through the locals, seeing what locals and globals they call.  */
+-		for (i = 0; i < cff->local_usage.len; i++)
+-		{
+-			if (cff->local_usage.list[i].scanned)
+-				continue;
+-			cff->local_usage.list[i].scanned = 1;
+-			gid = cff->local_usage.list[i].num;
+-			offset = index_get(ctx, &cff->local_index, gid);
+-			end = index_get(ctx, &cff->local_index, gid+1);
+-
+-			local_usage = get_font_locals(ctx, cff, gid, is_pdf_cidfont, &subr_bias);
+-			execute_charstring(ctx, cff, &cff->base[offset], &cff->base[end], subr_bias, local_usage);
+-			changed = 1;
+-		}
+-
+-		/* Now, run through the per-font locals, seeing what per-font locals and globals they call.  */
+-		for (font = 0; font < cff->fdarray_index.count; font++)
+-		{
+-			for (i = 0; i < cff->fdarray[font].local_usage.len; i++)
+-			{
+-				gid = cff->fdarray[font].local_usage.list[i].num;
+-
+-				if (cff->fdarray[font].local_usage.list[i].scanned)
+-					continue;
+-				cff->fdarray[font].local_usage.list[i].scanned = 1;
+-				gid = cff->fdarray[font].local_usage.list[i].num;
+-				offset = index_get(ctx, &cff->fdarray[font].local_index, gid);
+-				end = index_get(ctx, &cff->fdarray[font].local_index, gid+1);
+-
+-				local_usage = get_font_locals(ctx, cff, gid, is_pdf_cidfont, &subr_bias);
+-				execute_charstring(ctx, cff, &cff->base[offset], &cff->base[end], subr_bias, local_usage);
+-				changed = 1;
+-			}
+-		}
+-
+-		/* Now, run through the globals, seeing what globals they call.  */
+-		for (i = 0; i < cff->global_usage.len; i++)
+-		{
+-			if (cff->global_usage.list[i].scanned)
+-				continue;
+-			cff->global_usage.list[i].scanned = 1;
+-			gid = cff->global_usage.list[i].num;
+-			offset = index_get(ctx, &cff->global_index, gid);
+-			end = index_get(ctx, &cff->global_index, gid+1);
+-
+-			local_usage = get_font_locals(ctx, cff, gid, is_pdf_cidfont, &subr_bias);
+-			execute_charstring(ctx, cff, &cff->base[offset], &cff->base[end], subr_bias, local_usage);
++			run_glyph(ctx, cff, gid, is_pdf_cidfont);
+ 			changed = 1;
+ 		}
+ 	}

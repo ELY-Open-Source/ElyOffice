@@ -249,6 +249,50 @@ static fz_matrix placed_at(fz_context *ctx, pdf_document *pdf, pdf_page *page, i
 	return at;
 }
 
+/* Deflates a stream MuPDF wrote as raw pixels. */
+static void deflate_raw(fz_context *ctx, pdf_document *pdf, pdf_obj *ref)
+{
+	fz_buffer *raw = NULL, *flat = NULL;
+	unsigned char *data;
+	size_t len;
+	if (!ref || pdf_dict_get(ctx, ref, PDF_NAME(Filter)))
+		return;
+	fz_var(raw);
+	fz_var(flat);
+	fz_try(ctx)
+	{
+		raw = pdf_load_raw_stream(ctx, ref);
+		data = fz_new_deflated_data_from_buffer(ctx, &len, raw, FZ_DEFLATE_DEFAULT);
+		flat = fz_new_buffer_from_data(ctx, data, len);
+		pdf_dict_put(ctx, ref, PDF_NAME(Filter), PDF_NAME(FlateDecode));
+		pdf_update_stream(ctx, pdf, ref, flat, 1);
+	}
+	fz_always(ctx)
+	{
+		fz_drop_buffer(ctx, raw);
+		fz_drop_buffer(ctx, flat);
+	}
+	fz_catch(ctx)
+		fz_rethrow(ctx);
+}
+
+/* Snapshots and signing copy streams as they are. */
+static pdf_obj *add_image(fz_context *ctx, pdf_document *pdf, fz_image *image)
+{
+	pdf_obj *ref = pdf_add_image(ctx, pdf, image);
+	fz_try(ctx)
+	{
+		deflate_raw(ctx, pdf, ref);
+		deflate_raw(ctx, pdf, pdf_dict_get(ctx, ref, PDF_NAME(SMask)));
+	}
+	fz_catch(ctx)
+	{
+		pdf_drop_obj(ctx, ref);
+		fz_rethrow(ctx);
+	}
+	return ref;
+}
+
 /* Draw `index` moved by page-space `t`, swapped, or dropped. */
 int ely_place(fz_context *ctx, fz_document *doc, int number, int index, const float t[6], int drop, const char *path)
 {
@@ -281,7 +325,7 @@ int ely_place(fz_context *ctx, fz_document *doc, int number, int index, const fl
 			image = fz_new_image_from_file(ctx, path);
 			own = (float)image->w / image->h;
 			change = fz_concat(fz_concat(fz_translate(-cx, -cy), fz_scale(fminf(1, own / box), fminf(1, box / own))), fz_translate(cx, cy));
-			ref = pdf_add_image(ctx, pdf, image);
+			ref = add_image(ctx, pdf, image);
 			h.rename = ely_add_resource(ctx, page->obj, PDF_NAME(XObject), "ElyIm", ref, name, sizeof name);
 		}
 		if (fz_matrix_expansion(change) < 0.001f)
@@ -327,7 +371,7 @@ int ely_add_image(fz_context *ctx, fz_document *doc, int number, const char *pat
 		image = fz_new_image_from_file(ctx, path);
 		pdf_begin_operation(ctx, pdf, "Add an image");
 		begun = 1;
-		ref = pdf_add_image(ctx, pdf, image);
+		ref = add_image(ctx, pdf, image);
 		ely_add_resource(ctx, page->obj, PDF_NAME(XObject), "ElyIm", ref, name, sizeof name);
 		/* The unit square, bottom left first, onto the box. */
 		m = fz_concat(fz_make_matrix(rect[2] - rect[0], 0, 0, rect[1] - rect[3], rect[0], rect[3]), ely_to_user(ctx, page));

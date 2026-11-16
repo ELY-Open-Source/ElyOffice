@@ -1,5 +1,7 @@
 //! Removal and cleaning, checked in the file (QA-14).
 
+mod decoded;
+
 use std::path::Path;
 
 use ely_pdf_engine::{
@@ -48,7 +50,7 @@ fn empty_marked_content_outside_the_region_stays() {
     let other = worker.text_blocks(doc, 0).expect("blocks").into_iter().find(|b| b.text == "Other").expect("other").rect;
     let out = dir.path().join("out.pdf");
     worker.redact(doc, &[Region { page: 0, rect: other }], &out).expect("removes");
-    let bytes = std::fs::read(&out).expect("reads");
+    let bytes = decoded::decoded(&out);
     let count = |what: &str| bytes.windows(what.len()).filter(|w| *w == what.as_bytes()).count();
     assert_eq!((count("/Artifact"), count("Other")), (1, 0));
 }
@@ -71,9 +73,10 @@ fn removed_text_is_gone_from_the_file_and_the_rest_stays() {
     let left = words(&mut other, written);
     assert!(!left.contains("Hello") && !left.contains("Hidden"), "{left}");
     assert!(left.contains("world") && left.contains("Second line"), "{left}");
-    let bytes = std::fs::read(&out).expect("reads");
+    let bytes = decoded::decoded(&out);
     assert!(!bytes.windows(5).any(|w| w == b"Hello"), "no trace in the bytes");
-    assert_eq!(bytes.windows(9).filter(|w| w == b"startxref").count(), 1, "one revision");
+    let raw = std::fs::read(&out).expect("reads");
+    assert_eq!(raw.windows(9).filter(|w| w == b"startxref").count(), 1, "one revision");
 }
 
 #[test]
@@ -171,7 +174,7 @@ fn written(dir: &Path, bytes: Vec<u8>) -> (Worker, Doc) {
 }
 
 fn holds(path: &Path, needle: &str) -> bool {
-    std::fs::read(path).expect("reads").windows(needle.len()).any(|w| w == needle.as_bytes())
+    decoded::decoded(path).windows(needle.len()).any(|w| w == needle.as_bytes())
 }
 
 #[test]

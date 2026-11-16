@@ -238,7 +238,7 @@ static void draw_laid(fz_context *ctx, pdf_document *pdf, pdf_page *page, laid *
 		fz_matrix to_user = ely_to_user(ctx, page);
 		char name[32];
 		int i, line;
-		ely_pen_resource(ctx, pdf, page, &l->p, name, sizeof name);
+		ely_pen_resource(ctx, pdf, page, &l->p, l->u, l->n, name, sizeof name);
 		buf = fz_new_buffer(ctx, 256);
 		fz_append_string(ctx, buf, "q\n");
 		for (line = 0; line < l->lines; line++)

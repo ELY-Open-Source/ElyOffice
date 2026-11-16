@@ -1,0 +1,89 @@
+Subset only the font files an edit added, or fail.
+
+pdf_subset_fonts rewrites every embedded font on the pages it looks
+at, points a font descriptor at an identical font file it met first,
+and leaves a font it cannot cut whole. A signature drawn with a CJK
+reason embeds the whole builtin face through the PDF device; Ely
+subsets that face before the signing update is written, but must
+leave the file's own fonts, and the bytes earlier signatures cover,
+untouched, and must not write the whole face silently.
+pdf_subset_fonts_from ignores font files numbered below `first` from
+the analysis on, and throws when a font cannot be cut.
+
+--- a/include/mupdf/pdf/font.h	2026-11-16 04:54:52.106211919 -0500
++++ b/include/mupdf/pdf/font.h	2026-11-16 04:58:53.899400757 -0500
+@@ -164,4 +164,11 @@
+ */
+ void pdf_subset_fonts(fz_context *ctx, pdf_document *doc, int pages_len, const int *pages);
+ 
++/*
++	As pdf_subset_fonts, but font files numbered below first are
++	neither subset nor merged with an identical file, and a font
++	that cannot be subset throws instead of staying whole.
++*/
++void pdf_subset_fonts_from(fz_context *ctx, pdf_document *doc, int pages_len, const int *pages, int first);
++
+ #endif
+--- a/source/pdf/pdf-subset.c	2026-11-16 04:54:52.103211865 -0500
++++ b/source/pdf/pdf-subset.c	2026-11-16 04:58:53.899158014 -0500
+@@ -58,6 +58,8 @@
+ 	int max;
+ 	int len;
+ 	font_usage_t *font;
++	/* Font files numbered below this are left alone. */
++	int first;
+ } fonts_usage_t;
+ 
+ typedef struct
+@@ -194,6 +196,10 @@
+ 	num = pdf_to_num(ctx, fontfile);
+ 	gen = pdf_to_gen(ctx, fontfile);
+ 
++	/* Neither cut nor merged with another: an older font stays whole. */
++	if (num < p->usage->first)
++		return;
++
+ 	for (i = 0; i < p->usage->len; i++)
+ 	{
+ 		if (p->usage->font[i].num == num &&
+@@ -691,13 +697,30 @@
+ 	return subtype;
+ }
+ 
++static void
++subset_fonts(fz_context *ctx, pdf_document *doc, int len, const int *pages, int first, int strict);
++
+ void
+ pdf_subset_fonts(fz_context *ctx, pdf_document *doc, int len, const int *pages)
+ {
++	subset_fonts(ctx, doc, len, pages, 0, 0);
++}
++
++void
++pdf_subset_fonts_from(fz_context *ctx, pdf_document *doc, int len, const int *pages, int first)
++{
++	subset_fonts(ctx, doc, len, pages, first, 1);
++}
++
++static void
++subset_fonts(fz_context *ctx, pdf_document *doc, int len, const int *pages, int first, int strict)
++{
+ 	int i, j;
+ 	pdf_page *page = NULL;
+ 	fonts_usage_t usage = { 0 };
+ 
++	usage.first = first;
++
+ 	fz_var(page);
+ 
+ 	fz_try(ctx)
+@@ -774,6 +797,9 @@
+ 			fz_catch(ctx)
+ 			{
+ 				fz_rethrow_if(ctx, FZ_ERROR_SYSTEM);
++				/* A caller that asked for these cut learns it failed. */
++				if (strict)
++					fz_rethrow(ctx);
+ 				fz_report_error(ctx);
+ 				continue;
+ 			}

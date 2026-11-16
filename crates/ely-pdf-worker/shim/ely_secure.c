@@ -55,7 +55,7 @@ int ely_protect(fz_context *ctx, fz_document *doc, const char *raw, const char *
 {
 	fz_try(ctx)
 	{
-		pdf_write_options opts = pdf_default_write_options;
+		pdf_write_options opts = ely_save_options();
 		opts.do_encrypt = protect ? PDF_ENCRYPT_AES_256 : PDF_ENCRYPT_NONE;
 		if (protect)
 		{

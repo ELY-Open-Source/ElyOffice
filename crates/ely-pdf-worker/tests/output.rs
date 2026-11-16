@@ -1,5 +1,7 @@
 //! Images, text, optimized copies, printing leave, repaired files (C11.8).
 
+mod decoded;
+
 use std::path::Path;
 
 use ely_pdf_engine::{
@@ -75,7 +77,7 @@ fn an_optimized_copy_is_smaller_and_its_picture_downsampled() {
     let mut other = self::worker();
     let read = other.open(&out).expect("opens").doc;
     assert_eq!(other.pages(read).expect("pages"), 1);
-    let text = String::from_utf8_lossy(&std::fs::read(&out).expect("reads")).into_owned();
+    let text = String::from_utf8_lossy(&decoded::decoded(&out)).into_owned();
     let width: u32 = text.split("/Width ").nth(1).and_then(|rest| rest.split(|c: char| !c.is_ascii_digit()).next()).and_then(|n| n.parse().ok()).expect("a width");
     assert!((205..=212).contains(&width), "150 dpi over 100 points, not {width}");
     assert!(worker.optimize(doc, &out, Optimizing { compress: true, from: 150, to: 300 }).is_err(), "up is not down");

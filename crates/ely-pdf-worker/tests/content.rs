@@ -1,5 +1,7 @@
 //! Text and object edits against the real worker (PDF-03, PDF-04).
 
+mod decoded;
+
 use std::path::Path;
 
 use ely_pdf_engine::{
@@ -126,7 +128,7 @@ fn a_rewrite_keeps_empty_marked_content_and_drops_its_own() {
     doc = worker.now(doc).expect("the state");
     let out = dir.path().join("out.pdf");
     worker.save(doc, &out).expect("saves");
-    let bytes = std::fs::read(&out).expect("reads");
+    let bytes = decoded::decoded(&out);
     let count = |what: &str| bytes.windows(what.len()).filter(|w| *w == what.as_bytes()).count();
     assert_eq!((count("/Artifact"), count("/Gone")), (1, 0), "the empty tag stays; the emptied one goes");
 }

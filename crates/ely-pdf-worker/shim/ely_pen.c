@@ -112,8 +112,99 @@ int ely_choose_pen(fz_context *ctx, const char *choice, fz_font *own, pdf_page *
 	fz_throw(ctx, FZ_ERROR_ARGUMENT, "no font %s", choice);
 }
 
-const char *ely_pen_resource(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_pen *p, char *name, size_t room)
+/* The script face cut to the glyphs `u` needs. */
+static fz_font *script_subset(fz_context *ctx, fz_font *font, const int *u, int n)
 {
+	fz_buffer *whole = NULL, *cut = NULL;
+	fz_font *subset = NULL;
+	int *gids = fz_malloc_array(ctx, n + 1, int);
+	unsigned char digest[16];
+	char name[32];
+	int i, k = 0;
+	fz_var(whole);
+	fz_var(cut);
+	fz_try(ctx)
+	{
+		gids[k++] = 0;
+		for (i = 0; i < n; i++)
+			if (u[i] != '\n')
+				gids[k++] = fz_encode_character(ctx, font, u[i]);
+		whole = fz_new_buffer_from_shared_data(ctx, script_data, script_len);
+		cut = fz_subset_ttf_for_gids(ctx, whole, gids, k, 0, 1);
+		/* ISO 32000-1 9.6.4: a tag per subset. */
+		fz_md5_buffer(ctx, cut, digest);
+		for (i = 0; i < 6; i++)
+			name[i] = 'A' + digest[i] % 26;
+		fz_strlcpy(name + 6, "+GreatVibes", sizeof name - 6);
+		subset = fz_new_font_from_buffer(ctx, name, cut, 0, 0);
+	}
+	fz_always(ctx)
+	{
+		fz_drop_buffer(ctx, whole);
+		fz_drop_buffer(ctx, cut);
+		fz_free(ctx, gids);
+	}
+	fz_catch(ctx)
+		fz_rethrow(ctx);
+	return subset;
+}
+
+/* `r` as UTF-16BE hex for a CMap. */
+static void append_utf16(fz_context *ctx, fz_buffer *buf, int r)
+{
+	if (r > 0xFFFF)
+		fz_append_printf(ctx, buf, "%04x%04x", 0xD800 + ((r - 0x10000) >> 10), 0xDC00 + ((r - 0x10000) & 0x3FF));
+	else
+		fz_append_printf(ctx, buf, "%04x", r);
+}
+
+/* Maps written runes back; the subset lost its cmap. */
+static void script_to_unicode(fz_context *ctx, pdf_document *pdf, pdf_obj *fobj, fz_font *font, const int *u, int n)
+{
+	fz_buffer *buf = NULL;
+	int *runes = fz_malloc_array(ctx, n + 1, int);
+	int i, k, m = 0;
+	fz_var(buf);
+	fz_try(ctx)
+	{
+		for (i = 0; i < n; i++)
+		{
+			for (k = 0; k < m && runes[k] != u[i]; k++)
+				;
+			if (u[i] != '\n' && k == m)
+				runes[m++] = u[i];
+		}
+		buf = fz_new_buffer(ctx, 256);
+		fz_append_string(ctx, buf, "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n"
+			"/CIDSystemInfo <</Registry(Adobe)/Ordering(UCS)/Supplement 0>> def\n"
+			"/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n"
+			"1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n");
+		for (i = 0; i < m; i++)
+		{
+			if (i % 100 == 0)
+				fz_append_printf(ctx, buf, "%d beginbfchar\n", fz_mini(100, m - i));
+			fz_append_printf(ctx, buf, "<%04x> <", fz_encode_character(ctx, font, runes[i]));
+			append_utf16(ctx, buf, runes[i]);
+			fz_append_string(ctx, buf, ">\n");
+			if (i % 100 == 99 || i == m - 1)
+				fz_append_string(ctx, buf, "endbfchar\n");
+		}
+		fz_append_string(ctx, buf, "endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n");
+		pdf_dict_put_drop(ctx, fobj, PDF_NAME(ToUnicode), pdf_add_stream(ctx, pdf, buf, NULL, 0));
+	}
+	fz_always(ctx)
+	{
+		fz_drop_buffer(ctx, buf);
+		fz_free(ctx, runes);
+	}
+	fz_catch(ctx)
+		fz_rethrow(ctx);
+}
+
+const char *ely_pen_resource(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_pen *p, const int *u, int n,
+	char *name, size_t room)
+{
+	fz_font *subset = NULL;
 	pdf_drop_obj(ctx, p->ref);
 	p->ref = NULL;
 	switch (p->kind)
@@ -123,7 +214,20 @@ const char *ely_pen_resource(fz_context *ctx, pdf_document *pdf, pdf_page *page,
 		p->ref = pdf_new_indirect(ctx, pdf, p->num, 0);
 		break;
 	case PEN_CID:
-		p->ref = pdf_add_cid_font(ctx, pdf, p->font);
+		/* Only the glyphs written; the whole face is 447 KB. */
+		subset = script_subset(ctx, p->font, u, n);
+		fz_try(ctx)
+		{
+			p->ref = pdf_add_cid_font(ctx, pdf, subset);
+			/* The child took the face's own PostScript name. */
+			pdf_dict_put_name(ctx, pdf_array_get(ctx, pdf_dict_get(ctx, p->ref, PDF_NAME(DescendantFonts)), 0),
+				PDF_NAME(BaseFont), fz_font_name(ctx, subset));
+			script_to_unicode(ctx, pdf, p->ref, p->font, u, n);
+		}
+		fz_always(ctx)
+			fz_drop_font(ctx, subset);
+		fz_catch(ctx)
+			fz_rethrow(ctx);
 		break;
 	case PEN_SIMPLE:
 		p->ref = pdf_add_simple_font(ctx, pdf, p->font, PDF_SIMPLE_ENCODING_LATIN);

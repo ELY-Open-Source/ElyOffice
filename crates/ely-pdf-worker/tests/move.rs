@@ -1,5 +1,7 @@
 //! Moving text blocks as drawn, against the real worker (PDF-03).
 
+mod decoded;
+
 use std::path::Path;
 
 use ely_pdf_engine::{
@@ -172,7 +174,7 @@ fn a_move_leaves_the_structure_tree_as_it_was() {
     let doc = worker.now(doc).expect("the state");
     let out = dir.path().join("moved.pdf");
     worker.save(doc, &out).expect("saves");
-    let bytes = std::fs::read(&out).expect("reads");
+    let bytes = decoded::decoded(&out);
     let count = |what: &str| bytes.windows(what.len()).filter(|w| *w == what.as_bytes()).count();
     for kept in ["TITLE-HELLO", "WIDE-HELLO", "TITLE-OTHER", "WIDE-OTHER", "ALT-OTHER"] {
         assert_eq!(count(kept), 1, "{kept}");
@@ -228,7 +230,7 @@ fn separate_sequences_alike_stay_apart() {
         let doc = worker.now(doc).expect("the state");
         let out = dir.path().join("moved.pdf");
         worker.save(doc, &out).expect("saves");
-        let bytes = std::fs::read(&out).expect("reads");
+        let bytes = decoded::decoded(&out);
         let count = bytes.windows(word.len()).filter(|w| *w == word.as_bytes()).count();
         assert_eq!(count, times, "{content}: each sequence once");
     }
@@ -245,7 +247,7 @@ fn empty_marked_content_elsewhere_stays() {
     let doc = worker.now(doc).expect("the state");
     let out = dir.path().join("moved.pdf");
     worker.save(doc, &out).expect("saves");
-    let bytes = std::fs::read(&out).expect("reads");
+    let bytes = decoded::decoded(&out);
     let count = |what: &str| bytes.windows(what.len()).filter(|w| *w == what.as_bytes()).count();
     assert_eq!((count("/Artifact"), count("(EMPTY)"), count("/Stated")), (2, 1, 1), "the moved tag and the three empty ones");
 }
@@ -261,7 +263,7 @@ fn marked_points_stay_put_and_refuse_nothing() {
         let doc = worker.now(doc).expect("the state");
         let out = dir.path().join("moved.pdf");
         worker.save(doc, &out).expect("saves");
-        let bytes = std::fs::read(&out).expect("reads");
+        let bytes = decoded::decoded(&out);
         let count = |what: &str| bytes.windows(what.len()).filter(|w| *w == what.as_bytes()).count();
         assert_eq!((count("/Point MP"), count("(POINT)")), (1, 1), "{around}: each point once");
     }

@@ -21,6 +21,7 @@ fn main() {
     cc::Build::new()
         .file("shim/ely_mupdf.c")
         .file("shim/ely_pages.c")
+        .file("shim/ely_save.c")
         .file("shim/ely_insert.c")
         .file("shim/ely_text.c")
         .file("shim/ely_write.c")
@@ -40,7 +41,8 @@ fn main() {
         .file("shim/ely_sign.c")
         .file("shim/ely_output.c")
         .file("shim/ely_story.c")
-        .include(root.join("reference/mupdf/include"))
+        // The headers of the patched build it links.
+        .include(root.join("engines/mupdf-src/include"))
         .include(openssl(&root, "includedir"))
         .warnings(true)
         .cargo_metadata(false)

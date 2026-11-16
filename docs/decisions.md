@@ -1110,3 +1110,16 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 组件库 pin 2d82775；`gpui-pre` 与其平台包 =0.3.12。vendor 的四个 gpui 包重做：crates.io 0.3.12 原样（`scripts/vendor-gpui.sh` 核散列），加 `patches/gpui` 十三个。十个照旧打上；三个因上游改写而重做：0001（0.3.12 的 GIF 与 WebP 合用一个取帧循环，补丁只剩这一处，错误里也不再带来源）、0003（只是上下文挪了）、0010（DirectWrite 的初始化重排，各段落在原处）。
 - 可点的 `StatusBarItem` 是 Tab 停靠点，Enter、空格按下：组件库 2d82775 已做，随 pin 进来。
 - ElyMail 的同步项未改用 `feedback::SyncStatus`：其文字仍写死英文（“Syncing N items”），未走 `i18n`。照 SF.14 所定，等它本地化再换。
+
+## 2026-11-16 ElyPDF 保存压缩新写的流，签名字体取子集（SF.24）
+
+- 保存、加密与打印的副本以 `ely_save_options` 写出：`do_compress`、`do_compress_images`、`do_compress_fonts` 都开。MuPDF 只压没有 `Filter` 的流，已压缩的原样拷贝，所以没动过的对象不变。“优化”照它自己的勾选。
+- 加的图与换的图在加进来时即压缩（`add_image`，连同软蒙版）：签名在快照上增量写，MuPDF 不许快照压缩，原先加图后不存即签名多出 900 万字节。
+- 手写体签名的字体只嵌写到的字形（`fz_subset_ttf_for_gids`，保留字形编号）。子集丢了 cmap，所以由写下的字符另建 ToUnicode。中文与填表仍用 `pdf_add_cjk_font`，不嵌字体。
+- 签名：外观的字体在签名后、写出前取子集，只取这次新加的（补丁 0009，`pdf_subset_fonts_from` 跳过编号小于签名前对象数的字体文件），文件原有的字体与旧签名覆盖的字节不动；取子集时设 `disallow_new_increments`，改动落在签名那一节，否则签名读出“签后有改动”。写出开压缩（快照不许，增量许）。
+- 补丁 0010 改写 MuPDF CFF 子集器的扫描：每个保留的字形从干净的状态起，在自己的字体字典里，带着同一个栈与 stem 数进入它调的每个子程序（至多十层）。原先字形与子程序各自在空栈上扫，子程序留下的操作数丢失，掩码长度算错。顺带：第一个 hintmask 前剩下的操作数一律算 vstem，shortint 带符号，mul 出栈。0009 在 `pdf_subset_fonts_from` 上切不了即抛错；`pdf_subset_fonts` 的旧行为（报错后留整份）不变。试过让 PDF 设备对自带中日韩字体只写名字不嵌入：语言未定时汉字落到日文字序，“签”画不出，弃。
+- 手写体子集带 MD5 取的六字母标记，三处名字一致。
+- shim 改读 `engines/mupdf-src/include`：它链接的是打过补丁的库，补丁加的接口只在那份头文件里。
+- `ely_save_copy` 移进 `ely_save.c`：`ely_pages.c` 超了 500 行，六个文件都调它。
+- 测试按字节查保存后的内容时，先经 `tests/decoded` 解压；查修订数、签名字节的仍读原文件。
+- 未验：用户那份 30 MB 的文件没拿到；Acrobat 没测。

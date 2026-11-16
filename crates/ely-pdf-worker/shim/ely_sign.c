@@ -304,10 +304,10 @@ int ely_sign(fz_context *ctx, fz_document *doc, const char *raw, const char *pas
 	fz_var(page);
 	fz_try(ctx)
 	{
-		pdf_write_options update = pdf_default_write_options;
+		pdf_write_options update = ely_save_options();
 		pdf_document *pdf;
 		pdf_annot *widget;
-		int field;
+		int field, first;
 		signer = pkcs7_openssl_read_pfx(ctx, pfx, pfx_password);
 		pdf_save_snapshot(ctx, ely_pdf_of(ctx, doc), raw);
 		copy = fz_open_document(ctx, raw);
@@ -317,7 +317,13 @@ int ely_sign(fz_context *ctx, fz_document *doc, const char *raw, const char *pas
 		page = pdf_load_page(ctx, pdf, number);
 		widget = sign_field(ctx, pdf, page, object, rect, name);
 		field = pdf_to_num(ctx, pdf_annot_obj(ctx, widget));
+		first = pdf_xref_len(ctx, pdf);
 		pdf_sign_signature(ctx, widget, signer, PDF_SIGNATURE_SHOW_LABELS | PDF_SIGNATURE_SHOW_DATE | PDF_SIGNATURE_SHOW_TEXT_NAME, NULL, reason, location);
+		/* A CJK reason embeds the whole 24 MB face. */
+		pdf->disallow_new_increments = 1;
+		pdf_subset_fonts_from(ctx, pdf, 1, &number, first);
+		/* The cut joins the signed update, not a later one. */
+		pdf->disallow_new_increments = 0;
 		/* Earlier signatures cover earlier bytes; only append. */
 		update.do_incremental = 1;
 		pdf_save_document(ctx, pdf, raw, &update);

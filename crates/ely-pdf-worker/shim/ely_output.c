@@ -289,7 +289,7 @@ int ely_print_copy(fz_context *ctx, fz_document *doc, const char *raw, const cha
 {
 	fz_try(ctx)
 	{
-		pdf_write_options opts = pdf_default_write_options;
+		pdf_write_options opts = ely_save_options();
 		opts.do_encrypt = PDF_ENCRYPT_NONE;
 		ely_save_copy(ctx, ely_pdf_of(ctx, doc), raw, out, password, &opts, flatten_all, NULL);
 	}

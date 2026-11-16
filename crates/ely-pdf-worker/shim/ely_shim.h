@@ -16,6 +16,7 @@ void ely_fit_sides(fz_context *ctx, fz_rect used, float unit, const float sides[
 void ely_forget_resources(fz_context *ctx, pdf_document *pdf);
 pdf_obj *ely_target(fz_context *ctx, pdf_document *pdf, pdf_obj *obj);
 typedef void (ely_change)(fz_context *ctx, fz_document *copy, void *arg);
+pdf_write_options ely_save_options(void);
 void ely_save_copy(fz_context *ctx, pdf_document *pdf, const char *raw, const char *out, const char *password,
 	const pdf_write_options *opts,
 	ely_change *change, void *arg);
@@ -86,7 +87,8 @@ typedef struct
 } ely_pen;
 
 int ely_choose_pen(fz_context *ctx, const char *choice, fz_font *own, pdf_page *page, ely_pen *p);
-const char *ely_pen_resource(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_pen *p, char *name, size_t room);
+const char *ely_pen_resource(fz_context *ctx, pdf_document *pdf, pdf_page *page, ely_pen *p, const int *u, int n,
+	char *name, size_t room);
 int ely_pen_has(fz_context *ctx, ely_pen *p, int u);
 float ely_pen_advance(fz_context *ctx, ely_pen *p, int u, float size);
 void ely_pen_code(fz_context *ctx, fz_buffer *buf, ely_pen *p, int u);
