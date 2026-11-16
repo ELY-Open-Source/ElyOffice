@@ -15,8 +15,8 @@ APPS = ("ely-doc", "ely-table", "ely-show")
 IDLE = re.compile(r"--idle idle-(ely-[a-z]+)-[0-9a-f]{16}")
 # Memory may grow this far past the record.
 SLACK = 1.1
-# Drawinglayer frees its text device at 180 s.
-SETTLE_S = 200
+# One-shot wakes end by 360 s (SF.31).
+SETTLE_S = 400
 
 
 def linux():

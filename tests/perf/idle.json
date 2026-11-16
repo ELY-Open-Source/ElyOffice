@@ -3,5 +3,10 @@
     "ely-doc": 177,
     "ely-table": 187,
     "ely-show": 171
+  },
+  "darwin": {
+    "ely-doc": 87,
+    "ely-table": 82,
+    "ely-show": 83
   }
 }
