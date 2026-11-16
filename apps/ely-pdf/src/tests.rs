@@ -12,6 +12,7 @@ use crate::select::Selection;
 use crate::view::PdfView;
 use crate::viewer::Viewer;
 
+mod bars;
 mod editing;
 mod epub;
 mod input;

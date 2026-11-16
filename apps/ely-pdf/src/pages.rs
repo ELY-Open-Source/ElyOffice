@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use ely_gpui_component::theme::ActiveTheme as _;
+use ely_gpui_component::{layout::Scrollbar, theme::ActiveTheme as _};
 use gpui::{
-    AnyElement, Context, InteractiveElement as _, IntoElement, MouseButton, ParentElement as _,
+    AnyElement, Axis, Context, InteractiveElement as _, IntoElement, MouseButton, ParentElement as _,
     Pixels, Point, RenderImage, StatefulInteractiveElement as _, Styled as _, Window, canvas, div,
     point, px,
 };
@@ -140,9 +140,14 @@ impl PdfView {
         self.painted.clear();
         let (sunken, paper) = (cx.theme().colors.sunken, gpui::white());
         let laid = self.laid_out();
+        // A wheel or a bar moved it, not a jump.
+        if self.go_to.is_none() && self.scroll.offset() != self.drawn_at {
+            self.forget_place();
+        }
         if let Some((x, y)) = self.go_to.take() {
             self.scroll.set_offset(point(px(-x), px(-y)));
         }
+        self.drawn_at = self.scroll.offset();
         let (left, top) = (-f32::from(self.scroll.offset().x), -f32::from(self.scroll.offset().y));
         let showing = self.showing(sf);
         // Half a page past a jump's lead counts.
@@ -264,11 +269,7 @@ impl PdfView {
                     _ => view.sketch_end(cx),
                 })
             })
-            .on_scroll(cx.listener(|view, _, _, cx| {
-                view.restore_view = None;
-                view.layout_anchor = None;
-                cx.notify();
-            }))
+            .on_scroll(cx.listener(|_, _, _, cx| cx.notify()))
             .child(div().relative().w(px(laid.size.0)).h(px(laid.size.1)).children(pages));
         // Measures the view itself, which does not scroll.
         let measure = canvas(
@@ -288,7 +289,18 @@ impl PdfView {
         let zoom = ely_ui::wheel::zoom_layer(move |event, _, cx| {
             wheeled.update(cx, |view, cx| view.wheel_zoom(event, cx))
         });
-        let view = div().relative().size_full().child(pages).child(measure).child(zoom).into_any_element();
+        let bars = [
+            Scrollbar::new("pdf-bar-x", &self.scroll, Axis::Horizontal),
+            Scrollbar::new("pdf-bar-y", &self.scroll, Axis::Vertical),
+        ];
+        let view = div()
+            .relative()
+            .size_full()
+            .child(pages)
+            .child(measure)
+            .child(zoom)
+            .children(bars)
+            .into_any_element();
         (view, pages_shown)
     }
 

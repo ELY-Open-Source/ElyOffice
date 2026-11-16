@@ -51,6 +51,8 @@ pub struct PdfView {
     pub sidebar: Option<crate::history::Sidebar>,
     pub measured: usize,
     pub scroll: ScrollHandle,
+    /// The offset the last render left.
+    pub drawn_at: gpui::Point<gpui::Pixels>,
     pub tiles: HashMap<TileKey, Arc<RenderImage>>,
     /// Images no longer drawn, freed at the next render.
     pub retired: ely_gpui_component::primitives::Retired,
@@ -208,6 +210,7 @@ impl PdfView {
             sidebar: None,
             measured,
             scroll: ScrollHandle::new(),
+            drawn_at: gpui::Point::default(),
             tiles: HashMap::new(),
             retired: Default::default(),
             painted: Vec::new(),
@@ -349,11 +352,16 @@ impl PdfView {
         );
     }
 
+    /// The reader moved; no kept place comes back.
+    pub(crate) fn forget_place(&mut self) {
+        self.restore_view = None;
+        self.layout_anchor = None;
+    }
+
     /// Scrolls `page` into view, `y` points near the top.
     pub fn show(&mut self, page: usize, y: f32, cx: &mut Context<Self>) {
         let changed = self.current != page;
-        self.restore_view = None;
-        self.layout_anchor = None;
+        self.forget_place();
         self.current = page;
         if let Some(at) = self.landing(&self.laid_out(), page, y) {
             self.go_to = Some(at);
@@ -398,8 +406,7 @@ impl PdfView {
 
     /// Changes how pages show; the spot read stays put.
     pub fn change(&mut self, change: impl FnOnce(&mut Self, f32), cx: &mut Context<Self>) {
-        self.restore_view = None;
-        self.layout_anchor = None;
+        self.forget_place();
         // A scroll not yet drawn counts.
         let offset = self.scroll.offset();
         let (left, top) = self.go_to.unwrap_or((-f32::from(offset.x), -f32::from(offset.y)));

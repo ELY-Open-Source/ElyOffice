@@ -128,8 +128,7 @@ impl PdfView {
 
     /// Everything read before the edit goes.
     fn refresh(&mut self, fresh: Fresh, pages: bool, cx: &mut Context<Self>) {
-        self.restore_view = None;
-        self.layout_anchor = None;
+        self.forget_place();
         self.measured = fresh.first.len();
         self.version += 1;
         self.edited += 1;
