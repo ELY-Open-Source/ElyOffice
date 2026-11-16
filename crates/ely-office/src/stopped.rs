@@ -23,7 +23,7 @@ pub struct Stopped {
 pub trait Stopping: Host {
     /// After an engine error: asks if it ended.
     fn check_engine(&mut self, cx: &mut Context<Self>) {
-        if self.core().stopped.is_some() {
+        if self.core().shared.get().stopped.is_some() {
             return;
         }
         let worker = Arc::clone(&self.core().worker);
@@ -33,10 +33,9 @@ pub trait Stopping: Host {
                 .await;
             let Some(why) = ended else { return };
             let noted = this.update(cx, |host, cx| {
-                if host.core().stopped.is_none() {
+                if host.core().shared.get().stopped.is_none() {
                     log::error!("{}: the engine ended ({why})", Self::KIND.app.slug());
-                    host.core_mut().stopped = Some(Stopped { why, restarting: false });
-                    cx.notify();
+                    host.set_stopped(Some(Stopped { why, restarting: false }), cx);
                 }
             });
             if noted.is_err() {
@@ -62,22 +61,31 @@ pub trait Stopping: Host {
     /// Ends the held engine; a new one reopens the tabs.
     fn swap_engine(&mut self, id: u64, cx: &mut Context<Self>) {
         let slug = Self::KIND.app.slug();
-        let Some(stop) = self.core().stop.clone() else {
+        let (stop, stopped) = {
+            let shared = self.core().shared.get();
+            (shared.stop.clone(), shared.stopped.is_some())
+        };
+        let Some(stop) = stop else {
             return log::warn!("{slug}: closed tab {id} still loads; this engine cannot stop");
         };
-        if self.core().stopped.is_some() {
+        if stopped {
             return log::info!("{slug}: closed tab {id} still loads; the engine is already restarting");
         }
         log::warn!("{slug}: closed tab {id} holds the engine after {} s; a new engine takes over", LET_GO.as_secs());
         let why = text(cx, "office.stopped.held", &[]).to_string();
-        self.core_mut().stopped = Some(Stopped { why, restarting: true });
-        cx.notify();
+        self.set_stopped(Some(Stopped { why, restarting: true }), cx);
+        let shared = self.core().shared.clone();
         cx.spawn(async move |this, cx| {
             // The stuck load fails and frees the lock.
             if let Err(error) = cx.background_executor().spawn(async move { stop() }).await {
                 log::error!("{slug}: the held engine did not stop: {error}");
             }
-            this.update(cx, |host, cx| host.relaunch_engine(cx))
+            // Any open window carries the restart on.
+            let Some(heir) = shared.heir(&this) else {
+                log::info!("{slug}: the engine stopped after every window");
+                return Ok(());
+            };
+            heir.update(cx, |host, cx| host.relaunch_engine(cx))
         })
         .detach_and_log_err(cx);
     }
@@ -100,14 +108,18 @@ pub trait Stopping: Host {
 
     /// The engine's end and way back, in the page's place.
     fn stopped_page(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let stopped = self.core().stopped.as_ref()?;
-        let at = match self.core().keeping.as_ref().and_then(|keeping| keeping.last) {
+        let (why, restarting, last) = {
+            let shared = self.core().shared.get();
+            let stopped = shared.stopped.as_ref()?;
+            (stopped.why.clone(), stopped.restarting, shared.keeping.as_ref().and_then(|keeping| keeping.last))
+        };
+        let at = match last {
             Some(at) => clock(at),
             None => text(cx, "office.stopped.never", &[]).to_string(),
         };
-        let said = text(cx, "office.stopped", &[("why", &stopped.why), ("at", &at)]);
+        let said = text(cx, "office.stopped", &[("why", &why), ("at", &at)]);
         let page = ErrorView::new("office-stopped", IconName::CircleAlert, text(cx, "office.stopped.title", &[])).body(said);
-        if stopped.restarting {
+        if restarting {
             return Some(page.into_any_element());
         }
         let this = cx.entity();
@@ -119,15 +131,20 @@ pub trait Stopping: Host {
 
     /// A new worker, then each tab from point or file.
     fn restart_engine(&mut self, cx: &mut Context<Self>) {
-        let Some(stopped) = self.core_mut().stopped.as_mut() else { return };
-        stopped.restarting = true;
-        cx.notify();
+        {
+            let mut shared = self.core().shared.get_mut();
+            // Another window's click restarts it already.
+            let Some(stopped) = shared.stopped.as_mut().filter(|stopped| !stopped.restarting) else { return };
+            stopped.restarting = true;
+        }
+        self.notify_windows(cx);
         self.relaunch_engine(cx);
     }
 
     /// A new worker under the stopped one, then the tabs.
     fn relaunch_engine(&mut self, cx: &mut Context<Self>) {
         let worker = Arc::clone(&self.core().worker);
+        let shared = self.core().shared.clone();
         cx.spawn(async move |this, cx| {
             let restarted = cx
                 .background_spawn(async move {
@@ -135,27 +152,50 @@ pub trait Stopping: Host {
                     Self::Engine::restart(Self::KIND.app, &mut worker).map(|()| Self::Engine::stopper(&worker))
                 })
                 .await;
-            let reopened = this.update(cx, |host, cx| match restarted {
+            let Some(heir) = shared.heir(&this) else {
+                return log::info!("office: the engine restarted after every window");
+            };
+            let reopened = heir.update(cx, |host, cx| match restarted {
                 Ok(stop) => {
-                    host.core_mut().stop = stop;
+                    host.core().shared.get_mut().stop = stop;
+                    host.set_stopped(None, cx);
+                    // One engine: every window reopens on it.
+                    let me = cx.entity_id();
+                    for other in host.core().shared.hosts() {
+                        if other.entity_id() != me {
+                            other.update(cx, |other, cx| other.reopen_all(cx));
+                        }
+                    }
                     host.reopen_all(cx)
                 }
                 Err(error) => {
                     log::error!("{}: the engine does not restart: {error}", Self::KIND.app.slug());
-                    host.core_mut().stopped = Some(Stopped { why: error.to_string(), restarting: false });
-                    cx.notify();
+                    host.set_stopped(Some(Stopped { why: error.to_string(), restarting: false }), cx);
                 }
             });
             if reopened.is_err() {
-                log::info!("office: the engine restarted after its window");
+                log::error!("office: the window to reopen in closed meanwhile");
             }
         })
         .detach();
     }
 
+    /// Every window shows the engine's state.
+    fn set_stopped(&mut self, stopped: Option<Stopped>, cx: &mut Context<Self>) {
+        self.core().shared.get_mut().stopped = stopped;
+        self.notify_windows(cx);
+    }
+
+    /// Redraws each window of the app.
+    fn notify_windows(&self, cx: &mut Context<Self>) {
+        for host in self.core().shared.hosts() {
+            let app: &mut gpui::App = cx;
+            app.notify(host.entity_id());
+        }
+    }
+
     /// Unsaved tabs from their newest point, clean ones from file.
     fn reopen_all(&mut self, cx: &mut Context<Self>) {
-        self.core_mut().stopped = None;
         let tabs: Vec<(u64, String, Option<PathBuf>, bool)> = self
             .core()
             .tabs

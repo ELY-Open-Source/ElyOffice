@@ -35,7 +35,7 @@ pub trait Opening: Host {
     /// An untitled copy of a local template.
     fn new_from_file(&mut self, template: &Path, cx: &mut Context<Self>) {
         let name = file_name(template);
-        let copy = files::work_dir(&self.core().work, self.core().next).and_then(|dir| {
+        let copy = files::work_dir(&self.core().work(), self.core().next_id()).and_then(|dir| {
             let copy = dir.join(name.as_ref());
             std::fs::copy(template, &copy)?;
             Ok(copy)
@@ -54,7 +54,7 @@ pub trait Opening: Host {
         how: ImportOf<Self>,
         cx: &mut Context<Self>,
     ) {
-        match files::work_dir(&self.core().work, self.core().next) {
+        match files::work_dir(&self.core().work(), self.core().next_id()) {
             Ok(dir) => self.load(Source::Import(dir.join(name), bytes, how), cx),
             Err(error) => self.failed_open(name, &error, cx),
         }
@@ -62,7 +62,7 @@ pub trait Opening: Host {
 
     /// An untitled document from `contents` named `name`.
     fn new_from_text(&mut self, name: &str, contents: &str, cx: &mut Context<Self>) {
-        let copy = files::work_dir(&self.core().work, self.core().next).and_then(|dir| {
+        let copy = files::work_dir(&self.core().work(), self.core().next_id()).and_then(|dir| {
             let copy = dir.join(name);
             std::fs::write(&copy, contents)?;
             Ok(copy)
@@ -86,23 +86,48 @@ pub trait Opening: Host {
             self.core_mut().active = Some(id);
             return cx.notify();
         }
-        match self.core_mut().sessions.open(&path, false) {
+        let opened = self.core().shared.get_mut().sessions.open(&path, false);
+        match opened {
             Ok(Open::Focus(registry)) => {
-                let core = self.core_mut();
-                let open = core.tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id);
-                // Still loading: chosen as its loading tab is.
-                let chosen = open.or_else(|| core.loading.iter().find(|(.., of)| *of == Some(registry)).map(|(id, ..)| *id));
-                core.set_active(chosen);
-                if let Some(id) = open {
-                    self.focus_later(id, cx);
+                if self.show_registered(registry, cx) {
+                    return;
                 }
-                cx.notify();
+                // Another window holds it: that window comes forward.
+                let me = cx.entity_id();
+                let shown = self.core().shared.hosts().into_iter().filter(|host| host.entity_id() != me).find_map(|host| {
+                    let window = host.read(cx).core().window;
+                    host.update(cx, |host, cx| host.show_registered(registry, cx)).then_some(window).flatten()
+                });
+                let Some(window) = shown else {
+                    return log::error!("{}: file {registry} is registered, but no window holds it", Self::KIND.app.slug());
+                };
+                cx.defer(move |cx| {
+                    if let Err(error) = window.update(cx, |_, window, _| window.activate_window()) {
+                        log::warn!("office: the window holding the file is gone: {error}");
+                    }
+                });
             }
             Ok(Open::Fresh(registry) | Open::View(registry)) => {
                 self.load(Source::File(path, registry, password), cx)
             }
             Err(error) => self.failed_open(&path.display().to_string(), &error, cx),
         }
+    }
+
+    /// Picks registered file `registry` here, if this window holds it.
+    fn show_registered(&mut self, registry: usize, cx: &mut Context<Self>) -> bool {
+        let core = self.core_mut();
+        let open = core.tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id);
+        // Still loading: chosen as its loading tab is.
+        let Some(chosen) = open.or_else(|| core.loading.iter().find(|(.., of)| *of == Some(registry)).map(|(id, ..)| *id)) else {
+            return false;
+        };
+        core.set_active(Some(chosen));
+        if let Some(id) = open {
+            self.focus_later(id, cx);
+        }
+        cx.notify();
+        true
     }
 
     /// Gives tab `id` the keys once the window is free.
@@ -140,8 +165,7 @@ pub trait Opening: Host {
 
     /// Loads off the main thread; the tab takes focus.
     fn load(&mut self, source: Source<ImportOf<Self>>, cx: &mut Context<Self>) {
-        let id = self.core().next;
-        self.core_mut().next += 1;
+        let id = self.core().take_id();
         self.load_into(id, source, cx);
     }
 
@@ -173,7 +197,7 @@ pub trait Opening: Host {
         };
         let written = path.clone();
         cx.notify();
-        let (worker, root) = (Arc::clone(&self.core().worker), self.core().work.clone());
+        let (worker, root) = (Arc::clone(&self.core().worker), self.core().work());
         let slug = Self::KIND.app.slug();
         log::info!("{slug}: tab {id} load queued");
         // Starts now, not after the frame.
@@ -315,7 +339,7 @@ pub trait Opening: Host {
                     window.focus(&Self::Engine::focus(tab.view.read(cx)), cx);
                 }
                 if let Some(registry) = registry {
-                    self.core_mut().sessions.close(registry);
+                    self.core().shared.get_mut().sessions.close(registry);
                 }
                 cx.notify();
                 // A locked copy asks too, and stays a copy.
@@ -331,8 +355,11 @@ pub trait Opening: Host {
             Some(_) => file_name(&path),
             None if imported => file_name(&path),
             None => {
-                self.core_mut().untitled += 1;
-                let n = self.core().untitled.to_string();
+                let n = {
+                    let mut shared = self.core().shared.get_mut();
+                    shared.untitled += 1;
+                    shared.untitled.to_string()
+                };
                 text(cx, "office.untitled", &[("n", &n)])
             }
         };

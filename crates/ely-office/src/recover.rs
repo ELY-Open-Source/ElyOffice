@@ -19,6 +19,7 @@ const GIVES_WAY_FOR: Duration = Duration::from_secs(60);
 
 mod disk;
 mod fit;
+mod index;
 mod reopen;
 mod slot;
 
@@ -51,8 +52,6 @@ pub struct Keeping {
     pub(crate) last: Option<SystemTime>,
     /// The index on disk is behind; the failure shown.
     behind: Option<String>,
-    /// A round is due; it waits for typing to rest.
-    owed: bool,
     /// An index write runs; another follows it if asked.
     flushing: bool,
     flush_again: bool,
@@ -67,7 +66,7 @@ impl Keeping {
     }
 
     /// Recovery kept in `dir`, for tests.
-    #[cfg(feature = "test-support")]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn in_folder(dir: PathBuf) -> io::Result<Self> {
         Self::start_in(dir)
     }
@@ -99,7 +98,7 @@ impl Keeping {
         };
         let crash = Crash::open(&dir, std::process::id())?;
         let (reopening, held) = (Vec::new(), Vec::new());
-        Ok(Self { dir, crash: Some(crash), slots: HashMap::new(), crashed, reopening, held, last: None, behind: None, owed: false, flushing: false, flush_again: false, turns: Turns::default() })
+        Ok(Self { dir, crash: Some(crash), slots: HashMap::new(), crashed, reopening, held, last: None, behind: None, flushing: false, flush_again: false, turns: Turns::default() })
     }
 
     /// A clean quit: the next start finds nothing to recover.
@@ -150,25 +149,33 @@ pub struct Taken(Kept, String);
 pub trait Recovering: Host {
     /// From the app's window, never its tests.
     fn start_recovery(&mut self, cx: &mut Context<Self>) {
-        match Keeping::start(Self::KIND.app) {
-            Ok(keeping) => self.core_mut().keeping = Some(keeping),
-            Err(error) => {
-                log::error!("recovery: off for this run: {error}");
-                self.core_mut().recovery_off = Some(error.to_string());
+        let shared = self.core().shared.clone();
+        // The app's first window starts it; later ones share.
+        if !std::mem::replace(&mut shared.get_mut().recovering, true) {
+            match Keeping::start(Self::KIND.app) {
+                Ok(keeping) => shared.get_mut().keeping = Some(keeping),
+                Err(error) => {
+                    log::error!("recovery: off for this run: {error}");
+                    shared.get_mut().recovery_off = Some(error.to_string());
+                }
             }
         }
         Self::keep_points_every(cx);
         cx.on_app_quit(|host, cx| {
+            let shared = host.core().shared.clone();
             // A write still in flight must not be the last.
-            if let Some(keeping) = host.core().keeping.as_ref()
+            if let Some(keeping) = shared.get().keeping.as_ref()
                 && let Err(error) = keeping.save_index()
             {
                 log::error!("recovery: the index is not saved at quit: {error}");
             }
             // A system end skips asking: unsaved tabs keep points.
-            if host.core().tabs.iter().any(|tab| tab.dirty(cx)) {
+            let me = cx.entity_id();
+            let others = shared.hosts().into_iter().filter(|other| other.entity_id() != me);
+            let others = others.collect::<Vec<_>>().into_iter().any(|other| other.read(cx).core().tabs.iter().any(|tab| tab.dirty(cx)));
+            if others || host.core().tabs.iter().any(|tab| tab.dirty(cx)) {
                 log::warn!("recovery: quit with unsaved tabs; points stay");
-            } else if let Some(keeping) = host.core_mut().keeping.as_mut() {
+            } else if let Some(keeping) = shared.get_mut().keeping.as_mut() {
                 keeping.end();
             }
             async {}
@@ -194,13 +201,18 @@ pub trait Recovering: Host {
     fn keep_points(&mut self, cx: &mut Context<Self>) {
         // An idle engine reports no error when it ends.
         crate::Stopping::check_engine(self, cx);
-        if let Some(error) = self.core_mut().recovery_off.take() {
+        let off = self.core().shared.get_mut().recovery_off.take();
+        if let Some(error) = off {
             self.toast_unlogged(text(cx, "office.recovery.off", &[("error", &error)]), Severity::Danger, cx);
         }
-        if self.core().stopped.is_some() {
+        let (stopped, behind) = {
+            let shared = self.core().shared.get();
+            (shared.stopped.is_some(), shared.keeping.as_ref().is_some_and(|keeping| keeping.behind.is_some()))
+        };
+        if stopped {
             return;
         }
-        if self.core().keeping.as_ref().is_some_and(|keeping| keeping.behind.is_some()) {
+        if behind {
             self.flush_index(cx);
         }
         if self.core().window.is_some() {
@@ -208,20 +220,25 @@ pub trait Recovering: Host {
         }
         fit::recheck(self, cx);
         // Snapshots hold the kernel: they wait for a pause.
-        self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.owed = true);
+        let keeping = self.core().shared.get().keeping.is_some();
+        self.core_mut().owed = keeping;
     }
 
     /// An owed round, once every tab rested a whole beat.
     fn points_after_pause(&mut self, rested: &[u64], cx: &mut Context<Self>) {
         let core = self.core();
-        let Some(keeping) = core.keeping.as_ref() else { return };
-        let busy = core.stopped.is_some() || keeping.slots.values().any(|slot| slot.writing);
-        if !keeping.owed || busy || core.tabs.iter().any(|tab| !rested.contains(&tab.id)) {
+        let busy = {
+            let shared = core.shared.get();
+            let Some(keeping) = shared.keeping.as_ref() else { return };
+            // One worker: one window writes at a time.
+            shared.stopped.is_some() || keeping.slots.values().any(|slot| slot.writing)
+        };
+        if !core.owed || busy || core.tabs.iter().any(|tab| !rested.contains(&tab.id)) {
             return;
         }
         log::info!("recovery: typing rested; points are written");
         let all = core.tabs.iter().map(|tab| tab.id).collect();
-        self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.owed = false);
+        self.core_mut().owed = false;
         self.write_points(all, cx);
     }
 
@@ -235,7 +252,8 @@ pub trait Recovering: Host {
     fn point_due(&self, id: u64, cx: &gpui::App) -> Option<u64> {
         let tab = self.tab(id).filter(|tab| tab.dirty(cx) && !tab.exporting && Self::Engine::settled(tab.view.read(cx)))?;
         let edited = Self::Engine::edited(tab.view.read(cx));
-        let slot = self.core().keeping.as_ref()?.slots.get(&id)?;
+        let shared = self.core().shared.get();
+        let slot = shared.keeping.as_ref()?.slots.get(&id)?;
         // Too big for the cap: no snapshot until it fits.
         (!slot.writing && slot.refused.is_none() && slot.written != Some(edited)).then_some(edited)
     }
@@ -247,20 +265,23 @@ pub trait Recovering: Host {
         };
         if !self.still(cx) {
             log::info!("recovery: typing again; tab {id} waits for the next pause");
-            return self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.owed = true);
+            self.core_mut().owed = true;
+            return;
         }
         let now = cx.background_executor().now();
-        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
-        let dir = keeping.dir.clone();
-        let slot = keeping.slots.get_mut(&id).expect("a due tab has a slot");
-        slot.writing = true;
-        let owed = slot.stopped.map(|at| now.saturating_duration_since(at));
-        let whole = owed.is_some_and(|owed| owed >= GIVES_WAY_FOR);
-        if whole {
-            log::info!("recovery: tab {id}'s point stopped {owed:?} ago; this one does not give way");
-        }
-        let kept = slot.kept.clone();
-        let folder = keeping.folder(&kept.slot);
+        let (dir, kept, folder, whole) = {
+            let mut shared = self.core().shared.get_mut();
+            let Some(keeping) = shared.keeping.as_mut() else { return };
+            let slot = keeping.slots.get_mut(&id).expect("a due tab has a slot");
+            slot.writing = true;
+            let owed = slot.stopped.map(|at| now.saturating_duration_since(at));
+            let whole = owed.is_some_and(|owed| owed >= GIVES_WAY_FOR);
+            if whole {
+                log::info!("recovery: tab {id}'s point stopped {owed:?} ago; this one does not give way");
+            }
+            let kept = slot.kept.clone();
+            (keeping.dir.clone(), kept.clone(), keeping.folder(&kept.slot), whole)
+        };
         let work = self.tab(id).expect("a due tab").work.join(format!("recovery.{}", kept.format));
         let sealed = kept.sealed;
         self.read_in(
@@ -298,8 +319,9 @@ pub trait Recovering: Host {
     fn point_stopped(&mut self, id: u64, cx: &mut Context<Self>) {
         log::info!("recovery: tab {id}'s snapshot gave way to input; the round stays owed");
         let now = cx.background_executor().now();
-        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
-        keeping.owed = true;
+        self.core_mut().owed = true;
+        let mut shared = self.core().shared.get_mut();
+        let Some(keeping) = shared.keeping.as_mut() else { return };
         if let Some(slot) = keeping.slots.get_mut(&id) {
             slot.writing = false;
             slot.stopped.get_or_insert(now);
@@ -309,7 +331,9 @@ pub trait Recovering: Host {
     /// A point's write ended; a failure shows once.
     fn point_written(&mut self, id: u64, (edited, size): (u64, Option<u64>), written: io::Result<()>, cx: &mut Context<Self>) {
         let name = self.tab(id).map(|tab| tab.name.to_string()).unwrap_or_default();
-        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
+        let shared = self.core().shared.clone();
+        let mut held = shared.get_mut();
+        let Some(keeping) = held.keeping.as_mut() else { return };
         let Some(slot) = keeping.slots.get_mut(&id) else { return };
         slot.writing = false;
         match written {
@@ -317,17 +341,21 @@ pub trait Recovering: Host {
                 slot.written = Some(edited);
                 (slot.failed, slot.refused, slot.last, slot.stopped) = (None, None, Some(SystemTime::now()), None);
                 keeping.last = Some(SystemTime::now());
-                if keeping.behind.is_some() {
+                let behind = keeping.behind.is_some();
+                drop(held);
+                if behind {
                     self.flush_index(cx);
                 }
             }
             Err(error) => {
                 log::error!("recovery: tab {id} point failed ({:?})", error.kind());
                 let Some(said) = slot.fail(size, &error) else { return };
+                let last = slot.last;
+                drop(held);
                 let shown = match error.get_ref().and_then(|inner| inner.downcast_ref::<ely_files::TooBig>()) {
                     // Never claims the file is kept: names the last point.
                     Some(too_big) => {
-                        let at = slot.last.map_or_else(|| text(cx, "office.stopped.never", &[]).to_string(), clock);
+                        let at = last.map_or_else(|| text(cx, "office.stopped.never", &[]).to_string(), clock);
                         let limit = (too_big.cap / (1024 * 1024)).to_string();
                         text(cx, "office.recovery.too_big", &[("name", &name), ("limit", &limit), ("at", &at)])
                     }
@@ -340,47 +368,12 @@ pub trait Recovering: Host {
 
     /// Writes the index in the background, one at a time.
     fn flush_index(&mut self, cx: &mut Context<Self>) {
-        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
-        if keeping.flushing {
-            return keeping.flush_again = true;
-        }
-        let (path, bytes) = match keeping.index() {
-            Ok(index) => index,
-            Err(error) => return self.index_failed(error.to_string(), cx),
-        };
-        keeping.flushing = true;
-        let (turn, turns) = (keeping.turns.take(), keeping.turns.clone());
-        let task = cx.background_spawn(async move { turns.write(turn, || write_index(&path, &bytes)) });
-        cx.spawn(async move |this: WeakEntity<Self>, cx: &mut AsyncApp| {
-            let written = task.await;
-            this.update(cx, |host, cx| {
-                let Some(keeping) = host.core_mut().keeping.as_mut() else { return };
-                keeping.flushing = false;
-                match written {
-                    // A later write, the quit's, holds the newest.
-                    None => {}
-                    Some(Ok(())) => keeping.behind = None,
-                    Some(Err(error)) => host.index_failed(error.to_string(), cx),
-                }
-                let again = host.core_mut().keeping.as_mut().is_some_and(|keeping| std::mem::take(&mut keeping.flush_again));
-                if again {
-                    host.flush_index(cx);
-                }
-            })
-            .ok();
-        })
-        .detach();
+        index::flush(self, cx);
     }
 
     /// An index failure shows once and retries.
     fn index_failed(&mut self, error: String, cx: &mut Context<Self>) {
-        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
-        if keeping.behind.as_ref() == Some(&error) {
-            return;
-        }
-        log::error!("recovery: the index is not saved: {error}");
-        keeping.behind = Some(error.clone());
-        self.toast_unlogged(text(cx, "office.recovery.index", &[("error", &error)]), Severity::Danger, cx);
+        index::failed(self, error, cx);
     }
 
     /// Each tab gets its own folder of points once open.
@@ -390,10 +383,13 @@ pub trait Recovering: Host {
             .map(|(_, ext)| ext.to_ascii_lowercase())
             .filter(|ext| Self::KIND.save_as.contains(&ext.as_str()) || Self::KIND.kept.contains(&ext.as_str()))
             .unwrap_or_else(|| Self::KIND.save_as[0].to_string());
-        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
-        let slot = format!("{}-{id}", std::process::id());
-        let kept = Kept { slot, name: name.to_string(), format, sealed, held: false };
-        keeping.slots.insert(id, Slot { kept, written: None, writing: false, failed: None, refused: None, last: None, stopped: None });
+        {
+            let mut shared = self.core().shared.get_mut();
+            let Some(keeping) = shared.keeping.as_mut() else { return };
+            let slot = format!("{}-{id}", std::process::id());
+            let kept = Kept { slot, name: name.to_string(), format, sealed, held: false };
+            keeping.slots.insert(id, Slot { kept, written: None, writing: false, failed: None, refused: None, last: None, stopped: None });
+        }
         self.flush_index(cx);
         if let Some(size) = size {
             fit::opened(self, id, size, cx);
@@ -402,9 +398,13 @@ pub trait Recovering: Host {
 
     /// A closed tab's points go: closing decided its fate.
     fn forget_tab(&mut self, id: u64, cx: &mut Context<Self>) {
-        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
-        let Some(slot) = keeping.slots.remove(&id) else { return };
-        if let Err(error) = remove(&keeping.folder(&slot.kept.slot)) {
+        let folder = {
+            let mut shared = self.core().shared.get_mut();
+            let Some(keeping) = shared.keeping.as_mut() else { return };
+            let Some(slot) = keeping.slots.remove(&id) else { return };
+            keeping.folder(&slot.kept.slot)
+        };
+        if let Err(error) = remove(&folder) {
             log::error!("recovery: tab {id} points stay: {error}");
         }
         self.flush_index(cx);
@@ -412,8 +412,8 @@ pub trait Recovering: Host {
 
     /// Reopens each crashed slot's newest point as an unsaved copy.
     fn reopen_crashed(&mut self, cx: &mut Context<Self>) {
-        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
-        let crashed: Vec<(Kept, String)> = std::mem::take(&mut keeping.crashed).into_iter().map(|kept| { let name = kept.name.clone(); (kept, name) }).collect();
+        let Some(crashed) = self.core().shared.get_mut().keeping.as_mut().map(|keeping| std::mem::take(&mut keeping.crashed)) else { return };
+        let crashed: Vec<(Kept, String)> = crashed.into_iter().map(|kept| { let name = kept.name.clone(); (kept, name) }).collect();
         if crashed.is_empty() {
             return;
         }
@@ -430,7 +430,7 @@ pub trait Recovering: Host {
 
     /// Takes tab `id`'s slot; releasing it keeps the points.
     fn take_slot(&mut self, id: u64, name: String) -> Option<Taken> {
-        let slot = self.core_mut().keeping.as_mut()?.slots.remove(&id)?;
+        let slot = self.core().shared.get_mut().keeping.as_mut()?.slots.remove(&id)?;
         Some(Taken(slot.kept, name))
     }
 
@@ -458,19 +458,23 @@ pub trait Recovering: Host {
 
     /// A reopened copy takes over its old points, unsaved.
     fn reopened(&mut self, id: u64, path: &Path, cx: &mut Context<Self>) {
-        let Some(keeping) = self.core_mut().keeping.as_mut() else { return };
-        let Some(n) = keeping.reopening.iter().position(|(copy, ..)| copy == path) else {
-            return;
+        let (name, at) = {
+            let mut shared = self.core().shared.get_mut();
+            let Some(keeping) = shared.keeping.as_mut() else { return };
+            let Some(n) = keeping.reopening.iter().position(|(copy, ..)| copy == path) else {
+                return;
+            };
+            let (_, at, kept) = keeping.reopening.remove(n);
+            let name = kept.name.clone();
+            if let Some(slot) = keeping.slots.get_mut(&id) {
+                let sealed = slot.kept.sealed || kept.sealed;
+                slot.kept = Kept { sealed, held: false, ..kept };
+                slot.last = Some(at);
+            }
+            // The point it took over is the latest kept.
+            keeping.last = Some(keeping.last.map_or(at, |last| last.max(at)));
+            (name, at)
         };
-        let (_, at, kept) = keeping.reopening.remove(n);
-        let name = kept.name.clone();
-        if let Some(slot) = keeping.slots.get_mut(&id) {
-            let sealed = slot.kept.sealed || kept.sealed;
-            slot.kept = Kept { sealed, held: false, ..kept };
-            slot.last = Some(at);
-        }
-        // The point it took over is the latest kept.
-        keeping.last = Some(keeping.last.map_or(at, |last| last.max(at)));
         self.flush_index(cx);
         let Some(tab) = self.tab_mut(id) else { return };
         tab.session.edit();

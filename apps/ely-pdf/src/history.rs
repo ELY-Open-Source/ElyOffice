@@ -223,7 +223,7 @@ impl Viewer {
         let Some(path) = tab.session.path() else {
             return;
         };
-        let file = self.core.work.with_file_name("reading-pages.json");
+        let file = self.core.work().with_file_name("reading-pages.json");
         match page(&file, path) {
             Ok(Some(reading)) => {
                 tab.view.update(cx, |view, cx| {
@@ -249,7 +249,7 @@ impl Viewer {
         if self.sidebar_tab == Some(tab.id) {
             reading.sidebar = Some(self.reading_sidebar(cx));
         }
-        let file = self.core.work.with_file_name("reading-pages.json");
+        let file = self.core.work().with_file_name("reading-pages.json");
         match remember(&file, path, reading) {
             Ok(()) => log::info!("pdf: remembers a reading view"),
             Err(error) => self.reading_failed(&error, cx),

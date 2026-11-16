@@ -40,7 +40,7 @@ impl Desk {
             return self.open_folder(path, cx);
         }
         // A shown file only takes focus; the list still learns.
-        let shown = self.core.sessions.is_open(&path).unwrap_or(false);
+        let shown = self.core.shared.get().sessions.is_open(&path).unwrap_or(false);
         self.open_file(path.clone(), cx);
         if shown {
             self.remember(&path, cx);
@@ -229,9 +229,9 @@ impl Desk {
             self.going = Some((id, at));
             return;
         }
-        let next = self.core.next;
+        let next = self.core.next_id();
         self.open_file(file, cx);
-        if self.core.next > next {
+        if self.core.next_id() > next {
             self.going = Some((next, at));
         }
     }

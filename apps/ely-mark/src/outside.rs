@@ -263,7 +263,7 @@ impl Desk {
         // A conflict stopped autosave, maybe mid-write; it resumes.
         tab.extra.restart_autosave();
         if let Some(registry) = tab.registry {
-            self.core.sessions.replaced(registry, fingerprint.id);
+            self.core.shared.get_mut().sessions.replaced(registry, fingerprint.id);
         }
         self.set_outside(id, Outside::Clear, cx);
         self.save_after_pause(id, cx);
@@ -291,7 +291,7 @@ impl Desk {
         let (view, registry) = (tab.view.clone(), tab.registry);
         // An atomic replace is a new file underneath.
         if let Some(registry) = registry {
-            self.core.sessions.replaced(registry, fingerprint.id);
+            self.core.shared.get_mut().sessions.replaced(registry, fingerprint.id);
         }
         self.set_outside(id, Outside::Clear, cx);
         view.update(cx, |view, cx| view.saved(&saved, cx));

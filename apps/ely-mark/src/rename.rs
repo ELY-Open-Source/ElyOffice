@@ -168,7 +168,7 @@ impl Desk {
             }
         }
         let Some(registry) = registry else { return Ok(None) };
-        let taken = self.core_mut().sessions.track(registry, key)?;
+        let taken = self.core().shared.get_mut().sessions.track(registry, key)?;
         Ok(taken.err().map(|other| format!("session {other}'s file")))
     }
 }

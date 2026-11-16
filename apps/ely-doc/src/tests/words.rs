@@ -99,9 +99,9 @@ fn a_save_as_target_another_tab_took_meanwhile_says_so_in_chinese_and_spanish() 
 /// Tab `id` holds `path`, registered as an open does.
 fn take(docs: &mut Docs, id: u64, path: std::path::PathBuf) {
     if let Some(old) = docs.tab(id).and_then(|tab| tab.registry) {
-        docs.core.sessions.close(old);
+        docs.core.shared.get_mut().sessions.close(old);
     }
-    let Ok(ely_files::Open::Fresh(registry)) = docs.core.sessions.open(&path, false) else {
+    let Ok(ely_files::Open::Fresh(registry)) = docs.core.shared.get_mut().sessions.open(&path, false) else {
         panic!("{} is free", path.display())
     };
     let tab = docs.tab_mut(id).expect("the tab");

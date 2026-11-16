@@ -243,18 +243,18 @@ pub(crate) fn open_in(
         if asked.is_empty() {
             for path in kept {
                 // A restored tab does not rejoin the recent list.
-                let (id, real) = (desk.core.next, dunce::canonicalize(&path).ok());
+                let (id, real) = (desk.core.next_id(), dunce::canonicalize(&path).ok());
                 desk.open_path(path, cx);
-                if let Some(real) = real.filter(|_| desk.core.next > id) {
+                if let Some(real) = real.filter(|_| desk.core.next_id() > id) {
                     desk.remembered.insert(id, real);
                 }
             }
         }
         for (at, name) in desk.keeping.untitled() {
             // Tab numbers come from `next` as the load starts.
-            let id = desk.core.next;
+            let id = desk.core.next_id();
             desk.new_from_text(&name, "", cx);
-            if desk.core.next > id {
+            if desk.core.next_id() > id {
                 desk.keeping.made(at, id);
             }
         }

@@ -35,23 +35,23 @@ fn a_stopped_engine_shows_its_page_and_reopens() {
     std::fs::write(&file, fodt).expect("the file writes");
     let window = cx.add_window(|_, _| Body(docs.clone()));
     let shown = VisualTestContext::from_window(window.into(), &cx).into_mut();
-    let stop = cx.update(|app| docs.read(app).core.stop.clone()).expect("the engine can be stopped");
+    let stop = cx.update(|app| docs.read(app).core.shared.get().stop.clone()).expect("the engine can be stopped");
     stop().expect("the engine stops");
     fail_a_load(&mut cx, &docs, &file);
     shown.update(|window, _| window.refresh());
     shown.run_until_parked();
     with_window(&mut cx, &docs, |docs, _, cx| docs.restart_engine(cx));
-    settle(&cx, |app| docs.read(app).core.stopped.is_none());
+    settle(&cx, |app| docs.read(app).core.shared.get().stopped.is_none());
     with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(file.clone(), cx));
     settle(&cx, |app| docs.read(app).core.tabs.len() == 1);
 }
 
 /// A load on the stopped engine fails, reporting the end.
 fn fail_a_load(cx: &mut TestAppContext, docs: &Entity<Docs>, file: &Path) {
-    let copy = file.with_file_name(format!("again-{}.fodt", cx.update(|app| docs.read(app).core.next)));
+    let copy = file.with_file_name(format!("again-{}.fodt", cx.update(|app| docs.read(app).core.next_id())));
     std::fs::copy(file, &copy).expect("a fresh file");
     with_window(cx, docs, |docs, _, cx| docs.open_file(copy, cx));
-    settle(cx, |app| docs.read(app).core.stopped.is_some());
+    settle(cx, |app| docs.read(app).core.shared.get().stopped.is_some());
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn a_docx_that_is_plain_text_fails_at_once_and_the_engine_stays() {
     std::fs::write(&fake, "examplefile.com - Sample Files\r\n".repeat(1000)).expect("the file writes");
     with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(fake, cx));
     settle(&cx, |app| docs.read(app).core.loading.is_empty());
-    let (tabs, stopped) = cx.update(|app| (docs.read(app).core.tabs.len(), docs.read(app).core.stopped.is_some()));
+    let (tabs, stopped) = cx.update(|app| (docs.read(app).core.tabs.len(), docs.read(app).core.shared.get().stopped.is_some()));
     assert_eq!((tabs, stopped), (0, false), "no tab, and the engine never saw it");
     let empty = dir.path().join("empty.docx");
     std::fs::write(&empty, "").expect("the file writes");
@@ -96,7 +96,7 @@ fn a_broken_package_says_it_is_damaged_and_the_engine_stays() {
     let broken = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/broken.docx");
     with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(broken, cx));
     settle(&cx, |app| docs.read(app).core.loading.is_empty());
-    let (tabs, stopped) = cx.update(|app| (docs.read(app).core.tabs.len(), docs.read(app).core.stopped.is_some()));
+    let (tabs, stopped) = cx.update(|app| (docs.read(app).core.tabs.len(), docs.read(app).core.shared.get().stopped.is_some()));
     assert_eq!((tabs, stopped), (0, false), "no tab, and the engine lives");
     let said = cx.update(|app| ely_ui::i18n::text(app, "office.error.damaged", &[]));
     let toasts = cx.update(|app| root.read(app).toasts(app));

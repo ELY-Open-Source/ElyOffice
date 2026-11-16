@@ -38,5 +38,5 @@ fn docs_build_while_the_engine_holds_its_lock() {
     release.send(()).expect("the holder waits");
     starting.join().expect("the holder ends");
     assert!(took < Duration::from_secs(1), "Docs::new waited {took:?} on the engine");
-    assert!(cx.update(|app| docs.read(app).core.stop.is_some()), "the engine can still be stopped");
+    assert!(cx.update(|app| docs.read(app).core.shared.get().stop.is_some()), "the engine can still be stopped");
 }

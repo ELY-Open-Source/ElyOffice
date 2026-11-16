@@ -14,8 +14,8 @@ fn a_swap_stops_the_running_worker_and_reopens_the_tabs() {
     let pid = |cx: &mut gpui::VisualTestContext| cx.update(|_, app| viewer.read(app).core.worker.lock().expect("the worker").pid());
     let (old, id) = (pid(cx).expect("a worker"), cx.update(|_, app| viewer.read(app).core.tabs[0].id));
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.swap_engine(99, cx)));
-    assert!(cx.update(|_, app| viewer.read(app).core.stopped.is_some()), "the swap shows");
-    settle(cx, |app| viewer.read(app).core.stopped.is_none() && viewer.read(app).core.tabs.len() == 1);
+    assert!(cx.update(|_, app| viewer.read(app).core.shared.get().stopped.is_some()), "the swap shows");
+    settle(cx, |app| viewer.read(app).core.shared.get().stopped.is_none() && viewer.read(app).core.tabs.len() == 1);
     assert_ne!(cx.update(|_, app| viewer.read(app).core.tabs[0].id), id, "the tab came back");
     let fresh = pid(cx).expect("a new worker");
     assert_ne!(fresh, old, "a new worker runs");

@@ -41,7 +41,7 @@ pub trait Closing: Host {
         }
     }
 
-    /// Takes `window` as home; quit anywhere asks here first.
+    /// Takes `window` as home; quit asks each window in turn.
     fn own_window(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let handle = window.window_handle();
         self.core_mut().window = Some(handle);
@@ -54,27 +54,7 @@ pub trait Closing: Host {
             }
         })
         .detach();
-        let host = cx.entity().downgrade();
-        ely_ui::commands::route_quit(cx, move |cx| {
-            let host = host.clone();
-            // The asking window is busy until its action ends.
-            cx.defer(move |cx| {
-                let asked = handle.update(cx, |_, window, cx| {
-                    // The question shows in front, with the keys.
-                    window.activate_window();
-                    host.update(cx, |host, cx| {
-                        host.quitting(cx);
-                        host.proceed(After::Quit, window, cx);
-                    })
-                });
-                match asked {
-                    Ok(Ok(())) => {}
-                    // No home window is left to ask in.
-                    _ if handle.update(cx, |_, _, _| ()).is_err() => cx.quit(),
-                    Ok(Err(error)) | Err(error) => log::error!("office: the quit was not asked: {error}"),
-                }
-            });
-        });
+        ely_ui::commands::route_quit(cx, ask_quit::<Self>);
     }
 
     /// A close or quit stopped: no update installs on it.
@@ -158,7 +138,8 @@ pub trait Closing: Host {
         }
         match after {
             After::Window => window.remove_window(),
-            After::Quit => cx.quit(),
+            // This window is done; the next one asks.
+            After::Quit => ask_quit::<Self>(cx),
             After::Tab => {}
         }
     }
@@ -210,7 +191,7 @@ pub trait Closing: Host {
         let core = self.core_mut();
         core.closed_front(id);
         if let Some(registry) = registry {
-            core.sessions.close(registry);
+            core.shared.get_mut().sessions.close(registry);
         }
         log::info!("office: closed loading tab {id}, {} tabs open, {} waiting", core.tabs.len(), core.loading.len());
         cx.notify();
@@ -243,7 +224,7 @@ pub trait Closing: Host {
             ask.answer(Err(format!("tab {id} closed before its save")));
         }
         if let Some(registry) = tab.registry {
-            core.sessions.close(registry);
+            core.shared.get_mut().sessions.close(registry);
         }
         core.closed_front(id);
         if core.dialog.as_ref().and_then(Dialog::tab) == Some(id) {
@@ -267,3 +248,32 @@ pub trait Closing: Host {
 }
 
 impl<H: Host> Closing for H {}
+
+/// The next window with tabs asks; else the app quits.
+fn ask_quit<H: Host>(cx: &mut App) {
+    // The asking window is busy until its action ends.
+    cx.defer(|cx| {
+        let Ok(shared) = crate::shared::Handle::<H>::joined(cx) else { return cx.quit() };
+        let next = shared.hosts().into_iter().find_map(|host| {
+            let core = host.read(cx).core();
+            core.window.filter(|_| !core.tabs.is_empty()).map(|handle| (host.clone(), handle))
+        });
+        let Some((host, handle)) = next else {
+            log::info!("{}: every window answered; quitting", H::KIND.app.slug());
+            return cx.quit();
+        };
+        let asked = handle.update(cx, |_, window, cx| {
+            // The question shows in front, with the keys.
+            window.activate_window();
+            host.update(cx, |host, cx| {
+                host.quitting(cx);
+                host.proceed(After::Quit, window, cx);
+            })
+        });
+        if let Err(error) = asked {
+            // Its window is gone, and its tabs with it.
+            log::error!("office: the quit was not asked: {error}");
+            cx.quit();
+        }
+    });
+}

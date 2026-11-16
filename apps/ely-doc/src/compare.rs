@@ -34,9 +34,8 @@ impl Docs {
         };
         let name = tab.name.clone();
         // The copy's tab and folder, reserved now.
-        let into = self.core.next;
-        self.core.next += 1;
-        let dir = match files::work_dir(&self.core.work, into) {
+        let into = self.core.take_id();
+        let dir = match files::work_dir(&self.core.work(), into) {
             Ok(dir) => dir,
             Err(error) => return self.failed_open(&name, &error, cx),
         };

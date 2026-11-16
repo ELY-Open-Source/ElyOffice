@@ -50,7 +50,7 @@ pub trait Autosaving: Host {
     fn autosave(&mut self, rested: Vec<u64>, window: &mut gpui::Window, cx: &mut Context<Self>) {
         let on = ely_ui::settings::switches::on(ely_ui::settings::switches::AUTOSAVE, cx);
         let core = self.core();
-        if !on || core.stopped.is_some() || core.dialog.is_some() {
+        if !on || core.shared.get().stopped.is_some() || core.dialog.is_some() {
             return;
         }
         let due: Vec<u64> = rested

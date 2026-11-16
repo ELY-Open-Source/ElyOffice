@@ -56,7 +56,7 @@ impl Desk {
     pub(super) fn missing(&mut self, id: u64, path: PathBuf, ours: Option<Fingerprint>, cx: &mut Context<Self>) {
         let Some(tab) = self.tab(id) else { return };
         let began = (ours, tab.extra.stamp);
-        let had = tab.registry.and_then(|registry| self.core.sessions.identity_of(registry));
+        let had = tab.registry.and_then(|registry| self.core.shared.get().sessions.identity_of(registry));
         cx.spawn(async move |desk, cx| {
             cx.background_executor().timer(GAP).await;
             let looking = path.clone();

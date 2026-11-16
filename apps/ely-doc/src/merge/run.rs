@@ -142,7 +142,7 @@ impl Docs {
         let Some(name) = self.tab(source).map(|tab| tab.name.clone()) else {
             return self.merge_failed(&Worded::error(io::ErrorKind::NotFound, "error.closed", &[]), cx);
         };
-        let copy = match files::work_dir(&self.core.work, into) {
+        let copy = match files::work_dir(&self.core.work(), into) {
             Ok(dir) => dir.join("merge.odt"),
             Err(error) => return self.merge_failed(&error, cx),
         };
@@ -186,8 +186,7 @@ impl Docs {
         }
         let (headers, row) = (table.headers.clone(), table.rows[at].clone());
         // The preview's tab and folder, reserved now.
-        let into = self.core.next;
-        self.core.next += 1;
+        let into = self.core.take_id();
         self.template(source, into, cx, move |docs, name, copy, cx| {
             docs.preview_copy((into, at), name, copy, (headers, row), cx)
         });
@@ -262,8 +261,7 @@ impl Docs {
             return self.toast(text, Severity::Danger, cx);
         }
         // Each run keeps its own template and staging folder.
-        let into = self.core.next;
-        self.core.next += 1;
+        let into = self.core.take_id();
         self.template(source, into, cx, move |docs, _, template, cx| {
             docs.write_records(template, (table, targets, extension, folder), cx)
         });

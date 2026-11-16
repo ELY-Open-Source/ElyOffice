@@ -337,7 +337,7 @@ y
 z
 ").expect("a file");
     let work = desk.update_in(cx, |desk, window, cx| {
-        let work = desk.core.work.join(format!("doc-{}", desk.core.next));
+        let work = desk.core.work().join(format!("doc-{}", desk.core.next_id()));
         desk.open_at(None, other.clone(), (2, 0), window, cx);
         work
     });
@@ -435,7 +435,7 @@ fn save_as_onto_a_taken_file(then: Option<ely_office::After>, cx: &mut TestAppCo
     desk.update_in(cx, |desk, window, cx| desk.write_as(id, to, then, window, cx));
     assert!(until_saving(&desk, id, cx), "the write runs apart from the window");
     // Another session takes the target before the landing.
-    let taken = desk.update(cx, |desk, _| desk.core.sessions.open(&target, false).expect("registers"));
+    let taken = desk.update(cx, |desk, _| desk.core.shared.get_mut().sessions.open(&target, false).expect("registers"));
     assert!(matches!(taken, ely_files::Open::Fresh(_)));
     settle(cx);
     let (open, registry, path, state, dirty) = desk.read_with(cx, |desk, cx| {

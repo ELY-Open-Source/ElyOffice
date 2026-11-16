@@ -1,3 +1,5 @@
+mod windows;
+
 use std::{cell::RefCell, path::Path, rc::Rc};
 
 use ely_platform::AppId;

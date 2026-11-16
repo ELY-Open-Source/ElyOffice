@@ -93,7 +93,7 @@ impl Docs {
             return self.took(chosen, source, path, read_csv(path), cx);
         }
         log::info!("doc: merge data {chosen} from a spreadsheet");
-        let (worker, path, work) = (std::sync::Arc::clone(&self.core.worker), path.to_path_buf(), self.core.work.clone());
+        let (worker, path, work) = (std::sync::Arc::clone(&self.core.worker), path.to_path_buf(), self.core.work());
         cx.spawn(async move |this, cx| {
             let shown = path.clone();
             let read = cx.background_spawn(async move { run::read_sheet(&worker, &path, &work) }).await;

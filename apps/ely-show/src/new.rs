@@ -46,7 +46,7 @@ impl Deck {
         if let Some(blank) = self.blank.clone() {
             return self.new_from_file(&blank, cx);
         }
-        let (worker, path) = (self.core.worker.clone(), self.core.work.join("blank.fodp"));
+        let (worker, path) = (self.core.worker.clone(), self.core.work().join("blank.fodp"));
         let writing = path.clone();
         cx.spawn(async move |this, cx| {
             let written = cx

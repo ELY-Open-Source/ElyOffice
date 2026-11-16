@@ -20,21 +20,24 @@ pub(super) fn restore_off<H: Recovering>(
     then: impl FnOnce(&mut H, Vec<(String, io::Result<bool>)>, &mut Context<H>) + 'static,
     cx: &mut Context<H>,
 ) {
-    let Some(keeping) = host.core_mut().keeping.as_mut() else { return };
-    // Held meanwhile: a crash now still finds them.
-    keeping.held.extend(slots.iter().map(|(kept, _)| kept.clone()));
-    let jobs: Vec<(u64, PathBuf, Kept, String)> = slots
-        .into_iter()
-        .map(|(kept, name)| {
-            let folder = host.core().keeping.as_ref().expect("keeping").folder(&kept.slot);
-            let id = host.core().next;
-            // Each copy's folder is its future tab's.
-            host.core_mut().next += 1;
-            (id, folder, kept, name)
-        })
-        .collect();
+    let jobs: Vec<(u64, PathBuf, Kept, String)> = {
+        let mut shared = host.core().shared.get_mut();
+        let Some(keeping) = shared.keeping.as_mut() else { return };
+        // Held meanwhile: a crash now still finds them.
+        keeping.held.extend(slots.iter().map(|(kept, _)| kept.clone()));
+        let folders: Vec<PathBuf> = slots.iter().map(|(kept, _)| keeping.folder(&kept.slot)).collect();
+        slots
+            .into_iter()
+            .zip(folders)
+            .map(|((kept, name), folder)| {
+                // Each copy's folder is its future tab's.
+                shared.next += 1;
+                (shared.next - 1, folder, kept, name)
+            })
+            .collect()
+    };
     host.flush_index(cx);
-    let work = host.core().work.clone();
+    let work = host.core().work();
     let task = cx.background_spawn(async move {
         jobs.into_iter()
             .map(|(id, folder, kept, name)| {
@@ -51,22 +54,24 @@ pub(super) fn restore_off<H: Recovering>(
     cx.spawn(async move |this: WeakEntity<H>, cx: &mut AsyncApp| {
         let done = task.await;
         this.update(cx, |host, cx| {
-            let Some(keeping) = host.core_mut().keeping.as_mut() else { return };
-            keeping.held.retain(|held| !done.iter().any(|(_, kept, ..)| kept.slot == held.slot));
+            let shared = host.core().shared.clone();
+            match shared.get_mut().keeping.as_mut() {
+                Some(keeping) => keeping.held.retain(|held| !done.iter().any(|(_, kept, ..)| kept.slot == held.slot)),
+                None => return,
+            }
             let mut said = Vec::new();
             for (id, kept, name, restored) in done {
-                let keeping = host.core_mut().keeping.as_mut().expect("keeping");
                 let opened = match restored {
                     Ok(Some((copy, at))) => {
                         log::info!("recovery: reopening a {}", kept.format);
-                        keeping.reopening.push((copy.clone(), at, kept));
+                        shared.get_mut().keeping.as_mut().expect("keeping").reopening.push((copy.clone(), at, kept));
                         host.load_into(id, Source::Copy(copy), cx);
                         Ok(true)
                     }
                     Ok(None) => Ok(false),
                     Err(error) => {
                         // Its points stay for a later start.
-                        keeping.held.push(kept);
+                        shared.get_mut().keeping.as_mut().expect("keeping").held.push(kept);
                         Err(error)
                     }
                 };

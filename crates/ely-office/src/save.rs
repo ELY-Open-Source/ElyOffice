@@ -26,7 +26,8 @@ pub trait Saving: Host {
     fn holder(&self, target: &Path) -> io::Result<Option<u64>> {
         let target = identity(target)?;
         // Open files are matched in memory, not per tab.
-        if let Some(registry) = self.core().sessions.holding(&target)? {
+        let held = self.core().shared.get().sessions.holding(&target)?;
+        if let Some(registry) = held {
             let core = self.core();
             let tab = core.tabs.iter().find(|tab| tab.registry == Some(registry)).map(|tab| tab.id);
             // A load in flight holds its file too.
@@ -208,9 +209,10 @@ pub trait Saving: Host {
     fn moved(&mut self, id: u64, done: &Saved, macros: io::Result<bool>, cx: &mut Context<Self>) -> io::Result<()> {
         let tab = self.tab(id).expect("the tab is open");
         if let Some(old) = tab.registry {
-            self.core_mut().sessions.close(old);
+            self.core().shared.get_mut().sessions.close(old);
         }
-        let registry = match self.core_mut().sessions.adopt(done) {
+        let adopted = self.core().shared.get_mut().sessions.adopt(done);
+        let registry = match adopted {
             Ok(Open::Fresh(registry) | Open::View(registry)) => Ok(registry),
             // Never two editable tabs on one file.
             Ok(Open::Focus(other)) => {
@@ -369,12 +371,12 @@ pub trait Saving: Host {
                 // A save may replace the file; the registry follows it.
                 let registry = self.tab(id).and_then(|tab| tab.registry);
                 if let Some(registry) = registry {
-                    self.core_mut().sessions.saved(registry, &done);
+                    self.core().shared.get_mut().sessions.saved(registry, &done);
                 }
                 if let (Some(history), Some(tab)) = (history, self.tab_mut(id)) {
                     Self::Engine::saved(&tab.view, &history, cx);
                 }
-                self.core_mut().keeping.iter_mut().for_each(|keeping| keeping.saved(id, done.written.len));
+                self.core().shared.get_mut().keeping.iter_mut().for_each(|keeping| keeping.saved(id, done.written.len));
                 self.reopen_if_saved(id, cx);
                 cx.notify();
                 if let Some(after) = then {

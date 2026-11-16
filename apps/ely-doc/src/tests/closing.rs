@@ -134,7 +134,7 @@ fn a_closed_load_lets_go_and_keeps_the_engine() {
     // The load never took the engine: no swap.
     cx.executor().advance_clock(Duration::from_secs(3));
     cx.run_until_parked();
-    assert!(cx.update(|app| docs.read(app).core.stopped.is_none()), "the engine stays");
+    assert!(cx.update(|app| docs.read(app).core.shared.get().stopped.is_none()), "the engine stays");
     drop(release);
     cx.run_until_parked();
     let tabs = cx.update(|app| docs.read(app).core.tabs.len());
@@ -158,8 +158,8 @@ fn a_swapped_engine_reopens_the_other_tabs() {
     // A restart signs as the app's author, set at start.
     worker(&mut cx, &docs).lock().expect("the worker").set_author("Ada").expect("signs");
     with_window(&mut cx, &docs, |docs, _, cx| docs.swap_engine(99, cx));
-    assert!(cx.update(|app| docs.read(app).core.stopped.is_some()), "the swap shows");
-    settle(&cx, |app| docs.read(app).core.stopped.is_none() && docs.read(app).core.tabs.len() == 1);
+    assert!(cx.update(|app| docs.read(app).core.shared.get().stopped.is_some()), "the swap shows");
+    settle(&cx, |app| docs.read(app).core.shared.get().stopped.is_none() && docs.read(app).core.tabs.len() == 1);
     let reopened = cx.update(|app| docs.read(app).core.tabs[0].id);
     assert_ne!(reopened, id, "the tab came back on the new engine");
 }

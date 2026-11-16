@@ -45,14 +45,14 @@ fn beat(cx: &mut TestAppContext, docs: &Entity<Docs>) {
 }
 
 fn writing(docs: &Entity<Docs>, app: &gpui::App) -> usize {
-    docs.read(app).core.keeping.as_ref().expect("recovery").writing()
+    docs.read(app).core.shared.get().keeping.as_ref().expect("recovery").writing()
 }
 
 fn kept_docs(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<(Entity<Docs>, std::path::PathBuf)> {
     let docs = docs(cx, dir)?;
     let kept = dir.join("kept");
     let keeping = ely_office::Keeping::in_folder(kept.clone()).expect("recovery starts");
-    cx.update(|app| docs.update(app, |docs, _| docs.core.keeping = Some(keeping)));
+    cx.update(|app| docs.update(app, |docs, _| docs.core.shared.get_mut().keeping = Some(keeping)));
     Some((docs, kept))
 }
 
@@ -185,7 +185,7 @@ fn big_fodt(cx: &mut TestAppContext, dir: &std::path::Path) -> std::path::PathBu
 }
 
 fn refused(docs: &Entity<Docs>, app: &gpui::App) -> usize {
-    docs.read(app).core.keeping.as_ref().expect("recovery").refused()
+    docs.read(app).core.shared.get().keeping.as_ref().expect("recovery").refused()
 }
 
 /// An owed round, then a pause of two beats.

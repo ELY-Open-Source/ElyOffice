@@ -73,8 +73,8 @@ fn records_fill_previews_and_files() {
     let staged = cx.update(|app| {
         let docs = docs.read(app);
         docs.core
-            .work
-            .join(format!("doc-{}", docs.core.next))
+            .work()
+            .join(format!("doc-{}", docs.core.next_id()))
             .join("record.pdf")
     });
     cx.update(|app| {

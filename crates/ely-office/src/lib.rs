@@ -19,6 +19,7 @@ pub mod resident;
 pub mod remote;
 pub mod panel;
 mod save;
+pub mod shared;
 mod stopped;
 mod undo;
 mod zoom;
@@ -29,7 +30,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use ely_files::{SaveState, Session, Sessions};
+use ely_files::{SaveState, Session};
 use ely_gpui_component::primitives::Severity;
 use ely_platform::AppId;
 use ely_ui::Root;
@@ -187,7 +188,8 @@ pub type Waiting<H> = Box<dyn FnOnce(&mut H, &mut Window, &mut Context<H>)>;
 /// The shared state of one window.
 pub struct Core<H: Host> {
     pub worker: Arc<Mutex<WorkerOf<H>>>,
-    pub sessions: Sessions,
+    /// What every window of the app shares.
+    pub shared: shared::Handle<H>,
     pub tabs: Vec<Tab<H::Extra, H::Engine>>,
     /// Written by `set_active`, a front load or a close.
     active: Option<u64>,
@@ -203,9 +205,6 @@ pub struct Core<H: Host> {
     hold: Entity<hold::Hold>,
     pub focus: FocusHandle,
     pub root: WeakEntity<Root>,
-    pub work: PathBuf,
-    pub next: u64,
-    pub untitled: u32,
     pub dialog: Option<Dialog>,
     /// Locked files waiting: path, a password failed, a copy.
     pub locked: std::collections::VecDeque<(PathBuf, bool, bool)>,
@@ -217,14 +216,8 @@ pub struct Core<H: Host> {
     pub queued_saves: Vec<(u64, Waiting<H>)>,
     /// The open find box.
     pub finder: Option<Finder>,
-    /// Recovery points and crash return; none when off or failed.
-    pub keeping: Option<Keeping>,
-    /// Why recovery could not start, shown once.
-    pub recovery_off: Option<String>,
-    /// The engine ended under the open tabs (§6.3).
-    pub stopped: Option<Stopped>,
-    /// Ends a stuck worker; None when the engine cannot.
-    pub stop: Option<Stop>,
+    /// This window owes a recovery round, once typing rests.
+    pub owed: bool,
     /// Edit counts at the last beat, per tab.
     pub quiet: std::collections::HashMap<u64, u64>,
     /// Other programs' saves, answered as each ends.
@@ -234,12 +227,26 @@ pub struct Core<H: Host> {
 }
 
 impl<H: Host> Core<H> {
-    /// `stop` comes before sharing; never lock the worker here.
+    /// The app's first window; `stop` comes before sharing.
     pub fn new(worker: Arc<Mutex<WorkerOf<H>>>, stop: Option<Stop>, work: PathBuf, cx: &mut Context<H>) -> Self {
+        let shared = shared::Handle::first(Arc::clone(&worker), stop, work, cx);
+        Self::with(worker, shared, cx)
+    }
+
+    /// A later window: the first one's engine and records.
+    pub fn joined(cx: &mut Context<H>) -> io::Result<Self> {
+        let shared = shared::Handle::joined(cx)?;
+        let worker = Arc::clone(&shared.get().worker);
+        Ok(Self::with(worker, shared, cx))
+    }
+
+    /// Never locks the worker.
+    fn with(worker: Arc<Mutex<WorkerOf<H>>>, shared: shared::Handle<H>, cx: &mut Context<H>) -> Self {
         cx.observe_self(chrome::follow_front).detach();
+        shared.get_mut().hosts.push(cx.weak_entity());
         Core {
             worker,
-            sessions: Sessions::default(),
+            shared,
             tabs: Vec::new(),
             active: None,
             shown: None,
@@ -249,23 +256,34 @@ impl<H: Host> Core<H> {
             hold: cx.new(hold::Hold::new),
             focus: cx.focus_handle(),
             root: WeakEntity::new_invalid(),
-            work,
-            next: 0,
-            untitled: 0,
             dialog: None,
             locked: Default::default(),
             window: None,
             waiting: Vec::new(),
             queued_saves: Vec::new(),
             finder: None,
-            keeping: None,
-            recovery_off: None,
-            stopped: None,
-            stop,
+            owed: false,
             quiet: Default::default(),
             saving: Vec::new(),
             asked: Vec::new(),
         }
+    }
+
+    /// The app's scratch root.
+    pub fn work(&self) -> PathBuf {
+        self.shared.get().work.clone()
+    }
+
+    /// The next tab id, unique across the app's windows.
+    pub fn take_id(&self) -> u64 {
+        let mut shared = self.shared.get_mut();
+        shared.next += 1;
+        shared.next - 1
+    }
+
+    /// The id `take_id` gives next.
+    pub fn next_id(&self) -> u64 {
+        self.shared.get().next
     }
 }
 

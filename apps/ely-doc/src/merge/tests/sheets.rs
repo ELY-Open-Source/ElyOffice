@@ -130,7 +130,7 @@ New,Paris
             }
         })
     });
-    let work = cx.update(|app| docs.read(app).core.work.clone());
+    let work = cx.update(|app| docs.read(app).core.work());
     let scratch = || {
         let entries = std::fs::read_dir(&work).expect("the work dir").flatten();
         entries.filter(|entry| entry.file_name().to_string_lossy().starts_with("merge-")).count()
