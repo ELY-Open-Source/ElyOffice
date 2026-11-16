@@ -1,6 +1,7 @@
 //! The tab strip and the save state (FILE-02).
 
 use ely_gpui_component::{
+    menus::{ContextMenu, Menu, MenuItem},
     navigation::{EditorTab, EditorTabs},
     primitives::{IconName, Severity},
     shell::StatusBarItem,
@@ -48,16 +49,43 @@ pub trait Chrome: Host {
                     this.update(cx, |host, cx| host.show_tab(id, window, cx));
                 }
             })
-            .on_close(move |id, window, cx| {
-                let id = id.parse().expect("tab ids are numbers");
-                this.update(cx, |host, cx| {
-                    host.request_close(id, After::Tab, window, cx)
-                });
+            .on_close({
+                let this = this.clone();
+                move |id, window, cx| {
+                    let id = id.parse().expect("tab ids are numbers");
+                    this.update(cx, |host, cx| host.request_close(id, After::Tab, window, cx));
+                }
             });
+        // Apps with more windows offer to move a tab.
+        let tabs = match ely_ui::windows::allowed(cx) {
+            true => {
+                let this = this.downgrade();
+                tabs.on_context(move |id, at, _, cx| {
+                    let Ok(id) = id.parse() else { return log::error!("office: tab {id} is no number") };
+                    this.update(cx, |host, cx| {
+                        let last = host.core().tab_offer.as_ref();
+                        host.core_mut().tab_offer = Some(ely_ui::menu::Offer::new(last, id, (), at));
+                        cx.notify();
+                    })
+                    .ok();
+                })
+            }
+            false => tabs,
+        };
         match core.active() {
             Some(id) => tabs.selected(id.to_string()),
             None => tabs,
         }
+    }
+
+    /// The tab menu, while one is asked for.
+    fn tab_menu(&self, cx: &mut Context<Self>) -> Option<ContextMenu> {
+        let offer = self.core().tab_offer.as_ref()?;
+        let (this, id) = (cx.entity(), offer.tab);
+        let item = MenuItem::new(text(cx, "office.tab.new_window", &[])).on_click(move |_, cx| {
+            crate::moving::to_new_window(this.clone(), id, cx);
+        });
+        Some(offer.host("office-tab-menu", Menu::new().item(item)))
     }
 
     /// The tab the user picked comes forward with the keys.

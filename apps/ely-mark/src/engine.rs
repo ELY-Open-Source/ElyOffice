@@ -140,21 +140,20 @@ impl Engine for Mark {
         cx: &mut Context<H>,
         reported: impl Fn(&mut H, &Entity<MarkView>, bool, &mut Context<H>) + 'static,
         failed: impl Fn(&mut H, &str, &mut Context<H>) + 'static,
-    ) {
-        cx.subscribe(view, move |host, _, error: &Failed, cx| {
-            failed(host, &error.0, cx)
-        })
-        .detach();
-        cx.subscribe(view, |host, _, refused: &Refused, cx| {
-            let said = crate::blocks::refusal(refused.0, cx);
-            host.toast(said, ely_gpui_component::primitives::Severity::Info, cx)
-        })
-        .detach();
-        cx.subscribe(view, move |host, view, _: &Reported, cx| {
-            let modified = view.read(cx).modified();
-            reported(host, &view, modified, cx)
-        })
-        .detach();
+    ) -> Vec<gpui::Subscription> {
+        vec![
+            cx.subscribe(view, move |host, _, error: &Failed, cx| {
+                failed(host, &error.0, cx)
+            }),
+            cx.subscribe(view, |host, _, refused: &Refused, cx| {
+                let said = crate::blocks::refusal(refused.0, cx);
+                host.toast(said, ely_gpui_component::primitives::Severity::Info, cx)
+            }),
+            cx.subscribe(view, move |host, view, _: &Reported, cx| {
+                let modified = view.read(cx).modified();
+                reported(host, &view, modified, cx)
+            }),
+        ]
     }
 }
 

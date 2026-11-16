@@ -76,7 +76,8 @@ impl Engine for Counter {
         _: &mut Context<H>,
         _: impl Fn(&mut H, &Entity<()>, bool, &mut Context<H>) + 'static,
         _: impl Fn(&mut H, &str, &mut Context<H>) + 'static,
-    ) {
+    ) -> Vec<gpui::Subscription> {
+        Vec::new()
     }
 }
 
@@ -158,4 +159,28 @@ fn both_windows_open_share_the_index_and_the_restart(cx: &mut TestAppContext) {
         assert!(pane.core.shared.get().stopped.is_none(), "the restart ended");
         assert_eq!(*pane.core.worker.lock().expect("the worker"), 1, "one restart, not two");
     });
+}
+
+#[gpui::test]
+fn a_tab_writing_its_point_stays(cx: &mut TestAppContext) {
+    let dir = tempfile::tempdir().expect("a folder");
+    let [first, _] = panes(dir.path(), cx);
+    first.update(cx, |pane, cx| {
+        pane.keep_tab(0, ("one.md", None), false, cx);
+        let view = cx.new(|_| ());
+        let session = ely_files::Session::new_file();
+        let (work, links) = (dir.path().to_path_buf(), Default::default());
+        let tab = crate::Tab { id: 0, view, doc: (), session, registry: None, name: "one.md".into(), modified: false, risk: None, links, work, exporting: false, pausing: 0, reopen: false, extra: (), watching: Vec::new(), busy: Default::default() };
+        pane.core.tabs.push(tab);
+    });
+    cx.run_until_parked();
+    let writing = |pane: &Entity<Pane>, on: bool, cx: &mut TestAppContext| {
+        pane.update(cx, |pane, _| pane.core.shared.get_mut().keeping.as_mut().expect("recovery").set_writing(0, on));
+    };
+    writing(&first, true, cx);
+    let stays = first.update(cx, |pane, cx| crate::moving::Moving::move_out(pane, 0, cx).err());
+    assert_eq!(stays, Some("office.move.saving"), "a point in flight keeps the tab");
+    writing(&first, false, cx);
+    let left = first.update(cx, |pane, cx| crate::moving::Moving::move_out(pane, 0, cx).is_ok());
+    assert!(left, "once written, the tab may move");
 }

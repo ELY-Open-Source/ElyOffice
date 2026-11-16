@@ -1,6 +1,12 @@
 //! Japanese office messages.
 
 pub(super) const JA: &[(&str, &str)] = &[
+    ("office.move.busy", "このタブは直前の操作を処理中です。少し待ってからもう一度お試しください。"),
+    ("office.tab.new_window", "新しいウィンドウで開く"),
+    ("office.move.loading", "このタブはまだ読み込み中です。開いてから移動してください。"),
+    ("office.move.saving", "このタブは保存中です。保存が終わってから移動してください。"),
+    ("office.move.dialog", "このタブは質問への回答を待っています。答えてから移動してください。"),
+    ("office.move.failed", "新しいウィンドウが開かなかったため、タブはここに残ります: {error}"),
     ("office.cancel", "キャンセル"),
     ("office.conflict.copy", "コピーを保存…"),
     ("office.conflict.detail", "残すバージョンを選んでください。"),

@@ -117,11 +117,11 @@ pub trait Engine: Sized + 'static {
     fn focus(view: &Self::View) -> FocusHandle;
     /// The document was saved at history `mark`.
     fn saved(view: &Entity<Self::View>, mark: &str, cx: &mut App);
-    /// Calls `reported` with the modified flag, `failed` with errors.
+    /// Calls `reported` and `failed`; the tab keeps the subscriptions.
     fn watch<H: Host<Engine = Self>>(
         view: &Entity<Self::View>,
         cx: &mut Context<H>,
         reported: impl Fn(&mut H, &Entity<Self::View>, bool, &mut Context<H>) + 'static,
         failed: impl Fn(&mut H, &str, &mut Context<H>) + 'static,
-    );
+    ) -> Vec<gpui::Subscription>;
 }

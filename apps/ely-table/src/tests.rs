@@ -426,6 +426,7 @@ mod kept;
 mod links;
 mod menu;
 mod merge;
+mod moving;
 mod names;
 mod numbers;
 mod remote;

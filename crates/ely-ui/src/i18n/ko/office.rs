@@ -1,6 +1,12 @@
 //! Korean office messages.
 
 pub(super) const KO: &[(&str, &str)] = &[
+    ("office.move.busy", "이 탭은 아직 방금 한 작업을 처리하고 있습니다. 잠시 후 다시 시도하세요."),
+    ("office.tab.new_window", "새 창에서 열기"),
+    ("office.move.loading", "이 탭은 아직 불러오는 중입니다. 열린 뒤에 옮기세요."),
+    ("office.move.saving", "이 탭은 저장 중입니다. 저장이 끝난 뒤에 옮기세요."),
+    ("office.move.dialog", "이 탭은 답을 기다리고 있습니다. 답한 뒤에 옮기세요."),
+    ("office.move.failed", "새 창이 열리지 않아 탭이 여기에 남습니다: {error}"),
     ("office.cancel", "취소"),
     ("office.conflict.copy", "사본 저장…"),
     ("office.conflict.detail", "보관할 버전을 고르십시오."),

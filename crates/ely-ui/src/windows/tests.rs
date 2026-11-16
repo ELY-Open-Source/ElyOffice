@@ -12,7 +12,7 @@ impl Render for Blank {
     }
 }
 
-fn more(_: &mut gpui::App) -> std::io::Result<super::Build> {
+fn more(_: &mut gpui::App, _: bool) -> std::io::Result<super::Build> {
     Ok(Box::new(|window, cx| {
         let blank = cx.new(|_| Blank);
         crate::tool_root(APP, blank.into(), Vec::new(), window, cx)
@@ -32,14 +32,14 @@ fn installed(cx: &mut TestAppContext) {
 fn one_window_opens_no_other(cx: &mut TestAppContext) {
     installed(cx);
     assert!(!cx.update(|cx| super::allowed(cx)));
-    assert!(cx.update(super::open).is_err(), "an app not declaring windows refuses");
+    assert!(cx.update(|cx| super::open(true, cx)).is_err(), "an app not declaring windows refuses");
 }
 
 #[gpui::test]
 fn new_window_from_a_window_opens_one(cx: &mut TestAppContext) {
     installed(cx);
     cx.update(|cx| super::allow(APP, more, cx));
-    let first = cx.update(|cx| crate::run::main_window(APP, crate::run::Smoke::Off, |_, window, cx| more(cx).expect("built")(window, cx), cx)).expect("the first");
+    let first = cx.update(|cx| crate::run::main_window(APP, crate::run::Smoke::Off, |_, window, cx| more(cx, true).expect("built")(window, cx), cx)).expect("the first");
     cx.update(|cx| crate::tray::set_main(APP, first, cx));
     first.update(cx, |_, window, cx| window.dispatch_action(Box::new(crate::commands::NewWindow), cx)).expect("dispatched");
     cx.run_until_parked();
@@ -51,9 +51,9 @@ fn new_window_from_a_window_opens_one(cx: &mut TestAppContext) {
 fn a_new_window_sits_off_the_front_one_and_quits_last(cx: &mut TestAppContext) {
     installed(cx);
     cx.update(|cx| super::allow(APP, more, cx));
-    let first = cx.update(|cx| crate::run::main_window(APP, crate::run::Smoke::Off, |_, window, cx| more(cx).expect("built")(window, cx), cx)).expect("the first");
+    let first = cx.update(|cx| crate::run::main_window(APP, crate::run::Smoke::Off, |_, window, cx| more(cx, true).expect("built")(window, cx), cx)).expect("the first");
     cx.update(|cx| crate::tray::set_main(APP, first, cx));
-    let second = cx.update(super::open).expect("a second window");
+    let second = cx.update(|cx| super::open(true, cx)).expect("a second window");
     cx.run_until_parked();
     let at = |window: gpui::AnyWindowHandle, cx: &mut TestAppContext| window.update(cx, |_, window, _| window.window_bounds().get_bounds()).expect("open");
     let (one, two) = (at(first, cx), at(second, cx));

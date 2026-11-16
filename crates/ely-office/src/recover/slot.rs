@@ -33,3 +33,18 @@ impl Slot {
         })
     }
 }
+
+impl super::Keeping {
+    /// Tab `id`'s recovery point is being written.
+    pub(crate) fn writes(&self, id: u64) -> bool {
+        self.slots.get(&id).is_some_and(|slot| slot.writing)
+    }
+}
+
+#[cfg(test)]
+impl super::Keeping {
+    /// Marks tab `id`'s point as being written.
+    pub(crate) fn set_writing(&mut self, id: u64, writing: bool) {
+        self.slots.get_mut(&id).expect("a kept tab").writing = writing;
+    }
+}

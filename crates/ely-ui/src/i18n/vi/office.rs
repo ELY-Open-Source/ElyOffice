@@ -1,6 +1,12 @@
 //! Vietnamese office messages.
 
 pub(super) const VI: &[(&str, &str)] = &[
+    ("office.move.busy", "Thẻ này vẫn đang xử lý thao tác vừa rồi. Hãy thử lại sau giây lát."),
+    ("office.tab.new_window", "Mở trong cửa sổ mới"),
+    ("office.move.loading", "Thẻ này vẫn đang tải. Hãy di chuyển khi nó đã mở."),
+    ("office.move.saving", "Thẻ này đang lưu. Hãy di chuyển khi lưu xong."),
+    ("office.move.dialog", "Thẻ này đang chờ bạn trả lời. Trả lời xong rồi di chuyển."),
+    ("office.move.failed", "Không mở được cửa sổ mới nên thẻ ở lại đây: {error}"),
     ("office.cancel", "Hủy"),
     ("office.conflict.copy", "Lưu một bản sao…"),
     ("office.conflict.detail", "Chọn phiên bản cần giữ."),

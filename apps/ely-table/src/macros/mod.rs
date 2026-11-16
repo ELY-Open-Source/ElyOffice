@@ -215,7 +215,10 @@ impl Book {
         let (done, result) = futures::channel::oneshot::channel();
         let stop = Arc::clone(&run);
         std::thread::spawn(move || done.send(runner::run(&rscript, &snapshot, &script, &stop)));
+        // The tab stays here until this ends.
+        let busy = self.hold(tab);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let outcome = result.await;
             in_window(&this, cx, |book, _, cx| match outcome {
                 Ok(outcome) => book.ran_r(tab, at, outcome, run, cx),

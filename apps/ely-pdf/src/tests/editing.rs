@@ -10,7 +10,7 @@ use crate::view::PdfView;
 use crate::viewer::Viewer;
 
 /// Two lines, a stamp, a picture; the edit tool on.
-fn editing<'a>(cx: &'a mut TestAppContext, dir: &std::path::Path) -> (Entity<Viewer>, &'a mut VisualTestContext, Entity<PdfView>) {
+pub(super) fn editing<'a>(cx: &'a mut TestAppContext, dir: &std::path::Path) -> (Entity<Viewer>, &'a mut VisualTestContext, Entity<PdfView>) {
     let path = dir.join("doc.pdf");
     let extras = Extras { stamp: Some("STAMP"), picture: true, ..Extras::default() };
     std::fs::write(&path, pdf_with(&[(612.0, 792.0, &["Hello world", "Second line"])], &[], &extras)).expect("writes");
@@ -27,20 +27,20 @@ fn editing<'a>(cx: &'a mut TestAppContext, dir: &std::path::Path) -> (Entity<Vie
 }
 
 /// Presses at page point `at`, with no drag.
-fn click(cx: &mut VisualTestContext, view: &Entity<PdfView>, at: (f32, f32)) {
+pub(super) fn click(cx: &mut VisualTestContext, view: &Entity<PdfView>, at: (f32, f32)) {
     let point = over(cx, view, 0, at);
     cx.simulate_mouse_down(point, MouseButton::Left, Modifiers::none());
     cx.simulate_mouse_up(point, MouseButton::Left, Modifiers::none());
 }
 
 /// The page's blocks once the layer is read again.
-fn blocks(cx: &mut VisualTestContext, view: &Entity<PdfView>) -> Vec<String> {
+pub(super) fn blocks(cx: &mut VisualTestContext, view: &Entity<PdfView>) -> Vec<String> {
     settle(cx, |app| view.read(app).settled() && view.read(app).layers.contains_key(&0));
     cx.update(|_, app| view.read(app).layers[&0].blocks.iter().map(|b| b.text.clone()).collect())
 }
 
 /// Puts `text` in the panel's field.
-fn type_in(cx: &mut VisualTestContext, viewer: &Entity<Viewer>, text: &str) {
+pub(super) fn type_in(cx: &mut VisualTestContext, viewer: &Entity<Viewer>, text: &str) {
     frames(cx);
     cx.update(|_, app| {
         let field = viewer.read(app).edit_panel.read(app).field.clone().expect("drawn");

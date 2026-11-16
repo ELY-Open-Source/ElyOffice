@@ -229,7 +229,7 @@ pub(crate) fn home(app: ely_platform::AppId, hands: Hands, cx: &mut App) {
         while let Some(hand) = hands.next().await {
             // No answer: the other copy says the files went untaken.
             let shown = cx.update(|cx| match hand.launch.new_window {
-                true => crate::windows::open(cx).inspect_err(|error| log::error!("run: a new window did not open: {error:#}")).ok(),
+                true => crate::windows::open(hand.launch.files.is_empty(), cx).inspect_err(|error| log::error!("run: a new window did not open: {error:#}")).ok(),
                 false => crate::tray::show_main(cx),
             });
             let Some(shown) = shown else {
@@ -401,7 +401,7 @@ mod home_tests {
             crate::theme::install(cx);
             crate::i18n::install_as("en-US", cx);
         });
-        let more = |_: &mut App| -> io::Result<crate::windows::Build> {
+        let more = |_: &mut App, _: bool| -> io::Result<crate::windows::Build> {
             Ok(Box::new(|window, cx| {
                 let blank = cx.new(|_| Blank);
                 crate::tool_root(ely_platform::AppId::Mark, blank.into(), Vec::new(), window, cx)

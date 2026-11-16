@@ -8,7 +8,7 @@ use super::data::{cells, run};
 use super::*;
 
 /// A one-sheet book whose S1.A1 holds `value`.
-fn source(path: &Path, value: u32) {
+pub(super) fn source(path: &Path, value: u32) {
     let xml = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
@@ -22,7 +22,7 @@ fn source(path: &Path, value: u32) {
 }
 
 /// `reader.xlsx`; A1, A2… read S1.A1 of each source, made here.
-fn reader(cx: &mut TestAppContext, book: &Entity<Book>, dir: &Path, sources: &[&Path]) -> std::path::PathBuf {
+pub(super) fn reader(cx: &mut TestAppContext, book: &Entity<Book>, dir: &Path, sources: &[&Path]) -> std::path::PathBuf {
     blank(cx, book);
     for (row, path) in sources.iter().enumerate() {
         source(path, 1);
@@ -41,7 +41,7 @@ fn reader(cx: &mut TestAppContext, book: &Entity<Book>, dir: &Path, sources: &[&
     saved
 }
 
-fn opened(cx: &mut TestAppContext, book: &Entity<Book>, path: &Path) -> u64 {
+pub(super) fn opened(cx: &mut TestAppContext, book: &Entity<Book>, path: &Path) -> u64 {
     update(cx, book, |book, cx| book.open_file(path.to_path_buf(), cx));
     let name = path.file_name().expect("a name").to_string_lossy().to_string();
     settle(cx, |app| book.read(app).active_tab().is_some_and(|tab| tab.name == name));

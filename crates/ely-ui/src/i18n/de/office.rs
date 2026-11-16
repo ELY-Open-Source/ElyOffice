@@ -1,6 +1,12 @@
 //! German document shell messages.
 
 pub(super) const DE: &[(&str, &str)] = &[
+    ("office.move.busy", "Dieser Tab erledigt noch den letzten Schritt. Versuchen Sie es gleich noch einmal."),
+    ("office.tab.new_window", "In neuem Fenster öffnen"),
+    ("office.move.loading", "Dieser Tab lädt noch. Verschieben Sie ihn, sobald er offen ist."),
+    ("office.move.saving", "Dieser Tab wird gespeichert. Verschieben Sie ihn nach dem Speichern."),
+    ("office.move.dialog", "Dieser Tab wartet auf eine Antwort. Antworten Sie, dann verschieben Sie ihn."),
+    ("office.move.failed", "Kein neues Fenster ging auf; der Tab bleibt hier: {error}"),
     ("office.cancel", "Abbrechen"),
     ("office.conflict.copy", "Kopie speichern…"),
     ("office.conflict.detail", "Wählen Sie, welche Version erhalten bleibt."),

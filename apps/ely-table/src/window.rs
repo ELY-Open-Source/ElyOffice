@@ -33,13 +33,15 @@ pub(crate) fn root(book: &Entity<Book>, window: &mut Window, cx: &mut App) -> En
     root
 }
 
-/// Another window on the same engine, with a blank book.
-pub fn more(cx: &mut App) -> std::io::Result<ely_ui::windows::Build> {
+/// Another window on the same engine; blank if `fresh`.
+pub fn more(cx: &mut App, fresh: bool) -> std::io::Result<ely_ui::windows::Build> {
     let shared = ely_office::shared::Handle::<Book>::joined(cx)?;
     Ok(Box::new(move |window, cx| {
         let book = book(move |cx| Core::join(shared, cx), window, cx);
         let root = root(&book, window, cx);
-        book.update(cx, |book, cx| book.new_blank(cx));
+        if fresh {
+            book.update(cx, |book, cx| book.new_blank(cx));
+        }
         root
     }))
 }

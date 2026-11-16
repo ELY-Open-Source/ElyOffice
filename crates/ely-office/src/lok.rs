@@ -207,35 +207,34 @@ impl Engine for Lok {
         cx: &mut Context<H>,
         reported: impl Fn(&mut H, &Entity<LokView>, bool, &mut Context<H>) + 'static,
         failed: impl Fn(&mut H, &str, &mut Context<H>) + 'static,
-    ) {
-        cx.subscribe(view, move |host, _, error: &LokError, cx| match error.0.starts_with(ely_lok::STALE) {
-            true => failed(host, &text(cx, "office.error.changed", &[]), cx),
-            false => failed(host, &error.0, cx),
-        })
-        .detach();
-        // Log the title only; the body may name user files.
-        cx.subscribe(view, |host, _, closed: &ely_lok::Closed, cx| {
-            log::warn!("{}: the engine opened a dialog Ely closed: {}", H::KIND.app.slug(), closed.title);
-            let title = closed.title.as_str();
-            let shown = match closed.body.as_str() {
-                "" => text(cx, "office.error.dialog", &[("title", title)]),
-                body => text(cx, "office.error.dialog_said", &[("title", title), ("body", body)]),
-            };
-            host.toast_unlogged(shown, Severity::Danger, cx);
-        })
-        .detach();
-        cx.subscribe(view, move |host, view, linked: &ely_lok::Linked, cx| follow(host, view, &linked.0, cx)).detach();
-        // Dropped files that are no pictures open as files do.
-        cx.subscribe(view, |host, _, dropped: &ely_lok::Dropped, cx| ely_ui::open_dropped(H::KIND.app, &dropped.0, host.core().window, cx)).detach();
-        // The next start finds an engine waiting.
-        cx.subscribe(view, |_, _, _: &ely_lok::Drawn, _| crate::resident::successor(H::KIND.app)).detach();
-        // The status shows the zoom.
-        cx.subscribe(view, |_, _, _: &ely_lok::Zoomed, cx| cx.notify()).detach();
-        cx.subscribe(view, move |host, view, _: &Reported, cx| {
-            let modified = view.read(cx).state(".uno:ModifiedStatus") == Some("true");
-            reported(host, &view, modified, cx)
-        })
-        .detach();
+    ) -> Vec<gpui::Subscription> {
+        vec![
+            cx.subscribe(view, move |host, _, error: &LokError, cx| match error.0.starts_with(ely_lok::STALE) {
+                true => failed(host, &text(cx, "office.error.changed", &[]), cx),
+                false => failed(host, &error.0, cx),
+            }),
+            // Log the title only; the body may name user files.
+            cx.subscribe(view, |host, _, closed: &ely_lok::Closed, cx| {
+                log::warn!("{}: the engine opened a dialog Ely closed: {}", H::KIND.app.slug(), closed.title);
+                let title = closed.title.as_str();
+                let shown = match closed.body.as_str() {
+                    "" => text(cx, "office.error.dialog", &[("title", title)]),
+                    body => text(cx, "office.error.dialog_said", &[("title", title), ("body", body)]),
+                };
+                host.toast_unlogged(shown, Severity::Danger, cx);
+            }),
+            cx.subscribe(view, move |host, view, linked: &ely_lok::Linked, cx| follow(host, view, &linked.0, cx)),
+            // Dropped files that are no pictures open as files do.
+            cx.subscribe(view, |host, _, dropped: &ely_lok::Dropped, cx| ely_ui::open_dropped(H::KIND.app, &dropped.0, host.core().window, cx)),
+            // The next start finds an engine waiting.
+            cx.subscribe(view, |_, _, _: &ely_lok::Drawn, _| crate::resident::successor(H::KIND.app)),
+            // The status shows the zoom.
+            cx.subscribe(view, |_, _, _: &ely_lok::Zoomed, cx| cx.notify()),
+            cx.subscribe(view, move |host, view, _: &Reported, cx| {
+                let modified = view.read(cx).state(".uno:ModifiedStatus") == Some("true");
+                reported(host, &view, modified, cx)
+            }),
+        ]
     }
 }
 
@@ -401,6 +400,7 @@ pub trait Commands: Host<Engine = Lok> {
             return log::warn!("{slug}: tab {id} is gone; nothing written");
         };
         let (done, outcome) = futures::channel::oneshot::channel();
+        let busy = std::rc::Rc::clone(&tab.busy);
         tab.view.update(cx, |view, _| {
             view.write(move |worker, doc| {
                 if done.send(write(worker, doc)).is_err() {
@@ -409,6 +409,7 @@ pub trait Commands: Host<Engine = Lok> {
             })
         });
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             // A view gone with the write queued drops it.
             let written = outcome.await.unwrap_or_else(|_| Err(io::Error::other(format!("tab {id} closed before its write"))));
             if let Err(error) = &written {

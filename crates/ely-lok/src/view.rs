@@ -266,7 +266,7 @@ impl LokView {
     }
 
     /// The tiles painted for the current state (test evidence).
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn tile_count(&self) -> usize {
         self.tiles.values().filter(|tile| !tile.stale).count()
     }

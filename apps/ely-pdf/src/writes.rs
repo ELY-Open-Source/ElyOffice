@@ -84,6 +84,8 @@ impl Viewer {
         // A replacement that changes the layout is shown first.
         let (replacing, version) = (matches!(aim, Aim::Text { .. }), view.read(cx).version);
         let (asked, viewer) = (writing.clone(), cx.weak_entity());
+        // The tab stays until the viewer has the answer.
+        let busy = self.hold(tab);
         view.update(cx, |view, cx| {
             let doc = view.doc;
             // A stale answer still reaches `previewed`, which says so.
@@ -92,6 +94,7 @@ impl Viewer {
                 move |_, answer, cx| {
                     // The viewer edits this view; wait until it is free.
                     cx.defer(move |cx| {
+                        let _busy = busy;
                         if let Some(viewer) = viewer.upgrade() {
                             viewer.update(cx, |viewer, cx| viewer.previewed((tab, version, page), writing, answer, replacing, cx));
                         }

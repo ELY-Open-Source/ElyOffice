@@ -87,7 +87,10 @@ pub trait Closing: Host {
             multiple: false,
             prompt: None,
         });
+        // The pick may serve the front tab: it stays.
+        let busy = self.core().active().and_then(|id| self.hold(id));
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let picked = match picked.await {
                 Ok(Ok(paths)) => Ok(paths.and_then(|paths| paths.into_iter().next())),
                 Ok(Err(error)) => Err(error.to_string()),

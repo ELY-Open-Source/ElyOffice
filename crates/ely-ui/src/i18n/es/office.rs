@@ -1,6 +1,12 @@
 //! Spanish office messages.
 
 pub(super) const ES: &[(&str, &str)] = &[
+    ("office.move.busy", "Esta pestaña aún termina el último paso. Inténtelo de nuevo en un momento."),
+    ("office.tab.new_window", "Abrir en una ventana nueva"),
+    ("office.move.loading", "Esta pestaña aún se está cargando. Muévala cuando se abra."),
+    ("office.move.saving", "Esta pestaña se está guardando. Muévala cuando termine."),
+    ("office.move.dialog", "Esta pestaña espera una respuesta. Responda y luego muévala."),
+    ("office.move.failed", "No se abrió una ventana nueva; la pestaña se queda aquí: {error}"),
     ("office.cancel", "Cancelar"),
     ("office.conflict.copy", "Guardar una copia…"),
     ("office.conflict.detail", "Elija qué versión conservar."),

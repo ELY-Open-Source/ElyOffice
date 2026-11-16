@@ -13,6 +13,7 @@ mod hold;
 mod links;
 pub mod lok;
 pub mod menu;
+pub mod moving;
 mod open;
 mod recover;
 pub mod resident;
@@ -97,6 +98,12 @@ pub trait Host: Sized + 'static {
     fn tab_closed(&mut self, _tab: &Tab<Self::Extra, Self::Engine>, _: &mut Context<Self>) {}
     /// Runs when tab `id` comes to the front.
     fn tab_shown(&mut self, _id: u64, _: &mut Context<Self>) {}
+    /// Tab `id` is leaving: keep its window state in it.
+    fn tab_leaving(&mut self, _id: u64, _: &mut Context<Self>) {}
+    /// The app's own question about tab `id` is open.
+    fn asks_about(&self, _id: u64) -> bool {
+        false
+    }
 
     /// Tab `tab`'s document as last seen; reads and numbered commands.
     fn read_at(&self, _tab: u64, _cx: &App) -> Option<<Self::Engine as Engine>::Doc> {
@@ -153,6 +160,10 @@ pub struct Tab<E, G: Engine> {
     /// Reopen from the file once memory matches it.
     pub reopen: bool,
     pub extra: E,
+    /// The host's watch on its view; a move remakes it.
+    pub watching: Vec<gpui::Subscription>,
+    /// Held by work running for it; a held tab stays.
+    pub busy: std::rc::Rc<()>,
 }
 
 impl<E, G: Engine> Tab<E, G> {
@@ -216,6 +227,8 @@ pub struct Core<H: Host> {
     pub queued_saves: Vec<(u64, Waiting<H>)>,
     /// The open find box.
     pub finder: Option<Finder>,
+    /// The tab menu asked for, while it shows.
+    pub tab_offer: Option<ely_ui::menu::Offer<()>>,
     /// This window owes a recovery round, once typing rests.
     pub owed: bool,
     /// Edit counts at the last beat, per tab.
@@ -266,6 +279,7 @@ impl<H: Host> Core<H> {
             waiting: Vec::new(),
             queued_saves: Vec::new(),
             finder: None,
+            tab_offer: None,
             owed: false,
             quiet: Default::default(),
             saving: Vec::new(),
@@ -363,6 +377,11 @@ pub trait Tabs: Host {
         self.core_mut().tabs.iter_mut().find(|tab| tab.id == id)
     }
 
+    /// Keeps tab `id` here while work runs for it.
+    fn hold(&self, id: u64) -> Option<std::rc::Rc<()>> {
+        self.tab(id).map(|tab| std::rc::Rc::clone(&tab.busy))
+    }
+
     fn active_tab(&self) -> Option<&Tab<Self::Extra, Self::Engine>> {
         self.core().active().and_then(|id| self.tab(id))
     }
@@ -427,7 +446,9 @@ pub trait Tabs: Host {
         };
         let doc = self.read_at(id, cx).unwrap_or_else(|| tab.doc.clone());
         let worker = Arc::clone(&self.core().worker);
+        let busy = std::rc::Rc::clone(&tab.busy);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let read = cx
                 .background_executor()
                 .spawn(async move { ely_lok::behind(&worker, move |worker| read(worker, &doc)).await })

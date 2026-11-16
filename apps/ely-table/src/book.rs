@@ -113,6 +113,10 @@ impl Host for Book {
         }
     }
 
+    fn asks_about(&self, id: u64) -> bool {
+        self.dialog.as_ref().and_then(crate::dialog::Dialog::tab) == Some(id) || self.choices.as_ref().is_some_and(|choices| choices.tab == id)
+    }
+
     /// A closed tab's dialog and list go with it.
     fn tab_closed(&mut self, tab: &ely_office::Tab<Extra, ely_office::Lok>, cx: &mut Context<Self>) {
         if self.dialog.as_ref().and_then(crate::dialog::Dialog::tab) == Some(tab.id) {
@@ -450,7 +454,8 @@ impl Render for Book {
             .child(shell)
             .children(self.core_dialog(cx))
             .children(self.dialog_element(cx))
-            .children(self.context_menu(cx));
+            .children(self.context_menu(cx))
+            .children(self.tab_menu(cx));
         let root = Self::bind_zoom(crate::cells::bind(crate::sheets::bind(root, cx), cx), cx);
         let root = Self::bind_undo(root, cx);
         let root = crate::data::bind(crate::formulas::bind(root, cx), cx);

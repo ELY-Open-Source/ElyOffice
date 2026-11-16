@@ -141,7 +141,10 @@ impl Viewer {
         };
         let id = tab.id;
         let chosen = cx.prompt_for_new_path(&dir, Some(&name));
+        // The tab stays here until this ends.
+        let busy = self.hold(id);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let chosen = match chosen.await {
                 Ok(Ok(path)) => Ok(path),
                 Ok(Err(error)) => Err(error.to_string()),

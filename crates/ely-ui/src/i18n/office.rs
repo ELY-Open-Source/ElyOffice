@@ -1,6 +1,12 @@
 //! Messages of the shared document shell.
 
 pub(super) const EN: &[(&str, &str)] = &[
+    ("office.move.busy", "This tab is still finishing your last step. Try again in a moment."),
+    ("office.tab.new_window", "Open in New Window"),
+    ("office.move.loading", "This tab is still loading. Move it once it opens."),
+    ("office.move.saving", "This tab is saving. Move it once the save ends."),
+    ("office.move.dialog", "This tab is asking a question. Answer it, then move the tab."),
+    ("office.move.failed", "No new window opened, so the tab stays here: {error}"),
     ("office.cancel", "Cancel"),
     ("office.conflict.copy", "Save a Copy…"),
     ("office.conflict.detail", "Choose which version to keep."),
@@ -157,6 +163,12 @@ pub(super) const EN: &[(&str, &str)] = &[
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
+    ("office.move.busy", "这个标签还在处理刚才的操作，处理完再移。"),
+    ("office.tab.new_window", "在新窗口打开"),
+    ("office.move.loading", "这个标签还在载入，打开后再移。"),
+    ("office.move.saving", "这个标签正在保存，存完再移。"),
+    ("office.move.dialog", "这个标签有个问题等你回答，答完再移。"),
+    ("office.move.failed", "新窗口没有打开，标签留在这里：{error}"),
     ("office.cancel", "取消"),
     ("office.conflict.copy", "另存副本…"),
     ("office.conflict.detail", "选择要保留的版本。"),

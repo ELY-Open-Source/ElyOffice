@@ -131,8 +131,12 @@ pub trait Remote: Saving {
             ask.answer(Err(format!("{} must be saved under another name in {}", words[1], Self::KIND.app.name())));
             return None;
         }
-        cx.spawn(async move |this, cx| in_window(&this, cx, |host, window, cx| host.save_for(id, ask, window, cx)))
-            .detach_and_log_err(cx);
+        let busy = self.hold(id);
+        cx.spawn(async move |this, cx| {
+            let _busy = busy;
+            in_window(&this, cx, |host, window, cx| host.save_for(id, ask, window, cx))
+        })
+        .detach_and_log_err(cx);
         None
     }
 

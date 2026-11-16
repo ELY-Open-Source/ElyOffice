@@ -8,8 +8,8 @@ use crate::Root;
 /// A later window's root, once its records are found.
 pub type Build = Box<dyn FnOnce(&mut Window, &mut App) -> Entity<Root>>;
 
-/// Finds the app's shared records; then builds over them.
-pub type More = fn(&mut App) -> std::io::Result<Build>;
+/// Finds the app's records; `fresh` asks for a blank document.
+pub type More = fn(&mut App, bool) -> std::io::Result<Build>;
 
 /// The app opens more windows, built so.
 struct Windows(AppId, More);
@@ -25,7 +25,7 @@ pub(crate) fn allow(app: AppId, more: More, cx: &mut App) {
     cx.on_action(|_: &crate::commands::NewWindow, cx| {
         // The asking window is busy until its action ends.
         cx.defer(|cx| {
-            if let Err(error) = open(cx) {
+            if let Err(error) = open(true, cx) {
                 log::error!("ui: a new window did not open: {error:#}");
             }
         });
@@ -37,8 +37,8 @@ pub fn allowed(cx: &App) -> bool {
     cx.has_global::<Windows>()
 }
 
-/// Opens another window, offset from the last active one.
-pub fn open(cx: &mut App) -> anyhow::Result<AnyWindowHandle> {
+/// Opens another window, offset from the front one.
+pub fn open(fresh: bool, cx: &mut App) -> anyhow::Result<AnyWindowHandle> {
     let &Windows(app, more) = cx.try_global::<Windows>().ok_or_else(|| anyhow::anyhow!("this app opens one window"))?;
     let mut options = crate::run::window_options(app, size(px(1100.0), px(720.0)), cx);
     if let Some(front) = crate::tray::main(cx) {
@@ -46,7 +46,7 @@ pub fn open(cx: &mut App) -> anyhow::Result<AnyWindowHandle> {
         bounds.origin += point(px(STEP), px(STEP));
         options.window_bounds = Some(WindowBounds::Windowed(bounds));
     }
-    let build = more(cx)?;
+    let build = more(cx, fresh)?;
     let opened = cx.open_window(options, move |window, cx| {
         crate::theme::follow_system(window);
         let root = build(window, cx);
@@ -69,6 +69,12 @@ pub(crate) fn follow<V: Render>(root: &Entity<V>, window: &mut Window, cx: &mut 
         })
         .detach();
     });
+}
+
+/// Lets apps' tests open more windows without `run`.
+#[cfg(any(test, feature = "test-support"))]
+pub fn allow_for_tests(app: AppId, more: More, cx: &mut App) {
+    allow(app, more, cx);
 }
 
 #[cfg(test)]

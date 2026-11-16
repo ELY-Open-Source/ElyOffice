@@ -182,7 +182,7 @@ impl PdfView {
 }
 
 impl Viewer {
-    fn reading_sidebar(&self, cx: &gpui::App) -> Sidebar {
+    pub(crate) fn reading_sidebar(&self, cx: &gpui::App) -> Sidebar {
         Sidebar {
             pane: self.side.read(cx).pane,
             shown: ely_ui::settings::panels::shown(true, cx),

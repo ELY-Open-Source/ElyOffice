@@ -81,6 +81,25 @@ impl Host for Viewer {
         self.show_reading_sidebar(id, cx);
     }
 
+    /// The side shows this tab's pane: it goes along.
+    fn tab_leaving(&mut self, id: u64, cx: &mut Context<Self>) {
+        if self.sidebar_tab == Some(id) {
+            let sidebar = self.reading_sidebar(cx);
+            if let Some(tab) = self.tab(id) {
+                tab.view.update(cx, |view, _| view.sidebar = Some(sidebar));
+            }
+            self.sidebar_tab = None;
+        }
+    }
+
+    /// Its panels and dialogs serve the active tab.
+    fn asks_about(&self, id: u64) -> bool {
+        let open = self.ask.is_some() || self.naming.is_some() || self.props.is_some() || self.ocr.is_some();
+        let open = open || self.removal.is_some() || self.secure.is_some() || self.signer.is_some();
+        let open = open || self.making.is_some() || self.exporting.is_some() || self.signs_open || self.repair_open;
+        open && self.core.active() == Some(id)
+    }
+
     fn tab_closed(&mut self, tab: &ely_office::Tab<(), Pdf>, cx: &mut Context<Self>) {
         self.keep_reading_view(tab, cx);
     }
@@ -139,7 +158,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
 }
 
 /// Another window over the first one's engine (W.1b).
-pub fn more(cx: &mut App) -> std::io::Result<ely_ui::windows::Build> {
+pub fn more(cx: &mut App, _: bool) -> std::io::Result<ely_ui::windows::Build> {
     let shared = ely_office::shared::Handle::<Viewer>::joined(cx)?;
     Ok(Box::new(move |window, cx| {
         let viewer = viewer(move |cx| Core::join(shared, cx), cx);
@@ -148,7 +167,7 @@ pub fn more(cx: &mut App) -> std::io::Result<ely_ui::windows::Build> {
 }
 
 /// A viewer over `core` that keeps points and saves.
-fn viewer(core: impl FnOnce(&mut Context<Viewer>) -> Core<Viewer>, cx: &mut App) -> Entity<Viewer> {
+pub(crate) fn viewer(core: impl FnOnce(&mut Context<Viewer>) -> Core<Viewer>, cx: &mut App) -> Entity<Viewer> {
     cx.new(|cx| {
         let mut host = Viewer::new(core(cx), cx);
         // Recovery points, crash return, autosave (§6.2, §6.3).
@@ -159,7 +178,7 @@ fn viewer(core: impl FnOnce(&mut Context<Viewer>) -> Core<Viewer>, cx: &mut App)
 }
 
 /// The window's root, its home, and its close asking first.
-fn root(viewer: &Entity<Viewer>, window: &mut Window, cx: &mut App) -> Entity<Root> {
+pub(crate) fn root(viewer: &Entity<Viewer>, window: &mut Window, cx: &mut App) -> Entity<Root> {
     let root = ely_ui::document_root(AppId::Pdf, viewer.clone().into(), &commands::FILE, crate::keys::menus(cx), window, cx);
     viewer.update(cx, |viewer, cx| {
         viewer.core.root = root.downgrade();
@@ -287,6 +306,7 @@ impl Render for Viewer {
             .on_action(cx.listener(Self::on_close_tab))
             .child(shell)
             .children(self.core_dialog(cx))
+            .children(self.tab_menu(cx))
             .children(self.ask_element(cx))
             .children(self.preview_element(cx))
             .children(self.naming_element(cx))

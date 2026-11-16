@@ -1,6 +1,12 @@
 //! French document shell messages.
 
 pub(super) const FR: &[(&str, &str)] = &[
+    ("office.move.busy", "Cet onglet termine encore la dernière étape. Réessayez dans un instant."),
+    ("office.tab.new_window", "Ouvrir dans une nouvelle fenêtre"),
+    ("office.move.loading", "Cet onglet se charge encore. Déplacez-le une fois ouvert."),
+    ("office.move.saving", "Cet onglet s'enregistre. Déplacez-le après l'enregistrement."),
+    ("office.move.dialog", "Cet onglet attend une réponse. Répondez, puis déplacez-le."),
+    ("office.move.failed", "Aucune nouvelle fenêtre ne s'est ouverte ; l'onglet reste ici : {error}"),
     ("office.cancel", "Annuler"),
     ("office.conflict.copy", "Enregistrer une copie…"),
     ("office.conflict.detail", "Choisissez la version à conserver."),

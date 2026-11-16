@@ -8,7 +8,7 @@ use ely_gpui_component::{
     shell::StatusBarItem,
 };
 use futures::{StreamExt as _, channel::mpsc};
-use gpui::{AppContext as _, Context, TaskExt as _, Window, actions};
+use gpui::{AppContext as _, Context, Window, actions};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher as _};
 
 use crate::{Commands as _, Host, Tabs, engine::Engine, text};
@@ -146,7 +146,7 @@ pub trait Linking: Host<Engine = crate::Lok> {
                     Err(error) => return host.engine_failed(&error.to_string(), cx),
                 };
                 log::info!("{slug}: tab {id} links updated, {} failed, {} folders watched", failed.len(), dirs.len());
-                let watcher = watch(id, &dirs, cx);
+                let watcher = watch(id, &dirs, host.core().shared.clone(), cx);
                 let Some(tab) = host.tab_mut(id) else {
                     return;
                 };
@@ -177,23 +177,30 @@ pub trait Linking: Host<Engine = crate::Lok> {
         let before = tab.links.seen.clone();
         let paths: Vec<String> = before.iter().map(|(path, _)| ely_lok::file_url(path)).collect();
         let now = cx.background_spawn(async move { look(&paths) });
-        cx.spawn(async move |this, cx| {
+        let shared = self.core().shared.clone();
+        cx.spawn(async move |_, cx: &mut gpui::AsyncApp| {
             let now = now.await;
-            this.update(cx, |host, cx| {
-                let changed = now.iter().zip(&before).find(|(now, then)| now != then);
-                let (Some((source, _)), Some(tab)) = (changed, host.tab_mut(id)) else {
-                    return;
+            // Tab state only: the window holding it now hears.
+            cx.update(|cx| {
+                let Some(host) = shared.hosts().into_iter().find(|host| host.read(cx).tab(id).is_some()) else {
+                    return log::info!("{}: tab {id} closed before its sources were checked", Self::KIND.app.slug());
                 };
-                if tab.links.seen != before || tab.links.updating {
-                    return;
-                }
-                log::info!("{}: tab {id} has a linked source saved since its update", Self::KIND.app.slug());
-                tab.links.state = Linked::Changed(source.0.display().to_string());
-                tab.links.watcher = None;
-                cx.notify();
+                host.update(cx, |host, cx| {
+                    let changed = now.iter().zip(&before).find(|(now, then)| now != then);
+                    let (Some((source, _)), Some(tab)) = (changed, host.tab_mut(id)) else {
+                        return;
+                    };
+                    if tab.links.seen != before || tab.links.updating {
+                        return;
+                    }
+                    log::info!("{}: tab {id} has a linked source saved since its update", Self::KIND.app.slug());
+                    tab.links.state = Linked::Changed(source.0.display().to_string());
+                    tab.links.watcher = None;
+                    cx.notify();
+                })
             })
         })
-        .detach_and_log_err(cx);
+        .detach();
     }
 
     /// Later saves of tab `id`'s sources go unseen.
@@ -230,7 +237,7 @@ pub trait Linking: Host<Engine = crate::Lok> {
 impl<H: Host<Engine = crate::Lok>> Linking for H {}
 
 /// Watches the folders of tab `id`'s sources.
-fn watch<H: Linking>(id: u64, dirs: &[PathBuf], cx: &mut Context<H>) -> notify::Result<RecommendedWatcher> {
+fn watch<H: Linking>(id: u64, dirs: &[PathBuf], shared: crate::shared::Handle<H>, cx: &mut Context<H>) -> notify::Result<RecommendedWatcher> {
     let (sender, mut changes) = mpsc::unbounded();
     let mut watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
         // Reads, the kernel's included, are no change.
@@ -243,15 +250,20 @@ fn watch<H: Linking>(id: u64, dirs: &[PathBuf], cx: &mut Context<H>) -> notify::
     for dir in dirs {
         watcher.watch(dir, RecursiveMode::NonRecursive)?;
     }
-    cx.spawn(async move |host, cx| {
+    cx.spawn(async move |_, cx: &mut gpui::AsyncApp| {
         while let Some(first) = changes.next().await {
             cx.background_executor().timer(SETTLE).await;
             let mut failed = first.err();
             while let Ok(more) = changes.try_recv() {
                 failed = more.err().or(failed);
             }
-            if host.update(cx, |host, cx| host.sources_moved(id, failed, cx)).is_err() {
-                break;
+            // The tab may have moved to another window.
+            let told = cx.update(|cx| {
+                let holder = shared.hosts().into_iter().find(|host| host.read(cx).tab(id).is_some());
+                holder.map(|holder| holder.update(cx, |host, cx| host.sources_moved(id, failed, cx)))
+            });
+            if told.is_none() {
+                log::info!("{}: tab {id}'s sources moved, but no window holds it", H::KIND.app.slug());
             }
         }
     })

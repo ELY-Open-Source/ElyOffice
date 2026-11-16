@@ -112,7 +112,7 @@ impl Viewer {
             return self.lay_text(cx);
         };
         let (langs, replace, data, tab, id) = (langs.join("+"), *replace, run.data.clone(), *tab, run.id);
-        let viewer = cx.weak_entity();
+        let (viewer, busy) = (cx.weak_entity(), self.hold(tab));
         view.update(cx, |view, cx| {
             let doc = view.doc;
             view.off(
@@ -122,6 +122,7 @@ impl Viewer {
                 },
                 move |_, read, cx| {
                     cx.defer(move |cx| {
+                        let _busy = busy;
                         if let Some(viewer) = viewer.upgrade() {
                             viewer.update(cx, |viewer, cx| viewer.ocr_read((tab, id, page), read, cx));
                         }

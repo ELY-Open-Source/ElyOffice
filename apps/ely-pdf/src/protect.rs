@@ -148,7 +148,10 @@ impl Viewer {
         };
         let tail = Self::text(cx, if lock.is_some() { "pdf.protect.tail" } else { "pdf.protect.bare" }, &[]);
         let chosen = cx.prompt_for_new_path(&dir, Some(&beside(&open.name, &tail)));
+        // The tab stays here until this ends.
+        let busy = self.hold(tab);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let chosen = match chosen.await {
                 Ok(Ok(path)) => Ok(path),
                 Ok(Err(error)) => Err(error.to_string()),

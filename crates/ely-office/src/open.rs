@@ -7,7 +7,7 @@ use std::{
 };
 
 use ely_files::{Open, Session};
-use gpui::{AppContext as _, Context, Entity, TaskExt as _, Window};
+use gpui::{AppContext as _, Context, Entity, Subscription, TaskExt as _, Window};
 
 use crate::engine::{Engine, Load};
 use crate::files::{self, file_name};
@@ -363,7 +363,7 @@ pub trait Opening: Host {
                 text(cx, "office.untitled", &[("n", &n)])
             }
         };
-        self.watch(id, &view, cx);
+        let watching = self.watch(id, &view, cx);
         // Hidden views never draw nor ask the engine.
         let front = self.core().takes_front(id);
         // Keys typed while it loaded go first.
@@ -388,6 +388,8 @@ pub trait Opening: Host {
             pausing: 0,
             reopen: false,
             extra: Default::default(),
+            watching,
+            busy: Default::default(),
         });
         if front {
             self.core_mut().landed_front(id);
@@ -437,12 +439,9 @@ pub trait Opening: Host {
     }
 
     /// Engine errors become toasts; kernel edits mark the session.
-    fn watch(&mut self, id: u64, view: &Entity<View<Self>>, cx: &mut Context<Self>) {
+    fn watch(&mut self, id: u64, view: &Entity<View<Self>>, cx: &mut Context<Self>) -> Vec<Subscription> {
         let seen = std::cell::Cell::new(Self::Engine::edited(view.read(cx)));
-        let reported = move |host: &mut Self,
-                             view: &Entity<View<Self>>,
-                             modified: bool,
-                             cx: &mut Context<Self>| {
+        let reported = move |host: &mut Self, view: &Entity<View<Self>>, modified: bool, cx: &mut Context<Self>| {
             let edited = Self::Engine::edited(view.read(cx));
             let moved = seen.replace(edited) != edited;
             if let Some(tab) = host.tab_mut(id) {
@@ -484,7 +483,7 @@ pub trait Opening: Host {
             let shown = text(cx, "office.error.engine", &[("error", error)]);
             host.toast_unlogged(shown, ely_gpui_component::primitives::Severity::Danger, cx);
             crate::Stopping::check_engine(host, cx);
-        });
+        })
     }
 }
 

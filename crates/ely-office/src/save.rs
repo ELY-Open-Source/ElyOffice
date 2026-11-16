@@ -126,7 +126,9 @@ pub trait Saving: Host {
         log::info!("office: asks where to save tab {id}");
         let chosen =
             cx.prompt_for_new_path(&dir, Some(&format!("{stem}.{}", Self::KIND.save_as[0])));
+        let busy = self.hold(id);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let chosen = match chosen.await {
                 Ok(Ok(path)) => Ok(path),
                 Ok(Err(error)) => Err(error.to_string()),
@@ -279,7 +281,9 @@ pub trait Saving: Host {
         };
         // The disk is seen off the window, then kept against.
         let seen = cx.background_spawn(async move { (ely_files::Fingerprint::of(&path), path) });
+        let busy = self.hold(id);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let seen = seen.await;
             in_window(&this, cx, |host, window, cx| host.keep_seen(id, format, seen, then, window, cx))
         })
@@ -329,7 +333,9 @@ pub trait Saving: Host {
 
     /// Reopens a flagged tab once nothing in memory is unsaved.
     fn reopen_if_saved(&mut self, id: u64, cx: &mut Context<Self>) {
+        let busy = self.hold(id);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             in_window(&this, cx, |host, _, cx| {
                 let Some(tab) = host.tab(id).filter(|tab| tab.reopen) else {
                     return;

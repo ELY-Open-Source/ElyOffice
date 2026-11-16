@@ -131,7 +131,10 @@ impl Viewer {
             Removal::Clean { .. } => Self::text(cx, "pdf.clean.tail", &[]),
         };
         let chosen = cx.prompt_for_new_path(&dir, Some(&beside(&open.name, &tail)));
+        // The tab stays here until this ends.
+        let busy = self.hold(tab);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let chosen = match chosen.await {
                 Ok(Ok(path)) => Ok(path),
                 Ok(Err(error)) => Err(error.to_string()),
