@@ -215,6 +215,7 @@ mod tests {
         let mut first = std::process::Command::new(&exe)
             .args(["--exact", "instance::tests::first_copy", "--nocapture"])
             .env("ELY_FIRST_DIR", dir.path())
+            .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .spawn()
             .expect("the first copy");
@@ -223,6 +224,8 @@ mod tests {
         let file = std::path::PathBuf::from("C:/notes/a b.md");
         let second = start(AppId::Doc, dir.path(), &Launch { files: vec![file.clone()], new_window: false }).expect("handed over");
         assert!(matches!(second, Start::Handed));
+        // The receipt came; the first copy may end.
+        drop(first.stdin.take());
         let got = said.find(|line| line.contains("GOT"));
         assert_eq!(got.as_deref().and_then(|line| line.split("GOT ").nth(1)), Some(file.to_str().expect("text")));
         assert!(first.wait().expect("ends").success());
@@ -265,6 +268,8 @@ mod tests {
         println!("HELD");
         let files = heard.recv_timeout(std::time::Duration::from_secs(20)).expect("a hand-over");
         println!("GOT {}", files[0].display());
+        // Its door sends the receipt before this exits.
+        std::io::Read::read_to_end(&mut std::io::stdin(), &mut Vec::new()).expect("the parent's word");
     }
 
     /// One copy, in a process of its own.

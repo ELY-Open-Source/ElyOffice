@@ -660,6 +660,7 @@
 - [ ] R19.6 Windows 虚拟机（7877）的 0.1.16 基准所见两处（§20，PERF-01、PERF-02）：一、六个应用的首次启动超 3 秒（ElyDoc 3890、ElyTable 3610、ElyShow 3422、ElyPDF 10890、ElyMail 3437、ElyMark 3234 毫秒），日常启动皆在 0.2 至 0.7 秒；与 2026-11 所查相符：Defender 在新建的可执行文件跑任何代码前先扫描，约每 MB 45 毫秒，根治待安装包签名（R-02）；ElyPDF 的 10.9 秒远超其 29 MB 应得，待查。二、ElyMail 打字时主线程六次忙 134 至 511 毫秒，各在一次搜索答“0 messages”之后约 0.8 秒；R14.48f 的时区修复（`patches/gpui/0004`）仍在，另有原因，待取栈
 - [x] R19.7 Linux arm64 的发布任务在 GitHub 托管机上跑不完（§4）：v0.1.16 两次都在约 2 小时处被关（第一次 32 分钟失联，第二次 2 小时 0 分收到关机信号，内核已建完、测试门编译中），与 2026-11-08 的探测（2 小时 1 分）一致；托管机每次现场建内核约 1 小时 55 分，余下的测试门与打包装不进去。改为能复用已建引擎的自托管 arm64 机，或把内核构建拆成缓存的前一任务；做成前发布不含 Linux arm64（0.1.15 亦无）。2026-11-14 用户定不出 Linux arm64，任务已删（SF.2）
 - [ ] R19.8 ElyTable 图形文本的撤销测试 `undo_and_redo_work_inside_a_shape_text_edit` 偶发失败（Mac 发布任务，2026-11-13）：双击后立刻打字，负载下双击未进文本编辑，Q 落在框外；先等进入文本编辑再打字
+- [ ] R19.9 ElyShow 整组跑时 `animation.add` 偶被拒（Windows 测试机，W.1 前即有，SF.32 查出）：日志“animation.add failed, 0 steps undone”、request 14 failed (Other)，单跑不现；取 LokError 的完整错误，查 `Check::Undoable`（`commands/show.rs:73`）为何在负载下判失败
 
 ## SF 秒开（用户 2026-11-14 定，方案与实测在根目录 `SuperFast.md`；按其“顺序”逐条做，每条在对应测试机上重量、数字写回 `SuperFast.md`。规矩同 R18。SF.7 至 SF.21 之间不打发布标签）
 
@@ -708,5 +709,5 @@
 
 - [ ] SF.30 Windows 空闲引擎的周期（SF.23 余项）：同一门量空闲的 `ely-pdf-worker` 与一个空 Rust 进程作对照；只 LOK worker 有，即以 ETW（线程池、线程、映像载入）按模块找出排活者；仍找不到装调试工具一次，到此为止
 - [ ] SF.31 macOS 空闲引擎与首次打开（SF.23 余项）：测试机 7885 量空闲门，`idle.json` 补 darwin 项；装完与重启后首次打开各 5 次
-- [ ] SF.32 W.1 后整组测试的两处超时：`ely-platform` 实例门、ElyShow `a_check_asked_after_a_waiting_output_wins` 超时时各在等什么；整组再跑两三遍，并在 W.1 之前的提交上跑同一组；只在 W.1 之后同一测试败即为缺陷，修
+- [x] SF.32 W.1 后整组测试的两处超时：`ely-platform` 实例门、ElyShow `a_check_asked_after_a_waiting_output_wins` 超时时各在等什么；整组再跑两三遍，并在 W.1 之前的提交上跑同一组；只在 W.1 之后同一测试败即为缺陷，修 — 已查：实例门测试的第一份读到文件即退出，负载下门线程来不及回执，第二份报“the other copy hung up”；门先交文件后回执在 W.1 前即如此，是测试的竞争，第一份改为等父进程答完再退，Linux 连跑 5 遍全过。ElyShow：Windows 整组跑时，W.1 前的提交（6696e1a3）5 遍败 4 遍，W.1 之后 9 遍败 3 遍，败的是同一批测试，单跑皆过，故不是 W.1 引入。但不是单纯等得不够：留了日志的一次（`the_current_slide_is_the_one_just_picked`）里，`animation.add` 被内核检查拒绝（“animation.add failed, 0 steps undone”，request 14 failed (Other)），之后才在 `play.rs:46` 等效果超时；W.1 前 `back_shows_a_slide_fully_built_even_without_clicks` 败在 `objects.rs:32`。拒绝的原因另立 R19.9 追查
 - [ ] SF.33 收尾对照：最终构建在测试机 7877 与 Office 热启动各 5 次（big.docx、sheet.xlsx、deck.ppt）；装完与重启后首次打开各 5 次；数字写回 `SuperFast.md` 的目标表（加“现在”一列），删去过时的“未量”与文件头的“代码一行未改”；未超过的如实写明余下在哪
