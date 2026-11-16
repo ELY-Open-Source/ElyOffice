@@ -62,6 +62,7 @@ pub struct WindowsWindowState {
     pub last_reported_capslock: Cell<Option<Capslock>>,
     pub hovered: Cell<bool>,
     pub last_visibility: Cell<Option<WindowVisibility>>,
+    pub destroyed: Cell<bool>,
     pub direct_manipulation: DirectManipulationHandler,
 
     pub renderer: RefCell<DirectXRenderer>,
@@ -178,6 +179,7 @@ impl WindowsWindowState {
             last_reported_capslock: Cell::new(last_reported_capslock),
             hovered: Cell::new(hovered),
             last_visibility: Cell::new(None),
+            destroyed: Cell::new(false),
             renderer: RefCell::new(renderer),
             force_render_pending: Cell::new(false),
             click_state,
@@ -613,10 +615,14 @@ impl rwh::HasDisplayHandle for WindowsWindow {
 impl Drop for WindowsWindow {
     fn drop(&mut self) {
         self.0.dialog_owner.close();
-        unsafe { ShowWindowAsync(self.0.hwnd, SW_HIDE).ok().log_err() };
         // `DestroyWindow` below sends `WM_SHOWWINDOW`; without a callback the
         // resulting visibility report has nothing to notify.
         self.0.state.callbacks.visibility_change.take();
+        // Windows already destroyed it.
+        if self.0.state.destroyed.get() {
+            return;
+        }
+        unsafe { ShowWindowAsync(self.0.hwnd, SW_HIDE).ok().log_err() };
         // clone this `Rc` to prevent early release of the pointer
         let this = self.0.clone();
         self.0
@@ -624,10 +630,7 @@ impl Drop for WindowsWindow {
             .spawn(async move {
                 this.dialog_owner.when_idle().await;
                 let handle = this.hwnd;
-                unsafe {
-                    RevokeDragDrop(handle).log_err();
-                    DestroyWindow(handle).log_err();
-                }
+                unsafe { DestroyWindow(handle).log_err() };
             })
             .detach();
     }
@@ -1081,7 +1084,8 @@ impl PlatformWindow for WindowsWindow {
 
     fn a11y_init(&self, callbacks: gpui::A11yCallbacks) {
         let action_handler = A11yActionHandler(callbacks.action);
-        let is_focused = unsafe { GetForegroundWindow() } == self.0.hwnd;
+        // WM_ACTIVATE tracks this; a click to the front sends none.
+        let is_focused = self.is_active();
 
         let adapter = accesskit_windows::Adapter::new(
             accesskit_windows::HWND(self.0.hwnd.0),

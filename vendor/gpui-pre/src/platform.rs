@@ -3402,14 +3402,13 @@ fn decode_animated_frames<'a>(
                 }
                 frames.push(frame);
             }
-            Err(err) => {
-                log::debug!("Skipping {format_name} frame due to decode error: {err}");
-            }
+            // A bad frame ends it: the decoder may never stop.
+            Err(err) => return Err(err.into()),
         }
     }
 
     if frames.is_empty() {
-        anyhow::bail!("{format_name} could not be decoded: all frames failed");
+        anyhow::bail!("{format_name} could not be decoded: no frames");
     }
 
     Ok(frames)

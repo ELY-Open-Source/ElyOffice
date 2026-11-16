@@ -5,7 +5,7 @@ A test could not tell whether the app asked the platform to quit.
 diff --git a/vendor/gpui-pre/src/app/test_context.rs b/vendor/gpui-pre/src/app/test_context.rs
 --- a/vendor/gpui-pre/src/app/test_context.rs
 +++ b/vendor/gpui-pre/src/app/test_context.rs
-@@ -218,6 +218,11 @@ impl TestAppContext {
+@@ -218,6 +218,11 @@
          self.test_platform.did_prompt_for_new_path()
      }
  
@@ -20,7 +20,7 @@ diff --git a/vendor/gpui-pre/src/app/test_context.rs b/vendor/gpui-pre/src/app/t
 diff --git a/vendor/gpui-pre/src/platform/test/platform.rs b/vendor/gpui-pre/src/platform/test/platform.rs
 --- a/vendor/gpui-pre/src/platform/test/platform.rs
 +++ b/vendor/gpui-pre/src/platform/test/platform.rs
-@@ -53,6 +53,7 @@ pub(crate) struct TestPlatform {
+@@ -53,6 +53,7 @@
      idle_sleep_prevention_count: Arc<AtomicUsize>,
      idle_sleep_prevention_delay: Cell<Duration>,
      idle_sleep_prevention_fails: Cell<bool>,
@@ -28,7 +28,7 @@ diff --git a/vendor/gpui-pre/src/platform/test/platform.rs b/vendor/gpui-pre/src
      headless_renderer_factory:
          Option<Box<dyn Fn() -> anyhow::Result<Option<Box<dyn PlatformHeadlessRenderer>>>>>,
      weak: Weak<Self>,
-@@ -126,6 +127,11 @@ pub(crate) struct TestPrompts {
+@@ -126,6 +127,11 @@
  }
  
  impl TestPlatform {
@@ -37,10 +37,10 @@ diff --git a/vendor/gpui-pre/src/platform/test/platform.rs b/vendor/gpui-pre/src
 +        self.quit_requests.get()
 +    }
 +
-     #[cfg(any(test, feature = "test-support"))]
-     pub fn new(executor: BackgroundExecutor, foreground_executor: ForegroundExecutor) -> Rc<Self> {
-         Self::with_platform(
-@@ -255,6 +261,7 @@ impl TestPlatform {
+     #[cfg(test)]
+     pub(crate) fn cursor_style(&self) -> CursorStyle {
+         *self.active_cursor.lock()
+@@ -260,6 +266,7 @@
              idle_sleep_prevention_count: Arc::new(AtomicUsize::new(0)),
              idle_sleep_prevention_delay: Cell::new(Duration::ZERO),
              idle_sleep_prevention_fails: Cell::new(false),
@@ -48,7 +48,7 @@ diff --git a/vendor/gpui-pre/src/platform/test/platform.rs b/vendor/gpui-pre/src
              weak: weak.clone(),
              opened_url: Default::default(),
              system_notifications: Default::default(),
-@@ -528,7 +535,9 @@ impl Platform for TestPlatform {
+@@ -533,7 +540,9 @@
          unimplemented!()
      }
  

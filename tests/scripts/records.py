@@ -10,7 +10,7 @@ RECORDS = ["tasks/TASKS.md", "tasks/BUGS.md", "docs/decisions.md", "docs/BugList
 GONE, LOCAL = "（已移除）", "（本机，未入库）"
 # Repo-rooted paths; tests/ only where the root has it.
 REF = re.compile(r"(?<![\w/.-])`?((?:\.work|\.gitea|\.github|scripts|apps|crates|docs|packaging|tasks"
-                 r"|tests/(?:scripts|perf|engines|fixtures))/[A-Za-z0-9_.,{}*/-]*[A-Za-z0-9_/*])`?")
+                 r"|tests/(?:scripts|perf|engines|fixtures))/[A-Za-z0-9_.,{}*@/-]*[A-Za-z0-9_/*])`?")
 
 
 def faults(text, tracked):

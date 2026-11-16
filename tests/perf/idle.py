@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The idle engines under a data folder: no CPU, memory as recorded (SF-13)."""
+"""Idle engines: no CPU, memory within the record."""
 
 import argparse
 import ctypes
@@ -20,7 +20,7 @@ SETTLE_S = 200
 
 
 def linux():
-    """Pid, command line, live threads' run time in ns, resident MB, thread ids."""
+    """Pid, command, live threads' ns, resident MB, thread ids."""
     for pid in filter(str.isdigit, os.listdir("/proc")):
         try:
             with open(f"/proc/{pid}/cmdline", "rb") as file:
@@ -86,7 +86,7 @@ UNIT = {"linux": "ns", "darwin": "mach time units", "win32": "cycles"}
 
 
 def engines(root):
-    """App to (pid, CPU used, resident MB, Linux thread ids) under `root`."""
+    """Each app's engine under `root`: pid, CPU, MB, threads."""
     read = {"linux": linux, "darwin": mac, "win32": windows}[sys.platform]
     found = {}
     for pid, line, used, mb, tasks in read():

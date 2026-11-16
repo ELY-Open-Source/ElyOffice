@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""First opens of the installed apps: after install, after reboot (SF-13)."""
+"""Installed apps' first opens after install and reboot."""
 
 import argparse
 import ctypes
@@ -62,7 +62,7 @@ def uptime_s():
 
 
 def opened(slug, path):
-    """Ms from the open to the first tile, and the app's version."""
+    """Ms to the first tile, and the app's version."""
     log, name = log_of(slug), os.path.basename(path)
     since = os.path.getsize(log) if os.path.exists(log) else 0
     # Log stamps are whole milliseconds.
@@ -100,7 +100,7 @@ def closed(exe):
 
 
 def office(program, path):
-    """Ms from Office's start to a window titled with the file."""
+    """Ms until Office shows a window titled with the file."""
     user32, base = ctypes.windll.user32, os.path.splitext(os.path.basename(path))[0]
     process = subprocess.Popen([os.path.join(OFFICE_DIR, program), path])
     began, titles = time.monotonic(), []
@@ -155,7 +155,7 @@ def main():
 
 
 def compare(work, record):
-    """Office's times after Ely's record; a failure is written, not raised."""
+    """Appends Office's times; a failure is written down."""
     lines = []
     for _, name, _ in CASES:
         try:

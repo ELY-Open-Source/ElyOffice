@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# First opens: a trimmed log, and Office never holding Ely's record.
+# A trimmed log; Office never holds Ely's record.
 import datetime
 import os
 import sys
