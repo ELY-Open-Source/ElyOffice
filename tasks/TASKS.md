@@ -707,7 +707,7 @@
 
 ## SF 收尾（顾问终审 2026-11-16：未完成；量与验收，规矩同 R18）
 
-- [ ] SF.30 Windows 空闲引擎的周期（SF.23 余项）：同一门量空闲的 `ely-pdf-worker` 与一个空 Rust 进程作对照；只 LOK worker 有，即以 ETW（线程池、线程、映像载入）按模块找出排活者；仍找不到装调试工具一次，到此为止
+- [x] SF.30 Windows 空闲引擎的周期（SF.23 余项）：同一门量空闲的 `ely-pdf-worker` 与一个空 Rust 进程作对照；只 LOK worker 有，即以 ETW（线程池、线程、映像载入）按模块找出排活者；仍找不到装调试工具一次，到此为止 — 已做：PDF worker 600 秒周期是空程序的 2.3 倍，三个 LOK 引擎 85 至 218 倍；ETW 见每个引擎 11 个单次线程池计时器同时到期一回；装 WinDbg 后 `cdb` 断 `TpSetTimer` 查明注册者是各系统库里 WIL 的功能用量上报（RecordFeatureUsage），一处可见内核 `vclplug_winlo` 模块经 `SHGetPropertyStoreForWindow` 进 shell32（无 PDB，内部函数未定）；是否就是那些周期的来由、周期花在哪，未定；系统库内部的上报关不掉，到此为止；SF.23 的 Windows 项仍 `[!]`；数字在 `SuperFast.md` 的 SF.23 节
 - [ ] SF.31 macOS 空闲引擎与首次打开（SF.23 余项）：测试机 7885 量空闲门，`idle.json` 补 darwin 项；装完与重启后首次打开各 5 次
 - [x] SF.32 W.1 后整组测试的两处超时：`ely-platform` 实例门、ElyShow `a_check_asked_after_a_waiting_output_wins` 超时时各在等什么；整组再跑两三遍，并在 W.1 之前的提交上跑同一组；只在 W.1 之后同一测试败即为缺陷，修 — 已查：实例门测试的第一份读到文件即退出，负载下门线程来不及回执，第二份报“the other copy hung up”；门先交文件后回执在 W.1 前即如此，是测试的竞争，第一份改为等父进程答完再退，Linux 连跑 5 遍全过。ElyShow：Windows 整组跑时，W.1 前的提交（6696e1a3）5 遍败 4 遍，W.1 之后 9 遍败 3 遍，败的是同一批测试，单跑皆过，故不是 W.1 引入。但不是单纯等得不够：留了日志的一次（`the_current_slide_is_the_one_just_picked`）里，`animation.add` 被内核检查拒绝（“animation.add failed, 0 steps undone”，request 14 failed (Other)），之后才在 `play.rs:46` 等效果超时；W.1 前 `back_shows_a_slide_fully_built_even_without_clicks` 败在 `objects.rs:32`。拒绝的原因另立 R19.9 追查
 - [ ] SF.33 收尾对照：最终构建在测试机 7877 与 Office 热启动各 5 次（big.docx、sheet.xlsx、deck.ppt）；装完与重启后首次打开各 5 次；数字写回 `SuperFast.md` 的目标表（加“现在”一列），删去过时的“未量”与文件头的“代码一行未改”；未超过的如实写明余下在哪

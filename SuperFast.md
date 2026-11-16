@@ -459,7 +459,22 @@ Mac 上的载入已比 Windows 快三至四倍，时间花在起内核：热的�
 - 不是窗口消息：主线程挂钩看了投递与发送的消息，启动 15 秒后 Calc 的计时器消息停了，之后七分钟只有一条，第 6 分钟 COM 的 `OleMainThreadWndClass` 收到 `WM_USER`。
 - 每 60 至 130 秒一阵，每阵 300 万至 6600 万周期，三个引擎按各自起来的先后，差 5 秒依次来。每阵都有线程池线程新建、之后退出（线程数 8 到 10 至 13 再回 8）。新线程要过每个已载 DLL 的 `DllMain`，内核载了几百个。
 - 我们的代码不用线程池（无 `RegisterWait`、`CreateThreadpool` 一类调用），也没有一分钟上下的等待。谁往线程池里排的活，没查到：测试机没有调试器、没有内核的 PDB，内核的 `SAL_LOG` 编译时关了。
-- 未解决，SF.23 记为 `[!]` 的一项。下一步要在测试机上装 Windows 调试工具，或内核打开 `SAL_LOG` 重建。
+- SF.30（2026-11-16，测试机 7877）：同一台机、同时静置，200 秒后量 600 秒，机上无别的活，进程按命令行认应用：
+
+| 进程 | 载入的映像 | 600 秒周期，第 1 轮 | 第 2 轮 |
+| --- | --- | --- | --- |
+| 只睡觉的 Rust 程序 | 6 | 120 万 | 116 万 |
+| `charmap`（经典 Win32 界面程序） | 未数 | 1614 万 | 未量 |
+| 空闲的 `ely-pdf-worker`（MuPDF） | 19 | 未量 | 262 万 |
+| ElyDoc 空闲引擎 | 118 | 2.61 亿 | 1.87 亿 |
+| ElyTable 空闲引擎 | 127 | 1.76 亿 | 0.99 亿 |
+| ElyShow 空闲引擎 | 117 | 1.23 亿 | 1.96 亿 |
+
+- 量的是周期，不是线程池的动静：三个引擎是同一轮空程序的 85 至 218 倍，PDF worker 2.3 倍，`charmap` 14 倍。对照与引擎载入的映像数不同（6、19、未数，对 117 至 127），这张表分不开“LOK”与“载了很多系统库的进程”；每个对照只有一两个 600 秒窗口。
+- ETW（线程池与内核的进程、线程、映像事件，283 秒）：每个引擎里同一子队列上 11 个单次计时器一起到期一回，回调分属 shell32、windows.storage、clbcatq、KernelBase、d3d9、uxtheme、combase、crypt32、winspool.drv、SHCore、msctf。与这批到期同一时段，Doc、Table、Show 各出现 2、2、3 个同入口线程，采样结束前未见退出；更早的一些线程寿命约 100 至 108 秒，不能确定与这批回调同因。这次只见到一回，有没有周期、多久一次，未定。
+- 注册者（装 WinDbg 一次，每 50 毫秒轮询 ElyDoc 空闲引擎的进程号，见到即起 `cdb` 接上（实际接上与下断点的时刻未测），420 秒内断 `ntdll!TpSetTimer`、`TpSetTimerEx`，记 28 个调用栈）：这 11 个计时器是 WIL（Windows Implementation Library）的功能用量上报，每个系统库各有一份，`RecordFeatureUsage` → `EnsureCoalescedTimer_SetTimer`；正是 ETW 见到的那 11 个库。多数栈只有系统帧，是缓存的用量在线程池里补报；一处可见 `vclplug_winlo` 模块经 `SHGetPropertyStoreForWindow` 进入 shell32 的功能检查；内核没有 PDB，栈上只有最近的导出名，精确的内部函数未定。另有 `RPCRT4!PerformGarbageCollection` 自己重排的计时器。
+- 未定：这些上报是否就是表里那些周期的来由（ETW 283 秒一批，表是另一回 600 秒）；周期花在线程挂接还是回调里。上报由内核调用系统库时触发（`vclplug_winlo.dll` 的 PE 导入表里有 winspool.drv、shell32、uxtheme，审查者读的），系统库内部的上报我们关不掉。按任务，查到这里为止。
+- SF.23 的 Windows 一项照旧 `[!]`。
 
 首次打开（测试机，main 建的安装包，毫秒）。Ely 计到首个图块，Office 计到标题带文件名的窗口，各 1 次，只看方向。记录在 `docs/perf/2026-11-16-…-Windows-install.md`、`-reboot.md`。
 
