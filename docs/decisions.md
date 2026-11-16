@@ -1132,3 +1132,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 表格形状文字一项（`sheet::undo_and_redo_work_inside_a_shape_text_edit`，Mac 上五次败一次）：双击与按键是投递的，保存可能先于它们。改为等光标进了框，再等 Q 让光标右移，才保存。
 - CI 自 SF.22 起每次都败在头一个坏步上，后面的步从没跑到：`docs/compatibility.md` 少记补丁 0134；`ci-upload.sh` 的假 cargo 没有 SF.23 起空闲引擎要的三个应用与 `idle.py`。都已补；本机照 `pr.yml` 逐步跑过。
 - 本机 shell 设了 `GIT_ASKPASS`（Cindy 的），ElyTree 的 `a_refused_credential_says_so` 会去问它而不报 “terminal prompts disabled”；去掉这些变量即过，CI 没有它们。
+
+## 2026-11-16 ElyMark 导出的 PDF 取子集、压缩（SF.28）
+
+- `ely_html_pdf` 不再直接写文件：MuPDF 的 PDF 写出写进内存，重开后 `pdf_subset_fonts_from(ctx, pdf, 0, NULL, 0)` 切全部字体（新文件的字体都是导出时加的；切不了即报错），以 `ely_save_options()` 加 `do_garbage = 2` 写出。一页中文由 23,862,494 字节到 393,792，英文由 71,756 到 16,153。

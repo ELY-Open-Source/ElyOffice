@@ -76,3 +76,31 @@ fn a_picture_taller_than_a_page_still_sets() {
     worker.html_pdf(dir.path(), "page.html", &pdf).expect("sets");
     assert!(read(&mut worker, &pdf).0 >= 1);
 }
+
+#[test]
+fn a_page_in_each_language_embeds_only_its_glyphs() {
+    // A CJK page once embedded the whole 24 MB face.
+    let texts = [
+        ("en", "The quick brown fox jumps over the lazy dog."),
+        ("zh", "今天天气很好，我们去公园散步。"),
+        ("es", "El veloz murciélago hindú comía feliz cardillo y kiwi."),
+        ("fr", "Voix ambiguë d'un cœur qui au zéphyr préfère les jattes de kiwis."),
+        ("de", "Zwölf Boxkämpfer jagen Viktor quer über den großen Sylter Deich."),
+        ("ja", "いろはにほへと ちりぬるを 日本語の文章です。"),
+        ("ko", "다람쥐 헌 쳇바퀴에 타고파 한국어 문장입니다."),
+        ("vi", "Tiếng Việt có dấu: Đường xa không ngại, ở đây ăn ngon."),
+    ];
+    for (lang, words) in texts {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        page(dir.path(), &format!("<p>{words}</p>"));
+        let pdf = dir.path().join("out.pdf");
+        let mut worker = worker();
+        worker.html_pdf(dir.path(), "page.html", &pdf).expect("sets");
+        let size = std::fs::metadata(&pdf).expect("the file").len();
+        eprintln!("{lang}: {size}");
+        assert!(size < 1_000_000, "{lang}: {size} bytes");
+        let (_, text) = read(&mut worker, &pdf);
+        let first: String = words.chars().filter(|c| !c.is_whitespace()).take(4).collect();
+        assert!(text.chars().filter(|c| !c.is_whitespace()).collect::<String>().contains(&first), "{lang}: {text:?}");
+    }
+}
