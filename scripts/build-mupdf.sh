@@ -14,7 +14,8 @@ case $(uname -s) in
     rm -rf "$src" && mkdir -p "$src"
     tar -C "$root/reference/mupdf" --exclude .git -cf - . | tar -C "$src" -xf -
     ;;
-  *) rsync -a --delete --exclude .git "$root/reference/mupdf/" "$src/" ;;
+  # Content, not times: a dropped patch must rebuild its files.
+  *) rsync -rlpc --delete --exclude .git "$root/reference/mupdf/" "$src/" ;;
 esac
 for patch in "$root"/patches/mupdf/*.patch; do
   patch -d "$src" -p1 --forward --batch --quiet <"$patch"

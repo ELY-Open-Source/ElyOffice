@@ -67,6 +67,7 @@ Larger changes to the filters fix real losses too, but each changes what Calc or
 | 0006 | On Windows `fz_fopen_utf8` never shares delete; no rename can replace an open document. |
 | 0007 | The sanitize filter sends no stroke state before text; stroked text loses its width and dash. |
 | 0008 | The sanitize filter drops marked content that was empty in the source (`/Artifact BMC EMC`). |
+| 0011 | A collection face's ToUnicode comes from its own cmap alone; faces that share one font object (Source Han Serif's Japanese and Simplified faces) leave the other face's regional glyphs unmapped. |
 | 0010 | The CFF subsetter scans each glyph and subr on its own empty stack: operands a subr leaves are lost, hintmask lengths come out wrong, and 127 of 128 batches of Source Han Serif's glyphs fail to subset. It also takes a glyph's font dict from the next kept glyph. |
 
 0003 (OCR fails when a requested language does not load) changes a choice Tesseract's caller makes; it is a proposal, not a defect report. 0009 (`pdf_subset_fonts_from`, subsetting only font files numbered from a given object) is a new entry point, also a proposal.

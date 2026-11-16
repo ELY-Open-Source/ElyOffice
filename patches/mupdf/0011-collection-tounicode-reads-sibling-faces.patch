@@ -1,0 +1,76 @@
+A collection face's ToUnicode also reads its sibling faces.
+
+Source Han Serif's Japanese, Korean, Simplified and Traditional
+faces sit in one .ttc and share their glyphs, differing only in
+cmap. An export that drew kana in the Japanese face and Han in the
+Simplified one wrote both through one font object, whose ToUnicode
+came from one face's cmap alone: the other face's regional glyphs
+read back as nothing. The ToUnicode now gives each glyph the face's
+own code point, else one from the collection's other faces that
+have as many glyphs; the last code point of a glyph wins in both.
+
+--- a/source/pdf/pdf-font-add.c	2026-11-16 06:17:20.140237462 -0500
++++ b/source/pdf/pdf-font-add.c	2026-11-16 06:39:30.466513783 -0500
+@@ -440,16 +440,62 @@
+ 		FT_ULong ucs;
+ 		FT_UInt gid;
+ 
++		FT_Error failed = 0;
++		unsigned char *own = NULL;
++		int i;
++
+ 		table = fz_calloc(ctx, face->num_glyphs, sizeof *table);
++		if (is_ttc(font))
++		{
++			fz_try(ctx)
++				own = fz_calloc(ctx, face->num_glyphs, 1);
++			fz_catch(ctx)
++			{
++				fz_free(ctx, table);
++				fz_rethrow(ctx);
++			}
++		}
+ 		fz_ft_lock(ctx);
+ 		ucs = FT_Get_First_Char(face, &gid);
+ 		while (gid > 0)
+ 		{
+ 			if (gid < (FT_ULong)face->num_glyphs && face->num_glyphs > 0)
++			{
+ 				table[gid] = ucs;
++				if (own)
++					own[gid] = 1;
++			}
+ 			ucs = FT_Get_Next_Char(face, ucs, &gid);
+ 		}
++		/* Faces share glyphs; fill gaps from the collection's others. */
++		for (i = 0; own && i < face->num_faces && !failed; i++)
++		{
++			FT_Face other;
++			if (i == font->subfont)
++				continue;
++			failed = FT_New_Memory_Face(face->glyph->library, font->buffer->data, (FT_Long)font->buffer->len, i, &other);
++			if (failed)
++				break;
++			if (other->num_glyphs == face->num_glyphs)
++			{
++				ucs = FT_Get_First_Char(other, &gid);
++				while (gid > 0)
++				{
++					/* As above, the last code point of a glyph wins. */
++					if (gid < (FT_ULong)face->num_glyphs && !own[gid])
++						table[gid] = ucs;
++					ucs = FT_Get_Next_Char(other, ucs, &gid);
++				}
++			}
++			FT_Done_Face(other);
++		}
+ 		fz_ft_unlock(ctx);
++		fz_free(ctx, own);
++		if (failed)
++		{
++			fz_free(ctx, table);
++			fz_throw(ctx, FZ_ERROR_LIBRARY, "freetype cannot open face %d of %s: %s", i, font->name, ft_error_string(failed));
++		}
+ 	}
+ 
+ 	for (k = 0; k < face->num_glyphs; k += n)

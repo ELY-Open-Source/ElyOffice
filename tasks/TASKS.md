@@ -694,7 +694,7 @@
 - [x] SF.24 ElyPDF 保存后文件暴涨（SF-20）：复现、比较对象大小找出长出来的一类；保存时新写与重写的流压缩、新嵌字体取子集、未动对象原样；每种编辑后保存的大小测试
 - [x] SF.27 macOS 上空闲引擎的两项测试败（SF.25 三端测试时查出，main d5af7338 上即败）：`a_take_adopts_a_waiting_engine_and_else_starts_its_own` 报 “the worker did not listen; it said \"\" (exit status: 1)”，`an_engine_whose_checker_never_connects_exits_and_frees_the_lock` 报 “it holds the idle lock”；同一 worker 照测试的环境手起则监听正常。测试机 7885 上次跑到 SF.8，其后的空闲引擎改动未在 macOS 上测过。同批另有 ElyMark 两项：`outside::tests::clash` 的 `a_save_over_an_outside_change_asks_then_overwrites`（“the change shows in the status bar”）与 `a_deleted_file_shows_in_the_status_bar`，main 上连跑五次每次败一两项，时败时过。`a_named_printer_and_its_setup_survive_a_save` 败在测试机没有打印机（`lpstat -p` 无目的位置），另记。找根因、修、三端过
 - [x] SF.28 ElyMark 导出 PDF 有中文即整份嵌入 23.6 MB 的思源宋体（SF.24 量得一页中文 23,987,833 字节）：`ely_story` 的 PDF 写出不取子集、不压缩；写出前取子集（补丁 0009、0010），开压缩，量各语言导出的大小
-- [ ] SF.29 ElyMark 导出的日文 PDF 读回少字（SF.28 审查查出，修前即如此）：“いろはにほへと ちりぬるを 日本語の文章です。”导出后提取为“…日 の です。”，渲染无缺；查 story 写出的 CID 字体的 ToUnicode，修、加全文读回的测试
+- [x] SF.29 ElyMark 导出的日文 PDF 读回少字（SF.28 审查查出，修前即如此）：“いろはにほへと ちりぬるを 日本語の文章です。”导出后提取为“…日 の です。”，渲染无缺；查 story 写出的 CID 字体的 ToUnicode，修、加全文读回的测试
 
 ## 同一应用的第二个窗口（用户来信 2026-11-15；SF 各条做完后再做。规矩同 R18）
 

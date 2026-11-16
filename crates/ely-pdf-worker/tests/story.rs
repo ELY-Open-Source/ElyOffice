@@ -78,7 +78,7 @@ fn a_picture_taller_than_a_page_still_sets() {
 }
 
 #[test]
-fn a_page_in_each_language_embeds_only_its_glyphs() {
+fn a_page_in_each_language_embeds_only_its_glyphs_and_reads_back() {
     // A CJK page once embedded the whole 24 MB face.
     let texts = [
         ("en", "The quick brown fox jumps over the lazy dog."),
@@ -100,7 +100,7 @@ fn a_page_in_each_language_embeds_only_its_glyphs() {
         eprintln!("{lang}: {size}");
         assert!(size < 1_000_000, "{lang}: {size} bytes");
         let (_, text) = read(&mut worker, &pdf);
-        let first: String = words.chars().filter(|c| !c.is_whitespace()).take(4).collect();
-        assert!(text.chars().filter(|c| !c.is_whitespace()).collect::<String>().contains(&first), "{lang}: {text:?}");
+        let bare = |s: &str| s.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+        assert!(bare(&text).contains(&bare(words)), "{lang}: {text:?}");
     }
 }
