@@ -24,6 +24,7 @@ mod slides;
 mod slideshow;
 mod table;
 mod text;
+mod window;
 
 use ely_platform::AppId;
 
@@ -34,7 +35,7 @@ fn main() {
     if let Some(code) = remote::command_line() {
         std::process::exit(code);
     }
-    ely_ui::run(AppId::Show, ely_office::take_engine, deck::open, None);
+    ely_ui::run(AppId::Show, ely_office::take_engine, deck::open, Some(window::more));
 }
 
 #[cfg(test)]

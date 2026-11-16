@@ -225,16 +225,6 @@ impl Book {
         }
     }
 
-    /// Installs this window's menus, whatever was there.
-    pub(crate) fn install_menus(&mut self, able: (bool, bool), cx: &mut Context<Self>) {
-        self.undo_menu = able;
-        log::info!("table: undo {}, redo {}", able.0, able.1);
-        cx.defer(move |cx| {
-            ely_ui::set_document_menus(AppId::Table, &ely_ui::commands::FILE, menus(able, cx), cx);
-            cx.refresh_windows();
-        });
-    }
-
     pub fn text(cx: &App, key: &str, args: &[(&str, &str)]) -> SharedString {
         ely_ui::i18n::text(cx, key, args)
     }
@@ -261,6 +251,8 @@ impl Book {
         // Marked read now: a failure waits for the next change.
         let extra = &mut self.tab_mut(id).expect("the tab is open").extra;
         (extra.reading, extra.read) = (true, Some(seen));
+        // The tab stays here until this lands.
+        let busy = self.hold(id);
         ely_lok::read_off(
             &self.core.worker,
             &doc,
@@ -271,6 +263,7 @@ impl Book {
                 Ok((sheets, ely_lok::sheet::geometry(&json)?, at))
             },
             move |book: &mut Self, read, cx| {
+                let _busy = busy;
                 let Some(tab) = book.tab_mut(id) else {
                     return;
                 };
@@ -309,6 +302,8 @@ impl Book {
         }
         (tab.extra.linking, tab.extra.linked) = (true, Some(edited));
         let doc = tab.doc.clone();
+        // The tab stays here until this lands.
+        let busy = self.hold(id);
         ely_lok::read_off(
             &self.core.worker,
             &doc,
@@ -317,6 +312,7 @@ impl Book {
                 Ok((links, ely_lok::sheet::kept(&worker.values(doc, ely_lok::sheet::KEPT)?)?))
             },
             move |book: &mut Self, read, cx| {
+                let _busy = busy;
                 let Some(tab) = book.tab_mut(id) else {
                     return;
                 };

@@ -1,16 +1,9 @@
 //! ElyShow's window: decks over one LOK worker (§10.1).
 
-use std::{
-    collections::HashSet,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashSet, path::PathBuf};
 
 use ely_gpui_component::{primitives::IconName, shell::StatusBar};
-use ely_lok::{
-    LokView, Worker,
-    show::Design,
-};
+use ely_lok::{LokView, show::Design};
 use ely_office::{Core, Kind, prelude::*};
 use ely_platform::AppId;
 use ely_ui::{Root, Shell, commands};
@@ -96,6 +89,18 @@ impl Host for Deck {
         self.paint_next(id, cx);
     }
 
+    /// Its pictures stay with it; this window frees its copies.
+    fn tab_leaving(&mut self, id: u64, _: &mut Context<Self>) {
+        self.hand_pictures(id);
+    }
+
+    /// Its dialogs, preview and show serve the active tab.
+    fn asks_about(&self, id: u64) -> bool {
+        let active = self.core.active() == Some(id);
+        let showing = (self.preview.is_some() || self.show.is_some() || self.show_starting) && active;
+        self.dialog.as_ref().is_some_and(|dialog| dialog.about(id, active)) || showing
+    }
+
     fn read_at(&self, tab: u64, _: &gpui::App) -> Option<ely_lok::Doc> {
         self.tab(tab).and_then(|tab| tab.extra.read_at.clone())
     }
@@ -132,43 +137,27 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
         Ok(started) => started,
         Err(error) => ely_platform::startup::fail(app, &format!("{error}")),
     };
-    let deck = cx.new(|cx| {
-        let mut host = Deck::new(worker, stop, work, cx);
-        // Recovery points, crash return, autosave (§6.2, §6.3).
-        ely_office::Recovering::start_recovery(&mut host, cx);
-        <Deck as ely_office::Autosaving>::start_autosave(cx);
-        host
-    });
+    let deck = crate::window::deck(|cx| Core::new(worker, stop, work, cx), cx);
     crate::slideshow::bind_keys(cx);
     ely_office::bind_zoom_keys(cx);
     ely_office::bind_undo_keys(cx);
-    let menus = crate::deck::menus((false, false, false), (false, false), cx);
-    let root = ely_ui::document_root(app, deck.clone().into(), &ely_ui::commands::FILE, menus, window, cx);
-    deck.update(cx, |deck, cx| {
-        deck.core.root = root.downgrade();
-        deck.own_window(window, cx);
-        window.focus(&deck.core.focus, cx);
-    });
+    let root = crate::window::root(&deck, window, cx);
     let launched = ely_ui::launch_files(cx);
     deck.update(cx, |deck, cx| match launched.is_empty() {
         true => deck.new_blank(cx),
         false => launched.into_iter().for_each(|path| deck.open_file(path, cx)),
     });
-    let asked = deck.clone();
-    ely_ui::on_ask(cx, move |ask, cx| asked.update(cx, |deck, cx| deck.answer_request(ask, cx)));
-    let opening = deck.clone();
-    ely_ui::on_open(cx, move |path, _, cx| {
-        opening.update(cx, |deck, cx| deck.open_file(path, cx))
-    });
-    let closing = deck.clone();
-    ely_gpui_component::shell::guard_close(window, cx, move |window, cx| {
-        closing.update(cx, |deck, cx| deck.should_close(window, cx))
+    ely_ui::on_ask(cx, |ask, cx| ely_office::remote::route(ask, cx, Deck::answer_request));
+    // Files go to their window, else the one in front.
+    ely_ui::on_open(cx, |path, window, cx| match crate::window::front(window, cx) {
+        Some(front) => front.update(cx, |deck, cx| deck.open_file(path, cx)),
+        None => log::error!("show: a file came with no window open"),
     });
     root
 }
 
 impl Deck {
-    pub fn new(worker: Arc<Mutex<Worker>>, stop: Option<ely_office::Stop>, work: PathBuf, cx: &mut Context<Self>) -> Self {
+    pub fn new(core: Core<Self>, cx: &mut Context<Self>) -> Self {
         let deck = cx.weak_entity();
         // Closing or switching tabs stops playback.
         cx.observe_self(|deck, _| {
@@ -176,8 +165,16 @@ impl Deck {
             deck.watch_dialogs();
         })
         .detach();
+        // The window that comes to the front shows its menus.
+        cx.observe_global::<ely_ui::tray::Front>(|deck: &mut Deck, cx| {
+            if ely_ui::tray::main(cx) == deck.core.window {
+                deck.snap_menus = None;
+                deck.sync_menus(cx);
+            }
+        })
+        .detach();
         Deck {
-            core: Core::new(worker, stop, work, cx),
+            core,
             dialog: None,
             strip: cx.new(|cx| Strip::new(deck.clone(), cx)),
             panel: cx.new(|cx| Panel::new(deck.clone(), cx)),
@@ -242,6 +239,8 @@ impl Deck {
         let landed = tab.extra.transition_landed(view.read(cx));
         let sized = tab.extra.size_landed(view.read(cx));
         let doc = tab.doc.clone();
+        // The tab stays here until this lands.
+        let busy = self.hold(id);
         ely_lok::read_off(
             &self.core.worker,
             &doc,
@@ -270,6 +269,7 @@ impl Deck {
                 ))
             },
             move |deck: &mut Self, read, cx| {
+                let _busy = busy;
                 let Some(tab) = deck.tab_mut(id) else {
                     return;
                 };
@@ -357,6 +357,10 @@ impl Deck {
 
     /// Checks snapping and greys Undo, Redo as the deck stands.
     pub fn sync_menus(&mut self, cx: &mut Context<Self>) {
+        // The app has one menu: the front window's.
+        if ely_ui::tray::main(cx) != self.core.window {
+            return;
+        }
         let shown = match self.active_tab() {
             // Its objects not read yet: the menus wait.
             Some(tab) => match tab.extra.objects.as_ref() {
@@ -478,7 +482,8 @@ impl Render for Deck {
             .child(shell)
             .children(self.core_dialog(cx))
             .children(self.dialog_element(cx))
-            .children(self.context_menu(cx));
+            .children(self.context_menu(cx))
+            .children(self.tab_menu(cx));
         let root = crate::slideshow::bind(crate::insert::bind(crate::slides::bind(root, cx), cx), cx);
         Self::bind_undo(Self::bind_zoom(root, cx), cx)
     }

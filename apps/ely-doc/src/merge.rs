@@ -94,7 +94,9 @@ impl Docs {
         }
         log::info!("doc: merge data {chosen} from a spreadsheet");
         let (worker, path, work) = (std::sync::Arc::clone(&self.core.worker), path.to_path_buf(), self.core.work());
+        let busy = self.hold(source);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let shown = path.clone();
             let read = cx.background_spawn(async move { run::read_sheet(&worker, &path, &work) }).await;
             ely_office::in_window(&this, cx, |docs, _, cx| docs.took(chosen, source, &shown, read, cx))

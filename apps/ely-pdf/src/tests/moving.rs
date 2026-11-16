@@ -14,7 +14,9 @@ const PAGE: (f32, f32, &[&str]) = (612.0, 792.0, &["a page of text"]);
 /// Draws the windows until `done`.
 #[track_caller]
 fn wait(cx: &mut TestAppContext, done: impl Fn(&gpui::App) -> bool) {
-    for _ in 0..3000 {
+    // The worker answers in real time, not test time.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while std::time::Instant::now() < deadline {
         cx.run_until_parked();
         if cx.update(|app| done(app)) {
             return;

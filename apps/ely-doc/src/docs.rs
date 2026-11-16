@@ -1,12 +1,9 @@
 //! ElyDoc's window: document tabs over one LOK worker (§8.1).
 
 use ely_gpui_component::secondary;
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use ely_lok::{LokError, LokView, Worker, review::Counts};
+use ely_lok::{LokError, LokView, review::Counts};
 use ely_office::{Core, Kind, prelude::*};
 use ely_platform::AppId;
 use ely_ui::{Root, Shell, commands};
@@ -102,13 +99,22 @@ impl Host for Docs {
         }
     }
 
+    /// Its dialogs serve the active tab.
+    fn asks_about(&self, id: u64) -> bool {
+        match &self.dialog {
+            Some(Dialog::Output { tab, .. }) => *tab == id,
+            Some(Dialog::Templates) | None => false,
+            Some(_) => self.core.active() == Some(id),
+        }
+    }
+
     fn search_leaves(&mut self, cx: &mut Context<Self>) {
         self.mark_place(cx);
     }
 }
 
 /// ElyDoc's menus after File; `undo` greys Undo and Redo.
-fn menus(undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
+pub(crate) fn menus(undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
     vec![
         gpui::Menu::new(ely_ui::i18n::text(cx, "menu.edit", &[])).items(ely_office::undo_items(undo, cx)),
         gpui::Menu::new(ely_ui::i18n::text(cx, "menu.view", &[])).items(
@@ -129,13 +135,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
         Ok(started) => started,
         Err(error) => ely_platform::startup::fail(app, &format!("{error}")),
     };
-    let docs = cx.new(|cx| {
-        let mut host = Docs::new(worker, stop, work, cx);
-        // Recovery points, crash return, autosave (§6.2, §6.3).
-        ely_office::Recovering::start_recovery(&mut host, cx);
-        <Docs as ely_office::Autosaving>::start_autosave(cx);
-        host
-    });
+    let docs = crate::window::docs(|cx| Core::new(worker, stop, work, cx), cx);
     cx.bind_keys([
         gpui::KeyBinding::new(
             secondary!("f"),
@@ -150,32 +150,24 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     ]);
     ely_office::bind_zoom_keys(cx);
     ely_office::bind_undo_keys(cx);
-    let root = ely_ui::document_root(app, docs.clone().into(), &ely_ui::commands::FILE, menus((false, false), cx), window, cx);
-    docs.update(cx, |docs, cx| {
-        docs.core.root = root.downgrade();
-        docs.own_window(window, cx);
-        window.focus(&docs.core.focus, cx);
-    });
+    let root = crate::window::root(&docs, window, cx);
     let launched = ely_ui::launch_files(cx);
     docs.update(cx, |docs, cx| match launched.is_empty() {
         true => docs.new_from(Template::Blank, cx),
         false => launched.into_iter().for_each(|path| docs.open_file(path, cx)),
     });
-    let asked = docs.clone();
-    ely_ui::on_ask(cx, move |ask, cx| asked.update(cx, |docs, cx| docs.answer_request(ask, cx)));
-    let opening = docs.clone();
-    ely_ui::on_open(cx, move |path, _, cx| {
-        opening.update(cx, |docs, cx| docs.open_file(path, cx))
-    });
-    let closing = docs.clone();
-    ely_gpui_component::shell::guard_close(window, cx, move |window, cx| {
-        closing.update(cx, |docs, cx| docs.should_close(window, cx))
+    ely_ui::on_ask(cx, |ask, cx| ely_office::remote::route(ask, cx, Docs::answer_request));
+    // Files go to their window, else the one in front.
+    ely_ui::on_open(cx, |path, window, cx| match crate::window::front(window, cx) {
+        Some(front) => front.update(cx, |docs, cx| docs.open_file(path, cx)),
+        None => log::error!("doc: a file came with no window open"),
     });
     root
 }
 
 impl Docs {
-    pub fn new(worker: Arc<Mutex<Worker>>, stop: Option<ely_office::Stop>, work: PathBuf, cx: &mut Context<Self>) -> Self {
+    pub fn new(core: Core<Self>, cx: &mut Context<Self>) -> Self {
+        let worker = Arc::clone(&core.worker);
         let props = cx.new(|_| Props::new(Arc::clone(&worker)));
         let bar = cx.new(|cx| crate::props::Bar::new(props.clone(), cx));
         let review = cx.new(|_| Review::new(Arc::clone(&worker)));
@@ -195,8 +187,16 @@ impl Docs {
         })
         .detach();
         cx.observe_self(|docs, _| docs.watch_dialogs()).detach();
+        // The window that comes to the front shows its menus.
+        cx.observe_global::<ely_ui::tray::Front>(|docs: &mut Docs, cx| {
+            if ely_ui::tray::main(cx) == docs.core.window {
+                let able = docs.active_tab().map_or((false, false), |tab| ely_office::undo_able(tab.view.read(cx)));
+                docs.install_menus(able, cx);
+            }
+        })
+        .detach();
         Docs {
-            core: Core::new(worker, stop, work, cx),
+            core,
             dialog: None,
             props,
             bar,
@@ -243,17 +243,26 @@ impl Docs {
 }
 
 impl Docs {
-    /// Greys Undo and Redo as the active document's kernel says.
+    /// Greys Undo and Redo as the front document's kernel says.
     fn sync_menus(&mut self, cx: &mut Context<Self>) {
+        // The app has one menu: the front window's.
+        if ely_ui::tray::main(cx) != self.core.window {
+            return;
+        }
         let able = self.active_tab().map_or((false, false), |tab| ely_office::undo_able(tab.view.read(cx)));
         if able != self.undo_menu {
-            self.undo_menu = able;
-            log::info!("doc: undo {}, redo {}", able.0, able.1);
-            cx.defer(move |cx| {
-                ely_ui::set_document_menus(AppId::Doc, &ely_ui::commands::FILE, menus(able, cx), cx);
-                cx.refresh_windows();
-            });
+            self.install_menus(able, cx);
         }
+    }
+
+    /// Installs this window's menus, whatever was there.
+    fn install_menus(&mut self, able: (bool, bool), cx: &mut Context<Self>) {
+        self.undo_menu = able;
+        log::info!("doc: undo {}, redo {}", able.0, able.1);
+        cx.defer(move |cx| {
+            ely_ui::set_document_menus(AppId::Doc, &ely_ui::commands::FILE, menus(able, cx), cx);
+            cx.refresh_windows();
+        });
     }
 }
 
@@ -281,7 +290,8 @@ impl Render for Docs {
             .on_action(cx.listener(Self::on_close_tab))
             .child(shell)
             .children(self.core_dialog(cx))
-            .children(self.dialog_element(window, cx));
+            .children(self.dialog_element(window, cx))
+            .children(self.tab_menu(cx));
         Self::bind_undo(Self::bind_zoom(crate::insert::bind(root, cx), cx), cx)
     }
 }

@@ -12,6 +12,7 @@ mod focus;
 mod history;
 mod menu;
 mod motion;
+mod moving;
 mod notes;
 mod objects;
 mod output;
@@ -42,10 +43,12 @@ pub(super) fn deck(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Deck>> 
     let window = cx.add_window(|_, _| gpui::Empty);
     let deck = cx
         .update_window(window.into(), |_, window, app| {
-            let deck = app.new(|cx| Deck::new(worker, stop, work, cx));
-            deck.update(app, |deck, _| {
-                deck.core.window = Some(window.window_handle())
+            let deck = app.new(|cx| {
+                let core = ely_office::Core::new(worker, stop, work, cx);
+                Deck::new(core, cx)
             });
+            deck.update(app, |deck, _| deck.core.window = Some(window.window_handle()));
+            ely_ui::tray::testing::opened(ely_platform::AppId::Show, window.window_handle(), app);
             deck
         })
         .expect("the window lives");

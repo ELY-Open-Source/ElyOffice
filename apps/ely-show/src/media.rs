@@ -26,6 +26,8 @@ const SOUND: (i64, i64) = (2000, 2000);
 /// A file checked before it goes in.
 pub struct Probe {
     tab: u64,
+    /// The tab stays while its media is checked.
+    _busy: Option<std::rc::Rc<()>>,
     path: PathBuf,
     player: Player,
     started: Instant,
@@ -94,8 +96,10 @@ impl Deck {
         };
         log::info!("show: checks a media file");
         let started = Instant::now();
+        let _busy = self.hold(tab);
         self.probe = Some(Probe {
             tab,
+            _busy,
             path,
             player,
             started,

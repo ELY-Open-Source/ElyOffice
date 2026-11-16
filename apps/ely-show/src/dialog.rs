@@ -26,6 +26,19 @@ pub enum Dialog {
     Check(Vec<crate::check::Finding>),
 }
 
+impl Dialog {
+    /// Whether it serves tab `id`, in front if `active`.
+    pub(crate) fn about(&self, id: u64, active: bool) -> bool {
+        match self {
+            Dialog::Table { tab, .. } | Dialog::Remark { tab, .. } => *tab == id,
+            Dialog::Output(output) => output.tab == id,
+            Dialog::Chart(editing) => editing.tab == id,
+            Dialog::New(_) => false,
+            Dialog::Show(_) | Dialog::Check(_) => active,
+        }
+    }
+}
+
 /// Changes the open dialog's state.
 pub(crate) fn edit(
     this: &Entity<Deck>,

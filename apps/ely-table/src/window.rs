@@ -50,3 +50,15 @@ pub fn more(cx: &mut App, fresh: bool) -> std::io::Result<ely_ui::windows::Build
 pub(crate) fn front(window: Option<gpui::AnyWindowHandle>, cx: &App) -> Option<Entity<Book>> {
     ely_office::shared::Handle::<Book>::joined(cx).ok()?.front(window, cx)
 }
+
+impl Book {
+    /// Installs this window's menus, whatever was there.
+    pub(crate) fn install_menus(&mut self, able: (bool, bool), cx: &mut Context<Self>) {
+        self.undo_menu = able;
+        log::info!("table: undo {}, redo {}", able.0, able.1);
+        cx.defer(move |cx| {
+            ely_ui::set_document_menus(AppId::Table, &ely_ui::commands::FILE, menus(able, cx), cx);
+            cx.refresh_windows();
+        });
+    }
+}

@@ -212,7 +212,10 @@ impl Deck {
             return self.pick(true, cx, move |deck, folder, cx| deck.write_pictures(&output, (folder, stem), cx));
         }
         let chosen = cx.prompt_for_new_path(&dir, Some(&format!("{stem}.pdf")));
+        // The tab stays here until this ends.
+        let busy = self.hold(output.tab);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let chosen = match chosen.await {
                 Ok(Ok(path)) => Ok(path),
                 Ok(Err(error)) => Err(error.to_string()),

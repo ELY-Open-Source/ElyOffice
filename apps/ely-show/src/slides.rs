@@ -129,11 +129,14 @@ impl Deck {
         let tab = self.tab_mut(id).expect("the tab is open");
         tab.extra.painting = true;
         tab.extra.stale.remove(&name);
+        // The tab stays here until this lands.
+        let busy = self.hold(id);
         ely_lok::read_off(
             &self.core.worker,
             &doc,
             move |worker, doc| doc.paint_part(worker, (part, master), PICTURE),
             move |deck: &mut Self, painted, cx| {
+                let _busy = busy;
                 let Some(tab) = deck.tab_mut(id) else {
                     return;
                 };
@@ -182,6 +185,16 @@ impl Deck {
         for tab in &mut self.core.tabs {
             tab.extra.retired.release(window);
         }
+    }
+
+    /// A leaving tab keeps its pictures; ours are freed.
+    pub fn hand_pictures(&mut self, id: u64) {
+        let Some(tab) = self.core.tabs.iter_mut().find(|tab| tab.id == id) else {
+            return;
+        };
+        let pictures: Vec<_> = tab.extra.thumbs.values().cloned().collect();
+        self.retired.append(std::mem::take(&mut tab.extra.retired));
+        pictures.into_iter().for_each(|picture| self.retired.push(picture));
     }
 
     /// A closing tab's pictures wait to be freed.

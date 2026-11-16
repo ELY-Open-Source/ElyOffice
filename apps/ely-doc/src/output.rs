@@ -93,7 +93,10 @@ impl Docs {
             .rsplit_once('.')
             .map_or(source.name.as_ref(), |(stem, _)| stem);
         let chosen = cx.prompt_for_new_path(&dir, Some(&format!("{stem}.pdf")));
+        // The tab stays here until this ends.
+        let busy = self.hold(tab);
         cx.spawn(async move |this, cx| {
+            let _busy = busy;
             let chosen = match chosen.await {
                 Ok(Ok(path)) => Ok(path),
                 Ok(Err(error)) => Err(error.to_string()),

@@ -32,7 +32,10 @@ fn docs_build_while_the_engine_holds_its_lock() {
     let docs = cx.update(|app| {
         ely_ui::settings::install_defaults(app);
         ely_ui::i18n::install_as("en-US", app);
-        app.new(|cx| Docs::new(worker, stop, work, cx))
+        app.new(|cx| {
+            let core = ely_office::Core::new(worker, stop, work, cx);
+            Docs::new(core, cx)
+        })
     });
     let took = begun.elapsed();
     release.send(()).expect("the holder waits");

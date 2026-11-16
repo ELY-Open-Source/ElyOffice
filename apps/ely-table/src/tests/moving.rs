@@ -40,7 +40,9 @@ fn first(cx: &mut TestAppContext, dir: &Path) -> Option<(Entity<Book>, AnyWindow
 /// Draws the windows until `done`; plain ticks draw nothing.
 #[track_caller]
 fn wait(cx: &mut TestAppContext, done: impl Fn(&gpui::App) -> bool) {
-    for _ in 0..3000 {
+    // The worker answers in real time, not test time.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while std::time::Instant::now() < deadline {
         cx.run_until_parked();
         if cx.update(|app| done(app)) {
             return;
@@ -104,6 +106,8 @@ fn a_tab_asking_a_question_stays() {
     };
     blank(&mut cx, &book);
     let id = cx.update(|app| book.read(app).core.active()).expect("a tab");
+    // Its first sheet read lands before the question.
+    wait(&mut cx, |app| std::rc::Rc::strong_count(&book.read(app).tab(id).expect("the tab").busy) == 1);
     update(&mut cx, &book, |book, _| book.core.dialog = Some(Dialog::Unsaved { tab: id, after: After::Tab }));
     let stays = cx.update(|app| book.update(app, |book, cx| book.move_out(id, cx).err()));
     assert_eq!(stays, Some("office.move.dialog"));

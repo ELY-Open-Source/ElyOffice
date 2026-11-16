@@ -113,6 +113,8 @@ impl Docs {
         // Asked now: a failure waits for the next change.
         let extra = &mut self.tab_mut(id).expect("the tab is open").extra;
         (extra.counting, extra.counted) = (true, Some(state));
+        // The tab stays here until this lands.
+        let busy = self.hold(id);
         ely_lok::read_off(
             &self.core.worker,
             &doc,
@@ -121,6 +123,7 @@ impl Docs {
                 ely_lok::review::counts(&json)
             },
             move |docs: &mut Self, read, cx| {
+                let _busy = busy;
                 let Some(tab) = docs.tab_mut(id) else {
                     return;
                 };
