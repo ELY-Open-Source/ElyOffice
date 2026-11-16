@@ -1189,3 +1189,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-16 Linux 与 Windows 不出 ARM 构建（R20.2）
 
 - 用户定：#37 的 Windows arm64 与 Linux arm64 都不做。Windows 11 ARM 照常以 x64 模拟运行 x64 包。macOS 照旧出 arm64 与 Intel。
+
+## 2026-11-16 不内置 S3 与 WebDAV（R20.25，#89）
+
+- 用户定：不做；#89 以 not planned 关闭。PRD 不建云盘，网络盘上的保存照第 6 节。
