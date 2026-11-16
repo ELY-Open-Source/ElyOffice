@@ -39,7 +39,7 @@ the analysis on, and throws when a font cannot be cut.
  	num = pdf_to_num(ctx, fontfile);
  	gen = pdf_to_gen(ctx, fontfile);
  
-+	/* Neither cut nor merged with another: an older font stays whole. */
++	/* Older fonts are neither cut nor merged. */
 +	if (num < p->usage->first)
 +		return;
 +

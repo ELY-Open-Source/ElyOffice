@@ -1,4 +1,4 @@
-//! Saving after an edit keeps the file near its size (SF.24).
+//! Saves after an edit stay near the original size.
 
 use std::path::{Path, PathBuf};
 

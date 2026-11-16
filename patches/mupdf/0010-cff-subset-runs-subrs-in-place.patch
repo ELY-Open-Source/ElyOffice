@@ -207,7 +207,7 @@ shortint is signed and may end a subr; mul pops its operand.
  
 -static usage_list_t *
 -get_font_locals(fz_context *ctx, cff_t *cff, int gid, int is_pdf_cidfont, uint16_t *subr_bias)
-+/* Runs glyph `glyph` from a clean state in its font dict. */
++/* Runs a glyph fresh, in its own font dict. */
 +static void
 +run_glyph(fz_context *ctx, cff_t *cff, int glyph, int is_pdf_cidfont)
  {
