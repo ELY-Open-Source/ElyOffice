@@ -1,10 +1,10 @@
 [package]
 name = "gpui-pre-windows"
-version = "0.3.11"
+version = "0.3.12"
 edition = { workspace = true }
 publish = true
 license = "Apache-2.0"
-description = "Zed's `gpui_windows` crate (gpui-pre snapshot of zed@f816e1f)"
+description = "Zed's `gpui_windows` crate (gpui-pre snapshot of zed@d2a4fb6)"
 repository = "https://github.com/zed-industries/zed"
 
 [package.metadata.cargo-shear]
@@ -13,7 +13,7 @@ ignored = ["scap"]
 [package.metadata.gpui-pre]
 zed-crate = "gpui_windows"
 zed-version = "0.1.0"
-zed-rev = "f816e1f9263e3a8ef63c4baaa02e1441ce1c6038"
+zed-rev = "d2a4fb6ded7c470be25d1541281da3882495b65b"
 
 [lib]
 path = "src/gpui_windows.rs"
