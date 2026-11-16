@@ -10,21 +10,25 @@ use gpui::{
 
 use crate::theme;
 
-/// Starts `app`; `early` runs past the single-instance gate.
+/// Starts `app`; `more` builds later windows, if any.
 pub fn run<V: Render>(
     app: AppId,
     early: fn(AppId),
     root: impl FnOnce(AppId, &mut Window, &mut App) -> Entity<V> + 'static,
+    more: Option<crate::windows::More>,
 ) {
     // The AppImage named no app.
     if env::value("ELY_PICK").is_some() {
         return crate::pick::run(app);
     }
-    let files = crate::opening::launch_args().unwrap_or_else(|error| startup::fail(app, &format!("a launch argument has no place: {error}")));
+    let launch = crate::opening::launch_args().unwrap_or_else(|error| startup::fail(app, &format!("a launch argument has no place: {error}")));
+    if launch.new_window && more.is_none() {
+        startup::fail(app, &format!("{} opens one window; {} is not for it", app.name(), crate::opening::NEW_WINDOW));
+    }
     // Before any lock is taken in the old folder.
     let (moved, admitted) = ely_platform::folder::at_start().unwrap_or_else(|error| startup::fail(app, &format!("the data folder is not ready: {error}")));
     // Before the log: a second copy must not trim it.
-    let door = match ely_platform::instance::hold(app, &files) {
+    let door = match ely_platform::instance::hold(app, &launch) {
         Ok(Start::First(door)) => door,
         Ok(Start::Handed) => std::process::exit(0),
         Err(error) => startup::fail(app, &format!("{error}")),
@@ -37,7 +41,7 @@ pub fn run<V: Render>(
     moved.log();
     startup::launched();
     // Paged apps draw files late; the scene waits for them.
-    if !files.is_empty() && crate::opening::paged(app) {
+    if !launch.files.is_empty() && crate::opening::paged(app) {
         startup::await_document();
     }
     if let Err(error) = graphics::check() {
@@ -48,14 +52,14 @@ pub fn run<V: Render>(
     early(app);
     let smoke = Smoke::from_env();
     let application = gpui_platform::application().with_assets(Assets);
-    let handed = crate::opening::listen(app, &application, files, door).unwrap_or_else(|error| startup::fail(app, &format!("the door for other copies did not open: {error}")));
+    let handed = crate::opening::listen(app, &application, launch.files, door).unwrap_or_else(|error| startup::fail(app, &format!("the door for other copies did not open: {error}")));
     // The Dock icon brings back a window the tray kept.
     application.on_reopen(|cx| {
         crate::tray::show_main(cx);
     });
     application.run(move |cx: &mut App| {
         let hands = crate::opening::keep(handed, cx);
-        open(app, smoke, root, hands, cx)
+        open(app, smoke, (root, more), hands, cx)
     });
 }
 
@@ -87,7 +91,7 @@ impl Smoke {
 fn open<V: Render>(
     app: AppId,
     smoke: Smoke,
-    root: impl FnOnce(AppId, &mut Window, &mut App) -> Entity<V> + 'static,
+    (root, more): (impl FnOnce(AppId, &mut Window, &mut App) -> Entity<V> + 'static, Option<crate::windows::More>),
     hands: crate::opening::Hands,
     cx: &mut App,
 ) {
@@ -108,6 +112,9 @@ fn open<V: Render>(
     crate::commands::bind_keys(cx);
     crate::commands::bind_quit(cx);
     cx.on_action(move |_: &crate::commands::OpenSettings, cx| crate::settings::open(app, cx));
+    if let Some(more) = more {
+        crate::windows::allow(app, more, cx);
+    }
     crate::shell::want_scene();
     let main = match main_window(app, smoke, root, cx) {
         Ok(window) => window,
@@ -179,6 +186,7 @@ pub(crate) fn main_window<V: Render>(
         theme::follow_system(window);
         crate::settings::follow_frame(app, window, cx);
         let root = root(app, window, cx);
+        crate::windows::follow(&root, window, cx);
         log::info!("ui: root built");
         root
     })?;

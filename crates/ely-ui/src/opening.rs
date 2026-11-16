@@ -7,33 +7,36 @@ use std::{
     time::Duration,
 };
 
-use ely_platform::{AppId, instance::Door};
+use ely_platform::{AppId, instance::{Door, Launch}};
 use futures::{StreamExt, channel::mpsc};
-use gpui::{App, Application, Global};
+use gpui::{AnyWindowHandle, App, Application, Global};
 
 /// How long a hand-over waits for the window.
 const TAKING: Duration = Duration::from_secs(5);
 /// How long a request waits for the app's answer.
 const ANSWERING: Duration = Duration::from_secs(80);
 
-struct Asked(Option<mpsc::UnboundedReceiver<PathBuf>>);
+/// A file to open, and the window it belongs to.
+pub type Opened = (PathBuf, Option<AnyWindowHandle>);
+
+struct Asked(Option<mpsc::UnboundedReceiver<Opened>>);
 
 impl Global for Asked {}
 
 /// The sending end of what `on_open` reads.
-struct Queue(mpsc::UnboundedSender<PathBuf>);
+struct Queue(mpsc::UnboundedSender<Opened>);
 
 impl Global for Queue {}
 
-/// Hands `path` to `on_open`, as a launch or hand-over does.
-pub(crate) fn queue(path: PathBuf, cx: &App) -> io::Result<()> {
+/// Hands `path` to `on_open` for `window`, as a drop does.
+pub(crate) fn queue(path: PathBuf, window: Option<AnyWindowHandle>, cx: &App) -> io::Result<()> {
     let queue = cx.try_global::<Queue>().ok_or_else(|| io::Error::other("the app takes no files yet"))?;
-    queue.0.unbounded_send(path).map_err(|_| io::Error::other("the app takes no more files"))
+    queue.0.unbounded_send((path, window)).map_err(|_| io::Error::other("the app takes no more files"))
 }
 
-/// A second copy's files; `taken` answers once they are queued.
+/// A second copy's ask; `taken` answers once queued.
 pub(crate) struct Hand {
-    files: Vec<PathBuf>,
+    launch: Launch,
     taken: std::sync::mpsc::Sender<()>,
 }
 
@@ -67,21 +70,35 @@ impl Global for Answers {}
 
 /// What the system and other copies hand the running app.
 pub(crate) struct Handed {
-    asked: mpsc::UnboundedReceiver<PathBuf>,
+    asked: mpsc::UnboundedReceiver<Opened>,
     hands: Hands,
 }
 
 /// Second copies' hand-overs, for the main window.
 pub(crate) struct Hands {
     hands: mpsc::UnboundedReceiver<Hand>,
-    queue: mpsc::UnboundedSender<PathBuf>,
+    queue: mpsc::UnboundedSender<Opened>,
     asks: mpsc::UnboundedReceiver<Ask>,
 }
 
 /// Launch arguments, relative to where the app was started.
-pub(crate) fn launch_args() -> io::Result<Vec<PathBuf>> {
-    std::env::args_os().skip(1).map(launch_arg).collect()
+pub(crate) fn launch_args() -> io::Result<Launch> {
+    launch_from(std::env::args_os().skip(1))
 }
+
+/// Files, and `--new-window` asking for a window of its own.
+fn launch_from(args: impl Iterator<Item = OsString>) -> io::Result<Launch> {
+    let mut launch = Launch::default();
+    for arg in args {
+        match arg.to_str() {
+            Some(NEW_WINDOW) => launch.new_window = true,
+            _ => launch.files.push(launch_arg(arg)?),
+        }
+    }
+    Ok(launch)
+}
+
+pub(crate) const NEW_WINDOW: &str = "--new-window";
 
 /// A path, a `file://` URL, or a whole mail link.
 fn launch_arg(arg: OsString) -> io::Result<PathBuf> {
@@ -112,13 +129,13 @@ pub(crate) fn paged(app: AppId) -> bool {
 pub(crate) fn listen(app: AppId, application: &Application, files: Vec<PathBuf>, door: Door) -> io::Result<Handed> {
     let (queue, asked) = mpsc::unbounded();
     for path in files {
-        queue.unbounded_send(path).ok();
+        queue.unbounded_send((path, None)).ok();
     }
     let (sender, hands) = mpsc::unbounded();
     let (asker, asks) = mpsc::unbounded();
-    let deliver = move |files| {
+    let deliver = move |launch| {
         let (taken, took) = std::sync::mpsc::channel();
-        sender.unbounded_send(Hand { files, taken }).is_ok() && took.recv_timeout(TAKING).is_ok()
+        sender.unbounded_send(Hand { launch, taken }).is_ok() && took.recv_timeout(TAKING).is_ok()
     };
     door.serve(deliver, move |request| {
         let (answer, answered) = std::sync::mpsc::channel();
@@ -130,7 +147,7 @@ pub(crate) fn listen(app: AppId, application: &Application, files: Vec<PathBuf>,
         for url in urls {
             if is_mail_link(&url) {
                 log::info!("run: the system asks to write to a mail link");
-                system.unbounded_send(PathBuf::from(url)).ok();
+                system.unbounded_send((PathBuf::from(url), None)).ok();
                 continue;
             }
             match file_path(&url) {
@@ -140,7 +157,7 @@ pub(crate) fn listen(app: AppId, application: &Application, files: Vec<PathBuf>,
                     if paged(app) && !ely_platform::startup::has_started() {
                         ely_platform::startup::await_document();
                     }
-                    system.unbounded_send(path).ok();
+                    system.unbounded_send((path, None)).ok();
                 }
                 None => log::warn!("run: not a file URL, ignored"),
             }
@@ -168,19 +185,19 @@ pub fn install_no_launch_files(cx: &mut App) {
 pub fn launch_files(cx: &mut App) -> Vec<PathBuf> {
     let asked = cx.global_mut::<Asked>().0.as_mut();
     let asked = asked.expect("launch_files comes before on_open");
-    std::iter::from_fn(|| asked.try_recv().ok()).collect()
+    std::iter::from_fn(|| asked.try_recv().ok()).map(|(path, _)| path).collect()
 }
 
-/// Hands each file asked from now on to `open`.
-pub fn on_open(cx: &mut App, mut open: impl FnMut(PathBuf, &mut App) + 'static) {
+/// Hands each later file, and its window, to `open`.
+pub fn on_open(cx: &mut App, mut open: impl FnMut(PathBuf, Option<AnyWindowHandle>, &mut App) + 'static) {
     let mut asked = cx
         .global_mut::<Asked>()
         .0
         .take()
         .expect("on_open runs once per app");
     cx.spawn(async move |cx| {
-        while let Some(path) = asked.next().await {
-            cx.update(|cx| open(path, cx));
+        while let Some((path, window)) = asked.next().await {
+            cx.update(|cx| open(path, window, cx));
         }
     })
     .detach();
@@ -211,12 +228,17 @@ pub(crate) fn home(app: ely_platform::AppId, hands: Hands, cx: &mut App) {
     cx.spawn(async move |cx| {
         while let Some(hand) = hands.next().await {
             // No answer: the other copy says the files went untaken.
-            if cx.update(crate::tray::show_main).is_none() {
-                log::warn!("run: the main window is gone, so a hand-over is refused");
+            let shown = cx.update(|cx| match hand.launch.new_window {
+                true => crate::windows::open(cx).inspect_err(|error| log::error!("run: a new window did not open: {error:#}")).ok(),
+                false => crate::tray::show_main(cx),
+            });
+            let Some(shown) = shown else {
+                log::warn!("run: no window takes the hand-over, so it is refused");
                 continue;
-            }
-            for path in hand.files {
-                queue.unbounded_send(path).ok();
+            };
+            // Each file keeps the window chosen now.
+            for path in hand.launch.files {
+                queue.unbounded_send((path, Some(shown))).ok();
             }
             hand.taken.send(()).ok();
         }
@@ -272,8 +294,17 @@ mod tests {
 
 #[cfg(test)]
 mod launch_tests {
-    use super::{launch_arg, mail_link};
+    use super::{launch_arg, launch_from, mail_link};
     use std::path::{Path, PathBuf};
+
+    #[test]
+    fn new_window_is_a_flag_not_a_file() {
+        let launch = launch_from(["a.xlsx", "--new-window"].into_iter().map(Into::into)).expect("read");
+        assert!(launch.new_window);
+        assert_eq!(launch.files.len(), 1);
+        assert!(launch.files[0].ends_with("a.xlsx"));
+        assert!(!launch_from(["b.pdf"].into_iter().map(Into::into)).expect("read").new_window);
+    }
 
     #[test]
     fn mail_links_stay_whole_and_file_urls_become_paths() {
@@ -295,7 +326,7 @@ mod launch_tests {
 mod home_tests {
     use super::*;
     use gpui::AnyWindowHandle;
-    use gpui::{Context, IntoElement, Render, TestAppContext, Window};
+    use gpui::{AppContext as _, Context, IntoElement, Render, TestAppContext, Window};
 
     struct Blank;
 
@@ -309,7 +340,7 @@ mod home_tests {
     fn homed(
         main: AnyWindowHandle,
         cx: &mut TestAppContext,
-    ) -> (mpsc::UnboundedSender<Hand>, mpsc::UnboundedReceiver<PathBuf>, mpsc::UnboundedSender<Ask>) {
+    ) -> (mpsc::UnboundedSender<Hand>, mpsc::UnboundedReceiver<Opened>, mpsc::UnboundedSender<Ask>) {
         let (sender, hands) = mpsc::unbounded();
         let (queue, asked) = mpsc::unbounded();
         let (asker, asks) = mpsc::unbounded();
@@ -344,7 +375,8 @@ mod home_tests {
 
     fn handed(sender: &mpsc::UnboundedSender<Hand>) -> std::sync::mpsc::Receiver<()> {
         let (taken, took) = std::sync::mpsc::channel();
-        sender.unbounded_send(Hand { files: vec![PathBuf::from("x.md")], taken }).expect("sent");
+        let launch = Launch { files: vec![PathBuf::from("x.md")], new_window: false };
+        sender.unbounded_send(Hand { launch, taken }).expect("sent");
         took
     }
 
@@ -357,8 +389,44 @@ mod home_tests {
         let took = handed(&sender);
         cx.run_until_parked();
         assert_eq!(cx.update(|cx| cx.active_window()), Some(main));
-        assert_eq!(asked.try_recv().ok(), Some(PathBuf::from("x.md")));
+        assert_eq!(asked.try_recv().ok(), Some((PathBuf::from("x.md"), Some(main))));
         assert!(took.try_recv().is_ok(), "the other copy hears it was taken");
+    }
+
+    #[gpui::test]
+    fn a_new_window_hand_over_opens_one_then_queues(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            ely_gpui_component::init_for_tests(cx);
+            crate::settings::install_defaults(cx);
+            crate::theme::install(cx);
+            crate::i18n::install_as("en-US", cx);
+        });
+        let more = |_: &mut App| -> io::Result<crate::windows::Build> {
+            Ok(Box::new(|window, cx| {
+                let blank = cx.new(|_| Blank);
+                crate::tool_root(ely_platform::AppId::Mark, blank.into(), Vec::new(), window, cx)
+            }))
+        };
+        cx.update(|cx| crate::windows::allow(ely_platform::AppId::Mark, more, cx));
+        let main: AnyWindowHandle = cx.add_window(|_, _| Blank).into();
+        let (sender, mut asked, _) = homed(main, cx);
+        let (taken, took) = std::sync::mpsc::channel();
+        let launch = Launch { files: vec![PathBuf::from("x.md")], new_window: true };
+        sender.unbounded_send(Hand { launch, taken }).expect("sent");
+        cx.run_until_parked();
+        assert_eq!(cx.update(|cx| cx.windows().len()), 2, "a window of its own");
+        let first = cx.update(|cx| crate::tray::main(cx)).expect("the new window");
+        assert_ne!(first, main, "the new window is in front");
+        // A second ask before the first file opens.
+        let (taken, took_too) = std::sync::mpsc::channel();
+        let launch = Launch { files: vec![PathBuf::from("y.md")], new_window: true };
+        sender.unbounded_send(Hand { launch, taken }).expect("sent");
+        cx.run_until_parked();
+        let second = cx.update(|cx| crate::tray::main(cx)).expect("another window");
+        assert_ne!(second, first);
+        assert_eq!(asked.try_recv().ok(), Some((PathBuf::from("x.md"), Some(first))), "each file keeps its window");
+        assert_eq!(asked.try_recv().ok(), Some((PathBuf::from("y.md"), Some(second))));
+        assert!(took.try_recv().is_ok() && took_too.try_recv().is_ok());
     }
 
     #[gpui::test]

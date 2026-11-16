@@ -19,6 +19,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("menu.view", "表示"),
     ("menu.insert", "挿入"),
     ("command.file.new", "新規"),
+    ("command.file.new_window", "新しいウィンドウ"),
     ("command.file.open", "開く…"),
     ("command.file.save", "保存"),
     ("command.file.save_as", "名前を付けて保存…"),

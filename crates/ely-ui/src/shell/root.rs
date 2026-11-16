@@ -296,7 +296,7 @@ impl Render for Root {
             .drag_over::<ExternalPaths>(|style, _, _, cx| style.border_1().border_color(cx.theme().colors.focus))
             .on_drop({
                 let app = self.app;
-                move |dropped: &ExternalPaths, _, cx| crate::open_dropped(app, dropped.paths(), cx)
+                move |dropped: &ExternalPaths, window, cx| crate::open_dropped(app, dropped.paths(), Some(window.window_handle()), cx)
             })
             .on_action(cx.listener(|this, _: &New, _, cx| this.attempt("file.new", cx)))
             .on_action(cx.listener(|this, _: &Open, _, cx| this.attempt("file.open", cx)))

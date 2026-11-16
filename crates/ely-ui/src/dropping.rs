@@ -6,7 +6,7 @@ use std::{
 };
 
 use ely_platform::AppId;
-use gpui::{App, AppContext as _};
+use gpui::{AnyWindowHandle, App, AppContext as _};
 
 use crate::Root;
 
@@ -16,20 +16,20 @@ fn elsewhere(app: AppId, path: &Path) -> Option<AppId> {
     ely_platform::apps::for_extension(ext).filter(|owner| *owner != app)
 }
 
-/// Opens each dropped file here or in its app.
-pub fn open_dropped(app: AppId, paths: &[PathBuf], cx: &mut App) {
-    hand(app, paths, ely_platform::apps::open_file, cx);
+/// Opens each dropped file in `window` or in its app.
+pub fn open_dropped(app: AppId, paths: &[PathBuf], window: Option<AnyWindowHandle>, cx: &mut App) {
+    hand(app, (paths, window), ely_platform::apps::open_file, cx);
 }
 
 /// Another app's files go through `open`, in drop order.
-fn hand(app: AppId, paths: &[PathBuf], open: impl Fn(&Path) -> io::Result<()> + Send + 'static, cx: &mut App) {
+fn hand(app: AppId, (paths, window): (&[PathBuf], Option<AnyWindowHandle>), open: impl Fn(&Path) -> io::Result<()> + Send + 'static, cx: &mut App) {
     let mut away = Vec::new();
     for path in paths {
         match elsewhere(app, path) {
             None => {
                 log::info!("drop: a file opens in {}", app.name());
-                if let Err(error) = crate::opening::queue(path.clone(), cx) {
-                    report(error, cx);
+                if let Err(error) = crate::opening::queue(path.clone(), window, cx) {
+                    report(error, window, cx);
                 }
             }
             Some(owner) => {
@@ -44,15 +44,15 @@ fn hand(app: AppId, paths: &[PathBuf], open: impl Fn(&Path) -> io::Result<()> + 
     // One task: each file waits for the one before.
     cx.spawn(async move |cx| {
         let failed: Vec<io::Error> = cx.background_spawn(async move { away.iter().filter_map(|path| open(path).err()).collect() }).await;
-        cx.update(|cx| failed.into_iter().for_each(|error| report(error, cx)));
+        cx.update(|cx| failed.into_iter().for_each(|error| report(error, window, cx)));
     })
     .detach();
 }
 
-/// Logs the failure; the main window, if open, shows it.
-fn report(error: io::Error, cx: &mut App) {
+/// Logs the failure; shows it in the drop's window.
+fn report(error: io::Error, window: Option<AnyWindowHandle>, cx: &mut App) {
     log::error!("drop: a file did not open: {}", ely_ipc::Worded::logged(&error));
-    let Some(main) = crate::tray::main(cx) else {
+    let Some(main) = window.or_else(|| crate::tray::main(cx)) else {
         return;
     };
     // The drop may arrive inside that window's own update.
@@ -101,7 +101,7 @@ mod tests {
                 Ok(())
             }
         };
-        cx.update(|cx| super::hand(AppId::Doc, &dropped, record, cx));
+        cx.update(|cx| super::hand(AppId::Doc, (&dropped, None), record, cx));
         cx.run_until_parked();
         assert_eq!(*seen.lock().expect("the record"), dropped, "each waits for the one before");
     }
@@ -130,6 +130,18 @@ mod tests {
                 })
             })
             .expect("a window");
+        // Another window is in front; the drop lands here.
+        let front = cx.update(|cx| {
+            cx.open_window(Default::default(), |window, cx| {
+                let page = gpui::AppContext::new(cx, |_| Page);
+                crate::tool_root(AppId::Doc, page.into(), Vec::new(), window, cx)
+            })
+        });
+        let front: gpui::AnyWindowHandle = front.expect("a front window").into();
+        cx.update(|cx| {
+            crate::tray::set_main(AppId::Doc, window.into(), cx);
+            crate::tray::set_main(AppId::Doc, front, cx);
+        });
         let cx = &mut VisualTestContext::from_window(window.into(), cx);
         cx.run_until_parked();
         let at = point(px(200.0), px(200.0));
@@ -137,7 +149,13 @@ mod tests {
         let dropped = [PathBuf::from("/a/letter.docx"), PathBuf::from("/a/photo.png"), PathBuf::from("/a/folder")];
         cx.simulate_event(FileDropEvent::Entered { position: at, paths: ExternalPaths(dropped.to_vec().into()) });
         cx.simulate_event(FileDropEvent::Submit { position: at });
+        let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let record = std::rc::Rc::clone(&seen);
+        cx.update(|_, cx| crate::on_open(cx, move |path, window, _| record.borrow_mut().push((path, window))));
         cx.run_until_parked();
-        assert_eq!(cx.update(|_, cx| crate::launch_files(cx)), dropped, "each goes to the app's own opening");
+        let into: gpui::AnyWindowHandle = window.into();
+        let expected: Vec<_> = dropped.iter().cloned().map(|path| (path, Some(into))).collect();
+        assert_eq!(*seen.borrow(), expected, "each opens in the window it fell on");
+        assert_eq!(cx.update(|_, cx| crate::tray::main(cx)), Some(front), "the drop raised nothing");
     }
 }

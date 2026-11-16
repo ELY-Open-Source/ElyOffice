@@ -226,7 +226,7 @@ impl Engine for Lok {
         .detach();
         cx.subscribe(view, move |host, view, linked: &ely_lok::Linked, cx| follow(host, view, &linked.0, cx)).detach();
         // Dropped files that are no pictures open as files do.
-        cx.subscribe(view, |_, _, dropped: &ely_lok::Dropped, cx| ely_ui::open_dropped(H::KIND.app, &dropped.0, cx)).detach();
+        cx.subscribe(view, |host, _, dropped: &ely_lok::Dropped, cx| ely_ui::open_dropped(H::KIND.app, &dropped.0, host.core().window, cx)).detach();
         // The next start finds an engine waiting.
         cx.subscribe(view, |_, _, _: &ely_lok::Drawn, _| crate::resident::successor(H::KIND.app)).detach();
         // The status shows the zoom.

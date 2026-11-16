@@ -1,6 +1,8 @@
 use super::input::FODS;
 use super::*;
 
+mod beside;
+
 /// Keys never queue behind a view's event watch.
 #[test]
 fn keys_never_wait_behind_the_event_watch() {

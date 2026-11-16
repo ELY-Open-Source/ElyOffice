@@ -235,9 +235,13 @@ impl<H: Host> Core<H> {
 
     /// A later window: the first one's engine and records.
     pub fn joined(cx: &mut Context<H>) -> io::Result<Self> {
-        let shared = shared::Handle::joined(cx)?;
+        Ok(Self::join(shared::Handle::joined(cx)?, cx))
+    }
+
+    /// A later window over records already found.
+    pub fn join(shared: shared::Handle<H>, cx: &mut Context<H>) -> Self {
         let worker = Arc::clone(&shared.get().worker);
-        Ok(Self::with(worker, shared, cx))
+        Self::with(worker, shared, cx)
     }
 
     /// Never locks the worker.

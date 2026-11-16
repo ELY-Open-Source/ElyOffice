@@ -141,7 +141,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
         tree.update(cx, |tree, cx| tree.open_path(path, cx));
     }
     let opening = tree.clone();
-    ely_ui::on_open(cx, move |path, cx| {
+    ely_ui::on_open(cx, move |path, _, cx| {
         opening.update(cx, |tree, cx| tree.open_path(path, cx))
     });
     // A clone is not left running behind a closed window.

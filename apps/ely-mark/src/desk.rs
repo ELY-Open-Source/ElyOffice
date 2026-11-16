@@ -307,7 +307,7 @@ pub(crate) fn open_in(
         .detach();
     });
     let opening = desk.clone();
-    ely_ui::on_open(cx, move |path, cx| {
+    ely_ui::on_open(cx, move |path, _, cx| {
         opening.update(cx, |desk, cx| desk.open_path(path, cx))
     });
     let closing = desk.clone();

@@ -1,16 +1,13 @@
 //! ElyTable's window: workbooks over one LOK worker (§9.1).
 
 use ely_gpui_component::secondary;
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
 use ely_gpui_component::{
     primitives::{IconName, Severity},
     shell::{StatusBar, StatusBarItem},
 };
-use ely_lok::{LokView, Sheets, Worker, sheet::Geometry};
+use ely_lok::{LokView, Sheets, sheet::Geometry};
 use ely_office::{Core, Kind, prelude::*};
 use ely_platform::AppId;
 use ely_ui::{Root, Shell, commands};
@@ -129,7 +126,7 @@ impl Host for Book {
 }
 
 /// ElyTable's menus after File; `undo` greys Undo and Redo.
-fn menus(undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
+pub(crate) fn menus(undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
     vec![
         gpui::Menu::new(ely_ui::i18n::text(cx, "menu.edit", &[])).items(ely_office::undo_items(undo, cx)),
         gpui::Menu::new(ely_ui::i18n::text(cx, "menu.view", &[]))
@@ -152,13 +149,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
         Ok(started) => started,
         Err(error) => ely_platform::startup::fail(app, &format!("{error}")),
     };
-    let book = cx.new(|cx| {
-        let mut host = Book::new(worker, stop, work, window, cx);
-        // Recovery points, crash return, autosave (§6.2, §6.3).
-        ely_office::Recovering::start_recovery(&mut host, cx);
-        <Book as ely_office::Autosaving>::start_autosave(cx);
-        host
-    });
+    let book = crate::window::book(|cx| Core::new(worker, stop, work, cx), window, cx);
     cx.bind_keys([
         KeyBinding::new(
             secondary!("f"),
@@ -173,44 +164,37 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     ]);
     ely_office::bind_zoom_keys(cx);
     ely_office::bind_undo_keys(cx);
-    let root = ely_ui::document_root(app, book.clone().into(), &ely_ui::commands::FILE, menus((false, false), cx), window, cx);
-    book.update(cx, |book, cx| {
-        book.core.root = root.downgrade();
-        book.own_window(window, cx);
-        window.focus(&book.core.focus, cx);
-    });
+    let root = crate::window::root(&book, window, cx);
     let launched = ely_ui::launch_files(cx);
     book.update(cx, |book, cx| match launched.is_empty() {
         true => book.new_blank(cx),
         false => launched.into_iter().for_each(|path| book.open_asked(path, cx)),
     });
-    let asked = book.clone();
-    ely_ui::on_ask(cx, move |ask, cx| asked.update(cx, |book, cx| book.answer(ask, cx)));
-    let opening = book.clone();
-    ely_ui::on_open(cx, move |path, cx| {
-        opening.update(cx, |book, cx| book.open_asked(path, cx))
-    });
-    let closing = book.clone();
-    ely_gpui_component::shell::guard_close(window, cx, move |window, cx| {
-        closing.update(cx, |book, cx| book.should_close(window, cx))
+    ely_ui::on_ask(cx, |ask, cx| ely_office::remote::route(ask, cx, Book::answer));
+    // Files go to their window, else the one in front.
+    ely_ui::on_open(cx, |path, window, cx| match crate::window::front(window, cx) {
+        Some(front) => front.update(cx, |book, cx| book.open_asked(path, cx)),
+        None => log::error!("table: a file came with no window open"),
     });
     root
 }
 
 impl Book {
-    pub fn new(
-        worker: Arc<Mutex<Worker>>,
-        stop: Option<ely_office::Stop>,
-        work: PathBuf,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Self {
+    pub fn new(core: Core<Self>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let book = cx.weak_entity();
-        let panel = cx.new(|cx| Panel::new(book, Arc::clone(&worker), window, cx));
+        let panel = cx.new(|cx| Panel::new(book, Arc::clone(&core.worker), window, cx));
         // A closed dialog lets the next import ask.
         cx.observe_self(|book, cx| book.next_import(cx)).detach();
+        // The window that comes to the front shows its menus.
+        cx.observe_global::<ely_ui::tray::Front>(|book: &mut Book, cx| {
+            if ely_ui::tray::main(cx) == book.core.window {
+                let able = book.active_tab().map_or((false, false), |tab| ely_office::undo_able(tab.view.read(cx)));
+                book.install_menus(able, cx);
+            }
+        })
+        .detach();
         Book {
-            core: Core::new(worker, stop, work, cx),
+            core,
             dialog: None,
             bars: Bars::new(window, cx),
             drag: None,
@@ -225,17 +209,26 @@ impl Book {
         }
     }
 
-    /// Greys Undo and Redo as the active workbook's kernel says.
+    /// Greys Undo and Redo as the front workbook's kernel says.
     fn sync_menus(&mut self, cx: &mut Context<Self>) {
+        // The app has one menu: the front window's.
+        if ely_ui::tray::main(cx) != self.core.window {
+            return;
+        }
         let able = self.active_tab().map_or((false, false), |tab| ely_office::undo_able(tab.view.read(cx)));
         if able != self.undo_menu {
-            self.undo_menu = able;
-            log::info!("table: undo {}, redo {}", able.0, able.1);
-            cx.defer(move |cx| {
-                ely_ui::set_document_menus(AppId::Table, &ely_ui::commands::FILE, menus(able, cx), cx);
-                cx.refresh_windows();
-            });
+            self.install_menus(able, cx);
         }
+    }
+
+    /// Installs this window's menus, whatever was there.
+    pub(crate) fn install_menus(&mut self, able: (bool, bool), cx: &mut Context<Self>) {
+        self.undo_menu = able;
+        log::info!("table: undo {}, redo {}", able.0, able.1);
+        cx.defer(move |cx| {
+            ely_ui::set_document_menus(AppId::Table, &ely_ui::commands::FILE, menus(able, cx), cx);
+            cx.refresh_windows();
+        });
     }
 
     pub fn text(cx: &App, key: &str, args: &[(&str, &str)]) -> SharedString {

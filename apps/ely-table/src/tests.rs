@@ -56,10 +56,9 @@ pub(crate) fn book(cx: &mut TestAppContext, dir: &Path) -> Option<(WindowHandle<
     let window = cx.add_window(|_, _| Blank);
     let book = cx
         .update_window(window.into(), |_, window, app| {
-            let book = app.new(|cx| Book::new(worker, stop, work, window, cx));
-            book.update(app, |book, _| {
-                book.core.window = Some(window.window_handle())
-            });
+            let book = app.new(|cx| Book::new(ely_office::Core::new(worker, stop, work, cx), window, cx));
+            book.update(app, |book, _| book.core.window = Some(window.window_handle()));
+            ely_ui::tray::testing::opened(ely_platform::AppId::Table, window.window_handle(), app);
             book
         })
         .expect("the window lives");

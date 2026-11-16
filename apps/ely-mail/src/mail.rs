@@ -158,7 +158,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     let files = ely_ui::launch_files(cx);
     mail.update(cx, |mail, cx| mail.take_files(files, cx));
     let handed = mail.downgrade();
-    ely_ui::on_open(cx, move |path, cx| {
+    ely_ui::on_open(cx, move |path, _, cx| {
         handed.update(cx, |mail, cx| mail.take_files(vec![path], cx)).ok();
     });
     // Closing the window leaves sync and the Outbox running.

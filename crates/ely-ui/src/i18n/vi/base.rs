@@ -19,6 +19,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("menu.view", "Xem"),
     ("menu.insert", "Chèn"),
     ("command.file.new", "Mới"),
+    ("command.file.new_window", "Cửa sổ mới"),
     ("command.file.open", "Mở…"),
     ("command.file.save", "Lưu"),
     ("command.file.save_as", "Lưu thành…"),

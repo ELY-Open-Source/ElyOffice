@@ -159,7 +159,7 @@ rm -rf target/debug/incremental   标准 Cargo 下每次构建或测试后都删
 - 性能：八个应用都不许卡顿（120 FPS 手感，potato computer 也要流畅），输入延迟与帧时间实测验收；界面线程不等内核、不持 worker 锁，空闲不做事；保存与恢复点给键入让路。
 - LOK：界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；外部链接打开时显示保存的值，用户点“更新链接”才读源；内核弹出的对话框即刻关闭并报错，需要的由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入；worker 启动时关掉 OpenCL 与打印机查找（点名打印机或按打印机度量排版的文档才问）；应用与 worker 只经本用户的端点相连（Windows 命名管道，macOS、Linux 0600 套接字），握手核对版本与内核编号（`ely-kernel-id`）。
 - 更新：每个平台一份清单，更新整套，读 GitHub 的最新发布，不通则读官网转发的同一路径；清单以 ed25519 签名，缺签名或不符即拒；种子 `ELY_UPDATE_KEY`（本机 `update-key.txt`，不入库）丢失即旧版再也收不到更新；自动检查默认关，从不静默安装；包管理器与 Nix 装的只提示。
-- 每个应用只跑一份，再次启动把文件交给运行中的那份。
+- 每个应用只跑一份，再次启动把文件交给运行中的那份。ElyTable、ElyPDF 可开多个窗口（文件菜单“新建窗口”、`--new-window`），共用一个引擎与一份文档记录；应用经 `ely_ui::run` 的 `more` 声明，其余应用一个窗口。
 - 命令行读写已打开的文档：`ely-table cell`，`ely-doc text`、`ely-show text`、`ely-mark text`；请求走实例门（本机回环、令牌只给同一用户），不动用户的光标与选区；范围见 `docs/help.md`。
 - ElyTable 的 R 宏（实验性）：只在用户点运行时起 `Rscript`，不是沙箱，从不代装；细则见 `docs/r-macros.md`。
 - ElyMark 原生实现（组件库 Markdown 组件与其 Markdown 树），不用 CEF、Electron；Typora 只作参照，读同一文件不同时随 GitHub（GFM）。

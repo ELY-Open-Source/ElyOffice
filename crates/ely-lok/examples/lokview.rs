@@ -44,7 +44,7 @@ fn main() {
         };
         window.on_next_frame(move |window, cx| probe.step(0, 0, window, cx));
         ely_ui::root(app, Some(view.into()), window, cx)
-    });
+    }, None);
 }
 
 const FODT: &str = r#"<?xml version="1.0" encoding="UTF-8"?>

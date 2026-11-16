@@ -38,7 +38,7 @@ impl MarkView {
             Attachment::Files(paths) => {
                 let (opened, kept): (Vec<PathBuf>, Vec<PathBuf>) = paths.iter().cloned().partition(|path| opens(path));
                 if !opened.is_empty() {
-                    ely_ui::open_dropped(ely_platform::AppId::Mark, &opened, cx);
+                    ely_ui::open_dropped(ely_platform::AppId::Mark, &opened, None, cx);
                 }
                 if kept.is_empty() {
                     return;

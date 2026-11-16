@@ -40,7 +40,7 @@ mod writes;
 use ely_platform::AppId;
 
 fn main() {
-    ely_ui::run(AppId::Pdf, |_| {}, viewer::open);
+    ely_ui::run(AppId::Pdf, |_| {}, viewer::open, Some(viewer::more));
 }
 
 #[cfg(test)]

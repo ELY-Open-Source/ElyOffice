@@ -28,8 +28,9 @@ pub(super) fn drawn<'a>(cx: &'a mut TestAppContext, dir: &Path) -> Option<(Entit
         ely_office::bind_undo_keys(cx);
     });
     let (shown, cx) = cx.add_window_view(|window, cx| {
-        let book = cx.new(|cx| Book::new(worker, stop, work, window, cx));
+        let book = cx.new(|cx| Book::new(ely_office::Core::new(worker, stop, work, cx), window, cx));
         book.update(cx, |book, _| book.core.window = Some(window.window_handle()));
+        ely_ui::tray::testing::opened(ely_platform::AppId::Table, window.window_handle(), cx);
         Shown(book)
     });
     let book = cx.update(|_, app| shown.read(app).0.clone());
@@ -113,4 +114,43 @@ fn undo_and_redo_are_offered_only_when_the_kernel_can() {
     cx.dispatch_action(ely_office::Undo);
     settle(cx, |app| offered(app).1);
     assert_eq!(errors.get(), 0);
+}
+
+#[test]
+fn the_menu_is_the_front_window_s() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((book, cx)) = drawn(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    blank(cx, &book);
+    fresh(cx, &book);
+    update(cx, &book, |book, cx| book.run_active("sheet.rename", &["Plan", "1"], cx));
+    settle(cx, |app| offered(app) == (true, false));
+    let first = cx.update(|window, _| window.window_handle());
+    // A second window over the same engine, nothing to undo.
+    let second = cx.update(|_, app| {
+        app.open_window(Default::default(), |window, cx| {
+            let other = cx.new(|cx| Book::new(ely_office::Core::joined(cx).expect("the first records"), window, cx));
+            other.update(cx, |other, _| other.core.window = Some(window.window_handle()));
+            cx.new(|_| Shown(other))
+        })
+        .expect("a second window")
+    });
+    let second: gpui::AnyWindowHandle = second.into();
+    cx.update(|_, app| ely_ui::tray::testing::opened(ely_platform::AppId::Table, second, app));
+    settle(cx, |app| offered(app) == (false, false));
+    // An undo in the back window leaves the menu alone.
+    update(cx, &book, |book, cx| book.run_active("edit.undo", &[], cx));
+    settle(cx, |app| sheet_names(app, &book) != ["Plan"]);
+    fresh(cx, &book);
+    assert_eq!(cx.update(|_, app| offered(app)), (false, false), "the front window's menu stays");
+    cx.update(|_, app| ely_ui::tray::testing::raised(first, app));
+    settle(cx, |app| offered(app) == (false, true));
+    cx.update(|_, app| ely_ui::tray::testing::raised(second, app));
+    settle(cx, |app| offered(app) == (false, false));
+    // The front window closes: the one behind takes the menu.
+    cx.update(|_, app| ely_ui::tray::testing::closed(second, app));
+    settle(cx, |app| offered(app) == (false, true));
 }

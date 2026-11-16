@@ -12,6 +12,7 @@ mod frames;
 mod opening;
 mod pick;
 mod run;
+pub mod windows;
 pub mod settings;
 mod shell;
 pub mod tasks;
@@ -24,7 +25,7 @@ pub mod wheel;
 #[cfg(any(test, feature = "test-support"))]
 pub use ending::at_thread_end;
 pub use dropping::open_dropped;
-pub use opening::{Ask, ask_again, launch_files, mail_link, on_ask, on_open};
+pub use opening::{Ask, Opened, ask_again, launch_files, mail_link, on_ask, on_open};
 #[cfg(any(test, feature = "test-support"))]
 pub use opening::install_no_launch_files;
 #[cfg(any(test, feature = "test-support"))]

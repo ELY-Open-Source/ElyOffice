@@ -94,7 +94,7 @@ pub(crate) fn windowed<'a>(
     std::fs::create_dir_all(&work).expect("a work dir");
     let (viewer, vcx) = cx.add_window_view(move |window, cx| {
         let stop = <crate::engine::Pdf as ely_office::Engine>::stopper(&held);
-        let mut viewer = Viewer::new(Arc::new(Mutex::new(held)), stop, work, cx);
+        let mut viewer = Viewer::new(ely_office::Core::new(Arc::new(Mutex::new(held)), stop, work, cx), cx);
         viewer.core.window = Some(window.window_handle());
         viewer
     });

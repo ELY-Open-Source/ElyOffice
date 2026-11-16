@@ -19,6 +19,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("menu.view", "보기"),
     ("menu.insert", "삽입"),
     ("command.file.new", "새로 만들기"),
+    ("command.file.new_window", "새 창"),
     ("command.file.open", "열기…"),
     ("command.file.save", "저장"),
     ("command.file.save_as", "다른 이름으로 저장…"),

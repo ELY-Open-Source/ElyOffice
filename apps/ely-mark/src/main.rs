@@ -33,5 +33,5 @@ fn main() {
     if let Some(code) = remote::command_line() {
         std::process::exit(code);
     }
-    ely_ui::run(AppId::Mark, |_| {}, desk::open);
+    ely_ui::run(AppId::Mark, |_| {}, desk::open, None);
 }

@@ -4,7 +4,7 @@ use std::{io::Write as _, path::Path};
 
 use ely_platform::instance;
 use ely_ui::Ask;
-use gpui::{Context, TaskExt as _, Window};
+use gpui::{App, Context, TaskExt as _, Window};
 
 use crate::{Core, Engine, Host, Saving, Tabs, in_window};
 
@@ -70,7 +70,26 @@ pub fn copy<G: Engine>(worker: &mut G::Worker, doc: &G::Doc, path: &Path, format
     Ok(bytes)
 }
 
-/// Answers `docs` and `save`; other verbs come back.
+/// Hands `ask` to the window that holds its file (W.1b).
+pub fn route<H: Remote>(ask: Ask, cx: &mut App, answer: fn(&mut H, Ask, &mut Context<H>)) {
+    let hosts = match crate::shared::Handle::<H>::joined(cx) {
+        Ok(shared) => shared.hosts(),
+        Err(error) => return ask.answer(Err(error.to_string())),
+    };
+    // A malformed request is told so by the host.
+    let words: Vec<String> = serde_json::from_str(&ask.request).unwrap_or_default();
+    if words.len() == 1 && words[0] == "docs" {
+        let files: Vec<String> = hosts.iter().flat_map(|host| host.read(cx).docs()).collect();
+        return ask.answer(Ok(files.join("\n")));
+    }
+    let holder = words.get(1).and_then(|file| hosts.iter().find(|host| host.read(cx).tab_of(file).is_ok()));
+    let Some(host) = holder.cloned().or_else(|| crate::shared::Handle::<H>::joined(cx).ok()?.front(None, cx)) else {
+        return ask.answer(Err(format!("{} has no window open", H::KIND.app.name())));
+    };
+    host.update(cx, |host, cx| answer(host, ask, cx));
+}
+
+/// Answers `save`; other verbs come back.
 pub trait Remote: Saving {
     /// The verb's tab and words; None once answered.
     fn asked(&mut self, ask: Ask, cx: &mut Context<Self>) -> Option<(u64, Vec<String>, Ask)> {
@@ -84,9 +103,7 @@ pub trait Remote: Saving {
         let slug = Self::KIND.app.slug();
         log::info!("{slug}: another program asks {}", words.first().map_or("nothing", String::as_str));
         if words.len() == 1 && words[0] == "docs" {
-            let open = self.core().tabs.iter().filter_map(|tab| tab.session.path()).map(Path::new);
-            let files: Vec<String> = open.chain(self.core().parked_files()).map(|path| path.display().to_string()).collect();
-            ask.answer(Ok(files.join("\n")));
+            ask.answer(Ok(self.docs().join("\n")));
             return None;
         }
         let id = match words.get(1).map(|file| self.tab_of(file)) {
@@ -117,6 +134,12 @@ pub trait Remote: Saving {
         cx.spawn(async move |this, cx| in_window(&this, cx, |host, window, cx| host.save_for(id, ask, window, cx)))
             .detach_and_log_err(cx);
         None
+    }
+
+    /// This window's files, open or waiting.
+    fn docs(&self) -> Vec<String> {
+        let open = self.core().tabs.iter().filter_map(|tab| tab.session.path()).map(Path::new);
+        open.chain(self.core().parked_files()).map(|path| path.display().to_string()).collect()
     }
 
     /// The tab showing `file`; only saved files are named.

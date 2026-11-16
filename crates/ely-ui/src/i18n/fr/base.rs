@@ -19,6 +19,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("menu.view", "Affichage"),
     ("menu.insert", "Insertion"),
     ("command.file.new", "Nouveau"),
+    ("command.file.new_window", "Nouvelle fenêtre"),
     ("command.file.open", "Ouvrir…"),
     ("command.file.save", "Enregistrer"),
     ("command.file.save_as", "Enregistrer sous…"),

@@ -1,9 +1,6 @@
 //! PDFs in the shared shell, one worker behind (PDF-01).
 
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use ely_gpui_component::{
     feedback::EmptyState,
@@ -121,27 +118,53 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
         Err(error) => ely_platform::startup::fail(app, &format!("{error}")),
     };
     // The worker starts with the first file (PERF-01).
-    let viewer = cx.new(|cx| {
-        let mupdf = Mupdf::default();
-        let stop = <Pdf as ely_office::Engine>::stopper(&mupdf);
-        let mut host = Viewer::new(Arc::new(Mutex::new(mupdf)), stop, work, cx);
+    let viewer = viewer(
+        |cx| {
+            let mupdf = Mupdf::default();
+            let stop = <Pdf as ely_office::Engine>::stopper(&mupdf);
+            Core::new(Arc::new(Mutex::new(mupdf)), stop, work, cx)
+        },
+        cx,
+    );
+    let root = root(&viewer, window, cx);
+    for path in ely_ui::launch_files(cx) {
+        viewer.update(cx, |viewer, cx| viewer.open_file(path, cx));
+    }
+    // Files go to their window, else the one in front.
+    ely_ui::on_open(cx, |path, window, cx| match ely_office::shared::Handle::<Viewer>::joined(cx).ok().and_then(|shared| shared.front(window, cx)) {
+        Some(front) => front.update(cx, |viewer, cx| viewer.open_file(path, cx)),
+        None => log::error!("pdf: a file came with no window open"),
+    });
+    root
+}
+
+/// Another window over the first one's engine (W.1b).
+pub fn more(cx: &mut App) -> std::io::Result<ely_ui::windows::Build> {
+    let shared = ely_office::shared::Handle::<Viewer>::joined(cx)?;
+    Ok(Box::new(move |window, cx| {
+        let viewer = viewer(move |cx| Core::join(shared, cx), cx);
+        root(&viewer, window, cx)
+    }))
+}
+
+/// A viewer over `core` that keeps points and saves.
+fn viewer(core: impl FnOnce(&mut Context<Viewer>) -> Core<Viewer>, cx: &mut App) -> Entity<Viewer> {
+    cx.new(|cx| {
+        let mut host = Viewer::new(core(cx), cx);
         // Recovery points, crash return, autosave (§6.2, §6.3).
         ely_office::Recovering::start_recovery(&mut host, cx);
         <Viewer as ely_office::Autosaving>::start_autosave(cx);
         host
-    });
-    let root = ely_ui::document_root(app, viewer.clone().into(), &commands::FILE, crate::keys::menus(cx), window, cx);
+    })
+}
+
+/// The window's root, its home, and its close asking first.
+fn root(viewer: &Entity<Viewer>, window: &mut Window, cx: &mut App) -> Entity<Root> {
+    let root = ely_ui::document_root(AppId::Pdf, viewer.clone().into(), &commands::FILE, crate::keys::menus(cx), window, cx);
     viewer.update(cx, |viewer, cx| {
         viewer.core.root = root.downgrade();
         viewer.own_window(window, cx);
         window.focus(&viewer.core.focus, cx);
-    });
-    for path in ely_ui::launch_files(cx) {
-        viewer.update(cx, |viewer, cx| viewer.open_file(path, cx));
-    }
-    let opening = viewer.clone();
-    ely_ui::on_open(cx, move |path, cx| {
-        opening.update(cx, |viewer, cx| viewer.open_file(path, cx))
     });
     let closing = viewer.clone();
     ely_gpui_component::shell::guard_close(window, cx, move |window, cx| {
@@ -151,10 +174,10 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
 }
 
 impl Viewer {
-    pub fn new(worker: Arc<Mutex<Mupdf>>, stop: Option<ely_office::Stop>, work: PathBuf, cx: &mut Context<Self>) -> Self {
+    pub fn new(core: Core<Self>, cx: &mut Context<Self>) -> Self {
         let (this, weak) = (cx.entity(), cx.weak_entity());
         Viewer {
-            core: Core::new(worker, stop, work, cx),
+            core,
             side: cx.new(|cx| crate::side::Side::new(&this, cx)),
             sidebar_tab: None,
             ask: None,

@@ -20,6 +20,13 @@ static HELD: OnceLock<File> = OnceLock::new();
 /// How long a second copy waits for the door.
 const WAIT: Duration = Duration::from_secs(10);
 
+/// What a start asks: files, maybe a new window.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Launch {
+    pub files: Vec<PathBuf>,
+    pub new_window: bool,
+}
+
 /// What starting a copy found.
 pub enum Start {
     /// This copy runs; its door takes later copies' files.
@@ -29,10 +36,10 @@ pub enum Start {
 }
 
 /// Takes `app`'s lock, or hands `files` to its holder.
-pub fn hold(app: AppId, files: &[PathBuf]) -> io::Result<Start> {
+pub fn hold(app: AppId, launch: &Launch) -> io::Result<Start> {
     let dir = crate::data_dir(app).map_err(io::Error::other)?;
     std::fs::create_dir_all(&dir)?;
-    start(app, &dir, files)
+    start(app, &dir, launch)
 }
 
 /// Sends `request` to the running `app`; its answer.
@@ -44,10 +51,10 @@ pub fn ask(app: AppId, request: &str) -> io::Result<String> {
     door::ask(&dir, request)
 }
 
-fn start(app: AppId, dir: &Path, files: &[PathBuf]) -> io::Result<Start> {
+fn start(app: AppId, dir: &Path, launch: &Launch) -> io::Result<Start> {
     match take(app, dir) {
         Ok(()) => Ok(Start::First(Door::open(dir)?)),
-        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => match door::hand(dir, files, WAIT) {
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => match door::hand(dir, launch, WAIT) {
             Ok(()) => Ok(Start::Handed),
             Err(handing) => Err(io::Error::new(handing.kind(), format!("{error} and did not take the files: {handing}"))),
         },
@@ -214,7 +221,7 @@ mod tests {
         let mut said = std::io::BufReader::new(first.stdout.take().expect("its output")).lines().map(|line| line.expect("a line"));
         assert!(said.by_ref().any(|line| line.contains("HELD")), "the first copy did not start");
         let file = std::path::PathBuf::from("C:/notes/a b.md");
-        let second = start(AppId::Doc, dir.path(), std::slice::from_ref(&file)).expect("handed over");
+        let second = start(AppId::Doc, dir.path(), &Launch { files: vec![file.clone()], new_window: false }).expect("handed over");
         assert!(matches!(second, Start::Handed));
         let got = said.find(|line| line.contains("GOT"));
         assert_eq!(got.as_deref().and_then(|line| line.split("GOT ").nth(1)), Some(file.to_str().expect("text")));
@@ -232,14 +239,14 @@ mod tests {
             "long" => Ok("汉".repeat(200_000)),
             other => Err(format!("{other} is unknown")),
         };
-        door.serve(move |files| sender.lock().expect("a sender").send(files).is_ok(), reply).expect("served");
+        door.serve(move |launch: Launch| sender.lock().expect("a sender").send(launch.files).is_ok(), reply).expect("served");
         assert_eq!(door::ask(dir.path(), "cell").expect("answered"), "42");
         assert_eq!(door::ask(dir.path(), "long").expect("a long answer").chars().count(), 200_000);
         assert_eq!(door::ask(dir.path(), &"x".repeat(300_000)).expect_err("echoed").to_string().len(), 300_011);
         let refused = door::ask(dir.path(), "save").expect_err("refused");
         assert_eq!(refused.to_string(), "save is unknown");
         let file = PathBuf::from("C:/a.xlsx");
-        door::hand(dir.path(), std::slice::from_ref(&file), WAIT).expect("handed");
+        door::hand(dir.path(), &Launch { files: vec![file.clone()], new_window: false }, WAIT).expect("handed");
         assert_eq!(handed.recv().expect("files"), vec![file], "hand-overs still work");
     }
 
@@ -249,12 +256,12 @@ mod tests {
         let Ok(dir) = std::env::var("ELY_FIRST_DIR") else {
             return;
         };
-        let Ok(Start::First(door)) = start(AppId::Doc, Path::new(&dir), &[]) else {
+        let Ok(Start::First(door)) = start(AppId::Doc, Path::new(&dir), &Launch::default()) else {
             panic!("the first copy did not hold");
         };
         let (sender, heard) = std::sync::mpsc::channel();
         let sender = std::sync::Mutex::new(sender);
-        door.serve(move |files| sender.lock().expect("a sender").send(files).is_ok(), |_| Err("no requests".into())).expect("served");
+        door.serve(move |launch: Launch| sender.lock().expect("a sender").send(launch.files).is_ok(), |_| Err("no requests".into())).expect("served");
         println!("HELD");
         let files = heard.recv_timeout(std::time::Duration::from_secs(20)).expect("a hand-over");
         println!("GOT {}", files[0].display());

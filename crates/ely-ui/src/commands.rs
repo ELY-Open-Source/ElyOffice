@@ -10,6 +10,7 @@ actions!(
     office,
     [
         New,
+        NewWindow,
         Open,
         Save,
         SaveAs,
@@ -83,6 +84,13 @@ const NEW: Command = Command {
     blocked: None,
     action: || Box::new(New),
 };
+/// Shown only in apps that open more windows.
+const NEW_WINDOW: Command = Command {
+    id: "file.new_window",
+    keys: secondary!("shift-n"),
+    blocked: None,
+    action: || Box::new(NewWindow),
+};
 const OPEN: Command = Command {
     id: "file.open",
     keys: secondary!("o"),
@@ -147,7 +155,9 @@ pub fn menus(
     extra: Vec<Menu>,
     cx: &App,
 ) -> Vec<Menu> {
-    let items = file.iter().map(|command| {
+    let windows = crate::windows::allowed(cx).then_some(&NEW_WINDOW);
+    let file = file.iter().flat_map(|command| std::iter::once(*command).chain(windows.filter(|_| command.id == NEW.id)));
+    let items = file.map(|command| {
         let off = blocked(command.id, document, cx).is_some();
         MenuItem::Action {
             name: label(command, cx),
@@ -193,6 +203,7 @@ pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new(PRINT.keys, Print, Some(CONTEXT)),
         KeyBinding::new(NEW.keys, New, Some(CONTEXT)),
+        KeyBinding::new(NEW_WINDOW.keys, NewWindow, None),
         KeyBinding::new(OPEN.keys, Open, Some(CONTEXT)),
         KeyBinding::new(SAVE.keys, Save, Some(CONTEXT)),
         KeyBinding::new(SAVE_AS.keys, SaveAs, Some(CONTEXT)),

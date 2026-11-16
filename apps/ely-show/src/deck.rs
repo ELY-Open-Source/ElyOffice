@@ -157,7 +157,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     let asked = deck.clone();
     ely_ui::on_ask(cx, move |ask, cx| asked.update(cx, |deck, cx| deck.answer_request(ask, cx)));
     let opening = deck.clone();
-    ely_ui::on_open(cx, move |path, cx| {
+    ely_ui::on_open(cx, move |path, _, cx| {
         opening.update(cx, |deck, cx| deck.open_file(path, cx))
     });
     let closing = deck.clone();

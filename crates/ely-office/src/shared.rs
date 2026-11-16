@@ -71,7 +71,7 @@ impl<H: Host> Handle<H> {
     }
 
     /// A later window's: what the first one started.
-    pub(crate) fn joined(cx: &App) -> io::Result<Self> {
+    pub fn joined(cx: &App) -> io::Result<Self> {
         let slot = cx.try_global::<Slot<H>>().ok_or_else(|| io::Error::other("no window of the app holds its documents"))?;
         Ok(Handle(Rc::clone(&slot.0)))
     }
@@ -90,6 +90,14 @@ impl<H: Host> Handle<H> {
             return Some(this.clone());
         }
         self.hosts().first().map(gpui::Entity::downgrade)
+    }
+
+    /// The host in `window`, else in the front window.
+    pub fn front(&self, window: Option<gpui::AnyWindowHandle>, cx: &App) -> Option<gpui::Entity<H>> {
+        let hosts = self.hosts();
+        let front = window.or_else(|| ely_ui::tray::main(cx));
+        let shown = hosts.iter().find(|host| front.is_some() && host.read(cx).core().window == front);
+        shown.or(hosts.last()).cloned()
     }
 
     /// The windows still open, oldest first.
