@@ -18,6 +18,7 @@ import drive
 import run
 import samples
 import search
+import sheets
 import feedback
 
 from run import APPS, App, percentile
@@ -82,17 +83,23 @@ def perf01(work, runs):
     return rows
 
 
+def machine():
+    """Today and this machine, as each record names it."""
+    env = {"date": datetime.date.today().isoformat(), **run.HOST.environment()}
+    # One PC runs both systems; each keeps its own record.
+    if run.HOST.name != "macOS":
+        env["machine"] = re.sub(r"[^A-Za-z0-9]+", "-", f"{env['machine']} {run.HOST.name}").strip("-")
+    return env
+
+
 def environment(found, partial):
     builds = {slug: hashlib.sha256(open(run.HOST.exe(slug), "rb").read()).hexdigest()[:16] for slug in APPS}
     with open(os.path.join(run.ROOT, "Cargo.toml"), encoding="utf-8") as manifest:
         version = re.search(r'^version = "(.+)"', manifest.read(), re.M).group(1)
-    env = {"date": datetime.date.today().isoformat(), "version": version, **run.HOST.environment()}
+    env = {**machine(), "version": version}
     # A run of some cases is no release's record.
     if partial:
         env["partial"] = True
-    # One PC runs both systems; each keeps its own record.
-    if run.HOST.name != "macOS":
-        env["machine"] = re.sub(r"[^A-Za-z0-9]+", "-", f"{env['machine']} {run.HOST.name}").strip("-")
     return {**env, "builds": builds, "samples": {name: value[1] for name, value in found.items()},
             "mails": search.MAILS}
 
@@ -131,6 +138,7 @@ def main():
                                  stalls or [0], None))
         cases = [("PERF-03", "ely-doc", "doc.docx", ["opened doc.docx", r"lok: first tile drawn"]),
                  ("PERF-04", "ely-table", "sheet.xlsx", ["opened sheet.xlsx", r"lok: first tile drawn"]),
+                 *[("PERF-04", "ely-table", name, [f"opened {name}", r"lok: first tile drawn"]) for name in sheets.MAKERS],
                  ("PERF-05", "ely-pdf", "pages.pdf", ["opened pages.pdf", r"pdf: first tile drawn, page 0$"]),
                  ("PERF-07", "ely-mark", "notes.md", ["opened notes.md", r"mark: shown as \"visual\""])]
         if want("PERF-03"):
@@ -165,7 +173,8 @@ def main():
 
 def write(out, env, rows, held, runs):
     os.makedirs(out, exist_ok=True)
-    path = os.path.join(out, f"{env['date']}-{env['machine']}{'-partial' if env.get('partial') else ''}.md")
+    kind = f"-{env['kind']}" if env.get("kind") else ""
+    path = os.path.join(out, f"{env['date']}-{env['machine']}{kind}{'-partial' if env.get('partial') else ''}.md")
     lines = [f"# Benchmark {env['date']}", "", "Format: docs/perf/README.md.", "", "```json",
              json.dumps(env, indent=2), "```", "",
              "| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Total memory MB | Budget MB |",
@@ -195,6 +204,7 @@ def write(out, env, rows, held, runs):
         with open(path, "a", encoding="utf-8", newline="\n") as record:
             record.write("\n".join([baseline.HEAD, "", *baseline.lines(found), ""]))
     print(path)
+    return path
 
 
 if __name__ == "__main__":

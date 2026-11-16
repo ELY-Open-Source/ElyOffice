@@ -438,6 +438,41 @@ Mac 上的载入已比 Windows 快三至四倍，时间花在起内核：热的�
 - 单元起到 active 要 720 左右（清空缓存后）：`systemctl start` 等 oneshot 的 `engine` 交出才返回，登录时它在后台，不挡桌面。
 - 本机现有 `~/.config/systemd/user/ely-engine@.service` 与三个链接，指 `dist` 里的映像。
 
+### SF.23 空闲引擎的门（2026-11-16，本机 9950X3D 与测试机 7877）
+
+`tests/perf/idle.py` 计的是精确的 CPU：Linux 各线程 `schedstat`，纳秒；Windows `QueryProcessCycleTime`，周期；macOS `proc_pid_rusage`。三个引擎起在临时数据目录下，静置 200 秒后看 600 秒。
+
+| 本机 Linux | 600 秒 CPU | 内存 |
+| --- | --- | --- |
+| Doc | 0 纳秒 | 176 MB |
+| Table | 0 纳秒 | 185 MB |
+| Show | 0 纳秒 | 170 MB |
+
+- 这是第 2 轮审查后的门再量的：旧门只加还在的线程，线程一退它的 CPU 就从和里消失；现在线程有进有出即判不过。对照：真起一个线程烧 0.2 秒后退出，旧算法得 -87170 纳秒、照过，新门报 “threads changed while idle”。
+
+- 补丁 0134 前，Calc 的空闲计时器升到 3 秒后一直每 3 秒醒一次，十分钟 22 次，没有文档也醒；之后无事可做即停，有改动再起。
+- 静置为何 200 秒：新引擎前 4 秒还在做事；Show 在 177 秒又醒一次，约 0.3 毫秒。perf 抓到是 drawinglayer 的 `ImpTimedRefDev`：自检排版用过的参考设备，三分钟后自己释放，连同字体缓存。只此一次，之后不醒；它省内存，不改。
+- 内存记进 `tests/perf/idle.json`，门放一成。
+
+测试机 Windows（调试构建、带 0134 的内核）：门不过。200 至 800 秒，Doc 1.56 亿、Table 1.41 亿、Show 0.76 亿周期，约 25 至 50 毫秒。
+
+- 不是窗口消息：主线程挂钩看了投递与发送的消息，启动 15 秒后 Calc 的计时器消息停了，之后七分钟只有一条，第 6 分钟 COM 的 `OleMainThreadWndClass` 收到 `WM_USER`。
+- 每 60 至 130 秒一阵，每阵 300 万至 6600 万周期，三个引擎按各自起来的先后，差 5 秒依次来。每阵都有线程池线程新建、之后退出（线程数 8 到 10 至 13 再回 8）。新线程要过每个已载 DLL 的 `DllMain`，内核载了几百个。
+- 我们的代码不用线程池（无 `RegisterWait`、`CreateThreadpool` 一类调用），也没有一分钟上下的等待。谁往线程池里排的活，没查到：测试机没有调试器、没有内核的 PDB，内核的 `SAL_LOG` 编译时关了。
+- 未解决，SF.23 记为 `[!]` 的一项。下一步要在测试机上装 Windows 调试工具，或内核打开 `SAL_LOG` 重建。
+
+首次打开（测试机，main 建的安装包，毫秒）。Ely 计到首个图块，Office 计到标题带文件名的窗口，各 1 次，只看方向。记录在 `docs/perf/2026-11-16-…-Windows-install.md`、`-reboot.md`。
+
+| 文件 | 装完 Ely | 装完 Office | 重启后 Ely | 重启后 Office |
+| --- | --- | --- | --- | --- |
+| Doc `doc.docx` | 3158 | Word 4046 | 3109 | Word 4047 |
+| Table `sheet.xlsx` | 770 | Excel 1984 | 1028 | Excel 2406 |
+| Show `deck.pptx` | 2586 | PowerPoint 1968 | 2238 | PowerPoint 1859 |
+
+- Doc、Table 快过 Word、Excel；Show 慢过 PowerPoint 0.4 至 0.6 秒。Doc 两次都过了 3 秒的目标。
+- 重启那次在开机 75 秒时跑，登录项起的空闲引擎已在。
+- macOS 的空闲引擎与首次打开都没测；`idle.json` 只有 linux 一项。
+
 ## 微软怎么做
 
 Office 的做法叫 Startup Boost（[Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/troubleshoot/miscellaneous/new-startup-boost-tasks-windows-task-scheduler)，2025 年起）：

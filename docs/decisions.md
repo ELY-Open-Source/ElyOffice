@@ -1095,3 +1095,12 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 旧编号的内核仍不删：另一份映像（用户留着的旧版）可能还在从它起应用与引擎，AppRun 不知道还有哪些映像。每个编号 474 MB，只在换内核时多一份。
 - 实测：本机窗口是关键路径，热、冷缓存下接管都不省时间；应用只给一核时省约 95 毫秒（469 至 479 降到 363 至 384）。
 - 空闲引擎的名字带配置目录规范化路径的散列（`idle-<应用>-<16 位>`；符号链接与别名指向同一目录即同一名字，与目录里的锁一致）：原先只按应用命名，同一用户下别的 HOME 或换过数据文件夹的应用会接管用另一份配置的引擎；`linux-installed.sh` 的应用就接管了本机单元起的引擎，其日志落进别处。
+
+## 2026-11-16 基准与空闲引擎进发布的门（SF.23）
+
+- `tests/perf/firsts.py install` 与 `reboot` 测装完、重启后首次打开（各端照用户打开文件的路子起应用，计到首个图块）；`baseline.py` 要这一版两份都在。重启那份须在开机 900 秒内跑。Windows 上同时记 Word、Excel、PowerPoint 到标题带文件名的窗口，只记不拦：Office 一更新就变。
+- `tests/perf/idle.py` 进 `release-tests.sh`：三个空闲引擎起在临时数据目录，静置 200 秒后 600 秒内 CPU 须为 0（Linux `schedstat` 纳秒，Windows `QueryProcessCycleTime`，macOS `proc_pid_rusage`），进程号不变，内存不超 `tests/perf/idle.json` 一成。tick 计数是抽样的，不用。
+- 补丁 0134：Calc 的空闲计时器升到 3 秒后不再停，十分钟醒 22 次；改为无事可做即停，`AnythingChanged` 再起。
+- 静置 200 秒：drawinglayer 的 `ImpTimedRefDev` 在最后一次排版三分钟后释放参考设备与字体缓存，Show 在 177 秒醒一次（perf 抓的栈）。它省内存，留着。
+- Windows 未过（`[!]`）：主线程只收到一条 COM 的 `WM_USER`，其余是每 60 至 130 秒一阵的线程池线程新建与退出，每阵 300 万至 6600 万周期。谁排的活没查到；测试机没有调试器与内核的 PDB。Windows 的发布因此被门拦着，直到查清。
+- macOS 没测：`idle.py` 的 macOS 读法未在测试机上跑过，`idle.json` 无 darwin 一项，macOS 的 `release-tests.sh` 会停在“no darwin record”，须先在 7885 上带 0134 的内核跑一次 `--record`。

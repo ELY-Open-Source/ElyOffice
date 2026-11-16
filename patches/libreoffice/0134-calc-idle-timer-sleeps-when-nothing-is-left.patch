@@ -1,0 +1,36 @@
+sc: the idle timer sleeps when nothing is left to do
+
+ScModule's idle timer climbs from 150 ms to 3000 ms and then fires
+every three seconds for as long as Calc runs, with no document work.
+Ely keeps a Calc engine waiting from login: it woke 22 times in ten
+minutes with nothing to do (Ely SF.23).
+
+At 3000 ms with no link or text-width work left, the handler no
+longer restarts the timer. AnythingChanged, called on every change
+and on every new visible range, starts it again at 150 ms.
+
+diff --git a/sc/source/ui/app/scmod.cxx b/sc/source/ui/app/scmod.cxx
+index d9d11e1..9145655 100644
+--- a/sc/source/ui/app/scmod.cxx
++++ b/sc/source/ui/app/scmod.cxx
+@@ -1916,6 +1916,9 @@ void ScModule::AnythingChanged()
+         m_aIdleTimer.SetTimeout( SC_IDLE_MIN );
+ 
+     nIdleCount = 0;
++    // A stopped timer wakes on change.
++    if ( !m_aIdleTimer.IsActive() )
++        m_aIdleTimer.Start();
+ }
+ 
+ static void lcl_CheckNeedsRepaint( const ScDocShell* pDocShell )
+@@ -1980,7 +1983,9 @@ IMPL_LINK_NOARG(ScModule, IdleHandler, Timer *, void)
+     if ( nNewTime != nOldTime )
+         m_aIdleTimer.SetTimeout( nNewTime );
+ 
+-
++    // Nothing left: sleep until AnythingChanged.
++    if ( !bMore && nOldTime == SC_IDLE_MAX )
++        return;
+     m_aIdleTimer.Start();
+ }
+ 

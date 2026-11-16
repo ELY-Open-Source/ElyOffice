@@ -12,6 +12,9 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # A third slower, and by ten milliseconds, wants a reason.
 SLOWER, FLOOR_MS = 1.30, 10
 HEAD = "Slower than the last record by over 30%:"
+# Each record a release needs, and what writes it.
+KINDS = {None: "tests/perf/bench.py", "install": "tests/perf/firsts.py install",
+         "reboot": "tests/perf/firsts.py reboot"}
 
 
 def read(path):
@@ -53,7 +56,8 @@ def slower(old, new):
 
 def before(all_records, record):
     """The same machine's record before `record`, if any."""
-    same = [other for other in all_records if other["env"]["machine"] == record["env"]["machine"]]
+    same = [other for other in all_records
+            if (other["env"]["machine"], other["env"].get("kind")) == (record["env"]["machine"], record["env"].get("kind"))]
     at = [other["path"] for other in same].index(record["path"])
     return same[at - 1] if at else None
 
@@ -70,13 +74,14 @@ def unexplained(all_records, record):
 def check(folder, version, system):
     """Why this version may not ship from `system`, if so."""
     all_records = records(folder)
-    mine = [record for record in all_records
-            if platform(record["env"]["machine"]) == system and record["env"].get("version") == version]
-    if not mine:
-        return f"no benchmark record of {version} on {system} in {folder}: run tests/perf/bench.py there and commit it"
-    cases = unexplained(all_records, mine[-1])
-    if cases:
-        return f"{mine[-1]['path']}: slower by over 30% with no reason written: {'; '.join(cases)}"
+    for kind, tool in KINDS.items():
+        mine = [record for record in all_records if platform(record["env"]["machine"]) == system
+                and record["env"].get("version") == version and record["env"].get("kind") == kind]
+        if not mine:
+            return f"no {kind or 'benchmark'} record of {version} on {system} in {folder}: run {tool} there and commit it"
+        cases = unexplained(all_records, mine[-1])
+        if cases:
+            return f"{mine[-1]['path']}: slower by over 30% with no reason written: {'; '.join(cases)}"
     return None
 
 

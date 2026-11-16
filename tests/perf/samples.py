@@ -8,6 +8,8 @@ import subprocess
 import zipfile
 import zlib
 
+import sheets
+
 
 def noise_png(seed, width, height):
     """An RGB PNG of seeded noise; it does not compress."""
@@ -156,7 +158,7 @@ def markdown(path):
 def made(folder, git):
     """Each sample, made once, with its SHA-256."""
     os.makedirs(folder, exist_ok=True)
-    makers = {"doc.docx": docx, "sheet.xlsx": xlsx, "pages.pdf": pdf, "notes.md": markdown}
+    makers = {"doc.docx": docx, "sheet.xlsx": xlsx, "pages.pdf": pdf, "notes.md": markdown, **sheets.MAKERS}
     found = {}
     for name, make in makers.items():
         path = os.path.join(folder, name)

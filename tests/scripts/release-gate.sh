@@ -44,10 +44,26 @@ record() { # day, version, start P50, key P95, reasons
   printf '# Benchmark %s\n\n```json\n{"date": "%s", "version": "%s", "machine": "Box-Linux"}\n```\n\n| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Total memory MB | Budget MB |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| PERF-01 | app daily start | 30 | %s | %s ✓ | 3000 |  |  |\n| PERF-02 | app key to tile | 30 | 5 | %s ✓ | 100 |  |  |\n%s' \
     "$1" "$1" "$2" "$3" "$3" "$4" "$5" >"$work/perf/$1-Box-Linux.md"
 }
+# First open record: day, version, kind, ms
+first() {
+  printf '# Benchmark %s\n\n```json\n{"date": "%s", "version": "%s", "machine": "Box-Linux", "kind": "%s"}\n```\n\n| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Total memory MB | Budget MB |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| PERF-01 | app first open after %s | 1 | %s | %s ✓ | 3000 |  |  |\n' \
+    "$1" "$1" "$2" "$3" "$3" "$4" "$4" >"$work/perf/$1-Box-Linux-$3.md"
+}
 base() { python3 "$root/tests/perf/baseline.py" --folder "$work/perf" --check "$@" 2>"$work/base.err"; }
 record 2026-11-01 0.1.9 100 6 ''
+first 2026-11-01 0.1.9 install 1000
+first 2026-11-01 0.1.9 reboot 2000
 ! base 0.2.0 linux || fail "no record of this version"
 record 2026-11-20 0.2.0 120 9 ''
+! base 0.2.0 linux || fail "a release with no first open after install"
+grep -q "no install record of 0.2.0 on linux .* run tests/perf/firsts.py install" "$work/base.err" || fail "the missing first open is not named: $(cat "$work/base.err")"
+first 2026-11-20 0.2.0 install 1100
+! base 0.2.0 linux || fail "a release with no first open after reboot"
+grep -q "no reboot record of 0.2.0" "$work/base.err" || fail "the missing reboot is not named: $(cat "$work/base.err")"
+first 2026-11-20 0.2.0 reboot 2900
+! base 0.2.0 linux || fail "a first open after reboot 45% slower with no reason"
+grep -q "PERF-01 app first open after reboot" "$work/base.err" || fail "the slow first open is not named: $(cat "$work/base.err")"
+first 2026-11-20 0.2.0 reboot 2100
 base 0.2.0 linux || fail "a fifth slower, and three milliseconds: $(cat "$work/base.err")"
 ! base 0.2.0 macos || fail "a Linux record stood in for macOS"
 record 2026-11-20 0.2.0 140 6 ''
@@ -68,4 +84,4 @@ grep -q "PERF-02 app key to tile" "$work/base.err" || fail "the missing case is 
 sed -i 's/"version": "0.2.0"/"version": "0.2.0", "partial": true/' "$work/perf/2026-11-20-Box-Linux.md"
 ! base 0.2.0 linux || fail "a partial record stood for the release"
 grep -q "no benchmark record of 0.2.0" "$work/base.err" || fail "the partial record is not refused as none: $(cat "$work/base.err")"
-echo "release-gate: notes count unreviewed fixes, a short gap and a slowdown each want a reason"
+echo "release-gate: notes count unreviewed fixes, a short gap and a slowdown each want a reason; first opens after install and reboot are each required"

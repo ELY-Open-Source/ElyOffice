@@ -688,7 +688,7 @@
 - [x] SF.20 macOS LaunchAgent 常驻引擎；`.pkg` 的更新路径；Mac 测试机重量
 - [x] SF.21 Linux 只留 `ely-office` 包与统一 AppImage（首次运行写七个应用的菜单项、解出引擎与内核到 `~/.local/lib/ely-office/<编号>`），Nix 一个包
 - [x] SF.22 Linux systemd 用户服务常驻引擎；本机重量
-- [ ] SF.23 基准进发布的门（SF-13、SF-14）：XLSX 样本换有内容的；`tests/perf` 加安装后首次、重启后首次；与 Office 的对照只记录不设门（Office 一更新即变）；空闲引擎 10 分钟 CPU 为 0；三个常驻引擎的内存不超记录值一成
+- [!] SF.23 基准进发布的门（SF-13、SF-14）：XLSX 样本换有内容的；`tests/perf` 加安装后首次、重启后首次；与 Office 的对照只记录不设门（Office 一更新即变）；空闲引擎 10 分钟 CPU 为 0；三个常驻引擎的内存不超记录值一成 — R3 PASS（审查通过的是代码与记录）；未完成两项，门保持硬拦：Windows 空闲引擎 200 至 800 秒用 0.76 亿至 1.56 亿周期，每 60 至 130 秒一阵线程池线程新建与退出，谁排的活没查到（测试机无调试器、无内核 PDB，内核未开 SAL_LOG），Windows 的 `release-tests.sh` 因此不过；macOS 的空闲引擎与首次打开未测，`idle.json` 无 darwin 项。Linux 已过：静置 200 秒后 600 秒 0 纳秒
 - [ ] SF.25 组件库换 pin 到其 main：连带 gpui-pre 0.3.12（vendor 的四个 gpui 包照“首个提交原样，其后修复”重做），三端测试；可点的 `StatusBarItem` 成为 Tab 停靠点，Enter、空格按下（SF.13 审查第 1 轮）；ElyMail 的同步项改用 `feedback::SyncStatus`，待其文字本地化（SF.14）
 - [ ] SF.26 首个统一发布的提交：`flake.nix` 换成 `buildFHSEnv` 读统一映像，`packaging/nix.sh` 换读 `ely-office-linux-x86_64.json`，与新的 `nix/release.json` 同一提交；`tests/scripts/nix.sh` 照旧以入库的输入建
 - [ ] SF.24 ElyPDF 保存后文件暴涨（SF-20）：复现、比较对象大小找出长出来的一类；保存时新写与重写的流压缩、新嵌字体取子集、未动对象原样；每种编辑后保存的大小测试
