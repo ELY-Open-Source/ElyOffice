@@ -261,8 +261,8 @@ crates/ely-office/src/recover.rs	expect_used	keeping.slots.get_mut(&id).expect("
 crates/ely-office/src/recover.rs	expect_used	self.tab(id).expect("a due tab")	linux,macos,windows	a due tab
 crates/ely-office/src/recover.rs	expect_used	wrote.expect("this thread took the newest turn")	linux,macos,windows	this thread took the newest turn
 crates/ely-office/src/recover/disk.rs	expect_used	path.parent().expect("the index has a folder")	linux,macos,windows	the index has a folder
-crates/ely-office/src/recover/reopen.rs	expect_used	host.core().keeping.as_ref().expect("keeping")	linux,macos,windows	keeping
-crates/ely-office/src/recover/reopen.rs	expect_used	host.core_mut().keeping.as_mut().expect("keeping")	linux,macos,windows	keeping
+crates/ely-office/src/recover/reopen.rs	expect_used	shared.get_mut().keeping.as_mut().expect("keeping")	linux,macos,windows	keeping
+crates/ely-office/src/recover/reopen.rs	expect_used	shared.get_mut().keeping.as_mut().expect("keeping")	linux,macos,windows	keeping
 crates/ely-office/src/save.rs	expect_used	self.tab(id).expect("the tab is open")	linux,macos,windows	the tab is open
 crates/ely-office/src/save.rs	expect_used	self.tab_mut(id).expect("the tab is open")	linux,macos,windows	the tab is open
 crates/ely-office/src/stopped.rs	expect_used	worker.lock().expect("the worker lock")	linux,macos,windows	the worker lock
