@@ -25,10 +25,12 @@ impl Rebuilt {
         }
     }
 
-    /// Raw text is kept as written, so checked whole.
+    /// Style text reaches the engine as CSS.
     fn close_raw(&self) {
-        if let Some((name, text)) = self.raw.take() {
-            self.refuse(if name == "style" { check_css(&text) } else { rebuild(&text).map(drop) });
+        if let Some((name, text)) = self.raw.take()
+            && name == "style"
+        {
+            self.refuse(check_css(&text));
         }
     }
 
@@ -48,14 +50,10 @@ impl Rebuilt {
             out.push_str(&format!(" {key}=\"{}\"", escape(&value, true)));
         }
         out.push('>');
+        // Only what the engine also reads raw.
         let kind = match name {
-            "style" | "xmp" | "iframe" | "noembed" | "noframes" => RawKind::Rawtext,
+            "style" | "xmp" | "noembed" => RawKind::Rawtext,
             "script" => RawKind::ScriptData,
-            "title" | "textarea" => RawKind::Rcdata,
-            "plaintext" => {
-                self.raw.replace(Some((name.to_owned(), String::new())));
-                return TokenSinkResult::Plaintext;
-            }
             _ => return TokenSinkResult::Continue,
         };
         self.raw.replace(Some((name.to_owned(), String::new())));

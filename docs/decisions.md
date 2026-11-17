@@ -1217,5 +1217,5 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
   - 名字里有怪字符的标签与属性丢弃。
   - 可能被内核读成 `data:` 的值（去掉空白、控制字符与反斜杠之后再判断，`a`、`area` 的 `href` 除外）须是能解码的 PNG、JPEG、GIF、BMP 或 WebP，否则拒绝。通过的写成 `data:<类型>;base64,<标准 base64>`。
   - `style` 属性与 `<style>` 里的 `data:` 图须能解码。CSS 转义后才出现的 `data:` 一律拒绝。
-  - `<title>`、`<script>` 这类原文元素的内容照写，但其中的标签也查一遍。
-- 测试与对照：测试 `inline_images_paste_only_when_they_decode` 收齐历轮的写法。坏图必须报错，同时留住选区与正文；8 种好图须各嵌入一张（数 `<office:binary-data`）。把原文直交内核的变异上，只嵌入 6 张。
+  - 原文元素只认内核也当原文读的四个：`style`、`script`（`svtools/source/svhtml/parhtml.cxx` 的原文读法）、`noembed`（`sw/source/filter/html/swhtml.cxx` 的 `ReadRawData`）、`xmp`（`FilterXMP` 把标签转回文本），内容照写。`textarea`、`plaintext`、`noframes` 这些元素，html5ever 当原文，内核却照标签读（第 1 轮审查：其中的 `bas\e64` 图成了占位），于是照标签分词，其中的图与别处一样检查、规整。
+- 测试与对照：测试 `inline_images_paste_only_when_they_decode` 收齐历轮的写法（含 C07.3 第 6 轮的两个反斜杠、第 4 轮的大写 MIME，与包在 `textarea`、`plaintext`、`noframes` 里的图），好图数 `<office:binary-data>` 也数 `<draw:image>`，不许有占位。坏图必须报错，同时留住选区与正文；8 种好图须各嵌入一张（数 `<office:binary-data`）。把原文直交内核的变异上，只嵌入 6 张。

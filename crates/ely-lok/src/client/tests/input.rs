@@ -415,54 +415,6 @@ fn a_foreign_paste_flavor_is_refused() {
     worker.post_key(&doc, 0, 1027).expect("the worker lives");
 }
 
-/// HTML carrying `png` where `open` starts its URI.
-fn inline_html(open: &str, png: &[u8]) -> String {
-    use base64::Engine;
-    let data = base64::engine::general_purpose::STANDARD.encode(png);
-    format!(r#"<html><body><img {open}image/png;base64,{data}"></body></html>"#)
-}
-
-/// Every review round's spelling of an image the engine loads.
-const OPENS: [&str; 7] = [r#"src="data:"#, r#"src="DATA:"#, r#"src="d&#97;ta:"#, r#"src="da&#10;ta:"#, r#"src="d\ata:"#, r#"data="data:"#, r#"src="" data="data:"#];
-
-#[test]
-fn inline_images_paste_only_when_they_decode() {
-    if install().is_none() {
-        eprintln!("SKIP: no pinned LOK build");
-        return;
-    }
-    let (dir, mut worker, doc) = open(FODT);
-    click(&mut worker, &doc, 150, 150);
-    worker
-        .run(&doc, "edit.select_all", &[])
-        .expect("select all");
-    let broken = b"this is not a png";
-    let mut refused: Vec<String> = OPENS.iter().map(|open| inline_html(open, broken)).collect();
-    refused.push(inline_html(r#"src="data:"#, broken).replace(";base64", ";bas\\e64"));
-    refused.push(inline_html(r#"src="data:"#, broken).replace("<img src=", "<table background="));
-    refused.push(inline_html(r#"style="background:url(data:"#, broken));
-    for html in refused {
-        assert!(worker.paste(&doc, "text/html", html.as_bytes()).is_err(), "{html} pasted");
-        assert!(!worker.copy(&doc).expect("copy runs").is_empty(), "{html}: the selection went");
-        let text = saved(&dir, &mut worker, &doc, "kept.fodt");
-        assert_eq!(paragraphs(&text), ["Hello 世界"], "{html}: the text went");
-    }
-    worker
-        .post_key(&doc, 0, 1029)
-        .expect("End drops the selection");
-    let mut good: Vec<String> = OPENS.iter().map(|open| inline_html(open, &red_png())).collect();
-    good.push(inline_html(r#"src="data:"#, &red_png()).replace(";base64", ";bas\\e64"));
-    for html in &good {
-        worker.paste(&doc, "text/html", html.as_bytes()).unwrap_or_else(|error| panic!("{html}: {error}"));
-    }
-    let mention = "<html><body><p>Use data:image/png here.</p></body></html>";
-    worker.paste(&doc, "text/html", mention.as_bytes()).expect("text naming an image pastes");
-    let text = saved(&dir, &mut worker, &doc, "image.fodt");
-    // Each checked image is embedded, never a placeholder.
-    assert_eq!(text.matches("<office:binary-data").count(), good.len(), "the images land");
-    assert!(text.contains("Use data:image/png here."), "the text lands");
-}
-
 #[test]
 fn pastes_keep_working_past_the_undo_cap() {
     if install().is_none() {

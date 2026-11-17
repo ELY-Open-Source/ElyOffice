@@ -37,6 +37,7 @@ mod many;
 mod pivot;
 mod spill;
 pub(crate) mod input;
+mod inline;
 mod freed;
 mod latency;
 pub(crate) mod layout;

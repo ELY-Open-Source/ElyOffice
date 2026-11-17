@@ -29,6 +29,12 @@ fn every_spelling_of_a_broken_image_is_refused() {
         r#"<style>p {{ background: url(data:image/png;base64,{}) }}</style>"#,
         r#"<style><!-- p {{ background: url(DATA:image/png;base64,{}) }} --></style>"#,
         r#"<title><img src="data:image/png;base64,{}"></title>"#,
+        r#"<textarea><img src="data:image/png;base64,{}"></textarea>"#,
+        r#"<plaintext><img src="data:image/png;base64,{}">"#,
+        r#"<noframes><img src="data:image/png;base64,{}"></noframes>"#,
+        r#"<img src="d\\ata:image/png;base64,{}">"#,
+        r#"<img src="data:image/png;bas\\e64,{}">"#,
+        r#"<img src="DATA:IMAGE/PNG;base64,{}">"#,
     ];
     for spelling in spellings {
         let html = spelling.replace("{}", BAD).replace("{{", "{").replace("}}", "}");
@@ -46,6 +52,10 @@ fn a_good_image_reaches_the_engine_written_plainly() {
         let html = format!(r#"<img {spelling}image/png;bas\e64,{png}">"#);
         assert_eq!(rebuild(&html).expect("a good image"), plain, "{html}");
     }
+    for wrap in ["textarea", "plaintext", "noframes"] {
+        let html = format!(r#"<{wrap}><img src="data:image/png;bas\e64,{png}"></{wrap}>"#);
+        assert_eq!(rebuild(&html).expect("a good image"), format!("<{wrap}>{plain}</{wrap}>"), "{html}");
+    }
     let style = format!(r#"<p style="background:url(data:image/png;base64,{png})">x</p>"#);
     assert_eq!(rebuild(&style).expect("a good background"), style);
 }
@@ -61,6 +71,8 @@ fn only_what_the_tokenizer_read_reaches_the_engine() {
         // Word's escaped CJK font names stay as written.
         (r#"<style><!-- p { font-family:"\5B8B\4F53"; } a > b {} --></style>"#.to_owned(), r#"<style><!-- p { font-family:"\5B8B\4F53"; } a > b {} --></style>"#),
         (format!(r#"<img src="x.png" src="data:image/png;base64,{BAD}">"#), r#"<img src="x.png">"#),
+        // The engine shows these as text.
+        (r#"<xmp><img src="data:image/png;base64,dGhpcyBpcyBub3QgYSBwbmc="></xmp>"#.to_owned(), r#"<xmp><img src="data:image/png;base64,dGhpcyBpcyBub3QgYSBwbmc="></xmp>"#),
     ];
     for (html, rebuilt) in cases {
         assert_eq!(rebuild(&html).expect("the HTML rebuilds"), rebuilt, "{html}");
