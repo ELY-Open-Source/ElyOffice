@@ -1332,3 +1332,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 组件库 `ely-files`、`ely-mail`、`ely-agent` 在 crates.io 换名不可撤回。本机 `~/.cargo/credentials.toml` 不在，`CARGO_REGISTRY_TOKEN` 未设，照本条“没有令牌即 `[!]`”标记，不发布、不改名。用户给了令牌后单做。
 
+## 2026-11-17 #89 以 not planned 关闭（R20.25）
+
+- S3 与 WebDAV 不做，用户 2026-11-16 定。#89 已以 not planned 关闭，未加评论；代码与文档不变。
+
