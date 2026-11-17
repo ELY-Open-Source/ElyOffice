@@ -25,11 +25,19 @@ impl Rebuilt {
         }
     }
 
-    /// Style text reaches the engine as CSS.
+    /// Raw text without `<` ends where both parsers end it.
     fn close_raw(&self) {
-        if let Some((name, text)) = self.raw.take()
-            && name == "style"
-        {
+        let Some((name, text)) = self.raw.take() else {
+            return;
+        };
+        let markup = match name.as_str() {
+            "style" => text.replace("<!--", "").contains('<'),
+            _ => text.contains('<'),
+        };
+        if markup {
+            return self.refuse(Err(invalid(&format!("a {name} element holds markup"))));
+        }
+        if name == "style" {
             self.refuse(check_css(&text));
         }
     }

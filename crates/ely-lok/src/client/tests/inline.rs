@@ -42,6 +42,14 @@ fn inline_images_paste_only_when_they_decode() {
         .expect("select all");
     let broken = b"this is not a png";
     let mut refused = spellings(broken);
+    // The engine ends these raw texts early.
+    for png in [&broken[..], &red_png()] {
+        use base64::Engine;
+        let data = base64::engine::general_purpose::STANDARD.encode(png);
+        for (name, inside) in [("style", "</head>"), ("style", "<body>"), ("script", "</script1>"), ("xmp", "</body>"), ("xmp", "</html>")] {
+            refused.push(format!(r#"<html><body><{name}>{inside}<img src="data:image/png;bas\e64,{data}"></{name}></body></html>"#));
+        }
+    }
     refused.push(inline_html(r#"src="data:"#, broken).replace("<img src=", "<table background="));
     refused.push(inline_html(r#"style="background:url(data:"#, broken));
     for html in refused {

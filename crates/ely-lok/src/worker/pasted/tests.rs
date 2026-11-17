@@ -71,10 +71,25 @@ fn only_what_the_tokenizer_read_reaches_the_engine() {
         // Word's escaped CJK font names stay as written.
         (r#"<style><!-- p { font-family:"\5B8B\4F53"; } a > b {} --></style>"#.to_owned(), r#"<style><!-- p { font-family:"\5B8B\4F53"; } a > b {} --></style>"#),
         (format!(r#"<img src="x.png" src="data:image/png;base64,{BAD}">"#), r#"<img src="x.png">"#),
-        // The engine shows these as text.
-        (r#"<xmp><img src="data:image/png;base64,dGhpcyBpcyBub3QgYSBwbmc="></xmp>"#.to_owned(), r#"<xmp><img src="data:image/png;base64,dGhpcyBpcyBub3QgYSBwbmc="></xmp>"#),
     ];
     for (html, rebuilt) in cases {
         assert_eq!(rebuild(&html).expect("the HTML rebuilds"), rebuilt, "{html}");
     }
+}
+
+#[test]
+fn raw_text_holding_markup_is_refused() {
+    let png = png();
+    for html in [
+        format!(r#"<style></head><img src="d&#97;ta:image/png;base64,{BAD}"></style>"#),
+        format!(r#"<style><body><img src="data:image/png;base64,{png}"></style>"#),
+        format!(r#"<script></script1><img src="data:image/png;bas\e64,{png}"></script>"#),
+        format!(r#"<xmp></body><img src="data:image/png;bas\e64,{png}"></xmp>"#),
+        format!(r#"<noembed></html><img src="data:image/png;base64,{png}"></noembed>"#),
+        "<script>if (a < b) {}</script>".to_owned(),
+    ] {
+        assert!(rebuild(&html).is_err(), "{html} passed");
+    }
+    let kept = "<style><!-- p { color: red } --></style><script>go()</script><xmp>a & b</xmp>";
+    assert_eq!(rebuild(kept).expect("raw text without markup"), kept);
 }
