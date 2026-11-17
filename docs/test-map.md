@@ -33,8 +33,8 @@
 | LOK-03 | 处理内容区域失效通知，只更新必要图块；旧修订的画面不得覆盖新画面 | C07.2 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-04 | 统一转换文档坐标、视图缩放、滚动和平台 DPI；输入与选区使用同一坐标规则 | C07.2 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-05 | 字体、字号、样式、选择对象、修改状态和撤销可用性以内核为准 | C07.4 | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once`、`undo_and_redo_work_inside_a_shape_text_edit` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-06 | 复制粘贴覆盖纯文本、富文本、图片和表格；不只实现键盘事件转发 | C07.3（!） | `lokview.sh`、`inline_images_paste_only_when_they_decode` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
-| LOK-07 | 中文输入法包含组合开始、更新、提交和取消；不拆成普通按键模拟输入 | C07.3（!） | `lokview.sh`、`inline_images_paste_only_when_they_decode` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-06 | 复制粘贴覆盖纯文本、富文本、图片和表格；不只实现键盘事件转发 | C07.3 | `lokview.sh`、`inline_images_paste_only_when_they_decode` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
+| LOK-07 | 中文输入法包含组合开始、更新、提交和取消；不拆成普通按键模拟输入 | C07.3 | `lokview.sh`、`inline_images_paste_only_when_they_decode` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-08 | 页面设置、图表、样式、批注等需要的对话框由 Ely 实现；上游原生对话框不得泄露 | C07.4 | `nothing_to_undo_in_calc_answers_at_once`、`a11y_follows_calc_cells`、`a_format_step_in_a_cell_edit_undoes_and_redoes_at_once`、`undo_and_redo_work_inside_a_shape_text_edit` | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-09 | 保存与导出只通过内核支持的过滤器；错误码不能被当成成功 | C07.1 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
 | LOK-10 | 关闭文档释放内核对象、图块和临时文件；不终止其他应用的会话 | C07.1 | — | crates/ely-lok/src/client/tests、crates/ely-lok/src/view/tests、lokview.sh |
