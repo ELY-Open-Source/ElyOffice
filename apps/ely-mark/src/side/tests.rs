@@ -276,3 +276,26 @@ fn a_recent_root_copies_only_its_path(cx: &mut TestAppContext) {
     assert!(cx.debug_bounds("menu-row-Copy File Name").is_none());
     assert_eq!(copied("menu-row-Copy Path", cx), Some(root.display().to_string()));
 }
+
+#[gpui::test]
+fn a_folder_the_filter_finds_opens_to_its_files(cx: &mut TestAppContext) {
+    let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+    std::fs::create_dir_all(files.path().join("notes/sub")).expect("folders");
+    for (path, text) in [("notes/a.md", "a\n"), ("notes/sub/b.md", "b\n"), ("other.md", "o\n")] {
+        std::fs::write(files.path().join(path), text).expect("a file");
+    }
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, files.path(), cx);
+    let field = cx.debug_bounds("input-root").expect("the file filter");
+    cx.simulate_click(field.center(), Modifiers::none());
+    cx.simulate_input("notes");
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("tree-chevron-notes").is_some(), "the folder is found");
+    assert!(cx.debug_bounds("tree-chevron-other.md").is_none(), "the rest is filtered");
+    assert!(cx.debug_bounds("tree-chevron-notes/a.md").is_none(), "found folded");
+    let chevron = cx.debug_bounds("tree-chevron-notes").expect("the folder");
+    cx.simulate_click(chevron.center(), Modifiers::none());
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("tree-chevron-notes/a.md").is_some(), "its file");
+    assert!(cx.debug_bounds("tree-chevron-notes/sub").is_some(), "its folder");
+}

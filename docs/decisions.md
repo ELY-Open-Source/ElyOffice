@@ -1320,3 +1320,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 第 1 轮审查一条属实：控件 `w_full().max_w_64()` 在设置行按内容收缩的容器里没有确定宽度，滑块缩成 16 px 的拇指，鼠标点不中；新测试绕过了画出的滑块。改为滑块自身 `w_48()`；测试 `the_drawn_slider_sets_the_size_and_follows_the_menu` 照设置页画出这一行，量滑块宽、点轨道两端得 200% 与 70%，再经视图菜单放大，打开着的页随之重画。换回旧宽度即败；去掉 `relook` 的 `notify` 即败。原先加的 `refresh_windows` 多余（`notify` 已重画读过桌面的窗口），删去。
 - 第 2 轮 PASS，R20.22 勾上。
 
+## 2026-11-17 ElyMark 文件搜索里按名找到的目录可展开（R20.23，#87）
+
+- 报告者在 ElyMark 侧栏的文件过滤里搜目录名，结果只有目录本身，展不开。根因在组件库 FileTree：过滤只留匹配的文件与装着它们的目录，按名匹配的目录没有子节点。Cindy 的组件库 c01a140e 让按名匹配的目录保留其下全部内容、折叠着，可展开；其 ElyOffice 提交 d8f3470a 只把 pin 换到 c01a140e，R20.21 已把 pin 换到其后（含 R20.21 第 2 轮对此折叠的修复 94331bc6），本条不再动 pin。
+- ElyMark 测试 `a_folder_the_filter_finds_opens_to_its_files`：打开装着 `notes/a.md`、`notes/sub/b.md`、`other.md` 的文件夹，在文件过滤里输入 `notes`，`notes` 在、折叠着、`other.md` 不在；点开 `notes` 即见 `notes/a.md` 与 `notes/sub`。换回旧 pin f656f79 即败于展开一步。ElyMark 234 项、clippy 过。
+
