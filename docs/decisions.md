@@ -1260,3 +1260,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - LokError 全文已知：`Check::Undoable` 只会答“the undo history did not move”，即内核什么也没改。worker 记的“request 14 failed (Other)”不带原文是有意的（原文可能引用文档，只回给应用），故原因要从内核里取。`DrawViewShell::KitAddAnimation`（补丁 0034）在无预设、预设不认识、时长不为正、没有选中对象、没有当前页时都只返回 false，不留一字。
 - 补丁 `0138-sd-lok-a-refused-animation-says-why`：每种拒绝记一行 WARN（`ely.sd.view`），写明预设认不认识、时长、选中数、有无当前页，不含文档文字。测试 `logs::a_refused_animation_logs_why`（不选对象即加动画，须听到“preset known … marked 0”）；去掉日志即败。
 - Linux 上复现不出：ElyShow 整组六份同跑、连跑三轮，18 次全过，内核一次未拒。只在 Windows 测试机见过（SF.32：9 遍败 3 遍）。Windows 的内核要到 R20.26 才带上 0138 重建，故根因未明，不写修好；R20.26 重建后在 Windows 上连跑 ElyShow 整组，读这行日志定根因再修。
+
+## 2026-11-17 ElyShow 选字体照 Word 设中文字体（R20.14，#83 之二）
+
+- 报告者 2026-11 补了材料：0.1.15，Windows 显示语言简体中文，在 ElyShow 新建后用微软输入法输入，右侧文字面板选微软雅黑、18 磅、加粗；问题在 ElyShow 里看到的字，不在 PDF。此前只在导出的 PDF、PNG 上找，故未复现。
+- 查得一个根因（Linux 上可复现）：Impress 编辑文字时把字体只设给光标处或选区的文种，在西文之后选字体只设西文字体；选中形状不编辑时只设西文字体；光标处的字体状态按输入语言（LOK 下是 worker 所在机器的键盘）。于是选了微软雅黑，其后打的中文仍是幻灯片默认的中文字体，加粗之后看着是另一种字。探针：文本框“First”之后设 CJK 字体、18 磅、粗体，以输入法事件打“实施管理”，存出的样式只有 `style:font-name`，没有 `style:font-name-asian`。
+- 补丁 `0139-sd-lok-a-font-name-follows-word`：LOK 下 Impress 照 Writer 的补丁 0055（GitHub #7）——字体名总设西文，字体装着且有“中文”二字的字形时同时设中文；编辑中与选中形状两路都如此；光标处的字体状态按光标处的文种。共用的判断在 `sd::View::GetKitFontScripts`。
+- 测试 `fonts::a_slide_font_with_chinese_glyphs_sets_both_scripts`（编辑中设字体后打中文、选中形状设字体，两处的样式都须有中西文两种字体）与 `a_latin_only_slide_font_keeps_the_chinese_font`。两路分别换回上游写法，前者各败一次。字体状态一路只在键盘为中文的机器上有别，这里与 Windows 测试机都是英文键盘，未验证，照 0055 的先例改。
+- 未解释的一处：报告说“实施管理”里只有“施”一个字发细。字体属性的错会让所有中文字一样，解释不了单单一个字。可能是默认中文字体缺这个字形而逐字回退，未在报告者的环境（中文界面语言包、微软输入法）上核对；`#83` 不写成已全修，待装上 0139 的版本发布后请报告者再看。

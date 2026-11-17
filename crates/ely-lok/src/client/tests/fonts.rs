@@ -302,3 +302,68 @@ fn a_font_in_another_language_comes_before_the_next_in_its_list() {
         assert!(names(POSTSCRIPT) && !names(NEXT[1]), "{name} drew in another font");
     }
 }
+
+/// ElyShow's first box as flat ODF after `edit`.
+fn on_slide(edit: impl FnOnce(&mut Worker, &Doc)) -> String {
+    let (dir, mut worker, doc) = super::show::open_deck();
+    edit(&mut worker, &doc);
+    let out = dir.path().join("out.fodp");
+    doc.save_as(&mut worker, &crate::file_url(&out), "fodp").expect("saves");
+    std::fs::read_to_string(&out).expect("reads")
+}
+
+/// `font` at the box end, then Chinese typed.
+fn slide_typed_after(font: &str) -> String {
+    on_slide(|worker, doc| {
+        click(worker, doc, 2500, 1500);
+        worker.post_key(doc, 0, 1029).expect("End");
+        worker.run(doc, "format.font", &[font]).expect("the font runs");
+        worker.post_text(doc, false, "实施").expect("the text posts");
+        worker.post_text(doc, true, "").expect("the commit posts");
+    })
+}
+
+/// The box selected, not edited, set in `font`.
+fn slide_box_set(font: &str) -> String {
+    on_slide(|worker, doc| {
+        worker.run(doc, "object.select", &["0", "false"]).expect("selects");
+        worker.run(doc, "format.font", &[font]).expect("the font runs");
+    })
+}
+
+/// The text properties of the style nearest before `text`.
+fn applied<'a>(xml: &'a str, text: &str) -> &'a str {
+    let at = xml.find(text).expect("the text is there");
+    let name = xml[..at].rsplit("text:style-name=\"").next().and_then(|rest| rest.split('"').next()).expect("a style");
+    let style = xml.split(&format!("style:name=\"{name}\"")).nth(1).expect("the style");
+    &style[..style.find("</style:style>").expect("its end")]
+}
+
+#[test]
+fn a_slide_font_with_chinese_glyphs_sets_both_scripts() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let Some(font) = cjk_font() else {
+        eprintln!("SKIP: no font with Chinese glyphs here");
+        return;
+    };
+    for (xml, text) in [(slide_typed_after(&font), "实施"), (slide_box_set(&font), "First")] {
+        let style = applied(&xml, text);
+        assert!(western(style, &font) && chinese(style, &font), "{style}");
+    }
+}
+
+#[test]
+fn a_latin_only_slide_font_keeps_the_chinese_font() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    for (xml, text) in [(slide_typed_after("Liberation Mono"), "实施"), (slide_box_set("Liberation Mono"), "First")] {
+        let style = applied(&xml, text);
+        assert!(western(style, "Liberation Mono"), "the Western font: {style}");
+        assert!(!chinese(style, "Liberation Mono"), "took the Chinese text: {style}");
+    }
+}

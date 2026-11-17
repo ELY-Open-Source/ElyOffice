@@ -1,0 +1,129 @@
+sd: under LOK a font name sets Western text, and CJK when it can
+
+Impress applied a chosen font name to the script at the cursor or in
+the selection when editing text, and to Western text only when a
+shape was selected; the state at a bare cursor followed the input
+language, which under LOK is the worker host's keyboard. In ElyShow a
+font picked at the end of Latin text set only the Western font, and
+Chinese typed after kept the slide's default Asian font: picking
+Microsoft YaHei left the Chinese characters in another face (Ely
+GitHub #83). Under LOK Impress now does what Writer does since patch
+0055: the name always sets the Western font, and the CJK font too
+when the font is installed and has CJK glyphs, both while editing and
+with the shape selected; the font state at a bare cursor follows the
+script there.
+
+--- a/sd/source/ui/inc/View.hxx
++++ b/sd/source/ui/inc/View.hxx
+@@ -235,6 +235,9 @@
+         const bool bHandleBullets,
+         const SvxNumRule* pNumRule);
+ 
++    /// Scripts a font name sets under LOK, as Word.
++    SvtScriptType GetKitFontScripts(const OUString& rName) const;
++
+     void SetPossibilitiesDirty() { m_bPossibilitiesDirty = true; }
+     void SetMoveAllowed( bool bSet ) { m_bMoveAllowed = bSet; }
+     void SetMoveProtected( bool bSet ) { m_bMoveProtect = bSet; }
+--- a/sd/source/ui/view/drtxtob.cxx
++++ b/sd/source/ui/view/drtxtob.cxx
+@@ -45,6 +45,7 @@
+ #include <editeng/escapementitem.hxx>
+ #include <svx/svdoutl.hxx>
+ #include <editeng/scriptsetitem.hxx>
++#include <comphelper/lok.hxx>
+ #include <editeng/writingmodeitem.hxx>
+ #include <editeng/frmdiritem.hxx>
+ #include <editeng/fhgtitem.hxx>
+@@ -200,7 +201,9 @@
+                     if (pOutliner)
+                         stretchY = pOutliner->getScalingParameters().fFontY;
+ 
+-                    if(pOLV && !pOLV->GetSelection().HasRange())
++                    // LOK: the host keyboard is not the user's.
++                    const bool bKitFont = nSlotId == SID_ATTR_CHAR_FONT && comphelper::LibreOfficeKit::isActive();
++                    if(pOLV && !pOLV->GetSelection().HasRange() && !bKitFont)
+                     {
+                         if (rViewShell.GetViewShell() && rViewShell.GetViewShell()->GetWindow())
+                         {
+--- a/sd/source/ui/view/drtxtob1.cxx
++++ b/sd/source/ui/view/drtxtob1.cxx
+@@ -45,6 +45,8 @@
+ #include <svx/svdpagv.hxx>
+ #include <editeng/flstitem.hxx>
+ #include <editeng/scriptsetitem.hxx>
++#include <editeng/fontitem.hxx>
++#include <comphelper/lok.hxx>
+ #include <editeng/writingmodeitem.hxx>
+ #include <editeng/frmdiritem.hxx>
+ #include <editeng/cmapitem.hxx>
+@@ -736,10 +738,13 @@
+             {
+                 // #i78017 establish the same behaviour as in Writer
+                 SvtScriptType nScriptType = SvtScriptType::LATIN | SvtScriptType::ASIAN | SvtScriptType::COMPLEX;
++                SfxItemPool& rPool = mpView->GetDoc().GetPool();
+                 if (nSlot == SID_ATTR_CHAR_FONT)
+-                    nScriptType = mpView->GetScriptType();
++                    nScriptType = comphelper::LibreOfficeKit::isActive()
++                        ? mpView->GetKitFontScripts(static_cast<const SvxFontItem&>(
++                              pArgs->Get(rPool.GetWhichIDFromSlotID(nSlot))).GetFamilyName())
++                        : mpView->GetScriptType();
+ 
+-                SfxItemPool& rPool = mpView->GetDoc().GetPool();
+                 SvxScriptSetItem aSvxScriptSetItem( nSlot, rPool );
+                 aSvxScriptSetItem.PutItemForScriptType( nScriptType, pArgs->Get( rPool.GetWhichIDFromSlotID( nSlot ) ) );
+                 aNewAttr.Put( aSvxScriptSetItem.GetItemSet() );
+--- a/sd/source/ui/view/drviews2.cxx
++++ b/sd/source/ui/view/drviews2.cxx
+@@ -39,6 +39,7 @@
+ #include <comphelper/propertysequence.hxx>
+ #include <comphelper/scopeguard.hxx>
+ #include <comphelper/lok.hxx>
++#include <editeng/scriptsetitem.hxx>
+ #include <comphelper/sequence.hxx>
+ #include <comphelper/sequenceashashmap.hxx>
+ #include <comphelper/dispatchcommand.hxx>
+@@ -4448,7 +4449,13 @@
+         if( rReq.GetArgs() )
+         {
+             const SvxFontItem* pItem = rReq.GetArg(SID_ATTR_CHAR_FONT);
+-            if (pItem)
++            if (pItem && comphelper::LibreOfficeKit::isActive())
++            {
++                SvxScriptSetItem aSetItem(SID_ATTR_CHAR_FONT, pDoc->GetPool());
++                aSetItem.PutItemForScriptType(mpDrawView->GetKitFontScripts(pItem->GetFamilyName()), *pItem);
++                aNewAttr.Put(aSetItem.GetItemSet());
++            }
++            else if (pItem)
+             {
+                 aNewAttr.Put(*pItem);
+             }
+--- a/sd/source/ui/view/drviewskit.cxx
++++ b/sd/source/ui/view/drviewskit.cxx
+@@ -20,6 +20,8 @@
+ #include <sdpage.hxx>
+ #include <sdresid.hxx>
+ #include <sdundogr.hxx>
++#include <View.hxx>
++#include <vcl/outdev.hxx>
+ #include <strings.hrc>
+ #include <undoanim.hxx>
+ 
+@@ -150,6 +152,17 @@
+     return true;
+ }
+ 
++SvtScriptType View::GetKitFontScripts(const OUString& rName) const
++{
++    // Western always, CJK when it has glyphs.
++    SvtScriptType nScripts = (GetScriptType() & SvtScriptType::COMPLEX) | SvtScriptType::LATIN;
++    const OutputDevice* pDev = GetFirstOutputDevice();
++    if (pDev && pDev->IsFontAvailable(rName)
++        && pDev->HasGlyphs(vcl::Font(rName, Size(0, 12)), u"\u4E2D\u6587") == -1)
++        nScripts |= SvtScriptType::ASIAN;
++    return nScripts;
++}
++
+ bool DrawViewShell::KitAddAnimation(std::u16string_view rJson)
+ {
+     const std::optional<boost::json::object> oObject = lcl_Object(rJson);
