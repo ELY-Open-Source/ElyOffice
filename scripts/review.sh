@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: review.sh <item-id> <round> [path...] — Kimi K3.1 Pro.
+# Usage: review.sh <item-id> <round> [path...] — GPT 6 Astra, high.
 set -euo pipefail
 
 [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] || { echo "review.sh: not inside a herdr pane" >&2; exit 2; }
@@ -83,13 +83,13 @@ screen() {
   text=$(herdr pane read "$pane" --source visible 2>&1) || text="unreadable: $text"
   grep -v '^[[:space:]]*$' <<<"$text" | tail -n 8 || :
 }
-# Typed text races Claude's startup; argv does not.
+# Typed text races Codex's startup; argv does not.
 ask=.work/$id-r$round/prompt.md
 mkdir -p "${ask%/*}"
 printf '%s\n' "$prompt" >"$ask"
-said=$(herdr pane run "$pane" "claude --model 'remote-magpie/kimi/k3.1-pro[1m]' --effort high --dangerously-skip-permissions \"Do what $ask says.\"" 2>&1) \
-  || fail "did not start claude: $(why "$said")"
-# Herdr finds Claude a moment after it starts.
+said=$(herdr pane run "$pane" "codex --yolo -m gpt-6-astra -c model_reasoning_effort=high \"Do what $ask says.\"" 2>&1) \
+  || fail "did not start codex: $(why "$said")"
+# Herdr finds Codex a moment after it starts.
 for ((t = 0; ; t++)); do
   if said=$(herdr agent get "$pane" 2>&1); then
     s=$(field '.result.agent.agent_status' <<<"$said") || fail "status unreadable: $said"
@@ -108,7 +108,7 @@ blocked() {
   echo "review.sh: $name in $pane stayed blocked 5 minutes at: $text; pane closed" >&2
   exit 1
 }
-# Claude idles while its own background runs work.
+# Codex idles while its own background runs work.
 b=0
 for ((i = 0; ; i++)); do
   s=$(herdr agent get "$pane" | field '.result.agent.agent_status') || fail "status unreadable"
