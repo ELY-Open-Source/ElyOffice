@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
-# Builds the pinned LibreOffice with Ely's LOK patches.
+# Usage: build-libreoffice.sh [--symbols] — the pinned, patched LibreOffice.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 src=$root/engines/lo-src
+symbols=
+case ${1:-} in
+  "") ;;
+  # A kernel with symbols for sampling; never shipped.
+  --symbols) src=$root/engines/lo-sym symbols=1 ;;
+  *)
+    echo "build-libreoffice.sh: unknown option $1" >&2
+    exit 2
+    ;;
+esac
 pin=$(awk '$1 == "fetch" && $2 == "libreoffice-core" { print $4 }' "$root/scripts/fetch-references.sh")
 options=(
   --enable-bogus-pkg-config
@@ -39,6 +49,7 @@ options=(
   --without-doxygen
   --with-myspell-dicts
 )
+[ -z "$symbols" ] || options+=(--enable-symbols)
 
 case $(uname) in
   Darwin)

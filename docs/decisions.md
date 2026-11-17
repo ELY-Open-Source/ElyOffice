@@ -1230,3 +1230,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Windows：检出由 `C:\ely\ElyOffice` 搬到 `C:\Users\raidenmei\Documents\Github\ElyOffice`，`C:\ely` 整个删去（`lo-sym` 是 R20.1 未建完的带符号内核，无一个 PDB；其余是历次测量与审查的临时目录）。`release.yml` 的 Windows 共享引擎随之改到新路径。`C:\ely\sfbench\bench.ps1` 不在仓库里，一并丢失，R20.26 重写。
 - macOS：家目录里本项目的临时文件与目录删去。`ely-share`、`ely-share-x86_64`、`ely-ci`、`ely-ci-x86_64` 是 `release.yml` 的共享引擎与发布检出，macOS 不许 runner 读 `~/Documents`，照旧留在家目录。`~/sfbench/old16/new.app` 受“应用管理”保护，SSH 删不掉，待在本机删。
 - Linux：`~/.cache/ely-sf4` 与 `/tmp` 里本项目的脚本移入 `.work/old-scripts`，日志删去；`~/ely-ci` 是 Linux 发布检出，留。
+- Windows 的任务计划里 30 个指向 `C:\ely` 的任务（历次测量与 `ElyLoSym`）一并注销；其中 `ElySF23first`、`ElySF23reboot`、`ElySF33first` 的装完首开、重启后首开测量脚本随 `C:\ely` 丢失，R20.26 与 `bench.ps1` 一起重写入库。
+
+## 2026-11-17 带符号的 Windows 内核（R20.1）
+
+- `scripts/build-libreoffice.sh --symbols` 把同一钉住的 LibreOffice 加同一补丁序列建到 `engines/lo-sym`，配置多一个 `--enable-symbols`，供 R20.5 至 R20.7、R20.13 采样，不进发布。原先 Cindy 复制改写一份脚本建在 `C:\ely\lo-sym`，未建完即随 `C:\ely` 删去。
+- 测试机 7877 上以任务计划在后台跑（SSH 断开会杀掉子进程），脚本与日志在项目的 `.work/R20.1/`，建完即注销任务。
