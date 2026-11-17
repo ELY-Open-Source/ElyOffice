@@ -745,7 +745,7 @@
 - [x] R20.15 #86 ElyTable 单元格字体与字号（§9）：格式面板加字体与字号，字体表照 ElyDoc、ElyShow 的读法，`FontPicker`，八种语言 — 已做：“单元格”一组首两行为字体与字号，用 `ely_office::panel` 的 `font_box`、`size_box`（同 ElyDoc、ElyShow），字体表在后台经 `.uno:CharFontName` 读，读不出即提示；八种语言；测试 `the_panel_sets_a_cells_font_and_size`（真内核，去掉两行即败）；第 1 轮 PASS，Linux 全组 129 项与 Windows、macOS 的该测试皆过（`tasks/reviews/R20.15-r1.md`）
 - [x] R20.16 #84 ElyPDF 滚动条（§11）：页面栈接组件库的 `layout::Scrollbar`，拖动即跳页，不卡顿 — 已做：`apps/ely-pdf/src/bars.rs` 的 `Bar` 接两向滚动条，只有拖动清掉记下的阅读位置，布局夹位不清；改窗宽往返回到原页与原偏移（`tests/bars.rs`，经 `simulate_resize`）。R1 FAIL 一项（布局夹位被当成读者滚动）已修，R2 PASS（Linux 195 项、Windows 193 项）
 - [x] R20.17 #88 ElyMail 窄侧边栏的账户未读数（§12）：组件库 `Sections` 分区头照 `ListItem`，标题 `flex_1().min_w_0()` 省略，徽标 `flex_none()` — 已做：组件库 f656f794（分区头照 `ListItem`：标题省略、徽标保留），pin 随之；窄列测试旧码上败（徽标在 x=300）。R1 PASS
-- [ ] R20.18 R2.12 ElyTree Shell 着色（§13）：根治——照 Bash 的词法（续行、引号、here-doc）逐词读；验收语料收齐历轮例子 — 组件库 c967f6f1、299e76d6（照 Bash 的词法读注释，语料 84 例由 Bash 实跑定），送审中；pin 随 R20.21 后一次换
+- [ ] R20.18 R2.12 ElyTree Shell 着色（§13）：根治——照 Bash 的词法（续行、引号、here-doc）逐词读；验收语料收齐历轮例子 — 组件库 c967f6f1、299e76d6、4b8b5887（照 Bash 的词法读注释，语料 99 例由 Bash 实跑定），送审中；pin 随 R20.21 后一次换
 - [ ] R20.19 R4.2、R4.3 行内与块级 HTML（§14）：根治——用现成的 HTML5 解析器建元素树再读出样式，不自写；验收语料收齐历轮例子
 - [ ] R20.20 R4.7 块命令（§14）：复审末轮修改；核对把块的种类（提示块等）纳入
 - [ ] R20.21 R8.4、R16.20 ElyMark 公式（§14）：组件库改用修过的 pulldown-cmark（或送修复进上游）；复审 R16.20 末轮修改
