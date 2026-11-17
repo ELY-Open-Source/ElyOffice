@@ -1,0 +1,118 @@
+sw: an EQ field drops every kind of cached result
+
+Patch 0130 dropped the text and the DrawingML picture that Word writes
+after an EQ field's separator, since Ely draws the field from its code.
+Other kinds still came through (Ely R8.2): a nested field such as PAGE
+or QUOTE, a DrawingML or VML text box or shape, a VML picture, an OMML
+formula and an OLE object. Each was inserted beside the formula.
+
+Content inside an EQ field's result now goes the way content in a
+discarded header or footer goes: nested fields close without inserting,
+shapes are removed from the draw page, and pictures, OLE objects and
+formulas are not inserted. The paragraphs a nested field held are still
+finished.
+--- a/sw/source/writerfilter/dmapper/DomainMapper.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper.cxx
+@@ -3280,7 +3280,8 @@
+     case NS_ooxml::LN_object:
+     {
+         writerfilter::Reference<Properties>::Pointer_t pProperties = rSprm.getProps();
+-        if( pProperties )
++        // An object in an EQ field's result goes.
++        if (pProperties && !m_pImpl->IsInEqResult())
+         {
+             auto pOLEHandler = std::make_shared<OLEHandler>(*this);
+             pProperties->resolve(*pOLEHandler);
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.cxx
+@@ -3964,7 +3964,7 @@
+ {
+     uno::Reference< embed::XEmbeddedObject > formula;
+     val.getAny() >>= formula;
+-    if( formula.is() )
++    if (formula.is() && !IsInEqResult())
+         appendFormula(formula);
+ }
+ 
+@@ -5416,7 +5416,7 @@
+     const uno::Reference<drawing::XShape> xShape( xObj, uno::UNO_QUERY_THROW );
+     // Remove the shape if required (most likely replacement shape for OLE object)
+     // or anchored to a discarded header or footer
+-    if (m_xTextDocument && (m_vAnchoredStack.back().bToRemove || m_bDiscardHeaderFooter))
++    if (m_xTextDocument && (m_vAnchoredStack.back().bToRemove || m_bDiscardHeaderFooter || IsInEqResult()))
+     {
+         try
+         {
+@@ -5487,6 +5487,17 @@
+     return m_bDiscardHeaderFooter;
+ }
+ 
++bool DomainMapper_Impl::IsInEqResult(bool bOuterOnly) const
++{
++    // EQ is drawn from its code; Word's cached result goes.
++    auto itEnd = m_aFieldStack.end();
++    if (bOuterOnly && itEnd != m_aFieldStack.begin())
++        --itEnd;
++    return std::any_of(m_aFieldStack.begin(), itEnd, [](const FieldContextPtr& pField) {
++        return pField->GetFieldId() == FIELD_EQ && pField->IsCommandCompleted();
++    });
++}
++
+ void DomainMapper_Impl::SetLineSpacing(const Id nName, sal_Int32 nIntValue, bool bNegativeFlip)
+ {
+     static const int nSingleLineSpacing = 240;
+@@ -8109,7 +8120,8 @@
+ 
+ void DomainMapper_Impl::CloseFieldCommand()
+ {
+-    if(m_bDiscardHeaderFooter)
++    // Fields nested in an EQ result go with it.
++    if (m_bDiscardHeaderFooter || IsInEqResult(true))
+         return;
+ #ifdef DBG_UTIL
+     TagLogger::getInstance().element("closeFieldCommand");
+@@ -9081,11 +9093,10 @@
+         if (pContext->GetTableDepth() != m_StreamStateStack.top().nTableDepth)
+             return false;
+ 
+-        // EQ is drawn from its code; its cached result goes.
+         bRet = pContext->GetTextField().is()
+             || pContext->GetFieldId() == FIELD_FORMDROPDOWN
+             || pContext->GetFieldId() == FIELD_FILLIN
+-            || pContext->GetFieldId() == FIELD_EQ;
++            || IsInEqResult();
+     }
+ 
+     if (!bRet)
+@@ -9333,7 +9344,8 @@
+ 
+     FieldContextPtr pContext = m_aFieldStack.back();
+     OSL_ENSURE( pContext, "no field context available");
+-    if( pContext )
++    // A field nested in an EQ field's result inserts nothing.
++    if (pContext && !IsInEqResult(true))
+     {
+         if( !pContext->IsCommandCompleted() )
+             CloseFieldCommand();
+@@ -9866,9 +9878,7 @@
+         ref->resolve( *m_pGraphicImport );
+     }
+ 
+-    // An EQ field's cached picture goes as well.
+-    if (IsOpenField() && m_aFieldStack.back()->GetFieldId() == FIELD_EQ
+-        && m_aFieldStack.back()->IsCommandCompleted())
++    if (IsInEqResult())
+     {
+         m_StreamStateStack.top().xEmbedded.clear();
+         m_pGraphicImport.clear();
+--- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
++++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
+@@ -1259,6 +1259,8 @@
+     bool IsSdtEndBefore();
+ 
+     bool IsDiscardHeaderFooter() const;
++    /// Whether an EQ field's cached result encloses the stream.
++    bool IsInEqResult(bool bOuterOnly = false) const;
+ 
+     bool IsForceGenericFields() const { return m_bForceGenericFields; }
+ 

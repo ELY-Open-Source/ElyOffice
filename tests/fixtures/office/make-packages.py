@@ -148,6 +148,49 @@ def ole_link(name, target, prog):
 
 ole_link("ole-link.docx", "source.xlsx", "Excel.Sheet.12")
 ole_link("ole-link-other.docx", "source.pdf", "AcroExch.Document.DC")
+
+def eq_cached(name):
+    """EQ fields whose Word caches hold each other kind of content."""
+    def run(text):
+        return f'<w:r><w:t xml:space="preserve">{text}</w:t></w:r>'
+
+    def eq(cache):
+        return field(f"EQ {BACKSLASH}f(q,z)", "").replace("<w:r><w:t></w:t></w:r>", cache)
+
+    def anchored(n, shape):
+        return (f'<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="{n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">'
+                '<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>'
+                f'<wp:extent cx="914400" cy="304800"/><wp:wrapNone/><wp:docPr id="{n}" name="Shape{n}"/><a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+                f'<wps:wsp>{shape}<wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>')
+
+    geometry = '<wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="304800"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></wps:spPr>'
+    caches = {
+        "page": field("PAGE", "CachedPage"),
+        "quote": run("CachedA") + field('QUOTE "CachedQuote"', "CachedQuote") + run("CachedB"),
+        "box": anchored(1, f'<wps:cNvSpPr txBox="1"/>{geometry}<wps:txbx><w:txbxContent><w:p>{run("CachedBox")}</w:p></w:txbxContent></wps:txbx>'),
+        "shape": anchored(2, f"<wps:cNvSpPr/>{geometry}"),
+        "vml-box": f'<w:r><w:pict><v:shape id="VmlBox" style="width:100pt;height:30pt"><v:textbox><w:txbxContent><w:p>{run("CachedVml")}</w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r>',
+        "vml-picture": '<w:r><w:pict><v:shape id="VmlPicture" style="width:18pt;height:18pt"><v:imagedata r:id="rPreview" o:title=""/></v:shape></w:pict></w:r>',
+        "omml": '<m:oMath><m:r><m:t>CachedMath</m:t></m:r></m:oMath>',
+        "breaks": '<w:r><w:t>CachedLine</w:t><w:br/><w:t>CachedNext</w:t><w:tab/><w:sym w:font="Symbol" w:char="F061"/></w:r>',
+        "ole": '<w:r><w:object w:dxaOrig="2000" w:dyaOrig="1000"><v:shape id="Ole" type="#_x0000_t75" style="width:100pt;height:50pt" o:ole=""><v:imagedata r:id="rPreview" o:title=""/></v:shape>'
+               '<o:OLEObject Type="Link" ProgID="Excel.Sheet.12" ShapeID="Ole" DrawAspect="Content" r:id="rOle" UpdateMode="Always"><o:LinkType>EnhancedMetaFile</o:LinkType></o:OLEObject></w:object></w:r>',
+    }
+    body = "".join(f"<w:p>{run(f'Before-{kind} ')}{eq(cache)}{run(f' After-{kind}')}</w:p>" for kind, cache in caches.items())
+    spaces = (f'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="{REL}" {M} xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" '
+              'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"')
+    with zipfile.ZipFile(os.path.join(sys.argv[1], name), "w", zipfile.ZIP_DEFLATED) as out:
+        for part, data in {
+            "[Content_Types].xml": HEAD + TYPES,
+            "_rels/.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{REL}/officeDocument" Target="word/document.xml"/></Relationships>',
+            "word/_rels/document.xml.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rOle" Type="{REL}/oleObject" Target="source.xlsx" TargetMode="External"/><Relationship Id="rPreview" Type="{REL}/image" Target="media/preview.png"/></Relationships>',
+            "word/document.xml": HEAD + f"<w:document {spaces}><w:body>{body}<w:sectPr/></w:body></w:document>",
+            "word/media/preview.png": png(40, 20),
+        }.items():
+            out.writestr(zipfile.ZipInfo(part, (2026, 11, 1, 0, 0, 0)), data)
+
+
+eq_cached("eq-cached-kinds.docx")
 # A test's own target, as Word writes it: file:///C:\...
 if len(sys.argv) > 2:
     ole_link("ole-link-word.docx", sys.argv[2], "Excel.Sheet.12")

@@ -149,3 +149,24 @@ fn an_eq_fields_cached_picture_is_not_drawn() {
     assert_eq!(fodt.matches("<draw:frame").count(), 1, "no cached picture beside it");
 }
 
+#[test]
+fn an_eq_fields_cache_of_any_kind_is_not_drawn() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install().expect("a build"), &dir.path().join("profile")).expect("the worker");
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/eq-cached-kinds.docx");
+    let doc = worker.load(&crate::file_url(&fixture)).expect("the document loads");
+    let fodt = saved(&dir, &mut worker, &doc, "kinds.fodt");
+    // Nine fields, each drawn from its code alone.
+    assert_eq!(formulas(&fodt).len(), 9, "nine fractions");
+    assert_eq!(fodt.matches("<draw:frame").count(), 9, "no cached object or picture");
+    for gone in ["Cached", "<draw:custom-shape", "<text:page-number", "<text:line-break", "<text:tab"] {
+        assert!(!fodt.contains(gone), "a cached {gone} stayed");
+    }
+    for kept in ["Before-", "After-"] {
+        assert_eq!(fodt.matches(kept).count(), 9, "the text around each field");
+    }
+}
