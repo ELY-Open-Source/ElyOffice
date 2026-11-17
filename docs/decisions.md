@@ -1244,6 +1244,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 ## 2026-11-17 INDIRECT 的缺表与 gcc 16 下的 Calc 链接（R20.11，R15.43）
 
-- 缺口两处：INDIRECT 读空白格时不进缓存，XLSX 重开且未重算时不留 INDIRECT 的结果；两种情形下工作表改名后“更新链接”报成功、值成 `#REF!`。修法并入补丁 0131（同一功能）：文档里有 INDIRECT 时源里每张表都算被读；刷新后让登记在该源下的公式单元格重算，查表落空的记在 `maGoneTabs`，有即记日志、返回失败，由 `UpdateExternalRefLinks` 点名。XLSX 重开的 INDIRECT 值照 Excel 为 `#REF!`，源被点名。
-- 测试 `a_formula_whose_sheet_is_gone_keeps_its_value` 加两例（读空白格的 INDIRECT，与 XLSX 重开的两种 INDIRECT）。去掉“INDIRECT 算每张表”即败于 `B5` 一例；去掉“落空即失败”即败于 XLSX 重开一例。
+- 缺口两处：INDIRECT 读空白格时不进缓存，XLSX 不存 INDIRECT 的结果；工作表改名后“更新链接”报成功、值丢失。修法并入补丁 0131（同一功能）：`getSingleRefToken`、`getDoubleRefTokens` 记下公式在该源里查过的表（INDIRECT 也走这两处，读空白格也记），刷新前这些表连同原有的记号、缓存一起核对，缺即不动缓存、记日志、返回失败，由 `UpdateExternalRefLinks` 点名；刷新成功后重记。INDIRECT 是易变函数，载入即算，用户点更新前它查过的表已记下。
+- 第 1 轮审查：原先只要文档里有 INDIRECT 就把源里每张表算作被读，一个纯本地的 `INDIRECT("A1")` 便让无关的表改名也报失败。改为只认查过的表；测试 `a_local_indirect_leaves_other_sheets_unread`（本地 INDIRECT，只改名无关的表，更新须成功、读到新值）在第 1 轮的内核上失败。
+- 第 1 轮的“刷新后重算、查表落空即失败”一并删去：易变的 INDIRECT 载入即算，刷新前的核对已够，去掉它测试仍全过。
+- XLSX 重开后，INDIRECT 格在更新前就显示 `Err:540`（`LinkFormulaNeedingCheck`：无缓存值、源未经用户允许读取），更新失败后不变；测试照此断言（原写 `#REF!`，是第 1 轮实现下的值）。
+- 测试 `a_formula_whose_sheet_is_gone_keeps_its_value` 加两例（读空白格的 INDIRECT，XLSX 重开的两种 INDIRECT），与新测试一起移入 `client/tests/gone.rs`（`linked.rs` 已 499 行）。不记查过的表即败于 `B5` 一例。
 - 本机 gcc 16（2026-10-03 装）下，R20.11 改了 `externalrefmgr.hxx`，重编的 `document.cxx`、`documen5.cxx`、`chartuno.cxx` 让 `libsclo.so` 链不上：推测性去虚化把 `SvLockBytes` 的内联析构生成进 Calc 的目标文件，要它的虚表与 `close()`，而开了 `--enable-mergelibs` 时这个类藏在 `libmergedlo` 里不导出。与 R20.11 无关，任何重编都会碰上；上游 master 同。Cindy 只在本机加了 `-fno-devirtualize-speculatively`，未入构建脚本。根治为补丁 `0137-tools-lock-bytes-are-exported-from-the-merged-library`：这个类合不合库都导出。本机以 `build-libreoffice.sh` 不加任何编译开关重建全内核，链接通过，`libsclo` 引入、`libmergedlo` 导出这两个符号。

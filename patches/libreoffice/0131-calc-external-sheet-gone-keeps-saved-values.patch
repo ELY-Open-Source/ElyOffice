@@ -30,66 +30,37 @@ reads them; renaming or removing them still updates.
       */
      RefCellMap maRefCells;
  
-+    /// Sheets lookups missed in a loaded source.
-+    mutable std::map<sal_uInt16, std::set<OUString>> maGoneTabs;
++    /// Sheets formulas looked up, INDIRECT's too.
++    std::map<sal_uInt16, std::set<OUString>> maLookedUpTabs;
 +
      LinkListenerMap maLinkListeners;
  
      NumFmtMap maNumFormatMap;
 --- a/sc/source/ui/docshell/externalrefmgr.cxx
 +++ b/sc/source/ui/docshell/externalrefmgr.cxx
-@@ -27,6 +27,7 @@
- #include <scextopt.hxx>
- #include <rangenam.hxx>
- #include <formulacell.hxx>
-+#include <dociter.hxx>
- #include <utility>
- #include <viewdata.hxx>
- #include <tabvwsh.hxx>
-@@ -1939,7 +1940,10 @@
- bool ScExternalRefManager::getSrcDocTable( const ScDocument& rSrcDoc, const OUString& rTabName, SCTAB& rTab,
-         sal_uInt16 nFileId ) const
+@@ -1947,7 +1947,10 @@
+     const ScAddress* pCurPos, SCTAB* pTab, ScExternalRefCache::CellFormat* pFmt)
  {
--    return maRefCache.getSrcDocTable( rSrcDoc, rTabName, rTab, nFileId);
-+    if (maRefCache.getSrcDocTable( rSrcDoc, rTabName, rTab, nFileId))
-+        return true;
-+    maGoneTabs[nFileId].insert(rTabName);
-+    return false;
- }
+     if (pCurPos)
++    {
+         insertRefCell(nFileId, *pCurPos);
++        maLookedUpTabs[nFileId].insert(rTabName);
++    }
  
- ScExternalRefCache::TokenRef ScExternalRefManager::getSingleRefToken(
-@@ -3017,6 +3021,30 @@
+     maybeLinkExternalFile(nFileId);
  
- }
- 
-+namespace {
-+
-+/// Whether a cell or name of rDoc uses INDIRECT.
-+bool lcl_HasIndirect(ScDocument& rDoc)
-+{
-+    auto bIndirect = [](const ScRangeName* pNames) {
-+        return pNames && std::any_of(pNames->begin(), pNames->end(), [](const auto& rEntry) {
-+            return rEntry.second->GetCode()->HasOpCode(ocIndirect);
-+        });
-+    };
-+    if (bIndirect(rDoc.GetRangeName()))
-+        return true;
-+    for (SCTAB nTab = 0; nTab < rDoc.GetTableCount(); ++nTab)
-+        if (bIndirect(rDoc.GetRangeName(nTab)))
-+            return true;
-+    ScCellIterator aIter(rDoc, ScRange(0, 0, 0, rDoc.MaxCol(), rDoc.MaxRow(), rDoc.GetTableCount() - 1));
-+    for (bool bCell = aIter.first(); bCell; bCell = aIter.next())
-+        if (aIter.getType() == CELLTYPE_FORMULA && aIter.getFormulaCell()->GetCode()->HasOpCode(ocIndirect))
-+            return true;
-+    return false;
-+}
-+
-+}
-+
- bool ScExternalRefManager::refreshSrcDocument(sal_uInt16 nFileId)
+@@ -2048,7 +2051,10 @@
+     sal_uInt16 nFileId, const OUString& rTabName, const ScRange& rRange, const ScAddress* pCurPos)
  {
-     SfxObjectShellRef xDocShell;
-@@ -3034,6 +3062,55 @@
+     if (pCurPos)
++    {
+         insertRefCell(nFileId, *pCurPos);
++        maLookedUpTabs[nFileId].insert(rTabName);
++    }
+ 
+     maybeLinkExternalFile(nFileId);
+ 
+@@ -3034,6 +3040,55 @@
      ScDocShell& rDocSh = static_cast<ScDocShell&>(*xDocShell);
      ScDocument& rSrcDoc = rDocSh.GetDocument();
  
@@ -128,9 +99,9 @@ reads them; renaming or removing them still updates.
 +        if (!aRows.empty())
 +            aRead.insert(rTabName);
 +    }
-+    // INDIRECT names its sheet at run time: every sheet counts.
-+    if (lcl_HasIndirect(mrDoc))
-+        aRead.insert(aTabNames.begin(), aTabNames.end());
++    // INDIRECT names its sheet at run time, so lookups count.
++    if (auto itrLooked = maLookedUpTabs.find(nFileId); itrLooked != maLookedUpTabs.end())
++        aRead.insert(itrLooked->second.begin(), itrLooked->second.end());
 +    for (const OUString& rTabName : aRead)
 +    {
 +        SCTAB nSrcTab;
@@ -145,30 +116,11 @@ reads them; renaming or removing them still updates.
      sc::ColumnSpanSet aCachedArea;
      maRefCache.getAllCachedDataSpans(rSrcDoc, nFileId, aCachedArea);
  
-@@ -3059,11 +3136,25 @@
+@@ -3059,6 +3114,7 @@
      }
  
      // Update all cells containing names from this source document.
-+    maGoneTabs.erase(nFileId);
++    maLookedUpTabs.erase(nFileId);
      refreshAllRefCells(nFileId);
-+    // INDIRECT finds a gone sheet only when it runs.
-+    RefCellMap::const_iterator itrRead = maRefCells.find(nFileId);
-+    if (itrRead != maRefCells.end())
-+    {
-+        const RefCellSet aRead = itrRead->second;
-+        for (ScFormulaCell* pCell : aRead)
-+            pCell->MaybeInterpret();
-+    }
  
      notifyAllLinkListeners(nFileId, LINK_MODIFIED);
- 
--    return true;
-+    auto itrGone = maGoneTabs.find(nFileId);
-+    if (itrGone == maGoneTabs.end())
-+        return true;
-+    for (const OUString& rTabName : itrGone->second)
-+        ELY_WARN("sc.ui", "external sheet gone: " << rTabName);
-+    return false;
- }
- 
- void ScExternalRefManager::breakLink(sal_uInt16 nFileId)

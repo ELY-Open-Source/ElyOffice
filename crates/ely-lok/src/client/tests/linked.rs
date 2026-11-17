@@ -9,7 +9,7 @@ use super::*;
 use crate::links;
 
 /// A one-sheet book whose S1.A1 holds `value`.
-fn book(value: u32) -> String {
+pub(super) fn book(value: u32) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
@@ -59,40 +59,6 @@ fn a_book_reads_its_source_only_when_asked() {
     std::fs::remove_file(&source).expect("the source goes");
     assert_eq!(update(&mut worker, &book), [crate::file_url(&source)], "the failed source is named");
     assert_eq!(cells(&mut worker, &book, "H1"), "3", "a missing source keeps the value");
-}
-
-#[test]
-fn a_formula_whose_sheet_is_gone_keeps_its_value() {
-    if skip() {
-        return;
-    }
-    // A blank operand caches no cell; INDIRECT hides its sheet.
-    let indirect = |at: &str| format!("INDIRECT(\"'{{}}/[source.fods]S1'!{at}\")");
-    let cases = [
-        ("'{}/[source.fods]S1'!A1".to_owned(), "1", true),
-        ("'{}/[source.fods]S1'!A2+5".to_owned(), "5", true),
-        (indirect("A1"), "1", false),
-        (format!("{}+5", indirect("B5")), "5", false),
-        // XLSX keeps no INDIRECT cache: #REF!, as in Excel.
-        (indirect("A1"), "#REF!", true),
-        (format!("{}+5", indirect("B5")), "#REF!", true),
-    ];
-    for (cell, value, kept) in cases {
-        let (dir, mut worker, reader) = open_book(&book(0));
-        let source = dir.path().join("source.fods");
-        rates(&source, 1);
-        let formula = format!("={}", cell.replace("{}", &dir.path().display().to_string()));
-        worker.run(&reader, "cell.goto", &["H1"]).expect("H1");
-        worker.run(&reader, "cell.enter", &[&formula]).expect("the link");
-        let saved = dir.path().join("reader.xlsx");
-        reader.save_as(&mut worker, &crate::file_url(&saved), "xlsx").expect("saves");
-        // S1 renamed: the file reads, the sheet does not.
-        let nine = r#"<table:table-cell office:value-type="float" office:value="9"/>"#;
-        std::fs::write(&source, sheets("", nine)).expect("renames the sheet");
-        let book = if kept { worker.load(&crate::file_url(&saved)).expect("reloads") } else { reader };
-        assert_eq!(update(&mut worker, &book), [crate::file_url(&source)], "{cell} reopened {kept}: the source is named");
-        assert_eq!(cells(&mut worker, &book, "H1"), value, "{cell} reopened {kept}: the saved value stays");
-    }
 }
 
 /// A book whose `S` is `sheet` and holds `cells`.
