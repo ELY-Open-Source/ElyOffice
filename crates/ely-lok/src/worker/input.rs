@@ -383,21 +383,21 @@ fn new_steps(before: &[Step], after: &[Step]) -> usize {
     }
 }
 
-/// Refuses payloads the engine would drop half way.
-fn check_payload(mime: &str, data: &[u8]) -> io::Result<()> {
+/// The payload the engine gets; refuses what it would drop.
+fn checked_payload(mime: &str, data: Vec<u8>) -> io::Result<Vec<u8>> {
     if data.is_empty() {
         return Err(invalid("an empty paste"));
     }
     if mime == "image/png" {
-        image::load_from_memory_with_format(data, image::ImageFormat::Png)
+        image::load_from_memory_with_format(&data, image::ImageFormat::Png)
             .map_err(|error| invalid(&format!("the png does not decode: {error}")))?;
-        return Ok(());
+        return Ok(data);
     }
-    let text = std::str::from_utf8(data).map_err(|_| invalid("the text is not UTF-8"))?;
+    let text = std::str::from_utf8(&data).map_err(|_| invalid("the text is not UTF-8"))?;
     if mime == "text/html" {
-        super::pasted::check_html_images(text)?;
+        return super::pasted::rebuild(text).map(String::into_bytes);
     }
-    Ok(())
+    Ok(data)
 }
 
 /// Pastes one flavor; a failed import is undone and reported.
@@ -406,7 +406,7 @@ pub(super) fn paste(unpack: &mut Unpack) -> io::Result<Vec<u8>> {
     if !CLIP_MIMES.contains(&mime.as_str()) {
         return Err(invalid("unsupported paste flavor"));
     }
-    check_payload(&mime, &data)?;
+    let data = checked_payload(&mime, data)?;
     with_doc(id, |doc| {
         let before = undo_entries(doc)?;
         doc.set_clipboard(&mime, &data)?;
@@ -445,10 +445,11 @@ mod tests {
     }
 
     #[test]
-    fn inline_images_must_decode() {
+    fn html_reaches_the_engine_rebuilt() {
         let bad = r#"<img src="data:image/png;base64,dGhpcyBpcyBub3QgYSBwbmc=">"#;
-        assert!(check_payload("text/html", bad.as_bytes()).is_err());
-        assert!(check_payload("text/html", b"<b>plain</b>").is_ok());
-        assert!(check_payload("text/html", br#"<img src="data:image/png,raw">"#).is_err());
+        assert!(checked_payload("text/html", bad.into()).is_err());
+        let plain = checked_payload("text/html", b"<b>a &amp; b</b><!-- x -->".to_vec()).expect("plain HTML");
+        assert_eq!(plain, b"<b>a &amp; b</b>");
+        assert!(checked_payload("text/html", Vec::new()).is_err());
     }
 }

@@ -1209,3 +1209,13 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Linux 上的正向对照：把 `worker.rs` 的 `LOAD_OPTIONS` 改成加 `EnableMacrosExecution=true,MacroSecurityLevel=0`，重建 worker，`a_loaded_document_s_macro_never_runs` 失败于“文档宏保持禁用”——同一份文档的宏在放开后执行。复原后两项都过。
 - 加载事件在两种配置下都没写标记。内核只在框架被激活时发 OnLoad（`sfx2/source/appl/app.cxx` 的 `PostActivateEvent_Impl`，`objmisc.cxx` 载完时框架未建即返回）；LOK 的框架不被激活。这是读源码所得，未加日志追踪；它不影响结论：放开宏的回归由 URL 一路抓住。
 - worker 加载选项后接的 `filter` 只来自 CSV 导入，分隔符与引号以数字传入、列类型取自固定表，带不进 `EnableMacrosExecution`。
+## 2026-11-17 粘贴的 HTML 由 Ely 重写后才交内核（R20.9，C07.3）
+
+- 四轮审查各查出一种写法：Ely 用 html5ever 判断，内核用自己的 HTML 解析器读，两者规则不同，好图被读成占位，坏图被放过。根治：不再预测内核的读法。worker 用 html5ever 的分词器读一遍，再写出一份规整的 HTML 交给内核（`worker/pasted.rs`），具体如下：
+  - 注释丢弃。
+  - 属性值一律加双引号并转义。
+  - 名字里有怪字符的标签与属性丢弃。
+  - 可能被内核读成 `data:` 的值（去掉空白、控制字符与反斜杠之后再判断，`a`、`area` 的 `href` 除外）须是能解码的 PNG、JPEG、GIF、BMP 或 WebP，否则拒绝。通过的写成 `data:<类型>;base64,<标准 base64>`。
+  - `style` 属性与 `<style>` 里的 `data:` 图须能解码。CSS 转义后才出现的 `data:` 一律拒绝。
+  - `<title>`、`<script>` 这类原文元素的内容照写，但其中的标签也查一遍。
+- 测试与对照：测试 `inline_images_paste_only_when_they_decode` 收齐历轮的写法。坏图必须报错，同时留住选区与正文；8 种好图须各嵌入一张（数 `<office:binary-data`）。把原文直交内核的变异上，只嵌入 6 张。
