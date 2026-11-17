@@ -6,7 +6,7 @@ use ely_gpui_component::{
     forms::{Choice, Combobox, InputEvent, TextInput},
     theme::ControlSize,
 };
-use gpui::{AnyElement, App, AppContext as _, Context, Entity, IntoElement, SharedString, Subscription, Window};
+use gpui::{AnyElement, App, AppContext as _, Context, Entity, Focusable as _, IntoElement, SharedString, Subscription, Window};
 
 use super::{Panel, known, ordered, send, text};
 
@@ -19,10 +19,11 @@ const SIZES: [&str; 17] = [
 /// Sends a typed size.
 type Commit = Rc<dyn Fn(&str, &mut App)>;
 
-/// The box's field and what one edit already sent.
+/// The field, its last send, the kernel's last report.
 struct Field {
     input: Entity<TextInput>,
     sent: Option<SharedString>,
+    reported: Option<SharedString>,
     commit: Option<Commit>,
     _events: Subscription,
 }
@@ -44,8 +45,21 @@ impl Field {
             }
             _ => {}
         });
-        Self { input, sent: None, commit: None, _events: events }
+        Self { input, sent: None, reported: None, commit: None, _events: events }
     }
+}
+
+/// A size turned mixed or unknown clears the shown one.
+fn follow(field: &Entity<Field>, reported: Option<SharedString>, window: &Window, cx: &mut App) {
+    if field.read(cx).reported == reported {
+        return;
+    }
+    let input = field.read(cx).input.clone();
+    let typing = input.read(cx).focus_handle(cx).is_focused(window);
+    if !typing && !reported.as_deref().is_some_and(known) {
+        input.update(cx, |input, cx| input.set_text("", cx));
+    }
+    field.update(cx, |field, _| field.reported = reported);
 }
 
 /// Sends a typed size; a refused one reverts.
@@ -76,6 +90,7 @@ pub fn size_box<P: Panel>(
     let field = window.use_keyed_state(SharedString::from(format!("{id}-field")), cx, Field::new);
     let input = field.read(cx).input.clone();
     let reported = panel.state(".uno:FontHeight", cx);
+    follow(&field, reported.clone(), window, cx);
     let size = reported.clone().filter(|size| known(size));
     let commit = commit_for(&this, &input, size.clone());
     field.update(cx, |field, _| field.commit = Some(commit));
@@ -171,5 +186,33 @@ mod tests {
         typed(&mut cx, "big", InputEvent::Submit);
         assert_eq!(ran(&mut cx)[2], ["format.size", "big"], "the kernel's table refuses it");
         assert_eq!(cx.update(|app| input.read(app).text().to_string()), "12", "the box shows 12 again");
+    }
+
+    #[test]
+    fn a_size_turned_mixed_shows_its_hint_not_the_old_size() {
+        let mut cx = TestAppContext::single();
+        cx.update(ely_gpui_component::init_for_tests);
+        let window = cx.add_window(|_, _| Blank);
+        let field = window.update(&mut cx, |_, window, cx| cx.new(|cx| Field::new(window, cx))).expect("the window lives");
+        let text = |cx: &mut TestAppContext, reported: Option<&str>, focus: bool| {
+            window
+                .update(cx, |_, window, cx| {
+                    let input = field.read(cx).input.clone();
+                    if focus {
+                        window.focus(&input.focus_handle(cx), cx);
+                    }
+                    follow(&field, reported.map(SharedString::from), window, cx);
+                    // The combobox shows a known size itself.
+                    if let Some(size) = reported.filter(|size| known(size)) {
+                        input.update(cx, |input, cx| input.set_text(size, cx));
+                    }
+                    input.read(cx).text().to_string()
+                })
+                .expect("the window lives")
+        };
+        assert_eq!(text(&mut cx, Some("17"), false), "17");
+        assert_eq!(text(&mut cx, Some(ely_lok::MIXED), false), "", "the mixed hint shows");
+        assert_eq!(text(&mut cx, Some("11"), true), "11");
+        assert_eq!(text(&mut cx, Some(ely_lok::MIXED), true), "11", "a size being typed stays");
     }
 }
