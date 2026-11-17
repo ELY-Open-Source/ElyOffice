@@ -34,6 +34,8 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("table.format.fill", "Remplissage"),
     ("table.format.no_fill", "Aucun remplissage"),
     ("table.format.text_color", "Couleur du texte"),
+    ("table.format.font", "Police"),
+    ("table.format.size", "Taille"),
     ("table.format.auto_color", "Automatique"),
     ("table.data.sort", "Trier…"),
     ("table.data.autofilter", "AutoFiltre"),

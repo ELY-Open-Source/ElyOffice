@@ -34,6 +34,8 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("table.format.fill", "塗りつぶし"),
     ("table.format.no_fill", "塗りつぶしなし"),
     ("table.format.text_color", "文字の色"),
+    ("table.format.font", "フォント"),
+    ("table.format.size", "サイズ"),
     ("table.format.auto_color", "自動"),
     ("table.data.sort", "並べ替え…"),
     ("table.data.autofilter", "オートフィルター"),

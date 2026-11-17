@@ -34,6 +34,8 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("table.format.fill", "Tô nền"),
     ("table.format.no_fill", "Không tô"),
     ("table.format.text_color", "Màu chữ"),
+    ("table.format.font", "Phông chữ"),
+    ("table.format.size", "Cỡ"),
     ("table.format.auto_color", "Tự động"),
     ("table.data.sort", "Sắp xếp…"),
     ("table.data.autofilter", "Lọc tự động"),

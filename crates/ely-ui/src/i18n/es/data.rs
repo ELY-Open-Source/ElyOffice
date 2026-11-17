@@ -37,6 +37,8 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("table.format.fill", "Relleno"),
     ("table.format.no_fill", "Sin relleno"),
     ("table.format.text_color", "Color del texto"),
+    ("table.format.font", "Fuente"),
+    ("table.format.size", "Tamaño"),
     ("table.format.auto_color", "Automático"),
     ("table.data.sort", "Ordenar…"),
     ("table.data.autofilter", "Filtro automático"),

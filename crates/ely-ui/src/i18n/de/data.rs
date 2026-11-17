@@ -34,6 +34,8 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("table.format.fill", "Füllung"),
     ("table.format.no_fill", "Keine Füllung"),
     ("table.format.text_color", "Schriftfarbe"),
+    ("table.format.font", "Schriftart"),
+    ("table.format.size", "Größe"),
     ("table.format.auto_color", "Automatisch"),
     ("table.data.sort", "Sortieren…"),
     ("table.data.autofilter", "AutoFilter"),

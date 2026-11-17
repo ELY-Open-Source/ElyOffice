@@ -22,6 +22,7 @@ use gpui::{
 use crate::book::{Book, Spot};
 
 mod colors;
+mod fonts;
 pub(crate) use colors::paint;
 use colors::{FILL, Pick, TEXT};
 
@@ -72,6 +73,8 @@ pub struct Panel {
     reading: bool,
     /// The cell's format code and kind.
     pub(crate) number: Option<(String, String)>,
+    /// The kernel's font families.
+    pub(crate) fonts: Vec<SharedString>,
     _code: Subscription,
 }
 
@@ -106,6 +109,7 @@ impl Panel {
             read: None,
             reading: false,
             number: None,
+            fonts: Vec::new(),
             _code: subscription,
         }
     }
@@ -125,6 +129,10 @@ impl Panel {
             }),
         });
         self.read = None;
+        if let Some(shown) = self.shown.as_ref().filter(|_| self.fonts.is_empty()) {
+            let doc = shown.doc.clone();
+            self.read_fonts(&doc, cx);
+        }
         self.reread(cx);
     }
 
@@ -356,7 +364,8 @@ impl Panel {
             )
     }
 
-    fn cell_group(&self, cx: &Context<Self>) -> PropertyGroup {
+    fn cell_group(&self, window: &mut Window, cx: &mut Context<Self>) -> PropertyGroup {
+        let [font, size] = self.font_rows(window, cx);
         let label = |key: &str| Book::text(cx, key, &[]);
         let borders = row([
             self.button("cells.borders_all", "table.format.borders_all", cx),
@@ -364,6 +373,8 @@ impl Panel {
             self.button("cells.borders_none", "table.format.borders_none", cx),
         ]);
         PropertyGroup::new(label("table.format.cell"))
+            .row(label("table.format.font"), font)
+            .row(label("table.format.size"), size)
             .row(label("table.format.borders"), borders)
             .row(label("table.format.fill"), self.colors(&FILL, cx))
             .row(label("table.format.text_color"), self.colors(&TEXT, cx))
@@ -449,11 +460,11 @@ fn row(items: impl IntoIterator<Item = AnyElement>) -> AnyElement {
 }
 
 impl Render for Panel {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let grid = PropertyGrid::new("table-format")
             .group(self.number_group(cx))
             .group(self.align_group(cx))
-            .group(self.cell_group(cx));
+            .group(self.cell_group(window, cx));
         div().size_full().child(
             ScrollArea::new("table-format-scroll").vertical()
                 .size_full()

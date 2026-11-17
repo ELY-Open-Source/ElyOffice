@@ -34,6 +34,8 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("table.format.fill", "채우기"),
     ("table.format.no_fill", "채우기 없음"),
     ("table.format.text_color", "글자 색"),
+    ("table.format.font", "글꼴"),
+    ("table.format.size", "크기"),
     ("table.format.auto_color", "자동"),
     ("table.data.sort", "정렬…"),
     ("table.data.autofilter", "자동 필터"),

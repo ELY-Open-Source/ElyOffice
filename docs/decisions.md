@@ -1268,3 +1268,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 补丁 `0139-sd-lok-a-font-name-follows-word`：LOK 下 Impress 照 Writer 的补丁 0055（GitHub #7）——字体名总设西文，字体装着且有“中文”二字的字形时同时设中文；编辑中与选中形状两路都如此；光标处的字体状态按光标处的文种。共用的判断在 `sd::View::GetKitFontScripts`。
 - 测试 `fonts::a_slide_font_with_chinese_glyphs_sets_both_scripts`（编辑中设字体后打中文、选中形状设字体，两处的样式都须有中西文两种字体）与 `a_latin_only_slide_font_keeps_the_chinese_font`。两路分别换回上游写法，前者各败一次。字体状态一路只在键盘为中文的机器上有别，这里与 Windows 测试机都是英文键盘，未验证，照 0055 的先例改。
 - 未解释的一处：报告说“实施管理”里只有“施”一个字发细。字体属性的错会让所有中文字一样，解释不了单单一个字。可能是默认中文字体缺这个字形而逐字回退，未在报告者的环境（中文界面语言包、微软输入法）上核对；`#83` 不写成已全修，待装上 0139 的版本发布后请报告者再看。
+
+## 2026-11-16 ElyTable 格式面板加字体与字号（R20.15，#86）
+
+- “单元格”一组的首两行：字体（组合框，字体表照 ElyDoc、ElyShow 经 `.uno:CharFontName` 在后台读，读不出即报错）与字号；两者用 `ely_office::panel` 的 `font_box`、`size_box`，发 `format.font`、`format.size`，状态取内核推送的 `.uno:CharFontName`、`.uno:FontHeight`，混合时显示“混合”。ElyTable 的面板实现 `ely_office::panel::Panel`。八种语言加 `table.format.font`、`table.format.size`。
