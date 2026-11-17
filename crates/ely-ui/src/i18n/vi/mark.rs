@@ -83,6 +83,8 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("mark.look.larger", "Phóng to"),
     ("mark.look.smaller", "Thu nhỏ"),
     ("mark.look.actual", "Kích thước thực tế"),
+    ("mark.settings.size", "Cỡ chữ tài liệu"),
+    ("mark.settings.size.hint", "Tỉ lệ so với cỡ chữ giao diện; menu Xem và thu phóng bằng con lăn cũng thay đổi nó"),
     ("mark.git.unchanged", "Git: không thay đổi"),
     ("mark.git.changed", "Git: đã thay đổi"),
     ("mark.git.untracked", "Git: chưa được theo dõi"),

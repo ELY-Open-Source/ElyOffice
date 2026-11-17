@@ -456,3 +456,18 @@ fn a_refused_git_says_why_in_chinese_and_spanish(cx: &mut TestAppContext) {
         }
     }
 }
+
+#[gpui::test]
+fn an_app_s_rows_join_the_documents_page(cx: &mut TestAppContext) {
+    use gpui::{InteractiveElement as _, IntoElement as _, ParentElement as _};
+    installed(cx);
+    let row = |_: &gpui::App| vec![gpui::div().debug_selector(|| "app-row".into()).child("row").into_any_element()];
+    cx.update(|cx| super::add_document_rows(std::rc::Rc::new(row), cx));
+    let settings = cx.add_window(|window, cx| SettingsView::new(AppId::Mark, window, cx));
+    let mut shown = gpui::VisualTestContext::from_window(settings.into(), cx);
+    settings.update(&mut shown, |view, _, _| view.section = "documents".into()).unwrap();
+    shown.update(|window, cx| window.draw(cx).clear(cx));
+    assert!(shown.debug_bounds("app-row").is_some(), "the app's row shows");
+    assert!(shown.debug_bounds("settings-two-sided").is_some(), "beside the shared ones");
+}
+

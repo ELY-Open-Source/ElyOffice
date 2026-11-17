@@ -152,6 +152,15 @@ impl Desk {
             cx,
         );
         cx.notify();
+        // The settings window shows the size too.
+        cx.refresh_windows();
+    }
+
+    /// The text size the settings row sets.
+    pub fn size_to(&mut self, size: u32, cx: &mut Context<Self>) {
+        if self.look.size != size {
+            self.relook(|look| look.size = size, cx);
+        }
     }
 
     /// Every tab's document takes the look.
@@ -232,8 +241,10 @@ impl Desk {
     }
 }
 
-impl Desk {
+mod size;
+pub use size::settings_rows;
 
+impl Desk {
     /// The system's families, the one in use chosen.
     pub fn font_dialog(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let field = self.font_picking.as_ref()?;
@@ -427,5 +438,29 @@ mod tests {
         cx.simulate_event(wheel(secondary, -1.0));
         cx.run_until_parked();
         assert_eq!(document_look(&desk, cx).scale, 0.9);
+    }
+
+    #[gpui::test]
+    fn the_settings_row_sets_the_size_the_menu_sets(cx: &mut TestAppContext) {
+        let (data, files) = (
+            tempfile::tempdir().expect("data"),
+            tempfile::tempdir().expect("files"),
+        );
+        let path = files.path().join("a.md");
+        std::fs::write(&path, "a\n").expect("a file");
+        let (desk, cx) = start(cx, data.path());
+        open(&desk, &path, cx);
+        let rows = cx.update(|_, cx| cx.global::<ely_ui::settings::DocumentRows>().0.clone());
+        assert_eq!(cx.update(|_, cx| rows(cx).len()), 1, "one row on the page");
+        desk.update(cx, |desk, cx| desk.size_to(130, cx));
+        assert_eq!(document_look(&desk, cx).scale, 1.3);
+        let kept = std::fs::read_to_string(data.path().join("look.json")).expect("kept");
+        assert!(kept.contains("130"), "{kept}");
+        let focus = desk.read_with(cx, |desk, _| desk.core.focus.clone());
+        cx.update(|window, cx| window.focus(&focus, cx));
+        cx.dispatch_action(super::Larger);
+        assert_eq!(desk.read_with(cx, |desk, _| desk.look.size), 140, "the row reads it");
+        desk.update(cx, |desk, cx| desk.size_to(100, cx));
+        assert_eq!(document_look(&desk, cx).scale, 1.0);
     }
 }

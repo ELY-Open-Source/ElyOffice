@@ -225,6 +225,7 @@ pub(crate) fn open_in(
         }
     });
     crate::remote::listen(&desk, cx);
+    crate::look::settings_rows(desk.downgrade(), cx);
     let menus = crate::keys::menus(&look, cx);
     let root = ely_ui::document_root(
         app,

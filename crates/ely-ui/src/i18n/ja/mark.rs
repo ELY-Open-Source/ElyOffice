@@ -83,6 +83,8 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("mark.look.larger", "ズームイン"),
     ("mark.look.smaller", "ズームアウト"),
     ("mark.look.actual", "実寸"),
+    ("mark.settings.size", "文書の文字サイズ"),
+    ("mark.settings.size.hint", "画面の文字サイズに対する割合です。表示メニューとホイールでのズームでも変わります"),
     ("mark.git.unchanged", "Git: 変更なし"),
     ("mark.git.changed", "Git: 変更あり"),
     ("mark.git.untracked", "Git: 追跡なし"),

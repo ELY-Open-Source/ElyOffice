@@ -1311,3 +1311,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 第 2 轮审查一条属实，在随 pin 带来的组件库 c01a140e（R20.23 #87 的组件库部分）：FileTree 搜索时先带着查询词走进文件夹、把含匹配的子文件夹记为展开，之后才判断这个文件夹本身按名匹配，换成全部内容却没撤销那些展开；`u` 同时匹配 `ui` 与 `Button.rs` 时 `ui` 被展开而非折叠。改为先判断按名匹配：按名匹配的文件夹不带查询词走、展开记录丢弃，其余才带查询词走并记展开；`a_folder_found_by_name_keeps_its_files_folded` 加此例与嵌套例（`s` 按名匹配 `src`，其中 `ui` 含匹配），旧码上败。组件库 94331bc6，pin 随之；ElyMark 231、ElyMail 171、ElyTree 151 项与 clippy 过。
 - 第 3 轮 PASS，R20.21 勾上；R8.4、R16.20 末轮所留（组件库单独使用时的解析器、图片替代文字的修改未审）随之了结。
 
+## 2026-11-17 ElyMark 设置“文档”页的文档字号（R20.22，#85）
+
+- 照 7cd73280 定下的做法：ElyMark 设置“文档”页加“文档字号”一行，滑块 70% 至 200%（步长 10，与视图菜单同），旁写当前百分比，“实际大小”按钮回到 100%；与视图菜单、按住 Ctrl（macOS 为 Cmd）滚动同一个值，存 look.json；字号仍是界面字号的百分比，随界面字号同比变。经菜单或滚轮改了，打开着的设置窗口随即显示新值（`relook` 刷新各窗口）。
+- 设置窗口在 `ely-ui`，不认识 ElyMark 的状态：照 ElyMail 往“存储”页加行的做法，`ely_ui::settings::add_document_rows` 让应用把自己的行交给“文档”页（`DocumentRows`），ElyMark 在建好桌面后登记（`look/size.rs`）。文案八种语言齐，重置沿用“实际大小”。帮助写明。
+- Cindy 在 worktree 的 bbd442e6（把界面字号上限由 16 px 提到 20 px）不合此做法，未采用。
+- 测试：`an_app_s_rows_join_the_documents_page`（应用的行与共有的行同在“文档”页）、`the_settings_row_sets_the_size_the_menu_sets`（设置行改的字号到达打开的文档与 look.json，菜单再改，行读到同一个值）。ely-ui 110 项、ElyMark 232 项、clippy、check.sh、panics.py 过。
+

@@ -297,7 +297,8 @@ impl SettingsView {
                 let printing = SettingsRow::new(text(cx, "settings.two_sided", &[]))
                     .description(text(cx, "settings.two_sided.hint", &[]))
                     .control(div().debug_selector(|| "settings-two-sided".into()).w_full().max_w_64().child(super::picks::two_sided(current(cx).two_sided, cx)));
-                let section = SettingsSection::new(text(cx, "settings.documents", &[]));
+                let own = cx.try_global::<super::DocumentRows>().map_or_else(Vec::new, |rows| (rows.0)(cx));
+                let section = own.into_iter().fold(SettingsSection::new(text(cx, "settings.documents", &[])), |section, row| section.row(row));
                 // ElyMark prints, but has no author, autosave or zoom.
                 if self.app == AppId::Mark {
                     return section.row(printing).into_any_element();

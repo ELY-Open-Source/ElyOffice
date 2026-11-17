@@ -146,6 +146,8 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("mark.look.larger", "Acercar"),
     ("mark.look.smaller", "Alejar"),
     ("mark.look.actual", "Tamaño real"),
+    ("mark.settings.size", "Tamaño del texto del documento"),
+    ("mark.settings.size.hint", "Porcentaje del tamaño de texto de la interfaz; el menú Ver y el zoom con la rueda también lo cambian"),
     ("mark.git.unchanged", "Git: sin cambios"),
     ("mark.git.changed", "Git: con cambios"),
     ("mark.git.untracked", "Git: sin seguimiento"),

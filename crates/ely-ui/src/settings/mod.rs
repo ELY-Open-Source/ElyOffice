@@ -28,7 +28,7 @@ mod tests;
 mod window;
 
 pub use frame::{follow as follow_frame, restore as restored_frame};
-pub use storage::{AppStorage, add_rows as add_storage_rows};
+pub use storage::{AppStorage, Drawn, add_rows as add_storage_rows};
 pub use window::open;
 
 const SETTLE: Duration = Duration::from_millis(150);
@@ -44,6 +44,16 @@ pub struct Current {
 }
 
 impl Global for Current {}
+
+/// An app's own rows on the documents page.
+pub struct DocumentRows(pub Drawn<Vec<gpui::AnyElement>>);
+
+impl Global for DocumentRows {}
+
+/// The app's rows join every settings window's documents page.
+pub fn add_document_rows(rows: Drawn<Vec<gpui::AnyElement>>, cx: &mut App) {
+    cx.set_global(DocumentRows(rows));
+}
 
 /// The settings every app follows.
 pub fn current(cx: &App) -> &Shared {

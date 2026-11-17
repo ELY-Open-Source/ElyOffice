@@ -83,6 +83,8 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("mark.look.larger", "확대"),
     ("mark.look.smaller", "축소"),
     ("mark.look.actual", "실제 크기"),
+    ("mark.settings.size", "문서 글자 크기"),
+    ("mark.settings.size.hint", "인터페이스 글자 크기에 대한 비율입니다. 보기 메뉴와 휠 확대/축소로도 바뀝니다"),
     ("mark.git.unchanged", "Git: 바뀌지 않음"),
     ("mark.git.changed", "Git: 바뀜"),
     ("mark.git.untracked", "Git: 추적하지 않음"),

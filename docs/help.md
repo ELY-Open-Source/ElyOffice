@@ -108,7 +108,7 @@ ElyShow 开着、文件已打开时，别的程序可经命令行读改幻灯片
 - 段落与格式菜单照 Typora。菜单里带 Shift 的标点键写成所出的字符，如 Ctrl+{ 即 Ctrl+Shift+[。标题：Ctrl+1 至 Ctrl+6，Ctrl+0 段落，Ctrl+= 与 Ctrl+- 升降一级。块：Ctrl+Shift+K 代码块，Ctrl+Shift+M 公式块，Ctrl+Shift+Q 引用，Ctrl+Shift+[ 有序列表，Ctrl+Shift+] 无序列表，Ctrl+Shift+X 任务列表。
 - 格式：Ctrl+B 加粗，Ctrl+I 斜体，Ctrl+U 下划线，Ctrl+Shift+` 代码，Alt+Shift+5 删除线，Ctrl+K 超链接，Ctrl+Shift+I 插入图片，Ctrl+\ 清除样式。
 - 表格在“段落 ▸ 表格”：Ctrl+T 插入，Ctrl+Enter 下方插入行，Ctrl+Shift+Backspace 删除行，Alt+方向键移动行列，“格式化表格源码”对齐各列。
-- 视图：Ctrl+/ 在源码与编辑模式之间切换，F8 专注，F9 打字机，Ctrl+Shift+= 放大，Ctrl+Shift+- 缩小，Ctrl+Shift+0 实际大小（Windows 的中文输入法占着这个键，在 Windows 上用 Ctrl+Shift+9）；编辑、源码、预览在“视图”菜单与状态栏里选。源码模式默认显示行号（“视图›源码模式显示行号”可关）；状态栏在各模式都写出插入点所在的行与列。
+- 视图：Ctrl+/ 在源码与编辑模式之间切换，F8 专注，F9 打字机，Ctrl+Shift+= 放大，Ctrl+Shift+- 缩小，Ctrl+Shift+0 实际大小（Windows 的中文输入法占着这个键，在 Windows 上用 Ctrl+Shift+9）；正文字号是界面字号的 70% 至 200%，设置“文档”里的“文档字号”滑块与按住 Ctrl（macOS 为 Cmd）滚动调的是同一个值，旁边的“实际大小”回到 100%；编辑、源码、预览在“视图”菜单与状态栏里选。源码模式默认显示行号（“视图›源码模式显示行号”可关）；状态栏在各模式都写出插入点所在的行与列。
 - 状态栏写出全文的字数与字符数（汉字一字一数，字符含空格与标记），有选区时写出“已选 N / 总数 字”。
 - 正文字体在“视图”菜单：无衬线、衬线、等宽，或“其他字体…”选任意系统字体；数字等宽。
 - 文件页的最近文件可右键“从最近列表中移除”，文件本身不动。右键标签、最近文件或文件夹里的文件可“复制文件名”“复制路径”。
