@@ -18,7 +18,7 @@ const HEAD: &str = r##"<?xml version="1.0" encoding="UTF-8"?>
 
 const TAIL: &str = "</office:text></office:body></office:document>";
 
-/// The pushed state of `uno` once the whole text is selected.
+/// `uno` with all text selected.
 fn selected(body: &str, uno: &str) -> Option<String> {
     let (_dir, mut worker, doc) = open(&format!("{HEAD}{body}{TAIL}"));
     worker.run(&doc, "edit.select_all", &[]).expect("select all");
