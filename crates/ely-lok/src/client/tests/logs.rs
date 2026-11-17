@@ -178,3 +178,21 @@ fn only_documents_needing_a_printer_ask_the_spooler() {
         assert_eq!(asked(dir.path(), path).as_deref(), why, "{} asked the spooler", path.display());
     }
 }
+
+#[test]
+fn a_refused_animation_logs_why() {
+    if skip() {
+        return;
+    }
+    listen();
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let flat = dir.path().join("deck.fodp");
+    std::fs::write(&flat, DECK).expect("writes");
+    let mut worker = Worker::spawn(&install().expect("the pinned LOK build"), &dir.path().join("profile")).expect("the worker");
+    let doc = worker.load(&crate::file_url(&flat)).expect("loads");
+    let add = r#"{"preset":"ooo-entrance-fade-in"}"#;
+    assert!(worker.run(&doc, "animation.add", &[add]).is_err(), "nothing is marked");
+    let why = heard(&["WARN sd.view (drviewskit.cxx:", "AddAnimation refused", "preset known", "marked 0"]);
+    assert!(why.is_some(), "the refusal names its reason");
+    worker.close_doc(doc).expect("closes");
+}

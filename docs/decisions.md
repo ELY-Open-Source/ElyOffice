@@ -1254,3 +1254,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 测试 `a_formula_whose_sheet_is_gone_keeps_its_value` 加两例（读空白格的 INDIRECT，XLSX 重开的两种 INDIRECT），与新测试一起移入 `client/tests/gone.rs`（`linked.rs` 已 499 行）。不记查过的表即败于 `B5` 一例。
 - 本机 gcc 16（2026-10-03 装）下，R20.11 改了 `externalrefmgr.hxx`，重编的 `document.cxx`、`documen5.cxx`、`chartuno.cxx` 让 `libsclo.so` 链不上：推测性去虚化把 `SvLockBytes` 的内联析构生成进 Calc 的目标文件，要它的虚表与 `close()`，而开了 `--enable-mergelibs` 时这个类藏在 `libmergedlo` 里不导出。与 R20.11 无关，任何重编都会碰上；上游 master 同。Cindy 只在本机加了 `-fno-devirtualize-speculatively`，未入构建脚本。根治为补丁 `0137-tools-lock-bytes-are-exported-from-the-merged-library`：这个类合不合库都导出。本机以 `build-libreoffice.sh` 不加任何编译开关重建全内核，链接通过，`libsclo` 引入、`libmergedlo` 导出这两个符号。
 - 第 3 轮 FAIL，三轮用尽，R20.11 标 `[!]`。第 2 轮其二的规则（更新后新值算出的引用照实显示）未被驳回。新查出两项留给 R20.33：`getDoubleRefTokens` 只记三维区域的首张表，经 INDIRECT 的 `S1:S3` 删去空白的 S3 仍报成功、值变；同一源可有两个链接条目（原路径与 file URL），核对与刷新各按条目做，直接的 `S1:S3` 在一个条目失败、点名之后，另一个条目照样刷新，值变了。
+
+## 2026-11-17 `animation.add` 偶被拒：先让内核说出原因（R20.12，R19.9）
+
+- LokError 全文已知：`Check::Undoable` 只会答“the undo history did not move”，即内核什么也没改。worker 记的“request 14 failed (Other)”不带原文是有意的（原文可能引用文档，只回给应用），故原因要从内核里取。`DrawViewShell::KitAddAnimation`（补丁 0034）在无预设、预设不认识、时长不为正、没有选中对象、没有当前页时都只返回 false，不留一字。
+- 补丁 `0138-sd-lok-a-refused-animation-says-why`：每种拒绝记一行 WARN（`ely.sd.view`），写明预设认不认识、时长、选中数、有无当前页，不含文档文字。测试 `logs::a_refused_animation_logs_why`（不选对象即加动画，须听到“preset known … marked 0”）；去掉日志即败。
+- Linux 上复现不出：ElyShow 整组六份同跑、连跑三轮，18 次全过，内核一次未拒。只在 Windows 测试机见过（SF.32：9 遍败 3 遍）。Windows 的内核要到 R20.26 才带上 0138 重建，故根因未明，不写修好；R20.26 重建后在 Windows 上连跑 ElyShow 整组，读这行日志定根因再修。

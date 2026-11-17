@@ -1,0 +1,44 @@
+sd: a refused animation says why
+
+KitAddAnimation (patch 0034) returned false without a word when the
+JSON had no preset, the preset was unknown, the duration was not
+positive, nothing was marked or there was no page. Ely's Windows test
+runs saw .uno:AddAnimation change nothing a few times in nine under
+load (Ely R20.12) and could not tell which. Each refusal now logs the
+reason: whether the preset is known, the duration, the marked count
+and whether a page is current. No document text is logged.
+
+--- a/sd/source/ui/view/drviewskit.cxx
++++ b/sd/source/ui/view/drviewskit.cxx
+@@ -8,6 +8,7 @@
+  */
+ 
+ #include <DrawViewShell.hxx>
++#include <ely/log.hxx>
+ 
+ #include <CustomAnimationEffect.hxx>
+ #include <CustomAnimationPreset.hxx>
+@@ -154,7 +155,10 @@
+     const std::optional<boost::json::object> oObject = lcl_Object(rJson);
+     const boost::json::value* pPreset = oObject ? oObject->if_contains("preset") : nullptr;
+     if (!pPreset || !pPreset->is_string())
++    {
++        ELY_WARN("sd.view", "AddAnimation refused: no preset");
+         return false;
++    }
+     const CustomAnimationPresetPtr pDescriptor
+         = CustomAnimationPresets::getCustomAnimationPresets().getEffectDescriptor(lcl_String(*pPreset));
+     const std::optional<double> oDuration
+@@ -162,7 +166,12 @@
+     const SdrMarkList& rMarks = mpDrawView->GetMarkedObjectList();
+     SdPage* pPage = getCurrentPage();
+     if (!oDuration || *oDuration <= 0 || rMarks.GetMarkCount() == 0 || !pPage)
++    {
++        ELY_WARN("sd.view", "AddAnimation refused: preset " << (pDescriptor ? "known" : "unknown")
++                                << ", duration " << oDuration.value_or(-1) << ", marked "
++                                << rMarks.GetMarkCount() << ", page " << (pPage ? "yes" : "no"));
+         return false;
++    }
+     const MainSequencePtr& pSequence = pPage->getMainSequence();
+     pSequence->getRootNode();
+     GetDocSh()->GetUndoManager()->AddUndoAction(std::make_unique<UndoAnimation>(GetDoc(), pPage));
