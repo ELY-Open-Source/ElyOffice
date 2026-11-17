@@ -1324,4 +1324,5 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 报告者在 ElyMark 侧栏的文件过滤里搜目录名，结果只有目录本身，展不开。根因在组件库 FileTree：过滤只留匹配的文件与装着它们的目录，按名匹配的目录没有子节点。Cindy 的组件库 c01a140e 让按名匹配的目录保留其下全部内容、折叠着，可展开；其 ElyOffice 提交 d8f3470a 只把 pin 换到 c01a140e，R20.21 已把 pin 换到其后（含 R20.21 第 2 轮对此折叠的修复 94331bc6），本条不再动 pin。
 - ElyMark 测试 `a_folder_the_filter_finds_opens_to_its_files`：打开装着 `notes/a.md`、`notes/sub/b.md`、`other.md` 的文件夹，在文件过滤里输入 `notes`，`notes` 在、折叠着、`other.md` 不在；点开 `notes` 即见 `notes/a.md` 与 `notes/sub`。换回旧 pin f656f79 即败于展开一步。ElyMark 234 项、clippy 过。
+- 第 1 轮审查两条属实：c01a140e 加的 `nodes` 文档注释 34 词、94331bc6 测试里一条注释 11 词，皆过十词；缩到十词内；公开的 `FileTree` 文档补上按名匹配的目录保留其内容、折叠。组件库 c7549e57，pin 随之；ElyMark 234 项、clippy 过。
 
