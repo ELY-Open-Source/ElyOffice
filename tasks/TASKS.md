@@ -660,7 +660,7 @@
 - [ ] R19.6 Windows 虚拟机（7877）的 0.1.16 基准所见两处（§20，PERF-01、PERF-02）：一、六个应用的首次启动超 3 秒（ElyDoc 3890、ElyTable 3610、ElyShow 3422、ElyPDF 10890、ElyMail 3437、ElyMark 3234 毫秒），日常启动皆在 0.2 至 0.7 秒；与 2026-11 所查相符：Defender 在新建的可执行文件跑任何代码前先扫描，约每 MB 45 毫秒，根治待安装包签名（R-02）；ElyPDF 的 10.9 秒远超其 29 MB 应得，待查。二、ElyMail 打字时主线程六次忙 134 至 511 毫秒，各在一次搜索答“0 messages”之后约 0.8 秒；R14.48f 的时区修复（`patches/gpui/0004`）仍在，另有原因，待取栈
 - [x] R19.7 Linux arm64 的发布任务在 GitHub 托管机上跑不完（§4）：v0.1.16 两次都在约 2 小时处被关（第一次 32 分钟失联，第二次 2 小时 0 分收到关机信号，内核已建完、测试门编译中），与 2026-11-08 的探测（2 小时 1 分）一致；托管机每次现场建内核约 1 小时 55 分，余下的测试门与打包装不进去。改为能复用已建引擎的自托管 arm64 机，或把内核构建拆成缓存的前一任务；做成前发布不含 Linux arm64（0.1.15 亦无）。2026-11-14 用户定不出 Linux arm64，任务已删（SF.2）
 - [ ] R19.8 ElyTable 图形文本的撤销测试 `undo_and_redo_work_inside_a_shape_text_edit` 偶发失败（Mac 发布任务，2026-11-13）：双击后立刻打字，负载下双击未进文本编辑，Q 落在框外；先等进入文本编辑再打字
-- [ ] R19.9 ElyShow 整组跑时 `animation.add` 偶被拒（Windows 测试机，W.1 前即有，SF.32 查出）：日志“animation.add failed, 0 steps undone”、request 14 failed (Other)，单跑不现；取 LokError 的完整错误，查 `Check::Undoable`（`commands/show.rs:73`）为何在负载下判失败
+- [ ] R19.9 ElyShow 整组跑时 `animation.add` 偶被拒（Windows 测试机，W.1 前即有，SF.32 查出）：日志“animation.add failed, 0 steps undone”、request 14 failed (Other)，单跑不现；取 LokError 的完整错误，查 `Check::Undoable`（`commands/show.rs:73`）为何在负载下判失败 — R20.12 加了拒绝原因的日志（补丁 0138），根因待 R20.26 的 Windows 重建后定
 
 ## SF 秒开（用户 2026-11-14 定，方案与实测在根目录 `SuperFast.md`；按其“顺序”逐条做，每条在对应测试机上重量、数字写回 `SuperFast.md`。规矩同 R18。SF.7 至 SF.21 之间不打发布标签）
 
@@ -736,7 +736,7 @@
 - [x] R20.9 C07.3 粘贴 HTML 里的图片（§7）：根治——粘贴后核对内核实际嵌入的图片，或只交内核已验证的载荷；验收语料收齐审查历轮的例子 — 已做：worker 用 html5ever 分词后写出规整的 HTML 交内核，图一律解码后以标准 base64 写出；原文元素只认 style、script、xmp、noembed 且其中不许有 `<`；语料收齐 C07.3 与 R20.9 历轮写法，好图数 binary-data 与 draw:image；第 3 轮 PASS，三端真内核测试皆过（`tasks/reviews/R20.9-r3.md`）
 - [x] R20.10 R8.2 Word 公式（§8）：复审 EQ 域缓存图片的修改；逐一核对 Word 缓存的其他结果种类（文本框、嵌套域） — 已做：补丁 0136 让 EQ 域缓存结果里的嵌套域、文本框、形状、图片、OMML、OLE、批注、脚注与尾注都不进文档（注照常导入后删，后面的注保住正文）；夹具 `eq-cached-kinds.docx` 十二类加末段真注；第 3 轮 PASS（`tasks/reviews/R20.10-r3.md`）；Windows 与 macOS 内核待 R20.26 重建
 - [!] R20.11 R15.43 外部链接（§9）：复审 INDIRECT 的修改；补 INDIRECT 只读空格、XLSX 重开未重算时缺表不点名的缺口 — 三轮用尽，第 3 轮 FAIL（`tasks/reviews/R20.11-r3.md`）。已做（第 1、2 轮的缺陷皆修）：补丁 0131 按公式单元格记它最后一回查过的表（INDIRECT 也记，开算与删改即丢旧记录），更新前核对，缺即失败、点名、留旧值；新值算出的引用照实显示（PRD 291，第 3 轮未驳）；补丁 0137 让 Calc 在 gcc 16 下链得上。余两项交 R20.33：外部三维区域只记首张表；同一源的两个链接条目（原路径与 file URL）各自核对、各自刷新，一个失败另一个仍改了值
-- [ ] R20.12 R19.9 ElyShow `animation.add` 偶被拒（§10）：取 LokError 全文，查 `Check::Undoable` 在负载下为何判失败，修
+- [!] R20.12 R19.9 ElyShow `animation.add` 偶被拒（§10）：取 LokError 全文，查 `Check::Undoable` 在负载下为何判失败，修 — 只做到可观测，根因未明：LokError 全文即“undo history did not move”（内核未改），worker 不记原文是有意的；补丁 0138 让 `KitAddAnimation` 每种拒绝记一行原因（预设、时长、选中数、有无当前页，不含文档文字），测试 `logs::a_refused_animation_logs_why`；Linux 六份同跑三轮 18 次未复现；第 1 轮 PASS（`tasks/reviews/R20.12-r1.md`）。根因与修复在 R20.26 的 Windows 重建之后
 - [ ] R20.13 SF.23 空闲引擎的门（§20）：带符号的内核上归因一轮——周期是否来自那 11 个 WIL 计时器，`vclplug_winlo` 能否不经 `SHGetPropertyStoreForWindow`；消除不了即改 Windows 的门为“记录值加余量”（余量由多次测量定，去掉 0134 的内核须被拦下作正向对照；分不开才退到只记录），agents.md、standing.md、decisions.md 同改并写明量级
 - [ ] R20.14 #83 之二微软雅黑粗体（R19.2，§10）：中文界面语言包下复现；拿不到材料就按字体回退的路径逐层查“施”字取的字体，留复现矩阵与截图
 
