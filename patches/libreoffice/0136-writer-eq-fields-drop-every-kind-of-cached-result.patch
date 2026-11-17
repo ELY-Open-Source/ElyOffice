@@ -4,14 +4,16 @@ Patch 0130 dropped the text and the DrawingML picture that Word writes
 after an EQ field's separator, since Ely draws the field from its code.
 Other kinds still came through (Ely R8.2): a nested field such as PAGE
 or QUOTE, a DrawingML or VML text box or shape, a VML picture, an OMML
-formula, an OLE object and a comment. Each was inserted beside the
-formula.
+formula, an OLE object, a comment, a footnote and an endnote. Each was
+inserted beside the formula.
 
 Content inside an EQ field's result now goes the way content in a
 discarded header or footer goes: nested fields close without inserting,
 shapes are removed from the draw page, and pictures, OLE objects,
 formulas and comments are not inserted. The paragraphs a nested field
-held are still finished.
+held are still finished. A cited footnote or endnote is imported, since
+Word's notes are matched to citations in order, and removed once the
+temporary notes are; the notes after it keep their text.
 --- a/sw/source/writerfilter/dmapper/DomainMapper.cxx
 +++ b/sw/source/writerfilter/dmapper/DomainMapper.cxx
 @@ -3280,7 +3280,8 @@
@@ -35,7 +37,37 @@ held are still finished.
          appendFormula(formula);
  }
  
-@@ -4977,6 +4977,13 @@
+@@ -4458,6 +4458,9 @@
+ void DomainMapper_Impl::PushFootOrEndnote( bool bIsFootnote )
+ {
+     SAL_WARN_IF(m_StreamStateStack.top().eSubstreamType != SubstreamType::Body, "writerfilter.dmapper", "PushFootOrEndnote() is called from another foot or endnote");
++    // A citation, not a preloaded note, in an EQ result.
++    const bool bEqCitation = m_StreamStateStack.top().eSubstreamType == SubstreamType::Body
++        && IsInEqResult();
+     m_StreamStateStack.top().eSubstreamType = bIsFootnote ? SubstreamType::Footnote : SubstreamType::Endnote;
+     try
+     {
+@@ -4490,6 +4493,8 @@
+         if (GetTopContextOfType(CONTEXT_CHARACTER))
+             aFontProperties = GetTopContextOfType(CONTEXT_CHARACTER)->GetPropertyValues();
+         appendTextContent( xFootnote, aFontProperties );
++        if (bEqCitation && xFootnote.is())
++            m_aEqResultNotes.push_back(xFootnote);
+         m_aTextAppendStack.push(TextAppendContext(xFootnote,
+                     xFootnote->createTextCursorByRange(xFootnote->getStart())));
+ 
+@@ -4872,6 +4877,10 @@
+             xNote->getAnchor()->setString(u""_ustr);
+         }
+     }
++    // Imported in order so later notes keep their text; now they go.
++    for (const auto& xEqNote : m_aEqResultNotes)
++        xEqNote->getAnchor()->setString(u""_ustr);
++    m_aEqResultNotes.clear();
+ }
+ 
+ static void lcl_convertToNoteIndices(std::deque<sal_Int32>& rNoteIds, sal_Int32& rFirstNoteIndex)
+@@ -4977,6 +4986,13 @@
  
      m_aTextAppendStack.pop();
  
@@ -49,7 +81,7 @@ held are still finished.
      try
      {
          if (m_bAnnotationResolved)
-@@ -5416,7 +5423,7 @@
+@@ -5416,7 +5432,7 @@
      const uno::Reference<drawing::XShape> xShape( xObj, uno::UNO_QUERY_THROW );
      // Remove the shape if required (most likely replacement shape for OLE object)
      // or anchored to a discarded header or footer
@@ -58,7 +90,7 @@ held are still finished.
      {
          try
          {
-@@ -5487,6 +5494,17 @@
+@@ -5487,6 +5503,17 @@
      return m_bDiscardHeaderFooter;
  }
  
@@ -76,7 +108,7 @@ held are still finished.
  void DomainMapper_Impl::SetLineSpacing(const Id nName, sal_Int32 nIntValue, bool bNegativeFlip)
  {
      static const int nSingleLineSpacing = 240;
-@@ -8109,7 +8127,8 @@
+@@ -8109,7 +8136,8 @@
  
  void DomainMapper_Impl::CloseFieldCommand()
  {
@@ -86,7 +118,7 @@ held are still finished.
          return;
  #ifdef DBG_UTIL
      TagLogger::getInstance().element("closeFieldCommand");
-@@ -9081,11 +9100,10 @@
+@@ -9081,11 +9109,10 @@
          if (pContext->GetTableDepth() != m_StreamStateStack.top().nTableDepth)
              return false;
  
@@ -99,7 +131,7 @@ held are still finished.
      }
  
      if (!bRet)
-@@ -9333,7 +9351,8 @@
+@@ -9333,7 +9360,8 @@
  
      FieldContextPtr pContext = m_aFieldStack.back();
      OSL_ENSURE( pContext, "no field context available");
@@ -109,7 +141,7 @@ held are still finished.
      {
          if( !pContext->IsCommandCompleted() )
              CloseFieldCommand();
-@@ -9866,9 +9885,7 @@
+@@ -9866,9 +9894,7 @@
          ref->resolve( *m_pGraphicImport );
      }
  
@@ -122,7 +154,16 @@ held are still finished.
          m_pGraphicImport.clear();
 --- a/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
 +++ b/sw/source/writerfilter/dmapper/DomainMapper_Impl.hxx
-@@ -1259,6 +1259,8 @@
+@@ -732,6 +732,8 @@
+     css::uno::Reference<css::text::XTextRange> m_xInsertTextRange;
+     css::uno::Reference<css::text::XTextRange> m_xAltChunkStartingRange;
+     std::deque<sal_Int32> m_aFootnoteIds;
++    /// Notes cited in an EQ field's result, removed at the end.
++    std::vector<rtl::Reference<SwXFootnote>> m_aEqResultNotes;
+     std::deque<sal_Int32> m_aEndnoteIds;
+ 
+ private:
+@@ -1259,6 +1261,8 @@
      bool IsSdtEndBefore();
  
      bool IsDiscardHeaderFooter() const;

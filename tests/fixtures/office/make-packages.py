@@ -150,7 +150,7 @@ ole_link("ole-link.docx", "source.xlsx", "Excel.Sheet.12")
 ole_link("ole-link-other.docx", "source.pdf", "AcroExch.Document.DC")
 
 def eq_cached(name):
-    """EQ fields whose Word caches hold each other kind of content."""
+    """EQ fields whose Word caches hold every other kind."""
     def run(text):
         return f'<w:r><w:t xml:space="preserve">{text}</w:t></w:r>'
 
@@ -176,16 +176,28 @@ def eq_cached(name):
         "ole": '<w:r><w:object w:dxaOrig="2000" w:dyaOrig="1000"><v:shape id="Ole" type="#_x0000_t75" style="width:100pt;height:50pt" o:ole=""><v:imagedata r:id="rPreview" o:title=""/></v:shape>'
                '<o:OLEObject Type="Link" ProgID="Excel.Sheet.12" ShapeID="Ole" DrawAspect="Content" r:id="rOle" UpdateMode="Always"><o:LinkType>EnhancedMetaFile</o:LinkType></o:OLEObject></w:object></w:r>',
         "comment": f'<w:commentRangeStart w:id="0"/>{run("CachedComment")}<w:commentRangeEnd w:id="0"/><w:r><w:commentReference w:id="0"/></w:r>',
+        "footnote": '<w:r><w:footnoteReference w:id="1"/></w:r>',
+        "endnote": '<w:r><w:endnoteReference w:id="1"/></w:r>',
     }
     body = "".join(f"<w:p>{run(f'Before-{kind} ')}{eq(cache)}{run(f' After-{kind}')}</w:p>" for kind, cache in caches.items())
+    # Real notes after the cached ones keep their text.
+    body += f'<w:p>{run("Cited")}<w:r><w:footnoteReference w:id="2"/></w:r><w:r><w:endnoteReference w:id="2"/></w:r></w:p>'
+
+    def notes(kind, cached, real):
+        sep = "".join(f'<w:{kind} w:type="{t}" w:id="{i}"><w:p><w:r><w:{t}/></w:r></w:p></w:{kind}>' for i, t in ((-1, "separator"), (0, "continuationSeparator")))
+        own = "".join(f'<w:{kind} w:id="{i}"><w:p>{run(text)}</w:p></w:{kind}>' for i, text in ((1, cached), (2, real)))
+        return HEAD + f'<w:{kind}s xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">{sep}{own}</w:{kind}s>'
+    wml = "application/vnd.openxmlformats-officedocument.wordprocessingml"
     spaces = (f'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="{REL}" {M} xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" '
               'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"')
     with zipfile.ZipFile(os.path.join(sys.argv[1], name), "w", zipfile.ZIP_DEFLATED) as out:
         for part, data in {
-            "[Content_Types].xml": HEAD + TYPES.replace("</Types>", '<Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/></Types>'),
+            "[Content_Types].xml": HEAD + TYPES.replace("</Types>", "".join(f'<Override PartName="/word/{n}.xml" ContentType="{wml}.{n}+xml"/>' for n in ("comments", "footnotes", "endnotes")) + "</Types>"),
             "_rels/.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{REL}/officeDocument" Target="word/document.xml"/></Relationships>',
-            "word/_rels/document.xml.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rOle" Type="{REL}/oleObject" Target="source.xlsx" TargetMode="External"/><Relationship Id="rPreview" Type="{REL}/image" Target="media/preview.png"/><Relationship Id="rComments" Type="{REL}/comments" Target="comments.xml"/></Relationships>',
+            "word/_rels/document.xml.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rOle" Type="{REL}/oleObject" Target="source.xlsx" TargetMode="External"/><Relationship Id="rPreview" Type="{REL}/image" Target="media/preview.png"/><Relationship Id="rComments" Type="{REL}/comments" Target="comments.xml"/><Relationship Id="rFootnotes" Type="{REL}/footnotes" Target="footnotes.xml"/><Relationship Id="rEndnotes" Type="{REL}/endnotes" Target="endnotes.xml"/></Relationships>',
             "word/document.xml": HEAD + f"<w:document {spaces}><w:body>{body}<w:sectPr/></w:body></w:document>",
+            "word/footnotes.xml": notes("footnote", "CachedFoot", "RealFoot"),
+            "word/endnotes.xml": notes("endnote", "CachedEnd", "RealEnd"),
             "word/comments.xml": HEAD + '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:comment w:id="0" w:author="A" w:initials="A"><w:p><w:r><w:t>CachedNote</w:t></w:r></w:p></w:comment></w:comments>',
             "word/media/preview.png": png(40, 20),
         }.items():

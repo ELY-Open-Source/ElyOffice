@@ -160,13 +160,17 @@ fn an_eq_fields_cache_of_any_kind_is_not_drawn() {
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/office/eq-cached-kinds.docx");
     let doc = worker.load(&crate::file_url(&fixture)).expect("the document loads");
     let fodt = saved(&dir, &mut worker, &doc, "kinds.fodt");
-    // Ten fields, each drawn from its code alone.
-    assert_eq!(formulas(&fodt).len(), 10, "ten fractions");
-    assert_eq!(fodt.matches("<draw:frame").count(), 10, "no cached object or picture");
+    // Twelve fields, each drawn from its code alone.
+    assert_eq!(formulas(&fodt).len(), 12, "twelve fractions");
+    assert_eq!(fodt.matches("<draw:frame").count(), 12, "no cached object or picture");
     for gone in ["Cached", "<draw:custom-shape", "<text:page-number", "<text:line-break", "<text:tab", "<office:annotation"] {
         assert!(!fodt.contains(gone), "a cached {gone} stayed");
     }
     for kept in ["Before-", "After-"] {
-        assert_eq!(fodt.matches(kept).count(), 10, "the text around each field");
+        assert_eq!(fodt.matches(kept).count(), 12, "the text around each field");
+    }
+    assert_eq!(fodt.matches("<text:note ").count(), 2, "only the real notes stay");
+    for real in ["RealFoot", "RealEnd"] {
+        assert!(fodt.contains(real), "the real note keeps its text");
     }
 }
