@@ -60,7 +60,7 @@ temporary notes are; the notes after it keep their text.
              xNote->getAnchor()->setString(u""_ustr);
          }
      }
-+    // Imported in order so later notes keep their text; now they go.
++    // Later notes kept their text; these cited ones go.
 +    for (const auto& xEqNote : m_aEqResultNotes)
 +        xEqNote->getAnchor()->setString(u""_ustr);
 +    m_aEqResultNotes.clear();
@@ -158,7 +158,7 @@ temporary notes are; the notes after it keep their text.
      css::uno::Reference<css::text::XTextRange> m_xInsertTextRange;
      css::uno::Reference<css::text::XTextRange> m_xAltChunkStartingRange;
      std::deque<sal_Int32> m_aFootnoteIds;
-+    /// Notes cited in an EQ field's result, removed at the end.
++    /// Notes cited in an EQ result, removed at end.
 +    std::vector<rtl::Reference<SwXFootnote>> m_aEqResultNotes;
      std::deque<sal_Int32> m_aEndnoteIds;
  
