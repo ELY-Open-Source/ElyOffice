@@ -1223,3 +1223,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-17 审查者换成 Pi（K3.1 Pro，思考 high）
 
 - 用户定：审查关掉 Codex，改由 herdr 右侧窗格里的 Pi 调用 K3.1 Pro，思考级别 high；同一条至多三轮照旧。`scripts/review.sh` 与 `tests/scripts/review-rules.sh` 随之改。R20.9 第 3 轮的 Codex 审查未出结论（窗格中途关闭），以 Pi 重做第 3 轮。
+
+## 2026-11-17 测试机只在 `Documents/Github/ElyOffice` 里工作
+
+- 用户定：三台机器上的工作一律在 `Documents/Github/ElyOffice` 之内，别处不放东西；构建一律用 huacnlee/cargo。
+- Windows：检出由 `C:\ely\ElyOffice` 搬到 `C:\Users\raidenmei\Documents\Github\ElyOffice`，`C:\ely` 整个删去（`lo-sym` 是 R20.1 未建完的带符号内核，无一个 PDB；其余是历次测量与审查的临时目录）。`release.yml` 的 Windows 共享引擎随之改到新路径。`C:\ely\sfbench\bench.ps1` 不在仓库里，一并丢失，R20.26 重写。
+- macOS：家目录里本项目的临时文件与目录删去。`ely-share`、`ely-share-x86_64`、`ely-ci`、`ely-ci-x86_64` 是 `release.yml` 的共享引擎与发布检出，macOS 不许 runner 读 `~/Documents`，照旧留在家目录。`~/sfbench/old16/new.app` 受“应用管理”保护，SSH 删不掉，待在本机删。
+- Linux：`~/.cache/ely-sf4` 与 `/tmp` 里本项目的脚本移入 `.work/old-scripts`，日志删去；`~/ely-ci` 是 Linux 发布检出，留。

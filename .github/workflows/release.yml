@@ -74,7 +74,7 @@ jobs:
           ELY_MICROSOFT_CLIENT_ID: ${{ secrets.ELY_MICROSOFT_CLIENT_ID }}
           # Signs the update manifests.
           ELY_UPDATE_KEY: ${{ secrets.ELY_UPDATE_KEY }}
-          ELY_SHARE: /c/ely/ElyOffice
+          ELY_SHARE: /c/Users/raidenmei/Documents/Github/ElyOffice
           # GNU tools first: System32 has its own find.
           ELY_PATH: /usr/bin:/c/Program Files/CMake/bin:/c/Users/raidenmei/AppData/Local/Microsoft/WinGet/Links
         run: |
