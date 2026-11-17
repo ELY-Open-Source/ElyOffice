@@ -67,7 +67,17 @@ fn a_formula_whose_sheet_is_gone_keeps_its_value() {
         return;
     }
     // A blank operand caches no cell; INDIRECT hides its sheet.
-    for (cell, value, kept) in [("'{}/[source.fods]S1'!A1", "1", true), ("'{}/[source.fods]S1'!A2+5", "5", true), ("INDIRECT(\"'{}/[source.fods]S1'!A1\")", "1", false)] {
+    let indirect = |at: &str| format!("INDIRECT(\"'{{}}/[source.fods]S1'!{at}\")");
+    let cases = [
+        ("'{}/[source.fods]S1'!A1".to_owned(), "1", true),
+        ("'{}/[source.fods]S1'!A2+5".to_owned(), "5", true),
+        (indirect("A1"), "1", false),
+        (format!("{}+5", indirect("B5")), "5", false),
+        // XLSX keeps no INDIRECT cache: #REF!, as in Excel.
+        (indirect("A1"), "#REF!", true),
+        (format!("{}+5", indirect("B5")), "#REF!", true),
+    ];
+    for (cell, value, kept) in cases {
         let (dir, mut worker, reader) = open_book(&book(0));
         let source = dir.path().join("source.fods");
         rates(&source, 1);
@@ -80,8 +90,8 @@ fn a_formula_whose_sheet_is_gone_keeps_its_value() {
         let nine = r#"<table:table-cell office:value-type="float" office:value="9"/>"#;
         std::fs::write(&source, sheets("", nine)).expect("renames the sheet");
         let book = if kept { worker.load(&crate::file_url(&saved)).expect("reloads") } else { reader };
-        assert_eq!(update(&mut worker, &book), [crate::file_url(&source)], "{cell}: the source is named");
-        assert_eq!(cells(&mut worker, &book, "H1"), value, "{cell}: the saved value stays");
+        assert_eq!(update(&mut worker, &book), [crate::file_url(&source)], "{cell} reopened {kept}: the source is named");
+        assert_eq!(cells(&mut worker, &book, "H1"), value, "{cell} reopened {kept}: the saved value stays");
     }
 }
 

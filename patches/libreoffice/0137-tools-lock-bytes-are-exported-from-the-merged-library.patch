@@ -1,0 +1,22 @@
+tools: SvLockBytes is exported from the merged library
+
+With --enable-mergelibs SvLockBytes was hidden inside libmergedlo,
+yet Calc's libsclo, outside the merged library, uses it. GCC 16
+speculatively devirtualizes and emits SvLockBytes's inline destructor
+in Calc's objects, which then need the class's vtable and close();
+linking libsclo.so failed with undefined references once document.cxx,
+documen5.cxx or chartuno.cxx were recompiled (Ely R20.11). The class
+is now exported whether or not the libraries are merged, as every
+other tools class a module outside the merged library uses.
+
+--- a/include/tools/stream.hxx
++++ b/include/tools/stream.hxx
+@@ -101,7 +101,7 @@
+ to allow UCB to do delayed feeding of data into a SvStream i.e. a kind of a pipe
+ mechanism to allow asynchronous fetching of data.
+ */
+-class UNLESS_MERGELIBS(TOOLS_DLLPUBLIC) SvLockBytes: public SvRefBase
++class TOOLS_DLLPUBLIC SvLockBytes: public SvRefBase
+ {
+     bool m_bSync;
+ 
