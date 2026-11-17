@@ -716,7 +716,7 @@
 
 先起、等得久的
 
-- [ ] R20.1 Windows 上带符号的内核（R20.5 至 R20.7、R20.13 共用）：测试机 7877 以 PDB 重建一份内核，只供采样，不进发布；SF.16、SF.18、SF.30 都卡在这里
+- [ ] R20.1 Windows 上带符号的内核（R20.5 至 R20.7、R20.13 共用）：测试机 7877 以 PDB 重建一份内核，只供采样，不进发布；SF.16、SF.18、SF.30 都卡在这里 — 2026-11-17 建成：`scripts/build-libreoffice.sh --symbols` 在 7877 的 `engines/lo-sym`（计划任务 `ElyR20-1Symbols`，退出 0，日志 `.work/R20.1/build.log`），129 个补丁（建时序列到此；0136 起的四个与采样无关），内核编号 e2e327ca…；PDB 1167 个在 `workdir/LinkTarget/Library`（mergedlo 581 MB、sdlo 70 MB、swlo 137 MB、sclo 134 MB、vclplug_winlo 41 MB），cdb 读 sdlo.dll 得 private pdb symbols；打包与发布脚本不引用 `lo-sym`
 - [x] R20.2 #37 Windows arm64（R16.4、R18.4，§4）：不做——用户 2026-11-16 定：Linux 与 Windows 都不出 ARM 构建
 
 只是复审（末轮已修、未审）

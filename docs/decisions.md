@@ -1336,3 +1336,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - S3 与 WebDAV 不做，用户 2026-11-16 定。#89 已以 not planned 关闭，未加评论；代码与文档不变。
 
+## 2026-11-17 Windows 带符号的内核建成（R20.1）
+
+- 测试机 7877 以 `scripts/build-libreoffice.sh --symbols`（`--enable-symbols`）建到 `engines/lo-sym`，计划任务 `ElyR20-1Symbols` 跑完退出 0（Defender 已排除 `engines\lo-src`、`engines\lo-sym`，工作全在项目目录内）。建时补丁序列 129 个；其后的 0136 至 0139 只动锁定字节导出、动画拒绝日志与字体脚本，与载入时间的采样无关，故不重建。PDB 留在 `workdir/LinkTarget/Library`（共 1167 个，DLL 内记着其路径），cdb 载入 sdlo.dll 得 private pdb symbols。只供采样：打包与发布脚本不引用 `lo-sym`。R20.5 至 R20.7、R20.13 用它采样。
+
