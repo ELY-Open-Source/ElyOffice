@@ -1193,3 +1193,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-16 不内置 S3 与 WebDAV（R20.25，#89）
 
 - 用户定：不做；#89 以 not planned 关闭。PRD 不建云盘，网络盘上的保存照第 6 节。
+
+## 2026-11-17 混合的上下标、行距与列表报“混合”（R20.3，C08.2 第 1 轮）
+
+- 审查查出：选区一半上标（或下标）、两段一单倍一 1.5 倍、只部分段落有项目符号或编号时，内核把这些开关报成“关”。根因在内核：`txtattr.cxx` 合并后的上下标与行距项无效时值留 0，照普通布尔写 false；`textsh1.cxx` 的 `SelectionHasBullet`、`SelectionHasNumber` 只在全部非空段落都有时才为真。补丁 `0135-sw-lok-script-spacing-and-lists-report-mixed.patch`：LOK 下上下标与行距项无效即令上下标与四档行距的槽“不定”（同对齐的做法）；部分非空段落有列表即令列表槽“不定”。属性栏的开关原本就把“不定”显示为“混合”。测试 `client::tests::format::mixed` 三项，去掉补丁即败。Windows 与 macOS 的共享内核待成批重建（R20.26）。

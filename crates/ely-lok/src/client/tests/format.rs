@@ -1,6 +1,8 @@
 use super::input::{open, saved};
 use super::*;
 
+mod mixed;
+
 /// How long a command may take to report.
 const SETTLE: std::time::Duration = std::time::Duration::from_secs(3);
 

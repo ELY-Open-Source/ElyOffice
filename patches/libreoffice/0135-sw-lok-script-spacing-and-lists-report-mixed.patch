@@ -1,0 +1,152 @@
+sw: LOK reports mixed script position, line spacing and lists
+
+Superscript, subscript and the line spacing presets read their bool
+from the merged item set. An invalid item left the value at zero, so
+text half superscript, or paragraphs at 1 and 1.5 lines, read as
+off rather than mixed (Ely C08.2). Under LOK an invalid escapement or
+line spacing now makes those slots don't-care, as alignment does.
+
+Bullets and numbering said on only when every non-empty paragraph
+had them. Under LOK a selection where some paragraphs are listed and
+some are not now reports don't-care.
+--- a/sw/source/uibase/shells/txtattr.cxx
++++ b/sw/source/uibase/shells/txtattr.cxx
+@@ -18,6 +18,7 @@
+  */
+ 
+ #include <hintids.hxx>
++#include <comphelper/lok.hxx>
+ 
+ #include <svl/whiter.hxx>
+ #include <svl/stritem.hxx>
+@@ -607,6 +608,9 @@
+         pItem = &rPool.GetUserOrPoolDefaultItem(RES_CHRATR_ESCAPEMENT);
+     if( eState >= SfxItemState::DEFAULT )
+         nEsc = static_cast<const SvxEscapementItem* >(pItem)->GetEsc();
++    // Ely: under LOK a mixed position is don't-care.
++    const bool bEscMixed = comphelper::LibreOfficeKit::isActive()
++                           && eState == SfxItemState::INVALID;
+ 
+     sal_uInt16 nLineSpace = 0;
+     eState =  aCoreSet.GetItemState(RES_PARATR_LINESPACING, false, &pItem);
+@@ -621,6 +625,9 @@
+         else
+             nLineSpace = static_cast<const SvxLineSpacingItem* >(pItem)->GetPropLineSpace();
+     }
++    // Ely: under LOK mixed spacing is don't-care.
++    const bool bLineMixed = comphelper::LibreOfficeKit::isActive()
++                            && eState == SfxItemState::INVALID;
+ 
+     SvxCaseMap eCaseMap = SvxCaseMap::NotMapped;
+     eState = aCoreSet.GetItemState(RES_CHRATR_CASEMAP, false, &pItem);
+@@ -634,10 +641,14 @@
+         switch(nSlot)
+         {
+             case FN_SET_SUPER_SCRIPT:
+-                    bFlag = 0 < nEsc;
+-                break;
+             case FN_SET_SUB_SCRIPT:
+-                    bFlag = 0 > nEsc;
++                if (bEscMixed)
++                {
++                    rSet.InvalidateItem( nSlot );
++                    nSlot = 0;
++                }
++                else
++                    bFlag = nSlot == FN_SET_SUPER_SCRIPT ? 0 < nEsc : 0 > nEsc;
+                 break;
+             case FN_SET_SMALL_CAPS:
+                 bFlag = eCaseMap == SvxCaseMap::SmallCaps;
+@@ -707,16 +718,22 @@
+                     bFlag = SvxAdjust::ParaEnd == eAdjust;
+                 break;
+             case SID_ATTR_PARA_LINESPACE_10:
+-                bFlag = nLineSpace == 100;
+-            break;
+             case SID_ATTR_PARA_LINESPACE_115:
+-                bFlag = nLineSpace == 115;
+-            break;
+             case SID_ATTR_PARA_LINESPACE_15:
+-                bFlag = nLineSpace == 150;
+-            break;
+             case SID_ATTR_PARA_LINESPACE_20:
+-                bFlag = nLineSpace == 200;
++                if (bLineMixed)
++                {
++                    rSet.InvalidateItem( nSlot );
++                    nSlot = 0;
++                }
++                else if (nSlot == SID_ATTR_PARA_LINESPACE_10)
++                    bFlag = nLineSpace == 100;
++                else if (nSlot == SID_ATTR_PARA_LINESPACE_115)
++                    bFlag = nLineSpace == 115;
++                else if (nSlot == SID_ATTR_PARA_LINESPACE_15)
++                    bFlag = nLineSpace == 150;
++                else
++                    bFlag = nLineSpace == 200;
+             break;
+             case FN_GROW_FONT_SIZE:
+             case FN_SHRINK_FONT_SIZE:
+--- a/sw/source/uibase/shells/textsh1.cxx
++++ b/sw/source/uibase/shells/textsh1.cxx
+@@ -83,6 +83,7 @@
+ #include <edtwin.hxx>
+ #include <fldmgr.hxx>
+ #include <ndtxt.hxx>
++#include <txtfrm.hxx>
+ #include <strings.hrc>
+ #include <paratr.hxx>
+ #include <vcl/svapp.hxx>
+@@ -927,6 +928,29 @@
+ }
+ }
+ 
++// Ely: whether some non-empty selected paragraph is listed.
++static bool lcl_SomeParaListed(SwWrtShell& rSh, bool bBullet)
++{
++    for (SwPaM& rPaM : rSh.GetCursor()->GetRingContainer())
++    {
++        SwNodeOffset nEnd = rPaM.End()->GetNodeIndex();
++        for (SwNodeOffset nPos = rPaM.Start()->GetNodeIndex(); nPos <= nEnd; ++nPos)
++        {
++            SwTextNode* pTextNd = rSh.GetDoc()->GetNodes()[nPos]->GetTextNode();
++            if (!pTextNd || !pTextNd->Len())
++                continue;
++            pTextNd = sw::GetParaPropsNode(*rSh.GetLayout(), *pTextNd);
++            const bool bListed = bBullet ? pTextNd->HasBullet()
++                                         : pTextNd->HasNumber()
++                                               && (pTextNd->GetNumRule() != rSh.GetDoc()->GetOutlineNumRule()
++                                                   || pTextNd->IsCountedInList());
++            if (bListed)
++                return true;
++        }
++    }
++    return false;
++}
++
+ static bool AddWordToWordbook(const uno::Reference<linguistic2::XDictionary>& xDictionary, SwWrtShell &rWrtSh, bool bAddWithDot = false)
+ {
+     if (!xDictionary)
+@@ -4217,11 +4241,18 @@
+             break;
+ 
+             case FN_NUM_NUMBERING_ON:
+-                rSet.Put(SfxBoolItem(FN_NUM_NUMBERING_ON,rSh.SelectionHasNumber()));
+-            break;
+-
+             case FN_NUM_BULLET_ON:
+-                rSet.Put(SfxBoolItem(FN_NUM_BULLET_ON,rSh.SelectionHasBullet()));
++            {
++                const bool bBullet = nWhich == FN_NUM_BULLET_ON;
++                const bool bAll = bBullet ? rSh.SelectionHasBullet() : rSh.SelectionHasNumber();
++                // Ely: some paragraphs listed, some not, is don't-care.
++                if (!bAll && comphelper::LibreOfficeKit::isActive() && lcl_SomeParaListed(rSh, bBullet))
++                {
++                    rSet.InvalidateItem(nWhich);
++                    break;
++                }
++                rSet.Put(SfxBoolItem(nWhich, bAll));
++            }
+             break;
+ 
+             case FN_NUM_BULLET_OFF:
