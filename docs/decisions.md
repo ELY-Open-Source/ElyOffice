@@ -1239,5 +1239,5 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-17 EQ 域的缓存结果一律不画（R20.10，R8.2）
 
 - 补丁 0130 只收走 EQ 域 separate 之后的文字与 DrawingML 图片。逐类核对后，下面这些仍画在公式旁：嵌套的域（PAGE、QUOTE）、DrawingML 与 VML 文本框（文字已去，框还在）、DrawingML 形状、VML 图片、OMML、OLE 对象。
-- 补丁 `0136-writer-eq-fields-drop-every-kind-of-cached-result`：EQ 域结果里的内容照被丢弃的页眉页脚处理。嵌套的域关闭但不插入，形状从绘图页移除，图片、OLE 与 OMML 不插入，嵌套域带的段落照常收尾。判断在 `DomainMapper_Impl::IsInEqResult`。
-- 测试与对照：夹具 `eq-cached-kinds.docx` 九类各一，测试 `an_eq_fields_cache_of_any_kind_is_not_drawn` 断言九个公式、九个框、缓存全无、两侧文字都在。0130 状态的内核上此测试失败（10 个公式）。Linux 内核已带 0136；Windows、Mac 在 R20.26 重建。
+- 补丁 `0136-writer-eq-fields-drop-every-kind-of-cached-result`：EQ 域结果里的内容照被丢弃的页眉页脚处理。嵌套的域关闭但不插入，形状从绘图页移除，图片、OLE、OMML 与批注不插入，嵌套域带的段落照常收尾。判断在 `DomainMapper_Impl::IsInEqResult`；批注在 `PopAnnotation` 里判断（第 1 轮审查：结果里的批注正文已去，空批注与其范围标记仍在公式旁）。
+- 测试与对照：夹具 `eq-cached-kinds.docx` 十类各一（第十类是带范围的批注），测试 `an_eq_fields_cache_of_any_kind_is_not_drawn` 断言十个公式、十个框、缓存与 `office:annotation` 全无、两侧文字都在。0130 状态的内核上此测试失败（多出公式）；去掉 `PopAnnotation` 的判断即失败于 `office:annotation`。Linux 内核已带 0136；Windows、Mac 在 R20.26 重建。

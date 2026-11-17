@@ -175,16 +175,18 @@ def eq_cached(name):
         "breaks": '<w:r><w:t>CachedLine</w:t><w:br/><w:t>CachedNext</w:t><w:tab/><w:sym w:font="Symbol" w:char="F061"/></w:r>',
         "ole": '<w:r><w:object w:dxaOrig="2000" w:dyaOrig="1000"><v:shape id="Ole" type="#_x0000_t75" style="width:100pt;height:50pt" o:ole=""><v:imagedata r:id="rPreview" o:title=""/></v:shape>'
                '<o:OLEObject Type="Link" ProgID="Excel.Sheet.12" ShapeID="Ole" DrawAspect="Content" r:id="rOle" UpdateMode="Always"><o:LinkType>EnhancedMetaFile</o:LinkType></o:OLEObject></w:object></w:r>',
+        "comment": f'<w:commentRangeStart w:id="0"/>{run("CachedComment")}<w:commentRangeEnd w:id="0"/><w:r><w:commentReference w:id="0"/></w:r>',
     }
     body = "".join(f"<w:p>{run(f'Before-{kind} ')}{eq(cache)}{run(f' After-{kind}')}</w:p>" for kind, cache in caches.items())
     spaces = (f'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="{REL}" {M} xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" '
               'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"')
     with zipfile.ZipFile(os.path.join(sys.argv[1], name), "w", zipfile.ZIP_DEFLATED) as out:
         for part, data in {
-            "[Content_Types].xml": HEAD + TYPES,
+            "[Content_Types].xml": HEAD + TYPES.replace("</Types>", '<Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/></Types>'),
             "_rels/.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{REL}/officeDocument" Target="word/document.xml"/></Relationships>',
-            "word/_rels/document.xml.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rOle" Type="{REL}/oleObject" Target="source.xlsx" TargetMode="External"/><Relationship Id="rPreview" Type="{REL}/image" Target="media/preview.png"/></Relationships>',
+            "word/_rels/document.xml.rels": HEAD + f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rOle" Type="{REL}/oleObject" Target="source.xlsx" TargetMode="External"/><Relationship Id="rPreview" Type="{REL}/image" Target="media/preview.png"/><Relationship Id="rComments" Type="{REL}/comments" Target="comments.xml"/></Relationships>',
             "word/document.xml": HEAD + f"<w:document {spaces}><w:body>{body}<w:sectPr/></w:body></w:document>",
+            "word/comments.xml": HEAD + '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:comment w:id="0" w:author="A" w:initials="A"><w:p><w:r><w:t>CachedNote</w:t></w:r></w:p></w:comment></w:comments>',
             "word/media/preview.png": png(40, 20),
         }.items():
             out.writestr(zipfile.ZipInfo(part, (2026, 11, 1, 0, 0, 0)), data)

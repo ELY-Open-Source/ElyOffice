@@ -19,7 +19,7 @@
 - office/alias.ttf：DejaVu Sans 截到 ASCII、改名的字体，家族名英文为 Ely Alias Sans、简体中文为“别名黑体”（DejaVu 的许可要求改过的字体换名），由同目录 make-alias.py 以 DejaVuSans.ttf 生成；Linux 的字体测试把它放进 worker 配置目录的 `user/fonts`
 - office/word.docx：Gitea #9 的 Word EQ 域（分数、根号、`\SU`、`\CO2`、读不通的域、`\s\do` 带与不带降低量、两个带 Word 缓存结果的域）与随所在运行降低的图片，手写
 - office/eq-cached-picture.docx：一个 EQ 分数域，separate 之后是 Word 缓存的图片（red.png），手写
-- office/eq-cached-kinds.docx：九个 EQ 分数域，separate 之后各是一种 Word 缓存：嵌套的 PAGE、QUOTE 域，DrawingML 文本框与形状，VML 文本框与图片，OMML，换行与制表，链接的 OLE 对象；由同目录 make-packages.py 生成
+- office/eq-cached-kinds.docx：十个 EQ 分数域，separate 之后各是一种 Word 缓存：嵌套的 PAGE、QUOTE 域，DrawingML 文本框与形状，VML 文本框与图片，OMML，换行与制表，链接的 OLE 对象，带范围的批注；由同目录 make-packages.py 生成
 - show/video.pptx：1 秒的 clip.mp4、其淡入与点击即播放暂停的触发序列（PowerPoint 的写法），由同目录 make-media.py 生成
 - epub/sample.epub：两章、目录、中文与一张缺失的图片（MuPDF 排版时警告），由同目录 make-sample.py 生成
 - mail/sample.eml：带编码主题、分组抄送、纯文本加 HTML、cid 图片与附件的邮件，LF 行尾，测试换成 CRLF

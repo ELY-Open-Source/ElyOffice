@@ -4,13 +4,14 @@ Patch 0130 dropped the text and the DrawingML picture that Word writes
 after an EQ field's separator, since Ely draws the field from its code.
 Other kinds still came through (Ely R8.2): a nested field such as PAGE
 or QUOTE, a DrawingML or VML text box or shape, a VML picture, an OMML
-formula and an OLE object. Each was inserted beside the formula.
+formula, an OLE object and a comment. Each was inserted beside the
+formula.
 
 Content inside an EQ field's result now goes the way content in a
 discarded header or footer goes: nested fields close without inserting,
-shapes are removed from the draw page, and pictures, OLE objects and
-formulas are not inserted. The paragraphs a nested field held are still
-finished.
+shapes are removed from the draw page, and pictures, OLE objects,
+formulas and comments are not inserted. The paragraphs a nested field
+held are still finished.
 --- a/sw/source/writerfilter/dmapper/DomainMapper.cxx
 +++ b/sw/source/writerfilter/dmapper/DomainMapper.cxx
 @@ -3280,7 +3280,8 @@
@@ -34,7 +35,21 @@ finished.
          appendFormula(formula);
  }
  
-@@ -5416,7 +5416,7 @@
+@@ -4977,6 +4977,13 @@
+ 
+     m_aTextAppendStack.pop();
+ 
++    // A comment in an EQ field's result goes.
++    if (IsInEqResult())
++    {
++        m_aAnnotationPositions.erase(m_nAnnotationId);
++        return;
++    }
++
+     try
+     {
+         if (m_bAnnotationResolved)
+@@ -5416,7 +5423,7 @@
      const uno::Reference<drawing::XShape> xShape( xObj, uno::UNO_QUERY_THROW );
      // Remove the shape if required (most likely replacement shape for OLE object)
      // or anchored to a discarded header or footer
@@ -43,7 +58,7 @@ finished.
      {
          try
          {
-@@ -5487,6 +5487,17 @@
+@@ -5487,6 +5494,17 @@
      return m_bDiscardHeaderFooter;
  }
  
@@ -61,7 +76,7 @@ finished.
  void DomainMapper_Impl::SetLineSpacing(const Id nName, sal_Int32 nIntValue, bool bNegativeFlip)
  {
      static const int nSingleLineSpacing = 240;
-@@ -8109,7 +8120,8 @@
+@@ -8109,7 +8127,8 @@
  
  void DomainMapper_Impl::CloseFieldCommand()
  {
@@ -71,7 +86,7 @@ finished.
          return;
  #ifdef DBG_UTIL
      TagLogger::getInstance().element("closeFieldCommand");
-@@ -9081,11 +9093,10 @@
+@@ -9081,11 +9100,10 @@
          if (pContext->GetTableDepth() != m_StreamStateStack.top().nTableDepth)
              return false;
  
@@ -84,7 +99,7 @@ finished.
      }
  
      if (!bRet)
-@@ -9333,7 +9344,8 @@
+@@ -9333,7 +9351,8 @@
  
      FieldContextPtr pContext = m_aFieldStack.back();
      OSL_ENSURE( pContext, "no field context available");
@@ -94,7 +109,7 @@ finished.
      {
          if( !pContext->IsCommandCompleted() )
              CloseFieldCommand();
-@@ -9866,9 +9878,7 @@
+@@ -9866,9 +9885,7 @@
          ref->resolve( *m_pGraphicImport );
      }
  
