@@ -1307,4 +1307,5 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - R4.2 在 ElyOffice 的 `vendor/pulldown-cmark` 修了脚注引用清空链接栈的一行，组件库单独构建时仍用 crates.io 的原版：`[a [^1] b](/x)` 的链接整个丢失，公式保护随之到段末（R8.4 的遗留）。送上游要对第三方仓库开 PR，属外发动作，取组件库同样 vendor：组件库 `vendor/pulldown-cmark` 首个提交原样（896db800），其后放入同一行修复，工作区以 `[patch.crates-io]` 换入（e71b644b）；`check.sh` 的注释检查不扫 `vendor/`；组件库 AGENTS 记下此约定（用组件库的应用也须同样 patch，ElyOffice 已有）。测试 `a_link_around_a_footnote_reference_stays_a_link`、`a_note_in_a_markdown_link_frees_the_math_after_it`，去掉 patch 即两项皆败。组件库 check.sh、cargo deny 过。
 - R16.20 末轮修改（46f26e8，图片替代文字不算正文）随本条复审。
 - pin 由 f656f79 换到 e71b644，一次带上 R20.18（Shell 注释）、R20.19（html5ever 建树）、R20.20（块命令核对块的种类）、R20.21 与组件库 c01a140e（FileTree 按名找到的目录保留其内容，R20.23 #87 的组件库部分）。锁文件里 html5ever、markup5ever、pulldown-cmark 各一份。整个工作区 clippy、check.sh、panics.py、agents_md.py、deny.sh 过；工作区测试 2601 项过（一项缺引擎 SKIP），ElyMark 231、ElyMail 171、ElyTree 151 项。
+- 第 1 轮审查一条属实（R16.20 末轮修改里的）：`not_prose` 只在自动链接开始时加一，却在每个链接结束时减一，图片替代文字里套一个普通链接（`![a [b](/u) $$](i.png)`）即提早结束替代文字的“非正文”，其中的 `$$` 抢走其后公式的开头。改为记下每个打开的链接是否自动链接，只在它结束时减；`dollars_in_link_targets_and_tags_pair_with_nothing` 加此例与替代文字里的自动链接，旧码上败。组件库 cf8a7e35，pin 随之。
 
