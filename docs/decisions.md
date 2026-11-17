@@ -1272,3 +1272,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-16 ElyTable 格式面板加字体与字号（R20.15，#86）
 
 - “单元格”一组的首两行：字体（组合框，字体表照 ElyDoc、ElyShow 经 `.uno:CharFontName` 在后台读，读不出即报错）与字号；两者用 `ely_office::panel` 的 `font_box`、`size_box`，发 `format.font`、`format.size`，状态取内核推送的 `.uno:CharFontName`、`.uno:FontHeight`，混合时显示“混合”。ElyTable 的面板实现 `ely_office::panel::Panel`。八种语言加 `table.format.font`、`table.format.size`。
+
+## 2026-11-17 Shell 注释照 Bash 的词法读（R20.18，R2.12）
+
+- R2.12 九轮审查各查出一种写法（续行、`case`、`$(`、extglob……）：旧 `shell.rs` 跟在通用词法器后面，按单词与括号打补丁，Bash 的词法它看不全。根治：组件库 `crates/ely-core/src/forms/shell.rs` 改为照 Bash 读——先把源切成记号（空白、续行、操作符、单词），`#` 只在记号开头才开注释；单词里的引号（单、双、`$'…'`）、转义、`$(…)`、`$((…))`、`${…}`、反引号、`<(…)`、`>(…)` 与 extglob 都在单词里读完；命令位置的保留字、`case` 的主语与 `in`、模式、以 `;;`、`;&`、`;;&` 收尾的分支体，分支开头的 `esac` 收尾；here-doc（含 `<<-` 与带引号的结束词）的正文跳过。通用词法器只问“这个 `#` 是不是 Bash 的注释”（`CommentStart::Bash`），旧的 `Nesting` 挂钩与 `shut` 标记删去。
+- 验收语料 `forms/shell/tests.rs` 70 例：历轮的全部例子、R2.12 第 9 轮的三个续行例、新加的 here-doc、引号、续行与展开例；每例末尾的 `#` 是不是注释由 Bash 5.3（开 extglob）实跑定（`.work/R20.18/truth.py`，本机，未入库）。两处以 Bash 的报错为准：`cat <(…)#…` 与 `tee >(…)#…` 的 `#` 粘在文件名上，不是注释。三处突变（去掉续行、去掉 here-doc 正文、分支开头的 `esac` 不收尾）各败于语料。组件库 c967f6f1；ElyOffice 的 pin 照 R20 的约定，攒到 R20.21 之后一次换。
