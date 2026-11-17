@@ -1202,3 +1202,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 用户定：每条任务完成即交 herdr 右侧窗格里的 `codex --yolo`，模型 GPT 6 Astra，推理 high；同一条至多三轮。`scripts/review.sh` 原起 Kimi K3.1 Pro，与此不符，改为起 Codex；`tests/scripts/review-rules.sh` 随之改。此前的审查记录照旧有效。
 - Cindy 的会话 2026-11-16 20:41 断于 API 连接被拒，R20 由本会话接手，在 main 上逐条做，不开 worktree 与分支。
+
+## 2026-11-17 宏不执行的正向对照（R20.8，C07.1）
+
+- 样本是同一份 FODT：`dom:load` 与按钮都绑文档自带的 `Standard.Module1.Sneaky`，宏写一个标记文件。测试在生产的加载选项下断言：加载后不写；按文档宏的 URL 运行返回 0、不写；库里同名宏按 URL 运行则写出，证明样本能执行。
+- Linux 上的正向对照：把 `worker.rs` 的 `LOAD_OPTIONS` 改成加 `EnableMacrosExecution=true,MacroSecurityLevel=0`，重建 worker，`a_loaded_document_s_macro_never_runs` 失败于“文档宏保持禁用”——同一份文档的宏在放开后执行。复原后两项都过。
+- 加载事件在两种配置下都没写标记。内核只在框架被激活时发 OnLoad（`sfx2/source/appl/app.cxx` 的 `PostActivateEvent_Impl`，`objmisc.cxx` 载完时框架未建即返回）；LOK 的框架不被激活。这是读源码所得，未加日志追踪；它不影响结论：放开宏的回归由 URL 一路抓住。
+- worker 加载选项后接的 `filter` 只来自 CSV 导入，分隔符与引号以数字传入、列类型取自固定表，带不进 `EnableMacrosExecution`。
