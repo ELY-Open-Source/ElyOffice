@@ -41,9 +41,7 @@ fn size_row(size: u32, desk: WeakEntity<Desk>, cx: &App) -> AnyElement {
         .flex()
         .items_center()
         .gap_2()
-        .w_full()
-        .max_w_64()
-        .child(div().flex_1().child(slider))
+        .child(div().w_48().child(slider))
         .child(format!("{size}%"))
         .child(reset);
     SettingsRow::new(label)
@@ -51,3 +49,61 @@ fn size_row(size: u32, desk: WeakEntity<Desk>, cx: &App) -> AnyElement {
         .control(control)
         .into_any_element()
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, rc::Rc};
+
+    use ely_gpui_component::settings::SettingsSection;
+    use gpui::{IntoElement, Modifiers, ParentElement as _, Render, Styled as _, div, point, px};
+
+    use crate::desk::tests::{open, start};
+
+    /// The documents page as settings draws it; counts its draws.
+    struct Page(Rc<Cell<usize>>);
+
+    impl Render for Page {
+        fn render(&mut self, _: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> impl IntoElement {
+            self.0.set(self.0.get() + 1);
+            let rows = (cx.global::<ely_ui::settings::DocumentRows>().0)(cx);
+            let section = rows.into_iter().fold(SettingsSection::new("Documents"), |section, row| section.row(row));
+            div().w(px(720.)).child(section)
+        }
+    }
+
+    #[gpui::test]
+    fn the_drawn_slider_sets_the_size_and_follows_the_menu(cx: &mut gpui::TestAppContext) {
+        let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+        let path = files.path().join("a.md");
+        std::fs::write(&path, "a\n").expect("a file");
+        let (desk, cx) = start(cx, data.path());
+        open(&desk, &path, cx);
+        let draws = Rc::new(Cell::new(0));
+        let page = cx.add_window({
+            let draws = draws.clone();
+            move |_, _| Page(draws)
+        });
+        let mut shown = gpui::VisualTestContext::from_window(page.into(), cx);
+        shown.update(|window, cx| window.draw(cx).clear(cx));
+        let track = shown.debug_bounds("slider-root").expect("the slider shows");
+        assert!(track.size.width > px(100.), "a usable track: {track:?}");
+        let size = |shown: &mut gpui::VisualTestContext| shown.update(|_, cx| desk.read(cx).look.size);
+        let y = track.center().y;
+        // The track runs half a thumb in from each side.
+        shown.simulate_click(point(track.right() - px(9.), y), Modifiers::none());
+        assert_eq!(size(&mut shown), 200, "the far end");
+        shown.update(|window, cx| window.draw(cx).clear(cx));
+        shown.simulate_click(point(track.left() + px(9.), y), Modifiers::none());
+        assert_eq!(size(&mut shown), 70, "the near end");
+        shown.update(|window, cx| window.draw(cx).clear(cx));
+        shown.run_until_parked();
+        let before = draws.get();
+        let focus = desk.read_with(cx, |desk, _| desk.core.focus.clone());
+        cx.update(|window, cx| window.focus(&focus, cx));
+        cx.dispatch_action(super::super::Larger);
+        cx.run_until_parked();
+        assert_eq!(desk.read_with(cx, |desk, _| desk.look.size), 80);
+        assert!(draws.get() > before, "the open page draws the menu's size");
+    }
+}
+

@@ -1313,8 +1313,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 ## 2026-11-17 ElyMark 设置“文档”页的文档字号（R20.22，#85）
 
-- 照 7cd73280 定下的做法：ElyMark 设置“文档”页加“文档字号”一行，滑块 70% 至 200%（步长 10，与视图菜单同），旁写当前百分比，“实际大小”按钮回到 100%；与视图菜单、按住 Ctrl（macOS 为 Cmd）滚动同一个值，存 look.json；字号仍是界面字号的百分比，随界面字号同比变。经菜单或滚轮改了，打开着的设置窗口随即显示新值（`relook` 刷新各窗口）。
+- 照 7cd73280 定下的做法：ElyMark 设置“文档”页加“文档字号”一行，滑块 70% 至 200%（步长 10，与视图菜单同），旁写当前百分比，“实际大小”按钮回到 100%；与视图菜单、按住 Ctrl（macOS 为 Cmd）滚动同一个值，存 look.json；字号仍是界面字号的百分比，随界面字号同比变。经菜单或滚轮改了，打开着的设置窗口随即显示新值（行在绘制时读桌面，桌面 `notify` 即重画读过它的窗口）。
 - 设置窗口在 `ely-ui`，不认识 ElyMark 的状态：照 ElyMail 往“存储”页加行的做法，`ely_ui::settings::add_document_rows` 让应用把自己的行交给“文档”页（`DocumentRows`），ElyMark 在建好桌面后登记（`look/size.rs`）。文案八种语言齐，重置沿用“实际大小”。帮助写明。
 - Cindy 在 worktree 的 bbd442e6（把界面字号上限由 16 px 提到 20 px）不合此做法，未采用。
 - 测试：`an_app_s_rows_join_the_documents_page`（应用的行与共有的行同在“文档”页）、`the_settings_row_sets_the_size_the_menu_sets`（设置行改的字号到达打开的文档与 look.json，菜单再改，行读到同一个值）。ely-ui 110 项、ElyMark 232 项、clippy、check.sh、panics.py 过。
+- 第 1 轮审查一条属实：控件 `w_full().max_w_64()` 在设置行按内容收缩的容器里没有确定宽度，滑块缩成 16 px 的拇指，鼠标点不中；新测试绕过了画出的滑块。改为滑块自身 `w_48()`；测试 `the_drawn_slider_sets_the_size_and_follows_the_menu` 照设置页画出这一行，量滑块宽、点轨道两端得 200% 与 70%，再经视图菜单放大，打开着的页随之重画。换回旧宽度即败；去掉 `relook` 的 `notify` 即败。原先加的 `refresh_windows` 多余（`notify` 已重画读过桌面的窗口），删去。
 

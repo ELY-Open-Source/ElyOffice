@@ -152,8 +152,6 @@ impl Desk {
             cx,
         );
         cx.notify();
-        // The settings window shows the size too.
-        cx.refresh_windows();
     }
 
     /// The text size the settings row sets.
