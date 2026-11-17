@@ -1247,6 +1247,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 缺口两处：INDIRECT 读空白格时不进缓存，XLSX 不存 INDIRECT 的结果；工作表改名后“更新链接”报成功、值丢失。修法并入补丁 0131（同一功能）：`getSingleRefToken`、`getDoubleRefTokens` 记下公式在该源里查过的表（INDIRECT 也走这两处，读空白格也记），刷新前这些表连同原有的记号、缓存一起核对，缺即不动缓存、记日志、返回失败，由 `UpdateExternalRefLinks` 点名；刷新成功后重记。INDIRECT 是易变函数，载入即算，用户点更新前它查过的表已记下。
 - 第 1 轮审查：原先只要文档里有 INDIRECT 就把源里每张表算作被读，一个纯本地的 `INDIRECT("A1")` 便让无关的表改名也报失败。改为只认查过的表；测试 `a_local_indirect_leaves_other_sheets_unread`（本地 INDIRECT，只改名无关的表，更新须成功、读到新值）在第 1 轮的内核上失败。
+- 第 2 轮审查两条。其一属实：查过的表按源记成一个集合，与公式的存亡无关，改掉或删掉读空白格的 INDIRECT 之后，旧记录仍让无关的更新报失败。改为按公式单元格记（`maLookedUpTabs` 以源、单元格为键），单元格每次开算先丢掉自己上一回的记录（`ScFormulaCell::InterpretTail` 开头调 `forgetLookups`，线程计算中不调：INDIRECT 与外部引用都不进线程计算），单元格被删或被改（旧单元格析构，经 `removeRefCell`）也丢掉；刷新成功后不再清空，记录始终是各格最后一回的。测试 `a_formula_edited_away_reads_its_sheet_no_more`、`an_indirect_pointed_elsewhere_reads_its_old_sheet_no_more` 在第 2 轮的内核上皆败；分别去掉开算时的丢弃、删除时的丢弃，各败其一。
+- 其二不改：S1 照旧在、读得出，新值让 INDIRECT 指向从没有过的 S2，更新后显示 `#REF!`。源读到了，这是新数据算出的结果，不是读源失败；PRD §9 第 291 行明令“不能用 0、空值或旧缓存冒充重算结果”，留旧值即是冒充。规则：更新前文档读过的表须仍在，否则失败、点名、留旧值；更新后新值算出的引用照实显示。测试 `a_target_the_new_values_name_is_a_result_not_a_failure` 照此断言。
 - 第 1 轮的“刷新后重算、查表落空即失败”一并删去：易变的 INDIRECT 载入即算，刷新前的核对已够，去掉它测试仍全过。
 - XLSX 重开后，INDIRECT 格在更新前就显示 `Err:540`（`LinkFormulaNeedingCheck`：无缓存值、源未经用户允许读取），更新失败后不变；测试照此断言（原写 `#REF!`，是第 1 轮实现下的值）。
 - 测试 `a_formula_whose_sheet_is_gone_keeps_its_value` 加两例（读空白格的 INDIRECT，XLSX 重开的两种 INDIRECT），与新测试一起移入 `client/tests/gone.rs`（`linked.rs` 已 499 行）。不记查过的表即败于 `B5` 一例。

@@ -10,57 +10,84 @@ update reported success and the saved value was lost (Ely R15.43).
 refreshSrcDocument now checks that every sheet a formula reads from
 the file is still in it: the sheet names of the external reference
 tokens in the cells registered for the file, the sheets a 3D range
-spans, and every cached sheet that holds cells. If one is gone it closes the copy, logs the sheet and
+spans, every cached sheet that holds cells, and the sheets formulas
+looked up. If one is gone it closes the copy, logs the sheet and
 returns false; the cache and the cells stay and
-UpdateExternalRefLinks names the file. Every sheet with cached
-cells counts too.
+UpdateExternalRefLinks names the file. Sheets an XLSX externalLink
+only lists hold no cells and no formula reads them; renaming or
+removing them still updates.
 
 INDIRECT names its sheet in a string at run time (Ely R20.11): when
-it reads a blank cell nothing is cached, and an XLSX reopened before
-recalculating keeps no INDIRECT result. So when the document uses
-INDIRECT every sheet of the file counts; after the refresh the cells
-reading the file run again, and a sheet a lookup missed makes the
-update fail and is logged.
-Sheets an XLSX externalLink only lists hold no cells and no formula
-reads them; renaming or removing them still updates.
+it reads a blank cell nothing is cached, and an XLSX keeps no
+INDIRECT result. getSingleRefToken and getDoubleRefTokens record the
+sheets each formula cell looks up, INDIRECT's included. A cell
+starting a new run drops its old record, and a removed or edited
+cell drops it too, so only the last run counts. INDIRECT is volatile
+and runs on load, so its sheets are known before the user asks. A
+sheet the new values name only after the refresh is a recalculated
+result, not a failed read.
 
 --- a/sc/inc/externalrefmgr.hxx
 +++ b/sc/inc/externalrefmgr.hxx
-@@ -840,6 +840,9 @@
+@@ -674,6 +674,9 @@
+      */
+     void removeRefCell(ScFormulaCell* pCell);
+ 
++    /// Drops what pCell looked up before this run.
++    void forgetLookups(const ScFormulaCell* pCell);
++
+     /**
+      * Register a new link listener to a specified external document.  Note
+      * that the caller is responsible for managing the life cycle of the
+@@ -840,6 +843,9 @@
       */
      RefCellMap maRefCells;
  
-+    /// Sheets formulas looked up, INDIRECT's too.
-+    std::map<sal_uInt16, std::set<OUString>> maLookedUpTabs;
++    /// Sheets each formula's last run looked up.
++    std::map<sal_uInt16, std::unordered_map<const ScFormulaCell*, std::set<OUString>>> maLookedUpTabs;
 +
      LinkListenerMap maLinkListeners;
  
      NumFmtMap maNumFormatMap;
+--- a/sc/source/core/data/formulacell.cxx
++++ b/sc/source/core/data/formulacell.cxx
+@@ -1940,6 +1940,9 @@
+             rDocument.RemoveFromFormulaTree(this);
+         return;
+     }
++    // This run's lookups replace the last run's.
++    if (!rDocument.IsThreadedGroupCalcInProgress() && rDocument.HasExternalRefManager())
++        rDocument.GetExternalRefManager()->forgetLookups(this);
+     RecursionCounter aRecursionCounter( rDocument.GetRecursionHelper(), this);
+     // TODO If this cell is not an iteration cell, add it to the list of iteration cells?
+     if(bIsIterCell)
 --- a/sc/source/ui/docshell/externalrefmgr.cxx
 +++ b/sc/source/ui/docshell/externalrefmgr.cxx
-@@ -1947,7 +1947,10 @@
+@@ -1947,7 +1947,11 @@
      const ScAddress* pCurPos, SCTAB* pTab, ScExternalRefCache::CellFormat* pFmt)
  {
      if (pCurPos)
 +    {
          insertRefCell(nFileId, *pCurPos);
-+        maLookedUpTabs[nFileId].insert(rTabName);
++        if (const ScFormulaCell* pCell = mrDoc.GetFormulaCell(*pCurPos))
++            maLookedUpTabs[nFileId][pCell].insert(rTabName);
 +    }
  
      maybeLinkExternalFile(nFileId);
  
-@@ -2048,7 +2051,10 @@
+@@ -2048,7 +2052,11 @@
      sal_uInt16 nFileId, const OUString& rTabName, const ScRange& rRange, const ScAddress* pCurPos)
  {
      if (pCurPos)
 +    {
          insertRefCell(nFileId, *pCurPos);
-+        maLookedUpTabs[nFileId].insert(rTabName);
++        if (const ScFormulaCell* pCell = mrDoc.GetFormulaCell(*pCurPos))
++            maLookedUpTabs[nFileId][pCell].insert(rTabName);
 +    }
  
      maybeLinkExternalFile(nFileId);
  
-@@ -3034,6 +3040,55 @@
+@@ -3034,6 +3042,56 @@
      ScDocShell& rDocSh = static_cast<ScDocShell&>(*xDocShell);
      ScDocument& rSrcDoc = rDocSh.GetDocument();
  
@@ -101,7 +128,8 @@ reads them; renaming or removing them still updates.
 +    }
 +    // INDIRECT names its sheet at run time, so lookups count.
 +    if (auto itrLooked = maLookedUpTabs.find(nFileId); itrLooked != maLookedUpTabs.end())
-+        aRead.insert(itrLooked->second.begin(), itrLooked->second.end());
++        for (const auto& [pCell, rTabs] : itrLooked->second)
++            aRead.insert(rTabs.begin(), rTabs.end());
 +    for (const OUString& rTabName : aRead)
 +    {
 +        SCTAB nSrcTab;
@@ -116,11 +144,17 @@ reads them; renaming or removing them still updates.
      sc::ColumnSpanSet aCachedArea;
      maRefCache.getAllCachedDataSpans(rSrcDoc, nFileId, aCachedArea);
  
-@@ -3059,6 +3114,7 @@
-     }
+@@ -3191,6 +3249,13 @@
+ void ScExternalRefManager::removeRefCell(ScFormulaCell* pCell)
+ {
+     for_each(maRefCells.begin(), maRefCells.end(), RemoveFormulaCell(pCell));
++    forgetLookups(pCell);
++}
++
++void ScExternalRefManager::forgetLookups(const ScFormulaCell* pCell)
++{
++    for (auto& [nFileId, rCells] : maLookedUpTabs)
++        rCells.erase(pCell);
+ }
  
-     // Update all cells containing names from this source document.
-+    maLookedUpTabs.erase(nFileId);
-     refreshAllRefCells(nFileId);
- 
-     notifyAllLinkListeners(nFileId, LINK_MODIFIED);
+ void ScExternalRefManager::addLinkListener(sal_uInt16 nFileId, LinkListener* pListener)
