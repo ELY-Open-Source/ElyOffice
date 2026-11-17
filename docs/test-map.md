@@ -85,8 +85,8 @@
 | SHOW-10 | 媒体 | C10.4、决策 C10.4 | `media-targets.sh`、`typing_ends_a_preview_before_any_undo_step`、`two_fields_sent_before_a_read_both_land`、`an_undone_duration_is_not_sent_again`、`two_effects_take_the_same_value_before_a_read` | apps/ely-show/src/tests |
 | SHOW-11 | 放映 | C10.5、决策 C10.5 | — | apps/ely-show/src/tests |
 | SHOW-12 | 多屏 | C10.5、决策 C10.5 | — | apps/ely-show/src/tests |
-| SHOW-13 | 输出 | C10.6（!）、决策 C10.6 | `the_current_slide_is_the_one_just_picked`、`a_check_asked_after_a_waiting_output_wins` | apps/ely-show/src/tests |
-| SHOW-14 | 演示准备 | C10.6（!）、决策 C10.6 | `the_current_slide_is_the_one_just_picked`、`a_check_asked_after_a_waiting_output_wins` | apps/ely-show/src/tests |
+| SHOW-13 | 输出 | C10.6、决策 C10.6 | `the_current_slide_is_the_one_just_picked`、`a_check_asked_after_a_waiting_output_wins` | apps/ely-show/src/tests |
+| SHOW-14 | 演示准备 | C10.6、决策 C10.6 | `the_current_slide_is_the_one_just_picked`、`a_check_asked_after_a_waiting_output_wins` | apps/ely-show/src/tests |
 | PDF-01 | 阅读 | C11.1、决策 C11.1 | `a_typed_password_opens_the_file`、`escape_gives_up_each_queued_file_in_turn`、`a_jump_to_a_thin_page_across_makes_it_current`、`pages_that_never_reach_the_left_still_turn_current`、`a_view_edge_on_a_tile_edge_takes_no_tile_beyond`、`a_jump_to_a_page_barely_in_view_brings_it_across`、`a_locked_file_asks_refuses_a_wrong_password_then_opens`、`pdf-idle.sh` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-02 | 页面组织 | C11.2、决策 C11.2 | `an_escaped_font_name_and_the_form_alignment_come_along`、`a_form_without_defaults_brings_its_own_not_the_targets`、`a_font_name_with_a_high_byte_is_renamed_byte_for_byte` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
 | PDF-03 | 文字编辑 | C11.3、决策 C11.3 | `a_second_delete_before_the_first_lands_does_nothing`、`a_drag_while_an_edit_is_queued_does_nothing` | apps/ely-pdf/src/tests、crates/ely-pdf-worker/tests、pdf-recovery.sh |
@@ -167,7 +167,7 @@
 | QA-09 | 崩溃恢复 | C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-10 | Doc | C08.6、C22.2（ ） | — | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-11 | Table | C09.5、C22.2（ ） | `a_1904_workbook_keeps_its_dates_through_saves`、`the_preview_reads_what_the_kernel_imports` | 无库内证据：C22.2 的记录已移除，须重做 |
-| QA-12 | Show | C10.6（!）、C22.2（ ）、决策 C10.6 | `the_current_slide_is_the_one_just_picked`、`a_check_asked_after_a_waiting_output_wins` | 无库内证据：C22.2 的记录已移除，须重做 |
+| QA-12 | Show | C10.6、C22.2（ ）、决策 C10.6 | `the_current_slide_is_the_one_just_picked`、`a_check_asked_after_a_waiting_output_wins` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-13 | PDF 编辑 | C11.8、C22.2（ ）、决策 C11.8 | `a_picture_that_breaks_as_it_draws_stops_an_overwrite`、`a_picture_never_drawn_is_checked_before_an_overwrite`、`picked_pages_from_before_an_edit_export_nothing` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-14 | PDF 删除 | C11.6、C22.2（ ）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out`、`a_removed_annotation_leaves_the_structure_tree` | 无库内证据：C22.2 的记录已移除，须重做 |
 | QA-15 | PDF OCR 与签名 | C11.7、C22.2（ ）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole`、`signing_waits_while_the_tab_holds_what_save_as_left_out`、`a_failed_signature_read_is_tried_again_on_the_next_opening`、`a_second_save_as_keeps_the_reopen_and_signs_the_file_it_wrote` | 无库内证据：C22.2 的记录已移除，须重做 |
