@@ -125,7 +125,7 @@ pub fn size_box<P: Panel>(
 
 #[cfg(test)]
 mod tests {
-    use gpui::{Render, TestAppContext};
+    use gpui::{Render, TestAppContext, VisualTestContext};
 
     use super::*;
 
@@ -188,31 +188,58 @@ mod tests {
         assert_eq!(cx.update(|app| input.read(app).text().to_string()), "12", "the box shows 12 again");
     }
 
+    /// Draws the real size box for a reported size.
+    struct Shown(Option<SharedString>, Option<Entity<TextInput>>);
+
+    impl Panel for Shown {
+        fn state(&self, uno: &str, _: &App) -> Option<SharedString> {
+            (uno == ".uno:FontHeight").then(|| self.0.clone()).flatten()
+        }
+
+        fn run(&mut self, _: &str, _: &[&str], _: &mut Context<Self>) {}
+    }
+
+    impl Render for Shown {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let sized = size_box(self, ("size", "Size".into()), window, cx);
+            let field = window.use_keyed_state(SharedString::from("size-field"), cx, Field::new);
+            self.1 = Some(field.read(cx).input.clone());
+            sized
+        }
+    }
+
     #[test]
     fn a_size_turned_mixed_shows_its_hint_not_the_old_size() {
         let mut cx = TestAppContext::single();
-        cx.update(ely_gpui_component::init_for_tests);
-        let window = cx.add_window(|_, _| Blank);
-        let field = window.update(&mut cx, |_, window, cx| cx.new(|cx| Field::new(window, cx))).expect("the window lives");
-        let text = |cx: &mut TestAppContext, reported: Option<&str>, focus: bool| {
+        cx.update(|cx| {
+            ely_gpui_component::init_for_tests(cx);
+            ely_ui::i18n::install_as("en-US", cx);
+        });
+        let window = cx.add_window(|_, _| Shown(None, None));
+        let mut cx = VisualTestContext::from_window(window.into(), &cx);
+        let shown = |cx: &mut VisualTestContext, reported: Option<&str>, focus: bool| {
             window
-                .update(cx, |_, window, cx| {
-                    let input = field.read(cx).input.clone();
-                    if focus {
+                .update(cx, |shown, window, cx| {
+                    shown.0 = reported.map(SharedString::from);
+                    if let (true, Some(input)) = (focus, shown.1.clone()) {
                         window.focus(&input.focus_handle(cx), cx);
                     }
-                    follow(&field, reported.map(SharedString::from), window, cx);
-                    // The combobox shows a known size itself.
-                    if let Some(size) = reported.filter(|size| known(size)) {
-                        input.update(cx, |input, cx| input.set_text(size, cx));
-                    }
-                    input.read(cx).text().to_string()
+                    cx.notify();
+                })
+                .expect("the window lives");
+            cx.run_until_parked();
+            window
+                .update(cx, |shown, _, cx| {
+                    let input = shown.1.clone().expect("the box drew");
+                    let input = input.read(cx);
+                    (input.text().to_string(), input.placeholder_text().to_string())
                 })
                 .expect("the window lives")
         };
-        assert_eq!(text(&mut cx, Some("17"), false), "17");
-        assert_eq!(text(&mut cx, Some(ely_lok::MIXED), false), "", "the mixed hint shows");
-        assert_eq!(text(&mut cx, Some("11"), true), "11");
-        assert_eq!(text(&mut cx, Some(ely_lok::MIXED), true), "11", "a size being typed stays");
+        let pair = |text: &str, hint: &str| (text.to_string(), hint.to_string());
+        assert_eq!(shown(&mut cx, Some("17"), false), pair("17", ""));
+        assert_eq!(shown(&mut cx, Some(ely_lok::MIXED), false), pair("", "Mixed"), "the hint shows");
+        assert_eq!(shown(&mut cx, Some("11"), false), pair("11", ""));
+        assert_eq!(shown(&mut cx, Some(ely_lok::MIXED), true).0, "11", "a size being typed stays");
     }
 }
