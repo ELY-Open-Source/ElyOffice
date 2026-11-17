@@ -1328,3 +1328,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 第 2 轮审查一条属实：改过的公开 `FileTree` 文档是一行 59 词。改为一行十词：“Project files; filter keeps matches, named folders whole; set height.”。组件库 1df66b1e，pin 随之；ElyMark 234 项、clippy 过。
 - 第 3 轮 PASS，R20.23 勾上。
 
+## 2026-11-17 crate 换名无令牌，标 `[!]`（R20.24，R18.22）
+
+- 组件库 `ely-files`、`ely-mail`、`ely-agent` 在 crates.io 换名不可撤回。本机 `~/.cargo/credentials.toml` 不在，`CARGO_REGISTRY_TOKEN` 未设，照本条“没有令牌即 `[!]`”标记，不发布、不改名。用户给了令牌后单做。
+

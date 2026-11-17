@@ -752,7 +752,7 @@
 - [x] R20.22 #85 ElyMark 字号（§14）：报告者照 Obsidian 的“字体大小”（设置里一个带重置的滑块，单位像素，另有 Ctrl+滚轮快调）。现有：设置的界面字号 12 至 16 px；ElyMark 文档字号 70% 至 200%（视图菜单与 Ctrl+滚轮，存 look.json），设置里看不到。做法：ElyMark 设置“文档”页加文档字号一行（带重置），与 Ctrl+滚轮同一个值；文档字号本是界面字号的百分比，随界面字号同比变 — 设置“文档”页的“文档字号”滑块与“实际大小”，与视图菜单、滚轮同一个值（`ely_ui::settings::add_document_rows`，ElyMark `look/size.rs`） — 第 2 轮 PASS（`tasks/reviews/R20.22-r2.md`）
 - [x] R20.23 #87 ElyMark 搜索结果里展开目录（§14）：目录结果可展开，列出其下文件与子目录 — 组件库 c01a140e、94331bc6（按名匹配的目录保留其内容，折叠）；ElyMark 测试 `a_folder_the_filter_finds_opens_to_its_files`；第 1 轮两条注释，组件库 c7549e57，pin 随之；第 2 轮文档一行，组件库 1df66b1e，pin 随之 — 第 3 轮 PASS（`tasks/reviews/R20.23-r3.md`）
 - [ ] R20.32 ElyShow 拖动对象的智能参考线（用户 2026-11-17 提，§10）：照 PowerPoint，拖动形状、文本框、图片时，对象的边或中线与别的对象、幻灯片的边或中线对齐即画出虚线，并吸附过去；等距也提示。现状：手设参考线（补丁 0027、`guides.rs`）与吸附网格／参考线已有，拖动时没有动态对齐线；移动对象是原始鼠标事件交内核，Ely 不预览。做法：Ely 在视图上预览移动中的框（同手柄 `handles.rs`），按幻灯片对象表（`.uno:SlideObjects`）算对齐与吸附，松手经 `drag_graphic` 交内核；按 Alt 不吸附
-- [ ] R20.24 R18.22 crate 重名（§17）：组件库的 `ely-files`、`ely-mail`、`ely-agent` 在 crates.io 换名（不可撤回，单列）；本机无 crates.io 令牌，没有令牌即 `[!]`
+- [!] R20.24 R18.22 crate 重名（§17）：组件库的 `ely-files`、`ely-mail`、`ely-agent` 在 crates.io 换名（不可撤回，单列）；本机无 crates.io 令牌，没有令牌即 `[!]` — 2026-11-17 查：`~/.cargo/credentials.toml` 与 `CARGO_REGISTRY_TOKEN` 皆无，照本条标 `[!]`；换名不可撤回，须用户给令牌后单做
 - [ ] R20.25 #89 S3 与 WebDAV（§3、§6）：不做——用户 2026-11-16 定；轮到此条时把 #89 以 not planned 关闭
 
 代码定了之后
