@@ -1229,14 +1229,14 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 用户定：三台机器上的工作一律在 `Documents/Github/ElyOffice` 之内，别处不放东西；构建一律用 huacnlee/cargo。
 - Windows：检出由 `C:\ely\ElyOffice` 搬到 `C:\Users\raidenmei\Documents\Github\ElyOffice`，`C:\ely` 整个删去（`lo-sym` 是 R20.1 未建完的带符号内核，无一个 PDB；其余是历次测量与审查的临时目录）。`release.yml` 的 Windows 共享引擎随之改到新路径。`C:\ely\sfbench\bench.ps1` 不在仓库里，一并丢失，R20.26 重写。
 - macOS：家目录里本项目的临时文件与目录删去。`ely-share`、`ely-share-x86_64`、`ely-ci`、`ely-ci-x86_64` 是 `release.yml` 的共享引擎与发布检出，macOS 不许 runner 读 `~/Documents`，照旧留在家目录。`~/sfbench/old16/new.app` 受“应用管理”保护，SSH 删不掉，待在本机删。
-- Linux：`~/.cache/ely-sf4` 与 `/tmp` 里本项目的脚本移入 `.work/old-scripts`，日志删去；`~/ely-ci` 是 Linux 发布检出，留。
+- Linux：`~/.cache/ely-sf4` 与 `/tmp` 里本项目的脚本移入 `.work/old-scripts`（本机，未入库），日志删去；`~/ely-ci` 是 Linux 发布检出，留。
 - Windows 的任务计划里 30 个指向 `C:\ely` 的任务（历次测量与 `ElyLoSym`）一并注销；其中 `ElySF23first`、`ElySF23reboot`、`ElySF33first` 的装完首开、重启后首开测量脚本随 `C:\ely` 丢失，R20.26 与 `bench.ps1` 一起重写入库。
 - Windows Defender 的排除项原为 `C:\ely\ElyOffice\engines\lo-src` 与 `C:\ely\lo-sym`；LibreOffice 的 configure 查到杀毒软件未排除构建目录即停（R20.1 的第一次构建停在这里）。改为 `Documents\Github\ElyOffice\engines\lo-src` 与 `engines\lo-sym`，旧的两项删去。
 
 ## 2026-11-17 带符号的 Windows 内核（R20.1）
 
 - `scripts/build-libreoffice.sh --symbols` 把同一钉住的 LibreOffice 加同一补丁序列建到 `engines/lo-sym`，配置多一个 `--enable-symbols`，供 R20.5 至 R20.7、R20.13 采样，不进发布。原先 Cindy 复制改写一份脚本建在 `C:\ely\lo-sym`，未建完即随 `C:\ely` 删去。
-- 测试机 7877 上以任务计划在后台跑（SSH 断开会杀掉子进程），脚本与日志在项目的 `.work/R20.1/`，建完即注销任务。
+- 测试机 7877 上以任务计划在后台跑（SSH 断开会杀掉子进程），脚本与日志在项目的 `.work/R20.1/`（本机，未入库），建完即注销任务。
 ## 2026-11-17 EQ 域的缓存结果一律不画（R20.10，R8.2）
 
 - 补丁 0130 只收走 EQ 域 separate 之后的文字与 DrawingML 图片。逐类核对后，下面这些仍画在公式旁：嵌套的域（PAGE、QUOTE）、DrawingML 与 VML 文本框（文字已去，框还在）、DrawingML 形状、VML 图片、OMML、OLE 对象。
@@ -1275,8 +1275,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 ## 2026-11-17 Shell 注释照 Bash 的词法读（R20.18，R2.12）
 
-- R2.12 九轮审查各查出一种写法（续行、`case`、`$(`、extglob……）：旧 `shell.rs` 跟在通用词法器后面，按单词与括号打补丁，Bash 的词法它看不全。根治：组件库 `crates/ely-core/src/forms/shell.rs` 改为照 Bash 读——先把源切成记号（空白、续行、操作符、单词），`#` 只在记号开头才开注释；单词里的引号（单、双、`$'…'`）、转义、`$(…)`、`$((…))`、`${…}`、反引号、`<(…)`、`>(…)` 与 extglob 都在单词里读完；命令位置的保留字、`case` 的主语与 `in`、模式、以 `;;`、`;&`、`;;&` 收尾的分支体，分支开头的 `esac` 收尾；here-doc（含 `<<-` 与带引号的结束词）的正文跳过。通用词法器只问“这个 `#` 是不是 Bash 的注释”（`CommentStart::Bash`），旧的 `Nesting` 挂钩与 `shut` 标记删去。
-- 验收语料 `forms/shell/tests.rs` 70 例：历轮的全部例子、R2.12 第 9 轮的三个续行例、新加的 here-doc、引号、续行与展开例；每例末尾的 `#` 是不是注释由 Bash 5.3（开 extglob）实跑定（`.work/R20.18/truth.py`，本机，未入库）。两处以 Bash 的报错为准：`cat <(…)#…` 与 `tee >(…)#…` 的 `#` 粘在文件名上，不是注释。三处突变（去掉续行、去掉 here-doc 正文、分支开头的 `esac` 不收尾）各败于语料。组件库 c967f6f1；ElyOffice 的 pin 照 R20 的约定，攒到 R20.21 之后一次换。
+- R2.12 九轮审查各查出一种写法（续行、`case`、`$(`、extglob……）：旧 `shell.rs` 跟在通用词法器后面，按单词与括号打补丁，Bash 的词法它看不全。根治：组件库 `../Ely-GPUI-Components/crates/ely-core/src/forms/shell.rs` 改为照 Bash 读——先把源切成记号（空白、续行、操作符、单词），`#` 只在记号开头才开注释；单词里的引号（单、双、`$'…'`）、转义、`$(…)`、`$((…))`、`${…}`、反引号、`<(…)`、`>(…)` 与 extglob 都在单词里读完；命令位置的保留字、`case` 的主语与 `in`、模式、以 `;;`、`;&`、`;;&` 收尾的分支体，分支开头的 `esac` 收尾；here-doc（含 `<<-` 与带引号的结束词）的正文跳过。通用词法器只问“这个 `#` 是不是 Bash 的注释”（`CommentStart::Bash`），旧的 `Nesting` 挂钩与 `shut` 标记删去。
+- 验收语料 `forms/shell/tests.rs` 70 例：历轮的全部例子、R2.12 第 9 轮的三个续行例、新加的 here-doc、引号、续行与展开例；每例末尾的 `#` 是不是注释由 Bash 5.3（开 extglob）实跑定（`.work/R20.18/truth.py`（本机，未入库））。两处以 Bash 的报错为准：`cat <(…)#…` 与 `tee >(…)#…` 的 `#` 粘在文件名上，不是注释。三处突变（去掉续行、去掉 here-doc 正文、分支开头的 `esac` 不收尾）各败于语料。组件库 c967f6f1；ElyOffice 的 pin 照 R20 的约定，攒到 R20.21 之后一次换。
 - 第 1 轮审查四条皆属实，照 Bash 改：反引号里的内容先找到收尾再当 Shell 读（双引号里的也是），其中的注释照记；here-doc 结束词按引号的种类去引号（单引号原样，双引号只认 `$`、反引号、`"`、`\`、换行的转义，`$'…'` 照 ANSI-C，续行去掉），`<<'E\OF'` 的结束行是 `E\OF`；续行不算引用，保留字去掉续行再比；`time` 之后的 `-p`、`--` 与 `coproc NAME` 之后仍是命令位置（Bash 实测 `coproc echo case` 报语法错，即其后的 `case` 当保留字）。语料加到 84 例（新 14 例由 Bash 实跑定）；五处修法各换回旧写法，语料皆败于对应一例。`shell.rs` 过 500 行，结束词的去引号移入 `shell/delimiter.rs`。组件库 299e76d6。
 - 第 2 轮审查四条皆属实。其中两条（`${…}` 里的反引号、extglob 里的 `$(…)`）同一个根：`${…}`、extglob、`$((…))`、双引号各自读嵌套，各认一部分。改为一个 `nested` 统一走转义、引号、反引号与各种 `$`，四处都调它；未带引号的结束词的 here-doc 正文照 Bash 展开 `$(…)` 与反引号，其中的注释照记（未报，同类）；`function name` 之后的函数体回到命令位置；`$'…'` 照 Bash 的转义表解（简单转义、八进制、`\x`、`\u`、`\U`、`\c`，不认识的留反斜杠）。语料 99 例，新 15 例由 Bash 实跑定，`truth.py` 另核内部注释的文字 Bash 不印出；五处修法各换回旧写法，语料皆败于对应一例。组件库 4b8b5887。
 - 第 3 轮 FAIL，三轮用尽，R20.18 标 `[!]`。新查出三项留给 R20.34：here-doc 结束词里的续行被当作引号（Bash 先去续行再定正文展不展开）；双引号里与展开的 here-doc 正文里的 `$'` 被当作 ANSI-C 引号（Bash 在那里照字面，其后的 `$(…)` 照常执行，注释照算）；结束词去引号时连 `$(…)` 与反引号里的引号也去了（Bash 原样保留）。
