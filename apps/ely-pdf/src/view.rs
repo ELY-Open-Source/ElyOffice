@@ -51,8 +51,6 @@ pub struct PdfView {
     pub sidebar: Option<crate::history::Sidebar>,
     pub measured: usize,
     pub scroll: ScrollHandle,
-    /// The offset the last render left.
-    pub drawn_at: gpui::Point<gpui::Pixels>,
     pub tiles: HashMap<TileKey, Arc<RenderImage>>,
     /// Images no longer drawn, freed at the next render.
     pub retired: ely_gpui_component::primitives::Retired,
@@ -210,7 +208,6 @@ impl PdfView {
             sidebar: None,
             measured,
             scroll: ScrollHandle::new(),
-            drawn_at: gpui::Point::default(),
             tiles: HashMap::new(),
             retired: Default::default(),
             painted: Vec::new(),

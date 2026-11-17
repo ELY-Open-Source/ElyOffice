@@ -36,3 +36,29 @@ fn a_dragged_bar_moves_the_pages_and_a_resize_keeps_them() {
     let kept = cx.update(|_, app| view.read(app).current);
     assert_eq!(kept, current, "a resize keeps the dragged page");
 }
+
+#[test]
+fn resizes_alone_return_to_the_page_read() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let page: (f32, f32, &[&str]) = (612.0, 792.0, &["page"]);
+    let pages = vec![page; 30];
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[file(dir.path(), "thirty.pdf", &pages)], true);
+    let view = shown(cx, &viewer);
+    settle(cx, |app| view.read(app).room.size.width > px(100.0));
+    cx.update(|_, app| view.update(app, |view, cx| view.show(29, 300.0, cx)));
+    frames(cx);
+    let initial = cx.update(|window, _| window.viewport_size());
+    let read = |cx: &mut gpui::VisualTestContext| cx.update(|_, app| (view.read(app).current, view.read(app).scroll.offset().y));
+    let (page, top) = read(cx);
+    // The widths that once lost a page (R20.16 r1).
+    for width in [901.0, 680.0, 1218.0, 1000.0, 641.0, 800.0] {
+        cx.simulate_resize(size(px(width), initial.height));
+        frames(cx);
+    }
+    cx.simulate_resize(initial);
+    frames(cx);
+    let (now, back) = read(cx);
+    assert_eq!(now, page, "widths alone keep the page");
+    assert!((back - top).abs() < px(1.0), "widths alone keep the place: {top:?} to {back:?}");
+}
