@@ -72,8 +72,8 @@ case "$1 $2" in
     awk -v p="$3" '$1 != p' "$w/rows" >"$w/rows.next" 2>/dev/null || true
     mv "$w/rows.next" "$w/rows" ;;
   "agent start" | "agent prompt")
-    # As herdr 0.9.5: typed prompts race Codex's startup.
-    echo '{"error":{"code":"agent_prompt_stalled","message":"typed into a starting codex"}}' >&2
+    # As herdr 0.9.5: typed prompts race Pi's startup.
+    echo '{"error":{"code":"agent_prompt_stalled","message":"typed into a starting pi"}}' >&2
     exit 1 ;;
   "pane run")
     # As herdr: errors are JSON on stderr.
@@ -83,7 +83,7 @@ case "$1 $2" in
   "agent get")
     echo "$3" >>"$w/got"
     if [ ! -f "$w/begun" ]; then
-      # Herdr finds Codex, then its turn begins.
+      # Herdr finds Pi, then its turn begins.
       n=$(($(cat "$w/begins") + 1))
       echo "$n" >"$w/begins"
       read -ra all <"$w/begin"
@@ -161,22 +161,22 @@ run T1.1 1 0 working broken 'PASS\n'
 [ "$rc" = 1 ] || fail "an unreadable status passed"
 # Herdr's own error reaches the message.
 run T1.1 1 agent_pane_busy working done 'PASS\n'
-[ "$rc" = 1 ] || fail "a codex that never started passed"
-case $said in *"did not start codex: agent_pane_busy: said agent_pane_busy"*) ;; *) fail "start error lost: $said" ;; esac
-# Codex takes its prompt from argv; nothing is typed.
+[ "$rc" = 1 ] || fail "a pi that never started passed"
+case $said in *"did not start pi: agent_pane_busy: said agent_pane_busy"*) ;; *) fail "start error lost: $said" ;; esac
+# Pi takes its prompt from argv; nothing is typed.
 run T1.1 1 0 working done 'PASS\n'
-[ "$(cat "$work/ran")" = "w1:p$(cat "$work/panes") codex --yolo -m gpt-6-astra -c model_reasoning_effort=high \"Do what .work/T1.1-r1/prompt.md says.\"" ] || fail "codex ran as: $(cat "$work/ran")"
+[ "$(cat "$work/ran")" = "w1:p$(cat "$work/panes") pi --model remote-magpie/kimi/k3.1-pro --thinking high \"Do what .work/T1.1-r1/prompt.md says.\"" ] || fail "pi ran as: $(cat "$work/ran")"
 [ "$(sort -u "$work/got")" = "w1:p$(cat "$work/panes")" ] || fail "status read from $(sort -u "$work/got"), not its pane"
 grep -q "^You review item T1.1 of Ely Office, round 1\." "$work/tree/.work/T1.1-r1/prompt.md" || fail "the prompt file lacks the prompt"
-# Herdr finding Codex late is waited out.
+# Herdr finding Pi late is waited out.
 run T1.1 1 0 'missing missing idle working' done 'PASS\n'
-[ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a codex found late: rc $rc, $said"
+[ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a pi found late: rc $rc, $said"
 [ "$(wc -l <"$work/began")" = 3 ] || fail "waited $(wc -l <"$work/began") times for the turn, not 3"
 run T1.1 1 0 blocked done 'PASS\n'
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a turn that began blocked: rc $rc, $said"
 # A turn that never begins is named with its screen.
 run T1.1 1 0 'missing idle' done 'PASS\n'
-[ "$rc" = 1 ] || fail "a codex that never began passed"
+[ "$rc" = 1 ] || fail "a pi that never began passed"
 case $said in *"never began the prompt in 2 minutes, at:"*"Do you want to proceed?"*"pane left open"*) ;; *) fail "never began not named: $said" ;; esac
 [ "$(wc -l <"$work/began")" = 60 ] || fail "waited $(wc -l <"$work/began") times for the turn, not 60"
 # Herdr failing otherwise stops it at once.

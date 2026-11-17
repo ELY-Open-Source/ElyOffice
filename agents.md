@@ -166,4 +166,4 @@ rm -rf target/debug/incremental   标准 Cargo 下每次构建或测试后都删
 - ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码，QQ 邮箱、163 邮箱、126 邮箱走授权码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。
 - 合并前：`pr.yml` 在每个 PR 与 main 的推送上跑 check.sh、deny.sh、panics.py、整个工作区的 clippy（告警即败）与不需引擎的测试；PR 从不上自托管机器，带引擎的全部测试是发布的门。
-- 审查：每条任务交另一个模型审查，至多三轮（`scripts/review.sh`，herdr 右侧窗格里的 Codex，GPT 6 Astra，high）。
+- 审查：每条任务交另一个模型审查，至多三轮（`scripts/review.sh`，herdr 右侧窗格里的 Pi，K3.1 Pro，思考 high）。

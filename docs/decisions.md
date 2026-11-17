@@ -1219,3 +1219,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
   - `style` 属性与 `<style>` 里的 `data:` 图须能解码。CSS 转义后才出现的 `data:` 一律拒绝。
   - 原文元素只有 `style`、`script`、`xmp`、`noembed`，内容照写，但其中不许有 `<`（`style` 里的 `<!--` 除外），有即整次拒绝。两个解析器对原文的收尾不同（第 2 轮审查：内核遇 `</head>`、`<body>` 即结束 `style`，`</script1>` 即结束 `script`，`</body>`、`</html>` 即结束 `xmp`，见 `svtools/source/svhtml/parhtml.cxx`），原文里没有 `<`，两边只能在同一个结束标签收尾，也读不出标签。`textarea`、`plaintext`、`noframes` 内核照标签读（第 1 轮），这里也照标签分词，其中的图与别处一样检查、规整。
 - 测试与对照：测试 `inline_images_paste_only_when_they_decode` 收齐历轮的写法（含 C07.3 第 6 轮的两个反斜杠、第 4 轮的大写 MIME，与包在 `textarea`、`plaintext`、`noframes` 里的图），好图数 `<office:binary-data>` 也数 `<draw:image>`，不许有占位。坏图必须报错，同时留住选区与正文；8 种好图须各嵌入一张（数 `<office:binary-data`）。把原文直交内核的变异上，只嵌入 6 张。
+
+## 2026-11-17 审查者换成 Pi（K3.1 Pro，思考 high）
+
+- 用户定：审查关掉 Codex，改由 herdr 右侧窗格里的 Pi 调用 K3.1 Pro，思考级别 high；同一条至多三轮照旧。`scripts/review.sh` 与 `tests/scripts/review-rules.sh` 随之改。R20.9 第 3 轮的 Codex 审查未出结论（窗格中途关闭），以 Pi 重做第 3 轮。
