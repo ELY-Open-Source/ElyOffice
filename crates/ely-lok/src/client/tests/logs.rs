@@ -196,3 +196,21 @@ fn a_refused_animation_logs_why() {
     assert!(why.is_some(), "the refusal names its reason");
     worker.close_doc(doc).expect("closes");
 }
+
+// Linux's fontconfig answers every font name itself.
+#[cfg(any(windows, target_os = "macos"))]
+#[test]
+fn the_start_check_reads_every_font_s_other_names() {
+    let Some(install) = install() else {
+        return eprintln!("SKIP: no pinned LOK build");
+    };
+    let read: Vec<_> = [crate::Probe::Text, crate::Probe::Sheet, crate::Probe::Slides].into_iter().map(|probe| {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let mut worker = Worker::launch(&install, &dir.path().join("profile"), probe).expect("the worker");
+        worker.ready().unwrap_or_else(|error| panic!("{probe:?} paints no red: {error}"));
+        worker.shutdown().expect("the worker ends");
+        (probe, worker.stderr.said().lines.iter().any(|line| line.contains("other names of")))
+    }).collect();
+    // Else a hot open pays it in its first tile.
+    assert!(read.iter().all(|(_, read)| *read), "{read:?}");
+}

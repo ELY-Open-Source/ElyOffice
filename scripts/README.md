@@ -32,6 +32,7 @@ packaging/windows/templates.sh 以本构建的内核重写 packaging/windows/new
 packaging/icons/masters.py     写出 assets/icons 的 SVG 母版（图标设计只改这里）
 packaging/icons/build.sh       由母版渲染 icns、png、ico（只在 macOS）
 scripts/inert-lo.sh 路径.app    构建出的 LibreOffice.app 去掉文档类型、URL 类型、快速查看与聚焦插件并注销（build-libreoffice.sh 调用）
+scripts/bench.ps1 -Exe 程序 -File 文件 [-Log ely.log] [-Runs 5]  Windows 测试机上的热打开：每轮关掉程序（引擎留着）再开，给了 -Log 即量到日志里的“first tile drawn”（按日志的时刻），不给即量到 Office 窗口标题带上文件名；末行是中位；须在桌面会话里跑（`schtasks /IT`）
 scripts/kernel-id.sh 内核 文件   内核目录各文件的 SHA-256 与各链接的指向合成内核编号，写进 `ely-kernel-id`（在版本文件旁）；应用与引擎握手时核对（build-libreoffice.sh、stage.sh、macOS 的 kernel.sh 调用；已建的引擎跑一次）
 scripts/extract-official-lo.sh 用 7zz 把官方镜像的 Frameworks 与 Resources 解到 engines/lo-official 并写其内核编号（不挂载；“未打补丁即拒绝”的单测用）
 scripts/check.sh [根]            规则检查：入库代码文件不超 500 行（vendor、reference、patches 除外）、agents.md 不超 30000 字节、注释（comments.py）、测试的等待（waits.py）、横幅只有 `doc-fonts`（banners.py）、行尾（eol.sh）；JS、TS、TSX 与 HTML 的注释经 `tests/scripts/comments.mjs` 由官网的 TypeScript、parse5 解析，先在 `site/` 跑 `pnpm install`

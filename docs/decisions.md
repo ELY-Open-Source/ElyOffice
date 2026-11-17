@@ -1340,3 +1340,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 测试机 7877 以 `scripts/build-libreoffice.sh --symbols`（`--enable-symbols`）建到 `engines/lo-sym`，计划任务 `ElyR20-1Symbols` 跑完退出 0（Defender 已排除 `engines\lo-src`、`engines\lo-sym`，工作全在项目目录内）。建时补丁序列 129 个；其后的 0136 至 0139 只动锁定字节导出、动画拒绝日志与字体脚本，与载入时间的采样无关，故不重建。PDB 留在 `workdir` 下（共 1167 个，库的 433 个在 `LinkTarget/Library`、可执行文件的 130 个在 `LinkTarget/Executable`；整个 `lo-sym` 1172 个；DLL 内记着其路径），cdb 载入 sdlo.dll 得 private pdb symbols。只供采样：打包与发布脚本不引用 `lo-sym`。R20.5 至 R20.7、R20.13 用它采样。
 
+## 2026-11-17 ElyShow 热启动：字体的其他语言名字在自检里读（R20.5）
+
+- 测试机 7877 以带符号的内核量：载入后第一次可见区域的输入 838 至 927 毫秒，其中补丁 0124 读全部 311 个字体族的名字表 820 至 1,090（`vcl.fonts` 的一行），即 SF.16 的“每个引擎第一份文件付 0.35 至 0.7 秒”与 SF.18 的 889。0124 在文档第一次要系统没有的字体时才读；deck.ppt 要了。Linux 的 fontconfig 先换名，不落空，不读。
+- 根治在引擎的自检：三个样本（文字、表格、幻灯片）各加一段字体为“Ely Probe Absent”的文字，常驻与接班引擎在后台自检里读完，热打开不付；应用自起引擎时这笔在引擎就绪之前。读本身不缩短，也不缓存：常驻引擎是产品的热路径，缓存要定何时失效（装卸字体），不做。
+- 测试 `the_start_check_reads_every_font_s_other_names`（Windows 与 macOS），旧样本下败；Windows 测试机与 Mac 测试机皆过，Linux 的 ely-lok 390 项过。量法 `scripts/bench.ps1` 重写入库（原 `C:\ely\sfbench` 的随目录删去）。同日同机：ElyShow 中位 1,882 降到 723，PowerPoint 1,231；数字与表在 `SuperFast.md` 的 R20.5 节。装包后 R20.26 重量。
+

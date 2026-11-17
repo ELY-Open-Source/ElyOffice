@@ -43,20 +43,22 @@ impl Probe {
             Probe::Text => (
                 "lok-verify.fodt",
                 "text",
-                "<office:automatic-styles><style:style style:name=\"T1\" style:family=\"text\"><style:text-properties fo:color=\"#ff0000\" fo:font-size=\"28pt\" fo:font-weight=\"bold\"/></style:style></office:automatic-styles><office:body><office:text><text:p><text:span text:style-name=\"T1\">verify</text:span></text:p></office:text></office:body>",
+                "<office:automatic-styles><style:style style:name=\"T1\" style:family=\"text\"><style:text-properties style:font-name=\"Absent\" fo:color=\"#ff0000\" fo:font-size=\"28pt\" fo:font-weight=\"bold\"/></style:style></office:automatic-styles><office:body><office:text><text:p><text:span text:style-name=\"T1\">verify</text:span></text:p></office:text></office:body>",
             ),
             Probe::Sheet => (
                 "lok-verify.fods",
                 "spreadsheet",
-                "<office:automatic-styles><style:style style:name=\"ce1\" style:family=\"table-cell\"><style:table-cell-properties fo:background-color=\"#ff0000\"/></style:style></office:automatic-styles><office:body><office:spreadsheet><table:table table:name=\"S\"><table:table-row><table:table-cell table:style-name=\"ce1\"/></table:table-row></table:table></office:spreadsheet></office:body>",
+                "<office:automatic-styles><style:style style:name=\"ce1\" style:family=\"table-cell\"><style:table-cell-properties fo:background-color=\"#ff0000\"/><style:text-properties style:font-name=\"Absent\"/></style:style></office:automatic-styles><office:body><office:spreadsheet><table:table table:name=\"S\"><table:table-row><table:table-cell table:style-name=\"ce1\" office:value-type=\"string\"><text:p>x</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet></office:body>",
             ),
             Probe::Slides => (
                 "lok-verify.fodp",
                 "presentation",
-                "<office:automatic-styles><style:style style:name=\"gr1\" style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#ff0000\" draw:stroke=\"none\"/></style:style></office:automatic-styles><office:body><office:presentation><draw:page draw:name=\"p\"><draw:rect draw:style-name=\"gr1\" svg:x=\"0cm\" svg:y=\"0cm\" svg:width=\"4cm\" svg:height=\"4cm\"/></draw:page></office:presentation></office:body>",
+                "<office:automatic-styles><style:style style:name=\"gr1\" style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#ff0000\" draw:stroke=\"none\"/></style:style><style:style style:name=\"T1\" style:family=\"text\"><style:text-properties style:font-name=\"Absent\" fo:font-size=\"28pt\"/></style:style></office:automatic-styles><office:body><office:presentation><draw:page draw:name=\"p\"><draw:rect draw:style-name=\"gr1\" svg:x=\"0cm\" svg:y=\"0cm\" svg:width=\"4cm\" svg:height=\"4cm\"><text:p><text:span text:style-name=\"T1\">x</text:span></text:p></draw:rect></draw:page></office:presentation></office:body>",
             ),
         };
-        (name, format!("{HEAD}{kind}\">{body}</office:document>"))
+        // A font no system has: the check reads other names.
+        let fonts = "<office:font-face-decls><style:font-face style:name=\"Absent\" svg:font-family=\"Ely Probe Absent\"/></office:font-face-decls>";
+        (name, format!("{HEAD}{kind}\">{fonts}{body}</office:document>"))
     }
 }
 
