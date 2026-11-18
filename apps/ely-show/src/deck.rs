@@ -277,7 +277,7 @@ impl Deck {
                 let view = tab.view.clone();
                 match read {
                     Ok(((slides, at), (design, objects, notes, remarks, (motion, media)), size, history)) => {
-                        tab.extra.read_at = Some(at);
+                        tab.extra.read_at = Some(at.clone());
                         log::info!("show: tab {id} has {} parts", slides.list.len());
                         // A queued turn or part outranks an earlier read.
                         view.update(cx, |view, _| {
@@ -320,6 +320,8 @@ impl Deck {
                             tab.extra.stale = tab.extra.thumbs.keys().cloned().collect();
                         }
                         (tab.extra.slides, tab.extra.design) = (slides, Some(design));
+                        let slide = ely_lok::Slide { part: tab.extra.slides.current, size: tab.extra.shown_size(), objects: objects.clone(), at };
+                        view.update(cx, |view, _| view.set_slide(Some(slide)));
                         tab.extra.objects = Some(objects);
                         (tab.extra.notes, tab.extra.remarks) = (Some(notes), remarks);
                         (tab.extra.motion, tab.extra.media) = (motion, media);

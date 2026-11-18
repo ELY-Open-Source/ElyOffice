@@ -69,7 +69,7 @@ site/        官网（Vite、pnpm、TypeScript，无框架）；site/video 是�
 | LOK 图块画布与输入桥 | `crates/ely-lok` |
 | 富剪贴板（gpui 无 HTML） | `ely_platform::clipboard`（arboard） |
 | LOK 的无障碍只报当前段落 | `LokView` 的 `view/reading.rs`（补丁 0105）；ElyPDF 的 `reading.rs` |
-| 选中对象的框与手柄 | `LokView` |
+| 选中对象的框、手柄与拖动 | `LokView` 的 `handles.rs`、`carry.rs` |
 | 虚拟化 PDF 页面栈 | `crates/ely-pdf-engine`、`crates/ely-pdf-worker`、`apps/ely-pdf` |
 | `lists::Outline` 无无障碍角色 | 上游待办 |
 | `documents::ZenMode` 与正文宽度设置冲突 | ElyMark 原生重做 |

@@ -7,7 +7,7 @@
 | LOK 图块画布与输入桥 | `crates/ely-lok` |
 | 富剪贴板：gpui 剪贴板只有文本与图片，无 HTML（富文本、表格） | `ely_platform::clipboard`，用 arboard（三端 HTML、PNG） |
 | LOK 的无障碍事件只报当前段落（文本、插入点、选区，UTF-16 计） | 文字文档经补丁 0105 取正文各段与光标所在段，`LokView` 以 gpui 的 `a11y_synthetic_children` 交成文本串，插入点与选区换成字符（`view/reading.rs`）；Calc、Impress 只交当前段落；ElyPDF 把所显示页面的逐行文字与选区交成 `Document` 的文本串（`reading.rs`）；都只在辅助技术连上时做 |
-| 选中对象的框与手柄：LOK 不画进图块 | `LokView` 按图形选区画框与 8 个手柄；按住手柄拖动经 `setGraphicSelection` 交内核（缩放；裁剪模式下裁剪） |
+| 选中对象的框与手柄：LOK 不画进图块 | `LokView` 按图形选区画框与 8 个手柄；按住手柄拖动经 `setGraphicSelection` 交内核（缩放；裁剪模式下裁剪）。演示里按住对象本身拖动（R20.32）：LOK 拖动时不画轮廓，内核的吸附又按指针、Ely 算不出落点，所以 Ely 自己画移动中的框、按幻灯片对象表（`.uno:SlideObjects`，补丁 0140 报网格）对齐与吸附，松手经一次 `.uno:TransformDialog` 放到预览处（`view/carry.rs`、`view/snap.rs`） |
 | 虚拟化 PDF 页面栈（`DocumentViewer` 一次铺全部页，不合 PERF-05） | `crates/ely-pdf-engine`、`crates/ely-pdf-worker`、`apps/ely-pdf` |
 | 组件库的大纲项（`lists::Outline`）无无障碍角色：屏幕阅读器读不到 | 上游待办；ElyMark 的搜索失败改为结果列表里的行 |
 | `documents::ZenMode` 把正文夹进 Sm 宽的列，与 ElyMark 的正文宽度设置冲突 | ElyMark 不用它，专注模式原生重做（C14.12） |

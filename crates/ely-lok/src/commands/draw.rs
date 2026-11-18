@@ -67,6 +67,16 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Int("TransformPosX", "long", -1_000_000, 1_000_000)],
         Check::Undoable,
     ),
+    // One step: both axes at once.
+    command(
+        "object.move",
+        ".uno:TransformDialog",
+        &[
+            Arg::Int("TransformPosX", "long", -1_000_000, 1_000_000),
+            Arg::Int("TransformPosY", "long", -1_000_000, 1_000_000),
+        ],
+        Check::Undoable,
+    ),
     command(
         "object.y",
         ".uno:TransformDialog",

@@ -79,6 +79,8 @@ pub struct Objects {
     pub selection: Option<Selection>,
     pub snap_grid: bool,
     pub snap_guides: bool,
+    /// The snap grid's step, x and y, in 1/100 mm.
+    pub grid: (i64, i64),
     pub guides: Vec<Guide>,
 }
 
@@ -192,6 +194,7 @@ pub fn objects(json: &str) -> io::Result<Objects> {
         selection: selection(&value["selection"])?,
         snap_grid: flag(&value, "snapGrid")?,
         snap_guides: flag(&value, "snapGuides")?,
+        grid: (int(&value, "gridX")?, int(&value, "gridY")?),
         guides,
     })
 }

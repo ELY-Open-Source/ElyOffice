@@ -71,8 +71,11 @@ impl LokView {
         true
     }
 
-    /// The frame to paint, previewing a held handle.
+    /// The frame to paint, previewing a held handle or carry.
     pub(super) fn frame(&self) -> Option<Rect> {
+        if let Some((carried, _)) = self.carried() {
+            return Some(*carried);
+        }
         let frame = self.graphic?;
         Some(match self.grip {
             Some(grip) => dragged(frame, grip.at, grip.to),

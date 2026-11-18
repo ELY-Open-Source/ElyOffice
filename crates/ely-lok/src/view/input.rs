@@ -363,7 +363,7 @@ impl LokView {
         };
         window.focus(&self.focus, cx);
         self.right_at = (event.button == MouseButton::Right).then_some(event.position);
-        if event.button == MouseButton::Left && (self.grab(event.position) || self.hold_border(event.position)) {
+        if event.button == MouseButton::Left && (self.grab(event.position) || self.hold_border(event.position) || self.pick(event.position, event.click_count, &event.modifiers)) {
             cx.notify();
             return;
         }
@@ -383,7 +383,7 @@ impl LokView {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.drop_border(event.position, cx) {
+        if self.drop_border(event.position, cx) || self.drop_carry(event.position, event.click_count, &event.modifiers) {
             cx.notify();
             return;
         }

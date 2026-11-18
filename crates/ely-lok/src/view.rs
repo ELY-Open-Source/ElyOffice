@@ -15,6 +15,8 @@ use image::{Frame, ImageBuffer, Rgba};
 use crate::{Doc, Events, Rect, Worker};
 
 mod borders;
+mod carry;
+pub use carry::Slide;
 mod clip;
 mod clock;
 mod edge;
@@ -39,6 +41,7 @@ mod zoom;
 pub use zoom::{ZOOM_STEPS, Zoomed};
 mod scroll;
 mod sheet;
+mod snap;
 mod states;
 mod text;
 pub use input::{CONTEXT, Copy, Cut, Paste, init};
@@ -122,6 +125,8 @@ pub struct LokView {
     dragging: bool,
     edge: edge::Edge,
     grip: Option<handles::Grip>,
+    slide: Option<carry::Slide>,
+    carry: Option<carry::Carry>,
     borders: borders::Borders,
     handle_size: Pixels,
     states: states::States,
@@ -228,6 +233,7 @@ impl LokView {
             dragging: false,
             edge: Default::default(),
             grip: None,
+            slide: None, carry: None,
             borders: Default::default(),
             handle_size: px(6.0),
             states: Default::default(),

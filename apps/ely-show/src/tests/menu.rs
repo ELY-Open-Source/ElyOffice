@@ -9,7 +9,7 @@ use crate::deck::Deck;
 use crate::menu::{Kind, Pick};
 
 /// The canvas with the menu's host over it.
-struct Host(Entity<Deck>);
+pub(super) struct Host(pub(super) Entity<Deck>);
 
 impl gpui::Render for Host {
     fn render(&mut self, window: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
@@ -20,7 +20,7 @@ impl gpui::Render for Host {
     }
 }
 
-fn frames(cx: &mut VisualTestContext) {
+pub(super) fn frames(cx: &mut VisualTestContext) {
     for _ in 0..3 {
         cx.update(|window, _| window.refresh());
         cx.run_until_parked();
@@ -28,7 +28,7 @@ fn frames(cx: &mut VisualTestContext) {
 }
 
 /// A slide point, in 1/100 mm, in window pixels.
-fn spot(cx: &mut VisualTestContext, deck: &Entity<Deck>, (x, y): (i64, i64)) -> Point<Pixels> {
+pub(super) fn spot(cx: &mut VisualTestContext, deck: &Entity<Deck>, (x, y): (i64, i64)) -> Point<Pixels> {
     frames(cx);
     cx.update(|_, app| {
         let read = deck.read(app).active_tab().expect("a tab").view.read(app);

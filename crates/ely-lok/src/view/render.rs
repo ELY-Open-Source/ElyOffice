@@ -182,6 +182,12 @@ impl Render for LokView {
                                     ));
                                 }
                             }
+                            for line in painted.lines {
+                                let upright = line.size.width < line.size.height;
+                                let edges = match upright { true => Edges { left: px(1.0), ..Edges::default() }, false => Edges { top: px(1.0), ..Edges::default() } };
+                                let line = Bounds { size: size(line.size.width.max(px(1.0)), line.size.height.max(px(1.0))), ..line };
+                                window.paint_quad(quad(line, Corners::default(), transparent_black(), edges, frame_color, BorderStyle::Dashed));
+                            }
                             if let Some(guide) = painted.guide {
                                 window.paint_quad(fill(guide, frame_color));
                             }
@@ -245,6 +251,8 @@ pub(super) struct Painted {
     pub(super) marks: Vec<(Bounds<Pixels>, gpui::Hsla)>,
     /// A held table border's guide line.
     pub(super) guide: Option<Bounds<Pixels>>,
+    /// A carried object's alignment lines.
+    pub(super) lines: Vec<Bounds<Pixels>>,
     /// The generation a whole screen shows; None while waiting.
     pub(super) shows: Option<u64>,
 }
@@ -396,6 +404,7 @@ impl LokView {
             frame,
             marks: self.marks(),
             guide: self.guide(),
+            lines: self.carried().map(|(_, lines)| lines.iter().map(|&line| rect(line)).collect()).unwrap_or_default(),
             shows,
         }
     }

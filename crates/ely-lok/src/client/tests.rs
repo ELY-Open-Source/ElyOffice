@@ -14,6 +14,7 @@ mod cell_looks;
 mod charts;
 mod dates;
 mod check;
+mod carry;
 mod connectors;
 mod commands;
 #[cfg(windows)]

@@ -1,0 +1,25 @@
+sd: under LOK .uno:SlideObjects reports the snap grid
+
+Ely moves a dragged object itself: it previews the frame, snaps it
+to the other objects, the slide, the guides and the grid, and drops
+it with one TransformDialog. The kernel's own drag snaps the pointer
+to guides, page margins, object frames and the grid within a
+magnetic distance, so a client cannot show where it will land. The
+grid step lives in the view (a file's settings carry it), so the
+client reads it here.
+
+gridX and gridY are the view's snap grid width, in 1/100 mm.
+
+diff --git a/sd/source/ui/unoidl/unomodel.cxx b/sd/source/ui/unoidl/unomodel.cxx
+--- a/sd/source/ui/unoidl/unomodel.cxx
++++ b/sd/source/ui/unoidl/unomodel.cxx
+@@ -2429,6 +2429,9 @@
+     lcl_Selection(rJson, rView);
+     rJson.put("snapGrid", rView.IsGridSnap());
+     rJson.put("snapGuides", rView.IsHlplSnap());
++    // The snap grid, so a client's own move snaps alike.
++    rJson.put("gridX", sal_Int64(std::lround(double(rView.GetSnapGridWidthX()))));
++    rJson.put("gridY", sal_Int64(std::lround(double(rView.GetSnapGridWidthY()))));
+     auto aGuides = rJson.startArray("guides");
+     const SdrHelpLineList& rLines = pPV->GetHelpLines();
+     for (sal_uInt16 i = 0; i < rLines.GetCount(); ++i)

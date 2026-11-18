@@ -21,6 +21,9 @@ pub(super) struct Edge {
 impl LokView {
     /// The drag follows the pointer, in the view or out.
     pub(super) fn drag_to(&mut self, at: Point<Pixels>, modifiers: Modifiers, cx: &mut Context<Self>) {
+        if self.carry_to(at, modifiers) {
+            return cx.notify();
+        }
         self.edge.at = Some((at, modifiers));
         let inside = self.inside(at);
         self.mouse(2, inside, 1, 1, &modifiers);
