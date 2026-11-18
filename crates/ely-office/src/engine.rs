@@ -45,6 +45,10 @@ pub trait Engine: Sized + 'static {
     ) -> io::Result<(Self::Doc, Entity<Self::View>)>;
     /// Closes a load whose tab closed first.
     fn discard(worker: &mut Self::Worker, loaded: Self::Loaded) -> io::Result<()>;
+    /// A load its tab let go before it ran.
+    fn skipped(_worker: &mut Self::Worker, _from: Load<Self::Import>) -> io::Result<()> {
+        Ok(())
+    }
     /// Checked before an overwrite as `format`; a risk stops it.
     fn unsound(_worker: &mut Self::Worker, _doc: &Self::Doc, _format: &str) -> io::Result<Option<crate::Risk>> {
         Ok(None)

@@ -209,15 +209,15 @@ pub trait Opening: Host {
             let asked = std::time::Instant::now();
             let reading = written.clone();
             let loaded = ely_lok::behind(&worker, move |worker| {
-                if !wanted.load(std::sync::atomic::Ordering::Acquire) {
-                    return Ok(None);
-                }
-                inside.store(true, std::sync::atomic::Ordering::Release);
-                log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
                 let from = match &text {
                     None => Load::File(&reading, &password),
                     Some((_, how)) => Load::Import(&reading, how),
                 };
+                if !wanted.load(std::sync::atomic::Ordering::Acquire) {
+                    return Self::Engine::skipped(worker, from).map(|()| None);
+                }
+                inside.store(true, std::sync::atomic::Ordering::Release);
+                log::info!("{slug}: tab {id} has the engine after {} ms", asked.elapsed().as_millis());
                 let began = std::time::Instant::now();
                 let loaded = Self::Engine::load(worker, from);
                 log::info!("{slug}: tab {id} loaded in {} ms", began.elapsed().as_millis());

@@ -337,6 +337,11 @@ impl Worker {
         Ok((unpack.u64()?, unpack.u64()?, unpack.u64()? != 0))
     }
 
+    /// This worker's session; its documents carry it.
+    pub fn session(&self) -> u64 {
+        self.session
+    }
+
     /// `doc`'s number here; another worker's document is refused.
     pub(crate) fn doc_id(&self, doc: &Doc) -> io::Result<u64> {
         match doc.worker == self.session {

@@ -145,6 +145,25 @@ fn a_closed_load_lets_go_and_keeps_the_engine() {
 }
 
 #[test]
+fn a_launch_tab_closed_before_its_turn_closes_the_early_load() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    let file = file(&mut cx, dir.path());
+    let early = ely_office::lok::test_load_early(&worker(&mut cx, &docs), &file);
+    let release = hold(&worker(&mut cx, &docs));
+    with_window(&mut cx, &docs, |docs, _, cx| docs.open_file(file.clone(), cx));
+    let id = cx.update(|app| docs.read(app).core.loading[0].0);
+    with_window(&mut cx, &docs, |docs, window, cx| docs.request_close(id, After::Tab, window, cx));
+    drop(release);
+    cx.run_until_parked();
+    let worker = worker(&mut cx, &docs);
+    assert!(early.size(&mut worker.lock().expect("the worker")).is_err(), "the engine let it go");
+}
+
+#[test]
 fn a_swapped_engine_reopens_the_other_tabs() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();

@@ -97,6 +97,10 @@ impl Engine for Lok {
         worker.close_doc(loaded.doc)
     }
 
+    fn skipped(worker: &mut Worker, from: Load<Import>) -> io::Result<()> {
+        early::skipped(worker, &from)
+    }
+
     fn risk(loaded: &Loaded) -> Option<crate::Risk> {
         loaded.pictured.then(|| {
             log::warn!("office: a Word link stays only a picture");
@@ -439,6 +443,13 @@ pub trait Commands: Host<Engine = Lok> {
 }
 
 impl<H: Host<Engine = Lok>> Commands for H {}
+
+/// Loads `path` as a launch does; its document.
+#[cfg(feature = "test-support")]
+pub fn test_load_early(worker: &Arc<Mutex<Worker>>, path: &Path) -> Doc {
+    early::load(&mut worker.lock().expect("the worker"), path.to_path_buf());
+    early::doc().expect("the early load")
+}
 
 /// A worker stopped, then its profile freed, at thread end.
 #[cfg(feature = "test-support")]
