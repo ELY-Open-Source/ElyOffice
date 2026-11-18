@@ -202,6 +202,11 @@ fn holds(text: &[u8], ns: &[u8], name: &[u8]) -> io::Result<bool> {
     }
 }
 
+/// Part `name` of a package, none if it has no such part.
+pub fn part(path: &Path, name: &str) -> io::Result<Option<Vec<u8>>> {
+    zip::read(&std::fs::read(path)?, name)
+}
+
 /// PowerPoint 2010's namespace, which holds sections.
 const P14: &[u8] = b"http://schemas.microsoft.com/office/powerpoint/2010/main";
 

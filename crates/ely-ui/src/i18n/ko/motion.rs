@@ -49,5 +49,6 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("show.media.pause", "일시 정지"),
     ("show.media.missing", "미디어 파일이 없습니다: {path}"),
     ("show.media.failed", "재생할 수 없습니다: {reason}"),
+    ("show.link.broken", "링크가 가리키는 슬라이드가 없습니다: {name}"),
     ("show.media.refused", "{name}을(를) 넣을 수 없습니다: {reason}"),
 ];

@@ -20,6 +20,7 @@ use steps::Place;
 mod audience;
 mod keys;
 mod layers;
+mod links;
 mod media;
 mod presenter;
 mod stage;
@@ -94,6 +95,8 @@ pub struct Show {
     /// Lets the left slide go once the transition ends.
     release: Option<Task<()>>,
     media: Option<media::Playing>,
+    /// What a click on each slide's shapes does.
+    links: Vec<Vec<links::Link>>,
     ended: bool,
 }
 
@@ -101,7 +104,7 @@ impl Show {
     pub fn new(
         deck: WeakEntity<Deck>,
         (worker, doc, copy): (Arc<Mutex<Worker>>, Doc, PathBuf),
-        (slides, first): (Vec<ShowSlide>, usize),
+        (slides, links, first): (Vec<ShowSlide>, Vec<Vec<links::Link>>, usize),
         (slide, pixels): ((f32, f32), (u32, u32)),
         cx: &mut Context<Self>,
     ) -> Self {
@@ -136,6 +139,7 @@ impl Show {
             advance: None,
             release: None,
             media: None,
+            links,
             ended: false,
         };
         show.fetch(cx);

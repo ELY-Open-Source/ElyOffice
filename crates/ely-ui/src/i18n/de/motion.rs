@@ -49,5 +49,6 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("show.media.pause", "Pause"),
     ("show.media.missing", "Die Mediendatei ist nicht vorhanden: {path}"),
     ("show.media.failed", "Sie lässt sich nicht abspielen: {reason}"),
+    ("show.link.broken", "Der Link führt zu einer Folie, die es nicht gibt: {name}"),
     ("show.media.refused", "{name} lässt sich nicht einfügen: {reason}"),
 ];

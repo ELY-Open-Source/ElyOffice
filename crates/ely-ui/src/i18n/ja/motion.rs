@@ -49,5 +49,6 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("show.media.pause", "一時停止"),
     ("show.media.missing", "メディアファイルがありません: {path}"),
     ("show.media.failed", "再生できません: {reason}"),
+    ("show.link.broken", "リンク先のスライドがありません：{name}"),
     ("show.media.refused", "{name} を挿入できません: {reason}"),
 ];
