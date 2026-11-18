@@ -1,0 +1,250 @@
+sc: an external 3D range reads every sheet it spans
+
+Calc did not evaluate a range over several sheets of another file.
+Typed before the file was cached, 'file:///…/[source.fods]S1:S3'!A1
+lost its last sheet at once and read S1 alone: the parser takes the
+span from the cache only. Typed after, convertToTokenArray gave up on
+purpose and the range read as empty, so SUM was 0. The parser's try
+as a single reference also left the raw path as a second file ID; an
+update named that phantom link as failed while the real one changed
+the values. Patch 0131's check could not see the sheets past the
+first, so an update kept no saved value when they were gone (Ely
+R20.33).
+
+- The parser reads an uncached file's sheet names before the span,
+  as a single reference already loads the file. The single-reference
+  try clears the file name it gives up on, so no phantom ID is made.
+- getDoubleRefTokensFromSrcDoc names each sheet (it named the second
+  for all), convertToTokenArray gives a matrix per sheet, and the
+  cache keeps a blank sheet as blank.
+- SUM, SUMSQ, PRODUCT, AVERAGE, COUNT and COUNTA (IterateParameters)
+  read every matrix. A function that takes one matrix answers
+  Err:502 for several, as upstream did before.
+- A 3D lookup records every sheet it spans, blank ones too, so when
+  one is gone the update fails, names the file and keeps the values.
+
+diff --git a/sc/inc/externalrefmgr.hxx b/sc/inc/externalrefmgr.hxx
+--- a/sc/inc/externalrefmgr.hxx
++++ b/sc/inc/externalrefmgr.hxx
+@@ -505,8 +505,8 @@
+      *        -1 if nFileId or rStartTabName not found
+      *         0 if rEndTabName not found
+      */
+-    SCTAB getCachedTabSpan(
+-        sal_uInt16 nFileId, const OUString& rStartTabName, const OUString& rEndTabName) const;
++    SCTAB getTabSpan(
++        sal_uInt16 nFileId, const OUString& rStartTabName, const OUString& rEndTabName);
+ 
+     /**
+      * Get all unique number format indices that are used in the cache tables.
+@@ -677,6 +677,9 @@
+     /// Drops what pCell looked up before this run.
+     void forgetLookups(const ScFormulaCell* pCell);
+ 
++    /// Records the sheets a lookup from rCurPos reads.
++    void recordLookup(sal_uInt16 nFileId, const OUString& rTabName, SCTAB nSpan, const ScAddress& rCurPos);
++
+     /**
+      * Register a new link listener to a specified external document.  Note
+      * that the caller is responsible for managing the life cycle of the
+diff --git a/sc/source/core/tool/address.cxx b/sc/source/core/tool/address.cxx
+--- a/sc/source/core/tool/address.cxx
++++ b/sc/source/core/tool/address.cxx
+@@ -274,7 +274,7 @@
+         return true;
+     }
+ 
+-    SCTAB nSpan = pRefMgr->getCachedTabSpan( nFileId, rStartTabName, rEndTabName);
++    SCTAB nSpan = pRefMgr->getTabSpan( nFileId, rStartTabName, rEndTabName);
+     if (nSpan == -1)
+         rFlags &= ~ScRefFlags(ScRefFlags::TAB_VALID | ScRefFlags::TAB2_VALID);
+     else if (nSpan == 0)
+@@ -608,7 +608,11 @@
+     if( nullptr == p )
+         return start;       // invalid tab
+     if (bOnlyAcceptSingle && *p == ':')
++    {
++        // Ely: no file ID for an unresolved name.
++        rExternDocName.clear();
+         return nullptr;        // 3D
++    }
+     const sal_Unicode* startEndTabs = nullptr;
+     if( p != startTabs )
+     {
+diff --git a/sc/source/core/tool/interpr4.cxx b/sc/source/core/tool/interpr4.cxx
+--- a/sc/source/core/tool/interpr4.cxx
++++ b/sc/source/core/tool/interpr4.cxx
+@@ -1276,6 +1276,9 @@
+     formula::FormulaToken* p = pArray->FirstToken();
+     if (!p || p->GetType() != svMatrix)
+         SetError( FormulaError::IllegalParameter);
++    else if (pArray->GetLen() > 1)
++        // Ely: only sums take a matrix per sheet.
++        SetError( FormulaError::IllegalArgument);
+     else
+     {
+         rMat = p->GetMatrix();
+@@ -1332,13 +1335,6 @@
+         return;
+     }
+ 
+-    if (aIter.Next())
+-    {
+-        // Can't handle more than one matrix per parameter.
+-        SetError( FormulaError::IllegalArgument);
+-        return;
+-    }
+-
+     rArray = std::move(pArray);
+ }
+ 
+@@ -1555,6 +1551,12 @@
+                         GetExternalDoubleRef(nFileId, aTabName, rRef, pArray);
+                         if (nGlobalError != FormulaError::NONE || !pArray)
+                             break;
++                        if (pArray->GetLen() > 1)
++                        {
++                            // Ely: one sheet's matrix only.
++                            SetError(FormulaError::IllegalArgument);
++                            break;
++                        }
+                         formula::FormulaToken* pTemp = pArray->FirstToken();
+                         if (!pTemp)
+                             break;
+diff --git a/sc/source/core/tool/interpr6.cxx b/sc/source/core/tool/interpr6.cxx
+--- a/sc/source/core/tool/interpr6.cxx
++++ b/sc/source/core/tool/interpr6.cxx
+@@ -887,12 +887,16 @@
+             break;
+             case svExternalDoubleRef:
+             {
+-                ScMatrixRef pMat;
+-                PopExternalDoubleRef(pMat);
++                // Ely: a 3D range brings a matrix per sheet.
++                ScExternalRefCache::TokenArrayRef pArray;
++                PopExternalDoubleRef(pArray);
+                 if ( nGlobalError != FormulaError::NONE && !( mnSubTotalFlags & SubtotalFlags::IgnoreErrVal ) )
+                     break;
+ 
+-                IterateMatrix( pMat, eFunc, bTextAsZero, mnSubTotalFlags, nCount, nFuncFmtType, fRes );
++                if (pArray)
++                    for (formula::FormulaToken* pTok : pArray->Tokens())
++                        if (pTok->GetType() == svMatrix)
++                            IterateMatrix( pTok->GetMatrix(), eFunc, bTextAsZero, mnSubTotalFlags, nCount, nFuncFmtType, fRes );
+             }
+             break;
+             case svMatrix :
+diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/externalrefmgr.cxx
+--- a/sc/source/ui/docshell/externalrefmgr.cxx
++++ b/sc/source/ui/docshell/externalrefmgr.cxx
+@@ -37,6 +37,7 @@
+ #include <defaultsoptions.hxx>
+ #include <scmod.hxx>
+ 
++#include <comphelper/scopeguard.hxx>
+ #include <o3tl/safeint.hxx>
+ #include <osl/diagnose.h>
+ #include <osl/file.hxx>
+@@ -848,6 +849,13 @@
+             pTabData = std::make_shared<Table>();
+ 
+         const ScMatrixRef& pMat = rItem.mpRangeData;
++        if (!pMat)
++        {
++            // Ely: a blank sheet of a 3D range.
++            pTabData->setCachedCellRange(nCol1, nRow1, nCol2, nRow2);
++            ++i;
++            continue;
++        }
+         SCSIZE nMatCols, nMatRows;
+         pMat->GetDimensions( nMatCols, nMatRows);
+         if (nMatCols > o3tl::make_unsigned(nCol2 - nCol1) && nMatRows > o3tl::make_unsigned(nRow2 - nRow1))
+@@ -1552,14 +1560,6 @@
+     const SCCOL nCol1 = s.Col(), nCol2 = e.Col();
+     const SCROW nRow1 = s.Row(), nRow2 = e.Row();
+ 
+-    if (nTab2 != nTab1)
+-        // For now, we don't support multi-sheet ranges intentionally because
+-        // we don't have a way to express them in a single token.  In the
+-        // future we can introduce a new stack variable type svMatrixList with
+-        // a new token type that can store a 3D matrix value and convert a 3D
+-        // range to it.
+-        return nullptr;
+-
+     std::unique_ptr<ScRange> pUsedRange;
+ 
+     std::unique_ptr<ScTokenArray> pArray(new ScTokenArray(rSrcDoc));
+@@ -1720,8 +1720,11 @@
+     maRefCache.getAllTableNames(nFileId, rTabNames);
+ }
+ 
+-SCTAB ScExternalRefManager::getCachedTabSpan( sal_uInt16 nFileId, const OUString& rStartTabName, const OUString& rEndTabName ) const
++SCTAB ScExternalRefManager::getTabSpan( sal_uInt16 nFileId, const OUString& rStartTabName, const OUString& rEndTabName )
+ {
++    // Ely: an uncached source names its sheets first.
++    if (!maRefCache.isDocInitialized(nFileId))
++        getSrcDocument(nFileId);
+     return maRefCache.getTabSpan( nFileId, rStartTabName, rEndTabName);
+ }
+ 
+@@ -1949,8 +1952,7 @@
+     if (pCurPos)
+     {
+         insertRefCell(nFileId, *pCurPos);
+-        if (const ScFormulaCell* pCell = mrDoc.GetFormulaCell(*pCurPos))
+-            maLookedUpTabs[nFileId][pCell].insert(rTabName);
++        recordLookup(nFileId, rTabName, 0, *pCurPos);
+     }
+ 
+     maybeLinkExternalFile(nFileId);
+@@ -2052,11 +2054,12 @@
+     sal_uInt16 nFileId, const OUString& rTabName, const ScRange& rRange, const ScAddress* pCurPos)
+ {
+     if (pCurPos)
+-    {
+         insertRefCell(nFileId, *pCurPos);
+-        if (const ScFormulaCell* pCell = mrDoc.GetFormulaCell(*pCurPos))
+-            maLookedUpTabs[nFileId][pCell].insert(rTabName);
+-    }
++    // Ely: after the read the cache knows every sheet.
++    comphelper::ScopeGuard aRecord([&] {
++        if (pCurPos)
++            recordLookup(nFileId, rTabName, rRange.aEnd.Tab() - rRange.aStart.Tab(), *pCurPos);
++    });
+ 
+     maybeLinkExternalFile(nFileId);
+ 
+@@ -2345,7 +2348,7 @@
+     for (SCTAB i = 1; i < nTabSpan + 1; ++i)
+     {
+         OUString aTabName;
+-        if (!rSrcDoc.GetName(nTab1 + 1, aTabName))
++        if (!rSrcDoc.GetName(nTab1 + i, aTabName))
+             // source document doesn't have any table by the specified name.
+             break;
+ 
+@@ -3252,6 +3255,24 @@
+     forgetLookups(pCell);
+ }
+ 
++void ScExternalRefManager::recordLookup(sal_uInt16 nFileId, const OUString& rTabName, SCTAB nSpan, const ScAddress& rCurPos)
++{
++    const ScFormulaCell* pCell = mrDoc.GetFormulaCell(rCurPos);
++    if (!pCell)
++        return;
++    std::set<OUString>& rTabs = maLookedUpTabs[nFileId][pCell];
++    rTabs.insert(rTabName);
++    if (nSpan <= 0)
++        return;
++    std::vector<OUString> aNames;
++    maRefCache.getAllTableNames(nFileId, aNames);
++    auto itr = std::find_if(aNames.begin(), aNames.end(),
++        [&rTabName](const OUString& rName) { return rName.equalsIgnoreAsciiCase(rTabName); });
++    // A 3D range reads every sheet up to its last.
++    for (SCTAB i = 0; i < nSpan && itr != aNames.end() && ++itr != aNames.end(); ++i)
++        rTabs.insert(*itr);
++}
++
+ void ScExternalRefManager::forgetLookups(const ScFormulaCell* pCell)
+ {
+     for (auto& [nFileId, rCells] : maLookedUpTabs)

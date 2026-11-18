@@ -66,6 +66,7 @@ mod sheet;
 mod trigger;
 pub(crate) mod show;
 mod slides;
+mod spanned;
 pub(crate) mod snapshot;
 mod stop;
 mod tools;

@@ -4,7 +4,7 @@
 
 <!-- 下两行由 scripts/compatibility.py 写出，勿手改 -->
 版本：Ely Office 0.1.16（首批应用：ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark）。
-内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0140，134 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0011，11 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.12（加 `patches/gpui` 0001–0013，13 个）。
+内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0141，135 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0011，11 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.12（加 `patches/gpui` 0001–0013，13 个）。
 各节内容最近一次逐项核对是在 0.1.11（2026-10-23）；其后各版本的改动只在所涉的条目里更新，未整体重验。
 验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。与 Microsoft Office 的交叉核对见下节（网页版，三十份样本，另十八份大、怪、极限的文件）。
 
@@ -92,7 +92,7 @@
 | 导入或受限 | XLS；CSV、TSV、TXT 经导入对话框（编码、分隔符、引号、逐列类型）成为新工作簿，原文件不动；xlsm、xltm 进风险模式 |
 | 输出 | PDF（全部工作表，按页面设置）、CSV 与 TSV（当前工作表的显示值，UTF-8）、打印 |
 
-公式语法为 Excel A1。XLSX 与非 LibreOffice 生成的 ODF 载入时总是重算。不支持的函数（XLSX、ODS；直接写的或经定义名称；数值、布尔、文字含空串、数组）显示文件里存的结果，复制工作表与撤销照旧，保存照写，原公式照原拼写保留，横幅列出这些单元格；其输入一改即显示 `#NAME?`（`INDIRECT`、`OFFSET` 等易变函数的输入无从得知，载入后任何改动都算）。限制：XLS 的导入未作此处理；外部链接不刷新，显示保存时的值；1904 日期系统（XLSX 的 `date1904`）读入、键入日期与另存 XLSX、ODS 后序列号照旧。
+公式语法为 Excel A1。XLSX 与非 LibreOffice 生成的 ODF 载入时总是重算。不支持的函数（XLSX、ODS；直接写的或经定义名称；数值、布尔、文字含空串、数组）显示文件里存的结果，复制工作表与撤销照旧，保存照写，原公式照原拼写保留，横幅列出这些单元格；其输入一改即显示 `#NAME?`（`INDIRECT`、`OFFSET` 等易变函数的输入无从得知，载入后任何改动都算）。限制：XLS 的导入未作此处理；外部链接不刷新，显示保存时的值；1904 日期系统（XLSX 的 `date1904`）读入、键入日期与另存 XLSX、ODS 后序列号照旧。外部三维区域（`'…/[源.xlsx]S1:S3'!A1`，直接写或经 `INDIRECT`）在 SUM、SUMSQ、PRODUCT、AVERAGE、COUNT、COUNTA 里逐表读，别的函数报 `Err:502`；更新时它跨到的任一张表不在即失败、点名、留旧值（补丁 0141；Windows、macOS 待 R20.26）。
 
 ## ElyShow
 
