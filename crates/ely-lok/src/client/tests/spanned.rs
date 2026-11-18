@@ -147,3 +147,22 @@ fn a_reopened_indirect_range_awaits_its_source() {
     assert_eq!(update(&mut worker, &book), Vec::<String>::new(), "the update succeeds");
     assert_eq!(cells(&mut worker, &book, "H1"), "30", "every sheet is read");
 }
+
+#[test]
+fn a_range_follows_its_named_ends_when_sheets_move() {
+    if skip() {
+        return;
+    }
+    for range in [DIRECT, INDIRECT] {
+        let (_dir, mut worker, reader, source) = linked(&format!("=SUM({range})"), &[("S1", 1), ("S2", 2), ("S3", 4)], false);
+        assert_eq!(cells(&mut worker, &reader, "H1"), "7", "{range}: three sheets");
+        // A sheet before the last joins the range.
+        std::fs::write(&source, spanned(&[("S1", 10), ("S2", 20), ("S2a", 30), ("S3", 40)])).expect("inserts S2a");
+        assert_eq!(update(&mut worker, &reader), Vec::<String>::new(), "{range}: the update succeeds");
+        assert_eq!(cells(&mut worker, &reader, "H1"), "100", "{range}: S1 to S3 again");
+        // The ends swap places: the range runs between them.
+        std::fs::write(&source, spanned(&[("S3", 1), ("S2a", 2), ("S2", 3), ("S1", 4), ("After", 50)])).expect("reverses the sheets");
+        assert_eq!(update(&mut worker, &reader), Vec::<String>::new(), "{range}: the reversed update succeeds");
+        assert_eq!(cells(&mut worker, &reader, "H1"), "10", "{range}: S3 to S1");
+    }
+}

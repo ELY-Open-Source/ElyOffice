@@ -30,6 +30,9 @@ so an update kept no saved value when they were gone (Ely R20.33).
   OOXML as '[N]S1:S3'!A1; both parse again.
 - A 3D lookup records every sheet it spans, blank ones too, so when
   one is gone the update fails, names the file and keeps the values.
+- An update places each compiled span by its two named ends in the
+  new file, the start swapped when they swapped, and gives the cache
+  the file's new sheet list, so an inserted or moved sheet counts.
 
 diff --git a/sc/inc/address.hxx b/sc/inc/address.hxx
 --- a/sc/inc/address.hxx
@@ -71,6 +74,17 @@ diff --git a/sc/inc/externalrefmgr.hxx b/sc/inc/externalrefmgr.hxx
      /**
       * Register a new link listener to a specified external document.  Note
       * that the caller is responsible for managing the life cycle of the
+diff --git a/sc/inc/token.hxx b/sc/inc/token.hxx
+--- a/sc/inc/token.hxx
++++ b/sc/inc/token.hxx
+@@ -168,6 +168,7 @@
+ 
+     virtual sal_uInt16                 GetIndex() const override;
+     virtual const svl::SharedString & GetString() const override;
++    virtual void                SetString( const svl::SharedString& rStr ) override;
+     virtual const ScSingleRefData* GetSingleRef() const override;
+     virtual ScSingleRefData*       GetSingleRef() override;
+     virtual const ScSingleRefData* GetSingleRef2() const override;
 diff --git a/sc/source/core/tool/address.cxx b/sc/source/core/tool/address.cxx
 --- a/sc/source/core/tool/address.cxx
 +++ b/sc/source/core/tool/address.cxx
@@ -258,6 +272,21 @@ diff --git a/sc/source/core/tool/interpr6.cxx b/sc/source/core/tool/interpr6.cxx
              }
              break;
              case svMatrix :
+diff --git a/sc/source/core/tool/token.cxx b/sc/source/core/tool/token.cxx
+--- a/sc/source/core/tool/token.cxx
++++ b/sc/source/core/tool/token.cxx
+@@ -793,6 +793,11 @@
+     return maTabName;
+ }
+ 
++void ScExternalDoubleRefToken::SetString( const svl::SharedString& rStr )
++{
++    maTabName = rStr;
++}
++
+ const ScSingleRefData* ScExternalDoubleRefToken::GetSingleRef() const
+ {
+     return &maDoubleRef.Ref1;
 diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/externalrefmgr.cxx
 --- a/sc/source/ui/docshell/externalrefmgr.cxx
 +++ b/sc/source/ui/docshell/externalrefmgr.cxx
@@ -340,7 +369,70 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
      return maRefCache.getTabSpan( nFileId, rStartTabName, rEndTabName);
  }
  
-@@ -1949,8 +1958,7 @@
+@@ -1896,15 +1905,8 @@
+  * @param pSrcDoc source document instance.
+  * @param nFileId external file ID associated with the source document.
+  */
+-void initDocInCache(ScExternalRefCache& rRefCache, const ScDocument* pSrcDoc, sal_uInt16 nFileId)
++void nameTabsInCache(ScExternalRefCache& rRefCache, const ScDocument* pSrcDoc, sal_uInt16 nFileId)
+ {
+-    if (!pSrcDoc)
+-        return;
+-
+-    if (rRefCache.isDocInitialized(nFileId))
+-        // Already initialized.  No need to do this twice.
+-        return;
+-
+     SCTAB nTabCount = pSrcDoc->GetTableCount();
+     if (!nTabCount)
+         return;
+@@ -1934,6 +1936,45 @@
+     rRefCache.initializeDoc(nFileId, aTabNames, aBaseName);
+ }
+ 
++void initDocInCache(ScExternalRefCache& rRefCache, const ScDocument* pSrcDoc, sal_uInt16 nFileId)
++{
++    if (!pSrcDoc)
++        return;
++
++    if (rRefCache.isDocInitialized(nFileId))
++        // Already initialized.  No need to do this twice.
++        return;
++
++    nameTabsInCache(rRefCache, pSrcDoc, nFileId);
++}
++
++/// Places a 3D range by its named ends in rSrcDoc.
++void respan(formula::FormulaToken& rToken, const std::vector<OUString>& rOldNames,
++            const ScDocument& rSrcDoc, svl::SharedStringPool& rPool)
++{
++    ScComplexRefData& rRef = *rToken.GetDoubleRef();
++    const SCTAB nSpan = rRef.Ref2.Tab() - rRef.Ref1.Tab();
++    if (nSpan <= 0)
++        return;
++    const OUString aFirst = rToken.GetString().getString();
++    auto itr = std::find_if(rOldNames.begin(), rOldNames.end(),
++        [&aFirst](const OUString& rName) { return rName.equalsIgnoreAsciiCase(aFirst); });
++    SCTAB nFirst, nLast;
++    if (rOldNames.end() - itr <= nSpan || !rSrcDoc.GetTable(aFirst, nFirst) || !rSrcDoc.GetTable(*(itr + nSpan), nLast))
++    {
++        ELY_WARN("sc.ui", "3D range not placed: " << aFirst);
++        return;
++    }
++    if (nLast < nFirst)
++    {
++        std::swap(nFirst, nLast);
++        OUString aName;
++        rSrcDoc.GetName(nFirst, aName);
++        rToken.SetString(rPool.intern(aName));
++    }
++    rRef.Ref2.SetAbsTab(rRef.Ref1.Tab() + nLast - nFirst);
++}
++
+ }
+ 
+ bool ScExternalRefManager::getSrcDocTable( const ScDocument& rSrcDoc, const OUString& rTabName, SCTAB& rTab,
+@@ -1949,8 +1990,7 @@
      if (pCurPos)
      {
          insertRefCell(nFileId, *pCurPos);
@@ -350,7 +442,7 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
      }
  
      maybeLinkExternalFile(nFileId);
-@@ -2052,11 +2060,12 @@
+@@ -2052,11 +2092,12 @@
      sal_uInt16 nFileId, const OUString& rTabName, const ScRange& rRange, const ScAddress* pCurPos)
  {
      if (pCurPos)
@@ -367,7 +459,7 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
  
      maybeLinkExternalFile(nFileId);
  
-@@ -2345,7 +2354,7 @@
+@@ -2345,7 +2386,7 @@
      for (SCTAB i = 1; i < nTabSpan + 1; ++i)
      {
          OUString aTabName;
@@ -376,7 +468,26 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
              // source document doesn't have any table by the specified name.
              break;
  
-@@ -3252,6 +3261,34 @@
+@@ -3091,6 +3132,18 @@
+             return false;
+         }
+     }
++    // Ely: a 3D range spans its named ends anew.
++    if (itrCells != maRefCells.end())
++    {
++        std::set<formula::FormulaToken*> aSpans;
++        for (const ScFormulaCell* pCell : itrCells->second)
++            for (formula::FormulaToken* pToken : pCell->GetCode()->Tokens())
++                if (pToken->GetType() == formula::svExternalDoubleRef && pToken->GetIndex() == nFileId)
++                    aSpans.insert(pToken);
++        for (formula::FormulaToken* pToken : aSpans)
++            respan(*pToken, aTabNames, rSrcDoc, mrDoc.GetSharedStringPool());
++    }
++    nameTabsInCache(maRefCache, &rSrcDoc, nFileId);
+ 
+     sc::ColumnSpanSet aCachedArea;
+     maRefCache.getAllCachedDataSpans(rSrcDoc, nFileId, aCachedArea);
+@@ -3252,6 +3305,34 @@
      forgetLookups(pCell);
  }
  
