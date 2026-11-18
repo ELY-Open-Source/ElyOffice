@@ -1,4 +1,4 @@
-"""PERF-08: 150 opens and closes; documents, handles, memory settle."""
+"""PERF-08: 300 opens and closes; documents, handles, memory settle."""
 
 import re
 import shutil
@@ -11,8 +11,8 @@ import drive
 import run
 import search
 
-# ElyDoc's memory settles by about cycle 100.
-CYCLES = 150
+# ElyMark's memory may step until cycle 150.
+CYCLES = 300
 # First-use handles plus pool churn, seen up to 11.
 ONCE = 12
 # A page per cycle leaks; less is warm-up.
