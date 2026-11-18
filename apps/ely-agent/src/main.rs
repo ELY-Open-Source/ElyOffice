@@ -4,5 +4,5 @@
 use ely_platform::AppId;
 
 fn main() {
-    ely_ui::run(AppId::Agent, |_| {}, ely_ui::blank, None);
+    ely_ui::run(AppId::Agent, |_, _| {}, ely_ui::blank, None);
 }

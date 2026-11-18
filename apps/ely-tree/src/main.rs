@@ -52,5 +52,5 @@ mod tests;
 use ely_platform::AppId;
 
 fn main() {
-    ely_ui::run(AppId::Tree, |_| {}, tree::open, None);
+    ely_ui::run(AppId::Tree, |_, _| {}, tree::open, None);
 }

@@ -13,7 +13,7 @@ use crate::theme;
 /// Starts `app`; `more` builds later windows, if any.
 pub fn run<V: Render>(
     app: AppId,
-    early: fn(AppId),
+    early: fn(AppId, &[std::path::PathBuf]),
     root: impl FnOnce(AppId, &mut Window, &mut App) -> Entity<V> + 'static,
     more: Option<crate::windows::More>,
 ) {
@@ -49,7 +49,7 @@ pub fn run<V: Render>(
     }
     startup::guard(app);
     startup::no_window_restore();
-    early(app);
+    early(app, &launch.files);
     let smoke = Smoke::from_env();
     let application = gpui_platform::application().with_assets(Assets);
     let handed = crate::opening::listen(app, &application, launch.files, door).unwrap_or_else(|error| startup::fail(app, &format!("the door for other copies did not open: {error}")));
