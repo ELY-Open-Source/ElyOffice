@@ -4,13 +4,13 @@ const DECK: &str = r##"<office:document-content xmlns:office="o" xmlns:draw="d" 
 <draw:page draw:name="One">
  <draw:frame svg:x="2cm" svg:y="2cm" svg:width="6cm" svg:height="4cm"><draw:text-box><text:p><text:a xlink:href="#Two">next</text:a></text:p></draw:text-box></draw:frame>
  <draw:frame svg:x="10cm" svg:y="2cm" svg:width="6cm" svg:height="4cm"><draw:text-box><text:p><text:a xlink:href="https://example.com/a?b=1&amp;c=2">web</text:a></text:p></draw:text-box></draw:frame>
- <draw:custom-shape svg:x="1in" svg:y="1in" svg:width="20mm" svg:height="20mm"><presentation:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="next-page"/></presentation:event-listeners></draw:custom-shape>
+ <draw:custom-shape svg:x="1in" svg:y="1in" svg:width="20mm" svg:height="20mm"><office:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="next-page"/></office:event-listeners></draw:custom-shape>
  <draw:frame svg:x="0cm" svg:y="10cm" svg:width="2cm" svg:height="2cm"><draw:text-box><text:p><text:a xlink:href="#Nowhere">gone</text:a></text:p></draw:text-box></draw:frame>
  <presentation:notes><draw:page-thumbnail/><draw:frame svg:x="0cm" svg:y="0cm" svg:width="30cm" svg:height="30cm"><draw:text-box><text:p><text:a xlink:href="https://notes.example">n</text:a></text:p></draw:text-box></draw:frame></presentation:notes>
 </draw:page>
 <draw:page draw:name="Two">
- <draw:g><draw:rect svg:x="1cm" svg:y="1cm" svg:width="2cm" svg:height="2cm"/><draw:rect svg:x="4cm" svg:y="1cm" svg:width="2cm" svg:height="2cm"/><presentation:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="show" xlink:href="#One"/></presentation:event-listeners></draw:g>
- <draw:rect svg:x="4cm" svg:y="1cm" svg:width="1cm" svg:height="1cm"><presentation:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="stop"/><presentation:event-listener script:event-name="dom:click" presentation:action="execute" xlink:href="evil.sh"/><presentation:event-listener script:event-name="dom:mouse-over" presentation:action="last-page"/></presentation:event-listeners></draw:rect>
+ <draw:g><draw:rect svg:x="1cm" svg:y="1cm" svg:width="2cm" svg:height="2cm"/><draw:rect svg:x="4cm" svg:y="1cm" svg:width="2cm" svg:height="2cm"/><office:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="show" xlink:href="#One"/></office:event-listeners></draw:g>
+ <draw:rect svg:x="4cm" svg:y="1cm" svg:width="1cm" svg:height="1cm"><office:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="stop"/><presentation:event-listener script:event-name="dom:click" presentation:action="execute" xlink:href="evil.sh"/><presentation:event-listener script:event-name="dom:mouse-over" presentation:action="last-page"/></office:event-listeners></draw:rect>
  <draw:frame svg:x="0cm" svg:y="0cm" svg:width="1cm" svg:height="1cm"><draw:image xlink:href="pic.png"/></draw:frame>
 </draw:page>
 </office:presentation></office:body></office:document-content>"##;

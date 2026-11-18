@@ -365,6 +365,45 @@ mod tests {
     }
 
     #[test]
+    fn the_kernels_copy_gives_each_slide_its_links() {
+        use ely_office::prelude::*;
+
+        use crate::slideshow::links::Goto;
+        use crate::tests::{settle, update};
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let mut cx = gpui::TestAppContext::single();
+        let Some(deck) = crate::tests::deck(&mut cx, dir.path()) else {
+            eprintln!("SKIP: no LOK build");
+            return;
+        };
+        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/show/links.fodp");
+        let from = dir.path().join("links.fodp");
+        std::fs::copy(&fixture, &from).expect("copies");
+        update(&mut cx, &deck, |deck, cx| deck.open_file(from.clone(), cx));
+        settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.list.len() == 3));
+        let path = dir.path().join("copy.odp");
+        let (slides, links) = cx.update(|app| {
+            let deck = deck.read(app);
+            let tab = deck.active_tab().expect("a tab");
+            let mut worker = deck.core.worker.lock().expect("the worker lock");
+            let (_, doc, slides, links) = super::copy(&mut worker, &tab.doc, &path).expect("a copy");
+            worker.close_doc(doc).expect("the copy closes");
+            (slides.len(), links)
+        });
+        let goes: Vec<Vec<(i64, Goto)>> =
+            links.iter().map(|page| page.iter().map(|link| (link.bounds.1, link.to.clone())).collect()).collect();
+        assert_eq!(slides, 3);
+        assert_eq!(
+            goes,
+            vec![
+                vec![(2000, Goto::Slide(1))],
+                vec![(2000, Goto::Address("https://example.com/".into())), (8000, Goto::Broken("Gone".into()))],
+                vec![(2000, Goto::Slide(0))],
+            ]
+        );
+    }
+
+    #[test]
     fn a_start_whose_screen_is_gone_says_so_and_drops_its_copy() {
         use ely_office::prelude::*;
         use gpui::AppContext as _;
