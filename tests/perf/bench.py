@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 import time
 
@@ -167,8 +168,27 @@ def main():
         print(f"the failed run's logs: {kept}")
         raise
     finally:
+        left = stop_engines(work)
         shutil.rmtree(work, ignore_errors=True)
+    if left:
+        raise RuntimeError(f"engines outlived the run: {left}")
     write(args.out, environment(found, bool(args.only) or set(args.apps) != set(APPS)), rows, held, args.runs)
+
+
+def stop_engines(work):
+    """Ends each data root's idle engines; what still runs."""
+    left = []
+    for home in sorted(glob.glob(os.path.join(work, "*"))):
+        # Only a data root holds the app's folder.
+        for slug in [slug for slug in ("ely-doc", "ely-table", "ely-show") if os.path.isdir(os.path.join(home, slug))]:
+            env = dict(os.environ, ELY_DATA_ROOT=home)
+            out = subprocess.run([run.HOST.exe(slug), "engine", "stop"], env=env, capture_output=True, text=True,
+                                 creationflags=drive.QUIET)
+            if out.returncode:
+                left.append(f"{slug} engine stop in {home}: exit {out.returncode}")
+    if run.HOST.lingering(work):
+        left.append(f"an engine still runs under {work}")
+    return left
 
 
 def write(out, env, rows, held, runs):
