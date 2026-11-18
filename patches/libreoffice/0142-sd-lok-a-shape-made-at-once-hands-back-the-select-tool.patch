@@ -1,0 +1,63 @@
+sd: a shape a command makes at once hands back the select tool
+
+Under the kit, .uno:BasicShapes (and the other custom shape and
+polygon commands) with CreateDirectly makes its default object at
+once, but the construction tool stays current: FuPermanent switches
+back to SID_OBJECT_SELECT only for the rectangle, ellipse, line and
+connector slots (bRectangle). The client's next click therefore goes
+to FuConstructCustomShape, which draws another default shape where
+it lands and selects it instead of the object clicked. Every order
+showed it: insert alone, insert then move, insert twice, insert then
+select another object (Ely R20.37). Patch 0111's synchronous switch
+never ran on this path.
+
+Custom shapes and polygons made directly now switch back like the
+rectangles do, through the same call (synchronous under the kit).
+
+diff --git a/sd/source/ui/view/drviewse.cxx b/sd/source/ui/view/drviewse.cxx
+--- a/sd/source/ui/view/drviewse.cxx
++++ b/sd/source/ui/view/drviewse.cxx
+@@ -261,7 +261,8 @@
+ 
+     // for LibreOfficeKit - choosing a shape should construct it directly
+     bool bCreateDirectly = false;
+-    bool bRectangle = false;
++    // Ely: a shape made directly returns to selecting.
++    bool bBackToSelect = false;
+ 
+     switch ( nSId )
+     {
+@@ -529,7 +530,7 @@
+             }
+ 
+             bCreateDirectly = comphelper::LibreOfficeKit::isActive();
+-            bRectangle = true;
++            bBackToSelect = true;
+             SetCurrentFunction( FuConstructRectangle::Create( *this, GetActiveWindow(), mpDrawView.get(), *GetDoc(), rReq, bPermanent ) );
+             rReq.Done();
+         }
+@@ -546,6 +547,7 @@
+             // Direct mode means no interactive drawing, just insert the shape with reasonable
+             // defaults -- to be consistent with the line insert case above.
+             bCreateDirectly = comphelper::LibreOfficeKit::isActive();
++            bBackToSelect = true;
+ 
+             SetCurrentFunction( FuConstructBezierPolygon::Create(*this, GetActiveWindow(), mpDrawView.get(), *GetDoc(), rReq, bPermanent) );
+             rReq.Done();
+@@ -609,6 +611,7 @@
+             rReq.Done();
+ 
+             bCreateDirectly = comphelper::LibreOfficeKit::isActive();
++            bBackToSelect = true;
+             const SfxItemSet* pArgs = rReq.GetArgs();
+             if (pArgs && pArgs->HasItem(FN_PARAM_1))
+             {
+@@ -757,7 +760,7 @@
+         }
+     }
+ 
+-    if (bRectangle && !bPermanent)
++    if (bBackToSelect && !bPermanent)
+     {
+         // Ely: a kit client's input may beat a queued switch.
+         const SfxCallMode eMode = comphelper::LibreOfficeKit::isActive() ? SfxCallMode::SYNCHRON
