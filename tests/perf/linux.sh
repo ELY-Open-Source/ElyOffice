@@ -23,7 +23,10 @@ EOF
 # ELY_PERF_TOOL: bench.py, or load.py; one display each.
 tool=${ELY_PERF_TOOL:-bench.py}
 screen=${ELY_PERF_DISPLAY:-9}
-xvfb=$(docker run -d --rm --network host ely-xvfb Xvfb ":$screen" -listen tcp -ac -screen 0 1920x1080x24)
+# ELY_PERF_SCREENS: X screens, each a display to gpui.
+screens=()
+for at in $(seq 0 $((${ELY_PERF_SCREENS:-1} - 1))); do screens+=(-screen "$at" 1920x1080x24); done
+xvfb=$(docker run -d --rm --network host ely-xvfb Xvfb ":$screen" -listen tcp -ac "${screens[@]}")
 trap 'docker stop -t 1 "$xvfb" >/dev/null' EXIT
 export DISPLAY=127.0.0.1:$screen
 for _ in $(seq 40); do xwininfo -root >/dev/null 2>&1 && break; sleep 0.25; done

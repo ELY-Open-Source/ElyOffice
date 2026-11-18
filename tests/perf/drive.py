@@ -237,6 +237,9 @@ class Linux(Host):
     def front(self, pid, title):
         self.helper("front", pid, title)
 
+    def cover(self, pid, screen):
+        self.helper("cover", pid, screen)
+
     def type(self, pid, text):
         return sent(self.helper("type", pid, text))
 

@@ -292,6 +292,8 @@ pub struct X11WindowState {
     pub handle: AnyWindowHandle,
     last_insets: [u32; 4],
     accesskit_adapter: Option<accesskit_unix::Adapter>,
+    /// `WindowParams::focus`: takes the keyboard on its first map.
+    pub(crate) focus: bool,
 }
 
 impl X11WindowState {
@@ -479,6 +481,8 @@ impl X11WindowState {
         if let WindowKind::AnchoredPopup(_) = params.kind {
             return Err(PopupNotSupportedError.into());
         }
+        let focus = params.focus
+            && matches!(params.kind, WindowKind::Normal | WindowKind::Floating | WindowKind::Dialog);
 
         let x_screen_index = params
             .display_id
@@ -856,6 +860,7 @@ impl X11WindowState {
                 last_insets: [0, 0, 0, 0],
                 edge_constraints: None,
                 accesskit_adapter: None,
+                focus,
                 counter_id: sync_request_counter,
                 last_sync_counter: None,
             })

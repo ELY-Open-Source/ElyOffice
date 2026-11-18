@@ -1,6 +1,7 @@
 """Window input for the Linux perf tools, by AT-SPI."""
 
 import ctypes
+import os
 import re
 import subprocess
 import sys
@@ -14,7 +15,9 @@ from gi.repository import Atspi  # noqa: E402
 R = Atspi.Role
 SYM = Atspi.KeySynthType.SYM
 CONTROL, ENTER = 0xFFE3, 0xFF0D
-KEYS = {"pagedown": 0xFF56, "tab": 0xFF09, "escape": 0xFF1B}
+KEYS = {"pagedown": 0xFF56, "pageup": 0xFF55, "tab": 0xFF09, "escape": 0xFF1B, "space": 0x20, "backspace": 0xFF08,
+        "left": 0xFF51, "up": 0xFF52, "right": 0xFF53, "down": 0xFF54, "f5": 0xFFC2, "n": ord("n"), "p": ord("p")}
+SHIFT = 0xFFE1
 # When the last input left, for bench.py to time from.
 SENT = []
 
@@ -97,12 +100,15 @@ def chord(letter):
 
 
 def key(name):
-    """One named key down and up."""
+    """One named key down and up; `shift-` holds Shift."""
+    held, name = (SHIFT, name[6:]) if name.startswith("shift-") else (None, name)
 
     def send(x11, xtst, display):
         code = x11.XKeysymToKeycode(display, ctypes.c_ulong(KEYS[name]))
-        for down in (1, 0):
-            xtst.XTestFakeKeyEvent(display, code, down, 0)
+        shift = held and x11.XKeysymToKeycode(display, ctypes.c_ulong(held))
+        steps = [(shift, 1), (code, 1), (code, 0), (shift, 0)] if shift else [(code, 1), (code, 0)]
+        for at, down in steps:
+            xtst.XTestFakeKeyEvent(display, at, down, 0)
 
     xtest(send)
 
@@ -139,10 +145,33 @@ def front(title):
     time.sleep(0.3)
 
 
+def cover(pid, screen):
+    """Gives the app's window on `screen` focus, as WMs do."""
+    display = f"{os.environ['DISPLAY']}.{screen}"
+
+    def x(*args):
+        return subprocess.run([*args, "-display", display], capture_output=True, text=True, check=True).stdout
+
+    size = re.search(r"-geometry (\d+x\d+)", x("xwininfo", "-root")).group(1)
+    tops = re.findall(rf"^\s+(0x[0-9a-f]+) .*\s{size}[+-]\d+[+-]\d+\s", x("xwininfo", "-root", "-children"), re.M)
+    ours = [top for top in tops if x("xprop", "-id", top, "_NET_WM_PID").split("=")[-1].strip() == str(pid)]
+    if len(ours) != 1:
+        sys.exit(f"{len(ours)} windows of process {pid} fill screen {screen}")
+    x11 = ctypes.CDLL("libX11.so.6")
+    x11.XOpenDisplay.restype = ctypes.c_void_p
+    handle = ctypes.c_void_p(x11.XOpenDisplay(display.encode()))
+    x11.XRaiseWindow(handle, ctypes.c_ulong(int(ours[0], 16)))
+    x11.XSetInputFocus(handle, ctypes.c_ulong(int(ours[0], 16)), 1, 0)
+    x11.XCloseDisplay(handle)
+    time.sleep(0.3)
+
+
 def main():
     command, pid, arg = sys.argv[1], int(sys.argv[2]), (sys.argv[3] if len(sys.argv) > 3 else "")
     if command == "front":
         front(arg)
+    elif command == "cover":
+        cover(pid, int(arg))
     elif command == "type":
         sent()
         Atspi.generate_keyboard_event(0, arg, Atspi.KeySynthType.STRING)

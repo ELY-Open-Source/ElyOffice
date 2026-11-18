@@ -895,8 +895,23 @@ impl X11Client {
             }
             Event::MapNotify(event) => {
                 let mut state = self.0.borrow_mut();
+                let mut focus = false;
                 if let Some(window_ref) = state.windows.get_mut(&event.window) {
                     window_ref.is_mapped = true;
+                    focus = std::mem::take(&mut window_ref.window.state.borrow_mut().focus);
+                }
+                // Holding the keyboard, the app may pass it on.
+                if focus && state.keyboard_focused_window.is_some() {
+                    log::info!("x11: a window opened by input takes the keyboard");
+                    check_reply(
+                        || "X11 SetInputFocus failed.",
+                        state.xcb_connection.set_input_focus(
+                            xproto::InputFocus::PARENT,
+                            event.window,
+                            x11rb::CURRENT_TIME,
+                        ),
+                    )
+                    .log_err();
                 }
                 handle_visibility_changed(state, event.window);
             }
