@@ -107,6 +107,17 @@ fn cover(window: &mut Window) {
     }
 }
 
+/// Logs whether a show window holds the keyboard.
+fn log_keys<V: 'static>(view: &Entity<V>, name: &'static str, window: &mut Window, cx: &mut App) {
+    view.update(cx, |_, cx| {
+        cx.observe_window_activation(window, move |_, window, _| {
+            let has = if window.is_window_active() { "has" } else { "lost" };
+            log::info!("show: the {name} window {has} the keyboard");
+        })
+        .detach();
+    });
+}
+
 /// Opens one show window; its root scope holds the keys.
 pub fn show_window(
     show: &Entity<Show>,
@@ -121,6 +132,7 @@ pub fn show_window(
                 cover(window);
                 let view = cx.new(|cx| Presenter::new(show, cx));
                 window.focus(&view.read(cx).focus.clone(), cx);
+                log_keys(&view, "presenter", window, cx);
                 view
             })?
             .into(),
@@ -129,6 +141,7 @@ pub fn show_window(
                 cover(window);
                 let view = cx.new(|cx| Audience::new(show, cx));
                 window.focus(&view.read(cx).focus.clone(), cx);
+                log_keys(&view, "audience", window, cx);
                 view
             })?
             .into(),
