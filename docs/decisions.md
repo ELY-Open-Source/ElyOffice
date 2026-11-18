@@ -1359,3 +1359,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 采样用 Very Sleepy（挂起线程取栈），因 WPR 在这台 KVM 虚拟机上漏计；工具放在 `.work`，不入库。两次采到载入，样本 89%、93% 是建视图时排可见页，不见正文导入的栈（只见格式探测），导入的成本未量出；载入与首个图块在 Windows 上约为 Linux 的三倍，与 R20.6 相近；配色在 Linux 上未量。
 - 试过两处，量了都不快，未留：Windows 后端在 LOK 下不查消息队列（照 0007）；配色在提前载入时先设。采样里那一占比与墙钟不符，原因未查。
 - R20.7 标 `[!]`：持平，未快过 Word；数字与表在 `SuperFast.md` 的 R20.7 节。
+
+## 2026-11-18 Windows 空闲引擎的门：记录周期的两倍（R20.13）
+
+- 带符号的内核上试过一处：LOK 下 `WinSalFrame::SetApplicationID` 不调 `SHGetPropertyStoreForWindow`，空闲周期不变，未留。周期是否来自 11 个 WIL 计时器，没有分开；系统库的上报我们关不掉。
+- 照任务退到“记录值加余量”：`tests/perf/idle.py` 在 Windows 上允许每个引擎的空闲周期到 `idle.json` 里 `win32-cycles` 的两倍；记录取调试构建四轮的最大值，Doc 1,419 万、Table 1,753 万、Show 2,236 万（十分钟，约 5 至 10 毫秒）。Linux 与 macOS 仍须为 0。`--record` 只改内存，周期的记录按多轮手写。
+- 正向对照：去掉补丁 0134 的内核，Table 两轮 1.97 亿、2.02 亿；新门在测试机上拦下它（允许 3,507 万），原样内核照过。
+- `tests/perf/test_idle.py` 加 Windows 的两条（两倍内过、超即败），以前没有谁跑它，`pr.yml` 起调用。`agents.md`、`docs/standing.md`、`scripts/README.md` 同改。数字与表在 `SuperFast.md` 的 R20.13 节。

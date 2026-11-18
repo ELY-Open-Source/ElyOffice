@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Idle engines: no CPU, memory within the record."""
+"""Idle engines: CPU and memory within the record."""
 
 import argparse
 import ctypes
@@ -17,6 +17,8 @@ IDLE = re.compile(r"--idle idle-(ely-[a-z]+)-[0-9a-f]{16}")
 SLACK = 1.1
 # One-shot wakes end by 360 s (SF.31).
 SETTLE_S = 400
+# Windows wakes: twice the recorded cycles (R20.13).
+CYCLE_SLACK = 2
 
 
 def linux():
@@ -85,6 +87,11 @@ def windows():
 UNIT = {"linux": "ns", "darwin": "mach time units", "win32": "cycles"}
 
 
+def allowed(kept, app):
+    """Idle CPU allowed: Windows by record, elsewhere none."""
+    return kept["win32-cycles"][app] * CYCLE_SLACK if sys.platform == "win32" else 0
+
+
 def engines(root):
     """Each app's engine under `root`: pid, CPU, MB, threads."""
     read = {"linux": linux, "darwin": mac, "win32": windows}[sys.platform]
@@ -129,8 +136,8 @@ def main():
             wrong.append(f"{app}'s threads changed while idle: {sorted(tasks ^ still)}")
         elif spent < used:
             wrong.append(f"{app}'s CPU counter went back from {used} to {spent}")
-        elif spent > used:
-            wrong.append(f"{app} used {spent - used} {UNIT[sys.platform]} CPU idle")
+        elif spent - used > allowed(kept, app):
+            wrong.append(f"{app} used {spent - used} {UNIT[sys.platform]} CPU idle; {allowed(kept, app)} allowed")
         if not args.record and mb > record[app] * SLACK:
             wrong.append(f"{app} holds {mb:.0f} MB; the record is {record[app]} MB")
     if wrong:

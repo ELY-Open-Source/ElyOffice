@@ -8,5 +8,15 @@
     "ely-doc": 87,
     "ely-table": 82,
     "ely-show": 83
+  },
+  "win32": {
+    "ely-doc": 32,
+    "ely-table": 32,
+    "ely-show": 32
+  },
+  "win32-cycles": {
+    "ely-doc": 14193279,
+    "ely-table": 17534276,
+    "ely-show": 22360407
   }
 }

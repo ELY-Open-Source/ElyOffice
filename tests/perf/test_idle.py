@@ -18,16 +18,16 @@ def engine(app, used, tasks=frozenset({"1"}), pid=None, mb=100):
 
 
 class Gate(unittest.TestCase):
-    def run_gate(self, before, after):
+    def run_gate(self, before, after, platform="linux"):
         """Exit message, or None when the gate passes."""
         record = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
-        json.dump({"linux": {app: 100 for app in idle.APPS}}, record)
+        json.dump({platform: {app: 100 for app in idle.APPS}, "win32-cycles": {app: 10 for app in idle.APPS}}, record)
         record.close()
         reads = iter([before, before, after])
         argv = ["idle.py", ROOT, "--seconds", "0", "--settle", "0"]
         with unittest.mock.patch.object(idle, "RECORD", record.name), \
-                unittest.mock.patch.dict(idle.__dict__, {"linux": lambda: next(reads)}), \
-                unittest.mock.patch.object(sys, "platform", "linux"), \
+                unittest.mock.patch.dict(idle.__dict__, {"linux": lambda: next(reads), "windows": lambda: next(reads)}), \
+                unittest.mock.patch.object(sys, "platform", platform), \
                 unittest.mock.patch.object(sys, "argv", argv):
             try:
                 idle.main()
@@ -47,6 +47,18 @@ class Gate(unittest.TestCase):
         after = self.quiet()
         after[1] = engine("ely-table", 9)
         self.assertIn("ely-table used 4 ns CPU idle", self.run_gate(self.quiet(), after))
+
+    def test_windows_cycles_within_twice_the_record_pass(self):
+        after = [engine(app, 25, tasks=None) for app in idle.APPS]
+        self.assertIsNone(self.run_gate([engine(app, 5, tasks=None) for app in idle.APPS], after, "win32"))
+
+    def test_windows_cycles_past_twice_the_record_fail(self):
+        before = [engine(app, 5, tasks=None) for app in idle.APPS]
+        after = list(before)
+        after[1] = engine("ely-table", 26, tasks=None)
+        said = self.run_gate(before, after, "win32")
+        self.assertIn("ely-table used 21 cycles CPU idle; 20 allowed", said)
+        self.assertNotIn("ely-doc", said)
 
     def test_an_exited_thread_fails_though_the_sum_fell(self):
         before = self.quiet()
