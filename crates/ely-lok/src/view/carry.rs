@@ -25,8 +25,10 @@ pub(super) struct Carry {
     press: Point<Pixels>,
     from: (i32, i32),
     frame: Rect,
-    /// An unselected object; the drop selects it.
-    pick: Option<usize>,
+    /// The carried objects; the drop selects them again.
+    carried: Vec<usize>,
+    /// The read the press saw; edits since refuse it.
+    at: Doc,
     others: Vec<Rect>,
     /// The frame and its lines, once it moved.
     moved: Option<(Rect, Vec<Rect>)>,
@@ -70,25 +72,21 @@ impl LokView {
                 if sel.lock_position != Some(false) {
                     return false;
                 }
-                (rect(sel.rect), None)
+                (rect(sel.rect), objects.iter().enumerate().filter(|(_, o)| o.selected).map(|(i, _)| i).collect())
             }
             _ => {
                 // The topmost object; tables take their cells.
                 let hit = objects.iter().rposition(|o| holds(rect(o.rect), from));
                 match hit.filter(|&i| !objects[i].locked && objects[i].kind != "table") {
-                    Some(i) => (rect(objects[i].rect), Some(i)),
+                    Some(i) => (rect(objects[i].rect), vec![i]),
                     None => return false,
                 }
             }
         };
-        let others = objects
-            .iter()
-            .enumerate()
-            .filter(|&(i, o)| Some(i) != carried.1 && !(carried.1.is_none() && o.selected))
-            .map(|(_, o)| rect(o.rect))
-            .collect();
-        log::info!("lok: carry starts, object {:?}", carried.1);
-        self.carry = Some(Carry { press: at, from, frame: carried.0, pick: carried.1, others, moved: None });
+        let others = objects.iter().enumerate().filter(|(i, _)| !carried.1.contains(i)).map(|(_, o)| rect(o.rect)).collect();
+        log::info!("lok: carry starts, objects {:?}", carried.1);
+        let read = slide.at.clone();
+        self.carry = Some(Carry { press: at, from, frame: carried.0, carried: carried.1, at: read, others, moved: None });
         self.dragging = true;
         true
     }
@@ -126,17 +124,18 @@ impl LokView {
             self.mouse(1, release, 1, count, keys);
             return true;
         };
-        let place = [x.to_string(), y.to_string()];
-        let place = [place[0].as_str(), place[1].as_str()];
-        log::info!("lok: carry drops object {:?} at {x}, {y}", carry.pick);
-        let sent = match (carry.pick, self.slide.as_ref()) {
-            (Some(index), Some(slide)) => {
-                let at = slide.at.clone();
-                let index = index.to_string();
-                self.run_all_at(&at, &[("object.select", &[&index, "false"]), ("object.move", &place)])
-            }
-            _ => self.run("object.move", &place),
-        };
+        log::info!("lok: carry drops objects {:?} at {x}, {y}", carry.carried);
+        // The press's objects, whatever is selected now.
+        let mut steps: Vec<(&str, Vec<String>)> = carry
+            .carried
+            .iter()
+            .enumerate()
+            .map(|(n, i)| ("object.select", vec![i.to_string(), (n > 0).to_string()]))
+            .collect();
+        steps.push(("object.move", vec![x.to_string(), y.to_string()]));
+        let values: Vec<Vec<&str>> = steps.iter().map(|(_, v)| v.iter().map(String::as_str).collect()).collect();
+        let commands: Vec<(&str, &[&str])> = steps.iter().zip(&values).map(|((id, _), v)| (*id, v.as_slice())).collect();
+        let sent = self.run_all_at(&carry.at, &commands);
         if let Err(error) = sent {
             log::error!("lok: the carried object did not drop: {error}");
         }

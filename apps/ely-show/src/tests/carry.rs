@@ -110,3 +110,47 @@ fn a_dragged_object_follows_snaps_and_lands_where_dropped() {
     assert_eq!(frame(&mut shown, &deck, b), b_now, "a click moves nothing");
     assert!(carried(&mut shown, &deck).is_none());
 }
+
+#[test]
+fn a_drag_whose_read_went_stale_drops_nothing() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = super::deck(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let path = dir.path().join("pair.fodp");
+    std::fs::write(&path, PAIR).expect("writes");
+    super::update(&mut cx, &deck, |deck, cx| deck.open_file(path.clone(), cx));
+    settle(&cx, |app| objects(app, &deck).is_some_and(|o| o.objects.len() == 2));
+    act(&mut cx, &deck, ("object.select", &["1", "false"]), |o| o.objects[1].selected);
+    let window = cx.add_window(|_, _| Host(deck.clone()));
+    let mut shown = VisualTestContext::from_window(window.into(), &cx);
+    let (a, b) = (frame(&mut shown, &deck, 0), frame(&mut shown, &deck, 1));
+    let centre = (b.0 + b.2 / 2, b.1 + b.3 / 2);
+    let alt = Modifiers { alt: true, ..Modifiers::none() };
+    drag(&mut shown, &deck, centre, (-9_000, 4_000), alt);
+    // Another window picks A while B is carried.
+    cx.update(|app| {
+        let deck = deck.read(app);
+        let doc = deck.active_tab().expect("a tab").doc.clone();
+        let mut worker = deck.core.worker.lock().expect("the worker");
+        let state = worker.now(&doc).expect("the state");
+        worker.run(&state, "object.select", &["0", "false"]).expect("selects A");
+    });
+    release(&mut shown, &deck, (centre.0 - 9_000, centre.1 + 4_000), alt);
+    super::quiet(&cx, &deck);
+    update_objects(&mut cx, &deck);
+    let o = cx.update(|app| objects(app, &deck).expect("objects"));
+    assert_eq!((o.objects[0].rect, o.objects[1].rect), (a, b), "a stale drop moves nothing");
+}
+
+/// Rereads the slide's objects.
+fn update_objects(cx: &mut TestAppContext, deck: &Entity<Deck>) {
+    let reads = cx.update(|app| deck.read(app).active_tab().expect("a tab").extra.reads);
+    super::update(cx, deck, |deck, cx| {
+        let tab = deck.core.active().expect("a tab");
+        deck.force_reread(tab, cx)
+    });
+    settle(cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.reads > reads));
+}
