@@ -7,22 +7,42 @@ span from the cache only. Typed after, convertToTokenArray gave up on
 purpose and the range read as empty, so SUM was 0. The parser's try
 as a single reference also left the raw path as a second file ID; an
 update named that phantom link as failed while the real one changed
-the values. Patch 0131's check could not see the sheets past the
-first, so an update kept no saved value when they were gone (Ely
-R20.33).
+the values. Saved to XLSX the range came back as text: Calc wrote
+'[1]S1':'S3'!A1:A1, which its own import cannot parse, and no cached
+cells. Patch 0131's check could not see the sheets past the first,
+so an update kept no saved value when they were gone (Ely R20.33).
 
-- The parser reads an uncached file's sheet names before the span,
-  as a single reference already loads the file. The single-reference
-  try clears the file name it gives up on, so no phantom ID is made.
+- The parser reads the sheet names of a file it knows none of before
+  the span, as a single reference already loads the file. The
+  single-reference try clears the file name it gives up on, so no
+  phantom ID is made.
+- A last sheet the file lacks makes no range: a compiled reference
+  with a deleted sheet answers #REF! instead of reading the first.
+  INDIRECT names both ends of such a span as looked up and answers
+  Err:540 while links await the user's check, #REF! after.
 - getDoubleRefTokensFromSrcDoc names each sheet (it named the second
-  for all), convertToTokenArray gives a matrix per sheet, and the
-  cache keeps a blank sheet as blank.
+  for all), and convertToTokenArray gives a matrix per sheet, blank
+  ones empty, as the cache and the XLSX export expect.
 - SUM, SUMSQ, PRODUCT, AVERAGE, COUNT and COUNTA (IterateParameters)
   read every matrix. A function that takes one matrix answers
   Err:502 for several, as upstream did before.
+- Excel A1 writes the span as Excel does, 'dir/[file]S1:S3'!A1, and
+  OOXML as '[N]S1:S3'!A1; both parse again.
 - A 3D lookup records every sheet it spans, blank ones too, so when
   one is gone the update fails, names the file and keeps the values.
 
+diff --git a/sc/inc/address.hxx b/sc/inc/address.hxx
+--- a/sc/inc/address.hxx
++++ b/sc/inc/address.hxx
+@@ -241,6 +241,8 @@
+     struct ExternalInfo
+     {
+         OUString    maTabName;
++        /// Ely: a span's last sheet the source cannot place.
++        OUString    maUnplacedTabName;
+         sal_uInt16  mnFileId;
+         bool        mbExternal;
+ 
 diff --git a/sc/inc/externalrefmgr.hxx b/sc/inc/externalrefmgr.hxx
 --- a/sc/inc/externalrefmgr.hxx
 +++ b/sc/inc/externalrefmgr.hxx
@@ -37,12 +57,16 @@ diff --git a/sc/inc/externalrefmgr.hxx b/sc/inc/externalrefmgr.hxx
  
      /**
       * Get all unique number format indices that are used in the cache tables.
-@@ -677,6 +677,9 @@
+@@ -677,6 +677,13 @@
      /// Drops what pCell looked up before this run.
      void forgetLookups(const ScFormulaCell* pCell);
  
 +    /// Records the sheets a lookup from rCurPos reads.
 +    void recordLookup(sal_uInt16 nFileId, const OUString& rTabName, SCTAB nSpan, const ScAddress& rCurPos);
++
++    /// Records a 3D range's named ends; answers its error.
++    FormulaError unplacedSpan(sal_uInt16 nFileId, const OUString& rTabName, const OUString& rEndTabName,
++                              const ScAddress& rCurPos);
 +
      /**
       * Register a new link listener to a specified external document.  Note
@@ -50,16 +74,18 @@ diff --git a/sc/inc/externalrefmgr.hxx b/sc/inc/externalrefmgr.hxx
 diff --git a/sc/source/core/tool/address.cxx b/sc/source/core/tool/address.cxx
 --- a/sc/source/core/tool/address.cxx
 +++ b/sc/source/core/tool/address.cxx
-@@ -274,7 +274,7 @@
+@@ -274,7 +274,9 @@
          return true;
      }
  
 -    SCTAB nSpan = pRefMgr->getCachedTabSpan( nFileId, rStartTabName, rEndTabName);
 +    SCTAB nSpan = pRefMgr->getTabSpan( nFileId, rStartTabName, rEndTabName);
++    if (pExtInfo)
++        pExtInfo->maUnplacedTabName = (nSpan == -1 || nSpan == 0) ? rEndTabName : OUString();
      if (nSpan == -1)
          rFlags &= ~ScRefFlags(ScRefFlags::TAB_VALID | ScRefFlags::TAB2_VALID);
      else if (nSpan == 0)
-@@ -608,7 +608,11 @@
+@@ -608,7 +610,11 @@
      if( nullptr == p )
          return start;       // invalid tab
      if (bOnlyAcceptSingle && *p == ':')
@@ -71,6 +97,90 @@ diff --git a/sc/source/core/tool/address.cxx b/sc/source/core/tool/address.cxx
      const sal_Unicode* startEndTabs = nullptr;
      if( p != startTabs )
      {
+diff --git a/sc/source/core/tool/compiler.cxx b/sc/source/core/tool/compiler.cxx
+--- a/sc/source/core/tool/compiler.cxx
++++ b/sc/source/core/tool/compiler.cxx
+@@ -1504,8 +1504,21 @@
+     {
+         ScRange aAbsRef = rRef.toAbs(rLimits, rPos);
+ 
+-        ConventionXL::makeExternalDocStr(rBuffer, rFileName);
+-        ConventionXL::makeExternalTabNameRange(rBuffer, rTabName, rTabNames, aAbsRef);
++        OUString aLastTabName;
++        if (lcl_getLastTabName(aLastTabName, rTabName, rTabNames, aAbsRef) && aLastTabName != rTabName)
++        {
++            // Ely: a span as Excel writes it parses again.
++            const OUString aFull = INetURLObject::decode(rFileName, INetURLObject::DecodeMechanism::Unambiguous);
++            const sal_Int32 nName = aFull.lastIndexOf('/') + 1;
++            const OUString aSpan = OUString::Concat(aFull.subView(0, nName)) + "[" + aFull.subView(nName) + "]"
++                                   + rTabName + ":" + aLastTabName;
++            rBuffer.append("'" + aSpan.replaceAll("'", "''") + "'");
++        }
++        else
++        {
++            ConventionXL::makeExternalDocStr(rBuffer, rFileName);
++            ConventionXL::makeExternalTabNameRange(rBuffer, rTabName, rTabNames, aAbsRef);
++        }
+         rBuffer.append('!');
+ 
+         makeSingleCellStr(rLimits, rBuffer, rRef.Ref1, aAbsRef.aStart);
+@@ -1663,19 +1676,30 @@
+ 
+         ScRange aAbsRef = rRef.toAbs(rLimits, rPos);
+ 
+-        OUStringBuffer aBuf;
+-        ConventionXL::makeExternalTabNameRange( aBuf, rTabName, rTabNames, aAbsRef);
+-        if (!aBuf.isEmpty() && aBuf[0] == '\'')
+-        {
+-            rBuffer.append('\'');
+-            ConventionXL_OOX::makeExternalDocStr( rBuffer, nFileId);
+-            rBuffer.append( aBuf.subView(1));
++        // Ely: quote the whole span, '[N]S1:S3', as Excel does.
++        OUString aLastTabName;
++        const bool bPlaced = lcl_getLastTabName(aLastTabName, rTabName, rTabNames, aAbsRef);
++        std::vector<OUString> aNames{ bPlaced ? rTabName : aLastTabName };
++        if (bPlaced && aLastTabName != rTabName)
++            aNames.push_back(aLastTabName);
++        bool bQuote = false;
++        for (const OUString& rName : aNames)
++        {
++            OUString aQuoted(rName);
++            ScCompiler::CheckTabQuotes(aQuoted);
++            bQuote |= aQuoted != rName;
+         }
+-        else
++        if (bQuote)
++            rBuffer.append('\'');
++        ConventionXL_OOX::makeExternalDocStr( rBuffer, nFileId);
++        for (size_t i = 0; i < aNames.size(); ++i)
+         {
+-            ConventionXL_OOX::makeExternalDocStr( rBuffer, nFileId);
+-            rBuffer.append( aBuf);
++            if (i)
++                rBuffer.append(':');
++            rBuffer.append(bQuote ? aNames[i].replaceAll("'", "''") : aNames[i]);
+         }
++        if (bQuote)
++            rBuffer.append('\'');
+         rBuffer.append('!');
+ 
+         makeSingleCellStr(rLimits, rBuffer, rRef.Ref1, aAbsRef.aStart);
+diff --git a/sc/source/core/tool/interpr1.cxx b/sc/source/core/tool/interpr1.cxx
+--- a/sc/source/core/tool/interpr1.cxx
++++ b/sc/source/core/tool/interpr1.cxx
+@@ -10882,7 +10882,11 @@
+             ( bTryXlA1 && ConvertDoubleRef(mrDoc, sRefStr, nTab, aRefAd,
+                                            aRefAd2, aDetailsXlA1, &aExtInfo) ) ) )
+     {
+-        if (aExtInfo.mbExternal)
++        if (aExtInfo.mbExternal && !aExtInfo.maUnplacedTabName.isEmpty())
++            // Ely: a 3D range its source cannot place.
++            PushError(mrDoc.GetExternalRefManager()->unplacedSpan(
++                aExtInfo.mnFileId, aExtInfo.maTabName, aExtInfo.maUnplacedTabName, aPos));
++        else if (aExtInfo.mbExternal)
+         {
+             PushExternalDoubleRef(
+                 aExtInfo.mnFileId, aExtInfo.maTabName,
 diff --git a/sc/source/core/tool/interpr4.cxx b/sc/source/core/tool/interpr4.cxx
 --- a/sc/source/core/tool/interpr4.cxx
 +++ b/sc/source/core/tool/interpr4.cxx
@@ -84,7 +194,21 @@ diff --git a/sc/source/core/tool/interpr4.cxx b/sc/source/core/tool/interpr4.cxx
      else
      {
          rMat = p->GetMatrix();
-@@ -1332,13 +1335,6 @@
+@@ -1301,6 +1304,13 @@
+         return;
+     }
+ 
++    if (rData.Ref1.IsTabDeleted() || rData.Ref2.IsTabDeleted())
++    {
++        // Ely: an unplaced sheet never narrows the range.
++        SetError(FormulaError::NoRef);
++        return;
++    }
++
+     ScComplexRefData aData(rData);
+     ScRange aRange = aData.toAbs(mrDoc, aPos);
+     if (!mrDoc.ValidColRow(aRange.aStart.Col(), aRange.aStart.Row()) || !mrDoc.ValidColRow(aRange.aEnd.Col(), aRange.aEnd.Row()))
+@@ -1332,13 +1342,6 @@
          return;
      }
  
@@ -98,7 +222,7 @@ diff --git a/sc/source/core/tool/interpr4.cxx b/sc/source/core/tool/interpr4.cxx
      rArray = std::move(pArray);
  }
  
-@@ -1555,6 +1551,12 @@
+@@ -1555,6 +1558,12 @@
                          GetExternalDoubleRef(nFileId, aTabName, rRef, pArray);
                          if (nGlobalError != FormulaError::NONE || !pArray)
                              break;
@@ -145,21 +269,7 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
  #include <o3tl/safeint.hxx>
  #include <osl/diagnose.h>
  #include <osl/file.hxx>
-@@ -848,6 +849,13 @@
-             pTabData = std::make_shared<Table>();
- 
-         const ScMatrixRef& pMat = rItem.mpRangeData;
-+        if (!pMat)
-+        {
-+            // Ely: a blank sheet of a 3D range.
-+            pTabData->setCachedCellRange(nCol1, nRow1, nCol2, nRow2);
-+            ++i;
-+            continue;
-+        }
-         SCSIZE nMatCols, nMatRows;
-         pMat->GetDimensions( nMatCols, nMatRows);
-         if (nMatCols > o3tl::make_unsigned(nCol2 - nCol1) && nMatRows > o3tl::make_unsigned(nRow2 - nRow1))
-@@ -1552,14 +1560,6 @@
+@@ -1552,14 +1553,6 @@
      const SCCOL nCol1 = s.Col(), nCol2 = e.Col();
      const SCROW nRow1 = s.Row(), nRow2 = e.Row();
  
@@ -174,20 +284,63 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
      std::unique_ptr<ScRange> pUsedRange;
  
      std::unique_ptr<ScTokenArray> pArray(new ScTokenArray(rSrcDoc));
-@@ -1720,8 +1720,11 @@
+@@ -1573,9 +1566,22 @@
+         SCCOL nDataCol1 = nCol1, nDataCol2 = nCol2;
+         SCROW nDataRow1 = nRow1, nDataRow2 = nRow2;
+         bool bShrunk;
++        SCSIZE nMatrixColumns = static_cast<SCSIZE>(nCol2-nCol1+1);
++        SCSIZE nMatrixRows = static_cast<SCSIZE>(nRow2-nRow1+1);
+         if (!rSrcDoc.ShrinkToUsedDataArea( bShrunk, nTab, nDataCol1, nDataRow1, nDataCol2, nDataRow2, false))
++        {
+             // no data within specified range.
++            if (nTab1 == nTab2)
++                continue;
++            // Ely: a blank sheet of a 3D range is empty.
++            if (!bFirstTab)
++                pArray->AddOpCode(ocSep);
++            ScMatrixRef xEmpty = new ScMatrix(nMatrixColumns, nMatrixRows);
++            pArray->AddToken(ScMatrixToken(xEmpty));
++            itrCache->mpRangeData = std::move(xEmpty);
++            bFirstTab = false;
+             continue;
++        }
+ 
+         if (pUsedRange)
+             // Make sure the used area only grows, not shrinks.
+@@ -1583,8 +1589,6 @@
+         else
+             pUsedRange.reset(new ScRange(nDataCol1, nDataRow1, 0, nDataCol2, nDataRow2, 0));
+ 
+-        SCSIZE nMatrixColumns = static_cast<SCSIZE>(nCol2-nCol1+1);
+-        SCSIZE nMatrixRows = static_cast<SCSIZE>(nRow2-nRow1+1);
+         ScMatrixRef xMat = new ScMatrix( nMatrixColumns, nMatrixRows);
+ 
+         // Check if size could be allocated and if not skip the fill, there's
+@@ -1627,7 +1631,7 @@
+     }
+ 
+     if (!pUsedRange)
+-        return nullptr;
++        return nTab1 == nTab2 ? nullptr : std::move(pArray);
+ 
+     s.SetCol(pUsedRange->aStart.Col());
+     s.SetRow(pUsedRange->aStart.Row());
+@@ -1720,8 +1724,13 @@
      maRefCache.getAllTableNames(nFileId, rTabNames);
  }
  
 -SCTAB ScExternalRefManager::getCachedTabSpan( sal_uInt16 nFileId, const OUString& rStartTabName, const OUString& rEndTabName ) const
 +SCTAB ScExternalRefManager::getTabSpan( sal_uInt16 nFileId, const OUString& rStartTabName, const OUString& rEndTabName )
  {
-+    // Ely: an uncached source names its sheets first.
-+    if (!maRefCache.isDocInitialized(nFileId))
++    // Ely: an unknown source names its sheets first.
++    std::vector<OUString> aNames;
++    maRefCache.getAllTableNames(nFileId, aNames);
++    if (aNames.empty())
 +        getSrcDocument(nFileId);
      return maRefCache.getTabSpan( nFileId, rStartTabName, rEndTabName);
  }
  
-@@ -1949,8 +1952,7 @@
+@@ -1949,8 +1958,7 @@
      if (pCurPos)
      {
          insertRefCell(nFileId, *pCurPos);
@@ -197,7 +350,7 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
      }
  
      maybeLinkExternalFile(nFileId);
-@@ -2052,11 +2054,12 @@
+@@ -2052,11 +2060,12 @@
      sal_uInt16 nFileId, const OUString& rTabName, const ScRange& rRange, const ScAddress* pCurPos)
  {
      if (pCurPos)
@@ -214,7 +367,7 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
  
      maybeLinkExternalFile(nFileId);
  
-@@ -2345,7 +2348,7 @@
+@@ -2345,7 +2354,7 @@
      for (SCTAB i = 1; i < nTabSpan + 1; ++i)
      {
          OUString aTabName;
@@ -223,7 +376,7 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
              // source document doesn't have any table by the specified name.
              break;
  
-@@ -3252,6 +3255,24 @@
+@@ -3252,6 +3261,34 @@
      forgetLookups(pCell);
  }
  
@@ -243,6 +396,16 @@ diff --git a/sc/source/ui/docshell/externalrefmgr.cxx b/sc/source/ui/docshell/ex
 +    // A 3D range reads every sheet up to its last.
 +    for (SCTAB i = 0; i < nSpan && itr != aNames.end() && ++itr != aNames.end(); ++i)
 +        rTabs.insert(*itr);
++}
++
++FormulaError ScExternalRefManager::unplacedSpan(sal_uInt16 nFileId, const OUString& rTabName,
++                                               const OUString& rEndTabName, const ScAddress& rCurPos)
++{
++    insertRefCell(nFileId, rCurPos);
++    recordLookup(nFileId, rTabName, 0, rCurPos);
++    recordLookup(nFileId, rEndTabName, 0, rCurPos);
++    // Unread until the user asks, as a single cell.
++    return isLinkUpdateAllowedInDoc(mrDoc) ? FormulaError::NoRef : FormulaError::LinkFormulaNeedingCheck;
 +}
 +
  void ScExternalRefManager::forgetLookups(const ScFormulaCell* pCell)
