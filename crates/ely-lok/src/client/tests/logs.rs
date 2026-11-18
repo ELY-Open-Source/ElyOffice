@@ -3,6 +3,7 @@
 use std::sync::{Mutex, Once};
 
 use super::analysis::{cells, skip};
+use super::fallback::{chinese, ASKED};
 use super::linked::{rates, sheets, update};
 use super::ole_links::worksheet;
 use super::sheet::open_book;
@@ -213,4 +214,17 @@ fn the_start_check_reads_every_font_s_other_names() {
     }).collect();
     // Else a hot open pays it in its first tile.
     assert!(read.iter().all(|(_, read)| *read), "{read:?}");
+}
+
+#[test]
+fn a_missing_font_logs_what_drew_it_and_why() {
+    if skip() {
+        return;
+    }
+    listen();
+    let (_dir, _worker, _doc) = super::input::open(&chinese());
+    for asked in ASKED {
+        let line = heard(&["vcl.fonts", &format!("font \"{asked}\" missing: took \""), "\" ("]);
+        assert!(line.is_some(), "{asked}'s stand-in is not in the app's log");
+    }
 }

@@ -1,0 +1,406 @@
+vcl: a missing CJK font keeps its kind, and says what drew it
+
+A document names a Chinese font the system lacks (微软雅黑, 等线,
+思源黑体 on a Mac; 等线 on an English Windows). The name has no
+substitution entry, so the lookup scored every family by attributes.
+A family whose name holds Han characters counts as a Chinese text
+face, and on a Mac in Chinese every family is named in Chinese, so
+Kaiti, Xingkai, Libian, Wawati and Yuppy tie with PingFang; the tie
+goes to hash order. The same file drew STKaiti TC in Writer and
+Yuppy TC in Impress. The language test also takes any CJK language
+for any other: Windows drew 等线 in MS UI Gothic, a Japanese face
+(Ely R20.38).
+
+A missing name in a CJK run, or a CJK name, now takes the run
+language's default list (VCL.xcu DefaultFonts) before the shared
+substitution lists: CJK_TEXT for Song, Ming, Kai and Fangsong names,
+CJK_DISPLAY (sans) for the rest, as Word and PowerPoint fall back to
+SimSun and Microsoft YaHei. The shared lists come after: their tails
+cross the kind (宋体 drew Arial Unicode MS on a Mac). List members
+are found by any of their names, as a Mac in Chinese keeps PingFang
+as 苹方-简.
+
+On Linux fontconfig answers first, and it adds a generic family only
+when the document gives a family type; Word gives 宋体 "auto", so
+宋体, 思源宋体, 仿宋 and 楷体 drew in Noto Sans CJK. A Song-kind name
+in a CJK run now adds "serif" there. One rule names the kind for
+both: IsTextCJKFontName in unotools.
+
+Every substitution is logged once per name, in the ely.vcl.fonts
+area: the name asked, the family taken, and why; every glyph
+fallback once per asked font and family taken.
+
+diff --git a/include/unotools/fontdefs.hxx b/include/unotools/fontdefs.hxx
+--- a/include/unotools/fontdefs.hxx
++++ b/include/unotools/fontdefs.hxx
+@@ -86,6 +86,8 @@
+ 
+ UNOTOOLS_DLLPUBLIC std::u16string_view GetNextFontToken( std::u16string_view rTokenStr, sal_Int32& rIndex );
+ UNOTOOLS_DLLPUBLIC OUString GetEnglishSearchFontName( std::u16string_view rName );
++/// Ely: a Song, Ming, Kai or Fangsong kind name.
++UNOTOOLS_DLLPUBLIC bool IsTextCJKFontName( std::u16string_view rName );
+ 
+ /** Strip any "script font suffix" from the font name
+ 
+diff --git a/unotools/source/misc/fontdefs.cxx b/unotools/source/misc/fontdefs.cxx
+--- a/unotools/source/misc/fontdefs.cxx
++++ b/unotools/source/misc/fontdefs.cxx
+@@ -301,6 +301,18 @@
+     return rNameStr;
+ }
+ 
++bool IsTextCJKFontName(std::u16string_view rName)
++{
++    for (sal_Unicode ch : rName)
++        if (ch == u'\u5B8B' || ch == u'\u660E' || ch == u'\u6977' || ch == u'\u4EFF')
++            return true;
++    const OUString aSearchName = GetEnglishSearchFontName(rName);
++    for (std::u16string_view aKey : { u"song", u"simsun", u"ming", u"mincho", u"kai", u"batang", u"myeongjo" })
++        if (aSearchName.indexOf(aKey) != -1)
++            return true;
++    return false;
++}
++
+ std::u16string_view GetNextFontToken( std::u16string_view rTokenStr, sal_Int32& rIndex )
+ {
+     // check for valid start index
+diff --git a/vcl/inc/font/PhysicalFontCollection.hxx b/vcl/inc/font/PhysicalFontCollection.hxx
+--- a/vcl/inc/font/PhysicalFontCollection.hxx
++++ b/vcl/inc/font/PhysicalFontCollection.hxx
+@@ -29,6 +29,7 @@
+ 
+ #include <array>
+ #include <string_view>
++#include <unordered_set>
+ 
+ #define MAX_GLYPHFALLBACK 16
+ 
+@@ -86,6 +87,8 @@
+     // Other names' search names, read on the first miss.
+     mutable std::unordered_map<OUString, vcl::font::PhysicalFontFamily*> maOtherNames;
+     mutable bool            mbOtherNames;
++    // Missing names and fallbacks already logged.
++    mutable std::unordered_set<OUString> maLogged;
+ 
+     vcl::font::PreMatchFontSubstitution* mpPreMatchHook;       // device specific prematch substitution
+     vcl::font::GlyphFallbackFontSubstitution* mpFallbackHook;  // device specific glyph fallback substitution
+@@ -99,6 +102,10 @@
+     SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamilyBySearchName( const OUString& ) const;
+     SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamilyByOtherName( const OUString& ) const;
+     SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamilyBySubstFontAttr( const utl::FontNameAttr& ) const;
++    SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamily( vcl::font::FontSelectPattern&, OUString& rWhy ) const;
++    // A missing CJK name takes its language's own list.
++    SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamilyOfLanguage( const vcl::font::FontSelectPattern&,
++                                                                              ImplFontAttrs, OUString& rWhy ) const;
+ 
+     SAL_DLLPRIVATE vcl::font::PhysicalFontFamily* ImplFindFontFamilyOfDefaultFont() const;
+ 
+diff --git a/vcl/source/font/PhysicalFontCollection.cxx b/vcl/source/font/PhysicalFontCollection.cxx
+--- a/vcl/source/font/PhysicalFontCollection.cxx
++++ b/vcl/source/font/PhysicalFontCollection.cxx
+@@ -25,6 +25,7 @@
+ 
+ #include <i18nlangtag/languagetag.hxx>
+ #include <i18nlangtag/mslangid.hxx>
++#include <com/sun/star/i18n/ScriptType.hpp>
+ #include <comphelper/configuration.hxx>
+ #include <unotools/fontdefs.hxx>
+ #include <ely/log.hxx>
+@@ -68,6 +69,33 @@
+     return ImplFontAttrs::None;
+ }
+ 
++// The name's weight and slant, where the family has them.
++static void lcl_TakeNameStyle(vcl::font::FontSelectPattern& rFSD, const vcl::font::PhysicalFontFamily& rFound,
++                              ImplFontAttrs nSearchType, FontWeight eSearchWeight)
++{
++    if ((eSearchWeight >= WEIGHT_BOLD)
++        && (eSearchWeight > rFSD.GetWeight())
++        && (rFound.GetTypeFaces() & vcl::font::FontTypeFaces::Bold))
++    {
++        rFSD.SetWeight( eSearchWeight );
++    }
++    else if ((eSearchWeight < WEIGHT_NORMAL)
++             && (eSearchWeight < rFSD.GetWeight())
++             && (eSearchWeight != WEIGHT_DONTKNOW)
++             && (rFound.GetTypeFaces() & vcl::font::FontTypeFaces::Light))
++    {
++        rFSD.SetWeight( eSearchWeight );
++    }
++
++    if ((nSearchType & ImplFontAttrs::Italic)
++        && ((rFSD.GetItalic() == ITALIC_DONTKNOW)
++        || (rFSD.GetItalic() == ITALIC_NONE))
++        && (rFound.GetTypeFaces() & vcl::font::FontTypeFaces::Italic))
++    {
++        rFSD.SetItalic( ITALIC_NORMAL );
++    }
++}
++
+ namespace vcl::font
+ {
+ 
+@@ -107,6 +135,7 @@
+     mbMatchData = false;
+     maOtherNames.clear();
+     mbOtherNames = false;
++    maLogged.clear();
+ }
+ 
+ void PhysicalFontCollection::ImplInitGenericGlyphFallback() const
+@@ -293,8 +322,17 @@
+         // TODO: adjust nFallbackLevel by number of levels resolved by the fallback hook
+         if( nFallbackLevel < mnFallbackCount )
+             pFallbackData = (*mpFallbackList)[ nFallbackLevel ];
++        if (pFallbackData
++            && maLogged.insert(OUString(rFontSelData.GetFamilyName() + u"\n" + pFallbackData->GetSearchName())).second)
++            ELY_INFO("vcl.fonts", "font \"" << rFontSelData.GetFamilyName() << "\" lacks glyphs: took \""
++                                  << pFallbackData->GetFamilyName() << "\" (fallback list)");
++        return pFallbackData;
+     }
+ 
++    if (pFallbackData
++        && maLogged.insert(OUString(rFontSelData.GetFamilyName() + u"\n" + pFallbackData->GetSearchName())).second)
++        ELY_INFO("vcl.fonts", "font \"" << rFontSelData.GetFamilyName() << "\" lacks glyphs: took \""
++                              << pFallbackData->GetFamilyName() << "\" (system fallback)");
+     return pFallbackData;
+ }
+ 
+@@ -307,6 +345,7 @@
+     pFoundData->AddFontFace( pNewData );
+     maOtherNames.clear();
+     mbOtherNames = false;
++    maLogged.clear();
+ }
+ 
+ // find the font from the normalized font family name
+@@ -1013,6 +1052,56 @@
+ 
+ PhysicalFontFamily* PhysicalFontCollection::FindFontFamily(FontSelectPattern& rFSD) const
+ {
++    OUString aWhy;
++    PhysicalFontFamily* pFound = ImplFindFontFamily(rFSD, aWhy);
++    sal_Int32 nIndex = 0;
++    const OUString aAsked(GetEnglishSearchFontName(GetNextFontToken(rFSD.GetFamilyName(), nIndex)));
++    if (pFound && pFound->GetSearchName() != aAsked && aWhy != "other name"
++        && maLogged.insert(rFSD.GetFamilyName()).second)
++        ELY_INFO("vcl.fonts", "font \"" << rFSD.GetFamilyName() << "\" missing: took \""
++                              << pFound->GetFamilyName() << "\" (" << aWhy << ")");
++    return pFound;
++}
++
++PhysicalFontFamily* PhysicalFontCollection::ImplFindFontFamilyOfLanguage(const FontSelectPattern& rFSD,
++                                                                         ImplFontAttrs nSearchType,
++                                                                         OUString& rWhy) const
++{
++    LanguageType eLang = rFSD.meLanguage;
++    if (!MsLangId::isCJK(eLang))
++    {
++        const ImplFontAttrs nName = lcl_IsCJKFont(rFSD.GetFamilyName());
++        if (nName & ImplFontAttrs::CJK_KR)
++            eLang = LANGUAGE_KOREAN;
++        else if (nName & ImplFontAttrs::CJK_JP)
++            eLang = LANGUAGE_JAPANESE;
++        else if (nName & ImplFontAttrs::CJK)
++            eLang = MsLangId::resolveSystemLanguageByScriptType(LANGUAGE_SYSTEM,
++                                                                css::i18n::ScriptType::ASIAN);
++        else
++            return nullptr;
++    }
++    const bool bText = (nSearchType & ImplFontAttrs::Serif) || IsTextCJKFontName(rFSD.maTargetName);
++    const LanguageTag aTag(eLang);
++    const OUString aList = utl::DefaultFontConfiguration::get().getDefaultFont(
++        aTag, bText ? DefaultFontType::CJK_TEXT : DefaultFontType::CJK_DISPLAY);
++    for (sal_Int32 nIndex = 0; nIndex != -1;)
++    {
++        std::u16string_view aName = GetNextFontToken(aList, nIndex);
++        if (aName.empty())
++            continue;
++        if (PhysicalFontFamily* pFound = FindFontFamilyByAnyName(aName))
++        {
++            rWhy = aTag.getBcp47()
++                   + (bText ? std::u16string_view(u" text list") : std::u16string_view(u" sans list"));
++            return pFound;
++        }
++    }
++    return nullptr;
++}
++
++PhysicalFontFamily* PhysicalFontCollection::ImplFindFontFamily(FontSelectPattern& rFSD, OUString& rWhy) const
++{
+     // give up if no fonts are available
+     if( !Count() )
+         return nullptr;
+@@ -1026,6 +1115,7 @@
+         rFSD.maSearchName = "liberationsans";
+         PhysicalFontFamily* pFont = ImplFindFontFamilyBySearchName(rFSD.maSearchName);
+         assert(pFont);
++        rWhy = "SAL_NO_FONT_LOOKUP";
+         return pFont;
+     }
+ 
+@@ -1063,6 +1153,7 @@
+         }
+ 
+         rFSD.maSearchName = GetEnglishSearchFontName(rFSD.maSearchName);
++        const OUString aAskedName = rFSD.maSearchName;
+         ImplFontSubstitute(rFSD.maSearchName);
+         const OUString aSubstName = rFSD.maSearchName;
+         // #114999# special emboldening for Ricoh fonts
+@@ -1096,9 +1187,11 @@
+         rFSD.maTargetName = aOrigName;
+ 
+         // check if the current font name token or its substitute is valid
++        rWhy = aSubstName == aAskedName ? u"later name in the list"_ustr : u"replacement table"_ustr;
+         if (PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(rFSD.maSearchName))
+             return pFoundData;
+ 
++        rWhy = "metric-compatible";
+         if (PhysicalFontFamily* pFoundData = FindMetricCompatibleFont(rFSD))
+             return pFoundData;
+ 
+@@ -1118,6 +1211,7 @@
+         {
+             rFSD.maTargetName = sStrippedName;
+             rFSD.maSearchName = GetEnglishSearchFontName(rFSD.maTargetName);
++            rWhy = "script suffix dropped";
+             if (PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(rFSD.maSearchName))
+                 return pFoundData;
+         }
+@@ -1131,10 +1225,12 @@
+         // to restore the features to make the font selection data unique
+         rFSD.maTargetName = aOrigName;
+ 
++        rWhy = "system substitute";
+         if (PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(rFSD.maSearchName))
+             return pFoundData;
+ 
+         // This token named in another language, before the next.
++        rWhy = "other name";
+         if (PhysicalFontFamily* pFoundData = ImplFindFontFamilyByOtherName(rFSD.maSearchName))
+             return pFoundData;
+         if (aSubstName != rFSD.maSearchName)
+@@ -1167,6 +1263,7 @@
+             rFSD.maSearchName = GetEnglishSearchFontName(rFSD.maSearchName);
+         }
+         ImplFontSubstitute(rFSD.maSearchName);
++        rWhy = "substitute of a name in the list";
+         PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(rFSD.maSearchName);
+         if( pFoundData )
+             return pFoundData;
+@@ -1207,11 +1304,20 @@
+                 // TODO: add heuristic to only throw out the fake ms* fonts
+ #endif
+             {
++                rWhy = "name without style words";
+                 return pFoundData;
+             }
+         }
+     }
+ 
++    // Before the shared lists: their tails cross the kind.
++    if (!rFSD.IsMicrosoftSymbolEncoded())
++        if (PhysicalFontFamily* pFoundData = ImplFindFontFamilyOfLanguage(rFSD, nSearchType, rWhy))
++        {
++            lcl_TakeNameStyle(rFSD, *pFoundData, nSearchType, eSearchWeight);
++            return pFoundData;
++        }
++
+     // use font fallback
+     const utl::FontNameAttr* pFontAttr = nullptr;
+     if (!rFSD.maSearchName.isEmpty() && !comphelper::IsFuzzing())
+@@ -1228,6 +1334,7 @@
+         // try the font substitutions suggested by the fallback info
+         if( pFontAttr )
+         {
++            rWhy = "substitution table";
+             PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySubstFontAttr(*pFontAttr);
+             if( pFoundData )
+                 return pFoundData;
+@@ -1242,6 +1349,7 @@
+             rFSD.maSearchName = "OpenSymbol";
+         else
+             rFSD.maSearchName = utl::DefaultFontConfiguration::get().getDefaultFont( aDefaultLanguageTag, DefaultFontType::SYMBOL );
++        rWhy = "symbol default";
+         PhysicalFontFamily* pFoundData = FindFontFamilyByTokenNames(rFSD.maSearchName);
+         if( pFoundData )
+             return pFoundData;
+@@ -1267,6 +1375,7 @@
+         // use a shortened token name if available
+         if (aTempShortName != rFSD.maSearchName)
+         {
++            rWhy = "later name without style words";
+             PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(aTempShortName);
+             if( pFoundData )
+                 return pFoundData;
+@@ -1291,6 +1400,7 @@
+         // try the font substitutions suggested by the fallback info
+         if( pTempFontAttr )
+         {
++            rWhy = "substitution table of a later name";
+             PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySubstFontAttr(*pTempFontAttr);
+             if( pFoundData )
+                 return pFoundData;
+@@ -1316,37 +1426,16 @@
+     }
+ 
+     PhysicalFontFamily::CalcType(nSearchType, eSearchWeight, eSearchWidth, rFSD.GetFamilyType(), pFontAttr);
++    rWhy = "attributes";
+     PhysicalFontFamily* pFoundData = FindFontFamilyByAttributes(nSearchType,
+         eSearchWeight, eSearchWidth, rFSD.GetItalic(), aSearchFamilyName);
+ 
+     if( pFoundData )
+-    {
+-        // overwrite font selection attributes using info from the typeface flags
+-        if ((eSearchWeight >= WEIGHT_BOLD)
+-            && (eSearchWeight > rFSD.GetWeight())
+-            && (pFoundData->GetTypeFaces() & FontTypeFaces::Bold))
+-        {
+-            rFSD.SetWeight( eSearchWeight );
+-        }
+-        else if ((eSearchWeight < WEIGHT_NORMAL)
+-                 && (eSearchWeight < rFSD.GetWeight())
+-                 && (eSearchWeight != WEIGHT_DONTKNOW)
+-                 && (pFoundData->GetTypeFaces() & FontTypeFaces::Light))
+-        {
+-            rFSD.SetWeight( eSearchWeight );
+-        }
+-
+-        if ((nSearchType & ImplFontAttrs::Italic)
+-            && ((rFSD.GetItalic() == ITALIC_DONTKNOW)
+-            || (rFSD.GetItalic() == ITALIC_NONE))
+-            && (pFoundData->GetTypeFaces() & FontTypeFaces::Italic))
+-        {
+-            rFSD.SetItalic( ITALIC_NORMAL );
+-        }
+-    }
++        lcl_TakeNameStyle(rFSD, *pFoundData, nSearchType, eSearchWeight);
+     else
+     {
+         // if still needed fall back to default fonts
++        rWhy = "default font";
+         pFoundData = ImplFindFontFamilyOfDefaultFont();
+     }
+ 
+diff --git a/vcl/unx/generic/fontmanager/fontconfig.cxx b/vcl/unx/generic/fontmanager/fontconfig.cxx
+--- a/vcl/unx/generic/fontmanager/fontconfig.cxx
++++ b/vcl/unx/generic/fontmanager/fontconfig.cxx
+@@ -47,6 +47,8 @@
+ #include <cstdio>
+ 
+ #include <unotools/configmgr.hxx>
++#include <unotools/fontdefs.hxx>
++#include <i18nlangtag/mslangid.hxx>
+ #include <unotools/syslocaleoptions.hxx>
+ 
+ #include <osl/process.h>
+@@ -1054,6 +1056,9 @@
+             FcPatternAddString(pPattern, FC_FAMILY, reinterpret_cast<const FcChar8*>("sans"));
+             break;
+         default:
++            // Ely: Song-kind CJK names stay serif.
++            if (MsLangId::isCJK(rPattern.meLanguage) && IsTextCJKFontName(rPattern.maTargetName))
++                FcPatternAddString(pPattern, FC_FAMILY, reinterpret_cast<const FcChar8*>("serif"));
+             break;
+     }
+ 

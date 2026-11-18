@@ -20,6 +20,7 @@ mod commands;
 #[cfg(windows)]
 mod dde;
 mod docx;
+mod fallback;
 mod filter;
 mod fonts;
 mod format;
