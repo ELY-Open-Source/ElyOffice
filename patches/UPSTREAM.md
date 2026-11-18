@@ -99,5 +99,6 @@ Larger changes to the filters fix real losses too, but each changes what Calc or
 | 0009 | Windows | A main-thread task after quit logs an error for the destroyed platform window. |
 | 0012 | Windows | Save As keeps a name typed without an extension bare. |
 | 0013 | Windows | AccessKit starts from the foreground-window test, which misses a window a click brought forward. |
+| 0014 | Linux (Wayland) | `WindowOptions::focus` is dropped: a window opened in answer to input gets the keyboard only if the compositor gives it unasked. X11 still drops it. |
 
 0003 (the test platform counts quit requests) and 0010 (an app names the language that leads Han layout; else the user's first Han language) add what a client asks for; 0011 (no process AppUserModelID) is Ely's choice for how pinned windows group. They are proposals, not defect reports.

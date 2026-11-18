@@ -135,7 +135,12 @@ switch ($Command) {
         }
     }
     'enter' { Tap 0x0D }
-    'key' { Tap (@{ pagedown = 0x22; tab = 0x09; escape = 0x1B })[$Arg] }
+    'key' {
+        $named = @{ pagedown = 0x22; pageup = 0x21; tab = 0x09; escape = 0x1B; space = 0x20; backspace = 0x08
+            left = 0x25; up = 0x26; right = 0x27; down = 0x28; f5 = 0x74; n = 0x4E; p = 0x50 }
+        if (-not $named.ContainsKey($Arg)) { throw "no key named $Arg" }
+        Tap $named[$Arg]
+    }
     'tab' {
         # A real press on the strip's tab, never Invoke.
         $item = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::TabItem)

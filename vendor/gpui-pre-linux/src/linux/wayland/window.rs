@@ -143,6 +143,8 @@ pub struct WaylandWindowState {
     client_inset: Option<Pixels>,
     client_corner_radii: Corners<Pixels>,
     accesskit_adapter: Option<accesskit_unix::Adapter>,
+    /// `WindowParams::focus`: asks for the keyboard once mapped.
+    focus: bool,
 }
 
 pub enum WaylandSurfaceState {
@@ -612,6 +614,7 @@ impl WaylandWindowState {
             parent,
             children: FxHashMap::default(),
             surface,
+            focus: options.focus,
             app_id: options.app_id,
             kde_blur: None,
             background_effects: None,
@@ -898,6 +901,38 @@ impl WaylandWindow {
 }
 
 impl WaylandWindowStatePtr {
+    fn ask_for_keyboard(&self) {
+        let (focus, input) = {
+            let state = self.state.borrow();
+            let focus = state.focus && state.surface_state.toplevel().is_some();
+            (focus, state.client.activation_context().is_some())
+        };
+        if focus && input {
+            log::info!("wayland: a window opened by input asks for the keyboard");
+            self.activate();
+        }
+    }
+
+    fn activate(&self) {
+        let state = self.state.borrow();
+        if let (Some(activation), Some(app_id)) = (&state.globals.activation, state.app_id.clone())
+        {
+            let token = activation.get_activation_token(
+                &state.globals.qh,
+                PendingActivation::Window(state.surface.id()),
+            );
+            token.set_app_id(app_id);
+            // Unpressed, KWin and Mutter mark it urgent instead.
+            if let Some(context) = state.client.activation_context() {
+                token.set_serial(context.serial.as_raw(), &state.globals.seat);
+                token.set_surface(&context.requesting_surface);
+            } else {
+                token.set_surface(&state.surface);
+            }
+            token.commit();
+        }
+    }
+
     pub fn handle(&self) -> AnyWindowHandle {
         self.state.borrow().handle
     }
@@ -1175,6 +1210,8 @@ impl WaylandWindowStatePtr {
             update_window(state);
             if initial_configure {
                 self.frame(None, FrameRequestSource::NativeCallback);
+                // Mapped now; a window opened by input asks for keys.
+                self.ask_for_keyboard();
             } else {
                 self.request_redraw();
             }
@@ -1865,25 +1902,7 @@ impl PlatformWindow for WaylandWindow {
     }
 
     fn activate(&self) {
-        let state = self.borrow();
-        if let (Some(activation), Some(app_id)) = (&state.globals.activation, state.app_id.clone())
-        {
-            let token = activation.get_activation_token(
-                &state.globals.qh,
-                PendingActivation::Window(state.surface.id()),
-            );
-            token.set_app_id(app_id);
-            // Without a recent press the compositor won't grant focus, but still request a
-            // token: KWin and Mutter mark the window as demanding attention and end their
-            // launch feedback once the token is passed to `activate`.
-            if let Some(context) = state.client.activation_context() {
-                token.set_serial(context.serial.as_raw(), &state.globals.seat);
-                token.set_surface(&context.requesting_surface);
-            } else {
-                token.set_surface(&state.surface);
-            }
-            token.commit();
-        }
+        self.0.activate();
     }
 
     fn request_attention(&self) {}
