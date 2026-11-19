@@ -75,7 +75,18 @@ pane=$(field '(.result.pane // .result.root_pane).pane_id' <<<"$made" 2>/dev/nul
 echo "$pane" >"$last"
 rmdir "$lock"
 trap - EXIT
-fail() { echo "review.sh: $name in $pane $*; pane left open" >&2; exit 1; }
+ask=.work/$id-r$round/prompt.md
+mkdir -p "${ask%/*}"
+# Each step of this start, to trace a stall.
+trace=${ask%/*}/start.log
+note() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" >>"$trace"; }
+note "pane $pane for $name"
+fail() {
+  note "failed: $*"
+  herdr pane read "$pane" --source recent-unwrapped --lines 40 >>"$trace" 2>&1 || :
+  echo "review.sh: $name in $pane $*; pane left open; trace in $trace" >&2
+  exit 1
+}
 # Herdr's error code and message, else its raw reply.
 why() { field -e '.error | select(.code) | "\(.code): \(.message)"' <<<"$1" 2>/dev/null || echo "$1"; }
 # The pane's last eight lines.
@@ -83,20 +94,24 @@ screen() {
   text=$(herdr pane read "$pane" --source visible 2>&1) || text="unreadable: $text"
   grep -v '^[[:space:]]*$' <<<"$text" | tail -n 8 || :
 }
-# Typed text races Pi's startup; argv does not.
-ask=.work/$id-r$round/prompt.md
-mkdir -p "${ask%/*}"
+# Typed text races an agent's startup; argv does not.
 printf '%s\n' "$prompt" >"$ask"
+started=$SECONDS
 said=$(herdr pane run "$pane" "pi --model remote-magpie/kimi/k3.1-pro --thinking high \"Do what $ask says.\"" 2>&1) \
   || fail "did not start pi: $(why "$said")"
+note "ran pi"
 # Herdr finds Pi a moment after it starts.
+seen=
 for ((t = 0; ; t++)); do
   if said=$(herdr agent get "$pane" 2>&1); then
     s=$(field '.result.agent.agent_status' <<<"$said") || fail "status unreadable: $said"
-    case $s in working | blocked) break ;; esac
   else
-    [ "$(field '.error.code' <<<"$said" 2>/dev/null)" = agent_not_found ] || fail "status unreadable: $(why "$said")"
+    s=$(field '.error.code' <<<"$said" 2>/dev/null) || :
+    [ "$s" = agent_not_found ] || fail "status unreadable: $(why "$said")"
   fi
+  [ "$s" = "$seen" ] || note "$s after $((SECONDS - started)) s"
+  seen=$s
+  case $s in working | blocked) break ;; esac
   [ "$t" -lt 60 ] || fail "never began the prompt in 2 minutes, at: $(screen)"
   sleep 2
 done
@@ -105,6 +120,7 @@ blocked() {
   text=$(screen)
   err=$(herdr pane close "$pane" 2>&1) || fail "stayed blocked 5 minutes at: $text; did not close: $err"
   rm -f "$last"
+  note "blocked 5 minutes at: $text; pane closed"
   echo "review.sh: $name in $pane stayed blocked 5 minutes at: $text; pane closed" >&2
   exit 1
 }
@@ -112,6 +128,8 @@ blocked() {
 b=0
 for ((i = 0; ; i++)); do
   s=$(herdr agent get "$pane" | field '.result.agent.agent_status') || fail "status unreadable"
+  [ "$s" = "$seen" ] || note "$s after $((SECONDS - started)) s"
+  seen=$s
   [ "$s" = blocked ] && b=$((b + 1)) || b=0
   case $s in
     done | idle) head -n 1 "$verdict" 2>/dev/null | tr -d '\r' | grep -qxE 'PASS|FAIL' && break ;;
@@ -124,4 +142,5 @@ for ((i = 0; ; i++)); do
 done
 err=$(herdr pane close "$pane" 2>&1) || fail "did not close: $err"
 rm -f "$last"
+note "verdict $(head -n 1 "$verdict" | tr -d '\r'); pane closed"
 cat "$verdict"

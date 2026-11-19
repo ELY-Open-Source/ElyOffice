@@ -5,7 +5,7 @@
 ```text
 tests/scripts/references-rules.sh  fetch-references.sh 离线：只取所给的上游、不碰别的（MuPDF 的子模块），未知名字先报错
 tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架构（ci.sh 发布前调用）
-tests/scripts/review-rules.sh   review.sh 对替身 herdr：审查者以 Kimi K3.1 Pro、effort high 起，claude 起不来、2 分钟未开工、阻塞、状态读不出、空结论、窗格关不掉皆败，起不来与开工前读不出状态报出 herdr 的错误码，Claude 经 argv 取提示（替身里打进去的提示一律卡住）、herdr 晚认出 Claude 照等、状态按窗格号读，审查者空闲而结论晚到照等，CRLF 的 jq 照常，首个窗格在调用者右侧、其后分在该列最高的窗格下面，两半的终端都留 10 行才分（框占 2 行，24 行分得、23 行不分），列满即另开标签页、读完结论关掉、开不出即报，两个调用者同时放也不压到 10 行以下、锁 30 秒不放即报，阻塞 10 次即报出屏上文字并关窗格、短暂阻塞照等，提示要求一切留在 `.work/<ID>-r<轮次>/`，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
+tests/scripts/review-rules.sh   review.sh 对替身 herdr：审查者以 Pi（K3.1 Pro，思考 high）起，pi 起不来、2 分钟未开工、阻塞、状态读不出、空结论、窗格关不掉皆败，起不来与开工前读不出状态报出 herdr 的错误码，Pi 经 argv 取提示（替身里打进去的提示一律卡住）、herdr 晚认出 Pi 照等、状态按窗格号读，每步带时刻记进 `.work/<ID>-r<轮次>/start.log`（状态只记变化，失败与阻塞连屏上文字一并记下），审查者空闲而结论晚到照等，CRLF 的 jq 照常，首个窗格在调用者右侧、其后分在该列最高的窗格下面，两半的终端都留 10 行才分（框占 2 行，24 行分得、23 行不分），列满即另开标签页、读完结论关掉、开不出即报，两个调用者同时放也不压到 10 行以下、锁 30 秒不放即报，阻塞 10 次即报出屏上文字并关窗格、短暂阻塞照等，提示要求一切留在 `.work/<ID>-r<轮次>/`，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
 tests/scripts/lo-patches.sh    补丁序列从中途接着打、再打一次为空操作
 tests/scripts/media-targets.sh 媒体播放接口在 Linux、Windows 目标可编译（缺目标时 SKIP）
 cargo test -p ely-platform --test media  系统播放器真放 1 秒片段：可播、出帧、播完、循环、暂停守住、坏文件说原因（macOS、Windows 与 Linux）

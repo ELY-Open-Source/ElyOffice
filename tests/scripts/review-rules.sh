@@ -134,13 +134,18 @@ run() {
   echo "$5" >"$work/status"
   printf '%b' "$6" >"$work/verdict"
   mkdir -p "$work/tree/tasks/reviews"
-  rm -f "$work/tree/tasks/reviews/$1-r$2.md"
+  rm -f "$work/tree/tasks/reviews/$1-r$2.md" "$work/tree/.work/$1-r$2/start.log"
   rc=0
   said=$(HERDR_FAKE=$work HERDR_ENV=1 HERDR_PANE_ID=w1:p1 FAKE_VERDICT="$1-r$2.md" PATH="${7:-}$work/bin:$PATH" \
     bash "$work/tree/scripts/review.sh" "$1" "$2" 2>&1) || rc=$?
 }
 run T1.1 1 0 working done 'PASS\n'
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "plain review: rc $rc, $said"
+# Each step lands in the start trace.
+trace=$work/tree/.work/T1.1-r1/start.log
+steps=$(cut -d ' ' -f 2- "$trace")
+[ "$steps" = "$(printf 'pane w1:p%s for rv-t1-1-r1\nran pi\nworking after 0 s\ndone after 0 s\nverdict PASS; pane closed' "$(cat "$work/panes")")" ] || fail "trace: $steps"
+grep -qvE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z ' "$trace" && fail "an untimed trace line: $(cat "$trace")"
 run T1.1 1 0 working idle 'PASS\n' "$work/crlf:"
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "CRLF jq: rc $rc, $said"
 run T1.1 1 0 working done 'FAIL\nx.rs:1 bug\n'
@@ -151,6 +156,7 @@ rm -f "$work/closed" "$work/tree/tasks/reviews/.panes/T1.1"
 run T1.1 1 0 working blocked 'PASS\n'
 [ "$rc" = 1 ] || fail "a blocked reviewer passed"
 case $said in *"stayed blocked 5 minutes at:"*"Do you want to proceed?"*"pane closed"*) ;; *) fail "blocked screen not shown: $said" ;; esac
+grep -q " blocked 5 minutes at: .*Do you want to proceed?" "$work/tree/.work/T1.1-r1/start.log" || fail "the block is not traced"
 [ "$(wc -l <"$work/slept")" = 10 ] || fail "blocked polled $(wc -l <"$work/slept") times, not 10"
 [ "$(cat "$work/closed" 2>/dev/null)" = "w1:p$(cat "$work/panes")" ] || fail "a blocked reviewer was left running"
 [ ! -f "$work/tree/tasks/reviews/.panes/T1.1" ] || fail "a closed blocked pane's id was kept"
@@ -171,18 +177,21 @@ grep -q "^You review item T1.1 of Ely Office, round 1\." "$work/tree/.work/T1.1-
 # Herdr finding Pi late is waited out.
 run T1.1 1 0 'missing missing idle working' done 'PASS\n'
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a pi found late: rc $rc, $said"
+[ "$(sed -n 3,5p "$trace" | cut -d ' ' -f 2)" = "$(printf 'agent_not_found\nidle\nworking')" ] || fail "late start trace: $(cat "$trace")"
 [ "$(wc -l <"$work/began")" = 3 ] || fail "waited $(wc -l <"$work/began") times for the turn, not 3"
 run T1.1 1 0 blocked done 'PASS\n'
 [ "$rc" = 0 ] && [ "$said" = PASS ] || fail "a turn that began blocked: rc $rc, $said"
 # A turn that never begins is named with its screen.
 run T1.1 1 0 'missing idle' done 'PASS\n'
 [ "$rc" = 1 ] || fail "a pi that never began passed"
-case $said in *"never began the prompt in 2 minutes, at:"*"Do you want to proceed?"*"pane left open"*) ;; *) fail "never began not named: $said" ;; esac
+case $said in *"never began the prompt in 2 minutes, at:"*"Do you want to proceed?"*"pane left open; trace in .work/T1.1-r1/start.log"*) ;; *) fail "never began not named: $said" ;; esac
+grep -q " failed: never began the prompt in 2 minutes" "$trace" && grep -q "Do you want to proceed?" "$trace" || fail "the stall's screen is not traced: $(cat "$trace")"
 [ "$(wc -l <"$work/began")" = 60 ] || fail "waited $(wc -l <"$work/began") times for the turn, not 60"
 # Herdr failing otherwise stops it at once.
 run T1.1 1 0 broken done 'PASS\n'
 [ "$rc" = 1 ] || fail "an unreadable start passed"
 case $said in *"status unreadable: timeout: no answer"*) ;; *) fail "start status error lost: $said" ;; esac
+grep -q "Do you want to proceed?" "$trace" || fail "a failed start's screen is not traced: $(cat "$trace")"
 [ ! -f "$work/began" ] || fail "waited on an unreadable status"
 run T1.1 1 0 working done ''
 [ "$rc" = 1 ] || fail "an empty verdict passed"

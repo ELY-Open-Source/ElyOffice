@@ -1408,3 +1408,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 定（补丁 0143）：CJK 文字里缺失的名字，或 CJK 名，先取该语言 `VCL.xcu` 的默认表，在共用替换表之前：宋、明、楷、仿宋类取 CJK_TEXT，其余取 CJK_DISPLAY（黑体），与 Word、PowerPoint 回退到宋体、微软雅黑一致；表里的名字按任一语言的名字找（Mac 中文界面里苹方叫苹方-简）。Linux 上宋类名在 CJK 文字里给 fontconfig 加 serif。类别只由 unotools 的 `IsTextCJKFontName` 判。文件点名的字体本机有时照旧取它。
 - 日志：每个缺失名记一次（ely.vcl.fonts：点名的、取到的、为何），每次字形回退按点名字体与取到的字体记一次。
 - 测试与范围：Linux 上 `fallback.rs` 与 `logs.rs` 的一条，无 0143 即败。Mac 与 Windows 的根因路径（属性打分）只在那两端走到，待 R20.26 重建共享内核后跑这两条；此前那两端照旧。
+
+## 2026-11-19 起审查不丢回车，每次起审查留记录（R15.65）
+
+- 根因仍是 2026-11-05 所查：Claude Code 在 herdr 判它就绪后仍会丢打进来的字。argv 起审查不经输入框，换成 Pi 后照用。复查（Linux，herdr 0.9.5，Pi 1.5.2）：照 review.sh 的命令行直起 39 次皆开工；旧法先起 Pi 再 `agent prompt` 10 次也都过，丢字只在 Claude Code。
+- `review.sh` 把每次起审查的步骤带 UTC 时刻追加进 `.work/<ID>-r<轮次>/start.log`：窗格、起 pi、状态（只记变化，含 herdr 认出 Pi 前的 `agent_not_found`）、结论；失败时连窗格最近 40 行，阻塞时连屏上文字；出错信息指向该文件。再有卡住即按它查。
+- 改过的 review.sh 对练习条目端到端 33 次（20 次接连、12 次并行，负载 33）：皆 2 至 3 秒开工、皆得结论，0 次卡住。
