@@ -119,6 +119,32 @@ pub fn command(git: &Path, dir: &Path, args: &[&str]) -> Command {
 
 #[cfg(test)]
 mod tests {
+    /// Run by the setting test in its own process.
+    #[test]
+    #[ignore]
+    fn a_child_locating_git() {
+        if std::env::var_os("ELY_GIT_CHILD").is_some() {
+            let root = crate::test_root();
+            let store = crate::settings::Store::app(crate::AppId::Tree).unwrap();
+            assert!(store.path().starts_with(root), "{}", store.path().display());
+            store.set(super::PROGRAM, serde_json::json!("/from/the/test/root/git")).unwrap();
+            println!("located {:?}", super::locate().unwrap());
+        }
+    }
+
+    #[test]
+    fn elytrees_git_setting_is_read_from_the_test_root() {
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "git::tests::a_child_locating_git", "--ignored", "--nocapture"])
+            .env("ELY_GIT_CHILD", "1")
+            .env_remove("ELY_GIT")
+            .env_remove("ELY_DATA_ROOT")
+            .output()
+            .unwrap();
+        let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(out.status.success(), "{said}");
+        assert!(said.contains(r#"located ("/from/the/test/root/git", false)"#), "{said}");
+    }
     #[cfg(unix)]
     #[test]
     fn a_failing_version_query_is_no_version() {
