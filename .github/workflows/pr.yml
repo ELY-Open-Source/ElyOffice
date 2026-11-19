@@ -49,6 +49,6 @@ jobs:
       - name: Clippy, warnings fail
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Release rules
-        run: tests/scripts/ci-upload.sh && tests/scripts/mac-ready-rules.sh && tests/scripts/release-gate.sh && tests/scripts/compatibility-rules.sh && (cd tests/perf && python3 -m unittest test_idle)
+        run: tests/scripts/ci-upload.sh && tests/scripts/lo-configured.sh && tests/scripts/mac-ready-rules.sh && tests/scripts/release-gate.sh && tests/scripts/compatibility-rules.sh && (cd tests/perf && python3 -m unittest test_idle)
       - name: Tests that need no engine
         run: ELY_GIT=$(command -v git) cargo test $NO_ENGINES

@@ -117,6 +117,8 @@ git -C "$src" submodule update -q --init --depth 1 dictionaries
   echo "build-libreoffice.sh: $src is not at $pin" >&2
   exit 1
 }
+# A moved tree keeps old paths; make fails there.
+"$root/scripts/lo-configured.sh" "$src"
 "$root/scripts/apply-lo-patches.sh" "$src"
 
 if [ "$(uname)" = Darwin ]; then
