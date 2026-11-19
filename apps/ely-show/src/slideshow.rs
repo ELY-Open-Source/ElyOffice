@@ -256,6 +256,14 @@ impl Show {
         self.go(to, how, cx);
     }
 
+    /// The next slide, past this one's pending clicks.
+    pub fn next_slide(&mut self, cx: &mut Context<Self>) {
+        match self.place {
+            Place::Slide { part, .. } => self.go(steps::after(&self.slides, part), How::Enter, cx),
+            Place::End => self.close(cx),
+        }
+    }
+
     pub fn previous(&mut self, cx: &mut Context<Self>) {
         self.go(steps::previous(&self.slides, self.place), How::Back, cx);
     }

@@ -14,7 +14,7 @@ pub(super) fn selection(app: &gpui::App, deck: &Entity<Deck>) -> Option<Selectio
 }
 
 /// A blank deck, its first picture painted.
-pub(super) fn blank(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<Entity<Deck>> {
+pub(crate) fn blank(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<Entity<Deck>> {
     let deck = deck(cx, dir)?;
     update(cx, &deck, |deck, cx| deck.new_blank(cx));
     settle(cx, |app| counts(app, &deck) == (1, 1));

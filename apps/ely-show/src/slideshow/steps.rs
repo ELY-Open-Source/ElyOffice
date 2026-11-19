@@ -32,11 +32,16 @@ pub fn next(slides: &[ShowSlide], place: Place) -> Place {
                 clicks: clicks + 1,
             }
         }
-        Place::Slide { part, .. } => (part + 1..slides.len())
-            .find(|at| !slides[*at].hidden)
-            .map_or(Place::End, |part| Place::Slide { part, clicks: 0 }),
+        Place::Slide { part, .. } => after(slides, part),
         Place::End => Place::End,
     }
+}
+
+/// The first shown slide after `part`, or the end.
+pub fn after(slides: &[ShowSlide], part: usize) -> Place {
+    (part + 1..slides.len())
+        .find(|at| !slides[*at].hidden)
+        .map_or(Place::End, |part| Place::Slide { part, clicks: 0 })
 }
 
 /// The previous slide, fully built; the first stays.

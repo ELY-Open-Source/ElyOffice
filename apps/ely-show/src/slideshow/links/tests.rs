@@ -10,7 +10,10 @@ const DECK: &str = r##"<office:document-content xmlns:office="o" xmlns:draw="d" 
 </draw:page>
 <draw:page draw:name="Two">
  <draw:g><draw:rect svg:x="1cm" svg:y="1cm" svg:width="2cm" svg:height="2cm"/><draw:rect svg:x="4cm" svg:y="1cm" svg:width="2cm" svg:height="2cm"/><office:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="show" xlink:href="#One"/></office:event-listeners></draw:g>
- <draw:rect svg:x="4cm" svg:y="1cm" svg:width="1cm" svg:height="1cm"><office:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="stop"/><presentation:event-listener script:event-name="dom:click" presentation:action="execute" xlink:href="evil.sh"/><presentation:event-listener script:event-name="dom:mouse-over" presentation:action="last-page"/></office:event-listeners></draw:rect>
+ <draw:rect svg:x="4cm" svg:y="1cm" svg:width="1cm" svg:height="1cm"><office:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="stop"/><presentation:event-listener script:event-name="dom:mouse-over" presentation:action="last-page"/></office:event-listeners></draw:rect>
+ <draw:rect svg:x="8cm" svg:y="1cm" svg:width="1cm" svg:height="1cm"><office:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="execute" xlink:href="evil.sh"/></office:event-listeners></draw:rect>
+ <draw:rect svg:x="10cm" svg:y="1cm" svg:width="1cm" svg:height="1cm"><office:event-listeners><script:event-listener script:language="ooo:script" script:event-name="dom:click" xlink:href="vnd.sun.star.script:Standard.M.Run?language=Basic&amp;location=document"/></office:event-listeners></draw:rect>
+ <draw:rect svg:x="12cm" svg:y="1cm" svg:width="1cm" svg:height="1cm"><office:event-listeners><presentation:event-listener script:event-name="dom:click" presentation:action="none"/></office:event-listeners></draw:rect>
  <draw:frame svg:x="0cm" svg:y="0cm" svg:width="1cm" svg:height="1cm"><draw:image xlink:href="pic.png"/></draw:frame>
 </draw:page>
 </office:presentation></office:body></office:document-content>"##;
@@ -37,7 +40,9 @@ fn a_group_covers_its_children_and_the_inner_shape_wins() {
     let slides = deck();
     let group = (1000, 1000, 5000, 2000);
     assert!(slides[1].iter().any(|link| link.bounds == group && link.to == Goto::Slide(0)));
-    assert_eq!(slides[1].len(), 2, "only clicks that move about are kept, and no program");
+    assert_eq!(slides[1].len(), 4, "a program and a macro stay, refused: {:?}", slides[1]);
+    let refused: Vec<_> = slides[1].iter().filter(|link| link.to == Goto::Refused).map(|link| link.bounds.0).collect();
+    assert_eq!(refused, [8000, 10000], "the action none adds nothing");
     let slide = (28_000.0, 15_750.0);
     let point = |x: f32, y: f32| at(&slides[1], slide, (x / slide.0, y / slide.1));
     // Inside both the group and the small shape.
@@ -125,4 +130,42 @@ fn a_show_click_follows_slides_and_the_web_never_files() {
     click(&mut cx, &show, (7000.0, 3500.0));
     assert_eq!(cx.opened_url().as_deref(), Some("https://example.com/"));
     assert_eq!(cx.update(|app| show.read(app).place), Place::Slide { part: 1, clicks: 0 }, "a link does not advance");
+}
+
+#[test]
+fn a_next_page_shape_passes_pending_clicks_and_a_program_stays_put() {
+    use super::super::steps::Place;
+    use crate::tests::{objects::blank, play::three_slides, settle, update};
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = gpui::TestAppContext::single();
+    let Some(deck) = blank(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    three_slides(&mut cx, &deck);
+    update(&mut cx, &deck, |deck, cx| deck.start_show(false, cx));
+    settle(&cx, |app| deck.read(app).show.is_some());
+    let show = cx.update(|app| deck.read(app).show.clone().expect("playing"));
+    settle(&cx, |app| show.read(app).stack(1).is_some());
+    let width = cx.update(|app| show.read(app).slide.0);
+    cx.update(|app| {
+        show.update(app, |show, cx| {
+            // Slide two: a program top left, next-page top right.
+            let right = width as i64 - 2000;
+            show.links[1] = vec![
+                Link { bounds: (0, 0, 2000, 2000), to: Goto::Refused },
+                Link { bounds: (right, 0, 2000, 2000), to: Goto::Next },
+            ];
+            show.next(cx);
+        })
+    });
+    let on_two = Place::Slide { part: 1, clicks: 0 };
+    assert_eq!(cx.update(|app| show.read(app).place), on_two, "its fade-in waits for a click");
+    let refused = cx.update(|app| Deck::text(app, "office.link.refused", &[]));
+    click(&mut cx, &show, (1000.0, 1000.0));
+    assert_eq!(cx.update(|app| show.read(app).place), on_two, "a program neither runs nor steps");
+    assert_eq!(cx.update(|app| show.read(app).notice.clone()), Some(refused));
+    assert_eq!(cx.opened_url(), None);
+    click(&mut cx, &show, (width - 1000.0, 1000.0));
+    settle(&cx, |app| show.read(app).place == Place::End);
 }

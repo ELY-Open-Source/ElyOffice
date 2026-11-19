@@ -25,6 +25,8 @@ pub enum Goto {
     First,
     Last,
     End,
+    /// A program, sound or macro; never run.
+    Refused,
     /// An address; only web and mail open outside.
     Address(String),
 }
@@ -150,20 +152,18 @@ fn action(tag: &BytesStart) -> io::Result<Option<Pending>> {
     if attr(tag, "script:event-name")?.as_deref() != Some("dom:click") {
         return Ok(None);
     }
-    let Some(action) = attr(tag, "presentation:action")? else {
-        return Ok(None);
-    };
-    Ok(Some(match action.as_str() {
-        "next-page" => Pending::Done(Goto::Next),
-        "previous-page" => Pending::Done(Goto::Previous),
-        "first-page" => Pending::Done(Goto::First),
-        "last-page" => Pending::Done(Goto::Last),
-        "stop" => Pending::Done(Goto::End),
-        "show" => address(&attr(tag, "xlink:href")?.ok_or_else(|| bad("a show action with no slide"))?),
+    Ok(Some(match attr(tag, "presentation:action")?.as_deref() {
+        Some("none") => return Ok(None),
+        Some("next-page") => Pending::Done(Goto::Next),
+        Some("previous-page") => Pending::Done(Goto::Previous),
+        Some("first-page") => Pending::Done(Goto::First),
+        Some("last-page") => Pending::Done(Goto::Last),
+        Some("stop") => Pending::Done(Goto::End),
+        Some("show") => address(&attr(tag, "xlink:href")?.ok_or_else(|| bad("a show action with no slide"))?),
         // Programs, sounds and macros never run.
         other => {
-            log::info!("show: a click action {other} is not followed");
-            return Ok(None);
+            log::info!("show: a click action {} is refused", other.unwrap_or("script"));
+            Pending::Done(Goto::Refused)
         }
     }))
 }
@@ -210,7 +210,7 @@ impl Parser {
                 }
                 Open::Other
             }
-            "presentation:event-listener" => {
+            "presentation:event-listener" | "script:event-listener" => {
                 if let (Some(shape), Some(go)) = (self.shapes.last_mut(), action(tag)?) {
                     shape.goes.push(go);
                 }
@@ -310,7 +310,7 @@ impl Show {
         log::info!("show: follows a link");
         match to {
             Goto::Slide(at) => self.jump(at + 1, cx),
-            Goto::Next => self.next(cx),
+            Goto::Next => self.next_slide(cx),
             Goto::Previous => self.previous(cx),
             Goto::First => match self.slides.iter().position(|slide| !slide.hidden) {
                 Some(at) => self.jump(at + 1, cx),
@@ -322,7 +322,7 @@ impl Show {
             },
             Goto::End => self.close(cx),
             Goto::Address(address) if ely_office::outward(&address) => cx.open_url(&address),
-            Goto::Address(_) => {
+            Goto::Address(_) | Goto::Refused => {
                 self.notice = Some(Deck::text(cx, "office.link.refused", &[]));
                 cx.notify();
             }

@@ -24,7 +24,7 @@ pub(super) fn place(cx: &mut TestAppContext, show: &Entity<Show>) -> Place {
 }
 
 /// Slide two: click effect, notes. Three: hidden.
-pub(super) fn three_slides(cx: &mut TestAppContext, deck: &Entity<Deck>) {
+pub(crate) fn three_slides(cx: &mut TestAppContext, deck: &Entity<Deck>) {
     let slides = |app: &gpui::App| {
         let tab = deck.read(app).active_tab();
         tab.map(|tab| tab.extra.slides.list.iter().map(|s| s.visible).collect::<Vec<_>>())
