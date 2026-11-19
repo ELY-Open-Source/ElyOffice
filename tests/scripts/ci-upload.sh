@@ -77,6 +77,7 @@ clone() { # os
   mkdir -p "$at/tests/scripts"
   write tests/scripts/engine-arch.sh :
   write tests/scripts/linux-glibc.sh '[ -z "${GLIBC_FAILS:-}" ]'
+  write scripts/mac-ready.sh '[ -z "${MAC_NOT_READY:-}" ]'
   write packaging/sign.sh 'for f; do echo signed >"$f.sig"; done'
   write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.pkg dist/app-$1.json; packaging/source.sh dist"
   # The container's Cargo may differ from the host's.
@@ -146,6 +147,13 @@ clone linux
 ! GLIBC_FAILS=1 go linux || fail "linux released past the glibc check"
 [ ! -s "$STATE" ] || fail "linux uploaded past the glibc check: $(cat "$STATE")"
 rm -rf "${work:?}/linux"
+# A Mac not ready (audio, keychain) builds and uploads nothing.
+: >"$CARGO_LOG"
+clone macos
+! MAC_NOT_READY=1 go macos || fail "macOS released on a Mac not ready"
+[ ! -s "$CARGO_LOG" ] || fail "macOS built on a Mac not ready: $(cat "$CARGO_LOG")"
+[ ! -s "$STATE" ] || fail "macOS uploaded on a Mac not ready: $(cat "$STATE")"
+rm -rf "${work:?}/macos"
 : >"$CARGO_LOG"
 # macOS first: it builds the source and uploads none.
 run macos

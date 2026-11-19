@@ -36,8 +36,8 @@ attempt() { # name, setup; sets status, writes the output
   cp "$root/Cargo.toml" "$root/rust-toolchain.toml" "$clone/"
   cp "$root/packaging/apps.tsv" "$clone/packaging/"
   mkdir -p "$clone/tests/scripts"
-  printf '#!/usr/bin/env bash\n' | tee "$clone/tests/scripts/engine-arch.sh" >"$clone/scripts/release-tests.sh"
-  chmod +x "$clone/tests/scripts/engine-arch.sh" "$clone/scripts/release-tests.sh"
+  printf '#!/usr/bin/env bash\n' | tee "$clone/tests/scripts/engine-arch.sh" "$clone/scripts/mac-ready.sh" >"$clone/scripts/release-tests.sh"
+  chmod +x "$clone/tests/scripts/engine-arch.sh" "$clone/scripts/release-tests.sh" "$clone/scripts/mac-ready.sh"
   (cd "$clone" && eval "$2")
   status=0
   PATH=$work/bin:$PATH ELY_SHARE=$share ELY_RELEASE_TOKEN=unused ELY_MICROSOFT_CLIENT_ID=unused ELY_UPDATE_KEY=unused ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused ELY_INSTALLER_IDENTITY=unused \

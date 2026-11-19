@@ -1456,3 +1456,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Mac 不能自己醒：`pmset schedule wake` 须 root，本机账户无免密 sudo，故未用 `pmset sleepnow`。Windows 虚拟机不休眠。
 - 2026-10-08 ElyMark 在 CEF 内的 SIGTRAP 作废：ElyMark 已是原生实现，不再用 CEF。
 - 8 小时整跑：Mac 上 `soak.py --minutes 480` 进行中，结果另记。
+
+## 2026-11-19 Mac 发布前先看音频与公证凭据（R17.3）
+
+- 只看不动（无 sudo、不重启、不锁用户的钥匙串）：两处今都不在。`coreaudiod`（开机 11-17 11:43 起）0.35 秒答 `system_profiler SPAudioDataType`；SSH 会话是控制台用户的 Aqua 会话，`xcrun notarytool history --keychain-profile ely-notary` 读出 100 条记录。
+- 诱因：`coreaudiod` 的统一日志只回到约 11-12（zsh 的 `log` 是内建命令，须写 `/usr/bin/log`），R17.3 记下的那次已无记录。11-05 起 1861 条错误、故障，1850 条在今日 19 至 21 时，多是蓝牙音频（`RemoveDeviceClient: bad device ID`、PCM 环重置），其间 `coreaudiod` 照答，不能算停应的诱因。公证凭据不在 `login.keychain-db` 文件里：`security dump-keychain` 列出 101 项，无一是公证凭据，新版 `notarytool` 存在数据保护钥匙串。控制台有人登录时，SSH 里读得到。“重启后未在控制台登录即读不到”是推测，未验证：验证须重启后不登录，而本机有人在用。
+- 定：`scripts/mac-ready.sh <凭据名>`，`ci.sh` 在 macOS 上查完签名变量即调，任何构建之前：`system_profiler SPAudioDataType` 20 秒内不答或报错即失败（停应时放媒体的测试会挂住而不是失败）；`notarytool history` 读不到凭据即失败，转述其原话，说明出路（控制台登录或 `security unlock-keychain`；不存在的凭据以 `store-credentials` 建）。
+- 证据：真机上 `ely-notary` 过，不存在的 `ely-notary-absent` 败并带 notarytool 的原话。`tests/scripts/mac-ready-rules.sh`（`system_profiler`、`xcrun` 替身）：都正常即过，凭据读不到即败，音频 60 秒不答时 20 秒内败，音频报错即败；去掉凭据检查、时限、音频检查，各败。`tests/scripts/ci-upload.sh`：Mac 没准备好即不建不传，`ci.sh` 不调此检查即败。新测试入 `pr.yml` 的发布规则一步。

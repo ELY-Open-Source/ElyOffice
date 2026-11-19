@@ -41,6 +41,8 @@ if [ "$os" = macos ]; then
   : "${ELY_SIGN_IDENTITY:?the Developer ID Application certificate}"
   : "${ELY_NOTARY_PROFILE:?the notarytool keychain profile}"
   : "${ELY_INSTALLER_IDENTITY:?the Developer ID Installer certificate}"
+  # A hung coreaudiod or locked keychain fails here, not late.
+  "$BASH" "$root/scripts/mac-ready.sh" "$ELY_NOTARY_PROFILE"
 fi
 [ -z "${ELY_PATH:-}" ] || PATH=$ELY_PATH:$PATH
 # Its scripts run this bash, not Homebrew's arm64 one.

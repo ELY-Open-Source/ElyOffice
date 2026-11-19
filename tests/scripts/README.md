@@ -30,7 +30,8 @@ tests/scripts/records.py         TASKS、BUGS、BugList、decisions 引用的库
 tests/scripts/workflows.py       release.yml 恰为 macos、macos-intel、windows、linux 四个任务，都在自托管机器上，互不等待、都经 ci.sh；ci.sh 先跑 release-tests.sh 再打包；pr.yml 的 runs-on 恰为 ubuntu-24.04、以整行的 `[sudo] apt-get install` 装齐 README 的库、严格模式、panic 数比基线提交（各带反例）
 tests/scripts/lo-tarballs.sh     `packaging/lo-tarballs.tsv` 的散列与 `download.lst` 一致、地址是 LibreOffice 的镜像、本机构建所取都在其中（Windows 经 Cygwin）
 tests/scripts/source-rules.sh    source.sh 把已取与下载的外部库按内容打包，散列不符或取不到即失败、不出包（假 curl）
-tests/scripts/ci-upload.sh       ci.sh 的上传：本机或构建容器的 cargo 不是 huacnlee/cargo 即不建也不传；测试的门建好 worker 后点名它们再跑测试，测试失败即一个不传，Linux 的包过不了 glibc 的上限也不传；兼容清单、发布说明、基准记录三道门任一失败或该提交的 `pr.yml` 未通过即不建也不传；Linux 另传装全部应用的 `ely-office` 包；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
+tests/scripts/mac-ready-rules.sh  mac-ready.sh 对替身（`system_profiler`、`xcrun`）：都正常即过；凭据读不到即败并转述 notarytool 的原话与出路；音频 60 秒不答时 20 秒内败并说明，音频报错时转述其退出码与原话（PATH 里的替身，有 python3 即可跑）
+tests/scripts/ci-upload.sh       ci.sh 的上传：本机或构建容器的 cargo 不是 huacnlee/cargo 即不建也不传；测试的门建好 worker 后点名它们再跑测试，测试失败即一个不传，Linux 的包过不了 glibc 的上限也不传，Mac 没准备好（`mac-ready.sh` 失败）即不建也不传；兼容清单、发布说明、基准记录三道门任一失败或该提交的 `pr.yml` 未通过即不建也不传；Linux 另传装全部应用的 `ely-office` 包；发布只建一次且为预发布；macOS 建源码包而不上传，Linux 上传，重跑只换本平台的同名文件、别的平台的不动（假的 GitHub API，在 Linux 或 WSL 运行）
 tests/scripts/linux-packages.sh  `ely-office` 的 deb、rpm、Arch 包在干净的 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上，每个 ELF 都找得到库；顶替先装的 0.1.15 ElyTree 单包，ElyDoc 的内核是共用的那一份；登录启用三个引擎实例的链接，重装后仍在，卸载后删去
 tests/scripts/linux-pins.sh      Linux 打包工具（appimagetool、linuxdeploy、运行时、nfpm）的下载与钉的散列相符
 tests/scripts/linux-installed.sh installed|appimage  Hyprland 上装好的首批七个应用或合成的 AppImage（应用名作首个参数）：一个窗口、随 Omarchy（Catppuccin）、读出页面文字（PDF、Markdown 经各自引擎），ElyTree 随换主题到 Latte（grim 按窗口截取）
