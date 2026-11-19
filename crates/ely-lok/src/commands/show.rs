@@ -107,4 +107,11 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Text("Id")],
         Check::Undoable,
     ),
+    // Impress answers false; text edit keeps its own undo.
+    command(
+        "show.link.insert",
+        ".uno:SetHyperlink",
+        &[Arg::Text("Hyperlink.Text"), Arg::Text("Hyperlink.URL")],
+        Check::Finished,
+    ),
 ];

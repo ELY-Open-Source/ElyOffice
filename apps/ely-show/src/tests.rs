@@ -11,6 +11,7 @@ use crate::deck::Deck;
 mod focus;
 mod carry;
 mod history;
+mod link;
 mod menu;
 mod motion;
 mod moving;
