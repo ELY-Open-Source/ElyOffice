@@ -28,6 +28,8 @@ fn wait(cx: &mut TestAppContext, done: impl Fn(&gpui::App) -> bool) {
 
 #[test]
 fn a_moved_pdf_keeps_its_page_and_draws_anew() {
+    // Real windows start recovery: never in the user's folder.
+    ely_platform::test_root();
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let path = file(dir.path(), "four.pdf", &[PAGE, PAGE, PAGE, PAGE]);

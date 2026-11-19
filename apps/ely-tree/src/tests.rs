@@ -30,6 +30,8 @@ mod recovery;
 mod window;
 
 pub(crate) fn git() -> Git {
+    // Git's path is a setting, read from the test root.
+    ely_platform::test_root();
     static ALONE: std::sync::Once = std::sync::Once::new();
     // Tests read no machine Git settings.
     ALONE.call_once(|| {

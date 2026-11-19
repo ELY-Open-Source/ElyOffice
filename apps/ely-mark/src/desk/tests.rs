@@ -13,6 +13,8 @@ pub(crate) fn start(
     cx: &mut TestAppContext,
     data: &Path,
 ) -> (Entity<Desk>, &'static mut VisualTestContext) {
+    // Git's path is a setting, read from the test root.
+    ely_platform::test_root();
     // The file watcher runs on a real thread.
     cx.executor().allow_parking();
     cx.update(ely_gpui_component::init_for_tests);

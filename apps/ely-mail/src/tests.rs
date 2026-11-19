@@ -129,6 +129,8 @@ pub(crate) fn window_of<'a>(
     tls: Result<TlsConnector, String>,
     providers: Providers,
 ) -> (Entity<Mail>, &'a mut VisualTestContext) {
+    // A reopened main window reads its frame from settings.
+    ely_platform::test_root();
     cx.executor().allow_parking();
     cx.update(ely_gpui_component::init_for_tests);
     cx.update(|cx| {

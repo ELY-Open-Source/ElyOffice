@@ -9,6 +9,8 @@ use super::*;
 
 /// The first window, built as the app builds it.
 fn first(cx: &mut TestAppContext, dir: &Path) -> Option<(Entity<Deck>, AnyWindowHandle)> {
+    // Real windows start recovery: never in the user's folder.
+    ely_platform::test_root();
     let install = ely_lok::test_install()?;
     let (worker, stop) = ely_office::lok::test_worker(&install);
     let work = dir.join("work");

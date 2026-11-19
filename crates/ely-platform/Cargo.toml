@@ -61,6 +61,10 @@ rfd = { workspace = true, features = ["xdg-portal"] }
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 rfd.workspace = true
 
+[features]
+# Tests: a per-process data root, never the user's.
+test-support = []
+
 [dev-dependencies]
 lopdf.workspace = true
 rcgen.workspace = true

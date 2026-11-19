@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use directories::BaseDirs;
 
 use crate::AppId;
@@ -17,11 +17,40 @@ pub fn root() -> Result<PathBuf> {
 
 /// The first folder, holding the pointer to the chosen one.
 pub(crate) fn home() -> Result<PathBuf> {
+    #[cfg(any(test, feature = "test-support"))]
+    if let Some(root) = TEST_ROOT.get() {
+        return Ok(root.clone());
+    }
     if let Some(root) = chosen_root(crate::env::value("ELY_DATA_ROOT"))? {
         return Ok(root);
     }
-    let base = BaseDirs::new().context("no home directory")?;
+    real_home()
+}
+
+/// The user's own folder; tests never reach it.
+#[cfg(not(any(test, feature = "test-support")))]
+fn real_home() -> Result<PathBuf> {
+    let base = BaseDirs::new().ok_or_else(|| anyhow::anyhow!("no home directory"))?;
     Ok(base.data_local_dir().join("ElyOffice"))
+}
+
+/// Tests: callers swallow errors, so the test fails here.
+#[cfg(any(test, feature = "test-support"))]
+fn real_home() -> Result<PathBuf> {
+    panic!("a test reached the data folder without ely_platform::test_root(); the user's is never used")
+}
+
+#[cfg(any(test, feature = "test-support"))]
+static TEST_ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// Tests: this process's data root, a fresh temporary folder.
+#[cfg(any(test, feature = "test-support"))]
+pub fn test_root() -> &'static Path {
+    TEST_ROOT.get_or_init(|| {
+        // Lives as long as the process; its tests share it.
+        let made = tempfile::Builder::new().prefix("ely-data-").tempdir().expect("a temporary data root");
+        made.keep()
+    })
 }
 
 /// Benchmarks only: a seeded folder, never the user's.
@@ -49,17 +78,36 @@ fn omarchy_dir(home: &Path, over: Option<String>) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::{chosen_root, data_dir, omarchy_dir};
+    use super::{chosen_root, data_dir, omarchy_dir, test_root};
     use crate::AppId;
 
     #[test]
-    fn each_app_has_its_own_directory_under_elyoffice() {
-        let doc = data_dir(AppId::Doc).unwrap();
-        let mail = data_dir(AppId::Mail).unwrap();
+    fn each_app_has_its_own_directory_under_the_root() {
+        let root = test_root();
+        assert_eq!(data_dir(AppId::Doc).unwrap(), root.join("ely-doc"));
+        assert_eq!(data_dir(AppId::Mail).unwrap(), root.join("ely-mail"));
+    }
 
-        assert!(doc.ends_with("ElyOffice/ely-doc"), "{}", doc.display());
-        assert!(mail.ends_with("ElyOffice/ely-mail"), "{}", mail.display());
-        assert_ne!(doc, mail);
+    /// Run by the guard test in its own process.
+    #[test]
+    #[ignore]
+    fn a_child_without_a_test_root() {
+        if std::env::var_os("ELY_ROOT_CHILD").is_some() {
+            println!("found {:?}", data_dir(AppId::Doc));
+        }
+    }
+
+    #[test]
+    fn without_a_test_root_the_data_folder_fails() {
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "dirs::tests::a_child_without_a_test_root", "--ignored", "--nocapture"])
+            .env("ELY_ROOT_CHILD", "1")
+            .env_remove("ELY_DATA_ROOT")
+            .output()
+            .unwrap();
+        let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(!out.status.success() && !said.contains("found "), "{said}");
+        assert!(said.contains("a test reached the data folder without"), "{said}");
     }
 
     #[test]

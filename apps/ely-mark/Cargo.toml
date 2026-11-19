@@ -34,6 +34,7 @@ unicode-segmentation.workspace = true
 workspace = true
 
 [dev-dependencies]
+ely-platform = { workspace = true, features = ["test-support"] }
 ely-gpui-component = { workspace = true, features = ["test-support"] }
 ely-ui = { workspace = true, features = ["test-support"] }
 gpui = { workspace = true, features = ["test-support"] }

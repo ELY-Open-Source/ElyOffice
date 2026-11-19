@@ -1510,3 +1510,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 修：两台各先反打 0134 至 0132（lo-sym 自 0135 起）与旧 0131，再打 0131 至 0145，构建脚本的检查报 139 of 139。内核编号：Mac ff965559 → 4ce869dd；Windows lo-sym e2e327ca → 258dcf4d（e2e327ca 是 R20.1 时的，其后 R20.7、R20.13 局部 make 换过又换回 DLL，没重写编号）；Windows lo-src 2426813a → 待全量重建完。
 - Windows 的 lo-src 原在 `C:\ely\ElyOffice` 配置（`config_host.mk` 的 SRCDIR、BUILDDIR），11-17 那个目录按用户要求删去，树留在 `Documents\Github`，make 一开始就停（找不到 `C:/ely/.../config_host.mk`）：11-17 起发布用的 Windows 内核在原处建不了。清掉 `config_host.mk`、`workdir`、`instdir` 后重配全量重建（约 4 小时）。
 - 防：新脚本 `scripts/lo-configured.sh`，树里 `config_host.mk` 记的 SRCDIR 不是该树的实际路径（Cygwin 上按 `cygpath -m`；经链接到达的照实际路径比）即失败，点名两处与清法；`build-libreoffice.sh` 打补丁前调用。测试 `tests/scripts/lo-configured.sh`（未配置、就地配置、经链接都过；SRCDIR 为 `C:/ely/...` 被拒；改成恒过即败），`pr.yml` 跑它。不自动清掉重配：那等于丢掉一份几小时的构建，该由人或代理决定。
+
+## 2026-11-19 测试从不碰真的数据文件夹（R20.55）
+
+- 规定：测试进程从不读写用户的数据文件夹（`ely_platform::data_dir`、`root`）。开了 `test-support` 的构建里，数据文件夹取每个进程一份的临时目录（`ely_platform::test_root()`，`OnceLock`，由各应用测试的公用入口调一次）；没设它而走到数据文件夹即 panic，从不退回真的文件夹（调用处多把错误吞成日志，故不用返回错误）。子进程照旧可由 `ELY_DATA_ROOT` 给根。不从测试线程设环境变量。各包的 dev-dependencies 都开 `ely-platform` 的 `test-support`；应用的正常构建不带它。
+- 起因：带内核的测试原先用真的 `~/.local/share/ElyOffice`。测试结束时标签还开着，恢复点留在真的恢复索引里，`session.lock` 记着已死的进程；下一个进程（下一次测试，或用户自己的应用）当作崩溃，把它们重开成未保存的副本。ElyDoc 的 `moving::an_edited_document_moves_and_keeps_its_undo` 因此时败：移走一个标签后，重开的副本占了原窗口，第二次移动搬走的是它，原窗口不关。ElyTree 与 ElyMark 的测试另读用户 ElyTree 设置里选的 Git。
+- 清理：Linux 与 Mac 真文件夹里能证明出自测试的槽（点里是测试键入的字、名字是样本 `four.pdf`、`reader.xlsx` 或同一进程）连同死进程的 `session.lock` 移入 `.work/R20.55/recovery-backup`（本机，未入库），附 `MANIFEST.tsv`；证不了的留着。

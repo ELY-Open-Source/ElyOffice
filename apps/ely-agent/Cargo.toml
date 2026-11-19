@@ -14,5 +14,8 @@ embed-resource.workspace = true
 ely-platform.workspace = true
 ely-ui.workspace = true
 
+[dev-dependencies]
+ely-platform = { workspace = true, features = ["test-support"] }
+
 [lints]
 workspace = true

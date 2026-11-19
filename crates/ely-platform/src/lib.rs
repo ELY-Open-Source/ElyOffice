@@ -26,3 +26,5 @@ pub mod user;
 
 pub use app_id::AppId;
 pub use dirs::{data_dir, omarchy_current_dir, root};
+#[cfg(any(test, feature = "test-support"))]
+pub use dirs::test_root;

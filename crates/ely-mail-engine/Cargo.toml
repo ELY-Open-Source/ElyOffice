@@ -45,7 +45,7 @@ version = "3"
 features = ["linux-native-sync-persistent"]
 
 [dev-dependencies]
-ely-platform.workspace = true
+ely-platform = { workspace = true, features = ["test-support"] }
 fake = { package = "ely-mail-fake", path = "../ely-mail-fake" }
 
 [lints]

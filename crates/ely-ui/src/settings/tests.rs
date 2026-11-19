@@ -7,29 +7,11 @@ use gpui::TestAppContext;
 
 use super::{changed, window::SettingsView};
 
-/// The scratch root; runs take it in turn.
-fn root() -> &'static std::path::Path {
-    static ROOT: std::sync::OnceLock<(std::path::PathBuf, ely_platform::lock::FileLock)> = std::sync::OnceLock::new();
-    &ROOT.get_or_init(|| {
-        let held = ely_platform::lock::FileLock::take(&std::env::temp_dir().join("ely-ui-settings-tests.lock")).unwrap();
-        let root = std::env::temp_dir().join("ely-ui-settings-tests");
-        match std::fs::remove_dir_all(&root) {
-            Err(error) if error.kind() != std::io::ErrorKind::NotFound => panic!("{}: {error}", root.display()),
-            _ => {}
-        }
-        std::fs::create_dir(&root).unwrap();
-        // SAFETY: set before any test's first write.
-        unsafe { std::env::set_var("ELY_DATA_ROOT", &root) };
-        (root, held)
-    })
-    .0
-}
-
 /// A scratch root: gpui runs pending writes at test end.
 fn installed(cx: &mut TestAppContext) {
-    root();
+    let root = ely_platform::test_root();
     let shared = ely_platform::settings::Store::shared().unwrap();
-    assert!(shared.path().starts_with(std::env::temp_dir()), "{}", shared.path().display());
+    assert!(shared.path().starts_with(root), "{}", shared.path().display());
     cx.update(|cx| {
         ely_gpui_component::init_for_tests(cx);
         super::install_defaults(cx);
@@ -147,9 +129,8 @@ fn press(shown: &mut gpui::VisualTestContext, size: u32) {
 #[gpui::test(iterations = 8)]
 fn the_latest_text_pick_is_kept_across_windows(cx: &mut TestAppContext) {
     installed(cx);
-    let root = tempfile::tempdir_in(root()).unwrap().keep();
-    // SAFETY: only this test writes the shared file.
-    unsafe { std::env::set_var("ELY_DATA_ROOT", &root) };
+    // Only this test writes the shared file; starts bare.
+    bare_shared();
     let mut shown = opened(cx);
     for size in [14, 15, 16] {
         press(&mut shown, size);
@@ -204,6 +185,21 @@ fn the_latest_text_pick_is_kept_across_windows(cx: &mut TestAppContext) {
     cx.run_until_parked();
     assert_eq!(std::fs::read_to_string(&file).unwrap(), "{");
     assert_eq!(state(&mut reopened), (true, Some(serde_json::json!(13))), "a skipped write hides no failure");
+    bare_shared();
+}
+
+/// No shared settings file nor lock, as at first start.
+fn bare_shared() {
+    let file = ely_platform::settings::Store::shared().unwrap().path().to_path_buf();
+    for gone in [file.clone(), file.with_file_name(".settings.lock")] {
+        let removed = match gone.is_dir() {
+            true => std::fs::remove_dir(&gone),
+            false => std::fs::remove_file(&gone),
+        };
+        if let Err(error) = removed {
+            assert_eq!(error.kind(), std::io::ErrorKind::NotFound, "{}: {error}", gone.display());
+        }
+    }
 }
 
 /// Steps down the list at `row`; the write waits.

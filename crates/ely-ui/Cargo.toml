@@ -31,6 +31,7 @@ frames = ["gpui/profiler"]
 test-support = []
 
 [dev-dependencies]
+ely-platform = { workspace = true, features = ["test-support"] }
 ely-gpui-component = { workspace = true, features = ["test-support"] }
 gpui = { workspace = true, features = ["test-support"] }
 tempfile.workspace = true

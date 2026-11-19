@@ -25,6 +25,7 @@ serde.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+ely-platform = { workspace = true, features = ["test-support"] }
 dunce.workspace = true
 ely-ui = { workspace = true, features = ["test-support"] }
 ely-pdf-engine = { workspace = true, features = ["test-support"] }
