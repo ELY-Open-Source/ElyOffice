@@ -185,6 +185,12 @@ mod tests {
     use super::*;
 
     fn git(dir: &Path, args: &[&str]) {
+        static ALONE: std::sync::Once = std::sync::Once::new();
+        // Temp folders sit in no outer repository, wherever they are.
+        ALONE.call_once(|| {
+            // SAFETY: once, before any test runs Git.
+            unsafe { std::env::set_var("GIT_CEILING_DIRECTORIES", std::env::temp_dir()) };
+        });
         let (git, _) = ely_platform::git::locate().expect("a Git");
         let done = std::process::Command::new(git)
             .args(args)
