@@ -8,12 +8,18 @@ pub(super) const ASKED: [&str; 2] = ["Ely 无此黑体", "Ely 无此宋体"];
 
 /// What each may fall to, by kind.
 #[cfg(target_os = "macos")]
-const KINDS: [&[&str]; 2] = [&["PingFang SC", "苹方-简"], &["Songti SC", "宋体-简", "STSong", "华文宋体"]];
+pub(super) const KINDS: [&[&str]; 2] = [&["PingFang SC", "苹方-简"], &["Songti SC", "宋体-简", "STSong", "华文宋体"]];
 #[cfg(windows)]
-const KINDS: [&[&str]; 2] = [&["Microsoft YaHei", "微软雅黑"], &["NSimSun", "新宋体", "SimSun", "宋体"]];
+pub(super) const KINDS: [&[&str]; 2] = [&["Microsoft YaHei", "微软雅黑"], &["NSimSun", "新宋体", "SimSun", "宋体"]];
 // This machine's fontconfig: Latin first, then Noto CJK.
 #[cfg(target_os = "linux")]
-const KINDS: [&[&str]; 2] = [&["Liberation Sans", "Noto Sans CJK SC"], &["Liberation Serif", "Noto Serif CJK SC"]];
+pub(super) const KINDS: [&[&str]; 2] = [&["Liberation Sans", "Noto Sans CJK SC"], &["Liberation Serif", "Noto Serif CJK SC"]];
+
+/// Why each is taken: the language's list, or fontconfig.
+#[cfg(not(target_os = "linux"))]
+pub(super) const WHY: [&str; 2] = ["zh-CN sans list", "zh-CN text list"];
+#[cfg(target_os = "linux")]
+pub(super) const WHY: [&str; 2] = ["system substitute", "system substitute"];
 
 /// A Chinese paragraph in each of `ASKED`.
 pub(super) fn chinese() -> String {

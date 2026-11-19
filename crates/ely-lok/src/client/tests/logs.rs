@@ -3,7 +3,7 @@
 use std::sync::{Mutex, Once};
 
 use super::analysis::{cells, skip};
-use super::fallback::{chinese, ASKED};
+use super::fallback::{chinese, ASKED, KINDS, WHY};
 use super::linked::{rates, sheets, update};
 use super::ole_links::worksheet;
 use super::sheet::open_book;
@@ -223,8 +223,10 @@ fn a_missing_font_logs_what_drew_it_and_why() {
     }
     listen();
     let (_dir, _worker, _doc) = super::input::open(&chinese());
-    for asked in ASKED {
-        let line = heard(&["vcl.fonts", &format!("font \"{asked}\" missing: took \""), "\" ("]);
-        assert!(line.is_some(), "{asked}'s stand-in is not in the app's log");
+    for ((asked, kind), why) in ASKED.iter().zip(KINDS).zip(WHY) {
+        let line = heard(&["vcl.fonts", &format!("font \"{asked}\" missing: took \"")]).unwrap_or_else(|| panic!("{asked}'s stand-in is not logged"));
+        let (took, reason) = line.split_once(" missing: took \"").and_then(|(_, rest)| rest.split_once("\" (")).expect("the line's shape");
+        assert!(kind.contains(&took), "{asked} logged {took:?}, not one of {kind:?}");
+        assert_eq!(reason, format!("{why})"), "{asked}: why {took} was taken");
     }
 }
