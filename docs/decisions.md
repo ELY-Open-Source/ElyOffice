@@ -1414,3 +1414,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 根因仍是 2026-11-05 所查：Claude Code 在 herdr 判它就绪后仍会丢打进来的字。argv 起审查不经输入框，换成 Pi 后照用。复查（Linux，herdr 0.9.5，Pi 1.5.2）：照 review.sh 的命令行直起 39 次（先 1 次，再 20 次接连、6 个并行三轮）皆开工；旧法先起 Pi 再 `agent prompt` 10 次也都过，丢字只在 Claude Code。
 - `review.sh` 把每次起审查的步骤带 UTC 时刻追加进 `.work/<ID>-r<轮次>/start.log`：窗格、起 pi、状态（只记变化，含 herdr 认出 Pi 前的 `agent_not_found`）、结论；失败时连窗格最近 40 行，阻塞时连屏上文字；出错信息指向该文件。再有卡住即按它查。
 - 改过的 review.sh 对练习条目端到端 33 次（先 1 次，再 20 次接连、12 次并行，负载 33；各次的 start.log 在 `.work/R15.65/office/.work/Z9.*-r1/`（本机，未入库））：皆 2 至 3 秒开工、皆得结论，0 次卡住。
+
+## 2026-11-18 Markdown 里的块级 HTML 照浏览器分行，单元格以制表符分隔（R20.35）
+
+- 原状：R20.19 第 3 轮余三项。写信的 `ShortcodeRun` 只数字面的 `code`、`pre` 起止，祖先的结束标签关掉它们时不知：`a <div><pre>x</div> :smile:` 发出去留着 `:smile:`，写信界面读作 😄。段落里的块级 HTML 被 html5ever 移出 `p` 后，行内读法仍连成一行（`a <pre>b</pre> c` 读作 `a b c`）。HTML 块里相邻单元格的字连在一起（`helloworld`）。
+- 定（组件库 9ace0d7c）：`ShortcodeRun` 把标签与文字逐段喂给 html5ever，语境与画面相同（`body` 里一个 `p`），文字在不在 `code`、`pre` 里看所建的树；每段文字后补一个空注释，表格里暂存的文字随之落位。行内与 HTML 块都照 Chromium 的 innerText 分行：`p` 前后两个换行，其余块一个，相邻的取多者，`br` 自己的换行不并入；换行前的空白去掉，换行后折叠的空白不画；同一行的单元格之间一个制表符。
+- 旧测试有五例断言一行（`a <pre>:smile:</pre> b` 等），是 R20.19 第 3 轮判错的读法，改为 innerText 的分行，样式区间随之后移。
+- 性能：量 `markdown_read_2mib` 的那个调用的用户态指令数。组件库副本的 ely-documents 里临时加一个示例 r2035_outline（不入库；与 bench 同一段文本重复到 2 MiB，`ely_documents::outline` 读十遍），`cargo build --profile bench -p ely-documents --example r2035_outline`，再 `perf stat -x, -e instructions:u target/release/examples/r2035_outline`；同一命令前后各量两遍：前 25,487,548k，后 25,328,285k（−0.6%），两遍相差不到两千条。墙钟不作证据：五个代理与 ElyMark 的长跑同在，负载近 19，单次在 166–500 ms 间摆动。先一版把欠下的空白存成 `String`，每段落多一次分配，指令多 0.4%；改为枚举后降到上数。
+- 测试：组件库 `tree/emoji.rs` 的 `code_and_pre_end_where_the_html5_tree_ends_them`（`div` 的结束关掉 `pre`、`code` 越过块重开、表格里的字移出），`tree/tests/inline.rs` 的 `a_block_moved_out_of_the_paragraph_takes_its_own_lines`（`pre`、`div`、`h2`、`br` 后的块，全文），`tree/html_block.rs` 的 `cells_part_with_tabs_and_rows_with_lines`（多格、多行、空格、`th`，全文）；三处各以变异核对：去掉即败。ElyMail `tests/markup.rs` 的 `an_ancestor_s_end_closes_pre_as_the_composer_reads_it` 在旧 pin 下必败，放在 `.work/R20.35/office`（本机，未入库），随换 pin 入库。
