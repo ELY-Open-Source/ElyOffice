@@ -239,10 +239,8 @@ impl Deck {
         let landed = tab.extra.transition_landed(view.read(cx));
         let sized = tab.extra.size_landed(view.read(cx));
         let doc = tab.doc.clone();
-        // The tab stays here until this lands.
-        let busy = self.hold(id);
-        ely_lok::read_off(
-            &self.core.worker,
+        self.read_for_tab(
+            id,
             &doc,
             |worker, doc| {
                 let at = worker.now(doc)?;
@@ -269,7 +267,6 @@ impl Deck {
                 ))
             },
             move |deck: &mut Self, read, cx| {
-                let _busy = busy;
                 let Some(tab) = deck.tab_mut(id) else {
                     return;
                 };

@@ -1555,3 +1555,4 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 受影响：这段时间的三个 Linux 内核编号（2bce2397、71c96842、febf6d7b）与其上量的启动、内存数，冻结期间 html 的 PERF-07、fonts 的 PERF-02 在内；正确性测试只多了拼写词典。71c96842 与 22350907 不同即因此，不是先前猜的“别的产物更新”。
 - 修：在共享树上持内核锁 `.work/kernel.lock`（本机，未入库）跑 `scripts/build-libreoffice.sh` 本身（140 of 140，make 几近空跑，再裁词典、拷 ely.xcd、修 RUNPATH、换编号），内核编号 04023855，只剩 dict-en。macOS 两棵与 Windows 两棵查过，只有 dict-en。
 - 定：共享的内核树里只做定向 make（`make Library_x`）或跑 `build-libreoffice.sh`，不空跑整树 `make`；私有树要量启动或内存，先照脚本裁过。
+- 自动读不再拿着标签（改 1181 那条）：ElyShow 的幻灯片读与缩略图、ElyTable 的表读、链接读与有效性读，同 ElyDoc 的字数，经 `ely_office::Following::read_for_tab` 在后台读，读完交给那时拿着该标签的窗口（`shared.hosts()` 按标签号找）；读的标志随标签走，新窗口接着清。标签关了，结果丢弃并记日志。用户发起的活（导出、另存、程序请求的保存、`read_in` 等）照旧拿着标签，1173 的规则不变。

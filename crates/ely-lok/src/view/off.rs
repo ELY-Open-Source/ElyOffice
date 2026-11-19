@@ -142,7 +142,7 @@ impl Front {
 
 /// Runs `work` once no other background work holds the turn.
 #[track_caller]
-pub fn behind<W: Send + 'static, T>(worker: &Arc<Mutex<W>>, work: impl FnOnce(&mut W) -> T) -> impl Future<Output = T> {
+pub fn behind<W: Send + 'static, T, F: FnOnce(&mut W) -> T>(worker: &Arc<Mutex<W>>, work: F) -> impl Future<Output = T> + use<W, T, F> {
     queued(Arc::clone(worker), work, Location::caller())
 }
 

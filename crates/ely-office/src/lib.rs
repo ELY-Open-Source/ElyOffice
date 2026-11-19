@@ -8,6 +8,7 @@ mod dialogs;
 pub mod engine;
 pub mod files;
 mod find;
+pub mod follow;
 mod front;
 mod hold;
 mod links;
@@ -47,6 +48,7 @@ pub use close::{After, Closing};
 pub use dialogs::{Dialog, Dialogs, cancel};
 pub use engine::{Engine, Load, Stop};
 pub use find::{FindReplace, Finder, Finding};
+pub use follow::Following;
 pub use links::{Linked, Linking, Links, UpdateLinks};
 pub use lok::{Commands, Lok, start, take_engine};
 pub use open::{Opening, Source};
@@ -60,7 +62,7 @@ pub use zoom::{ActualSize, ZoomIn, ZoomOut, Zooming, bind_zoom_keys, zoom_items}
 
 /// Every shared trait, for `use ely_office::prelude::*`.
 pub mod prelude {
-    pub use crate::{Chrome, Closing, Commands, Dialogs, Finding, Host, Linking, Opening, Remote, Saving, Stopping, Tabs, Undoing, Zooming};
+    pub use crate::{Chrome, Closing, Commands, Dialogs, Finding, Following, Host, Linking, Opening, Remote, Saving, Stopping, Tabs, Undoing, Zooming};
 }
 
 /// What one app opens and writes.

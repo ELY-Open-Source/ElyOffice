@@ -246,14 +246,11 @@ impl Book {
         // Asked now: a failure waits for the next change.
         let extra = &mut self.tab_mut(id).expect("the tab is open").extra;
         (extra.ruling, extra.ruled) = (true, Some(spot.clone()));
-        // The tab stays here until this lands.
-        let busy = self.hold(id);
-        ely_lok::read_off(
-            &self.core.worker,
+        self.read_for_tab(
+            id,
             &doc,
             |worker, doc| sheet::validation(&worker.values(doc, sheet::VALIDATION)?),
             move |book: &mut Self, read, cx| {
-                let _busy = busy;
                 let Some(tab) = book.tab_mut(id) else {
                     return;
                 };

@@ -215,9 +215,9 @@ fn type_in_shape(cx: &mut TestAppContext, book: &Entity<Book>) {
         worker.post_key(&tab.doc, 0, 769).expect("F2");
         worker.post_key(&tab.doc, 'z' as u32, 537).expect("a key");
     });
+    // Keys posted past the view: wait on the kernel's answer.
+    settle(cx, |app| book.read(app).active_tab().expect("a tab").view.read(app).graphic().is_none());
     fresh(cx, book);
-    let graphic = cx.update(|app| book.read(app).active_tab().expect("a tab").view.read(app).graphic());
-    assert!(graphic.is_none(), "editing the shape's text: {graphic:?}");
 }
 
 #[test]

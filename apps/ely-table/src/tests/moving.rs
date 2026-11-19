@@ -145,6 +145,40 @@ fn a_source_check_in_flight_lands_in_the_new_window() {
 }
 
 #[test]
+fn reads_in_flight_follow_their_workbook() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((book, _)) = first(&mut cx, dir.path()) else {
+        return eprintln!("SKIP: no LOK build");
+    };
+    blank(&mut cx, &book);
+    update(&mut cx, &book, |book, cx| book.new_blank(cx));
+    wait(&mut cx, |app| book.read(app).core.tabs.len() == 2 && book.read(app).active_tab().is_some_and(|tab| tab.extra.read.is_some()));
+    let id = cx.update(|app| book.read(app).core.active()).expect("a tab");
+    // One update: the move comes before the three reads run.
+    cx.update(|app| {
+        book.update(app, |book, cx| {
+            let view = book.tab(id).expect("the tab").view.clone();
+            let extra = &mut book.tab_mut(id).expect("the tab").extra;
+            (extra.read, extra.linked, extra.ruled) = (None, None, None);
+            book.observed(id, &view, cx);
+            let extra = &book.tab(id).expect("the tab").extra;
+            assert!(extra.reading && extra.linking && extra.ruling, "sheet, link and rule reads are asked");
+        });
+        ely_office::moving::to_new_window(book.clone(), id, app);
+    });
+    wait(&mut cx, |app| book.read(app).tab(id).is_none());
+    let other = front(&mut cx);
+    assert_ne!(other, book, "a new window is in front");
+    wait(&mut cx, |app| {
+        other.read(app).tab(id).is_some_and(|tab| {
+            let extra = &tab.extra;
+            !extra.reading && !extra.linking && !extra.ruling && extra.read.is_some() && extra.linked.is_some() && extra.ruled.is_some()
+        })
+    });
+}
+
+#[test]
 fn work_running_for_a_tab_keeps_it_until_it_ends() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();

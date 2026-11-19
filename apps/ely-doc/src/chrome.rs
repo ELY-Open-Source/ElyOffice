@@ -113,28 +113,16 @@ impl Docs {
         // Asked now: a failure waits for the next change.
         let extra = &mut self.tab_mut(id).expect("the tab is open").extra;
         (extra.counting, extra.counted) = (true, Some(state));
-        let (worker, shared) = (std::sync::Arc::clone(&self.core.worker), self.core.shared.clone());
-        // Tab state only: the tab may move meanwhile.
-        cx.spawn(async move |_, cx| {
-            let read = cx
-                .background_executor()
-                .spawn(async move {
-                    ely_lok::behind(&worker, move |worker| {
-                        let json = worker.values(&doc, ".uno:WordCount")?;
-                        ely_lok::review::counts(&json)
-                    })
-                    .await
-                })
-                .await;
-            cx.update(|cx| {
-                // The window holding the tab now hears.
-                let Some(docs) = shared.hosts().into_iter().find(|docs| docs.read(cx).tab(id).is_some()) else {
-                    return log::info!("doc: tab {id} closed before its count landed");
-                };
-                docs.update(cx, |docs, cx| docs.counted(id, read, cx));
-            });
-        })
-        .detach();
+        self.read_for_tab(
+            id,
+            &doc,
+            |worker, doc| {
+                let json = worker.values(doc, ".uno:WordCount")?;
+                ely_lok::review::counts(&json)
+            },
+            move |docs: &mut Self, read, cx| docs.counted(id, read, cx),
+            cx,
+        );
     }
 
     /// Tab `id`'s count landed; asks again if its status moved.

@@ -116,24 +116,31 @@ fn a_deck_being_shown_or_asked_about_stays() {
 }
 
 #[test]
-fn a_read_or_picture_in_flight_keeps_its_deck() {
+fn a_read_and_picture_in_flight_follow_their_deck() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let Some((deck, _)) = first(&mut cx, dir.path()) else {
         return eprintln!("SKIP: no LOK build");
     };
+    opened(&mut cx, &deck);
     let id = opened(&mut cx, &deck);
-    let stays = deck.update(&mut cx, |deck, cx| {
-        deck.repaint_all(id, cx);
-        assert!(deck.tab(id).expect("the tab").extra.painting, "a picture is asked");
-        deck.move_out(id, cx).err()
+    // One update: the move comes before either read runs.
+    cx.update(|app| {
+        deck.update(app, |deck, cx| {
+            deck.repaint_all(id, cx);
+            deck.force_reread(id, cx);
+            let extra = &deck.tab(id).expect("the tab").extra;
+            assert!(extra.painting && extra.reading, "a picture and a read are asked");
+        });
+        ely_office::moving::to_new_window(deck.clone(), id, app);
     });
-    assert_eq!(stays, Some("office.move.busy"), "the picture lands here first");
-    wait(&mut cx, |app| deck.read(app).tab(id).is_some_and(|tab| !tab.extra.painting));
-    let stays = deck.update(&mut cx, |deck, cx| {
-        deck.force_reread(id, cx);
-        assert!(deck.tab(id).expect("the tab").extra.reading, "a read is asked");
-        deck.move_out(id, cx).err()
+    wait(&mut cx, |app| deck.read(app).tab(id).is_none());
+    let other = cx.update(|app| crate::window::front(None, app)).expect("a front window");
+    assert_ne!(other, deck, "a new window is in front");
+    // Both land in the new window, which pictures the slide.
+    wait(&mut cx, |app| {
+        other.read(app).tab(id).is_some_and(|tab| {
+            !tab.extra.painting && !tab.extra.reading && tab.extra.read.is_some() && !tab.extra.thumbs.is_empty() && tab.extra.stale.is_empty()
+        })
     });
-    assert_eq!(stays, Some("office.move.busy"), "the read lands here first");
 }

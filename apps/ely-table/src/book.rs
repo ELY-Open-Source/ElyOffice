@@ -251,10 +251,8 @@ impl Book {
         // Marked read now: a failure waits for the next change.
         let extra = &mut self.tab_mut(id).expect("the tab is open").extra;
         (extra.reading, extra.read) = (true, Some(seen));
-        // The tab stays here until this lands.
-        let busy = self.hold(id);
-        ely_lok::read_off(
-            &self.core.worker,
+        self.read_for_tab(
+            id,
             &doc,
             |worker, doc| {
                 let at = worker.now(doc)?;
@@ -263,7 +261,6 @@ impl Book {
                 Ok((sheets, ely_lok::sheet::geometry(&json)?, at))
             },
             move |book: &mut Self, read, cx| {
-                let _busy = busy;
                 let Some(tab) = book.tab_mut(id) else {
                     return;
                 };
@@ -302,17 +299,14 @@ impl Book {
         }
         (tab.extra.linking, tab.extra.linked) = (true, Some(edited));
         let doc = tab.doc.clone();
-        // The tab stays here until this lands.
-        let busy = self.hold(id);
-        ely_lok::read_off(
-            &self.core.worker,
+        self.read_for_tab(
+            id,
             &doc,
             |worker, doc| {
                 let links = ely_lok::links::sources(&worker.values(doc, ely_lok::links::LIST)?)?;
                 Ok((links, ely_lok::sheet::kept(&worker.values(doc, ely_lok::sheet::KEPT)?)?))
             },
             move |book: &mut Self, read, cx| {
-                let _busy = busy;
                 let Some(tab) = book.tab_mut(id) else {
                     return;
                 };

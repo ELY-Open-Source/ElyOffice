@@ -129,14 +129,11 @@ impl Deck {
         let tab = self.tab_mut(id).expect("the tab is open");
         tab.extra.painting = true;
         tab.extra.stale.remove(&name);
-        // The tab stays here until this lands.
-        let busy = self.hold(id);
-        ely_lok::read_off(
-            &self.core.worker,
+        self.read_for_tab(
+            id,
             &doc,
             move |worker, doc| doc.paint_part(worker, (part, master), PICTURE),
             move |deck: &mut Self, painted, cx| {
-                let _busy = busy;
                 let Some(tab) = deck.tab_mut(id) else {
                     return;
                 };
