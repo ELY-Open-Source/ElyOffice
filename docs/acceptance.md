@@ -299,7 +299,7 @@ R20.47：R20.1 至 R20.46 逐条核对，另列暂缓的 C15（ElyAgent，用户
 | C15.4 | 暂缓 | 工具与授权、文件与产物 | — | 暂缓（用户 2026-11-19），待用户重开 |
 | C15.5 | 暂缓 | 会话恢复、执行控制、历史、用量 | — | 暂缓（用户 2026-11-19），待用户重开 |
 | C15.6 | 暂缓 | 本地模型、托盘、生命周期 | — | 暂缓（用户 2026-11-19），待用户重开 |
-| C20.2 | 进行中 | 稳定性：磁盘写满、长时编辑、内核崩溃、休眠 | `tests/perf/soak.py`、`tests/perf/pause.py`；无审查 | Mac 8 小时整跑进行中；没有真休眠（Mac 不能自己醒，Windows 虚拟机不休眠），休眠只以冻结模拟，`pause.py` 只在 Linux；只读目录行内未记 |
+| C20.2 | 进行中 | 稳定性：磁盘写满、长时编辑、内核崩溃、休眠 | `tests/perf/soak.py`、`tests/perf/pause.py`；无审查 | Linux 8 小时整跑 480 分钟 7399 轮核对全过，但 ElyDoc worker 内存一路涨（460→967 MB）：内核两个文字缓存以整段文字为键、不计键长，修复与回归在 R20.54，C20.2 因之仍开；Mac 整跑因有人用那台 Mac 停了，不作结论；没有真休眠（Mac 不能自己醒，Windows 虚拟机不休眠），只以冻结模拟，`pause.py` 只在 Linux；只读目录行内未记 |
 | C22.2 | 进行中 | `docs/qa.md`：QA-01 至 QA-28 的证据与缺口 | `docs/qa.md`；末轮审查尚未入库 | 只整理，未重跑；全有证据 0 项，部分 26 项，无证据 2 项（QA-23、QA-24，ElyAgent 暂缓）；第 2 轮的结论尚未入库、未勾 |
 | C23.1 | 进行中 | PRD §23 九项工程风险的证据与状态 | `docs/decisions.md` 的 C23.1 一节；末轮审查尚未入库 | 第 1 轮的结论尚未入库；所指五处未改：Windows 的中文输入与 ElyShow 记录少记，Linux 全套记录，邮件各端记录，Entra 注册无证据，Agent 能力表；§23 末段缺升级后须跑哪些回归的规定 |
 | C24.1 | 过审 | 交付物：README、构建说明、已知限制、测试报告 | `README.md`、`docs/compatibility.md`；`tasks/reviews/C24.1-r2.md` PASS | Windows、Mac 的 build-libreoffice 未跑（R20.26 在重建）；Mac 的 build-git 未在独立克隆里跑；Windows、Mac 未起界面；ElyMark 的限制一条待 R20.35 换 pin 时改 |
