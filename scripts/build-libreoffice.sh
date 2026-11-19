@@ -142,19 +142,11 @@ if [ ! -f config_host.mk ] || ! printf '%s\n' "${options[@]}" | cmp -s - autogen
 fi
 make -j"$jobs"
 
-# Bundled dictionaries: English only; each one slows LOK start (PERF-01).
-keep=(dict-en)
+# A bare make brings back what this prunes.
+"$root/scripts/lo-extras.sh" "$app/.." | while IFS= read -r extra; do rm -rf "$extra"; done
 extensions=$app/extensions
-for dict in "$extensions"/dict-*; do
-  name=$(basename "$dict")
-  if [[ " ${keep[*]} " != *" $name "* ]]; then
-    rm -rf "$dict"
-  fi
-done
 echo "build-libreoffice.sh: dictionaries kept: $(ls "$extensions" | tr '\n' ' ')"
-# Lightproof is Python: inert without it, a hang on Windows.
 en=$extensions/dict-en
-rm -rf "$en/Lightproof.py" "$en/Lightproof.components" "$en/Linguistic.xcu" "$en/pythonpath" "$en/dialog"
 python3 - "$en/META-INF/manifest.xml" <<'PY'
 import re, sys
 path = sys.argv[1]

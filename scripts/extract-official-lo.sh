@@ -14,6 +14,8 @@ rm -rf "$out"
 mkdir -p "$out"
 # A plain folder, not a bundle, so nothing registers.
 mv "$work/LibreOffice/LibreOffice.app/Contents" "$out/Contents"
+# Its dictionaries are what kernel-id.sh refuses; the test needs none.
+rm -rf "$out/Contents/Resources/extensions"
 # Handshakes pass, so the tile check rejects it.
 "$root/scripts/kernel-id.sh" "$out/Contents" "$out/Contents/Resources/ely-kernel-id"
 echo "extract-official-lo.sh: $out/Contents/Frameworks"

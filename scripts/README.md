@@ -14,6 +14,7 @@ scripts/build-openssl.sh       构建钉住的静态 OpenSSL 至 engines/openssl
 scripts/build-bash.sh [目录]   构建钉住的 GNU bash 5.3 为 x86_64，默认装到 ~/ely-share/bash-x86_64（Intel 版发布在 Rosetta 下以它跑 ci.sh；核散列与架构）
 scripts/review.sh ID 轮次 路径  审查一条任务：herdr 里的 Pi（K3.1 Pro，思考 high）审查，结论进 `tasks/reviews/`；审查者的窗格设 `ELY_DATA_ROOT=.work/<ID>-r<轮次>/data/ElyOffice`，有 `.work/bin/cargo` 时把它排在 PATH 最前；细则见 `tests/scripts/README.md` 的 review-rules.sh
 scripts/apply-lo-patches.sh engines/lo-src  源码已到补丁序列第几个，补上其余（构建脚本调用）
+scripts/lo-extras.sh 内核目录  列出构建会裁掉、却在内核里的扩展（dict-en 以外的词典，dict-en 里的 Lightproof 等）；build-libreoffice.sh 照它裁，kernel-id.sh 见有即拒
 scripts/lo-configured.sh engines/lo-src  该树是否在此处配置的：`config_host.mk` 记的 SRCDIR 不是它的实际路径（树搬过、配置时的目录已删）即失败并点名两处（构建脚本调用；手动 make 前也可先跑）
 packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；cargo 是镜像里从源码建的 huacnlee/cargo，其发布版要 glibc 2.34；产物与本机同在 target/release，镜像里再建即换回）
 packaging/linux/package.sh 应用  出该应用的 AppDir 与包的依赖（在容器里运行）；依赖带 glibc 的版本下限（包内文件所需的最高版本）；libdbus 与它载入的库用系统的；`bundle.sh` 再出装全部应用的 `ely-office` 包（deb、rpm、Arch）与一个 `ElyOffice-版本-linux-架构.AppImage`，三个文档应用共用一份内核

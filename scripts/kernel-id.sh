@@ -14,6 +14,13 @@ rm -f "$file"
   echo "kernel-id.sh: no folder $kernel" >&2
   exit 1
 }
+# A bare make puts back what the build pruned.
+extras=$("$(dirname "$0")/lo-extras.sh" "$kernel")
+[ -z "$extras" ] || {
+  echo "kernel-id.sh: $kernel holds extras the build prunes; run scripts/build-libreoffice.sh:" >&2
+  echo "$extras" >&2
+  exit 1
+}
 if command -v sha256sum >/dev/null; then
   hash=(sha256sum)
 else

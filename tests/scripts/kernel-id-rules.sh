@@ -76,7 +76,24 @@ exec $real "\$@"
 STUB
 chmod +x "$work/bin/readlink"
 refused "one unreadable link"
+# What the build prunes, back after a bare make.
+for extra in share/extensions/dict-fr share/extensions/dict-en/Lightproof.py; do
+  mkdir -p "$work/kernel/$(dirname "$extra")"
+  echo extra >"$work/kernel/$extra"
+  echo stale >"$work/kernel/program/ely-kernel-id"
+  if out=$("$root/scripts/kernel-id.sh" "$work/kernel" "$work/kernel/program/ely-kernel-id" 2>&1); then
+    fail "a kernel holding $extra got an id"
+  fi
+  grep -q "$extra" <<<"$out" || fail "the refusal does not name $extra: $out"
+  [ ! -e "$work/kernel/program/ely-kernel-id" ] || fail "$extra left an id"
+  rm -rf "$work/kernel/share"
+done
+before=$(id)
+mkdir -p "$work/kernel/share/extensions/dict-en"
+echo words >"$work/kernel/share/extensions/dict-en/en_US.dic"
+[ "$(id)" != "$before" ] || fail "the kept dictionary is not counted"
 rm "$work/kernel/program/"*.so
+rm -rf "$work/kernel/share"
 mkdir "$work/bin"
 refused "an empty kernel"
-echo "kernel-id-rules: files and links change the id; any failure leaves none"
+echo "kernel-id-rules: files and links change the id; any failure or pruned extra leaves none"
