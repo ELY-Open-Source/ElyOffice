@@ -1548,3 +1548,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 用户定：0.1.17 照常发布，不等 R20.54。两版补丁草稿都把长段落的键入拖慢数十倍（20 万字一段键入到帧 23 → 3,624 毫秒），根因未明。
 - 0.1.17 的更新日志把这一增长列为已知问题。C20.2 仍开着，等 R20.54。
+
+## 2026-11-19 共享的 Linux 内核一度带回全部词典（R20.54 的整树 make）
+
+- 所见：`engines/lo-src/instdir` 自 2026-11-19 09:09 UTC 起带着 65 个词典扩展，而不只 dict-en。`build-libreoffice.sh` 在 make 之后删去其余词典（每个都拖慢 LOK 启动，PERF-01），空跑一次整树 `make` 会把它们重新放回。R20.54 的草稿构建（08:59 UTC 起）在共享树里跑了整树 `make`，其后两次（改设计、退回 0145）同样。
+- 受影响：这段时间的三个 Linux 内核编号（2bce2397、71c96842、febf6d7b）与其上量的启动、内存数，冻结期间 html 的 PERF-07、fonts 的 PERF-02 在内；正确性测试只多了拼写词典。71c96842 与 22350907 不同即因此，不是先前猜的“别的产物更新”。
+- 修：在共享树上持内核锁 `.work/kernel.lock`（本机，未入库）跑 `scripts/build-libreoffice.sh` 本身（140 of 140，make 几近空跑，再裁词典、拷 ely.xcd、修 RUNPATH、换编号），内核编号 04023855，只剩 dict-en。macOS 两棵与 Windows 两棵查过，只有 dict-en。
+- 定：共享的内核树里只做定向 make（`make Library_x`）或跑 `build-libreoffice.sh`，不空跑整树 `make`；私有树要量启动或内存，先照脚本裁过。
