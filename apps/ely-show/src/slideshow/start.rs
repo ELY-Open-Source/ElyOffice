@@ -22,7 +22,7 @@ use gpui::{
     ParentElement as _, Pixels, PlatformDisplay, Window, WindowBounds, WindowOptions,
 };
 
-use super::{Show, audience::Audience, presenter::Presenter};
+use super::{Show, audience::Audience, links::{self, Link}, presenter::Presenter};
 use crate::deck::Deck;
 use crate::dialog::{Dialog, edit};
 
@@ -32,7 +32,8 @@ const WIDEST: f32 = 1920.0;
 /// A show waiting for its screens.
 pub struct Starting {
     tab: u64,
-    slides: Vec<ShowSlide>,
+    slides: Box<[ShowSlide]>,
+    links: Box<[Vec<Link>]>,
     first: usize,
     /// The copy the show plays, and its file.
     doc: Doc,
@@ -55,22 +56,33 @@ pub fn discard(worker: Arc<Mutex<Worker>>, doc: Doc, copy: PathBuf, cx: &App) {
     .detach();
 }
 
+/// The current slide, the copy, its slides and links.
+type Copied = (usize, Doc, Vec<ShowSlide>, Vec<Vec<Link>>);
+
 /// Saves `doc` as the show's copy and reads it.
 fn copy(
     worker: &mut Worker,
     doc: &Doc,
     copy: &std::path::Path,
-) -> io::Result<(usize, Doc, Vec<ShowSlide>)> {
+) -> io::Result<Copied> {
     let current = doc.sheets(worker)?.current;
     let url = ely_lok::file_url(copy);
     doc.save_as(worker, &url, "odp")?;
+    let links = links::read(copy)?;
     let shown = worker.load(&url)?;
     let read = |worker: &mut Worker| -> io::Result<Vec<ShowSlide>> {
         worker.run(&shown, "view.theme", &[ely_lok::SCHEME])?;
         ely_lok::show::slide_show(&worker.values(&shown, ely_lok::show::SLIDE_SHOW)?)
     };
     match read(worker) {
-        Ok(slides) => Ok((current, shown, slides)),
+        Ok(slides) if slides.len() == links.len() => Ok((current, shown, slides, links)),
+        Ok(slides) => {
+            worker.close_doc(shown)?;
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{} slides but links for {}", slides.len(), links.len()),
+            ))
+        }
         Err(error) => {
             worker.close_doc(shown)?;
             Err(error)
@@ -181,7 +193,7 @@ impl Deck {
             move |worker, doc| copy(worker, doc, &into),
             move |deck, read, _, cx| {
                 deck.show_starting = false;
-                let (current, doc, slides) = match read {
+                let (current, doc, slides, links) = match read {
                     Ok(read) => read,
                     Err(error) => return deck.engine_failed(&format!("the show: {error}"), cx),
                 };
@@ -201,7 +213,8 @@ impl Deck {
                 };
                 let starting = Starting {
                     tab: id,
-                    slides,
+                    slides: slides.into(),
+                    links: links.into(),
                     first,
                     doc,
                     copy: path,
@@ -244,7 +257,7 @@ impl Deck {
         let deck = cx.weak_entity();
         let played = (worker, starting.doc, starting.copy);
         let show = cx.new(|cx| {
-            Show::new(deck, played, (starting.slides, starting.first), (slide, pixels), cx)
+            Show::new(deck, played, (starting.slides.into_vec(), starting.links.into_vec(), starting.first), (slide, pixels), cx)
         });
         let mut windows = Vec::new();
         // The audience window opens last, so it is in front.
@@ -365,6 +378,45 @@ mod tests {
     }
 
     #[test]
+    fn the_kernels_copy_gives_each_slide_its_links() {
+        use ely_office::prelude::*;
+
+        use crate::slideshow::links::Goto;
+        use crate::tests::{settle, update};
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let mut cx = gpui::TestAppContext::single();
+        let Some(deck) = crate::tests::deck(&mut cx, dir.path()) else {
+            eprintln!("SKIP: no LOK build");
+            return;
+        };
+        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/show/links.fodp");
+        let from = dir.path().join("links.fodp");
+        std::fs::copy(&fixture, &from).expect("copies");
+        update(&mut cx, &deck, |deck, cx| deck.open_file(from.clone(), cx));
+        settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.list.len() == 3));
+        let path = dir.path().join("copy.odp");
+        let (slides, links) = cx.update(|app| {
+            let deck = deck.read(app);
+            let tab = deck.active_tab().expect("a tab");
+            let mut worker = deck.core.worker.lock().expect("the worker lock");
+            let (_, doc, slides, links) = super::copy(&mut worker, &tab.doc, &path).expect("a copy");
+            worker.close_doc(doc).expect("the copy closes");
+            (slides.len(), links)
+        });
+        let goes: Vec<Vec<(i64, Goto)>> =
+            links.iter().map(|page| page.iter().map(|link| (link.bounds.1, link.to.clone())).collect()).collect();
+        assert_eq!(slides, 3);
+        assert_eq!(
+            goes,
+            vec![
+                vec![(2000, Goto::Slide(1))],
+                vec![(2000, Goto::Address("https://example.com/".into())), (8000, Goto::Broken("Gone".into()))],
+                vec![(2000, Goto::Slide(0))],
+            ]
+        );
+    }
+
+    #[test]
     fn a_start_whose_screen_is_gone_says_so_and_drops_its_copy() {
         use ely_office::prelude::*;
         use gpui::AppContext as _;
@@ -392,8 +444,8 @@ mod tests {
             let deck = deck.read(app);
             let tab = deck.active_tab().expect("a tab");
             let mut worker = deck.core.worker.lock().expect("the worker lock");
-            let (_, doc, slides) = super::copy(&mut worker, &tab.doc, &path).expect("a copy");
-            super::Starting { tab: tab.id, slides, first: 0, doc, copy: path.clone(), audience: 99, presenter: false }
+            let (_, doc, slides, links) = super::copy(&mut worker, &tab.doc, &path).expect("a copy");
+            super::Starting { tab: tab.id, slides: slides.into(), links: links.into(), first: 0, doc, copy: path.clone(), audience: 99, presenter: false }
         });
         update(&mut cx, &deck, |deck, cx| {
             deck.show_starting = true;

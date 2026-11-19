@@ -49,5 +49,6 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("show.media.pause", "Pausa"),
     ("show.media.missing", "No se encuentra el archivo multimedia: {path}"),
     ("show.media.failed", "No se puede reproducir: {reason}"),
+    ("show.link.broken", "El enlace va a una diapositiva que no existe: {name}"),
     ("show.media.refused", "No se puede insertar {name}: {reason}"),
 ];

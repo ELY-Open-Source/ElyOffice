@@ -16,6 +16,7 @@ use quick_xml::{
 use crate::{Engine, Kind};
 
 mod zip;
+pub use zip::part;
 
 /// The lowercase extension of `path`.
 fn extension(path: &Path) -> String {

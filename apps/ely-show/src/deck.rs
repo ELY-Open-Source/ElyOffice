@@ -139,6 +139,7 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
     };
     let deck = crate::window::deck(|cx| Core::new(worker, stop, work, cx), cx);
     crate::slideshow::bind_keys(cx);
+    crate::insert::bind_keys(cx);
     ely_office::bind_zoom_keys(cx);
     ely_office::bind_undo_keys(cx);
     let root = crate::window::root(&deck, window, cx);

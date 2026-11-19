@@ -49,6 +49,7 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("show.media.pause", "Pause"),
     ("show.media.missing", "The media file is not there: {path}"),
     ("show.media.failed", "It cannot play: {reason}"),
+    ("show.link.broken", "The link goes to a slide that is not here: {name}"),
     ("show.media.refused", "{name} cannot go in: {reason}"),
 ];
 
@@ -101,5 +102,6 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("show.media.pause", "暂停"),
     ("show.media.missing", "找不到媒体文件：{path}"),
     ("show.media.failed", "无法播放：{reason}"),
+    ("show.link.broken", "链接指向的幻灯片不存在：{name}"),
     ("show.media.refused", "无法插入 {name}：{reason}"),
 ];

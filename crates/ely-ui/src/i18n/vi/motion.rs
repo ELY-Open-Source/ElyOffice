@@ -49,5 +49,6 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("show.media.pause", "Tạm dừng"),
     ("show.media.missing", "Không có tệp đa phương tiện ở đó: {path}"),
     ("show.media.failed", "Không phát được: {reason}"),
+    ("show.link.broken", "Liên kết trỏ tới một slide không tồn tại: {name}"),
     ("show.media.refused", "Không chèn được {name}: {reason}"),
 ];

@@ -1,7 +1,9 @@
 //! The Insert and View menus (SHOW-03 to 06).
 
+use ely_gpui_component::secondary;
 use ely_office::prelude::*;
-use gpui::{App, Context, Div, InteractiveElement as _, Menu, MenuItem, actions};
+use ely_ui::commands;
+use gpui::{App, Context, Div, InteractiveElement as _, KeyBinding, Menu, MenuItem, actions};
 
 use crate::deck::Deck;
 
@@ -19,6 +21,7 @@ actions!(
         InsertMedia,
         InsertTable,
         InsertChart,
+        InsertLink,
         InsertRemark,
         ShowRemarks,
         SnapToGrid,
@@ -50,6 +53,7 @@ pub fn menus((grid, guides, remarks): (bool, bool, bool), cx: &App) -> [Menu; 2]
         MenuItem::action(label("show.insert.table"), InsertTable),
         MenuItem::action(label("show.insert.chart"), InsertChart),
         MenuItem::separator(),
+        MenuItem::action(label("doc.insert.link"), InsertLink),
         MenuItem::action(label("show.insert.remark"), InsertRemark),
     ]);
     let insert = Menu::new(label("menu.insert")).items(insert);
@@ -79,6 +83,10 @@ macro_rules! run {
     };
 }
 
+pub fn bind_keys(cx: &mut App) {
+    cx.bind_keys([KeyBinding::new(secondary!("k"), InsertLink, Some(commands::CONTEXT))]);
+}
+
 pub fn bind(root: Div, cx: &mut Context<Deck>) -> Div {
     let root = run!(root, cx, InsertTextBox, "draw.text", &["true"]);
     let root = run!(
@@ -105,6 +113,7 @@ pub fn bind(root: Div, cx: &mut Context<Deck>) -> Div {
         .on_action(cx.listener(|deck, _: &InsertMedia, _, cx| deck.pick_media(cx)))
         .on_action(cx.listener(|deck, _: &InsertTable, _, cx| deck.ask_table(cx)))
         .on_action(cx.listener(|deck, _: &InsertChart, _, cx| deck.ask_chart(cx)))
+        .on_action(cx.listener(|deck, _: &InsertLink, window, cx| deck.ask_link(window, cx)))
         .on_action(
             cx.listener(|deck, _: &InsertRemark, window, cx| deck.ask_remark(None, window, cx)),
         )
@@ -172,15 +181,17 @@ mod tests {
             ely_ui::settings::install_defaults(cx);
             ely_ui::i18n::install_as("en-US", cx);
             let media = crate::deck::Deck::text(cx, "show.insert.media", &[]);
+            let link = crate::deck::Deck::text(cx, "doc.insert.link", &[]);
             let [insert, _] = super::menus((false, false, false), cx);
             let names = insert.items.iter().filter_map(|item| match item {
                 gpui::MenuItem::Action { name, .. } => Some(name.clone()),
                 _ => None,
             });
             let names: Vec<_> = names.collect();
+            assert!(names.contains(&link), "Insert offers a hyperlink");
             (names.contains(&media), names.len())
         });
         assert_eq!(offered, ely_platform::media::BUILT);
-        assert!(total >= 11, "the rest stay: {total}");
+        assert!(total >= 12, "the rest stay: {total}");
     }
 }

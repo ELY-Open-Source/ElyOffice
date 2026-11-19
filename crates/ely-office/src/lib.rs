@@ -15,6 +15,7 @@ pub mod lok;
 pub mod menu;
 pub mod moving;
 mod open;
+mod outward;
 mod recover;
 pub mod resident;
 pub mod remote;
@@ -49,6 +50,7 @@ pub use find::{FindReplace, Finder, Finding};
 pub use links::{Linked, Linking, Links, UpdateLinks};
 pub use lok::{Commands, Lok, start, take_engine};
 pub use open::{Opening, Source};
+pub use outward::outward;
 pub use recover::{Keeping, Recovering};
 pub use remote::Remote;
 pub use stopped::{Stopped, Stopping};
@@ -354,14 +356,6 @@ pub fn print_later<H: Tabs>(pdf: std::path::PathBuf, cx: &mut Context<H>) {
     .detach();
 }
 
-/// Addresses a click may open outside: web and mail.
-pub fn outward(uri: &str) -> bool {
-    // Schemes ignore case.
-    ["https://", "http://", "mailto:"]
-        .iter()
-        .any(|scheme| uri.get(..scheme.len()).is_some_and(|head| head.eq_ignore_ascii_case(scheme)))
-}
-
 /// A localized message.
 pub fn text(cx: &App, key: &str, args: &[(&str, &str)]) -> SharedString {
     ely_ui::i18n::text(cx, key, args)
@@ -485,16 +479,3 @@ pub trait Tabs: Host {
 }
 
 impl<H: Host> Tabs for H {}
-
-#[cfg(test)]
-mod outward_tests {
-    #[test]
-    fn web_and_mail_go_out_in_any_case() {
-        for uri in ["https://a.example/", "HTTPS://a.example/", "Http://a.example/", "MAILTO:x@a.example"] {
-            assert!(super::outward(uri), "{uri}");
-        }
-        for uri in ["ftp://a.example/", "file:///etc/passwd", "javascript:alert(1)", "httpsx://a", "ht", "\u{e9}https://"] {
-            assert!(!super::outward(uri), "{uri}");
-        }
-    }
-}

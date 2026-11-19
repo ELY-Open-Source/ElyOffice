@@ -21,6 +21,12 @@ pub enum Dialog {
         edit: Option<String>,
         field: Entity<TextInput>,
     },
+    /// The words and address of a new hyperlink.
+    Link {
+        tab: u64,
+        text: Entity<TextInput>,
+        url: Entity<TextInput>,
+    },
     Show(crate::slideshow::start::Starting),
     Output(crate::output::Output),
     Check(Vec<crate::check::Finding>),
@@ -30,7 +36,7 @@ impl Dialog {
     /// Whether it serves tab `id`, in front if `active`.
     pub(crate) fn about(&self, id: u64, active: bool) -> bool {
         match self {
-            Dialog::Table { tab, .. } | Dialog::Remark { tab, .. } => *tab == id,
+            Dialog::Table { tab, .. } | Dialog::Remark { tab, .. } | Dialog::Link { tab, .. } => *tab == id,
             Dialog::Output(output) => output.tab == id,
             Dialog::Chart(editing) => editing.tab == id,
             Dialog::New(_) => false,
@@ -97,6 +103,7 @@ impl Deck {
             Dialog::Table { columns, rows, .. } => self.table_dialog((*columns, *rows), cx),
             Dialog::Chart(editing) => self.chart_dialog(editing, cx),
             Dialog::Remark { tab, edit, field } => self.remark_dialog((*tab, edit), field, cx),
+            Dialog::Link { text, url, .. } => self.link_dialog((text, url), cx),
             Dialog::Show(starting) => self.show_dialog(starting, cx),
             Dialog::Check(found) => self.check_dialog(found, cx),
             Dialog::Output(output) => {
