@@ -2744,6 +2744,7 @@ dependencies = [
  "image",
  "jiff",
  "log",
+ "quick-xml",
  "serde_json",
  "tempfile",
 ]

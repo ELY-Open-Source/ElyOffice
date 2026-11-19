@@ -53,6 +53,11 @@ pub(super) fn names(bytes: &[u8]) -> io::Result<Vec<String>> {
     Ok(entries(bytes)?.into_iter().map(|entry| entry.name).collect())
 }
 
+/// Part `name` of the package at `path`; none if absent.
+pub fn part(path: &std::path::Path, name: &str) -> io::Result<Option<Vec<u8>>> {
+    read(&std::fs::read(path)?, name)
+}
+
 /// Entry `name`'s bytes, stored or deflated; none if absent.
 pub(super) fn read(bytes: &[u8], name: &str) -> io::Result<Option<Vec<u8>>> {
     let Some(entry) = entries(bytes)?.into_iter().find(|entry| entry.name == name) else {

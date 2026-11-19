@@ -79,9 +79,10 @@ impl Render for Audience {
                         .on_mouse_down(MouseButton::Left, move |event, _, cx| {
                             let x = (event.position.x - origin.0) / size.0;
                             let y = (event.position.y - origin.1) / size.1;
-                            click.update(cx, |show, cx| match show.media_at((x, y)) {
-                                Some(at) => show.toggle_media(at, cx),
-                                None => show.next(cx),
+                            click.update(cx, |show, cx| match (show.media_at((x, y)), show.link_at((x, y))) {
+                                (Some(at), _) => show.toggle_media(at, cx),
+                                (None, Some(to)) => show.follow(to, cx),
+                                (None, None) => show.next(cx),
                             })
                         })
                         .on_mouse_down(MouseButton::Right, move |_, _, cx| {

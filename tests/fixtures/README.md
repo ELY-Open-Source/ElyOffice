@@ -7,6 +7,7 @@
 - pdf/sizes.pdf：LibreOffice 26.2 由 Writer 文档导出的 PDF，30 段拉丁与中文（子集 Liberation Serif、Noto Serif CJK）、一张图，存后大小的测试用
 - pdf/signer.p12 与 signer.der：自签名测试证书，密码 ely
 - pdf/chain-root.der 与 chain-leaf.der：测试用的根与其签发的证书
+- show/links.fodp：三张幻灯片，文字链接到幻灯片名、网址与不存在的幻灯片，读放映副本里的链接用
 - show/sections.pptx：t.pptx 加两个章节（p14:sectionLst），sections-utf16.pptx 同而 presentation.xml 为 UTF-16LE，sections-locked.pptx 为其加密版，打开密码 ely，sections-locked-tail.pptx 同而目录移到文件末尾、`EncryptedPackage` 在最后一格
 - tree/launcher-fails、launcher-held、launcher-pwd、launcher-session：ElyTree 终端启动器测试用的可执行脚本（Git 里 100755）
 - git/git-2.39、git-2.40：只报版本的假 Git（版本下限测试），git-fails：报出版本后以 7 失败的假 Git
