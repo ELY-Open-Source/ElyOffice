@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Records cite real files; a tick has a passed review."""
+"""Records cite real files; ticks have recorded passed reviews."""
 import os
 import re
 import subprocess
@@ -64,6 +64,29 @@ def unpassed(text, last):
     return found
 
 
+# A task id: R15.24, SF.25, N-01.
+TASK = re.compile(r"(?<![\w.-])(?:[A-Z]{1,3}\d*\.\d+[a-z]?|[A-Z]{1,2}-\d+)(?![\w.])")
+# A round's verdict: 第 2 轮 PASS, R1 FAIL.
+CLAIM = re.compile(r"第\s*(\d+)\s*轮[^；。，—]{0,40}?(?:PASS|FAIL|通过|不过)|(?<![\w.\-/])[Rr](\d+)\s+(?:PASS|FAIL|ok)\b")
+
+
+def unrecorded(text, tracked):
+    """Ticked tasks naming their own round, with no verdict."""
+    found = []
+    for task, rest in re.findall(r"^\s*- \[x\] (\S+) (.*)$", text, re.M):
+        if "无审查记录" in rest:
+            continue
+        for m in CLAIM.finditer(rest):
+            # The last task named in its clause owns a round.
+            named = TASK.findall(re.split(r"—|。|；", rest[:m.start()])[-1])
+            if named and named[-1] != task:
+                continue
+            round_ = m.group(1) or m.group(2)
+            if f"tasks/reviews/{task}-r{round_}.md" not in tracked:
+                found.append(f"{task} names its round {round_}, which left no tasks/reviews/{task}-r{round_}.md")
+    return list(dict.fromkeys(found))
+
+
 def main():
     tracked = set(subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.splitlines())
     # Each must be caught: gaps, truncated names, unmarked local evidence.
@@ -83,11 +106,21 @@ def main():
             sys.exit(f"FAIL: records.py passes {text!r}")
     if unpassed("- [x] A 经 B 复审通过\n- [~] C fixed\n- [x] B ok", rounds):
         sys.exit("FAIL: records.py rejects a ticked task with a passed re-review")
+    held = {"tasks/reviews/T1-r1.md"}
+    for text in ["- [x] T1 done — R2 PASS", "- [x] T1 第 2 轮 PASS", "- [x] T2 done — r1 ok"]:
+        if not unrecorded(text, held):
+            sys.exit(f"FAIL: records.py passes {text!r}")
+    good = ["- [x] T1 第 1 轮 PASS", "- [x] T1 done — R9.9 第 4 轮 PASS", "- [x] T1 R18.15 R1 PASS",
+            "- [x] T2 所记第 1 轮无审查记录 — R1 PASS", "- [ ] T2 R1 PASS"]
+    for text in good:
+        if unrecorded(text, held):
+            sys.exit(f"FAIL: records.py rejects {text!r}")
     failed, last = [], last_rounds(tracked)
     for record in RECORDS:
         with open(os.path.join(ROOT, record), encoding="utf-8") as f:
             text = f.read()
-        failed += [f"{record}: {fault}" for fault in faults(text, tracked) + unpassed(text, last)]
+        ticks = unrecorded(text, tracked) if record.startswith("tasks/") else []
+        failed += [f"{record}: {fault}" for fault in faults(text, tracked) + unpassed(text, last) + ticks]
     if failed:
         sys.exit("FAIL:\n" + "\n".join(failed))
     print(f"PASS: {len(RECORDS)} records cite tracked files, or mark them removed or local")
