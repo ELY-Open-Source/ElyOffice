@@ -88,3 +88,17 @@ fn raw_html_tags_split_the_text_as_the_composer_reads_them() {
     let made = html("<code>:smile:\n\n:smile:");
     assert!(made.contains(":smile:</p>\n<p>😄</p>"), "{made}");
 }
+
+#[test]
+fn an_ancestor_s_end_closes_pre_as_the_composer_reads_it() {
+    // `</div>` ends the `pre` inside it, as HTML5 does.
+    let made = html("a <div><pre>x</div> :smile:");
+    assert!(made.contains("x&lt;/div&gt; 😄</p>"), "{made}");
+}
+
+#[test]
+fn a_cell_s_end_closes_pre_as_the_composer_reads_it() {
+    // The composer reads a cell inside `td`.
+    let made = html("| h |\n|---|\n| <pre>x</td> :smile: |\n");
+    assert!(made.contains("x&lt;/td&gt; 😄</td>"), "{made}");
+}

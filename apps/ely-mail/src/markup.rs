@@ -84,7 +84,7 @@ impl<'a> Writer<'a> {
     /// `tight`: a tight list's paragraph, without `<p>`.
     fn block(&mut self, node: &'a Node, tight: bool) {
         // An element left open ends with its block.
-        self.shortcodes = ShortcodeRun::default();
+        self.shortcodes = ShortcodeRun::new(node);
         match node {
             Node::Root(it) => self.blocks(&it.children, false),
             Node::Blockquote(it) => {
