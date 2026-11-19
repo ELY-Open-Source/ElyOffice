@@ -19,9 +19,10 @@ MARKS = re.compile(r"/\*|\*/")
 # Only line ends and indentation survive inside.
 INSIDE = re.compile(r"[^\n \t]")
 ATTRS = re.compile(r"#!?\[[^\]]*\]|//")
-PIPES = re.compile(r"(\bmove\s+)?\|[^|;{}]*\|")
 # What stands before a closure, never after an operand.
-BEFORE = re.compile(r"(^|[=(,{;]|=>|\breturn|\bmove)\s*$")
+BEFORE = re.compile(r"(^|[=(,{;]|=>|\breturn|\bmove|\basync)\s*$")
+LABEL = re.compile(r"'(\w+):\s*$")
+ASYNC = re.compile(r"\basync(\s+move)?\s*$")
 KEYWORD = re.compile(r"('(\w+):\s*)?\b(for|while|loop)\b")
 OPEN, CLOSE = "([{", ")]}"
 
@@ -68,9 +69,34 @@ def stripped(text):
     return "".join(out)
 
 
-def closure_at(code, pipes):
-    """Whether `pipes` opens a closure, not an OR."""
-    return BEFORE.search(code[max(0, pipes.start() - 80):pipes.start()]) is not None
+def closures(code):
+    """The ends of closure heads `|…|` where an expression starts."""
+    ends, at = [], code.find("|")
+    while at >= 0:
+        pair = code.startswith("||", at)
+        end = None
+        if BEFORE.search(code[max(0, at - 80):at]):
+            end = at + 2 if pair else pipe_end(code, at)
+        if end:
+            ends.append(end)
+        at = code.find("|", end or at + 1 + pair)
+    return ends
+
+
+def pipe_end(code, at):
+    """The end of the parameters the `|` at `at` opens."""
+    level = 0
+    for i in range(at + 1, min(len(code), at + 400)):
+        char = code[i]
+        if char in OPEN:
+            level += 1
+        elif char in CLOSE:
+            if not level:
+                return None
+            level -= 1
+        elif not level and char in "|;":
+            return i + 1 if char == "|" else None
+    return None
 
 
 def header(code, brace):
@@ -97,23 +123,27 @@ def header(code, brace):
 class Block:
     """A braced block: its span, kind, label and keyword's offset."""
 
-    def __init__(self, code, start, end, parent):
+    def __init__(self, source, start, end, parent):
         self.start, self.end, self.parent = start, end, parent
+        code = source.code
         begin, call = header(code, start)
         self.head = code[begin:start]
         bare = ATTRS.sub(lambda m: " " * len(m.group()), self.head)
         lead = len(bare) - len(bare.lstrip())
         # A loop keyword where an expression may start.
-        word = next((m for m in KEYWORD.finditer(bare) if BEFORE.search(bare[:m.start()])), None)
-        self.label = word.group(2) if word else None
+        word = next((m for m in KEYWORD.finditer(bare)
+                     if BEFORE.search(bare[:m.start()]) or source.after_head(begin + m.start())), None)
+        label = LABEL.search(bare)
+        self.label = word.group(2) if word else label.group(1) if label else None
         self.at = begin + (word.start(3) if word else lead)
-        pipes = [m for m in PIPES.finditer(bare) if closure_at(bare, m)]
         if word and word.group(3) == "for":
             self.kind = "retry" if re.match(r"\s*_\s+in\b", bare[word.end():]) else "for"
         elif word:
             self.kind = "poll"
-        elif pipes and re.fullmatch(r"\s*(->[^{]*)?", bare[pipes[-1].end():]):
+        elif source.after_head(start, typed=True):
             self.kind = "any" if call.endswith(".any") else "closure"
+        elif ASYNC.search(bare):
+            self.kind = "closure"
         elif re.search(r"\bfn\b", bare):
             self.kind = "fn"
         else:
@@ -133,6 +163,7 @@ class Source:
         self.code = stripped(text)
         self.lines = self.code.split("\n")
         self.starts = [0] + [m.end() for m in re.finditer("\n", self.code)]
+        self.ends = closures(self.code)
         pairs, stack = {}, []
         for m in re.finditer(r"[{}]", self.code):
             if m.group() == "{":
@@ -143,13 +174,13 @@ class Source:
         for start in sorted(pairs):
             while open_ and open_[-1].end < start:
                 open_.pop()
-            block = Block(self.code, start, pairs[start], open_[-1] if open_ else None)
+            block = Block(self, start, pairs[start], open_[-1] if open_ else None)
             self.blocks.append(block)
             open_.append(block)
         self.opens = [block.start for block in self.blocks]
         # A braceless closure's body runs to its expression's end.
-        self.bare = [(m.end(), self.expression_end(m.end())) for m in PIPES.finditer(self.code)
-                     if closure_at(self.code, m) and not re.match(r"\s*(->[^{;]*)?\{", self.code[m.end():m.end() + 200])]
+        self.bare = [(end, self.expression_end(end)) for end in self.ends
+                     if not re.match(r"\s*(->[^{;]*)?\{", self.code[end:end + 200])]
 
     def expression_end(self, at):
         level = 0
@@ -169,6 +200,12 @@ class Source:
     def line(self, at):
         return bisect.bisect_right(self.starts, at) - 1
 
+    def after_head(self, at, typed=False):
+        """Whether offset `at` follows a closure head, return type allowed."""
+        index = bisect.bisect_right(self.ends, at) - 1
+        gap = self.code[self.ends[index]:at] if index >= 0 else None
+        return gap is not None and re.fullmatch(r"\s*(->[^{;]*)?" if typed else r"\s*", gap) is not None
+
     def holder(self, at):
         """The innermost block holding offset `at`."""
         index = bisect.bisect_left(self.opens, at) - 1
@@ -184,7 +221,8 @@ class Source:
 
     def owns(self, loop, at, exit):
         """Whether exit `exit` at offset `at` leaves `loop` itself."""
-        if any(start <= at < end for start, end in self.bare):
+        # A braceless closure's exit leaves no loop outside it.
+        if any(start <= at < end and not start <= loop.start < end for start, end in self.bare):
             return False
         block = self.holder(at)
         while block is not None:
@@ -311,6 +349,13 @@ def main():
            (*t, "    for _ in 0..3 {", "        let f = || return;", "        std::thread::sleep(MS);", "    }", "}"),
            (*t, "    for _ in 0..3 {", "        for key in keys { if send(key) { break; } }", "        std::thread::sleep(MS);",
             "    }", "}"),
+           # Async and labeled blocks; closures with typed parameters.
+           (*t, "    for _ in 0..3 {", "        let work = async { return; };", "        std::thread::sleep(MS);", "    }", "}"),
+           (*t, "    for _ in 0..3 {", "        let work = async || { return; };", "        std::thread::sleep(MS);", "    }", "}"),
+           (*t, "    for _ in 0..3 {", "        'inner: { break 'inner; }", "        std::thread::sleep(MS);", "    }", "}"),
+           (*t, "    for _ in 0..3 {", "        let work = |x: [u8; 3]| { return; };", "        std::thread::sleep(MS);", "    }", "}"),
+           (*t, "    for _ in 0..3 {", "        let work = |Point { x, y }: Point| { return; };", "        std::thread::sleep(MS);",
+            "    }", "}"),
            # A comment-like line inside a string is no reason.
            (*t, "    let text = r#\"", "// not a comment", "\"#; std::thread::sleep(MS);", "}")]
     good = [("fn t() {", "    // The lock is held this long.", "    std::thread::sleep(MS);", "}"),
@@ -338,6 +383,8 @@ def main():
             (*t, "    for _ in 0..3 {", "        for key in keys { if done(key) { return; } }", "        std::thread::sleep(MS);",
              "    }", "}"),
             (*t, "    // std::thread::sleep(MS) once stood here", "    let s = \"thread::sleep(MS)\";", "}"),
+            (*t, "    let wait = || while !ready() { std::thread::sleep(MS); };", "}"),
+            (*t, "    let wait = || for _ in 0..50 { if ready() { break; } std::thread::sleep(MS); };", "}"),
             (*t, "    assert!(keys.iter().any(|key| {", "        std::thread::sleep(MS);", "        ready(key)", "    }));", "}")]
     nested = {"src/lib.rs": Source("mod support {\n    #[cfg(test)]\n    mod checks;\n}"),
               "src/support/checks.rs": Source("fn pause() {\n    std::thread::sleep(MS);\n}")}
