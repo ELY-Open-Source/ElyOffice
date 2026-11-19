@@ -159,7 +159,7 @@ R15.24：R15 的九十条逐条核对，2026-11-19 据 b72d8e35 写成，读每�
 | R15.6 | 过审 | ElyPDF 能打开 EPUB，只读，可阅读、搜索、缩放 | `crates/ely-pdf-worker/tests/epub.rs`、`apps/ely-pdf/src/tests/epub.rs`；`tasks/reviews/R15.6-r2.md` PASS | macOS 未跑（只记 Windows、Linux 通过） |
 | R15.7 | 过审 | Gmail 发信 TLS 超时：按语言逐步报出所在步骤 | `a_quiet_server_is_named_in_the_readers_language`、`mail_sends_own_timeout_keeps_the_step`；`tasks/reviews/R15.7-r3.md` PASS | 根因未查明：须报告者日志（代理来源、连接行）与 587 端口对照；发件箱仍存英文原文错误，未动 |
 | R15.8 | 过审 | Outlook.com 收发失败的提示照微软步骤写 | `outlooks_held_account_says_what_to_do`；`tasks/reviews/R15.8-r2.md` PASS | #48 的账号属哪种情形未查明；个人账号 SMTP 被关时 ElyMail 无法发信，只能说明 |
-| R15.9 | 过审 | ElyMark 正文两侧空白处滚轮也滚动正文 | 组件库 `visual_margins_scroll`、`source_margins_scroll`；ElyMark `a_wheel_beside_the_text_scrolls_it`；`tasks/reviews/R15.9-r6.md` PASS | 真机 Windows 滚轮未手试（记录里的“待推送改 pin”已解：bc8e5fb 在今 pin 49270f2 之内） |
+| R15.9 | 过审 | ElyMark 正文两侧空白处滚轮也滚动正文 | 组件库 `visual_margins_scroll`；ElyMark `a_wheel_beside_the_text_scrolls_it`；`tasks/reviews/R15.9-r6.md` PASS | 真机 Windows 滚轮未手试（记录里的“待推送改 pin”已解：bc8e5fb 在今 pin 49270f2 之内） |
 | R15.10 | 过审 | 设置项：滚动条常显 | 组件库 `an_area_shows_its_thumb_unhovered_when_bars_stay`；`scrollbars_stay_shown_when_chosen`；`tasks/reviews/R15.10-r2.md` PASS | — |
 | R15.10a | 过审 | zip 条目名用反斜杠的 docx/xlsx 能打开，坏包报错不卡 | `backslash_folder_entries_open`、`a_broken_package_fails_instead_of_asking`；`tasks/reviews/R15.10a-r4.md` PASS | Linux、macOS 与三台机器的共享引擎待以 0063、0064 重建；“无 0064 即卡住”只按源码推断，未实测 |
 | R15.11 | 部分 | Office 三份大样本经 Ely 编辑、保存，再由 Office 读回核对 | `tests/office/compare.ps1`、`tests/office/read-back.ps1`；`tasks/reviews/R15.11-r3.md` FAIL | r3 两处修复（按域的位置去掉域结果、逐系列核对类型与坐标轴组）未经 Office 实跑：测试机无 Office，装 Office 的机器离线；0065、0066 待在 Linux、macOS 与共享引擎上重建；已知差异：目录里 55 个 `PAGEREF` 页码成了文字，PPTX 的节 |
