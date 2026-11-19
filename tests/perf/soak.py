@@ -25,6 +25,20 @@ def words(path):
     return " ".join(paragraphs).split()
 
 
+def private(app):
+    """Linux: each process's private memory, resident or swapped, in MB."""
+    found = {}
+    for pid in app.family():
+        try:
+            with open(f"/proc/{pid}/status", encoding="utf-8") as status:
+                fields = dict(line.split(":", 1) for line in status)
+        except FileNotFoundError:
+            continue
+        kb = lambda key: int(fields[key].split()[0])
+        found[f"{fields['Name'].strip()} {pid}"] = ((kb("RssAnon") + kb("VmSwap")) / 1024, kb("VmSwap") / 1024)
+    return found
+
+
 def check(paths, n):
     """What the saved files get wrong after `n` cycles."""
     a, b = words(paths["a.docx"]), words(paths["b.docx"])
@@ -83,12 +97,24 @@ def windows_hands(host, app):
     return press, lambda text: host.type(pid, text), lambda: host.chord(pid, "z"), lambda: host.chord(pid, "s")
 
 
+def linux_hands(host, app):
+    """Tab, type, undo and save through XTest on Xvfb."""
+    pid = app.process.pid
+
+    def press(title):
+        # A tab press hands the keys to its document.
+        host.press(pid, title)
+        time.sleep(0.5)
+        host.chord(pid, "end")
+        time.sleep(0.3)
+
+    return press, lambda text: host.type(pid, text), lambda: host.chord(pid, "z"), lambda: host.chord(pid, "s")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--minutes", type=float, default=480)
     args = parser.parse_args()
-    if sys.platform not in ("darwin", "win32"):
-        sys.exit("SKIP: the soak drives macOS and Windows windows")
     work = tempfile.mkdtemp()
     run.HOST = host = drive.host(work)
     fixture = os.path.join(run.ROOT, "tests", "fixtures", "office", "t.docx")
@@ -96,7 +122,8 @@ def main():
     for path in paths.values():
         shutil.copy(fixture, path)
     app = run.App("ely-doc", os.path.join(work, "home"), list(paths.values()))
-    press, type, undo, save = mac_hands(host, app, work) if sys.platform == "darwin" else windows_hands(host, app)
+    hands = {"darwin": lambda: mac_hands(host, app, work), "win32": lambda: windows_hands(host, app)}
+    press, type, undo, save = hands.get(sys.platform, lambda: linux_hands(host, app))()
     try:
         app.wait("opened b.docx")
         app.front()
@@ -122,10 +149,23 @@ def main():
                 if problems:
                     raise RuntimeError(f"cycle {n}: {problems[:5]}; a ends {words(paths['a.docx'])[-8:]}; log: {saves(app)}")
                 memory.append(app.memory_mb())
-                print(f"cycle {n}: ok, {memory[-1]:.0f} MB", flush=True)
+                print(f"cycle {n}: ok, {memory[-1]:.0f} MB in {len(app.family())} processes", flush=True)
+                if sys.platform == "linux":
+                    # Resident alone drops when pages swap out.
+                    shares = ", ".join(f"{name} {mb:.0f} ({swapped:.0f} swapped)" for name, (mb, swapped) in private(app).items())
+                    print(f"cycle {n}: private MB by process: {shares}", flush=True)
+    except Exception:
+        # The app's log outlives a failed run.
+        kept = tempfile.mkdtemp(prefix="ely-soak-failed-")
+        shutil.copy(app.log, kept)
+        print(f"the app's log is in {kept}; the app's exit: {app.process.poll()}", flush=True)
+        raise
     finally:
         app.stop()
+        left = run.stop_engines(work)
         shutil.rmtree(work, ignore_errors=True)
+    if left:
+        raise RuntimeError(f"engines outlived the soak: {left}")
     print(f"ok: {n} cycles in {args.minutes} min; memory MB {memory[0]:.0f} → {memory[-1]:.0f}")
 
 

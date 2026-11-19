@@ -1458,7 +1458,25 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 证据（Linux，三份各占一个 Xvfb 并行）：worker、应用、两者各冻 10.5 分钟，三份都过；内存 445→446、483→483、483→484 MB；醒后的日志只有卡顿检测一条（主线程 629999 ms，即冻住的时长），无错误。
 - Mac 不能自己醒：`pmset schedule wake` 须 root，本机账户无免密 sudo，故未用 `pmset sleepnow`。Windows 虚拟机不休眠。
 - 2026-10-08 ElyMark 在 CEF 内的 SIGTRAP 作废：ElyMark 已是原生实现，不再用 CEF。
-- 8 小时整跑：Mac 上 `soak.py --minutes 480` 进行中，结果另记。
+- 没有跑过真的系统休眠：以 SIGSTOP 冻结代替。Mac 不能自己醒（须 root），Ely 不订阅 gpui 的休眠、唤醒事件。
+- 8 小时整跑：Mac 上那次因有人在用那台 Mac 停了（第 120 轮缺 A116 至 A120），不作结论；改在 Linux Xvfb :24 上跑 `soak.py`（Linux 经 XTest 键入）。第一次第 750 轮后败于无障碍总线找不到应用进程，应用状态不明、日志已删；第二次 480 分钟 7399 轮全过。驻留合计 460→967 MB 一路直线上涨，涨在 ElyDoc 的 worker。
+- 原因不是泄漏，是缓存的预算不算键：`SwTextNode::InsertText` 每次键入经 `rtl::str::newReplaceStrAt` 造出整段的新字符串，`SalLayoutGlyphsCache` 与 `vcl::text::TextLayoutCache` 以它为键，各自的预算（`GlyphsCacheSize` 两千万、`TextRunsCacheSize` 十万）只算字形或文字段，不算键里的文字。条目数有上限、每条却随段落变长，段落一直长，内存就一直涨。逐项排除：保存、图块、状态读取、光标移动、撤销、拼写（关着）、无障碍。
+- `trimMemory(1500)`（26.2 有：vcl 的 `dropCaches` 再 `malloc_trim`）前后 worker 的 live 内存，证据在 `.work/C20.2/probe2/`（本机，未入库）：
+
+| 每轮做的 | 轮数 | 增长 | trimMemory 前→后 |
+| --- | --- | --- | --- |
+| 段尾键入 ` A{n} `，段落变长 | 2000 | live 245 MB | 245→87 MB |
+| 回车，段落都短 | 2000 | live 75 MB，几乎不涨 | 75→75 MB |
+
+| 同长换字：段尾六字每轮换新 | 轮数 | 增长 | trimMemory 前→后 |
+| --- | --- | --- | --- |
+| 一千词，默认预算 | 12000 | 每百轮 1.2 MB，约 7700 轮平在 +112 MB | 167→68 MB |
+| 四千词，默认预算 | 6000 | 每百轮 4.3 MB，6000 轮 +276 MB 仍涨 | 343→68 MB |
+| 一千词，只缩 `TextRunsCacheSize` 到 1000 | 3000 | 平在 +20 MB | 81→63 MB |
+| 一千词，只缩 `GlyphsCacheSize` 到 1 MB | 3000 | 平在 +1 MB | 64→63 MB |
+
+- 定：在内核里修，让两个缓存把键的文字计进预算（R20.54，交内核代理；字形缓存是大头，补丁先对它量）。Ely 不定时调 `trimMemory`：那只是把缓存清空再重填，盖住预算的错。
+- 驻留会因换出而跌：长跑末段两次下跌是 worker 的页换出（RssAnon 594 加 VmSwap 528 MB），不是释放。`soak.py` 另记每个进程的 RssAnon 加 VmSwap；PERF-08 以驻留判泄漏的同一盲点记为 R20.58。
 
 ## 2026-11-19 Mac 发布前先看音频与公证凭据（R17.3）
 

@@ -70,7 +70,10 @@ def main():
         print("after the freeze, warnings and errors:", *(troubles or ["none"]), sep="\n  ")
     finally:
         app.stop()
+        left = run.stop_engines(work)
         shutil.rmtree(work, ignore_errors=True)
+    if left:
+        raise RuntimeError(f"engines outlived the run: {left}")
 
 
 if __name__ == "__main__":

@@ -16,7 +16,8 @@ R = Atspi.Role
 SYM = Atspi.KeySynthType.SYM
 CONTROL, ENTER = 0xFFE3, 0xFF0D
 KEYS = {"pagedown": 0xFF56, "pageup": 0xFF55, "tab": 0xFF09, "escape": 0xFF1B, "space": 0x20, "backspace": 0xFF08,
-        "left": 0xFF51, "up": 0xFF52, "right": 0xFF53, "down": 0xFF54, "f5": 0xFFC2, "n": ord("n"), "p": ord("p")}
+        "left": 0xFF51, "up": 0xFF52, "right": 0xFF53, "down": 0xFF54, "f5": 0xFFC2, "n": ord("n"), "p": ord("p"),
+        "end": 0xFF57}
 SHIFT = 0xFFE1
 # When the last input left, for bench.py to time from.
 SENT = []
@@ -89,10 +90,11 @@ def click(node):
 
 
 def chord(letter):
-    """Control held while the letter goes down and up."""
+    """Control held while a key goes down and up."""
 
     def send(x11, xtst, display):
-        control, key = (x11.XKeysymToKeycode(display, ctypes.c_ulong(sym)) for sym in (CONTROL, ord(letter)))
+        named = KEYS[letter] if len(letter) > 1 else ord(letter)
+        control, key = (x11.XKeysymToKeycode(display, ctypes.c_ulong(sym)) for sym in (CONTROL, named))
         for code, down in ((control, 1), (key, 1), (key, 0), (control, 0)):
             xtst.XTestFakeKeyEvent(display, code, down, 0)
 

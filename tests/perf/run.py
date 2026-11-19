@@ -1,6 +1,7 @@
 """A release app for the bench, read through its log."""
 
 import datetime
+import glob
 import os
 import re
 import subprocess
@@ -158,3 +159,19 @@ class App:
             except OSError:
                 pass
         self.process.wait()
+
+
+def stop_engines(work):
+    """Ends each data root's idle engines; what still runs."""
+    left = []
+    for home in sorted(glob.glob(os.path.join(work, "*"))):
+        # Only a data root holds the app's folder.
+        for slug in [slug for slug in ("ely-doc", "ely-table", "ely-show") if os.path.isdir(os.path.join(home, slug))]:
+            env = dict(os.environ, ELY_DATA_ROOT=home)
+            out = subprocess.run([HOST.exe(slug), "engine", "stop"], env=env, capture_output=True, text=True,
+                                 creationflags=drive.QUIET)
+            if out.returncode:
+                left.append(f"{slug} engine stop in {home}: exit {out.returncode}")
+    if HOST.lingering(work):
+        left.append(f"an engine still runs under {work}")
+    return left
