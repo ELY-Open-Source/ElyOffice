@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""An open document outlives its app or worker frozen a while."""
+
+import argparse
+import os
+import shutil
+import signal
+import sys
+import tempfile
+import time
+
+import drive
+import run
+import soak
+
+
+def frozen(app, who):
+    """The pids to freeze: the app, its worker, or both."""
+    pids = [pid for pid in run.HOST.pids(app.process.pid) if pid != app.process.pid]
+    workers = [pid for pid in pids if open(f"/proc/{pid}/comm").read().strip() == "ely-lok-worker"]
+    if len(workers) != 1:
+        raise RuntimeError(f"{len(workers)} workers under the app: {pids}")
+    return {"app": [app.process.pid], "worker": workers, "both": [app.process.pid] + workers}[who]
+
+
+def saved(app, path, word):
+    """Saves, then waits for `word` in the file."""
+    run.HOST.chord(app.process.pid, "s")
+    for _ in range(80):
+        if word in soak.words(path):
+            return
+        time.sleep(0.25)
+    raise RuntimeError(f"{word} never reached the file: {soak.words(path)[:12]}; log: {soak.saves(app)}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--minutes", type=float, default=10)
+    parser.add_argument("--who", choices=["app", "worker", "both"], required=True)
+    args = parser.parse_args()
+    if not sys.platform.startswith("linux"):
+        sys.exit("SKIP: the freeze reads /proc")
+    work = tempfile.mkdtemp()
+    run.HOST = drive.host(work)
+    path = os.path.join(work, "a.docx")
+    shutil.copy(os.path.join(run.ROOT, "tests", "fixtures", "office", "t.docx"), path)
+    app = run.App("ely-doc", os.path.join(work, "home"), [path])
+    try:
+        app.wait("opened a.docx")
+        app.front()
+        run.HOST.type(app.process.pid, " Before ")
+        saved(app, path, "Before")
+        pids, before = frozen(app, args.who), app.memory_mb()
+        since = len(app.lines())
+        for pid in pids:
+            os.kill(pid, signal.SIGSTOP)
+        print(f"froze {args.who} {pids} for {args.minutes} min", flush=True)
+        # The freeze itself: a sleeping machine's gap.
+        time.sleep(args.minutes * 60)
+        for pid in pids:
+            os.kill(pid, signal.SIGCONT)
+        app.front()
+        run.HOST.type(app.process.pid, " After ")
+        saved(app, path, "After")
+        found = soak.words(path)
+        if found.index("Before") > found.index("After"):
+            raise RuntimeError(f"the words came back out of order: {found[:12]}")
+        troubles = [line[-160:] for line in app.lines()[since:] if " ERROR " in line or " WARN " in line]
+        print(f"ok: {args.who} frozen {args.minutes} min; both words saved; memory {before:.0f} → {app.memory_mb():.0f} MB")
+        print("after the freeze, warnings and errors:", *(troubles or ["none"]), sep="\n  ")
+    finally:
+        app.stop()
+        shutil.rmtree(work, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    main()

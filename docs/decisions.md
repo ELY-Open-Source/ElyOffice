@@ -1447,3 +1447,12 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 草稿两版都只保选中：先是切回后重新选上（会发选中回调），后是切走时把页视图“停放”不隐藏；后者跳过 `FmFormView`、`DrawView` 的 `HideSdrPage`，却照走它们的 `ShowSdrPage`，激活不成对，其余副作用照旧。未取。
 - 定：不切换。`ITiledRenderable::setPaintPart(部分, 模式)` 让接下来的绘制画那一部分，-1 结束；Impress 在自己的一个临时 `DrawView` 上画（同幻灯片浏览的 `PreviewRenderer`），页面、边框、网格、图层、参考线与文档底色照当前视图，画出来与该页显示时一样。幻灯片、母版、备注页都如此；不支持的文档（Calc）照旧切换。表单控件依附当前视图的窗口，旁画时与幻灯片浏览一样不画。
 - 测试：`client/tests/carry.rs` 的 `a_thumbnail_of_another_slide_keeps_the_selection`（画另一张的缩略图后选中仍在；旁画与显示时画同一张，像素相同）；ElyShow 的 `play_time::back_shows_a_slide_fully_built_even_without_clicks`（加上字体代理的 Ely 改动）。让 `setPaintPart` 拒绝，两条都败。Linux 内核已重建、换编号；Windows 与 macOS 待 R20.26。
+
+## 2026-11-19 休眠与长跑（C20.2）
+
+- 休眠：测试不能让本机休眠。gpui 在 Linux 听 logind 的 `PrepareForSleep`、在 macOS 听系统通知，Ely 没有订阅这两个事件；对应用与 worker 来说，醒来只是一段停顿：计时器一齐到期、到 worker 的套接字闲了一阵、主线程长时间没动。SIGSTOP、SIGCONT 造出同样的停顿。
+- 定：`tests/perf/pause.py` 打开一份 DOCX，键入一词并保存，冻住 worker、应用或两者（`--who`）若干分钟（`--minutes`，默认 10），放开后再键入一词并保存，以不经内核的读取器核对两词都在、次序不乱，列出醒后的警告与错误。只在 Linux（读 `/proc`），经 `tests/perf/linux.sh`。
+- 证据（Linux，三份各占一个 Xvfb 并行）：worker、应用、两者各冻 10.5 分钟，三份都过；内存 445→446、483→483、483→484 MB；醒后的日志只有卡顿检测一条（主线程 629999 ms，即冻住的时长），无错误。
+- Mac 不能自己醒：`pmset schedule wake` 须 root，本机账户无免密 sudo，故未用 `pmset sleepnow`。Windows 虚拟机不休眠。
+- 2026-10-08 ElyMark 在 CEF 内的 SIGTRAP 作废：ElyMark 已是原生实现，不再用 CEF。
+- 8 小时整跑：Mac 上 `soak.py --minutes 480` 进行中，结果另记。
