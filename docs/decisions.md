@@ -1495,3 +1495,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 八、Agent 后端差异（要：每个预设后端的版本、启动、控制、日志与恢复能力表）— 无。ElyAgent 只是空白窗口（`apps/ely-agent/src/main.rs`），属第二批，C15.1 至 C15.6 未做；照 2026-10-05 条只嵌 Kigi CLI 一个后端，表将只有一行。
 - 九、打包与许可（要：三端依赖清单、源码对应、资源再分发检查）— 部分。许可随包收集，缺即停（`packaging/licenses.sh`，Windows、Linux 经 `packaging/stage.sh`，macOS 经 `packaging/macos/bundle.sh`；Rust crate 清单由 `packaging/crates.py` 生成）；cargo-deny 每个 PR 跑（`scripts/deny.sh`、`deny.toml`）；源码对应 `packaging/source.sh`（自有、上游、LibreOffice 外部库，散列不符即失败，`packaging/lo-tarballs.tsv`），记录 C21.1；包内核对 `tests/scripts/release-macos.sh`（macOS），`tests/scripts/winget.sh`、`tests/scripts/nix.sh`（清单的许可字段）。缺：`docs/licenses.md` 自己写明只有 macOS 包核对了许可齐全，Windows、Linux 包未核；库内没有各端的依赖清单（只在构建时生成）；这些包内核对都是手跑，发布流程不调。
 - §23 末段（记录源码提交、编译选项与补丁；升级后跑回归；正式构建不跟默认分支）— 部分。上游钉在 40 位提交（`scripts/fetch-references.sh`），Rust 依赖钉版本（`Cargo.toml` 的组件库 `rev`、`gpui-pre =0.3.12`、`[patch.crates-io]` 的副本）；版本行与补丁数 `docs/compatibility.md`（`scripts/compatibility.py` 的 `--check` 在 PR 与 `scripts/ci.sh` 里拦陈旧）；内核编号 `scripts/kernel-id.sh`；补丁 `patches/`。缺：没有“升级 LOK、MuPDF、GPUI 或 Markdown 库后须跑某些回归”的规定（发布门跑全部测试，算间接）；编译选项只在构建脚本里，不在版本记录里；Markdown 解析库不在版本行里。另：组件库在 `scripts/fetch-references.sh` 钉 `2d827752`，`Cargo.toml` 钉 `49270f27`，两处不一，已报。
+
+## 2026-11-19 先不做 ElyAgent
+
+- 用户定：先不做 ElyAgent。C15.1 至 C15.6 暂缓，不排进本轮、不派人做；重开等用户定。已有的空白窗口与 `apps/ely-agent` 不动，发布仍只含首批七个应用。

@@ -148,7 +148,7 @@ rm -rf target/debug/incremental   标准 Cargo 下每次构建或测试后都删
 - Git：main 的历史不改写；提交签名，不写任何署名行。
 - 许可：自有代码 MIT；随包引擎照各自的许可，Linux 包的许可字段取 `packaging/apps.tsv`。
 - macOS 发布以 Developer ID 签名并公证，缺即失败，不出未公证的包。
-- 首批发布 ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark；ElyAgent 第二批，加进同一个包。
+- 首批发布 ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark；ElyAgent 第二批，加进同一个包；用户 2026-11-19 定先不做，C15 暂缓到用户重开。
 - 安装包：每个平台一个 ElyOffice 安装包（macOS 为 `.pkg`），不出单个应用的包；Windows、macOS 可选装哪几个，Linux 全装；Doc、Table、Show 共用一份内核，内核、常驻引擎与登录项是隐藏组件，选了任一文档应用即装。
 - 常驻引擎：登录后每个已装的文档应用常驻一个已过自检的空闲引擎，三端都做，不给开关；按物理内存少留或不留；空闲不占 CPU（Windows 上系统库的定时上报除外，门放记录周期的两倍）；不在时应用自己起。
 - 横幅：只留 ElyDoc 的字体缺失；其余信息去状态栏、出后果时的对话框、错误页或 toast。
