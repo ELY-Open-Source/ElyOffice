@@ -1440,3 +1440,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 根因（字体代理以 gdb 追到）：载入后 SFX 的异步事件加“宏已禁用”信息栏并显示信息栏容器，工作窗口重排、视图窗口移动；Calc 在视图窗口移动时 `StopMarking`，落在双击的按下与松开之间即丢掉松开，图形的文字不进编辑。负载下 ElyTable 的图形文本撤销测试因此偶败。
 - 定（补丁 0144）：LOK 下 `AppendInfoBar` 不加栏、`UpdateInfoBar` 不显示容器。草稿让 LOK 下视图移动不停标记，未取：信息栏客户端看不到、Ely 从不显示，不该占位置；别的应用也有同样的“窗口移动即停”。
 - 证据：32 线程满负载，无 0144 时测试 360 次败 8 次，带 0144 时 360 次全过；确定性复现未做成，负载下的次数记在补丁说明里。macOS 待 R20.26 重建共享内核后复跑。
+
+## 2026-11-19 LOK 画别的幻灯片不切换视图（补丁 0145，R19.5 的内核一半）
+
+- 原状：只有一个视图时，`doc_paintPartTile` 画非当前的幻灯片是把视图切过去再切回来（`SwitchPage`，不换焦点）。切走时 `HideSdrPage` 丢掉当前页的全部选中，框架视图的当前页、页的选中标志、就地对象、可见区域、表单外壳都跟着变，还通知所有监听者换了页。ElyShow 编辑落到哪张幻灯片就重画它的缩略图，选中随之丢失。
+- 草稿两版都只保选中：先是切回后重新选上（会发选中回调），后是切走时把页视图“停放”不隐藏；后者跳过 `FmFormView`、`DrawView` 的 `HideSdrPage`，却照走它们的 `ShowSdrPage`，激活不成对，其余副作用照旧。未取。
+- 定：不切换。`ITiledRenderable::setPaintPart(部分, 模式)` 让接下来的绘制画那一部分，-1 结束；Impress 在自己的一个临时 `DrawView` 上画（同幻灯片浏览的 `PreviewRenderer`），页面、边框、网格、图层、参考线与文档底色照当前视图，画出来与该页显示时一样。幻灯片、母版、备注页都如此；不支持的文档（Calc）照旧切换。表单控件依附当前视图的窗口，旁画时与幻灯片浏览一样不画。
+- 测试：`client/tests/carry.rs` 的 `a_thumbnail_of_another_slide_keeps_the_selection`（画另一张的缩略图后选中仍在；旁画与显示时画同一张，像素相同）；ElyShow 的 `play_time::back_shows_a_slide_fully_built_even_without_clicks`（加上字体代理的 Ely 改动）。让 `setPaintPart` 拒绝，两条都败。Linux 内核已重建、换编号；Windows 与 macOS 待 R20.26。

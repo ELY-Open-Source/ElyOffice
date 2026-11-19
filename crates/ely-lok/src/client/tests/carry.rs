@@ -57,3 +57,31 @@ fn a_move_lands_exactly_in_one_step_rotated_too() {
         assert_eq!((moved.2, moved.3), (rect.2, rect.3), "object {index} keeps its size");
     }
 }
+
+/// Painting another slide's picture keeps this slide's selection.
+#[test]
+fn a_thumbnail_of_another_slide_keeps_the_selection() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut worker = Worker::spawn(&install().expect("LOK"), &dir.path().join("p")).expect("up");
+    let path = dir.path().join("two.fodp");
+    std::fs::write(&path, THREE.replace("</draw:page>", r#"</draw:page><draw:page draw:name="Two"/>"#)).expect("writes");
+    let doc = worker.load(&crate::file_url(&path)).expect("loads");
+    let state = worker.now(&doc).expect("the state");
+    worker.run(&state, "object.select", &["2", "false"]).expect("selects");
+    let before = read(&mut worker, &doc).selection.map(|sel| sel.rect);
+    assert!(before.is_some(), "the shape is selected");
+    doc.paint_part(&mut worker, (1, false), (320, 180)).expect("the thumbnail paints");
+    assert_eq!(read(&mut worker, &doc).selection.map(|sel| sel.rect), before, "the selection stays");
+    // Painted aside, a slide looks as when shown.
+    doc.show_sheet(&mut worker, 1).expect("shows slide two");
+    assert!(read(&mut worker, &doc).objects.is_empty(), "slide two is shown");
+    let aside = doc.paint_part(&mut worker, (0, false), (320, 180)).expect("slide one aside");
+    doc.show_sheet(&mut worker, 0).expect("shows slide one");
+    let shown = doc.paint_part(&mut worker, (0, false), (320, 180)).expect("slide one shown");
+    assert!(aside.iter().any(|&byte| byte != aside[0]), "slide one has ink");
+    assert!(aside == shown, "the aside picture differs from the shown one");
+}

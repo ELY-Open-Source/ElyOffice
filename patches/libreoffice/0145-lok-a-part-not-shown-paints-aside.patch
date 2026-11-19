@@ -1,0 +1,207 @@
+lok: a part not shown paints aside, the shown slide untouched
+
+doc_paintPartTile paints a part other than the shown one by switching
+the only view to it and back (doc_setPartImpl with bAllowChangeFocus
+false, which only this path uses). In Impress that is a full
+DrawViewShell::SwitchPage both ways: SdrMarkView::HideSdrPage drops
+every mark of the shown slide, the frame view's selected page and the
+page selection flags change, in-place objects are disconnected, the
+visible area is reset, the form shell is closed and FireSwitchCurrentPage
+tells every listener. The user's selection was gone after any thumbnail
+of another slide (Ely R19.5: ElyShow paints a slide's thumbnail when an
+edit lands on it; play_time::back_shows_a_slide_fully_built_even_
+without_clicks failed every time).
+
+ITiledRenderable::setPaintPart(nPart, nMode) asks the document to
+paint that part instead of the shown one; -1 ends it. Impress paints
+it on a DrawView of its own, as the slide sorter's PreviewRenderer
+does, with the shown view's page, border, grid, layer and help line
+settings and its document color, so the picture matches the slide
+painted while shown. Nothing of the shown view changes. Slides,
+masters and notes pages are painted this way; a document that
+declines (Calc) is switched as before. Form controls are drawn
+through controls made for the shown view's window, so a slide not
+shown paints them as the slide sorter does.
+
+diff --git a/include/vcl/ITiledRenderable.hxx b/include/vcl/ITiledRenderable.hxx
+--- a/include/vcl/ITiledRenderable.hxx
++++ b/include/vcl/ITiledRenderable.hxx
+@@ -379,6 +379,9 @@
+      */
+     virtual void setPaintTextEdit(bool) {}
+ 
++    /// Ely: paints show nPart in nMode aside; -1 ends.
++    virtual bool setPaintPart(int /*nPart*/, int /*nMode*/) { return false; }
++
+     /// Applies view changes still queued, before a LOK command.
+     virtual void settleViews() {}
+ 
+diff --git a/desktop/source/lib/init.cxx b/desktop/source/lib/init.cxx
+--- a/desktop/source/lib/init.cxx
++++ b/desktop/source/lib/init.cxx
+@@ -4547,6 +4547,7 @@
+ 
+     // Disable callbacks while we are painting.
+     disableViewCallbacks(pDocument, nOrigViewId);
++    bool bAside = false;
+ 
+     try
+     {
+@@ -4577,15 +4578,17 @@
+         else
+         {
+             // If we are here, we couldn't find an alternative view. We need to check the part and mode.
++            nOrigEditMode = pDoc->getEditMode();
+             if (!isText)
+             {
+                 nOrigPart = doc_getPart(pThis);
+-                if (nPart != nOrigPart)
++                // Ely: a part not shown paints aside, nothing switched.
++                bAside = (nPart != nOrigPart || nMode != nOrigEditMode) && pDoc->setPaintPart(nPart, nMode);
++                if (!bAside && nPart != nOrigPart)
+                     doc_setPartImpl(pThis, nPart, false);
+             }
+ 
+-            nOrigEditMode = pDoc->getEditMode();
+-            if (nOrigEditMode != nMode)
++            if (!bAside && nOrigEditMode != nMode)
+                 SfxLokHelper::setEditMode(nMode, pDoc);
+         }
+ 
+@@ -4602,7 +4605,9 @@
+             pDoc->setPaintTextEdit(true);
+         }
+ 
+-        if (nViewId == nOrigViewId)
++        if (bAside)
++            pDoc->setPaintPart(-1, 0);
++        else if (nViewId == nOrigViewId)
+         {
+             // We didn't find an alternative view, set the part and mode back to their initial values if needed.
+             if (nMode != nOrigEditMode)
+@@ -4624,6 +4629,8 @@
+     catch (const std::exception&)
+     {
+         // Nothing to do but restore the PartTilePainting flag.
++        if (bAside)
++            pDoc->setPaintPart(-1, 0);
+     }
+ 
+     enableViewCallbacks(pDocument, nOrigViewId);
+diff --git a/sd/inc/unomodel.hxx b/sd/inc/unomodel.hxx
+--- a/sd/inc/unomodel.hxx
++++ b/sd/inc/unomodel.hxx
+@@ -128,6 +128,8 @@
+     OUString   maBuildId;
+ 
+     bool mbPaintTextEdit;
++    // Ely: the part paints show instead of the shown one.
++    SdPage* mpPaintPage = nullptr;
+ 
+     void initializeDocument();
+ 
+@@ -293,6 +295,7 @@
+     }
+     /// @see vcl::ITiledRenderable::setPaintTextEdit().
+     virtual void setPaintTextEdit(bool bPaint) override { mbPaintTextEdit = bPaint; }
++    virtual bool setPaintPart(int nPart, int nMode) override;
+     /// @see vcl::ITiledRenderable::settleViews().
+     virtual void settleViews() override;
+     /// @see vcl::ITiledRenderable::getViewRenderState().
+diff --git a/sd/source/ui/unoidl/unomodel.cxx b/sd/source/ui/unoidl/unomodel.cxx
+--- a/sd/source/ui/unoidl/unomodel.cxx
++++ b/sd/source/ui/unoidl/unomodel.cxx
+@@ -167,6 +167,7 @@
+ #include <FrameView.hxx>
+ #include <ClientView.hxx>
+ #include <DrawViewShell.hxx>
++#include <drawview.hxx>
+ #include <ViewShell.hxx>
+ #include <Window.hxx>
+ #include <optsitem.hxx>
+@@ -4428,6 +4429,38 @@
+         sd::framework::FrameworkHelper::Instance(pViewSh->GetViewShellBase())->RequestSynchronousUpdate();
+ }
+ 
++namespace
++{
++/// Ely: paints a part not shown on its own view.
++void paintPartAside(DrawViewShell& rShell, ::sd::DrawDocShell& rDocShell, SdPage& rPage,
++                    VirtualDevice& rDevice, const ::tools::Rectangle& rRect)
++{
++    const SdrView& rShown = *rShell.GetDrawView();
++    ::sd::DrawView aView(&rDocShell, &rDevice, nullptr);
++    aView.SetPageVisible(rShown.IsPageVisible());
++    aView.SetPageBorderVisible(rShown.IsPageBorderVisible());
++    aView.SetBordVisible(rShown.IsBordVisible());
++    aView.SetGridVisible(rShown.IsGridVisible());
++    aView.SetGridFront(rShown.IsGridFront());
++    aView.SetGridCoarse(rShown.GetGridCoarse());
++    aView.SetGridFine(rShown.GetGridFine());
++    aView.SetHlplVisible(rShown.IsHlplVisible());
++    SdrPageView* pPageView = aView.ShowSdrPage(&rPage);
++    if (!pPageView)
++        return;
++    pPageView->SetApplicationDocumentColor(rShell.GetViewOptions().mnDocBackgroundColor);
++    if (const SdrPageView* pShownPage = rShown.GetSdrPageView())
++    {
++        pPageView->SetVisibleLayers(pShownPage->GetVisibleLayers());
++        pPageView->SetPrintableLayers(pShownPage->GetPrintableLayers());
++        pPageView->SetLockedLayers(pShownPage->GetLockedLayers());
++        pPageView->SetHelpLines(pShownPage->GetHelpLines());
++    }
++    aView.CompleteRedraw(&rDevice, vcl::Region(rRect));
++    aView.HideSdrPage();
++}
++}
++
+ void SdXImpressDocument::paintTile( VirtualDevice& rDevice,
+                             int nOutputWidth, int nOutputHeight,
+                             int nTilePosX, int nTilePosY,
+@@ -4449,7 +4482,8 @@
+     SdrPageWindow* patchedPageWindow = nullptr;
+     SdrPaintWindow* previousPaintWindow = nullptr;
+     std::unique_ptr<SdrPaintWindow> temporaryPaintWindow;
+-    if(SdrView* pDrawView = pViewSh->GetDrawView())
++    SdrView* pShownView = mpPaintPage ? nullptr : pViewSh->GetDrawView();
++    if(SdrView* pDrawView = pShownView)
+     {
+         if(SdrPageView* pSdrPageView = pDrawView->GetSdrPageView())
+         {
+@@ -4493,6 +4527,13 @@
+     Size aSize(nTileWidthHMM, nTileHeightHMM);
+     ::tools::Rectangle aRect(aPoint, aSize);
+ 
++    if (mpPaintPage)
++    {
++        paintPartAside(*pViewSh, *mpDocShell, *mpPaintPage, rDevice, aRect);
++        comphelper::LibreOfficeKit::setTiledPainting(false);
++        return;
++    }
++
+     SdrView* pView = pViewSh->GetDrawView();
+     if (comphelper::LibreOfficeKit::isActive())
+         pView->SetPaintTextEdit(mbPaintTextEdit);
+@@ -4617,6 +4658,22 @@
+     return OStringToOUString(jsonWriter.finishAndGetAsOString(), RTL_TEXTENCODING_UTF8);
+ }
+ 
++bool SdXImpressDocument::setPaintPart(int nPart, int nMode)
++{
++    mpPaintPage = nullptr;
++    if (nPart < 0)
++        return true;
++    if (!mpDoc || !GetViewShell())
++        return false;
++    if (nMode == 0 && nPart < mpDoc->GetSdPageCount(PageKind::Standard))
++        mpPaintPage = mpDoc->GetSdPage(nPart, PageKind::Standard);
++    else if (nMode == 1 && nPart < mpDoc->GetMasterSdPageCount(PageKind::Standard))
++        mpPaintPage = mpDoc->GetMasterSdPage(nPart, PageKind::Standard);
++    else if (nMode == 2 && nPart < mpDoc->GetSdPageCount(PageKind::Notes))
++        mpPaintPage = mpDoc->GetSdPage(nPart, PageKind::Notes);
++    return mpPaintPage != nullptr;
++}
++
+ void SdXImpressDocument::setPart( int nPart, bool bAllowChangeFocus )
+ {
+     DrawViewShell* pViewSh = GetViewShell();
