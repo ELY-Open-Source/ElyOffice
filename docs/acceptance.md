@@ -281,7 +281,7 @@ R20.47：R20.1 至 R20.46 逐条核对，另列暂缓的 C15（ElyAgent，用户
 | R20.31 | 未完 | #16 WinGet 交统一包 `ZacharyZhang.ElyOffice` | 无测试；`tasks/reviews/R20.31-r1.md` PASS | 七个旧 PR 已关；等 R20.30 发布后交统一清单、在 #16 答复，收录后 README 写安装与升级命令 |
 | R20.33 | 未完 | 外部三维区域逐表读与链接核对（补丁 0141） | `a_range_follows_its_named_ends_when_sheets_move`、`crates/ely-lok/src/client/tests/spanned.rs`；`tasks/reviews/R20.33-r3.md` FAIL | 三轮用尽；存为 ODS 再开，直接写的外部三维区域成 `#REF!`，更新后仍是，原因未查，缺回归；Windows 内核待 R20.26 |
 | R20.34 | 未完 | Shell 注释：here-doc 结束词与 `$'…'` 的 Bash 规则 | 组件库 `crates/ely-core/src/forms/shell/tests.rs`、`crates/ely-core/src/forms/shell/tests/braces.rs`（语料）；`tasks/reviews/R20.34-r3.md` FAIL | 三轮用尽，余三项：`${x:-'…'}` 单引号组里的反斜杠照字面；双引号里 `${x:-…}` 的反斜杠照 `SX_STRIPDQ` 成对；`defaulted` 找下标的 `]` 要越过引号与展开；组件库 pin 未换 |
-| R20.35 | 进行中 | ElyMark 与写信对内嵌 HTML 的分行与短代码 | 行内未点名测试；末轮审查尚未入库 | 第 3 轮的结论尚未入库，行内记到第 2 轮；pin 未换，ElyMail 的回归随换 pin 入库 |
+| R20.35 | 未完 | ElyMark 与写信对内嵌 HTML 的分行与短代码 | 组件库 `a_cell_s_end_closes_pre_as_the_composer_reads_it`、`what_a_browser_hides_draws_nothing`；`tasks/reviews/R20.35-r3.md` FAIL | 三轮用尽，余一项：行末只剩 `hidden` 的单元格时仍补制表符（`<td>a</td><td hidden>b</td>` 读作 `a` 加制表符）；pin 仍是 49270f2，未含其修，ElyMail 的回归随换 pin 入库 |
 | R20.36 | 未完 | ElyShow 拖动时对象轮廓跟着指针走 | `apps/ely-show/src/tests/carry.rs`；`tasks/reviews/R20.36-r1.md` PASS | 修法在 R20.32；Windows 真拖动未跑，待 R20.26 带上 0140（Linux、macOS 已过） |
 | R20.37 | 过审 | ElyShow 插入形状后点别处多出形状（补丁 0142） | `crates/ely-lok/src/client/tests/inserted.rs`；`tasks/reviews/R20.37-r1.md` PASS | Windows、macOS 内核待 R20.26 重建后跑 |
 | R20.38 | 过审 | 缺失的中文字体回退到装饰字体（补丁 0143） | `crates/ely-lok/src/client/tests/fallback.rs`、`a_missing_font_logs_what_drew_it_and_why`；`tasks/reviews/R20.38-r2.md` PASS | Windows 两条待 R20.26（macOS 4ce869dd 已过）；字体对照表未入库 |
