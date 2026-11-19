@@ -22,7 +22,7 @@ WHERE = {
     "MARK": "apps/ely-mark 单测、mark-*.sh",
     "MAIL": "apps/ely-mail/src/tests、crates/ely-mail-engine/tests",
     "PERF": "tests/perf/bench.py、lag.sh",
-    "QA": "无库内证据：C22.2 的记录已移除，须重做",
+    "QA": "docs/qa.md",
 }
 
 

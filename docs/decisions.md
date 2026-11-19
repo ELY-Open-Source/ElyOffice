@@ -1472,3 +1472,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 连带：压住使“翻页”与其后的编辑并成一次 `Reported`，ElyShow 原以上次读到的当前页记脏缩略图，翻页后的编辑便记到旧页上，画旧页缩略图又让内核丢了选中（`the_wheel_up_down_and_page_keys_turn_slides` 败）。改为视图记下每次编辑落在哪一页（`LokView::take_edited_parts`），ElyShow 记这些页脏；离开文字编辑仍记上次读到的那页。照实记页后，非当前页的缩略图常要画，单视图下 `doc_paintPartTile` 切到那页再切回，Impress 切页即清掉选中（`play_time::back_shows_a_slide_fully_built_even_without_clicks` 败）；补丁 0145（8aeae995）改为另画不切页。
 - 证据：Linux 交替 3 轮各 30 键，ElyDoc P95 37→21 毫秒（超 30 毫秒 14/90→2/90），ElyShow 36→20（7/90→0/90）；正式 PERF-02 空机上 ElyDoc 13/20、ElyShow 12/20 毫秒（P50/P95；0145 之前的内核；另一次撞上 32 路满负载与内核重链接，16/38、18/21，不计）。0145 内核上：`turn`、`play_time` 与 `carry::a_thumbnail_of_another_slide_keeps_the_selection` 各 3/3 过，ely-lok（含视图）537、ely-office、ElyDoc 146、ElyShow 117、ElyTable 129 全过，clippy、`check.sh`、`panics.py` 过。新测试 `view::tests::reveal::a_kernel_change_repaints_and_reports_once_its_shown_tiles_land`：去掉压住即败；只压不记页时 `turn` 测试败。
 - Windows、macOS 的内核在 R20.26 前没有 0145，那两端翻页后紧接选中仍可能丢。
+
+## 2026-11-19 QA-01 至 QA-28 的证据（C22.2）
+
+- 原 `docs/qa.md` 从未入库、已不在。重写：每项写今日库内能证明它的东西（测试函数名与文件、脚本、任务号或决定），标全、部分、无，缺什么写明；只整理，未重跑。
+- 结果：全 0 项；部分 24 项；无 4 项：QA-01（断网安装，只有调试构建起八个应用的 `tests/scripts/apps-start.sh`）、QA-23 与 QA-24（ElyAgent 只是空白窗口，第二批）、QA-25（无抓流量；`tests/scripts/privacy.sh` 只查日志与诊断包）。
+- 校对：文中每个路径都在库内，每个测试名在库内的 Rust 源码里确有 `fn`，每个任务号在 `tasks/TASKS.md` 里有；抽查了多处说法（ElyAgent 的入口、写满磁盘用 `hdiutil`、拼音只手试、C05.5 与 C10.5 未核多屏、Mail 离线测试关端口、删除后只一个 `startxref`、C01.2a 未实跑 Windows 安装卸载）。
+- `scripts/test-map.py` 的 QA 行“测试所在”改指 `docs/qa.md`。
