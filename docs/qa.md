@@ -2,9 +2,9 @@
 
 对应 PRD §22.2。每项写今日库内能证明它的东西：测试（函数名与所在文件）、脚本、记录（任务号或 `docs/decisions.md` 的日期条）。标注：**全**，通过条件都有证据；**部分**，缺什么写明；**无**，库内没有证据。“自动”指单测或脚本，“实机”指在真窗口、真安装或真系统上跑过的记录。平台照记录写，记录没写的不写。2026-11-19 整理，未重跑。
 
-## QA-01 安装与离线启动 — 无
+## QA-01 安装与离线启动 — 部分
 
-- 有的：`tests/scripts/apps-start.sh` 以调试构建起八个应用、看日志里的就绪行；不是干净机器、不是安装、不断网。
+- 有的：`tests/scripts/apps-start.sh` 以调试构建起八个应用、看日志里的就绪行，即八个应用都打得开；不是干净机器、不是安装、不断网。
 - 缺：干净测试机断网安装；八个应用打开的记录；无登录、CDN、外部文档服务器依赖的核对。C22.2 曾记“六个发行应用空闲时无网络套接字（`lsof -i`）”，记录未入库，已不在。
 
 ## QA-02 独立安装 — 部分
@@ -47,7 +47,7 @@
 ## QA-08 并发保存 — 部分
 
 - 自动：`an_old_ticket_never_marks_newer_edits_saved`（`crates/ely-files/src/session/tests/mod.rs`）、`an_edit_during_the_export_stays_unsaved`（`crates/ely-files/src/save/tests/write.rs`）、`a_save_leaves_newer_edits_their_due`（`crates/ely-files/src/policy/tests.rs`）；应用层 `apps/ely-doc/src/tests/overlap.rs`（关闭时的保存期间键入不丢）。
-- 实机：`docs/perf/2026-11-04-AMD-Ryzen-9-9950X3D-16-Core-Processor-Windows-extreme.md`（Windows：Doc、Table、Show、Mark 各约 42 次保存间键入 40 键，键都存下）；查的是不丢键，不是“仍显示未保存”。
+- 实机：`docs/perf/2026-11-04-AMD-Ryzen-9-9950X3D-16-Core-Processor-Windows-extreme.md`（Windows：键入 40 键期间 Doc 存 43 次、Table 42 次、Show 42 次、Mark 157 次，键都存下）；查的是不丢键，不是“仍显示未保存”。
 - 记录：C06.1（macOS）、C06.4。
 - 缺：真窗口里新修订仍显示未保存的核对；Linux 实机。
 
@@ -97,7 +97,8 @@
 - OCR：`a_scan_reads_and_its_text_layer_finds_without_drawing`、`chinese_reads_in_both_scripts`（`crates/ely-pdf-worker/tests/ocr.rs`），`ocr_reads_the_pages_then_lays_their_text_in_one_step`（`apps/ely-pdf/src/tests/structure.rs`）；记录 C11.5（macOS）。
 - 完整性与信任：`a_signed_file_lists_its_checks_and_saves_as_a_copy`（`apps/ely-pdf/src/tests/sign.rs`，未受信任的证书写明），`a_changed_byte_shows_as_changed`、`a_second_signature_leaves_the_first_intact_and_marked_later`（`crates/ely-pdf-worker/tests/sign.rs`）；记录 C11.7（macOS，第 4 轮 Windows 复跑）。
 - 吊销：界面恒有一行“未核验吊销状态”（`apps/ely-pdf/src/sign.rs`），`docs/decisions.md` 2026-11-04 C11.7 条定不做在线 OCSP、CRL。
-- 缺：没有测试断言那一行，没有断网下的运行；C11.7 写明 Windows、Linux 的证书信任未核。
+- 系统信任库三端都有测试：`crates/ely-platform/src/trust.rs`（Windows 经 CryptoAPI，Linux 经系统 CA 库，R12.35），R14.21 记 macOS 八项、Windows 八项、Linux（WSL）九项皆过（`docs/decisions.md` 2026-10-27 R14.21 诸条）；C11.7 所写 Windows、Linux 未核已被它取代。
+- 缺：没有测试断言“未核验吊销状态”那一行，没有断网下的运行。
 
 ## QA-16 Mail 离线 — 部分
 
@@ -148,7 +149,7 @@
 
 - 同 QA-23：无会话与生命周期的实现与测试（C15.6 未做）。
 
-## QA-25 隐私与断网 — 无
+## QA-25 隐私与断网 — 部分
 
 - 有的：`tests/scripts/privacy.sh`（macOS：日志与诊断包里无文档正文）；更新只手动检查（C01.2b）；`plain_http_to_other_hosts_and_credentials_in_the_url_are_refused_before_any_request`（`crates/ely-platform/tests/update.rs`）。C22.2 曾记“空闲时无网络套接字”，记录已不在。
 - 缺：抓测试机的流量，确认未授权时无文档、正文、日志、CDN、自动更新请求。

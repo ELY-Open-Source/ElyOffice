@@ -1476,6 +1476,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-19 QA-01 至 QA-28 的证据（C22.2）
 
 - 原 `docs/qa.md` 从未入库、已不在。重写：每项写今日库内能证明它的东西（测试函数名与文件、脚本、任务号或决定），标全、部分、无，缺什么写明；只整理，未重跑。
-- 结果：全 0 项；部分 24 项；无 4 项：QA-01（断网安装，只有调试构建起八个应用的 `tests/scripts/apps-start.sh`）、QA-23 与 QA-24（ElyAgent 只是空白窗口，第二批）、QA-25（无抓流量；`tests/scripts/privacy.sh` 只查日志与诊断包）。
+- 结果：全 0 项；部分 26 项；无 2 项：QA-23 与 QA-24（ElyAgent 只是空白窗口，第二批）。QA-01 只有调试构建起八个应用的 `tests/scripts/apps-start.sh`，未断网安装；QA-25 无抓流量，`tests/scripts/privacy.sh` 只查日志与诊断包。
 - 校对：文中每个路径都在库内，每个测试名在库内的 Rust 源码里确有 `fn`，每个任务号在 `tasks/TASKS.md` 里有；抽查了多处说法（ElyAgent 的入口、写满磁盘用 `hdiutil`、拼音只手试、C05.5 与 C10.5 未核多屏、Mail 离线测试关端口、删除后只一个 `startxref`、C01.2a 未实跑 Windows 安装卸载）。
 - `scripts/test-map.py` 的 QA 行“测试所在”改指 `docs/qa.md`。
+- 第 1 轮 FAIL 三处，皆属实，已修：“无”定义为库内无证据，QA-01、QA-25 却各有部分证据，改标部分（26 部分、2 无）；QA-08 的 Windows 记录里各应用保存次数不同（Doc 43、Table 42、Show 42、Mark 157），照写；QA-15 引的 C11.7“Windows、Linux 信任未核”已被 R14.21 取代（三端信任测试皆过），改引之，只留吊销那一行与断网运行两处缺口。
