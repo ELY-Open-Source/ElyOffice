@@ -8,6 +8,17 @@
 各节内容最近一次逐项核对是在 0.1.11（2026-10-23）；其后各版本的改动只在所涉的条目里更新，未整体重验。
 验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。与 Microsoft Office 的交叉核对见下节（网页版，三十份样本，另十八份大、怪、极限的文件）。
 
+## 已知限制
+
+截至 2026-11-19 的主干，未修或未验证的事；各应用一节另有该格式的“限制”。
+
+- 发行：0.1.16 仍按应用出包、各自更新；每个平台一个安装包、整套更新的发布尚未出（Windows 空闲引擎的发布门未过，ElyShow 整组测试在 Windows 偶败）。没有 Windows 与 Linux 的 arm64 版，x64 版在 Windows on ARM 上未测。Windows 安装包未签名。WinGet 未收录：七个按应用的提交待微软审核。
+- 速度：Windows 测试机上与 Office 交替热打开，ElyDoc 打开 big.docx 中位 1.10 秒，Word 1.10 秒，持平而未快过；ElyShow 打开 19 MB 的演示稿中位 1.58 秒，PowerPoint 1.09 秒。装完与重启后的首开待重量。
+- ElyShow：Windows 上微软雅黑粗体的个别字（如“施”）显得偏细，已修一个原因，未在中文界面上复核。拖动对象时 Ely 画的移动框与吸附要内核补丁 0140，Windows、macOS 上未实测。负载下加动画偶被内核拒绝，原因未明（被拒时日志写明预设与时长）。用户报的放映中丢方向键、换版式后的“灰色箭头”都未复现。
+- ElyMark：行内与块级 HTML 以分段样式近似浏览器的 HTML5 树修复，少数嵌套组合与浏览器显示不同。
+- ElyTree：Shell 文件的差异照 Bash 的词法判注释，个别写法与 Bash 不同（`"${x:-'…'}"` 里的反斜杠、`${x:-…}` 在双引号里的反斜杠、数组下标里的引号）。
+- 无障碍：屏幕阅读器在 ElyTable 与 ElyShow 只读到当前段落（ElyDoc 读全文）；组件库与 gpui 在角色、禁用状态与内部文案上的缺口见 `docs/accessibility.md` 的“上游待办”。
+
 ## 与 Microsoft Office 的交叉核对（网页版）
 
 2026-11-10，Ely Office 0.1.15 的内核（补丁至 0110）。三十份由 Ely 内核打开后存出的文件，传到 OneDrive，逐个在 Word、Excel、PowerPoint 网页版里打开：
