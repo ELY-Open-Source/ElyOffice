@@ -13,9 +13,9 @@ import search
 TILE = r"lok: edit \d+ (?:text|key) to tile (\d+) ms"
 NEVER = r"lok: edit \d+ (?:text|key) never drawn: .+"
 FRAME = r"ui: key_down to frame (\d+) ms"
-STALL = r"main thread was busy (\d+) ms"
-# A late timer the main thread did not run through.
-STARVED = r"came (\d+) ms late, the main thread ran \d+ ms: starved"
+STALL = r"main thread was (?:busy|blocked|held) (\d+) ms"
+# A late timer proven starved: waiting for a CPU.
+STARVED = r"came (\d+) ms late, the main thread ran \d+ ms, waited for a CPU \d+ ms: starved"
 
 
 class Keys:

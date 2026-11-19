@@ -205,7 +205,9 @@ def write(out, env, rows, held, runs):
     for perf, case, times, memory in rows:
         target = TARGETS.get(perf)
         p95 = percentile(times, 0.95)
-        verdict = "" if target is None or "busy" in case else (" ✓" if p95 <= target else " ✗")
+        # Counts, not times: stalls and starved timers.
+        counted = "busy" in case or "starved" in case
+        verdict = "" if target is None or counted else (" ✓" if p95 <= target else " ✗")
         budget = BUDGETS.get(perf) if memory is not None else None
         within = "" if budget is None else (" ✓" if memory <= budget else " ✗")
         mem = "" if memory is None else f"{memory:.0f}{within}"

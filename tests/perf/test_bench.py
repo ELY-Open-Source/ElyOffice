@@ -50,8 +50,11 @@ class Verdicts(unittest.TestCase):
         keys = feedback.Keys("ely-doc", [], "ready", feedback.TILE, feedback.into_document)
         typed = ["lok: edit 1 text to tile 30 ms", "lok: edit 2 text to tile 40 ms"]
         self.assertEqual(feedback.judged(keys, typed, 0, 2), ([30, 40], [], []))
-        late = ["ui: the main thread was busy 150 ms (170 ms late)", "ui: a timer came 400 ms late, the main thread ran 3 ms: starved"]
-        self.assertEqual(feedback.judged(keys, typed + late, 0, 2), ([30, 40], [150], [400]))
+        late = ["ui: the main thread was busy 150 ms (170 ms late)",
+                "ui: the main thread was blocked 600 ms (ran 1 ms, waited for a CPU 2 ms)",
+                "ui: the main thread was held 300 ms (ran 1 ms; this system keeps no run delay)",
+                "ui: a timer came 400 ms late, the main thread ran 3 ms, waited for a CPU 390 ms: starved"]
+        self.assertEqual(feedback.judged(keys, typed + late, 0, 2), ([30, 40], [150, 600, 300], [400]))
         with self.assertRaisesRegex(RuntimeError, "failed to draw"):
             feedback.judged(keys, typed + ["lok: tile paint failed: atlas full"], 0, 2)
 
@@ -199,6 +202,17 @@ class Verdicts(unittest.TestCase):
         self.assertIn("| ElyMark at the budget | 1 | 100 | 100 ✓ | 2000 | 400 ✓ | 400 |", text)
         self.assertIn("| ElyMark past it | 1 | 100 | 100 ✓ | 2000 | 401 ✗ | 400 |", text)
         self.assertIn("before: 120/50/1", text)
+
+    def test_starved_timers_are_listed_not_judged(self):
+        env = {"date": "2000-01-01", "machine": "Test"}
+        rows = [("PERF-02", "ElyMail timers late >100 ms while starved: 1 times", [601], None),
+                ("PERF-02", "ElyMail key to frame", [601], None)]
+        with tempfile.TemporaryDirectory() as out:
+            bench.write(out, env, rows, [], 1)
+            with open(os.path.join(out, "2000-01-01-Test.md"), encoding="utf-8") as record:
+                text = record.read()
+        self.assertIn("| ElyMail timers late >100 ms while starved: 1 times | 1 | 601 | 601 | 100 |", text)
+        self.assertIn("| ElyMail key to frame | 1 | 601 | 601 ✗ | 100 |", text)
 
 
 class Children(drive.Host):

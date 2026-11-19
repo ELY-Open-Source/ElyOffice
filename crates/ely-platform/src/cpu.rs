@@ -1,4 +1,4 @@
-//! CPU time the calling thread has used.
+//! CPU time the calling thread has used, and waited for.
 
 use std::{io, time::Duration};
 
@@ -25,6 +25,24 @@ pub fn thread_time() -> io::Result<Duration> {
     // FILETIME counts 100 ns ticks.
     let ticks = |at: FILETIME| (u64::from(at.dwHighDateTime) << 32) | u64::from(at.dwLowDateTime);
     Ok(Duration::from_nanos((ticks(kernel) + ticks(user)) * 100))
+}
+
+/// Time this thread spent runnable, off a CPU; Linux only.
+#[cfg(target_os = "linux")]
+pub fn thread_waited() -> io::Result<Option<Duration>> {
+    // Fields: ns on a CPU, ns waiting to run, slices.
+    let stat = std::fs::read_to_string("/proc/thread-self/schedstat")?;
+    let waited = stat.split_whitespace().nth(1).and_then(|field| field.parse::<u64>().ok());
+    match waited {
+        Some(ns) => Ok(Some(Duration::from_nanos(ns))),
+        None => Err(io::Error::new(io::ErrorKind::InvalidData, format!("schedstat reads {stat:?}"))),
+    }
+}
+
+/// Time this thread spent runnable, off a CPU; Linux only.
+#[cfg(not(target_os = "linux"))]
+pub fn thread_waited() -> io::Result<Option<Duration>> {
+    Ok(None)
 }
 
 #[cfg(test)]

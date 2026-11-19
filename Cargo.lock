@@ -2846,6 +2846,7 @@ dependencies = [
  "gpui-pre",
  "gpui-pre-platform",
  "gpui-pre-windows",
+ "libc",
  "log",
  "notify",
  "raw-window-handle",
