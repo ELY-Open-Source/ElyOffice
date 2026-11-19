@@ -199,8 +199,8 @@ fn lok_button(button: MouseButton) -> Option<i32> {
     }
 }
 
-/// Runs one input; gives its outcome, revision and picture.
-pub(super) fn run(worker: &mut Worker, doc: &Doc, input: Input) -> (io::Result<Option<Back>>, Option<u64>, Picture) {
+/// Runs one input; gives its outcome, revision, generation, picture.
+pub(super) fn run(worker: &mut Worker, doc: &Doc, input: Input) -> (io::Result<Option<Back>>, Option<(u64, u64)>, Picture) {
     let (counts, edits) = (!matches!(input, Input::Visible(..)), input.edits());
     let state = |worker: &mut Worker| worker.state(doc).inspect_err(|error| log::warn!("lok: state unread: {error}")).ok();
     let before = edits.then(|| state(worker)).flatten();
@@ -208,7 +208,7 @@ pub(super) fn run(worker: &mut Worker, doc: &Doc, input: Input) -> (io::Result<O
     // A failed input may have moved the revision too.
     let now = counts.then(|| state(worker)).flatten();
     let picture = super::clock::picture(before, now, done.is_err());
-    (done, now.map(|(rev, ..)| rev), picture)
+    (done, now.map(|(rev, generation, _)| (rev, generation)), picture)
 }
 
 fn apply(worker: &mut Worker, doc: &Doc, input: Input) -> io::Result<Option<Back>> {

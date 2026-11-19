@@ -24,9 +24,9 @@ pub(super) struct Job {
 }
 
 /// What came back from the lane.
-enum Landed {
+pub(super) enum Landed {
     /// Sequence, whether it edits, whether it switched part, outcome.
-    Input(u64, bool, bool, (io::Result<Option<Back>>, Option<u64>, Picture)),
+    Input(u64, bool, bool, (io::Result<Option<Back>>, Option<(u64, u64)>, Picture)),
     Tile(Job, io::Result<Tile>),
     /// Off screen or old by the time its turn came.
     Skipped((i32, i32)),
@@ -150,7 +150,7 @@ impl LokView {
         Lane { inputs, tiles, clock: cx.background_executor().clone(), typed: None }
     }
 
-    fn take_landed(&mut self, batch: Vec<Landed>, cx: &mut Context<Self>) {
+    pub(super) fn take_landed(&mut self, batch: Vec<Landed>, cx: &mut Context<Self>) {
         let mut reported = false;
         for landed in batch {
             match landed {
@@ -161,7 +161,11 @@ impl LokView {
                         self.invalidate(cx);
                     }
                     self.edited += u64::from(edits);
-                    let (outcome, now, picture) = outcome;
+                    let (outcome, read, picture) = outcome;
+                    let now = read.map(|(rev, _)| rev);
+                    // Its invalidations are still on their way.
+                    let ahead = read.map_or(0, |(_, generation)| generation);
+                    self.awaited = self.awaited.max(ahead);
                     // A plain key took nothing; the menu may return.
                     let taken = matches!(outcome, Ok(Some(Back::Completed(true))));
                     self.completion.landed(seq, if taken { now } else { None });

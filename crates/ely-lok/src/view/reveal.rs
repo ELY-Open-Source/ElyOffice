@@ -57,7 +57,8 @@ impl LokView {
 
     /// Repaints and reports, unless shown tiles are on their way.
     pub(super) fn repaint(&mut self, cx: &mut Context<Self>) {
-        if self.on_screen.iter().any(|key| self.fetching.contains(key)) {
+        let pending = self.generation < self.awaited;
+        if pending || self.on_screen.iter().any(|key| self.fetching.contains(key)) {
             return;
         }
         if std::mem::take(&mut self.unreported) {

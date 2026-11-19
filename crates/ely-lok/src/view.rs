@@ -71,6 +71,8 @@ pub struct LokView {
     fetching: HashSet<(i32, i32)>,
     /// A report held until shown tiles land.
     unreported: bool,
+    /// The generation a landed input reached; frames wait for it.
+    awaited: u64,
     /// Parts edits landed on, until the app takes them.
     edited_parts: HashSet<usize>,
     failed: HashSet<((i32, i32), u64)>,
@@ -197,6 +199,7 @@ impl LokView {
             retired: Default::default(),
             fetching: HashSet::new(),
             unreported: false,
+            awaited: 0,
             edited_parts: HashSet::new(),
             failed: HashSet::new(),
             shown: None,

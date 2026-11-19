@@ -81,7 +81,7 @@ fn a_failed_input_still_reports_the_revision_it_reached() {
     let (outcome, now, picture) = run(&mut worker, &doc, input);
     assert!(outcome.is_err(), "the split fails");
     let reached = worker.now(&doc).expect("the state");
-    assert_eq!(now, Some(reached.rev), "the view learns the revision anyway");
+    assert_eq!(now.map(|(rev, _)| rev), Some(reached.rev), "the view learns the revision anyway");
     assert!(reached.rev > doc.rev, "the request counted");
     assert_eq!(picture, Err("it failed"), "a failed edit is never timed");
 }

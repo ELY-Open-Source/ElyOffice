@@ -449,3 +449,33 @@ fn a_kernel_change_repaints_and_reports_once_its_shown_tiles_land() {
     landed(&cx, &view);
     assert!(notified.get() > 0 && reported.get() > 0, "the landed tile repaints and reports: {notified:?} {reported:?}");
 }
+
+/// A landed key waits for its batch and tiles.
+#[test]
+fn an_input_landing_before_its_batch_repaints_and_reports_once_its_tiles_land() {
+    let install = crate::client::tests::install().expect("the real kernel");
+    let cx = gpui::TestAppContext::single();
+    let (view, _) = long_view(&cx, &install);
+    let (notified, reported) = (std::rc::Rc::new(std::cell::Cell::new(0)), std::rc::Rc::new(std::cell::Cell::new(0)));
+    let (frames, reports) = (std::rc::Rc::clone(&notified), std::rc::Rc::clone(&reported));
+    cx.update(|app| {
+        app.observe(&view, move |_, _| frames.set(frames.get() + 1)).detach();
+        app.subscribe(&view, move |_, _: &Reported, _| reports.set(reports.get() + 1)).detach();
+    });
+    let (generation, rect) = cx.update(|app| view.update(app, |view, cx| {
+        let (kx, ky) = view.on_screen[0];
+        // The batch lags the input's invalidations.
+        let read = Some((view.doc.rev + 1, view.generation + 1));
+        let input = super::super::lane::Landed::Input(view.sent, true, false, (Ok(None), read, Ok(None)));
+        view.take_landed(vec![input], cx);
+        assert!(view.fetching.is_empty(), "no batch, so no tile asked yet");
+        (view.generation + 1, (kx * TILE_TWIPS, ky * TILE_TWIPS, TILE_TWIPS, TILE_TWIPS))
+    }));
+    assert_eq!((notified.get(), reported.get()), (0, 0), "no frame and no report before the input's batch");
+    cx.update(|app| view.update(app, |view, cx| {
+        view.apply_batch(crate::Events { generation, rects: vec![rect], ..crate::Events::default() }, None, cx);
+    }));
+    assert_eq!((notified.get(), reported.get()), (0, 0), "nor while its tile is on its way");
+    landed(&cx, &view);
+    assert!(notified.get() > 0 && reported.get() > 0, "the landed tile repaints and reports: {notified:?} {reported:?}");
+}
