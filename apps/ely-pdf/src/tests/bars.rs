@@ -3,6 +3,7 @@
 use gpui::{Bounds, Modifiers, MouseButton, TestAppContext, point, px, size};
 
 use super::{file, frames, settle, shown, windowed};
+use crate::layout::{Mode, Zoom};
 
 #[test]
 fn a_dragged_bar_moves_the_pages_and_a_resize_keeps_them() {
@@ -61,4 +62,33 @@ fn resizes_alone_return_to_the_page_read() {
     let (now, back) = read(cx);
     assert_eq!(now, page, "widths alone keep the page");
     assert!((back - top).abs() < px(1.0), "widths alone keep the place: {top:?} to {back:?}");
+}
+
+#[test]
+fn a_dragged_bar_moves_the_row_of_pages() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let page: (f32, f32, &[&str]) = (612.0, 792.0, &["page"]);
+    let pages = vec![page; 30];
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[file(dir.path(), "thirty.pdf", &pages)], true);
+    let view = shown(cx, &viewer);
+    settle(cx, |app| view.read(app).room.size.width > px(100.0));
+    cx.update(|_, app| view.update(app, |view, cx| view.change(|view, _| (view.mode, view.zoom) = (Mode::Horizontal, Zoom::Page), cx)));
+    frames(cx);
+    let room = cx.update(|_, app| view.read(app).room);
+    // Pages fit the height: only the row's bar shows.
+    let thumb = cx.debug_bounds("scrollbar-thumb").expect("the row's bar");
+    assert!(thumb.size.width > thumb.size.height, "a bar along the row: {thumb:?}");
+    let grip = thumb.center();
+    cx.simulate_mouse_move(grip, None, Modifiers::none());
+    cx.simulate_mouse_down(grip, MouseButton::Left, Modifiers::none());
+    let right = room.size.width / 2.0;
+    for step in [px(10.0), px(20.0), right] {
+        cx.simulate_mouse_move(grip + point(step, px(0.0)), MouseButton::Left, Modifiers::none());
+    }
+    cx.simulate_mouse_up(grip + point(right, px(0.0)), MouseButton::Left, Modifiers::none());
+    frames(cx);
+    let (dragged, current) = cx.update(|_, app| (-view.read(app).scroll.offset().x, view.read(app).current));
+    assert!(dragged > px(2000.0), "half the bar is half the row: {dragged:?}");
+    assert!(current > 10, "the page read follows the bar: {current}");
 }
