@@ -15,6 +15,7 @@ mod run;
 pub mod windows;
 pub mod settings;
 mod shell;
+mod stalls;
 pub mod tasks;
 mod theme;
 pub mod tray;

@@ -14,6 +14,8 @@ TILE = r"lok: edit \d+ (?:text|key) to tile (\d+) ms"
 NEVER = r"lok: edit \d+ (?:text|key) never drawn: .+"
 FRAME = r"ui: key_down to frame (\d+) ms"
 STALL = r"main thread was busy (\d+) ms"
+# A late timer the main thread did not run through.
+STARVED = r"came (\d+) ms late, the main thread ran \d+ ms: starved"
 
 
 class Keys:
@@ -93,7 +95,7 @@ def timed(lines):
 
 
 def judged(recipe, lines, since, runs):
-    """Key times and stalls; a failed draw voids them."""
+    """Key times, stalls, starved timers; a failed draw voids them."""
     failed = [line for line in lines if re.search(run.PAINT_FAILED, line)]
     if failed:
         raise RuntimeError(f"{recipe.slug}: a page failed to draw while typing: {failed[0]}")
@@ -101,11 +103,12 @@ def judged(recipe, lines, since, runs):
     if len(ticks) != runs:
         raise RuntimeError(f"{recipe.slug}: {runs} keys gave {len(ticks)} timings")
     stalls = [int(m.group(1)) for line in lines[since:] if (m := re.search(STALL, line))]
-    return ticks, stalls
+    starved = [int(m.group(1)) for line in lines[since:] if (m := re.search(STARVED, line))]
+    return ticks, stalls, starved
 
 
 def typing(work, recipe, runs):
-    """Ms from each key to feedback; stalls over 100 ms."""
+    """Key-to-feedback ms; stalls and starved timers past 100 ms."""
     home = recipe.home() if recipe.home else os.path.join(work, "home-typing-" + recipe.slug)
     app = run.App(recipe.slug, home, recipe.args, frames=True)
     try:
@@ -128,13 +131,13 @@ def typing(work, recipe, runs):
         lines = app.lines()
     finally:
         app.stop()
-    ticks, stalls = judged(recipe, lines, since, runs)
+    ticks, stalls, starved = judged(recipe, lines, since, runs)
     if stalls:
         # What the main thread did is in the log.
         kept = tempfile.mkdtemp(prefix=f"ely-bench-stall-{recipe.slug}-")
         shutil.copy(app.log, kept)
         print(f"{recipe.slug}: main thread busy {stalls} ms; its log: {kept}")
-    return ticks, stalls
+    return ticks, stalls, starved
 
 
 if __name__ == "__main__":

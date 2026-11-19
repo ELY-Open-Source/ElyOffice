@@ -49,7 +49,9 @@ class Verdicts(unittest.TestCase):
     def test_typing_with_a_failed_draw_fails(self):
         keys = feedback.Keys("ely-doc", [], "ready", feedback.TILE, feedback.into_document)
         typed = ["lok: edit 1 text to tile 30 ms", "lok: edit 2 text to tile 40 ms"]
-        self.assertEqual(feedback.judged(keys, typed, 0, 2), ([30, 40], []))
+        self.assertEqual(feedback.judged(keys, typed, 0, 2), ([30, 40], [], []))
+        late = ["ui: the main thread was busy 150 ms (170 ms late)", "ui: a timer came 400 ms late, the main thread ran 3 ms: starved"]
+        self.assertEqual(feedback.judged(keys, typed + late, 0, 2), ([30, 40], [150], [400]))
         with self.assertRaisesRegex(RuntimeError, "failed to draw"):
             feedback.judged(keys, typed + ["lok: tile paint failed: atlas full"], 0, 2)
 

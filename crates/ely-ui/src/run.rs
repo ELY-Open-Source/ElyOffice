@@ -135,7 +135,7 @@ fn open<V: Render>(
     }
     // Benchmarks only: idle apps do nothing (PERF-02).
     if ely_platform::env::flag("ELY_STALLS") == Some(true) {
-        watch_stalls(cx);
+        crate::stalls::watch(cx);
     }
     if ely_platform::env::flag("ELY_FRAMES") == Some(true) {
         crate::frames::watch(cx);
@@ -210,22 +210,6 @@ fn longest(window: &mut Window, cx: &mut App) {
             }
         })
         .detach();
-}
-
-/// Logs each main-thread stretch busy past 100 ms.
-fn watch_stalls(cx: &mut App) {
-    const BEAT: Duration = Duration::from_millis(20);
-    cx.spawn(async move |cx: &mut gpui::AsyncApp| {
-        loop {
-            let asked = std::time::Instant::now();
-            cx.background_executor().timer(BEAT).await;
-            let late = asked.elapsed().saturating_sub(BEAT);
-            if late > Duration::from_millis(100) {
-                log::warn!("ui: the main thread was busy {} ms", late.as_millis());
-            }
-        }
-    })
-    .detach();
 }
 
 /// A window of `app`, `size` large, with Ely's title bar.

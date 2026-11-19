@@ -2,6 +2,7 @@ pub mod accessibility;
 mod app_id;
 pub mod apps;
 pub mod clipboard;
+pub mod cpu;
 pub mod diagnostics;
 mod dirs;
 pub mod env;

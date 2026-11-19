@@ -132,11 +132,14 @@ def main():
         if want("PERF-02"):
             for recipe in feedback.keys(work, found):
                 if recipe.slug in args.apps:
-                    ticks, stalls = feedback.typing(work, recipe, args.runs)
+                    ticks, stalls, starved = feedback.typing(work, recipe, args.runs)
                     what = "tile" if recipe.answer == feedback.TILE else "frame"
                     rows.append(("PERF-02", f"{APPS[recipe.slug]} key to {what}", ticks, None))
                     rows.append(("PERF-02", f"{APPS[recipe.slug]} main thread busy >100 ms: {len(stalls)} times",
                                  stalls or [0], None))
+                    # Starved: the machine, not the app; shown, not judged.
+                    rows.append(("PERF-02", f"{APPS[recipe.slug]} timers late >100 ms while starved: {len(starved)} times",
+                                 starved or [0], None))
         cases = [("PERF-03", "ely-doc", "doc.docx", ["opened doc.docx", r"lok: first tile drawn"]),
                  ("PERF-04", "ely-table", "sheet.xlsx", ["opened sheet.xlsx", r"lok: first tile drawn"]),
                  *[("PERF-04", "ely-table", name, [f"opened {name}", r"lok: first tile drawn"]) for name in sheets.MAKERS],
