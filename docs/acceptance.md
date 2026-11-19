@@ -262,8 +262,8 @@ R20.47：R20.1 至 R20.46 逐条核对，另列暂缓的 C15（ElyAgent，用户
 | R20.13 | 过审 | Windows 空闲门改为记录周期的两倍 | `tests/perf/test_idle.py`；`tasks/reviews/R20.13-r1.md` PASS | 周期与 WIL 计时器的对应未分开；审查时 7877 连不上，未重读 Windows 记录 |
 | R20.14 | 未完 | 微软雅黑粗体：Impress 同设中文字体（补丁 0139） | `a_slide_font_with_chinese_glyphs_sets_both_scripts`、`a_latin_only_slide_font_keeps_the_chinese_font`；`tasks/reviews/R20.14-r1.md` PASS | 中文界面语言包与微软输入法下的复现矩阵、截图未做；“只有施发细”未解释；光标处一路未在中文键盘机上验；Windows 内核待 R20.26 带上 0139 |
 | R20.15 | 过审 | ElyTable 单元格字体与字号 | `the_panel_sets_a_cells_font_and_size`；`tasks/reviews/R20.15-r1.md` PASS | — |
-| R20.16 | 过审 | ElyPDF 两向滚动条，拖动跳页 | `a_dragged_bar_moves_the_pages_and_a_resize_keeps_them`、`resizes_alone_return_to_the_page_read`；行记 R2 PASS，审查文件不在库中 | macOS 未跑；“不卡顿”无帧时实测 |
-| R20.17 | 过审 | ElyMail 窄侧边栏保住未读数 | 组件库 `a_narrow_column_shortens_the_title_and_keeps_the_count`；行记 R1 PASS，审查文件不在库中 | — |
+| R20.16 | 未完 | ElyPDF 两向滚动条，拖动跳页 | `a_dragged_bar_moves_the_pages_and_a_resize_keeps_them`、`a_dragged_bar_moves_the_row_of_pages`；`tasks/reviews/R20.16-r5.md` FAIL | 第 1、2 轮无审查记录，真审查第 3 至 5 轮用满；末轮所指绘制器的写法在其后改正，未复审；拖动的帧时在 Xvfb 上量过（拖动开头的慢帧是 gpui 对未聚焦窗口限帧），120 Hz 须真显示器，未测；macOS 未跑 |
+| R20.17 | 过审 | ElyMail 窄侧边栏保住未读数 | 组件库 `a_narrow_column_shortens_the_title_and_keeps_the_count`；`tasks/reviews/R20.17-r2.md` PASS | 第 1 轮无审查记录，第 2 轮为记录 |
 | R20.18 | 未完 | ElyTree Shell 注释照 Bash 的词法 | 组件库 `comments_start_where_bash_starts_them`；`tasks/reviews/R20.18-r3.md` FAIL | 三轮用尽；三项交 R20.34 |
 | R20.19 | 未完 | Markdown 行内与块级 HTML 用 html5ever 建树 | 组件库 `pre_keeps_its_white_space`、`a_slash_closes_only_what_html_closes`；`tasks/reviews/R20.19-r3.md` FAIL | 三轮用尽；三项交 R20.35 |
 | R20.20 | 过审 | 块命令核对保住块的种类与提示块 | 组件库 `a_change_that_makes_a_block_another_kind_is_refused`、`a_heading_in_an_alert_s_first_paragraph_keeps_the_alert`；`tasks/reviews/R20.20-r2.md` PASS | — |
