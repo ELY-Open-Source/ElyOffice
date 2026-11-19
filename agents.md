@@ -163,7 +163,7 @@ rm -rf target/debug/incremental   标准 Cargo 下每次构建或测试后都删
 - 命令行读写已打开的文档：`ely-table cell`，`ely-doc text`、`ely-show text`、`ely-mark text`；请求走实例门（本机回环、令牌只给同一用户），不动用户的光标与选区；范围见 `docs/help.md`。
 - ElyTable 的 R 宏（实验性）：只在用户点运行时起 `Rscript`，不是沙箱，从不代装；细则见 `docs/r-macros.md`。
 - ElyMark 原生实现（组件库 Markdown 组件与其 Markdown 树），不用 CEF、Electron；Typora 只作参照，读同一文件不同时随 GitHub（GFM）。
-- ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密），缺即构建失败；Gmail 与 iCloud 走应用专用密码，QQ 邮箱、163 邮箱、126 邮箱走授权码。网络随系统代理。
+- ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密）；发布构建（`scripts/ci.sh`）缺即失败，本机与 PR 构建缺时不注入，Microsoft 登录不可用；Gmail 与 iCloud 走应用专用密码，QQ 邮箱、163 邮箱、126 邮箱走授权码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。
 - 合并前：`pr.yml` 在每个 PR 与 main 的推送上跑 check.sh、deny.sh、panics.py、整个工作区的 clippy（告警即败）与不需引擎的测试；PR 从不上自托管机器，带引擎的全部测试是发布的门。
 - 审查：每条任务交另一个模型审查，至多三轮（`scripts/review.sh`，herdr 右侧窗格里的 Pi，K3.1 Pro，思考 high）。
