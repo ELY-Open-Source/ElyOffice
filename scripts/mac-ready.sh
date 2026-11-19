@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Before a Mac release: audio answers, notarytool reads its profile.
-# Usage: mac-ready.sh <notarytool keychain profile>
 set -euo pipefail
 
 profile=${1:?the notarytool keychain profile}
