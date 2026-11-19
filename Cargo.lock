@@ -1976,7 +1976,7 @@ dependencies = [
 
 [[package]]
 name = "ely-agent"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "ely-platform",
  "ely-ui",
@@ -2155,13 +2155,13 @@ dependencies = [
 
 [[package]]
 name = "ely-doc"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "anyhow",
  "csv",
  "directories",
  "dunce",
- "ely-files 0.1.16",
+ "ely-files 0.1.17",
  "ely-gpui-component",
  "ely-ipc",
  "ely-lok",
@@ -2223,7 +2223,7 @@ dependencies = [
 
 [[package]]
 name = "ely-files"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "aes-gcm",
  "dunce",
@@ -2344,7 +2344,7 @@ dependencies = [
 
 [[package]]
 name = "ely-ipc"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "libc",
  "log",
@@ -2353,7 +2353,7 @@ dependencies = [
 
 [[package]]
 name = "ely-login"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "ely-platform",
  "log",
@@ -2362,7 +2362,7 @@ dependencies = [
 
 [[package]]
 name = "ely-lok"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "base64 0.23.1",
  "dunce",
@@ -2385,11 +2385,11 @@ dependencies = [
 
 [[package]]
 name = "ely-mail"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "base64 0.23.1",
  "directories",
- "ely-files 0.1.16",
+ "ely-files 0.1.17",
  "ely-gpui-component",
  "ely-mail-engine",
  "ely-mail-fake",
@@ -2419,7 +2419,7 @@ dependencies = [
 
 [[package]]
 name = "ely-mail-engine"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "base64 0.23.1",
  "ely-mail-fake",
@@ -2454,7 +2454,7 @@ dependencies = [
 
 [[package]]
 name = "ely-mail-fake"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "base64 0.23.1",
  "ely-mail-engine",
@@ -2481,12 +2481,12 @@ dependencies = [
 
 [[package]]
 name = "ely-mark"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
  "dunce",
- "ely-files 0.1.16",
+ "ely-files 0.1.17",
  "ely-gpui-component",
  "ely-ipc",
  "ely-office",
@@ -2554,12 +2554,12 @@ dependencies = [
 
 [[package]]
 name = "ely-office"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "anyhow",
  "directories",
  "dunce",
- "ely-files 0.1.16",
+ "ely-files 0.1.17",
  "ely-gpui-component",
  "ely-ipc",
  "ely-lok",
@@ -2592,10 +2592,10 @@ dependencies = [
 
 [[package]]
 name = "ely-pdf"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "dunce",
- "ely-files 0.1.16",
+ "ely-files 0.1.17",
  "ely-gpui-component",
  "ely-ipc",
  "ely-office",
@@ -2614,7 +2614,7 @@ dependencies = [
 
 [[package]]
 name = "ely-pdf-engine"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "ely-ipc",
  "log",
@@ -2624,7 +2624,7 @@ dependencies = [
 
 [[package]]
 name = "ely-pdf-worker"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "cc",
  "ely-ipc",
@@ -2640,7 +2640,7 @@ dependencies = [
 
 [[package]]
 name = "ely-platform"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "anyhow",
  "arboard",
@@ -2729,9 +2729,9 @@ dependencies = [
 
 [[package]]
 name = "ely-show"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
- "ely-files 0.1.16",
+ "ely-files 0.1.17",
  "ely-gpui-component",
  "ely-ipc",
  "ely-lok",
@@ -2750,7 +2750,7 @@ dependencies = [
 
 [[package]]
 name = "ely-start"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "ely-platform",
  "tempfile",
@@ -2759,9 +2759,9 @@ dependencies = [
 
 [[package]]
 name = "ely-table"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
- "ely-files 0.1.16",
+ "ely-files 0.1.17",
  "ely-gpui-component",
  "ely-lok",
  "ely-office",
@@ -2812,10 +2812,10 @@ dependencies = [
 
 [[package]]
 name = "ely-tree"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "dunce",
- "ely-files 0.1.16",
+ "ely-files 0.1.17",
  "ely-gpui-component",
  "ely-ipc",
  "ely-platform",
@@ -2834,7 +2834,7 @@ dependencies = [
 
 [[package]]
 name = "ely-ui"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "anyhow",
  "directories",
