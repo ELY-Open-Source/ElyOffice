@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""An open document outlives its app or worker frozen a while."""
+"""An open document outlives a frozen app or worker."""
 
 import argparse
 import os
