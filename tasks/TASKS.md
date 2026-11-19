@@ -790,3 +790,4 @@
 - [ ] R20.56 HTML 块里行尾的隐藏单元格仍读出一个制表符（R20.35 第 3 轮查出，§14）：`<td>a</td><td hidden>b</td>` 读成 `a\t`，Chromium 读 `a`。修在组件库，回归测试含行尾一个与多个隐藏单元格；随后移 pin，整个工作区带引擎复跑
 - [ ] R20.57 `scripts/panics.py` 在 huacnlee/cargo 上不设 `CARGO_CHECK_SHARED_DEPS=0` 即败（R20.43 合入时查出，§22）：它内部跑 clippy，漏设时共享依赖的 gpui 与本地的混在一图，报 `gpui::geometry::Axis` 对 `gpui::Axis`，ely-lok 19 个、ely-ui 221 个编译错，看似代码坏了；同日两个 agent 各误判一次。脚本自己给 clippy 设上，标准 Cargo 上无害；check.sh 等其他调 clippy 的脚本同查
 - [ ] R20.58 基准量内存只看 RSS，换出的页不算（C20.2 查出，§20）：`tests/perf/run.py` 的 `memory_mb` 合计进程族的 RSS，PERF-08（`cycles.py`）据此判有无泄漏；机器换页时（2026-11-19 本机用 41 GB swap）增长被换出而看不见，C20.2 的 soak 两次“回落”（1243→785、824→511 MB）实为换出。判增长处改量私有内存加换出（Linux RssAnon+VmSwap，macOS、Windows 各取对应的值），并记录与旧 RSS 记录不可直比；计时的跑在换页（vmstat si/so 非零）时作废重跑
+- [ ] R20.59 ElyDoc 在长段落里打字慢（R20.54 量出，§20）：补丁前 Linux 内核，2 万字的一段键入到帧 P50 61 毫秒，20 万字的 23 毫秒，都远超 120 Hz 的 8.3 毫秒；拆每键的时间（内核排版、图块、Ely 侧），找根因，修到不卡顿，各端实测；R20.54 的补丁落定后在其上量
