@@ -20,8 +20,11 @@ fn a_worker_whose_kernel_will_not_load_says_why() {
     // Truncated, as a kernel relinked in place.
     std::fs::write(program.join(crate::ffi::KERNEL), b"\x7fELF").expect("a truncated kernel");
     let profile = tempfile::tempdir().expect("a profile");
+    // The loader's own words, as the worker gets them.
+    let canonical = dunce::canonicalize(&program).expect("the kernel's path");
+    let loader = crate::ffi::Library::open(&canonical).err().expect("the loader refuses it").to_string();
     let error = Worker::spawn_dev(&program, profile.path()).err().expect("no kernel loads").to_string();
-    let reason = error.split_once("the worker said: ").map(|(_, said)| said).unwrap_or_default();
-    assert!(reason.contains(crate::ffi::KERNEL) && reason.contains("ERROR"), "the worker's own reason: {error}");
+    let said = error.split_once("the worker said: ").map(|(_, said)| said).unwrap_or_default();
+    assert!(said.contains(&format!("ERROR ely_lok_worker] lok-worker: {loader}")), "{loader} in: {error}");
     assert!(error.contains("exit status: 1") || error.contains("exit code: 1"), "its exit: {error}");
 }

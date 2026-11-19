@@ -250,14 +250,14 @@ fn cstring(text: &str) -> io::Result<CString> {
 }
 
 #[cfg(unix)]
-struct Library {
+pub(crate) struct Library {
     handle: *mut c_void,
 }
 
 #[cfg(unix)]
 impl Library {
     /// dlopens the merged kernel from `install`.
-    fn open(install: &Path) -> io::Result<Self> {
+    pub(crate) fn open(install: &Path) -> io::Result<Self> {
         use std::os::unix::ffi::OsStrExt;
         let path = install.join(KERNEL);
         let c = CString::new(path.as_os_str().as_bytes())
@@ -294,14 +294,14 @@ fn dl_error() -> String {
 }
 
 #[cfg(windows)]
-struct Library {
+pub(crate) struct Library {
     handle: isize,
 }
 
 #[cfg(windows)]
 impl Library {
     /// Loads the merged kernel from `install`.
-    fn open(install: &Path) -> io::Result<Self> {
+    pub(crate) fn open(install: &Path) -> io::Result<Self> {
         use std::os::windows::ffi::OsStrExt;
         use windows_sys::Win32::System::LibraryLoader::{
             LOAD_LIBRARY_SEARCH_DEFAULT_DIRS, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR, LoadLibraryExW,
