@@ -196,7 +196,7 @@ crates/ely-lok/src/sheet.rs	expect_used	u8::try_from((n - 1) % 26).expect("a let
 crates/ely-lok/src/show/layers.rs	expect_used	pixels.expect("checked above")	linux,macos,windows	checked above
 crates/ely-lok/src/show/layers.rs	expect_used	pixels.take().expect("checked above")	linux,macos,windows	checked above
 crates/ely-lok/src/show/parts.rs	expect_used	serde_json::from_str(&look.to_json()).expect("a look is JSON")	linux,macos,windows	a look is JSON
-crates/ely-lok/src/view.rs	expect_used	self.lane .tiles .unbounded_send(job) .expect("the lane lives with the view")	linux,macos,windows	the lane lives with the view
+crates/ely-lok/src/view/reveal.rs	expect_used	self.lane .tiles .unbounded_send(job) .expect("the lane lives with the view")	linux,macos,windows	the lane lives with the view
 crates/ely-lok/src/view/formula.rs	expect_used	vcl_key(keystroke).expect("Enter and Tab are vcl keys")	linux,macos,windows	Enter and Tab are vcl keys
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("shift-tab").expect("a keystroke")	linux,macos,windows	a keystroke
 crates/ely-lok/src/view/input.rs	expect_used	Keystroke::parse("tab").expect("a keystroke")	linux,macos,windows	a keystroke

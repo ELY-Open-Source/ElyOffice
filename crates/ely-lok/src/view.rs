@@ -7,10 +7,8 @@ use std::{
 };
 
 use gpui::{
-    App, AppContext as _, Context, Entity, EventEmitter, FocusHandle, Pixels, Point, RenderImage,
-    Task, px,
+    App, AppContext as _, Context, Entity, EventEmitter, FocusHandle, Pixels, Point, Task, px,
 };
-use image::{Frame, ImageBuffer, Rgba};
 
 use crate::{Doc, Events, Rect, Worker};
 
@@ -71,6 +69,10 @@ pub struct LokView {
     /// Tiles no longer drawn, freed at the next paint.
     retired: ely_gpui_component::primitives::Retired,
     fetching: HashSet<(i32, i32)>,
+    /// A report held until shown tiles land.
+    unreported: bool,
+    /// Parts edits landed on, until the app takes them.
+    edited_parts: HashSet<usize>,
     failed: HashSet<((i32, i32), u64)>,
     /// The area last told to the kernel.
     shown: Option<(Rect, (u32, i32))>,
@@ -194,6 +196,8 @@ impl LokView {
             tiles: HashMap::new(),
             retired: Default::default(),
             fetching: HashSet::new(),
+            unreported: false,
+            edited_parts: HashSet::new(),
             failed: HashSet::new(),
             shown: None,
             viewport: (0.0, 0.0),
@@ -418,9 +422,9 @@ impl LokView {
         self.tabs = (batch.tabs, batch.revision);
         self.states.take(batch.states, batch.revision);
         self.relay(batch.blocked, batch.links, cx);
-        cx.emit(Reported);
+        self.unreported = true;
         if !changed {
-            cx.notify();
+            self.repaint(cx);
             return;
         }
         self.generation = batch.generation;
@@ -442,57 +446,7 @@ impl LokView {
         for key in dirty {
             self.request_tile(key);
         }
-        cx.notify();
-    }
-
-    /// Requests one missing tile on the background executor.
-    fn request_tile(&mut self, key: (i32, i32)) {
-        if self.failed.contains(&(key, self.generation)) || !self.fetching.insert(key) {
-            return;
-        }
-        let job = lane::Job {
-            key,
-            geom: self.geom,
-        };
-        self.lane
-            .tiles
-            .unbounded_send(job)
-            .expect("the lane lives with the view");
-    }
-
-    /// Takes a painted tile; stale generations never land (LOK-03).
-    fn finish_tile(
-        &mut self,
-        key: (i32, i32),
-        geom: Geom,
-        tile: io::Result<crate::Tile>,
-        cx: &mut Context<Self>,
-    ) {
-        self.fetching.remove(&key);
-        match tile {
-            Ok(tile) if tile.generation >= self.generation && geom == self.geom => {
-                let side = geom.tile_pixels();
-                // LOK and RenderImage both take BGRA bytes.
-                let Some(image) = ImageBuffer::<Rgba<u8>, _>::from_raw(side, side, tile.pixels)
-                else {
-                    log::warn!("lok: a tile came back the wrong size");
-                    return;
-                };
-                self.land(key, Arc::new(RenderImage::new([Frame::new(image)])));
-                cx.notify();
-            }
-            Ok(tile) => {
-                let now = (self.generation, self.geom.zoom, self.geom.dpi);
-                log::debug!("lok: tile {key:?} dropped: {:?} against {now:?}", (tile.generation, geom.zoom, geom.dpi));
-                cx.notify()
-            }
-            Err(error) => {
-                // Retried at the next change or move.
-                log::warn!("lok: tile {key:?} failed: {error}");
-                self.failed.insert((key, self.generation));
-                cx.emit(LokError(format!("a page failed to paint: {error}")));
-            }
-        }
+        self.repaint(cx);
     }
 }
 

@@ -11,7 +11,7 @@ use gpui::Context;
 
 use super::clock::Picture;
 use super::input::{Back, Input};
-use super::{Geom, LokError, LokView, Reported, TILE_TWIPS};
+use super::{Geom, LokError, LokView, TILE_TWIPS};
 use crate::{Doc, Tile, Waiter, Worker};
 
 /// An input slower than this is logged as a warning.
@@ -56,6 +56,11 @@ impl LokView {
     /// Queues `write` behind the keys; it counts as an edit.
     pub fn write(&mut self, write: impl FnOnce(&mut Worker, &Doc) + Send + 'static) {
         self.send(Input::Write(Box::new(write)));
+    }
+
+    /// The parts edits landed on since the last call.
+    pub fn take_edited_parts(&mut self) -> std::collections::HashSet<usize> {
+        std::mem::take(&mut self.edited_parts)
     }
 
     /// The last key's time, on gpui's clock.
@@ -161,6 +166,8 @@ impl LokView {
                     let taken = matches!(outcome, Ok(Some(Back::Completed(true))));
                     self.completion.landed(seq, if taken { now } else { None });
                     if edits {
+                        // Turns before it in this batch already moved `part`.
+                        self.edited_parts.insert(self.part);
                         self.clock.landed(seq, picture);
                         self.states.edited(now, self.doc.rev);
                     }
@@ -188,9 +195,7 @@ impl LokView {
                 }
             }
         }
-        if reported {
-            cx.emit(Reported);
-        }
-        cx.notify();
+        self.unreported |= reported;
+        self.repaint(cx);
     }
 }

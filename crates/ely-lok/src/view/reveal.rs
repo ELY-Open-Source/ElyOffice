@@ -2,13 +2,15 @@
 
 use std::{
     collections::HashSet,
+    io,
     sync::{Arc, Mutex, MutexGuard},
     time::Instant,
 };
 
-use gpui::{Bounds, Pixels, Point, RenderImage};
+use gpui::{Bounds, Context, Pixels, Point, RenderImage};
+use image::{Frame, ImageBuffer, Rgba};
 
-use super::{Geom, LokView, TILE_TWIPS};
+use super::{Geom, LokError, LokView, Reported, TILE_TWIPS, lane};
 
 /// One painted tile; stale ones wait for a repaint.
 pub(super) struct TileEntry {
@@ -51,6 +53,64 @@ impl LokView {
         self.on_screen.clear();
         self.filling = None;
         wanted(&self.wanted).1.clear();
+    }
+
+    /// Repaints and reports, unless shown tiles are on their way.
+    pub(super) fn repaint(&mut self, cx: &mut Context<Self>) {
+        if self.on_screen.iter().any(|key| self.fetching.contains(key)) {
+            return;
+        }
+        if std::mem::take(&mut self.unreported) {
+            cx.emit(Reported);
+        }
+        cx.notify();
+    }
+
+    /// Requests one missing tile on the background executor.
+    pub(super) fn request_tile(&mut self, key: (i32, i32)) {
+        if self.failed.contains(&(key, self.generation)) || !self.fetching.insert(key) {
+            return;
+        }
+        let job = lane::Job {
+            key,
+            geom: self.geom,
+        };
+        self.lane
+            .tiles
+            .unbounded_send(job)
+            .expect("the lane lives with the view");
+    }
+
+    /// Takes a painted tile; stale generations never land (LOK-03).
+    pub(super) fn finish_tile(
+        &mut self,
+        key: (i32, i32),
+        geom: Geom,
+        tile: io::Result<crate::Tile>,
+        cx: &mut Context<Self>,
+    ) {
+        self.fetching.remove(&key);
+        match tile {
+            Ok(tile) if tile.generation >= self.generation && geom == self.geom => {
+                let side = geom.tile_pixels();
+                // LOK and RenderImage both take BGRA bytes.
+                match ImageBuffer::<Rgba<u8>, _>::from_raw(side, side, tile.pixels) {
+                    Some(image) => self.land(key, Arc::new(RenderImage::new([Frame::new(image)]))),
+                    None => log::warn!("lok: a tile came back the wrong size"),
+                }
+            }
+            Ok(tile) => {
+                let now = (self.generation, self.geom.zoom, self.geom.dpi);
+                log::debug!("lok: tile {key:?} dropped: {:?} against {now:?}", (tile.generation, geom.zoom, geom.dpi));
+            }
+            Err(error) => {
+                // Retried at the next change or move.
+                log::warn!("lok: tile {key:?} failed: {error}");
+                self.failed.insert((key, self.generation));
+                cx.emit(LokError(format!("a page failed to paint: {error}")));
+            }
+        }
+        self.repaint(cx);
     }
 
     /// Takes `image` for `key`; it shows with its screen.

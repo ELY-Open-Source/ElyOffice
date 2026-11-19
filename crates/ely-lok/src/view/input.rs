@@ -292,9 +292,9 @@ impl LokView {
         self.applied >= seq
     }
 
-    /// Whether every queued input reached the kernel.
+    /// Whether every queued input landed and was reported.
     pub fn settled(&self) -> bool {
-        self.applied >= self.sent
+        self.applied >= self.sent && !self.unreported
     }
 
     /// Posts a non-text key; text waits for the IME.

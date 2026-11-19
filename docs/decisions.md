@@ -1464,3 +1464,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 定：`scripts/mac-ready.sh <凭据名>`，`ci.sh` 在 macOS 上查完签名变量即调，任何构建之前：`system_profiler SPAudioDataType` 20 秒内不答或报错即失败（停应时放媒体的测试会挂住而不是失败）；`notarytool history` 读不到凭据即失败，转述其原话，说明出路（控制台登录或 `security unlock-keychain`；不存在的凭据以 `store-credentials` 建）。
 - 证据：真机上 `ely-notary` 过，不存在的 `ely-notary-absent` 败并带 notarytool 的原话。`tests/scripts/mac-ready-rules.sh`（`system_profiler`、`xcrun` 替身）：都正常即过，凭据读不到即败，音频 60 秒不答时 20 秒内败，音频报错即败；去掉凭据检查、时限、音频检查，各败。`tests/scripts/ci-upload.sh`：Mac 没准备好即不建不传，`ci.sh` 不调此检查即败。新测试入 `pr.yml` 的发布规则一步。
 - 第 1 轮 FAIL：`mac-ready.sh` 头两行注释违反一行规则，`check.sh` 报出；入库时把 `check.sh` 的输出接给 `tail`，管道的退出码是 `tail` 的，故没拦住。修：去掉用法那行；入库命令改为 `set -o pipefail`。全仓 `check.sh` 只此一处不过。
+
+## 2026-11-19 按键的图块赶上第一帧（R19.5）
+
+- 根因：键落到内核、图块重取的那几毫秒里，视图与应用已先请重画：宿主（`ely-office` 的 `open.rs`）、属性面板与工具栏听 `Reported` 即 `notify`，`LokView::show()` 不论滚没滚都 `notify`。Xvfb 上一帧要画约 14 毫秒，图块到前起的那一帧占住主线程，图块只能等下一拍（约 16.7 毫秒），P95 便多一帧。内核、取图块与呈现都快（图块 0 至 2 毫秒、刷新准时）。
+- 定：屏上有图块还在取时，`LokView` 的重画与 `Reported` 一并压住，等这些图块落下（或跳过、失败）再一起放（`view/reveal.rs` 的 `repaint`）；`show()` 只在滚动位置真变时重画；`settled()` 把压住未发的报告算作未落定。
+- 连带：压住使“翻页”与其后的编辑并成一次 `Reported`，ElyShow 原以上次读到的当前页记脏缩略图，翻页后的编辑便记到旧页上，画旧页缩略图又让内核丢了选中（`the_wheel_up_down_and_page_keys_turn_slides` 败）。改为视图记下每次编辑落在哪一页（`LokView::take_edited_parts`），ElyShow 记这些页脏；离开文字编辑仍记上次读到的那页。照实记页后，非当前页的缩略图常要画，单视图下 `doc_paintPartTile` 切到那页再切回，Impress 切页即清掉选中（`play_time::back_shows_a_slide_fully_built_even_without_clicks` 败）；补丁 0145（8aeae995）改为另画不切页。
+- 证据：Linux 交替 3 轮各 30 键，ElyDoc P95 37→21 毫秒（超 30 毫秒 14/90→2/90），ElyShow 36→20（7/90→0/90）；正式 PERF-02 空机上 ElyDoc 13/20、ElyShow 12/20 毫秒（P50/P95；0145 之前的内核；另一次撞上 32 路满负载与内核重链接，16/38、18/21，不计）。0145 内核上：`turn`、`play_time` 与 `carry::a_thumbnail_of_another_slide_keeps_the_selection` 各 3/3 过，ely-lok（含视图）537、ely-office、ElyDoc 146、ElyShow 117、ElyTable 129 全过，clippy、`check.sh`、`panics.py` 过。新测试 `view::tests::reveal::a_kernel_change_repaints_and_reports_once_its_shown_tiles_land`：去掉压住即败；只压不记页时 `turn` 测试败。
+- Windows、macOS 的内核在 R20.26 前没有 0145，那两端翻页后紧接选中仍可能丢。

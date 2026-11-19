@@ -54,6 +54,7 @@ impl LokView {
 
     /// Scrolls print-twips `rect` into view; frozen parts always show.
     pub fn show(&mut self, rect: Rect, cx: &mut Context<Self>) {
+        let before = (self.scroll, self.reach);
         let (x, y, w, h) = self.tile_rect(rect);
         let (fx, fy) = self.frozen_tiles();
         let (vw, vh) = (
@@ -72,7 +73,9 @@ impl LokView {
             self.scroll.1 = least(y - fy, h, self.scroll.1, vh);
         }
         self.clamp_scroll();
-        cx.notify();
+        if (self.scroll, self.reach) != before {
+            cx.notify();
+        }
     }
 
     /// Freezes what lies before `frozen`, in print twips.

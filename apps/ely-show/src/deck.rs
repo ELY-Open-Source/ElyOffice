@@ -226,13 +226,12 @@ impl Deck {
         if tab.extra.reading || tab.extra.read == Some(seen) && !behind {
             return;
         }
-        // Edits and leaving text edit dirty the picture.
-        if tab
-            .extra
-            .read
-            .is_some_and(|(_, edited, caret, _)| edited != seen.1 || caret && !seen.2)
-            && let Some(slide) = tab.extra.slides.list.get(tab.extra.slides.current)
-        {
+        // Edits dirty their slides; leaving text edit, the read one.
+        let mut edited = view.update(cx, |view, _| view.take_edited_parts());
+        if tab.extra.read.is_some_and(|(_, _, caret, _)| caret && !seen.2) {
+            edited.insert(tab.extra.slides.current);
+        }
+        for slide in edited.into_iter().filter_map(|part| tab.extra.slides.list.get(part)) {
             tab.extra.stale.insert(slide.name.clone());
         }
         (tab.extra.reading, tab.extra.read) = (true, Some(seen));
