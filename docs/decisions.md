@@ -1411,6 +1411,6 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 ## 2026-11-19 起审查不丢回车，每次起审查留记录（R15.65）
 
-- 根因仍是 2026-11-05 所查：Claude Code 在 herdr 判它就绪后仍会丢打进来的字。argv 起审查不经输入框，换成 Pi 后照用。复查（Linux，herdr 0.9.5，Pi 1.5.2）：照 review.sh 的命令行直起 39 次皆开工；旧法先起 Pi 再 `agent prompt` 10 次也都过，丢字只在 Claude Code。
+- 根因仍是 2026-11-05 所查：Claude Code 在 herdr 判它就绪后仍会丢打进来的字。argv 起审查不经输入框，换成 Pi 后照用。复查（Linux，herdr 0.9.5，Pi 1.5.2）：照 review.sh 的命令行直起 39 次（先 1 次，再 20 次接连、6 个并行三轮）皆开工；旧法先起 Pi 再 `agent prompt` 10 次也都过，丢字只在 Claude Code。
 - `review.sh` 把每次起审查的步骤带 UTC 时刻追加进 `.work/<ID>-r<轮次>/start.log`：窗格、起 pi、状态（只记变化，含 herdr 认出 Pi 前的 `agent_not_found`）、结论；失败时连窗格最近 40 行，阻塞时连屏上文字；出错信息指向该文件。再有卡住即按它查。
-- 改过的 review.sh 对练习条目端到端 33 次（20 次接连、12 次并行，负载 33）：皆 2 至 3 秒开工、皆得结论，0 次卡住。
+- 改过的 review.sh 对练习条目端到端 33 次（先 1 次，再 20 次接连、12 次并行，负载 33；各次的 start.log 在 `.work/R15.65/office/.work/Z9.*-r1/`（本机，未入库））：皆 2 至 3 秒开工、皆得结论，0 次卡住。
