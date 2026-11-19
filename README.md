@@ -48,7 +48,7 @@ cargo build -p ely-lok --bins -p ely-pdf-worker
 cargo run -p ely-doc              # or ely-table, ely-show, ely-pdf, ely-mail, ely-tree, ely-mark
 ```
 
-On Linux, run each script after `packaging/linux/container.sh` (as in `packaging/linux/container.sh scripts/build-mupdf.sh`, which is how `scripts/ci.sh` runs them): an AlmaLinux 8 image that keeps the binaries on glibc 2.28. Cargo runs on the host. On Windows, LibreOffice builds under Cygwin and MuPDF with MSBuild. Every script writes under the clone it runs from.
+On Linux, run each script after `packaging/linux/container.sh` (as in `packaging/linux/container.sh scripts/build-mupdf.sh`, which is how `scripts/ci.sh` runs them): an AlmaLinux 8 image that keeps the binaries on glibc 2.28. Cargo runs on the host. On Windows, LibreOffice builds under Cygwin and MuPDF with MSBuild.
 
 Microsoft sign-in in ElyMail needs a client ID at build time: put `ELY_MICROSOFT_CLIENT_ID=<id>` in `cred.txt` at the repository root (git ignores it), or set the variable. Without it ElyMail still builds and says Microsoft sign-in is not in this build; `scripts/ci.sh` refuses to build a release without it.
 
@@ -65,7 +65,7 @@ Pushing a `v*` tag runs `.github/workflows/release.yml`, four jobs that wait for
 
 ## Tests
 
-The test report is [docs/qa.md](docs/qa.md): what proves each of PRD's QA-01 to QA-28 today, and what is missing (none is fully proven; four have no evidence). [docs/test-map.md](docs/test-map.md) lists each PRD item's tasks and the tests that cover it. Known limitations are in [docs/compatibility.md](docs/compatibility.md#已知限制).
+The test report is [docs/qa.md](docs/qa.md): what proves each of PRD's QA-01 to QA-28 today, and what is missing. [docs/test-map.md](docs/test-map.md) lists each PRD item's tasks and the tests that cover it. Known limitations are in [docs/compatibility.md](docs/compatibility.md#已知限制).
 
 `cargo test --workspace`; the script tests in `tests/scripts`, listed in its README (the window tests need macOS Accessibility permission; Linux tests run in containers); the benchmarks `tests/perf/bench.py` and `tests/perf/folder-search.rs`; the first opens of the installed apps `tests/perf/firsts.py install` and `reboot` (on Windows it records Microsoft Office's beside them, ungated); the idle engines `tests/perf/idle.py` (no CPU in ten minutes, memory within a tenth of `tests/perf/idle.json`; part of `scripts/release-tests.sh`); the load tests `tests/perf/load.py` (many large documents open and edited at once, the command line editing the one being typed in) and `tests/perf/pdfs.py`, on Linux through `tests/perf/linux.sh`.
 
