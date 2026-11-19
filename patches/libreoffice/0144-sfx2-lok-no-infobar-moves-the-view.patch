@@ -1,0 +1,47 @@
+sfx2: under LOK no infobar is shown, so none moves the view
+
+After a load an asynchronous SFX event appends the "macros disabled"
+infobar (MacroExecMode NEVER_EXECUTE) and shows the infobar container.
+No kit client sees an infobar: the kit sends none. The hidden window
+still takes room, the work window arranges its children and the view
+window moves. Calc ends any mouse action when its view window moves
+(ScTabViewShell::Move -> StopMarking), so when that idle ran between
+a button-down and its up, a double-click on a shape never opened its
+text, and a drag or a range selection stopped early. The ElyTable
+test that double-clicks a shape and types failed on loaded machines
+this way (Ely R19.8). The trace, by the fonts agent with gdb:
+BrkDragObj <- DrawEndAction <- ScGridWindow::StopMarking <-
+ScTabViewShell::Move <- OuterResizePixel <- SfxViewFrame::Resize <-
+SetToolSpaceBorderPixel_Impl <- ArrangeChildren_Impl, between the
+down and the up.
+
+Under the kit AppendInfoBar adds no bar and UpdateInfoBar shows no
+container. Every caller already takes a null bar; the UNO
+XInfobarProvider::appendInfobar throws, as when the bar is off.
+Under full-CPU load on 32 threads the test failed 8 of 360
+runs without this and passed 360 of 360 with it.
+
+diff --git a/sfx2/source/view/viewfrm.cxx b/sfx2/source/view/viewfrm.cxx
+--- a/sfx2/source/view/viewfrm.cxx
++++ b/sfx2/source/view/viewfrm.cxx
+@@ -3766,6 +3766,10 @@
+                                                const OUString& sSecondaryMessage,
+                                                InfobarType aInfobarType, bool bShowCloseButton)
+ {
++    // Ely: unseen under the kit, it only moves the view.
++    if (comphelper::LibreOfficeKit::isActive())
++        return nullptr;
++
+     SfxChildWindow* pChild = GetChildWindow(SfxInfoBarContainerChild::GetChildWindowId());
+     if (!pChild)
+         return nullptr;
+@@ -3783,6 +3787,9 @@
+ void SfxViewFrame::UpdateInfoBar(std::u16string_view sId, const OUString& sPrimaryMessage,
+                                  const OUString& sSecondaryMessage, InfobarType eType)
+ {
++    if (comphelper::LibreOfficeKit::isActive())
++        return;
++
+     const sal_uInt16 nId = SfxInfoBarContainerChild::GetChildWindowId();
+ 
+     // Make sure the InfoBar container is visible
