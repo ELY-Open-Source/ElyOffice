@@ -68,6 +68,24 @@ class Office(unittest.TestCase):
         self.assertIn("ely rows", text)
         self.assertIn("WINWORD.EXE doc.docx: not measured: WINWORD.EXE: no window titled x", text)
 
+    def test_a_window_open_before_the_open_is_no_time(self):
+        def launched(*_, **__):
+            raise AssertionError("Office started over a window already open")
+
+        with unittest.mock.patch.object(firsts, "titled", lambda base: ["doc.docx - ElyDoc"]), \
+                unittest.mock.patch.object(firsts.subprocess, "Popen", launched):
+            with self.assertRaisesRegex(RuntimeError, "'doc.docx - ElyDoc' was open before the open"):
+                firsts.office("WINWORD.EXE", "/tmp/doc.docx")
+
+    def test_a_window_that_appears_is_timed(self):
+        seen = iter([[], [], ["doc - Word"]])
+        with unittest.mock.patch.object(firsts, "titled", lambda base: next(seen)), \
+                unittest.mock.patch.object(firsts.subprocess, "Popen", unittest.mock.Mock()), \
+                unittest.mock.patch.object(firsts.subprocess, "run", unittest.mock.Mock()), \
+                unittest.mock.patch.object(firsts.time, "sleep", lambda s: None):
+            took = firsts.office("WINWORD.EXE", "/tmp/doc.docx")
+        self.assertGreaterEqual(took, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -99,11 +99,9 @@ def closed(exe):
     time.sleep(2)
 
 
-def office(program, path):
-    """Ms until Office shows a window titled with the file."""
-    user32, base = ctypes.windll.user32, os.path.splitext(os.path.basename(path))[0]
-    process = subprocess.Popen([os.path.join(OFFICE_DIR, program), path])
-    began, titles = time.monotonic(), []
+def titled(base):
+    """Visible windows' titles that hold `base`."""
+    user32, titles = ctypes.windll.user32, []
     found = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
 
     def each(window, _):
@@ -113,9 +111,20 @@ def office(program, path):
             titles.append(text.value)
         return True
 
+    user32.EnumWindows(found(each), 0)
+    return titles
+
+
+def office(program, path):
+    """Ms until Office shows a window titled with the file."""
+    base = os.path.splitext(os.path.basename(path))[0]
+    # One open already would read as 0 ms.
+    if before := titled(base):
+        raise RuntimeError(f"{program}: a window titled {before[0]!r} was open before the open")
+    process = subprocess.Popen([os.path.join(OFFICE_DIR, program), path])
+    began = time.monotonic()
     while time.monotonic() - began < TIMEOUT_S:
-        user32.EnumWindows(found(each), 0)
-        if titles:
+        if titled(base):
             took = (time.monotonic() - began) * 1000
             time.sleep(2)
             subprocess.run(["taskkill", "/im", program, "/f"], capture_output=True, creationflags=drive.QUIET)
