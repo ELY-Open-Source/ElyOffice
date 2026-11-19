@@ -1543,3 +1543,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 定：四种总为目标留一格。补丁号用 0146（原留给 R20.54）：补丁按文件序打，先落 0147 再补 0146 会让已打 0147 的树找不到前缀。R20.54 用其后的号。
 - 测试：`crates/ely-lok/src/client/tests/scripted.rs` 读 `tests/fixtures/show/script-link.pptx`（t.pptx 加一个指向脚本 URL 的点击，故意的恶意样本，`make-script-link.py` 生成、可复现），存为 ODP、链接目标照存。无此补丁：macOS 4ce869dd 与 Linux 71c96842 都 SIGSEGV；带上：Linux 存成。平面 ODP 同样写法不现，导入不收脚本目标。
 - Linux 以 sd 定向重链带上（febf6d7b）；macOS、Intel 发布机与 Windows 的内核随后逐一重建，未重建前其上 `scripted.rs` 即败，发布门（`release-tests.sh`）亦然。
+
+## 2026-11-19 0.1.17 不带长段落内存修复（R20.54）
+
+- 用户定：0.1.17 照常发布，不等 R20.54。两版补丁草稿都把长段落的键入拖慢数十倍（20 万字一段键入到帧 23 → 3,624 毫秒），根因未明。
+- 0.1.17 的更新日志把这一增长列为已知问题。C20.2 仍开着，等 R20.54。
