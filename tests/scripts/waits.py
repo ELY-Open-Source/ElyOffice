@@ -20,7 +20,7 @@ MARKS = re.compile(r"/\*|\*/")
 INSIDE = re.compile(r"[^\n \t]")
 ATTRS = re.compile(r"#!?\[[^\]]*\]|//")
 # What stands before a closure, never after an operand.
-BEFORE = re.compile(r"(^|[=(,{;]|=>|\breturn|\bmove|\basync)\s*$")
+BEFORE = re.compile(r"(^|[=(\[,{;&]|=>|\breturn|\bmove|\basync|\bmut)\s*$")
 LABEL = re.compile(r"'(\w+):\s*$")
 ASYNC = re.compile(r"\basync(\s+move)?\s*$")
 KEYWORD = re.compile(r"('(\w+):\s*)?\b(for|while|loop)\b")
@@ -352,6 +352,7 @@ def main():
            # Async and labeled blocks; closures with typed parameters.
            (*t, "    for _ in 0..3 {", "        let work = async { return; };", "        std::thread::sleep(MS);", "    }", "}"),
            (*t, "    for _ in 0..3 {", "        let work = async || { return; };", "        std::thread::sleep(MS);", "    }", "}"),
+           (*t, "    for _ in 0..3 {", "        let work = &|| { return; };", "        std::thread::sleep(MS);", "    }", "}"),
            (*t, "    for _ in 0..3 {", "        'inner: { break 'inner; }", "        std::thread::sleep(MS);", "    }", "}"),
            (*t, "    for _ in 0..3 {", "        let work = |x: [u8; 3]| { return; };", "        std::thread::sleep(MS);", "    }", "}"),
            (*t, "    for _ in 0..3 {", "        let work = |Point { x, y }: Point| { return; };", "        std::thread::sleep(MS);",
