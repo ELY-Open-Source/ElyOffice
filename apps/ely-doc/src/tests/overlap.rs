@@ -184,25 +184,14 @@ fn closing_a_clean_tab_never_waits_for_the_worker() {
     let id = blank(&mut cx, &docs);
     settled(&cx, &docs);
     let worker = cx.update(|app| docs.read(app).core.worker.clone());
-    let (held, hold) = std::sync::mpsc::channel();
-    let holder = std::thread::spawn(move || {
-        let _busy = worker.lock().expect("the worker lock");
-        held.send(()).expect("the test waits");
-        // The engine stays held this long.
-        std::thread::sleep(std::time::Duration::from_millis(400));
-    });
-    hold.recv().expect("the lock is held");
-    let started = std::time::Instant::now();
+    // Held until the close has returned: judged by cause.
+    let held = super::hold::hold(&worker);
     with_window(&mut cx, &docs, |docs, window, cx| {
         docs.request_close(id, After::Tab, window, cx)
     });
-    let took = started.elapsed();
-    assert!(
-        took < std::time::Duration::from_millis(100),
-        "the close waited {took:?}"
-    );
-    holder.join().expect("the holder ends");
-    settle(&cx, |app| docs.read(app).tab(id).is_none());
+    let gone = cx.update(|app| docs.read(app).tab(id).is_none());
+    held.release("the close");
+    assert!(gone, "the tab left while the engine was held");
 }
 
 fn update_doc(
