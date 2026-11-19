@@ -156,31 +156,31 @@
 | PERF-08 | 资源释放 | C20.1、决策 C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
 | PERF-09 | 多会话 | C20.1 | `chord.swift`、`a_frame_with_a_failed_tile_times_no_edit` | tests/perf/bench.py、lag.sh |
 | PERF-10 | 极限负载 | 无 | — | tests/perf/bench.py、lag.sh |
-| QA-01 | 安装与离线启动 | C22.2（ ） | — | docs/qa.md |
-| QA-02 | 独立安装 | C22.2（ ） | — | docs/qa.md |
-| QA-03 | 统一界面 | C22.2（ ） | — | docs/qa.md |
-| QA-04 | 输入与焦点 | C22.2（ ） | — | docs/qa.md |
-| QA-05 | 多屏 | C22.2（ ） | — | docs/qa.md |
-| QA-06 | 保存失败 | C22.2（ ） | — | docs/qa.md |
-| QA-07 | 外部冲突 | C22.2（ ） | — | docs/qa.md |
-| QA-08 | 并发保存 | C22.2（ ） | — | docs/qa.md |
-| QA-09 | 崩溃恢复 | C22.2（ ） | — | docs/qa.md |
-| QA-10 | Doc | C08.6、C22.2（ ） | — | docs/qa.md |
-| QA-11 | Table | C09.5、C22.2（ ） | `a_1904_workbook_keeps_its_dates_through_saves`、`the_preview_reads_what_the_kernel_imports` | docs/qa.md |
-| QA-12 | Show | C10.6、C22.2（ ）、决策 C10.6 | `the_current_slide_is_the_one_just_picked`、`a_check_asked_after_a_waiting_output_wins` | docs/qa.md |
-| QA-13 | PDF 编辑 | C11.8、C22.2（ ）、决策 C11.8 | `a_picture_that_breaks_as_it_draws_stops_an_overwrite`、`a_picture_never_drawn_is_checked_before_an_overwrite`、`picked_pages_from_before_an_edit_export_nothing` | docs/qa.md |
-| QA-14 | PDF 删除 | C11.6、C22.2（ ）、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out`、`a_removed_annotation_leaves_the_structure_tree` | docs/qa.md |
-| QA-15 | PDF OCR 与签名 | C11.7、C22.2（ ）、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole`、`signing_waits_while_the_tab_holds_what_save_as_left_out`、`a_failed_signature_read_is_tried_again_on_the_next_opening`、`a_second_save_as_keeps_the_reopen_and_signs_the_file_it_wrote` | docs/qa.md |
-| QA-16 | Mail 离线 | C12.23、C22.2（ ） | `release-macos.sh`、`offline_mail_reads_searches_keeps_drafts_and_queues`、`a_refused_recipient_fails_and_is_never_sent_again`、`an_accepted_message_with_no_quit_answer_waits_only_for_its_copy`、`a_new_uidvalidity_rebuilds_and_a_refused_login_keeps_local_mail` | docs/qa.md |
-| QA-17 | Mail 发送 | C12.14、C12.23、C22.2（ ）、决策 C12.14 | `a_quit_from_the_tray_opens_the_window_to_ask`、`release-macos.sh`、`offline_mail_reads_searches_keeps_drafts_and_queues`、`a_refused_recipient_fails_and_is_never_sent_again`、`an_accepted_message_with_no_quit_answer_waits_only_for_its_copy`、`a_new_uidvalidity_rebuilds_and_a_refused_login_keeps_local_mail` | docs/qa.md |
-| QA-18 | Mail 同步 | C12.6、C12.23、C22.2（ ）、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`a_sign_in_while_paused_clears_the_refusal`、`a_sign_in_during_a_sync_starts_over_on_the_new_token`、`release-macos.sh`、`offline_mail_reads_searches_keeps_drafts_and_queues`、`a_refused_recipient_fails_and_is_never_sent_again`、`an_accepted_message_with_no_quit_answer_waits_only_for_its_copy`、`a_new_uidvalidity_rebuilds_and_a_refused_login_keeps_local_mail` | docs/qa.md |
-| QA-19 | Git 结果 | C13.6、C22.2（ ）、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was`、`a_deleted_older_twin_is_no_longer_picked`、`an_unreachable_older_twin_expired_is_no_longer_picked` | docs/qa.md |
-| QA-20 | Git 异常 | C13.6、C22.2（ ）、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was`、`a_deleted_older_twin_is_no_longer_picked`、`an_unreachable_older_twin_expired_is_no_longer_picked` | docs/qa.md |
-| QA-21 | Mark 原文 | C14.4、C22.2（ ） | — | docs/qa.md |
-| QA-22 | Mark 外部变更 | C14.11、C22.2（ ） | — | docs/qa.md |
-| QA-23 | Agent 能力 | C15.6（ ）、C22.2（ ） | — | docs/qa.md |
-| QA-24 | Agent 生命周期 | C15.6（ ）、C22.2（ ） | — | docs/qa.md |
-| QA-25 | 隐私与断网 | C22.2（ ） | — | docs/qa.md |
-| QA-26 | 升级与卸载 | C22.2（ ） | — | docs/qa.md |
-| QA-27 | 许可证 | C22.2（ ） | — | docs/qa.md |
-| QA-28 | 无障碍与性能 | C22.2（ ） | — | docs/qa.md |
+| QA-01 | 安装与离线启动 | C22.2 | — | docs/qa.md |
+| QA-02 | 独立安装 | C22.2 | — | docs/qa.md |
+| QA-03 | 统一界面 | C22.2 | — | docs/qa.md |
+| QA-04 | 输入与焦点 | C22.2 | — | docs/qa.md |
+| QA-05 | 多屏 | C22.2 | — | docs/qa.md |
+| QA-06 | 保存失败 | C22.2 | — | docs/qa.md |
+| QA-07 | 外部冲突 | C22.2 | — | docs/qa.md |
+| QA-08 | 并发保存 | C22.2 | — | docs/qa.md |
+| QA-09 | 崩溃恢复 | C22.2 | — | docs/qa.md |
+| QA-10 | Doc | C08.6、C22.2 | — | docs/qa.md |
+| QA-11 | Table | C09.5、C22.2 | `a_1904_workbook_keeps_its_dates_through_saves`、`the_preview_reads_what_the_kernel_imports` | docs/qa.md |
+| QA-12 | Show | C10.6、C22.2、决策 C10.6 | `the_current_slide_is_the_one_just_picked`、`a_check_asked_after_a_waiting_output_wins` | docs/qa.md |
+| QA-13 | PDF 编辑 | C11.8、C22.2、决策 C11.8 | `a_picture_that_breaks_as_it_draws_stops_an_overwrite`、`a_picture_never_drawn_is_checked_before_an_overwrite`、`picked_pages_from_before_an_edit_export_nothing` | docs/qa.md |
+| QA-14 | PDF 删除 | C11.6、C22.2、决策 C11.6 | `elements_placed_by_their_kids_say_nothing_after_removal`、`a_redacted_page_loses_its_thumbnail`、`hidden_text_takes_what_its_marks_say`、`hidden_links_and_fields_clean_out`、`a_removed_annotation_leaves_the_structure_tree` | docs/qa.md |
+| QA-15 | PDF OCR 与签名 | C11.7、C22.2、决策 C11.7 | `a_signed_file_saved_as_a_copy_reopens_as_the_copy`、`a_field_emptied_by_a_save_can_be_signed_again`、`reopening_the_dialog_checks_the_file_as_it_is_now`、`a_failed_save_leaves_the_history_whole`、`signing_waits_while_the_tab_holds_what_save_as_left_out`、`a_failed_signature_read_is_tried_again_on_the_next_opening`、`a_second_save_as_keeps_the_reopen_and_signs_the_file_it_wrote` | docs/qa.md |
+| QA-16 | Mail 离线 | C12.23、C22.2 | `release-macos.sh`、`offline_mail_reads_searches_keeps_drafts_and_queues`、`a_refused_recipient_fails_and_is_never_sent_again`、`an_accepted_message_with_no_quit_answer_waits_only_for_its_copy`、`a_new_uidvalidity_rebuilds_and_a_refused_login_keeps_local_mail` | docs/qa.md |
+| QA-17 | Mail 发送 | C12.14、C12.23、C22.2、决策 C12.14 | `a_quit_from_the_tray_opens_the_window_to_ask`、`release-macos.sh`、`offline_mail_reads_searches_keeps_drafts_and_queues`、`a_refused_recipient_fails_and_is_never_sent_again`、`an_accepted_message_with_no_quit_answer_waits_only_for_its_copy`、`a_new_uidvalidity_rebuilds_and_a_refused_login_keeps_local_mail` | docs/qa.md |
+| QA-18 | Mail 同步 | C12.6、C12.23、C22.2、决策 C12.13 | `a_v1_store_gains_sync_and_keeps_its_mail`、`an_attached_multipart_waits_whole`、`a_related_image_marked_attachment_comes_down`、`a_related_start_root_ignores_its_disposition`、`a_missing_tls_is_the_sync_failure`、`a_related_start_may_name_a_multipart`、`a_sign_in_while_paused_clears_the_refusal`、`a_sign_in_during_a_sync_starts_over_on_the_new_token`、`release-macos.sh`、`offline_mail_reads_searches_keeps_drafts_and_queues`、`a_refused_recipient_fails_and_is_never_sent_again`、`an_accepted_message_with_no_quit_answer_waits_only_for_its_copy`、`a_new_uidvalidity_rebuilds_and_a_refused_login_keeps_local_mail` | docs/qa.md |
+| QA-19 | Git 结果 | C13.6、C22.2、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was`、`a_deleted_older_twin_is_no_longer_picked`、`an_unreachable_older_twin_expired_is_no_longer_picked` | docs/qa.md |
+| QA-20 | Git 异常 | C13.6、C22.2、决策 C13.6 | `an_expired_older_move_leaves_the_pick_where_it_was`、`a_deleted_older_twin_is_no_longer_picked`、`an_unreachable_older_twin_expired_is_no_longer_picked` | docs/qa.md |
+| QA-21 | Mark 原文 | C14.4、C22.2 | — | docs/qa.md |
+| QA-22 | Mark 外部变更 | C14.11、C22.2 | — | docs/qa.md |
+| QA-23 | Agent 能力 | C15.6（ ）、C22.2 | — | docs/qa.md |
+| QA-24 | Agent 生命周期 | C15.6（ ）、C22.2 | — | docs/qa.md |
+| QA-25 | 隐私与断网 | C22.2 | — | docs/qa.md |
+| QA-26 | 升级与卸载 | C22.2 | — | docs/qa.md |
+| QA-27 | 许可证 | C22.2 | — | docs/qa.md |
+| QA-28 | 无障碍与性能 | C22.2 | — | docs/qa.md |
