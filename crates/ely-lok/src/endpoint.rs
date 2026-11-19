@@ -37,9 +37,9 @@ const STARTING_SLICE: Duration = Duration::from_millis(100);
 
 /// The kernel's id, beside its version file.
 #[cfg(target_os = "macos")]
-const KERNEL_ID: &str = "../Resources/ely-kernel-id";
+pub(crate) const KERNEL_ID: &str = "../Resources/ely-kernel-id";
 #[cfg(not(target_os = "macos"))]
-const KERNEL_ID: &str = "ely-kernel-id";
+pub(crate) const KERNEL_ID: &str = "ely-kernel-id";
 
 /// The id `scripts/kernel-id.sh` wrote for `install`.
 fn kernel_id(install: &Path) -> io::Result<String> {

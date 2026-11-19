@@ -18,11 +18,11 @@ pub(crate) enum Check {
 
 /// Where the kernel reads its buildid, from the install.
 #[cfg(target_os = "macos")]
-const VERSION_FILE: &str = "../Resources/versionrc";
+pub(crate) const VERSION_FILE: &str = "../Resources/versionrc";
 #[cfg(windows)]
-const VERSION_FILE: &str = "version.ini";
+pub(crate) const VERSION_FILE: &str = "version.ini";
 #[cfg(all(unix, not(target_os = "macos")))]
-const VERSION_FILE: &str = "versionrc";
+pub(crate) const VERSION_FILE: &str = "versionrc";
 
 /// Which module the start check loads: the app's own.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

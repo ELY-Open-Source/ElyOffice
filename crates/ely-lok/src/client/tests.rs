@@ -13,6 +13,7 @@ mod cell_edit;
 mod cell_looks;
 mod charts;
 mod dates;
+mod died;
 mod check;
 mod carry;
 mod connectors;
