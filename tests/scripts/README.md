@@ -23,7 +23,7 @@ tests/scripts/elfs-rules.sh      `packaging/linux/elfs.sh`（package.sh 调用�
 tests/scripts/winget.sh        winget.sh 按假发布只写出 `ZacharyZhang.ElyOffice` 一份，地址、散列、卸载键照安装程序，许可含首批各应用的，`winget validate` 通过（无 winget 时 SKIP），版本不符、只有 0.1.16 的每应用清单即拒
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；有本树的 AppImage 时，nixos/nix 容器里入库的 flake 只给 `ely-office` 一个包、其许可是表的并集、ElyMark 在 Xvfb 下画出（缺 AppImage 或 docker 时 SKIP 容器部分）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝
-tests/scripts/waits.py           测试里的 `thread::sleep`（测试文件、测试代码以 `mod x;` 引入的文件、`#[cfg(test)]` 模块与 `#[test]` 函数）：在轮询某个条件的循环里（`while`、`loop`、`.any(`，或以自己的 `break`、`return` 出来的 `for _ in`），或上一行、所在循环的上一行以注释写明这段时间代表什么（check.sh 调用）
+tests/scripts/waits.py           测试里的 `thread::sleep`（测试文件、测试代码以 `mod x;` 引入的文件、`#[cfg(test)]` 模块与 `#[test]` 函数）：在轮询某个条件的循环里（`while`、`loop`、`.any(`，或以自己的 `break`、`return` 出来的 `for _ in`），或上一行、所在循环的上一行以注释写明这段时间代表什么；字符串、字符与注释里的字不算代码（check.sh 调用）
 tests/scripts/banners.py         入库 Rust 代码里的 `Banner::new` 只许 ElyDoc 的 `doc-fonts` 一处，按调用计数，多一处（含第二个 `doc-fonts`）或不带名字即败，`::` 与括号两边可有空白、换行（check.sh 调用）
 tests/scripts/release-gate.sh    发布的门的规则：更新日志里 `[~]` 的数目须与进度表相符，距上一版不足七天须写原因（`scripts/release-gate.py`）；本系统须有这一版的基准记录与安装后、重启后首次打开的记录（`tests/perf/firsts.py`），较上一份慢过三成且多出 10 毫秒的各项须写原因（`tests/perf/baseline.py`）（pr.yml 调用）
 tests/scripts/records.py         TASKS、BUGS、BugList、decisions 引用的库内文件都在，否则标“（已移除）”；引用 .work/ 须标“（本机，未入库）”；`[x]` 而自己末轮审查是 FAIL 的条目，行里须写明“某编号 复审通过”且那个编号末轮是 PASS（pr.yml 调用）

@@ -760,7 +760,7 @@
 - [ ] R20.26 三台机器重建内核，三处慢重量：最后一个内核补丁之后，各机共享引擎重建、换内核编号；Windows 测试机与 Office 各五次（热、装完、重启后），写回 `SuperFast.md`；Windows 重建后连跑 ElyShow 整组至少十遍，读补丁 0138 记的 `AddAnimation refused` 一行定 R20.12 的根因并修
 - [x] R20.27 #14 换版式后的灰色箭头（R18.16，§10）：再试复现（缩放、深浅色、版式与占位符组合），留复现矩阵；查根因或写明所缺 — 复现矩阵：PowerPoint 建的 Office Theme、Facet、Ion 三份加 `tests/fixtures/office/t.pptx`，套版式 1、3、0、12、19，浅深两种配色，100% 至 200% 四种比例，Linux 160 张、Windows 内核 120 张。Facet、Ion 的正文项目符号是 Wingdings 3 箭头，换到带内容占位符的版式后空占位符前即画出（Ion 上灰白色），PowerPoint 同样画；Office Theme 是“•”。定为主题的项目符号、与 PowerPoint 一致，不是缺陷；所缺：报告者的文件或截图来确认（2026-10-21 起未回），议题回复拟文在 `docs/decisions.md`，未发。第 1 轮 FAIL（记录的项目符号码位写错，应为 U+F075），已改；第 2 轮 PASS（`tasks/reviews/R20.27-r2.md`）
 - [ ] R20.28 R18.30 性能基线（§20）：复审末轮修改；Linux 的 PERF-08 照新判定重跑，Linux 全量记录
-- [ ] R20.29 R18.34 测试等待（§22）：复审 `waits.py` 末轮修改；R20.12 之后，发布测试本机连跑十次
+- [ ] R20.29 R18.34 测试等待（§22）：复审 `waits.py` 末轮修改；R20.12 之后，发布测试本机连跑十次 — 前一半（2026-11-19）：末轮修法（01d4ea11）仍逐行看代码，六例误判：`a || b { return; }`、`ready(|| true) { break; }` 与同一行先有闭包的真出口被跳过，正确的重试被报；注释里的 `thread::sleep` 被报；跨行的原始字符串、普通字符串里的 `break`、`return` 被当成出口，固定次数的循环被放过。改为整份文件先去掉字符串、字符与注释（行与缩进不变），只跳过本行闭包体里的出口，一行里的出口逐个看；样例加上这六例与块注释。后一半（连跑十次）待机器空闲
 - [ ] R20.30 SF.26 首个统一发布（§4）：门全过（更新日志、各端基准记录、`pr.yml`、`release-tests.sh`、macOS 公证、版本号；Windows 签名等 SignPath 是否拦发布先核对），打标签发布，`flake.nix`、`nix.sh` 与 `nix/release.json` 同一提交；不为发布放松任何门
 - [ ] R20.31 #16 WinGet（R16.3、R18.4，§4）：2026-11-16 查，七个按应用分的 PR（0.1.13）仍开着，等人工审核；统一安装包后 `winget.sh` 只出一份 `ZacharyZhang.ElyOffice`，七个 PR 已过时。R20.30 发布后交 ElyOffice 一份、关掉七个旧 PR，在 #16 答复；收录后 README 写安装与升级命令
 

@@ -1422,3 +1422,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 旧测试有五例断言一行（`a <pre>:smile:</pre> b` 等），是 R20.19 第 3 轮判错的读法，改为 innerText 的分行，样式区间随之后移。
 - 性能：量 `markdown_read_2mib` 的那个调用的用户态指令数。组件库副本的 ely-documents 里临时加一个示例 r2035_outline（不入库；与 bench 同一段文本重复到 2 MiB，`ely_documents::outline` 读十遍），`cargo build --profile bench -p ely-documents --example r2035_outline`，再 `perf stat -x, -e instructions:u target/release/examples/r2035_outline`；同一命令前后各量两遍：前 25,487,548k，后 25,328,285k（−0.6%），两遍相差不到两千条。墙钟不作证据：五个代理与 ElyMark 的长跑同在，负载近 19，单次在 166–500 ms 间摆动。先一版把欠下的空白存成 `String`，每段落多一次分配，指令多 0.4%；改为枚举后降到上数。
 - 测试：组件库 `tree/emoji.rs` 的 `code_and_pre_end_where_the_html5_tree_ends_them`（`div` 的结束关掉 `pre`、`code` 越过块重开、表格里的字移出），`tree/tests/inline.rs` 的 `a_block_moved_out_of_the_paragraph_takes_its_own_lines`（`pre`、`div`、`h2`、`br` 后的块，全文），`tree/html_block.rs` 的 `cells_part_with_tabs_and_rows_with_lines`（多格、多行、空格、`th`，全文）；三处各以变异核对：去掉即败。ElyMail `tests/markup.rs` 的 `an_ancestor_s_end_closes_pre_as_the_composer_reads_it` 在旧 pin 下必败，放在 `.work/R20.35/office`（本机，未入库），随换 pin 入库。
+
+## 2026-11-19 测试等待检查读整份文件（R20.29）
+
+- 复审 R18.34 末轮（01d4ea11，未审）：`code()` 只去单行的原始字符串，`CLOSED` 见一行里 `|…|` 后有 `{` 即跳过该行的出口。逐行看不出跨行的字符串与注释，`||` 与闭包分不清。六例误判：`if a() || b() { return; }`、`if ready(|| true) { break; }`、`let f = || { return; }; if f() { break; }` 的真出口被跳过，正确的重试被报；`// std::thread::sleep(…)` 被报；`r#"` 或普通字符串跨行时里面的 `break`、`return` 被当成出口，固定三次的循环被放过。
+- 定：`stripped()` 先把整份文件的字符串（含原始、`b`、`c` 前缀）、字符字面量、行注释与块注释去掉，只留换行与缩进，行数不变；结构判断都读它，注释说明与属性仍读原文。出口在本行打开的闭包体里才跳过（`|…|`、可带返回类型，后接 `{`），一行里的出口逐个看。
+- 证据：六例在旧脚本上全错，新脚本全对；去掉闭包判断、去掉整份去字符串、只看第一个出口，自检各败。全仓 1249 个 `.rs` 去字符串后行数皆不变，检查照旧通过，0.9 秒。
+- 未做：发布测试本机连跑十次，待机器空闲。
