@@ -146,97 +146,97 @@ R14.29（过审：R16.18 加审 r4 PASS，bda2e9a0）：可视模式拖动与 Sh
 
 ## R15 议题、流畅与多语言
 
-R15.24：R15 的九十条逐条核对，2026-11-19 据 6675f984 写成。“过审”即 `tasks/TASKS.md` 里为 `[x]` 且末轮审查 PASS（R15.66、R15.70 由 R18.8、R18.9 做完，列其审查）；“部分”为 `[~]`，“未完”为 `[!]`。证据只列今日树里在的：该条所记、代码里确有其名的测试（至多两个）、`tests/scripts` 的脚本与末轮审查；本表不重跑测试。“未验证或余下”照该条最后的写法。
+R15.24：R15 的九十条逐条核对，2026-11-19 据 b72d8e35 写成，读每条的全文与其各轮审查。“过审”即 `tasks/TASKS.md` 里为 `[x]` 且末轮审查 PASS（R15.66、R15.70 由 R18.8、R18.9 做完，列其审查）；“部分”为 `[~]`，“未完”为 `[!]`。证据列该条为此修所加、今日树里仍在的回归测试（`#[test]`，至多两个）或测试文件与脚本，再列末轮审查；只因负载或别的缘故在该条里提到的测试不列。“未验证或余下”照该条最后的写法与末轮审查所记；该条后文已解决的不列，数字取最新的。本表不重跑测试。
 
 | 编号 | 状态 | 事 | 证据 | 未验证或余下 |
 | --- | --- | --- | --- | --- |
-| R15.0 | 过审 | 审查脚本改用 herdr 桌面应用的 `hc`（其后由 R15.32 换回 TUI） | `tests/scripts/review-rules.sh`；`tasks/reviews/R15.0-r3.md` PASS | — |
-| R15.1 | 过审 | #42 安装包体积 | `packaging/linux/package.sh` 遇带符号的 ELF 即失败；`tasks/reviews/R15.1-r1.md` PASS | — |
-| R15.2 | 过审 | #44 缩放与位置 | `a_long_two_page_row_keeps_its_right_hand_page`；`a_wide_page_further_down_takes_no_zoom_from_the_page_read`；`tasks/reviews/R15.2-r5.md` PASS | — |
-| R15.3 | 过审 | #44 左侧栏收起 | `apps/ely-pdf/src/keys.rs` 的单测；`tasks/reviews/R15.3-r1.md` PASS | — |
-| R15.4 | 过审 | #44 拖动排页 | `a_drag_held_at_the_list_foot_rolls_to_the_last_page`；`a_drop_mid_roll_lands_on_the_line`；`tasks/reviews/R15.4-r3.md` PASS | — |
-| R15.5 | 过审 | #44 常规编辑 | `a_move_leaves_the_structure_tree_as_it_was`；`a_moved_block_keeps_fonts_spacing_colour_and_hidden_text`；`tasks/reviews/R15.5-r8.md` PASS | — |
-| R15.6 | 过审 | #46 ElyPDF 打开 EPUB | `a_failed_open_keeps_no_memory`；`tasks/reviews/R15.6-r2.md` PASS | — |
-| R15.7 | 过审 | #48 Gmail 发信“starting TLS 时没有回应” | `a_quiet_server_is_named_in_the_readers_language`；`mail_sends_own_timeout_keeps_the_step`；`tasks/reviews/R15.7-r3.md` PASS | #48 的根因未查明（议题只有截图、无日志） |
-| R15.8 | 过审 | #48 Outlook.com 收信“authenticated but not connected”、发信“SmtpClientAuthentication is disabled” | `outlooks_held_account_says_what_to_do`；`tasks/reviews/R15.8-r2.md` PASS | #48 的账号属哪种情形未查明 |
-| R15.9 | 过审 | #47 ElyMark 正文两侧的空白处滚轮也滚动正文 | `a_wheel_beside_the_text_scrolls_it`；`source_margins_scroll`；`tasks/reviews/R15.9-r6.md` PASS | — |
-| R15.10 | 过审 | #47 ElyMark 设置 | `a_bar_that_stays_never_wakes_to_fade`；`a_hold_cut_short_by_staying_never_wakes`；`tasks/reviews/R15.10-r2.md` PASS | — |
-| R15.10a | 过审 | #49 腾讯文档导出的 docx、xlsx 永远停在“正在打开” | `a_broken_package_fails_instead_of_asking`；`a_broken_package_says_it_is_damaged_and_the_engine_stays`；`tasks/reviews/R15.10a-r4.md` PASS | 无补丁 0064 时卡住系照源码推断，未实测 |
-| R15.11 | 部分 | 以 Office 建的复杂样本经 Ely 编辑保存、Office 读回 | `spelling_suggests_and_ignores`；`tasks/reviews/R15.11-r3.md` FAIL | 末轮 r3 两项的修复未经 Office 实跑（测试机无 Office，装 Office 的机器离线） |
-| R15.11a | 过审 | XLSX 动态数组存回仍是动态数组 | `dynamic_arrays_save_as_dynamic_and_plain_ones_as_plain`；`pasted_and_undone_dynamic_arrays_stay_dynamic`；`tasks/reviews/R15.11a-r3.md` PASS | — |
-| R15.11b | 过审 | DOCX 公式的减号存回仍是 U+2212 | `equation_minus_signs_save_as_math`；`tasks/reviews/R15.11b-r2.md` PASS | — |
-| R15.11c | 部分 | DOCX 分节符所在的空段落与目录后的段落照原样存回 | `titled_toc_field_ends_in_its_own_paragraph`；`tasks/reviews/R15.11c-r3.md` FAIL | 末轮 FAIL 后修，未复审；核对须 Word |
-| R15.12 | 过审 | Windows 启动时的空白窗口 | `docs_build_while_the_engine_holds_its_lock`；`tasks/reviews/R15.12-r2.md` PASS | — |
-| R15.13a | 过审 | ElyShow 打开带视频的演示文稿，内核崩溃 | `painting_a_video_slide_starts_no_player`；`tasks/reviews/R15.13a-r1.md` PASS | — |
-| R15.14a | 过审 | 缩放后文字被裁切 | `two_tiles_match_one_tile_over_both`；`tasks/reviews/R15.14a-r1.md` PASS | — |
-| R15.13 | 过审 | 打开时“正在打开”久留：分段计时、缩短到首屏 | `a_panel_that_comes_with_content_takes_its_width_at_once`；`tasks/reviews/R15.13-r2.md` PASS | — |
-| R15.13b | 过审 | 未改动的 Office 文件一打开即算已修改 | `a_docx_with_page_references_opens_unmodified`；`tasks/reviews/R15.13b-r1.md` PASS | — |
-| R15.13c | 过审 | ElyDoc 同开几份编辑后“文档引擎已停止 (exit code: 0)” | `three_documents_edit_save_and_close`；`tasks/reviews/R15.13c-r1.md` PASS | — |
-| R15.13d | 过审 | Windows 上引擎启动不再与内核的 Python 互锁；重启的引擎沿用原来的程序与配置目录 | `crates/ely-office/tests/restart.rs`；引用的 `a_slow_load_offers_the_stop_and_the_stop_ends_the_engine` 已随 SF.13 去掉横幅删去（740b0d0a）；`tasks/reviews/R15.13d-r2.md` PASS | — |
-| R15.13e | 过审 | 编辑中按出 Writer 的旧式对话框不再让引擎退出 | `writer_dialog_keys_leave_every_document_working`；`tasks/reviews/R15.13e-r2.md` PASS | — |
-| R15.14 | 过审 | 翻页时图块逐块出现 | `a_held_screen_keeps_its_border_reach`；`a_move_retries_a_failed_tile_and_holds_for_every_reader`；`tasks/reviews/R15.14-r8.md` PASS | 两项只在真按键下可见，未测 |
-| R15.14b | 过审 | ElyPDF 翻页时页面逐块出现 | `apps/ely-pdf/src/tests/turn.rs`；`tasks/reviews/R15.14b-r3.md` PASS | — |
-| R15.11d | 过审 | XLSX 透视表存回保留 Excel 的标签 | `tests/scripts/ooxml_pivot.py`；`tasks/reviews/R15.11d-r3.md` PASS | — |
-| R15.11e | 过审 | PPTX 视频的进入动画存回照旧 | `tests/scripts/ooxml_motion.py`；`tasks/reviews/R15.11e-r2.md` PASS | — |
-| R15.11f | 过审 | XLSX 公式里的逻辑常量存回仍是 `FALSE`、`TRUE`，不成函数 `FALSE()` | `tests/scripts/ooxml_formula.py`；`tasks/reviews/R15.11f-r1.md` PASS | — |
-| R15.11g | 部分 | DOCX 公式的双线体 | `tests/scripts/ooxml_word.py`；`tasks/reviews/R15.11g-r3.md` FAIL | 核对须 Word，未再审 |
-| R15.11h | 过审 | DOCX 目录域结束与正文同段时 | `a_text_box_after_a_toc_field_end_stays_outside_the_field`；`an_inline_content_control_keeps_the_toc_end_alone`；`tasks/reviews/R15.11h-r3.md` PASS | — |
-| R15.11i | 过审 | XLSX 只有列字段的透视表存回照 Excel 的版式 | `a_pivot_with_only_columns_keeps_excel_s_layout`；`tasks/reviews/R15.11i-r2.md` PASS | — |
-| R15.11j | 过审 | XLSX 透视表的数据布局表头存回照文件的 `dataCaption` | `values_on_rows_keep_the_file_s_data_caption`；`tasks/reviews/R15.11j-r1.md` PASS | — |
-| R15.11k | 过审 | DOCX 目录的域结束导出在索引节后一段的开头，不写进末条目录 | `a_writer_toc_keeps_the_text_after_it`；`an_untitled_toc_ends_in_the_paragraph_after_it`；`tasks/reviews/R15.11k-r2.md` PASS | — |
-| R15.11l | 过审 | XLSX 无值字段的透视表存回照 Excel 只到列项那一行 | `a_pivot_with_no_values_leaves_its_neighbour`；`tasks/reviews/R15.11l-r1.md` PASS | — |
-| R15.25 | 过审 | #54 ElyDoc 新建文档的默认纸张 | `a_new_document_starts_on_the_chosen_paper`；`new_paper_follows_the_region_unless_chosen`；引用的 `only_doc_offers_the_new_paper` 随 R18.17（ElyPDF 也可选纸张）改去；`tasks/reviews/R15.25-r3.md` PASS | — |
-| R15.26 | 过审 | 合并 PR #55 | `tests/scripts/windows-installer.sh`；`tasks/reviews/R15.26-r1.md` PASS | — |
-| R15.27 | 过审 | #56 ElyTable 粘贴制表符分隔的中文文字 | `a_skipped_trailing_column_keeps_its_cell`；`pasted_lines_of_tabbed_text_fill_cells_without_a_dialog`；`tasks/reviews/R15.27-r3.md` PASS | — |
-| R15.28 | 过审 | #57 ElyTable 单击超链接单元格 | `a_closed_message_box_reports_what_it_said`；`a_kernel_dialog_reaches_apps_as_closed`；`tasks/reviews/R15.28-r3.md` PASS | — |
-| R15.29 | 过审 | #58 ElyDoc 打开邮件合并后右侧栏回不到文字、段落、样式 | `the_side_tabs_lead_back_from_mail_merge`；`tasks/reviews/R15.29-r1.md` PASS | — |
-| R15.30 | 过审 | #59 界面字体到达对话框与 tooltip | `a_ghost_wears_the_theme_font`；`unstyled_text_takes_the_theme_overlays_too`；`tasks/reviews/R15.30-r1.md` PASS | — |
-| R15.15 | 过审 | 合并 PR #51 | `builtin.rs` 的三语样式无重名测试；`tasks/reviews/R15.15-r2.md` PASS | — |
-| R15.16 | 过审 | 西班牙语覆盖全部应用 | `a_failed_edit_lets_a_waiting_save_go`；`tasks/reviews/R15.16-r2.md` PASS | — |
-| R15.17 | 过审 | 设置里的界面语言改为下拉列表 | `each_language_is_named_in_its_own_words`；`every_listed_language_has_its_catalog`；`tasks/reviews/R15.17-r1.md` PASS | — |
-| R15.18 | 过审 | 日语覆盖全部应用 | `japanese_builtin_names_come_from_libreoffice`；`ods_empty_strings_keep_and_bad_numbers_do_not`；`tasks/reviews/R15.18-r1.md` PASS | — |
-| R15.19 | 过审 | 韩语 | `every_listed_locale_can_be_picked`；`excel_caches_recompute_unless_the_function_is_unknown`；`tasks/reviews/R15.19-r3.md` PASS | 未经韩语母语者审读 |
-| R15.20 | 过审 | 越南语 | `csv_imports_read_vietnamese_windows_1258`；`profiles_whose_kernel_folders_end_at_248_characters_start`；`tasks/reviews/R15.20-r2.md` PASS | — |
-| R15.21 | 过审 | 法语 | `a_french_excel_csv_opens_in_its_code_page`；`french_translates_every_module_once_with_its_arguments`；`tasks/reviews/R15.21-r2.md` PASS | — |
-| R15.22 | 过审 | 德语 | `a_german_excel_csv_opens_in_its_code_page`；`tasks/reviews/R15.22-r1.md` PASS | — |
-| R15.23 | 过审 | 合并 PR #53 | `a_batch_over_the_limit_is_not_blamed_on_r`；`a_cell_set_waiting_for_the_worker_lands_after_the_batch`；`tasks/reviews/R15.23-r6.md` PASS | 真 R 的四例在 Linux 未执行（本机无 R；Mac、Windows 已跑） |
-| R15.31 | 过审 | 极限测试 | `tests/perf/extreme.py`、`tests/perf/load.py`；`tasks/reviews/R15.31-r8.md` PASS | 打开期间键入未验证 |
-| R15.32 | 过审 | review.sh 换回 herdr TUI | `tests/scripts/review-rules.sh`；`tests/scripts/review-rules.sh`；`tasks/reviews/R15.32-r4.md` PASS | — |
-| R15.33 | 过审 | Windows 上配置目录路径 149 至约 162 字符时 worker 起不来 | `crates/ely-lok/src/client/tests/profile.rs`；`tasks/reviews/R15.33-r2.md` PASS | — |
-| R15.34 | 过审 | ElyShow 同开 50、100 份演示文稿时前台的键 10 秒无反馈 | `a_hidden_view_drops_its_queued_screen`；`only_the_shown_deck_paints_its_pictures`；`tasks/reviews/R15.34-r1.md` PASS | 同时经命令行编辑全部文档时键 P95 50 份 1258、100 份 1438 毫秒，未达 PERF-02 |
-| R15.35 | 过审 | 保存前台文档时，同一文档的键要等保存在 worker 里做完 | `a_key_never_waits_behind_a_point`；`an_autosave_keeps_the_round_going`；`tasks/reviews/R15.35-r2.md` PASS | 用户主动保存时，保存期间的键仍等那次保存（约 200 毫秒），转 R15.37 |
-| R15.36 | 过审 | 别的进程经命令行同时编辑全部打开的文档时，前台的键仍慢 | `a_delete_stays_with_its_workbook`；`a_hidden_book_set_from_outside_reads_nothing_until_shown`；`tasks/reviews/R15.36-r3.md` PASS | 实测 ElyShow 编辑中 P95 179 毫秒，30 键里 3 键过 100 毫秒 |
-| R15.37 | 过审 | 保存不再占住内核线程 | `a_failed_print_says_printing_failed`；`a_key_after_a_save_goes_first_and_into_the_file`；`tasks/reviews/R15.37-r4.md` PASS | macOS、Linux 与真人打字未实测 |
-| R15.38 | 过审 | Ely 自己以 `io::Error::other` 写的错误文字 | `a_misspelled_word_offers_suggestions`；`a_rewrite_keeps_empty_marked_content_and_drops_its_own`；`tasks/reviews/R15.38-r6.md` PASS | — |
-| R15.39 | 过审 | ElyTable 正在编辑单元格时保存 | `a_cancelled_composition_leaves_the_cell_and_other_edits`；`a_closing_save_enters_merged_hidden_and_filtered_cells_and_types_nothing_into_locked_ones`；`tests/scripts/windows-table-save-edit.py`；`tasks/reviews/R15.39-r5.md` PASS | — |
-| R15.40 | 过审 | ElyDoc、ElyShow 换标签后键无处可去，要点一下页面才行 | `tests/scripts/windows-tab-keys.py`；`tasks/reviews/R15.40-r2.md` PASS | — |
-| R15.41 | 过审 | ElyMark 自动保存在主线程写盘 | `a_waiting_disk_leaves_the_text_free`；`tasks/reviews/R15.41-r7.md` PASS | 保存之外的三个外部改动竞态未另立条目 |
-| R15.42 | 过审 | 一次打开许多文档时主线程停数秒 | `each_worker_has_its_own_turn`；`queued_keys_share_one_hold_of_the_worker`；`tasks/reviews/R15.42-r5.md` PASS | — |
-| R15.43 | 未完 | ElyTable 引用别的工作簿的公式只显示文件里的缓存值，源文件改了也不更新 | `a_dde_link_to_no_server_is_named_without_a_dialog`；`a_formula_whose_sheet_is_gone_keeps_its_value`；`tasks/reviews/R15.43-r6.md` FAIL | 缺口交 R20.11、R20.33；今余：存为 ODS 再开的外部三维区域显示 `#REF!`（R20.33） |
-| R15.44 | 过审 | ElyDoc 的 INCLUDETEXT 域只显示缓存的文字，不随源文件，保存时写回旧文字 | `a_linked_section_edged_by_tables_saves_as_includetext`；`a_linked_section_saved_as_doc_keeps_its_paragraphs`；`tasks/reviews/R15.44-r6.md` PASS | Word 打开 Ely 存出的文件，macOS、Linux 未实测 |
-| R15.45 | 过审 | OLE 链接存成静态图片，链接丢失，预览也不随源更新 | `a_word_link_kept_as_a_picture_saves_only_as_a_copy`；`tasks/reviews/R15.45-r3.md` PASS | 只在 Windows 实测；Word 对含 `#`、`%`、空格或非 ASCII 的目标怎么写未验证 |
-| R15.46 | 过审 | ElyShow 超大演示 | `a_document_over_its_space_is_not_snapshotted_again`；`a_file_opened_over_its_space_takes_no_snapshot`；`tasks/reviews/R15.46-r2.md` PASS | macOS、Linux 未实测 |
-| R15.47 | 过审 | ElyTable 改缩放时视图离开原位 | `tests/scripts/windows-table-zoom.py`；`tasks/reviews/R15.47-r3.md` PASS | — |
-| R15.48 | 过审 | 应用日志的 `lok: edit to tile` 计时在恢复点同时落下时漏记已画出的键，读成约 9 秒的假延迟 | `a_deck_still_opening_does_not_stop_the_keys_being_timed`；`a_hidden_view_never_draws_its_edits`；`tasks/reviews/R15.48-r4.md` PASS | — |
-| R15.49 | 过审 | ElyDoc 测试 the_page_and_style_groups_speak_chinese 在负载下偶发失败 | `the_page_and_style_groups_speak_chinese`（`apps/ely-doc/src/props/chinese.rs`）；`tasks/reviews/R15.49-r5.md` PASS | — |
-| R15.50 | 过审 | ElyMark 外部改动的后台检查晚到 | `a_missing_target_is_held_across_case`；`a_variant_listed_as_its_own_file_is_no_answer`；`tasks/reviews/R15.50-r5.md` PASS | sshfs 这类挂载未实测 |
-| R15.51 | 过审 | 保留我的在文件不在时直接覆盖 | `a_failed_keep_mine_leaves_no_empty_file`；`a_failed_keep_mine_never_removes_a_file_written_over_the_claim`；`tasks/reviews/R15.51-r3.md` PASS | — |
-| R15.52 | 过审 | review.sh 改由另一个 Claude Code 审查 | `tests/scripts/review-rules.sh`；`tests/scripts/review-rules.sh`；`tasks/reviews/R15.52-r2.md` PASS | — |
-| R15.53 | 过审 | review.sh 在审查者等自己的后台运行时报“没有结论” | `tests/scripts/review-rules.sh`；`tasks/reviews/R15.53-r2.md` PASS | — |
-| R15.54 | 过审 | macOS 上内核弹出的模态对话框卡死 worker | `a_kernel_dialog_is_closed_and_reported`；`a_kernel_dialog_reaches_apps_as_closed`；`tasks/reviews/R15.54-r1.md` PASS | — |
-| R15.55 | 过审 | ElyTable 点“更新链接”读了源工作簿后，内核约 1 分钟内占着源文件，其间在 ElyTable 里存源 | `crates/ely-lok/src/client/tests/freed.rs`；`tests/perf/extreme.py`；`tasks/reviews/R15.55-r1.md` PASS | macOS、Linux 未实测；ElyDoc 的链接是否同样占着源未测 |
-| R15.56 | 过审 | 停顿 2 秒后的第一键等恰好开始的恢复点 | `a_noted_wait_stops_a_snapshot_before_it_starts`；`a_point_owed_a_minute_no_longer_gives_way`；`tests/scripts/lo-patches.sh`；`tasks/reviews/R15.56-r3.md` PASS | 修后 ElyShow、ElyTable 真窗口与 macOS、Linux 未实测 |
-| R15.58 | 过审 | `excel_caches_recompute_unless_the_function_is_unknown` 在 Windows 缺 `unzip` | `excel_caches_recompute_unless_the_function_is_unknown`；`tasks/reviews/R15.58-r1.md` PASS | — |
-| R15.59 | 过审 | review.sh 把审查窗格都叠在调用者右侧的同一列 | `tests/scripts/review-rules.sh`；`tests/scripts/review-rules.sh`；`tasks/reviews/R15.59-r3.md` PASS | — |
-| R15.60 | 过审 | 测试用的 LOK worker 在许多 worker 同时起时偶尔起不来或报错 | `a_dde_link_to_no_server_is_named_without_a_dialog`；`keys_never_wait_behind_the_event_watch`；`tasks/reviews/R15.60-r2.md` PASS | 根因未明，诊断就位 |
-| R15.64 | 过审 | 内核补丁里的日志到不了 Ely | `crates/ely-lok/src/client/tests/logs.rs`；`crates/ely-ipc/src/relay.rs` 的单测；`tasks/reviews/R15.64-r2.md` PASS | — |
-| R15.57 | 过审 | 一次打开 50 至 100 份文档期间，前台文档的键到图块仍要 1.9 至 2.5 秒 | `a_dde_link_to_no_server_is_named_without_a_dialog`；`excel_caches_recompute_unless_the_function_is_unknown`；`tasks/reviews/R15.57-r2.md` PASS | 真窗口负载下的 P95 未验证 |
-| R15.65 | 过审 | R15.59 之后 review.sh 起审查仍偶发 `agent_prompt_stalled` | `tests/scripts/review-rules.sh`；`tasks/reviews/R15.65-r2.md` PASS | — |
-| R15.66 | 过审 | 恢复点让路后余下的等待 | 由 R18.8 完成：`tasks/reviews/R18.8-r3.md` PASS | Windows 真窗口重跑三份切换、丢键是否仍在，未验证 |
-| R15.67 | 过审 | 组件库与 ElyOffice 升到 `gpui-pre` =0.3.11 | 今钉 `gpui-pre` =0.3.12（`agents.md`）；`tasks/reviews/R15.67-r1.md` PASS | — |
-| R15.68 | 过审 | 组件库 `PromptDialog` 只画标签、不给 `TextInput` 名字 | 组件库 3aab6d40 的单测；`tasks/reviews/R15.68-r1.md` PASS | 真窗口的 UI Automation 名字未验证（Windows 测试机无 ElyPDF 构建） |
-| R15.70 | 过审 | Windows 上每个 LOK worker 都开着内核的 DDE 服务，答应任何服务名 | `a_dde_link_to_no_server_is_named_without_a_dialog`；由 R18.9 完成：`tasks/reviews/R18.9-r1.md` PASS | — |
+| R15.0 | 过审 | `review.sh` 改用 herdr 桌面应用的 `hc` 开分栏 | 无专属测试；`tasks/reviews/R15.0-r3.md` PASS | — |
+| R15.1 | 过审 | Linux 安装包减重：剥符号、去多余资源、deb/rpm 改 xz | 无专属测试（`packaging/linux/package.sh` 遇带 `.symtab`、`.debug_*` 的 ELF 即失败）；`tasks/reviews/R15.1-r1.md` PASS | — |
+| R15.2 | 过审 | ElyPDF 缩放与换模式后留在原处，不跳回首页 | `a_zoom_beside_a_short_page_keeps_its_place_in_the_row`、`single_mode_keeps_the_spot_on_the_tall_page_of_a_pair`；`tasks/reviews/R15.2-r5.md` PASS | — |
+| R15.3 | 过审 | 核实 ElyPDF 左侧栏可收起（0.1.11 已做） | 只做了核实，无专属测试；`tasks/reviews/R15.3-r1.md` PASS | — |
+| R15.4 | 过审 | 缩略图拖动排页，拖到边缘自动滚动 | `a_drag_held_at_the_list_foot_rolls_to_the_last_page`、`a_drop_mid_roll_lands_on_the_line`；`tasks/reviews/R15.4-r3.md` PASS | — |
+| R15.5 | 过审 | PDF 文本段落可拖动移位，Delete 删除选中对象 | `a_moved_block_keeps_fonts_spacing_colour_and_hidden_text`、`delete_removes_the_aimed_object_and_nothing_else`；`tasks/reviews/R15.5-r8.md` PASS | MuPDF 补丁 0007、0008 待重建进 `engines/mupdf-build`、macOS 构建与三台机器的共享引擎；r8：Windows 无 MuPDF，原生 PDF 测试未跑 |
+| R15.6 | 过审 | ElyPDF 能打开 EPUB，只读，可阅读、搜索、缩放 | `crates/ely-pdf-worker/tests/epub.rs`、`apps/ely-pdf/src/tests/epub.rs`；`tasks/reviews/R15.6-r2.md` PASS | macOS 未跑（只记 Windows、Linux 通过） |
+| R15.7 | 过审 | Gmail 发信 TLS 超时：按语言逐步报出所在步骤 | `a_quiet_server_is_named_in_the_readers_language`、`mail_sends_own_timeout_keeps_the_step`；`tasks/reviews/R15.7-r3.md` PASS | 根因未查明：须报告者日志（代理来源、连接行）与 587 端口对照；发件箱仍存英文原文错误，未动 |
+| R15.8 | 过审 | Outlook.com 收发失败的提示照微软步骤写 | `outlooks_held_account_says_what_to_do`；`tasks/reviews/R15.8-r2.md` PASS | #48 的账号属哪种情形未查明；个人账号 SMTP 被关时 ElyMail 无法发信，只能说明 |
+| R15.9 | 过审 | ElyMark 正文两侧空白处滚轮也滚动正文 | 组件库 `visual_margins_scroll`、`source_margins_scroll`；ElyMark `a_wheel_beside_the_text_scrolls_it`；`tasks/reviews/R15.9-r6.md` PASS | 真机 Windows 滚轮未手试（记录里的“待推送改 pin”已解：bc8e5fb 在今 pin 49270f2 之内） |
+| R15.10 | 过审 | 设置项：滚动条常显 | 组件库 `an_area_shows_its_thumb_unhovered_when_bars_stay`；`scrollbars_stay_shown_when_chosen`；`tasks/reviews/R15.10-r2.md` PASS | — |
+| R15.10a | 过审 | zip 条目名用反斜杠的 docx/xlsx 能打开，坏包报错不卡 | `backslash_folder_entries_open`、`a_broken_package_fails_instead_of_asking`；`tasks/reviews/R15.10a-r4.md` PASS | Linux、macOS 与三台机器的共享引擎待以 0063、0064 重建；“无 0064 即卡住”只按源码推断，未实测 |
+| R15.11 | 部分 | Office 三份大样本经 Ely 编辑、保存，再由 Office 读回核对 | `tests/office/compare.ps1`、`tests/office/read-back.ps1`；`tasks/reviews/R15.11-r3.md` FAIL | r3 两处修复（按域的位置去掉域结果、逐系列核对类型与坐标轴组）未经 Office 实跑：测试机无 Office，装 Office 的机器离线；0065、0066 待在 Linux、macOS 与共享引擎上重建；已知差异：目录里 55 个 `PAGEREF` 页码成了文字，PPTX 的节 |
+| R15.11a | 过审 | XLSX 动态数组存回仍是动态数组（`cm`、metadata） | `dynamic_arrays_save_as_dynamic_and_plain_ones_as_plain`、`pasted_and_undone_dynamic_arrays_stay_dynamic`；`tasks/reviews/R15.11a-r3.md` PASS | — |
+| R15.11b | 过审 | DOCX 公式里的减号存回仍是 U+2212 | `equation_minus_signs_save_as_math`；`tasks/reviews/R15.11b-r2.md` PASS | — |
+| R15.11c | 部分 | DOCX 分节空段落与目录末段照原样存回 | `titled_toc_field_ends_in_its_own_paragraph`；`tasks/reviews/R15.11c-r3.md` FAIL | 分节空段落照上游丢弃（接受）；r3 查出的有标题目录两处交 R15.11h，无标题目录多一行交 R15.11k（皆已勾），r3 后未复审；复核须 Word |
+| R15.12 | 过审 | Windows 启动时首帧前不再冻结出空白窗口 | `docs_build_while_the_engine_holds_its_lock`；`tasks/reviews/R15.12-r2.md` PASS | 建 worker 进程仍在主线程上（热启动约 5 毫秒）；窗口出现前 GPU 与 DirectWrite 初始化约 210 毫秒，属 gpui，未处理 |
+| R15.13a | 过审 | ElyShow 打开带视频的演示，内核不再崩溃（Windows） | `painting_a_video_slide_starts_no_player`；`tasks/reviews/R15.13a-r1.md` PASS | — |
+| R15.14a | 过审 | 缩放后图块裁切、选框错位：worker 拒绝 DPI 感知 | `two_tiles_match_one_tile_over_both`；`tasks/reviews/R15.14a-r1.md` PASS | 单元格编辑中 Calc 的 `CELL_CURSOR` 报编辑区，选框内缩、随键入变宽，未改 |
+| R15.13 | 过审 | 分段量出打开耗时，缩短“正在打开”的时间 | `a_view_opens_while_the_engine_is_busy`、`a_panel_that_comes_with_content_takes_its_width_at_once`；`tasks/reviews/R15.13-r2.md` PASS | 余下是内核本身的载入：big.docx 1.31 至 1.45 秒、big.pptx 0.94 至 0.97 秒、big.xlsx 0.44 至 0.57 秒；启动等引擎约 0.33 秒 |
+| R15.13b | 过审 | 未改动的带 PAGEREF 的 docx 打开后不算已修改 | `a_docx_with_page_references_opens_unmodified`；`tasks/reviews/R15.13b-r1.md` PASS | — |
+| R15.13c | 过审 | 同一引擎开多份 docx，无样式定义时不再崩溃 | `three_documents_edit_save_and_close`；`tasks/reviews/R15.13c-r1.md` PASS | — |
+| R15.13d | 过审 | Windows 引擎不再与内核 Python 互锁，重启沿用原配置目录 | `a_restart_signs_with_the_newest_name_and_survives_a_failure`（`crates/ely-office/tests/restart.rs`）；行内另提的 `a_slow_load_offers_the_stop_and_the_stop_ends_the_engine` 已随 SF.13 删去（740b0d0a）；`tasks/reviews/R15.13d-r2.md` PASS | — |
+| R15.13e | 过审 | 按出 Writer 旧式对话框不再令引擎退出 | `writer_dialog_keys_leave_every_document_working`；`tasks/reviews/R15.13e-r2.md` PASS | — |
+| R15.14 | 过审 | Doc、Show 翻页时整屏一次呈现，不逐块出现 | `a_zoomed_sheet_maps_by_the_screen_it_holds`、`a_held_screen_keeps_its_border_reach`；`tasks/reviews/R15.14-r8.md` PASS | 真按键下按键到整屏的耗时（Doc 30 至 603 毫秒、Show 44 至 169 毫秒）是满载时测的，待安静时重跑；r8 未跑 macOS |
+| R15.14b | 过审 | ElyPDF 翻页整页一次呈现并预画下一屏 | `apps/ely-pdf/src/tests/turn.rs`；`tasks/reviews/R15.14b-r3.md` PASS | — |
+| R15.11d | 过审 | XLSX 透视表存回保留 Excel 的行、列、总计标签 | `crates/ely-lok/src/client/tests/pivot.rs`、`tests/scripts/ooxml_pivot.py`；`tasks/reviews/R15.11d-r3.md` PASS | big.xlsx 有 35 格求和末位不同（相对差 1.8e-14，钉为已知差异）；只有列字段时的版式交 R15.11i，`dataCaption` 交 R15.11j（皆已勾） |
+| R15.11e | 过审 | PPTX 视频的淡入与点击触发序列存回照旧 | `crates/ely-lok/src/client/tests/trigger.rs`、`tests/scripts/ooxml_motion.py`；`tasks/reviews/R15.11e-r2.md` PASS | — |
+| R15.11f | 过审 | XLSX 公式里的 TRUE、FALSE 不存成 `FALSE()` | `crates/ely-lok/src/client/tests/booleans.rs`、`tests/scripts/ooxml_formula.py`；`tasks/reviews/R15.11f-r1.md` PASS | — |
+| R15.11g | 部分 | DOCX 公式的双线体字母与数字存回照旧 | `tests/scripts/ooxml_word.py`（`equation`）；`tasks/reviews/R15.11g-r3.md` FAIL（无 r2 文件） | r3 所指 `m:lit` 里的 `x oper y`、`x sum y` 被当作 StarMath 命令而丢内容，行内未记修复；r3 所指字面减号自测的失败，今在 Linux 上不再出现（2026-11-19 的 ely-lok 全量里 `equation_minus_signs_save_as_math` 照过）；复核须 Word |
+| R15.11h | 过审 | DOCX 目录域结束后的正文存回仍在域外 | `text_after_a_toc_field_end_stays_outside_the_field`、`an_inline_content_control_keeps_the_toc_end_alone`；`tasks/reviews/R15.11h-r3.md` PASS | Word 更新目录多一空行，交 R15.11k；上游 `testTdf119200` 有无 0078 都报错 |
+| R15.11i | 过审 | XLSX 只有列字段的透视表照 Excel 版式存回 | `a_pivot_with_only_columns_keeps_excel_s_layout`；`tasks/reviews/R15.11i-r2.md` PASS | 无值字段时多一行空数据行，交 R15.11l；上游透视表单测 4 例败于 0071 |
+| R15.11j | 过审 | 透视表数据布局表头照 `dataCaption` 存回 | `values_on_rows_keep_the_file_s_data_caption`；`tasks/reviews/R15.11j-r1.md` PASS | Excel 存的 XLSB 由 Ely 打开时列表头仍是 Product，不是 `colHeaderCaption`（0071 的 XLSB 一侧），未处理 |
+| R15.11k | 过审 | 目录域结束导出在索引节后一段段首 | `an_untitled_toc_ends_in_the_paragraph_after_it`、`a_writer_toc_keeps_the_text_after_it`；`tasks/reviews/R15.11k-r2.md` PASS | `compare.ps1` 的 `body` 仍差分节空段落（R15.11c）；上游 `testMathMso2k7`（0068）、`testWatermark` 失败 |
+| R15.11l | 过审 | 无值字段透视表不留空数据行、不清邻格 | `a_pivot_with_no_values_leaves_its_neighbour`；`tasks/reviews/R15.11l-r1.md` PASS | — |
+| R15.25 | 过审 | ElyDoc 新建文档的默认纸张可设、随地区 | `a_new_document_starts_on_the_chosen_paper`、`the_region_is_the_two_letter_subtag`；`tasks/reviews/R15.25-r3.md` PASS | — |
+| R15.26 | 过审 | Windows 安装程序声明高 DPI（PR #55） | 行内未点名专测，只核了编出的清单含 `dpiAware`、`PerMonitorV2`（今见 `packaging/windows/installer.nsi`）；`tasks/reviews/R15.26-r1.md` PASS | 只核清单，未在缩放下实看；`bundle.nsi` 与 `windows-bundle.sh` 已由 SF.6（6ec3b60c）删去 |
+| R15.27 | 过审 | ElyTable 粘贴制表符文字按行列分格、不弹框 | `pasted_lines_of_tabbed_text_fill_cells_without_a_dialog`、`a_skipped_trailing_column_keeps_its_cell`；`tasks/reviews/R15.27-r3.md` PASS | — |
+| R15.28 | 过审 | ElyTable 单击超链接跳转或交系统打开 | `a_plain_click_reports_the_link_and_a_jump_follows_it`、`links_jump_or_refuse_and_dialogs_say_why`；`tasks/reviews/R15.28-r3.md` PASS | — |
+| R15.29 | 过审 | ElyDoc 右侧栏加标签，可从邮件合并返回 | `the_side_tabs_lead_back_from_mail_merge`；`tasks/reviews/R15.29-r1.md` PASS | — |
+| R15.30 | 过审 | 界面字体到达对话框、tooltip 与拖动预览 | `unstyled_text_takes_the_theme_overlays_too`、组件库 `a_ghost_wears_the_theme_font`；`tasks/reviews/R15.30-r1.md` PASS | — |
+| R15.15 | 过审 | 合并 PR #51：ElyDoc、ElyTable 西班牙语 | `each_language_names_each_style_once`；`tasks/reviews/R15.15-r2.md` PASS | — |
+| R15.16 | 过审 | 西班牙语覆盖全部应用 | 行内未点名新测，反证用的是 `tree.net.push` 缺键；`tasks/reviews/R15.16-r2.md` PASS | — |
+| R15.17 | 过审 | 设置里的界面语言改为下拉列表 | `the_language_row_lists_each_language_to_pick`、`every_listed_language_has_its_catalog`；`tasks/reviews/R15.17-r1.md` PASS | — |
+| R15.18 | 过审 | 日语覆盖全部应用 | `japanese_builtin_names_come_from_libreoffice`、`shift_jis_reads_as_windows_932`；`tasks/reviews/R15.18-r1.md` PASS | ElyTree 术语自拟（Git 无日文） |
+| R15.19 | 过审 | 韩语覆盖全部应用 | `a_korean_windows_csv_imports_beyond_euc_kr`、组件库 `every_listed_locale_can_be_picked`；`tasks/reviews/R15.19-r3.md` PASS | 未经韩语母语者审读；sw 未译的 36 个样式名自拟 |
+| R15.20 | 过审 | 越南语覆盖全部应用 | `vietnamese_builtin_names_come_from_libreoffice`、`csv_imports_read_vietnamese_windows_1258`；`tasks/reviews/R15.20-r2.md` PASS | — |
+| R15.21 | 过审 | 法语覆盖全部应用 | `a_french_excel_csv_opens_in_its_code_page`、`french_translates_every_module_once_with_its_arguments`；`tasks/reviews/R15.21-r2.md` PASS | 法文的 0 该用单数，现显示复数“0 mots”，未改，交协调者定 |
+| R15.22 | 过审 | 德语覆盖全部应用 | `a_german_excel_csv_opens_in_its_code_page`、`crates/ely-ui/src/i18n/german_tests.rs`；`tasks/reviews/R15.22-r1.md` PASS | ElyMark 菜单未对照 Typora de-DE 的 `Menu.json` 核对 |
+| R15.23 | 过审 | 合并 PR #53：ElyTable 的 R 宏 | `a_stop_reaches_the_helpers_r_started`（原名 `an_end_reaches_the_helpers_r_started`，bf80be48 改名）、`a_refusal_mid_batch_undoes_its_writes_and_leaves_no_redo`；`tasks/reviews/R15.23-r6.md` PASS | r6 时 Linux、Windows 都无 R，真 R 四例未执行，以此前 Mac、Windows 的记录为准；Linux 上带内核的真 R 一例从未跑；回滚时 Undo 抛异常一路无测试 |
+| R15.31 | 过审 | 极限测试：四应用各 100 份同开同编辑 | `tests/perf/load.py`、`tests/perf/extreme.py`；`tasks/reviews/R15.31-r8.md` PASS | 打开期间键入未测（R15.42）；macOS、Linux 未测；样本都由 Python 写，未用 Office 生成的；三个源都改时横幅只点名 include.docx；ElyShow 同时编辑有一键 108 毫秒（R15.36）；更新链接后占住源交 R15.55，首键等恢复点交 R15.56；r8 未重跑 100 份，像素值 0.38、0.49、0.50 未重现 |
+| R15.32 | 过审 | review.sh 换回 herdr TUI，每轮新开标签页 | `tests/scripts/review-rules.sh`；`tasks/reviews/R15.32-r4.md` PASS | 只用替身测；Windows 无 jq，替身全套未跑；标签页其后由 R15.52 改为窗格 |
+| R15.33 | 过审 | 配置目录 149 至 162 字符时 worker 启动即中止 | `profiles_whose_kernel_folders_end_at_248_characters_start`、`a_worker_that_dies_before_its_check_says_its_last_line`；`tasks/reviews/R15.33-r2.md` PASS | — |
+| R15.34 | 过审 | ElyShow 开 50、100 份时前台键 10 秒无反馈 | `only_the_shown_deck_paints_its_pictures`、`a_hidden_view_drops_its_queued_screen`；`tasks/reviews/R15.34-r1.md` PASS | 同时经命令行编辑时 P95 仍 1258、1438 毫秒，交 R15.36；打开时每份主线程忙约 160 毫秒；前台自己的保存与恢复点挡键，交 R15.35 |
+| R15.35 | 过审 | 恢复点等打字停顿再写，不挡键 | `typing_defers_the_point_to_the_next_pause`、`a_key_never_waits_behind_a_point`；`tasks/reviews/R15.35-r2.md` PASS | 主动保存期间的键仍等一次保存，交 R15.37；本行记真键实测待 R15.31；停顿后恰在写点时按下的键仍等快照（约 300 毫秒） |
+| R15.36 | 过审 | 后台请求轮流取锁，前台键至多等一个 | `input_waits_for_one_background_request_not_all`、`a_stuck_edit_holds_later_requests_one_second_in_all`；`tasks/reviews/R15.36-r3.md` PASS | 修后只复测了 50 份，100 份未在本行复测；余下三个慢键是恢复点导出，归 R15.56；r3 未重跑负载 |
+| R15.37 | 过审 | 主动保存等打字停顿再开始 | `a_key_after_a_save_goes_first_and_into_the_file`、`typing_on_starts_the_save_at_the_cap`；`tasks/reviews/R15.37-r4.md` PASS | 500 毫秒停顿未以真人打字实测；macOS、Linux 未测；停顿后恰在保存中按下的键仍等这次保存（t.pptx 约 300 毫秒） |
+| R15.38 | 过审 | Ely 自写的错误文字按界面语言显示 | `a_merge_whose_source_closed_says_so_in_chinese_and_spanish`、`errors_ely_words_read_in_each_language`；`tasks/reviews/R15.38-r6.md` PASS | 未改的几类仍是英文（程序错误、系统与 Git 原话、命令行答复、ElyMail 代理握手、启动时搬文件夹），理由记于 decisions |
+| R15.39 | 过审 | ElyTable 编辑中保存不结束编辑、不丢输入 | `a_save_keeps_the_cell_edit_and_writes_the_cell_as_entered`、`tests/scripts/windows-table-save-edit.py`；`tasks/reviews/R15.39-r5.md` PASS | — |
+| R15.40 | 过审 | ElyDoc、ElyShow 换标签后键交给前台页面 | `a_find_box_that_leaves_with_its_tab_hands_the_keys_on`、`every_switch_hands_the_keys_to_the_front_deck`；`tasks/reviews/R15.40-r2.md` PASS | — |
+| R15.41 | 过审 | ElyMark 自动保存在主线程写盘 | `a_waiting_disk_leaves_the_text_free`；`apps/ely-mark/src/outside/tests/saving.rs`；`tasks/reviews/R15.41-r7.md` PASS | 16 个写者的一次 413 毫秒停顿原因未查；另存为的目标解析（`identity`、`holder`）仍在界面线程；r7 未跑 Windows、macOS 的名字比较分支 |
+| R15.42 | 过审 | 一次打开许多文档时主线程停数秒 | `waiting_for_the_turn_parks_no_thread`、`each_worker_has_its_own_turn`；`tasks/reviews/R15.42-r5.md` PASS | 打开期间键到图块的 P95 交 R15.57；r5 未重跑 50、100 份的停顿统计 |
+| R15.43 | 未完 | ElyTable 外部引用只显示缓存值不随源 | `an_empty_csv_area_keeps_its_cells`、`a_formula_whose_sheet_is_gone_keeps_its_value`；`tasks/reviews/R15.43-r6.md` FAIL | r6 后修的 INDIRECT 未经审查；缺口交 R20.11（`[!]`），再交 R20.33（`[!]`），今余：存 ODS 再开，直接写的外部三维区域显示 `#REF!`，更新后仍是，原因未查；补丁 0141 的 Windows、macOS 内核待 R20.26；`extreme.py` 在 macOS、Linux 未实测 |
+| R15.44 | 过审 | INCLUDETEXT 只显缓存文字、存回旧文字 | `includetext_is_a_linked_section_and_saves_as_one`、`a_linked_section_edged_by_tables_saves_as_includetext`；`tasks/reviews/R15.44-r6.md` PASS | 未验证 Word 打开 Ely 存出的文件；macOS、Linux 未实测；单元格里贴着嵌套表格的链接节只能存为文字（有横幅，改另存） |
+| R15.45 | 过审 | OLE 链接存成静态图片、链接丢失 | `a_word_link_kept_as_a_picture_saves_only_as_a_copy`、`a_link_of_another_kind_is_named_even_in_a_locked_file`；`tasks/reviews/R15.45-r3.md` PASS | 只在 Windows 实测；未验证 Word 怎么写含 `#`、`%`、空格或非 ASCII 的目标；LINK 域的区域不按区域取，读整个文件 |
+| R15.46 | 过审 | 超大演示键 P95 964 毫秒（快照被拒仍占内核） | `a_file_opened_over_its_space_takes_no_snapshot`、`a_document_over_its_space_is_not_snapshotted_again`；`tasks/reviews/R15.46-r2.md` PASS | macOS、Linux 未实测 |
+| R15.47 | 过审 | ElyTable 改缩放时视图离开 A1 | `a_sheet_zoom_keeps_the_top_left_cell_and_the_pointed_one`、`tests/scripts/windows-table-zoom.py`；`tasks/reviews/R15.47-r3.md` PASS | — |
+| R15.48 | 过审 | `edit to tile` 计时遇恢复点漏记成假延迟 | `a_recovery_point_between_edit_and_tile_still_pairs_them`、`an_edit_is_timed_by_the_first_whole_fresh_screen`；`tasks/reviews/R15.48-r4.md` PASS | 别的演示稿载入期间，前台演示稿的屏一直不完整、键入的字看不到，须内核按文档过滤失效（说要另立条目，未见）；适应窗口的幻灯片情形未单独测 |
+| R15.49 | 过审 | 负载下中文分组测试与 never settled 偶败 | 无新增回归；所修即 `the_page_and_style_groups_speak_chinese`（连跑 20 次过）；`tasks/reviews/R15.49-r5.md` PASS | — |
+| R15.50 | 过审 | ElyMark 外部改动检查晚到、大小写同名无主 | `a_missing_target_is_held_across_case`、`a_variant_listed_as_its_own_file_is_no_answer`；`tasks/reviews/R15.50-r5.md` PASS | sshfs 这类挂载未实测；未在真 casefold 的 ext4 上跑；r5 读不到 rclone 的证据，只读码判断 |
+| R15.51 | 过审 | 保留我的在文件不在时直接覆盖新文件 | `keep_mine_over_a_gone_file_never_replaces_a_new_one`、`a_file_written_over_the_claim_is_never_replaced`；`tasks/reviews/R15.51-r3.md` PASS | — |
+| R15.52 | 过审 | review.sh 改由 Claude Code 在右侧分屏审查 | `tests/scripts/review-rules.sh`；`tasks/reviews/R15.52-r2.md` PASS | — |
+| R15.53 | 过审 | 审查者后台运行时 review.sh 误报无结论 | `tests/scripts/review-rules.sh`；`tasks/reviews/R15.53-r2.md` PASS | — |
+| R15.54 | 过审 | macOS 内核模态对话框卡死 worker | `a_kernel_dialog_is_closed_and_reported`；`tasks/reviews/R15.54-r1.md` PASS | — |
+| R15.55 | 过审 | 更新链接后内核约 1 分钟占着源工作簿 | `a_source_a_book_read_is_free_to_replace`、`a_source_a_document_read_is_free_to_replace`；`tasks/reviews/R15.55-r1.md` PASS | macOS、Linux 未实测；该行未销“三台共享引擎带 0089 重建”（R15.62 记 Mac 内核已含 0089）；Mac 上间歇 `Err:522` 由 R15.62 修 |
+| R15.56 | 过审 | 停顿后第一键等恰好开始的恢复点 | `every_stop_of_an_impress_export_keeps_the_deck`、`a_point_owed_a_minute_no_longer_gives_way`；`tasks/reviews/R15.56-r3.md` PASS | 修后 ElyShow 真窗口实测未做（丢键是否随多出的幻灯片而去）；ElyTable 真窗口未测；macOS、Linux 未编译实测；共享引擎带新 0090 重建未记；快照末段与图块的余下等待交 R15.66 |
+| R15.58 | 过审 | 测试靠外部 `unzip`，Windows 必败 | `excel_caches_recompute_unless_the_function_is_unknown`（改为进程内读包，`crates/ely-lok/src/client/tests/zip.rs`）；`tasks/reviews/R15.58-r1.md` PASS | — |
+| R15.59 | 过审 | 审查窗格挤在一列收不到提示 | `tests/scripts/review-rules.sh`；`tasks/reviews/R15.59-r3.md` PASS | — |
+| R15.60 | 过审 | 许多 LOK worker 同起时偶尔起不来 | `a_failed_start_names_the_version_file_and_what_it_gives`、`a_file_held_without_delete_sharing_names_its_holder`；`tasks/reviews/R15.60-r2.md` PASS | 根因未明，原报三种失败未重现，只做到诊断就位；`test_worker` panic 的错误文字仍被输出过滤丢掉（2026-11-05 又见一次） |
+| R15.64 | 过审 | 内核补丁的 SAL 日志被编掉，到不了 Ely | `a_patch_log_reaches_the_app_log_and_upstream_lines_do_not`、`a_source_read_and_a_failed_read_are_both_logged`（R18.10）；`tasks/reviews/R15.64-r2.md` PASS | 只在 Linux 实测；Mac、Windows 内核须带 0108 重建，再在发布的门里跑 `logs.rs` |
+| R15.57 | 过审 | 批量打开时前台键到图块仍 1.9 至 2.5 秒 | `keys_typed_while_a_picked_tab_loads_reach_it`、`with_every_tab_closed_the_newest_waiting_file_comes_forward`；`tasks/reviews/R15.57-r2.md` PASS（行内所记 `an_inputs_tile_goes_before_queued_background_work` 已删去） | 真窗口负载（`windows-tab-keys.py`、`load.py`）未跑；50 至 100 份时 P95 是否达标未验证 |
+| R15.65 | 过审 | review.sh 偶发 `agent_prompt_stalled` | `tests/scripts/review-rules.sh`；`tasks/reviews/R15.65-r2.md` PASS | — |
+| R15.66 | 过审 | 恢复点让路后余下的等待 | `a_shown_tab_s_tile_stops_another_tab_s_snapshot`；由 R18.8 完成：`tasks/reviews/R18.8-r3.md` PASS | R18.8 最后一次三份切换：ElyShow 27 键里 1 键过 100 毫秒，进入文本编辑的回车在内核里 584 毫秒，原因未查；早先一次 a.pptx 少存键，原因未查（其后各次无丢键）；R18.8 的 r3 只读审查，没跑测试与基准 |
+| R15.67 | 过审 | 组件库与 ElyOffice 升到 `gpui-pre` =0.3.11 | 无专属测试；`tasks/reviews/R15.67-r1.md` PASS | Linux、macOS 只跑 clippy，不含 `ely-pdf-worker`，未跑全工作区测试；钉今已升到 =0.3.12 |
+| R15.68 | 过审 | `PromptDialog` 输入框无名 | 组件库 `the_prompt_names_its_field_by_its_label`；`tasks/reviews/R15.68-r1.md` PASS | 真窗口 UI Automation 名字未验证（Windows 测试机无 ElyPDF 构建） |
+| R15.70 | 过审 | Windows LOK worker 开着 DDE 服务、答应任何名 | `a_worker_answers_no_dde_service_name`；由 R18.9 完成：`tasks/reviews/R18.9-r1.md` PASS | 审查者未在 Windows 跑，采信同机对照；“另有 worker 时 DDE 缺源测试通过”未单独记 |
 | R15.24 | 本条 | 本表 | — | — |
-| R15.61 | 过审 | Mac 的测试与发布脚本在 bash 5 下运行 | `tests/scripts/mac-bash-rules.sh`；`tasks/reviews/R15.61-r1.md` PASS | — |
-| R15.62 | 过审 | Mac 上跨工作簿的外部引用间歇读成 `Err:522` | `a_read_while_the_source_imports_gets_its_value`；`a_source_a_book_read_is_free_to_replace`；`tasks/reviews/R15.62-r1.md` PASS | — |
-| R15.63 | 过审 | 非 Windows 上指向不存在服务器的 DDE 链接，“更新链接”不点名 | `a_dde_link_to_no_server_is_named_without_a_dialog`；`a_writer_dde_field_to_no_server_is_named_and_keeps_its_text`；`tasks/reviews/R15.63-r2.md` PASS | — |
+| R15.61 | 过审 | Mac 测试与发布脚本须在 bash 5 下跑 | `tests/scripts/mac-bash-rules.sh`、`tests/scripts/workflows.py`；`tasks/reviews/R15.61-r1.md` PASS | 审查未重建 bash，未经真发布核对 |
+| R15.62 | 过审 | Mac 外部引用间歇读成 `Err:522` | `a_read_while_the_source_imports_gets_its_value`；`tasks/reviews/R15.62-r1.md` PASS | Windows、Linux 共享内核须带 0098 重建后再验 |
+| R15.63 | 过审 | 非 Windows 上缺服务器的 DDE 链接不点名 | `a_dde_link_to_no_server_is_named_without_a_dialog`、`a_writer_dde_field_to_no_server_is_named_and_keeps_its_text`；`tasks/reviews/R15.63-r2.md` PASS | r2 未跑 macOS，也未重跑旧内核变异；非 Windows 上 DDE 从不读，一律点名未读（设计如此） |
