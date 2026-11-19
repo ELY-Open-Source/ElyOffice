@@ -171,7 +171,15 @@ run T1.1 1 agent_pane_busy working done 'PASS\n'
 case $said in *"did not start pi: agent_pane_busy: said agent_pane_busy"*) ;; *) fail "start error lost: $said" ;; esac
 # Pi takes its prompt from argv; nothing is typed.
 run T1.1 1 0 working done 'PASS\n'
-[ "$(cat "$work/ran")" = "w1:p$(cat "$work/panes") pi --model remote-magpie/kimi/k3.1-pro --thinking high \"Do what .work/T1.1-r1/prompt.md says.\"" ] || fail "pi ran as: $(cat "$work/ran")"
+data=$work/tree/.work/T1.1-r1/data/ElyOffice
+[ "$(cat "$work/ran")" = "w1:p$(cat "$work/panes") env ELY_DATA_ROOT='$data' pi --model remote-magpie/kimi/k3.1-pro --thinking high \"Do what .work/T1.1-r1/prompt.md says.\"" ] || fail "pi ran as: $(cat "$work/ran")"
+[ -d "$data" ] || fail "the reviewer's data root was not made"
+grep -qF "this pane sets ELY_DATA_ROOT=$data" "$work/tree/.work/T1.1-r1/prompt.md" || fail "the prompt names no data root"
+# Where the cargo wrapper exists, it leads the reviewer's PATH.
+mkdir -p "$work/tree/.work/bin" && printf '#!/bin/sh\n' >"$work/tree/.work/bin/cargo" && chmod +x "$work/tree/.work/bin/cargo"
+run T1.1 1 0 working done 'PASS\n'
+case $(cat "$work/ran") in *" env ELY_DATA_ROOT='$data' PATH='$work/tree/.work/bin:"*"' pi --model "*) ;; *) fail "the wrapper is not first: $(cat "$work/ran")" ;; esac
+rm -r "$work/tree/.work/bin"
 [ "$(sort -u "$work/got")" = "w1:p$(cat "$work/panes")" ] || fail "status read from $(sort -u "$work/got"), not its pane"
 grep -q "^You review item T1.1 of Ely Office, round 1\." "$work/tree/.work/T1.1-r1/prompt.md" || fail "the prompt file lacks the prompt"
 # Herdr finding Pi late is waited out.

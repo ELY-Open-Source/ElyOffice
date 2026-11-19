@@ -28,16 +28,19 @@ pub(crate) fn home() -> Result<PathBuf> {
 }
 
 /// The user's own folder; tests never reach it.
-#[cfg(not(any(test, feature = "test-support")))]
 fn real_home() -> Result<PathBuf> {
     let base = BaseDirs::new().ok_or_else(|| anyhow::anyhow!("no home directory"))?;
-    Ok(base.data_local_dir().join("ElyOffice"))
+    let home = suite_home(base.data_local_dir());
+    // Tests: callers swallow errors, so the test fails here.
+    #[cfg(any(test, feature = "test-support"))]
+    panic!("a test reached the data folder ({}) without ely_platform::test_root(); it is never used", home.display());
+    #[cfg(not(any(test, feature = "test-support")))]
+    Ok(home)
 }
 
-/// Tests: callers swallow errors, so the test fails here.
-#[cfg(any(test, feature = "test-support"))]
-fn real_home() -> Result<PathBuf> {
-    panic!("a test reached the data folder without ely_platform::test_root(); the user's is never used")
+/// The suite's folder in a platform's local data folder.
+fn suite_home(base: &Path) -> PathBuf {
+    base.join("ElyOffice")
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -78,8 +81,16 @@ fn omarchy_dir(home: &Path, over: Option<String>) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::{chosen_root, data_dir, omarchy_dir, test_root};
+    use std::path::Path;
+
+    use super::{chosen_root, data_dir, omarchy_dir, suite_home, test_root};
     use crate::AppId;
+
+    #[test]
+    fn the_suite_folder_is_elyoffice_in_the_platform_folder() {
+        let base = Path::new("/somewhere/local-data");
+        assert_eq!(suite_home(base), base.join("ElyOffice"));
+    }
 
     #[test]
     fn each_app_has_its_own_directory_under_the_root() {
@@ -107,7 +118,7 @@ mod tests {
             .unwrap();
         let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
         assert!(!out.status.success() && !said.contains("found "), "{said}");
-        assert!(said.contains("a test reached the data folder without"), "{said}");
+        assert!(said.contains("a test reached the data folder (") && said.contains(") without ely_platform::test_root()"), "{said}");
     }
 
     #[test]

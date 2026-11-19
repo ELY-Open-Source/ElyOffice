@@ -12,7 +12,7 @@ scripts/build-git.sh           构建钉住的 Git 到 engines/git（随 ElyTree
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 至 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核散列；Mac 核架构）
 scripts/build-bash.sh [目录]   构建钉住的 GNU bash 5.3 为 x86_64，默认装到 ~/ely-share/bash-x86_64（Intel 版发布在 Rosetta 下以它跑 ci.sh；核散列与架构）
-scripts/review.sh ID 轮次 路径  审查一条任务：herdr 里的 Pi（K3.1 Pro，思考 high）审查，结论进 `tasks/reviews/`；细则见 `tests/scripts/README.md` 的 review-rules.sh
+scripts/review.sh ID 轮次 路径  审查一条任务：herdr 里的 Pi（K3.1 Pro，思考 high）审查，结论进 `tasks/reviews/`；审查者的窗格设 `ELY_DATA_ROOT=.work/<ID>-r<轮次>/data/ElyOffice`，有 `.work/bin/cargo` 时把它排在 PATH 最前；细则见 `tests/scripts/README.md` 的 review-rules.sh
 scripts/apply-lo-patches.sh engines/lo-src  源码已到补丁序列第几个，补上其余（构建脚本调用）
 scripts/lo-configured.sh engines/lo-src  该树是否在此处配置的：`config_host.mk` 记的 SRCDIR 不是它的实际路径（树搬过、配置时的目录已删）即失败并点名两处（构建脚本调用；手动 make 前也可先跑）
 packaging/linux/container.sh 命令  在 AlmaLinux 8 镜像里运行（glibc 2.28，gcc-toolset-15 把新的 libstdc++ 符号静态链入；cargo 是镜像里从源码建的 huacnlee/cargo，其发布版要 glibc 2.34；产物与本机同在 target/release，镜像里再建即换回）

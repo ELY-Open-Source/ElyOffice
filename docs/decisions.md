@@ -1533,4 +1533,6 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 规定：测试进程从不读写用户的数据文件夹（`ely_platform::data_dir`、`root`）。开了 `test-support` 的构建里，数据文件夹取每个进程一份的临时目录（`ely_platform::test_root()`，`OnceLock`，由各应用测试的公用入口调一次）；没设它而走到数据文件夹即 panic，从不退回真的文件夹（调用处多把错误吞成日志，故不用返回错误）。子进程照旧可由 `ELY_DATA_ROOT` 给根。不从测试线程设环境变量。各包的 dev-dependencies 都开 `ely-platform` 的 `test-support`；应用的正常构建不带它。
 - 起因：带内核的测试原先用真的 `~/.local/share/ElyOffice`。测试结束时标签还开着，恢复点留在真的恢复索引里，`session.lock` 记着已死的进程；下一个进程（下一次测试，或用户自己的应用）当作崩溃，把它们重开成未保存的副本。ElyDoc 的 `moving::an_edited_document_moves_and_keeps_its_undo` 因此时败：移走一个标签后，重开的副本占了原窗口，第二次移动搬走的是它，原窗口不关。ElyTree 与 ElyMark 的测试另读用户 ElyTree 设置里选的 Git。
-- 清理：Linux 与 Mac 真文件夹里能证明出自测试的槽（点里是测试键入的字、名字是样本 `four.pdf`、`reader.xlsx` 或同一进程）连同死进程的 `session.lock` 移入 `.work/R20.55/recovery-backup`（本机，未入库），附 `MANIFEST.tsv`；证不了的留着。
+- ElyDoc 的字数不再拿着标签（改 1181 那条里的 ElyDoc 一项）：字数是自动刷新的标签状态，读完交给那时拿着该标签的窗口（同链接来源的核对，`shared.hosts()`），标签可随时移走；原先读在途时移动被拒（“has work running; it stays”），用户键入后立刻把标签拖出去即弹“忙”。ElyShow 的幻灯片读与缩略图、ElyTable 的表读、链接读与有效性读仍拿着标签，另立 R20.61。
+- 审查者：`scripts/review.sh` 在 herdr 窗格里起 Pi，窗格不继承调用者的环境；现给窗格设 `ELY_DATA_ROOT=<根>/.work/<ID>-r<轮次>/data/ElyOffice` 并在提示里点名（别的机器照此设）。`.work/bin/cargo`（本机，未入库） 存在时排在窗格 PATH 最前：这是本机多个代理共用一把 cargo 锁的安排，不是产品规定。
+- 清理：Linux、Mac 与 Windows 真文件夹里能证明出自测试的槽（点里是测试键入的字、名字是样本 `four.pdf`、`reader.xlsx` 或同一进程）连同死进程的 `session.lock` 移入 `.work/R20.55/recovery-backup`（本机，未入库），附 `MANIFEST.tsv`；证不了的留着。

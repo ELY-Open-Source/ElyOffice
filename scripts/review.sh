@@ -14,6 +14,13 @@ verdict="tasks/reviews/$id-r$round.md"
 mkdir -p tasks/reviews
 rm -f "$verdict"
 
+# The reviewer's tests keep off the user's data folder.
+data=$PWD/.work/$id-r$round/data/ElyOffice
+mkdir -p "$data"
+# This machine's agents share one cargo lock.
+run="env ELY_DATA_ROOT='$data'"
+[ ! -x .work/bin/cargo ] || run="$run PATH='$PWD/.work/bin:$PATH'"
+
 # The list that holds the item.
 list=$(grep -l -- "] $id " tasks/TASKS.md tasks/BUGS.md site/TASKS.md site/video/TASKS.md | head -n 1)
 [ -n "$list" ] || { echo "review.sh: no item $id in any task list" >&2; exit 2; }
@@ -23,6 +30,7 @@ Scope: $scope
 Find defects only: behavior that breaks the PRD, errors swallowed, silent fallbacks, dead code, files over 500 lines, comments over one line or ten words, boxes inside boxes or useless subtitles in UI, abstractions with one user, missing or weak tests, claims no evidence backs. Build and run the tests yourself.
 Every probe copy, file and log stays inside the project root, under .work/$id-r$round/, on every host: never C:\\, never the folder above the project, never any other place outside it. Build only with the installed cargo, huacnlee/cargo; never switch toolchains. It ignores CARGO_TARGET_DIR, keeps its intermediates in ~/.cargo/targets and puts binaries in ./target of the tree it builds, so a probe copy under .work/$id-r$round/ keeps its binaries there. cargo check and clippy need CARGO_CHECK_SHARED_DEPS=0; kernel tests need ELY_LOK_WORKER or ELY_PDF_WORKER. Write the verdict first, then delete those copies; keep only small logs. Delete nothing outside .work/$id-r$round/: other folders under .work belong to the author and other agents. If a deletion is refused, add a last line to the verdict naming what is left.
 On Windows, build and run nothing under %TEMP%: Application Control blocks programs there. Linux runs in WSL (wsl -d Ubuntu); its clone at ~/Documents/Github/ElyOffice holds this tree's changes.
+Every test run has a data root of its own: this pane sets ELY_DATA_ROOT=$data. On another host set ELY_DATA_ROOT to .work/$id-r$round/data/ElyOffice under that host's checkout before any test; never let a test reach the real data folder.
 Do not suggest enhancements. Do not reject for taste. Edit no file except the verdict.
 Round 2 and later: read the previous verdict tasks/reviews/$id-r$((round - 1)).md, confirm each defect is fixed, then look for new defects in changed code.
 Write the verdict to $verdict. Line one is PASS or FAIL. After that, one entry per defect: file:line, what is wrong, a concrete failing scenario, the direction of the fix.
@@ -97,7 +105,7 @@ screen() {
 # Typed text races an agent's startup; argv does not.
 printf '%s\n' "$prompt" >"$ask"
 started=$SECONDS
-said=$(herdr pane run "$pane" "pi --model remote-magpie/kimi/k3.1-pro --thinking high \"Do what $ask says.\"" 2>&1) \
+said=$(herdr pane run "$pane" "$run pi --model remote-magpie/kimi/k3.1-pro --thinking high \"Do what $ask says.\"" 2>&1) \
   || fail "did not start pi: $(why "$said")"
 note "ran pi"
 # Herdr finds Pi a moment after it starts.

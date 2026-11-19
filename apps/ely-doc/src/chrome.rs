@@ -113,34 +113,45 @@ impl Docs {
         // Asked now: a failure waits for the next change.
         let extra = &mut self.tab_mut(id).expect("the tab is open").extra;
         (extra.counting, extra.counted) = (true, Some(state));
-        // The tab stays here until this lands.
-        let busy = self.hold(id);
-        ely_lok::read_off(
-            &self.core.worker,
-            &doc,
-            |worker, doc| {
-                let json = worker.values(doc, ".uno:WordCount")?;
-                ely_lok::review::counts(&json)
-            },
-            move |docs: &mut Self, read, cx| {
-                let _busy = busy;
-                let Some(tab) = docs.tab_mut(id) else {
-                    return;
+        let (worker, shared) = (std::sync::Arc::clone(&self.core.worker), self.core.shared.clone());
+        // Tab state only: the tab may move meanwhile.
+        cx.spawn(async move |_, cx| {
+            let read = cx
+                .background_executor()
+                .spawn(async move {
+                    ely_lok::behind(&worker, move |worker| {
+                        let json = worker.values(&doc, ".uno:WordCount")?;
+                        ely_lok::review::counts(&json)
+                    })
+                    .await
+                })
+                .await;
+            cx.update(|cx| {
+                // The window holding the tab now hears.
+                let Some(docs) = shared.hosts().into_iter().find(|docs| docs.read(cx).tab(id).is_some()) else {
+                    return log::info!("doc: tab {id} closed before its count landed");
                 };
-                tab.extra.counting = false;
-                match read {
-                    Ok(counts) => tab.extra.counts = Some(counts),
-                    Err(error) => docs.engine_failed(&error.to_string(), cx),
-                }
-                cx.notify();
-                // The status may have moved meanwhile.
-                let view = docs.tab(id).map(|tab| tab.view.clone());
-                if let Some(view) = view {
-                    docs.count(id, &view, cx);
-                }
-            },
-            cx,
-        );
+                docs.update(cx, |docs, cx| docs.counted(id, read, cx));
+            });
+        })
+        .detach();
+    }
+
+    /// Tab `id`'s count landed; asks again if its status moved.
+    fn counted(&mut self, id: u64, read: std::io::Result<ely_lok::review::Counts>, cx: &mut Context<Self>) {
+        let Some(tab) = self.tab_mut(id) else {
+            return;
+        };
+        tab.extra.counting = false;
+        match read {
+            Ok(counts) => tab.extra.counts = Some(counts),
+            Err(error) => self.engine_failed(&error.to_string(), cx),
+        }
+        cx.notify();
+        let view = self.tab(id).map(|tab| tab.view.clone());
+        if let Some(view) = view {
+            self.count(id, &view, cx);
+        }
     }
 }
 

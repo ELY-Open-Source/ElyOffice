@@ -119,19 +119,26 @@ fn an_export_panel_keeps_its_tab() {
 }
 
 #[test]
-fn a_word_count_in_flight_keeps_its_tab() {
+fn a_word_count_in_flight_follows_its_tab() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let Some((docs, home)) = first(&mut cx, dir.path()) else {
         return eprintln!("SKIP: no LOK build");
     };
+    opened(&mut cx, &docs, home);
     let id = opened(&mut cx, &docs, home);
-    let stays = docs.update(&mut cx, |docs, cx| {
-        let view = docs.tab(id).expect("the tab").view.clone();
-        docs.tab_mut(id).expect("the tab").extra.counted = None;
-        docs.count(id, &view, cx);
-        docs.move_out(id, cx).err()
+    // One update: the move comes before the read can run.
+    cx.update(|app| {
+        docs.update(app, |docs, cx| {
+            let view = docs.tab(id).expect("the tab").view.clone();
+            let extra = &mut docs.tab_mut(id).expect("the tab").extra;
+            (extra.counted, extra.counts) = (None, None);
+            docs.count(id, &view, cx);
+            assert!(docs.tab(id).expect("the tab").extra.counting, "the count is asked");
+        });
+        ely_office::moving::to_new_window(docs.clone(), id, app);
     });
-    assert_eq!(stays, Some("office.move.busy"), "the count lands here first");
-    wait(&mut cx, |app| docs.read(app).tab(id).is_some_and(|tab| !tab.extra.counting));
+    wait(&mut cx, |app| docs.read(app).tab(id).is_none());
+    let other = cx.update(|app| crate::window::front(None, app)).expect("a front window");
+    wait(&mut cx, |app| other.read(app).tab(id).is_some_and(|tab| !tab.extra.counting && tab.extra.counts.is_some()));
 }
