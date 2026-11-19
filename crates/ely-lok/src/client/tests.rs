@@ -64,6 +64,7 @@ mod refs;
 mod r_macros;
 mod roundtrip;
 mod rules;
+mod scripted;
 mod seam;
 mod sheet;
 mod trigger;

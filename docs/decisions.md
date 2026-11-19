@@ -1536,3 +1536,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - ElyDoc 的字数不再拿着标签（改 1181 那条里的 ElyDoc 一项）：字数是自动刷新的标签状态，读完交给那时拿着该标签的窗口（同链接来源的核对，`shared.hosts()`），标签可随时移走；原先读在途时移动被拒（“has work running; it stays”），用户键入后立刻把标签拖出去即弹“忙”。ElyShow 的幻灯片读与缩略图、ElyTable 的表读、链接读与有效性读仍拿着标签，另立 R20.61。
 - 审查者：`scripts/review.sh` 在 herdr 窗格里起 Pi，窗格不继承调用者的环境；现给窗格设 `ELY_DATA_ROOT=<根>/.work/<ID>-r<轮次>/data/ElyOffice` 并在提示里点名（别的机器照此设）。`.work/bin/cargo`（本机，未入库） 存在时排在窗格 PATH 最前：这是本机多个代理共用一把 cargo 锁的安排，不是产品规定。
 - 清理：Linux、Mac 与 Windows 真文件夹里能证明出自测试的槽（点里是测试键入的字、名字是样本 `four.pdf`、`reader.xlsx` 或同一进程）连同死进程的 `session.lock` 移入 `.work/R20.55/recovery-backup`（本机，未入库），附 `MANIFEST.tsv`；证不了的留着。
+
+## 2026-11-19 点击指向脚本 URL 的形状不再写穿堆（R20.50，补丁 0146）
+
+- 根因：`SdUnoEventsAccess::getByName` 先定属性序列的长度再填。PROGRAM、VERB、BOOKMARK、DOCUMENT 四种点击只在目标不是脚本 URL 时多留一格（这判断原只该属 MACRO），填时却照写目标，越界。PPTX 的 hlinkClick 指向 `vnd.sun.star.script:` 导入为 DOCUMENT；放映前的存 ODF 导出事件即坏堆，worker 死在 `rtl_uString_assign`。恶意文件即可触发，与内核是否放开宏无关。
+- 定：四种总为目标留一格。补丁号用 0146（原留给 R20.54）：补丁按文件序打，先落 0147 再补 0146 会让已打 0147 的树找不到前缀。R20.54 用其后的号。
+- 测试：`crates/ely-lok/src/client/tests/scripted.rs` 读 `tests/fixtures/show/script-link.pptx`（t.pptx 加一个指向脚本 URL 的点击，故意的恶意样本，`make-script-link.py` 生成、可复现），存为 ODP、链接目标照存。无此补丁：macOS 4ce869dd 与 Linux 71c96842 都 SIGSEGV；带上：Linux 存成。平面 ODP 同样写法不现，导入不收脚本目标。
+- Linux 以 sd 定向重链带上（febf6d7b）；macOS、Intel 发布机与 Windows 的内核随后逐一重建，未重建前其上 `scripted.rs` 即败，发布门（`release-tests.sh`）亦然。

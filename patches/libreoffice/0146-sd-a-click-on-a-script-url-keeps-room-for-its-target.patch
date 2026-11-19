@@ -1,0 +1,26 @@
+sd: a click on a script URL keeps room for its target
+
+SdUnoEventsAccess::getByName sizes its property sequence before it
+fills it. For a PROGRAM, VERB, BOOKMARK or DOCUMENT click it made
+room for the target only when the target was not a script URL, a
+test that belongs to MACRO alone, but it then wrote the target
+anyway, past the end of the sequence. A PPTX hlinkClick to
+vnd.sun.star.script:… imports as a DOCUMENT click, so exporting the
+deck's events (ODF save, XMLShapeExport::ImpExportEvents) overran
+the heap and the process died in rtl_uString_assign (Ely R20.50).
+
+Those four clicks now always make room for their target.
+
+diff --git a/sd/source/ui/unoidl/unoobj.cxx b/sd/source/ui/unoidl/unoobj.cxx
+--- a/sd/source/ui/unoidl/unoobj.cxx
++++ b/sd/source/ui/unoidl/unoobj.cxx
+@@ -1439,6 +1439,9 @@
+     case presentation::ClickAction_VERB:
+     case presentation::ClickAction_BOOKMARK:
+     case presentation::ClickAction_DOCUMENT:
++        // Ely: these write one more property, script URL or not.
++        nPropertyCount += 1;
++        break;
+     case presentation::ClickAction_MACRO:
+         if ( !SfxApplication::IsXScriptURL( pInfo->GetBookmark() ) )
+             nPropertyCount += 1;
