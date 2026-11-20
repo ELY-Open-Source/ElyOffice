@@ -4,6 +4,11 @@ set -euo pipefail
 
 root=${1:-$(cd "$(dirname "$0")/.." && pwd)}
 here=$(cd "$(dirname "$0")/.." && pwd)
+# Rules read tracked files: outside a checkout's top, none.
+if ! prefix=$(git -C "$root" rev-parse --show-prefix 2>/dev/null) || [ -n "$prefix" ]; then
+  echo "FAIL: $root is not the top of a git checkout; the rules (lengths, comments, waits, banners, line endings) read its tracked files"
+  exit 1
+fi
 list=$(mktemp)
 trap 'rm -f "$list"' EXIT
 git -C "$root" ls-files -z -- '*.rs' '*.c' '*.h' '*.sh' '*.py' '*.ts' '*.tsx' '*.js' '*.mjs' '*.css' \
