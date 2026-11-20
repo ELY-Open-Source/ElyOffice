@@ -3,6 +3,7 @@ import ctypes
 
 # Win32 error codes.
 NO_SUCH_PROCESS, ACCESS_DENIED, NO_MORE_FILES = 87, 5, 18
+STILL_ACTIVE, WAIT_OBJECT_0 = 259, 0
 
 
 def failed(what, pid):
@@ -62,6 +63,27 @@ def created(k32, pid):
         if not k32.GetProcessTimes(ctypes.c_void_p(handle), *map(ctypes.byref, (born, ended, kernel, user))):
             raise failed("reading the start time", pid)
         return born.value
+    finally:
+        k32.CloseHandle(ctypes.c_void_p(handle))
+
+
+def gone(k32, pid):
+    """True if `pid` has ended or is ending."""
+    k32.OpenProcess.restype = ctypes.c_void_p
+    # SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION
+    handle = k32.OpenProcess(0x00100000 | 0x1000, False, pid)
+    if not handle:
+        if ctypes.get_last_error() == NO_SUCH_PROCESS:
+            return True
+        raise failed("opening", pid)
+    try:
+        if k32.WaitForSingleObject(ctypes.c_void_p(handle), 0) == WAIT_OBJECT_0:
+            return True
+        code = ctypes.c_ulong()
+        if not k32.GetExitCodeProcess(ctypes.c_void_p(handle), ctypes.byref(code)):
+            raise failed("reading the exit code", pid)
+        # TerminateProcess refuses a process mid-exit (R20.95).
+        return code.value != STILL_ACTIVE
     finally:
         k32.CloseHandle(ctypes.c_void_p(handle))
 

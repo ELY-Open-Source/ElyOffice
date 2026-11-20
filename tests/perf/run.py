@@ -175,7 +175,8 @@ class App:
             except ProcessLookupError:
                 pass
             except PermissionError:
-                denied.append(pid)
+                if not HOST.gone(pid):
+                    denied.append(pid)
             except OSError as error:
                 # ERROR_INVALID_PARAMETER: the process already ended.
                 if getattr(error, "winerror", None) != 87:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Windows process trees, and stop() never ending the bench.
+import ctypes
 import os
 import subprocess
 import sys
@@ -45,12 +46,13 @@ class Created(unittest.TestCase):
 
 
 class Stopping(unittest.TestCase):
-    def app(self, family):
+    def app(self, family, gone=()):
         app = object.__new__(run.App)
         app.slug, app.lines = "ely-doc", lambda: []
         app.process = types.SimpleNamespace(pid=912, wait=lambda: 0)
         names = {912: "ely-doc.exe", 11900: "ely-lok-worker.exe", 388: "wininit.exe", os.getpid(): "python.exe"}
-        host = types.SimpleNamespace(stopped=lambda lines: None, pids=lambda pid: family, image=names.get)
+        host = types.SimpleNamespace(stopped=lambda lines: None, pids=lambda pid: family, image=names.get,
+                                     gone=lambda pid: pid in gone)
         return app, host
 
     def test_a_tree_holding_the_bench_kills_nothing_and_says_so(self):
@@ -75,6 +77,18 @@ class Stopping(unittest.TestCase):
                 app.stop()
         self.assertEqual(sorted(call.args[0] for call in kill.call_args_list), [388, 912, 11900])
 
+    def test_a_refusal_from_a_process_mid_exit_passes_a_live_one_raises(self):
+        # ElyMark's git, ending as the app closes (R20.95).
+        refuse = lambda pid, signal: (_ for _ in ()).throw(PermissionError(13, "denied")) if pid == 11900 else None
+        for gone, fails in [({11900}, False), (set(), True)]:
+            app, host = self.app({912, 11900}, gone)
+            with unittest.mock.patch.object(run, "HOST", host), unittest.mock.patch.object(run.os, "kill", side_effect=refuse):
+                if fails:
+                    with self.assertRaisesRegex(RuntimeError, r"refused for 11900 \(ely-lok-worker.exe\)$"):
+                        app.stop()
+                else:
+                    app.stop()
+
     def test_a_process_that_already_ended_passes_and_other_errors_raise(self):
         ended = OSError(22, "gone")
         ended.winerror = 87
@@ -89,6 +103,46 @@ class Stopping(unittest.TestCase):
                         app.stop()
                 else:
                     app.stop()
+
+
+class Process:
+    """kernel32 for one process: open error, wait result, exit code."""
+
+    def __init__(self, refused=None, waited=258, code=259, read=True):
+        self.waited, self.code, self.read = waited, code, read
+        self.CloseHandle = lambda handle: 1
+
+        # A function, so `restype` can be set on it.
+        def opened(access, inherit, pid):
+            if refused is None:
+                return 7
+            ctypes.set_last_error(refused)
+            return None
+
+        self.OpenProcess = opened
+
+    def WaitForSingleObject(self, handle, ms):
+        return self.waited
+
+    def GetExitCodeProcess(self, handle, code):
+        code._obj.value = self.code
+        if not self.read:
+            ctypes.set_last_error(6)
+        return self.read
+
+
+@unittest.skipUnless(os.name == "nt", "the last error is Windows only")
+class Gone(unittest.TestCase):
+    def test_an_ended_or_ending_process_is_gone_a_running_one_is_not(self):
+        self.assertTrue(lineage.gone(Process(87), 1))
+        self.assertTrue(lineage.gone(Process(None, waited=0), 1))
+        self.assertTrue(lineage.gone(Process(None, code=0), 1), "exit code set, not yet signalled")
+        self.assertFalse(lineage.gone(Process(None), 1))
+
+    def test_an_unexpected_failure_raises(self):
+        for kernel in [Process(5), Process(None, read=False)]:
+            with self.assertRaises(RuntimeError):
+                lineage.gone(kernel, 1)
 
 
 if __name__ == "__main__":

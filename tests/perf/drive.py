@@ -69,6 +69,10 @@ class Host:
     def image(self, pid):
         return sh("ps", "-o", "comm=", "-p", str(pid)).strip()
 
+    def gone(self, pid):
+        """A refusal on Unix is another user's live process."""
+        return False
+
     def lingering(self, marker):
         return subprocess.run(["pgrep", "-f", marker], capture_output=True).returncode == 0
 
@@ -344,6 +348,9 @@ class Windows(Host):
 
     def image(self, pid):
         return lineage.image(self.k32, pid)
+
+    def gone(self, pid):
+        return lineage.gone(self.k32, pid)
 
     def pids(self, root):
         return lineage.descendants(root, self.processes(), lambda pid: lineage.created(self.k32, pid))
