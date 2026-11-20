@@ -188,8 +188,10 @@ mod tests {
         static ALONE: std::sync::Once = std::sync::Once::new();
         // Temp folders sit in no outer repository, wherever they are.
         ALONE.call_once(|| {
+            // Git matches its own spelling; macOS paths fold case.
+            let temp = dunce::canonicalize(std::env::temp_dir()).expect("the temp folder");
             // SAFETY: once, before any test runs Git.
-            unsafe { std::env::set_var("GIT_CEILING_DIRECTORIES", std::env::temp_dir()) };
+            unsafe { std::env::set_var("GIT_CEILING_DIRECTORIES", temp) };
         });
         let (git, _) = ely_platform::git::locate().expect("a Git");
         let done = std::process::Command::new(git)
