@@ -14,6 +14,14 @@ def run(args, **kw):
         raise RuntimeError(f"{named(args)}: output is not UTF-8: {bad}") from bad
 
 
+def decoded(args, raw):
+    """Bytes a child wrote, as strict UTF-8."""
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as bad:
+        raise RuntimeError(f"{named(args)}: output is not UTF-8: {bad}") from bad
+
+
 def logged(path, since=0):
     """Complete lines from byte `since`; a cut tail waits."""
     with open(path, "rb") as log:

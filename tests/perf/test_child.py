@@ -7,8 +7,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 
 import child
+import run
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Curly quotes to cp1252; UTF-8 refuses both bytes.
@@ -123,6 +125,30 @@ class Child(unittest.TestCase):
             with open(log, "w", encoding="utf-8", newline="\n") as file:
                 file.write(TEXT + "done\n")
             self.assertEqual(child.logged(log), [TEXT.rstrip("\n"), "done"])
+
+
+
+class Ready(unittest.TestCase):
+    """App.ready reads the smoke run's bytes (R20.84 review 1)."""
+
+    def ready(self, raw):
+        # App's own Popen, with Python standing in for the app.
+        host = unittest.mock.Mock(exe=lambda slug, frames: sys.executable, lingering=lambda home: False)
+        with tempfile.TemporaryDirectory() as home, unittest.mock.patch.object(run, "HOST", host):
+            return run.App("ely-doc", home, printing(raw)[1:]).ready()
+
+    def test_a_ready_line_in_bytes_is_read(self):
+        self.assertGreater(self.ready(b"ready ElyDoc\n"), 0)
+
+    def test_no_ready_line_fails_saying_what_came(self):
+        with self.assertRaises(RuntimeError) as said:
+            self.ready(b"nothing\n")
+        self.assertIn("ely-doc did not report ready: 'nothing\\n'", str(said.exception))
+
+    def test_a_bad_byte_fails_naming_the_command(self):
+        with self.assertRaises(RuntimeError) as said:
+            self.ready(b"ready ElyDoc " + CP1252)
+        self.assertIn(f"{child.named(printing(b'ready ElyDoc ' + CP1252))}: output is not UTF-8", str(said.exception))
 
 
 if __name__ == "__main__":

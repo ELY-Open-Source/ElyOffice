@@ -119,10 +119,11 @@ class App:
     def ready(self, timeout=60):
         """ELY_SMOKE=1: ms until the first frame."""
         try:
-            out, _ = self.process.communicate(timeout=timeout)
+            raw, _ = self.process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             self.stop()
             raise RuntimeError(f"{self.slug} drew no first frame in {timeout} s") from None
+        out = child.decoded(self.process.args, raw)
         took = (time.monotonic() - self.start) * 1000
         if f"ready {APPS[self.slug]}" not in out:
             raise RuntimeError(f"{self.slug} did not report ready: {out!r}")
