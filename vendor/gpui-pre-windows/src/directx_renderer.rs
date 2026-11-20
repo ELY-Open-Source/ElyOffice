@@ -823,7 +823,7 @@ impl DirectXRenderer {
     pub(crate) fn gpu_specs(&self) -> Result<GpuSpecs> {
         let devices = self.devices.as_ref().context("devices missing")?;
         let desc = unsafe { devices.adapter.GetDesc1() }?;
-        let is_software_emulated = (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32) != 0;
+        let is_software_emulated = software_adapter(desc.Flags, desc.VendorId, desc.DeviceId);
         let device_name = String::from_utf16_lossy(&desc.Description)
             .trim_matches(char::from(0))
             .to_string();
@@ -1288,6 +1288,14 @@ impl Drop for DirectXRenderer {
             report_live_objects(&devices.device).ok();
         }
     }
+}
+
+/// Microsoft's vendor id and the Basic Render Driver's device id.
+const BASIC_RENDER: (u32, u32) = (0x1414, 0x8C);
+
+/// Whether an adapter draws on the CPU, BasicRender included.
+fn software_adapter(flags: u32, vendor_id: u32, device_id: u32) -> bool {
+    (flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32) != 0 || (vendor_id, device_id) == BASIC_RENDER
 }
 
 #[inline]
@@ -2054,5 +2062,32 @@ mod dxgi {
             (number >> 16) & 0xFFFF,
             number & 0xFFFF
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Not `super::*`: gpui's glob brings its own `test`.
+    use super::{DXGI_ADAPTER_FLAG_SOFTWARE, software_adapter};
+
+    #[test]
+    fn an_adapter_flagged_software_is_software() {
+        assert!(software_adapter(DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32, 0x1414, 0x8C));
+        assert!(software_adapter(DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32, 0x1234, 0x5678));
+    }
+
+    #[test]
+    fn the_basic_render_driver_is_software_without_the_flag() {
+        assert!(software_adapter(0, 0x1414, 0x8C));
+    }
+
+    #[test]
+    fn a_real_gpu_is_not_software() {
+        // Intel Iris Xe, NVIDIA RTX 3060, AMD Radeon RX 6600.
+        for (vendor, device) in [(0x8086, 0x9A49), (0x10DE, 0x2503), (0x1002, 0x73FF)] {
+            assert!(!software_adapter(0, vendor, device));
+        }
+        // Another Microsoft adapter is not taken for BasicRender.
+        assert!(!software_adapter(0, 0x1414, 0x8D));
     }
 }

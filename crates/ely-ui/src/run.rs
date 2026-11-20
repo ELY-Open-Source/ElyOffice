@@ -184,6 +184,7 @@ pub(crate) fn main_window<V: Render>(
             }
         });
         theme::follow_system(window);
+        theme::follow_renderer(window, cx);
         crate::settings::follow_frame(app, window, cx);
         let root = root(app, window, cx);
         crate::windows::follow(&root, window, cx);

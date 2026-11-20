@@ -1608,3 +1608,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 原状：`slideshow/links.rs` 只认 svg:x/y/width/height；旋转、斜切的形状只写 `draw:transform`，链接得不到位置而静默丢弃；draw:line、connector、measure 不在形状表里，其链接也丢；页数与链接页数不符时拒放映，无测试。
 - 定：照 xmloff 而不照 ODF 1.3 §19.228 解 `draw:transform`（规范说以度计、按次序作用；xmloff 写裸弧度，读入时 rotate、skewX 取反，#i78696#，逐个左乘在已缩放、平移的单位方块上），因为放映读的是内核刚存的副本。点按区取变换后的外接框，线类取两端点的框。线类再加 2 屏幕像素的余量，取自 Impress 编辑时的命中容差（`FuPoor::HITPIX`），LibreOffice 放映本身没有余量。放不下的链接记元素名。
 - 测试与变异见 R20.52 的任务行；内核存的转 30° 实测为 `rotate (0.523598775598299)`，算得的框与内核的框差 1/100 毫米。Linux 内核 04023855（重跑始于 05:34:28 UTC，在内核换回 04023855 的 05:21:53 之后；更早一次读到 keys 的变异内核 c9faf58a，作废不计）：副本为 main ec66f9e0 加本条五个文件，ely-show 130 过 0 败（链接与开播测试 11 条皆过，含 R20.53 的地址测试），clippy、panics.py、check.sh 过
+
+## 2026-11-20 渲染器在 CPU 上时按减少动效（R20.63）
+
+- 原状：测试机无显卡，D3D 落到 Microsoft Basic Render Driver（WARP 在 CPU 上画）。没有空闲引擎时冷开 ElyDoc 要 20 至 46 秒。wpr 录一次清缓存后冷开：ely-doc.exe 用 192.9 CPU 秒，worker 只 4.2 秒；关系统“动画效果”后清缓存冷开 2,749、2,865、3,473 毫秒，应用 CPU 2.7 至 3.4 秒。启动画面的扫条等重复动画每帧整窗重排重画，在 CPU 上约占四核，与 worker 读内核争 CPU。gpui 只看 DXGI_ADAPTER_FLAG_SOFTWARE，Basic Render Driver 不带此标志，报作硬件。
+- 定：渲染器为软件模拟时全应用按减少动效，只在一处：`ely_platform::accessibility::reduce_motion` 的次序为环境变量 `ELY_REDUCE_MOTION`、Ely 的动效设置、系统设置、软件渲染器，设置里明选完整动效仍动；首个窗口读一次 `gpu_specs`（`theme::follow_renderer`），日志写渲染器名与减少动效的缘由。gpui 补丁 0015 把 Basic Render Driver（厂商 0x1414、设备 0x8C）认作软件；Linux 的 wgpu 以 `DeviceType::Cpu`（llvmpipe）为软件，macOS 不报、按非软件。启动画面不再另判。agents.md 规则 9 与 standing.md 随之改。
+- 测试：`accessibility::tests` 三条——默认设置下软件渲染器减少动效；硬件、系统设置未减少时动；软件渲染器加明选完整动效仍动；去掉软件一项、让软件压过明选、一律减少，各败。补丁 0015 的 `software_adapter` 三条（带标志、0x1414/0x8C、真显卡的编号），去掉标志一项、去掉编号一项各败。
+- 量（测试机，清待机列表后冷开 doc.docx，动画效果开）：改后 15 次中位 4,205 毫秒（3,528 至 5,366），2 次过 5 秒（5,221、5,366），应用 CPU 3.0 至 4.1 秒；装着的 0.1.17 5 次中位 5,593（4,440 至 9,495），CPU 12.2 至 44.2；同时段 Word 11 次中位 3,703（3,453 至 4,234）。等待中不画帧：改后冷开的 1.9 秒等待里 0 帧，改前 9.4 秒画 213 帧。重启后首开 ElyDoc：登录项照常时五轮 1,435 1,429 1,360 1,420 1,724 毫秒，皆接管空闲引擎；关掉登录项、ElyDoc 自起引擎的五轮 9,944 9,184 8,746 8,902 8,902 毫秒，过不了 5 秒的线（改前同测登录项晚起的第 2、4 轮 45,734、46,551），同轮 Word 4,235 至 5,235。余下与 Word 之差是冷读内核与 22 MB 的应用 exe，另立 R20.74。

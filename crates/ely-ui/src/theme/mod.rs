@@ -92,10 +92,33 @@ fn text(cx: &mut App) {
 }
 
 fn motion(cx: &mut App) {
-    let reduce = accessibility::reduce_motion(crate::settings::current(cx).motion);
+    let software = cx.try_global::<Software>().is_some_and(|software| software.0);
+    let why = accessibility::reduce_motion(crate::settings::current(cx).motion, software);
+    let reduce = why.is_some();
     cx.set_reduce_motion(reduce);
     Theme::update(cx, |theme| theme.reduced_motion = reduce);
-    log::info!("theme: reduced motion {}", if reduce { "on" } else { "off" });
+    match why {
+        Some(why) => log::info!("theme: reduced motion on, by {why}"),
+        None => log::info!("theme: reduced motion off"),
+    }
+}
+
+/// The first window's renderer draws on the CPU (R20.63).
+struct Software(bool);
+
+impl Global for Software {}
+
+/// Reads the first window's renderer; a software one stills motion.
+pub fn follow_renderer(window: &Window, cx: &mut App) {
+    if cx.has_global::<Software>() {
+        return;
+    }
+    let specs = window.gpu_specs();
+    let software = specs.as_ref().is_some_and(|specs| specs.is_software_emulated);
+    let name = specs.as_ref().map_or("unknown", |specs| specs.device_name.as_str());
+    log::info!("theme: renderer {name}, software {software}");
+    cx.set_global(Software(software));
+    motion(cx);
 }
 
 fn scrollbars(cx: &mut App) {

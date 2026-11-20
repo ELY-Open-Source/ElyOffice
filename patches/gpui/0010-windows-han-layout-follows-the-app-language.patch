@@ -134,7 +134,7 @@ diff --git a/vendor/gpui-pre-windows/src/direct_write.rs b/vendor/gpui-pre-windo
 +
 +    #[test]
 +    fn the_apps_chinese_leads_layout_under_a_japanese_user() {
-+        let mut system = super::DirectWriteTextSystem::new(None).expect("DirectWrite");
++        let mut system = super::DirectWriteTextSystem::new().expect("DirectWrite");
 +        system.components.text_locale = windows::core::HSTRING::from("ja-JP");
 +        super::set_text_language("en-US");
 +        let japanese = faces(&system, "打开仓库");

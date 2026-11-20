@@ -1,0 +1,71 @@
+windows: the Basic Render Driver is software
+
+`GpuSpecs::is_software_emulated` came only from DXGI_ADAPTER_FLAG_SOFTWARE.
+The Microsoft Basic Render Driver, which Windows uses when no GPU driver
+renders (safe mode, display-only devices such as a VM's, missing or
+broken drivers), is WARP behind a kernel adapter and lists without that
+flag, so it read as a GPU: Ely's start scene animated on the CPU and
+starved the engine's start (Ely R20.63). It is now also known by its
+ids, vendor 0x1414 and device 0x8C.
+
+BasicRender: https://learn.microsoft.com/windows-hardware/drivers/display/microsoft-basic-display-driver
+Its ids: https://walbourn.github.io/anatomy-of-direct3d-11-create-device
+
+diff --git a/vendor/gpui-pre-windows/src/directx_renderer.rs b/vendor/gpui-pre-windows/src/directx_renderer.rs
+--- a/vendor/gpui-pre-windows/src/directx_renderer.rs
++++ b/vendor/gpui-pre-windows/src/directx_renderer.rs
+@@ -823,7 +823,7 @@ impl DirectXRenderer {
+     pub(crate) fn gpu_specs(&self) -> Result<GpuSpecs> {
+         let devices = self.devices.as_ref().context("devices missing")?;
+         let desc = unsafe { devices.adapter.GetDesc1() }?;
+-        let is_software_emulated = (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32) != 0;
++        let is_software_emulated = software_adapter(desc.Flags, desc.VendorId, desc.DeviceId);
+         let device_name = String::from_utf16_lossy(&desc.Description)
+             .trim_matches(char::from(0))
+             .to_string();
+@@ -1290,6 +1290,14 @@ impl Drop for DirectXRenderer {
+     }
+ }
+ 
++/// Microsoft's vendor id and the Basic Render Driver's device id.
++const BASIC_RENDER: (u32, u32) = (0x1414, 0x8C);
++
++/// Whether an adapter draws on the CPU, BasicRender included.
++fn software_adapter(flags: u32, vendor_id: u32, device_id: u32) -> bool {
++    (flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32) != 0 || (vendor_id, device_id) == BASIC_RENDER
++}
++
+ #[inline]
+ fn get_comp_device(dxgi_device: &IDXGIDevice) -> Result<IDCompositionDevice> {
+     Ok(unsafe { DCompositionCreateDevice(dxgi_device)? })
+@@ -2056,3 +2064,30 @@ mod dxgi {
+         ))
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    // Not `super::*`: gpui's glob brings its own `test`.
++    use super::{DXGI_ADAPTER_FLAG_SOFTWARE, software_adapter};
++
++    #[test]
++    fn an_adapter_flagged_software_is_software() {
++        assert!(software_adapter(DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32, 0x1414, 0x8C));
++        assert!(software_adapter(DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32, 0x1234, 0x5678));
++    }
++
++    #[test]
++    fn the_basic_render_driver_is_software_without_the_flag() {
++        assert!(software_adapter(0, 0x1414, 0x8C));
++    }
++
++    #[test]
++    fn a_real_gpu_is_not_software() {
++        // Intel Iris Xe, NVIDIA RTX 3060, AMD Radeon RX 6600.
++        for (vendor, device) in [(0x8086, 0x9A49), (0x10DE, 0x2503), (0x1002, 0x73FF)] {
++            assert!(!software_adapter(0, vendor, device));
++        }
++        // Another Microsoft adapter is not taken for BasicRender.
++        assert!(!software_adapter(0, 0x1414, 0x8D));
++    }
++}
