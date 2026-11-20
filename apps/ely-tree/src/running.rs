@@ -9,6 +9,8 @@ use std::{
 
 use crate::git::Git;
 
+#[cfg(any(windows, test))]
+mod lineage;
 #[cfg(windows)]
 mod win;
 

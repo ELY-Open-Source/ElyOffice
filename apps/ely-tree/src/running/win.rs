@@ -10,7 +10,7 @@ use std::{
 
 use windows_sys::{
     Win32::{
-        Foundation::{ERROR_INVALID_PARAMETER, ERROR_NO_MORE_FILES, INVALID_HANDLE_VALUE, WAIT_OBJECT_0},
+        Foundation::{ERROR_INVALID_PARAMETER, ERROR_NO_MORE_FILES, FILETIME, INVALID_HANDLE_VALUE, WAIT_OBJECT_0},
         System::{
             Console::SetConsoleCtrlHandler,
             Diagnostics::ToolHelp::{
@@ -19,8 +19,9 @@ use windows_sys::{
             },
             LibraryLoader::{GetModuleHandleW, GetProcAddress},
             Threading::{
-                CreateRemoteThread, GetCurrentProcess, IsWow64Process, OpenProcess,
-                PROCESS_CREATE_THREAD, PROCESS_QUERY_INFORMATION, PROCESS_SYNCHRONIZE,
+                CreateRemoteThread, GetCurrentProcess, GetProcessTimes, IsWow64Process, OpenProcess,
+                PROCESS_CREATE_THREAD, PROCESS_QUERY_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION,
+                PROCESS_SYNCHRONIZE,
                 PROCESS_TERMINATE, PROCESS_VM_OPERATION, PROCESS_VM_READ, PROCESS_VM_WRITE,
                 TerminateProcess, WaitForSingleObject,
             },
@@ -28,6 +29,8 @@ use windows_sys::{
     },
     core::BOOL,
 };
+
+use super::lineage::{Listed, descendants};
 
 /// Git for Windows waits this long, then ends the tree.
 const GRACE: Duration = Duration::from_secs(10);
@@ -129,27 +132,37 @@ fn tree(root: u32) -> io::Result<Vec<(u32, bool)>> {
     while more != 0 {
         let end = entry.szExeFile.iter().position(|&unit| unit == 0).unwrap_or(260);
         let name = String::from_utf16_lossy(&entry.szExeFile[..end]);
-        all.push((entry.th32ProcessID, entry.th32ParentProcessID, name.eq_ignore_ascii_case("conhost.exe")));
+        let pid = entry.th32ProcessID;
+        all.push(Listed {
+            pid,
+            parent: entry.th32ParentProcessID,
+            created: created(pid),
+            host: name.eq_ignore_ascii_case("conhost.exe"),
+        });
         more = unsafe { Process32NextW(snapshot.as_raw_handle(), &mut entry) };
     }
     let last = io::Error::last_os_error();
     if last.raw_os_error() != Some(ERROR_NO_MORE_FILES as i32) {
         return Err(last);
     }
-    let mut found = vec![(root, false)];
-    // The list need not come parents first.
-    loop {
-        let before = found.len();
-        for &(pid, parent, host) in &all {
-            let known = |id| found.iter().any(|&(seen, _)| seen == id);
-            if !known(pid) && known(parent) {
-                found.push((pid, host));
-            }
-        }
-        if found.len() == before {
-            return Ok(found);
-        }
+    let (found, unread) = descendants(root, &all);
+    for pid in unread {
+        log::warn!("tree: git {root}'s {pid} left out: a start time was unread");
     }
+    Ok(found)
+}
+
+/// Start time in 100 ns ticks; None if unreadable.
+fn created(pid: u32) -> Option<u64> {
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if process.is_null() {
+        return None;
+    }
+    let process = unsafe { OwnedHandle::from_raw_handle(process) };
+    let [mut born, mut ended, mut kernel, mut user] = [FILETIME::default(); 4];
+    // SAFETY: an open handle and four FILETIMEs.
+    let read = unsafe { GetProcessTimes(process.as_raw_handle(), &mut born, &mut ended, &mut kernel, &mut user) };
+    (read != 0).then(|| (u64::from(born.dwHighDateTime) << 32) | u64::from(born.dwLowDateTime))
 }
 
 fn open(pid: u32) -> io::Result<OwnedHandle> {

@@ -120,13 +120,16 @@ mod probe {
         time::{Duration, Instant},
     };
     use windows_sys::Win32::{
-        Foundation::WAIT_TIMEOUT,
+        Foundation::{FILETIME, WAIT_TIMEOUT},
         System::{
             Diagnostics::ToolHelp::{
                 CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
                 TH32CS_SNAPPROCESS,
             },
-            Threading::{OpenProcess, PROCESS_SYNCHRONIZE, WaitForSingleObject},
+            Threading::{
+                GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
+                WaitForSingleObject,
+            },
         },
     };
 
@@ -137,8 +140,18 @@ mod probe {
         unsafe { WaitForSingleObject(process.as_raw_handle(), 0) == WAIT_TIMEOUT }
     }
 
-    /// The process `name` that `parent` starts.
+    /// Start time in 100 ns ticks; None if unreadable.
+    fn created(pid: u32) -> Option<u64> {
+        let process = owned(unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) }).ok()?;
+        let [mut born, mut ended, mut kernel, mut user] = [FILETIME::default(); 4];
+        // SAFETY: an open handle and four FILETIMEs.
+        checked(unsafe { GetProcessTimes(process.as_raw_handle(), &mut born, &mut ended, &mut kernel, &mut user) }).ok()?;
+        Some((u64::from(born.dwHighDateTime) << 32) | u64::from(born.dwLowDateTime))
+    }
+
+    /// The process `name` that `parent` starts, never older (R20.96).
     pub fn child_of(parent: u32, name: &str, wait: Duration) -> io::Result<u32> {
+        let born = created(parent).ok_or_else(|| io::Error::other(format!("{parent}'s start time is unread")))?;
         let deadline = Instant::now() + wait;
         while Instant::now() < deadline {
             let snapshot = owned(unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) })?;
@@ -148,7 +161,8 @@ mod probe {
             loop {
                 let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
                 let exe = String::from_utf16_lossy(&entry.szExeFile[..len]);
-                if entry.th32ParentProcessID == parent && exe.eq_ignore_ascii_case(name) {
+                let ours = || created(entry.th32ProcessID).is_some_and(|child| child >= born);
+                if entry.th32ParentProcessID == parent && exe.eq_ignore_ascii_case(name) && ours() {
                     return Ok(entry.th32ProcessID);
                 }
                 if unsafe { Process32NextW(snapshot.as_raw_handle(), &mut entry) } == 0 {
