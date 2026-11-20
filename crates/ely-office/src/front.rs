@@ -181,8 +181,8 @@ impl<H: Host> Core<H> {
         Some((registry, running, self.ended(id)))
     }
 
-    /// Whether load `id` was dropped.
-    pub(crate) fn dropped(&self, id: u64) -> bool {
+    /// Whether load `id` was dropped and not yet let go.
+    pub fn dropped(&self, id: u64) -> bool {
         self.park.dropped.iter().any(|(of, _)| *of == id)
     }
 

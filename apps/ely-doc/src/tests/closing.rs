@@ -36,6 +36,21 @@ fn hold(worker: &Arc<Mutex<ely_lok::Worker>>) -> mpsc::Sender<()> {
     release
 }
 
+/// Steps until `done`; past ten seconds, `what` never happened.
+#[track_caller]
+fn until(cx: &TestAppContext, what: &str, done: impl Fn(&gpui::App) -> bool) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
+        if !cx.executor().tick() {
+            cx.executor().advance_clock(Duration::from_millis(20));
+        }
+        if cx.update(|app| done(app)) {
+            return;
+        }
+    }
+    panic!("{what} never happened");
+}
+
 fn worker(cx: &mut TestAppContext, docs: &Entity<Docs>) -> Arc<Mutex<ely_lok::Worker>> {
     cx.update(|app| Arc::clone(&docs.read(app).core.worker))
 }
@@ -136,7 +151,7 @@ fn a_closed_load_lets_go_and_keeps_the_engine() {
     cx.run_until_parked();
     assert!(cx.update(|app| docs.read(app).core.shared.get().stopped.is_none()), "the engine stays");
     drop(release);
-    cx.run_until_parked();
+    until(&cx, "the closed load's end", |app| !docs.read(app).core.dropped(id));
     let tabs = cx.update(|app| docs.read(app).core.tabs.len());
     assert_eq!(tabs, 0, "the closed load opens nothing");
     // The same engine opens the next file.
@@ -158,7 +173,8 @@ fn a_launch_tab_closed_before_its_turn_closes_the_early_load() {
     let id = cx.update(|app| docs.read(app).core.loading[0].0);
     with_window(&mut cx, &docs, |docs, window, cx| docs.request_close(id, After::Tab, window, cx));
     drop(release);
-    cx.run_until_parked();
+    // The skip claims and closes under one worker lock.
+    until(&cx, "the skip's claim of the early load", |_| ely_office::lok::test_early_doc().is_none());
     let worker = worker(&mut cx, &docs);
     assert!(early.size(&mut worker.lock().expect("the worker")).is_err(), "the engine let it go");
 }

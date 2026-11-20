@@ -451,6 +451,12 @@ pub fn test_load_early(worker: &Arc<Mutex<Worker>>, path: &Path) -> Doc {
     early::doc().expect("the early load")
 }
 
+/// The early load's document, while one waits.
+#[cfg(feature = "test-support")]
+pub fn test_early_doc() -> Option<Doc> {
+    early::doc()
+}
+
 /// A worker stopped, then its profile freed, at thread end.
 #[cfg(feature = "test-support")]
 pub fn test_worker(install: &Path) -> (Arc<Mutex<Worker>>, Option<Stop>) {
