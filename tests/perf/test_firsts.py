@@ -29,15 +29,52 @@ class Opened(unittest.TestCase):
             with open(log, "w") as file:
                 file.write(f"{old}ElyDoc 0.1.15 started\n{old}opened doc.docx\n{old}lok: first tile drawn\n")
                 file.write(f"{now}ElyDoc 0.1.16 started\n{now}opened doc.docx\n{now}lok: first tile drawn\n")
+            with open(os.path.join(folder, "instance.door"), "w") as file:
+                file.write("50123 4242 00ff\n")
 
         run.HOST = unittest.mock.Mock()
         with unittest.mock.patch.object(firsts, "log_of", lambda slug: log), \
                 unittest.mock.patch.object(firsts, "launcher", lambda slug, path: []), \
                 unittest.mock.patch.object(firsts.subprocess, "Popen", start), \
                 unittest.mock.patch.object(firsts, "TIMEOUT_S", 5):
-            took, version = firsts.opened("ely-doc", "/tmp/doc.docx")
+            took, version, pid = firsts.opened("ely-doc", "/tmp/doc.docx")
         self.assertEqual(version, "0.1.16")
+        self.assertEqual(pid, 4242)
         self.assertGreaterEqual(took, 0)
+
+
+class Closed(unittest.TestCase):
+    """By name would end the successor engine too."""
+
+    def closing(self, platform):
+        ran, killed = [], []
+        with unittest.mock.patch.object(sys, "platform", platform), \
+                unittest.mock.patch.object(firsts.subprocess, "run", lambda args, **_: ran.append(args)), \
+                unittest.mock.patch.object(firsts.os, "kill", lambda pid, sig: killed.append((pid, sig))), \
+                unittest.mock.patch.object(firsts, "alive", lambda pid: False), \
+                unittest.mock.patch.object(firsts.time, "sleep", lambda s: None):
+            firsts.closed("ely-doc", 4242)
+        return ran, killed
+
+    def test_windows_ends_the_app_by_its_pid_never_its_name(self):
+        ran, killed = self.closing("win32")
+        self.assertEqual(ran, [["taskkill", "/pid", "4242", "/f"]])
+        self.assertEqual(killed, [])
+
+    def test_unix_signals_the_app_s_pid_and_runs_no_pkill(self):
+        ran, killed = self.closing("linux")
+        self.assertEqual(ran, [])
+        self.assertEqual(killed, [(4242, firsts.signal.SIGTERM)])
+
+    def test_a_door_from_before_the_open_is_no_pid(self):
+        folder = tempfile.mkdtemp()
+        door = os.path.join(folder, "instance.door")
+        with open(door, "w") as file:
+            file.write("50123 4242 00ff\n")
+        os.utime(door, (1, 1))
+        with unittest.mock.patch.object(firsts, "log_of", lambda slug: os.path.join(folder, "ely.log")):
+            with self.assertRaisesRegex(RuntimeError, "no door written since this open"):
+                firsts.app_pid("ely-doc", 10_000_000)
 
 
 class Office(unittest.TestCase):
@@ -53,8 +90,8 @@ class Office(unittest.TestCase):
         def broken(program, path):
             raise RuntimeError(f"{program}: no window titled x")
 
-        with unittest.mock.patch.object(firsts, "opened", lambda slug, path: (100, "0.1.16")), \
-                unittest.mock.patch.object(firsts, "closed", lambda exe: None), \
+        with unittest.mock.patch.object(firsts, "opened", lambda slug, path: (100, "0.1.16", 4242)), \
+                unittest.mock.patch.object(firsts, "closed", lambda slug, pid: None), \
                 unittest.mock.patch.object(firsts, "CASES", [("ely-doc", "doc.docx", lambda path: None)]), \
                 unittest.mock.patch.object(firsts.bench, "write", write), \
                 unittest.mock.patch.object(firsts.bench, "machine", lambda: {}), \

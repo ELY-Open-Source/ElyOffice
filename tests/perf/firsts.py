@@ -6,6 +6,7 @@ import ctypes
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -86,17 +87,57 @@ def opened(slug, path):
             if version is None:
                 raise RuntimeError(f"{slug}: no start line naming a version in {log}")
             run.HOST.stopped(lines)
-            return run.logged_at(tile) - began, version
+            return run.logged_at(tile) - began, version, app_pid(slug, began)
     raise RuntimeError(f"{slug}: no first tile of {name} in {TIMEOUT_S} s; log {log}")
 
 
-def closed(exe):
-    """Ends the app, never its idle engine."""
+def app_pid(slug, began):
+    """The running app's pid, from the door it opened."""
+    door = os.path.join(os.path.dirname(log_of(slug)), "instance.door")
+    # A killed app leaves its door; older is stale.
+    if not os.path.exists(door) or os.path.getmtime(door) * 1000 < began - 1000:
+        raise RuntimeError(f"{slug}: no door written since this open in {door}")
+    with open(door, encoding="utf-8") as file:
+        return int(file.read().split()[1])
+
+
+def closed(slug, pid):
+    """Ends the app by its pid; its engines stay."""
     if sys.platform == "win32":
-        subprocess.run(["taskkill", "/im", exe + ".exe", "/f"], capture_output=True, creationflags=drive.QUIET)
+        subprocess.run(["taskkill", "/pid", str(pid), "/f"], capture_output=True, creationflags=drive.QUIET)
     else:
-        subprocess.run(["pkill", "-x", exe], capture_output=True)
+        os.kill(pid, signal.SIGTERM)
+    until = time.monotonic() + TIMEOUT_S
+    while alive(pid):
+        if time.monotonic() > until:
+            raise RuntimeError(f"{slug}: pid {pid} still runs {TIMEOUT_S} s after it was ended")
+        time.sleep(0.05)
+    # The next open must not race this exit.
     time.sleep(2)
+
+
+def alive(pid):
+    if sys.platform == "win32":
+        kernel32 = ctypes.windll.kernel32
+        # SYNCHRONIZE: enough to wait on it.
+        handle = kernel32.OpenProcess(0x00100000, False, pid)
+        if not handle:
+            return False
+        try:
+            return kernel32.WaitForSingleObject(handle, 0) != 0
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        # Reaps it when it is our child.
+        if os.waitpid(pid, os.WNOHANG)[0] == pid:
+            return False
+    except ChildProcessError:
+        pass
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
 
 
 def titled(base):
@@ -149,8 +190,8 @@ def main():
         for slug, name, make in CASES:
             path = os.path.join(work, name)
             make(path)
-            took, version = opened(slug, path)
-            closed(slug)
+            took, version, pid = opened(slug, path)
+            closed(slug, pid)
             versions.add(version)
             rows.append(("PERF-01", f"{run.APPS[slug]} {name} first open after {args.when}", [took], None))
         if len(versions) != 1:
