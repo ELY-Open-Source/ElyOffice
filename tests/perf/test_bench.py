@@ -278,6 +278,17 @@ class Exiting(drive.Host):
 
 
 class Private(unittest.TestCase):
+    def test_macos_reads_the_footprint_ledger_not_resident(self):
+        def rusage(pid, flavor, info):
+            # rusage_info_v2 in uint64s: uuid 0-1, ..., resident 8, footprint 9.
+            for at in range(len(info._obj)):
+                info._obj[at] = (at + 1) << 20
+            return 0
+
+        host = drive.Mac.__new__(drive.Mac)
+        host.libsystem = types.SimpleNamespace(proc_pid_rusage=rusage)
+        self.assertEqual(host.private_kb(1), 10 << 10, "ri_phys_footprint, in KiB")
+
     def test_a_child_gone_before_its_read_is_left_out(self):
         self.assertEqual(Exiting().private(1), {1: 100})
 

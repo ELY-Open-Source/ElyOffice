@@ -141,7 +141,7 @@ class Mac(Host):
     libsystem = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True) if sys.platform == "darwin" else None
 
     def private_kb(self, pid):
-        # rusage_info_v2's phys_footprint counts compressed and swapped pages.
+        # xnu task.c: footprint keeps compressed pages, even paged out.
         info = (ctypes.c_uint64 * 32)()
         if self.libsystem.proc_pid_rusage(pid, 2, ctypes.byref(info)):
             raise OSError(ctypes.get_errno(), f"proc_pid_rusage for process {pid} failed")
