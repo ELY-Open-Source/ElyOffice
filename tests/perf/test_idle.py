@@ -26,7 +26,7 @@ class Gate(unittest.TestCase):
         reads = iter([before, before, after])
         argv = ["idle.py", ROOT, "--seconds", "0", "--settle", "0"]
         with unittest.mock.patch.object(idle, "RECORD", record.name), \
-                unittest.mock.patch.dict(idle.__dict__, {"linux": lambda: next(reads), "windows": lambda: next(reads)}), \
+                unittest.mock.patch.dict(idle.__dict__, {"linux": lambda root: next(reads), "windows": lambda root: next(reads)}), \
                 unittest.mock.patch.object(sys, "platform", platform), \
                 unittest.mock.patch.object(sys, "argv", argv):
             try:
@@ -79,18 +79,39 @@ class Gate(unittest.TestCase):
 
 
 class Ours(unittest.TestCase):
-    WORKER = b"worker --idle idle-ely-doc-0123456789abcdef"
+    WORKER = engine("ely-doc", 0)[1].encode()
 
     def test_a_worker_line_reads_strictly(self):
-        self.assertEqual(idle.ours(self.WORKER + " Größe".encode(), "/proc/1/cmdline"), self.WORKER.decode() + " Größe")
+        self.assertEqual(idle.ours(self.WORKER + " Größe".encode(), ROOT, "/proc/1/cmdline"), self.WORKER.decode() + " Größe")
 
     def test_a_bad_byte_in_a_worker_line_fails_naming_where(self):
         with self.assertRaises(RuntimeError) as said:
-            idle.ours(self.WORKER + b" \x93", "/proc/7/cmdline")
+            idle.ours(self.WORKER + b" \x93", ROOT, "/proc/7/cmdline")
         self.assertIn("/proc/7/cmdline: an idle worker's command line is not UTF-8", str(said.exception))
 
     def test_another_process_is_never_decoded(self):
-        self.assertIsNone(idle.ours(b"someone else \x93\xff", "/proc/8/cmdline"))
+        self.assertIsNone(idle.ours(b"someone else \x93\xff", ROOT, "/proc/8/cmdline"))
+
+    def test_the_marker_alone_is_not_ours(self):
+        """R20.92 review 1's probe: no profile under the root."""
+        self.assertIsNone(idle.ours(b"unrelated --idle idle-ely-doc-0123456789abcdef \xff", ROOT, "probe"))
+
+    def test_another_root_is_not_ours(self):
+        other = engine("ely-doc", 0)[1].replace(ROOT, "/elsewhere").encode()
+        self.assertIsNone(idle.ours(other + b" \xff", ROOT, "probe"))
+
+    def test_a_marker_naming_no_app_of_ours_is_not_ours(self):
+        line = self.WORKER.replace(b"ely-doc", b"ely-pdf")
+        self.assertIsNone(idle.ours(line + b" \xff", ROOT, "probe"))
+
+    def test_windows_keeps_only_our_workers(self):
+        rows = [{"ProcessId": 10, "CommandLine": self.WORKER.decode(), "WorkingSetSize": 2**20},
+                {"ProcessId": 11, "CommandLine": "unrelated --idle idle-ely-doc-0123456789abcdef", "WorkingSetSize": 2**20}]
+        said = unittest.mock.Mock(stdout=json.dumps(rows))
+        k32 = unittest.mock.Mock(**{"OpenProcess.return_value": 1, "QueryProcessCycleTime.return_value": 1})
+        with unittest.mock.patch.object(idle.child, "run", return_value=said), \
+                unittest.mock.patch.object(idle.ctypes, "WinDLL", return_value=k32, create=True):
+            self.assertEqual([row[0] for row in idle.windows(ROOT)], [10])
 
 
 if __name__ == "__main__":

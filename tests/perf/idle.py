@@ -26,9 +26,11 @@ CYCLE_SLACK = 2
 IDLE_RAW = re.compile(IDLE.pattern.encode())
 
 
-def ours(raw, where):
-    """A worker's command line, strictly; others' never decoded."""
-    if not IDLE_RAW.search(raw):
+def ours(raw, root, where):
+    """Our worker under `root`, decoded strictly; others never are."""
+    found = IDLE_RAW.search(raw)
+    app = found.group(1).decode("ascii") if found else None
+    if app not in APPS or os.fsencode(os.path.join(root, app, "lok-profile")) not in raw:
         return None
     try:
         return raw.decode("utf-8")
@@ -36,12 +38,12 @@ def ours(raw, where):
         raise RuntimeError(f"{where}: an idle worker's command line is not UTF-8: {bad}") from bad
 
 
-def linux():
+def linux(root):
     """Pid, command, live threads' ns, resident MB, thread ids."""
     for pid in filter(str.isdigit, os.listdir("/proc")):
         try:
             with open(f"/proc/{pid}/cmdline", "rb") as file:
-                line = ours(file.read().replace(b"\0", b" "), f"/proc/{pid}/cmdline")
+                line = ours(file.read().replace(b"\0", b" "), root, f"/proc/{pid}/cmdline")
             if line is None:
                 continue
             ran, tasks = 0, frozenset(os.listdir(f"/proc/{pid}/task"))
@@ -62,13 +64,13 @@ class Usage(ctypes.Structure):
         "started", "exited")]
 
 
-def mac():
+def mac(root):
     """Pid, command line, mach time units run, resident MB."""
     proc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
     rows = subprocess.run(["ps", "-A", "-o", "pid=,command="], capture_output=True, check=True).stdout
     for row in rows.splitlines():
         pid, raw = row.split(None, 1)
-        line = ours(raw, "ps -A")
+        line = ours(raw, root, "ps -A")
         if line is None:
             continue
         usage = Usage()
@@ -77,7 +79,7 @@ def mac():
         yield int(pid), line, usage.user + usage.system, usage.resident / 2**20, None
 
 
-def windows():
+def windows(root):
     """Pid, command line, CPU cycles, working set MB."""
     # The pipe gets UTF-8, not the console code page.
     query = ("[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); "
@@ -88,6 +90,8 @@ def windows():
     k32 = ctypes.WinDLL("kernel32", use_last_error=True)
     k32.OpenProcess.restype = ctypes.c_void_p
     for row in rows if isinstance(rows, list) else [rows]:
+        if ours(row["CommandLine"].encode("utf-8"), root, "Win32_Process") is None:
+            continue
         # PROCESS_QUERY_LIMITED_INFORMATION
         handle = k32.OpenProcess(0x1000, False, row["ProcessId"])
         if not handle:
@@ -113,13 +117,11 @@ def engines(root):
     """Each app's engine under `root`: pid, CPU, MB, threads."""
     read = {"linux": linux, "darwin": mac, "win32": windows}[sys.platform]
     found = {}
-    for pid, line, used, mb, tasks in read():
-        match = IDLE.search(line)
-        app = match.group(1) if match else None
-        if app in APPS and os.path.join(root, app, "lok-profile") in line:
-            if app in found:
-                raise RuntimeError(f"two idle engines for {app}: {found[app][0]}, {pid}")
-            found[app] = (pid, used, mb, tasks)
+    for pid, line, used, mb, tasks in read(root):
+        app = IDLE.search(line).group(1)
+        if app in found:
+            raise RuntimeError(f"two idle engines for {app}: {found[app][0]}, {pid}")
+        found[app] = (pid, used, mb, tasks)
     missing = [app for app in APPS if app not in found]
     if missing:
         raise RuntimeError(f"no idle engine for {', '.join(missing)} under {root}")
