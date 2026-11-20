@@ -66,6 +66,9 @@ class Host:
     def git(self):
         return os.environ.get("ELY_GIT") or os.path.join(ROOT, "engines", "git", "bin", "git")
 
+    def image(self, pid):
+        return sh("ps", "-o", "comm=", "-p", str(pid)).strip()
+
     def lingering(self, marker):
         return subprocess.run(["pgrep", "-f", marker], capture_output=True).returncode == 0
 
@@ -338,6 +341,9 @@ class Windows(Host):
 
     def processes(self):
         return lineage.processes(self.k32)
+
+    def image(self, pid):
+        return lineage.image(self.k32, pid)
 
     def pids(self, root):
         return lineage.descendants(root, self.processes(), lambda pid: lineage.created(self.k32, pid))

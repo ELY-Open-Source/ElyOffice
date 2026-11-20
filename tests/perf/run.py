@@ -164,15 +164,29 @@ class App:
         HOST.stopped(self.lines())
         family = HOST.pids(self.process.pid)
         # A wrong tree once ended the bench itself, unlogged.
-        if family & {os.getpid(), os.getppid()}:
-            raise RuntimeError(f"{self.slug}: its process tree {sorted(family)} holds the bench "
-                               f"({os.getpid()}) or its parent ({os.getppid()}); nothing was killed")
+        ours = family & {os.getpid(), os.getppid()}
+        if ours:
+            raise RuntimeError(f"{self.slug}: its process tree {sorted(family)} holds the bench or its parent: "
+                               f"{self.named(ours)}; nothing was killed")
+        denied = []
         for pid in family:
             try:
                 os.kill(pid, 9)
-            except OSError:
+            except ProcessLookupError:
                 pass
+            except PermissionError:
+                denied.append(pid)
+            except OSError as error:
+                # ERROR_INVALID_PARAMETER: the process already ended.
+                if getattr(error, "winerror", None) != 87:
+                    raise
+        # Ours always ends, so a refusal means a wrong tree.
+        if denied:
+            raise RuntimeError(f"{self.slug}: ending its process tree was refused for {self.named(denied)}")
         self.process.wait()
+
+    def named(self, pids):
+        return ", ".join(f"{pid} ({HOST.image(pid)})" for pid in sorted(pids))
 
 
 def stop_engines(work):

@@ -49,14 +49,15 @@ class Stopping(unittest.TestCase):
         app = object.__new__(run.App)
         app.slug, app.lines = "ely-doc", lambda: []
         app.process = types.SimpleNamespace(pid=912, wait=lambda: 0)
-        host = types.SimpleNamespace(stopped=lambda lines: None, pids=lambda pid: family)
+        names = {912: "ely-doc.exe", 11900: "ely-lok-worker.exe", 388: "wininit.exe", os.getpid(): "python.exe"}
+        host = types.SimpleNamespace(stopped=lambda lines: None, pids=lambda pid: family, image=names.get)
         return app, host
 
     def test_a_tree_holding_the_bench_kills_nothing_and_says_so(self):
         for bench in [os.getpid(), os.getppid()]:
             app, host = self.app({912, 11900, bench})
             with unittest.mock.patch.object(run, "HOST", host), unittest.mock.patch.object(run.os, "kill") as kill:
-                with self.assertRaisesRegex(RuntimeError, "holds the bench"):
+                with self.assertRaisesRegex(RuntimeError, rf"holds the bench or its parent: {bench} "):
                     app.stop()
             kill.assert_not_called()
 
@@ -65,6 +66,29 @@ class Stopping(unittest.TestCase):
         with unittest.mock.patch.object(run, "HOST", host), unittest.mock.patch.object(run.os, "kill") as kill:
             app.stop()
         self.assertEqual(sorted(call.args for call in kill.call_args_list), [(912, 9), (11900, 9)])
+
+    def test_a_refused_kill_names_the_process_after_ending_the_rest(self):
+        app, host = self.app({912, 11900, 388})
+        refuse = lambda pid, signal: (_ for _ in ()).throw(PermissionError(13, "denied")) if pid == 388 else None
+        with unittest.mock.patch.object(run, "HOST", host), unittest.mock.patch.object(run.os, "kill", side_effect=refuse) as kill:
+            with self.assertRaisesRegex(RuntimeError, r"refused for 388 \(wininit.exe\)$"):
+                app.stop()
+        self.assertEqual(sorted(call.args[0] for call in kill.call_args_list), [388, 912, 11900])
+
+    def test_a_process_that_already_ended_passes_and_other_errors_raise(self):
+        ended = OSError(22, "gone")
+        ended.winerror = 87
+        other = OSError(22, "odd")
+        other.winerror = 6
+        for error, fails in [(ProcessLookupError(3, "gone"), False), (ended, False), (other, True)]:
+            app, host = self.app({912, 11900})
+            kill = lambda pid, signal, error=error: (_ for _ in ()).throw(error) if pid == 11900 else None
+            with unittest.mock.patch.object(run, "HOST", host), unittest.mock.patch.object(run.os, "kill", side_effect=kill):
+                if fails:
+                    with self.assertRaises(OSError):
+                        app.stop()
+                else:
+                    app.stop()
 
 
 if __name__ == "__main__":

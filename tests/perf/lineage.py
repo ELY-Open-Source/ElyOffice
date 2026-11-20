@@ -11,6 +11,16 @@ def failed(what, pid):
 
 def processes(k32):
     """(pid, parent) for every process, from one snapshot."""
+    return [(pid, parent) for pid, parent, _ in listing(k32)]
+
+
+def image(k32, pid):
+    """`pid`'s executable name, or None if it is gone."""
+    return next((exe for each, _, exe in listing(k32) if each == pid), None)
+
+
+def listing(k32):
+    """(pid, parent, exe) for every process, from one snapshot."""
 
     class Entry(ctypes.Structure):
         _fields_ = [("size", ctypes.c_ulong), ("usage", ctypes.c_ulong), ("pid", ctypes.c_ulong),
@@ -27,7 +37,7 @@ def processes(k32):
     try:
         more = k32.Process32FirstW(ctypes.c_void_p(snap), ctypes.byref(entry))
         while more:
-            pairs.append((entry.pid, entry.parent))
+            pairs.append((entry.pid, entry.parent, entry.exe))
             more = k32.Process32NextW(ctypes.c_void_p(snap), ctypes.byref(entry))
         # Only ERROR_NO_MORE_FILES ends a whole list.
         if ctypes.get_last_error() != NO_MORE_FILES:
