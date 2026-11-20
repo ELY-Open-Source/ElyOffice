@@ -40,6 +40,10 @@ code ""
 list "$row"
 commit "one site"
 run || fail "the listed site failed: $said"
+# Code that does not compile shows the compiler's own error.
+code 'pub fn broken() -> u8 { "text" }'
+! run || fail "uncompilable code passed"
+case $said in *"error[E0308]: mismatched types"*"src/lib.rs:4:"*) ;; *) fail "the compiler's error was not shown: $said" ;; esac
 # A runtime module named like a build script counts.
 printf 'pub fn b(x: Option<u8>) -> u8 {\n    x.expect("runtime")\n}\n' >"$work/src/build.rs"
 code 'pub mod build;'
