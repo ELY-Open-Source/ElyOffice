@@ -171,7 +171,8 @@ mkdir -p "$odd"
 printf '#!/bin/sh\necho "$@" >"%s/launched"\n' "$work" >"$odd/doc.AppImage"
 chmod +x "$odd/doc.AppImage"
 run "$odd/doc.AppImage" ely-doc >/dev/null
-XDG_DATA_HOME=$home/.local/share dbus-run-session -- gio launch "$home/.local/share/applications/ely-doc.desktop" /x/d.docx 2>>"$work/said" ||
+# Local files only: no gvfs daemons outlive the bus.
+XDG_DATA_HOME=$home/.local/share GIO_USE_VFS=local dbus-run-session -- gio launch "$home/.local/share/applications/ely-doc.desktop" /x/d.docx 2>>"$work/said" ||
   fail "gio cannot launch the item: $(tail -n 1 "$work/said")"
 for _ in $(seq 50); do [ -s "$work/launched" ] && break; sleep 0.1; done
 [ "$(cat "$work/launched" 2>/dev/null)" = "ely-doc /x/d.docx" ] || fail "the item did not start $odd/doc.AppImage: $(grep Exec "$home/.local/share/applications/ely-doc.desktop")"

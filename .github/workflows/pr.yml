@@ -56,5 +56,12 @@ jobs:
         run: rustup target add x86_64-pc-windows-msvc aarch64-apple-darwin && tests/scripts/media-targets.sh
       - name: vendor's crates pass their own tests
         run: sudo apt-get install -y -q dbus-daemon && dbus-run-session -- tests/scripts/vendor-tests.sh
+      - name: The AppImage's AppRun, against no user's systemd
+        run: |
+          sudo apt-get install -y -q libglib2.0-bin dbus-daemon desktop-file-utils
+          run=$(mktemp -d)
+          out=$(env -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="$run" GIO_USE_VFS=local tests/scripts/linux-apprun.sh)
+          echo "$out"
+          ! grep -q '^SKIP' <<<"$out"
       - name: Tests that need no engine
         run: ELY_GIT=$(command -v git) cargo test $NO_ENGINES
