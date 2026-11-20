@@ -79,15 +79,27 @@ class Verdicts(unittest.TestCase):
     def test_a_leak_on_the_first_close_fails(self):
         before = collections.Counter({("REG", "/tmp/a"): 1})
         now = before + collections.Counter({("CHR", "/dev/null"): 1})
-        with self.assertRaisesRegex(RuntimeError, "leaves handles"):
-            cycles.handles_kept("app", before, now, 1, MAC)
+        with unittest.mock.patch.object(cycles, "SETTLE_S", 0.3), self.assertRaisesRegex(RuntimeError, "leaves handles"):
+            cycles.handles_kept("app", before, now, 1, MAC, lambda: now)
+
+    def test_a_handle_that_closes_within_the_wait_passes_one_that_stays_fails(self):
+        # configmgr writes registrymodifications.xcu through a temp file.
+        before = collections.Counter({("fd", "/p/registrymodifications.xcu"): 1})
+        now = before + collections.Counter({("fd", "/p/user/h2gxTp"): 1})
+        reads = iter([now, now, before])
+        cycles.handles_kept("app", before, now, 264, drive.Linux.system, lambda: next(reads))
+        with unittest.mock.patch.object(cycles, "SETTLE_S", 0.3), \
+                self.assertRaisesRegex(RuntimeError, r"leaves handles 0.3 s on: \[\('fd', '/p/user/h2gxTp'\)\]"):
+            cycles.handles_kept("app", before, now, 264, drive.Linux.system, lambda: now)
 
     def test_an_unnamed_socket_in_flight_is_left_to_the_trend(self):
         # A background sync's bus call, as ElyMail's on Linux.
         before = collections.Counter({("fd", "socket"): 30})
-        cycles.handles_kept("app", before, before + collections.Counter({("fd", "socket"): 1}), 123, drive.Linux.system)
-        with self.assertRaisesRegex(RuntimeError, "leaves handles"):
-            cycles.handles_kept("app", before, before + collections.Counter({("fd", "/tmp/kept"): 1}), 1, drive.Linux.system)
+        now = before + collections.Counter({("fd", "socket"): 1})
+        cycles.handles_kept("app", before, now, 123, drive.Linux.system, lambda: now)
+        kept = before + collections.Counter({("fd", "/tmp/kept"): 1})
+        with unittest.mock.patch.object(cycles, "SETTLE_S", 0.3), self.assertRaisesRegex(RuntimeError, "leaves handles"):
+            cycles.handles_kept("app", before, kept, 1, drive.Linux.system, lambda: kept)
 
     def test_a_memory_climb_names_the_process_that_grew(self):
         # The engine worker grew; the app did not.
@@ -97,7 +109,7 @@ class Verdicts(unittest.TestCase):
     def test_system_resources_pass_and_their_count_must_settle(self):
         before = collections.Counter({("REG", "/tmp/a"): 1})
         font = collections.Counter({("REG", "/System/Library/Fonts/SFNSItalic.ttf"): 1})
-        cycles.handles_kept("app", before, before + font, 1, MAC)
+        cycles.handles_kept("app", before, before + font, 1, MAC, lambda: before + font)
         # A driver opening its device late, then flat.
         cycles.steady("app", "handles", [37] * 2 + [43] * 148)
         with self.assertRaisesRegex(RuntimeError, "took the handles"):

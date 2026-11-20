@@ -29,14 +29,22 @@ def counted(lines, pattern):
 
 # Anonymous kinds, judged by trend: a sync may hold one.
 UNNAMED = ("socket", "pipe")
+# How long a new named handle may take to close.
+SETTLE_S = 5
 
 
-def handles_kept(who, before, now, cycle, system):
-    """Named handles past baseline: only `system` ones."""
+def handles_kept(who, before, now, cycle, system, again):
+    """Named handles past baseline that stay; `system` ones pass."""
     # Read-only system resources load on first use.
-    left = sorted(handle for handle in now - before if not handle[1].startswith(system) and handle[1] not in UNNAMED)
+    named = lambda handles: sorted(handle for handle in handles - before
+                                   if not handle[1].startswith(system) and handle[1] not in UNNAMED)
+    left, until = named(now), time.monotonic() + SETTLE_S
+    # The kernel's config write passes through a temp file.
+    while left and time.monotonic() < until:
+        time.sleep(0.1)
+        left = named(again())
     if left:
-        raise RuntimeError(f"{who}: cycle {cycle} leaves handles: {left}")
+        raise RuntimeError(f"{who}: cycle {cycle} leaves handles {SETTLE_S} s on: {left}")
 
 
 def steady(who, what, counts, slack=0):
@@ -221,7 +229,7 @@ def cycles(work, recipe):
             since = one(app, recipe, n, first)
             now = app.handles()
             if run.HOST.system is not None:
-                handles_kept(recipe.slug, before, now, n, run.HOST.system)
+                handles_kept(recipe.slug, before, now, n, run.HOST.system, app.handles)
             families.append(app.private())
             seen.append((sum(families[-1].values()) / 1024, sum(now.values()), recipe.live(app, since)))
             kept.append(unnamed(now))
