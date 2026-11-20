@@ -158,7 +158,7 @@ impl Stop {
             return Ok(());
         }
         log::info!("tree: git {} asked to stop", child.id());
-        terminate(child.id())
+        terminate(&child)
     }
 
     /// A stop over any child, for tests.
@@ -170,8 +170,8 @@ impl Stop {
 
 /// Its own session: the group is Git and its helpers.
 #[cfg(unix)]
-fn terminate(pid: u32) -> io::Result<()> {
-    let pid = libc::pid_t::try_from(pid).map_err(io::Error::other)?;
+fn terminate(child: &Child) -> io::Result<()> {
+    let pid = libc::pid_t::try_from(child.id()).map_err(io::Error::other)?;
     match unsafe { libc::kill(-pid, libc::SIGTERM) } {
         0 => Ok(()),
         _ => Err(io::Error::last_os_error()),
@@ -180,8 +180,9 @@ fn terminate(pid: u32) -> io::Result<()> {
 
 /// Ctrl+C to Git and its helpers, as Git for Windows.
 #[cfg(windows)]
-fn terminate(pid: u32) -> io::Result<()> {
-    win::stop(pid)
+fn terminate(child: &Child) -> io::Result<()> {
+    // Git's own handle: its time reads even after exit.
+    win::stop(child.id(), win::born(child)?)
 }
 
 #[cfg(test)]

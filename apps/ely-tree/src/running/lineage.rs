@@ -11,10 +11,9 @@ pub(super) struct Listed {
     pub host: bool,
 }
 
-/// `root` and descendants no older than their parents; unread ones.
-pub(super) fn descendants(root: u32, all: &[Listed]) -> (Vec<(u32, bool)>, Vec<u32>) {
-    let born = all.iter().find(|listed| listed.pid == root).and_then(|listed| listed.created);
-    let mut found = vec![(root, false, born)];
+/// `root`, born at `born`, and descendants no older; unread ones.
+pub(super) fn descendants(root: u32, born: u64, all: &[Listed]) -> (Vec<(u32, bool)>, Vec<u32>) {
+    let mut found = vec![(root, false, Some(born))];
     let mut unread = Vec::new();
     // Windows keeps dead parents' ids; ids are reused.
     loop {
@@ -69,7 +68,7 @@ mod tests {
 
     #[test]
     fn git_given_explorer_s_stale_parent_id_never_takes_explorer() {
-        let (found, unread) = descendants(6128, &incident());
+        let (found, unread) = descendants(6128, 1_000, &incident());
         assert_eq!(pids(&found), [5000, 5001, 5100, 6128]);
         assert!(found.contains(&(5001, true)), "the console host is marked: {found:?}");
         assert!(unread.is_empty(), "{unread:?}");
@@ -78,7 +77,7 @@ mod tests {
     #[test]
     fn a_child_started_in_its_parent_s_tick_counts() {
         let all = [listed(10, 1, Some(500)), listed(11, 10, Some(500))];
-        assert_eq!(pids(&descendants(10, &all).0), [10, 11]);
+        assert_eq!(pids(&descendants(10, 500, &all).0), [10, 11]);
     }
 
     #[test]
@@ -86,16 +85,17 @@ mod tests {
         let mut all = incident();
         all.push(listed(5200, 6128, None));
         all.push(listed(5300, 5200, Some(1_300)));
-        let (found, unread) = descendants(6128, &all);
+        let (found, unread) = descendants(6128, 1_000, &all);
         assert_eq!(pids(&found), [5000, 5001, 5100, 6128]);
         assert_eq!(unread, [5200]);
     }
 
     #[test]
-    fn git_s_own_unread_start_judges_no_child() {
-        let all = [listed(10, 1, None), listed(11, 10, Some(500))];
-        let (found, unread) = descendants(10, &all);
-        assert_eq!(pids(&found), [10]);
-        assert_eq!(unread, [11]);
+    fn git_gone_from_the_listing_still_judges_its_helpers() {
+        // Git exited first; its time came through its handle.
+        let all: Vec<Listed> = incident().into_iter().filter(|listed| listed.pid != 6128).collect();
+        let (found, unread) = descendants(6128, 1_000, &all);
+        assert_eq!(pids(&found), [5000, 5001, 5100, 6128]);
+        assert!(unread.is_empty(), "{unread:?}");
     }
 }

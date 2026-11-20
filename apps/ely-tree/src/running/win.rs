@@ -3,7 +3,7 @@
 use std::{
     ffi::c_void,
     io,
-    os::windows::io::{AsRawHandle as _, FromRawHandle as _, OwnedHandle},
+    os::windows::io::{AsRawHandle, FromRawHandle as _, OwnedHandle},
     sync::OnceLock,
     time::{Duration, Instant},
 };
@@ -53,11 +53,11 @@ pub fn hear() -> io::Result<()> {
         .map_err(io::Error::other)
 }
 
-/// Ctrl+C to Git and its helpers; Git cleans up.
-pub fn stop(root: u32) -> io::Result<()> {
+/// Ctrl+C to Git, born at `born`, and its helpers.
+pub fn stop(root: u32, born: u64) -> io::Result<()> {
     let routine = ctrl_routine()?;
     let mut held = Vec::new();
-    for (pid, host) in tree(root)? {
+    for (pid, host) in tree(root, born)? {
         let process = match open(pid) {
             Ok(process) => process,
             Err(error) if error.raw_os_error() == Some(ERROR_INVALID_PARAMETER as i32) => {
@@ -66,6 +66,11 @@ pub fn stop(root: u32) -> io::Result<()> {
             }
             Err(error) => return Err(error),
         };
+        // An exited Git takes no Ctrl+C; its helpers still do.
+        if unsafe { WaitForSingleObject(process.as_raw_handle(), 0) } == WAIT_OBJECT_0 {
+            log::info!("tree: git {root}'s {pid} had ended");
+            continue;
+        }
         // Its console host is no Git.
         if !host {
             interrupt(&process, routine)?;
@@ -117,7 +122,7 @@ fn ctrl_routine() -> io::Result<Routine> {
 }
 
 /// `root` and what it started; true marks a console host.
-fn tree(root: u32) -> io::Result<Vec<(u32, bool)>> {
+fn tree(root: u32, born: u64) -> io::Result<Vec<(u32, bool)>> {
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
     if snapshot == INVALID_HANDLE_VALUE {
         return Err(io::Error::last_os_error());
@@ -145,24 +150,28 @@ fn tree(root: u32) -> io::Result<Vec<(u32, bool)>> {
     if last.raw_os_error() != Some(ERROR_NO_MORE_FILES as i32) {
         return Err(last);
     }
-    let (found, unread) = descendants(root, &all);
+    let (found, unread) = descendants(root, born, &all);
     for pid in unread {
         log::warn!("tree: git {root}'s {pid} left out: a start time was unread");
     }
     Ok(found)
 }
 
-/// Start time in 100 ns ticks; None if unreadable.
+/// Start time in 100 ns ticks; readable after exit too.
+pub fn born(process: &impl AsRawHandle) -> io::Result<u64> {
+    let [mut born, mut ended, mut kernel, mut user] = [FILETIME::default(); 4];
+    // SAFETY: an open handle and four FILETIMEs.
+    checked(unsafe { GetProcessTimes(process.as_raw_handle(), &mut born, &mut ended, &mut kernel, &mut user) })?;
+    Ok((u64::from(born.dwHighDateTime) << 32) | u64::from(born.dwLowDateTime))
+}
+
+/// Start time by pid; None if gone or unopenable.
 fn created(pid: u32) -> Option<u64> {
     let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
     if process.is_null() {
         return None;
     }
-    let process = unsafe { OwnedHandle::from_raw_handle(process) };
-    let [mut born, mut ended, mut kernel, mut user] = [FILETIME::default(); 4];
-    // SAFETY: an open handle and four FILETIMEs.
-    let read = unsafe { GetProcessTimes(process.as_raw_handle(), &mut born, &mut ended, &mut kernel, &mut user) };
-    (read != 0).then(|| (u64::from(born.dwHighDateTime) << 32) | u64::from(born.dwLowDateTime))
+    born(&unsafe { OwnedHandle::from_raw_handle(process) }).ok()
 }
 
 fn open(pid: u32) -> io::Result<OwnedHandle> {
