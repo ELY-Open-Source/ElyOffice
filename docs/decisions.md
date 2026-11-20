@@ -1642,3 +1642,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 这些缺的量只记在这里与任务行，不进更新日志（用户同日定更新日志只写新功能与修复）。
 - 门：`tests/perf/baseline.py` 的 `ONLY_ON`、`EARLIER_BENCH`（只取恰为 0.1.16 的记录）与 `NO_INSTALL` 照上三条放行，并在输出里点名所用的记录；由 R20.58 落地，测试在 `tests/scripts/release-gate.sh`（见 decisions 同日 R20.58 一节与其任务行）。0.1.18 起各端又要自己的记录，除非用户另定。
 - `firsts.py` 不发输入：它只经系统打开文件、读日志、按 pid 结束应用，却借用基准的 Mac 驱动，其构造编译输入工具并把输入法切到键盘布局（退出时切回）。现 `firsts.watcher` 在 Mac 上不经那段构造（`drive.py` 已满 500 行，不改），不编译、不切换；`test_firsts.py` 的 `Watcher`：firsts 在 Mac 上建出输入部分即败，基准的驱动照旧会建。改回整套构造、或各端都走 `drive.host`，各败。此前 firsts 从未在 Mac 上跑过（两份检出都无 Mac 的装后、重启记录），未曾动过用户的输入法。
+
+## 2026-11-20 ely-login.exe 不可重现构建（R20.80，未定）
+
+- 原状：Windows 安装包的内核编号覆盖 ely-login.exe；测试机上源只差 `tasks/` 的两次构建，暂存内核只有 ely-login.exe 与编号文件不同，编号 cf9c49e8 对 b8c76f72。编号因此不能由源复算，只能对着那一份安装包核。改法待 R20.80。
