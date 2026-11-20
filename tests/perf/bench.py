@@ -223,6 +223,8 @@ def main():
     if args.redo:
         with open(args.keep, encoding="utf-8") as raw:
             kept = json.load(raw)
+        # Before any build: a bad name wastes a run.
+        known(kept, args.redo)
     cases = Cases(kept["cases"] if kept else {}, args.redo)
     want = lambda perf: not args.only or perf in args.only
     partial = bool(args.only) or set(args.apps) != set(APPS)
@@ -295,8 +297,9 @@ def main():
         shutil.rmtree(work, ignore_errors=True)
     if left:
         raise RuntimeError(f"engines outlived the run: {left}")
+    # Kept, but left out by --only or --apps.
     if set(args.redo) - cases.ran:
-        raise RuntimeError(f"no such case to redo: {sorted(set(args.redo) - cases.ran)}")
+        raise RuntimeError(f"no such case to redo here: {sorted(set(args.redo) - cases.ran)}")
     env = environment(found, partial)
     if kept:
         env = redone(kept["env"], env, args.redo)
@@ -316,6 +319,13 @@ def table(cases):
     rows = [row for case in cases.done.values() for row in case.get("rows", [])]
     held = [one for case in cases.done.values() for one in case.get("held", [])]
     return rows, held
+
+
+def known(kept, redo):
+    """Refuses names the kept run has no case for."""
+    unknown = sorted(set(redo) - set(kept["cases"]))
+    if unknown:
+        raise RuntimeError(f"no such case to redo: {unknown}; --keep has {sorted(kept['cases'])}")
 
 
 def kept_trace(keep, paging):

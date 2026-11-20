@@ -400,6 +400,26 @@ class Windows(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "same builds and samples"):
                 bench.matched(env, builds, found)
 
+    def test_a_redo_naming_an_unknown_case_measures_nothing(self):
+        kept = {"env": {"date": "2000-01-01", "machine": "Test"}, "cases": {"PERF-01 ely-doc": {"rows": []}}}
+        with tempfile.TemporaryDirectory() as out:
+            keep = os.path.join(out, "raw.json")
+            with open(keep, "w", encoding="utf-8") as raw:
+                json.dump(kept, raw)
+            argv = ["bench.py", "--keep", keep, "--out", out, "--redo", "PERF-01 ely-doc", "PERF-01 ely-nope"]
+            touched = []
+            with unittest.mock.patch.object(sys, "argv", argv), \
+                 unittest.mock.patch.object(bench.drive, "sh", lambda *a, **k: touched.append(("build", a))), \
+                 unittest.mock.patch.object(bench.drive, "host", lambda *a: touched.append(("host", a))), \
+                 unittest.mock.patch.object(bench.drive, "frames_apart", lambda *a: touched.append(("frames", a))), \
+                 unittest.mock.patch.object(bench.Cases, "run", lambda *a, **k: touched.append(("case", a[1]))):
+                with self.assertRaisesRegex(RuntimeError, r"no such case to redo: \['PERF-01 ely-nope'\]"):
+                    bench.main()
+            self.assertEqual(touched, [], "nothing built or measured")
+            with open(keep, encoding="utf-8") as raw:
+                self.assertEqual(json.load(raw), kept, "--keep is untouched")
+            self.assertEqual(os.listdir(out), ["raw.json"])
+
     def test_a_redo_runs_only_its_case_after_its_setup_and_prints_its_window(self):
         done = {"A": {"rows": [["P", "a", [1], None]]}, "B": {"rows": [["P", "b", [2], None]]}}
         cases, order = bench.Cases(done, ["B"]), []
