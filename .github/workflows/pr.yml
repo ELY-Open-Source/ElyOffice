@@ -57,6 +57,8 @@ jobs:
       - name: vendor's crates pass their own tests
         run: sudo apt-get install -y -q dbus-daemon && dbus-run-session -- tests/scripts/vendor-tests.sh
       - name: The AppImage's AppRun, against no user's systemd
+        # A hung apt fails here, not after the job's limit.
+        timeout-minutes: 10
         run: |
           sudo apt-get install -y -q libglib2.0-bin dbus-daemon desktop-file-utils
           run=$(mktemp -d)
