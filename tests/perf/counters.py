@@ -25,6 +25,8 @@ def mac():
 class Pdh:
     """Windows' raw memory counters, by their English names."""
 
+    # PDH_CSTATUS_VALID_DATA and PDH_CSTATUS_NEW_DATA; others are invalid.
+    VALID = (0x0, 0x1)
     NAMES = {"out": r"\Memory\Pages Output/sec", "reads": r"\Memory\Page Reads/sec", "input": r"\Memory\Pages Input/sec"}
 
     def __init__(self):
@@ -57,6 +59,8 @@ class Pdh:
         for key, handle in self.counters.items():
             raw = self.raw()
             self.check(self.pdh.PdhGetRawCounterValue(handle, None, self.ctypes.byref(raw)), f"reading {self.NAMES[key]}")
+            if raw.status not in self.VALID:
+                raise RuntimeError(f"PDH gave invalid data for {self.NAMES[key]}: status 0x{raw.status & 0xFFFFFFFF:08X}")
             pages[key] = raw.first
         # Inputs mix in file reads: swap-in is unmeasured.
         return {"in": None, "out": pages["out"] * self.page // 1024,

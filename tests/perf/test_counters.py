@@ -77,6 +77,32 @@ class Counters(unittest.TestCase):
             sampler.stop()
         self.assertEqual([(si, so) for _, si, so in taken[:3]], [(None, 0), (None, 64), (None, 0)])
 
+    def test_pdh_refuses_invalid_data_the_call_called_a_success(self):
+        import ctypes
+
+        def reader(status):
+            class Fake:
+                def PdhCollectQueryData(self, query):
+                    return 0
+
+                def PdhGetRawCounterValue(self, handle, kind, raw):
+                    raw._obj.status, raw._obj.first = status, 1234
+                    return 0
+
+            class Raw(ctypes.Structure):
+                _fields_ = [("status", ctypes.c_ulong), ("first", ctypes.c_longlong)]
+
+            pdh = counters.Pdh.__new__(counters.Pdh)
+            pdh.ctypes, pdh.raw, pdh.page, pdh.pdh, pdh.query = ctypes, Raw, 4096, Fake(), None
+            pdh.counters = {key: None for key in counters.Pdh.NAMES}
+            return pdh.read
+
+        for valid in counters.Pdh.VALID:
+            self.assertEqual(reader(valid)()["out"], 1234 * 4, f"status {valid} is data")
+        # PDH_CSTATUS_INVALID_DATA, with the call itself a success.
+        with self.assertRaisesRegex(RuntimeError, "invalid data.*0xC0000BBA"):
+            reader(0xC0000BBA)()
+
     def test_a_reader_that_fails_stops_the_run(self):
         def broken():
             raise OSError("no counters")
