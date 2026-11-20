@@ -227,6 +227,21 @@ mod tests {
     }
 
     #[test]
+    fn a_gap_drops_every_waiting_press() {
+        let at = Instant::now();
+        let later = |ms| at + Duration::from_millis(ms);
+        let mut waiting = Vec::new();
+        answered(&mut waiting, Step::Pressed("key_down", later(2)));
+        answered(&mut waiting, Step::Pressed("mouse_down", later(4)));
+        assert_eq!(answered(&mut waiting, Step::Lost), []);
+        assert!(waiting.is_empty());
+        assert_eq!(
+            answered(&mut waiting, Step::Shown(Some(later(6)), later(9))),
+            []
+        );
+    }
+
+    #[test]
     fn the_summary_reads_percentiles_and_late_frames() {
         let mut draws: Vec<_> = (1..=100).map(Duration::from_millis).collect();
         let mut lags = vec![
