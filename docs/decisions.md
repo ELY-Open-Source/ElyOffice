@@ -1671,3 +1671,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 原状：`vendor/` 的 crate 经 `[patch.crates-io]` 换入，不是工作区成员，`pr.yml` 与 `release-tests.sh` 都不编它们的测试；gpui-pre-windows 补丁 0010 的测试自 0.3.12 起编不过，无人察觉。
 - 定：不入根工作区（会把它们的开发依赖拉进应用的锁），`vendor/Cargo.toml` 另成工作区，根 `exclude` 加 `vendor`；`tests/scripts/vendor-tests.sh` 先抄应用的 `Cargo.lock` 再按平台跑，`pr.yml` 以 `dbus-run-session` 跑它。gpui-pre 自己的测试要 zed 未发布的资源，不跑；zbus 的 e2e 要 zbus_xml，不跑。
 - 余下：Windows 的 gpui-pre-windows 未跑，`release-tests.sh` 待其跑过再加。细节见 R20.73 的任务行。
+
+## 2026-11-20 帧日志以帧变脏的时刻配按下（R20.88）
+
+- 原状：`ely-ui` 的帧日志只等第一个未答的按下，一次什么都没画的点击吃掉其后按键的帧；R20.63 使软件渲染下插入点不闪后，Windows 测试机上 PERF-02 ElyMark 即败。
+- 定：按下在前台线程逐个派发，故一帧答其 dirty_at 之前的最后一个按下，更早的记为 drew nothing，之后的等下一帧。

@@ -12,7 +12,7 @@ pub(crate) fn watch(cx: &mut App) {
     const EVERY: Duration = Duration::from_secs(2);
     let mut collector = cx.foreground_journal().collector();
     cx.spawn(async move |cx: &mut gpui::AsyncApp| {
-        let mut waiting = None;
+        let mut waiting = Vec::new();
         loop {
             cx.background_executor().timer(EVERY).await;
             let drained = collector.collect_unseen();
@@ -43,8 +43,11 @@ pub(crate) fn watch(cx: &mut App) {
                     Entry::Discontinuity { .. } => Step::Lost,
                     _ => continue,
                 };
-                if let Some((kind, took)) = answered(&mut waiting, step) {
-                    log::debug!("ui: {kind} to frame {} ms", took.as_millis());
+                for (kind, took) in answered(&mut waiting, step) {
+                    match took {
+                        Some(took) => log::debug!("ui: {kind} to frame {} ms", took.as_millis()),
+                        None => log::debug!("ui: {kind} drew nothing"),
+                    }
                 }
             }
             if !draws.is_empty() {
@@ -69,29 +72,36 @@ enum Step {
     Lost,
 }
 
-/// A press, and the first frame dirtied after it.
+/// Presses a frame settles: each answered one timed, else None.
 #[cfg(any(feature = "frames", test))]
 fn answered(
-    waiting: &mut Option<(&'static str, std::time::Instant)>,
+    waiting: &mut Vec<(&'static str, std::time::Instant)>,
     step: Step,
-) -> Option<(&'static str, std::time::Duration)> {
+) -> Vec<(&'static str, Option<std::time::Duration>)> {
     match step {
         Step::Pressed(kind @ ("key_down" | "mouse_down"), at) => {
-            waiting.get_or_insert((kind, at));
-            None
+            waiting.push((kind, at));
+            Vec::new()
         }
-        Step::Pressed(..) => None,
-        // A frame already pending cannot show the press.
-        Step::Shown(Some(dirty), at) if waiting.is_some_and(|(_, pressed)| dirty >= pressed) => {
-            waiting
-                .take()
-                .map(|(kind, pressed)| (kind, at.duration_since(pressed)))
+        // Presses dispatch in turn: the last before dirty made it.
+        Step::Shown(Some(dirty), at) => {
+            let Some(last) = waiting.iter().rposition(|(_, pressed)| *pressed <= dirty) else {
+                return Vec::new();
+            };
+            let (kind, pressed) = waiting[last];
+            let mut settled: Vec<_> = waiting
+                .drain(..last)
+                .map(|(kind, _)| (kind, None))
+                .collect();
+            waiting.remove(0);
+            settled.push((kind, Some(at.duration_since(pressed))));
+            settled
         }
-        Step::Shown(..) => None,
+        Step::Pressed(..) | Step::Shown(None, _) => Vec::new(),
         // A gap may hide the frame that answered.
         Step::Lost => {
-            *waiting = None;
-            None
+            waiting.clear();
+            Vec::new()
         }
     }
 }
@@ -134,53 +144,85 @@ mod tests {
 
     use super::{Step, answered};
 
+    fn ms(n: u64) -> Option<Duration> {
+        Some(Duration::from_millis(n))
+    }
+
     #[test]
     fn a_press_is_timed_to_the_first_frame_dirtied_after_it() {
         let at = Instant::now();
         let later = |ms| at + Duration::from_millis(ms);
         let shown = |dirty, ms| Step::Shown(Some(later(dirty)), later(ms));
-        let mut waiting = None;
-        assert_eq!(
-            answered(&mut waiting, shown(0, 1)),
-            None,
-            "no press, no time"
-        );
+        let mut waiting = Vec::new();
+        assert_eq!(answered(&mut waiting, shown(0, 1)), [], "no press, no time");
         assert_eq!(
             answered(&mut waiting, Step::Pressed("key_down", later(2))),
-            None
+            []
         );
         assert_eq!(
             answered(&mut waiting, shown(1, 3)),
-            None,
+            [],
             "a frame pending before the key"
         );
         assert_eq!(
             answered(&mut waiting, Step::Shown(None, later(4))),
-            None,
+            [],
             "no dirty time"
         );
-        // A second press before the frame keeps the first.
+        // Two keys before one frame: the second made it.
         answered(&mut waiting, Step::Pressed("key_down", later(5)));
         answered(&mut waiting, Step::Pressed("mouse_move", later(6)));
-        let took = answered(&mut waiting, shown(7, 12));
-        assert_eq!(took, Some(("key_down", Duration::from_millis(10))));
+        assert_eq!(
+            answered(&mut waiting, shown(7, 12)),
+            [("key_down", None), ("key_down", ms(7))]
+        );
         assert_eq!(
             answered(&mut waiting, shown(15, 20)),
-            None,
+            [],
             "one frame answers once"
         );
         answered(&mut waiting, Step::Pressed("mouse_down", later(30)));
-        assert_eq!(answered(&mut waiting, Step::Lost), None);
+        assert_eq!(answered(&mut waiting, Step::Lost), []);
         assert_eq!(
             answered(&mut waiting, shown(35, 40)),
-            None,
+            [],
             "a gap drops the press"
         );
         answered(&mut waiting, Step::Pressed("mouse_move", later(50)));
         assert_eq!(
             answered(&mut waiting, shown(55, 60)),
-            None,
+            [],
             "a move is no press"
+        );
+    }
+
+    #[test]
+    fn a_click_that_drew_nothing_leaves_the_key_its_frame() {
+        let at = Instant::now();
+        let later = |ms| at + Duration::from_millis(ms);
+        let mut waiting = Vec::new();
+        answered(&mut waiting, Step::Pressed("mouse_down", later(2)));
+        answered(&mut waiting, Step::Pressed("key_down", later(3000)));
+        let settled = answered(&mut waiting, Step::Shown(Some(later(3001)), later(3010)));
+        assert_eq!(settled, [("mouse_down", None), ("key_down", ms(10))]);
+        assert!(waiting.is_empty());
+    }
+
+    #[test]
+    fn a_press_after_the_frame_went_dirty_waits_for_the_next() {
+        let at = Instant::now();
+        let later = |ms| at + Duration::from_millis(ms);
+        let mut waiting = Vec::new();
+        answered(&mut waiting, Step::Pressed("key_down", later(2)));
+        // Dirtied by the first key, shown after the second.
+        answered(&mut waiting, Step::Pressed("key_down", later(5)));
+        assert_eq!(
+            answered(&mut waiting, Step::Shown(Some(later(3)), later(8))),
+            [("key_down", ms(6))]
+        );
+        assert_eq!(
+            answered(&mut waiting, Step::Shown(Some(later(9)), later(14))),
+            [("key_down", ms(9))]
         );
     }
 
