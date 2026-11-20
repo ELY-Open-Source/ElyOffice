@@ -1,0 +1,6 @@
+[Unit]
+Description=My own engine through env
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env "/opt/mine/run" %i engine

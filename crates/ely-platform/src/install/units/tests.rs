@@ -31,7 +31,7 @@ fn home() -> tempfile::TempDir {
 #[test]
 fn only_an_appimage_s_unit_goes_with_its_links_and_one_reload() {
     let samples = samples();
-    assert_eq!(samples.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>(), ["appimage-0.1.16", "hand", "package"]);
+    assert_eq!(samples.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>(), ["appimage-0.1.16", "hand", "hand-env", "package"]);
     for (name, text) in samples {
         let home = home();
         let units = home.path().join(".config/systemd/user");

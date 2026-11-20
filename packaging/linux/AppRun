@@ -61,7 +61,7 @@ package=/usr/lib/systemd/user/ely-engine@.service
 reload=
 # Earlier AppImages wrote that name; only theirs go.
 shadow=$units/ely-engine@.service
-if grep -qs '^ExecStart=/usr/bin/env ' "$shadow"; then
+if grep -qsE '^ExecStart=/usr/bin/env ".*\.AppImage" %i engine$' "$shadow"; then
   while IFS='	' read -r each _; do
     [ "$(readlink "$wants/ely-engine@$each.service")" != "$shadow" ] || rm "$wants/ely-engine@$each.service"
   done <"$here/apps.tsv"

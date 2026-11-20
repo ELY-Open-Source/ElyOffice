@@ -8,9 +8,12 @@ use std::{
 /// The package's unit name; the home copy wins (systemd.unit(5)).
 pub const SHADOW: &str = "ely-engine@.service";
 
-/// Earlier AppImages started the engine through `/usr/bin/env`.
+/// AppRun's own line: `/usr/bin/env "<image>.AppImage" %i engine`.
 pub fn appimage_written(unit: &str) -> bool {
-    unit.lines().any(|line| line.starts_with("ExecStart=/usr/bin/env "))
+    unit.lines().any(|line| {
+        let quoted = line.strip_prefix("ExecStart=/usr/bin/env \"").and_then(|rest| rest.strip_suffix("\" %i engine"));
+        quoted.is_some_and(|image| image.ends_with(".AppImage"))
+    })
 }
 
 /// The user's systemd unit folder, as AppRun finds it.
