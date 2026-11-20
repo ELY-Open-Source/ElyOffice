@@ -18,7 +18,7 @@ KINDS = {None: "tests/perf/bench.py", "install": "tests/perf/firsts.py install",
 # After reboot: Windows only (the user, 2026-11-20).
 ONLY_ON = {"reboot": {"windows"}}
 # The user, 2026-11-20: these keep 0.1.16's bench record.
-EARLIER_BENCH = {("macos", "0.1.17"), ("linux", "0.1.17")}
+EARLIER_BENCH = {("macos", "0.1.17"): "0.1.16", ("linux", "0.1.17"): "0.1.16"}
 # The user, 2026-11-20: Linux 0.1.17 ships with no install record.
 NO_INSTALL = {("linux", "0.1.17")}
 
@@ -78,11 +78,9 @@ def unexplained(all_records, record):
 
 
 def earlier(all_records, system, version):
-    """This system's full bench records of versions before `version`."""
-    number = lambda text: tuple(int(part) for part in text.split("."))
+    """This system's full bench records of exactly `version`."""
     return [record for record in all_records if platform(record["env"]["machine"]) == system
-            and record["env"].get("kind") is None and record["env"].get("version")
-            and number(record["env"]["version"]) < number(version)]
+            and record["env"].get("kind") is None and record["env"].get("version") == version]
 
 
 def check(folder, version, system):
@@ -94,7 +92,7 @@ def check(folder, version, system):
         mine = [record for record in all_records if platform(record["env"]["machine"]) == system
                 and record["env"].get("version") == version and record["env"].get("kind") == kind]
         if not mine and kind is None and (system, version) in EARLIER_BENCH:
-            mine = earlier(all_records, system, version)
+            mine = earlier(all_records, system, EARLIER_BENCH[(system, version)])
             if mine:
                 print(f"baseline: {system} {version} has no bench record of its own and uses "
                       f"{os.path.basename(mine[-1]['path'])} ({mine[-1]['env']['version']}), as the user decided on 2026-11-20")

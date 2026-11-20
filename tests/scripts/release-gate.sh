@@ -144,17 +144,21 @@ grep -q "linux 0.1.17 ships with no install record" "$work/base.out" || fail "th
 record 2026-11-20 0.2.0 100 6 ''
 ! base 0.2.0 linux || fail "Linux 0.2.0 passed with no install record"
 
-# The user, 2026-11-20: macOS 0.1.17 keeps 0.1.16's bench record.
-dir=$work/earlier box=Box-Mac
-mkdir -p "$dir"
-first 2026-11-19 0.1.17 install 1000
-box=Box-Linux record 2026-11-12 0.1.16 100 6 ''
-! base 0.1.17 macos || fail "a Linux record stood in for macOS's"
-box=Box-Mac
-record 2026-11-21 0.1.18 100 6 ''
-! base 0.1.17 macos || fail "a later record stood in for 0.1.17's"
-record 2026-11-12 0.1.16 100 6 ''
-base 0.1.17 macos || fail "macOS 0.1.17 refused with 0.1.16's record: $(cat "$work/base.err")"
-grep -q "macos 0.1.17 has no bench record of its own and uses 2026-11-12-Box-Mac.md (0.1.16)" "$work/base.out" || fail "the stand-in is not said: $(cat "$work/base.out")"
-! base 0.1.18 linux || fail "a version outside the decision took an earlier record"
+# The user, 2026-11-20: 0.1.17 keeps 0.1.16's bench record, no other.
+for system in macos linux; do
+  dir=$work/earlier-$system box=Box-Mac other=Box-Linux
+  [ "$system" = macos ] || { box=Box-Linux other=Box-Mac; }
+  mkdir -p "$dir"
+  # Linux 0.1.17 has no install record either.
+  [ "$system" = linux ] || first 2026-11-19 0.1.17 install 1000
+  record 2026-11-10 0.1.15 100 6 ''
+  record 2026-11-21 0.1.18 100 6 ''
+  box=$other record 2026-11-12 0.1.16 100 6 ''
+  ! base 0.1.17 "$system" || fail "$system: an older, later or other-platform record stood in for 0.1.16's"
+  grep -q "no benchmark record of 0.1.17 on $system" "$work/base.err" || fail "$system: the refusal is not named: $(cat "$work/base.err")"
+  record 2026-11-12 0.1.16 100 6 ''
+  base 0.1.17 "$system" || fail "$system 0.1.17 refused with 0.1.16's record: $(cat "$work/base.err")"
+  grep -q "$system 0.1.17 has no bench record of its own and uses 2026-11-12-$box.md (0.1.16)" "$work/base.out" || fail "$system: the stand-in is not said: $(cat "$work/base.out")"
+  ! base 0.1.19 "$system" || fail "$system: a version outside the decision took an earlier record"
+done
 echo "release-gate: notes hold only New and Fixes; the record counts unreviewed fixes; a short gap and a slowdown each want a reason; first opens after install, and after reboot on Windows, are required; a record timed while paging is refused; the user's 0.1.17 exceptions hold and go no further"
