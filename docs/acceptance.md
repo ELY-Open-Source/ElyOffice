@@ -319,7 +319,7 @@ R20.47：R20.1 至 R20.64 逐条核对，另列暂缓的 C15（ElyAgent，用户
 | C20.2 | 延后 | 稳定性：磁盘写满、长时编辑、内核崩溃、休眠 | `tests/perf/soak.py`、`tests/perf/pause.py`；无审查 | 用户 2026-11-19 定 0.1.17 不等 R20.54（`docs/decisions.md` 同日一条），长段落的内存增长列为已知问题；Linux 8 小时整跑 480 分钟 7399 轮核对全过，但 ElyDoc worker 内存一路涨（460→967 MB）：内核两个文字缓存以整段文字为键、不计键长，修复与回归在 R20.54，C20.2 因之仍开；Mac 整跑因有人用那台 Mac 停了，不作结论；没有真休眠（Mac 不能自己醒，Windows 虚拟机不休眠），只以冻结模拟，`pause.py` 只在 Linux；只读目录行内未记 |
 | C22.2 | 过审 | `docs/qa.md`：QA-01 至 QA-28 的证据与缺口 | `docs/qa.md`；`tasks/reviews/C22.2-r2.md` PASS | 只整理，未重跑；全有证据 0 项，部分 26 项，无证据 2 项（QA-23、QA-24，ElyAgent 暂缓） |
 | C23.1 | 过审 | PRD §23 九项工程风险的证据与状态 | `docs/decisions.md` 的 C23.1 一节；`tasks/reviews/C23.1-r2.md` PASS | 只整理，未重跑；达到 0 项，部分 8 项，无 1 项（Agent 后端差异）；§23 末段缺升级后须跑哪些回归的规定 |
-| C24.1 | 过审 | 交付物：README、构建说明、已知限制、测试报告 | `README.md`、`docs/compatibility.md`；`tasks/reviews/C24.1-r2.md` PASS | Windows、Mac 的 build-libreoffice 未跑（R20.26 在重建）；Mac 的 build-git 未在独立克隆里跑；Windows、Mac 未起界面；ElyMark 的限制一条待 R20.35 换 pin 时改 |
+| C24.1 | 过审 | 交付物：README、构建说明、已知限制、测试报告 | `README.md`、`docs/compatibility.md`；`tasks/reviews/C24.1-r2.md` PASS | Windows、Mac 的 build-libreoffice 未跑（R20.26 在重建）；Mac 的 build-git 未在独立克隆里跑；Windows、Mac 未起界面（ElyMark 的那条限制已随 1868d1cc 改写、随 e287f3ce 去掉行尾隐藏单元格一项） |
 | R19.2 | 未完 | #83 之二：ElyShow 微软雅黑粗体个别字发细 | 无审查 | 未复现，等报告者的版本、显示语言与文件；补丁 0139 修了一个根因，单字发细待 R20.26 之后在中文界面上复核 |
 | R19.3 | 进行中 | 72 条 `[~]` 逐条再审 | 无审查 | 余 R15.11、R15.11c、R15.11g 三条要用 Word 复核，待 R20.26 在 Windows 结束后再审 |
 | R19.5 | 过审 | 按键到图块晚一帧：图块到前压住重画与报告 | `a_kernel_change_repaints_and_reports_once_its_shown_tiles_land`、`an_input_landing_before_its_batch_repaints_and_reports_once_its_tiles_land`；`tasks/reviews/R19.5-r2.md` PASS | 延迟的绝对值出自多带 65 部词典的内核，不能与基准记录相比，只作有无对照；每跑末尾不足 2 秒的帧未核焦点 |
