@@ -176,6 +176,16 @@ def office(program, path):
     raise RuntimeError(f"{program}: no window titled {base} in {TIMEOUT_S} s")
 
 
+def watcher(work):
+    """The host, set up for no typing, clicks or layouts."""
+    if sys.platform != "darwin":
+        return drive.host(work)
+    # Mac() compiles input tools and picks a keyboard layout.
+    host = object.__new__(drive.Mac)
+    host.work = work
+    return host
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("when", choices=["install", "reboot"])
@@ -184,7 +194,7 @@ def main():
     if args.when == "reboot" and uptime_s() > BOOTED_S:
         sys.exit(f"firsts: booted {uptime_s():.0f} s ago; reboot, then run this within {BOOTED_S} s")
     work = tempfile.mkdtemp()
-    run.HOST = drive.host(work)
+    run.HOST = watcher(work)
     try:
         rows, versions = [], set()
         for slug, name, make in CASES:

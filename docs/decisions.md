@@ -1633,3 +1633,12 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 定：只查本机以外平台的目标（本机目标每次构建都编），由 `pr.yml` 在 Ubuntu 上 `rustup target add x86_64-pc-windows-msvc aarch64-apple-darwin` 后跑；Mac、Windows 测试机不加目标。真 crate 不能交叉检查：ring 的构建脚本要目标平台的 C 头文件（Windows 要 mingw，macOS 要 Apple SDK），故留临时 crate，依赖由 `crates/ely-platform/Cargo.toml` 生成。Windows 取 msvc 不取 gnu：gnu 要 mingw 的 `dlltool`。缺目标点名 SKIP，全缺即败。
 - 测试与变异见 R20.65 的任务行。
 - 内核自己打开的 Impress 链接（R20.51）：图像映射与编辑中点到另一文本框的链接不交 Ely 的门，由内核的 SID_OPENDOC 打开，宏与脚本链接靠 `SfxObjectShell::AllowedLinkProtocolFromDocument` 拒（带宏的文档照宏模式，不带宏的问话由 worker 关掉）。根治在内核补丁 0148：LOK 下这两条路改发链接回调、编辑中同样须 Ctrl，Ely 不另设 Ctrl 规则或第二道门。0148 与 0147 一样，要三端重建共享引擎，0.1.17 发布后才入库；在此之前 R20.51 不勾，R20.77、R20.78 不进 0.1.17 的更新日志。
+
+## 2026-11-20 0.1.17 各端要哪些性能记录（R20.30）
+
+- 用户 2026-11-20：“只要做装后首开就可以”。Linux、macOS 只要基准记录与装后首开（`firsts.py install`），重启后首开（`firsts.py reboot`）只 Windows 要。
+- 用户 2026-11-20 选“b”：macOS 0.1.17 不跑自己的 `bench.py`，沿用 0.1.16 的 `docs/perf/2026-11-12-Mac16,10.md`。缘由：`bench.py` 在 Mac 上向各应用键入、点击，并把输入法切到键盘布局再切回，而这台 Mac 有人在用。因此本版在 macOS 上的键入延迟、启动、打开与内存都未量；装后首开（不发输入）照做。
+- 用户 2026-11-20：“Linux可以跳过了”。Linux 0.1.17 不再补量：基准沿用同机 0.1.16 的 `docs/perf/2026-11-12-AMD-Ryzen-9-9950X3D-16-Core-Processor-Linux.md`，不跑装后首开，不在用户的机器上装包。因此本版在 Linux 上的启动、键入延迟、打开、内存与装后首开都没有可算数的量；11-19 至 11-20 的全量（R20.28）以局部记录入库，只作参照。
+- 这些缺的量只记在这里与任务行，不进更新日志（用户同日定更新日志只写新功能与修复）。
+- 门：`tests/perf/baseline.py` 的 `ONLY_ON`、`EARLIER_BENCH`（只取恰为 0.1.16 的记录）与 `NO_INSTALL` 照上三条放行，并在输出里点名所用的记录；由 R20.58 落地，测试在 `tests/scripts/release-gate.sh`（见 decisions 同日 R20.58 一节与其任务行）。0.1.18 起各端又要自己的记录，除非用户另定。
+- `firsts.py` 不发输入：它只经系统打开文件、读日志、按 pid 结束应用，却借用基准的 Mac 驱动，其构造编译输入工具并把输入法切到键盘布局（退出时切回）。现 `firsts.watcher` 在 Mac 上不经那段构造（`drive.py` 已满 500 行，不改），不编译、不切换；`test_firsts.py` 的 `Watcher`：firsts 在 Mac 上建出输入部分即败，基准的驱动照旧会建。改回整套构造、或各端都走 `drive.host`，各败。此前 firsts 从未在 Mac 上跑过（两份检出都无 Mac 的装后、重启记录），未曾动过用户的输入法。

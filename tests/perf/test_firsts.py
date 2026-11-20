@@ -7,6 +7,7 @@ import tempfile
 import unittest
 import unittest.mock
 
+import drive
 import firsts
 import run
 
@@ -122,6 +123,21 @@ class Office(unittest.TestCase):
                 unittest.mock.patch.object(firsts.time, "sleep", lambda s: None):
             took = firsts.office("WINWORD.EXE", "/tmp/doc.docx")
         self.assertGreaterEqual(took, 0)
+
+
+class Watcher(unittest.TestCase):
+    def test_on_the_mac_firsts_sets_up_no_input(self):
+        ran = []
+        same = "com.apple.keylayout.US com.apple.keylayout.US"
+        with unittest.mock.patch.object(drive.platform, "system", lambda: "Darwin"), \
+                unittest.mock.patch.object(firsts.sys, "platform", "darwin"), \
+                unittest.mock.patch.object(drive, "sh", lambda *args, **_: ran.append(" ".join(args)) or same), \
+                tempfile.TemporaryDirectory() as work:
+            self.assertIsInstance(firsts.watcher(work), drive.Mac)
+            self.assertEqual(ran, [])
+            # The bench's driver compiles its tools and picks a layout.
+            drive.host(work)
+        self.assertTrue(any("keyboard.swift" in each for each in ran), ran)
 
 
 if __name__ == "__main__":
