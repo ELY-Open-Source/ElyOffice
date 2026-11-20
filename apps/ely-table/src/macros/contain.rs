@@ -111,6 +111,14 @@ mod tests {
         };
         command.stdin(Stdio::null()).stdout(Stdio::piped());
         let mut run = Run::start(&mut command).expect("started");
+        // R gone before the lookup: its pid read is stale.
+        if !waits {
+            let deadline = Instant::now() + Duration::from_secs(60);
+            while !run.exited().expect("polled") {
+                assert!(Instant::now() < deadline, "R never exited");
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        }
         #[cfg(unix)]
         let helper = {
             use std::io::BufRead as _;
@@ -120,16 +128,8 @@ mod tests {
             line.trim().parse::<u32>().expect("a pid")
         };
         #[cfg(windows)]
-        let helper = super::win::child_of(run.child.id(), "PING.EXE", Duration::from_secs(60)).expect("ping started");
+        let helper = super::win::child_of(&run.child, "PING.EXE", Duration::from_secs(60)).expect("ping started");
         assert!(alive(helper), "the helper runs");
-        if !waits {
-            let deadline = Instant::now() + Duration::from_secs(60);
-            while !run.exited().expect("polled") {
-                assert!(Instant::now() < deadline, "R never exited");
-                std::thread::sleep(Duration::from_millis(20));
-            }
-            assert!(alive(helper), "the helper outlives R's exit");
-        }
         run.finish().expect("finished");
         let deadline = Instant::now() + Duration::from_secs(5);
         while alive(helper) && Instant::now() < deadline {

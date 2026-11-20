@@ -116,7 +116,8 @@ mod probe {
     use super::{checked, owned};
     use std::{
         io,
-        os::windows::io::AsRawHandle as _,
+        os::windows::io::{AsRawHandle as _, RawHandle},
+        process::Child,
         time::{Duration, Instant},
     };
     use windows_sys::Win32::{
@@ -140,18 +141,24 @@ mod probe {
         unsafe { WaitForSingleObject(process.as_raw_handle(), 0) == WAIT_TIMEOUT }
     }
 
-    /// Start time in 100 ns ticks; None if unreadable.
-    fn created(pid: u32) -> Option<u64> {
-        let process = owned(unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) }).ok()?;
+    /// Start time in 100 ns ticks, read through `process`.
+    fn born(process: RawHandle) -> io::Result<u64> {
         let [mut born, mut ended, mut kernel, mut user] = [FILETIME::default(); 4];
         // SAFETY: an open handle and four FILETIMEs.
-        checked(unsafe { GetProcessTimes(process.as_raw_handle(), &mut born, &mut ended, &mut kernel, &mut user) }).ok()?;
-        Some((u64::from(born.dwHighDateTime) << 32) | u64::from(born.dwLowDateTime))
+        checked(unsafe { GetProcessTimes(process, &mut born, &mut ended, &mut kernel, &mut user) })?;
+        Ok((u64::from(born.dwHighDateTime) << 32) | u64::from(born.dwLowDateTime))
+    }
+
+    /// Start time by pid; None if gone or unopenable.
+    fn created(pid: u32) -> Option<u64> {
+        let process = owned(unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) }).ok()?;
+        born(process.as_raw_handle()).ok()
     }
 
     /// The process `name` that `parent` starts, never older (R20.96).
-    pub fn child_of(parent: u32, name: &str, wait: Duration) -> io::Result<u32> {
-        let born = created(parent).ok_or_else(|| io::Error::other(format!("{parent}'s start time is unread")))?;
+    pub fn child_of(parent: &Child, name: &str, wait: Duration) -> io::Result<u32> {
+        // The held handle reads even after the parent exits.
+        let (born, parent) = (born(parent.as_raw_handle())?, parent.id());
         let deadline = Instant::now() + wait;
         while Instant::now() < deadline {
             let snapshot = owned(unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) })?;
