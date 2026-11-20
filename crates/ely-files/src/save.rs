@@ -11,6 +11,8 @@ mod write;
 mod tests;
 #[cfg(all(test, target_os = "macos"))]
 mod full;
+#[cfg(all(test, unix))]
+mod readonly;
 
 pub use attach::{import_attachment, write_attachment};
 #[cfg(test)]
@@ -23,6 +25,16 @@ const NAME_MAX: usize = 255;
 /// `error` with the path in its message.
 fn with_path(path: &Path, error: io::Error) -> io::Error {
     io::Error::new(error.kind(), format!("{}: {error}", path.display()))
+}
+
+/// A folder refusing new files, worded by its name.
+fn unwritable(folder: &Path, path: &Path, error: io::Error) -> io::Error {
+    if !matches!(error.kind(), io::ErrorKind::PermissionDenied | io::ErrorKind::ReadOnlyFilesystem) {
+        return with_path(path, error);
+    }
+    log::warn!("files: the folder takes no new file ({:?})", error.kind());
+    let name = folder.file_name().map_or_else(|| folder.display().to_string(), |name| name.to_string_lossy().into_owned());
+    ely_ipc::Worded::error(error.kind(), "office.save.folder", &[("folder", &name)])
 }
 
 /// The directory a path lives in (bare names: `.`).
@@ -65,8 +77,8 @@ fn numbered_name(stem: &str, counter: u32, ext: &str) -> String {
 /// Writes `bytes` beside `path`, checks the write, then replaces (FILE-04).
 pub fn save_atomic(path: &Path, bytes: &[u8], revision: u64) -> io::Result<Fingerprint> {
     let target = resolved(path)?;
-    let mut staging =
-        tempfile::NamedTempFile::new_in(parent_dir(&target)).map_err(|e| with_path(path, e))?;
+    let folder = parent_dir(&target);
+    let mut staging = tempfile::NamedTempFile::new_in(folder).map_err(|e| unwritable(folder, path, e))?;
     staging.write_all(bytes).map_err(|e| with_path(path, e))?;
     staging
         .as_file()

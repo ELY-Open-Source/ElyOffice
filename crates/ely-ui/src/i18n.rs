@@ -4,6 +4,8 @@ mod analysis;
 mod de;
 #[cfg(test)]
 mod german_tests;
+#[cfg(test)]
+mod save_tests;
 mod es;
 mod ko;
 #[cfg(test)]
@@ -338,6 +340,22 @@ pub fn error(cx: &App, error: &std::io::Error) -> SharedString {
     };
     let args: Vec<_> = said.args.iter().map(|(name, value)| (name.as_str(), value.as_str())).collect();
     text(cx, said.key, &args)
+}
+
+/// A failed save in words: no paths, no system text.
+pub fn save_error(cx: &App, error: &std::io::Error) -> SharedString {
+    use std::io::ErrorKind::{FileTooLarge, Other, PermissionDenied, QuotaExceeded, ReadOnlyFilesystem, StorageFull};
+    let worded = error.get_ref().is_some_and(|inner| inner.is::<Worded>() || inner.is::<Then>());
+    // An engine's own text comes as Other.
+    if worded || error.kind() == Other {
+        return self::error(cx, error);
+    }
+    let key = match error.kind() {
+        PermissionDenied | ReadOnlyFilesystem => "office.save.denied",
+        StorageFull | QuotaExceeded | FileTooLarge => "office.save.full",
+        _ => "office.save.other",
+    };
+    text(cx, key, &[])
 }
 
 /// The message for `n` things: `key.one` when one, else `key`.

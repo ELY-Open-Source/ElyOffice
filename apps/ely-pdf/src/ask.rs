@@ -144,7 +144,7 @@ impl Viewer {
         }
         // Engine text may quote the document: the user sees it.
         log::error!("pdf: a write failed ({:?})", error.kind());
-        let text = Self::text(cx, "office.error.save", &[("name", name), ("error", &ely_ui::i18n::error(cx, error))]);
+        let text = Self::text(cx, "office.error.save", &[("name", name), ("error", &ely_ui::i18n::save_error(cx, error))]);
         self.toast_unlogged(text, Severity::Danger, cx);
     }
 

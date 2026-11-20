@@ -174,7 +174,7 @@ pub trait Saving: Host {
         };
         let name = tab.name.clone();
         let unsaved = |error: io::Error, cx: &mut Context<Self>| {
-            text(cx, "office.error.save", &[("name", &name), ("error", &ely_ui::i18n::error(cx, &error))])
+            text(cx, "office.error.save", &[("name", &name), ("error", &ely_ui::i18n::save_error(cx, &error))])
         };
         let target = match identity(&path) {
             Ok(target) => target,
@@ -418,7 +418,7 @@ pub trait Saving: Host {
             }
             Err(SaveError::Io(error)) => {
                 log::warn!("{}: tab {id} save failed: {}", Self::KIND.app.slug(), ely_ipc::Worded::logged(&error));
-                ely_ui::i18n::error(cx, &error).to_string()
+                ely_ui::i18n::save_error(cx, &error).to_string()
             }
             Err(SaveError::Conflict) => {
                 let text = text(cx, "office.error.conflict", &[("name", &name)]);

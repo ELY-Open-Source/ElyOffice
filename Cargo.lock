@@ -2227,6 +2227,7 @@ version = "0.1.17"
 dependencies = [
  "aes-gcm",
  "dunce",
+ "ely-ipc",
  "ely-platform",
  "getrandom 0.4.3",
  "keyring",
