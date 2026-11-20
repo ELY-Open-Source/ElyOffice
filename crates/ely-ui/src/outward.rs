@@ -17,16 +17,19 @@ pub fn outward(uri: &str) -> Result<String, &'static str> {
         log::info!("links: a web or mail address does not parse: {error}");
         MALFORMED
     })?;
-    // NSURL takes only RFC 3986; WHATWG leaves some out.
-    let (text, at) = (parsed.as_str(), parsed[..url::Position::BeforePath].len());
-    let address = format!("{}{}", &text[..at], strict(&text[at..]));
+    // NSURL takes only RFC 3986; WHATWG leaves stray `%`.
+    let text = parsed.as_str();
+    let at = |at| parsed[..at].len();
+    let (user, host, path) = (at(url::Position::BeforeUsername), at(url::Position::BeforeHost), at(url::Position::BeforePath));
+    // The host and port stay: IPv6 keeps its brackets.
+    let address = format!("{}{}{}{}", &text[..user], strict(&text[user..host]), &text[host..path], strict(&text[path..]));
     if mail && attaches(&address["mailto:".len()..]) {
         return Err(REFUSED);
     }
     Ok(address)
 }
 
-/// Encodes what RFC 3986 bars after the host.
+/// Encodes what RFC 3986 bars in userinfo, path, query, fragment.
 fn strict(rest: &str) -> String {
     let bytes = rest.as_bytes();
     let mut out = String::with_capacity(rest.len());

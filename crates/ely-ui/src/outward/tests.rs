@@ -29,13 +29,17 @@ fn web_and_mail_go_out_in_any_case() {
 }
 
 /// Raw addresses as PowerPoint keeps them, and what goes out.
-const RAW: [(&str, &str); 6] = [
+const RAW: [(&str, &str); 9] = [
     ("https://a.example/x y\"z'w", "https://a.example/x%20y%22z'w"),
     ("https://a.example/p?q=a b\"c<d>", "https://a.example/p?q=a%20b%22c%3Cd%3E"),
     ("https://a.example/a|b^c{d}`e[f]#g#h", "https://a.example/a%7Cb%5Ec%7Bd%7D%60e%5Bf%5D#g%23h"),
     ("https://a.example/\u{4e2d}", "https://a.example/%E4%B8%AD"),
     ("https://b\u{fc}cher.example/", "https://xn--bcher-kva.example/"),
     ("mailto:x@a.example?subject=a b", "mailto:x@a.example?subject=a%20b"),
+    // Credentials: a stray `%` is encoded there too.
+    ("https://u%ser:pw@a.example/", "https://u%25ser:pw@a.example/"),
+    ("https://u%41:p%zz w@[::1]:8080/x", "https://u%41:p%25zz%20w@[::1]:8080/x"),
+    ("http://u:100%@a.example/", "http://u:100%25@a.example/"),
 ];
 
 #[test]
@@ -50,6 +54,7 @@ fn an_encoded_address_goes_out_as_it_is() {
     for uri in [
         "https://a.example/x%20y%22z'w",
         "https://a.example/p?q=%E4%B8%AD&r=%2F#top",
+        "https://u%41:p%20w@[::1]:8080/x",
         "mailto:x@a.example?subject=attach%20it",
     ] {
         assert_eq!(outward(uri).as_deref(), Ok(uri), "{uri}");
