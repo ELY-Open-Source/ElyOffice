@@ -76,33 +76,42 @@ grep -q "record must say: - 1 fix was made after its last review failed and has 
 told '- 1 fix was made after its last review failed and has not been reviewed again.'
 gate || fail "one fix, said in the singular: $(cat "$work/gate.err")"
 
-# A record: PERF-01 a start, PERF-02 a key.
+# A record (PERF-01 start, PERF-02 key) in $dir, $box.
+dir=$work/perf box=Box-Linux
 record() { # day, version, start P50, key P95, reasons
-  printf '# Benchmark %s\n\n```json\n{"date": "%s", "version": "%s", "machine": "Box-Linux"}\n```\n\n| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Total memory MB | Budget MB |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| PERF-01 | app daily start | 30 | %s | %s ✓ | 3000 |  |  |\n| PERF-02 | app key to tile | 30 | 5 | %s ✓ | 100 |  |  |\n%s' \
-    "$1" "$1" "$2" "$3" "$3" "$4" "$5" >"$work/perf/$1-Box-Linux.md"
+  printf '# Benchmark %s\n\n```json\n{"date": "%s", "version": "%s", "machine": "%s"}\n```\n\n| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Total memory MB | Budget MB |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| PERF-01 | app daily start | 30 | %s | %s ✓ | 3000 |  |  |\n| PERF-02 | app key to tile | 30 | 5 | %s ✓ | 100 |  |  |\n%s' \
+    "$1" "$1" "$2" "$box" "$3" "$3" "$4" "$5" >"$dir/$1-$box.md"
 }
 # First open record: day, version, kind, ms
 first() {
-  printf '# Benchmark %s\n\n```json\n{"date": "%s", "version": "%s", "machine": "Box-Linux", "kind": "%s"}\n```\n\n| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Total memory MB | Budget MB |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| PERF-01 | app first open after %s | 1 | %s | %s ✓ | 3000 |  |  |\n' \
-    "$1" "$1" "$2" "$3" "$3" "$4" "$4" >"$work/perf/$1-Box-Linux-$3.md"
+  printf '# Benchmark %s\n\n```json\n{"date": "%s", "version": "%s", "machine": "%s", "kind": "%s"}\n```\n\n| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Total memory MB | Budget MB |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| PERF-01 | app first open after %s | 1 | %s | %s ✓ | 3000 |  |  |\n' \
+    "$1" "$1" "$2" "$box" "$3" "$3" "$4" "$4" >"$dir/$1-$box-$3.md"
 }
-base() { python3 "$root/tests/perf/baseline.py" --folder "$work/perf" --check "$@" 2>"$work/base.err"; }
+base() { python3 "$root/tests/perf/baseline.py" --folder "$dir" --check "$@" >"$work/base.out" 2>"$work/base.err"; }
 record 2026-11-01 0.1.9 100 6 ''
 first 2026-11-01 0.1.9 install 1000
-first 2026-11-01 0.1.9 reboot 2000
 ! base 0.2.0 linux || fail "no record of this version"
 record 2026-11-20 0.2.0 120 9 ''
 ! base 0.2.0 linux || fail "a release with no first open after install"
 grep -q "no install record of 0.2.0 on linux .* run tests/perf/firsts.py install" "$work/base.err" || fail "the missing first open is not named: $(cat "$work/base.err")"
 first 2026-11-20 0.2.0 install 1100
-! base 0.2.0 linux || fail "a release with no first open after reboot"
-grep -q "no reboot record of 0.2.0" "$work/base.err" || fail "the missing reboot is not named: $(cat "$work/base.err")"
+# The user, 2026-11-20: after reboot is Windows only.
+base 0.2.0 linux || fail "Linux refused for no first open after reboot: $(cat "$work/base.err")"
+! base 0.2.0 macos || fail "a Linux record stood in for macOS"
+box=Box-Windows
+record 2026-11-01 0.1.9 100 6 ''
+first 2026-11-01 0.1.9 install 1000
+first 2026-11-01 0.1.9 reboot 2000
+record 2026-11-20 0.2.0 120 9 ''
+first 2026-11-20 0.2.0 install 1100
+! base 0.2.0 windows || fail "Windows with no first open after reboot"
+grep -q "no reboot record of 0.2.0 on windows .* run tests/perf/firsts.py reboot" "$work/base.err" || fail "the missing reboot is not named: $(cat "$work/base.err")"
 first 2026-11-20 0.2.0 reboot 2900
-! base 0.2.0 linux || fail "a first open after reboot 45% slower with no reason"
+! base 0.2.0 windows || fail "a first open after reboot 45% slower with no reason"
 grep -q "PERF-01 app first open after reboot" "$work/base.err" || fail "the slow first open is not named: $(cat "$work/base.err")"
 first 2026-11-20 0.2.0 reboot 2100
-base 0.2.0 linux || fail "a fifth slower, and three milliseconds: $(cat "$work/base.err")"
-! base 0.2.0 macos || fail "a Linux record stood in for macOS"
+base 0.2.0 windows || fail "a fifth slower, and three milliseconds: $(cat "$work/base.err")"
+box=Box-Linux
 record 2026-11-20 0.2.0 140 6 ''
 ! base 0.2.0 linux || fail "forty per cent slower with no reason"
 grep -q "PERF-01 app daily start" "$work/base.err" || fail "the slow case is not named: $(cat "$work/base.err")"
@@ -114,6 +123,10 @@ $(sed -n 1p "$work/told")
 - PERF-01 app daily start: P50 100 → 140, P95 100 → 140 ms — the window now waits for its fonts.
 "
 base 0.2.0 linux || fail "a slowdown with its reason: $(cat "$work/base.err")"
+sed -i 's/"version": "0.2.0"/"version": "0.2.0", "void": ["PERF-02 ely-doc"]/' "$work/perf/2026-11-20-Box-Linux.md"
+! base 0.2.0 linux || fail "a record with void cases"
+grep -q "timed while the machine paged, redo with bench.py --redo: \['PERF-02 ely-doc'\]" "$work/base.err" || fail "the void cases are not named: $(cat "$work/base.err")"
+sed -i 's/, "void": \["PERF-02 ely-doc"\]//' "$work/perf/2026-11-20-Box-Linux.md"
 # A record without the key case, as `--only PERF-01` leaves.
 sed -i '/| PERF-02 /d' "$work/perf/2026-11-20-Box-Linux.md"
 ! base 0.2.0 linux || fail "a record missing a case the last one had"
@@ -121,4 +134,27 @@ grep -q "PERF-02 app key to tile" "$work/base.err" || fail "the missing case is 
 sed -i 's/"version": "0.2.0"/"version": "0.2.0", "partial": true/' "$work/perf/2026-11-20-Box-Linux.md"
 ! base 0.2.0 linux || fail "a partial record stood for the release"
 grep -q "no benchmark record of 0.2.0" "$work/base.err" || fail "the partial record is not refused as none: $(cat "$work/base.err")"
-echo "release-gate: notes hold only New and Fixes; the record counts unreviewed fixes; a short gap and a slowdown each want a reason; first opens after install and reboot are each required"
+
+# The user, 2026-11-20: Linux 0.1.17 has no install record.
+dir=$work/noinstall box=Box-Linux
+mkdir -p "$dir"
+record 2026-11-19 0.1.17 100 6 ''
+base 0.1.17 linux || fail "Linux 0.1.17 refused for no install record: $(cat "$work/base.err")"
+grep -q "linux 0.1.17 ships with no install record" "$work/base.out" || fail "the exception is not said: $(cat "$work/base.out")"
+record 2026-11-20 0.2.0 100 6 ''
+! base 0.2.0 linux || fail "Linux 0.2.0 passed with no install record"
+
+# The user, 2026-11-20: macOS 0.1.17 keeps 0.1.16's bench record.
+dir=$work/earlier box=Box-Mac
+mkdir -p "$dir"
+first 2026-11-19 0.1.17 install 1000
+box=Box-Linux record 2026-11-12 0.1.16 100 6 ''
+! base 0.1.17 macos || fail "a Linux record stood in for macOS's"
+box=Box-Mac
+record 2026-11-21 0.1.18 100 6 ''
+! base 0.1.17 macos || fail "a later record stood in for 0.1.17's"
+record 2026-11-12 0.1.16 100 6 ''
+base 0.1.17 macos || fail "macOS 0.1.17 refused with 0.1.16's record: $(cat "$work/base.err")"
+grep -q "macos 0.1.17 has no bench record of its own and uses 2026-11-12-Box-Mac.md (0.1.16)" "$work/base.out" || fail "the stand-in is not said: $(cat "$work/base.out")"
+! base 0.1.18 linux || fail "a version outside the decision took an earlier record"
+echo "release-gate: notes hold only New and Fixes; the record counts unreviewed fixes; a short gap and a slowdown each want a reason; first opens after install, and after reboot on Windows, are required; a record timed while paging is refused; the user's 0.1.17 exceptions hold and go no further"

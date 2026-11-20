@@ -115,7 +115,7 @@ class Paging:
     def __init__(self, path):
         self.path = path
         with open(path, "w", encoding="utf-8") as trace:
-            self.process = subprocess.Popen(["vmstat", "-n", "-t", "1"], stdout=trace, env=dict(os.environ, TZ="UTC"))
+            self.process = subprocess.Popen(["vmstat", "-n", "-t", str(int(judge.INTERVAL.total_seconds()))], stdout=trace, env=dict(os.environ, TZ="UTC"))
         self.until(lambda taken: taken)
 
     def taken(self):

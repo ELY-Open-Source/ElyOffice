@@ -7,6 +7,8 @@ import sys
 import threading
 import time
 
+import judge
+
 
 def mac():
     """vm_stat's totals: swapped in and out, paged out, in KiB."""
@@ -83,7 +85,7 @@ class Sampler:
                 last, began = self.read(), time.monotonic()
                 tick = began
                 while not self.done.is_set():
-                    tick += 1
+                    tick += judge.INTERVAL.total_seconds()
                     # Waits out the second, or a stop.
                     self.done.wait(max(0.0, tick - time.monotonic()))
                     now, reading = time.monotonic(), self.read()
@@ -124,8 +126,7 @@ class Counted:
     suffix = "paging"
 
     def __init__(self, path):
-        import judge
-        self.judge, self.path = judge, path
+        self.path = path
         self.sampler = Sampler(path, reader())
         self.until(lambda taken: taken)
 
@@ -146,7 +147,7 @@ class Counted:
             self.until(lambda taken: taken and taken[-1][0] >= windows[-1][2])
         self.stop()
         # Windows' page reads mix in file reads: swap-in unjudged.
-        return self.judge.verdicts(windows, self.taken(), swap_in=sys.platform != "win32") if windows else []
+        return judge.verdicts(windows, self.taken(), swap_in=sys.platform != "win32") if windows else []
 
     def stop(self):
         self.sampler.stop()

@@ -71,6 +71,24 @@ class Paged(unittest.TestCase):
             self.assertEqual(baseline.read(record)["env"]["void"], ["B"])
             self.assertEqual(baseline.read(record)["rows"], {"PERF-01 ElyDoc first run": (100, 100)})
 
+    def test_a_gap_or_an_empty_window_is_refused_either_way(self):
+        def taken(seconds, si):
+            at = window("", 0, 0)[1]
+            return [(at + datetime.timedelta(seconds=s), si, 0) for s in seconds]
+
+        for si, swap_in in [(0, True), (None, False)]:
+            # 03 to 05 unseen: stamps 00, 02, 10.
+            with self.assertRaisesRegex(ValueError, "misses 8 s"):
+                judge.verdicts([window("A", 2, 5)], taken([0, 2, 10], si), swap_in=swap_in)
+            with self.assertRaisesRegex(ValueError, "no sample inside"):
+                judge.verdicts([window("A", 4, 5)], taken([0, 10], si), swap_in=swap_in)
+            # One period and a truncated second passes; more does not.
+            judged = judge.verdicts([window("A", 2, 5)], taken([0, 1, 3, 4, 6], si), swap_in=swap_in)
+            self.assertTrue(judged[0][1], judged)
+            over = (judge.INTERVAL + judge.SECOND).total_seconds() + 0.001
+            with self.assertRaisesRegex(ValueError, "misses"):
+                judge.verdicts([window("A", 2, 5)], taken([0, 1, 1 + over, 4, 6], si), swap_in=swap_in)
+
     def test_a_redo_clears_only_what_it_redid(self):
         judged = [("A", True, ""), ("C", False, "")]
         self.assertEqual(bench.void_after(["A", "B"], {"A"}, judged), ["B", "C"])

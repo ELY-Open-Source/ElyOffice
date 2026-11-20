@@ -10,6 +10,10 @@ WINDOW = re.compile(r"^bench: case (.+) from (\S+) to (\S+)$")
 # Mean KiB/s of swap-in a case may see; swap-out, none.
 SWAP_IN = 100
 SECOND = datetime.timedelta(seconds=1)
+# Every sampler's period: vmstat's interval, the counters' tick.
+INTERVAL = datetime.timedelta(seconds=1)
+# A period plus a truncated second; more is a gap.
+GAP = INTERVAL + SECOND
 
 
 def windows(lines):
@@ -45,6 +49,14 @@ def verdicts(cases, taken, swap_in=True):
             raise ValueError(f"the trace ({first:%H:%M:%S} to {last:%H:%M:%S}) does not cover {key}")
         # Stamps are truncated: T is printed somewhere in [T, T+1).
         inside = [(si, so) for stamp, si, so in taken if start - SECOND < stamp < end + SECOND]
+        if not inside:
+            raise ValueError(f"no sample inside {key}")
+        # Last stamp by the start to first after the end.
+        span = [stamp for stamp, _, _ in taken if stamp <= start][-1:] + \
+            [stamp for stamp, _, _ in taken if start < stamp < end] + [stamp for stamp, _, _ in taken if stamp >= end][:1]
+        gap = max((later - earlier for earlier, later in zip(span, span[1:])), default=SECOND)
+        if gap > GAP:
+            raise ValueError(f"the trace misses {gap.total_seconds():g} s inside {key}")
         out = [so for _, so in inside if so > 0]
         if swap_in and any(si is None for si, _ in inside):
             raise ValueError(f"swap-in is unmeasured in {key} on a system that measures it")
