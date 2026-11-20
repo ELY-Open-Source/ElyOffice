@@ -18,14 +18,22 @@ git -C "$work" config user.email ely@example.com
 git -C "$work" config commit.gpgsign false
 mkdir -p "$work/src" "$work/scripts"
 printf '[package]\nname = "probe"\nversion = "0.1.0"\nedition = "2024"\n\n[workspace]\n' >"$work/Cargo.toml"
-printf 'fn main() {\n    let _ = std::env::var("CARGO").expect("built");\n}\n' >"$work/build.rs"
+# panics.py sets the variable itself; the caller never does.
+cat >"$work/build.rs" <<'RS'
+fn main() {
+    let _ = std::env::var("CARGO").expect("built");
+    println!("cargo:rerun-if-env-changed=CARGO_CHECK_SHARED_DEPS");
+    let set = std::env::var("CARGO_CHECK_SHARED_DEPS");
+    assert_eq!(set.as_deref(), Ok("0"), "clippy ran without CARGO_CHECK_SHARED_DEPS=0");
+}
+RS
 code() {
   printf 'pub fn given(x: Option<u8>) -> u8 {\n    x.expect("given")\n}\n%s\n' "$1" >"$work/src/lib.rs"
   printf '#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        Some(1).unwrap();\n    }\n}\n' >>"$work/src/lib.rs"
 }
 row=$'src/lib.rs\texpect_used\tx.expect("given")\tlinux,macos,windows\tgiven'
 list() { { printf 'file\tkind\texpression\thosts\treason\n'; printf '%s\n' "$@"; } >"$work/scripts/panics.tsv"; }
-run() { said=$("$py" "$root/scripts/panics.py" "$work" 2>&1); }
+run() { said=$(env -u CARGO_CHECK_SHARED_DEPS "$py" "$root/scripts/panics.py" "$work" 2>&1); }
 commit() { git -C "$work" add -A && git -C "$work" commit -qm "$1"; }
 
 code ""
@@ -49,7 +57,7 @@ case $said in *"rise: unwrap_used 0 at HEAD, 1 now"*) ;; *) fail "the rise was n
 # Committed with its row, it rises only against its base.
 commit "a listed new site"
 run || fail "the committed site failed against itself: $said"
-! said=$(PANICS_BASE=HEAD~1 "$py" "$root/scripts/panics.py" "$work" 2>&1) || fail "a committed rise passed against its base"
+! said=$(env -u CARGO_CHECK_SHARED_DEPS PANICS_BASE=HEAD~1 "$py" "$root/scripts/panics.py" "$work" 2>&1) || fail "a committed rise passed against its base"
 case $said in *"rise: unwrap_used 0 at HEAD~1, 1 now"*) ;; *) fail "the committed rise was not named: $said" ;; esac
 # Gone sites and rows without a reason fail.
 code ""

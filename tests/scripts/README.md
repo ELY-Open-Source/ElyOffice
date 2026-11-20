@@ -109,7 +109,7 @@ tests/perf/pdfs.py [--docs N]  ElyPDF 同时开 N 份 1000 页的 PDF（默认 2
 tests/scripts/ooxml.py <用例> <文件>  不经 LibreOffice 读 DOCX、XLSX、PPTX 并按自算的预期核对（往返用例调用）；ooxml_pivot.py 同法核对透视表的标签与标题属性，ooxml_motion.py 核对视频的淡入与触发序列，ooxml_formula.py 核对公式文字，ooxml_word.py 核对 Word 公式（减号、双线体）与目录
 tests/office/compare.ps1 目录   本机 Microsoft Office 经 COM 写出大而复杂的 DOCX、XLSX、PPTX，Ely 内核打开、写入、另存，新引擎重开核对；Office 读回两份，比内容摘要（文字、公式与重算的值、批注、备注、域的目标、动画，Word 更新域后每页的起始），不符即失败（已知差异钉住前后值；须 ELY_LOK_DIR，只在 Windows）
 tests/scripts/deny-rules.sh    deny.sh：列着的重复组过、多余或无着落的 skip 败、去掉的旧版回来败（临时 crate）
-tests/scripts/panics-rules.sh  panics.py：列着的过、测试模块与 build.rs 不算、新处、增多、消失、无理由皆败（临时 crate）
+tests/scripts/panics-rules.sh  panics.py：调用方不设 `CARGO_CHECK_SHARED_DEPS` 也过（clippy 由它自设），列着的过、测试模块与 build.rs 不算、新处、增多、消失、无理由皆败（临时 crate）
 cd site && pnpm test && pnpm e2e   官网单测（几何、道路连通；更新日志与 git 的 v* 标签一一对应，每次发布加 `site/changelog/<版本>.md` 并部署；命令行页含各应用 USAGE 的每条命令）与 Playwright 端到端（悬停、聚焦、按压、命中归属）
 cd site/video/scenes && npm run verify   发布视频：群像与离场两个渲染器在切场处屏幕角点一致，离场全程各屏播自己的录屏帧（真页面渲染）
 ```

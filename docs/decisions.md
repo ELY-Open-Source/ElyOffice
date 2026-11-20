@@ -1571,3 +1571,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 定：起跑前照旧要静机；之后按项判。一项的窗口盖住它从首个到末个的计时样本，窗口里每个 vmstat 样本 so 为 0、si 平均低于 100 KiB/s，该项才算；落在一切窗口之外的换出不废任何项。作废的项单独重跑（`bench.py --redo`），记录 JSON 的 `rerun` 记重跑了哪几项、何时；为何重跑写在任务行。
 - 实现：`bench.py` 每项测完打 `bench: case <项> from <UTC> to <UTC>`；首次启动的预热与三处邮件灌库（PERF-02、PERF-06、PERF-08 各一次，原先在该项里、首个计时之前，会落进窗口）挪到窗口之前，灌一次、该项只用这一份。`--keep` 存原始结果，`--redo` 只重跑点名的项，构建、样本、机器不同即拒。判定读 `TZ=UTC vmstat -n -t 1`，样本盖住的那一秒与窗口相交即算在内（`.work/R20.28/judge.py`（本机，未入库））。
 - 测试：`test_bench.py` 的 `Windows` 三条；去掉选项判断、把准备挪进窗口、窗口在测完后才起、不打窗口行、准备的结果不交给该项、灌好的主目录不复用、接受不同的构建，各败。
+
+## 2026-11-20 panics.py 自设 CARGO_CHECK_SHARED_DEPS=0（R20.57）
+
+- 原状：`scripts/panics.py` 内部跑 clippy；huacnlee/cargo 上调用方漏设 `CARGO_CHECK_SHARED_DEPS=0` 时，共享依赖的 gpui 与本地建的混在一图，报 `gpui::geometry::Axis` 对 `gpui::Axis`，ely-lok 19 个、ely-ui 221 个编译错；脚本以 `--message-format=json` 跑，编译错进了 stdout，只打 stderr 的“could not compile”，看似代码坏了。同日两个 agent 各误判一次。
+- 定：脚本给自己的 clippy 设上该变量（标准 Cargo 不认它，无害）；clippy 失败时先打出 JSON 里的编译错。其余脚本不调 clippy；`tests/scripts/media-targets.sh` 的 `cargo check` 编的是只依赖 crates.io 的临时 crate，不会混，不改。
+- 测试：`tests/scripts/panics-rules.sh` 的每次调用去掉该变量，探针 crate 的构建脚本断言 clippy 拿到 `0`；换回旧脚本即败（“clippy ran without CARGO_CHECK_SHARED_DEPS=0”）。真树上调用方不设：新脚本过，旧脚本败于 ely-ui 221 个编译错。

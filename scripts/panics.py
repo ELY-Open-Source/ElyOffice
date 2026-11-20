@@ -59,11 +59,22 @@ def lint():
         ["cargo", "clippy", "--workspace", *skipped, "--lib", "--bins", "--message-format=json", "--quiet",
          "--", *flags],
         cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-        env=dict(os.environ, CLIPPY_CONF_DIR=str(conf)),
+        # huacnlee/cargo otherwise mixes shared and local gpui builds.
+        env=dict(os.environ, CLIPPY_CONF_DIR=str(conf), CARGO_CHECK_SHARED_DEPS="0"),
     )
     if run.returncode != 0:
-        sys.exit(f"panics: clippy failed on {HOST}\n{run.stderr}")
+        sys.exit(f"panics: clippy failed on {HOST}\n{errors(run.stdout)}{run.stderr}")
     return run.stdout
+
+
+def errors(output):
+    """The compiler's errors, which JSON output keeps off stderr."""
+    notes = (json.loads(line) for line in output.splitlines() if line.startswith("{"))
+    return "".join(
+        note["message"]["rendered"]
+        for note in notes
+        if note.get("reason") == "compiler-message" and note["message"]["level"] == "error"
+    )
 
 
 def kind_of(code, text):
