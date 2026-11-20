@@ -30,13 +30,21 @@ pub fn unshadow(units: &Path, reload: impl FnOnce() -> io::Result<()>) -> io::Re
     let shadow = units.join(SHADOW);
     let text = match std::fs::read_to_string(&shadow) {
         Ok(text) => text,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            log::info!("engine: no {} hides the package's unit", shadow.display());
+            return Ok(Vec::new());
+        }
         Err(error) => return Err(io::Error::new(error.kind(), format!("{}: {error}", shadow.display()))),
     };
     if !appimage_written(&text) {
         log::warn!("engine: {} hides the package's unit but no AppImage wrote it; kept", shadow.display());
         return Ok(Vec::new());
     }
+    clear(units, shadow, reload)
+}
+
+/// Seen at the start: reloads even if another removed all.
+fn clear(units: &Path, shadow: PathBuf, reload: impl FnOnce() -> io::Result<()>) -> io::Result<Vec<PathBuf>> {
     let mut removed = Vec::new();
     let wants = units.join("graphical-session.target.wants");
     let entries = match std::fs::read_dir(&wants) {

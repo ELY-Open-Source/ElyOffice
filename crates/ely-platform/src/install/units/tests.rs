@@ -4,7 +4,7 @@ use std::{
     sync::{Barrier, atomic::{AtomicUsize, Ordering}},
 };
 
-use super::{SHADOW, appimage_written, remove, unshadow};
+use super::{SHADOW, appimage_written, clear, remove, unshadow};
 
 /// The units AppRun's test reads too: `appimage-*` alone go.
 fn samples() -> Vec<(String, String)> {
@@ -105,17 +105,58 @@ fn starts_at_once_each_succeed_and_remove_each_path_once() {
     for slug in ["ely-doc", "ely-table", "ely-show"] {
         std::os::unix::fs::symlink(&shadow, wants.join(format!("ely-engine@{slug}.service"))).expect("a link");
     }
-    let (starts, removed) = (16, AtomicUsize::new(0));
+    let (starts, removed, reloaded) = (16, AtomicUsize::new(0), AtomicUsize::new(0));
     let ready = Barrier::new(starts);
     std::thread::scope(|scope| {
         for _ in 0..starts {
             scope.spawn(|| {
                 ready.wait();
-                let gone = unshadow(&units, || Ok(())).expect("a start at the same time");
+                let reloads = Cell::new(0);
+                let gone = unshadow(&units, || {
+                    reloads.set(reloads.get() + 1);
+                    Ok(())
+                })
+                .expect("a start at the same time");
+                assert!(reloads.get() <= 1, "a start reloaded {} times", reloads.get());
+                assert!(gone.is_empty() || reloads.get() == 1, "a start removed {gone:?} but did not reload");
                 removed.fetch_add(gone.len(), Ordering::Relaxed);
+                reloaded.fetch_add(reloads.get(), Ordering::Relaxed);
             });
         }
     });
     assert_eq!(removed.load(Ordering::Relaxed), 4);
+    assert!(reloaded.load(Ordering::Relaxed) >= 1);
     assert!(!shadow.exists());
+}
+
+#[test]
+fn a_unit_seen_then_removed_by_another_start_still_reloads_once() {
+    let home = home();
+    let units = home.path().join(".config/systemd/user");
+    std::fs::create_dir_all(&units).expect("units");
+    let reloads = Cell::new(0);
+    let removed = clear(&units, units.join(SHADOW), || {
+        reloads.set(reloads.get() + 1);
+        Ok(())
+    })
+    .expect("already gone is not an error");
+    assert!(removed.is_empty());
+    assert_eq!(reloads.get(), 1);
+}
+
+#[test]
+fn a_unit_another_start_removed_before_the_read_is_no_unit() {
+    let home = home();
+    let units = home.path().join(".config/systemd/user");
+    std::fs::create_dir_all(&units).expect("units");
+    let (_, text) = samples().into_iter().find(|(name, _)| name.starts_with("appimage-")).expect("a sample");
+    std::fs::write(units.join(SHADOW), text).expect("the unit");
+    std::fs::remove_file(units.join(SHADOW)).expect("the other start removes it");
+    let reloads = Cell::new(0);
+    let removed = unshadow(&units, || {
+        reloads.set(1);
+        Ok(())
+    })
+    .expect("gone before the read is no unit");
+    assert!(removed.is_empty() && reloads.get() == 0);
 }
