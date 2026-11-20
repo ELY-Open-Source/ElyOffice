@@ -42,12 +42,17 @@ static FIRST_DOCUMENT: AtomicBool = AtomicBool::new(true);
 
 /// The worker began; stages count from here.
 pub(super) fn begin() {
-    *LAST.lock().expect("the start stages") = Some(Mark::now());
+    match LAST.lock() {
+        Ok(mut held) => *held = Some(Mark::now()),
+        Err(_) => log::warn!("lok-worker: start stages not logged: a panic held them"),
+    }
 }
 
 /// Logs `name`'s share of the start; `last` ends it.
 pub(super) fn step(name: &str, last: bool) {
-    let mut held = LAST.lock().expect("the start stages");
+    let Ok(mut held) = LAST.lock() else {
+        return log::warn!("lok-worker: start {name} not logged: a panic held the stages");
+    };
     let Some(before) = held.take() else {
         return;
     };
