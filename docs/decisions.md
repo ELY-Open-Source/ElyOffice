@@ -1594,3 +1594,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 原状：2026-11-19 08:51 UTC 起 main 上每次推送 pr.yml 皆败，约 77 次，皆败于 `scripts/deny.sh`：RustSec 新收九条针对 heapless 0.9.3 的 `unsound` 公告，RUSTSEC-2026-0574 至 0582（`FindMutView::pop` 改值后释放、`Spsc::peek` 的内存序、`IndexMap::truncate` 与 `u16::MAX` 个元素时的 `insert`、`Drop` 里 panic、`SortedLinkedList::zeroize`、`Deque` 的 `TryFrom` 与 `make_contiguous`、Treiber 栈的竞争）。heapless 只经 vendor 的 gpui-pre 0.3.12 进来，它要 `0.9.2`。
 - 定：逐条读 rustsec/advisory-db，九条的 patched 皆为 `>= 0.9.4`；crates.io 有 0.9.4 且未撤回，在 gpui-pre 的要求之内。`cargo update -p heapless --precise 0.9.4`，`Cargo.lock` 只改 heapless 的版本与校验和；vendor 不动，deny.toml 不加忽略。
 - 核对：cargo-deny 0.20.2（与 pr.yml 同版，取发行的预编二进制、对过 sha256）在 HEAD 的锁上报这九条而败，换锁后 `advisories ok, bans ok, licenses ok, sources ok`；`scripts/vendor-gpui.sh check` 过。Linux 的计时基准占着机器，clippy 与 pr.yml 的不需引擎测试在 Mac 上对同一棵树跑：clippy `-D warnings` 过，测试 1065 过、0 败；Linux 的由这次推送的 pr.yml 跑。Mac 上 panics.py 报 `scripts/panics.tsv` 一行已无其处（`crates/ely-ui/src/updates.rs` 的 `expect("the note's folder")`，只列 macos），与本条无关、另报。
+
+## 2026-11-20 更新日志只写新功能与修复（R20.30）
+
+- 用户 2026-11-20：“更新日志不要写任何工程啊，只要写修复和新增啊”。更新日志（`site/changelog/<版本>.md`）中英两部分都只有新功能与修复两节：无工程一节、无已知问题、无任务编号、无补丁范围。
+- 门要的两件事改写在不公开的发布记录 `docs/releases/<版本>.md`：末轮审查不过、修后未复审的修复有几项（与进度表的 `[~]` 相符），距上一版不足七天的原因。0.1.14、0.1.16、0.1.17 的工程一节原样移入各自的发布记录，中文那份是同文译本，不另存。PRD 第 21 节的发布门一句随之改写。
+- 旧版的其他节照同一规则并入，一行不改字：0.1.10 的新平台、新应用并入新功能；0.1.11 的平台与变更按内容分，Linux 包改在 AlmaLinux 8 构建、Gmail 改用应用专用密码入新功能，Intel Mac 启动即崩已修、Outlook.com 拒绝 IMAP 时的说明入修复；0.1.9 的其他（搬到 GitHub、改 MIT 许可、改从 GitHub 查更新）是用户要知道的事，入新功能。各版都无工程内容可移。
+- 实现：`scripts/release-gate.py` 只从发布记录读那两行，更新日志里有新功能、修复（New、Fixes）以外的节即拒，并点名；已知问题（R20.54、R15.11g）留在 decisions 与进度表。已发布的 GitHub 发布页不动；`scripts/ci.sh` 建发布时只给标签与名字，不写正文。
+- 测试：`tests/scripts/release-gate.sh`：发布记录的数目不符、缺记录、记录首行版本不对、缺间隔原因皆拒；同样的话写在更新日志里不算；Engineering、Known issues、工程三种节皆拒并点名，New 照过。

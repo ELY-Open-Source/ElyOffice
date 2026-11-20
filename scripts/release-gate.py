@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What a version's notes must say before it ships."""
+"""What a version's notes and release record must say before it ships."""
 
 import datetime
 import os
@@ -10,6 +10,8 @@ import sys
 ROOT = os.path.abspath(sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), ".."))
 # Releases closer than this say why.
 APART_DAYS = 7
+# The user, 2026-11-20: notes hold only New and Fixes.
+HEADS = {"New", "Fixes", "新功能", "修复"}
 
 
 def unreviewed():
@@ -29,26 +31,42 @@ def last_tag(version):
     return tags[-1] if tags else None
 
 
-def faults(version):
-    path = os.path.join(ROOT, "site", "changelog", f"{version}.md")
+def read(*parts):
+    path = os.path.join(ROOT, *parts)
     if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as file:
+        return file.read()
+
+
+def faults(version):
+    """The notes' sections and date; the record's count and gap."""
+    text = read("site", "changelog", f"{version}.md")
+    if text is None:
         return [f"no release notes at site/changelog/{version}.md"]
-    with open(path, encoding="utf-8") as notes:
-        text = notes.read()
-    found, count = [], unreviewed()
-    said = re.search(r"^- (\d+) fixes? .*not been reviewed again", text, re.M)
-    if not said or int(said.group(1)) != count:
-        found.append(f"the notes must say: - {count} fixes were made after their last review failed and have not been reviewed again.")
+    found = []
+    other = [head for head in re.findall(r"^### (.+)$", text, re.M) if head not in HEADS]
+    if other:
+        found.append(f"the notes hold only New and Fixes (新功能, 修复), not: {', '.join(other)}")
     head = re.match(rf"# {re.escape(version)} (\d{{4}}-\d{{2}}-\d{{2}})\n", text)
     if not head:
         return found + [f"the notes must begin: # {version} <YYYY-MM-DD>"]
+    record = read("docs", "releases", f"{version}.md")
+    if record is None or not record.startswith(f"# {version}\n"):
+        return found + [f"no release record at docs/releases/{version}.md beginning: # {version}"]
+    count = unreviewed()
+    said = re.search(r"^- (\d+) fix(?:es)? .*not been reviewed again", record, re.M)
+    if not said or int(said.group(1)) != count:
+        line = ("1 fix was made after its last review failed and has not" if count == 1
+                else f"{count} fixes were made after their last review failed and have not")
+        found.append(f"the record must say: - {line} been reviewed again.")
     last = last_tag(version)
     if last:
         days = (datetime.date.fromisoformat(head.group(1)) - datetime.date.fromisoformat(last[1])).days
-        why = re.search(rf"^- Released {days} days? after {re.escape(last[0][1:])}: \S", text, re.M)
+        why = re.search(rf"^- Released {days} days? after {re.escape(last[0][1:])}: \S", record, re.M)
         if days < APART_DAYS and not why:
             unit = "day" if days == 1 else "days"
-            found.append(f"{last[0]} came {days} {unit} before; the notes must say: - Released {days} {unit} after {last[0][1:]}: <why>")
+            found.append(f"{last[0]} came {days} {unit} before; the record must say: - Released {days} {unit} after {last[0][1:]}: <why>")
     return found
 
 

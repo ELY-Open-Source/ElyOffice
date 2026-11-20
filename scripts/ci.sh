@@ -19,7 +19,7 @@ version=$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")
 }
 # The compatibility list names this version and its patches.
 python3 "$root/scripts/compatibility.py" --check
-# The notes count unreviewed fixes, explain a short gap.
+# The record counts unreviewed fixes, explains a short gap.
 python3 "$root/scripts/release-gate.py" "$version"
 # This system's benchmark of this version, slowdowns explained.
 python3 "$root/tests/perf/baseline.py" --check "$version" "$os"
