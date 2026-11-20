@@ -1690,3 +1690,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 测试机上先核四项：一、ely-login 退出、任务结束后空闲引擎仍在听（没有文档说任务调度器不连子进程一起结束）；二、应用接管后 worker 的优先级类为 NORMAL；三、标准用户（非管理员）能照上法登记；四、“设置 › 应用 › 启动”里不再列出。
 - 量法：十轮重启，Run 值与任务各五轮，动手前备份 Run 值与所加的任务，量完照原样还原。每轮记开机时刻（Win32_OperatingSystem.LastBootUpTime）、登录时刻（Winlogon 运行日志）、explorer.exe 起的时刻、Run 项起的时刻（Microsoft-Windows-Shell-Core/Operational 的 9707）、任务起的时刻（Microsoft-Windows-TaskScheduler/Operational 的 100、200）与 ely-login.log 的起行；`firsts.py` 改为登录后固定 30 秒开 ElyDoc，记有无空闲引擎。采用的门：任务五轮都在登录后 10 秒内起、每轮都有空闲引擎。
 - 不随 0.1.17：改的是安装与卸载程序，须在测试机上把新装、0.1.16 升级、卸载各验一遍。
+
+## 2026-11-20 内核重链的新旧未核（R20.89，未定）
+
+- 原状：R20.60 的核对只证 lo-src 的源码带全序列，不证 instdir 在末一个补丁之后重链。拟由构建在链接时把序列的散列写进 instdir，`--check` 比对；不用修改时间。改法待 R20.89。
