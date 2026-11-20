@@ -1,4 +1,4 @@
-//! Calc undo and redo: the sheet or the edited cell.
+//! Calc and Impress undo: the document's or a text edit's.
 
 use std::io;
 
@@ -18,15 +18,26 @@ fn runs(doc: &Document, commands: &[&str]) -> io::Result<crate::menu::Runs> {
     crate::menu::read_runs(&asked, commands)
 }
 
+/// Whether a text edit, with its own history, is open.
+fn editing(doc: &Document) -> io::Result<bool> {
+    match doc.kind() {
+        1 => runs(doc, &[EDITING, TEXT]).map(|edit| edit.allows(EDITING) || edit.allows(TEXT)),
+        // Impress serves the font dialog to marked shapes too.
+        _ => {
+            let objects = crate::show::objects(&doc.command_values(crate::show::OBJECTS)?)?;
+            Ok(objects.selection.is_some_and(|marked| marked.editing))
+        }
+    }
+}
+
 /// Confirms by the history the kernel acts on.
 pub(super) fn history(doc: &Document, command: &Command, args: Option<&str>) -> io::Result<()> {
     let refuse = |why: String| Err(io::Error::other(format!("{}: {why}", command.id)));
-    let before = runs(doc, &[command.uno, EDITING, TEXT])?;
-    if !before.allows(command.uno) {
+    if !runs(doc, &[command.uno])?.allows(command.uno) {
         return Err(io::Error::other(format!("{}{}: the kernel has no step", ipc::NOTHING, command.id)));
     }
     // A text edit keeps its own history, not the document's.
-    if before.allows(EDITING) || before.allows(TEXT) {
+    if editing(doc)? {
         let other = if command.uno == ".uno:Undo" { ".uno:Redo" } else { ".uno:Undo" };
         doc.post_uno(command.uno, args)?;
         // The edit's step moved to the other stack.

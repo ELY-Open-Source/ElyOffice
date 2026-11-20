@@ -18,17 +18,22 @@ const ESCAPE: i32 = 1281;
 /// A blank deck whose window root keeps the toasts.
 fn rooted(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<(Entity<Deck>, Entity<Root>)> {
     let deck = blank(cx, dir)?;
-    let root = in_window(cx, &deck, |deck, window, cx| {
+    let root = root_for(cx, &deck);
+    Some((deck, root))
+}
+
+/// The window root that keeps `deck`'s toasts.
+pub(super) fn root_for(cx: &mut TestAppContext, deck: &Entity<Deck>) -> Entity<Root> {
+    in_window(cx, deck, |deck, window, cx| {
         let this = cx.entity();
         let root = ely_ui::document_root(ely_platform::AppId::Show, this.into(), &ely_ui::commands::FILE, Vec::new(), window, cx);
         deck.core.root = root.downgrade();
         root
-    });
-    Some((deck, root))
+    })
 }
 
 /// Runs `send` on the active deck's kernel document.
-fn kernel(cx: &mut TestAppContext, deck: &Entity<Deck>, send: impl FnOnce(&mut ely_lok::Worker, &ely_lok::Doc)) {
+pub(super) fn kernel(cx: &mut TestAppContext, deck: &Entity<Deck>, send: impl FnOnce(&mut ely_lok::Worker, &ely_lok::Doc)) {
     cx.update(|app| {
         let deck = deck.read(app);
         let doc = deck.active_tab().expect("a tab").doc.clone();
@@ -50,7 +55,7 @@ fn on_title(cx: &mut TestAppContext, deck: &Entity<Deck>, (x, modifiers): (i32, 
 }
 
 /// The edited text box's whole text, copied as plain text.
-fn edited_text(cx: &mut TestAppContext, deck: &Entity<Deck>) -> String {
+pub(super) fn edited_text(cx: &mut TestAppContext, deck: &Entity<Deck>) -> String {
     let mut copied = Vec::new();
     kernel(cx, deck, |worker, doc| {
         worker.run(doc, "edit.select_all", &[]).expect("selects");
@@ -75,7 +80,7 @@ fn insert_link(cx: &mut TestAppContext, deck: &Entity<Deck>, (words, address): (
     cx.run_until_parked();
 }
 
-fn no_toasts(cx: &mut TestAppContext, root: &Entity<Root>) {
+pub(super) fn no_toasts(cx: &mut TestAppContext, root: &Entity<Root>) {
     let toasts = cx.update(|app| root.read(app).toasts(app));
     assert!(toasts.is_empty(), "{toasts:?}");
 }

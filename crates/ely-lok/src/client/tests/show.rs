@@ -358,3 +358,36 @@ fn saving_as_pptx_adds_nothing_to_undo() {
     worker.run(&doc, "edit.undo", &[]).expect("undoes");
     assert_eq!(doc.sheets(&mut worker).expect("the slides").list.len(), 9, "undo took back the hiding alone");
 }
+
+/// The edited box's text, copied as plain text.
+fn edited(worker: &mut Worker, doc: &Doc) -> String {
+    worker.run(doc, "edit.select_all", &[]).expect("selects");
+    let copied = worker.copy(doc).expect("copies");
+    let (_, text) = copied.into_iter().find(|(mime, _)| mime.starts_with("text/plain")).expect("plain text");
+    String::from_utf8(text).expect("UTF-8")
+}
+
+#[test]
+fn undo_and_redo_work_inside_a_slide_text_edit() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (_dir, mut worker, doc) = open_deck();
+    // The deck's own history is not the edit's.
+    one_step(&mut worker, &doc, "slide.hide", &[]);
+    click(&mut worker, &doc, 2500, 1500);
+    let editing = |worker: &mut Worker| objects(worker, &doc).selection.is_some_and(|marked| marked.editing);
+    let deadline = std::time::Instant::now() + HANG;
+    while !editing(&mut worker) {
+        assert!(std::time::Instant::now() < deadline, "the click never opened the box's text");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    worker.post_key(&doc, 0, 1029).expect("End");
+    worker.post_key(&doc, 'Q' as u32, 0).expect("Q types");
+    assert_eq!(edited(&mut worker, &doc), "FirstQ");
+    worker.run(&doc, "edit.undo", &[]).expect("undo in the box");
+    assert_eq!(edited(&mut worker, &doc), "First");
+    worker.run(&doc, "edit.redo", &[]).expect("redo in the box");
+    assert_eq!(edited(&mut worker, &doc), "FirstQ");
+}

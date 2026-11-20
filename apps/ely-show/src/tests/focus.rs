@@ -9,7 +9,7 @@ use super::{counts, settle, update};
 use crate::deck::Deck;
 
 /// The whole window, as the app draws it.
-struct Front(Entity<Deck>);
+pub(super) struct Front(pub(super) Entity<Deck>);
 
 impl gpui::Render for Front {
     fn render(&mut self, _: &mut gpui::Window, _: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
@@ -17,7 +17,7 @@ impl gpui::Render for Front {
     }
 }
 
-fn frames(cx: &mut VisualTestContext) {
+pub(super) fn frames(cx: &mut VisualTestContext) {
     for _ in 0..3 {
         cx.update(|window, _| window.refresh());
         cx.run_until_parked();

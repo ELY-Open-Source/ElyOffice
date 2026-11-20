@@ -1579,3 +1579,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 定：脚本给自己的 clippy 设上该变量（标准 Cargo 不认它，无害）；clippy 失败时先打出 JSON 里的编译错。其余脚本不调 clippy；`tests/scripts/media-targets.sh` 的 `cargo check` 编的是只依赖 crates.io 的临时 crate，不会混，不改。
 - 测试：`tests/scripts/panics-rules.sh` 的每次调用去掉该变量，探针 crate 的构建脚本断言 clippy 拿到 `0`；换回旧脚本即败（“clippy ran without CARGO_CHECK_SHARED_DEPS=0”）。真树上调用方不设：新脚本过，旧脚本败于 ely-ui 221 个编译错。
 - 第 1 轮 FAIL 一条：打出编译错没有测试，探针都编得过。`panics-rules.sh` 加一个编不过的探针（返回类型不符），须败，且输出含编译器渲染的 `error[E0308]: mismatched types` 与位置 `src/lib.rs:4:`；Mac 上调用方不设该变量：新脚本过，把 `errors(run.stdout)` 从失败信息里去掉即败（“the compiler's error was not shown”）。`tests/scripts/media-targets.sh` 在三台机器上都 SKIP（无一台同时有它要的两个目标），另立 R20.65；Windows 上只编 MSVC 目标、调用方不设该变量，临时 crate 编过，不改的判断成立。
+
+## 2026-11-20 ElyShow 编辑文本时撤销走文字编辑自己的历史（R20.49）
+
+- 原状：`edit.undo` 先查 `.uno:UndoCount`，Impress 编辑文本期间它为 0，即答“nothing to undo”，Ctrl+Z 无效；历史为 1 时撤销照做，随后以计数未减报错。根因与 R19.3 的 Calc 形状文本同：编辑中 Impress 用文字编辑器的撤销管理器（sd `ViewShell::ImpGetUndoManager`），LOK 的计数读的是文档的。
+- 定：`crates/ely-lok/src/worker/history.rs`（由 `worker/sheet.rs` 改名）供 Calc 与 Impress：经补丁 0045 问 `.uno:Undo`/`.uno:Redo` 能否运行，不能即“无事”；在文字编辑中则发出后核对另一栈有了一步，否则仍按文档计数减一。Calc 照旧以 `.uno:InsertFieldSheet`、`.uno:FontDialog` 认编辑；Impress 对选中的形状也给 `.uno:FontDialog`，改读 `.uno:SlideObjects` 的 `editing`（补丁 0116 的 `IsTextEdit`）。补丁 0045 遇模块不认得的命令整次失败，故各类只问自己的。
+- 测试：ely-lok `client/tests/show.rs` 的 `undo_and_redo_work_inside_a_slide_text_edit`；ElyShow `tests/history.rs` 的 `the_undo_keys_step_through_typing_inside_a_text_box`，在画着整个 Deck 的窗口里按键，键位经应用启动时的同一调用 `ely_office::bind_undo_keys` 装上，文档历史 0 与 1 两种旧失败各一遍，每键后断言无提示。按键测试前两版测不出：先是夹具先做了一步（历史 1 时旧代码照样撤销），后是窗口没装应用的键位（Ctrl+Z 作原始键直达内核，不经 `edit.undo`），皆由变异查出。
+- 变异（Mac 内核 1c8c756c）：Impress 不走新路、编辑恒为否、共用 Undo 处理不做事，各令相应测试败。Linux 上按键测试经应用键位重跑（shell 的计时跑完后，闸与共享锁下）：修后过，Impress 不走新路、共用 Undo 处理不做事两变异皆败于撤销后仍是“Plan B”，ely-show 127 全过。
+- 已知无关失败：Mac 上 ely-doc `a_launch_tab_closed_before_its_turn_closes_the_early_load` 整套时败一次、单跑三次皆过，Windows 亦见，测试的等待缺陷，归 R20.66。

@@ -188,8 +188,8 @@ fn run_checked(
             return refuse(format!("the kernel lists no font {value}"));
         }
     }
-    if command.check == Check::History && doc.kind() == 1 {
-        return super::sheet::history(doc, command, args);
+    if command.check == Check::History && matches!(doc.kind(), 1 | 2) {
+        return super::history::history(doc, command, args);
     }
     let history = format!("{}Count", command.uno);
     let before = if command.check == Check::History {
