@@ -151,7 +151,7 @@ fn a_closed_load_lets_go_and_keeps_the_engine() {
     cx.run_until_parked();
     assert!(cx.update(|app| docs.read(app).core.shared.get().stopped.is_none()), "the engine stays");
     drop(release);
-    until(&cx, "the closed load's end", |app| !docs.read(app).core.dropped(id));
+    until(&cx, "the closed load's end", |app| !docs.read(app).core.test_dropped(id));
     let tabs = cx.update(|app| docs.read(app).core.tabs.len());
     assert_eq!(tabs, 0, "the closed load opens nothing");
     // The same engine opens the next file.
