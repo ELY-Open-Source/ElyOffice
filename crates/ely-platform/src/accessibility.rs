@@ -1,29 +1,28 @@
 use crate::{env, settings::Motion};
 
-/// `ELY_REDUCE_MOTION` wins, then the setting, then the OS.
-pub fn reduce_motion(setting: Motion, software: bool) -> Option<&'static str> {
-    let (env, system) = (env::flag("ELY_REDUCE_MOTION"), os_reduce_motion());
-    if env.is_none() && setting == Motion::System && system.is_none() {
-        log::info!("accessibility: no reduce-motion setting found, using full motion");
-    }
-    reduce_motion_from(env, setting, system, software)
+/// Whether to reduce motion, and the one line saying why.
+pub fn reduce_motion(setting: Motion, software: bool) -> (bool, &'static str) {
+    reduce_motion_from(env::flag("ELY_REDUCE_MOTION"), setting, os_reduce_motion(), software)
 }
 
-/// Why motion is reduced: env, setting, system, CPU drawing.
-fn reduce_motion_from(env: Option<bool>, setting: Motion, system: Option<bool>, software: bool) -> Option<&'static str> {
+/// Env, then the setting, then the system or CPU drawing.
+fn reduce_motion_from(env: Option<bool>, setting: Motion, system: Option<bool>, software: bool) -> (bool, &'static str) {
     let set = match setting {
         Motion::System => None,
         Motion::Reduced => Some(true),
         Motion::Full => Some(false),
     };
-    let (reduce, why) = match (env, set, system) {
-        (Some(env), _, _) => (env, "ELY_REDUCE_MOTION"),
-        (None, Some(set), _) => (set, "the user setting"),
-        (None, None, Some(true)) => (true, "the system setting"),
+    match (env, set, system) {
+        (Some(true), _, _) => (true, "on, by ELY_REDUCE_MOTION"),
+        (Some(false), _, _) => (false, "off, by ELY_REDUCE_MOTION"),
+        (None, Some(true), _) => (true, "on, by the user setting"),
+        (None, Some(false), _) => (false, "off, by the user setting"),
+        (None, None, Some(true)) => (true, "on, by the system setting"),
         // Frames drawn on the CPU starve the load (R20.63).
-        (None, None, _) => (software, "a software renderer"),
-    };
-    reduce.then_some(why)
+        (None, None, _) if software => (true, "on, by a software renderer"),
+        (None, None, Some(false)) => (false, "off, by the system setting"),
+        (None, None, None) => (false, "off, no setting found"),
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -84,28 +83,34 @@ mod tests {
 
     #[test]
     fn the_env_wins_then_the_setting_then_the_os_then_full_motion() {
-        assert_eq!(reduce_motion_from(Some(true), Motion::Full, Some(false), false), Some("ELY_REDUCE_MOTION"));
-        assert_eq!(reduce_motion_from(Some(false), Motion::Reduced, Some(true), false), None);
-        assert_eq!(reduce_motion_from(None, Motion::Reduced, Some(false), false), Some("the user setting"));
-        assert_eq!(reduce_motion_from(None, Motion::Full, Some(true), false), None);
-        assert_eq!(reduce_motion_from(None, Motion::System, Some(true), false), Some("the system setting"));
-        assert_eq!(reduce_motion_from(None, Motion::System, None, false), None);
+        assert_eq!(reduce_motion_from(Some(true), Motion::Full, Some(false), false), (true, "on, by ELY_REDUCE_MOTION"));
+        assert_eq!(reduce_motion_from(Some(false), Motion::Reduced, Some(true), false), (false, "off, by ELY_REDUCE_MOTION"));
+        assert_eq!(reduce_motion_from(None, Motion::Reduced, Some(false), false), (true, "on, by the user setting"));
+        assert_eq!(reduce_motion_from(None, Motion::Full, Some(true), false), (false, "off, by the user setting"));
+        assert_eq!(reduce_motion_from(None, Motion::System, Some(true), false), (true, "on, by the system setting"));
+        assert_eq!(reduce_motion_from(None, Motion::System, None, false), (false, "off, no setting found"));
     }
 
     #[test]
     fn a_software_renderer_reduces_motion_by_default() {
-        assert_eq!(reduce_motion_from(None, Motion::System, Some(false), true), Some("a software renderer"));
-        assert_eq!(reduce_motion_from(None, Motion::System, None, true), Some("a software renderer"));
+        assert_eq!(reduce_motion_from(None, Motion::System, Some(false), true), (true, "on, by a software renderer"));
+    }
+
+    #[test]
+    fn no_system_setting_and_a_software_renderer_never_says_full_motion() {
+        let (reduce, said) = reduce_motion_from(None, Motion::System, None, true);
+        assert!(reduce);
+        assert_eq!(said, "on, by a software renderer");
     }
 
     #[test]
     fn a_hardware_renderer_with_the_system_setting_off_animates() {
-        assert_eq!(reduce_motion_from(None, Motion::System, Some(false), false), None);
+        assert_eq!(reduce_motion_from(None, Motion::System, Some(false), false), (false, "off, by the system setting"));
     }
 
     #[test]
     fn full_motion_chosen_in_ely_animates_on_a_software_renderer() {
-        assert_eq!(reduce_motion_from(None, Motion::Full, Some(false), true), None);
+        assert_eq!(reduce_motion_from(None, Motion::Full, Some(false), true), (false, "off, by the user setting"));
     }
 
     #[test]

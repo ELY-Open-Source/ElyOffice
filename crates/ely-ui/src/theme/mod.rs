@@ -93,14 +93,11 @@ fn text(cx: &mut App) {
 
 fn motion(cx: &mut App) {
     let software = cx.try_global::<Software>().is_some_and(|software| software.0);
-    let why = accessibility::reduce_motion(crate::settings::current(cx).motion, software);
-    let reduce = why.is_some();
+    let (reduce, said) = accessibility::reduce_motion(crate::settings::current(cx).motion, software);
     cx.set_reduce_motion(reduce);
     Theme::update(cx, |theme| theme.reduced_motion = reduce);
-    match why {
-        Some(why) => log::info!("theme: reduced motion on, by {why}"),
-        None => log::info!("theme: reduced motion off"),
-    }
+    // The decision's only log line.
+    log::info!("theme: reduced motion {said}");
 }
 
 /// The first window's renderer draws on the CPU (R20.63).
