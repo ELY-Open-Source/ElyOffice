@@ -276,7 +276,7 @@ def main():
                               setup=lambda recipe=recipe: pinned(recipe), held=True)
         judged = paging.judged(cases.windows)
         if args.keep:
-            shutil.copy(paging.path, f"{args.keep}.{utc():%Y%m%dT%H%M%S}.{paging.suffix}")
+            kept_trace(args.keep, paging)
     except BaseException:
         logs = tempfile.mkdtemp(prefix="ely-bench-failed-")
         for log in glob.glob(os.path.join(work, "**", "*.log"), recursive=True):
@@ -318,11 +318,18 @@ def table(cases):
     return rows, held
 
 
+def kept_trace(keep, paging):
+    """The paging samples beside --keep, as the record rules ask."""
+    shutil.copy(paging.path, f"{keep}.{utc():%Y%m%dT%H%M%S}.{paging.suffix}")
+
+
 def failed_redo(args, kept, cases, paging, now):
     """Keeps a failed redo's finished cases; the rest stay void."""
     judged = paging.judged(cases.windows)
     env = {**redone(kept["env"], now, sorted(cases.ran)),
            "void": void_after(kept["env"].get("void", []), cases.ran, judged)}
+    # Its samples back each kept case's verdict.
+    kept_trace(args.keep, paging)
     write(args.out, env, *table(cases), args.runs)
     with open(args.keep, "w", encoding="utf-8") as raw:
         json.dump({"env": env, "cases": cases.done}, raw)

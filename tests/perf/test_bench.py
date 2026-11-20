@@ -358,8 +358,12 @@ class Windows(unittest.TestCase):
                 cases.run("A", lambda _: rows(10)["rows"])
                 with self.assertRaises(RuntimeError):
                     cases.run("B", lambda _: (_ for _ in ()).throw(RuntimeError("cycle 264")))
-            paging = types.SimpleNamespace(judged=lambda windows: [(key, a_counts, "") for key, _, _ in windows])
-            with tempfile.TemporaryDirectory() as out:
+            with tempfile.TemporaryDirectory() as out, tempfile.TemporaryDirectory() as work:
+                trace = os.path.join(work, "vmstat.log")
+                with open(trace, "w", encoding="utf-8") as samples:
+                    samples.write("the window's samples\n")
+                paging = types.SimpleNamespace(judged=lambda windows: [(key, a_counts, "") for key, _, _ in windows],
+                                               path=trace, suffix="vmstat")
                 args = types.SimpleNamespace(out=out, keep=os.path.join(out, "raw.json"), runs=1)
                 with unittest.mock.patch("builtins.print"):
                     bench.failed_redo(args, kept, cases, paging, {"date": "2000-01-02", "machine": "Test"})
@@ -367,6 +371,11 @@ class Windows(unittest.TestCase):
                     saved = json.load(raw)
                 with open(os.path.join(out, "2000-01-01-Test.md"), encoding="utf-8") as record:
                     self.assertIn("| PERF-01 | case 10 |", record.read())
+                # A kept case's verdict has its samples beside --keep.
+                traces = [name for name in os.listdir(out) if re.fullmatch(r"raw\.json\.\d{8}T\d{6}\.vmstat", name)]
+                self.assertEqual(len(traces), 1, os.listdir(out))
+                with open(os.path.join(out, traces[0]), encoding="utf-8") as copied:
+                    self.assertEqual(copied.read(), "the window's samples\n")
             self.assertEqual(saved["cases"]["A"], rows(10))
             self.assertEqual(saved["cases"]["B"], rows(2))
             self.assertEqual(saved["env"]["void"], void)
