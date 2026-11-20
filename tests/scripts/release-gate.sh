@@ -44,6 +44,38 @@ told "$said
 - Released 3 days after 0.1.9: a fix for lost typing could not wait."
 notes 2026-11-04
 gate || fail "a short gap with its reason: $(cat "$work/gate.err")"
+# The gap line: the notes' gap, only when short.
+told "$said
+- Released 2 days after 0.1.9: a fix for lost typing could not wait."
+! gate || fail "a gap line with the wrong count"
+grep -q "says - Released 2 days after 0.1.9; the notes' 2026-11-04 is 3 days after 0.1.9 (2026-11-01)" "$work/gate.err" || fail "the wrong count is not named with both: $(cat "$work/gate.err")"
+told "$said
+- Released 3 days after 0.1.8: a fix for lost typing could not wait."
+! gate || fail "a gap line naming another release"
+grep -q "after 0.1.8; the notes' 2026-11-04 is 3 days after 0.1.9" "$work/gate.err" || fail "the wrong release is not named: $(cat "$work/gate.err")"
+told "$said
+- Released 3 days after 0.1.9:"
+! gate || fail "a gap line with no reason"
+grep -q "gives no reason" "$work/gate.err" || fail "the missing reason is not named: $(cat "$work/gate.err")"
+told "$said
+- Released 3 days after 0.1.9: one.
+- Released 3 days after 0.1.9: two."
+! gate || fail "a gap said twice"
+told "$said
+- Released 19 days after 0.1.9: a reason nobody needs."
+notes 2026-11-20
+! gate || fail "a gap line after nineteen days"
+grep -q "came 19 days before 2026-11-20; a week or more needs no reason: drop - Released 19 days after 0.1.9" "$work/gate.err" || fail "the needless line is not named: $(cat "$work/gate.err")"
+told "$said
+- Released 3 days after 0.1.9: a fix for lost typing could not wait."
+notes 2026-11-04
+# No earlier release: no gap line.
+first_tag=$(git -C "$work" rev-parse v0.1.9)
+git -C "$work" tag -d v0.1.9 >/dev/null
+! gate || fail "a gap line with no earlier release"
+grep -q "no release came before" "$work/gate.err" || fail "the missing earlier release is not named: $(cat "$work/gate.err")"
+git -C "$work" -c tag.gpgsign=false tag v0.1.9 "$first_tag"
+gate || fail "the short gap with its reason, retagged: $(cat "$work/gate.err")"
 # The user, 2026-11-20: only New and Fixes.
 for head in Engineering 'Known issues' 工程; do
   notes 2026-11-04 "
@@ -161,4 +193,4 @@ for system in macos linux; do
   grep -q "$system 0.1.17 has no bench record of its own and uses 2026-11-12-$box.md (0.1.16)" "$work/base.out" || fail "$system: the stand-in is not said: $(cat "$work/base.out")"
   ! base 0.1.19 "$system" || fail "$system: a version outside the decision took an earlier record"
 done
-echo "release-gate: notes hold only New and Fixes; the record counts unreviewed fixes; a short gap and a slowdown each want a reason; first opens after install, and after reboot on Windows, are required; a record timed while paging is refused; the user's 0.1.17 exceptions hold and go no further"
+echo "release-gate: notes hold only New and Fixes; the record counts unreviewed fixes; a short gap and a slowdown each want a reason, the gap line matching the notes' day and absent after a week; first opens after install, and after reboot on Windows, are required; a record timed while paging is refused; the user's 0.1.17 exceptions hold and go no further"

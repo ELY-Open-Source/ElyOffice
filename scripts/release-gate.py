@@ -60,14 +60,30 @@ def faults(version):
         line = ("1 fix was made after its last review failed and has not" if count == 1
                 else f"{count} fixes were made after their last review failed and have not")
         found.append(f"the record must say: - {line} been reviewed again.")
-    last = last_tag(version)
-    if last:
-        days = (datetime.date.fromisoformat(head.group(1)) - datetime.date.fromisoformat(last[1])).days
-        why = re.search(rf"^- Released {days} days? after {re.escape(last[0][1:])}: \S", record, re.M)
-        if days < APART_DAYS and not why:
-            unit = "day" if days == 1 else "days"
-            found.append(f"{last[0]} came {days} {unit} before; the record must say: - Released {days} {unit} after {last[0][1:]}: <why>")
-    return found
+    return found + gap(record, head.group(1), last_tag(version))
+
+
+def gap(record, day, last):
+    """The record's gap line against the notes' day."""
+    said = re.findall(r"^- Released (\d+) days? after (\S+?):(.*)$", record, re.M)
+    if len(said) > 1:
+        return ["the record says the gap more than once"]
+    if last is None:
+        return [f"the record says - Released {said[0][0]} days after {said[0][1]}, but no release came before"] if said else []
+    days = (datetime.date.fromisoformat(day) - datetime.date.fromisoformat(last[1])).days
+    unit = "day" if days == 1 else "days"
+    if not said:
+        if days < APART_DAYS:
+            return [f"{last[0]} came {days} {unit} before; the record must say: - Released {days} {unit} after {last[0][1:]}: <why>"]
+        return []
+    n, after, why = int(said[0][0]), said[0][1], said[0][2].strip()
+    if days >= APART_DAYS:
+        return [f"{last[0]} came {days} {unit} before {day}; a week or more needs no reason: drop - Released {n} days after {after}"]
+    if (n, after) != (days, last[0][1:]):
+        return [f"the record says - Released {n} days after {after}; the notes' {day} is {days} {unit} after {last[0][1:]} ({last[1]})"]
+    if not why:
+        return [f"the record's gap line gives no reason: - Released {days} {unit} after {last[0][1:]}: <why>"]
+    return []
 
 
 def main():
