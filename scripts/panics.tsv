@@ -294,5 +294,4 @@ crates/ely-ui/src/settings/picks.rs	expect_used	picked.parse::<u32>().expect("a 
 crates/ely-ui/src/settings/switches.rs	expect_used	switches.on.get_mut(choice.key).expect("every choice is read")	linux,macos,windows	every choice is read
 crates/ely-ui/src/settings/window.rs	expect_used	self.git.clone().expect("the git section is ElyTree's")	linux,macos,windows	the git section is ElyTree's
 crates/ely-ui/src/tasks.rs	unreachable	unreachable!("a finish has no progress")	linux,macos,windows	a finish has no progress
-crates/ely-ui/src/updates.rs	expect_used	path.parent().expect("the note's folder")	macos	the note's folder
 crates/ely-ui/src/updates.rs	expect_used	semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("the build's version")	linux,macos,windows	the build's version
