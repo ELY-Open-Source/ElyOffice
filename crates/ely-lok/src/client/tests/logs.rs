@@ -19,7 +19,7 @@ struct Heard;
 
 impl log::Log for Heard {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.target() == "lok-worker"
+        matches!(metadata.target(), "lok-worker" | "ely_lok::worker::stages")
     }
 
     fn log(&self, record: &log::Record) {
@@ -79,6 +79,26 @@ fn a_source_read_and_a_failed_read_are_both_logged() {
     assert_eq!(update(&mut other, &book), [missing], "the missing source is named");
     let failed = heard(&["WARN sc.ui (docsh4.cxx:", "linked source not read", folder, "logged-missing.ods"]);
     assert!(failed.is_some(), "the failed read is not in the app's log");
+}
+
+#[test]
+fn a_worker_logs_each_start_stage_with_its_counters() {
+    if skip() {
+        return;
+    }
+    listen();
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let install = install().expect("the pinned LOK build");
+    let mut worker = Worker::spawn(&install, &dir.path().join("profile")).expect("the worker");
+    let flat = dir.path().join("first.fods");
+    rates(&flat, 0);
+    worker.load(&crate::file_url(&flat)).expect("loads");
+    for stage in ["kernel hooked", "self-check loaded", "self-check painted", "first document loaded"] {
+        let said = heard(&["INFO lok-worker: start ", stage, " ms, "]);
+        let said = said.unwrap_or_else(|| panic!("no start line for {stage}"));
+        assert!(!said.contains("counters"), "{stage} has no counts: {said}");
+        assert!(!said.contains(&*dir.path().to_string_lossy()), "{stage} names a path: {said}");
+    }
 }
 
 /// A class name no document of ours holds elsewhere.

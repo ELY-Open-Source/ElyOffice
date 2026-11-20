@@ -21,6 +21,7 @@ mod save;
 mod history;
 mod waits;
 mod slides;
+mod stages;
 mod teardown;
 mod text;
 #[cfg(windows)]
@@ -45,12 +46,14 @@ pub fn run(
     output: impl Write + Send + 'static,
 ) -> io::Result<()> {
     set_output(Box::new(output));
+    stages::begin();
     let profile_dir = dunce::canonicalize(profile_dir)?;
     let profile_url = profile_url_of(&profile_dir);
     let _ = teardown::PROFILE.set(profile_dir.clone());
     #[cfg(windows)]
     messages::unaware()?;
     let lok = Lok::hook(Path::new(install), &profile_url)?;
+    stages::step("kernel hooked", false);
     #[cfg(unix)]
     fatal::watch();
     log::info!("lok-worker: up, profile {}", profile_dir.display());
@@ -324,6 +327,7 @@ fn load(lok: &Lok, url: &str, password: String, filter: &str) -> io::Result<u64>
         "" => LOAD_OPTIONS.to_owned(),
         filter => format!("{LOAD_OPTIONS},{filter}"),
     };
+    let began = stages::Mark::now();
     let loaded = lok.load(url, &options);
     let (refused, damaged) = (asked::refused(), asked::damaged());
     asked::arm(None);
@@ -332,6 +336,7 @@ fn load(lok: &Lok, url: &str, password: String, filter: &str) -> io::Result<u64>
         Err(_) if damaged => return Err(io::Error::other(ipc::DAMAGED)),
         loaded => loaded?,
     };
+    stages::first_document(&began);
     // A session number per load; native pointers get reused.
     let id = revision::session();
     crate::events::watch(id, &doc);
@@ -384,10 +389,12 @@ fn docs() -> &'static Mutex<std::collections::HashMap<u64, Document>> {
 /// Loads and paints red text; its BGRA red pixels (R-01).
 fn verify(lok: &Lok, url: &str) -> io::Result<u64> {
     let doc = lok.load(url, LOAD_OPTIONS)?;
+    stages::step("self-check loaded", false);
     let mut tile = vec![0xABu8; 64 * 64 * 4];
     // Past the 2 cm margin, where the text sits.
     doc.paint_rect(&mut tile, (64, 64), (0, 0, 3000, 3000));
     drop(doc);
+    stages::step("self-check painted", true);
     let red = tile.as_chunks::<4>().0.iter().filter(|px| px[2] > 200 && px[0] < 80 && px[1] < 80).count();
     log::info!("lok-worker: tile self-check found {red} red pixels");
     Ok(red as u64)
