@@ -1660,3 +1660,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 原状：`ci.sh` 设 `ELY_SHARE` 即链上现成的引擎，从不核其 lo-src 是否带全补丁；Intel 的共享树曾落后整段序列。
 - 定：`apply-lo-patches.sh --check` 核钉住的提交与整条序列（与补打同一重放判法），只核不打，不符即败并点名所缺；`ci.sh` 每次发布都对 `engines/lo-src` 调它。只核源码：instdir 是否在补丁后重链不在此核。
 - 测试：`tests/scripts/lo-series.sh`（假序列，不需引擎）与 `tests/scripts/ci-share.sh`，都进 pr.yml；四处变异各败。
+
+## 2026-11-20 基准的子进程输出按 UTF-8 读（R20.84）
+
+- 原状：`tests/perf/drive.py` 的 `sh()` 不给编码，Windows 上按 ANSI 代码页（cp1252）解子进程输出，cargo 输出里的 0x90 使读线程报错（R20.30 的 Windows 基准，2026-11-20）。
+- 定：子进程输出一律按 UTF-8 解，解不开即失败并点名命令，不以替换字符遮掩。Windows 0.1.17 记录入库后再改。
