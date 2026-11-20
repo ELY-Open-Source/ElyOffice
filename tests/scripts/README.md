@@ -99,7 +99,7 @@ tests/scripts/windows-table-zoom.py 目录  真窗口 ElyTable：键、状态栏
 tests/scripts/windows-types.sh  真安装程序以假类型 `.elyprobe` 写 HKCU：能打开、只在无处理程序时设默认与“新建”、假方案 `elyprobe:` 进“默认应用”而不接管、别的程序的登记与“新建”不动、换了文件夹后旧卸载不删新的、写不进即安装失败（缺 makensis 时 SKIP）
 tests/scripts/layout.sh        真窗口：首批七个应用在 640、800、1100 宽下无元素越出窗口左右，留截图（需辅助功能与屏幕录制权限）
 tests/perf/test_idle.py          空闲引擎的门对假引擎的判定：CPU、线程进出、计数倒退、内存，Windows 的周期按记录的两倍（pr.yml 调用）
-tests/perf/bench.py [--runs N] [--only PERF-..]  性能基准（PERF-01 至 08），release 构建，结果写 docs/perf；macOS、Windows 直接跑（驱动 tests/perf/drive.py、drive.ps1，Windows 上不在前台即拒发输入）
+tests/perf/bench.py [--runs N] [--only PERF-..] [--keep 文件] [--redo 项..]  性能基准（PERF-01 至 08），release 构建，结果写 docs/perf；每项的起止（UTC）打在输出里，`--redo` 只重跑点名的项、并回 `--keep` 的记录；macOS、Windows 直接跑（驱动 tests/perf/drive.py、drive.ps1，Windows 上不在前台即拒发输入）
 tests/office/web_samples.py <resave> <文件夹>  写出三十份由 Ely 内核存出的 DOCX、XLSX、PPTX（各十份），供传到 Office 网页版逐个打开核对（`resave` 即 `cargo build -p ely-lok --example resave` 所建；须设 `ELY_LOK_WORKER`）
 tests/perf/load.py [--docs N] [--big-every E] [--rounds R] [--keys K] [--apps ...]  PERF-10 极限负载：Doc、Table、Show、Mark 各开 N 份（默认 100；每十份一份大的，`--big-every 1` 即每份都大，Doc 另有外部链接的，大工作簿含复杂公式与跨工作簿引用；样本由 loadfiles.py 以 Python 写，不经 Office），前台文档空闲时与全部文档（连前台正在打字的那份）同时经命令行编辑时各按键量反馈、帧与主线程停顿，全部保存后读盘核对编辑、按键与链接，结果写 docs/perf/<日期>-<机型>-load-N.md（frames 发行构建；Windows 直接跑，Linux 经 `ELY_PERF_TOOL=load.py tests/perf/linux.sh`）；可用内存低于 12 GB 即停；有人点击或挪动窗口即作废重来，至多三次
 tests/perf/extreme.py [--cases ...]  PERF-10 的极端情形，真窗口逐项核对：链接源缺失、源已改（关着与开着）、三份文档切标签时键入与同时编辑、键入中保存、关闭未保存（询问、取消、保存）、编辑中杀掉引擎后从恢复点重开、缩放 25% 至 400% 与滚轮（截图留看）、20 份同时交来再逐个关闭、单个超大文件（500 页 docx、6 万行 xlsx、189 页 pptx、7 MB md）；结果写 docs/perf/<日期>-<机型>-extreme.md（只在 Windows）

@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import tempfile
+import types
 import unittest
 import unittest.mock
 
@@ -319,6 +320,41 @@ class Listing(unittest.TestCase):
     def test_a_list_cut_short_voids_the_run(self):
         with self.assertRaises(RuntimeError):
             self.listed(1, 5)
+
+
+class Windows(unittest.TestCase):
+    def test_a_redo_runs_only_its_case_after_its_setup_and_prints_its_window(self):
+        done = {"A": {"rows": [["P", "a", [1], None]]}, "B": {"rows": [["P", "b", [2], None]]}}
+        cases, order = bench.Cases(done, ["B"]), []
+        clock = lambda: order.append("clock") or "2026-11-19T00:00:00.000+00:00"
+        with unittest.mock.patch("builtins.print") as said, unittest.mock.patch.object(bench, "utc", clock):
+            cases.run("A", lambda _: order.append("A produced"))
+            cases.run("B", lambda home: order.append(f"B produced in {home}") or [["P", "b", [3], None]],
+                      setup=lambda: order.append("B set up") or "seed")
+        self.assertEqual(order, ["B set up", "clock", "B produced in seed", "clock"])
+        self.assertEqual(list(done), ["A", "B"])
+        self.assertEqual(done["A"]["rows"][0][2], [1])
+        self.assertEqual(done["B"]["rows"][0][2], [3])
+        self.assertEqual(cases.ran, {"B"})
+        line = said.call_args.args[0]
+        self.assertRegex(line, r"^bench: case B from \S+\+00:00 to \S+\+00:00$")
+
+    def test_a_seeded_home_is_made_once_before_the_window(self):
+        made = []
+        recipe = types.SimpleNamespace(home=lambda: made.append(1) or f"home{len(made)}")
+        bench.pinned(recipe)
+        self.assertEqual((recipe.home(), recipe.home(), len(made)), ("home1", "home1", 1))
+        plain = types.SimpleNamespace(home=None)
+        bench.pinned(plain)
+        self.assertIsNone(plain.home)
+
+    def test_a_redo_keeps_the_first_record_and_names_what_it_redid(self):
+        before = {"date": "2026-11-19", "builds": {"ely-doc": "x"}, "rerun": {"A": "t"}}
+        env = bench.redone(before, {"date": "2026-11-20", "builds": {"ely-doc": "x"}}, ["B"])
+        self.assertEqual(env["date"], "2026-11-19")
+        self.assertEqual(set(env["rerun"]), {"A", "B"})
+        with self.assertRaises(RuntimeError):
+            bench.redone(before, {"date": "2026-11-20", "builds": {"ely-doc": "y"}}, ["B"])
 
 
 if __name__ == "__main__":

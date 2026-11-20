@@ -62,25 +62,63 @@ def laid_out(work, sample, pages):
         app.stop()
 
 
-def perf01(work, runs):
-    rows = []
-    for slug in APPS:
-        home = os.path.join(work, "home-" + slug)
-        first = App(slug, home, smoke="1").ready()
-        daily = [App(slug, home, smoke="1").ready() for _ in range(runs)]
-        rows.append(("PERF-01", f"{slug} first run", [first], None))
-        rows.append(("PERF-01", f"{slug} daily start", daily, None))
-    # The window opens first; the blank document follows the engine.
-    for slug in ["ely-doc", "ely-table", "ely-show"]:
-        blank = []
-        for _ in range(runs):
-            app = App(slug, os.path.join(work, "home-" + slug))
-            try:
-                blank.append(app.wait("opened Untitled"))
-            finally:
-                app.stop()
-        rows.append(("PERF-01", f"{slug} blank document ready", blank, None))
-    return rows
+def started(work, slug, runs):
+    home = os.path.join(work, "home-" + slug)
+    first = App(slug, home, smoke="1").ready()
+    daily = [App(slug, home, smoke="1").ready() for _ in range(runs)]
+    return [("PERF-01", f"{slug} first run", [first], None), ("PERF-01", f"{slug} daily start", daily, None)]
+
+
+def blank(work, slug, runs):
+    """The window opens first; the blank document follows the engine."""
+    times = []
+    for _ in range(runs):
+        app = App(slug, os.path.join(work, "home-" + slug))
+        try:
+            times.append(app.wait("opened Untitled"))
+        finally:
+            app.stop()
+    return [("PERF-01", f"{slug} blank document ready", times, None)]
+
+
+def warmed(work, slug):
+    """A redone blank case starts after a first run."""
+    home = os.path.join(work, "home-" + slug)
+    if not os.path.exists(home):
+        App(slug, home, smoke="1").ready()
+
+
+def pinned(recipe):
+    """Seeds before the window; the case reuses it."""
+    if recipe.home:
+        home = recipe.home()
+        recipe.home = lambda: home
+
+
+def utc():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds")
+
+
+class Cases:
+    """Each case's results by key; prints each window."""
+
+    def __init__(self, done, redo):
+        self.done, self.redo, self.ran = done, set(redo), set()
+
+    def wanted(self, key):
+        return not self.redo or key in self.redo
+
+    def run(self, key, produce, setup=None, held=False):
+        if not self.wanted(key):
+            return
+        # setup runs outside the window; produce gets its result.
+        ready = setup() if setup else None
+        began = utc()
+        made = produce(ready)
+        # Swap is judged per case, in this window (R20.28).
+        print(f"bench: case {key} from {began} to {utc()}", flush=True)
+        self.done[key] = {"held": made} if held else {"rows": made}
+        self.ran.add(key)
 
 
 def machine():
@@ -110,7 +148,16 @@ def main():
     parser.add_argument("--only", nargs="*")
     parser.add_argument("--apps", nargs="*", default=list(APPS))
     parser.add_argument("--out", default=os.path.join(run.ROOT, "docs", "perf"))
+    parser.add_argument("--keep", help="raw results: written after a run, read by --redo")
+    parser.add_argument("--redo", nargs="+", default=[], metavar="CASE", help="rerun these cases into --keep's record")
     args = parser.parse_args()
+    if args.redo and not args.keep:
+        parser.error("--redo needs --keep")
+    kept = None
+    if args.redo:
+        with open(args.keep, encoding="utf-8") as raw:
+            kept = json.load(raw)
+    cases = Cases(kept["cases"] if kept else {}, args.redo)
     want = lambda perf: not args.only or perf in args.only
     work = tempfile.mkdtemp()
     run.HOST = drive.host(work)
@@ -124,43 +171,37 @@ def main():
     drive.frames_apart([*APPS, "ely-lok-worker", "ely-pdf-worker"])
     drive.sh(*build, *packages, cwd=run.ROOT)
     found = samples.made(os.path.join(run.ROOT, "engines", "bench"), run.HOST.git())
-    rows, held = [], []
     try:
         if want("PERF-01"):
-            rows += perf01(work, args.runs)
+            for slug in APPS:
+                cases.run(f"PERF-01 {slug}", lambda _, slug=slug: started(work, slug, args.runs))
+            for slug in ["ely-doc", "ely-table", "ely-show"]:
+                cases.run(f"PERF-01 {slug} blank", lambda _, slug=slug: blank(work, slug, args.runs),
+                          setup=lambda slug=slug: warmed(work, slug))
         if want("PERF-02"):
             for recipe in feedback.keys(work, found):
                 if recipe.slug in args.apps:
-                    ticks, stalls, starved = feedback.typing(work, recipe, args.runs)
-                    what = "tile" if recipe.answer == feedback.TILE else "frame"
-                    rows.append(("PERF-02", f"{APPS[recipe.slug]} key to {what}", ticks, None))
-                    rows.append(("PERF-02", f"{APPS[recipe.slug]} main thread busy >100 ms: {len(stalls)} times",
-                                 stalls or [0], None))
-                    # Starved: the machine, not the app; shown, not judged.
-                    rows.append(("PERF-02", f"{APPS[recipe.slug]} timers late >100 ms while starved: {len(starved)} times",
-                                 starved or [0], None))
-        cases = [("PERF-03", "ely-doc", "doc.docx", ["opened doc.docx", r"lok: first tile drawn"]),
+                    cases.run(f"PERF-02 {recipe.slug}", lambda _, recipe=recipe: typed(work, recipe, args.runs),
+                              setup=lambda recipe=recipe: pinned(recipe))
+        opening = [("PERF-03", "ely-doc", "doc.docx", ["opened doc.docx", r"lok: first tile drawn"]),
                  ("PERF-04", "ely-table", "sheet.xlsx", ["opened sheet.xlsx", r"lok: first tile drawn"]),
                  *[("PERF-04", "ely-table", name, [f"opened {name}", r"lok: first tile drawn"]) for name in sheets.MAKERS],
                  ("PERF-05", "ely-pdf", "pages.pdf", ["opened pages.pdf", r"pdf: first tile drawn, page 0$"]),
                  ("PERF-07", "ely-mark", "notes.md", ["opened notes.md", r"mark: shown as \"visual\""])]
-        if want("PERF-03"):
+        if want("PERF-03") and cases.wanted("PERF-03 doc.docx"):
             laid_out(work, found["doc.docx"][0], 100)
-        for perf, slug, name, marks in cases:
+        for perf, slug, name, marks in opening:
             if want(perf):
-                times, memory = opened(slug, os.path.join(work, "home-" + slug), found[name][0], marks, args.runs)
-                rows.append((perf, f"{APPS[slug]} {name}", times, max(memory)))
+                cases.run(f"{perf} {name}", lambda _, perf=perf, slug=slug, name=name, marks=marks:
+                          opens(work, perf, slug, found[name][0], name, marks, args.runs))
         if want("PERF-06"):
-            history, searched = search.tree(work, found["repo"][0], args.runs)
-            rows.append(("PERF-06", "ElyTree history, press to first screen", history, None))
-            rows.append(("PERF-06", "ElyTree query 'part 42', Enter to first results", searched, None))
-            mailed = search.mail(search.seeded(work), args.runs)
-            rows.append(("PERF-06", f"ElyMail query 'report' in {search.MAILS} messages, last key to first results",
-                         mailed, None))
+            cases.run("PERF-06 ely-tree", lambda _: searched_tree(work, found["repo"][0], args.runs))
+            cases.run("PERF-06 ely-mail", lambda home: searched_mail(home, args.runs), setup=lambda: search.seeded(work))
         if want("PERF-08"):
             for recipe in cycles.recipes(work):
                 if recipe.slug in args.apps:
-                    held.append((recipe.slug, *cycles.cycles(work, recipe)))
+                    cases.run(f"PERF-08 {recipe.slug}", lambda _, recipe=recipe: [(recipe.slug, *cycles.cycles(work, recipe))],
+                              setup=lambda recipe=recipe: pinned(recipe), held=True)
     except BaseException:
         kept = tempfile.mkdtemp(prefix="ely-bench-failed-")
         for log in glob.glob(os.path.join(work, "**", "*.log"), recursive=True):
@@ -174,7 +215,51 @@ def main():
         shutil.rmtree(work, ignore_errors=True)
     if left:
         raise RuntimeError(f"engines outlived the run: {left}")
-    write(args.out, environment(found, bool(args.only) or set(args.apps) != set(APPS)), rows, held, args.runs)
+    if set(args.redo) - cases.ran:
+        raise RuntimeError(f"no such case to redo: {sorted(set(args.redo) - cases.ran)}")
+    env = environment(found, bool(args.only) or set(args.apps) != set(APPS))
+    if kept:
+        env = redone(kept["env"], env, args.redo)
+    rows = [row for case in cases.done.values() for row in case.get("rows", [])]
+    held = [one for case in cases.done.values() for one in case.get("held", [])]
+    write(args.out, env, rows, held, args.runs)
+    if args.keep:
+        with open(args.keep, "w", encoding="utf-8") as raw:
+            json.dump({"env": env, "cases": cases.done}, raw)
+
+
+def typed(work, recipe, runs):
+    ticks, stalls, starved = feedback.typing(work, recipe, runs)
+    what = "tile" if recipe.answer == feedback.TILE else "frame"
+    name = APPS[recipe.slug]
+    # Starved: the machine, not the app; shown, not judged.
+    return [("PERF-02", f"{name} key to {what}", ticks, None),
+            ("PERF-02", f"{name} main thread busy >100 ms: {len(stalls)} times", stalls or [0], None),
+            ("PERF-02", f"{name} timers late >100 ms while starved: {len(starved)} times", starved or [0], None)]
+
+
+def opens(work, perf, slug, sample, name, marks, runs):
+    times, memory = opened(slug, os.path.join(work, "home-" + slug), sample, marks, runs)
+    return [(perf, f"{APPS[slug]} {name}", times, max(memory))]
+
+
+def searched_tree(work, repo, runs):
+    history, searched = search.tree(work, repo, runs)
+    return [("PERF-06", "ElyTree history, press to first screen", history, None),
+            ("PERF-06", "ElyTree query 'part 42', Enter to first results", searched, None)]
+
+
+def searched_mail(home, runs):
+    mailed = search.mail(home, runs)
+    return [("PERF-06", f"ElyMail query 'report' in {search.MAILS} messages, last key to first results", mailed, None)]
+
+
+def redone(before, now, redo):
+    """The first run's record, its redone cases named."""
+    same = lambda env: {key: value for key, value in env.items() if key not in ("date", "rerun")}
+    if same(before) != same(now):
+        raise RuntimeError("--redo needs the same builds, samples and machine as the kept run")
+    return {**before, "rerun": {**before.get("rerun", {}), **{key: utc() for key in redo}}}
 
 
 def write(out, env, rows, held, runs):
