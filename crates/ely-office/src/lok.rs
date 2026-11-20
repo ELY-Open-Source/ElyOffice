@@ -255,11 +255,14 @@ fn follow<H: Host<Engine = Lok>>(host: &mut H, view: Entity<LokView>, link: &str
         if let Err(error) = view.update(cx, |view, _| view.run("link.jump", &[mark])) {
             host.engine_failed(&error.to_string(), cx);
         }
-    } else if crate::outward(link) {
-        log::info!("{slug}: opening a web or mail link");
-        cx.open_url(link);
     } else {
-        host.toast(text(cx, "office.link.refused", &[]), Severity::Danger, cx);
+        match ely_ui::outward(link) {
+            Ok(address) => {
+                log::info!("{slug}: opening a web or mail link");
+                cx.open_url(&address);
+            }
+            Err(notice) => host.toast(text(cx, notice, &[]), Severity::Danger, cx),
+        }
     }
 }
 

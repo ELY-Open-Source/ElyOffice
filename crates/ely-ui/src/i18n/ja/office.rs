@@ -18,6 +18,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("office.error.changed", "その間にドキュメントが変更されました。もう一度お試しください"),
     ("office.print.failed", "印刷に失敗しました: {error}"),
     ("office.link.refused", "Ely が開くのは Web とメールのリンクだけです。"),
+    ("office.link.malformed", "このリンクのアドレスが正しくないため、Ely では開けません。"),
     ("office.error.dialog", "エンジンが開いたダイアログを Ely が閉じました: {title}"),
     ("office.error.dialog_said", "エンジンが開いたダイアログを Ely が閉じました: {title}。内容: {body}"),
     ("office.recovery.failed", "復元用のコピーを書き込めませんでした: {error}"),

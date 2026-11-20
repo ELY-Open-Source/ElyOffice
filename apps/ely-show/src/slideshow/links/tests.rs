@@ -169,3 +169,37 @@ fn a_next_page_shape_passes_pending_clicks_and_a_program_stays_put() {
     click(&mut cx, &show, (width - 1000.0, 1000.0));
     settle(&cx, |app| show.read(app).place == Place::End);
 }
+
+#[test]
+fn a_raw_address_opens_encoded_and_a_broken_one_says_so() {
+    use crate::tests::{objects::blank, play::three_slides, settle, update};
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = gpui::TestAppContext::single();
+    let Some(deck) = blank(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    three_slides(&mut cx, &deck);
+    update(&mut cx, &deck, |deck, cx| deck.start_show(false, cx));
+    settle(&cx, |app| deck.read(app).show.is_some());
+    let show = cx.update(|app| deck.read(app).show.clone().expect("playing"));
+    settle(&cx, |app| show.read(app).stack(0).is_some());
+    let width = cx.update(|app| show.read(app).slide.0);
+    let right = width as i64 - 2000;
+    cx.update(|app| {
+        show.update(app, |show, _| {
+            // As a PPTX keeps a typed address.
+            show.links[0] = vec![
+                Link { bounds: (0, 0, 2000, 2000), to: Goto::Address("https://a.example/x y\"z'w".into()) },
+                Link { bounds: (right, 0, 2000, 2000), to: Goto::Address("https://a b/".into()) },
+            ];
+        })
+    });
+    click(&mut cx, &show, (1000.0, 1000.0));
+    let sent = Some("https://a.example/x%20y%22z'w");
+    assert_eq!(cx.opened_url().as_deref(), sent, "the opener gets it encoded");
+    click(&mut cx, &show, (width - 1000.0, 1000.0));
+    let malformed = cx.update(|app| Deck::text(app, "office.link.malformed", &[]));
+    assert_eq!(cx.update(|app| show.read(app).notice.clone()), Some(malformed), "a broken address says so");
+    assert_eq!(cx.opened_url().as_deref(), sent, "and never reaches the opener");
+}

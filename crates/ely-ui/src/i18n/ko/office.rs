@@ -18,6 +18,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("office.error.changed", "그사이 문서가 바뀌었습니다. 다시 시도하십시오"),
     ("office.print.failed", "인쇄하지 못했습니다: {error}"),
     ("office.link.refused", "Ely는 웹과 메일 링크만 엽니다."),
+    ("office.link.malformed", "이 링크의 주소가 올바르지 않아 Ely가 열 수 없습니다."),
     ("office.error.dialog", "엔진이 연 대화 상자를 Ely가 닫았습니다: {title}"),
     ("office.error.dialog_said", "엔진이 연 대화 상자를 Ely가 닫았습니다: {title}. 내용: {body}"),
     ("office.recovery.failed", "복구 사본을 쓰지 못했습니다: {error}"),

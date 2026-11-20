@@ -36,6 +36,10 @@ pub(super) const ES: &[(&str, &str)] = &[
         "Ely solo abre enlaces web y de correo.",
     ),
     (
+        "office.link.malformed",
+        "La dirección de este enlace no es válida y Ely no puede abrirla.",
+    ),
+    (
         "office.recovery.failed",
         "No se pudo escribir una copia de recuperación: {error}",
     ),

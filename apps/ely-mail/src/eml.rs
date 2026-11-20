@@ -232,11 +232,23 @@ impl Eml {
             Alert::new("mail-eml-pictures", Severity::Info, words)
         });
         let this = cx.weak_entity();
+        let told = this.clone();
         let drawn = MarkdownRenderer::blocks("mail-eml-body", shown.blocks.clone())
             .pictures(shown.pictures.clone())
-            .on_link(|url, _, cx: &mut App| {
-                log::info!("mail: a link in a message file opens");
-                cx.open_url(url);
+            .on_link(move |url, _, cx: &mut App| match ely_ui::outward(url) {
+                Ok(address) => {
+                    log::info!("mail: a link in a message file opens");
+                    cx.open_url(&address);
+                }
+                Err(notice) => {
+                    log::info!("mail: a link in a message file was refused");
+                    let words = text(cx, notice, &[]);
+                    told.update(cx, |eml, cx| {
+                        eml.said = Some((Severity::Danger, words));
+                        cx.notify();
+                    })
+                    .ok();
+                }
             });
         let said = self.said.clone().map(|(severity, words)| Alert::new("mail-eml-said", severity, words));
         MailReader::new("mail-eml", subject, message)

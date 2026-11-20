@@ -61,10 +61,12 @@ fn paste_from_the_menu_lands_at_the_pressed_caret(cx: &mut TestAppContext) {
 
 #[gpui::test]
 fn a_link_opens_and_copies_its_address(cx: &mut TestAppContext) {
-    let (_desk, cx, _files) = opened("[docs](https://x.test)\n", cx);
+    let (desk, cx, _files) = opened("[docs](https://x.test)\n", cx);
     right_on(0, 1, cx);
     choose("down", cx);
-    assert_eq!(cx.opened_url().as_deref(), Some("https://x.test"));
+    // The opener gets the URL Standard's form.
+    assert_eq!(cx.opened_url().as_deref(), Some("https://x.test/"));
+    assert_eq!(current(&desk, cx), "[docs](https://x.test)\n", "the file keeps it as typed");
     right_on(0, 1, cx);
     choose("down down down", cx);
     assert_eq!(clipboard(cx).as_deref(), Some("https://x.test"));

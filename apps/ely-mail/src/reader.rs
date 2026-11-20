@@ -141,12 +141,19 @@ impl Mail {
                 .child(self.headers(each, &letter.headers, cx))
                 .into_any_element();
         };
+        let mail = cx.weak_entity();
         let drawn = MarkdownRenderer::blocks(format!("mail-body-{}", id.0), open.blocks.clone())
             .pictures(open.pictures.clone())
-            .on_link(|url, _, cx| {
-                // The engine kept only web and mail links.
-                log::info!("mail: a link opens");
-                cx.open_url(url);
+            .on_link(move |url, _, cx| match ely_ui::outward(url) {
+                Ok(address) => {
+                    log::info!("mail: a link opens");
+                    cx.open_url(&address);
+                }
+                Err(notice) => {
+                    log::info!("mail: a link was refused");
+                    let words = text(cx, notice, &[]);
+                    mail.update(cx, |mail, cx| mail.toast(words, Severity::Danger, cx)).ok();
+                }
             })
             .selectable({
                 let this = cx.weak_entity();

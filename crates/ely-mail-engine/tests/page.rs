@@ -297,3 +297,39 @@ fn words_stray_in_a_table_go_before_it() {
         "as a browser places them"
     );
 }
+
+#[test]
+fn a_hostile_href_never_becomes_a_link() {
+    let hostile = [
+        "file:///etc/passwd",
+        "FILE://c:/Windows/System32/calc.exe",
+        "javascript:alert(1)",
+        " JaVaScRiPt:alert(1)",
+        "java\tscript:alert(1)",
+        "vbscript:msgbox(1)",
+        "data:text/html,<b>x</b>",
+        "smb://host/share",
+        "\\\\host\\share\\run.exe",
+        "ms-msdt:/id PCWDiagnostic",
+        "search-ms:query=x",
+        "ftp://a.example/",
+        "x-apple.systempreferences:",
+    ];
+    for href in hostile {
+        let html = format!("<p><a href='{href}'>text</a><a href='{href}'><img src='cid:logo%40atrium' alt='pic'></a></p>");
+        let page = page::html(&html, &[logo()]);
+        for block in &page.blocks {
+            match block {
+                Block::Text(inline) => assert!(inline.links.is_empty(), "{href}: {inline:?}"),
+                Block::Image(image) => assert_eq!(image.link, None, "{href}"),
+                _ => {}
+            }
+        }
+    }
+    // Web and mail stay links.
+    let page = page::html("<p><a href='mailto:x@a.example'>m</a></p>", &[]);
+    let [Block::Text(inline)] = &page.blocks[..] else {
+        panic!("one paragraph: {page:?}");
+    };
+    assert_eq!(inline.links, [(0..1, "mailto:x@a.example".to_owned())]);
+}

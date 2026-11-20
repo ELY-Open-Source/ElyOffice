@@ -10,7 +10,7 @@ pub fn parse(typed: &str, pages: usize) -> Option<Target> {
     let typed = typed.trim();
     match typed.parse::<usize>() {
         Ok(n) => (1..=pages).contains(&n).then(|| Target::Page(n - 1, 0.0)),
-        Err(_) => ely_office::outward(typed).then(|| Target::Web(typed.to_string())),
+        Err(_) => ely_ui::outward(typed).ok().map(Target::Web),
     }
 }
 
@@ -30,14 +30,16 @@ impl PdfView {
                 log::info!("pdf: follows a link to page {}", page + 1);
                 self.show(page, link.y, cx)
             }
-            None if ely_office::outward(&link.uri) => {
-                log::info!("pdf: opens a link outside");
-                cx.open_url(&link.uri)
-            }
-            None => {
-                let text = crate::viewer::Viewer::text(cx, "office.link.refused", &[]);
-                cx.emit(Failed(text.to_string()))
-            }
+            None => match ely_ui::outward(&link.uri) {
+                Ok(address) => {
+                    log::info!("pdf: opens a link outside");
+                    cx.open_url(&address)
+                }
+                Err(notice) => {
+                    let text = crate::viewer::Viewer::text(cx, notice, &[]);
+                    cx.emit(Failed(text.to_string()))
+                }
+            },
         }
     }
 }
@@ -51,7 +53,10 @@ mod tests {
         assert_eq!(parse(" 3 ", 5), Some(Target::Page(2, 0.0)));
         assert_eq!(parse("9", 5), None);
         assert_eq!(parse("0", 5), None);
-        assert_eq!(parse("https://a.b", 5), Some(Target::Web("https://a.b".into())));
+        // Written as the opener gets it.
+        assert_eq!(parse("https://a.b", 5), Some(Target::Web("https://a.b/".into())));
+        assert_eq!(parse("https://a.b/x y", 5), Some(Target::Web("https://a.b/x%20y".into())));
+        assert_eq!(parse("https://a b/", 5), None);
         assert_eq!(parse("javascript:x", 5), None);
         assert_eq!(parse("file:///etc", 5), None);
     }

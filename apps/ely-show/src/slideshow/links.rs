@@ -321,8 +321,14 @@ impl Show {
                 None => log::warn!("show: every slide is hidden"),
             },
             Goto::End => self.close(cx),
-            Goto::Address(address) if ely_office::outward(&address) => cx.open_url(&address),
-            Goto::Address(_) | Goto::Refused => {
+            Goto::Address(address) => match ely_ui::outward(&address) {
+                Ok(address) => cx.open_url(&address),
+                Err(notice) => {
+                    self.notice = Some(Deck::text(cx, notice, &[]));
+                    cx.notify();
+                }
+            },
+            Goto::Refused => {
                 self.notice = Some(Deck::text(cx, "office.link.refused", &[]));
                 cx.notify();
             }

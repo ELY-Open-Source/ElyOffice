@@ -18,6 +18,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("office.error.changed", "Tài liệu đã thay đổi trong lúc đó; hãy thử lại"),
     ("office.print.failed", "In thất bại: {error}"),
     ("office.link.refused", "Ely chỉ mở liên kết web và liên kết thư."),
+    ("office.link.malformed", "Địa chỉ của liên kết này không hợp lệ nên Ely không mở được."),
     ("office.error.dialog", "Bộ máy đã mở một hộp thoại và Ely đã đóng nó: {title}"),
     ("office.error.dialog_said", "Bộ máy đã mở một hộp thoại và Ely đã đóng nó: {title}. Nội dung: {body}"),
     ("office.recovery.failed", "Chưa ghi được một bản sao khôi phục: {error}"),

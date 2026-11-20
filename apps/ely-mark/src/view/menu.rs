@@ -171,8 +171,13 @@ impl MarkView {
     /// Shows a local picture's file, or opens a web one.
     fn show_picture(&mut self, url: &str, cx: &mut Context<Self>) {
         if web(url) {
-            log::info!("mark: a picture opens in the browser");
-            return cx.open_url(url);
+            return match ely_ui::outward(url) {
+                Ok(address) => {
+                    log::info!("mark: a picture opens in the browser");
+                    cx.open_url(&address)
+                }
+                Err(notice) => cx.emit(Failed(said(notice, cx).to_string())),
+            };
         }
         match crate::output::picture_file(url, self.folder.as_deref()) {
             Some(path) if path.is_file() => cx.reveal_path(&path),

@@ -2851,10 +2851,12 @@ dependencies = [
  "libc",
  "log",
  "notify",
+ "objc2-foundation 0.3.2",
  "raw-window-handle",
  "semver",
  "serde_json",
  "tempfile",
+ "url",
  "windows-sys 0.60.2",
  "zbus",
 ]

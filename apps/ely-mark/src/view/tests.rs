@@ -223,7 +223,7 @@ fn an_edit_keeps_the_rest_of_the_file_byte_for_byte(cx: &mut TestAppContext) {
 fn a_web_link_opens_outside(cx: &mut TestAppContext) {
     let (view, cx) = open("x\n", cx);
     view.update(cx, |view, cx| view.follow("https://ely.dev", cx));
-    assert_eq!(cx.opened_url().as_deref(), Some("https://ely.dev"));
+    assert_eq!(cx.opened_url().as_deref(), Some("https://ely.dev/"), "in the URL Standard's form");
 }
 
 #[gpui::test]

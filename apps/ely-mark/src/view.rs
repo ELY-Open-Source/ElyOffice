@@ -310,13 +310,17 @@ impl MarkView {
 
     /// A pressed link: web and mail open outside (M-05).
     fn follow(&mut self, url: &str, cx: &mut Context<Self>) {
-        if ely_office::outward(url) {
-            log::info!("mark: opens a link outside");
-            return cx.open_url(url);
+        match ely_ui::outward(url) {
+            Ok(address) => {
+                log::info!("mark: opens a link outside");
+                cx.open_url(&address);
+            }
+            Err(notice) => {
+                log::info!("mark: a link was refused");
+                let said = ely_ui::i18n::text(cx, notice, &[]).to_string();
+                cx.emit(Failed(said));
+            }
         }
-        log::info!("mark: a link of another kind was refused");
-        let said = ely_ui::i18n::text(cx, "office.link.refused", &[]).to_string();
-        cx.emit(Failed(said));
     }
 }
 
