@@ -5,7 +5,7 @@ pub fn reduce_motion(setting: Motion, software: bool) -> (bool, &'static str) {
     reduce_motion_from(env::flag("ELY_REDUCE_MOTION"), setting, os_reduce_motion(), software)
 }
 
-/// Env, then the setting, then the system or CPU drawing.
+/// Env, Ely's explicit choice, then system or software reduces.
 fn reduce_motion_from(env: Option<bool>, setting: Motion, system: Option<bool>, software: bool) -> (bool, &'static str) {
     let set = match setting {
         Motion::System => None,
@@ -92,8 +92,9 @@ mod tests {
     }
 
     #[test]
-    fn a_software_renderer_reduces_motion_by_default() {
+    fn the_system_animations_on_default_and_a_software_renderer_reduce_motion() {
         assert_eq!(reduce_motion_from(None, Motion::System, Some(false), true), (true, "on, by a software renderer"));
+        assert_eq!(reduce_motion_from(None, Motion::Full, Some(false), true), (false, "off, by the user setting"));
     }
 
     #[test]
