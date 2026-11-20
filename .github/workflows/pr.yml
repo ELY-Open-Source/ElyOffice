@@ -50,5 +50,7 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Release rules
         run: tests/scripts/ci-upload.sh && tests/scripts/lo-configured.sh && tests/scripts/mac-ready-rules.sh && tests/scripts/release-gate.sh && tests/scripts/compatibility-rules.sh && (cd tests/perf && python3 -m unittest test_idle)
+      - name: The media player compiles for Windows and macOS
+        run: rustup target add x86_64-pc-windows-msvc aarch64-apple-darwin && tests/scripts/media-targets.sh
       - name: Tests that need no engine
         run: ELY_GIT=$(command -v git) cargo test $NO_ENGINES

@@ -2,9 +2,10 @@
 
 use std::path::Path;
 
-#[cfg(target_os = "macos")]
-mod macos;
 // The media-targets probe loads this file by path.
+#[cfg(target_os = "macos")]
+#[path = "media/macos.rs"]
+mod macos;
 #[cfg(windows)]
 #[path = "media/mf.rs"]
 mod mf;

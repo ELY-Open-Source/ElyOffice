@@ -1625,3 +1625,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Windows: 换出按 \Memory\Pages Output 判（PDH 英文计数器，原始累计值与 WMI 同刻一致，开机以来 37,751 页）；实测时无换出，增量未见变动，增量的算法由单元测试覆盖；换入不可测，不判。Pages Output 计的是修改页与映射页写出器的写出，不计显式的 FlushViewOfFile（虚拟机上 512 MB 映射写入后刷盘，它不动）。Page Reads、Pages Input 混有文件读入，只记不判。
 - `judge.verdicts(cases, taken, swap_in=True)`：`swap_in` 为假（Windows）只判换出，注里写 si not measured；为真时样本缺换入即报错，缺测的换入在 Linux、macOS 永不算通过。三端都取样，bench 不再有不判的分支。
 - 测试：`tests/perf/test_judge.py`（shell 的 `Paged` 七条）；`tests/perf/test_counters.py` 十条（vm_stat 读法、每秒增量、换出落在它那一秒、Pageouts 不进判定、Windows 换入为 None、读法出错即停、本机实时取样、只判换出时换出即废、缺测换入在应判处报错、Windows 累计 Pages Output 上升经 `Counted` 判废其项）。变异：Windows 也判换入、换入缺测时不看换出，各败。
+
+## 2026-11-20 media-targets.sh 只查他平台、由 pr.yml 跑，依赖由 ely-platform 生成（R20.65）
+
+- 原状：脚本要同一台机器同时有 Linux 与 Windows msvc 目标，三台测试机都不全，一直只报 SKIP；临时 crate 的依赖手写，与真 crate 会走样。
+- 定：只查本机以外平台的目标（本机目标每次构建都编），由 `pr.yml` 在 Ubuntu 上 `rustup target add x86_64-pc-windows-msvc aarch64-apple-darwin` 后跑；Mac、Windows 测试机不加目标。真 crate 不能交叉检查：ring 的构建脚本要目标平台的 C 头文件（Windows 要 mingw，macOS 要 Apple SDK），故留临时 crate，依赖由 `crates/ely-platform/Cargo.toml` 生成。Windows 取 msvc 不取 gnu：gnu 要 mingw 的 `dlltool`。缺目标点名 SKIP，全缺即败。
+- 测试与变异见 R20.65 的任务行。

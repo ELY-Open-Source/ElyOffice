@@ -1,35 +1,52 @@
 #!/usr/bin/env bash
-# The media player interface compiles for Linux and Windows.
+# The media player compiles for every installed foreign target.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
-targets=(x86_64-unknown-linux-gnu x86_64-pc-windows-msvc)
+# One per platform; msvc needs no mingw dlltool to check.
+targets=(x86_64-unknown-linux-gnu x86_64-pc-windows-msvc aarch64-apple-darwin)
+host=$(cd "$root" && rustc -vV | sed -n 's/^host: //p')
+os() { case $1 in *linux*) echo linux ;; *windows*) echo windows ;; *apple*) echo macos ;; esac; }
 installed=$(cd "$root" && rustup target list --installed)
+checked=() missing=()
 for target in "${targets[@]}"; do
-  if ! grep -qx "$target" <<<"$installed"; then
-    echo "SKIP: media-targets needs rustup target $target"
-    exit 0
-  fi
+  [ "$(os "$target")" = "$(os "$host")" ] && continue
+  grep -qx "$target" <<<"$installed" && checked+=("$target") || missing+=("$target")
 done
+[ ${#missing[@]} -eq 0 ] || echo "SKIP: media-targets has no rustup target ${missing[*]}"
+[ ${#checked[@]} -gt 0 ] || { echo "FAIL: media-targets has no foreign target to check"; exit 1; }
 native() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+# Under the repo's target, never the system temp folder.
+work=$root/target/media-targets
 mkdir -p "$work/src"
 cp "$root/rust-toolchain.toml" "$work/"
-cat >"$work/Cargo.toml" <<TOML
-[package]
-name = "media-targets"
-version = "0.1.0"
-edition = "2024"
-[dependencies]
-anyhow = "1"
-log = "0.4"
-[target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2"
-[target.'cfg(windows)'.dependencies]
-dunce = "1"
-windows-core = "0.62"
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Imaging", "Win32_Media_MediaFoundation", "Win32_System_Com"] }
-TOML
+python3 - "$root" "$work/Cargo.toml" <<'PY'
+"""The probe's manifest, from ely-platform's own dependency sections."""
+import json, re, sys, tomllib
+from pathlib import Path
+root, out = Path(sys.argv[1]), Path(sys.argv[2])
+shared = tomllib.loads((root / "Cargo.toml").read_text())["workspace"]["dependencies"]
+member = tomllib.loads((root / "crates/ely-platform/Cargo.toml").read_text())
+media = root / "crates/ely-platform/src"
+sources = [media / "media.rs", *sorted((media / "media").glob("*.rs"))]
+named = set(re.findall(r"\b([a-z][a-z0-9_]*)::", "".join(p.read_text() for p in sources)))
+def resolved(name, spec):
+    spec = {"version": spec} if isinstance(spec, str) else dict(spec)
+    if spec.pop("workspace", False):
+        base = shared[name]
+        base = {"version": base} if isinstance(base, str) else dict(base)
+        base["features"] = base.get("features", []) + spec.pop("features", [])
+        spec = {**base, **spec}
+    return spec
+def line(name, spec):
+    return f"{name} = {{ " + ", ".join(f"{k} = {json.dumps(v)}" for k, v in resolved(name, spec).items()) + " }"
+lines = ['[package]', 'name = "media-targets"', 'version = "0.1.0"', 'edition = "2024"', '[workspace]', '[dependencies]']
+# Shared dependencies only where the player names them.
+lines += [line(n, s) for n, s in member["dependencies"].items() if n.replace("-", "_") in named]
+for cfg, section in member.get("target", {}).items():
+    lines.append(f"[target.'{cfg}'.dependencies]")
+    lines += [line(n, s) for n, s in section.get("dependencies", {}).items()]
+out.write_text("\n".join(lines) + "\n")
+PY
 cat >"$work/src/lib.rs" <<RS
 #[path = "$(native "$root")/crates/ely-platform/src/media.rs"]
 pub mod media;
@@ -44,8 +61,8 @@ pub fn touch(path: &std::path::Path) -> anyhow::Result<Option<media::Frame>> {
     Ok(player.frame())
 }
 RS
-for target in "${targets[@]}"; do
+for target in "${checked[@]}"; do
   (cd "$work" && cargo check --quiet --target "$target") \
     || { echo "FAIL: media does not compile for $target"; exit 1; }
 done
-echo "media-targets: the player interface compiles for ${targets[*]}"
+echo "media-targets: the player interface compiles for ${checked[*]}"

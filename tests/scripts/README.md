@@ -8,7 +8,7 @@ tests/scripts/engine-arch.sh 架构  macOS 引擎里每个 Mach-O 都是该架�
 tests/scripts/review-rules.sh   review.sh 对替身 herdr：审查者以 Pi（K3.1 Pro，思考 high）起，窗格带自己的数据根（提示里点名，别的机器照设），有 `.work/bin/cargo` 时它在 PATH 最前，pi 起不来、2 分钟未开工、阻塞、状态读不出、空结论、窗格关不掉皆败，起不来与开工前读不出状态报出 herdr 的错误码，Pi 经 argv 取提示（替身里打进去的提示一律卡住）、herdr 晚认出 Pi 照等、状态按窗格号读，每步带时刻记进 `.work/<ID>-r<轮次>/start.log`（状态只记变化，失败与阻塞连屏上文字一并记下），审查者空闲而结论晚到照等，CRLF 的 jq 照常，首个窗格在调用者右侧、其后分在该列最高的窗格下面，两半的终端都留 10 行才分（框占 2 行，24 行分得、23 行不分），列满即另开标签页、读完结论关掉、开不出即报，两个调用者同时放也不压到 10 行以下、锁 30 秒不放即报，阻塞 10 次即报出屏上文字并关窗格、短暂阻塞照等，提示要求一切留在 `.work/<ID>-r<轮次>/`，读完结论即关，失败的留到本条下一轮、别条不关（三端可跑）
 tests/scripts/lo-patches.sh    补丁序列从中途接着打、再打一次为空操作
 tests/scripts/lo-configured.sh 未配置的树、就地配置的树、经链接到达的树都过；配置在别处（SRCDIR 为已删的 C:/ely）的树被拒并点名两处
-tests/scripts/media-targets.sh 媒体播放接口在 Linux、Windows 目标可编译（缺目标时 SKIP）
+tests/scripts/media-targets.sh 媒体播放接口在本机以外各平台的目标（Linux、Windows msvc、macOS aarch64）可编译：依赖由 `crates/ely-platform/Cargo.toml` 生成，缺的目标报 SKIP 并点名，一个也没有即败；`pr.yml` 在 Ubuntu 上加 msvc、darwin 目标跑它
 cargo test -p ely-platform --test media  系统播放器真放 1 秒片段：可播、出帧、播完、循环、暂停守住、坏文件说原因（macOS、Windows 与 Linux）
 tests/scripts/linux-idle.sh      真窗口 ElyTree：打开仓库后、Omarchy 换主题与改设置后，空闲时不读主题、设置，不跑 git status；照样跟随换主题、改设置与改文件，经内存映射的写入也跟随
 tests/scripts/linux-backends.sh  Linux 构建带 Wayland 与 X11；Hyprland 上 ElyTree 在两者上都映射出窗口、画出页面与起始页文字（截窗口量色，tesseract 读字）
