@@ -1570,7 +1570,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 原状：静机规则（起跑前负载低于 2，`vmstat 1 5` 的 si 平均低于 100 KiB/s、so 为 0）原先对整次运行判。R20.28 的首次全量 7922 个样本里 75 个 so 大于 0，整份作废，最大一阵却落在两项之间（bench 中途编译 `search_perf`）。
 - 定：起跑前照旧要静机；之后按项判。一项的窗口盖住它从首个到末个的计时样本，窗口里每个 vmstat 样本 so 为 0、si 平均低于 100 KiB/s，该项才算；落在一切窗口之外的换出不废任何项。作废的项单独重跑（`bench.py --redo`），记录 JSON 的 `rerun` 记重跑了哪几项、何时；为何重跑写在任务行。
-- 实现：`bench.py` 每项测完打 `bench: case <项> from <UTC> to <UTC>`；首次启动的预热与三处邮件灌库（PERF-02、PERF-06、PERF-08 各一次，原先在该项里、首个计时之前，会落进窗口）挪到窗口之前，灌一次、该项只用这一份。`--keep` 存原始结果，`--redo` 只重跑点名的项，构建、样本、机器不同即拒。判定读 `TZ=UTC vmstat -n -t 1`，样本盖住的那一秒与窗口相交即算在内（`.work/R20.28/judge.py`（本机，未入库））。
+- 实现：`bench.py` 每项测完打 `bench: case <项> from <UTC> to <UTC>`；首次启动的预热与三处邮件灌库（PERF-02、PERF-06、PERF-08 各一次，原先在该项里、首个计时之前，会落进窗口）挪到窗口之前，灌一次、该项只用这一份。`--keep` 存原始结果，`--redo` 只重跑点名的项，构建、样本、机器不同即拒。判定读 `TZ=UTC vmstat -n -t 1`，样本盖住的那一秒与窗口相交即算在内；判定在 `tests/perf/judge.py`，由 R20.58 入库（下节）。
 - 测试：`test_bench.py` 的 `Windows` 三条；去掉选项判断、把准备挪进窗口、窗口在测完后才起、不打窗口行、准备的结果不交给该项、灌好的主目录不复用、接受不同的构建，各败。
 
 ## 2026-11-20 panics.py 自设 CARGO_CHECK_SHARED_DEPS=0（R20.57）
@@ -1617,3 +1617,11 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 量（测试机，清待机列表后冷开 doc.docx，动画效果开）：改后 15 次中位 4,205 毫秒（3,528 至 5,366），2 次过 5 秒（5,221、5,366），应用 CPU 3.0 至 4.1 秒；装着的 0.1.17 5 次中位 5,593（4,440 至 9,495），CPU 12.2 至 44.2；同时段 Word 11 次中位 3,703（3,453 至 4,234）。等待中不画帧：改后冷开的 1.9 秒等待里 0 帧，改前 9.4 秒画 213 帧。重启后首开 ElyDoc：登录项照常时五轮 1,435 1,429 1,360 1,420 1,724 毫秒，皆接管空闲引擎；关掉登录项、ElyDoc 自起引擎的五轮 9,944 9,184 8,746 8,902 8,902 毫秒，过不了 5 秒的线（改前同测登录项晚起的第 2、4 轮 45,734、46,551），同轮 Word 4,235 至 5,235。余下与 Word 之差是冷读内核与 22 MB 的应用 exe，另立 R20.74。
 - 第 1 轮 FAIL 一条：无系统设置、软件渲染器时日志先说完整动效、再说减少动效。改为 `reduce_motion` 只返回决定与一句缘由、不记日志，由 `theme::motion` 记唯一一句；测试“无系统设置加软件渲染器”断言其为“on, by a software renderer”，变异各败。
 - 第 2 轮 FAIL 一条：审查者按文档写的“系统设置先于渲染器”，要系统答“动画开”时胜过软件渲染器。不照改：Windows 的“动画效果”默认开，R20.63 的对照都在开着时量，照改则本修在它要管的机器上永不生效。错的是写下的次序，已改为上面的说法；测试改名为“系统动画开的默认加软件渲染器即减少”，并断言明选完整加软件加系统开仍动。
+
+## 2026-11-20 换页的逐项判定入库，三端各有读法（R20.58）
+
+- 判定 `tests/perf/judge.py` 与 `bench.py` 的取样、`--keep` 旁的记录、`baseline.py` 拒 `void` 是 shell 为 R20.28 写的稿（R20.28 未落地前由 fonts 接手，原样入库，只加下面的平台读法与 `swap_in`）。Linux 上 bench 自己以 `TZ=UTC vmstat -n -t 1` 每秒取样，首行（开机以来的平均）不算；时间戳截到整秒，标 T 的样本可能盖住 T−1 到 T+1 里任一秒，故 T 落在窗口前后各放宽一秒之内即算；取样没盖住某项的窗口即失败。作废的项写入 JSON 的 `void`，bench 以非零退出，`--redo` 后去掉；`baseline.py --check` 见 `void` 非空即不放行。
+- macOS（`tests/perf/counters.py`）：每秒读 `vm_stat`。换出按 Swapouts，换入按 Swapins（页大小取其表头，16 KB），同 Linux 的规则。Pageouts 只记不判：xnu 只在 `upl_commit_range` 提交带 UPL_PAGEOUT 的干净页时加它（`osfmk/vm/vm_upl.c` 1127 行），换页扫描把匿名页交压缩器、文件页交其分页器（`osfmk/vm/vm_pageout.c` 约 3863 行），故它数的是文件页的回写；匿名内存只以压缩段换出到盘，由 swapouts、swapins 计（apple-oss-distributions/xnu main f6217f891ac0，xnu-12377.1.9）。
+- Windows: 换出按 \Memory\Pages Output 判（PDH 英文计数器，原始累计值与 WMI 同刻一致，开机以来 37,751 页）；实测时无换出，增量未见变动，增量的算法由单元测试覆盖；换入不可测，不判。Pages Output 计的是修改页与映射页写出器的写出，不计显式的 FlushViewOfFile（虚拟机上 512 MB 映射写入后刷盘，它不动）。Page Reads、Pages Input 混有文件读入，只记不判。
+- `judge.verdicts(cases, taken, swap_in=True)`：`swap_in` 为假（Windows）只判换出，注里写 si not measured；为真时样本缺换入即报错，缺测的换入在 Linux、macOS 永不算通过。三端都取样，bench 不再有不判的分支。
+- 测试：`tests/perf/test_judge.py`（shell 的 `Paged` 七条）；`tests/perf/test_counters.py` 十条（vm_stat 读法、每秒增量、换出落在它那一秒、Pageouts 不进判定、Windows 换入为 None、读法出错即停、本机实时取样、只判换出时换出即废、缺测换入在应判处报错、Windows 累计 Pages Output 上升经 `Counted` 判废其项）。变异：Windows 也判换入、换入缺测时不看换出，各败。

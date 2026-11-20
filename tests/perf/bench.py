@@ -9,10 +9,13 @@ import json
 import os
 import re
 import shutil
+import subprocess
+import sys
 import tempfile
 import time
 
 import baseline
+import counters
 import cycles
 import drive
 import run
@@ -20,6 +23,7 @@ import samples
 import search
 import sheets
 import feedback
+import judge
 
 from run import APPS, App, percentile
 
@@ -96,14 +100,63 @@ def pinned(recipe):
 
 
 def utc():
-    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def stamp(moment):
+    return moment.isoformat(timespec="milliseconds")
+
+
+class Paging:
+    """Linux: vmstat each second, stamped in UTC, for judge.py."""
+
+    suffix = "vmstat"
+
+    def __init__(self, path):
+        self.path = path
+        with open(path, "w", encoding="utf-8") as trace:
+            self.process = subprocess.Popen(["vmstat", "-n", "-t", "1"], stdout=trace, env=dict(os.environ, TZ="UTC"))
+        self.until(lambda taken: taken)
+
+    def taken(self):
+        with open(self.path, encoding="utf-8") as trace:
+            return judge.samples(trace.read().splitlines())
+
+    def until(self, enough):
+        deadline = time.monotonic() + 10
+        while True:
+            try:
+                if enough(self.taken()):
+                    return
+            except ValueError:
+                pass
+            if self.process.poll() is not None or time.monotonic() > deadline:
+                raise RuntimeError(f"vmstat gave no samples in 10 s (exit {self.process.poll()})")
+            # Polls the trace for its next sample.
+            time.sleep(0.2)
+
+    def judged(self, windows):
+        """Each window's verdict, once a sample covers the last."""
+        if windows:
+            self.until(lambda taken: taken and taken[-1][0] >= windows[-1][2])
+        self.stop()
+        return judge.verdicts(windows, self.taken()) if windows else []
+
+    def stop(self):
+        self.process.terminate()
+        self.process.wait()
+
+
+def void_after(before, ran, judged):
+    """Still void: earlier cases not redone, and newly judged ones."""
+    return sorted(set(before) - set(ran) | {key for key, counts, _ in judged if not counts})
 
 
 class Cases:
     """Each case's results by key; prints each window."""
 
     def __init__(self, done, redo):
-        self.done, self.redo, self.ran = done, set(redo), set()
+        self.done, self.redo, self.ran, self.windows = done, set(redo), set(), []
 
     def wanted(self, key):
         return not self.redo or key in self.redo
@@ -115,8 +168,10 @@ class Cases:
         ready = setup() if setup else None
         began = utc()
         made = produce(ready)
+        ended = utc()
         # Swap is judged per case, in this window (R20.28).
-        print(f"bench: case {key} from {began} to {utc()}", flush=True)
+        print(f"bench: case {key} from {stamp(began)} to {stamp(ended)}", flush=True)
+        self.windows.append((key, began, ended))
         self.done[key] = {"held": made} if held else {"rows": made}
         self.ran.add(key)
 
@@ -171,6 +226,9 @@ def main():
     drive.frames_apart([*APPS, "ely-lok-worker", "ely-pdf-worker"])
     drive.sh(*build, *packages, cwd=run.ROOT)
     found = samples.made(os.path.join(run.ROOT, "engines", "bench"), run.HOST.git())
+    # Each system's own counters, sampled here (R20.58).
+    linux = run.HOST.name == "Linux"
+    paging = Paging(os.path.join(work, "vmstat.log")) if linux else counters.Counted(os.path.join(work, "paging.log"))
     try:
         if want("PERF-01"):
             for slug in APPS:
@@ -202,6 +260,9 @@ def main():
                 if recipe.slug in args.apps:
                     cases.run(f"PERF-08 {recipe.slug}", lambda _, recipe=recipe: [(recipe.slug, *cycles.cycles(work, recipe))],
                               setup=lambda recipe=recipe: pinned(recipe), held=True)
+        judged = paging.judged(cases.windows)
+        if args.keep:
+            shutil.copy(paging.path, f"{args.keep}.{utc():%Y%m%dT%H%M%S}.{paging.suffix}")
     except BaseException:
         kept = tempfile.mkdtemp(prefix="ely-bench-failed-")
         for log in glob.glob(os.path.join(work, "**", "*.log"), recursive=True):
@@ -209,6 +270,7 @@ def main():
             os.makedirs(os.path.dirname(to), exist_ok=True)
             shutil.copy(log, to)
         print(f"the failed run's logs: {kept}")
+        paging.stop()
         raise
     finally:
         left = run.stop_engines(work)
@@ -220,12 +282,17 @@ def main():
     env = environment(found, bool(args.only) or set(args.apps) != set(APPS))
     if kept:
         env = redone(kept["env"], env, args.redo)
+    for key, counts, note in judged:
+        print(f"bench: paging {'ok' if counts else 'VOID'} {key}: {note}")
+    env["void"] = void_after(kept["env"].get("void", []) if kept else [], cases.ran, judged)
     rows = [row for case in cases.done.values() for row in case.get("rows", [])]
     held = [one for case in cases.done.values() for one in case.get("held", [])]
     write(args.out, env, rows, held, args.runs)
     if args.keep:
         with open(args.keep, "w", encoding="utf-8") as raw:
             json.dump({"env": env, "cases": cases.done}, raw)
+    if env.get("void"):
+        sys.exit(f"bench: timed while the machine paged, redo: {env['void']}")
 
 
 def typed(work, recipe, runs):
@@ -256,10 +323,10 @@ def searched_mail(home, runs):
 
 def redone(before, now, redo):
     """The first run's record, its redone cases named."""
-    same = lambda env: {key: value for key, value in env.items() if key not in ("date", "rerun")}
+    same = lambda env: {key: value for key, value in env.items() if key not in ("date", "rerun", "void")}
     if same(before) != same(now):
         raise RuntimeError("--redo needs the same builds, samples and machine as the kept run")
-    return {**before, "rerun": {**before.get("rerun", {}), **{key: utc() for key in redo}}}
+    return {**before, "rerun": {**before.get("rerun", {}), **{key: stamp(utc()) for key in redo}}}
 
 
 def write(out, env, rows, held, runs):

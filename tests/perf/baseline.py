@@ -15,6 +15,12 @@ HEAD = "Slower than the last record by over 30%:"
 # Each record a release needs, and what writes it.
 KINDS = {None: "tests/perf/bench.py", "install": "tests/perf/firsts.py install",
          "reboot": "tests/perf/firsts.py reboot"}
+# After reboot: Windows only (the user, 2026-11-20).
+ONLY_ON = {"reboot": {"windows"}}
+# The user, 2026-11-20: these keep 0.1.16's bench record.
+EARLIER_BENCH = {("macos", "0.1.17"), ("linux", "0.1.17")}
+# The user, 2026-11-20: Linux 0.1.17 ships with no install record.
+NO_INSTALL = {("linux", "0.1.17")}
 
 
 def read(path):
@@ -71,14 +77,34 @@ def unexplained(all_records, record):
     return [case for case, _, _ in (slower(old, record) if old else []) if not record["reasons"].get(case, "").strip()]
 
 
+def earlier(all_records, system, version):
+    """This system's full bench records of versions before `version`."""
+    number = lambda text: tuple(int(part) for part in text.split("."))
+    return [record for record in all_records if platform(record["env"]["machine"]) == system
+            and record["env"].get("kind") is None and record["env"].get("version")
+            and number(record["env"]["version"]) < number(version)]
+
+
 def check(folder, version, system):
     """Why this version may not ship from `system`, if so."""
     all_records = records(folder)
     for kind, tool in KINDS.items():
+        if system not in ONLY_ON.get(kind, {system}):
+            continue
         mine = [record for record in all_records if platform(record["env"]["machine"]) == system
                 and record["env"].get("version") == version and record["env"].get("kind") == kind]
+        if not mine and kind is None and (system, version) in EARLIER_BENCH:
+            mine = earlier(all_records, system, version)
+            if mine:
+                print(f"baseline: {system} {version} has no bench record of its own and uses "
+                      f"{os.path.basename(mine[-1]['path'])} ({mine[-1]['env']['version']}), as the user decided on 2026-11-20")
+        if not mine and kind == "install" and (system, version) in NO_INSTALL:
+            print(f"baseline: {system} {version} ships with no install record, as the user decided on 2026-11-20")
+            continue
         if not mine:
             return f"no {kind or 'benchmark'} record of {version} on {system} in {folder}: run {tool} there and commit it"
+        if mine[-1]["env"].get("void"):
+            return f"{mine[-1]['path']}: timed while the machine paged, redo with bench.py --redo: {mine[-1]['env']['void']}"
         cases = unexplained(all_records, mine[-1])
         if cases:
             return f"{mine[-1]['path']}: slower by over 30% with no reason written: {'; '.join(cases)}"

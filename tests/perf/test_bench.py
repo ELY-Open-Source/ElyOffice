@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # The bench's verdicts on made-up logs and handles.
 import collections
+import datetime
 import os
 import re
 import sys
@@ -326,7 +327,7 @@ class Windows(unittest.TestCase):
     def test_a_redo_runs_only_its_case_after_its_setup_and_prints_its_window(self):
         done = {"A": {"rows": [["P", "a", [1], None]]}, "B": {"rows": [["P", "b", [2], None]]}}
         cases, order = bench.Cases(done, ["B"]), []
-        clock = lambda: order.append("clock") or "2026-11-19T00:00:00.000+00:00"
+        clock = lambda: order.append("clock") or datetime.datetime(2026, 11, 19, tzinfo=datetime.timezone.utc)
         with unittest.mock.patch("builtins.print") as said, unittest.mock.patch.object(bench, "utc", clock):
             cases.run("A", lambda _: order.append("A produced"))
             cases.run("B", lambda home: order.append(f"B produced in {home}") or [["P", "b", [3], None]],
