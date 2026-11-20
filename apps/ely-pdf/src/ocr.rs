@@ -16,6 +16,9 @@ use gpui::{AnyElement, App, Context, IntoElement, ParentElement as _, SharedStri
 
 use crate::viewer::Viewer;
 
+/// The OCR step's name in a failure notice.
+const OCR: &str = "pdf.doing.ocr";
+
 /// Pixels an inch Tesseract reads at.
 const DPI: f32 = 300.0;
 /// The languages, by Tesseract name and label key.
@@ -81,7 +84,7 @@ impl Viewer {
         };
         let data = match ely_pdf_engine::tessdata() {
             Ok(data) => data,
-            Err(error) => return self.failed(&error, cx),
+            Err(error) => return self.failed(OCR, &error, cx),
         };
         let read = view.read(cx);
         let pages = pages(ocr.scope, read.current, (ocr.from, ocr.to), read.sizes.len());
@@ -147,7 +150,7 @@ impl Viewer {
             Ok(None) => run.skipped += 1,
             Err(error) => {
                 self.ocr = None;
-                return self.failed(&error, cx);
+                return self.failed(OCR, &error, cx);
             }
         }
         run.at += 1;

@@ -52,4 +52,9 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("pdf.doing.write", "テキストの書き込み"),
     ("pdf.doing.undo", "元に戻す操作"),
     ("pdf.doing.redo", "やり直し操作"),
+    ("pdf.doing.print", "印刷"),
+    ("pdf.doing.ocr", "文字認識"),
+    ("pdf.doing.read_properties", "プロパティの読み取り"),
+    ("pdf.doing.unlock", "所有者パスワードでのロック解除"),
+    ("pdf.doing.clean_scan", "消去できる内容の確認"),
 ];

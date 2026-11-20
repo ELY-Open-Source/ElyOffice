@@ -139,8 +139,8 @@ impl Viewer {
     }
 
     pub(crate) fn failed_write(&self, name: &str, error: &io::Error, cx: &mut App) {
-        if ely_pdf_engine::refused(error).is_some() {
-            return self.failed(error, cx);
+        if let Some(needed) = ely_pdf_engine::refused(error) {
+            return self.toast(crate::view::restricted(needed, cx), Severity::Warning, cx);
         }
         // Engine text may quote the document: the user sees it.
         log::error!("pdf: a write failed ({:?})", error.kind());

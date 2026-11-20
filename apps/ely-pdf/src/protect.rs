@@ -44,13 +44,13 @@ fn masked(window: &mut Window, cx: &mut Context<Viewer>) -> Entity<TextInput> {
 }
 
 impl Viewer {
-    /// A refusal names what is missing.
-    pub(crate) fn failed(&self, error: &io::Error, cx: &mut App) {
+    /// Step `what` failed; a refusal names what is missing.
+    pub(crate) fn failed(&self, what: &'static str, error: &io::Error, cx: &mut App) {
         match ely_pdf_engine::refused(error) {
             Some(needed) => self.toast(crate::view::restricted(needed, cx), Severity::Warning, cx),
             None => {
-                log::error!("pdf: a step failed ({:?})", error.kind());
-                let text = Self::text(cx, "office.error.panel", &[("error", &ely_ui::i18n::error(cx, error))]);
+                log::error!("pdf: {what} failed ({:?})", error.kind());
+                let text = Self::text(cx, "pdf.failed", &[("what", &Self::text(cx, what, &[])), ("error", &crate::reason::reason(cx, error))]);
                 self.toast_unlogged(text, Severity::Danger, cx);
             }
         }
@@ -112,7 +112,7 @@ impl Viewer {
                     viewer.toast(Self::text(cx, "pdf.owner.done", &[("name", &name)]), Severity::Success, cx);
                 }
                 Ok(None) => viewer.toast(Self::text(cx, "pdf.owner.wrong", &[]), Severity::Warning, cx),
-                Err(error) => viewer.failed(&error, cx),
+                Err(error) => viewer.failed("pdf.doing.unlock", &error, cx),
             },
             cx,
         );

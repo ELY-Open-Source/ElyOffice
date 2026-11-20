@@ -52,4 +52,9 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("pdf.doing.write", "escribir el texto"),
     ("pdf.doing.undo", "deshacer"),
     ("pdf.doing.redo", "rehacer"),
+    ("pdf.doing.print", "imprimir"),
+    ("pdf.doing.ocr", "reconocer el texto"),
+    ("pdf.doing.read_properties", "leer las propiedades"),
+    ("pdf.doing.unlock", "desbloquear con la contraseña de propietario"),
+    ("pdf.doing.clean_scan", "comprobar qué se puede limpiar"),
 ];

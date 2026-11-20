@@ -203,4 +203,9 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("pdf.error.password_changed", "tệp trên đĩa đã từ chối mật khẩu của tài liệu"),
     ("pdf.error.repaired_password", "bản sao đã sửa đã từ chối mật khẩu"),
     ("pdf.error.not_whole", "tài liệu không được đọc trọn vẹn: {report}"),
+    ("pdf.error.denied", "hệ thống từ chối truy cập tệp"),
+    ("pdf.error.full", "ổ đĩa đã đầy"),
+    ("pdf.error.missing", "không còn tệp cần thiết"),
+    ("pdf.error.engine", "bộ máy PDF không làm được"),
+    ("pdf.error.other", "hệ thống đã từ chối"),
 ];

@@ -248,4 +248,9 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("pdf.error.password_changed", "el archivo del disco rechazó la contraseña del documento"),
     ("pdf.error.repaired_password", "la copia reparada rechazó la contraseña"),
     ("pdf.error.not_whole", "el documento no se leyó completo: {report}"),
+    ("pdf.error.denied", "el sistema denegó el acceso a un archivo"),
+    ("pdf.error.full", "el disco está lleno"),
+    ("pdf.error.missing", "falta un archivo necesario"),
+    ("pdf.error.engine", "el motor PDF no pudo hacerlo"),
+    ("pdf.error.other", "el sistema lo rechazó"),
 ];

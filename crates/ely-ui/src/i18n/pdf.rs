@@ -233,6 +233,11 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("pdf.error.password_changed", "the file on disk refused the document's password"),
     ("pdf.error.repaired_password", "the repaired copy refused the password"),
     ("pdf.error.not_whole", "the document did not read whole: {report}"),
+    ("pdf.error.denied", "the system refused access to a file"),
+    ("pdf.error.full", "the disk is full"),
+    ("pdf.error.missing", "a file it needs is gone"),
+    ("pdf.error.engine", "the PDF engine could not do it"),
+    ("pdf.error.other", "the system refused it"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -444,4 +449,9 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("pdf.error.password_changed", "磁盘上的文件不接受文档的密码"),
     ("pdf.error.repaired_password", "修复后的副本不接受密码"),
     ("pdf.error.not_whole", "文档没有完整读出：{report}"),
+    ("pdf.error.denied", "系统拒绝访问文件"),
+    ("pdf.error.full", "磁盘已满"),
+    ("pdf.error.missing", "需要的文件不见了"),
+    ("pdf.error.engine", "PDF 引擎没能做到"),
+    ("pdf.error.other", "系统拒绝了"),
 ];

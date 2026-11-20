@@ -167,9 +167,9 @@ impl Viewer {
         });
     }
 
-    fn failed_read(&self, what: &str, error: &io::Error, cx: &mut App) {
+    pub(crate) fn failed_read(&self, what: &str, error: &io::Error, cx: &mut App) {
         log::error!("pdf: {what} failed ({:?})", error.kind());
-        let text = Self::text(cx, "pdf.failed", &[("what", &Self::text(cx, what, &[])), ("error", &ely_ui::i18n::error(cx, error))]);
+        let text = Self::text(cx, "pdf.failed", &[("what", &Self::text(cx, what, &[])), ("error", &crate::reason::reason(cx, error))]);
         self.toast_unlogged(text, Severity::Danger, cx);
     }
 

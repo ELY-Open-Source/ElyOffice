@@ -52,4 +52,9 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("pdf.doing.write", "텍스트 쓰기"),
     ("pdf.doing.undo", "실행 취소"),
     ("pdf.doing.redo", "다시 실행"),
+    ("pdf.doing.print", "인쇄"),
+    ("pdf.doing.ocr", "문자 인식"),
+    ("pdf.doing.read_properties", "속성 읽기"),
+    ("pdf.doing.unlock", "소유자 암호로 잠금 해제"),
+    ("pdf.doing.clean_scan", "정리할 수 있는 내용 확인"),
 ];

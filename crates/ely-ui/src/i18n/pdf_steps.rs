@@ -52,6 +52,11 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("pdf.doing.write", "writing text"),
     ("pdf.doing.undo", "undo"),
     ("pdf.doing.redo", "redo"),
+    ("pdf.doing.print", "printing"),
+    ("pdf.doing.ocr", "recognising text"),
+    ("pdf.doing.read_properties", "reading properties"),
+    ("pdf.doing.unlock", "unlocking with the owner password"),
+    ("pdf.doing.clean_scan", "checking what can be cleaned"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -106,4 +111,9 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("pdf.doing.write", "写入文字"),
     ("pdf.doing.undo", "撤销"),
     ("pdf.doing.redo", "重做"),
+    ("pdf.doing.print", "打印"),
+    ("pdf.doing.ocr", "识别文字"),
+    ("pdf.doing.read_properties", "读取属性"),
+    ("pdf.doing.unlock", "用所有者密码解锁"),
+    ("pdf.doing.clean_scan", "检查可清理的内容"),
 ];

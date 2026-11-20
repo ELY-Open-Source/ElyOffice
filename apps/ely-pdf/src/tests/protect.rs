@@ -124,3 +124,19 @@ fn a_protected_copy_the_system_refuses_is_worded() {
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_protected(tab, None, locked.join("copy.pdf"), cx)));
     super::refused(cx, &root, "copy.pdf", "office.save.folder");
 }
+
+
+/// With the worker dead, the unlock notice names it.
+#[test]
+fn a_failed_unlock_names_itself() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx, _) = limited(&mut cx, dir.path(), may::PRINT);
+    let root = super::rooted(cx, &viewer);
+    cx.update(|window, app| viewer.update(app, |viewer, cx| viewer.ask_owner(window, cx)));
+    type_in(cx, &viewer, false, "owner");
+    cx.update(|_, app| viewer.read(app).core.worker.lock().expect("the lock").get().expect("a worker").kill()).expect("kills");
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.try_owner(cx)));
+    super::reason::named(cx, &root, "pdf.doing.unlock");
+}
+

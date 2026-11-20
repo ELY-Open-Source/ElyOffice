@@ -203,4 +203,9 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("pdf.error.password_changed", "die Datei auf dem Datenträger hat das Passwort des Dokuments abgelehnt"),
     ("pdf.error.repaired_password", "die reparierte Kopie hat das Passwort abgelehnt"),
     ("pdf.error.not_whole", "das Dokument wurde nicht vollständig gelesen: {report}"),
+    ("pdf.error.denied", "das System hat den Zugriff auf eine Datei verweigert"),
+    ("pdf.error.full", "der Datenträger ist voll"),
+    ("pdf.error.missing", "eine benötigte Datei fehlt"),
+    ("pdf.error.engine", "das PDF-Modul konnte es nicht ausführen"),
+    ("pdf.error.other", "das System hat es verweigert"),
 ];

@@ -70,7 +70,7 @@ impl Viewer {
                     viewer.props = Some(Props { tab, read, fields });
                     cx.notify();
                 }
-                Err(error) => viewer.failed(&error, cx),
+                Err(error) => viewer.failed("pdf.doing.read_properties", &error, cx),
             },
             cx,
         );

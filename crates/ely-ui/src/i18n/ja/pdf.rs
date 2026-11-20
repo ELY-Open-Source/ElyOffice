@@ -203,4 +203,9 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("pdf.error.password_changed", "ディスク上のファイルがドキュメントのパスワードを受け付けませんでした"),
     ("pdf.error.repaired_password", "修復したコピーがパスワードを受け付けませんでした"),
     ("pdf.error.not_whole", "ドキュメントを完全には読み取れませんでした: {report}"),
+    ("pdf.error.denied", "システムがファイルへのアクセスを拒否しました"),
+    ("pdf.error.full", "ディスクがいっぱいです"),
+    ("pdf.error.missing", "必要なファイルが見つかりません"),
+    ("pdf.error.engine", "PDF エンジンが処理できませんでした"),
+    ("pdf.error.other", "システムが拒否しました"),
 ];

@@ -203,4 +203,9 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("pdf.error.password_changed", "le fichier sur le disque a refusé le mot de passe du document"),
     ("pdf.error.repaired_password", "la copie réparée a refusé le mot de passe"),
     ("pdf.error.not_whole", "le document n’a pas été lu en entier : {report}"),
+    ("pdf.error.denied", "le système a refusé l’accès à un fichier"),
+    ("pdf.error.full", "le disque est plein"),
+    ("pdf.error.missing", "un fichier nécessaire a disparu"),
+    ("pdf.error.engine", "le moteur PDF n’a pas pu le faire"),
+    ("pdf.error.other", "le système l’a refusé"),
 ];

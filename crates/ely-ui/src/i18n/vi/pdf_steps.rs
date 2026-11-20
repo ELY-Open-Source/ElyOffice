@@ -52,4 +52,9 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("pdf.doing.write", "viết văn bản"),
     ("pdf.doing.undo", "hoàn tác"),
     ("pdf.doing.redo", "làm lại"),
+    ("pdf.doing.print", "in"),
+    ("pdf.doing.ocr", "nhận dạng chữ"),
+    ("pdf.doing.read_properties", "đọc thuộc tính"),
+    ("pdf.doing.unlock", "mở khóa bằng mật khẩu chủ sở hữu"),
+    ("pdf.doing.clean_scan", "kiểm tra những gì có thể dọn"),
 ];

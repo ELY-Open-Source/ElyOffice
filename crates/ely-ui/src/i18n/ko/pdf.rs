@@ -203,4 +203,9 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("pdf.error.password_changed", "디스크의 파일이 문서의 암호를 받아들이지 않았습니다"),
     ("pdf.error.repaired_password", "복구한 사본이 암호를 받아들이지 않았습니다"),
     ("pdf.error.not_whole", "문서를 끝까지 읽지 못했습니다: {report}"),
+    ("pdf.error.denied", "시스템이 파일 접근을 거부했습니다"),
+    ("pdf.error.full", "디스크가 가득 찼습니다"),
+    ("pdf.error.missing", "필요한 파일이 없습니다"),
+    ("pdf.error.engine", "PDF 엔진이 처리하지 못했습니다"),
+    ("pdf.error.other", "시스템이 거부했습니다"),
 ];

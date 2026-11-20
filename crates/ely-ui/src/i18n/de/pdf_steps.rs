@@ -52,4 +52,9 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("pdf.doing.write", "Schreiben des Texts"),
     ("pdf.doing.undo", "Rückgängig"),
     ("pdf.doing.redo", "Wiederherstellen"),
+    ("pdf.doing.print", "Drucken"),
+    ("pdf.doing.ocr", "Texterkennung"),
+    ("pdf.doing.read_properties", "Lesen der Eigenschaften"),
+    ("pdf.doing.unlock", "Entsperren mit dem Besitzerkennwort"),
+    ("pdf.doing.clean_scan", "Prüfen der bereinigbaren Inhalte"),
 ];

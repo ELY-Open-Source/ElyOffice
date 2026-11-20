@@ -107,7 +107,7 @@ impl Viewer {
                     viewer.removal = Some(Removal::Clean { tab, version, reach, what: Cleaning::default() });
                     cx.notify();
                 }
-                Err(error) => viewer.failed(&error, cx),
+                Err(error) => viewer.failed("pdf.doing.clean_scan", &error, cx),
             },
             cx,
         );

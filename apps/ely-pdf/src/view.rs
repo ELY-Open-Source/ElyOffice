@@ -277,12 +277,11 @@ impl PdfView {
 
     /// Says the step keyed `what` failed; the window shows it.
     pub fn fail(&self, what: &str, error: &io::Error, cx: &mut Context<Self>) {
-        // Engine text may quote the document: the user sees it.
         log::error!("pdf: {what} failed ({:?})", error.kind());
         let text = match ely_pdf_engine::refused(error) {
             _ if ely_pdf_engine::is_stale(error) => ely_ui::i18n::text(cx, "pdf.object.changed", &[]),
             Some(needed) => restricted(needed, cx),
-            None => ely_ui::i18n::text(cx, "pdf.failed", &[("what", &ely_ui::i18n::text(cx, what, &[])), ("error", &ely_ui::i18n::error(cx, error))]),
+            None => ely_ui::i18n::text(cx, "pdf.failed", &[("what", &ely_ui::i18n::text(cx, what, &[])), ("error", &crate::reason::reason(cx, error))]),
         };
         cx.emit(Failed(text.to_string()));
     }
