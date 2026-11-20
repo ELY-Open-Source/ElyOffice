@@ -1556,3 +1556,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 修：在共享树上持内核锁 `.work/kernel.lock`（本机，未入库）跑 `scripts/build-libreoffice.sh` 本身（140 of 140，make 几近空跑，再裁词典、拷 ely.xcd、修 RUNPATH、换编号），内核编号 04023855，只剩 dict-en。macOS 两棵与 Windows 两棵查过，只有 dict-en。
 - 定：共享的内核树里只做定向 make（`make Library_x`）或跑 `build-libreoffice.sh`，不空跑整树 `make`；私有树要量启动或内存，先照脚本裁过。
 - 自动读不再拿着标签（改 1181 那条）：ElyShow 的幻灯片读与缩略图、ElyTable 的表读、链接读与有效性读，同 ElyDoc 的字数，经 `ely_office::Following::read_for_tab` 在后台读，读完交给那时拿着该标签的窗口（`shared.hosts()` 按标签号找）；读的标志随标签走，新窗口接着清。标签关了，结果丢弃并记日志。用户发起的活（导出、另存、程序请求的保存、`read_in` 等）照旧拿着标签，1173 的规则不变。
+
+## 2026-11-19 行尾的隐藏单元格不再欠制表符（R20.56）
+
+- 原状：R20.35 第 3 轮查出，行里取末个单元格不看可见性，可见的单元格后只剩 `hidden` 的单元格时仍补制表符（`<td>a</td><td hidden>b</td>` 读作 `a\t`，Chromium 为 `a`）。
+- 定（组件库 3a7f960b）：取末个单元格时跳过不画的单元格（与 R20.35 定下的 `hidden` 等同一判定，树里没有会藏东西的元素时不查）；被跳过的单元格本就不画，也不欠制表符。
+- 测试：组件库 `tree/tests.rs` 的 `hidden_cells_owe_no_tab`，读法以无头 Chrome 的 innerText 核对，见 `.work/R20.56/oracle/cells.html`（本机，未入库）：行尾一个、两个隐藏单元格读 `a`，`a`、`b` 加一个隐藏的读 `a\tb`，中间隐藏读 `a\tc`，行首隐藏读 `b`，表头行与正文行各带隐藏单元格读 `a`、`c`、`z` 分行。去掉判定、或判定恒为可见，皆败。
+- 性能：同 R20.35 的命令（`documents::outline` 读 2 MiB 十遍，`perf stat -e instructions:u`），8d7723ec 为 25,461,219k，此后 25,433,495k。

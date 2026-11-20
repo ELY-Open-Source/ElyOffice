@@ -15,7 +15,7 @@
 - 发行：0.1.16 仍按应用出包、各自更新；每个平台一个安装包、整套更新的发布尚未出（Windows 的发布测试待内核重建后再跑，ElyShow 整组测试在 Windows 偶败）。没有 Windows 与 Linux 的 arm64 版，x64 版在 Windows on ARM 上未测。Windows 安装包未签名。WinGet 未收录：七个按应用的旧提交已于 2026-11-19 关闭，统一的 `ZacharyZhang.ElyOffice` 待首个统一发布后再交。
 - 速度：Windows 测试机上与 Office 交替热打开，ElyDoc 打开 big.docx 中位 1.10 秒，Word 1.10 秒，持平而未快过；ElyShow 打开 19 MB 的演示稿中位 1.58 秒，PowerPoint 1.09 秒。装完与重启后的首开待重量。0.1.16 在 Windows 虚拟机上的基准里，ElyPDF 首次启动一次 10.9 秒（其后重测 3.4 至 3.6 秒，与别的应用相同），ElyMail 在搜索框连打时主线程六次忙 134 至 511 毫秒；两处都未复现，原因未明。
 - ElyShow：Windows 上微软雅黑粗体的个别字（如“施”）显得偏细，已修一个原因，未在中文界面上复核。拖动对象时 Ely 画的移动框与吸附要内核补丁 0140，Windows、macOS 上未实测。负载下加动画偶被内核拒绝，原因未明（被拒时日志写明预设与时长）。用户报的放映中丢方向键、换版式后的“灰色箭头”都未复现。
-- ElyMark：HTML 照浏览器（Chromium 的 innerText）的读法，只有几处不同：Markdown 段落里的连续空格照写的画，浏览器并成一个（`a <span></span> c` 画出两个空格）；`select` 里的文字照画，分行与浏览器不同；`<dialog open>` 前的空格不留；`hidden="until-found"` 照 `hidden` 隐去；表格一行末尾只剩隐藏的单元格时，最后一个可见单元格后仍多一个制表符。
+- ElyMark：HTML 照浏览器（Chromium 的 innerText）的读法，只有几处不同：Markdown 段落里的连续空格照写的画，浏览器并成一个（`a <span></span> c` 画出两个空格）；`select` 里的文字照画，分行与浏览器不同；`<dialog open>` 前的空格不留；`hidden="until-found"` 照 `hidden` 隐去。
 - ElyTree：Shell 文件的差异照 Bash 的词法判注释，个别写法与 Bash 不同（`"${x:-'…'}"` 里的反斜杠、`${x:-…}` 在双引号里的反斜杠、数组下标里的引号）。
 - 无障碍：屏幕阅读器在 ElyTable 与 ElyShow 只读到当前段落（ElyDoc 读全文）；组件库与 gpui 在角色、禁用状态与内部文案上的缺口见 `docs/accessibility.md` 的“上游待办”。
 
