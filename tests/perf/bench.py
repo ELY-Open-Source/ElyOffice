@@ -277,8 +277,10 @@ def main():
                     cases.run(f"PERF-08 {recipe.slug}", lambda _, recipe=recipe: [(recipe.slug, *cycles.cycles(work, recipe))],
                               setup=lambda recipe=recipe: pinned(recipe), held=True)
         judged = paging.judged(cases.windows)
-        if args.keep:
-            kept_trace(args.keep, paging)
+        # A void case's evidence stays, --keep or not.
+        keep = kept_at(args) if args.keep or any(not counts for _, counts, _ in judged) else None
+        if keep:
+            kept_trace(keep, paging)
     except BaseException:
         logs = tempfile.mkdtemp(prefix="ely-bench-failed-")
         for log in glob.glob(os.path.join(work, "**", "*.log"), recursive=True):
@@ -290,7 +292,10 @@ def main():
         if kept and cases.ran:
             failed_redo(args, kept, cases, paging, environment(found, partial))
         else:
-            paging.stop()
+            try:
+                paging.stop()
+            finally:
+                kept_failed(args, cases, paging, lambda: environment(found, partial))
         raise
     finally:
         left = run.stop_engines(work)
@@ -307,11 +312,11 @@ def main():
         print(f"bench: paging {'ok' if counts else 'VOID'} {key}: {note}")
     env["void"] = void_after(kept["env"].get("void", []) if kept else [], cases.ran, judged)
     write(args.out, env, *table(cases), args.runs)
-    if args.keep:
-        with open(args.keep, "w", encoding="utf-8") as raw:
+    if keep:
+        with open(keep, "w", encoding="utf-8") as raw:
             json.dump({"env": env, "cases": cases.done}, raw)
     if env.get("void"):
-        sys.exit(f"bench: timed while the machine paged, redo: {env['void']}")
+        sys.exit(f"bench: timed while the machine paged, redo: {env['void']}; samples and raw results: {keep}")
 
 
 def table(cases):
@@ -326,6 +331,25 @@ def known(kept, redo):
     unknown = sorted(set(redo) - set(kept["cases"]))
     if unknown:
         raise RuntimeError(f"no such case to redo: {unknown}; --keep has {sorted(kept['cases'])}")
+
+
+def kept_at(args):
+    """Raw results' path: --keep, else a folder beside --out."""
+    if args.keep:
+        return args.keep
+    folder = os.path.join(os.path.dirname(os.path.abspath(args.out)), "bench-kept")
+    os.makedirs(folder, exist_ok=True)
+    return os.path.join(folder, f"{utc():%Y%m%dT%H%M%S}.json")
+
+
+def kept_failed(args, cases, paging, now):
+    """A failed run's samples first, then its finished cases."""
+    keep = kept_at(args)
+    kept_trace(keep, paging)
+    # Not judged: none of its cases stands yet.
+    with open(keep, "w", encoding="utf-8") as raw:
+        json.dump({"env": {**now(), "void": sorted(cases.ran)}, "cases": cases.done}, raw)
+    print(f"bench: the failed run's samples and raw results: {keep}")
 
 
 def kept_trace(keep, paging):
