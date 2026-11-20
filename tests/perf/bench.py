@@ -43,7 +43,7 @@ def opened(slug, home, sample, marks, runs):
             if failed:
                 raise RuntimeError(f"{slug}: {sample} did not paint: {failed[0]}")
             times.append(took)
-            memory.append(app.memory_mb())
+            memory.append(app.resident_mb())
         finally:
             app.stop()
     return times, memory
@@ -183,7 +183,7 @@ def write(out, env, rows, held, runs):
     path = os.path.join(out, f"{env['date']}-{env['machine']}{kind}{'-partial' if env.get('partial') else ''}.md")
     lines = [f"# Benchmark {env['date']}", "", "Format: docs/perf/README.md.", "", "```json",
              json.dumps(env, indent=2), "```", "",
-             "| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Total memory MB | Budget MB |",
+             "| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Resident MB | Budget MB |",
              "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for perf, case, times, memory in rows:
         target = TARGETS.get(perf)
@@ -198,7 +198,7 @@ def write(out, env, rows, held, runs):
                      f"{target or ''} | {mem} | {budget or ''} |")
     for slug, (memory, handles, live), seen in held:
         lines += ["", f"PERF-08, {APPS[slug]} opening and closing a document {len(seen)} times "
-                  "(total memory MB / handles / live documents):", "",
+                  "(private memory MB, swapped included / handles / live documents):", "",
                   f"before: {memory:.0f}/{handles}/{','.join(map(str, live))}", "",
                   " ".join(f"{memory:.0f}/{handles}/{','.join(map(str, live))}" for memory, handles, live in seen)]
     lines += ["", "PERF-09 (Agent sessions) belongs to the second release.", ""]

@@ -50,7 +50,7 @@ def main():
         app.front()
         run.HOST.type(app.process.pid, " Before ")
         saved(app, path, "Before")
-        pids, before = frozen(app, args.who), app.memory_mb()
+        pids, before = frozen(app, args.who), app.private_mb()
         since = len(app.lines())
         for pid in pids:
             os.kill(pid, signal.SIGSTOP)
@@ -66,7 +66,7 @@ def main():
         if found.index("Before") > found.index("After"):
             raise RuntimeError(f"the words came back out of order: {found[:12]}")
         troubles = [line[-160:] for line in app.lines()[since:] if " ERROR " in line or " WARN " in line]
-        print(f"ok: {args.who} frozen {args.minutes} min; both words saved; memory {before:.0f} → {app.memory_mb():.0f} MB")
+        print(f"ok: {args.who} frozen {args.minutes} min; both words saved; private memory {before:.0f} → {app.private_mb():.0f} MB")
         print("after the freeze, warnings and errors:", *(troubles or ["none"]), sep="\n  ")
     finally:
         app.stop()

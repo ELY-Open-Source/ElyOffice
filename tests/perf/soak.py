@@ -25,20 +25,6 @@ def words(path):
     return " ".join(paragraphs).split()
 
 
-def private(app):
-    """Linux: each process's private memory, resident or swapped, in MB."""
-    found = {}
-    for pid in app.family():
-        try:
-            with open(f"/proc/{pid}/status", encoding="utf-8") as status:
-                fields = dict(line.split(":", 1) for line in status)
-        except FileNotFoundError:
-            continue
-        kb = lambda key: int(fields[key].split()[0])
-        found[f"{fields['Name'].strip()} {pid}"] = ((kb("RssAnon") + kb("VmSwap")) / 1024, kb("VmSwap") / 1024)
-    return found
-
-
 def check(paths, n):
     """What the saved files get wrong after `n` cycles."""
     a, b = words(paths["a.docx"]), words(paths["b.docx"])
@@ -148,12 +134,10 @@ def main():
                     time.sleep(0.25)
                 if problems:
                     raise RuntimeError(f"cycle {n}: {problems[:5]}; a ends {words(paths['a.docx'])[-8:]}; log: {saves(app)}")
-                memory.append(app.memory_mb())
-                print(f"cycle {n}: ok, {memory[-1]:.0f} MB in {len(app.family())} processes", flush=True)
-                if sys.platform == "linux":
-                    # Resident alone drops when pages swap out.
-                    shares = ", ".join(f"{name} {mb:.0f} ({swapped:.0f} swapped)" for name, (mb, swapped) in private(app).items())
-                    print(f"cycle {n}: private MB by process: {shares}", flush=True)
+                private = app.private()
+                memory.append(sum(private.values()) / 1024)
+                shares = ", ".join(f"{pid} {kb / 1024:.0f}" for pid, kb in private.items())
+                print(f"cycle {n}: ok, private {memory[-1]:.0f} MB ({shares}), resident {app.resident_mb():.0f} MB", flush=True)
     except Exception:
         # The app's log outlives a failed run.
         kept = tempfile.mkdtemp(prefix="ely-soak-failed-")
@@ -166,7 +150,7 @@ def main():
         shutil.rmtree(work, ignore_errors=True)
     if left:
         raise RuntimeError(f"engines outlived the soak: {left}")
-    print(f"ok: {n} cycles in {args.minutes} min; memory MB {memory[0]:.0f} → {memory[-1]:.0f}")
+    print(f"ok: {n} cycles in {args.minutes} min; private memory MB {memory[0]:.0f} → {memory[-1]:.0f}")
 
 
 if __name__ == "__main__":

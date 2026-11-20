@@ -141,8 +141,18 @@ class App:
             raise RuntimeError(f"{self.slug} exited {self.process.returncode} before it was sampled")
         return HOST.family(self.process.pid)
 
-    def memory_mb(self):
+    def resident_mb(self):
+        """RSS, as the records before 2026-11-20 measured."""
         return sum(self.family().values()) / 1024
+
+    def private(self):
+        """Pid to private KB, swapped included, for judging growth."""
+        if self.process.poll() is not None:
+            raise RuntimeError(f"{self.slug} exited {self.process.returncode} before it was sampled")
+        return HOST.private(self.process.pid)
+
+    def private_mb(self):
+        return sum(self.private().values()) / 1024
 
     def handles(self):
         return HOST.handles(self.process.pid, self.family())

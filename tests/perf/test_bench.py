@@ -3,6 +3,7 @@
 import collections
 import os
 import re
+import sys
 import tempfile
 import unittest
 import unittest.mock
@@ -243,6 +244,44 @@ class Ended(unittest.TestCase):
         host.held = lambda pid: (_ for _ in ()).throw(RuntimeError("gone"))
         with self.assertRaises(RuntimeError):
             host.handles(1, [1])
+
+
+
+class Exiting(drive.Host):
+    """Child 2 is listed, then exits before its read."""
+
+    listed = True
+
+    def pids(self, root):
+        listed, self.listed = self.listed, False
+        return {1, 2} if listed else {1}
+
+    def private_kb(self, pid):
+        if pid == 2:
+            raise OSError("process 2: no such process")
+        return 100
+
+
+class Private(unittest.TestCase):
+    def test_a_child_gone_before_its_read_is_left_out(self):
+        self.assertEqual(Exiting().private(1), {1: 100})
+
+    def test_a_live_child_that_cannot_be_read_voids_the_run(self):
+        host = Exiting()
+        host.pids = lambda root: {1, 2}
+        with self.assertRaises(OSError):
+            host.private(1)
+
+    def test_this_platform_counts_memory_the_process_holds(self):
+        cls = {"linux": drive.Linux, "darwin": drive.Mac, "win32": drive.Windows}[sys.platform]
+        host = cls.__new__(cls)
+        before = host.private_kb(os.getpid())
+        held = bytearray(64 * 2**20)
+        # Written, so every page is the process's own.
+        held[::4096] = b"x" * len(held[::4096])
+        grown = (host.private_kb(os.getpid()) - before) / 1024
+        self.assertGreater(grown, 60, "64 MB held, written")
+        del held
 
 
 class Kernel:

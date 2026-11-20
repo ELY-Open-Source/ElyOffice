@@ -394,7 +394,7 @@ def rapid_open_close():
         front = loadfiles.front_file(folder, slug)
         files = [shutil.copy(front, os.path.join(folder, f"r{n:02d}.{loadfiles.EXT[slug]}")) for n in range(20)]
         with running("rapid", slug, [front]) as app:
-            times, memory = [], [app.memory_mb()]
+            times, memory = [], [app.resident_mb()]
             app.front()
             for _ in range(3):
                 since, began = len(app.lines()), time.monotonic()
@@ -410,10 +410,10 @@ def rapid_open_close():
                 if not any(lines_matching(app, r"closed .+, 1 tabs open", since) or time.sleep(0.25) for _ in range(240)):
                     raise RuntimeError(f"{slug}: 20 Ctrl+W did not leave one tab open")
                 times.append((opened * 1000, (time.monotonic() - began - opened) * 1000))
-                memory.append(app.memory_mb())
+                memory.append(app.resident_mb())
             alive = app.process.poll() is None
         rows.append((f"{APPS[slug]}: 20 handed over at once and closed by key, 3 times", alive,
-                     f"open / close ms {[(round(a), round(b)) for a, b in times]}; memory MB {[round(m) for m in memory]}"))
+                     f"open / close ms {[(round(a), round(b)) for a, b in times]}; resident MB {[round(m) for m in memory]}"))
     return rows
 
 
@@ -443,7 +443,7 @@ def huge(slug):
         RECIPES[slug].finish(app.process.pid)
         edit = [load.ask(app, words) for words in RECIPES[slug].edits(path, 1)]
         saved = load.ask(app, [VERB[slug], "save", path])
-        memory = app.memory_mb()
+        memory = app.resident_mb()
     problems = [] if richfiles.typed(slug, path, 20) else ["the 20 keys are not all saved"]
     problems += richfiles.saved(slug, path, 1)
     seen = load.frames(typed_lines)
@@ -452,7 +452,7 @@ def huge(slug):
     slow = [tick for tick in ticks if tick > load.TARGET]
     return (f"{APPS[slug]}: a {size:.0f} MB file", not problems and not slow,
             f"open {opened:.0f} ms; keys P50 {load.percentile(ticks, 0.5)} P95 {load.percentile(ticks, 0.95)} "
-            f"max {max(ticks)} ms; {drawn}; edit {max(edit):.0f} ms; save {saved:.0f} ms; {memory:.0f} MB; problems {problems or 'none'}")
+            f"max {max(ticks)} ms; {drawn}; edit {max(edit):.0f} ms; save {saved:.0f} ms; {memory:.0f} MB resident; problems {problems or 'none'}")
 
 
 def main():

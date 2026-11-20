@@ -87,7 +87,7 @@ def one_run(work, args):
             if not took:
                 out["problems"].append(f"{os.path.basename(path)}: a key showed nothing in {load.KEY_WAIT} s")
             out["problems"] += gained_a_page(app, path)
-        out["memory MB"] = app.memory_mb()
+        out["memory MB"] = app.resident_mb()
         time.sleep(2.5)
         lines = app.lines()
     finally:

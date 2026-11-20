@@ -204,7 +204,7 @@ def one(app, recipe, n, first):
 
 
 def cycles(work, recipe):
-    """Baseline, then each cycle's memory MB, handles and live counts."""
+    """Baseline, then each cycle's private MB, handles and live counts."""
     home = recipe.home() if recipe.home else os.path.join(work, "home-cycles-" + recipe.slug)
     app = run.App(recipe.slug, home, recipe.args)
     try:
@@ -215,14 +215,14 @@ def cycles(work, recipe):
         # A first window loads the system's plumbing once.
         one(app, recipe, 0, first)
         before = app.handles()
-        baseline = (app.memory_mb(), sum(before.values()), first)
+        baseline = (app.private_mb(), sum(before.values()), first)
         seen, families, kept = [], [], []
         for n in range(1, CYCLES + 1):
             since = one(app, recipe, n, first)
             now = app.handles()
             if run.HOST.system is not None:
                 handles_kept(recipe.slug, before, now, n, run.HOST.system)
-            families.append(app.family())
+            families.append(app.private())
             seen.append((sum(families[-1].values()) / 1024, sum(now.values()), recipe.live(app, since)))
             kept.append(unnamed(now))
         counts = [count for _, count, _ in seen]

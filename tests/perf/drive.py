@@ -82,6 +82,19 @@ class Host:
             raise RuntimeError(f"process {root} is gone; nothing to sample")
         return found
 
+    def private(self, root):
+        """Pid to private KB, swapped included, for `root` and descendants."""
+        found = {}
+        for pid in self.pids(root):
+            try:
+                found[pid] = self.private_kb(pid)
+            except (OSError, RuntimeError):
+                if not self.ended(root, pid):
+                    raise
+        if root not in found:
+            raise RuntimeError(f"process {root} is gone; nothing to sample")
+        return found
+
     def ended(self, root, pid):
         """A child read failed because it exited after the listing."""
         return pid not in self.pids(root)
@@ -124,6 +137,15 @@ class Mac(Host):
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
         30, 31, 32, 33, 34, 35, 49, 37, 38, 39, 40, 41])), n="45", m="46", pagedown="121", tab="48", escape="53",
         pageup="116", space="49", backspace="51", left="123", right="124", down="125", up="126", f5="96")
+
+    libsystem = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True) if sys.platform == "darwin" else None
+
+    def private_kb(self, pid):
+        # rusage_info_v2's phys_footprint counts compressed and swapped pages.
+        info = (ctypes.c_uint64 * 32)()
+        if self.libsystem.proc_pid_rusage(pid, 2, ctypes.byref(info)):
+            raise OSError(ctypes.get_errno(), f"proc_pid_rusage for process {pid} failed")
+        return info[9] // 1024
 
     def __init__(self, work):
         self.work = work
@@ -222,6 +244,11 @@ class Linux(Host):
 
     def helper(self, *args):
         return sh(sys.executable, "-I", os.path.join(HERE, "atspi.py"), *map(str, args))
+
+    def private_kb(self, pid):
+        with open(f"/proc/{pid}/status", encoding="utf-8") as status:
+            fields = dict(line.split(":", 1) for line in status)
+        return int(fields["RssAnon"].split()[0]) + int(fields["VmSwap"].split()[0])
 
     def held(self, pid):
         found, folder = collections.Counter(), f"/proc/{pid}/fd"
@@ -350,26 +377,34 @@ class Windows(Host):
         finally:
             self.k32.CloseHandle(ctypes.c_void_p(handle))
 
-    def family(self, root):
+    def counters(self, pid):
+        """The process's memory counters, in bytes."""
         class Counters(ctypes.Structure):
             _fields_ = [("cb", ctypes.c_ulong), ("faults", ctypes.c_ulong)] + [
                 (name, ctypes.c_size_t) for name in ("peak", "working", "qpp", "qp", "qpn", "qn", "page", "peak_page")]
 
-        def working(handle):
+        def read(handle):
             counters = Counters()
             counters.cb = ctypes.sizeof(Counters)
             if not self.k32.K32GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
                 raise self.failed("reading memory", pid)
-            return counters.working // 1024
+            return counters
 
+        return self.query(pid, read)
+
+    def family(self, root):
         found = {}
         for pid in descendants(root, self.processes()):
             try:
-                found[pid] = self.query(pid, working)
+                found[pid] = self.counters(pid).working // 1024
             except RuntimeError:
                 if not self.ended(root, pid):
                     raise
         return found
+
+    def private_kb(self, pid):
+        # PagefileUsage: private commit, paged out or not.
+        return self.counters(pid).page // 1024
 
     def held(self, pid):
         total = ctypes.c_ulong()

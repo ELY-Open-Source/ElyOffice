@@ -335,7 +335,7 @@ def one_app(slug, folder, work, args):
         wait_opened(app, len(files) + 1, 120, since, last=front)
         out["open one more ms"] = (time.monotonic() - handed) * 1000
         time.sleep(2)
-        out["memory open MB"] = app.memory_mb()
+        out["memory open MB"] = app.resident_mb()
         app.front()
         recipe.into(app.process.pid)
         # Clicks reach the log at the next two-second flush.
@@ -353,7 +353,7 @@ def one_app(slug, folder, work, args):
         time.sleep(1)
         out["saves"], failures = at_once(app, [["text" if slug != "ely-table" else "cell", "save", path] for path in files + [front]])
         out["problems"] += [f"save: {failure}" for failure in failures]
-        out["memory edited MB"] = app.memory_mb()
+        out["memory edited MB"] = app.resident_mb()
         # The log flushes every two seconds.
         time.sleep(2.5)
         if why := interfered(app, typing, moves=True):

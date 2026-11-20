@@ -1477,6 +1477,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 定：在内核里修，让两个缓存把键的文字计进预算（R20.54，交内核代理；字形缓存是大头，补丁先对它量）。Ely 不定时调 `trimMemory`：那只是把缓存清空再重填，盖住预算的错。
 - 驻留会因换出而跌：长跑末段两次下跌是 worker 的页换出（RssAnon 594 加 VmSwap 528 MB），不是释放。`soak.py` 另记每个进程的 RssAnon 加 VmSwap；PERF-08 以驻留判泄漏的同一盲点记为 R20.58。
+- 定（R20.58）：凡判增长的（PERF-08 `cycles.py`、`soak.py`、`pause.py`）按私有内存、换出的也算，三端各一种读法（Linux RssAnon 加 VmSwap，macOS phys_footprint，Windows PagefileUsage）；只记一个数、要与旧记录相比的（PERF-01 至 07 的表、PERF-10、极端用例、ElyPDF 多开）仍记 RSS，名为 resident。
 
 ## 2026-11-19 Mac 发布前先看音频与公证凭据（R17.3）
 
