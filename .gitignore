@@ -21,3 +21,5 @@ node_modules/
 __pycache__/
 /*.csr
 /*.cer
+vendor/Cargo.lock
+vendor/target/

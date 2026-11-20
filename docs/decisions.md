@@ -1665,3 +1665,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 原状：`tests/perf/drive.py` 的 `sh()` 不给编码，Windows 上按 ANSI 代码页（cp1252）解子进程输出，cargo 输出里的 0x90 使读线程报错（R20.30 的 Windows 基准，2026-11-20）。
 - 定：子进程输出一律按 UTF-8 解，解不开即失败并点名命令，不以替换字符遮掩。Windows 0.1.17 记录入库后再改。
+
+## 2026-11-20 vendor 的 crate 跑自己的测试，另成一个工作区（R20.73）
+
+- 原状：`vendor/` 的 crate 经 `[patch.crates-io]` 换入，不是工作区成员，`pr.yml` 与 `release-tests.sh` 都不编它们的测试；gpui-pre-windows 补丁 0010 的测试自 0.3.12 起编不过，无人察觉。
+- 定：不入根工作区（会把它们的开发依赖拉进应用的锁），`vendor/Cargo.toml` 另成工作区，根 `exclude` 加 `vendor`；`tests/scripts/vendor-tests.sh` 先抄应用的 `Cargo.lock` 再按平台跑，`pr.yml` 以 `dbus-run-session` 跑它。gpui-pre 自己的测试要 zed 未发布的资源，不跑；zbus 的 e2e 要 zbus_xml，不跑。
+- 余下：Windows 的 gpui-pre-windows 未跑，`release-tests.sh` 待其跑过再加。细节见 R20.73 的任务行。

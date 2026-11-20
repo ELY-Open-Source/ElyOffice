@@ -54,5 +54,7 @@ jobs:
         run: cd tests/perf && python3 -m unittest discover -v -p 'test_*.py'
       - name: The media player compiles for Windows and macOS
         run: rustup target add x86_64-pc-windows-msvc aarch64-apple-darwin && tests/scripts/media-targets.sh
+      - name: vendor's crates pass their own tests
+        run: sudo apt-get install -y -q dbus-daemon && dbus-run-session -- tests/scripts/vendor-tests.sh
       - name: Tests that need no engine
         run: ELY_GIT=$(command -v git) cargo test $NO_ENGINES

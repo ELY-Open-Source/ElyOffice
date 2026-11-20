@@ -1,0 +1,15 @@
+# Tested apart: dev-dependencies stay out of the apps' lock.
+[workspace]
+resolver = "3"
+members = ["accesskit_atspi_common", "accesskit_unix", "gpui-pre", "gpui-pre-linux", "gpui-pre-macos", "gpui-pre-windows", "mail-parser", "pulldown-cmark", "zbus"]
+
+[patch.crates-io]
+accesskit_atspi_common = { path = "accesskit_atspi_common" }
+accesskit_unix = { path = "accesskit_unix" }
+gpui-pre = { path = "gpui-pre" }
+gpui-pre-linux = { path = "gpui-pre-linux" }
+gpui-pre-macos = { path = "gpui-pre-macos" }
+gpui-pre-windows = { path = "gpui-pre-windows" }
+mail-parser = { path = "mail-parser" }
+pulldown-cmark = { path = "pulldown-cmark" }
+zbus = { path = "zbus" }

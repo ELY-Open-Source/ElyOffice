@@ -2,7 +2,7 @@
 resolver = "3"
 members = ["apps/*", "crates/*"]
 # Upstream sources and their builds keep their own manifests.
-exclude = ["engines", "reference"]
+exclude = ["engines", "reference", "vendor"]
 
 [workspace.package]
 version = "0.1.17"
