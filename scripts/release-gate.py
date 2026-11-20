@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What a version's notes and release record must say before it ships."""
+"""What a version's notes and record must say to ship."""
 
 import datetime
 import os
