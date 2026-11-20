@@ -281,7 +281,7 @@ def main():
         keep = kept_at(args) if args.keep or any(not counts for _, counts, _ in judged) else None
         if keep:
             kept_trace(keep, paging)
-    except BaseException:
+    except BaseException as failure:
         logs = tempfile.mkdtemp(prefix="ely-bench-failed-")
         for log in glob.glob(os.path.join(work, "**", "*.log"), recursive=True):
             to = os.path.join(logs, os.path.relpath(log, work))
@@ -290,13 +290,19 @@ def main():
         print(f"the failed run's logs: {logs}")
         # A finished case logged the GPU this machine names.
         if kept and cases.ran:
-            failed_redo(args, kept, cases, paging, environment(found, partial))
+            steps = [("the failed redo kept nothing", lambda: failed_redo(args, kept, cases, paging, environment(found, partial)))]
         else:
+            steps = [("the sampler did not stop", paging.stop),
+                     ("the failed run's evidence was not kept", lambda: kept_failed(args, cases, paging, lambda: environment(found, partial)))]
+        for what, step in steps:
+            # Shown, and noted on the run's own error.
             try:
-                paging.stop()
-            finally:
-                kept_failed(args, cases, paging, lambda: environment(found, partial))
-        raise
+                step()
+            except (Exception, SystemExit) as error:
+                said = f"bench: {what}: {type(error).__name__}: {error}"
+                print(said)
+                failure.add_note(said)
+        raise failure
     finally:
         left = run.stop_engines(work)
         shutil.rmtree(work, ignore_errors=True)
@@ -313,8 +319,7 @@ def main():
     env["void"] = void_after(kept["env"].get("void", []) if kept else [], cases.ran, judged)
     write(args.out, env, *table(cases), args.runs)
     if keep:
-        with open(keep, "w", encoding="utf-8") as raw:
-            json.dump({"env": env, "cases": cases.done}, raw)
+        written(keep, {"env": env, "cases": cases.done})
     if env.get("void"):
         sys.exit(f"bench: timed while the machine paged, redo: {env['void']}; samples and raw results: {keep}")
 
@@ -346,10 +351,23 @@ def kept_failed(args, cases, paging, now):
     """A failed run's samples first, then its finished cases."""
     keep = kept_at(args)
     kept_trace(keep, paging)
+    try:
+        env = now()
+    except (Exception, SystemExit) as error:
+        # An early failure: no app has logged its GPU.
+        env = {"unread": f"the machine was not read: {type(error).__name__}: {error}"}
     # Not judged: none of its cases stands yet.
-    with open(keep, "w", encoding="utf-8") as raw:
-        json.dump({"env": {**now(), "void": sorted(cases.ran)}, "cases": cases.done}, raw)
+    written(keep, {"env": {**env, "void": sorted(cases.ran)}, "cases": cases.done})
     print(f"bench: the failed run's samples and raw results: {keep}")
+
+
+def written(path, raw):
+    """Raw results, whole or not at all."""
+    folder = os.path.dirname(os.path.abspath(path))
+    handle, part = tempfile.mkstemp(dir=folder, prefix=os.path.basename(path) + ".", suffix=".part")
+    with os.fdopen(handle, "w", encoding="utf-8") as out:
+        json.dump(raw, out)
+    os.replace(part, path)
 
 
 def kept_trace(keep, paging):
@@ -365,8 +383,7 @@ def failed_redo(args, kept, cases, paging, now):
     # Its samples back each kept case's verdict.
     kept_trace(args.keep, paging)
     write(args.out, env, *table(cases), args.runs)
-    with open(args.keep, "w", encoding="utf-8") as raw:
-        json.dump({"env": env, "cases": cases.done}, raw)
+    written(args.keep, {"env": env, "cases": cases.done})
     print(f"bench: the failed redo kept {sorted(cases.ran)}; void: {env['void']}")
 
 
