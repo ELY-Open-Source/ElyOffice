@@ -177,7 +177,7 @@ impl Viewer {
         match self.holder(&target) {
             Ok(None) => {}
             Ok(Some(_)) => return self.toast(Self::text(cx, "pdf.extract.taken", &[("name", &shown)]), Severity::Danger, cx),
-            Err(error) => return self.failed(&error, cx),
+            Err(error) => return self.failed_write(&shown, &error, cx),
         }
         let (work, path, revision) = (open.work.join("protect.pdf"), open.session.path().map(PathBuf::from), open.session.revision());
         log::info!("pdf: writes a {} copy", if lock.is_some() { "protected" } else { "unprotected" });
@@ -191,7 +191,7 @@ impl Viewer {
             },
             move |viewer, done, _, cx| match done {
                 Ok(()) => viewer.toast_output(Self::text(cx, "pdf.protect.done", &[("name", &shown)]), opened.clone(), cx),
-                Err(error) => viewer.failed(&error, cx),
+                Err(error) => viewer.failed_write(&shown, &error, cx),
             },
             cx,
         );

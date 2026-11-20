@@ -216,3 +216,36 @@ fn a_file_with_no_pages_is_refused_and_left_closed() {
     settle(cx, |app| viewer.read(app).core.loading.is_empty());
     assert!(cx.update(|_, app| viewer.read(app).active_tab().is_none()));
 }
+
+/// A folder writes are refused in (R20.64).
+#[cfg(unix)]
+pub(crate) fn locked(dir: &std::path::Path) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt as _;
+    let locked = dir.join("locked");
+    std::fs::create_dir(&locked).expect("a folder");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o500)).expect("read-only");
+    locked
+}
+
+/// The window's root, where its toasts live.
+pub(crate) fn rooted(cx: &mut VisualTestContext, viewer: &Entity<Viewer>) -> Entity<ely_ui::Root> {
+    cx.update(|window, app| {
+        let root = ely_ui::document_root(ely_platform::AppId::Pdf, viewer.clone().into(), &ely_ui::commands::FILE, Vec::new(), window, app);
+        viewer.update(app, |viewer, _| viewer.core.root = root.downgrade());
+        root
+    })
+}
+
+/// A refused write's notice: the file name and reason only.
+#[cfg(unix)]
+pub(crate) fn refused(cx: &mut VisualTestContext, root: &Entity<ely_ui::Root>, name: &str, why: &str) {
+    let danger = Some(ely_gpui_component::primitives::Severity::Danger);
+    let said = |app: &gpui::App| root.read(app).toasts(app).into_iter().find(|(_, severity)| *severity == danger).map(|(text, _)| text.to_string());
+    settle(cx, |app| said(app).is_some());
+    let (said, why) = cx.update(|_, app| {
+        let why = ely_ui::i18n::text(app, why, &[("folder", "locked")]);
+        (said(app).expect("the notice"), ely_ui::i18n::text(app, "office.error.save", &[("name", name), ("error", &why)]))
+    });
+    assert_eq!(said, why.as_ref());
+    assert!(!said.contains('/') && !said.contains(".tmp") && !said.contains("os error"), "{said}");
+}

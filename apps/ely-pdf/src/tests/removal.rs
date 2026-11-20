@@ -142,3 +142,19 @@ fn a_scan_for_a_tab_left_behind_opens_nothing() {
     }
     assert!(cx.update(|_, app| viewer.read(app).removal.is_none()), "another tab is in front");
 }
+
+#[cfg(unix)]
+#[test]
+fn a_redaction_the_system_refuses_is_worded() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx, view) = opened(&mut cx, dir.path());
+    cx.update(|_, app| view.update(app, |view, cx| view.set_tool(Tool::RedactText, cx)));
+    drag(cx, &view, (73.0, 66.0), (110.0, 66.0));
+    settle(cx, |app| !view.read(app).redactions.is_empty());
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.ask_redact(cx)));
+    let asked = cx.update(|_, app| viewer.update(app, |viewer, _| viewer.removal.take().expect("asked")));
+    let (locked, root) = (super::locked(dir.path()), super::rooted(cx, &viewer));
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_removal(asked, locked.join("out.pdf"), cx)));
+    super::refused(cx, &root, "out.pdf", "office.save.folder");
+}

@@ -167,7 +167,7 @@ impl Viewer {
         match self.holder(&target) {
             Ok(None) => {}
             Ok(Some(_)) => return self.toast(Self::text(cx, "pdf.extract.taken", &[("name", &shown)]), Severity::Danger, cx),
-            Err(error) => return self.failed(&error, cx),
+            Err(error) => return self.failed_write(&shown, &error, cx),
         }
         let (open, revision) = (tab.session.path().map(PathBuf::from), tab.session.revision());
         self.read_in(
@@ -178,7 +178,7 @@ impl Viewer {
             },
             move |viewer, done, _, cx| match done {
                 Ok(()) => viewer.toast_output(Self::text(cx, "pdf.extract.done", &[("name", &shown)]), opened.clone(), cx),
-                Err(error) => viewer.failed(&error, cx),
+                Err(error) => viewer.failed_write(&shown, &error, cx),
             },
             cx,
         );

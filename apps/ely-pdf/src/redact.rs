@@ -169,7 +169,7 @@ impl Viewer {
         match self.holder(&target) {
             Ok(None) => {}
             Ok(Some(_)) => return self.toast(Self::text(cx, "pdf.extract.taken", &[("name", &shown)]), Severity::Danger, cx),
-            Err(error) => return self.failed(&error, cx),
+            Err(error) => return self.failed_write(&shown, &error, cx),
         }
         let (work, path, revision) = (open.work.join("removal.pdf"), open.session.path().map(PathBuf::from), open.session.revision());
         log::info!("pdf: writes a {} copy", if matches!(removal, Removal::Redact { .. }) { "redacted" } else { "cleaned" });
@@ -189,7 +189,7 @@ impl Viewer {
             move |viewer, done, _, cx| match done {
                 Ok(0) => viewer.toast_output(Self::text(cx, "pdf.clean.done", &[("name", &shown)]), opened.clone(), cx),
                 Ok(n) => viewer.toast_output(ely_ui::i18n::counted(cx, "pdf.redact.done", n as u64, &[("name", &shown), ("count", &n.to_string())]), opened.clone(), cx),
-                Err(error) => viewer.failed(&error, cx),
+                Err(error) => viewer.failed_write(&shown, &error, cx),
             },
             cx,
         );

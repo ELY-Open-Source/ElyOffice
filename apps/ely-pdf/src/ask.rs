@@ -138,7 +138,7 @@ impl Viewer {
         );
     }
 
-    fn failed_write(&self, name: &str, error: &io::Error, cx: &mut App) {
+    pub(crate) fn failed_write(&self, name: &str, error: &io::Error, cx: &mut App) {
         if ely_pdf_engine::refused(error).is_some() {
             return self.failed(error, cx);
         }

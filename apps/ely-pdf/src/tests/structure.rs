@@ -292,3 +292,19 @@ fn a_refused_text_layer_reports_no_success() {
     assert!(toasts.iter().any(|(_, severity)| *severity == Some(Severity::Warning)), "{toasts:?}");
     assert!(!toasts.iter().any(|(_, severity)| *severity == Some(Severity::Success)), "{toasts:?}");
 }
+
+#[cfg(unix)]
+#[test]
+fn an_attachment_the_system_refuses_is_worded() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx, view) = opened(&mut cx, dir.path());
+    let file = dir.path().join("notes.txt");
+    std::fs::write(&file, "notes").expect("writes");
+    cx.update(|_, app| view.update(app, |view, cx| view.edit("pdf.doing.attach", move |w, doc| w.attach(doc, "notes.txt", &file), cx)));
+    landed(cx, &view, 1);
+    let (locked, root) = (super::locked(dir.path()), super::rooted(cx, &viewer));
+    let id = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_attachment(id, "n:notes.txt".into(), locked.join("saved.txt"), cx)));
+    super::refused(cx, &root, "saved.txt", "office.save.folder");
+}

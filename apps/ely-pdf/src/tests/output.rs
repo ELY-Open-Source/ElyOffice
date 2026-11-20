@@ -36,34 +36,35 @@ fn pages_export_as_images_and_text() {
 #[cfg(unix)]
 #[test]
 fn a_write_the_system_refuses_reports_it_without_a_crash() {
-    use std::os::unix::fs::PermissionsExt as _;
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let path = file(dir.path(), "doc.pdf", &[(612.0, 792.0, &["First"])]);
     let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
     shown(cx, &viewer);
-    let locked = dir.path().join("locked");
-    std::fs::create_dir(&locked).expect("a folder");
-    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o500)).expect("read-only");
+    let (locked, root) = (super::locked(dir.path()), super::rooted(cx, &viewer));
     let id = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
     let txt = locked.join("doc.txt");
     let how = Optimizing { compress: true, from: 300, to: 0 };
-    // The window's toasts live on its root.
-    let root = cx.update(|window, app| {
-        let root = ely_ui::document_root(ely_platform::AppId::Pdf, viewer.clone().into(), &ely_ui::commands::FILE, Vec::new(), window, app);
-        viewer.update(app, |viewer, _| viewer.core.root = root.downgrade());
-        root
-    });
     cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_export(id, Kind::Text, how, txt.clone(), cx)));
-    let failed = |app: &gpui::App| {
-        let toasts = root.read(app).toasts(app);
-        toasts.iter().any(|(text, severity)| {
-            *severity == Some(ely_gpui_component::primitives::Severity::Danger) && text.contains("Permission denied")
-        })
-    };
-    settle(cx, failed);
-    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o700)).expect("writable again");
+    super::refused(cx, &root, "doc.txt", "office.save.folder");
     assert!(!txt.exists(), "nothing is written");
+}
+
+#[cfg(unix)]
+#[test]
+fn page_images_the_system_refuses_are_worded() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let path = file(dir.path(), "doc.pdf", &[(612.0, 792.0, &["First"])]);
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
+    shown(cx, &viewer);
+    let (locked, root) = (super::locked(dir.path()), super::rooted(cx, &viewer));
+    let id = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
+    let png = locked.join("doc-1.png");
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_images(id, (vec![0], 0), 72.0, vec![png.clone()], cx)));
+    // Claiming a new file there is refused: the file's words.
+    super::refused(cx, &root, "doc-1.png", "office.save.denied");
+    assert!(!png.exists(), "nothing is written");
 }
 
 #[test]

@@ -317,3 +317,18 @@ fn a_second_save_as_keeps_the_reopen_and_signs_the_file_it_wrote() {
     let fields = checker.signatures(doc, &target).expect("its fields");
     assert_eq!(fields.iter().filter(|field| field.signed.is_some()).count(), 1, "a signature Save As left out came back");
 }
+
+#[cfg(unix)]
+#[test]
+fn a_signed_copy_the_system_refuses_is_worded() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[plain(dir.path())], true);
+    let view = shown(cx, &viewer);
+    let at = SignAt { page: 0, object: None, rect: [72.0, 600.0, 272.0, 660.0], version: 0 };
+    cx.update(|_, app| view.update(app, |view, _| view.sign_at = Some(at)));
+    let (locked, root) = (super::locked(dir.path()), super::rooted(cx, &viewer));
+    let tab = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_signed(tab, at, signing(""), locked.join("out.pdf"), cx)));
+    super::refused(cx, &root, "out.pdf", "office.save.folder");
+}

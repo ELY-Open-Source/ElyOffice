@@ -110,3 +110,17 @@ fn an_owner_reply_closes_only_its_own_dialog() {
     settle(cx, |app| view.read(app).allowed & may::OWNER != 0);
     assert!(cx.update(|_, app| viewer.read(app).secure.is_some()), "the newer dialog stays");
 }
+
+#[cfg(unix)]
+#[test]
+fn a_protected_copy_the_system_refuses_is_worded() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let path = super::file(dir.path(), "doc.pdf", &[(612.0, 792.0, &["Hello"])]);
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
+    shown(cx, &viewer);
+    let (locked, root) = (super::locked(dir.path()), super::rooted(cx, &viewer));
+    let tab = cx.update(|_, app| viewer.read(app).core.tabs[0].id);
+    cx.update(|_, app| viewer.update(app, |viewer, cx| viewer.write_protected(tab, None, locked.join("copy.pdf"), cx)));
+    super::refused(cx, &root, "copy.pdf", "office.save.folder");
+}

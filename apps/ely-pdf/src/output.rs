@@ -161,6 +161,7 @@ impl Viewer {
         }
         let work = tab.work.join("page.png");
         let folder = targets.first().and_then(|target| target.parent()).map(PathBuf::from);
+        let shown = targets.first().map(|target| ely_office::files::file_name(target)).unwrap_or_default();
         log::info!("pdf: exports {} page images", pages.len());
         self.read_in(
             id,
@@ -185,7 +186,7 @@ impl Viewer {
                         None => viewer.toast(text, Severity::Success, cx),
                     }
                 }
-                Err(error) => viewer.failed(&error, cx),
+                Err(error) => viewer.failed_write(&shown, &error, cx),
             },
             cx,
         );
@@ -202,7 +203,7 @@ impl Viewer {
         match self.holder(&target) {
             Ok(None) => {}
             Ok(Some(_)) => return self.toast(Self::text(cx, "pdf.extract.taken", &[("name", &shown)]), Severity::Danger, cx),
-            Err(error) => return self.failed(&error, cx),
+            Err(error) => return self.failed_write(&shown, &error, cx),
         }
         let (work, path, revision) = (tab.work.join("export.out"), tab.session.path().map(PathBuf::from), tab.session.revision());
         // Unsaved edits: the file on disk is not "before".
@@ -228,7 +229,7 @@ impl Viewer {
                     viewer.toast_output(Self::text(cx, "pdf.export.optimized_done", &sizes), opened.clone(), cx)
                 }
                 Ok(_) => viewer.toast_output(Self::text(cx, "pdf.export.done", &[("name", &shown)]), opened.clone(), cx),
-                Err(error) => viewer.failed(&error, cx),
+                Err(error) => viewer.failed_write(&shown, &error, cx),
             },
             cx,
         );
