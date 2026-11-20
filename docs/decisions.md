@@ -1588,3 +1588,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 变异（Mac 内核 1c8c756c）：Impress 不走新路、编辑恒为否、共用 Undo 处理不做事，各令相应测试败。Linux 上按键测试经应用键位重跑（shell 的计时跑完后，闸与共享锁下）：修后过，Impress 不走新路、共用 Undo 处理不做事两变异皆败于撤销后仍是“Plan B”，ely-show 127 全过。
 - 已知无关失败：Mac 上 ely-doc `a_launch_tab_closed_before_its_turn_closes_the_early_load` 整套时败一次、单跑三次皆过，Windows 亦见，测试的等待缺陷，归 R20.66。
 - 链接只有一道门（R20.53）：`ely_ui::outward` 决定什么交给系统打开，ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMark、ElyMail 所有 `open_url` 的链接路径都经它，`ely_office::outward` 删去。只放 http、https 与 mailto；网址按 WHATWG URL 标准（`url` 包）解析，主机之后 RFC 3986 不许的字符再百分号编码，合法的 %XX 照旧，孤立的 % 写成 %25：macOS 的 NSURL 只认 RFC 3986，且链接 macOS 14 以前的 SDK 时不替人编码。解析不了的网页或邮件地址提示新文案 `office.link.malformed`（八种语言），不再用“只打开网页与邮件链接”。行为变化：ElyMail 邮件正文里带 attach 的 mailto 也拒绝，与文档应用一致；非网页协议在 ElyMail 原本就到不了打开器（邮件引擎只留 http、https、mailto），现在打开前再拦一次。
+
+## 2026-11-20 heapless 升到 0.9.4，pr.yml 重新放行（cargo-deny 的 unsound 公告）
+
+- 原状：2026-11-19 08:51 UTC 起 main 上每次推送 pr.yml 皆败，约 77 次，皆败于 `scripts/deny.sh`：RustSec 新收九条针对 heapless 0.9.3 的 `unsound` 公告，RUSTSEC-2026-0574 至 0582（`FindMutView::pop` 改值后释放、`Spsc::peek` 的内存序、`IndexMap::truncate` 与 `u16::MAX` 个元素时的 `insert`、`Drop` 里 panic、`SortedLinkedList::zeroize`、`Deque` 的 `TryFrom` 与 `make_contiguous`、Treiber 栈的竞争）。heapless 只经 vendor 的 gpui-pre 0.3.12 进来，它要 `0.9.2`。
+- 定：逐条读 rustsec/advisory-db，九条的 patched 皆为 `>= 0.9.4`；crates.io 有 0.9.4 且未撤回，在 gpui-pre 的要求之内。`cargo update -p heapless --precise 0.9.4`，`Cargo.lock` 只改 heapless 的版本与校验和；vendor 不动，deny.toml 不加忽略。
+- 核对：cargo-deny 0.20.2（与 pr.yml 同版，取发行的预编二进制、对过 sha256）在 HEAD 的锁上报这九条而败，换锁后 `advisories ok, bans ok, licenses ok, sources ok`；`scripts/vendor-gpui.sh check` 过。Linux 的计时基准占着机器，clippy 与 pr.yml 的不需引擎测试在 Mac 上对同一棵树跑：clippy `-D warnings` 过，测试 1065 过、0 败；Linux 的由这次推送的 pr.yml 跑。Mac 上 panics.py 报 `scripts/panics.tsv` 一行已无其处（`crates/ely-ui/src/updates.rs` 的 `expect("the note's folder")`，只列 macos），与本条无关、另报。
