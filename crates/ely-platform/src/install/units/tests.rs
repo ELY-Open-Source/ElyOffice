@@ -4,7 +4,7 @@ use std::{
     sync::{Barrier, atomic::{AtomicUsize, Ordering}},
 };
 
-use super::{SHADOW, appimage_written, clear, remove, unshadow};
+use super::{Found, SHADOW, appimage_written, clear, remove, unshadow};
 
 /// The units AppRun's test reads too: `appimage-*` alone go.
 fn samples() -> Vec<(String, String)> {
@@ -48,14 +48,18 @@ fn only_an_appimage_s_unit_goes_with_its_links_and_one_reload() {
         }
         std::os::unix::fs::symlink("/elsewhere", wants.join("other.service")).expect("another link");
         let reloads = Cell::new(0);
-        let removed = unshadow(&units, || {
+        let found = unshadow(&units, || {
             reloads.set(reloads.get() + 1);
             Ok(())
         })
         .expect("unshadow");
         let goes = name.starts_with("appimage-");
         assert_eq!(appimage_written(&text), goes, "{name}");
-        assert_eq!((removed.len(), reloads.get()), if goes { (4, 1) } else { (0, 0) }, "{name}");
+        match (&found, goes) {
+            (Found::Cleared(removed), true) => assert_eq!((removed.len(), reloads.get()), (4, 1), "{name}"),
+            (Found::Kept, false) => assert_eq!(reloads.get(), 0, "{name}"),
+            other => panic!("{name}: {other:?}"),
+        }
         assert_eq!(shadow.exists(), !goes, "{name}");
         let left: Vec<_> = std::fs::read_dir(&wants).expect("wants").map(|entry| entry.expect("entry").file_name()).collect();
         assert_eq!(left.len(), if goes { 1 } else { 4 }, "{name}: {left:?}");
@@ -67,12 +71,12 @@ fn no_unit_means_no_reload() {
     let home = home();
     let units = home.path().join(".config/systemd/user");
     let reloads = Cell::new(0);
-    let removed = unshadow(&units, || {
+    let found = unshadow(&units, || {
         reloads.set(1);
         Ok(())
     })
     .expect("nothing to do");
-    assert!(removed.is_empty() && reloads.get() == 0);
+    assert_eq!((found, reloads.get()), (Found::Nothing, 0));
 }
 
 #[test]
@@ -112,15 +116,21 @@ fn starts_at_once_each_succeed_and_remove_each_path_once() {
             scope.spawn(|| {
                 ready.wait();
                 let reloads = Cell::new(0);
-                let gone = unshadow(&units, || {
+                let found = unshadow(&units, || {
                     reloads.set(reloads.get() + 1);
                     Ok(())
                 })
                 .expect("a start at the same time");
-                assert!(reloads.get() <= 1, "a start reloaded {} times", reloads.get());
-                assert!(gone.is_empty() || reloads.get() == 1, "a start removed {gone:?} but did not reload");
-                removed.fetch_add(gone.len(), Ordering::Relaxed);
-                reloaded.fetch_add(reloads.get(), Ordering::Relaxed);
+                // By what its read returned, not what it removed.
+                match found {
+                    Found::Cleared(gone) => {
+                        assert_eq!(reloads.get(), 1, "a start that read the unit, removing {gone:?}");
+                        removed.fetch_add(gone.len(), Ordering::Relaxed);
+                        reloaded.fetch_add(1, Ordering::Relaxed);
+                    }
+                    Found::Nothing => assert_eq!(reloads.get(), 0, "a start whose read found no unit"),
+                    Found::Kept => panic!("an AppImage's unit was kept"),
+                }
             });
         }
     });
@@ -153,10 +163,10 @@ fn a_unit_another_start_removed_before_the_read_is_no_unit() {
     std::fs::write(units.join(SHADOW), text).expect("the unit");
     std::fs::remove_file(units.join(SHADOW)).expect("the other start removes it");
     let reloads = Cell::new(0);
-    let removed = unshadow(&units, || {
+    let found = unshadow(&units, || {
         reloads.set(1);
         Ok(())
     })
     .expect("gone before the read is no unit");
-    assert!(removed.is_empty() && reloads.get() == 0);
+    assert_eq!((found, reloads.get()), (Found::Nothing, 0));
 }

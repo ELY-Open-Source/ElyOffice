@@ -145,15 +145,24 @@ pub(crate) fn used(app: AppId) -> io::Result<()> {
     std::fs::write(&stamp, []).map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", stamp.display())))
 }
 
-/// Linux, once a run: clears an AppImage's shadowing unit.
+/// Linux, once a run, off the start: clears AppImage units.
 #[cfg(target_os = "linux")]
 pub(crate) fn unshadow(app: AppId) {
     static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        if let Err(error) = clear_shadow(app) {
+    ONCE.call_once(|| beside(app, move || clear_shadow(app)));
+}
+
+/// Runs `clear` on its own thread; the start never waits.
+#[cfg(target_os = "linux")]
+fn beside(app: AppId, clear: impl FnOnce() -> io::Result<()> + Send + 'static) {
+    let started = std::thread::Builder::new().name("engine-unshadow".into()).spawn(move || {
+        if let Err(error) = clear() {
             log::error!("{}: an AppImage's engine unit may hide this package's: {error}", app.slug());
         }
     });
+    if let Err(error) = started {
+        log::error!("{}: the engine unit check did not start: {error}", app.slug());
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -192,3 +201,6 @@ fn start_successor(app: AppId) -> io::Result<()> {
     })?;
     Ok(())
 }
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests;

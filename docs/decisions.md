@@ -1654,7 +1654,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 核对不起任何单元：`/usr/lib/systemd/systemd --test --user --unit=…` 以 `SYSTEMD_UNIT_PATH` 指向 `.work` 下的假家目录与假的 `/usr/lib`，空跑出单元的 Fragment Path。修前包的名字解析到家目录里的副本，修后解析到包的文件，AppImage 的单元另由其名字找到。`tests/scripts/linux-apprun.sh` 照此核对；四处变异（用回包的名字、去掉条件、不删旧单元、凡同名都删）各败。
 - 早先的家目录：只装包、再不跑新 AppImage 的，由包里的应用清：Doc、Table、Show 每次运行第一次取引擎时（`crates/ely-office/src/resident.rs` 的 `unshadow`），若本应用是包装的（`ely_platform::install::running` 为 Package），`ely_platform::install::units::unshadow` 读家目录的 `ely-engine@.service`，与 AppRun 同一判据（有一行恰为 `ExecStart=/usr/bin/env "<以 .AppImage 结尾的路径>" %i engine`；起初只看 `ExecStart=/usr/bin/env ` 这个前缀，会删掉用户经 env 起别的程序的单元，审查前收紧）即删它与指向它的链接、各记一行 info，再 `systemctl --user daemon-reload` 一次；不合判据的留下、记一行 warn 写出路径；出错记 error，不吞。两边的判据由同一组样本 `tests/fixtures/engine-units` 钉住，不会各走各的。发布说明不能代替：说明只许新功能与修复。
 - 测试不再连用户自己的 systemd：`tests/scripts/linux-apprun.sh` 原末段在真的用户 systemd 里 link 并起停一个探针单元（会写进真的 `~/.config/systemd/user`），改为 `systemd --test` 空跑读出单元的命令行，核对引号转义后的路径。
-- 同时启动时清理不出错（审查第 1 轮）：别的启动已删掉的旧单元或链接算删掉（AppRun `rm -f`，Rust 遇 NotFound 记 info），不加锁：删除本身是原子的，谁删的都一样，各进程最多多一次 `daemon-reload`。读到单元的启动都重载一次，哪怕删时已被别人删光，免得 systemd 留着旧的视图；读时已不在即没有单元，不重载。
+- 同时启动时清理不出错（审查第 1 轮）：别的启动已删掉的旧单元或链接算删掉（AppRun `rm -f`，Rust 遇 NotFound 记 info），不加锁：删除本身是原子的，谁删的都一样，各进程最多多一次 `daemon-reload`。读到单元的启动都重载一次，哪怕删时已被别人删光，免得 systemd 留着旧的视图；读时已不在即没有单元，不重载。清理不在启动的路上：取到引擎之后另起线程，每次运行一次；它只影响下次登录起哪个引擎，不必等。
 
 ## 2026-11-20 发布前核补丁序列（R20.60）
 

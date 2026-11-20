@@ -25,22 +25,33 @@ pub fn home_units() -> io::Result<PathBuf> {
     Ok(config.join("systemd").join("user"))
 }
 
+/// What the read found, and so what was done.
+#[derive(Debug, PartialEq)]
+pub enum Found {
+    /// No unit under the package's name; no reload.
+    Nothing,
+    /// Someone else's unit, kept; no reload.
+    Kept,
+    /// An AppImage's: these paths removed here, then one reload.
+    Cleared(Vec<PathBuf>),
+}
+
 /// Removes an AppImage's shadowing unit and its links; reloads once.
-pub fn unshadow(units: &Path, reload: impl FnOnce() -> io::Result<()>) -> io::Result<Vec<PathBuf>> {
+pub fn unshadow(units: &Path, reload: impl FnOnce() -> io::Result<()>) -> io::Result<Found> {
     let shadow = units.join(SHADOW);
     let text = match std::fs::read_to_string(&shadow) {
         Ok(text) => text,
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
             log::info!("engine: no {} hides the package's unit", shadow.display());
-            return Ok(Vec::new());
+            return Ok(Found::Nothing);
         }
         Err(error) => return Err(io::Error::new(error.kind(), format!("{}: {error}", shadow.display()))),
     };
     if !appimage_written(&text) {
         log::warn!("engine: {} hides the package's unit but no AppImage wrote it; kept", shadow.display());
-        return Ok(Vec::new());
+        return Ok(Found::Kept);
     }
-    clear(units, shadow, reload)
+    clear(units, shadow, reload).map(Found::Cleared)
 }
 
 /// Seen at the start: reloads even if another removed all.
