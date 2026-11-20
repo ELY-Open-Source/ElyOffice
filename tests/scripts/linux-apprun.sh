@@ -85,22 +85,23 @@ run "$odd" ely-doc >/dev/null
 [ "$(readlink "$units/graphical-session.target.wants/ely-engine-image@ely-show.service")" = "$unit" ] ||
   fail "the missing link stayed missing"
 [ "$(wc -l <"$work/systemctl")" = 2 ] || fail "a new link did not reload systemd"
-# An earlier AppImage's shadowing unit goes, links too.
-sed -e 's|^ExecStart=.*|ExecStart=/usr/bin/env "/apps/ElyOffice-0.1.16.AppImage" %i engine|' -e '/^ConditionPathExists/d' "$unit" >"$units/ely-engine@.service"
-for slug in ely-doc ely-table ely-show; do ln -s "$units/ely-engine@.service" "$units/graphical-session.target.wants/ely-engine@$slug.service"; done
-ln -s /elsewhere "$units/graphical-session.target.wants/ely-engine@ely-kept.service"
-: >"$work/said"
-run "$odd" ely-doc >/dev/null
-[ ! -e "$units/ely-engine@.service" ] || fail "the old AppImage unit still hides the package's"
-[ "$(cd "$units/graphical-session.target.wants" && echo ely-engine@*)" = "ely-engine@ely-kept.service" ] || fail "old links: $(ls "$units/graphical-session.target.wants")"
-grep -q "removed the engine unit that hid" "$work/said" || fail "the removal was not logged: $(cat "$work/said")"
-[ "$(wc -l <"$work/systemctl")" = 3 ] || fail "the removal did not reload systemd"
-rm "$units/graphical-session.target.wants/ely-engine@ely-kept.service"
-# A unit the user wrote there is kept.
-printf '[Service]\nExecStart=/opt/mine %%i\n' >"$units/ely-engine@.service"
-run "$odd" ely-doc >/dev/null
-grep -qx 'ExecStart=/opt/mine %i' "$units/ely-engine@.service" || fail "the user's own unit was removed"
-rm "$units/ely-engine@.service"
+# The samples Rust reads too: only appimage-* go, with links.
+for sample in "$root"/tests/fixtures/engine-units/*.service; do
+  name=$(basename "$sample" .service)
+  cp "$sample" "$units/ely-engine@.service"
+  for slug in ely-doc ely-table ely-show; do ln -sf "$units/ely-engine@.service" "$units/graphical-session.target.wants/ely-engine@$slug.service"; done
+  : >"$work/said"
+  run "$odd" ely-doc >/dev/null
+  case $name in
+    appimage-*)
+      [ ! -e "$units/ely-engine@.service" ] || fail "$name still hides the package's unit"
+      [ -z "$(cd "$units/graphical-session.target.wants" && ls ely-engine@* 2>/dev/null)" ] || fail "$name left links"
+      grep -q "removed the engine unit that hid" "$work/said" || fail "$name: the removal was not logged" ;;
+    *)
+      cmp -s "$sample" "$units/ely-engine@.service" || fail "$name was removed or changed"
+      rm "$units/ely-engine@.service" "$units/graphical-session.target.wants"/ely-engine@*.service ;;
+  esac
+done
 # Dry run (--test starts nothing): the package's name resolves there.
 if [ -x /usr/lib/systemd/systemd ]; then
   pkg=$work/usr-lib-systemd-user
@@ -109,7 +110,7 @@ if [ -x /usr/lib/systemd/systemd ]; then
   resolved() { # unit: its fragment path, from a dry run
     env -i PATH=/usr/bin:/bin HOME=$home XDG_CONFIG_HOME=$home/.config XDG_DATA_HOME=$home/.local/share XDG_RUNTIME_DIR=$work/run \
       SYSTEMD_UNIT_PATH="$units:$pkg:" /usr/lib/systemd/systemd --test --user --unit="$1" --no-pager 2>/dev/null |
-      awk -v u="$1" '$0 ~ "Unit " u ":" { on = 1 } on && /Fragment Path:/ { print $3; exit }'
+      awk -v u="$1" '$0 ~ "Unit " u ":" { on = 1 } on && !done && /Fragment Path:/ { print $3; done = 1 }'
   }
   mkdir -p "$work/run"
   [ "$(resolved ely-engine@ely-doc.service)" = "$pkg/ely-engine@.service" ] || fail "the package's unit is hidden: $(resolved ely-engine@ely-doc.service)"
@@ -164,17 +165,15 @@ XDG_DATA_HOME=$home/.local/share dbus-run-session -- gio launch "$home/.local/sh
   fail "gio cannot launch the item: $(tail -n 1 "$work/said")"
 for _ in $(seq 50); do [ -s "$work/launched" ] && break; sleep 0.1; done
 [ "$(cat "$work/launched" 2>/dev/null)" = "ely-doc /x/d.docx" ] || fail "the item did not start $odd/doc.AppImage: $(grep Exec "$home/.local/share/applications/ely-doc.desktop")"
-# systemd runs the unit from the same odd path.
-if systemctl --user is-system-running >/dev/null 2>&1 || [ "$(systemctl --user is-system-running 2>/dev/null)" = degraded ]; then
-  probe=ely-apprun-$$
-  printf '#!/bin/sh\necho "$@" >>"%s/engine"\n' "$work" >"$odd/doc.AppImage"
-  sed -e "s/^Description=.*/Description=linux-apprun probe/" -e '/^ConditionPathExists/d' "$unit" >"$work/$probe@.service"
-  systemctl --user link "$work/$probe@.service" >/dev/null 2>&1
-  trap 'systemctl --user disable "$probe@.service" >/dev/null 2>&1; rm -rf "$work"' EXIT
-  systemctl --user start "$probe@ely-doc.service" && systemctl --user stop "$probe@ely-doc.service" ||
-    fail "systemd cannot run the unit: $(systemctl --user status "$probe@ely-doc.service" 2>&1 | tail -n 3)"
-  [ "$(cat "$work/engine")" = "$(printf 'ely-doc engine\nely-doc engine stop')" ] || fail "the unit ran: $(cat "$work/engine")"
+# Dry run: systemd parses the odd path, running nothing.
+if [ -x /usr/lib/systemd/systemd ]; then
+  line=$(env -i PATH=/usr/bin:/bin HOME=$home XDG_CONFIG_HOME=$home/.config XDG_DATA_HOME=$home/.local/share XDG_RUNTIME_DIR=$work/run \
+    SYSTEMD_UNIT_PATH="$units:" /usr/lib/systemd/systemd --test --user --unit=ely-engine-image@ely-doc.service --no-pager 2>/dev/null |
+    awk '/Unit ely-engine-image@ely-doc.service:/ { on = 1 } on && !done && /Command Line:/ { sub(/^[ \t]*Command Line: /, ""); print; done = 1 }')
+  # Our unit, shell-quoted; exec makes $$ a $.
+  got=$(eval "set -- $line"; printf '%s\n' "$@")
+  [ "$got" = "$(printf '/usr/bin/env\n%s\nely-doc\nengine' "${odd//\$/\$\$}/doc.AppImage")" ] || fail "systemd reads the command as: $line"
 else
-  echo "SKIP: no user systemd for the unit's run"
+  echo "SKIP: no /usr/lib/systemd/systemd for the dry run"
 fi
-echo "linux-apprun: word, name or the picker; quoted menu items; the engine unit never takes the package's name and stands down for it, an earlier AppImage's shadow goes; the kernel kept once per id, the worker per build; starts at once; gio and systemd start paths with % and quotes"
+echo "linux-apprun: word, name or the picker; quoted menu items; the engine unit never takes the package's name and stands down for it, an earlier AppImage's shadow goes; the kernel kept once per id, the worker per build; starts at once; gio starts and systemd parses paths with % and quotes; no test reaches the user's own systemd"

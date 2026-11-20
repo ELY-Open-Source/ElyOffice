@@ -2,6 +2,8 @@
 
 mod after;
 mod package;
+#[cfg(target_os = "linux")]
+pub mod units;
 
 use std::{
     io,

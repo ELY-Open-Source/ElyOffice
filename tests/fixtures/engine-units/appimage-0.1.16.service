@@ -1,0 +1,15 @@
+[Unit]
+Description=Ely Office idle engine for %i
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/env "/home/u/ElyOffice-0.1.16-linux-x86_64.AppImage" %i engine
+ExecStop=/usr/bin/env "/home/u/ElyOffice-0.1.16-linux-x86_64.AppImage" %i engine stop
+# An app's engine outlives the unit.
+KillMode=process
+
+[Install]
+WantedBy=graphical-session.target

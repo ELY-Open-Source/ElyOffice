@@ -2,6 +2,7 @@
 
 测试共用的样本。加了、改了样本，同步改本文件。
 
+- engine-units/：家目录里名为 `ely-engine@.service` 的三种单元（R20.79）：appimage-0.1.16 为 0.1.16 的 AppImage 所写（经 `/usr/bin/env` 起映像），package 与包的相同，hand 为用户自写；AppRun 与 `ely_platform::install::units` 的测试同读，只有 appimage-* 应删
 - media/clip.mp4：1 秒 H.264/AAC
 - pdf/aes128.pdf：AES-128 加密，打开密码 user、所有者密码 owner
 - pdf/sizes.pdf：LibreOffice 26.2 由 Writer 文档导出的 PDF，30 段拉丁与中文（子集 Liberation Serif、Noto Serif CJK）、一张图，存后大小的测试用

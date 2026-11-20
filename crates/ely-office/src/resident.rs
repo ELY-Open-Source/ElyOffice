@@ -145,6 +145,30 @@ pub(crate) fn used(app: AppId) -> io::Result<()> {
     std::fs::write(&stamp, []).map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", stamp.display())))
 }
 
+/// Linux, once a run: clears an AppImage's shadowing unit.
+#[cfg(target_os = "linux")]
+pub(crate) fn unshadow(app: AppId) {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        if let Err(error) = clear_shadow(app) {
+            log::error!("{}: an AppImage's engine unit may hide this package's: {error}", app.slug());
+        }
+    });
+}
+
+#[cfg(target_os = "linux")]
+fn clear_shadow(app: AppId) -> io::Result<()> {
+    use ely_platform::install::{Installed, running, units};
+    if !matches!(running(app.slug())?, Some(Installed::Package(..))) {
+        return Ok(());
+    }
+    let reload = || match std::process::Command::new("systemctl").args(["--user", "daemon-reload"]).status()? {
+        status if status.success() => Ok(()),
+        status => Err(io::Error::other(format!("systemctl --user daemon-reload exited {status}"))),
+    };
+    units::unshadow(&units::home_units()?, reload).map(drop)
+}
+
 /// Once per run: an idle engine for the next start.
 pub(crate) fn successor(app: AppId) {
     static ONCE: Once = Once::new();

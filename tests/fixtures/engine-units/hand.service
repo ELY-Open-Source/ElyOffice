@@ -1,0 +1,6 @@
+[Unit]
+Description=My own engine
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mine/%i engine

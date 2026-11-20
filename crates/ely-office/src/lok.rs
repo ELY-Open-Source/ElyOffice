@@ -335,6 +335,8 @@ fn sign(worker: &mut Worker, wanted: &Mutex<String>) -> io::Result<()> {
 /// The idle engine, else a new one; checked later.
 fn spawn(app: AppId) -> io::Result<Worker> {
     let (install, profile, probe) = crate::resident::place(app)?;
+    #[cfg(target_os = "linux")]
+    crate::resident::unshadow(app);
     crate::resident::used(app)?;
     let worker = Worker::take(&install, &profile, app.slug(), probe)?;
     log::info!("{}: worker from {}, start check {probe:?}", app.slug(), install.display());
