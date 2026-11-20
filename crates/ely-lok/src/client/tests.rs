@@ -21,6 +21,7 @@ mod commands;
 #[cfg(windows)]
 mod dde;
 mod docx;
+mod opendoc;
 mod fallback;
 mod filter;
 mod fonts;

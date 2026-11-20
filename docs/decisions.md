@@ -1632,3 +1632,4 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 原状：脚本要同一台机器同时有 Linux 与 Windows msvc 目标，三台测试机都不全，一直只报 SKIP；临时 crate 的依赖手写，与真 crate 会走样。
 - 定：只查本机以外平台的目标（本机目标每次构建都编），由 `pr.yml` 在 Ubuntu 上 `rustup target add x86_64-pc-windows-msvc aarch64-apple-darwin` 后跑；Mac、Windows 测试机不加目标。真 crate 不能交叉检查：ring 的构建脚本要目标平台的 C 头文件（Windows 要 mingw，macOS 要 Apple SDK），故留临时 crate，依赖由 `crates/ely-platform/Cargo.toml` 生成。Windows 取 msvc 不取 gnu：gnu 要 mingw 的 `dlltool`。缺目标点名 SKIP，全缺即败。
 - 测试与变异见 R20.65 的任务行。
+- 内核自己打开的 Impress 链接（R20.51）：图像映射与编辑中点到另一文本框的链接不交 Ely 的门，由内核的 SID_OPENDOC 打开，宏与脚本链接靠 `SfxObjectShell::AllowedLinkProtocolFromDocument` 拒（带宏的文档照宏模式，不带宏的问话由 worker 关掉）。根治在内核补丁 0148：LOK 下这两条路改发链接回调、编辑中同样须 Ctrl，Ely 不另设 Ctrl 规则或第二道门。0148 与 0147 一样，要三端重建共享引擎，0.1.17 发布后才入库；在此之前 R20.51 不勾，R20.77、R20.78 不进 0.1.17 的更新日志。

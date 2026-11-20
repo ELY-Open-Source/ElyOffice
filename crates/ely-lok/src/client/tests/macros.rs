@@ -46,7 +46,7 @@ fn macro_fodt(marker: &std::path::Path) -> String {
 }
 
 /// Initializes the profile fully, the CLI way (registers Basic).
-fn seed_basic(install: &Path, profile: &Path) {
+pub(super) fn seed_basic(install: &Path, profile: &Path) {
     #[cfg(target_os = "macos")]
     let soffice = install.parent().expect("the app dir").join("MacOS/soffice");
     #[cfg(target_os = "linux")]
@@ -63,14 +63,14 @@ fn seed_basic(install: &Path, profile: &Path) {
 }
 
 /// The macro module: writes its marker through the UCB.
-fn module(marker: &Path) -> String {
+pub(super) fn module(marker: &Path) -> String {
     format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE script:module PUBLIC \"-//OpenOffice.org//DTD OfficeDocument 1.0//EN\" \"module.dtd\">\n<script:module xmlns:script=\"http://openoffice.org/2000/script\" script:name=\"Module1\" script:language=\"StarBasic\">Sub Sneaky\n  oSFA = createUnoService(\"com.sun.star.ucb.SimpleFileAccess\")\n  oOut = oSFA.openFileWrite(\"{}\")\n  oOut.writeString(\"ran\")\n  oOut.closeOutput()\nEnd Sub\n</script:module>\n",
         marker.display().to_string().replace('\\', "/")
     )
 }
 
-const MACRO_URL: &str = "macro:///Standard.Module1.Sneaky";
+pub(super) const MACRO_URL: &str = "macro:///Standard.Module1.Sneaky";
 
 /// The document's own macro, by URL.
 const DOCUMENT_MACRO_URL: &str = "macro://./Standard.Module1.Sneaky";
