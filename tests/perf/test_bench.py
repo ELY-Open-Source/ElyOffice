@@ -2,6 +2,7 @@
 # The bench's verdicts on made-up logs and handles.
 import collections
 import datetime
+import json
 import os
 import re
 import sys
@@ -336,6 +337,37 @@ class Listing(unittest.TestCase):
 
 
 class Windows(unittest.TestCase):
+    def test_a_failed_redo_keeps_what_it_finished_and_leaves_the_rest_void(self):
+        rows = lambda n: {"rows": [["PERF-01", f"case {n}", [n], None]]}
+        for a_counts, void in [(True, ["B", "C"]), (False, ["A", "B", "C"])]:
+            kept = {"env": {"date": "2000-01-01", "machine": "Test", "void": ["A", "B", "C"]},
+                    "cases": {"A": rows(1), "B": rows(2), "C": rows(3)}}
+            cases = bench.Cases(json.loads(json.dumps(kept["cases"])), ["A", "B"])
+            with unittest.mock.patch("builtins.print"):
+                cases.run("A", lambda _: rows(10)["rows"])
+                with self.assertRaises(RuntimeError):
+                    cases.run("B", lambda _: (_ for _ in ()).throw(RuntimeError("cycle 264")))
+            paging = types.SimpleNamespace(judged=lambda windows: [(key, a_counts, "") for key, _, _ in windows])
+            with tempfile.TemporaryDirectory() as out:
+                args = types.SimpleNamespace(out=out, keep=os.path.join(out, "raw.json"), runs=1)
+                with unittest.mock.patch("builtins.print"):
+                    bench.failed_redo(args, kept, cases, paging)
+                with open(args.keep, encoding="utf-8") as raw:
+                    saved = json.load(raw)
+                with open(os.path.join(out, "2000-01-01-Test.md"), encoding="utf-8") as record:
+                    self.assertIn("| PERF-01 | case 10 |", record.read())
+            self.assertEqual(saved["cases"]["A"], rows(10))
+            self.assertEqual(saved["cases"]["B"], rows(2))
+            self.assertEqual(saved["env"]["void"], void)
+            self.assertEqual(list(saved["env"]["rerun"]), ["A"])
+
+    def test_a_redo_on_other_builds_or_samples_is_refused_before_it_runs(self):
+        env = {"builds": {"ely-doc": "x"}, "samples": {"doc.docx": "s"}}
+        bench.matched(env, {"ely-doc": "x"}, {"doc.docx": ("/p", "s")})
+        for builds, found in [({"ely-doc": "y"}, {"doc.docx": ("/p", "s")}), ({"ely-doc": "x"}, {"doc.docx": ("/p", "t")})]:
+            with self.assertRaisesRegex(RuntimeError, "same builds and samples"):
+                bench.matched(env, builds, found)
+
     def test_a_redo_runs_only_its_case_after_its_setup_and_prints_its_window(self):
         done = {"A": {"rows": [["P", "a", [1], None]]}, "B": {"rows": [["P", "b", [2], None]]}}
         cases, order = bench.Cases(done, ["B"]), []

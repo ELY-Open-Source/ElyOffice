@@ -185,8 +185,19 @@ def machine():
     return env
 
 
+def built():
+    return {slug: hashlib.sha256(open(run.HOST.exe(slug), "rb").read()).hexdigest()[:16] for slug in APPS}
+
+
+def matched(kept_env, builds, found):
+    """A redo times only the kept run's builds and samples."""
+    now = (builds, {name: value[1] for name, value in found.items()})
+    if now != (kept_env["builds"], kept_env["samples"]):
+        raise RuntimeError("--redo needs the same builds and samples as the kept run")
+
+
 def environment(found, partial):
-    builds = {slug: hashlib.sha256(open(run.HOST.exe(slug), "rb").read()).hexdigest()[:16] for slug in APPS}
+    builds = built()
     with open(os.path.join(run.ROOT, "Cargo.toml"), encoding="utf-8") as manifest:
         version = re.search(r'^version = "(.+)"', manifest.read(), re.M).group(1)
     env = {**machine(), "version": version}
@@ -226,6 +237,8 @@ def main():
     drive.frames_apart([*APPS, "ely-lok-worker", "ely-pdf-worker"])
     drive.sh(*build, *packages, cwd=run.ROOT)
     found = samples.made(os.path.join(run.ROOT, "engines", "bench"), run.HOST.git())
+    if kept:
+        matched(kept["env"], built(), found)
     # Each system's own counters, sampled here (R20.58).
     linux = run.HOST.name == "Linux"
     paging = Paging(os.path.join(work, "vmstat.log")) if linux else counters.Counted(os.path.join(work, "paging.log"))
@@ -264,13 +277,16 @@ def main():
         if args.keep:
             shutil.copy(paging.path, f"{args.keep}.{utc():%Y%m%dT%H%M%S}.{paging.suffix}")
     except BaseException:
-        kept = tempfile.mkdtemp(prefix="ely-bench-failed-")
+        logs = tempfile.mkdtemp(prefix="ely-bench-failed-")
         for log in glob.glob(os.path.join(work, "**", "*.log"), recursive=True):
-            to = os.path.join(kept, os.path.relpath(log, work))
+            to = os.path.join(logs, os.path.relpath(log, work))
             os.makedirs(os.path.dirname(to), exist_ok=True)
             shutil.copy(log, to)
-        print(f"the failed run's logs: {kept}")
-        paging.stop()
+        print(f"the failed run's logs: {logs}")
+        if kept:
+            failed_redo(args, kept, cases, paging)
+        else:
+            paging.stop()
         raise
     finally:
         left = run.stop_engines(work)
@@ -285,14 +301,30 @@ def main():
     for key, counts, note in judged:
         print(f"bench: paging {'ok' if counts else 'VOID'} {key}: {note}")
     env["void"] = void_after(kept["env"].get("void", []) if kept else [], cases.ran, judged)
-    rows = [row for case in cases.done.values() for row in case.get("rows", [])]
-    held = [one for case in cases.done.values() for one in case.get("held", [])]
-    write(args.out, env, rows, held, args.runs)
+    write(args.out, env, *table(cases), args.runs)
     if args.keep:
         with open(args.keep, "w", encoding="utf-8") as raw:
             json.dump({"env": env, "cases": cases.done}, raw)
     if env.get("void"):
         sys.exit(f"bench: timed while the machine paged, redo: {env['void']}")
+
+
+def table(cases):
+    """The record's rows and PERF-08 counts, in case order."""
+    rows = [row for case in cases.done.values() for row in case.get("rows", [])]
+    held = [one for case in cases.done.values() for one in case.get("held", [])]
+    return rows, held
+
+
+def failed_redo(args, kept, cases, paging):
+    """Keeps a failed redo's finished cases; the rest stay void."""
+    judged = paging.judged(cases.windows)
+    env = {**redone(kept["env"], kept["env"], sorted(cases.ran)),
+           "void": void_after(kept["env"].get("void", []), cases.ran, judged)}
+    write(args.out, env, *table(cases), args.runs)
+    with open(args.keep, "w", encoding="utf-8") as raw:
+        json.dump({"env": env, "cases": cases.done}, raw)
+    print(f"bench: the failed redo kept {sorted(cases.ran)}; void: {env['void']}")
 
 
 def typed(work, recipe, runs):
