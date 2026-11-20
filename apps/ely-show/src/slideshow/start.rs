@@ -72,21 +72,27 @@ fn copy(
     let shown = worker.load(&url)?;
     let read = |worker: &mut Worker| -> io::Result<Vec<ShowSlide>> {
         worker.run(&shown, "view.theme", &[ely_lok::SCHEME])?;
-        ely_lok::show::slide_show(&worker.values(&shown, ely_lok::show::SLIDE_SHOW)?)
+        let slides = ely_lok::show::slide_show(&worker.values(&shown, ely_lok::show::SLIDE_SHOW)?)?;
+        paired(&slides, &links)?;
+        Ok(slides)
     };
     match read(worker) {
-        Ok(slides) if slides.len() == links.len() => Ok((current, shown, slides, links)),
-        Ok(slides) => {
-            worker.close_doc(shown)?;
-            Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("{} slides but links for {}", slides.len(), links.len()),
-            ))
-        }
+        Ok(slides) => Ok((current, shown, slides, links)),
         Err(error) => {
             worker.close_doc(shown)?;
             Err(error)
         }
+    }
+}
+
+/// Each shown slide must have its own links.
+fn paired(slides: &[ShowSlide], links: &[Vec<Link>]) -> io::Result<()> {
+    match slides.len() == links.len() {
+        true => Ok(()),
+        false => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{} slides but links for {}", slides.len(), links.len()),
+        )),
     }
 }
 
@@ -401,11 +407,17 @@ mod tests {
             let mut worker = deck.core.worker.lock().expect("the worker lock");
             let (_, doc, slides, links) = super::copy(&mut worker, &tab.doc, &path).expect("a copy");
             worker.close_doc(doc).expect("the copy closes");
-            (slides.len(), links)
+            (slides, links)
         });
         let goes: Vec<Vec<(i64, Goto)>> =
             links.iter().map(|page| page.iter().map(|link| (link.bounds.1, link.to.clone())).collect()).collect();
-        assert_eq!(slides, 3);
+        assert_eq!(slides.len(), 3);
+        // A copy whose pages and slides differ never plays.
+        super::paired(&slides, &links).expect("paired");
+        let refused = super::paired(&slides, &links[..2]).expect_err("a slide without links");
+        assert_eq!(refused.kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(refused.to_string(), "3 slides but links for 2");
+        assert!(super::paired(&slides[..2], &links).is_err(), "links without a slide");
         assert_eq!(
             goes,
             vec![

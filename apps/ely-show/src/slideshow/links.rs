@@ -36,7 +36,12 @@ pub enum Goto {
 pub struct Link {
     pub bounds: Rect,
     pub to: Goto,
+    /// Placed by end points: clicks near it count.
+    pub line: bool,
 }
+
+/// Impress's hit tolerance (sd `FuPoor::HITPIX`), in screen pixels.
+const HIT_PIXELS: f32 = 2.0;
 
 /// A target as named, before slide names are known.
 enum Pending {
@@ -59,6 +64,8 @@ enum Open {
 }
 
 struct Shape {
+    name: String,
+    line: bool,
     bounds: Option<Rect>,
     /// What its children cover, for a group.
     union: Option<Rect>,
@@ -66,8 +73,8 @@ struct Shape {
     rank: (usize, usize),
 }
 
-/// The elements that take a place on the slide.
-const SHAPES: [&str; 9] = [
+/// Shapes that take a place on a slide (ODF 19.228).
+const SHAPES: [&str; 15] = [
     "draw:frame",
     "draw:custom-shape",
     "draw:rect",
@@ -75,7 +82,13 @@ const SHAPES: [&str; 9] = [
     "draw:circle",
     "draw:path",
     "draw:polygon",
+    "draw:polyline",
+    "draw:regular-polygon",
     "draw:caption",
+    "draw:control",
+    "draw:line",
+    "draw:connector",
+    "draw:measure",
     "draw:g",
 ];
 
@@ -90,25 +103,6 @@ fn bad(what: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, what.to_string())
 }
 
-/// A length such as `2.5cm` in 1/100 mm.
-fn length(text: &str) -> io::Result<i64> {
-    let at = text
-        .find(|c: char| c.is_alphabetic())
-        .ok_or_else(|| bad(format!("a length with no unit: {text}")))?;
-    let (number, unit) = text.split_at(at);
-    let number: f64 = number.parse().map_err(|_| bad(format!("a bad length: {text}")))?;
-    let mm = match unit {
-        "cm" => 10.0,
-        "mm" => 1.0,
-        "in" => 25.4,
-        "pt" => 25.4 / 72.0,
-        "pc" => 25.4 / 6.0,
-        "px" => 25.4 / 96.0,
-        _ => return Err(bad(format!("a length in {unit}: {text}"))),
-    };
-    Ok((number * mm * 100.0).round() as i64)
-}
-
 fn attr(tag: &BytesStart, key: &str) -> io::Result<Option<String>> {
     for found in tag.attributes() {
         let found = found.map_err(bad)?;
@@ -117,17 +111,6 @@ fn attr(tag: &BytesStart, key: &str) -> io::Result<Option<String>> {
         }
     }
     Ok(None)
-}
-
-fn rect(tag: &BytesStart) -> io::Result<Option<Rect>> {
-    let mut parts = [None; 4];
-    for (part, key) in parts.iter_mut().zip(["svg:x", "svg:y", "svg:width", "svg:height"]) {
-        *part = attr(tag, key)?.map(|text| length(&text)).transpose()?;
-    }
-    Ok(match parts {
-        [Some(x), Some(y), Some(w), Some(h)] => Some((x, y, w, h)),
-        _ => None,
-    })
 }
 
 fn join(a: Option<Rect>, b: Rect) -> Rect {
@@ -201,18 +184,20 @@ impl Parser {
             shape if self.in_page && SHAPES.contains(&shape) => {
                 self.order += 1;
                 let rank = (self.shapes.len(), self.order);
-                self.shapes.push(Shape { bounds: rect(tag)?, union: None, goes: Vec::new(), rank });
+                let bounds = place::bounds(shape, tag)?;
+                let line = place::by_ends(shape);
+                self.shapes.push(Shape { name: shape.to_string(), line, bounds, union: None, goes: Vec::new(), rank });
                 Open::Shape
             }
             "text:a" => {
-                if let (Some(shape), Some(href)) = (self.shapes.last_mut(), attr(tag, "xlink:href")?) {
-                    shape.goes.push(address(&href));
+                if let Some(href) = attr(tag, "xlink:href")? {
+                    self.goes(&name, address(&href));
                 }
                 Open::Other
             }
             "presentation:event-listener" | "script:event-listener" => {
-                if let (Some(shape), Some(go)) = (self.shapes.last_mut(), action(tag)?) {
-                    shape.goes.push(go);
+                if let Some(go) = action(tag)? {
+                    self.goes(&name, go);
                 }
                 Open::Other
             }
@@ -220,6 +205,15 @@ impl Parser {
         };
         self.open.push(kind);
         Ok(())
+    }
+
+    /// A link for the innermost shape; outside one, said.
+    fn goes(&mut self, name: &str, go: Pending) {
+        match self.shapes.last_mut() {
+            Some(shape) => shape.goes.push(go),
+            None if self.in_page => log::warn!("show: a {name} outside any shape is dropped"),
+            None => {}
+        }
     }
 
     fn end(&mut self) -> io::Result<()> {
@@ -234,6 +228,9 @@ impl Parser {
             Open::Shape => {
                 let shape = self.shapes.pop().ok_or_else(|| bad("a shape closed that never opened"))?;
                 let Some(bounds) = shape.bounds.or(shape.union) else {
+                    if !shape.goes.is_empty() {
+                        log::warn!("show: a link on a {} has no place on the slide", shape.name);
+                    }
                     return Ok(());
                 };
                 if let Some(parent) = self.shapes.last_mut() {
@@ -241,7 +238,7 @@ impl Parser {
                 }
                 let page = self.pages.last_mut().ok_or_else(|| bad("a shape outside a slide"))?;
                 for pending in shape.goes {
-                    let link = Link { bounds, to: Goto::End };
+                    let link = Link { bounds, to: Goto::End, line: shape.line };
                     page.push(Found { link, pending, rank: shape.rank });
                 }
             }
@@ -289,20 +286,25 @@ pub fn parse(xml: &[u8]) -> io::Result<Vec<Vec<Link>>> {
         .collect())
 }
 
-/// The topmost link under a point, as slide shares.
-pub fn at(links: &[Link], slide: (f32, f32), (x, y): (f32, f32)) -> Option<&Goto> {
+/// Topmost link under a point; the slide shows `pixels` wide.
+pub fn at(links: &[Link], slide: (f32, f32), (x, y): (f32, f32), pixels: f32) -> Option<&Goto> {
     let (x, y) = (x * slide.0, y * slide.1);
+    let near = HIT_PIXELS * slide.0 / pixels;
     let inside = |link: &&Link| {
         let (left, top, width, height) = link.bounds;
-        (left as f32..(left + width) as f32).contains(&x) && (top as f32..(top + height) as f32).contains(&y)
+        let (left, top, right, bottom) = (left as f32, top as f32, (left + width) as f32, (top + height) as f32);
+        match link.line {
+            true => (left - near..=right + near).contains(&x) && (top - near..=bottom + near).contains(&y),
+            false => (left..right).contains(&x) && (top..bottom).contains(&y),
+        }
     };
     links.iter().rev().find(inside).map(|link| &link.to)
 }
 
 impl Show {
     /// The shown slide's link under a point, as shares.
-    pub fn link_at(&self, point: (f32, f32)) -> Option<Goto> {
-        at(self.links.get(self.part()?)?, self.slide, point).cloned()
+    pub fn link_at(&self, point: (f32, f32), pixels: f32) -> Option<Goto> {
+        at(self.links.get(self.part()?)?, self.slide, point, pixels).cloned()
     }
 
     /// Does what a click on a link says.
@@ -340,5 +342,6 @@ impl Show {
     }
 }
 
+mod place;
 #[cfg(test)]
 mod tests;

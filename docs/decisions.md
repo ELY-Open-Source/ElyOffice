@@ -1602,3 +1602,9 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 旧版的其他节照同一规则并入，一行不改字：0.1.10 的新平台、新应用并入新功能；0.1.11 的平台与变更按内容分，Linux 包改在 AlmaLinux 8 构建、Gmail 改用应用专用密码入新功能，Intel Mac 启动即崩已修、Outlook.com 拒绝 IMAP 时的说明入修复；0.1.9 的其他（搬到 GitHub、改 MIT 许可、改从 GitHub 查更新）是用户要知道的事，入新功能。各版都无工程内容可移。
 - 实现：`scripts/release-gate.py` 只从发布记录读那两行，更新日志里有新功能、修复（New、Fixes）以外的节即拒，并点名；已知问题（R20.54、R15.11g）留在 decisions 与进度表。已发布的 GitHub 发布页不动；`scripts/ci.sh` 建发布时只给标签与名字，不写正文。
 - 测试：`tests/scripts/release-gate.sh`：发布记录的数目不符、缺记录、记录首行版本不对、缺间隔原因皆拒；同样的话写在更新日志里不算；Engineering、Known issues、工程三种节皆拒并点名，New 照过。
+
+## 2026-11-20 放映中旋转、斜切与线类形状的链接照内核的存法定位（R20.52）
+
+- 原状：`slideshow/links.rs` 只认 svg:x/y/width/height；旋转、斜切的形状只写 `draw:transform`，链接得不到位置而静默丢弃；draw:line、connector、measure 不在形状表里，其链接也丢；页数与链接页数不符时拒放映，无测试。
+- 定：照 xmloff 而不照 ODF 1.3 §19.228 解 `draw:transform`（规范说以度计、按次序作用；xmloff 写裸弧度，读入时 rotate、skewX 取反，#i78696#，逐个左乘在已缩放、平移的单位方块上），因为放映读的是内核刚存的副本。点按区取变换后的外接框，线类取两端点的框。线类再加 2 屏幕像素的余量，取自 Impress 编辑时的命中容差（`FuPoor::HITPIX`），LibreOffice 放映本身没有余量。放不下的链接记元素名。
+- 测试与变异见 R20.52 的任务行；内核存的转 30° 实测为 `rotate (0.523598775598299)`，算得的框与内核的框差 1/100 毫米。Linux 内核 04023855（重跑始于 05:34:28 UTC，在内核换回 04023855 的 05:21:53 之后；更早一次读到 keys 的变异内核 c9faf58a，作废不计）：副本为 main ec66f9e0 加本条五个文件，ely-show 130 过 0 败（链接与开播测试 11 条皆过，含 R20.53 的地址测试），clippy、panics.py、check.sh 过
