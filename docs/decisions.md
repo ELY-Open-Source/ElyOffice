@@ -1676,3 +1676,16 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 原状：`ely-ui` 的帧日志只等第一个未答的按下，一次什么都没画的点击吃掉其后按键的帧；R20.63 使软件渲染下插入点不闪后，Windows 测试机上 PERF-02 ElyMark 即败。
 - 定：按下在前台线程逐个派发，故一帧答其 dirty_at 之前的最后一个按下，更早的记为 drew nothing，之后的等下一帧。
+
+## 2026-11-20 Windows 的登录项拟改为登录时的计划任务（R20.71，未定）
+
+- 原状：当前用户的 `Run` 值“Ely Office”起 `ely-login.exe`。R20.26 五轮重启里它在开机后 63、110、57、107、62 秒起，`firsts.py` 约 80 秒开 ElyDoc，第 2、4 轮没有空闲引擎。
+- 文档：微软“Run and RunOnce Registry Keys”写明系统不保证 Run 键里的程序何时起，可把 Run 键与“启动”组里的程序延到不碍前台时再起；同一键下多项的先后不定。资源管理器的延迟由 `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize` 的 `StartupDelayInMSec` 与 `WaitForIdleState`（等系统空闲）调，这两个值不在微软的文档里，出自第三方的说明。原因推定为这一等待，未证：R20.26 只记了开机时刻与 ely-login 的起行，没记登录与资源管理器的时刻。
+- 比较：
+  - Run 值（现状）：资源管理器起，延迟如上；“设置 › 应用 › 启动”列出，用户可关；安装写一个值、卸载删一个值，标准用户可写。
+  - “启动”文件夹的快捷方式：同属上述“Startup group”，延迟与 Run 值相同，不解决问题；同样列在“启动”里；安装写、卸载删一个 .lnk。
+  - 登录时的计划任务：任务调度服务在登录时起，不经资源管理器的启动等待；不列在“启动”里，只在任务计划程序中可见（与常设决定“不给开关”一致）；安装须登记、卸载须删除任务。MS-TSCH 3.2.5.1.1：非管理员只能为自己登记登录与会话触发器，触发器不写 UserId 即 E_ACCESSDENIED，故以 XML 登记、`UserId` 写当前用户、交互令牌（不要密码），安装仍是 `RequestExecutionLevel user`。
+- 拟定：取计划任务。`Priority` 设 4：默认 7 为 BELOW_NORMAL_PRIORITY_CLASS（TaskSettings.Priority 文档），子进程继承，引擎接管时 `PROCESS_MODE_BACKGROUND_END` 只回到原先的类，接管的 worker 会留在低于正常。`ExecutionTimeLimit` 为 PT0S，`DisallowStartIfOnBatteries`、`StopIfGoingOnBatteries` 为假，`MultipleInstancesPolicy` 为 IgnoreNew，无 `Delay`。改处：`packaging/windows/kernel.nsh` 写与删 Run 值的两处改为登记与删除任务（失败同样提示、退出码 2），升级先删旧的 Run 值；`tests/scripts/windows-setup.sh` 的 `started` 与 `windows-common.sh` 的 `runkey` 随之改。量定采用后才改常设决定与 standing.md。
+- 测试机上先核四项：一、ely-login 退出、任务结束后空闲引擎仍在听（没有文档说任务调度器不连子进程一起结束）；二、应用接管后 worker 的优先级类为 NORMAL；三、标准用户（非管理员）能照上法登记；四、“设置 › 应用 › 启动”里不再列出。
+- 量法：十轮重启，Run 值与任务各五轮，动手前备份 Run 值与所加的任务，量完照原样还原。每轮记开机时刻（Win32_OperatingSystem.LastBootUpTime）、登录时刻（Winlogon 运行日志）、explorer.exe 起的时刻、Run 项起的时刻（Microsoft-Windows-Shell-Core/Operational 的 9707）、任务起的时刻（Microsoft-Windows-TaskScheduler/Operational 的 100、200）与 ely-login.log 的起行；`firsts.py` 改为登录后固定 30 秒开 ElyDoc，记有无空闲引擎。采用的门：任务五轮都在登录后 10 秒内起、每轮都有空闲引擎。
+- 不随 0.1.17：改的是安装与卸载程序，须在测试机上把新装、0.1.16 升级、卸载各验一遍。
