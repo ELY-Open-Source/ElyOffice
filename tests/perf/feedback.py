@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import time
 
+import child
 import run
 import search
 
@@ -143,8 +144,7 @@ def typing(work, recipe, runs):
 if __name__ == "__main__":
     # lag.sh: a log and its first measured line.
     import sys
-    with open(sys.argv[1], encoding="utf-8", errors="replace") as log:
-        measured = log.read().splitlines()[int(sys.argv[2]) - 1:]
+    measured = child.logged(sys.argv[1])[int(sys.argv[2]) - 1:]
     try:
         timed(measured)
     except RuntimeError as error:

@@ -14,6 +14,17 @@ def run(args, **kw):
         raise RuntimeError(f"{named(args)}: output is not UTF-8: {bad}") from bad
 
 
+def logged(path, since=0):
+    """Complete lines from byte `since`; a cut tail waits."""
+    with open(path, "rb") as log:
+        log.seek(since)
+        raw = log.read()
+    try:
+        return raw[:raw.rfind(b"\n") + 1].decode("utf-8").splitlines()
+    except UnicodeDecodeError as bad:
+        raise RuntimeError(f"{path}: a logged line is not UTF-8: {bad}") from bad
+
+
 def line(process):
     """One line from a child opened with encoding="utf-8"."""
     try:

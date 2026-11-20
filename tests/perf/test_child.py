@@ -26,11 +26,14 @@ def piped(raw):
 
 
 def loose(path):
-    """Subprocess calls that decode other than strict UTF-8."""
+    """Calls that decode other than strict UTF-8."""
     with open(path, encoding="utf-8") as file:
         tree = ast.parse(file.read())
     found = []
     for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and replacing(node):
+            found.append(f"{os.path.basename(path)}:{node.lineno}")
+            continue
         named = isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
         if not (named and isinstance(node.func.value, ast.Name) and node.func.value.id == "subprocess" and node.func.attr in CALLS):
             continue
@@ -40,6 +43,14 @@ def loose(path):
         elif {"encoding", "errors"} & said.keys() and (said.get("encoding"), said.get("errors")) != ("utf-8", "strict"):
             found.append(f"{os.path.basename(path)}:{node.lineno}")
     return found
+
+
+def replacing(call):
+    """An open or decode that hides bad bytes."""
+    errors = [k.value for k in call.keywords if k.arg == "errors"]
+    if isinstance(call.func, ast.Attribute) and call.func.attr == "decode" and len(call.args) > 1:
+        errors.append(call.args[1])
+    return any(not (isinstance(e, ast.Constant) and e.value == "strict") for e in errors)
 
 
 def loose_source(source):
@@ -80,6 +91,38 @@ class Child(unittest.TestCase):
         self.assertEqual(loose_source('subprocess.run(["x"], errors="strict")'), ["probe.py:1"])
         self.assertEqual(loose_source('subprocess.run(["x"], encoding="utf-8", errors="replace")'), ["probe.py:1"])
         self.assertEqual(loose_source('subprocess.run(["x"], encoding="utf-8", errors="strict")'), [])
+        self.assertEqual(loose_source('open("log", encoding="utf-8", errors="replace")'), ["probe.py:1"])
+        self.assertEqual(loose_source('raw.decode("utf-8", "ignore")'), ["probe.py:1"])
+        self.assertEqual(loose_source('raw.decode(errors="replace")'), ["probe.py:1"])
+        self.assertEqual(loose_source('open("log", encoding="utf-8")'), [])
+
+    def test_a_character_split_across_two_reads_reads_back_exactly(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = os.path.join(folder, "app.log")
+            whole = "文档\n".encode()
+            with open(log, "wb") as file:
+                file.write(b"first\n" + whole[:2])
+            self.assertEqual(child.logged(log), ["first"])
+            with open(log, "ab") as file:
+                file.write(whole[2:])
+            self.assertEqual(child.logged(log), ["first", "文档"])
+            self.assertEqual(child.logged(log, len("first\n")), ["文档"])
+
+    def test_a_bad_byte_in_a_complete_line_fails_naming_the_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = os.path.join(folder, "app.log")
+            with open(log, "wb") as file:
+                file.write(b"first\n" + CP1252 + b"last\n")
+            with self.assertRaises(RuntimeError) as said:
+                child.logged(log)
+            self.assertIn(f"{log}: a logged line is not UTF-8", str(said.exception))
+
+    def test_a_clean_file_reads_whole(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = os.path.join(folder, "app.log")
+            with open(log, "w", encoding="utf-8", newline="\n") as file:
+                file.write(TEXT + "done\n")
+            self.assertEqual(child.logged(log), [TEXT.rstrip("\n"), "done"])
 
 
 if __name__ == "__main__":

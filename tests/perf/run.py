@@ -66,10 +66,7 @@ class App:
                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     def lines(self):
-        if not os.path.exists(self.log):
-            return []
-        with open(self.log, encoding="utf-8", errors="replace") as log:
-            return log.read().splitlines()
+        return child.logged(self.log) if os.path.exists(self.log) else []
 
     def failed(self, pattern, timeout):
         # Accessibility updates and D-Bus pings hide the app's lines.

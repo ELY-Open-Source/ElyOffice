@@ -6,6 +6,7 @@ import ctypes
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 
@@ -21,14 +22,27 @@ SETTLE_S = 400
 # Windows wakes: twice the recorded cycles (R20.13).
 CYCLE_SLACK = 2
 
+# Other processes' argv may hold any bytes.
+IDLE_RAW = re.compile(IDLE.pattern.encode())
+
+
+def ours(raw, where):
+    """A worker's command line, strictly; others' never decoded."""
+    if not IDLE_RAW.search(raw):
+        return None
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as bad:
+        raise RuntimeError(f"{where}: an idle worker's command line is not UTF-8: {bad}") from bad
+
 
 def linux():
     """Pid, command, live threads' ns, resident MB, thread ids."""
     for pid in filter(str.isdigit, os.listdir("/proc")):
         try:
             with open(f"/proc/{pid}/cmdline", "rb") as file:
-                line = file.read().replace(b"\0", b" ").decode(errors="replace")
-            if not IDLE.search(line):
+                line = ours(file.read().replace(b"\0", b" "), f"/proc/{pid}/cmdline")
+            if line is None:
                 continue
             ran, tasks = 0, frozenset(os.listdir(f"/proc/{pid}/task"))
             for task in tasks:
@@ -51,10 +65,11 @@ class Usage(ctypes.Structure):
 def mac():
     """Pid, command line, mach time units run, resident MB."""
     proc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
-    rows = child.run(["ps", "-A", "-o", "pid=,command="], capture_output=True, check=True).stdout
+    rows = subprocess.run(["ps", "-A", "-o", "pid=,command="], capture_output=True, check=True).stdout
     for row in rows.splitlines():
-        pid, line = row.split(None, 1)
-        if not IDLE.search(line):
+        pid, raw = row.split(None, 1)
+        line = ours(raw, "ps -A")
+        if line is None:
             continue
         usage = Usage()
         if proc.proc_pid_rusage(int(pid), 0, ctypes.byref(usage)):

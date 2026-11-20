@@ -77,5 +77,21 @@ class Gate(unittest.TestCase):
         self.assertIn("ely-doc holds 111 MB", self.run_gate(self.quiet(), after))
 
 
+
+class Ours(unittest.TestCase):
+    WORKER = b"worker --idle idle-ely-doc-0123456789abcdef"
+
+    def test_a_worker_line_reads_strictly(self):
+        self.assertEqual(idle.ours(self.WORKER + " Größe".encode(), "/proc/1/cmdline"), self.WORKER.decode() + " Größe")
+
+    def test_a_bad_byte_in_a_worker_line_fails_naming_where(self):
+        with self.assertRaises(RuntimeError) as said:
+            idle.ours(self.WORKER + b" \x93", "/proc/7/cmdline")
+        self.assertIn("/proc/7/cmdline: an idle worker's command line is not UTF-8", str(said.exception))
+
+    def test_another_process_is_never_decoded(self):
+        self.assertIsNone(idle.ours(b"someone else \x93\xff", "/proc/8/cmdline"))
+
+
 if __name__ == "__main__":
     unittest.main()

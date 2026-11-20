@@ -13,6 +13,7 @@ import tempfile
 import time
 
 import bench
+import child
 import drive
 import loadfiles
 import run
@@ -77,9 +78,7 @@ def opened(slug, path):
         # The app trims a long log as it starts.
         if os.path.getsize(log) < since:
             since = 0
-        with open(log, encoding="utf-8", errors="replace") as file:
-            file.seek(since)
-            lines = [line for line in file.read().splitlines() if run.STAMP.match(line) and run.logged_at(line) >= began]
+        lines = [line for line in child.logged(log, since) if run.STAMP.match(line) and run.logged_at(line) >= began]
         at = next((i for i, line in enumerate(lines) if f"opened {name}" in line), None)
         tile = next((line for line in lines[at or 0:] if "lok: first tile drawn" in line), None) if at is not None else None
         if tile:
