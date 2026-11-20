@@ -33,8 +33,11 @@ fn unwritable(folder: &Path, path: &Path, error: io::Error) -> io::Error {
         return with_path(path, error);
     }
     log::warn!("files: the folder takes no new file ({:?})", error.kind());
-    let name = folder.file_name().map_or_else(|| folder.display().to_string(), |name| name.to_string_lossy().into_owned());
-    ely_ipc::Worded::error(error.kind(), "office.save.folder", &[("folder", &name)])
+    match folder.file_name() {
+        Some(name) => ely_ipc::Worded::error(error.kind(), "office.save.folder", &[("folder", &name.to_string_lossy())]),
+        // A drive's root has no name, only a path.
+        None => ely_ipc::Worded::error(error.kind(), "office.save.root", &[]),
+    }
 }
 
 /// The directory a path lives in (bare names: `.`).

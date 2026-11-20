@@ -99,9 +99,11 @@ pub(super) const ES: &[(&str, &str)] = &[
     ),
     ("office.error.save", "No se pudo guardar {name}: {error}"),
     ("office.save.folder", "no se puede escribir en la carpeta {folder}; usa «Guardar como…» para guardarlo en otro sitio"),
+    ("office.save.root", "no se puede escribir en la carpeta raíz de la unidad; usa «Guardar como…» para guardarlo en otro sitio"),
     ("office.save.denied", "no se puede escribir en el archivo (puede ser de solo lectura o estar abierto en otro programa); usa «Guardar como…» para guardarlo en otro sitio"),
     ("office.save.full", "el disco está lleno; libera espacio o usa «Guardar como…» para guardarlo en otro sitio"),
     ("office.save.other", "el sistema rechazó la escritura; usa «Guardar como…» para guardarlo en otro sitio"),
+    ("office.save.engine", "el motor de documentos no pudo escribirlo; usa «Guardar como…» para guardarlo en otro sitio"),
     (
         "office.gone",
         "{name} se movió o eliminó; elija dónde guardarlo",

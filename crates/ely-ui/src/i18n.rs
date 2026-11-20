@@ -345,14 +345,18 @@ pub fn error(cx: &App, error: &std::io::Error) -> SharedString {
 /// A failed save in words: no paths, no system text.
 pub fn save_error(cx: &App, error: &std::io::Error) -> SharedString {
     use std::io::ErrorKind::{FileTooLarge, Other, PermissionDenied, QuotaExceeded, ReadOnlyFilesystem, StorageFull};
-    let worded = error.get_ref().is_some_and(|inner| inner.is::<Worded>() || inner.is::<Then>());
-    // An engine's own text comes as Other.
-    if worded || error.kind() == Other {
+    if let Some(then) = error.get_ref().and_then(|inner| inner.downcast_ref::<Then>()) {
+        let (first, left) = (save_error(cx, &then.error), save_error(cx, &then.left));
+        return text(cx, "error.then", &[("error", &first), ("left", &left)]);
+    }
+    if error.get_ref().is_some_and(|inner| inner.is::<Worded>()) {
         return self::error(cx, error);
     }
     let key = match error.kind() {
         PermissionDenied | ReadOnlyFilesystem => "office.save.denied",
         StorageFull | QuotaExceeded | FileTooLarge => "office.save.full",
+        // LOK and MuPDF quote the file's URL or path.
+        Other => "office.save.engine",
         _ => "office.save.other",
     };
     text(cx, key, &[])

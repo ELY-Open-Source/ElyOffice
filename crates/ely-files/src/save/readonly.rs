@@ -2,7 +2,7 @@
 
 use std::os::unix::fs::PermissionsExt;
 
-use super::save_atomic;
+use super::{save_atomic, unwritable};
 
 #[test]
 fn a_read_only_folder_is_named_and_the_file_kept() {
@@ -24,4 +24,12 @@ fn a_read_only_folder_is_named_and_the_file_kept() {
     assert_eq!(refused.to_string(), "office.save.folder", "no path in its text");
     assert_eq!(std::fs::read(&path).expect("the file"), b"before");
     assert_eq!(std::fs::read_dir(&folder).expect("the folder").count(), 1, "nothing left beside it");
+}
+
+#[test]
+fn a_drive_root_is_worded_without_its_path() {
+    let denied = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+    let refused = unwritable(std::path::Path::new("/"), std::path::Path::new("/a.docx"), denied);
+    let worded = refused.get_ref().and_then(|inner| inner.downcast_ref::<ely_ipc::Worded>()).expect("worded");
+    assert_eq!((worded.key, worded.args.len()), ("office.save.root", 0), "no path as its name");
 }
