@@ -161,7 +161,7 @@
 | QA-03 | 统一界面 | C22.2 | — | docs/qa.md |
 | QA-04 | 输入与焦点 | C22.2 | — | docs/qa.md |
 | QA-05 | 多屏 | C22.2 | — | docs/qa.md |
-| QA-06 | 保存失败 | C22.2 | — | docs/qa.md |
+| QA-06 | 保存失败 | C20.2（ ）、C22.2 | `recovery.sh`、`pdf-recovery.sh` | docs/qa.md |
 | QA-07 | 外部冲突 | C22.2 | — | docs/qa.md |
 | QA-08 | 并发保存 | C22.2 | — | docs/qa.md |
 | QA-09 | 崩溃恢复 | C22.2 | — | docs/qa.md |

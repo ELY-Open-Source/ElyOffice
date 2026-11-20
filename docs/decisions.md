@@ -1459,6 +1459,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Mac 不能自己醒：`pmset schedule wake` 须 root，本机账户无免密 sudo，故未用 `pmset sleepnow`。Windows 虚拟机不休眠。
 - 2026-10-08 ElyMark 在 CEF 内的 SIGTRAP 作废：ElyMark 已是原生实现，不再用 CEF。
 - 没有跑过真的系统休眠：以 SIGSTOP 冻结代替。Mac 不能自己醒（须 root），Ely 不订阅 gpui 的休眠、唤醒事件。
+- 2026-11-20：gpui 的休眠路径也走到了。gpui 在 Linux 从系统总线上 logind 的 `PrepareForSleep` 得知休眠与唤醒，`pause.py --logind` 以私有系统总线与 `tests/perf/logind.py` 代替 logind，冻结前后各发一次；应用确是订阅者，10.5 分钟后无错误、无丢字。真的挂起仍没有：本机与 Mac 不许休眠，本机没有虚拟机工具、装要 root。只读目录见 `tests/perf/readonly.py`：保存被拒，文件不变，编辑经恢复点回来。
 - 8 小时整跑：Mac 上那次因有人在用那台 Mac 停了（第 120 轮缺 A116 至 A120），不作结论；改在 Linux Xvfb :24 上跑 `soak.py`（Linux 经 XTest 键入）。第一次第 750 轮后败于无障碍总线找不到应用进程，应用状态不明、日志已删；第二次 480 分钟 7399 轮全过。驻留合计 460→967 MB 一路直线上涨，涨在 ElyDoc 的 worker。
 - 原因不是泄漏，是缓存的预算不算键：`SwTextNode::InsertText` 每次键入经 `rtl::str::newReplaceStrAt` 造出整段的新字符串，`SalLayoutGlyphsCache` 与 `vcl::text::TextLayoutCache` 以它为键，各自的预算（`GlyphsCacheSize` 两千万、`TextRunsCacheSize` 十万）只算字形或文字段，不算键里的文字。条目数有上限、每条却随段落变长，段落一直长，内存就一直涨。逐项排除：保存、图块、状态读取、光标移动、撤销、拼写（关着）、无障碍。
 - `trimMemory(1500)`（26.2 有：vcl 的 `dropCaches` 再 `malloc_trim`）前后 worker 的 live 内存，证据在 `.work/C20.2/probe2/`（本机，未入库）：
