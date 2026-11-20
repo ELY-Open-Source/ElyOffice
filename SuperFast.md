@@ -23,16 +23,16 @@ ElyDoc、ElyTable、ElyShow 要秒开，体验须超过 Microsoft Office。本�
 
 ## 目标
 
-| 场景 | Microsoft Office | Ely 0.1.16 | 目标 | 现在（SF.33，Office / Ely） |
+| 场景 | Microsoft Office | Ely 0.1.16 | 目标 | 现在（R20.26，0.1.17，Office / Ely） |
 | --- | --- | --- | --- | --- |
-| 热，14 MB、175 页的 DOCX | Word 1.28 秒 | ElyDoc 3.08 秒 | 1.2 秒内 | Word 1.12 / ElyDoc 1.94，未到 |
-| 热，小 XLSX | Excel 0.92 秒 | ElyTable 1.46 秒 | 0.7 秒内 | Excel 0.83 / ElyTable 0.63，到了 |
-| 热，914 KB 的 PPT | PowerPoint 1.25 秒 | ElyShow 1.77 秒 | 0.6 秒内 | PowerPoint 1.19 / ElyShow 1.22，持平，未到；R20.5（开发构建、带符号的内核，未装包）：PowerPoint 1.23 / ElyShow 0.72，快过 PowerPoint，0.6 未到，装包后 R20.26 重量 |
-| 安装后首次打开 | 未量 | ElyDoc 38 秒仍未打开；ElyTable 18.9 秒；ElyShow 16.6 秒 | 与热相差 1 秒内 | doc.docx：Word 2.91 / ElyDoc 2.84；xlsx：1.53 / 0.98；pptx：1.52 / 2.13；热测用的是另一组文件，同样本的冷热差未量 |
-| 重启后首次打开 | 未量 | 未量；#79 报告者的机器上每一步 15 至 34 秒 | 3 秒内 | doc.docx：Word 5.05 / ElyDoc 2.46；xlsx：1.55 / 1.11；pptx：1.53 / 2.36；到了 |
+| 热，14 MB、175 页的 DOCX | Word 1.28 秒 | ElyDoc 3.08 秒 | 1.2 秒内 | Word 1.22 / ElyDoc 1.75，未到 |
+| 热，小 XLSX | Excel 0.92 秒 | ElyTable 1.46 秒 | 0.7 秒内 | Excel 0.94 / ElyTable 0.67，到了 |
+| 热，914 KB 的 PPT | PowerPoint 1.25 秒 | ElyShow 1.77 秒 | 0.6 秒内 | PowerPoint 1.31 / ElyShow 0.78，快过 PowerPoint，0.6 未到 |
+| 安装后首次打开 | 未量 | ElyDoc 38 秒仍未打开；ElyTable 18.9 秒；ElyShow 16.6 秒 | 与热相差 1 秒内 | doc.docx：Word 1.19（三轮可用）/ ElyDoc 1.72；xlsx：1.06 / 0.74；pptx：1.13 / 2.07；热测用的是另一组文件，同样本的冷热差未量 |
+| 重启后首次打开 | 未量 | 未量；#79 报告者的机器上每一步 15 至 34 秒 | 3 秒内 | doc.docx：Word 4.52 / ElyDoc 2.22；xlsx：1.47 / 1.27；pptx：1.86 / 2.10；中位到了，五轮里 ElyDoc 两轮 46 秒，未到（R20.63） |
 | 打开过程中的界面 | 启动画面，然后文档 | 静止的启动画面、空窗、灰块“正在打开”、30 秒警告横幅 | 启动动画，然后文档；除字体缺失外没有横幅 | 做了（SF.10、SF.13 至 SF.15） |
 
-现状（SF.33，Windows 测试机，五次中位）：ElyTable 热启动快过 Excel；ElyShow 与 PowerPoint 持平；ElyDoc 在 14 MB 的 big.docx 上仍慢过 Word 约 0.8 秒。装完首次，ElyDoc、ElyTable 快过 Word、Excel，ElyShow 慢过 PowerPoint 约 0.6 秒；重启后首次同样，ElyShow 慢约 0.8 秒。每个目标在测试机上量到之前，不写“已超过”。
+现状（R20.26，0.1.17，Windows 测试机，五次中位）：热启动 ElyTable、ElyShow 快过 Excel、PowerPoint；ElyDoc 在 14 MB 的 big.docx 上仍慢过 Word 约 0.5 秒。装完首次，ElyDoc、ElyTable 快过 Word、Excel，ElyShow 慢过 PowerPoint 约 0.9 秒；重启后首次，ElyDoc、ElyTable 快过 Word、Excel，ElyShow 慢约 0.2 秒，但 ElyDoc 在登录项起来之前打开时要 46 秒（R20.63）。没有空闲引擎时 ElyDoc 冷开约 20 秒，开机已久也是。每个目标在测试机上量到之前，不写“已超过”。
 
 ## 实测
 
@@ -533,6 +533,42 @@ Mac 上的载入已比 Windows 快三至四倍，时间花在起内核：热的�
 - Mac 的重启测试按你 2026-11-16 定的改成“删净再装”：Mac 开着 FileVault，每次重启都要人输密码。改之前量的两轮（开机后一分钟内、负载 22 至 137）：ElyDoc 3,456、15,457，ElyTable 4,453、3,646，ElyShow 5,183、6,087；第三轮 ElyShow 的日志里没读到版本行，`firsts.py` 报错，未记。这两轮不作数。
 - ElyShow 的时间去向（重启后第 2 至 5 轮的应用日志，2026-11-16 20:58 至 21:05 UTC）：接管常驻引擎到就绪 0.28 至 0.36 秒，内核载入 deck.pptx（19 MB）1.57 至 1.75 秒，载入完到首个图块 0.24 至 0.30 秒。大头在内核载入这份 19 MB 的文件；装完那几轮的日志已被这几轮滚掉，未分段；它为何慢过 PowerPoint，未查。
 - Mac 重启后首次：未量（FileVault，你 2026-11-16 定）；733、478、838 是删净再装，不是重启。
+
+### R20.26 0.1.17 收尾对照（2026-11-19 至 20，测试机 7877，main `0e8e6add` 建的安装包，内核编号 cbc59a5d，毫秒）
+
+热启动，Office 与 Ely 交替，每对第 0 次预热不计，取第 1 至 5 次的中位数；Office 计到窗口标题带文件名，Ely 计到首个图块；ElyDoc、ElyTable、ElyShow 每次开着 20 秒再关（`.work/R20.26/win/warm.py`（本机，未入库））：
+
+| 文件 | Office | Ely | 第 0 次（Office / Ely） | 第 1 至 5 次（Office / Ely） |
+| --- | --- | --- | --- | --- |
+| big.docx | Word 1,219 | ElyDoc 1,754 | 2140 / 20680 | 1219 1031 1391 1125 1453 / 1721 1998 1933 1754 1725 |
+| sheet.xlsx | Excel 937 | ElyTable 671 | 953 / 2101 | 922 1282 922 1093 937 / 832 643 671 673 558 |
+| deck.ppt | PowerPoint 1,313 | ElyShow 779 | 1297 / 6143 | 1297 1469 1406 1313 1125 / 779 800 900 759 594 |
+
+- ElyTable 快过 Excel 约 0.27 秒，到了 0.7 秒的目标。ElyShow 快过 PowerPoint 约 0.5 秒，0.6 秒的目标没到。ElyDoc 慢过 Word 约 0.5 秒，1.2 秒的目标没到。
+- ElyDoc 第 0 次 20,680：没有空闲引擎，应用自起 worker。worker 读完库（00:54:09.7）后约 6.3 秒无日志，再读字体族的别名 3,480，13,481 时自检完，载入 big.docx 到 00:54:26.6，首个图块 00:54:29.0。常驻引擎自检同一步要 9.2 至 9.9 秒（后台优先级）。没有空闲引擎，是因为上一轮 `firsts.py` 在首个图块后约半秒强关应用（`taskkill /f`）：第 5 次重启那轮应用 23:09:18.47 起接班引擎 9264，其 worker 23:09:19.03 报“the app closed its connection”，19.15 退出；此后到 00:53 各引擎日志无一行。冷开的这一段与重启后的 46 秒同形，归 R20.63。ElyTable、ElyShow 的第 0 次未分段。
+
+装完首次打开，五轮，每轮重装一次再开（`tests/perf/firsts.py install`）；入库的是 ElyDoc 居中的第 5 轮（`docs/perf/2026-11-19-13th-Gen-Intel-R-Core-TM-i5-13500H-Windows-install.md`）：
+
+| 文件 | Ely 中位 | Office 中位 | Ely 五轮 | Office 五轮 |
+| --- | --- | --- | --- | --- |
+| doc.docx | ElyDoc 1,724 | Word 1,187 | 3489 1763 1581 1564 1724 | 0（不作数） 未测 1718 1187 1156 |
+| sheet.xlsx | ElyTable 736 | Excel 1,062 | 710 664 760 746 736 | 2078 1062 1375 1062 1062 |
+| deck.pptx | ElyShow 2,065 | PowerPoint 1,125 | 2226 1903 2065 1799 2110 | 1875 1125 1250 1125 1078 |
+
+- 第 1 轮 ElyDoc 3,489 超 3 秒的门：起应用 695（别轮 149 至 259），内核载入 doc.docx 1,847（670 至 788），载入到首块 940（595 至 855）；多出的约 1.8 秒与 Defender 的三次云查询同时（MPLog），别轮打开时没有。按时间对上，Defender 不写查的是哪个文件。查文件归 R20.62。
+- Word 第 1 轮的 0 是 `firsts.py` 读到了打开前已有的窗口，不作数；此后它遇到这种窗口即报错、记为未测。第 2 轮 Word 120 秒内没出窗口，未测。Word 只有三轮可用，中位取三轮。
+- ElyShow 慢过 PowerPoint 约 0.9 秒。
+
+重启后首次打开，五轮，每轮重启、自动登录 60 秒后开（`tests/perf/firsts.py reboot`）；入库的是 ElyDoc 居中的第 5 轮（`docs/perf/2026-11-19-13th-Gen-Intel-R-Core-TM-i5-13500H-Windows-reboot.md`）。第 1、2 轮用的是改前的 `firsts.py`（打开前已有窗口时不报错），第 3 至 5 轮用改后的；五轮 Word 都是真的打开：
+
+| 文件 | Ely 中位 | Office 中位 | Ely 五轮 | Office 五轮 |
+| --- | --- | --- | --- | --- |
+| doc.docx | ElyDoc 2,216 | Word 4,515 | 1709 45734 1889 46551 2216 | 4328 4500 5562 4515 5078 |
+| sheet.xlsx | ElyTable 1,266 | Excel 1,469 | 1295 1839 928 1266 1200 | 1500 1360 1469 1360 2453 |
+| deck.pptx | ElyShow 2,104 | PowerPoint 1,859 | 1891 2594 2104 3589 2009 | 1766 1906 1859 2172 1563 |
+
+- 第 2、4 轮 ElyDoc 46 秒：登录项 ely-login 在开机约 110 秒才起（第 1 轮 63 秒），比 `firsts.py` 晚，ElyDoc 没有空闲引擎，自起 worker。worker 读完库后约 28 秒无日志，再读字体别名 3,302，读完自检页的时刻与 ely-login 的引擎相差 3 毫秒（第 4 轮 27 毫秒），都在开机约 118 秒；系统日志与 Defender 无对应事件。原因未查明，归 R20.63。第 4 轮 ElyShow 3,589 超门，未分段。
+- 0.1.16 同测（2026-11-16，各 1 次）：重启后 ElyDoc 3,109；装完 3,158。
 
 ### R20.5 ElyShow 热启动（2026-11-17，测试机 7877，热，毫秒）
 
