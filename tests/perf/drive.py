@@ -13,6 +13,7 @@ import tempfile
 import time
 
 import child
+import lineage
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -333,37 +334,13 @@ class Windows(Host):
     k32 = ctypes.WinDLL("kernel32", use_last_error=True) if sys.platform == "win32" else None
 
     def failed(self, what, pid):
-        return RuntimeError(f"{what} for process {pid} failed: {ctypes.WinError(ctypes.get_last_error())}")
+        return lineage.failed(what, pid)
 
     def processes(self):
-        """(pid, parent) for every process, from one snapshot."""
-
-        class Entry(ctypes.Structure):
-            _fields_ = [("size", ctypes.c_ulong), ("usage", ctypes.c_ulong), ("pid", ctypes.c_ulong),
-                        ("heap", ctypes.c_size_t), ("module", ctypes.c_ulong), ("threads", ctypes.c_ulong),
-                        ("parent", ctypes.c_ulong), ("base", ctypes.c_long), ("flags", ctypes.c_ulong),
-                        ("exe", ctypes.c_wchar * 260)]
-
-        self.k32.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
-        snap = self.k32.CreateToolhelp32Snapshot(2, 0)
-        if snap in (None, ctypes.c_void_p(-1).value):
-            raise self.failed("a process snapshot", 0)
-        entry, pairs = Entry(), []
-        entry.size = ctypes.sizeof(Entry)
-        try:
-            more = self.k32.Process32FirstW(ctypes.c_void_p(snap), ctypes.byref(entry))
-            while more:
-                pairs.append((entry.pid, entry.parent))
-                more = self.k32.Process32NextW(ctypes.c_void_p(snap), ctypes.byref(entry))
-            # Only ERROR_NO_MORE_FILES ends a whole list.
-            if ctypes.get_last_error() != 18:
-                raise self.failed(f"listing processes after {len(pairs)}", 0)
-        finally:
-            self.k32.CloseHandle(ctypes.c_void_p(snap))
-        return pairs
+        return lineage.processes(self.k32)
 
     def pids(self, root):
-        return descendants(root, self.processes())
+        return lineage.descendants(root, self.processes(), lambda pid: lineage.created(self.k32, pid))
 
     def query(self, pid, read):
         """`read(handle)` on an open process; any failure voids the run."""
@@ -394,7 +371,7 @@ class Windows(Host):
 
     def family(self, root):
         found = {}
-        for pid in descendants(root, self.processes()):
+        for pid in self.pids(root):
             try:
                 found[pid] = self.counters(pid).working // 1024
             except RuntimeError:

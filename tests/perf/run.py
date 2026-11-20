@@ -162,7 +162,12 @@ class App:
 
     def stop(self):
         HOST.stopped(self.lines())
-        for pid in HOST.pids(self.process.pid):
+        family = HOST.pids(self.process.pid)
+        # A wrong tree once ended the bench itself, unlogged.
+        if family & {os.getpid(), os.getppid()}:
+            raise RuntimeError(f"{self.slug}: its process tree {sorted(family)} holds the bench "
+                               f"({os.getpid()}) or its parent ({os.getppid()}); nothing was killed")
+        for pid in family:
             try:
                 os.kill(pid, 9)
             except OSError:
