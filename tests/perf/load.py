@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 
+import child
 import drive
 import feedback
 import loadfiles
@@ -138,8 +139,8 @@ RECIPES = {
 def ask(app, words):
     """Ms the app's command line took; raises on refusal."""
     began = time.monotonic()
-    out = subprocess.run([run.HOST.exe(app.slug, True), *words], env=app.env, capture_output=True, text=True,
-                         timeout=300, creationflags=drive.QUIET)
+    out = child.run([run.HOST.exe(app.slug, True), *words], env=app.env, capture_output=True,
+                    timeout=300, creationflags=drive.QUIET)
     took = (time.monotonic() - began) * 1000
     if out.returncode:
         raise RuntimeError(f"{' '.join(words[:2])} {os.path.basename(words[2])}: exit {out.returncode}: {out.stderr.strip()}")

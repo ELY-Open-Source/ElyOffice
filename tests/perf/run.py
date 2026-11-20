@@ -7,6 +7,7 @@ import re
 import subprocess
 import time
 
+import child
 import drive
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -62,7 +63,7 @@ class App:
             env["ELY_FRAMES"] = "1"
         self.env, self.start = env, time.monotonic()
         self.process = subprocess.Popen([HOST.exe(slug, frames), *args], env=env,
-                                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     def lines(self):
         if not os.path.exists(self.log):
@@ -92,8 +93,8 @@ class App:
 
     def said(self, *words, timeout=300):
         """What the app's command line answers to `words`."""
-        out = subprocess.run([HOST.exe(self.slug, True), *words], env=self.env, capture_output=True, text=True,
-                             timeout=timeout, creationflags=drive.QUIET)
+        out = child.run([HOST.exe(self.slug, True), *words], env=self.env, capture_output=True,
+                        timeout=timeout, creationflags=drive.QUIET)
         if out.returncode:
             raise RuntimeError(f"{' '.join(words[:2])}: exit {out.returncode}: {out.stderr.strip()[:200]}")
         return out.stdout
@@ -178,8 +179,8 @@ def stop_engines(work):
         # Only a data root holds the app's folder.
         for slug in [slug for slug in ("ely-doc", "ely-table", "ely-show") if os.path.isdir(os.path.join(home, slug))]:
             env = dict(os.environ, ELY_DATA_ROOT=home)
-            out = subprocess.run([HOST.exe(slug), "engine", "stop"], env=env, capture_output=True, text=True,
-                                 creationflags=drive.QUIET)
+            out = child.run([HOST.exe(slug), "engine", "stop"], env=env, capture_output=True,
+                            creationflags=drive.QUIET)
             if out.returncode:
                 left.append(f"{slug} engine stop in {home}: exit {out.returncode}")
     if HOST.lingering(work):

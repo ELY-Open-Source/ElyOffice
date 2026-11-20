@@ -3,7 +3,6 @@
 import ctypes
 import os
 import re
-import subprocess
 import sys
 import time
 
@@ -11,6 +10,10 @@ import gi
 
 gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
+
+# Run isolated (-I): only its own folder is added.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import child  # noqa: E402
 
 R = Atspi.Role
 SYM = Atspi.KeySynthType.SYM
@@ -134,7 +137,7 @@ def park(pid):
 
 def front(title):
     """Focuses the window, as a window manager would."""
-    tree = subprocess.run(["xwininfo", "-root", "-children"], capture_output=True, text=True, check=True).stdout
+    tree = child.run(["xwininfo", "-root", "-children"], capture_output=True, check=True).stdout
     tops = re.findall(rf'^\s+(0x[0-9a-f]+) "{re.escape(title)}', tree, re.M)
     if len(tops) != 1:
         sys.exit(f"{len(tops)} top windows named {title}")
@@ -152,7 +155,7 @@ def cover(pid, screen):
     display = f"{os.environ['DISPLAY']}.{screen}"
 
     def x(*args):
-        return subprocess.run([*args, "-display", display], capture_output=True, text=True, check=True).stdout
+        return child.run([*args, "-display", display], capture_output=True, check=True).stdout
 
     size = re.search(r"-geometry (\d+x\d+)", x("xwininfo", "-root")).group(1)
     tops = re.findall(rf"^\s+(0x[0-9a-f]+) .*\s{size}[+-]\d+[+-]\d+\s", x("xwininfo", "-root", "-children"), re.M)

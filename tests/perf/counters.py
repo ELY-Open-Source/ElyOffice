@@ -2,17 +2,17 @@
 
 import datetime
 import re
-import subprocess
 import sys
 import threading
 import time
 
+import child
 import judge
 
 
 def mac():
     """vm_stat's totals: swapped in and out, paged out, in KiB."""
-    out = subprocess.run(["vm_stat"], capture_output=True, text=True, check=True).stdout
+    out = child.run(["vm_stat"], capture_output=True, check=True).stdout
     page = int(re.search(r"page size of (\d+) bytes", out).group(1))
     total = {key: int(value) for key, value in re.findall(r"^(Swapins|Swapouts|Pageouts):\s+(\d+)\.", out, re.M)}
     if len(total) != 3:

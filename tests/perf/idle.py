@@ -6,9 +6,10 @@ import ctypes
 import json
 import os
 import re
-import subprocess
 import sys
 import time
+
+import child
 
 RECORD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "idle.json")
 APPS = ("ely-doc", "ely-table", "ely-show")
@@ -50,7 +51,7 @@ class Usage(ctypes.Structure):
 def mac():
     """Pid, command line, mach time units run, resident MB."""
     proc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
-    rows = subprocess.run(["ps", "-A", "-o", "pid=,command="], capture_output=True, text=True, check=True).stdout
+    rows = child.run(["ps", "-A", "-o", "pid=,command="], capture_output=True, check=True).stdout
     for row in rows.splitlines():
         pid, line = row.split(None, 1)
         if not IDLE.search(line):
@@ -63,10 +64,11 @@ def mac():
 
 def windows():
     """Pid, command line, CPU cycles, working set MB."""
-    query = ("Get-CimInstance Win32_Process -Filter \"Name = 'ely-lok-worker.exe' and CommandLine like '%--idle idle-%'\" | "
+    # The pipe gets UTF-8, not the console code page.
+    query = ("[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); "
+             "Get-CimInstance Win32_Process -Filter \"Name = 'ely-lok-worker.exe' and CommandLine like '%--idle idle-%'\" | "
              "Select-Object ProcessId,CommandLine,WorkingSetSize | ConvertTo-Json")
-    said = subprocess.run(["powershell.exe", "-NoProfile", "-Command", query], capture_output=True, text=True,
-                          check=True).stdout.strip()
+    said = child.run(["powershell.exe", "-NoProfile", "-Command", query], capture_output=True, check=True).stdout.strip()
     rows = json.loads(said) if said else []
     k32 = ctypes.WinDLL("kernel32", use_last_error=True)
     k32.OpenProcess.restype = ctypes.c_void_p

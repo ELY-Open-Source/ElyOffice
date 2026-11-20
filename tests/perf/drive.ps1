@@ -1,6 +1,8 @@
 # Window input for bench.py on Windows, through UI Automation.
 param([string]$Command, [int]$Id, [string]$Arg = '')
 $ErrorActionPreference = 'Stop'
+# bench.py reads this output as strict UTF-8.
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 Add-Type @"
 using System;

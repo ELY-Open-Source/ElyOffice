@@ -12,14 +12,15 @@ import sys
 import tempfile
 import time
 
+import child
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 
 
 def target_dir(frames=False):
     """Shipped builds; PERF-02's profiled ones apart."""
-    target = os.path.join(ROOT, "target")
-    return os.path.join(target, "frames") if frames else target
+    return os.path.join(ROOT, "target", "frames") if frames else os.path.join(ROOT, "target")
 
 
 def frames_apart(names):
@@ -36,7 +37,7 @@ QUIET = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
 
 def sh(*args, **kw):
-    out = subprocess.run(args, capture_output=True, text=True, creationflags=QUIET, **kw)
+    out = child.run(args, capture_output=True, creationflags=QUIET, **kw)
     if out.returncode:
         raise RuntimeError(f"{args[:4]} exited {out.returncode}: {out.stderr.strip()}")
     return out.stdout
@@ -59,8 +60,7 @@ class Host:
         """An app's last log; Linux reads its GPU there."""
 
     def exe(self, slug, frames=False):
-        target = target_dir(frames)
-        return os.path.join(target, "release", slug + (".exe" if sys.platform == "win32" else ""))
+        return os.path.join(target_dir(frames), "release", slug + (".exe" if sys.platform == "win32" else ""))
 
     def git(self):
         return os.environ.get("ELY_GIT") or os.path.join(ROOT, "engines", "git", "bin", "git")
@@ -193,7 +193,7 @@ class Mac(Host):
         sh(os.path.join(self.work, "chord"), str(pid), self.keycodes[letter])
 
     def press(self, pid, name):
-        out = subprocess.run([os.path.join(self.work, "ax-press"), str(pid), name], capture_output=True, text=True)
+        out = child.run([os.path.join(self.work, "ax-press"), str(pid), name], capture_output=True)
         if out.returncode or out.stdout.strip() != "pressed":
             raise RuntimeError(f"ax-press {name}: {out.stdout.strip()} {out.stderr.strip()}")
         return sent(out.stderr)

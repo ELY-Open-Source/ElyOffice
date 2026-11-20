@@ -8,6 +8,7 @@ import subprocess
 import zipfile
 import zlib
 
+import child
 import sheets
 
 
@@ -168,6 +169,6 @@ def made(folder, git):
     path = os.path.join(folder, "repo")
     if not os.path.exists(path):
         repo(path, git)
-    head = subprocess.run([git, "-C", path, "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    head = child.run([git, "-C", path, "rev-parse", "HEAD"], capture_output=True, check=True).stdout.strip()
     found["repo"] = (path, head)
     return found

@@ -11,6 +11,7 @@ import sys
 import tempfile
 import time
 
+import child
 import drive
 import run
 import soak
@@ -46,10 +47,11 @@ class Logind:
                 break
             time.sleep(0.05)
         self.seen = open(os.path.join(work, "monitor.log"), "w+", encoding="utf-8")
-        self.monitor = subprocess.Popen(["dbus-monitor", "--address", self.address], stdout=self.seen, text=True)
+        self.monitor = subprocess.Popen(["dbus-monitor", "--address", self.address], stdout=self.seen)
         self.logind = subprocess.Popen([sys.executable, "-I", os.path.join(drive.HERE, "logind.py"), self.address],
-                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-        if self.logind.stdout.readline().strip() != "ready":
+                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, encoding="utf-8",
+                                       errors="strict")
+        if child.line(self.logind).strip() != "ready":
             raise RuntimeError("logind.py never owned org.freedesktop.login1")
         # Only gpui's power listener uses the system bus.
         os.environ["DBUS_SYSTEM_BUS_ADDRESS"] = self.address
@@ -71,7 +73,7 @@ class Logind:
     def say(self, what):
         self.logind.stdin.write(what + "\n")
         self.logind.stdin.flush()
-        if self.logind.stdout.readline().strip() != f"sent {what}":
+        if child.line(self.logind).strip() != f"sent {what}":
             raise RuntimeError(f"logind.py did not send {what}")
 
     def sent(self):
