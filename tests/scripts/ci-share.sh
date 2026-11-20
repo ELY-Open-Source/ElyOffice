@@ -38,6 +38,9 @@ attempt() { # name, setup; sets status, writes the output
   mkdir -p "$clone/tests/scripts"
   printf '#!/usr/bin/env bash\n' | tee "$clone/tests/scripts/engine-arch.sh" "$clone/scripts/mac-ready.sh" >"$clone/scripts/release-tests.sh"
   chmod +x "$clone/tests/scripts/engine-arch.sh" "$clone/scripts/release-tests.sh" "$clone/scripts/mac-ready.sh"
+  # lo-series.sh tests the check itself; here only its call.
+  printf '#!/usr/bin/env bash\necho "series check $*"\n[ ! -e "%s/series-lags" ]\n' "$work" >"$clone/scripts/apply-lo-patches.sh"
+  chmod +x "$clone/scripts/apply-lo-patches.sh"
   (cd "$clone" && eval "$2")
   status=0
   PATH=$work/bin:$PATH ELY_SHARE=$share ELY_RELEASE_TOKEN=unused ELY_MICROSOFT_CLIENT_ID=unused ELY_UPDATE_KEY=unused ELY_SIGN_IDENTITY=unused ELY_NOTARY_PROFILE=unused ELY_INSTALLER_IDENTITY=unused \
@@ -49,6 +52,7 @@ target() { readlink "$1" && printf x; }
 passes() { # name, setup; reaches the release step
   attempt "$1" "$2"
   grep -q 'packaging reached' "$work/$1.out" || fail "$1 was refused: $(cat "$work/$1.out")"
+  grep -qx 'series check --check engines/lo-src' "$work/$1.out" || fail "$1 never checked the patch series"
   for part in engines reference; do
     [ "$(target "$work/$1/$part")" = "$share/$part"$'\n'x ] || fail "$1 has no $part link to $share/$part"
   done
@@ -67,4 +71,10 @@ for part in engines reference; do
   refused "newline-$part" "ln -s \"\$share/$part\"\$'\\n' $part"
   refused "dangling-$part" "ln -s \"\$work/gone\" $part"
 done
-echo "ci-share: links pass; own builds, other and newline targets refused"
+# An engine lagging the series stops the release.
+: >"$work/series-lags"
+attempt lagging ':'
+[ "$status" -ne 0 ] || fail "a lagging engine exited 0"
+! grep -q 'packaging reached' "$work/lagging.out" || fail "a lagging engine reached the release step"
+grep -q 'series check --check engines/lo-src' "$work/lagging.out" || fail "the lagging engine was not stopped by the series check"
+echo "ci-share: links pass; own builds, other and newline targets refused; a lagging series stops it"

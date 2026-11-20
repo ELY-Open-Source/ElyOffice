@@ -78,6 +78,8 @@ clone() { # os
   write tests/scripts/engine-arch.sh :
   write tests/scripts/linux-glibc.sh '[ -z "${GLIBC_FAILS:-}" ]'
   write scripts/mac-ready.sh '[ -z "${MAC_NOT_READY:-}" ]'
+  # lo-series.sh tests the series check.
+  write scripts/apply-lo-patches.sh :
   write packaging/sign.sh 'for f; do echo signed >"$f.sig"; done'
   write packaging/macos/release.sh "mkdir -p dist; touch dist/App-$1.pkg dist/app-$1.json; packaging/source.sh dist"
   # The container's Cargo may differ from the host's.

@@ -112,6 +112,8 @@ else
   ${inside[@]+"${inside[@]}"} scripts/fetch-tessdata.sh
   ${inside[@]+"${inside[@]}"} scripts/build-libreoffice.sh
 fi
+# A shared engine may lag the series (R20.60).
+scripts/apply-lo-patches.sh --check engines/lo-src
 
 if [ -n "$pinned_ssl" ]; then
   [ -f "$root/engines/openssl/lib/pkgconfig/libcrypto.pc" ] || {
