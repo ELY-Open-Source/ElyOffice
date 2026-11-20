@@ -1646,3 +1646,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 ## 2026-11-20 ely-login.exe 不可重现构建（R20.80，未定）
 
 - 原状：Windows 安装包的内核编号覆盖 ely-login.exe；测试机上源只差 `tasks/` 的两次构建，暂存内核只有 ely-login.exe 与编号文件不同，编号 cf9c49e8 对 b8c76f72。编号因此不能由源复算，只能对着那一份安装包核。改法待 R20.80。
+
+## 2026-11-20 AppImage 的引擎单元不再遮住包的（R20.79）
+
+- 所见：由 AppImage 换成 `ely-office` 包后，登录起的仍是旧 AppImage 的引擎。systemd 的用户单元按名字取搜索路径里第一个（systemd.unit(5) 表 2 “Load path when running in user mode”；systemd 262 的 `systemd-analyze --user unit-paths`）：`~/.config/systemd/user` 与 `~/.local/share/systemd/user` 都在包的 `/usr/lib/systemd/user` 之前，家目录里同名的单元不论放哪一处都遮住包的。包的装后脚本不碰各用户的家目录，遮不掉。
+- 定：AppImage 照旧写用户单元（常驻引擎三端都做，AppImage 没有别处可放），但改名 `ely-engine-image@.service`，链接 `ely-engine-image@<应用>`，从不用包的名字；单元带 `ConditionPathExists=!/usr/lib/systemd/user/ely-engine@.service`，装了包即在登录时跳过、起包的，卸了包又起作用。AppRun 每次启动删掉家目录里包名下的旧单元，但只删 `ExecStart=/usr/bin/env …` 的（早先 AppImage 写的；包的是 `/usr/bin/%i`，用户自写的另有内容），连同指向它的链接，删了即重载。
+- 核对不起任何单元：`/usr/lib/systemd/systemd --test --user --unit=…` 以 `SYSTEMD_UNIT_PATH` 指向 `.work` 下的假家目录与假的 `/usr/lib`，空跑出单元的 Fragment Path。修前包的名字解析到家目录里的副本，修后解析到包的文件，AppImage 的单元另由其名字找到。`tests/scripts/linux-apprun.sh` 照此核对；四处变异（用回包的名字、去掉条件、不删旧单元、凡同名都删）各败。
+- 未修：家目录里早先 AppImage 的旧单元，要等新的 AppImage 再跑一次才删；只装包、再不跑 AppImage 的仍被遮（用户本机即如此，不改它），另行处理。

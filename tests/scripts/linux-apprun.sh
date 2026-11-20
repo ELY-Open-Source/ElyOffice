@@ -62,11 +62,14 @@ done
 want='Exec=/usr/bin/env "/apps/my \\"odd\\" \\$dir/Ely%%Office.AppImage" ely-doc %F'
 grep -qxF "$want" "$menu/ely-doc.desktop" || fail "Exec reads: $(grep Exec "$menu/ely-doc.desktop")"
 grep -qx 'Name=ElyDoc' "$menu/ely-doc.desktop" || fail "the item lost its other lines"
-# The engine unit: systemd's quoting, three wants, one reload.
+# The engine unit: own name, quoting, three wants, one reload.
 units=$home/.config/systemd/user
+unit=$units/ely-engine-image@.service
+[ ! -e "$units/ely-engine@.service" ] || fail "the AppImage took the package's unit name"
 want='ExecStart=/usr/bin/env "/apps/my \"odd\" $$dir/Ely%%Office.AppImage" %i engine'
-grep -qxF "$want" "$units/ely-engine@.service" || fail "the unit reads: $(grep Exec "$units/ely-engine@.service")"
-[ "$(cd "$units/graphical-session.target.wants" && echo *)" = "ely-engine@ely-doc.service ely-engine@ely-show.service ely-engine@ely-table.service" ] ||
+grep -qxF "$want" "$unit" || fail "the unit reads: $(grep Exec "$unit")"
+[ "$(sed -n 2p "$unit")" = 'ConditionPathExists=!/usr/lib/systemd/user/ely-engine@.service' ] || fail "the unit does not stand down for the package: $(head -3 "$unit")"
+[ "$(cd "$units/graphical-session.target.wants" && echo *)" = "ely-engine-image@ely-doc.service ely-engine-image@ely-show.service ely-engine-image@ely-table.service" ] ||
   fail "login wants: $(ls "$units/graphical-session.target.wants")"
 [ "$(cat "$work/systemctl")" = "--user daemon-reload" ] || fail "systemctl ran: $(cat "$work/systemctl")"
 
@@ -77,11 +80,43 @@ run "$odd" ely-doc >/dev/null
 ! grep -q "menu items" "$work/said" || fail "unchanged items were rewritten"
 [ "$(wc -l <"$work/systemctl")" = 1 ] || fail "an unchanged unit reloaded systemd"
 # A link a failed start missed comes back.
-rm "$units/graphical-session.target.wants/ely-engine@ely-show.service"
+rm "$units/graphical-session.target.wants/ely-engine-image@ely-show.service"
 run "$odd" ely-doc >/dev/null
-[ "$(readlink "$units/graphical-session.target.wants/ely-engine@ely-show.service")" = "$units/ely-engine@.service" ] ||
+[ "$(readlink "$units/graphical-session.target.wants/ely-engine-image@ely-show.service")" = "$unit" ] ||
   fail "the missing link stayed missing"
 [ "$(wc -l <"$work/systemctl")" = 2 ] || fail "a new link did not reload systemd"
+# An earlier AppImage's shadowing unit goes, links too.
+sed -e 's|^ExecStart=.*|ExecStart=/usr/bin/env "/apps/ElyOffice-0.1.16.AppImage" %i engine|' -e '/^ConditionPathExists/d' "$unit" >"$units/ely-engine@.service"
+for slug in ely-doc ely-table ely-show; do ln -s "$units/ely-engine@.service" "$units/graphical-session.target.wants/ely-engine@$slug.service"; done
+ln -s /elsewhere "$units/graphical-session.target.wants/ely-engine@ely-kept.service"
+: >"$work/said"
+run "$odd" ely-doc >/dev/null
+[ ! -e "$units/ely-engine@.service" ] || fail "the old AppImage unit still hides the package's"
+[ "$(cd "$units/graphical-session.target.wants" && echo ely-engine@*)" = "ely-engine@ely-kept.service" ] || fail "old links: $(ls "$units/graphical-session.target.wants")"
+grep -q "removed the engine unit that hid" "$work/said" || fail "the removal was not logged: $(cat "$work/said")"
+[ "$(wc -l <"$work/systemctl")" = 3 ] || fail "the removal did not reload systemd"
+rm "$units/graphical-session.target.wants/ely-engine@ely-kept.service"
+# A unit the user wrote there is kept.
+printf '[Service]\nExecStart=/opt/mine %%i\n' >"$units/ely-engine@.service"
+run "$odd" ely-doc >/dev/null
+grep -qx 'ExecStart=/opt/mine %i' "$units/ely-engine@.service" || fail "the user's own unit was removed"
+rm "$units/ely-engine@.service"
+# Dry run (--test starts nothing): the package's name resolves there.
+if [ -x /usr/lib/systemd/systemd ]; then
+  pkg=$work/usr-lib-systemd-user
+  mkdir -p "$pkg"
+  sed 's/^Description=.*/Description=the package/' "$root/packaging/linux/ely-engine@.service" >"$pkg/ely-engine@.service"
+  resolved() { # unit: its fragment path, from a dry run
+    env -i PATH=/usr/bin:/bin HOME=$home XDG_CONFIG_HOME=$home/.config XDG_DATA_HOME=$home/.local/share XDG_RUNTIME_DIR=$work/run \
+      SYSTEMD_UNIT_PATH="$units:$pkg:" /usr/lib/systemd/systemd --test --user --unit="$1" --no-pager 2>/dev/null |
+      awk -v u="$1" '$0 ~ "Unit " u ":" { on = 1 } on && /Fragment Path:/ { print $3; exit }'
+  }
+  mkdir -p "$work/run"
+  [ "$(resolved ely-engine@ely-doc.service)" = "$pkg/ely-engine@.service" ] || fail "the package's unit is hidden: $(resolved ely-engine@ely-doc.service)"
+  [ "$(resolved ely-engine-image@ely-doc.service)" = "$unit" ] || fail "the AppImage's unit is not found: $(resolved ely-engine-image@ely-doc.service)"
+else
+  echo "SKIP: no /usr/lib/systemd/systemd for the dry run"
+fi
 
 # 0.1.16's name picks the app; a move rewrites items.
 got=$(run /apps/ElyShow-0.1.16-linux-x86_64.AppImage /x/b.pptx)
@@ -133,7 +168,7 @@ for _ in $(seq 50); do [ -s "$work/launched" ] && break; sleep 0.1; done
 if systemctl --user is-system-running >/dev/null 2>&1 || [ "$(systemctl --user is-system-running 2>/dev/null)" = degraded ]; then
   probe=ely-apprun-$$
   printf '#!/bin/sh\necho "$@" >>"%s/engine"\n' "$work" >"$odd/doc.AppImage"
-  sed "s/^Description=.*/Description=linux-apprun probe/" "$home/.config/systemd/user/ely-engine@.service" >"$work/$probe@.service"
+  sed -e "s/^Description=.*/Description=linux-apprun probe/" -e '/^ConditionPathExists/d' "$unit" >"$work/$probe@.service"
   systemctl --user link "$work/$probe@.service" >/dev/null 2>&1
   trap 'systemctl --user disable "$probe@.service" >/dev/null 2>&1; rm -rf "$work"' EXIT
   systemctl --user start "$probe@ely-doc.service" && systemctl --user stop "$probe@ely-doc.service" ||
@@ -142,4 +177,4 @@ if systemctl --user is-system-running >/dev/null 2>&1 || [ "$(systemctl --user i
 else
   echo "SKIP: no user systemd for the unit's run"
 fi
-echo "linux-apprun: word, name or the picker; quoted menu items; the kernel kept once per id, the worker per build; starts at once; gio and systemd start paths with % and quotes"
+echo "linux-apprun: word, name or the picker; quoted menu items; the engine unit never takes the package's name and stands down for it, an earlier AppImage's shadow goes; the kernel kept once per id, the worker per build; starts at once; gio and systemd start paths with % and quotes"
