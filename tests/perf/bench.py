@@ -225,6 +225,7 @@ def main():
             kept = json.load(raw)
     cases = Cases(kept["cases"] if kept else {}, args.redo)
     want = lambda perf: not args.only or perf in args.only
+    partial = bool(args.only) or set(args.apps) != set(APPS)
     work = tempfile.mkdtemp()
     run.HOST = drive.host(work)
     packages = [arg for slug in APPS for arg in ("-p", search.spec("apps/" + slug))]
@@ -283,8 +284,9 @@ def main():
             os.makedirs(os.path.dirname(to), exist_ok=True)
             shutil.copy(log, to)
         print(f"the failed run's logs: {logs}")
-        if kept:
-            failed_redo(args, kept, cases, paging)
+        # A finished case logged the GPU this machine names.
+        if kept and cases.ran:
+            failed_redo(args, kept, cases, paging, environment(found, partial))
         else:
             paging.stop()
         raise
@@ -295,7 +297,7 @@ def main():
         raise RuntimeError(f"engines outlived the run: {left}")
     if set(args.redo) - cases.ran:
         raise RuntimeError(f"no such case to redo: {sorted(set(args.redo) - cases.ran)}")
-    env = environment(found, bool(args.only) or set(args.apps) != set(APPS))
+    env = environment(found, partial)
     if kept:
         env = redone(kept["env"], env, args.redo)
     for key, counts, note in judged:
@@ -316,10 +318,10 @@ def table(cases):
     return rows, held
 
 
-def failed_redo(args, kept, cases, paging):
+def failed_redo(args, kept, cases, paging, now):
     """Keeps a failed redo's finished cases; the rest stay void."""
     judged = paging.judged(cases.windows)
-    env = {**redone(kept["env"], kept["env"], sorted(cases.ran)),
+    env = {**redone(kept["env"], now, sorted(cases.ran)),
            "void": void_after(kept["env"].get("void", []), cases.ran, judged)}
     write(args.out, env, *table(cases), args.runs)
     with open(args.keep, "w", encoding="utf-8") as raw:
