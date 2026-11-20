@@ -62,10 +62,11 @@ reload=
 # Earlier AppImages wrote that name; only theirs go.
 shadow=$units/ely-engine@.service
 if grep -qsE '^ExecStart=/usr/bin/env ".*\.AppImage" %i engine$' "$shadow"; then
+  # A start at the same time may remove them first.
   while IFS='	' read -r each _; do
-    [ "$(readlink "$wants/ely-engine@$each.service")" != "$shadow" ] || rm "$wants/ely-engine@$each.service"
+    [ "$(readlink "$wants/ely-engine@$each.service")" != "$shadow" ] || rm -f "$wants/ely-engine@$each.service"
   done <"$here/apps.tsv"
-  rm "$shadow"
+  rm -f "$shadow"
   say "removed the engine unit that hid an installed package's"
   reload=1
 fi

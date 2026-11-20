@@ -1,6 +1,10 @@
-use std::{cell::Cell, path::Path};
+use std::{
+    cell::Cell,
+    path::Path,
+    sync::{Barrier, atomic::{AtomicUsize, Ordering}},
+};
 
-use super::{SHADOW, appimage_written, unshadow};
+use super::{SHADOW, appimage_written, remove, unshadow};
 
 /// The units AppRun's test reads too: `appimage-*` alone go.
 fn samples() -> Vec<(String, String)> {
@@ -80,4 +84,38 @@ fn a_failed_reload_surfaces() {
     std::fs::write(units.join(SHADOW), text).expect("the unit");
     let error = unshadow(&units, || Err(std::io::Error::other("no user manager"))).expect_err("the reload failed");
     assert_eq!(error.to_string(), "no user manager");
+}
+
+#[test]
+fn a_path_another_start_removed_counts_as_gone() {
+    let home = home();
+    let gone = home.path().join(SHADOW);
+    assert!(!remove(&gone).expect("already gone is not an error"));
+}
+
+#[test]
+fn starts_at_once_each_succeed_and_remove_each_path_once() {
+    let home = home();
+    let units = home.path().join(".config/systemd/user");
+    let wants = units.join("graphical-session.target.wants");
+    std::fs::create_dir_all(&wants).expect("the wants folder");
+    let (_, text) = samples().into_iter().find(|(name, _)| name.starts_with("appimage-")).expect("a sample");
+    let shadow = units.join(SHADOW);
+    std::fs::write(&shadow, text).expect("the unit");
+    for slug in ["ely-doc", "ely-table", "ely-show"] {
+        std::os::unix::fs::symlink(&shadow, wants.join(format!("ely-engine@{slug}.service"))).expect("a link");
+    }
+    let (starts, removed) = (16, AtomicUsize::new(0));
+    let ready = Barrier::new(starts);
+    std::thread::scope(|scope| {
+        for _ in 0..starts {
+            scope.spawn(|| {
+                ready.wait();
+                let gone = unshadow(&units, || Ok(())).expect("a start at the same time");
+                removed.fetch_add(gone.len(), Ordering::Relaxed);
+            });
+        }
+    });
+    assert_eq!(removed.load(Ordering::Relaxed), 4);
+    assert!(!shadow.exists());
 }

@@ -154,6 +154,16 @@ for i in $(seq 32); do
   grep -q '^ely-doc ' "$work/at-once.$i" || fail "start $i of 32 did not run: $(grep -v kept "$work/said" | tail -n 2)"
 done
 [ -z "$(find "$home/.local/share" -name '*.[0-9]*')" ] || fail "a part file was left"
+# At once over 0.1.16's unit: all run, it goes.
+cp "$root/tests/fixtures/engine-units/appimage-0.1.16.service" "$units/ely-engine@.service"
+for slug in ely-doc ely-table ely-show; do ln -sf "$units/ely-engine@.service" "$units/graphical-session.target.wants/ely-engine@$slug.service"; done
+for i in $(seq 32); do run /apps/doc.AppImage ely-doc >"$work/over-old.$i" & done
+wait
+for i in $(seq 32); do
+  grep -q '^ely-doc ' "$work/over-old.$i" || fail "start $i of 32 over the old unit did not run: $(grep -v kept "$work/said" | tail -n 2)"
+done
+[ ! -e "$units/ely-engine@.service" ] && [ -z "$(cd "$units/graphical-session.target.wants" && ls ely-engine@* 2>/dev/null)" ] ||
+  fail "starts at once left the old unit or its links"
 
 # GLib's launcher, a % in the path.
 odd=$work/'a\b "c" $d `e` %done'
@@ -176,4 +186,4 @@ if [ -x /usr/lib/systemd/systemd ]; then
 else
   echo "SKIP: no /usr/lib/systemd/systemd for the dry run"
 fi
-echo "linux-apprun: word, name or the picker; quoted menu items; the engine unit never takes the package's name and stands down for it, an earlier AppImage's shadow goes; the kernel kept once per id, the worker per build; starts at once; gio starts and systemd parses paths with % and quotes; no test reaches the user's own systemd"
+echo "linux-apprun: word, name or the picker; quoted menu items; the engine unit never takes the package's name and stands down for it, an earlier AppImage's shadow goes, also with starts at once; the kernel kept once per id, the worker per build; starts at once; gio starts and systemd parses paths with % and quotes; no test reaches the user's own systemd"

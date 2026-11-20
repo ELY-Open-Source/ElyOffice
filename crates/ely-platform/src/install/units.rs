@@ -45,21 +45,30 @@ pub fn unshadow(units: &Path, reload: impl FnOnce() -> io::Result<()>) -> io::Re
         Err(error) => return Err(io::Error::new(error.kind(), format!("{}: {error}", wants.display()))),
     };
     for link in entries.into_iter().map(|entry| entry.path()) {
-        if std::fs::read_link(&link).is_ok_and(|to| to == shadow) {
-            remove(&link)?;
+        if std::fs::read_link(&link).is_ok_and(|to| to == shadow) && remove(&link)? {
             removed.push(link);
         }
     }
-    remove(&shadow)?;
-    removed.push(shadow);
+    if remove(&shadow)? {
+        removed.push(shadow);
+    }
     reload()?;
     Ok(removed)
 }
 
-fn remove(path: &Path) -> io::Result<()> {
-    std::fs::remove_file(path).map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))?;
-    log::info!("engine: removed {}, an AppImage's unit hiding the package's", path.display());
-    Ok(())
+/// False when another app, starting too, removed it first.
+fn remove(path: &Path) -> io::Result<bool> {
+    match std::fs::remove_file(path) {
+        Ok(()) => {
+            log::info!("engine: removed {}, an AppImage's unit hiding the package's", path.display());
+            Ok(true)
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            log::info!("engine: {} was already removed by another start", path.display());
+            Ok(false)
+        }
+        Err(error) => Err(io::Error::new(error.kind(), format!("{}: {error}", path.display()))),
+    }
 }
 
 #[cfg(test)]
