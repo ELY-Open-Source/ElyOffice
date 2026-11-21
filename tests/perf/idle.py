@@ -4,9 +4,10 @@
 import argparse
 import ctypes
 import json
+import ntpath
 import os
+import posixpath
 import re
-import subprocess
 import sys
 import time
 
@@ -14,7 +15,9 @@ import child
 
 RECORD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "idle.json")
 APPS = ("ely-doc", "ely-table", "ely-show")
-IDLE = re.compile(r"--idle idle-(ely-[a-z]+)-[0-9a-f]{16}")
+LOCK = "idle.lock"
+WORKER = "ely-lok-worker"
+NAME = re.compile(r"idle-(ely-[a-z]+)-[0-9a-f]{16}")
 # Memory may grow this far past the record.
 SLACK = 1.1
 # One-shot wakes end by 360 s (SF.31).
@@ -22,39 +25,63 @@ SETTLE_S = 400
 # Windows wakes: twice the recorded cycles (R20.13).
 CYCLE_SLACK = 2
 
-# Other processes' argv may hold any bytes.
-IDLE_RAW = re.compile(IDLE.pattern.encode())
+
+def profile(root, app):
+    return os.path.join(root, app, "lok-profile")
 
 
-def ours(raw, root, where):
-    """Our worker under `root`, decoded strictly; others never are."""
-    found = IDLE_RAW.search(raw)
-    app = found.group(1).decode("ascii") if found else None
-    if app not in APPS or os.fsencode(os.path.join(root, app, "lok-profile")) not in raw:
-        return None
+def check(args, root, app, pid):
+    """The worker, on this app's profile and idle name."""
+    # Its folder varies (ELY_LOK_WORKER, the bundle); its name is fixed.
+    win = sys.platform == "win32"
+    exe = (ntpath if win else posixpath).basename(args[0]) if args else None
+    at = args.index("--idle") + 1 if "--idle" in args else len(args)
+    name = NAME.fullmatch(args[at]) if at < len(args) else None
+    if exe != WORKER + (".exe" if win else "") or profile(root, app) not in args \
+            or name is None or name.group(1) != app:
+        raise RuntimeError(f"pid {pid} holds {app}'s idle lock but is not its idle worker: {args}")
+
+
+def strictly(parts, pid):
     try:
-        return raw.decode("utf-8")
+        return [part.decode("utf-8") for part in parts]
     except UnicodeDecodeError as bad:
-        raise RuntimeError(f"{where}: an idle worker's command line is not UTF-8: {bad}") from bad
+        raise RuntimeError(f"pid {pid}'s command line is not UTF-8: {bad}") from bad
 
 
-def linux(root):
-    """Pid, command, live threads' ns, resident MB, thread ids."""
-    for pid in filter(str.isdigit, os.listdir("/proc")):
-        try:
-            with open(f"/proc/{pid}/cmdline", "rb") as file:
-                line = ours(file.read().replace(b"\0", b" "), root, f"/proc/{pid}/cmdline")
-            if line is None:
-                continue
-            ran, tasks = 0, frozenset(os.listdir(f"/proc/{pid}/task"))
-            for task in tasks:
-                with open(f"/proc/{pid}/task/{task}/schedstat") as file:
-                    ran += int(file.read().split()[0])
-            with open(f"/proc/{pid}/status") as file:
-                rss = next(int(row.split()[1]) for row in file if row.startswith("VmRSS:"))
-        except FileNotFoundError:
-            continue
-        yield int(pid), line, ran, rss / 1024, tasks
+def posix_holders(path):
+    """Who holds `path`'s write lock, by F_GETLK; none if free."""
+    import fcntl
+    import struct
+    try:
+        file = open(path, "rb")
+    except FileNotFoundError:
+        return []
+    # struct flock: macOS puts the offsets first.
+    mac = sys.platform == "darwin"
+    layout = "qqihh" if mac else "hhqqi4x"
+    ask = struct.pack(layout, 0, 0, 0, fcntl.F_WRLCK, 0) if mac else struct.pack(layout, fcntl.F_WRLCK, 0, 0, 0, 0)
+    with file:
+        got = struct.unpack(layout, fcntl.fcntl(file, fcntl.F_GETLK, ask))
+    kind, pid = (got[3], got[2]) if mac else (got[0], got[4])
+    if kind == fcntl.F_UNLCK:
+        return []
+    if pid <= 0:
+        raise RuntimeError(f"{path} is held from outside this pid namespace")
+    return [pid]
+
+
+def linux(pid):
+    """Argv, live threads' ns, resident MB, thread ids."""
+    with open(f"/proc/{pid}/cmdline", "rb") as file:
+        args = strictly(file.read().split(b"\0")[:-1], pid)
+    ran, tasks = 0, frozenset(os.listdir(f"/proc/{pid}/task"))
+    for task in tasks:
+        with open(f"/proc/{pid}/task/{task}/schedstat") as file:
+            ran += int(file.read().split()[0])
+    with open(f"/proc/{pid}/status") as file:
+        rss = next(int(row.split()[1]) for row in file if row.startswith("VmRSS:"))
+    return args, ran, rss / 1024, tasks
 
 
 class Usage(ctypes.Structure):
@@ -64,45 +91,101 @@ class Usage(ctypes.Structure):
         "started", "exited")]
 
 
-def mac(root):
-    """Pid, command line, mach time units run, resident MB."""
-    proc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
-    rows = subprocess.run(["ps", "-A", "-o", "pid=,command="], capture_output=True, check=True).stdout
-    for row in rows.splitlines():
-        pid, raw = row.split(None, 1)
-        line = ours(raw, root, "ps -A")
-        if line is None:
-            continue
-        usage = Usage()
-        if proc.proc_pid_rusage(int(pid), 0, ctypes.byref(usage)):
-            raise OSError(ctypes.get_errno(), f"proc_pid_rusage {pid}")
-        yield int(pid), line, usage.user + usage.system, usage.resident / 2**20, None
+def mac_argv(pid):
+    """The real argv, by KERN_PROCARGS2; ps joins it with spaces."""
+    import struct
+    libc = ctypes.CDLL(None, use_errno=True)
+    most, size = ctypes.c_int(), ctypes.c_size_t(ctypes.sizeof(ctypes.c_int))
+    # CTL_KERN, KERN_ARGMAX
+    if libc.sysctl((ctypes.c_int * 2)(1, 8), 2, ctypes.byref(most), ctypes.byref(size), None, 0):
+        raise OSError(ctypes.get_errno(), "sysctl KERN_ARGMAX")
+    buffer, size = ctypes.create_string_buffer(most.value), ctypes.c_size_t(most.value)
+    # CTL_KERN, KERN_PROCARGS2
+    if libc.sysctl((ctypes.c_int * 3)(1, 49, pid), 3, buffer, ctypes.byref(size), None, 0):
+        raise OSError(ctypes.get_errno(), f"sysctl KERN_PROCARGS2 {pid}")
+    raw = buffer.raw[:size.value]
+    count = struct.unpack_from("i", raw)[0]
+    # The exec path, its padding, then argv.
+    parts = raw[4:].partition(b"\0")[2].lstrip(b"\0").split(b"\0")
+    if len(parts) <= count:
+        raise RuntimeError(f"pid {pid}'s argv holds fewer than {count} arguments")
+    return strictly(parts[:count], pid)
 
 
-def windows(root):
-    """Pid, command line, CPU cycles, working set MB."""
+def mac(pid):
+    """Argv, mach time units run, resident MB."""
+    args = mac_argv(pid)
+    usage = Usage()
+    if ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True).proc_pid_rusage(pid, 0, ctypes.byref(usage)):
+        raise OSError(ctypes.get_errno(), f"proc_pid_rusage {pid}")
+    return args, usage.user + usage.system, usage.resident / 2**20, None
+
+
+class RmProcess(ctypes.Structure):
+    """RM_PROCESS_INFO; FILETIME is two DWORDs."""
+    _fields_ = [("pid", ctypes.c_uint32), ("started", ctypes.c_uint32 * 2), ("app", ctypes.c_wchar * 256),
+                ("service", ctypes.c_wchar * 64), ("kind", ctypes.c_int), ("status", ctypes.c_uint32),
+                ("session", ctypes.c_uint32), ("restartable", ctypes.c_int)]
+
+
+def windows_holders(path):
+    """Who has `path` open; only Restart Manager sees it."""
+    rm = ctypes.WinDLL("rstrtmgr")
+    session, key = ctypes.c_uint32(), ctypes.create_unicode_buffer(33)
+
+    def ok(said, what):
+        if said:
+            raise OSError(said, f"{what} for {path}")
+
+    ok(rm.RmStartSession(ctypes.byref(session), 0, key), "RmStartSession")
+    try:
+        ok(rm.RmRegisterResources(session, 1, (ctypes.c_wchar_p * 1)(path), 0, None, 0, None), "RmRegisterResources")
+        needed, count, why = ctypes.c_uint32(), ctypes.c_uint32(0), ctypes.c_uint32()
+        said = rm.RmGetList(session, ctypes.byref(needed), ctypes.byref(count), None, ctypes.byref(why))
+        if said == 0:
+            return []
+        # ERROR_MORE_DATA: room for every holder, asked again.
+        if said != 234:
+            ok(said, "RmGetList")
+        found, count = (RmProcess * needed.value)(), ctypes.c_uint32(needed.value)
+        ok(rm.RmGetList(session, ctypes.byref(needed), ctypes.byref(count), found, ctypes.byref(why)), "RmGetList")
+        return [found[n].pid for n in range(count.value)]
+    finally:
+        rm.RmEndSession(session)
+
+
+def windows(pid):
+    """Argv, CPU cycles, working set MB."""
     # The pipe gets UTF-8, not the console code page.
     query = ("[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); "
-             "Get-CimInstance Win32_Process -Filter \"Name = 'ely-lok-worker.exe' and CommandLine like '%--idle idle-%'\" | "
-             "Select-Object ProcessId,CommandLine,WorkingSetSize | ConvertTo-Json")
+             f"Get-CimInstance Win32_Process -Filter 'ProcessId = {int(pid)}' | "
+             "Select-Object CommandLine,WorkingSetSize | ConvertTo-Json")
     said = child.run(["powershell.exe", "-NoProfile", "-Command", query], capture_output=True, check=True).stdout.strip()
-    rows = json.loads(said) if said else []
-    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    if not said:
+        raise RuntimeError(f"pid {pid} holds an idle lock but Win32_Process has no such process")
+    row = json.loads(said)
+    shell, k32 = ctypes.WinDLL("shell32", use_last_error=True), ctypes.WinDLL("kernel32", use_last_error=True)
+    shell.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.c_wchar_p)
+    count = ctypes.c_int()
+    argv = shell.CommandLineToArgvW(row["CommandLine"], ctypes.byref(count))
+    if not argv:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        args = [argv[n] for n in range(count.value)]
+    finally:
+        k32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
     k32.OpenProcess.restype = ctypes.c_void_p
-    for row in rows if isinstance(rows, list) else [rows]:
-        if ours(row["CommandLine"].encode("utf-8"), root, "Win32_Process") is None:
-            continue
-        # PROCESS_QUERY_LIMITED_INFORMATION
-        handle = k32.OpenProcess(0x1000, False, row["ProcessId"])
-        if not handle:
+    # PROCESS_QUERY_LIMITED_INFORMATION
+    handle = k32.OpenProcess(0x1000, False, pid)
+    if not handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    cycles = ctypes.c_uint64()
+    try:
+        if not k32.QueryProcessCycleTime(ctypes.c_void_p(handle), ctypes.byref(cycles)):
             raise ctypes.WinError(ctypes.get_last_error())
-        cycles = ctypes.c_uint64()
-        try:
-            if not k32.QueryProcessCycleTime(ctypes.c_void_p(handle), ctypes.byref(cycles)):
-                raise ctypes.WinError(ctypes.get_last_error())
-        finally:
-            k32.CloseHandle(ctypes.c_void_p(handle))
-        yield row["ProcessId"], row["CommandLine"], cycles.value, int(row["WorkingSetSize"]) / 2**20, None
+    finally:
+        k32.CloseHandle(ctypes.c_void_p(handle))
+    return args, cycles.value, int(row["WorkingSetSize"]) / 2**20, None
 
 
 UNIT = {"linux": "ns", "darwin": "mach time units", "win32": "cycles"}
@@ -115,14 +198,20 @@ def allowed(kept, app):
 
 def engines(root):
     """Each app's engine under `root`: pid, CPU, MB, threads."""
-    read = {"linux": linux, "darwin": mac, "win32": windows}[sys.platform]
-    found = {}
-    for pid, line, used, mb, tasks in read(root):
-        app = IDLE.search(line).group(1)
-        if app in found:
-            raise RuntimeError(f"two idle engines for {app}: {found[app][0]}, {pid}")
-        found[app] = (pid, used, mb, tasks)
-    missing = [app for app in APPS if app not in found]
+    # Only a lock holder is read; others' argv may vary.
+    holders, read = {"linux": (posix_holders, linux), "darwin": (posix_holders, mac),
+                     "win32": (windows_holders, windows)}[sys.platform]
+    found, missing = {}, []
+    for app in APPS:
+        held = holders(os.path.join(profile(root, app), LOCK))
+        if len(held) > 1:
+            raise RuntimeError(f"{len(held)} processes hold {app}'s idle lock: {held}")
+        if not held:
+            missing.append(app)
+            continue
+        args, used, mb, tasks = read(held[0])
+        check(args, root, app, held[0])
+        found[app] = (held[0], used, mb, tasks)
     if missing:
         raise RuntimeError(f"no idle engine for {', '.join(missing)} under {root}")
     return found
