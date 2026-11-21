@@ -112,9 +112,9 @@ class Paging:
             self.process = subprocess.Popen(["vmstat", "-n", "-t", str(int(judge.INTERVAL.total_seconds()))], stdout=trace, env=dict(os.environ, TZ="UTC"))
         try:
             self.until(lambda taken: taken)
-        except BaseException:
+        except BaseException as error:
             # Started but silent: stopped here; its trace stays.
-            self.stop()
+            counters.stopped(error, self.stop)
             raise
 
     def taken(self):
@@ -245,7 +245,7 @@ def main():
     linux = run.HOST.name == "Linux"
     sampler, trace = (Paging, "vmstat.log") if linux else (counters.Counted, "paging.log")
     # What the run reached; a failure picks up from it.
-    held = {"judged": None, "keep": None, "traced": False, "stranded": False,
+    held = {"judged": None, "keep": None, "traced": False, "raw": False, "stranded": False,
             "trace": (os.path.join(work, trace), sampler.suffix)}
     paging, env, up = None, None, True
     try:
@@ -372,9 +372,10 @@ def failed(args, kept, cases, paging, held, now, failure, engines, work):
     def raw():
         # A redo always keeps the kept record's void.
         if kept:
-            failed_redo(args, kept, cases, held["judged"], now)
+            failed_redo(args, kept, cases, held, now)
         elif held["keep"]:
             kept_failed(held["keep"], cases, now)
+            held["raw"] = True
 
     steps = [("no folder could hold the evidence", choose), ("the engines did not stop", engines),
              ("the samples were not judged", judge), ("the sampler did not stop", stop),
@@ -388,13 +389,15 @@ def failed(args, kept, cases, paging, held, now, failure, engines, work):
             said = f"bench: {what}: {type(error).__name__}: {error}"
             print(said)
             failure.add_note(said)
-    if held["keep"] is None:
-        held["stranded"] = True
-        said = f"bench: nothing could be kept; the work folder stays: {work}"
-        print(said)
-        failure.add_note(said)
-    else:
+    if held["traced"] and held["raw"]:
         print(f"bench: the failed run's samples and raw results: {held['keep']}")
+        return
+    held["stranded"] = True
+    lost = [what for what, done in (("samples", held["traced"]), ("raw results", held["raw"])) if not done]
+    where = "nothing could be kept" if held["keep"] is None else f"{' and '.join(lost)} not kept at {held['keep']}"
+    said = f"bench: {where}; the work folder stays: {work}"
+    print(said)
+    failure.add_note(said)
 
 
 def kept_failed(keep, cases, now):
@@ -422,14 +425,16 @@ def kept_trace(keep, trace):
     shutil.copy(path, f"{keep}.{utc():%Y%m%dT%H%M%S}.{suffix}")
 
 
-def failed_redo(args, kept, cases, judged, now):
+def failed_redo(args, kept, cases, held, now):
     """Merges a failed redo's judged cases; else --keep stays."""
-    if judged is None or not cases.ran:
+    if held["judged"] is None or not cases.ran:
+        held["raw"] = True
         print(f"bench: the failed redo left {args.keep} as it was; void: {kept['env'].get('void', [])}")
         return
     env = {**redone(kept["env"], now(), sorted(cases.ran)),
-           "void": void_after(kept["env"].get("void", []), cases.ran, judged)}
+           "void": void_after(kept["env"].get("void", []), cases.ran, held["judged"])}
     written(args.keep, {"env": env, "cases": cases.done})
+    held["raw"] = True
     write(args.out, env, *table(cases), args.runs)
     print(f"bench: the failed redo kept {sorted(cases.ran)}; void: {env['void']}")
 

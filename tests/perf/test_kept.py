@@ -185,7 +185,11 @@ class Kept(unittest.TestCase):
         _, said, ended = self.ran([(tree, True, "")], machine=other, more=redo, patches=patches)
         self.assertIsInstance(ended, RuntimeError)
         self.assertIn("same builds, samples and machine", str(ended))
-        self.assertIn(f"bench: the failed run's samples and raw results: {self.keep}", said)
+        # The redo's own results fit nowhere: said, folder kept.
+        stays = f"bench: raw results not kept at {self.keep}; the work folder stays: "
+        stayed = [line for line in said if line.startswith(stays)]
+        self.assertEqual(len(stayed), 1, said)
+        self.assertEqual(self.works(), [os.path.basename(stayed[0].rsplit(" ", 1)[1])])
         with open(self.keep, "rb") as raw:
             self.assertEqual(raw.read(), self.before, "--keep byte for byte")
         traces = [name for name in os.listdir(self.scratch) if re.fullmatch(r"raw\.json\.\d{8}T\d{6}\.vmstat", name)]
@@ -227,12 +231,14 @@ class Kept(unittest.TestCase):
         self.assertEqual(self.works(), [], "the work folder is gone")
 
     def test_a_log_copy_that_fails_never_hides_the_failure(self):
-        real = tempfile.mkdtemp
-        def refused(*a, **k):
-            if k.get("prefix") == "ely-bench-failed-":
+        real, refusals = bench.shutil.copy, []
+        def refused(log, to):
+            if "ely-bench-failed-" in to:
+                refusals.append(log)
                 raise OSError("log copy refused")
-            return real(*a, **k)
-        parent, said, ended = self.ran(RuntimeError("judgment failed"), patches=[(tempfile, "mkdtemp", refused)])
+            return real(log, to)
+        parent, said, ended = self.ran(RuntimeError("judgment failed"), patches=[(bench.shutil, "copy", refused)])
+        self.assertEqual([os.path.basename(log) for log in refusals], ["vmstat.log"], "the copy itself refused")
         self.assertIsInstance(ended, RuntimeError)
         self.assertEqual(str(ended), "judgment failed")
         self.assertIn("bench: the logs were not copied: OSError: log copy refused", ended.__notes__)
@@ -257,7 +263,8 @@ class Kept(unittest.TestCase):
         self.assertEqual(self.works(), [os.path.basename(work)])
         self.assertEqual(os.listdir(parent), [], "no bench-kept")
 
-    def test_vmstat_that_starts_but_never_samples_is_stopped(self):
+    def vmstat_exits(self, refusal=None):
+        """Paging over a vmstat that exits at once; its error."""
         class Exited:
             def __init__(self, *a, **k):
                 self.stopped = []
@@ -265,14 +272,43 @@ class Kept(unittest.TestCase):
                 return 1
             def terminate(self):
                 self.stopped.append("terminate")
+                if refusal:
+                    raise refusal
             def wait(self):
                 self.stopped.append("wait")
         made = []
         with tempfile.TemporaryDirectory() as work, \
+             unittest.mock.patch("builtins.print"), \
              unittest.mock.patch.object(bench.subprocess, "Popen", lambda *a, **k: made.append(Exited()) or made[-1]):
-            with self.assertRaisesRegex(RuntimeError, "vmstat gave no samples"):
+            with self.assertRaisesRegex(RuntimeError, "vmstat gave no samples") as raised:
                 bench.Paging(os.path.join(work, "vmstat.log"))
-        self.assertEqual(made[0].stopped, ["terminate", "wait"])
+        return made[0].stopped, raised.exception
+
+    def test_vmstat_that_starts_but_never_samples_is_stopped(self):
+        self.assertEqual(self.vmstat_exits()[0], ["terminate", "wait"])
+
+    def test_a_vmstat_that_will_not_stop_never_hides_why_it_started_badly(self):
+        stopped, error = self.vmstat_exits(OSError("terminate refused"))
+        self.assertEqual(stopped, ["terminate"])
+        self.assertEqual(error.__notes__, ["bench: the sampler did not stop: OSError: terminate refused"])
+
+    def test_an_unusable_keep_keeps_the_work_folder_and_says_so(self):
+        keep = lambda scratch: os.path.join(scratch, "missing", "raw.json")
+        parent, said, ended = self.ran(RuntimeError("judgment failed"), more=lambda scratch: ["--keep", keep(scratch)])
+        self.assertIsInstance(ended, RuntimeError)
+        self.assertEqual(str(ended), "judgment failed")
+        for what in ("samples", "raw results"):
+            self.assertTrue(any(note.startswith(f"bench: the {what} were not kept: FileNotFoundError") for note in ended.__notes__),
+                            ended.__notes__)
+        self.assertFalse([line for line in said if line.startswith("bench: the failed run's samples")], said)
+        stays = f"bench: samples and raw results not kept at {keep(self.scratch)}; the work folder stays: "
+        stayed = [line for line in said if line.startswith(stays)]
+        self.assertEqual(len(stayed), 1, said)
+        self.assertIn(stayed[0], ended.__notes__)
+        work = stayed[0].rsplit(" ", 1)[1]
+        with open(os.path.join(work, "vmstat.log"), encoding="utf-8") as trace:
+            self.assertEqual(trace.read(), "the run's samples\n")
+        self.assertEqual(self.works(), [os.path.basename(work)])
 
     def test_a_clean_run_without_keep_leaves_nothing_extra(self):
         parent, said, ended = self.ran([(KEY, True, "")])

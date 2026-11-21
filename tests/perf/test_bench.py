@@ -366,7 +366,7 @@ class Windows(unittest.TestCase):
                 paging = types.SimpleNamespace(judged=lambda windows: [(key, a_counts, "") for key, _, _ in windows],
                                                path=trace, suffix="vmstat")
                 args = types.SimpleNamespace(out=out, keep=os.path.join(out, "raw.json"), runs=1)
-                held = {"judged": None, "keep": None, "traced": False, "stranded": False, "trace": (trace, "vmstat")}
+                held = {"judged": None, "keep": None, "traced": False, "raw": False, "stranded": False, "trace": (trace, "vmstat")}
                 # The failure's log copy lands in this test's folder.
                 with unittest.mock.patch("builtins.print"), unittest.mock.patch.object(tempfile, "tempdir", work):
                     bench.failed(args, kept, cases, paging, held, lambda: {"date": "2000-01-02", "machine": "Test"},
@@ -393,7 +393,7 @@ class Windows(unittest.TestCase):
         with tempfile.TemporaryDirectory() as out:
             args = types.SimpleNamespace(out=out, keep=os.path.join(out, "raw.json"), runs=1)
             with self.assertRaisesRegex(RuntimeError, "same builds, samples and machine"):
-                bench.failed_redo(args, kept, cases, [("A", True, "")], lambda: {"date": "2000-01-02", "machine": "Other"})
+                bench.failed_redo(args, kept, cases, {"judged": [("A", True, "")]}, lambda: {"date": "2000-01-02", "machine": "Other"})
             self.assertEqual(os.listdir(out), [])
 
     def test_a_redo_on_other_builds_or_samples_is_refused_before_it_runs(self):

@@ -154,6 +154,16 @@ def reader():
     raise RuntimeError(f"no paging counters for {sys.platform}")
 
 
+def stopped(error, stop):
+    """A failed start's sampler stopped; its stop error only noted."""
+    try:
+        stop()
+    except (Exception, SystemExit) as stopping:
+        said = f"bench: the sampler did not stop: {type(stopping).__name__}: {stopping}"
+        print(said)
+        error.add_note(said)
+
+
 class Counted:
     """bench's Paging on macOS and Windows: same calls, these counters."""
 
@@ -164,9 +174,9 @@ class Counted:
         self.sampler = Sampler(path, reader())
         try:
             self.until(lambda taken: taken)
-        except BaseException:
+        except BaseException as error:
             # Started but silent: stopped here; its trace stays.
-            self.sampler.stop()
+            stopped(error, self.sampler.stop)
             raise
 
     def taken(self):
