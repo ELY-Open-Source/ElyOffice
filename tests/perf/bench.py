@@ -245,8 +245,9 @@ def main():
     # Each system's own counters, sampled here (R20.58).
     linux = run.HOST.name == "Linux"
     paging = Paging(os.path.join(work, "vmstat.log")) if linux else counters.Counted(os.path.join(work, "paging.log"))
-    judged = env = keep = None
-    up = True
+    # What the run reached; a failure picks up from it.
+    held = {"judged": None, "keep": None, "traced": False}
+    env, up = None, True
     try:
         if want("PERF-01"):
             for slug in APPS:
@@ -284,7 +285,7 @@ def main():
         # Kept, but left out by --only or --apps.
         if set(args.redo) - cases.ran:
             raise RuntimeError(f"no such case to redo here: {sorted(set(args.redo) - cases.ran)}")
-        judged = paging.judged(cases.windows)
+        judged = held["judged"] = paging.judged(cases.windows)
         env = environment(found, partial)
         if kept:
             env = redone(kept["env"], env, args.redo)
@@ -294,8 +295,9 @@ def main():
         write(args.out, env, *table(cases), args.runs)
         # A void case's evidence stays, --keep or not.
         if args.keep or env["void"]:
-            keep = kept_at(args)
+            keep = held["keep"] = kept_at(args)
             kept_trace(keep, paging)
+            held["traced"] = True
             written(keep, {"env": env, "cases": cases.done})
     except BaseException as failure:
         logs = tempfile.mkdtemp(prefix="ely-bench-failed-")
@@ -305,7 +307,7 @@ def main():
             shutil.copy(log, to)
         print(f"the failed run's logs: {logs}")
         engines = (lambda: stopped_engines(work)) if up else (lambda: None)
-        failed(args, kept, cases, paging, judged, lambda: environment(found, partial), failure, engines)
+        failed(args, kept, cases, paging, held, lambda: environment(found, partial), failure, engines)
         raise failure
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -342,27 +344,32 @@ def stopped_engines(work):
         raise RuntimeError(f"engines outlived the run: {left}")
 
 
-def failed(args, kept, cases, paging, judged, now, failure, engines):
+def failed(args, kept, cases, paging, held, now, failure, engines):
     """After sampling starts, a failure keeps samples and raw results."""
-    keep, known = kept_at(args), {"judged": judged}
+    keep = held["keep"] = held["keep"] or kept_at(args)
 
     def judge():
-        if known["judged"] is None:
-            known["judged"] = paging.judged(cases.windows)
+        if held["judged"] is None:
+            held["judged"] = paging.judged(cases.windows)
 
     def stop():
-        if known["judged"] is None:
+        if held["judged"] is None:
             paging.stop()
+
+    def trace():
+        if not held["traced"]:
+            kept_trace(keep, paging)
+            held["traced"] = True
 
     def raw():
         # A redo always keeps the kept record's void.
         if kept:
-            failed_redo(args, kept, cases, known["judged"], now)
+            failed_redo(args, kept, cases, held["judged"], now)
         else:
             kept_failed(keep, cases, now)
 
     steps = [("the engines did not stop", engines), ("the samples were not judged", judge),
-             ("the sampler did not stop", stop), ("the samples were not kept", lambda: kept_trace(keep, paging)),
+             ("the sampler did not stop", stop), ("the samples were not kept", trace),
              ("the raw results were not kept", raw)]
     for what, step in steps:
         # Shown, and noted on the run's own error.

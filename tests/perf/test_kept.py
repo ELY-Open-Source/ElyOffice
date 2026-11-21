@@ -1,5 +1,8 @@
 """A void or failed run keeps its samples without --keep."""
 
+import contextlib
+import datetime
+import itertools
 import json
 import os
 import re
@@ -36,7 +39,7 @@ class Trace:
 
 
 class Kept(unittest.TestCase):
-    def ran(self, verdict, stopped=None, machine=lambda found, partial: {"date": "2000-01-01", "machine": "Test"}, more=lambda scratch: (), left=()):
+    def ran(self, verdict, stopped=None, machine=lambda found, partial: {"date": "2000-01-01", "machine": "Test"}, more=lambda scratch: (), left=(), patches=()):
         """bench's main, every build and case stubbed; its output."""
         Trace.verdict, Trace.stopped = verdict, stopped
         scratch = tempfile.TemporaryDirectory()
@@ -61,10 +64,13 @@ class Kept(unittest.TestCase):
              unittest.mock.patch.object(bench, "matched", lambda *a: None), \
              unittest.mock.patch.object(bench, "Paging", Trace), \
              unittest.mock.patch("builtins.print", lambda *a, **k: said.append(" ".join(map(str, a)))):
-            try:
-                bench.main()
-            except (SystemExit, RuntimeError) as error:
-                ended = error
+            with contextlib.ExitStack() as stack:
+                for where, name, value in patches:
+                    stack.enter_context(unittest.mock.patch.object(where, name, value))
+                try:
+                    bench.main()
+                except (SystemExit, Exception) as error:
+                    ended = error
         return parent, said, ended
 
     def assert_kept(self, parent, path, void):
@@ -152,6 +158,53 @@ class Kept(unittest.TestCase):
         self.assertIsInstance(ended, RuntimeError)
         self.assertIn("engines outlived the run", str(ended))
         self.assert_kept(parent, self.failed_path(said), [])
+
+    def test_a_redo_on_another_machine_leaves_keep_as_it_was(self):
+        tree = "PERF-06 ely-tree"
+        kept = {"env": {"date": "2000-01-01", "machine": "Test", "void": [tree]}, "cases": {tree: {"rows": []}}}
+        def redo(scratch):
+            self.keep = os.path.join(scratch, "raw.json")
+            with open(self.keep, "w", encoding="utf-8") as raw:
+                json.dump(kept, raw)
+            with open(self.keep, "rb") as raw:
+                self.before = raw.read()
+            return ["--only", "PERF-06", "--keep", self.keep, "--redo", tree]
+        other = lambda found, partial: {"date": "2000-01-02", "machine": "Other"}
+        patches = [(bench.samples, "made", lambda *a: {"repo": ("/repo", "s")}),
+                   (bench, "searched_tree", lambda work, repo, runs: [("PERF-06", "tree", [1], None)])]
+        _, said, ended = self.ran([(tree, True, "")], machine=other, more=redo, patches=patches)
+        self.assertIsInstance(ended, RuntimeError)
+        self.assertIn("same builds, samples and machine", str(ended))
+        self.assertIn(f"bench: the failed run's samples and raw results: {self.keep}", said)
+        with open(self.keep, "rb") as raw:
+            self.assertEqual(raw.read(), self.before, "--keep byte for byte")
+        traces = [name for name in os.listdir(self.scratch) if re.fullmatch(r"raw\.json\.\d{8}T\d{6}\.vmstat", name)]
+        self.assertEqual(len(traces), 1, os.listdir(self.scratch))
+
+    def test_a_record_that_cannot_be_written_keeps_samples_and_results(self):
+        def refused(*a):
+            raise OSError("the record could not be written")
+        parent, said, ended = self.ran([(KEY, True, "")], patches=[(bench, "write", refused)])
+        self.assertIsInstance(ended, OSError)
+        self.assertEqual(str(ended), "the record could not be written")
+        self.assert_kept(parent, self.failed_path(said), [])
+
+    def test_a_trace_copy_or_raw_write_that_fails_once_is_kept_by_the_failure(self):
+        for name in ("kept_trace", "written"):
+            with self.subTest(name):
+                real, calls = getattr(bench, name), []
+                def flaky(*a, real=real, calls=calls):
+                    calls.append(a)
+                    if len(calls) == 1:
+                        raise OSError("a transient write failure")
+                    return real(*a)
+                # A second a call: a second keep path would show.
+                ticks = itertools.count()
+                clock = lambda: datetime.datetime(2026, 11, 21, tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=next(ticks))
+                parent, said, ended = self.ran([(KEY, False, "paged")], patches=[(bench, name, flaky), (bench, "utc", clock)])
+                self.assertIsInstance(ended, OSError)
+                self.assertEqual(str(ended), "a transient write failure")
+                self.assert_kept(parent, self.failed_path(said), [])
 
     def test_a_clean_run_without_keep_leaves_nothing_extra(self):
         parent, said, ended = self.ran([(KEY, True, "")])

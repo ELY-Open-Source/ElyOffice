@@ -366,7 +366,7 @@ class Windows(unittest.TestCase):
                                                path=trace, suffix="vmstat")
                 args = types.SimpleNamespace(out=out, keep=os.path.join(out, "raw.json"), runs=1)
                 with unittest.mock.patch("builtins.print"):
-                    bench.failed(args, kept, cases, paging, None, lambda: {"date": "2000-01-02", "machine": "Test"},
+                    bench.failed(args, kept, cases, paging, {"judged": None, "keep": None, "traced": False}, lambda: {"date": "2000-01-02", "machine": "Test"},
                                  RuntimeError("cycle 264"), lambda: None)
                 with open(args.keep, encoding="utf-8") as raw:
                     saved = json.load(raw)
