@@ -148,7 +148,7 @@ fn a_clicked_local_or_script_link_opens_nothing() {
     let refused = cx.update(|app| Deck::text(app, "office.link.refused", &[]));
     let caret = |app: &gpui::App| deck.read(app).active_tab().is_some_and(|tab| tab.view.read(app).caret());
     let unsafe_links = ["file:///etc/passwd", "vnd.sun.star.script:Standard.Module1.Main?language=Basic&location=document", "macro:///Tools.Misc.Run"];
-    for (at, address) in unsafe_links.into_iter().enumerate() {
+    for address in unsafe_links {
         on_title(&mut cx, &deck, (7900, 0), "");
         settle(&cx, caret);
         kernel(&mut cx, &deck, |worker, doc| worker.run(doc, "edit.select_all", &[]).expect("selects"));
@@ -161,9 +161,11 @@ fn a_clicked_local_or_script_link_opens_nothing() {
         });
         settle(&cx, |app| !caret(app));
         quiet(&cx, &deck);
-        on_title(&mut cx, &deck, (7900, MOD1), "");
         let said = |app: &gpui::App| root.read(app).toasts(app).iter().filter(|(text, _)| *text == refused).count();
-        settle(&cx, |app| said(app) > at);
+        // Toasts leave on the test clock: this click's own.
+        settle(&cx, |app| said(app) == 0);
+        on_title(&mut cx, &deck, (7900, MOD1), "");
+        settle(&cx, |app| said(app) > 0);
         assert_eq!(cx.opened_url(), None, "{address}");
     }
 }
