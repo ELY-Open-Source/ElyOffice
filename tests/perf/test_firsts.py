@@ -94,7 +94,7 @@ class Office(unittest.TestCase):
         with unittest.mock.patch.object(firsts, "opened", lambda slug, path: (100, "0.1.16", 4242)), \
                 unittest.mock.patch.object(firsts, "closed", lambda slug, pid: None), \
                 unittest.mock.patch.object(firsts, "CASES", [("ely-doc", "doc.docx", lambda path: None)]), \
-                unittest.mock.patch.object(firsts.bench, "write", write), \
+                unittest.mock.patch.object(firsts.report, "write", write), \
                 unittest.mock.patch.object(firsts.bench, "machine", lambda: {}), \
                 unittest.mock.patch.object(firsts.drive, "host", lambda work: None), \
                 unittest.mock.patch.object(firsts, "office", broken), \

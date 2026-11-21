@@ -113,6 +113,22 @@ class Counters(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "no counters"):
                 sampler.alive()
 
+    def test_counters_that_start_but_never_sample_are_stopped(self):
+        made = []
+        class Seen(counters.Sampler):
+            def __init__(self, *a):
+                super().__init__(*a)
+                made.append(self)
+        def broken():
+            raise OSError("no counters here")
+        with tempfile.TemporaryDirectory() as work, \
+             unittest.mock.patch("counters.reader", lambda: broken), \
+             unittest.mock.patch("counters.Sampler", Seen):
+            with self.assertRaisesRegex(RuntimeError, "the paging counters failed"):
+                counters.Counted(os.path.join(work, "paging.log"))
+        self.assertTrue(made[0].done.is_set(), "stopped by the failed start")
+        self.assertFalse(made[0].thread.is_alive())
+
     @unittest.skipUnless(sys.platform in ("darwin", "win32"), "the live counters are macOS's and Windows'")
     def test_this_system_samples_each_second(self):
         with tempfile.TemporaryDirectory() as work:

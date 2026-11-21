@@ -12,6 +12,7 @@ import unittest
 import unittest.mock
 
 import bench
+import report
 import cycles
 import drive
 import feedback
@@ -212,7 +213,7 @@ class Verdicts(unittest.TestCase):
                 ("PERF-07", "ElyMark past it", [100], 401.0)]
         held = [("ely-mark", (120.0, 50, (1,)), [(121.0, 50, (1,))])]
         with tempfile.TemporaryDirectory() as out:
-            bench.write(out, env, rows, held, 1)
+            report.write(out, env, rows, held, 1)
             with open(os.path.join(out, "2000-01-01-Test.md"), encoding="utf-8") as record:
                 text = record.read()
         self.assertIn("| ElyMark at the budget | 1 | 100 | 100 ✓ | 2000 | 400 ✓ | 400 |", text)
@@ -224,7 +225,7 @@ class Verdicts(unittest.TestCase):
         rows = [("PERF-02", "ElyMail timers late >100 ms while starved: 1 times", [601], None),
                 ("PERF-02", "ElyMail key to frame", [601], None)]
         with tempfile.TemporaryDirectory() as out:
-            bench.write(out, env, rows, [], 1)
+            report.write(out, env, rows, [], 1)
             with open(os.path.join(out, "2000-01-01-Test.md"), encoding="utf-8") as record:
                 text = record.read()
         self.assertIn("| ElyMail timers late >100 ms while starved: 1 times | 1 | 601 | 601 | 100 |", text)
@@ -365,9 +366,11 @@ class Windows(unittest.TestCase):
                 paging = types.SimpleNamespace(judged=lambda windows: [(key, a_counts, "") for key, _, _ in windows],
                                                path=trace, suffix="vmstat")
                 args = types.SimpleNamespace(out=out, keep=os.path.join(out, "raw.json"), runs=1)
-                with unittest.mock.patch("builtins.print"):
-                    bench.failed(args, kept, cases, paging, {"judged": None, "keep": None, "traced": False}, lambda: {"date": "2000-01-02", "machine": "Test"},
-                                 RuntimeError("cycle 264"), lambda: None)
+                held = {"judged": None, "keep": None, "traced": False, "stranded": False, "trace": (trace, "vmstat")}
+                # The failure's log copy lands in this test's folder.
+                with unittest.mock.patch("builtins.print"), unittest.mock.patch.object(tempfile, "tempdir", work):
+                    bench.failed(args, kept, cases, paging, held, lambda: {"date": "2000-01-02", "machine": "Test"},
+                                 RuntimeError("cycle 264"), lambda: None, work)
                 with open(args.keep, encoding="utf-8") as raw:
                     saved = json.load(raw)
                 with open(os.path.join(out, "2000-01-01-Test.md"), encoding="utf-8") as record:

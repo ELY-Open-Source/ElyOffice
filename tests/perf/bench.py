@@ -14,7 +14,6 @@ import sys
 import tempfile
 import time
 
-import baseline
 import counters
 import cycles
 import drive
@@ -24,14 +23,9 @@ import search
 import sheets
 import feedback
 import judge
+from report import write
 
-from run import APPS, App, percentile
-
-TARGETS = {"PERF-01": 3000, "PERF-02": 100, "PERF-03": 5000, "PERF-04": 5000,
-           "PERF-05": 3000, "PERF-06": 1000, "PERF-07": 2000}
-# Total memory budgets, MB, at the opening mark (H-02).
-BUDGETS = {"PERF-07": 400}
-
+from run import APPS, App
 
 def opened(slug, home, sample, marks, runs):
     """Spawn with a file until `marks` all appear, in order."""
@@ -116,7 +110,12 @@ class Paging:
         self.path = path
         with open(path, "w", encoding="utf-8") as trace:
             self.process = subprocess.Popen(["vmstat", "-n", "-t", str(int(judge.INTERVAL.total_seconds()))], stdout=trace, env=dict(os.environ, TZ="UTC"))
-        self.until(lambda taken: taken)
+        try:
+            self.until(lambda taken: taken)
+        except BaseException:
+            # Started but silent: stopped here; its trace stays.
+            self.stop()
+            raise
 
     def taken(self):
         with open(self.path, encoding="utf-8") as trace:
@@ -244,11 +243,14 @@ def main():
         matched(kept["env"], built(), found)
     # Each system's own counters, sampled here (R20.58).
     linux = run.HOST.name == "Linux"
-    paging = Paging(os.path.join(work, "vmstat.log")) if linux else counters.Counted(os.path.join(work, "paging.log"))
+    sampler, trace = (Paging, "vmstat.log") if linux else (counters.Counted, "paging.log")
     # What the run reached; a failure picks up from it.
-    held = {"judged": None, "keep": None, "traced": False}
-    env, up = None, True
+    held = {"judged": None, "keep": None, "traced": False, "stranded": False,
+            "trace": (os.path.join(work, trace), sampler.suffix)}
+    paging, env, up = None, None, True
     try:
+        # A sampler that fails to start stops itself first.
+        paging = sampler(held["trace"][0])
         if want("PERF-01"):
             for slug in APPS:
                 cases.run(f"PERF-01 {slug}", lambda _, slug=slug: started(work, slug, args.runs))
@@ -296,21 +298,17 @@ def main():
         # A void case's evidence stays, --keep or not.
         if args.keep or env["void"]:
             keep = held["keep"] = kept_at(args)
-            kept_trace(keep, paging)
+            kept_trace(keep, held["trace"])
             held["traced"] = True
             written(keep, {"env": env, "cases": cases.done})
     except BaseException as failure:
-        logs = tempfile.mkdtemp(prefix="ely-bench-failed-")
-        for log in glob.glob(os.path.join(work, "**", "*.log"), recursive=True):
-            to = os.path.join(logs, os.path.relpath(log, work))
-            os.makedirs(os.path.dirname(to), exist_ok=True)
-            shutil.copy(log, to)
-        print(f"the failed run's logs: {logs}")
         engines = (lambda: stopped_engines(work)) if up else (lambda: None)
-        failed(args, kept, cases, paging, held, lambda: environment(found, partial), failure, engines)
+        failed(args, kept, cases, paging, held, lambda: environment(found, partial), failure, engines, work)
         raise failure
     finally:
-        shutil.rmtree(work, ignore_errors=True)
+        # Nothing else holds the evidence then.
+        if not held["stranded"]:
+            shutil.rmtree(work, ignore_errors=True)
     if env["void"]:
         sys.exit(f"bench: timed while the machine paged, redo: {env['void']}; samples and raw results: {keep}")
 
@@ -344,32 +342,43 @@ def stopped_engines(work):
         raise RuntimeError(f"engines outlived the run: {left}")
 
 
-def failed(args, kept, cases, paging, held, now, failure, engines):
-    """After sampling starts, a failure keeps samples and raw results."""
-    keep = held["keep"] = held["keep"] or kept_at(args)
+def failed(args, kept, cases, paging, held, now, failure, engines, work):
+    """From sampling's start, a failure keeps samples and raw results."""
+
+    def choose():
+        held["keep"] = held["keep"] or kept_at(args)
 
     def judge():
-        if held["judged"] is None:
+        if held["judged"] is None and paging:
             held["judged"] = paging.judged(cases.windows)
 
     def stop():
-        if held["judged"] is None:
+        if held["judged"] is None and paging:
             paging.stop()
 
+    def logs():
+        copied = tempfile.mkdtemp(prefix="ely-bench-failed-")
+        for log in glob.glob(os.path.join(work, "**", "*.log"), recursive=True):
+            to = os.path.join(copied, os.path.relpath(log, work))
+            os.makedirs(os.path.dirname(to), exist_ok=True)
+            shutil.copy(log, to)
+        print(f"the failed run's logs: {copied}")
+
     def trace():
-        if not held["traced"]:
-            kept_trace(keep, paging)
+        if held["keep"] and not held["traced"]:
+            kept_trace(held["keep"], held["trace"])
             held["traced"] = True
 
     def raw():
         # A redo always keeps the kept record's void.
         if kept:
             failed_redo(args, kept, cases, held["judged"], now)
-        else:
-            kept_failed(keep, cases, now)
+        elif held["keep"]:
+            kept_failed(held["keep"], cases, now)
 
-    steps = [("the engines did not stop", engines), ("the samples were not judged", judge),
-             ("the sampler did not stop", stop), ("the samples were not kept", trace),
+    steps = [("no folder could hold the evidence", choose), ("the engines did not stop", engines),
+             ("the samples were not judged", judge), ("the sampler did not stop", stop),
+             ("the logs were not copied", logs), ("the samples were not kept", trace),
              ("the raw results were not kept", raw)]
     for what, step in steps:
         # Shown, and noted on the run's own error.
@@ -379,7 +388,13 @@ def failed(args, kept, cases, paging, held, now, failure, engines):
             said = f"bench: {what}: {type(error).__name__}: {error}"
             print(said)
             failure.add_note(said)
-    print(f"bench: the failed run's samples and raw results: {keep}")
+    if held["keep"] is None:
+        held["stranded"] = True
+        said = f"bench: nothing could be kept; the work folder stays: {work}"
+        print(said)
+        failure.add_note(said)
+    else:
+        print(f"bench: the failed run's samples and raw results: {held['keep']}")
 
 
 def kept_failed(keep, cases, now):
@@ -401,9 +416,10 @@ def written(path, raw):
     os.replace(part, path)
 
 
-def kept_trace(keep, paging):
+def kept_trace(keep, trace):
     """The paging samples beside --keep, as the record rules ask."""
-    shutil.copy(paging.path, f"{keep}.{utc():%Y%m%dT%H%M%S}.{paging.suffix}")
+    path, suffix = trace
+    shutil.copy(path, f"{keep}.{utc():%Y%m%dT%H%M%S}.{suffix}")
 
 
 def failed_redo(args, kept, cases, judged, now):
@@ -450,44 +466,6 @@ def redone(before, now, redo):
     if same(before) != same(now):
         raise RuntimeError("--redo needs the same builds, samples and machine as the kept run")
     return {**before, "rerun": {**before.get("rerun", {}), **{key: stamp(utc()) for key in redo}}}
-
-
-def write(out, env, rows, held, runs):
-    os.makedirs(out, exist_ok=True)
-    kind = f"-{env['kind']}" if env.get("kind") else ""
-    path = os.path.join(out, f"{env['date']}-{env['machine']}{kind}{'-partial' if env.get('partial') else ''}.md")
-    lines = [f"# Benchmark {env['date']}", "", "Format: docs/perf/README.md.", "", "```json",
-             json.dumps(env, indent=2), "```", "",
-             "| PERF | Case | Runs | P50 ms | P95 ms | Target ms | Resident MB | Budget MB |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
-    for perf, case, times, memory in rows:
-        target = TARGETS.get(perf)
-        p95 = percentile(times, 0.95)
-        # Counts, not times: stalls and starved timers.
-        counted = "busy" in case or "starved" in case
-        verdict = "" if target is None or counted else (" ✓" if p95 <= target else " ✗")
-        budget = BUDGETS.get(perf) if memory is not None else None
-        within = "" if budget is None else (" ✓" if memory <= budget else " ✗")
-        mem = "" if memory is None else f"{memory:.0f}{within}"
-        lines.append(f"| {perf} | {case} | {len(times)} | {percentile(times, 0.5):.0f} | {p95:.0f}{verdict} | "
-                     f"{target or ''} | {mem} | {budget or ''} |")
-    for slug, (memory, handles, live), seen in held:
-        lines += ["", f"PERF-08, {APPS[slug]} opening and closing a document {len(seen)} times "
-                  "(private memory MB, swapped included / handles / live documents):", "",
-                  f"before: {memory:.0f}/{handles}/{','.join(map(str, live))}", "",
-                  " ".join(f"{memory:.0f}/{handles}/{','.join(map(str, live))}" for memory, handles, live in seen)]
-    lines += ["", "PERF-09 (Agent sessions) belongs to the second release.", ""]
-    with open(path, "w", encoding="utf-8", newline="\n") as record:
-        record.write("\n".join(lines))
-    # Each wants its reason before a release (baseline.py).
-    record = baseline.read(path)
-    last = None if env.get("partial") else baseline.before(baseline.records(out), record)
-    found = baseline.slower(last, record) if last else []
-    if found:
-        with open(path, "a", encoding="utf-8", newline="\n") as record:
-            record.write("\n".join([baseline.HEAD, "", *baseline.lines(found), ""]))
-    print(path)
-    return path
 
 
 if __name__ == "__main__":

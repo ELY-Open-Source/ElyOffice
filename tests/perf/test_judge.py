@@ -9,6 +9,7 @@ import unittest.mock
 
 import baseline
 import bench
+import report
 import judge
 
 
@@ -64,7 +65,7 @@ class Paged(unittest.TestCase):
                     file.write("\n".join(lines) + "\n")
             env = {"date": "2000-01-01", "machine": "Test-Linux", "version": "9.9"}
             with unittest.mock.patch("builtins.print"):
-                record = bench.write(out, env, [("PERF-01", "ElyDoc first run", [100], None)], [], 1)
+                record = report.write(out, env, [("PERF-01", "ElyDoc first run", [100], None)], [], 1)
             logs = [os.path.join(out, name) for name in files]
             with unittest.mock.patch("builtins.print"), unittest.mock.patch.object(sys, "argv", ["judge.py", *logs, "--record", record]):
                 judge.main()
@@ -99,7 +100,7 @@ class Paged(unittest.TestCase):
             with tempfile.TemporaryDirectory() as out:
                 env = {"date": "2000-01-01", "machine": "Test-Linux", "version": "9.9", "void": void}
                 with unittest.mock.patch("builtins.print"):
-                    bench.write(out, env, rows, [], 1)
+                    report.write(out, env, rows, [], 1)
                 self.assertIn(said, baseline.check(out, "9.9", "linux"))
 
     @unittest.skipUnless(sys.platform == "linux", "vmstat is Linux only")

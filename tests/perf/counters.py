@@ -132,7 +132,12 @@ class Counted:
     def __init__(self, path):
         self.path = path
         self.sampler = Sampler(path, reader())
-        self.until(lambda taken: taken)
+        try:
+            self.until(lambda taken: taken)
+        except BaseException:
+            # Started but silent: stopped here; its trace stays.
+            self.sampler.stop()
+            raise
 
     def taken(self):
         return list(self.sampler.samples)

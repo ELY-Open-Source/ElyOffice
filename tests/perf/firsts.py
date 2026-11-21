@@ -13,6 +13,7 @@ import tempfile
 import time
 
 import bench
+import report
 import child
 import drive
 import loadfiles
@@ -206,7 +207,7 @@ def main():
         if len(versions) != 1:
             sys.exit(f"firsts: the installed apps are of versions {sorted(versions)}")
         env = {**bench.machine(), "version": versions.pop(), "kind": args.when}
-        record = bench.write(args.out, env, rows, [], 1)
+        record = report.write(args.out, env, rows, [], 1)
         if sys.platform == "win32":
             compare(work, record)
     finally:
