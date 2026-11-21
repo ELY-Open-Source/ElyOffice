@@ -20,6 +20,11 @@ case $(uname -s) in
 esac
 export ELY_LOK_WORKER=$bins/ely-lok-worker$exe ELY_PDF_WORKER=$bins/ely-pdf-worker$exe
 cargo test --workspace
+# vendor's crates, this host's gpui among them.
+case $(uname -s) in
+  Linux) dbus-run-session -- tests/scripts/vendor-tests.sh ;;
+  *) tests/scripts/vendor-tests.sh ;;
+esac
 
 # Idle engines: ten minutes, no CPU, memory as recorded.
 cargo build -p ely-doc -p ely-table -p ely-show
