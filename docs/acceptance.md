@@ -243,12 +243,12 @@ R15.24：R15 的九十条逐条核对，2026-11-19 据 b72d8e35 写成，读每�
 
 ## R20 与收尾时仍开着的条目
 
-R20.47：R20.1 至 R20.104 逐条核对，另列暂缓的 C15（ElyAgent，用户 2026-11-19 定）与仍开着的 C20.2、C22.2、C23.1、R19.2、R19.3、R19.5、R19.6、R19.9，及 C24.1。2026-11-19 据 a7c92b66 写成，2026-11-20 据 5cf06502 补 R20.48 至 R20.64、重写已结束的各条，读每条的全文与其各轮审查；不少条目仍在进行，随其结束重写，末次在最后一条结束时。“过审”即 `[x]` 且末轮审查 PASS，“未完”为 `[!]`，“进行中”为 `[ ]`，“暂缓”为用户定的暂停；“延后”为仍开着、用户定不随 0.1.17 发布的条目，不算缺做。证据列该条为此所加、今日树里仍在的回归测试（带测试属性的函数，如 `#[test]`、`#[gpui::test]`、`#[tokio::test]`，或 `tests/perf` 的 `def test_`，至多两个）或测试文件与脚本，再列已入库的末轮审查；审查结论尚未入库的照写“尚未入库”。“未验证或余下”照该条最后的写法与末轮审查所记。本表不重跑测试。2026-11-21 据 eb02883f 再写一次：加“末次提交”一列（至 eb02883f 为止，提交说明冒号前点名该编号的最后一个，没有则是该条那一行的 `git blame`；写下本节的提交所点名的条目（这一次是 R20.104）写“本提交”：表写不进写它的那个提交的散列），R20.65 至 R20.104 补入；所引测试、路径与审查结论由脚本逐个核对。仍开着的条目在“余下”一列写明为何不随 0.1.17 关闭，取自各条自己的行。
+R20.47：R20.1 至 R20.104 逐条核对，另列暂缓的 C15（ElyAgent，用户 2026-11-19 定）与仍开着的 C20.2、C22.2、C23.1、R19.2、R19.3、R19.5、R19.6、R19.9，及 C24.1。2026-11-19 据 a7c92b66 写成，2026-11-20 据 5cf06502 补 R20.48 至 R20.64、重写已结束的各条，读每条的全文与其各轮审查；不少条目仍在进行，随其结束重写，末次在最后一条结束时。“过审”即 `[x]` 且末轮审查 PASS，“未完”为 `[!]`，“进行中”为 `[ ]`，“暂缓”为用户定的暂停；“延后”为仍开着、用户定不随 0.1.17 发布的条目，不算缺做。证据列该条为此所加、今日树里仍在的回归测试（带测试属性的函数，如 `#[test]`、`#[gpui::test]`、`#[tokio::test]`，或 `tests/perf` 的 `def test_`，至多两个）或测试文件与脚本，再列已入库的末轮审查；审查结论尚未入库的照写“尚未入库”。“未验证或余下”照该条最后的写法与末轮审查所记。本表不重跑测试。2026-11-21 据 8f7205c9 再写一次：加“末次提交”一列（至 8f7205c9 为止，提交说明冒号前点名该编号的最后一个，没有则是该条那一行的 `git blame`；写下本节的提交所点名的条目（这一次是 R20.104）写“本提交”：表写不进写它的那个提交的散列），R20.65 至 R20.104 补入；所引测试、路径与审查结论由脚本逐个核对。仍开着的条目在“余下”一列写明为何不随 0.1.17 关闭，取自各条自己的行。
 
 | 编号 | 状态 | 事 | 证据 | 末次提交 | 未验证或余下 |
 | --- | --- | --- | --- | --- | --- |
 | R20.1 | 过审 | Windows 带符号内核，只供采样 | 建造任务无测试；`tasks/reviews/R20.1-r2.md` PASS | d6972592 | — |
-| R20.2 | 过审 | Windows arm64：不做 | 无审查：用户 2026-11-16 定 Linux、Windows 都不出 ARM | e25e7b2d | — |
+| R20.2 | 过审 | Windows arm64：不做 | 无审查 | e25e7b2d | —（用户 2026-11-16 定 Linux、Windows 都不出 ARM） |
 | R20.3 | 过审 | 文字与样式混合判定（补丁 0135，字号框） | `a_size_turned_mixed_shows_its_hint_not_the_old_size`、`half_raised_text_reads_mixed_and_all_raised_reads_on`；`tasks/reviews/R20.3-r3.md` PASS | 5ad75371 | macOS 共享内核 4ce869dd（R20.26，0001–0145）上门过（`format::mixed` 三条与 ElyDoc 的混合判定）；Windows lo-sym 258dcf4d（R20.26，0001–0145，测试机 7877）上 `format::mixed` 诸条过 |
 | R20.4 | 过审 | 演示输出与检查的请求代次 | `a_check_asked_after_a_waiting_output_wins`；`tasks/reviews/R20.4-r1.md` PASS | 9aedcd76 | 审查未跑 Windows、macOS |
 | R20.5 | 过审 | ElyShow 热启动，首次缺字体读名字表 | `the_start_check_reads_every_font_s_other_names`（只 Windows、macOS 编）；`tasks/reviews/R20.5-r1.md` PASS | 17ca9d04 | —（R20.26 以装好的 0.1.17 在测试机上热测：PowerPoint 1,313 对 ElyShow 779，五次中位；先前 723 对 1,231 是开发构建、带符号内核量的） |
@@ -270,18 +270,18 @@ R20.47：R20.1 至 R20.104 逐条核对，另列暂缓的 C15（ElyAgent，用�
 | R20.21 | 过审 | ElyMark 公式：vendor 修过的 pulldown-cmark | 组件库 `a_link_around_a_footnote_reference_stays_a_link`、`a_note_in_a_markdown_link_frees_the_math_after_it`；`tasks/reviews/R20.21-r3.md` PASS | 3545ab8f | — |
 | R20.22 | 过审 | ElyMark 设置里的文档字号（带重置） | 行内未点名测试；`tasks/reviews/R20.22-r2.md` PASS | d8afbf71 | — |
 | R20.23 | 过审 | ElyMark 搜索结果里的目录可展开 | `a_folder_the_filter_finds_opens_to_its_files`；`tasks/reviews/R20.23-r3.md` PASS | c43d2a05 | — |
-| R20.24 | 未完 | 组件库三个重名的包在 crates.io 换名 | 无审查（无令牌，未做） | c5e2f379 | 本机无 crates.io 令牌；换名不可撤回，等用户给令牌后单做 |
+| R20.24 | 未完 | 组件库三个重名的包在 crates.io 换名 | 无审查 | c5e2f379 | 本机无 crates.io 令牌；换名不可撤回，等用户给令牌后单做 |
 | R20.25 | 过审 | #89 S3 与 WebDAV：不做，关闭议题 | 用户定不做，无测试；`tasks/reviews/R20.25-r1.md` PASS | f10865e7 | — |
-| R20.26 | 进行中 | 三台机器重建内核，量三处慢 | `tests/perf/test_firsts.py`；无审查（进行中） | 31319fe1 | 进行中：三端内核已重建（Linux 04023855、Mac 1c8c756c、Windows lo-src d128762f）；Windows 0.1.17 装完、重启、热测已写入 `SuperFast.md`，装完、重启两份记录入库，比 0.1.16 无一慢过三成；热测第 0 次是冷开（`firsts.py` 按映像名关应用，连引擎一起杀），已改按 pid 关、在重量；R20.12 的拒因在 Windows 整组十遍未复现 |
+| R20.26 | 进行中 | 三台机器重建内核，量三处慢 | `tests/perf/test_firsts.py`；无审查 | 31319fe1 | 进行中：三端内核已重建（Linux 04023855、Mac 1c8c756c、Windows lo-src d128762f）；Windows 0.1.17 装完、重启、热测已写入 `SuperFast.md`，装完、重启两份记录入库，比 0.1.16 无一慢过三成；热测第 0 次是冷开（`firsts.py` 按映像名关应用，连引擎一起杀），已改按 pid 关、在重量；R20.12 的拒因在 Windows 整组十遍未复现 |
 | R20.27 | 过审 | #14 换版式后的灰色箭头：复现矩阵与定性 | 复现矩阵，无回归测试；`tasks/reviews/R20.27-r2.md` PASS | b2cacd18 | 定为主题自带的项目符号，不是缺陷；报告者的文件或截图未到；议题回复拟文未发 |
 | R20.28 | 未完 | R18.30 性能基线复审与 Linux 重跑 | `tests/perf/test_bench.py` 的 `test_a_failed_redo_keeps_what_it_finished_and_leaves_the_rest_void`、`test_a_failed_redo_on_another_machine_keeps_nothing`；`tasks/reviews/R20.28-r3.md` FAIL | a558a518 | 失败的 `--redo` 不存换页记录、点名不存在的项报得晚，两项另立 R20.85（已勾，7374b3f3）、R20.86（已勾，7374b3f3）；Linux 0.1.17 不再量（用户 2026-11-20 定），入库为局部记录，门与比较都不认；PERF-08 句柄检查已改为重读至多 5 秒，未在真跑里验过 |
-| R20.29 | 未完 | `waits.py` 的判定复审，发布测试连跑十次 | `tests/scripts/waits.py`（自带样例）；`tasks/reviews/R20.29-r3.md` FAIL；其后 98906e9a 未审；其后 98906e9a 未审 | 98906e9a | 发布测试本机连跑十次等机器空闲 |
-| R20.30 | 进行中 | 首个统一发布 0.1.17 | `tests/scripts/release-gate.sh`；无审查（进行中） | eabf59a5 | 进行中：未打标签、未建发布；Windows 0.1.17 的装后首开与重启后首开记录已入库，Windows 基准的重跑记录待入库（约 08:30 UTC）；Linux、macOS 沿用 0.1.16 的基准记录（用户 2026-11-20 定） |
+| R20.29 | 未完 | `waits.py` 的判定复审，发布测试连跑十次 | `tests/scripts/waits.py`（自带样例）；`tasks/reviews/R20.29-r3.md` FAIL；其后 98906e9a 未审 | 98906e9a | 发布测试本机连跑十次等机器空闲 |
+| R20.30 | 进行中 | 首个统一发布 0.1.17 | `tests/scripts/release-gate.sh`；无审查 | eabf59a5 | 进行中：未打标签、未建发布；Windows 0.1.17 的装后首开与重启后首开记录已入库，Windows 基准的重跑记录待入库（约 08:30 UTC）；Linux、macOS 沿用 0.1.16 的基准记录（用户 2026-11-20 定） |
 | R20.31 | 未完 | #16 WinGet 交统一包 `ZacharyZhang.ElyOffice` | 无测试；`tasks/reviews/R20.31-r1.md` PASS | 8ae6ac68 | 七个旧 PR 已关；等 R20.30 发布后交统一清单、在 #16 答复，收录后 README 写安装与升级命令 |
 | R20.32 | 过审 | ElyShow 拖动对象的智能参考线与吸附 | `a_drag_whose_read_went_stale_drops_nothing`、`crates/ely-lok/src/client/tests/carry.rs`；`tasks/reviews/R20.32-r2.md` PASS | 9e447262 | macOS 共享内核 4ce869dd（R20.26，0001–0145）上过（ElyShow `tests::carry` 两条、内核 `carry` 一条）；Windows lo-sym 258dcf4d（R20.26，0001–0145，测试机 7877）上 ElyShow `tests::carry` 两条、内核 `carry` 过 |
 | R20.33 | 未完 | 外部三维区域逐表读与链接核对（补丁 0141） | `a_range_follows_its_named_ends_when_sheets_move`、`crates/ely-lok/src/client/tests/spanned.rs`；`tasks/reviews/R20.33-r3.md` FAIL | 9ff252a3 | 存为 ODS 再开，直接写的外部三维区域成 `#REF!`，更新后仍是，原因未查，缺回归；三端内核已由 R20.26 重建，本条在 Windows 上未跑 |
-| R20.34 | 未完 | Shell 注释：here-doc 结束词与 `$'…'` 的 Bash 规则 | 组件库 `crates/ely-core/src/forms/shell/tests.rs`、`crates/ely-core/src/forms/shell/tests/braces.rs`（语料）；`tasks/reviews/R20.34-r3.md` FAIL；其后 1868d1cc 未审；其后 1868d1cc 未审 | 1868d1cc | 余三项：`${x:-'…'}` 单引号组里的反斜杠照字面；双引号里 `${x:-…}` 的反斜杠照 `SX_STRIPDQ` 成对；`defaulted` 找下标的 `]` 要越过引号与展开；修法已进 pin 8d7723ec（1868d1cc） |
-| R20.35 | 未完 | ElyMark 与写信对内嵌 HTML 的分行与短代码 | ElyMail `an_ancestor_s_end_closes_pre_as_the_composer_reads_it`、组件库 `what_a_browser_hides_draws_nothing`；`tasks/reviews/R20.35-r3.md` FAIL；其后 1868d1cc 未审；其后 1868d1cc 未审 | 1868d1cc | 余下的一项（行尾只剩 `hidden` 的单元格仍补制表符）移交 R20.56（已勾，dfd69c97），于组件库 3a7f960b 修 |
+| R20.34 | 未完 | Shell 注释：here-doc 结束词与 `$'…'` 的 Bash 规则 | 组件库 `crates/ely-core/src/forms/shell/tests.rs`、`crates/ely-core/src/forms/shell/tests/braces.rs`（语料）；`tasks/reviews/R20.34-r3.md` FAIL；其后 1868d1cc 未审 | 1868d1cc | 余三项：`${x:-'…'}` 单引号组里的反斜杠照字面；双引号里 `${x:-…}` 的反斜杠照 `SX_STRIPDQ` 成对；`defaulted` 找下标的 `]` 要越过引号与展开；修法已进 pin 8d7723ec（1868d1cc） |
+| R20.35 | 未完 | ElyMark 与写信对内嵌 HTML 的分行与短代码 | ElyMail `an_ancestor_s_end_closes_pre_as_the_composer_reads_it`、组件库 `what_a_browser_hides_draws_nothing`；`tasks/reviews/R20.35-r3.md` FAIL；其后 1868d1cc 未审 | 1868d1cc | 余下的一项（行尾只剩 `hidden` 的单元格仍补制表符）移交 R20.56（已勾，dfd69c97），于组件库 3a7f960b 修 |
 | R20.36 | 过审 | ElyShow 拖动时对象轮廓跟着指针走 | `apps/ely-show/src/tests/carry.rs`；`tasks/reviews/R20.36-r1.md` PASS | c7a9fb68 | —（修法在 R20.32（已勾，26f0fb34）；macOS 4ce869dd、Windows lo-sym 258dcf4d 上真拖动两条都过） |
 | R20.37 | 过审 | ElyShow 插入形状后点别处多出形状（补丁 0142） | `crates/ely-lok/src/client/tests/inserted.rs`；`tasks/reviews/R20.37-r1.md` PASS | b0301163 | 三端内核已由 R20.26 重建到 0001–0145；本条的测试在 Windows、macOS 上未跑 |
 | R20.38 | 过审 | 缺失的中文字体回退到装饰字体（补丁 0143） | `crates/ely-lok/src/client/tests/fallback.rs`、`a_missing_font_logs_what_drew_it_and_why`；`tasks/reviews/R20.38-r2.md` PASS | 1e3ed14c | macOS 共享内核 4ce869dd（R20.26，0001–0145）上两条过：缺失的黑体、宋体取到同类，日志的原因为 zh-CN sans list、zh-CN text list；Windows lo-sym 258dcf4d（R20.26，0001–0145，测试机 7877）上两条过 |
@@ -297,72 +297,72 @@ R20.47：R20.1 至 R20.104 逐条核对，另列暂缓的 C15（ElyAgent，用�
 | R20.48 | 过审 | ElyDoc 关闭不等 worker 锁的测试改按因果判 | `closing_a_clean_tab_never_waits_for_the_worker`、`docs_build_while_the_engine_holds_its_lock`；`tasks/reviews/R20.48-r1.md` PASS | 758500b0 | 只在 Linux 满载下连跑；Windows 上的旧失败本机未复现 |
 | R20.49 | 过审 | ElyShow 编辑文本时 Ctrl+Z 撤销键入（照 R19.3 的路） | `undo_and_redo_work_inside_a_slide_text_edit`、`the_undo_keys_step_through_typing_inside_a_text_box`；`tasks/reviews/R20.49-r1.md` PASS | 8c8ba466 | Windows 未跑（Linux 04023855、Mac 1c8c756c 过） |
 | R20.50 | 过审 | 恶意 .pptx 的脚本链接使存 ODF 时 worker 崩溃（补丁 0146） | `crates/ely-lok/src/client/tests/scripted.rs`（夹具 `tests/fixtures/show/script-link.pptx`）；`tasks/reviews/R20.50-r1.md` PASS | 945e24b3 | 门已核补丁序列：R20.60（已勾，275c9e2a）使 `scripts/ci.sh` 在发布测试前跑 `apply-lo-patches.sh --check`；只核源码，不证内核在末一个补丁之后重链过，另立 R20.89；各机内核已重建带上 |
-| R20.51 | 进行中 | 宏链接绕过 Ely 的拦截：查明是内核的哪道检查 | `a_macro_link_the_kernel_opens_itself_never_runs`（`crates/ely-lok/src/client/tests/opendoc.rs`）；`tasks/reviews/R20.51-r1.md` PASS（只及回归测试） | 85076ef1 | 0.1.17：根治在补丁 0148，已在 Linux 重链验过、未入库；新内核补丁须三端重建共享引擎，定在 0.1.17 发布后入库；本条待 0148 入库再勾，余下两处提示另立 R20.77、R20.78 |
+| R20.51 | 进行中 | 宏链接绕过 Ely 的拦截：查明是内核的哪道检查 | `a_macro_link_the_kernel_opens_itself_never_runs`（`crates/ely-lok/src/client/tests/opendoc.rs`）；`tasks/reviews/R20.51-r1.md` PASS | 85076ef1 | 0.1.17：根治在补丁 0148，已在 Linux 重链验过、未入库；新内核补丁须三端重建共享引擎，定在 0.1.17 发布后入库；本条待 0148 入库再勾，余下两处提示另立 R20.77、R20.78 |
 | R20.52 | 过审 | 放映中旋转、斜切与线类形状的链接照内核的存法定位 | `turned_sheared_and_line_links_cover_what_the_kernel_draws`、`a_click_two_pixels_from_a_line_follows_it`；`tasks/reviews/R20.52-r1.md` PASS | 787bafdb | Windows 未跑（Linux 04023855、Mac 1c8c756c 过） |
 | R20.53 | 过审 | 每个应用交给系统打开的链接都过同一道门 | `a_raw_pptx_address_goes_out_encoded`、`every_address_sent_makes_an_nsurl`；`tasks/reviews/R20.53-r2.md` PASS | 50df14ed | Windows 未跑（随 R20.67 的时段） |
-| R20.54 | 延后 | ElyDoc 长段落键入时 worker 内存只涨（内核两个文字缓存以整段为键） | 无审查（补丁仍是草稿，回归未入库） | 6a478998 | 0.1.17：用户 2026-11-19 定不带它，列为已知问题；两版补丁草稿都把 20 万字一段的键入到帧拖慢数十倍（23 → 3,624 毫秒），根因未明；须进补丁序列、三端内核重建、回归入库 |
+| R20.54 | 延后 | ElyDoc 长段落键入时 worker 内存只涨（内核两个文字缓存以整段为键） | 无审查 | 6a478998 | 0.1.17：用户 2026-11-19 定不带它，列为已知问题；两版补丁草稿都把 20 万字一段的键入到帧拖慢数十倍（23 → 3,624 毫秒），根因未明；须进补丁序列、三端内核重建、回归入库 |
 | R20.55 | 过审 | 带内核的测试写了用户的数据文件夹；ElyDoc 字数读拿着标签 | `without_a_test_root_the_data_folder_fails`、`a_word_count_in_flight_follows_its_tab`；`tasks/reviews/R20.55-r2.md` PASS | 0668c8af | ElyShow、ElyTable 的同一问题另立 R20.61（已勾，bff46e6a） |
 | R20.56 | 过审 | HTML 块里行尾的隐藏单元格不欠制表符 | 组件库 `hidden_cells_owe_no_tab`；`tasks/reviews/R20.56-r1.md` PASS | dfd69c97 | — |
 | R20.57 | 过审 | `panics.py` 给自己的 clippy 设 `CARGO_CHECK_SHARED_DEPS=0` | `tests/scripts/panics-rules.sh`；`tasks/reviews/R20.57-r2.md` PASS | 716807dc | — |
 | R20.58 | 未完 | 判增长按私有内存，换出的也算 | `tests/perf/test_bench.py`；`tasks/reviews/R20.58-r3.md` FAIL | b50eef1a | 余两项另立：PDH 的数据状态为 R20.81（已勾，7e38f5b4）、macOS 的 footprint 出处为 R20.82（已勾，d455e9e6） |
-| R20.59 | 进行中 | ElyDoc 长段落键入慢 | 无审查（未做） | 45d0ddf9 | 0.1.17：未做（拆每键的时间、找根因、各端实测）；原定在 R20.54 的补丁上量，R20.54 不随 0.1.17 |
+| R20.59 | 进行中 | ElyDoc 长段落键入慢 | 无审查 | 45d0ddf9 | 0.1.17：未做（拆每键的时间、找根因、各端实测）；原定在 R20.54 的补丁上量，R20.54 不随 0.1.17 |
 | R20.60 | 过审 | 发布机用共享引擎时不核补丁序列 | `tests/scripts/lo-series.sh`、`tests/scripts/ci-share.sh`；`tasks/reviews/R20.60-r1.md` PASS | 275c9e2a | —；限度（核的是源码，不证 instdir 在最后一个补丁后重链过）另立 R20.89 |
 | R20.61 | 过审 | ElyShow、ElyTable 的自动读不再拿着标签 | `a_read_and_picture_in_flight_follow_their_deck`、`reads_in_flight_follow_their_workbook`；`tasks/reviews/R20.61-r1.md` PASS | bff46e6a | —（Mac 1c8c756c 与 Windows lo-src d128762f 上移动测与 ely-show、ely-table 整套过；ely-doc 整套那次败的一条先于本条，另立 R20.66（已勾，4359ce88）） |
-| R20.62 | 进行中 | Windows 装后首开 ElyDoc 超 3 秒 | 无审查（未做） | f32bd0dc | 0.1.17：未做；被 Defender 查的文件未查明，须在新装的 Windows 测试机上量 |
+| R20.62 | 进行中 | Windows 装后首开 ElyDoc 超 3 秒 | 无审查 | f32bd0dc | 0.1.17：未做；被 Defender 查的文件未查明，须在新装的 Windows 测试机上量 |
 | R20.63 | 过审 | Windows 登录后冷开 ElyDoc 慢：软件渲染下动画按减少动效 | `the_system_animations_on_default_and_a_software_renderer_reduce_motion`；`tasks/reviews/R20.63-r3.md` PASS | c564bbd8 | 余下的冷读差归 R20.74（已勾，e87c05b9），登录项起得晚归 R20.71 |
 | R20.64 | 过审 | 存盘失败的提示只说哪份文档、为什么、怎么办 | `a_drive_root_is_worded_without_its_path`、`a_protected_copy_the_system_refuses_is_worded`；`tasks/reviews/R20.64-r3.md` PASS | ec98c26e | 打印、OCR 等非存盘步骤的提示另立 R20.70（已勾，802dc224） |
 | R20.65 | 过审 | `media-targets.sh` 只查他平台、由 pr.yml 跑，依赖由 ely-platform 生成 | `tests/scripts/media-targets.sh`；`tasks/reviews/R20.65-r1.md` PASS | 7ae559e8 | 真 crate 不能交叉检查（ring 要目标的 C 头文件），只查临时 crate |
 | R20.66 | 过审 | ElyDoc 关闭提前载入的测试按事件等 | `a_launch_tab_closed_before_its_turn_closes_the_early_load`、`a_closed_load_lets_go_and_keeps_the_engine`；`tasks/reviews/R20.66-r1.md` PASS | 4359ce88 | Mac、Windows 未跑 |
-| R20.67 | 进行中 | `tests/office/compare.ps1` 在 Windows 上从未整份跑完 | 无审查（未做） | d84a58cc | 0.1.17：未做；须 Windows 测试机与 Microsoft 365；R15.11g 的复核也等它 |
+| R20.67 | 进行中 | `tests/office/compare.ps1` 在 Windows 上从未整份跑完 | 无审查 | d84a58cc | 0.1.17：未做；须 Windows 测试机与 Microsoft 365；R15.11g 的复核也等它 |
 | R20.68 | 过审 | ElyMark 的 vcs 测试不以为临时文件夹在 Git 仓库外 | `spaces_stay_and_broken_repositories_say_why`；`tasks/reviews/R20.68-r1.md` PASS | 88c0abfc | Windows 未跑（随 R20.67 的时段） |
-| R20.69 | 过审 | ElyPDF 写入被拒的测试等的是新的提示 | `a_write_the_system_refuses_reports_it_without_a_crash`；随 R20.64 第 3 轮一并勾（`tasks/reviews/R20.64-r3.md` PASS），无自己的审查记录 | 6fdb300c | — |
+| R20.69 | 过审 | ElyPDF 写入被拒的测试等的是新的提示 | `a_write_the_system_refuses_reports_it_without_a_crash`；随 R20.64 第 3 轮一并勾（`tasks/reviews/R20.64-r3.md` PASS）；无审查 | 6fdb300c | — |
 | R20.70 | 过审 | ElyPDF 的通用失败提示不照显示系统原话 | `every_language_says_why_without_paths`、`each_step_names_itself_when_it_fails`；`tasks/reviews/R20.70-r1.md` PASS | 802dc224 | Windows 未跑 |
-| R20.71 | 进行中 | Windows 登录项 ely-login 由 Run 键起，开机后起得早晚不一 | 无审查（未做） | ef15464d | 0.1.17：不随 0.1.17；拟改为登录时的计划任务（decisions 2026-11-20，未定），量定之前不改代码、常设决定与 standing.md |
-| R20.72 | 过审 | 软件渲染下的重复动画占满 CPU | 无审查：量后关，未改代码（R20.63 已让软件渲染按减少动效） | 86e2f787 | — |
+| R20.71 | 进行中 | Windows 登录项 ely-login 由 Run 键起，开机后起得早晚不一 | 无审查 | ef15464d | 0.1.17：不随 0.1.17；拟改为登录时的计划任务（decisions 2026-11-20，未定），量定之前不改代码、常设决定与 standing.md |
+| R20.72 | 过审 | 软件渲染下的重复动画占满 CPU | 无审查 | 86e2f787 | —（量后关，未改代码：R20.63（已勾，6aee0f1d）已让软件渲染按减少动效） |
 | R20.73 | 过审 | `vendor/` 下各 crate 自己的测试无处在跑 | `tests/scripts/vendor-tests.sh`；`tasks/reviews/R20.73-r2.md` PASS | cebed0d4 | PR 不加 macOS、Windows 的托管任务（主代理定），vendor 下的测试在这两端坏了要到发布的门才拦下 |
 | R20.74 | 过审 | 清缓存后冷开 ElyDoc 仍比 Word 慢约 0.4 秒 | `a_worker_logs_each_start_stage_with_its_counters`；`tasks/reviews/R20.74-r1.md` PASS | e87c05b9 | — |
-| R20.75 | 进行中 | main 的 CI 红了 20 小时无人察觉 | 无审查（未做） | 6372bae6 | 0.1.17：未做；谁收、怎么收 main 上 pr.yml 的失败未定，未以一次真失败验证 |
+| R20.75 | 进行中 | main 的 CI 红了 20 小时无人察觉 | 无审查 | 6372bae6 | 0.1.17：未做；谁收、怎么收 main 上 pr.yml 的失败未定，未以一次真失败验证 |
 | R20.76 | 过审 | pr.yml 只跑 tests/perf 的 test_idle | `.github/workflows/pr.yml` 的 “Perf unit tests, every test_*.py found”；`tasks/reviews/R20.76-r1.md` PASS | d455e9e6 | — |
-| R20.77 | 进行中 | 不带宏的演示稿里宏链接报出内核的英文问话 | 无审查（未做） | eec57122 | 0.1.17：根治在补丁 0148，0.1.17 发布后随之入库 |
-| R20.78 | 进行中 | 编辑文本框时不按 Ctrl 点另一框的链接即打开 | 无审查（未做） | 58fe2961 | 0.1.17：随补丁 0148 在 0.1.17 发布后入库（行内写明） |
+| R20.77 | 进行中 | 不带宏的演示稿里宏链接报出内核的英文问话 | 无审查 | eec57122 | 0.1.17：根治在补丁 0148，0.1.17 发布后随之入库 |
+| R20.78 | 进行中 | 编辑文本框时不按 Ctrl 点另一框的链接即打开 | 无审查 | 58fe2961 | 0.1.17：随补丁 0148 在 0.1.17 发布后入库（行内写明） |
 | R20.79 | 过审 | 换成 `ely-office` 包后常驻引擎仍是旧版（用户单元遮住包的单元） | `starts_at_once_each_succeed_and_remove_each_path_once`、`a_path_another_start_removed_counts_as_gone`（`crates/ely-platform/src/install/units/tests.rs`）；`tasks/reviews/R20.79-r2.md` PASS | 4341670e | — |
-| R20.80 | 进行中 | ely-login.exe 不可重现构建，Windows 安装包的内核编号随构建变 | 无审查（未做） | 6e9e118d | 0.1.17：未做；同一提交建两次的编号不同，无法从源核对发布的编号 |
+| R20.80 | 进行中 | ely-login.exe 不可重现构建，Windows 安装包的内核编号随构建变 | 无审查 | 6e9e118d | 0.1.17：未做；同一提交建两次的编号不同，无法从源核对发布的编号 |
 | R20.81 | 过审 | Windows 的换页读法不看 PDH 计数器的数据状态 | `tests/perf/test_counters.py` 的 `test_pdh_refuses_invalid_data_the_call_called_a_success`；`tasks/reviews/R20.81-r1.md` PASS | 7e38f5b4 | — |
 | R20.82 | 过审 | macOS 的私有内存读法“换出的也算”无出处 | `tests/perf/test_bench.py` 的 `test_macos_reads_the_footprint_ledger_not_resident`；`tasks/reviews/R20.82-r1.md` PASS | d455e9e6 | 未做真的换出回归测试（那台 Mac 是有人在用的桌面，不许施加内存压力），以 xnu 源码为据 |
-| R20.83 | 进行中 | 由 AppImage 换成 `ely-office` 包后菜单项仍开旧的 AppImage | 无审查（未做） | 97a2dbc1 | 0.1.17：未做；照 R20.79（已勾，94000900）的办法，AppImage 用自己的桌面文件 ID |
+| R20.83 | 进行中 | 由 AppImage 换成 `ely-office` 包后菜单项仍开旧的 AppImage | 无审查 | 97a2dbc1 | 0.1.17：未做；照 R20.79（已勾，94000900）的办法，AppImage 用自己的桌面文件 ID |
 | R20.84 | 过审 | Windows 上基准的子进程输出按 ANSI 代码页解码 | `tests/perf/test_child.py` 的 `test_a_byte_cp1252_reads_but_utf8_refuses_fails_naming_the_command`；`tasks/reviews/R20.84-r2.md` PASS | 5e658c04 | Windows 上的坏字节与换行另立 R20.98（已勾，1e093b42）、R20.102（已勾，854082ac）；测试机控制台本即 UTF-8，`drive.ps1` 那一行之必要未在此机显出 |
 | R20.85 | 过审 | 失败的 `--redo` 存下完成项却不存其换页记录 | `tests/perf/test_bench.py` 的 `test_a_failed_redo_keeps_what_it_finished_and_leaves_the_rest_void`；`tasks/reviews/R20.85-r1.md` PASS | 7374b3f3 | — |
 | R20.86 | 过审 | `--redo` 点名不存在的项要等其余各项跑完才报错，已完成的又丢 | `tests/perf/test_bench.py` 的 `test_a_redo_naming_an_unknown_case_measures_nothing`；`tasks/reviews/R20.86-r1.md` PASS | 7374b3f3 | — |
 | R20.87 | 过审 | check.sh 在非检出顶层的目录上照样通过 | `tests/scripts/check-rules.sh`；`tasks/reviews/R20.87-r2.md` PASS | b5a29d7e | — |
 | R20.88 | 过审 | 帧日志把按键的帧记到之前一次什么都没画的点击上 | `a_click_that_drew_nothing_leaves_the_key_its_frame`、`a_gap_drops_every_waiting_press`；`tasks/reviews/R20.88-r2.md` PASS | 20a4946b | — |
 | R20.89 | 进行中 | 发布的门不核内核是否在最后一个补丁之后重链 | `tests/scripts/lo-series.sh`；无审查 | ba83800a | 0.1.17：落地即改四棵内核的编号（含 Windows 安装包里的 b8c76f72），定在 0.1.17 之后 |
-| R20.90 | 进行中 | 发布的门收下同版本、却量的是别的构建的记录 | 无审查（未做） | 0d3c74ef | 0.1.17：依赖 R20.80 与 R20.89，现有记录皆无 commit、kernel 两项，0.1.17 之后做 |
+| R20.90 | 进行中 | 发布的门收下同版本、却量的是别的构建的记录 | 无审查 | 0d3c74ef | 0.1.17：依赖 R20.80 与 R20.89，现有记录皆无 commit、kernel 两项，0.1.17 之后做 |
 | R20.91 | 过审 | 发布记录的间隔一行不核其数 | `tests/scripts/release-gate.sh`；`tasks/reviews/R20.91-r1.md` PASS | 3810cace | — |
 | R20.92 | 未完 | 读应用日志时坏字节被换掉而不报错 | `tests/perf/test_child.py` 的 `test_a_character_split_across_two_reads_reads_back_exactly`、`tests/perf/test_idle.py`；`tasks/reviews/R20.92-r3.md` FAIL | 35ca233c | Windows 的 Restart Manager 列出打开者而非持锁者，另立 R20.103；不阻 0.1.17（发布的空闲门期间无应用，3b 每个应用恰一个持有者） |
 | R20.93 | 过审 | `linux-apprun.sh` 留下 gvfsd-fuse，CI 也从不跑它 | `tests/scripts/linux-apprun.sh`；`tasks/reviews/R20.93-r1.md` PASS | 98938338 | — |
-| R20.94 | 进行中 | 由 AppImage 换成包后图标可能仍是旧的 | 无审查（未做） | 7ab117bd | 0.1.17：未做，定在 0.1.17 之后落地 |
+| R20.94 | 进行中 | 由 AppImage 换成包后图标可能仍是旧的 | 无审查 | 7ab117bd | 0.1.17：未做，定在 0.1.17 之后落地 |
 | R20.95 | 过审 | Windows 上基准结束应用时连自己一并杀掉 | `tests/perf/test_lineage.py` 的 `test_a_refusal_from_a_process_mid_exit_passes_a_live_one_raises`；`tasks/reviews/R20.95-r3.md` PASS | c671251b | — |
 | R20.96 | 过审 | ElyTree 在 Windows 上停 Git 时按过时的父 pid 找进程树 | `a_helper_that_outlives_git_is_ended_too`、`git_gone_from_the_listing_still_judges_its_helpers`；`tasks/reviews/R20.96-r2.md` PASS | 2a9ef662 | — |
 | R20.97 | 未完 | bench 作废了项、却删了自己的换页记录 | `tests/perf/test_kept.py` 的 `test_engines_that_outlive_the_run_keep_samples_and_results`；`tasks/reviews/R20.97-r3.md` FAIL | d51ca1d2 | 余下三处失败路径的边缘另立 R20.100（已勾，72182873） |
 | R20.98 | 过审 | Windows 上 `child.run` 遇坏字节不失败 | `tests/perf/test_child.py` 的 `test_run_hands_subprocess_bytes_and_decodes_them_itself`、`test_a_byte_cp1252_reads_but_utf8_refuses_fails_naming_the_command`；`tasks/reviews/R20.98-r1.md` PASS | 1e093b42 | 换行的回归另立 R20.102（已勾，854082ac） |
-| R20.99 | 进行中 | 常驻引擎 lok-profile\tmp 下的目录写入时间变了，而我们的东西没碰它们 | 无审查（进行中） | 6f7f4a5f | 0.1.17：起因未查明；测试机上 5 分钟的空闲对照里空闲引擎没写 profile，未见违“空闲不做事”的证据 |
+| R20.99 | 进行中 | 常驻引擎 lok-profile\tmp 下的目录写入时间变了，而我们的东西没碰它们 | 无审查 | 6f7f4a5f | 0.1.17：起因未查明；测试机上 5 分钟的空闲对照里空闲引擎没写 profile，未见违“空闲不做事”的证据 |
 | R20.100 | 过审 | bench 失败路径余下的三处会丢证据或顶替原错 | `tests/perf/test_kept.py`；`tasks/reviews/R20.100-r2.md` PASS | 72182873 | — |
 | R20.101 | 过审 | Windows 的换页判定把后台写页文件当成换页 | `tests/perf/test_counters.py`；`tasks/reviews/R20.101-r1.md` PASS | 2f4fca18 | 规则在 bench 里从头到尾的检验待 Windows 基准重跑 |
 | R20.102 | 过审 | R20.98 使 Windows 上子进程输出的换行成了 CRLF | `tests/perf/test_child.py` 的 `test_crlf_and_lone_cr_read_back_as_text_true_reads_them`、`test_drive_reads_when_a_crlf_helper_sent`；`tasks/reviews/R20.102-r1.md` PASS | 973c0151 | — |
-| R20.103 | 进行中 | Windows 的空闲门以 Restart Manager 认持锁者，它列出的是打开者 | 无审查（未做） | 35ca233c | 0.1.17：不阻（发布的空闲门期间无应用）；稳妥的修法要 worker 自己记 pid，在 crates/ 下，须等冻结解除 |
-| R20.104 | 进行中 | 验收核对表的余下一列仍引 R20.26 已清掉的阻碍 | `tasks/reviews/R20.104-r1.md` FAIL | 本提交 | — |
-| C15.1 | 暂缓 | 嵌入 Kigi CLI 作后端，不用 ACP | — | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
-| C15.2 | 暂缓 | 工具管理、配置管理、配置保护 | — | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
-| C15.3 | 暂缓 | 会话、输入输出、并行运行 | — | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
-| C15.4 | 暂缓 | 工具与授权、文件与产物 | — | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
-| C15.5 | 暂缓 | 会话恢复、执行控制、历史、用量 | — | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
-| C15.6 | 暂缓 | 本地模型、托盘、生命周期 | — | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
+| R20.103 | 进行中 | Windows 的空闲门以 Restart Manager 认持锁者，它列出的是打开者 | 无审查 | 35ca233c | 0.1.17：不阻（发布的空闲门期间无应用）；稳妥的修法要 worker 自己记 pid，在 crates/ 下，须等冻结解除 |
+| R20.104 | 进行中 | 验收核对表的余下一列仍引 R20.26 已清掉的阻碍 | `tasks/reviews/R20.104-r2.md` FAIL | 本提交 | — |
+| C15.1 | 暂缓 | 嵌入 Kigi CLI 作后端，不用 ACP | 无审查 | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
+| C15.2 | 暂缓 | 工具管理、配置管理、配置保护 | 无审查 | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
+| C15.3 | 暂缓 | 会话、输入输出、并行运行 | 无审查 | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
+| C15.4 | 暂缓 | 工具与授权、文件与产物 | 无审查 | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
+| C15.5 | 暂缓 | 会话恢复、执行控制、历史、用量 | 无审查 | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
+| C15.6 | 暂缓 | 本地模型、托盘、生命周期 | 无审查 | 2a72332f | 暂缓（用户 2026-11-19），待用户重开 |
 | C20.2 | 延后 | 稳定性：磁盘写满、长时编辑、内核崩溃、休眠 | `tests/perf/soak.py`、`tests/perf/pause.py`；无审查 | 36f6df8e | Mac 不能自己醒（`pmset schedule wake` 须 root），未让它休眠；Windows 虚拟机不休眠；C20.2 仍开：R20.54（长段落内存）与真的系统挂起 |
 | C22.2 | 过审 | `docs/qa.md`：QA-01 至 QA-28 的证据与缺口 | `docs/qa.md`；`tasks/reviews/C22.2-r2.md` PASS | 10aca431 | 只整理，未重跑；全有证据 0 项，部分 26 项，无证据 2 项（QA-23、QA-24，ElyAgent 暂缓） |
 | C23.1 | 过审 | PRD §23 九项工程风险的证据与状态 | `docs/decisions.md` 的 C23.1 一节；`tasks/reviews/C23.1-r2.md` PASS | 21edbbaa | 只整理，未重跑；达到 0 项，部分 8 项，无 1 项（Agent 后端差异）；§23 末段缺升级后须跑哪些回归的规定 |
 | C24.1 | 过审 | 交付物：README、构建说明、已知限制、测试报告 | `README.md`、`docs/compatibility.md`；`tasks/reviews/C24.1-r2.md` PASS | d7508015 | Mac 的 build-git 未在独立克隆里跑；Windows、Mac 未起界面；Windows、Mac 的内核已由 R20.26 重建（ElyMark 的那条限制已随 1868d1cc 改写、随 e287f3ce 去掉行尾隐藏单元格一项） |
 | R19.2 | 未完 | #83 之二：ElyShow 微软雅黑粗体个别字发细 | 无审查 | 2052193e | 未复现，等报告者的版本、显示语言与文件；补丁 0139 修了一个根因，三端内核已由 R20.26 重建（含 0139），单字发细未在中文界面上复核 |
-| R19.3 | 进行中 | 72 条 `[~]` 逐条再审 | `tasks/reviews/R15.11-r4.md`、`tasks/reviews/R15.11c-r4.md` PASS（R19.3 第 4 轮） | 500f7b74 | 余 R15.11g 一条：第 4 轮 FAIL（`tasks/reviews/R15.11g-r4.md`，补丁 0074 让 `m:lit` 的内容仍当 StarMath 命令读），待改补丁再审；Office 的整份对照未做（R20.67） |
+| R19.3 | 进行中 | 72 条 `[~]` 逐条再审 | `tasks/reviews/R15.11-r4.md`、`tasks/reviews/R15.11c-r4.md` PASS；无审查 | 500f7b74 | 余 R15.11g 一条：第 4 轮 FAIL（`tasks/reviews/R15.11g-r4.md`，补丁 0074 让 `m:lit` 的内容仍当 StarMath 命令读），待改补丁再审；Office 的整份对照未做（R20.67） |
 | R19.5 | 过审 | 按键到图块晚一帧：图块到前压住重画与报告 | `a_kernel_change_repaints_and_reports_once_its_shown_tiles_land`、`an_input_landing_before_its_batch_repaints_and_reports_once_its_tiles_land`；`tasks/reviews/R19.5-r2.md` PASS | 905c0d9a | 延迟的绝对值出自多带 65 部词典的内核，不能与基准记录相比，只作有无对照；每跑末尾不足 2 秒的帧未核焦点 |
 | R19.6 | 未完 | Windows 0.1.16 基准：首次启动慢与 ElyMail 卡顿 | `tasks/reviews/R19.6-r2.md` PASS | db49e3b9 | ElyPDF 10.9 秒与 11-12 的六次卡顿未复现，原因未明；首次启动的 Defender 扫描待签名（R-02）；分忙与饿交 R20.41（已勾，e89832ae） |
 | R19.9 | 进行中 | ElyShow 整组跑时 `animation.add` 偶被拒 | 无审查 | fefebefb | 根因未定：R20.12 加了拒因的日志（补丁 0138），Windows lo-sym 258dcf4d 上整组十遍未复现 |
