@@ -59,6 +59,9 @@ echo "$* | engines=${ELY_REQUIRE_ENGINES:-} incremental=${CARGO_INCREMENTAL:-} w
 [ "$1" != "${CARGO_FAILS:-}" ] || { echo "cargo $1 failed"; exit 101; }
 EOF
 chmod +x "$work/bin/cargo"
+# The runner may have no session bus tool.
+printf '#!/usr/bin/env bash\nexec "$@"\n' >"$work/bin/dbus-run-session"
+chmod +x "$work/bin/dbus-run-session"
 
 # A clone writing one package and the three source files.
 clone() { # os
@@ -76,6 +79,7 @@ clone() { # os
   write packaging/source.sh "$source"
   mkdir -p "$at/tests/scripts"
   write tests/scripts/engine-arch.sh :
+  write tests/scripts/vendor-tests.sh 'echo vendor-tests >>"$CARGO_LOG"'
   write tests/scripts/linux-glibc.sh '[ -z "${GLIBC_FAILS:-}" ]'
   write scripts/mac-ready.sh '[ -z "${MAC_NOT_READY:-}" ]'
   # lo-series.sh tests the series check.
@@ -105,6 +109,7 @@ uploads() { # name pattern, os
 workers=$CARGO_BUILT/debug/ely-lok-worker,$CARGO_BUILT/debug/ely-pdf-worker
 gate="build -p ely-lok --bins -p ely-pdf-worker | engines=1 incremental=0 workers=,
 test --workspace | engines=1 incremental=0 workers=$workers
+vendor-tests
 build -p ely-doc -p ely-table -p ely-show | engines=1 incremental=0 workers=$workers"
 # A failed build or test uploads nothing.
 for os in macos linux; do
