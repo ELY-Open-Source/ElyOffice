@@ -8,10 +8,11 @@ def named(args):
 
 def run(args, **kw):
     """subprocess.run with its output as UTF-8 text."""
-    try:
-        return subprocess.run(args, encoding="utf-8", errors="strict", **kw)
-    except UnicodeDecodeError as bad:
-        raise RuntimeError(f"{named(args)}: output is not UTF-8: {bad}") from bad
+    # Windows decodes in reader threads, which swallow the error.
+    out = subprocess.run(args, **kw)
+    out.stdout = None if out.stdout is None else decoded(args, out.stdout)
+    out.stderr = None if out.stderr is None else decoded(args, out.stderr)
+    return out
 
 
 def decoded(args, raw):

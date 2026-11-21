@@ -35,11 +35,11 @@ def until(sampler, n):
 
 class Counters(unittest.TestCase):
     def test_vm_stat_reads_swap_in_kib_and_keeps_pageouts_apart(self):
-        done = subprocess.CompletedProcess(["vm_stat"], 0, stdout=VM_STAT)
+        done = subprocess.CompletedProcess(["vm_stat"], 0, stdout=VM_STAT.encode())
         with unittest.mock.patch("subprocess.run", return_value=done):
             read = counters.mac()
         self.assertEqual(read, {"in": 491950 * 16, "out": 1133006 * 16, "logged": {"pageouts KiB": 108263 * 16}})
-        short = subprocess.CompletedProcess(["vm_stat"], 0, stdout=VM_STAT.replace("Swapouts", "Swapped"))
+        short = subprocess.CompletedProcess(["vm_stat"], 0, stdout=VM_STAT.replace("Swapouts", "Swapped").encode())
         with unittest.mock.patch("subprocess.run", return_value=short), self.assertRaisesRegex(RuntimeError, "lacks"):
             counters.mac()
 

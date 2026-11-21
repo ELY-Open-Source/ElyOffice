@@ -73,6 +73,18 @@ class Child(unittest.TestCase):
             child.run(printing(CP1252), capture_output=True, check=True)
         self.assertIn(f"{child.named(printing(CP1252))}: output is not UTF-8", str(said.exception))
 
+    def test_run_hands_subprocess_bytes_and_decodes_them_itself(self):
+        """Windows's reader threads would swallow a decode error."""
+        said = subprocess.CompletedProcess(["x"], 0, CP1252, b"")
+        with unittest.mock.patch.object(child.subprocess, "run", return_value=said) as ran, \
+                self.assertRaisesRegex(RuntimeError, "x: output is not UTF-8"):
+            child.run(["x"], capture_output=True)
+        self.assertFalse({"encoding", "errors", "text", "universal_newlines"} & ran.call_args.kwargs.keys())
+        said = subprocess.CompletedProcess(["x"], 0, b"ok", TEXT.encode())
+        with unittest.mock.patch.object(child.subprocess, "run", return_value=said):
+            out = child.run(["x"], capture_output=True)
+        self.assertEqual((out.stdout, out.stderr), ("ok", TEXT))
+
     def test_a_piped_line_reads_back_or_fails_naming_the_command(self):
         good = piped(TEXT.encode())
         self.assertEqual(child.line(good), TEXT)
