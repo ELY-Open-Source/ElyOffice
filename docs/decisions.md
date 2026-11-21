@@ -1623,7 +1623,7 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 判定 `tests/perf/judge.py` 与 `bench.py` 的取样、`--keep` 旁的记录、`baseline.py` 拒 `void` 是 shell 为 R20.28 写的稿（R20.28 未落地前由 fonts 接手，原样入库，只加下面的平台读法与 `swap_in`）。Linux 上 bench 自己以 `TZ=UTC vmstat -n -t 1` 每秒取样，首行（开机以来的平均）不算；时间戳截到整秒，标 T 的样本可能盖住 T−1 到 T+1 里任一秒，故 T 落在窗口前后各放宽一秒之内即算；取样没盖住某项的窗口即失败。作废的项写入 JSON 的 `void`，bench 以非零退出，`--redo` 后去掉；`baseline.py --check` 见 `void` 非空即不放行。
 - macOS（`tests/perf/counters.py`）：每秒读 `vm_stat`。换出按 Swapouts，换入按 Swapins（页大小取其表头，16 KB），同 Linux 的规则。Pageouts 只记不判：xnu 只在 `upl_commit_range` 提交带 UPL_PAGEOUT 的干净页时加它（`osfmk/vm/vm_upl.c` 1127 行），换页扫描把匿名页交压缩器、文件页交其分页器（`osfmk/vm/vm_pageout.c` 约 3863 行），故它数的是文件页的回写；匿名内存只以压缩段换出到盘，由 swapouts、swapins 计（apple-oss-distributions/xnu main f6217f891ac0，xnu-12377.1.9）。
-- Windows: 换出按 \Memory\Pages Output 判（PDH 英文计数器，原始累计值与 WMI 同刻一致，开机以来 37,751 页）；实测时无换出，增量未见变动，增量的算法由单元测试覆盖；换入不可测，不判。Pages Output 计的是修改页与映射页写出器的写出，不计显式的 FlushViewOfFile（虚拟机上 512 MB 映射写入后刷盘，它不动）。Page Reads、Pages Input 混有文件读入，只记不判。
+- Windows（R20.101 改，见下文 2026-11-21 一节）：换出原按 \Memory\Pages Output 判（PDH 英文计数器，原始累计值与 WMI 同刻一致，开机以来 37,751 页）；实测时无换出，增量未见变动，增量的算法由单元测试覆盖；换入不可测，不判。Pages Output 计的是修改页与映射页写出器的写出，不计显式的 FlushViewOfFile（虚拟机上 512 MB 映射写入后刷盘，它不动）。Page Reads、Pages Input 混有文件读入，只记不判。
 - `judge.verdicts(cases, taken, swap_in=True)`：`swap_in` 为假（Windows）只判换出，注里写 si not measured；为真时样本缺换入即报错，缺测的换入在 Linux、macOS 永不算通过。三端都取样，bench 不再有不判的分支。窗口里一个样本也没有、或从起点前最后一个样本到终点后第一个样本之间相隔超过一个取样周期加一秒截断（`judge.GAP = INTERVAL + SECOND`；bench 的 vmstat 间隔与 `counters` 的取样都取 `judge.INTERVAL`，不另写数）的，即报错，不判通过（第 1 轮审查查出）。
 - 测试：`tests/perf/test_judge.py`（shell 的 `Paged` 七条）；`tests/perf/test_counters.py` 十条（vm_stat 读法、每秒增量、换出落在它那一秒、Pageouts 不进判定、Windows 换入为 None、读法出错即停、本机实时取样、只判换出时换出即废、缺测换入在应判处报错、Windows 累计 Pages Output 上升经 `Counted` 判废其项）。变异：Windows 也判换入、换入缺测时不看换出，各败。
 
@@ -1703,3 +1703,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 原状：Windows 的父 pid 在父进程退出后仍留着，pid 又会重用；基准只按父 pid 找应用的子孙，应用重用了 wininit 已故父进程的 pid 时，结束应用即连 bench 自己一并结束（exit 9，无日志）。
 - 定：子进程须不早于其父创建才算；结束应用前若树里有 bench 或其父，即拒并点名。
+
+## 2026-11-21 Windows 的换页判定改看系统的低内存状态（R20.101）
+
+- 所见：R20.58 的 Windows 规则见 \Memory\Pages Output 一增即废，0.1.17 的 Windows 基准废了九项，每项一两秒。初诊是映射页写出器写回文件、规则把文件 I/O 当成换页，拟改判页文件占用；虚拟机上的探查推翻了初诊：那些秒里 Pages Output 与页文件占用逐页相符，是真写了页文件。写的是修改页写出器在 17 GB 空闲时清修改页列表，页仍在内存里。“开机以来 1.15 GB Pages Output 多于页文件 436 MB 峰值”一说不成立：占用是净值，写后会释放。
+- 定（team-lead）：规则保护的是“计时时应用的内存正被拿走”。后台写页文件、页仍驻留、空闲 17 GB，不是这回事；PERF-08 判的私有内存增长也不受它影响。所以 Windows 上单是写页文件不再作废，也不自定阈值，改用 Windows 自己的低内存判断：CreateMemoryResourceNotification(LowMemoryResourceNotification) 加每秒 QueryMemoryResourceNotification，窗口里任一样本为“低”即废。微软只记含义（“Available physical memory is running low”），阈值不公开、归系统、可随版本变，这正是用系统的判断而不用我们自己的用意；查询失败即停跑。
+- 记而不判：页文件占用的每秒变化、Pages Output（不判的理由：此处与页文件写同步，但仍只是写出，不说明内存被夺）、修改页列表、提交与上限、可用内存，写进轨迹与每项的注。换入仍不可测（Huffman 2013：页文件读须靠文件 I/O 跟踪才分得出）。
+- 依据：Microsoft Learn《CreateMemoryResourceNotification function》《QueryMemoryResourceNotification function》《Memory Object: Core Services》（Windows Server 2003）《Introduction to the page file》《Win32_PerfRawData_PerfOS_PagingFile class》；NT Workstation Resource Kit《Sequential Reading and Writing》；Clint Huffman《Tracking page file reads and writes》。

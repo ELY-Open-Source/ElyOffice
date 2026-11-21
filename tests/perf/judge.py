@@ -38,6 +38,12 @@ def samples(lines):
             for row in rows[1:]]
 
 
+def inside_of(rows, start, end):
+    """Rows stamped in a window, stamps truncated to seconds."""
+    # T is printed somewhere in [T, T+1).
+    return [row for row in rows if start - SECOND < row[0] < end + SECOND]
+
+
 def verdicts(cases, taken, swap_in=True):
     """(case, counts, note) per window; `swap_in` false: Windows, unmeasured."""
     if not taken:
@@ -47,8 +53,7 @@ def verdicts(cases, taken, swap_in=True):
     for key, start, end in cases:
         if start < first or end > last:
             raise ValueError(f"the trace ({first:%H:%M:%S} to {last:%H:%M:%S}) does not cover {key}")
-        # Stamps are truncated: T is printed somewhere in [T, T+1).
-        inside = [(si, so) for stamp, si, so in taken if start - SECOND < stamp < end + SECOND]
+        inside = [(si, so) for _, si, so in inside_of(taken, start, end)]
         if not inside:
             raise ValueError(f"no sample inside {key}")
         # Last stamp by the start to first after the end.

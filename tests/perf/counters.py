@@ -27,7 +27,11 @@ class Pdh:
 
     # PDH_CSTATUS_VALID_DATA and PDH_CSTATUS_NEW_DATA; others are invalid.
     VALID = (0x0, 0x1)
-    NAMES = {"out": r"\Memory\Pages Output/sec", "reads": r"\Memory\Page Reads/sec", "input": r"\Memory\Pages Input/sec"}
+    # Logged beside the judged low-memory state.
+    NAMES = {"used": r"\Paging File(_Total)\% Usage", "output": r"\Memory\Pages Output/sec",
+             "reads": r"\Memory\Page Reads/sec", "input": r"\Memory\Pages Input/sec",
+             "committed": r"\Memory\Committed Bytes", "limit": r"\Memory\Commit Limit",
+             "available": r"\Memory\Available MBytes", "modified": r"\Memory\Modified Page List Bytes"}
 
     def __init__(self):
         import ctypes
@@ -47,31 +51,56 @@ class Pdh:
             handle = ctypes.c_void_p()
             self.check(self.pdh.PdhAddEnglishCounterW(self.query, name, 0, ctypes.byref(handle)), f"adding {name}")
             self.counters[key] = handle
+        self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self.kernel32.CreateMemoryResourceNotification.restype = ctypes.c_void_p
+        self.kernel32.QueryMemoryResourceNotification.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+        self.last_error = ctypes.get_last_error
+        # LowMemoryResourceNotification: "available physical memory is running low".
+        self.notice = self.kernel32.CreateMemoryResourceNotification(0)
+        if not self.notice:
+            raise OSError(self.last_error(), "CreateMemoryResourceNotification failed")
 
     def check(self, status, what):
         if status:
             raise RuntimeError(f"PDH failed {what}: 0x{status & 0xFFFFFFFF:08X}")
 
+    def low(self):
+        """Windows' own low-memory state; a failed query raises."""
+        state = self.ctypes.c_int()
+        if not self.kernel32.QueryMemoryResourceNotification(self.notice, self.ctypes.byref(state)):
+            raise RuntimeError(f"QueryMemoryResourceNotification failed: error {self.last_error()}")
+        return bool(state.value)
+
     def read(self):
-        """Pages written to the paging file, in KiB; reads logged."""
+        """The low-memory state, judged; pagefile and the rest logged."""
         self.check(self.pdh.PdhCollectQueryData(self.query), "collecting")
-        pages = {}
+        raws = {}
         for key, handle in self.counters.items():
             raw = self.raw()
             self.check(self.pdh.PdhGetRawCounterValue(handle, None, self.ctypes.byref(raw)), f"reading {self.NAMES[key]}")
             if raw.status not in self.VALID:
                 raise RuntimeError(f"PDH gave invalid data for {self.NAMES[key]}: status 0x{raw.status & 0xFFFFFFFF:08X}")
-            pages[key] = raw.first
-        # Inputs mix in file reads: swap-in is unmeasured.
-        return {"in": None, "out": pages["out"] * self.page // 1024,
-                "logged": {"page reads": pages["reads"], "pages input": pages["input"]}}
+            raws[key] = raw
+        value = {key: raw.first for key, raw in raws.items()}
+        # Pagefile reads are unseparable from file reads (Huffman, 2013).
+        return {"in": None, "out": None, "low": self.low(),
+                "logged": {"pages output": value["output"], "page reads": value["reads"], "pages input": value["input"],
+                           "pagefile change KiB": value["used"] * self.page // 1024},
+                "state": {"pagefile used KiB": value["used"] * self.page // 1024,
+                          "pagefile KiB": raws["used"].second * self.page // 1024, "committed MB": value["committed"] >> 20,
+                          "limit MB": value["limit"] >> 20, "available MB": value["available"],
+                          "modified MB": value["modified"] >> 20}}
 
 
 def rates(before, after, seconds):
     """(si KiB/s or None, so KiB, logged) between two readings."""
     logged = {key: value - before["logged"][key] for key, value in after["logged"].items()}
+    # Gauges are logged as read, not as changes.
+    logged.update(after.get("state", {}))
     si = None if after["in"] is None else (after["in"] - before["in"]) / seconds
-    return si, after["out"] - before["out"], logged
+    # Windows judges a state, not a count.
+    so = int(after["low"]) if "low" in after else after["out"] - before["out"]
+    return si, so, logged
 
 
 class Sampler:
@@ -79,7 +108,7 @@ class Sampler:
 
     def __init__(self, path, read):
         self.path, self.read, self.error = path, read, None
-        self.samples, self.done = [], threading.Event()
+        self.samples, self.logged, self.done = [], [], threading.Event()
         self.thread = threading.Thread(target=self.loop, daemon=True)
         self.thread.start()
 
@@ -96,6 +125,7 @@ class Sampler:
                     si, so, logged = rates(last, reading, now - began)
                     stamp = datetime.datetime.now(datetime.timezone.utc)
                     self.samples.append((stamp, si, so))
+                    self.logged.append((stamp, logged))
                     extra = " ".join(f"{key}={value}" for key, value in logged.items())
                     said = "unmeasured" if si is None else f"{si:.1f}"
                     trace.write(f"{stamp.isoformat(timespec='milliseconds')} si={said} so={so} {extra}\n")
@@ -155,8 +185,23 @@ class Counted:
         if windows:
             self.until(lambda taken: taken and taken[-1][0] >= windows[-1][2])
         self.stop()
-        # Windows' page reads mix in file reads: swap-in unjudged.
-        return judge.verdicts(windows, self.taken(), swap_in=sys.platform != "win32") if windows else []
+        if not windows:
+            return []
+        if sys.platform != "win32":
+            return judge.verdicts(windows, self.taken())
+        # Windows: low-memory state judged, swap-in unmeasured.
+        judged = judge.verdicts(windows, self.taken(), swap_in=False)
+        return [(key, counts, self.windows_note(start, end)) for (key, counts, _), (_, start, end) in zip(judged, windows)]
+
+    def windows_note(self, start, end):
+        """Low samples, then pagefile writes and the modified list."""
+        inside = judge.inside_of(self.taken(), start, end)
+        logged = [values for _, values in judge.inside_of(list(self.sampler.logged), start, end)]
+        rise = sum(max(0, values["pagefile change KiB"]) for values in logged)
+        modified = [values["modified MB"] for values in logged]
+        return (f"{len(inside)} samples, low memory in {sum(1 for _, _, so in inside if so)}; "
+                f"pagefile rise {rise} KiB, pages output {sum(values['pages output'] for values in logged)}, "
+                f"modified {min(modified)}-{max(modified)} MB, si not measured; {start:%H:%M:%S} to {end:%H:%M:%S}")
 
     def stop(self):
         self.sampler.stop()
