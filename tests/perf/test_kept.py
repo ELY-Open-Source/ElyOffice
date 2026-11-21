@@ -36,7 +36,7 @@ class Trace:
 
 
 class Kept(unittest.TestCase):
-    def ran(self, verdict, stopped=None, machine=lambda found, partial: {"date": "2000-01-01", "machine": "Test"}):
+    def ran(self, verdict, stopped=None, machine=lambda found, partial: {"date": "2000-01-01", "machine": "Test"}, more=lambda scratch: (), left=()):
         """bench's main, every build and case stubbed; its output."""
         Trace.verdict, Trace.stopped = verdict, stopped
         scratch = tempfile.TemporaryDirectory()
@@ -45,7 +45,8 @@ class Kept(unittest.TestCase):
         os.makedirs(parent)
         host = types.SimpleNamespace(name="Linux", git=lambda: "git")
         said, ended = [], None
-        argv = ["bench.py", "--out", os.path.join(parent, "perf"), "--only", "none"]
+        self.scratch = scratch.name
+        argv = ["bench.py", "--out", os.path.join(parent, "perf"), "--only", "none", *more(scratch.name)]
         with unittest.mock.patch.object(sys, "argv", argv), \
              unittest.mock.patch.object(tempfile, "tempdir", scratch.name), \
              unittest.mock.patch.object(bench.run, "HOST", None), \
@@ -53,9 +54,11 @@ class Kept(unittest.TestCase):
              unittest.mock.patch.object(bench.drive, "sh", lambda *a, **k: None), \
              unittest.mock.patch.object(bench.drive, "frames_apart", lambda *a: None), \
              unittest.mock.patch.object(bench.samples, "made", lambda *a: {}), \
-             unittest.mock.patch.object(bench.run, "stop_engines", lambda work: []), \
+             unittest.mock.patch.object(bench.run, "stop_engines", lambda work: list(left)), \
              unittest.mock.patch.object(bench, "environment", machine), \
              unittest.mock.patch.object(bench, "write", lambda *a: None), \
+             unittest.mock.patch.object(bench, "built", lambda: {}), \
+             unittest.mock.patch.object(bench, "matched", lambda *a: None), \
              unittest.mock.patch.object(bench, "Paging", Trace), \
              unittest.mock.patch("builtins.print", lambda *a, **k: said.append(" ".join(map(str, a)))):
             try:
@@ -113,6 +116,41 @@ class Kept(unittest.TestCase):
         shown = "bench: the sampler did not stop: OSError: sampler stop failed"
         self.assertIn(shown, said)
         self.assertIn(shown, ended.__notes__)
+        self.assert_kept(parent, self.failed_path(said), [])
+
+    def test_a_redo_failing_before_any_case_leaves_keep_and_its_void(self):
+        kept = {"env": {"date": "2000-01-01", "machine": "Test", "void": [KEY]}, "cases": {KEY: {"rows": []}}}
+        def redo(scratch):
+            keep = os.path.join(scratch, "raw.json")
+            with open(keep, "w", encoding="utf-8") as raw:
+                json.dump(kept, raw)
+            return ["--keep", keep, "--redo", KEY]
+        # --only runs nothing: the redo fails with no case done.
+        _, said, ended = self.ran(RuntimeError("the sampler gave no verdict"), more=redo)
+        self.assertIsInstance(ended, RuntimeError)
+        self.assertTrue(str(ended).startswith("no such case to redo here"), ended)
+        keep = os.path.join(self.scratch, "raw.json")
+        self.assertIn(f"bench: the failed run's samples and raw results: {keep}", said)
+        with open(keep, encoding="utf-8") as raw:
+            self.assertEqual(json.load(raw), kept, "the unmeasured case stays void")
+        traces = [name for name in os.listdir(self.scratch) if re.fullmatch(r"raw\.json\.\d{8}T\d{6}\.vmstat", name)]
+        self.assertEqual(len(traces), 1, os.listdir(self.scratch))
+
+    def test_a_failure_after_judging_keeps_samples_and_results(self):
+        def late(found, partial):
+            raise RuntimeError("final metadata read failed")
+        parent, said, ended = self.ran([(KEY, True, "")], machine=late)
+        self.assertIsInstance(ended, RuntimeError)
+        self.assertEqual(str(ended), "final metadata read failed")
+        path = self.failed_path(said)
+        self.assert_kept(parent, path, [])
+        with open(path, encoding="utf-8") as raw:
+            self.assertIn("final metadata read failed", json.load(raw)["env"]["unread"])
+
+    def test_engines_that_outlive_the_run_keep_samples_and_results(self):
+        parent, said, ended = self.ran([(KEY, True, "")], left=["ely-doc engine stop: exit 1"])
+        self.assertIsInstance(ended, RuntimeError)
+        self.assertIn("engines outlived the run", str(ended))
         self.assert_kept(parent, self.failed_path(said), [])
 
     def test_a_clean_run_without_keep_leaves_nothing_extra(self):

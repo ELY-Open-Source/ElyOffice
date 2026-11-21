@@ -366,7 +366,8 @@ class Windows(unittest.TestCase):
                                                path=trace, suffix="vmstat")
                 args = types.SimpleNamespace(out=out, keep=os.path.join(out, "raw.json"), runs=1)
                 with unittest.mock.patch("builtins.print"):
-                    bench.failed_redo(args, kept, cases, paging, {"date": "2000-01-02", "machine": "Test"})
+                    bench.failed(args, kept, cases, paging, None, lambda: {"date": "2000-01-02", "machine": "Test"},
+                                 RuntimeError("cycle 264"), lambda: None)
                 with open(args.keep, encoding="utf-8") as raw:
                     saved = json.load(raw)
                 with open(os.path.join(out, "2000-01-01-Test.md"), encoding="utf-8") as record:
@@ -386,11 +387,10 @@ class Windows(unittest.TestCase):
         cases = bench.Cases(kept["cases"], ["A"])
         with unittest.mock.patch("builtins.print"):
             cases.run("A", lambda _: [["PERF-01", "case", [1], None]])
-        paging = types.SimpleNamespace(judged=lambda windows: [(key, True, "") for key, _, _ in windows])
         with tempfile.TemporaryDirectory() as out:
             args = types.SimpleNamespace(out=out, keep=os.path.join(out, "raw.json"), runs=1)
             with self.assertRaisesRegex(RuntimeError, "same builds, samples and machine"):
-                bench.failed_redo(args, kept, cases, paging, {"date": "2000-01-02", "machine": "Other"})
+                bench.failed_redo(args, kept, cases, [("A", True, "")], lambda: {"date": "2000-01-02", "machine": "Other"})
             self.assertEqual(os.listdir(out), [])
 
     def test_a_redo_on_other_builds_or_samples_is_refused_before_it_runs(self):

@@ -245,6 +245,8 @@ def main():
     # Each system's own counters, sampled here (R20.58).
     linux = run.HOST.name == "Linux"
     paging = Paging(os.path.join(work, "vmstat.log")) if linux else counters.Counted(os.path.join(work, "paging.log"))
+    judged = env = keep = None
+    up = True
     try:
         if want("PERF-01"):
             for slug in APPS:
@@ -276,11 +278,25 @@ def main():
                 if recipe.slug in args.apps:
                     cases.run(f"PERF-08 {recipe.slug}", lambda _, recipe=recipe: [(recipe.slug, *cycles.cycles(work, recipe))],
                               setup=lambda recipe=recipe: pinned(recipe), held=True)
+        # To the last write: a failure keeps the evidence.
+        stopped_engines(work)
+        up = False
+        # Kept, but left out by --only or --apps.
+        if set(args.redo) - cases.ran:
+            raise RuntimeError(f"no such case to redo here: {sorted(set(args.redo) - cases.ran)}")
         judged = paging.judged(cases.windows)
+        env = environment(found, partial)
+        if kept:
+            env = redone(kept["env"], env, args.redo)
+        for key, counts, note in judged:
+            print(f"bench: paging {'ok' if counts else 'VOID'} {key}: {note}")
+        env["void"] = void_after(kept["env"].get("void", []) if kept else [], cases.ran, judged)
+        write(args.out, env, *table(cases), args.runs)
         # A void case's evidence stays, --keep or not.
-        keep = kept_at(args) if args.keep or any(not counts for _, counts, _ in judged) else None
-        if keep:
+        if args.keep or env["void"]:
+            keep = kept_at(args)
             kept_trace(keep, paging)
+            written(keep, {"env": env, "cases": cases.done})
     except BaseException as failure:
         logs = tempfile.mkdtemp(prefix="ely-bench-failed-")
         for log in glob.glob(os.path.join(work, "**", "*.log"), recursive=True):
@@ -288,39 +304,12 @@ def main():
             os.makedirs(os.path.dirname(to), exist_ok=True)
             shutil.copy(log, to)
         print(f"the failed run's logs: {logs}")
-        # A finished case logged the GPU this machine names.
-        if kept and cases.ran:
-            steps = [("the failed redo kept nothing", lambda: failed_redo(args, kept, cases, paging, environment(found, partial)))]
-        else:
-            steps = [("the sampler did not stop", paging.stop),
-                     ("the failed run's evidence was not kept", lambda: kept_failed(args, cases, paging, lambda: environment(found, partial)))]
-        for what, step in steps:
-            # Shown, and noted on the run's own error.
-            try:
-                step()
-            except (Exception, SystemExit) as error:
-                said = f"bench: {what}: {type(error).__name__}: {error}"
-                print(said)
-                failure.add_note(said)
+        engines = (lambda: stopped_engines(work)) if up else (lambda: None)
+        failed(args, kept, cases, paging, judged, lambda: environment(found, partial), failure, engines)
         raise failure
     finally:
-        left = run.stop_engines(work)
         shutil.rmtree(work, ignore_errors=True)
-    if left:
-        raise RuntimeError(f"engines outlived the run: {left}")
-    # Kept, but left out by --only or --apps.
-    if set(args.redo) - cases.ran:
-        raise RuntimeError(f"no such case to redo here: {sorted(set(args.redo) - cases.ran)}")
-    env = environment(found, partial)
-    if kept:
-        env = redone(kept["env"], env, args.redo)
-    for key, counts, note in judged:
-        print(f"bench: paging {'ok' if counts else 'VOID'} {key}: {note}")
-    env["void"] = void_after(kept["env"].get("void", []) if kept else [], cases.ran, judged)
-    write(args.out, env, *table(cases), args.runs)
-    if keep:
-        written(keep, {"env": env, "cases": cases.done})
-    if env.get("void"):
+    if env["void"]:
         sys.exit(f"bench: timed while the machine paged, redo: {env['void']}; samples and raw results: {keep}")
 
 
@@ -347,18 +336,53 @@ def kept_at(args):
     return os.path.join(folder, f"{utc():%Y%m%dT%H%M%S}.json")
 
 
-def kept_failed(args, cases, paging, now):
-    """A failed run's samples first, then its finished cases."""
-    keep = kept_at(args)
-    kept_trace(keep, paging)
+def stopped_engines(work):
+    left = run.stop_engines(work)
+    if left:
+        raise RuntimeError(f"engines outlived the run: {left}")
+
+
+def failed(args, kept, cases, paging, judged, now, failure, engines):
+    """After sampling starts, a failure keeps samples and raw results."""
+    keep, known = kept_at(args), {"judged": judged}
+
+    def judge():
+        if known["judged"] is None:
+            known["judged"] = paging.judged(cases.windows)
+
+    def stop():
+        if known["judged"] is None:
+            paging.stop()
+
+    def raw():
+        # A redo always keeps the kept record's void.
+        if kept:
+            failed_redo(args, kept, cases, known["judged"], now)
+        else:
+            kept_failed(keep, cases, now)
+
+    steps = [("the engines did not stop", engines), ("the samples were not judged", judge),
+             ("the sampler did not stop", stop), ("the samples were not kept", lambda: kept_trace(keep, paging)),
+             ("the raw results were not kept", raw)]
+    for what, step in steps:
+        # Shown, and noted on the run's own error.
+        try:
+            step()
+        except (Exception, SystemExit) as error:
+            said = f"bench: {what}: {type(error).__name__}: {error}"
+            print(said)
+            failure.add_note(said)
+    print(f"bench: the failed run's samples and raw results: {keep}")
+
+
+def kept_failed(keep, cases, now):
+    """A failed fresh run's finished cases, none of them judged."""
     try:
         env = now()
     except (Exception, SystemExit) as error:
         # An early failure: no app has logged its GPU.
         env = {"unread": f"the machine was not read: {type(error).__name__}: {error}"}
-    # Not judged: none of its cases stands yet.
     written(keep, {"env": {**env, "void": sorted(cases.ran)}, "cases": cases.done})
-    print(f"bench: the failed run's samples and raw results: {keep}")
 
 
 def written(path, raw):
@@ -375,15 +399,15 @@ def kept_trace(keep, paging):
     shutil.copy(paging.path, f"{keep}.{utc():%Y%m%dT%H%M%S}.{paging.suffix}")
 
 
-def failed_redo(args, kept, cases, paging, now):
-    """Keeps a failed redo's finished cases; the rest stay void."""
-    judged = paging.judged(cases.windows)
-    env = {**redone(kept["env"], now, sorted(cases.ran)),
+def failed_redo(args, kept, cases, judged, now):
+    """Merges a failed redo's judged cases; else --keep stays."""
+    if judged is None or not cases.ran:
+        print(f"bench: the failed redo left {args.keep} as it was; void: {kept['env'].get('void', [])}")
+        return
+    env = {**redone(kept["env"], now(), sorted(cases.ran)),
            "void": void_after(kept["env"].get("void", []), cases.ran, judged)}
-    # Its samples back each kept case's verdict.
-    kept_trace(args.keep, paging)
-    write(args.out, env, *table(cases), args.runs)
     written(args.keep, {"env": env, "cases": cases.done})
+    write(args.out, env, *table(cases), args.runs)
     print(f"bench: the failed redo kept {sorted(cases.ran)}; void: {env['void']}")
 
 
