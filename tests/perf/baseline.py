@@ -21,23 +21,30 @@ ONLY_ON = {"reboot": {"windows"}}
 EARLIER_BENCH = {("macos", "0.1.17"): "0.1.16", ("linux", "0.1.17"): "0.1.16"}
 # The user, 2026-11-20: Linux 0.1.17 ships with no install record.
 NO_INSTALL = {("linux", "0.1.17")}
+# Stalls and starved timers: the count, not a time.
+COUNTED = re.compile(r"^(.+): (\d+) times$")
 
 
 def read(path):
-    """A benchmark record: its header and each case's P50, P95."""
+    """A record: header, each case's P50 and P95, counts."""
     with open(path, encoding="utf-8") as record:
         text = record.read()
     if not text.startswith("# Benchmark "):
         return None
     env = json.loads(re.search(r"```json\n(.*?)\n```", text, re.S).group(1))
-    rows = {}
+    rows, counts = {}, {}
     for line in text.split("\n"):
         cells = [cell.strip() for cell in line.split("|")]
         if len(cells) > 6 and cells[1].startswith("PERF-") and cells[4].isdigit():
-            rows[cells[1] + " " + cells[2]] = (int(cells[4]), int(cells[5].split()[0]))
+            counted = COUNTED.match(cells[2])
+            # The count names the row; the key leaves it out.
+            if counted:
+                counts[cells[1] + " " + counted.group(1)] = int(counted.group(2))
+            else:
+                rows[cells[1] + " " + cells[2]] = (int(cells[4]), int(cells[5].split()[0]))
     told = text.split(HEAD, 1)[1] if HEAD in text else ""
-    reasons = dict(re.findall(r"^- (.+?): P50 .*? ms — *(.*)$", told, re.M))
-    return {"path": os.path.abspath(path), "env": env, "rows": rows, "reasons": reasons}
+    reasons = dict(re.findall(r"^- (.+?): (?:P50 .*? ms|\S+ → \S+ times) — *(.*)$", told, re.M))
+    return {"path": os.path.abspath(path), "env": env, "rows": rows, "counts": counts, "reasons": reasons}
 
 
 def platform(machine):
@@ -51,12 +58,16 @@ def records(folder):
 
 
 def slower(old, new):
-    """Cases `new` lacks or ran a third slower."""
+    """Cases `new` lacks or ran slower; counts that rose."""
     found = []
     for case, was in old["rows"].items():
         now = new["rows"].get(case)
         if now is None or any(ms > then * SLOWER and ms - then >= FLOOR_MS for then, ms in zip(was, now)):
             found.append((case, was, now or ("none", "none")))
+    for case, was in old["counts"].items():
+        now = new["counts"].get(case)
+        if now is None or now > was:
+            found.append((case, was, "none" if now is None else now))
     return found
 
 
@@ -69,7 +80,8 @@ def before(all_records, record):
 
 
 def lines(found):
-    return [f"- {case}: P50 {was[0]} → {now[0]}, P95 {was[1]} → {now[1]} ms — " for case, was, now in found]
+    return [f"- {case}: {was} → {now} times — " if not isinstance(was, tuple)
+            else f"- {case}: P50 {was[0]} → {now[0]}, P95 {was[1]} → {now[1]} ms — " for case, was, now in found]
 
 
 def unexplained(all_records, record):

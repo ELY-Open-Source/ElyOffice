@@ -1710,3 +1710,8 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 定（team-lead）：规则保护的是“计时时应用的内存正被拿走”。后台写页文件、页仍驻留、空闲 17 GB，不是这回事；PERF-08 判的私有内存增长也不受它影响。所以 Windows 上单是写页文件不再作废，也不自定阈值，改用 Windows 自己的低内存判断：CreateMemoryResourceNotification(LowMemoryResourceNotification) 加每秒 QueryMemoryResourceNotification，窗口里任一样本为“低”即废。微软只记含义（“Available physical memory is running low”），阈值不公开、归系统、可随版本变，这正是用系统的判断而不用我们自己的用意；查询失败即停跑。
 - 记而不判：页文件占用的每秒变化、Pages Output（不判的理由：此处与页文件写同步，但仍只是写出，不说明内存被夺）、修改页列表、提交与上限、可用内存，写进轨迹与每项的注。换入仍不可测（Huffman 2013：页文件读须靠文件 I/O 跟踪才分得出）。
 - 依据：Microsoft Learn《CreateMemoryResourceNotification function》《QueryMemoryResourceNotification function》《Memory Object: Core Services》（Windows Server 2003）《Introduction to the page file》《Win32_PerfRawData_PerfOS_PagingFile class》；NT Workstation Resource Kit《Sequential Reading and Writing》；Clint Huffman《Tracking page file reads and writes》。
+
+## 2026-11-21 PERF-02 按次数比，不按行名（R20.109）
+
+- 所见：PERF-02 的行名带次数，`baseline.py` 以行名作键，次数一变旧行即“→ none”，次数降了门也不过（Windows 0.1.17 的 ElyMail 6→2）。
+- 定（team-lead）：次数是行名的一部分、不是键；键去掉“: N times”，次数不升即过，升了或缺了要原因。那几次卡顿的时长不比：这一行判的是有几次超过 100 毫秒。
