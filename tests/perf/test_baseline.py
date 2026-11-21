@@ -49,7 +49,9 @@ class Counted(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             old = record(folder, 1, [busy(2, 300, 400)])
             self.assertEqual(baseline.slower(old, record(folder, 2, [busy(3, 300, 400)])), [(KEY, 2, 3)])
-            self.assertEqual(baseline.slower(old, record(folder, 2, [])), [(KEY, (300, 400), ("none", "none"))])
+            gone = baseline.slower(old, record(folder, 2, []))
+            self.assertEqual(gone, [(KEY, 2, "none")])
+            self.assertEqual(baseline.lines(gone), [f"- {KEY}: 2 → none times — "])
             self.assertEqual(baseline.lines([(KEY, 2, 3)]), [f"- {KEY}: 2 → 3 times — "])
 
     def test_a_case_is_explained_once_each_of_its_lines_has_a_reason(self):
@@ -60,6 +62,14 @@ class Counted(unittest.TestCase):
                         f"- {KEY}: 2 → 3 times — {second}\n")
                 new = record(folder, 2, [busy(3, 600, 800)], told)
                 self.assertEqual(baseline.unexplained(baseline.records(folder), new), left, (first, second))
+
+    def test_a_gone_count_with_its_reason_is_explained(self):
+        with tempfile.TemporaryDirectory() as folder:
+            record(folder, 1, [busy(2, 300, 400)])
+            for why, left in (("", [KEY]), ("ElyMail was not timed.", [])):
+                told = f"\n{baseline.HEAD}\n\n- {KEY}: 2 → none times — {why}\n"
+                new = record(folder, 2, [], told)
+                self.assertEqual(baseline.unexplained(baseline.records(folder), new), left, why)
 
     def test_a_rise_with_its_reason_is_explained(self):
         with tempfile.TemporaryDirectory() as folder:

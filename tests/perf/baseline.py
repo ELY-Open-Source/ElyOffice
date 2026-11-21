@@ -65,12 +65,15 @@ def slower(old, new):
     found = []
     for case, was in old["rows"].items():
         now = new["rows"].get(case)
+        # A counted row gone is told by its count.
+        if now is None and case in old["counts"]:
+            continue
         if now is None or any(ms > then * SLOWER and ms - then >= FLOOR_MS for then, ms in zip(was, now)):
             found.append((case, was, now or ("none", "none")))
     for case, was in old["counts"].items():
         now = new["counts"].get(case)
-        if now is not None and now > was:
-            found.append((case, was, now))
+        if now is None or now > was:
+            found.append((case, was, "none" if now is None else now))
     return found
 
 
