@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # The idle gate's verdicts on made-up engines.
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -25,15 +27,17 @@ def engine(app, used, tasks=frozenset({"1"}), pid=None, mb=100):
 
 
 class Gate(unittest.TestCase):
-    def run_gate(self, before, after, platform="linux"):
+    def run_gate(self, before, after, platform="linux", windows=(), seen=None):
         """Exit message, or None when the gate passes."""
         record = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
         json.dump({platform: {app: 100 for app in idle.APPS}, "win32-cycles": {app: 10 for app in idle.APPS}}, record)
         record.close()
-        reads = iter([dict(before), dict(before), dict(after)])
+        reads = iter([dict(before)] + [dict(read) for pair in [*windows, (before, after)] for read in pair])
         argv = ["idle.py", ROOT, "--seconds", "0", "--settle", "0"]
+        found = iter(seen or [])
         with unittest.mock.patch.object(idle, "RECORD", record.name), \
                 unittest.mock.patch.object(idle, "engines", lambda root: next(reads)), \
+                unittest.mock.patch.object(idle, "launches", lambda start, end: next(found, [])), \
                 unittest.mock.patch.object(sys, "platform", platform), \
                 unittest.mock.patch.object(sys, "argv", argv):
             try:
@@ -83,6 +87,64 @@ class Gate(unittest.TestCase):
         after[0] = engine("ely-doc", 5, mb=111)
         self.assertIn("ely-doc holds 111 MB", self.run_gate(self.quiet(), after))
 
+
+    def busy(self):
+        after = self.quiet()
+        after[0] = engine("ely-doc", 900)
+        return self.quiet(), after
+
+    def test_a_window_another_app_woke_is_rerun_and_a_quiet_one_passes(self):
+        seen = [["2026-11-21 02:47:34 -0500 pid 42372 (Godot) created PreventUserIdleDisplaySleep"]]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            said = self.run_gate(self.quiet(), self.quiet(), "darwin", windows=[self.busy()], seen=seen)
+        self.assertIsNone(said)
+        self.assertIn("idle: window 1 void, other apps launched or quit: 2026-11-21 02:47:34 -0500 pid 42372 (Godot)", out.getvalue())
+
+    def test_a_quiet_mac_window_keeps_zero_allowed(self):
+        self.assertIsNone(self.run_gate(self.quiet(), self.quiet(), "darwin"))
+        after = self.quiet()
+        after[2] = engine("ely-show", 6)
+        self.assertIn("ely-show used 1 mach time units CPU idle; 0 allowed", self.run_gate(self.quiet(), after, "darwin"))
+
+    def test_engine_cpu_in_busy_windows_fails_after_three_voids(self):
+        seen = [[f"2026-11-21 02:5{n}:00 -0500 pid 6{n} (Godot) released PreventUserIdleDisplaySleep"] for n in range(3)]
+        with contextlib.redirect_stdout(io.StringIO()):
+            said = self.run_gate(*self.busy(), "darwin", windows=[self.busy(), self.busy()], seen=seen)
+        self.assertIn("idle: 3 windows void, never a quiet one: ", said)
+        for n in range(3):
+            self.assertIn(f"02:5{n}:00 -0500 pid 6{n} (Godot) released", said)
+
+
+class Launches(unittest.TestCase):
+    LOG = "\n".join([
+        "2026-11-21 02:46:59 -0500 Assertions          \tPID 41000(Godot) Created PreventUserIdleDisplaySleep \"x\" 00:00:00  id:0x1",
+        "2026-11-21 02:47:34 -0500 Assertions          \tPID 42372(Godot) Created PreventUserIdleDisplaySleep \"x\" 00:00:00  id:0x2",
+        "2026-11-21 02:48:00 -0500 Assertions          \tPID 750(coreaudiod) Released PreventUserIdleSystemSleep \"a\" 00:07:22  id:0x3",
+        "2026-11-21 02:48:01 -0500 Assertions          \tPID 27582(ely-lok-worker) Created PreventUserIdleSystemSleep \"e\" 00:00:00  id:0x4",
+        "2026-11-21 02:48:02 -0500 Assertions          \tPID 559(powerd) TurnedOn InternalPreventDisplaySleep \"d\" 00:00:00  id:0x5",
+        "2026-11-21 02:48:03 -0500 Assertions          \tPID 901(mds_stores) Created BackgroundTask \"m\" 00:00:00  id:0x6",
+        "2026-11-21 02:57:39 -0500 Assertions          \tPID 60590(Godot) Created PreventUserIdleDisplaySleep \"x\" 00:00:00  id:0x7",
+    ])
+
+    def test_only_other_apps_idle_assertions_in_the_window_count(self):
+        start = idle.datetime.datetime.fromisoformat("2026-11-21T02:47:00-05:00").timestamp()
+        self.assertEqual(idle.others(self.LOG, start, start + 600), [
+            "2026-11-21 02:47:34 -0500 pid 42372 (Godot) created PreventUserIdleDisplaySleep",
+            "2026-11-21 02:48:00 -0500 pid 750 (coreaudiod) released PreventUserIdleSystemSleep",
+        ])
+
+    def test_macos_reads_pmset_s_log(self):
+        start = idle.datetime.datetime.fromisoformat("2026-11-21T02:57:00-05:00").timestamp()
+        ran = unittest.mock.Mock(return_value=unittest.mock.Mock(stdout=self.LOG))
+        with unittest.mock.patch.object(sys, "platform", "darwin"), unittest.mock.patch.object(idle.child, "run", ran):
+            self.assertEqual(idle.launches(start, start + 60), ["2026-11-21 02:57:39 -0500 pid 60590 (Godot) created PreventUserIdleDisplaySleep"])
+        self.assertEqual(ran.call_args.args[0], ["pmset", "-g", "log"])
+
+    def test_other_platforms_read_no_log(self):
+        with unittest.mock.patch.object(sys, "platform", "linux"), \
+                unittest.mock.patch.object(idle.child, "run", side_effect=AssertionError("pmset ran")):
+            self.assertEqual(idle.launches(0, 1), [])
 
 
 # Holds the profile's lock as the worker does.
