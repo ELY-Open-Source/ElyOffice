@@ -21,7 +21,7 @@ ONLY_ON = {"reboot": {"windows"}}
 EARLIER_BENCH = {("macos", "0.1.17"): "0.1.16", ("linux", "0.1.17"): "0.1.16"}
 # The user, 2026-11-20: Linux 0.1.17 ships with no install record.
 NO_INSTALL = {("linux", "0.1.17")}
-# Stalls and starved timers: the count, not a time.
+# Stalls and starved timers: their count and times.
 COUNTED = re.compile(r"^(.+): (\d+) times$")
 
 
@@ -38,12 +38,15 @@ def read(path):
         if len(cells) > 6 and cells[1].startswith("PERF-") and cells[4].isdigit():
             counted = COUNTED.match(cells[2])
             # The count names the row; the key leaves it out.
+            case = cells[1] + " " + (counted.group(1) if counted else cells[2])
+            rows[case] = (int(cells[4]), int(cells[5].split()[0]))
             if counted:
-                counts[cells[1] + " " + counted.group(1)] = int(counted.group(2))
-            else:
-                rows[cells[1] + " " + cells[2]] = (int(cells[4]), int(cells[5].split()[0]))
+                counts[case] = int(counted.group(2))
     told = text.split(HEAD, 1)[1] if HEAD in text else ""
-    reasons = dict(re.findall(r"^- (.+?): (?:P50 .*? ms|\S+ → \S+ times) — *(.*)$", told, re.M))
+    reasons = {}
+    for case, why in re.findall(r"^- (.+?): (?:P50 .*? ms|\S+ → \S+ times) — *(.*)$", told, re.M):
+        # Each of a case's lines wants its reason.
+        reasons[case] = why.strip() if reasons.get(case, why).strip() else ""
     return {"path": os.path.abspath(path), "env": env, "rows": rows, "counts": counts, "reasons": reasons}
 
 
@@ -66,8 +69,8 @@ def slower(old, new):
             found.append((case, was, now or ("none", "none")))
     for case, was in old["counts"].items():
         now = new["counts"].get(case)
-        if now is None or now > was:
-            found.append((case, was, "none" if now is None else now))
+        if now is not None and now > was:
+            found.append((case, was, now))
     return found
 
 
@@ -86,7 +89,8 @@ def lines(found):
 
 def unexplained(all_records, record):
     old = before(all_records, record)
-    return [case for case, _, _ in (slower(old, record) if old else []) if not record["reasons"].get(case, "").strip()]
+    found = dict.fromkeys(case for case, _, _ in (slower(old, record) if old else []))
+    return [case for case in found if not record["reasons"].get(case, "").strip()]
 
 
 def earlier(all_records, system, version):
