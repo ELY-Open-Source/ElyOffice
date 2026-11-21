@@ -6,7 +6,7 @@ use gpui::{Entity, TestAppContext};
 
 use super::objects::{blank, objects};
 use super::slides::{in_window, type_in};
-use super::{quiet, settle, undo_steps, update};
+use super::{quiet, settle, settled, undo_steps, update};
 use crate::deck::Deck;
 use crate::dialog::Dialog;
 
@@ -165,7 +165,7 @@ fn a_clicked_local_or_script_link_opens_nothing() {
         // Toasts leave on the test clock: this click's own.
         settle(&cx, |app| said(app) == 0);
         on_title(&mut cx, &deck, (7900, MOD1), "");
-        settle(&cx, |app| said(app) > 0);
+        assert!(settled(&cx, |app| said(app) > 0), "{address}: no refusal toast");
         assert_eq!(cx.opened_url(), None, "{address}");
     }
 }

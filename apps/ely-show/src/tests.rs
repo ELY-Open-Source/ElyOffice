@@ -30,6 +30,9 @@ mod turn;
 // Atlas pictures; macOS draws surfaces on its main thread.
 #[cfg(not(target_os = "macos"))]
 mod video;
+mod wait;
+
+pub(super) use wait::{settle, settled};
 
 /// An unrendered Deck over a fresh worker, if LOK exists.
 pub(super) fn deck(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Deck>> {
@@ -55,22 +58,6 @@ pub(super) fn deck(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Deck>> 
         })
         .expect("the window lives");
     Some(deck)
-}
-
-/// Steps the scheduler until `done` or a minute passes.
-#[track_caller]
-pub(super) fn settle(cx: &TestAppContext, done: impl Fn(&gpui::App) -> bool) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
-    while std::time::Instant::now() < deadline {
-        if !cx.executor().tick() {
-            cx.executor()
-                .advance_clock(std::time::Duration::from_millis(20));
-        }
-        if cx.update(|app| done(app)) {
-            return;
-        }
-    }
-    panic!("the state never settled");
 }
 
 pub(super) fn update(
