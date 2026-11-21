@@ -10,6 +10,7 @@ import unittest
 import unittest.mock
 
 import child
+import drive
 import run
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -84,6 +85,17 @@ class Child(unittest.TestCase):
         with unittest.mock.patch.object(child.subprocess, "run", return_value=said):
             out = child.run(["x"], capture_output=True)
         self.assertEqual((out.stdout, out.stderr), ("ok", TEXT))
+
+    def test_crlf_and_lone_cr_read_back_as_text_true_reads_them(self):
+        raw = b"sent 1795224692841\r\nnext\rlast\n"
+        said = child.run(printing(raw), capture_output=True, check=True).stdout
+        self.assertEqual(said, subprocess.run(printing(raw), capture_output=True, text=True).stdout)
+        self.assertEqual(said, "sent 1795224692841\nnext\nlast\n")
+
+    def test_drive_reads_when_a_crlf_helper_sent(self):
+        """Windows helpers end their lines in CRLF."""
+        said = child.run(printing(b"pressed\r\nsent 1795224692841\r\n"), capture_output=True, check=True).stdout
+        self.assertEqual(drive.sent(said), 1795224692841.0)
 
     def test_a_piped_line_reads_back_or_fails_naming_the_command(self):
         good = piped(TEXT.encode())

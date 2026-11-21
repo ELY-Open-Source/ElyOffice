@@ -16,11 +16,12 @@ def run(args, **kw):
 
 
 def decoded(args, raw):
-    """Bytes a child wrote, as strict UTF-8."""
+    """Bytes a child wrote, as strict UTF-8, newlines as text=True."""
     try:
-        return raw.decode("utf-8")
+        text = raw.decode("utf-8")
     except UnicodeDecodeError as bad:
         raise RuntimeError(f"{named(args)}: output is not UTF-8: {bad}") from bad
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def logged(path, since=0):
