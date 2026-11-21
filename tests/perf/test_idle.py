@@ -125,6 +125,7 @@ class Launches(unittest.TestCase):
         "2026-11-21 02:48:02 -0500 Assertions          \tPID 559(powerd) TurnedOn InternalPreventDisplaySleep \"d\" 00:00:00  id:0x5",
         "2026-11-21 02:48:03 -0500 Assertions          \tPID 901(mds_stores) Created BackgroundTask \"m\" 00:00:00  id:0x6",
         "2026-11-21 02:57:39 -0500 Assertions          \tPID 60590(Godot) Created PreventUserIdleDisplaySleep \"x\" 00:00:00  id:0x7",
+        "2026-11-21 02:50:10 -0500 Assertions          \tPID 50660(Lark Helper (Iron)) Created PreventUserIdleDisplaySleep \"l\" 00:00:00  id:0x8",
     ])
 
     def test_only_other_apps_idle_assertions_in_the_window_count(self):
@@ -132,7 +133,33 @@ class Launches(unittest.TestCase):
         self.assertEqual(idle.others(self.LOG, start, start + 600), [
             "2026-11-21 02:47:34 -0500 pid 42372 (Godot) created PreventUserIdleDisplaySleep",
             "2026-11-21 02:48:00 -0500 pid 750 (coreaudiod) released PreventUserIdleSystemSleep",
+            "2026-11-21 02:50:10 -0500 pid 50660 (Lark Helper (Iron)) created PreventUserIdleDisplaySleep",
         ])
+
+    def test_evidence_whose_second_runs_past_the_end_never_counts(self):
+        at = lambda clock: idle.datetime.datetime.fromisoformat(f"2026-11-21T{clock}-05:00").timestamp()
+        log = "\n".join(f"2026-11-21 02:47:{s} -0500 Assertions          \tPID 4{s}(Godot) Created PreventUserIdleDisplaySleep \"x\" 00:00:00  id:0x{s}"
+                        for s in ("32", "33", "34"))
+        self.assertEqual(idle.others(log, at("02:47:00"), at("02:47:33.100")),
+                         ["2026-11-21 02:47:32 -0500 pid 432 (Godot) created PreventUserIdleDisplaySleep"])
+
+    def test_the_window_ends_before_its_last_sample(self):
+        clock, reads, asked = {"now": 100.0}, [], []
+
+        def engines(root):
+            reads.append(clock["now"])
+            clock["now"] += 5
+            return {}
+
+        def sleep(seconds):
+            clock["now"] += seconds
+
+        with unittest.mock.patch.object(idle, "engines", engines), \
+                unittest.mock.patch.object(idle.time, "time", lambda: clock["now"]), \
+                unittest.mock.patch.object(idle.time, "sleep", sleep), \
+                unittest.mock.patch.object(idle, "launches", lambda start, end: asked.append((start, end)) or []):
+            idle.window(ROOT, 600)
+        self.assertEqual(asked, [(reads[0], reads[1])])
 
     def test_macos_reads_pmset_s_log(self):
         start = idle.datetime.datetime.fromisoformat("2026-11-21T02:57:00-05:00").timestamp()

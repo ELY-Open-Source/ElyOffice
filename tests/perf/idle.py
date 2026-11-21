@@ -28,7 +28,7 @@ CYCLE_SLACK = 2
 # macOS: windows another app's launch voids, then a fail (R20.107).
 VOIDS = 3
 # pmset log: assertions made or released, with owner.
-ASSERTION = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d [+-]\d{4}) Assertions\s+PID (\d+)\(([^)\n]*)\) "
+ASSERTION = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d [+-]\d{4}) Assertions\s+PID (\d+)\((.*?)\) "
                        r"(Created|Released) (PreventUserIdle\w+)", re.M)
 
 
@@ -198,11 +198,12 @@ UNIT = {"linux": "ns", "darwin": "mach time units", "win32": "cycles"}
 
 
 def others(log, start, end):
-    """Non-Ely PreventUserIdle* assertions made or let go in [start, end]."""
+    """Non-Ely PreventUserIdle* assertions made or let go in the window."""
     found = []
     for at, pid, name, action, kind in ASSERTION.findall(log):
         when = datetime.datetime.strptime(at, "%Y-%m-%d %H:%M:%S %z").timestamp()
-        if int(start) <= when <= int(end) + 1 and not name.startswith("ely-"):
+        # A stamp covers its second; all of it precedes `end`.
+        if int(start) <= when and when + 1 <= end and not name.startswith("ely-"):
             found.append(f"{at} pid {pid} ({name}) {action.lower()} {kind}")
     return found
 
@@ -219,8 +220,10 @@ def window(root, seconds):
     start = time.time()
     before = engines(root)
     time.sleep(seconds)
+    # Evidence after the last sample never voids.
+    end = time.time()
     after = engines(root)
-    return before, after, launches(start, time.time())
+    return before, after, launches(start, end)
 
 
 def allowed(kept, app):
