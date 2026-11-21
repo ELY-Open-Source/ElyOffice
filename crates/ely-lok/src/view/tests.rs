@@ -10,6 +10,7 @@ mod fit;
 mod formula;
 mod input;
 mod large;
+mod reask;
 mod reveal;
 mod show_borders;
 mod theme;

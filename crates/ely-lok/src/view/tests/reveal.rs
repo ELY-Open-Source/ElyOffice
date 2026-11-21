@@ -54,7 +54,7 @@ fn settle(cx: &gpui::TestAppContext, view: &Entity<LokView>, bounds: Bounds<Pixe
 }
 
 /// A long document laid out at 800 by 600.
-fn long_view(cx: &gpui::TestAppContext, install: &std::path::Path) -> (Entity<LokView>, Bounds<Pixels>) {
+pub(super) fn long_view(cx: &gpui::TestAppContext, install: &std::path::Path) -> (Entity<LokView>, Bounds<Pixels>) {
     let view = cx.update(|app| live_view(app, install).0);
     cx.update(|app| {
         view.update(app, |view, cx| {
@@ -75,7 +75,7 @@ fn long_view(cx: &gpui::TestAppContext, install: &std::path::Path) -> (Entity<Lo
 }
 
 /// Waits until every tile of the asked screen is in.
-fn landed(cx: &gpui::TestAppContext, view: &Entity<LokView>) {
+pub(super) fn landed(cx: &gpui::TestAppContext, view: &Entity<LokView>) {
     let deadline = std::time::Instant::now() + crate::client::tests::HANG;
     while std::time::Instant::now() < deadline {
         cx.run_until_parked();
@@ -89,6 +89,22 @@ fn landed(cx: &gpui::TestAppContext, view: &Entity<LokView>) {
         }
     }
     panic!("the screen never came whole");
+}
+
+/// A real change the kernel counts, unseen by the view.
+pub(super) fn counted(cx: &gpui::TestAppContext, view: &Entity<LokView>, what: &str) {
+    let (worker, doc, seen) = cx.update(|app| {
+        let view = view.read(app);
+        (Arc::clone(&view.worker), view.doc.clone(), view.generation)
+    });
+    let mut worker = worker.lock().expect("the worker lock");
+    worker.post_key(&doc, 0, 1280).expect("Return posts");
+    let deadline = std::time::Instant::now() + crate::client::tests::HANG;
+    // Polls the kernel's count; gpui stays unticked.
+    while worker.state(&doc).expect("the state reads").1 <= seen {
+        assert!(std::time::Instant::now() < deadline, "{what}: the kernel never counted the change");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
 }
 
 /// Each drawn tile's place and image address.
@@ -439,6 +455,8 @@ fn a_kernel_change_repaints_and_reports_once_its_shown_tiles_land() {
         app.observe(&view, move |_, _| frames.set(frames.get() + 1)).detach();
         app.subscribe(&view, move |_, _: &Reported, _| reports.set(reports.get() + 1)).detach();
     });
+    // Tiles carry the kernel's count: it must reach the batch's.
+    counted(&cx, &view, "a kernel change");
     cx.update(|app| view.update(app, |view, cx| {
         let (kx, ky) = view.on_screen[0];
         let rect = (kx * TILE_TWIPS, ky * TILE_TWIPS, TILE_TWIPS, TILE_TWIPS);
@@ -462,6 +480,7 @@ fn an_input_landing_before_its_batch_repaints_and_reports_once_its_tiles_land() 
         app.observe(&view, move |_, _| frames.set(frames.get() + 1)).detach();
         app.subscribe(&view, move |_, _: &Reported, _| reports.set(reports.get() + 1)).detach();
     });
+    counted(&cx, &view, "an input before its batch");
     let (generation, rect) = cx.update(|app| view.update(app, |view, cx| {
         let (kx, ky) = view.on_screen[0];
         // The batch lags the input's invalidations.
