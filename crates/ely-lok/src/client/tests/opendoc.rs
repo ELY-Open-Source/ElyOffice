@@ -6,7 +6,6 @@ use super::macros::{MACRO_URL, module, seed_basic};
 use super::*;
 
 const MOD1: i32 = 0x2000;
-const ESCAPE: i32 = 1281;
 const SCRIPT_URL: &str = "vnd.sun.star.script:Standard.Module1.Sneaky?language=Basic&amp;location=application";
 const PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGNQSDiAFTEMLQkAGplQAT43V5gAAAAASUVORK5CYII=";
 
@@ -57,6 +56,33 @@ fn image(row: f64) -> (f64, f64) {
     (16.0, 1.5 + row * 2.1)
 }
 
+/// Twips: the cursor shows inside a frame at the point.
+fn editing_at(seen: &Events, (x, y): (f64, f64)) -> bool {
+    let inside = |(left, top, width, height): Rect, (x, y): (i32, i32)| {
+        (left..=left + width).contains(&x) && (top..=top + height).contains(&y)
+    };
+    let point = ((x * 567.0) as i32, (y * 567.0) as i32);
+    match (seen.graphic, seen.cursor) {
+        (Some(frame), Some(cursor)) => seen.cursor_visible && inside(frame, point) && inside(frame, (cursor.0, cursor.1)),
+        _ => false,
+    }
+}
+
+/// Clicks into a box; the kernel must say it edits.
+fn edit(worker: &mut Worker, doc: &Doc, seen: &Events, at: (f64, f64), what: &str) -> Events {
+    let before = seen.seq;
+    press(worker, doc, at, 0);
+    let seen = poll_until(worker, doc, seen, Duration::from_secs(2), |seen| seen.seq > before && editing_at(seen, at));
+    assert!(
+        seen.seq > before && editing_at(&seen, at),
+        "{what}: the box never started editing: cursor {:?} visible {} frame {:?}",
+        seen.cursor,
+        seen.cursor_visible,
+        seen.graphic
+    );
+    seen
+}
+
 /// Image maps and clicks while editing run no macro.
 #[test]
 fn a_macro_link_the_kernel_opens_itself_never_runs() {
@@ -79,15 +105,12 @@ fn a_macro_link_the_kernel_opens_itself_never_runs() {
     for basic in [true, false] {
         let source = dir.path().join(format!("links-{basic}.fodp"));
         std::fs::write(&source, deck(basic)).expect("the deck writes");
-        let doc = worker.load(&crate::file_url(&source)).expect("the deck loads");
-        let mut seen = poll_until(&mut worker, &doc, &Events::default(), Duration::from_secs(2), |_| false);
         for (what, editing, at, modifiers) in clicks {
-            for _ in 0..2 {
-                worker.post_key(&doc, 0, ESCAPE).expect("leaves the text");
-            }
+            // macOS: an image map's question upsets later clicks.
+            let doc = worker.load(&crate::file_url(&source)).expect("the deck loads");
+            let mut seen = poll_until(&mut worker, &doc, &Events::default(), Duration::from_secs(2), |_| false);
             if let Some(row) = editing {
-                press(&mut worker, &doc, text(row), 0);
-                seen = poll_until(&mut worker, &doc, &seen, Duration::from_millis(800), |_| false);
+                seen = edit(&mut worker, &doc, &seen, text(row), what);
             }
             press(&mut worker, &doc, at, modifiers);
             // Without Basic, Ely hears a closed question.
@@ -105,8 +128,8 @@ fn a_macro_link_the_kernel_opens_itself_never_runs() {
                     seen.blocked
                 ),
             }
+            worker.close_doc(doc).expect("the deck closes");
         }
-        worker.close_doc(doc).expect("the deck closes");
     }
     // The control: the same macro runs when asked.
     assert!(worker.run_macro(MACRO_URL).expect("the macro channel") != 0, "the library macro runs");
