@@ -1715,3 +1715,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 
 - 所见：PERF-02 的行名带次数，`baseline.py` 以行名作键，次数一变旧行即“→ none”，次数降了门也不过（Windows 0.1.17 的 ElyMail 6→2）。
 - 定（team-lead）：次数是行名的一部分、不是键；键去掉“: N times”，次数不升即过，升了或缺了要原因。两份都有该行时，那几次卡顿的 P50、P95 照常规与旧行比：不比即放松了门（team-lead 改定，初版不比）。一项列出几行时，每行都要原因。
+
+## 2026-11-22 v0.1.17 发布运行的两处发布机环境（R20.115）
+
+- 所见：推 v0.1.17 后的发布运行 44977943541，Windows 与 Linux 两个任务一分钟内皆败，都是发布机的环境，不是代码。
+- Linux（omarchy-amd64，以系统服务运行的 runner）：服务的环境里没有 XDG_RUNTIME_DIR，LOK worker 个个败于“XDG_RUNTIME_DIR is not set”（ely-doc 败 129 项）。应用与 worker 之间的端点自 SF.3 起要它，SF.3 在 0.1.16 之后，故 0.1.16 的发布没碰上。修（team-lead）：runner 的 `.env`（`~/actions-runner-omarchy/.env`）加 `XDG_RUNTIME_DIR=/run/user/1000`（该用户已开 linger），重启服务；原文件存于 `.work/runner-omarchy.env.before`（本机，未入库）。
+- Windows（elysia-windows）：发布用的检出 `%USERPROFILE%\ely-ci\ElyOffice` 里 engines、reference 两个连接点仍指向 2026-11-17 已删的 `C:\ely\ElyOffice`；`ci.sh` 在 Windows 上不核链接，New-Item 败于“Could not find a part of the path”。修（team-lead）：删去两个悬空的连接点（rmdir，只删链接），由 `ci.sh` 照 `ELY_SHARE` 重建。Windows 上补上这一核对，另立 R20.115。
+- 两个失败的任务待两个 macOS 任务完成后重跑。
