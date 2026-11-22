@@ -1722,3 +1722,4 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - Linux（omarchy-amd64，以系统服务运行的 runner）：服务的环境里没有 XDG_RUNTIME_DIR，LOK worker 个个败于“XDG_RUNTIME_DIR is not set”（ely-doc 败 129 项）。应用与 worker 之间的端点自 SF.3 起要它，SF.3 在 0.1.16 之后，故 0.1.16 的发布没碰上。修（team-lead）：runner 的 `.env`（`~/actions-runner-omarchy/.env`）加 `XDG_RUNTIME_DIR=/run/user/1000`（该用户已开 linger），重启服务；原文件存于 `.work/runner-omarchy.env.before`（本机，未入库）。
 - Windows（elysia-windows）：发布用的检出 `%USERPROFILE%\ely-ci\ElyOffice` 里 engines、reference 两个连接点仍指向 2026-11-17 已删的 `C:\ely\ElyOffice`；`ci.sh` 在 Windows 上不核链接，New-Item 败于“Could not find a part of the path”。修（team-lead）：删去两个悬空的连接点（rmdir，只删链接），由 `ci.sh` 照 `ELY_SHARE` 重建。Windows 上补上这一核对，另立 R20.115。
 - 两个失败的任务待两个 macOS 任务完成后重跑。
+- 2026-11-22（用户定）：发布的门不再跑空闲引擎检查。用户的 Mac 上同时开着许多别的项目（Godot、模拟器等），空闲窗口一再作废，门因此卡住发布。`scripts/release-tests.sh` 去掉其末段（建三个应用、起引擎、`tests/perf/idle.py`），`tests/scripts/ci-upload.sh` 随之去掉替身；`tests/perf/idle.py` 与其测试留作手动的测量。v0.1.17 的标签改打在这一提交上，此前的发布运行取消。

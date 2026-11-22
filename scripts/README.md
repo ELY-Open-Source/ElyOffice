@@ -23,7 +23,7 @@ packaging/nix.sh 标签          由该发布的每应用清单写 nix/release.j
 packaging/winget.sh 标签       由该发布的 `ely-office-windows-x86_64.json` 写 dist/winget 下一份 WinGet 清单（`ZacharyZhang.ElyOffice`，即统一安装程序；发布后交 winget-pkgs）
 packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`，散列不符即失败），文件名带提交号；有未提交改动即拒绝；发布只上传 Linux 的
 scripts/mac-ready.sh 凭据名     Mac 发布前：`coreaudiod` 20 秒内答 `system_profiler SPAudioDataType`（停应时放媒体的测试会挂住），`notarytool` 读得到该公证凭据（登录钥匙串在本会话里锁着即读不到）；任一不行即说明原因与出路并失败（ci.sh 在 macOS 上构建前调）
-scripts/release-tests.sh         发布的门：建好两个 worker 并点名，严格模式跑 `cargo test --workspace`，再跑 vendor 下各 crate 自己的测试（`tests/scripts/vendor-tests.sh`，本平台的 gpui-pre 一行缺失或零测试即败；Linux 经 `dbus-run-session`），再看三个空闲引擎静置后十分钟 CPU 为 0（Windows 不超记录周期的两倍）、内存不超记录一成（`tests/perf/idle.py`）（ci.sh 打包前调）
+scripts/release-tests.sh         发布的门：建好两个 worker 并点名，严格模式跑 `cargo test --workspace`，再跑 vendor 下各 crate 自己的测试（`tests/scripts/vendor-tests.sh`，本平台的 gpui-pre 一行缺失或零测试即败；Linux 经 `dbus-run-session`）（ci.sh 打包前调）
 scripts/compatibility.py [--check]  写 docs/compatibility.md 的版本与内核两行；--check 不符即败（ci.sh、pr.yml）
 scripts/test-map.py            写 docs/test-map.md：PRD 每个编号的任务与其测试（pr.yml 核对与提交一致）
 scripts/lo-tarballs.sh lo-src     列出该 LibreOffice 构建所取的压缩包（名字、SHA-256、地址），由其 `Makefile.fetch` 得出

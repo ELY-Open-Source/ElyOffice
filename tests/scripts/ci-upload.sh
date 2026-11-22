@@ -46,11 +46,6 @@ EOF
 chmod +x "$work/bin/curl"
 # Fake cargo: logs each call; $CARGO_FAILS names the failing one.
 export CARGO_LOG=$work/cargo.log CARGO_BUILT=$work/built
-# The apps the idle gate starts: each engine call succeeds.
-mkdir -p "$CARGO_BUILT/debug"
-for app in ely-doc ely-table ely-show; do
-  printf '#!/usr/bin/env bash\n' >"$CARGO_BUILT/debug/$app" && chmod +x "$CARGO_BUILT/debug/$app"
-done
 cat >"$work/bin/cargo" <<'EOF'
 #!/usr/bin/env bash
 [ "$1" != metadata ] || { echo "{\"target_directory\": \"$CARGO_BUILT\"}"; exit 0; }
@@ -71,7 +66,7 @@ clone() { # os
   # The gates' own rules are release-gate.sh's to test.
   mkdir -p "$at/tests/perf"
   printf 'import os, sys\nsys.exit(1 if os.environ.get("GATE_FAILS") == sys.argv[0].rsplit("/", 1)[1] else 0)\n' |
-    tee "$at/scripts/compatibility.py" "$at/scripts/release-gate.py" "$at/tests/perf/idle.py" >"$at/tests/perf/baseline.py"
+    tee "$at/scripts/compatibility.py" "$at/scripts/release-gate.py" >"$at/tests/perf/baseline.py"
   git -C "$at" init -q && git -C "$at" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m t
   cp "$root/Cargo.toml" "$root/rust-toolchain.toml" "$at/"
   cp "$root/packaging/apps.tsv" "$at/packaging/"
@@ -109,8 +104,7 @@ uploads() { # name pattern, os
 workers=$CARGO_BUILT/debug/ely-lok-worker,$CARGO_BUILT/debug/ely-pdf-worker
 gate="build -p ely-lok --bins -p ely-pdf-worker | engines=1 incremental=0 workers=,
 test --workspace | engines=1 incremental=0 workers=$workers
-vendor-tests
-build -p ely-doc -p ely-table -p ely-show | engines=1 incremental=0 workers=$workers"
+vendor-tests"
 # A failed build or test uploads nothing.
 for os in macos linux; do
   for step in build test; do

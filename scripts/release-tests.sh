@@ -25,14 +25,3 @@ case $(uname -s) in
   Linux) dbus-run-session -- tests/scripts/vendor-tests.sh ;;
   *) tests/scripts/vendor-tests.sh ;;
 esac
-
-# Idle engines: ten minutes, no CPU, memory as recorded.
-cargo build -p ely-doc -p ely-table -p ely-show
-idle=$(mktemp -d)
-case $(uname -s) in
-  MINGW* | MSYS*) idle=$(cygpath -w "$idle") ;;
-esac
-stop() { for slug in ely-doc ely-table ely-show; do ELY_DATA_ROOT=$idle "$bins/$slug$exe" engine stop; done; }
-trap stop EXIT
-for slug in ely-doc ely-table ely-show; do ELY_DATA_ROOT=$idle "$bins/$slug$exe" engine; done
-python3 tests/perf/idle.py "$idle"
