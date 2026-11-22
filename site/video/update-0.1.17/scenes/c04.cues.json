@@ -1,0 +1,21 @@
+{
+  "cues": [
+    { "t": 30.75, "sfx": "paper", "gain": 0.5, "pan": -0.77 },
+    { "t": 30.9375, "sfx": "whoosh", "gain": 0.35, "pan": -0.11 },
+    { "t": 31.125, "sfx": "paper", "gain": 0.4, "pan": -0.11 },
+    { "t": 31.5625, "sfx": "tick", "gain": 0.35, "pan": -0.11 },
+    { "t": 31.8125, "sfx": "tick", "gain": 0.5, "pan": -0.77 },
+    { "t": 32.0, "sfx": "pop", "gain": 0.8, "pan": -0.11 },
+    { "t": 32.75, "sfx": "click", "gain": 0.9, "pan": 0.66 },
+    { "t": 32.8125, "sfx": "slide", "gain": 0.5, "pan": 0.66 },
+    { "t": 33.25, "sfx": "click", "gain": 0.8, "pan": 0.32 },
+    { "t": 33.5, "sfx": "tick", "gain": 0.6, "pan": -0.11 },
+    { "t": 34.0, "sfx": "tick", "gain": 0.6, "pan": -0.11 },
+    { "t": 36.0, "sfx": "click", "gain": 0.9, "pan": -0.14 },
+    { "t": 36.125, "sfx": "snap", "gain": 0.6, "pan": -0.05 },
+    { "t": 36.5, "sfx": "tick", "gain": 0.25, "pan": -0.77 },
+    { "t": 37.0, "sfx": "tick", "gain": 0.25, "pan": -0.77 },
+    { "t": 37.5, "sfx": "tick", "gain": 0.4, "pan": -0.77 },
+    { "t": 37.75, "sfx": "whoosh", "gain": 0.4, "pan": 0.5 }
+  ]
+}

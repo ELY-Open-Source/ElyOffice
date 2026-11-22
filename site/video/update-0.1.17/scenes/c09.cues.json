@@ -1,0 +1,29 @@
+{
+  "cues": [
+    { "t": 79.5, "sfx": "slide", "gain": 0.4, "pan": -0.3 },
+    { "t": 80.0, "sfx": "snap", "gain": 0.9, "pan": 0.3 },
+    { "t": 80.375, "sfx": "slide", "gain": 0.3, "pan": -0.2 },
+    { "t": 80.75, "sfx": "snap", "gain": 0.5, "pan": 0.3 },
+    { "t": 80.6875, "sfx": "whoosh", "gain": 0.35, "pan": -0.2 },
+    { "t": 81.5, "sfx": "click", "gain": 0.9, "pan": -0.37 },
+    { "t": 81.8125, "sfx": "tick", "gain": 0.4, "pan": 0.18 },
+    { "t": 82.0, "sfx": "click", "gain": 1.0, "pan": -0.37 },
+    { "t": 82.3125, "sfx": "tick", "gain": 0.6, "pan": 0.18 },
+    { "t": 82.25, "sfx": "whoosh", "gain": 0.3, "pan": 0.2 },
+    { "t": 83.5, "sfx": "click", "gain": 0.9, "pan": 0.0 },
+    { "t": 83.625, "sfx": "peel", "gain": 0.6, "pan": 0.0 },
+    { "t": 84.0, "sfx": "snap", "gain": 1.0, "pan": 0.0 },
+    { "t": 84.125, "sfx": "whoosh", "gain": 0.3, "pan": 0.3 },
+    { "t": 84.875, "sfx": "click", "gain": 0.8, "pan": -0.26 },
+    { "t": 84.9375, "sfx": "slide", "gain": 0.4, "pan": 0.0 },
+    { "t": 85.25, "sfx": "key", "gain": 0.8, "pan": 0.2 },
+    { "t": 85.375, "sfx": "click", "gain": 0.8, "pan": -0.32 },
+    { "t": 85.5, "sfx": "key", "gain": 0.8, "pan": -0.1 },
+    { "t": 85.5, "sfx": "pop", "gain": 1.0, "pan": -0.07 },
+    { "t": 85.625, "sfx": "whoosh", "gain": 0.3, "pan": 0.3 },
+    { "t": 87.0, "sfx": "peel", "gain": 0.8, "pan": -0.11 },
+    { "t": 87.0625, "sfx": "paper", "gain": 0.6, "pan": 0.11 },
+    { "t": 87.25, "sfx": "snap", "gain": 0.8, "pan": 0.0 },
+    { "t": 87.5, "sfx": "whoosh", "gain": 0.5, "pan": 0.6 }
+  ]
+}

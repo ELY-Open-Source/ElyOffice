@@ -1,0 +1,5 @@
+{ "cues": [
+  { "t": 106.5, "sfx": "whoosh", "var": 4, "gain": 0.7, "pan": -0.2 },
+  { "t": 111.0, "sfx": "paper", "var": 2, "gain": 0.4, "pan": -0.65 },
+  { "t": 118.5, "sfx": "paper", "var": 1, "gain": 0.35, "pan": -0.65 }
+] }

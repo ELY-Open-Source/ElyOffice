@@ -1,0 +1,11 @@
+{
+  "cues": [
+    {"t": 1.0, "sfx": "tick", "gain": 0.6, "pan": -0.33},
+    {"t": 2.5, "sfx": "tick", "gain": 0.22, "pan": -0.08},
+    {"t": 3.5, "sfx": "tick", "gain": 0.22, "pan": 0.08},
+    {"t": 5.75, "sfx": "slide", "gain": 0.25, "pan": 0.2},
+    {"t": 6.0, "sfx": "snap", "gain": 0.9, "pan": 0.2},
+    {"t": 6.75, "sfx": "slide", "gain": 0.45, "pan": 0.2},
+    {"t": 7.5, "sfx": "whoosh", "gain": 0.7, "pan": 0.6}
+  ]
+}

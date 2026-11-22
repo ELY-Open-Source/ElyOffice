@@ -1,0 +1,18 @@
+{
+  "cues": [
+    { "t": 99.5625, "sfx": "error", "gain": 0.8, "pan": 0.0 },
+    { "t": 100.0, "sfx": "click", "gain": 1, "pan": 0.33 },
+    { "t": 100.9375, "sfx": "double-click", "gain": 0.9, "pan": -0.26 },
+    { "t": 101.125, "sfx": "whoosh", "gain": 0.5, "pan": 0.1 },
+    { "t": 101.5, "sfx": "pop", "gain": 0.9, "pan": 0.21 },
+    { "t": 102.5, "sfx": "lock", "gain": 1, "pan": -0.1 },
+    { "t": 102.625, "sfx": "slide", "gain": 0.6, "pan": 0.1 },
+    { "t": 103.0, "sfx": "snap", "gain": 1, "pan": 0.33 },
+    { "t": 104.0, "sfx": "click", "gain": 1, "pan": -0.43 },
+    { "t": 104.0625, "sfx": "peel", "gain": 0.7, "pan": -0.35 },
+    { "t": 104.9375, "sfx": "click", "gain": 0.7, "pan": 0.03 },
+    { "t": 105.0, "sfx": "slide", "gain": 0.8, "pan": 0.0 },
+    { "t": 105.5, "sfx": "snap", "gain": 0.9, "pan": -0.1 },
+    { "t": 105.75, "sfx": "whoosh", "gain": 0.7, "pan": 0.6 }
+  ]
+}
