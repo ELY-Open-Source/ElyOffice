@@ -21,11 +21,11 @@ arch=$(uname -m)
 # Only what bundle.sh reads; nfpm records its calls.
 plant() {
   local tree=$1 slug name batch
-  mkdir -p "$tree/packaging/linux" "$tree/engines" "$tree/dist"
+  mkdir -p "$tree/packaging/linux" "$tree/engines"
   cp "$root/packaging/linux/bundle.sh" "$tree/packaging/linux/"
   cp "$root/packaging/apps.tsv" "$tree/packaging/"
   echo 'version = "9.9.9"' >"$tree/Cargo.toml"
-  printf '#!/bin/sh\necho "$@" >>"%s/nfpm.log"\n' "$tree" >"$tree/engines/nfpm-2.47.0-$arch"
+  printf '#!/bin/sh\nfor last; do :; done\n[ -d "$last" ] || { echo "Open $last: is a directory" >&2; exit 1; }\necho "$@" >>"%s/nfpm.log"\n' "$tree" >"$tree/engines/nfpm-2.47.0-$arch"
   chmod +x "$tree/engines/nfpm-2.47.0-$arch"
   cp "$root/packaging/linux/AppRun" "$root/packaging/linux/ely-engine@.service" "$tree/packaging/linux/"
   cp "$root/packaging/manifest.sh" "$tree/packaging/"

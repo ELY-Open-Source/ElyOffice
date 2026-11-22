@@ -4,6 +4,7 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
 dist=${ELY_DIST:-$root/dist}
+mkdir -p "$dist"
 broken() {
   echo "bundle.sh: $*" >&2
   exit 1
