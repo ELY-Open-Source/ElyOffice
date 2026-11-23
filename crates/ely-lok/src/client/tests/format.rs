@@ -127,6 +127,14 @@ fn the_remaining_rows_reach_the_kernel() {
         .expect("select all");
     for id in [
         "format.subscript",
+        "format.paint",
+        "format.grow",
+        "format.shrink",
+        "format.case_upper",
+        "format.case_lower",
+        "format.case_title",
+        "format.case_sentence",
+        "format.clear",
         "paragraph.right",
         "paragraph.justify",
         "paragraph.left",
@@ -449,4 +457,20 @@ fn an_empty_span_hides_no_direct_formatting() {
     });
     assert_eq!(state(&seen, ".uno:FontHeight"), Some("14"), "one height covers both styles");
     assert_ne!(state(&seen, ".uno:FontColor"), Some(crate::MIXED), "one color covers both styles");
+}
+
+#[test]
+fn a_paragraph_takes_shading() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (dir, mut worker, doc) = open(FODT);
+    click(&mut worker, &doc, 150, 150);
+    worker.run(&doc, "edit.select_all", &[]).expect("select all");
+    worker
+        .run(&doc, "paragraph.shading", &["16711680"])
+        .expect("shading");
+    let text = saved(&dir, &mut worker, &doc, "framed.fodt");
+    assert!(text.contains("#ff0000"), "the shading lands");
 }
