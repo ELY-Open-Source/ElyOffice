@@ -483,6 +483,7 @@ mod points;
 mod remote;
 mod slow;
 mod sources;
+mod stand_ins;
 mod start;
 mod waiting;
 mod words;

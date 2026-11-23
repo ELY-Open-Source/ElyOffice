@@ -160,6 +160,23 @@ open(path, "w", encoding="utf-8").write(kept)
 PY
 # Ely's kernel defaults: Excel A1 formulas.
 cp "$root/packaging/libreoffice/ely.xcd" "$app/registry/"
+# Linux draws a missing font by fontconfig: Ely's aliases go in before it closes.
+if [ "$(uname)" = Linux ]; then
+  conf="$app/fonts/truetype/fc_local.conf"
+  [ -f "$conf" ] || {
+    echo "build-libreoffice.sh: no $conf to add the font aliases to" >&2
+    exit 1
+  }
+  python3 - "$conf" "$root/packaging/libreoffice/ely-fonts.conf" <<'PY'
+import sys
+conf, extra = sys.argv[1:]
+text = open(conf, encoding="utf-8").read()
+if "Ely: a Word font" in text:
+    sys.exit(0)
+end = text.rindex("</fontconfig>")
+open(conf, "w", encoding="utf-8").write(text[:end] + "\n" + open(extra, encoding="utf-8").read() + text[end:])
+PY
+fi
 
 if [ "$(uname)" = Linux ]; then
   # Meson leaves build-tree RUNPATHs in copied libraries, as cairo's.
