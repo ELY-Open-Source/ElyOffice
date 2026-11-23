@@ -49,6 +49,7 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Int("PageColumnType", "short", 1, 3)],
         Check::Undoable,
     ),
+    command("draw.text_box", ".uno:DrawText", &[Arg::Bool("CreateDirectly")], Check::Undoable),
     command("page.break", ".uno:InsertPagebreak", &[], Check::Undoable),
     command(
         "page.section",

@@ -40,19 +40,25 @@ pub fn menu(cx: &App) -> Menu {
         MenuItem::separator(),
         MenuItem::action(label("doc.insert.page_number"), InsertPageNumber),
         MenuItem::action(label("doc.insert.page_count"), InsertPageCount),
+        MenuItem::separator(),
+        MenuItem::action(label("doc.insert.symbol"), crate::symbols::InsertSymbol),
+        MenuItem::separator(),
     ];
+    items.extend(crate::objects::items(cx));
     items.extend(crate::refs::items(cx));
     Menu::new(label("menu.insert")).items(items)
 }
 
 /// Binds the Insert and Review actions on the window root.
 pub fn bind(root: Div, cx: &mut Context<Docs>) -> Div {
-    root.on_action(cx.listener(Docs::on_insert_table))
+    crate::objects::bind(root, cx)
+        .on_action(cx.listener(Docs::on_insert_table))
         .on_action(cx.listener(Docs::on_insert_image))
         .on_action(cx.listener(Docs::on_page_break))
         .on_action(cx.listener(Docs::on_section_break))
         .on_action(cx.listener(Docs::on_page_number))
         .on_action(cx.listener(Docs::on_page_count))
+        .on_action(cx.listener(Docs::on_symbol))
         .on_action(cx.listener(Docs::on_contents))
         .on_action(cx.listener(Docs::on_update))
         .on_action(cx.listener(Docs::on_footnote))

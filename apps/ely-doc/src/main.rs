@@ -10,11 +10,13 @@ mod insert;
 mod menu;
 mod merge;
 mod navigate;
+mod objects;
 mod output;
 mod props;
 mod refs;
 mod remote;
 mod review;
+mod symbols;
 mod window;
 
 use ely_platform::AppId;

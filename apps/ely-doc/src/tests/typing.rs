@@ -1,12 +1,14 @@
-//! The text group's case rows and the paragraph shading.
+//! The text group's case rows and the Insert Symbol dialog.
 
 use ely_office::prelude::*;
 use gpui::TestAppContext;
 
+use crate::actions::Dialog;
+use crate::symbols::InsertSymbol;
 use crate::tests::{blank, docs, settled, text_of, type_into, with_window, written};
 
 #[test]
-fn case_rows_change_the_saved_text() {
+fn case_rows_and_a_symbol_change_the_saved_text() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let Some(docs) = docs(&mut cx, dir.path()) else {
@@ -34,6 +36,30 @@ fn case_rows_change_the_saved_text() {
         written(&cx, &path, None);
         assert!(text_of(&mut cx, &docs, &path).contains(shown), "{command}");
     }
+    with_window(&mut cx, &docs, |docs, window, cx| {
+        docs.on_symbol(&InsertSymbol, window, cx);
+        assert!(matches!(docs.dialog, Some(Dialog::Symbols)), "the menu opens the grid");
+        docs.type_symbol('€', cx);
+        assert!(docs.dialog.is_none(), "a pick closes the grid");
+    });
+    settled(&cx, &docs);
+    let path = dir.path().join("symbol.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    written(&cx, &path, None);
+    assert!(text_of(&mut cx, &docs, &path).contains('€'), "the symbol is in the file");
+    cx.update(|app| {
+        docs.update(app, |docs, cx| {
+            docs.run_active("draw.shape", &["ellipse", "true"], cx);
+            docs.run_active("draw.text_box", &["true"], cx);
+        })
+    });
+    settled(&cx, &docs);
+    let path = dir.path().join("objects.odt");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    written(&cx, &path, None);
+    let flat = text_of(&mut cx, &docs, &path);
+    assert!(flat.contains("draw:custom-shape"), "the shape is drawn: {}", flat.len());
+    assert!(flat.contains("draw:text-box"), "the text box is drawn");
 }
 
 #[test]

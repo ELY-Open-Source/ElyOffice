@@ -23,6 +23,7 @@ pub enum Dialog {
         rows: f64,
     },
     Section,
+    Symbols,
     Ask {
         ask: Ask,
         field: Entity<TextInput>,
@@ -67,6 +68,7 @@ impl Docs {
             Dialog::Section => {
                 return Some(crate::insert::section_dialog(this, dismiss, cx).into_any_element());
             }
+            Dialog::Symbols => crate::symbols::symbol_dialog(this, dismiss, cx),
             Dialog::Ask { ask, field } => {
                 let prompt = crate::refs::ask_dialog(this, ask, field, dismiss, cx);
                 return Some(prompt.into_any_element());
