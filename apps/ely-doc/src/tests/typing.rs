@@ -3,6 +3,8 @@
 use ely_office::prelude::*;
 use gpui::TestAppContext;
 
+use crate::refs::{Ask, RemoveWatermark};
+
 use crate::actions::Dialog;
 use crate::symbols::InsertSymbol;
 use crate::tests::{blank, docs, settled, text_of, type_into, with_window, written};
@@ -87,4 +89,28 @@ fn a_paragraph_takes_shading() {
     };
     assert!(flat(&mut cx, "red", "16711680").contains("fo:background-color=\"#ff0000\""), "the shading");
     assert!(!flat(&mut cx, "none", "-1").contains("fo:background-color=\"#ff0000\""), "the shading is gone");
+}
+
+#[test]
+fn a_watermark_goes_into_the_page_and_comes_out() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "body");
+    let mut saved = |cx: &mut TestAppContext, name: &str| {
+        settled(cx, &docs);
+        let path = dir.path().join(format!("{name}.odt"));
+        with_window(cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+        written(cx, &path, None);
+        text_of(cx, &docs, &path)
+    };
+    cx.update(|app| docs.update(app, |docs, cx| docs.answer(&Ask::Watermark, "DRAFT", cx)));
+    let marked = saved(&mut cx, "marked");
+    assert!(marked.contains("PowerPlusWaterMarkObject") && marked.contains("DRAFT"), "the mark");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_remove_watermark(&RemoveWatermark, window, cx));
+    assert!(!saved(&mut cx, "clean").contains("PowerPlusWaterMarkObject"), "the mark is gone");
 }

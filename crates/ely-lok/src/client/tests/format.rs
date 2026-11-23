@@ -493,3 +493,24 @@ fn a_paragraph_takes_shading() {
     let text = saved(&dir, &mut worker, &doc, "framed.fodt");
     assert!(text.contains("#ff0000"), "the shading lands");
 }
+
+#[test]
+fn a_watermark_is_added_and_removed() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (dir, mut worker, doc) = open(FODT);
+    click(&mut worker, &doc, 150, 150);
+    let rest = ["Liberation Sans", "45", "50", "12632256"];
+    worker
+        .run(&doc, "page.watermark", &["DRAFT", rest[0], rest[1], rest[2], rest[3]])
+        .expect("a watermark");
+    let marked = saved(&dir, &mut worker, &doc, "marked.fodt");
+    assert!(marked.contains("PowerPlusWaterMarkObject"), "the mark lands");
+    worker
+        .run(&doc, "page.watermark", &["", rest[0], rest[1], rest[2], rest[3]])
+        .expect("removes it");
+    let clean = saved(&dir, &mut worker, &doc, "clean.fodt");
+    assert!(!clean.contains("PowerPlusWaterMarkObject"), "the mark goes");
+}

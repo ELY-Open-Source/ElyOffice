@@ -50,6 +50,18 @@ pub(super) const ROWS: &[Command] = &[
         Check::Undoable,
     ),
     command("draw.text_box", ".uno:DrawText", &[Arg::Bool("CreateDirectly")], Check::Undoable),
+    command(
+        "page.watermark",
+        ".uno:Watermark",
+        &[
+            Arg::Loose("Text"),
+            Arg::Text("Font"),
+            Arg::Int("Angle", "short", 0, 360),
+            Arg::Int("Transparency", "short", 0, 100),
+            Arg::Int("TextColor", "long", 0, 0xFF_FFFF),
+        ],
+        Check::Finished,
+    ),
     command("page.break", ".uno:InsertPagebreak", &[], Check::Undoable),
     command(
         "page.section",
