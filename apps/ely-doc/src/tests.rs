@@ -481,7 +481,7 @@ mod pause;
 mod plain;
 mod points;
 mod remote;
-mod roboto;
+mod free_fonts;
 mod slow;
 mod sources;
 mod stand_ins;

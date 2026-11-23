@@ -1,0 +1,7 @@
+family	source	ref	files
+Roboto	googlefonts/roboto-3-classic hinted/static	v3.016 (Roboto_v3.016.zip sha256 1653dbe12f248da8fb0b9920db7b9496cd677ed3981154f6f15285c8bd4e334f)	Regular Italic Bold BoldItalic Light LightItalic Medium MediumItalic
+Open Sans	googlefonts/opensans fonts/ttf	6cbc400d4855abee59d85c4ed871d510399bce7b	Regular Italic Bold BoldItalic
+Montserrat	JulietaUla/Montserrat fonts/ttf	555facfb2a18c72c3c0380f0d9c0f060453a9058	Regular Italic Bold BoldItalic
+Lato	google/fonts ofl/lato	06bfe0d62a98375cb09c942fa18e68bd32cff057	Regular Italic Bold BoldItalic
+Source Sans 3	adobe-fonts/source-sans TTF	3.052R (TTF-source-sans-3.052R.zip sha256 1b0dd1ec44b39f1dd98bbd153a1a3815f083639874ddee02c842bd601bad3d21)	Regular It Bold BoldIt
+Inter	rsms/inter extras/ttf	v4.1 (Inter-4.1.zip sha256 9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e)	Regular Italic Bold BoldItalic

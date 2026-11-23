@@ -34,7 +34,9 @@ lo_licence=$lo/LICENSE
 case $slug in
   ely-doc | ely-table | ely-show)
     put LibreOffice "$lo_licence" "$lo/LICENSE.html" "$lo/NOTICE" "$lo/CREDITS.fodt"
-    put Roboto "$root/packaging/libreoffice/fonts/Roboto/OFL.txt"
+    for family in "$root"/packaging/libreoffice/fonts/*/; do
+      put "fonts/$(basename "$family")" "$family/OFL.txt"
+    done
     ;;
   ely-pdf | ely-mark)
     put MuPDF "$root/engines/mupdf-src/COPYING"

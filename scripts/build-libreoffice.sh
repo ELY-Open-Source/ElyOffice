@@ -160,9 +160,9 @@ open(path, "w", encoding="utf-8").write(kept)
 PY
 # Ely's kernel defaults: Excel A1 formulas.
 cp "$root/packaging/libreoffice/ely.xcd" "$app/registry/"
-# Roboto, which Word files and designers ask for, is not among LibreOffice's fonts.
+# Free fonts that Word files and designers ask for are not among LibreOffice's.
 mkdir -p "$app/fonts/truetype"
-cp "$root"/packaging/libreoffice/fonts/Roboto/*.ttf "$app/fonts/truetype/"
+cp "$root"/packaging/libreoffice/fonts/*/*.ttf "$app/fonts/truetype/"
 # Linux draws a missing font by fontconfig: Ely's aliases go in before it closes.
 if [ "$(uname)" = Linux ]; then
   conf="$app/fonts/truetype/fc_local.conf"
