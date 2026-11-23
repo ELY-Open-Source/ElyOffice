@@ -15,15 +15,24 @@ const STAND_INS: [(&str, &str); 6] = [
     ("Lucida Console", "Liberation Mono"),
 ];
 
+/// Chinese Word fonts, and the bundled family that must be among those drawing them.
+const CHINESE: [(&str, &str); 4] = [
+    ("宋体", "Noto Serif SC"),
+    ("楷体", "Noto Serif SC"),
+    ("黑体", "Noto Sans SC"),
+    ("微软雅黑", "Noto Sans SC"),
+];
+
 /// A document with one span in each font.
 fn document() -> String {
     let (mut faces, mut styles, mut spans) = (String::new(), String::new(), String::new());
-    for (at, (font, _)) in STAND_INS.iter().enumerate() {
+    let fonts = STAND_INS.iter().chain(&CHINESE);
+    for (at, (font, _)) in fonts.enumerate() {
         faces += &format!("<style:font-face style:name=\"{font}\" svg:font-family=\"&apos;{font}&apos;\"/>");
         styles += &format!(
             "<style:style style:name=\"T{at}\" style:family=\"text\"><style:text-properties style:font-name=\"{font}\"/></style:style>"
         );
-        spans += &format!("<text:span text:style-name=\"T{at}\">word{at}</text:span> ");
+        spans += &format!("<text:span text:style-name=\"T{at}\">word{at} 中文字体</text:span> ");
     }
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -59,4 +68,9 @@ fn missing_word_fonts_draw_as_the_nearest_free_font() {
         }
     }
     assert!(checked > 0, "some stand-in was needed: {missing:?}");
+    // Their Latin letters may be drawn by another font; the Chinese ones by the bundled family.
+    for (font, family) in CHINESE {
+        let (_, drawn) = missing.iter().find(|(name, _)| name == font).unwrap_or_else(|| panic!("{font} is missing: {missing:?}"));
+        assert!(drawn.iter().any(|used| used == family), "{font}: {drawn:?}");
+    }
 }

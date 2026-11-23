@@ -162,7 +162,7 @@ PY
 cp "$root/packaging/libreoffice/ely.xcd" "$app/registry/"
 # Free fonts that Word files and designers ask for are not among LibreOffice's.
 mkdir -p "$app/fonts/truetype"
-cp "$root"/packaging/libreoffice/fonts/*/*.ttf "$app/fonts/truetype/"
+cp "$root"/packaging/libreoffice/fonts/*/*.[ot]tf "$app/fonts/truetype/"
 # Linux draws a missing font by fontconfig: Ely's aliases go in before it closes.
 if [ "$(uname)" = Linux ]; then
   conf="$app/fonts/truetype/fc_local.conf"

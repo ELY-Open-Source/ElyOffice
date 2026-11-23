@@ -20,7 +20,7 @@ Ely Office 的自有代码以 MIT 发布，全文在仓库根的 `LICENSE`，并
 | 依赖 | 许可 | 随包 | 应用 |
 | --- | --- | --- | --- |
 | LibreOffice 26.2.6.3 | MPL-2.0 等 | LICENSE、NOTICE、CREDITS；修改以补丁形式在源码包里，基于钉住的提交 8221e31；整份源码（数 GB）不随发行，取自该提交；构建所取的外部库在外部库源码包 | Doc、Table、Show |
-| 随内核的免费字体：Roboto 3.016、Open Sans、Montserrat、Lato、Source Sans 3 3.052、Inter 4.1（各取常规、斜体、粗体、粗斜体；Roboto 另有细体与中粗） | OFL-1.1 | 每个字体一份 OFL；字体文件、来源与钉住的提交或散列在 `packaging/libreoffice/fonts/`（`SOURCES.tsv`），由 `scripts/build-libreoffice.sh` 放进内核的字体目录 | Doc、Table、Show |
+| 随内核的免费字体：Roboto 3.016、Open Sans、Montserrat、Lato、Source Sans 3 3.052、Inter 4.1（各取常规、斜体、粗体、粗斜体；Roboto 另有细体与中粗），以及思源黑体与思源宋体的简体中文子集（Noto Sans SC、Noto Serif SC，常规与粗体，OTF） | OFL-1.1 | 每个字体一份 OFL；字体文件、来源与钉住的提交或散列在 `packaging/libreoffice/fonts/`（`SOURCES.tsv`），由 `scripts/build-libreoffice.sh` 放进内核的字体目录 | Doc、Table、Show |
 | 英文拼写词典（dictionaries 子模块 9925407） | 见词典目录内许可 | 随词典目录 | Doc、Table、Show |
 | MuPDF 1.28.5 | AGPL-3.0 | COPYING，编进去的每个第三方库与每组内嵌字体的许可（按实际构建） | PDF、Mark |
 | OpenSSL（libcrypto，静态） | Apache-2.0 | LICENSE.txt | PDF、Mark |
