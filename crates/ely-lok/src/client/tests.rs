@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use super::*;
 
 mod analysis;
+mod markdown;
 mod chart_place;
 mod autospace;
 mod tabs;

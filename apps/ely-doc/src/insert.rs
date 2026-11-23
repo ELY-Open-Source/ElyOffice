@@ -73,6 +73,7 @@ pub fn bind(root: Div, cx: &mut Context<Docs>) -> Div {
         .on_action(cx.listener(Docs::on_compare))
         .on_action(cx.listener(Docs::on_merge))
         .on_action(cx.listener(Docs::on_export))
+        .on_action(cx.listener(Docs::on_export_markdown))
         .on_action(cx.listener(Docs::on_back))
         .on_action(cx.listener(Docs::on_print))
 }

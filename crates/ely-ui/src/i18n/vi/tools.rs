@@ -58,6 +58,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("doc.output.export", "Xuất…"),
     ("doc.output.print", "In…"),
     ("doc.output.exported", "Đã xuất {name}"),
+    ("doc.output.markdown", "Xuất thành Markdown…"),
     ("doc.output.open", "{name} là một tài liệu đang mở; hãy chọn tên khác"),
     ("doc.output.failed", "Chưa ghi được PDF: {error}"),
     ("doc.nav.open", "Bộ điều hướng"),

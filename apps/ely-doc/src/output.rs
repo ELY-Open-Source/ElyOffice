@@ -111,16 +111,27 @@ impl Docs {
         .detach_and_log_err(cx);
     }
 
-    pub(crate) fn export_to(&mut self, tab: u64, path: PathBuf, pdf: Pdf, cx: &mut Context<Self>) {
-        match self.holder(&path) {
-            Ok(None) => {}
+    /// Whether `path` is free to write; if not, says why.
+    pub(crate) fn export_target_free(&mut self, path: &std::path::Path, cx: &mut Context<Self>) -> bool {
+        match self.holder(path) {
+            Ok(None) => true,
             Ok(Some(_)) => {
                 log::info!("doc: the export target is an open document");
-                let name = ely_office::files::file_name(&path);
+                let name = ely_office::files::file_name(path);
                 let text = Docs::text(cx, "doc.output.open", &[("name", &name)]);
-                return self.toast(text, Severity::Danger, cx);
+                self.toast(text, Severity::Danger, cx);
+                false
             }
-            Err(error) => return self.output_failed(&error.to_string(), cx),
+            Err(error) => {
+                self.output_failed(&error.to_string(), cx);
+                false
+            }
+        }
+    }
+
+    pub(crate) fn export_to(&mut self, tab: u64, path: PathBuf, pdf: Pdf, cx: &mut Context<Self>) {
+        if !self.export_target_free(&path, cx) {
+            return;
         }
         let (name, opened) = (ely_office::files::file_name(&path), path.clone());
         self.write_pdf(tab, path, pdf, cx, move |docs, written, cx| match written {
@@ -154,7 +165,7 @@ impl Docs {
         );
     }
 
-    fn output_failed(&self, error: &str, cx: &mut Context<Self>) {
+    pub(crate) fn output_failed(&self, error: &str, cx: &mut Context<Self>) {
         let text = Docs::text(cx, "doc.output.failed", &[("error", error)]);
         self.toast(text, Severity::Danger, cx);
     }

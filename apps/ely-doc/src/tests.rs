@@ -474,6 +474,7 @@ pub(crate) mod find;
 mod focus;
 mod front;
 mod hold;
+mod markdown;
 mod more;
 mod moving;
 mod overlap;

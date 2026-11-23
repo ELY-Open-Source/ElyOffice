@@ -58,6 +58,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("doc.output.export", "내보내기…"),
     ("doc.output.print", "인쇄…"),
     ("doc.output.exported", "{name}을(를) 내보냈습니다"),
+    ("doc.output.markdown", "Markdown으로 내보내기…"),
     ("doc.output.open", "{name}은(는) 열려 있는 문서입니다. 다른 이름을 고르십시오"),
     ("doc.output.failed", "PDF를 쓰지 못했습니다: {error}"),
     ("doc.nav.open", "탐색기"),

@@ -58,6 +58,7 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("doc.output.export", "Export…"),
     ("doc.output.print", "Print…"),
     ("doc.output.exported", "Exported {name}"),
+    ("doc.output.markdown", "Export as Markdown…"),
     (
         "doc.output.open",
         "{name} is an open document; pick another name",
@@ -157,6 +158,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("doc.output.export", "导出…"),
     ("doc.output.print", "打印…"),
     ("doc.output.exported", "已导出 {name}"),
+    ("doc.output.markdown", "导出为 Markdown…"),
     ("doc.output.open", "{name} 是打开着的文档，请换个名字"),
     ("doc.output.failed", "未写出 PDF：{error}"),
     ("doc.nav.open", "导航"),

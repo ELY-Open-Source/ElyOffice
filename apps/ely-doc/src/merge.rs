@@ -29,6 +29,8 @@ pub fn menu(cx: &gpui::App) -> gpui::Menu {
         gpui::MenuItem::action(label("office.links.update"), ely_office::UpdateLinks),
         gpui::MenuItem::action(label("office.risk.show"), ely_office::ShowRisk),
         gpui::MenuItem::separator(),
+        gpui::MenuItem::action(label("doc.output.markdown"), crate::markdown::ExportMarkdown),
+        gpui::MenuItem::separator(),
         gpui::MenuItem::action(label("doc.nav.open"), ely_ui::commands::ToggleLeftPanel),
         gpui::MenuItem::action(label("doc.nav.back"), crate::navigate::GoBack),
     ])
