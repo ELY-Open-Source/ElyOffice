@@ -6,14 +6,8 @@ use super::*;
 /// Names no system has: one Hei, one Song.
 pub(super) const ASKED: [&str; 2] = ["Ely 无此黑体", "Ely 无此宋体"];
 
-/// What each may fall to, by kind.
-#[cfg(target_os = "macos")]
-pub(super) const KINDS: [&[&str]; 2] = [&["PingFang SC", "苹方-简"], &["Songti SC", "宋体-简", "STSong", "华文宋体"]];
-#[cfg(windows)]
-pub(super) const KINDS: [&[&str]; 2] = [&["Microsoft YaHei", "微软雅黑"], &["NSimSun", "新宋体", "SimSun", "宋体"]];
-// This machine's fontconfig: Latin first, then Noto CJK.
-#[cfg(target_os = "linux")]
-pub(super) const KINDS: [&[&str]; 2] = [&["Liberation Sans", "Noto Sans CJK SC"], &["Liberation Serif", "Noto Serif CJK SC"]];
+/// What each falls to, by kind: the kernel's own Noto.
+pub(super) const KINDS: [&[&str]; 2] = [&["Noto Sans SC"], &["Noto Serif SC"]];
 
 /// Why each is taken: the language's list, or fontconfig.
 #[cfg(not(target_os = "linux"))]

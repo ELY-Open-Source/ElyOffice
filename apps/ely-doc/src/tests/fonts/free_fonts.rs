@@ -6,7 +6,16 @@ use gpui::TestAppContext;
 use crate::tests::{docs, settle, settled, with_window};
 
 /// The families in `packaging/libreoffice/fonts`, as the kernel names them.
-const FAMILIES: [&str; 6] = ["Roboto", "Open Sans", "Montserrat", "Lato", "Source Sans 3", "Inter"];
+const FAMILIES: [&str; 8] = [
+    "Roboto",
+    "Open Sans",
+    "Montserrat",
+    "Lato",
+    "Source Sans 3",
+    "Inter",
+    "Noto Sans SC",
+    "Noto Serif SC",
+];
 
 /// A span in each family, and one in no font.
 fn document() -> String {
