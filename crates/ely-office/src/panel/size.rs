@@ -127,13 +127,13 @@ pub fn size_box<P: Panel>(
     div().relative().child(sized).child(arrows((id, &this), &field, reported)).into_any_element()
 }
 
-/// The size one point up or down; None when it is not a number.
+/// A size a point off; None if not a number.
 fn stepped(from: &str, by: f64) -> Option<String> {
     let size = (from.trim().parse::<f64>().ok()? + by).clamp(1.0, 409.0);
     Some(format!("{size}"))
 }
 
-/// The box's arrows: the top half adds a point, the bottom half takes one.
+/// The arrows: top half adds a point, bottom takes one.
 fn arrows<P: Panel>(
     (id, this): (&'static str, &Entity<P>),
     field: &Entity<Field>,
