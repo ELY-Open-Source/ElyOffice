@@ -28,9 +28,17 @@ actions!(
         InsertReference,
         InsertCaption,
         InsertFormula,
-        InsertComment
+        InsertComment,
+        InsertWatermark,
+        RemoveWatermark
     ]
 );
+
+/// The kernel dialog's own watermark look.
+const WATERMARK_FONT: &str = "Liberation Sans";
+const WATERMARK_COLOR: &str = "12632256";
+const WATERMARK_ANGLE: &str = "45";
+const WATERMARK_TRANSPARENCY: &str = "50";
 
 /// What a one-line prompt asks for.
 #[derive(Clone)]
@@ -41,6 +49,7 @@ pub enum Ask {
     /// True when it replaces the selected formula.
     Formula(bool),
     Comment,
+    Watermark,
 }
 
 /// The reference formats offered, by kernel number.
@@ -67,6 +76,9 @@ pub fn items(cx: &App) -> Vec<MenuItem> {
         MenuItem::separator(),
         MenuItem::action(label("doc.insert.formula"), InsertFormula),
         MenuItem::action(label("doc.insert.comment"), InsertComment),
+        MenuItem::separator(),
+        MenuItem::action(label("doc.insert.watermark"), InsertWatermark),
+        MenuItem::action(label("doc.insert.remove_watermark"), RemoveWatermark),
     ]
 }
 
@@ -201,6 +213,20 @@ impl Docs {
         self.ask(Ask::Comment, "", window, cx);
     }
 
+    pub fn on_watermark(&mut self, _: &InsertWatermark, window: &mut Window, cx: &mut Context<Self>) {
+        self.ask(Ask::Watermark, "", window, cx);
+    }
+
+    pub fn on_remove_watermark(&mut self, _: &RemoveWatermark, _: &mut Window, cx: &mut Context<Self>) {
+        self.watermark("", cx);
+    }
+
+    /// An empty `text` removes the watermark.
+    fn watermark(&mut self, text: &str, cx: &mut Context<Self>) {
+        let look = [WATERMARK_FONT, WATERMARK_ANGLE, WATERMARK_TRANSPARENCY, WATERMARK_COLOR];
+        self.run_active("page.watermark", &[&[text][..], &look[..]].concat(), cx);
+    }
+
     /// Sends the hyperlink dialog.
     pub(crate) fn insert_link(&mut self, cx: &mut Context<Self>) {
         let Some(Dialog::Link { text, url }) = self.dialog.take() else {
@@ -232,6 +258,7 @@ impl Docs {
             Ask::Bookmark(_) => self.run_active("bookmark.insert", &[text], cx),
             Ask::Caption(category) => self.run_active("caption.insert", &[category, text], cx),
             Ask::Formula(_) => self.run_active("formula.insert", &[text], cx),
+            Ask::Watermark => self.watermark(text, cx),
             Ask::Comment => {
                 self.show_side(crate::docs::Side::Review, cx);
                 self.run_active("comment.insert", &[text], cx);
@@ -256,6 +283,7 @@ pub fn ask_dialog(
         Ask::Formula(true) => ("doc.formula.edit", "doc.formula.text"),
         Ask::Formula(false) => ("doc.formula.title", "doc.formula.text"),
         Ask::Comment => ("doc.comment.title", "doc.comment.text"),
+        Ask::Watermark => ("doc.watermark.title", "doc.watermark.text"),
     };
     let submit = match ask {
         Ask::Formula(true) => text("doc.formula.apply"),
@@ -267,6 +295,7 @@ pub fn ask_dialog(
         "doc.caption.empty",
         "doc.formula.empty",
         "doc.comment.empty",
+        "doc.watermark.empty",
     ]
     .into_iter()
     .map(|key| (key, text(key)))
@@ -305,6 +334,7 @@ fn refuse(ask: &Ask, value: &str) -> Result<(), &'static str> {
         Ask::Caption(_) => "doc.caption.empty",
         Ask::Formula(_) => "doc.formula.empty",
         Ask::Comment => "doc.comment.empty",
+        Ask::Watermark => "doc.watermark.empty",
     })
 }
 
