@@ -15,7 +15,7 @@ const STAND_INS: [(&str, &str); 6] = [
     ("Lucida Console", "Liberation Mono"),
 ];
 
-/// A Chinese Word font's two names, and the bundled family drawing it.
+/// A Chinese Word font's two names, and its stand-in.
 const CHINESE: [(&str, &str, &str); 6] = [
     ("宋体", "SimSun", "Noto Serif SC"),
     ("仿宋", "FangSong", "Noto Serif SC"),
