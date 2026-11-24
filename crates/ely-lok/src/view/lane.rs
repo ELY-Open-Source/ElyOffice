@@ -177,7 +177,10 @@ impl LokView {
                     }
                     self.seen_revision(now.unwrap_or(0));
                     match outcome {
-                        Ok(Some(Back::Copied(copied))) => self.copied = Some(copied),
+                        Ok(Some(Back::Copied(copied))) => {
+                            self.copied = Some(copied);
+                            self.light_ants();
+                        }
                         Ok(Some(Back::Shown(part))) if part != self.part => {
                             // The worker turned in order.
                             self.part = part;

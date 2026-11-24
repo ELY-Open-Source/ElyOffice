@@ -14,7 +14,7 @@ mod a11y;
 
 use gpui::{Pixels, RenderImage, point, prelude::FluentBuilder as _};
 
-use super::{CONTEXT, LokView, TILE_TWIPS, TWIPS_PER_PIXEL, handles, input};
+use super::{ants, CONTEXT, LokView, TILE_TWIPS, TWIPS_PER_PIXEL, handles, input};
 use crate::Rect;
 
 /// The document's first tile is on screen.
@@ -62,6 +62,7 @@ impl Render for LokView {
         let caret_width = cx.theme().caret_width().to_pixels(window.rem_size());
         self.handle_size = cx.theme().handle_hit().to_pixels(window.rem_size());
         let (frame_color, handle_fill) = (colors.focus, colors.bg);
+        let ants_ground = paper;
         div()
             .id("lok-view")
             .role(Role::MultilineTextInput)
@@ -159,6 +160,10 @@ impl Render for LokView {
                                     BorderStyle::Solid,
                                 ));
                             }
+                            if let Some((range, phase)) = painted.ants {
+                                ants::paint(window, range, phase, frame_color, ants_ground);
+                                window.request_animation_frame();
+                            }
                             if let Some(cell) = painted.cell {
                                 window.paint_quad(quad(
                                     cell,
@@ -255,6 +260,8 @@ pub(super) struct Painted {
     pub(super) lines: Vec<Bounds<Pixels>>,
     /// The generation a whole screen shows; None while waiting.
     pub(super) shows: Option<u64>,
+    /// The copied cells and how far their dashes marched.
+    pub(super) ants: Option<(Bounds<Pixels>, f32)>,
 }
 
 impl LokView {
@@ -406,6 +413,7 @@ impl LokView {
             guide: self.guide(),
             lines: self.carried().map(|(_, lines)| lines.iter().map(|&line| rect(line)).collect()).unwrap_or_default(),
             shows,
+            ants: self.ants(),
         }
     }
 }

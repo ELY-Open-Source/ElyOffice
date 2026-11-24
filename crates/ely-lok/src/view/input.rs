@@ -306,6 +306,9 @@ impl LokView {
         let Some((char_code, key_code)) = vcl_key(keystroke) else {
             return false;
         };
+        if key_code & 0x0FFF == 1281 {
+            self.put_out_ants();
+        }
         self.send(Input::Key {
             char_code,
             key_code,
@@ -453,11 +456,13 @@ impl LokView {
 
     /// Copies the selection out, or cuts it.
     pub fn copy(&mut self, cut: bool) {
+        self.cutting = cut;
         self.send(Input::Copy { cut });
     }
 
     /// Pastes the system clipboard.
     pub fn paste(&mut self) {
+        self.paste_ants();
         self.send(Input::Paste);
     }
 
@@ -490,6 +495,7 @@ impl LokView {
 
     /// Pastes values or formulas alone (TABLE-08).
     pub fn paste_only(&mut self, id: &'static str) {
+        self.paste_ants();
         self.send(Input::PasteOnly(id));
     }
 }

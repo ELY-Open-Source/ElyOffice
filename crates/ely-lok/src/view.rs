@@ -12,6 +12,7 @@ use gpui::{
 
 use crate::{Doc, Events, Rect, Worker};
 
+mod ants;
 mod borders;
 mod carry;
 pub use carry::Slide;
@@ -107,6 +108,10 @@ pub struct LokView {
     whole: Option<reveal::Whole>,
     /// The mark of this view's last copy.
     copied: Option<String>,
+    /// The copied cells, dashed until an edit or Escape.
+    ants: Option<ants::Ants>,
+    /// The last copy sent was a cut.
+    cutting: bool,
     /// The event watch; it ends with the view.
     watching: Option<Task<()>>,
     cursor: Option<Rect>,
@@ -224,6 +229,8 @@ impl LokView {
             on_screen: Vec::new(),
             whole: None,
             copied: None,
+            ants: None,
+            cutting: false,
             cursor: None,
             text: text::TextGeometry::default(),
             cursor_visible: true,
