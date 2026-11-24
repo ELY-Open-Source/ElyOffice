@@ -7,7 +7,7 @@ scripts/doctor.sh              本系统构建所需的工具与系统包（与 
 scripts/fetch-references.sh [名字...]  取上游源码到 reference/；给了名字只取那几个（pr.yml 只取 mupdf），名字不认识即报错、不取
 scripts/fetch-tessdata.sh      取 OCR 语言数据到 engines/tessdata（钉提交，核散列）
 scripts/vendor-gpui.sh [write]  vendor 的 gpui 四个 crate 须是 crates.io 原版（核散列）加 patches/gpui；write 重建（pr.yml 核对）
-scripts/build-libreoffice.sh [--symbols]  构建钉住的 LibreOffice 加 patches/libreoffice 到 engines/lo-src；--symbols 另建带符号的一份到 engines/lo-sym，只供采样，不进发布
+scripts/build-libreoffice.sh [--symbols]  构建钉住的 LibreOffice 加 patches/libreoffice 到 engines/lo-src；Linux 上把 `packaging/libreoffice/ely-fonts.conf` 的字体别名插进内核 `share/fonts/truetype/fc_local.conf` 的 `</fontconfig>` 前（已有即跳过，该文件缺即失败），在写内核编号之前；--symbols 另建带符号的一份到 engines/lo-sym，只供采样，不进发布
 scripts/build-git.sh           构建钉住的 Git 到 engines/git（随 ElyTree）
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 至 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核散列；Mac 核架构）

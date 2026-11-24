@@ -856,7 +856,7 @@
 - [x] R21.1 PR #97 ElyDoc 清除格式、字号增减、更改大小写、格式刷、段落底纹（§8） — 合入时另改：段落底纹由 `.uno:BackColor` 改为 `.uno:BackgroundColor`（两者在本内核都写段落背景，但前者上报的状态是字符高亮，面板读错）；格式刷、字号增减、清除格式、句首大写各加按文件结果核对的测试（`format/home.rs`）；测试多余的 `mut`。句首大写在句点后跟小写字母时不断句（ICU 的 UAX#29 SB8，上游 LibreOffice 同此），另立 R21.7a — 第 3 轮 PASS（`tasks/reviews/R21.1-r3.md`）；Windows 本机以已装 0.1.17 内核测：ely-lok 全组 553 过、2 败（本机另装 Noto SC，与本 PR 无关），ely-doc 147 过
 - [x] R21.2 PR #98 ElyDoc 插入符号、文本框与基本形状（§8） — 合入时另改：与 R21.1 的 `format.rs` 冲突，留 #98 的文本框与形状测试，弃其旧段落底纹测试（已移到 `format/home.rs`）；无活动文档时插入符号（含网格打开期间标签页被关）弹 `command.blocked.no_document`；矩形、椭圆、三角形、文本框经菜单处理函数各插一次，按保存文件的 `draw:type` 逐个核对 — 第 2 轮 PASS（`tasks/reviews/R21.2-r2.md`）；ely-doc 148 过，ely-lok 格式组过
 - [x] R21.3 PR #99 ElyDoc 加上与去掉水印（§8） — 合入时另改：水印颜色参数由 `TextColor`/long 改为上游的 `Color`/uint32（原先颜色被忽略，恰被默认银色掩盖），内核测试改用红色并核对保存结果，应用测试核对银色；与 `format.rs` 冲突，弃 #99 带来的旧段落底纹测试；两处调用合成 `Docs::watermark` — 第 2 轮 PASS（`tasks/reviews/R21.3-r2.md`）；ely-doc 149 过，ely-lok 全组 422 过、2 败（本机另装 Noto SC，与本 PR 无关）
-- [ ] R21.4 PR #100 Linux 上缺的 Word 字体以最接近的随附字体画（§8、§19）。R21.4 至 R21.7 连着做：字体改内核内容即改内核编号，#104 之后本机内核重建一次，再补跑 4 至 6 的带内核测试才勾
+- [ ] R21.4 PR #100 Linux 上缺的 Word 字体以最接近的随附字体画（§8、§19）。R21.4 至 R21.7 连着做：字体改内核内容即改内核编号，#104 之后本机内核重建一次，再补跑 4 至 6 的带内核测试才勾 — 已合入（第 2 轮 PASS，`tasks/reviews/R21.4-r2.md`）；合入时另改：测试模块整体只在 Linux 编译（Windows 上原为死代码、clippy 报错），注释缩短，`scripts/README.md` 写明别名一步；WSL 上以 v0.1.17 deb 的内核验证：原版内核失败（Calibri Light 画成 Noto Sans），按脚本插入别名后通过；待 R21.7 后重建内核补跑
 - [ ] R21.5 PR #101 内核随附 Roboto（§19、§21）
 - [ ] R21.6 PR #102 内核随附 Open Sans、Montserrat、Lato、Source Sans 3、Inter（§19、§21）
 - [ ] R21.7 PR #104 内核随附 Noto Sans SC、Noto Serif SC 与中文字体别名（§19、§21）：许可、源码清单与内核编号的门核对，安装包增量实测。字体一律不入库（用户 2026-11-24 定）：#101、#102、#104 的字体文件由取上游的脚本照 `SOURCES.tsv` 下载并核对校验和，构建内核时放进去；PR 的其余改动照合，留言说明改法
