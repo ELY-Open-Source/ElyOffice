@@ -160,6 +160,12 @@ open(path, "w", encoding="utf-8").write(kept)
 PY
 # Ely's kernel defaults: Excel A1 formulas.
 cp "$root/packaging/libreoffice/ely.xcd" "$app/registry/"
+# Fonts Word files ask for that LibreOffice lacks.
+"$root/scripts/fetch-fonts.sh"
+mkdir -p "$app/fonts/truetype"
+tail -n +2 "$root/packaging/libreoffice/fonts/SOURCES.tsv" | while IFS=$'\t' read -r folder file _; do
+  cp "$root/engines/fonts/$folder/$file" "$app/fonts/truetype/"
+done
 # Linux: Ely's font aliases join fontconfig's local file.
 if [ "$(uname)" = Linux ]; then
   conf="$app/fonts/truetype/fc_local.conf"

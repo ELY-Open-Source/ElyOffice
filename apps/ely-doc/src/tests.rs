@@ -472,6 +472,7 @@ mod closing;
 mod dropped;
 pub(crate) mod find;
 mod focus;
+mod fonts;
 mod front;
 mod hold;
 mod more;
@@ -483,8 +484,6 @@ mod points;
 mod remote;
 mod slow;
 mod sources;
-#[cfg(target_os = "linux")]
-mod stand_ins;
 mod start;
 mod typing;
 mod waiting;

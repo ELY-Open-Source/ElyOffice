@@ -7,7 +7,8 @@ scripts/doctor.sh              本系统构建所需的工具与系统包（与 
 scripts/fetch-references.sh [名字...]  取上游源码到 reference/；给了名字只取那几个（pr.yml 只取 mupdf），名字不认识即报错、不取
 scripts/fetch-tessdata.sh      取 OCR 语言数据到 engines/tessdata（钉提交，核散列）
 scripts/vendor-gpui.sh [write]  vendor 的 gpui 四个 crate 须是 crates.io 原版（核散列）加 patches/gpui；write 重建（pr.yml 核对）
-scripts/build-libreoffice.sh [--symbols]  构建钉住的 LibreOffice 加 patches/libreoffice 到 engines/lo-src；Linux 上把 `packaging/libreoffice/ely-fonts.conf` 的字体别名插进内核 `share/fonts/truetype/fc_local.conf` 的 `</fontconfig>` 前（已有即跳过，该文件缺即失败），在写内核编号之前；--symbols 另建带符号的一份到 engines/lo-sym，只供采样，不进发布
+scripts/build-libreoffice.sh [--symbols]  构建钉住的 LibreOffice 加 patches/libreoffice 到 engines/lo-src；Linux 上把 `packaging/libreoffice/ely-fonts.conf` 的字体别名插进内核 `share/fonts/truetype/fc_local.conf` 的 `</fontconfig>` 前（已有即跳过，该文件缺即失败），在写内核编号之前；先跑 fetch-fonts.sh，把 `packaging/libreoffice/fonts/SOURCES.tsv` 列的字体放进内核的 `fonts/truetype`；--symbols 另建带符号的一份到 engines/lo-sym，只供采样，不进发布
+scripts/fetch-fonts.sh             内核随附的字体：照 `packaging/libreoffice/fonts/SOURCES.tsv`（文件夹、文件、地址、该文件的 SHA-256、上游原件的 SHA-256；地址带 `#包内路径` 即从该 zip 里取）下载到 engines/fonts；上游原件按散列存在 engines/fonts/.upstream，坏的重取；任一散列不符、取不到或包里没有该成员即失败，不留半成品；已有且相符的跳过
 scripts/build-git.sh           构建钉住的 Git 到 engines/git（随 ElyTree）
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核散列）
 scripts/build-openssl.sh       构建钉住的静态 OpenSSL 至 engines/openssl（Intel Mac 与 Linux 的 MuPDF 用，核散列；Mac 核架构）
@@ -21,7 +22,7 @@ packaging/linux/package.sh 应用  出该应用的 AppDir 与包的依赖（在�
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调）
 packaging/nix.sh 标签          由该发布的每应用清单写 nix/release.json（flake.nix 读它；发后提交）；首个统一发布前须换成读 `ely-office-linux-x86_64.json`，否则对它即失败
 packaging/winget.sh 标签       由该发布的 `ely-office-windows-x86_64.json` 写 dist/winget 下一份 WinGet 清单（`ZacharyZhang.ElyOffice`，即统一安装程序；发布后交 winget-pkgs）
-packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`，散列不符即失败），文件名带提交号；有未提交改动即拒绝；发布只上传 Linux 的
+packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`，散列不符即失败）与随内核字体的上游原件（`packaging/libreoffice/fonts/SOURCES.tsv`，先用 engines/fonts/.upstream 的，散列不符即失败），文件名带提交号；有未提交改动即拒绝；发布只上传 Linux 的
 scripts/mac-ready.sh 凭据名     Mac 发布前：`coreaudiod` 20 秒内答 `system_profiler SPAudioDataType`（停应时放媒体的测试会挂住），`notarytool` 读得到该公证凭据（登录钥匙串在本会话里锁着即读不到）；任一不行即说明原因与出路并失败（ci.sh 在 macOS 上构建前调）
 scripts/release-tests.sh         发布的门：建好两个 worker 并点名，严格模式跑 `cargo test --workspace`，再跑 vendor 下各 crate 自己的测试（`tests/scripts/vendor-tests.sh`，本平台的 gpui-pre 一行缺失或零测试即败；Linux 经 `dbus-run-session`）（ci.sh 打包前调）
 scripts/compatibility.py [--check]  写 docs/compatibility.md 的版本与内核两行；--check 不符即败（ci.sh、pr.yml）

@@ -54,5 +54,29 @@ while IFS=$'\t' read -r name hash url; do
     exit 1
   }
 done <"$root/packaging/lo-tarballs.tsv"
+# The kernel's fonts as upstream ships them; hashes checked.
+fonts=$pack/libreoffice-external/fonts
+mkdir "$fonts"
+cp "$root/packaging/libreoffice/fonts/SOURCES.tsv" "$fonts/"
+while IFS=$'\t' read -r _ _ url _ hash; do
+  url=${url%%#*}
+  file=$fonts/${url##*/}
+  if [ ! -e "$file" ]; then
+    if [ -f "$root/engines/fonts/.upstream/$hash" ]; then
+      ln -s "$root/engines/fonts/.upstream/$hash" "$file"
+    else
+      echo "source.sh: fetching $url"
+      curl -fsSL -o "$file" "$url" || {
+        echo "source.sh: cannot fetch $url" >&2
+        exit 1
+      }
+    fi
+  fi
+  got=$(shasum -a 256 "$file" | cut -d ' ' -f 1)
+  [ "$got" = "$hash" ] || {
+    echo "source.sh: ${url##*/} has sha256 $got, not $hash" >&2
+    exit 1
+  }
+done < <(tail -n +2 "$root/packaging/libreoffice/fonts/SOURCES.tsv")
 tar -chf "$external" -C "$pack" libreoffice-external
 echo "$external"

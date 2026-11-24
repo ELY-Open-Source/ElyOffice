@@ -49,7 +49,7 @@ jobs:
       - name: Clippy, warnings fail
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Release rules
-        run: tests/scripts/ci-upload.sh && tests/scripts/lo-configured.sh && tests/scripts/mac-ready-rules.sh && tests/scripts/release-gate.sh && tests/scripts/compatibility-rules.sh && tests/scripts/ci-share.sh && tests/scripts/lo-series.sh
+        run: tests/scripts/ci-upload.sh && tests/scripts/lo-configured.sh && tests/scripts/mac-ready-rules.sh && tests/scripts/release-gate.sh && tests/scripts/compatibility-rules.sh && tests/scripts/ci-share.sh && tests/scripts/lo-series.sh && tests/scripts/fetch-fonts-rules.sh
       - name: Perf unit tests, every test_*.py found
         run: cd tests/perf && python3 -m unittest discover -v -p 'test_*.py'
       - name: The media player compiles for Windows and macOS
