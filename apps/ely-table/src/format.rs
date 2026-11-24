@@ -53,6 +53,73 @@ const KINDS: [(&str, &str, &str, &[&str]); 6] = [
     ("text", "number.code", "table.format.text", &["@"]),
 ];
 
+/// Border line colors, 0xRRGGBB.
+const LINES: [u32; 10] = [
+    0x000000, 0x595959, 0x7F7F7F, 0xBFBFBF, 0xC00000, 0xED7D31, 0xFFC000, 0x70AD47, 0x4472C4,
+    0x7030A0,
+];
+
+/// Border line styles: the kernel's number, the sample, the label key.
+const EDGE_STYLES: [(i64, &str, &str); 7] = [
+    (0, "────", "table.format.line_solid"),
+    (1, "┈┈┈┈", "table.format.line_dotted"),
+    (2, "─ ─ ─", "table.format.line_dashed"),
+    (14, "╌╌╌╌", "table.format.line_fine"),
+    (16, "─ · ─", "table.format.line_dash_dot"),
+    (17, "─ ·· ─", "table.format.line_dash_dot_dot"),
+    (3, "════", "table.format.line_double"),
+];
+
+/// Border line widths in 1/100 mm and their label keys.
+const EDGE_WIDTHS: [(i64, &str); 5] = [
+    (9, "table.format.width_hair"),
+    (18, "table.format.width_thin"),
+    (35, "table.format.width_medium"),
+    (53, "table.format.width_thick"),
+    (88, "table.format.width_heavy"),
+];
+
+/// A double line shows nothing narrower.
+const DOUBLE_MIN: i64 = 35;
+
+/// Where a border button draws: left, right, top, bottom, inside
+/// horizontal, inside vertical; `1` sets, `x` clears, `0` leaves.
+const EDGE_PRESETS: [(&str, &str); 11] = [
+    ("111111", "table.format.borders_all"),
+    ("111100", "table.format.borders_outer"),
+    ("000011", "table.format.borders_inner"),
+    ("000010", "table.format.borders_inner_h"),
+    ("000001", "table.format.borders_inner_v"),
+    ("001000", "table.format.borders_top"),
+    ("000100", "table.format.borders_bottom"),
+    ("100000", "table.format.borders_left"),
+    ("010000", "table.format.borders_right"),
+    ("001100", "table.format.borders_rows"),
+    ("110000", "table.format.borders_columns"),
+];
+
+/// The line the border buttons draw.
+#[derive(Clone, Copy)]
+struct Line {
+    style: i64,
+    width: i64,
+    color: u32,
+}
+
+impl Line {
+    /// The edge value for a preset mark.
+    fn edge(self, mark: char) -> String {
+        match mark {
+            '1' => {
+                let width = if self.style == 3 { self.width.max(DOUBLE_MIN) } else { self.width };
+                format!("{}:{}:{}", self.style, width, self.color)
+            }
+            'x' => "none".into(),
+            _ => "keep".into(),
+        }
+    }
+}
+
 /// The workbook the panel formats.
 struct Shown {
     view: Entity<LokView>,
@@ -75,6 +142,11 @@ pub struct Panel {
     pub(crate) number: Option<(String, String)>,
     /// The kernel's font families.
     pub(crate) fonts: Vec<SharedString>,
+    /// The line the border buttons draw.
+    line: Line,
+    /// The cell and the border buttons last drawn there; a new style
+    /// restyles them at once.
+    drawn: Option<(Spot, &'static str)>,
     _code: Subscription,
 }
 
@@ -110,6 +182,8 @@ impl Panel {
             reading: false,
             number: None,
             fonts: Vec::new(),
+            line: Line { style: 0, width: 18, color: 0 },
+            drawn: None,
             _code: subscription,
         }
     }
@@ -147,6 +221,9 @@ impl Panel {
             view.cell().address.clone(),
             view.edited(),
         );
+        if self.drawn.as_ref().is_some_and(|(spot, _)| spot.0 != at.0 || spot.1 != at.1) {
+            self.drawn = None;
+        }
         if self.reading || !view.settled() || self.read.as_ref() == Some(&at) {
             return;
         }
@@ -265,14 +342,6 @@ impl Panel {
             .into_any_element()
     }
 
-    fn button(&self, command: &'static str, key: &str, cx: &Context<Self>) -> AnyElement {
-        let book = self.book.clone();
-        Button::new(SharedString::from(command), Book::text(cx, key, &[]))
-            .size(ControlSize::Sm)
-            .on_click(move |_, _, cx| run(&book, command, &[], cx))
-            .into_any_element()
-    }
-
     fn number_group(&self, cx: &Context<Self>) -> PropertyGroup {
         let label = |key: &str| Book::text(cx, key, &[]);
         let kind = self
@@ -367,17 +436,124 @@ impl Panel {
     fn cell_group(&self, window: &mut Window, cx: &mut Context<Self>) -> PropertyGroup {
         let [font, size] = self.font_rows(window, cx);
         let label = |key: &str| Book::text(cx, key, &[]);
-        let borders = row([
-            self.button("cells.borders_all", "table.format.borders_all", cx),
-            self.button("cells.borders_outer", "table.format.borders_outer", cx),
-            self.button("cells.borders_none", "table.format.borders_none", cx),
-        ]);
+        let mut buttons: Vec<AnyElement> = EDGE_PRESETS
+            .iter()
+            .map(|(marks, key)| self.edge_button(marks, key, cx))
+            .collect();
+        buttons.push(self.edge_button("xxxxxx", "table.format.borders_none", cx));
         PropertyGroup::new(label("table.format.cell"))
             .row(label("table.format.font"), font)
             .row(label("table.format.size"), size)
-            .row(label("table.format.borders"), borders)
+            .row(label("table.format.line_style"), self.line_style(cx))
+            .row(label("table.format.line_width"), self.line_width(cx))
+            .row(label("table.format.line_color"), self.line_color(cx))
+            .row(label("table.format.borders"), row(buttons))
             .row(label("table.format.fill"), self.colors(&FILL, cx))
             .row(label("table.format.text_color"), self.colors(&TEXT, cx))
+    }
+
+    /// A button that draws the line on the edges `marks` names.
+    fn edge_button(&self, marks: &'static str, key: &str, cx: &Context<Self>) -> AnyElement {
+        let panel = cx.entity().downgrade();
+        Button::new(SharedString::from(format!("edges-{marks}")), Book::text(cx, key, &[]))
+            .size(ControlSize::Sm)
+            .on_click(move |_, _, cx| {
+                panel
+                    .update(cx, |panel, cx| {
+                        // Clearing leaves nothing to restyle.
+                        panel.drawn = (!marks.contains('x'))
+                            .then(|| panel.read.clone().map(|spot| (spot, marks)))
+                            .flatten();
+                        panel.draw(marks, cx);
+                    })
+                    .ok();
+            })
+            .into_any_element()
+    }
+
+    /// Draws the current line on the edges `marks` names.
+    fn draw(&self, marks: &str, cx: &mut Context<Self>) {
+        let values: Vec<String> = marks.chars().map(|mark| self.line.edge(mark)).collect();
+        let values: Vec<&str> = values.iter().map(String::as_str).collect();
+        run(&self.book, "cells.border", &values, cx);
+    }
+
+    /// A new line restyles what the buttons last drew.
+    fn restyle(&mut self, cx: &mut Context<Self>) {
+        if let Some((_, marks)) = self.drawn.clone() {
+            self.draw(marks, cx);
+        }
+        cx.notify();
+    }
+
+    fn line_style(&self, cx: &Context<Self>) -> AnyElement {
+        let choices: Vec<Choice> = EDGE_STYLES
+            .iter()
+            .map(|(style, sample, key)| {
+                let name = Book::text(cx, key, &[]);
+                Choice::new(style.to_string(), format!("{sample}  {name}"))
+            })
+            .collect();
+        let panel = cx.entity().downgrade();
+        Select::new("table-line-style", choices)
+            .selected(self.line.style.to_string())
+            .size(ControlSize::Sm)
+            .on_change(move |value, _, cx| {
+                if let Ok(style) = value.parse() {
+                    panel.update(cx, |panel, cx| { panel.line.style = style; panel.restyle(cx); }).ok();
+                }
+            })
+            .into_any_element()
+    }
+
+    fn line_width(&self, cx: &Context<Self>) -> AnyElement {
+        let choices: Vec<Choice> = EDGE_WIDTHS
+            .iter()
+            .map(|(width, key)| Choice::new(width.to_string(), Book::text(cx, key, &[])))
+            .collect();
+        let panel = cx.entity().downgrade();
+        Select::new("table-line-width", choices)
+            .selected(self.line.width.to_string())
+            .size(ControlSize::Sm)
+            .on_change(move |value, _, cx| {
+                if let Ok(width) = value.parse() {
+                    panel.update(cx, |panel, cx| { panel.line.width = width; panel.restyle(cx); }).ok();
+                }
+            })
+            .into_any_element()
+    }
+
+    /// The border color as a swatch; it opens the palette.
+    fn line_color(&self, cx: &Context<Self>) -> AnyElement {
+        let current = self.line.color;
+        let panel = cx.entity().downgrade();
+        Popover::with_opener(
+            "table-line-popover",
+            move |toggle| {
+                ColorSwatch::new("table-line-swatch", Hsla::from(rgb(current)))
+                    .tooltip(format!("#{current:06X}"))
+                    .on_click(move |window, cx| toggle(window, cx))
+            },
+            move |close, _, _| {
+                let swatches = LINES.map(|color| (format!("#{color:06X}"), Hsla::from(rgb(color))));
+                let panel = panel.clone();
+                ColorPalette::new("table-line", swatches.clone())
+                    .columns(5)
+                    .selected(rgb(current))
+                    .on_change(move |color, window, cx| {
+                        if let Some(at) = swatches.iter().position(|(_, swatch)| *swatch == color) {
+                            close(window, cx);
+                            panel
+                                .update(cx, |panel, cx| {
+                                    panel.line.color = LINES[at];
+                                    panel.restyle(cx);
+                                })
+                                .ok();
+                        }
+                    })
+            },
+        )
+        .into_any_element()
     }
 
     /// A cell color as a swatch; it opens the palette.

@@ -135,6 +135,15 @@ fn number_formats_alignment_and_fills_apply() {
     );
     worker.run(&doc, "cells.borders_none", &[]).expect("none");
     assert!(!saved(&mut worker).contains("solid"), "no lines");
+    // Styled edges: a red dotted top, a double bottom; the rest is left.
+    let styled = ["keep", "keep", "1:35:16711680", "3:53:0", "keep", "keep"];
+    worker.run(&doc, "cells.border", &styled).expect("styled");
+    let styled = saved(&mut worker);
+    assert!(styled.contains("dotted") && styled.contains("#ff0000"), "{styled}");
+    assert!(styled.contains("double"), "{styled}");
+    worker.run(&doc, "cells.border", &["none"; 6]).expect("cleared");
+    let cleared = saved(&mut worker);
+    assert!(!cleared.contains("dotted") && !cleared.contains("double"), "{cleared}");
     worker.run(&doc, "cells.fill", &["16711680"]).expect("red");
     assert!(saved(&mut worker).contains("fo:background-color=\"#ff0000\""));
     worker.run(&doc, "cells.fill", &["-1"]).expect("no fill");

@@ -33,6 +33,8 @@ pub enum Arg {
     Line(&'static str, bool),
     /// A fixed value of LOK type `kind`; takes no value.
     Fixed(&'static str, &'static str, &'static str),
+    /// One border edge: `keep`, `none`, or `style:width:color` (see [`edge_json`]).
+    Edge(&'static str),
 }
 
 /// How the worker confirms the kernel did the command.
@@ -263,6 +265,12 @@ impl Command {
                 Arg::Int(name, kind, _, _) => (name, *kind),
                 Arg::Bool(name) => (name, "boolean"),
                 Arg::Line(..) | Arg::Fixed(..) => unreachable!("fixed args take no value"),
+                Arg::Edge(name) => {
+                    if let Some(edge) = edge_json(name, value)? {
+                        json.insert((*name).to_string(), edge);
+                    }
+                    continue;
+                }
             };
             if value.trim().is_empty() && !matches!(arg, Arg::Loose(_)) {
                 return Err(invalid(format!("{} needs {name}", self.id)));
@@ -300,6 +308,53 @@ fn line_json(solid: bool) -> serde_json::Value {
         .map(|part| serde_json::json!({ "type": "long", "value": part }))
         .collect();
     serde_json::json!({ "type": "[]any", "value": value })
+}
+
+/// Border line styles the kernel draws: its `BorderLineStyle` numbers.
+pub const EDGE_STYLES: &[i64] = &[0, 1, 2, 3, 14, 16, 17];
+
+/// The widest border line, in 1/100 mm.
+pub const EDGE_WIDTH_MAX: i64 = 200;
+
+/// One border edge from `keep` (leave it), `none` (clear it) or
+/// `style:width:color`: a style from [`EDGE_STYLES`], a width in 1/100 mm
+/// and a color as 0xRRGGBB, all decimal.
+fn edge_json(name: &str, value: &str) -> io::Result<Option<serde_json::Value>> {
+    match value {
+        "keep" => return Ok(None),
+        "none" => return Ok(Some(serde_json::json!({ "type": "[]any", "value": line_parts([0, 0, 0, 0, 0, 0]) }))),
+        _ => {}
+    }
+    let bad = || invalid(format!("{name} is not keep, none or style:width:color: {value}"));
+    let mut parts = value.split(':').map(|part| part.parse::<i64>().map_err(|_| bad()));
+    let (Some(style), Some(width), Some(color), None) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return Err(bad());
+    };
+    let (style, width, color) = (style?, width?, color?);
+    if !EDGE_STYLES.contains(&style) {
+        return Err(invalid(format!("{name} has no line style {style}")));
+    }
+    if !(1..=EDGE_WIDTH_MAX).contains(&width) {
+        return Err(invalid(format!("{name} width is out of 1..{EDGE_WIDTH_MAX}: {width}")));
+    }
+    if !(0..=0xFF_FFFF).contains(&color) {
+        return Err(invalid(format!("{name} color is out of range: {color}")));
+    }
+    Ok(Some(serde_json::json!({
+        "type": "[]any",
+        "value": line_parts([color, 0, width, 0, style, width]),
+    })))
+}
+
+/// The six numbers of a kernel border line: color, inner and outer width,
+/// distance, style, total width.
+fn line_parts(parts: [i64; 6]) -> Vec<serde_json::Value> {
+    parts
+        .iter()
+        .map(|part| serde_json::json!({ "type": "long", "value": part.to_string() }))
+        .collect()
 }
 
 /// A plain decimal in 0.05 steps from 1 to 999.
@@ -357,6 +412,30 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn border_edges_take_a_style_width_and_color() {
+        let edge = |value| edge_json("Top", value);
+        assert!(edge("keep").expect("keep").is_none(), "an edge left alone");
+        let dotted = edge("1:35:16711680").expect("dotted").expect("a line");
+        assert_eq!(dotted["value"][0]["value"], "16711680");
+        assert_eq!(dotted["value"][4]["value"], "1");
+        assert_eq!(dotted["value"][5]["value"], "35");
+        let none = edge("none").expect("none").expect("a line");
+        assert_eq!(none["value"][5]["value"], "0");
+        for bad in ["", "9:18:0", "0:0:0", "0:18", "0:18:0:1", "0:18:x", "0:18:16777216"] {
+            assert!(edge(bad).is_err(), "{bad:?}");
+        }
+        let json = find("cells.border")
+            .expect("mapped")
+            .args_json(&["0:18:0", "keep", "none", "keep", "keep", "keep"])
+            .expect("six edges")
+            .expect("json");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("json");
+        assert!(parsed["OuterBorder.LeftBorder"].is_object());
+        assert!(parsed.get("OuterBorder.RightBorder").is_none());
+        assert!(parsed["OuterBorder.TopBorder"].is_object());
     }
 
     #[test]

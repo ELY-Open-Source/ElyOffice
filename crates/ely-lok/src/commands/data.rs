@@ -103,6 +103,20 @@ pub(super) const ROWS: &[Command] = &[
     borders("cells.borders_all", true, true),
     borders("cells.borders_outer", true, false),
     borders("cells.borders_none", false, false),
+    // Each edge: keep, none, or style:width:color.
+    command(
+        "cells.border",
+        ".uno:SetBorderStyle",
+        &[
+            Arg::Edge("OuterBorder.LeftBorder"),
+            Arg::Edge("OuterBorder.RightBorder"),
+            Arg::Edge("OuterBorder.TopBorder"),
+            Arg::Edge("OuterBorder.BottomBorder"),
+            Arg::Edge("InnerBorder.Horizontal"),
+            Arg::Edge("InnerBorder.Vertical"),
+        ],
+        Check::Undoable,
+    ),
     command(
         "cells.fill",
         ".uno:BackgroundColor",
