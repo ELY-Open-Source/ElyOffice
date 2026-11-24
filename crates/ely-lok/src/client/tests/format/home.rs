@@ -108,22 +108,6 @@ fn clear_drops_direct_formatting() {
     assert_eq!(paragraphs(&cleared), ["bold plain"], "the words stay");
 }
 
-#[test]
-fn sentence_case_capitalises_each_sentence_the_kernel_finds() {
-    if install().is_none() {
-        eprintln!("SKIP: no pinned LOK build");
-        return;
-    }
-    for (body, cased) in [
-        ("<text:p>hELLO wORLD</text:p>", vec!["Hello world"]),
-        ("<text:p>hELLO wORLD. ANOTHER oNE</text:p>", vec!["Hello world. Another one"]),
-        ("<text:p>hELLO! aNOTHER oNE? tHIRD</text:p>", vec!["Hello! Another one? Third"]),
-        ("<text:p>hELLO wORLD.</text:p><text:p>aNOTHER oNE</text:p>", vec!["Hello world.", "Another one"]),
-    ] {
-        assert_eq!(paragraphs(&after(body, &["format.case_sentence"])), cased, "{body}");
-    }
-}
-
 /// Drags the left button across the middle of `line`.
 fn drag(worker: &mut Worker, doc: &Doc, line: Rect) {
     let (middle, end) = (line.1 + line.3 / 2, line.0 + line.2 - 20);

@@ -3,6 +3,7 @@ use super::*;
 
 mod home;
 mod mixed;
+mod sentence;
 
 /// How long a command may take to report.
 const SETTLE: std::time::Duration = std::time::Duration::from_secs(3);

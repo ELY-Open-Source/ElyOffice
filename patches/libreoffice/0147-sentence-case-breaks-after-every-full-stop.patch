@@ -1,0 +1,245 @@
+sw, editeng: sentence case breaks after every full stop
+
+Format > Text > Sentence case walks the selection sentence by
+sentence and finds each sentence with the ICU break iterator. Three
+faults made it differ from Word (Ely R21.7a):
+
+- ICU's rule SB8 keeps a full stop, spaces and a lower case letter in
+  one sentence, so "hELLO wORLD. aNOTHER oNE" was one sentence and
+  came out "Hello world. another one". Sentences are now found on a
+  copy of the text with every code point mapped to its simple upper
+  case; the mapping is one code point for one and keeps a code
+  point's UTF-16 width, so every offset stays the same, and ß and
+  ligatures keep their form. Words are still found on the original.
+- The next sentence started at the word after the last sentence's
+  end, so a sentence right after "。" lost its first word. It now
+  starts there when a word begins at that end.
+- Each later sentence ran to its own end, past the selection, and
+  the edit engine clipped every paragraph to the selection's first
+  and last indexes. Both now clip to the selection in the paragraph.
+
+Both implementations change alike: Writer's text node and the edit
+engine (text boxes, shapes, Impress and Calc text).
+
+diff --git a/editeng/source/editeng/impedit4.cxx b/editeng/source/editeng/impedit4.cxx
+--- a/editeng/source/editeng/impedit4.cxx
++++ b/editeng/source/editeng/impedit4.cxx
+@@ -74,6 +74,8 @@
+ #include <svtools/rtfkeywd.hxx>
+ #include <editeng/edtdlg.hxx>
+ 
++#include <unicode/uchar.h>
++
+ #include <cstddef>
+ #include <memory>
+ #include <unordered_map>
+@@ -2872,6 +2874,22 @@
+     };
+ }
+ 
++namespace
++{
++    // Upper case copy for ICU sentence breaks; offsets unchanged.
++    OUString lcl_SentenceBreakText(const OUString& rText)
++    {
++        OUStringBuffer aBuf(rText.getLength());
++        for (sal_Int32 i = 0; i < rText.getLength();)
++        {
++            const sal_uInt32 c = rText.iterateCodePoints(&i);
++            const sal_uInt32 u = u_toupper(c);
++            aBuf.appendUtf32((c > 0xFFFF) == (u > 0xFFFF) ? u : c);
++        }
++        return aBuf.makeStringAndClear();
++    }
++}
++
+ EditSelection ImpEditEngine::TransliterateText( const EditSelection& rSelection, TransliterationFlags nTransliterationMode )
+ {
+     uno::Reference < i18n::XBreakIterator > _xBI( ImplGetBreakIterator() );
+@@ -3018,20 +3036,21 @@
+         else if (nTransliterationMode == TransliterationFlags::SENTENCE_CASE)
+         {
+             // for 'sentence case' we need to iterate sentence by sentence
++            const OUString aSentenceText = lcl_SentenceBreakText(aNodeStr);
+ 
+             sal_Int32 nLastStart = _xBI->beginOfSentence(
+-                    aNodeStr, nEndPos,
++                    aSentenceText, nEndPos,
+                     GetLocale( EditPaM( pNode, nEndPos + 1 ) ) );
+             sal_Int32 nLastEnd = _xBI->endOfSentence(
+-                    aNodeStr, nLastStart,
++                    aSentenceText, nLastStart,
+                     GetLocale( EditPaM( pNode, nLastStart + 1 ) ) );
+ 
+             // extend nCurrentStart, nCurrentEnd to the current sentence boundaries
+             nCurrentStart = _xBI->beginOfSentence(
+-                    aNodeStr, nStartPos,
++                    aSentenceText, nStartPos,
+                     GetLocale( EditPaM( pNode, nStartPos + 1 ) ) );
+             nCurrentEnd = _xBI->endOfSentence(
+-                    aNodeStr, nCurrentStart,
++                    aSentenceText, nCurrentStart,
+                     GetLocale( EditPaM( pNode, nCurrentStart + 1 ) ) );
+ 
+             // prevent backtracking to the previous sentence if selection starts at end of a sentence
+@@ -3047,10 +3066,10 @@
+ 
+                 // now get new current sentence boundaries
+                 nCurrentStart = _xBI->beginOfSentence(
+-                        aNodeStr, aBndry.startPos,
++                        aSentenceText, aBndry.startPos,
+                         GetLocale( EditPaM( pNode, aBndry.startPos + 1 ) ) );
+                 nCurrentEnd = _xBI->endOfSentence(
+-                        aNodeStr, nCurrentStart,
++                        aSentenceText, nCurrentStart,
+                         GetLocale( EditPaM( pNode, nCurrentStart + 1 ) ) );
+             }
+             // prevent advancing to the next sentence if selection ends at start of a sentence
+@@ -3064,17 +3083,17 @@
+                         GetLocale( EditPaM( pNode, nLastStart + 1 ) ),
+                         i18n::WordType::DICTIONARY_WORD);
+                 nLastEnd = _xBI->endOfSentence(
+-                        aNodeStr, aBndry.startPos,
++                        aSentenceText, aBndry.startPos,
+                         GetLocale( EditPaM( pNode, aBndry.startPos + 1 ) ) );
+                 if (nCurrentEnd > nLastEnd)
+                     nCurrentEnd = nLastEnd;
+             }
+ 
+             // prevent making any change outside of the user's selection
+-            nCurrentStart = std::max(aSel.Min().GetIndex(), nCurrentStart);
+-            nCurrentEnd = std::min(aSel.Max().GetIndex(), nCurrentEnd);
+-            nLastStart = std::max(aSel.Min().GetIndex(), nLastStart);
+-            nLastEnd = std::min(aSel.Max().GetIndex(), nLastEnd);
++            nCurrentStart = std::max(nStartPos, nCurrentStart);
++            nCurrentEnd = std::min(nEndPos, nCurrentEnd);
++            nLastStart = std::max(nStartPos, nLastStart);
++            nLastEnd = std::min(nEndPos, nLastEnd);
+ 
+             while (nCurrentStart < nLastEnd)
+             {
+@@ -3096,14 +3115,20 @@
+                     aChanges.push_back( aChgData );
+                 }
+ 
+-                i18n::Boundary aFirstWordBndry = _xBI->nextWord(
+-                        aNodeStr, nCurrentEnd,
++                // A sentence may start where the last ends (after 。).
++                if (!_xBI->isBeginWord(aNodeStr, nCurrentEnd,
+                         GetLocale( EditPaM( pNode, nCurrentEnd + 1 ) ),
+-                        nWordType);
+-                nCurrentStart = aFirstWordBndry.startPos;
+-                nCurrentEnd = _xBI->endOfSentence(
+-                        aNodeStr, nCurrentStart,
+-                        GetLocale( EditPaM( pNode, nCurrentStart + 1 ) ) );
++                        nWordType))
++                {
++                    nCurrentEnd = _xBI->nextWord(
++                            aNodeStr, nCurrentEnd,
++                            GetLocale( EditPaM( pNode, nCurrentEnd + 1 ) ),
++                            nWordType).startPos;
++                }
++                nCurrentStart = nCurrentEnd;
++                nCurrentEnd = std::min(nEndPos, _xBI->endOfSentence(
++                        aSentenceText, nCurrentStart,
++                        GetLocale( EditPaM( pNode, nCurrentStart + 1 ) ) ));
+             }
+             DBG_ASSERT( nCurrentEnd >= nLastEnd, "failed to reach end of transliteration" );
+         }
+diff --git a/sw/source/core/txtnode/txtedt.cxx b/sw/source/core/txtnode/txtedt.cxx
+--- a/sw/source/core/txtnode/txtedt.cxx
++++ b/sw/source/core/txtnode/txtedt.cxx
+@@ -88,6 +88,19 @@
+ 
+ namespace
+ {
++    // Upper case copy for ICU sentence breaks; offsets unchanged.
++    OUString lcl_SentenceBreakText(const OUString& rText)
++    {
++        OUStringBuffer aBuf(rText.getLength());
++        for (sal_Int32 i = 0; i < rText.getLength();)
++        {
++            const sal_uInt32 c = rText.iterateCodePoints(&i);
++            const sal_uInt32 u = u_toupper(c);
++            aBuf.appendUtf32((c > 0xFFFF) == (u > 0xFFFF) ? u : c);
++        }
++        return aBuf.makeStringAndClear();
++    }
++
+     void DetectAndMarkMissingDictionaries( SwDoc& rDoc,
+                                            const uno::Reference< XSpellChecker1 >& xSpell,
+                                            const LanguageType eActLang )
+@@ -1925,11 +1938,12 @@
+         // For 'sentence case' we need to iterate sentence by sentence.
+         // nLastStart and nLastEnd are the boundaries of the last sentence in
+         // the user's selection.
++        const OUString aSentenceText = lcl_SentenceBreakText(GetText());
+         sal_Int32 nLastStart = g_pBreakIt->GetBreakIter()->beginOfSentence(
+-                GetText(), nEnd,
++                aSentenceText, nEnd,
+                 g_pBreakIt->GetLocale( GetLang( nEnd ) ) );
+         sal_Int32 nLastEnd = g_pBreakIt->GetBreakIter()->endOfSentence(
+-                GetText(), nLastStart,
++                aSentenceText, nLastStart,
+                 g_pBreakIt->GetLocale( GetLang( nLastStart ) ) );
+ 
+         // Begin with the starting point of the user's selection (it may not be
+@@ -1937,7 +1951,7 @@
+         sal_Int32 nCurrentStart = nStt;
+         // ...And extend to the end of the first sentence
+         sal_Int32 nCurrentEnd = g_pBreakIt->GetBreakIter()->endOfSentence(
+-                GetText(), nCurrentStart,
++                aSentenceText, nCurrentStart,
+                 g_pBreakIt->GetLocale( GetLang( nCurrentStart ) ) );
+ 
+         // prevent backtracking to the previous sentence if selection starts at end of a sentence
+@@ -1954,10 +1968,10 @@
+ 
+             // now get new current sentence boundaries
+             nCurrentStart = g_pBreakIt->GetBreakIter()->beginOfSentence(
+-                    GetText(), aBndry.startPos,
++                    aSentenceText, aBndry.startPos,
+                     g_pBreakIt->GetLocale( GetLang( aBndry.startPos) ) );
+             nCurrentEnd = g_pBreakIt->GetBreakIter()->endOfSentence(
+-                    GetText(), nCurrentStart,
++                    aSentenceText, nCurrentStart,
+                     g_pBreakIt->GetLocale( GetLang( nCurrentStart) ) );
+         }
+         // prevent advancing to the next sentence if selection ends at start of a sentence
+@@ -1972,7 +1986,7 @@
+                     g_pBreakIt->GetLocale( GetLang( nLastStart) ),
+                     i18n::WordType::DICTIONARY_WORD);
+             nLastEnd = g_pBreakIt->GetBreakIter()->endOfSentence(
+-                    GetText(), aBndry.startPos,
++                    aSentenceText, aBndry.startPos,
+                     g_pBreakIt->GetLocale( GetLang( aBndry.startPos) ) );
+             if (nCurrentEnd > nLastEnd)
+                 nCurrentEnd = nLastEnd;
+@@ -2004,14 +2018,21 @@
+                 aChanges.push_back( aChgData );
+             }
+ 
+-            Boundary aFirstWordBndry = g_pBreakIt->GetBreakIter()->nextWord(
++            // A sentence may start where the last ends (after 。).
++            if (!g_pBreakIt->GetBreakIter()->isBeginWord(
+                     GetText(), nCurrentEnd,
+                     g_pBreakIt->GetLocale( GetLang( nCurrentEnd ) ),
+-                    nWordType);
+-            nCurrentStart = aFirstWordBndry.startPos;
+-            nCurrentEnd = g_pBreakIt->GetBreakIter()->endOfSentence(
+-                    GetText(), nCurrentStart,
+-                    g_pBreakIt->GetLocale( GetLang( nCurrentStart ) ) );
++                    nWordType))
++            {
++                nCurrentEnd = g_pBreakIt->GetBreakIter()->nextWord(
++                        GetText(), nCurrentEnd,
++                        g_pBreakIt->GetLocale( GetLang( nCurrentEnd ) ),
++                        nWordType).startPos;
++            }
++            nCurrentStart = nCurrentEnd;
++            nCurrentEnd = std::min(selEnd, g_pBreakIt->GetBreakIter()->endOfSentence(
++                    aSentenceText, nCurrentStart,
++                    g_pBreakIt->GetLocale( GetLang( nCurrentStart ) ) ));
+         }
+     }
+     else
