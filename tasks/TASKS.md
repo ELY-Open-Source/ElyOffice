@@ -854,7 +854,7 @@
 
 - [x] R21.0 main 的 `scripts/deny.sh` 败于两条新公告（R21.1 合入时查出，§22）：RUSTSEC-2026-0594（`cookie` 0.18.2，经 wry）、RUSTSEC-2026-0592（`url` 2.5.8）；升到 cookie ≥0.18.3、url ≥2.5.9，不加忽略。另：Windows 上整个工作区的 clippy 败于 `apps/ely-show/src/dialog.rs` 的 `open_dialog` 回传整个 `Dialog`（`result_large_err`，Linux 上类型小、pr.yml 不报），改回传 `Box<Dialog>` — 第 1 轮 PASS（`tasks/reviews/R21.0-r1.md`）；deny 四项 ok，Windows 整个工作区 clippy 过，ely-show 129 过
 - [x] R21.1 PR #97 ElyDoc 清除格式、字号增减、更改大小写、格式刷、段落底纹（§8） — 合入时另改：段落底纹由 `.uno:BackColor` 改为 `.uno:BackgroundColor`（两者在本内核都写段落背景，但前者上报的状态是字符高亮，面板读错）；格式刷、字号增减、清除格式、句首大写各加按文件结果核对的测试（`format/home.rs`）；测试多余的 `mut`。句首大写在句点后跟小写字母时不断句（ICU 的 UAX#29 SB8，上游 LibreOffice 同此），另立 R21.7a — 第 3 轮 PASS（`tasks/reviews/R21.1-r3.md`）；Windows 本机以已装 0.1.17 内核测：ely-lok 全组 553 过、2 败（本机另装 Noto SC，与本 PR 无关），ely-doc 147 过
-- [ ] R21.2 PR #98 ElyDoc 插入符号、文本框与基本形状（§8）
+- [x] R21.2 PR #98 ElyDoc 插入符号、文本框与基本形状（§8） — 合入时另改：与 R21.1 的 `format.rs` 冲突，留 #98 的文本框与形状测试，弃其旧段落底纹测试（已移到 `format/home.rs`）；无活动文档时插入符号（含网格打开期间标签页被关）弹 `command.blocked.no_document`；矩形、椭圆、三角形、文本框经菜单处理函数各插一次，按保存文件的 `draw:type` 逐个核对 — 第 2 轮 PASS（`tasks/reviews/R21.2-r2.md`）；ely-doc 148 过，ely-lok 格式组过
 - [ ] R21.3 PR #99 ElyDoc 加上与去掉水印（§8）
 - [ ] R21.4 PR #100 Linux 上缺的 Word 字体以最接近的随附字体画（§8、§19）。R21.4 至 R21.7 连着做：字体改内核内容即改内核编号，#104 之后本机内核重建一次，再补跑 4 至 6 的带内核测试才勾
 - [ ] R21.5 PR #101 内核随附 Roboto（§19、§21）

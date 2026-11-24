@@ -40,19 +40,25 @@ pub fn menu(cx: &App) -> Menu {
         MenuItem::separator(),
         MenuItem::action(label("doc.insert.page_number"), InsertPageNumber),
         MenuItem::action(label("doc.insert.page_count"), InsertPageCount),
+        MenuItem::separator(),
+        MenuItem::action(label("doc.insert.symbol"), crate::symbols::InsertSymbol),
+        MenuItem::separator(),
     ];
+    items.extend(crate::objects::items(cx));
     items.extend(crate::refs::items(cx));
     Menu::new(label("menu.insert")).items(items)
 }
 
 /// Binds the Insert and Review actions on the window root.
 pub fn bind(root: Div, cx: &mut Context<Docs>) -> Div {
-    root.on_action(cx.listener(Docs::on_insert_table))
+    crate::objects::bind(root, cx)
+        .on_action(cx.listener(Docs::on_insert_table))
         .on_action(cx.listener(Docs::on_insert_image))
         .on_action(cx.listener(Docs::on_page_break))
         .on_action(cx.listener(Docs::on_section_break))
         .on_action(cx.listener(Docs::on_page_number))
         .on_action(cx.listener(Docs::on_page_count))
+        .on_action(cx.listener(Docs::on_symbol))
         .on_action(cx.listener(Docs::on_contents))
         .on_action(cx.listener(Docs::on_update))
         .on_action(cx.listener(Docs::on_footnote))
@@ -81,8 +87,7 @@ impl Docs {
     /// Runs a command on the active document.
     pub(crate) fn run_active(&mut self, id: &str, values: &[&str], cx: &mut Context<Self>) {
         let Some(tab) = self.active_tab() else {
-            let text = Docs::text(cx, "command.blocked.no_document", &[]);
-            return self.toast(text, Severity::Warning, cx);
+            return self.no_document(cx);
         };
         log::info!("doc: runs {id}");
         let sent = tab.view.update(cx, |view, _| view.run(id, values));
@@ -90,6 +95,12 @@ impl Docs {
             let text = Docs::text(cx, "office.error.engine", &[("error", &error.to_string())]);
             self.toast(text, Severity::Danger, cx);
         }
+    }
+
+    /// Says a command needs an open document.
+    pub(crate) fn no_document(&mut self, cx: &mut Context<Self>) {
+        let text = Docs::text(cx, "command.blocked.no_document", &[]);
+        self.toast(text, Severity::Warning, cx);
     }
 
     pub fn on_insert_table(&mut self, _: &InsertTable, _: &mut Window, cx: &mut Context<Self>) {

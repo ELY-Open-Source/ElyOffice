@@ -451,3 +451,22 @@ fn an_empty_span_hides_no_direct_formatting() {
     assert_eq!(state(&seen, ".uno:FontHeight"), Some("14"), "one height covers both styles");
     assert_ne!(state(&seen, ".uno:FontColor"), Some(crate::MIXED), "one color covers both styles");
 }
+
+#[test]
+fn a_text_box_and_a_shape_land_in_the_page() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (dir, mut worker, doc) = open(FODT);
+    click(&mut worker, &doc, 150, 150);
+    worker
+        .run(&doc, "draw.shape", &["rectangle", "true"])
+        .expect("a shape");
+    worker
+        .run(&doc, "draw.text_box", &["true"])
+        .expect("a text box");
+    let text = saved(&dir, &mut worker, &doc, "shapes.fodt");
+    assert!(text.contains("draw:type=\"rectangle\""), "the rectangle lands");
+    assert!(text.contains("draw:text-box"), "the text box lands");
+}
