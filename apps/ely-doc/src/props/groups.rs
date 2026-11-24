@@ -1,7 +1,7 @@
 //! The panel's text group and its kernel hookup.
 
 use ely_gpui_component::{data_display::PropertyGroup, primitives::IconName};
-use ely_office::panel::{Panel, color_state, font_box, palette, row, size_box, toggle};
+use ely_office::panel::{Panel, button, color_state, font_box, palette, row, size_box, toggle};
 use gpui::{App, Context, InteractiveElement, ParentElement, SharedString, Window, div};
 
 use super::Props;
@@ -98,6 +98,24 @@ impl Props {
                     Some(("doc.props.no_highlight", "format.highlight", "-1")),
                     cx,
                 ),
+            )
+            .row(
+                tip("doc.props.format"),
+                row([
+                    button(self, "format.clear", "doc.props.clear", why, cx),
+                    button(self, "format.grow", "doc.props.grow", why, cx),
+                    button(self, "format.shrink", "doc.props.shrink", why, cx),
+                    toggle(self, "format.paint", (Some(IconName::Brush), ""), ("doc.props.paint", why), cx),
+                ]),
+            )
+            .row(
+                tip("doc.props.case"),
+                row([
+                    button(self, "format.case_upper", "doc.props.case_upper", why, cx),
+                    button(self, "format.case_lower", "doc.props.case_lower", why, cx),
+                    button(self, "format.case_title", "doc.props.case_title", why, cx),
+                    button(self, "format.case_sentence", "doc.props.case_sentence", why, cx),
+                ]),
             )
     }
 }

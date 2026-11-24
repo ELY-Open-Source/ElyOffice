@@ -1,6 +1,7 @@
 use super::input::{open, saved};
 use super::*;
 
+mod home;
 mod mixed;
 
 /// How long a command may take to report.

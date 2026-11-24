@@ -4,7 +4,7 @@ use ely_gpui_component::{
     buttons::Button, data_display::PropertyGroup, forms::NumberInput, primitives::IconName,
     theme::ControlSize,
 };
-use ely_office::panel::{Panel as _, button, muted, row, send, toggle};
+use ely_office::panel::{Panel as _, button, color_state, muted, palette, row, send, toggle};
 use gpui::{AnyElement, Context, IntoElement, ParentElement as _, Styled as _, div};
 
 use super::Props;
@@ -155,6 +155,16 @@ impl Props {
             .row(tip("doc.props.below"), self.spacing(true, cx))
             .row(tip("doc.props.lists"), lists)
             .row(tip("doc.props.tabs"), self.tabs(cx))
+            .row(
+                tip("doc.props.shading"),
+                palette(
+                    &cx.entity(),
+                    "paragraph.shading",
+                    (color_state(self, ".uno:BackgroundColor", cx), "office.props.automatic"),
+                    Some(("doc.props.no_highlight", "paragraph.shading", "-1")),
+                    cx,
+                ),
+            )
     }
 
     /// The first-line indent in characters; other units hint.

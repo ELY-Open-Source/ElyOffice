@@ -484,6 +484,7 @@ mod remote;
 mod slow;
 mod sources;
 mod start;
+mod typing;
 mod waiting;
 mod words;
 
