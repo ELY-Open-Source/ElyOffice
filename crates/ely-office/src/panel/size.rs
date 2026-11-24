@@ -6,7 +6,10 @@ use ely_gpui_component::{
     forms::{Choice, Combobox, InputEvent, TextInput},
     theme::ControlSize,
 };
-use gpui::{AnyElement, App, AppContext as _, Context, Entity, Focusable as _, IntoElement, SharedString, Subscription, Window};
+use gpui::{
+    AnyElement, App, AppContext as _, Context, CursorStyle, Entity, Focusable as _, InteractiveElement as _, IntoElement,
+    ParentElement as _, SharedString, Styled as _, Subscription, Window, div, px,
+};
 
 use super::{Panel, known, ordered, send, text};
 
@@ -109,18 +112,62 @@ pub fn size_box<P: Panel>(
         sizes.push(size);
     }
     let choices = ordered(sizes).into_iter().map(|size| Choice::new(size.clone(), size));
+    let (this_change, field_change) = (this.clone(), field.clone());
     let mut sized = Combobox::new(id, &input, choices)
         .free()
         .size(ControlSize::Sm)
         .on_change(move |value, _, cx| {
             // A picked row is sent; leaving sends nothing more.
-            field.update(cx, |field, _| field.sent = Some(value.clone()));
-            send(&this, "format.size", &[value.as_ref()], cx)
+            field_change.update(cx, |field, _| field.sent = Some(value.clone()));
+            send(&this_change, "format.size", &[value.as_ref()], cx)
         });
     if let Some(size) = size {
         sized = sized.selected(size);
     }
-    sized.into_any_element()
+    div().relative().child(sized).child(arrows((id, &this), &field, reported)).into_any_element()
+}
+
+/// The size one point up or down; None when it is not a number.
+fn stepped(from: &str, by: f64) -> Option<String> {
+    let size = (from.trim().parse::<f64>().ok()? + by).clamp(1.0, 409.0);
+    Some(format!("{size}"))
+}
+
+/// The box's arrows: the top half adds a point, the bottom half takes one.
+fn arrows<P: Panel>(
+    (id, this): (&'static str, &Entity<P>),
+    field: &Entity<Field>,
+    shown: Option<SharedString>,
+) -> impl IntoElement {
+    let half = |name: &'static str, by: f64| {
+        let (this, field, shown) = (this.clone(), field.clone(), shown.clone());
+        div()
+            .id(SharedString::from(format!("{id}-{name}")))
+            .h_1_2()
+            .w_full()
+            .cursor(CursorStyle::PointingHand)
+            .on_mouse_down(gpui::MouseButton::Left, move |_, _, cx| {
+                cx.stop_propagation();
+                let input = field.read(cx).input.clone();
+                let typed = input.read(cx).text().to_string();
+                let Some(size) = stepped(&typed, by).or_else(|| shown.as_deref().and_then(|shown| stepped(shown, by))) else {
+                    log::info!("office: the size arrows have no size to step from");
+                    return;
+                };
+                log::info!("office: the size arrows step the font size");
+                input.update(cx, |input, cx| input.set_text(size.clone(), cx));
+                field.update(cx, |field, _| field.sent = Some(size.clone().into()));
+                send(&this, "format.size", &[size.as_str()], cx);
+            })
+    };
+    div()
+        .absolute()
+        .top_0()
+        .bottom_0()
+        .right_0()
+        .w(px(24.))
+        .child(half("up", 1.0))
+        .child(half("down", -1.0))
 }
 
 #[cfg(test)]
@@ -148,6 +195,16 @@ mod tests {
         fn run(&mut self, id: &str, values: &[&str], _: &mut Context<Self>) {
             self.0.push([id].iter().chain(values).map(|value| value.to_string()).collect());
         }
+    }
+
+    #[test]
+    fn the_arrows_step_one_point_within_the_limits() {
+        assert_eq!(stepped("12", 1.0).as_deref(), Some("13"));
+        assert_eq!(stepped("10.5", -1.0).as_deref(), Some("9.5"));
+        assert_eq!(stepped("1", -1.0).as_deref(), Some("1"));
+        assert_eq!(stepped("409", 1.0).as_deref(), Some("409"));
+        assert_eq!(stepped("", 1.0), None);
+        assert_eq!(stepped("big", 1.0), None);
     }
 
     #[test]
