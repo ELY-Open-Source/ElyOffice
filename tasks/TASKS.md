@@ -852,7 +852,7 @@
 
 合入 PR（照 #103 所列的链，链内按序；每条：合到当前 main、解冲突、本机跑 pr.yml 那一套（check.sh、deny.sh、panics.py、clippy、测试）与带内核的测试、送审、签名的合并提交推到 main，PR 随之标为已合并并留言致谢）
 
-- [ ] R21.0 main 的 `scripts/deny.sh` 败于两条新公告（R21.1 合入时查出，§22）：RUSTSEC-2026-0594（`cookie` 0.18.2，经 wry）、RUSTSEC-2026-0592（`url` 2.5.8）；升到 cookie ≥0.18.3、url ≥2.5.9，不加忽略
+- [x] R21.0 main 的 `scripts/deny.sh` 败于两条新公告（R21.1 合入时查出，§22）：RUSTSEC-2026-0594（`cookie` 0.18.2，经 wry）、RUSTSEC-2026-0592（`url` 2.5.8）；升到 cookie ≥0.18.3、url ≥2.5.9，不加忽略。另：Windows 上整个工作区的 clippy 败于 `apps/ely-show/src/dialog.rs` 的 `open_dialog` 回传整个 `Dialog`（`result_large_err`，Linux 上类型小、pr.yml 不报），改回传 `Box<Dialog>` — 第 1 轮 PASS（`tasks/reviews/R21.0-r1.md`）；deny 四项 ok，Windows 整个工作区 clippy 过，ely-show 129 过
 - [x] R21.1 PR #97 ElyDoc 清除格式、字号增减、更改大小写、格式刷、段落底纹（§8） — 合入时另改：段落底纹由 `.uno:BackColor` 改为 `.uno:BackgroundColor`（两者在本内核都写段落背景，但前者上报的状态是字符高亮，面板读错）；格式刷、字号增减、清除格式、句首大写各加按文件结果核对的测试（`format/home.rs`）；测试多余的 `mut`。句首大写在句点后跟小写字母时不断句（ICU 的 UAX#29 SB8，上游 LibreOffice 同此），另立 R21.7a — 第 3 轮 PASS（`tasks/reviews/R21.1-r3.md`）；Windows 本机以已装 0.1.17 内核测：ely-lok 全组 553 过、2 败（本机另装 Noto SC，与本 PR 无关），ely-doc 147 过
 - [ ] R21.2 PR #98 ElyDoc 插入符号、文本框与基本形状（§8）
 - [ ] R21.3 PR #99 ElyDoc 加上与去掉水印（§8）

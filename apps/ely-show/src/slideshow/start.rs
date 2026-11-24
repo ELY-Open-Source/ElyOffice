@@ -231,8 +231,10 @@ impl Deck {
                     1 => deck.open_show(starting, cx),
                     _ => match deck.open_dialog(Dialog::Show(starting), cx) {
                         Ok(()) => deck.show_starting = true,
-                        Err(Dialog::Show(refused)) => discard(worker, refused.doc, refused.copy, cx),
-                        Err(_) => unreachable!("the show dialog comes back"),
+                        Err(refused) => match *refused {
+                            Dialog::Show(refused) => discard(worker, refused.doc, refused.copy, cx),
+                            _ => unreachable!("the show dialog comes back"),
+                        },
                     },
                 }
             },

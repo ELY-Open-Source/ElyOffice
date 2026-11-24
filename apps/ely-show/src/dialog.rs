@@ -62,11 +62,11 @@ pub(crate) fn edit(
 
 impl Deck {
     /// Opens `dialog`, or hands it back while another is open.
-    pub(crate) fn open_dialog(&mut self, dialog: Dialog, cx: &mut Context<Self>) -> Result<(), Dialog> {
+    pub(crate) fn open_dialog(&mut self, dialog: Dialog, cx: &mut Context<Self>) -> Result<(), Box<Dialog>> {
         if self.dialog.is_some() {
             let text = Deck::text(cx, "show.dialog.busy", &[]);
             self.toast(text, Severity::Warning, cx);
-            return Err(dialog);
+            return Err(Box::new(dialog));
         }
         self.dialog = Some(dialog);
         cx.notify();
