@@ -1,4 +1,4 @@
-//! `sheet`, `rows`, `columns`, `range merge`: structure by address (#107).
+//! `sheet`, `rows`, `columns`, `range merge`, `format` by address (#107).
 
 use ely_lok::sheet::structure::{self, Refused};
 use ely_office::{prelude::*, remote};
@@ -126,11 +126,12 @@ fn refused(why: Refused, verb: &str, address: &str, value: &str) -> String {
         Refused::Single => MERGE_SINGLE.replace("{address}", address),
         Refused::Merged => MERGE_OVERLAP.replace("{address}", address),
         Refused::Unmerged => UNMERGE_NONE.replace("{address}", address),
+        Refused::Number => super::format::NUMBER.replace("{value}", super::format::number_code(value)),
     }
 }
 
 impl Book {
-    /// Answers `sheet.*`, `rows.*`, `columns.*`, `range.merge|unmerge`.
+    /// Answers `sheet.*`, `rows.*`, `columns.*`, `range.merge|unmerge|format`.
     pub(super) fn answer_structure(&mut self, id: u64, words: Vec<String>, ask: Ask, cx: &mut Context<Self>) {
         match <[String; 2]>::try_from(words) {
             Ok([verb, _]) if verb == "sheet.list" => self.sheet_list(id, ask, cx),

@@ -1,0 +1,266 @@
+LOK: Calc formats cells by address
+
+- .uno:ElyStructure's new verb range.format applies cell formats and
+  borders to the addressed range as one undo step (one
+  ScUndoSelectionAttr carrying the pattern and the frame, as the view's
+  ApplyPatternLines records), so the cursor, selection and shown sheet
+  stay. Value is key=value lines, already checked by the caller: bold,
+  italic, underline, wrap (1 or 0), font, size (twips), color and
+  background (decimal RGB or none), number (an en-US format code), align,
+  valign, and border-left/top/right/bottom/inner-h/inner-v ("none" or
+  "style:width:color", width in twips). Bold, italic, font and size apply
+  to Latin, Asian and complex text alike; edges not named keep theirs.
+- .uno:StructureAt answers "number" when the format code does not parse,
+  and range.format shares the other verbs' refusals (no such sheet,
+  protected, address).
+
+diff --git a/sc/source/ui/docshell/docfunc.cxx b/sc/source/ui/docshell/docfunc.cxx
+index e2a6117..af1042b 100644
+--- a/sc/source/ui/docshell/docfunc.cxx
++++ b/sc/source/ui/docshell/docfunc.cxx
+@@ -25,6 +25,19 @@
+ #include <sfx2/app.hxx>
+ #include <editeng/editobj.hxx>
+ #include <editeng/justifyitem.hxx>
++#include <editeng/borderline.hxx>
++#include <editeng/boxitem.hxx>
++#include <editeng/brushitem.hxx>
++#include <editeng/colritem.hxx>
++#include <editeng/fhgtitem.hxx>
++#include <editeng/fontitem.hxx>
++#include <editeng/langitem.hxx>
++#include <editeng/postitem.hxx>
++#include <editeng/udlnitem.hxx>
++#include <editeng/wghtitem.hxx>
++#include <i18nlangtag/lang.h>
++#include <svl/intitem.hxx>
++#include <svl/numformat.hxx>
+ #include <sfx2/linkmgr.hxx>
+ #include <sfx2/bindings.hxx>
+ #include <utility>
+@@ -111,6 +124,7 @@
+ #include <config_features.h>
+ 
+ #include <memory>
++#include <optional>
+ #include <basic/basmgr.hxx>
+ #include <set>
+ #include <vector>
+@@ -6074,6 +6088,37 @@ OUString lcl_ElySheetOf(const OUString& rAddress)
+     return aSheet;
+ }
+ 
++/// Ely: the value `rKey` has in `rValue`'s key=value lines.
++std::optional<OUString> lcl_ElyField(const OUString& rValue, std::u16string_view rKey)
++{
++    sal_Int32 nIndex = 0;
++    while (nIndex >= 0)
++    {
++        const OUString aLine = rValue.getToken(0, '\n', nIndex);
++        const sal_Int32 nEq = aLine.indexOf('=');
++        if (nEq > 0 && aLine.subView(0, nEq) == rKey)
++            return aLine.copy(nEq + 1);
++    }
++    return {};
++}
++
++/// Ely: the en-US number format for `rCode`, added if new.
++std::optional<sal_uInt32> lcl_ElyNumberKey(const ScDocument& rDoc, const OUString& rCode)
++{
++    SvNumberFormatter* pFormatter = rDoc.GetFormatTable();
++    sal_uInt32 nKey = pFormatter->GetEntryKey(rCode, LANGUAGE_ENGLISH_US);
++    if (nKey != NUMBERFORMAT_ENTRY_NOT_FOUND)
++        return nKey;
++    OUString aCode = rCode;
++    sal_Int32 nCheck = 0;
++    SvNumFormatType nType = SvNumFormatType::ALL;
++    // False also means already there; nCheck tells.
++    pFormatter->PutEntry(aCode, nCheck, nType, nKey, LANGUAGE_ENGLISH_US);
++    if (nCheck != 0 || nKey == NUMBERFORMAT_ENTRY_NOT_FOUND)
++        return {};
++    return nKey;
++}
++
+ /// Ely: why `rVerb` cannot run, empty if it can.
+ OString lcl_ElyRefusal(const ScDocument& rDoc, std::u16string_view rVerb, const OUString& rAddress,
+                        const OUString& rValue, ScRange& rRange, OUString& rSheet)
+@@ -6124,7 +6169,8 @@ OString lcl_ElyRefusal(const ScDocument& rDoc, std::u16string_view rVerb, const
+         return "address"_ostr;
+     if (bColumns && (rRange.aStart.Row() != 0 || rRange.aEnd.Row() != rDoc.MaxRow()))
+         return "address"_ostr;
+-    if (!bRows && !bColumns && rVerb != u"range.merge" && rVerb != u"range.unmerge")
++    if (!bRows && !bColumns && rVerb != u"range.merge" && rVerb != u"range.unmerge"
++        && rVerb != u"range.format")
+         return "verb"_ostr;
+     if (rDoc.IsTabProtected(nTab))
+         return "protected"_ostr;
+@@ -6145,6 +6191,12 @@ OString lcl_ElyRefusal(const ScDocument& rDoc, std::u16string_view rVerb, const
+         return "merged"_ostr;
+     if (rVerb == u"range.unmerge" && !rDoc.HasAttrib(rRange, HasAttrFlags::Merged))
+         return "unmerged"_ostr;
++    if (rVerb == u"range.format")
++    {
++        const std::optional<OUString> oCode = lcl_ElyField(rValue, u"number");
++        if (oCode && !lcl_ElyNumberKey(rDoc, *oCode))
++            return "number"_ostr;
++    }
+     return {};
+ }
+ 
+@@ -6175,6 +6227,147 @@ void lcl_ElyResized(ScDocShell& rDocShell, SCTAB nTab, bool bColumns, SCCOLROW n
+                                                         true, false, nTab);
+ }
+ 
++/// Ely: one edge; null for "none", else "style:width:color" in twips.
++std::unique_ptr<editeng::SvxBorderLine> lcl_ElyLine(std::u16string_view rEdge)
++{
++    if (rEdge == u"none")
++        return {};
++    sal_Int32 nIndex = 0;
++    const sal_Int32 nStyle = o3tl::toInt32(o3tl::getToken(rEdge, 0, ':', nIndex));
++    const sal_Int32 nWidth = o3tl::toInt32(o3tl::getToken(rEdge, 0, ':', nIndex));
++    const Color aColor(ColorTransparency, o3tl::toUInt32(o3tl::getToken(rEdge, 0, ':', nIndex)));
++    return std::make_unique<editeng::SvxBorderLine>(&aColor, nWidth,
++                                                    static_cast<SvxBorderLineStyle>(nStyle));
++}
++
++/// Ely: `rValue`'s cell formats, every script alike.
++void lcl_ElyPattern(const ScDocument& rDoc, const OUString& rValue, ScPatternAttr& rPattern)
++{
++    const auto aOn = [&](std::u16string_view rKey) { return lcl_ElyField(rValue, rKey); };
++    if (const auto o = aOn(u"bold"))
++    {
++        const FontWeight eWeight = *o == u"1" ? WEIGHT_BOLD : WEIGHT_NORMAL;
++        for (const auto nWhich : { ATTR_FONT_WEIGHT, ATTR_CJK_FONT_WEIGHT, ATTR_CTL_FONT_WEIGHT })
++            rPattern.ItemSetPut(SvxWeightItem(eWeight, nWhich));
++    }
++    if (const auto o = aOn(u"italic"))
++    {
++        const FontItalic eItalic = *o == u"1" ? ITALIC_NORMAL : ITALIC_NONE;
++        for (const auto nWhich : { ATTR_FONT_POSTURE, ATTR_CJK_FONT_POSTURE, ATTR_CTL_FONT_POSTURE })
++            rPattern.ItemSetPut(SvxPostureItem(eItalic, nWhich));
++    }
++    if (const auto o = aOn(u"underline"))
++        rPattern.ItemSetPut(SvxUnderlineItem(*o == u"1" ? LINESTYLE_SINGLE : LINESTYLE_NONE,
++                                             ATTR_FONT_UNDERLINE));
++    if (const auto o = aOn(u"wrap"))
++        rPattern.ItemSetPut(ScLineBreakCell(*o == u"1"));
++    if (const auto o = aOn(u"font"))
++        for (const auto nWhich : { ATTR_FONT, ATTR_CJK_FONT, ATTR_CTL_FONT })
++            rPattern.ItemSetPut(SvxFontItem(FAMILY_DONTKNOW, *o, OUString(), PITCH_DONTKNOW,
++                                            RTL_TEXTENCODING_DONTKNOW, nWhich));
++    if (const auto o = aOn(u"size"))
++        for (const auto nWhich : { ATTR_FONT_HEIGHT, ATTR_CJK_FONT_HEIGHT, ATTR_CTL_FONT_HEIGHT })
++            rPattern.ItemSetPut(SvxFontHeightItem(o->toUInt32(), 100, nWhich));
++    if (const auto o = aOn(u"color"))
++        rPattern.ItemSetPut(SvxColorItem(
++            *o == u"none" ? COL_AUTO : Color(ColorTransparency, o->toUInt32()), ATTR_FONT_COLOR));
++    if (const auto o = aOn(u"background"))
++        rPattern.ItemSetPut(SvxBrushItem(
++            *o == u"none" ? COL_TRANSPARENT : Color(ColorTransparency, o->toUInt32()), ATTR_BACKGROUND));
++    if (const auto o = aOn(u"number"))
++    {
++        rPattern.ItemSetPut(SfxUInt32Item(ATTR_VALUE_FORMAT, *lcl_ElyNumberKey(rDoc, *o)));
++        rPattern.ItemSetPut(SvxLanguageItem(LANGUAGE_ENGLISH_US, ATTR_LANGUAGE_FORMAT));
++    }
++    if (const auto o = aOn(u"align"))
++    {
++        SvxCellHorJustify eHor = SvxCellHorJustify::Standard;
++        if (*o == u"left") eHor = SvxCellHorJustify::Left;
++        else if (*o == u"center") eHor = SvxCellHorJustify::Center;
++        else if (*o == u"right") eHor = SvxCellHorJustify::Right;
++        else if (*o == u"justify") eHor = SvxCellHorJustify::Block;
++        rPattern.ItemSetPut(SvxHorJustifyItem(eHor, ATTR_HOR_JUSTIFY));
++    }
++    if (const auto o = aOn(u"valign"))
++    {
++        SvxCellVerJustify eVer = SvxCellVerJustify::Standard;
++        if (*o == u"top") eVer = SvxCellVerJustify::Top;
++        else if (*o == u"middle") eVer = SvxCellVerJustify::Center;
++        else if (*o == u"bottom") eVer = SvxCellVerJustify::Bottom;
++        rPattern.ItemSetPut(SvxVerJustifyItem(eVer, ATTR_VER_JUSTIFY));
++    }
++}
++
++/// Ely: formats and borders on `rRange` as one undo step.
++bool lcl_ElyFormat(ScDocShell& rDocShell, const ScRange& rRange, const OUString& rValue)
++{
++    ScDocument& rDoc = rDocShell.GetDocument();
++    ScPatternAttr aPattern(rDoc.getCellAttributeHelper());
++    lcl_ElyPattern(rDoc, rValue, aPattern);
++    // Edges not named keep their lines.
++    SvxBoxItem aOuter(ATTR_BORDER);
++    SvxBoxInfoItem aInner(ATTR_BORDER_INNER);
++    aInner.SetTable(true);
++    aInner.SetValid(SvxBoxInfoItemValidFlags::DISTANCE, false);
++    bool bLines = false;
++    const std::pair<std::u16string_view, SvxBoxItemLine> aOuterEdges[]
++        = { { u"border-left", SvxBoxItemLine::LEFT }, { u"border-top", SvxBoxItemLine::TOP },
++            { u"border-right", SvxBoxItemLine::RIGHT }, { u"border-bottom", SvxBoxItemLine::BOTTOM } };
++    const SvxBoxInfoItemValidFlags aOuterFlags[]
++        = { SvxBoxInfoItemValidFlags::LEFT, SvxBoxInfoItemValidFlags::TOP,
++            SvxBoxInfoItemValidFlags::RIGHT, SvxBoxInfoItemValidFlags::BOTTOM };
++    for (size_t i = 0; i < std::size(aOuterEdges); ++i)
++    {
++        const auto o = lcl_ElyField(rValue, aOuterEdges[i].first);
++        aInner.SetValid(aOuterFlags[i], o.has_value());
++        if (!o)
++            continue;
++        bLines = true;
++        aOuter.SetLine(lcl_ElyLine(*o).get(), aOuterEdges[i].second);
++    }
++    const std::pair<std::u16string_view, SvxBoxInfoItemLine> aInnerEdges[]
++        = { { u"border-inner-h", SvxBoxInfoItemLine::HORI },
++            { u"border-inner-v", SvxBoxInfoItemLine::VERT } };
++    const SvxBoxInfoItemValidFlags aInnerFlags[]
++        = { SvxBoxInfoItemValidFlags::HORI, SvxBoxInfoItemValidFlags::VERT };
++    for (size_t i = 0; i < std::size(aInnerEdges); ++i)
++    {
++        const auto o = lcl_ElyField(rValue, aInnerEdges[i].first);
++        aInner.SetValid(aInnerFlags[i], o.has_value());
++        if (!o)
++            continue;
++        bLines = true;
++        aInner.SetLine(lcl_ElyLine(*o).get(), aInnerEdges[i].second);
++    }
++    ScMarkData aMark(rDoc.GetSheetLimits());
++    aMark.SelectTable(rRange.aStart.Tab(), true);
++    aMark.SetMarkArea(rRange);
++    ScDocShellModificator aModificator(rDocShell);
++    if (rDoc.IsUndoEnabled())
++    {
++        ScDocumentUniquePtr pUndoDoc(new ScDocument(SCDOCMODE_UNDO));
++        pUndoDoc->InitUndo(rDoc, rRange.aStart.Tab(), rRange.aStart.Tab());
++        rDoc.CopyToDocument(rRange, InsertDeleteFlags::ATTRIB, false, *pUndoDoc, &aMark);
++        rDocShell.GetUndoManager()->AddUndoAction(std::make_unique<ScUndoSelectionAttr>(
++            rDocShell, aMark, rRange.aStart.Col(), rRange.aStart.Row(), rRange.aStart.Tab(),
++            rRange.aEnd.Col(), rRange.aEnd.Row(), rRange.aEnd.Tab(), std::move(pUndoDoc), false,
++            &aPattern, bLines ? &aOuter : nullptr, bLines ? &aInner : nullptr, &rRange));
++    }
++    sal_uInt16 nExt = SC_PF_TESTMERGE;
++    rDocShell.UpdatePaintExt(nExt, rRange);
++    if (bLines)
++        rDoc.ApplySelectionFrame(aMark, aOuter, &aInner);
++    aMark.MarkToMulti();
++    rDoc.ApplySelectionPattern(aPattern, aMark);
++    rDocShell.UpdatePaintExt(nExt, rRange);
++    // Wrap and size may change row heights.
++    if (rDocShell.AdjustRowHeight(rRange.aStart.Row(), rRange.aEnd.Row(), rRange.aStart.Tab()))
++        lcl_ElyResized(rDocShell, rRange.aStart.Tab(), false, rRange.aStart.Row());
++    rDocShell.PostPaint(rRange, PaintPartFlags::Grid, nExt);
++    aModificator.SetDocumentModified();
++    return true;
++}
++
+ /// Ely: freezes above and left of `rCell` on its sheet.
+ bool lcl_ElyFreeze(ScDocShell& rDocShell, const ScAddress& rCell)
+ {
+@@ -6237,6 +6430,8 @@ bool ScDocFunc::ElyStructure(std::u16string_view rVerb, const OUString& rAddress
+         return RenameTable(nTab, rValue, true, true);
+     if (rVerb == u"sheet.freeze")
+         return lcl_ElyFreeze(rDocShell, aRange.aStart);
++    if (rVerb == u"range.format")
++        return lcl_ElyFormat(rDocShell, aRange, rValue);
+     const bool bColumns = o3tl::starts_with(rVerb, u"columns.");
+     if (bColumns || o3tl::starts_with(rVerb, u"rows."))
+     {

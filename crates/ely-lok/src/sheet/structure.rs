@@ -36,6 +36,8 @@ pub enum Refused {
     Single,
     Merged,
     Unmerged,
+    /// A number format code that does not parse.
+    Number,
 }
 
 /// The query checking `verb` before it runs.
@@ -62,6 +64,7 @@ pub fn checked(json: &str) -> io::Result<Result<String, Refused>> {
         Some("single") => Refused::Single,
         Some("merged") => Refused::Merged,
         Some("unmerged") => Refused::Unmerged,
+        Some("number") => Refused::Number,
         Some(other) => return Err(io::Error::other(format!("unknown structure refusal: {other}"))),
     };
     Ok(Err(refused))
@@ -104,6 +107,7 @@ mod tests {
         assert_eq!(checked(r#"{"error":"position","sheet":"New","last":3}"#).expect("readable"), Err(Refused::Position(3)));
         assert_eq!(checked(r#"{"error":"last","sheet":"Only","last":2}"#).expect("readable"), Err(Refused::Last("Only".into())));
         assert_eq!(checked(r#"{"error":"merged","sheet":"S","last":2}"#).expect("readable"), Err(Refused::Merged));
+        assert_eq!(checked(r#"{"error":"number","sheet":"S","last":2}"#).expect("readable"), Err(Refused::Number));
         assert!(checked(r#"{"error":"other"}"#).is_err(), "an unknown refusal fails");
         assert!(checked(r#"{"error":"sheet"}"#).is_err(), "a refusal without its sheet fails");
     }

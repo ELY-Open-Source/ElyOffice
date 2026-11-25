@@ -10,6 +10,7 @@ mod tabs;
 mod borders;
 mod backslash;
 mod by_address;
+mod by_format;
 mod by_range;
 mod by_structure;
 mod cell_edit;

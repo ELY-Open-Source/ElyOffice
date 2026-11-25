@@ -72,6 +72,11 @@ ElyTable 开着、文件已打开时，别的程序（脚本、AI 代理）可�
 - `ely-table rows height 文件 Sheet1!1:3 尺寸` 与 `columns width 文件 Sheet1!C:E 尺寸` 设行高列宽：尺寸为数字加 `cm`、`mm`、`in`、`pt`（如 `2.5cm`），或 `auto`（按内容自适应）。
 - `ely-table range merge 文件 Sheet1!A1:C1` 合并区域（其余格内容保留但隐藏；含已有合并格或与合并块重叠时须先取消合并），`range unmerge 文件 Sheet1!A1:C1` 取消合并后重现。
 - 删除正在显示的工作表时，ElyTable 改显示相邻的表；其余操作不改当前显示的表。
+- `ely-table format 文件 Sheet1!A1:C1 bold=on background=#FFF2CC align=center` 按单格或区域设格式，一次一步撤销，不动光标、选区与当前表。
+- `bold/italic/underline/wrap` 取 `on|off`，`font` 写字体名，`size` 为 1–999 磅，`color/background` 取 `#RRGGBB` 或 `none`。
+- `number` 按 en-US（`0.00`、`0%`）；`align` 取 `left|center|right|justify|general`，`valign` 取 `top|middle|bottom|standard`。
+- `border=all|outer|none`（细黑实线）；`border-left|top|right|bottom|inner-h|inner-v` 取 `none` 或 `线型:宽:#RRGGBB`（pt/mm，≤2mm）。
+- 边框线型：`solid|dotted|dashed|fine-dashed|dash-dot|dash-dot-dot|double`，如 `border-bottom=double:1.5pt:#000000`。
 
 只有同一用户在本机的程序能连上。
 

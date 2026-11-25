@@ -13,6 +13,7 @@ use gpui::Context;
 
 use crate::book::Book;
 
+mod format;
 mod range;
 mod structure;
 
@@ -20,6 +21,7 @@ const USAGE: &str = "usage: ely-table docs | open FILE | new FILE | export FILE 
        ely-table cell get FILE ADDRESS | cell set FILE ADDRESS TEXT
        ely-table range get FILE ADDRESS | range set FILE ADDRESS DATA
        ely-table range merge|unmerge FILE ADDRESS
+       ely-table format FILE ADDRESS PROPERTY=VALUE ...
        ely-table sheet list FILE
        ely-table sheet add FILE NAME [POSITION]
        ely-table sheet remove FILE SHEET
@@ -34,18 +36,22 @@ ADDRESS names its sheet (Sheet1!A1, Sheet1!5:7, Sheet1!C:E); each write is one u
 cell get prints JSON; cell set writes TEXT (= for a formula).
 range: bare sheet = used area; DATA is a JSON 2-D array or TSV (- for stdin); \"\" clears a cell.
 range merge keeps hidden cell values for unmerge.
+format sets PROPERTY=VALUE ... in one undo step: bold, italic, underline, wrap, font, size, color,
+background, number, align, valign, border, border-left|top|right|bottom|inner-h|inner-v.
+border: all|outer|none; border-*: none or style:width:#RRGGBB (width pt/mm, max 2mm).
 sheet: list prints JSON; POSITION starts at 1; freeze locks above/left of ADDRESS (A1 unfreezes).
 SIZE is a number with cm, mm, in or pt (e.g. 2.5cm), or auto.
 Any argument written as - is read from standard input, up to 64 MiB.
 Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
-/// `ely-table open|new|export|cell|range|sheet|rows|columns ...`; its exit code.
+/// `ely-table open|new|export|cell|range|format|sheet|rows|columns ...`; its exit code.
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Table,
         nouns: &[
             ("cell", request),
             ("range", range::request),
+            ("format", format::request),
             ("sheet", structure::sheet),
             ("rows", structure::rows),
             ("columns", structure::columns),
@@ -75,7 +81,7 @@ impl Book {
             return;
         };
         let verb = words.first().map_or("", String::as_str);
-        if ["sheet.", "rows.", "columns."].iter().any(|noun| verb.starts_with(noun)) || verb == "range.merge" || verb == "range.unmerge" {
+        if ["sheet.", "rows.", "columns."].iter().any(|noun| verb.starts_with(noun)) || ["range.merge", "range.unmerge", "range.format"].contains(&verb) {
             return self.answer_structure(id, words, ask, cx);
         }
         if verb.starts_with("range.") {

@@ -122,6 +122,21 @@ assert size.returncode == 2 and b'invalid size' in size.stderr, size
 missing = run('sheet', 'remove', file, 'Nope')
 assert missing.returncode == 1 and b'Nope: no such sheet' in missing.stderr, missing
 PY
+# Formats from outside: the shown text follows the number format.
+python - "$(native "$table")" "$file" <<'PY' || fail "format did not apply from outside"
+import json, subprocess, sys
+table, file = sys.argv[1], sys.argv[2]
+def run(*words):
+    return subprocess.run([table, *words], capture_output=True)
+done = run('format', file, 't!D5:E5', 'number=0.00', 'bold=on', 'border=outer', 'border-bottom=double:1.5pt:#000000')
+assert done.returncode == 0, done
+got = json.loads(run('range', 'get', file, 't!D5:E5').stdout)
+assert [c['text'] for c in got['rows'][0]] == ['1.00', '2.00'], got
+unknown = run('format', file, 't!D5', 'shade=on')
+assert unknown.returncode == 2 and b'shade: unknown format property' in unknown.stderr, unknown
+code = run('format', file, 't!D5', 'number=0E')
+assert code.returncode == 1 and b'invalid number format code "0E"' in code.stderr, code
+PY
 saved=$(cell save "$file" | python -c 'import json, sys; sys.stdout.write(json.load(sys.stdin))') || fail "saving"
 [ "$(native "$saved")" = "$file" ] || fail "save answered '$saved', not $file"
 # On disk at the answer: crash recovery cannot stand in.
@@ -144,4 +159,4 @@ wait "$setting" || fail "writing B2 during a save"
 tail -n +"$((mark + 1))" "$work/out" | awk '/another program asks save/ { asks++ }
   /files: saved revision .*big\.xlsx/ { landed = 1; exit }
   END { exit !(landed && asks >= 2) }' || fail "the saves did not overlap"
-echo "ok: ElyTable answered cell docs, get, set, range set and get, sheet and rows changes, and save from another process; each save answered once its own write was on disk"
+echo "ok: ElyTable answered cell docs, get, set, range set and get, sheet and rows changes, formats, and save from another process; each save answered once its own write was on disk"
