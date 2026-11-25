@@ -61,6 +61,10 @@ ElyTable 开着、文件已打开时，别的程序（脚本、AI 代理）可�
 - `ely-table cell get 文件 地址` 输出该格的地址、显示的文字与输入（公式带 `=`），为 JSON。
 - `ely-table cell set 文件 地址 文字` 写入；以 `=` 开头即公式。
 - `ely-table cell save 文件` 保存，输出保存到的路径。文件在磁盘上被改过时不覆盖，ElyTable 里询问。
+- `ely-table range get 文件 地址` 输出 JSON（`address`、`rows`，每格含 `text`、`input`，公式带 `=`）。
+- `range get` 只写工作表名（如 `Sheet1`）即取该表已用区域，最多 100 万格。
+- `ely-table range set 文件 地址 数据` 批量写入：数据常写 `-` 走标准输入，支持二维 JSON 字符串数组（`[` 开头）或 TSV。
+- `range set` 里 `""` 清空该格、`=` 开头为公式；地址为左上格，按数据定大小（写区域须与数据行列相符），整批一步撤销，不动光标与选区。
 
 只有同一用户在本机的程序能连上。
 

@@ -38,9 +38,8 @@ const WHOLE: Pdf = Pdf {
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Doc,
-        noun: "text",
+        nouns: &[("text", request)],
         usage: USAGE,
-        request,
         exact: &[],
         blanks: &[("docx", include_bytes!("../../../packaging/windows/new/new.docx"))],
         exports: &["docx", "odt", "pdf"],

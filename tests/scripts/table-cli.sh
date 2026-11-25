@@ -85,6 +85,21 @@ subprocess.run([table, 'cell', 'set', file, 't!C3', text], check=True)
 got = json.loads(subprocess.run([table, 'cell', 'get', file, 't!C3'], check=True, capture_output=True).stdout)
 sys.exit(0 if got['text'] == got['input'] == text else 1)
 PY
+# A block through standard input, read back as JSON.
+python - "$(native "$table")" "$file" <<'PY' || fail "range set and get did not round-trip"
+import json, subprocess, sys
+table, file = sys.argv[1], sys.argv[2]
+def run(*words, data=None):
+    return subprocess.run([table, 'range', *words], input=data, capture_output=True)
+assert run('set', file, 't!D5', '-', data='1\t=D5*2\n世界\t\n'.encode()).returncode == 0
+got = json.loads(run('get', file, 't!D5:E6').stdout)
+assert [[c['input'] for c in row] for row in got['rows']] == [['1', '=D5*2'], ['世界', '']], got
+assert got['rows'][0][1]['text'] == '2', got
+shape = run('set', file, 't!D5:E6', '[["x"]]')
+assert shape.returncode == 1 and b'does not match' in shape.stderr, shape
+ragged = run('set', file, 't!D5', 'a\tb\nc')
+assert ragged.returncode == 2 and b'row 2 has 1 cells' in ragged.stderr, ragged
+PY
 saved=$(cell save "$file" | python -c 'import json, sys; sys.stdout.write(json.load(sys.stdin))') || fail "saving"
 [ "$(native "$saved")" = "$file" ] || fail "save answered '$saved', not $file"
 # On disk at the answer: crash recovery cannot stand in.
@@ -103,4 +118,4 @@ python -c "import sys,zipfile;z=zipfile.ZipFile(sys.argv[1]);sys.exit(0 if any(b
 wait "$first_save" || fail "the first save"
 wait "$setting" || fail "writing B2 during a save"
 grep -q "waits for the running one" "$work/out" || fail "the saves did not overlap"
-echo "ok: ElyTable answered cell docs, get, set and save from another process; each save answered once its own write was on disk"
+echo "ok: ElyTable answered cell docs, get, set, range set and get, and save from another process; each save answered once its own write was on disk"

@@ -29,9 +29,8 @@ Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Show,
-        noun: "text",
+        nouns: &[("text", request)],
         usage: USAGE,
-        request,
         exact: &[],
         blanks: &[("pptx", include_bytes!("../../../packaging/windows/new/new.pptx"))],
         exports: &["pptx", "odp", "pdf"],

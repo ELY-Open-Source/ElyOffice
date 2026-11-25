@@ -30,9 +30,8 @@ Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Mark,
-        noun: "text",
+        nouns: &[("text", request)],
         usage: USAGE,
-        request,
         exact: &["get"],
         blanks: &[("md", include_bytes!("../../../packaging/windows/new/new.md")), ("markdown", b"")],
         exports: &["html", "pdf", "txt"],

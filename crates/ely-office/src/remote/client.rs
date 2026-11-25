@@ -21,14 +21,15 @@ const START: Duration = Duration::from_secs(60);
 /// Words that are verbs, not files to open.
 const VERBS: [&str; 7] = ["docs", "open", "new", "export", "save", "help", "--help"];
 
+/// A noun's words as sent; files made absolute.
+pub type Request = fn(&[&str]) -> Result<Vec<String>, String>;
+
 /// What one app's command line knows.
 pub struct Cli {
     pub app: AppId,
-    /// The app's own noun, as `cell` or `text`.
-    pub noun: &'static str,
+    /// The app's nouns, as `cell`, and each one's request.
+    pub nouns: &'static [(&'static str, Request)],
     pub usage: &'static str,
-    /// The noun's words as sent; files made absolute.
-    pub request: fn(&[&str]) -> Result<Vec<String>, String>,
     /// Noun verbs whose answer prints as is.
     pub exact: &'static [&'static str],
     /// What `new` writes, by extension.
@@ -62,7 +63,7 @@ pub(crate) enum Plan {
 pub fn command_line(cli: &Cli) -> Option<i32> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let first = args.first()?.to_str()?;
-    if first != cli.noun && !VERBS.contains(&first) {
+    if !cli.nouns.iter().any(|(noun, _)| *noun == first) && !VERBS.contains(&first) {
         return None;
     }
     ely_platform::startup::attach_console();
@@ -155,8 +156,8 @@ pub(crate) fn plan(cli: &Cli, words: &[String]) -> Result<Plan, Fail> {
             }
             ask(vec!["export".into(), file, to])
         }
-        [noun, ref rest @ ..] if noun == cli.noun => {
-            let words = (cli.request)(rest).map_err(|why| fail(2, why))?;
+        [noun, ref rest @ ..] if let Some((_, request)) = cli.nouns.iter().find(|(name, _)| *name == noun) => {
+            let words = request(rest).map_err(|why| fail(2, why))?;
             let exact = words.first().is_some_and(|verb| cli.exact.contains(&verb.as_str()));
             Ok(Plan::Ask(words, exact))
         }

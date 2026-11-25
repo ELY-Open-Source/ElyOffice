@@ -170,6 +170,7 @@ pub const QUERIES: &[&str] = &[
     crate::sheet::FILTER,
     crate::sheet::LIST,
     crate::sheet::CELL,
+    crate::sheet::range::RANGE,
     crate::menu::STATES,
 ];
 

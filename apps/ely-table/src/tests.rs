@@ -433,6 +433,7 @@ mod numbers;
 mod remote;
 mod output;
 mod protect;
+mod range;
 mod rules;
 mod sources;
 mod undo;

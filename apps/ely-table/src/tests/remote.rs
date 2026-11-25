@@ -8,7 +8,7 @@ use gpui::{AppContext as _, TestAppContext};
 use super::{blank, book, settle, update};
 
 /// The answer to `words`, once it comes.
-fn ask(cx: &mut TestAppContext, book: &gpui::Entity<crate::book::Book>, words: &[&str]) -> Result<String, String> {
+pub(super) fn ask(cx: &mut TestAppContext, book: &gpui::Entity<crate::book::Book>, words: &[&str]) -> Result<String, String> {
     let (ask, answered) = ely_ui::Ask::for_tests(&serde_json::json!(words).to_string());
     update(cx, book, |book, cx| book.answer(ask, cx));
     let answer = RefCell::new(None);

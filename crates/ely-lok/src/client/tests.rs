@@ -10,6 +10,7 @@ mod tabs;
 mod borders;
 mod backslash;
 mod by_address;
+mod by_range;
 mod cell_edit;
 mod cell_looks;
 mod charts;

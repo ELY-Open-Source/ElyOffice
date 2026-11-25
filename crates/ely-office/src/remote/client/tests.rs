@@ -8,12 +8,11 @@ use super::{Cli, Fail, Plan, plan, with_stdin, write_new};
 
 const CLI: Cli = Cli {
     app: AppId::Agent,
-    noun: "text",
-    usage: "usage",
-    request: |words| match *words {
+    nouns: &[("text", |words| match *words {
         ["get", file] => Ok(vec!["get".into(), file.into()]),
         _ => Err("unknown command".into()),
-    },
+    })],
+    usage: "usage",
     exact: &["get"],
     blanks: &[("docx", b"blank")],
     exports: &["docx", "pdf"],

@@ -13,6 +13,8 @@ use gpui::Context;
 
 use crate::book::Book;
 
+mod range;
+
 const USAGE: &str = "usage: ely-table docs
        ely-table open FILE
        ely-table new FILE
@@ -20,18 +22,20 @@ const USAGE: &str = "usage: ely-table docs
        ely-table save FILE
        ely-table cell get FILE ADDRESS
        ely-table cell set FILE ADDRESS TEXT
+       ely-table range get FILE ADDRESS
+       ely-table range set FILE ADDRESS DATA
 open and new start ElyTable if needed; the rest require it running (with FILE open).
 ADDRESS names its sheet, as in Sheet1!A1. cell get prints JSON; cell set writes TEXT (= for a formula) as one undo step.
+range: bare sheet = used area; DATA is a JSON 2-D array or TSV (- for stdin); \"\" clears a cell; one undo step.
 Any argument written as - is read from standard input, up to 64 MiB.
 Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
-/// `ely-table open|new|export|cell ...`; its exit code.
+/// `ely-table open|new|export|cell|range ...`; its exit code.
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Table,
-        noun: "cell",
+        nouns: &[("cell", request), ("range", range::request)],
         usage: USAGE,
-        request,
         exact: &[],
         blanks: &[("xlsx", include_bytes!("../../../packaging/windows/new/new.xlsx"))],
         exports: &["xlsx", "ods", "pdf", "csv", "tsv"],
@@ -55,6 +59,9 @@ impl Book {
         let Some((id, words, ask)) = self.asked(ask, cx) else {
             return;
         };
+        if words.first().is_some_and(|verb| verb.starts_with("range.")) {
+            return self.answer_range(id, words, ask, cx);
+        }
         let failed = |error: std::io::Error| error.to_string();
         match &words[..] {
             [verb, _, address] if verb == "get" => {

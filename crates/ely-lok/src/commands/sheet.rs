@@ -60,6 +60,13 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Text("Address"), Arg::Loose("StringName")],
         Check::Undoable,
     ),
+    // A block from JSON rows, one undo step.
+    command(
+        "range.set",
+        ".uno:EnterString",
+        &[Arg::Text("Address"), Arg::Text("Rows")],
+        Check::Undoable,
+    ),
     command(
         "rows.insert_above",
         ".uno:InsertRowsBefore",

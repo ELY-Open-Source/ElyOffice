@@ -1,0 +1,253 @@
+LOK: Calc reads and writes a range by address, the cursor kept
+
+- .uno:RangeAt?address=Sheet1!A1:D10 reads the range row by row: each
+  cell's shown text and input (a formula as typed). A bare sheet name
+  reads A1 to its last filled cell. The sheet must be named and exist
+  ({"error": "address"}); more than 1,000,000 cells answer
+  {"error": "size", "cells": n}.
+- With rows= and columns= it answers where a write of that size would
+  go: one cell grows to it, a range must match it ("shape"), and the
+  sheet's edge bounds it ("edge").
+- .uno:EnterString takes Address with Rows, a JSON array of string
+  rows: each cell is entered as typed on its own sheet, all in one undo
+  step; the cursor, the selection and the selected sheets stay. A block
+  that cannot be edited is refused before the first change.
+  Another program edits an open workbook this way (Ely #107).
+
+diff --git a/sc/sdi/scalc.sdi b/sc/sdi/scalc.sdi
+index 86f5897..9516347 100644
+--- a/sc/sdi/scalc.sdi
++++ b/sc/sdi/scalc.sdi
+@@ -6839,7 +6839,7 @@ SfxVoidItem Ungroup SID_OUTLINE_REMOVE
+ ]
+ 
+ SfxVoidItem EnterString SID_ENTER_STRING
+-(SfxStringItem StringName SID_ENTER_STRING,SfxBoolItem DontCommit FN_PARAM_1,SfxStringItem Address FN_PARAM_2,SfxStringItem ElyMacro FN_PARAM_3)
++(SfxStringItem StringName SID_ENTER_STRING,SfxBoolItem DontCommit FN_PARAM_1,SfxStringItem Address FN_PARAM_2,SfxStringItem ElyMacro FN_PARAM_3,SfxStringItem Rows FN_PARAM_4)
+ [
+     AutoUpdate = FALSE,
+     FastCall = FALSE,
+diff --git a/sc/source/ui/inc/viewfunc.hxx b/sc/source/ui/inc/viewfunc.hxx
+index c83d541..c6c3070 100644
+--- a/sc/source/ui/inc/viewfunc.hxx
++++ b/sc/source/ui/inc/viewfunc.hxx
+@@ -113,6 +113,9 @@ public:
+                                 const EditTextObject* pData = nullptr, bool bMatrixExpand = false);
+     /// Enters one cell on its own sheet; the cursor stays.
+     void            EnterDataAt(const ScAddress& rPos, const OUString& rString);
++    /// Fills rRange with rRows, one undo step; false if refused.
++    bool            EnterRowsAt(const ScRange& rRange,
++                                const std::vector<std::vector<OUString>>& rRows);
+     void            EnterData( SCCOL nCol, SCROW nRow, SCTAB nTab,
+                                const EditTextObject& rData, bool bTestSimple = false );
+     void            EnterValue( SCCOL nCol, SCROW nRow, SCTAB nTab, const double& rValue );
+diff --git a/sc/source/ui/unoobj/docuno.cxx b/sc/source/ui/unoobj/docuno.cxx
+index 2e873ba..e313e4b 100644
+--- a/sc/source/ui/unoobj/docuno.cxx
++++ b/sc/source/ui/unoobj/docuno.cxx
+@@ -788,6 +788,78 @@ void lcl_CellAt(tools::JsonWriter& rJson, ScDocument& rDoc, std::string_view rCo
+                                 : rDoc.GetInputString(aPos.Col(), aPos.Row(), aPos.Tab()));
+ }
+ 
++/// The most cells one range read answers.
++constexpr sal_uInt64 RANGE_CELLS = 1000000;
++
++/// Named range; a bare sheet name spans its used area.
++bool lcl_RangeNamed(ScDocument& rDoc, const OUString& rAddress, ScRange& rRange)
++{
++    SCTAB nTab;
++    if (rDoc.GetTable(rAddress, nTab))
++    {
++        SCCOL nEndCol = 0;
++        SCROW nEndRow = 0;
++        rDoc.GetCellArea(nTab, nEndCol, nEndRow);
++        rRange = ScRange(0, 0, nTab, nEndCol, nEndRow, nTab);
++        return true;
++    }
++    const ScAddress::Details aDetails(rDoc.GetAddressConvention(), 0, 0);
++    const ScRefFlags nFlags = rRange.ParseAny(rAddress, rDoc, aDetails);
++    return (nFlags & ScRefFlags::VALID) && (nFlags & ScRefFlags::TAB_3D)
++           && rRange.aStart.Tab() == rRange.aEnd.Tab() && rDoc.HasTable(rRange.aStart.Tab());
++}
++
++/// Cells row by row; with rows=, columns=: the write target.
++void lcl_RangeAt(tools::JsonWriter& rJson, ScDocument& rDoc, std::string_view rCommand)
++{
++    std::map<OUString, OUString> aMap
++        = SfxLokHelper::parseCommandParameters(OUString::fromUtf8(rCommand));
++    const ScAddress::Details aDetails(rDoc.GetAddressConvention(), 0, 0);
++    rJson.put("commandName", ".uno:RangeAt");
++    ScRange aRange;
++    if (!lcl_RangeNamed(rDoc, aMap[u"address"_ustr], aRange))
++        return rJson.put("error", "address");
++    const sal_uInt64 nCols = aRange.aEnd.Col() - aRange.aStart.Col() + 1;
++    const sal_uInt64 nRows = aRange.aEnd.Row() - aRange.aStart.Row() + 1;
++    if (aMap.contains(u"rows"_ustr))
++    {
++        // One cell grows to the data; a range must match.
++        const sal_Int64 nWantRows = aMap[u"rows"_ustr].toInt64();
++        const sal_Int64 nWantCols = aMap[u"columns"_ustr].toInt64();
++        if (nWantRows < 1 || nWantCols < 1)
++            return rJson.put("error", "shape");
++        if (nCols * nRows > 1 && (sal_uInt64(nWantRows) != nRows || sal_uInt64(nWantCols) != nCols))
++            return rJson.put("error", "shape");
++        if (aRange.aStart.Col() + nWantCols - 1 > rDoc.MaxCol()
++            || aRange.aStart.Row() + nWantRows - 1 > rDoc.MaxRow())
++            return rJson.put("error", "edge");
++        aRange.aEnd.SetCol(aRange.aStart.Col() + nWantCols - 1);
++        aRange.aEnd.SetRow(aRange.aStart.Row() + nWantRows - 1);
++        return rJson.put("address", aRange.Format(rDoc, ScRefFlags::RANGE_ABS_3D, aDetails));
++    }
++    rJson.put("address", aRange.Format(rDoc, ScRefFlags::RANGE_ABS_3D, aDetails));
++    if (nCols * nRows > RANGE_CELLS)
++    {
++        rJson.put("cells", static_cast<sal_Int64>(nCols * nRows));
++        return rJson.put("error", "size");
++    }
++    const SCTAB nTab = aRange.aStart.Tab();
++    auto aRows = rJson.startArray("rows");
++    for (SCROW nRow = aRange.aStart.Row(); nRow <= aRange.aEnd.Row(); ++nRow)
++    {
++        auto aRow = rJson.startAnonArray();
++        for (SCCOL nCol = aRange.aStart.Col(); nCol <= aRange.aEnd.Col(); ++nCol)
++        {
++            auto aCell = rJson.startStruct();
++            const ScAddress aPos(nCol, nRow, nTab);
++            rJson.put("text", rDoc.GetString(aPos));
++            const bool bFormula = rDoc.GetCellType(aPos) == CELLTYPE_FORMULA;
++            rJson.put("input", bFormula ? rDoc.GetFormula(nCol, nRow, nTab)
++                                        : rDoc.GetInputString(nCol, nRow, nTab));
++        }
++    }
++}
++
+ /// The cell a `?col=&row=` query names, on the shown sheet.
+ bool lcl_QueryCell(std::string_view rCommand, SCCOL& rCol, SCROW& rRow)
+ {
+@@ -1135,7 +1207,7 @@ bool ScModelObj::supportsCommand(std::u16string_view rCommand)
+             u"PivotTable",       u"PrintLayout",        u"SheetProtection",
+             u"ElyMacroSelection", u"ElyMacroRefusal",
+             u"ExternalLinks",    u"CellAt",             u"KeptResults",
+-            u"ElyUpdateLinks" };
++            u"ElyUpdateLinks",   u"RangeAt" };
+     return std::find(std::begin(aCommands), std::end(aCommands), rCommand) != std::end(aCommands);
+ }
+ 
+@@ -1160,6 +1232,8 @@ void ScModelObj::getCommandValues(tools::JsonWriter& rJsonWriter, std::string_vi
+     }
+     if (pDocShell && o3tl::starts_with(rCommand, ".uno:CellAt?"))
+         return lcl_CellAt(rJsonWriter, pDocShell->GetDocument(), rCommand);
++    if (pDocShell && o3tl::starts_with(rCommand, ".uno:RangeAt?"))
++        return lcl_RangeAt(rJsonWriter, pDocShell->GetDocument(), rCommand);
+     if (pDocShell && rCommand == ".uno:ElyMacroSelection")
+     {
+         try { elymacro::snapshot(rJsonWriter, pDocShell->GetModel()); }
+diff --git a/sc/source/ui/view/cellsh3.cxx b/sc/source/ui/view/cellsh3.cxx
+index 94b0f07..4f4989e 100644
+--- a/sc/source/ui/view/cellsh3.cxx
++++ b/sc/source/ui/view/cellsh3.cxx
+@@ -63,6 +63,7 @@
+ #include <boost/property_tree/json_parser.hpp>
+ 
+ #include <memory>
++#include <vector>
+ 
+ using sc::TwipsToEvenHMM;
+ 
+@@ -273,6 +274,36 @@ bool lcl_ConditionalFormat(ScViewData& rData, const OUString& rRule)
+     rFunc.ReplaceConditionalFormat(0, std::move(pFormat), nTab, aRanges);
+     return true;
+ }
++
++/// A JSON array of string rows; false unless rectangular.
++bool lcl_Rows(const OUString& rJson, std::vector<std::vector<OUString>>& rRows)
++{
++    boost::property_tree::ptree aTree;
++    std::stringstream aStream{ std::string(rJson.toUtf8()) };
++    try
++    {
++        boost::property_tree::read_json(aStream, aTree);
++    }
++    catch (const boost::property_tree::json_parser_error&)
++    {
++        return false;
++    }
++    for (const auto& rRow : aTree)
++    {
++        if (!rRow.first.empty() || rRow.second.empty())
++            return false;
++        std::vector<OUString>& rCells = rRows.emplace_back();
++        for (const auto& rCell : rRow.second)
++        {
++            if (!rCell.first.empty() || !rCell.second.empty())
++                return false;
++            rCells.push_back(OUString::fromUtf8(rCell.second.data()));
++        }
++        if (rCells.size() != rRows.front().size())
++            return false;
++    }
++    return !rRows.empty();
++}
+ }
+ 
+ void ScCellShell::Execute( SfxRequest& rReq )
+@@ -428,6 +459,25 @@ void ScCellShell::Execute( SfxRequest& rReq )
+                     ScDocument& rDoc = GetViewData().GetDocument();
+                     const ScAddress::Details aDetails(rDoc.GetAddressConvention(), 0, 0);
+                     const OUString aAddress = static_cast<const SfxStringItem*>(pAddressItem)->GetValue();
++                    const SfxPoolItem* pRowsItem;
++                    if (pReqArgs->HasItem(FN_PARAM_4, &pRowsItem))
++                    {
++                        // Rows fill the range; one undo step.
++                        std::vector<std::vector<OUString>> aRows;
++                        ScRange aRange;
++                        const ScRefFlags nRangeFlags = aRange.ParseAny(aAddress, rDoc, aDetails);
++                        if ((nRangeFlags & ScRefFlags::VALID) && (nRangeFlags & ScRefFlags::TAB_3D)
++                            && aRange.aStart.Tab() == aRange.aEnd.Tab() && rDoc.HasTable(aRange.aStart.Tab())
++                            && lcl_Rows(static_cast<const SfxStringItem*>(pRowsItem)->GetValue(), aRows)
++                            && pTabViewShell->EnterRowsAt(aRange, aRows))
++                        {
++                            ScInputHandler* pInputHandler = pScMod->GetInputHdl(pTabViewShell);
++                            if (!pInputHandler || !pInputHandler->IsInEnterHandler())
++                                pTabViewShell->UpdateInputHandler();
++                            rReq.Done();
++                        }
++                        break;
++                    }
+                     ScAddress aPos;
+                     const ScRefFlags nFlags = aPos.Parse(aAddress, rDoc, aDetails);
+                     if ((nFlags & ScRefFlags::VALID) && (nFlags & ScRefFlags::TAB_3D) && rDoc.HasTable(aPos.Tab()))
+diff --git a/sc/source/ui/view/viewfunc.cxx b/sc/source/ui/view/viewfunc.cxx
+index ac6c397..049e053 100644
+--- a/sc/source/ui/view/viewfunc.cxx
++++ b/sc/source/ui/view/viewfunc.cxx
+@@ -797,6 +797,29 @@ void ScViewFunc::EnterDataAt(const ScAddress& rPos, const OUString& rString)
+     EnterDataMarked(rPos.Col(), rPos.Row(), rPos.Tab(), rString, nullptr, false, aMark);
+ }
+ 
++bool ScViewFunc::EnterRowsAt(const ScRange& rRange, const std::vector<std::vector<OUString>>& rRows)
++{
++    ScDocument& rDoc = GetViewData().GetDocument();
++    ScDocShell* pDocSh = GetViewData().GetDocShell();
++    const ScAddress& rStart = rRange.aStart;
++    // Every check runs before the first change.
++    if (size_t(rRange.aEnd.Row() - rStart.Row() + 1) != rRows.size()
++        || size_t(rRange.aEnd.Col() - rStart.Col() + 1) != rRows.front().size()
++        || !rDoc.IsBlockEditable(rStart.Tab(), rStart.Col(), rStart.Row(), rRange.aEnd.Col(), rRange.aEnd.Row()))
++        return false;
++    const bool bUndo = rDoc.IsUndoEnabled();
++    const OUString aUndo = ScResId(STR_UNDO_ENTERDATA);
++    if (bUndo)
++        pDocSh->GetUndoManager()->EnterListAction(aUndo, aUndo, 0, GetViewData().GetViewShell()->GetViewShellId());
++    for (size_t nRow = 0; nRow < rRows.size(); ++nRow)
++        for (size_t nCol = 0; nCol < rRows[nRow].size(); ++nCol)
++            EnterDataAt(ScAddress(SCCOL(rStart.Col() + nCol), SCROW(rStart.Row() + nRow), rStart.Tab()),
++                        rRows[nRow][nCol]);
++    if (bUndo)
++        pDocSh->GetUndoManager()->LeaveListAction();
++    return true;
++}
++
+ void ScViewFunc::EnterDataMarked( SCCOL nCol, SCROW nRow, SCTAB nTab,
+                                   const OUString& rString,
+                                   const EditTextObject* pData,
