@@ -112,8 +112,9 @@ pub fn size_box<P: Panel>(
     let mut sized = Combobox::new(id, &input, choices)
         .free()
         .size(ControlSize::Sm)
+        .steps(|text, by| stepped(text, f64::from(by)).map(SharedString::from))
         .on_change(move |value, _, cx| {
-            // A picked row is sent; leaving sends nothing more.
+            // A pick or step is sent; leaving sends nothing.
             field.update(cx, |field, _| field.sent = Some(value.clone()));
             send(&this, "format.size", &[value.as_ref()], cx)
         });
@@ -121,6 +122,12 @@ pub fn size_box<P: Panel>(
         sized = sized.selected(size);
     }
     sized.into_any_element()
+}
+
+/// A size a point off; None if not a number.
+fn stepped(from: &str, by: f64) -> Option<String> {
+    let size = from.trim().parse::<f64>().ok().filter(|size| size.is_finite())?;
+    Some(format!("{}", (size + by).clamp(1.0, 409.0)))
 }
 
 #[cfg(test)]
@@ -147,6 +154,19 @@ mod tests {
 
         fn run(&mut self, id: &str, values: &[&str], _: &mut Context<Self>) {
             self.0.push([id].iter().chain(values).map(|value| value.to_string()).collect());
+        }
+    }
+
+    #[test]
+    fn the_arrows_step_one_point_within_the_limits() {
+        assert_eq!(stepped("12", 1.0).as_deref(), Some("13"));
+        assert_eq!(stepped("10.5", -1.0).as_deref(), Some("9.5"));
+        assert_eq!(stepped("1", -1.0).as_deref(), Some("1"));
+        assert_eq!(stepped("409", 1.0).as_deref(), Some("409"));
+        assert_eq!(stepped("", 1.0), None);
+        assert_eq!(stepped("big", 1.0), None);
+        for odd in ["NaN", "inf", "-inf", "1e309"] {
+            assert_eq!(stepped(odd, 1.0), None, "{odd}");
         }
     }
 
@@ -241,5 +261,45 @@ mod tests {
         assert_eq!(shown(&mut cx, Some(ely_lok::MIXED), false), pair("", "Mixed"), "the hint shows");
         assert_eq!(shown(&mut cx, Some("11"), false), pair("11", ""));
         assert_eq!(shown(&mut cx, Some(ely_lok::MIXED), true).0, "11", "a size being typed stays");
+    }
+
+    /// The real size box at 12 pt, keeping its commands.
+    struct Arrows(Vec<Vec<String>>);
+
+    impl Panel for Arrows {
+        fn state(&self, uno: &str, _: &App) -> Option<SharedString> {
+            (uno == ".uno:FontHeight").then(|| "12".into())
+        }
+
+        fn run(&mut self, id: &str, values: &[&str], _: &mut Context<Self>) {
+            self.0.push([id].iter().chain(values).map(|value| value.to_string()).collect());
+        }
+    }
+
+    impl Render for Arrows {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            use gpui::{ParentElement as _, Styled as _};
+            gpui::div().w(gpui::px(160.)).child(size_box(self, ("size", "Size".into()), window, cx))
+        }
+    }
+
+    #[test]
+    fn the_size_arrows_send_a_point_up_and_down() {
+        let mut cx = TestAppContext::single();
+        cx.update(|cx| {
+            ely_gpui_component::init_for_tests(cx);
+            ely_ui::i18n::install_as("en-US", cx);
+        });
+        let window = cx.add_window(|_, _| Arrows(Vec::new()));
+        let mut cx = VisualTestContext::from_window(window.into(), &cx);
+        cx.run_until_parked();
+        for half in ["combobox-step-up", "combobox-step-down", "combobox-step-down"] {
+            let at = cx.debug_bounds(half).unwrap_or_else(|| panic!("{half} is drawn")).center();
+            cx.simulate_mouse_move(at, None, gpui::Modifiers::none());
+            cx.simulate_click(at, gpui::Modifiers::none());
+            cx.run_until_parked();
+        }
+        let ran = window.update(&mut cx, |arrows, _, _| arrows.0.clone()).expect("the window lives");
+        assert_eq!(ran, [["format.size", "13"], ["format.size", "12"], ["format.size", "11"]]);
     }
 }
