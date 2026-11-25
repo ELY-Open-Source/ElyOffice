@@ -129,6 +129,7 @@ python -c "import sys,zipfile;z=zipfile.ZipFile(sys.argv[1]);x=z.read('xl/worksh
 "$table" "$big" || fail "handing the big workbook over"
 shows big.xlsx
 # The write and the second save arrive during the first.
+mark=$(wc -l < "$work/out")
 cell save "$big" >/dev/null &
 first_save=$!
 sleep 0.05
@@ -139,5 +140,8 @@ cell save "$big" >/dev/null || fail "the second save"
 python -c "import sys,zipfile;z=zipfile.ZipFile(sys.argv[1]);sys.exit(0 if any(b'>later<' in z.read(n) for n in z.namelist()) else 1)" "$big" || fail "the second save answered before B2 was on disk"
 wait "$first_save" || fail "the first save"
 wait "$setting" || fail "writing B2 during a save"
-grep -q "waits for the running one" "$work/out" || fail "the saves did not overlap"
+# Both saves were asked before the first one landed.
+tail -n +"$((mark + 1))" "$work/out" | awk '/another program asks save/ { asks++ }
+  /files: saved revision .*big\.xlsx/ { landed = 1; exit }
+  END { exit !(landed && asks >= 2) }' || fail "the saves did not overlap"
 echo "ok: ElyTable answered cell docs, get, set, range set and get, sheet and rows changes, and save from another process; each save answered once its own write was on disk"
