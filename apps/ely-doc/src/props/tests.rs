@@ -416,3 +416,37 @@ fn in_a_table_the_table_group_comes_first_and_folds_stay_put() {
         "and after the table"
     );
 }
+
+/// #112: two sizes from the panel, selected both ways.
+#[test]
+fn a_line_of_two_sizes_reads_mixed_either_way() {
+    const HOME: i32 = 1028;
+    const END: i32 = 1029;
+    const LEFT: i32 = 1026;
+    const RIGHT: i32 = 1027;
+    const SHIFT: i32 = 0x1000;
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "这部分是10号字体 这部分是10.5号字体");
+    let props = panel(&mut cx, &docs);
+    let size = |app: &gpui::App| props.read(app).state(".uno:FontHeight", app);
+    keys(&mut cx, &docs, &[HOME]);
+    keys(&mut cx, &docs, &[RIGHT | SHIFT; 9]);
+    run(&mut cx, &props, "format.size", &["10"]);
+    settle(&cx, |app| size(app).as_deref() == Some("10"));
+    keys(&mut cx, &docs, &[END]);
+    keys(&mut cx, &docs, &[LEFT | SHIFT; 11]);
+    run(&mut cx, &props, "format.size", &["10.5"]);
+    settle(&cx, |app| size(app).as_deref() == Some("10.5"));
+    for (start, select) in [(HOME, END | SHIFT), (END, HOME | SHIFT)] {
+        keys(&mut cx, &docs, &[start]);
+        settle(&cx, |app| size(app).is_some_and(|size| size != ely_lok::MIXED));
+        keys(&mut cx, &docs, &[select]);
+        settle(&cx, |app| size(app).as_deref() == Some(ely_lok::MIXED));
+    }
+}
