@@ -67,6 +67,20 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Text("Address"), Arg::Text("Rows")],
         Check::Undoable,
     ),
+    // Sheets, rows, columns, merges by address; one undo step.
+    command(
+        "structure",
+        ".uno:ElyStructure",
+        &[Arg::Text("Verb"), Arg::Text("Address"), Arg::Loose("Value")],
+        Check::Undoable,
+    ),
+    // A freeze is the view's: no undo step.
+    command(
+        "structure.freeze",
+        ".uno:ElyStructure",
+        &[Arg::Text("Verb"), Arg::Text("Address"), Arg::Loose("Value")],
+        Check::Finished,
+    ),
     command(
         "rows.insert_above",
         ".uno:InsertRowsBefore",

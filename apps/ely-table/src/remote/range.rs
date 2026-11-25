@@ -19,6 +19,7 @@ pub(super) fn request(words: &[&str]) -> Result<Vec<String>, String> {
             }
             vec!["range.set".into(), remote::absolute(path)?, address.into(), range::rows_json(&rows)]
         }
+        [verb @ ("merge" | "unmerge"), path, address] => super::structure::merge(verb, path, address)?,
         _ => return Err("unknown command".into()),
     })
 }
@@ -26,7 +27,7 @@ pub(super) fn request(words: &[&str]) -> Result<Vec<String>, String> {
 const DATA: &str = "range data must be a JSON array of string rows or TSV: {reason}";
 const EMPTY: &str = "no rows, or a row has no cells";
 const RAGGED: &str = "row {row} has {cells} cells; row 1 has {first}";
-const ADDRESS: &str = "{address}: names no range on an existing sheet";
+pub(super) const ADDRESS: &str = "{address}: names no range on an existing sheet";
 
 fn big(address: &str, cells: u64) -> String {
     format!("{address}: {} cells exceeds the 1,000,000-cell limit", grouped(cells))

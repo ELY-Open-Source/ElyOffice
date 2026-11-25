@@ -1,0 +1,428 @@
+LOK: Calc changes sheets, rows, columns and merges by address
+
+- .uno:ElyStructure (Verb, Address, Value) runs one structure verb on
+  the sheet the address names, through ScDocFunc, so the cursor,
+  selection and shown sheet stay; each is one undo step:
+  sheet.add (Address = name, Value = position from 1 or empty for last),
+  sheet.remove, sheet.rename (Value = new name), rows.insert,
+  rows.delete, columns.insert, columns.delete (Sheet1!5:7, Sheet1!C:E),
+  rows.height, columns.width (Value = twips or "auto"), range.merge
+  (hidden cells keep their contents), range.unmerge.
+- sheet.freeze (Address = one cell) sets the sheet's LOK freeze above
+  and left of the cell, as FreezePanesColumn/Row do under LOK; A1
+  unfreezes. Like Calc's own freeze it is not an undo step.
+- .uno:StructureAt?verb=&address=&value= answers the same verb's
+  refusal before anything changes: "sheet" (no such sheet), "protected",
+  "name", "taken", "position" (with "last"), "last" (the only visible
+  sheet), "address", "edge" (insert pushes content off the sheet),
+  "size", "single", "merged", "unmerged"; or the range it takes.
+- .uno:SheetsAt lists every sheet's name, used area (left out when
+  empty) and whether it is hidden.
+
+diff --git a/sc/inc/sc.hrc b/sc/inc/sc.hrc
+index 629289a..9d7f5fc 100644
+--- a/sc/inc/sc.hrc
++++ b/sc/inc/sc.hrc
+@@ -524,6 +524,8 @@ static_assert(SID_PREVIEW_END < SID_KEYFUNC_START, "calc slots ids trampling inf
+ #define SID_ACCEPT_FORMULA      (SID_KEYFUNC_START + 42)
+ #define SID_START_FORMULA       (SID_KEYFUNC_START + 43)
+ #define SID_COPYDELETE          (SID_KEYFUNC_START + 44)
++// Ely: sheets, rows, columns by address
++#define SID_ELY_STRUCTURE       (SID_KEYFUNC_START + 45)
+ 
+ #define SID_KEYFUNC_END         (SID_KEYFUNC_START + 50)
+ 
+diff --git a/sc/sdi/cellsh.sdi b/sc/sdi/cellsh.sdi
+index 005e4a2..676e941 100644
+--- a/sc/sdi/cellsh.sdi
++++ b/sc/sdi/cellsh.sdi
+@@ -82,6 +82,7 @@ interface CellSelection
+     SID_RANGE_NOTETEXT      [ ExecMethod = ExecuteEdit; StateMethod = GetState; ]
+ 
+     SID_ENTER_STRING        [ ExecMethod = Execute; StateMethod = GetState; ]
++    SID_ELY_STRUCTURE       [ ExecMethod = Execute; ]
+     SID_INSERT_MATRIX       [ ExecMethod = Execute; StateMethod = GetState; ]
+     SID_MARKAREA            [ ExecMethod = Execute; ]
+     SID_SELECT_SCENARIO     [ ExecMethod = ExecuteEdit; StateMethod = GetState; ]
+diff --git a/sc/sdi/scalc.sdi b/sc/sdi/scalc.sdi
+index 9516347..7b6bf6d 100644
+--- a/sc/sdi/scalc.sdi
++++ b/sc/sdi/scalc.sdi
+@@ -6855,6 +6855,23 @@ SfxVoidItem EnterString SID_ENTER_STRING
+     GroupId = SfxGroupId::Intern;
+ ]
+ 
++SfxVoidItem ElyStructure SID_ELY_STRUCTURE
++(SfxStringItem Verb FN_PARAM_1,SfxStringItem Address FN_PARAM_2,SfxStringItem Value FN_PARAM_3)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Intern;
++]
++
+ SfxVoidItem ExportAsGraphic SID_EXPORT_AS_GRAPHIC
+ ()
+ [
+diff --git a/sc/source/ui/docshell/docfunc.cxx b/sc/source/ui/docshell/docfunc.cxx
+index c30e8d8..e2a6117 100644
+--- a/sc/source/ui/docshell/docfunc.cxx
++++ b/sc/source/ui/docshell/docfunc.cxx
+@@ -95,6 +95,7 @@
+ #include <sheetevents.hxx>
+ #include <conditio.hxx>
+ #include <columnspanset.hxx>
++#include <tools/json_writer.hxx>
+ #include <validat.hxx>
+ #include <SparklineGroup.hxx>
+ #include <SparklineAttributes.hxx>
+@@ -6052,4 +6053,224 @@ bool ScDocFunc::ChangeSparkline(std::shared_ptr<sc::Sparkline> const& rpSparklin
+     return true;
+ }
+ 
++namespace
++{
++/// Ely: one existing sheet's range, as `rAddress` names it.
++bool lcl_ElyRange(const ScDocument& rDoc, const OUString& rAddress, ScRange& rRange)
++{
++    const ScAddress::Details aDetails(rDoc.GetAddressConvention(), 0, 0);
++    const ScRefFlags nFlags = rRange.ParseAny(rAddress, rDoc, aDetails);
++    return (nFlags & ScRefFlags::VALID) && (nFlags & ScRefFlags::TAB_3D)
++           && rRange.aStart.Tab() == rRange.aEnd.Tab() && rDoc.HasTable(rRange.aStart.Tab());
++}
++
++/// Ely: the sheet before an address's last `!`, unquoted.
++OUString lcl_ElySheetOf(const OUString& rAddress)
++{
++    const sal_Int32 nBang = rAddress.lastIndexOf('!');
++    OUString aSheet = nBang < 0 ? rAddress : rAddress.copy(0, nBang);
++    if (aSheet.getLength() > 1 && aSheet.startsWith("'") && aSheet.endsWith("'"))
++        aSheet = aSheet.copy(1, aSheet.getLength() - 2).replaceAll("''", "'");
++    return aSheet;
++}
++
++/// Ely: why `rVerb` cannot run, empty if it can.
++OString lcl_ElyRefusal(const ScDocument& rDoc, std::u16string_view rVerb, const OUString& rAddress,
++                       const OUString& rValue, ScRange& rRange, OUString& rSheet)
++{
++    const SCTAB nCount = rDoc.GetTableCount();
++    SCTAB nTab = 0;
++    if (rVerb == u"sheet.add" || rVerb == u"sheet.remove" || rVerb == u"sheet.rename")
++    {
++        const bool bAdd = rVerb == u"sheet.add";
++        rSheet = rAddress;
++        if (!bAdd && !rDoc.GetTable(rAddress, nTab))
++            return "sheet"_ostr;
++        if (rDoc.IsDocProtected())
++            return "protected"_ostr;
++        const OUString& rName = bAdd ? rAddress : rValue;
++        if (rVerb != u"sheet.remove" && !ScDocument::ValidTabName(rName))
++            return "name"_ostr;
++        if (rVerb != u"sheet.remove" && !rDoc.ValidNewTabName(rName))
++            return "taken"_ostr;
++        if (bAdd)
++        {
++            const sal_Int32 nPos = rValue.isEmpty() ? nCount + 1 : rValue.toInt32();
++            if (nPos < 1 || nPos > nCount + 1)
++                return "position"_ostr;
++            nTab = static_cast<SCTAB>(nPos - 1);
++        }
++        SCTAB nVisible = 0;
++        for (SCTAB i = 0; i < nCount; ++i)
++            nVisible += rDoc.IsVisible(i) ? 1 : 0;
++        if (rVerb == u"sheet.remove" && (nCount < 2 || (rDoc.IsVisible(nTab) && nVisible < 2)))
++            return "last"_ostr;
++        rRange = ScRange(0, 0, nTab, 0, 0, nTab);
++        return {};
++    }
++    if (!lcl_ElyRange(rDoc, rAddress, rRange))
++    {
++        rSheet = lcl_ElySheetOf(rAddress);
++        return rDoc.GetTable(rSheet, nTab) ? "address"_ostr : "sheet"_ostr;
++    }
++    nTab = rRange.aStart.Tab();
++    rDoc.GetName(nTab, rSheet);
++    const bool bSingle = rRange.aStart == rRange.aEnd;
++    if (rVerb == u"sheet.freeze")
++        return bSingle ? OString() : "address"_ostr;
++    const bool bRows = o3tl::starts_with(rVerb, u"rows.");
++    const bool bColumns = o3tl::starts_with(rVerb, u"columns.");
++    if (bRows && (rRange.aStart.Col() != 0 || rRange.aEnd.Col() != rDoc.MaxCol()))
++        return "address"_ostr;
++    if (bColumns && (rRange.aStart.Row() != 0 || rRange.aEnd.Row() != rDoc.MaxRow()))
++        return "address"_ostr;
++    if (!bRows && !bColumns && rVerb != u"range.merge" && rVerb != u"range.unmerge")
++        return "verb"_ostr;
++    if (rDoc.IsTabProtected(nTab))
++        return "protected"_ostr;
++    if (rVerb == u"rows.insert" && !rDoc.CanInsertRow(rRange))
++        return "edge"_ostr;
++    if (rVerb == u"columns.insert" && !rDoc.CanInsertCol(rRange))
++        return "edge"_ostr;
++    if (rVerb == u"rows.height" || rVerb == u"columns.width")
++    {
++        const sal_Int32 nMax = rVerb == u"rows.height" ? MAX_ROW_HEIGHT : MAX_COL_WIDTH;
++        if (rValue != u"auto" && (rValue.toInt32() < 1 || rValue.toInt32() > nMax))
++            return "size"_ostr;
++    }
++    if (rVerb == u"range.merge" && bSingle)
++        return "single"_ostr;
++    if (rVerb == u"range.merge"
++        && rDoc.HasAttrib(rRange, HasAttrFlags::Merged | HasAttrFlags::Overlapped))
++        return "merged"_ostr;
++    if (rVerb == u"range.unmerge" && !rDoc.HasAttrib(rRange, HasAttrFlags::Merged))
++        return "unmerged"_ostr;
++    return {};
++}
++
++/// Ely: views refetch the sheet's sizes from `nStart` on.
++void lcl_ElyResized(ScDocShell& rDocShell, SCTAB nTab, bool bColumns, SCCOLROW nStart)
++{
++    if (!comphelper::LibreOfficeKit::isActive())
++        return;
++    const SfxViewShell* pAnyView = nullptr;
++    for (SfxViewShell* pShell = SfxViewShell::GetFirst(); pShell;
++         pShell = SfxViewShell::GetNext(*pShell))
++    {
++        auto* pView = dynamic_cast<ScTabViewShell*>(pShell);
++        if (!pView || pView->GetViewData().GetDocShell() != &rDocShell)
++            continue;
++        pAnyView = pView;
++        ScViewData& rData = pView->GetViewData();
++        ScPositionHelper* pHelper
++            = bColumns ? rData.GetLOKWidthHelper(nTab) : rData.GetLOKHeightHelper(nTab);
++        if (pHelper)
++            pHelper->invalidateByIndex(nStart);
++    }
++    if (!pAnyView)
++        return;
++    ScTabViewShell::notifyAllViewsHeaderInvalidation(pAnyView, bColumns ? COLUMN_HEADER : ROW_HEADER,
++                                                     nTab);
++    ScTabViewShell::notifyAllViewsSheetGeomInvalidation(pAnyView, bColumns, !bColumns, true, true,
++                                                        true, false, nTab);
++}
++
++/// Ely: freezes above and left of `rCell` on its sheet.
++bool lcl_ElyFreeze(ScDocShell& rDocShell, const ScAddress& rCell)
++{
++    ScDocument& rDoc = rDocShell.GetDocument();
++    const SCTAB nTab = rCell.Tab();
++    const bool bCol = rDoc.SetLOKFreezeCol(rCell.Col(), nTab);
++    const bool bRow = rDoc.SetLOKFreezeRow(rCell.Row(), nTab);
++    if (!bCol && !bRow)
++        return true;
++    // Views on that sheet ask for their panes again.
++    for (SfxViewShell* pShell = SfxViewShell::GetFirst(); pShell;
++         pShell = SfxViewShell::GetNext(*pShell))
++    {
++        auto* pView = dynamic_cast<ScTabViewShell*>(pShell);
++        if (!pView || pView->GetViewData().GetDocShell() != &rDocShell
++            || pView->GetViewData().CurrentTabForData() != nTab)
++            continue;
++        SfxBindings& rBindings = pView->GetViewData().GetBindings();
++        rBindings.Invalidate(SID_WINDOW_FIX);
++        rBindings.Invalidate(SID_WINDOW_FIX_COL);
++        rBindings.Invalidate(SID_WINDOW_FIX_ROW);
++    }
++    rDocShell.SetDocumentModified();
++    return true;
++}
++}
++
++void ScDocFunc::ElyStructureCheck(tools::JsonWriter& rJson, std::u16string_view rVerb,
++                                  const OUString& rAddress, const OUString& rValue)
++{
++    ScDocument& rDoc = rDocShell.GetDocument();
++    rJson.put("commandName", ".uno:StructureAt");
++    ScRange aRange;
++    OUString aSheet;
++    const OString aRefusal = lcl_ElyRefusal(rDoc, rVerb, rAddress, rValue, aRange, aSheet);
++    if (aRefusal.isEmpty())
++    {
++        const ScAddress::Details aDetails(rDoc.GetAddressConvention(), 0, 0);
++        return rJson.put("address", aRange.Format(rDoc, ScRefFlags::RANGE_ABS_3D, aDetails));
++    }
++    rJson.put("error", aRefusal);
++    rJson.put("sheet", aSheet);
++    rJson.put("last", static_cast<sal_Int64>(rDoc.GetTableCount() + 1));
++}
++
++bool ScDocFunc::ElyStructure(std::u16string_view rVerb, const OUString& rAddress,
++                             const OUString& rValue)
++{
++    ScDocument& rDoc = rDocShell.GetDocument();
++    ScRange aRange;
++    OUString aSheet;
++    if (!lcl_ElyRefusal(rDoc, rVerb, rAddress, rValue, aRange, aSheet).isEmpty())
++        return false;
++    const SCTAB nTab = aRange.aStart.Tab();
++    if (rVerb == u"sheet.add")
++        return InsertTable(nTab, rAddress, true, true);
++    if (rVerb == u"sheet.remove")
++        return DeleteTable(nTab, true);
++    if (rVerb == u"sheet.rename")
++        return RenameTable(nTab, rValue, true, true);
++    if (rVerb == u"sheet.freeze")
++        return lcl_ElyFreeze(rDocShell, aRange.aStart);
++    const bool bColumns = o3tl::starts_with(rVerb, u"columns.");
++    if (bColumns || o3tl::starts_with(rVerb, u"rows."))
++    {
++        bool bDone;
++        if (rVerb == u"rows.insert" || rVerb == u"columns.insert")
++            bDone = InsertCells(aRange, nullptr, bColumns ? INS_INSCOLS_BEFORE : INS_INSROWS_BEFORE,
++                                true, true);
++        else if (rVerb == u"rows.delete" || rVerb == u"columns.delete")
++            bDone = DeleteCells(aRange, nullptr, bColumns ? DelCellCmd::Cols : DelCellCmd::Rows,
++                                true);
++        else
++        {
++            const bool bAuto = rValue == u"auto";
++            std::vector<sc::ColRowSpan> aSpans{
++                bColumns ? sc::ColRowSpan(aRange.aStart.Col(), aRange.aEnd.Col())
++                         : sc::ColRowSpan(aRange.aStart.Row(), aRange.aEnd.Row())
++            };
++            // Auto: as a header edge's double click does.
++            const sal_uInt16 nTwips
++                = bAuto ? (bColumns ? STD_EXTRA_WIDTH : 0) : rValue.toInt32();
++            bDone = SetWidthOrHeight(bColumns, aSpans, nTab,
++                                     bAuto ? SC_SIZE_OPTIMAL : SC_SIZE_DIRECT, nTwips, true, true);
++        }
++        if (bDone)
++            lcl_ElyResized(rDocShell, nTab, bColumns,
++                           bColumns ? SCCOLROW(aRange.aStart.Col()) : SCCOLROW(aRange.aStart.Row()));
++        return bDone;
++    }
++    ScCellMergeOption aOption(aRange.aStart.Col(), aRange.aStart.Row(), aRange.aEnd.Col(),
++                              aRange.aEnd.Row());
++    aOption.maTabs.insert(nTab);
++    if (rVerb == u"range.merge")
++        return MergeCells(aOption, false, true, true);
++    return UnmergeCells(aOption, true, nullptr);
++}
++
+ /* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sc/source/ui/inc/docfunc.hxx b/sc/source/ui/inc/docfunc.hxx
+index e308884..9e925e9 100644
+--- a/sc/source/ui/inc/docfunc.hxx
++++ b/sc/source/ui/inc/docfunc.hxx
+@@ -49,6 +49,7 @@ class ScConditionalFormatList;
+ class ScUndoRemoveMerge;
+ class ScRangeName;
+ class ScViewData;
++namespace tools { class JsonWriter; }
+ 
+ enum class TransliterationFlags;
+ enum class CreateNameFlags;
+@@ -153,6 +154,13 @@ public:
+     SC_DLLPUBLIC bool RenameTable( SCTAB nTab, const OUString& rName, bool bRecord, bool bApi );
+     bool            DeleteTable( SCTAB nTab, bool bRecord );
+ 
++    /// Ely: a structure verb's refusal, or the range it takes.
++    void            ElyStructureCheck( tools::JsonWriter& rJson, std::u16string_view rVerb,
++                                       const OUString& rAddress, const OUString& rValue );
++    /// Ely: a structure verb by address; the view stays.
++    bool            ElyStructure( std::u16string_view rVerb, const OUString& rAddress,
++                                  const OUString& rValue );
++
+     bool            SetTabBgColor( SCTAB nTab, const Color& rColor, bool bRecord, bool bApi );
+     bool            SetTabBgColor( ScUndoTabColorInfo::List& rUndoTabColorList, bool bApi );
+ 
+diff --git a/sc/source/ui/unoobj/docuno.cxx b/sc/source/ui/unoobj/docuno.cxx
+index 5997efa..c460cad 100644
+--- a/sc/source/ui/unoobj/docuno.cxx
++++ b/sc/source/ui/unoobj/docuno.cxx
+@@ -860,6 +860,28 @@ void lcl_RangeAt(tools::JsonWriter& rJson, ScDocument& rDoc, std::string_view rC
+     }
+ }
+ 
++/// Every sheet: its name, used area or null, hidden.
++void lcl_SheetsAt(tools::JsonWriter& rJson, ScDocument& rDoc)
++{
++    const ScAddress::Details aDetails(rDoc.GetAddressConvention(), 0, 0);
++    rJson.put("commandName", ".uno:SheetsAt");
++    auto aSheets = rJson.startArray("sheets");
++    for (SCTAB nTab = 0; nTab < rDoc.GetTableCount(); ++nTab)
++    {
++        auto aSheet = rJson.startStruct();
++        OUString aName;
++        rDoc.GetName(nTab, aName);
++        rJson.put("name", aName);
++        SCCOL nEndCol = 0;
++        SCROW nEndRow = 0;
++        // An empty sheet has no used area.
++        if (rDoc.GetCellArea(nTab, nEndCol, nEndRow))
++            rJson.put("used", ScRange(0, 0, nTab, nEndCol, nEndRow, nTab)
++                                  .Format(rDoc, ScRefFlags::RANGE_ABS_3D, aDetails));
++        rJson.put("hidden", !rDoc.IsVisible(nTab));
++    }
++}
++
+ /// The cell a `?col=&row=` query names, on the shown sheet.
+ bool lcl_QueryCell(std::string_view rCommand, SCCOL& rCol, SCROW& rRow)
+ {
+@@ -1207,7 +1229,8 @@ bool ScModelObj::supportsCommand(std::u16string_view rCommand)
+             u"PivotTable",       u"PrintLayout",        u"SheetProtection",
+             u"ElyMacroSelection", u"ElyMacroRefusal",
+             u"ExternalLinks",    u"CellAt",             u"KeptResults",
+-            u"ElyUpdateLinks",   u"RangeAt" };
++            u"ElyUpdateLinks",   u"RangeAt",            u"StructureAt",
++            u"SheetsAt" };
+     return std::find(std::begin(aCommands), std::end(aCommands), rCommand) != std::end(aCommands);
+ }
+ 
+@@ -1234,6 +1257,15 @@ void ScModelObj::getCommandValues(tools::JsonWriter& rJsonWriter, std::string_vi
+         return lcl_CellAt(rJsonWriter, pDocShell->GetDocument(), rCommand);
+     if (pDocShell && o3tl::starts_with(rCommand, ".uno:RangeAt?"))
+         return lcl_RangeAt(rJsonWriter, pDocShell->GetDocument(), rCommand);
++    if (pDocShell && rCommand == ".uno:SheetsAt")
++        return lcl_SheetsAt(rJsonWriter, pDocShell->GetDocument());
++    if (pDocShell && o3tl::starts_with(rCommand, ".uno:StructureAt?"))
++    {
++        std::map<OUString, OUString> aMap
++            = SfxLokHelper::parseCommandParameters(OUString::fromUtf8(rCommand));
++        return pDocShell->GetDocFunc().ElyStructureCheck(
++            rJsonWriter, aMap[u"verb"_ustr], aMap[u"address"_ustr], aMap[u"value"_ustr]);
++    }
+     if (pDocShell && rCommand == ".uno:ElyMacroSelection")
+     {
+         try { elymacro::snapshot(rJsonWriter, pDocShell->GetModel()); }
+diff --git a/sc/source/ui/view/cellsh3.cxx b/sc/source/ui/view/cellsh3.cxx
+index 4f4989e..5a91248 100644
+--- a/sc/source/ui/view/cellsh3.cxx
++++ b/sc/source/ui/view/cellsh3.cxx
+@@ -415,6 +415,27 @@ void ScCellShell::Execute( SfxRequest& rReq )
+             rBindings.Invalidate( SID_STATUS_SELMODE );
+             break;
+ 
++        case SID_ELY_STRUCTURE:
++            {
++                // Checked first by .uno:StructureAt; the view stays.
++                const SfxItemSet* pArgs = rReq.GetArgs();
++                const SfxPoolItem* pVerb = nullptr;
++                const SfxPoolItem* pAddress = nullptr;
++                const SfxPoolItem* pValue = nullptr;
++                if (pArgs && pArgs->HasItem(FN_PARAM_1, &pVerb)
++                    && pArgs->HasItem(FN_PARAM_2, &pAddress))
++                {
++                    pArgs->HasItem(FN_PARAM_3, &pValue);
++                    const OUString aValue
++                        = pValue ? static_cast<const SfxStringItem*>(pValue)->GetValue() : OUString();
++                    if (GetViewData().GetDocShell()->GetDocFunc().ElyStructure(
++                            static_cast<const SfxStringItem*>(pVerb)->GetValue(),
++                            static_cast<const SfxStringItem*>(pAddress)->GetValue(), aValue))
++                        rReq.Done();
++                }
++            }
++            break;
++
+         case SID_ENTER_STRING:
+             {
+                 const SfxPoolItem* pMacro;

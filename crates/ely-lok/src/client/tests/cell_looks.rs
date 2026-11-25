@@ -30,7 +30,7 @@ fn cells(worker: &mut Worker, doc: &Doc, range: &str) -> String {
 }
 
 /// The sheet's sizes, in print twips.
-fn geometry(worker: &mut Worker, doc: &Doc) -> crate::sheet::Geometry {
+pub(super) fn geometry(worker: &mut Worker, doc: &Doc) -> crate::sheet::Geometry {
     let json = worker.values(doc, crate::sheet::GEOMETRY).expect("geometry");
     crate::sheet::geometry(&json).expect("parsed")
 }

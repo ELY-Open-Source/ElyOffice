@@ -14,27 +14,42 @@ use gpui::Context;
 use crate::book::Book;
 
 mod range;
+mod structure;
 
-const USAGE: &str = "usage: ely-table docs
-       ely-table open FILE
-       ely-table new FILE
-       ely-table export FILE TARGET
-       ely-table save FILE
-       ely-table cell get FILE ADDRESS
-       ely-table cell set FILE ADDRESS TEXT
-       ely-table range get FILE ADDRESS
-       ely-table range set FILE ADDRESS DATA
+const USAGE: &str = "usage: ely-table docs | open FILE | new FILE | export FILE TARGET | save FILE
+       ely-table cell get FILE ADDRESS | cell set FILE ADDRESS TEXT
+       ely-table range get FILE ADDRESS | range set FILE ADDRESS DATA
+       ely-table range merge|unmerge FILE ADDRESS
+       ely-table sheet list FILE
+       ely-table sheet add FILE NAME [POSITION]
+       ely-table sheet remove FILE SHEET
+       ely-table sheet rename FILE SHEET NAME
+       ely-table sheet freeze FILE ADDRESS
+       ely-table rows insert|delete FILE ADDRESS
+       ely-table rows height FILE ADDRESS SIZE
+       ely-table columns insert|delete FILE ADDRESS
+       ely-table columns width FILE ADDRESS SIZE
 open and new start ElyTable if needed; the rest require it running (with FILE open).
-ADDRESS names its sheet, as in Sheet1!A1. cell get prints JSON; cell set writes TEXT (= for a formula) as one undo step.
-range: bare sheet = used area; DATA is a JSON 2-D array or TSV (- for stdin); \"\" clears a cell; one undo step.
+ADDRESS names its sheet (Sheet1!A1, Sheet1!5:7, Sheet1!C:E); each write is one undo step.
+cell get prints JSON; cell set writes TEXT (= for a formula).
+range: bare sheet = used area; DATA is a JSON 2-D array or TSV (- for stdin); \"\" clears a cell.
+range merge keeps hidden cell values for unmerge.
+sheet: list prints JSON; POSITION starts at 1; freeze locks above/left of ADDRESS (A1 unfreezes).
+SIZE is a number with cm, mm, in or pt (e.g. 2.5cm), or auto.
 Any argument written as - is read from standard input, up to 64 MiB.
 Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
-/// `ely-table open|new|export|cell|range ...`; its exit code.
+/// `ely-table open|new|export|cell|range|sheet|rows|columns ...`; its exit code.
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Table,
-        nouns: &[("cell", request), ("range", range::request)],
+        nouns: &[
+            ("cell", request),
+            ("range", range::request),
+            ("sheet", structure::sheet),
+            ("rows", structure::rows),
+            ("columns", structure::columns),
+        ],
         usage: USAGE,
         exact: &[],
         blanks: &[("xlsx", include_bytes!("../../../packaging/windows/new/new.xlsx"))],
@@ -59,7 +74,11 @@ impl Book {
         let Some((id, words, ask)) = self.asked(ask, cx) else {
             return;
         };
-        if words.first().is_some_and(|verb| verb.starts_with("range.")) {
+        let verb = words.first().map_or("", String::as_str);
+        if ["sheet.", "rows.", "columns."].iter().any(|noun| verb.starts_with(noun)) || verb == "range.merge" || verb == "range.unmerge" {
+            return self.answer_structure(id, words, ask, cx);
+        }
+        if verb.starts_with("range.") {
             return self.answer_range(id, words, ask, cx);
         }
         let failed = |error: std::io::Error| error.to_string();

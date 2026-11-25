@@ -65,6 +65,13 @@ ElyTable 开着、文件已打开时，别的程序（脚本、AI 代理）可�
 - `range get` 只写工作表名（如 `Sheet1`）即取该表已用区域，最多 100 万格。
 - `ely-table range set 文件 地址 数据` 批量写入：数据常写 `-` 走标准输入，支持二维 JSON 字符串数组（`[` 开头）或 TSV。
 - `range set` 里 `""` 清空该格、`=` 开头为公式；地址为左上格，按数据定大小（写区域须与数据行列相符），整批一步撤销，不动光标与选区。
+- `ely-table sheet list 文件` 输出 JSON 数组，每项含 `name`、`used`（已用区域地址，空表为 `null`）与 `hidden`。
+- `ely-table sheet add 文件 名字 [位置]` 新建工作表（位置从 1 起，缺省放最后）；`sheet remove 文件 表` 删除，`sheet rename 文件 表 新名` 改名。
+- `ely-table sheet freeze 文件 地址` 冻结该格上方的行与左侧的列（`Sheet1!A2` 冻首行，`Sheet1!B1` 冻首列，`Sheet1!A1` 取消冻结）。
+- `ely-table rows insert|delete 文件 Sheet1!5:7` 在第 5 行前插 3 行或删 5–7 行（单行写 `Sheet1!5`）；`columns insert|delete 文件 Sheet1!C:E` 同理。
+- `ely-table rows height 文件 Sheet1!1:3 尺寸` 与 `columns width 文件 Sheet1!C:E 尺寸` 设行高列宽：尺寸为数字加 `cm`、`mm`、`in`、`pt`（如 `2.5cm`），或 `auto`（按内容自适应）。
+- `ely-table range merge 文件 Sheet1!A1:C1` 合并区域（其余格内容保留但隐藏；含已有合并格或与合并块重叠时须先取消合并），`range unmerge 文件 Sheet1!A1:C1` 取消合并后重现。
+- 删除正在显示的工作表时，ElyTable 改显示相邻的表；其余操作不改当前显示的表。
 
 只有同一用户在本机的程序能连上。
 

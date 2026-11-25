@@ -100,6 +100,28 @@ assert shape.returncode == 1 and b'does not match' in shape.stderr, shape
 ragged = run('set', file, 't!D5', 'a\tb\nc')
 assert ragged.returncode == 2 and b'row 2 has 1 cells' in ragged.stderr, ragged
 PY
+# Sheets and rows change from outside; the data moves along.
+python - "$(native "$table")" "$file" <<'PY' || fail "sheet and rows did not change from outside"
+import json, subprocess, sys
+table, file = sys.argv[1], sys.argv[2]
+def run(*words):
+    return subprocess.run([table, *words], capture_output=True)
+def names():
+    return [sheet['name'] for sheet in json.loads(run('sheet', 'list', file).stdout)]
+first = names()
+assert run('sheet', 'add', file, 'Added').returncode == 0
+assert names() == first + ['Added'], names()
+assert run('rows', 'insert', file, 't!1').returncode == 0
+got = json.loads(run('range', 'get', file, 't!D6').stdout)
+assert got['rows'][0][0]['input'] == '1', got
+assert run('rows', 'delete', file, 't!1').returncode == 0
+assert run('sheet', 'remove', file, 'Added').returncode == 0
+assert names() == first, names()
+size = run('columns', 'width', file, 't!C', 'wide')
+assert size.returncode == 2 and b'invalid size' in size.stderr, size
+missing = run('sheet', 'remove', file, 'Nope')
+assert missing.returncode == 1 and b'Nope: no such sheet' in missing.stderr, missing
+PY
 saved=$(cell save "$file" | python -c 'import json, sys; sys.stdout.write(json.load(sys.stdin))') || fail "saving"
 [ "$(native "$saved")" = "$file" ] || fail "save answered '$saved', not $file"
 # On disk at the answer: crash recovery cannot stand in.
@@ -118,4 +140,4 @@ python -c "import sys,zipfile;z=zipfile.ZipFile(sys.argv[1]);sys.exit(0 if any(b
 wait "$first_save" || fail "the first save"
 wait "$setting" || fail "writing B2 during a save"
 grep -q "waits for the running one" "$work/out" || fail "the saves did not overlap"
-echo "ok: ElyTable answered cell docs, get, set, range set and get, and save from another process; each save answered once its own write was on disk"
+echo "ok: ElyTable answered cell docs, get, set, range set and get, sheet and rows changes, and save from another process; each save answered once its own write was on disk"
