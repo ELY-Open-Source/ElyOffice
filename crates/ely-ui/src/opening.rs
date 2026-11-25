@@ -100,6 +100,11 @@ fn launch_from(args: impl Iterator<Item = OsString>) -> io::Result<Launch> {
 
 pub(crate) const NEW_WINDOW: &str = "--new-window";
 
+/// A one-window app opens the files in its window; the flag goes. Whether it went.
+pub(crate) fn one_window(launch: &mut Launch) -> bool {
+    std::mem::take(&mut launch.new_window)
+}
+
 /// A path, a `file://` URL, or a whole mail link.
 fn launch_arg(arg: OsString) -> io::Result<PathBuf> {
     match arg.to_str() {
@@ -294,8 +299,17 @@ mod tests {
 
 #[cfg(test)]
 mod launch_tests {
-    use super::{launch_arg, launch_from, mail_link};
+    use super::{launch_arg, launch_from, mail_link, one_window};
     use std::path::{Path, PathBuf};
+
+    #[test]
+    fn a_one_window_app_keeps_the_files_and_drops_the_flag() {
+        let mut launch = launch_from(["a.md", "--new-window"].into_iter().map(Into::into)).expect("read");
+        assert!(one_window(&mut launch), "the flag was there");
+        assert!(!launch.new_window, "so a hand-over asks for no new window");
+        assert!(launch.files.len() == 1 && launch.files[0].ends_with("a.md"), "the file stays");
+        assert!(!one_window(&mut launch), "and is gone");
+    }
 
     #[test]
     fn new_window_is_a_flag_not_a_file() {

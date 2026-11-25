@@ -21,10 +21,8 @@ pub fn run<V: Render>(
     if env::value("ELY_PICK").is_some() {
         return crate::pick::run(app);
     }
-    let launch = crate::opening::launch_args().unwrap_or_else(|error| startup::fail(app, &format!("a launch argument has no place: {error}")));
-    if launch.new_window && more.is_none() {
-        startup::fail(app, &format!("{} opens one window; {} is not for it", app.name(), crate::opening::NEW_WINDOW));
-    }
+    let mut launch = crate::opening::launch_args().unwrap_or_else(|error| startup::fail(app, &format!("a launch argument has no place: {error}")));
+    let set_aside = more.is_none() && crate::opening::one_window(&mut launch);
     // Before any lock is taken in the old folder.
     let (moved, admitted) = ely_platform::folder::at_start().unwrap_or_else(|error| startup::fail(app, &format!("the data folder is not ready: {error}")));
     // Before the log: a second copy must not trim it.
@@ -39,6 +37,9 @@ pub fn run<V: Render>(
         startup::fail(app, &format!("logging did not start: {error:#}"));
     }
     moved.log();
+    if set_aside {
+        log::info!("run: {} opens one window; {} is set aside", app.name(), crate::opening::NEW_WINDOW);
+    }
     startup::launched();
     // Paged apps draw files late; the scene waits for them.
     if !launch.files.is_empty() && crate::opening::paged(app) {
