@@ -5,7 +5,7 @@ A name typed without an extension was saved bare (Ely R14.48a).
 diff --git a/vendor/gpui-pre-windows/src/platform.rs b/vendor/gpui-pre-windows/src/platform.rs
 --- a/vendor/gpui-pre-windows/src/platform.rs
 +++ b/vendor/gpui-pre-windows/src/platform.rs
-@@ -1666,6 +1666,13 @@ fn file_save_dialog(
+@@ -1645,6 +1645,13 @@ fn file_save_dialog(
          };
      }
  
@@ -19,7 +19,7 @@ diff --git a/vendor/gpui-pre-windows/src/platform.rs b/vendor/gpui-pre-windows/s
      if let Some(suggested_name) = suggested_name {
          unsafe {
              dialog
-@@ -1676,10 +1683,21 @@ fn file_save_dialog(
+@@ -1655,10 +1662,21 @@ fn file_save_dialog(
      }
  
      unsafe {

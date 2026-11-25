@@ -88,7 +88,7 @@ Larger changes to the filters fix real losses too, but each changes what Calc or
 
 `accesskit_atspi_common` also answers sentence queries here (`85f6faca` and after): a feature for AccessKit to judge, with a splitter that knows eight languages' punctuation, not Unicode's rules.
 
-## gpui (`patches/gpui`, against `gpui-pre` 0.3.12)
+## gpui (`patches/gpui`, against `gpui-pre` 0.3.14)
 
 `scripts/vendor-gpui.sh` rebuilds `vendor/gpui-pre*` from the crates.io release plus these patches. The defects below show in any gpui app; the fixes go to the gpui these crates repackage.
 

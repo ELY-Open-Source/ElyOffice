@@ -8,7 +8,7 @@ one frame loop, and errors no longer name the source.
 diff --git a/vendor/gpui-pre/src/platform.rs b/vendor/gpui-pre/src/platform.rs
 --- a/vendor/gpui-pre/src/platform.rs
 +++ b/vendor/gpui-pre/src/platform.rs
-@@ -3402,14 +3402,13 @@
+@@ -3494,14 +3494,13 @@ fn decode_animated_frames<'a>(
                  }
                  frames.push(frame);
              }

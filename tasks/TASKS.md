@@ -982,5 +982,11 @@
 
 收尾
 
-- [ ] R21.37a 组件库 `check.sh` 的“与最新 GPUI Kit 并存”一步自 gpui-kit 0.11.0 起解析失败（它钉 `gpui-pre` =0.3.14，组件库与 ElyOffice 钉 =0.3.12）：查 0.3.13、0.3.14 的改动，升 `gpui-pre` 并改 `patches/gpui`、常设决定与本文件的版本，或记下不升的理由
+- [x] R21.37a 组件库 `check.sh` 的“与最新 GPUI Kit 并存”一步自 gpui-kit 0.11.0 起解析失败（它钉 `gpui-pre` =0.3.14，组件库与 ElyOffice 钉 =0.3.12）：查 0.3.13、0.3.14 的改动，升 `gpui-pre` 并改 `patches/gpui`、常设决定与本文件的版本，或记下不升的理由
+  - 组件库（fc71e96，已推）：e310193 放入 gpui-pre-macos 0.3.14 原样；ba55f2f 重放组件库自己的帧链日志与 CVDisplayLink 定速（0.3.14 的 `display_link.rs` 只多 `debug_state`，原样落上）；fc71e96 三个钉 =0.3.14，`Path` 去单位参数（三处），删去 gpui 已统一实现的五个 `IntoElement`，ADR 0064 替代 0063，README、指南两页、验收 O-06、CHANGELOG 一行、两份 AGENTS.md 的版本（按键解析、图集间距 0、无模态节点在 0.3.14 源码里逐处核过未变），API 快照在 WSL 重取（另补 main 上七个早该在快照里的方法）。其门（`scripts/check.sh`）在 7877 于 f26a74a 加三个提交全过，含解析到 gpui-kit 0.11.0 的并存一步。
+  - ElyOffice：`scripts/vendor-gpui.sh` 换 0.3.14 与 crates.io 索引的散列（下载与索引对过），vendor 四个包由它重写，`check` 过。补丁十五个：十四个照旧（0005 须放宽上下文，手核落在激活回调与 `bounds_changed`）；0007 重做，0.3.14 新加的 `window/native_views.rs` 与 `window_did_change_key_status` 仍读旧字段 `accesskit_adapter`，改读 0007 的 `accesskit`，保留上游“原生子视图持键盘时 gpui 视图不算聚焦”的判定。钉、`fetch-references.sh`（原停在 3a7f960）、agents.md、standing.md、compatibility.md、UPSTREAM.md 与 decisions.md 随之。工作区代码无改动；新的跳帧原因 `AnimationFrameRateLimit` 只随 `with_max_fps` 出现，ElyOffice 不用，帧日志不改。本机 clippy（-D warnings）、check.sh 过。
+  - 测试：7877（`ELY_REQUIRE_ENGINES=1`，两个 worker 建好）clippy 过，整个工作区 104 组 2747 过、0 败、8 忽略（SKIP 一项：只 macOS 的像素核对）；Omarchy clippy 过，ely-pdf 210、ely-ui 126 全过；M4 Mac clippy 过，ely-pdf 210、ely-ui 124 全过。
+  - Mac 的 AX 查出 0007 落错类（审查第 1 轮中）：`macos-names.sh` 在 0.3.14 上七个应用的 AX 树都只剩窗口的三个按钮，main 上 ElyMark 整棵树都在。0.3.14 在 GPUIView 的 `decl.register()` 前加了 `native_views::add_view_methods`，0007 加三个无障碍方法的那块照尾部上下文落进了下一个类 BlurredView（无 a11y 槽位，被问即 `expect` 崩）。改：该块上下文换成 `add_view_methods` 一行，落回 GPUIView；`vendor-gpui.sh write` 重写，`check` 过；以 `patch -p1` 逐个重放十五个补丁，无一块带偏移或模糊，重放出的 macOS 包与 vendor 只差行尾。改后 Mac 上 ElyMark 的树与 main 同，日志有 `Accessibility activated`；`macos-names.sh` ElyDoc 78、ElyShow 51、ElyPDF 14、ElyMail 2、ElyTree 12、ElyMark 12 个停靠点皆过；ElyTable 两个下拉无名（停靠点 16、17，边框样式与粗细），main 上逐行相同，另立 R21.37f。未以 VoiceOver 亲听。
+  - 第 1 轮 PASS（`tasks/reviews/R21.37a-r1.md`，审查中途补交 0007 的改正与 Mac 的 AX 结果）；组件库 G26 勾上（2182962，只改任务表，ElyOffice 的钉仍是 fc71e96）。
+- [ ] R21.37f ElyTable 边框样式与粗细两个下拉在 AX 里无名（R21.37a 的 `macos-names.sh` 查出，main 上同；R21.10 的 PR #108 所加，§9、§5）：两个下拉报出名字，`macos-names.sh` 七个应用皆过
 - [ ] R21.38 验收核对表与顾问终审：R21 各条的状态、证据与余下，单列 `[!]`

@@ -8,7 +8,7 @@ set_text_language (Ely R4.13).
 diff --git a/vendor/gpui-pre-windows/Cargo.toml b/vendor/gpui-pre-windows/Cargo.toml
 --- a/vendor/gpui-pre-windows/Cargo.toml
 +++ b/vendor/gpui-pre-windows/Cargo.toml
-@@ -166,6 +166,8 @@
+@@ -166,6 +166,8 @@ features = [
      "Win32_UI_Shell_PropertiesSystem",
      "Win32_UI_WindowsAndMessaging",
      "Data_Xml_Dom",
@@ -20,7 +20,7 @@ diff --git a/vendor/gpui-pre-windows/Cargo.toml b/vendor/gpui-pre-windows/Cargo.
 diff --git a/vendor/gpui-pre-windows/src/direct_write.rs b/vendor/gpui-pre-windows/src/direct_write.rs
 --- a/vendor/gpui-pre-windows/src/direct_write.rs
 +++ b/vendor/gpui-pre-windows/src/direct_write.rs
-@@ -38,8 +38,20 @@
+@@ -38,8 +38,20 @@ pub(crate) struct DirectWriteTextSystem {
      state: RwLock<DirectWriteState>,
  }
  
@@ -41,7 +41,7 @@ diff --git a/vendor/gpui-pre-windows/src/direct_write.rs b/vendor/gpui-pre-windo
      factory: IDWriteFactory5,
      in_memory_loader: IDWriteInMemoryFontFileLoader,
      builder: IDWriteFontSetBuilder1,
-@@ -78,13 +90,16 @@
+@@ -78,13 +90,16 @@ impl DirectWriteTextSystem {
          let builder = unsafe { factory.CreateFontSetBuilder()? };
          let mut locale = [0u16; LOCALE_NAME_MAX_LENGTH as usize];
          unsafe { GetUserDefaultLocaleName(&mut locale) };
@@ -59,7 +59,7 @@ diff --git a/vendor/gpui-pre-windows/src/direct_write.rs b/vendor/gpui-pre-windo
              factory,
              in_memory_loader,
              builder,
-@@ -509,7 +524,7 @@
+@@ -509,7 +524,7 @@ impl DirectWriteState {
                          font_info.font_face.GetStyle(),
                          DWRITE_FONT_STRETCH_NORMAL,
                          font_size.as_f32(),
@@ -68,7 +68,7 @@ diff --git a/vendor/gpui-pre-windows/src/direct_write.rs b/vendor/gpui-pre-windo
                      )?
                      .cast()?;
                  if let Some(ref fallbacks) = font_info.fallbacks {
-@@ -1685,6 +1700,80 @@
+@@ -1685,6 +1700,80 @@ const fn make_direct_write_tag(tag_name: &str) -> DWRITE_FONT_FEATURE_TAG {
      DWRITE_FONT_FEATURE_TAG(make_open_type_tag(tag_name))
  }
  
@@ -152,7 +152,7 @@ diff --git a/vendor/gpui-pre-windows/src/direct_write.rs b/vendor/gpui-pre-windo
 diff --git a/vendor/gpui-pre-windows/src/gpui_windows.rs b/vendor/gpui-pre-windows/src/gpui_windows.rs
 --- a/vendor/gpui-pre-windows/src/gpui_windows.rs
 +++ b/vendor/gpui-pre-windows/src/gpui_windows.rs
-@@ -38,6 +38,7 @@
+@@ -38,6 +38,7 @@ pub(crate) use vsync::*;
  pub(crate) use window::*;
  pub(crate) use wrapper::*;
  

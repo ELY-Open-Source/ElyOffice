@@ -23,7 +23,7 @@ serde_json.workspace = true
 url.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
-gpui_windows = { package = "gpui-pre-windows", version = "=0.3.12" }
+gpui_windows = { package = "gpui-pre-windows", version = "=0.3.14" }
 raw-window-handle = "0.6"
 windows-sys.workspace = true
 

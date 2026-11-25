@@ -1728,3 +1728,10 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 2026-11-25：ElyMail 账户的身份是“地址 + 收信服务器”（R21.19，#96；同 Thunderbird 按服务器分账户）。同一地址在不同收信服务器上（例：QQ 邮箱的授权码账户与以该 QQ 地址注册的 Microsoft 账户）是两个账户，同地址同服务器仍报已添加。库结构 v19 重建 `accounts`：`UNIQUE (address, server)`，id 与自增序号照旧。密钥名记在账户设置里（`secret`）：设置里没有的（v19 之前存的，含升级失败、只读打开的库）读出时取原名 `account:{address}`，钥匙串里的密码与刷新令牌不搬、不需重新登录；新账户为 `account:{address}:{收信服务器}`，小写。地址重复时左栏分区与置顶行写“地址 · 收信服务器”，折叠按此题。
 
 - 2026-11-25（R21.37，#107）：命令行的常设决定扩到 R21.25–R21.36 做成的全部动词：四个应用共用 `docs`、`open`、`new`、`export`、`save`；ElyTable 按地址读写区域、格式、工作表、行列与合并（补丁 0058、0150–0152），ElyDoc 追加段落、按匹配设格式、插表与图（0153–0156），ElyShow 按页号管理幻灯片、设标题正文与备注、放图（0157–0159），ElyMark 整篇设入与追加。每次改动一步撤销，不动用户的光标、选区与所在幻灯片。ElyPDF 有意不设命令行：PDF 在 ElyPDF 里读与批注，脚本可用导出的 PDF。
+
+## 2026-11-25 组件库与 ElyOffice 升到 gpui-pre 0.3.14（R21.37a）
+
+- 原状：gpui-kit 0.11.0（crates.io，11-23）钉 `gpui-pre` =0.3.14，组件库 `scripts/check.sh` 的“与最新 GPUI Kit 并存”一步自此解析失败；组件库与 ElyOffice 都钉 =0.3.12。
+- 组件库（fc71e96，pin 随之；`scripts/fetch-references.sh` 原停在 3a7f960，一并对齐）：vendor 的 gpui-pre-macos 换 0.3.14 原样，其上重放组件库自己的帧链日志与 CVDisplayLink 定速（0.3.14 的 `display_link.rs` 只多 `debug_state`）；三个钉 =0.3.14；0.3.14 的 `Path` 去掉单位参数，gpui 给每个 `Element` 实现 `IntoElement`，故删去五个同一的实现；按键、图集间距与模态节点同 0.3.12，AGENTS.md 只改版本；ADR 0064 替代 0063；API 快照在 WSL 重取。
+- ElyOffice：`scripts/vendor-gpui.sh` 换 0.3.14 与 crates.io 索引的散列，vendor 的四个包由它重写。`patches/gpui` 十五个：十四个照旧打上（0005 须放宽上下文，逐处核过落在激活回调与 `bounds_changed`）；0007 重做：0.3.14 新加的 `window/native_views.rs` 在 gpui 视图与原生子视图间交接焦点，`update_accessibility_focus` 与 `window_did_change_key_status` 两处仍读旧的 `accesskit_adapter`，改读 0007 的 `accesskit`（锁内克隆、锁外借用），保留上游的焦点判定；0.3.14 在 GPUIView 的 `decl.register()` 前加了 `native_views::add_view_methods`，0007 加三个无障碍方法的一块须以该行为上下文，否则照尾部上下文落进 BlurredView，AX 树只剩窗口（Mac 上 `macos-names.sh` 查出）。补丁的“打得上”不等于落对处：以 `patch -p1` 重放，任何一块带偏移或模糊都须逐处核过。工作区代码无须改动。
+- 帧日志：0.3.14 新增跳帧原因 `AnimationFrameRateLimit`，只在动画以 `with_max_fps` 设上限时出现；ElyOffice 不用，`frames.rs` 照旧只把不在前台的跳帧记作 held，其余原因不计丢帧。

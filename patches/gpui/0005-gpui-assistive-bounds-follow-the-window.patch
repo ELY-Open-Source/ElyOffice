@@ -7,7 +7,7 @@ when the window moves or resizes.
 diff --git a/vendor/gpui-pre/src/window.rs b/vendor/gpui-pre/src/window.rs
 --- a/vendor/gpui-pre/src/window.rs
 +++ b/vendor/gpui-pre/src/window.rs
-@@ -1806,7 +1806,10 @@ impl Window {
+@@ -1835,7 +1835,10 @@ impl Window {
                  .spawn(async move {
                      while activation_receiver.recv().await.is_ok() {
                          handle
@@ -19,9 +19,9 @@ diff --git a/vendor/gpui-pre/src/window.rs b/vendor/gpui-pre/src/window.rs
                              .with_context(|| {
                                  format!(
                                      "handling accessibility activation for window {:?}",
-@@ -3004,6 +3007,8 @@ impl Window {
-         self.scale_factor = self.platform_window.scale_factor();
-         self.viewport_size = self.platform_window.content_size();
+@@ -3168,6 +3171,8 @@ impl Window {
+         self.last_window_bounds = self.platform_window.window_bounds();
+         cx.sync_window_update_entry(self);
          self.mouse_position = self.platform_window.mouse_position();
 +        // X11's AT-SPI places nodes by the window's screen position.
 +        self.platform_window.a11y_update_window_bounds();

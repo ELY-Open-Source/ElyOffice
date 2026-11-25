@@ -1,16 +1,16 @@
 [package]
 name = "gpui-pre-macos"
-version = "0.3.12"
+version = "0.3.14"
 edition = { workspace = true }
 publish = true
 license = "Apache-2.0"
-description = "Zed's `gpui_macos` crate (gpui-pre snapshot of zed@d2a4fb6)"
+description = "Zed's `gpui_macos` crate (gpui-pre snapshot of zed@f126950)"
 repository = "https://github.com/zed-industries/zed"
 
 [package.metadata.gpui-pre]
 zed-crate = "gpui_macos"
 zed-version = "0.1.0"
-zed-rev = "d2a4fb6ded7c470be25d1541281da3882495b65b"
+zed-rev = "f126950f9d3b62666f97437ae5d4ccac2272c4db"
 
 [lib]
 path = "src/gpui_macos.rs"
@@ -60,6 +60,7 @@ parking_lot = { workspace = true }
 raw-window-handle = { workspace = true }
 scheduler = { workspace = true }
 semver = { workspace = true }
+serde_json = { workspace = true }
 smallvec = { workspace = true }
 strum = { workspace = true }
 uuid = { workspace = true }

@@ -14,7 +14,7 @@ Its ids: https://walbourn.github.io/anatomy-of-direct3d-11-create-device
 diff --git a/vendor/gpui-pre-windows/src/directx_renderer.rs b/vendor/gpui-pre-windows/src/directx_renderer.rs
 --- a/vendor/gpui-pre-windows/src/directx_renderer.rs
 +++ b/vendor/gpui-pre-windows/src/directx_renderer.rs
-@@ -823,7 +823,7 @@ impl DirectXRenderer {
+@@ -852,7 +852,7 @@ impl DirectXRenderer {
      pub(crate) fn gpu_specs(&self) -> Result<GpuSpecs> {
          let devices = self.devices.as_ref().context("devices missing")?;
          let desc = unsafe { devices.adapter.GetDesc1() }?;
@@ -23,7 +23,7 @@ diff --git a/vendor/gpui-pre-windows/src/directx_renderer.rs b/vendor/gpui-pre-w
          let device_name = String::from_utf16_lossy(&desc.Description)
              .trim_matches(char::from(0))
              .to_string();
-@@ -1290,6 +1290,14 @@ impl Drop for DirectXRenderer {
+@@ -1334,6 +1334,14 @@ impl Drop for DirectXRenderer {
      }
  }
  
@@ -38,7 +38,7 @@ diff --git a/vendor/gpui-pre-windows/src/directx_renderer.rs b/vendor/gpui-pre-w
  #[inline]
  fn get_comp_device(dxgi_device: &IDXGIDevice) -> Result<IDCompositionDevice> {
      Ok(unsafe { DCompositionCreateDevice(dxgi_device)? })
-@@ -2056,3 +2064,30 @@ mod dxgi {
+@@ -2081,3 +2089,30 @@ mod dxgi {
          ))
      }
  }

@@ -66,7 +66,7 @@ diff --git a/vendor/gpui-pre-linux/src/linux/wayland/window.rs b/vendor/gpui-pre
      pub fn handle(&self) -> AnyWindowHandle {
          self.state.borrow().handle
      }
-@@ -1175,6 +1210,8 @@ impl WaylandWindowStatePtr {
+@@ -1189,6 +1224,8 @@ impl WaylandWindowStatePtr {
              update_window(state);
              if initial_configure {
                  self.frame(None, FrameRequestSource::NativeCallback);
@@ -75,7 +75,7 @@ diff --git a/vendor/gpui-pre-linux/src/linux/wayland/window.rs b/vendor/gpui-pre
              } else {
                  self.request_redraw();
              }
-@@ -1865,25 +1902,7 @@ impl PlatformWindow for WaylandWindow {
+@@ -1891,25 +1928,7 @@ impl PlatformWindow for WaylandWindow {
      }
  
      fn activate(&self) {
@@ -141,7 +141,7 @@ diff --git a/vendor/gpui-pre-linux/src/linux/x11/window.rs b/vendor/gpui-pre-lin
  }
  
  impl X11WindowState {
-@@ -479,6 +481,8 @@ impl X11WindowState {
+@@ -484,6 +486,8 @@ impl X11WindowState {
          if let WindowKind::AnchoredPopup(_) = params.kind {
              return Err(PopupNotSupportedError.into());
          }
@@ -150,7 +150,7 @@ diff --git a/vendor/gpui-pre-linux/src/linux/x11/window.rs b/vendor/gpui-pre-lin
  
          let x_screen_index = params
              .display_id
-@@ -856,6 +860,7 @@ impl X11WindowState {
+@@ -861,6 +865,7 @@ impl X11WindowState {
                  last_insets: [0, 0, 0, 0],
                  edge_constraints: None,
                  accesskit_adapter: None,

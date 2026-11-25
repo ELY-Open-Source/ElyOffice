@@ -40,7 +40,7 @@ site/        官网（Vite、pnpm、TypeScript，无框架）；site/video 是�
 
 ## 组件映射
 
-依赖 `ely-gpui-component`（pin f26a74a，gpui 为 crates.io 的 `gpui-pre` =0.3.12，Rust 1.98.1）。名字取自与本仓库并列的组件库检出 `../Ely-GPUI-Components`（不在 `reference/`；总包 `src/lib.rs` 列出各模块在哪个 crate，gpui 用法规则见其 `AGENTS.md`）；`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项，没有那个检出即失败。
+依赖 `ely-gpui-component`（pin fc71e96，gpui 为 crates.io 的 `gpui-pre` =0.3.14，Rust 1.98.1）。名字取自与本仓库并列的组件库检出 `../Ely-GPUI-Components`（不在 `reference/`；总包 `src/lib.rs` 列出各模块在哪个 crate，gpui 用法规则见其 `AGENTS.md`）；`tests/scripts/agents_md.py` 核对下表每个名字都是组件库公开项，没有那个检出即失败。
 
 | 需要 | 用 |
 | --- | --- |
@@ -142,7 +142,7 @@ rm -rf target/debug/incremental   标准 Cargo 下每次构建或测试后都删
 
 每条只写规定；全文（实现、范围、任务编号）在 `docs/standing.md`，按日期的完整记录在 `docs/decisions.md`。新的决定追加到 decisions；改变下列常规的，同时改本节与 standing.md。
 
-- 上游：LibreOffice 26.2.6、MuPDF 1.28.5、Git 2.56.0 加 git-lfs 3.8.0、`gpui-pre` =0.3.12，以 `scripts/fetch-references.sh` 为准；组件库跟随其 main，修复在组件库仓库里做并推上去，再改 pin。
+- 上游：LibreOffice 26.2.6、MuPDF 1.28.5、Git 2.56.0 加 git-lfs 3.8.0、`gpui-pre` =0.3.14，以 `scripts/fetch-references.sh` 为准；组件库跟随其 main，修复在组件库仓库里做并推上去，再改 pin。
 - 仓库与发布：GitHub 组织 ELY-Open-Source。推 `v*` 标签即由 `release.yml` 的四个任务（macOS arm64、Intel，Windows，Linux x86_64，Linux 与 Windows 都不出 arm64，用户 2026-11-16 定）在自托管机器上以 `scripts/ci.sh` 构建并上传；cargo 不是 huacnlee/cargo 即不建；`ci.sh` 先过门（更新日志只许新功能与修复、发布记录、基准记录、该提交的 `pr.yml`、`release-tests.sh`），不过即不建；各端都上传并核对后才设为最新。新的 LibreOffice 补丁须先在各机的共享引擎（`ELY_SHARE`）上重建。
 - 构建一律用 [huacnlee/cargo](https://huacnlee.github.io/cargo/)；带内核的单测须设 `ELY_LOK_WORKER`、`ELY_PDF_WORKER`，`cargo check` 与 clippy 须设 `CARGO_CHECK_SHARED_DEPS=0`；PR 的机器（GitHub 托管）是标准 Cargo，脚本两者都得过。
 - Git：main 的历史不改写；提交签名，不写任何署名行。

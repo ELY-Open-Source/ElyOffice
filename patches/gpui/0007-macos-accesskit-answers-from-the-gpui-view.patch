@@ -18,8 +18,8 @@ diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/win
      ffi::{CStr, CString, c_void},
      mem,
      ops::Range,
-@@ -74,6 +74,8 @@ use std::{
- };
+@@ -76,6 +76,8 @@ use std::{
+ mod native_views;
  
  const WINDOW_STATE_IVAR: &CStr = c"windowState";
 +// The view's AccessKit state; AX calls skip the window lock.
@@ -27,7 +27,7 @@ diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/win
  
  static RESTORES_WORKSPACE_AT_LAUNCH_DEFAULT: Once = Once::new();
  
-@@ -106,6 +108,7 @@ unsafe fn build_classes() {
+@@ -108,6 +110,7 @@ unsafe fn build_classes() {
          VIEW_CLASS = {
              let mut decl = ClassBuilder::new(c"GPUIView", class!(NSView)).unwrap();
              decl.add_ivar::<*mut c_void>(WINDOW_STATE_IVAR);
@@ -35,10 +35,10 @@ diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/win
              decl.add_method(sel!(dealloc), dealloc_view as extern "C" fn(_, Sel));
  
              decl.add_method(
-@@ -269,6 +272,20 @@ unsafe fn build_classes() {
-                 sel!(characterIndexForPoint:),
+@@ -272,6 +275,20 @@ unsafe fn build_classes() {
                  character_index_for_point as extern "C" fn(_, Sel, NSPoint) -> NSUInteger,
              );
+             native_views::add_view_methods(&mut decl);
 +
 +            // AccessKit answers here; a dynamic subclass would break KVO.
 +            decl.add_method(
@@ -56,7 +56,7 @@ diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/win
              decl.register()
          };
          BLURRED_VIEW_CLASS = {
-@@ -701,7 +718,7 @@ struct MacWindowState {
+@@ -710,7 +727,7 @@ struct MacWindowState {
      toggle_tab_bar_callback: Option<Box<dyn FnMut()>>,
      activated_least_once: bool,
      closed: Arc<AtomicBool>,
@@ -64,17 +64,17 @@ diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/win
 +    accesskit: Option<Rc<RefCell<A11y>>>,
      // The parent window if this window is a sheet (Dialog kind)
      sheet_parent: Option<*mut AnyObject>,
- }
-@@ -1163,7 +1180,7 @@ impl MacWindow {
+     native_views: native_views::NativeViews,
+@@ -1218,7 +1235,7 @@ impl MacWindow {
                  toggle_tab_bar_callback: None,
                  activated_least_once: false,
                  closed: Arc::new(AtomicBool::new(false)),
 -                accesskit_adapter: None,
 +                accesskit: None,
                  sheet_parent: None,
+                 native_views: native_views::NativeViews::default(),
              }));
-             let mut window = Self(state, marker, metal_frames);
-@@ -1400,15 +1417,6 @@ impl MacWindow {
+@@ -1456,15 +1473,6 @@ impl MacWindow {
  impl Drop for MacWindow {
      fn drop(&mut self) {
          let mut this = self.0.lock();
@@ -90,7 +90,7 @@ diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/win
          this.renderer.destroy();
          let window = this.native_window;
          let sheet_parent = this.sheet_parent.take();
-@@ -2411,24 +2419,35 @@ impl PlatformWindow for MacWindow {
+@@ -2536,24 +2544,35 @@ impl PlatformWindow for MacWindow {
          };
          let action_handler = A11yActionHandler(callbacks.action);
  
@@ -137,7 +137,7 @@ diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/win
          if let Some(events) = events {
              events.raise();
          }
-@@ -2443,6 +2462,69 @@ struct A11yActivationHandler {
+@@ -2568,6 +2587,69 @@ struct A11yActivationHandler {
      callback: Box<dyn Fn() -> Option<accesskit::TreeUpdate> + Send + 'static>,
  }
  
@@ -207,7 +207,7 @@ diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/win
  impl accesskit::ActivationHandler for A11yActivationHandler {
      fn request_initial_tree(&mut self) -> Option<accesskit::TreeUpdate> {
          (self.callback)()
-@@ -2539,6 +2621,14 @@ extern "C" fn dealloc_window(this: &AnyObject, _: Sel) {
+@@ -2719,6 +2801,14 @@ extern "C" fn dealloc_window(this: &AnyObject, _: Sel) {
  extern "C" fn dealloc_view(this: &AnyObject, _: Sel) {
      unsafe {
          drop_window_state(this);
@@ -222,19 +222,46 @@ diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/win
          let _: () = msg_send![super(this, class!(NSView)), dealloc];
      }
  }
-@@ -3244,12 +3334,9 @@ extern "C" fn window_did_change_key_status(this: &AnyObject, selector: Sel, _: *
+@@ -3431,13 +3521,13 @@ extern "C" fn window_did_change_key_status(this: &AnyObject, selector: Sel, _: *
      let executor = lock.foreground_executor.clone();
      drop(lock);
  
 -    let a11y_events = {
 -        let mut lock = window_state.lock();
++    let (a11y, is_focused) = {
++        let lock = window_state.lock();
+         let is_focused = is_active && native_views::gpui_view_is_focused(&lock);
 -        lock.accesskit_adapter
 -            .as_mut()
--            .and_then(|adapter| adapter.update_view_focus_state(is_active))
--    };
-+    let a11y = window_state.lock().accesskit.clone();
+-            .and_then(|adapter| adapter.update_view_focus_state(is_focused))
++        (lock.accesskit.clone(), is_focused)
+     };
 +    let a11y_events =
-+        a11y.and_then(|a11y| a11y.borrow_mut().adapter.update_view_focus_state(is_active));
++        a11y.and_then(|a11y| a11y.borrow_mut().adapter.update_view_focus_state(is_focused));
      if let Some(events) = a11y_events {
+         events.raise();
+     }
+diff --git a/vendor/gpui-pre-macos/src/window/native_views.rs b/vendor/gpui-pre-macos/src/window/native_views.rs
+--- a/vendor/gpui-pre-macos/src/window/native_views.rs
++++ b/vendor/gpui-pre-macos/src/window/native_views.rs
+@@ -1347,15 +1347,15 @@ pub(super) fn gpui_view_is_focused(state: &MacWindowState) -> bool {
+ /// Tells the accessibility adapter whether the GPUI view is first responder,
+ /// which the window does not report correctly while that is changing.
+ fn update_accessibility_focus(window_state: &Rc<Mutex<MacWindowState>>, is_first_responder: bool) {
+-    let events = {
+-        let Some(mut lock) = window_state.try_lock() else {
++    let (a11y, is_focused) = {
++        let Some(lock) = window_state.try_lock() else {
+             return;
+         };
+         let is_focused = is_first_responder && lock.native_window().isKeyWindow();
+-        lock.accesskit_adapter
+-            .as_mut()
+-            .and_then(|adapter| adapter.update_view_focus_state(is_focused))
++        (lock.accesskit.clone(), is_focused)
+     };
++    let events =
++        a11y.and_then(|a11y| a11y.borrow_mut().adapter.update_view_focus_state(is_focused));
+     if let Some(events) = events {
          events.raise();
      }

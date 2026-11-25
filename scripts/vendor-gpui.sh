@@ -8,12 +8,12 @@ case $mode in
   check | write) ;;
   *) echo "usage: vendor-gpui.sh [check|write]" >&2; exit 2 ;;
 esac
-version=0.3.12
+version=0.3.14
 # Each crate with the hash crates.io's index gives it.
-crates="gpui-pre 29db89613527079737f53752eab27fb65c9a7dd94979256c65a0e590c9fd34d8
-gpui-pre-linux 54bab418d0b7c027af9495f278619b46887362b3bd6446e246c87c5b0fa167df
-gpui-pre-macos 2de7d3f4ad51ac387e822495db363fcc1188d349793365731d054444c4cb06ee
-gpui-pre-windows 7201762420222d5b5ce5bdf0056996199212a3349bfb2457a3a0238c688681f3"
+crates="gpui-pre ab22c23c1304a0b3f34f64568f59a4ce2abbfab3727273a90c66b37924d31089
+gpui-pre-linux 9515d52d8378c5dda95b3b2536d3d05ea2431bc25d1d8bb4cdeb32f21090f4a1
+gpui-pre-macos 23eeb64494000782e17b0ae0ec2c402ba7d76e5918a6af4759e60094fc8d6dcf
+gpui-pre-windows 8badbaa4129a88e4d2fdaa1615fc61b2a59d4ebb2ac36e5de51f75598f0dd992"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir "$work/vendor"

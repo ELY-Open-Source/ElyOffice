@@ -7,7 +7,7 @@ hovered hitboxes from the top (Windows caption buttons).
 diff --git a/vendor/gpui-pre/src/window.rs b/vendor/gpui-pre/src/window.rs
 --- a/vendor/gpui-pre/src/window.rs
 +++ b/vendor/gpui-pre/src/window.rs
-@@ -2252,12 +2252,15 @@ impl Window {
+@@ -2301,12 +2301,15 @@ impl Window {
              Box::new(move || {
                  handle
                      .update(&mut cx, |_, window, _cx| {

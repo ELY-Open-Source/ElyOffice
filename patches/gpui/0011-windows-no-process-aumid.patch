@@ -6,7 +6,7 @@ with the pinned shortcut.
 diff --git a/vendor/gpui-pre-windows/src/platform.rs b/vendor/gpui-pre-windows/src/platform.rs
 --- a/vendor/gpui-pre-windows/src/platform.rs
 +++ b/vendor/gpui-pre-windows/src/platform.rs
-@@ -923,15 +923,7 @@ impl Platform for WindowsPlatform {
+@@ -901,15 +901,7 @@ impl Platform for WindowsPlatform {
              return;
          }
  
