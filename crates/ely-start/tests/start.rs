@@ -153,18 +153,21 @@ fn child_fails() {
     let Some(wait) = after() else {
         return;
     };
+    // The app's slow start, as the launcher asked.
     std::thread::sleep(wait);
     eprintln!("probe: the engine did not start");
     std::process::exit(3);
 }
 
-/// The app's side: its first frame comes late; it stays up a little.
+/// The app's side: its first frame comes late.
 #[test]
 fn child_shows() {
     let Some(wait) = after() else {
         return;
     };
+    // The app's slow start, as the launcher asked.
     std::thread::sleep(wait);
     ely_platform::startup::close_splash();
+    // Stays up past its first frame, like a real app.
     std::thread::sleep(Duration::from_secs(2));
 }

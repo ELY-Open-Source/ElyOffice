@@ -1,4 +1,4 @@
-//! One address may sit on two servers, as two accounts (#96).
+//! One address on two servers is two accounts (#96).
 
 use super::{STEPS, account, old_account, open};
 use crate::{Account, Error, Store};

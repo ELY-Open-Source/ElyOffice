@@ -24,7 +24,6 @@ fn account(address: &str) -> Account {
     }
 }
 
-/// Folders in a store left at an older version.
 /// Adds an account the way a pre-v19 store did.
 fn old_account(store: &super::Store, address: &str) -> crate::AccountId {
     let mut settings = serde_json::to_value(account(address)).unwrap();
@@ -34,6 +33,7 @@ fn old_account(store: &super::Store, address: &str) -> crate::AccountId {
     crate::AccountId(store.conn.last_insert_rowid())
 }
 
+/// Folders in a store left at an older version.
 fn old_folders(store: &super::Store, account: crate::AccountId, folders: &[(&str, Option<Role>)]) -> Vec<crate::MailboxId> {
     let insert = "INSERT INTO mailboxes (account, name, role) VALUES (?1, ?2, ?3)";
     let made = |(name, role): &(&str, Option<Role>)| {

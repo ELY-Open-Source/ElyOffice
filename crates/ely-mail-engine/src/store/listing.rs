@@ -42,7 +42,7 @@ pub struct Summary {
 }
 
 impl Filter {
-    /// The narrowing as SQL over `m`; `held` stays though it no longer fits.
+    /// The narrowing as SQL over `m`; `held` always stays.
     pub(super) fn clause(&self, held: &[MessageId]) -> Option<String> {
         let mut clauses = Vec::new();
         if self.unread {

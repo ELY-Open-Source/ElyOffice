@@ -100,7 +100,7 @@ fn launch_from(args: impl Iterator<Item = OsString>) -> io::Result<Launch> {
 
 pub(crate) const NEW_WINDOW: &str = "--new-window";
 
-/// A one-window app opens the files in its window; the flag goes. Whether it went.
+/// Drops `--new-window` for a one-window app; whether it was set.
 pub(crate) fn one_window(launch: &mut Launch) -> bool {
     std::mem::take(&mut launch.new_window)
 }

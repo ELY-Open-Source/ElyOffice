@@ -149,7 +149,7 @@ fn a_message_opened_under_unread_stays_until_the_filter_changes() {
     shows(&mail, cx, &["new", "bob"]);
     let new = key_of(&mail, cx, "new");
     cx.update(|_, app| mail.update(app, |mail, cx| mail.select(std::slice::from_ref(&new), cx)));
-    // Opening it marks it read, and the list is read again.
+    // Opening marks it read; the list reloads.
     settle(cx, |app| mail.read(app).listing.facts.get(&new).is_some_and(|fact| fact.seen));
     shows(&mail, cx, &["new", "bob"]);
     cx.update(|_, app| {
@@ -246,7 +246,7 @@ fn picking_every_one_of_many_messages_is_quick() {
     let mut cx = TestAppContext::single();
     let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
     shows(&mail, cx, &[]);
-    // Under a filter, unread; a busy machine slows both sizes alike.
+    // Unread under a filter; load slows both sizes alike.
     let mut pick = |count: usize| {
         let rows: Vec<Row> = (0..count).map(|n| Row::undated(n.to_string(), "Ann", "hi")).collect();
         let keys: Vec<SharedString> = rows.iter().map(|row| row.key.clone()).collect();

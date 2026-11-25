@@ -75,7 +75,7 @@ fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain([0]).collect()
 }
 
-/// Shows the splash until the app closes it or exits; gives how it exited, if it did.
+/// Splash until the app shows or exits; returns its exit.
 pub fn run(name: &str, icon: &Path, mut command: Command, began: Instant) -> io::Result<Option<ExitStatus>> {
     // SAFETY: plain Win32 calls on this thread's own window.
     unsafe {
@@ -267,7 +267,7 @@ fn exited(shown: &mut Shown) -> bool {
     }
 }
 
-/// Off the screen; the app's first frame or exit still ends it.
+/// Hides the splash; first frame or exit still ends it.
 unsafe fn hide(window: HWND, shown: &mut Shown) {
     shown.hidden = true;
     // SAFETY: this thread's window; the timer keeps its id.

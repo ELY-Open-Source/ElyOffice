@@ -26,7 +26,7 @@ pub struct Search {
     /// From and before, seconds since the Unix epoch.
     pub dates: Option<(i64, i64)>,
     pub filter: Filter,
-    /// Opened under the filter; listed though they no longer fit it.
+    /// Opened under the filter, so still listed.
     pub held: Vec<MessageId>,
 }
 
