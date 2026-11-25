@@ -103,6 +103,20 @@ pub(super) const ROWS: &[Command] = &[
     borders("cells.borders_all", true, true),
     borders("cells.borders_outer", true, false),
     borders("cells.borders_none", false, false),
+    // Each edge: keep, none, or style:width:color; bits from boxitem.hxx.
+    command(
+        "cells.border",
+        ".uno:SetBorderStyle",
+        &[
+            Arg::Edge("OuterBorder.LeftBorder", 0x04),
+            Arg::Edge("OuterBorder.RightBorder", 0x08),
+            Arg::Edge("OuterBorder.TopBorder", 0x01),
+            Arg::Edge("OuterBorder.BottomBorder", 0x02),
+            Arg::Edge("InnerBorder.Horizontal", 0x10),
+            Arg::Edge("InnerBorder.Vertical", 0x20),
+        ],
+        Check::Undoable,
+    ),
     command(
         "cells.fill",
         ".uno:BackgroundColor",

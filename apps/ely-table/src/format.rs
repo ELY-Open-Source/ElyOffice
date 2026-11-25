@@ -21,9 +21,11 @@ use gpui::{
 
 use crate::book::{Book, Spot};
 
+mod borders;
 mod colors;
 mod fonts;
 pub(crate) use colors::paint;
+use borders::Line;
 use colors::{FILL, Pick, TEXT};
 
 pub fn menu(cx: &App) -> Menu {
@@ -75,6 +77,10 @@ pub struct Panel {
     pub(crate) number: Option<(String, String)>,
     /// The kernel's font families.
     pub(crate) fonts: Vec<SharedString>,
+    /// The line the border buttons draw.
+    line: Line,
+    /// The cell and edges last drawn, for restyling.
+    drawn: Option<(Spot, &'static str)>,
     _code: Subscription,
 }
 
@@ -110,6 +116,8 @@ impl Panel {
             reading: false,
             number: None,
             fonts: Vec::new(),
+            line: Line::default(),
+            drawn: None,
             _code: subscription,
         }
     }
@@ -129,6 +137,8 @@ impl Panel {
             }),
         });
         self.read = None;
+        // Another workbook's edges are not restyled here.
+        self.drawn = None;
         if let Some(shown) = self.shown.as_ref().filter(|_| self.fonts.is_empty()) {
             let doc = shown.doc.clone();
             self.read_fonts(&doc, cx);
@@ -147,6 +157,9 @@ impl Panel {
             view.cell().address.clone(),
             view.edited(),
         );
+        if self.drawn.as_ref().is_some_and(|(spot, _)| spot.0 != at.0 || spot.1 != at.1) {
+            self.drawn = None;
+        }
         if self.reading || !view.settled() || self.read.as_ref() == Some(&at) {
             return;
         }
@@ -265,14 +278,6 @@ impl Panel {
             .into_any_element()
     }
 
-    fn button(&self, command: &'static str, key: &str, cx: &Context<Self>) -> AnyElement {
-        let book = self.book.clone();
-        Button::new(SharedString::from(command), Book::text(cx, key, &[]))
-            .size(ControlSize::Sm)
-            .on_click(move |_, _, cx| run(&book, command, &[], cx))
-            .into_any_element()
-    }
-
     fn number_group(&self, cx: &Context<Self>) -> PropertyGroup {
         let label = |key: &str| Book::text(cx, key, &[]);
         let kind = self
@@ -367,15 +372,13 @@ impl Panel {
     fn cell_group(&self, window: &mut Window, cx: &mut Context<Self>) -> PropertyGroup {
         let [font, size] = self.font_rows(window, cx);
         let label = |key: &str| Book::text(cx, key, &[]);
-        let borders = row([
-            self.button("cells.borders_all", "table.format.borders_all", cx),
-            self.button("cells.borders_outer", "table.format.borders_outer", cx),
-            self.button("cells.borders_none", "table.format.borders_none", cx),
-        ]);
-        PropertyGroup::new(label("table.format.cell"))
+        let mut group = PropertyGroup::new(label("table.format.cell"))
             .row(label("table.format.font"), font)
-            .row(label("table.format.size"), size)
-            .row(label("table.format.borders"), borders)
+            .row(label("table.format.size"), size);
+        for (name, control) in self.border_rows(cx) {
+            group = group.row(name, control);
+        }
+        group
             .row(label("table.format.fill"), self.colors(&FILL, cx))
             .row(label("table.format.text_color"), self.colors(&TEXT, cx))
     }

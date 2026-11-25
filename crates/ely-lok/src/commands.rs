@@ -6,6 +6,7 @@ mod analysis;
 mod calc;
 mod data;
 mod draw;
+mod edges;
 mod layout;
 mod page;
 mod refs;
@@ -33,6 +34,8 @@ pub enum Arg {
     Line(&'static str, bool),
     /// A fixed value of LOK type `kind`; takes no value.
     Fixed(&'static str, &'static str, &'static str),
+    /// A border edge and its validity bit; see [`edges::edge_json`].
+    Edge(&'static str, i64),
 }
 
 /// How the worker confirms the kernel did the command.
@@ -249,6 +252,8 @@ impl Command {
             return Ok(None);
         }
         let mut json = serde_json::Map::new();
+        // The edges the kernel may change; the rest stay.
+        let mut valid = 0;
         for arg in lines {
             if let Arg::Line(name, solid) = arg {
                 json.insert((*name).to_string(), line_json(*solid));
@@ -263,6 +268,15 @@ impl Command {
                 Arg::Int(name, kind, _, _) => (name, *kind),
                 Arg::Bool(name) => (name, "boolean"),
                 Arg::Line(..) | Arg::Fixed(..) => unreachable!("fixed args take no value"),
+                Arg::Edge(name, bit) => {
+                    if *value != "keep" {
+                        valid |= bit;
+                    }
+                    if let Some(edge) = edges::edge_json(name, value)? {
+                        json.insert((*name).to_string(), edge);
+                    }
+                    continue;
+                }
             };
             if value.trim().is_empty() && !matches!(arg, Arg::Loose(_)) {
                 return Err(invalid(format!("{} needs {name}", self.id)));
@@ -286,6 +300,10 @@ impl Command {
                 (*name).to_string(),
                 serde_json::json!({ "type": kind, "value": value }),
             );
+        }
+        if self.args.iter().any(|arg| matches!(arg, Arg::Edge(..))) {
+            let flags = serde_json::json!({ "type": "short", "value": valid.to_string() });
+            json.insert("InnerBorder.ValidFlags".into(), flags);
         }
         Ok(Some(serde_json::Value::Object(json).to_string()))
     }

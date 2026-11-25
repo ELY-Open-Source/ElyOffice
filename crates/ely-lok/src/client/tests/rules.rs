@@ -135,6 +135,20 @@ fn number_formats_alignment_and_fills_apply() {
     );
     worker.run(&doc, "cells.borders_none", &[]).expect("none");
     assert!(!saved(&mut worker).contains("solid"), "no lines");
+    // Red dotted top, double bottom; 0.35 mm is 0.99 pt.
+    let styled = ["keep", "keep", "1:35:16711680", "3:53:0", "keep", "keep"];
+    worker.run(&doc, "cells.border", &styled).expect("styled");
+    let styled = saved(&mut worker);
+    let (top, bottom) = ("fo:border-top=\"0.99pt dotted #ff0000\"", "fo:border-bottom=\"1.5pt double #000000\"");
+    assert!(styled.contains(top) && styled.contains(bottom), "{styled}");
+    assert!(!styled.contains("fo:border-left=\"0"), "the kept left edge stays clear");
+    // A thin left keeps the top and bottom.
+    worker.run(&doc, "cells.border", &["0:18:0", "keep", "keep", "keep", "keep", "keep"]).expect("left");
+    let left = saved(&mut worker);
+    assert!(left.contains("fo:border-left=\"0.51pt solid #000000\"") && left.contains(top) && left.contains(bottom), "{left}");
+    worker.run(&doc, "cells.border", &["none"; 6]).expect("cleared");
+    let cleared = saved(&mut worker);
+    assert!(cleared.contains("fo:border=\"none\""), "{cleared}");
     worker.run(&doc, "cells.fill", &["16711680"]).expect("red");
     assert!(saved(&mut worker).contains("fo:background-color=\"#ff0000\""));
     worker.run(&doc, "cells.fill", &["-1"]).expect("no fill");
