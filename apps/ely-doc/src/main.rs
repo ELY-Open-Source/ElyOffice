@@ -7,6 +7,7 @@ mod compare;
 mod docs;
 mod files;
 mod insert;
+mod markdown;
 mod menu;
 mod merge;
 mod navigate;

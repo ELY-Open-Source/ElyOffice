@@ -20,6 +20,8 @@ use ely_office::prelude::*;
 
 use crate::docs::Docs;
 
+const PDF_FAILED: &str = "doc.output.failed";
+
 impl Docs {
     pub fn on_export(&mut self, _: &Export, _: &mut Window, cx: &mut Context<Self>) {
         self.ask_output(false, cx);
@@ -111,16 +113,32 @@ impl Docs {
         .detach_and_log_err(cx);
     }
 
-    pub(crate) fn export_to(&mut self, tab: u64, path: PathBuf, pdf: Pdf, cx: &mut Context<Self>) {
-        match self.holder(&path) {
-            Ok(None) => {}
+    /// Whether `path` is free to write; else toasts `failed`.
+    pub(crate) fn export_target_free(&mut self, path: &std::path::Path, failed: &str, cx: &mut Context<Self>) -> bool {
+        match self.holder(path) {
+            Ok(None) => true,
             Ok(Some(_)) => {
                 log::info!("doc: the export target is an open document");
-                let name = ely_office::files::file_name(&path);
-                let text = Docs::text(cx, "doc.output.open", &[("name", &name)]);
-                return self.toast(text, Severity::Danger, cx);
+                self.refuse_open(path, cx);
+                false
             }
-            Err(error) => return self.output_failed(&error.to_string(), cx),
+            Err(error) => {
+                self.output_failed(failed, &error.to_string(), cx);
+                false
+            }
+        }
+    }
+
+    /// Tells why an open file is not overwritten.
+    pub(crate) fn refuse_open(&mut self, path: &std::path::Path, cx: &mut Context<Self>) {
+        let name = ely_office::files::file_name(path);
+        let text = Docs::text(cx, "doc.output.open", &[("name", &name)]);
+        self.toast(text, Severity::Danger, cx);
+    }
+
+    pub(crate) fn export_to(&mut self, tab: u64, path: PathBuf, pdf: Pdf, cx: &mut Context<Self>) {
+        if !self.export_target_free(&path, PDF_FAILED, cx) {
+            return;
         }
         let (name, opened) = (ely_office::files::file_name(&path), path.clone());
         self.write_pdf(tab, path, pdf, cx, move |docs, written, cx| match written {
@@ -128,7 +146,7 @@ impl Docs {
                 let text = Docs::text(cx, "doc.output.exported", &[("name", &name)]);
                 docs.toast_output(text, opened.clone(), cx);
             }
-            Err(error) => docs.output_failed(&error.to_string(), cx),
+            Err(error) => docs.output_failed(PDF_FAILED, &error.to_string(), cx),
         });
     }
 
@@ -142,7 +160,7 @@ impl Docs {
         then: impl FnOnce(&mut Self, std::io::Result<()>, &mut Context<Self>) + 'static,
     ) {
         let Some(name) = self.tab(tab).map(|tab| tab.name.clone()) else {
-            return self.output_failed(&ely_ui::i18n::text(cx, "error.closed", &[]), cx);
+            return self.output_failed(PDF_FAILED, &ely_ui::i18n::text(cx, "error.closed", &[]), cx);
         };
         log::info!("doc: writing a PDF of {name} ({pdf:?})");
         let url = ely_lok::file_url(&path);
@@ -154,8 +172,9 @@ impl Docs {
         );
     }
 
-    fn output_failed(&self, error: &str, cx: &mut Context<Self>) {
-        let text = Docs::text(cx, "doc.output.failed", &[("error", error)]);
+    /// Toasts the `key` message with `error` in it.
+    pub(crate) fn output_failed(&self, key: &str, error: &str, cx: &mut Context<Self>) {
+        let text = Docs::text(cx, key, &[("error", error)]);
         self.toast(text, Severity::Danger, cx);
     }
 }

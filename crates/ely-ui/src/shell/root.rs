@@ -364,9 +364,11 @@ impl Render for Root {
 
 /// PDFs open in ElyPDF if installed; others, the system's app.
 fn view(path: &Path) -> std::io::Result<()> {
-    let pdf = path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"));
-    if pdf && ely_platform::apps::installed(AppId::Pdf) {
-        return ely_platform::apps::open(AppId::Pdf, &[path.to_path_buf()]);
+    let ext = |want: &str| path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case(want));
+    for (want, app) in [("pdf", AppId::Pdf), ("md", AppId::Mark)] {
+        if ext(want) && ely_platform::apps::installed(app) {
+            return ely_platform::apps::open(app, &[path.to_path_buf()]);
+        }
     }
     ely_platform::apps::open_default(path)
 }

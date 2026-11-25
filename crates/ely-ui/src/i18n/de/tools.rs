@@ -58,6 +58,8 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("doc.output.export", "Exportieren…"),
     ("doc.output.print", "Drucken…"),
     ("doc.output.exported", "{name} exportiert"),
+    ("doc.output.markdown", "Als Markdown exportieren…"),
+    ("doc.output.markdown_failed", "Die Markdown-Datei wurde nicht geschrieben: {error}"),
     ("doc.output.open", "{name} ist ein geöffnetes Dokument; wählen Sie einen anderen Namen"),
     ("doc.output.failed", "Das PDF wurde nicht geschrieben: {error}"),
     ("doc.nav.open", "Navigator"),

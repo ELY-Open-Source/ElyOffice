@@ -475,6 +475,7 @@ mod focus;
 mod fonts;
 mod front;
 mod hold;
+mod markdown;
 mod more;
 mod moving;
 mod overlap;

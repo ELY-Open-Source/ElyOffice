@@ -58,6 +58,8 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("doc.output.export", "エクスポート…"),
     ("doc.output.print", "印刷…"),
     ("doc.output.exported", "{name} をエクスポートしました"),
+    ("doc.output.markdown", "Markdown としてエクスポート…"),
+    ("doc.output.markdown_failed", "Markdown ファイルを書き出せませんでした: {error}"),
     ("doc.output.open", "{name} は開いているドキュメントです。別の名前を選んでください"),
     ("doc.output.failed", "PDF を書き出せませんでした: {error}"),
     ("doc.nav.open", "ナビゲーター"),
