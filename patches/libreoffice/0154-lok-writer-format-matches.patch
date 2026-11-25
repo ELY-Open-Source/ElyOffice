@@ -1,0 +1,196 @@
+From: Ely Office
+Subject: LOK: Writer formats every body match of a text, the cursor kept
+
+- .uno:ElyFormatMatches (Find, Formats) formats every exact, case-matched
+  Find within one body paragraph, in one undo step, without moving any
+  view's cursor or selection. Headers, footers, notes and frames are left.
+- Formats is seven tab-separated fields: bold, italic, underline (on or
+  off), font name, size in twips, color (RRGGBB or none) and a paragraph
+  style's programmatic name; an empty field leaves that format alone.
+  Weight, posture, font and size go to Latin, Asian and complex scripts.
+- No match, an unknown style or no format given leaves the document as
+  it was.
+diff --git a/sw/inc/cmdid.h b/sw/inc/cmdid.h
+index b5b5ca2..455eddd 100644
+--- a/sw/inc/cmdid.h
++++ b/sw/inc/cmdid.h
+@@ -689,6 +689,8 @@ class SwUINumRuleItem;
+ #define FN_UNO_IS_CONTENT_EMPTY  (FN_EXTRA2 + 133)
+ // Ely: paragraphs added after the body's last one.
+ #define FN_ELY_APPEND_PARAGRAPHS (FN_EXTRA2 + 134)
++// Ely: every body match of a text formatted.
++#define FN_ELY_FORMAT_MATCHES (FN_EXTRA2 + 135)
+ 
+ // Area: Help
+ // Region: Traveling & Selection
+diff --git a/sw/sdi/_basesh.sdi b/sw/sdi/_basesh.sdi
+index bf6a3ec..48b10b7 100644
+--- a/sw/sdi/_basesh.sdi
++++ b/sw/sdi/_basesh.sdi
+@@ -24,6 +24,12 @@ interface BaseTextSelection
+         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+     ]
+ 
++    FN_ELY_FORMAT_MATCHES
++    [
++        ExecMethod = Execute ;
++        StateMethod = NoState ;
++    ]
++
+     FN_ELY_APPEND_PARAGRAPHS
+     [
+         ExecMethod = Execute ;
+diff --git a/sw/sdi/swriter.sdi b/sw/sdi/swriter.sdi
+index 3918404..c6dc2eb 100644
+--- a/sw/sdi/swriter.sdi
++++ b/sw/sdi/swriter.sdi
+@@ -5452,6 +5452,23 @@ SfxVoidItem ElyAppendParagraphs FN_ELY_APPEND_PARAGRAPHS
+     GroupId = SfxGroupId::Edit;
+ ]
+ 
++SfxVoidItem ElyFormatMatches FN_ELY_FORMAT_MATCHES
++(SfxStringItem Find FN_PARAM_1, SfxStringItem Formats FN_PARAM_2)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Format;
++]
++
+ SfxStringItem ElyFirstLineChars FN_ELY_FIRST_LINE_CHARS
+ (SfxInt32Item Chars FN_PARAM_1)
+ [
+diff --git a/sw/source/uibase/shells/basesh.cxx b/sw/source/uibase/shells/basesh.cxx
+index ebfa57e..2426ca5 100644
+--- a/sw/source/uibase/shells/basesh.cxx
++++ b/sw/source/uibase/shells/basesh.cxx
+@@ -117,6 +117,10 @@
+ #include <IDocumentContentOperations.hxx>
+ #include <IDocumentStylePoolAccess.hxx>
+ #include <o3tl/string_view.hxx>
++#include <editeng/postitem.hxx>
++#include <editeng/udlnitem.hxx>
++#include <editeng/wghtitem.hxx>
++#include <vector>
+ #include <climits>
+ #include <UndoManager.hxx>
+ #include <fmtrfmrk.hxx>
+@@ -979,6 +983,92 @@ bool lcl_ElyAppend(SwDoc& rDoc, const OUString& rText, const OUString& rStyle)
+     rDoc.GetIDocumentUndoRedo().EndUndo(SwUndoId::INSERT, nullptr);
+     return true;
+ }
++
++/// Ely: one item for each script.
++template <class Item, class Value>
++void lcl_ElyPutScripts(SfxItemSet& rSet, std::initializer_list<sal_uInt16> aWhich, const Value& rValue)
++{
++    for (const sal_uInt16 nWhich : aWhich)
++        rSet.Put(Item(rValue, nWhich));
++}
++
++/// Ely: `rFormats`' seven tab-separated fields; empty leaves one alone.
++bool lcl_ElyFormats(SwDoc& rDoc, const OUString& rFormats, SfxItemSet& rSet, SwTextFormatColl*& rColl)
++{
++    std::vector<OUString> aField;
++    sal_Int32 nIndex = 0;
++    do
++        aField.emplace_back(o3tl::getToken(rFormats, 0, '\t', nIndex));
++    while (nIndex >= 0);
++    if (aField.size() != 7)
++        return false;
++    if (!aField[0].isEmpty())
++        lcl_ElyPutScripts<SvxWeightItem>(rSet, { RES_CHRATR_WEIGHT, RES_CHRATR_CJK_WEIGHT, RES_CHRATR_CTL_WEIGHT },
++                                         aField[0] == "on" ? WEIGHT_BOLD : WEIGHT_NORMAL);
++    if (!aField[1].isEmpty())
++        lcl_ElyPutScripts<SvxPostureItem>(rSet, { RES_CHRATR_POSTURE, RES_CHRATR_CJK_POSTURE, RES_CHRATR_CTL_POSTURE },
++                                          aField[1] == "on" ? ITALIC_NORMAL : ITALIC_NONE);
++    if (!aField[2].isEmpty())
++        rSet.Put(SvxUnderlineItem(aField[2] == "on" ? LINESTYLE_SINGLE : LINESTYLE_NONE, RES_CHRATR_UNDERLINE));
++    if (!aField[3].isEmpty())
++        for (const sal_uInt16 nWhich : { RES_CHRATR_FONT, RES_CHRATR_CJK_FONT, RES_CHRATR_CTL_FONT })
++            rSet.Put(SvxFontItem(FAMILY_DONTKNOW, aField[3], OUString(), PITCH_DONTKNOW, RTL_TEXTENCODING_DONTKNOW, nWhich));
++    if (!aField[4].isEmpty())
++    {
++        const sal_uInt32 nTwips = aField[4].toUInt32();
++        if (nTwips == 0)
++            return false;
++        for (const sal_uInt16 nWhich : { RES_CHRATR_FONTSIZE, RES_CHRATR_CJK_FONTSIZE, RES_CHRATR_CTL_FONTSIZE })
++            rSet.Put(SvxFontHeightItem(nTwips, 100, nWhich));
++    }
++    if (!aField[5].isEmpty())
++        rSet.Put(SvxColorItem(aField[5] == "none" ? COL_AUTO : Color(ColorTransparency, aField[5].toUInt32(16)),
++                              RES_CHRATR_COLOR));
++    rColl = nullptr;
++    if (!aField[6].isEmpty())
++    {
++        rColl = lcl_ElyParaStyle(rDoc, aField[6]);
++        if (!rColl)
++            return false;
++    }
++    return rSet.Count() > 0 || rColl;
++}
++
++/// Ely: formats every body match of `rFind`, one undo step.
++bool lcl_ElyFormatMatches(SwDoc& rDoc, const OUString& rFind, const OUString& rFormats)
++{
++    SfxItemSetFixed<RES_CHRATR_BEGIN, RES_CHRATR_END> aSet(rDoc.GetAttrPool());
++    SwTextFormatColl* pColl = nullptr;
++    if (rFind.isEmpty() || !lcl_ElyFormats(rDoc, rFormats, aSet, pColl))
++        return false;
++    // The body only; headers, notes, frames are extras.
++    SwNodes& rNodes = rDoc.GetNodes();
++    std::vector<std::pair<SwTextNode*, sal_Int32>> aHits;
++    for (SwNodeOffset n = rNodes.GetEndOfExtras().GetIndex() + 1; n < rNodes.GetEndOfContent().GetIndex(); ++n)
++    {
++        SwTextNode* pText = rNodes[n]->GetTextNode();
++        if (!pText)
++            continue;
++        const OUString& rText = pText->GetText();
++        for (sal_Int32 nAt = rText.indexOf(rFind); nAt >= 0; nAt = rText.indexOf(rFind, nAt + rFind.getLength()))
++            aHits.emplace_back(pText, nAt);
++    }
++    // No match changes nothing.
++    if (aHits.empty())
++        return false;
++    IDocumentContentOperations& rOps = rDoc.getIDocumentContentOperations();
++    rDoc.GetIDocumentUndoRedo().StartUndo(SwUndoId::INSATTR, nullptr);
++    for (const auto& [pText, nAt] : aHits)
++    {
++        const SwPaM aMatch(*pText, nAt, *pText, nAt + rFind.getLength());
++        if (aSet.Count())
++            rOps.InsertItemSet(aMatch, aSet);
++        if (pColl)
++            rDoc.SetTextFormatColl(aMatch, pColl, true, false);
++    }
++    rDoc.GetIDocumentUndoRedo().EndUndo(SwUndoId::INSATTR, nullptr);
++    return true;
++}
+ }
+ 
+ void SwBaseShell::Execute(SfxRequest &rReq)
+@@ -991,6 +1081,17 @@ void SwBaseShell::Execute(SfxRequest &rReq)
+     sal_uInt16 nSlot = rReq.GetSlot();
+     switch(nSlot)
+     {
++        case FN_ELY_FORMAT_MATCHES:
++            {
++                const SfxStringItem* pFind = rReq.GetArg<SfxStringItem>(FN_PARAM_1);
++                const SfxStringItem* pFormats = rReq.GetArg<SfxStringItem>(FN_PARAM_2);
++                // The user's cursor and selection stay where they are.
++                if (pFind && pFormats && lcl_ElyFormatMatches(*rSh.GetDoc(), pFind->GetValue(), pFormats->GetValue()))
++                    rReq.Done();
++                else
++                    rReq.Ignore();
++            }
++            break;
+         case FN_ELY_APPEND_PARAGRAPHS:
+             {
+                 const SfxStringItem* pText = rReq.GetArg<SfxStringItem>(FN_PARAM_1);

@@ -2,15 +2,8 @@
 
 use std::collections::BTreeMap;
 
-use ely_office::remote;
+use ely_office::remote::{self, pairs};
 
-const NONE: &str = "no format properties given (use PROPERTY=VALUE)";
-const PROPERTY: &str = "{property}: unknown format property";
-const PAIR: &str = "{argument}: expected PROPERTY=VALUE";
-const TWICE: &str = "{property}: property given more than once";
-const SWITCH: &str = "{property}: invalid value \"{value}\" (expected on or off)";
-const SIZE: &str = "size: invalid value \"{value}\" (must be a number from 1 to 999)";
-const COLOR: &str = "{property}: invalid color \"{value}\" (expected #RRGGBB or none)";
 const CHOICE: &str = "{property}: invalid value \"{value}\" (expected {choices})";
 pub(super) const NUMBER: &str = "number: invalid number format code \"{value}\"";
 const BORDER: &str = "{property}: invalid border \"{value}\" (all|outer|none; side: none or style:width:#RRGGBB)";
@@ -42,24 +35,8 @@ pub(super) fn number_code(lines: &str) -> &str {
 }
 
 /// `pairs` checked, as key=value lines the kernel takes.
-fn kernel_lines(pairs: &[&str]) -> Result<String, String> {
-    if pairs.is_empty() {
-        return Err(NONE.into());
-    }
-    let mut given = BTreeMap::new();
-    for pair in pairs {
-        let bad = || PAIR.replace("{argument}", pair);
-        let (key, value) = pair.split_once('=').ok_or_else(bad)?;
-        if value.is_empty() || value.contains('\n') {
-            return Err(bad());
-        }
-        if !known(key) {
-            return Err(PROPERTY.replace("{property}", key));
-        }
-        if given.insert(key, value).is_some() {
-            return Err(TWICE.replace("{property}", key));
-        }
-    }
+fn kernel_lines(words: &[&str]) -> Result<String, String> {
+    let given = pairs::parse(words, known)?;
     let mut lines = BTreeMap::new();
     // A named edge overrides what `border` gives it.
     if let Some(value) = given.get("border") {
@@ -90,33 +67,17 @@ fn border(value: &str) -> Result<Vec<(&'static str, &'static str)>, String> {
 
 /// One property's value as the kernel takes it.
 fn converted(key: &str, value: &str) -> Result<String, String> {
-    let said = |template: &str| template.replace("{property}", key).replace("{value}", value);
+    let said = |template: &str| pairs::said(template, key, value);
     match key {
-        _ if SWITCHES.contains(&key) => match value {
-            "on" => Ok("1".into()),
-            "off" => Ok("0".into()),
-            _ => Err(said(SWITCH)),
-        },
-        "size" => match value.parse::<f64>() {
-            Ok(points) if (1.0..=999.0).contains(&points) => Ok(format!("{}", (points * 20.0).round())),
-            _ => Err(said(SIZE)),
-        },
-        "color" | "background" => color(value).ok_or_else(|| said(COLOR)),
+        _ if SWITCHES.contains(&key) => pairs::switch(key, value).map(|on| if on { "1" } else { "0" }.into()),
+        "size" => pairs::twips(value).map(|twips| twips.to_string()),
+        "color" | "background" => pairs::rgb(key, value).map(|rgb| rgb.map_or("none".into(), |rgb| rgb.to_string())),
         "align" => choice(value, ALIGNS).ok_or_else(|| said(CHOICE).replace("{choices}", ALIGNS)),
         "valign" => choice(value, VALIGNS).ok_or_else(|| said(CHOICE).replace("{choices}", VALIGNS)),
         _ if EDGES.contains(&key) => edge(value).ok_or_else(|| said(BORDER)),
         // `font` as written; `number` is checked by the kernel.
         _ => Ok(value.into()),
     }
-}
-
-/// `#RRGGBB` as a decimal number, or `none`.
-fn color(value: &str) -> Option<String> {
-    if value == "none" {
-        return Some(value.into());
-    }
-    let hex = value.strip_prefix('#').filter(|hex| hex.len() == 6 && hex.bytes().all(|b| b.is_ascii_hexdigit()))?;
-    u32::from_str_radix(hex, 16).ok().map(|rgb| rgb.to_string())
 }
 
 fn choice(value: &str, choices: &str) -> Option<String> {
@@ -138,7 +99,7 @@ fn edge(value: &str) -> Option<String> {
     if twips > WIDEST + 1e-9 {
         return None;
     }
-    Some(format!("{style}:{}:{}", twips.round().max(1.0), color(rgb).filter(|rgb| rgb != "none")?))
+    Some(format!("{style}:{}:{}", twips.round().max(1.0), pairs::rgb("", rgb).ok()??))
 }
 
 #[cfg(test)]

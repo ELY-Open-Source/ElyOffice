@@ -13,6 +13,7 @@ use gpui::Context;
 
 use crate::docs::Docs;
 
+mod format;
 mod text;
 
 const USAGE: &str = "usage: ely-doc docs
@@ -23,11 +24,14 @@ const USAGE: &str = "usage: ely-doc docs
        ely-doc text get FILE [--json]
        ely-doc text replace FILE FIND WITH
        ely-doc text append FILE TEXT [--style STYLE]
+       ely-doc format FILE FIND PROPERTY=VALUE ...
 open and new start ElyDoc if needed; the rest require it running (with FILE open).
 get prints the body text, one paragraph per line; notes, comments and frames are left out.
 With --json, get prints a JSON array of {\"style\", \"text\"} objects.
 replace changes every exact, case-matched FIND; newlines in WITH start new paragraphs (one undo).
 append adds lines as paragraphs at the end (--style uses English name, e.g. Heading 1; one undo).
+format styles every exact, case-matched FIND (one undo): bold, italic, underline (on|off), font,
+size (1-999), color (#RRGGBB|none), style (English paragraph style for each matching paragraph).
 Any argument written as - is read from standard input, up to 64 MiB.
 Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
@@ -43,7 +47,7 @@ const WHOLE: Pdf = Pdf {
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Doc,
-        nouns: &[("text", request)],
+        nouns: &[("text", request), ("format", format::request)],
         usage: USAGE,
         exact: &[],
         blanks: &[("docx", include_bytes!("../../../packaging/windows/new/new.docx"))],
@@ -115,13 +119,29 @@ impl Docs {
                     id,
                     move |worker, doc| {
                         // The style is checked first, so nothing half-happens.
-                        if !style.is_empty() {
-                            let listed = ely_lok::commands::styles(&worker.values(doc, ".uno:StyleApply")?, "2")?;
-                            if !listed.contains(&style) {
-                                return Ok(Err(text::STYLE_MISSING.replace("{style}", &style)));
-                            }
+                        if let Some(why) = text::style_missing(worker, doc, &style)? {
+                            return Ok(Err(why));
                         }
                         worker.run(doc, "text.append", &[&lines, &style]).map(Ok)
+                    },
+                    move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
+                    cx,
+                );
+            }
+            [verb, file, find, fields] if verb == "format" => {
+                let nothing = format::NOTHING.replace("{file}", file).replace("{find}", find);
+                let (find, fields) = (find.clone(), fields.clone());
+                self.write_in(
+                    id,
+                    move |worker, doc| {
+                        if let Some(why) = text::style_missing(worker, doc, format::style(&fields))? {
+                            return Ok(Err(why));
+                        }
+                        // The style exists, so a refusal means no match.
+                        Ok(worker.run(doc, "text.format", &[&find, &fields]).map_err(|error| {
+                            log::info!("doc: another program's format took nothing: {error}");
+                            nothing
+                        }))
                     },
                     move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
                     cx,

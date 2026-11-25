@@ -908,7 +908,12 @@
   - Omarchy（内核含 146 个补丁，与提交的 0153 一致，缺引擎即失败）：ely-office remote 12 过；ElyDoc remote 8 过，含新的端到端测试（CRLF 追加、键入留在原段、追加与替换各一步撤销、`--json` 样式、缺样式与空文字被拒、两边的正则字符都按字面）；`doc-cli.sh` 两段都过（标准输入追加、按样式追加、`--json`、带换行替换、缺样式被拒）。内核层首跑 54 过 2 败：计数（见上）与 `fallback` 的中文字体回落（Omarchy 只装了 Noto Sans CJK SC，未装测试要的 Noto Sans SC，与本条无关）。改计数后复跑 55 过 1 败，只剩 `fallback`；它在不带本条的 `85be0b56` 上同样失败。
   - 7877（内核 146 个补丁，与提交的 0153 一致，缺引擎即失败）：clippy 全目标 `-D warnings` 过；内核层 commands、text 56 过，含 `fallback`（Omarchy 的失败确系缺字体）；ely-office 12 过；ElyDoc remote 8 过；`doc-cli.sh` 两段都过。
   - 审查：第 1 轮 PASS（`docs/help.md` 的 help.doc.text 起初漏写，于本轮内补上并告知）。
-- [ ] R21.30 ElyDoc 格式：`format 文件 原文 …`（全部命中，同 replace；加粗、斜体、下划线、字体、字号、颜色；段落样式）
+- [x] R21.30 ElyDoc 格式：`format 文件 原文 …`（全部命中，同 replace；加粗、斜体、下划线、字体、字号、颜色；段落样式）
+  - 做法：Writer 的“替换为格式”只从查找替换对话框取格式，无命令可用，故补丁 0154 加新槽 `.uno:ElyFormatMatches`（仿 0153）：在模型里逐个正文段落找原文（区分大小写、不跨段；页眉页脚、脚注、文本框不在其内），对每处命中 `InsertItemSet`，段落样式用 `SetTextFormatColl`，全部包在一个撤销里，不动光标与选区；无命中、未知样式、无属性都不改。粗细、斜体、字体、字号对西文、亚洲、复杂文字三种都设。ElyDoc 把属性换成七个以制表符分隔的字段，样式先对照内核的样式表（与 `text append` 共用一个检查）。
+  - `PROPERTY=VALUE` 的解析与 on/off、字号、颜色的检查与报错从 ElyTable 移到 `ely_office::remote::pairs`，两边共用一份；ElyTable 发给内核的行逐字不变（边框、对齐、数字格式仍归 ElyTable）。内核层命令计数 277→278。
+  - Omarchy（内核 147 个补丁，与 0154 一致，缺引擎即失败）在 `6bdb837c` 上：内核层 commands 19 过；ely-office remote 14 过（含 pairs）；ElyTable format、remote 20 过；ElyDoc remote 11 过，含新的端到端测试（两处命中都设、狗不动、键入留在原处、一步撤销、段落样式、缺样式与无命中被拒）；`doc-cli.sh` 三段与 `table-cli.sh` 都过。
+  - 7877（内核 147 个补丁，与提交的 0154 一致，缺引擎即失败）：clippy 全目标 `-D warnings` 过；内核层 19 过；ely-office 14 过；ElyTable 20 过；ElyDoc 11 过；`doc-cli.sh` 三段与 `table-cli.sh` 都过。
+  - 审查：第 1 轮 PASS。
 - [ ] R21.31 ElyDoc 表格：`table insert`（行列与内容，JSON，默认文末）
 - [ ] R21.32 ElyDoc 图片：`image insert`（默认文末，不动用户光标；内核按光标插入，可能要补丁）
 - [ ] R21.33 ElyShow 结构：`slide list|add|duplicate|delete|move`（list 带版式与标题，add 带版式）

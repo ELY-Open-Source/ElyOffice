@@ -64,3 +64,13 @@ grep -q "Nope: no such paragraph style" "$work/err" || fail "the style refusal s
 text replace "$file" 'line one' $'one $1\ntwo &' || fail "replacing with a break"
 [ "$(text get "$file")" = $'Ely 世界 TEXT\none $1\ntwo &\nline two\nHeading' ] || fail "after the break, get read '$(text get "$file")'"
 echo "ok: ElyDoc appended from standard input, with a style, listed styles as JSON and split a paragraph"
+"$doc" format "$file" 'line two' bold=on color=#B00020 style='Heading 1' || fail "formatting"
+text get "$file" --json | python -c '
+import json, sys
+got = json.load(sys.stdin)
+sys.exit(0 if {"style": "Heading 1", "text": "line two"} in got else 1)' || fail "after format, get --json read $(text get "$file" --json)"
+if "$doc" format "$file" zebra bold=on 2>"$work/err"; then fail "a missing word was formatted"; fi
+grep -q 'no match for "zebra"' "$work/err" || fail "the format refusal says $(cat "$work/err")"
+rc=0; "$doc" format "$file" Heading wrap=on 2>/dev/null || rc=$?
+[ "$rc" = 2 ] || fail "an unknown property exited $rc, not 2"
+echo "ok: ElyDoc formatted every match from another process; a missing word and an unknown property were refused"

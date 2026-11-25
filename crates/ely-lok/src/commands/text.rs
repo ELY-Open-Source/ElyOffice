@@ -30,6 +30,12 @@ pub(super) const ROWS: &[Command] = &[
         Check::Result,
     ),
     command(
+        "text.format",
+        ".uno:ElyFormatMatches",
+        &[Arg::Loose("Find"), Arg::Loose("Formats")],
+        Check::Undoable,
+    ),
+    command(
         "text.append",
         ".uno:ElyAppendParagraphs",
         &[Arg::Loose("Text"), Arg::Loose("Style")],

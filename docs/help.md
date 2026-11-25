@@ -101,6 +101,9 @@ ElyDoc 开着、文件已打开时，别的程序可经命令行读改其中的�
 - `ely-doc text replace 文件 原文 新文` 把正文里每处原文（不为空、区分大小写、不跨段）换成新文，一处也没有即报错；新文可带换行，每处换行起新段并沿用原段样式。
 - `ely-doc text append 文件 文字 [--style 样式]` 在正文末尾追加段落，一行一段（文字常写 `-` 走标准输入）；`--style` 用英文样式名（如 `Heading 1`），省略用默认样式。
 - `text replace` 与 `text append` 均为一步撤销，不动光标与选区。
+- `ely-doc format 文件 原文 属性=值 ...` 把正文里每处原文（不为空、区分大小写、不跨段）设为指定格式，一处也没有即报错；一次一步撤销，不动光标与选区。
+- 属性：`bold/italic/underline` 取 `on|off`，`font` 写字体名，`size` 为 1–999 磅，`color` 取 `#RRGGBB` 或 `none`，`style` 设所在段英文段落样式。
+- 例：`ely-doc format 文件 "第一章" bold=on color=#B00020 style="Heading 1"`。
 - `ely-doc text save 文件` 保存，输出保存到的路径。文件在磁盘上被改过时不覆盖，ElyDoc 里询问。
 
 同样只有同一用户在本机的程序能连上。

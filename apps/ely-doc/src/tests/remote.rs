@@ -131,6 +131,47 @@ fn append_and_replace_with_breaks_are_one_step_each_and_keep_the_cursor() {
 }
 
 #[test]
+fn format_styles_every_match_in_one_step_with_the_cursor_kept() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "cat dog cat");
+    let path = dir.path().join("looks.odt");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    settle(&cx, |app| docs.read(app).core.tabs[0].name == "looks.odt");
+    let file = path.display().to_string();
+    let undo = |cx: &mut TestAppContext| {
+        cx.update(|app| docs.update(app, |docs, cx| docs.run_active("edit.undo", &[], cx)));
+        settled(cx, &docs);
+    };
+    let fields = "on\t\t\t\t280\tB00020\t";
+    assert_eq!(ask(&mut cx, &docs, &["format", &file, "cat", fields]), Ok(String::new()));
+    // Typing lands where the cursor was, not on a match.
+    type_into(&mut cx, &docs, "!");
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("cat dog cat!".into()));
+    undo(&mut cx);
+    assert!(ask(&mut cx, &docs, &["save", &file]).is_ok(), "saved");
+    let saved = text_of(&mut cx, &docs, &path).to_lowercase();
+    assert!(saved.contains("fo:font-weight=\"bold\"") && saved.contains("#b00020") && saved.contains("14pt"), "{saved}");
+    assert_eq!(saved.matches("<text:span").count(), 2, "both matches, not the dog: {saved}");
+    undo(&mut cx);
+    assert!(ask(&mut cx, &docs, &["save", &file]).is_ok(), "saved");
+    assert!(!text_of(&mut cx, &docs, &path).to_lowercase().contains("#b00020"), "the format is one step");
+    assert_eq!(ask(&mut cx, &docs, &["format", &file, "dog", "\t\t\t\t\t\tHeading 1"]), Ok(String::new()));
+    assert!(ask(&mut cx, &docs, &["save", &file]).is_ok(), "saved");
+    let styled = ely_office::remote::body_paragraphs(text_of(&mut cx, &docs, &path).as_bytes()).expect("paragraphs");
+    assert_eq!(styled, [("Heading 1".to_owned(), "cat dog cat".to_owned())]);
+    let missing = ask(&mut cx, &docs, &["format", &file, "dog", "\t\t\t\t\t\tNo Such Style"]);
+    assert_eq!(missing, Err("No Such Style: no such paragraph style in this document".into()));
+    let none = ask(&mut cx, &docs, &["format", &file, "zebra", "on\t\t\t\t\t\t"]);
+    assert_eq!(none, Err(format!("{file}: no match for \"zebra\"")));
+}
+
+#[test]
 fn a_read_never_gives_way_to_waiting_input() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();

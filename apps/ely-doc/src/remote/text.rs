@@ -9,6 +9,15 @@ pub(super) const APPEND_EMPTY: &str = "TEXT must not be empty";
 /// A `--style` the document lacks.
 pub(super) const STYLE_MISSING: &str = "{style}: no such paragraph style in this document";
 
+/// Why `style` cannot be used; None when it can.
+pub(super) fn style_missing(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc, style: &str) -> std::io::Result<Option<String>> {
+    if style.is_empty() {
+        return Ok(None);
+    }
+    let listed = ely_lok::commands::styles(&worker.values(doc, ".uno:StyleApply")?, "2")?;
+    Ok((!listed.iter().any(|one| one == style)).then(|| STYLE_MISSING.replace("{style}", style)))
+}
+
 /// Line breaks as `\n`, whatever the sender's system.
 fn unix(text: &str) -> String {
     text.replace("\r\n", "\n").replace('\r', "\n")
