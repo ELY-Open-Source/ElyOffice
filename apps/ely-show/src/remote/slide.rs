@@ -3,7 +3,7 @@
 use ely_lok::show::Slide;
 use ely_office::remote;
 
-const NUMBER: &str = "slide {slide} does not exist (must be 1 to {count})";
+pub(super) const NUMBER: &str = "slide {slide} does not exist (must be 1 to {count})";
 const POSITION: &str = "position {position} is out of range (must be 1 to {last})";
 const LAYOUT: &str = "unknown layout \"{layout}\" (run ely-show --help for layout names)";
 pub(super) const ONLY: &str = "cannot delete the only slide";
@@ -26,7 +26,7 @@ const NAMES: [&str; 12] = [
 ];
 
 /// A whole number of 1 or more.
-fn number(value: &str) -> Result<usize, String> {
+pub(super) fn number(value: &str) -> Result<usize, String> {
     value.parse().ok().filter(|n| *n >= 1).ok_or_else(|| INTEGER.replace("{value}", value))
 }
 
@@ -111,7 +111,7 @@ mod tests {
         assert_eq!(layout("blank"), Ok(20));
         assert_eq!(layout("title-6-content"), Ok(34));
         assert_eq!(layout("Title"), Err(LAYOUT.replace("{layout}", "Title")));
-        let slide = |layout| Slide { name: "Slide 1".into(), layout, title: "Hi".into(), hidden: false };
+        let slide = |layout| Slide { name: "Slide 1".into(), layout, title: "Hi".into(), hidden: false, notes: String::new(), boxes: Vec::new() };
         let json: serde_json::Value = serde_json::from_str(&listed(&[slide(1), slide(27)])).expect("JSON");
         assert_eq!(json[0]["layout"], "title-content");
         assert_eq!((json[1]["number"].as_u64(), json[1]["layout"].as_str()), (Some(2), Some("other")));

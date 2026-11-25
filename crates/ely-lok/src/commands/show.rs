@@ -29,6 +29,12 @@ pub(super) const ROWS: &[Command] = &[
         Check::Undoable,
     ),
     command(
+        "slide.text",
+        ".uno:ElySlideText",
+        &[Arg::Int("Slide", "long", 0, 65_534), Arg::Text("Box"), Arg::Loose("Text")],
+        Check::Undoable,
+    ),
+    command(
         "slide.layout",
         ".uno:AssignLayout",
         &[Arg::Int("WhatLayout", "long", 0, 34)],

@@ -13,6 +13,7 @@ use gpui::Context;
 use crate::deck::Deck;
 
 mod slide;
+mod text;
 
 const USAGE: &str = "usage: ely-show docs
        ely-show open FILE
@@ -21,13 +22,19 @@ const USAGE: &str = "usage: ely-show docs
        ely-show save FILE
        ely-show text get FILE
        ely-show text replace FILE FIND WITH
+       ely-show text set FILE N title|body TEXT
+       ely-show notes get FILE N
+       ely-show notes set FILE N TEXT
        ely-show slide list FILE
        ely-show slide add FILE [POSITION] [--layout NAME]
        ely-show slide duplicate FILE N
        ely-show slide delete FILE N
        ely-show slide move FILE N TO
 open and new start ElyShow if needed; the rest require it running (with FILE open).
-text get prints slides (form feed between; no notes/comments); replace is exact (1 undo/text box).
+text get prints slides (form feed between; no notes/comments).
+text replace changes exact FIND; newlines in WITH start new paragraphs (1 undo per text box).
+text set: slide N title/body, line/paragraph (refuses mixed formatting; 1 undo, view stays).
+notes get/set: slide N notes, line/paragraph (set refuses mixed formatting; 1 undo, view stays).
 slide: list prints JSON; add/duplicate/delete/move are 1 undo (view stays; POSITION defaults last).
 layouts (default title-content): blank, title, title-content, title-2-content, title-only,
 centered-text, title-content-2-content, title-2-content-content, title-content-over-content,
@@ -39,7 +46,7 @@ Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Show,
-        nouns: &[("text", request), ("slide", slide::request)],
+        nouns: &[("text", request), ("notes", text::notes_request), ("slide", slide::request)],
         usage: USAGE,
         exact: &[],
         blanks: &[("pptx", include_bytes!("../../../packaging/windows/new/new.pptx"))],
@@ -53,6 +60,7 @@ fn request(words: &[&str]) -> Result<Vec<String>, String> {
         ["docs"] => vec!["docs".into()],
         ["get", path] => vec!["get".into(), remote::absolute(path)?],
         ["replace", path, find, with] => vec!["replace".into(), remote::absolute(path)?, find.into(), with.into()],
+        ["set", path, slide, box_name, text] => text::set_request(path, slide, box_name, text)?,
         ["save", path] => vec!["save".into(), remote::absolute(path)?],
         _ => return Err("unknown command".into()),
     })
@@ -77,16 +85,62 @@ impl Deck {
                 );
             }
             [verb, _, find, with] if verb == "replace" => {
-                if find.is_empty() || [find, with].iter().any(|text| text.contains(['\n', '\r'])) {
-                    return ask.answer(Err("FIND must be text within one paragraph, and WITH too".into()));
+                if find.is_empty() || find.contains(['\n', '\r']) {
+                    return ask.answer(Err(text::FIND_BREAK.into()));
                 }
-                let (find, with) = (find.clone(), with.clone());
+                let (find, with) = (find.clone(), text::lines(with));
                 // A box being typed in: where its caret shows.
                 let caret = self.tab(id).map(|tab| tab.view.read(cx)).filter(|view| view.caret()).and_then(|view| view.cursor());
                 self.write_in(
                     id,
                     move |worker, doc| replace_all(worker, doc, &find, &with, caret),
                     move |_, done, _, _| ask.answer(done.map(|()| String::new()).map_err(|error| error.to_string())),
+                    cx,
+                );
+            }
+            [verb, _, slide, box_name, words] if verb == "set" => {
+                let (slide, box_name, words) = (slide.clone(), box_name.clone(), text::lines(words));
+                self.write_in(
+                    id,
+                    move |worker, doc| {
+                        let slides = ely_lok::show::slides(&worker.values(doc, ely_lok::show::SLIDES)?)?;
+                        let at = match text::writable(&slides, &slide, &box_name) {
+                            Ok(at) => at.to_string(),
+                            Err(why) => return Ok(Err(why)),
+                        };
+                        worker.run(doc, "slide.text", &[&at, &box_name, &words]).map(Ok)
+                    },
+                    move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
+                    cx,
+                );
+            }
+            [verb, _, slide] if verb == "notes.get" => {
+                let slide = slide.clone();
+                self.read_in(
+                    id,
+                    move |worker, doc| {
+                        let slides = ely_lok::show::slides(&worker.values(doc, ely_lok::show::SLIDES)?)?;
+                        Ok(text::slide_at(&slides, &slide).map(|(_, found)| found.notes.clone()))
+                    },
+                    move |_, read, _, _| ask.answer(read.map_err(|error| error.to_string()).and_then(|read| read)),
+                    cx,
+                );
+            }
+            [verb, _, slide, words] if verb == "notes.set" => {
+                let (slide, words) = (slide.clone(), text::lines(words));
+                self.write_in(
+                    id,
+                    move |worker, doc| {
+                        let slides = ely_lok::show::slides(&worker.values(doc, ely_lok::show::SLIDES)?)?;
+                        let at = match text::writable(&slides, &slide, "notes") {
+                            Ok(at) => at.to_string(),
+                            Err(why) => return Ok(Err(why)),
+                        };
+                        // The notes command holds only at a fresh read.
+                        let now = worker.now(doc)?;
+                        worker.run(&now, "notes.set", &[&words, &at]).map(Ok)
+                    },
+                    move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
                     cx,
                 );
             }
@@ -206,6 +260,7 @@ mod tests {
         assert_eq!((sent[0].as_str(), sent[2].as_str(), sent[3].as_str()), ("replace", "cat", "dog"));
         assert!(std::path::Path::new(&sent[1]).is_absolute(), "{sent:?}");
         assert!(super::request(&["replace", "a.pptx", "cat"]).is_err(), "too few words");
-        assert!(super::request(&["set", "a.pptx"]).is_err(), "no such verb");
+        assert!(super::request(&["set", "a.pptx"]).is_err(), "too few words");
+        assert!(super::request(&["cut", "a.pptx"]).is_err(), "no such verb");
     }
 }

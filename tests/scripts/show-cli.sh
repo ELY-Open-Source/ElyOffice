@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Another program reads text, restructures slides and saves in ElyShow.
+# Another program edits text, notes and slides, then saves.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -29,7 +29,7 @@ cp "$root/tests/fixtures/office/t.pptx" "$work/deck.pptx"
 text() { "$show" text "$@"; }
 # Slide n of `get`, slides split by form feeds.
 slide() {
-  text get "$file" | python -c 'import sys; print(sys.stdin.read().split("\f")[int(sys.argv[1])].strip())' "$1"
+  text get "$file" | python -c 'import sys; sys.stdout.buffer.write(sys.stdin.buffer.read().split(b"\f")[int(sys.argv[1])].strip())' "$1"
 }
 
 ELY_SMOKE=hold "$show" "$file" >"$work/out" 2>&1 &
@@ -67,6 +67,21 @@ rc=0; slides delete "$file" 99 2>"$work/err" || rc=$?
 [ "$rc" = 1 ] && grep -q "does not exist" "$work/err" || fail "deleting slide 99 gave $rc: $(cat "$work/err")"
 rc=0; slides add "$file" --layout nope 2>"$work/err" || rc=$?
 [ "$rc" = 2 ] && grep -q "unknown layout" "$work/err" || fail "a bad layout gave $rc: $(cat "$work/err")"
+# Text and notes by slide; a break starts a paragraph.
+slides add "$file" --layout title-content || fail "adding a titled slide"
+text set "$file" 10 title Plan || fail "setting a title"
+printf 'One\r\nTwo' | text set "$file" 10 body - || fail "setting a body from standard input"
+[ "$(listed 9 title)" = Plan ] || fail "the title is $(listed 9 title)"
+[ "$(slide 9)" = $'Plan\nOne\nTwo' ] || fail "slide 10 read '$(slide 9)'"
+text replace "$file" Plan $'Plan\nB' || fail "replacing with a line break"
+[ "$(slide 9)" = $'Plan\nB\nOne\nTwo' ] || fail "after the break, slide 10 read '$(slide 9)'"
+notes() { "$show" notes "$@"; }
+notes set "$file" 10 $'Say hi\nthen go' || fail "setting notes"
+[ "$(notes get "$file" 10)" = $'Say hi\nthen go' ] || fail "the notes read '$(notes get "$file" 10)'"
+rc=0; text set "$file" 10 side x 2>"$work/err" || rc=$?
+[ "$rc" = 2 ] && grep -q "must be title or body" "$work/err" || fail "a bad box gave $rc: $(cat "$work/err")"
+rc=0; notes get "$file" 99 2>"$work/err" || rc=$?
+[ "$rc" = 1 ] && grep -q "does not exist" "$work/err" || fail "notes of slide 99 gave $rc: $(cat "$work/err")"
 saved=$(text save "$file" | python -c 'import json, sys; sys.stdout.write(json.load(sys.stdin))') || fail "saving"
 [ "$(native "$saved")" = "$file" ] || fail "save answered '$saved', not $file"
 # On disk at the answer: crash recovery cannot stand in.
@@ -76,4 +91,4 @@ z = zipfile.ZipFile(sys.argv[1])
 said = [''.join(re.findall(r'<a:t>([^<]*)</a:t>', z.read(n).decode())) for n in z.namelist() if re.match(r'ppt/slides/slide\d+\.xml$', n)]
 sys.exit(0 if 'Ely 世界' in said and '01' not in said else 1)
 PY
-echo "ok: ElyShow answered text docs, get, replace, slide list, add, move, duplicate, delete and save from another process; the save was on disk at its answer"
+echo "ok: ElyShow answered text docs, get, replace (with a line break), set, notes get and set, slide list, add, move, duplicate, delete and save from another process; the save was on disk at its answer"

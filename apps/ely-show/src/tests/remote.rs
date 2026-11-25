@@ -136,7 +136,7 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok(after.into()));
     let missing = ask(&mut cx, &deck, &["replace", &file, "zebra", "x"]);
     assert!(missing.as_ref().is_err_and(|why| why.starts_with("nothing replaced")), "{missing:?}");
-    assert!(ask(&mut cx, &deck, &["replace", &file, "dog", "a\nb"]).is_err(), "a break in WITH");
+    assert!(ask(&mut cx, &deck, &["replace", &file, "a\nb", "x"]).is_err(), "a break in FIND");
     let other = dir.path().join("other.odp");
     std::fs::write(&other, b"x").expect("a stray file");
     assert!(ask(&mut cx, &deck, &["get", &other.display().to_string()]).is_err(), "a file not open");

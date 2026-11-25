@@ -23,6 +23,7 @@ mod play_more;
 mod play_time;
 mod remote;
 mod remote_slides;
+mod remote_text;
 mod review;
 mod sections;
 mod slides;

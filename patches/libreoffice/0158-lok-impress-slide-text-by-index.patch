@@ -1,0 +1,198 @@
+From: Ely Office
+Subject: LOK: Impress sets a slide's title or body text by index
+
+- .uno:ElySlideText (Slide, Box, Text) replaces slide Slide's title or
+  body placeholder text (a title slide's subtitle counts as its body),
+  one paragraph per line, in one undo step, without switching the shown
+  slide. Empty text clears it back to the placeholder. A box whose text
+  mixes looks is refused, as the notes are; one look is kept.
+- .uno:ElySlides adds each slide's notes text and, per title, body and
+  notes placeholder there, whether its text mixes looks.
+
+diff --git a/sd/inc/app.hrc b/sd/inc/app.hrc
+index 2f603d9..7e0055f 100644
+--- a/sd/inc/app.hrc
++++ b/sd/inc/app.hrc
+@@ -431,5 +431,6 @@
+ #define SID_SLIDE_ANIMATION_ADD             (SID_SD_START+455)
+ #define SID_SLIDE_ANIMATION_CHANGE          (SID_SD_START+456)
+ #define SID_ELY_SLIDE                       (SID_SD_START+457)
++#define SID_ELY_SLIDE_TEXT                  (SID_SD_START+458)
+ 
+ /* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sd/sdi/_drvwsh.sdi b/sd/sdi/_drvwsh.sdi
+index e901985..3ba52eb 100644
+--- a/sd/sdi/_drvwsh.sdi
++++ b/sd/sdi/_drvwsh.sdi
+@@ -3043,6 +3043,11 @@ interface DrawView
+         ExecMethod = FuTemporary ;
+         StateMethod = GetMenuState;
+     ]
++    SID_ELY_SLIDE_TEXT
++    [
++        ExecMethod = FuTemporary ;
++        StateMethod = GetMenuState;
++    ]
+     SID_SLIDE_TRANSITION_SET
+     [
+         ExecMethod = FuTemporary ;
+diff --git a/sd/sdi/sdraw.sdi b/sd/sdi/sdraw.sdi
+index 7227700..13b690f 100644
+--- a/sd/sdi/sdraw.sdi
++++ b/sd/sdi/sdraw.sdi
+@@ -4215,6 +4215,23 @@ SfxVoidItem ElySlide SID_ELY_SLIDE
+     GroupId = SfxGroupId::Modify;
+ ]
+ 
++SfxVoidItem ElySlideText SID_ELY_SLIDE_TEXT
++(SfxInt32Item Slide FN_PARAM_1, SfxStringItem Box FN_PARAM_2, SfxStringItem Text FN_PARAM_3)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Modify;
++]
++
+ SfxVoidItem SlideNotes SID_SLIDE_NOTES
+ (SfxStringItem Text FN_PARAM_1, SfxInt32Item Part FN_PARAM_2)
+ [
+diff --git a/sd/source/ui/inc/DrawViewShell.hxx b/sd/source/ui/inc/DrawViewShell.hxx
+index c9e74e3..f6ff0ad 100644
+--- a/sd/source/ui/inc/DrawViewShell.hxx
++++ b/sd/source/ui/inc/DrawViewShell.hxx
+@@ -285,6 +285,8 @@ public:
+     static void     CheckLineTo (SfxRequest& rReq);
+     /// The text's one look; none when it varies.
+     static std::optional<SfxItemSet> NotesLook(const EditTextObject& rText, SfxItemPool& rPool);
++    /// Slide nSlide's title, body or notes placeholder.
++    static SdrTextObj* ElyBox(SdDrawDocument& rDoc, sal_uInt16 nSlide, std::u16string_view aBox);
+     /// Kit edits of transitions and animations, from JSON.
+     bool KitTransition(std::u16string_view rJson);
+     bool KitAddAnimation(std::u16string_view rJson);
+diff --git a/sd/source/ui/unoidl/unomodel.cxx b/sd/source/ui/unoidl/unomodel.cxx
+index ab60d6d..51ddb36 100644
+--- a/sd/source/ui/unoidl/unomodel.cxx
++++ b/sd/source/ui/unoidl/unomodel.cxx
+@@ -2415,6 +2415,20 @@ void lcl_ElySlides(::tools::JsonWriter& rJson, SdDrawDocument& rDoc)
+         rJson.put("layout", static_cast<sal_Int32>(pPage->GetAutoLayout()));
+         rJson.put("title", pText ? pText->GetTextObject().GetText(LINEEND_LF) : OUString());
+         rJson.put("hidden", pPage->IsExcluded());
++        auto pNotes = sd::DrawViewShell::ElyBox(rDoc, i, u"notes");
++        const OutlinerParaObject* pNotesText
++            = pNotes && !pNotes->IsEmptyPresObj() ? pNotes->GetOutlinerParaObject() : nullptr;
++        rJson.put("notes", pNotesText ? pNotesText->GetTextObject().GetText(LINEEND_LF) : OUString());
++        // Each placeholder there: whether its text mixes looks.
++        auto aBoxes = rJson.startNode("boxes");
++        for (std::string_view aBox : { "title", "body", "notes" })
++        {
++            SdrTextObj* pObj = sd::DrawViewShell::ElyBox(rDoc, i, OUString::createFromAscii(aBox));
++            const OutlinerParaObject* pOwn
++                = pObj && !pObj->IsEmptyPresObj() ? pObj->GetOutlinerParaObject() : nullptr;
++            if (pObj)
++                rJson.put(aBox, pOwn && !sd::DrawViewShell::NotesLook(pOwn->GetTextObject(), rDoc.GetPool()));
++        }
+     }
+ }
+ 
+diff --git a/sd/source/ui/view/drviews2.cxx b/sd/source/ui/view/drviews2.cxx
+index 1db587f..c1cbc6c 100644
+--- a/sd/source/ui/view/drviews2.cxx
++++ b/sd/source/ui/view/drviews2.cxx
+@@ -1263,6 +1263,44 @@ bool lcl_ElyMoveSlide(SdDrawDocument& rDoc, sal_uInt16 nSlide, sal_uInt16 nTo)
+     return bMoved;
+ }
+ 
++/// Sets a slide's title or body, keeping its look.
++bool lcl_ElySlideText(SdDrawDocument& rDoc, sal_Int32 nSlide, std::u16string_view aBox, const OUString& rText)
++{
++    if (nSlide < 0 || nSlide >= rDoc.GetSdPageCount(PageKind::Standard) || aBox == u"notes")
++        return false;
++    SdrTextObj* pObj = sd::DrawViewShell::ElyBox(rDoc, static_cast<sal_uInt16>(nSlide), aBox);
++    if (!pObj)
++        return false;
++    SdPage* pPage = static_cast<SdPage*>(pObj->getSdrPageFromSdrObject());
++    const PresObjKind eKind = pPage->GetPresObjKind(pObj);
++    const OutlinerParaObject* pOld = !pObj->IsEmptyPresObj() ? pObj->GetOutlinerParaObject() : nullptr;
++    std::optional<SfxItemSet> oLook = pOld
++        ? sd::DrawViewShell::NotesLook(pOld->GetTextObject(), rDoc.GetPool())
++        : SfxItemSet(rDoc.GetPool(), svl::Items<EE_PARA_START, EE_CHAR_END>);
++    // Varied formatting would be lost.
++    if (!oLook)
++        return false;
++    const bool bEmpty = rText.isEmpty();
++    // Outline paragraphs take their level from leading tabs.
++    const OUString aText = eKind == PresObjKind::Outline ? rText.replaceAll("\n", "\n\t") : rText;
++    std::unique_ptr<SdrUndoAction> pUndo = rDoc.GetSdrUndoFactory().CreateUndoObjectSetText(*pObj, 0);
++    rDoc.BegUndo(pUndo->GetComment());
++    rDoc.AddUndo(std::move(pUndo));
++    pPage->SetObjText(pObj, nullptr, eKind, bEmpty ? pPage->GetPresObjText(eKind) : aText);
++    if (!bEmpty && oLook->Count())
++    {
++        SdOutliner* pOutl = rDoc.GetInternalOutliner();
++        pOutl->Clear();
++        pOutl->SetText(*pObj->GetOutlinerParaObject());
++        pOutl->QuickSetAttribs(*oLook, ESelection::All());
++        pObj->SetOutlinerParaObject(pOutl->CreateParaObject());
++        pOutl->Clear();
++    }
++    pObj->SetEmptyPresObj(bEmpty);
++    rDoc.EndUndo();
++    return true;
++}
++
+ /// Adds, duplicates, deletes or moves a slide by index.
+ bool lcl_ElySlide(SdDrawDocument& rDoc, std::u16string_view aVerb, sal_Int32 nSlide, sal_Int32 nValue)
+ {
+@@ -3942,6 +3980,19 @@ void DrawViewShell::FuTemporary(SfxRequest& rReq)
+         }
+         break;
+ 
++        case SID_ELY_SLIDE_TEXT:
++        {
++            // Ely: slide title or body by index; view stays.
++            const SfxInt32Item* pSlide = rReq.GetArg<SfxInt32Item>(FN_PARAM_1);
++            const SfxStringItem* pBox = rReq.GetArg<SfxStringItem>(FN_PARAM_2);
++            const SfxStringItem* pText = rReq.GetArg<SfxStringItem>(FN_PARAM_3);
++            if (pSlide && pBox && pText
++                && lcl_ElySlideText(*GetDoc(), pSlide->GetValue(), pBox->GetValue(), pText->GetValue()))
++                rReq.Done();
++            Cancel();
++        }
++        break;
++
+         case SID_SLIDE_NOTES:
+         {
+             // Slide Part's notes, as plain text.
+@@ -4940,6 +4991,24 @@ void DrawViewShell::GetStatePropPanelAttr(SfxItemSet& rSet)
+     }
+ }
+ 
++SdrTextObj* DrawViewShell::ElyBox(SdDrawDocument& rDoc, sal_uInt16 nSlide, std::u16string_view aBox)
++{
++    if (aBox == u"notes")
++        return dynamic_cast<SdrTextObj*>(rDoc.GetSdPage(nSlide, PageKind::Notes)->GetPresObj(PresObjKind::Notes));
++    SdPage* pPage = rDoc.GetSdPage(nSlide, PageKind::Standard);
++    SdrObject* pObj = nullptr;
++    if (aBox == u"title")
++        pObj = pPage->GetPresObj(PresObjKind::Title);
++    else if (aBox == u"body")
++    {
++        // A title slide's subtitle is its body.
++        pObj = pPage->GetPresObj(PresObjKind::Outline);
++        if (!pObj)
++            pObj = pPage->GetPresObj(PresObjKind::Text);
++    }
++    return dynamic_cast<SdrTextObj*>(pObj);
++}
++
+ std::optional<SfxItemSet> DrawViewShell::NotesLook(const EditTextObject& rText, SfxItemPool& rPool)
+ {
+     std::optional<SfxItemSet> oPara, oChar;

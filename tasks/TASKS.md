@@ -940,7 +940,9 @@
   - Omarchy 四跑（含上条）仍失败，上条也非根因。再加两个探针：页签（`TabBar` 的设当前、清空、插入、移除）显示唯一把页签改到第 1 页的是 `ImpSidUndo` 末尾守卫析构 → `PageSelector::UpdateCurrentPage` → `SwitchCurrentSlide` → `SetCurrentSlideAtTabControl`；排序器探针显示 `EndObservation` 时插入页 0、排序器当前页为空、模型 2 页，`SetFocusedPageFromCurrentPage` 失败，退回 `SelectPage(0)`。真根因：删页时排序器在守卫的模型锁下做 `PreModelChange`，清掉当前页，要等 `PostModelChange` 才恢复；守卫成员按声明逆序析构，`EndObservation` 与更新锁先于模型锁，故凡撤销删页时排序器都无当前页，一律退回第 1 页（与 LOK、0157 无关）。修法：`EndObservation` 取不到排序器当前页时，先取主视图页签所在的页（即 `ResetActualPage` 已定、`getPart` 所读的那页），再退回第 1 页；前两轮的排序器改动（`HandleModelChange` 跟主视图、`PostModelChange` 无窗口也调）撤掉。不改守卫成员顺序：那会改动所有撤销路径的先后。
   - 此修法 Omarchy 全过；7877 越过撤销一处，却在复制之后失败：所看的页成了复制出的那页。测试先等 ElyShow 读到新的页列再查所看的页（列表与所看的页同一次读到），仍失败，故是内核状态。Windows 探针（主视图换页与重置、排序器的当前页各入口、`getPart`）：复制后主视图已在原页，随后排序器的 100 毫秒延时切页（`SwitchPageCallback`，由前一次撤销的 `SwitchCurrentSlide` 启动）把主视图切到排序器的当前页，即复制出的那页。排序器当前页只有两处赋值，`AcquireCurrentSlide` 未被调到，故是 `HandleModelChange` 按旧序号重取：页序变了，旧序号 1 已是新页。Linux 上该定时器在复制请求之前就已触发，故不现。修法：`HandleModelChange` 先取主视图页签所在的序号（与上条同源）。测试加一段：所看的页被撤销删掉时显示相邻页而非第 1 页。
   - 两处修法后 Omarchy 与 7877 各重建内核（150 个补丁）全过：内核层 39、ElyShow 10、`show-cli.sh`。7877 中间一次测试脚本未等内核建完即开跑，删了建构要的补丁文件，那次不作数，按序重跑。审查第 1 轮 PASS（`tasks/reviews/R21.33-r1.md`）。
-- [ ] R21.34 ElyShow 文字：`text replace` 的新文可带换行；`text set 文件 页 标题|正文 文字`（填占位符）；`notes get|set`
+- [x] R21.34 ElyShow 文字：`text replace` 的新文可带换行；`text set 文件 页 标题|正文 文字`（填占位符）；`notes get|set`
+  - 补丁 0158：`.uno:ElySlideText` 按页号换标题、正文或备注占位符的文字（一行一段，一步撤销，不切换所在幻灯片，空文字回到占位符；文字混有不同格式时拒绝）；`.uno:ElySlides` 多报每页备注文字与各占位符是否混格式。`text replace` 的换行不需内核改动。文案取自 writer（usage、help 四条、两条报错）。定稿后两端（Omarchy、7877，内核含全部 151 个补丁）：内核级 54/55 项通过（7877 多一项 Windows 测试），ElyShow 端到端 13 项通过，`show-cli.sh` 通过；7877 上 `show-cli.sh` 首跑因测试取页的 Python `print` 在 Windows 写 `\r\n` 而判错（以往只比单行），改为按字节读写，ElyShow 输出的换行由此也照原样比对。
+  - 审查：第 1 轮通过（`tasks/reviews/R21.34-r1.md`）。
 - [ ] R21.35 ElyShow 图片：`image insert 文件 页 图片`（不动所在幻灯片与选中的对象）
 - [ ] R21.36 ElyMark：`text set`（整份换成标准输入）与 `text append`
 - [ ] R21.37 命令行收口：`docs/help.md` 四节一致性通读，agents.md“常设决定”的命令行一条与 `docs/standing.md` 同步；#107 逐条回复做法（ElyPDF 不加命令行是有意不做）并关闭致谢
