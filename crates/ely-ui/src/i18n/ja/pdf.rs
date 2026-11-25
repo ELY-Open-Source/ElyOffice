@@ -13,6 +13,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("pdf.view.continuous", "連続"),
     ("pdf.view.single", "単一ページ"),
     ("pdf.view.two", "見開きページ"),
+    ("pdf.view.cover", "表紙を単独表示"),
     ("pdf.view.horizontal", "横スクロール"),
     ("pdf.view.zoom_in", "拡大"),
     ("pdf.view.zoom_out", "縮小"),

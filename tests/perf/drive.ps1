@@ -185,6 +185,20 @@ switch ($Command) {
         Start-Sleep -Milliseconds 50
         Key 0x11 $true
     }
+    'scroll' {
+        # The wheel alone: n<notches>,<ms between>, at the middle.
+        Ours
+        $notches, $pace = $Arg.TrimStart('n').Split(',')
+        $r = (Window).Current.BoundingRectangle
+        [Input]::SetCursorPos([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)) | Out-Null
+        $step = if ([int]$notches -gt 0) { -120 } else { 120 }
+        $delta = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]$step), 0)
+        Sent
+        foreach ($n in 1..[Math]::Abs([int]$notches)) {
+            [Input]::mouse_event(0x0800, 0, 0, $delta, [UIntPtr]::Zero)
+            Start-Sleep -Milliseconds ([int]$pace)
+        }
+    }
     'shot' {
         Add-Type -AssemblyName System.Drawing
         $r = (Window).Current.BoundingRectangle

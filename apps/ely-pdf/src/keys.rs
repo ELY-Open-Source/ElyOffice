@@ -17,6 +17,7 @@ actions!(
         Continuous,
         SinglePage,
         TwoPages,
+        CoverAlone,
         Horizontal,
         ZoomIn,
         ZoomOut,
@@ -56,7 +57,8 @@ pub fn bind(cx: &mut App) {
     ]);
 }
 
-pub fn menus(cx: &App) -> Vec<Menu> {
+/// The menus; `book` ticks the cover row.
+pub fn menus(book: bool, cx: &App) -> Vec<Menu> {
     let label = |key: &str| Viewer::text(cx, key, &[]);
     vec![
         Menu::new(label("menu.edit")).items(crate::organize::history_items(cx).into_iter().chain([
@@ -69,6 +71,7 @@ pub fn menus(cx: &App) -> Vec<Menu> {
             MenuItem::action(label("pdf.view.continuous"), Continuous),
             MenuItem::action(label("pdf.view.single"), SinglePage),
             MenuItem::action(label("pdf.view.two"), TwoPages),
+            MenuItem::Action { name: label("pdf.view.cover"), action: Box::new(CoverAlone), os_action: None, checked: book, disabled: false },
             MenuItem::action(label("pdf.view.horizontal"), Horizontal),
             MenuItem::separator(),
             MenuItem::action(label("pdf.view.zoom_in"), ZoomIn),
@@ -89,6 +92,15 @@ pub fn menus(cx: &App) -> Vec<Menu> {
     .chain(crate::marking::menus(cx))
     .chain([crate::document::menu(cx)])
     .collect()
+}
+
+/// Ticks the cover row when the active tab changed.
+pub fn tick_cover(viewer: &mut Viewer, force: bool, cx: &mut Context<Viewer>) {
+    let book = viewer.active_view().is_some_and(|view| view.read(cx).mode == Mode::Book);
+    if force || viewer.cover_ticked != book {
+        viewer.cover_ticked = book;
+        ely_ui::set_document_menus(ely_platform::AppId::Pdf, &commands::FILE, menus(book, cx), cx);
+    }
 }
 
 /// A zoom step: key, menu or toolbar.
@@ -121,6 +133,7 @@ pub fn on(root: Div, cx: &mut Context<Viewer>) -> Div {
         change(|view, _| view.mode = Mode::Two),
         change(|view, _| view.mode = Mode::Horizontal),
     );
+    let book = change(|view, _| view.mode = if view.mode == Mode::Book { Mode::Two } else { Mode::Book });
     let (width, page) = (change(|view, _| view.zoom = Zoom::Width), change(|view, _| view.zoom = Zoom::Page));
     let (right, left) = (
         change(|view, _| view.rotate = (view.rotate + 90) % 360),
@@ -130,6 +143,7 @@ pub fn on(root: Div, cx: &mut Context<Viewer>) -> Div {
     root.on_action(cx.listener(move |v, _: &Continuous, _, cx| continuous(v, cx)))
         .on_action(cx.listener(move |v, _: &SinglePage, _, cx| single(v, cx)))
         .on_action(cx.listener(move |v, _: &TwoPages, _, cx| two(v, cx)))
+        .on_action(cx.listener(move |v, _: &CoverAlone, _, cx| book(v, cx)))
         .on_action(cx.listener(move |v, _: &Horizontal, _, cx| row(v, cx)))
         .on_action(cx.listener(move |v, _: &FitWidth, _, cx| width(v, cx)))
         .on_action(cx.listener(move |v, _: &FitPage, _, cx| page(v, cx)))

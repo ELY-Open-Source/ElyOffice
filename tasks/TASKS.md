@@ -965,7 +965,17 @@
   - 已做：0160（`layact.cxx` 三处可见区判定合为一个取法）；`worker.rs` 去掉 Repaginate；内核单测 `long.rs`（约 400 页的流动正文：载入时排出的页不到最终的十分之一，后台排版发尺寸事件直到排完）。PERF-03 的“恰为 100 页”仍成立：ElyDoc 每次页数变都记 `lok: N pages`，bench 等到 100 页再看 3 秒。`check.sh`、`compatibility.py --check` 过。Omarchy、7877 在跑：建内核、新单测、三份样本计时、ely-lok 与 ely-doc 全部单测、`doc-cli.sh`（两机所用 0160 只差一句注释的措辞）。
   - 7877 全部单测中演示的两条字体单测（`fonts.rs:336`，文字不在存出的文件里）失败，11-24 在 7877 上都过。A/B（两边都重建 worker 并核对 `worker.rs` 有无 Repaginate）：去掉时 0/3 过，留着时 3/3 过；即 Impress 首次点击之前靠这次 Repaginate 把版面定下。改为只对 Writer 去掉（`doc.kind() != 0` 时照发），Calc、Impress 与先前一致。第一次 A/B 的“留着”一侧没重建 worker（0.57 s），结论作废。Omarchy 上另有四条失败（两条缺字替代、ElyDoc 替代字体、ElyMark 不覆盖），不带 0160 的一轮同样失败，与本条无关，另记。两机按此重跑全部单测与计时。
   - 重跑（只对 Writer 去掉 Repaginate）：Omarchy ely-lok 435/437、ely-doc 170/172，失败的正是上面四条，在 main 上（152 个补丁、留着 Repaginate）同样失败；演示的字体单测过。计时 Omarchy 5.6 s、10.8 s、0.16 s，7877 14.4 s、28.0 s、0.32 s。Omarchy 的 `doc-cli.sh` 一次以 1 退出：五项检查都过，收尾删临时目录时 worker 还在写其配置（`lok-profile/user` 非空）；随后重跑 3/3 过。四个 `*-cli.sh` 的收尾都只等应用不等 worker，早已如此，另记。
-- [ ] R21.37d #113 ElyPDF 滚动卡顿与双页视图：先在三端实测滚动的帧时间（大页数、扫描件、矢量重的样本），找卡顿根因并修；视图菜单加双页（并排，可选首页单独，缩放按两页宽适配，翻页一次两页），文案取自 writer；端到端测试；回复并关闭致谢
+- [x] R21.37d #113 ElyPDF 滚动卡顿与双页视图：先在三端实测滚动的帧时间（大页数、扫描件、矢量重的样本），找卡顿根因并修；视图菜单加双页（并排，可选首页单独，缩放按两页宽适配，翻页一次两页），文案取自 writer；端到端测试；回复并关闭致谢
+  - 双页早已有（视图 › 双页，`Mode::Two`），缺“首页单独”与双页翻页。新增模式“双页、封面单独”（旧的记住位置照读），视图菜单加勾选行，随当前标签与窗口；双页下翻页按钮与 PageUp/PageDown 一次两页。文案 `pdf.view.cover` 八语与 `help.md:135` 与 writer 原文逐字相符。双页最后一组再“下一页”原会从第 4 页走到第 5 页，改为停在末组之首；切换模式而当前页不变时原不发事件，菜单勾选不跟，改为模式变化也发 `Reported`。
+  - 实测工具：`tests/perf/pdfscroll.py`（滚轮，稳速 60 格隔 50 ms、快甩 150 格隔 8 ms；1000 页图、1000 页文字、300 页矢量），三端滚轮驱动（`drive.ps1`、`drive.py`、`scroll.swift`）。11-25 结果：0 丢帧、0 卡顿，所有样本都一样，与页面内容无关。M4 Mac（GPU）送达 p95 17–19 ms、最长 21 ms；Omarchy（llvmpipe）p95 19–29 ms、每帧都过 8.3 ms；7877（WARP）绘制 p50 2–4 ms，送达 p50 约 22 ms。两台测试机都是软件渲染，不能代表有显卡的机器；Mac 的 17 ms 近 60 Hz 一帧，屏幕刷新率未查到。
+  - 帧日志加一行“frame parts”（`ely-ui` 的 `frames.rs`）：脏到开画的等待、画完到上屏、屏幕刷新间隔；`pdfscroll.py` 报表随之加三列。11-25 第二轮，绘制三端都是 p50 2–4 ms：
+    - M4 Mac（GPU，60 Hz）：画完到上屏 0.1 ms，等待 p95 13–16 ms、送达最长 19.6 ms，即每帧都在下一次刷新上屏，已是 60 Hz 屏的上限；“过 8.3 ms”只因屏幕不是 120 Hz。
+    - 7877（WARP，64 Hz）：画完到上屏 p50 0.5 ms，但等待 p95 18–32 ms，超过一次刷新（15.6 ms），部分帧晚一拍；首段偶有上屏 p95 14–16 ms。
+    - Omarchy（llvmpipe，X11 下刷新率读不到）：等待 p50 7–11 ms，画完到上屏约 12 ms，即 CPU 光栅化整窗。
+  - 结论：有显卡时 ElyPDF 滚动已贴屏幕刷新；卡顿只在软件渲染上，且与页面内容无关。
+  - 7877 的等待查明：gpui 在 Windows 以 `DwmFlush` 为垂直同步（`vendor/gpui-pre-windows/src/vsync.rs`）。在 7877 的桌面会话里直接计时 `DwmFlush`（`.work/R21/dwm.ps1`）：ElyPDF 未开时间隔 p50 20 ms、p95 35 ms；滚动全程同样是 p50 18–22 ms、p95 20–42 ms。即无显卡的 DWM 合成时钟本身只有约 45 次每秒且常跳一拍，与 ElyPDF 无关；ElyPDF 绘制 2–4 ms、呈现不到 1 ms，等的就是这只钟。Omarchy 的 12 ms 是 llvmpipe 同步光栅化整窗。已问顾问（c）范围与 Omarchy 怎么证。
+  - Omarchy 对比（同机同驱动，`.work/R21/probe/markprobe.py`，ElyMark 滚 3000 节的 Markdown，同样的稳速与快甩）：ElyMark 画完到上屏 p95 6.5–10.2 ms、等待 p95 8.5–15.3 ms、送达 p95 17–25 ms，每帧同样过 8.3 ms。ElyPDF 画完到上屏 p95 11–19 ms、送达 p95 20–33 ms。即 llvmpipe 下不画图块的应用也到不了 120 FPS，ElyPDF 的大张页面图另加约 4–8 ms 光栅化。图块已按设备像素渲染（`backdrop.rs:55`）、按原大 1:1 绘制（`pages.rs:70`），每页只画一套，无叠画无缩放；这几毫秒是满窗页面纹理的采样本身。三端报表与结论记在 `docs/perf/2026-11-25-r21.37d-pdf-scroll.md`。
+  - 卡顿不改 ElyPDF 代码：绘制已 2–4 ms，等的是软件渲染下系统的合成时钟或 CPU 光栅化。测试 `side_by_side_turns_a_pair_and_the_cover_stands_alone`（双页 0-1、2-3、4-5，封面单独 0、1-2、3-4、5，菜单勾选开关）；7877 上 ElyPDF 201/201、ely-ui 123/123，clippy 无告警 — 第 1 轮 PASS（`tasks/reviews/R21.37d-r1.md`）
 
 收尾
 

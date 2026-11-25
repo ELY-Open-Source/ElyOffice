@@ -21,6 +21,7 @@ pub(crate) fn watch(cx: &mut App) {
             }
             let mut draws = Vec::new();
             let mut lags = Vec::new();
+            let (mut waits, mut presents, mut refresh) = (Vec::new(), Vec::new(), None);
             let mut held = 0;
             for entry in drained.entries {
                 let step = match entry {
@@ -38,6 +39,11 @@ pub(crate) fn watch(cx: &mut App) {
                     Entry::Boundary(IntervalBoundary::Presented(shown)) => {
                         draws.push(shown.frame.draw_duration());
                         lags.extend(shown.dirty_to_present_duration());
+                        let frame = &shown.frame;
+                        waits.extend(frame.dirty_at.map(|dirty| frame.draw_start.saturating_duration_since(dirty)));
+                        let present = &shown.presentation;
+                        presents.push(present.present_end.saturating_duration_since(frame.draw_end));
+                        refresh = frame.refresh_interval.or(refresh);
                         Step::Shown(shown.frame.dirty_at, shown.presentation.present_end)
                     }
                     Entry::Discontinuity { .. } => Step::Lost,
@@ -52,6 +58,7 @@ pub(crate) fn watch(cx: &mut App) {
             }
             if !draws.is_empty() {
                 log::info!("{}", summary(&mut draws, &mut lags, drained.lost, held));
+                log::info!("{}", parts(&mut waits, &mut presents, refresh));
             }
         }
     })
@@ -116,10 +123,6 @@ fn summary(
 ) -> String {
     draws.sort();
     lags.sort();
-    let ms = |all: &[std::time::Duration], p: usize| match all.len() {
-        0 => f64::NAN,
-        n => all[(n - 1) * p / 100].as_secs_f64() * 1000.0,
-    };
     // 120 fps leaves 8.3 ms a frame.
     let late = lags
         .iter()
@@ -136,6 +139,34 @@ fn summary(
         ms(lags, 95),
         ms(lags, 100),
     )
+}
+
+/// Dirty to shown, split at the draw.
+#[cfg(any(feature = "frames", test))]
+fn parts(
+    waits: &mut [std::time::Duration],
+    presents: &mut [std::time::Duration],
+    refresh: Option<std::time::Duration>,
+) -> String {
+    waits.sort();
+    presents.sort();
+    let refresh = refresh.map_or("unknown".to_string(), |every| format!("{:.1} ms", every.as_secs_f64() * 1000.0));
+    format!(
+        "ui: frame parts: wait to draw p50 {:.1} p95 {:.1} ms; draw end to shown p50 {:.1} p95 {:.1} ms; refresh {refresh}",
+        ms(waits, 50),
+        ms(waits, 95),
+        ms(presents, 50),
+        ms(presents, 95),
+    )
+}
+
+/// The `p`th percentile of sorted times, in ms.
+#[cfg(any(feature = "frames", test))]
+fn ms(all: &[std::time::Duration], p: usize) -> f64 {
+    match all.len() {
+        0 => f64::NAN,
+        n => all[(n - 1) * p / 100].as_secs_f64() * 1000.0,
+    }
 }
 
 #[cfg(test)]
@@ -260,5 +291,16 @@ mod tests {
             line.ends_with("over 8.3 ms 2; held while inactive 3"),
             "{line}"
         );
+    }
+
+    #[test]
+    fn the_parts_split_waiting_from_presenting() {
+        let mut waits: Vec<_> = (1..=100).map(Duration::from_millis).collect();
+        let mut presents = vec![Duration::from_millis(3), Duration::from_millis(5)];
+        let line = super::parts(&mut waits, &mut presents, Some(Duration::from_micros(16_667)));
+        assert!(line.contains("wait to draw p50 50.0 p95 95.0 ms"), "{line}");
+        assert!(line.contains("draw end to shown p50 3.0 p95 3.0 ms"), "{line}");
+        assert!(line.ends_with("refresh 16.7 ms"), "{line}");
+        assert!(super::parts(&mut [], &mut [], None).ends_with("refresh unknown"));
     }
 }

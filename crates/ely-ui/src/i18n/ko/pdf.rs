@@ -13,6 +13,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("pdf.view.continuous", "연속"),
     ("pdf.view.single", "한 페이지"),
     ("pdf.view.two", "두 페이지"),
+    ("pdf.view.cover", "표지 단독 표시"),
     ("pdf.view.horizontal", "가로 스크롤"),
     ("pdf.view.zoom_in", "확대"),
     ("pdf.view.zoom_out", "축소"),

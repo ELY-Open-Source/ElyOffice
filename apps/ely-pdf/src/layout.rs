@@ -6,6 +6,8 @@ pub enum Mode {
     Continuous,
     Single,
     Two,
+    /// Two pages, the first alone as a cover.
+    Book,
     /// One row, scrolled across.
     Horizontal,
 }
@@ -52,6 +54,24 @@ pub fn turned((w, h): (f32, f32), rotate: i32) -> (f32, f32) {
     }
 }
 
+/// Which side-by-side row `page` sits in.
+pub fn pair(mode: Mode, page: usize) -> usize {
+    match mode {
+        Mode::Two => page / 2,
+        Mode::Book => page.div_ceil(2),
+        _ => page,
+    }
+}
+
+/// The first page of row `pair`.
+pub fn pair_start(mode: Mode, pair: usize) -> usize {
+    match mode {
+        Mode::Two => pair * 2,
+        Mode::Book => (pair * 2).saturating_sub(1),
+        _ => pair,
+    }
+}
+
 /// Lays `sizes` out in `view` pixels; `current` shows alone.
 pub fn layout(sizes: &[(f32, f32)], rotate: i32, (mode, zoom): (Mode, Zoom), view: (f32, f32), current: usize) -> Layout {
     let sizes: Vec<(f32, f32)> = sizes.iter().map(|size| turned(*size, rotate)).collect();
@@ -59,10 +79,10 @@ pub fn layout(sizes: &[(f32, f32)], rotate: i32, (mode, zoom): (Mode, Zoom), vie
         Mode::Single => sizes.len().checked_sub(1).map(|last| current.min(last)).into_iter().collect(),
         _ => (0..sizes.len()).collect(),
     };
-    let across = if mode == Mode::Two { 2.0 } else { 1.0 };
+    let across = if matches!(mode, Mode::Two | Mode::Book) { 2.0 } else { 1.0 };
     // Rows of one or two pages, as wide as theirs.
     let rows: Vec<Vec<usize>> = match mode {
-        Mode::Two => shown.chunks(2).map(<[usize]>::to_vec).collect(),
+        Mode::Two | Mode::Book => shown.chunk_by(|a, b| pair(mode, *a) == pair(mode, *b)).map(<[usize]>::to_vec).collect(),
         Mode::Horizontal => vec![shown.clone()],
         _ => shown.iter().map(|page| vec![*page]).collect(),
     };
@@ -119,7 +139,7 @@ mod tests {
         let pages = [largest, (smallest, side), largest, largest];
         // A stored zoom setting reaches u32::MAX percent.
         let scale = u32::MAX as f32 / 100.0 * ACTUAL;
-        for mode in [Mode::Continuous, Mode::Single, Mode::Two, Mode::Horizontal] {
+        for mode in [Mode::Continuous, Mode::Single, Mode::Two, Mode::Book, Mode::Horizontal] {
             for zoom in [Zoom::Width, Zoom::Page, Zoom::Scale(scale)] {
                 let laid = layout(&pages, 90, (mode, zoom), (100_000.0, 100_000.0), 1);
                 let all = laid.placed.iter().flat_map(|p| [p.x, p.y, p.w, p.h]);
@@ -149,6 +169,20 @@ mod tests {
     }
 
     #[test]
+    fn a_book_shows_the_cover_alone_then_pairs() {
+        let pages = [LETTER; 5];
+        let book = layout(&pages, 0, (Mode::Book, Zoom::Scale(1.0)), (800.0, 600.0), 0);
+        let rows: Vec<(usize, usize)> = book.placed.iter().map(|p| (p.page, p.row)).collect();
+        assert_eq!(rows, [(0, 0), (1, 1), (2, 1), (3, 2), (4, 2)]);
+        assert_eq!(book.placed[0].x, (book.size.0 - 612.0) / 2.0, "the cover is centred");
+        let width = layout(&pages, 0, (Mode::Book, Zoom::Width), (1272.0, 600.0), 0);
+        assert_eq!(width.scale, 1.0, "the width fits a pair, not the cover");
+        for (mode, page, row, first) in [(Mode::Two, 3, 1, 2), (Mode::Book, 3, 2, 3), (Mode::Book, 0, 0, 0), (Mode::Book, 2, 1, 1)] {
+            assert_eq!((pair(mode, page), pair_start(mode, pair(mode, page))), (row, first), "{mode:?} page {page}");
+        }
+    }
+
+    #[test]
     fn horizontal_puts_pages_in_one_row_and_fits_one_page() {
         let out = layout(&[LETTER, LETTER, LETTER], 0, (Mode::Horizontal, Zoom::Width), (644.0, 500.0), 0);
         assert_eq!(out.scale, 1.0, "one page fills the room");
@@ -170,7 +204,7 @@ mod tests {
 
     #[test]
     fn no_pages_lay_out_as_nothing() {
-        for mode in [Mode::Continuous, Mode::Single, Mode::Two] {
+        for mode in [Mode::Continuous, Mode::Single, Mode::Two, Mode::Book] {
             assert!(layout(&[], 0, (mode, Zoom::Page), (800.0, 600.0), 0).placed.is_empty());
         }
     }

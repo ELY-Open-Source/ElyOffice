@@ -13,6 +13,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("pdf.view.continuous", "Continu"),
     ("pdf.view.single", "Page unique"),
     ("pdf.view.two", "Deux pages"),
+    ("pdf.view.cover", "Couverture séparée"),
     ("pdf.view.horizontal", "Défilement horizontal"),
     ("pdf.view.zoom_in", "Zoom avant"),
     ("pdf.view.zoom_out", "Zoom arrière"),

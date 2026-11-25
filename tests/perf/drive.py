@@ -157,7 +157,7 @@ class Mac(Host):
 
     def __init__(self, work):
         self.work = work
-        for tool in ["ax-values", "ax-press", "click", "chord", "key"]:
+        for tool in ["ax-values", "ax-press", "click", "chord", "key", "scroll"]:
             sh("swiftc", "-O", "-o", os.path.join(work, tool), os.path.join(ROOT, "tests", "scripts", tool + ".swift"))
         # Outside `work`: the restore runs after it is gone.
         keyboard = os.path.join(tempfile.mkdtemp(prefix="ely-keyboard-"), "keyboard")
@@ -211,6 +211,9 @@ class Mac(Host):
 
     def shows(self, pid, name):
         return f"title={name}" in self.controls(pid)
+
+    def scroll(self, pid, notches, pace):
+        return sent(sh(os.path.join(self.work, "scroll"), str(pid), str(notches), str(pace)))
 
     def click_field(self, pid):
         until = time.monotonic() + 10
@@ -301,6 +304,9 @@ class Linux(Host):
 
     def park(self, pid):
         self.helper("park", pid)
+
+    def scroll(self, pid, notches, pace):
+        return sent(self.helper("scroll", pid, f"{notches},{pace}"))
 
     def rect(self, pid):
         return self.helper("rect", pid).splitlines()[0]
@@ -440,6 +446,9 @@ class Windows(Host):
 
     def rect(self, pid):
         return self.ui("rect", pid).strip()
+
+    def scroll(self, pid, notches, pace):
+        return sent(self.ui("scroll", pid, f"n{notches},{pace}"))
 
     def wheel(self, pid, notches, at=None):
         # powershell -File reads a leading '-' as a parameter.

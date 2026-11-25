@@ -46,6 +46,8 @@ pub struct Viewer {
     pub repair_open: bool,
     /// Find boxes opened so far.
     pub finds: u64,
+    /// The menu's cover row is ticked.
+    pub cover_ticked: bool,
 }
 
 impl Host for Viewer {
@@ -79,6 +81,7 @@ impl Host for Viewer {
 
     fn tab_shown(&mut self, id: u64, cx: &mut Context<Self>) {
         self.show_reading_sidebar(id, cx);
+        crate::keys::tick_cover(self, false, cx);
     }
 
     /// The side shows this tab's pane: it goes along.
@@ -122,6 +125,7 @@ impl Host for Viewer {
         if self.preview.as_ref().is_some_and(|preview| preview.tab == id && preview.version != version) {
             self.end_preview();
         }
+        crate::keys::tick_cover(self, false, cx);
         cx.notify();
     }
 }
@@ -179,10 +183,17 @@ pub(crate) fn viewer(core: impl FnOnce(&mut Context<Viewer>) -> Core<Viewer>, cx
 
 /// The window's root, its home, and its close asking first.
 pub(crate) fn root(viewer: &Entity<Viewer>, window: &mut Window, cx: &mut App) -> Entity<Root> {
-    let root = ely_ui::document_root(AppId::Pdf, viewer.clone().into(), &commands::FILE, crate::keys::menus(cx), window, cx);
+    let root = ely_ui::document_root(AppId::Pdf, viewer.clone().into(), &commands::FILE, crate::keys::menus(false, cx), window, cx);
     viewer.update(cx, |viewer, cx| {
         viewer.core.root = root.downgrade();
         viewer.own_window(window, cx);
+        // Menus are the app's: the front window's tab ticks.
+        cx.observe_window_activation(window, |viewer, window, cx| {
+            if window.is_window_active() {
+                crate::keys::tick_cover(viewer, true, cx);
+            }
+        })
+        .detach();
         window.focus(&viewer.core.focus, cx);
     });
     let closing = viewer.clone();
@@ -217,6 +228,7 @@ impl Viewer {
             exporting: None,
             repair_open: false,
             finds: 0,
+            cover_ticked: false,
         }
     }
 

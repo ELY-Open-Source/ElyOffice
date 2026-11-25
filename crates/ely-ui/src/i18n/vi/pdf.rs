@@ -13,6 +13,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("pdf.view.continuous", "Liên tục"),
     ("pdf.view.single", "Một trang"),
     ("pdf.view.two", "Hai trang"),
+    ("pdf.view.cover", "Tách riêng trang bìa"),
     ("pdf.view.horizontal", "Cuộn ngang"),
     ("pdf.view.zoom_in", "Phóng to"),
     ("pdf.view.zoom_out", "Thu nhỏ"),

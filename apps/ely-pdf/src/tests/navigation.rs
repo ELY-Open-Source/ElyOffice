@@ -107,3 +107,40 @@ fn typing_a_page_waits_for_enter_and_respects_the_document_range() {
     let zoom = cx.debug_bounds("pdf-zoom").expect("zoom control");
     assert!(zoom.bottom() <= cx.update(|_, app| view.read(app).room.top()));
 }
+
+#[test]
+fn side_by_side_turns_a_pair_and_the_cover_stands_alone() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let page: (f32, f32, &[&str]) = (612.0, 792.0, &["page"]);
+    let path = file(dir.path(), "book.pdf", &[page; 6]);
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[path], true);
+    let view = shown(cx, &viewer);
+    settle(cx, |app| view.read(app).room.size.width > px(100.0));
+    cx.dispatch_action(crate::keys::TwoPages);
+    frames(cx);
+    let current = |cx: &mut gpui::VisualTestContext| cx.update(|_, app| view.read(app).current);
+    let click = |cx: &mut gpui::VisualTestContext, selector: &'static str| {
+        let button = cx.debug_bounds(selector).expect("page button");
+        cx.simulate_click(button.center(), Modifiers::none());
+        frames(cx);
+    };
+    for (selector, expected) in [("pdf-next", 2), ("pdf-next", 4), ("pdf-next", 4), ("pdf-previous", 2)] {
+        click(cx, selector);
+        assert_eq!(current(cx), expected, "pairs 0-1, 2-3, 4-5");
+    }
+    cx.dispatch_action(crate::keys::CoverAlone);
+    frames(cx);
+    assert_eq!(cx.update(|_, app| view.read(app).mode), Mode::Book);
+    assert!(cx.update(|_, app| viewer.read(app).cover_ticked), "the menu row is ticked");
+    cx.update(|_, app| view.update(app, |view, cx| view.show(0, 0.0, cx)));
+    frames(cx);
+    for (selector, expected) in [("pdf-next", 1), ("pdf-next", 3), ("pdf-next", 5), ("pdf-previous", 3), ("pdf-previous", 1), ("pdf-previous", 0)] {
+        click(cx, selector);
+        assert_eq!(current(cx), expected, "cover 0, then pairs 1-2, 3-4, 5");
+    }
+    cx.dispatch_action(crate::keys::CoverAlone);
+    frames(cx);
+    assert_eq!(cx.update(|_, app| view.read(app).mode), Mode::Two);
+    assert!(!cx.update(|_, app| viewer.read(app).cover_ticked), "the tick clears");
+}

@@ -171,6 +171,22 @@ def cover(pid, screen):
     time.sleep(0.3)
 
 
+def scroll(pid, notches, pace):
+    """Wheel notches at the window's middle, `pace` ms apart."""
+    x, y, width, height = frame(pid)
+    button = 5 if notches > 0 else 4
+
+    def send(x11, xtst, display):
+        xtst.XTestFakeMotionEvent(display, -1, x + width // 2, y + height // 2, 0)
+        x11.XFlush(display)
+        for _ in range(abs(notches)):
+            for down in (1, 0):
+                xtst.XTestFakeButtonEvent(display, button, down, 0)
+            x11.XFlush(display)
+            time.sleep(pace / 1000)
+    xtest(send)
+
+
 def main():
     command, pid, arg = sys.argv[1], int(sys.argv[2]), (sys.argv[3] if len(sys.argv) > 3 else "")
     if command == "front":
@@ -207,6 +223,9 @@ def main():
         print(",".join(map(str, frame(pid))))
     elif command == "park":
         park(pid)
+    elif command == "scroll":
+        notches, pace = arg.split(",")
+        scroll(pid, int(notches), int(pace))
     elif command == "field":
         app, until = app_of(pid), time.monotonic() + 10
         while (field := next((n for n in nodes(app) if n.get_role() == R.ENTRY), None)) is None:

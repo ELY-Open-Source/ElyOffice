@@ -10,7 +10,7 @@ use gpui::{
 };
 use image::{Frame, ImageBuffer, Rgba};
 
-use crate::layout::{GAP, Layout, Mode, Placed, layout};
+use crate::layout::{GAP, Layout, Mode, Placed, layout, pair};
 use crate::view::{PdfView, Reported};
 
 /// A tile's side in device pixels.
@@ -162,7 +162,7 @@ impl PdfView {
             let now = match self.mode {
                 Mode::Single => self.current,
                 // Either page of a pair in view may be current.
-                Mode::Two if held && first.page / 2 == self.current / 2 => self.current,
+                Mode::Two | Mode::Book if held && pair(self.mode, first.page) == pair(self.mode, self.current) => self.current,
                 _ if ended && showing.iter().any(|s| s.place.page == self.current && ahead(&s.place)) => self.current,
                 _ => first.page,
             };

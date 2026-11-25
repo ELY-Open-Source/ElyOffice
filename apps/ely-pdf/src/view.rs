@@ -411,7 +411,12 @@ impl PdfView {
         let in_row: Vec<_> = was.placed.iter().filter(|place| Some(place.row) == row).collect();
         // The row's tallest page starts it.
         let row_top = in_row.iter().map(|place| place.y).fold(f32::INFINITY, f32::min);
+        let mode = self.mode;
         change(self, was.scale);
+        // The menu ticks the mode shown.
+        if self.mode != mode {
+            cx.emit(Reported);
+        }
         self.retire_tiles();
         let laid = self.laid_out();
         // In that row: still shown, then nearest the left.
@@ -451,10 +456,18 @@ impl PdfView {
         crate::reading::pages(texts, span)
     }
 
-    /// Moves `by` pages; continuous views scroll there.
+    /// Moves `by` pages; side by side, a pair.
     pub fn turn(&mut self, by: isize, cx: &mut Context<Self>) {
         let last = self.sizes.len().saturating_sub(1) as isize;
-        let page = (self.current as isize + by).clamp(0, last) as usize;
+        let page = match self.mode {
+            Mode::Two | Mode::Book if by.abs() == 1 => {
+                let rows = crate::layout::pair(self.mode, last as usize) as isize;
+                let row = (crate::layout::pair(self.mode, self.current) as isize + by).clamp(0, rows);
+                crate::layout::pair_start(self.mode, row as usize) as isize
+            }
+            _ => self.current as isize + by,
+        }
+        .clamp(0, last) as usize;
         self.heading = by.signum();
         self.show(page, 0.0, cx);
     }

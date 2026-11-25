@@ -85,7 +85,7 @@ pub(crate) fn windowed<'a>(
     cx.update(crate::keys::bind);
     cx.update(|cx| {
         // As document_root does: menus before the window.
-        let menus = crate::keys::menus(cx);
+        let menus = crate::keys::menus(false, cx);
         let file = &ely_ui::commands::FILE;
         cx.set_menus(ely_ui::commands::menus(ely_platform::AppId::Pdf, file, true, menus, cx));
     });
