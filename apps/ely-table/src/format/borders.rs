@@ -141,6 +141,7 @@ impl Panel {
             .collect();
         let panel = cx.entity().downgrade();
         Select::new("table-line-style", choices)
+            .label(Book::text(cx, "table.format.line_style", &[]))
             .selected(self.line.style.to_string())
             .size(ControlSize::Sm)
             .on_change(move |value, _, cx| {
@@ -163,6 +164,7 @@ impl Panel {
             .collect();
         let panel = cx.entity().downgrade();
         Select::new("table-line-width", choices)
+            .label(Book::text(cx, "table.format.line_width", &[]))
             .selected(self.line.width.to_string())
             .size(ControlSize::Sm)
             .on_change(move |value, _, cx| {

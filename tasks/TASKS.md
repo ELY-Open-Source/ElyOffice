@@ -988,5 +988,8 @@
   - 测试：7877（`ELY_REQUIRE_ENGINES=1`，两个 worker 建好）clippy 过，整个工作区 104 组 2747 过、0 败、8 忽略（SKIP 一项：只 macOS 的像素核对）；Omarchy clippy 过，ely-pdf 210、ely-ui 126 全过；M4 Mac clippy 过，ely-pdf 210、ely-ui 124 全过。
   - Mac 的 AX 查出 0007 落错类（审查第 1 轮中）：`macos-names.sh` 在 0.3.14 上七个应用的 AX 树都只剩窗口的三个按钮，main 上 ElyMark 整棵树都在。0.3.14 在 GPUIView 的 `decl.register()` 前加了 `native_views::add_view_methods`，0007 加三个无障碍方法的那块照尾部上下文落进了下一个类 BlurredView（无 a11y 槽位，被问即 `expect` 崩）。改：该块上下文换成 `add_view_methods` 一行，落回 GPUIView；`vendor-gpui.sh write` 重写，`check` 过；以 `patch -p1` 逐个重放十五个补丁，无一块带偏移或模糊，重放出的 macOS 包与 vendor 只差行尾。改后 Mac 上 ElyMark 的树与 main 同，日志有 `Accessibility activated`；`macos-names.sh` ElyDoc 78、ElyShow 51、ElyPDF 14、ElyMail 2、ElyTree 12、ElyMark 12 个停靠点皆过；ElyTable 两个下拉无名（停靠点 16、17，边框样式与粗细），main 上逐行相同，另立 R21.37f。未以 VoiceOver 亲听。
   - 第 1 轮 PASS（`tasks/reviews/R21.37a-r1.md`，审查中途补交 0007 的改正与 Mac 的 AX 结果）；组件库 G26 勾上（2182962，只改任务表，ElyOffice 的钉仍是 fc71e96）。
-- [ ] R21.37f ElyTable 边框样式与粗细两个下拉在 AX 里无名（R21.37a 的 `macos-names.sh` 查出，main 上同；R21.10 的 PR #108 所加，§9、§5）：两个下拉报出名字，`macos-names.sh` 七个应用皆过
+- [x] R21.37f ElyTable 边框样式与粗细两个下拉在 AX 里无名（R21.37a 的 `macos-names.sh` 查出，main 上同；R21.10 的 PR #108 所加，§9、§5）：两个下拉报出名字，`macos-names.sh` 七个应用皆过
+  - 根因：`format/borders.rs` 的两个 `Select` 没有 `.label`，组件库的 `Select` 只以它作读屏名字（不画出）；行标签是旁边另画的文字，AX 不连到下拉。改：两个下拉以所在行已有的 `table.format.line_style`、`table.format.line_width` 为名，同“数字格式”下拉的写法；不新增文案。颜色一行是色块按钮，名字为色值（`#000000`），测试认作有名，不在本条。
+  - 测试：gpui 只在辅助技术接入时建 AX 树，进程内测试读不到，回归由真窗口的 `macos-names.sh` 担。M4 Mac 上改后：停靠点 16、17 读作 Line style、Line width，七个应用皆过（PASS，ElyTable 81、ElyDoc 78、ElyShow 51、ElyPDF 14、ElyTree 12、ElyMark 12、ElyMail 2）；前一遍 ElyTable、ElyShow 中途失焦，那台 Mac 有人在用（最近输入 22 秒前），重跑即过。Windows、Linux 的无障碍脚本只读文档正文，不核控件名，未跑。本机 clippy（ely-table，-D warnings）过。
+  - 第 1 轮 PASS（`tasks/reviews/R21.37f-r1.md`）。
 - [ ] R21.38 验收核对表与顾问终审：R21 各条的状态、证据与余下，单列 `[!]`
