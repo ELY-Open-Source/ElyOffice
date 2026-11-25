@@ -885,7 +885,7 @@
 
 #107 命令行（§16；地址与文件照现有 `cell`、`text`；写入都不动用户的光标与选区、每次一步撤销、出错非零退出并在 stderr 说原因；每条各自改 `docs/help.md` 对应一节与 `--help`）
 
-- [ ] R21.22 无 `USERNAME` 等环境变量时引擎起不来（§7）：`ely_platform::user::account` 取不到全名时用系统接口（Windows `GetUserNameW`，Unix `getpwuid_r`），不读环境变量
+- [x] R21.22 无 `USERNAME` 等环境变量时引擎起不来（§7）：`ely_platform::user::account` 取不到全名时用系统接口（Windows `GetUserNameW`，Unix `getpwuid_r`），不读环境变量 — `ely_platform::user::login` 向系统取登录名：Windows `GetUserNameW`（windows-sys 加 `Win32_System_WindowsProgramming`），Unix `getpwuid_r` 的 `pw_name`；Linux 的全名也改用 `getpwuid_r`（原为不可重入的 `getpwuid`）。`account` 无全名时用它，不再读 `USERNAME`/`USER`；诊断导出的脱敏同样改用系统登录名，不读环境变量。测试 `the_account_names_itself_without_its_environment`：去掉 `USER`、`USERNAME`、`LOGNAME` 再起测试进程，`account` 与 `login` 都得名字；有这些变量时系统登录名与之相同。7877、Mac：clippy `-D warnings` 过，ely-platform 全部测试过；Omarchy 主机（非构建容器）以无这些变量的环境跑同一测试程序过。构建容器内 uid 1000 无 passwd 条目，改前改后都取不到名字（main 上同样失败），容器的 `media`（缺 GStreamer）与 `print`（容器里无 D-Bus 门户）两项在 main 上本就失败
 - [ ] R21.23 `ely-*-start` 启动器在应用起不来时退出码为 0（§16）：失败非零退出，stderr 写原因
 - [ ] R21.24 ElyMark 收到 `--new-window` 时不打开文件（§14、§16）：只有一个窗口的应用照常打开文件
 - [ ] R21.25 共通约定与共通动词（Doc、Table、Show、Mark）：先定死顶层动词与现有名词下 `docs`、`save` 的关系、标准输入载荷过实例门的通道与大小上限、输出 JSON 与退出码，`remote` 按动词拆模块；`open 文件`（应用不在即起，打开并等载入完成才返回）、`new 文件`（按扩展名以内置的空白文件新建并打开，三端同一份，已存在即拒）、`export 文件 目标`（按目标扩展名另存为 PDF 等，不改当前会话）

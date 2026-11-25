@@ -90,14 +90,13 @@ pub struct Redact {
 impl Redact {
     /// This account's names and the set author; unreadable ones fail.
     pub fn of_account() -> io::Result<Self> {
-        Self::of(crate::user::account(), crate::settings::Shared::load())
+        let mut redact = Self::of(crate::user::account(), crate::settings::Shared::load())?;
+        redact.names.push(crate::user::login()?);
+        Ok(redact)
     }
 
     fn of(account: io::Result<String>, shared: io::Result<crate::settings::Shared>) -> io::Result<Self> {
-        let mut names = vec![account?, shared?.author];
-        names.extend(std::env::var("USER").ok());
-        names.extend(std::env::var("USERNAME").ok());
-        Ok(Self { names })
+        Ok(Self { names: vec![account?, shared?.author] })
     }
 
     pub fn apply(&self, text: &str) -> String {
