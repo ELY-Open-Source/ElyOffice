@@ -1,0 +1,151 @@
+From: Ely Office
+Subject: LOK: Writer appends paragraphs after the body, the cursor kept
+
+- .uno:ElyAppendParagraphs (Text, Style) adds Text's lines as paragraphs
+  after the body's last paragraph (or after a table or section ending it),
+  in one undo step, without moving any view's cursor or selection.
+- Style is a paragraph style's programmatic name, empty for Standard;
+  pool styles not yet in the document are made. Each new paragraph takes
+  the style alone: the last paragraph's direct formats and list are not
+  carried over.
+- The slot sits on SwBaseShell, so a selected frame or image does not hide
+  it. An unknown style leaves the document as it was.
+
+diff --git a/sw/inc/cmdid.h b/sw/inc/cmdid.h
+index 57ad9ba..b5b5ca2 100644
+--- a/sw/inc/cmdid.h
++++ b/sw/inc/cmdid.h
+@@ -687,6 +687,8 @@ class SwUINumRuleItem;
+ #define FN_UNO_LINEBREAK (FN_EXTRA2 + 131)
+ #define FN_UNO_CONTENT_CONTROL (FN_EXTRA2 + 132)
+ #define FN_UNO_IS_CONTENT_EMPTY  (FN_EXTRA2 + 133)
++// Ely: paragraphs added after the body's last one.
++#define FN_ELY_APPEND_PARAGRAPHS (FN_EXTRA2 + 134)
+ 
+ // Area: Help
+ // Region: Traveling & Selection
+diff --git a/sw/sdi/_basesh.sdi b/sw/sdi/_basesh.sdi
+index 0f29352..bf6a3ec 100644
+--- a/sw/sdi/_basesh.sdi
++++ b/sw/sdi/_basesh.sdi
+@@ -24,6 +24,12 @@ interface BaseTextSelection
+         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+     ]
+ 
++    FN_ELY_APPEND_PARAGRAPHS
++    [
++        ExecMethod = Execute ;
++        StateMethod = NoState ;
++    ]
++
+     SID_DELETE  // status(final|play)
+     [
+         ExecMethod = ExecDelete ;
+diff --git a/sw/sdi/swriter.sdi b/sw/sdi/swriter.sdi
+index da4666e..3918404 100644
+--- a/sw/sdi/swriter.sdi
++++ b/sw/sdi/swriter.sdi
+@@ -5435,6 +5435,23 @@ SfxVoidItem RepeatSearch FN_REPEAT_SEARCH
+     GroupId = SfxGroupId::Edit;
+ ]
+ 
++SfxVoidItem ElyAppendParagraphs FN_ELY_APPEND_PARAGRAPHS
++(SfxStringItem Text FN_PARAM_1, SfxStringItem Style FN_PARAM_2)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Edit;
++]
++
+ SfxStringItem ElyFirstLineChars FN_ELY_FIRST_LINE_CHARS
+ (SfxInt32Item Chars FN_PARAM_1)
+ [
+diff --git a/sw/source/uibase/shells/basesh.cxx b/sw/source/uibase/shells/basesh.cxx
+index f6156eb..ebfa57e 100644
+--- a/sw/source/uibase/shells/basesh.cxx
++++ b/sw/source/uibase/shells/basesh.cxx
+@@ -113,6 +113,11 @@
+ #include <UndoTable.hxx>
+ 
+ #include <ndtxt.hxx>
++#include <SwStyleNameMapper.hxx>
++#include <IDocumentContentOperations.hxx>
++#include <IDocumentStylePoolAccess.hxx>
++#include <o3tl/string_view.hxx>
++#include <climits>
+ #include <UndoManager.hxx>
+ #include <fmtrfmrk.hxx>
+ #include <txtrfmrk.hxx>
+@@ -938,6 +943,44 @@ void UpdateFieldContent(const SfxRequest& rReq, SwWrtShell& rWrtSh)
+ 
+ // Evaluate respectively dispatching the slot Id
+ 
++namespace
++{
++/// Ely: `rStyle` by its programmatic name; empty is Standard.
++SwTextFormatColl* lcl_ElyParaStyle(SwDoc& rDoc, const OUString& rStyle)
++{
++    const ProgName aName(rStyle.isEmpty() ? u"Standard"_ustr : rStyle);
++    const sal_uInt16 nId = SwStyleNameMapper::GetPoolIdFromProgName(aName, SwGetPoolIdFromName::TxtColl);
++    if (nId != USHRT_MAX)
++        return rDoc.getIDocumentStylePoolAccess().GetTextCollFromPool(nId);
++    return rDoc.FindTextFormatCollByName(UIName(aName.toString()));
++}
++
++/// Ely: `rText`'s lines after the body, one undo step.
++bool lcl_ElyAppend(SwDoc& rDoc, const OUString& rText, const OUString& rStyle)
++{
++    SwTextFormatColl* pColl = lcl_ElyParaStyle(rDoc, rStyle);
++    if (!pColl)
++        return false;
++    IDocumentContentOperations& rOps = rDoc.getIDocumentContentOperations();
++    // The last body node: a paragraph or a table's end.
++    SwPosition aPos(rDoc.GetNodes().GetEndOfContent(), SwNodeOffset(-1));
++    rDoc.GetIDocumentUndoRedo().StartUndo(SwUndoId::INSERT, nullptr);
++    sal_Int32 nIndex = 0;
++    do
++    {
++        const OUString aLine(o3tl::getToken(rText, 0, '\n', nIndex));
++        rOps.AppendTextNode(aPos);
++        const SwPaM aPara(aPos);
++        // Not the last paragraph's direct formats, nor its list.
++        rDoc.SetTextFormatColl(aPara, pColl, true, true);
++        if (!aLine.isEmpty())
++            rOps.InsertString(aPara, aLine);
++    } while (nIndex >= 0);
++    rDoc.GetIDocumentUndoRedo().EndUndo(SwUndoId::INSERT, nullptr);
++    return true;
++}
++}
++
+ void SwBaseShell::Execute(SfxRequest &rReq)
+ {
+     const SfxPoolItem *pItem;
+@@ -948,6 +991,18 @@ void SwBaseShell::Execute(SfxRequest &rReq)
+     sal_uInt16 nSlot = rReq.GetSlot();
+     switch(nSlot)
+     {
++        case FN_ELY_APPEND_PARAGRAPHS:
++            {
++                const SfxStringItem* pText = rReq.GetArg<SfxStringItem>(FN_PARAM_1);
++                const SfxStringItem* pStyle = rReq.GetArg<SfxStringItem>(FN_PARAM_2);
++                const OUString aStyle = pStyle ? pStyle->GetValue() : OUString();
++                // The user's cursor and selection stay where they are.
++                if (pText && lcl_ElyAppend(*rSh.GetDoc(), pText->GetValue(), aStyle))
++                    rReq.Done();
++                else
++                    rReq.Ignore();
++            }
++            break;
+         case FN_REPAGINATE:
+             {
+                 Reference < XModel > xModel = GetView().GetDocShell()->GetModel();

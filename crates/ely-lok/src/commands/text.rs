@@ -29,6 +29,12 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Text("Style"), Arg::Text("FamilyName")],
         Check::Result,
     ),
+    command(
+        "text.append",
+        ".uno:ElyAppendParagraphs",
+        &[Arg::Loose("Text"), Arg::Loose("Style")],
+        Check::Undoable,
+    ),
     command("format.superscript", ".uno:SuperScript", &[], Check::Result),
     command("format.subscript", ".uno:SubScript", &[], Check::Result),
     command("format.clear", ".uno:ResetAttributes", &[], Check::Result),

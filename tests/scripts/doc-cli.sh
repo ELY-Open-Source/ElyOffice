@@ -52,3 +52,15 @@ xml = zipfile.ZipFile(sys.argv[1]).read('word/document.xml').decode()
 sys.exit(0 if ''.join(re.findall(r'<w:t[^>]*>([^<]*)</w:t>', xml)) == 'Ely 世界 TEXT' else 1)
 PY
 echo "ok: ElyDoc answered text docs, get, replace and save from another process; the save was on disk at its answer"
+printf 'line one\r\nline two\n' | text append "$file" - || fail "appending from standard input"
+[ "$(text get "$file")" = $'Ely 世界 TEXT\nline one\nline two' ] || fail "after append, get read '$(text get "$file")'"
+text append "$file" Heading --style 'Heading 1' || fail "appending a heading"
+text get "$file" --json | python -c '
+import json, sys
+got = json.load(sys.stdin)
+sys.exit(0 if got[-1] == {"style": "Heading 1", "text": "Heading"} and len(got) == 4 else 1)' || fail "get --json read $(text get "$file" --json)"
+if text append "$file" x --style Nope 2>"$work/err"; then fail "a missing style was used"; fi
+grep -q "Nope: no such paragraph style" "$work/err" || fail "the style refusal says $(cat "$work/err")"
+text replace "$file" 'line one' $'one $1\ntwo &' || fail "replacing with a break"
+[ "$(text get "$file")" = $'Ely 世界 TEXT\none $1\ntwo &\nline two\nHeading' ] || fail "after the break, get read '$(text get "$file")'"
+echo "ok: ElyDoc appended from standard input, with a style, listed styles as JSON and split a paragraph"

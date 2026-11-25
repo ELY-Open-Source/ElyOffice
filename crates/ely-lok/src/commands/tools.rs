@@ -35,6 +35,18 @@ const REPLACE_EXACT: [Arg; 8] = [
     Arg::Bool("Quiet"),
 ];
 
+/// Regex replace all; breaks in the replacement split paragraphs.
+const REPLACE_BREAKS: [Arg; 8] = [
+    Arg::Loose("SearchItem.SearchString"),
+    Arg::Bool("SearchItem.Backward"),
+    Arg::Int("SearchItem.Command", "unsigned short", 3, 3),
+    Arg::Int("SearchItem.TransliterateFlags", "long", 0, 0),
+    Arg::Int("SearchItem.SearchFlags", "long", 0, 0),
+    Arg::Int("SearchItem.AlgorithmType2", "short", 2, 2),
+    Arg::Loose("SearchItem.ReplaceString"),
+    Arg::Bool("Quiet"),
+];
+
 /// Find, replace, spelling and compare commands.
 pub(super) const ROWS: &[Command] = &[
     command("find.run", ".uno:ExecuteSearch", &FIND, Check::Finished),
@@ -48,6 +60,12 @@ pub(super) const ROWS: &[Command] = &[
         "text.replace",
         ".uno:ExecuteSearch",
         &REPLACE_EXACT,
+        Check::Undoable,
+    ),
+    command(
+        "text.replace_breaks",
+        ".uno:ExecuteSearch",
+        &REPLACE_BREAKS,
         Check::Undoable,
     ),
     command(

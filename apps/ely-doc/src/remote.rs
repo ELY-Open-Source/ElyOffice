@@ -13,16 +13,21 @@ use gpui::Context;
 
 use crate::docs::Docs;
 
+mod text;
+
 const USAGE: &str = "usage: ely-doc docs
        ely-doc open FILE
        ely-doc new FILE
        ely-doc export FILE TARGET
        ely-doc save FILE
-       ely-doc text get FILE
+       ely-doc text get FILE [--json]
        ely-doc text replace FILE FIND WITH
+       ely-doc text append FILE TEXT [--style STYLE]
 open and new start ElyDoc if needed; the rest require it running (with FILE open).
 get prints the body text, one paragraph per line; notes, comments and frames are left out.
-replace changes every exact, case-matched FIND in the body, as one undo step.
+With --json, get prints a JSON array of {\"style\", \"text\"} objects.
+replace changes every exact, case-matched FIND; newlines in WITH start new paragraphs (one undo).
+append adds lines as paragraphs at the end (--style uses English name, e.g. Heading 1; one undo).
 Any argument written as - is read from standard input, up to 64 MiB.
 Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
@@ -51,7 +56,10 @@ fn request(words: &[&str]) -> Result<Vec<String>, String> {
     Ok(match *words {
         ["docs"] => vec!["docs".into()],
         ["get", path] => vec!["get".into(), remote::absolute(path)?],
+        ["get", path, "--json"] => vec!["get".into(), remote::absolute(path)?, "--json".into()],
         ["replace", path, find, with] => vec!["replace".into(), remote::absolute(path)?, find.into(), with.into()],
+        ["append", path, text] => vec!["append".into(), remote::absolute(path)?, text.into(), String::new()],
+        ["append", path, text, "--style", style] => vec!["append".into(), remote::absolute(path)?, text.into(), style.into()],
         ["save", path] => vec!["save".into(), remote::absolute(path)?],
         _ => return Err("unknown command".into()),
     })
@@ -64,26 +72,58 @@ impl Docs {
             return;
         };
         match &words[..] {
-            [verb, _] if verb == "get" => {
+            [verb, _, rest @ ..] if verb == "get" && rest.len() <= 1 => {
                 let Some(copy) = self.tab(id).map(|tab| tab.work.join("text.fodt")) else {
                     return ask.answer(Err(format!("tab {id} closed")));
                 };
+                let json = !rest.is_empty();
                 self.read_in(
                     id,
-                    move |worker, doc| remote::body_text(&remote::copy::<ely_office::Lok>(worker, doc, &copy, "fodt")?),
+                    move |worker, doc| {
+                        let flat = remote::copy::<ely_office::Lok>(worker, doc, &copy, "fodt")?;
+                        if !json {
+                            return remote::body_text(&flat);
+                        }
+                        let paragraphs = remote::body_paragraphs(&flat)?;
+                        let listed: Vec<_> = paragraphs.iter().map(|(style, text)| serde_json::json!({ "style": style, "text": text })).collect();
+                        Ok(serde_json::Value::from(listed).to_string())
+                    },
                     move |_, read, _, _| ask.answer(read.map_err(|error| error.to_string())),
                     cx,
                 );
             }
             [verb, _, find, with] if verb == "replace" => {
-                if find.is_empty() || [find, with].iter().any(|text| text.contains(['\n', '\r'])) {
-                    return ask.answer(Err("FIND must be text within one paragraph, and WITH too".into()));
-                }
-                let (find, with) = (find.clone(), with.clone());
+                let (command, mode, find, with) = match text::breaks(find, with) {
+                    Ok(None) => ("text.replace", "1", find.clone(), with.clone()),
+                    Ok(Some((find, with))) => ("text.replace_breaks", "2", find, with),
+                    Err(why) => return ask.answer(Err(why.into())),
+                };
                 self.write_in(
                     id,
-                    move |worker, doc| worker.run(doc, "text.replace", &[&find, "false", "3", "0", "0", "1", &with, "true"]),
+                    move |worker, doc| worker.run(doc, command, &[&find, "false", "3", "0", "0", mode, &with, "true"]),
                     move |_, done, _, _| ask.answer(done.map(|()| String::new()).map_err(|error| format!("nothing replaced: {error}"))),
+                    cx,
+                );
+            }
+            [verb, _, lines, style] if verb == "append" => {
+                let lines = match text::lines(lines) {
+                    Ok(lines) => lines,
+                    Err(why) => return ask.answer(Err(why.into())),
+                };
+                let style = style.clone();
+                self.write_in(
+                    id,
+                    move |worker, doc| {
+                        // The style is checked first, so nothing half-happens.
+                        if !style.is_empty() {
+                            let listed = ely_lok::commands::styles(&worker.values(doc, ".uno:StyleApply")?, "2")?;
+                            if !listed.contains(&style) {
+                                return Ok(Err(text::STYLE_MISSING.replace("{style}", &style)));
+                            }
+                        }
+                        worker.run(doc, "text.append", &[&lines, &style]).map(Ok)
+                    },
+                    move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
                     cx,
                 );
             }

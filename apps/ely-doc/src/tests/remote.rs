@@ -54,7 +54,7 @@ fn text_reads_replaces_in_one_step_and_saves_with_the_cursor_kept() {
     });
     let missing = ask(&mut cx, &docs, &["replace", &file, "zebra", "x"]);
     assert!(missing.as_ref().is_err_and(|why| why.starts_with("nothing replaced")), "{missing:?}");
-    assert!(ask(&mut cx, &docs, &["replace", &file, "dog", "a\nb"]).is_err(), "a break in WITH");
+    assert!(ask(&mut cx, &docs, &["replace", &file, "dog\nx", "a"]).is_err(), "a break in FIND");
     let other = dir.path().join("other.odt");
     std::fs::write(&other, b"x").expect("a stray file");
     assert!(ask(&mut cx, &docs, &["get", &other.display().to_string()]).is_err(), "a file not open");
@@ -83,6 +83,51 @@ fn text_reads_replaces_in_one_step_and_saves_with_the_cursor_kept() {
     settle(&cx, |app| docs.read(app).core.tabs[1].name == "two.odt");
     assert_eq!(ask(&mut cx, &docs, &["get", &two.display().to_string()]), Ok("second".into()));
     assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("dog Cat 世界 😀 dog".into()), "each open document reads");
+}
+
+#[test]
+fn append_and_replace_with_breaks_are_one_step_each_and_keep_the_cursor() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "first");
+    let path = dir.path().join("lines.odt");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    settle(&cx, |app| docs.read(app).core.tabs[0].name == "lines.odt");
+    let file = path.display().to_string();
+    let undo = |cx: &mut TestAppContext| {
+        cx.update(|app| docs.update(app, |docs, cx| docs.run_active("edit.undo", &[], cx)));
+        settled(cx, &docs);
+    };
+    assert_eq!(ask(&mut cx, &docs, &["append", &file, "a\r\nb\n", ""]), Ok(String::new()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("first\na\nb".into()));
+    // Typing stays in the paragraph the cursor was in.
+    type_into(&mut cx, &docs, "!");
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("first!\na\nb".into()));
+    undo(&mut cx);
+    undo(&mut cx);
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("first".into()), "the append is one step");
+    assert_eq!(ask(&mut cx, &docs, &["append", &file, "Title", "Heading 1"]), Ok(String::new()));
+    let listed: Vec<serde_json::Value> = serde_json::from_str(&ask(&mut cx, &docs, &["get", &file, "--json"]).expect("json")).expect("a JSON list");
+    assert_eq!(listed.len(), 2, "{listed:?}");
+    assert_eq!(listed[0]["text"], "first");
+    assert_eq!(listed[1], serde_json::json!({ "style": "Heading 1", "text": "Title" }));
+    let missing = ask(&mut cx, &docs, &["append", &file, "x", "No Such Style"]);
+    assert_eq!(missing, Err("No Such Style: no such paragraph style in this document".into()));
+    assert_eq!(ask(&mut cx, &docs, &["append", &file, "\n", ""]), Err("TEXT must not be empty".into()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("first\nTitle".into()), "refusals change nothing");
+    // Regex characters in either side stay literal.
+    let none = ask(&mut cx, &docs, &["replace", &file, "f.rst", "a\nb"]);
+    assert!(none.as_ref().is_err_and(|why| why.starts_with("nothing replaced")), "{none:?}");
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, "first", "one (.*)\ntwo & $1 \\x"]), Ok(String::new()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("one (.*)\ntwo & $1 \\x\nTitle".into()));
+    assert!(ask(&mut cx, &docs, &["replace", &file, "two", "a\\nb\nc"]).is_err(), "a backslash before n");
+    undo(&mut cx);
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("first\nTitle".into()), "the replace is one step");
 }
 
 #[test]

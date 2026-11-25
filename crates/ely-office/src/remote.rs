@@ -10,7 +10,7 @@ use crate::{Core, Engine, Host, Opening as _, Saving, Tabs, in_window};
 mod client;
 mod text;
 pub use client::{Cli, command_line};
-pub use text::{body_text, slide_text};
+pub use text::{body_paragraphs, body_text, slide_text};
 
 /// `file` made absolute, as the running copy reads it.
 pub fn absolute(file: &str) -> Result<String, String> {

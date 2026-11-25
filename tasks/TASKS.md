@@ -902,7 +902,12 @@
 - [x] R21.28a R21.27 的 structure 测试在 7877 偶发失败：冻结后只等 `.uno:FreezePanesRow` 到 `1 / 0` 就断言 `.uno:FreezePanesColumn` 已到，而两者是两次通知；改为两个都到才算冻结（解冻同理），并在 7877 连跑数次证实
   - 做法：`by_structure.rs` 的冻结等待改为行、列两个状态都到 `1 / 0` 才算，再断言两者。测试里只此一处等冻结状态（`U!A2`、`S!A1` 两次冻结不读状态），解冻无须改。7877（内核 145 补丁，缺引擎即失败）在 `2727a753` 上：clippy 全目标过，`by_structure` 连跑 5 次全过；Omarchy 连跑 3 次全过（它的拉取被内核换补丁留下的 0152 副本挡住，跑在 `c6b87f11`，两提交间本测试文件相同；副本与已提交的一致，已删并拉到 `2727a753`）。
   - 审查：第 1 轮 PASS。
-- [ ] R21.29 ElyDoc 文字：`text replace` 的新文可带换行（成新段）；`text append`（文末加段落，标准输入，`--style` 设段落样式如标题 1）；`text get --json`（每段带样式名）
+- [x] R21.29 ElyDoc 文字：`text replace` 的新文可带换行（成新段）；`text append`（文末加段落，标准输入，`--style` 设段落样式如标题 1）；`text get --json`（每段带样式名）
+  - 做法：新文不带换行时照旧；带换行时改走 Writer 的正则全部替换（`text.replace_breaks`，它本就还原光标），原文以 `\Q…\E` 引起，新文的 `\`、`&`、`$` 转义、换行写 `\n` 成新段；Writer 先解转义再认 `\n`，故新文里的字面 `\n` 与换行前的 `\` 无法保留，直接拒（writer 的文案）。`text append` 用补丁 0153 的新槽（仿 0109），经模型在正文末段之后加段落，一步撤销，不动光标与选区，选中图文框时照样可用；`--style` 先对照内核报的段落样式表，缺的样式先拒，什么都不改。`text get --json` 读 fodt 副本，自动样式归到其父样式，名字取 Writer API 的显示名。
+  - 内核层的命令计数（`every_mapped_command_reaches_the_kernel_and_reports_state`）自 R21.26 起已不符：R21.26–R21.28 加了三行未改计数，先前各条的过滤都没跑到它；本条连同新增两行一起改为 277。
+  - Omarchy（内核含 146 个补丁，与提交的 0153 一致，缺引擎即失败）：ely-office remote 12 过；ElyDoc remote 8 过，含新的端到端测试（CRLF 追加、键入留在原段、追加与替换各一步撤销、`--json` 样式、缺样式与空文字被拒、两边的正则字符都按字面）；`doc-cli.sh` 两段都过（标准输入追加、按样式追加、`--json`、带换行替换、缺样式被拒）。内核层首跑 54 过 2 败：计数（见上）与 `fallback` 的中文字体回落（Omarchy 只装了 Noto Sans CJK SC，未装测试要的 Noto Sans SC，与本条无关）。改计数后复跑 55 过 1 败，只剩 `fallback`；它在不带本条的 `85be0b56` 上同样失败。
+  - 7877（内核 146 个补丁，与提交的 0153 一致，缺引擎即失败）：clippy 全目标 `-D warnings` 过；内核层 commands、text 56 过，含 `fallback`（Omarchy 的失败确系缺字体）；ely-office 12 过；ElyDoc remote 8 过；`doc-cli.sh` 两段都过。
+  - 审查：第 1 轮 PASS（`docs/help.md` 的 help.doc.text 起初漏写，于本轮内补上并告知）。
 - [ ] R21.30 ElyDoc 格式：`format 文件 原文 …`（全部命中，同 replace；加粗、斜体、下划线、字体、字号、颜色；段落样式）
 - [ ] R21.31 ElyDoc 表格：`table insert`（行列与内容，JSON，默认文末）
 - [ ] R21.32 ElyDoc 图片：`image insert`（默认文末，不动用户光标；内核按光标插入，可能要补丁）

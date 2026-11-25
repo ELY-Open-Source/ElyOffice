@@ -63,7 +63,7 @@ tests/scripts/rpath-rules.sh     rpath.sh（release-macos.sh 逐个调用）对�
 tests/scripts/bad-settings.sh  通用设置读不出时 ElyDoc 照样启动，文件不被覆盖
 tests/scripts/windows-headless-start.sh  无可见桌面（服务、SSH 登录）时 ElyDoc 只记一条启动错误、不弹对话框、以 1 退出（启动失败的对话框在自己的线程，不在 gpui 借用中跑消息循环）；有可见桌面时窗口照开即 SKIP（非 Windows 时 SKIP）
 tests/scripts/table-cli.sh     开着 ElyTable 与一个工作簿，另一进程经 `ely-table cell` 列出、读、写（公式）、保存，经 `range` 由标准输入写入 TSV 区域再读回 JSON，大小不符（退 1）与行长不齐（退 2）被拒，经 `sheet`、`rows` 加表、插删行（数据随之移动）再删表，尺寸写错（退 2）与无此表（退 1）被拒，经 `format` 设数字格式、加粗与边框（显示的文字随之变）、未知属性（退 2）与坏的数字格式（退 1）被拒，错误地址与未开的文件被拒；保存答复时读磁盘核对；六万行 xlsx 上保存、写入、再保存交叠，第二次保存答复时写入已在盘上
-tests/scripts/doc-cli.sh       开着 ElyDoc 与一个 docx，另一进程经 `ely-doc text` 列出、读正文、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对
+tests/scripts/doc-cli.sh       开着 ElyDoc 与一个 docx，另一进程经 `ely-doc text` 列出、读正文、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对；再从标准输入追加段落、按样式追加、以 `--json` 读样式、带换行替换，缺的样式被拒
 tests/scripts/show-cli.sh      开着 ElyShow 与一个 pptx，另一进程经 `ely-show text` 列出、读各页文字、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对
 tests/scripts/mark-cli.sh      开着 ElyMark 与一个 md，另一进程经 `ely-mark text` 列出、读原文、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对（`CARGO_TARGET_DIR` 设了即取其中的构建）
 tests/scripts/eol.sh            入库文本皆 LF（vendor 照上游字节），新文件按 LF 归一
