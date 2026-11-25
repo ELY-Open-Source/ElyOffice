@@ -35,6 +35,12 @@ pub(super) const ROWS: &[Command] = &[
         Check::Undoable,
     ),
     command(
+        "slide.image",
+        ".uno:ElySlideImage",
+        &[Arg::Int("Slide", "long", 0, 65_534), Arg::Text("Url"), Arg::Loose("Width")],
+        Check::Undoable,
+    ),
+    command(
         "slide.layout",
         ".uno:AssignLayout",
         &[Arg::Int("WhatLayout", "long", 0, 34)],

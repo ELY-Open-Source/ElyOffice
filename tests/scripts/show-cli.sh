@@ -82,13 +82,24 @@ rc=0; text set "$file" 10 side x 2>"$work/err" || rc=$?
 [ "$rc" = 2 ] && grep -q "must be title or body" "$work/err" || fail "a bad box gave $rc: $(cat "$work/err")"
 rc=0; notes get "$file" 99 2>"$work/err" || rc=$?
 [ "$rc" = 1 ] && grep -q "does not exist" "$work/err" || fail "notes of slide 99 gave $rc: $(cat "$work/err")"
+# A picture on slide 10; refusals change nothing.
+printf '<svg xmlns="http://www.w3.org/2000/svg" width="40pt" height="20pt"><rect width="40" height="20"/></svg>' > "$work/dot.svg"
+"$show" image insert "$file" 10 "$(native "$work/dot.svg")" --width 4cm || fail "inserting a picture"
+rc=0; "$show" image insert "$file" 10 "$(native "$work/gone.svg")" 2>/dev/null || rc=$?
+[ "$rc" = 2 ] || fail "a missing picture exited $rc, not 2"
+printf 'not a picture' > "$work/fake.png"
+if "$show" image insert "$file" 10 "$(native "$work/fake.png")" 2>"$work/err"; then fail "a file that is not a picture went in"; fi
+grep -q 'cannot read as an image' "$work/err" || fail "the picture refusal says $(cat "$work/err")"
+rc=0; "$show" image insert "$file" 99 "$(native "$work/dot.svg")" 2>"$work/err" || rc=$?
+[ "$rc" = 1 ] && grep -q "does not exist" "$work/err" || fail "a picture on slide 99 gave $rc: $(cat "$work/err")"
 saved=$(text save "$file" | python -c 'import json, sys; sys.stdout.write(json.load(sys.stdin))') || fail "saving"
 [ "$(native "$saved")" = "$file" ] || fail "save answered '$saved', not $file"
 # On disk at the answer: crash recovery cannot stand in.
-python - "$file" <<'PY' || fail "the saved deck.pptx lacks the replacement"
+python - "$file" <<'PY' || fail "the saved deck.pptx lacks the replacement or picture"
 import re, sys, zipfile
 z = zipfile.ZipFile(sys.argv[1])
 said = [''.join(re.findall(r'<a:t>([^<]*)</a:t>', z.read(n).decode())) for n in z.namelist() if re.match(r'ppt/slides/slide\d+\.xml$', n)]
-sys.exit(0 if 'Ely 世界' in said and '01' not in said else 1)
+pictures = [n for n in z.namelist() if re.match(r'ppt/slides/slide10\.xml$', n) and '<p:pic' in z.read(n).decode()]
+sys.exit(0 if 'Ely 世界' in said and '01' not in said and pictures else 1)
 PY
-echo "ok: ElyShow answered text docs, get, replace (with a line break), set, notes get and set, slide list, add, move, duplicate, delete and save from another process; the save was on disk at its answer"
+echo "ok: ElyShow answered text docs, get, replace (with a line break), set, notes get and set, slide list, add, move, duplicate, delete, image insert and save from another process; the save was on disk at its answer"

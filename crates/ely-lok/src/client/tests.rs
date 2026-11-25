@@ -74,6 +74,7 @@ mod seam;
 mod sheet;
 mod trigger;
 pub(crate) mod show;
+mod slide_image;
 mod slide_text;
 mod slides;
 mod spanned;

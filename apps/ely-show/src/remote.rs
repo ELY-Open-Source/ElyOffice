@@ -12,6 +12,7 @@ use gpui::Context;
 
 use crate::deck::Deck;
 
+mod image;
 mod slide;
 mod text;
 
@@ -30,12 +31,14 @@ const USAGE: &str = "usage: ely-show docs
        ely-show slide duplicate FILE N
        ely-show slide delete FILE N
        ely-show slide move FILE N TO
+       ely-show image insert FILE N IMAGE [--width SIZE]
 open and new start ElyShow if needed; the rest require it running (with FILE open).
 text get prints slides (form feed between; no notes/comments).
 text replace changes exact FIND; newlines in WITH start new paragraphs (1 undo per text box).
 text set: slide N title/body, line/paragraph (refuses mixed formatting; 1 undo, view stays).
 notes get/set: slide N notes, line/paragraph (set refuses mixed formatting; 1 undo, view stays).
 slide: list prints JSON; add/duplicate/delete/move are 1 undo (view stays; POSITION defaults last).
+image insert centers IMAGE on slide N (--width SIZE: cm/mm/in/pt, 1pt-100cm; 1 undo, view stays).
 layouts (default title-content): blank, title, title-content, title-2-content, title-only,
 centered-text, title-content-2-content, title-2-content-content, title-content-over-content,
 title-2-content-over-content, title-4-content, title-6-content.
@@ -46,7 +49,7 @@ Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Show,
-        nouns: &[("text", request), ("notes", text::notes_request), ("slide", slide::request)],
+        nouns: &[("text", request), ("notes", text::notes_request), ("slide", slide::request), ("image", image::request)],
         usage: USAGE,
         exact: &[],
         blanks: &[("pptx", include_bytes!("../../../packaging/windows/new/new.pptx"))],
@@ -166,6 +169,26 @@ impl Deck {
                             return Ok(Ok(()));
                         }
                         worker.run(doc, "slide.at", &[&verb, &at, &value]).map(Ok)
+                    },
+                    move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
+                    cx,
+                );
+            }
+            [verb, _, slide, url, width, image] if verb == "image.insert" => {
+                let (slide, url, width) = (slide.clone(), url.clone(), width.clone());
+                let unread = image::READ.replace("{image}", image);
+                self.write_in(
+                    id,
+                    move |worker, doc| {
+                        let slides = ely_lok::show::slides(&worker.values(doc, ely_lok::show::SLIDES)?)?;
+                        let at = match text::slide_at(&slides, &slide) {
+                            Ok((at, _)) => at.to_string(),
+                            Err(why) => return Ok(Err(why)),
+                        };
+                        Ok(worker.run(doc, "slide.image", &[&at, &url, &width]).map_err(|error| {
+                            log::info!("show: another program's picture was not read: {error}");
+                            unread
+                        }))
                     },
                     move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
                     cx,

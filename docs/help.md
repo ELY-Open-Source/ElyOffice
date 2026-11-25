@@ -127,6 +127,8 @@ ElyShow 开着、文件已打开时，别的程序可经命令行读改幻灯片
 - `ely-show slide add 文件 [位置] [--layout 版式]` 新建一页（1 到页数+1，默认末页）；`--layout` 默认 `title-content`，版式名见 `ely-show --help`。
 - `ely-show slide duplicate 文件 页` 复制到该页后；`slide delete 文件 页` 删页（仅剩一页时拒绝）；`slide move 文件 页 目标` 将该页移到目标页号。
 - 以上增删改均为一步撤销，且不改变当前正在查看的幻灯片；若删掉的正是当前页，则改显相邻页。
+- `ely-show image insert 文件 页 图片 [--width 宽度]` 在该页居中嵌入图片（PNG/JPEG/GIF/SVG/BMP/TIFF/WebP 等）；一步撤销，不动当前页与选中对象。
+- 默认原尺寸（超出等比缩入页内）；`--width`：cm/mm/in/pt（1pt–100cm，等比不超页）。例：`ely-show image insert 文件 2 图.png --width 12cm`。
 
 同样只有同一用户在本机的程序能连上。
 

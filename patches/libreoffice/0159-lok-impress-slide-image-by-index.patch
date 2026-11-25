@@ -1,0 +1,151 @@
+From: Ely Office
+Subject: LOK: Impress puts a picture file on a slide by index
+
+- .uno:ElySlideImage (Slide, Url, Width) loads the picture at Url and
+  centers it on slide Slide, at its natural size or Width (twips), the
+  height following, shrunk to fit inside the slide's borders, in one
+  undo step, without switching the shown slide or changing the
+  selection.
+- A file that is no picture, or a slide that does not exist, leaves the
+  presentation as it was.
+
+diff --git a/sd/inc/app.hrc b/sd/inc/app.hrc
+index 7e0055f..f34f806 100644
+--- a/sd/inc/app.hrc
++++ b/sd/inc/app.hrc
+@@ -432,5 +432,6 @@
+ #define SID_SLIDE_ANIMATION_CHANGE          (SID_SD_START+456)
+ #define SID_ELY_SLIDE                       (SID_SD_START+457)
+ #define SID_ELY_SLIDE_TEXT                  (SID_SD_START+458)
++#define SID_ELY_SLIDE_IMAGE                 (SID_SD_START+459)
+ 
+ /* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sd/sdi/_drvwsh.sdi b/sd/sdi/_drvwsh.sdi
+index 3ba52eb..b902e8a 100644
+--- a/sd/sdi/_drvwsh.sdi
++++ b/sd/sdi/_drvwsh.sdi
+@@ -3048,6 +3048,11 @@ interface DrawView
+         ExecMethod = FuTemporary ;
+         StateMethod = GetMenuState;
+     ]
++    SID_ELY_SLIDE_IMAGE
++    [
++        ExecMethod = FuTemporary ;
++        StateMethod = GetMenuState;
++    ]
+     SID_SLIDE_TRANSITION_SET
+     [
+         ExecMethod = FuTemporary ;
+diff --git a/sd/sdi/sdraw.sdi b/sd/sdi/sdraw.sdi
+index 13b690f..415064d 100644
+--- a/sd/sdi/sdraw.sdi
++++ b/sd/sdi/sdraw.sdi
+@@ -4232,6 +4232,23 @@ SfxVoidItem ElySlideText SID_ELY_SLIDE_TEXT
+     GroupId = SfxGroupId::Modify;
+ ]
+ 
++SfxVoidItem ElySlideImage SID_ELY_SLIDE_IMAGE
++(SfxInt32Item Slide FN_PARAM_1, SfxStringItem Url FN_PARAM_2, SfxStringItem Width FN_PARAM_3)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Modify;
++]
++
+ SfxVoidItem SlideNotes SID_SLIDE_NOTES
+ (SfxStringItem Text FN_PARAM_1, SfxInt32Item Part FN_PARAM_2)
+ [
+diff --git a/sd/source/ui/view/drviews2.cxx b/sd/source/ui/view/drviews2.cxx
+index c1cbc6c..417358f 100644
+--- a/sd/source/ui/view/drviews2.cxx
++++ b/sd/source/ui/view/drviews2.cxx
+@@ -104,6 +104,9 @@
+ 
+ #include <vcl/abstdlg.hxx>
+ #include <vcl/graph.hxx>
++#include <vcl/graphicfilter.hxx>
++#include <vcl/outdev.hxx>
++#include <o3tl/unit_conversion.hxx>
+ #include <vcl/svapp.hxx>
+ #include <vcl/unohelp2.hxx>
+ #include <vcl/weld.hxx>
+@@ -201,6 +204,7 @@
+ #include <LibreOfficeKit/LibreOfficeKitEnums.h>
+ 
+ #include <ViewShellBase.hxx>
++#include <algorithm>
+ #include <memory>
+ 
+ #include <sfx2/newstyle.hxx>
+@@ -1301,6 +1305,42 @@ bool lcl_ElySlideText(SdDrawDocument& rDoc, sal_Int32 nSlide, std::u16string_vie
+     return true;
+ }
+ 
++/// Centers a picture file on a slide, fitted to it.
++bool lcl_ElySlideImage(SdDrawDocument& rDoc, sal_Int32 nSlide, const OUString& rUrl, const OUString& rWidth)
++{
++    if (nSlide < 0 || nSlide >= rDoc.GetSdPageCount(PageKind::Standard))
++        return false;
++    Graphic aGraphic;
++    if (GraphicFilter::LoadGraphic(rUrl, OUString(), aGraphic) != ERRCODE_NONE || aGraphic.IsNone())
++        return false;
++    const MapMode aMm(MapUnit::Map100thMM);
++    const MapMode aPref(aGraphic.GetPrefMapMode());
++    const Size aNatural = aPref.GetMapUnit() == MapUnit::MapPixel
++        ? Application::GetDefaultDevice()->PixelToLogic(aGraphic.GetPrefSize(), aMm)
++        : OutputDevice::LogicToLogic(aGraphic.GetPrefSize(), aPref, aMm);
++    if (aNatural.Width() <= 0 || aNatural.Height() <= 0)
++        return false;
++    // Width comes in twips; empty keeps the natural size.
++    const sal_Int64 nAsked = rWidth.isEmpty() ? aNatural.Width()
++        : o3tl::convert(rWidth.toInt64(), o3tl::Length::twip, o3tl::Length::mm100);
++    if (nAsked <= 0)
++        return false;
++    SdPage* pPage = rDoc.GetSdPage(static_cast<sal_uInt16>(nSlide), PageKind::Standard);
++    const Size aRoom(pPage->GetSize().Width() - pPage->GetLeftBorder() - pPage->GetRightBorder(),
++                     pPage->GetSize().Height() - pPage->GetUpperBorder() - pPage->GetLowerBorder());
++    const double fHigh = double(aNatural.Height()) / aNatural.Width();
++    const double fWide = std::min({ double(nAsked), double(aRoom.Width()), aRoom.Height() / fHigh });
++    const Size aSize(std::max<tools::Long>(1, fWide), std::max<tools::Long>(1, fWide * fHigh));
++    const Point aAt(pPage->GetLeftBorder() + (aRoom.Width() - aSize.Width()) / 2,
++                    pPage->GetUpperBorder() + (aRoom.Height() - aSize.Height()) / 2);
++    rtl::Reference<SdrGrafObj> pObj = new SdrGrafObj(rDoc, aGraphic, ::tools::Rectangle(aAt, aSize));
++    rDoc.BegUndo(SdResId(STR_INSERTGRAPHIC));
++    pPage->InsertObject(pObj.get());
++    rDoc.AddUndo(rDoc.GetSdrUndoFactory().CreateUndoNewObject(*pObj));
++    rDoc.EndUndo();
++    return true;
++}
++
+ /// Adds, duplicates, deletes or moves a slide by index.
+ bool lcl_ElySlide(SdDrawDocument& rDoc, std::u16string_view aVerb, sal_Int32 nSlide, sal_Int32 nValue)
+ {
+@@ -3993,6 +4033,19 @@ void DrawViewShell::FuTemporary(SfxRequest& rReq)
+         }
+         break;
+ 
++        case SID_ELY_SLIDE_IMAGE:
++        {
++            // Ely: a picture on a slide by index; view stays.
++            const SfxInt32Item* pSlide = rReq.GetArg<SfxInt32Item>(FN_PARAM_1);
++            const SfxStringItem* pUrl = rReq.GetArg<SfxStringItem>(FN_PARAM_2);
++            const SfxStringItem* pWidth = rReq.GetArg<SfxStringItem>(FN_PARAM_3);
++            if (pSlide && pUrl && pWidth
++                && lcl_ElySlideImage(*GetDoc(), pSlide->GetValue(), pUrl->GetValue(), pWidth->GetValue()))
++                rReq.Done();
++            Cancel();
++        }
++        break;
++
+         case SID_SLIDE_NOTES:
+         {
+             // Slide Part's notes, as plain text.

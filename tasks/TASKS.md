@@ -943,7 +943,9 @@
 - [x] R21.34 ElyShow 文字：`text replace` 的新文可带换行；`text set 文件 页 标题|正文 文字`（填占位符）；`notes get|set`
   - 补丁 0158：`.uno:ElySlideText` 按页号换标题、正文或备注占位符的文字（一行一段，一步撤销，不切换所在幻灯片，空文字回到占位符；文字混有不同格式时拒绝）；`.uno:ElySlides` 多报每页备注文字与各占位符是否混格式。`text replace` 的换行不需内核改动。文案取自 writer（usage、help 四条、两条报错）。定稿后两端（Omarchy、7877，内核含全部 151 个补丁）：内核级 54/55 项通过（7877 多一项 Windows 测试），ElyShow 端到端 13 项通过，`show-cli.sh` 通过；7877 上 `show-cli.sh` 首跑因测试取页的 Python `print` 在 Windows 写 `\r\n` 而判错（以往只比单行），改为按字节读写，ElyShow 输出的换行由此也照原样比对。
   - 审查：第 1 轮通过（`tasks/reviews/R21.34-r1.md`）。
-- [ ] R21.35 ElyShow 图片：`image insert 文件 页 图片`（不动所在幻灯片与选中的对象）
+- [x] R21.35 ElyShow 图片：`image insert 文件 页 图片`（不动所在幻灯片与选中的对象）
+  - 补丁 0159：`.uno:ElySlideImage` 按页号放图，居中，原尺寸或 `--width`（等比），超出即缩入页内；一步撤销，不切换所在幻灯片、不动选中的对象；非图片或无此页时不改。宽度解析沿用 `ely_office::remote::length`。文案取自 writer（usage 两行、help 两条、三条报错，与 ElyDoc 同措辞）。Omarchy（152 个补丁）：内核级 56 项、ElyShow 16 项、`show-cli.sh` 通过；ElyShow 测试首跑数 `<draw:image` 判错（SVG 存带 PNG 替身、表格带替身图），改数不含表格的图框并核宽度。7877（152 个补丁）：clippy 无告警，内核级 57 项、ElyShow 16 项、`show-cli.sh` 通过。
+  - 审查：第 1 轮通过（`tasks/reviews/R21.35-r1.md`）。
 - [ ] R21.36 ElyMark：`text set`（整份换成标准输入）与 `text append`
 - [ ] R21.37 命令行收口：`docs/help.md` 四节一致性通读，agents.md“常设决定”的命令行一条与 `docs/standing.md` 同步；#107 逐条回复做法（ElyPDF 不加命令行是有意不做）并关闭致谢
 - [ ] R21.37b #112 ElyDoc 选区内字号不一时工具栏字号框按选区起点或终点显示一个字号（Linux 报）：查内核 `.uno:FontHeight` 状态在混合选区下发的值与 Ely 的读法，选区字号不一时字号框显示为空（与字体名框一致）；端到端测试正反两向选中；回复并关闭致谢
