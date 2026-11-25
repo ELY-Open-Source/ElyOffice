@@ -38,7 +38,10 @@ fn the_words_carry_the_file_made_absolute() {
     assert_eq!((sent[0].as_str(), sent[2].as_str(), sent[3].as_str()), ("replace", "cat", "dog"));
     assert!(std::path::Path::new(&sent[1]).is_absolute(), "{sent:?}");
     assert!(super::request(&["replace", "a.md", "cat"]).is_err(), "too few words");
-    assert!(super::request(&["set", "a.md"]).is_err(), "no such verb");
+    assert!(super::request(&["set", "a.md"]).is_err(), "too few words");
+    assert!(super::request(&["cut", "a.md"]).is_err(), "no such verb");
+    assert_eq!(super::request(&["append", "a.md", ""]), Err(super::APPEND_EMPTY.into()));
+    assert_eq!(super::request(&["set", "a.md", ""]).expect("empties")[2], "");
 }
 
 #[gpui::test]
@@ -85,6 +88,48 @@ fn text_reads_typing_replaces_in_one_step_and_saves(cx: &mut TestAppContext) {
     let refused = ask(&desk, &["replace", &file, "dog", "cat"], cx);
     assert!(refused.as_ref().is_err_and(|why| why.contains("preview")), "{refused:?}");
     assert_eq!(ask(&desk, &["get", &file], cx).as_deref(), Ok(after.as_str()), "preview reads");
+}
+
+#[gpui::test]
+fn set_and_append_are_one_step_each_and_keep_the_line_endings(cx: &mut TestAppContext) {
+    let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+    let path = files.path().join("a.md");
+    std::fs::write(&path, "# A\r\n\r\nbare").expect("a CRLF file, no final break");
+    let (desk, cx) = start(cx, data.path());
+    open(&desk, &path, cx);
+    let file = path.display().to_string();
+    let get = |cx: &mut VisualTestContext| ask(&desk, &["get", &file], cx).expect("read");
+    let step = |back: bool, cx: &mut VisualTestContext| {
+        let document = desk.read_with(cx, |desk, cx| desk.active_view().expect("a tab").read(cx).document().clone());
+        document.update(cx, |document, cx| document.editor().update(cx, |editor, cx| if back { editor.undo(cx) } else { editor.redo(cx) }));
+        cx.run_until_parked();
+    };
+    assert_eq!(ask(&desk, &["append", &file, "- one\r\n- two"], cx), Ok(String::new()));
+    assert_eq!(get(cx), "# A\n\nbare\n- one\n- two", "on a new line; CRLF read as LF");
+    assert_eq!(ask(&desk, &["append", &file, "\nTail\n"], cx), Ok(String::new()));
+    assert_eq!(get(cx), "# A\n\nbare\n- one\n- two\n\nTail\n", "a blank line first starts a paragraph");
+    assert_eq!(ask(&desk, &["append", &file, "end"], cx), Ok(String::new()));
+    assert_eq!(get(cx), "# A\n\nbare\n- one\n- two\n\nTail\nend", "no doubled break");
+    step(true, cx);
+    assert_eq!(get(cx), "# A\n\nbare\n- one\n- two\n\nTail\n", "one undo step");
+    assert_eq!(ask(&desk, &["set", &file, "# New\r\rBody\n"], cx), Ok(String::new()));
+    assert_eq!(get(cx), "# New\n\nBody\n", "lone CR read as LF");
+    step(true, cx);
+    assert_eq!(get(cx), "# A\n\nbare\n- one\n- two\n\nTail\n", "one undo step");
+    step(false, cx);
+    assert!(ask(&desk, &["save", &file], cx).is_ok(), "saved");
+    assert_eq!(std::fs::read(&path).expect("on disk"), b"# New\r\n\r\nBody\r\n", "the file's CRLF kept");
+    assert_eq!(ask(&desk, &["set", &file, ""], cx), Ok(String::new()));
+    assert_eq!(get(cx), "", "empty clears it");
+    assert_eq!(ask(&desk, &["append", &file, "x"], cx), Ok(String::new()));
+    assert_eq!(get(cx), "x", "nothing to break from");
+    desk.update_in(cx, |desk, window, cx| desk.switch(Mode::Preview, window, cx));
+    cx.run_until_parked();
+    for words in [&["set", &file, "y"][..], &["append", &file, "y"]] {
+        let refused = ask(&desk, words, cx);
+        assert!(refused.as_ref().is_err_and(|why| why.contains("preview")), "{refused:?}");
+    }
+    assert_eq!(get(cx), "x", "preview takes no edits");
 }
 
 #[gpui::test]

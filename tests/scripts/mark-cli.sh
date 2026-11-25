@@ -51,8 +51,19 @@ if text replace "$file" zebra x 2>"$work/err"; then fail "a missing word was rep
 grep -q "nothing replaced" "$work/err" || fail "the refusal says $(cat "$work/err")"
 if text get "$work/other.md" 2>/dev/null; then fail "a file not open was read"; fi
 if text replace "$file" BUNDLE 2>/dev/null; then fail "a short command ran"; fi
+# set from standard input, then append; CRLF reads as LF.
+printf 'x\r\ny\r\n' | text set "$(native "$work/many.md")" - || fail "setting from standard input"
+printf 'x\ny\n' >"$work/want-many"
+text get "$(native "$work/many.md")" >"$work/got" || fail "reading after set"
+same "$work/got" "$work/want-many" "after set, get read other bytes"
+text append "$(native "$work/bare.md")" tail || fail "appending"
+printf 'bare\ntail' >"$work/want-bare"
+text get "$(native "$work/bare.md")" >"$work/got" || fail "reading after append"
+same "$work/got" "$work/want-bare" "after append, get read other bytes"
+rc=0; text append "$file" '' 2>"$work/err" || rc=$?
+[ "$rc" = 2 ] && grep -q "TEXT must not be empty" "$work/err" || fail "an empty append gave $rc: $(cat "$work/err")"
 saved=$(text save "$file" | python -c 'import json, sys; sys.stdout.write(json.load(sys.stdin))') || fail "saving"
 [ "$(native "$saved")" = "$file" ] || fail "save answered '$saved', not $file"
 # On disk at the answer: crash recovery cannot stand in.
 same "$work/note.md" "$work/want" "the saved note.md"
-echo "ok: ElyMark answered text docs, get, replace and save from another process; the save was on disk at its answer"
+echo "ok: ElyMark answered text docs, get, replace, set, append and save from another process; the save was on disk at its answer"

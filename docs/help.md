@@ -175,6 +175,8 @@ ElyMark 开着、文件已打开且不在预览模式时，别的程序可经命
 - `ely-mark text docs` 列出打开的已存文件。
 - `ely-mark text get 文件` 输出此刻的 Markdown 原文，一字不差，含尚未写回的键入。
 - `ely-mark text replace 文件 原文 新文` 把每处原文（区分大小写）换成新文；一处也没有即报错。
+- `ely-mark text set 文件 文字` 换掉整篇 Markdown（空文字即清空），沿用原换行符、一步撤销。例：`ely-mark text set 文件 - < 稿.md`。
+- `ely-mark text append 文件 文字` 在文末另起一行追加（文末无换行时自动补换行；另起一段请以空行开头，空文字时拒绝），沿用原换行符、一步撤销。
 - `ely-mark text save 文件` 保存，输出保存到的路径。
 
 同样只有同一用户在本机的程序能连上。
