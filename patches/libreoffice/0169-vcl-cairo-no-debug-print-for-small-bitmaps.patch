@@ -1,0 +1,18 @@
+Backported from LibreOffice master: https://github.com/LibreOffice/core/commit/3b0aa2199e5a
+Only its change to this line; the rest of that commit is SmartArt work. Without
+it, 0166 prints to the worker's stdout each time it paints a small bitmap.
+
+
+diff --git a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+index f05244f..20fc260 100644
+--- a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
++++ b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+@@ -714,7 +714,7 @@ std::shared_ptr<CairoSurfaceHelper> getOrCreateCairoSurfaceHelper(const Bitmap&
+             <= aSmallBitmapSquareSize)
+         {
+             // small enough: no mipmaps or cache needed
+-            std::cout << "BailOut SMALL Bitmap" << std::endl;
++            SAL_INFO("drawinglayer", "BailOut SMALL Bitmap");
+             return std::make_shared<CairoSurfaceHelper>(rBitmap);
+         }
+     }

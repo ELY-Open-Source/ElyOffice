@@ -71,6 +71,7 @@ mod r_macros;
 mod roundtrip;
 mod rules;
 mod scripted;
+mod scaled_pictures;
 mod seam;
 mod sheet;
 mod trigger;

@@ -1,0 +1,38 @@
+Backported from LibreOffice master: https://github.com/LibreOffice/core/commit/95df1960a8a6
+Applied unchanged.
+
+From 95df1960a8a62498dcd726ff7cd0f09cd85498eb Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Toma=C5=BE=20Vajngerl?= <tomaz.vajngerl@collabora.co.uk>
+Date: Fri, 17 Apr 2026 16:24:20 +0900
+Subject: [PATCH] fix bitmap render - don't set device scale on the mip-map
+ surface
+
+We shouldn't set the device scale for the mip-map surface, as it
+will cause scaling issues.
+
+Change-Id: Icde1d889d386f3c2e78b0c186cac0864b499e77a
+Reviewed-on: https://gerrit.collaboraoffice.com/c/core/+/1104
+Reviewed-by: Miklos Vajna <vmiklos@collabora.com>
+Tested-by: Jenkins CPCI <releng@collaboraoffice.com>
+(cherry picked from commit f1163666de0e5ac2b40fb27546c36f6192a4e6d9)
+(cherry picked from commit f429c0ed5e6f04c3d783d1311b43830d8bbd2e38)
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/205986
+Tested-by: Jenkins
+Reviewed-by: Xisco Fauli <xiscofauli@libreoffice.org>
+
+Comments are condensed to ElyOffice's one-line rule; the code is unchanged.
+
+diff --git a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+index 4e5e7a3..3b65b1f 100644
+--- a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
++++ b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+@@ -641,8 +641,7 @@ public:
+         cairo_paint(cr);
+         cairo_destroy(cr);
+ 
+-        // set device_scale on downscaled surfaces, as vcl does
+-        cairo_surface_set_device_scale(pSurfaceTarget, fScaleX, fScaleY);
++        // no device_scale here: callers' matrices use raw pixels
+ 
+         // add entry to cached entries
+         maDownscaled[key] = pSurfaceTarget;
