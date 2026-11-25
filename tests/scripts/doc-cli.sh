@@ -74,3 +74,19 @@ grep -q 'no match for "zebra"' "$work/err" || fail "the format refusal says $(ca
 rc=0; "$doc" format "$file" Heading wrap=on 2>/dev/null || rc=$?
 [ "$rc" = 2 ] || fail "an unknown property exited $rc, not 2"
 echo "ok: ElyDoc formatted every match from another process; a missing word and an unknown property were refused"
+printf 'Item\tQty\r\nTea\t3\n' | "$doc" table insert "$file" - --header --after 'two &' || fail "inserting a table from standard input"
+"$doc" table insert "$file" '[["end"]]' || fail "inserting a JSON table at the end"
+text get "$file" --json | python -c '
+import json, sys
+got = [(p["style"], p["text"]) for p in json.load(sys.stdin)]
+at = got.index(("Table Heading", "Item"))
+want = [("Table Heading", "Qty"), ("Table Contents", "Tea"), ("Table Contents", "3")]
+sys.exit(0 if got[at - 1][1] == "two &" and got[at + 1:at + 4] == want and got[at + 4][1] == "line two"
+         and [text for _, text in got[-2:]] == ["end", ""] else 1)' || fail "after table insert, get --json read $(text get "$file" --json)"
+if "$doc" table insert "$file" '[["a"]]' --after zebra 2>"$work/err"; then fail "a table went after a missing word"; fi
+grep -q 'no match for "zebra"' "$work/err" || fail "the table refusal says $(cat "$work/err")"
+rc=0; printf 'a\tb\nc\n' | "$doc" table insert "$file" - 2>/dev/null || rc=$?
+[ "$rc" = 2 ] || fail "uneven rows exited $rc, not 2"
+"$doc" table insert "$file" '[[""]]' || fail "inserting one empty cell"
+"$doc" table insert "$file" '[[" "]]' --after 'two &' || fail "inserting one blank cell after a match"
+echo "ok: ElyDoc inserted tables after a match and at the end, empty cells too; a missing word and uneven rows were refused"

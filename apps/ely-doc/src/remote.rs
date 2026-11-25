@@ -14,6 +14,7 @@ use gpui::Context;
 use crate::docs::Docs;
 
 mod format;
+mod table;
 mod text;
 
 const USAGE: &str = "usage: ely-doc docs
@@ -25,6 +26,7 @@ const USAGE: &str = "usage: ely-doc docs
        ely-doc text replace FILE FIND WITH
        ely-doc text append FILE TEXT [--style STYLE]
        ely-doc format FILE FIND PROPERTY=VALUE ...
+       ely-doc table insert FILE DATA [--after FIND] [--header]
 open and new start ElyDoc if needed; the rest require it running (with FILE open).
 get prints the body text, one paragraph per line; notes, comments and frames are left out.
 With --json, get prints a JSON array of {\"style\", \"text\"} objects.
@@ -32,6 +34,7 @@ replace changes every exact, case-matched FIND; newlines in WITH start new parag
 append adds lines as paragraphs at the end (--style uses English name, e.g. Heading 1; one undo).
 format styles every exact, case-matched FIND (one undo): bold, italic, underline (on|off), font,
 size (1-999), color (#RRGGBB|none), style (English paragraph style for each matching paragraph).
+table insert adds a JSON/TSV table at end or --after FIND (--header repeats row 1; one undo).
 Any argument written as - is read from standard input, up to 64 MiB.
 Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
@@ -43,11 +46,11 @@ const WHOLE: Pdf = Pdf {
     handouts: 0,
 };
 
-/// `ely-doc open|new|export|text ...`; its exit code.
+/// `ely-doc open|new|export|text|format|table ...`; its exit code.
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Doc,
-        nouns: &[("text", request), ("format", format::request)],
+        nouns: &[("text", request), ("format", format::request), ("table", table::request)],
         usage: USAGE,
         exact: &[],
         blanks: &[("docx", include_bytes!("../../../packaging/windows/new/new.docx"))],
@@ -142,6 +145,23 @@ impl Docs {
                             log::info!("doc: another program's format took nothing: {error}");
                             nothing
                         }))
+                    },
+                    move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
+                    cx,
+                );
+            }
+            [verb, file, cells, after, header] if verb == "table.insert" => {
+                let nothing = format::NOTHING.replace("{file}", file).replace("{find}", after);
+                let (cells, after, header) = (cells.clone(), after.clone(), header.clone());
+                self.write_in(
+                    id,
+                    move |worker, doc| match worker.run(doc, "text.table", &[&cells, &after, &header]) {
+                        // DATA was checked; a refusal after FIND means no match.
+                        Err(error) if !after.is_empty() => {
+                            log::info!("doc: another program's table found no place: {error}");
+                            Ok(Err(nothing))
+                        }
+                        done => done.map(Ok),
                     },
                     move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
                     cx,

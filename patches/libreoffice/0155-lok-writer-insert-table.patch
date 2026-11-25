@@ -1,0 +1,181 @@
+From: Ely Office
+Subject: LOK: Writer inserts a filled table, the cursor kept
+
+- .uno:ElyInsertTable (Cells, After, Header) inserts a table after the
+  body's last block, or after the block holding After's first body match,
+  in one undo step, without moving any view's cursor or selection.
+- Cells holds rows split by U+001E and cells split by U+001F; every row
+  needs the same number of cells. Header "true" makes the first row a
+  heading row repeated on each page.
+- At the body's end a plain paragraph follows the table, as Writer keeps.
+- Uneven rows or no match leave the document as it was.
+
+diff --git a/sw/inc/cmdid.h b/sw/inc/cmdid.h
+index 455eddd..2ec9e78 100644
+--- a/sw/inc/cmdid.h
++++ b/sw/inc/cmdid.h
+@@ -691,6 +691,8 @@ class SwUINumRuleItem;
+ #define FN_ELY_APPEND_PARAGRAPHS (FN_EXTRA2 + 134)
+ // Ely: every body match of a text formatted.
+ #define FN_ELY_FORMAT_MATCHES (FN_EXTRA2 + 135)
++// Ely: a filled table after the body or a match.
++#define FN_ELY_INSERT_TABLE (FN_EXTRA2 + 136)
+ 
+ // Area: Help
+ // Region: Traveling & Selection
+diff --git a/sw/sdi/_basesh.sdi b/sw/sdi/_basesh.sdi
+index 48b10b7..dfb1343 100644
+--- a/sw/sdi/_basesh.sdi
++++ b/sw/sdi/_basesh.sdi
+@@ -24,6 +24,12 @@ interface BaseTextSelection
+         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+     ]
+ 
++    FN_ELY_INSERT_TABLE
++    [
++        ExecMethod = Execute ;
++        StateMethod = NoState ;
++    ]
++
+     FN_ELY_FORMAT_MATCHES
+     [
+         ExecMethod = Execute ;
+diff --git a/sw/sdi/swriter.sdi b/sw/sdi/swriter.sdi
+index c6dc2eb..8013b30 100644
+--- a/sw/sdi/swriter.sdi
++++ b/sw/sdi/swriter.sdi
+@@ -5469,6 +5469,23 @@ SfxVoidItem ElyFormatMatches FN_ELY_FORMAT_MATCHES
+     GroupId = SfxGroupId::Format;
+ ]
+ 
++SfxVoidItem ElyInsertTable FN_ELY_INSERT_TABLE
++(SfxStringItem Cells FN_PARAM_1, SfxStringItem After FN_PARAM_2, SfxStringItem Header FN_PARAM_3)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Table;
++]
++
+ SfxStringItem ElyFirstLineChars FN_ELY_FIRST_LINE_CHARS
+ (SfxInt32Item Chars FN_PARAM_1)
+ [
+diff --git a/sw/source/uibase/shells/basesh.cxx b/sw/source/uibase/shells/basesh.cxx
+index 2426ca5..2a0c3e8 100644
+--- a/sw/source/uibase/shells/basesh.cxx
++++ b/sw/source/uibase/shells/basesh.cxx
+@@ -121,6 +121,10 @@
+ #include <editeng/udlnitem.hxx>
+ #include <editeng/wghtitem.hxx>
+ #include <vector>
++#include <swtable.hxx>
++#include <poolfmt.hxx>
++#include <itabenum.hxx>
++#include <com/sun/star/text/HoriOrientation.hpp>
+ #include <climits>
+ #include <UndoManager.hxx>
+ #include <fmtrfmrk.hxx>
+@@ -1069,6 +1073,74 @@ bool lcl_ElyFormatMatches(SwDoc& rDoc, const OUString& rFind, const OUString& rF
+     rDoc.GetIDocumentUndoRedo().EndUndo(SwUndoId::INSATTR, nullptr);
+     return true;
+ }
++
++/// Ely: the body node after the first match's block.
++SwNode* lcl_ElyAfterMatch(SwDoc& rDoc, const OUString& rFind)
++{
++    SwNodes& rNodes = rDoc.GetNodes();
++    const SwNode* pBody = rNodes.GetEndOfContent().StartOfSectionNode();
++    for (SwNodeOffset n = rNodes.GetEndOfExtras().GetIndex() + 1; n < rNodes.GetEndOfContent().GetIndex(); ++n)
++    {
++        SwTextNode* pText = rNodes[n]->GetTextNode();
++        if (!pText || pText->GetText().indexOf(rFind) < 0)
++            continue;
++        // A match in a table: after the whole table.
++        const SwNode* pTop = pText;
++        while (pTop->StartOfSectionNode() != pBody)
++            pTop = pTop->StartOfSectionNode();
++        const SwNodeOffset nLast = pTop->IsStartNode() ? pTop->EndOfSectionIndex() : pTop->GetIndex();
++        return rNodes[nLast + 1];
++    }
++    return nullptr;
++}
++
++/// Ely: rows split by U+001E, cells by U+001F.
++bool lcl_ElyInsertTable(SwDoc& rDoc, const OUString& rCells, const OUString& rAfter, bool bHeader)
++{
++    std::vector<std::vector<OUString>> aRows;
++    sal_Int32 nRow = 0;
++    do
++    {
++        const OUString aRow(o3tl::getToken(rCells, 0, u'', nRow));
++        std::vector<OUString>& rRow = aRows.emplace_back();
++        sal_Int32 nCell = 0;
++        do
++            rRow.emplace_back(o3tl::getToken(aRow, 0, u'', nCell));
++        while (nCell >= 0);
++    } while (nRow >= 0);
++    const size_t nCols = aRows[0].size();
++    if (aRows.size() > SAL_MAX_UINT16 || nCols > SAL_MAX_UINT16)
++        return false;
++    for (const auto& rRow : aRows)
++        if (rRow.size() != nCols)
++            return false;
++    SwNode* pBefore = rAfter.isEmpty() ? &rDoc.GetNodes().GetEndOfContent() : lcl_ElyAfterMatch(rDoc, rAfter);
++    if (!pBefore)
++        return false;
++    IDocumentContentOperations& rOps = rDoc.getIDocumentContentOperations();
++    rDoc.GetIDocumentUndoRedo().StartUndo(SwUndoId::INSTABLE, nullptr);
++    // At the end, a paragraph still follows the table.
++    if (pBefore == &rDoc.GetNodes().GetEndOfContent())
++    {
++        SwPosition aLast(rDoc.GetNodes().GetEndOfContent(), SwNodeOffset(-1));
++        rOps.AppendTextNode(aLast);
++        pBefore = &aLast.GetNode();
++        rDoc.SetTextFormatColl(SwPaM(aLast), rDoc.getIDocumentStylePoolAccess().GetTextCollFromPool(RES_POOLCOLL_STANDARD), true, true);
++    }
++    const SwInsertTableOptions aOptions(bHeader ? SwInsertTableFlags::All : SwInsertTableFlags::DefaultBorder, bHeader ? 1 : 0);
++    const SwTable* pTable = rDoc.InsertTable(aOptions, SwPosition(*pBefore), aRows.size(), nCols,
++                                             css::text::HoriOrientation::FULL);
++    if (pTable)
++        for (size_t r = 0; r < aRows.size(); ++r)
++            for (size_t c = 0; c < nCols; ++c)
++                if (!aRows[r][c].isEmpty())
++                {
++                    const SwStartNode* pBox = pTable->GetTabLines()[r]->GetTabBoxes()[c]->GetSttNd();
++                    rOps.InsertString(SwPaM(*pBox, SwNodeOffset(1)), aRows[r][c]);
++                }
++    rDoc.GetIDocumentUndoRedo().EndUndo(SwUndoId::INSTABLE, nullptr);
++    return pTable != nullptr;
++}
+ }
+ 
+ void SwBaseShell::Execute(SfxRequest &rReq)
+@@ -1081,6 +1153,20 @@ void SwBaseShell::Execute(SfxRequest &rReq)
+     sal_uInt16 nSlot = rReq.GetSlot();
+     switch(nSlot)
+     {
++        case FN_ELY_INSERT_TABLE:
++            {
++                const SfxStringItem* pCells = rReq.GetArg<SfxStringItem>(FN_PARAM_1);
++                const SfxStringItem* pAfter = rReq.GetArg<SfxStringItem>(FN_PARAM_2);
++                const SfxStringItem* pHeader = rReq.GetArg<SfxStringItem>(FN_PARAM_3);
++                const OUString aAfter = pAfter ? pAfter->GetValue() : OUString();
++                const bool bHeader = pHeader && pHeader->GetValue() == "true";
++                // The user's cursor and selection stay where they are.
++                if (pCells && lcl_ElyInsertTable(*rSh.GetDoc(), pCells->GetValue(), aAfter, bHeader))
++                    rReq.Done();
++                else
++                    rReq.Ignore();
++            }
++            break;
+         case FN_ELY_FORMAT_MATCHES:
+             {
+                 const SfxStringItem* pFind = rReq.GetArg<SfxStringItem>(FN_PARAM_1);

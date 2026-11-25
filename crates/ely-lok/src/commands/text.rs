@@ -41,6 +41,12 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Loose("Text"), Arg::Loose("Style")],
         Check::Undoable,
     ),
+    command(
+        "text.table",
+        ".uno:ElyInsertTable",
+        &[Arg::Loose("Cells"), Arg::Loose("After"), Arg::Text("Header")],
+        Check::Undoable,
+    ),
     command("format.superscript", ".uno:SuperScript", &[], Check::Result),
     command("format.subscript", ".uno:SubScript", &[], Check::Result),
     command("format.clear", ".uno:ResetAttributes", &[], Check::Result),

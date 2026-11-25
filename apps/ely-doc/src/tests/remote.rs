@@ -172,6 +172,60 @@ fn format_styles_every_match_in_one_step_with_the_cursor_kept() {
 }
 
 #[test]
+fn a_table_lands_at_the_end_or_after_a_match_in_one_step() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "first");
+    let path = dir.path().join("table.odt");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    settle(&cx, |app| docs.read(app).core.tabs[0].name == "table.odt");
+    let file = path.display().to_string();
+    let undo = |cx: &mut TestAppContext| {
+        cx.update(|app| docs.update(app, |docs, cx| docs.run_active("edit.undo", &[], cx)));
+        settled(cx, &docs);
+    };
+    let listed = |cx: &mut TestAppContext| -> Vec<(String, String)> {
+        let json: Vec<serde_json::Value> = serde_json::from_str(&ask(cx, &docs, &["get", &file, "--json"]).expect("json")).expect("a JSON list");
+        json.iter().map(|p| (p["style"].as_str().unwrap_or_default().to_owned(), p["text"].as_str().unwrap_or_default().to_owned())).collect()
+    };
+    let texts = |list: &[(String, String)]| list.iter().map(|(_, text)| text.clone()).collect::<Vec<_>>();
+    let insert = |cx: &mut TestAppContext, cells: &str, after: &str, header: &str| ask(cx, &docs, &["table.insert", &file, cells, after, header]);
+    assert_eq!(insert(&mut cx, "Name\u{1f}Qty\u{1e}Tea\u{1f}3", "", "true"), Ok(String::new()));
+    // Typing stays in the paragraph the cursor was in.
+    type_into(&mut cx, &docs, "!");
+    let list = listed(&mut cx);
+    assert_eq!(texts(&list), ["first!", "Name", "Qty", "Tea", "3", ""], "a paragraph follows the table: {list:?}");
+    assert_eq!((list[1].0.as_str(), list[3].0.as_str()), ("Table Heading", "Table Contents"), "row 1 heads");
+    undo(&mut cx);
+    undo(&mut cx);
+    assert_eq!(texts(&listed(&mut cx)), ["first"], "the table is one step");
+    assert_eq!(ask(&mut cx, &docs, &["append", &file, "last", ""]), Ok(String::new()));
+    assert_eq!(insert(&mut cx, "x\u{1f}y\nz", "irs", "false"), Ok(String::new()));
+    let list = listed(&mut cx);
+    assert_eq!((list.len(), list[1].1.as_str(), list[3].1.as_str()), (4, "x", "last"), "after the match: {list:?}");
+    assert_eq!(list[1].0, "Table Contents", "no heading row");
+    // A match in a table: after that whole table.
+    assert_eq!(insert(&mut cx, "q", "x", "false"), Ok(String::new()));
+    let list = listed(&mut cx);
+    assert_eq!((list.len(), list[3].1.as_str(), list[4].1.as_str()), (5, "q", "last"), "{list:?}");
+    assert!(ask(&mut cx, &docs, &["save", &file]).is_ok(), "saved");
+    assert!(text_of(&mut cx, &docs, &path).contains("<text:line-break/>"), "a cell's newline breaks its line");
+    let none = insert(&mut cx, "a", "zebra", "false");
+    assert_eq!(none, Err(format!("{file}: no match for \"zebra\"")));
+    assert_eq!(listed(&mut cx).len(), 5, "a refusal changes nothing");
+    // Empty and blank cells are data too.
+    assert_eq!(insert(&mut cx, "", "", "false"), Ok(String::new()));
+    assert_eq!(listed(&mut cx).len(), 7, "one empty cell, then a paragraph");
+    assert_eq!(insert(&mut cx, " ", "last", "false"), Ok(String::new()));
+    assert_eq!(listed(&mut cx).len(), 8, "one blank cell after the match");
+}
+
+#[test]
 fn a_read_never_gives_way_to_waiting_input() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();

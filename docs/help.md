@@ -104,6 +104,8 @@ ElyDoc 开着、文件已打开时，别的程序可经命令行读改其中的�
 - `ely-doc format 文件 原文 属性=值 ...` 把正文里每处原文（不为空、区分大小写、不跨段）设为指定格式，一处也没有即报错；一次一步撤销，不动光标与选区。
 - 属性：`bold/italic/underline` 取 `on|off`，`font` 写字体名，`size` 为 1–999 磅，`color` 取 `#RRGGBB` 或 `none`，`style` 设所在段英文段落样式。
 - 例：`ely-doc format 文件 "第一章" bold=on color=#B00020 style="Heading 1"`。
+- `ely-doc table insert 文件 数据 [--after 原文] [--header]` 插入表格（数据为二维 JSON 字符串数组或 TSV，常写 `-` 走标准输入，每行等长，上限 100 万格）。
+- 默认插在文末，`--after 原文` 插在首处匹配段后，`--header` 设首行为跨页标题行；一步撤销，不动光标与选区。例：`ely-doc table insert 文件 - --header`。
 - `ely-doc text save 文件` 保存，输出保存到的路径。文件在磁盘上被改过时不覆盖，ElyDoc 里询问。
 
 同样只有同一用户在本机的程序能连上。

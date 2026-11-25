@@ -914,7 +914,13 @@
   - Omarchy（内核 147 个补丁，与 0154 一致，缺引擎即失败）在 `6bdb837c` 上：内核层 commands 19 过；ely-office remote 14 过（含 pairs）；ElyTable format、remote 20 过；ElyDoc remote 11 过，含新的端到端测试（两处命中都设、狗不动、键入留在原处、一步撤销、段落样式、缺样式与无命中被拒）；`doc-cli.sh` 三段与 `table-cli.sh` 都过。
   - 7877（内核 147 个补丁，与提交的 0154 一致，缺引擎即失败）：clippy 全目标 `-D warnings` 过；内核层 19 过；ely-office 14 过；ElyTable 20 过；ElyDoc 11 过；`doc-cli.sh` 三段与 `table-cli.sh` 都过。
   - 审查：第 1 轮 PASS。
-- [ ] R21.31 ElyDoc 表格：`table insert`（行列与内容，JSON，默认文末）
+- [x] R21.31 ElyDoc 表格：`table insert`（行列与内容，JSON，默认文末）
+  - 做法：`ely-doc table insert 文件 数据 [--after 原文] [--header]`。数据与 ElyTable `range set` 同为二维 JSON 字符串数组或 TSV，解析与“无行”“行不等长”的说法从 ElyTable 移到 `ely_office::remote::grid` 两边共用；上限 100 万格；格内换行成行内换行（Writer 的手动换行即 LF），含内核分隔符 U+001E、U+001F 的格被拒。补丁 0155 加新槽 `.uno:ElyInsertTable`（仿 0153、0154）：在模型里插入并填好表格，默认在正文末尾（其后照 Writer 留一个普通段落），`--after` 在首处命中所在块之后（命中在表格里则在整张表之后），`--header` 设首行为跨页重复的标题行；一个撤销，不动光标与选区；行不等长、无命中都不改。内核命令 `text.table`（`table.insert` 已是界面的插入表格），计数 278→279。
+  - 0155 首次在 Omarchy 编译缺 `poolfmt.hxx`（`RES_POOLCOLL_STANDARD`），补上后重建。
+  - Omarchy（内核 148 个补丁，与 0155 一致，缺引擎即失败）在 `8a1d1db3` 上：内核层 commands 19 过（初用 `table.insert` 撞了已有的命令名，被唯一性测试拦下，改名 `text.table`）；ely-office remote 16 过（含 grid）；ElyTable range、remote 12 过；ElyDoc remote 14 过，含新的端到端测试（文末带标题行、键入留在原处、一步撤销、`--after` 命中在段中与在表中、格内换行、无命中被拒）；`doc-cli.sh` 四段与 `table-cli.sh` 都过。单测初把未转义的 U+001F 写进 JSON 串（JSON 本身即拒），改为 `\u001f` 并加 TSV 的情形后重跑通过。
+  - 审查第 1 轮 FAIL：1×1 的空格或纯空白格（合法数据）被 `Arg::Text` 与补丁的非空判断拒绝，带 `--after` 时还误报无命中。`Cells` 改为 `Arg::Loose`，0155 去掉非空判断（空串经分隔循环即一行一个空格）；端到端、单测与 `doc-cli.sh` 补上空格与空白格。0155 改后在 Omarchy、7877 重建再测。审查第 2 轮 PASS。
+  - Omarchy 以改后的 0155 重建（148 个补丁，0155 与提交的一致）再测：内核层 19、ely-office 16、ElyTable 12、ElyDoc 14 过；`doc-cli.sh` 四段（含空格与空白格）与 `table-cli.sh` 都过。首次重建因随带的 0156（R21.32）缺 `frmatr.hxx` 链接失败，那次的测试跑在坏内核上，不作数；去掉 0156 后重建。
+  - 7877（内核 148 个补丁，0155 与提交的一致）：clippy 全目标过；内核层 19、ely-office 16、ElyTable 12、ElyDoc 14 过；`doc-cli.sh` 四段与 `table-cli.sh` 都过。首次排队的测试误把链首行转述的旧构建 `build rc=0` 当作重建完成而提前开跑，结果作废，改为只认重建自己的结果行后重跑。
 - [ ] R21.32 ElyDoc 图片：`image insert`（默认文末，不动用户光标；内核按光标插入，可能要补丁）
 - [ ] R21.33 ElyShow 结构：`slide list|add|duplicate|delete|move`（list 带版式与标题，add 带版式）
 - [ ] R21.34 ElyShow 文字：`text replace` 的新文可带换行；`text set 文件 页 标题|正文 文字`（填占位符）；`notes get|set`
