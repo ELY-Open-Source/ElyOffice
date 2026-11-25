@@ -51,6 +51,7 @@ mod freed;
 mod latency;
 pub(crate) mod layout;
 mod linked;
+mod long;
 mod gone;
 mod logs;
 mod links;

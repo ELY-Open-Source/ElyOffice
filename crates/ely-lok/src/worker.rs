@@ -342,8 +342,10 @@ fn load(lok: &Lok, url: &str, password: String, filter: &str) -> io::Result<u64>
     crate::events::watch(id, &doc);
     doc.enable_a11y();
     crate::events::seed_a11y(id, &doc.a11y_paragraph()?);
-    // Settle the initial layout now; later paints see it (LOK-03).
-    doc.post_uno(".uno:Repaginate", None)?;
+    // Settle the first layout; Writer's runs in the background.
+    if doc.kind() != 0 {
+        doc.post_uno(".uno:Repaginate", None)?;
+    }
     // A sheet's size has a known scale from the start.
     if doc.kind() == 1 {
         let zoom = (crate::TILE_TWIPS / crate::TWIPS_PER_PIXEL as i32, crate::TILE_TWIPS);

@@ -1,0 +1,78 @@
+From: Ely Office
+Subject: LOK: Writer lays out only the first page before the client reports its area
+
+- Under LibreOfficeKit Writer counts the whole document as visible, so
+  the layout run while a document loads formats every page before the
+  load returns: minutes for a few thousand pages.
+- Until the client sets its visible area, the layout now counts the
+  first page alone as visible; the rest is formatted by the idle
+  layout, which yields to client input. Once the client reports an
+  area, that area is used, as before.
+
+diff --git a/sw/source/core/layout/layact.cxx b/sw/source/core/layout/layact.cxx
+index db88c12..5e2fbcb 100644
+--- a/sw/source/core/layout/layact.cxx
++++ b/sw/source/core/layout/layact.cxx
+@@ -73,6 +73,20 @@
+ #include <comphelper/lok.hxx>
+ #include <drawdoc.hxx>
+ 
++namespace
++{
++// Ely: the first page alone, until the client reports.
++SwRect lcl_VisArea(const SwViewShell& rShell, const SwRootFrame& rRoot)
++{
++    if (!comphelper::LibreOfficeKit::isActive())
++        return rShell.VisArea();
++    SwRect aLokVisArea(rShell.getLOKVisibleArea());
++    if (!aLokVisArea.IsEmpty())
++        return aLokVisArea;
++    return rRoot.Lower() ? rRoot.Lower()->getFrameArea() : rShell.VisArea();
++}
++}
++
+ void SwLayAction::CheckWaitCursor()
+ {
+     if (IsReschedule())
+@@ -753,12 +767,7 @@ void SwLayAction::InternalAction(OutputDevice* pRenderContext)
+         // already - the border of the page will never be painted.
+         SwPageFrame *pPg = pPage;
+         if (lcl_isLayoutLooping()) return;
+-        // LOK case: VisArea() is the entire document and getLOKVisibleArea() may contain the actual
+-        // visible area.
+-        const SwRect &rVisArea = m_pImp->GetShell().VisArea();
+-        SwRect aLokVisArea(m_pImp->GetShell().getLOKVisibleArea());
+-        bool bUseLokVisArea = comphelper::LibreOfficeKit::isActive() && !aLokVisArea.IsEmpty();
+-        const SwRect& rVis = bUseLokVisArea ? aLokVisArea : rVisArea;
++        const SwRect rVis = lcl_VisArea(m_pImp->GetShell(), *m_pRoot);
+ 
+         while( pPg && pPg->getFrameArea().Bottom() < rVis.Top() )
+             pPg = static_cast<SwPageFrame*>(pPg->GetNext());
+@@ -1091,12 +1100,7 @@ bool SwLayAction::IsShortCut( SwPageFrame *&prPage )
+     }
+ 
+     // Decide if prPage is visible, i.e. part of the visible area.
+-    const SwRect &rVisArea = m_pImp->GetShell().VisArea();
+-    // LOK case: VisArea() is the entire document and getLOKVisibleArea() may contain the actual
+-    // visible area.
+-    SwRect aLokVisArea(m_pImp->GetShell().getLOKVisibleArea());
+-    bool bUseLokVisArea = comphelper::LibreOfficeKit::isActive() && !aLokVisArea.IsEmpty();
+-    const SwRect& rVis = bUseLokVisArea ? aLokVisArea : rVisArea;
++    const SwRect rVis = lcl_VisArea(m_pImp->GetShell(), *m_pRoot);
+ 
+     if ( (prPage->getFrameArea().Top() >= rVis.Bottom()) ||
+          (prPage->getFrameArea().Left()>= rVis.Right()) )
+@@ -2353,12 +2357,7 @@ bool SwLayIdle::DoIdleJob(IdleJobType eJob, IdleJobArea eJobArea)
+         }
+ 
+         pPage = static_cast<SwPageFrame*>(pPage->GetNext());
+-        // LOK case: VisArea() is the entire document and getLOKVisibleArea() may contain the actual
+-        // visible area.
+-        const SwRect &rVisArea = m_pImp->GetShell().VisArea();
+-        SwRect aLokVisArea(m_pImp->GetShell().getLOKVisibleArea());
+-        bool bUseLokVisArea = comphelper::LibreOfficeKit::isActive() && !aLokVisArea.IsEmpty();
+-        const SwRect& rVis = bUseLokVisArea ? aLokVisArea : rVisArea;
++        const SwRect rVis = lcl_VisArea(m_pImp->GetShell(), *m_pRoot);
+         if (pPage && eJobArea == IdleJobArea::VISIBLE &&
+             !pPage->getFrameArea().Overlaps(rVis))
+         {
