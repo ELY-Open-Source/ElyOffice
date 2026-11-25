@@ -22,6 +22,7 @@ packaging/linux/package.sh 应用  出该应用的 AppDir 与包的依赖（在�
 packaging/sign.sh 清单...       以 ELY_UPDATE_KEY 写出每份更新清单的 .sig（ci.sh 上传前调）
 packaging/nix.sh 标签          由该发布的每应用清单写 nix/release.json（flake.nix 读它；发后提交）；首个统一发布前须换成读 `ely-office-linux-x86_64.json`，否则对它即失败
 packaging/winget.sh 标签       由该发布的 `ely-office-windows-x86_64.json` 写 dist/winget 下一份 WinGet 清单（`ZacharyZhang.ElyOffice`，即统一安装程序；发布后交 winget-pkgs）
+packaging/aur.sh 标签 [--push]  由该发布的 Arch 包 `ely-office-版本-1-x86_64.pkg.tar.zst` 写 dist/aur/ely-office-bin（PKGBUILD、.SRCINFO、安装脚本；描述、依赖、许可、provides 与安装脚本都取自包内的 .PKGINFO、.INSTALL，conflicts 另加 `ely-office`；源地址是 GitHub 发布，散列为整包的 SHA-256）；包名或版本不符即拒；要 zstd；--push 经 `ssh://aur@aur.archlinux.org/ely-office-bin.git` 推上 AUR，要已登记到 AUR 账号的 SSH 密钥（发布后在 Arch 上跑）
 packaging/source.sh dist        本提交的源码包、随包的 copyleft 上游源码（打过补丁的 MuPDF、Git）与 LibreOffice 构建所取的外部库（`packaging/lo-tarballs.tsv`，散列不符即失败）与随内核字体的上游原件（`packaging/libreoffice/fonts/SOURCES.tsv`，先用 engines/fonts/.upstream 的，散列不符即失败），文件名带提交号；有未提交改动即拒绝；发布只上传 Linux 的
 scripts/mac-ready.sh 凭据名     Mac 发布前：`coreaudiod` 20 秒内答 `system_profiler SPAudioDataType`（停应时放媒体的测试会挂住），`notarytool` 读得到该公证凭据（登录钥匙串在本会话里锁着即读不到）；任一不行即说明原因与出路并失败（ci.sh 在 macOS 上构建前调）
 scripts/release-tests.sh         发布的门：建好两个 worker 并点名，严格模式跑 `cargo test --workspace`，再跑 vendor 下各 crate 自己的测试（`tests/scripts/vendor-tests.sh`，本平台的 gpui-pre 一行缺失或零测试即败；Linux 经 `dbus-run-session`）（ci.sh 打包前调）

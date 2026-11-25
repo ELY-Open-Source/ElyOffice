@@ -24,6 +24,7 @@ tests/scripts/fetch-fonts-rules.sh  fetch-fonts.sh 对假上游（file:// 地址
 tests/scripts/kernel-id-rules.sh  kernel-id.sh：内容相同编号相同，改一个文件或改一个链接指向即换编号，编号文件本身不计，名字不是 ely-kernel-id 即拒；一个文件读不出、一个链接读不出、内核为空、内核目录不在、标准输出写不进，都失败且不留编号与半成品（旧的也删；PATH 里的替身；Windows 用真链接）（三端可跑）；内核里有构建会裁掉的扩展（别的词典、dict-en 的 Lightproof.py）即拒、点名、不留编号，dict-en 本身照算
 tests/scripts/elfs-rules.sh      `packaging/linux/elfs.sh`（package.sh 调用）只放行指向包内的 `$ORIGIN` 路径：首尾换行、绝对路径、出包、空项与带符号的 ELF 皆拒，报出包外所需的库（现编的 ELF，须 patchelf，在 container.sh 里跑）
 tests/scripts/winget.sh        winget.sh 按假发布只写出 `ZacharyZhang.ElyOffice` 一份，地址、散列、卸载键照安装程序，许可含首批各应用的，`winget validate` 通过（无 winget 时 SKIP），版本不符、只有 0.1.16 的每应用清单即拒
+tests/scripts/aur.sh           aur.sh 对假发布（file:// 地址）：PKGBUILD 与 .SRCINFO 的版本、拆开的许可、依赖、conflicts、指向 GitHub 发布的源与整包散列照包，安装脚本即包内的 .INSTALL，PKGBUILD 能被 bash 解析；版本不符、单个应用的包、未知选项即拒（无 zstd 时 SKIP，pr.yml 跑）
 tests/scripts/nix.sh           nix.sh 按假清单写出、拒绝版本不符的清单；有本树的 AppImage 时，nixos/nix 容器里入库的 flake 只给 `ely-office` 一个包、其许可是表的并集、ElyMark 在 Xvfb 下画出（缺 AppImage 或 docker 时 SKIP 容器部分）
 tests/scripts/ci-share.sh        ci.sh 只经指向 ELY_SHARE 的链接用共享引擎：自建目录、指向别处或目标带换行的链接即拒绝；补丁序列核不过即停、到不了打包
 tests/scripts/lo-series.sh       `apply-lo-patches.sh --check`：三个补丁的假序列上，带全者过；缺补丁的拒并点名所缺、不改树；不在钉住提交上、改过的树皆拒；不带 --check 照常补齐（不需引擎）

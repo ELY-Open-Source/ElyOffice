@@ -868,7 +868,8 @@
 
 议题（按 PRD 章节；修完即关并致谢）
 
-- [ ] R21.12 #94 AUR（§4.2）：`ely-office` 与 `ely-office-bin` 的 PKGBUILD 入 `packaging/linux/aur/`，取 GitHub 发布的包与校验和，Omarchy 上 `makepkg` 装上冒烟；推到 AUR 要维护者的账号与 SSH 密钥；只入库 PKGBUILD 时不关议题
+- [x] R21.12 #94 AUR（§4.2）：`ely-office` 与 `ely-office-bin` 的 PKGBUILD 入 `packaging/linux/aur/`，取 GitHub 发布的包与校验和，Omarchy 上 `makepkg` 装上冒烟；推到 AUR 要维护者的账号与 SSH 密钥；只入库 PKGBUILD 时不关议题 — 改为只出 `ely-office-bin`：源码包要在用户机器上编打过补丁的 LibreOffice（数小时），非 -bin 名又不从源码建违反 AUR 惯例；单个应用的包不出（每平台一个包的常设决定）。新 `packaging/aur.sh 标签 [--push]` 由发布的 Arch 包写 dist/aur/ely-office-bin（不入库，同 winget.sh），元数据与安装脚本取自包内；Omarchy 上以 0.1.17 实测：.SRCINFO 与 makepkg --printsrcinfo 逐字节相同，makepkg 建、pacman -U 装上、三个常驻引擎链接、ely-mark 与 ely-doc 冒烟各画一帧、ely-engine@ely-doc 起，pacman -R 清干净且引擎停；新测 `tests/scripts/aur.sh`（pr.yml 跑，无 zstd 时 SKIP）做过两次变异 — 第 1 轮 PASS（`tasks/reviews/R21.12-r1.md`）；推上 AUR 拆为 R21.12b；#94 已回复现状、不关
+- [ ] R21.12b #94 推上 AUR：AUR 新账号注册暂停（2026-11-25 用户实测），重开后用户注册并把 Omarchy 的 `~/.ssh/aur.pub` 登记到账号，再在 Omarchy 跑 `packaging/aur.sh v<最新版> --push`，装上冒烟，回复 #94 致谢并关闭
 - [ ] R21.12a 各应用的竖向滚动条压在内容上（§5，用户 2026-11-25 截图：设置页的滚动条盖住开关与下拉框的右缘）：查明是组件库滚动区域的共性还是各应用的布局；滚动条另占一条边距，内容不再被盖住；八个应用的长列表、设置页、侧栏逐个核对，修在根因所在处（组件库则推上去再改 pin）
 - [ ] R21.13 #110 macOS 上 Aptos 字体读不出（§8、§19）：查明“读不出”是缺字横幅、替换字体还是读文件失败，修根因
 - [ ] R21.14 #93 ElyTable 查找命中溢出格里看不见的文字（§9）：命中的文字在格内被遮住时让它可见
