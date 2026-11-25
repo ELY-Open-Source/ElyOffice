@@ -73,10 +73,14 @@ fn sheets_rows_columns_and_merges_change_by_address_one_undo_step_each() {
     assert_eq!(input(&mut worker, &doc, "S!C2"), "c", "the hidden cell kept its contents");
 
     change(&mut worker, &doc, "sheet.freeze", "S!B2", "");
-    let frozen = poll_until(&mut worker, &doc, &b1, HANG, |seen| {
-        seen.states.iter().rev().find(|(name, _)| name == ".uno:FreezePanesRow").is_some_and(|(_, state)| state == "1 / 0")
-    });
-    assert!(frozen.states.iter().any(|(name, state)| name == ".uno:FreezePanesColumn" && state == "1 / 0"), "{:?}", frozen.states);
+    // Row and column report apart; both must arrive.
+    let both = |seen: &Events| {
+        [".uno:FreezePanesRow", ".uno:FreezePanesColumn"]
+            .iter()
+            .all(|axis| seen.states.iter().rev().find(|(name, _)| name == axis).is_some_and(|(_, state)| state == "1 / 0"))
+    };
+    let frozen = poll_until(&mut worker, &doc, &b1, HANG, both);
+    assert!(both(&frozen), "{:?}", frozen.states);
     change(&mut worker, &doc, "sheet.freeze", "U!A2", "");
     change(&mut worker, &doc, "sheet.freeze", "S!A1", "");
 
