@@ -2,6 +2,9 @@ use super::*;
 use ely_platform::clipboard::{self, Clip};
 use gpui::TestAppContext;
 
+/// Both tests own the system clipboard.
+static CLIPBOARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 const BOOK: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
@@ -53,6 +56,7 @@ fn values_and_formulas_paste_alone_from_the_views_copy() {
         eprintln!("SKIP: set ELY_CLIPBOARD_TEST=1; this replaces the clipboard");
         return;
     }
+    let _clipboard = CLIPBOARD.lock().expect("the clipboard lock");
     let mut cx = TestAppContext::single();
     let (view, _) = cx.update(|app| live_view_of(app, &install, "book.fods", BOOK));
     goto(&view, &mut cx, "B1");
@@ -86,4 +90,54 @@ fn values_and_formulas_paste_alone_from_the_views_copy() {
         cx.update(|app| !view.read(app).holds_copy(foreign)),
         "another copy's mark"
     );
+}
+
+#[test]
+fn copied_cells_keep_a_still_outline_until_an_edit_or_escape() {
+    let Some(install) = crate::client::tests::install() else {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    };
+    if std::env::var_os("ELY_CLIPBOARD_TEST").is_none() {
+        eprintln!("SKIP: set ELY_CLIPBOARD_TEST=1; this replaces the clipboard");
+        return;
+    }
+    let _clipboard = CLIPBOARD.lock().expect("the clipboard lock");
+    let mut cx = TestAppContext::single();
+    let (view, _) = cx.update(|app| live_view_of(app, &install, "book.fods", BOOK));
+    let lit = |cx: &mut TestAppContext| cx.update(|app| view.read(app).ants.is_some());
+    let copy = |cx: &mut TestAppContext, cut: bool| {
+        goto(&view, cx, "A1");
+        goto(&view, cx, "B1");
+        // The view hears of B1 before the copy.
+        for _ in 0..50 {
+            if cx.update(|app| view.read(app).cell.cursor.is_some_and(|(x, ..)| x > 0)) {
+                break;
+            }
+            flush(cx);
+        }
+        cx.update(|app| view.update(app, |view, _| view.copy(cut)));
+        flush(cx);
+    };
+    copy(&mut cx, false);
+    assert!(lit(&mut cx), "a copy outlines its cells");
+    goto(&view, &mut cx, "C1");
+    cx.update(|app| view.update(app, |view, _| view.paste_only("paste.values")));
+    flush(&cx);
+    assert!(lit(&mut cx), "a copy's outline outlives its paste");
+    let escape = gpui::Keystroke::parse("escape").expect("a keystroke");
+    cx.update(|app| view.update(app, |view, _| view.key_down(&escape)));
+    assert!(!lit(&mut cx), "Escape puts it out");
+    copy(&mut cx, false);
+    goto(&view, &mut cx, "E1");
+    let typed = crate::view::input::Input::Text { text: "7".into(), ends: true };
+    cx.update(|app| view.update(app, |view, _| view.send(typed)));
+    flush(&cx);
+    let painted = cx.update(|app| view.update(app, |view, _| view.ants()));
+    assert!(painted.is_none(), "an edit puts it out");
+    copy(&mut cx, true);
+    assert!(lit(&mut cx), "a cut outlines its cells");
+    goto(&view, &mut cx, "F1");
+    cx.update(|app| view.update(app, |view, _| view.paste()));
+    assert!(!lit(&mut cx), "a cut's paste puts it out");
 }

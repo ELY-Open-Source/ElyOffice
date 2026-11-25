@@ -864,7 +864,7 @@
 - [x] R21.8 PR #105 ElyDoc 导出为 Markdown 并交 ElyMark 打开（§8、§16）；三条链合完，#103 关闭致谢 — 合入时另改：失败提示用新文案 `doc.output.markdown_failed`（writer 写，八种语言），不再说“未写出 PDF”；等文档稳定后标签页已关时报原因；目标在 ElyMark 开着时拒绝（后台经实例门问 `docs`，ElyMark 未运行才照常写），测试以替身 ElyMark 实例门验证并做过变异 — 第 2 轮 PASS（`tasks/reviews/R21.8-r2.md`）；ely-doc 154 项中 153 过，唯一失败为 `free_fonts`（已装 0.1.17 内核未带 R21.6 字体，待内核重建）
 - [x] R21.9 PR #106 字号框的箭头按一磅增减（§8） — 合入时另改：不照 PR 在应用里盖一层透明点击区，改在组件库加 `Combobox::steps`（`ea7f352`，上下两半照 `NumberInput` 画，列表关着时 Up/Down 也步进），字号框用它；`stepped` 拒非有限值（NaN、inf、1e309）；pin 3a7f960 → ea7f352（另带组件库 3 个提交）；新测 `the_size_arrows_send_a_point_up_and_down` 点真实字号框发 13、12、11 — 第 2 轮 PASS（`tasks/reviews/R21.9-r2.md`）；组件库 check.sh 除 GPUI Kit 兼容步（Kit 0.11 改钉 gpui 0.3.14，与本改动无关）外全过
 - [x] R21.10 PR #108 ElyTable 边框样式、粗细与颜色（§9） — 合入时另改：`cells.border` 的 `keep` 原会清掉没传的边（`.uno:SetBorderStyle` 默认六边皆有效，document.cxx:5825 看 ValidFlags），改为每条边带有效位、只发非 keep 的边为有效（`InnerBorder.ValidFlags`），`none` 不传线只置有效位；内核测试核对存出文件里哪条边、线型、粗细、颜色，并验只画左边时上下边留着（把有效位改回全有效即失败）；切换工作簿时清掉待重画的边（`Panel::show`，回归测试 `another_workbook_is_not_restyled` 有变异验证）；边框界面移到 `format/borders.rs`、边的解析移到 `commands/edges.rs`（两个文件原超 500 行）；另六种语言的 24 个键由 writer 写；恢复 format.rs 的 100644 — 第 2 轮 PASS（`tasks/reviews/R21.10-r2.md`）
-- [ ] R21.11 PR #109 ElyTable 复制区域的虚线框（§9）
+- [x] R21.11 PR #109 ElyTable 复制区域的虚线框（§9） — 合入时另改：虚线改为静止（PR 原为逐帧重绘的流动虚线，空闲时与减少动效下也不停，违反动效规则），去掉 `request_animation_frame`；框的状态转换移入 `view/ants.rs`（`input.rs` 回到 499 行）；新测覆盖复制后粘贴保留、剪切后粘贴熄灭、编辑与 Escape 熄灭，做过变异；两个用系统剪贴板的测试串行 — 第 1 轮 PASS（`tasks/reviews/R21.11-r1.md`）；ely-lok view 94 过，ely-table 129 过
 
 议题（按 PRD 章节；修完即关并致谢）
 

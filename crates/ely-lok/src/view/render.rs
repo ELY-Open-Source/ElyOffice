@@ -14,7 +14,7 @@ mod a11y;
 
 use gpui::{Pixels, RenderImage, point, prelude::FluentBuilder as _};
 
-use super::{CONTEXT, LokView, TILE_TWIPS, TWIPS_PER_PIXEL, handles, input};
+use super::{ants, CONTEXT, LokView, TILE_TWIPS, TWIPS_PER_PIXEL, handles, input};
 use crate::Rect;
 
 /// The document's first tile is on screen.
@@ -159,6 +159,9 @@ impl Render for LokView {
                                     BorderStyle::Solid,
                                 ));
                             }
+                            if let Some(range) = painted.ants {
+                                ants::paint(window, range, frame_color, paper);
+                            }
                             if let Some(cell) = painted.cell {
                                 window.paint_quad(quad(
                                     cell,
@@ -255,6 +258,8 @@ pub(super) struct Painted {
     pub(super) lines: Vec<Bounds<Pixels>>,
     /// The generation a whole screen shows; None while waiting.
     pub(super) shows: Option<u64>,
+    /// The copied cells' outline.
+    pub(super) ants: Option<Bounds<Pixels>>,
 }
 
 impl LokView {
@@ -406,6 +411,7 @@ impl LokView {
             guide: self.guide(),
             lines: self.carried().map(|(_, lines)| lines.iter().map(|&line| rect(line)).collect()).unwrap_or_default(),
             shows,
+            ants: self.ants(),
         }
     }
 }
