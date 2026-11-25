@@ -7,6 +7,7 @@ use gpui::{
     App, Context, Div, InteractiveElement as _, KeyBinding, Menu, MenuItem, Window, actions,
 };
 
+use crate::flip::Way;
 use crate::layout::{ACTUAL, Mode, Zoom};
 use crate::view::PdfView;
 use crate::viewer::Viewer;
@@ -30,6 +31,10 @@ actions!(
         PreviousPage,
         FirstPage,
         LastPage,
+        ArrowUp,
+        ArrowDown,
+        ArrowLeft,
+        ArrowRight,
         CopyText,
         Find
     ]
@@ -52,6 +57,10 @@ pub fn bind(cx: &mut App) {
         KeyBinding::new("pageup", PreviousPage, at),
         KeyBinding::new("home", FirstPage, at),
         KeyBinding::new("end", LastPage, at),
+        KeyBinding::new("up", ArrowUp, at),
+        KeyBinding::new("down", ArrowDown, at),
+        KeyBinding::new("left", ArrowLeft, at),
+        KeyBinding::new("right", ArrowRight, at),
         KeyBinding::new(secondary!("c"), CopyText, at),
         KeyBinding::new(secondary!("f"), Find, at),
     ]);
@@ -140,6 +149,8 @@ pub fn on(root: Div, cx: &mut Context<Viewer>) -> Div {
         change(|view, _| view.rotate = (view.rotate + 270) % 360),
     );
     let (next, previous, first, last) = (turn(1), turn(-1), turn(isize::MIN / 2), turn(isize::MAX / 2));
+    let arrow = |across, on| move |viewer: &mut Viewer, cx: &mut Context<Viewer>| viewer.on_view(|view, cx| view.arrow(Way { across, on }, cx), cx);
+    let (up, down, back, ahead) = (arrow(false, false), arrow(false, true), arrow(true, false), arrow(true, true));
     root.on_action(cx.listener(move |v, _: &Continuous, _, cx| continuous(v, cx)))
         .on_action(cx.listener(move |v, _: &SinglePage, _, cx| single(v, cx)))
         .on_action(cx.listener(move |v, _: &TwoPages, _, cx| two(v, cx)))
@@ -156,6 +167,10 @@ pub fn on(root: Div, cx: &mut Context<Viewer>) -> Div {
         .on_action(cx.listener(move |v, _: &PreviousPage, _, cx| previous(v, cx)))
         .on_action(cx.listener(move |v, _: &FirstPage, _, cx| first(v, cx)))
         .on_action(cx.listener(move |v, _: &LastPage, _, cx| last(v, cx)))
+        .on_action(cx.listener(move |v, _: &ArrowUp, _, cx| up(v, cx)))
+        .on_action(cx.listener(move |v, _: &ArrowDown, _, cx| down(v, cx)))
+        .on_action(cx.listener(move |v, _: &ArrowLeft, _, cx| back(v, cx)))
+        .on_action(cx.listener(move |v, _: &ArrowRight, _, cx| ahead(v, cx)))
         .on_action(cx.listener(|v, _: &CopyText, _, cx| v.on_view(|view, cx| view.copy(cx), cx)))
         .on_action(cx.listener(|v: &mut Viewer, _: &Find, window: &mut Window, cx| v.open_find(window, cx)))
 }

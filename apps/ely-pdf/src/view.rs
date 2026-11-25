@@ -84,6 +84,7 @@ pub struct PdfView {
     pub room: gpui::Bounds<gpui::Pixels>,
     /// Trackpad pixels toward the next zoom step.
     pub wheel: f32,
+    pub flip: crate::flip::Flip,
     pub focus: FocusHandle,
     /// Counts edits; replies from before one are dropped.
     pub version: u64,
@@ -227,6 +228,7 @@ impl PdfView {
             whole: HashMap::new(),
             room: gpui::Bounds::default(),
             wheel: 0.0,
+            flip: Default::default(),
             focus: cx.focus_handle().tab_stop(true),
             version: 0,
             edited: 0,

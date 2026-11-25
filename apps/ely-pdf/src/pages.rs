@@ -294,6 +294,7 @@ impl PdfView {
             .child(pages)
             .child(measure)
             .child(zoom)
+            .child(crate::flip::edge_layer(cx.entity()))
             .children(bars)
             .into_any_element();
         (view, pages_shown)

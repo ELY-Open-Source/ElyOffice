@@ -15,6 +15,7 @@ use crate::viewer::Viewer;
 mod bars;
 mod editing;
 mod epub;
+mod flip;
 mod input;
 mod moving;
 mod locked;

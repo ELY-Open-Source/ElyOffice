@@ -12,6 +12,7 @@ mod document;
 mod editing;
 mod edits;
 mod engine;
+mod flip;
 mod history;
 mod keys;
 mod layout;
