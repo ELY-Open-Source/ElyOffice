@@ -29,6 +29,10 @@ jobs:
           sudo apt-get install -y -q libdbus-1-dev libfontconfig-dev libxcb1-dev libxkbcommon-x11-dev
           # GStreamer plays the media test's H.264 and AAC clip.
           sudo apt-get install -y -q libgstreamer-plugins-base1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
+      # The site's tests run TypeScript as is.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
       - name: Tools
         run: |
           npm install -g pnpm
@@ -38,6 +42,8 @@ jobs:
         run: scripts/fetch-references.sh mupdf && scripts/build-openssl.sh && scripts/build-mupdf.sh
       - name: Project rules
         run: scripts/check.sh
+      - name: Site tests; the changelog test reads every release tag
+        run: git fetch -q --tags --depth 1 origin && (cd site && pnpm test)
       - name: Vendored gpui is the release plus patches
         run: scripts/vendor-gpui.sh
       - name: Records cite what exists; the test map is current

@@ -1726,3 +1726,5 @@ beta`（`.work/R14.29/window4.ps1`（本机，未入库））。组件库 ely-do
 - 2026-11-22（冻结例外，team-lead）：v0.1.17 发布运行的 Linux 任务在打包时败于 nfpm 的“Open …/dist/: is a directory”。`ci.sh` 打包前 `rm -rf dist`，`packaging/linux/bundle.sh` 却从不建它（SF.21 起的统一包从未在新的 dist 上打过；本机演练时 dist 早已在）；测试 `tests/scripts/linux-bundle-rules.sh` 预先建好 dist，故未察觉。修：bundle.sh 先 `mkdir -p "$dist"`；测试不再预建 dist，假 nfpm 在目标目录不在时照 nfpm 的话失败（去掉修复即败）。macOS 经 source.sh、Windows 经 installer.sh 本就先建 dist。
 
 - 2026-11-25：ElyMail 账户的身份是“地址 + 收信服务器”（R21.19，#96；同 Thunderbird 按服务器分账户）。同一地址在不同收信服务器上（例：QQ 邮箱的授权码账户与以该 QQ 地址注册的 Microsoft 账户）是两个账户，同地址同服务器仍报已添加。库结构 v19 重建 `accounts`：`UNIQUE (address, server)`，id 与自增序号照旧。密钥名记在账户设置里（`secret`）：设置里没有的（v19 之前存的，含升级失败、只读打开的库）读出时取原名 `account:{address}`，钥匙串里的密码与刷新令牌不搬、不需重新登录；新账户为 `account:{address}:{收信服务器}`，小写。地址重复时左栏分区与置顶行写“地址 · 收信服务器”，折叠按此题。
+
+- 2026-11-25（R21.37，#107）：命令行的常设决定扩到 R21.25–R21.36 做成的全部动词：四个应用共用 `docs`、`open`、`new`、`export`、`save`；ElyTable 按地址读写区域、格式、工作表、行列与合并（补丁 0058、0150–0152），ElyDoc 追加段落、按匹配设格式、插表与图（0153–0156），ElyShow 按页号管理幻灯片、设标题正文与备注、放图（0157–0159），ElyMark 整篇设入与追加。每次改动一步撤销，不动用户的光标、选区与所在幻灯片。ElyPDF 有意不设命令行：PDF 在 ElyPDF 里读与批注，脚本可用导出的 PDF。

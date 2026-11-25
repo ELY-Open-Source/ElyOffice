@@ -32,13 +32,24 @@ test("notes lines become safe HTML", () => {
 });
 
 test("the docs page shows each app's own usage, line for line", () => {
-  const page = read("site/public/docs.html").replaceAll("&amp;", "&");
-  for (const app of ["ely-doc", "ely-table", "ely-show"]) {
-    const usage = read(`apps/${app}/src/remote.rs`).match(/const USAGE: &str = "([^"]+)";/)?.[1];
+  const page = read("site/public/docs.html")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&amp;", "&");
+  const [en, zh] = page.split('<article lang="zh-CN"');
+  for (const app of ["ely-doc", "ely-table", "ely-show", "ely-mark"]) {
+    // A Rust string; its quotes come escaped.
+    const usage = read(`apps/${app}/src/remote.rs`)
+      .match(/const USAGE: &str = "((?:[^"\\]|\\.)*)";/)?.[1]
+      ?.replaceAll('\\"', '"');
     assert.ok(usage, `${app} has no USAGE`);
-    const commands = usage.split("\n").map((line) => line.replace(/^(usage:)?\s+/, "")).filter((line) => line.startsWith(app));
-    assert.equal(commands.length, 4, `${app}: ${commands}`);
+    const commands = usage
+      .split("\n")
+      .map((line) => line.replace(/^(usage:)?\s+/, ""))
+      .filter((line) => line.startsWith(app));
+    assert.ok(commands.length >= 9, `${app}: ${commands}`);
     // Once in English, once in Chinese.
-    for (const command of commands) assert.equal(page.split(command).length - 1, 2, command);
+    for (const command of commands) for (const article of [en, zh]) assert.equal(article.split(command).length - 1, 1, command);
   }
 });

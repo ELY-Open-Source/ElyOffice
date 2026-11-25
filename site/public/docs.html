@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Command line · Ely Office</title>
-    <meta name="description" content="Read and edit documents open in ElyDoc, ElyTable and ElyShow from scripts and AI agents." />
+    <meta name="description" content="Open, create, read, edit, export and save documents in ElyDoc, ElyTable, ElyShow and ElyMark from scripts and AI agents." />
     <link rel="stylesheet" href="/legal.css" />
   </head>
   <body>
@@ -12,231 +12,288 @@
       <nav><a href="/">Ely Office</a><button type="button"></button></nav>
       <article data-title="Command line · Ely Office">
         <h1>Command line</h1>
-        <p class="date">ElyTable from 0.1.12; ElyDoc and ElyShow from 0.1.13</p>
+        <p class="date">ElyTable from 0.1.12; ElyDoc and ElyShow from 0.1.13; the other commands from 0.1.18</p>
 
-        <p>
-          Scripts and AI agents can read and edit a document while it is open in ElyDoc, ElyTable or ElyShow, then save
-          it. Each command asks the copy of the app that is already running, so the app must be open with that file. A
-          request comes only from your own account on the same computer; nothing listens on the network.
-        </p>
-        <p>
-          Edits go into the open document as if you had made them, and you can undo them. Your cursor and selection stay
-          where they were.
-        </p>
+        <p>Scripts and AI agents can open, create, read, edit, export and save documents in ElyDoc, ElyTable, ElyShow and ElyMark. <code>open</code> and <code>new</code> start the app if needed; the rest ask the copy already running with that file open. A request comes only from your own account on the same computer; nothing listens on the network.</p>
+        <p>Edits go into the open document as if you had made them, and you can undo them. Your cursor, selection and current slide stay where they were.</p>
 
         <h2>Where the command is</h2>
         <p>The command is the app itself, given arguments:</p>
         <ul>
-          <li>
-            <strong>macOS:</strong> <code>/Applications/ElyDoc.app/Contents/MacOS/ely-doc</code>, and likewise
-            <code>ElyTable.app/…/ely-table</code> and <code>ElyShow.app/…/ely-show</code>.
-          </li>
-          <li>
-            <strong>Windows:</strong> <code>%LOCALAPPDATA%\Programs\Ely Office\ElyDoc\ely-doc.exe</code>, and likewise
-            for ElyTable and ElyShow, unless you chose another folder when installing.
-          </li>
-          <li>
-            <strong>Linux (deb, rpm, Arch):</strong> <code>ely-doc</code>, <code>ely-table</code> and
-            <code>ely-show</code> are on your <code>PATH</code>.
-          </li>
+          <li><strong>macOS:</strong> <code>/Applications/ElyDoc.app/Contents/MacOS/ely-doc</code>, and likewise <code>ElyTable.app/…/ely-table</code>, <code>ElyShow.app/…/ely-show</code> and <code>ElyMark.app/…/ely-mark</code>.</li>
+          <li><strong>Windows:</strong> <code>%LOCALAPPDATA%\Programs\Ely Office\ElyDoc\ely-doc.exe</code>, and likewise for ElyTable, ElyShow and ElyMark, unless you chose another folder when installing.</li>
+          <li><strong>Linux (deb, rpm, Arch):</strong> <code>ely-doc</code>, <code>ely-table</code>, <code>ely-show</code> and <code>ely-mark</code> are on your <code>PATH</code>.</li>
           <li><strong>Linux (AppImage):</strong> run the AppImage with the same arguments.</li>
         </ul>
 
-        <h2>ElyDoc</h2>
-        <pre><code>ely-doc text docs
-ely-doc text get FILE
-ely-doc text replace FILE FIND WITH
-ely-doc text save FILE</code></pre>
+        <h2>Common commands</h2>
         <ul>
-          <li><code>docs</code> lists the files open in ElyDoc, one full path per line.</li>
-          <li>
-            <code>get</code> prints the body text, one paragraph per line. Footnotes, comments, text frames and deleted
-            tracked changes are left out.
-          </li>
-          <li>
-            <code>replace</code> changes every exact, case-matched <code>FIND</code> in the body to <code>WITH</code>,
-            as one undo step. Both must stay within one paragraph. If <code>FIND</code> is nowhere in the body, nothing
-            changes and the command fails.
-          </li>
-          <li><code>save</code> saves the file and prints its path once the save is on disk.</li>
+          <li><code>docs</code> lists the saved files open in the app as a JSON array of full paths.</li>
+          <li><code>open FILE</code> opens <code>FILE</code>, starting the app first if needed, and prints its path as a JSON string once loaded.</li>
+          <li><code>new FILE</code> creates a blank file for its extension (the same on all three platforms), opens it and prints its path as a JSON string; refused if the file already exists.</li>
+          <li><code>export FILE TARGET</code> writes a copy in the format of <code>TARGET</code>'s extension (such as <code>.pdf</code>) and prints the target path as a JSON string, leaving the open document untouched.</li>
+          <li><code>save FILE</code> saves the file and prints its path as a JSON string once on disk. Older forms such as <code>cell docs</code> and <code>text save</code> still work.</li>
         </ul>
-        <pre><code>$ ely-doc text get report.docx
-Quarterly report
-Sales rose in March.
-$ ely-doc text replace report.docx March April
-$ ely-doc text save report.docx
-/home/me/report.docx</code></pre>
+
+        <h2>ElyDoc</h2>
+        <pre><code>ely-doc docs
+ely-doc open FILE
+ely-doc new FILE
+ely-doc export FILE TARGET
+ely-doc save FILE
+ely-doc text get FILE [--json]
+ely-doc text replace FILE FIND WITH
+ely-doc text append FILE TEXT [--style STYLE]
+ely-doc format FILE FIND PROPERTY=VALUE ...
+ely-doc table insert FILE DATA [--after FIND] [--header]
+ely-doc image insert FILE IMAGE [--after FIND] [--width SIZE]</code></pre>
+        <ul>
+          <li><code>text get</code> prints the body text, one paragraph per line; <code>--json</code> prints a JSON array of <code>{"style", "text"}</code> objects. Footnotes, comments, text frames and deleted tracked changes are left out.</li>
+          <li><code>text replace</code> changes every exact, case-matched <code>FIND</code> (non-empty, within one paragraph) to <code>WITH</code>; newlines in <code>WITH</code> start new paragraphs in the same style. Fails when there is no match.</li>
+          <li><code>text append</code> adds lines as paragraphs at the end; <code>--style</code> takes an English paragraph style name (such as <code>Heading 1</code>).</li>
+          <li><code>format</code> styles every exact, case-matched <code>FIND</code>: <code>bold</code>, <code>italic</code>, <code>underline</code> (<code>on|off</code>), <code>font</code>, <code>size</code> (<code>1</code>–<code>999</code> pt), <code>color</code> (<code>#RRGGBB|none</code>) and <code>style</code> (English paragraph style for each matching paragraph).</li>
+          <li><code>table insert</code> adds a JSON 2-D string array or TSV (equal-length rows, up to 1,000,000 cells) at the end or after the first matching paragraph (<code>--after FIND</code>); <code>--header</code> repeats row 1 across pages.</li>
+          <li><code>image insert</code> embeds <code>IMAGE</code> (PNG, JPEG, GIF, SVG, BMP, TIFF, WebP and more) in its own paragraph at the end or <code>--after FIND</code>, shrunk to fit the text width; <code>--width SIZE</code> sets the width (<code>cm</code>, <code>mm</code>, <code>in</code> or <code>pt</code>, <code>1pt</code>–<code>100cm</code>, ratio kept).</li>
+          <li>Each write is one undo step and keeps your cursor and selection.</li>
+        </ul>
+        <pre><code>$ ely-doc text replace report.docx March April
+$ ely-doc format report.docx "Chapter 1" bold=on style="Heading 1"
+$ ely-doc save report.docx
+"/home/me/report.docx"</code></pre>
 
         <h2>ElyTable</h2>
-        <pre><code>ely-table cell docs
-ely-table cell get FILE ADDRESS
-ely-table cell set FILE ADDRESS TEXT
-ely-table cell save FILE</code></pre>
+        <pre><code>ely-table docs | open FILE | new FILE | export FILE TARGET | save FILE
+ely-table cell get FILE ADDRESS | cell set FILE ADDRESS TEXT
+ely-table range get FILE ADDRESS | range set FILE ADDRESS DATA
+ely-table range merge|unmerge FILE ADDRESS
+ely-table format FILE ADDRESS PROPERTY=VALUE ...
+ely-table sheet list FILE
+ely-table sheet add FILE NAME [POSITION]
+ely-table sheet remove FILE SHEET
+ely-table sheet rename FILE SHEET NAME
+ely-table sheet freeze FILE ADDRESS
+ely-table rows insert|delete FILE ADDRESS
+ely-table rows height FILE ADDRESS SIZE
+ely-table columns insert|delete FILE ADDRESS
+ely-table columns width FILE ADDRESS SIZE</code></pre>
         <ul>
-          <li>
-            <code>ADDRESS</code> always names its sheet, as in <code>Sheet1!A1</code>. An address without a sheet is
-            refused.
-          </li>
-          <li>
-            <code>get</code> prints the cell as one line of JSON: its full address, the text shown in the cell, and
-            what was typed into it.
-          </li>
-          <li>
-            <code>set</code> types <code>TEXT</code> into the cell, as one undo step. Text starting with
-            <code>=</code> is a formula in Excel's A1 style, and numbers are written as in English (<code>3.5</code>).
-          </li>
-          <li><code>docs</code> and <code>save</code> work as in ElyDoc.</li>
+          <li><code>ADDRESS</code> always names its sheet, as in <code>Sheet1!A1</code>, <code>Sheet1!A1:C3</code>, <code>Sheet1!5:7</code> or <code>Sheet1!C:E</code>.</li>
+          <li><code>cell get</code> prints JSON (<code>address</code>, <code>text</code>, <code>input</code>); <code>cell set</code> writes <code>TEXT</code> (<code>=</code> starts an Excel A1 formula; numbers use English format such as <code>3.5</code>).</li>
+          <li><code>range get</code> prints JSON (<code>address</code>, <code>rows</code>; a bare sheet name such as <code>Sheet1</code> reads its used area, up to 1,000,000 cells). <code>range set</code> writes a JSON 2-D string array or TSV (<code>""</code> clears a cell, <code>=</code> for formulas).</li>
+          <li><code>range merge</code> merges the cells, keeping hidden values so <code>range unmerge</code> restores them; overlapping merges must be unmerged first.</li>
+          <li><code>format</code> sets <code>bold</code>, <code>italic</code>, <code>underline</code>, <code>wrap</code> (<code>on|off</code>), <code>font</code>, <code>size</code> (<code>1</code>–<code>999</code>), <code>color</code>/<code>background</code> (<code>#RRGGBB|none</code>), <code>number</code> (en-US, e.g. <code>0.00</code>, <code>0%</code>), <code>align</code> (<code>left|center|right|justify|general</code>), <code>valign</code> (<code>top|middle|bottom|standard</code>), <code>border</code> (<code>all|outer|none</code>) and <code>border-left|top|right|bottom|inner-h|inner-v</code> (<code>none</code> or <code>style:width:#RRGGBB</code>, width in <code>pt</code>/<code>mm</code> up to <code>2mm</code>).</li>
+          <li><code>sheet</code>, <code>rows</code> and <code>columns</code> manage sheets (<code>list</code> prints JSON; <code>POSITION</code> starts at 1; <code>freeze</code> locks above and left of <code>ADDRESS</code>, <code>A1</code> unfreezes), insert or delete rows and columns, and set row height or column width (<code>SIZE</code> in <code>cm</code>, <code>mm</code>, <code>in</code>, <code>pt</code> or <code>auto</code>).</li>
+          <li>Each write is one undo step and keeps your cursor, selection and current sheet (deleting the shown sheet moves to a neighbour).</li>
         </ul>
-        <pre><code>$ ely-table cell set budget.xlsx 'Sheet1!B2' '=6*7'
-$ ely-table cell get budget.xlsx 'Sheet1!B2'
-{"address":"Sheet1!$B$2","text":"42","input":"=6*7"}
-$ ely-table cell save budget.xlsx
-/home/me/budget.xlsx</code></pre>
+        <pre><code>$ ely-table range set budget.xlsx 'Sheet1!A1' '[["Item","Total"],["Rent","=600*2"]]'
+$ ely-table format budget.xlsx 'Sheet1!A1:B1' bold=on background=#FFF2CC
+$ ely-table range get budget.xlsx Sheet1</code></pre>
 
         <h2>ElyShow</h2>
-        <pre><code>ely-show text docs
+        <pre><code>ely-show docs
+ely-show open FILE
+ely-show new FILE
+ely-show export FILE TARGET
+ely-show save FILE
 ely-show text get FILE
 ely-show text replace FILE FIND WITH
-ely-show text save FILE</code></pre>
+ely-show text set FILE N title|body TEXT
+ely-show notes get FILE N
+ely-show notes set FILE N TEXT
+ely-show slide list FILE
+ely-show slide add FILE [POSITION] [--layout NAME]
+ely-show slide duplicate FILE N
+ely-show slide delete FILE N
+ely-show slide move FILE N TO
+ely-show image insert FILE N IMAGE [--width SIZE]</code></pre>
         <ul>
-          <li>
-            <code>get</code> prints the text on each slide, one paragraph per line, with a form feed between slides.
-            Speaker notes and comments are left out.
-          </li>
-          <li>
-            <code>replace</code> changes every exact, case-matched <code>FIND</code> on the slides. As in Impress, each
-            text box it changes is one undo step. The current slide and the selection stay as they were.
-          </li>
-          <li><code>docs</code> and <code>save</code> work as in ElyDoc.</li>
+          <li><code>text get</code> prints each slide's text, one paragraph per line, with a form feed between slides (speaker notes and comments are left out).</li>
+          <li><code>text replace</code> changes every exact, case-matched <code>FIND</code> across all slides; newlines in <code>WITH</code> start new paragraphs, and each text box changed is one undo step.</li>
+          <li><code>text set</code> and <code>notes get|set</code> work on slide <code>N</code> (from 1), one line per paragraph (empty <code>TEXT</code> clears). Refused if the slide has no such placeholder or if existing text has mixed formatting.</li>
+          <li><code>slide list</code> prints JSON (<code>number</code>, <code>name</code>, <code>layout</code>, <code>title</code>, <code>hidden</code>); <code>add</code> inserts at <code>POSITION</code> (default last) with <code>--layout</code> (default <code>title-content</code>; 12 layouts listed by <code>ely-show --help</code>); <code>duplicate</code>, <code>delete</code> (refused on the only slide) and <code>move</code> restructure the deck.</li>
+          <li><code>image insert</code> centers <code>IMAGE</code> on slide <code>N</code>, shrunk to fit the slide (ratio kept); <code>--width SIZE</code> accepts <code>cm</code>, <code>mm</code>, <code>in</code> or <code>pt</code> (<code>1pt</code>–<code>100cm</code>).</li>
+          <li>Each write (other than <code>text replace</code>) is one undo step; the shown slide and selection stay unchanged (deleting the shown slide shows a neighbour).</li>
         </ul>
-        <pre><code>$ ely-show text replace pitch.pptx 2025 2026
-$ ely-show text save pitch.pptx
-/home/me/pitch.pptx</code></pre>
+        <pre><code>$ ely-show slide add pitch.pptx --layout title-content
+$ ely-show text set pitch.pptx 2 title "Q4 Review"
+$ ely-show image insert pitch.pptx 2 chart.png --width 12cm</code></pre>
+
+        <h2>ElyMark</h2>
+        <pre><code>ely-mark docs
+ely-mark open FILE
+ely-mark new FILE
+ely-mark export FILE TARGET
+ely-mark save FILE
+ely-mark text get FILE
+ely-mark text replace FILE FIND WITH
+ely-mark text set FILE TEXT
+ely-mark text append FILE TEXT</code></pre>
+        <ul>
+          <li><code>FILE</code> must be open in ElyMark for <code>text</code> commands; <code>text get</code> works in preview mode too, while <code>replace</code>, <code>set</code> and <code>append</code> are refused.</li>
+          <li><code>get</code> prints the Markdown as it stands, byte for byte, unsaved typing included.</li>
+          <li><code>replace</code> changes every exact, case-matched <code>FIND</code> in the Markdown; fails when there is no match.</li>
+          <li><code>set</code> replaces the whole Markdown (empty <code>TEXT</code> clears the file); <code>append</code> adds non-empty <code>TEXT</code> on a new line at the end (start with a blank line for a new paragraph). Both keep the file's line endings (LF or CRLF).</li>
+          <li>Each edit is one undo step; typing in another block is not interrupted.</li>
+        </ul>
+        <pre><code>$ ely-mark text set notes.md - &lt; draft.md
+$ ely-mark text append notes.md "Next step"
+$ ely-mark save notes.md
+"/home/me/notes.md"</code></pre>
 
         <h2>Files and answers</h2>
         <ul>
-          <li>
-            <code>FILE</code> may be relative to the current folder. It must be a file open in the app; a new document
-            gets a name only once it is saved.
-          </li>
-          <li>
-            Some files are kept as they were and saved only as a copy, such as a presentation with sections. For
-            those, and for a file deleted from disk, <code>save</code> fails and says so; save them in the app.
-          </li>
-          <li>
-            Exit codes: <strong>0</strong> done; <strong>1</strong> refused, such as the app not running or the file
-            not open, with the reason on standard error; <strong>2</strong> the command was not understood, with
-            usage.
-          </li>
+          <li><code>FILE</code> may be relative to the current folder. Other than <code>open</code> and <code>new</code>, it must be a file already open in the app; a new document gets a name only once it is saved.</li>
+          <li>Any argument written as <code>-</code> is read from standard input (UTF-8, up to 64 MiB). Structured results are printed as JSON; errors go to standard error.</li>
+          <li>Some files are kept as they were and saved only as a copy, such as a presentation with sections. For those, and for a file deleted from disk, <code>save</code> fails and says so; in ElyDoc, ElyTable and ElyShow, a file changed on disk is not overwritten and the app asks you instead.</li>
+          <li>Exit codes: <strong>0</strong> done; <strong>1</strong> refused or failed, with the reason on standard error; <strong>2</strong> wrong usage, with usage; <strong>3</strong> the app is not running.</li>
         </ul>
 
         <h2>Windows: PowerShell and cmd</h2>
-        <p>
-          The apps are windowed programs, and PowerShell does not wait for one unless its output goes through a pipe.
-          Without a pipe you get no answer and no exit code. In PowerShell, pipe the command:
-        </p>
+        <p>The apps are windowed programs, and PowerShell does not wait for one unless its output goes through a pipe. Without a pipe you get no answer and no exit code. In PowerShell, pipe the command:</p>
         <pre><code>$doc = "$env:LOCALAPPDATA\Programs\Ely Office\ElyDoc\ely-doc.exe"
 $text = &amp; $doc text get report.docx | Out-String
 $LASTEXITCODE</code></pre>
-        <p>
-          <code>Start-Process -Wait -NoNewWindow -PassThru</code> also waits and gives the exit code. Batch files,
-          <code>cmd /c</code> and Git Bash wait as usual.
-        </p>
+        <p><code>Start-Process -Wait -NoNewWindow -PassThru</code> also waits and gives the exit code. Batch files, <code>cmd /c</code> and Git Bash wait as usual.</p>
 
-        <p>ElyMark has the same commands for Markdown, as <code>ely-mark text</code>.</p>
+        <p>ElyPDF has no command line on purpose: PDFs are read and annotated in ElyPDF, and scripts can work directly with exported PDFs.</p>
       </article>
 
       <article lang="zh-CN" data-title="命令行 · Ely Office">
         <h1>命令行</h1>
-        <p class="date">ElyTable 自 0.1.12 起；ElyDoc 与 ElyShow 自 0.1.13 起</p>
+        <p class="date">ElyTable 自 0.1.12 起；ElyDoc 与 ElyShow 自 0.1.13 起；其余命令自 0.1.18 起</p>
 
-        <p>
-          脚本与 AI 代理可以读写在 ElyDoc、ElyTable、ElyShow 里打开着的文档，并保存。每条命令问的是已在运行的那份应用，所以应用必须开着、并打开了这个文件。请求只来自本机你自己的账户，不在网络上监听。
-        </p>
-        <p>改动像你亲手改的一样进入打开着的文档，可以撤销；你的光标与选区不动。</p>
+        <p>脚本与 AI 代理可以经命令行在 ElyDoc、ElyTable、ElyShow、ElyMark 里打开、新建、读写、导出并保存文档。<code>open</code> 与 <code>new</code> 会在应用未开时先启动；其余命令问的是已在运行的那份应用，文件须处于打开状态。请求只来自本机你自己的账户，不在网络上监听。</p>
+        <p>改动像你亲手改的一样进入打开着的文档，可以撤销；你的光标、选区与当前幻灯片不动。</p>
 
         <h2>命令在哪里</h2>
         <p>命令就是应用本身，带上参数：</p>
         <ul>
-          <li>
-            <strong>macOS：</strong><code>/Applications/ElyDoc.app/Contents/MacOS/ely-doc</code>，ElyTable、ElyShow
-            同理（<code>ElyTable.app/…/ely-table</code>、<code>ElyShow.app/…/ely-show</code>）。
-          </li>
-          <li>
-            <strong>Windows：</strong><code>%LOCALAPPDATA%\Programs\Ely Office\ElyDoc\ely-doc.exe</code>，ElyTable、ElyShow
-            同理；安装时选了别的文件夹则在那里。
-          </li>
-          <li>
-            <strong>Linux（deb、rpm、Arch）：</strong><code>ely-doc</code>、<code>ely-table</code>、<code>ely-show</code>
-            已在 <code>PATH</code> 上。
-          </li>
+          <li><strong>macOS：</strong><code>/Applications/ElyDoc.app/Contents/MacOS/ely-doc</code>，ElyTable、ElyShow、ElyMark 同理（<code>ElyTable.app/…/ely-table</code>、<code>ElyShow.app/…/ely-show</code>、<code>ElyMark.app/…/ely-mark</code>）。</li>
+          <li><strong>Windows：</strong><code>%LOCALAPPDATA%\Programs\Ely Office\ElyDoc\ely-doc.exe</code>，ElyTable、ElyShow、ElyMark 同理；安装时选了别的文件夹则在那里。</li>
+          <li><strong>Linux（deb、rpm、Arch）：</strong><code>ely-doc</code>、<code>ely-table</code>、<code>ely-show</code>、<code>ely-mark</code> 已在 <code>PATH</code> 上。</li>
           <li><strong>Linux（AppImage）：</strong>用同样的参数运行 AppImage。</li>
         </ul>
 
-        <h2>ElyDoc</h2>
-        <pre><code>ely-doc text docs
-ely-doc text get FILE
-ely-doc text replace FILE FIND WITH
-ely-doc text save FILE</code></pre>
+        <h2>共通命令</h2>
         <ul>
-          <li><code>docs</code> 列出 ElyDoc 里打开的文件，一行一个完整路径。</li>
-          <li><code>get</code> 输出正文，一段一行，不含脚注、批注、文本框与已删除的修订。</li>
-          <li>
-            <code>replace</code> 把正文里每一处与 <code>FIND</code> 完全相同（区分大小写）的文字换成 <code>WITH</code>，一步撤销。两者都不能跨段。正文里一处
-            <code>FIND</code> 也没有时什么都不改，命令失败。
-          </li>
-          <li><code>save</code> 保存文件，写到磁盘后输出其路径。</li>
+          <li><code>docs</code> 以完整路径的 JSON 数组列出应用里打开的已存文件。</li>
+          <li><code>open FILE</code> 打开文件；应用未开时先启动，等载入完以 JSON 字符串输出路径。</li>
+          <li><code>new FILE</code> 按扩展名建一份空白文件（三端相同）、打开并以 JSON 字符串输出路径；文件已存在即拒绝。</li>
+          <li><code>export FILE TARGET</code> 按目标扩展名（如 <code>.pdf</code>）导出副本并以 JSON 字符串输出目标路径；原文档与会话不动。</li>
+          <li><code>save FILE</code> 保存文件，写到磁盘后以 JSON 字符串输出路径；旧写法（如 <code>cell docs</code>、<code>text save</code>）照常可用。</li>
         </ul>
-        <pre><code>$ ely-doc text get report.docx
-季度报告
-三月销量上升。
-$ ely-doc text replace report.docx 三月 四月
-$ ely-doc text save report.docx
-/home/me/report.docx</code></pre>
+
+        <h2>ElyDoc</h2>
+        <pre><code>ely-doc docs
+ely-doc open FILE
+ely-doc new FILE
+ely-doc export FILE TARGET
+ely-doc save FILE
+ely-doc text get FILE [--json]
+ely-doc text replace FILE FIND WITH
+ely-doc text append FILE TEXT [--style STYLE]
+ely-doc format FILE FIND PROPERTY=VALUE ...
+ely-doc table insert FILE DATA [--after FIND] [--header]
+ely-doc image insert FILE IMAGE [--after FIND] [--width SIZE]</code></pre>
+        <ul>
+          <li><code>text get</code> 输出正文，一段一行；加 <code>--json</code> 输出每段含 <code>style</code> 与 <code>text</code> 的 JSON 数组。脚注、批注、文本框与已删除的修订不在其中。</li>
+          <li><code>text replace</code> 把正文里每处 <code>FIND</code>（不为空、区分大小写、不跨段）换成 <code>WITH</code>；<code>WITH</code> 可带换行，每处换行起新段并沿用原段样式；一处也没有即报错。</li>
+          <li><code>text append</code> 在正文末尾追加段落，一行一段；<code>--style</code> 用英文样式名（如 <code>Heading 1</code>）。</li>
+          <li><code>format</code> 把每处匹配设为指定格式：<code>bold</code>、<code>italic</code>、<code>underline</code>（<code>on|off</code>）、<code>font</code>、<code>size</code>（<code>1</code>–<code>999</code> 磅）、<code>color</code>（<code>#RRGGBB|none</code>）与 <code>style</code>（所在段英文段落样式）。</li>
+          <li><code>table insert</code> 在文末或首处匹配段后（<code>--after FIND</code>）插入二维 JSON 字符串数组或 TSV 表格（每行等长，上限 100 万格）；<code>--header</code> 设首行为跨页标题行。</li>
+          <li><code>image insert</code> 在文末或 <code>--after FIND</code> 后以独立新段嵌入图片（PNG、JPEG、GIF、SVG、BMP、TIFF、WebP 等），超宽自动缩入版心；<code>--width SIZE</code> 支持 <code>cm</code>、<code>mm</code>、<code>in</code>、<code>pt</code>（<code>1pt</code>–<code>100cm</code>，等比）。</li>
+          <li>每次修改是一步撤销，不动光标与选区。</li>
+        </ul>
+        <pre><code>$ ely-doc text replace report.docx 三月 四月
+$ ely-doc format report.docx "第一章" bold=on style="Heading 1"
+$ ely-doc save report.docx
+"/home/me/report.docx"</code></pre>
 
         <h2>ElyTable</h2>
-        <pre><code>ely-table cell docs
-ely-table cell get FILE ADDRESS
-ely-table cell set FILE ADDRESS TEXT
-ely-table cell save FILE</code></pre>
+        <pre><code>ely-table docs | open FILE | new FILE | export FILE TARGET | save FILE
+ely-table cell get FILE ADDRESS | cell set FILE ADDRESS TEXT
+ely-table range get FILE ADDRESS | range set FILE ADDRESS DATA
+ely-table range merge|unmerge FILE ADDRESS
+ely-table format FILE ADDRESS PROPERTY=VALUE ...
+ely-table sheet list FILE
+ely-table sheet add FILE NAME [POSITION]
+ely-table sheet remove FILE SHEET
+ely-table sheet rename FILE SHEET NAME
+ely-table sheet freeze FILE ADDRESS
+ely-table rows insert|delete FILE ADDRESS
+ely-table rows height FILE ADDRESS SIZE
+ely-table columns insert|delete FILE ADDRESS
+ely-table columns width FILE ADDRESS SIZE</code></pre>
         <ul>
-          <li><code>ADDRESS</code> 一律写明工作表，如 <code>Sheet1!A1</code>；不带工作表的地址被拒。</li>
-          <li><code>get</code> 以一行 JSON 输出该格：完整地址、格里显示的文字、键入的内容。</li>
-          <li>
-            <code>set</code> 把 <code>TEXT</code> 键入该格，一步撤销。以 <code>=</code> 开头的是公式，照 Excel 的 A1
-            写法；数字照英文写法（<code>3.5</code>）。
-          </li>
-          <li><code>docs</code> 与 <code>save</code> 同 ElyDoc。</li>
+          <li><code>ADDRESS</code> 一律写明工作表，如 <code>Sheet1!A1</code>、<code>Sheet1!A1:C3</code>、<code>Sheet1!5:7</code>、<code>Sheet1!C:E</code>。</li>
+          <li><code>cell get</code> 输出 JSON（<code>address</code>、<code>text</code>、<code>input</code>）；<code>cell set</code> 写入 <code>TEXT</code>（<code>=</code> 开头为 Excel A1 公式，数字照英文写法如 <code>3.5</code>）。</li>
+          <li><code>range get</code> 输出 JSON（<code>address</code>、<code>rows</code>；只写工作表名如 <code>Sheet1</code> 取已用区域，最多 100 万格）。<code>range set</code> 写入二维 JSON 字符串数组或 TSV（<code>""</code> 清空，<code>=</code> 开头为公式）。</li>
+          <li><code>range merge</code> 合并区域，隐藏格内容保留以便 <code>range unmerge</code> 恢复；与已有合并块重叠时须先取消合并。</li>
+          <li><code>format</code> 可设 <code>bold</code>、<code>italic</code>、<code>underline</code>、<code>wrap</code>（<code>on|off</code>）、<code>font</code>、<code>size</code>（<code>1</code>–<code>999</code>）、<code>color</code>/<code>background</code>（<code>#RRGGBB|none</code>）、<code>number</code>（en-US，如 <code>0.00</code>、<code>0%</code>）、<code>align</code>（<code>left|center|right|justify|general</code>）、<code>valign</code>（<code>top|middle|bottom|standard</code>）、<code>border</code>（<code>all|outer|none</code>）与 <code>border-left|top|right|bottom|inner-h|inner-v</code>（<code>none</code> 或 <code>线型:宽:#RRGGBB</code>，宽用 <code>pt</code>/<code>mm</code>，上限 <code>2mm</code>）。</li>
+          <li><code>sheet</code>、<code>rows</code>、<code>columns</code> 管理工作表（<code>list</code> 输出 JSON；<code>POSITION</code> 从 1 起；<code>freeze</code> 冻结该格上方与左侧，<code>A1</code> 取消）、增删行列并设行高列宽（<code>SIZE</code> 用 <code>cm</code>、<code>mm</code>、<code>in</code>、<code>pt</code> 或 <code>auto</code>）。</li>
+          <li>每次修改是一步撤销，不动光标、选区与当前表（删掉当前表时改显相邻表）。</li>
         </ul>
-        <pre><code>$ ely-table cell set budget.xlsx 'Sheet1!B2' '=6*7'
-$ ely-table cell get budget.xlsx 'Sheet1!B2'
-{"address":"Sheet1!$B$2","text":"42","input":"=6*7"}
-$ ely-table cell save budget.xlsx
-/home/me/budget.xlsx</code></pre>
+        <pre><code>$ ely-table range set budget.xlsx 'Sheet1!A1' '[["项目","合计"],["房租","=600*2"]]'
+$ ely-table format budget.xlsx 'Sheet1!A1:B1' bold=on background=#FFF2CC
+$ ely-table range get budget.xlsx Sheet1</code></pre>
 
         <h2>ElyShow</h2>
-        <pre><code>ely-show text docs
+        <pre><code>ely-show docs
+ely-show open FILE
+ely-show new FILE
+ely-show export FILE TARGET
+ely-show save FILE
 ely-show text get FILE
 ely-show text replace FILE FIND WITH
-ely-show text save FILE</code></pre>
+ely-show text set FILE N title|body TEXT
+ely-show notes get FILE N
+ely-show notes set FILE N TEXT
+ely-show slide list FILE
+ely-show slide add FILE [POSITION] [--layout NAME]
+ely-show slide duplicate FILE N
+ely-show slide delete FILE N
+ely-show slide move FILE N TO
+ely-show image insert FILE N IMAGE [--width SIZE]</code></pre>
         <ul>
-          <li><code>get</code> 输出每张幻灯片上的文字，一段一行，幻灯片之间是换页符；不含演讲者备注与批注。</li>
-          <li>
-            <code>replace</code> 替换幻灯片上每一处与 <code>FIND</code> 完全相同（区分大小写）的文字。与 Impress 一样，每个改到的文本框是一步撤销。当前幻灯片与选中照旧。
-          </li>
-          <li><code>docs</code> 与 <code>save</code> 同 ElyDoc。</li>
+          <li><code>text get</code> 输出每张幻灯片的文字，一段一行，页间为换页符；不含备注与批注。</li>
+          <li><code>text replace</code> 遍及全部幻灯片替换每处 <code>FIND</code>（区分大小写、不跨段）；<code>WITH</code> 中的换行起新段，每个改到的文本框是一步撤销。</li>
+          <li><code>text set</code> 与 <code>notes get|set</code> 按页号 <code>N</code>（从 1 起）读写占位符或备注，一行一段（空 <code>TEXT</code> 即清空）；无此占位符或原有文字含多种格式时拒绝。</li>
+          <li><code>slide list</code> 输出 JSON（<code>number</code>、<code>name</code>、<code>layout</code>、<code>title</code>、<code>hidden</code>）；<code>add</code> 在 <code>POSITION</code> 新建一页（默认末页，<code>--layout</code> 默认 <code>title-content</code>，12 种版式见 <code>ely-show --help</code>）；<code>duplicate</code>、<code>delete</code>（仅剩一页时拒绝）与 <code>move</code> 调整页序。</li>
+          <li><code>image insert</code> 在第 <code>N</code> 页居中嵌入 <code>IMAGE</code>，超出时等比缩入页内；<code>--width SIZE</code> 支持 <code>cm</code>、<code>mm</code>、<code>in</code>、<code>pt</code>（<code>1pt</code>–<code>100cm</code>）。</li>
+          <li>除 <code>text replace</code> 外均为一步撤销，不切换当前页、不动选中对象（删掉当前页时改显相邻页）。</li>
         </ul>
-        <pre><code>$ ely-show text replace pitch.pptx 2025 2026
-$ ely-show text save pitch.pptx
-/home/me/pitch.pptx</code></pre>
+        <pre><code>$ ely-show slide add pitch.pptx --layout title-content
+$ ely-show text set pitch.pptx 2 title "季度复盘"
+$ ely-show image insert pitch.pptx 2 chart.png --width 12cm</code></pre>
+
+        <h2>ElyMark</h2>
+        <pre><code>ely-mark docs
+ely-mark open FILE
+ely-mark new FILE
+ely-mark export FILE TARGET
+ely-mark save FILE
+ely-mark text get FILE
+ely-mark text replace FILE FIND WITH
+ely-mark text set FILE TEXT
+ely-mark text append FILE TEXT</code></pre>
+        <ul>
+          <li>执行 <code>text</code> 命令时，<code>FILE</code> 须在 ElyMark 中打开；预览模式下 <code>text get</code> 仍可用，<code>replace</code>、<code>set</code>、<code>append</code> 会被拒绝。</li>
+          <li><code>get</code> 输出此刻的 Markdown 原文，一字不差，含尚未写回的键入。</li>
+          <li><code>replace</code> 把每处 <code>FIND</code>（区分大小写）换成 <code>WITH</code>；一处也没有即报错。</li>
+          <li><code>set</code> 换掉整篇 Markdown（空 <code>TEXT</code> 即清空）；<code>append</code> 在文末另起一行追加非空 <code>TEXT</code>（另起一段请以空行开头）。两者均沿用文件原有换行符（LF 或 CRLF）。</li>
+          <li>每次修改是一步撤销；你在别处打字时不打断。</li>
+        </ul>
+        <pre><code>$ ely-mark text set notes.md - &lt; draft.md
+$ ely-mark text append notes.md "下一步"
+$ ely-mark save notes.md
+"/home/me/notes.md"</code></pre>
 
         <h2>文件与答复</h2>
         <ul>
-          <li><code>FILE</code> 可以相对于当前文件夹，但必须是应用里打开着的文件；新建的文档保存后才有名字。</li>
-          <li>有些文件保持原样、只能另存副本，如带章节的演示文稿。这类文件以及已从磁盘删除的文件，<code>save</code> 会失败并说明原因，请在应用里保存。</li>
-          <li>
-            退出码：<strong>0</strong> 完成；<strong>1</strong> 被拒，如应用没在运行、文件没打开，原因写在标准错误；<strong>2</strong> 命令看不懂，并给出用法。
-          </li>
+          <li><code>FILE</code> 可以相对于当前文件夹。除 <code>open</code> 与 <code>new</code> 外，必须是应用里已打开的文件；新建文档保存后才有名字。</li>
+          <li>任一参数写成 <code>-</code> 即从标准输入读入文本（UTF-8，上限 64 MiB）。结构化结果输出为 JSON，错误写到标准错误。</li>
+          <li>有些文件保持原样、只能另存副本，如带章节的演示文稿。这类文件以及已从磁盘删除的文件，<code>save</code> 会失败并说明原因；ElyDoc、ElyTable、ElyShow 遇到文件在磁盘上被改过时不覆盖，在应用里询问。</li>
+          <li>退出码：<strong>0</strong> 完成；<strong>1</strong> 被拒或失败，原因写在标准错误；<strong>2</strong> 用法不对，并给出用法；<strong>3</strong> 应用未运行。</li>
         </ul>
 
         <h2>Windows：PowerShell 与 cmd</h2>
@@ -246,7 +303,7 @@ $text = &amp; $doc text get report.docx | Out-String
 $LASTEXITCODE</code></pre>
         <p><code>Start-Process -Wait -NoNewWindow -PassThru</code> 也会等待并给出退出码。批处理文件、<code>cmd /c</code> 与 Git Bash 照常等待。</p>
 
-        <p>ElyMark 对 Markdown 有同样的命令：<code>ely-mark text</code>。</p>
+        <p>ElyPDF 刻意不提供命令行：PDF 在 ElyPDF 里阅读与批注，脚本可直接处理导出的 PDF。</p>
       </article>
     </main>
     <script src="/lang.js"></script>

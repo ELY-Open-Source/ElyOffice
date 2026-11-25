@@ -160,10 +160,10 @@ rm -rf target/debug/incremental   标准 Cargo 下每次构建或测试后都删
 - LOK：界面只经 `ely_lok::commands::COMMANDS` 发 UNO 命令；外部链接打开时显示保存的值，用户点“更新链接”才读源；内核弹出的对话框即刻关闭并报错，需要的由 Ely 自建；内核改动只以 `patches/libreoffice` 的补丁序列进入；worker 启动时关掉 OpenCL 与打印机查找（点名打印机或按打印机度量排版的文档才问）；应用与 worker 只经本用户的端点相连（Windows 命名管道，macOS、Linux 0600 套接字），握手核对版本与内核编号（`ely-kernel-id`）。
 - 更新：每个平台一份清单，更新整套，读 GitHub 的最新发布，不通则读官网转发的同一路径；清单以 ed25519 签名，缺签名或不符即拒；种子 `ELY_UPDATE_KEY`（本机 `update-key.txt`，不入库）丢失即旧版再也收不到更新；自动检查默认关，从不静默安装；包管理器与 Nix 装的只提示。
 - 每个应用只跑一份，再次启动把文件交给运行中的那份。ElyDoc、ElyTable、ElyShow、ElyPDF 可开多个窗口（文件菜单“新建窗口”、`--new-window`），共用一个引擎与一份文档记录；应用经 `ely_ui::run` 的 `more` 声明，其余应用一个窗口。
-- 命令行读写已打开的文档：`ely-table cell`，`ely-doc text`、`ely-show text`、`ely-mark text`；请求走实例门（本机回环、令牌只给同一用户），不动用户的光标与选区；范围见 `docs/help.md`。
+- 命令行读写已打开的文档：`ely-table` 的 cell、range、format、sheet、rows、columns，`ely-doc` 的 text、format、table、image，`ely-show` 的 text、notes、slide、image，`ely-mark text`；每次改动一步撤销，不动用户的光标、选区与所在幻灯片；请求走实例门（本机回环、令牌只给同一用户）；ElyPDF 不设；范围见 `docs/help.md`。
 - ElyTable 的 R 宏（实验性）：只在用户点运行时起 `Rscript`，不是沙箱，从不代装；细则见 `docs/r-macros.md`。
 - ElyMark 原生实现（组件库 Markdown 组件与其 Markdown 树），不用 CEF、Electron；Typora 只作参照，读同一文件不同时随 GitHub（GFM）。
 - ElyMail：IMAP 与 POP3 由引擎自写，SMTP 用 mail-send；Microsoft 走 OAuth，客户端 ID 构建时注入（本机 `cred.txt`，CI 为组织机密）；发布构建（`scripts/ci.sh`）缺即失败，本机与 PR 构建缺时不注入，Microsoft 登录不可用；Gmail 与 iCloud 走应用专用密码，QQ 邮箱、163 邮箱、126 邮箱走授权码。网络随系统代理。
 - ElyAgent 以 Rust 依赖直接嵌入 Kigi CLI，不用 ACP。
-- 合并前：`pr.yml` 在每个 PR 与 main 的推送上跑 check.sh、deny.sh、panics.py、整个工作区的 clippy（告警即败）与不需引擎的测试；PR 从不上自托管机器，带引擎的全部测试是发布的门。
+- 合并前：`pr.yml` 在每个 PR 与 main 的推送上跑 check.sh、deny.sh、panics.py、整个工作区的 clippy（告警即败）、官网的单测与不需引擎的测试；PR 从不上自托管机器，带引擎的全部测试是发布的门。
 - 审查：每条任务交另一个模型审查，至多三轮（`scripts/review.sh`，herdr 右侧窗格里的 Pi，K3.1 Pro，思考 high）。
