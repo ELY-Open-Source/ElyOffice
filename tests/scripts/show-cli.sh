@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Another program reads, replaces and saves text open in ElyShow.
+# Another program reads text, restructures slides and saves in ElyShow.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -48,6 +48,25 @@ if text replace "$file" zebra x 2>"$work/err"; then fail "a missing word was rep
 grep -q "nothing replaced" "$work/err" || fail "the refusal says $(cat "$work/err")"
 if text get "$work/other.pptx" 2>/dev/null; then fail "a file not open was read"; fi
 if text replace "$file" 01 2>/dev/null; then fail "a short command ran"; fi
+slides() { "$show" slide "$@"; }
+# Field KEY of slide N, or the slide count.
+listed() {
+  slides list "$file" | python -c 'import json, sys; s = json.load(sys.stdin); print(len(s) if sys.argv[1] == "count" else s[int(sys.argv[1])][sys.argv[2]])' "$@"
+}
+[ "$(listed count)" = 9 ] || fail "slide list gave $(listed count) slides"
+slides add "$file" --layout title-only || fail "adding a slide"
+[ "$(listed 9 layout)" = title-only ] || fail "the added slide is $(listed 9 layout)"
+slides move "$file" 10 1 || fail "moving a slide"
+[ "$(listed 0 layout)" = title-only ] || fail "the moved slide is not first"
+slides delete "$file" 1 || fail "deleting a slide"
+slides duplicate "$file" 1 || fail "duplicating a slide"
+[ "$(listed count)" = 10 ] || fail "the copy is missing"
+slides delete "$file" 2 || fail "deleting the copy"
+[ "$(listed count)" = 9 ] && [ "$(slide 3)" = "Ely 世界" ] || fail "the deck did not come back to nine slides"
+rc=0; slides delete "$file" 99 2>"$work/err" || rc=$?
+[ "$rc" = 1 ] && grep -q "does not exist" "$work/err" || fail "deleting slide 99 gave $rc: $(cat "$work/err")"
+rc=0; slides add "$file" --layout nope 2>"$work/err" || rc=$?
+[ "$rc" = 2 ] && grep -q "unknown layout" "$work/err" || fail "a bad layout gave $rc: $(cat "$work/err")"
 saved=$(text save "$file" | python -c 'import json, sys; sys.stdout.write(json.load(sys.stdin))') || fail "saving"
 [ "$(native "$saved")" = "$file" ] || fail "save answered '$saved', not $file"
 # On disk at the answer: crash recovery cannot stand in.
@@ -57,4 +76,4 @@ z = zipfile.ZipFile(sys.argv[1])
 said = [''.join(re.findall(r'<a:t>([^<]*)</a:t>', z.read(n).decode())) for n in z.namelist() if re.match(r'ppt/slides/slide\d+\.xml$', n)]
 sys.exit(0 if 'Ely 世界' in said and '01' not in said else 1)
 PY
-echo "ok: ElyShow answered text docs, get, replace and save from another process; the save was on disk at its answer"
+echo "ok: ElyShow answered text docs, get, replace, slide list, add, move, duplicate, delete and save from another process; the save was on disk at its answer"

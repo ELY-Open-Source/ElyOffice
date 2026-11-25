@@ -1,0 +1,292 @@
+From: Ely Office
+Subject: LOK: Impress lists, adds, duplicates, deletes and moves slides by index
+
+- .uno:ElySlides lists every slide: name, AutoLayout id, the title box's
+  text ("" when empty) and whether it is hidden.
+- .uno:ElySlide (Verb, Slide, Value) works on slides by index, in one
+  undo step: add puts a new slide with layout Value at index Slide,
+  duplicate copies Slide after it, delete removes Slide (never the only
+  one), move makes Slide index Value.
+- The view keeps showing the same slide; deleting it shows a neighbour,
+  as Impress does. Slide marks are kept across a move.
+- The slide sorter follows the main view's slide across page changes:
+  after a model change it takes the main view's slide, not the old
+  index (its delayed switch would show whatever slide moved there), and
+  when an undo removes slides it keeps that slide instead of falling
+  back to, and showing, the first slide.
+- A bad index, verb or layout changes nothing.
+
+diff --git a/sd/inc/app.hrc b/sd/inc/app.hrc
+index 548a95e..2f603d9 100644
+--- a/sd/inc/app.hrc
++++ b/sd/inc/app.hrc
+@@ -430,5 +430,6 @@
+ #define SID_SLIDE_TRANSITION_SET            (SID_SD_START+454)
+ #define SID_SLIDE_ANIMATION_ADD             (SID_SD_START+455)
+ #define SID_SLIDE_ANIMATION_CHANGE          (SID_SD_START+456)
++#define SID_ELY_SLIDE                       (SID_SD_START+457)
+ 
+ /* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sd/sdi/_drvwsh.sdi b/sd/sdi/_drvwsh.sdi
+index c903f04..e901985 100644
+--- a/sd/sdi/_drvwsh.sdi
++++ b/sd/sdi/_drvwsh.sdi
+@@ -3038,6 +3038,11 @@ interface DrawView
+         ExecMethod = FuTemporary ;
+         StateMethod = GetMenuState;
+     ]
++    SID_ELY_SLIDE
++    [
++        ExecMethod = FuTemporary ;
++        StateMethod = GetMenuState;
++    ]
+     SID_SLIDE_TRANSITION_SET
+     [
+         ExecMethod = FuTemporary ;
+diff --git a/sd/sdi/sdraw.sdi b/sd/sdi/sdraw.sdi
+index df3c91c..7227700 100644
+--- a/sd/sdi/sdraw.sdi
++++ b/sd/sdi/sdraw.sdi
+@@ -4198,6 +4198,23 @@ SfxVoidItem AlignOnPage SID_ALIGN_PAGE
+     GroupId = SfxGroupId::Modify;
+ ]
+ 
++SfxVoidItem ElySlide SID_ELY_SLIDE
++(SfxStringItem Verb FN_PARAM_1, SfxInt32Item Slide FN_PARAM_2, SfxInt32Item Value FN_PARAM_3)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Modify;
++]
++
+ SfxVoidItem SlideNotes SID_SLIDE_NOTES
+ (SfxStringItem Text FN_PARAM_1, SfxInt32Item Part FN_PARAM_2)
+ [
+diff --git a/sd/source/ui/slidesorter/controller/SlsCurrentSlideManager.cxx b/sd/source/ui/slidesorter/controller/SlsCurrentSlideManager.cxx
+index 3e28c84..b11c27c 100644
+--- a/sd/source/ui/slidesorter/controller/SlsCurrentSlideManager.cxx
++++ b/sd/source/ui/slidesorter/controller/SlsCurrentSlideManager.cxx
+@@ -251,6 +251,14 @@ void CurrentSlideManager::PrepareModelChange()
+ 
+ void CurrentSlideManager::HandleModelChange()
+ {
++    // Ely: indices shift; take the main view's slide.
++    ViewShellBase* pBase = mrSlideSorter.GetViewShellBase();
++    if (auto pDraw = pBase ? std::dynamic_pointer_cast<DrawViewShell>(pBase->GetMainViewShell()) : nullptr)
++    {
++        const sal_Int32 nShown = pDraw->GetCurPagePos();
++        if (nShown < mrSlideSorter.GetModel().GetPageCount())
++            mnCurrentSlideIndex = nShown;
++    }
+     if (mnCurrentSlideIndex >= 0)
+     {
+         mpCurrentSlide = mrSlideSorter.GetModel().GetPageDescriptor(mnCurrentSlideIndex);
+diff --git a/sd/source/ui/slidesorter/controller/SlsSelectionObserver.cxx b/sd/source/ui/slidesorter/controller/SlsSelectionObserver.cxx
+index e5bc5ad..06c95a7 100644
+--- a/sd/source/ui/slidesorter/controller/SlsSelectionObserver.cxx
++++ b/sd/source/ui/slidesorter/controller/SlsSelectionObserver.cxx
+@@ -23,6 +23,9 @@
+ #include <controller/SlsSelectionObserver.hxx>
+ #include <controller/SlsPageSelector.hxx>
+ #include <controller/SlsFocusManager.hxx>
++#include <model/SlideSorterModel.hxx>
++#include <ViewShellBase.hxx>
++#include <DrawViewShell.hxx>
+ #include <sdpage.hxx>
+ #include <osl/diagnose.h>
+ 
+@@ -124,6 +127,15 @@ void SelectionObserver::EndObservation()
+     aUpdateLock.Release();
+     FocusManager& rFocusManager = mrSlideSorter.GetController().GetFocusManager();
+     bool bSuccess = rFocusManager.SetFocusedPageFromCurrentPage();
++    if (!bSuccess)
++    {
++        // Ely: mid model change, keep the main view's slide.
++        ViewShellBase* pBase = mrSlideSorter.GetViewShellBase();
++        auto pDraw = pBase ? std::dynamic_pointer_cast<DrawViewShell>(pBase->GetMainViewShell()) : nullptr;
++        if (pDraw)
++            bSuccess = rFocusManager.SetFocusedPage(
++                mrSlideSorter.GetModel().GetPageDescriptor(pDraw->GetCurPagePos()));
++    }
+     // tdf#129346 nothing currently selected, select something, if possible
+     // but (tdf#129346) only if setting focus to current page failed
+     if (rSelector.GetPageCount() && rSelector.GetSelectedPageCount() == 0)
+diff --git a/sd/source/ui/unoidl/unomodel.cxx b/sd/source/ui/unoidl/unomodel.cxx
+index 052618e..ab60d6d 100644
+--- a/sd/source/ui/unoidl/unomodel.cxx
++++ b/sd/source/ui/unoidl/unomodel.cxx
+@@ -2078,7 +2078,8 @@ bool SdXImpressDocument::supportsCommand(std::u16string_view rCommand)
+     return rCommand == u"SlideDesign" || rCommand == u"SlideObjects" || rCommand == u"Chart"
+            || rCommand == u"SlideNotes" || rCommand == u"SlideTransition"
+            || rCommand == u"SlideAnimations" || rCommand == u"SlideMedia"
+-           || rCommand == u"SlideShow" || rCommand == u"SlideCheck";
++           || rCommand == u"SlideShow" || rCommand == u"SlideCheck"
++           || rCommand == u"ElySlides";
+ }
+ 
+ namespace
+@@ -2399,6 +2400,24 @@ void lcl_SlideShow(::tools::JsonWriter& rJson, SdDrawDocument& rDoc)
+     }
+ }
+ 
++/// Every slide's name, layout, title and whether hidden.
++void lcl_ElySlides(::tools::JsonWriter& rJson, SdDrawDocument& rDoc)
++{
++    auto aList = rJson.startArray("slides");
++    for (sal_uInt16 i = 0; i < rDoc.GetSdPageCount(PageKind::Standard); ++i)
++    {
++        SdPage* pPage = rDoc.GetSdPage(i, PageKind::Standard);
++        auto pTitle = dynamic_cast<SdrTextObj*>(pPage->GetPresObj(PresObjKind::Title));
++        const OutlinerParaObject* pText
++            = pTitle && !pTitle->IsEmptyPresObj() ? pTitle->GetOutlinerParaObject() : nullptr;
++        auto aOne = rJson.startStruct();
++        rJson.put("name", pPage->GetName());
++        rJson.put("layout", static_cast<sal_Int32>(pPage->GetAutoLayout()));
++        rJson.put("title", pText ? pText->GetTextObject().GetText(LINEEND_LF) : OUString());
++        rJson.put("hidden", pPage->IsExcluded());
++    }
++}
++
+ /// The shown slide's objects, selection, guides and snapping.
+ void lcl_SlideObjects(::tools::JsonWriter& rJson, sd::DrawViewShell& rShell)
+ {
+@@ -2481,6 +2500,11 @@ void SdXImpressDocument::getCommandValues(::tools::JsonWriter& rJsonWriter, std:
+         lcl_SlideShow(rJsonWriter, *mpDoc);
+         return;
+     }
++    if (rCommand == ".uno:ElySlides")
++    {
++        lcl_ElySlides(rJsonWriter, *mpDoc);
++        return;
++    }
+     if (rCommand == ".uno:SlideCheck")
+     {
+         lcl_SlideCheck(rJsonWriter, *mpDoc);
+diff --git a/sd/source/ui/view/drviews2.cxx b/sd/source/ui/view/drviews2.cxx
+index 1e6d0e0..1db587f 100644
+--- a/sd/source/ui/view/drviews2.cxx
++++ b/sd/source/ui/view/drviews2.cxx
+@@ -1232,6 +1232,93 @@ void DrawViewShell::FuTransformDocumentStructure(SfxRequest& rReq)
+  * SfxRequests for temporary actions
+  */
+ 
++namespace
++{
++/// Undo for the new slide at nIndex and its notes.
++void lcl_ElyNewSlide(SdDrawDocument& rDoc, sal_uInt16 nIndex)
++{
++    rDoc.AddUndo(rDoc.GetSdrUndoFactory().CreateUndoNewPage(*rDoc.GetSdPage(nIndex, PageKind::Standard)));
++    rDoc.AddUndo(rDoc.GetSdrUndoFactory().CreateUndoNewPage(*rDoc.GetSdPage(nIndex, PageKind::Notes)));
++}
++
++/// Moves slide nSlide to index nTo; only it marked meanwhile.
++bool lcl_ElyMoveSlide(SdDrawDocument& rDoc, sal_uInt16 nSlide, sal_uInt16 nTo)
++{
++    const sal_uInt16 nCount = rDoc.GetSdPageCount(PageKind::Standard);
++    std::vector<bool> aMarked(nCount);
++    for (sal_uInt16 i = 0; i < nCount; ++i)
++    {
++        SdPage* pPage = rDoc.GetSdPage(i, PageKind::Standard);
++        aMarked[i] = pPage->IsSelected();
++        rDoc.SetSelected(pPage, i == nSlide);
++    }
++    std::vector<SdPage*> aPages(nCount);
++    for (sal_uInt16 i = 0; i < nCount; ++i)
++        aPages[i] = rDoc.GetSdPage(i, PageKind::Standard);
++    // MovePages puts it after a slide; -1 means first.
++    const sal_uInt16 nAfter = nTo > nSlide ? nTo : sal_uInt16(nTo - 1);
++    const bool bMoved = rDoc.MovePages(nAfter, { aPages[nSlide] });
++    for (sal_uInt16 i = 0; i < nCount; ++i)
++        rDoc.SetSelected(aPages[i], aMarked[i]);
++    return bMoved;
++}
++
++/// Adds, duplicates, deletes or moves a slide by index.
++bool lcl_ElySlide(SdDrawDocument& rDoc, std::u16string_view aVerb, sal_Int32 nSlide, sal_Int32 nValue)
++{
++    const sal_Int32 nCount = rDoc.GetSdPageCount(PageKind::Standard);
++    const bool bAdd = aVerb == u"add";
++    if (nSlide < 0 || nSlide > (bAdd ? nCount : nCount - 1))
++        return false;
++    if (aVerb == u"move")
++        return nValue >= 0 && nValue < nCount && nValue != nSlide
++               && lcl_ElyMoveSlide(rDoc, nSlide, nValue);
++    if (aVerb == u"delete")
++    {
++        if (nCount < 2)
++            return false;
++        SdPage* pPage = rDoc.GetSdPage(nSlide, PageKind::Standard);
++        const sal_uInt16 nPage = pPage->GetPageNum();
++        SdPage* pNotes = static_cast<SdPage*>(rDoc.GetPage(nPage + 1));
++        // As SdDrawPagesAccess::remove: notes undo first.
++        rDoc.BegUndo(SdResId(STR_UNDO_DELETEPAGES));
++        rDoc.AddUndo(rDoc.GetSdrUndoFactory().CreateUndoDeletePage(*pNotes));
++        rDoc.AddUndo(rDoc.GetSdrUndoFactory().CreateUndoDeletePage(*pPage));
++        rDoc.RemovePage(nPage);
++        rDoc.RemovePage(nPage);
++        rDoc.EndUndo();
++        return true;
++    }
++    if (aVerb == u"duplicate")
++    {
++        const sal_uInt16 nNew = rDoc.DuplicatePage(nSlide);
++        if (nNew == 0xffff)
++            return false;
++        rDoc.BegUndo(SdResId(STR_INSERTPAGE));
++        lcl_ElyNewSlide(rDoc, nNew);
++        rDoc.EndUndo();
++        return true;
++    }
++    if (!bAdd || nValue < AUTOLAYOUT_START || nValue >= AUTOLAYOUT_END)
++        return false;
++    // The new slide copies size and master from its neighbour.
++    SdPage* pBeside = rDoc.GetSdPage(nSlide > 0 ? nSlide - 1 : 0, PageKind::Standard);
++    SdrLayerAdmin& rLayers = rDoc.GetLayerAdmin();
++    const SdrLayerIDSet aShown = pBeside->TRG_GetMasterPageVisibleLayers();
++    // Outside the undo group: object undo would switch slides.
++    const sal_uInt16 nNew = rDoc.CreatePage(
++        pBeside, PageKind::Standard, OUString(), OUString(), static_cast<AutoLayout>(nValue),
++        AUTOLAYOUT_NOTES, aShown.IsSet(rLayers.GetLayerID(sUNO_LayerName_background)),
++        aShown.IsSet(rLayers.GetLayerID(sUNO_LayerName_background_objects)), 2 * nSlide + 1);
++    if (nNew == 0xffff)
++        return false;
++    rDoc.BegUndo(SdResId(STR_INSERTPAGE));
++    lcl_ElyNewSlide(rDoc, nNew);
++    rDoc.EndUndo();
++    return true;
++}
++}
++
+ void DrawViewShell::FuTemporary(SfxRequest& rReq)
+ {
+     // during a native slide show nothing gets executed!
+@@ -3841,6 +3928,20 @@ void DrawViewShell::FuTemporary(SfxRequest& rReq)
+         }
+         break;
+ 
++        case SID_ELY_SLIDE:
++        {
++            // Ely: one slide by index; the view keeps its slide.
++            const SfxStringItem* pVerb = rReq.GetArg<SfxStringItem>(FN_PARAM_1);
++            const SfxInt32Item* pSlide = rReq.GetArg<SfxInt32Item>(FN_PARAM_2);
++            const SfxInt32Item* pValue = rReq.GetArg<SfxInt32Item>(FN_PARAM_3);
++            if (pVerb && pSlide
++                && lcl_ElySlide(*GetDoc(), pVerb->GetValue(), pSlide->GetValue(),
++                                pValue ? pValue->GetValue() : -1))
++                rReq.Done();
++            Cancel();
++        }
++        break;
++
+         case SID_SLIDE_NOTES:
+         {
+             // Slide Part's notes, as plain text.

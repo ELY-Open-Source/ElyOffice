@@ -22,6 +22,7 @@ pub(crate) mod play;
 mod play_more;
 mod play_time;
 mod remote;
+mod remote_slides;
 mod review;
 mod sections;
 mod slides;

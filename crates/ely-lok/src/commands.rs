@@ -161,6 +161,7 @@ pub const VALUES: &[&str] = &[
     crate::show::MEDIA,
     crate::show::SLIDE_SHOW,
     crate::show::SLIDE_CHECK,
+    crate::show::SLIDES,
 ];
 
 /// Reads that take `?key=value` arguments.

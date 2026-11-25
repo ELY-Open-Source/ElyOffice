@@ -11,6 +11,7 @@ mod motion;
 mod objects;
 mod parts;
 mod playlist;
+mod slides;
 pub use check::*;
 pub use layers::*;
 pub use media::*;
@@ -18,6 +19,7 @@ pub use motion::*;
 pub use objects::*;
 pub use parts::*;
 pub use playlist::*;
+pub use slides::*;
 
 /// Masters, layouts and color sets of the shown slide.
 pub const DESIGN: &str = ".uno:SlideDesign";

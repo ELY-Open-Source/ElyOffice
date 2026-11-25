@@ -12,6 +12,8 @@ use gpui::Context;
 
 use crate::deck::Deck;
 
+mod slide;
+
 const USAGE: &str = "usage: ely-show docs
        ely-show open FILE
        ely-show new FILE
@@ -19,9 +21,17 @@ const USAGE: &str = "usage: ely-show docs
        ely-show save FILE
        ely-show text get FILE
        ely-show text replace FILE FIND WITH
+       ely-show slide list FILE
+       ely-show slide add FILE [POSITION] [--layout NAME]
+       ely-show slide duplicate FILE N
+       ely-show slide delete FILE N
+       ely-show slide move FILE N TO
 open and new start ElyShow if needed; the rest require it running (with FILE open).
-get prints each slide's text, one paragraph per line, a form feed between slides; notes and comments are left out.
-replace changes every exact, case-matched FIND on the slides; as in Impress, each text box changed is one undo step.
+text get prints slides (form feed between; no notes/comments); replace is exact (1 undo/text box).
+slide: list prints JSON; add/duplicate/delete/move are 1 undo (view stays; POSITION defaults last).
+layouts (default title-content): blank, title, title-content, title-2-content, title-only,
+centered-text, title-content-2-content, title-2-content-content, title-content-over-content,
+title-2-content-over-content, title-4-content, title-6-content.
 Any argument written as - is read from standard input, up to 64 MiB.
 Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
@@ -29,7 +39,7 @@ Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Show,
-        nouns: &[("text", request)],
+        nouns: &[("text", request), ("slide", slide::request)],
         usage: USAGE,
         exact: &[],
         blanks: &[("pptx", include_bytes!("../../../packaging/windows/new/new.pptx"))],
@@ -77,6 +87,33 @@ impl Deck {
                     id,
                     move |worker, doc| replace_all(worker, doc, &find, &with, caret),
                     move |_, done, _, _| ask.answer(done.map(|()| String::new()).map_err(|error| error.to_string())),
+                    cx,
+                );
+            }
+            [verb, _] if verb == "slide.list" => self.read_in(
+                id,
+                move |worker, doc| Ok(slide::listed(&ely_lok::show::slides(&worker.values(doc, ely_lok::show::SLIDES)?)?)),
+                move |_, read, _, _| ask.answer(read.map_err(|error| error.to_string())),
+                cx,
+            ),
+            [verb, _, numbers @ ..] if verb.starts_with("slide.") => {
+                let (verb, numbers) = (verb["slide.".len()..].to_owned(), numbers.to_vec());
+                self.write_in(
+                    id,
+                    move |worker, doc| {
+                        // Numbers are checked against the deck as it stands.
+                        let count = ely_lok::show::slides(&worker.values(doc, ely_lok::show::SLIDES)?)?.len();
+                        let [verb, at, value] = match slide::checked(&verb, &numbers, count) {
+                            Ok(sent) => sent,
+                            Err(why) => return Ok(Err(why)),
+                        };
+                        // A move onto itself changes nothing.
+                        if verb == "move" && at == value {
+                            return Ok(Ok(()));
+                        }
+                        worker.run(doc, "slide.at", &[&verb, &at, &value]).map(Ok)
+                    },
+                    move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
                     cx,
                 );
             }

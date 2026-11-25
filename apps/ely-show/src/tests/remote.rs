@@ -8,7 +8,7 @@ use gpui::{Entity, TestAppContext};
 use super::{quiet, settle, update};
 use crate::deck::Deck;
 
-const DECK: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+pub(super) const DECK: &str =r#"<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" xmlns:officeooo="http://openoffice.org/2009/office" xmlns:dc="http://purl.org/dc/elements/1.1/" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
  <office:body><office:presentation>
   <draw:page draw:name="One"><draw:frame svg:x="2cm" svg:y="2cm" svg:width="20cm" svg:height="3cm"><draw:text-box><text:p>cat Cat 世界 😀 cat</text:p></draw:text-box></draw:frame><presentation:notes><draw:frame svg:x="2cm" svg:y="12cm" svg:width="16cm" svg:height="8cm" presentation:class="notes"><draw:text-box><text:p>cat in the notes</text:p></draw:text-box></draw:frame></presentation:notes></draw:page>
@@ -17,7 +17,7 @@ const DECK: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 </office:document>"#;
 
 /// The answer to `words`, once it comes.
-fn ask(cx: &mut TestAppContext, deck: &Entity<Deck>, words: &[&str]) -> Result<String, String> {
+pub(super) fn ask(cx: &mut TestAppContext, deck: &Entity<Deck>, words: &[&str]) -> Result<String, String> {
     let (ask, answered) = ely_ui::Ask::for_tests(&serde_json::json!(words).to_string());
     update(cx, deck, |deck, cx| deck.answer_request(ask, cx));
     let answer = RefCell::new(None);
@@ -32,12 +32,12 @@ fn ask(cx: &mut TestAppContext, deck: &Entity<Deck>, words: &[&str]) -> Result<S
 }
 
 /// Indices of the selected objects on the shown slide.
-fn marked(app: &gpui::App, deck: &Entity<Deck>) -> Vec<usize> {
+pub(super) fn marked(app: &gpui::App, deck: &Entity<Deck>) -> Vec<usize> {
     let objects = deck.read(app).active_tab().and_then(|tab| tab.extra.objects.as_ref());
     objects.map_or(Vec::new(), |found| found.objects.iter().enumerate().filter(|(_, o)| o.selected).map(|(at, _)| at).collect())
 }
 
-fn current(cx: &mut TestAppContext, deck: &Entity<Deck>) -> Option<usize> {
+pub(super) fn current(cx: &mut TestAppContext, deck: &Entity<Deck>) -> Option<usize> {
     cx.update(|app| deck.read(app).active_tab().map(|tab| tab.extra.slides.current))
 }
 

@@ -929,11 +929,24 @@
   - Omarchy（内核 149 个补丁，0156 与提交的一致，缺引擎即失败）在 `4a42302b` 上：内核层 commands 19、ely-office remote 17（含 length）、ElyTable range、remote、structure 13 过；ElyDoc remote 17 过，含新的端到端测试（文末与命中段后、键入留在原处、一步撤销、原尺寸、超宽缩到版心且等比、`--width 8cm`、无命中与非图片被拒且不改）；`doc-cli.sh` 五段与 `table-cli.sh` 都过。首跑时原尺寸断言的容差 0.02 cm 过紧（Writer 读 SVG 尺寸取整，200pt 读成 7.082 cm），放宽到 0.1 cm 后重跑 ElyDoc 通过。
   - 7877（内核 149 个补丁，0156 与提交的一致）在 `4a42302b` 上：clippy 全目标过；内核层 19、ely-office 17、ElyTable 13、ElyDoc 17 过；`doc-cli.sh` 五段与 `table-cli.sh` 都过。
   - 审查第 1 轮 PASS（`tasks/reviews/R21.32-r1.md`）。
-- [ ] R21.33 ElyShow 结构：`slide list|add|duplicate|delete|move`（list 带版式与标题，add 带版式）
+- [x] R21.33 ElyShow 结构：`slide list|add|duplicate|delete|move`（list 带版式与标题，add 带版式）
+  - 做法：现有幻灯片命令都按正在看的那页走，会挪用户的视图，故补丁 0157 加查询 `.uno:ElySlides`（每页名字、AutoLayout 编号、标题框文字、是否隐藏）与槽 `.uno:ElySlide`（动词、页、值，按页号工作）。新建与复制照 Impress 自己的插页记撤销（新页与其备注页），删页照 `SdDrawPagesAccess::remove`，移动用 `MovePages` 且移动期间只标这一页、之后还原用户的标记。Impress 视图按页的编号跟随所看那页，故增删别的页时仍显示同一页，删掉所看的页时显示相邻页。
+  - 命令行：`ely-show slide list|add|duplicate|delete|move`；十二种版式取稳定的命令行名（`blank`、`title`、`title-content` 等，与版式菜单同序），list 里不认识的版式写 `other`。页号与位置先按当前页数核对，越界即报且不改；`--layout` 名字不对、页号不是正整数由命令行先拒（退 2）。内核查询加进 worker 的查询表，内核命令 `slide.at`，计数 280→281。
+  - 测试：`ely_lok::show` 的解析单测；`remote/slide.rs` 的请求与页号核对单测；ElyShow 新的端到端测试（列出、加在前面与默认末尾、复制、移动与移到原处、三种越界被拒且不改、删掉所看的页显示相邻页、只剩一页时拒删、保存后磁盘上一页；每步之后所看的页与选中的对象不变，每步一个撤销）；`show-cli.sh` 加一段由另一进程列出、加（带版式）、移、复制、删页，页号越界退 1、未知版式退 2。
+  - Omarchy 首跑（内核 150 个补丁）：内核层 39 与 `show-cli.sh` 过，端到端测试在撤销加页之后失败：所看的页成了第 1 页。探针显示内核自己就停在第 1 页，不是瞬态。根因：`CreatePage` 按版式建占位框，在打开的撤销组里时 Impress 为每个框记“加对象”撤销，撤销对象会经 `SdrUndoObj::ImpShowPageOfThisObject` 切到该对象所在的页，于是撤销先跳到新页再删它。修法：先建（或复制）页，再开撤销组只记新页本身；撤销仍一步删掉新页连同其占位框。端到端测试加查撤销复制之后所看的页。
+  - Omarchy 二跑（带上述修法）仍在同一处失败，占位框已不记撤销（`CreatePresObj` 只在撤销组里记），故上条根因不全。第二轮根因：撤销经 `ImpSidUndo` 锁住幻灯片排序器，排序器按序号（不是页）记当前页；撤销删掉前面一页后旧序号 2 越界，`HandleModelChange` 取不到页，`SelectionObserver::EndObservation` 退回选第 1 页并切过去。主视图的 `ResetActualPage` 按页号仍停在原页，但所看的页未变故不通知排序器。修法：补丁 0157 让 `CurrentSlideManager::HandleModelChange` 先按主视图当前的页重算序号。
+  - Omarchy 三跑（含排序器修法，已核对源码与 `libsdlo.so` 重编）与 7877 均仍在同一处失败（`show-cli.sh` 过），两轮皆非根因；按顾问时刻 (c) 已问顾问下一步该查何处。
+  - 探针（`SwitchPage`、`ResetActualPage` 打日志加回溯）找到根因：撤销中 `ResetActualPage` 两次都找回原页，跳页来自其后异步的 `SID_SWITCHPAGE`，彼时页签已被排序器设到 0。`SlideSorterController::PostModelChange` 只在排序器有窗口时调 `HandleModelChange`，LOK 下无窗口，当前页不恢复，`EndObservation` 选第 0 页，经 `SetCurrentSlideAtTabControl` 直接改主视图页签。上一轮修法因此从未被调用。修法：`PostModelChange` 不论有无窗口都先调 `HandleModelChange`（其中重绘已判空窗口）。
+  - Omarchy 四跑（含上条）仍失败，上条也非根因。再加两个探针：页签（`TabBar` 的设当前、清空、插入、移除）显示唯一把页签改到第 1 页的是 `ImpSidUndo` 末尾守卫析构 → `PageSelector::UpdateCurrentPage` → `SwitchCurrentSlide` → `SetCurrentSlideAtTabControl`；排序器探针显示 `EndObservation` 时插入页 0、排序器当前页为空、模型 2 页，`SetFocusedPageFromCurrentPage` 失败，退回 `SelectPage(0)`。真根因：删页时排序器在守卫的模型锁下做 `PreModelChange`，清掉当前页，要等 `PostModelChange` 才恢复；守卫成员按声明逆序析构，`EndObservation` 与更新锁先于模型锁，故凡撤销删页时排序器都无当前页，一律退回第 1 页（与 LOK、0157 无关）。修法：`EndObservation` 取不到排序器当前页时，先取主视图页签所在的页（即 `ResetActualPage` 已定、`getPart` 所读的那页），再退回第 1 页；前两轮的排序器改动（`HandleModelChange` 跟主视图、`PostModelChange` 无窗口也调）撤掉。不改守卫成员顺序：那会改动所有撤销路径的先后。
+  - 此修法 Omarchy 全过；7877 越过撤销一处，却在复制之后失败：所看的页成了复制出的那页。测试先等 ElyShow 读到新的页列再查所看的页（列表与所看的页同一次读到），仍失败，故是内核状态。Windows 探针（主视图换页与重置、排序器的当前页各入口、`getPart`）：复制后主视图已在原页，随后排序器的 100 毫秒延时切页（`SwitchPageCallback`，由前一次撤销的 `SwitchCurrentSlide` 启动）把主视图切到排序器的当前页，即复制出的那页。排序器当前页只有两处赋值，`AcquireCurrentSlide` 未被调到，故是 `HandleModelChange` 按旧序号重取：页序变了，旧序号 1 已是新页。Linux 上该定时器在复制请求之前就已触发，故不现。修法：`HandleModelChange` 先取主视图页签所在的序号（与上条同源）。测试加一段：所看的页被撤销删掉时显示相邻页而非第 1 页。
+  - 两处修法后 Omarchy 与 7877 各重建内核（150 个补丁）全过：内核层 39、ElyShow 10、`show-cli.sh`。7877 中间一次测试脚本未等内核建完即开跑，删了建构要的补丁文件，那次不作数，按序重跑。审查第 1 轮 PASS（`tasks/reviews/R21.33-r1.md`）。
 - [ ] R21.34 ElyShow 文字：`text replace` 的新文可带换行；`text set 文件 页 标题|正文 文字`（填占位符）；`notes get|set`
 - [ ] R21.35 ElyShow 图片：`image insert 文件 页 图片`（不动所在幻灯片与选中的对象）
 - [ ] R21.36 ElyMark：`text set`（整份换成标准输入）与 `text append`
 - [ ] R21.37 命令行收口：`docs/help.md` 四节一致性通读，agents.md“常设决定”的命令行一条与 `docs/standing.md` 同步；#107 逐条回复做法（ElyPDF 不加命令行是有意不做）并关闭致谢
+- [ ] R21.37b #112 ElyDoc 选区内字号不一时工具栏字号框按选区起点或终点显示一个字号（Linux 报）：查内核 `.uno:FontHeight` 状态在混合选区下发的值与 Ely 的读法，选区字号不一时字号框显示为空（与字体名框一致）；端到端测试正反两向选中；回复并关闭致谢
+- [ ] R21.37c #111 ElyDoc 在 Windows 上打开约 7–8 MB 的 Word 文档要几分钟（报告者未给版本，文档不能外发）：在 7877 上用同量级的样本（大段文字、表格、图片）实测打开各段耗时（内核加载、导入、首帧、版面），找到慢在何处并修根因，记进性能记录；回复做法并关闭致谢
+- [ ] R21.37d #113 ElyPDF 滚动卡顿与双页视图：先在三端实测滚动的帧时间（大页数、扫描件、矢量重的样本），找卡顿根因并修；视图菜单加双页（并排，可选首页单独，缩放按两页宽适配，翻页一次两页），文案取自 writer；端到端测试；回复并关闭致谢
 
 收尾
 

@@ -120,6 +120,10 @@ ElyShow 开着、文件已打开时，别的程序可经命令行读改幻灯片
 - `ely-show text get 文件` 输出每张幻灯片的文字，一段一行，幻灯片之间是换页符（`\f`）；备注与批注不在其中。
 - `ely-show text replace 文件 原文 新文` 把幻灯片上每处原文（区分大小写、不跨段）换成新文；一处也没有即报错。
 - `ely-show text save 文件` 保存，输出保存到的路径。文件在磁盘上被改过时不覆盖，ElyShow 里询问。
+- `ely-show slide list 文件` 输出 JSON 数组，每页含 `number`、`name`、`layout`（版式名或 `"other"`）、`title`（无标题框为 `""`）与 `hidden`。
+- `ely-show slide add 文件 [位置] [--layout 版式]` 新建一页（1 到页数+1，默认末页）；`--layout` 默认 `title-content`，版式名见 `ely-show --help`。
+- `ely-show slide duplicate 文件 页` 复制到该页后；`slide delete 文件 页` 删页（仅剩一页时拒绝）；`slide move 文件 页 目标` 将该页移到目标页号。
+- 以上增删改均为一步撤销，且不改变当前正在查看的幻灯片；若删掉的正是当前页，则改显相邻页。
 
 同样只有同一用户在本机的程序能连上。
 

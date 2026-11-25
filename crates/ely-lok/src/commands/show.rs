@@ -19,6 +19,16 @@ pub(super) const ROWS: &[Command] = &[
     command("slide.first", ".uno:MovePageFirst", &[], Check::Undoable),
     command("slide.last", ".uno:MovePageLast", &[], Check::Undoable),
     command(
+        "slide.at",
+        ".uno:ElySlide",
+        &[
+            Arg::Text("Verb"),
+            Arg::Int("Slide", "long", 0, 65_534),
+            Arg::Int("Value", "long", -1, 65_534),
+        ],
+        Check::Undoable,
+    ),
+    command(
         "slide.layout",
         ".uno:AssignLayout",
         &[Arg::Int("WhatLayout", "long", 0, 34)],
