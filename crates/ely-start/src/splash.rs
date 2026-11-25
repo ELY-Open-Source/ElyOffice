@@ -3,7 +3,7 @@
 use std::{
     io,
     path::Path,
-    process::{Child, Command},
+    process::{Child, Command, ExitStatus},
     thread::JoinHandle,
     time::Instant,
 };
@@ -30,6 +30,8 @@ const WIDTH: i32 = 360;
 const HEIGHT: i32 = 240;
 /// One frame, ms.
 const FRAME: u32 = 16;
+/// Hidden, the app is checked this often, ms.
+const POLL: u32 = 100;
 
 struct Shown {
     name: Vec<u16>,
@@ -43,6 +45,12 @@ struct Shown {
     spawner: Option<JoinHandle<io::Result<Child>>>,
     child: Option<Child>,
     failed: Option<io::Error>,
+    /// How the app ended before its first frame.
+    ended: Option<ExitStatus>,
+    /// Past `scene::LONGEST` with no first frame yet.
+    outlasted: bool,
+    /// Gone from the screen; still waiting.
+    hidden: bool,
 }
 
 impl Shown {
@@ -67,8 +75,8 @@ fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain([0]).collect()
 }
 
-/// Shows the splash until the app closes it or exits.
-pub fn run(name: &str, icon: &Path, mut command: Command, began: Instant) -> io::Result<()> {
+/// Shows the splash until the app closes it or exits; gives how it exited, if it did.
+pub fn run(name: &str, icon: &Path, mut command: Command, began: Instant) -> io::Result<Option<ExitStatus>> {
     // SAFETY: plain Win32 calls on this thread's own window.
     unsafe {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -80,7 +88,7 @@ pub fn run(name: &str, icon: &Path, mut command: Command, began: Instant) -> io:
             return Err(io::Error::other(format!("no icon at {}: {}", icon.display(), io::Error::last_os_error())));
         }
         let still = still();
-        let mut shown = Shown { name: wide(name), icon: handle, scale, dark: dark(), still, entered: still, began, leaving: None, spawner: None, child: None, failed: None };
+        let mut shown = Shown { name: wide(name), icon: handle, scale, dark: dark(), still, entered: still, began, leaving: None, spawner: None, child: None, failed: None, ended: None, outlasted: false, hidden: false };
         let module = GetModuleHandleW(std::ptr::null());
         let class = wide("ElySplash");
         let kind = WNDCLASSEXW {
@@ -138,10 +146,10 @@ pub fn run(name: &str, icon: &Path, mut command: Command, began: Instant) -> io:
             return Err(error);
         }
         // The splash may close first.
-        match shown.spawner.take() {
-            Some(spawner) => joined(spawner).map(drop),
-            None => Ok(()),
+        if let Some(spawner) = shown.spawner.take() {
+            joined(spawner)?;
         }
+        Ok(shown.ended)
     }
 }
 
@@ -216,7 +224,7 @@ unsafe extern "system" fn proc_(window: HWND, message: u32, wparam: WPARAM, lpar
             }
             WM_CLOSE => {
                 match state(window) {
-                    Some(shown) if !shown.still && shown.leaving.is_none() => shown.leaving = Some(Instant::now()),
+                    Some(shown) if !shown.still && !shown.outlasted && shown.leaving.is_none() => shown.leaving = Some(Instant::now()),
                     _ => {
                         DestroyWindow(window);
                     }
@@ -248,7 +256,10 @@ fn exited(shown: &mut Shown) -> bool {
         return false;
     };
     match child.try_wait() {
-        Ok(status) => status.is_some(),
+        Ok(status) => {
+            shown.ended = status;
+            status.is_some()
+        }
         Err(error) => {
             shown.failed = Some(error);
             true
@@ -256,25 +267,43 @@ fn exited(shown: &mut Shown) -> bool {
     }
 }
 
+/// Off the screen; the app's first frame or exit still ends it.
+unsafe fn hide(window: HWND, shown: &mut Shown) {
+    shown.hidden = true;
+    // SAFETY: this thread's window; the timer keeps its id.
+    unsafe {
+        ShowWindow(window, SW_HIDE);
+        SetTimer(window, 1, POLL, None);
+    }
+}
+
 /// One frame: the fade, the entrance, the bar.
 unsafe fn tick(window: HWND, shown: &mut Shown) {
+    if shown.hidden {
+        return;
+    }
     let ms = shown.ms();
     match shown.leaving {
         Some(left) => {
             let opacity = scene::leave(left.elapsed().as_millis() as u64, false);
             fade(window, opacity);
             if opacity <= 0.0 {
-                // SAFETY: this thread's window; no borrow outlives it.
-                unsafe { DestroyWindow(window) };
+                match shown.outlasted {
+                    // SAFETY: this thread's window.
+                    true => unsafe { hide(window, shown) },
+                    // SAFETY: this thread's window; no borrow outlives it.
+                    false => unsafe {
+                        DestroyWindow(window);
+                    },
+                }
                 return;
             }
         }
         None if ms >= scene::LONGEST => {
+            shown.outlasted = true;
             match shown.still {
-                true => {
-                    // SAFETY: this thread's window; no borrow outlives it.
-                    unsafe { DestroyWindow(window) };
-                }
+                // SAFETY: this thread's window.
+                true => unsafe { hide(window, shown) },
                 false => shown.leaving = Some(Instant::now()),
             }
             return;

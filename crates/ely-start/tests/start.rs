@@ -94,3 +94,77 @@ fn child_closes_the_splash() {
     }
     std::fs::write(dir.join("left"), "").expect("the mark writes");
 }
+
+/// Past the splash's own limit and its fade.
+const LATE: u64 = ely_start::scene::LONGEST + 1500;
+
+/// The launcher running `child` after `after` ms; its stderr piped.
+fn late_launch(child: &str, after: u64) -> (tempfile::TempDir, Child) {
+    let me = std::env::current_exe().expect("the test exe");
+    let dir = folder(Some(&me));
+    let launcher = Command::new(dir.path().join("ely-start.exe"))
+        .args(["probe", "Probe", child, "--exact", "--nocapture"])
+        .env("ELY_START_AFTER", after.to_string())
+        .env("ELY_NO_DIALOG", "1")
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the launcher starts");
+    (dir, launcher)
+}
+
+fn failed_with_its_reason(mut launcher: Child) {
+    assert_eq!(ended(&mut launcher).code(), Some(3), "the app's exit code passes on");
+    let mut said = String::new();
+    std::io::Read::read_to_string(&mut launcher.stderr.take().expect("stderr is piped"), &mut said).expect("stderr reads");
+    assert!(said.contains("the engine did not start"), "the app's own reason: {said}");
+    assert!(said.contains("Probe could not start") && said.contains("before its window showed"), "{said}");
+}
+
+#[test]
+fn an_app_that_fails_before_its_window_fails_the_launcher() {
+    failed_with_its_reason(late_launch("child_fails", 0).1);
+}
+
+#[test]
+fn an_app_that_fails_after_the_splash_hid_still_fails_the_launcher() {
+    let began = Instant::now();
+    let (_dir, launcher) = late_launch("child_fails", LATE);
+    failed_with_its_reason(launcher);
+    assert!(began.elapsed() >= Duration::from_millis(LATE), "the launcher waited for the app");
+}
+
+#[test]
+fn an_app_that_shows_after_the_splash_hid_passes() {
+    let began = Instant::now();
+    let (_dir, mut launcher) = late_launch("child_shows", LATE);
+    assert_eq!(ended(&mut launcher).code(), Some(0));
+    assert!(began.elapsed() >= Duration::from_millis(LATE), "the launcher waited for the first frame");
+}
+
+/// The app's wait, if the launcher set one.
+fn after() -> Option<Duration> {
+    let ms = std::env::var("ELY_START_AFTER").ok()?;
+    Some(Duration::from_millis(ms.parse().expect("ELY_START_AFTER is ms")))
+}
+
+/// The app's side: it fails before its first frame.
+#[test]
+fn child_fails() {
+    let Some(wait) = after() else {
+        return;
+    };
+    std::thread::sleep(wait);
+    eprintln!("probe: the engine did not start");
+    std::process::exit(3);
+}
+
+/// The app's side: its first frame comes late; it stays up a little.
+#[test]
+fn child_shows() {
+    let Some(wait) = after() else {
+        return;
+    };
+    std::thread::sleep(wait);
+    ely_platform::startup::close_splash();
+    std::thread::sleep(Duration::from_secs(2));
+}
