@@ -7,7 +7,7 @@ scripts/doctor.sh              本系统构建所需的工具与系统包（与 
 scripts/fetch-references.sh [名字...]  取上游源码到 reference/；给了名字只取那几个（pr.yml 只取 mupdf），名字不认识即报错、不取
 scripts/fetch-tessdata.sh      取 OCR 语言数据到 engines/tessdata（钉提交，核散列）
 scripts/vendor-gpui.sh [write]  vendor 的 gpui 四个 crate 须是 crates.io 原版（核散列）加 patches/gpui；write 重建（pr.yml 核对）
-scripts/build-libreoffice.sh [--symbols]  构建钉住的 LibreOffice 加 patches/libreoffice 到 engines/lo-src；Linux 上把 `packaging/libreoffice/ely-fonts.conf` 的字体别名插进内核 `share/fonts/truetype/fc_local.conf` 的 `</fontconfig>` 前（已有即跳过，该文件缺即失败），在写内核编号之前；先跑 fetch-fonts.sh，把 `packaging/libreoffice/fonts/SOURCES.tsv` 列的字体放进内核的 `fonts/truetype`；--symbols 另建带符号的一份到 engines/lo-sym，只供采样，不进发布
+scripts/build-libreoffice.sh [--symbols]  构建钉住的 LibreOffice 加 patches/libreoffice 到 engines/lo-src；Linux 上把 `packaging/libreoffice/ely-fonts.conf` 的字体别名插进内核 `share/fonts/truetype/fc_local.conf` 的 `</fontconfig>` 前（已有 Ely 的别名即换成当前的，该文件缺即失败），在写内核编号之前；先跑 fetch-fonts.sh，把 `packaging/libreoffice/fonts/SOURCES.tsv` 列的字体放进内核的 `fonts/truetype`；--symbols 另建带符号的一份到 engines/lo-sym，只供采样，不进发布
 scripts/fetch-fonts.sh             内核随附的字体：照 `packaging/libreoffice/fonts/SOURCES.tsv`（文件夹、文件、地址、该文件的 SHA-256、上游原件的 SHA-256；地址带 `#包内路径` 即从该 zip 里取）下载到 engines/fonts；上游原件按散列存在 engines/fonts/.upstream，坏的重取；任一散列不符、取不到或包里没有该成员即失败，不留半成品；已有且相符的跳过
 scripts/build-git.sh           构建钉住的 Git 到 engines/git（随 ElyTree）
 scripts/fetch-git-lfs.sh       取 git-lfs 放进 engines/git（核散列）

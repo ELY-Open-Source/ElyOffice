@@ -177,10 +177,12 @@ if [ "$(uname)" = Linux ]; then
 import sys
 conf, extra = sys.argv[1:]
 text = open(conf, encoding="utf-8").read()
-if "Ely: a Word font" in text:
-    sys.exit(0)
-end = text.rindex("</fontconfig>")
-open(conf, "w", encoding="utf-8").write(text[:end] + "\n" + open(extra, encoding="utf-8").read() + text[end:])
+aliases = open(extra, encoding="utf-8").read()
+tail = text.rindex("</fontconfig>")
+# A rebuild replaces the aliases an earlier build added.
+start = text.find("\n" + aliases.splitlines()[0])
+head = text[:start] if start >= 0 else text[:tail]
+open(conf, "w", encoding="utf-8").write(head + "\n" + aliases + text[tail:])
 PY
 fi
 
