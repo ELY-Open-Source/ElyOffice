@@ -1,0 +1,73 @@
+officecfg: stand-ins for Aptos and Arial Nova
+
+Office's default fonts since 2023 are Aptos (body) and Aptos Display
+(headings); Arial Nova is among its cloud fonts. None has an entry in
+the font substitution table, so a document using them on a computer
+without them fell to the default serif: Aptos showed in Liberation
+Serif, and Arial Nova in Arial Black, the first "Arial" font found
+(Ely R21.13, issue 110).
+
+Aptos and Aptos Display now ask for Source Sans 3, then Carlito, then
+Liberation Sans. Over a mixed English sample Source Sans 3 runs 0.978
+of Aptos Regular's width, Carlito 0.962 and Liberation Sans 1.050.
+Arial Nova asks for Liberation Sans, the Arial-metric sans.
+
+diff --git a/officecfg/registry/data/org/openoffice/VCL.xcu b/officecfg/registry/data/org/openoffice/VCL.xcu
+--- a/officecfg/registry/data/org/openoffice/VCL.xcu
++++ b/officecfg/registry/data/org/openoffice/VCL.xcu
+@@ -1028,6 +1028,34 @@
+           <value>Normal,SansSerif</value>
+         </prop>
+       </node>
++      <node oor:name="aptos" oor:op="replace">
++        <prop oor:name="SubstFonts">
++          <value>sourcesans3;carlito;liberationsans</value>
++        </prop>
++        <prop oor:name="FontWeight">
++          <value>Normal</value>
++        </prop>
++        <prop oor:name="FontWidth">
++          <value>Normal</value>
++        </prop>
++        <prop oor:name="FontType">
++          <value>Normal,SansSerif</value>
++        </prop>
++      </node>
++      <node oor:name="aptosdisplay" oor:op="replace">
++        <prop oor:name="SubstFonts">
++          <value>sourcesans3;carlito;liberationsans</value>
++        </prop>
++        <prop oor:name="FontWeight">
++          <value>Normal</value>
++        </prop>
++        <prop oor:name="FontWidth">
++          <value>Normal</value>
++        </prop>
++        <prop oor:name="FontType">
++          <value>Normal,SansSerif</value>
++        </prop>
++      </node>
+       <node oor:name="arial" oor:op="replace">
+         <prop oor:name="SubstFonts">
+           <value>liberationsans;albanyamt;albany;arimo;nimbussansl;helvetica;lucidasans;lucida;geneva;helmet;nimbussans;andalesansui;arialunicodems;lucidaunicode</value>
+@@ -1056,6 +1084,20 @@
+           <value>Normal,SansSerif</value>
+         </prop>
+       </node>
++      <node oor:name="arialnova" oor:op="replace">
++        <prop oor:name="SubstFonts">
++          <value>liberationsans;arimo;helvetica</value>
++        </prop>
++        <prop oor:name="FontWeight">
++          <value>Normal</value>
++        </prop>
++        <prop oor:name="FontWidth">
++          <value>Normal</value>
++        </prop>
++        <prop oor:name="FontType">
++          <value>Normal,SansSerif</value>
++        </prop>
++      </node>
+       <node oor:name="arialunicode" oor:op="replace">
+         <prop oor:name="SubstFonts">
+           <value>andalesansui;arialunicodems;lucidaunicode;albanyamt;albany;arial;liberationsans;nimbussansl;helvetica;lucidasans;lucida;geneva;helmet;sansserif;nimbussans</value>
