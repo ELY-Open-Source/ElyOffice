@@ -1,0 +1,153 @@
+From: Ely Office
+Subject: LOK: Writer inserts a picture file, the cursor kept
+
+- .uno:ElyInsertImage (Url, After, Width) loads the picture at Url and
+  embeds it, anchored as a character, in a new plain paragraph after the
+  body's last block, or after the block holding After's first body
+  match, in one undo step, without moving any view's cursor or selection.
+- The picture keeps its natural size, no wider than the default page
+  style's text width; Width (twips) sets the width, the height following.
+- A file that is no picture, or no match, leaves the document as it was.
+
+diff --git a/sw/inc/cmdid.h b/sw/inc/cmdid.h
+index 2ec9e78..3e5525e 100644
+--- a/sw/inc/cmdid.h
++++ b/sw/inc/cmdid.h
+@@ -693,6 +693,8 @@ class SwUINumRuleItem;
+ #define FN_ELY_FORMAT_MATCHES (FN_EXTRA2 + 135)
+ // Ely: a filled table after the body or a match.
+ #define FN_ELY_INSERT_TABLE (FN_EXTRA2 + 136)
++// Ely: a picture after the body or a match.
++#define FN_ELY_INSERT_IMAGE (FN_EXTRA2 + 137)
+ 
+ // Area: Help
+ // Region: Traveling & Selection
+diff --git a/sw/sdi/_basesh.sdi b/sw/sdi/_basesh.sdi
+index dfb1343..9bdd5a5 100644
+--- a/sw/sdi/_basesh.sdi
++++ b/sw/sdi/_basesh.sdi
+@@ -24,6 +24,12 @@ interface BaseTextSelection
+         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+     ]
+ 
++    FN_ELY_INSERT_IMAGE
++    [
++        ExecMethod = Execute ;
++        StateMethod = NoState ;
++    ]
++
+     FN_ELY_INSERT_TABLE
+     [
+         ExecMethod = Execute ;
+diff --git a/sw/sdi/swriter.sdi b/sw/sdi/swriter.sdi
+index 8013b30..24fa438 100644
+--- a/sw/sdi/swriter.sdi
++++ b/sw/sdi/swriter.sdi
+@@ -5469,6 +5469,23 @@ SfxVoidItem ElyFormatMatches FN_ELY_FORMAT_MATCHES
+     GroupId = SfxGroupId::Format;
+ ]
+ 
++SfxVoidItem ElyInsertImage FN_ELY_INSERT_IMAGE
++(SfxStringItem Url FN_PARAM_1, SfxStringItem After FN_PARAM_2, SfxStringItem Width FN_PARAM_3)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Insert;
++]
++
+ SfxVoidItem ElyInsertTable FN_ELY_INSERT_TABLE
+ (SfxStringItem Cells FN_PARAM_1, SfxStringItem After FN_PARAM_2, SfxStringItem Header FN_PARAM_3)
+ [
+diff --git a/sw/source/uibase/shells/basesh.cxx b/sw/source/uibase/shells/basesh.cxx
+index 2a0c3e8..a4c6d3b 100644
+--- a/sw/source/uibase/shells/basesh.cxx
++++ b/sw/source/uibase/shells/basesh.cxx
+@@ -123,6 +123,12 @@
+ #include <vector>
+ #include <swtable.hxx>
+ #include <poolfmt.hxx>
++#include <fmtanchr.hxx>
++#include <fmtfsize.hxx>
++#include <frmatr.hxx>
++#include <editeng/lrspitem.hxx>
++#include <vcl/graphicfilter.hxx>
++#include <vcl/svapp.hxx>
+ #include <itabenum.hxx>
+ #include <com/sun/star/text/HoriOrientation.hpp>
+ #include <climits>
+@@ -1141,6 +1147,45 @@ bool lcl_ElyInsertTable(SwDoc& rDoc, const OUString& rCells, const OUString& rAf
+     rDoc.GetIDocumentUndoRedo().EndUndo(SwUndoId::INSTABLE, nullptr);
+     return pTable != nullptr;
+ }
++
++/// Ely: the default page style's text width, in twips.
++tools::Long lcl_ElyTextWidth(const SwDoc& rDoc)
++{
++    const SwFrameFormat& rPage = rDoc.GetPageDesc(0).GetMaster();
++    const SvxLRSpaceItem& rLR = rPage.GetLRSpace();
++    return rPage.GetFrameSize().GetWidth() - rLR.ResolveLeft({}) - rLR.ResolveRight({});
++}
++
++/// Ely: `rUrl`'s picture in a new paragraph, as a character.
++bool lcl_ElyInsertImage(SwDoc& rDoc, const OUString& rUrl, const OUString& rAfter, tools::Long nWidth)
++{
++    Graphic aGraphic;
++    if (GraphicFilter::LoadGraphic(rUrl, OUString(), aGraphic) != ERRCODE_NONE || aGraphic.IsNone())
++        return false;
++    const MapMode aTwip(MapUnit::MapTwip);
++    const MapMode aPref(aGraphic.GetPrefMapMode());
++    const Size aNatural = aPref.GetMapUnit() == MapUnit::MapPixel
++        ? Application::GetDefaultDevice()->PixelToLogic(aGraphic.GetPrefSize(), aTwip)
++        : OutputDevice::LogicToLogic(aGraphic.GetPrefSize(), aPref, aTwip);
++    if (aNatural.Width() <= 0 || aNatural.Height() <= 0)
++        return false;
++    // Natural size, no wider than the text unless asked.
++    const sal_Int64 nWide = nWidth > 0 ? nWidth : std::min<sal_Int64>(aNatural.Width(), lcl_ElyTextWidth(rDoc));
++    const sal_Int64 nHigh = std::max<sal_Int64>(1, sal_Int64(aNatural.Height()) * nWide / aNatural.Width());
++    SwNode* pBefore = rAfter.isEmpty() ? &rDoc.GetNodes().GetEndOfContent() : lcl_ElyAfterMatch(rDoc, rAfter);
++    if (!pBefore)
++        return false;
++    rDoc.GetIDocumentUndoRedo().StartUndo(SwUndoId::INSERT, nullptr);
++    SwPosition aPos(*pBefore, SwNodeOffset(-1));
++    rDoc.getIDocumentContentOperations().AppendTextNode(aPos);
++    rDoc.SetTextFormatColl(SwPaM(aPos), rDoc.getIDocumentStylePoolAccess().GetTextCollFromPool(RES_POOLCOLL_STANDARD), true, true);
++    SfxItemSetFixed<RES_FRMATR_BEGIN, RES_FRMATR_END - 1> aFly(rDoc.GetAttrPool());
++    aFly.Put(SwFormatAnchor(RndStdIds::FLY_AS_CHAR));
++    aFly.Put(SwFormatFrameSize(SwFrameSize::Fixed, nWide, nHigh));
++    const bool bDone = rDoc.getIDocumentContentOperations().InsertGraphic(SwPaM(aPos), OUString(), OUString(), &aGraphic, &aFly, nullptr, nullptr) != nullptr;
++    rDoc.GetIDocumentUndoRedo().EndUndo(SwUndoId::INSERT, nullptr);
++    return bDone;
++}
+ }
+ 
+ void SwBaseShell::Execute(SfxRequest &rReq)
+@@ -1153,6 +1198,20 @@ void SwBaseShell::Execute(SfxRequest &rReq)
+     sal_uInt16 nSlot = rReq.GetSlot();
+     switch(nSlot)
+     {
++        case FN_ELY_INSERT_IMAGE:
++            {
++                const SfxStringItem* pUrl = rReq.GetArg<SfxStringItem>(FN_PARAM_1);
++                const SfxStringItem* pAfter = rReq.GetArg<SfxStringItem>(FN_PARAM_2);
++                const SfxStringItem* pWidth = rReq.GetArg<SfxStringItem>(FN_PARAM_3);
++                const OUString aAfter = pAfter ? pAfter->GetValue() : OUString();
++                const tools::Long nWidth = pWidth ? pWidth->GetValue().toInt32() : 0;
++                // The user's cursor and selection stay where they are.
++                if (pUrl && !pUrl->GetValue().isEmpty() && lcl_ElyInsertImage(*rSh.GetDoc(), pUrl->GetValue(), aAfter, nWidth))
++                    rReq.Done();
++                else
++                    rReq.Ignore();
++            }
++            break;
+         case FN_ELY_INSERT_TABLE:
+             {
+                 const SfxStringItem* pCells = rReq.GetArg<SfxStringItem>(FN_PARAM_1);

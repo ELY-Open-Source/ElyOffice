@@ -90,3 +90,16 @@ rc=0; printf 'a\tb\nc\n' | "$doc" table insert "$file" - 2>/dev/null || rc=$?
 "$doc" table insert "$file" '[[""]]' || fail "inserting one empty cell"
 "$doc" table insert "$file" '[[" "]]' --after 'two &' || fail "inserting one blank cell after a match"
 echo "ok: ElyDoc inserted tables after a match and at the end, empty cells too; a missing word and uneven rows were refused"
+printf '<svg xmlns="http://www.w3.org/2000/svg" width="40pt" height="20pt"><rect width="40" height="20"/></svg>' > "$work/dot.svg"
+count() { text get "$file" --json | python -c 'import json, sys; print(len(json.load(sys.stdin)))'; }
+before=$(count)
+"$doc" image insert "$file" "$work/dot.svg" --width 2cm || fail "inserting a picture at the end"
+"$doc" image insert "$file" "$work/dot.svg" --after 'two &' || fail "inserting a picture after a match"
+[ "$(count)" = $((before + 2)) ] || fail "after image insert, get --json read $(text get "$file" --json)"
+rc=0; "$doc" image insert "$file" "$work/gone.svg" 2>/dev/null || rc=$?
+[ "$rc" = 2 ] || fail "a missing picture exited $rc, not 2"
+printf 'not a picture' > "$work/fake.png"
+if "$doc" image insert "$file" "$work/fake.png" 2>"$work/err"; then fail "a file that is not a picture went in"; fi
+grep -q 'cannot read as an image' "$work/err" || fail "the picture refusal says $(cat "$work/err")"
+[ "$(count)" = $((before + 2)) ] || fail "a refused picture changed the document"
+echo "ok: ElyDoc inserted pictures at the end and after a match; a missing file and a non-picture were refused"

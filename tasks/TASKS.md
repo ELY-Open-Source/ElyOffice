@@ -921,7 +921,14 @@
   - 审查第 1 轮 FAIL：1×1 的空格或纯空白格（合法数据）被 `Arg::Text` 与补丁的非空判断拒绝，带 `--after` 时还误报无命中。`Cells` 改为 `Arg::Loose`，0155 去掉非空判断（空串经分隔循环即一行一个空格）；端到端、单测与 `doc-cli.sh` 补上空格与空白格。0155 改后在 Omarchy、7877 重建再测。审查第 2 轮 PASS。
   - Omarchy 以改后的 0155 重建（148 个补丁，0155 与提交的一致）再测：内核层 19、ely-office 16、ElyTable 12、ElyDoc 14 过；`doc-cli.sh` 四段（含空格与空白格）与 `table-cli.sh` 都过。首次重建因随带的 0156（R21.32）缺 `frmatr.hxx` 链接失败，那次的测试跑在坏内核上，不作数；去掉 0156 后重建。
   - 7877（内核 148 个补丁，0155 与提交的一致）：clippy 全目标过；内核层 19、ely-office 16、ElyTable 12、ElyDoc 14 过；`doc-cli.sh` 四段与 `table-cli.sh` 都过。首次排队的测试误把链首行转述的旧构建 `build rc=0` 当作重建完成而提前开跑，结果作废，改为只认重建自己的结果行后重跑。
-- [ ] R21.32 ElyDoc 图片：`image insert`（默认文末，不动用户光标；内核按光标插入，可能要补丁）
+- [x] R21.32 ElyDoc 图片：`image insert`（默认文末，不动用户光标；内核按光标插入，可能要补丁）
+  - 做法：`ely-doc image insert 文件 图片 [--after 原文] [--width 尺寸]`。Writer 自己的插入按光标走且缩到页宽，故补丁 0156 加新槽 `.uno:ElyInsertImage`（仿 0155）：经 GraphicFilter 读入图片，在模型里另起一段、以字符锚定嵌入，位置规则同 `table insert`；按图片原尺寸、宽不超过默认页面样式的版心，`--width` 定宽、高随比例；一个撤销，不动光标与选区；读不成图片或无命中都不改。内核命令 `text.image`，计数 279→280。
+  - 尺寸写法（数字加 cm、mm、in、pt，1pt 到 100cm）从 ElyTable 的 `structure.rs` 移到 `ely_office::remote::length` 两边共用，ElyTable 的两句说法不变。图片不存在由命令行先拒（退 2）；给了 `--after` 时先读正文找原文，没有即报无命中，内核再拒就只能是读不成图片。
+  - 已知局限：版心取默认页面样式，文档用别的页面样式时上限可能与其实际版心不符。
+  - 0156 初次在 Omarchy 链接失败：`SwFormat::GetLRSpace` 是定义在 `frmatr.hxx` 里的内联，补上该头文件后链接通过（149 个补丁）。
+  - Omarchy（内核 149 个补丁，0156 与提交的一致，缺引擎即失败）在 `4a42302b` 上：内核层 commands 19、ely-office remote 17（含 length）、ElyTable range、remote、structure 13 过；ElyDoc remote 17 过，含新的端到端测试（文末与命中段后、键入留在原处、一步撤销、原尺寸、超宽缩到版心且等比、`--width 8cm`、无命中与非图片被拒且不改）；`doc-cli.sh` 五段与 `table-cli.sh` 都过。首跑时原尺寸断言的容差 0.02 cm 过紧（Writer 读 SVG 尺寸取整，200pt 读成 7.082 cm），放宽到 0.1 cm 后重跑 ElyDoc 通过。
+  - 7877（内核 149 个补丁，0156 与提交的一致）在 `4a42302b` 上：clippy 全目标过；内核层 19、ely-office 17、ElyTable 13、ElyDoc 17 过；`doc-cli.sh` 五段与 `table-cli.sh` 都过。
+  - 审查第 1 轮 PASS（`tasks/reviews/R21.32-r1.md`）。
 - [ ] R21.33 ElyShow 结构：`slide list|add|duplicate|delete|move`（list 带版式与标题，add 带版式）
 - [ ] R21.34 ElyShow 文字：`text replace` 的新文可带换行；`text set 文件 页 标题|正文 文字`（填占位符）；`notes get|set`
 - [ ] R21.35 ElyShow 图片：`image insert 文件 页 图片`（不动所在幻灯片与选中的对象）

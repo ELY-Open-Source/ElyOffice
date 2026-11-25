@@ -1,7 +1,10 @@
 //! `sheet`, `rows`, `columns`, `range merge`, `format` by address (#107).
 
 use ely_lok::sheet::structure::{self, Refused};
-use ely_office::{prelude::*, remote};
+use ely_office::{
+    prelude::*,
+    remote::{self, length},
+};
 use ely_ui::Ask;
 use gpui::Context;
 
@@ -22,11 +25,6 @@ const FREEZE_ADDRESS: &str = "{address}: freeze requires a single cell (e.g. She
 const MERGE_SINGLE: &str = "{address}: single cell; nothing to merge";
 const MERGE_OVERLAP: &str = "{address}: already contains or overlaps merged cells; unmerge first";
 const UNMERGE_NONE: &str = "{address}: no merged cells in this range";
-
-/// Twips per unit a size may be written in.
-const UNITS: [(&str, f64); 4] = [("cm", 1440.0 / 2.54), ("mm", 144.0 / 2.54), ("in", 1440.0), ("pt", 20.0)];
-/// Sizes from 1 pt to Calc's 1 m.
-const SIZES: (u32, u32) = (20, 56693);
 
 /// The words sent for `sheet ...`.
 pub(super) fn sheet(words: &[&str]) -> Result<Vec<String>, String> {
@@ -91,14 +89,11 @@ fn twips(size: &str) -> Result<String, String> {
     if size == "auto" {
         return Ok(size.into());
     }
-    let bad = || SIZE.replace("{size}", size);
-    let (number, per) = UNITS.iter().find_map(|(unit, per)| size.strip_suffix(unit).map(|number| (number, per))).ok_or_else(bad)?;
-    let amount: f64 = number.parse().map_err(|_| bad())?;
-    let twips = (amount * per).round();
-    if !twips.is_finite() || twips < f64::from(SIZES.0) || twips > f64::from(SIZES.1) {
-        return Err(SIZE_RANGE.replace("{size}", size).replace("{min}", "1pt").replace("{max}", "100cm"));
+    match length::twips(size) {
+        Ok(twips) => Ok(twips.to_string()),
+        Err(length::Refused::Form) => Err(SIZE.replace("{size}", size)),
+        Err(length::Refused::Range) => Err(SIZE_RANGE.replace("{size}", size).replace("{min}", "1pt").replace("{max}", "100cm")),
     }
-    Ok(format!("{twips}"))
 }
 
 /// The writer's message for a refusal of `verb` on `address`.

@@ -47,6 +47,12 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Loose("Cells"), Arg::Loose("After"), Arg::Text("Header")],
         Check::Undoable,
     ),
+    command(
+        "text.image",
+        ".uno:ElyInsertImage",
+        &[Arg::Text("Url"), Arg::Loose("After"), Arg::Loose("Width")],
+        Check::Undoable,
+    ),
     command("format.superscript", ".uno:SuperScript", &[], Check::Result),
     command("format.subscript", ".uno:SubScript", &[], Check::Result),
     command("format.clear", ".uno:ResetAttributes", &[], Check::Result),

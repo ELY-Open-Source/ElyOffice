@@ -9,6 +9,7 @@ use crate::{Core, Engine, Host, Opening as _, Saving, Tabs, in_window};
 
 mod client;
 pub mod grid;
+pub mod length;
 pub mod pairs;
 mod text;
 pub use client::{Cli, command_line};

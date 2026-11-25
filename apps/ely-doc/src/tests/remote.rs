@@ -225,6 +225,91 @@ fn a_table_lands_at_the_end_or_after_a_match_in_one_step() {
     assert_eq!(listed(&mut cx).len(), 8, "one blank cell after the match");
 }
 
+/// Each frame's width and height in centimetres.
+fn frames(xml: &str) -> Vec<(f64, f64)> {
+    let cm = |value: &str| -> f64 {
+        let at = value.find(|c: char| c.is_ascii_alphabetic()).unwrap_or(value.len());
+        let number: f64 = value[..at].parse().unwrap_or(f64::NAN);
+        number * match &value[at..] {
+            "cm" => 1.0,
+            "mm" => 0.1,
+            "in" => 2.54,
+            "pt" => 2.54 / 72.0,
+            _ => f64::NAN,
+        }
+    };
+    let attribute = |tag: &str, name: &str| tag.split(&format!("{name}=\"")).nth(1).and_then(|rest| rest.split('"').next()).map(cm).unwrap_or(f64::NAN);
+    xml.split("<draw:frame ").skip(1).map(|tag| tag.split('>').next().unwrap_or_default()).map(|tag| (attribute(tag, "svg:width"), attribute(tag, "svg:height"))).collect()
+}
+
+#[test]
+fn a_picture_lands_at_the_end_or_after_a_match_sized_in_one_step() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "first");
+    let path = dir.path().join("image.odt");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    settle(&cx, |app| docs.read(app).core.tabs[0].name == "image.odt");
+    let file = path.display().to_string();
+    let svg = |name: &str, width: u32| {
+        let picture = dir.path().join(name);
+        let body = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}pt" height="{}pt"><rect width="100%" height="100%" fill="red"/></svg>"#, width / 2);
+        std::fs::write(&picture, body).expect("a picture");
+        picture
+    };
+    let small = svg("small.svg", 200);
+    let wide = svg("wide.svg", 2000);
+    let insert = |cx: &mut TestAppContext, picture: &std::path::Path, after: &str, width: &str| {
+        let shown = picture.display().to_string();
+        ask(cx, &docs, &["image.insert", &file, &ely_lok::file_url(picture), after, width, &shown])
+    };
+    let texts = |cx: &mut TestAppContext| -> Vec<String> {
+        let json: Vec<serde_json::Value> = serde_json::from_str(&ask(cx, &docs, &["get", &file, "--json"]).expect("json")).expect("a JSON list");
+        json.iter().map(|p| p["text"].as_str().unwrap_or_default().to_owned()).collect()
+    };
+    let saved = |cx: &mut TestAppContext| {
+        assert!(ask(cx, &docs, &["save", &file]).is_ok(), "saved");
+        text_of(cx, &docs, &path)
+    };
+    assert_eq!(insert(&mut cx, &small, "", ""), Ok(String::new()));
+    // Typing stays in the paragraph the cursor was in.
+    type_into(&mut cx, &docs, "!");
+    assert_eq!(texts(&mut cx), ["first!", ""], "the picture has its own paragraph");
+    let xml = saved(&mut cx);
+    assert!(xml.contains("text:anchor-type=\"as-char\"") && xml.contains("<draw:image"), "embedded as a character");
+    let natural = frames(&xml);
+    assert_eq!(natural.len(), 1, "{natural:?}");
+    // Writer rounds an SVG's size when it reads it.
+    assert!((natural[0].0 - 200.0 * 2.54 / 72.0).abs() < 0.1, "its own size: {natural:?}");
+    cx.update(|app| docs.update(app, |docs, cx| docs.run_active("edit.undo", &[], cx)));
+    settled(&cx, &docs);
+    cx.update(|app| docs.update(app, |docs, cx| docs.run_active("edit.undo", &[], cx)));
+    settled(&cx, &docs);
+    assert_eq!(texts(&mut cx), ["first"], "the picture is one step");
+    assert_eq!(ask(&mut cx, &docs, &["append", &file, "last", ""]), Ok(String::new()));
+    assert_eq!(insert(&mut cx, &wide, "irs", ""), Ok(String::new()));
+    assert_eq!(texts(&mut cx), ["first", "", "last"], "after the match");
+    let capped = frames(&saved(&mut cx));
+    assert!(capped[0].0 > 10.0 && capped[0].0 < 20.0, "within the text width: {capped:?}");
+    assert!((capped[0].1 * 2.0 - capped[0].0).abs() < 0.05, "the ratio kept: {capped:?}");
+    assert_eq!(insert(&mut cx, &small, "last", "4535"), Ok(String::new()));
+    let sized = frames(&saved(&mut cx));
+    assert_eq!(sized.len(), 2, "{sized:?}");
+    assert!((sized[1].0 - 8.0).abs() < 0.02 && (sized[1].1 - 4.0).abs() < 0.02, "--width 8cm: {sized:?}");
+    let none = insert(&mut cx, &small, "zebra", "");
+    assert_eq!(none, Err(format!("{file}: no match for \"zebra\"")));
+    let fake = dir.path().join("fake.png");
+    std::fs::write(&fake, "not a picture").expect("a file");
+    let unread = insert(&mut cx, &fake, "", "");
+    assert_eq!(unread, Err(format!("{}: cannot read as an image; nothing was inserted", fake.display())));
+    assert_eq!(texts(&mut cx).len(), 4, "refusals change nothing");
+}
+
 #[test]
 fn a_read_never_gives_way_to_waiting_input() {
     let dir = tempfile::tempdir().expect("a temp dir");

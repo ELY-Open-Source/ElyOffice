@@ -14,6 +14,7 @@ use gpui::Context;
 use crate::docs::Docs;
 
 mod format;
+mod image;
 mod table;
 mod text;
 
@@ -27,6 +28,7 @@ const USAGE: &str = "usage: ely-doc docs
        ely-doc text append FILE TEXT [--style STYLE]
        ely-doc format FILE FIND PROPERTY=VALUE ...
        ely-doc table insert FILE DATA [--after FIND] [--header]
+       ely-doc image insert FILE IMAGE [--after FIND] [--width SIZE]
 open and new start ElyDoc if needed; the rest require it running (with FILE open).
 get prints the body text, one paragraph per line; notes, comments and frames are left out.
 With --json, get prints a JSON array of {\"style\", \"text\"} objects.
@@ -35,6 +37,7 @@ append adds lines as paragraphs at the end (--style uses English name, e.g. Head
 format styles every exact, case-matched FIND (one undo): bold, italic, underline (on|off), font,
 size (1-999), color (#RRGGBB|none), style (English paragraph style for each matching paragraph).
 table insert adds a JSON/TSV table at end or --after FIND (--header repeats row 1; one undo).
+image insert embeds IMAGE at end or --after FIND (--width SIZE: cm/mm/in/pt, 1pt-100cm; one undo).
 Any argument written as - is read from standard input, up to 64 MiB.
 Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
@@ -46,11 +49,11 @@ const WHOLE: Pdf = Pdf {
     handouts: 0,
 };
 
-/// `ely-doc open|new|export|text|format|table ...`; its exit code.
+/// `ely-doc open|new|export|text|format|table|image ...`; its exit code.
 pub fn command_line() -> Option<i32> {
     remote::command_line(&Cli {
         app: AppId::Doc,
-        nouns: &[("text", request), ("format", format::request), ("table", table::request)],
+        nouns: &[("text", request), ("format", format::request), ("table", table::request), ("image", image::request)],
         usage: USAGE,
         exact: &[],
         blanks: &[("docx", include_bytes!("../../../packaging/windows/new/new.docx"))],
@@ -162,6 +165,29 @@ impl Docs {
                             Ok(Err(nothing))
                         }
                         done => done.map(Ok),
+                    },
+                    move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
+                    cx,
+                );
+            }
+            [verb, file, url, after, width, image] if verb == "image.insert" => {
+                let Some(copy) = self.tab(id).map(|tab| tab.work.join("image.fodt")) else {
+                    return ask.answer(Err(format!("tab {id} closed")));
+                };
+                let nothing = format::NOTHING.replace("{file}", file).replace("{find}", after);
+                let unread = image::READ.replace("{image}", image);
+                let (url, after, width) = (url.clone(), after.clone(), width.clone());
+                self.write_in(
+                    id,
+                    move |worker, doc| {
+                        // FIND checked first: a refusal means the picture.
+                        if !after.is_empty() && !remote::body_text(&remote::copy::<ely_office::Lok>(worker, doc, &copy, "fodt")?)?.contains(&after) {
+                            return Ok(Err(nothing));
+                        }
+                        Ok(worker.run(doc, "text.image", &[&url, &after, &width]).map_err(|error| {
+                            log::info!("doc: another program's picture was not read: {error}");
+                            unread
+                        }))
                     },
                     move |_, done, _, _| ask.answer(done.map_err(|error| error.to_string()).and_then(|done| done.map(|()| String::new()))),
                     cx,

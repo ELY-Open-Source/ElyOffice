@@ -106,6 +106,8 @@ ElyDoc 开着、文件已打开时，别的程序可经命令行读改其中的�
 - 例：`ely-doc format 文件 "第一章" bold=on color=#B00020 style="Heading 1"`。
 - `ely-doc table insert 文件 数据 [--after 原文] [--header]` 插入表格（数据为二维 JSON 字符串数组或 TSV，常写 `-` 走标准输入，每行等长，上限 100 万格）。
 - 默认插在文末，`--after 原文` 插在首处匹配段后，`--header` 设首行为跨页标题行；一步撤销，不动光标与选区。例：`ely-doc table insert 文件 - --header`。
+- `ely-doc image insert 文件 图片 [--after 原文] [--width 宽度]` 嵌入图片（独立新段、随文，PNG/JPEG/GIF/SVG/BMP/TIFF/WebP 等）；一步撤销，不动光标与选区。
+- 默认文末，超宽缩版心；`--after` 在首匹配段（表内整表）后；`--width`：cm/mm/in/pt（1pt–100cm，等比）。例：`ely-doc image insert 文件 图.png --width 8cm`。
 - `ely-doc text save 文件` 保存，输出保存到的路径。文件在磁盘上被改过时不覆盖，ElyDoc 里询问。
 
 同样只有同一用户在本机的程序能连上。
