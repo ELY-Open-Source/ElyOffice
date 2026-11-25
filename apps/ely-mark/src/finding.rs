@@ -6,7 +6,6 @@ use ely_gpui_component::{
     editor::{FindOptions, FindWidget, find_all},
     forms::{InputEvent, TextInput},
     primitives::{Severity, raise},
-    theme::ActiveTheme as _,
 };
 use ely_office::prelude::*;
 use ely_ui::i18n::text;
@@ -239,24 +238,14 @@ impl Desk {
     }
 }
 
-/// The matches marked in the source; the current one stronger.
+/// The matches marked in every mode; the current one stronger.
 fn mark(
     document: &Entity<ely_gpui_component::documents::MarkdownDocument>,
     hits: &[Range<usize>],
     current: Option<usize>,
     cx: &mut Context<Desk>,
 ) {
-    let tone = cx.theme().colors.warning;
-    let marks = hits
-        .iter()
-        .enumerate()
-        .map(|(at, hit)| {
-            let strength = if Some(at) == current { 0.45 } else { 0.2 };
-            (hit.clone(), tone.opacity(strength))
-        })
-        .collect();
-    let editor = document.read(cx).editor().clone();
-    editor.update(cx, |editor, cx| editor.set_backgrounds(marks, cx));
+    document.update(cx, |document, cx| document.set_found(hits.to_vec(), current, cx));
 }
 
 #[cfg(test)]
