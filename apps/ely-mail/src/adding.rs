@@ -27,7 +27,7 @@ pub enum Step {
     Checking,
     /// `kept` goes to the vault: a password or refresh token.
     Checked {
-        account: Account,
+        account: Box<Account>,
         kept: String,
         checked: Checked,
     },
@@ -271,6 +271,7 @@ impl Adding {
         }
         let (incoming, outgoing) = self.servers(cx)?;
         let account = Account {
+            secret: Account::secret_for(&address, &incoming),
             address,
             user,
             auth: self.auth(),

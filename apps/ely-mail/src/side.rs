@@ -6,7 +6,7 @@ use ely_gpui_component::{
     menus::{ContextMenu, Menu, MenuItem},
     primitives::IconName,
 };
-use ely_mail_engine::{AccountId, LocalFolder, MailboxId, Role};
+use ely_mail_engine::{Account, AccountId, LocalFolder, MailboxId, Role};
 use gpui::{
     App, Context, IntoElement, ParentElement as _, Pixels, Point, Render, SharedString,
     Styled as _, WeakEntity, Window, div,
@@ -149,7 +149,7 @@ impl Render for Side {
                 match folder.pinned {
                     // Pinned: at the top, by its account's name.
                     true if named => {
-                        let name = format!("{name} · {}", account.address);
+                        let name = format!("{name} · {}", mail.title(account));
                         pinned.push(box_of(*id, folder, name.into()));
                     }
                     true => pinned.push(box_of(*id, folder, name)),
@@ -160,19 +160,19 @@ impl Render for Side {
             let failed = mail.syncs.get(id).is_some_and(|each| each.failed.is_some());
             let mark = if failed { IconName::CloudAlert } else { IconName::Settings };
             boxes.push(Mailbox::new(Open::Account(*id).key(), text(cx, "mail.boxes.settings", &[]), mark));
-            accounts.push((account.address.clone(), boxes));
+            accounts.push((mail.title(account), boxes));
         }
         let folded = mail
             .accounts()
             .iter()
             .filter(|(id, _)| mail.folded.contains(id));
-        let folded: Vec<String> = folded.map(|(_, account)| account.address.clone()).collect();
+        let folded: Vec<String> = folded.map(|(_, account)| mail.title(account)).collect();
         let mut list = MailboxList::new("mail-boxes").fixed_section(
             text(cx, "mail.boxes.unified", &[]),
             [inboxes, drafts, outbox, contacts].into_iter().chain(pinned),
         );
-        for (address, boxes) in accounts {
-            list = list.section(address, boxes);
+        for (title, boxes) in accounts {
+            list = list.section(title, boxes);
         }
         let (this, folding, side) = (self.mail.clone(), self.mail.clone(), cx.weak_entity());
         let list = list
@@ -225,12 +225,23 @@ impl Mail {
         })
     }
 
-    /// Folds an account's section, by its address.
-    fn fold(&mut self, address: &str, folded: bool, cx: &mut Context<Self>) {
+    /// An account's section title; a shared address names its server.
+    pub(crate) fn title(&self, account: &Account) -> String {
+        let shared = self.accounts().iter().any(|(_, each)| {
+            each.address.eq_ignore_ascii_case(&account.address) && !each.same(account)
+        });
+        match shared {
+            true => format!("{} · {}", account.address, account.incoming.host),
+            false => account.address.clone(),
+        }
+    }
+
+    /// Folds an account's section, by its title.
+    fn fold(&mut self, title: &str, folded: bool, cx: &mut Context<Self>) {
         let found = self
             .accounts()
             .iter()
-            .find(|(_, each)| each.address == address);
+            .find(|(_, each)| self.title(each) == title);
         let Some((id, _)) = found else {
             return log::error!("mail: the side folded a section that is no account");
         };

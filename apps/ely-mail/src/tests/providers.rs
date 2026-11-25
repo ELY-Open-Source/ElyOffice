@@ -138,7 +138,7 @@ fn a_refused_gmail_password_says_what_to_do() {
             cx.update(|_, app| {
                 mail.update(app, |mail, _| {
                     mail.adding.as_mut().unwrap().step = Step::Checked {
-                        account: account("ann@gmail.com"),
+                        account: Box::new(account("ann@gmail.com")),
                         kept: "secret".into(),
                         checked: Checked {
                             incoming: incoming.map_or(Ok(()), Err),

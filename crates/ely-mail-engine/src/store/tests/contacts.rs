@@ -111,7 +111,7 @@ fn an_import_is_all_or_nothing_and_exports_back() {
 fn upgrading_seeds_contacts_from_sent_folders() {
     let dir = tempfile::tempdir().unwrap();
     let mut store = open(dir.path(), &STEPS[..14]).unwrap();
-    let id = store.add_account(&account("me@example.com")).unwrap();
+    let id = super::old_account(&store, "me@example.com");
     let [inbox, sent] = super::old_folders(&store, id, &[("INBOX", Some(Role::Inbox)), ("Sent", Some(Role::Sent))])
         .try_into()
         .unwrap();

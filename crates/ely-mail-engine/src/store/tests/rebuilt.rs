@@ -68,7 +68,7 @@ fn upgrading_gives_old_mail_the_identity_new_mail_gets() {
     let named = b"Message-ID: <a@example.com>\r\nSubject: s\r\n\r\n".to_vec();
     let key = |uid| Key::Imap { uidvalidity: 1, uid };
     let mut old = open(dir.path(), &STEPS[..17]).unwrap();
-    let ann = old.add_account(&account("ann@example.com")).unwrap();
+    let ann = super::old_account(&old, "ann@example.com");
     let [inbox] = super::old_folders(&old, ann, &[("INBOX", Some(Role::Inbox))]).try_into().unwrap();
     old.conn.execute("UPDATE mailboxes SET uidvalidity = 1 WHERE id = ?1", [inbox.0]).unwrap();
     let kept = super::old_put(&mut old, inbox, &key(1), Fetched::Whole(&whole));

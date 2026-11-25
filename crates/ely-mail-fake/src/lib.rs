@@ -95,6 +95,7 @@ pub fn account(address: &str) -> Account {
     };
     Account {
         address: address.into(),
+        secret: format!("account:{address}"),
         user: address.into(),
         auth: Auth::Password,
         protocol: Protocol::Imap,

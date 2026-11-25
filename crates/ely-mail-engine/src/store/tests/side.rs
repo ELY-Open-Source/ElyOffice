@@ -45,7 +45,7 @@ fn a_pin_or_fold_of_nothing_is_an_error() {
 fn version_12_takes_the_new_columns_unpinned_and_open() {
     let dir = tempfile::tempdir().unwrap();
     let store = open(dir.path(), &STEPS[..12]).unwrap();
-    let ann = store.add_account(&account("ann@example.com")).unwrap();
+    let ann = super::old_account(&store, "ann@example.com");
     super::old_folders(&store, ann, &[("INBOX", Some(Role::Inbox))]);
     drop(store);
     let store = Store::open(dir.path()).unwrap();

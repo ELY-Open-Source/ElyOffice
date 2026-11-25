@@ -15,6 +15,7 @@ fn account(address: &str) -> Account {
     };
     Account {
         address: address.into(),
+        secret: format!("account:{address}"),
         user: address.into(),
         auth: Auth::Password,
         protocol: Protocol::Imap,
@@ -24,6 +25,15 @@ fn account(address: &str) -> Account {
 }
 
 /// Folders in a store left at an older version.
+/// Adds an account the way a pre-v19 store did.
+fn old_account(store: &super::Store, address: &str) -> crate::AccountId {
+    let mut settings = serde_json::to_value(account(address)).unwrap();
+    settings.as_object_mut().unwrap().remove("secret");
+    let insert = "INSERT INTO accounts (address, settings) VALUES (?1, ?2)";
+    store.conn.execute(insert, rusqlite::params![address, settings.to_string()]).unwrap();
+    crate::AccountId(store.conn.last_insert_rowid())
+}
+
 fn old_folders(store: &super::Store, account: crate::AccountId, folders: &[(&str, Option<Role>)]) -> Vec<crate::MailboxId> {
     let insert = "INSERT INTO mailboxes (account, name, role) VALUES (?1, ?2, ?3)";
     let made = |(name, role): &(&str, Option<Role>)| {
@@ -62,6 +72,7 @@ mod names;
 mod rebuilt;
 mod reindex;
 mod rules;
+mod servers;
 mod side;
 mod threads;
 mod trim;
@@ -95,10 +106,7 @@ fn a_new_store_is_at_the_last_schema() {
 #[test]
 fn an_upgrade_backs_up_first() {
     let dir = tempfile::tempdir().unwrap();
-    open(dir.path(), &[STEPS[0]])
-        .unwrap()
-        .add_account(&account("ann@example.com"))
-        .unwrap();
+    old_account(&open(dir.path(), &[STEPS[0]]).unwrap(), "ann@example.com");
     let store = open(dir.path(), &[STEPS[0], ADD]).unwrap();
     assert_eq!(store.read_only(), None);
     assert_eq!(version(&dir.path().join(DB)), 2);
@@ -114,10 +122,7 @@ fn an_upgrade_backs_up_first() {
 #[test]
 fn a_failed_upgrade_keeps_the_data_and_refuses_writes() {
     let dir = tempfile::tempdir().unwrap();
-    open(dir.path(), &[STEPS[0]])
-        .unwrap()
-        .add_account(&account("ann@example.com"))
-        .unwrap();
+    old_account(&open(dir.path(), &[STEPS[0]]).unwrap(), "ann@example.com");
     let store = open(dir.path(), &[STEPS[0], ADD, BROKEN]).unwrap();
     let reason = store.read_only().unwrap();
     assert!(reason.contains("v1 to v3"), "{reason}");
@@ -160,7 +165,7 @@ fn no_backup_means_no_upgrade() {
 fn a_v1_store_gains_sync_and_keeps_its_mail() {
     let dir = tempfile::tempdir().unwrap();
     let old = open(dir.path(), &[STEPS[0]]).unwrap();
-    let ann = old.add_account(&account("ann@example.com")).unwrap();
+    let ann = old_account(&old, "ann@example.com");
     old.conn
         .execute_batch(&format!(
             "INSERT INTO mailboxes (account, name) VALUES ({}, 'INBOX');

@@ -38,6 +38,7 @@ impl Auth {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "Stored")]
 pub struct Account {
     pub address: String,
     pub user: String,
@@ -45,6 +46,35 @@ pub struct Account {
     pub protocol: Protocol,
     pub incoming: Server,
     pub outgoing: Server,
+    /// The vault name of its password or refresh token.
+    pub secret: String,
+}
+
+/// Settings as saved; before v19 they had no vault name.
+#[derive(Deserialize)]
+struct Stored {
+    address: String,
+    user: String,
+    auth: Auth,
+    protocol: Protocol,
+    incoming: Server,
+    outgoing: Server,
+    secret: Option<String>,
+}
+
+impl From<Stored> for Account {
+    fn from(it: Stored) -> Self {
+        let secret = it.secret.unwrap_or_else(|| format!("account:{}", it.address));
+        Self {
+            address: it.address,
+            user: it.user,
+            auth: it.auth,
+            protocol: it.protocol,
+            incoming: it.incoming,
+            outgoing: it.outgoing,
+            secret,
+        }
+    }
 }
 
 /// What each server answered.
@@ -60,9 +90,15 @@ impl Checked {
 }
 
 impl Account {
-    /// The vault name of its password or refresh token.
-    pub fn secret_name(&self) -> String {
-        format!("account:{}", self.address)
+    /// A new account's vault name, per address and server.
+    pub fn secret_for(address: &str, incoming: &Server) -> String {
+        format!("account:{}:{}", address.to_ascii_lowercase(), incoming.host.to_ascii_lowercase())
+    }
+
+    /// One address on one incoming server is one account.
+    pub fn same(&self, other: &Account) -> bool {
+        self.address.eq_ignore_ascii_case(&other.address)
+            && self.incoming.host.eq_ignore_ascii_case(&other.incoming.host)
     }
 
     /// Refuses what no server could carry.

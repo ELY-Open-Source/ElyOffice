@@ -4,7 +4,7 @@ use std::fs;
 
 use rusqlite::Connection;
 
-use super::{account, version};
+use super::version;
 use crate::Role;
 use crate::store::{CONTENT, DB, Fetched, Field, Key, MessageId, Search, open, schema::STEPS};
 
@@ -15,7 +15,7 @@ const BODY: &[u8] =
 /// A v11 store: one message, the old index.
 fn at_v11(dir: &std::path::Path, body: &[u8]) -> MessageId {
     let mut store = open(dir, &STEPS[..12]).unwrap();
-    let id = store.add_account(&account("ann@example.com")).unwrap();
+    let id = super::old_account(&store, "ann@example.com");
     let [inbox] = super::old_folders(&store, id, &[("INBOX", Some(Role::Inbox))])
         .try_into()
         .unwrap();

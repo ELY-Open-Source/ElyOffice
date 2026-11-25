@@ -59,14 +59,15 @@ impl Mail {
         cx.notify();
     }
 
-    /// The words when the address is already here.
-    fn taken(&self, address: &str, cx: &Context<Self>) -> Option<SharedString> {
+    /// The words when the address is here on that server.
+    fn taken(&self, new: &Account, cx: &Context<Self>) -> Option<SharedString> {
+        let address = new.address.as_str();
         if let Some(id) = self.adding.as_ref().and_then(|adding| adding.again) {
             return self.not_its_own(id, address, cx);
         }
         self.accounts()
             .iter()
-            .any(|(_, account)| account.address.eq_ignore_ascii_case(address))
+            .any(|(_, account)| account.same(new))
             .then(|| text(cx, "mail.add.taken", &[("address", address)]))
     }
 
@@ -86,7 +87,7 @@ impl Mail {
 
     /// Logs in with `secret`; `kept` goes to the vault after.
     fn probe(&mut self, account: Account, kept: String, secret: Secret, cx: &mut Context<Self>) {
-        if let Some(words) = self.taken(&account.address, cx) {
+        if let Some(words) = self.taken(&account, cx) {
             return self.halt(words, cx);
         }
         let tls = match &self.tls {
@@ -125,7 +126,7 @@ impl Mail {
         let keep = adding.again.is_some() && done.as_ref().is_ok_and(Checked::passed);
         adding.step = match done {
             Ok(checked) => Step::Checked {
-                account,
+                account: Box::new(account),
                 kept,
                 checked,
             },
@@ -227,10 +228,10 @@ impl Mail {
         if !checked.passed() {
             return;
         }
-        if let Some(words) = self.taken(&account.address, cx) {
+        if let Some(words) = self.taken(account, cx) {
             return self.halt(words, cx);
         }
-        let (account, kept) = (account.clone(), kept.clone());
+        let (account, kept) = (Account::clone(account), kept.clone());
         let Some(asked) = self.ask() else { return };
         let again = match &mut self.adding {
             Some(adding) => {
@@ -249,7 +250,7 @@ impl Mail {
                 Err(Error::Taken(address)) => return Ok(Err(address)),
                 Err(error) => return Err(error),
             };
-            let held = vault.put(&account.secret_name(), &kept);
+            let held = vault.put(&account.secret, &kept);
             Ok(Ok((id, account, held)))
         };
         self.with_store(cx, work, move |mail, saved, cx| match saved {

@@ -35,7 +35,7 @@ pub async fn secret(
     provider: Option<Result<oauth::Provider>>,
     vault: &Vault,
 ) -> Result<Secret> {
-    let name = account.secret_name();
+    let name = account.secret.clone();
     let provider = provider.transpose()?;
     let kept = vault
         .get(&name)?

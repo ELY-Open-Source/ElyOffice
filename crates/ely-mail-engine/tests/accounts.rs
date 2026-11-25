@@ -7,6 +7,7 @@ use fake::{Certs, account, certs, expect, send, serve};
 fn pop_oauth(address: &str) -> Account {
     Account {
         address: address.into(),
+        secret: format!("account:{address}"),
         user: "bo".into(),
         auth: Auth::Microsoft,
         protocol: Protocol::Pop { keep: true },
@@ -37,13 +38,13 @@ fn accounts_come_back_as_added() {
 }
 
 #[test]
-fn an_address_is_added_once() {
+fn an_address_is_added_once_per_server() {
     let dir = tempfile::tempdir().unwrap();
     let store = Store::open(dir.path()).unwrap();
     store.add_account(&account("ann@example.com")).unwrap();
-    let err = store
-        .add_account(&pop_oauth("ANN@Example.com"))
-        .unwrap_err();
+    let mut again = pop_oauth("ANN@Example.com");
+    again.incoming.host = "127.0.0.1".into();
+    let err = store.add_account(&again).unwrap_err();
     assert!(
         matches!(&err, Error::Taken(address) if address == "ANN@Example.com"),
         "{err}"

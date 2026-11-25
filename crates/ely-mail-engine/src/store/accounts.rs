@@ -16,13 +16,13 @@ pub struct Cached {
 }
 
 impl Store {
-    /// Addresses differ in more than ASCII case.
+    /// Taken: the same address on the same incoming server.
     pub fn add_account(&self, account: &Account) -> Result<AccountId> {
         self.writable()?;
         let settings = serde_json::to_string(account)?;
         let added = self.conn.execute(
-            "INSERT INTO accounts (address, settings) VALUES (?1, ?2)",
-            params![account.address, settings],
+            "INSERT INTO accounts (address, server, settings) VALUES (?1, ?2, ?3)",
+            params![account.address, account.incoming.host, settings],
         );
         match added {
             Ok(_) => Ok(AccountId(self.conn.last_insert_rowid())),

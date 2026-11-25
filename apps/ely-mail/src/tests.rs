@@ -182,6 +182,7 @@ pub(crate) fn account(address: &str) -> Account {
     };
     Account {
         address: address.into(),
+        secret: format!("account:{address}"),
         user: address.into(),
         auth: Auth::Password,
         protocol: Protocol::Imap,
@@ -223,7 +224,7 @@ pub(crate) fn passed(
     cx.update(|_, app| {
         mail.update(app, |mail, _| {
             mail.adding.as_mut().unwrap().step = Step::Checked {
-                account,
+                account: Box::new(account),
                 kept: kept.into(),
                 checked: Checked {
                     incoming: Ok(()),

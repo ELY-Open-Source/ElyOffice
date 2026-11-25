@@ -442,3 +442,32 @@ fn a_late_save_leaves_a_newer_dialog_alone() {
 fn a_late_failed_save_leaves_a_newer_dialog_alone() {
     save_then_reopen(true);
 }
+
+#[test]
+fn an_address_on_another_server_is_another_account() {
+    let dir = tempfile::tempdir().unwrap();
+    let keys = Keys::default();
+    let mut cx = TestAppContext::single();
+    let (mail, cx) = window(&mut cx, dir.path(), keys.clone());
+    adding(&mail, Kind::Imap, cx);
+    passed(&mail, account("ann@example.com"), "pw", cx);
+    cx.update(|_, app| mail.update(app, |mail, cx| mail.save(cx)));
+    settle(cx, |app| mail.read(app).adding.is_none());
+    // The same address, signed in at Microsoft (#96).
+    let mut microsoft = account("ann@example.com");
+    microsoft.incoming.host = "outlook.office365.com".into();
+    microsoft.secret = ely_mail_engine::Account::secret_for(&microsoft.address, &microsoft.incoming);
+    adding(&mail, Kind::Imap, cx);
+    passed(&mail, microsoft, "token", cx);
+    cx.update(|_, app| mail.update(app, |mail, cx| mail.save(cx)));
+    settle(cx, |app| mail.read(app).adding.is_none());
+    cx.update(|_, app| {
+        let mail = mail.read(app);
+        let titles: Vec<String> = mail.accounts().iter().map(|(_, it)| mail.title(it)).collect();
+        assert_eq!(titles, ["ann@example.com · 127.0.0.1", "ann@example.com · outlook.office365.com"]);
+    });
+    let kept = keys.kept.lock().unwrap().clone();
+    assert_eq!(kept.get("account:ann@example.com").map(String::as_str), Some("pw"));
+    let other = kept.get("account:ann@example.com:outlook.office365.com");
+    assert_eq!(other.map(String::as_str), Some("token"), "each keeps its own secret");
+}

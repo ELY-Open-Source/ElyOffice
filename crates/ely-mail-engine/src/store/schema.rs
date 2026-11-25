@@ -1,5 +1,5 @@
 /// Step `n` upgrades version `n`.
-pub(super) const STEPS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18];
+pub(super) const STEPS: &[&str] = &[V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19];
 
 /// Upgrades to this version reindex every message.
 pub(super) const REINDEX: usize = 12;
@@ -359,4 +359,31 @@ CREATE TABLE rebuilt_new (
 INSERT INTO rebuilt_new (mailbox, ident) SELECT mailbox, ident FROM rebuilt;
 DROP TABLE rebuilt;
 ALTER TABLE rebuilt_new RENAME TO rebuilt;
+";
+
+/// One address on two servers (#96); vault names stay.
+const V19: &str = "
+CREATE TABLE accounts_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    address TEXT NOT NULL COLLATE NOCASE,
+    server TEXT NOT NULL COLLATE NOCASE,
+    settings TEXT NOT NULL,
+    synced INTEGER,
+    drafts_up INTEGER NOT NULL DEFAULT 0,
+    sent_copy INTEGER,
+    smtp_limit INTEGER,
+    folded INTEGER NOT NULL DEFAULT 0,
+    handled INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (address, server)
+);
+INSERT INTO accounts_new (id, address, server, settings, synced, drafts_up, sent_copy,
+        smtp_limit, folded, handled)
+    SELECT id, address, json_extract(settings, '$.incoming.host'), settings,
+        synced, drafts_up, sent_copy, smtp_limit, folded, handled
+    FROM accounts;
+DELETE FROM sqlite_sequence WHERE name = 'accounts_new';
+INSERT INTO sqlite_sequence (name, seq)
+    SELECT 'accounts_new', seq FROM sqlite_sequence WHERE name = 'accounts';
+DROP TABLE accounts;
+ALTER TABLE accounts_new RENAME TO accounts;
 ";

@@ -1,13 +1,13 @@
 //! A v6 store links the messages it already holds.
 
-use super::{STEPS, account, held, open};
+use super::{STEPS, held, open};
 use crate::{MessageId, Role};
 
 #[test]
 fn a_v6_store_links_its_messages_on_upgrade() {
     let dir = tempfile::tempdir().unwrap();
     let old = open(dir.path(), &STEPS[..6]).unwrap();
-    let ann = old.add_account(&account("ann@example.com")).unwrap();
+    let ann = super::old_account(&old, "ann@example.com");
     let [inbox] = super::old_folders(&old, ann, &[("INBOX", Some(Role::Inbox))])
         .try_into()
         .unwrap();

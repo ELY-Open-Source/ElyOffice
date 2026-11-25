@@ -53,7 +53,7 @@ impl Mail {
             let words = text(cx, "mail.again.gone", &[]);
             return self.halt(words, cx);
         };
-        let (name, address) = (account.secret_name(), account.address.clone());
+        let (name, address) = (account.secret.clone(), account.address.clone());
         let vault = self.vault.clone();
         let held = cx.background_spawn(async move { vault.put(&name, &kept) });
         cx.spawn(async move |this, cx| {

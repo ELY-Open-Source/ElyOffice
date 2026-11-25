@@ -131,7 +131,7 @@ fn raw_binary_mail_and_gone_folders_never_export() {
 fn upgrading_keeps_mailbox_ids_unused() {
     let dir = tempfile::tempdir().unwrap();
     let store = open(dir.path(), &STEPS[..15]).unwrap();
-    let ann = store.add_account(&account("ann@example.com")).unwrap();
+    let ann = super::old_account(&store, "ann@example.com");
     drop(store);
     // A v15 store: mailbox 2 made, then removed.
     let db = rusqlite::Connection::open(dir.path().join(crate::store::DB)).unwrap();
