@@ -10,7 +10,7 @@ const FILE: &[u8] = b"From ann@example.com Tue Jan  2 10:00:00 2024\n\
     From: bo@example.com\nSubject: second\nDate: Wed, 3 Jan 2024 10:00:00 +0000\n\nbye\n";
 
 fn subjects(store: &Store, folder: crate::MailboxId) -> Vec<(String, bool)> {
-    let list = store.list(Scope::Mailbox(folder), Filter::default()).unwrap();
+    let list = store.list(Scope::Mailbox(folder), Filter::default(), &[]).unwrap();
     let mut seen: Vec<_> = list.into_iter().map(|each| (each.subject.unwrap(), each.seen)).collect();
     seen.sort();
     seen
@@ -54,7 +54,7 @@ fn imported_mail_changes_only_here() {
     let key = Key::Imap { uidvalidity: 1, uid: 1 };
     let remote = store.put(inbox, &key, &[], Fetched::Whole(b"Subject: s\r\n\r\nhi\r\n")).unwrap();
     let folder = store.import_mbox(ann, "Old", Cursor::new(FILE)).unwrap().folder;
-    let ids: Vec<_> = store.list(Scope::Mailbox(folder), Filter::default()).unwrap().into_iter().map(|e| e.id).collect();
+    let ids: Vec<_> = store.list(Scope::Mailbox(folder), Filter::default(), &[]).unwrap().into_iter().map(|e| e.id).collect();
     assert!(matches!(store.change(&[remote], Change::Move(folder)), Err(Error::Invalid(_))));
     assert!(matches!(store.change(&ids[..1], Change::Move(inbox)), Err(Error::Invalid(_))));
     assert_eq!(store.change(&ids[..1], Change::Flagged(true)).unwrap(), [], "no server work");
@@ -90,7 +90,7 @@ fn a_folder_exports_whole_messages_and_reads_back() {
     let text = std::fs::read(&file).unwrap();
     assert!(text.starts_with(b"From cy@example.com Mon Jan  1 10:00:00 2024\n"));
     let back = store.import_mbox(ann, "Back", Cursor::new(text)).unwrap();
-    let id = store.list(Scope::Mailbox(back.folder), Filter::default()).unwrap()[0].id;
+    let id = store.list(Scope::Mailbox(back.folder), Filter::default(), &[]).unwrap()[0].id;
     assert_eq!(store.original(id).unwrap().unwrap(), whole.to_vec());
 }
 
@@ -162,7 +162,7 @@ fn only_an_imported_folder_is_removed_with_its_mail() {
     store.remove_imported(folder).unwrap();
     let left: Vec<_> = store.folders(ann).unwrap().into_iter().map(|each| each.id).collect();
     assert_eq!(left, [inbox]);
-    assert!(store.list(Scope::Inboxes, Filter::default()).unwrap().is_empty());
+    assert!(store.list(Scope::Inboxes, Filter::default(), &[]).unwrap().is_empty());
     let prefixes = std::fs::read_dir(dir.path().join(crate::store::CONTENT)).unwrap();
     let originals: usize = prefixes.map(|prefix| std::fs::read_dir(prefix.unwrap().path()).unwrap().count()).sum();
     assert_eq!(originals, 0, "the originals went with the folder");
@@ -194,7 +194,7 @@ fn forgetting_downloads_keeps_what_no_server_holds() {
     let stored = store.get(forgot).unwrap();
     assert_eq!((stored.subject.as_deref(), stored.flags.as_slice()), (Some("plan"), &["\\Seen".to_owned()][..]));
     assert!(store.original(offline).unwrap().is_some(), "an offline folder keeps its mail");
-    let local = store.list(Scope::Mailbox(imported), Filter::default()).unwrap();
+    let local = store.list(Scope::Mailbox(imported), Filter::default(), &[]).unwrap();
     assert!(local.iter().all(|each| store.original(each.id).unwrap().is_some()), "no server holds imports");
     let words = crate::store::Search { words: "quarterly".into(), ..Default::default() };
     assert!(store.search(&words).unwrap().messages.is_empty(), "its words left the index");

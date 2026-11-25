@@ -2,7 +2,7 @@
 
 use rusqlite::ToSql;
 
-use super::{Filter, Store, Summary, search::words};
+use super::{Filter, MessageId, Store, Summary, search::words};
 use crate::{Error, Result};
 
 /// Where the words are looked for.
@@ -26,6 +26,8 @@ pub struct Search {
     /// From and before, seconds since the Unix epoch.
     pub dates: Option<(i64, i64)>,
     pub filter: Filter,
+    /// Opened under the filter; listed though they no longer fit it.
+    pub held: Vec<MessageId>,
 }
 
 /// Matches, newest first, and what could not be searched.
@@ -64,7 +66,7 @@ impl Store {
             (Field::All | Field::Body | Field::Files, Some(_)) => self.unsearched(search.dates)?,
             _ => 0,
         };
-        clauses.extend(search.filter.clauses());
+        clauses.extend(search.filter.clause(&search.held));
         let messages = self.summaries(&clauses.join(" AND "), &values)?;
         log::info!("mail: a search found {} messages", messages.len());
         Ok(Found {

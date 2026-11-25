@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use ely_gpui_component::mail::Mail as Row;
-use ely_mail_engine::{AccountId, Fetched, Filter, Key, MailboxId, Role, Store};
+use ely_mail_engine::{AccountId, Fetched, Filter, Key, MailboxId, MessageId, Role, Store};
 use gpui::{
     Entity, ScrollDelta, ScrollEvent, SharedString, TestAppContext, VisualTestContext, point,
     px, size,
@@ -136,6 +136,31 @@ fn filters_narrow_the_list() {
 }
 
 #[test]
+fn a_message_opened_under_unread_stays_until_the_filter_changes() {
+    let dir = tempfile::tempdir().unwrap();
+    seeded(dir.path());
+    let mut cx = TestAppContext::single();
+    let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
+    let unread = Filter {
+        unread: true,
+        ..Filter::default()
+    };
+    cx.update(|_, app| mail.update(app, |mail, cx| mail.set_filter(unread, cx)));
+    shows(&mail, cx, &["new", "bob"]);
+    let new = key_of(&mail, cx, "new");
+    cx.update(|_, app| mail.update(app, |mail, cx| mail.select(std::slice::from_ref(&new), cx)));
+    // Opening it marks it read, and the list is read again.
+    settle(cx, |app| mail.read(app).listing.facts.get(&new).is_some_and(|fact| fact.seen));
+    shows(&mail, cx, &["new", "bob"]);
+    cx.update(|_, app| {
+        let chosen = mail.read(app).listing.chosen.as_ref().map(|row| row.subject.to_string());
+        assert_eq!(chosen.as_deref(), Some("new"), "the open message stays open");
+    });
+    cx.update(|_, app| mail.update(app, |mail, cx| mail.set_filter(unread, cx)));
+    shows(&mail, cx, &["bob"]);
+}
+
+#[test]
 fn a_folder_lists_its_own_mail() {
     let dir = tempfile::tempdir().unwrap();
     let (ann, archive) = seeded(dir.path());
@@ -203,23 +228,46 @@ fn a_rebuilt_mailbox_drops_the_pick() {
     });
 }
 
+fn unread_fact(n: usize) -> boxes::Fact {
+    boxes::Fact {
+        id: MessageId(n as i64),
+        account: AccountId(1),
+        mailbox: MailboxId(1),
+        role: Some(Role::Inbox),
+        pop: false,
+        seen: false,
+        flagged: false,
+    }
+}
+
 #[test]
 fn picking_every_one_of_many_messages_is_quick() {
     let dir = tempfile::tempdir().unwrap();
     let mut cx = TestAppContext::single();
     let (mail, cx) = window(&mut cx, dir.path(), Keys::default());
     shows(&mail, cx, &[]);
-    // Picking all, twice; a busy machine slows both sizes alike.
+    // Under a filter, unread; a busy machine slows both sizes alike.
     let mut pick = |count: usize| {
         let rows: Vec<Row> = (0..count).map(|n| Row::undated(n.to_string(), "Ann", "hi")).collect();
         let keys: Vec<SharedString> = rows.iter().map(|row| row.key.clone()).collect();
         let listed = boxes::index(rows);
-        cx.update(|_, app| mail.update(app, |mail, _| mail.listing.show(Some(Ok(listed)))));
+        let facts = keys.iter().enumerate().map(|(n, key)| (key.clone(), unread_fact(n)));
+        cx.update(|_, app| {
+            mail.update(app, |mail, _| {
+                mail.filter = Filter { unread: true, ..Filter::default() };
+                mail.listing.show(Some(Ok(listed)));
+                mail.listing.facts = facts.collect();
+            })
+        });
         let started = Instant::now();
         cx.update(|_, app| mail.update(app, |mail, cx| mail.select(&keys, cx)));
         cx.update(|_, app| mail.update(app, |mail, cx| mail.select(&keys, cx)));
         let took = started.elapsed();
-        cx.update(|_, app| assert_eq!(mail.read(app).listing.selected.len(), count));
+        cx.update(|_, app| {
+            let mail = mail.read(app);
+            assert_eq!(mail.listing.selected.len(), count);
+            assert!(mail.held.is_empty(), "many picked, none opened, none held");
+        });
         took
     };
     let (small, large) = (pick(10_000), pick(100_000));

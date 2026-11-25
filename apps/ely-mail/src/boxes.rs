@@ -156,6 +156,7 @@ impl Mail {
             if open == Open::Contacts {
                 self.read_contacts(cx);
             }
+            self.held.clear();
             self.listing.show(None);
             self.listing.pick(Vec::new());
             self.stop_seeking(cx);
@@ -168,12 +169,20 @@ impl Mail {
     pub fn set_filter(&mut self, filter: Filter, cx: &mut Context<Self>) {
         log::info!("mail: filter {filter:?}");
         self.filter = filter;
+        self.held.clear();
         self.read_mail(cx);
         cx.notify();
     }
 
     pub fn select(&mut self, keys: &[SharedString], cx: &mut Context<Self>) {
         self.listing.pick(keys.to_vec());
+        // Only one picked message opens; hold it.
+        if self.filter != Filter::default()
+            && let [fact] = self.listing.picked()[..]
+            && !self.held.contains(&fact.id)
+        {
+            self.held.push(fact.id);
+        }
         self.read_letter(cx);
         self.read_on_open(cx);
         cx.notify();
@@ -183,8 +192,9 @@ impl Mail {
     pub fn read_mail(&mut self, cx: &mut Context<Self>) {
         self.listing.read += 1;
         let (read, open, filter) = (self.listing.read, self.open, self.filter);
+        let held = self.held.clone();
         let scope = open.scope();
-        let search = match scope.map(|_| self.seeking.search(filter, cx)).transpose() {
+        let search = match scope.map(|_| self.seeking.search(filter, &held, cx)).transpose() {
             Ok(search) => search.flatten(),
             Err(error) => {
                 log::warn!("mail: a search's dates failed: {error}");
@@ -211,7 +221,7 @@ impl Mail {
                                 unsearched = Some(found.unsearched);
                                 found.messages
                             }
-                            None => store.list(scope, filter)?,
+                            None => store.list(scope, filter, &held)?,
                         };
                         let facts = list.iter().map(|each| (key(each), fact(each))).collect();
                         let rows = list.into_iter().map(|each| row(each, &none)).collect();

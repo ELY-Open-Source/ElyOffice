@@ -80,6 +80,8 @@ pub struct Mail {
     /// Remove acts on its account.
     pub open: Open,
     pub filter: Filter,
+    /// Opened under the filter; listed until it changes.
+    pub held: Vec<MessageId>,
     pub seeking: Seeking,
     pub listing: Listing,
     pub reading: Reading,
@@ -227,6 +229,7 @@ impl Mail {
             folded: HashSet::new(),
             open: Open::Inboxes,
             filter: Filter::default(),
+            held: Vec::new(),
             seeking: Seeking::new(window, cx),
             listing: Listing::default(),
             reading: Reading::default(),

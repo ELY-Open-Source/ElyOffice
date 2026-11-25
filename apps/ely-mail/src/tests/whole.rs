@@ -178,7 +178,7 @@ fn listed(mail: &Entity<Mail>, cx: &mut VisualTestContext) -> Vec<Summary> {
     cx.update(|_, app| {
         let store = mail.read(app).store.clone().unwrap();
         let store = store.lock().unwrap();
-        store.list(Scope::Inboxes, Default::default()).unwrap()
+        store.list(Scope::Inboxes, Default::default(), &[]).unwrap()
     })
 }
 

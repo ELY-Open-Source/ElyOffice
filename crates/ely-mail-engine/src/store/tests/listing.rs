@@ -1,5 +1,5 @@
 use super::account;
-use crate::{Fetched, Filter, Key, MailboxId, Role, Scope, Store};
+use crate::{Change, Fetched, Filter, Key, MailboxId, Role, Scope, Store};
 
 fn mail(subject: &str, date: Option<&str>, attachment: bool) -> Vec<u8> {
     let mut head = format!("From: Ann <ann@example.com>\r\nSubject: {subject}\r\n");
@@ -30,7 +30,7 @@ fn put(store: &mut Store, mailbox: MailboxId, uid: u32, flags: &[&str], bytes: &
 }
 
 fn subjects(store: &Store, scope: Scope, filter: Filter) -> Vec<String> {
-    let listed = store.list(scope, filter).unwrap();
+    let listed = store.list(scope, filter, &[]).unwrap();
     listed.into_iter().map(|s| s.subject.unwrap()).collect()
 }
 
@@ -98,7 +98,7 @@ fn every_inbox_lists_newest_first_and_undated_last() {
         ["old", "undated"]
     );
 
-    let first = &store.list(Scope::Inboxes, Filter::default()).unwrap()[0];
+    let first = &store.list(Scope::Inboxes, Filter::default(), &[]).unwrap()[0];
     assert_eq!(first.from[0].email, "ann@example.com");
     assert_eq!(first.date, Some(1_704_189_600));
 }
@@ -156,7 +156,7 @@ fn filters_narrow_together() {
     );
     assert_eq!(subjects(&store, scope, all), ["unread flagged"]);
 
-    let listed = store.list(scope, Filter::default()).unwrap();
+    let listed = store.list(scope, Filter::default(), &[]).unwrap();
     let read_flagged = listed
         .iter()
         .find(|s| s.subject.as_deref() == Some("read flagged"))
@@ -197,4 +197,24 @@ fn arrived_is_unread_inbox_mail_stored_past_the_mark() {
     let subjects: Vec<_> = arrived.into_iter().map(|each| each.subject.unwrap()).collect();
     assert_eq!(subjects, ["new", "old date", "undated"], "its own date does not decide");
     assert!(store.newest().unwrap().0 > mark.0);
+}
+
+#[test]
+fn a_held_message_stays_though_it_no_longer_fits_the_filter() {
+    let (_dir, mut store, [ann, archive, _]) = two_accounts();
+    let date = Some("Mon, 1 Jan 2024 10:00:00 +0000");
+    put(&mut store, ann, 1, &[], &mail("opened", date, false));
+    put(&mut store, ann, 2, &[], &mail("waiting", date, false));
+    put(&mut store, archive, 3, &[], &mail("elsewhere", date, false));
+    let unread = Filter { unread: true, ..Filter::default() };
+    let all = store.list(Scope::Mailbox(ann), Filter::default(), &[]).unwrap();
+    let opened = all.iter().find(|s| s.subject.as_deref() == Some("opened")).unwrap().id;
+    let elsewhere = store.list(Scope::Mailbox(archive), Filter::default(), &[]).unwrap()[0].id;
+    store.change(&[opened], Change::Seen(true)).unwrap();
+    let held = [opened, elsewhere];
+    let listed = store.list(Scope::Mailbox(ann), unread, &held).unwrap();
+    let names: Vec<_> = listed.iter().map(|s| (s.subject.clone().unwrap(), s.seen)).collect();
+    let expected = [("waiting".to_owned(), false), ("opened".to_owned(), true)];
+    assert_eq!(names, expected, "the read one stays; the other folder's does not come in");
+    assert_eq!(subjects(&store, Scope::Mailbox(ann), unread), ["waiting"], "without the hold it goes");
 }

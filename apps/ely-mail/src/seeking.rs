@@ -8,7 +8,7 @@ use ely_gpui_component::{
     primitives::IconName,
     theme::{ActiveTheme, ControlSize, TextSize},
 };
-use ely_mail_engine::{Field, Filter, Search};
+use ely_mail_engine::{Field, Filter, MessageId, Search};
 use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, InteractiveElement as _, IntoElement,
     ParentElement as _, Styled as _, Subscription, Window, div,
@@ -77,7 +77,7 @@ impl Seeking {
     }
 
     /// What is asked; None while nothing is.
-    pub fn search(&self, filter: Filter, cx: &App) -> Result<Option<Search>, String> {
+    pub fn search(&self, filter: Filter, held: &[MessageId], cx: &App) -> Result<Option<Search>, String> {
         let words = self.input.read(cx).text().trim().to_owned();
         if words.is_empty() && self.days.is_none() {
             return Ok(None);
@@ -92,6 +92,7 @@ impl Seeking {
             field,
             dates,
             filter,
+            held: held.to_vec(),
         }))
     }
 }

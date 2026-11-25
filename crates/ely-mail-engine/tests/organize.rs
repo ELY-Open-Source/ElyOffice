@@ -58,7 +58,7 @@ fn put(store: &mut Store, mailbox: MailboxId, uid: u32, flags: &[&str]) -> Messa
 }
 
 fn listed(store: &Store, mailbox: MailboxId) -> Vec<MessageId> {
-    let list = store.list(Scope::Mailbox(mailbox), Filter::default());
+    let list = store.list(Scope::Mailbox(mailbox), Filter::default(), &[]);
     list.unwrap().into_iter().map(|each| each.id).collect()
 }
 

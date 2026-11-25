@@ -42,8 +42,8 @@ pub struct Summary {
 }
 
 impl Filter {
-    /// The narrowing, as SQL over `m`.
-    pub(super) fn clauses(&self) -> Vec<String> {
+    /// The narrowing as SQL over `m`; `held` stays though it no longer fits.
+    pub(super) fn clause(&self, held: &[MessageId]) -> Option<String> {
         let mut clauses = Vec::new();
         if self.unread {
             clauses.push(format!("NOT {SEEN}"));
@@ -54,7 +54,15 @@ impl Filter {
         if self.attachments {
             clauses.push("m.attachments > 0".to_owned());
         }
-        clauses
+        if clauses.is_empty() {
+            return None;
+        }
+        let narrowed = clauses.join(" AND ");
+        if held.is_empty() {
+            return Some(format!("({narrowed})"));
+        }
+        let ids: Vec<String> = held.iter().map(|id| id.0.to_string()).collect();
+        Some(format!("(({narrowed}) OR m.id IN ({}))", ids.join(", ")))
     }
 }
 
@@ -66,13 +74,13 @@ const FLAGGED: &str = "EXISTS (SELECT 1 FROM flags f WHERE f.message = m.id \
 
 impl Store {
     /// Newest first; SQLite sorts undated last.
-    pub fn list(&self, scope: Scope, filter: Filter) -> Result<Vec<Summary>> {
+    pub fn list(&self, scope: Scope, filter: Filter, held: &[MessageId]) -> Result<Vec<Summary>> {
         let mut clauses = vec!["NOT m.erasing".to_owned()];
         clauses.push(match scope {
             Scope::Mailbox(_) => "coalesce(m.moving, m.mailbox) = ?1".to_owned(),
             Scope::Inboxes => "b.role = 'inbox'".to_owned(),
         });
-        clauses.extend(filter.clauses());
+        clauses.extend(filter.clause(held));
         let id;
         let values: Vec<&dyn ToSql> = match scope {
             Scope::Mailbox(mailbox) => {

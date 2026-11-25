@@ -86,7 +86,7 @@ fn an_mbox_file_comes_in_and_goes_out_on_this_computer_only() {
     settle(cx, |app| mail.read(app).syncs[&ann].folders.iter().any(|folder| folder.local));
     let folder = cx.update(|_, app| mail.read(app).syncs[&ann].folders.iter().find(|each| each.local).cloned().unwrap());
     assert_eq!(folder.name, "Old mail");
-    let messages = Store::open(dir.path()).unwrap().list(ely_mail_engine::Scope::Mailbox(folder.id), Default::default());
+    let messages = Store::open(dir.path()).unwrap().list(ely_mail_engine::Scope::Mailbox(folder.id), Default::default(), &[]);
     assert_eq!(messages.unwrap().len(), 2);
     assert_eq!(Store::open(dir.path()).unwrap().changes_waiting(ann).unwrap(), 0, "no server work");
     let out = dir.path().join("out.mbox");

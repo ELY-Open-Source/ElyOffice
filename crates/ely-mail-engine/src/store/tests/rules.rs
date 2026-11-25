@@ -40,12 +40,12 @@ fn the_first_matching_rule_acts_on_new_inbox_mail() {
     let news: Vec<_> = handled.arrived.iter().map(|each| each.id).collect();
     assert_eq!(news, [other, paper], "moved and archived mail is no news");
     let listed = |store: &Store, mailbox| -> Vec<MessageId> {
-        store.list(Scope::Mailbox(mailbox), Filter::default()).unwrap().into_iter().map(|each| each.id).collect()
+        store.list(Scope::Mailbox(mailbox), Filter::default(), &[]).unwrap().into_iter().map(|each| each.id).collect()
     };
     assert_eq!(listed(&store, receipts), [shop], "the first rule wins over the subject rule");
     assert_eq!(listed(&store, archive), [team]);
     let flagged = Filter { flagged: true, ..Filter::default() };
-    let flagged: Vec<_> = store.list(Scope::Mailbox(inbox), flagged).unwrap().into_iter().map(|each| each.id).collect();
+    let flagged: Vec<_> = store.list(Scope::Mailbox(inbox), flagged, &[]).unwrap().into_iter().map(|each| each.id).collect();
     assert_eq!(flagged, [paper]);
     let mut kept = listed(&store, inbox);
     kept.sort_by_key(|id| id.0);

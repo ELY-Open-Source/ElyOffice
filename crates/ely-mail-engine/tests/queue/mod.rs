@@ -119,6 +119,6 @@ pub fn waiting(here: &Here) -> u64 {
 
 pub fn listed(here: &Here, mailbox: MailboxId) -> Vec<MessageId> {
     let store = here.store.lock().unwrap();
-    let list = store.list(Scope::Mailbox(mailbox), Filter::default());
+    let list = store.list(Scope::Mailbox(mailbox), Filter::default(), &[]);
     list.unwrap().into_iter().map(|each| each.id).collect()
 }
