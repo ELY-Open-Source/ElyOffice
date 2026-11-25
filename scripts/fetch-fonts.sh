@@ -20,7 +20,12 @@ upstream() { # url hash: leaves a checked copy at $cache/<hash>
     return
   fi
   rm -f "$saved"
-  curl -fsSL -o "$saved.part" "$url" || {
+  local into=$saved.part
+  # Cygwin finds Windows' curl, which takes C:/ paths only.
+  case $(uname) in
+    CYGWIN*) into=$(cygpath -m "$into") ;;
+  esac
+  curl -fsSL -o "$into" "$url" || {
     rm -f "$saved.part"
     fail "cannot fetch $url"
   }
