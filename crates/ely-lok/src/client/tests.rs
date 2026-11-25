@@ -80,6 +80,7 @@ mod slide_text;
 mod slides;
 mod spanned;
 pub(crate) mod snapshot;
+mod stored_pictures;
 mod stop;
 mod tools;
 mod word;

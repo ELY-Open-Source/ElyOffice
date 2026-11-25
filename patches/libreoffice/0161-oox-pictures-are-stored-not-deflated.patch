@@ -1,0 +1,28 @@
+oox: pictures that are already compressed go into the package stored
+
+ODF saves store PNG, JPEG and GIF streams as they are, since
+OWriteStream turns "Compressed" off for those media types. It does so
+only for StorageFormats::PACKAGE, so OOXML saves deflate every PNG and
+JPEG again, which mostly gains little for the CPU it costs. Store the
+OOXML parts of those two types; XML parts stay deflated. A poorly
+compressed PNG now stays as large as it came. GIF parts keep deflate:
+the few measured still shrank by half.
+
+diff --git a/oox/source/core/xmlfilterbase.cxx b/oox/source/core/xmlfilterbase.cxx
+index 92cab6b..3785b7a 100644
+--- a/oox/source/core/xmlfilterbase.cxx
++++ b/oox/source/core/xmlfilterbase.cxx
+@@ -514,6 +514,13 @@ Reference< XOutputStream > XmlFilterBase::openFragmentStream( const OUString& rS
+     Reference< XOutputStream > xOutputStream = openOutputStream( rStreamName );
+     PropertySet aPropSet( xOutputStream );
+     aPropSet.setProperty( PROP_MediaType, rMediaType );
++    // Already compressed: deflating them again only costs save time.
++    if( rMediaType == "image/png" || rMediaType == "image/jpeg" )
++    {
++        Reference< XPropertySet > xStreamProps( xOutputStream, UNO_QUERY );
++        if( xStreamProps.is() )
++            xStreamProps->setPropertyValue( u"Compressed"_ustr, Any( false ) );
++    }
+     return xOutputStream;
+ }
+ 
