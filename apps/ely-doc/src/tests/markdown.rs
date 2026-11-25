@@ -74,9 +74,9 @@ fn a_failed_markdown_export_says_markdown() {
 
 #[test]
 fn a_file_open_in_elymark_is_not_overwritten() {
-    use ely_platform::{AppId, instance};
+    use std::io::BufRead;
     // Exports ask ElyMark, under the test data root.
-    ely_platform::test_root();
+    let root_dir = ely_platform::test_root();
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
     let Some(docs) = docs(&mut cx, dir.path()) else {
@@ -84,9 +84,41 @@ fn a_file_open_in_elymark_is_not_overwritten() {
         return;
     };
     let path = dir.path().join("notes.md");
-    std::fs::write(&path, "# kept in ElyMark\n").expect("writes");
-    // This process stands in for an ElyMark showing it.
-    let shown = ely_office::remote::files_json(&[path.display().to_string()]);
+    std::fs::write(&path, "# kept in ElyMark
+").expect("writes");
+    // Unix locks are per process: ElyMark runs apart.
+    let mut mark = std::process::Command::new(std::env::current_exe().expect("this test"))
+        .args(["--exact", "tests::markdown::elymark_showing_a_file", "--nocapture"])
+        .env("ELY_DATA_ROOT", root_dir)
+        .env("ELY_MARK_SHOWS", &path)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("a stand-in ElyMark");
+    let mut said = std::io::BufReader::new(mark.stdout.take().expect("its output")).lines();
+    assert!(said.any(|line| line.expect("a line").contains("SERVING")), "the stand-in did not start");
+    let root = super::words::rooted(&mut cx, &docs);
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "lost");
+    settled(&cx, &docs);
+    with_window(&mut cx, &docs, |docs, _, cx| docs.write_markdown(id, path.clone(), cx));
+    let said = cx.update(|app| ely_ui::i18n::text(app, "doc.output.open", &[("name", "notes.md")]).to_string());
+    settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| *text == said));
+    settled(&cx, &docs);
+    assert_eq!(std::fs::read_to_string(&path).expect("reads"), "# kept in ElyMark
+");
+    drop(mark.stdin.take());
+    assert!(mark.wait().expect("ends").success(), "the stand-in failed");
+}
+
+/// The stand-in ElyMark: shows one file until its input closes.
+#[test]
+fn elymark_showing_a_file() {
+    use ely_platform::{AppId, instance};
+    let Ok(shown) = std::env::var("ELY_MARK_SHOWS") else {
+        return;
+    };
+    let shown = ely_office::remote::files_json(&[shown]);
     let door = match instance::hold(AppId::Mark, &instance::Launch::default()).expect("takes ElyMark's lock") {
         instance::Start::First(door) => door,
         instance::Start::Handed => panic!("another ElyMark holds this test's data root"),
@@ -96,13 +128,6 @@ fn a_file_open_in_elymark_is_not_overwritten() {
         other => Err(format!("only docs is asked, not {other}")),
     };
     door.serve(|_| false, reply).expect("serves");
-    let root = super::words::rooted(&mut cx, &docs);
-    let id = blank(&mut cx, &docs);
-    type_into(&mut cx, &docs, "lost");
-    settled(&cx, &docs);
-    with_window(&mut cx, &docs, |docs, _, cx| docs.write_markdown(id, path.clone(), cx));
-    let said = cx.update(|app| ely_ui::i18n::text(app, "doc.output.open", &[("name", "notes.md")]).to_string());
-    settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| *text == said));
-    settled(&cx, &docs);
-    assert_eq!(std::fs::read_to_string(&path).expect("reads"), "# kept in ElyMark\n");
+    println!("SERVING");
+    std::io::copy(&mut std::io::stdin(), &mut std::io::sink()).expect("reads until closed");
 }

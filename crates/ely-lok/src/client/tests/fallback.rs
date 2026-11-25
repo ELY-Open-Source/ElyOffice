@@ -7,7 +7,14 @@ use super::*;
 pub(super) const ASKED: [&str; 2] = ["Ely 无此黑体", "Ely 无此宋体"];
 
 /// What each falls to, by kind: the kernel's own Noto.
+#[cfg(not(target_os = "linux"))]
 pub(super) const KINDS: [&[&str]; 2] = [&["Noto Sans SC"], &["Noto Serif SC"]];
+/// Fontconfig may take an installed face of the kind.
+#[cfg(target_os = "linux")]
+pub(super) const KINDS: [&[&str]; 2] = [
+    &["Noto Sans SC", "Noto Sans CJK SC", "Liberation Sans"],
+    &["Noto Serif SC", "Noto Serif CJK SC", "Liberation Serif"],
+];
 
 /// Why each is taken: the language's list, or fontconfig.
 #[cfg(not(target_os = "linux"))]
@@ -47,7 +54,8 @@ fn a_missing_chinese_font_falls_to_a_text_face_of_its_kind() {
     let wrong: Vec<_> = (ASKED.iter().zip(KINDS))
         .filter_map(|(asked, kind)| {
             let (_, used) = (seen.fonts.iter()).find(|(name, _)| name == asked)?;
-            (used.is_empty() || !used.iter().all(|face| kind.contains(&face.as_str()))).then(|| format!("{asked} drawn in {used:?}, not {kind:?}"))
+            let chinese = used.iter().any(|face| face.ends_with(" SC"));
+            (!chinese || !used.iter().all(|face| kind.contains(&face.as_str()))).then(|| format!("{asked} drawn in {used:?}, not {kind:?}"))
         })
         .collect();
     assert_eq!(seen.fonts.len(), ASKED.len(), "both are missing: {:?}", seen.fonts);

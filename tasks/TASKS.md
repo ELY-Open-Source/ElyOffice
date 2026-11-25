@@ -992,4 +992,12 @@
   - 根因：`format/borders.rs` 的两个 `Select` 没有 `.label`，组件库的 `Select` 只以它作读屏名字（不画出）；行标签是旁边另画的文字，AX 不连到下拉。改：两个下拉以所在行已有的 `table.format.line_style`、`table.format.line_width` 为名，同“数字格式”下拉的写法；不新增文案。颜色一行是色块按钮，名字为色值（`#000000`），测试认作有名，不在本条。
   - 测试：gpui 只在辅助技术接入时建 AX 树，进程内测试读不到，回归由真窗口的 `macos-names.sh` 担。M4 Mac 上改后：停靠点 16、17 读作 Line style、Line width，七个应用皆过（PASS，ElyTable 81、ElyDoc 78、ElyShow 51、ElyPDF 14、ElyTree 12、ElyMark 12、ElyMail 2）；前一遍 ElyTable、ElyShow 中途失焦，那台 Mac 有人在用（最近输入 22 秒前），重跑即过。Windows、Linux 的无障碍脚本只读文档正文，不核控件名，未跑。本机 clippy（ely-table，-D warnings）过。
   - 第 1 轮 PASS（`tasks/reviews/R21.37f-r1.md`）。
+- [x] R21.37g Omarchy 上四条单测失败，main 上同败（R21.37c 查出，顾问 (d) 要立条）：两条缺字替代、ElyDoc 替代字体、ElyMark 不覆盖；查明是机器环境（R21.29 记 Omarchy 只装 Noto Sans CJK SC、缺测试要的 Noto Sans SC）还是代码，修根因；不修则 Linux 的 `release-tests.sh` 不过
+  - 四条：ely-lok `fallback::a_missing_chinese_font_falls_to_a_text_face_of_its_kind`、`logs::a_missing_font_logs_what_drew_it_and_why`，ely-doc `stand_ins::missing_word_fonts_draw_as_the_nearest_free_font`、`markdown::a_file_open_in_elymark_is_not_overwritten`。
+  - 两条字体（ely-lok）：行为对，测试只认随附的 Noto。Omarchy 装了系统的 Noto Sans/Serif CJK SC，Linux 上缺字体由 fontconfig 作答：“无此黑体”画在 Liberation Sans 与 Noto Sans CJK SC，“无此宋体”画在 Liberation Serif 与 Noto Serif CJK SC，皆同类（黑体落无衬线、宋体落衬线），CJK SC 与随附的 Noto SC 是同一字形设计。改：Linux 的 `KINDS` 收同类的随附 Noto、系统 Noto CJK SC 与同类西文字体，并新查中文确由某个 SC 字体画出；其余平台仍只认随附的 Noto。变异：两类对调即两条皆败。
+  - ElyMark 不覆盖（ely-doc）：根因在测试。macOS、Linux 的实例锁是 `fcntl` 记录锁，按进程算：测试在同一进程里替 ElyMark 拿锁，ElyDoc 再探即拿得到，判 ElyMark 未开而照写；探完关文件还会放掉本进程在该文件上的锁。两个应用从不同进程，产品不受影响；Windows 的 `LockFileEx` 同进程也互斥，故 7877 一直过。改：替身 ElyMark 在子进程里跑（重跑本测试程序的 `elymark_showing_a_file`，`ELY_DATA_ROOT` 指向父进程的测试数据根），父进程照导出、核对未覆盖。变异：`held_by_mark` 直接返回否即败。
+  - ElyDoc 替代字体（stand_ins）：今日在 c9a53564 上三遍不复现（单跑一次、整组两次），内核日志 FangSong、KaiTi 皆取 Noto Serif SC；R21.37c 那两轮里 FangSong 画在 Noto Fangsong KSS Rotated 与 DejaVu Math TeX Gyre，当时的原因未查到（以那台机器的 fontconfig 模拟内核的字体与别名，FangSong 不论语言都配到 Noto Serif SC）。测试不改。
+  - 验证：Omarchy clippy 过，ely-lok fallback 与 logs 8 过，ely-doc 整组 173 过（含新的子进程替身）；M4 Mac clippy 过，fallback 与 logs 9 过，ely-doc 的 markdown 与 stand_ins 5 过。7877 clippy 过，fallback 与 logs 9 过，ely-doc 整组 171 过（子进程替身在 Windows 上同样过）。
+  - 第 1 轮 PASS（`tasks/reviews/R21.37g-r1.md`）。
+- [ ] R21.37h 四个 `*-cli.sh` 收尾只等应用、不等 worker（R21.37c 查出，顾问 (d) 要立条）：删临时目录时 worker 还在写 `lok-profile/user`，Omarchy 的 `doc-cli.sh` 偶以 1 退出；收尾等 worker 退出再删
 - [ ] R21.38 验收核对表与顾问终审：R21 各条的状态、证据与余下，单列 `[!]`
