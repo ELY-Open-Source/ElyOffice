@@ -4,12 +4,13 @@ use std::{collections::BTreeSet, ops::Range, sync::Arc, time::Duration};
 
 use ely_gpui_component::{
     buttons::SegmentedControl,
+    layout::Scrollbar,
     menus::{ContextMenu, Menu as Popup, MenuItem as PopupItem},
     primitives::{DragGhost, FocusRing as _, IconName},
     theme::{ActiveTheme as _, ControlSize},
 };
 use gpui::{
-    Action, App, Context, Entity, InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderImage, Role,
+    Action, App, Axis, Context, Entity, InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderImage, Role,
     StatefulInteractiveElement as _, Styled as _, UniformListScrollHandle, WeakEntity, Window, div, img,
     prelude::FluentBuilder as _, px, uniform_list,
 };
@@ -365,16 +366,20 @@ impl Render for Side {
                     range.map(|page| row(&rows, page, cx)).collect()
                 })
                 .track_scroll(&self.scroll)
-                .size_full();
+                .size_full()
+                .pr(cx.theme().scrollbar_track().to_pixels(window.rem_size()));
+                let bar = Scrollbar::new("pdf-thumbs-bar", &self.scroll.0.borrow().base_handle, Axis::Vertical).auto();
                 div()
                     .id("pdf-pages-list")
                     .debug_selector(|| "pdf-pages-list".into())
+                    .relative()
                     .size_full()
                     .on_drag_move(cx.listener(Self::drag_near))
                     .role(Role::List)
                     .aria_label(Viewer::text(cx, "pdf.side.pages", &[]))
                     .key_context(PAGES)
                     .child(ContextMenu::new("pdf-thumbs-menu", popup(cx)).size_full().child(list))
+                    .child(bar)
                     .into_any_element()
             }
         };

@@ -188,12 +188,18 @@ impl RenderOnce for SidePanel {
             .flex_none()
             .border_color(theme.colors.border)
             .child(view);
+        // A left panel's bars keep clear of the grip.
         let inner = match self.side {
-            Side::Left => inner.border_r_1().ml(shown - full),
+            Side::Left => inner.border_r_1().pr(theme.handle_hit().to_pixels(window.rem_size())).ml(shown - full),
             Side::Right => inner.border_l_1(),
         };
+        let side = self.side;
         // The inner edge drags the width.
         let grip = resize_edge((id.clone(), "edge"), Axis::Horizontal, cx)
+            .debug_selector(move || match side {
+                Side::Left => "left-panel-edge".into(),
+                Side::Right => "right-panel-edge".into(),
+            })
             .absolute()
             .top_0()
             .bottom_0()
@@ -204,7 +210,6 @@ impl RenderOnce for SidePanel {
             Side::Left => grip.right_0().justify_end(),
             Side::Right => grip.left_0().justify_start(),
         };
-        let side = self.side;
         div()
             .id(id)
             .relative()

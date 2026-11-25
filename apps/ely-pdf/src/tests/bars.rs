@@ -92,3 +92,36 @@ fn a_dragged_bar_moves_the_row_of_pages() {
     assert!(dragged > px(2000.0), "half the bar is half the row: {dragged:?}");
     assert!(current > 10, "the page read follows the bar: {current}");
 }
+
+#[test]
+fn the_page_list_has_a_bar_that_rolls_it() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let page: (f32, f32, &[&str]) = (612.0, 792.0, &["page"]);
+    let pages = vec![page; 30];
+    let (viewer, cx) = windowed(&mut cx, dir.path(), &[file(dir.path(), "thirty.pdf", &pages)], true);
+    let view = shown(cx, &viewer);
+    frames(cx);
+    let list = cx.debug_bounds("pdf-pages-list").expect("the page list");
+    let first = cx.debug_bounds("pdf-thumb-0").expect("page one's row");
+    assert!(first.right() < list.right(), "rows leave the bar its track: {first:?} in {list:?}");
+    let (track, thickness) = cx.update(|window, app| {
+        use ely_gpui_component::theme::ActiveTheme as _;
+        let theme = app.theme();
+        (theme.scrollbar_track().to_pixels(window.rem_size()), theme.scrollbar_thickness().to_pixels(window.rem_size()))
+    });
+    // The thumb starts at the track's inner edge.
+    let grip = point(list.right() - track + thickness / 2.0, list.top() + px(6.0));
+    cx.simulate_mouse_move(grip, None, Modifiers::none());
+    cx.simulate_mouse_down(grip, MouseButton::Left, Modifiers::none());
+    let down = list.size.height / 2.0;
+    for step in [px(10.0), px(20.0), down] {
+        cx.simulate_mouse_move(grip + point(px(0.0), step), MouseButton::Left, Modifiers::none());
+    }
+    cx.simulate_mouse_up(grip + point(px(0.0), down), MouseButton::Left, Modifiers::none());
+    frames(cx);
+    assert!(cx.debug_bounds("pdf-thumb-0").is_none(), "page one's row rolled out of view");
+    assert!(cx.debug_bounds("pdf-thumb-14").is_some(), "half the bar shows the middle pages");
+    let pages = cx.update(|_, app| view.read(app).scroll.offset().y);
+    assert_eq!(pages, px(0.0), "the page list's bar leaves the pages");
+}

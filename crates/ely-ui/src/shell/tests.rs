@@ -248,3 +248,12 @@ fn a_panel_that_comes_with_content_takes_its_width_at_once(cx: &mut TestAppConte
     frame(&mut cx);
     assert!(cx.debug_bounds("left-probe").is_some(), "the user's fold slides, not jumps");
 }
+
+#[gpui::test]
+fn the_left_panel_ends_where_its_grip_begins(cx: &mut TestAppContext) {
+    let mut cx = both_at(cx, 1200.0);
+    let view = cx.debug_bounds("left-probe").expect("the left panel");
+    let grip = cx.debug_bounds("left-panel-edge").expect("its grip");
+    assert!(grip.size.width > gpui::px(0.0), "the grip has width: {grip:?}");
+    assert!(view.right() <= grip.left(), "a bar at the panel's edge stays clear of the grip: {view:?} {grip:?}");
+}
