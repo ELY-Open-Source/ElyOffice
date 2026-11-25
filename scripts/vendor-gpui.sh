@@ -19,6 +19,8 @@ trap 'rm -rf "$work"' EXIT
 mkdir "$work/vendor"
 # Inside another repository git apply skips every path.
 git init -q "$work"
+# Patched files keep upstream's line endings.
+git -C "$work" config core.autocrlf false
 while read -r name sum; do
   crate=$work/$name.crate
   curl -fsSL -o "$crate" "https://static.crates.io/crates/$name/$name-$version.crate"

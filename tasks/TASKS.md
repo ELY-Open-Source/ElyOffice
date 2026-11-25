@@ -973,12 +973,12 @@
     - 7877（WARP，64 Hz）：画完到上屏 p50 0.5 ms，但等待 p95 18–32 ms，超过一次刷新（15.6 ms），部分帧晚一拍；首段偶有上屏 p95 14–16 ms。
     - Omarchy（llvmpipe，X11 下刷新率读不到）：等待 p50 7–11 ms，画完到上屏约 12 ms，即 CPU 光栅化整窗。
   - 结论：有显卡时 ElyPDF 滚动已贴屏幕刷新；卡顿只在软件渲染上，且与页面内容无关。
-  - 7877 的等待查明：gpui 在 Windows 以 `DwmFlush` 为垂直同步（`vendor/gpui-pre-windows/src/vsync.rs`）。在 7877 的桌面会话里直接计时 `DwmFlush`（`.work/R21/dwm.ps1`）：ElyPDF 未开时间隔 p50 20 ms、p95 35 ms；滚动全程同样是 p50 18–22 ms、p95 20–42 ms。即无显卡的 DWM 合成时钟本身只有约 45 次每秒且常跳一拍，与 ElyPDF 无关；ElyPDF 绘制 2–4 ms、呈现不到 1 ms，等的就是这只钟。Omarchy 的 12 ms 是 llvmpipe 同步光栅化整窗。已问顾问（c）范围与 Omarchy 怎么证。
-  - Omarchy 对比（同机同驱动，`.work/R21/probe/markprobe.py`，ElyMark 滚 3000 节的 Markdown，同样的稳速与快甩）：ElyMark 画完到上屏 p95 6.5–10.2 ms、等待 p95 8.5–15.3 ms、送达 p95 17–25 ms，每帧同样过 8.3 ms。ElyPDF 画完到上屏 p95 11–19 ms、送达 p95 20–33 ms。即 llvmpipe 下不画图块的应用也到不了 120 FPS，ElyPDF 的大张页面图另加约 4–8 ms 光栅化。图块已按设备像素渲染（`backdrop.rs:55`）、按原大 1:1 绘制（`pages.rs:70`），每页只画一套，无叠画无缩放；这几毫秒是满窗页面纹理的采样本身。三端报表与结论记在 `docs/perf/2026-11-25-r21.37d-pdf-scroll.md`。
+  - 7877 的等待查明：gpui 在 Windows 以 `DwmFlush` 为垂直同步（`vendor/gpui-pre-windows/src/vsync.rs`）。在 7877 的桌面会话里直接计时 `DwmFlush`（`.work/R21/dwm.ps1`（本机，未入库））：ElyPDF 未开时间隔 p50 20 ms、p95 35 ms；滚动全程同样是 p50 18–22 ms、p95 20–42 ms。即无显卡的 DWM 合成时钟本身只有约 45 次每秒且常跳一拍，与 ElyPDF 无关；ElyPDF 绘制 2–4 ms、呈现不到 1 ms，等的就是这只钟。Omarchy 的 12 ms 是 llvmpipe 同步光栅化整窗。已问顾问（c）范围与 Omarchy 怎么证。
+  - Omarchy 对比（同机同驱动，`.work/R21/probe/markprobe.py`（本机，未入库），ElyMark 滚 3000 节的 Markdown，同样的稳速与快甩）：ElyMark 画完到上屏 p95 6.5–10.2 ms、等待 p95 8.5–15.3 ms、送达 p95 17–25 ms，每帧同样过 8.3 ms。ElyPDF 画完到上屏 p95 11–19 ms、送达 p95 20–33 ms。即 llvmpipe 下不画图块的应用也到不了 120 FPS，ElyPDF 的大张页面图另加约 4–8 ms 光栅化。图块已按设备像素渲染（`backdrop.rs:55`）、按原大 1:1 绘制（`pages.rs:70`），每页只画一套，无叠画无缩放；这几毫秒是满窗页面纹理的采样本身。三端报表与结论记在 `docs/perf/2026-11-25-r21.37d-pdf-scroll.md`。
   - 卡顿不改 ElyPDF 代码：绘制已 2–4 ms，等的是软件渲染下系统的合成时钟或 CPU 光栅化。测试 `side_by_side_turns_a_pair_and_the_cover_stands_alone`（双页 0-1、2-3、4-5，封面单独 0、1-2、3-4、5，菜单勾选开关）；7877 上 ElyPDF 201/201、ely-ui 123/123，clippy 无告警 — 第 1 轮 PASS（`tasks/reviews/R21.37d-r1.md`）
 - [x] R21.37e #114 ElyPDF 单页视图下滚轮、左右方向键、横向滚动都不能翻页（各平台）：单页只排当前一页，滚到页边再滚无人接手；ElyPDF 未绑方向键。滚到页边再滚即翻页（往回落在上一页底部，触控板一次手势至多一页），方向键各模式可用（上下滚动、单页到边翻页；左右在页宽于窗口时横移、否则翻页），文案取自 writer；端到端测试；回复并关闭致谢
   - 已做（`apps/ely-pdf/src/flip.rs`）：单页下，页面上的滚轮先经一层捕获：未到页边照常交给滚动；到边时滚轮一格即翻一页，触控板过边推满 120 像素翻一页，同一次滑动（含惯性）不再翻，新触碰或停顿 180 毫秒后算新的一次；往回落在上一页底部，横向落在页首。时钟取执行器的（测试可推进）。方向键四个绑在查看器上：上下滚 40 像素，单页到边翻页；左右在当前页（双页为一对）宽于窗口时横移，否则或到边翻页。帮助一行与 #114 回复取自 writer。
-  - 测试 `tests/flip.rs`：滚轮一格上下、横向翻页；两次滑动（新触碰、停顿）各翻一页；适合宽度时先页内滚动、到底翻到下一页页首，往回落在上一页底部；方向键单页翻页、页内一步 40 像素、连续模式左右翻页与下滚、放大后右键横移。7877 第一轮挂钟计时让一次滑动翻了两页，改用执行器时钟；第二轮滑动后的滚轮格被滑动的锁吞掉，改为滚轮格结束滑动。7877 上 ElyPDF 203/203、clippy 无告警。M4 Mac 上以系统级滚轮事件探测（单页打开的六页 PDF，`.work/R21/probe/flipprobe.py`）：下 3 格翻 3 页、上 2 格翻 2 页。真机触控板未试 — 第 1 轮 PASS（`tasks/reviews/R21.37e-r1.md`）
+  - 测试 `tests/flip.rs`：滚轮一格上下、横向翻页；两次滑动（新触碰、停顿）各翻一页；适合宽度时先页内滚动、到底翻到下一页页首，往回落在上一页底部；方向键单页翻页、页内一步 40 像素、连续模式左右翻页与下滚、放大后右键横移。7877 第一轮挂钟计时让一次滑动翻了两页，改用执行器时钟；第二轮滑动后的滚轮格被滑动的锁吞掉，改为滚轮格结束滑动。7877 上 ElyPDF 203/203、clippy 无告警。M4 Mac 上以系统级滚轮事件探测（单页打开的六页 PDF，`.work/R21/probe/flipprobe.py`（本机，未入库））：下 3 格翻 3 页、上 2 格翻 2 页。真机触控板未试 — 第 1 轮 PASS（`tasks/reviews/R21.37e-r1.md`）
 
 收尾
 
@@ -1004,4 +1004,7 @@
   - 做法：新 `tests/scripts/lok-workers.sh`（`tests/scripts/README.md` 记之），由 doc、show、table 三个 `*-cli.sh` 引入：`lok_workers_gone 日志` 逐个等日志里起过的 worker 退出，至多 30 秒，超时报 FAIL；Windows 上 pid 是原生的，用 `tasklist` 查，别处 `kill -0`。三个脚本的收尾在删目录前等它，超时即以 1 退出；`table-cli.sh` 的 `stop()`（杀掉再在同一目录重启）也先等。`mark-cli.sh` 不起 worker，不改。
   - 验证：Omarchy 上等 2 秒的替身即过、40 秒的替身 30 秒后报 FAIL 退 1、日志无 worker 即过；doc、show、table 各连跑 3 次皆过。7877：原生进程（ping）被认作活着，等到它退出（约 3 秒）即过，无 worker 即过；三个脚本各连跑 2 次皆过。
   - 第 1 轮 PASS（`tasks/reviews/R21.37h-r1.md`；送审时 check.sh 实未过，`lok-workers.sh` 一行注释超十词，改短后过，已告知审查方）。
+- [x] R21.37i main 上的 `pr.yml` 自 R21.37d 起全红（交付前查出）：R21.37d、R21.37e 的 TASKS 引了三个 `.work/` 本机证据未标“本机，未入库”；R21.37a 起 vendored gpui 检查不过
+  - 根因：本机 Git 全局 `core.autocrlf=true`，`vendor-gpui.sh` 临时仓里 `git apply` 把打过补丁的 18 个文件写成 CRLF，`write` 原样拷进 `vendor/`（`-text`），本机检查同样转换故而通过；Linux 上同一补丁得 LF。0.3.12 的 vendor 为 LF，故 R21.37a 前 CI 过。
+  - 已做：临时仓设 `core.autocrlf false`，重写 vendor（18 个文件只改行尾，忽略 CR 后无差异）；三处证据补标。本机与 Omarchy 上 `vendor-gpui.sh` 检查都过；records、test-map、compatibility、panics、check.sh 本机过 — 第 1 轮 PASS（`tasks/reviews/R21.37i-r1.md`）。
 - [ ] R21.38 验收核对表与顾问终审：R21 各条的状态、证据与余下，单列 `[!]`
