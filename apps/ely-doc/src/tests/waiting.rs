@@ -80,9 +80,9 @@ fn a_program_asking_for_a_waiting_file_loads_it_first() {
         });
         answer.into_inner().expect("answered")
     };
-    let listed = ask(&mut cx, serde_json::json!(["docs"])).expect("docs");
+    let listed: Vec<String> = serde_json::from_str(&ask(&mut cx, serde_json::json!(["docs"])).expect("docs")).expect("a JSON list");
     let a = files[0].display().to_string();
-    assert!(listed.lines().any(|line| line == a), "{a} not in {listed}");
+    assert!(listed.contains(&a), "{a} not in {listed:?}");
     let text = ask(&mut cx, serde_json::json!(["get", a])).expect("a's text");
     assert!(!text.is_empty(), "a reads empty");
     assert!(named(&mut cx, &docs, "a.fodt").1, "a loaded for the program");

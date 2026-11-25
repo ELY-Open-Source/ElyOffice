@@ -37,7 +37,7 @@ impl Format {
 }
 
 /// Every sheet as Page Setup lays it out.
-const WHOLE: Pdf = Pdf {
+pub(crate) const WHOLE: Pdf = Pdf {
     pages: None,
     comments: false,
     changes: false,

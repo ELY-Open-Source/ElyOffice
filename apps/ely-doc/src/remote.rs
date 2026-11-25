@@ -1,23 +1,50 @@
 //! Other programs read and edit open documents' text.
 
-use ely_office::{prelude::*, remote};
+use std::path::PathBuf;
+
+use ely_lok::Pdf;
+use ely_office::{
+    prelude::*,
+    remote::{self, Cli},
+};
 use ely_platform::AppId;
 use ely_ui::Ask;
 use gpui::Context;
 
 use crate::docs::Docs;
 
-const USAGE: &str = "usage: ely-doc text docs
+const USAGE: &str = "usage: ely-doc docs
+       ely-doc open FILE
+       ely-doc new FILE
+       ely-doc export FILE TARGET
+       ely-doc save FILE
        ely-doc text get FILE
        ely-doc text replace FILE FIND WITH
-       ely-doc text save FILE
+open and new start ElyDoc if needed; the rest require it running (with FILE open).
 get prints the body text, one paragraph per line; notes, comments and frames are left out.
 replace changes every exact, case-matched FIND in the body, as one undo step.
-ElyDoc must be running with FILE open.";
+Any argument written as - is read from standard input, up to 64 MiB.
+Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
-/// `ely-doc text ...` asks the running copy; its exit code.
+/// Every page, as the export dialog starts.
+const WHOLE: Pdf = Pdf {
+    pages: None,
+    comments: false,
+    changes: true,
+    handouts: 0,
+};
+
+/// `ely-doc open|new|export|text ...`; its exit code.
 pub fn command_line() -> Option<i32> {
-    remote::command_line(AppId::Doc, "text", USAGE, request, &[])
+    remote::command_line(&Cli {
+        app: AppId::Doc,
+        noun: "text",
+        usage: USAGE,
+        request,
+        exact: &[],
+        blanks: &[("docx", include_bytes!("../../../packaging/windows/new/new.docx"))],
+        exports: &["docx", "odt", "pdf"],
+    })
 }
 
 /// The words sent; the file made absolute.
@@ -61,8 +88,35 @@ impl Docs {
                     cx,
                 );
             }
+            [verb, _, target] if verb == "export" => self.export_for(id, PathBuf::from(target), ask, cx),
             _ => ask.answer(Err("unknown command".into())),
         }
+    }
+
+    /// A copy at `target` by its extension; the tab stays.
+    fn export_for(&mut self, id: u64, target: PathBuf, ask: Ask, cx: &mut Context<Self>) {
+        if !self.settled(id, cx) {
+            return self.when_settled(id, move |docs, _, cx| docs.export_for(id, target, ask, cx));
+        }
+        let Some(work) = self.tab(id).map(|tab| tab.work.clone()) else {
+            return ask.answer(Err(format!("tab {id} closed")));
+        };
+        let format = ely_office::files::save_as_format(&Self::KIND, &target);
+        let named = remote::path_json(&target.display().to_string());
+        self.read_in(
+            id,
+            move |worker, doc| {
+                remote::export_to(&work, &target, |copy| {
+                    let url = ely_lok::file_url(copy);
+                    match format {
+                        Some(format) => doc.save_as(worker, &url, format),
+                        None => doc.export_pdf(worker, &url, &WHOLE),
+                    }
+                })
+            },
+            move |_, done, _, _| ask.answer(done.map(|()| named).map_err(|error| error.to_string())),
+            cx,
+        );
     }
 }
 

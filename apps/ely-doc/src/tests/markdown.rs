@@ -86,7 +86,7 @@ fn a_file_open_in_elymark_is_not_overwritten() {
     let path = dir.path().join("notes.md");
     std::fs::write(&path, "# kept in ElyMark\n").expect("writes");
     // This process stands in for an ElyMark showing it.
-    let shown = path.display().to_string();
+    let shown = ely_office::remote::files_json(&[path.display().to_string()]);
     let door = match instance::hold(AppId::Mark, &instance::Launch::default()).expect("takes ElyMark's lock") {
         instance::Start::First(door) => door,
         instance::Start::Handed => panic!("another ElyMark holds this test's data root"),

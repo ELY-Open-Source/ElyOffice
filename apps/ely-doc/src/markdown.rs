@@ -104,7 +104,8 @@ fn held_by_mark(path: &Path) -> std::io::Result<bool> {
         return Ok(false);
     }
     let open = instance::ask(AppId::Mark, r#"["docs"]"#)?;
-    for file in open.lines().filter(|line| !line.is_empty()) {
+    let files: Vec<String> = serde_json::from_str(&open).map_err(|error| std::io::Error::other(format!("ElyMark's file list: {error}")))?;
+    for file in &files {
         if ely_files::same_file(Path::new(file), path)? {
             return Ok(true);
         }

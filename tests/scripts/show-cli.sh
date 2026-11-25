@@ -48,7 +48,7 @@ if text replace "$file" zebra x 2>"$work/err"; then fail "a missing word was rep
 grep -q "nothing replaced" "$work/err" || fail "the refusal says $(cat "$work/err")"
 if text get "$work/other.pptx" 2>/dev/null; then fail "a file not open was read"; fi
 if text replace "$file" 01 2>/dev/null; then fail "a short command ran"; fi
-saved=$(text save "$file") || fail "saving"
+saved=$(text save "$file" | python -c 'import json, sys; sys.stdout.write(json.load(sys.stdin))') || fail "saving"
 [ "$(native "$saved")" = "$file" ] || fail "save answered '$saved', not $file"
 # On disk at the answer: crash recovery cannot stand in.
 python - "$file" <<'PY' || fail "the saved deck.pptx lacks the replacement"

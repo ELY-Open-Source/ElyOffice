@@ -37,8 +37,9 @@ fn text_reads_replaces_in_one_step_and_saves_with_the_cursor_kept() {
     with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
     settle(&cx, |app| docs.read(app).core.tabs[0].name == "doc.odt");
     let file = path.display().to_string();
-    let docs_listed = ask(&mut cx, &docs, &["docs"]).expect("docs");
-    assert_eq!(std::fs::canonicalize(&docs_listed).ok(), std::fs::canonicalize(&path).ok(), "{docs_listed}");
+    let docs_listed: Vec<String> = serde_json::from_str(&ask(&mut cx, &docs, &["docs"]).expect("docs")).expect("a JSON list");
+    let canonical: Vec<_> = docs_listed.iter().map(|file| std::fs::canonicalize(file).ok()).collect();
+    assert_eq!(canonical, [std::fs::canonicalize(&path).ok()], "{docs_listed:?}");
     assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("cat Cat 世界 😀 cat".into()));
     assert_eq!(ask(&mut cx, &docs, &["replace", &file, "cat", "dog"]), Ok(String::new()));
     assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("dog Cat 世界 😀 dog".into()));
@@ -68,7 +69,7 @@ fn text_reads_replaces_in_one_step_and_saves_with_the_cursor_kept() {
     assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("cat Cat 世界 😀 cat".into()), "one undo step");
     cx.update(|app| docs.update(app, |docs, cx| docs.run_active("edit.redo", &[], cx)));
     settled(&cx, &docs);
-    let saved = ask(&mut cx, &docs, &["save", &file]).expect("saved");
+    let saved: String = serde_json::from_str(&ask(&mut cx, &docs, &["save", &file]).expect("saved")).expect("a JSON path");
     assert_eq!(std::fs::canonicalize(&saved).ok(), std::fs::canonicalize(&path).ok());
     assert!(text_of(&mut cx, &docs, &path).contains("dog Cat 世界 😀 dog"), "on disk at the answer");
     assert_eq!(ask(&mut cx, &docs, &["replace", &file, " ", "_"]), Ok(String::new()));

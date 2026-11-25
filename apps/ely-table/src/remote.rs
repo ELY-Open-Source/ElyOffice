@@ -1,22 +1,41 @@
 //! Other programs read and write open workbooks (GitHub #19).
 
+use std::path::PathBuf;
+
 use ely_lok::sheet;
-use ely_office::{prelude::*, remote};
+use ely_office::{
+    prelude::*,
+    remote::{self, Cli},
+};
 use ely_platform::AppId;
 use ely_ui::Ask;
 use gpui::Context;
 
 use crate::book::Book;
 
-const USAGE: &str = "usage: ely-table cell docs
+const USAGE: &str = "usage: ely-table docs
+       ely-table open FILE
+       ely-table new FILE
+       ely-table export FILE TARGET
+       ely-table save FILE
        ely-table cell get FILE ADDRESS
        ely-table cell set FILE ADDRESS TEXT
-       ely-table cell save FILE
-ADDRESS names its sheet, as in Sheet1!A1. ElyTable must be running with FILE open.";
+open and new start ElyTable if needed; the rest require it running (with FILE open).
+ADDRESS names its sheet, as in Sheet1!A1. cell get prints JSON; cell set writes TEXT (= for a formula) as one undo step.
+Any argument written as - is read from standard input, up to 64 MiB.
+Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
-/// `ely-table cell ...` asks the running copy; its exit code.
+/// `ely-table open|new|export|cell ...`; its exit code.
 pub fn command_line() -> Option<i32> {
-    remote::command_line(AppId::Table, "cell", USAGE, request, &[])
+    remote::command_line(&Cli {
+        app: AppId::Table,
+        noun: "cell",
+        usage: USAGE,
+        request,
+        exact: &[],
+        blanks: &[("xlsx", include_bytes!("../../../packaging/windows/new/new.xlsx"))],
+        exports: &["xlsx", "ods", "pdf", "csv", "tsv"],
+    })
 }
 
 /// The words sent; the file made absolute.
@@ -59,8 +78,38 @@ impl Book {
                     cx,
                 );
             }
+            [verb, _, target] if verb == "export" => self.export_for(id, PathBuf::from(target), ask, cx),
             _ => ask.answer(Err("unknown command".into())),
         }
+    }
+
+    /// Copies to `target`; CSV and TSV take the shown sheet.
+    fn export_for(&mut self, id: u64, target: PathBuf, ask: Ask, cx: &mut Context<Self>) {
+        if !self.settled(id, cx) {
+            return self.when_settled(id, move |book, _, cx| book.export_for(id, target, ask, cx));
+        }
+        let Some(work) = self.tab(id).map(|tab| tab.work.clone()) else {
+            return ask.answer(Err(format!("tab {id} closed")));
+        };
+        let format = ely_office::files::save_as_format(&Self::KIND, &target);
+        let ext = target.extension().map(|ext| ext.to_string_lossy().to_lowercase()).unwrap_or_default();
+        let named = remote::path_json(&target.display().to_string());
+        self.read_in(
+            id,
+            move |worker, doc| {
+                remote::export_to(&work, &target, |copy| {
+                    let url = ely_lok::file_url(copy);
+                    match (format, ext.as_str()) {
+                        (Some(format), _) => doc.save_as(worker, &url, format),
+                        (None, "csv") => doc.export_text(worker, &url, ','),
+                        (None, "tsv") => doc.export_text(worker, &url, '\t'),
+                        (None, _) => doc.export_pdf(worker, &url, &crate::output::WHOLE),
+                    }
+                })
+            },
+            move |_, done, _, _| ask.answer(done.map(|()| named).map_err(|error| error.to_string())),
+            cx,
+        );
     }
 }
 

@@ -1,23 +1,41 @@
 //! Other programs read and edit open decks' text.
 
-use ely_office::{prelude::*, remote};
+use std::path::PathBuf;
+
+use ely_office::{
+    prelude::*,
+    remote::{self, Cli},
+};
 use ely_platform::AppId;
 use ely_ui::Ask;
 use gpui::Context;
 
 use crate::deck::Deck;
 
-const USAGE: &str = "usage: ely-show text docs
+const USAGE: &str = "usage: ely-show docs
+       ely-show open FILE
+       ely-show new FILE
+       ely-show export FILE TARGET
+       ely-show save FILE
        ely-show text get FILE
        ely-show text replace FILE FIND WITH
-       ely-show text save FILE
+open and new start ElyShow if needed; the rest require it running (with FILE open).
 get prints each slide's text, one paragraph per line, a form feed between slides; notes and comments are left out.
 replace changes every exact, case-matched FIND on the slides; as in Impress, each text box changed is one undo step.
-ElyShow must be running with FILE open.";
+Any argument written as - is read from standard input, up to 64 MiB.
+Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
-/// `ely-show text ...` asks the running copy; its exit code.
+/// `ely-show open|new|export|text ...`; its exit code.
 pub fn command_line() -> Option<i32> {
-    remote::command_line(AppId::Show, "text", USAGE, request, &[])
+    remote::command_line(&Cli {
+        app: AppId::Show,
+        noun: "text",
+        usage: USAGE,
+        request,
+        exact: &[],
+        blanks: &[("pptx", include_bytes!("../../../packaging/windows/new/new.pptx"))],
+        exports: &["pptx", "odp", "pdf"],
+    })
 }
 
 /// The words sent; the file made absolute.
@@ -63,8 +81,32 @@ impl Deck {
                     cx,
                 );
             }
+            [verb, _, target] if verb == "export" => self.export_for(id, PathBuf::from(target), ask, cx),
             _ => ask.answer(Err("unknown command".into())),
         }
+    }
+
+    /// A copy at `target` by its extension; the tab stays.
+    fn export_for(&mut self, id: u64, target: PathBuf, ask: Ask, cx: &mut Context<Self>) {
+        if !self.settled(id, cx) {
+            return self.when_settled(id, move |deck, _, cx| deck.export_for(id, target, ask, cx));
+        }
+        let Some(work) = self.tab(id).map(|tab| tab.work.clone()) else {
+            return ask.answer(Err(format!("tab {id} closed")));
+        };
+        let format = ely_office::files::save_as_format(&Self::KIND, &target);
+        let named = remote::path_json(&target.display().to_string());
+        self.read_in(
+            id,
+            move |worker, doc| {
+                remote::export_to(&work, &target, |copy| match format {
+                    Some(format) => doc.save_as(worker, &ely_lok::file_url(copy), format),
+                    None => crate::output::whole_pdf(worker, doc, &work.join("export.odp"), &ely_lok::file_url(copy)),
+                })
+            },
+            move |_, done, _, _| ask.answer(done.map(|()| named).map_err(|error| error.to_string())),
+            cx,
+        );
     }
 }
 

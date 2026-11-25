@@ -1,65 +1,42 @@
 //! Other programs read and write open documents (GitHub #19).
 
-use std::{io::Write as _, path::Path};
+use std::path::{Path, PathBuf};
 
-use ely_platform::instance;
 use ely_ui::Ask;
 use gpui::{App, Context, TaskExt as _, Window};
 
-use crate::{Core, Engine, Host, Saving, Tabs, in_window};
+use crate::{Core, Engine, Host, Opening as _, Saving, Tabs, in_window};
 
+mod client;
 mod text;
+pub use client::{Cli, command_line};
 pub use text::{body_text, slide_text};
-
-/// Asks the running copy; `exact` verbs print as is.
-pub fn command_line(
-    app: ely_platform::AppId,
-    noun: &str,
-    usage: &str,
-    request: fn(&[&str]) -> Result<Vec<String>, String>,
-    exact: &[&str],
-) -> Option<i32> {
-    let args: Vec<_> = std::env::args_os().skip(1).collect();
-    if args.first().is_none_or(|first| first != noun) {
-        return None;
-    }
-    ely_platform::startup::attach_console();
-    let words: Result<Vec<&str>, _> = args[1..].iter().map(|arg| arg.to_str().ok_or("an argument is not text")).collect();
-    let request = match words.map_err(String::from).and_then(|words| request(&words)) {
-        Ok(request) => request,
-        Err(why) => {
-            eprintln!("{}: {why}\n{usage}", app.slug());
-            return Some(2);
-        }
-    };
-    let content = request.first().is_some_and(|verb| exact.contains(&verb.as_str()));
-    match instance::ask(app, &serde_json::Value::from(request).to_string()) {
-        Ok(answer) => {
-            let line = match content || answer.is_empty() {
-                true => answer,
-                false => format!("{answer}
-"),
-            };
-            // Exit runs no destructors: flush here.
-            let mut out = std::io::stdout();
-            match out.write_all(line.as_bytes()).and_then(|()| out.flush()) {
-                Ok(()) => Some(0),
-                Err(error) => {
-                    eprintln!("{}: the answer did not print: {error}", app.slug());
-                    Some(1)
-                }
-            }
-        }
-        Err(error) => {
-            eprintln!("{}: {error}", app.slug());
-            Some(1)
-        }
-    }
-}
 
 /// `file` made absolute, as the running copy reads it.
 pub fn absolute(file: &str) -> Result<String, String> {
     std::path::absolute(file).map(|file| file.display().to_string()).map_err(|error| format!("{file}: {error}"))
+}
+
+/// Files as a JSON array; paths may hold newlines.
+pub fn files_json(files: &[String]) -> String {
+    serde_json::Value::from(files).to_string()
+}
+
+/// One path as a JSON string.
+pub fn path_json(path: &str) -> String {
+    serde_json::Value::from(path).to_string()
+}
+
+/// Why an export onto an open file is refused.
+const EXPORT_OPEN: &str = "{target}: cannot export over an open file; close it first";
+
+/// `write` fills a copy in `work`, then moved to `target`.
+pub fn export_to(work: &Path, target: &Path, write: impl FnOnce(&Path) -> std::io::Result<()>) -> std::io::Result<()> {
+    let ext = target.extension().map(|ext| ext.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let copy = work.join(format!("export.{ext}"));
+    write(&copy)?;
+    std::fs::copy(&copy, target)?;
+    std::fs::remove_file(&copy)
 }
 
 /// A copy of `doc` as `format` via `path`; `doc` stays.
@@ -80,7 +57,7 @@ pub fn route<H: Remote>(ask: Ask, cx: &mut App, answer: fn(&mut H, Ask, &mut Con
     let words: Vec<String> = serde_json::from_str(&ask.request).unwrap_or_default();
     if words.len() == 1 && words[0] == "docs" {
         let files: Vec<String> = hosts.iter().flat_map(|host| host.read(cx).docs()).collect();
-        return ask.answer(Ok(files.join("\n")));
+        return ask.answer(Ok(files_json(&files)));
     }
     let holder = words.get(1).and_then(|file| hosts.iter().find(|host| host.read(cx).tab_of(file).is_ok()));
     let Some(host) = holder.cloned().or_else(|| crate::shared::Handle::<H>::joined(cx).ok()?.front(None, cx)) else {
@@ -103,8 +80,12 @@ pub trait Remote: Saving {
         let slug = Self::KIND.app.slug();
         log::info!("{slug}: another program asks {}", words.first().map_or("nothing", String::as_str));
         if words.len() == 1 && words[0] == "docs" {
-            ask.answer(Ok(self.docs().join("\n")));
+            ask.answer(Ok(files_json(&self.docs())));
             return None;
+        }
+        // A hand-over may still be queued: opened here.
+        if words.len() == 2 && words[0] == "open" && self.tab_of(&words[1]).is_err() {
+            self.open_file(PathBuf::from(&words[1]), cx);
         }
         let id = match words.get(1).map(|file| self.tab_of(file)) {
             Some(Ok(id)) => id,
@@ -123,6 +104,23 @@ pub trait Remote: Saving {
             self.core_mut().wake(id, ask);
             cx.notify();
             return None;
+        }
+        if words.len() == 2 && words[0] == "open" {
+            ask.answer(Ok(path_json(&words[1])));
+            return None;
+        }
+        if words.len() == 3 && words[0] == "export" {
+            return match self.holder(Path::new(&words[2])) {
+                Ok(None) => Some((id, words, ask)),
+                Ok(Some(_)) => {
+                    ask.answer(Err(EXPORT_OPEN.replace("{target}", &words[2])));
+                    None
+                }
+                Err(error) => {
+                    ask.answer(Err(format!("{}: {error}", words[2])));
+                    None
+                }
+            };
         }
         if !(words.len() == 2 && words[0] == "save") {
             return Some((id, words, ask));
@@ -199,7 +197,7 @@ impl<H: Host> Core<H> {
         let (ended, rest) = std::mem::take(&mut self.saving).into_iter().partition(|(tab, _)| *tab == id);
         self.saving = rest;
         for (_, ask) in ended {
-            ask.answer(saved.clone().map(|path| path.display().to_string()));
+            ask.answer(saved.clone().map(|path| path_json(&path.display().to_string())));
         }
     }
 }

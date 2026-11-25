@@ -44,11 +44,21 @@ pub fn hold(app: AppId, launch: &Launch) -> io::Result<Start> {
 
 /// Sends `request` to the running `app`; its answer.
 pub fn ask(app: AppId, request: &str) -> io::Result<String> {
+    door::ask(&running(app)?, request)
+}
+
+/// Hands `launch` to the running `app`, like a second start.
+pub fn hand(app: AppId, launch: &Launch) -> io::Result<()> {
+    door::hand(&running(app)?, launch, WAIT)
+}
+
+/// `app`'s data folder, if its door is there.
+fn running(app: AppId) -> io::Result<PathBuf> {
     let dir = crate::data_dir(app).map_err(io::Error::other)?;
     if !dir.join("instance.door").try_exists()? {
         return Err(io::Error::new(io::ErrorKind::NotFound, format!("{} is not running", app.name())));
     }
-    door::ask(&dir, request)
+    Ok(dir)
 }
 
 fn start(app: AppId, dir: &Path, launch: &Launch) -> io::Result<Start> {

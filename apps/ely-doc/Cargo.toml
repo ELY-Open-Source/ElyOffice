@@ -25,6 +25,7 @@ log.workspace = true
 ely-ipc.workspace = true
 ely-platform.workspace = true
 ely-ui.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 ely-platform = { workspace = true, features = ["test-support"] }
@@ -34,7 +35,6 @@ ely-gpui-component = { workspace = true, features = ["test-support"] }
 dunce.workspace = true
 futures.workspace = true
 image.workspace = true
-serde_json.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
 
 [lints]

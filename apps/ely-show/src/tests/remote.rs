@@ -105,8 +105,9 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.list.len() == 2));
     quiet(&cx, &deck);
     let file = path.display().to_string();
-    let listed = ask(&mut cx, &deck, &["docs"]).expect("docs");
-    assert_eq!(std::fs::canonicalize(&listed).ok(), std::fs::canonicalize(&path).ok(), "{listed}");
+    let listed: Vec<String> = serde_json::from_str(&ask(&mut cx, &deck, &["docs"]).expect("docs")).expect("a JSON list");
+    let canonical: Vec<_> = listed.iter().map(|file| std::fs::canonicalize(file).ok()).collect();
+    assert_eq!(canonical, [std::fs::canonicalize(&path).ok()], "{listed:?}");
     assert_eq!(ask(&mut cx, &deck, &["get", &file]), Ok("cat Cat 世界 😀 cat\x0ccat cell\ngrouped cat".into()));
     update(&mut cx, &deck, |deck, cx| deck.go_to_finding(1, cx));
     settle(&cx, |app| deck.read(app).active_tab().is_some_and(|tab| tab.extra.slides.current == 1));
@@ -139,7 +140,7 @@ fn slide_text_reads_replaces_and_saves_leaving_notes_and_the_slide() {
     let other = dir.path().join("other.odp");
     std::fs::write(&other, b"x").expect("a stray file");
     assert!(ask(&mut cx, &deck, &["get", &other.display().to_string()]).is_err(), "a file not open");
-    let saved = ask(&mut cx, &deck, &["save", &file]).expect("saved");
+    let saved: String = serde_json::from_str(&ask(&mut cx, &deck, &["save", &file]).expect("saved")).expect("a JSON path");
     assert_eq!(std::fs::canonicalize(&saved).ok(), std::fs::canonicalize(&path).ok());
     let on_disk = std::fs::read_to_string(&path).expect("reads the saved deck");
     assert_eq!(ely_office::remote::slide_text(on_disk.as_bytes()).ok().as_deref(), Some(after), "on disk at the answer");

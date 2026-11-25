@@ -85,7 +85,7 @@ subprocess.run([table, 'cell', 'set', file, 't!C3', text], check=True)
 got = json.loads(subprocess.run([table, 'cell', 'get', file, 't!C3'], check=True, capture_output=True).stdout)
 sys.exit(0 if got['text'] == got['input'] == text else 1)
 PY
-saved=$(cell save "$file") || fail "saving"
+saved=$(cell save "$file" | python -c 'import json, sys; sys.stdout.write(json.load(sys.stdin))') || fail "saving"
 [ "$(native "$saved")" = "$file" ] || fail "save answered '$saved', not $file"
 # On disk at the answer: crash recovery cannot stand in.
 python -c "import sys,zipfile;z=zipfile.ZipFile(sys.argv[1]);x=z.read('xl/worksheets/sheet1.xml').decode();sys.exit(0 if '>6*7</f>' in x else 1)" "$file" || fail "the saved book.xlsx lacks B2"

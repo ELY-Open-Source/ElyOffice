@@ -59,6 +59,11 @@ impl Output {
     }
 }
 
+/// Every slide of `doc` as a PDF at `url`.
+pub(crate) fn whole_pdf(worker: &mut Worker, doc: &Doc, copy: &std::path::Path, url: &str) -> io::Result<()> {
+    on_copy(worker, doc, (copy, None), |worker, made| made.export_pdf(worker, url, &Pdf::default()))
+}
+
 /// Runs `work` on a saved copy of `doc`.
 fn on_copy<T>(
     worker: &mut Worker,

@@ -1,23 +1,42 @@
 //! Other programs read and edit open files' Markdown.
 
-use ely_office::{prelude::*, remote};
+use std::path::PathBuf;
+
+use ely_office::{
+    prelude::*,
+    remote::{self, Cli},
+};
 use ely_platform::AppId;
 use ely_ui::Ask;
 use gpui::{App, Context, Entity};
 
 use crate::desk::Desk;
+use crate::output::{self, Format, Target};
 
-const USAGE: &str = "usage: ely-mark text docs
+const USAGE: &str = "usage: ely-mark docs
+       ely-mark open FILE
+       ely-mark new FILE
+       ely-mark export FILE TARGET
+       ely-mark save FILE
        ely-mark text get FILE
        ely-mark text replace FILE FIND WITH
-       ely-mark text save FILE
+open and new start ElyMark if needed; the rest require it running (with FILE open, not in preview for text).
 get prints the Markdown as it stands, byte for byte, unsaved typing included.
 replace changes every exact, case-matched FIND in the Markdown, as one undo step.
-ElyMark must be running with FILE open, not in preview.";
+Any argument written as - is read from standard input, up to 64 MiB.
+Exit codes: 0 success, 1 failed, 2 wrong usage, 3 not running.";
 
-/// `ely-mark text ...` asks the running copy; its exit code.
+/// `ely-mark open|new|export|text ...`; its exit code.
 pub fn command_line() -> Option<i32> {
-    remote::command_line(AppId::Mark, "text", USAGE, request, &["get"])
+    remote::command_line(&Cli {
+        app: AppId::Mark,
+        noun: "text",
+        usage: USAGE,
+        request,
+        exact: &["get"],
+        blanks: &[("md", include_bytes!("../../../packaging/windows/new/new.md")), ("markdown", b"")],
+        exports: &["html", "pdf", "txt"],
+    })
 }
 
 /// The words sent; the file made absolute.
@@ -66,8 +85,44 @@ impl Desk {
                 log::info!("mark: another program replaced {count} matches");
                 ask.answer(Ok(String::new()));
             }
+            [verb, _, target] if verb == "export" => self.export_for(id, PathBuf::from(target), ask, cx),
             _ => ask.answer(Err("unknown command".into())),
         }
+    }
+
+    /// Writes the tab to `target`, typed by its extension.
+    fn export_for(&mut self, id: u64, target: PathBuf, ask: Ask, cx: &mut Context<Self>) {
+        if !self.settled(id, cx) {
+            return self.when_settled(id, move |desk, _, cx| desk.export_for(id, target, ask, cx));
+        }
+        let (Some(source), Some(markdown)) = (self.tab(id), self.text_of(id)) else {
+            return ask.answer(Err(format!("tab {id} closed")));
+        };
+        let format = match target.extension().map(|ext| ext.to_string_lossy().to_lowercase()).as_deref() {
+            Some("pdf") => Format::Pdf,
+            Some("txt") => Format::Text,
+            _ => Format::Page,
+        };
+        let session = source.session.path().map(PathBuf::from);
+        let (revision, work) = (source.session.revision(), source.work.clone());
+        cx.spawn(async move |_, cx| {
+            let named = remote::path_json(&target.display().to_string());
+            let written = cx
+                .background_executor()
+                .spawn(async move {
+                    let beside = session.as_deref().and_then(|path| path.parent());
+                    let to = Target {
+                        path: &target,
+                        session: session.as_deref(),
+                        revision,
+                        work: &work,
+                    };
+                    output::write(format, &markdown, beside, &to)
+                })
+                .await;
+            ask.answer(written.map(|_| named).map_err(|error| error.to_string()));
+        })
+        .detach();
     }
 }
 
