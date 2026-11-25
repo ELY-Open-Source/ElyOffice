@@ -66,6 +66,7 @@ tests/scripts/table-cli.sh     开着 ElyTable 与一个工作簿，另一进程
 tests/scripts/doc-cli.sh       开着 ElyDoc 与一个 docx，另一进程经 `ely-doc text` 列出、读正文、替换（含中文）、保存，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对；再从标准输入追加段落、按样式追加、以 `--json` 读样式、带换行替换，缺的样式被拒；`ely-doc format` 给每处命中设格式与段落样式，缺的词被拒、未知属性退 2；`ely-doc table insert` 从标准输入（TSV，带标题行）插在命中段后、以 JSON 插在文末，缺的词被拒、行不等长退 2；`ely-doc image insert` 把 SVG 插在文末（定宽）与命中段后，缺的图片退 2、非图片被拒且不改文档
 tests/scripts/show-cli.sh      开着 ElyShow 与一个 pptx，另一进程经 `ely-show text` 列出、读各页文字、替换（含中文与换行）、按页号设标题与正文（含标准输入）、保存，经 `ely-show notes` 设与读备注，经 `ely-show slide` 列出、加（带版式）、移、复制、删页，经 `ely-show image insert` 按页号放图（带宽度），页号越界、未知版式、未知文本框、缺的图与非图片文件被拒，缺的词、未开的文件与短命令被拒；保存答复时读磁盘核对
 tests/scripts/mark-cli.sh      开着 ElyMark 与一个 md，另一进程经 `ely-mark text` 列出、读原文、替换（含中文）、整篇设为标准输入（CRLF 读作 LF）、文末另起一行追加、保存，缺的词、空的追加、未开的文件与短命令被拒；保存答复时读磁盘核对（`CARGO_TARGET_DIR` 设了即取其中的构建）
+tests/scripts/lok-workers.sh   上面三个带内核的 `*-cli.sh` 引入：收尾与重启前等应用日志里起过的 LOK worker 都退出（至多 30 秒，超时即败），worker 退出前还在写数据文件夹
 tests/scripts/eol.sh            入库文本皆 LF（vendor 照上游字节），新文件按 LF 归一
 tests/scripts/eol-rules.sh      eol.sh 读整条路径：带空格的 vendor 路径照放，vendor 之外的报出全名，git 列不出文件即失败
 tests/scripts/mark-build.sh     由不带 engines 与 reference 的 `git archive HEAD` 构建 ElyMark，`ELY_MUPDF_DIR` 指空目录

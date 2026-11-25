@@ -6,9 +6,15 @@ root=$(cd "$(dirname "$0")/../.." && pwd)
 # Its real path: macOS links /var to /private/var.
 work=$(cd "$(mktemp -d)" && pwd -P)
 pid=
+. "$root/tests/scripts/lok-workers.sh"
 cleanup() {
   [ -z "$pid" ] || kill "$pid" 2>/dev/null || true
   [ -z "$pid" ] || wait "$pid" 2>/dev/null || true
+  # Its worker writes into the folder until it ends.
+  if [ -f "$work/out" ] && ! lok_workers_gone "$work/out"; then
+    rm -rf "$work" || true
+    exit 1
+  fi
   rm -rf "$work"
 }
 trap cleanup EXIT
@@ -65,6 +71,7 @@ stop() {
   kill "$pid"
   wait "$pid" 2>/dev/null || true
   pid=
+  lok_workers_gone "$work/out" || fail "the worker outlived ElyTable"
 }
 
 start

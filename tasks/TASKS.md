@@ -999,5 +999,9 @@
   - ElyDoc 替代字体（stand_ins）：今日在 c9a53564 上三遍不复现（单跑一次、整组两次），内核日志 FangSong、KaiTi 皆取 Noto Serif SC；R21.37c 那两轮里 FangSong 画在 Noto Fangsong KSS Rotated 与 DejaVu Math TeX Gyre，当时的原因未查到（以那台机器的 fontconfig 模拟内核的字体与别名，FangSong 不论语言都配到 Noto Serif SC）。测试不改。
   - 验证：Omarchy clippy 过，ely-lok fallback 与 logs 8 过，ely-doc 整组 173 过（含新的子进程替身）；M4 Mac clippy 过，fallback 与 logs 9 过，ely-doc 的 markdown 与 stand_ins 5 过。7877 clippy 过，fallback 与 logs 9 过，ely-doc 整组 171 过（子进程替身在 Windows 上同样过）。
   - 第 1 轮 PASS（`tasks/reviews/R21.37g-r1.md`）。
-- [ ] R21.37h 四个 `*-cli.sh` 收尾只等应用、不等 worker（R21.37c 查出，顾问 (d) 要立条）：删临时目录时 worker 还在写 `lok-profile/user`，Omarchy 的 `doc-cli.sh` 偶以 1 退出；收尾等 worker 退出再删
+- [x] R21.37h 四个 `*-cli.sh` 收尾只等应用、不等 worker（R21.37c 查出，顾问 (d) 要立条）：删临时目录时 worker 还在写 `lok-profile/user`，Omarchy 的 `doc-cli.sh` 偶以 1 退出；收尾等 worker 退出再删
+  - 实测：Omarchy 上 ElyDoc 被杀后其 worker 还活约 200 毫秒，正是删目录撞上它写配置的那段。应用日志有 `lok: worker process <pid> started`（info）。
+  - 做法：新 `tests/scripts/lok-workers.sh`（`tests/scripts/README.md` 记之），由 doc、show、table 三个 `*-cli.sh` 引入：`lok_workers_gone 日志` 逐个等日志里起过的 worker 退出，至多 30 秒，超时报 FAIL；Windows 上 pid 是原生的，用 `tasklist` 查，别处 `kill -0`。三个脚本的收尾在删目录前等它，超时即以 1 退出；`table-cli.sh` 的 `stop()`（杀掉再在同一目录重启）也先等。`mark-cli.sh` 不起 worker，不改。
+  - 验证：Omarchy 上等 2 秒的替身即过、40 秒的替身 30 秒后报 FAIL 退 1、日志无 worker 即过；doc、show、table 各连跑 3 次皆过。7877：原生进程（ping）被认作活着，等到它退出（约 3 秒）即过，无 worker 即过；三个脚本各连跑 2 次皆过。
+  - 第 1 轮 PASS（`tasks/reviews/R21.37h-r1.md`；送审时 check.sh 实未过，`lok-workers.sh` 一行注释超十词，改短后过，已告知审查方）。
 - [ ] R21.38 验收核对表与顾问终审：R21 各条的状态、证据与余下，单列 `[!]`
