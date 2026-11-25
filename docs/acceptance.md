@@ -368,3 +368,86 @@ R20.47：R20.1 至 R20.106 逐条核对，另列暂缓的 C15（ElyAgent，用�
 | R19.5 | 过审 | 按键到图块晚一帧：图块到前压住重画与报告 | `a_kernel_change_repaints_and_reports_once_its_shown_tiles_land`、`an_input_landing_before_its_batch_repaints_and_reports_once_its_tiles_land`；`tasks/reviews/R19.5-r2.md` PASS | 905c0d9a | 延迟的绝对值出自多带 65 部词典的内核，不能与基准记录相比，只作有无对照；每跑末尾不足 2 秒的帧未核焦点 |
 | R19.6 | 未完 | Windows 0.1.16 基准：首次启动慢与 ElyMail 卡顿 | `tasks/reviews/R19.6-r2.md` PASS | db49e3b9 | ElyPDF 10.9 秒与 11-12 的六次卡顿未复现，原因未明；首次启动的 Defender 扫描待签名（R-02）；分忙与饿交 R20.41（已勾，e89832ae） |
 | R19.9 | 进行中 | ElyShow 整组跑时 `animation.add` 偶被拒 | 无审查 | fefebefb | 根因未定：R20.12 加了拒因的日志（补丁 0138），Windows lo-sym 258dcf4d 上整组十遍未复现 |
+
+## R21 外部 PR、新议题与 #107 命令行
+
+R21.38：R21.0 至 R21.37i 逐条核对（用户 2026-11-24 定的外部 PR、新议题与 #107 命令行），2026-11-25 据 27d5c803 写成。“过审”即 `[x]` 且末轮审查 PASS，“未完”为 `[!]`（未复现，等报告者），“受阻”为等外部条件，“进行中”为 `[ ]`。证据列该条的提交里新加或改过、今日树里仍在的测试（带测试属性的函数或 `tests/perf` 的 `def test_`，至多两个），没有时列该条点名的测试文件或脚本，组件库的写明；再列已入库的末轮审查。“末次提交”为提交说明点名该编号的最后一个，PR 为其合并提交。所引测试、路径与审查结论由脚本逐个核对（`.work/R21/r2138-evidence.py`，本机，未入库）。本表不重跑测试。
+
+| 编号 | 状态 | 事 | 证据 | 末次提交 | 未验证或余下 |
+| --- | --- | --- | --- | --- | --- |
+| R21.0 | 过审 | deny 两条新公告与 Windows clippy | `scripts/deny.sh`；`tasks/reviews/R21.0-r1.md` PASS | f220e7dd | — |
+| R21.1 | 过审 | PR #97 清除格式、字号增减、更改大小写、格式刷、段落底纹 | `a_paragraph_takes_shading`、`shading_colors_the_paragraph_not_its_letters`；`tasks/reviews/R21.1-r3.md` PASS | b97b13f2 | 句首大写在句点后跟小写时不断句，另立 R21.7a（已过审） |
+| R21.2 | 过审 | PR #98 插入符号、文本框与基本形状 | `case_rows_and_a_symbol_change_the_saved_text`、`a_symbol_without_a_document_says_so`；`tasks/reviews/R21.2-r2.md` PASS | a10ac70a | — |
+| R21.3 | 过审 | PR #99 加上与去掉水印 | `a_watermark_goes_into_the_page_and_comes_out`、`a_watermark_is_added_and_removed`；`tasks/reviews/R21.3-r2.md` PASS | df91d9f7 | — |
+| R21.4 | 过审 | PR #100 Linux 缺的 Word 字体以最近的随附字体画 | `missing_word_fonts_draw_as_the_nearest_free_font`；`tasks/reviews/R21.4-r2.md` PASS | 61b84fc6 | —（三端重建的共享引擎上补跑过） |
+| R21.5 | 过审 | PR #101 内核随附 Roboto，字体由脚本照清单取 | `scripts/fetch-fonts.sh`、`tests/scripts/fetch-fonts-rules.sh`；`tasks/reviews/R21.5-r3.md` PASS | 6f2da8de | —（三端重建的共享引擎上补跑过） |
+| R21.6 | 过审 | PR #102 内核随附五个西文家族 | `the_free_fonts_are_not_missing_but_an_unknown_font_is`；`tasks/reviews/R21.6-r1.md` PASS | ec690ea6 | —（三端重建的共享引擎上补跑过） |
+| R21.7 | 过审 | PR #104 内核随附 Noto 中文字体与中文别名 | `apps/ely-doc/src/tests/fonts/stand_ins.rs`；`tasks/reviews/R21.7-r2.md` PASS | 31f81e9e | —（安装包增量实测 xz 后 31.9 MB） |
+| R21.7a | 过审 | 句首大写照 Word 断句（补丁 0147） | `every_full_stop_starts_a_sentence`、`a_selection_inside_sentences_changes_only_itself`；`tasks/reviews/R21.7a-r1.md` PASS | 6c8e2e5a | — |
+| R21.8 | 过审 | PR #105 导出为 Markdown 交 ElyMark 打开 | `a_document_exports_as_markdown`、`an_open_document_is_not_overwritten_by_the_export`；`tasks/reviews/R21.8-r2.md` PASS | b5059ca9 | — |
+| R21.9 | 过审 | PR #106 字号框箭头按一磅增减（组件库 `Combobox::steps`） | `the_size_arrows_send_a_point_up_and_down`、`the_arrows_step_one_point_within_the_limits`；`tasks/reviews/R21.9-r2.md` PASS | f9496b3d | — |
+| R21.10 | 过审 | PR #108 ElyTable 边框样式、粗细与颜色 | `another_workbook_is_not_restyled`、`edges_follow_the_marks`；`tasks/reviews/R21.10-r2.md` PASS | f22b489b | 两个下拉在 AX 里无名，R21.37f 补上（已过审） |
+| R21.11 | 过审 | PR #109 ElyTable 复制区域的静止虚线框 | `the_range_holds_every_selected_rect`、`copied_cells_keep_a_still_outline_until_an_edit_or_escape`；`tasks/reviews/R21.11-r1.md` PASS | a9ed1ce7 | — |
+| R21.12 | 过审 | #94 AUR：`ely-office-bin` 的 PKGBUILD 由 `packaging/aur.sh` 生成 | `tests/scripts/aur.sh`；`tasks/reviews/R21.12-r1.md` PASS | 0db6771d | 推上 AUR 见 R21.12b；#94 未关 |
+| R21.12b | 受阻 | #94 推上 AUR | 无测试；无审查 | - | 受阻：AUR 新账号注册暂停（用户 2026-11-25 实测），等注册重开、用户登记 Omarchy 的公钥 |
+| R21.12a | 过审 | 竖向滚动条不再压在内容上（组件库 `ScrollArea` 留槽） | 组件库 `crates/ely-core/src/layout/scroll/tests/gutter.rs`；`tasks/reviews/R21.12a-r1.md` PASS | f7d53afc | — |
+| R21.13 | 过审 | #110 Aptos、Arial Nova 的替换字体（补丁 0149） | `missing_office_fonts_draw_as_a_sans_of_like_width`；`tasks/reviews/R21.13-r4.md` PASS | 4b9e399b | — |
+| R21.14 | 过审 | #93 ElyMark 表格长格里的查找命中可见（组件库） | 组件库 `crates/ely-core/src/forms/tests/shown.rs`、组件库 `crates/ely-documents/src/document/tests/found.rs`；`tasks/reviews/R21.14-r1.md` PASS | 2cf7422f | — |
+| R21.15 | 过审 | #86 ElyTable 单元格字体与字号：核对发布版后关闭 | 核对发布版，无测试；`tasks/reviews/R21.15-r1.md` PASS | 5bfbd570 | —（无代码改动） |
+| R21.16 | 未完 | #83 ElyShow 微软雅黑粗体个别字发细 | 探针未入库；`tasks/reviews/R21.16-r1.md` PASS | bb2d9f4e | 未复现，未修：“施”取了微软雅黑 Light；未试系统区域设置改 zh-CN 与真微软拼音经 GPUI 输入；已向报告者要 0.1.17 下的结果、文件与区域设置，#83 未关 |
+| R21.17 | 过审 | #84 ElyPDF 缩略图列表的滚动条；左面板让出拉宽把手 | `the_page_list_has_a_bar_that_rolls_it`、`the_left_panel_ends_where_its_grip_begins`；`tasks/reviews/R21.17-r1.md` PASS | 6576acce | — |
+| R21.18 | 过审 | #95 ElyMail 未读筛选下点开的邮件留在列表里 | `a_held_message_stays_though_it_no_longer_fits_the_filter`、`a_message_opened_under_unread_stays_until_the_filter_changes`；`tasks/reviews/R21.18-r2.md` PASS | b87d949b | — |
+| R21.19 | 过审 | #96 同一地址不同收信服务器是两个账户（库 V19） | `one_address_on_two_servers_is_two_accounts`、`an_older_store_keeps_its_vault_names_and_ids`；`tasks/reviews/R21.19-r1.md` PASS | abd73e2e | — |
+| R21.19a | 未完 | ElyMail 侧栏与列表的字下缘被截 | 探针未入库；`tasks/reviews/R21.19ab-r2.md` PASS | 4374281c | 未复现，未修：Mac 2x、Windows 1x 五种字号、Omarchy 1x/1.25x/1.6x 实画皆不截；已向用户要系统、缩放、界面字体与整窗截图 |
+| R21.19b | 未完 | ElyMail 未读数不在徽章正中 | 探针未入库；`tasks/reviews/R21.19ab-r2.md` PASS | 4374281c | 未复现，未修：同 R21.19a 的环境下上下差 0–1 像素（Windows 字号 14 以上偏上），左右差来自字形留白；随 R21.19a 一并要环境与截图 |
+| R21.20 | 过审 | #92 ElyMark 查找命中醒目、居中、边上标出（组件库） | 组件库 `crates/ely-documents/src/document/tests/found.rs`；`tasks/reviews/R21.20-r3.md` PASS | e5364269 | — |
+| R21.21 | 过审 | #85 ElyMark 整体字号：核对发布版后关闭 | 核对发布版，无测试；`tasks/reviews/R21.21-r1.md` PASS | 35a443d0 | —（无代码改动） |
+| R21.22 | 过审 | 无 `USERNAME` 等变量时引擎照起（系统取登录名） | `the_account_names_itself_without_its_environment`；`tasks/reviews/R21.22-r1.md` PASS | 30763e1b | Omarchy 构建容器里 uid 1000 无 passwd 条目，改前改后都取不到名字（容器的事，主机上过） |
+| R21.23 | 过审 | `ely-*-start` 在应用起不来时非零退出 | `an_app_that_fails_before_its_window_fails_the_launcher`、`an_app_that_fails_after_the_splash_hid_still_fails_the_launcher`；`tasks/reviews/R21.23-r2.md` PASS | 7f8fbcaf | — |
+| R21.24 | 过审 | 一个窗口的应用收到 `--new-window` 照开文件 | `a_one_window_app_keeps_the_files_and_drops_the_flag`；`tasks/reviews/R21.24-r1.md` PASS | 59947ac8 | — |
+| R21.25 | 过审 | 命令行共通约定与 `open`、`new`、`export`、`docs`、`save` | `open_loads_once_and_export_writes_a_copy`、`verbs_stand_before_the_noun_and_files_become_absolute`；`tasks/reviews/R21.25-r2.md` PASS | ca89e9fd | — |
+| R21.26 | 过审 | ElyTable `range get|set`（补丁 0150） | `a_range_reads_and_writes_by_address_in_one_undo_step`、`a_block_set_from_outside_reads_back_and_undoes_in_one_step`；`tasks/reviews/R21.26-r1.md` PASS | 3c3d4dd2 | — |
+| R21.27 | 过审 | ElyTable `sheet`、`rows`、`columns`、合并（补丁 0151） | `sheets_rows_columns_and_merges_change_by_address_one_undo_step_each`、`structure_set_from_outside_shows_in_the_tabs_and_undoes`；`tasks/reviews/R21.27-r2.md` PASS | a017af11 | — |
+| R21.27a | 过审 | `table-cli.sh` 的保存重叠检查改查日志次序 | `tests/scripts/table-cli.sh`；`tasks/reviews/R21.27a-r1.md` PASS | c6b87f11 | — |
+| R21.28 | 过审 | ElyTable `format` 属性表（补丁 0152） | `the_kernel_gets_checked_lines_and_the_file_made_absolute`、`borders_expand_and_a_named_edge_overrides`；`tasks/reviews/R21.28-r2.md` PASS | 2727a753 | — |
+| R21.28a | 过审 | structure 测试的冻结等待等行、列两个状态 | `crates/ely-lok/src/client/tests/by_structure.rs`；`tasks/reviews/R21.28a-r1.md` PASS | 85be0b56 | — |
+| R21.29 | 过审 | ElyDoc `text replace` 带换行、`text append`、`text get --json`（补丁 0153） | `every_mapped_command_reaches_the_kernel_and_reports_state`、`without_a_break_the_plain_replace_stays`；`tasks/reviews/R21.29-r1.md` PASS | 6bdb837c | — |
+| R21.30 | 过审 | ElyDoc `format` 按原文设格式与段落样式（补丁 0154） | `pairs_become_the_kernels_seven_fields`、`a_bad_find_or_pair_is_refused`；`tasks/reviews/R21.30-r1.md` PASS | 8a1d1db3 | — |
+| R21.31 | 过审 | ElyDoc `table insert`（补丁 0155） | `data_becomes_the_kernels_rows_and_cells`、`bad_data_or_flags_are_refused`；`tasks/reviews/R21.31-r2.md` PASS | 4a42302b | — |
+| R21.32 | 过审 | ElyDoc `image insert` | `the_picture_goes_as_a_url_with_its_width_in_twips`、`a_missing_picture_bad_width_or_flags_are_refused`；`tasks/reviews/R21.32-r1.md` PASS | 248a1fd4 | — |
+| R21.33 | 过审 | ElyShow `slide list|add|duplicate|delete|move` | `the_names_follow_the_kernel_layouts`、`requests_carry_numbers_and_the_layout_id`；`tasks/reviews/R21.33-r1.md` PASS | 4baf2c06 | — |
+| R21.34 | 过审 | ElyShow `text set`、带换行的 `text replace`、`notes get|set` | `requests_check_the_box_and_number`、`boxes_must_be_there_and_of_one_look`；`tasks/reviews/R21.34-r1.md` PASS | 2119937d | — |
+| R21.35 | 过审 | ElyShow `image insert` | `the_picture_goes_as_a_url_with_its_slide_and_width`、`a_missing_picture_bad_slide_width_or_flags_are_refused`；`tasks/reviews/R21.35-r1.md` PASS | 60b41924 | — |
+| R21.36 | 过审 | ElyMark `text set`、`text append` | `set_and_append_are_one_step_each_and_keep_the_line_endings`；`tasks/reviews/R21.36-r1.md` PASS | 70511930 | — |
+| R21.37 | 过审 | 命令行收口：help 四节、常设决定、官网页；#107 关闭 | `tests/scripts/doc-cli.sh`、`tests/scripts/table-cli.sh`；`tasks/reviews/R21.37-r2.md` PASS | cf2e2c9b | —（ElyPDF 不设命令行是有意不做） |
+| R21.37b | 过审 | #112 选区内字号不一时字号框为空 | `a_line_of_two_sizes_reads_mixed_either_way`、`a_line_of_two_sizes_reads_mixed_from_either_end`；`tasks/reviews/R21.37b-r1.md` PASS | 030dffff | 报告未写版本，按 v0.1.16 及以前的行为推断；macOS 未跑（见表下） |
+| R21.37c | 过审 | #111 长 Word 文件排出首页即可用（补丁 0160，Writer 不再整篇 Repaginate） | `a_long_document_loads_before_its_layout_ends`；`tasks/reviews/R21.37c-r1.md` PASS | 041c754f | 报告者的原文件不能外发、版本未写，以同量级样本在 7877 实测；macOS 未跑（见表下） |
+| R21.37d | 过审 | #113 双页视图封面单排、成对翻页；三端量滚动帧时 | `side_by_side_turns_a_pair_and_the_cover_stands_alone`、`a_book_shows_the_cover_alone_then_pairs`、`tests/perf/pdfscroll.py`；`tasks/reviews/R21.37d-r1.md` PASS | 3891e8b9 | 双页一半做完；卡顿一半未在报告者的环境复现、未修（见表下）：ElyPDF 帧绘制 2–4 ms、无丢帧，7877（WARP）受 DwmFlush 约 45 Hz 限、Omarchy（llvmpipe）CPU 光栅，软件渲染下达不到 120 FPS；真 120 Hz 显示器未测 |
+| R21.37e | 过审 | #114 单页视图滚过页边翻页，方向键各视图可用 | `a_single_page_turns_when_the_wheel_goes_past_it`、`arrows_scroll_and_turn_in_every_view`；`tasks/reviews/R21.37e-r1.md` PASS | c930f690 | 真机触控板未试（Mac 上系统级滚轮探测过） |
+| R21.37a | 过审 | `gpui-pre` 升到 0.3.14，组件库与 GPUI Kit 0.11.0 并存 | `scripts/vendor-gpui.sh`（`check`）、`tests/scripts/macos-names.sh`；`tasks/reviews/R21.37a-r1.md` PASS | 34a711ee | 未以 VoiceOver 亲听（AX 树经 `macos-names.sh` 核过） |
+| R21.37f | 过审 | ElyTable 边框样式与粗细两个下拉有读屏名 | `tests/scripts/macos-names.sh`；`tasks/reviews/R21.37f-r1.md` PASS | c9a53564 | Windows、Linux 的无障碍脚本不核控件名，未跑 |
+| R21.37g | 过审 | Omarchy 上四条单测失败（main 上同败）：两条中文字体测试放宽到 Linux 上同类的系统字体，ElyMark 替身移到子进程 | `a_file_open_in_elymark_is_not_overwritten`、`a_missing_chinese_font_falls_to_a_text_face_of_its_kind`；`tasks/reviews/R21.37g-r1.md` PASS | 57422954 | `stand_ins` 今日三遍不复现，R21.37c 时的失败未归因 |
+| R21.37h | 过审 | `*-cli.sh` 收尾与重启前等 LOK worker 退出 | `tests/scripts/lok-workers.sh`；`tasks/reviews/R21.37h-r1.md` PASS | 60f9c085 | — |
+| R21.37i | 过审 | main 上 `pr.yml` 自 R21.37d 起全红：三处本机证据补标，`vendor-gpui.sh` 的临时仓不随本机 Git 改行尾 | `scripts/vendor-gpui.sh`、`tests/scripts/records.py`；`tasks/reviews/R21.37i-r1.md` PASS | 27d5c803 | — |
+| R21.38 | 进行中 | 本表与顾问终审 | 无测试；审查随本条 | 本提交 | — |
+
+macOS：补丁 0150 至 0160（R21.26–R21.37c 的内核改动）只在 Omarchy 与 7877 的内核上建过、测过；Mac 的共享引擎停在 142 个补丁（R21.13 时重建），发布前须先以全部补丁重建再跑带内核的测试。
+
+`[!]` 与未复现（皆未修，等报告者或用户的环境与材料）：
+
+- R21.16 #83 ElyShow 微软雅黑粗体个别字发细：发细的字取了微软雅黑 Light 字面；7877 上四种输入路径、中文语言包与 zh-CN 区域格式下皆不复现；未试系统区域设置（要重启测试机）与真微软拼音经 GPUI 输入。#83 已留言要材料，未关。
+- R21.19a ElyMail 侧栏与列表的字下缘被截：三端、多种缩放与字号实画皆不截。
+- R21.19b ElyMail 未读数不在徽章正中：同上环境下不偏下；只 Segoe UI 下“999+”偏下 1 像素，与报告不符。
+- R21.37d #113 的卡顿一半（条目本身过审，双页一半做完）：报告者的平台未知，未在其环境复现，ElyPDF 不改代码；软件渲染（WARP、llvmpipe）下达不到 120 FPS 的常设要求。#113 已关，回复请报告者在新版仍卡时重开并附系统、显卡、版本与样本。
+
+靠推断的：R21.37b（#112 报告未写版本）、R21.37c（#111 原文件不能外发、版本未写），皆以同类样本复现并修。
+
+仍开着：R21.12b（#94 推上 AUR，受阻于 AUR 暂停注册）。
+
+顾问 (c) 的几次问询（R21.16、R21.19a/b、R21.20、#113）未得答复，各条照自己的判断定，各条目里写明。
+
+GitHub 核对（2026-11-25，`gh`）：PR #97、#98、#99、#100、#101、#102、#104、#105、#106、#108、#109 皆已合并，各有一条致谢并写明合并提交；议题 #84、#85、#86、#92、#93、#95、#96、#103、#107、#110、#111、#112、#113、#114 皆已关闭，末条为致谢回复；#83、#94 开着，末条为现状与所需材料。无开着的 PR。
+
+`pr.yml`：main 自 R21.37d（3891e8b9）至 R21.37h（60f9c085）的推送皆败，交付前查出，由 R21.37i 修好。
+
+顾问终审（2026-11-25，(d)）：除三条 `[!]` 与 R21.12b 外目标达成；已勾的条目无须重开或改标 `[!]`。所提四处缺口已照办：上面的 macOS 一段；Omarchy 上四条失败与 `*-cli.sh` 收尾的竞争另立 R21.37g、R21.37h 并做完；R21.37d 的卡顿一半列入未复现；R21.37b、R21.37c 写明靠推断。顾问未重跑测试、未逐个核对测试名（本表由脚本核对）。

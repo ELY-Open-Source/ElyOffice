@@ -1007,4 +1007,5 @@
 - [x] R21.37i main 上的 `pr.yml` 自 R21.37d 起全红（交付前查出）：R21.37d、R21.37e 的 TASKS 引了三个 `.work/` 本机证据未标“本机，未入库”；R21.37a 起 vendored gpui 检查不过
   - 根因：本机 Git 全局 `core.autocrlf=true`，`vendor-gpui.sh` 临时仓里 `git apply` 把打过补丁的 18 个文件写成 CRLF，`write` 原样拷进 `vendor/`（`-text`），本机检查同样转换故而通过；Linux 上同一补丁得 LF。0.3.12 的 vendor 为 LF，故 R21.37a 前 CI 过。
   - 已做：临时仓设 `core.autocrlf false`，重写 vendor（18 个文件只改行尾，忽略 CR 后无差异）；三处证据补标。本机与 Omarchy 上 `vendor-gpui.sh` 检查都过；records、test-map、compatibility、panics、check.sh 本机过 — 第 1 轮 PASS（`tasks/reviews/R21.37i-r1.md`）。
-- [ ] R21.38 验收核对表与顾问终审：R21 各条的状态、证据与余下，单列 `[!]`
+- [x] R21.38 验收核对表与顾问终审：R21 各条的状态、证据与余下，单列 `[!]`
+  - 已做：`docs/acceptance.md` 的 R21 一节，55 行（50 过审、3 未完、1 受阻、本条），证据、末次提交与审查由脚本逐个核对（`.work/R21/r2138-evidence.py`（本机，未入库））；表下单列 macOS 未建测的补丁 0150–0160、`[!]` 与未复现、靠推断的两条、仍开的 R21.12b、GitHub 核对与 `pr.yml` 的红段。顾问 (d) 终审：除三条 `[!]` 与 R21.12b 外目标达成，无须重开；所提四处缺口照办（另立 R21.37g、R21.37h），交付前查出的 CI 全红另立 R21.37i — 第 1 轮 PASS（`tasks/reviews/R21.38-r1.md`，含 R21.37i 一行的补充）。
