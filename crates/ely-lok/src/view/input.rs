@@ -335,12 +335,13 @@ impl LokView {
         }));
     }
 
-    pub(super) fn on_key_down(
-        &mut self,
-        event: &KeyDownEvent,
-        _: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub(super) fn on_key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(action) = clip::chord(&event.keystroke) {
+            log::info!("lok: clipboard key {} as its action", event.keystroke.key);
+            window.dispatch_action(action, cx);
+            cx.stop_propagation();
+            return;
+        }
         let completing = self.completion.pending();
         if self.walk(&event.keystroke, cx)
             || self.turn_key(&event.keystroke)

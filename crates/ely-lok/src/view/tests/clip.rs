@@ -141,3 +141,88 @@ fn copied_cells_keep_a_still_outline_until_an_edit_or_escape() {
     cx.update(|app| view.update(app, |view, _| view.paste()));
     assert!(!lit(&mut cx), "a cut's paste puts it out");
 }
+
+struct Host(Entity<LokView>);
+
+impl gpui::Render for Host {
+    fn render(&mut self, _: &mut gpui::Window, _: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
+        self.0.clone()
+    }
+}
+
+/// Ticks until `done` holds, at most a minute.
+fn until(cx: &mut gpui::VisualTestContext, mut done: impl FnMut(&mut gpui::VisualTestContext) -> bool) -> bool {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while std::time::Instant::now() < deadline {
+        if !cx.executor().tick() {
+            cx.executor().advance_clock(std::time::Duration::from_millis(20));
+        }
+        if done(cx) {
+            return true;
+        }
+    }
+    false
+}
+
+/// The clipboard's plain text, if it holds a copy.
+fn copied_text() -> Option<String> {
+    match clipboard::read().expect("the clipboard reads") {
+        Some(Clip::Html { text, .. } | Clip::Text(text)) => Some(text),
+        _ => None,
+    }
+}
+
+/// The text document's paragraphs, saved flat.
+fn paragraphs(view: &Entity<LokView>, cx: &mut gpui::VisualTestContext) -> Vec<String> {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let out = dir.path().join("out.fodt");
+    cx.update(|_, app| {
+        let view = view.read(app);
+        let mut worker = view.worker.lock().expect("the worker lock");
+        view.doc.save_as(&mut worker, &crate::file_url(&out), "fodt").expect("the save works");
+    });
+    crate::client::tests::input::paragraphs(&std::fs::read_to_string(&out).expect("the save reads"))
+}
+
+#[test]
+fn insert_and_delete_chords_use_the_system_clipboard() {
+    let Some(install) = crate::client::tests::install() else {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    };
+    if std::env::var_os("ELY_CLIPBOARD_TEST").is_none() {
+        eprintln!("SKIP: set ELY_CLIPBOARD_TEST=1; this replaces the clipboard");
+        return;
+    }
+    let _clipboard = CLIPBOARD.lock().expect("the clipboard lock");
+    let mut cx = TestAppContext::single();
+    cx.update(ely_gpui_component::init_for_tests);
+    let (view, _) = cx.update(|app| live_view(app, &install));
+    let (_, window) = cx.add_window_view(|_, _| Host(view.clone()));
+    window.run_until_parked();
+    window.update(|window, app| view.read(app).focus_handle().clone().focus(window, app));
+    let select_all = |window: &mut gpui::VisualTestContext| {
+        window.update(|_, app| {
+            let view = view.read(app);
+            let mut worker = view.worker.lock().expect("the worker lock");
+            worker.run(&view.doc, "edit.select_all", &[]).expect("select all");
+        });
+    };
+    let before = || clipboard::write(&Clip::Text("before".into())).expect("the clipboard writes");
+    before();
+    select_all(window);
+    window.simulate_keystrokes("ctrl-insert");
+    let copied = until(window, |_| copied_text().as_deref() == Some("Hello 世界"));
+    assert!(copied, "Ctrl+Insert copied to the system clipboard: {:?}", copied_text());
+    window.simulate_keystrokes("end shift-insert");
+    let twice = |text: &str| text.matches("Hello 世界").count() == 2;
+    let pasted = until(window, |cx| twice(&paragraphs(&view, cx).concat()));
+    assert!(pasted, "Shift+Insert pasted the copy: {:?}", paragraphs(&view, window));
+    before();
+    select_all(window);
+    window.simulate_keystrokes("shift-delete");
+    let cut = until(window, |_| copied_text().is_some_and(|text| twice(&text)));
+    assert!(cut, "Shift+Delete cut to the system clipboard: {:?}", copied_text());
+    let gone = until(window, |cx| paragraphs(&view, cx).concat().is_empty());
+    assert!(gone, "the cut text is gone: {:?}", paragraphs(&view, window));
+}

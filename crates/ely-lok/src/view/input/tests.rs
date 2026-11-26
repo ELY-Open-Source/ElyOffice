@@ -32,6 +32,30 @@ fn printable_text_waits_for_the_ime() {
 }
 
 #[test]
+fn every_clipboard_chord_is_elys_own_action() {
+    use crate::view::clip::chord;
+    let action = |text: &'static str| chord(&stroke(text)).map(|action| action.name());
+    let (copy, cut, paste) = if cfg!(target_os = "macos") {
+        ("cmd-c", "cmd-x", "cmd-v")
+    } else {
+        ("ctrl-c", "ctrl-x", "ctrl-v")
+    };
+    for (keys, name) in [
+        (copy, "lok_view::Copy"),
+        (cut, "lok_view::Cut"),
+        (paste, "lok_view::Paste"),
+        ("ctrl-insert", "lok_view::Copy"),
+        ("shift-delete", "lok_view::Cut"),
+        ("shift-insert", "lok_view::Paste"),
+    ] {
+        assert_eq!(action(keys), Some(name), "{keys}");
+    }
+    for keys in ["insert", "delete", "c", "ctrl-shift-v", "alt-ctrl-c", "ctrl-shift-insert"] {
+        assert_eq!(action(keys), None, "{keys} stays a key");
+    }
+}
+
+#[test]
 fn copied_flavors_pick_the_richest_clip() {
     let flavor = |mime: &str, data: &str| (mime.to_string(), data.as_bytes().to_vec());
     let html = clip_of(vec![

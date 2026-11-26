@@ -6,8 +6,34 @@ use std::{
 };
 
 use ely_platform::clipboard::{self, Clip};
+use gpui::{Action, Keystroke};
 
+use super::input::{Copy, Cut, Paste};
 use crate::{Doc, Worker};
+
+/// A clipboard chord's action; the kernel would copy privately.
+pub(super) fn chord(keystroke: &Keystroke) -> Option<Box<dyn Action>> {
+    let keys = &keystroke.modifiers;
+    if keys.alt || keys.function {
+        return None;
+    }
+    let secondary = if cfg!(target_os = "macos") {
+        keys.platform && !keys.control
+    } else {
+        keys.control && !keys.platform
+    };
+    let bare = !keys.control && !keys.platform;
+    let action: Box<dyn Action> = match (keystroke.key.as_str(), keys.shift) {
+        ("c", false) if secondary => Box::new(Copy),
+        ("x", false) if secondary => Box::new(Cut),
+        ("v", false) if secondary => Box::new(Paste),
+        ("insert", false) if keys.control && !keys.platform => Box::new(Copy),
+        ("delete", true) if bare => Box::new(Cut),
+        ("insert", true) if bare => Box::new(Paste),
+        _ => return None,
+    };
+    Some(action)
+}
 
 /// The clipboard payload for copied LOK flavors.
 pub(super) fn clip_of(flavors: Vec<(String, Vec<u8>)>) -> Option<Clip> {
