@@ -65,7 +65,7 @@ fn each_format_writes_a_copy_and_the_tab_stays() {
     }
 }
 
-/// The words a copy holds; None for a PDF without pdftotext.
+/// A copy's words; None for a PDF without pdftotext.
 fn read_back(worker: &Mutex<ely_lok::Worker>, out: &Path, format: Format, dir: &Path) -> Option<String> {
     Some(match format {
         Format::Txt | Format::Markdown => std::fs::read_to_string(out).expect("the text reads"),
