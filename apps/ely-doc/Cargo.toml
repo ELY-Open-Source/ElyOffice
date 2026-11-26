@@ -36,6 +36,7 @@ dunce.workspace = true
 futures.workspace = true
 image.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
+zip.workspace = true
 
 [lints]
 workspace = true

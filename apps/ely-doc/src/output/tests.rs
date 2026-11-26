@@ -1,5 +1,7 @@
 //! Export to each format (DOC-15).
 
+use std::{io::Read as _, path::Path, sync::Mutex};
+
 use gpui::TestAppContext;
 
 use ely_office::prelude::*;
@@ -7,6 +9,9 @@ use ely_office::prelude::*;
 use crate::tests::{blank, docs, settle, settled, type_into, with_window};
 use crate::actions::Dialog;
 use super::{Format, suggested};
+
+/// The words typed before each export.
+const TYPED: &str = "Exported año ñandú 中文";
 
 #[test]
 fn each_format_writes_a_copy_and_the_tab_stays() {
@@ -19,7 +24,7 @@ fn each_format_writes_a_copy_and_the_tab_stays() {
         return;
     };
     let id = blank(&mut cx, &docs);
-    type_into(&mut cx, &docs, "Exported año ñandú 中文");
+    type_into(&mut cx, &docs, TYPED);
     settled(&cx, &docs);
     let named = |cx: &mut TestAppContext| cx.update(|app| {
         let tab = docs.read(app).tab(id).expect("the tab");
@@ -50,6 +55,49 @@ fn each_format_writes_a_copy_and_the_tab_stays() {
         settle(&cx, |app| std::rc::Rc::strong_count(&docs.read(app).tab(id).expect("the tab").busy) == 1);
     }
     assert_eq!(named(&mut cx), before, "an export is a copy");
+    // Each copy reads back with the typed words.
+    let worker = cx.update(|app| std::sync::Arc::clone(&docs.read(app).core().worker));
+    for (chosen, _) in cases {
+        let out = dir.path().join(format!("out.{}", chosen.ext()));
+        if let Some(text) = read_back(&worker, &out, chosen, dir.path()) {
+            assert!(text.contains(TYPED), "{chosen:?} reads back: {text}");
+        }
+    }
+}
+
+/// The words a copy holds; None for a PDF without pdftotext.
+fn read_back(worker: &Mutex<ely_lok::Worker>, out: &Path, format: Format, dir: &Path) -> Option<String> {
+    Some(match format {
+        Format::Txt | Format::Markdown => std::fs::read_to_string(out).expect("the text reads"),
+        Format::Epub => {
+            let mut book = zip::ZipArchive::new(std::fs::File::open(out).expect("the book opens")).expect("the book unzips");
+            let mut pages = String::new();
+            for at in 0..book.len() {
+                let mut entry = book.by_index(at).expect("an entry");
+                if entry.name().expect("an entry name").ends_with(".xhtml") {
+                    entry.read_to_string(&mut pages).expect("a page in UTF-8");
+                }
+            }
+            pages
+        }
+        Format::Pdf => {
+            let bytes = std::fs::read(out).expect("the PDF reads");
+            assert!(bytes.trim_ascii_end().ends_with(b"%%EOF"), "the PDF is whole");
+            let Ok(read) = std::process::Command::new("pdftotext").arg(out).arg("-").output() else {
+                eprintln!("SKIP: no pdftotext to read the PDF back");
+                return None;
+            };
+            assert!(read.status.success(), "pdftotext reads the PDF");
+            String::from_utf8(read.stdout).expect("UTF-8 from pdftotext")
+        }
+        Format::Docx | Format::Odt | Format::Rtf => {
+            let mut worker = worker.lock().expect("the worker");
+            let doc = worker.load(&ely_lok::file_url(out)).expect("the copy loads");
+            let flat = ely_office::remote::copy::<ely_office::Lok>(&mut worker, &doc, &dir.join("back.fodt"), "fodt").expect("a flat copy");
+            worker.close_doc(doc).expect("the copy closes");
+            ely_office::remote::body_text(&flat).expect("its body text")
+        }
+    })
 }
 
 #[test]
