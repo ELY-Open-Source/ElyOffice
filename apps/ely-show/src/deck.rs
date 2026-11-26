@@ -83,6 +83,14 @@ impl Host for Deck {
         self.sync_menus(cx);
     }
 
+    fn tab_opened(&mut self, id: u64, cx: &mut Context<Self>) {
+        self.read_kept(id, cx);
+    }
+
+    fn finishing(&mut self, id: u64, format: &str, cx: &mut Context<Self>) -> Option<ely_office::Finish> {
+        self.finish_save(id, format, cx)
+    }
+
     fn tab_shown(&mut self, id: u64, cx: &mut Context<Self>) {
         if let Some(view) = self.tab(id).map(|tab| tab.view.clone()) {
             self.reread(id, &view, cx);
@@ -117,18 +125,12 @@ impl Host for Deck {
         }
         self.offer_menu(id, view, cx);
         self.reread(id, view, cx);
+        self.stay_unsaved(id, cx);
         // Undo's state can change with no new read.
         if self.core.active() == Some(id) {
             self.sync_menus(cx);
         }
     }
-}
-
-/// ElyShow's menus after File.
-pub fn menus(on: (bool, bool, bool), undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
-    let [insert, view] = crate::insert::menus(on, cx);
-    let edit = gpui::Menu::new(ely_ui::i18n::text(cx, "menu.edit", &[])).items(ely_office::undo_items(undo, cx));
-    vec![edit, crate::slides::menu(cx), insert, view, crate::slideshow::menu(cx)]
 }
 
 /// The window root with a blank deck.
@@ -376,7 +378,7 @@ impl Deck {
         let on = shown.0;
         if self.snap_menus != Some(shown) {
             self.snap_menus = Some(shown);
-            ely_ui::set_document_menus(AppId::Show, &ely_ui::commands::FILE, menus(on, shown.1, cx), cx);
+            ely_ui::set_document_menus(AppId::Show, &ely_ui::commands::FILE, crate::window::menus(on, shown.1, cx), cx);
         }
     }
 

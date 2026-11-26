@@ -21,8 +21,10 @@ const EVERY: Duration = Duration::from_millis(700);
 /// A sheet of a workbook open in ElyTable.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Source {
-    /// ElyTable's key for the open book.
+    /// ElyTable's key for the open book; empty once reloaded.
     pub book: String,
+    /// The book's file, once it has one.
+    pub path: Option<String>,
     /// The book's name, as its tab shows.
     pub name: String,
     pub sheet: String,
@@ -67,17 +69,104 @@ pub fn sheets(ask: Ask) -> io::Result<Vec<Source>> {
         let bad = || invalid(format!("ElyTable's book is unreadable: {book}"));
         let key = book["book"].as_str().ok_or_else(bad)?;
         let name = book["name"].as_str().ok_or_else(bad)?;
+        let path = match &book["path"] {
+            serde_json::Value::Null => None,
+            path => Some(path.as_str().ok_or_else(bad)?.to_owned()),
+        };
         for sheet in book["sheets"].as_array().ok_or_else(bad)? {
             let sheet = sheet.as_str().ok_or_else(bad)?;
-            found.push(Source { book: key.into(), name: name.into(), sheet: sheet.into() });
+            found.push(Source { book: key.into(), path: path.clone(), name: name.into(), sheet: sheet.into() });
         }
     }
     Ok(found)
 }
 
+impl Source {
+    /// Whether `open` is this kept sheet: by file, else name.
+    pub fn is(&self, open: &Source) -> bool {
+        let book = match &self.path {
+            Some(path) => open.path.as_ref() == Some(path),
+            None => self.name == open.name,
+        };
+        self.sheet == open.sheet && (book || (!self.book.is_empty() && self.book == open.book))
+    }
+}
+
+/// A kept sheet that ElyTable does not hold just once.
+#[derive(Debug)]
+pub struct Unfound {
+    name: String,
+    sheet: String,
+    several: bool,
+}
+
+impl std::fmt::Display for Unfound {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let how = if self.several { "open several times" } else { "not open" };
+        write!(f, "{} / {} is {how}", self.name, self.sheet)
+    }
+}
+
+impl std::error::Error for Unfound {}
+
+/// ElyTable's key for a kept sheet, among the open ones.
+fn find(source: &Source, ask: Ask) -> io::Result<String> {
+    let unfound = |several| {
+        let (name, sheet) = (source.name.clone(), source.sheet.clone());
+        io::Error::other(Unfound { name, sheet, several })
+    };
+    let open = sheets(ask).map_err(|error| match error.kind() {
+        // No ElyTable answers: the book is not open.
+        io::ErrorKind::ConnectionRefused | io::ErrorKind::NotFound => unfound(false),
+        _ => error,
+    })?;
+    let mut found = open.into_iter().filter(|open| source.is(open));
+    match (found.next(), found.next()) {
+        (Some(open), None) => Ok(open.book),
+        (first, _) => Err(unfound(first.is_some())),
+    }
+}
+
+/// Kept scores take their book's present name and file.
+pub fn renamed(mut held: Vec<crate::keep::Held>, ask: Ask) -> Vec<crate::keep::Held> {
+    let linked = held.iter().filter_map(|held| held.score.as_ref()).any(|score| !score.book.is_empty());
+    if !linked {
+        return held;
+    }
+    let open = match sheets(ask) {
+        Ok(open) => open,
+        Err(error) => {
+            log::warn!("show: scoreboards keep their linked names: {error}");
+            return held;
+        }
+    };
+    for score in held.iter_mut().filter_map(|held| held.score.as_mut()) {
+        let now = open.iter().find(|open| open.book == score.book && open.sheet == score.sheet);
+        if let Some(now) = now {
+            *score = now.clone();
+        }
+    }
+    held
+}
+
 /// The sheet's table; empty when its A1 is.
 pub fn rows(source: &Source, ask: Ask) -> io::Result<Vec<Vec<String>>> {
-    let value = parsed(&ask(&["score.read", &source.book, &source.sheet])?)?;
+    if source.book.is_empty() {
+        return read(&find(source, ask)?, &source.sheet, ask);
+    }
+    match read(&source.book, &source.sheet, ask) {
+        Ok(rows) => Ok(rows),
+        // A restarted ElyTable has new keys.
+        Err(first) => match find(source, ask) {
+            Ok(book) if book != source.book => read(&book, &source.sheet, ask),
+            Err(lost) if lost.get_ref().is_some_and(|inner| inner.is::<Unfound>()) => Err(lost),
+            _ => Err(first),
+        },
+    }
+}
+
+fn read(book: &str, sheet: &str, ask: Ask) -> io::Result<Vec<Vec<String>>> {
+    let value = parsed(&ask(&["score.read", book, sheet])?)?;
     let bad = || invalid(format!("ElyTable's rows are unreadable: {value}"));
     let cells = |row: &serde_json::Value| -> io::Result<Vec<String>> {
         let row = row.as_array().ok_or_else(bad)?;
@@ -179,7 +268,13 @@ impl Board {
                 changed
             }
             Err(error) => {
-                let why = Deck::text(cx, "show.score.failed", &[("error", &error.to_string())]);
+                let why = match error.get_ref().and_then(|inner| inner.downcast_ref::<Unfound>()) {
+                    Some(lost) => {
+                        let key = if lost.several { "show.score.several" } else { "show.score.closed" };
+                        Deck::text(cx, key, &[("name", &lost.name), ("sheet", &lost.sheet)])
+                    }
+                    None => Deck::text(cx, "show.score.failed", &[("error", &error.to_string())]),
+                };
                 let changed = scores.failed.as_ref() != Some(&why);
                 if changed {
                     log::warn!("show: a scoreboard did not read: {error}");

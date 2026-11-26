@@ -117,6 +117,11 @@ impl Clocks {
         self.next
     }
 
+    /// Ids up to `last` are already some countdown's.
+    pub fn taken(&mut self, last: u64) {
+        self.next = self.next.max(last);
+    }
+
     /// What `timer` shows at `now`.
     pub fn face(&self, timer: &Timer, now: Instant) -> Face {
         timer.face(self.runs.get(&timer.id), now)

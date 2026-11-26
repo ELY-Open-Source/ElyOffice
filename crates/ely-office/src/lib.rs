@@ -82,6 +82,10 @@ pub trait Host: Sized + 'static {
     const KIND: Kind;
     fn core(&self) -> &Core<Self>;
     fn core_mut(&mut self) -> &mut Core<Self>;
+    /// What the app adds to a save of tab `id`.
+    fn finishing(&mut self, _id: u64, _format: &str, _: &mut Context<Self>) -> Option<Finish> {
+        None
+    }
     /// Runs when the kernel reports on tab `id`.
     fn observed(&mut self, id: u64, view: &Entity<View<Self>>, cx: &mut Context<Self>);
     /// Runs after a loaded tab joins the window.
@@ -112,6 +116,9 @@ pub trait Host: Sized + 'static {
         None
     }
 }
+
+/// Changes a save's bytes off the window.
+pub type Finish = Box<dyn FnOnce(Vec<u8>) -> std::io::Result<Vec<u8>> + Send>;
 
 /// The view type of host `H`'s engine.
 pub type View<H> = <<H as Host>::Engine as Engine>::View;

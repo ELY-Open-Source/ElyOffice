@@ -49,6 +49,7 @@ pub(super) fn export<H: Saving>(
     // Other saves leave an open edit as it is.
     let closing = then.is_some();
     cx.notify();
+    let finish = host.finishing(id, format, cx);
     let sound = !matches!(target, Target::As(..));
     host.read_in(
         id,
@@ -61,6 +62,10 @@ pub(super) fn export<H: Saving>(
                 false => H::Engine::lost(worker, doc, format)?,
             };
             let bytes = files::kernel_bytes::<H::Engine>(worker, doc, &work, format, closing)?;
+            let bytes = match finish {
+                Some(finish) => finish(bytes)?,
+                None => bytes,
+            };
             Ok(Ok((bytes, H::Engine::history(worker, doc)?, lost)))
         },
         move |host, read, window, cx| {

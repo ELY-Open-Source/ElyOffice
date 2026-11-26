@@ -9,6 +9,7 @@ mod dialog;
 mod extra;
 mod guides;
 mod insert;
+mod keep;
 mod link;
 mod list;
 mod media;

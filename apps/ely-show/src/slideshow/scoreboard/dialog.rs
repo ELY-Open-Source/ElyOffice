@@ -70,7 +70,7 @@ impl Deck {
         }
         // The slide's sheet; else none once any is set.
         let picked = match held {
-            Some(held) => found.iter().position(|source| source == held),
+            Some(held) => found.iter().position(|source| held.is(source)),
             None => extra.scoreboards.is_empty().then_some(0),
         };
         let slide = (slide.name.clone(), current + 1);
@@ -97,6 +97,7 @@ impl Deck {
                 for name in names {
                     extra.scoreboards.remove(&name);
                 }
+                self.mark_unsaved(tab, cx);
                 cx.notify();
             }
         }
@@ -144,6 +145,7 @@ impl Deck {
         for name in names {
             extra.scoreboards.insert(name, source.clone());
         }
+        self.mark_unsaved(tab, cx);
         cx.notify();
         let read = cx.background_executor().spawn(async move { rows(&source, ask) });
         cx.spawn(async move |this, cx| {
