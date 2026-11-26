@@ -27,7 +27,7 @@ mod stage;
 pub(crate) mod start;
 pub(crate) mod steps;
 
-pub use keys::{bind, bind_keys, menu};
+pub use keys::{bind, bind_keys, menu, present_button};
 
 /// A slide's layers as pictures, bottom first.
 pub type Stack = Arc<Vec<(Part, Arc<RenderImage>)>>;

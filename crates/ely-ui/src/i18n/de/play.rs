@@ -9,6 +9,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("show.play.presenter", "Referentenansicht"),
     ("show.play.screen", "Bildschirm {number} ({width} × {height})"),
     ("show.play.start", "Starten"),
+    ("show.play.present", "Präsentieren"),
     ("show.play.none", "Alle Folien sind ausgeblendet"),
     ("show.play.busy", "Die Präsentation startet bereits oder läuft"),
     ("show.play.gone", "Die Präsentation ist nicht gestartet: Ihr Foliensatz oder Bildschirm hat sich geändert"),

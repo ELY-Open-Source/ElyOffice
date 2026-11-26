@@ -9,6 +9,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("show.play.presenter", "Mode présentateur"),
     ("show.play.screen", "Écran {number} ({width} × {height})"),
     ("show.play.start", "Démarrer"),
+    ("show.play.present", "Présenter"),
     ("show.play.none", "Toutes les diapos sont masquées"),
     ("show.play.busy", "Le diaporama démarre ou est déjà en cours"),
     ("show.play.gone", "Le diaporama n’a pas démarré : sa présentation ou son écran a changé"),

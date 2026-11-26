@@ -9,6 +9,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("show.play.presenter", "발표자 보기"),
     ("show.play.screen", "화면 {number} ({width} × {height})"),
     ("show.play.start", "시작"),
+    ("show.play.present", "발표"),
     ("show.play.none", "모든 슬라이드가 숨겨져 있습니다"),
     ("show.play.busy", "쇼가 이미 시작 중이거나 진행 중입니다"),
     ("show.play.gone", "쇼가 시작되지 않았습니다. 프레젠테이션이나 화면이 바뀌었습니다"),

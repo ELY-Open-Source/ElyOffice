@@ -106,6 +106,10 @@ ElyDoc 开着、文件已打开时，别的程序可经命令行读取、替换�
 - `ely-doc image insert 文件 图片 [--after 原文] [--width 宽度]` 嵌入图片（独立新段、随文，PNG/JPEG/GIF/SVG/BMP/TIFF/WebP 等）；一步撤销，不动光标与选区。
 - 默认文末，超宽缩版心；`--after` 在首匹配段（表内整表）后；`--width`：cm/mm/in/pt（1pt–100cm，等比）。例：`ely-doc image insert 文件 图.png --width 8cm`。
 
+## ElyShow 的放映按钮、实时记分牌与倒计时
+
+- ElyShow 状态栏右侧的“放映”按钮从正在查看的幻灯片开始放映。
+
 ## ElyShow 的命令行
 
 ElyShow 开着、文件已打开时，别的程序可经命令行读改幻灯片文字与备注、管理幻灯片并插入图片。操作不切换当前正在查看的幻灯片、不动选中的对象（删掉当前页时改显相邻页）；每次修改是一步撤销（`text replace` 为每个改到的文本框一步撤销）。
