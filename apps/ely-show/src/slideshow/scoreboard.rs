@@ -13,7 +13,7 @@ mod clear;
 mod draw;
 mod editor;
 
-pub use draw::overlay;
+pub use draw::{Band, overlay};
 
 /// How often the sheets are read again.
 const EVERY: Duration = Duration::from_millis(700);

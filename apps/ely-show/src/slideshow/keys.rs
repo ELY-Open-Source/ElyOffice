@@ -9,7 +9,7 @@ use gpui::{
 use super::Show;
 use crate::deck::Deck;
 
-actions!(show, [StartShow, StartShowHere, CheckShow, LiveScoreboard]);
+actions!(show, [StartShow, StartShowHere, CheckShow, LiveScoreboard, SlideTimer]);
 
 /// Slide numbers past this many digits are not typed.
 const DIGITS: usize = 6;
@@ -22,6 +22,7 @@ pub fn menu(cx: &App) -> Menu {
         MenuItem::action(label("show.play.from_here"), StartShowHere),
         MenuItem::separator(),
         MenuItem::action(label("show.score.menu"), LiveScoreboard),
+        MenuItem::action(label("show.timer.menu"), SlideTimer),
         MenuItem::action(label("show.check.menu"), CheckShow),
     ])
 }
@@ -48,6 +49,7 @@ pub fn bind(root: Div, cx: &mut Context<Deck>) -> Div {
         .on_action(cx.listener(|deck, _: &StartShowHere, _, cx| deck.start_show(true, cx)))
         .on_action(cx.listener(|deck, _: &CheckShow, _, cx| deck.check_show(cx)))
         .on_action(cx.listener(|deck, _: &LiveScoreboard, _, cx| deck.ask_scoreboard(cx)))
+        .on_action(cx.listener(|deck, _: &SlideTimer, window, cx| deck.ask_timer(window, cx)))
 }
 
 impl Show {
@@ -73,6 +75,8 @@ impl Show {
             "b" | "." => self.toggle_black(cx),
             "l" => self.toggle_laser(cx),
             "s" => self.cycle_scores(cx),
+            "t" => self.toggle_timer(cx),
+            "r" => self.reset_timer(cx),
             "escape" if !self.typed.is_empty() => {
                 self.typed.clear();
                 cx.notify();
