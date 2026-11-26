@@ -63,6 +63,12 @@ for slug in $(cut -f1 "$types" | sort -u); do
   declared=$(sed -n '/CFBundleURLTypes/q; s|^      <string>\(.*\)</string>$|\1|p' <<<"$mac" | sort)
   wanted=$(awk -F'\t' '$2 !~ /:$/ { print $3 }' <<<"$rows" | sort -u | while read -r mime; do uti "$mime"; done | sort)
   [ "$declared" = "$wanted" ] || fail "$slug: macOS declares $(echo $declared), the table means $(echo $wanted)"
+  # Finder's icon for the files; folders keep the system's.
+  if [ "$slug" = ely-tree ]; then
+    ! grep -q CFBundleTypeIconFile <<<"$mac" || fail "$slug: macOS gives folders an icon"
+  else
+    grep -q "<key>CFBundleTypeIconFile</key><string>$slug-document</string>" <<<"$mac" || fail "$slug: macOS has no document icon"
+  fi
 done
 # Explorer's New makes docx, xlsx, pptx and md.
 fresh=0

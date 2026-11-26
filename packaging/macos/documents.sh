@@ -24,6 +24,8 @@ shift
 echo "  <key>CFBundleDocumentTypes</key><array><dict>"
 echo "    <key>CFBundleTypeRole</key><string>$role</string>"
 echo "    <key>LSHandlerRank</key><string>Alternate</string>"
+[ "$slug" = ely-tree ] ||
+  echo "    <key>CFBundleTypeIconFile</key><string>$slug-document</string>"
 echo "    <key>LSItemContentTypes</key><array>"
 for type in "$@"; do echo "      <string>$type</string>"; done
 echo "    </array>"

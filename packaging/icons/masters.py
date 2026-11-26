@@ -166,6 +166,34 @@ def svg(parts, macos, small):
             f'<defs>{defs}</defs>{content}</svg>\n')
 
 
+# macOS document: white page, the app's object on it.
+SHEET = 'M60 16H164L212 64V232A8 8 0 0 1 204 240H60A8 8 0 0 1 52 232V24A8 8 0 0 1 60 16Z'
+CORNER = 'M164 16V56A8 8 0 0 0 172 64H212Z'
+# Apps that open files; ElyTree opens folders.
+DOCUMENTS = ('ely-doc', 'ely-table', 'ely-show', 'ely-pdf', 'ely-mark', 'ely-mail')
+
+
+def document(parts, small):
+    body, used = draw(parts, small)
+    used.add('body')
+    defs = ''.join(f'<filter id="{name}" x="-0.2" y="-0.2" width="1.4" height="1.4">'
+                   f'<feGaussianBlur stdDeviation="{SHADOWS[name][1]}"/></filter>'
+                   for name in sorted(used))
+    scale = 0.62
+    offset_x, offset_y = 132 - 96 * scale, 140 - 96 * scale
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">'
+            f'<defs>{defs}</defs>'
+            f'<g transform="translate(0 3)" opacity="0.2" filter="url(#body)"><path d="{SHEET}"/></g>'
+            f'<path fill="#FFFFFF" stroke="#D6D6D6" stroke-width="1.5" d="{SHEET}"/>'
+            f'<path fill="#E4E4E4" d="{CORNER}"/>'
+            f'<g transform="translate({offset_x:.3f} {offset_y:.3f}) scale({scale})">{body}</g></svg>\n')
+
+
+for slug in DOCUMENTS:
+    for small in (False, True):
+        with open(f'{out}/{slug}-document{"-small" if small else ""}-macos.svg', 'w') as file:
+            file.write(document(APPS[slug], small))
+
 for slug, parts in APPS.items():
     for macos in (False, True):
         for small in (False, True):

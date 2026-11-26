@@ -43,7 +43,7 @@ tests/scripts/linux-installed.sh installed|appimage  Hyprland 上装好的首批
 tests/scripts/linux-distros.sh   `ely-office` 的 deb 在 Ubuntu 26.04、rpm 在 Fedora 44 容器里装上，各应用在 Xvfb（Mesa 软件 Vulkan）下画出窗口、随 Omarchy、读出页面文字（与 linux-installed.sh 共用 linux-common.sh）
 cargo test -p ely-show --test compose  切换半程帧经 Metal 取像素（主线程，仅 macOS）
 tests/scripts/*.sh *.py        脚本测试（缺工具时报 SKIP）
-tests/scripts/icons.sh         八个图标齐全、未过期，macOS 为 squircle，其余无底形
+tests/scripts/icons.sh         八个图标齐全、未过期，macOS 为 squircle，其余无底形；除 ElyTree 外六个 macOS 文档图标（`<slug>-document.icns`）齐全、不旧于母版、各尺寸与母版相符，是白纸
 tests/scripts/release-macos.sh dist 里的 `.pkg` 有七个应用的选项、跟随三个文档应用的隐藏内核、无可重定位的部分，登录项合法且 `AbandonProcessGroup` 为真、`ely-login` 可执行，内核装前先停引擎，更新清单的散列即此包，设了 ELY_INSTALLER_IDENTITY 即核其签名；dist/Kernel 有编号、无图库、要求的系统不高于 14.0；首批七个 .app 不带内核，以访达的方式打开文件（启动与运行中，ElyMail 打开 .eml），worker 取自包内的辅助包且持其自己的 `.engine` 包标识、内核取自 dist/Kernel，带齐许可，除辅助包（不声明文件与链接）外不含系统会登记的内嵌包，每个二进制要求的系统不高于应用所写，可执行文件的 `@rpath` 依赖都在包内；源码包齐全
 tests/engines/*.sh             引擎探测（LOK、MuPDF）；LOK 探测本构建的内核，不挂载官方镜像
 tests/scripts/lo-unregistered.sh  “打开方式”里没有 LibreOffice，构建出的包不声明任何文件类型

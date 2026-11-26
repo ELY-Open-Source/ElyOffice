@@ -20,17 +20,20 @@ python3 -c 'import PIL' 2>/dev/null || {
 }
 swiftc -O -o "$work/icon" "$root/packaging/icons/icon.swift"
 # The master build.sh uses at `px`; small cut below 48.
-master() { # slug, variant, px
-  local small=$icons/$1-small$2.svg
-  if [ "$3" -lt 48 ] && [ -f "$small" ]; then echo "$small"; else echo "$icons/$1$2.svg"; fi
+master() { # slug, then -document if so, variant, px
+  [ $# -eq 4 ] || set -- "$1" "" "$2" "$3"
+  local small=$icons/$1$2-small$3.svg
+  if [ "$4" -lt 48 ] && [ -f "$small" ]; then echo "$small"; else echo "$icons/$1$2$3.svg"; fi
 }
 count=0
+documents=0
 while IFS=$'\t' read -r slug _; do
   for file in "$slug.svg" "$slug-macos.svg" "$slug.icns" "$slug.png" "$slug.ico"; do
     [ -s "$icons/$file" ] || fail "no $icons/$file; run packaging/icons/build.sh"
   done
   for made in icns png ico; do
     for source in "$icons/$slug".svg "$icons/$slug"-*.svg; do
+      case $source in *-document*) continue ;; esac
       [ "$source" -nt "$icons/$slug.$made" ] && fail "$slug.$made is older than $(basename "$source"); run packaging/icons/build.sh"
     done
   done
@@ -81,7 +84,37 @@ big = Image.open(f"{work}/{slug}.iconset/icon_512x512@2x.png").convert("RGBA")
 assert big.getpixel((40, 512))[3] == 0 and big.getpixel((150, 150))[3] == 0, "not a squircle"
 assert big.getpixel((512, 110))[3] == 255, "no body"
 EOF
+  # Finder's document icon, for the apps whose types name one.
+  if grep -q CFBundleTypeIconFile <<<"$("$root/packaging/macos/documents.sh" "$slug")"; then
+    doc=$icons/$slug-document
+    [ -s "$doc.icns" ] || fail "no $doc.icns; run packaging/icons/build.sh"
+    for source in "$doc"-*.svg; do
+      [ "$source" -nt "$doc.icns" ] && fail "$slug-document.icns is older than $(basename "$source")"
+    done
+    iconutil -c iconset -o "$work/$slug-document.iconset" "$doc.icns"
+    for name in "$work/$slug-document.iconset"/*.png; do
+      px=$(sips -g pixelWidth "$name" | awk '/pixelWidth/ { print $2 }')
+      "$work/icon" "$px" "$(master "$slug" -document -macos "$px")" "$name.want.png"
+    done
+    python3 - "$work/$slug-document.iconset" <<'EOF' || fail "$slug: the document icon is not its master"
+import glob, sys
+from PIL import Image
+pngs = sorted(p for p in glob.glob(sys.argv[1] + "/*.png") if not p.endswith(".want.png"))
+assert len(pngs) == 10, pngs
+for made in pngs:
+    a, b = Image.open(made).convert("RGBA"), Image.open(made + ".want.png").convert("RGBA")
+    assert a.size == b.size, made
+    off = sum(abs(x - y) for x, y in zip(a.tobytes(), b.tobytes())) / len(a.tobytes())
+    assert off < (8.0 if a.width <= 32 else 1.0), f"{made}: off {off:.2f}"
+# A white page, the app's mark in its middle.
+big = Image.open(sys.argv[1] + "/icon_512x512@2x.png").convert("RGBA")
+assert big.getpixel((260, 120))[:3] == (255, 255, 255), "no page"
+assert big.getpixel((40, 512))[3] == 0, "not a page"
+EOF
+    documents=$((documents + 1))
+  fi
   count=$((count + 1))
 done <"$root/packaging/apps.tsv"
 [ "$count" -eq 8 ] || fail "checked $count apps, expected 8"
-echo "icons: 8 apps, squircle on macOS, shapeless on Linux and Windows"
+[ "$documents" -eq 6 ] || fail "checked $documents document icons, expected 6"
+echo "icons: 8 apps, squircle on macOS, shapeless on Linux and Windows; 6 macOS document icons"

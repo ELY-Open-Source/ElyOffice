@@ -44,6 +44,11 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$root/target/$profile/$slug" "$app/Contents/MacOS/$slug"
 cp "$icon" "$app/Contents/Resources/$slug.icns"
+# Finder's icon for the files it opens.
+if grep -q CFBundleTypeIconFile <<<"$("$root/packaging/macos/documents.sh" "$slug")"; then
+  need "$root/assets/icons/$slug-document.icns" packaging/icons/build.sh
+  cp "$root/assets/icons/$slug-document.icns" "$app/Contents/Resources/"
+fi
 # Code inside the app, signed before it.
 inner=()
 if uses ely-lok; then
