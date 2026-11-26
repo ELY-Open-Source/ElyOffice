@@ -20,7 +20,7 @@ pub(super) fn save(unpack: &mut Unpack) -> io::Result<()> {
     if probed.is_some() {
         options = "Snapshot".into();
     }
-    if !matches!(options.as_str(), "" | "Snapshot" | "TakeOwnership" | "TakeOwnership,TerminateEditing") {
+    if !matches!(options.as_str(), "" | "UTF8" | "Snapshot" | "TakeOwnership" | "TakeOwnership,TerminateEditing") {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "unknown save option",

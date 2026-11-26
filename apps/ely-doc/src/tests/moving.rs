@@ -106,7 +106,7 @@ fn an_export_panel_keeps_its_tab() {
     };
     let id = opened(&mut cx, &docs, home);
     docs.update(&mut cx, |docs, cx| {
-        docs.dialog = Some(crate::actions::Dialog::Output { tab: id, print: false, all: true, pdf: Default::default() });
+        docs.dialog = Some(crate::actions::Dialog::Output { tab: id, print: false, format: Default::default(), all: true, pdf: Default::default() });
         assert_eq!(docs.move_out(id, cx).err(), Some("office.move.dialog"), "its dialog is open");
         docs.output(cx);
     });

@@ -98,7 +98,7 @@ impl Docs {
 }
 
 /// Whether a running ElyMark has `path` open.
-fn held_by_mark(path: &Path) -> std::io::Result<bool> {
+pub(crate) fn held_by_mark(path: &Path) -> std::io::Result<bool> {
     // Only a live copy: a crash leaves the door.
     if !instance::open_besides(AppId::Doc)?.contains(&AppId::Mark) {
         return Ok(false);
