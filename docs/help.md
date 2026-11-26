@@ -54,6 +54,7 @@
 - 只有同一用户在本机的程序能连上。
 - ElyDoc、ElyTable、ElyShow 里，命令行问到的文件若还没显示过（标签在、内容未载入），先载入再作答；大文件载入、整份替换与重算时，恰好按下的键要等它做完才显示（实测最长约半秒），键不会丢。
 - ElyPDF 刻意不提供命令行：PDF 在 ElyPDF 里阅读与批注，脚本可直接处理导出的 PDF。
+- [PDF 审阅脚本示例](../examples/pdf-review/review.py)：在独立 Python 环境安装 PyMuPDF（`python -m pip install pymupdf`），然后运行 `python examples/pdf-review/review.py 原件.pdf 审阅.pdf --page 1 --quote "30 天" --comment "建议改为 45 天"`。页码从 1 起，原文须在该页单行内唯一匹配。新文件保留原文，并在高亮处附上批注，可在 ElyPDF 或其他支持 PDF 批注的阅读器中查看。目标文件须尚不存在，所在文件系统须支持硬链接。
 
 ## ElyTable 的命令行
 
