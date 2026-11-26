@@ -48,6 +48,8 @@ pub fn bind(cx: &mut App) {
     crate::writes::bind(cx);
     let at = Some(commands::CONTEXT);
     cx.bind_keys([
+        // Layouts with their own + key.
+        KeyBinding::new(secondary!("+"), ZoomIn, at),
         KeyBinding::new(secondary!("="), ZoomIn, at),
         KeyBinding::new(secondary!("-"), ZoomOut, at),
         KeyBinding::new(secondary!("0"), ActualSize, at),
@@ -183,5 +185,23 @@ mod tests {
         assert_eq!(super::stepped(1.2, false), 1.0, "from between steps");
         assert_eq!(super::stepped(4.0, true), 4.0);
         assert_eq!(super::stepped(0.5, false), 0.5);
+    }
+
+    #[test]
+    fn plus_and_equals_both_zoom_in() {
+        use gpui::Action as _;
+
+        let cx = gpui::TestAppContext::single();
+        cx.update(|app| {
+            super::bind(app);
+            let keymap = app.key_bindings();
+            let keymap = keymap.borrow();
+            let zoom_in = super::ZoomIn.boxed_clone();
+            let keys: Vec<(bool, &str)> = (keymap.bindings_for_action(zoom_in.as_ref()))
+                .map(|binding| binding.keystrokes()[0].inner())
+                .map(|key| (key.modifiers.secondary(app), key.key.as_str()))
+                .collect();
+            assert_eq!(keys, [(true, "+"), (true, "=")]);
+        });
     }
 }
