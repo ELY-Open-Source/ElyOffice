@@ -15,6 +15,7 @@ dunce.workspace = true
 anyhow.workspace = true
 base64.workspace = true
 ely-files.workspace = true
+ely-mail-engine.workspace = true
 ely-gpui-component.workspace = true
 ely-office.workspace = true
 ely-pdf-engine.workspace = true

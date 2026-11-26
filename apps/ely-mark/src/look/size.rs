@@ -1,17 +1,27 @@
-//! ElyMark's text size on the settings' documents page.
+//! ElyMark's rows on the settings' documents page.
 
 use std::rc::Rc;
 
-use ely_gpui_component::{buttons::Button, forms::Slider, settings::SettingsRow};
+use ely_gpui_component::{
+    buttons::Button,
+    forms::{Slider, Switch},
+    settings::SettingsRow,
+};
 use gpui::{AnyElement, App, IntoElement as _, ParentElement as _, Styled as _, WeakEntity, div};
 
 use super::SIZES;
 use crate::desk::Desk;
 
-/// The text size joins the settings' documents page (#85).
+/// Text size and web pictures join the documents page.
 pub fn settings_rows(desk: WeakEntity<Desk>, cx: &mut App) {
     let rows = move |cx: &App| match desk.upgrade() {
-        Some(this) => vec![size_row(this.read(cx).look.size, desk.clone(), cx)],
+        Some(this) => {
+            let look = &this.read(cx).look;
+            vec![
+                size_row(look.size, desk.clone(), cx),
+                web_row(look.web_pictures, desk.clone(), cx),
+            ]
+        }
         None => Vec::new(),
     };
     ely_ui::settings::add_document_rows(Rc::new(rows), cx);
@@ -47,6 +57,23 @@ fn size_row(size: u32, desk: WeakEntity<Desk>, cx: &App) -> AnyElement {
     SettingsRow::new(label)
         .description(ely_ui::i18n::text(cx, "mark.settings.size.hint", &[]))
         .control(control)
+        .into_any_element()
+}
+
+/// Web pictures load as documents open; off by default.
+fn web_row(on: bool, desk: WeakEntity<Desk>, cx: &App) -> AnyElement {
+    let label = ely_ui::i18n::text(cx, "mark.settings.web_pictures", &[]);
+    let switch = Switch::new("mark-settings-web-pictures", on)
+        .label(label.clone())
+        .on_change(move |on, _, cx| {
+            let set = desk.update(cx, |desk, cx| desk.relook(|look| look.web_pictures = on, cx));
+            if set.is_err() {
+                log::error!("mark: the web picture setting has no window to take it");
+            }
+        });
+    SettingsRow::new(label)
+        .description(ely_ui::i18n::text(cx, "mark.settings.web_pictures.hint", &[]))
+        .control(switch)
         .into_any_element()
 }
 
@@ -105,5 +132,31 @@ mod tests {
         assert_eq!(desk.read_with(cx, |desk, _| desk.look.size), 80);
         assert!(draws.get() > before, "the open page draws the menu's size");
     }
-}
 
+    #[gpui::test]
+    fn the_web_setting_reaches_every_tab_and_is_kept(cx: &mut gpui::TestAppContext) {
+        let (data, files) = (tempfile::tempdir().expect("data"), tempfile::tempdir().expect("files"));
+        let (first, second) = (files.path().join("a.md"), files.path().join("b.md"));
+        std::fs::write(&first, "a
+").expect("a file");
+        std::fs::write(&second, "b
+").expect("a file");
+        let (desk, cx) = start(cx, data.path());
+        open(&desk, &first, cx);
+        let auto = |desk: &gpui::Entity<crate::desk::Desk>, cx: &mut gpui::VisualTestContext| {
+            desk.read_with(cx, |desk, cx| desk.active_view().expect("a tab").read(cx).web_auto())
+        };
+        assert!(!desk.read_with(cx, |desk, _| desk.look.web_pictures), "off by default");
+        assert!(!auto(&desk, cx));
+        desk.update(cx, |desk, cx| desk.relook(|look| look.web_pictures = true, cx));
+        assert!(auto(&desk, cx), "an open tab takes it");
+        open(&desk, &second, cx);
+        assert!(auto(&desk, cx), "a new tab takes it");
+        let kept = crate::look::load(&data.path().join("look.json")).expect("kept");
+        assert!(kept.web_pictures, "kept across launches");
+        let old = data.path().join("old.json");
+        std::fs::write(&old, r#"{"focus":false,"typewriter":false,"width":"medium","font":"sans","size":100}"#)
+            .expect("an older look");
+        assert!(!crate::look::load(&old).expect("reads").web_pictures, "older files read it as off");
+    }
+}

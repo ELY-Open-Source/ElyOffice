@@ -89,6 +89,7 @@ pub struct MarkView {
     wheel: f32,
     /// The last right-click menu asked.
     offer: Option<ely_ui::menu::Offer<menu::Asked>>,
+    web: web::Web,
     pub focus: FocusHandle,
 }
 
@@ -136,6 +137,7 @@ impl MarkView {
             shown: false,
             wheel: 0.0,
             offer: None,
+            web: web::Web::default(),
             focus,
         }
     }
@@ -230,6 +232,7 @@ impl MarkView {
         self.saved = mark(&text);
         self.document
             .update(cx, |document, cx| document.reset(text, cx));
+        self.web_changed(cx);
         cx.emit(Reported);
     }
 
@@ -290,6 +293,7 @@ impl MarkView {
             let text = document.read(cx).text(cx);
             self.doc.lock().expect("the text lock").current = text;
             self.changed += 1;
+            self.web_changed(cx);
             if self.large() && self.mode != Mode::Source {
                 log::info!("mark: the text grew past the read limit");
                 self.switch(Mode::Source, window, cx);
@@ -354,3 +358,4 @@ impl Render for MarkView {
 mod menu;
 #[cfg(test)]
 mod tests;
+mod web;

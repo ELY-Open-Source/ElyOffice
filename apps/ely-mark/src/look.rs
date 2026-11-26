@@ -33,7 +33,8 @@ actions!(
         OtherFont,
         Larger,
         Smaller,
-        ActualSize
+        ActualSize,
+        LoadWebPictures
     ]
 );
 
@@ -67,6 +68,9 @@ pub struct Look {
     /// Source mode numbers lines; 0.1.10's off key is dropped.
     #[serde(rename = "source_line_numbers", default = "shown")]
     pub line_numbers: bool,
+    /// Web pictures load as documents open (#120).
+    #[serde(default)]
+    pub web_pictures: bool,
 }
 
 fn shown() -> bool {
@@ -82,6 +86,7 @@ impl Default for Look {
             font: Font::Sans,
             size: 100,
             line_numbers: true,
+            web_pictures: false,
         }
     }
 }
@@ -164,26 +169,29 @@ impl Desk {
     /// Every tab's document takes the look.
     fn apply_look(&mut self, cx: &mut Context<Self>) {
         let look = self.look.document(cx);
-        let documents: Vec<_> = self
-            .core
-            .tabs
-            .iter()
-            .map(|tab| tab.view.read(cx).document().clone())
-            .collect();
-        for document in documents {
-            document.update(cx, |document, cx| document.set_look(look.clone(), cx));
+        let web = self.look.web_pictures;
+        let views: Vec<_> = self.core.tabs.iter().map(|tab| tab.view.clone()).collect();
+        for view in views {
+            view.update(cx, |view, cx| {
+                view.set_web_auto(web, cx);
+                let document = view.document().clone();
+                document.update(cx, |document, cx| document.set_look(look.clone(), cx));
+            });
         }
     }
 
     /// A new tab's document takes the look once.
     pub fn look_once(&mut self, id: u64, cx: &mut Context<Self>) {
-        let look = self.look.document(cx);
+        let (look, web) = (self.look.document(cx), self.look.web_pictures);
         let Some(tab) = self.tab_mut(id).filter(|tab| !tab.extra.looked) else {
             return;
         };
         tab.extra.looked = true;
-        let document = tab.view.read(cx).document().clone();
-        document.update(cx, |document, cx| document.set_look(look, cx));
+        tab.view.clone().update(cx, |view, cx| {
+            view.set_web_auto(web, cx);
+            let document = view.document().clone();
+            document.update(cx, |document, cx| document.set_look(look, cx));
+        });
     }
 
     pub fn look_actions(element: gpui::Div, cx: &mut Context<Self>) -> gpui::Div {
@@ -236,6 +244,10 @@ impl Desk {
             .on_action(
                 cx.listener(|desk, _: &ActualSize, _, cx| desk.relook(|look| look.size = 100, cx)),
             )
+            .on_action(cx.listener(|desk, _: &LoadWebPictures, _, cx| match desk.active_view() {
+                Some(view) => view.update(cx, |view, cx| view.load_web(true, cx)),
+                None => desk.no_document(cx),
+            }))
     }
 }
 
@@ -449,7 +461,7 @@ mod tests {
         let (desk, cx) = start(cx, data.path());
         open(&desk, &path, cx);
         let rows = cx.update(|_, cx| cx.global::<ely_ui::settings::DocumentRows>().0.clone());
-        assert_eq!(cx.update(|_, cx| rows(cx).len()), 1, "one row on the page");
+        assert_eq!(cx.update(|_, cx| rows(cx).len()), 2, "size and web pictures");
         desk.update(cx, |desk, cx| desk.size_to(130, cx));
         assert_eq!(document_look(&desk, cx).scale, 1.3);
         let kept = std::fs::read_to_string(data.path().join("look.json")).expect("kept");

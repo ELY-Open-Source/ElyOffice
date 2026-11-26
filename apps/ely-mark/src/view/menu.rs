@@ -14,7 +14,7 @@ use gpui::{
     Window,
 };
 
-use super::{Failed, MarkView, Mode};
+use super::{Failed, MarkView, Mode, web::is_web};
 use crate::{blocks as b, clip, export, tools};
 
 /// What a right press asked a menu for.
@@ -86,10 +86,16 @@ impl MarkView {
         let mut rows = Rows::default();
         if let Some(url) = &target.image {
             let url = url.clone();
-            let key = match web(&url) {
+            let key = match is_web(&url) {
                 true => "mark.image.browser",
                 false => "mark.image.location",
             };
+            if is_web(&url) && !self.web_held(&url) {
+                let loaded = view.clone();
+                rows = rows.row(MenuItem::new(said("mark.web_pictures.load", cx)).on_click(
+                    move |_, cx| loaded.update(cx, |view, cx| view.load_web(true, cx)),
+                ));
+            }
             let (shown, dropped, at) = (view.clone(), view.clone(), target.at);
             rows =
                 rows.row(MenuItem::new(said(key, cx)).on_click(move |_, cx| {
@@ -170,7 +176,7 @@ impl MarkView {
 
     /// Shows a local picture's file, or opens a web one.
     fn show_picture(&mut self, url: &str, cx: &mut Context<Self>) {
-        if web(url) {
+        if is_web(url) {
             return match ely_ui::outward(url) {
                 Ok(address) => {
                     log::info!("mark: a picture opens in the browser");
@@ -187,11 +193,6 @@ impl MarkView {
             }
         }
     }
-}
-
-fn web(url: &str) -> bool {
-    let lower = url.to_lowercase();
-    lower.starts_with("http://") || lower.starts_with("https://")
 }
 
 fn said(key: &str, cx: &App) -> SharedString {

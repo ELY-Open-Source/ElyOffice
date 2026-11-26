@@ -128,6 +128,7 @@ pub fn menus(look: &crate::look::Look, cx: &App) -> Vec<Menu> {
             item("mark.look.larger", Box::new(look::Larger)),
             item("mark.look.smaller", Box::new(look::Smaller)),
             MenuItem::separator(),
+            item("mark.web_pictures.load", Box::new(look::LoadWebPictures)),
             item("mark.outside.check", Box::new(CheckDisk)),
         ]),
     ]
