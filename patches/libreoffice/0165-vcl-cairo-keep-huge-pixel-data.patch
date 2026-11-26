@@ -1,0 +1,92 @@
+Backported from LibreOffice master: https://github.com/LibreOffice/core/commit/66a0927a6832
+Adapted: 26.2.6.3 already declares getCombinedHoldCyclesInSeconds(), so the
+header hunk only makes calculateCombinedHoldCyclesInSeconds() virtual.
+
+From 66a0927a683290a079cd5ed06ed98ce3c1f03ce1 Mon Sep 17 00:00:00 2001
+From: "Armin Le Grand (collabora)" <Armin.LeGrand@collabora.com>
+Date: Fri, 17 Apr 2026 17:08:27 +0200
+Subject: [PATCH] CairoSDPR: Force keeping CairoSurfaceHelper for huge
+ PixelData
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If we have a really 'big' pixel-based graphic the cost for creating
+the mip-map entries is high. If that is the case, force keeping this
+entry alive and not getting flushed by using a large number of
+seconds. In that case the local MipMap is more important than the
+memory kept allocated for fast repaints.
+
+To detect 'big' graphics, compare to an assumed ScreenSize (may also
+be fetched from real screen if needed). To react, create a buffer
+residing time of one hour (increase if needed).
+
+NOTE: This will increase MemoryFootPrint if isCairoCompatible
+is false by holding the local cairo_surface_t in CairoSurfaceHelper
+longer than before.
+
+Change-Id: I1cf726f00d459bc0cb19bb1d202e64e010061426
+Reviewed-on: https://gerrit.collaboraoffice.com/c/core/+/1134
+Tested-by: Jenkins CPCI <releng@collaboraoffice.com>
+Reviewed-by: Tomaž Vajngerl <tomaz.vajngerl@collabora.com>
+(cherry picked from commit 2e1b0a51a745e615ed7e2f22666cc4aa4e005451)
+(cherry picked from commit c2c58c177ae822906fe2c558546851643fe54247)
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/205988
+Tested-by: Xisco Fauli <xiscofauli@libreoffice.org>
+Reviewed-by: Xisco Fauli <xiscofauli@libreoffice.org>
+
+Comments are condensed to ElyOffice's one-line rule; the code is unchanged.
+
+diff --git a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+index 059026e..e52c529 100644
+--- a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
++++ b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+@@ -677,9 +677,35 @@ public:
+         return mpCairoSurfaceHelper;
+     }
+ 
++    virtual sal_uInt32 calculateCombinedHoldCyclesInSeconds() const override;
+     virtual sal_Int64 estimateUsageInBytes() const override;
+ };
+ 
++sal_uInt32 SystemDependentData_CairoSurface::calculateCombinedHoldCyclesInSeconds() const
++{
++    if (0 == getCombinedHoldCyclesInSeconds() && nullptr != mpCairoSurfaceHelper)
++    {
++        // keep huge graphics alive: their mipmaps are costly
++
++
++        // 'big': over half an assumed screen; keep one hour
++        cairo_surface_t* pSurface(mpCairoSurfaceHelper->getCairoSurface());
++        const tools::Long nStride(cairo_image_surface_get_stride(pSurface));
++        const tools::Long nHeight(cairo_image_surface_get_height(pSurface));
++
++        const sal_Int64 nBigGraphicPixels((2560 * 1440) / 2);
++
++        if (nStride * nHeight > nBigGraphicPixels)
++        {
++            // one hour, so it is not flushed
++            return 60 * 60;
++        }
++    }
++
++    // use parent implementation which makes seconds dependent of graphic size
++    return basegfx::SystemDependentData::calculateCombinedHoldCyclesInSeconds();
++}
++
+ sal_Int64 SystemDependentData_CairoSurface::estimateUsageInBytes() const
+ {
+     sal_Int64 nRetval(0);
+diff --git a/include/basegfx/utils/systemdependentdata.hxx b/include/basegfx/utils/systemdependentdata.hxx
+index d229661..5791446 100644
+--- a/include/basegfx/utils/systemdependentdata.hxx
++++ b/include/basegfx/utils/systemdependentdata.hxx
+@@ -91,7 +91,7 @@ namespace basegfx
+         // getHoldCyclesInSeconds and estimateUsageInBytes, the
+         // result is created once on-demand and buffered in
+         // mnCalculatedCycles
+-        sal_uInt32 calculateCombinedHoldCyclesInSeconds() const;
++        virtual sal_uInt32 calculateCombinedHoldCyclesInSeconds() const;
+ 
+         // Allow read access to the calculated cycles in seconds, this
+         // can be e.g. used to determine if this instance got added

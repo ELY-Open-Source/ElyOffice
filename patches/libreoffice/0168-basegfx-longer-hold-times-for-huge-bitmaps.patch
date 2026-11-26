@@ -1,0 +1,185 @@
+Backported from LibreOffice master: https://github.com/LibreOffice/core/commit/52ec9f11d852
+Applied unchanged.
+
+From 52ec9f11d8524014edb8361fe706106c01762aa2 Mon Sep 17 00:00:00 2001
+From: "Armin Le Grand (collabora)" <Armin.LeGrand@collabora.com>
+Date: Tue, 5 May 2026 11:46:12 +0200
+Subject: [PATCH] CairoSDPR: Improve buffering of huge BitmapData
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We already did some improvements, but I wanted to clean
+this up somewhat. Reason for the needed corrections was
+in principle the sqrt()-based general calculation of
+the HoldTime in the default implementation of
+calculateCombinedHoldCyclesInSeconds. The original idea
+was to hold huge data shorter due to memory constraints.
+To solve that we added an adapted version to
+CairoPixelProcessor2D.
+
+With lessons learned I decided to remove that and
+provide a revised general implementation based on linear
+scaling of the HoldTime. Based on assuming the seen
+huge Bitmap and estimating 20min for it, just create a
+factor and multiply with SizeInBytes.
+
+I checked that and it works as intended. It will spare
+us from this problem re-occurring with future SDPRs.
+
+NOTE: This still keeps the CairoSDPR-specific avoiding
+of buffering of small Bitmaps when these are available
+from Bitmap directly. This stays useful and is
+Cairo-specific.
+
+Signed-off-by: Armin Le Grand (collabora) <Armin.LeGrand@collabora.com>
+Change-Id: I30c7361c6fbfaf0be90be353091cbaf831db5cd2
+Reviewed-on: https://gerrit.collaboraoffice.com/c/online/+/2005
+Tested-by: Jenkins CPCI <releng@collaboraoffice.com>
+Reviewed-by: Tomaž Vajngerl <tomaz.vajngerl@collabora.com>
+(cherry picked from commit a3d3ae5e931a04ff5718382ccffe9f16de336a42)
+(cherry picked from commit 7550c6ea0bb82f7574e4b974f8d24bd1662a878b)
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/205991
+Reviewed-by: Xisco Fauli <xiscofauli@libreoffice.org>
+Tested-by: Jenkins
+
+Comments are condensed to ElyOffice's one-line rule; the code is unchanged.
+
+diff --git a/basegfx/source/tools/systemdependentdata.cxx b/basegfx/source/tools/systemdependentdata.cxx
+index c32be27..68df008 100644
+--- a/basegfx/source/tools/systemdependentdata.cxx
++++ b/basegfx/source/tools/systemdependentdata.cxx
+@@ -43,53 +43,24 @@ namespace basegfx
+         return 0;
+ #endif
+ 
+-        if(0 == mnCalculatedCycles)
+-        {
+-            const sal_Int64 nBytes(estimateUsageInBytes());
++        // already set, use it
++        if(0 != mnCalculatedCycles)
++            return mnCalculatedCycles;
+ 
+-            // tdf#129845 as indicator for no need to buffer trivial data, stay at and
+-            // return zero. As border, use 450 bytes. For polygons, this means to buffer
+-            // starting with ca. 50 points (GDIPLUS uses 9 bytes per coordinate). For
+-            // Bitmap data this means to more or less always buffer (as it was before).
+-            // For the future, a more sophisticated differentiation may be added
+-            if(nBytes > 450)
+-            {
+-                // HoldCyclesInSeconds
+-                const sal_uInt32 nSeconds = 60;
++        // get size in bytes as base for estimation
++        const sal_Int64 nBytes(estimateUsageInBytes());
+ 
+-                // default is Seconds (minimal is one)
+-                sal_uInt32 nResult(0 == nSeconds ? 1 : nSeconds);
++        // tdf#129845: trivial data (up to 450 bytes) returns zero
++        if (nBytes < 450)
++            return mnCalculatedCycles;
+ 
+-                if(0 != nBytes)
+-                {
+-                    // use sqrt to get some curved shape. With a default of 60s we get
+-                    // a single second at 3600 byte. To get close to 10mb, multiply by
+-                    // a corresponding scaling factor
+-                    const double fScaleToMB(3600.0 / (1024.0 * 1024.0 * 10.0));
++        // hold huge data longer: linear, 1200 s at 300 MB
++        constexpr double fHugeDataInBytes(15000*5000*4);
++        constexpr double fHugeTimeToHoldInSeconds(20 * 60);
++        constexpr double fTimeToHoldInSecondsPerByte(fHugeTimeToHoldInSeconds/fHugeDataInBytes);
+ 
+-                    // also use a multiplier to move the start point higher
+-                    const double fMultiplierSeconds(10.0);
+-
+-                    // calculate
+-                    nResult = static_cast<sal_uInt32>((fMultiplierSeconds * nSeconds) / sqrt(nBytes * fScaleToMB));
+-
+-                    // minimal value is 1
+-                    if(nResult < 1)
+-                    {
+-                        nResult = 1;
+-                    }
+-
+-                    // maximal value is nSeconds
+-                    if(nResult > nSeconds)
+-                    {
+-                        nResult = nSeconds;
+-                    }
+-                }
+-
+-                // set locally (once, on-demand created, non-zero)
+-                const_cast<SystemDependentData*>(this)->mnCalculatedCycles = nResult;
+-            }
+-        }
++        // set locally (once, on-demand created, non-zero)
++        mnCalculatedCycles = static_cast<sal_uInt32>(1.0 + nBytes * fTimeToHoldInSecondsPerByte);
+ 
+         return mnCalculatedCycles;
+     }
+diff --git a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+index c33ce7b..f05244f 100644
+--- a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
++++ b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+@@ -673,35 +673,9 @@ public:
+         return mpCairoSurfaceHelper;
+     }
+ 
+-    virtual sal_uInt32 calculateCombinedHoldCyclesInSeconds() const override;
+     virtual sal_Int64 estimateUsageInBytes() const override;
+ };
+ 
+-sal_uInt32 SystemDependentData_CairoSurface::calculateCombinedHoldCyclesInSeconds() const
+-{
+-    if (0 == getCombinedHoldCyclesInSeconds() && nullptr != mpCairoSurfaceHelper)
+-    {
+-        // keep huge graphics alive: their mipmaps are costly
+-
+-
+-        // 'big': over half an assumed screen; keep one hour
+-        cairo::CairoSurfaceSharedPtr pSurface(mpCairoSurfaceHelper->getCairoSurface());
+-        const tools::Long nStride(cairo_image_surface_get_stride(pSurface.get()));
+-        const tools::Long nHeight(cairo_image_surface_get_height(pSurface.get()));
+-
+-        const sal_Int64 nBigGraphicPixels((2560 * 1440) / 2);
+-
+-        if (nStride * nHeight > nBigGraphicPixels)
+-        {
+-            // one hour, so it is not flushed
+-            return 60 * 60;
+-        }
+-    }
+-
+-    // use parent implementation which makes seconds dependent of graphic size
+-    return basegfx::SystemDependentData::calculateCombinedHoldCyclesInSeconds();
+-}
+-
+ sal_Int64 SystemDependentData_CairoSurface::estimateUsageInBytes() const
+ {
+     sal_Int64 nRetval(0);
+diff --git a/include/basegfx/utils/systemdependentdata.hxx b/include/basegfx/utils/systemdependentdata.hxx
+index 5791446..f2998c0 100644
+--- a/include/basegfx/utils/systemdependentdata.hxx
++++ b/include/basegfx/utils/systemdependentdata.hxx
+@@ -72,7 +72,7 @@ namespace basegfx
+         // getHoldCyclesInSeconds and estimateUsageInBytes, executed
+         // using getHoldCyclesInSeconds. StartValue is 0 to detect
+         // not-yet-calculated state
+-        sal_uInt32                      mnCalculatedCycles;
++        mutable sal_uInt32              mnCalculatedCycles;
+ 
+     public:
+         SystemDependentData(
+@@ -91,11 +91,7 @@ namespace basegfx
+         // getHoldCyclesInSeconds and estimateUsageInBytes, the
+         // result is created once on-demand and buffered in
+         // mnCalculatedCycles
+-        virtual sal_uInt32 calculateCombinedHoldCyclesInSeconds() const;
+-
+-        // Allow read access to the calculated cycles in seconds, this
+-        // can be e.g. used to determine if this instance got added
+-        sal_uInt32 getCombinedHoldCyclesInSeconds() const { return mnCalculatedCycles; }
++        sal_uInt32 calculateCombinedHoldCyclesInSeconds() const;
+ 
+         // Size estimation of the entry in bytes - does not have to
+         // be used, but should be. Default returns zero what

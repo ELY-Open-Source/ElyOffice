@@ -1,0 +1,92 @@
+Backported from LibreOffice master: https://github.com/LibreOffice/core/commit/36e700d61808
+Applied unchanged.
+
+From 36e700d61808226829bb9bb02bfbf933160209a6 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Toma=C5=BE=20Vajngerl?= <tomaz.vajngerl@collabora.co.uk>
+Date: Fri, 17 Apr 2026 16:39:36 +0900
+Subject: [PATCH] Cache mipmap surfaces for cairo-backed bitmaps
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The tryToGetCairoSurface() path created a new CairoSurfaceHelper on
+every call, bypassing the SystemDependentData cache, so mipmap surfaces
+were recomputed per tile paint. Move zero-copy into the CairoSurfaceHelper
+constructor so all bitmaps go through the caching path.
+
+Also fix estimateUsageInBytes to account for bytes per pixel.
+
+Change-Id: Ie21b12e92b07a43f4b34f13d22b3aeeaf34534ea
+Reviewed-on: https://gerrit.collaboraoffice.com/c/core/+/1105
+Tested-by: Jenkins CPCI <releng@collaboraoffice.com>
+Reviewed-by: Armin Le Grand <armin.legrand@collabora.com>
+Reviewed-by: Tomaž Vajngerl <tomaz.vajngerl@collabora.com>
+Reviewed-by: Noel Grandin <noel.grandin@collabora.com>
+(cherry picked from commit 09cad228f400e5dd7f3e06509a35c3c1729c41b9)
+(cherry picked from commit ffc9820016c54d3c6d420a778eb8d0886e1cf36b)
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/205987
+Tested-by: Jenkins
+Reviewed-by: Xisco Fauli <xiscofauli@libreoffice.org>
+
+Comments are condensed to ElyOffice's one-line rule; the code is unchanged.
+
+diff --git a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+index 3b65b1f..059026e 100644
+--- a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
++++ b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+@@ -540,10 +540,14 @@ class CairoSurfaceHelper
+ 
+ public:
+     CairoSurfaceHelper(const Bitmap& rBitmap)
+-        : mpCairoSurface(nullptr)
++        // read cairo-backed bitmaps directly, avoiding copies
++        : mpCairoSurface(static_cast<cairo_surface_t*>(rBitmap.tryToGetCairoSurface()))
+         , maDownscaled()
+     {
+-        if (rBitmap.HasAlpha())
++        if (nullptr != mpCairoSurface)
++        {
++        } // all done, we got it directly
++        else if (rBitmap.HasAlpha())
+             createRGBA(rBitmap);
+         else
+ #ifdef TEST_RGB16
+@@ -553,13 +557,6 @@ public:
+ #endif
+     }
+ 
+-    /* constructor for when we are using the cairo data directly from the underlying SvpSalBitmap */
+-    CairoSurfaceHelper(cairo_surface_t* pCairoSurface)
+-        : mpCairoSurface(pCairoSurface)
+-        , maDownscaled()
+-    {
+-    }
+-
+     ~CairoSurfaceHelper()
+     {
+         // cleanup surface
+@@ -693,7 +690,8 @@ sal_Int64 SystemDependentData_CairoSurface::estimateUsageInBytes() const
+         const tools::Long nStride(cairo_image_surface_get_stride(pSurface));
+         const tools::Long nHeight(cairo_image_surface_get_height(pSurface));
+ 
+-        nRetval = nStride * nHeight;
++        // w * h * 4 bytesPerPixel
++        nRetval = nStride * nHeight * 4;
+ 
+         // if we do downscale, size will grow by 1/4 + 1/16 + 1/32 + ...,
+         // rough estimation just multiplies by 1.25 .. 1.33, should be good enough
+@@ -709,14 +707,6 @@ sal_Int64 SystemDependentData_CairoSurface::estimateUsageInBytes() const
+ 
+ std::shared_ptr<CairoSurfaceHelper> getOrCreateCairoSurfaceHelper(const Bitmap& rBitmap)
+ {
+-    // When using a cairo-backed Bitmap (i.e. SvpSalBitmap), we can avoid a lot of copying,
+-    // which is beneficial for documents with lots of large images.
+-    cairo_surface_t* pSurface(static_cast<cairo_surface_t*>(rBitmap.tryToGetCairoSurface()));
+-    if (nullptr != pSurface)
+-    {
+-        return std::make_shared<CairoSurfaceHelper>(pSurface);
+-    }
+-
+     const basegfx::SystemDependentDataHolder* pHolder(rBitmap.accessSystemDependentDataHolder());
+     std::shared_ptr<SystemDependentData_CairoSurface> pSystemDependentData_CairoSurface;
+ 

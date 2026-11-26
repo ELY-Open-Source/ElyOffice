@@ -1,0 +1,54 @@
+Backported from LibreOffice master: https://github.com/LibreOffice/core/commit/df1ae71700ef
+Applied unchanged.
+
+From df1ae71700ef1c2b825a159b43bf56ebc64d02ab Mon Sep 17 00:00:00 2001
+From: "Armin Le Grand (collabora)" <Armin.LeGrand@collabora.com>
+Date: Wed, 22 Apr 2026 14:13:42 +0200
+Subject: [PATCH] CairoSDPR: allow direct use of small cairo_surface_t
+
+When isCairoCompatible and we can get cairo_surface_t
+directly from Bitmap for small instances (used 160x100
+here, can be adapted) use directly. There is no need to
+prepare for MipMapping, so spare the
+SystemDependentDataHolder buffering for that cases.
+For more information, see comments in commit.
+
+Change-Id: Ia9d51a5749124d7001daf2e5355ceec5afccb264
+Reviewed-on: https://gerrit.collaboraoffice.com/c/core/+/1384
+Tested-by: Jenkins CPCI <releng@collaboraoffice.com>
+Reviewed-by: Armin Le Grand <armin.legrand@collabora.com>
+(cherry picked from commit 62dbd904fbea0dee4d54f1bb75601af40c6b91c4)
+(cherry picked from commit a23e06360e796e1264f40d31c818d3ac3a5a1f54)
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/205989
+Tested-by: Jenkins
+Tested-by: Xisco Fauli <xiscofauli@libreoffice.org>
+Reviewed-by: Xisco Fauli <xiscofauli@libreoffice.org>
+
+Comments are condensed to ElyOffice's one-line rule; the code is unchanged.
+
+diff --git a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+index e52c529..5b9bbf7 100644
+--- a/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
++++ b/drawinglayer/source/processor2d/cairopixelprocessor2d.cxx
+@@ -733,6 +733,21 @@ sal_Int64 SystemDependentData_CairoSurface::estimateUsageInBytes() const
+ 
+ std::shared_ptr<CairoSurfaceHelper> getOrCreateCairoSurfaceHelper(const Bitmap& rBitmap)
+ {
++    cairo_surface_t* pSurface(static_cast<cairo_surface_t*>(rBitmap.tryToGetCairoSurface()));
++    if (nullptr != pSurface)
++    {
++        // small cairo-backed bitmaps skip the cache: cheap to paint
++        const tools::Long aSmallBitmapSquareSize(160 * 100);
++
++        if (cairo_image_surface_get_stride(pSurface) * cairo_image_surface_get_height(pSurface)
++            <= aSmallBitmapSquareSize)
++        {
++            // small enough: no mipmaps or cache needed
++            std::cout << "BailOut SMALL Bitmap" << std::endl;
++            return std::make_shared<CairoSurfaceHelper>(rBitmap);
++        }
++    }
++
+     const basegfx::SystemDependentDataHolder* pHolder(rBitmap.accessSystemDependentDataHolder());
+     std::shared_ptr<SystemDependentData_CairoSurface> pSystemDependentData_CairoSurface;
+ 
