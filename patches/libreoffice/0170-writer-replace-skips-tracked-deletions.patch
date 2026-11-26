@@ -1,0 +1,73 @@
+From: Ely Office
+Subject: Writer: replacing skips text inside tracked deletions
+
+- With changes shown, Find & Replace searches the whole node text,
+  deleted text included. Replace All, and ElyDoc's `text replace`,
+  then wrote into deleted words: under recording a deletion grew new
+  insertions inside it, and each later replace of the same word
+  stacked another round (#121).
+- When a match touches a tracked deletion, replacing now searches on
+  past it; with changes hidden the layout's search already skips
+  deleted text. Find alone still finds deleted text, as before.
+
+diff --git a/sw/source/core/crsr/findtxt.cxx b/sw/source/core/crsr/findtxt.cxx
+index 07a19bde5..90a58a798 100644
+--- a/sw/source/core/crsr/findtxt.cxx
++++ b/sw/source/core/crsr/findtxt.cxx
+@@ -958,6 +958,28 @@ SwFindParaText::~SwFindParaText()
+ {
+ }
+ 
++/// Whether any of rPam lies in a shown tracked deletion.
++static bool lcl_TouchesDeletion(SwPaM const& rPam, SwRootFrame const*const pLayout)
++{
++    if (pLayout && pLayout->IsHideRedlines())
++        return false; // the hidden layout's search skips deleted text already
++    IDocumentRedlineAccess const& rIDRA(rPam.GetDoc().getIDocumentRedlineAccess());
++    SwRedlineTable const& rTable(rIDRA.GetRedlineTable());
++    SwRedlineTable::size_type n;
++    rIDRA.GetRedline(*rPam.Start(), &n);
++    for (; n < rTable.size(); ++n)
++    {
++        SwRangeRedline const*const pRedline(rTable[n]);
++        if (*rPam.End() <= *pRedline->Start())
++            break;
++        if (*pRedline->End() <= *rPam.Start())
++            continue;
++        if (pRedline->GetType() == RedlineType::Delete)
++            return true;
++    }
++    return false;
++}
++
+ int SwFindParaText::DoFind(SwPaM & rCursor, SwMoveFnCollection const & fnMove,
+                           const SwPaM & rRegion, bool bInReadOnly,
+                           std::unique_ptr<SvxSearchItem>& xSearchItem)
+@@ -965,9 +987,26 @@ int SwFindParaText::DoFind(SwPaM & rCursor, SwMoveFnCollection const & fnMove,
+     if( bInReadOnly && m_bReplace )
+         bInReadOnly = false;
+ 
+-    const bool bFnd = sw::FindTextImpl(rCursor, m_rSearchOpt, m_bSearchInNotes,
++    bool bFnd = sw::FindTextImpl(rCursor, m_rSearchOpt, m_bSearchInNotes,
+             m_aSText, fnMove, rRegion, bInReadOnly, m_pLayout, xSearchItem);
+ 
++    // Replacing never writes into deleted text: search on past it.
++    if (m_bReplace && bFnd && lcl_TouchesDeletion(rCursor, m_pLayout))
++    {
++        SwPaM aRest(*rRegion.GetMark(), *rRegion.GetPoint());
++        do
++        {
++            if (&fnMove == &fnMoveForward)
++                *aRest.Start() = *rCursor.End();
++            else
++                *aRest.End() = *rCursor.Start();
++            if (*aRest.Start() >= *aRest.End())
++                return FIND_NOT_FOUND;
++            bFnd = sw::FindTextImpl(rCursor, m_rSearchOpt, m_bSearchInNotes,
++                    m_aSText, fnMove, aRest, bInReadOnly, m_pLayout, xSearchItem);
++        } while (bFnd && lcl_TouchesDeletion(rCursor, m_pLayout));
++    }
++
+     if( bFnd && m_bReplace ) // replace string
+     {
+         // use replace method in SwDoc

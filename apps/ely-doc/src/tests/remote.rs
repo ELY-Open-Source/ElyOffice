@@ -6,6 +6,7 @@ use ely_office::prelude::*;
 use gpui::{Entity, TestAppContext};
 
 use crate::docs::Docs;
+use crate::review::TrackChanges;
 use crate::tests::{blank, docs, settle, settled, text_of, type_into, with_window};
 
 /// The answer to `words`, once it comes.
@@ -342,4 +343,36 @@ fn a_read_never_gives_way_to_waiting_input() {
     waiting.join().expect("the waiting key");
     let read = read.expect("a waiting key never stops a read");
     assert_eq!(ely_office::remote::body_text(&read).expect("a body").trim(), "Read me");
+}
+
+#[test]
+fn replace_leaves_tracked_deletions_alone() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "Centred now");
+    let path = dir.path().join("tracked.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    settle(&cx, |app| docs.read(app).core.tabs[0].name == "tracked.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_track(&TrackChanges, window, cx));
+    settle(&cx, |app| {
+        let tab = docs.read(app).active_tab().expect("a tab");
+        tab.view.read(app).state(".uno:TrackChanges") == Some("true")
+    });
+    let file = path.display().to_string();
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, "Centred", "Centred one"]), Ok(String::new()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("Centred one now".into()));
+    // The first "Centred" is now deleted text; it stays deleted.
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, "Centred", "Centred two"]), Ok(String::new()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("Centred two one now".into()));
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, "now", "then"]), Ok(String::new()));
+    let gone = ask(&mut cx, &docs, &["replace", &file, "now", "later"]);
+    assert!(gone.as_ref().is_err_and(|why| why.starts_with("nothing replaced")), "only deleted: {gone:?}");
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("Centred two one then".into()));
+    assert_eq!(ask(&mut cx, &docs, &["save", &file]).map(|_| ()), Ok(()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("Centred two one then".into()), "a read after saving");
 }
