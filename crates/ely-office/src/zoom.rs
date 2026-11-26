@@ -9,9 +9,11 @@ use crate::{Host, Tabs as _, lok::Lok, text};
 
 actions!(office, [ZoomIn, ZoomOut, ActualSize]);
 
-/// Command with =, - and 0, as Mac apps do.
+/// Command with = or +, - and 0.
 pub fn bind_zoom_keys(cx: &mut App) {
     cx.bind_keys([
+        // Layouts with their own + key.
+        KeyBinding::new(secondary!("+"), ZoomIn, Some(commands::CONTEXT)),
         KeyBinding::new(secondary!("="), ZoomIn, Some(commands::CONTEXT)),
         KeyBinding::new(secondary!("-"), ZoomOut, Some(commands::CONTEXT)),
         KeyBinding::new(secondary!("0"), ActualSize, Some(commands::CONTEXT)),
@@ -63,5 +65,28 @@ pub trait Zooming: Host<Engine = Lok> {
                 log::warn!("office: zoom without a window: {error}");
             }
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui::{Action as _, TestAppContext};
+
+    use super::*;
+
+    #[test]
+    fn plus_and_equals_both_zoom_in() {
+        let cx = TestAppContext::single();
+        cx.update(|app| {
+            bind_zoom_keys(app);
+            let keymap = app.key_bindings();
+            let keymap = keymap.borrow();
+            let zoom_in = ZoomIn.boxed_clone();
+            let keys: Vec<(bool, &str)> = (keymap.bindings_for_action(zoom_in.as_ref()))
+                .map(|binding| binding.keystrokes()[0].inner())
+                .map(|key| (key.modifiers.secondary(app), key.key.as_str()))
+                .collect();
+            assert_eq!(keys, [(true, "+"), (true, "=")]);
+        });
     }
 }
