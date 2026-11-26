@@ -34,6 +34,7 @@ dist/        打包产物，不入库
 docs/        决定（decisions.md）、发布记录（releases/，门要的未复审数与间隔原因）、其细则（standing.md）、缺口（gaps.md）、兼容、无障碍、帮助、许可、性能记录、test-map.md（由 scripts/test-map.py 生成）
 scripts/     构建、检查、发布的脚本，逐个的说明在 scripts/README.md
 tests/       scripts 与 engines 下是脚本测试（说明在 tests/scripts/README.md）；engines 缺二进制时报 SKIP；fixtures 是共用样本（说明在 tests/fixtures/README.md）
+examples/    独立的脚本示例，各带依赖与测试，CI 不跑
 tasks/       TASKS.md 进度真相
 site/        官网（Vite、pnpm、TypeScript，无框架）；site/video 是发布视频
 ```

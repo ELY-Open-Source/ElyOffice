@@ -1018,3 +1018,5 @@
   - 已做：Omarchy 装上 gst-plugins-good、gst-libav；`tests/video.rs` 的循环见到提示即失败并引出原因。Omarchy 上装后三条 2.3 秒过；以 `GST_PLUGIN_FEATURE_RANK=qtdemux:NONE` 藏起 qtdemux，三条 1.6 秒即败并点名缺的插件。R21.40 在 Omarchy 上的 ElyShow 140 条全过即在装后。clippy 无告警。
   - 不做：`doctor.sh` 只核构建所需（GStreamer 运行时以 dlopen 载入，构建不要），加进去要连带 README 的安装行、`build-deps.sh` 与 `pr.yml` 的包行；测试已点名缺的插件，故不加 — 第 1 轮 PASS（`tasks/reviews/R21.41-r1.md`）。
 - [ ] R21.42 验收表补 R21.39、R21.40、R21.41 三行
+- [x] R21.43 PR #117 ElyPDF 导出 PDF 的审阅脚本示例（`examples/pdf-review`，PyMuPDF，应用不改）：在 Omarchy 与 7877 上以独立 venv 装 PyMuPDF 跑其测试；`examples/` 记进 agents.md 的目录；真合并提交，留言致谢
+  - 已做：PR 原样合入（一个提交，`examples/pdf-review/review.py`、`test_review.py` 与 `docs/help.md` 一行）；合并时 agents.md 的目录添 `examples/`。其测试在 Omarchy 与 7877 上各以独立 venv 装 PyMuPDF（pip 当前版）跑，两条皆过（7877 上硬链接在 NTFS 照建）。合并后的树上 check.sh、records、agents_md、test-map 皆过。CI 不跑 `examples/` 的测试（`pr.yml` 的 Python 单测只搜 `tests/perf`，CI 机器也不装 PyMuPDF），写进 agents.md 那一行 — 第 1 轮 PASS（`tasks/reviews/R21.43-r1.md`）。
