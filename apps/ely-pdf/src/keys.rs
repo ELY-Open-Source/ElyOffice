@@ -47,12 +47,8 @@ pub fn bind(cx: &mut App) {
     crate::organize::bind(cx);
     crate::writes::bind(cx);
     let at = Some(commands::CONTEXT);
+    ely_office::bind_zooms(cx, (ZoomIn, ZoomOut, ActualSize), at);
     cx.bind_keys([
-        // Layouts with their own + key.
-        KeyBinding::new(secondary!("+"), ZoomIn, at),
-        KeyBinding::new(secondary!("="), ZoomIn, at),
-        KeyBinding::new(secondary!("-"), ZoomOut, at),
-        KeyBinding::new(secondary!("0"), ActualSize, at),
         KeyBinding::new(secondary!("]"), RotateRight, at),
         KeyBinding::new(secondary!("["), RotateLeft, at),
         KeyBinding::new("pagedown", NextPage, at),
@@ -188,20 +184,22 @@ mod tests {
     }
 
     #[test]
-    fn plus_and_equals_both_zoom_in() {
-        use gpui::Action as _;
-
+    fn zoom_keys_come_from_the_shared_table() {
         let cx = gpui::TestAppContext::single();
         cx.update(|app| {
             super::bind(app);
             let keymap = app.key_bindings();
             let keymap = keymap.borrow();
-            let zoom_in = super::ZoomIn.boxed_clone();
-            let keys: Vec<(bool, &str)> = (keymap.bindings_for_action(zoom_in.as_ref()))
-                .map(|binding| binding.keystrokes()[0].inner())
-                .map(|key| (key.modifiers.secondary(app), key.key.as_str()))
-                .collect();
-            assert_eq!(keys, [(true, "+"), (true, "=")]);
+            let keys = |action: &dyn gpui::Action| -> Vec<String> {
+                (keymap.bindings_for_action(action)).map(|binding| binding.keystrokes()[0].inner().key.clone()).collect()
+            };
+            // The View menu shows = and -, wherever it looks.
+            let (zoom_in, zoom_out): (&[&str], &[&str]) = match cfg!(target_os = "macos") {
+                true => (&["=", "+", "add"], &["-", "subtract"]),
+                false => (&["+", "add", "="], &["subtract", "-"]),
+            };
+            assert_eq!(keys(&super::ZoomIn), zoom_in);
+            assert_eq!(keys(&super::ZoomOut), zoom_out);
         });
     }
 }

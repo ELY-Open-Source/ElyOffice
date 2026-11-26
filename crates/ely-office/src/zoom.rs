@@ -3,21 +3,38 @@
 use ely_gpui_component::secondary;
 use ely_gpui_component::shell::{ZoomControl, ZoomStep};
 use ely_ui::commands;
-use gpui::{App, Context, Div, InteractiveElement as _, KeyBinding, MenuItem, actions};
+use gpui::{Action, App, Context, Div, InteractiveElement as _, KeyBinding, MenuItem, actions};
 
 use crate::{Host, Tabs as _, lok::Lok, text};
 
 actions!(office, [ZoomIn, ZoomOut, ActualSize]);
 
-/// Command with = or +, - and 0.
+/// The document apps' zoom keys.
 pub fn bind_zoom_keys(cx: &mut App) {
-    cx.bind_keys([
-        // Layouts with their own + key.
-        KeyBinding::new(secondary!("+"), ZoomIn, Some(commands::CONTEXT)),
-        KeyBinding::new(secondary!("="), ZoomIn, Some(commands::CONTEXT)),
-        KeyBinding::new(secondary!("-"), ZoomOut, Some(commands::CONTEXT)),
-        KeyBinding::new(secondary!("0"), ActualSize, Some(commands::CONTEXT)),
-    ]);
+    bind_zooms(cx, (ZoomIn, ZoomOut, ActualSize), Some(commands::CONTEXT));
+}
+
+/// Command with =, - and 0; menus show these.
+pub fn bind_zooms(cx: &mut App, (zoom_in, zoom_out, actual): (impl Action + Clone, impl Action + Clone, impl Action), at: Option<&str>) {
+    let shown = [
+        KeyBinding::new(secondary!("="), zoom_in.clone(), at),
+        KeyBinding::new(secondary!("-"), zoom_out.clone(), at),
+        KeyBinding::new(secondary!("0"), actual, at),
+    ];
+    // A layout's own + key; Linux's keypad names.
+    let more = [
+        KeyBinding::new(secondary!("+"), zoom_in.clone(), at),
+        KeyBinding::new(secondary!("add"), zoom_in, at),
+        KeyBinding::new(secondary!("subtract"), zoom_out, at),
+    ];
+    // macOS menus show the first binding, others the last.
+    if cfg!(target_os = "macos") {
+        cx.bind_keys(shown);
+        cx.bind_keys(more);
+    } else {
+        cx.bind_keys(more);
+        cx.bind_keys(shown);
+    }
 }
 
 /// Zoom In, Zoom Out, and Actual Size (or Fit Slide).
@@ -70,23 +87,36 @@ pub trait Zooming: Host<Engine = Lok> {
 
 #[cfg(test)]
 mod tests {
-    use gpui::{Action as _, TestAppContext};
+    use gpui::TestAppContext;
 
     use super::*;
 
     #[test]
-    fn plus_and_equals_both_zoom_in() {
+    fn the_menu_shows_equals_and_minus_and_every_zoom_key_works() {
         let cx = TestAppContext::single();
         cx.update(|app| {
             bind_zoom_keys(app);
             let keymap = app.key_bindings();
             let keymap = keymap.borrow();
-            let zoom_in = ZoomIn.boxed_clone();
-            let keys: Vec<(bool, &str)> = (keymap.bindings_for_action(zoom_in.as_ref()))
-                .map(|binding| binding.keystrokes()[0].inner())
-                .map(|key| (key.modifiers.secondary(app), key.key.as_str()))
-                .collect();
-            assert_eq!(keys, [(true, "+"), (true, "=")]);
+            let keys = |action: &dyn Action| -> Vec<String> {
+                (keymap.bindings_for_action(action))
+                    .map(|binding| binding.keystrokes()[0].inner())
+                    .inspect(|key| assert!(key.modifiers.secondary(app), "{key:?}"))
+                    .map(|key| key.key.clone())
+                    .collect()
+            };
+            let (zoom_in, zoom_out) = (keys(&ZoomIn), keys(&ZoomOut));
+            // The menu's key: macOS takes the first, others the last.
+            let shown = |keys: &[String]| if cfg!(target_os = "macos") { keys.first() } else { keys.last() }.cloned();
+            assert_eq!(shown(&zoom_in).as_deref(), Some("="), "{zoom_in:?}");
+            assert_eq!(shown(&zoom_out).as_deref(), Some("-"), "{zoom_out:?}");
+            assert_eq!(shown(&keys(&ActualSize)).as_deref(), Some("0"));
+            let sorted = |mut keys: Vec<String>| {
+                keys.sort();
+                keys
+            };
+            assert_eq!(sorted(zoom_in), ["+", "=", "add"]);
+            assert_eq!(sorted(zoom_out), ["-", "subtract"]);
         });
     }
 }

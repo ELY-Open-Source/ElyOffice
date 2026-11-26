@@ -56,7 +56,7 @@ pub use remote::Remote;
 pub use stopped::{Stopped, Stopping};
 pub use save::{Saving, folder};
 pub use undo::{Redo, Undo, Undoing, bind_undo_keys, undo_able, undo_items};
-pub use zoom::{ActualSize, ZoomIn, ZoomOut, Zooming, bind_zoom_keys, zoom_items};
+pub use zoom::{ActualSize, ZoomIn, ZoomOut, Zooming, bind_zoom_keys, bind_zooms, zoom_items};
 
 /// Every shared trait, for `use ely_office::prelude::*`.
 pub mod prelude {
