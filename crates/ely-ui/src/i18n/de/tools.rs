@@ -51,7 +51,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("doc.output.format.docx", "Word (.docx)"),
     ("doc.output.format.odt", "OpenDocument (.odt)"),
     ("doc.output.format.rtf", "Rich Text (.rtf)"),
-    ("doc.output.format.txt", "Nur Text (.txt)"),
+    ("doc.output.format.txt", "Reiner Text (.txt)"),
     ("doc.output.format.epub", "EPUB (.epub)"),
     ("doc.output.format.md", "Markdown (.md)"),
     ("doc.output.copy_failed", "Die Datei wurde nicht geschrieben: {error}"),

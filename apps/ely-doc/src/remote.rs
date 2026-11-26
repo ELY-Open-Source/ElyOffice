@@ -58,7 +58,7 @@ pub fn command_line() -> Option<i32> {
         usage: USAGE,
         exact: &[],
         blanks: &[("docx", include_bytes!("../../../packaging/windows/new/new.docx"))],
-        exports: &["docx", "odt", "pdf", "rtf", "txt", "epub", "md"],
+        exports: &crate::output::EXTENSIONS,
     })
 }
 

@@ -40,9 +40,20 @@ pub enum Format {
 const FORMATS: [Format; 7] =
     [Format::Pdf, Format::Docx, Format::Odt, Format::Rtf, Format::Txt, Format::Epub, Format::Markdown];
 
+/// The extensions `ely-doc export` takes, as the dialog lists.
+pub const EXTENSIONS: [&str; 7] = {
+    let mut out = [""; 7];
+    let mut at = 0;
+    while at < FORMATS.len() {
+        out[at] = FORMATS[at].ext();
+        at += 1;
+    }
+    out
+};
+
 impl Format {
     /// The extension, also the kernel's name for it.
-    pub fn ext(self) -> &'static str {
+    pub const fn ext(self) -> &'static str {
         match self {
             Format::Pdf => "pdf",
             Format::Docx => "docx",

@@ -54,7 +54,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("doc.output.format.txt", "Văn bản thuần (.txt)"),
     ("doc.output.format.epub", "EPUB (.epub)"),
     ("doc.output.format.md", "Markdown (.md)"),
-    ("doc.output.copy_failed", "Không ghi được tệp: {error}"),
+    ("doc.output.copy_failed", "Chưa ghi được tệp: {error}"),
     ("doc.output.copy_name", "{name} (bản sao)"),
     ("doc.output.print_title", "In"),
     ("doc.output.pages", "Trang"),
