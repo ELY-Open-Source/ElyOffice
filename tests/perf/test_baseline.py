@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Counted rows keyed without their count.
+import json
 import os
 import tempfile
 import unittest
@@ -77,6 +78,32 @@ class Counted(unittest.TestCase):
             told = f"\n{baseline.HEAD}\n\n- {KEY}: 2 → 3 times — a sync ran during typing.\n"
             new = record(folder, 2, [busy(3, 300, 400)], told)
             self.assertEqual(baseline.unexplained(baseline.records(folder), new), [])
+
+
+
+def kept(folder, name, env):
+    """A record of `env` with one row."""
+    with open(os.path.join(folder, name), "w", encoding="utf-8") as out:
+        out.write(f"# Benchmark 2000-01-01\n\n```json\n{json.dumps(env)}\n```\n\n"
+                  + HEAD + "| PERF-01 | open | 1 | 10 | 10 | 100 |  |  |\n")
+
+
+class Exceptions(unittest.TestCase):
+    def test_windows_018_keeps_017s_bench_and_needs_no_reboot(self):
+        with tempfile.TemporaryDirectory() as folder:
+            box = "Box-Windows"
+            kept(folder, "2000-01-01-a.md", {"machine": box, "version": "0.1.17"})
+            self.assertIn("install record of 0.1.18", baseline.check(folder, "0.1.18", "windows"))
+            kept(folder, "2000-01-01-b.md", {"machine": box, "version": "0.1.18", "kind": "install"})
+            self.assertIsNone(baseline.check(folder, "0.1.18", "windows"))
+            kept(folder, "2000-01-01-c.md", {"machine": box, "version": "0.1.19", "kind": "install"})
+            self.assertIn("benchmark record of 0.1.19", baseline.check(folder, "0.1.19", "windows"))
+
+    def test_macos_018_keeps_016s_bench(self):
+        with tempfile.TemporaryDirectory() as folder:
+            kept(folder, "2000-01-01-a.md", {"machine": "Mac", "version": "0.1.16"})
+            kept(folder, "2000-01-01-b.md", {"machine": "Mac", "version": "0.1.18", "kind": "install"})
+            self.assertIsNone(baseline.check(folder, "0.1.18", "macos"))
 
 
 if __name__ == "__main__":

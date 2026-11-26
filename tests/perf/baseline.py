@@ -19,6 +19,10 @@ KINDS = {None: "tests/perf/bench.py", "install": "tests/perf/firsts.py install",
 ONLY_ON = {"reboot": {"windows"}}
 # The user, 2026-11-20: these keep 0.1.16's bench record.
 EARLIER_BENCH = {("macos", "0.1.17"): "0.1.16", ("linux", "0.1.17"): "0.1.16"}
+# The user, 2026-11-26: 0.1.18 measures installs only.
+EARLIER_BENCH.update({("macos", "0.1.18"): "0.1.16", ("linux", "0.1.18"): "0.1.16",
+                      ("windows", "0.1.18"): "0.1.17"})
+NO_REBOOT = {("windows", "0.1.18")}
 # The user, 2026-11-20: Linux 0.1.17 ships with no install record.
 NO_INSTALL = {("linux", "0.1.17")}
 # Stalls and starved timers: their count and times.
@@ -114,7 +118,10 @@ def check(folder, version, system):
             mine = earlier(all_records, system, EARLIER_BENCH[(system, version)])
             if mine:
                 print(f"baseline: {system} {version} has no bench record of its own and uses "
-                      f"{os.path.basename(mine[-1]['path'])} ({mine[-1]['env']['version']}), as the user decided on 2026-11-20")
+                      f"{os.path.basename(mine[-1]['path'])} ({mine[-1]['env']['version']}), as the user decided")
+        if not mine and kind == "reboot" and (system, version) in NO_REBOOT:
+            print(f"baseline: {system} {version} ships with no reboot record, as the user decided on 2026-11-26")
+            continue
         if not mine and kind == "install" and (system, version) in NO_INSTALL:
             print(f"baseline: {system} {version} ships with no install record, as the user decided on 2026-11-20")
             continue
