@@ -12,6 +12,7 @@ use ely_ui::Ask;
 use gpui::Context;
 
 use crate::docs::Docs;
+use crate::output::Format;
 
 mod format;
 mod image;
@@ -57,7 +58,7 @@ pub fn command_line() -> Option<i32> {
         usage: USAGE,
         exact: &[],
         blanks: &[("docx", include_bytes!("../../../packaging/windows/new/new.docx"))],
-        exports: &["docx", "odt", "pdf"],
+        exports: &["docx", "odt", "pdf", "rtf", "txt", "epub", "md"],
     })
 }
 
@@ -206,16 +207,22 @@ impl Docs {
         let Some(work) = self.tab(id).map(|tab| tab.work.clone()) else {
             return ask.answer(Err(format!("tab {id} closed")));
         };
-        let format = ely_office::files::save_as_format(&Self::KIND, &target);
+        let ext = target.extension().and_then(|ext| ext.to_str()).unwrap_or_default();
+        let Some(format) = Format::of(ext) else {
+            return ask.answer(Err(format!("{}: cannot export to this type", target.display())));
+        };
         let named = remote::path_json(&target.display().to_string());
         self.read_in(
             id,
             move |worker, doc| {
+                if format == Format::Markdown && crate::markdown::held_by_mark(&target)? {
+                    return Err(std::io::Error::other("ElyMark has the target open"));
+                }
                 remote::export_to(&work, &target, |copy| {
                     let url = ely_lok::file_url(copy);
                     match format {
-                        Some(format) => doc.save_as(worker, &url, format),
-                        None => doc.export_pdf(worker, &url, &WHOLE),
+                        Format::Pdf => doc.export_pdf(worker, &url, &WHOLE),
+                        _ => format.write(worker, doc, &url),
                     }
                 })
             },

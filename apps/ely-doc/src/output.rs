@@ -1,16 +1,16 @@
-//! Export to PDF and print (DOC-15).
+//! Export a copy, and print (DOC-15).
 
 use std::path::PathBuf;
 
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant, SegmentedControl},
     data_display::DescriptionList,
-    forms::{NumberInput, Switch},
+    forms::{Choice, NumberInput, Select, Switch},
     overlays::Dialog as Card,
     primitives::Severity,
     theme::ControlSize,
 };
-use ely_lok::Pdf;
+use ely_lok::{Doc, Pdf, Worker};
 use ely_ui::commands::{Export, Print};
 use gpui::{App, Context, Entity, ParentElement as _, Styled as _, TaskExt as _, Window, div};
 
@@ -21,6 +21,51 @@ use ely_office::prelude::*;
 use crate::docs::Docs;
 
 const PDF_FAILED: &str = "doc.output.failed";
+const COPY_FAILED: &str = "doc.output.copy_failed";
+
+/// What an export writes.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum Format {
+    #[default]
+    Pdf,
+    Docx,
+    Odt,
+    Rtf,
+    Txt,
+    Epub,
+    Markdown,
+}
+
+/// The dialog's order.
+const FORMATS: [Format; 7] =
+    [Format::Pdf, Format::Docx, Format::Odt, Format::Rtf, Format::Txt, Format::Epub, Format::Markdown];
+
+impl Format {
+    /// The extension, also the kernel's name for it.
+    pub fn ext(self) -> &'static str {
+        match self {
+            Format::Pdf => "pdf",
+            Format::Docx => "docx",
+            Format::Odt => "odt",
+            Format::Rtf => "rtf",
+            Format::Txt => "txt",
+            Format::Epub => "epub",
+            Format::Markdown => "md",
+        }
+    }
+
+    /// Writes a non-PDF copy of `doc` to `url`.
+    pub(crate) fn write(self, worker: &mut Worker, doc: &Doc, url: &str) -> std::io::Result<()> {
+        match self {
+            Format::Txt => doc.export_plain(worker, url),
+            _ => doc.save_as(worker, url, self.ext()),
+        }
+    }
+
+    pub(crate) fn of(ext: &str) -> Option<Self> {
+        FORMATS.into_iter().find(|format| format.ext().eq_ignore_ascii_case(ext))
+    }
+}
 
 impl Docs {
     pub fn on_export(&mut self, _: &Export, _: &mut Window, cx: &mut Context<Self>) {
@@ -40,6 +85,7 @@ impl Docs {
         self.dialog = Some(Dialog::Output {
             tab: tab.id,
             print,
+            format: Format::Pdf,
             all: true,
             pdf: Pdf {
                 pages: Some((1, last)),
@@ -51,11 +97,12 @@ impl Docs {
         cx.notify();
     }
 
-    /// Writes the asked PDF, then saves or prints it.
+    /// Writes the asked copy, then saves or prints it.
     pub(crate) fn output(&mut self, cx: &mut Context<Self>) {
         let Some(Dialog::Output {
             tab,
             print,
+            format,
             all,
             pdf,
         }) = self.dialog.take()
@@ -71,6 +118,7 @@ impl Docs {
             self.dialog = Some(Dialog::Output {
                 tab,
                 print,
+                format,
                 all,
                 pdf,
             });
@@ -90,11 +138,10 @@ impl Docs {
         let Some(dir) = ely_office::folder(source) else {
             return self.panel_failed(&ely_ui::i18n::text(cx, "error.no_documents", &[]), cx);
         };
-        let stem = source
-            .name
-            .rsplit_once('.')
-            .map_or(source.name.as_ref(), |(stem, _)| stem);
-        let chosen = cx.prompt_for_new_path(&dir, Some(&format!("{stem}.pdf")));
+        let named = suggested(&source.name, format, |stem| {
+            Docs::text(cx, "doc.output.copy_name", &[("name", stem)]).to_string()
+        });
+        let chosen = cx.prompt_for_new_path(&dir, Some(&named));
         // The tab stays here until this ends.
         let busy = self.hold(tab);
         cx.spawn(async move |this, cx| {
@@ -105,7 +152,11 @@ impl Docs {
                 Err(error) => Err(error.to_string()),
             };
             in_window(&this, cx, |docs, _, cx| match chosen {
-                Ok(Some(path)) => docs.export_to(tab, path, pdf, cx),
+                Ok(Some(path)) => match format {
+                    Format::Pdf => docs.export_to(tab, path, pdf, cx),
+                    Format::Markdown => docs.write_markdown(tab, path, cx),
+                    _ => docs.write_copy(tab, path, format, cx),
+                },
                 Ok(None) => log::info!("doc: the export panel was cancelled"),
                 Err(error) => docs.panel_failed(&error, cx),
             })
@@ -150,6 +201,38 @@ impl Docs {
         });
     }
 
+    /// Writes `format` aside, then to `path`; the tab stays.
+    fn write_copy(&mut self, tab: u64, path: PathBuf, format: Format, cx: &mut Context<Self>) {
+        if !self.export_target_free(&path, COPY_FAILED, cx) {
+            return;
+        }
+        let Some(work) = self.tab(tab).map(|tab| tab.work.clone()) else {
+            return self.output_failed(COPY_FAILED, &ely_ui::i18n::text(cx, "error.closed", &[]), cx);
+        };
+        log::info!("doc: writing a {} copy", format.ext());
+        let (shown, opened) = (ely_office::files::file_name(&path), path.clone());
+        let busy = self.hold(tab);
+        self.read_in(
+            tab,
+            move |worker, doc| {
+                ely_office::remote::export_to(&work, &path, |copy| {
+                    format.write(worker, doc, &ely_lok::file_url(copy))
+                })
+            },
+            move |docs, written, _, cx| {
+                let _busy = busy;
+                match written {
+                    Ok(()) => {
+                        let text = Docs::text(cx, "doc.output.exported", &[("name", &shown)]);
+                        docs.toast_output(text, opened.clone(), cx);
+                    }
+                    Err(error) => docs.output_failed(COPY_FAILED, &error.to_string(), cx),
+                }
+            },
+            cx,
+        );
+    }
+
     /// Writes the PDF in the background; `then` takes the outcome.
     fn write_pdf(
         &mut self,
@@ -179,6 +262,26 @@ impl Docs {
     }
 }
 
+/// The offered name; `copy` keeps off the open file's.
+pub(crate) fn suggested(source: &str, format: Format, copy: impl FnOnce(&str) -> String) -> String {
+    let stem = source.rsplit_once('.').map_or(source, |(stem, _)| stem);
+    let named = format!("{stem}.{}", format.ext());
+    match named.eq_ignore_ascii_case(source) {
+        true => format!("{}.{}", copy(stem), format.ext()),
+        false => named,
+    }
+}
+
+/// Sets the open dialog's format.
+fn choose(this: &Entity<Docs>, cx: &mut App, chosen: Format) {
+    this.update(cx, |docs, cx| {
+        if let Some(Dialog::Output { format, .. }) = &mut docs.dialog {
+            *format = chosen;
+        }
+        cx.notify();
+    })
+}
+
 /// Edits the open output dialog.
 fn change(this: &Entity<Docs>, cx: &mut App, edit: impl FnOnce(&mut bool, &mut Pdf)) {
     this.update(cx, |docs, cx| {
@@ -189,10 +292,10 @@ fn change(this: &Entity<Docs>, cx: &mut App, edit: impl FnOnce(&mut bool, &mut P
     })
 }
 
-/// The dialog before a PDF goes out: pages, comments, changes.
+/// The export or print dialog.
 pub fn output_dialog(
     this: Entity<Docs>,
-    (print, all, pdf, last): (bool, bool, Pdf, u32),
+    (print, format, all, pdf, last): (bool, Format, bool, Pdf, u32),
     dismiss: impl Fn(&mut Window, &mut App) + 'static,
     cx: &App,
 ) -> Card {
@@ -240,7 +343,25 @@ pub fn output_dialog(
             .label(text(key))
             .on_change(move |on, _, cx| change(&this, cx, |_, pdf| set(pdf, on)))
     };
-    let fields = DescriptionList::new()
+    let formats = (!print).then(|| {
+        let this = this.clone();
+        let choices = FORMATS.map(|format| Choice::new(format.ext(), text(&format!("doc.output.format.{}", format.ext()))));
+        Select::new("doc-output-format", choices)
+            .label(text("doc.output.format"))
+            .selected(format.ext())
+            .on_change(move |value, _, cx| {
+                let Some(chosen) = Format::of(value) else {
+                    return log::error!("doc: no export format {value}");
+                };
+                choose(&this, cx, chosen)
+            })
+    });
+    let mut fields = DescriptionList::new();
+    if let Some(formats) = formats {
+        fields = fields.item(text("doc.output.format"), formats);
+    }
+    if format == Format::Pdf {
+        fields = fields
         .item(
             text("doc.output.pages"),
             div().flex().flex_col().gap_2().child(pages).children(range),
@@ -264,6 +385,7 @@ pub fn output_dialog(
                     |pdf, on| pdf.changes = on,
                 )),
         );
+    }
     let (title, go) = match print {
         true => ("doc.output.print_title", "doc.output.print"),
         false => ("doc.output.export_title", "doc.output.export"),
@@ -278,3 +400,6 @@ pub fn output_dialog(
                 .on_click(move |_, _, cx| this.update(cx, |docs, cx| docs.output(cx)))
         })
 }
+
+#[cfg(test)]
+mod tests;

@@ -40,6 +40,7 @@ pub enum Dialog {
     Output {
         tab: u64,
         print: bool,
+        format: crate::output::Format,
         all: bool,
         pdf: ely_lok::Pdf,
     },
@@ -80,6 +81,7 @@ impl Docs {
             Dialog::Output {
                 tab,
                 print,
+                format,
                 all,
                 pdf,
             } => {
@@ -91,7 +93,7 @@ impl Docs {
                     .pages()
                     .len();
                 let last = u32::try_from(last).expect("a page count");
-                crate::output::output_dialog(this, (*print, *all, *pdf, last), dismiss, cx)
+                crate::output::output_dialog(this, (*print, *format, *all, *pdf, last), dismiss, cx)
             }
             Dialog::Table { columns, rows } => {
                 crate::insert::table_dialog(this, (*columns, *rows), dismiss, cx)

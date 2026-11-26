@@ -272,6 +272,11 @@ impl Doc {
         self.store(worker, url, format, "")
     }
 
+    /// Plain text as UTF-8, whatever the locale.
+    pub fn export_plain(&self, worker: &mut Worker, url: &str) -> io::Result<()> {
+        self.store(worker, url, "txt", "UTF8")
+    }
+
     /// A recovery point; a waiting request stops it.
     pub fn snapshot(&self, worker: &mut Worker, url: &str, format: &str) -> io::Result<()> {
         self.stoppable(worker, url, format, "Snapshot")
