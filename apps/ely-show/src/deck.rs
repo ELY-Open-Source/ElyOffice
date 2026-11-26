@@ -41,6 +41,7 @@ pub struct Deck {
     pub probe: Option<crate::media::Probe>,
     pub playing: Option<crate::media::Playing>,
     pub show: Option<Entity<crate::slideshow::Show>>,
+    pub board: Option<crate::slideshow::scoreboard::Board>,
     /// A show is being read or its screens picked.
     pub show_starting: bool,
     /// Shows started; each copy has its own file.
@@ -193,6 +194,7 @@ impl Deck {
             probe: None,
             playing: None,
             show: None,
+            board: None,
             show_starting: false,
             shows: 0,
             dialog_asked: 0,
@@ -424,6 +426,7 @@ impl Deck {
         let marks = self.remark_layer(&view, cx);
         let playing = self.media_layer(&view, window, cx);
         let preview = self.preview_layer(&view, window, cx);
+        let scores = self.scoreboard_layer(&view, cx);
         let notes = self.notes_pane(window, cx);
         div()
             .size_full()
@@ -438,6 +441,7 @@ impl Deck {
                     .children(guides)
                     .children(marks)
                     .children(playing)
+                    .children(scores)
                     .children(preview),
             )
             .children(notes)

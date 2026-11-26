@@ -30,6 +30,7 @@ pub enum Dialog {
     Show(crate::slideshow::start::Starting),
     Output(crate::output::Output),
     Check(Vec<crate::check::Finding>),
+    Scoreboard(crate::slideshow::scoreboard::dialog::Picking),
 }
 
 impl Dialog {
@@ -39,6 +40,7 @@ impl Dialog {
             Dialog::Table { tab, .. } | Dialog::Remark { tab, .. } | Dialog::Link { tab, .. } => *tab == id,
             Dialog::Output(output) => output.tab == id,
             Dialog::Chart(editing) => editing.tab == id,
+            Dialog::Scoreboard(picking) => picking.tab == id,
             Dialog::New(_) => false,
             Dialog::Show(_) | Dialog::Check(_) => active,
         }
@@ -106,6 +108,7 @@ impl Deck {
             Dialog::Link { text, url, .. } => self.link_dialog((text, url), cx),
             Dialog::Show(starting) => self.show_dialog(starting, cx),
             Dialog::Check(found) => self.check_dialog(found, cx),
+            Dialog::Scoreboard(picking) => self.scoreboard_dialog(picking, cx),
             Dialog::Output(output) => {
                 let closing = cx.entity();
                 let dismiss = move |_: &mut gpui::Window, cx: &mut App| {

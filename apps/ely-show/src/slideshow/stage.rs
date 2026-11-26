@@ -64,6 +64,7 @@ pub fn stage(show: &Show, (w, h): (Pixels, Pixels), cx: &App) -> AnyElement {
     let video = show.media_frame().map(|(frame, (x, y, vw, vh))| {
         crate::media::video(frame, (gpui::point(w * x, h * y), gpui::point(w * vw, h * vh)))
     });
+    let scores = show.board.as_ref().and_then(|board| super::scoreboard::overlay(board, part, (w, h), cx));
     div()
         .relative()
         .w(w)
@@ -71,6 +72,7 @@ pub fn stage(show: &Show, (w, h): (Pixels, Pixels), cx: &App) -> AnyElement {
         .overflow_hidden()
         .child(shown)
         .children(video)
+        .children(scores)
         .children(dot)
         .into_any_element()
 }
