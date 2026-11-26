@@ -1,0 +1,437 @@
+From: Ely Office
+Subject: Writer: replace and the CLI match text across tracked deletions
+
+- With changes shown, Find & Replace searched node text with deleted
+  words in it, so a phrase with a tracked deletion inside never
+  matched (R23.2a). 0170 only skipped matches touching a deletion;
+  hiding changes to replace reflows the document and moves a cursor
+  sitting in deleted text.
+- When replacing, the searched text drops shown deletions the way it
+  drops fields and soft hyphens, and positions map back. A match
+  never starts or ends inside a deletion; one inside a match is
+  replaced with it, as with changes hidden. Regex back references
+  read the same text. Find alone is unchanged.
+- ElyFormatMatches, ElyInsertTable and ElyInsertImage (0154-0156)
+  matched node text, deletions included; they now match the text
+  without tracked deletions too.
+
+diff --git a/sw/inc/crsrsh.hxx b/sw/inc/crsrsh.hxx
+--- a/sw/inc/crsrsh.hxx
++++ b/sw/inc/crsrsh.hxx
+@@ -138,7 +138,7 @@
+ 
+ /// Helperfunction to resolve backward references in regular expressions
+ std::optional<OUString> ReplaceBackReferences(const i18nutil::SearchOptions2& rSearchOpt,
+-        SwPaM* pPam, SwRootFrame const* pLayout );
++        SwPaM* pPam, SwRootFrame const* pLayout, bool bSkipDeletions = false );
+ 
+ bool GetRanges(std::vector<std::shared_ptr<SwUnoCursor>> & rRanges,
+         SwDoc & rDoc, SwPaM const& rDelPam);
+diff --git a/sw/source/core/crsr/findtxt.cxx b/sw/source/core/crsr/findtxt.cxx
+--- a/sw/source/core/crsr/findtxt.cxx
++++ b/sw/source/core/crsr/findtxt.cxx
+@@ -177,13 +177,90 @@
+ 
+ }
+ 
++/// Whether any level of rRedline deletes, as format on delete.
++static bool lcl_Deletes(SwRangeRedline const& rRedline)
++{
++    for (sal_uInt16 n = 0; n < rRedline.GetStackCount(); ++n)
++    {
++        if (rRedline.GetType(n) == RedlineType::Delete)
++            return true;
++    }
++    return false;
++}
++
++/// Shown deleted text of rNd within [nStart, nEnd), in order.
++static std::vector<std::pair<AmbiguousIndex, AmbiguousIndex>>
++lcl_ShownDeletions(const SwTextNode& rNd, SwTextFrame const*const pFrame,
++                   SwRootFrame const*const pLayout,
++                   AmbiguousIndex const nStart, AmbiguousIndex const nEnd)
++{
++    std::vector<std::pair<AmbiguousIndex, AmbiguousIndex>> aRet;
++    if (pLayout && pLayout->IsHideRedlines())
++        return aRet; // the merged text holds no deleted text
++    IDocumentRedlineAccess const& rIDRA(rNd.GetDoc().getIDocumentRedlineAccess());
++    SwRedlineTable const& rTable(rIDRA.GetRedlineTable());
++    SwRedlineTable::size_type n(0);
++    rIDRA.GetRedline(SwPosition(rNd, 0), &n);
++    for (; n < rTable.size(); ++n)
++    {
++        SwRangeRedline const& rRedline(*rTable[n]);
++        if (rNd.GetIndex() < rRedline.Start()->GetNodeIndex())
++            break;
++        if (rRedline.End()->GetNodeIndex() < rNd.GetIndex() || !lcl_Deletes(rRedline))
++            continue;
++        sal_Int32 const nFrom(rRedline.Start()->GetNodeIndex() < rNd.GetIndex()
++            ? 0 : rRedline.Start()->GetContentIndex());
++        sal_Int32 const nTo(rNd.GetIndex() < rRedline.End()->GetNodeIndex()
++            ? rNd.Len() : rRedline.End()->GetContentIndex());
++        AmbiguousIndex aFrom;
++        AmbiguousIndex aTo;
++        if (pLayout)
++        {
++            aFrom.SetFrameIndex(pFrame->MapModelToView(&rNd, nFrom));
++            aTo.SetFrameIndex(pFrame->MapModelToView(&rNd, nTo));
++        }
++        else
++        {
++            aFrom.SetModelIndex(nFrom);
++            aTo.SetModelIndex(nTo);
++        }
++        if (aFrom < nStart)
++            aFrom = nStart;
++        if (nEnd < aTo)
++            aTo = nEnd;
++        if (aFrom < aTo)
++            aRet.emplace_back(aFrom, aTo);
++    }
++    return aRet;
++}
++
++/// Where pHint starts, or -1 without one.
++static AmbiguousIndex lcl_HintStart(SwTextFrame const*const pFrame,
++        SwRootFrame const*const pLayout,
++        SwTextNode const*const pNode, SwTextAttr const*const pHint)
++{
++    AmbiguousIndex nRet;
++    if (pLayout)
++    {
++        nRet.SetFrameIndex(pHint
++                ? pFrame->MapModelToView(pNode, pHint->GetStart())
++                : TextFrameIndex(-1));
++    }
++    else
++    {
++        nRet.SetModelIndex(pHint ? pHint->GetStart() : -1);
++    }
++    return nRet;
++}
++
+ static OUString
+ lcl_CleanStr(const SwTextNode& rNd,
+              SwTextFrame const*const pFrame,
+              SwRootFrame const*const pLayout,
+              AmbiguousIndex const nStart, AmbiguousIndex & rEnd,
+              std::vector<AmbiguousIndex> &rArr,
+-             bool const bRemoveSoftHyphen, bool const bRemoveCommentAnchors)
++             bool const bRemoveSoftHyphen, bool const bRemoveCommentAnchors,
++             bool const bRemoveDeletions)
+ {
+     OUStringBuffer buf(pLayout ? pFrame->GetText() : rNd.GetText());
+     rArr.clear();
+@@ -198,6 +275,10 @@
+     std::vector<AmbiguousIndex> aReplaced;
+     SwTextNode const* pNextHintNode(nullptr);
+     SwTextAttr const* pNextHint(iter.NextAttr(pNextHintNode));
++    std::vector<std::pair<AmbiguousIndex, AmbiguousIndex>> const aDeletions(bRemoveDeletions
++        ? lcl_ShownDeletions(rNd, pFrame, pLayout, nStart, nEnd)
++        : std::vector<std::pair<AmbiguousIndex, AmbiguousIndex>>());
++    size_t nDel(0);
+ 
+     do
+     {
+@@ -235,6 +316,38 @@
+         bNewSoftHyphen = false;
+         AmbiguousIndex nStt;
+ 
++        // A shown deletion before the next stop goes whole.
++        if (nDel < aDeletions.size()
++            && (0 > nHintStart.GetAnyIndex() || aDeletions[nDel].first <= nHintStart)
++            && (-1 == nSoftHyphen.GetAnyIndex() || aDeletions[nDel].first <= nSoftHyphen))
++        {
++            auto const [nFrom, nTo] = aDeletions[nDel++];
++            AmbiguousIndex nCurrent(nFrom);
++            nCurrent.GetAnyIndex() -= rArr.size();
++            sal_Int32 const nLen(nTo.GetAnyIndex() - nFrom.GetAnyIndex());
++            for (sal_Int32 i = 0; i < nLen; ++i)
++            {
++                rArr.push_back(nCurrent);
++                if (rEnd.GetAnyIndex() > nCurrent.GetAnyIndex())
++                {
++                    --rEnd.GetAnyIndex();
++                }
++            }
++            buf.remove(nCurrent.GetAnyIndex(), nLen);
++            // what lay inside went with it
++            if (-1 != nSoftHyphen.GetAnyIndex() && nSoftHyphen < nTo)
++            {
++                nSoftHyphen = nTo;
++                bNewSoftHyphen = true;
++            }
++            while (0 <= nHintStart.GetAnyIndex() && nHintStart < nTo)
++            {
++                pNextHint = iter.NextAttr(pNextHintNode);
++                nHintStart = lcl_HintStart(pFrame, pLayout, pNextHintNode, pNextHint);
++            }
++            continue;
++        }
++
+         // Check if next stop is a hint.
+         if (0 <= nHintStart.GetAnyIndex()
+             && (-1 == nSoftHyphen.GetAnyIndex() || nHintStart < nSoftHyphen)
+@@ -361,7 +474,7 @@
+     bool bSrchForward, bool bRegSearch, bool bChkEmptyPara, bool bChkParaEnd,
+     AmbiguousIndex & nStart, AmbiguousIndex & nEnd, AmbiguousIndex nTextLen,
+     SwTextNode const* pNode, SwTextFrame const* pTextFrame,
+-    SwRootFrame const* pLayout, SwPaM& rPam);
++    SwRootFrame const* pLayout, SwPaM& rPam, bool bRemoveDeletions);
+ 
+ namespace sw {
+ 
+@@ -371,7 +484,7 @@
+         utl::TextSearch& rSText,
+         SwMoveFnCollection const & fnMove, const SwPaM & rRegion,
+         bool bInReadOnly, SwRootFrame const*const pLayout,
+-        std::unique_ptr<SvxSearchItem>& xSearchItem)
++        std::unique_ptr<SvxSearchItem>& xSearchItem, bool const bSkipDeletions)
+ {
+     if( rSearchOpt.searchString.isEmpty() )
+         return false;
+@@ -677,7 +790,7 @@
+                 // search inside the text between a note
+                 bFound = DoSearch(rSearchPam, rSearchOpt, rSText, fnMove, bSrchForward, bRegSearch,
+                                   bChkEmptyPara, bChkParaEnd, nStartInside, nEndInside, nTextLen,
+-                                  pNode->GetTextNode(), pFrame, pLayout, *oPam);
++                                  pNode->GetTextNode(), pFrame, pLayout, *oPam, bSkipDeletions);
+                 if (bFound)
+                     break;
+                 else
+@@ -708,7 +821,7 @@
+             // is disabled, we search the whole length just like before
+             bFound = DoSearch(rSearchPam, rSearchOpt, rSText, fnMove, bSrchForward, bRegSearch,
+                               bChkEmptyPara, bChkParaEnd, nStart, nEnd, nTextLen,
+-                              pNode->GetTextNode(), pFrame, pLayout, *oPam);
++                              pNode->GetTextNode(), pFrame, pLayout, *oPam, bSkipDeletions);
+         }
+         if (bFound)
+             break;
+@@ -724,7 +837,7 @@
+                       bool bChkEmptyPara, bool bChkParaEnd,
+         AmbiguousIndex & nStart, AmbiguousIndex & nEnd, AmbiguousIndex const nTextLen,
+         SwTextNode const*const pNode, SwTextFrame const*const pFrame,
+-        SwRootFrame const*const pLayout, SwPaM& rPam)
++        SwRootFrame const*const pLayout, SwPaM& rPam, bool const bRemoveDeletions)
+ {
+     if (bRegSearch && rSearchOpt.searchString.endsWith("$"))
+     {
+@@ -776,10 +889,10 @@
+ 
+     if( bSrchForward )
+         sCleanStr = lcl_CleanStr(*pNode, pFrame, pLayout, nStart, nEnd,
+-                        aFltArr, bRemoveSoftHyphens, bRemoveCommentAnchors);
++                        aFltArr, bRemoveSoftHyphens, bRemoveCommentAnchors, bRemoveDeletions);
+     else
+         sCleanStr = lcl_CleanStr(*pNode, pFrame, pLayout, nEnd, nStart,
+-                        aFltArr, bRemoveSoftHyphens, bRemoveCommentAnchors);
++                        aFltArr, bRemoveSoftHyphens, bRemoveCommentAnchors, bRemoveDeletions);
+ 
+     std::unique_ptr<SwScriptIterator> pScriptIter;
+     sal_uInt16 nSearchScript = 0;
+@@ -958,28 +1071,6 @@
+ {
+ }
+ 
+-/// Whether any of rPam lies in a shown tracked deletion.
+-static bool lcl_TouchesDeletion(SwPaM const& rPam, SwRootFrame const*const pLayout)
+-{
+-    if (pLayout && pLayout->IsHideRedlines())
+-        return false; // the hidden layout's search skips deleted text already
+-    IDocumentRedlineAccess const& rIDRA(rPam.GetDoc().getIDocumentRedlineAccess());
+-    SwRedlineTable const& rTable(rIDRA.GetRedlineTable());
+-    SwRedlineTable::size_type n;
+-    rIDRA.GetRedline(*rPam.Start(), &n);
+-    for (; n < rTable.size(); ++n)
+-    {
+-        SwRangeRedline const*const pRedline(rTable[n]);
+-        if (*rPam.End() <= *pRedline->Start())
+-            break;
+-        if (*pRedline->End() <= *rPam.Start())
+-            continue;
+-        if (pRedline->GetType() == RedlineType::Delete)
+-            return true;
+-    }
+-    return false;
+-}
+-
+ int SwFindParaText::DoFind(SwPaM & rCursor, SwMoveFnCollection const & fnMove,
+                           const SwPaM & rRegion, bool bInReadOnly,
+                           std::unique_ptr<SvxSearchItem>& xSearchItem)
+@@ -987,25 +1078,10 @@
+     if( bInReadOnly && m_bReplace )
+         bInReadOnly = false;
+ 
+-    bool bFnd = sw::FindTextImpl(rCursor, m_rSearchOpt, m_bSearchInNotes,
+-            m_aSText, fnMove, rRegion, bInReadOnly, m_pLayout, xSearchItem);
+-
+-    // Replacing never writes into deleted text: search on past it.
+-    if (m_bReplace && bFnd && lcl_TouchesDeletion(rCursor, m_pLayout))
+-    {
+-        SwPaM aRest(*rRegion.GetMark(), *rRegion.GetPoint());
+-        do
+-        {
+-            if (&fnMove == &fnMoveForward)
+-                *aRest.Start() = *rCursor.End();
+-            else
+-                *aRest.End() = *rCursor.Start();
+-            if (*aRest.Start() >= *aRest.End())
+-                return FIND_NOT_FOUND;
+-            bFnd = sw::FindTextImpl(rCursor, m_rSearchOpt, m_bSearchInNotes,
+-                    m_aSText, fnMove, aRest, bInReadOnly, m_pLayout, xSearchItem);
+-        } while (bFnd && lcl_TouchesDeletion(rCursor, m_pLayout));
+-    }
++    // Replacing reads the text as if deletions were accepted.
++    const bool bFnd = sw::FindTextImpl(rCursor, m_rSearchOpt, m_bSearchInNotes,
++            m_aSText, fnMove, rRegion, bInReadOnly, m_pLayout, xSearchItem,
++            m_bReplace);
+ 
+     if( bFnd && m_bReplace ) // replace string
+     {
+@@ -1022,7 +1098,7 @@
+ 
+         std::optional<OUString> xRepl;
+         if (bRegExp)
+-            xRepl = sw::ReplaceBackReferences(m_rSearchOpt, &rCursor, m_pLayout);
++            xRepl = sw::ReplaceBackReferences(m_rSearchOpt, &rCursor, m_pLayout, true);
+         bool const bReplaced = sw::ReplaceImpl(rCursor,
+                 xRepl ? *xRepl : m_rSearchOpt.replaceString,
+                 bRegExp, m_rCursor.GetDoc(), m_pLayout);
+@@ -1164,7 +1240,7 @@
+ }
+ 
+ std::optional<OUString> ReplaceBackReferences(const i18nutil::SearchOptions2& rSearchOpt,
+-        SwPaM *const pPam, SwRootFrame const*const pLayout)
++        SwPaM *const pPam, SwRootFrame const*const pLayout, bool const bSkipDeletions)
+ {
+     std::optional<OUString> xRet;
+     if( pPam && pPam->HasMark() &&
+@@ -1213,7 +1289,7 @@
+                 }
+                 std::vector<AmbiguousIndex> aFltArr;
+                 OUString const aStr = lcl_CleanStr(*pTextNode->GetTextNode(), pFrame, pLayout,
+-                                                   nStart, nEnd, aFltArr, false, false);
++                                                   nStart, nEnd, aFltArr, false, false, bSkipDeletions);
+                 if (aSText.SearchForward(aStr, &nStart.GetAnyIndex(), &nEnd.GetAnyIndex(), &aResult))
+                 {
+                     utl::TextSearch::ReplaceBackReferences( aReplaceStr, aStr, aResult );
+diff --git a/sw/source/core/inc/pamtyp.hxx b/sw/source/core/inc/pamtyp.hxx
+--- a/sw/source/core/inc/pamtyp.hxx
++++ b/sw/source/core/inc/pamtyp.hxx
+@@ -99,7 +99,8 @@
+                 SwMoveFnCollection const & fnMove,
+                 const SwPaM & rRegion, bool bInReadOnly,
+                 SwRootFrame const* pLayout,
+-                std::unique_ptr<SvxSearchItem>& xSearchItem);
++                std::unique_ptr<SvxSearchItem>& xSearchItem,
++                bool bSkipDeletions = false);
+     bool FindFormatImpl(SwPaM & rSearchPam,
+                 const SwFormat& rFormat,
+                 SwMoveFnCollection const & fnMove,
+diff --git a/sw/source/uibase/shells/basesh.cxx b/sw/source/uibase/shells/basesh.cxx
+--- a/sw/source/uibase/shells/basesh.cxx
++++ b/sw/source/uibase/shells/basesh.cxx
+@@ -113,6 +113,9 @@
+ #include <UndoTable.hxx>
+ 
+ #include <ndtxt.hxx>
++#include <redline.hxx>
++#include <IDocumentRedlineAccess.hxx>
++#include <rtl/ustrbuf.hxx>
+ #include <SwStyleNameMapper.hxx>
+ #include <IDocumentContentOperations.hxx>
+ #include <IDocumentStylePoolAccess.hxx>
+@@ -1044,6 +1047,50 @@
+     return rSet.Count() > 0 || rColl;
+ }
+ 
++/// Ely: whether any level of rRedline deletes.
++bool lcl_ElyDeletes(const SwRangeRedline& rRedline)
++{
++    for (sal_uInt16 n = 0; n < rRedline.GetStackCount(); ++n)
++    {
++        if (rRedline.GetType(n) == RedlineType::Delete)
++            return true;
++    }
++    return false;
++}
++
++/// Ely: rText without tracked deletions; rAt maps chars back.
++OUString lcl_ElyKeptText(const SwTextNode& rText, std::vector<sal_Int32>& rAt)
++{
++    const OUString& rAll = rText.GetText();
++    std::vector<bool> aGone(rAll.getLength(), false);
++    const IDocumentRedlineAccess& rIDRA = rText.GetDoc().getIDocumentRedlineAccess();
++    const SwRedlineTable& rTable = rIDRA.GetRedlineTable();
++    SwRedlineTable::size_type n = 0;
++    rIDRA.GetRedline(SwPosition(rText, 0), &n);
++    for (; n < rTable.size(); ++n)
++    {
++        const SwRangeRedline& rRedline = *rTable[n];
++        if (rText.GetIndex() < rRedline.Start()->GetNodeIndex())
++            break;
++        if (rRedline.End()->GetNodeIndex() < rText.GetIndex() || !lcl_ElyDeletes(rRedline))
++            continue;
++        const sal_Int32 nFrom = rRedline.Start()->GetNodeIndex() < rText.GetIndex() ? 0 : rRedline.Start()->GetContentIndex();
++        const sal_Int32 nTo = rText.GetIndex() < rRedline.End()->GetNodeIndex() ? rAll.getLength() : rRedline.End()->GetContentIndex();
++        for (sal_Int32 i = nFrom; i < nTo; ++i)
++            aGone[i] = true;
++    }
++    OUStringBuffer aKept(rAll.getLength());
++    rAt.clear();
++    for (sal_Int32 i = 0; i < rAll.getLength(); ++i)
++    {
++        if (aGone[i])
++            continue;
++        aKept.append(rAll[i]);
++        rAt.push_back(i);
++    }
++    return aKept.makeStringAndClear();
++}
++
+ /// Ely: formats every body match of `rFind`, one undo step.
+ bool lcl_ElyFormatMatches(SwDoc& rDoc, const OUString& rFind, const OUString& rFormats)
+ {
+@@ -1053,24 +1100,25 @@
+         return false;
+     // The body only; headers, notes, frames are extras.
+     SwNodes& rNodes = rDoc.GetNodes();
+-    std::vector<std::pair<SwTextNode*, sal_Int32>> aHits;
++    std::vector<std::pair<SwTextNode*, std::pair<sal_Int32, sal_Int32>>> aHits;
++    std::vector<sal_Int32> aAt;
+     for (SwNodeOffset n = rNodes.GetEndOfExtras().GetIndex() + 1; n < rNodes.GetEndOfContent().GetIndex(); ++n)
+     {
+         SwTextNode* pText = rNodes[n]->GetTextNode();
+         if (!pText)
+             continue;
+-        const OUString& rText = pText->GetText();
+-        for (sal_Int32 nAt = rText.indexOf(rFind); nAt >= 0; nAt = rText.indexOf(rFind, nAt + rFind.getLength()))
+-            aHits.emplace_back(pText, nAt);
++        const OUString aText = lcl_ElyKeptText(*pText, aAt);
++        for (sal_Int32 nAt = aText.indexOf(rFind); nAt >= 0; nAt = aText.indexOf(rFind, nAt + rFind.getLength()))
++            aHits.emplace_back(pText, std::make_pair(aAt[nAt], aAt[nAt + rFind.getLength() - 1] + 1));
+     }
+     // No match changes nothing.
+     if (aHits.empty())
+         return false;
+     IDocumentContentOperations& rOps = rDoc.getIDocumentContentOperations();
+     rDoc.GetIDocumentUndoRedo().StartUndo(SwUndoId::INSATTR, nullptr);
+-    for (const auto& [pText, nAt] : aHits)
++    for (const auto& [pText, aSpan] : aHits)
+     {
+-        const SwPaM aMatch(*pText, nAt, *pText, nAt + rFind.getLength());
++        const SwPaM aMatch(*pText, aSpan.first, *pText, aSpan.second);
+         if (aSet.Count())
+             rOps.InsertItemSet(aMatch, aSet);
+         if (pColl)
+@@ -1088,7 +1136,8 @@
+     for (SwNodeOffset n = rNodes.GetEndOfExtras().GetIndex() + 1; n < rNodes.GetEndOfContent().GetIndex(); ++n)
+     {
+         SwTextNode* pText = rNodes[n]->GetTextNode();
+-        if (!pText || pText->GetText().indexOf(rFind) < 0)
++        std::vector<sal_Int32> aAt;
++        if (!pText || lcl_ElyKeptText(*pText, aAt).indexOf(rFind) < 0)
+             continue;
+         // A match in a table: after the whole table.
+         const SwNode* pTop = pText;

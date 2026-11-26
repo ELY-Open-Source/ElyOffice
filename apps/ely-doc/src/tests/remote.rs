@@ -376,3 +376,63 @@ fn replace_leaves_tracked_deletions_alone() {
     assert_eq!(ask(&mut cx, &docs, &["save", &file]).map(|_| ()), Ok(()));
     assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("Centred two one then".into()), "a read after saving");
 }
+
+#[test]
+fn a_tracked_deletion_inside_a_phrase_does_not_stop_the_match_or_move_the_cursor() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "keep gone here");
+    let path = dir.path().join("phrase.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    settle(&cx, |app| docs.read(app).core.tabs[0].name == "phrase.docx");
+    let file = path.display().to_string();
+    assert_eq!(ask(&mut cx, &docs, &["append", &file, "alpha gone beta zeta gone eta", ""]), Ok(String::new()));
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_track(&TrackChanges, window, cx));
+    let view = cx.update(|app| docs.read(app).core.tabs[0].view.clone());
+    settle(&cx, |app| view.read(app).state(".uno:TrackChanges") == Some("true"));
+    // Every "gone " becomes deleted text inside its phrase.
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, "gone ", ""]), Ok(String::new()));
+    assert_eq!(ask(&mut cx, &docs, &["get", &file]), Ok("keep here\nalpha beta zeta eta".into()));
+    // Each key waits for the kernel to move the cursor.
+    let press = |cx: &mut TestAppContext, key: i32| {
+        let before = cx.update(|app| view.read(app).cursor());
+        cx.update(|app| {
+            let docs = docs.read(app);
+            let mut worker = docs.core.worker.lock().expect("the worker");
+            worker.post_key(&docs.core.tabs[0].doc, 0, key).expect("the key goes");
+        });
+        settle(cx, |app| view.read(app).cursor().is_some_and(|at| Some(at) != before));
+    };
+    // Into the deleted "gone" of line one.
+    press(&mut cx, 1028);
+    for _ in 0..7 {
+        press(&mut cx, 1027);
+    }
+    let inside = cx.update(|app| view.read(app).cursor());
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, "alpha beta", "first"]), Ok(String::new()));
+    assert_eq!(ask(&mut cx, &docs, &["format", &file, "zeta eta", "on\t\t\t\t\t\t"]), Ok(String::new()));
+    assert_eq!(ask(&mut cx, &docs, &["table.insert", &file, "t", "zeta eta", "false"]), Ok(String::new()));
+    settled(&cx, &docs);
+    assert_eq!(cx.update(|app| view.read(app).cursor()), inside, "the cursor stays in the deleted text");
+    let shown = cx.update(|app| view.read(app).state(".uno:ShowTrackedChanges").map(str::to_owned));
+    assert_eq!(shown.as_deref(), Some("true"), "the view never changes");
+    let text = ask(&mut cx, &docs, &["get", &file]).expect("the text");
+    assert!(text.starts_with("keep here\nfirst zeta eta\nt"), "{text:?}");
+    assert!(ask(&mut cx, &docs, &["save", &file]).is_ok(), "saved");
+    let xml = text_of(&mut cx, &docs, &path);
+    assert!(xml.contains("fo:font-weight=\"bold\""), "zeta eta is bold");
+    // Recording on: deleted text inside a match stays deleted.
+    assert_eq!(xml.matches("gone").count(), 3, "three deleted runs keep their text");
+    // Recording off: the deletion goes with the match.
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_track(&TrackChanges, window, cx));
+    settle(&cx, |app| view.read(app).state(".uno:TrackChanges") == Some("false"));
+    assert_eq!(ask(&mut cx, &docs, &["replace", &file, "keep here", "kept here"]), Ok(String::new()));
+    assert!(ask(&mut cx, &docs, &["save", &file]).is_ok(), "saved");
+    assert_eq!(text_of(&mut cx, &docs, &path).matches("gone").count(), 2, "replaced with the match");
+    assert!(ask(&mut cx, &docs, &["get", &file]).expect("the text").starts_with("kept here\n"));
+}
