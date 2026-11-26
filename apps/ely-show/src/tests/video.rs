@@ -41,6 +41,9 @@ fn stopped_by(another_slide: bool, stop: impl FnOnce(&mut Show, &mut Context<Sho
     while !cx.update(|app| {
         show.update(app, |show, cx| {
             show.media_tick(cx);
+            if let Some(notice) = &show.notice {
+                panic!("the player stopped: {notice}");
+            }
             let Some((now, _)) = show.media_frame() else {
                 return false;
             };
