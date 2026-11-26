@@ -1,0 +1,137 @@
+From: Ely Office
+Subject: LOK: Writer lists body paragraphs without exporting the document
+
+- ElyDoc read the body by saving a flat ODF copy. ODF export hides
+  tracked deletions for its length and shows them again, so a read
+  took seconds with thousands of changes and pushed a cursor out of
+  deleted text (R23.2b).
+- getCommandValues(".uno:ElyBody") lists each body paragraph with its
+  style's programmatic name and its text: fields expanded; footnote,
+  comment and frame anchors and tracked deletions left out, also a
+  deletion under a format change, which HideDeletions misses. A
+  deleted paragraph break joins the two paragraphs, and a
+  paragraph deleted from its start takes the next one's style, as
+  the flat export does. Nothing in the document or the view changes.
+
+diff --git a/sw/source/uibase/uno/loktxdoc.cxx b/sw/source/uibase/uno/loktxdoc.cxx
+--- a/sw/source/uibase/uno/loktxdoc.cxx
++++ b/sw/source/uibase/uno/loktxdoc.cxx
+@@ -51,6 +51,10 @@
+ #include <svl/itemset.hxx>
+ #include <txtrfmrk.hxx>
+ #include <ndtxt.hxx>
++#include <modeltoviewhelper.hxx>
++#include <SwStyleNameMapper.hxx>
++#include <fmtcol.hxx>
++#include <rtl/ustrbuf.hxx>
+ #include <redline.hxx>
+ #include <unoredline.hxx>
+ #include <unoredlines.hxx>
+@@ -1204,6 +1208,87 @@
+     }
+ }
+ 
++/// Whether any level of rRedline deletes.
++bool ElyDeletes(const SwRangeRedline& rRedline)
++{
++    for (sal_uInt16 n = 0; n < rRedline.GetStackCount(); ++n)
++    {
++        if (rRedline.GetType(n) == RedlineType::Delete)
++            return true;
++    }
++    return false;
++}
++
++/// The deletion holding rPos, if any.
++const SwRangeRedline* ElyDeletionAt(const IDocumentRedlineAccess& rIDRA, const SwPosition& rPos)
++{
++    const SwRangeRedline* pRedline = rIDRA.GetRedline(rPos, nullptr);
++    return pRedline && ElyDeletes(*pRedline) ? pRedline : nullptr;
++}
++
++/// getCommandValues(".uno:ElyBody"): body paragraphs, deletions left out.
++void GetBody(tools::JsonWriter& rJsonWriter, SwDocShell* pDocShell)
++{
++    SwWrtShell* pWrtShell = pDocShell->GetWrtShell();
++    const SwDoc& rDoc = *pDocShell->GetDoc();
++    const SwNodes& rNodes = rDoc.GetNodes();
++    const IDocumentRedlineAccess& rIDRA = rDoc.getIDocumentRedlineAccess();
++    SwRootFrame const* pLayout = pWrtShell ? pWrtShell->GetLayout() : nullptr;
++    auto aParagraphs = rJsonWriter.startArray("paragraphs");
++    OUStringBuffer aText;
++    const SwTextNode* pFirst = nullptr;
++    // Footnotes, headers and frames lie before the body.
++    for (SwNodeOffset n = rNodes.GetEndOfExtras().GetIndex() + 1;
++         n < rNodes.GetEndOfContent().GetIndex(); ++n)
++    {
++        const SwTextNode* pText = rNodes[n]->GetTextNode();
++        if (!pText)
++            continue;
++        // A paragraph deleted from its start takes the next style.
++        if (!pFirst && !(pText->Len() && ElyDeletionAt(rIDRA, SwPosition(*pText, 0))))
++            pFirst = pText;
++        const ModelToViewHelper aView(*pText, pLayout,
++            ExpandMode::ExpandFields | ExpandMode::HideFieldmarkCommands);
++        // HideDeletions misses a deletion under a format change.
++        std::vector<std::pair<sal_Int32, sal_Int32>> aGone;
++        for (auto nAct = rIDRA.GetRedlinePos(*pText, RedlineType::Any);
++             nAct < rIDRA.GetRedlineTable().size(); ++nAct)
++        {
++            const SwRangeRedline* pRedline = rIDRA.GetRedlineTable()[nAct];
++            if (pRedline->Start()->GetNode() > *pText)
++                break;
++            sal_Int32 nStart, nEnd;
++            pRedline->CalcStartEnd(pText->GetIndex(), nStart, nEnd);
++            if (ElyDeletes(*pRedline) && nEnd > nStart)
++                aGone.emplace_back(nStart, nEnd);
++        }
++        const OUString& rShown = aView.getViewText();
++        for (sal_Int32 i = 0; i < rShown.getLength(); ++i)
++        {
++            const sal_Int32 nAt = aView.ConvertToModelPosition(i).mnPos;
++            const sal_Unicode c = rShown[i];
++            // Input field and form marks.
++            if (c == CH_TXT_ATR_INPUTFIELDSTART || c == CH_TXT_ATR_INPUTFIELDEND
++                || c == CH_TXT_ATR_FORMELEMENT
++                || std::any_of(aGone.begin(), aGone.end(),
++                               [nAt](const auto& r) { return nAt >= r.first && nAt < r.second; }))
++                continue;
++            aText.append(c);
++        }
++        // A deleted break joins this paragraph to the next.
++        const SwRangeRedline* pBreak = ElyDeletionAt(rIDRA, SwPosition(*pText, pText->Len()));
++        const SwTextNode* pNext = rNodes[n + 1]->GetTextNode();
++        if (pBreak && pNext && pBreak->End()->GetNodeIndex() > n)
++            continue;
++        const SwTextNode* pStyled = pFirst ? pFirst : pText;
++        auto aParagraph = rJsonWriter.startStruct();
++        rJsonWriter.put("style", SwStyleNameMapper::GetProgName(
++            pStyled->GetTextColl()->GetName(), SwGetPoolIdFromName::TxtColl).toString());
++        rJsonWriter.put("text", aText.makeStringAndClear());
++        pFirst = nullptr;
++    }
++}
++
+ /// getCommandValues(".uno:ElyReading"): the body and the cursor's paragraph.
+ void GetReading(tools::JsonWriter& rJsonWriter, SwDocShell* pDocShell)
+ {
+@@ -1362,7 +1447,7 @@
+             u"Bookmark",       u"Field",         u"Layout",
+             u"Formula",        u"WordCount",     u"Outline",
+             u"CharFonts",      u"ExternalLinks", u"ElyUpdateLinks",
+-            u"ElyReading" };
++            u"ElyReading",     u"ElyBody" };
+ 
+     return std::find(vForward.begin(), vForward.end(), rCommand) != vForward.end();
+ }
+@@ -1461,6 +1546,10 @@
+     {
+         GetReading(rJsonWriter, m_pDocShell);
+     }
++    else if (rCommand == ".uno:ElyBody"sv)
++    {
++        GetBody(rJsonWriter, m_pDocShell);
++    }
+     else if (o3tl::starts_with(rCommand, ".uno:CharFonts"sv))
+     {
+         GetCharFonts(rJsonWriter, m_pDocShell);

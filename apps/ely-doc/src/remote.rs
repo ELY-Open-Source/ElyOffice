@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use ely_lok::Pdf;
+use ely_lok::{Pdf, review};
 use ely_office::{
     prelude::*,
     remote::{self, Cli},
@@ -84,19 +84,18 @@ impl Docs {
         };
         match &words[..] {
             [verb, _, rest @ ..] if verb == "get" && rest.len() <= 1 => {
-                let Some(copy) = self.tab(id).map(|tab| tab.work.join("text.fodt")) else {
+                if self.tab(id).is_none() {
                     return ask.answer(Err(format!("tab {id} closed")));
-                };
+                }
                 let json = !rest.is_empty();
                 self.read_in(
                     id,
                     move |worker, doc| {
-                        let flat = remote::copy::<ely_office::Lok>(worker, doc, &copy, "fodt")?;
+                        let paragraphs = body(worker, doc)?;
                         if !json {
-                            return remote::body_text(&flat);
+                            return Ok(joined(&paragraphs));
                         }
-                        let paragraphs = remote::body_paragraphs(&flat)?;
-                        let listed: Vec<_> = paragraphs.iter().map(|(style, text)| serde_json::json!({ "style": style, "text": text })).collect();
+                        let listed: Vec<_> = paragraphs.iter().map(|it| serde_json::json!({ "style": it.style, "text": it.text })).collect();
                         Ok(serde_json::Value::from(listed).to_string())
                     },
                     move |_, read, _, _| ask.answer(read.map_err(|error| error.to_string())),
@@ -172,9 +171,9 @@ impl Docs {
                 );
             }
             [verb, file, url, after, width, image] if verb == "image.insert" => {
-                let Some(copy) = self.tab(id).map(|tab| tab.work.join("image.fodt")) else {
+                if self.tab(id).is_none() {
                     return ask.answer(Err(format!("tab {id} closed")));
-                };
+                }
                 let nothing = format::NOTHING.replace("{file}", file).replace("{find}", after);
                 let unread = image::READ.replace("{image}", image);
                 let (url, after, width) = (url.clone(), after.clone(), width.clone());
@@ -182,7 +181,7 @@ impl Docs {
                     id,
                     move |worker, doc| {
                         // FIND checked first: a refusal means the picture.
-                        if !after.is_empty() && !remote::body_text(&remote::copy::<ely_office::Lok>(worker, doc, &copy, "fodt")?)?.contains(&after) {
+                        if !after.is_empty() && !joined(&body(worker, doc)?).contains(&after) {
                             return Ok(Err(nothing));
                         }
                         Ok(worker.run(doc, "text.image", &[&url, &after, &width]).map_err(|error| {
@@ -230,6 +229,16 @@ impl Docs {
             cx,
         );
     }
+}
+
+/// The body as the kernel holds it; nothing exported.
+fn body(worker: &mut ely_lok::Worker, doc: &ely_lok::Doc) -> std::io::Result<Vec<review::Paragraph>> {
+    review::body(&worker.values(doc, review::BODY)?)
+}
+
+/// One paragraph a line.
+fn joined(paragraphs: &[review::Paragraph]) -> String {
+    paragraphs.iter().map(|it| it.text.as_str()).collect::<Vec<_>>().join("\n")
 }
 
 #[cfg(test)]

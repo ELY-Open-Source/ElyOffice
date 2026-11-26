@@ -78,6 +78,29 @@ pub fn reading(json: &str) -> io::Result<Option<Body>> {
     }
 }
 
+/// The kernel's list: body paragraphs, tracked deletions left out.
+pub const BODY: &str = ".uno:ElyBody";
+
+/// A body paragraph and its style's API name.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Paragraph {
+    pub style: String,
+    pub text: String,
+}
+
+/// What `BODY` lists, in document order.
+pub fn body(json: &str) -> io::Result<Vec<Paragraph>> {
+    let list = parse(json)?;
+    // The errors leave the document's text out.
+    let field = |entry: &serde_json::Value, key: &str| {
+        entry[key].as_str().map(str::to_string).ok_or_else(|| invalid(format!("a listed paragraph has no {key}")))
+    };
+    entries(&list, "paragraphs")?
+        .iter()
+        .map(|entry| Ok(Paragraph { style: field(entry, "style")?, text: field(entry, "text")? }))
+        .collect()
+}
+
 /// A heading from `.uno:Outline`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Heading {

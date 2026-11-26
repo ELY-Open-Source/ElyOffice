@@ -9,6 +9,8 @@ use crate::docs::Docs;
 use crate::review::TrackChanges;
 use crate::tests::{blank, docs, settle, settled, text_of, type_into, with_window};
 
+mod body;
+
 /// The answer to `words`, once it comes.
 fn ask(cx: &mut TestAppContext, docs: &Entity<Docs>, words: &[&str]) -> Result<String, String> {
     let (ask, answered) = ely_ui::Ask::for_tests(&serde_json::json!(words).to_string());
