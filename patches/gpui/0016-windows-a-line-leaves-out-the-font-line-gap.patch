@@ -1,0 +1,33 @@
+windows: a line's height leaves out the font's line gap
+
+DirectWriteTextSystem::layout_line took a line's ascent and descent
+from DWRITE_LINE_METRICS, whose baseline and height include the font's
+line gap. Fonts without USE_TYPO_METRICS whose hhea line gap exceeds
+the gap between their win metrics (IBM Plex Sans SC: hhea 0.88/0.12
+plus 1.0, win 1.06/0.44) gained half an em, so text centred in a fixed
+line height sat low: an overflow-hidden line cut its descenders and
+digits fell to the bottom of a pill (Ely R22.1). CoreText and
+cosmic-text report ascent and descent without the gap. The layout's
+format now disables the gap (IDWriteTextFormat3::SetLineSpacing,
+DWRITE_FONT_LINE_GAP_USAGE_DISABLED; Windows 10 1709 and later).
+
+DWRITE_LINE_SPACING: https://learn.microsoft.com/windows/win32/api/dwrite_3/ns-dwrite_3-dwrite_line_spacing
+
+diff --git a/vendor/gpui-pre-windows/src/direct_write.rs b/vendor/gpui-pre-windows/src/direct_write.rs
+index bfa50ffc..9ee590aa 100644
+--- a/vendor/gpui-pre-windows/src/direct_write.rs
++++ b/vendor/gpui-pre-windows/src/direct_write.rs
+@@ -530,6 +530,13 @@ impl DirectWriteState {
+                 if let Some(ref fallbacks) = font_info.fallbacks {
+                     format.SetFontFallback(fallbacks)?;
+                 }
++                // No line gap, as on macOS and Linux.
++                let spacing: IDWriteTextFormat3 = format.cast()?;
++                spacing.SetLineSpacing(&DWRITE_LINE_SPACING {
++                    method: DWRITE_LINE_SPACING_METHOD_DEFAULT,
++                    fontLineGapUsage: DWRITE_FONT_LINE_GAP_USAGE_DISABLED,
++                    ..Default::default()
++                })?;
+ 
+                 let layout = components.factory.CreateTextLayout(
+                     text_wide,

@@ -530,6 +530,13 @@ impl DirectWriteState {
                 if let Some(ref fallbacks) = font_info.fallbacks {
                     format.SetFontFallback(fallbacks)?;
                 }
+                // No line gap, as on macOS and Linux.
+                let spacing: IDWriteTextFormat3 = format.cast()?;
+                spacing.SetLineSpacing(&DWRITE_LINE_SPACING {
+                    method: DWRITE_LINE_SPACING_METHOD_DEFAULT,
+                    fontLineGapUsage: DWRITE_FONT_LINE_GAP_USAGE_DISABLED,
+                    ..Default::default()
+                })?;
 
                 let layout = components.factory.CreateTextLayout(
                     text_wide,
