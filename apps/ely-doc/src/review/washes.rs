@@ -1,4 +1,4 @@
-//! Commented words washed on the page, the picked thread darker (DOC-11).
+//! Commented words washed; the picked thread darker (DOC-11).
 
 use ely_lok::{Rect, review::Note};
 use gpui::{App, Context, Hsla, SharedString};
@@ -10,7 +10,7 @@ const WASH: f32 = 0.18;
 const PICKED: f32 = 0.36;
 
 impl Review {
-    /// Hands the page each open thread's words in its author's color.
+    /// Each open thread's words, washed in its author's color.
     pub(super) fn wash(&self, cx: &mut Context<Self>) {
         let Some(shown) = &self.shown else {
             return;
@@ -19,7 +19,7 @@ impl Review {
         shown.view.update(cx, |view, cx| view.wash_notes(washes, cx));
     }
 
-    /// The caret in a thread's words picks it; leaving lets go.
+    /// The caret inside a thread picks it; leaving lets go.
     pub(super) fn follow_caret(&mut self, cx: &mut Context<Self>) {
         let Some(shown) = &self.shown else {
             return;
@@ -29,7 +29,7 @@ impl Review {
         if at == self.inside {
             return;
         }
-        // A pick the caret made goes with it; the sidebar's stays.
+        // The caret's pick leaves with it; the sidebar's stays.
         if self.by_caret && self.active == self.inside {
             log::info!("doc: the caret leaves its thread");
             self.active = None;
