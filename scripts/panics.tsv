@@ -17,7 +17,7 @@ apps/ely-doc/src/output.rs	expect_used	u32::try_from(tab.view.read(cx).pages().l
 apps/ely-doc/src/props/page.rs	expect_used	PAPERS .iter() .find(|(paper, ..)| *paper == name) .expect("an offered paper")	linux,macos,windows	an offered paper
 apps/ely-doc/src/props/pairs.rs	expect_used	self.pending.get_mut(uno).expect("listed above")	linux,macos,windows	listed above
 apps/ely-doc/src/refs.rs	expect_used	reasons .iter() .find(|(known, _)| *known == key) .expect("a reason")	linux,macos,windows	a reason
-apps/ely-doc/src/review.rs	expect_used	authors .iter() .position(|name| *name == note.author) .expect("the author is listed")	linux,macos,windows	the author is listed
+apps/ely-doc/src/review.rs	expect_used	notes .iter() .position(|other| other.author == note.author) .expect("the note is among the notes")	linux,macos,windows	the note is among the notes
 apps/ely-mail/src/eml.rs	expect_used	ely_ui::mail_link(&link).expect("a mail link")	linux,macos,windows	a mail link
 apps/ely-mail/src/pictures.rs	expect_used	worker.join().expect("a picture fetch panicked")	linux,macos,windows	a picture fetch panicked
 apps/ely-mail/src/reading.rs	expect_used	was.remove(&id).expect("a kept letter is still shown")	linux,macos,windows	a kept letter is still shown

@@ -16,6 +16,8 @@ pub struct Note {
     /// ISO 8601, as the kernel gives it.
     pub at: String,
     pub anchor: Rect,
+    /// The commented words, one rect a line.
+    pub ranges: Vec<Rect>,
 }
 
 /// A tracked change from `.uno:AcceptTrackedChanges`.
@@ -119,6 +121,7 @@ pub fn notes(json: &str) -> io::Result<Vec<Note>> {
                 resolved: text(entry, "resolved")? == "true",
                 at: text(entry, "dateTime")?,
                 anchor: rect(&text(entry, "anchorPos")?)?,
+                ranges: rects(&text(entry, "textRange")?)?,
             })
         })
         .collect()
@@ -206,6 +209,11 @@ fn number(entry: &serde_json::Value, key: &str) -> io::Result<u64> {
         .ok_or_else(|| invalid(format!("an entry has no {key}: {entry}")))
 }
 
+/// Rects joined by semicolons; empty for none.
+fn rects(text: &str) -> io::Result<Vec<Rect>> {
+    text.split(';').filter(|part| !part.trim().is_empty()).map(rect).collect()
+}
+
 /// "x, y, w, h" in twips.
 fn rect(text: &str) -> io::Result<Rect> {
     let parts: Vec<i32> = text
@@ -283,6 +291,10 @@ mod tests {
             "a\n\n"
         );
         assert_eq!(notes[0].anchor, (4490, 14759, 1, 231));
+        assert!(notes[0].ranges.is_empty(), "a point comment has no words");
+        let lines = super::notes(r#"{"comments":[{"id":2,"parentId":0,"author":"A","html":"","resolved":"false","dateTime":"2026-10-04T10:00:00","anchorPos":"1, 2, 3, 4","textRange":"10, 20, 30, 40; 50, 60, 70, 80"}]}"#)
+            .expect("two lines parse");
+        assert_eq!(lines[0].ranges, vec![(10, 20, 30, 40), (50, 60, 70, 80)]);
         let changes = changes(r#"{"redlines":[{"index":1,"author":"A","type":"Insert","comment":"","description":"Insert x","dateTime":"2026-10-04T10:00:00","textRange":"4490, 14759, 648, 230; 1, 2, 3, 4"}]}"#)
             .expect("changes parse");
         assert_eq!(changes[0].anchor, Some((4490, 14759, 648, 230)));

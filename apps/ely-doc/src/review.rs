@@ -79,6 +79,7 @@ struct Shown {
     /// A read is on its way.
     reading: bool,
     _observe: Subscription,
+    _caret: Subscription,
 }
 
 pub struct Review {
@@ -90,6 +91,10 @@ pub struct Review {
     unread: Vec<Unread>,
     pub(crate) changes: Vec<Change>,
     active: Option<SharedString>,
+    /// The thread whose words hold the caret.
+    inside: Option<SharedString>,
+    /// The caret, not the sidebar, set `active`.
+    by_caret: bool,
     pane: Pane,
 }
 
@@ -105,6 +110,8 @@ impl Review {
             unread: Vec::new(),
             changes: Vec::new(),
             active: None,
+            inside: None,
+            by_caret: false,
             pane: Pane::Comments,
         }
     }
@@ -117,7 +124,7 @@ impl Review {
         }
         // Another document's lists must not stay actionable.
         self.shown = None;
-        self.active = None;
+        (self.active, self.inside, self.by_caret) = (None, None, false);
         self.notes.clear();
         self.threads.clear();
         self.unread.clear();
@@ -127,12 +134,14 @@ impl Review {
             return;
         };
         let observe = cx.subscribe(view, |review, _, _: &Reported, cx| review.refresh(cx));
+        let caret = cx.observe(view, |review, _, cx| review.follow_caret(cx));
         self.shown = Some(Shown {
             view: view.clone(),
             doc: doc.clone(),
             read: None,
             reading: false,
             _observe: observe,
+            _caret: caret,
         });
         self.refresh(cx);
     }
@@ -166,7 +175,10 @@ impl Review {
                 }
                 shown.reading = false;
                 match read {
-                    Ok((notes, changes)) => review.take_lists(notes, changes),
+                    Ok((notes, changes)) => {
+                        review.take_lists(notes, changes);
+                        review.wash(cx);
+                    }
                     Err(error) => cx.emit(LokError(format!(
                         "the review lists are unreadable: {error}"
                     ))),
@@ -196,10 +208,11 @@ impl Review {
 
     /// Picks a thread and goes to its words.
     fn select(&mut self, key: &SharedString, cx: &mut Context<Self>) {
-        self.active = Some(key.clone());
+        (self.active, self.by_caret) = (Some(key.clone()), false);
         if let Some(note) = self.notes.iter().find(|note| note.id == key.as_ref()) {
             self.reveal(note.anchor, cx);
         }
+        self.wash(cx);
         cx.notify();
     }
 
@@ -410,6 +423,15 @@ impl Review {
     }
 }
 
+/// The author, hued by their first note.
+fn author(notes: &[Note], note: &Note) -> Peer {
+    let hue = notes
+        .iter()
+        .position(|other| other.author == note.author)
+        .expect("the note is among the notes");
+    Peer::new(note.author.clone(), note.author.clone(), hue)
+}
+
 /// Notes threaded under their first comment; bad times apart.
 fn threads(notes: &[Note]) -> (Vec<Thread>, Vec<Unread>) {
     let parents: HashMap<&str, &str> = notes
@@ -423,7 +445,6 @@ fn threads(notes: &[Note]) -> (Vec<Thread>, Vec<Unread>) {
         }
         id.to_string()
     };
-    let authors: Vec<&str> = notes.iter().map(|note| note.author.as_str()).collect();
     let (mut threads, mut unread): (Vec<Thread>, Vec<Unread>) = (Vec::new(), Vec::new());
     for note in notes {
         let read = note.at.parse::<jiff::civil::DateTime>().and_then(|at| at.to_zoned(jiff::tz::TimeZone::system()));
@@ -434,12 +455,8 @@ fn threads(notes: &[Note]) -> (Vec<Thread>, Vec<Unread>) {
                 continue;
             }
         };
-        let hue = authors
-            .iter()
-            .position(|name| *name == note.author)
-            .expect("the author is listed");
         let comment = Comment {
-            author: Peer::new(note.author.clone(), note.author.clone(), hue),
+            author: author(notes, note),
             at: at.timestamp(),
             body: note.text.clone().into(),
             reactions: Vec::new(),
@@ -460,3 +477,4 @@ fn threads(notes: &[Note]) -> (Vec<Thread>, Vec<Unread>) {
 
 #[cfg(test)]
 mod tests;
+mod washes;

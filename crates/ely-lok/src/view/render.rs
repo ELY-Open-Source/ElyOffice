@@ -146,6 +146,9 @@ impl Render for LokView {
                             window.refresh();
                         }
                         window.with_content_mask(Some(ContentMask { bounds }), |window| {
+                            for (rect, wash) in painted.notes {
+                                window.paint_quad(fill(rect, wash));
+                            }
                             for rect in painted.selection {
                                 window.paint_quad(fill(rect, selection_color));
                             }
@@ -245,6 +248,8 @@ pub(super) struct Painted {
     /// Each tile, its place and the pane that clips it.
     pub(super) tiles: Vec<(Bounds<Pixels>, Arc<RenderImage>, Bounds<Pixels>)>,
     pub(super) selection: Vec<Bounds<Pixels>>,
+    /// Commented words, washed.
+    pub(super) notes: Vec<(Bounds<Pixels>, gpui::Hsla)>,
     pub(super) caret: Option<Bounds<Pixels>>,
     /// A spreadsheet's cell cursor.
     pub(super) cell: Option<Bounds<Pixels>>,
@@ -404,6 +409,7 @@ impl LokView {
             pages,
             tiles,
             selection: self.text_selection(),
+            notes: self.note_washes(),
             caret,
             cell: self.cell.cursor.map(rect),
             frame,

@@ -28,6 +28,7 @@ pub use held::bound_keys;
 mod ime;
 mod input;
 mod lane;
+mod notes;
 mod off;
 mod panes;
 mod reading;
@@ -141,6 +142,8 @@ pub struct LokView {
     states: states::States,
     graphic: Option<Rect>,
     review: u64,
+    /// Commented words and the wash over each.
+    notes: Vec<(Rect, gpui::Hsla)>,
     /// The last search outcome: its count and matches.
     search: (u64, Vec<Rect>),
     menu: Option<String>,
@@ -253,6 +256,7 @@ impl LokView {
             states: Default::default(),
             graphic: None,
             review: 0,
+            notes: Vec::new(),
             search: (0, Vec::new()),
             menu: None,
             right_at: None,
