@@ -80,6 +80,8 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("show.timer.pause", "Pausar tiempo"),
     ("show.timer.reset", "Reiniciar tiempo"),
     ("show.timer.edit", "Editar"),
+    ("show.focus.timer", "Foco al reloj"),
+    ("show.focus.scores", "Foco al marcador"),
     ("show.keep.unread", "No se pudieron leer los temporizadores y marcadores guardados: {error}"),
     ("show.keep.format", "Los temporizadores y marcadores solo se guardan en .pptx y .odp, no en .{format}"),
     ("show.score.closed", "Abre {name} en ElyTable para ver la hoja {sheet}, o vuelve a vincular la diapositiva"),

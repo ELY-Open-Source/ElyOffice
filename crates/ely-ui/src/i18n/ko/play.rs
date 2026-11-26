@@ -71,6 +71,8 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("show.timer.pause", "타이머 일시 정지"),
     ("show.timer.reset", "타이머 초기화"),
     ("show.timer.edit", "편집"),
+    ("show.focus.timer", "타이머 크게"),
+    ("show.focus.scores", "점수판 크게"),
     ("show.keep.unread", "저장된 타이머와 점수판을 읽지 못했습니다: {error}"),
     ("show.keep.format", "타이머와 점수판은 .pptx와 .odp에만 저장되며 .{format}에는 저장되지 않습니다"),
     ("show.score.closed", "시트 {sheet}을(를) 보려면 ElyTable에서 {name}을(를) 열거나 슬라이드를 다시 연결하세요"),

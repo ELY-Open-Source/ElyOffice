@@ -71,6 +71,8 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("show.timer.pause", "Suspendre le minuteur"),
     ("show.timer.reset", "Réinitialiser le minuteur"),
     ("show.timer.edit", "Modifier"),
+    ("show.focus.timer", "Mettre le minuteur en avant"),
+    ("show.focus.scores", "Mettre le score en avant"),
     ("show.keep.unread", "Impossible de lire les minuteurs et tableaux de score enregistrés : {error}"),
     ("show.keep.format", "Les minuteurs et tableaux de score ne sont enregistrés qu’en .pptx et .odp, pas en .{format}"),
     ("show.score.closed", "Ouvrez {name} dans ElyTable pour voir la feuille {sheet}, ou liez de nouveau la diapo"),

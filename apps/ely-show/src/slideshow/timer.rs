@@ -14,7 +14,7 @@ mod drag;
 mod draw;
 
 pub use drag::Drag;
-pub use draw::{BAND, Hand, face};
+pub use draw::{ASIDE, Act, BAND, Hand, Room, face};
 
 /// How often a running countdown redraws.
 const TICK: Duration = Duration::from_millis(200);
@@ -37,6 +37,8 @@ pub struct Timer {
     pub spot: Spot,
     /// Where it was dragged: its middle, as slide shares.
     pub at: Option<(f32, f32)>,
+    /// Beside scores, it has the focus and they shrink.
+    pub ahead: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -64,8 +66,19 @@ pub struct Face {
     pub phase: Phase,
     pub spot: Spot,
     pub at: Option<(f32, f32)>,
+    pub ahead: bool,
     /// In its last seconds.
     pub ending: bool,
+}
+
+impl Face {
+    /// The words for the button that swaps the focus.
+    pub fn focus_key(&self) -> &'static str {
+        match self.ahead {
+            true => "show.focus.scores",
+            false => "show.focus.timer",
+        }
+    }
 }
 
 /// The seconds a running countdown warns for.
@@ -97,7 +110,7 @@ impl Timer {
         // A started second counts until it ends.
         let seconds = left.as_secs() + u64::from(left.subsec_nanos() > 0);
         let ending = phase != Phase::Ready && seconds <= WARN;
-        Face { text: clock(seconds), phase, spot: self.spot, at: self.at, ending }
+        Face { text: clock(seconds), phase, spot: self.spot, at: self.at, ahead: self.ahead, ending }
     }
 }
 
@@ -199,6 +212,19 @@ impl Show {
         Some(clocks.read(cx).face(&timer, cx.background_executor().now()))
     }
 
+    /// Gives the shown slide's focus to the other one.
+    pub fn swap_focus(&mut self, cx: &mut Context<Self>) {
+        let Some(part) = self.part().filter(|part| self.board.as_ref().is_some_and(|board| board.linked(*part))) else {
+            return;
+        };
+        let timer = self.timers.as_mut().and_then(|timed| timed.slides.get_mut(part)).and_then(Option::as_mut);
+        if let Some(timer) = timer {
+            timer.ahead = !timer.ahead;
+            log::info!("show: the countdown has the focus: {}", timer.ahead);
+            cx.notify();
+        }
+    }
+
     /// Starts or pauses the shown countdown.
     pub fn toggle_timer(&mut self, cx: &mut Context<Self>) {
         if let Some((timer, clocks)) = self.part().and_then(|part| self.timer(part)) {
@@ -247,7 +273,7 @@ mod tests {
 
     #[test]
     fn a_countdown_rounds_up_warns_and_ends() {
-        let timer = Timer { id: 1, length: Duration::from_secs(70), spot: Spot::Top, at: None };
+        let timer = Timer { id: 1, length: Duration::from_secs(70), spot: Spot::Top, at: None, ahead: false };
         let start = Instant::now();
         let run = Run { length: timer.length, spent: Duration::ZERO, since: Some(start) };
         let at = |millis| timer.face(Some(&run), start + Duration::from_millis(millis));

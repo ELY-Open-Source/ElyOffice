@@ -173,7 +173,7 @@ fn written(held: &[Held]) -> serde_json::Value {
             });
             let timer = held.timer.map(|timer| {
                 let spot = SPOTS.iter().find(|(spot, _)| *spot == timer.spot).map(|(_, word)| *word);
-                serde_json::json!({ "id": timer.id, "seconds": timer.length.as_secs(), "spot": spot, "at": timer.at })
+                serde_json::json!({ "id": timer.id, "seconds": timer.length.as_secs(), "spot": spot, "at": timer.at, "ahead": timer.ahead })
             });
             serde_json::json!({ "slide": held.at, "score": score, "timer": timer })
         })
@@ -216,11 +216,17 @@ fn slide(value: &serde_json::Value) -> io::Result<Held> {
                     Some((x as f32, y as f32))
                 }
             };
+            let ahead = match &timer["ahead"] {
+                // Files saved before focus existed have none.
+                serde_json::Value::Null => false,
+                ahead => ahead.as_bool().ok_or_else(|| invalid("countdown focus"))?,
+            };
             Some(Timer {
                 id: number("id")?,
                 length: Duration::from_secs(number("seconds")?),
                 spot: spot.ok_or_else(|| invalid("countdown spot"))?,
                 at,
+                ahead,
             })
         }
     };
@@ -234,7 +240,7 @@ mod tests {
     #[test]
     fn what_is_written_reads_back_without_elytables_key() {
         let score = Source { book: "7:0".into(), path: None, name: "Game".into(), sheet: "S 1".into() };
-        let timer = Timer { id: 3, length: Duration::from_secs(90), spot: Spot::Corner, at: Some((0.25, 0.5)) };
+        let timer = Timer { id: 3, length: Duration::from_secs(90), spot: Spot::Corner, at: Some((0.25, 0.5)), ahead: true };
         let held = vec![
             Held { at: 0, score: Some(score.clone()), timer: None },
             Held { at: 4, score: None, timer: Some(timer) },

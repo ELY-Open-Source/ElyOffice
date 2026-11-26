@@ -18,6 +18,8 @@ pub enum Band {
     None,
     Top(Pixels),
     Bottom(Pixels),
+    /// Small along the bottom; the countdown has the focus.
+    Aside(Pixels),
 }
 
 impl Board {
@@ -42,10 +44,15 @@ pub fn overlay(board: &Board, part: usize, (w, h): (Pixels, Pixels), band: Band,
         Band::None => (Pixels::ZERO, Pixels::ZERO),
         Band::Top(tall) => (tall, Pixels::ZERO),
         Band::Bottom(tall) => (Pixels::ZERO, tall),
+        Band::Aside(tall) => (h - tall, Pixels::ZERO),
     };
     let centred = |place: Div| place.top_0().left_0().size_full().pt(above).pb(below).items_center().justify_center();
     let sized = |size| rows.map(|rows| card(rows, size, cx));
-    let room = (w, h - above - below);
+    let narrow = match band {
+        Band::Aside(_) => w * 0.6,
+        Band::None | Band::Top(_) | Band::Bottom(_) => w,
+    };
+    let room = (narrow, h - above - below);
     Some(match board.look {
         Look::Corner => place.top(h * 0.03).right(w * 0.02).children(sized((w * CORNER, h * CORNER))),
         Look::Full => centred(place).bg(cx.theme().palette().surface).children(sized(room)),

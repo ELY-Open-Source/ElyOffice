@@ -71,6 +71,8 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("show.timer.pause", "Tạm dừng hẹn giờ"),
     ("show.timer.reset", "Đặt lại hẹn giờ"),
     ("show.timer.edit", "Sửa"),
+    ("show.focus.timer", "Phóng to đồng hồ"),
+    ("show.focus.scores", "Phóng to bảng điểm"),
     ("show.keep.unread", "Không đọc được đồng hồ hẹn giờ và bảng điểm đã lưu: {error}"),
     ("show.keep.format", "Đồng hồ hẹn giờ và bảng điểm chỉ được lưu trong .pptx và .odp, không lưu trong .{format}"),
     ("show.score.closed", "Mở {name} trong ElyTable để xem trang tính {sheet}, hoặc liên kết lại trang chiếu"),

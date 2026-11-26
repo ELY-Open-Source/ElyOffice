@@ -108,8 +108,10 @@ impl Deck {
             None => extra.slides.list.iter().map(|slide| slide.name.clone()).collect(),
         };
         for name in names {
+            // Editing a countdown leaves the focus where it was.
+            let ahead = extra.timers.get(&name).is_some_and(|timer| timer.ahead);
             match length {
-                Some(length) => extra.timers.insert(name, Timer { id, length, spot, at }),
+                Some(length) => extra.timers.insert(name, Timer { id, length, spot, at, ahead }),
                 None => extra.timers.remove(&name),
             };
         }
@@ -123,6 +125,15 @@ impl Deck {
         if let Some(timer) = timer.filter(|timer| timer.at != Some(at)) {
             timer.at = Some(at);
             self.mark_unsaved(tab, cx);
+        }
+    }
+
+    /// Swaps which of a slide's two has the focus.
+    pub fn swap_focus(&mut self, tab: u64, slide: &str, cx: &mut Context<Self>) {
+        if let Some(timer) = self.tab_mut(tab).and_then(|tab| tab.extra.timers.get_mut(slide)) {
+            timer.ahead = !timer.ahead;
+            self.mark_unsaved(tab, cx);
+            cx.notify();
         }
     }
 

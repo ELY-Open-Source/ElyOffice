@@ -40,7 +40,7 @@ impl Render for Audience {
         if show.moving() {
             window.request_animation_frame();
         }
-        let shown = stage::stage(show, size, cx);
+        let shown = stage::stage(show, &self.show, size, cx);
         // Alone, the audience screen says what failed.
         let notice = (show.warning())
             .filter(|_| !show.presenter)

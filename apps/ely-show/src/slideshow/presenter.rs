@@ -134,6 +134,7 @@ impl Presenter {
                             button(&self.show, ("show-play-timer-reset", label("show.timer.reset")), Show::reset_timer),
                         ]
                     }))
+                    .children(show.part().filter(|part| show.board.as_ref().is_some_and(|board| board.linked(*part))).and_then(|part| show.countdown(part, cx)).map(|face| button(&self.show, ("show-play-focus", label(face.focus_key())), Show::swap_focus)))
                     .children(show.board.is_some().then(|| button(&self.show, ("show-play-score", label("show.score.cycle")), Show::cycle_scores)))
                     .child(toggle(
                         &self.show,
@@ -182,7 +183,7 @@ impl Render for Presenter {
                 let inside = (0.0..=1.0).contains(&x) && (0.0..=1.0).contains(&y);
                 moved.update(cx, |show, cx| show.point(inside.then_some((x, y)), cx))
             })
-            .child(stage::stage(show, big, cx))
+            .child(stage::stage(show, &self.show, big, cx))
             .child(
                 canvas(move |bounds, _, _| store.set(bounds), |_, _, _, _| {})
                     .absolute()

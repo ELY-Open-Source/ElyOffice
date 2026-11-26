@@ -20,7 +20,7 @@ fn black((w, h): (Pixels, Pixels)) -> AnyElement {
 }
 
 /// The show's slide now, as the audience sees it.
-pub fn stage(show: &Show, (w, h): (Pixels, Pixels), cx: &App) -> AnyElement {
+pub fn stage(show: &Show, me: &gpui::Entity<Show>, (w, h): (Pixels, Pixels), cx: &App) -> AnyElement {
     let Some(part) = show.part().filter(|_| !show.black) else {
         return black((w, h));
     };
@@ -67,7 +67,13 @@ pub fn stage(show: &Show, (w, h): (Pixels, Pixels), cx: &App) -> AnyElement {
     let countdown = show.countdown(part, cx).zip(show.timer(part)).map(|(face, (timer, clocks))| {
         let words = |key| crate::deck::Deck::text(cx, key, &[]);
         let (run, reset) = (words(face.phase.run_key()), words("show.timer.reset"));
-        (face, super::timer::Hand { clocks: clocks.clone(), timer, run, reset, edit: None })
+        let linked = show.board.as_ref().is_some_and(|board| board.linked(part));
+        let swap = linked.then(|| {
+            let (show, label) = (me.clone(), words(face.focus_key()));
+            let act: super::timer::Act = std::rc::Rc::new(move |_, cx| show.update(cx, |show, cx| show.swap_focus(cx)));
+            (label, act)
+        });
+        (face, super::timer::Hand { clocks: clocks.clone(), timer, run, reset, swap, edit: None })
     });
     let over = super::overlays(show.board.as_ref(), countdown, part, (w, h), cx);
     div()

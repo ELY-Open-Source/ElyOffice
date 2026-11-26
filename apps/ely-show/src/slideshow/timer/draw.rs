@@ -18,12 +18,25 @@ use super::{Clocks, Face, Phase, Spot, Timer, drag::{Drag, Ghost}};
 /// The share of a slide's height a countdown's band takes.
 pub const BAND: f32 = 0.18;
 
+/// The slide's share the unfocused scores keep.
+pub const ASIDE: f32 = 0.38;
+
+/// How the countdown shares its slide.
+#[derive(Clone, Copy)]
+pub enum Room {
+    Alone,
+    /// Centred scores have the focus.
+    Beside,
+    /// It has the focus; scores step aside below.
+    Ahead,
+}
+
 /// The room the buttons take beside the countdown.
 const BUTTONS: Pixels = px(36.0);
 /// Wide enough that the show's buttons stay hovered.
 const WIDE: Pixels = px(260.0);
 
-type Act = Rc<dyn Fn(&mut Window, &mut App)>;
+pub type Act = Rc<dyn Fn(&mut Window, &mut App)>;
 
 /// What a click on a countdown reaches.
 pub struct Hand {
@@ -32,17 +45,25 @@ pub struct Hand {
     /// The start or pause button's words, then reset's.
     pub run: SharedString,
     pub reset: SharedString,
+    /// Gives the other one the focus, beside scores.
+    pub swap: Option<(SharedString, Act)>,
     /// The editor's edit button; the show has none.
     pub edit: Option<(SharedString, Act)>,
 }
 
 /// The countdown over a slide; `beside` scores, it shrinks.
-pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), beside: bool, cx: &App) -> AnyElement {
+pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), room: Room, cx: &App) -> AnyElement {
     let palette = cx.theme().palette();
-    // Beside centred scores, only a band stays free.
-    let spot = match face.spot {
-        Spot::Center if beside => Spot::Top,
-        spot => spot,
+    // With the focus, it is large above the scores.
+    let (spot, at) = match (room, face.spot) {
+        (Room::Ahead, _) => (Spot::Center, None),
+        // Beside centred scores, only a band stays free.
+        (Room::Beside, Spot::Center) => (Spot::Top, face.at),
+        (_, spot) => (spot, face.at),
+    };
+    let tall = match room {
+        Room::Ahead => h * (1.0 - ASIDE),
+        Room::Alone | Room::Beside => h,
     };
     let text = match spot {
         Spot::Center => (h * 0.28).min(w * 0.16),
@@ -57,11 +78,13 @@ pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), beside: bool, cx:
     let (clocks, timer) = (hand.clocks.clone(), hand.timer);
     // Blocking hides the group's hover, which the show needs.
     let editing = hand.edit.is_some();
+    // The large, focused clock holds no dragged place.
+    let movable = editing && !matches!(room, Room::Ahead);
     let drag = Drag::default();
     let drawn = drag.drawn.clone();
     let pill = div()
         .id("show-timer-clock")
-        .when(editing, |pill| {
+        .when(movable, |pill| {
             pill.occlude().on_drag(drag, |drag, offset, _, cx| {
                 drag.hold(offset);
                 cx.new(|_| Ghost)
@@ -85,14 +108,14 @@ pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), beside: bool, cx:
         .child(face.text.clone())
         .child(canvas(move |bounds, _, _| drawn.set(bounds), |_, _, _, _| {}).absolute().inset_0());
     // Buttons near an edge turn towards the slide.
-    let (above, side) = match (face.at, spot) {
+    let (above, side) = match (at, spot) {
         (Some((x, y)), _) => (y > 0.75, if x > 0.7 { Side::Right } else if x < 0.3 { Side::Left } else { Side::Middle }),
         (None, Spot::Corner) => (true, Side::Right),
         (None, Spot::Bottom) => (true, Side::Middle),
         (None, Spot::Top | Spot::Center) => (false, Side::Middle),
     };
     let held = div().group("show-timer").relative().min_w(WIDE).flex();
-    let held = match (face.at, spot) {
+    let held = match (at, spot) {
         (None, Spot::Corner) => held.justify_end().pt(BUTTONS),
         (None, Spot::Top) => held.justify_center().pb(BUTTONS),
         (None, Spot::Bottom) => held.justify_center().pt(BUTTONS),
@@ -101,10 +124,10 @@ pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), beside: bool, cx:
     };
     let held = held.child(pill).child(buttons(hand, above, side));
     let place = div().absolute().flex().justify_center();
-    match (face.at, spot) {
+    match (at, spot) {
         (Some((x, y)), _) => place.left(w * x - w).top(h * y - h / 2.0).w(w * 2.0).h(h).items_center(),
         (None, Spot::Top) => place.top(h * 0.022).left_0().w(w).items_start(),
-        (None, Spot::Center) => place.top_0().left_0().w(w).h(h).items_center(),
+        (None, Spot::Center) => place.top_0().left_0().w(w).h(tall).items_center(),
         (None, Spot::Bottom) => place.bottom(h * 0.03).left_0().w(w).items_end(),
         (None, Spot::Corner) => place.bottom(h * 0.03).right(w * 0.02),
     }
@@ -131,6 +154,11 @@ fn buttons(hand: Hand, above: bool, side: Side) -> AnyElement {
         .size(ControlSize::Sm)
         .on_click(move |_, _, cx| clocks.update(cx, |clocks, cx| clocks.reset(id, cx)));
     let hidden = hand.edit.is_none();
+    let swap = hand.swap.map(|(label, act)| {
+        Button::new("show-timer-clock-focus", label)
+            .size(ControlSize::Sm)
+            .on_click(move |_, window, cx| act(window, cx))
+    });
     let edit = hand.edit.map(|(label, act)| {
         Button::new("show-timer-clock-edit", label)
             .size(ControlSize::Sm)
@@ -145,7 +173,8 @@ fn buttons(hand: Hand, above: bool, side: Side) -> AnyElement {
         .whitespace_nowrap()
         .child(run)
         .child(reset)
-        .children(edit);
+        .children(edit)
+        .children(swap);
     let row = match hidden {
         true => row.invisible().group_hover("show-timer", |row| row.visible()),
         false => row,

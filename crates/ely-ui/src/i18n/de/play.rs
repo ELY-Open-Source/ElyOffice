@@ -71,6 +71,8 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("show.timer.pause", "Timer anhalten"),
     ("show.timer.reset", "Timer zurücksetzen"),
     ("show.timer.edit", "Bearbeiten"),
+    ("show.focus.timer", "Fokus: Timer"),
+    ("show.focus.scores", "Fokus: Tafel"),
     ("show.keep.unread", "Gespeicherte Timer und Anzeigetafeln konnten nicht gelesen werden: {error}"),
     ("show.keep.format", "Timer und Anzeigetafeln werden nur in .pptx und .odp gespeichert, nicht in .{format}"),
     ("show.score.closed", "Öffnen Sie {name} in ElyTable, um das Blatt {sheet} zu sehen, oder verknüpfen Sie die Folie neu"),
