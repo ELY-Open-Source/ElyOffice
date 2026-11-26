@@ -110,6 +110,8 @@ impl Book {
                     cx,
                 );
             }
+            // A waiting file has loaded by now.
+            [verb, _] if verb == "score.load" => ask.answer(Ok(String::new())),
             [verb, _, target] if verb == "export" => self.export_for(id, PathBuf::from(target), ask, cx),
             _ => ask.answer(Err("unknown command".into())),
         }

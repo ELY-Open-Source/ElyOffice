@@ -19,6 +19,7 @@ mod page;
 mod protect;
 mod remote;
 mod rules;
+mod score;
 mod sheets;
 mod template;
 mod text;

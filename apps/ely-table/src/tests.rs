@@ -434,6 +434,7 @@ mod remote;
 mod output;
 mod protect;
 mod range;
+mod score;
 mod structure;
 mod rules;
 mod sources;
