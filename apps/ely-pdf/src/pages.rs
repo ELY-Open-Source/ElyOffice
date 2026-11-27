@@ -186,12 +186,14 @@ impl PdfView {
         } else {
             self.filling.get_or_insert_with(std::time::Instant::now);
         }
+        self.lit.begin();
         let pages: Vec<(Placed, Vec<AnyElement>)> = showing
             .iter()
             .map(|s| {
                 let (w, h) = (s.place.w, s.place.h);
-                let tiles = self
-                    .pieces(s)
+                let pieces = self.pieces(s);
+                let picked = self.picked_text(&s.place, &pieces, laid.scale, cx);
+                let mut tiles: Vec<AnyElement> = pieces
                     .into_iter()
                     .map(|(image, at)| {
                         drawn_tile(image, s.place.page, cx.entity())
@@ -203,9 +205,11 @@ impl PdfView {
                             .into_any_element()
                     })
                     .collect();
+                tiles.extend(picked);
                 (s.place, tiles)
             })
             .collect();
+        self.lit.end(&mut self.retired);
         self.settle(&showing, &ahead);
         let pages_shown: Vec<usize> = showing.iter().map(|s| s.place.page).collect();
         self.ask_layers(&pages_shown, cx);

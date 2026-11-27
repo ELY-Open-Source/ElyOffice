@@ -129,7 +129,16 @@ impl PdfView {
         }
     }
 
-    /// Picked text and found words drawn over a page.
+    /// A box for each picked line of `page`.
+    pub fn picked_lines(&self, page: usize) -> Vec<[f32; 4]> {
+        let span = self.selection.and_then(|selection| selection.span(|page| self.text.get(&page).map(|chars| chars.as_slice())));
+        let (Some(span), Some(chars)) = (span, self.text.get(&page)) else {
+            return Vec::new();
+        };
+        span.on(page, chars.len()).map_or_else(Vec::new, |range| crate::annotate::line_boxes(&chars[range]))
+    }
+
+    /// Found words drawn over a page.
     pub fn page_marks(&self, place: &Placed, scale: f32, cx: &App) -> Vec<AnyElement> {
         let colors = &cx.theme().colors;
         let size = self.sizes[place.page];
@@ -138,12 +147,6 @@ impl PdfView {
             div().absolute().left(px(x)).top(px(y)).w(px(w)).h(px(h)).bg(color).into_any_element()
         };
         let mut marks = Vec::new();
-        let span = self.selection.and_then(|selection| selection.span(|page| self.text.get(&page).map(|chars| chars.as_slice())));
-        if let (Some(span), Some(chars)) = (span, self.text.get(&place.page)) {
-            for c in span.on(place.page, chars.len()).map_or(&[][..], |range| &chars[range]) {
-                marks.push(mark(c.rect, colors.selection));
-            }
-        }
         for (at, (_, quads)) in self.found.iter().enumerate().filter(|(_, (page, _))| *page == place.page) {
             let color = match self.chosen == Some(at) {
                 true => colors.warning.opacity(0.5),
