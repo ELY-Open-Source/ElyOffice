@@ -78,6 +78,22 @@ impl LokView {
         }
     }
 
+    /// Shows a search match, well clear of the edges.
+    pub fn show_found(&mut self, rect: Rect, cx: &mut Context<Self>) {
+        self.show(rect, cx);
+        let (_, y, _, h) = self.tile_rect(rect);
+        let (_, fy) = self.frozen_tiles();
+        let before = self.scroll;
+        if y >= fy {
+            let view = self.geom.twips_of(self.viewport.1) - fy;
+            self.scroll.1 = comfortable(y - fy, h, self.scroll.1, view);
+        }
+        self.clamp_scroll();
+        if self.scroll != before {
+            cx.notify();
+        }
+    }
+
     /// Freezes what lies before `frozen`, in print twips.
     pub fn set_frozen(&mut self, frozen: (i32, i32), cx: &mut Context<Self>) {
         if self.frozen != frozen {
@@ -284,9 +300,37 @@ impl LokView {
     }
 }
 
+/// Keeps a span in the middle three fifths, else centres.
+fn comfortable(start: i32, len: i32, scroll: i32, view: i32) -> i32 {
+    let margin = view / 5;
+    let inside = start >= scroll + margin && start + len <= scroll + view - margin;
+    if inside { scroll } else { start + len / 2 - view / 2 }
+}
+
 /// The scroll nearest `scroll` that shows `start..start + len`.
 fn least(start: i32, len: i32, scroll: i32, view: i32) -> i32 {
     // A span wider than the view keeps covering it.
     let end = start + len - view;
     scroll.clamp(start.min(end), start.max(end))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::comfortable;
+
+    #[test]
+    fn a_match_near_an_edge_is_centred() {
+        // Barely inside the bottom edge, then far below.
+        assert_eq!(comfortable(1_960, 20, 1_000, 1_000), 1_470);
+        assert_eq!(comfortable(5_000, 20, 1_000, 1_000), 4_510);
+        // Near the top, under the find box.
+        assert_eq!(comfortable(1_050, 20, 1_000, 1_000), 560);
+    }
+
+    #[test]
+    fn a_match_in_the_middle_stays_put() {
+        for start in [1_200, 1_500, 1_780] {
+            assert_eq!(comfortable(start, 20, 1_000, 1_000), 1_000);
+        }
+    }
 }

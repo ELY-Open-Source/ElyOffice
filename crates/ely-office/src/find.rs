@@ -279,11 +279,15 @@ pub trait Finding: Host<Engine = crate::Lok> {
                 (Some(Asked::All), _) | (Some(Asked::Step), None) => {
                     finder.all = found.clone();
                     finder.current = None;
+                    // The next step picks the first match.
+                    if let Some(&first) = found.first() {
+                        view.update(cx, |view, cx| view.show_found(first, cx));
+                    }
                 }
                 (Some(Asked::Step), Some(first)) => {
                     finder.current = finder.all.iter().position(|rect| rect == first);
                     let first = *first;
-                    view.update(cx, |view, cx| view.show(first, cx));
+                    view.update(cx, |view, cx| view.show_found(first, cx));
                 }
                 (None, _) => log::info!(
                     "{}: a search outcome nobody asked for",

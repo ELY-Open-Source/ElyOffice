@@ -81,6 +81,11 @@ impl LokView {
         &self.selection
     }
 
+    /// Whether a search match is what's selected.
+    pub(super) fn selects_found(&self) -> bool {
+        self.selection.first().is_some_and(|rect| self.search.1.contains(rect))
+    }
+
     /// The last search's count and matches.
     pub fn search(&self) -> (u64, &[Rect]) {
         (self.search.0, &self.search.1)
