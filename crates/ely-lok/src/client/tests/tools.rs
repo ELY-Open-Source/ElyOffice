@@ -194,3 +194,27 @@ fn compare_marks_changes_against_an_older_file() {
         "the older file stays"
     );
 }
+
+#[test]
+fn compare_leaves_out_changes_both_files_hold() {
+    if install().is_none() {
+        eprintln!("SKIP: no pinned LOK build");
+        return;
+    }
+    let (dir, mut worker, doc) = open(TEXT);
+    let tracked = |worker: &mut Worker, doc: &Doc| {
+        review::changes(&worker.values(doc, ".uno:AcceptTrackedChanges").expect("changes")).expect("changes parse")
+    };
+    worker.run(&doc, "track.toggle", &[]).expect("tracks");
+    worker.post_text(&doc, false, "Shared ").expect("types");
+    worker.post_text(&doc, true, "").expect("commits");
+    assert!(!tracked(&mut worker, &doc).is_empty(), "the typing is a tracked change");
+    let before = saved(&dir, &mut worker, &doc, "older.fodt");
+    let older = dir.path().join("older.fodt");
+    worker
+        .run(&doc, "doc.compare", &[&crate::file_url(&older), "true"])
+        .expect("the compare runs");
+    let left = tracked(&mut worker, &doc);
+    assert!(left.is_empty(), "the same text and change differ nowhere: {left:?}");
+    assert_eq!(std::fs::read_to_string(&older).expect("reads"), before, "the older file keeps its change");
+}

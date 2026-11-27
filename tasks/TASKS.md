@@ -1120,8 +1120,12 @@
   - 已做（跟进）：`highlight.rs` 两行注释超十字，check.sh 不过（PR 的 pr.yml 同样会败），缩短
   - 查明：每帧代价——切图按（图块、像素框、填色）缓存，上一帧用过的沿用，没用到的当帧交 `Retired` 释放；拖选时只有变了的那行重切，一行的像素量；无选区时不做事。颜色取 `cx.theme().colors.selection`（主题里是半透明，这里取其不透明的色，过亮的按亮度压暗到白字可读；深色 #69a1e8 压到约 0.72 倍）；页面本身照文件原色，与深浅色无关；Omarchy 经 ely-ui 映射到同一字段。跨图块：一行落在两块上时各切各的、各定纸色，边上 floor/ceil 至多重一像素，颜色相同。旋转与缩放：行框（`rect_on`）与图块位置都是显示坐标，切图按图块实际像素与显示尺寸之比换算，缩放中拉伸的旧图块同样对齐。纸色取一行里最多的亮度：墨多于纸的行（如极粗的大字）会反过来，按字形推断行框里纸总多于墨，未实测；切图失败时每帧记一次错误，只在重绘时
   - Omarchy（新建的 PDF worker，`PKG_CONFIG_PATH` 指向 `engines/openssl`）：ElyPDF 213 过（含贡献者未能跑的三个 OCR 测试），clippy 无告警；本机 check.sh、panics.py 过
-- [ ] R24.1 #140 ElyDoc 比较两份文档时不显示两边共有的旧修订，正文与修订都相同即提示“未发现差异”，两份源文档不变（§6）
+- [x] R24.1 #140 ElyDoc 比较两份文档时不显示两边共有的旧修订，正文与修订都相同即提示“未发现差异”，两份源文档不变（§6）
   - 方案：照 Word（任一份有修订即按全部接受后比较）。比较的新副本先全部接受；旧文件由内核载入内存后全部接受（内核补丁，在 `SwView::InsertMedium` 的比较分支，文件不动）；`.uno:CompareDocuments` 已回 `SfxInt32Item` 差异数（与 0177 同为 "long"），为 0 即 toast“未发现差异”并不开空的比较页
+  - 已做：补丁 0179（`SwView::InsertMedium` 的比较分支）比较前对当前文档全部接受，对旧文档只在为这次比较载入时（`SwFindDocShell` 返回 2）全部接受——已在别处打开的旧文档不动、只记 SAL_WARN；答复仍是差异数。ElyDoc 的 `compare.rs`：ElyDoc 按用户文件原路径载入，旧文件可能正开在同一引擎的另一标签里（会被接受修订），所以先在 worker 读里把它复制到比较标签的工作目录（`older-<名>`），内核只载入这份副本；比较改在 `read_in` 里同步跑（`doc.compare` 为 Check::Result，等内核答复），随后读修订表——两边旧修订都已接受，剩下的就是差异：0 即关掉比较标签、toast `doc.compare.same`，否则命名标签、开审阅侧栏，出错关标签并报错。帮助加一行（writer）
+  - 测试：ely-lok `compare_leaves_out_changes_both_files_hold`（带同一修订的两份比较后修订表为空、旧文件原样）；ElyDoc `an_identical_copy_with_the_same_changes_shows_no_difference`（修订中写出的旧文件比较：toast、只剩一个标签、旧文件原样）；原有的 `compare_opens_a_marked_copy_and_keeps_both_files` 与 `compare_marks_changes_against_an_older_file` 照旧
+  - `tests.rs` 两行 `use ely_office` 并成一行，加 `mod compare` 后仍为 500 行
+  - Omarchy（Writer 以 0179 重建，libswlo 00:27）：ely-lok 比较 3 过，ElyDoc 197 过，翻译 29 过，clippy（ely-doc、ely-lok、ely-ui）无告警；本机 check.sh、panics.py 过。未在不带 0179 的内核上跑过新测试以确认它们会败
 - [ ] R24.2a #141 ElyTable 在行号、列标上按住拖动即连选整行整列，与拖边线改宽高分开（§7）
 - [ ] R24.2b #141 ElyTable 填充柄按住 Ctrl 拖为复制而非递增（Excel 的做法；单个数字照 Excel 反过来）（§7）
 - [ ] R24.2c #141 ElyTable 复制的单元格贴进聊天框成图：复制时剪贴板另带一张选区的图（§7）

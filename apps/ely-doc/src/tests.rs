@@ -4,8 +4,7 @@ use gpui::{AppContext as _, Entity, TestAppContext, Window};
 
 use crate::docs::Docs;
 use crate::files::Template;
-use ely_office::prelude::*;
-use ely_office::{After, Dialog};
+use ely_office::{After, Dialog, prelude::*};
 
 struct Blank;
 
@@ -469,6 +468,7 @@ fn an_outside_change_asks_and_keep_mine_overwrites() {
 }
 
 mod closing;
+mod compare;
 mod dropped;
 pub(crate) mod find;
 mod focus;

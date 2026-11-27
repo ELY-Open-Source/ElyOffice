@@ -45,6 +45,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("doc.menu.caption", "캡션 삽입…"),
     ("doc.compare.open", "비교 대상…"),
     ("doc.compare.name", "{name} 비교"),
+    ("doc.compare.same", "{name}과(와) 차이가 없습니다"),
     ("doc.output.export_title", "내보내기"),
     ("doc.output.format", "형식"),
     ("doc.output.format.pdf", "PDF (.pdf)"),

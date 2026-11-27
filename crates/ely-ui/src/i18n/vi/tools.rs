@@ -45,6 +45,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("doc.menu.caption", "Chèn chú thích hình…"),
     ("doc.compare.open", "So sánh với…"),
     ("doc.compare.name", "{name} đã so sánh"),
+    ("doc.compare.same", "Không tìm thấy khác biệt nào so với {name}"),
     ("doc.output.export_title", "Xuất"),
     ("doc.output.format", "Định dạng"),
     ("doc.output.format.pdf", "PDF (.pdf)"),

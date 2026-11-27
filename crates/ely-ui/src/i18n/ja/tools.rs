@@ -45,6 +45,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("doc.menu.caption", "キャプションの挿入…"),
     ("doc.compare.open", "比較…"),
     ("doc.compare.name", "{name} の比較結果"),
+    ("doc.compare.same", "{name} との違いは見つかりませんでした"),
     ("doc.output.export_title", "エクスポート"),
     ("doc.output.format", "形式"),
     ("doc.output.format.pdf", "PDF（.pdf）"),

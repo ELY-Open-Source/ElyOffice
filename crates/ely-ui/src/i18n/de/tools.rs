@@ -45,6 +45,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("doc.menu.caption", "Beschriftung einfügen…"),
     ("doc.compare.open", "Vergleichen mit…"),
     ("doc.compare.name", "{name} verglichen"),
+    ("doc.compare.same", "Keine Unterschiede zu {name} gefunden"),
     ("doc.output.export_title", "Exportieren"),
     ("doc.output.format", "Format"),
     ("doc.output.format.pdf", "PDF (.pdf)"),

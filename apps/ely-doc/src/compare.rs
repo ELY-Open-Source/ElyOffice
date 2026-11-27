@@ -1,6 +1,7 @@
 //! Compares the active document with an older file (DOC-13).
 
-use std::path::PathBuf;
+use std::io;
+use std::path::{Path, PathBuf};
 
 use ely_gpui_component::primitives::Severity;
 use gpui::{Context, Window, actions};
@@ -40,12 +41,18 @@ impl Docs {
             Err(error) => return self.failed_open(&name, &error, cx),
         };
         let copy = dir.join("compared.odt");
+        // The older file is compared as a copy.
+        let old = dir.join(format!("older-{}", file_name(&older)));
         let url = ely_lok::file_url(&copy);
+        let taken = (older.clone(), old.clone());
         self.read_in(
             id,
-            move |worker, doc| doc.save_as(worker, &url, "odt"),
+            move |worker, doc| {
+                std::fs::copy(&taken.0, &taken.1)?;
+                doc.save_as(worker, &url, "odt")
+            },
             move |docs, saved, _, cx| match saved {
-                Ok(()) => docs.compare_copy((id, into), name, copy, older, cx),
+                Ok(()) => docs.compare_copy((id, into), name, copy, (older, old), cx),
                 Err(error) => docs.failed_open(&name, &error, cx),
             },
             cx,
@@ -58,29 +65,47 @@ impl Docs {
         (id, into): (u64, u64),
         name: gpui::SharedString,
         copy: PathBuf,
-        older: PathBuf,
+        (older, old): (PathBuf, PathBuf),
         cx: &mut Context<Self>,
     ) {
         log::info!("doc: comparing tab {id} with {}", file_name(&older));
         self.load_into(into, Source::Copy(copy), cx);
-        let url = ely_lok::file_url(&older);
+        let url = ely_lok::file_url(&old);
         self.core.waiting.push((
             into,
             Box::new(move |docs, _, cx| {
-                let Some(tab) = docs.tab_mut(into) else {
-                    return;
+                // Both sides' changes are accepted first: what is left differs.
+                let compared = move |worker: &mut ely_lok::Worker, doc: &ely_lok::Doc| {
+                    worker.run(doc, "doc.compare", &[&url, "true"])?;
+                    Ok(ely_lok::review::changes(&worker.values(doc, ".uno:AcceptTrackedChanges")?)?.len())
                 };
-                tab.name = Docs::text(cx, "doc.compare.name", &[("name", &name)]);
-                let sent = tab
-                    .view
-                    .update(cx, |view, _| view.run("doc.compare", &[&url, "true"]));
-                if let Err(error) = sent {
-                    let text =
-                        Docs::text(cx, "office.error.engine", &[("error", &error.to_string())]);
-                    return docs.toast(text, Severity::Danger, cx);
-                }
-                docs.show_side(Side::Review, cx);
+                docs.read_in(into, compared, move |docs, found, _, cx| docs.compared(into, name, &older, found, cx), cx);
             }),
         ));
+    }
+
+    /// Shows what the compare found, or says it found nothing.
+    fn compared(&mut self, into: u64, name: gpui::SharedString, older: &Path, found: io::Result<usize>, cx: &mut Context<Self>) {
+        match found {
+            Ok(0) => {
+                log::info!("doc: tab {into} matches {}", file_name(older));
+                self.close_tab(into, cx);
+                let text = Docs::text(cx, "doc.compare.same", &[("name", &file_name(older))]);
+                self.toast(text, Severity::Info, cx);
+            }
+            Ok(found) => {
+                log::info!("doc: tab {into} differs in {found} places");
+                if let Some(tab) = self.tab_mut(into) {
+                    tab.name = Docs::text(cx, "doc.compare.name", &[("name", &name)]);
+                }
+                self.show_side(Side::Review, cx);
+            }
+            Err(error) => {
+                log::error!("doc: comparing tab {into} failed: {error}");
+                self.close_tab(into, cx);
+                let text = Docs::text(cx, "office.error.engine", &[("error", &error.to_string())]);
+                self.toast(text, Severity::Danger, cx);
+            }
+        }
     }
 }
