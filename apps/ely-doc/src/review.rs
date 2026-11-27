@@ -17,6 +17,7 @@ use ely_lok::{
     review::{Change, Note},
 };
 use gpui::{
+    prelude::FluentBuilder as _,
     App, Context, Entity, EventEmitter, InteractiveElement as _, IntoElement, Menu, StatefulInteractiveElement as _, MenuItem, ParentElement as _, Render,
     SharedString, Styled as _, Subscription, Window, actions, div,
 };
@@ -94,6 +95,8 @@ pub struct Review {
     /// The caret, not the sidebar, set `active`.
     by_caret: bool,
     pane: Pane,
+    /// The reviser whose changes show; all when none.
+    who: Option<String>,
 }
 
 impl EventEmitter<LokError> for Review {}
@@ -112,6 +115,7 @@ impl Review {
             inside: None,
             by_caret: false,
             pane: Pane::Comments,
+            who: None,
         }
     }
 
@@ -234,7 +238,7 @@ impl Review {
             Docs::text(cx, "doc.review.accept", &[]),
             Docs::text(cx, "doc.review.reject", &[]),
         );
-        let rows = self.changes.iter().map(|change| {
+        let rows = authors::shown(&self.changes, self.who.as_deref()).map(|change| {
             let index = change.index.to_string();
             let decide = |id: &'static str, icon, tip: &SharedString| {
                 let (this, index) = (this.clone(), index.clone());
@@ -280,13 +284,19 @@ impl Render for Review {
                 .state(".uno:TrackChanges")
                 .map(|on| on == "true")
         });
+        let filtered = self.who.is_some();
+        let why = Docs::text(cx, "doc.why.filtered", &[]);
         let all = |id: &'static str, key: &str| {
             let this = this.clone();
-            Button::new(id, Docs::text(cx, key, &[]))
+            let button = Button::new(id, Docs::text(cx, key, &[]))
                 .size(ControlSize::Sm)
                 .variant(ButtonVariant::Ghost)
-                .disabled(self.changes.is_empty())
-                .on_click(move |_, _, cx| this.update(cx, |review, cx| review.run(id, &[], cx)))
+                .disabled(self.changes.is_empty() || filtered)
+                .on_click(move |_, _, cx| this.update(cx, |review, cx| review.run(id, &[], cx)));
+            div()
+                .id(gpui::ElementId::Name(format!("{id}.why").into()))
+                .when(filtered, |it| it.tooltip(ely_gpui_component::primitives::Tooltip::text(why.clone())))
+                .child(button)
         };
         let head = div()
             .flex()
@@ -342,9 +352,13 @@ impl Render for Review {
             }
         });
         let body = match self.pane {
-            Pane::Changes => ScrollArea::new("doc-review-scroll").vertical()
+            Pane::Changes => div()
                 .size_full()
-                .child(self.changes_list(cx))
+                .flex()
+                .flex_col()
+                .gap_2()
+                .when(!self.changes.is_empty(), |it| it.child(self.revisers(cx)))
+                .child(ScrollArea::new("doc-review-scroll").vertical().size_full().child(self.changes_list(cx)))
                 .into_any_element(),
             Pane::Comments => {
                 let field = window.use_keyed_state("doc-review-reply", cx, |window, cx| {
@@ -398,6 +412,12 @@ impl Review {
         }
         log::info!("doc: review lists {} notes, {} changes", notes.len(), changes.len());
         (self.notes, self.threads, self.ids, self.unread, self.changes) = (notes, threads, ids, unread, changes);
+        if let Some(who) = &self.who
+            && !self.changes.iter().any(|change| change.author == *who)
+        {
+            log::info!("doc: review filter ends, no changes left by it");
+            self.who = None;
+        }
     }
 
     /// Each unreadable note, by its author and the reason.
@@ -426,6 +446,7 @@ impl Review {
     }
 }
 
+mod authors;
 mod nav;
 #[cfg(test)]
 mod tests;

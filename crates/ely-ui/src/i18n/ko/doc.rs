@@ -189,4 +189,8 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("doc.review.by.delete", "{author} 삭제"),
     ("doc.review.by.format", "{author} 서식 변경"),
     ("doc.review.by.other", "{author} 변경"),
+    ("doc.review.reviser", "검토자"),
+    ("doc.review.reviser.all", "모든 검토자 ({n})"),
+    ("doc.review.reviser.each", "{author} ({n})"),
+    ("doc.why.filtered", "모두 수락하거나 거부하려면 모든 검토자를 표시하십시오"),
 ];

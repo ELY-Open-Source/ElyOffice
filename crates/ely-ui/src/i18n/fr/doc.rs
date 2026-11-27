@@ -189,4 +189,8 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("doc.review.by.delete", "Supprimé par {author}"),
     ("doc.review.by.format", "Mis en forme par {author}"),
     ("doc.review.by.other", "Modifié par {author}"),
+    ("doc.review.reviser", "Réviseur"),
+    ("doc.review.reviser.all", "Tous les réviseurs ({n})"),
+    ("doc.review.reviser.each", "{author} ({n})"),
+    ("doc.why.filtered", "Affichez tous les réviseurs pour tout accepter ou rejeter"),
 ];

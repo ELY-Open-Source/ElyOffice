@@ -195,6 +195,10 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("doc.review.by.delete", "Deleted by {author}"),
     ("doc.review.by.format", "Formatted by {author}"),
     ("doc.review.by.other", "Changed by {author}"),
+    ("doc.review.reviser", "Reviewer"),
+    ("doc.review.reviser.all", "All reviewers ({n})"),
+    ("doc.review.reviser.each", "{author} ({n})"),
+    ("doc.why.filtered", "Show all reviewers to accept or reject all"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -389,4 +393,8 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("doc.review.by.delete", "{author} 删除"),
     ("doc.review.by.format", "{author} 修改格式"),
     ("doc.review.by.other", "{author} 修订"),
+    ("doc.review.reviser", "修订人"),
+    ("doc.review.reviser.all", "全部修订人（{n}）"),
+    ("doc.review.reviser.each", "{author}（{n}）"),
+    ("doc.why.filtered", "选择“全部修订人”后再全部接受或拒绝"),
 ];

@@ -189,4 +189,8 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("doc.review.by.delete", "{author} が削除"),
     ("doc.review.by.format", "{author} が書式を変更"),
     ("doc.review.by.other", "{author} が変更"),
+    ("doc.review.reviser", "校閲者"),
+    ("doc.review.reviser.all", "すべての校閲者（{n}）"),
+    ("doc.review.reviser.each", "{author}（{n}）"),
+    ("doc.why.filtered", "すべて受け入れ・却下するには「すべての校閲者」を選択してください"),
 ];

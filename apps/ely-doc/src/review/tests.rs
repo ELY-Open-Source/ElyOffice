@@ -361,3 +361,50 @@ fn arrows_step_through_changes_and_comments_and_hover_names_the_author() {
     cx.update(|app| review.update(app, |review, cx| review.step_comment(false, cx)));
     settle(&cx, |app| review.read(app).active.as_ref() == Some(&second));
 }
+
+#[test]
+fn a_reviser_filter_counts_and_steps_only_their_changes() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(ely_gpui_component::init_for_tests);
+    blank(&mut cx, &docs);
+    let review = panel(&mut cx, &docs);
+    type_into(&mut cx, &docs, "Start");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_track(&TrackChanges, window, cx));
+    let author = |cx: &mut TestAppContext, name: &str| {
+        let worker = cx.update(|app| review.read(app).worker.clone());
+        worker.lock().expect("the worker").set_author(name).expect("the author is set");
+    };
+    author(&mut cx, "Ann");
+    type_into(&mut cx, &docs, " one");
+    author(&mut cx, "Zoe");
+    type_into(&mut cx, &docs, " two");
+    author(&mut cx, "Ann");
+    type_into(&mut cx, &docs, " three");
+    settle(&cx, |app| authors::authors(&review.read(app).changes).len() == 2);
+    let counts = cx.update(|app| authors::authors(&review.read(app).changes));
+    assert_eq!(counts.iter().map(|(name, n)| (name.as_str(), *n)).collect::<Vec<_>>(), [("Ann", 2), ("Zoe", 1)]);
+    // Zoe's only: the arrows stay on her one change.
+    cx.update(|app| review.update(app, |review, _| review.who = Some("Zoe".into())));
+    let zoe = |app: &gpui::App| {
+        let review = review.read(app);
+        let caret = review.shown.as_ref().expect("a tab").view.read(app).cursor();
+        let change = review.changes.iter().find(|change| change.author == "Zoe").expect("her change");
+        caret.is_some_and(|caret| nav::holds(&change.ranges, caret))
+    };
+    for forward in [true, true, false] {
+        cx.update(|app| review.update(app, |review, cx| review.step_change(forward, cx)));
+        settle(&cx, zoe);
+    }
+    // Her change decided, the filter ends.
+    let index = cx.update(|app| {
+        let review = review.read(app);
+        review.changes.iter().find(|change| change.author == "Zoe").expect("her change").index.to_string()
+    });
+    cx.update(|app| review.update(app, |review, cx| review.run("track.accept", &[&index], cx)));
+    settle(&cx, |app| review.read(app).changes.len() == 2 && review.read(app).who.is_none());
+}

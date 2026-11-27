@@ -58,15 +58,15 @@ impl Review {
             return;
         };
         let caret = shown.view.read(cx).cursor();
-        let spots: Vec<(Rect, bool)> = self
-            .changes
-            .iter()
+        let spots: Vec<(Rect, bool)> = super::authors::shown(&self.changes, self.who.as_deref())
             .filter_map(|change| {
                 let held = caret.is_some_and(|caret| holds(&change.ranges, caret));
                 change.anchor.map(|anchor| (anchor, held))
             })
             .collect();
-        let placed: Vec<&Change> = self.changes.iter().filter(|change| change.anchor.is_some()).collect();
+        let placed: Vec<&Change> = super::authors::shown(&self.changes, self.who.as_deref())
+            .filter(|change| change.anchor.is_some())
+            .collect();
         let Some(at) = step(&spots, caret, forward) else {
             return;
         };

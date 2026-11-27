@@ -189,4 +189,8 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("doc.review.by.delete", "{author} đã xóa"),
     ("doc.review.by.format", "{author} đã định dạng"),
     ("doc.review.by.other", "{author} đã thay đổi"),
+    ("doc.review.reviser", "Người duyệt"),
+    ("doc.review.reviser.all", "Tất cả người duyệt ({n})"),
+    ("doc.review.reviser.each", "{author} ({n})"),
+    ("doc.why.filtered", "Hiện tất cả người duyệt để chấp nhận hoặc từ chối tất cả"),
 ];
