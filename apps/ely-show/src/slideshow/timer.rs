@@ -5,16 +5,21 @@ use std::{
     time::{Duration, Instant},
 };
 
-use gpui::{App, Context, Entity, Task};
+use ely_platform::media::Player;
+use gpui::{App, Context, Entity, EventEmitter, Task};
 
 use super::{Show, presenter::clock};
 
 pub(crate) mod dialog;
 mod drag;
 mod draw;
+mod ending;
+mod sound;
 
 pub use drag::Drag;
 pub use draw::{ASIDE, Act, BAND, Hand, Room, face};
+pub use ending::{ENDINGS, Ending};
+pub use sound::{SOUNDS, Sound};
 
 /// Where a countdown sits on its slide.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -36,6 +41,33 @@ pub struct Timer {
     pub at: Option<(f32, f32)>,
     /// Beside scores, it has the focus and they shrink.
     pub ahead: bool,
+    pub alarm: Alarm,
+}
+
+/// What happens when time is up.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Alarm {
+    pub ending: Ending,
+    pub sound: Sound,
+}
+
+impl Alarm {
+    /// Neither effect nor sound.
+    #[cfg(test)]
+    pub const QUIET: Alarm = Alarm { ending: Ending::Nothing, sound: Sound::None };
+}
+
+/// A countdown's sound did not play; why.
+pub struct Mute(pub String);
+
+/// How little time a countdown has left.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Left {
+    Plenty,
+    /// A fifth of its length or less.
+    Fifth,
+    /// A tenth of its length or less.
+    Tenth,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -64,8 +96,10 @@ pub struct Face {
     pub spot: Spot,
     pub at: Option<(f32, f32)>,
     pub ahead: bool,
-    /// In its last seconds.
-    pub ending: bool,
+    pub left: Left,
+    pub ending: Ending,
+    /// Its ending's effect shows now.
+    pub party: bool,
 }
 
 impl Face {
@@ -78,14 +112,17 @@ impl Face {
     }
 }
 
-/// The seconds a running countdown warns for.
-const WARN: u64 = 10;
+/// How often a playing sound is checked for its end.
+const LISTEN: Duration = Duration::from_millis(200);
 
 #[derive(Clone, Copy)]
 struct Run {
     length: Duration,
     spent: Duration,
     since: Option<Instant>,
+    sound: Sound,
+    /// Its end has been announced.
+    rung: bool,
 }
 
 impl Run {
@@ -93,12 +130,17 @@ impl Run {
         self.spent + self.since.map_or(Duration::ZERO, |since| now.saturating_duration_since(since))
     }
 
-    /// Time until its shown second changes; None when still.
+    /// Time until its face changes or its effect leaves.
     fn until_change(&self, now: Instant) -> Option<Duration> {
         self.since?;
-        let left = self.length.saturating_sub(self.spent(now));
+        let spent = self.spent(now);
+        let left = self.length.saturating_sub(spent);
+        if left.is_zero() {
+            // The effect holds still, then leaves once.
+            return (self.length + ending::LASTS).checked_sub(spent).filter(|wait| !wait.is_zero());
+        }
         // Shown seconds round up, so whole ones last a second.
-        (!left.is_zero()).then(|| match left.subsec_nanos() {
+        Some(match left.subsec_nanos() {
             0 => Duration::from_secs(1),
             nanos => Duration::from_nanos(u64::from(nanos)),
         })
@@ -117,8 +159,16 @@ impl Timer {
         };
         // A started second counts until it ends.
         let seconds = left.as_secs() + u64::from(left.subsec_nanos() > 0);
-        let ending = phase != Phase::Ready && seconds <= WARN;
-        Face { text: clock(seconds), phase, spot: self.spot, at: self.at, ahead: self.ahead, ending }
+        // Whole seconds, so colors change with the digits.
+        let within = |parts: u64| seconds * parts <= self.length.as_secs();
+        let remaining = match () {
+            _ if within(10) => Left::Tenth,
+            _ if within(5) => Left::Fifth,
+            _ => Left::Plenty,
+        };
+        let party = phase == Phase::Over && spent < self.length + ending::LASTS;
+        let (spot, at, ahead, ending) = (self.spot, self.at, self.ahead, self.alarm.ending);
+        Face { text: clock(seconds), phase, spot, at, ahead, left: remaining, ending, party }
     }
 }
 
@@ -129,7 +179,11 @@ pub struct Clocks {
     /// The id the next countdown takes.
     next: u64,
     tick: Option<Task<()>>,
+    /// The sound playing now, and whose it is.
+    bell: Option<(u64, Player)>,
 }
+
+impl EventEmitter<Mute> for Clocks {}
 
 impl Clocks {
     /// An id no earlier countdown had.
@@ -151,11 +205,13 @@ impl Clocks {
     /// Starts or pauses `timer`; a done one restarts.
     pub fn toggle(&mut self, timer: Timer, cx: &mut Context<Self>) {
         let now = cx.background_executor().now();
-        let idle = Run { length: timer.length, spent: Duration::ZERO, since: None };
-        let run = self.runs.entry(timer.id).or_insert(idle);
-        if run.spent(now) >= run.length {
-            *run = idle;
+        let sound = timer.alarm.sound;
+        let idle = Run { length: timer.length, spent: Duration::ZERO, since: None, sound, rung: false };
+        if self.runs.get(&timer.id).is_some_and(|run| run.spent(now) >= run.length) {
+            self.runs.remove(&timer.id);
+            self.hush(timer.id);
         }
+        let run = self.runs.entry(timer.id).or_insert(idle);
         match run.since.take() {
             Some(since) => run.spent += now.saturating_duration_since(since),
             None => run.since = Some(now),
@@ -168,6 +224,7 @@ impl Clocks {
     /// Sets countdown `id` back, stopped.
     pub fn reset(&mut self, id: u64, cx: &mut Context<Self>) {
         self.runs.remove(&id);
+        self.hush(id);
         log::info!("show: countdown {id} is reset");
         cx.notify();
     }
@@ -176,29 +233,97 @@ impl Clocks {
     pub fn keep(&mut self, live: &HashSet<u64>, cx: &mut Context<Self>) {
         let before = self.runs.len();
         self.runs.retain(|id, _| live.contains(id));
+        // A removed countdown's sound stops with it.
+        self.bell.take_if(|(id, _)| *id != 0 && !live.contains(id));
         if self.runs.len() < before {
             log::info!("show: {} countdown clocks end", before - self.runs.len());
         }
-        if self.next_change(cx.background_executor().now()).is_none() {
+        if self.wait(cx.background_executor().now()).is_none() {
             self.tick = None;
         }
     }
 
-    /// The soonest moment a running face changes.
+    /// The soonest moment a face changes.
     fn next_change(&self, now: Instant) -> Option<Duration> {
         self.runs.values().filter_map(|run| run.until_change(now)).min()
     }
 
-    /// Redraws once per shown second while one runs.
+    /// The next wake, and whether a face changes then.
+    fn wait(&self, now: Instant) -> Option<(Duration, bool)> {
+        let listen = self.bell.is_some().then_some(LISTEN);
+        match (self.next_change(now), listen) {
+            (Some(face), Some(listen)) if listen < face => Some((listen, false)),
+            (Some(face), _) => Some((face, true)),
+            (None, listen) => listen.map(|listen| (listen, false)),
+        }
+    }
+
+    /// The sounds of countdowns that just ended, once.
+    fn due(&mut self, now: Instant) -> Vec<(u64, Sound)> {
+        let done = self.runs.iter_mut().filter(|(_, run)| !run.rung && run.spent(now) >= run.length);
+        done.map(|(id, run)| {
+            run.rung = true;
+            (*id, run.sound)
+        })
+        .collect()
+    }
+
+    fn ring(&mut self, id: u64, sound: Sound, cx: &mut Context<Self>) {
+        match sound.play() {
+            // Silence leaves another countdown's sound playing.
+            Ok(None) => {}
+            Ok(Some(player)) => self.bell = Some((id, player)),
+            Err(reason) => cx.emit(Mute(reason)),
+        }
+    }
+
+    /// Plays `sound` now, as the dialog's trial.
+    pub fn listen(&mut self, sound: Sound, cx: &mut Context<Self>) {
+        self.bell = None;
+        // Zero is no countdown's id.
+        self.ring(0, sound, cx);
+        self.keep_ticking(cx);
+    }
+
+    /// Stops countdown `id`'s sound.
+    fn hush(&mut self, id: u64) {
+        self.bell.take_if(|(whose, _)| *whose == id);
+    }
+
+    /// Whether a sound still plays; a failed one tells.
+    fn sounding(&mut self, cx: &mut Context<Self>) -> bool {
+        let Some((_, player)) = &self.bell else {
+            return false;
+        };
+        match player.tick(false) {
+            Ok(true) => return true,
+            Ok(false) => {}
+            Err(reason) => cx.emit(Mute(reason)),
+        }
+        self.bell = None;
+        false
+    }
+
+    /// Wakes for a face change or a sound's end.
     fn keep_ticking(&mut self, cx: &mut Context<Self>) {
         self.tick = Some(cx.spawn(async |this, cx| {
             loop {
-                let wait = this.update(cx, |clocks, cx| clocks.next_change(cx.background_executor().now()));
-                let Ok(Some(wait)) = wait else {
+                let wait = this.update(cx, |clocks, cx| clocks.wait(cx.background_executor().now()));
+                let Ok(Some((wait, face))) = wait else {
                     break;
                 };
                 cx.background_executor().timer(wait).await;
-                if this.update(cx, |_, cx| cx.notify()).is_err() {
+                let woke = this.update(cx, |clocks, cx| {
+                    let now = cx.background_executor().now();
+                    for (id, sound) in clocks.due(now) {
+                        clocks.ring(id, sound, cx);
+                    }
+                    clocks.sounding(cx);
+                    if face {
+                        cx.notify();
+                    }
+                });
+                if woke.is_err() {
                     break;
                 }
             }
@@ -293,32 +418,65 @@ mod tests {
 
     #[test]
     fn a_countdown_rounds_up_warns_and_ends() {
-        let timer = Timer { id: 1, length: Duration::from_secs(70), spot: Spot::Top, at: None, ahead: false };
+        let timer = Timer { id: 1, length: Duration::from_secs(70), spot: Spot::Top, at: None, ahead: false, alarm: Alarm::default() };
         let start = Instant::now();
-        let run = Run { length: timer.length, spent: Duration::ZERO, since: Some(start) };
+        let run = Run { length: timer.length, spent: Duration::ZERO, since: Some(start), sound: Sound::Bell, rung: false };
         let at = |millis| timer.face(Some(&run), start + Duration::from_millis(millis));
         let ready = timer.face(None, start);
         assert_eq!((ready.text.as_str(), ready.phase), ("1:10", Phase::Ready));
-        assert_eq!((at(100).text.as_str(), at(100).ending), ("1:10", false));
-        assert_eq!((at(60_500).text.as_str(), at(60_500).ending), ("0:10", true));
+        let shown = |millis| (at(millis).text, at(millis).left);
+        assert_eq!(shown(100), ("1:10".into(), Left::Plenty));
+        assert_eq!(shown(55_500), ("0:15".into(), Left::Plenty));
+        assert_eq!(shown(56_000), ("0:14".into(), Left::Fifth));
+        assert_eq!(shown(62_500), ("0:08".into(), Left::Fifth));
+        assert_eq!(shown(63_000), ("0:07".into(), Left::Tenth));
         assert_eq!((at(90_000).text.as_str(), at(90_000).phase), ("0:00", Phase::Over));
-        let paused = Run { length: timer.length, spent: Duration::from_secs(5), since: None };
+        let paused = Run { spent: Duration::from_secs(5), since: None, ..run };
         assert_eq!(timer.face(Some(&paused), start).phase, Phase::Paused);
     }
 
     #[test]
     fn a_running_countdown_wakes_only_when_its_second_changes() {
         let start = Instant::now();
-        let run = Run { length: Duration::from_secs(70), spent: Duration::from_millis(600), since: Some(start) };
+        let length = Duration::from_secs(70);
+        let run = Run { length, spent: Duration::from_millis(600), since: Some(start), sound: Sound::None, rung: false };
         let at = |millis| run.until_change(start + Duration::from_millis(millis));
         assert_eq!(at(0), Some(Duration::from_millis(400)), "69.4 s left shows 1:10 until 69 s");
         assert_eq!(at(400), Some(Duration::from_secs(1)));
-        assert_eq!(at(69_400), None, "over");
+        assert_eq!(at(68_400), Some(Duration::from_secs(1)), "the last second ends at 0:00");
+        assert_eq!(at(69_400), Some(ending::LASTS), "over, the effect leaves later");
+        let gone = start + length + ending::LASTS - Duration::from_millis(600);
+        assert_eq!(run.until_change(gone), None, "nothing more to change");
         let paused = Run { since: None, ..run };
         assert_eq!(paused.until_change(start), None);
         let mut clocks = Clocks::default();
         clocks.runs.insert(1, run);
         clocks.runs.insert(2, Run { spent: Duration::from_millis(900), ..run });
         assert_eq!(clocks.next_change(start), Some(Duration::from_millis(100)), "the soonest of all");
+        assert_eq!(clocks.wait(start), Some((Duration::from_millis(100), true)));
+        assert_eq!(Clocks::default().wait(start), None, "idle, nothing wakes");
+    }
+
+    #[test]
+    fn the_effect_shows_only_its_while() {
+        let start = Instant::now();
+        let timer = Timer { id: 1, length: Duration::from_secs(5), spot: Spot::Top, at: None, ahead: false, alarm: Alarm::default() };
+        let run = Run { length: timer.length, spent: Duration::ZERO, since: Some(start), sound: Sound::None, rung: false };
+        let party = |after: Duration| timer.face(Some(&run), start + after).party;
+        assert!(!party(Duration::from_secs(4)), "still counting");
+        assert!(party(timer.length), "at 0:00");
+        assert!(!party(timer.length + ending::LASTS), "gone after its while");
+    }
+
+    #[test]
+    fn a_done_countdown_rings_once() {
+        let start = Instant::now();
+        let length = Duration::from_secs(5);
+        let run = Run { length, spent: Duration::ZERO, since: Some(start), sound: Sound::Fanfare, rung: false };
+        let mut clocks = Clocks::default();
+        clocks.runs.insert(1, run);
+        assert_eq!(clocks.due(start + Duration::from_secs(4)), []);
+        assert_eq!(clocks.due(start + length), [(1, Sound::Fanfare)]);
+        assert_eq!(clocks.due(start + length * 2), []);
     }
 }

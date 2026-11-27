@@ -3,17 +3,18 @@
 use std::rc::Rc;
 
 use ely_gpui_component::{
-    buttons::Button,
+    buttons::IconButton,
+    primitives::IconName,
     theme::{ActiveTheme as _, ControlSize},
 };
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, App, AppContext as _, Entity, FontWeight, InteractiveElement as _, IntoElement as _, MouseButton,
     ParentElement as _, Pixels, SharedString, StatefulInteractiveElement as _, Styled as _, Window,
-    canvas, div, px, relative,
+    Rgba, canvas, div, px, relative, rgb,
 };
 
-use super::{Clocks, Face, Phase, Spot, Timer, drag::{Drag, Ghost}};
+use super::{Clocks, Face, Left, Phase, Spot, Timer, drag::{Drag, Ghost}, ending};
 
 /// The share of a slide's height a countdown's band takes.
 pub const BAND: f32 = 0.18;
@@ -31,8 +32,12 @@ pub enum Room {
     Ahead,
 }
 
+// Fixed: no theme's warning colors carry white digits.
+const ORANGE: u32 = 0xe05d00;
+const RED: u32 = 0xd32626;
+
 /// The room the buttons take beside the countdown.
-const BUTTONS: Pixels = px(36.0);
+const BUTTONS: Pixels = px(46.0);
 /// Wide enough that the show's buttons stay hovered.
 const WIDE: Pixels = px(260.0);
 
@@ -69,11 +74,12 @@ pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), room: Room, cx: &
         Spot::Center => (h * 0.28).min(w * 0.16),
         Spot::Top | Spot::Bottom | Spot::Corner => h * 0.1,
     };
-    let (back, ink) = match face.phase {
-        Phase::Over => (palette.danger, palette.surface),
-        Phase::Paused => (palette.surface, palette.fg_muted),
-        _ if face.ending => (palette.surface, cx.theme().colors.accent),
-        Phase::Ready | Phase::Running => (palette.surface, palette.fg),
+    let alarm = |color: Rgba| (color.into(), palette.on_media);
+    let (back, ink) = match (face.phase, face.left) {
+        (Phase::Over, _) | (_, Left::Tenth) => alarm(rgb(RED)),
+        (_, Left::Fifth) => alarm(rgb(ORANGE)),
+        (Phase::Paused, Left::Plenty) => (palette.surface, palette.fg_muted),
+        (Phase::Ready | Phase::Running, Left::Plenty) => (palette.surface, palette.fg),
     };
     let (clocks, timer) = (hand.clocks.clone(), hand.timer);
     // Blocking hides the group's hover, which the show needs.
@@ -122,17 +128,23 @@ pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), room: Room, cx: &
         // Even padding keeps the clock's middle in place.
         (None, Spot::Center) | (Some(_), _) => held.justify_center().py(BUTTONS),
     };
-    let held = held.child(pill).child(buttons(hand, above, side));
+    let held = held.child(pill).child(buttons(hand, face.phase, above, side, cx));
     let place = div().absolute().flex().justify_center();
-    match (at, spot) {
+    let placed = match (at, spot) {
         (Some((x, y)), _) => place.left(w * x - w).top(h * y - h / 2.0).w(w * 2.0).h(h).items_center(),
         (None, Spot::Top) => place.top(h * 0.022).left_0().w(w).items_start(),
         (None, Spot::Center) => place.top_0().left_0().w(w).h(tall).items_center(),
         (None, Spot::Bottom) => place.bottom(h * 0.03).left_0().w(w).items_end(),
         (None, Spot::Corner) => place.bottom(h * 0.03).right(w * 0.02),
     }
-    .child(held)
-    .into_any_element()
+    .child(held);
+    let party = (face.phase == Phase::Over).then(|| ending::over(face.ending, (w, h), cx)).flatten();
+    let Some(party) = party else {
+        return placed.into_any_element();
+    };
+    // The effect lies under the clock.
+    let whole = div().absolute().top_0().left_0().w(w).h(h);
+    whole.child(party).child(placed).into_any_element()
 }
 
 /// Which of the clock's edges the buttons keep to.
@@ -143,34 +155,40 @@ enum Side {
     Right,
 }
 
-/// Start or pause, reset, edit; the show hides until hovered.
-fn buttons(hand: Hand, above: bool, side: Side) -> AnyElement {
+/// Icons in a floating capsule; hidden in shows until hovered.
+fn buttons(hand: Hand, phase: Phase, above: bool, side: Side, cx: &App) -> AnyElement {
+    let button = |id: &'static str, icon, label| IconButton::new(id, icon).size(ControlSize::Lg).tooltip(label);
+    let icon = match phase {
+        Phase::Running => IconName::Pause,
+        Phase::Ready | Phase::Paused | Phase::Over => IconName::Play,
+    };
     let (clocks, timer) = (hand.clocks.clone(), hand.timer);
-    let run = Button::new("show-timer-clock-run", hand.run)
-        .size(ControlSize::Sm)
+    let run = button("show-timer-clock-run", icon, hand.run)
         .on_click(move |_, _, cx| clocks.update(cx, |clocks, cx| clocks.toggle(timer, cx)));
     let (clocks, id) = (hand.clocks, timer.id);
-    let reset = Button::new("show-timer-clock-reset", hand.reset)
-        .size(ControlSize::Sm)
+    let reset = button("show-timer-clock-reset", IconName::RotateCcw, hand.reset)
         .on_click(move |_, _, cx| clocks.update(cx, |clocks, cx| clocks.reset(id, cx)));
     let hidden = hand.edit.is_none();
     let swap = hand.swap.map(|(label, act)| {
-        Button::new("show-timer-clock-focus", label)
-            .size(ControlSize::Sm)
-            .on_click(move |_, window, cx| act(window, cx))
+        button("show-timer-clock-focus", IconName::RefreshCw, label).on_click(move |_, window, cx| act(window, cx))
     });
     let edit = hand.edit.map(|(label, act)| {
-        Button::new("show-timer-clock-edit", label)
-            .size(ControlSize::Sm)
-            .on_click(move |_, window, cx| act(window, cx))
+        button("show-timer-clock-edit", IconName::Pencil, label).on_click(move |_, window, cx| act(window, cx))
     });
+    let palette = cx.theme().palette();
     let row = div()
         .id("show-timer-buttons")
         .when(!hidden, |row| row.occlude())
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .flex()
-        .gap_2()
-        .whitespace_nowrap()
+        .gap_1()
+        .px_2()
+        .py_0p5()
+        .rounded_full()
+        .bg(palette.surface)
+        .border_1()
+        .border_color(palette.border)
+        .shadow_lg()
         .child(run)
         .child(reset)
         .children(edit)

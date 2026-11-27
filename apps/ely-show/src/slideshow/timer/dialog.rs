@@ -8,6 +8,7 @@ use ely_gpui_component::{
     forms::{Choice, Input, Select, TextInput},
     overlays::Dialog as Card,
     primitives::Severity,
+    theme::ControlSize,
 };
 use ely_office::prelude::*;
 use gpui::{
@@ -15,7 +16,7 @@ use gpui::{
     Window, div,
 };
 
-use super::{Spot, Timer, length};
+use super::{Alarm, ENDINGS, SOUNDS, Sound, Spot, Timer, length};
 use crate::deck::Deck;
 use crate::dialog::{Dialog, edit};
 use crate::slideshow::presenter::clock;
@@ -29,6 +30,7 @@ pub struct Setting {
     spot: Spot,
     /// Where it was dragged; a picked position forgets it.
     at: Option<(f32, f32)>,
+    alarm: Alarm,
     /// The slide has one already.
     held: bool,
 }
@@ -76,7 +78,8 @@ impl Deck {
         field.update(cx, |field, cx| field.set_text(typed, cx));
         let spot = held.map_or_else(Spot::default, |timer| timer.spot);
         let at = held.and_then(|timer| timer.at);
-        let setting = Setting { tab, slide, length: field, spot, at, held: held.is_some() };
+        let alarm = held.map_or_else(Alarm::default, |timer| timer.alarm);
+        let setting = Setting { tab, slide, length: field, spot, at, alarm, held: held.is_some() };
         // Refused while another dialog is open; it says so.
         let _ = self.open_dialog(Dialog::Timer(setting), cx);
     }
@@ -85,7 +88,7 @@ impl Deck {
         let Some(Dialog::Timer(setting)) = self.dialog.as_ref() else {
             return;
         };
-        let (tab, name, place) = (setting.tab, setting.slide.0.clone(), (setting.spot, setting.at));
+        let (tab, name, place) = (setting.tab, setting.slide.0.clone(), (setting.spot, setting.at, setting.alarm));
         let typed = setting.length.read(cx).text().to_string();
         let length = length(&typed);
         if length.is_none() && !matches!(asked, Asked::Remove) {
@@ -98,7 +101,7 @@ impl Deck {
     }
 
     /// Gives slide `only`, or all sharing one clock, a countdown.
-    pub fn set_timer(&mut self, tab: u64, only: Option<String>, length: Option<std::time::Duration>, (spot, at): (Spot, Option<(f32, f32)>), cx: &mut Context<Self>) {
+    pub fn set_timer(&mut self, tab: u64, only: Option<String>, length: Option<std::time::Duration>, (spot, at, alarm): (Spot, Option<(f32, f32)>, Alarm), cx: &mut Context<Self>) {
         self.place_kept(tab);
         let clocks = self.clocks(tab, cx);
         let id = clocks.update(cx, |clocks, _| clocks.fresh());
@@ -113,7 +116,7 @@ impl Deck {
             // Editing a countdown leaves the focus where it was.
             let ahead = extra.timers.get(&name).is_some_and(|timer| timer.ahead);
             match length {
-                Some(length) => extra.timers.insert(name, Timer { id, length, spot, at, ahead }),
+                Some(length) => extra.timers.insert(name, Timer { id, length, spot, at, ahead, alarm }),
                 None => extra.timers.remove(&name),
             };
         }
@@ -162,6 +165,41 @@ impl Deck {
                     }
                 })
             });
+        let endings: Vec<_> = ENDINGS.iter().map(|(_, id, key)| Choice::new(*id, label(key))).collect();
+        let picked = ENDINGS.iter().find(|(ending, ..)| *ending == setting.alarm.ending).map_or("", |found| found.1);
+        let pick = this.clone();
+        let effect = Select::new("show-timer-effect", endings)
+            .label(label("show.timer.effect"))
+            .selected(picked)
+            .on_change(move |value, _, cx| {
+                let found = ENDINGS.iter().find(|(_, id, _)| *id == value.as_ref());
+                edit(&pick, cx, |dialog, _| {
+                    if let (Dialog::Timer(setting), Some((ending, ..))) = (dialog, found) {
+                        setting.alarm.ending = *ending;
+                    }
+                })
+            });
+        let sounds: Vec<_> = SOUNDS.iter().map(|(_, id, key)| Choice::new(*id, label(key))).collect();
+        let picked = SOUNDS.iter().find(|(sound, ..)| *sound == setting.alarm.sound).map_or("", |found| found.1);
+        let pick = this.clone();
+        let sound = Select::new("show-timer-sound", sounds)
+            .label(label("show.timer.sound"))
+            .selected(picked)
+            .on_change(move |value, _, cx| {
+                let found = SOUNDS.iter().find(|(_, id, _)| *id == value.as_ref());
+                edit(&pick, cx, |dialog, _| {
+                    if let (Dialog::Timer(setting), Some((sound, ..))) = (dialog, found) {
+                        setting.alarm.sound = *sound;
+                    }
+                })
+            });
+        let (trial, tab, chosen) = (this.clone(), setting.tab, setting.alarm.sound);
+        let listen = Button::new("show-timer-listen", label("show.timer.listen"))
+            .size(ControlSize::Sm)
+            .disabled(chosen == Sound::None)
+            .on_click(move |_, _, cx| {
+                trial.update(cx, |deck, cx| deck.clocks(tab, cx).update(cx, |clocks, cx| clocks.listen(chosen, cx)))
+            });
         let closing = this.clone();
         let dismiss = move |_: &mut Window, cx: &mut App| {
             closing.update(cx, |deck, cx| {
@@ -180,7 +218,9 @@ impl Deck {
         };
         let fields = DescriptionList::new()
             .item(label("show.timer.length"), div().w_full().max_w_64().child(Input::new(&setting.length)))
-            .item(label("show.timer.place"), select);
+            .item(label("show.timer.place"), select)
+            .item(label("show.timer.effect"), effect)
+            .item(label("show.timer.sound"), div().flex().gap_2().child(sound).child(listen));
         let card = Card::new("show-timer", title, dismiss)
             .detail(label("show.timer.detail"))
             .child(fields)

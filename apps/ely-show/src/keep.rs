@@ -10,7 +10,7 @@ use gpui::{AppContext as _, Context};
 use crate::deck::Deck;
 use crate::extra::Extra;
 use crate::slideshow::scoreboard::{Ask, Source, ask_table, renamed};
-use crate::slideshow::timer::{Clocks, Spot, Timer};
+use crate::slideshow::timer::{Alarm, Clocks, ENDINGS, Ending, Mute, SOUNDS, Sound, Spot, Timer};
 
 mod package;
 
@@ -112,6 +112,11 @@ impl Deck {
         }
         let clocks = cx.new(|_| Clocks::default());
         cx.observe(&clocks, |_, _, cx| cx.notify()).detach();
+        cx.subscribe(&clocks, |deck, _, Mute(reason), cx| {
+            let text = Deck::text(cx, "show.timer.sound_failed", &[("reason", reason)]);
+            deck.toast(text, Severity::Warning, cx);
+        })
+        .detach();
         if let Some(tab) = self.tab_mut(id) {
             tab.extra.clocks = Some(clocks.clone());
         }
@@ -203,7 +208,12 @@ fn written(held: &[Held]) -> serde_json::Value {
             });
             let timer = held.timer.map(|timer| {
                 let spot = SPOTS.iter().find(|(spot, _)| *spot == timer.spot).map(|(_, word)| *word);
-                serde_json::json!({ "id": timer.id, "seconds": timer.length.as_secs(), "spot": spot, "at": timer.at, "ahead": timer.ahead })
+                let ending = ENDINGS.iter().find(|(ending, ..)| *ending == timer.alarm.ending).map(|found| found.1);
+                let sound = SOUNDS.iter().find(|(sound, ..)| *sound == timer.alarm.sound).map(|found| found.1);
+                serde_json::json!({
+                    "id": timer.id, "seconds": timer.length.as_secs(), "spot": spot, "at": timer.at,
+                    "ahead": timer.ahead, "ending": ending, "sound": sound,
+                })
             });
             serde_json::json!({ "slide": held.at, "score": score, "timer": timer })
         })
@@ -251,12 +261,22 @@ fn slide(value: &serde_json::Value) -> io::Result<Held> {
                 serde_json::Value::Null => false,
                 ahead => ahead.as_bool().ok_or_else(|| invalid("countdown focus"))?,
             };
+            // Files saved before alarms existed have none.
+            let ending = match &timer["ending"] {
+                serde_json::Value::Null => Ending::Nothing,
+                word => ENDINGS.iter().find(|(_, kept, _)| word == kept).map(|found| found.0).ok_or_else(|| invalid("countdown effect"))?,
+            };
+            let sound = match &timer["sound"] {
+                serde_json::Value::Null => Sound::None,
+                word => SOUNDS.iter().find(|(_, kept, _)| word == kept).map(|found| found.0).ok_or_else(|| invalid("countdown sound"))?,
+            };
             Some(Timer {
                 id: number("id")?,
                 length: Duration::from_secs(number("seconds")?),
                 spot: spot.ok_or_else(|| invalid("countdown spot"))?,
                 at,
                 ahead,
+                alarm: Alarm { ending, sound },
             })
         }
     };
@@ -270,7 +290,7 @@ mod tests {
     #[test]
     fn what_is_written_reads_back_without_elytables_key() {
         let score = Source { book: "7:0".into(), path: None, name: "Game".into(), sheet: "S 1".into() };
-        let timer = Timer { id: 3, length: Duration::from_secs(90), spot: Spot::Corner, at: Some((0.25, 0.5)), ahead: true };
+        let timer = Timer { id: 3, length: Duration::from_secs(90), spot: Spot::Corner, at: Some((0.25, 0.5)), ahead: true, alarm: Alarm { ending: Ending::Balloons, sound: Sound::Fanfare } };
         let held = vec![
             Held { at: 0, score: Some(score.clone()), timer: None },
             Held { at: 4, score: None, timer: Some(timer) },
