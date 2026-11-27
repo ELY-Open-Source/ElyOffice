@@ -456,3 +456,76 @@ GitHub 核对（2026-11-26，`gh`）：PR #97、#98、#99、#100、#101、#102�
 `pr.yml`：main 自 R21.37d（3891e8b9）至 R21.37h（60f9c085）的推送皆败，交付前查出，由 R21.37i 修好。
 
 顾问终审（2026-11-25，(d)）：除三条 `[!]` 与 R21.12b 外目标达成；已勾的条目无须重开或改标 `[!]`。所提四处缺口已照办：上面的 macOS 一段；Omarchy 上四条失败与 `*-cli.sh` 收尾的竞争另立 R21.37g、R21.37h 并做完；R21.37d 的卡顿一半列入未复现；R21.37b、R21.37c 写明靠推断。顾问未重跑测试、未逐个核对测试名（本表由脚本核对）。
+
+## R22 至 R24 0.1.18：ElyMail 字形、议题 #118–#130、#140、#141 与 PR #131–#142
+
+R22.7：R22.1 至 R24.2c 逐条核对（用户 2026-11-26 定 R22 修完即发 0.1.18，同日定先做 R23 的新议题与 PR，2026-11-27 R24 再收 #134–#142），2026-11-27 据 6f225a14 写成，发布后据 14bedab3 补。状态、证据与“末次提交”的写法同 R21 一节；PR 的测试取其合并提交里新加的。本表不重跑测试。
+
+| 编号 | 状态 | 事 | 证据 | 末次提交 | 未验证或余下 |
+| --- | --- | --- | --- | --- | --- |
+| R22.1 | 过审 | R21.19a、b：Windows 上 ElyMail 字下缘被截、未读数偏下（gpui 补丁 0016，行不含字体的行距） | `a_line_keeps_the_font_ascent_and_descent_without_its_gap`；`tasks/reviews/R22.1-r1.md` PASS | 47f18f3f | — |
+| R22.2 | 过审 | #118 批注对应的正文高亮，选中的更深，表格里同样 | `commented_words_in_a_table_cell_wash_and_the_picked_thread_darkens`；`tasks/reviews/R22.2-r3.md` PASS | be9ed4d5 | — |
+| R22.3 | 过审 | #120 ElyMark 网络图片：手动载入、设置里自动载入，默认关，走系统代理 | `web_pictures_wait_until_asked_then_draw`、`the_web_setting_reaches_every_tab_and_is_kept`；`tasks/reviews/R22.3-r1.md` PASS | a152299f | — |
+| R22.4 | 过审 | #121 开修订时替换写进已删除的文字（补丁 0170） | `replace_leaves_tracked_deletions_alone`；`tasks/reviews/R22.4-r1.md` PASS | a6ff95bb | 黑屏与 `saveAs failed` 在 macOS、Windows 未复现 |
+| R22.5 | 过审 | #119 macOS 常见格式的专用文档图标 | `tests/scripts/icons.sh`、`tests/scripts/types.sh`；`tasks/reviews/R22.5-r2.md` PASS | 549e092a | 升级的用户在系统刷新图标缓存前可能仍见旧图 |
+| R22.5a | 未完 | #124 Windows 上开修订连续替换后整页变黑、CANTWRITE | 无新测试（未复现）；`tasks/reviews/R22.5a-r3.md` PASS | f28f8ea8 | 7877 上照报告重放数百次未复现；#124 开着，等报告者以 0.1.18 重试 |
+| R22.6 | 过审 | 发布 0.1.18 | `scripts/release-gate.py 0.1.18`、`scripts/compatibility.py --check` 过；`tasks/reviews/R22.6-r5.md` PASS | 14bedab3 | 标签 v0.1.18 在 be9ed4d5，发布记录 ad938b0c；`nix/release.json` 仍是 0.1.16（SF.26）；装后首开量自标签前的树，见 `docs/releases/0.1.18.md` |
+| R22.7 | 过审 | 本节与顾问 (d) 终审 | 本表；`tasks/reviews/R22.7-r1.md` PASS | 本提交 | — |
+| R23.0a | 过审 | PR #131 自带 `+` 键的布局下 Ctrl + 放大（ElyDoc、ElyTable、ElyShow） | `the_menu_shows_equals_and_minus_and_every_zoom_key_works`（R23.0b 以它取代 #131 的 `plus_and_equals_both_zoom_in`）；`tasks/reviews/R23.0a-r1.md` PASS | 72431273 | — |
+| R23.0b | 过审 | PR #133 同一缺陷在 ElyPDF；Linux 小键盘 + − | `the_menu_shows_equals_and_minus_and_every_zoom_key_works`；`tasks/reviews/R23.0b-r3.md` PASS | d20baa44 | — |
+| R23.0c | 过审 | PR #132 ElyDoc 导出 PDF、Word、ODT、RTF、纯文本、EPUB、Markdown | `each_format_writes_a_copy_and_the_tab_stays`、`the_open_file_is_never_the_offered_name`；`tasks/reviews/R23.0c-r2.md` PASS | 47f18f3f | — |
+| R23.1 | 过审 | #129 Windows 上 ElyDoc 复制的正文贴到别处没有文字 | `every_clipboard_chord_is_elys_own_action`、`insert_and_delete_chords_use_the_system_clipboard`；`tasks/reviews/R23.1-r1.md` PASS | f2999db0 | — |
+| R23.2 | 未完 | #128 全选设字号后部分数字字号不变 | 无新测试（未复现）；无审查 | 6f0acddd | 真内核上五种数字存法、阿拉伯—印度数字、编号与域皆随之变；#128 开着，等报告者的文件 |
+| R23.2a | 过审 | 查找与 `text replace` 跨修订删除匹配（补丁 0171） | `a_tracked_deletion_inside_a_phrase_does_not_stop_the_match_or_move_the_cursor`；`tasks/reviews/R23.2a-r2.md` PASS | 676c8e79 | — |
+| R23.2b | 过审 | 数千条修订时 `text get` 不再占住内核（补丁 0172） | `thousands_of_tracked_deletions_read_quickly`、`the_body_reads_as_the_flat_copy_does_and_the_cursor_stays`；`tasks/reviews/R23.2b-r1.md` PASS | 5c999d9b | — |
+| R23.3 | 过审 | #124 移到 R22.5a | 无代码改动 | — | 见 R22.5a |
+| R23.4 | 过审 | #123 编辑与删除批注，一步撤销，DOCX 往返 | `comments_edit_and_delete_one_undo_step_each_and_docx_keeps_them`；`tasks/reviews/R23.4-r2.md` PASS | c668da1c | — |
+| R23.5 | 过审 | #130 多级列表样式，降级照所选样式编号（补丁 0174） | `each_scheme_numbers_the_levels_and_word_keeps_it`、`schemes_spell_ten_levels_and_repeat`；`tasks/reviews/R23.5-r1.md` PASS | c11bb883 | — |
+| R23.6a | 过审 | #122 悬停显示修订人，上一条、下一条修订与批注 | `arrows_step_through_changes_and_comments_and_hover_names_the_author`、`steps_follow_reading_order_and_wrap`；`tasks/reviews/R23.6a-r1.md` PASS | 50725491 | — |
+| R23.6b | 过审 | #122 按修订人筛选与计数 | `revisers_are_counted_and_filtered`、`a_reviser_filter_counts_and_steps_only_their_changes`；`tasks/reviews/R23.6b-r1.md` PASS | 47f18f3f | — |
+| R23.7 | 过审 | #125 正文里就地接受或拒绝一条修订 | `the_change_card_opens_on_a_move_not_on_typing_and_decides_one_change`；`tasks/reviews/R23.7-r2.md` PASS | 95b6d236 | — |
+| R23.8a | 过审 | #126 带标记、原始、最终三种视图，只改显示 | `the_three_views_show_the_document_and_keep_every_change`、`a_read_only_view_takes_no_keys_until_released`；`tasks/reviews/R23.8a-r2.md` PASS | 45f09e13 | — |
+| R23.8b | 过审 | #126 只显示修订：“原文 → 新文”带段落，可跳回 | `touching_deletes_and_inserts_pair_in_text_order`、`changes_only_pairs_a_replacement_with_its_paragraph`；`tasks/reviews/R23.8b-r1.md` PASS | a5d38c78 | — |
+| R23.9a | 过审 | #127 全部替换说替换了几处，零处也说（补丁 0177） | `replace_all_counts_come_only_from_search_results`；`tasks/reviews/R23.9a-r1.md` PASS | db4c1519 | — |
+| R23.9b | 过审 | #127 导出格式随 #132 已有 | 核对，无测试；`tasks/reviews/R23.9b-r1.md` PASS | b6bbd883 | —（无代码改动） |
+| R23.9c | 过审 | #127 Windows 打印前预览各页（五个应用） | `a_windows_print_shows_its_pages_then_prints`、`each_page_becomes_a_picture_at_its_size`；`tasks/reviews/R23.9c-r1.md` PASS | eb7a9275 | — |
+| R23.9d | 未完 | #127 打开大文件卡顿 | 无（等材料）；无审查 | 53d9bfe3 | 已向报告者要文件大小与电脑配置；#127 开着 |
+| R24.0a | 过审 | PR #134 ElyShow 状态栏“放映”，从当前幻灯片起 | `present_plays_from_the_slide_on_screen`；`tasks/reviews/R24.0a-r1.md` PASS | 0d06b588 | — |
+| R24.0b | 过审 | PR #135 实时记分板（ElyTable 经实例门给出已开的表；补丁 0178 清空幻灯片） | `an_unsaved_book_is_listed_and_read_by_its_key`、`linking_empties_each_new_slide_and_keeps_later_additions`；`tasks/reviews/R24.0b-r1.md` PASS | 612935c9 | — |
+| R24.0c | 过审 | PR #136 幻灯片倒计时；只在显示的秒数变时重绘 | `a_running_countdown_wakes_only_when_its_second_changes`；`tasks/reviews/R24.0c-r2.md` PASS | e6bdfa6a | — |
+| R24.0d | 过审 | PR #137 记分板链接与倒计时随 .pptx、.odp 存（zip 注释） | `another_programs_comment_is_kept_and_never_written_over`；`tasks/reviews/R24.0d-r2.md` PASS | 36af2613 | PowerPoint 打开存回不提示修复，但丢掉这些内容（帮助里写明） |
+| R24.0e | 过审 | PR #138 倒计时与记分板同屏，F 交换主次 | `the_focus_swaps_in_the_editor_for_good_and_in_a_show_for_itself`；`tasks/reviews/R24.0e-r1.md` PASS | bd2934fc | — |
+| R24.0f | 过审 | PR #139 倒计时变色、到时效果与声音；效果静止约 10 秒 | `the_effect_shows_only_its_while`、`a_done_countdown_rings_once`；`tasks/reviews/R24.0f-r1.md` PASS | ffe5e346 | 声音随系统静音未亲耳核对；警示色固定，原因在 `docs/gaps.md` |
+| R24.0g | 过审 | PR #142 ElyPDF 选中的文字不被选区色盖住 | `ink_turns_white_and_paper_takes_the_fill`、`a_pale_selection_colour_is_darkened_for_white`；`tasks/reviews/R24.0g-r1.md` PASS | 4a0ee522 | 墨多于纸的行（极粗大标题）会反色，未手试 |
+| R24.1 | 过审 | #140 比较时略去两份共有的旧修订，相同即提示（补丁 0179） | `compare_leaves_out_changes_both_files_hold`、`an_identical_copy_with_the_same_changes_shows_no_difference`；`tasks/reviews/R24.1-r1.md` PASS | cba4ca04 | 未在无 0179 的内核上确认两测试会败 |
+| R24.2a | 过审 | #141 拖行号、列标连选整行整列 | `dragging_across_headers_selects_whole_columns_and_rows`；`tasks/reviews/R24.2a-r1.md` PASS | 41d07613 | gpui 无 Excel 的箭头指针，行号列标上为手形 |
+| R24.2b | 过审 | #141 填充柄：单个数字复制，Ctrl（macOS ⌥）互换 | `one_plain_number_copies_and_the_toggle_swaps`、`one_number_fills_as_a_copy_and_ctrl_counts_on`；`tasks/reviews/R24.2b-r1.md` PASS | fefe3424 | Excel for Mac 用的是否 ⌥ 未核实 |
+| R24.2c | 过审 | #141 复制的单元格另带一张选区图（vendor 的 arboard 一次写齐） | `copied_flavors_pick_the_richest_clip`、`each_kind_round_trips`；`tasks/reviews/R24.2c-r2.md` PASS | 6f225a14 | 未贴进真实聊天软件；三端剪贴板格式已核 |
+
+内核：补丁至 0179（172 个）；Omarchy 的内核曾在测试里本机重建 sc、sd、sfx2、sw，13 个库要到 GLIBC_2.44，发布前删去在 AlmaLinux 8 容器里重建，无一超 2.28；Windows、两台 Mac 的共享引擎各以 `build-libreoffice.sh` 补到 172 个并 `--check` 过。
+
+GitHub 核对（2026-11-27，`gh`）：PR #131 至 #139、#142 皆已合并，各有致谢写明合并提交；议题 #118 至 #123、#125、#126、#129、#130、#140、#141 皆已关闭；#124、#127、#128 开着，各等报告者。
+
+`pr.yml`：main 自 R24.1（784c0da6）至 R24.2c 的推送皆败，因 `docs/compatibility.md` 仍写 171 个补丁；发布前查出，8940de2d 改正后过。
+
+## R25 0.1.18 之后的议题 #143–#148
+
+2026-11-27 据 2ae0d6f7 写成，写法同上一节。
+
+| 编号 | 状态 | 事 | 证据 | 末次提交 | 未验证或余下 |
+| --- | --- | --- | --- | --- | --- |
+| R25.1 | 未完 | #144 存 xlsx 把“常规”写成字面格式代码 | 无新测试（未复现）；无审查 | b4cc5ac3 | Omarchy 两种区域、7877 的 en-US 与 zh-CN 都写 `General`；#144 开着，等报告者的原文件与系统语言区域 |
+| R25.2a | 过审 | #146 存 xlsx 列宽每存一次变窄（补丁 0180） | `xlsx_column_widths_survive_two_saves_in_a_warm_worker`；`tasks/reviews/R25.2a-r1.md` PASS | bfd94148 | macOS 未跑（见表下）；Windows 重建后只跑 ely-lok 453（含 `widths.rs`）与 ely-doc 200，未跑 ely-table，未在 Excel 里开 |
+| R25.2b | 未完 | #146 存 xlsx 行高写成显式值 | 无新测试（未复现）；无审查 | b4cc5ac3 | 两端冷热 worker 都写 `ht="14.5" customHeight="false"`；#146 开着，等报告者的文件 |
+| R25.3 | 过审 | #145 批注侧栏单条右键：回复、解决、删除 | `one_thread_resolves_in_one_undo_step_and_the_rest_stays`；`tasks/reviews/R25.3-r2.md` PASS | 3cb8844f | macOS 未跑（见表下） |
+| R25.4 | 过审 | #148 删除所有批注，先问，一步撤销（补丁 0182） | `every_comment_goes_after_asking_and_one_undo_brings_them_back`；`tasks/reviews/R25.4-r2.md` PASS | e37d5806 | macOS 未跑（见表下） |
+| R25.5 | 过审 | #143 修订下删掉的字即时移出正文，开关可改回划线（补丁 0183） | `tracked_deletions_reflow_unless_struck_in_place`、`the_markup_switch_strikes_deletions_in_place_or_takes_them_out`；`tasks/reviews/R25.5-r1.md` PASS | 33f90c22 | macOS 未跑（见表下） |
+| R25.6 | 过审 | #147 右键自动编号：重新开始、继续、设值、单项样式（补丁 0184） | `one_item_restarts_continues_and_takes_its_own_style`、`a_numbered_item_offers_numbering_and_takes_a_value`；`tasks/reviews/R25.6-r1.md` PASS | 2ae0d6f7 | 单项样式存的 DOCX 在 Word 里的显示未验证；存 DOC 不保留；macOS 未跑（见表下） |
+
+内核：补丁至 0184（177 个）。Omarchy 在 AlmaLinux 8 容器里建；Windows 共享引擎 2026-11-27 以 0184 重建，ely-lok 453、ely-doc 200 过；两台 Mac 的共享引擎未建（7885 拒绝连接），发下一版前须建。
+
+GitHub 核对（2026-11-27，`gh`）：无开着的 PR；#143、#145、#147、#148 已关闭，各有致谢写明提交；#144、#146 开着，各等报告者。
+
+`pr.yml`：33f90c22、658c1483 与 80cd6234 的推送败于规则检查（五条注释超十个字、TASKS.md 两处本机证据未标），2ae0d6f7 改正。
+
+顾问终审（2026-11-27，(d)）：除等报告者的 #144、#146 行高、#128、#127、#124、#83，已有的 `[!]`，用户说跳过的 #94，暂缓的 C15，与发下一版前两台 Mac 共享内核以 0180–0184 重建外，目标达成；R22 至 R25 已勾的条目无须重开或改标 `[!]`。所提缺口已照办：R22.6、R22.7 两行与本节写成的提交，R23.2 等六行的末次提交，R25 各行补 macOS 未跑，R25 的 `pr.yml` 一句补 80cd6234；R25.1、R25.2b 照旧例改标 `[!]`。
