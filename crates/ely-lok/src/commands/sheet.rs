@@ -213,7 +213,7 @@ pub(super) const ROWS: &[Command] = &[
     command(
         "fill.auto",
         ".uno:AutoFill",
-        &[Arg::Text("EndCell")],
+        &[Arg::Text("EndCell"), Arg::Bool("Copy")],
         Check::Undoable,
     ),
 ];

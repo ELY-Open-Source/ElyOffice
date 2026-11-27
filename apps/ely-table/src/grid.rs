@@ -404,7 +404,14 @@ impl Book {
             Drag::Fill {
                 to: Some((column, row)),
             } => {
-                self.run_active("fill.auto", &[&address(column, row)], cx);
+                // Excel's toggle: Ctrl, or Option on macOS.
+                let held = if cfg!(target_os = "macos") { event.modifiers.alt } else { event.modifiers.control };
+                let copy = self.active_tab().is_some_and(|tab| {
+                    let cell = tab.view.read(cx).cell();
+                    copies(held, &cell.address, &cell.formula)
+                });
+                log::info!("table: fill to {} copies {copy}", address(column, row));
+                self.run_active("fill.auto", &[&address(column, row), &copy.to_string()], cx);
             }
             Drag::Fill { to: None } | Drag::Headers { .. } => {}
         }
@@ -426,6 +433,13 @@ impl Book {
         // As Shift+click: from the anchor to here.
         self.select_header(column, index, &bits(true, add), cx);
     }
+}
+
+/// Whether a fill copies: as Excel, one plain number does.
+fn copies(held: bool, area: &str, formula: &str) -> bool {
+    let text = formula.trim();
+    let number = !text.is_empty() && text.chars().all(|c| c.is_ascii_digit() || "+-.eE".contains(c)) && text.parse::<f64>().is_ok();
+    held != (number && !area.contains(':'))
 }
 
 /// The rectangle that holds all of `rects`.
@@ -450,4 +464,23 @@ fn outline(from: Point<Pixels>, to: Point<Pixels>, color: gpui::Hsla) -> AnyElem
         .border_2()
         .border_color(color)
         .into_any_element()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::copies;
+
+    #[test]
+    fn one_plain_number_copies_and_the_toggle_swaps() {
+        for number in ["5", "-3.5", "1e3", "+2"] {
+            assert!(copies(false, "A1", number), "{number}");
+            assert!(!copies(true, "A1", number), "{number} held");
+        }
+        for other in ["=A1", "11/27/2026", "Item1", "", "inf", "50%"] {
+            assert!(!copies(false, "A1", other), "{other}");
+            assert!(copies(true, "A1", other), "{other} held");
+        }
+        assert!(!copies(false, "A1:A2", "1"), "a series fills on");
+        assert!(copies(true, "A1:A2", "1"), "held, a series copies");
+    }
 }

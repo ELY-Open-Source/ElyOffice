@@ -1131,5 +1131,10 @@
   - 测试：`dragging_across_headers_selects_whole_columns_and_rows`（列标 B 拖到 D 得 `S!$B:$D`，行号 2 拖到 4 得 `S!$2:$4`，A 列宽不变）；原有的边线拖动、双击、单击测试照旧
   - 帮助：新一节“ElyTable 的选区、填充与复制”（writer），本条一行；R24.2b、R24.2c 的两行随各自一条加
   - Omarchy：ElyTable 145 过，clippy 无告警；本机 check.sh 过
-- [ ] R24.2b #141 ElyTable 填充柄按住 Ctrl 拖为复制而非递增（Excel 的做法；单个数字照 Excel 反过来）（§7）
+- [x] R24.2b #141 ElyTable 填充柄按住 Ctrl 拖为复制而非递增（Excel 的做法；单个数字照 Excel 反过来）（§7）
+  - 已做：内核的 `.uno:AutoFill` 本有 `Copy`（FN_PARAM_1，“复制单元格”与“填充序列”之间的开关，即 LO 的 Ctrl 拖），不需补丁；`fill.auto` 加 `Arg::Bool("Copy")`。`grid.rs` 松手时照 Excel 定：选区只有一格、其编辑栏文字是纯数字（不是公式；日期、百分数、“Item1”这类文字都不算）即默认复制，否则默认递增；松手时按住 Ctrl（macOS 为 ⌥ Option）则反过来（`copies`）。LO 原本单个数字也递增，Ctrl 才复制；Excel 反之，这里照 Excel
+  - 未核实：Excel for Mac 用的是 ⌥ 还是别的键——Microsoft 的填充说明只讲事后的“自动填充选项”，未写按键；选 ⌥ 因 macOS 上 Ctrl+点按是右键菜单
+  - 测试：单测 `one_plain_number_copies_and_the_toggle_swaps`（数字、带符号、科学计数为数字；公式、日期、文字、空、inf、50% 不是；两格的序列）；`one_number_fills_as_a_copy_and_ctrl_counts_on`（A1=5 拖到 A3 得 5、5、5，按住切换键得 5、6、7）；引擎测试 `fill.auto` 补上 `false`
+  - 帮助：writer 的一行进新一节
+  - Omarchy：ElyTable 147 过，ely-lok workbook 8 过，clippy（ely-table、ely-lok）无告警；本机 check.sh 过
 - [ ] R24.2c #141 ElyTable 复制的单元格贴进聊天框成图：复制时剪贴板另带一张选区的图（§7）

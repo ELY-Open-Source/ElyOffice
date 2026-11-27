@@ -107,7 +107,7 @@ fn ranges_fill_size_hide_merge_and_take_formulas() {
     }
     let (dir, mut worker, doc) = open_book(GRID);
     run(&mut worker, &doc, "cell.goto", &["A1:A2"]);
-    run(&mut worker, &doc, "fill.auto", &["A5"]);
+    run(&mut worker, &doc, "fill.auto", &["A5", "false"]);
     run(&mut worker, &doc, "cell.goto", &["C1"]);
     run(&mut worker, &doc, "cell.enter", &["=SUM(A1:A5)"]);
     run(&mut worker, &doc, "cell.goto", &["C1"]);

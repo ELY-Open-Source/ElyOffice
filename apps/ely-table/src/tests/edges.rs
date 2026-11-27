@@ -222,3 +222,37 @@ fn dragging_across_headers_selects_whole_columns_and_rows() {
     }
     assert_eq!(width_of_a(&mut shown, &book), width, "a header drag sizes nothing");
 }
+
+/// Drags the cursor's fill handle to row `row` of A.
+fn fill_to(cx: &mut VisualTestContext, book: &Entity<Book>, row: u32, modifiers: Modifiers) {
+    frames(cx);
+    let view = view(cx, book);
+    let handle = cx.update(|_, app| {
+        let read = view.read(app);
+        let (x, y, w, h) = read.cell().cursor.expect("the cell cursor");
+        read.origin() + read.place((x + w, y + h)) - point(px(1.0), px(1.0))
+    });
+    let to = super::menu::spot(cx, book, 0, row, None);
+    cx.simulate_mouse_down(handle, MouseButton::Left, Modifiers::none());
+    cx.simulate_mouse_move(to, MouseButton::Left, modifiers);
+    cx.simulate_mouse_up(to, MouseButton::Left, modifiers);
+}
+
+#[test]
+fn one_number_fills_as_a_copy_and_ctrl_counts_on() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((book, mut shown)) = shown(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let toggle = if cfg!(target_os = "macos") { Modifiers::alt() } else { Modifiers::control() };
+    for (held, want) in [(Modifiers::none(), "5\n5\n5"), (toggle, "5\n6\n7")] {
+        super::data::run(&mut cx, &book, "cell.goto", &["A1"]);
+        super::data::run(&mut cx, &book, "cell.enter", &["5"]);
+        super::data::run(&mut cx, &book, "cell.goto", &["A1"]);
+        super::data::quiet(&cx, &book);
+        fill_to(&mut shown, &book, 2, held);
+        assert_eq!(super::data::cells(&mut cx, &book, "A1:A3"), want, "{held:?}");
+    }
+}
