@@ -66,6 +66,7 @@ pub struct PdfView {
     pub asking_text: HashSet<usize>,
     pub marks: Vec<Bookmark>,
     pub selection: Option<Selection>,
+    pub lit: crate::highlight::Lit,
     /// Found words by page, each with its quads.
     pub found: Vec<(usize, Vec<[f32; 8]>)>,
     /// The found word chosen.
@@ -186,6 +187,7 @@ impl PdfView {
         let tiles = self.tiles.drain().map(|(_, image)| image);
         // Its images also sit in tiles or retired.
         self.whole.clear();
+        self.lit.retire(&mut images);
         for image in tiles.chain(self.thumbs.drain().map(|(_, image)| image)) {
             images.push(image);
         }
@@ -219,6 +221,7 @@ impl PdfView {
             asking_text: HashSet::new(),
             marks: loaded.marks,
             selection: None,
+            lit: Default::default(),
             found: Vec::new(),
             chosen: None,
             go_to: None,
