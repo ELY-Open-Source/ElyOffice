@@ -992,6 +992,7 @@ impl Clipboard {
 		&self,
 		html: Cow<'_, str>,
 		alt: Option<Cow<'_, str>>,
+		png: Option<Vec<u8>>,
 		selection: LinuxClipboardKind,
 		wait: WaitConfig,
 		exclude_from_history: bool,
@@ -1014,6 +1015,9 @@ impl Clipboard {
 			bytes: html.into_owned().into_bytes(),
 			format: self.inner.atoms.HTML,
 		});
+		if let Some(png) = png {
+			data.push(ClipboardData { bytes: png, format: self.inner.atoms.PNG_MIME });
+		}
 
 		self.add_clipboard_exclusions(exclude_from_history, &mut data);
 

@@ -45,16 +45,20 @@ pub(super) fn clip_of(flavors: Vec<(String, Vec<u8>)>) -> Option<Clip> {
     };
     let text =
         take("text/plain;charset=utf-8").map(|data| String::from_utf8_lossy(&data).into_owned());
-    if let (Some(png), None) = (take("image/png"), &text) {
-        return Some(Clip::Png(png));
+    let png = take("image/png");
+    if let (Some(png), None) = (&png, &text) {
+        return Some(Clip::Png(png.clone()));
     }
-    match (take("text/html"), text) {
-        (Some(html), text) => Some(Clip::Html {
-            html: String::from_utf8_lossy(&html).into_owned(),
+    let html = take("text/html").map(|html| String::from_utf8_lossy(&html).into_owned());
+    match (html, text, png) {
+        // Cells come with their picture, for chat boxes (#141).
+        (Some(html), Some(text), Some(png)) => Some(Clip::Pictured { html, text, png }),
+        (Some(html), text, _) => Some(Clip::Html {
+            html,
             text: text.unwrap_or_default(),
         }),
-        (None, Some(text)) => Some(Clip::Text(text)),
-        (None, None) => None,
+        (None, Some(text), _) => Some(Clip::Text(text)),
+        (None, None, _) => None,
     }
 }
 
@@ -62,7 +66,7 @@ pub(super) fn clip_of(flavors: Vec<(String, Vec<u8>)>) -> Option<Clip> {
 pub(super) fn flavor_of(clip: Clip) -> (&'static str, Vec<u8>) {
     match clip {
         Clip::Text(text) => ("text/plain;charset=utf-8", text.into_bytes()),
-        Clip::Html { html, .. } => ("text/html", html.into_bytes()),
+        Clip::Html { html, .. } | Clip::Pictured { html, .. } => ("text/html", html.into_bytes()),
         Clip::Png(png) => ("image/png", png),
     }
 }
@@ -77,7 +81,7 @@ pub(super) fn copy_out(
     let Some(mut clip) = clip_of(worker.copy(doc)?) else {
         return Ok(None);
     };
-    let mark = if let Clip::Html { html, .. } = &mut clip {
+    let mark = if let Clip::Html { html, .. } | Clip::Pictured { html, .. } = &mut clip {
         static COPIES: AtomicU64 = AtomicU64::new(0);
         let mark = format!(
             "{}-{}",

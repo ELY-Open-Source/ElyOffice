@@ -146,6 +146,7 @@ features = [
     "NSEnumerator",
     "NSGeometry",
     "NSValue",
+    "NSData",
 ]
 default-features = false
 

@@ -710,6 +710,28 @@ impl<'clipboard> Set<'clipboard> {
 	}
 
 	#[cfg(feature = "image-data")]
+	pub(crate) fn html_with_image(
+		self,
+		html: Cow<'_, str>,
+		alt: Option<Cow<'_, str>>,
+		image: ImageData,
+	) -> Result<(), Error> {
+		let open_clipboard = self.clipboard?;
+
+		// `set_string` empties the clipboard; the rest add to it.
+		let alt = alt.map(String::from).unwrap_or_default();
+		clipboard_win::raw::set_string(&alt)
+			.map_err(|_| Error::unknown("Could not place the specified text to the clipboard"))?;
+		if let Some(format) = clipboard_win::register_format("HTML Format") {
+			let html = wrap_html(&html);
+			clipboard_win::raw::set_without_clear(format.get(), html.as_bytes())
+				.map_err(|e| Error::unknown(e.to_string()))?;
+		}
+		image_data::add_png_file(&image)?;
+		image_data::add_cf_dibv5(open_clipboard, image)
+	}
+
+	#[cfg(feature = "image-data")]
 	pub(crate) fn image(self, image: ImageData) -> Result<(), Error> {
 		let open_clipboard = self.clipboard?;
 

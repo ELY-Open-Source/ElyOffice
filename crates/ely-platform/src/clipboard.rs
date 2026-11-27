@@ -15,6 +15,12 @@ pub enum Clip {
         text: String,
     },
     Png(Vec<u8>),
+    /// Copied cells: HTML, text and their picture.
+    Pictured {
+        html: String,
+        text: String,
+        png: Vec<u8>,
+    },
 }
 
 /// One handle for the process; Linux serves from it.
@@ -34,15 +40,10 @@ pub fn write(clip: &Clip) -> Result<()> {
         match clip {
             Clip::Text(text) => board.set_text(text.as_str())?,
             Clip::Html { html, text } => board.set_html(html.as_str(), Some(text.as_str()))?,
-            Clip::Png(png) => {
-                let image = image::load_from_memory(png)
-                    .context("the copied png decodes")?
-                    .to_rgba8();
-                board.set_image(ImageData {
-                    width: image.width() as usize,
-                    height: image.height() as usize,
-                    bytes: image.into_raw().into(),
-                })?
+            Clip::Png(png) => board.set_image(pixels(png)?)?,
+            // One write, so image-only pastes find the picture.
+            Clip::Pictured { html, text, png } => {
+                board.set().html_with_image(html.as_str(), Some(text.as_str()), pixels(png)?)?
             }
         }
         log::info!("clipboard: wrote {}", kind(clip));
@@ -110,7 +111,18 @@ fn kind(clip: &Clip) -> &'static str {
         Clip::Text(_) => "text",
         Clip::Html { .. } => "html",
         Clip::Png(_) => "png",
+        Clip::Pictured { .. } => "html with a picture",
     }
+}
+
+/// A PNG as the pixels the clipboard takes.
+fn pixels(png: &[u8]) -> Result<ImageData<'static>> {
+    let image = image::load_from_memory(png).context("the copied png decodes")?.to_rgba8();
+    Ok(ImageData {
+        width: image.width() as usize,
+        height: image.height() as usize,
+        bytes: image.into_raw().into(),
+    })
 }
 
 #[cfg(test)]
@@ -142,12 +154,19 @@ mod tests {
         image::RgbaImage::from_pixel(3, 2, image::Rgba([0, 0, 255, 255]))
             .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
             .expect("the png encodes");
-        write(&Clip::Png(png)).expect("png writes");
+        write(&Clip::Png(png.clone())).expect("png writes");
         let Some(Clip::Png(back)) = read().expect("png reads") else {
             panic!("an image comes back as png");
         };
         let back = image::load_from_memory(&back).expect("decodes").to_rgba8();
         assert_eq!((back.width(), back.height()), (3, 2));
         assert_eq!(back.get_pixel(0, 0).0, [0, 0, 255, 255]);
+        write(&Clip::Pictured { html: "<td>a</td>".into(), text: "a".into(), png }).expect("cells write");
+        let Some(Clip::Html { html, .. }) = read().expect("cells read") else {
+            panic!("cells come back as html");
+        };
+        assert!(html.contains("<td>a</td>"), "{html}");
+        let image = with_board(|board| Ok(board.get_image()?)).expect("and their picture");
+        assert_eq!((image.width, image.height), (3, 2));
     }
 }

@@ -73,4 +73,14 @@ fn wayland_copies_cross_both_ways() {
     clipboard::write(&Clip::Png(blue_png())).expect("png writes");
     let image = image::load_from_memory(&wl_paste("image/png")).expect("decodes").to_rgba8();
     assert_eq!(image.get_pixel(0, 0).0, [0, 0, 255, 255]);
+    clipboard::write(&Clip::Pictured {
+        html: "<table/>".into(),
+        text: "1".into(),
+        png: blue_png(),
+    })
+    .expect("cells with their picture write");
+    assert_eq!(wl_paste("text/html"), b"<table/>", "pasting cells reads the HTML");
+    assert_eq!(wl_paste("text/plain;charset=utf-8"), b"1");
+    let image = image::load_from_memory(&wl_paste("image/png")).expect("decodes").to_rgba8();
+    assert_eq!(image.get_pixel(2, 1).0, [0, 0, 255, 255], "a chat box gets the picture");
 }

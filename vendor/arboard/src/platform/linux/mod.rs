@@ -251,15 +251,46 @@ impl<'clipboard> Set<'clipboard> {
 	}
 
 	pub(crate) fn html(self, html: Cow<'_, str>, alt: Option<Cow<'_, str>>) -> Result<(), Error> {
+		self.html_and(html, alt, None)
+	}
+
+	#[cfg(feature = "image-data")]
+	pub(crate) fn html_with_image(
+		self,
+		html: Cow<'_, str>,
+		alt: Option<Cow<'_, str>>,
+		image: ImageData<'_>,
+	) -> Result<(), Error> {
+		let png = encode_as_png(&image)?;
+		self.html_and(html, alt, Some(png))
+	}
+
+	/// HTML and its alternative, with a PNG beside them if given.
+	fn html_and(
+		self,
+		html: Cow<'_, str>,
+		alt: Option<Cow<'_, str>>,
+		png: Option<Vec<u8>>,
+	) -> Result<(), Error> {
 		match self.clipboard {
-			Clipboard::X11(clipboard) => {
-				clipboard.set_html(html, alt, self.selection, self.wait, self.exclude_from_history)
-			}
+			Clipboard::X11(clipboard) => clipboard.set_html(
+				html,
+				alt,
+				png,
+				self.selection,
+				self.wait,
+				self.exclude_from_history,
+			),
 
 			#[cfg(feature = "wayland-data-control")]
-			Clipboard::WlDataControl(clipboard) => {
-				clipboard.set_html(html, alt, self.selection, self.wait, self.exclude_from_history)
-			}
+			Clipboard::WlDataControl(clipboard) => clipboard.set_html(
+				html,
+				alt,
+				png,
+				self.selection,
+				self.wait,
+				self.exclude_from_history,
+			),
 		}
 	}
 

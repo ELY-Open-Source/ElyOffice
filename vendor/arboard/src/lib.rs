@@ -235,6 +235,18 @@ impl Set<'_> {
 		self.platform.html(html, alt_text)
 	}
 
+	/// Places HTML, a plain-text alternative and an image in one write, so a
+	/// paste that takes only images still gets one.
+	#[cfg(feature = "image-data")]
+	pub fn html_with_image<'a, T: Into<Cow<'a, str>>>(
+		self,
+		html: T,
+		alt_text: Option<T>,
+		image: ImageData,
+	) -> Result<(), Error> {
+		self.platform.html_with_image(html.into(), alt_text.map(|e| e.into()), image)
+	}
+
 	/// Completes the "set" operation by placing an image onto the clipboard.
 	///
 	/// The chosen output format, depending on the platform is the following:

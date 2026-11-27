@@ -18,7 +18,7 @@ use objc2::{
 	ClassType,
 };
 use objc2_app_kit::{
-	NSPasteboard, NSPasteboardTypeHTML, NSPasteboardTypeString,
+	NSPasteboard, NSPasteboardTypeHTML, NSPasteboardTypeString, NSPasteboardTypeTIFF,
 	NSPasteboardURLReadingFileURLsOnlyKey,
 };
 use objc2_foundation::{ns_string, NSArray, NSDictionary, NSNumber, NSString, NSURL};
@@ -295,6 +295,27 @@ impl<'clipboard> Set<'clipboard> {
 			Ok(())
 		} else {
 			Err(Error::unknown("NSPasteboard#writeObjects: returned false"))
+		}
+	}
+
+	#[cfg(feature = "image-data")]
+	pub(crate) fn html_with_image(
+		self,
+		html: Cow<'_, str>,
+		alt: Option<Cow<'_, str>>,
+		data: ImageData,
+	) -> Result<(), Error> {
+		let image = image_from_pixels(data.bytes.into(), data.width, data.height);
+		let tiff = image
+			.TIFFRepresentation()
+			.ok_or_else(|| Error::unknown("NSImage#TIFFRepresentation returned nil"))?;
+		let pasteboard = self.clipboard.pasteboard.clone();
+		self.html(html, alt)?;
+		// The same item as the HTML, so readers of either find both.
+		if pasteboard.setData_forType(Some(&tiff), unsafe { NSPasteboardTypeTIFF }) {
+			Ok(())
+		} else {
+			Err(Error::unknown("NSPasteboard#setData:forType: returned false"))
 		}
 	}
 

@@ -73,6 +73,14 @@ fn copied_flavors_pick_the_richest_clip() {
         clip_of(vec![flavor("image/png", "png")]),
         Some(Clip::Png(b"png".to_vec()))
     );
+    let cells = clip_of(vec![
+        flavor("text/html", "<table/>"),
+        flavor("text/plain;charset=utf-8", "1"),
+        flavor("image/png", "png"),
+    ]);
+    let pictured = Clip::Pictured { html: "<table/>".into(), text: "1".into(), png: b"png".to_vec() };
+    assert_eq!(cells, Some(pictured.clone()), "cells keep their picture");
+    assert_eq!(flavor_of(pictured).0, "text/html", "a paste back reads cells");
     assert_eq!(clip_of(Vec::new()), None);
     assert_eq!(
         flavor_of(Clip::Text("t".into())).0,

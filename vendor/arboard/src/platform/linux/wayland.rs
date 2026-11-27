@@ -148,6 +148,7 @@ impl Clipboard {
 		&self,
 		html: Cow<'_, str>,
 		alt: Option<Cow<'_, str>>,
+		png: Option<Vec<u8>>,
 		selection: LinuxClipboardKind,
 		wait: WaitConfig,
 		exclude_from_history: bool,
@@ -175,6 +176,12 @@ impl Clipboard {
 			source: Source::Bytes(html.into_owned().into_bytes().into_boxed_slice()),
 			mime_type: MimeType::Specific(String::from("text/html")),
 		});
+		if let Some(png) = png {
+			sources.push(MimeSource {
+				source: Source::Bytes(png.into_boxed_slice()),
+				mime_type: MimeType::Specific(String::from(MIME_PNG)),
+			});
+		}
 
 		add_clipboard_exclusions(exclude_from_history, &mut sources);
 
