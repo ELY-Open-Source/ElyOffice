@@ -20,9 +20,9 @@ diff --git a/sw/source/uibase/uiview/view2.cxx b/sw/source/uibase/uiview/view2.c
              if( bCompare )
 -                nFound = m_pWrtShell->CompareDoc( *static_cast<SwDocShell*>( xDocSh.get() )->GetDoc() );
 +            {
-+                // Ely: changes both already hold count as accepted, as in Word.
++                // Ely: both sides' changes count as accepted, as in Word.
 +                SwDoc& rOld = *static_cast<SwDocShell*>( xDocSh.get() )->GetDoc();
-+                // Only a document loaded here for comparing; never an open one.
++                // Only one loaded for this compare, never an open one.
 +                if( nRet == 2 )
 +                    rOld.getIDocumentRedlineAccess().AcceptAllRedline( true );
 +                else
