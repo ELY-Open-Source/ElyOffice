@@ -66,6 +66,7 @@ mod tests {
             author: author.into(),
             kind: "Insert".into(),
             description: String::new(),
+            words: String::new(),
             at: String::new(),
             anchor: None,
             ranges: Vec::new(),

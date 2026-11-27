@@ -6,6 +6,8 @@ use crate::refs::InsertComment;
 use crate::tests::{blank, docs, settle, settled, text_of, type_into, with_window, written};
 use ely_office::prelude::*;
 
+mod clicks;
+
 /// The review panel on the active tab.
 fn panel(cx: &mut TestAppContext, docs: &Entity<Docs>) -> Entity<Review> {
     cx.update(|app| {
@@ -120,7 +122,7 @@ fn one_unreadable_time_spares_the_other_notes() {
         return;
     };
     let review = cx.update(|app| docs.read(app).review.clone());
-    let change = Change { index: 7, author: "B".into(), kind: "Insert".into(), description: String::new(), at: "2025-03-01T10:00:00".into(), anchor: None, ranges: Vec::new() };
+    let change = Change { index: 7, author: "B".into(), kind: "Insert".into(), description: String::new(), words: String::new(), at: "2025-03-01T10:00:00".into(), anchor: None, ranges: Vec::new() };
     let lines = cx.update(|cx| review.update(cx, |review, cx| {
         review.take_lists(notes, vec![change]);
         assert_eq!(review.changes.len(), 1, "the changes stay");
@@ -407,4 +409,58 @@ fn a_reviser_filter_counts_and_steps_only_their_changes() {
     });
     cx.update(|app| review.update(app, |review, cx| review.run("track.accept", &[&index], cx)));
     settle(&cx, |app| review.read(app).changes.len() == 2 && review.read(app).who.is_none());
+}
+
+#[test]
+fn the_change_card_opens_on_a_move_not_on_typing_and_decides_one_change() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(ely_gpui_component::init_for_tests);
+    let id = blank(&mut cx, &docs);
+    // The panel stays hidden: the card needs no sidebar.
+    let review = cx.update(|app| docs.read(app).review.clone());
+    cx.update(|app| docs.update(app, |docs, cx| docs.side_view(cx)));
+    let track = |cx: &mut TestAppContext, on: &'static str| {
+        with_window(cx, &docs, |docs, window, cx| docs.on_track(&TrackChanges, window, cx));
+        settle(cx, |app| {
+            let tab = docs.read(app).active_tab().expect("a tab");
+            tab.view.read(app).state(".uno:TrackChanges") == Some(on)
+        });
+    };
+    type_into(&mut cx, &docs, "Start");
+    track(&mut cx, "true");
+    type_into(&mut cx, &docs, " Alpha");
+    type_into(&mut cx, &docs, " Beta");
+    settle(&cx, |app| review.read(app).changes.len() == 1);
+    // Typing inside one's own insertion opens nothing.
+    assert_eq!(cx.update(|app| review.read(app).card.open), None, "typing opens no card");
+    track(&mut cx, "false");
+    type_into(&mut cx, &docs, " plain");
+    let words = cx.update(|app| review.read(app).changes[0].words.clone());
+    assert!(words.contains("Alpha"), "the change carries its words: {words}");
+    // An arrow lands in it: its card opens.
+    cx.update(|app| review.update(app, |review, cx| review.step_change(true, cx)));
+    let index = cx.update(|app| review.read(app).changes[0].index);
+    settle(&cx, |app| review.read(app).card.open == Some(index));
+    // Escape closes it; it stays closed in place.
+    assert!(cx.update(|app| review.update(app, |review, cx| review.close_card(cx))));
+    assert!(!cx.update(|app| review.update(app, |review, cx| review.close_card(cx))), "nothing left to close");
+    // Open again, then reject from the card: that change only.
+    cx.update(|app| review.update(app, |review, cx| review.step_change(true, cx)));
+    settle(&cx, |app| review.read(app).card.open == Some(index));
+    cx.update(|app| review.update(app, |review, cx| {
+        review.run("track.reject", &[&index.to_string()], cx);
+        review.close_card(cx);
+    }));
+    settle(&cx, |app| review.read(app).changes.is_empty() && review.read(app).card.open.is_none());
+    let path = dir.path().join("card.odt");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    written(&cx, &path, None);
+    let text = text_of(&mut cx, &docs, &path);
+    assert!(text.contains("Start") && text.contains("plain"), "the rest stays");
+    assert!(!text.contains("Alpha"), "the rejected words go");
 }

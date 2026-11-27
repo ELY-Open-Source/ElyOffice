@@ -41,7 +41,7 @@ pub(super) fn step(spots: &[(Rect, bool)], caret: Option<Rect>, forward: bool) -
 }
 
 /// The hover words for a change: who, and what kind.
-fn tip(change: &Change, cx: &App) -> SharedString {
+pub(super) fn tip(change: &Change, cx: &App) -> SharedString {
     let key = match change.kind.as_str() {
         "Insert" => "doc.review.by.insert",
         "Delete" => "doc.review.by.delete",
@@ -72,6 +72,7 @@ impl Review {
         };
         let id = placed[at].index.to_string();
         log::info!("doc: review goes to change {id}");
+        self.open_card(placed[at].index, cx);
         self.run("track.goto", &[&id], cx);
     }
 
@@ -104,11 +105,13 @@ impl Review {
         let Some(shown) = &self.shown else {
             return;
         };
+        let hint = Docs::text(cx, "doc.review.hint", &[]);
         let tips = self
             .changes
             .iter()
             .flat_map(|change| {
-                let words = tip(change, cx);
+                let words: SharedString = format!("{}
+{hint}", tip(change, cx)).into();
                 change.ranges.iter().map(move |rect| (*rect, words.clone()))
             })
             .collect();

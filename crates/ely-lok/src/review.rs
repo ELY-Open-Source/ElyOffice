@@ -27,6 +27,8 @@ pub struct Change {
     pub author: String,
     pub kind: String,
     pub description: String,
+    /// The changed words, shortened by the kernel.
+    pub words: String,
     pub at: String,
     pub anchor: Option<Rect>,
     /// The changed words, one rect a line.
@@ -165,6 +167,7 @@ pub fn changes(json: &str) -> io::Result<Vec<Change>> {
                 author: text(entry, "author")?,
                 kind: text(entry, "type")?,
                 description: text(entry, "description")?,
+                words: text(entry, "text")?,
                 at: text(entry, "dateTime")?,
                 anchor: (!first.trim().is_empty())
                     .then(|| rect(first))
@@ -321,7 +324,7 @@ mod tests {
         let lines = super::notes(r#"{"comments":[{"id":2,"parentId":0,"author":"A","html":"","resolved":"false","dateTime":"2026-10-04T10:00:00","anchorPos":"1, 2, 3, 4","textRange":"10, 20, 30, 40; 50, 60, 70, 80"}]}"#)
             .expect("two lines parse");
         assert_eq!(lines[0].ranges, vec![(10, 20, 30, 40), (50, 60, 70, 80)]);
-        let changes = changes(r#"{"redlines":[{"index":1,"author":"A","type":"Insert","comment":"","description":"Insert x","dateTime":"2026-10-04T10:00:00","textRange":"4490, 14759, 648, 230; 1, 2, 3, 4"}]}"#)
+        let changes = changes(r#"{"redlines":[{"index":1,"author":"A","type":"Insert","comment":"","description":"Insert x","text":"x","dateTime":"2026-10-04T10:00:00","textRange":"4490, 14759, 648, 230; 1, 2, 3, 4"}]}"#)
             .expect("changes parse");
         assert_eq!(changes[0].anchor, Some((4490, 14759, 648, 230)));
         assert_eq!(changes[0].ranges, vec![(4490, 14759, 648, 230), (1, 2, 3, 4)]);

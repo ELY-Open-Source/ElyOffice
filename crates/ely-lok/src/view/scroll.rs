@@ -208,7 +208,7 @@ impl LokView {
     }
 
     /// A document rect in window pixels, panes applied.
-    pub(super) fn screen_rect(&self, (x, y, w, h): crate::Rect) -> Bounds<Pixels> {
+    pub fn screen_rect(&self, (x, y, w, h): crate::Rect) -> Bounds<Pixels> {
         Bounds::from_corners(self.window_point((x, y)), self.window_point((x + w, y + h)))
     }
 

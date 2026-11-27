@@ -1,0 +1,22 @@
+From: Ely Office
+Subject: LOK: Writer tracked changes carry their words
+
+- The tracked-change list gave only a description in the kernel's
+  fixed English ("Insert “…”"), so ElyDoc could not quote a change's
+  words in its own language (R23.7, #125).
+- Each entry of getCommandValues(".uno:AcceptTrackedChanges") gains
+  "text": the changed words, shortened as the description shortens
+  them (GetDescr(true)).
+
+diff --git a/sw/source/uibase/uno/unotxdoc.cxx b/sw/source/uibase/uno/unotxdoc.cxx
+--- a/sw/source/uibase/uno/unotxdoc.cxx
++++ b/sw/source/uibase/uno/unotxdoc.cxx
+@@ -3531,6 +3531,8 @@
+         rJson.put("comment",
+                            rRedlineTable[i]->GetRedlineData().GetComment());
+         rJson.put("description", rRedlineTable[i]->GetDescr());
++        // The changed words alone, for Ely's card.
++        rJson.put("text", rRedlineTable[i]->GetDescr(true));
+         OUString sDateTime = utl::toISO8601(
+             rRedlineTable[i]->GetRedlineData().GetTimeStamp().GetUNODateTime());
+         rJson.put("dateTime", sDateTime);

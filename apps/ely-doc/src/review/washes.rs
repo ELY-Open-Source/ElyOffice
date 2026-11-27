@@ -25,6 +25,7 @@ impl Review {
             return;
         };
         let caret = shown.view.read(cx).cursor();
+        self.follow_card(caret, cx);
         let at = caret.and_then(|caret| thread_at(&self.notes, caret)).map(SharedString::from);
         if at == self.inside {
             return;

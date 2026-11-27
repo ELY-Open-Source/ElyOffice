@@ -97,6 +97,7 @@ pub struct Review {
     pane: Pane,
     /// The reviser whose changes show; all when none.
     who: Option<String>,
+    card: card::Card,
 }
 
 impl EventEmitter<LokError> for Review {}
@@ -116,6 +117,7 @@ impl Review {
             by_caret: false,
             pane: Pane::Comments,
             who: None,
+            card: card::Card::default(),
         }
     }
 
@@ -418,6 +420,7 @@ impl Review {
             log::info!("doc: review filter ends, no changes left by it");
             self.who = None;
         }
+        self.keep_card();
     }
 
     /// Each unreadable note, by its author and the reason.
@@ -447,6 +450,8 @@ impl Review {
 }
 
 mod authors;
+mod card;
+pub(crate) use card::watch;
 mod nav;
 #[cfg(test)]
 mod tests;

@@ -38,10 +38,11 @@ impl Docs {
             return page;
         }
         if let Some(tab) = self.active_tab() {
-            let view = div()
+            let view = crate::review::watch(&self.review, div())
                 .relative()
                 .size_full()
                 .child(tab.view.clone())
+                .children(self.review.update(cx, |review, cx| review.card(cx)))
                 .children(self.find_box(cx))
                 .children(self.context_menu(cx))
                 .into_any_element();
