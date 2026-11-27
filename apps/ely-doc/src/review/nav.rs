@@ -20,7 +20,7 @@ pub(super) fn holds(ranges: &[Rect], caret: Rect) -> bool {
     })
 }
 
-/// The item to go to from `current`, or from `caret`; wraps around.
+/// Where to go from `current`, else `caret`; wraps around.
 pub(super) fn step(spots: &[(Rect, bool)], caret: Option<Rect>, forward: bool) -> Option<usize> {
     let count = spots.len();
     if count == 0 {
