@@ -107,9 +107,9 @@ ElyDoc 开着、文件已打开时，别的程序可经命令行读取、替换�
 - 默认文末，超宽缩版心；`--after` 在首匹配段（表内整表）后；`--width`：cm/mm/in/pt（1pt–100cm，等比）。例：`ely-doc image insert 文件 图.png --width 8cm`。
 - `format`、`table insert --after` 与 `image insert --after` 同样按去掉删除修订后的正文匹配原文，且不改变当前修订的显示状态。
 
-## ElyShow 的放映按钮、实时记分牌与倒计时
+## ElyShow 的放映
 
-- ElyShow 状态栏右侧的“放映”按钮从正在查看的幻灯片开始放映。
+- 状态栏右侧的“放映”按钮从正在查看的幻灯片开始放映。
 
 ## ElyShow 的命令行
 

@@ -19,6 +19,7 @@ mod notes;
 pub(crate) mod objects;
 mod output;
 pub(crate) mod play;
+mod present;
 mod play_more;
 mod play_time;
 mod remote;

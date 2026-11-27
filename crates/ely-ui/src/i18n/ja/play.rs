@@ -9,7 +9,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("show.play.presenter", "発表者ビュー"),
     ("show.play.screen", "画面 {number} ({width} × {height})"),
     ("show.play.start", "開始"),
-    ("show.play.present", "発表"),
+    ("show.play.present", "再生"),
     ("show.play.none", "すべてのスライドが非表示です"),
     ("show.play.busy", "スライドショーはすでに開始中か再生中です"),
     ("show.play.gone", "スライドショーを開始できませんでした: プレゼンテーションか画面が変わりました"),
