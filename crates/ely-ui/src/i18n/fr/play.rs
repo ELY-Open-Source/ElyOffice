@@ -69,7 +69,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("show.timer.bad", "Saisissez une durée, comme 5 ou 1:30"),
     ("show.timer.start", "Lancer le minuteur"),
     ("show.timer.pause", "Suspendre le minuteur"),
-    ("show.timer.reset", "Réinitialiser le minuteur"),
+    ("show.timer.reset", "Réinitialiser"),
     ("show.timer.edit", "Modifier"),
     ("show.score.menu", "Scores en direct…"),
     ("show.score.title", "Scores en direct : diapo {number}"),

@@ -1,5 +1,7 @@
 //! Slide Show, Timer: a countdown for a slide.
 
+use std::collections::HashSet;
+
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant},
     data_display::DescriptionList,
@@ -117,7 +119,9 @@ impl Deck {
                 None => extra.timers.remove(&name),
             };
         }
-        extra.clocks = Some(clocks);
+        let live: HashSet<u64> = extra.timers.values().map(|timer| timer.id).collect();
+        extra.clocks = Some(clocks.clone());
+        clocks.update(cx, |clocks, cx| clocks.keep(&live, cx));
         cx.notify();
     }
 

@@ -56,7 +56,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("show.check.nowhere", "スライドのテキストにはありません"),
     ("show.check.unnamed", "名前のないオブジェクト"),
     ("show.timer.menu", "タイマー…"),
-    ("show.timer.title", "タイマー：スライド {number}"),
+    ("show.timer.title", "タイマー: スライド {number}"),
     ("show.timer.detail", "カウントダウンです。分（5）または分:秒（1:30）を入力します。スライドショー中は T で開始・一時停止、R でリセットします。すべてに適用すると時計を共有します。時計をクリックしても開始・一時停止できます。エディターで時計をドラッグして移動できます。"),
     ("show.timer.length", "時間"),
     ("show.timer.place", "位置"),

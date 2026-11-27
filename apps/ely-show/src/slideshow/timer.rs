@@ -1,7 +1,7 @@
 //! Countdowns on slides; ElyShow keeps their time.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     time::{Duration, Instant},
 };
 
@@ -15,9 +15,6 @@ mod draw;
 
 pub use drag::Drag;
 pub use draw::{BAND, Hand, face};
-
-/// How often a running countdown redraws.
-const TICK: Duration = Duration::from_millis(200);
 
 /// Where a countdown sits on its slide.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -81,6 +78,17 @@ struct Run {
 impl Run {
     fn spent(&self, now: Instant) -> Duration {
         self.spent + self.since.map_or(Duration::ZERO, |since| now.saturating_duration_since(since))
+    }
+
+    /// Time until its shown second changes; None when still.
+    fn until_change(&self, now: Instant) -> Option<Duration> {
+        self.since?;
+        let left = self.length.saturating_sub(self.spent(now));
+        // Shown seconds round up, so whole ones last a second.
+        (!left.is_zero()).then(|| match left.subsec_nanos() {
+            0 => Duration::from_secs(1),
+            nanos => Duration::from_nanos(u64::from(nanos)),
+        })
     }
 }
 
@@ -146,21 +154,33 @@ impl Clocks {
         cx.notify();
     }
 
-    /// Whether any countdown still runs at `now`.
-    fn counting(&self, now: Instant) -> bool {
-        self.runs.values().any(|run| run.since.is_some() && run.spent(now) < run.length)
+    /// Ends the clocks no countdown in `live` uses.
+    pub fn keep(&mut self, live: &HashSet<u64>, cx: &mut Context<Self>) {
+        let before = self.runs.len();
+        self.runs.retain(|id, _| live.contains(id));
+        if self.runs.len() < before {
+            log::info!("show: {} countdown clocks end", before - self.runs.len());
+        }
+        if self.next_change(cx.background_executor().now()).is_none() {
+            self.tick = None;
+        }
     }
 
-    /// Redraws while a countdown runs.
+    /// The soonest moment a running face changes.
+    fn next_change(&self, now: Instant) -> Option<Duration> {
+        self.runs.values().filter_map(|run| run.until_change(now)).min()
+    }
+
+    /// Redraws once per shown second while one runs.
     fn keep_ticking(&mut self, cx: &mut Context<Self>) {
         self.tick = Some(cx.spawn(async |this, cx| {
             loop {
-                cx.background_executor().timer(TICK).await;
-                let counting = this.update(cx, |clocks, cx| {
-                    cx.notify();
-                    clocks.counting(cx.background_executor().now())
-                });
-                if !counting.is_ok_and(|counting| counting) {
+                let wait = this.update(cx, |clocks, cx| clocks.next_change(cx.background_executor().now()));
+                let Ok(Some(wait)) = wait else {
+                    break;
+                };
+                cx.background_executor().timer(wait).await;
+                if this.update(cx, |_, cx| cx.notify()).is_err() {
                     break;
                 }
             }
@@ -253,5 +273,21 @@ mod tests {
         assert_eq!((at(90_000).text.as_str(), at(90_000).phase), ("0:00", Phase::Over));
         let paused = Run { length: timer.length, spent: Duration::from_secs(5), since: None };
         assert_eq!(timer.face(Some(&paused), start).phase, Phase::Paused);
+    }
+
+    #[test]
+    fn a_running_countdown_wakes_only_when_its_second_changes() {
+        let start = Instant::now();
+        let run = Run { length: Duration::from_secs(70), spent: Duration::from_millis(600), since: Some(start) };
+        let at = |millis| run.until_change(start + Duration::from_millis(millis));
+        assert_eq!(at(0), Some(Duration::from_millis(400)), "69.4 s left shows 1:10 until 69 s");
+        assert_eq!(at(400), Some(Duration::from_secs(1)));
+        assert_eq!(at(69_400), None, "over");
+        let paused = Run { since: None, ..run };
+        assert_eq!(paused.until_change(start), None);
+        let mut clocks = Clocks::default();
+        clocks.runs.insert(1, run);
+        clocks.runs.insert(2, Run { spent: Duration::from_millis(900), ..run });
+        assert_eq!(clocks.next_change(start), Some(Duration::from_millis(100)), "the soonest of all");
     }
 }
