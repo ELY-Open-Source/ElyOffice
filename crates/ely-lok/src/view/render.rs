@@ -58,6 +58,8 @@ impl Render for LokView {
         // Opaque overlays hide glyphs already painted in the tiles.
         let selection_color = colors.selection.alpha(colors.selection.a.min(0.3));
         let caret_color = colors.focus;
+        // Search matches stand out from a plain selection.
+        let found_color = colors.focus.alpha(0.35);
         let canvas_color = colors.sunken;
         let caret_width = cx.theme().caret_width().to_pixels(window.rem_size());
         self.handle_size = cx.theme().handle_hit().to_pixels(window.rem_size());
@@ -150,7 +152,18 @@ impl Render for LokView {
                                 window.paint_quad(fill(rect, wash));
                             }
                             for rect in painted.selection {
-                                window.paint_quad(fill(rect, selection_color));
+                                if painted.found {
+                                    window.paint_quad(quad(
+                                        rect.dilate(px(2.0)),
+                                        Corners::all(px(2.0)),
+                                        found_color,
+                                        Edges::all(px(2.0)),
+                                        caret_color,
+                                        BorderStyle::Solid,
+                                    ));
+                                } else {
+                                    window.paint_quad(fill(rect, selection_color));
+                                }
                             }
                             for (mark, color) in painted.marks {
                                 window.paint_quad(quad(
@@ -249,6 +262,8 @@ pub(super) struct Painted {
     /// Each tile, its place and the pane that clips it.
     pub(super) tiles: Vec<(Bounds<Pixels>, Arc<RenderImage>, Bounds<Pixels>)>,
     pub(super) selection: Vec<Bounds<Pixels>>,
+    /// The selection is what the last search found.
+    pub(super) found: bool,
     /// Commented words, washed.
     pub(super) notes: Vec<(Bounds<Pixels>, gpui::Hsla)>,
     pub(super) caret: Option<Bounds<Pixels>>,
@@ -410,6 +425,7 @@ impl LokView {
             pages,
             tiles,
             selection: self.text_selection(),
+            found: self.selects_found(),
             notes: self.note_washes(),
             caret,
             cell: self.cell.cursor.map(rect),
