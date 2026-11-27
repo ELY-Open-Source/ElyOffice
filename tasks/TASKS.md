@@ -1187,3 +1187,10 @@
   - 测试：内核 `client/tests/numbering.rs`（13.2 设 5 得 13.5、13.6；重新开始；继续编号连带后项；继续去掉重新起算；单项样式含二级“13.f)”；坏式样报错；存 DOCX 重开照旧）；ElyDoc `numbering/tests.rs`（编号段有子菜单、普通段无；提示拒收；设值后下一项顺延；重新开始发 1；样式标签）
   - 文案取自 writer（菜单与提示八种语言、帮助一行、兼容一句、感谢）
   - Windows 共享引擎 2026-11-27 以 0180–0184 重建（658c1483，14 分钟）：ely-lok 453 过、2 忽略，ely-doc 200 过（字体两项只在 Linux）；两台 Mac 未建，7885 拒绝连接
+
+## R26 R25 之后到的 PR（2026-11-27，#149）
+
+流程同 R25：合并前在 Omarchy 跑该包的测试与 clippy，reviewer 至多五轮，勾选，提交并推送，致谢取自 writer。
+
+- [x] R26.0 PR #149 Linux 打印：标准纸（A3、A4、A5、B5、Letter、Legal）经门户的页面设置带上 `PPDName`，GTK 不再当作自定义尺寸、CUPS 收到 `A4` 而非 `Custom.WxH`；ISO B5 为 `ISOB5`（PPD 的 `B5` 是 JIS）；自定义尺寸照旧不带
+  - Omarchy 在 2f7ca9ae：ely-platform 测试全过（库 138 过、2 忽略，含新测 `standard_papers_carry_their_ppd_names`），ely-platform clippy（-D warnings）过，只余依赖的两条弃用告警；本机 check.sh、records.py、panics.py 过。未接打印机实印，作者改坏任务的 PageSize 为 A4 后印出；签名合并提交 cbdb28ff
