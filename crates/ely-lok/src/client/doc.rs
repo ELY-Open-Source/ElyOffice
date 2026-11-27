@@ -98,6 +98,12 @@ impl Doc {
         Ok(())
     }
 
+    /// Whether this view refuses edits.
+    pub fn set_read_only(&self, worker: &mut Worker, on: bool) -> io::Result<()> {
+        worker.request(tag::READ_ONLY, &Pack::new().u64(worker.doc_id(self)?).u64(u64::from(on)).bytes())?;
+        Ok(())
+    }
+
     /// The selection as plain text; Calc joins cells by tabs.
     pub fn selection_text(&self, worker: &mut Worker) -> io::Result<String> {
         let payload = worker.request(tag::SELECTION_TEXT, &Pack::new().u64(worker.doc_id(self)?).bytes())?;

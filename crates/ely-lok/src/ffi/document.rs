@@ -7,6 +7,13 @@ unsafe extern "C" {
 }
 
 impl Document {
+    /// Whether this view refuses edits.
+    pub fn set_read_only(&self, on: bool) {
+        let class = unsafe { (*self.doc).class };
+        type F = unsafe extern "C" fn(*mut Doc, i32, bool);
+        call!(class, 72, F, self.doc, self.view, on);
+    }
+
     /// Makes this document's view the kernel's current one.
     pub fn activate(&self) {
         let class = unsafe { (*self.doc).class };

@@ -7,14 +7,15 @@ use crate::tests::{blank, docs, settle, settled, text_of, type_into, with_window
 use ely_office::prelude::*;
 
 mod clicks;
+mod views;
 
 /// The review panel on the active tab.
 fn panel(cx: &mut TestAppContext, docs: &Entity<Docs>) -> Entity<Review> {
     cx.update(|app| {
         let tab = docs.read(app).active_tab().expect("a tab");
-        let (view, doc) = (tab.view.clone(), tab.doc.clone());
+        let (view, doc, work) = (tab.view.clone(), tab.doc.clone(), tab.work.clone());
         let review = docs.read(app).review.clone();
-        review.update(app, |review, cx| review.show(Some((&view, &doc)), cx));
+        review.update(app, |review, cx| review.show(Some((&view, &doc, &work)), cx));
         review
     })
 }

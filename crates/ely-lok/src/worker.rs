@@ -276,6 +276,11 @@ fn answer(lok: &Lok, tag: u8, id: u64, payload: &[u8]) {
             .and_then(|text| text)
             .map(|text| Pack::new().str(&text).bytes()),
         tag::COMPLETE_FUNCTION => complete::complete(unpack),
+        tag::READ_ONLY => unpack
+            .u64()
+            .and_then(|id| Ok((id, unpack.u64()? == 1)))
+            .and_then(|(id, on)| with_doc(id, |doc| doc.set_read_only(on)))
+            .map(|()| Vec::new()),
         tag::SET_AUTHOR => unpack
             .str()
             .and_then(|name| lok.set_option("author", &name))

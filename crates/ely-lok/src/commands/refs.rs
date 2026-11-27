@@ -81,6 +81,12 @@ pub(super) const ROWS: &[Command] = &[
     ),
     command("track.toggle", ".uno:TrackChanges", &[], Check::Result),
     command(
+        "track.shown",
+        ".uno:ShowTrackedChanges",
+        &[Arg::Bool("ShowTrackedChanges")],
+        Check::Reports,
+    ),
+    command(
         "track.goto",
         ".uno:NextTrackedChange",
         &[Arg::Int("NextTrackedChange", "uint32", 1, 4_294_967_295)],

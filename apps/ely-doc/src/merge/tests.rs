@@ -135,8 +135,8 @@ fn compare_opens_a_marked_copy_and_keeps_both_files() {
     let review = cx.update(|app| docs.read(app).review.clone());
     let tab = cx.update(|app| docs.read(app).core.tabs[1].view.clone());
     cx.update(|app| {
-        let doc = docs.read(app).core.tabs[1].doc.clone();
-        review.update(app, |review, cx| review.show(Some((&tab, &doc)), cx))
+        let (doc, work) = (docs.read(app).core.tabs[1].doc.clone(), docs.read(app).core.tabs[1].work.clone());
+        review.update(app, |review, cx| review.show(Some((&tab, &doc, &work)), cx))
     });
     settle(&cx, |app| !review.read(app).changes.is_empty());
     let name = cx.update(|app| docs.read(app).core.tabs[1].name.to_string());

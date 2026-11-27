@@ -1,5 +1,6 @@
 //! Comments and tracked changes beside the page (DOC-11).
 
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use ely_gpui_component::{
@@ -76,6 +77,8 @@ struct Shown {
     read: Option<u64>,
     /// A read is on its way.
     reading: bool,
+    /// The tab's work folder, for the Original copy.
+    work: PathBuf,
     _observe: Subscription,
     _caret: Subscription,
 }
@@ -98,6 +101,10 @@ pub struct Review {
     /// The reviser whose changes show; all when none.
     who: Option<String>,
     card: card::Card,
+    /// The Original view's copy, while shown.
+    original: Option<views::Original>,
+    /// The copy is opening.
+    preparing: bool,
 }
 
 impl EventEmitter<LokError> for Review {}
@@ -118,16 +125,19 @@ impl Review {
             pane: Pane::Comments,
             who: None,
             card: card::Card::default(),
+            original: None,
+            preparing: false,
         }
     }
 
     /// Follows the active tab; reads the lists when they change.
-    pub fn show(&mut self, tab: Option<(&Entity<LokView>, &Doc)>, cx: &mut Context<Self>) {
-        let id = tab.map(|(view, _)| view.entity_id());
+    pub fn show(&mut self, tab: Option<(&Entity<LokView>, &Doc, &Path)>, cx: &mut Context<Self>) {
+        let id = tab.map(|(view, _, _)| view.entity_id());
         if self.shown.as_ref().map(|shown| shown.view.entity_id()) == id {
             return;
         }
         // Another document's lists must not stay actionable.
+        self.drop_original(cx);
         self.shown = None;
         (self.active, self.inside, self.by_caret) = (None, None, false);
         self.notes.clear();
@@ -136,7 +146,7 @@ impl Review {
         self.unread.clear();
         self.changes.clear();
         cx.notify();
-        let Some((view, doc)) = tab else {
+        let Some((view, doc, work)) = tab else {
             return;
         };
         let observe = cx.subscribe(view, |review, _, _: &Reported, cx| review.refresh(cx));
@@ -146,6 +156,7 @@ impl Review {
             doc: doc.clone(),
             read: None,
             reading: false,
+            work: work.to_path_buf(),
             _observe: observe,
             _caret: caret,
         });
@@ -359,6 +370,7 @@ impl Render for Review {
                 .flex()
                 .flex_col()
                 .gap_2()
+                .child(self.views(cx))
                 .when(!self.changes.is_empty(), |it| it.child(self.revisers(cx)))
                 .child(ScrollArea::new("doc-review-scroll").vertical().size_full().child(self.changes_list(cx)))
                 .into_any_element(),
@@ -453,7 +465,9 @@ mod authors;
 mod card;
 pub(crate) use card::watch;
 mod nav;
+mod original;
 #[cfg(test)]
 mod tests;
 mod threads;
+mod views;
 mod washes;

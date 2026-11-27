@@ -23,6 +23,8 @@ impl Docs {
     pub(crate) fn status(&self, cx: &mut Context<Self>) -> StatusBar {
         let status = StatusBar::new().left(self.state_item("doc-state", cx));
         let status = status.when_some(self.links_item(cx), |status, item| status.left(item));
+        let locked = self.review.read(cx).original_view().map(|_| Self::text(cx, "doc.review.view.read_only", &[]));
+        let status = status.when_some(locked, |status, said| status.left(StatusBarItem::new("doc-read-only").label(said)));
         let zoom = self.zoom_control(cx);
         let Some(counts) = self.active_tab().and_then(|tab| tab.extra.counts) else {
             return status.when_some(zoom, |status, zoom| status.right(zoom));
@@ -41,7 +43,7 @@ impl Docs {
             let view = crate::review::watch(&self.review, div())
                 .relative()
                 .size_full()
-                .child(tab.view.clone())
+                .child(self.review.read(cx).original_view().unwrap_or_else(|| tab.view.clone()))
                 .children(self.review.update(cx, |review, cx| review.card(cx)))
                 .children(self.find_box(cx))
                 .children(self.context_menu(cx))
@@ -88,9 +90,10 @@ impl Docs {
     pub(crate) fn side_view(&mut self, cx: &mut Context<Self>) -> Option<AnyView> {
         let shown = self
             .active_tab()
-            .map(|tab| (tab.view.clone(), tab.doc.clone()));
-        let tab = shown.as_ref().map(|(view, doc)| (view, doc));
+            .map(|tab| (tab.view.clone(), tab.doc.clone(), tab.work.clone()));
+        let tab = shown.as_ref().map(|(view, doc, _)| (view, doc));
         self.props.update(cx, |props, cx| props.show(tab, cx));
+        let tab = shown.as_ref().map(|(view, doc, work)| (view, doc, work.as_path()));
         self.review.update(cx, |review, cx| review.show(tab, cx));
         shown.as_ref()?;
         Some(self.column.clone().into())

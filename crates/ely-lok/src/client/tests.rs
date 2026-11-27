@@ -68,6 +68,7 @@ mod print;
 mod profile;
 mod refs;
 mod r_macros;
+mod read_only;
 mod roundtrip;
 mod rules;
 mod scripted;

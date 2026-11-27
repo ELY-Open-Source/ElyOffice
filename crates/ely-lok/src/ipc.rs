@@ -102,6 +102,8 @@ pub mod tag {
     pub const HELLO: u8 = 38;
     /// The checker leaves; the engine waits for an app.
     pub const RELEASE: u8 = 39;
+    /// A view that takes no edits, or takes them again.
+    pub const READ_ONLY: u8 = 40;
     pub const OK: u8 = 100;
     pub const ERR: u8 = 101;
 }
