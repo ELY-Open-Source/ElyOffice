@@ -144,6 +144,12 @@ pub(super) const ROWS: &[Command] = &[
     command("list.deeper", ".uno:DecrementLevel", &[], Check::Result),
     command("list.higher", ".uno:IncrementLevel", &[], Check::Result),
     command(
+        "list.levels",
+        ".uno:ElyListLevels",
+        &[Arg::Text("Levels")],
+        Check::Undoable,
+    ),
+    command(
         "style.new",
         ".uno:StyleNewByExample",
         &[

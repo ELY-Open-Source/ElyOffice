@@ -1,0 +1,158 @@
+From: Ely Office
+Subject: Writer: a kit client sets a list's number formats level by level
+
+- Demoting a numbered item showed "1." again: the default numbering
+  shows only its own level, and the outline presets come from the
+  locale, with no "1.1." or "(1)" scheme in English (#130).
+- .uno:ElyListLevels takes Levels, "type|format" a level with ";"
+  between: type a css.style.NumberingType number, format a list
+  format where %1% is level one's number. It rewrites the list at
+  the selection, or makes the selection a list, as one undo step;
+  positions and character styles stay. A bad level changes nothing.
+- Its state is the list at the cursor in the same form, empty
+  outside a list.
+
+diff --git a/sfx2/source/control/unoctitm.cxx b/sfx2/source/control/unoctitm.cxx
+--- a/sfx2/source/control/unoctitm.cxx
++++ b/sfx2/source/control/unoctitm.cxx
+@@ -1284,6 +1284,7 @@
+         { u"CharStyle", { PayloadType::StyleApplyPayload, true } },
+         { u"ULSpacing", { PayloadType::ULSpacingPayload, true } },
+         { u"ElyFirstLineChars", { PayloadType::StringPayload, true } },
++        { u"ElyListLevels", { PayloadType::StringPayload, true } },
+         { u"AttributePageSize", { PayloadType::SizePayload, true } },
+         { u"AttributePage", { PayloadType::PageItemPayload, true } },
+         { u"PageLRMargin", { PayloadType::MarginsPayload, true } },
+diff --git a/sw/inc/cmdid.h b/sw/inc/cmdid.h
+--- a/sw/inc/cmdid.h
++++ b/sw/inc/cmdid.h
+@@ -512,6 +512,8 @@
+ #define FN_FORMAT_LINENUMBER                (FN_FORMAT2 + 144)
+ // Ely: the first-line indent in CJK characters.
+ #define FN_ELY_FIRST_LINE_CHARS             (FN_FORMAT2 + 145)
++// Ely: a list's number formats, level by level.
++#define FN_ELY_LIST_LEVELS                  (FN_FORMAT2 + 146)
+ 
+ #define FN_TABLE_RELATIVE_WIDTH             (FN_FORMAT2 + 147)  /* UNO */
+ #define FN_TABLE_WIDTH                      (FN_FORMAT2 + 148)  /* UNO */
+diff --git a/sw/sdi/_textsh.sdi b/sw/sdi/_textsh.sdi
+--- a/sw/sdi/_textsh.sdi
++++ b/sw/sdi/_textsh.sdi
+@@ -904,6 +904,12 @@
+         StateMethod = GetState;
+         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+     ]
++    FN_ELY_LIST_LEVELS
++    [
++        ExecMethod = ExecSetNumber;
++        StateMethod = GetState;
++        DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
++    ]
+     SID_OUTLINE_BULLET // status(final|play)
+     [
+         ExecMethod = ExecEnterNum ;
+diff --git a/sw/sdi/swriter.sdi b/sw/sdi/swriter.sdi
+--- a/sw/sdi/swriter.sdi
++++ b/sw/sdi/swriter.sdi
+@@ -5520,6 +5520,23 @@
+     GroupId = SfxGroupId::Format;
+ ]
+ 
++SfxStringItem ElyListLevels FN_ELY_LIST_LEVELS
++(SfxStringItem Levels FN_PARAM_1)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Format;
++]
++
+ SfxVoidItem ResetAttributes FN_FORMAT_RESET
+ ()
+ [
+diff --git a/sw/source/uibase/shells/textsh1.cxx b/sw/source/uibase/shells/textsh1.cxx
+--- a/sw/source/uibase/shells/textsh1.cxx
++++ b/sw/source/uibase/shells/textsh1.cxx
+@@ -4272,6 +4272,22 @@
+                 }
+                 break;
+             }
++            case FN_ELY_LIST_LEVELS:
++            {
++                // Ely: the list's levels as ElyListLevels takes them.
++                const SwNumRule* pRule = rSh.GetNumRuleAtCurrCursorPos();
++                OUStringBuffer aLevels;
++                for (sal_uInt16 nLevel = 0; pRule && nLevel < MAXLEVEL; ++nLevel)
++                {
++                    const SwNumFormat& rFormat = pRule->Get(nLevel);
++                    if (nLevel)
++                        aLevels.append(';');
++                    aLevels.append(OUString::number(rFormat.GetNumberingType()) + "|"
++                                   + (rFormat.HasListFormat() ? rFormat.GetListFormat() : OUString()));
++                }
++                rSet.Put(SfxStringItem(nWhich, aLevels.makeStringAndClear()));
++                break;
++            }
+             case FN_BUL_NUM_RULE_INDEX:
+             case FN_NUM_NUM_RULE_INDEX:
+             case FN_OUTLINE_RULE_INDEX:
+diff --git a/sw/source/uibase/shells/txtnum.cxx b/sw/source/uibase/shells/txtnum.cxx
+--- a/sw/source/uibase/shells/txtnum.cxx
++++ b/sw/source/uibase/shells/txtnum.cxx
+@@ -40,6 +40,7 @@
+ #include <sfx2/viewfrm.hxx>
+ #include <sfx2/bindings.hxx>
+ #include <memory>
++#include <o3tl/string_view.hxx>
+ 
+ void SwTextShell::ExecEnterNum(SfxRequest &rReq)
+ {
+@@ -340,6 +341,40 @@
+         }
+         break;
+ 
++    case FN_ELY_LIST_LEVELS:
++        {
++            // Ely: "type|format" a level, ";" between; %1% is level one.
++            const SfxStringItem* pLevels = rReq.GetArg<SfxStringItem>(FN_PARAM_1);
++            if (!pLevels)
++                return;
++            SwWrtShell& rSh = GetShell();
++            const SwNumRule* pCur = rSh.GetNumRuleAtCurrentSelection();
++            SwNumRule aRule(pCur ? pCur->GetName() : rSh.GetUniqueNumRuleName(),
++                            numfunc::GetDefaultPositionAndSpaceMode());
++            if (pCur)
++                aRule = *pCur;
++            const OUString& rSpec = pLevels->GetValue();
++            sal_Int32 nNext = 0;
++            for (sal_uInt16 nLevel = 0; nLevel < MAXLEVEL && nNext >= 0; ++nLevel)
++            {
++                const OUString aLevel = rSpec.getToken(0, ';', nNext);
++                const sal_Int32 nBar = aLevel.indexOf('|');
++                const sal_Int32 nType = nBar > 0 ? o3tl::toInt32(aLevel.subView(0, nBar)) : -1;
++                // A bad level changes nothing: no undo step.
++                const bool bNumber = (nType >= 0 && nType < SVX_NUM_NUMBER_NONE)
++                                     || (nType > SVX_NUM_BITMAP && nType <= SVX_NUM_ARABIC_ZERO5);
++                if (!bNumber || aLevel.indexOf("%", nBar) < 0)
++                    return;
++                SwNumFormat aFormat(aRule.Get(nLevel));
++                aFormat.SetNumberingType(static_cast<SvxNumType>(nType));
++                aFormat.SetListFormat(aLevel.copy(nBar + 1));
++                aRule.Set(nLevel, aFormat);
++            }
++            aRule.SetAutoRule(true);
++            rSh.SetCurNumRule(aRule, pCur == nullptr);
++        }
++        break;
++
+     default:
+         OSL_ENSURE(false, "wrong Dispatcher");
+         return;

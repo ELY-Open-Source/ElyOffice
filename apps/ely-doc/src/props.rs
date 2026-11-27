@@ -7,8 +7,11 @@ mod builtin;
 #[cfg(test)]
 mod chinese;
 mod groups;
+mod levels;
 #[cfg(test)]
 mod indent_tests;
+#[cfg(test)]
+mod levels_tests;
 #[cfg(test)]
 mod layout_tests;
 mod object;

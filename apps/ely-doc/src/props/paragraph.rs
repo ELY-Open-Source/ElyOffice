@@ -154,6 +154,7 @@ impl Props {
             .row(tip("doc.props.above"), self.spacing(false, cx))
             .row(tip("doc.props.below"), self.spacing(true, cx))
             .row(tip("doc.props.lists"), lists)
+            .row(tip("doc.props.list_levels"), self.levels_menu(cx))
             .row(tip("doc.props.tabs"), self.tabs(cx))
             .row(
                 tip("doc.props.shading"),
