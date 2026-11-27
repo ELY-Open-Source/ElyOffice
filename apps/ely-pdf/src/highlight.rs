@@ -16,7 +16,7 @@ const DARKEST_ENOUGH: f32 = 110.0;
 /// Below this contrast is paper grain, not ink.
 const FAINT: u8 = 64;
 
-/// A cut of a tile: its source, pixel box and fill.
+/// A tile cut: source, pixel box, fill.
 type Cut = (ImageId, [u32; 4], [u8; 3]);
 
 /// The recoloured cuts on screen.
@@ -112,7 +112,7 @@ fn laid(image: Arc<RenderImage>, [x, y, w, h]: [f32; 4]) -> AnyElement {
 }
 
 impl PdfView {
-    /// The picked lines of a page, cut from what it draws.
+    /// A page's picked lines, cut from its tiles.
     pub fn picked_text(&mut self, place: &Placed, pieces: &[(Arc<RenderImage>, [f32; 4])], scale: f32, cx: &App) -> Vec<AnyElement> {
         let lines = self.picked_lines(place.page);
         let fill = fill_of(cx.theme().colors.selection);
