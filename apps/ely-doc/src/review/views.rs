@@ -26,6 +26,9 @@ impl Review {
         if self.original.is_some() || self.preparing {
             return "original";
         }
+        if self.only {
+            return "changes";
+        }
         let state = self.shown.as_ref().and_then(|shown| shown.view.read(cx).state(".uno:ShowTrackedChanges"));
         match state {
             Some("false") => "final",
@@ -41,6 +44,7 @@ impl Review {
             .segment("markup", Docs::text(cx, "doc.review.view.markup", &[]), None)
             .segment("original", Docs::text(cx, "doc.review.view.original", &[]), None)
             .segment("final", Docs::text(cx, "doc.review.view.final", &[]), None)
+            .segment("changes", Docs::text(cx, "doc.review.view.changes", &[]), None)
             .on_change(move |value, _, cx| this.update(cx, |review, cx| review.show_as(value.as_ref(), cx)));
         div()
             .flex()
@@ -57,6 +61,7 @@ impl Review {
             return;
         }
         log::info!("doc: review shows {how}");
+        self.only = how == "changes";
         if how == "original" {
             return self.prepare_original(cx);
         }

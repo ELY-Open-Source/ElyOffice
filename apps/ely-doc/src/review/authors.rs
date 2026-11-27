@@ -70,6 +70,10 @@ mod tests {
             at: String::new(),
             anchor: None,
             ranges: Vec::new(),
+            node: 0,
+            from: 0,
+            to: 0,
+            paragraph: None,
         }
     }
 

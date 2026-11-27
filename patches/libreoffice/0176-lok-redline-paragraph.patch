@@ -1,0 +1,33 @@
+From: Ely Office
+Subject: LOK: Writer tracked changes carry their paragraph
+
+- ElyDoc's "Changes only" view lists each change with the start of
+  its paragraph and pairs a deletion with the insertion beside it
+  (R23.8b, #126); the list gave neither.
+- Each entry of getCommandValues(".uno:AcceptTrackedChanges") gains
+  "node" (the start paragraph's node index), "from" and "to" (content
+  indexes; "to" is -1 when the change spans paragraphs) and
+  "paragraph" (the first 60 code units of that paragraph's text).
+
+diff --git a/sw/source/uibase/uno/unotxdoc.cxx b/sw/source/uibase/uno/unotxdoc.cxx
+--- a/sw/source/uibase/uno/unotxdoc.cxx
++++ b/sw/source/uibase/uno/unotxdoc.cxx
+@@ -3533,6 +3533,18 @@
+         rJson.put("description", rRedlineTable[i]->GetDescr());
+         // The changed words alone, for Ely's card.
+         rJson.put("text", rRedlineTable[i]->GetDescr(true));
++        // Its paragraph and place, for Ely's change list.
++        const SwPosition* pFrom = rRedlineTable[i]->Start();
++        const SwPosition* pTo = rRedlineTable[i]->End();
++        rJson.put("node", sal_Int64(pFrom->GetNodeIndex().get()));
++        rJson.put("from", sal_Int64(pFrom->GetContentIndex()));
++        const bool bOneNode = &pTo->GetNode() == &pFrom->GetNode();
++        rJson.put("to", sal_Int64(bOneNode ? pTo->GetContentIndex() : -1));
++        if (const SwTextNode* pText = pFrom->GetNode().GetTextNode())
++        {
++            const OUString& rText = pText->GetText();
++            rJson.put("paragraph", rText.copy(0, std::min<sal_Int32>(rText.getLength(), 60)));
++        }
+         OUString sDateTime = utl::toISO8601(
+             rRedlineTable[i]->GetRedlineData().GetTimeStamp().GetUNODateTime());
+         rJson.put("dateTime", sDateTime);

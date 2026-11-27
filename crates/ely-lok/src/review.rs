@@ -33,6 +33,13 @@ pub struct Change {
     pub anchor: Option<Rect>,
     /// The changed words, one rect a line.
     pub ranges: Vec<Rect>,
+    /// Its start paragraph's node index.
+    pub node: i64,
+    /// Where it starts and ends; `to` -1 across paragraphs.
+    pub from: i64,
+    pub to: i64,
+    /// Its start paragraph's first words; none outside text.
+    pub paragraph: Option<String>,
 }
 
 /// Words and characters, in the document and the selection.
@@ -173,6 +180,10 @@ pub fn changes(json: &str) -> io::Result<Vec<Change>> {
                     .then(|| rect(first))
                     .transpose()?,
                 ranges: rects(&range)?,
+                node: signed(entry, "node")?,
+                from: signed(entry, "from")?,
+                to: signed(entry, "to")?,
+                paragraph: entry["paragraph"].as_str().map(str::to_string),
             })
         })
         .collect()
@@ -235,6 +246,12 @@ fn text(entry: &serde_json::Value, key: &str) -> io::Result<String> {
 fn number(entry: &serde_json::Value, key: &str) -> io::Result<u64> {
     entry[key]
         .as_u64()
+        .ok_or_else(|| invalid(format!("an entry has no {key}: {entry}")))
+}
+
+fn signed(entry: &serde_json::Value, key: &str) -> io::Result<i64> {
+    entry[key]
+        .as_i64()
         .ok_or_else(|| invalid(format!("an entry has no {key}: {entry}")))
 }
 
@@ -324,10 +341,12 @@ mod tests {
         let lines = super::notes(r#"{"comments":[{"id":2,"parentId":0,"author":"A","html":"","resolved":"false","dateTime":"2026-10-04T10:00:00","anchorPos":"1, 2, 3, 4","textRange":"10, 20, 30, 40; 50, 60, 70, 80"}]}"#)
             .expect("two lines parse");
         assert_eq!(lines[0].ranges, vec![(10, 20, 30, 40), (50, 60, 70, 80)]);
-        let changes = changes(r#"{"redlines":[{"index":1,"author":"A","type":"Insert","comment":"","description":"Insert x","text":"x","dateTime":"2026-10-04T10:00:00","textRange":"4490, 14759, 648, 230; 1, 2, 3, 4"}]}"#)
+        let changes = changes(r#"{"redlines":[{"index":1,"author":"A","type":"Insert","comment":"","description":"Insert x","text":"x","node":5,"from":0,"to":1,"paragraph":"x and more","dateTime":"2026-10-04T10:00:00","textRange":"4490, 14759, 648, 230; 1, 2, 3, 4"}]}"#)
             .expect("changes parse");
         assert_eq!(changes[0].anchor, Some((4490, 14759, 648, 230)));
         assert_eq!(changes[0].ranges, vec![(4490, 14759, 648, 230), (1, 2, 3, 4)]);
+        assert_eq!((changes[0].node, changes[0].from, changes[0].to), (5, 0, 1));
+        assert_eq!(changes[0].paragraph.as_deref(), Some("x and more"));
         assert!(super::notes(r#"{"comments":[{"id":1}]}"#).is_err());
         assert_eq!(formula("{}").expect("empty"), None);
         let counts = counts(r#"{"document":{"words":11,"characters":41,"charactersNoSpaces":31},"selection":{"words":2,"characters":7,"charactersNoSpaces":6}}"#)

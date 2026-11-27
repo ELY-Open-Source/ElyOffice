@@ -123,7 +123,7 @@ fn one_unreadable_time_spares_the_other_notes() {
         return;
     };
     let review = cx.update(|app| docs.read(app).review.clone());
-    let change = Change { index: 7, author: "B".into(), kind: "Insert".into(), description: String::new(), words: String::new(), at: "2025-03-01T10:00:00".into(), anchor: None, ranges: Vec::new() };
+    let change = Change { index: 7, author: "B".into(), kind: "Insert".into(), description: String::new(), words: String::new(), at: "2025-03-01T10:00:00".into(), anchor: None, ranges: Vec::new(), node: 0, from: 0, to: 0, paragraph: None };
     let lines = cx.update(|cx| review.update(cx, |review, cx| {
         review.take_lists(notes, vec![change]);
         assert_eq!(review.changes.len(), 1, "the changes stay");

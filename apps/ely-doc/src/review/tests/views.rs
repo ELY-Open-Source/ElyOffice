@@ -77,3 +77,48 @@ fn a_document_without_changes_shows_its_original_too() {
     let copy = copy.expect("the copy opens with no changes to reject");
     assert_eq!(body(&mut cx, &docs, &copy), ["Plain"]);
 }
+
+#[test]
+fn changes_only_pairs_a_replacement_with_its_paragraph() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(ely_gpui_component::init_for_tests);
+    blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "Price 5");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_track(&TrackChanges, window, cx));
+    settle(&cx, |app| {
+        let tab = docs.read(app).active_tab().expect("a tab");
+        tab.view.read(app).state(".uno:TrackChanges") == Some("true")
+    });
+    let review = panel(&mut cx, &docs);
+    // Backspace deletes the 5; typing inserts beside it.
+    cx.update(|app| {
+        let docs = docs.read(app);
+        let doc = docs.active_tab().expect("a tab").doc.clone();
+        docs.core.worker.lock().expect("the worker lock").post_key(&doc, 0, 1283).expect("backspace posts");
+    });
+    settle(&cx, |app| review.read(app).changes.len() == 1);
+    type_into(&mut cx, &docs, "10");
+    settle(&cx, |app| review.read(app).changes.len() == 2);
+    cx.update(|app| review.update(app, |review, cx| review.show_as("changes", cx)));
+    let (rows, paragraph) = cx.update(|app| {
+        let review = review.read(app);
+        let rows: Vec<Option<(String, String)>> = only::rows(&review.changes)
+            .iter()
+            .map(|row| row.replaced().map(|(old, new)| (old.to_string(), new.to_string())))
+            .collect();
+        (rows, review.changes[0].paragraph.clone())
+    });
+    assert_eq!(rows, [Some(("5".to_string(), "10".to_string()))], "one row, old to new");
+    assert!(paragraph.is_some_and(|text| only::context(&text).starts_with("Price")), "the paragraph's start");
+    assert!(cx.update(|app| review.read(app).only), "the list shows changes only");
+    let shows = cx.update(|app| {
+        let tab = docs.read(app).active_tab().expect("a tab");
+        tab.view.read(app).state(".uno:ShowTrackedChanges").map(str::to_owned)
+    });
+    assert_eq!(shows.as_deref(), Some("true"), "the page keeps its markup");
+}

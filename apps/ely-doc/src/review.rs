@@ -105,6 +105,8 @@ pub struct Review {
     original: Option<views::Original>,
     /// The copy is opening.
     preparing: bool,
+    /// The list shows each change once, replacements paired.
+    only: bool,
 }
 
 impl EventEmitter<LokError> for Review {}
@@ -127,6 +129,7 @@ impl Review {
             card: card::Card::default(),
             original: None,
             preparing: false,
+            only: false,
         }
     }
 
@@ -372,7 +375,10 @@ impl Render for Review {
                 .gap_2()
                 .child(self.views(cx))
                 .when(!self.changes.is_empty(), |it| it.child(self.revisers(cx)))
-                .child(ScrollArea::new("doc-review-scroll").vertical().size_full().child(self.changes_list(cx)))
+                .child(ScrollArea::new("doc-review-scroll").vertical().size_full().child(match self.only {
+                    true => self.only_list(cx),
+                    false => self.changes_list(cx).into_any_element(),
+                }))
                 .into_any_element(),
             Pane::Comments => {
                 let field = window.use_keyed_state("doc-review-reply", cx, |window, cx| {
@@ -465,6 +471,7 @@ mod authors;
 mod card;
 pub(crate) use card::watch;
 mod nav;
+mod only;
 mod original;
 #[cfg(test)]
 mod tests;
