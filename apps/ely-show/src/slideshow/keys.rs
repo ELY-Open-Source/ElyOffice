@@ -77,6 +77,7 @@ impl Show {
             "s" => self.cycle_scores(cx),
             "t" => self.toggle_timer(cx),
             "r" => self.reset_timer(cx),
+            "f" => self.swap_focus(cx),
             "escape" if !self.typed.is_empty() => {
                 self.typed.clear();
                 cx.notify();

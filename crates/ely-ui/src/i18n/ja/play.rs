@@ -71,6 +71,8 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("show.timer.pause", "タイマー一時停止"),
     ("show.timer.reset", "タイマーリセット"),
     ("show.timer.edit", "編集"),
+    ("show.focus.timer", "タイマーを大きく"),
+    ("show.focus.scores", "スコアを大きく"),
     ("show.keep.unread", "保存されたタイマーとスコアボードを読み込めませんでした: {error}"),
     ("show.keep.format", "タイマーとスコアボードは .pptx と .odp にのみ保存されます（.{format} には保存されません）"),
     ("show.keep.theirs", "ZIP コメントに他のプログラムのデータがあります。タイマーとスコアボードを外すか、別のアプリで保存してください"),

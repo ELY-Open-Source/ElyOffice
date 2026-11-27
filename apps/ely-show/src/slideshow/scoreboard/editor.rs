@@ -10,7 +10,7 @@ use gpui::{AnyElement, App, Context, Entity, InteractiveElement as _, IntoElemen
 
 use super::{Ask, Board, ask_table};
 use crate::deck::Deck;
-use crate::slideshow::{overlays, timer::{Drag, Hand}};
+use crate::slideshow::{overlays, timer::{Act, Drag, Hand}};
 
 /// The overlays' opacity while an object is picked.
 const PICKED: f32 = 0.2;
@@ -64,7 +64,12 @@ impl Deck {
             let ask = Rc::new(move |window: &mut Window, cx: &mut App| deck.update(cx, |deck, cx| deck.ask_timer(window, cx)));
             let (reset, edit) = (Deck::text(cx, "show.timer.reset", &[]), Deck::text(cx, "show.timer.edit", &[]));
             let run = Deck::text(cx, face.phase.run_key(), &[]);
-            (face, Hand { clocks, timer, run, reset, edit: Some((edit, ask as _)) })
+            let swap = board.map(|_| {
+                let (deck, id, name) = (cx.entity(), tab.id, slide.name.clone());
+                let act: Act = Rc::new(move |_, cx| deck.update(cx, |deck, cx| deck.swap_focus(id, &name, cx)));
+                (Deck::text(cx, face.focus_key(), &[]), act)
+            });
+            (face, Hand { clocks, timer, run, reset, swap, edit: Some((edit, ask as _)) })
         });
         // Fades while an object is picked, to show it.
         let picked = tab.extra.objects.as_ref().is_some_and(|objects| objects.selection.is_some());

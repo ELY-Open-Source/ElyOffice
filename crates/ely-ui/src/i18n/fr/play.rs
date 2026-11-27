@@ -71,6 +71,8 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("show.timer.pause", "Suspendre le minuteur"),
     ("show.timer.reset", "Réinitialiser"),
     ("show.timer.edit", "Modifier"),
+    ("show.focus.timer", "Minuteur en avant"),
+    ("show.focus.scores", "Scores en avant"),
     ("show.keep.unread", "Impossible de lire les minuteurs et tableaux des scores enregistrés : {error}"),
     ("show.keep.format", "Les minuteurs et tableaux des scores ne sont enregistrés qu’en .pptx et .odp, pas en .{format}"),
     ("show.keep.theirs", "commentaire ZIP occupé par un autre programme ; retirez minuteurs et scores ou utilisez une autre app"),

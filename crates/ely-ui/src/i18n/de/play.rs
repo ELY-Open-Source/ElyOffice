@@ -71,6 +71,8 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("show.timer.pause", "Timer anhalten"),
     ("show.timer.reset", "Timer zurücksetzen"),
     ("show.timer.edit", "Bearbeiten"),
+    ("show.focus.timer", "Fokus: Timer"),
+    ("show.focus.scores", "Fokus: Spielstand"),
     ("show.keep.unread", "Gespeicherte Timer und Spielstände konnten nicht gelesen werden: {error}"),
     ("show.keep.format", "Timer und Spielstände werden nur in .pptx und .odp gespeichert, nicht in .{format}"),
     ("show.keep.theirs", "ZIP-Kommentar von anderem Programm belegt; Timer und Spielstände entfernen oder eine andere App nutzen"),

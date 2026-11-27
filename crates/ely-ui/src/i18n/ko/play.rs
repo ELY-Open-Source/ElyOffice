@@ -71,6 +71,8 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("show.timer.pause", "타이머 일시 정지"),
     ("show.timer.reset", "타이머 초기화"),
     ("show.timer.edit", "편집"),
+    ("show.focus.timer", "타이머 크게"),
+    ("show.focus.scores", "점수판 크게"),
     ("show.keep.unread", "저장된 타이머와 점수판을 읽지 못했습니다: {error}"),
     ("show.keep.format", "타이머와 점수판은 .pptx와 .odp에만 저장되며 .{format}에는 저장되지 않습니다"),
     ("show.keep.theirs", "ZIP 주석에 다른 프로그램의 데이터가 있습니다. 타이머와 점수판을 제거하거나 다른 앱으로 저장하세요"),
