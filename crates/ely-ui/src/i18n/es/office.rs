@@ -26,6 +26,7 @@ pub(super) const ES: &[(&str, &str)] = &[
         "El documento cambió mientras tanto; inténtelo de nuevo",
     ),
     ("office.print.failed", "Error al imprimir: {error}"),
+    ("office.print.preview", "Vista previa de impresión"),
     ("office.error.dialog", "El motor abrió un cuadro de diálogo que Ely cerró: {title}"),
     (
         "office.error.dialog_said",

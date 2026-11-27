@@ -71,6 +71,53 @@ fn a_failed_print_says_printing_failed() {
     });
 }
 
+/// The whole book drawn, its dialogs too.
+#[cfg(windows)]
+struct Whole(gpui::Entity<crate::book::Book>);
+
+#[cfg(windows)]
+impl gpui::Render for Whole {
+    fn render(&mut self, _: &mut gpui::Window, _: &mut gpui::Context<Self>) -> impl gpui::IntoElement {
+        use gpui::{ParentElement as _, Styled as _};
+        gpui::div().size_full().child(self.0.clone())
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn a_windows_print_shows_its_pages_then_prints() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    cx.update(ely_gpui_component::init_for_tests);
+    let Some((_, book)) = book(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let window = cx.add_window(|_, _| Whole(book.clone()));
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/pdf/sizes.pdf");
+    let (pdf, printed) = (dir.path().join("print.pdf"), dir.path().join("printed.pdf"));
+    std::fs::copy(fixture, &pdf).expect("the print copy");
+    // The file printer writes the job; no dialog asks.
+    unsafe { std::env::set_var("ELY_PRINT_TO", &printed) };
+    update(&mut cx, &book, |_, cx| ely_office::print_later(pdf.clone(), cx));
+    settle(&cx, |app| matches!(&book.read(app).core.dialog, Some(ely_office::Dialog::Print { pages, .. }) if pages.len() == 2));
+    let mut shown = gpui::VisualTestContext::from_window(window.into(), &cx);
+    // The pictures load off the app thread; frames draw them.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    let at = loop {
+        shown.update(|window, _| window.refresh());
+        shown.run_until_parked();
+        if let Some(bounds) = shown.debug_bounds("print.print") {
+            break bounds.center();
+        }
+        assert!(std::time::Instant::now() < deadline, "the preview never drew");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    };
+    shown.simulate_click(at, gpui::Modifiers::none());
+    settle(&cx, |_| printed.metadata().is_ok_and(|file| file.len() > 0));
+    settle(&cx, |app| book.read(app).core.dialog.is_none() && !pdf.exists() && !pdf.with_extension("pages").exists());
+}
+
 #[test]
 fn a_color_state_reads_as_mixed_auto_or_a_color() {
     use crate::format::paint;

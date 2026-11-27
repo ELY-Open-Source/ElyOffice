@@ -17,6 +17,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("office.error.convert", "Une conversion écrit un nouveau fichier ; choisissez un autre nom"),
     ("office.error.changed", "Le document a changé entre-temps ; réessayez"),
     ("office.print.failed", "L’impression a échoué : {error}"),
+    ("office.print.preview", "Aperçu avant impression"),
     ("office.link.refused", "Ely n’ouvre que les liens web et de courrier."),
     ("office.link.malformed", "L’adresse de ce lien est invalide, Ely ne peut pas l’ouvrir."),
     ("office.error.dialog", "Le moteur a ouvert une boîte de dialogue qu’Ely a fermée : {title}"),

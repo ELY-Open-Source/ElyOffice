@@ -12,7 +12,7 @@ pub use linux::print_pdf;
 #[cfg(target_os = "macos")]
 pub use mac::print_pdf;
 #[cfg(windows)]
-pub use win::print_pdf;
+pub use win::{Sheet, preview_pages, print_pdf};
 
 /// Paper sizes round to whole points at worst.
 #[cfg(not(target_os = "macos"))]

@@ -28,10 +28,13 @@ use windows::{
             Input::KeyboardAndMouse::GetActiveWindow,
         },
     },
-    core::{HSTRING, PCWSTR},
+    core::{GUID, HSTRING, PCWSTR},
 };
 
+mod preview;
 mod printer;
+
+pub use preview::{Sheet, preview_pages};
 
 use printer::{Devmode, default_printer, device, free, global, names, settings};
 
@@ -229,7 +232,7 @@ fn scale(document: &PdfDocument) -> anyhow::Result<f64> {
     let options = PdfPageRenderOptions::new()?;
     options.SetDestinationWidth(PROBE)?;
     options.SetDestinationHeight(PROBE)?;
-    let (across, _) = bitmap(&rendered(&document.GetPage(0)?, &options)?)?.size;
+    let (across, _) = bitmap(&rendered(&document.GetPage(0)?, &options, BitmapEncoder::BmpEncoderId()?)?)?.size;
     log::info!("print: the renderer gives {across} pixels per {PROBE} asked");
     Ok(f64::from(across) / f64::from(PROBE))
 }
@@ -279,12 +282,12 @@ fn render(page: &PdfPage, size: Size, (width, height): (i32, i32), (top, rows): 
     let asked = |pixels: i32| ((f64::from(pixels) / scale).round() as u32).max(1);
     options.SetDestinationWidth(asked(width))?;
     options.SetDestinationHeight(asked(rows))?;
-    rendered(page, &options)
+    rendered(page, &options, BitmapEncoder::BmpEncoderId()?)
 }
 
-/// The page as `options` asks, as a BMP file.
-fn rendered(page: &PdfPage, options: &PdfPageRenderOptions) -> anyhow::Result<Vec<u8>> {
-    options.SetBitmapEncoderId(BitmapEncoder::BmpEncoderId()?)?;
+/// The page as `options` asks, encoded by `encoder`.
+fn rendered(page: &PdfPage, options: &PdfPageRenderOptions, encoder: GUID) -> anyhow::Result<Vec<u8>> {
+    options.SetBitmapEncoderId(encoder)?;
     let stream = InMemoryRandomAccessStream::new()?;
     page.RenderWithOptionsToStreamAsync(&stream, options)?.join()?;
     let length = u32::try_from(stream.Size()?)?;

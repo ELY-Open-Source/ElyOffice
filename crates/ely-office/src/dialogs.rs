@@ -34,6 +34,13 @@ pub enum Dialog {
         copy: bool,
         field: Entity<TextInput>,
     },
+    /// Windows: the pages before the system print dialog.
+    #[cfg(windows)]
+    Print {
+        pdf: PathBuf,
+        folder: PathBuf,
+        pages: Rc<Vec<ely_gpui_component::documents::DocPage>>,
+    },
 }
 
 impl Dialog {
@@ -42,6 +49,8 @@ impl Dialog {
         match self {
             Dialog::Unsaved { tab, .. } | Dialog::Conflict { tab, .. } | Dialog::Risk { tab, .. } => Some(*tab),
             Dialog::Password { .. } => None,
+            #[cfg(windows)]
+            Dialog::Print { .. } => None,
         }
     }
 }
@@ -97,6 +106,10 @@ pub trait Dialogs: Host {
             Dialog::Password { path, wrong, copy, field } => {
                 let prompt = password(this, (path, *wrong, *copy, field), dismiss, cx);
                 return Some(prompt.into_any_element());
+            }
+            #[cfg(windows)]
+            Dialog::Print { pdf, folder, pages } => {
+                return Some(crate::preview::card(this, (pdf, folder, pages), cx));
             }
             Dialog::Unsaved { tab, after } => {
                 let (tab, after) = (*tab, *after);

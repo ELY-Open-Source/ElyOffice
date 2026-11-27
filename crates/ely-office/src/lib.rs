@@ -16,6 +16,8 @@ pub mod lok;
 pub mod menu;
 pub mod moving;
 mod open;
+#[cfg(windows)]
+mod preview;
 mod recover;
 pub mod resident;
 pub mod remote;
@@ -331,8 +333,16 @@ pub fn in_window<H: Host, R>(
     })?
 }
 
-/// Opens the print panel after GPUI releases the app.
+/// Prints `pdf`; Windows shows its pages first.
 pub fn print_later<H: Tabs>(pdf: std::path::PathBuf, cx: &mut Context<H>) {
+    #[cfg(windows)]
+    preview::show(pdf, cx);
+    #[cfg(not(windows))]
+    print_now(pdf, cx);
+}
+
+/// Opens the print panel after GPUI releases the app.
+fn print_now<H: Tabs>(pdf: std::path::PathBuf, cx: &mut Context<H>) {
     let sides = ely_ui::settings::current(cx).two_sided;
     // The panel's modal loop calls back into GPUI.
     cx.spawn(async move |this, cx| {
