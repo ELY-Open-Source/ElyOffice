@@ -10,7 +10,7 @@ use crate::refs::Ask;
 
 /// The item's own number; empty off a numbered item.
 const NUMBER: &str = ".uno:ElyNumberFrom";
-/// Enabled on a list's first item after a list, or a restart.
+/// Enabled after an earlier list, or on a restarted item.
 const JOIN: &str = ".uno:ElyNumberJoin";
 
 /// One item's formats: numbering type and pattern, `#` its number.
@@ -54,7 +54,7 @@ pub(crate) struct Numbered {
 }
 
 impl Docs {
-    /// The active tab's numbered item, if the cursor is on one.
+    /// The active tab's numbered item under the cursor.
     pub(crate) fn numbered(&self, cx: &App) -> Option<Numbered> {
         let view = self.active_tab()?.view.read(cx);
         let number = view.state(NUMBER).filter(|number| !number.is_empty())?.to_string();

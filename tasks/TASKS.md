@@ -1168,7 +1168,7 @@
   - 测试 `review/tests/delete_all.rs`：两条批注加一条回复、再开修订打字一处；确认框报 3、问时不删；删除全部（修订开着、文档未存，即 0182 那条路）后批注为零、修订仍是一处，一步撤销三条回来，重做再清；无批注时不弹确认框；存 `.docx` 后正文与修订（`<w:ins`）在，无 `commentReference`、无 `<w:comment`；经 ElyDoc 重开后侧栏批注为 0、修订仍是一处（第 1 轮审查指出原测试未重开）
   - Omarchy（内核以 0182 在 glibc 2.28 容器里重建，175 个补丁齐、无高于 2.28 的库）：delete_all 过，ElyDoc 199 过，内核命令 19 过，ely-ui 126 过，clippy 只余 vendor arboard 的两条旧告警；本机 check.sh、panics.py 过。Windows 与两台 Mac 的共享内核待随下次发布以 0180–0182 重建
 - [x] R25.5 #143 ElyDoc 开修订时删掉的文字即时回流：编辑视图里删除不再占位（后文接上、重排），侧栏仍列这条删除、可逐条接受或拒绝，拒绝后复原；查内核是否已有“删除移到页边”一类的显示，无则补丁
-  - 先试内核的 `.uno:ShowChangesInMargin`：能回流（`甲   乙丙` 删三格，行尾 twip 4740 → 4266），但它把删除的字真的移出正文，连删三下成三条修订（普通修订标记与“终稿”都是一条），且正文读法、查找会看到搬走的字，故不用。探测在 `.work/R24/margin_probe.rs`、`p255.sh`（本地，不入库）
+  - 先试内核的 `.uno:ShowChangesInMargin`：能回流（`甲   乙丙` 删三格，行尾 twip 4740 → 4266），但它把删除的字真的移出正文，连删三下成三条修订（普通修订标记与“终稿”都是一条），且正文读法、查找会看到搬走的字，故不用。探测在 `.work/R24/margin_probe.rs`（本机，未入库）与同目录的 `p255.sh`
   - 补丁 0183 改走“终稿”那条版面隐藏：根框加 `HideTrackedDeletions`，显示修订时由版面隐去删除（同终稿，连删仍并成一条），修订迭代器照旧给插入上色；`ShowTrackedChanges` 报用户所选而非版面是否隐藏，LOK 报 `HideTrackedDeletions` 的状态。内核默认关，`ely.xcd` 不改
   - ElyDoc：新命令 `track.hide`（Bool，`Check::Reports`）；开关存于 ElyDoc 设置 `deletions_struck`（默认关，即默认移出正文）；每个标签页打开、来到前面、窗口来到前面时照开关补发（状态已符则不发）；显示选择下的开关“在正文中显示已删文字”只在修订标记下出现，改开关即存并作用于当前文档，其余文档来到前面时跟上
   - 测试：内核 `client/tests/deletions.rs`（载入报 false；开隐藏后 `ShowTrackedChanges` 仍 true；开修订删三格后行尾左移、修订一条；切终稿再回来仍隐藏；改正文显示后占位回来，再改回又同；全部拒绝回原位）；ElyDoc `review/tests/views.rs`（打开即隐藏、仍是修订标记；开关改内核状态并存下；之后新开的文档跟随；修订仍一条，正文读法不含已删字）
@@ -1180,7 +1180,7 @@
   - 文案取自 writer（开关八种语言、帮助一行、感谢）；0.1.17 不回补（发布是累积的）
   - 审查一轮过（`tasks/reviews/R25.5-r1.md`）；Omarchy：ely-lok 444、ely-doc 200、ely-ui 126 过，clippy 无错
 - [x] R25.6 #147 ElyDoc 正文里右键自动编号：修改编号样式（只作用于该项）、设编号值／重新开始、继续编号；多级时只动该级，后续同组顺延
-  - 探测内核自带的：`.uno:NumNewStartAt` 只设起始值不设“重新开始”，无效；`.uno:ContinueNumbering` 只移选中的一段，后一项另起 1；内核的右键菜单不含任何列表命令。探测在 `.work/R24/probe_num*.rs`（本地，不入库）
+  - 探测内核自带的：`.uno:NumNewStartAt` 只设起始值不设“重新开始”，无效；`.uno:ContinueNumbering` 只移选中的一段，后一项另起 1；内核的右键菜单不含任何列表命令。探测在 `.work/R24/probe_num*.rs`（本机，未入库）
   - 补丁 0184：`.uno:ElyNumberFrom`（Start 1–9999，该项本级从此重新起算，父级与别的列表不动；状态是该项的编号，非编号段为空）、`.uno:ElyNumberJoin`（列表首项接上前一个编号列表，其后同列表各项随之，一步撤销；在重新起算的项上去掉重新起算；不可用时状态为 disabled）、`.uno:ElyNumberFormat`（"类型|式样"，# 是该项的号：该项用列表样式的副本只改本级，仍在原列表里计数，父级前缀保留）
   - 单项样式存 DOCX 时内核写成同一列表定义的级别覆盖（numId 另起、abstractNum 相同），Ely 重开照旧；DOC 不保留（该项从 1 起，其后不计它）；Word 本身的显示未验证
   - ElyDoc：`numbering.rs`，右键在编号段（状态非空）时剪贴板行后出“编号”子菜单：重新开始于 1（发 1）、继续编号（按 ElyNumberJoin 可用与否）、设置编号值…（`refs` 的 `Ask::Number`，预填当前号，1–9999 以外拒收）、更改编号样式（十二种，标签由式样与首号生成，不是文案）；编号类型常量与 #130 的 `props/levels.rs` 共用

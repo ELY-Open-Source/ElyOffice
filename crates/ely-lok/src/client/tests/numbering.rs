@@ -1,11 +1,11 @@
-//! #147: one numbered item restarts, continues or takes its own style.
+//! #147: restart, continue, set or restyle one numbered item.
 
 use super::input::open;
 use super::*;
 
 const STYLES: &str = r#"<text:list-style style:name="L1"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."/><text:list-level-style-number text:level="2" style:num-format="1" text:display-levels="2" style:num-suffix="."/></text:list-style><text:list-style style:name="L2"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."/></text:list-style>"#;
 
-/// Clause 13 with three items, then two lists split by a paragraph.
+/// Clause 13, then two lists split by a paragraph.
 fn body() -> String {
     let item = |t: &str| format!("<text:list-item><text:p>{t}</text:p></text:list-item>");
     format!(

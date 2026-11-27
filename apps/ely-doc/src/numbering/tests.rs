@@ -1,4 +1,4 @@
-//! #147: a numbered item offers the submenu and takes a value.
+//! #147: numbered items offer the submenu and take values.
 
 use gpui::{Entity, TestAppContext};
 
