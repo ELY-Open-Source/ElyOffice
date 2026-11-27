@@ -128,6 +128,12 @@ impl Presenter {
             )
             .child(
                 row()
+                    .children(show.part().and_then(|part| show.countdown(part, cx)).into_iter().flat_map(|face| {
+                        [
+                            button(&self.show, ("show-play-timer", label(face.phase.run_key())), Show::toggle_timer),
+                            button(&self.show, ("show-play-timer-reset", label("show.timer.reset")), Show::reset_timer),
+                        ]
+                    }))
                     .children(show.board.is_some().then(|| button(&self.show, ("show-play-score", label("show.score.cycle")), Show::cycle_scores)))
                     .child(toggle(
                         &self.show,

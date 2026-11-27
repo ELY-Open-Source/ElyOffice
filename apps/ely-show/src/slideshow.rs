@@ -22,13 +22,16 @@ mod keys;
 mod layers;
 mod links;
 mod media;
-mod presenter;
+mod overlays;
+pub(crate) mod presenter;
 pub(crate) mod scoreboard;
 mod stage;
 pub(crate) mod start;
 pub(crate) mod steps;
+pub(crate) mod timer;
 
 pub use keys::{bind, bind_keys, menu, present_button};
+pub(crate) use overlays::overlays;
 
 /// A slide's layers as pictures, bottom first.
 pub type Stack = Arc<Vec<(Part, Arc<RenderImage>)>>;
@@ -97,6 +100,7 @@ pub struct Show {
     release: Option<Task<()>>,
     media: Option<media::Playing>,
     pub(crate) board: Option<scoreboard::Board>,
+    pub(crate) timers: Option<timer::Timed>,
     /// What a click on each slide's shapes does.
     links: Vec<Vec<links::Link>>,
     ended: bool,
@@ -142,6 +146,7 @@ impl Show {
             release: None,
             media: None,
             board: None,
+            timers: None,
             links,
             ended: false,
         };
@@ -349,6 +354,7 @@ impl Show {
         }
         log::info!("show: ends");
         (self.advance, self.release, self.board) = (None, None, None);
+        self.timers = None;
         self.drop_media();
         let (windows, deck, me) = (std::mem::take(&mut self.windows), self.deck.clone(), cx.entity_id());
         start::discard(self.worker.clone(), self.doc.clone(), self.copy.clone(), cx);

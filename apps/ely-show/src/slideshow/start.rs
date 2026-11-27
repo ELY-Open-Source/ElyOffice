@@ -258,6 +258,8 @@ impl Deck {
             .filter(|_| starting.presenter);
         let held = &tab.extra.scoreboards;
         let scores: Vec<_> = tab.extra.slides.list.iter().map(|slide| held.get(&slide.name).cloned()).collect();
+        let timers: Vec<_> = tab.extra.slides.list.iter().map(|slide| tab.extra.timers.get(&slide.name).copied()).collect();
+        let clocks = tab.extra.clocks.clone();
         let slide = crate::design::mm100(tab.extra.size);
         let slide = (slide.0 as f32, slide.1 as f32);
         let room = audience.bounds().size;
@@ -290,6 +292,9 @@ impl Deck {
             show.windows = windows;
         });
         show.update(cx, |show, cx| show.follow_scores(scores, super::scoreboard::ask_table, cx));
+        if let Some(clocks) = clocks {
+            show.update(cx, |show, cx| show.time_slides(timers, clocks, cx));
+        }
         self.show = Some(show);
         cx.notify();
     }

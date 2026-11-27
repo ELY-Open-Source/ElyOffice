@@ -13,7 +13,7 @@ mod clear;
 mod draw;
 mod editor;
 
-pub use draw::overlay;
+pub use draw::{Band, overlay};
 
 /// How long a failed read waits to try again.
 const RETRY: Duration = Duration::from_secs(1);

@@ -28,6 +28,7 @@ mod remote_image;
 mod remote_text;
 mod review;
 mod score;
+mod timer;
 mod sections;
 mod slides;
 mod strip;

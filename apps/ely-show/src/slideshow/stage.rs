@@ -64,7 +64,12 @@ pub fn stage(show: &Show, (w, h): (Pixels, Pixels), cx: &App) -> AnyElement {
     let video = show.media_frame().map(|(frame, (x, y, vw, vh))| {
         crate::media::video(frame, (gpui::point(w * x, h * y), gpui::point(w * vw, h * vh)))
     });
-    let scores = show.board.as_ref().and_then(|board| super::scoreboard::overlay(board, part, (w, h), cx));
+    let countdown = show.countdown(part, cx).zip(show.timer(part)).map(|(face, (timer, clocks))| {
+        let words = |key| crate::deck::Deck::text(cx, key, &[]);
+        let (run, reset) = (words(face.phase.run_key()), words("show.timer.reset"));
+        (face, super::timer::Hand { clocks: clocks.clone(), timer, run, reset, edit: None })
+    });
+    let over = super::overlays(show.board.as_ref(), countdown, part, (w, h), cx);
     div()
         .relative()
         .w(w)
@@ -72,7 +77,7 @@ pub fn stage(show: &Show, (w, h): (Pixels, Pixels), cx: &App) -> AnyElement {
         .overflow_hidden()
         .child(shown)
         .children(video)
-        .children(scores)
+        .children(over)
         .children(dot)
         .into_any_element()
 }

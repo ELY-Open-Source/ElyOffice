@@ -12,8 +12,23 @@ use super::{Board, Look};
 /// The corner card's share of the slide.
 const CORNER: f32 = 0.4;
 
+/// A band kept free of centred scores for a countdown.
+#[derive(Clone, Copy)]
+pub enum Band {
+    None,
+    Top(Pixels),
+    Bottom(Pixels),
+}
+
+impl Board {
+    /// Whether slide `part`'s scores sit mid-slide.
+    pub fn centred(&self, part: usize) -> bool {
+        self.linked(part) && matches!(self.look, Look::Center | Look::Full)
+    }
+}
+
 /// Slide `part`'s scoreboard, over a slide `w` by `h`.
-pub fn overlay(board: &Board, part: usize, (w, h): (Pixels, Pixels), cx: &App) -> Option<AnyElement> {
+pub fn overlay(board: &Board, part: usize, (w, h): (Pixels, Pixels), band: Band, cx: &App) -> Option<AnyElement> {
     if board.look == Look::Off || !board.linked(part) {
         return None;
     }
@@ -23,12 +38,18 @@ pub fn overlay(board: &Board, part: usize, (w, h): (Pixels, Pixels), cx: &App) -
         return None;
     }
     let place = div().absolute().flex();
-    let centred = |place: Div| place.top_0().left_0().size_full().items_center().justify_center();
+    let (above, below) = match band {
+        Band::None => (Pixels::ZERO, Pixels::ZERO),
+        Band::Top(tall) => (tall, Pixels::ZERO),
+        Band::Bottom(tall) => (Pixels::ZERO, tall),
+    };
+    let centred = |place: Div| place.top_0().left_0().size_full().pt(above).pb(below).items_center().justify_center();
     let sized = |size| rows.map(|rows| card(rows, size, cx));
+    let room = (w, h - above - below);
     Some(match board.look {
         Look::Corner => place.top(h * 0.03).right(w * 0.02).children(sized((w * CORNER, h * CORNER))),
-        Look::Full => centred(place).bg(cx.theme().palette().surface).children(sized((w, h))),
-        Look::Center | Look::Off => centred(place).children(sized((w, h))),
+        Look::Full => centred(place).bg(cx.theme().palette().surface).children(sized(room)),
+        Look::Center | Look::Off => centred(place).children(sized(room)),
     }
     .into_any_element())
 }
