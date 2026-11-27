@@ -1,4 +1,4 @@
-//! Notes threaded for the sidebar; comments edited and deleted (#123).
+//! Notes threaded for the sidebar; edited, deleted, resolved (#123, #145).
 
 use std::collections::HashMap;
 
@@ -88,6 +88,23 @@ impl Review {
         };
         let command = if ix == 0 { "comment.delete_thread" } else { "comment.delete" };
         self.run(command, &[&id], cx);
+    }
+
+    /// Resolves thread `key`, or reopens it; one undo step.
+    pub(super) fn resolve(&mut self, key: &SharedString, on: bool, cx: &mut Context<Self>) {
+        let Some(thread) = self.threads.iter().find(|thread| &thread.key == key) else {
+            log::error!("doc: thread {key} is not listed");
+            cx.emit(LokError(format!("thread {key} is not listed")));
+            return;
+        };
+        // The kernel toggles; a stale ask would flip it back.
+        if thread.resolved == on {
+            log::warn!("doc: thread {key} is already resolved {on}");
+            return;
+        }
+        if let Some(id) = self.note_id(key, 0, cx) {
+            self.run("comment.resolve", &[&id], cx);
+        }
     }
 
     fn note_id(&self, key: &SharedString, ix: usize, cx: &mut Context<Self>) -> Option<String> {

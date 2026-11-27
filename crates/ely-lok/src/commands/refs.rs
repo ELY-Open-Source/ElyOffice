@@ -79,6 +79,12 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Text("Id")],
         Check::Undoable,
     ),
+    command(
+        "comment.resolve",
+        ".uno:ResolveCommentThread",
+        &[Arg::Text("Id")],
+        Check::Undoable,
+    ),
     command("track.toggle", ".uno:TrackChanges", &[], Check::Result),
     command(
         "track.shown",

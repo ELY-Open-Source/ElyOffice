@@ -1,0 +1,21 @@
+From: Ely Office
+Subject: Writer undo of resolving a comment reopens it
+
+- Undo after resolving a comment thread left it resolved (#145).
+- SwAnnotationWin::SetResolved flips the field before UpdateData
+  copies it as the undo's old state, so the old copy was already
+  resolved. The copy now gets the state from before the flip.
+
+diff --git a/sw/source/uibase/docvw/AnnotationWin.cxx b/sw/source/uibase/docvw/AnnotationWin.cxx
+--- a/sw/source/uibase/docvw/AnnotationWin.cxx
++++ b/sw/source/uibase/docvw/AnnotationWin.cxx
+@@ -370,6 +370,9 @@
+         if (rUndoRedo.DoesUndo())
+         {
+             pOldField = mpField->Copy();
++            // The state already flipped; undo restores the old one.
++            if (mbResolvedStateUpdated)
++                static_cast<SwPostItField*>(pOldField.get())->SetResolved(!mpField->GetResolved());
+         }
+         mpField->SetPar2(mpOutliner->GetEditEngine().GetText());
+         mpField->SetTextObject(mpOutliner->CreateParaObject());

@@ -7,6 +7,7 @@ use crate::tests::{blank, docs, settle, settled, text_of, type_into, with_window
 use ely_office::prelude::*;
 
 mod clicks;
+mod resolve;
 mod views;
 
 /// The review panel on the active tab.

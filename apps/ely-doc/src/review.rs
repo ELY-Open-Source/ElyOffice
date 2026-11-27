@@ -384,7 +384,7 @@ impl Render for Review {
                 let field = window.use_keyed_state("doc-review-reply", cx, |window, cx| {
                     TextInput::new(window, cx)
                 });
-                let (pick, send, edit, delete) = (this.clone(), this.clone(), this.clone(), this.clone());
+                let (pick, send, edit, delete, resolve) = (this.clone(), this.clone(), this.clone(), this.clone(), this.clone());
                 CommentSidebar::new("doc-review-comments", self.threads.clone())
                     .active(self.active.clone(), move |key, _, cx| {
                         pick.update(cx, |review, cx| review.select(key, cx))
@@ -396,6 +396,7 @@ impl Render for Review {
                     })
                     .on_edit(move |key, ix, text, _, cx| edit.update(cx, |review, cx| review.edit(key, ix, text, cx)))
                     .on_delete(move |key, ix, _, cx| delete.update(cx, |review, cx| review.delete(key, ix, cx)))
+                    .on_resolve(move |key, on, _, cx| resolve.update(cx, |review, cx| review.resolve(key, on, cx)))
                     .into_any_element()
             }
         };
