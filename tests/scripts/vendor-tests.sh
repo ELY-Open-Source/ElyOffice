@@ -11,7 +11,7 @@ case $(uname -s) in
   MINGW* | MSYS* | CYGWIN*) host=windows ;;
   *) echo "FAIL: vendor-tests has no list for $(uname -s)"; exit 1 ;;
 esac
-# gpui-pre is absent: its tests need zed's unpublished assets.
+# Absent: gpui-pre (zed's unpublished assets), arboard (a desktop clipboard).
 ran=()
 # This host's gpui is what the patches touch.
 gpui=gpui-pre-$host gpui_ran=
