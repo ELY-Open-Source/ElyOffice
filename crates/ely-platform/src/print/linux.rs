@@ -21,14 +21,14 @@ use zbus::{
 const TITLE: &str = "Ely Office";
 const DESKTOP: &str = "org.freedesktop.portal.Desktop";
 const PORTAL: &str = "/org/freedesktop/portal/desktop";
-/// Standard papers: name, label, width and height in millimetres.
-const FORMS: [(&str, &str, f64, f64); 6] = [
-    ("iso_a3", "A3", 297.0, 420.0),
-    ("iso_a4", "A4", 210.0, 297.0),
-    ("iso_a5", "A5", 148.0, 210.0),
-    ("iso_b5", "B5", 176.0, 250.0),
-    ("na_letter", "US Letter", 215.9, 279.4),
-    ("na_legal", "US Legal", 215.9, 355.6),
+/// Standard papers: name, PPD name, label, millimetres.
+const FORMS: [(&str, &str, &str, f64, f64); 6] = [
+    ("iso_a3", "A3", "A3", 297.0, 420.0),
+    ("iso_a4", "A4", "A4", 210.0, 297.0),
+    ("iso_a5", "A5", "A5", 148.0, 210.0),
+    ("iso_b5", "ISOB5", "B5", 176.0, 250.0),
+    ("na_letter", "Letter", "US Letter", 215.9, 279.4),
+    ("na_legal", "Legal", "US Legal", 215.9, 355.6),
 ];
 
 type Options = HashMap<&'static str, Value<'static>>;
@@ -128,12 +128,13 @@ fn page_setup((width, height): (f64, f64)) -> Options {
     let (short, long) = (millimetres(width.min(height)), millimetres(width.max(height)));
     let points = |mm: f64| mm * 72.0 / 25.4;
     let page = (width.min(height), width.max(height));
-    let (name, label) = match FORMS.iter().find(|(.., across, down)| super::holds((points(*across), points(*down)), page)) {
-        Some((name, label, ..)) => (name.to_string(), label.to_string()),
+    let form = FORMS.iter().find(|(.., across, down)| super::holds((points(*across), points(*down)), page));
+    let (name, label) = match form {
+        Some((name, _, label, ..)) => (name.to_string(), label.to_string()),
         None => (format!("custom_{short:.0}x{long:.0}mm"), format!("{short:.0} × {long:.0} mm")),
     };
     let orientation = if width > height { "landscape" } else { "portrait" };
-    Options::from([
+    let mut setup = Options::from([
         ("Name", Value::from(name)),
         ("DisplayName", Value::from(label)),
         ("Width", Value::from(short)),
@@ -143,7 +144,12 @@ fn page_setup((width, height): (f64, f64)) -> Options {
         ("MarginLeft", Value::from(0.0)),
         ("MarginRight", Value::from(0.0)),
         ("Orientation", Value::from(orientation)),
-    ])
+    ]);
+    // Without it GTK sends CUPS a custom size.
+    if let Some((_, ppd, ..)) = form {
+        setup.insert("PPDName", Value::from(*ppd));
+    }
+    setup
 }
 
 /// Each page's size in points, as it shows.
@@ -175,9 +181,22 @@ mod tests {
         let number = |key: &str| setup[key].downcast_ref::<f64>().expect("a number").round();
         assert_eq!((text("Name"), text("Orientation")), ("iso_a4", "landscape"));
         assert_eq!((number("Width"), number("Height"), number("MarginLeft")), (210.0, 297.0, 0.0));
+        assert_eq!(text("PPDName"), "A4");
         let custom = page_setup((283.5, 425.2));
+        assert!(!custom.contains_key("PPDName"));
         assert_eq!(custom["Name"].downcast_ref::<&str>().expect("text"), "custom_100x150mm");
         assert_eq!(custom["Orientation"].downcast_ref::<&str>().expect("text"), "portrait");
+    }
+
+    #[test]
+    fn standard_papers_carry_their_ppd_names() {
+        let named = |page| page_setup(page)["PPDName"].downcast_ref::<&str>().expect("text").to_string();
+        assert_eq!(named((842.0, 1191.0)), "A3");
+        assert_eq!(named((420.0, 595.0)), "A5");
+        // PPD's plain B5 is the JIS size.
+        assert_eq!(named((499.0, 709.0)), "ISOB5");
+        assert_eq!(named((612.0, 792.0)), "Letter");
+        assert_eq!(named((612.0, 1008.0)), "Legal");
     }
 
     #[test]
