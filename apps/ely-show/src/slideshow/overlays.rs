@@ -11,7 +11,7 @@ pub fn overlays(board: Option<&Board>, face: Option<(Face, Hand)>, part: usize, 
     let tall = size.1 * timer::BAND;
     let band = match face.as_ref().filter(|(face, _)| beside && face.at.is_none()).map(|(face, _)| face.spot) {
         None => Band::None,
-        Some(Spot::Corner) => Band::Bottom(tall),
+        Some(Spot::Bottom | Spot::Corner) => Band::Bottom(tall),
         Some(Spot::Top | Spot::Center) => Band::Top(tall),
     };
     let scores = board.and_then(|board| scoreboard::overlay(board, part, size, band, cx));

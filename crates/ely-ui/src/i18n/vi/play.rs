@@ -62,6 +62,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("show.timer.place", "Vị trí"),
     ("show.timer.top", "Phía trên"),
     ("show.timer.center", "Lớn ở giữa"),
+    ("show.timer.bottom", "Dưới ở giữa"),
     ("show.timer.corner", "Dưới bên phải"),
     ("show.timer.dragged", "Vị trí đã kéo"),
     ("show.timer.remove", "Gỡ"),

@@ -62,6 +62,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("show.timer.place", "위치"),
     ("show.timer.top", "위"),
     ("show.timer.center", "가운데 크게"),
+    ("show.timer.bottom", "아래쪽 가운데"),
     ("show.timer.corner", "오른쪽 아래"),
     ("show.timer.dragged", "끌어다 놓은 위치"),
     ("show.timer.remove", "제거"),

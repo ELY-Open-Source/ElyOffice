@@ -62,6 +62,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("show.timer.place", "位置"),
     ("show.timer.top", "上部"),
     ("show.timer.center", "中央に大きく"),
+    ("show.timer.bottom", "下中央"),
     ("show.timer.corner", "右下"),
     ("show.timer.dragged", "ドラッグした位置"),
     ("show.timer.remove", "削除"),

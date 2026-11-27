@@ -25,6 +25,7 @@ pub enum Spot {
     #[default]
     Top,
     Center,
+    Bottom,
     Corner,
 }
 

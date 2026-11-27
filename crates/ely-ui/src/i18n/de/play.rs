@@ -62,6 +62,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("show.timer.place", "Position"),
     ("show.timer.top", "Oben"),
     ("show.timer.center", "Groß in der Mitte"),
+    ("show.timer.bottom", "Unten Mitte"),
     ("show.timer.corner", "Unten rechts"),
     ("show.timer.dragged", "Gezogene Position"),
     ("show.timer.remove", "Entfernen"),

@@ -46,7 +46,7 @@ pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), beside: bool, cx:
     };
     let text = match spot {
         Spot::Center => (h * 0.28).min(w * 0.16),
-        Spot::Top | Spot::Corner => h * 0.1,
+        Spot::Top | Spot::Bottom | Spot::Corner => h * 0.1,
     };
     let (back, ink) = match face.phase {
         Phase::Over => (palette.danger, palette.surface),
@@ -88,12 +88,14 @@ pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), beside: bool, cx:
     let (above, side) = match (face.at, spot) {
         (Some((x, y)), _) => (y > 0.75, if x > 0.7 { Side::Right } else if x < 0.3 { Side::Left } else { Side::Middle }),
         (None, Spot::Corner) => (true, Side::Right),
+        (None, Spot::Bottom) => (true, Side::Middle),
         (None, Spot::Top | Spot::Center) => (false, Side::Middle),
     };
     let held = div().group("show-timer").relative().min_w(WIDE).flex();
     let held = match (face.at, spot) {
         (None, Spot::Corner) => held.justify_end().pt(BUTTONS),
         (None, Spot::Top) => held.justify_center().pb(BUTTONS),
+        (None, Spot::Bottom) => held.justify_center().pt(BUTTONS),
         // Even padding keeps the clock's middle in place.
         (None, Spot::Center) | (Some(_), _) => held.justify_center().py(BUTTONS),
     };
@@ -103,6 +105,7 @@ pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), beside: bool, cx:
         (Some((x, y)), _) => place.left(w * x - w).top(h * y - h / 2.0).w(w * 2.0).h(h).items_center(),
         (None, Spot::Top) => place.top(h * 0.022).left_0().w(w).items_start(),
         (None, Spot::Center) => place.top_0().left_0().w(w).h(h).items_center(),
+        (None, Spot::Bottom) => place.bottom(h * 0.03).left_0().w(w).items_end(),
         (None, Spot::Corner) => place.bottom(h * 0.03).right(w * 0.02),
     }
     .child(held)

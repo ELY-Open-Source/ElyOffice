@@ -37,9 +37,10 @@ const DRAGGED: &str = "dragged";
 /// What a new countdown offers.
 const OFFERED: &str = "5:00";
 
-const SPOTS: [(Spot, &str, &str); 3] = [
+const SPOTS: [(Spot, &str, &str); 4] = [
     (Spot::Top, "top", "show.timer.top"),
     (Spot::Center, "center", "show.timer.center"),
+    (Spot::Bottom, "bottom", "show.timer.bottom"),
     (Spot::Corner, "corner", "show.timer.corner"),
 ];
 
