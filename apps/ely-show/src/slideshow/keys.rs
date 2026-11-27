@@ -1,5 +1,6 @@
 //! The Slide Show menu and a running show's keys.
 
+use ely_gpui_component::{primitives::IconName, shell::StatusBarItem};
 use ely_ui::commands;
 use gpui::{
     App, Context, Div, InteractiveElement as _, KeyBinding, Keystroke, Menu, MenuItem, actions,
@@ -22,6 +23,16 @@ pub fn menu(cx: &App) -> Menu {
         MenuItem::separator(),
         MenuItem::action(label("show.check.menu"), CheckShow),
     ])
+}
+
+/// PowerPoint's status bar button: show from this slide.
+pub fn present_button(cx: &mut Context<Deck>) -> StatusBarItem {
+    let deck = cx.entity();
+    StatusBarItem::new("show-present")
+        .icon(IconName::Play)
+        .label(Deck::text(cx, "show.play.present", &[]))
+        .tooltip(Deck::text(cx, "show.play.from_here", &[]))
+        .on_click(move |_, _, cx| deck.update(cx, |deck, cx| deck.start_show(true, cx)))
 }
 
 pub fn bind_keys(cx: &mut App) {

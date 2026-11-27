@@ -9,6 +9,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("show.play.presenter", "Chế độ người trình bày"),
     ("show.play.screen", "Màn hình {number} ({width} × {height})"),
     ("show.play.start", "Bắt đầu"),
+    ("show.play.present", "Trình chiếu"),
     ("show.play.none", "Mọi trang chiếu đều bị ẩn"),
     ("show.play.busy", "Buổi trình chiếu đang bắt đầu hoặc đang chạy"),
     ("show.play.gone", "Buổi trình chiếu chưa bắt đầu: bản trình chiếu hoặc màn hình đã thay đổi"),

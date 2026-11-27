@@ -9,6 +9,7 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("show.play.presenter", "Consola de presentación"),
     ("show.play.screen", "Pantalla {number} ({width} × {height})"),
     ("show.play.start", "Iniciar"),
+    ("show.play.present", "Presentar"),
     ("show.play.none", "Todas las diapositivas están ocultas"),
     ("show.play.busy", "El pase ya se está iniciando o reproduciendo"),
     (
