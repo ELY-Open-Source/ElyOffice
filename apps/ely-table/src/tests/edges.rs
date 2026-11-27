@@ -182,3 +182,43 @@ fn a_fast_cell_drag_selects_what_a_slow_one_does() {
     super::data::quiet(&cx, &book);
     assert_eq!(selected(&cx, &book), "S!$A$1:$C$1", "in one frame");
 }
+
+/// The middle of header `index`, window coordinates.
+fn header_at(cx: &mut VisualTestContext, book: &Entity<Book>, column: bool, index: u32) -> Point<Pixels> {
+    frames(cx);
+    let view = view(cx, book);
+    cx.update(|_, app| {
+        let geometry = &book.read(app).active_tab().expect("a tab").extra.geometry;
+        let axis = if column { &geometry.columns } else { &geometry.rows };
+        let middle = (axis.start(index) + axis.start(index + 1)) / 2;
+        let read = view.read(app);
+        let at = read.origin() + read.place((middle, middle));
+        match column {
+            true => point(at.x, read.origin().y - px(12.0)),
+            false => point(read.origin().x - px(24.0), at.y),
+        }
+    })
+}
+
+#[test]
+fn dragging_across_headers_selects_whole_columns_and_rows() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some((book, mut shown)) = shown(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    let width = width_of_a(&mut shown, &book);
+    for (column, from, to, want) in [(true, 1, 3, "S!$B:$D"), (false, 1, 3, "S!$2:$4")] {
+        let (from, to) = (header_at(&mut shown, &book, column, from), header_at(&mut shown, &book, column, to));
+        shown.simulate_mouse_move(from, None, Modifiers::none());
+        shown.simulate_mouse_down(from, MouseButton::Left, Modifiers::none());
+        frames(&mut shown);
+        shown.simulate_mouse_move(to, MouseButton::Left, Modifiers::none());
+        frames(&mut shown);
+        shown.simulate_mouse_up(to, MouseButton::Left, Modifiers::none());
+        super::data::quiet(&cx, &book);
+        assert_eq!(selected(&cx, &book), want, "whole columns or rows, dragged over");
+    }
+    assert_eq!(width_of_a(&mut shown, &book), width, "a header drag sizes nothing");
+}

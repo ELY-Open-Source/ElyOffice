@@ -21,6 +21,8 @@ pub enum Drag {
     Size { column: bool, index: u32, at: Option<Pixels> },
     /// The fill handle, to the cell under the pointer.
     Fill { to: Option<(u32, u32)> },
+    /// Across headers, selecting; `add` keeps earlier picks.
+    Headers { column: bool, last: u32, add: bool },
 }
 
 /// The width that grabs a header edge.
@@ -29,9 +31,11 @@ const HANDLE: f32 = 7.0;
 
 /// The vcl modifier bits a header click takes.
 fn modifier(modifiers: &Modifiers, cx: &App) -> String {
-    let shift = if modifiers.shift { 0x1000 } else { 0 };
-    let add = if modifiers.secondary(cx) { 0x2000 } else { 0 };
-    (shift | add).to_string()
+    bits(modifiers.shift, modifiers.secondary(cx))
+}
+
+fn bits(shift: bool, add: bool) -> String {
+    (if shift { 0x1000 } else { 0 } | if add { 0x2000 } else { 0 }).to_string()
 }
 
 /// Twips as 1/100 mm, as the size commands take them.
@@ -242,6 +246,16 @@ impl Book {
             .border_color(transparent_black())
             .focus_ring(cx)
             .tab_index(0)
+            .cursor(CursorStyle::PointingHand)
+            // Pressed, it selects; dragged on, it extends.
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |book, event: &MouseDownEvent, _, cx| {
+                    book.select_header(column, index, &modifier(&event.modifiers, cx), cx);
+                    let add = event.modifiers.secondary(cx);
+                    book.drag = Some(Drag::Headers { column, last: index, add });
+                }),
+            )
             .on_mouse_down(
                 MouseButton::Right,
                 cx.listener(move |book, event: &MouseDownEvent, _, cx| {
@@ -249,8 +263,11 @@ impl Book {
                     book.header_menu(column, index, event.position, cx);
                 }),
             )
+            // The mouse selected on its press.
             .on_click(cx.listener(move |book, event: &ClickEvent, _, cx| {
-                book.select_header(column, index, &modifier(&event.modifiers(), cx), cx);
+                if event.is_keyboard() {
+                    book.select_header(column, index, &modifier(&event.modifiers(), cx), cx);
+                }
             }))
             .child(label);
         let cell = div()
@@ -336,6 +353,9 @@ impl Book {
             *at = Some(if *column { event.position.x } else { event.position.y });
             return cx.notify();
         }
+        if let Some(Drag::Headers { column, last, add }) = self.drag {
+            return self.drag_headers(column, last, add, event, cx);
+        }
         if !matches!(self.drag, Some(Drag::Fill { .. })) {
             return;
         }
@@ -386,8 +406,25 @@ impl Book {
             } => {
                 self.run_active("fill.auto", &[&address(column, row)], cx);
             }
-            Drag::Fill { to: None } => {}
+            Drag::Fill { to: None } | Drag::Headers { .. } => {}
         }
+    }
+
+    /// Extends a header drag to the one under the pointer.
+    fn drag_headers(&mut self, column: bool, last: u32, add: bool, event: &MouseMoveEvent, cx: &mut Context<Self>) {
+        let Some(tab) = self.active_tab() else {
+            return;
+        };
+        let read = tab.view.read(cx);
+        let (x, y) = read.twips_at(event.position - read.origin());
+        let geometry = &tab.extra.geometry;
+        let index = if column { geometry.columns.at(x) } else { geometry.rows.at(y) };
+        if index == last {
+            return;
+        }
+        self.drag = Some(Drag::Headers { column, last: index, add });
+        // As Shift+click: from the anchor to here.
+        self.select_header(column, index, &bits(true, add), cx);
     }
 }
 

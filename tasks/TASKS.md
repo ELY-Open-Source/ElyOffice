@@ -1126,6 +1126,10 @@
   - 测试：ely-lok `compare_leaves_out_changes_both_files_hold`（带同一修订的两份比较后修订表为空、旧文件原样）；ElyDoc `an_identical_copy_with_the_same_changes_shows_no_difference`（修订中写出的旧文件比较：toast、只剩一个标签、旧文件原样）；原有的 `compare_opens_a_marked_copy_and_keeps_both_files` 与 `compare_marks_changes_against_an_older_file` 照旧
   - `tests.rs` 两行 `use ely_office` 并成一行，加 `mod compare` 后仍为 500 行
   - Omarchy（Writer 以 0179 重建，libswlo 00:27）：ely-lok 比较 3 过，ElyDoc 197 过，翻译 29 过，clippy（ely-doc、ely-lok、ely-ui）无告警；本机 check.sh、panics.py 过。未在不带 0179 的内核上跑过新测试以确认它们会败
-- [ ] R24.2a #141 ElyTable 在行号、列标上按住拖动即连选整行整列，与拖边线改宽高分开（§7）
+- [x] R24.2a #141 ElyTable 在行号、列标上按住拖动即连选整行整列，与拖边线改宽高分开（§7）
+  - 已做：`grid.rs` 加 `Drag::Headers`：在行号、列标上按下即选（带 Shift、Ctrl/⌘ 照旧），按住拖到别的行号列标上，以 Shift 的位（加选时再带 Ctrl 位）对内核再点一次，从锚点连到指针所在处，与 Shift+点击同一条路；指针下的序号由 `twips_at` 与 `Axis::at` 算（出界时夹在首末），变了才发命令。鼠标改在按下时选，`on_click` 只留键盘（Tab 到行号列标后回车、空格）。边线仍是单独的元素、按下即停止传递，拖边线只改宽高、不会开始连选。行号列标上的指针为手形（gpui 没有 Excel 的向下、向右箭头），边线上仍是调宽高的指针
+  - 测试：`dragging_across_headers_selects_whole_columns_and_rows`（列标 B 拖到 D 得 `S!$B:$D`，行号 2 拖到 4 得 `S!$2:$4`，A 列宽不变）；原有的边线拖动、双击、单击测试照旧
+  - 帮助：新一节“ElyTable 的选区、填充与复制”（writer），本条一行；R24.2b、R24.2c 的两行随各自一条加
+  - Omarchy：ElyTable 145 过，clippy 无告警；本机 check.sh 过
 - [ ] R24.2b #141 ElyTable 填充柄按住 Ctrl 拖为复制而非递增（Excel 的做法；单个数字照 Excel 反过来）（§7）
 - [ ] R24.2c #141 ElyTable 复制的单元格贴进聊天框成图：复制时剪贴板另带一张选区的图（§7）
