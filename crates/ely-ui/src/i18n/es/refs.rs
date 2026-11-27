@@ -63,6 +63,10 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("doc.review.track", "Registrar cambios"),
     ("doc.review.accept_all", "Aceptar todos"),
     ("doc.review.reject_all", "Rechazar todos"),
+    ("doc.review.delete_comments", "Eliminar los comentarios…"),
+    ("doc.review.delete_comments.title", "¿Eliminar todos los comentarios?"),
+    ("doc.review.delete_comments.body", "Elimina todos los comentarios y respuestas ({count}). El texto y los cambios siguen igual; Deshacer los restaura."),
+    ("doc.review.delete_comments.confirm", "Eliminar todos"),
     ("doc.review.panel", "Comentarios y cambios"),
     (
         "doc.review.unread",

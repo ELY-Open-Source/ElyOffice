@@ -1,12 +1,18 @@
-//! Notes threaded for the sidebar; edited, deleted, resolved (#123, #145).
+//! Sidebar threads: edit, delete, resolve (#123, #145, #148).
 
 use std::collections::HashMap;
 
-use ely_gpui_component::collab::{Comment, Peer, Thread};
+use ely_gpui_component::{
+    buttons::{Button, ButtonVariant},
+    collab::{Comment, Peer, Thread},
+    overlays::ConfirmDialog,
+    theme::ControlSize,
+};
 use ely_lok::{LokError, review::Note};
-use gpui::{Context, SharedString};
+use gpui::{App, Context, Entity, IntoElement, SharedString, Window};
 
-use super::{Review, Unread};
+use super::{DeleteComments, Review, Unread};
+use crate::{actions::Dialog, docs::Docs};
 
 /// Each thread's note ids, comment by comment.
 pub(super) type Ids = HashMap<SharedString, Vec<String>>;
@@ -115,4 +121,53 @@ impl Review {
         }
         id
     }
+}
+
+impl Review {
+    /// The sidebar's Delete All Comments button.
+    pub(super) fn delete_all(&self, cx: &App) -> impl IntoElement {
+        Button::new("doc-review-delete-comments", Docs::text(cx, "doc.review.delete_comments", &[]))
+            .size(ControlSize::Sm)
+            .variant(ButtonVariant::Ghost)
+            .disabled(self.notes.is_empty())
+            .on_click(|_, window, cx| window.dispatch_action(Box::new(DeleteComments), cx))
+    }
+}
+
+impl Docs {
+    /// Asks, then deletes every comment and reply (#148).
+    pub fn on_delete_comments(&mut self, _: &DeleteComments, _: &mut Window, cx: &mut Context<Self>) {
+        let count = self.review.read(cx).notes.len();
+        if count == 0 {
+            log::info!("doc: no comments to delete");
+            return;
+        }
+        self.dialog = Some(Dialog::DeleteComments { count });
+        cx.notify();
+    }
+
+    pub(crate) fn delete_comments(&mut self, cx: &mut Context<Self>) {
+        self.dialog = None;
+        log::info!("doc: deletes every comment");
+        self.run_active("comment.delete_all", &[], cx);
+        cx.notify();
+    }
+}
+
+/// The delete-all warning; one undo brings them back.
+pub(crate) fn delete_comments_dialog(
+    this: Entity<Docs>,
+    count: usize,
+    dismiss: impl Fn(&mut Window, &mut App) + 'static,
+    cx: &App,
+) -> ConfirmDialog {
+    ConfirmDialog::new(
+        "doc-delete-comments",
+        Docs::text(cx, "doc.review.delete_comments.title", &[]),
+        Docs::text(cx, "doc.review.delete_comments.body", &[("count", &count.to_string())]),
+        dismiss,
+    )
+    .destructive()
+    .confirm(Docs::text(cx, "doc.review.delete_comments.confirm", &[]))
+    .on_confirm(move |_, cx| this.update(cx, |docs, cx| docs.delete_comments(cx)))
 }

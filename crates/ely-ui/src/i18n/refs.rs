@@ -54,6 +54,10 @@ pub(super) const EN: &[(&str, &str)] = &[
     ("doc.review.track", "Track Changes"),
     ("doc.review.accept_all", "Accept All"),
     ("doc.review.reject_all", "Reject All"),
+    ("doc.review.delete_comments", "Delete All Comments…"),
+    ("doc.review.delete_comments.title", "Delete all comments?"),
+    ("doc.review.delete_comments.body", "Removes all comments and replies ({count}). Body text and tracked changes stay; Undo brings them back."),
+    ("doc.review.delete_comments.confirm", "Delete All"),
     ("doc.review.panel", "Comments and Changes"),
     (
         "doc.review.unread",
@@ -114,6 +118,10 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("doc.review.track", "修订"),
     ("doc.review.accept_all", "全部接受"),
     ("doc.review.reject_all", "全部拒绝"),
+    ("doc.review.delete_comments", "删除所有批注…"),
+    ("doc.review.delete_comments.title", "删除所有批注？"),
+    ("doc.review.delete_comments.body", "将删除全部批注与回复（共 {count} 条）。正文与修订不受影响，撤销可全部恢复。"),
+    ("doc.review.delete_comments.confirm", "全部删除"),
     ("doc.review.panel", "批注与修订"),
     (
         "doc.review.unread",

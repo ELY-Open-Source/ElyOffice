@@ -1,0 +1,24 @@
+From: Ely Office
+Subject: Writer comment deletions are not tracked under LOK
+
+- With track changes on, deleting all comments in an unsaved or ODF
+  document recorded each comment as a tracked deletion, so the
+  tracked changes grew and the comments stayed in the file inside
+  them (#148). A .docx already deleted them untracked, as Word does.
+- Under LOK every format now deletes comments untracked, whether one
+  thread or all of them.
+
+diff --git a/sw/source/uibase/docvw/PostItMgr.cxx b/sw/source/uibase/docvw/PostItMgr.cxx
+--- a/sw/source/uibase/docvw/PostItMgr.cxx
++++ b/sw/source/uibase/docvw/PostItMgr.cxx
+@@ -1700,7 +1700,9 @@
+ {
+     if (!mpWrtShell->IsRedlineOn())
+         return {}; // No track changes - no need to disable it
+-    if (isOwnFileFormat(mpView->GetDocShell()->GetMedium()))
++    // Under LOK comments go untracked, as in Word.
++    if (!comphelper::LibreOfficeKit::isActive()
++        && isOwnFileFormat(mpView->GetDocShell()->GetMedium()))
+         return {}; // Format is smart enough to handle deleted comments in redlines
+ 
+     return std::unique_ptr<CommentDeleteFlagsRestore>(

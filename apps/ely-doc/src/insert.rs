@@ -74,6 +74,7 @@ pub fn bind(root: Div, cx: &mut Context<Docs>) -> Div {
         .on_action(cx.listener(Docs::on_track))
         .on_action(cx.listener(Docs::on_accept_all))
         .on_action(cx.listener(Docs::on_reject_all))
+        .on_action(cx.listener(Docs::on_delete_comments))
         .on_action(cx.listener(Docs::on_show_review))
         .on_action(cx.listener(Docs::on_find))
         .on_action(cx.listener(Docs::on_update_links))

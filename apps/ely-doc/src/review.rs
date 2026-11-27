@@ -25,7 +25,7 @@ use gpui::{
 
 use crate::docs::{Docs, Side};
 
-actions!(doc, [TrackChanges, AcceptAll, RejectAll, ShowReview]);
+actions!(doc, [TrackChanges, AcceptAll, RejectAll, ShowReview, DeleteComments]);
 
 /// ElyDoc's Review menu.
 pub fn menu(cx: &App) -> Menu {
@@ -37,6 +37,7 @@ pub fn menu(cx: &App) -> Menu {
         MenuItem::action(label("doc.review.track"), TrackChanges),
         MenuItem::action(label("doc.review.accept_all"), AcceptAll),
         MenuItem::action(label("doc.review.reject_all"), RejectAll),
+        MenuItem::action(label("doc.review.delete_comments"), DeleteComments),
         MenuItem::separator(),
         MenuItem::action(label("doc.compare.open"), crate::compare::CompareWith),
     ])
@@ -385,7 +386,7 @@ impl Render for Review {
                     TextInput::new(window, cx)
                 });
                 let (pick, send, edit, delete, resolve) = (this.clone(), this.clone(), this.clone(), this.clone(), this.clone());
-                CommentSidebar::new("doc-review-comments", self.threads.clone())
+                let sidebar = CommentSidebar::new("doc-review-comments", self.threads.clone())
                     .active(self.active.clone(), move |key, _, cx| {
                         pick.update(cx, |review, cx| review.select(key, cx))
                     })
@@ -396,8 +397,9 @@ impl Render for Review {
                     })
                     .on_edit(move |key, ix, text, _, cx| edit.update(cx, |review, cx| review.edit(key, ix, text, cx)))
                     .on_delete(move |key, ix, _, cx| delete.update(cx, |review, cx| review.delete(key, ix, cx)))
-                    .on_resolve(move |key, on, _, cx| resolve.update(cx, |review, cx| review.resolve(key, on, cx)))
-                    .into_any_element()
+                    .on_resolve(move |key, on, _, cx| resolve.update(cx, |review, cx| review.resolve(key, on, cx)));
+                let rest = div().flex_1().min_h_0().child(sidebar);
+                div().size_full().flex().flex_col().gap_2().child(self.delete_all(cx)).child(rest).into_any_element()
             }
         };
         div()
@@ -477,5 +479,6 @@ mod original;
 #[cfg(test)]
 mod tests;
 mod threads;
+pub(crate) use threads::delete_comments_dialog;
 mod views;
 mod washes;

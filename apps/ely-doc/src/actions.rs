@@ -23,6 +23,10 @@ pub enum Dialog {
         rows: f64,
     },
     Section,
+    /// Asks before deleting every comment (#148).
+    DeleteComments {
+        count: usize,
+    },
     Symbols,
     Ask {
         ask: Ask,
@@ -68,6 +72,9 @@ impl Docs {
             Dialog::Templates => templates(this, dismiss, cx),
             Dialog::Section => {
                 return Some(crate::insert::section_dialog(this, dismiss, cx).into_any_element());
+            }
+            Dialog::DeleteComments { count } => {
+                return Some(crate::review::delete_comments_dialog(this, *count, dismiss, cx).into_any_element());
             }
             Dialog::Symbols => crate::symbols::symbol_dialog(this, dismiss, cx),
             Dialog::Ask { ask, field } => {

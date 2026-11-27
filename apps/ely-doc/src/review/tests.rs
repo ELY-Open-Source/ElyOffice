@@ -7,6 +7,7 @@ use crate::tests::{blank, docs, settle, settled, text_of, type_into, with_window
 use ely_office::prelude::*;
 
 mod clicks;
+mod delete_all;
 mod resolve;
 mod views;
 
