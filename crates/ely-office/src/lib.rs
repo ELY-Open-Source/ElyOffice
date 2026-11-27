@@ -88,6 +88,8 @@ pub trait Host: Sized + 'static {
     fn finishing(&mut self, _id: u64, _format: &str, _: &mut Context<Self>) -> Option<Finish> {
         None
     }
+    /// Tab `id`'s save, as `finishing` made it, reached the disk.
+    fn landed(&mut self, _id: u64) {}
     /// Runs when the kernel reports on tab `id`.
     fn observed(&mut self, id: u64, view: &Entity<View<Self>>, cx: &mut Context<Self>);
     /// Runs after a loaded tab joins the window.

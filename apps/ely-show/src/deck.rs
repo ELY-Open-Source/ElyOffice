@@ -30,7 +30,7 @@ pub struct Deck {
     pub blank: Option<PathBuf>,
     /// The kernel's font families; read once.
     pub fonts: Vec<SharedString>,
-    reading_fonts: bool,
+    pub(crate) reading_fonts: bool,
     pub guide_drag: Option<crate::guides::Drag>,
     pub notes: crate::notes::NotesField,
     /// The right column shows comments, not properties.
@@ -89,6 +89,10 @@ impl Host for Deck {
 
     fn finishing(&mut self, id: u64, format: &str, cx: &mut Context<Self>) -> Option<ely_office::Finish> {
         self.finish_save(id, format, cx)
+    }
+
+    fn landed(&mut self, id: u64) {
+        self.kept_landed(id);
     }
 
     fn tab_shown(&mut self, id: u64, cx: &mut Context<Self>) {
@@ -380,31 +384,6 @@ impl Deck {
             self.snap_menus = Some(shown);
             ely_ui::set_document_menus(AppId::Show, &ely_ui::commands::FILE, crate::window::menus(on, shown.1, cx), cx);
         }
-    }
-
-    /// Reads the font families once, off the window.
-    fn read_fonts(&mut self, id: u64, cx: &mut Context<Self>) {
-        if !self.fonts.is_empty() || self.reading_fonts {
-            return;
-        }
-        let Some(doc) = self.tab_mut(id).map(|tab| tab.doc.clone()) else {
-            return;
-        };
-        self.reading_fonts = true;
-        ely_lok::read_off(
-            &self.core.worker,
-            &doc,
-            |worker, doc| ely_lok::commands::fonts(&worker.values(doc, ".uno:CharFontName")?),
-            |deck: &mut Self, read, cx| {
-                deck.reading_fonts = false;
-                match read {
-                    Ok(fonts) => deck.fonts = fonts.into_iter().map(Into::into).collect(),
-                    Err(error) => deck.engine_failed(&format!("the font list: {error}"), cx),
-                }
-                cx.notify();
-            },
-            cx,
-        );
     }
 
     /// Marks every slide's picture stale.

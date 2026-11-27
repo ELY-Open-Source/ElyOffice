@@ -3,6 +3,7 @@
 use std::{io, path::Path, time::Duration};
 
 use ely_gpui_component::primitives::Severity;
+use ely_ipc::Worded;
 use ely_office::{Finish, prelude::*};
 use gpui::{AppContext as _, Context};
 
@@ -12,6 +13,8 @@ use crate::slideshow::scoreboard::{Ask, Source, ask_table, renamed};
 use crate::slideshow::timer::{Clocks, Spot, Timer};
 
 mod package;
+
+use package::Found;
 
 /// What one slide keeps, by its place in the deck.
 #[derive(Clone, Debug, PartialEq)]
@@ -29,6 +32,10 @@ pub struct Kept {
     /// As last seen over the normal slides.
     latest: Vec<Held>,
     saved: Vec<Held>,
+    /// What the save under way writes; saved once it lands.
+    saving: Vec<Held>,
+    /// Another program's zip comment, which saves keep.
+    theirs: Option<Vec<u8>>,
 }
 
 /// The formats that are zip packages ElyShow can mark.
@@ -72,8 +79,15 @@ impl Deck {
         };
         // Only the file's tail is read, before any save.
         let held = match package::read(&path) {
-            Ok(Some(held)) => held,
-            Ok(None) => return,
+            Ok(Found::Ours(held)) => held,
+            Ok(Found::Nothing) => return,
+            Ok(Found::Theirs(comment)) => {
+                log::info!("show: tab {id}'s file has another program's zip comment; saves keep it");
+                if let Some(tab) = self.tab_mut(id) {
+                    tab.extra.kept.theirs = Some(comment);
+                }
+                return;
+            }
             Err(error) => {
                 log::warn!("show: tab {id}'s countdowns and scoreboards did not read: {error}");
                 let text = Deck::text(cx, "show.keep.unread", &[("error", &error.to_string())]);
@@ -87,7 +101,7 @@ impl Deck {
             clocks.update(cx, |clocks, _| clocks.taken(last));
         }
         if let Some(tab) = self.tab_mut(id) {
-            tab.extra.kept = Kept { waiting: true, latest: held.clone(), saved: held };
+            tab.extra.kept = Kept { waiting: true, latest: held.clone(), saved: held, ..Kept::default() };
         }
     }
 
@@ -115,7 +129,10 @@ impl Deck {
     pub fn mark_unsaved(&mut self, id: u64, cx: &mut Context<Self>) {
         if let Some(tab) = self.tab_mut(id) {
             sync(&mut tab.extra);
-            if tab.extra.kept.latest != tab.extra.kept.saved {
+            // A save under way counts what it writes.
+            let kept = &tab.extra.kept;
+            let saved = if tab.exporting { &kept.saving } else { &kept.saved };
+            if kept.latest != *saved {
                 tab.session.edit();
                 cx.notify();
             }
@@ -134,16 +151,29 @@ impl Deck {
     pub fn keeping(&mut self, id: u64, format: &str, ask: Ask, cx: &mut Context<Self>) -> Option<Finish> {
         let tab = self.tab_mut(id)?;
         let held = sync(&mut tab.extra).to_vec();
-        tab.extra.kept.saved = held.clone();
-        if held.is_empty() {
-            return None;
-        }
+        tab.extra.kept.saving = held.clone();
+        let theirs = tab.extra.kept.theirs.clone();
         if !MARKED.contains(&format) {
-            let text = Deck::text(cx, "show.keep.format", &[("format", format)]);
-            self.toast(text, Severity::Warning, cx);
+            if !held.is_empty() {
+                let text = Deck::text(cx, "show.keep.format", &[("format", format)]);
+                self.toast(text, Severity::Warning, cx);
+            }
             return None;
         }
-        Some(Box::new(move |bytes| package::seal(bytes, &renamed(held, ask))))
+        match (held.is_empty(), theirs) {
+            (true, None) => None,
+            (true, Some(theirs)) => Some(Box::new(move |bytes| package::attach(bytes, &theirs))),
+            // Theirs is never written over: the save fails.
+            (false, Some(_)) => Some(Box::new(|_: Vec<u8>| Err(Worded::error(io::ErrorKind::InvalidData, "show.keep.theirs", &[])))),
+            (false, None) => Some(Box::new(move |bytes| package::seal(bytes, &renamed(held, ask)))),
+        }
+    }
+
+    /// Tab `id`'s save landed with what it kept.
+    pub fn kept_landed(&mut self, id: u64) {
+        if let Some(kept) = self.tab_mut(id).map(|tab| &mut tab.extra.kept) {
+            kept.saved = std::mem::take(&mut kept.saving);
+        }
     }
 
     /// [`Deck::keeping`], asking the running ElyTable.

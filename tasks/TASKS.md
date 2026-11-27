@@ -1079,7 +1079,7 @@
 - [!] R23.9d #127 “打开大文件卡顿”：向报告者要文件与机器，对照 #111 的改动；拿到再定
   - 未决：报告者没说哪个应用、多大的文件、什么机器；2026-11-27 已在 #127 留言要文件（或大小）与电脑配置（R23.9c 之后），#127 保持打开；拿到后对照 #111 量了再定
 
-## R24 0.1.18 发布前又到的 PR 与议题（2026-11-27 拆，#134–#141）
+## R24 0.1.18 发布前又到的 PR 与议题（2026-11-27 拆，#134–#142）
 
 沿用 R23 用户 2026-11-26 的定：新到的先修、先合，再发 0.1.18。PR 在前，#134–#139 是一串叠着的分支（OmarGonD），各自只多最后的提交，照序真正合并（不压不变基、不 cherry-pick），每个跑测试、reviewer 至多五轮、合入即在 PR 上致谢（文案取 writer）；不满足项目规矩处在合并后跟一个修复提交。之后 #140、#141。
 
@@ -1096,9 +1096,16 @@
   - 查明：停着、暂停、到时与重置后不重绘（循环在无走着的倒计时时结束）；倒计时无动效，最后十秒只换色，减少动效无需改
   - 测试：单测 `a_running_countdown_wakes_only_when_its_second_changes`（69.4 秒剩余先等 0.4 秒，其后每秒；暂停、到时不醒；多个取最早）；`all_slides_share_a_countdown_and_one_slide_may_have_its_own` 加“改了走着的倒计时、移除走着的倒计时后 5 秒内不再通知”
   - Omarchy：ElyShow 152 过，ElyTable 记分 2 过，内核命令 19 过，翻译 29 过，clippy 无告警；check.sh、panics.py 过
-- [ ] R24.0d PR #137 记分板链接与倒计时随 `.pptx`/`.odp` 存（zip 注释，`Host::finishing`）（52854c21）；查：原子保存、别家注释不覆盖即报错、Office 打开存回不丢
+- [x] R24.0d PR #137 记分板链接与倒计时随 `.pptx`/`.odp` 存（zip 注释，`Host::finishing`）（52854c21）；查：原子保存、别家注释不覆盖即报错、Office 打开存回不丢
+  - 合并：四处冲突——`scoreboard.rs`（PR 照旧的 0.7 秒轮询写，见下①）、`timer/dialog.rs`（留 `Clocks::keep`，接 PR 的 `mark_unsaved`；时钟改由 PR 的 `Deck::clocks` 建）、法语 `play.rs`（留 writer 的 `show.score.menu`，接 PR 的四个新键）、帮助（留三行，接 writer 改写的保存一行）
+  - 已做（跟进）：①重开后找回书与“等变化”合在一起：`changed` 在键为空（重开的文稿）时按路径、未存的按唯一名称找书，读错时再找一次（ElyTable 重启后键变），找到新键即不带记号读（记号只对同一本书）；`Read` 带回所读书的键，`Board::follow` 记住它，此后照常挂起等变化——否则重开的文稿每轮都要重找、不带记号即读，对 ElyTable 空转。②保存时只列表不加载：PR 的 `renamed` 走 `sheets`，会对 ElyTable 后台标签里未加载的文件逐个 `score.load`，保存一次文稿就把它们全加载；改走 `listed`（只 `score.list`），有键的书本已加载。③“已存”只在保存落盘后才算：PR 在保存开始时即把链接与倒计时记为已存，保存失败（如超出 64 KB）后内核撤销回已存时会显示已存而文件里并没有；现在开始时只记作“保存中”，新的宿主钩子 `Host::landed`（ely-office 在保存落盘成功时调）才把它记为已存；为放下钩子，`deck.rs` 的 `read_fonts` 移到用它的 `text.rs`（文件不超 500 行）。保存进行中（`tab.exporting`）比较的是这次要写的，因为内核导出 .odp（自家格式）时即报“未修改”，落盘前就会回到已存（另存为 .odp 的测试由此失败，加日志与调用栈查明；.pptx 导出不清内核的修改标记）。先试过按会话的已存修订号判断，同一原因不成立，故不用
+  - 查明：原子——封装出错在 worker 读里即返回，落在 `ended` 的错误里，写盘之前，旧文件不动；写盘仍是 `ely_files::Write` 的临时文件加改名。只有 `landing::export`（保存、另存为、文件已删时保留我的）经 `finishing`，恢复点与命令行导出不经。别家注释（审查第 1 轮）：原先打开时把别家注释当作没有，内核每次保存又写出新包，别家注释便悄悄丢了；现在打开时记下别家注释（`package::Found::Theirs`），没有我们的数据时保存把它原样写回，有倒计时或记分牌时保存即失败并说明（`show.keep.theirs`），磁盘上的文件不动。三种拒绝（别家注释、非 zip 如加密的文稿、超过 64 KB）都改为可译的报错（`Worded`，此前只显示笼统的保存失败）。非 pptx、odp 格式提示后照存不带。ElyTable 不在时保存照旧名存，不失败
+  - Office（7877，PowerPoint 16）：带注释的 .pptx 由 COM 打开无修复、1 张幻灯片，另存后幻灯片在、注释丢失——帮助已写“用别的程序另存可能丢失”，zip 注释的做法本就如此
+  - 测试：单测 `a_reopened_link_finds_its_book_once_then_waits_on_it`（空键按路径找到、旧键找到新键、找到后挂起读不再列表、找不到报 `Unfound`）、`saving_takes_present_names_without_loading_tabs`（保存时只许 `score.list`）；`a_saved_deck_brings_back_its_countdowns_and_scoreboards` 加“保存开始未落盘时撤销回已存仍未存，另存落盘后才算已存”；`a_kept_sheet_is_found_again_by_its_file_or_its_one_name` 的假 ElyTable 改用新答复（`{mark, rows}`）；`another_programs_comment_is_kept_and_never_written_over`（带别家注释打开、无数据另存保留它、加倒计时再存即失败且文件不变、仍未存）；`package` 单测覆盖三种拒绝的键
+  - Omarchy（第 1 轮修好后）：ElyShow 159 过，ElyTable 记分 2 过，内核命令 19 过，ely-office 44 过，翻译 29 过，clippy 无告警；check.sh 过
 - [ ] R24.0e PR #138 倒计时与记分板同屏、换焦点（d8a8f2b8）
 - [ ] R24.0f PR #139 倒计时变色、到时的效果与声音、图标按钮（60f0ddff）；查：动效每段不超 220 毫秒、减少动效下静止、软件渲染下减少，声音随系统静音
+- [ ] R24.0g PR #142 ElyPDF 选中的文字不被选区色盖住（ded310e8，2026-11-27 到）：每行从页面图块切出、纸色换成选区色、墨色转白，淡的选区色加深；查：每帧代价（切图与缓存的上限、离屏即释放，potato computer 拖选不卡）、颜色取自主题、深浅色与 Omarchy、跨图块边缘、旋转与缩放
 - [ ] R24.1 #140 ElyDoc 比较两份文档时不显示两边共有的旧修订，正文与修订都相同即提示“未发现差异”，两份源文档不变（§6）
   - 方案：照 Word（任一份有修订即按全部接受后比较）。比较的新副本先全部接受；旧文件由内核载入内存后全部接受（内核补丁，在 `SwView::InsertMedium` 的比较分支，文件不动）；`.uno:CompareDocuments` 已回 `SfxInt32Item` 差异数（与 0177 同为 "long"），为 0 即 toast“未发现差异”并不开空的比较页
 - [ ] R24.2a #141 ElyTable 在行号、列标上按住拖动即连选整行整列，与拖边线改宽高分开（§7）

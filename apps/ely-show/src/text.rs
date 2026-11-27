@@ -8,10 +8,38 @@ use ely_gpui_component::{
 };
 use ely_lok::show::Selection;
 use ely_office::panel::{self as kernel, font_box, palette, row, size_box, toggle};
+use ely_office::prelude::*;
 use gpui::{AnyElement, Context, IntoElement, SharedString, Window};
 
 use crate::deck::Deck;
 use crate::design::{Panel, on_deck};
+
+impl Deck {
+    /// Reads the font families once, off the window.
+    pub(crate) fn read_fonts(&mut self, id: u64, cx: &mut Context<Self>) {
+        if !self.fonts.is_empty() || self.reading_fonts {
+            return;
+        }
+        let Some(doc) = self.tab_mut(id).map(|tab| tab.doc.clone()) else {
+            return;
+        };
+        self.reading_fonts = true;
+        ely_lok::read_off(
+            &self.core.worker,
+            &doc,
+            |worker, doc| ely_lok::commands::fonts(&worker.values(doc, ".uno:CharFontName")?),
+            |deck: &mut Self, read, cx| {
+                deck.reading_fonts = false;
+                match read {
+                    Ok(fonts) => deck.fonts = fonts.into_iter().map(Into::into).collect(),
+                    Err(error) => deck.engine_failed(&format!("the font list: {error}"), cx),
+                }
+                cx.notify();
+            },
+            cx,
+        );
+    }
+}
 
 impl Panel {
     pub(crate) fn words(

@@ -47,7 +47,7 @@ fn restarted(words: &[&str]) -> std::io::Result<String> {
             book("9:3", "Untitled 2", None),
         ])
         .to_string(),
-        ["score.read", key, _] if key.starts_with("9:") => serde_json::json!([[key, "4"]]).to_string(),
+        ["score.read", key, _] if key.starts_with("9:") => serde_json::json!({ "mark": "1", "rows": [[key, "4"]] }).to_string(),
         _ => return Err(std::io::Error::other("that workbook is no longer open in ElyTable")),
     })
 }
