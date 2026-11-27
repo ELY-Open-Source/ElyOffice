@@ -14,6 +14,7 @@ use gpui::{
 };
 
 use crate::{Commands as _, Host, Tabs as _, text};
+use ely_ui::i18n::counted;
 
 actions!(office, [FindReplace]);
 
@@ -48,6 +49,8 @@ pub struct Finder {
     checked: u64,
     /// The document changed since the count.
     pub stale: bool,
+    /// Replace All's report bump when it was sent.
+    replacing: Option<u64>,
     _query: Subscription,
 }
 
@@ -85,6 +88,7 @@ pub trait Finding: Host<Engine = crate::Lok> {
             history: None,
             checked: edited,
             stale: false,
+            replacing: None,
             _query: subscription,
         });
         self.check_history(id, edited, false, cx);
@@ -223,6 +227,12 @@ pub trait Finding: Host<Engine = crate::Lok> {
             return;
         };
         values.push(with);
+        if every {
+            let mark = self.active_tab().map(|tab| tab.view.read(cx).replaced().0);
+            if let Some(finder) = self.core_mut().finder.as_mut() {
+                finder.replacing = mark;
+            }
+        }
         // A replace reports only when nothing is left.
         self.run_search("find.replace", values, None, cx);
         self.count_matches(cx);
@@ -287,7 +297,9 @@ pub trait Finding: Host<Engine = crate::Lok> {
                 finder.current
             );
         }
+        let replaced = view.read(cx).replaced();
         let finder = self.core_mut().finder.as_mut().expect("the finder is open");
+        let report = replace_report(finder, replaced);
         let chosen = finder.current.map(|at| finder.all[at]);
         if chosen.is_some() && view.read(cx).selection().first() != chosen.as_ref() {
             finder.current = None;
@@ -297,6 +309,19 @@ pub trait Finding: Host<Engine = crate::Lok> {
                 self.step(forward, cx);
             }
         }
+        if let Some(count) = report {
+            self.report_replaced(count, cx);
+        }
+    }
+
+    /// Says what Replace All replaced.
+    fn report_replaced(&mut self, count: u64, cx: &mut Context<Self>) {
+        log::info!("{}: replace all changed {count}", Self::KIND.app.slug());
+        let (text, severity) = match count {
+            0 => (text(cx, "office.find.replaced_none", &[]), Severity::Info),
+            n => (counted(cx, "office.find.replaced", n, &[("n", &n.to_string())]), Severity::Success),
+        };
+        self.toast(text, severity, cx);
     }
 
     fn close_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -381,4 +406,14 @@ fn counting(finder: &Finder) -> bool {
         .pending
         .iter()
         .any(|(asked, live)| *live && *asked == Asked::All)
+}
+
+/// Replace All's count once its report lands.
+fn replace_report(finder: &mut Finder, (bump, count): (u64, u64)) -> Option<u64> {
+    let mark = finder.replacing?;
+    if mark == bump {
+        return None;
+    }
+    finder.replacing = None;
+    Some(count)
 }

@@ -259,10 +259,19 @@ fn a_column_button_lists_validation_offers_and_formats_list() {
 fn the_panel_reads_number_formats_and_find_counts_cells() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();
+    cx.update(ely_gpui_component::init_for_tests);
     let Some((window, book)) = book(&mut cx, dir.path()) else {
         eprintln!("SKIP: no LOK build");
         return;
     };
+    // The window's toasts live on its root.
+    let root = window
+        .update(&mut cx, |_, window, cx| {
+            let root = ely_ui::document_root(ely_platform::AppId::Table, book.clone().into(), &ely_ui::commands::FILE, Vec::new(), window, cx);
+            book.update(cx, |book, _| book.core.root = root.downgrade());
+            root
+        })
+        .expect("the window");
     open(&mut cx, &book);
     run(&mut cx, &book, "cell.goto", &["B2"]);
     run(&mut cx, &book, "number.percent", &[]);
@@ -300,6 +309,23 @@ fn the_panel_reads_number_formats_and_find_counts_cells() {
             .as_ref()
             .is_some_and(|finder| finder.all.len() == 3)
     });
+    cx.update_window(window.into(), |_, window, app| {
+        book.update(app, |book, cx| {
+            let finder = book.core.finder.as_mut().expect("the finder");
+            finder.replace = Some(cx.new(|cx| TextInput::new(window, cx)));
+        })
+    })
+    .expect("the window lives");
+    let with = cx.update(|app| book.read(app).core.finder.as_ref().and_then(|finder| finder.replace.clone()).expect("a field"));
+    cx.update(|app| with.update(app, |with, cx| with.set_text("z", cx)));
+    // Calc counts the cells it changed.
+    cx.update(|app| book.update(app, |book, cx| book.replace(true, cx)));
+    let three = cx.update(|app| ely_ui::i18n::counted(app, "office.find.replaced", 3, &[("n", "3")]).to_string());
+    settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| *text == three));
+    settle(&cx, |app| book.read(app).core.finder.as_ref().is_some_and(|finder| finder.all.is_empty() && !finder.stale));
+    cx.update(|app| book.update(app, |book, cx| book.replace(true, cx)));
+    let none = cx.update(|app| ely_ui::i18n::text(app, "office.find.replaced_none", &[]).to_string());
+    settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| *text == none));
 }
 
 /// Two blocks: keys in A, other numbers in C.

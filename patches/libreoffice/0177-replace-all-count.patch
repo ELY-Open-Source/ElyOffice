@@ -1,0 +1,96 @@
+From: Ely Office
+Subject: Replace All answers with how many it replaced
+
+- The find bar of ElyDoc and ElyTable said nothing after Replace
+  All (R23.9a, #127); the kernel only returned found or not found.
+- Writer and Calc now set the result of .uno:ExecuteSearch for
+  Replace All to the count replaced, zero included: Writer its
+  matches, Calc the cells changed. A search Writer stops early
+  still answers false.
+
+diff --git a/sc/source/ui/inc/viewfunc.hxx b/sc/source/ui/inc/viewfunc.hxx
+--- a/sc/source/ui/inc/viewfunc.hxx
++++ b/sc/source/ui/inc/viewfunc.hxx
+@@ -280,7 +280,8 @@
+     void            AutoFormat( sal_uInt16 nFormatNo );
+ 
+     bool            SearchAndReplace( const SvxSearchItem* pSearchItem,
+-                                        bool bAddUndo, bool bIsApi );
++                                        bool bAddUndo, bool bIsApi,
++                                        sal_uInt64* pReplaced = nullptr );
+ 
+     void            Solve( const ScSolveParam& rParam );
+     void            TabOp( const ScTabOpParam& rParam,  bool bRecord = true );
+diff --git a/sc/source/ui/view/tabvwshe.cxx b/sc/source/ui/view/tabvwshe.cxx
+--- a/sc/source/ui/view/tabvwshe.cxx
++++ b/sc/source/ui/view/tabvwshe.cxx
+@@ -25,6 +25,7 @@
+ #include <editeng/flditem.hxx>
+ #include <svx/hlnkitem.hxx>
+ #include <svl/srchitem.hxx>
++#include <svl/intitem.hxx>
+ #include <sfx2/dispatch.hxx>
+ #include <sfx2/request.hxx>
+ #include <svl/stritem.hxx>
+@@ -240,7 +241,11 @@
+                      (pSearchItem = pReqArgs->GetItemIfSet(SID_SEARCH_ITEM, false)) )
+                 {
+                     ScGlobal::SetSearchItem( *pSearchItem );
+-                    SearchAndReplace( pSearchItem, true, rReq.IsAPI() );
++                    sal_uInt64 nReplaced = 0;
++                    SearchAndReplace( pSearchItem, true, rReq.IsAPI(), &nReplaced );
++                    // Ely: the count is the result, zero too.
++                    if (pSearchItem->GetCommand() == SvxSearchCmd::REPLACE_ALL)
++                        rReq.SetReturnValue(SfxUInt32Item(nSlot, sal_uInt32(nReplaced)));
+                     rReq.Done();
+                 }
+             }
+diff --git a/sc/source/ui/view/viewfun2.cxx b/sc/source/ui/view/viewfun2.cxx
+--- a/sc/source/ui/view/viewfun2.cxx
++++ b/sc/source/ui/view/viewfun2.cxx
+@@ -1958,8 +1958,11 @@
+ // Search & Replace
+ 
+ bool ScViewFunc::SearchAndReplace( const SvxSearchItem* pSearchItem,
+-                                        bool bAddUndo, bool bIsApi )
++                                        bool bAddUndo, bool bIsApi,
++                                        sal_uInt64* pReplaced )
+ {
++    if (pReplaced)
++        *pReplaced = 0;
+     SvxSearchDialogWrapper::SetSearchLabel(SearchLabel::Empty);
+     ScDocShell* pDocSh = GetViewData().GetDocShell();
+     ScDocument& rDoc = pDocSh->GetDocument();
+@@ -2069,6 +2072,8 @@
+ 
+             if (nCommand == SvxSearchCmd::FIND_ALL)
+                 aFoundAll = aMatchedRanges;
++            if (pReplaced && nCommand == SvxSearchCmd::REPLACE_ALL)
++                *pReplaced = aMatchedRanges.GetCellCount();
+             if (nCommand == SvxSearchCmd::FIND_ALL || nCommand == SvxSearchCmd::REPLACE_ALL)
+             {
+                 SfxViewFrame* pViewFrm = SfxViewFrame::Current();
+diff --git a/sw/source/uibase/uiview/viewsrch.cxx b/sw/source/uibase/uiview/viewsrch.cxx
+--- a/sw/source/uibase/uiview/viewsrch.cxx
++++ b/sw/source/uibase/uiview/viewsrch.cxx
+@@ -31,6 +31,7 @@
+ #include <svl/whiter.hxx>
+ #include <sfx2/viewfrm.hxx>
+ #include <svl/eitem.hxx>
++#include <svl/intitem.hxx>
+ #include <svl/srchitem.hxx>
+ #include <sfx2/bindings.hxx>
+ #include <sfx2/request.hxx>
+@@ -375,7 +376,11 @@
+                         m_pWrtShell->EndAllAction();
+                     }
+ 
+-                    rReq.SetReturnValue(SfxBoolItem(nSlot, nFound != 0 && SAL_MAX_INT32 != nFound));
++                    // Ely: the count is the result, zero too.
++                    if (SAL_MAX_INT32 != nFound)
++                        rReq.SetReturnValue(SfxUInt32Item(nSlot, nFound));
++                    else
++                        rReq.SetReturnValue(SfxBoolItem(nSlot, false));
+                     if( !nFound )
+                     {
+ #if HAVE_FEATURE_DESKTOP

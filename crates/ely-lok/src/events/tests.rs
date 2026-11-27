@@ -85,3 +85,17 @@ fn an_unreadable_rectangle_is_reported_never_swallowed() {
     record(&mut slot, REFERENCE_MARKS, mark);
     assert_eq!(slot.batch.faults.len(), 3, "{:?}", slot.batch.faults);
 }
+
+#[test]
+fn replace_all_counts_come_only_from_search_results() {
+    let counted = r#"{"commandName":".uno:ExecuteSearch","success":true,"result":{"type":"long","value":"3"}}"#;
+    assert_eq!(replaced_of(counted), Some(3));
+    let found = r#"{"commandName":".uno:ExecuteSearch","success":true,"result":{"type":"boolean"}}"#;
+    assert_eq!(replaced_of(found), None, "a plain find is no report");
+    let other = r#"{"commandName":".uno:Save","success":true,"result":{"type":"long","value":"3"}}"#;
+    assert_eq!(replaced_of(other), None, "another command's number is no count");
+    let mut slot = Slot::default();
+    record(&mut slot, RESULT, counted);
+    assert_eq!(slot.batch.replaced, (1, 3));
+    assert_eq!(slot.result, Some((".uno:ExecuteSearch".to_string(), true)));
+}

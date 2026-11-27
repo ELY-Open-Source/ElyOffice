@@ -86,6 +86,11 @@ impl LokView {
         (self.search.0, &self.search.1)
     }
 
+    /// Replace All's last report: its bump and count.
+    pub fn replaced(&self) -> (u64, u64) {
+        self.replaced
+    }
+
     /// Missing fonts, each with the families drawn instead.
     pub fn missing_fonts(&self) -> &[(String, Vec<String>)] {
         &self.fonts

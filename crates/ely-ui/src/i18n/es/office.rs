@@ -80,6 +80,9 @@ pub(super) const ES: &[(&str, &str)] = &[
         "No se volvieron a abrir: {names}. Sus cambios sin guardar no tenían un punto de recuperación.",
     ),
     ("office.error.engine", "{error}"),
+    ("office.find.replaced", "Se reemplazaron {n} coincidencias"),
+    ("office.find.replaced.one", "Se reemplazó 1 coincidencia"),
+    ("office.find.replaced_none", "No hay nada que reemplazar"),
     (
         "office.error.format",
         "Guardar como crea archivos .{formats}",

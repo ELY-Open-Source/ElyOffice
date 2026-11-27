@@ -172,6 +172,15 @@ pub fn result_of(text: &str) -> Option<(String, bool)> {
     ))
 }
 
+/// Replace All's count, from a search completion.
+pub fn replaced_of(text: &str) -> Option<u64> {
+    let json: Value = serde_json::from_str(text).ok()?;
+    let searched = json["commandName"] == ".uno:ExecuteSearch";
+    // SfxUInt32Item hands UNO a signed long.
+    let counted = json["result"]["type"] == "long";
+    (searched && counted).then(|| number(&json["result"]["value"]))?
+}
+
 /// A number field sent as text or number.
 fn number(value: &Value) -> Option<u64> {
     value

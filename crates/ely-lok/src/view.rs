@@ -149,6 +149,8 @@ pub struct LokView {
     tips: Vec<(Rect, gpui::SharedString)>,
     /// The last search outcome: its count and matches.
     search: (u64, Vec<Rect>),
+    /// Replace All's last report: its bump and count.
+    replaced: (u64, u64),
     menu: Option<String>,
     right_at: Option<Point<Pixels>>,
     fonts: Vec<(String, Vec<String>)>,
@@ -262,6 +264,7 @@ impl LokView {
             notes: Vec::new(),
             tips: Vec::new(),
             search: (0, Vec::new()),
+            replaced: (0, 0),
             menu: None,
             right_at: None,
             fonts: Vec::new(),
@@ -428,6 +431,7 @@ impl LokView {
         self.read_borders(batch.table, batch.revision);
         self.review = batch.review;
         self.search = (batch.searched, batch.found);
+        self.replaced = batch.replaced;
         self.fonts = batch.fonts;
         if batch.menu.is_some() {
             self.menu = batch.menu;

@@ -23,7 +23,7 @@ use cell::{functions_of, marks_of, request_of, usage_of};
 pub use parse::A11y;
 use parse::{
     Dialog, Unreadable, a11y_update, dialog_of, fonts_of, formula_text, found_of, rect_of,
-    result_of, state_of, tabs_of, link_of,
+    replaced_of, result_of, state_of, tabs_of, link_of,
 };
 
 use kinds::*;
@@ -60,6 +60,8 @@ pub struct Events {
     pub review: u64,
     /// Bumps on each search outcome.
     pub searched: u64,
+    /// Replace All's reports: a bump and the count replaced.
+    pub replaced: (u64, u64),
     /// Bumps when the document's size changes.
     pub resized: u64,
     /// Bumps when a dialog Ely closed has ended.
@@ -191,7 +193,12 @@ fn record(slot: &mut Slot, kind: i32, text: &str) -> Option<u32> {
                 batch.states.push(state);
             }
         }
-        RESULT => slot.result = result_of(text),
+        RESULT => {
+            if let Some(count) = replaced_of(text) {
+                batch.replaced = (batch.replaced.0 + 1, count);
+            }
+            slot.result = result_of(text);
+        }
         HYPERLINK => batch.links.push(link_of(slot.sheet, text).to_string()),
         RULER => batch.tabs = tabs_of(text),
         REDLINES | REDLINE | COMMENT => batch.review += 1,

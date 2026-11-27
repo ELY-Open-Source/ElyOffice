@@ -33,6 +33,7 @@ fn find_counts_steps_replaces_and_counts_words() {
         eprintln!("SKIP: no LOK build");
         return;
     };
+    let root = super::words::rooted(&mut cx, &docs);
     let id = blank(&mut cx, &docs);
     type_into(&mut cx, &docs, "cat Cat cat dog");
     settle(&cx, |app| {
@@ -74,6 +75,11 @@ fn find_counts_steps_replaces_and_counts_words() {
     settle(&cx, |app| total(app, &docs) == Some(1));
     cx.update(|app| docs.update(app, |docs, cx| docs.replace(true, cx)));
     settle(&cx, |app| total(app, &docs) == Some(0));
+    let one = cx.update(|app| ely_ui::i18n::counted(app, "office.find.replaced", 1, &[("n", "1")]).to_string());
+    settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| *text == one));
+    cx.update(|app| docs.update(app, |docs, cx| docs.replace(true, cx)));
+    let none = cx.update(|app| ely_ui::i18n::text(app, "office.find.replaced_none", &[]).to_string());
+    settle(&cx, |app| root.read(app).toasts(app).iter().any(|(text, _)| *text == none));
     settled(&cx, &docs);
     let path = dir.path().join("found.odt");
     with_window(&mut cx, &docs, |docs, window, cx| {
