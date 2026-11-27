@@ -17,13 +17,13 @@ pub(super) const LEVELS: &str = ".uno:ElyListLevels";
 const DEPTH: usize = 10;
 
 /// css.style.NumberingType values; letters run z, aa, bb as Word's.
-const UPPER_LETTER: u8 = 9;
-const LOWER_LETTER: u8 = 10;
-const UPPER_ROMAN: u8 = 2;
-const LOWER_ROMAN: u8 = 3;
-const ARABIC: u8 = 4;
-const CIRCLED: u8 = 14;
-const CHINESE: u8 = 15;
+pub(crate) const UPPER_LETTER: u8 = 9;
+pub(crate) const LOWER_LETTER: u8 = 10;
+pub(crate) const UPPER_ROMAN: u8 = 2;
+pub(crate) const LOWER_ROMAN: u8 = 3;
+pub(crate) const ARABIC: u8 = 4;
+pub(crate) const CIRCLED: u8 = 14;
+pub(crate) const CHINESE: u8 = 15;
 
 /// Each scheme's label key and repeating levels; `#` numbers.
 pub(super) const SCHEMES: [(&str, &[(u8, &str)]); 5] = [

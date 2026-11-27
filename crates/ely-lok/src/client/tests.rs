@@ -25,6 +25,7 @@ mod commands;
 #[cfg(windows)]
 mod dde;
 mod deletions;
+mod numbering;
 mod docx;
 mod opendoc;
 mod fallback;

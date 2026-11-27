@@ -50,6 +50,8 @@ pub enum Ask {
     Formula(bool),
     Comment,
     Watermark,
+    /// The number a list item shows (#147).
+    Number,
 }
 
 /// The reference formats offered, by kernel number.
@@ -130,7 +132,7 @@ impl Docs {
         );
     }
 
-    fn ask(&mut self, ask: Ask, text: &str, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn ask(&mut self, ask: Ask, text: &str, window: &mut Window, cx: &mut Context<Self>) {
         let field = cx.new(|cx| TextInput::new(window, cx));
         field.update(cx, |field, cx| field.set_text(text, cx));
         self.dialog = Some(Dialog::Ask { ask, field });
@@ -259,6 +261,7 @@ impl Docs {
             Ask::Caption(category) => self.run_active("caption.insert", &[category, text], cx),
             Ask::Formula(_) => self.run_active("formula.insert", &[text], cx),
             Ask::Watermark => self.watermark(text, cx),
+            Ask::Number => self.run_active("list.number_from", &[text], cx),
             Ask::Comment => {
                 self.show_side(crate::docs::Side::Review, cx);
                 self.run_active("comment.insert", &[text], cx);
@@ -284,9 +287,11 @@ pub fn ask_dialog(
         Ask::Formula(false) => ("doc.formula.title", "doc.formula.text"),
         Ask::Comment => ("doc.comment.title", "doc.comment.text"),
         Ask::Watermark => ("doc.watermark.title", "doc.watermark.text"),
+        Ask::Number => ("doc.number.title", "doc.number.value"),
     };
     let submit = match ask {
         Ask::Formula(true) => text("doc.formula.apply"),
+        Ask::Number => text("doc.number.apply"),
         _ => text("doc.insert.insert"),
     };
     let reasons: Vec<(&str, SharedString)> = [
@@ -296,6 +301,7 @@ pub fn ask_dialog(
         "doc.formula.empty",
         "doc.comment.empty",
         "doc.watermark.empty",
+        "doc.number.invalid",
     ]
     .into_iter()
     .map(|key| (key, text(key)))
@@ -321,6 +327,9 @@ pub fn ask_dialog(
 
 /// Why a prompt's answer cannot go, by message key.
 fn refuse(ask: &Ask, value: &str) -> Result<(), &'static str> {
+    if let Ask::Number = ask {
+        return crate::numbering::refuse(value).map_or(Ok(()), Err);
+    }
     if let Ask::Bookmark(taken) = ask
         && taken.iter().any(|name| name == value)
     {
@@ -335,6 +344,7 @@ fn refuse(ask: &Ask, value: &str) -> Result<(), &'static str> {
         Ask::Formula(_) => "doc.formula.empty",
         Ask::Comment => "doc.comment.empty",
         Ask::Watermark => "doc.watermark.empty",
+        Ask::Number => "doc.number.invalid",
     })
 }
 

@@ -144,6 +144,19 @@ pub(super) const ROWS: &[Command] = &[
     command("list.deeper", ".uno:DecrementLevel", &[], Check::Result),
     command("list.higher", ".uno:IncrementLevel", &[], Check::Result),
     command(
+        "list.number_from",
+        ".uno:ElyNumberFrom",
+        &[Arg::Int("Start", "unsigned short", 1, 9999)],
+        Check::Finished,
+    ),
+    command("list.join", ".uno:ElyNumberJoin", &[], Check::Undoable),
+    command(
+        "list.number_format",
+        ".uno:ElyNumberFormat",
+        &[Arg::Text("Format")],
+        Check::Undoable,
+    ),
+    command(
         "list.levels",
         ".uno:ElyListLevels",
         &[Arg::Text("Levels")],

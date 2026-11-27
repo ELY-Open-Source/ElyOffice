@@ -13,6 +13,7 @@ use ely_ui::menu::Offer;
 use gpui::{App, Context, Entity, Window};
 
 use crate::docs::Docs;
+use crate::numbering::Numbered;
 use crate::refs::{InsertCaption, InsertComment, InsertLink};
 use ely_office::prelude::*;
 
@@ -149,7 +150,8 @@ impl Docs {
             .offer
             .as_ref()
             .filter(|offer| Some(offer.tab) == self.core.active())?;
-        Some(offer.host("doc-menu", menu_of(&cx.entity(), &offer.what, cx)))
+        let numbered = self.numbered(cx);
+        Some(offer.host("doc-menu", menu_of(&cx.entity(), &offer.what, numbered, cx)))
     }
 
     /// Runs one menu row.
@@ -197,7 +199,7 @@ impl Docs {
 }
 
 /// Spelling first, then the clipboard row, then the target's rows.
-pub(crate) fn menu_of(this: &Entity<Docs>, offered: &Offered, cx: &App) -> Menu {
+pub(crate) fn menu_of(this: &Entity<Docs>, offered: &Offered, numbered: Option<Numbered>, cx: &App) -> Menu {
     let item = |pick: Pick| {
         let this = this.clone();
         MenuItem::new(Docs::text(cx, menu::Pick::row(pick).0, &[]))
@@ -225,7 +227,12 @@ pub(crate) fn menu_of(this: &Entity<Docs>, offered: &Offered, cx: &App) -> Menu 
         );
         menu = menu.item(ignore).separator();
     }
-    let menu = menu::clipboard(menu, [Pick::Cut, Pick::Copy, Pick::Paste], item);
+    let mut menu = menu::clipboard(menu, [Pick::Cut, Pick::Copy, Pick::Paste], item);
+    if offered.target == Target::Text
+        && let Some(numbered) = numbered
+    {
+        menu = menu.separator().item(crate::numbering::submenu(this, numbered, cx));
+    }
     let rows = match offered.target {
         Target::Table => TABLE,
         Target::Frame => FRAME,

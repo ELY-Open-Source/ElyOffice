@@ -4,7 +4,7 @@
 
 <!-- 下两行由 scripts/compatibility.py 写出，勿手改 -->
 版本：Ely Office 0.1.18（首批应用：ElyDoc、ElyTable、ElyShow、ElyPDF、ElyMail、ElyTree、ElyMark）。
-内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0183，176 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0011，11 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.14（加 `patches/gpui` 0001–0016，16 个）。
+内核：LibreOffice 26.2.6.3（8221e31，加 `patches/libreoffice` 0001–0184，177 个）；MuPDF 1.28.5（8ad45e9，加 `patches/mupdf` 0001–0011，11 个）；Git 2.56.0（a018953）与 git-lfs 3.8.0；gpui-pre 0.3.14（加 `patches/gpui` 0001–0016，16 个）。
 各节内容最近一次逐项核对是在 0.1.11（2026-10-23）；其后各版本的改动只在所涉的条目里更新，未整体重验。
 验证机：macOS 27.0 arm64、Windows 11 x64、Linux（WSL 里的 Ubuntu 26.04 x64）。Linux 的 deb、rpm、Arch 包另在 Debian 11、Ubuntu 26.04、Fedora 44、Arch 容器里装上并核对每个 ELF 的库；发布的二进制要求的 glibc 不高于 2.28（AlmaLinux 8 的构建容器），包的依赖写明这一下限。各应用节的“已验证”在 macOS 上以真窗口核对，其单测在三端都跑。与 Microsoft Office 的交叉核对见下节（网页版，三十份样本，另十八份大、怪、极限的文件）。
 
@@ -95,7 +95,7 @@ Aptos 与 Aptos Display 缺失时依次以随内核附带的 Source Sans 3、Car
 | 导入或受限 | DOC、RTF 按原格式保存；含宏的文件（docm、dotm、带 Basic 的 ODF/OLE）进风险模式，只能另存副本，宏不运行 |
 | 输出 | PDF（页码范围、批注、修订标记）、打印 |
 
-已验证：文字与段落格式、样式、页面与分节、页眉页脚、表格、图片锚点与环绕、目录、脚注尾注、书签、交叉引用、题注、公式（含 Word 的 EQ 域，转为公式对象）、批注与回复、修订、查找替换、拼写（英文）、比较、邮件合并。限制：交叉引用只指向书签；公式导出 DOCX 后在 Word 中是否可编辑未验证。
+已验证：文字与段落格式、样式、页面与分节、页眉页脚、表格、图片锚点与环绕、目录、脚注尾注、书签、交叉引用、题注、公式（含 Word 的 EQ 域，转为公式对象）、批注与回复、修订、查找替换、拼写（英文）、比较、邮件合并。限制：交叉引用只指向书签；公式导出 DOCX 后在 Word 中是否可编辑未验证。单改编号样式的项，ODT/DOCX 在 Ely 重开保留样式与计数，存 DOC（Word 97–2003）按新样式从 1 重起且后续不计它，DOCX 在 Word 中显示未验证。
 
 ## ElyTable
 

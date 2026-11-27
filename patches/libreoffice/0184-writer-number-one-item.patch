@@ -1,0 +1,348 @@
+From: Ely Office
+Subject: Writer: a kit client renumbers one list item
+
+- Word's right click on an automatic number offers a new start value,
+  continue numbering and the item's own number style (#147). The
+  kernel's paragraph dialog path ignores a start value without the
+  restart flag, and Continue Numbering moves only the selected
+  paragraph, so the rest of its list keeps counting apart.
+- .uno:ElyNumberFrom takes Start, 1 or more: the item at the cursor
+  restarts its level there; parents and other lists keep their
+  numbers. Its state is the item's number, empty off a numbered item.
+- .uno:ElyNumberJoin: on a list's first item, that item and the rest
+  of its list join the numbered list before it, as one undo step; an
+  item with its own style keeps it. On a restarted item it clears the
+  restart. Its state is disabled where neither applies.
+- .uno:ElyNumberFormat takes Format, "type|pattern", type a
+  css.style.NumberingType number and # the item's own number: the item
+  gets a copy of its list style with that level changed, still counted
+  in its list (DOCX writes it as a level override of the same list).
+  Parent numbers before the level stay. A bad format changes nothing.
+
+diff --git a/sfx2/source/control/unoctitm.cxx b/sfx2/source/control/unoctitm.cxx
+--- a/sfx2/source/control/unoctitm.cxx
++++ b/sfx2/source/control/unoctitm.cxx
+@@ -1286,6 +1286,8 @@
+         { u"ULSpacing", { PayloadType::ULSpacingPayload, true } },
+         { u"ElyFirstLineChars", { PayloadType::StringPayload, true } },
+         { u"ElyListLevels", { PayloadType::StringPayload, true } },
++        { u"ElyNumberFrom", { PayloadType::StringPayload, true } },
++        { u"ElyNumberJoin", { PayloadType::EnabledPayload, true } },
+         { u"AttributePageSize", { PayloadType::SizePayload, true } },
+         { u"AttributePage", { PayloadType::PageItemPayload, true } },
+         { u"PageLRMargin", { PayloadType::MarginsPayload, true } },
+diff --git a/sw/inc/cmdid.h b/sw/inc/cmdid.h
+--- a/sw/inc/cmdid.h
++++ b/sw/inc/cmdid.h
+@@ -515,6 +515,12 @@
+ #define FN_ELY_FIRST_LINE_CHARS             (FN_FORMAT2 + 145)
+ // Ely: a list's number formats, level by level.
+ #define FN_ELY_LIST_LEVELS                  (FN_FORMAT2 + 146)
++// Ely: one numbered item restarts at a value.
++#define FN_ELY_NUMBER_FROM                  (FN_FORMAT2 + 129)
++// Ely: a list joins the numbered list before it.
++#define FN_ELY_NUMBER_JOIN                  (FN_FORMAT2 + 130)
++// Ely: one numbered item's own number format.
++#define FN_ELY_NUMBER_FORMAT                (FN_FORMAT2 + 131)
+ 
+ #define FN_TABLE_RELATIVE_WIDTH             (FN_FORMAT2 + 147)  /* UNO */
+ #define FN_TABLE_WIDTH                      (FN_FORMAT2 + 148)  /* UNO */
+diff --git a/sw/sdi/_textsh.sdi b/sw/sdi/_textsh.sdi
+--- a/sw/sdi/_textsh.sdi
++++ b/sw/sdi/_textsh.sdi
+@@ -910,6 +910,24 @@
+         StateMethod = GetState;
+         DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
+     ]
++    FN_ELY_NUMBER_FROM
++    [
++        ExecMethod = ExecSetNumber;
++        StateMethod = GetState;
++        DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
++    ]
++    FN_ELY_NUMBER_JOIN
++    [
++        ExecMethod = ExecSetNumber;
++        StateMethod = GetState;
++        DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
++    ]
++    FN_ELY_NUMBER_FORMAT
++    [
++        ExecMethod = ExecSetNumber;
++        StateMethod = GetState;
++        DisableFlags="SfxDisableFlags::SwOnProtectedCursor";
++    ]
+     SID_OUTLINE_BULLET // status(final|play)
+     [
+         ExecMethod = ExecEnterNum ;
+diff --git a/sw/sdi/swriter.sdi b/sw/sdi/swriter.sdi
+--- a/sw/sdi/swriter.sdi
++++ b/sw/sdi/swriter.sdi
+@@ -5537,6 +5537,57 @@
+     GroupId = SfxGroupId::Format;
+ ]
+ 
++SfxStringItem ElyNumberFrom FN_ELY_NUMBER_FROM
++(SfxUInt16Item Start FN_PARAM_1)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Format;
++]
++
++SfxVoidItem ElyNumberJoin FN_ELY_NUMBER_JOIN
++()
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Format;
++]
++
++SfxVoidItem ElyNumberFormat FN_ELY_NUMBER_FORMAT
++(SfxStringItem Format FN_PARAM_1)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Format;
++]
++
+ SfxVoidItem ResetAttributes FN_FORMAT_RESET
+ ()
+ [
+diff --git a/sw/source/uibase/inc/textsh.hxx b/sw/source/uibase/inc/textsh.hxx
+--- a/sw/source/uibase/inc/textsh.hxx
++++ b/sw/source/uibase/inc/textsh.hxx
+@@ -27,6 +27,8 @@
+ class AbstractSvxPostItDialog;
+ class SwFlyFrameAttrMgr;
+ class SvxHyperlinkItem;
++class SwTextNode;
++class SwNumRule;
+ 
+ class SW_DLLPUBLIC SwTextShell: public SwBaseShell
+ {
+@@ -63,6 +65,10 @@
+     void    ExecMoveMisc(SfxRequest &);
+     void    ExecField(SfxRequest &rReq);
+     void    ExecSetNumber(SfxRequest const &);
++    // Ely: the numbered item at the cursor.
++    static const SwTextNode* ElyNumbered(SwWrtShell& rSh);
++    // Ely: whether ElyNumberJoin can run; the list it joins.
++    static bool ElyJoinable(SwWrtShell& rSh, OUString& rListId, const SwNumRule*& rRule);
+     void    StateField(SfxItemSet &);
+     void    ExecIdx(SfxRequest const &);
+     void    GetIdxState(SfxItemSet &);
+diff --git a/sw/source/uibase/shells/textsh1.cxx b/sw/source/uibase/shells/textsh1.cxx
+--- a/sw/source/uibase/shells/textsh1.cxx
++++ b/sw/source/uibase/shells/textsh1.cxx
+@@ -83,6 +83,7 @@
+ #include <edtwin.hxx>
+ #include <fldmgr.hxx>
+ #include <ndtxt.hxx>
++#include <SwNodeNum.hxx>
+ #include <txtfrm.hxx>
+ #include <strings.hrc>
+ #include <paratr.hxx>
+@@ -4288,6 +4289,30 @@
+                 rSet.Put(SfxStringItem(nWhich, aLevels.makeStringAndClear()));
+                 break;
+             }
++            case FN_ELY_NUMBER_FROM:
++            {
++                // Ely: the item's own number, empty off a numbered item.
++                const SwTextNode* pNode = SwTextShell::ElyNumbered(rSh);
++                const SwNodeNum* pNum = pNode ? pNode->GetNum(rSh.GetLayout()) : nullptr;
++                OUString aNumber;
++                if (pNum)
++                {
++                    const SwNumberTree::tNumberVector aNumbers = pNum->GetNumberVector();
++                    const size_t nLevel = static_cast<size_t>(pNode->GetActualListLevel());
++                    if (nLevel < aNumbers.size())
++                        aNumber = OUString::number(aNumbers[nLevel]);
++                }
++                rSet.Put(SfxStringItem(nWhich, aNumber));
++                break;
++            }
++            case FN_ELY_NUMBER_JOIN:
++            {
++                OUString sListId;
++                const SwNumRule* pRule = nullptr;
++                if (!SwTextShell::ElyJoinable(rSh, sListId, pRule))
++                    rSet.DisableItem(nWhich);
++                break;
++            }
+             case FN_BUL_NUM_RULE_INDEX:
+             case FN_NUM_NUM_RULE_INDEX:
+             case FN_OUTLINE_RULE_INDEX:
+diff --git a/sw/source/uibase/shells/txtnum.cxx b/sw/source/uibase/shells/txtnum.cxx
+--- a/sw/source/uibase/shells/txtnum.cxx
++++ b/sw/source/uibase/shells/txtnum.cxx
+@@ -24,6 +24,13 @@
+ #include <editeng/brushitem.hxx>
+ #include <osl/diagnose.h>
+ #include <numrule.hxx>
++#include <o3tl/safeint.hxx>
++#include <hintids.hxx>
++#include <pam.hxx>
++#include <ndarr.hxx>
++#include <IDocumentContentOperations.hxx>
++#include <doc.hxx>
++#include <ndtxt.hxx>
+ 
+ #include <cmdid.h>
+ #include <wrtsh.hxx>
+@@ -252,6 +259,32 @@
+ }
+ 
+ 
++const SwTextNode* SwTextShell::ElyNumbered(SwWrtShell& rSh)
++{
++    // Ely: the cursor's paragraph when it shows a number.
++    const SwTextNode* pNode = rSh.GetCursor()->GetPoint()->GetNode().GetTextNode();
++    const SwNumRule* pRule = pNode ? pNode->GetNumRule() : nullptr;
++    const int nLevel = pNode ? pNode->GetActualListLevel() : -1;
++    if (!pRule || !pNode->IsCountedInList() || nLevel < 0 || nLevel >= MAXLEVEL)
++        return nullptr;
++    return pRule->Get(o3tl::narrowing<sal_uInt16>(nLevel)).IsEnumeration() ? pNode : nullptr;
++}
++
++bool SwTextShell::ElyJoinable(SwWrtShell& rSh, OUString& rListId, const SwNumRule*& rRule)
++{
++    // Ely: a restart, or a first item after another list.
++    const SwTextNode* pNode = ElyNumbered(rSh);
++    if (!pNode)
++        return false;
++    if (rSh.IsFirstOfNumRuleAtCursorPos())
++    {
++        rRule = rSh.GetDoc()->SearchNumRule(SwPosition(*pNode), false, true, false, -1, rListId,
++                                            rSh.GetLayout());
++        return rRule && rListId != pNode->GetListId();
++    }
++    return rSh.IsNumRuleStart();
++}
++
+ void SwTextShell::ExecSetNumber(SfxRequest const &rReq)
+ {
+     const sal_uInt16 nSlot = rReq.GetSlot();
+@@ -375,6 +408,94 @@
+         }
+         break;
+ 
++    case FN_ELY_NUMBER_FROM:
++        {
++            // Ely: restart this item's level at Start.
++            const SfxUInt16Item* pStart = rReq.GetArg<SfxUInt16Item>(FN_PARAM_1);
++            SwWrtShell& rSh = GetShell();
++            if (!pStart || !pStart->GetValue() || !ElyNumbered(rSh))
++                return;
++            rSh.StartUndo(SwUndoId::INSATTR);
++            rSh.SetNumRuleStart(true, nullptr);
++            rSh.SetNodeNumStart(pStart->GetValue());
++            rSh.EndUndo(SwUndoId::INSATTR);
++        }
++        break;
++
++    case FN_ELY_NUMBER_JOIN:
++        {
++            // Ely: this list from here follows the list before.
++            SwWrtShell& rSh = GetShell();
++            OUString sListId;
++            const SwNumRule* pRule = nullptr;
++            if (!ElyJoinable(rSh, sListId, pRule))
++                return;
++            const SwTextNode& rFirst = *ElyNumbered(rSh);
++            SwDoc& rDoc = *rSh.GetDoc();
++            const OUString aOld = rFirst.GetListId();
++            const SwNumRule* pOwn = rFirst.GetNumRule();
++            rSh.StartAllAction();
++            rSh.StartUndo(SwUndoId::INSATTR);
++            rDoc.SetNumRuleStart(SwPosition(rFirst), false);
++            const SwNodes& rNodes = rDoc.GetNodes();
++            for (SwNodeOffset n = rFirst.GetIndex(); pRule && n < rFirst.EndOfSectionIndex(); ++n)
++            {
++                const SwTextNode* pText = rNodes[n]->GetTextNode();
++                if (!pText || !pText->IsInList() || pText->GetListId() != aOld)
++                    continue;
++                const SwPaM aPam(*pText);
++                // An item with its own style keeps it.
++                if (pText->GetNumRule() == pOwn)
++                    rDoc.SetNumRule(aPam, *pRule, SwDoc::SetNumRuleMode::Default, rSh.GetLayout(), sListId);
++                else
++                    rDoc.getIDocumentContentOperations().InsertPoolItem(
++                        aPam, SfxStringItem(RES_PARATR_LIST_ID, sListId));
++            }
++            rSh.EndUndo(SwUndoId::INSATTR);
++            rSh.EndAllAction();
++        }
++        break;
++
++    case FN_ELY_NUMBER_FORMAT:
++        {
++            // Ely: "type|pattern" for this item alone; # is its number.
++            const SfxStringItem* pSpec = rReq.GetArg<SfxStringItem>(FN_PARAM_1);
++            SwWrtShell& rSh = GetShell();
++            const SwTextNode* pNode = ElyNumbered(rSh);
++            if (!pSpec || !pNode)
++                return;
++            const OUString& rSpec = pSpec->GetValue();
++            const sal_Int32 nBar = rSpec.indexOf('|');
++            const sal_Int32 nType = nBar > 0 ? o3tl::toInt32(rSpec.subView(0, nBar)) : -1;
++            const bool bNumber = (nType >= 0 && nType < SVX_NUM_NUMBER_NONE)
++                                 || (nType > SVX_NUM_BITMAP && nType <= SVX_NUM_ARABIC_ZERO5);
++            if (!bNumber || rSpec.indexOf('#', nBar) < 0)
++                return;
++            const SwNumRule& rCur = *pNode->GetNumRule();
++            const sal_uInt16 nLevel = o3tl::narrowing<sal_uInt16>(pNode->GetActualListLevel());
++            const OUString aOwn = "%" + OUString::number(nLevel + 1) + "%";
++            SwNumFormat aFormat(rCur.Get(nLevel));
++            // Parents' numbers before this level's stay.
++            const OUString aWas = aFormat.HasListFormat() ? aFormat.GetListFormat() : OUString();
++            const sal_Int32 nAt = aWas.indexOf(aOwn);
++            aFormat.SetNumberingType(static_cast<SvxNumType>(nType));
++            aFormat.SetListFormat((nAt > 0 ? aWas.copy(0, nAt) : OUString())
++                                  + rSpec.copy(nBar + 1).replaceAll("#", aOwn));
++            SwNumRule aRule(rSh.GetUniqueNumRuleName(), aFormat.GetPositionAndSpaceMode());
++            for (sal_uInt16 n = 0; n < MAXLEVEL; ++n)
++                aRule.Set(n, n == nLevel ? aFormat : rCur.Get(n));
++            aRule.SetContinusNum(rCur.IsContinusNum());
++            aRule.SetAbsSpaces(rCur.IsAbsSpaces());
++            aRule.SetCountPhantoms(rCur.IsCountPhantoms());
++            aRule.SetAutoRule(true);
++            // Its own style, still counted in its list.
++            rSh.StartAllAction();
++            rSh.GetDoc()->SetNumRule(SwPaM(*pNode), aRule, SwDoc::SetNumRuleMode::Default,
++                                     rSh.GetLayout(), pNode->GetListId());
++            rSh.EndAllAction();
++        }
++        break;
++
+     default:
+         OSL_ENSURE(false, "wrong Dispatcher");
+         return;

@@ -7,7 +7,7 @@ mod builtin;
 #[cfg(test)]
 mod chinese;
 mod groups;
-mod levels;
+pub(crate) mod levels;
 #[cfg(test)]
 mod indent_tests;
 #[cfg(test)]

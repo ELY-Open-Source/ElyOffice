@@ -12,6 +12,7 @@ mod markdown;
 mod menu;
 mod merge;
 mod navigate;
+mod numbering;
 mod objects;
 mod output;
 mod props;
