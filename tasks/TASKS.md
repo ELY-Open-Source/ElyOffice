@@ -1103,7 +1103,11 @@
   - Office（7877，PowerPoint 16）：带注释的 .pptx 由 COM 打开无修复、1 张幻灯片，另存后幻灯片在、注释丢失——帮助已写“用别的程序另存可能丢失”，zip 注释的做法本就如此
   - 测试：单测 `a_reopened_link_finds_its_book_once_then_waits_on_it`（空键按路径找到、旧键找到新键、找到后挂起读不再列表、找不到报 `Unfound`）、`saving_takes_present_names_without_loading_tabs`（保存时只许 `score.list`）；`a_saved_deck_brings_back_its_countdowns_and_scoreboards` 加“保存开始未落盘时撤销回已存仍未存，另存落盘后才算已存”；`a_kept_sheet_is_found_again_by_its_file_or_its_one_name` 的假 ElyTable 改用新答复（`{mark, rows}`）；`another_programs_comment_is_kept_and_never_written_over`（带别家注释打开、无数据另存保留它、加倒计时再存即失败且文件不变、仍未存）；`package` 单测覆盖三种拒绝的键
   - Omarchy（第 1 轮修好后）：ElyShow 159 过，ElyTable 记分 2 过，内核命令 19 过，ely-office 44 过，翻译 29 过，clippy 无告警；check.sh 过
-- [ ] R24.0e PR #138 倒计时与记分板同屏、换焦点（d8a8f2b8）
+- [x] R24.0e PR #138 倒计时与记分板同屏、换焦点（d8a8f2b8）
+  - 合并：冲突只在文案——英中、德、法、日 `play.rs`（留 main 的 `show.keep.*`，接 PR 的两个 `show.focus.*`；PR 基于 #137 原版，其 `show.keep.*` 旧译不取）、帮助（倒计时一行取 PR 的（writer 定 KEEP）；记分牌一行去掉“链接只在本次打开期间保留”——#137 起链接随文件保存，合 #137 时漏删）。`timer.rs` 无冲突，PR 不带回 200 毫秒的轮询
+  - 文案：writer 改三条（法 `show.focus.timer`、`show.focus.scores`，德 `show.focus.scores`），帮助与致谢 KEEP
+  - 查明：F 与放映其他键不冲突；本页没有链上的记分牌时 F 与按钮都不做事、不显示；换焦点没有动画，减少动效无需另做；放映中的交换只改本次放映的副本，编辑器里的选择经 `keep.rs` 的 `ahead` 存（旧文件没有即 false）
+  - Omarchy：ElyShow 160 过，翻译 29 过，clippy（ely-show、ely-ui）无告警；check.sh、panics.py 过
 - [ ] R24.0f PR #139 倒计时变色、到时的效果与声音、图标按钮（60f0ddff）；查：动效每段不超 220 毫秒、减少动效下静止、软件渲染下减少，声音随系统静音
 - [ ] R24.0g PR #142 ElyPDF 选中的文字不被选区色盖住（ded310e8，2026-11-27 到）：每行从页面图块切出、纸色换成选区色、墨色转白，淡的选区色加深；查：每帧代价（切图与缓存的上限、离屏即释放，potato computer 拖选不卡）、颜色取自主题、深浅色与 Omarchy、跨图块边缘、旋转与缩放
 - [ ] R24.1 #140 ElyDoc 比较两份文档时不显示两边共有的旧修订，正文与修订都相同即提示“未发现差异”，两份源文档不变（§6）
