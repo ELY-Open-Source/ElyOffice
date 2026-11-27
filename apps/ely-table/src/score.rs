@@ -1,11 +1,11 @@
 //! ElyShow's scoreboard reads open books, saved or not.
 
-use std::io;
+use std::{io, time::Duration};
 
 use ely_lok::{Doc, Worker, sheet};
 use ely_office::prelude::*;
 use ely_ui::Ask;
-use gpui::App;
+use gpui::{App, Global};
 
 use crate::book::Book;
 
@@ -15,6 +15,26 @@ const MOST_COLUMNS: usize = 8;
 
 const GONE: &str = "that workbook is no longer open in ElyTable";
 
+/// Longest an unchanged read waits; asks expire at 90 s.
+const HOLD: Duration = Duration::from_secs(60);
+
+/// Reads waiting for their book to change.
+#[derive(Default)]
+struct Held {
+    waits: Vec<Wait>,
+    serial: u64,
+}
+
+impl Global for Held {}
+
+struct Wait {
+    serial: u64,
+    ask: Ask,
+    key: String,
+    sheet: String,
+    seen: String,
+}
+
 /// An open tab, held so it stays while read.
 struct Open {
     /// This process and the tab: a restart's differ.
@@ -22,6 +42,8 @@ struct Open {
     name: String,
     path: Option<String>,
     doc: Doc,
+    /// Moves with each edit and each redraw.
+    mark: String,
     worker: std::sync::Arc<std::sync::Mutex<Worker>>,
     busy: std::rc::Rc<()>,
 }
@@ -38,6 +60,10 @@ fn open_books(cx: &App) -> io::Result<Vec<Open>> {
                 name: tab.name.to_string(),
                 path: tab.session.path().map(|path| std::path::Path::new(path).display().to_string()),
                 doc: book.read_at(tab.id, cx).unwrap_or_else(|| tab.doc.clone()),
+                mark: {
+                    let (revision, redraws) = tab.view.read(cx).changes();
+                    format!("{revision}.{redraws}")
+                },
                 worker: book.core.worker.clone(),
                 busy: tab.busy.clone(),
             });
@@ -52,6 +78,7 @@ pub(crate) fn route(ask: Ask, cx: &mut App) -> Option<Ask> {
     match words.iter().map(String::as_str).collect::<Vec<_>>()[..] {
         ["score.list"] => list(ask, cx),
         ["score.read", key, sheet] => read(ask, key, sheet.to_owned(), cx),
+        ["score.read", key, sheet, seen] => hold(ask, key, sheet.to_owned(), seen.to_owned(), cx),
         _ => return Some(ask),
     }
     None
@@ -65,7 +92,7 @@ fn list(ask: Ask, cx: &mut App) {
     };
     cx.spawn(async move |cx| {
         let mut books = Vec::new();
-        for Open { key, name, path, doc, worker, busy: _busy } in open {
+        for Open { key, name, path, doc, worker, busy: _busy, .. } in open {
             let read = cx.background_executor().spawn(async move { ely_lok::behind(&worker, move |worker| doc.sheets(worker)).await });
             match read.await {
                 Ok(sheets) => {
@@ -80,10 +107,53 @@ fn list(ask: Ask, cx: &mut App) {
     .detach();
 }
 
-/// Answers the table at the sheet's A1.
+/// Reads once the book's mark leaves `seen`.
+fn hold(ask: Ask, key: &str, sheet: String, seen: String, cx: &mut App) {
+    match open_books(cx).map(|open| open.into_iter().find(|open| open.key == key)) {
+        Ok(Some(open)) if open.mark == seen => {}
+        Ok(_) => return read(ask, key, sheet, cx),
+        Err(error) => return ask.answer(Err(error.to_string())),
+    }
+    let held = cx.default_global::<Held>();
+    held.serial += 1;
+    let serial = held.serial;
+    held.waits.push(Wait { serial, ask, key: key.to_owned(), sheet, seen });
+    cx.spawn(async move |cx| {
+        cx.background_executor().timer(HOLD).await;
+        cx.update(|cx| {
+            let waits = &mut cx.default_global::<Held>().waits;
+            if let Some(at) = waits.iter().position(|wait| wait.serial == serial) {
+                let wait = waits.remove(at);
+                wait.ask.answer(Ok(serde_json::json!({ "mark": wait.seen }).to_string()));
+            }
+        });
+    })
+    .detach();
+}
+
+/// Reads for the waits whose book moved or closed.
+pub(crate) fn changed(cx: &mut App) {
+    if cx.try_global::<Held>().is_none_or(|held| held.waits.is_empty()) {
+        return;
+    }
+    let waits = std::mem::take(&mut cx.default_global::<Held>().waits);
+    let marks: Vec<(String, String)> = match open_books(cx) {
+        Ok(open) => open.into_iter().map(|open| (open.key, open.mark)).collect(),
+        Err(error) => return waits.into_iter().for_each(|wait| wait.ask.answer(Err(error.to_string()))),
+    };
+    for wait in waits {
+        if marks.iter().any(|(key, mark)| *key == wait.key && *mark == wait.seen) {
+            cx.default_global::<Held>().waits.push(wait);
+        } else {
+            read(wait.ask, &wait.key, wait.sheet, cx);
+        }
+    }
+}
+
+/// Answers the book's mark and the sheet's table.
 fn read(ask: Ask, key: &str, name: String, cx: &mut App) {
     let found = open_books(cx).map(|open| open.into_iter().find(|open| open.key == key));
-    let Open { doc, worker, busy, .. } = match found {
+    let Open { doc, mark, worker, busy, .. } = match found {
         Ok(Some(open)) => open,
         Ok(None) => return ask.answer(Err(GONE.into())),
         Err(error) => return ask.answer(Err(error.to_string())),
@@ -99,7 +169,7 @@ fn read(ask: Ask, key: &str, name: String, cx: &mut App) {
     });
     cx.spawn(async move |_| {
         let _busy = busy;
-        let answer = read.await.map(|rows| serde_json::json!(rows).to_string());
+        let answer = read.await.map(|rows| serde_json::json!({ "mark": mark, "rows": rows }).to_string());
         ask.answer(answer.map_err(|error| error.to_string()));
     })
     .detach();

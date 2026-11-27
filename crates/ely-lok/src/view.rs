@@ -317,6 +317,11 @@ impl LokView {
         self.doc.clone()
     }
 
+    /// Revision and redraw count; edits move one or both.
+    pub fn changes(&self) -> (u64, u64) {
+        (self.doc.rev, self.generation)
+    }
+
     /// Batches and landings arrive out of order; keep the latest.
     fn seen_revision(&mut self, revision: u64) {
         self.doc.rev = self.doc.rev.max(revision);

@@ -57,7 +57,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("show.check.unnamed", "名前のないオブジェクト"),
     ("show.score.menu", "ライブスコアボード…"),
     ("show.score.title", "ライブスコアボード: スライド {number}"),
-    ("show.score.detail", "このスライドに表示する内容を選びます。表は A1 から始め、A 列にチーム名、横に得点を入力します。リンクするとスライド上のすべてが削除されます。その後、テキストや画像を追加できます。スライドショー中は S キーで表示を切り替えます。"),
+    ("show.score.detail", "表示する内容を選びます。表は A1 から始め、A 列にチーム名、横に得点を置きます。リンクすると全要素が消えます（元に戻すで復元可）。文字や画像は後に追加できます。ショー中は S キーで表示切替。"),
     ("show.score.pick", "表示"),
     ("show.score.off", "なし"),
     ("show.score.this", "このスライド"),
@@ -69,5 +69,5 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("show.score.ready", "スコアボードの準備完了: {rows} 行"),
     ("show.score.master", "先にマスター表示を閉じてください"),
     ("show.score.failed", "スコアボードを更新できません: {error}"),
-    ("show.score.not_cleared", "スライドを空にできなかったため、リンクしていません：{error}"),
+    ("show.score.not_cleared", "スライドを空にできなかったため、リンクしていません: {error}"),
 ];

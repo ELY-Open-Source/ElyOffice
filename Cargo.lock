@@ -2752,6 +2752,7 @@ dependencies = [
  "ely-platform",
  "ely-ui",
  "embed-resource",
+ "futures",
  "gpui-pre",
  "gpui-pre-platform",
  "image",

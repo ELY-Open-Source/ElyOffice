@@ -116,10 +116,9 @@ impl Deck {
             return self.keep_link(tab, names, source, ask, cx);
         }
         log::info!("show: linking empties {} slides", fresh.len());
-        let back = extra.slides.current;
         self.write_in(
             tab,
-            move |worker, doc| clear(worker, doc, &fresh, back),
+            move |worker, doc| clear(worker, doc, &fresh),
             move |deck, cleared, _, cx| {
                 // Cleared pictures and objects are read again.
                 deck.repaint_all(tab, cx);
@@ -127,6 +126,7 @@ impl Deck {
                 match cleared {
                     Ok(()) => deck.keep_link(tab, names, source, ask, cx),
                     Err(error) => {
+                        log::warn!("show: linking did not clear the slides: {error}");
                         let text = Deck::text(cx, "show.score.not_cleared", &[("error", &error.to_string())]);
                         deck.toast(text, Severity::Warning, cx);
                     }

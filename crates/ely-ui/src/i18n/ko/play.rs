@@ -57,7 +57,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("show.check.unnamed", "이름 없는 개체"),
     ("show.score.menu", "실시간 점수판…"),
     ("show.score.title", "실시간 점수판: 슬라이드 {number}"),
-    ("show.score.detail", "이 슬라이드에 표시할 내용을 선택하세요. 표는 A1에서 시작하며 A열에 팀, 그 옆에 점수를 입력합니다. 연결하면 슬라이드의 모든 개체가 삭제됩니다. 이후 텍스트나 그림을 추가할 수 있습니다. 슬라이드 쇼에서 S 키로 보기를 바꿉니다."),
+    ("show.score.detail", "표시할 내용을 고르십시오. A1부터 A열에 팀, 옆에 점수를 씁니다. 연결하면 슬라이드가 비워집니다(실행 취소로 복원). 글과 그림은 뒤에 추가. 쇼에서 S로 보기 전환."),
     ("show.score.pick", "표시"),
     ("show.score.off", "없음"),
     ("show.score.this", "이 슬라이드"),

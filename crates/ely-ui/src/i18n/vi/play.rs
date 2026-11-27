@@ -57,7 +57,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("show.check.unnamed", "Đối tượng chưa đặt tên"),
     ("show.score.menu", "Bảng điểm trực tiếp…"),
     ("show.score.title", "Bảng điểm trực tiếp: trang chiếu {number}"),
-    ("show.score.detail", "Chọn nội dung trang chiếu này hiển thị. Bảng bắt đầu từ A1: đội ở cột A, điểm ở bên cạnh. Liên kết sẽ xóa mọi đối tượng trên trang chiếu; sau đó bạn có thể thêm chữ hoặc ảnh. Khi trình chiếu, nhấn S để đổi kiểu xem."),
+    ("show.score.detail", "Chọn nội dung hiển thị. Bảng bắt đầu từ A1: đội ở cột A, điểm bên cạnh. Liên kết sẽ xóa sạch trang chiếu (Hoàn tác để khôi phục); sau đó thêm chữ hoặc ảnh. Khi trình chiếu, nhấn S để đổi kiểu xem."),
     ("show.score.pick", "Hiển thị"),
     ("show.score.off", "Không gì cả"),
     ("show.score.this", "Trang chiếu này"),

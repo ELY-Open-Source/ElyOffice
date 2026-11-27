@@ -28,6 +28,7 @@ pub(super) const ROWS: &[Command] = &[
         ],
         Check::Undoable,
     ),
+    command("slide.clear", ".uno:ElyClearSlides", &[Arg::Text("Slides")], Check::Result),
     command(
         "slide.text",
         ".uno:ElySlideText",

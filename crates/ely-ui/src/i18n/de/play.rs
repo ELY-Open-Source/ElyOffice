@@ -57,7 +57,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("show.check.unnamed", "Unbenanntes Objekt"),
     ("show.score.menu", "Live-Spielstand…"),
     ("show.score.title", "Live-Spielstand: Folie {number}"),
-    ("show.score.detail", "Wählen Sie, was diese Folie zeigt. Die Tabelle beginnt in A1: Teams in Spalte A, Punkte daneben. Beim Verknüpfen wird alles auf der Folie gelöscht; danach können Sie Text oder Bilder einfügen. In der Präsentation wechselt S die Ansicht."),
+    ("show.score.detail", "Wählen Sie, was diese Folie zeigt. Tabelle ab A1: Teams in A, Punkte daneben. Verknüpfen leert die Folie (Rückgängig holt alles zurück); Text oder Bilder danach einfügen. In der Präsentation wechselt S die Ansicht."),
     ("show.score.pick", "Anzeigen"),
     ("show.score.off", "Nichts"),
     ("show.score.this", "Diese Folie"),

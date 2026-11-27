@@ -15,8 +15,8 @@ mod editor;
 
 pub use draw::overlay;
 
-/// How often the sheets are read again.
-const EVERY: Duration = Duration::from_millis(700);
+/// How long a failed read waits to try again.
+const RETRY: Duration = Duration::from_secs(1);
 
 /// A sheet of a workbook open in ElyTable.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -77,17 +77,44 @@ pub fn sheets(ask: Ask) -> io::Result<Vec<Source>> {
 
 /// The sheet's table; empty when its A1 is.
 pub fn rows(source: &Source, ask: Ask) -> io::Result<Vec<Vec<String>>> {
-    let value = parsed(&ask(&["score.read", &source.book, &source.sheet])?)?;
+    let read = changed(source, None, ask)?;
+    read.rows.ok_or_else(|| invalid("ElyTable gave no rows".into()))
+}
+
+/// What ElyTable gave: its book's mark, and rows if read.
+pub struct Read {
+    pub mark: String,
+    pub rows: Option<Vec<Vec<String>>>,
+}
+
+/// The table once the book leaves `seen`; ElyTable waits.
+pub fn changed(source: &Source, seen: Option<&str>, ask: Ask) -> io::Result<Read> {
+    let mut words = vec!["score.read", source.book.as_str(), source.sheet.as_str()];
+    words.extend(seen);
+    let value = parsed(&ask(&words)?)?;
     let bad = || invalid(format!("ElyTable's rows are unreadable: {value}"));
+    let mark = value["mark"].as_str().ok_or_else(bad)?.to_owned();
+    let Some(rows) = value.get("rows") else {
+        return Ok(Read { mark, rows: None });
+    };
     let cells = |row: &serde_json::Value| -> io::Result<Vec<String>> {
         let row = row.as_array().ok_or_else(bad)?;
         row.iter().map(|cell| cell.as_str().map(str::to_owned).ok_or_else(bad)).collect()
     };
-    let rows = value.as_array().ok_or_else(bad)?.iter().map(cells).collect::<io::Result<Vec<_>>>()?;
+    let rows = rows.as_array().ok_or_else(bad)?.iter().map(cells).collect::<io::Result<Vec<_>>>()?;
     match rows.iter().all(|row| row.len() == rows[0].len()) {
-        true => Ok(rows),
+        true => Ok(Read { mark, rows: Some(rows) }),
         false => Err(invalid("ElyTable's rows differ in length".into())),
     }
+}
+
+/// `changed` on its own thread; ElyTable may hold it.
+async fn held(source: Source, seen: Option<String>, ask: Ask) -> io::Result<Read> {
+    let (done, read) = futures::channel::oneshot::channel();
+    std::thread::Builder::new()
+        .name("scoreboard-read".into())
+        .spawn(move || done.send(changed(&source, seen.as_deref(), ask)))?;
+    read.await.map_err(|_| io::Error::other("the scoreboard read ended unheard"))?
 }
 
 /// Where the scoreboard shows.
@@ -125,7 +152,7 @@ pub struct Board {
     slides: Vec<Option<Source>>,
     read: HashMap<Source, Scores>,
     pub look: Look,
-    _poll: Task<()>,
+    _polls: Vec<Task<()>>,
 }
 
 /// Where its owner keeps a board.
@@ -144,26 +171,40 @@ impl Board {
             return None;
         }
         log::info!("show: follows {} scoreboards", sources.len());
-        // All are kept fresh: a new slide shows at once.
-        let poll = cx.spawn(async move |this, cx| {
-            loop {
-                for source in &sources {
-                    let from = source.clone();
-                    let read = cx.background_executor().spawn(async move { rows(&from, ask) }).await;
-                    let taken = this.update(cx, |owner, cx| {
-                        let changed = slot(owner).is_some_and(|board| board.take(source, read, cx));
-                        if changed {
-                            cx.notify();
+        // Each sheet waits on its own; ElyTable answers on change.
+        let polls = (sources.into_iter())
+            .map(|source| {
+                cx.spawn(async move |this, cx| {
+                    let mut seen: Option<String> = None;
+                    loop {
+                        let read = held(source.clone(), seen.clone(), ask).await;
+                        let failed = read.is_err();
+                        let rows = match read {
+                            Ok(Read { mark, rows: Some(rows) }) => Ok((mark, rows)),
+                            Ok(Read { mark, rows: None }) => {
+                                seen = Some(mark);
+                                continue;
+                            }
+                            Err(error) => Err(error),
+                        };
+                        seen = rows.as_ref().ok().map(|(mark, _)| mark.clone());
+                        let taken = this.update(cx, |owner, cx| {
+                            let differs = slot(owner).is_some_and(|board| board.take(&source, rows.map(|(_, rows)| rows), cx));
+                            if differs {
+                                cx.notify();
+                            }
+                        });
+                        if taken.is_err() {
+                            return;
                         }
-                    });
-                    if taken.is_err() {
-                        return;
+                        if failed {
+                            cx.background_executor().timer(RETRY).await;
+                        }
                     }
-                }
-                cx.background_executor().timer(EVERY).await;
-            }
-        });
-        Some(Board { slides, read: HashMap::new(), look: Look::default(), _poll: poll })
+                })
+            })
+            .collect();
+        Some(Board { slides, read: HashMap::new(), look: Look::default(), _polls: polls })
     }
 
     /// Keeps what a read gave; true when it differs.
@@ -240,8 +281,8 @@ mod tests {
         Ok(match words {
             ["docs"] => r#"["/late.ods"]"#.into(),
             ["score.list"] => r#"[{"book":"7:0","name":"Untitled 1","path":null,"sheets":["A","B"]},{"book":"7:1","name":"late.ods","path":"/late.ods","sheets":["C"]}]"#.into(),
-            ["score.read", "7:0", "A"] => r#"[["Lions","3"]]"#.into(),
-            ["score.read", "7:0", "B"] => r#"[["Lions","3"],["Eagles"]]"#.into(),
+            ["score.read", "7:0", "A"] => r#"{"mark":"1","rows":[["Lions","3"]]}"#.into(),
+            ["score.read", "7:0", "B"] => r#"{"mark":"1","rows":[["Lions","3"],["Eagles"]]}"#.into(),
             _ => return Err(io::Error::other(format!("{words:?}"))),
         })
     }

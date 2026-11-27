@@ -14,10 +14,22 @@ static POINTS: Mutex<Option<&str>> = Mutex::new(Some("1"));
 
 fn table(words: &[&str]) -> std::io::Result<String> {
     let points = POINTS.lock().expect("the points").ok_or_else(|| std::io::Error::other("closed"))?;
-    let ["score.read", "7:0", sheet] = words else {
-        panic!("{words:?}");
-    };
-    Ok(serde_json::json!([[sheet, points]]).to_string())
+    Ok(answer(words, points))
+}
+
+/// ElyTable's answer, its mark the points shown.
+fn answer(words: &[&str], points: &str) -> String {
+    match words {
+        ["score.read", "7:0", _, seen] if *seen == points => {
+            // ElyTable holds an unchanged read; this stands in.
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            serde_json::json!({ "mark": points }).to_string()
+        }
+        ["score.read", "7:0", sheet] | ["score.read", "7:0", sheet, _] => {
+            serde_json::json!({ "mark": points, "rows": [[sheet, points]] }).to_string()
+        }
+        _ => panic!("{words:?}"),
+    }
 }
 
 fn source(sheet: &str) -> Option<Source> {
@@ -64,10 +76,7 @@ fn each_slide_follows_its_own_sheet_and_keeps_scores_on_failure() {
 }
 
 fn steady(words: &[&str]) -> std::io::Result<String> {
-    let ["score.read", "7:0", sheet] = words else {
-        panic!("{words:?}");
-    };
-    Ok(serde_json::json!([[sheet, "9"]]).to_string())
+    Ok(answer(words, "9"))
 }
 
 #[test]
@@ -139,6 +148,24 @@ fn linking_empties_each_new_slide_and_keeps_later_additions() {
     let all = names.clone();
     update(&mut cx, &deck, |deck, cx| deck.link_scores(tab, all, source("First").expect("a source"), steady, cx));
     settle(&cx, |app| deck.read(app).tab(tab).expect("the tab").extra.scoreboards.len() == 3);
+    for part in [1, 2, 0] {
+        turn(&mut cx, part);
+        shows(&cx, part, 0);
+    }
+    // One undo brings all three back; redo empties them again.
+    let history = |cx: &mut TestAppContext, id: &str| {
+        let view = cx.update(|app| deck.read(app).tab(tab).expect("the tab").view.clone());
+        cx.update(|app| view.update(app, |view, _| view.run(id, &[]))).expect("runs");
+    };
+    history(&mut cx, "edit.undo");
+    for part in [1, 2, 0] {
+        turn(&mut cx, part);
+        settle(&cx, |app| {
+            let extra = &deck.read(app).tab(tab).expect("the tab").extra;
+            extra.slides.current == part && extra.objects.as_ref().is_some_and(|objects| !objects.objects.is_empty())
+        });
+    }
+    history(&mut cx, "edit.redo");
     for part in [1, 2, 0] {
         turn(&mut cx, part);
         shows(&cx, part, 0);

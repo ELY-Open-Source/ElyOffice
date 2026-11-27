@@ -15,6 +15,7 @@ ely-files.workspace = true
 ely-gpui-component.workspace = true
 ely-lok = { workspace = true, features = ["view"] }
 ely-office.workspace = true
+futures.workspace = true
 gpui.workspace = true
 image.workspace = true
 jiff.workspace = true

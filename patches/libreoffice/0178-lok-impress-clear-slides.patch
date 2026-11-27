@@ -1,0 +1,137 @@
+From: Ely Office
+Subject: LOK: Impress empties slides by index as one undo step
+
+- Linking a slide to a live scoreboard (#135) emptied it by marking
+  and deleting its objects, up to three passes per slide, because a
+  deleted filled placeholder leaves an empty one. Each pass was its
+  own undo step, so one undo did not bring the slides back.
+- .uno:ElyClearSlides takes Slides, slide indexes with ";" between,
+  and removes every object but comments from them inside one undo
+  group; placeholders go too. A text edit ends first and marks are
+  cleared; the view keeps its slide. An index out of range, repeated
+  or malformed changes nothing.
+
+diff --git a/sd/inc/app.hrc b/sd/inc/app.hrc
+--- a/sd/inc/app.hrc
++++ b/sd/inc/app.hrc
+@@ -433,5 +433,6 @@
+ #define SID_ELY_SLIDE                       (SID_SD_START+457)
+ #define SID_ELY_SLIDE_TEXT                  (SID_SD_START+458)
+ #define SID_ELY_SLIDE_IMAGE                 (SID_SD_START+459)
++#define SID_ELY_CLEAR_SLIDES                (SID_SD_START+460)
+ 
+ /* vim:set shiftwidth=4 softtabstop=4 expandtab: */
+diff --git a/sd/sdi/sdraw.sdi b/sd/sdi/sdraw.sdi
+--- a/sd/sdi/sdraw.sdi
++++ b/sd/sdi/sdraw.sdi
+@@ -4249,6 +4249,23 @@
+     GroupId = SfxGroupId::Modify;
+ ]
+ 
++SfxVoidItem ElyClearSlides SID_ELY_CLEAR_SLIDES
++(SfxStringItem Slides FN_PARAM_1)
++[
++    AutoUpdate = FALSE,
++    FastCall = FALSE,
++    ReadOnlyDoc = FALSE,
++    Toggle = FALSE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::Modify;
++]
++
+ SfxVoidItem SlideNotes SID_SLIDE_NOTES
+ (SfxStringItem Text FN_PARAM_1, SfxInt32Item Part FN_PARAM_2)
+ [
+diff --git a/sd/sdi/_drvwsh.sdi b/sd/sdi/_drvwsh.sdi
+--- a/sd/sdi/_drvwsh.sdi
++++ b/sd/sdi/_drvwsh.sdi
+@@ -3048,6 +3048,11 @@
+         ExecMethod = FuTemporary ;
+         StateMethod = GetMenuState;
+     ]
++    SID_ELY_CLEAR_SLIDES
++    [
++        ExecMethod = FuTemporary ;
++        StateMethod = GetMenuState;
++    ]
+     SID_ELY_SLIDE_IMAGE
+     [
+         ExecMethod = FuTemporary ;
+diff --git a/sd/source/ui/view/drviews2.cxx b/sd/source/ui/view/drviews2.cxx
+--- a/sd/source/ui/view/drviews2.cxx
++++ b/sd/source/ui/view/drviews2.cxx
+@@ -1397,6 +1397,44 @@
+ }
+ }
+ 
++/// Ely: empties slides by index as one undo step.
++static bool lcl_ElyClearSlides(SdDrawDocument& rDoc, std::u16string_view aSlides)
++{
++    const sal_Int32 nCount = rDoc.GetSdPageCount(PageKind::Standard);
++    std::vector<SdPage*> aPages;
++    sal_Int32 nSlide = -1;
++    for (size_t i = 0; i <= aSlides.size(); ++i)
++    {
++        if (i < aSlides.size() && aSlides[i] >= '0' && aSlides[i] <= '9')
++        {
++            nSlide = (nSlide < 0 ? 0 : nSlide) * 10 + (aSlides[i] - '0');
++            if (nSlide >= nCount)
++                return false;
++            continue;
++        }
++        if ((i < aSlides.size() && aSlides[i] != ';') || nSlide < 0)
++            return false;
++        SdPage* pPage = rDoc.GetSdPage(nSlide, PageKind::Standard);
++        if (std::find(aPages.begin(), aPages.end(), pPage) != aPages.end())
++            return false;
++        aPages.push_back(pPage);
++        nSlide = -1;
++    }
++    rDoc.BegUndo(OUString());
++    for (SdPage* pPage : aPages)
++        // Comments stay, as .uno:SlideObjects leaves them out.
++        for (size_t n = pPage->GetObjCount(); n > 0; --n)
++        {
++            SdrObject* pObj = pPage->GetObj(n - 1);
++            if (pObj->isAnnotationObject())
++                continue;
++            rDoc.AddUndo(rDoc.GetSdrUndoFactory().CreateUndoDeleteObject(*pObj, true));
++            pPage->RemoveObject(n - 1);
++        }
++    rDoc.EndUndo();
++    return true;
++}
++
+ void DrawViewShell::FuTemporary(SfxRequest& rReq)
+ {
+     // during a native slide show nothing gets executed!
+@@ -4018,6 +4056,23 @@
+                 rReq.Done();
+             Cancel();
+         }
++        break;
++
++        case SID_ELY_CLEAR_SLIDES:
++        {
++            // Ely: empties slides by index; the view stays.
++            const SfxStringItem* pSlides = rReq.GetArg<SfxStringItem>(FN_PARAM_1);
++            if (mpDrawView->IsTextEdit())
++                mpDrawView->SdrEndTextEdit();
++            mpDrawView->UnmarkAllObj();
++            if (pSlides && lcl_ElyClearSlides(*GetDoc(), pSlides->GetValue()))
++            {
++                // With arguments, LOK reports success only by a value.
++                rReq.SetReturnValue(SfxBoolItem(nSId, true));
++                rReq.Done();
++            }
++            Cancel();
++        }
+         break;
+ 
+         case SID_ELY_SLIDE_TEXT:

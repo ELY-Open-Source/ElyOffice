@@ -102,6 +102,8 @@ impl Host for Book {
         self.offer_menu(id, view, cx);
         self.follow_rule(id, view, cx);
         self.read_links(id, view, cx);
+        // Waiting scoreboard reads look once the update ends.
+        cx.defer(crate::score::changed);
         if self.core.active() == Some(id) {
             self.sync_bars(view, cx);
         }

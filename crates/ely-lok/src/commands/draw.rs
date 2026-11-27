@@ -130,7 +130,6 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Bool("Add")],
         Check::Finished,
     ),
-    command("object.delete", ".uno:Delete", &[], Check::Undoable),
     command(
         "image.replace",
         ".uno:ChangePicture",

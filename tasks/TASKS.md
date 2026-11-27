@@ -1085,7 +1085,11 @@
 
 - [x] R24.0a PR #134 ElyShow 状态栏“放映”按钮（c4c2f629）
   - 已做：合并提交照 PR 原样；随后的修复提交：writer 改日文为“再生”、帮助标题只写本 PR 的放映按钮；补测试 `present_plays_from_the_slide_on_screen`（画出整窗，点状态栏的“放映”，从正在看的第 2 张起放）；为此组件库的 `StatusBarItem` 加测试选择器 `status-item {id}`。Omarchy：原 PR 的 ElyShow 140 过（贡献者报的 3 个失败是 0.1.17 旧内核所致）、翻译 29 过、clippy 净
-- [ ] R24.0b PR #135 实时记分板：ElyTable 给别的 Ely 应用列出、读取已开的表（`score.list`、`score.read`，走实例门，只给同一用户）与 ElyShow 的记分板（d2e15c06、af4c2928）；查：链接时删掉幻灯片上全部对象须一步撤销且先问，读表不动用户光标与选区，界面线程不等 ElyTable
+- [x] R24.0b PR #135 实时记分板：ElyTable 给别的 Ely 应用列出、读取已开的表（`score.list`、`score.read`，走实例门，只给同一用户）与 ElyShow 的记分板（d2e15c06、af4c2928）；查：链接时删掉幻灯片上全部对象须一步撤销且先问，读表不动用户光标与选区，界面线程不等 ElyTable
+  - 合并：与 main 两处冲突——命令数测试（main 289，PR 加 `object.delete`，合为 290）、帮助（留 writer 改过的放映一行，接 PR 的记分牌一行）
+  - 已做（跟进提交，不改 PR 的提交）：①等变化代替轮询：原先 ElyShow 每 0.7 秒向 ElyTable 读每个表至多 160 格，编辑与空闲时也读，与 ElyTable 的键入争内核锁。`score.read 书 表 记号` 在书的记号（视图的修订号与重绘代数）仍等于所给时由 ElyTable 挂起，书一变（`observed` 后 `defer` 查）或关闭即读并答新记号与表，60 秒无变化只答原记号不读格（实例门答复上限 90 秒）；不带记号即刻读。ElyShow 每个表一个等待任务，挂起的读在自己的线程上（不占 gpui 后台线程池；否则几个表即可占满双核机器的后台线程，测试的假时钟也停），答“未变”即再等，失败 1 秒后重试。②补丁 0178 `.uno:ElyClearSlides`（`slide.clear`，`Slides` 为“;”分隔的序号）：内核在一个撤销组里删去所给幻灯片上除批注外的全部对象，占位框一并删去，视图不换页；取代 PR 的 `object.delete` 与每张最多三遍的选中删除（`object.delete` 无别的用处，删去，命令数仍 290）。成功时回 `SfxBoolItem(true)`：带参数的命令 LOK 只凭回值判成功，单 `Done()` 报失败（首跑三张都清不掉）。链接前对话框已说明会清空（writer 文案）；清空失败记 warn 日志并 toast。③查明 ElyTable 读不懂的请求并不吞掉：`score::route` 不认即交 `remote::route`，由宿主报错，故不改
+  - 测试：ElyTable 的 `an_unsaved_book_is_listed_and_read_by_its_key` 加“记号未变时挂起、改格后答新表”；ElyShow 的 `linking_empties_each_new_slide_and_keeps_later_additions` 加“一次撤销三张都回来、重做再清空”；ElyShow 的假 ElyTable 与单测 `every_books_sheets_are_offered_and_read` 改用新答复（`{mark, rows}`）
+  - Omarchy（Impress 以修好的 0178 重建）：ElyShow 147 过，ElyTable 记分 2 过，内核命令 19 过，翻译 29 过，clippy 无告警；check.sh、panics.py 过
 - [ ] R24.0c PR #136 幻灯片上的倒计时（51bebbd3、f7d67e44）；查：空闲不重绘（倒计时停着时），减少动效
 - [ ] R24.0d PR #137 记分板链接与倒计时随 `.pptx`/`.odp` 存（zip 注释，`Host::finishing`）（52854c21）；查：原子保存、别家注释不覆盖即报错、Office 打开存回不丢
 - [ ] R24.0e PR #138 倒计时与记分板同屏、换焦点（d8a8f2b8）
