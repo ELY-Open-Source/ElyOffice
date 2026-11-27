@@ -85,6 +85,7 @@ pub(crate) mod snapshot;
 mod stored_pictures;
 mod stop;
 mod tools;
+mod widths;
 mod word;
 mod workbook;
 mod zip;

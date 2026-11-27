@@ -1,0 +1,70 @@
+From: Ely Office
+Subject: Calc xlsx column widths come back as they were read
+
+- Every xlsx save from ElyTable narrowed the columns by about 3.6%,
+  and each further save narrowed them again (#146).
+- Under LOK, initializeForRendering turns TextWysiwyg on for the whole
+  process, so after the first document the ReferenceDevice the import
+  measures the default font's digits on is the printer, while the
+  export (XclRoot::SetCharWidth) keeps the virtual device under LOK.
+  The import now measures on the same device.
+- The export also rounded the column's twips to whole 1/100 mm before
+  dividing by the digit width, which could lose 0.01 of a character
+  (55.13 came back 55.12); it now divides the twips themselves.
+
+diff --git a/sc/source/filter/excel/xetable.cxx b/sc/source/filter/excel/xetable.cxx
+--- a/sc/source/filter/excel/xetable.cxx
++++ b/sc/source/filter/excel/xetable.cxx
+@@ -1682,7 +1682,7 @@
+     // column width. If column is hidden then we should return real value (not zero)
+     sal_uInt16 nScWidth = rDoc.GetColWidth( nScCol, nScTab, false );
+     mnWidth = XclTools::GetXclColumnWidth( nScWidth, GetCharWidth() );
+-    mnScWidth = convertTwipToMm100(nScWidth);
++    mnScWidth = nScWidth;
+ 
+     // column flags
+     ::set_flag( mnFlags, EXC_COLINFO_HIDDEN, rDoc.ColHidden(nScCol, nScTab) );
+@@ -1739,7 +1739,8 @@
+ 
+ void XclExpColinfo::SaveXml( XclExpXmlStream& rStrm )
+ {
+-    const double nExcelColumnWidth = mnScWidth / convertTwipToMm100<double>(GetCharWidth());
++    // Twips: whole 1/100 mm lost 0.01 of a char.
++    const double nExcelColumnWidth = mnScWidth / static_cast<double>(GetCharWidth());
+ 
+     // tdf#101363 In MS specification the output value is set with double precision after delimiter:
+     // =Truncate(({width in pixels} - 5)/{Maximum Digit Width} * 100 + 0.5)/100
+diff --git a/sc/source/filter/oox/unitconverter.cxx b/sc/source/filter/oox/unitconverter.cxx
+--- a/sc/source/filter/oox/unitconverter.cxx
++++ b/sc/source/filter/oox/unitconverter.cxx
+@@ -26,6 +26,7 @@
+ #include <com/sun/star/sheet/XSpreadsheetDocument.hpp>
+ #include <com/sun/star/util/Date.hpp>
+ #include <com/sun/star/util/DateTime.hpp>
++#include <comphelper/lok.hxx>
+ #include <o3tl/unit_conversion.hxx>
+ #include <osl/diagnose.h>
+ #include <oox/core/filterbase.hxx>
+@@ -34,6 +35,8 @@
+ #include <stylesbuffer.hxx>
+ #include <biffhelper.hxx>
+ #include <docuno.hxx>
++#include <document.hxx>
++#include <toolkit/awt/vclxdevice.hxx>
+ 
+ namespace com::sun::star::awt { struct FontDescriptor; }
+ 
+@@ -111,10 +114,9 @@
+ 
+ void UnitConverter::finalizeImport()
+ {
+-    PropertySet aDocProps(( Reference< css::beans::XPropertySet >(getDocument()) ));
+-    Reference< XDevice > xDevice( aDocProps.getAnyProperty( PROP_ReferenceDevice ), UNO_QUERY );
+-    if( !xDevice.is() )
+-        return;
++    // Measure where export does; LOK makes ReferenceDevice the printer.
++    rtl::Reference< VCLXDevice > xDevice = new VCLXDevice;
++    xDevice->SetOutputDevice( getScDocument().GetRefDevice( comphelper::LibreOfficeKit::isActive() ) );
+ 
+     // get character widths from default font
+     const oox::xls::Font* pDefFont = getStyles().getDefaultFont().get();

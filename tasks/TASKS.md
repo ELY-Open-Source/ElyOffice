@@ -1154,8 +1154,12 @@
 
 - [ ] R25.1 #144 ElyTable 存 xlsx 把“常规”写成字面格式代码 `"常规"`：查加载与保存路径里谁把本地化名当格式代码交给内核；General 存回 `numFmtId=0` 或 `General`；回归测试以 openpyxl 式的最小 xlsx 开、删一行、存，读 `styles.xml` 无自定义 numFmt
   - 2026-11-27 探：手写只含 General 的最小 xlsx（`.work/R24/mk144.py`，本机），经 ely-lok 载入、另存两轮：Omarchy 在 C 与 zh_CN.UTF-8、7877 在 en-US 与 Set-Culture zh-CN（测完改回 en-US）下皆写 `numFmtId=164 formatCode="General"`，未复现“常规”；ElyTable 只在格式栏代码框回车时发 `number.code`，载入与保存不发。待查：报告者 Windows 的界面语言（7877 的 UI 与系统区域都是 en-US，Set-Culture 只改格式）与 0.1.17 的路径；或请报告者给原文件
-- [ ] R25.2 #146 ElyTable 存 xlsx 列宽每存一次变窄、默认行高被写成固定值：查宽度换算（字符宽与 twips）与 `customHeight` 的来由；未动的列宽、行高存后不变，连存两次相同；回归测试照报告的表
-  - 2026-11-27 复现（同一文件，引擎层，两端相同）：第 1 次存列宽照旧（20.14、52.89），存出的文件再开再存变 21.42、56.22；每行都写上 `ht="12.8"`（`customHeight="false"`）。漂移出在读回 Ely 自己存的 xlsx 时，方向随默认字体（报告者是变窄）
+- [x] R25.2a #146 ElyTable 存 xlsx 列宽每存一次变窄：未动的列宽存后不变，连存两次相同；回归测试照报告的表（照顾问 (a)，列宽与行高各要一个补丁，故拆）
+  - 2026-11-27 复现（同一文件，引擎层，两端相同）：第 1 次存列宽照旧（20.14、52.89），存出的文件再开再存变 21.42、56.22；每行都写上 `ht="12.8"`（`customHeight="false"`）。试样无 `Normal` 单元格样式时默认字体被换成 Arial 10。补上 `<cellStyle name="Normal" builtinId="0"/>`（Excel 与 openpyxl 都写）后与报告一字不差：第 1 次存仍 20.14、52.89，默认字体留 Calibri 11；再开再存 19.41、50.98（报告 19.41、50.97）；每行写 `ht="13.8"`。第 1 次存保住原值、读回 Ely 存的文件才缩，故是导入时字符宽换 twips 与导出时换回不对称，待查 oox 的 `UnitConverter`（导入的最大数字宽取哪个字体）与 sc 导出所用字体
+  - 2026-11-27 根因：LOK 的 `initializeForRendering` 把整个进程的 `TextWysiwyg` 打开，此后载入的文档，oox `UnitConverter::finalizeImport` 经 `ReferenceDevice` 量默认字体的数字宽用的是打印机；导出（`XclRoot::SetCharWidth`）在 LOK 下固定用虚拟设备，两边不等，每存一次窄约 3.6%。进程里第一份文档在渲染前载入，两边同为虚拟设备，故新起的 worker 首份不缩（此前“首次存照旧”即此）；常驻引擎总已渲染过，应用里每次都缩。排除：字体替换（Calibri、Carlito、Arial、Liberation Sans、DejaVu Sans 皆缩）、文件内容（Ely 存的文件在新 worker 里首份载入照旧，主题、样式、列样式逐项换掉皆无关）。补丁 0180：导入改在导出所用的设备上量。回归测试 `ely-lok` 的 `widths.rs`：先开空白工作簿（同常驻引擎），报告的六列连存两次宽度不变
+  - 2026-11-27 验（Omarchy，内核在 AlmaLinux 8 容器里补到 0180，`--check` 173 个，库至多 GLIBC_2.27）：`widths.rs` 过（无 0180 时六列都缩；只改导入时 C 列 55.13 回成 55.12，故导出也改为直除 twips）；ely-lok 443、ely-table 147 过；clippy 只有 vendor 的 arboard 自带告警；reviewer 第 1 轮 PASS。Windows、两台 Mac 的共享引擎待下次发布前以 `build-libreoffice.sh` 补 0180。#146 待 R25.2b 一并关
+- [ ] R25.2b #146 ElyTable 存 xlsx 把行高写成显式值：没有 `ht` 的行存后仍随内容自适应，不写成 `customHeight="true"`，第 1–3 行 14.5 不变成 14.25；回归测试同 2a 的表
+  - 2026-11-27 探（`.work/R24/mk146c.py`：`defaultRowHeight="14.5"`，无 `ht` 的数字行、中文行、自动换行行、合并的两行文字）：Omarchy（有 0180）与 7877（无 0180）冷热 worker、连存两次，普通行与中文行都写 `ht="14.5" customHeight="false"`，与默认相同，未复现 14.25；自动换行行照内容写高、不标 custom（7877 第二次 35.05→46.25 是缺 0180 时列宽缩窄、换行变多）；只有合并格内多行文字的行写成 `customHeight="true"`，即导出 `XclExpRow::InsertCell` 有意强设（Excel 不为合并格自动调高）。报告的 50 行 custom 与 14.25 须看原文件：报告者说与 #144 同一份，#144 已请其附上，本条等文件
 - [ ] R25.3 #145 ElyDoc 批注侧栏单条右键：删除（只删这条与其回复）、回复（聚焦回复框）、标为已解决（保留，正文不动）；与 #123 的“更多”菜单同一组命令，一步撤销；别的批注与修订不变
 - [ ] R25.4 #148 ElyDoc 删除文档中的所有批注：审阅的批注菜单与侧栏入口，先问；批注与回复全清，正文与修订不动，一步撤销；存后重开仍空
 - [ ] R25.5 #143 ElyDoc 开修订时删掉的文字即时回流：编辑视图里删除不再占位（后文接上、重排），侧栏仍列这条删除、可逐条接受或拒绝，拒绝后复原；查内核是否已有“删除移到页边”一类的显示，无则补丁
