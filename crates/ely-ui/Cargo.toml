@@ -50,3 +50,7 @@ workspace = true
 [[test]]
 name = "startup_panic"
 harness = false
+
+[[test]]
+name = "line_gap"
+harness = false

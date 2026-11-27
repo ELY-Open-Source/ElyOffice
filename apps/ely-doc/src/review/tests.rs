@@ -388,7 +388,7 @@ fn a_reviser_filter_counts_and_steps_only_their_changes() {
     type_into(&mut cx, &docs, " two");
     author(&mut cx, "Ann");
     type_into(&mut cx, &docs, " three");
-    settle(&cx, |app| authors::authors(&review.read(app).changes).len() == 2);
+    settle(&cx, |app| review.read(app).changes.len() == 3);
     let counts = cx.update(|app| authors::authors(&review.read(app).changes));
     assert_eq!(counts.iter().map(|(name, n)| (name.as_str(), *n)).collect::<Vec<_>>(), [("Ann", 2), ("Zoe", 1)]);
     // Zoe's only: the arrows stay on her one change.

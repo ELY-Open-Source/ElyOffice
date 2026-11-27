@@ -21,6 +21,7 @@ const LONG: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 /// The text of a PDF, if pdftotext is present.
 pub(super) fn pdf_text(path: &std::path::Path) -> Option<String> {
     let out = std::process::Command::new("pdftotext")
+        .args(["-enc", "UTF-8"])
         .arg(path)
         .arg("-")
         .output()

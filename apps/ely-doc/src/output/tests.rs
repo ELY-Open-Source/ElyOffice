@@ -83,7 +83,8 @@ fn read_back(worker: &Mutex<ely_lok::Worker>, out: &Path, format: Format, dir: &
         Format::Pdf => {
             let bytes = std::fs::read(out).expect("the PDF reads");
             assert!(bytes.trim_ascii_end().ends_with(b"%%EOF"), "the PDF is whole");
-            let Ok(read) = std::process::Command::new("pdftotext").arg(out).arg("-").output() else {
+            // Windows' pdftotext writes the code page otherwise.
+            let Ok(read) = std::process::Command::new("pdftotext").args(["-enc", "UTF-8"]).arg(out).arg("-").output() else {
                 eprintln!("SKIP: no pdftotext to read the PDF back");
                 return None;
             };

@@ -1,12 +1,15 @@
-//! A line's height leaves out the font's line gap (R22.1).
-#![cfg(any(windows, target_os = "macos"))]
+//! Line height leaves out the font's gap; main thread (R22.1).
+fn main() {
+    #[cfg(any(windows, target_os = "macos"))]
+    a_line_keeps_the_font_ascent_and_descent_without_its_gap();
+}
 
-use std::borrow::Cow;
-
-use gpui::{SharedString, TestAppContext, TestDispatcher, TextRun, WindowTextSystem, font, px};
-
-#[test]
+#[cfg(any(windows, target_os = "macos"))]
 fn a_line_keeps_the_font_ascent_and_descent_without_its_gap() {
+    use std::borrow::Cow;
+
+    use gpui::{SharedString, TestAppContext, TestDispatcher, TextRun, WindowTextSystem, font, px};
+
     let system = gpui_platform::current_platform(false).text_system();
     let cx = TestAppContext::build_with_text_system(TestDispatcher::new(0), None, system);
     let gap = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/ui/gap.ttf"))
@@ -33,4 +36,5 @@ fn a_line_keeps_the_font_ascent_and_descent_without_its_gap() {
         assert!((line.ascent - ascent).abs() < px(0.1), "ascent {:?}, font {ascent:?}", line.ascent);
         assert!((line.descent - descent).abs() < px(0.1), "descent {:?}, font {descent:?}", line.descent);
     });
+    println!("line_gap: 1 case passes");
 }
