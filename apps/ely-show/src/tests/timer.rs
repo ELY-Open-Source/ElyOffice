@@ -8,7 +8,7 @@ use gpui::TestAppContext;
 use super::objects::blank;
 use super::play::{three_slides, typed};
 use super::{settle, update};
-use crate::slideshow::{scoreboard::Source, timer::{Phase, Spot}};
+use crate::slideshow::{scoreboard::Source, timer::{Alarm, Phase, Spot}};
 
 #[test]
 fn all_slides_share_a_countdown_and_one_slide_may_have_its_own() {
@@ -22,8 +22,8 @@ fn all_slides_share_a_countdown_and_one_slide_may_have_its_own() {
     update(&mut cx, &deck, |deck, cx| {
         let tab = deck.core.active().expect("a tab");
         let last = deck.tab(tab).expect("the tab").extra.slides.list[2].name.clone();
-        deck.set_timer(tab, None, Some(Duration::from_secs(60)), (Spot::Top, None), cx);
-        deck.set_timer(tab, Some(last), Some(Duration::from_secs(5)), (Spot::Corner, None), cx);
+        deck.set_timer(tab, None, Some(Duration::from_secs(60)), (Spot::Top, None, Alarm::QUIET), cx);
+        deck.set_timer(tab, Some(last), Some(Duration::from_secs(5)), (Spot::Corner, None, Alarm::QUIET), cx);
         deck.start_show(false, cx);
     });
     settle(&cx, |app| deck.read(app).show.is_some());
@@ -105,10 +105,10 @@ fn the_focus_swaps_in_the_editor_for_good_and_in_a_show_for_itself() {
         let tab = deck.core.active().expect("a tab");
         let name = deck.tab(tab).expect("the tab").extra.slides.list[0].name.clone();
         let minute = Some(Duration::from_secs(60));
-        deck.set_timer(tab, Some(name.clone()), minute, (Spot::Top, None), cx);
+        deck.set_timer(tab, Some(name.clone()), minute, (Spot::Top, None, Alarm::QUIET), cx);
         deck.swap_focus(tab, &name, cx);
         // Editing the countdown keeps its focus.
-        deck.set_timer(tab, Some(name), minute, (Spot::Corner, None), cx);
+        deck.set_timer(tab, Some(name), minute, (Spot::Corner, None, Alarm::QUIET), cx);
         deck.start_show(false, cx);
     });
     assert!(kept(&cx));

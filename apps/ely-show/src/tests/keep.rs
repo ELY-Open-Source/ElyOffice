@@ -11,7 +11,7 @@ use super::slides::in_window;
 use super::play::three_slides;
 use super::{quiet, settle, update};
 use crate::slideshow::scoreboard::Source;
-use crate::slideshow::timer::Spot;
+use crate::slideshow::timer::{Alarm, Spot};
 
 #[test]
 fn a_saved_deck_brings_back_its_countdowns_and_scoreboards() {
@@ -31,7 +31,7 @@ fn a_saved_deck_brings_back_its_countdowns_and_scoreboards() {
             let tab = deck.tab_mut(id).expect("the tab");
             let names: Vec<String> = tab.extra.slides.list.iter().map(|slide| slide.name.clone()).collect();
             tab.extra.scoreboards.insert(names[2].clone(), source.clone());
-            deck.set_timer(id, Some(names[1].clone()), Some(Duration::from_secs(90)), (Spot::Corner, None), cx);
+            deck.set_timer(id, Some(names[1].clone()), Some(Duration::from_secs(90)), (Spot::Corner, None, Alarm::QUIET), cx);
             deck.drag_timer(id, &names[1], (0.25, 0.75), cx);
         });
         let copy = dir.path().join(format!("copy.{format}"));
