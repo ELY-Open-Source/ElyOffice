@@ -217,6 +217,7 @@ pub(super) const ES: &[(&str, &str)] = &[
     ("doc.review.view.read_only", "Original es de solo lectura; cambie a Marcas o Final para editar"),
     ("doc.review.view.failed", "No se pudo preparar la vista Original: {error}"),
     ("doc.review.view.changes", "Solo cambios"),
+    ("doc.review.view.inline", "Ver eliminaciones en el texto"),
     ("doc.review.only.replaced", "{old} → {new}"),
     ("doc.review.only.context", "En: {text}"),
     ("doc.review.reviser", "Revisor"),

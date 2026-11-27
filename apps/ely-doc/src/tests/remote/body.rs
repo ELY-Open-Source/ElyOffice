@@ -65,6 +65,8 @@ fn the_body_reads_as_the_flat_copy_does_and_the_cursor_stays() {
         eprintln!("SKIP: no LOK build");
         return;
     };
+    // Struck in place, the cursor can enter deleted text.
+    cx.update(|app| ely_ui::settings::switches::set(ely_ui::settings::switches::STRUCK, true, app));
     let file = opened(
         &mut cx,
         &docs,

@@ -199,6 +199,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("doc.review.view.read_only", "Original ist schreibgeschützt; zum Bearbeiten zu Markierungen oder Endgültig wechseln"),
     ("doc.review.view.failed", "Originalansicht konnte nicht vorbereitet werden: {error}"),
     ("doc.review.view.changes", "Nur Änderungen"),
+    ("doc.review.view.inline", "Gelöschtes im Text anzeigen"),
     ("doc.review.only.replaced", "{old} → {new}"),
     ("doc.review.only.context", "In: {text}"),
     ("doc.review.reviser", "Bearbeiter"),

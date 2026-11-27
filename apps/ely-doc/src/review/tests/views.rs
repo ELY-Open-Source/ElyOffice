@@ -122,3 +122,47 @@ fn changes_only_pairs_a_replacement_with_its_paragraph() {
     });
     assert_eq!(shows.as_deref(), Some("true"), "the page keeps its markup");
 }
+
+#[test]
+fn the_markup_switch_strikes_deletions_in_place_or_takes_them_out() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(ely_gpui_component::init_for_tests);
+    blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "Start words");
+    let review = panel(&mut cx, &docs);
+    with_window(&mut cx, &docs, |docs, window, cx| docs.on_track(&TrackChanges, window, cx));
+    let (view, doc) = cx.update(|app| {
+        let tab = docs.read(app).active_tab().expect("a tab");
+        (tab.view.clone(), tab.doc.clone())
+    });
+    settle(&cx, |app| view.read(app).state(".uno:TrackChanges") == Some("true"));
+    cx.update(|app| {
+        let worker = docs.read(app).core.worker.clone();
+        let mut worker = worker.lock().expect("the worker lock");
+        for _ in 0..6 {
+            worker.post_key(&doc, 0, 1283).expect("backspace posts");
+        }
+    });
+    settle(&cx, |app| review.read(app).changes.len() == 1);
+    let hide = |view: &Entity<LokView>, app: &gpui::App| view.read(app).state(".uno:HideTrackedDeletions").map(str::to_owned);
+    settle(&cx, |app| hide(&view, app).as_deref() == Some("true"));
+    assert_eq!(cx.update(|app| review.read(app).showing(app)), "markup", "deletions out, still Markup");
+    cx.update(|app| review.update(app, |review, cx| review.strike_inline(true, cx)));
+    settle(&cx, |app| hide(&view, app).as_deref() == Some("false"));
+    let struck = ely_ui::settings::switches::STRUCK;
+    assert!(cx.update(|app| ely_ui::settings::switches::on(struck, app)), "the choice is kept");
+    // A document opened later follows the choice.
+    blank(&mut cx, &docs);
+    let later = cx.update(|app| docs.read(app).active_tab().expect("a tab").view.clone());
+    settle(&cx, |app| hide(&later, app).as_deref() == Some("false"));
+    let followed = cx.update(|app| review.read(app).shown.as_ref().expect("a shown tab").view.clone());
+    cx.update(|app| review.update(app, |review, cx| review.strike_inline(false, cx)));
+    settle(&cx, |app| hide(&followed, app).as_deref() == Some("true"));
+    assert_eq!(cx.update(|app| review.read(app).changes.len()), 1, "the deletion stays listed");
+    assert_eq!(body(&mut cx, &docs, &doc), ["Start"], "the words are deleted, tracked");
+}

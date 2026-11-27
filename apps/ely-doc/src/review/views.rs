@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use ely_gpui_component::{buttons::SegmentedControl, theme::ControlSize};
+use ely_gpui_component::{buttons::SegmentedControl, forms::Switch, theme::ControlSize};
 use ely_lok::{Doc, LokError, LokView};
-use gpui::{AnyElement, App, Context, Entity, IntoElement as _, ParentElement as _, Styled as _, div};
+use gpui::{AnyElement, App, Context, Entity, IntoElement as _, ParentElement as _, Styled as _, div, prelude::FluentBuilder as _};
 
 use super::{Review, original};
 use crate::docs::Docs;
@@ -22,7 +22,7 @@ impl Review {
     }
 
     /// The picked display, read from the kernel's state.
-    fn showing(&self, cx: &App) -> &'static str {
+    pub(super) fn showing(&self, cx: &App) -> &'static str {
         if self.original.is_some() || self.preparing {
             return "original";
         }
@@ -45,13 +45,28 @@ impl Review {
             .segment("original", Docs::text(cx, "doc.review.view.original", &[]), None)
             .segment("final", Docs::text(cx, "doc.review.view.final", &[]), None)
             .segment("changes", Docs::text(cx, "doc.review.view.changes", &[]), None)
-            .on_change(move |value, _, cx| this.update(cx, |review, cx| review.show_as(value.as_ref(), cx)));
-        div()
+            .on_change({
+                let this = this.clone();
+                move |value, _, cx| this.update(cx, |review, cx| review.show_as(value.as_ref(), cx))
+            });
+        let row = div()
             .flex()
             .items_center()
             .gap_2()
             .child(Docs::text(cx, "doc.review.view", &[]))
-            .child(picker)
+            .child(picker);
+        // Deletions leave the text unless struck in place (#143).
+        let hide = self.shown.as_ref().and_then(|shown| shown.view.read(cx).state(".uno:HideTrackedDeletions"));
+        let inline = Switch::new("doc-review-inline", hide == Some("false"))
+            .disabled(hide.is_none())
+            .label(Docs::text(cx, "doc.review.view.inline", &[]))
+            .on_change(move |on, _, cx| this.update(cx, |review, cx| review.strike_inline(on, cx)));
+        div()
+            .flex()
+            .flex_col()
+            .gap_2()
+            .child(row)
+            .when(self.showing(cx) == "markup", |it| it.child(inline))
             .into_any_element()
     }
 
@@ -72,6 +87,13 @@ impl Review {
             self.run("track.shown", &[want], cx);
         }
         cx.notify();
+    }
+
+    /// Strikes deletions in the text, or takes them out.
+    pub(super) fn strike_inline(&mut self, on: bool, cx: &mut Context<Self>) {
+        log::info!("doc: deletions in the text {on}");
+        ely_ui::settings::switches::set(ely_ui::settings::switches::STRUCK, on, cx);
+        self.run("track.hide", &[crate::deletions::wanted(cx)], cx);
     }
 
     /// Opens the copy off the UI thread, then shows it.

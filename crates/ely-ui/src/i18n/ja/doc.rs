@@ -199,6 +199,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("doc.review.view.read_only", "元の文書は読み取り専用です。編集するには「マーク付き」か「最終版」に切り替えてください"),
     ("doc.review.view.failed", "元の文書を準備できませんでした: {error}"),
     ("doc.review.view.changes", "変更のみ"),
+    ("doc.review.view.inline", "本文に削除を表示"),
     ("doc.review.only.replaced", "{old} → {new}"),
     ("doc.review.only.context", "段落: {text}"),
     ("doc.review.reviser", "校閲者"),

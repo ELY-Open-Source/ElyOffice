@@ -24,7 +24,9 @@ pub struct Choice {
 pub const AUTOSAVE: Choice = Choice { key: "autosave", default: false };
 /// New mail shows a system notification (MAIL-15).
 pub const NOTIFY: Choice = Choice { key: "notifications", default: true };
-const ALL: [Choice; 2] = [AUTOSAVE, NOTIFY];
+/// Tracked deletions stay struck in the text (#143).
+pub const STRUCK: Choice = Choice { key: "deletions_struck", default: false };
+const ALL: [Choice; 3] = [AUTOSAVE, NOTIFY, STRUCK];
 
 /// Each choice and its latest switch.
 struct Switches {

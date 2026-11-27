@@ -199,6 +199,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("doc.review.view.read_only", "Bản gốc chỉ cho đọc; hãy chuyển sang Đánh dấu hoặc Bản cuối để sửa"),
     ("doc.review.view.failed", "Không chuẩn bị được chế độ xem Bản gốc: {error}"),
     ("doc.review.view.changes", "Chỉ thay đổi"),
+    ("doc.review.view.inline", "Hiện phần xóa trong văn bản"),
     ("doc.review.only.replaced", "{old} → {new}"),
     ("doc.review.only.context", "Trong: {text}"),
     ("doc.review.reviser", "Người duyệt"),

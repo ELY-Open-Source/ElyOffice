@@ -111,6 +111,14 @@ impl Host for Docs {
     fn search_leaves(&mut self, cx: &mut Context<Self>) {
         self.mark_place(cx);
     }
+
+    fn tab_opened(&mut self, id: u64, cx: &mut Context<Self>) {
+        self.follow_deletions(id, cx);
+    }
+
+    fn tab_shown(&mut self, id: u64, cx: &mut Context<Self>) {
+        self.follow_deletions(id, cx);
+    }
 }
 
 /// ElyDoc's menus after File; `undo` greys Undo and Redo.
@@ -192,6 +200,9 @@ impl Docs {
             if ely_ui::tray::main(cx) == docs.core.window {
                 let able = docs.active_tab().map_or((false, false), |tab| ely_office::undo_able(tab.view.read(cx)));
                 docs.install_menus(able, cx);
+                if let Some(id) = docs.core.active() {
+                    docs.follow_deletions(id, cx);
+                }
             }
         })
         .detach();

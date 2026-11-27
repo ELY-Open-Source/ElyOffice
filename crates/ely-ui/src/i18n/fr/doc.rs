@@ -199,6 +199,7 @@ pub(super) const FR: &[(&str, &str)] = &[
     ("doc.review.view.read_only", "Original est en lecture seule ; passez à Marques ou Final pour modifier"),
     ("doc.review.view.failed", "Impossible de préparer la vue Original : {error}"),
     ("doc.review.view.changes", "Modifications"),
+    ("doc.review.view.inline", "Suppressions dans le texte"),
     ("doc.review.only.replaced", "{old} → {new}"),
     ("doc.review.only.context", "Dans : {text}"),
     ("doc.review.reviser", "Réviseur"),

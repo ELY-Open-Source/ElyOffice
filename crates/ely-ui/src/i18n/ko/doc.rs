@@ -199,6 +199,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("doc.review.view.read_only", "원본은 읽기 전용입니다. 편집하려면 변경 내용 표시 또는 최종본으로 전환하십시오"),
     ("doc.review.view.failed", "원본 보기를 준비하지 못했습니다: {error}"),
     ("doc.review.view.changes", "변경 내용만"),
+    ("doc.review.view.inline", "본문에 삭제 내용 표시"),
     ("doc.review.only.replaced", "{old} → {new}"),
     ("doc.review.only.context", "단락: {text}"),
     ("doc.review.reviser", "검토자"),

@@ -88,6 +88,12 @@ pub(super) const ROWS: &[Command] = &[
     command("comment.delete_all", ".uno:DeleteAllNotes", &[], Check::Undoable),
     command("track.toggle", ".uno:TrackChanges", &[], Check::Result),
     command(
+        "track.hide",
+        ".uno:HideTrackedDeletions",
+        &[Arg::Bool("HideTrackedDeletions")],
+        Check::Reports,
+    ),
+    command(
         "track.shown",
         ".uno:ShowTrackedChanges",
         &[Arg::Bool("ShowTrackedChanges")],

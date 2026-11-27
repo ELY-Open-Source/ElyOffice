@@ -1,0 +1,529 @@
+From: Ely Office
+Subject: Writer hides tracked deletions while marking insertions
+
+- With track changes on, deleted text should leave the line at once
+  and the rest reflow (#143), as in Word's Simple Markup. The margin
+  mode moves deletions out of the body, which splits a run of deletes
+  into several changes, so it is not used.
+- The root frame gains a choice, HideTrackedDeletions: when changes
+  are shown, the layout hides them as in the Final view, and the
+  redline iterator still colours insertions in that mode.
+- ShowTrackedChanges reports what the user picked, not the layout's
+  hiding, and LOK reports HideTrackedDeletions.
+- A paragraph whose deletion is not merged yet keeps the shown mode
+  until the layout merges it, as the hiding iterator needs the merge.
+- Saving to ODF, DOCX or DOC and the PDF export take shown changes
+  from the user's pick too, so a save keeps the file in Markup.
+- LOK redline notifications skip text rectangles while the layout hides
+  changes: a merged paragraph learns of an erase only afterwards, and
+  formatting it in between runs away (an ODF save erases every deletion).
+
+diff --git a/sfx2/source/control/unoctitm.cxx b/sfx2/source/control/unoctitm.cxx
+--- a/sfx2/source/control/unoctitm.cxx
++++ b/sfx2/source/control/unoctitm.cxx
+@@ -1253,6 +1253,7 @@
+         { u"TrackChangesInThisView", { PayloadType::IsActivePayload, true } },
+         { u"TrackChangesInAllViews", { PayloadType::IsActivePayload, true } },
+         { u"ShowTrackedChanges", { PayloadType::IsActivePayload, true } },
++        { u"HideTrackedDeletions", { PayloadType::IsActivePayload, true } },
+         { u"AlignLeft", { PayloadType::IsActivePayload, true } },
+         { u"AlignHorizontalCenter", { PayloadType::IsActivePayload, true } },
+         { u"AlignRight", { PayloadType::IsActivePayload, true } },
+diff --git a/sw/inc/cmdid.h b/sw/inc/cmdid.h
+--- a/sw/inc/cmdid.h
++++ b/sw/inc/cmdid.h
+@@ -154,6 +154,7 @@
+ #define FN_COPY_FIELD                (FN_EDIT2 + 48)    /* show field content in readonly documents to copy content*/
+ #define FN_CONVERT_SEL_FIELD         (FN_EDIT2 + 49)    /* convert selected field to text */
+ #define FN_REDLINE_REINSTATE_ALL     (FN_EDIT2 + 50)    /* redlining reinstate all */
++#define FN_REDLINE_HIDE_DELETIONS    (FN_EDIT2 + 51)    /* hide deletions, mark insertions */
+ 
+ // Region: View
+ #define FN_DRAW_WRAP_DLG        TypedWhichId<SfxInt16Item>(FN_VIEW + 3)   /* Draw wrapping dlg */
+diff --git a/sw/sdi/_viewsh.sdi b/sw/sdi/_viewsh.sdi
+--- a/sw/sdi/_viewsh.sdi
++++ b/sw/sdi/_viewsh.sdi
+@@ -193,6 +193,13 @@
+         StateMethod = GetState ;
+         DisableFlags="SfxDisableFlags::SwOnMailboxEditor";
+     ]
++
++    FN_REDLINE_HIDE_DELETIONS // status()
++    [
++        ExecMethod = Execute;
++        StateMethod = GetState ;
++        DisableFlags="SfxDisableFlags::SwOnMailboxEditor";
++    ]
+     FN_REDLINE_ACCEPT // status(play)
+     [
+         ExecMethod = Execute ;
+diff --git a/sw/sdi/swriter.sdi b/sw/sdi/swriter.sdi
+--- a/sw/sdi/swriter.sdi
++++ b/sw/sdi/swriter.sdi
+@@ -6143,6 +6143,24 @@
+     GroupId = SfxGroupId::View;
+ ]
+ 
++SfxBoolItem HideTrackedDeletions FN_REDLINE_HIDE_DELETIONS
++
++[
++    AutoUpdate = TRUE,
++    FastCall = FALSE,
++    ReadOnlyDoc = TRUE,
++    Toggle = TRUE,
++    Container = FALSE,
++    RecordAbsolute = FALSE,
++    RecordPerSet;
++
++
++    AccelConfig = FALSE,
++    MenuConfig = FALSE,
++    ToolBoxConfig = FALSE,
++    GroupId = SfxGroupId::View;
++]
++
+ SfxVoidItem ShowTwoPages FN_SHOW_TWO_PAGES
+ ()
+ [
+diff --git a/sw/source/core/inc/rootfrm.hxx b/sw/source/core/inc/rootfrm.hxx
+--- a/sw/source/core/inc/rootfrm.hxx
++++ b/sw/source/core/inc/rootfrm.hxx
+@@ -124,6 +124,8 @@
+                                       // @see dcontact.cxx, ::Changed()
+     bool    mbLayoutFreezed;
+     bool    mbHideRedlines;
++    bool    mbHideDeletions = false; // shown changes hide deletions
++    bool    mbMarkInserts = false; // hidden layout, insertions still marked
+     sw::FieldmarkMode m_FieldmarkMode;
+     sw::ParagraphBreakMode m_ParagraphBreakMode;
+ 
+@@ -433,6 +435,11 @@
+      */
+     bool IsHideRedlines() const { return mbHideRedlines; }
+     SW_DLLPUBLIC void SetHideRedlines(bool);
++    bool IsMarkInserts() const { return mbHideRedlines && mbMarkInserts; }
++    bool IsShowRedlines() const { return !mbHideRedlines || mbMarkInserts; }
++    bool IsHideDeletions() const { return mbHideDeletions; }
++    SW_DLLPUBLIC void ShowRedlines(bool);
++    SW_DLLPUBLIC void SetHideDeletions(bool);
+     sw::FieldmarkMode GetFieldmarkMode() const { return m_FieldmarkMode; }
+     void SetFieldmarkMode(sw::FieldmarkMode, sw::ParagraphBreakMode);
+     sw::ParagraphBreakMode GetParagraphBreakMode() const { return m_ParagraphBreakMode; }
+diff --git a/sw/source/core/layout/wsfrm.cxx b/sw/source/core/layout/wsfrm.cxx
+--- a/sw/source/core/layout/wsfrm.cxx
++++ b/sw/source/core/layout/wsfrm.cxx
+@@ -4905,6 +4905,27 @@
+     }
+ }
+ 
++void SwRootFrame::ShowRedlines(bool const bShow)
++{
++    bool const bMark(bShow && mbHideDeletions);
++    bool const bHide(!bShow || bMark);
++    if (bHide == mbHideRedlines && bMark != mbMarkInserts)
++    {   // same text, only the marks change
++        mbMarkInserts = bMark;
++        InvalidateAllContent(SwInvalidateFlags::Size);
++        return;
++    }
++    mbMarkInserts = bMark;
++    SetHideRedlines(bHide);
++}
++
++void SwRootFrame::SetHideDeletions(bool const bHide)
++{
++    bool const bShow(IsShowRedlines());
++    mbHideDeletions = bHide;
++    ShowRedlines(bShow);
++}
++
+ void SwRootFrame::SetFieldmarkMode(sw::FieldmarkMode const eFMMode, sw::ParagraphBreakMode const ePBMode)
+ {
+     if (eFMMode == m_FieldmarkMode && ePBMode == m_ParagraphBreakMode)
+diff --git a/sw/source/core/text/redlnitr.cxx b/sw/source/core/text/redlnitr.cxx
+--- a/sw/source/core/text/redlnitr.cxx
++++ b/sw/source/core/text/redlnitr.cxx
+@@ -774,7 +774,8 @@
+     }
+     const bool bShow = IDocumentRedlineAccess::IsShowChanges(rIDRA.GetRedlineFlags())
+         && pRootFrame && !pRootFrame->IsHideRedlines();
+-    if (!(pExtInp || m_pMergedPara || bShow))
++    const bool bInserts = pRootFrame && pRootFrame->IsMarkInserts();
++    if (!(pExtInp || m_pMergedPara || bShow || bInserts))
+         return;
+ 
+     SwRedlineTable::size_type nRedlPos = rIDRA.GetRedlinePos( rTextNode, RedlineType::Any );
+@@ -809,12 +810,13 @@
+     }
+ 
+     m_pRedline.reset(new SwRedlineItr( rTextNode, *m_pFont, m_aAttrHandler, nRedlPos,
+-                    (pRootFrame && pRootFrame->IsHideRedlines())
++                    // a new deletion is not merged yet
++                    (pRootFrame && pRootFrame->IsHideRedlines() && (m_pMergedPara || !bInserts))
+                         ? SwRedlineItr::Mode::Hide
+                         : bShow
+                             ? SwRedlineItr::Mode::Show
+                             : SwRedlineItr::Mode::Ignore,
+-                    pArr, pExtInp ? pExtInp->Start() : nullptr));
++                    pArr, pExtInp ? pExtInp->Start() : nullptr, bInserts));
+ 
+     if( m_pRedline->IsOn() )
+         ++m_nChgCnt;
+@@ -836,7 +838,8 @@
+                             SwAttrHandler& rAH, sal_Int32 nRed,
+                             Mode const mode,
+                             const std::vector<ExtTextInputAttr> *pArr,
+-                            SwPosition const*const pExtInputStart)
++                            SwPosition const*const pExtInputStart,
++                            bool const bInserts)
+     : m_rDoc( rTextNd.GetDoc() )
+     , m_rAttrHandler( rAH )
+     , m_nNdIdx( rTextNd.GetIndex() )
+@@ -846,6 +849,10 @@
+     , m_nEnd( COMPLETE_STRING )
+     , m_bOn( false )
+     , m_eMode( mode )
++    , m_bInserts( bInserts )
++    , m_nInsNode( rTextNd.GetIndex() )
++    , m_nInsStart( COMPLETE_STRING )
++    , m_nInsEnd( COMPLETE_STRING )
+ {
+     if( pArr )
+     {
+@@ -942,51 +949,7 @@
+                     }
+                     const SwRangeRedline *pRed = rTable[ m_nAct ];
+ 
+-                    if (m_pSet)
+-                        m_pSet->ClearItem();
+-                    else
+-                    {
+-                        SwAttrPool& rPool =
+-                            const_cast<SwDoc&>(m_rDoc).GetAttrPool();
+-                        m_pSet = std::make_unique<SfxItemSetFixed<RES_CHRATR_BEGIN, RES_CHRATR_END-1>>(rPool);
+-                    }
+-
+-                    if( 1 < pRed->GetStackCount() )
+-                        FillHints(pRed->GetAuthor(1), pRed->GetType(1), eRenderMode);
+-                    FillHints(pRed->GetAuthor(), pRed->GetType(), eRenderMode);
+-
+-                    SfxWhichIter aIter( *m_pSet );
+-
+-                    // moved text: dark green with double underline or strikethrough
+-                    bool bDisplayMovedTextInGreen = officecfg::Office::Writer::Comparison::DisplayMovedTextInGreen::get();
+-                    if (bDisplayMovedTextInGreen && pRed->IsMoved()
+-                        && eRenderMode == SwRedlineRenderMode::Standard)
+-                    {
+-                        // Standard redline render mode, so move is more than just insert and
+-                        // delete.
+-                        m_pSet->Put(SvxColorItem( COL_GREEN, RES_CHRATR_COLOR ));
+-                        if (SfxItemState::SET == m_pSet->GetItemState(RES_CHRATR_CROSSEDOUT, true))
+-                            m_pSet->Put(SvxCrossedOutItem( STRIKEOUT_DOUBLE, RES_CHRATR_CROSSEDOUT ));
+-                        else
+-                            m_pSet->Put(SvxUnderlineItem( LINESTYLE_DOUBLE, RES_CHRATR_UNDERLINE ));
+-                    }
+-
+-                    sal_uInt16 nWhich = aIter.FirstWhich();
+-                    while( nWhich )
+-                    {
+-                        const SfxPoolItem* pItem;
+-                        if( ( nWhich < RES_CHRATR_END ) &&
+-                            ( SfxItemState::SET == aIter.GetItemState( true, &pItem ) ) )
+-                        {
+-                            SwTextAttr* pAttr = MakeRedlineTextAttr(
+-                                const_cast<SwDoc&>(m_rDoc),
+-                                *const_cast<SfxPoolItem*>(pItem) );
+-                            pAttr->SetPriorityAttr( true );
+-                            m_Hints.push_back(pAttr);
+-                            m_rAttrHandler.PushAndChg( *pAttr, rFnt );
+-                        }
+-                        nWhich = aIter.NextWhich();
+-                    }
++                    PushHints(rFnt, *pRed, eRenderMode);
+                 }
+                 else
+                 {
+@@ -1031,10 +994,100 @@
+             m_nStart = COMPLETE_STRING;
+             m_nEnd = COMPLETE_STRING;
+         }
++        if (m_bInserts)
++            nRet += SeekInserts(rFnt, nNode, nNew);
+     }
+     return nRet + EnterExtend(rFnt, nNode, nNew);
+ }
+ 
++void SwRedlineItr::PushHints(SwFont& rFnt, const SwRangeRedline& rRed,
++        SwRedlineRenderMode const eRenderMode)
++{
++    const SwRangeRedline* const pRed(&rRed);
++    if (m_pSet)
++        m_pSet->ClearItem();
++    else
++    {
++        SwAttrPool& rPool =
++            const_cast<SwDoc&>(m_rDoc).GetAttrPool();
++        m_pSet = std::make_unique<SfxItemSetFixed<RES_CHRATR_BEGIN, RES_CHRATR_END-1>>(rPool);
++    }
++
++    if( 1 < pRed->GetStackCount() )
++        FillHints(pRed->GetAuthor(1), pRed->GetType(1), eRenderMode);
++    FillHints(pRed->GetAuthor(), pRed->GetType(), eRenderMode);
++
++    SfxWhichIter aIter( *m_pSet );
++
++    // moved text: dark green, doubly struck or underlined
++    bool bDisplayMovedTextInGreen = officecfg::Office::Writer::Comparison::DisplayMovedTextInGreen::get();
++    if (bDisplayMovedTextInGreen && pRed->IsMoved()
++        && eRenderMode == SwRedlineRenderMode::Standard)
++    {
++        m_pSet->Put(SvxColorItem( COL_GREEN, RES_CHRATR_COLOR ));
++        if (SfxItemState::SET == m_pSet->GetItemState(RES_CHRATR_CROSSEDOUT, true))
++            m_pSet->Put(SvxCrossedOutItem( STRIKEOUT_DOUBLE, RES_CHRATR_CROSSEDOUT ));
++        else
++            m_pSet->Put(SvxUnderlineItem( LINESTYLE_DOUBLE, RES_CHRATR_UNDERLINE ));
++    }
++
++    sal_uInt16 nWhich = aIter.FirstWhich();
++    while( nWhich )
++    {
++        const SfxPoolItem* pItem;
++        if( ( nWhich < RES_CHRATR_END ) &&
++            ( SfxItemState::SET == aIter.GetItemState( true, &pItem ) ) )
++        {
++            SwTextAttr* pAttr = MakeRedlineTextAttr(
++                const_cast<SwDoc&>(m_rDoc),
++                *const_cast<SfxPoolItem*>(pItem) );
++            pAttr->SetPriorityAttr( true );
++            m_Hints.push_back(pAttr);
++            m_rAttrHandler.PushAndChg( *pAttr, rFnt );
++        }
++        nWhich = aIter.NextWhich();
++    }
++}
++
++/// Hide mode: enters or leaves the insertion at nNew.
++short SwRedlineItr::SeekInserts(SwFont& rFnt, SwNodeOffset const nNode, sal_Int32 const nNew)
++{
++    if (m_bOn && m_nInsNode == nNode && m_nInsStart <= nNew && nNew < m_nInsEnd)
++        return 0;
++    short nRet = 0;
++    if (m_bOn)
++    {
++        Clear_(&rFnt);
++        --nRet;
++    }
++    m_nInsNode = nNode;
++    m_nInsStart = COMPLETE_STRING;
++    m_nInsEnd = COMPLETE_STRING;
++    if (m_nFirst == SwRedlineTable::npos)
++        return nRet;
++    const SwRedlineTable& rTable = m_rDoc.getIDocumentRedlineAccess().GetRedlineTable();
++    for (auto n = m_nFirst; n < rTable.size(); ++n)
++    {
++        const SwRangeRedline& rRed = *rTable[n];
++        if (nNode < rRed.Start()->GetNodeIndex())
++            break;
++        sal_Int32 nStart, nEnd;
++        if (rRed.GetType() != RedlineType::Insert || rRed.CalcStartEnd(nNode, nStart, nEnd)
++            || nEnd <= nNew)
++            continue;
++        m_nInsStart = nStart;
++        m_nInsEnd = nEnd;
++        if (nStart <= nNew)
++        {
++            PushHints(rFnt, rRed, SwRedlineRenderMode::Standard);
++            m_bOn = true;
++            ++nRet;
++        }
++        break;
++    }
++    return nRet;
++}
++
+ void SwRedlineItr::FillHints( std::size_t nAuthor, RedlineType eType, SwRedlineRenderMode eRenderMode )
+ {
+     switch ( eType )
+@@ -1059,7 +1112,7 @@
+ {
+     OSL_ENSURE( IsOn(), "SwRedlineItr::ChangeTextAttr: Off?" );
+ 
+-    if (m_eMode != Mode::Show && !m_pExt)
++    if (m_eMode != Mode::Show && !m_bInserts && !m_pExt)
+         return;
+ 
+     if( bChg )
+@@ -1102,6 +1155,10 @@
+     sal_Int32 nStart(m_nStart);
+     sal_Int32 nEnd(m_nEnd);
+     nNext = NextExtend(pNode->GetIndex(), nNext);
++    if (m_bInserts && pNode->GetIndex() == m_nInsNode)
++    {   // stop at the next insertion edge too
++        nNext = std::min(nNext, m_bOn ? m_nInsEnd : m_nInsStart);
++    }
+     if (m_eMode == Mode::Ignore || SwRedlineTable::npos == m_nFirst)
+         return std::make_pair(nNext, std::make_pair(nullptr, 0));
+     if (SwRedlineTable::npos == rAct)
+@@ -1127,7 +1184,7 @@
+     {
+         return std::make_pair(nNext, std::make_pair(nullptr, 0)); // no Delete here
+     }
+-    if (m_bOn || (m_eMode == Mode::Show && nStart == 0))
++    if ((m_bOn && !m_bInserts) || (m_eMode == Mode::Show && nStart == 0))
+     {   // in Ignore mode, the end of redlines isn't relevant, except as returned in the second in the pair!
+         if (nEnd < nNext)
+             nNext = nEnd;
+diff --git a/sw/source/core/text/redlnitr.hxx b/sw/source/core/text/redlnitr.hxx
+--- a/sw/source/core/text/redlnitr.hxx
++++ b/sw/source/core/text/redlnitr.hxx
+@@ -87,10 +87,17 @@
+     enum class Mode { Show, Ignore, Hide };
+ private:
+     Mode const m_eMode;
++    // Hide mode that still marks insertions
++    bool const m_bInserts;
++    SwNodeOffset m_nInsNode;
++    sal_Int32 m_nInsStart;
++    sal_Int32 m_nInsEnd;
+ 
+     void Clear_( SwFont* pFnt );
+     bool ChkSpecialUnderline_() const;
+     void FillHints(std::size_t nAuthor, RedlineType eType, SwRedlineRenderMode eRenderMode);
++    void PushHints(SwFont& rFnt, const SwRangeRedline& rRed, SwRedlineRenderMode eRenderMode);
++    short SeekInserts(SwFont& rFnt, SwNodeOffset nNode, sal_Int32 nNew);
+     short EnterExtend(SwFont& rFnt, SwNodeOffset const nNode, sal_Int32 const nNew)
+     {
+         if (m_pExt) return m_pExt->Enter(rFnt, nNode, nNew);
+@@ -104,7 +111,7 @@
+     SwRedlineItr( const SwTextNode& rTextNd, SwFont& rFnt, SwAttrHandler& rAH,
+         sal_Int32 nRedlPos, Mode mode,
+         const std::vector<ExtTextInputAttr> *pArr = nullptr,
+-        SwPosition const* pExtInputStart = nullptr);
++        SwPosition const* pExtInputStart = nullptr, bool bInserts = false);
+     ~SwRedlineItr() COVERITY_NOEXCEPT_FALSE;
+     SwRedlineTable::size_type GetAct() const { return m_nAct; }
+     bool IsOn() const { return m_bOn || (m_pExt && m_pExt->IsOn()); }
+diff --git a/sw/source/uibase/uiview/view2.cxx b/sw/source/uibase/uiview/view2.cxx
+--- a/sw/source/uibase/uiview/view2.cxx
++++ b/sw/source/uibase/uiview/view2.cxx
+@@ -882,13 +882,23 @@
+                 {
+                     GetDocShell()->GetDoc()->GetDocumentRedlineManager().HideAll(/*bDeletion=*/!bShow);
+                 }
+-                m_pWrtShell->GetLayout()->SetHideRedlines( !bShow );
++                m_pWrtShell->GetLayout()->ShowRedlines( bShow );
+                 m_pWrtShell->EndAllAction();
+                 if (m_pWrtShell->IsRedlineOn())
+                     m_pWrtShell->SetInsMode();
+                 GetDocShell()->Broadcast(SfxHint(SfxHintId::SwRedlineShowChanged));
+             }
+             break;
++        case FN_REDLINE_HIDE_DELETIONS:
++            if (pArgs && SfxItemState::SET == pArgs->GetItemState(nSlot, false, &pItem))
++            {
++                m_pWrtShell->StartAllAction();
++                m_pWrtShell->GetLayout()->SetHideDeletions(
++                    static_cast<const SfxBoolItem*>(pItem)->GetValue());
++                m_pWrtShell->EndAllAction();
++                GetDocShell()->Broadcast(SfxHint(SfxHintId::SwRedlineShowChanged));
++            }
++            break;
+         case FN_MAILMERGE_SENDMAIL_CHILDWINDOW:
+         case FN_REDLINE_ACCEPT:
+             GetViewFrame().ToggleChildWindow(nSlot);
+diff --git a/sw/source/uibase/uiview/viewstat.cxx b/sw/source/uibase/uiview/viewstat.cxx
+--- a/sw/source/uibase/uiview/viewstat.cxx
++++ b/sw/source/uibase/uiview/viewstat.cxx
+@@ -376,9 +376,12 @@
+             break;
+             case FN_REDLINE_SHOW:
+             {
+-                rSet.Put(SfxBoolItem(nWhich, !m_pWrtShell->GetLayout()->IsHideRedlines()));
++                rSet.Put(SfxBoolItem(nWhich, m_pWrtShell->GetLayout()->IsShowRedlines()));
+             }
+             break;
++            case FN_REDLINE_HIDE_DELETIONS:
++                rSet.Put(SfxBoolItem(nWhich, m_pWrtShell->GetLayout()->IsHideDeletions()));
++            break;
+             case SID_AVMEDIA_PLAYER :
+             case FN_REDLINE_ACCEPT :
+             {
+diff --git a/sw/source/core/doc/docredln.cxx b/sw/source/core/doc/docredln.cxx
+--- a/sw/source/core/doc/docredln.cxx
++++ b/sw/source/core/doc/docredln.cxx
+@@ -373,7 +373,8 @@
+     auto [pStartPos, pEndPos] = pRedline->StartEnd(); // SwPosition*
+     SwContentNode* pContentNd = pRedline->GetPointContentNode();
+     SwView* pView = dynamic_cast<SwView*>(SfxViewShell::Current());
+-    if (pView && pContentNd)
++    // a hiding layout merges later, its frames are stale
++    if (pView && pContentNd && !pView->GetWrtShell().GetLayout()->IsHideRedlines())
+     {
+         SwShellCursor aCursor(pView->GetWrtShell(), *pStartPos);
+         aCursor.SetMark();
+diff --git a/sw/source/filter/xml/xmlexp.cxx b/sw/source/filter/xml/xmlexp.cxx
+--- a/sw/source/filter/xml/xmlexp.cxx
++++ b/sw/source/filter/xml/xmlexp.cxx
+@@ -291,7 +291,7 @@
+     }
+     RedlineFlags nRedlineFlags = RedlineFlags::NONE;
+     SwRootFrame const*const pLayout(m_pDoc->getIDocumentLayoutAccess().GetCurrentLayout());
+-    m_bSavedShowChanges = pLayout == nullptr || !pLayout->IsHideRedlines();
++    m_bSavedShowChanges = pLayout == nullptr || pLayout->IsShowRedlines();
+     SwEditShell* pESh = m_pDoc->GetEditShell();
+     if (pESh)
+     {
+diff --git a/sw/source/filter/xml/wrtxml.cxx b/sw/source/filter/xml/wrtxml.cxx
+--- a/sw/source/filter/xml/wrtxml.cxx
++++ b/sw/source/filter/xml/wrtxml.cxx
+@@ -217,7 +217,7 @@
+     bool isShowChanges;
+     // TODO: ideally this would be stored per-view...
+     SwRootFrame const*const pLayout(m_pDoc->getIDocumentLayoutAccess().GetCurrentLayout());
+-    isShowChanges = pLayout == nullptr || !pLayout->IsHideRedlines();
++    isShowChanges = pLayout == nullptr || pLayout->IsShowRedlines();
+     xInfoSet->setPropertyValue(u"ShowChanges"_ustr, Any(isShowChanges));
+     // ... and hide redlines for export
+     nRedlineFlags &= ~RedlineFlags::ShowMask;
+diff --git a/sw/source/filter/ww8/wrtww8.cxx b/sw/source/filter/ww8/wrtww8.cxx
+--- a/sw/source/filter/ww8/wrtww8.cxx
++++ b/sw/source/filter/ww8/wrtww8.cxx
+@@ -3457,7 +3457,7 @@
+     m_nOrigRedlineFlags = m_rDoc.getIDocumentRedlineAccess().GetRedlineFlags();
+ 
+     SwRootFrame const*const pLayout(m_rDoc.getIDocumentLayoutAccess().GetCurrentLayout());
+-    m_bOrigShowChanges = pLayout == nullptr || !pLayout->IsHideRedlines();
++    m_bOrigShowChanges = pLayout == nullptr || pLayout->IsShowRedlines();
+ 
+     if ( !m_rDoc.getIDocumentRedlineAccess().GetRedlineTable().empty() )
+     {
+@@ -3628,7 +3628,7 @@
+ 
+     m_pDop->fRevMarking = bool( RedlineFlags::On & m_nOrigRedlineFlags );
+     SwRootFrame const*const pLayout(m_rDoc.getIDocumentLayoutAccess().GetCurrentLayout());
+-    m_pDop->fRMView = pLayout == nullptr || !pLayout->IsHideRedlines();
++    m_pDop->fRMView = pLayout == nullptr || pLayout->IsShowRedlines();
+     m_pDop->fRMPrint = m_pDop->fRMView;
+ 
+     // set AutoHyphenation flag if found in default para style
+diff --git a/sw/source/uibase/uno/unotxvw.cxx b/sw/source/uibase/uno/unotxvw.cxx
+--- a/sw/source/uibase/uno/unotxvw.cxx
++++ b/sw/source/uibase/uno/unotxvw.cxx
+@@ -693,7 +693,7 @@
+         rValue >>= bShow;
+         SwWrtShell& rSh = m_pView->GetWrtShell();
+         rSh.StartAllAction();
+-        rSh.GetLayout()->SetHideRedlines(!bShow);
++        rSh.GetLayout()->ShowRedlines(bShow);
+         rSh.EndAllAction();
+         return;
+     }
+@@ -737,7 +737,7 @@
+ 
+     if (rPropertyName == "PDFExport_ShowChanges")
+     {
+-        const bool bShow = !m_pView->GetWrtShell().GetLayout()->IsHideRedlines();
++        const bool bShow = m_pView->GetWrtShell().GetLayout()->IsShowRedlines();
+         aRet <<= bShow;
+         return aRet;
+     }

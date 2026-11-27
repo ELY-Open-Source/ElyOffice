@@ -4,6 +4,7 @@
 mod actions;
 mod chrome;
 mod compare;
+mod deletions;
 mod docs;
 mod files;
 mod insert;
