@@ -1,0 +1,55 @@
+From: Ely Office
+Subject: Writer: deleting a comment thread is one undo step
+
+- .uno:DeleteCommentThread posted one delete event per comment, so
+  each comment left in its own undo step, later than the command
+  returned. One undo brought back only the last reply (R23.4, #123).
+- The thread is now deleted at once, replies first, inside one
+  undo group, as .uno:DeleteComment deletes one comment.
+
+diff --git a/sw/source/uibase/docvw/PostItMgr.cxx b/sw/source/uibase/docvw/PostItMgr.cxx
+--- a/sw/source/uibase/docvw/PostItMgr.cxx
++++ b/sw/source/uibase/docvw/PostItMgr.cxx
+@@ -1790,15 +1790,36 @@
+     SwRewriter aRewriter;
+     aRewriter.AddRule(UndoArg1, SwResId(STR_CONTENT_TYPE_SINGLE_POSTIT));
+ 
+-    // We have no undo ID at the moment.
+-
++    // Ely: the whole thread goes now, as one undo step.
+     IsPostitFieldWithPostitId aFilter(nPostItId);
+     FieldDocWatchingStack aStack(mvPostItFields, *mpView->GetDocShell(), aFilter);
+     const SwFormatField* pField = aStack.pop();
+-    // pField now contains our AnnotationWin object
+-    if (pField) {
+-        SwAnnotationWin* pWin = GetSidebarWin(pField);
+-        pWin->DeleteThread();
++    SwAnnotationWin* pTop = pField ? GetSidebarWin(pField) : nullptr;
++    std::vector<sal_uInt32> aIds;
++    if (pTop)
++        pTop = pTop->GetTopReplyNote();
++    for (SwAnnotationWin* pCurrent = pTop; pCurrent && pCurrent->GetTopReplyNote() == pTop;
++         pCurrent = GetNextPostIt(KEY_PAGEDOWN, pCurrent))
++        aIds.push_back(pCurrent->GetPostItField()->GetPostItId());
++    if (!aIds.empty())
++    {
++        SetActiveSidebarWin(nullptr);
++        mpWrtShell->StartUndo(SwUndoId::DELETE, &aRewriter);
++        // Replies first, so none outlives its parent.
++        for (auto it = aIds.rbegin(); it != aIds.rend(); ++it)
++        {
++            IsPostitFieldWithPostitId aOne(*it);
++            IDocumentRedlineAccess const& rIDRA(mpWrtShell->getIDocumentRedlineAccess());
++            IsFieldNotDeleted aLive(rIDRA, aOne);
++            FieldDocWatchingStack aOneStack(mvPostItFields, *mpView->GetDocShell(), aLive);
++            const SwFormatField* pOne = aOneStack.pop();
++            if (pOne && mpWrtShell->GotoField(*pOne))
++            {
++                auto restoreGuard = ConfigureForCommentDelete();
++                mpWrtShell->DelRight();
++            }
++        }
++        mpWrtShell->EndUndo();
+     }
+     PrepareView();
+     mpWrtShell->EndAllAction();

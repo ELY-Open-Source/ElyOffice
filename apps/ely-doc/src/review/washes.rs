@@ -3,7 +3,7 @@
 use ely_lok::{Rect, review::Note};
 use gpui::{App, Context, Hsla, SharedString};
 
-use super::{Review, author};
+use super::{Review, threads::author};
 
 /// The collab library's wash and picked strengths.
 const WASH: f32 = 0.18;

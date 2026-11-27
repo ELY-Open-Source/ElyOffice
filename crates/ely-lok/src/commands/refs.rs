@@ -66,6 +66,19 @@ pub(super) const ROWS: &[Command] = &[
         &[Arg::Text("Id"), Arg::Text("Text")],
         Check::Undoable,
     ),
+    command(
+        "comment.edit",
+        ".uno:EditAnnotation",
+        &[Arg::Text("Id"), Arg::Text("Text")],
+        Check::Undoable,
+    ),
+    command("comment.delete", ".uno:DeleteComment", &[Arg::Text("Id")], Check::Undoable),
+    command(
+        "comment.delete_thread",
+        ".uno:DeleteCommentThread",
+        &[Arg::Text("Id")],
+        Check::Undoable,
+    ),
     command("track.toggle", ".uno:TrackChanges", &[], Check::Result),
     command(
         "track.accept",

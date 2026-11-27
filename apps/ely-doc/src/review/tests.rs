@@ -101,10 +101,17 @@ fn one_unreadable_time_spares_the_other_notes() {
     let mut undated = note("2", "0", "0-00-00");
     undated.author = "Undated".into();
     let notes = vec![note("1", "0", "2025-03-01T10:00:00"), undated, note("3", "1", "2025-03-02T09:00:00")];
-    let (threads, unread) = threads(&notes);
+    let (threads, ids, unread) = threads::threads(&notes);
     assert_eq!(threads.len(), 1);
     assert_eq!(threads[0].comments.len(), 2, "the reply stays in its thread");
+    // Edit and delete find each shown comment's note.
+    assert_eq!(ids[&threads[0].key], ["1", "3"], "the unread note is no comment");
     assert_eq!((unread.len(), unread[0].author.as_str(), unread[0].at.as_str()), (1, "Undated", "0-00-00"));
+    // Newest first, as the kernel lists them: shown oldest first.
+    let at = "2025-03-01T10:00:00";
+    let listed = [note("10", "1", at), note("9", "1", at), note("1", "0", at)];
+    let (_, order, _) = threads::threads(&listed);
+    assert_eq!(order[&gpui::SharedString::from("1")],["1", "9", "10"], "the first comment, then replies as made");
     // Through the refresh path: changes stay, the line names both.
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = gpui::TestAppContext::single();
@@ -191,4 +198,81 @@ fn commented_words_in_a_table_cell_wash_and_the_picked_thread_darkens() {
         view.run("text.replace_breaks", &args).expect("the breaks queue")
     });
     settle(&cx, |app| view.read(app).washed().first().is_some_and(|moved| moved.0.1 > first[0].0.1));
+}
+
+#[test]
+fn comments_edit_and_delete_one_undo_step_each_and_docx_keeps_them() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(ely_gpui_component::init_for_tests);
+    let id = blank(&mut cx, &docs);
+    type_into(&mut cx, &docs, "Hello there");
+    let review = panel(&mut cx, &docs);
+    with_window(&mut cx, &docs, |docs, window, cx| {
+        docs.on_comment(&InsertComment, window, cx);
+        let Some(Dialog::Ask { ask, .. }) = &docs.dialog else {
+            panic!("the comment prompt is open");
+        };
+        let ask = ask.clone();
+        docs.answer(&ask, "First note", cx);
+    });
+    settle(&cx, |app| review.read(app).threads.len() == 1);
+    let key = cx.update(|app| review.read(app).threads[0].key.clone());
+    cx.update(|app| review.update(app, |review, cx| review.select(&key, cx)));
+    let bodies = |cx: &mut TestAppContext| -> Vec<String> {
+        cx.update(|app| review.read(app).threads.iter().flat_map(|it| it.comments.iter().map(|it| it.body.to_string())).collect())
+    };
+    for (n, answer) in [(2, "An answer"), (3, "Second answer")] {
+        cx.update(|app| review.update(app, |review, cx| review.reply(answer, cx)));
+        settle(&cx, |app| review.read(app).threads.first().is_some_and(|it| it.comments.len() == n));
+    }
+    assert_eq!(bodies(&mut cx), ["First note", "An answer", "Second answer"], "replies in the order given");
+    let view = cx.update(|app| docs.read(app).active_tab().expect("a tab").view.clone());
+    let caret = cx.update(|app| view.read(app).cursor());
+    let undo = |cx: &mut TestAppContext| cx.update(|app| docs.update(app, |docs, cx| docs.run_active("edit.undo", &[], cx)));
+    // Edit: the text changes in place, one step back.
+    cx.update(|app| review.update(app, |review, cx| review.edit(&key, 1, "Changed\nanswer", cx)));
+    settle(&cx, |app| review.read(app).threads[0].comments[1].body == "Changed\nanswer");
+    undo(&mut cx);
+    settle(&cx, |app| review.read(app).threads[0].comments[1].body == "An answer");
+    cx.update(|app| review.update(app, |review, cx| review.edit(&key, 1, "Changed\nanswer", cx)));
+    settle(&cx, |app| review.read(app).threads[0].comments[1].body == "Changed\nanswer");
+    // A reply goes alone, one step back.
+    cx.update(|app| review.update(app, |review, cx| review.delete(&key, 2, cx)));
+    settle(&cx, |app| review.read(app).threads[0].comments.len() == 2);
+    undo(&mut cx);
+    settle(&cx, |app| review.read(app).threads[0].comments.len() == 3);
+    cx.update(|app| review.update(app, |review, cx| review.delete(&key, 2, cx)));
+    settle(&cx, |app| review.read(app).threads[0].comments.len() == 2);
+    assert_eq!(bodies(&mut cx), ["First note", "Changed\nanswer"]);
+    settled(&cx, &docs);
+    assert_eq!(cx.update(|app| view.read(app).cursor()), caret, "the cursor stays");
+    // The .docx keeps the edit and the deletion.
+    let path = dir.path().join("notes.docx");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    written(&cx, &path, None);
+    let text = text_of(&mut cx, &docs, &path);
+    assert!(text.contains("First note") && text.contains("Changed") && text.contains("answer"), "the edit is saved");
+    assert!(!text.contains("Second answer") && !text.contains("An answer"), "the old texts are gone");
+    // The first comment takes its replies, one step back.
+    cx.update(|app| review.update(app, |review, cx| review.delete(&key, 0, cx)));
+    settle(&cx, |app| review.read(app).threads.is_empty());
+    undo(&mut cx);
+    settle(&cx, |app| review.read(app).threads.first().is_some_and(|it| it.comments.len() == 2));
+    assert_eq!(bodies(&mut cx), ["First note", "Changed\nanswer"], "the thread comes back whole");
+    // Undo may give the thread new ids.
+    let key = cx.update(|app| review.read(app).threads[0].key.clone());
+    cx.update(|app| review.update(app, |review, cx| review.delete(&key, 0, cx)));
+    settle(&cx, |app| review.read(app).threads.is_empty());
+    settled(&cx, &docs);
+    assert_eq!(cx.update(|app| view.read(app).cursor()), caret, "the cursor stays");
+    let before = std::fs::read(&path).expect("the first save");
+    with_window(&mut cx, &docs, |docs, window, cx| docs.write_as(id, path.clone(), None, window, cx));
+    written(&cx, &path, Some(before.as_slice()));
+    let text = text_of(&mut cx, &docs, &path);
+    assert!(text.contains("Hello there") && !text.contains("First note") && !text.contains("Changed"), "no comment is left");
 }

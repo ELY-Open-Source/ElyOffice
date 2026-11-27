@@ -1,13 +1,10 @@
 //! Comments and tracked changes beside the page (DOC-11).
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use ely_gpui_component::{
     buttons::{Button, ButtonVariant, IconButton, SegmentedControl},
-    collab::{Comment, CommentSidebar, Peer, Thread},
+    collab::{CommentSidebar, Thread},
     feedback::{EmptyState, InlineMessage},
     forms::{Switch, TextInput},
     layout::ScrollArea,
@@ -87,6 +84,7 @@ pub struct Review {
     shown: Option<Shown>,
     notes: Vec<Note>,
     threads: Vec<Thread>,
+    ids: threads::Ids,
     /// Notes whose time does not read: time and why.
     unread: Vec<Unread>,
     pub(crate) changes: Vec<Change>,
@@ -107,6 +105,7 @@ impl Review {
             shown: None,
             notes: Vec::new(),
             threads: Vec::new(),
+            ids: threads::Ids::new(),
             unread: Vec::new(),
             changes: Vec::new(),
             active: None,
@@ -127,6 +126,7 @@ impl Review {
         (self.active, self.inside, self.by_caret) = (None, None, false);
         self.notes.clear();
         self.threads.clear();
+        self.ids.clear();
         self.unread.clear();
         self.changes.clear();
         cx.notify();
@@ -349,7 +349,7 @@ impl Render for Review {
                 let field = window.use_keyed_state("doc-review-reply", cx, |window, cx| {
                     TextInput::new(window, cx)
                 });
-                let (pick, send) = (this.clone(), this.clone());
+                let (pick, send, edit, delete) = (this.clone(), this.clone(), this.clone(), this.clone());
                 CommentSidebar::new("doc-review-comments", self.threads.clone())
                     .active(self.active.clone(), move |key, _, cx| {
                         pick.update(cx, |review, cx| review.select(key, cx))
@@ -359,6 +359,8 @@ impl Render for Review {
                         send.update(cx, |review, cx| review.reply(&text, cx));
                         field.update(cx, |field, cx| field.set_text("", cx));
                     })
+                    .on_edit(move |key, ix, text, _, cx| edit.update(cx, |review, cx| review.edit(key, ix, text, cx)))
+                    .on_delete(move |key, ix, _, cx| delete.update(cx, |review, cx| review.delete(key, ix, cx)))
                     .into_any_element()
             }
         };
@@ -389,12 +391,12 @@ pub struct Unread {
 impl Review {
     /// The kernel's lists; one bad time spares the rest.
     fn take_lists(&mut self, notes: Vec<Note>, changes: Vec<Change>) {
-        let (threads, unread) = threads(&notes);
+        let (threads, ids, unread) = threads::threads(&notes);
         for bad in &unread {
             log::error!("doc: a bad comment time {:?}: {}", bad.at, bad.error);
         }
         log::info!("doc: review lists {} notes, {} changes", notes.len(), changes.len());
-        (self.notes, self.threads, self.unread, self.changes) = (notes, threads, unread, changes);
+        (self.notes, self.threads, self.ids, self.unread, self.changes) = (notes, threads, ids, unread, changes);
     }
 
     /// Each unreadable note, by its author and the reason.
@@ -423,58 +425,7 @@ impl Review {
     }
 }
 
-/// The author, hued by their first note.
-fn author(notes: &[Note], note: &Note) -> Peer {
-    let hue = notes
-        .iter()
-        .position(|other| other.author == note.author)
-        .expect("the note is among the notes");
-    Peer::new(note.author.clone(), note.author.clone(), hue)
-}
-
-/// Notes threaded under their first comment; bad times apart.
-fn threads(notes: &[Note]) -> (Vec<Thread>, Vec<Unread>) {
-    let parents: HashMap<&str, &str> = notes
-        .iter()
-        .map(|note| (note.id.as_str(), note.parent.as_str()))
-        .collect();
-    let root = |id: &'_ str| -> String {
-        let mut id = id;
-        while let Some(parent) = parents.get(id).filter(|parent| **parent != "0") {
-            id = parent;
-        }
-        id.to_string()
-    };
-    let (mut threads, mut unread): (Vec<Thread>, Vec<Unread>) = (Vec::new(), Vec::new());
-    for note in notes {
-        let read = note.at.parse::<jiff::civil::DateTime>().and_then(|at| at.to_zoned(jiff::tz::TimeZone::system()));
-        let at = match read {
-            Ok(at) => at,
-            Err(error) => {
-                unread.push(Unread { author: note.author.clone(), at: note.at.clone(), error: error.to_string() });
-                continue;
-            }
-        };
-        let comment = Comment {
-            author: author(notes, note),
-            at: at.timestamp(),
-            body: note.text.clone().into(),
-            reactions: Vec::new(),
-        };
-        let key: SharedString = root(&note.id).into();
-        match threads.iter_mut().find(|thread| thread.key == key) {
-            Some(thread) => thread.comments.push(comment),
-            None => threads.push(Thread {
-                key,
-                quote: None,
-                comments: vec![comment],
-                resolved: note.resolved,
-            }),
-        }
-    }
-    (threads, unread)
-}
-
 #[cfg(test)]
 mod tests;
+mod threads;
 mod washes;
