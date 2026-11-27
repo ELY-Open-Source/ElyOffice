@@ -188,6 +188,8 @@ fn commented_words_in_a_table_cell_wash_and_the_picked_thread_darkens() {
     let key = cx.update(|app| review.read(app).threads[0].key.clone());
     cx.update(|app| review.update(app, |review, cx| review.select(&key, cx)));
     assert_eq!(cx.update(|app| picked(app)), Some(true), "picking the thread darkens it");
+    // The pick's own clicks land before ours.
+    settle(&cx, |app| view.read(app).settled());
     // The sidebar's pick outlasts the caret passing through and out.
     click(&mut cx, inside);
     settle(&cx, |app| review.read(app).inside.is_some());
