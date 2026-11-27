@@ -29,6 +29,8 @@ pub struct Change {
     pub description: String,
     pub at: String,
     pub anchor: Option<Rect>,
+    /// The changed words, one rect a line.
+    pub ranges: Vec<Rect>,
 }
 
 /// Words and characters, in the document and the selection.
@@ -167,6 +169,7 @@ pub fn changes(json: &str) -> io::Result<Vec<Change>> {
                 anchor: (!first.trim().is_empty())
                     .then(|| rect(first))
                     .transpose()?,
+                ranges: rects(&range)?,
             })
         })
         .collect()
@@ -321,6 +324,7 @@ mod tests {
         let changes = changes(r#"{"redlines":[{"index":1,"author":"A","type":"Insert","comment":"","description":"Insert x","dateTime":"2026-10-04T10:00:00","textRange":"4490, 14759, 648, 230; 1, 2, 3, 4"}]}"#)
             .expect("changes parse");
         assert_eq!(changes[0].anchor, Some((4490, 14759, 648, 230)));
+        assert_eq!(changes[0].ranges, vec![(4490, 14759, 648, 230), (1, 2, 3, 4)]);
         assert!(super::notes(r#"{"comments":[{"id":1}]}"#).is_err());
         assert_eq!(formula("{}").expect("empty"), None);
         let counts = counts(r#"{"document":{"words":11,"characters":41,"charactersNoSpaces":31},"selection":{"words":2,"characters":7,"charactersNoSpaces":6}}"#)

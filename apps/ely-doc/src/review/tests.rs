@@ -120,7 +120,7 @@ fn one_unreadable_time_spares_the_other_notes() {
         return;
     };
     let review = cx.update(|app| docs.read(app).review.clone());
-    let change = Change { index: 7, author: "B".into(), kind: "Insert".into(), description: String::new(), at: "2025-03-01T10:00:00".into(), anchor: None };
+    let change = Change { index: 7, author: "B".into(), kind: "Insert".into(), description: String::new(), at: "2025-03-01T10:00:00".into(), anchor: None, ranges: Vec::new() };
     let lines = cx.update(|cx| review.update(cx, |review, cx| {
         review.take_lists(notes, vec![change]);
         assert_eq!(review.changes.len(), 1, "the changes stay");
@@ -275,4 +275,89 @@ fn comments_edit_and_delete_one_undo_step_each_and_docx_keeps_them() {
     written(&cx, &path, Some(before.as_slice()));
     let text = text_of(&mut cx, &docs, &path);
     assert!(text.contains("Hello there") && !text.contains("First note") && !text.contains("Changed"), "no comment is left");
+}
+
+#[test]
+fn arrows_step_through_changes_and_comments_and_hover_names_the_author() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(docs) = docs(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    cx.update(ely_gpui_component::init_for_tests);
+    blank(&mut cx, &docs);
+    let review = panel(&mut cx, &docs);
+    let comment = |cx: &mut TestAppContext, words: &str| {
+        with_window(cx, &docs, |docs, window, cx| {
+            docs.on_comment(&InsertComment, window, cx);
+            let Some(Dialog::Ask { ask, .. }) = &docs.dialog else {
+                panic!("the comment prompt is open");
+            };
+            let ask = ask.clone();
+            docs.answer(&ask, words, cx);
+        });
+    };
+    type_into(&mut cx, &docs, "Hello");
+    comment(&mut cx, "First");
+    settle(&cx, |app| review.read(app).threads.len() == 1);
+    type_into(&mut cx, &docs, " world");
+    comment(&mut cx, "Second");
+    settle(&cx, |app| review.read(app).threads.len() == 2);
+    let track = |cx: &mut TestAppContext, on: &'static str| {
+        with_window(cx, &docs, |docs, window, cx| docs.on_track(&TrackChanges, window, cx));
+        settle(cx, |app| {
+            let tab = docs.read(app).active_tab().expect("a tab");
+            tab.view.read(app).state(".uno:TrackChanges") == Some(on)
+        });
+    };
+    track(&mut cx, "true");
+    type_into(&mut cx, &docs, " Alpha");
+    track(&mut cx, "false");
+    type_into(&mut cx, &docs, " plain");
+    track(&mut cx, "true");
+    type_into(&mut cx, &docs, " Beta");
+    settle(&cx, |app| review.read(app).changes.len() == 2);
+    // Each changed rect carries its author's name.
+    settle(&cx, |app| {
+        let review = review.read(app);
+        let view = review.shown.as_ref().expect("a tab").view.read(app);
+        let rects: usize = review.changes.iter().map(|change| change.ranges.len()).sum();
+        rects > 0
+            && view.tipped().len() == rects
+            && view.tipped().iter().all(|(_, tip)| tip.contains(review.changes[0].author.as_str()))
+    });
+    let inside = |app: &gpui::App, at: usize| {
+        let review = review.read(app);
+        let caret = review.shown.as_ref().expect("a tab").view.read(app).cursor();
+        caret.is_some_and(|caret| nav::holds(&review.changes[at].ranges, caret))
+    };
+    // The changes in reading order, whatever order the kernel lists.
+    let mut order = [0, 1];
+    let anchors = cx.update(|app| review.read(app).changes.iter().map(|change| change.anchor).collect::<Vec<_>>());
+    order.sort_by_key(|&at| anchors[at].map(|(x, y, _, _)| (y, x)));
+    let go = |cx: &mut TestAppContext, forward: bool| {
+        cx.update(|app| review.update(app, |review, cx| review.step_change(forward, cx)));
+    };
+    // From the end, forward wraps round.
+    for want in [order[0], order[1], order[0]] {
+        go(&mut cx, true);
+        settle(&cx, |app| inside(app, want));
+    }
+    go(&mut cx, false);
+    settle(&cx, |app| inside(app, order[1]));
+    // Comments step by their place in the text.
+    let first_key = |app: &gpui::App, words: &str| {
+        let review = review.read(app);
+        review.threads.iter().find(|thread| thread.comments[0].body == words).expect("the thread").key.clone()
+    };
+    let (first, second) = cx.update(|app| (first_key(app, "First"), first_key(app, "Second")));
+    // No thread picked: the caret, at the end, decides.
+    cx.update(|app| review.update(app, |review, _| review.active = None));
+    for want in [&first, &second, &first] {
+        cx.update(|app| review.update(app, |review, cx| review.step_comment(true, cx)));
+        settle(&cx, |app| review.read(app).active.as_ref() == Some(want));
+    }
+    cx.update(|app| review.update(app, |review, cx| review.step_comment(false, cx)));
+    settle(&cx, |app| review.read(app).active.as_ref() == Some(&second));
 }

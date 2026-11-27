@@ -185,6 +185,16 @@ pub(super) const EN: &[(&str, &str)] = &[
         "The new section gets its own page style, copied from this page. The undo history clears.",
     ),
     ("doc.why.anchor", "This anchor does not fit here"),
+    ("doc.review.prev_change", "Previous Change"),
+    ("doc.review.next_change", "Next Change"),
+    ("doc.review.prev_comment", "Previous Comment"),
+    ("doc.review.next_comment", "Next Comment"),
+    ("doc.why.no_changes", "No tracked changes in this document"),
+    ("doc.why.no_comments", "No comments in this document"),
+    ("doc.review.by.insert", "Inserted by {author}"),
+    ("doc.review.by.delete", "Deleted by {author}"),
+    ("doc.review.by.format", "Formatted by {author}"),
+    ("doc.review.by.other", "Changed by {author}"),
 ];
 
 pub(super) const ZH_CN: &[(&str, &str)] = &[
@@ -369,4 +379,14 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
         "新节获得自己的页面样式，复制自当前页。撤销记录会清空。",
     ),
     ("doc.why.anchor", "此处不能用这种锚点"),
+    ("doc.review.prev_change", "上一条修订"),
+    ("doc.review.next_change", "下一条修订"),
+    ("doc.review.prev_comment", "上一条批注"),
+    ("doc.review.next_comment", "下一条批注"),
+    ("doc.why.no_changes", "文档里没有修订"),
+    ("doc.why.no_comments", "文档里没有批注"),
+    ("doc.review.by.insert", "{author} 插入"),
+    ("doc.review.by.delete", "{author} 删除"),
+    ("doc.review.by.format", "{author} 修改格式"),
+    ("doc.review.by.other", "{author} 修订"),
 ];

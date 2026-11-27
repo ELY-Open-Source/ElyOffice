@@ -43,6 +43,7 @@ mod scroll;
 mod sheet;
 mod snap;
 mod states;
+mod tips;
 mod text;
 pub use input::{CONTEXT, Copy, Cut, Paste, init};
 pub use off::{behind, read_off};
@@ -144,6 +145,8 @@ pub struct LokView {
     review: u64,
     /// Commented words and the wash over each.
     notes: Vec<(Rect, gpui::Hsla)>,
+    /// Rects whose hover tells who changed them.
+    tips: Vec<(Rect, gpui::SharedString)>,
     /// The last search outcome: its count and matches.
     search: (u64, Vec<Rect>),
     menu: Option<String>,
@@ -257,6 +260,7 @@ impl LokView {
             graphic: None,
             review: 0,
             notes: Vec::new(),
+            tips: Vec::new(),
             search: (0, Vec::new()),
             menu: None,
             right_at: None,

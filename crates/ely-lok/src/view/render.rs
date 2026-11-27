@@ -236,6 +236,7 @@ impl Render for LokView {
                 )
                 .size_full(),
             )
+            .children(self.tip_areas())
             .children(self.hints(cx))
             .children(bars)
     }

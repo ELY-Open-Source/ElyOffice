@@ -178,6 +178,7 @@ impl Review {
                     Ok((notes, changes)) => {
                         review.take_lists(notes, changes);
                         review.wash(cx);
+                        review.tip_changes(cx);
                     }
                     Err(error) => cx.emit(LokError(format!(
                         "the review lists are unreadable: {error}"
@@ -371,7 +372,7 @@ impl Render for Review {
             .gap_2()
             .p_2()
             .child(head)
-            .child(pane)
+            .child(div().flex().items_center().justify_between().gap_2().child(pane).child(self.steps(cx)))
             // Many bad notes scroll; the lists stay in reach.
             .children(self.unread_alert(cx).map(|alert| {
                 ScrollArea::new("doc-review-unread-scroll").vertical().w_full().max_h(gpui::rems(6.)).flex_none().child(alert)
@@ -425,6 +426,7 @@ impl Review {
     }
 }
 
+mod nav;
 #[cfg(test)]
 mod tests;
 mod threads;
