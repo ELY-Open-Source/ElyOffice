@@ -99,7 +99,7 @@ impl Presenter {
             .items_center()
             .gap_2()
             .child(place)
-            .children(show.notice.clone().map(|why| InlineMessage::new(Severity::Danger, why)));
+            .children(show.warning().map(|why| InlineMessage::new(Severity::Danger, why)));
         let now = jiff::Zoned::now().strftime("%H:%M").to_string();
         let row = || div().flex().items_center().gap_2();
         div()
@@ -128,6 +128,7 @@ impl Presenter {
             )
             .child(
                 row()
+                    .children(show.board.is_some().then(|| button(&self.show, ("show-play-score", label("show.score.cycle")), Show::cycle_scores)))
                     .child(toggle(
                         &self.show,
                         ("show-play-black", label("show.play.black"), show.black),

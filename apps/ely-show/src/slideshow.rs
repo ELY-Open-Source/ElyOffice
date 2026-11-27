@@ -23,6 +23,7 @@ mod layers;
 mod links;
 mod media;
 mod presenter;
+pub(crate) mod scoreboard;
 mod stage;
 pub(crate) mod start;
 pub(crate) mod steps;
@@ -95,6 +96,7 @@ pub struct Show {
     /// Lets the left slide go once the transition ends.
     release: Option<Task<()>>,
     media: Option<media::Playing>,
+    pub(crate) board: Option<scoreboard::Board>,
     /// What a click on each slide's shapes does.
     links: Vec<Vec<links::Link>>,
     ended: bool,
@@ -139,6 +141,7 @@ impl Show {
             advance: None,
             release: None,
             media: None,
+            board: None,
             links,
             ended: false,
         };
@@ -345,7 +348,7 @@ impl Show {
             return;
         }
         log::info!("show: ends");
-        (self.advance, self.release) = (None, None);
+        (self.advance, self.release, self.board) = (None, None, None);
         self.drop_media();
         let (windows, deck, me) = (std::mem::take(&mut self.windows), self.deck.clone(), cx.entity_id());
         start::discard(self.worker.clone(), self.doc.clone(), self.copy.clone(), cx);

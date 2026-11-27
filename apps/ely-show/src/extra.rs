@@ -48,6 +48,8 @@ pub struct Extra {
     /// Pictures that failed; retried after the next read.
     pub failed: HashSet<String>,
     pub painting: bool,
+    /// By slide name: the ElyTable sheet shows draw.
+    pub scoreboards: HashMap<String, crate::slideshow::scoreboard::Source>,
     /// The parts are masters.
     pub masters: bool,
     /// The pictures were painted with Ely's scheme.

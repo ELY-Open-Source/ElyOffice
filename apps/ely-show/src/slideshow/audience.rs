@@ -42,7 +42,7 @@ impl Render for Audience {
         }
         let shown = stage::stage(show, size, cx);
         // Alone, the audience screen says what failed.
-        let notice = (show.notice.clone())
+        let notice = (show.warning())
             .filter(|_| !show.presenter)
             .map(|why| {
                 div()

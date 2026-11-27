@@ -174,7 +174,11 @@ pub fn open(app: AppId, window: &mut Window, cx: &mut App) -> Entity<Root> {
         true => book.new_blank(cx),
         false => launched.into_iter().for_each(|path| book.open_asked(path, cx)),
     });
-    ely_ui::on_ask(cx, |ask, cx| ely_office::remote::route(ask, cx, Book::answer));
+    ely_ui::on_ask(cx, |ask, cx| {
+        if let Some(ask) = crate::score::route(ask, cx) {
+            ely_office::remote::route(ask, cx, Book::answer)
+        }
+    });
     // Files go to their window, else the one in front.
     ely_ui::on_open(cx, |path, window, cx| match crate::window::front(window, cx) {
         Some(front) => front.update(cx, |book, cx| book.open_asked(path, cx)),

@@ -256,6 +256,8 @@ impl Deck {
         let presenter = (displays.iter())
             .find(|display| display.id() != audience.id())
             .filter(|_| starting.presenter);
+        let held = &tab.extra.scoreboards;
+        let scores: Vec<_> = tab.extra.slides.list.iter().map(|slide| held.get(&slide.name).cloned()).collect();
         let slide = crate::design::mm100(tab.extra.size);
         let slide = (slide.0 as f32, slide.1 as f32);
         let room = audience.bounds().size;
@@ -287,6 +289,7 @@ impl Deck {
             show.presenter = windows.len() > 1;
             show.windows = windows;
         });
+        show.update(cx, |show, cx| show.follow_scores(scores, super::scoreboard::ask_table, cx));
         self.show = Some(show);
         cx.notify();
     }

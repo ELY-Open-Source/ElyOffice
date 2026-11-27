@@ -9,7 +9,7 @@ use gpui::{
 use super::Show;
 use crate::deck::Deck;
 
-actions!(show, [StartShow, StartShowHere, CheckShow]);
+actions!(show, [StartShow, StartShowHere, CheckShow, LiveScoreboard]);
 
 /// Slide numbers past this many digits are not typed.
 const DIGITS: usize = 6;
@@ -21,6 +21,7 @@ pub fn menu(cx: &App) -> Menu {
         MenuItem::action(label("show.play.from_start"), StartShow),
         MenuItem::action(label("show.play.from_here"), StartShowHere),
         MenuItem::separator(),
+        MenuItem::action(label("show.score.menu"), LiveScoreboard),
         MenuItem::action(label("show.check.menu"), CheckShow),
     ])
 }
@@ -46,6 +47,7 @@ pub fn bind(root: Div, cx: &mut Context<Deck>) -> Div {
     root.on_action(cx.listener(|deck, _: &StartShow, _, cx| deck.start_show(false, cx)))
         .on_action(cx.listener(|deck, _: &StartShowHere, _, cx| deck.start_show(true, cx)))
         .on_action(cx.listener(|deck, _: &CheckShow, _, cx| deck.check_show(cx)))
+        .on_action(cx.listener(|deck, _: &LiveScoreboard, _, cx| deck.ask_scoreboard(cx)))
 }
 
 impl Show {
@@ -70,6 +72,7 @@ impl Show {
             }
             "b" | "." => self.toggle_black(cx),
             "l" => self.toggle_laser(cx),
+            "s" => self.cycle_scores(cx),
             "escape" if !self.typed.is_empty() => {
                 self.typed.clear();
                 cx.notify();
