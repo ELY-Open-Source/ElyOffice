@@ -105,7 +105,7 @@ impl Input {
             | Input::Visible(..)
             | Input::Part(_)
             | Input::Theme(_) => false,
-            Input::Run { commands, .. } => commands.iter().any(|(id, _)| !["edit.select_all", "track.hide", "track.shown"].contains(id)),
+            Input::Run { commands, .. } => commands.iter().any(|(id, _)| !["edit.select_all", "find.run", "track.hide", "track.shown"].contains(id)),
             Input::Text { .. }
             | Input::Copy { cut: true }
             | Input::Paste

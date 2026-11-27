@@ -155,3 +155,11 @@ fn a_key_knows_its_own_picture() {
         }
     }
 }
+
+#[test]
+fn a_search_is_no_edit_but_a_replace_is() {
+    let run = |id: &'static str| super::Input::Run { commands: vec![(id, Vec::new())], at: None }.edits();
+    assert!(!run("find.run"), "finding changes nothing");
+    assert!(run("find.replace"));
+    assert!(run("text.replace"));
+}
