@@ -35,6 +35,9 @@ impl Deck {
 
     /// Over the slide; clicks pass through to it.
     pub fn scoreboard_layer(&mut self, view: &Entity<LokView>, cx: &mut Context<Self>) -> Option<AnyElement> {
+        if let Some(id) = self.core.active() {
+            self.place_kept(id);
+        }
         self.follow_slides(ask_table, cx);
         let tab = self.active_tab()?;
         let part = tab.extra.slides.current;

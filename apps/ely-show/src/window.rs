@@ -5,7 +5,7 @@ use ely_platform::AppId;
 use ely_ui::Root;
 use gpui::{App, AppContext as _, Context, Entity, Window};
 
-use crate::deck::{Deck, menus};
+use crate::deck::Deck;
 
 /// A deck over `core` that keeps points and saves.
 pub(crate) fn deck(core: impl FnOnce(&mut Context<Deck>) -> Core<Deck>, cx: &mut App) -> Entity<Deck> {
@@ -50,4 +50,11 @@ pub fn more(cx: &mut App, fresh: bool) -> std::io::Result<ely_ui::windows::Build
 /// The deck in `window`, else in the front window.
 pub(crate) fn front(window: Option<gpui::AnyWindowHandle>, cx: &App) -> Option<Entity<Deck>> {
     ely_office::shared::Handle::<Deck>::joined(cx).ok()?.front(window, cx)
+}
+
+/// ElyShow's menus after File.
+pub fn menus(on: (bool, bool, bool), undo: (bool, bool), cx: &App) -> Vec<gpui::Menu> {
+    let [insert, view] = crate::insert::menus(on, cx);
+    let edit = gpui::Menu::new(ely_ui::i18n::text(cx, "menu.edit", &[])).items(ely_office::undo_items(undo, cx));
+    vec![edit, crate::slides::menu(cx), insert, view, crate::slideshow::menu(cx)]
 }

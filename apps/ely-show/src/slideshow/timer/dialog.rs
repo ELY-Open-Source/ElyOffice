@@ -15,7 +15,7 @@ use gpui::{
     Window, div,
 };
 
-use super::{Clocks, Spot, Timer, length};
+use super::{Spot, Timer, length};
 use crate::deck::Deck;
 use crate::dialog::{Dialog, edit};
 use crate::slideshow::presenter::clock;
@@ -99,12 +99,8 @@ impl Deck {
 
     /// Gives slide `only`, or all sharing one clock, a countdown.
     pub fn set_timer(&mut self, tab: u64, only: Option<String>, length: Option<std::time::Duration>, (spot, at): (Spot, Option<(f32, f32)>), cx: &mut Context<Self>) {
-        let held = self.tab(tab).and_then(|tab| tab.extra.clocks.clone());
-        let clocks = held.unwrap_or_else(|| {
-            let clocks = cx.new(|_| Clocks::default());
-            cx.observe(&clocks, |_, _, cx| cx.notify()).detach();
-            clocks
-        });
+        self.place_kept(tab);
+        let clocks = self.clocks(tab, cx);
         let id = clocks.update(cx, |clocks, _| clocks.fresh());
         let Some(extra) = self.tab_mut(tab).map(|tab| &mut tab.extra) else {
             return;
@@ -120,8 +116,8 @@ impl Deck {
             };
         }
         let live: HashSet<u64> = extra.timers.values().map(|timer| timer.id).collect();
-        extra.clocks = Some(clocks.clone());
         clocks.update(cx, |clocks, cx| clocks.keep(&live, cx));
+        self.mark_unsaved(tab, cx);
         cx.notify();
     }
 
@@ -130,7 +126,7 @@ impl Deck {
         let timer = self.tab_mut(tab).and_then(|tab| tab.extra.timers.get_mut(slide));
         if let Some(timer) = timer.filter(|timer| timer.at != Some(at)) {
             timer.at = Some(at);
-            cx.notify();
+            self.mark_unsaved(tab, cx);
         }
     }
 

@@ -7,7 +7,8 @@ use gpui::TestAppContext;
 use super::objects::blank;
 use super::play::{three_slides, typed};
 use super::{settle, update};
-use crate::slideshow::scoreboard::{Look, Source};
+use crate::keep::Held;
+use crate::slideshow::scoreboard::{Look, Source, renamed, rows};
 
 /// What the stand-in ElyTable shows; None is closed.
 static POINTS: Mutex<Option<&str>> = Mutex::new(Some("1"));
@@ -32,8 +33,50 @@ fn answer(words: &[&str], points: &str) -> String {
     }
 }
 
+/// ElyTable restarted: the same book has a new key.
+fn restarted(words: &[&str]) -> std::io::Result<String> {
+    let book = |key: &str, name: &str, path: Option<&str>| {
+        serde_json::json!({ "book": key, "name": name, "path": path, "sheets": ["Final"] })
+    };
+    Ok(match words {
+        ["docs"] => "[]".to_string(),
+        ["score.list"] => serde_json::json!([
+            book("9:0", "cup.ods", Some("/games/cup.ods")),
+            book("9:1", "Untitled 1", None),
+            book("9:2", "Untitled 2", None),
+            book("9:3", "Untitled 2", None),
+        ])
+        .to_string(),
+        ["score.read", key, _] if key.starts_with("9:") => serde_json::json!([[key, "4"]]).to_string(),
+        _ => return Err(std::io::Error::other("that workbook is no longer open in ElyTable")),
+    })
+}
+
+#[test]
+fn a_kept_sheet_is_found_again_by_its_file_or_its_one_name() {
+    let kept = |book: &str, path: Option<&str>, name: &str| Source {
+        book: book.into(),
+        path: path.map(str::to_owned),
+        name: name.into(),
+        sheet: "Final".into(),
+    };
+    let read = |source: Source| rows(&source, restarted).map(|rows| rows[0][0].clone());
+    assert_eq!(read(kept("", Some("/games/cup.ods"), "old name")).expect("by file"), "9:0");
+    assert_eq!(read(kept("7:0", None, "Untitled 1")).expect("by name, key gone"), "9:1");
+    assert!(read(kept("", Some("/elsewhere/cup.ods"), "cup.ods")).is_err(), "another file is another book");
+    let twice = read(kept("", None, "Untitled 2")).expect_err("two such books");
+    assert!(twice.to_string().contains("open several times"), "{twice}");
+    let gone = |_: &[&str]| Err::<String, _>(std::io::Error::from(std::io::ErrorKind::ConnectionRefused));
+    let closed = rows(&kept("7:0", None, "Game"), gone).expect_err("no ElyTable");
+    assert_eq!(closed.to_string(), "Game / Final is not open");
+    // A save takes the linked book's present name and file.
+    let held = vec![Held { at: 0, score: Some(kept("9:0", None, "Untitled 7")), timer: None }];
+    let named = renamed(held, restarted).remove(0).score.expect("a score");
+    assert_eq!((named.name.as_str(), named.path.as_deref()), ("cup.ods", Some("/games/cup.ods")));
+}
+
 fn source(sheet: &str) -> Option<Source> {
-    Some(Source { book: "7:0".into(), name: "Game".into(), sheet: sheet.into() })
+    Some(Source { book: "7:0".into(), path: None, name: "Game".into(), sheet: sheet.into() })
 }
 
 #[test]

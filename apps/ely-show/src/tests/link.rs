@@ -16,7 +16,7 @@ const MOD1: i32 = 0x2000;
 const ESCAPE: i32 = 1281;
 
 /// A blank deck whose window root keeps the toasts.
-fn rooted(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<(Entity<Deck>, Entity<Root>)> {
+pub(super) fn rooted(cx: &mut TestAppContext, dir: &std::path::Path) -> Option<(Entity<Deck>, Entity<Root>)> {
     let deck = blank(cx, dir)?;
     let root = root_for(cx, &deck);
     Some((deck, root))

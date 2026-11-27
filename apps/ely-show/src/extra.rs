@@ -50,6 +50,7 @@ pub struct Extra {
     pub painting: bool,
     /// By slide name: the countdown shows draw.
     pub timers: HashMap<String, crate::slideshow::timer::Timer>,
+    pub kept: crate::keep::Kept,
     pub clocks: Option<gpui::Entity<crate::slideshow::timer::Clocks>>,
     /// By slide name: the ElyTable sheet shows draw.
     pub scoreboards: HashMap<String, crate::slideshow::scoreboard::Source>,
