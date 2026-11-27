@@ -2,7 +2,7 @@
 
 use std::{f32::consts::TAU, time::Duration};
 
-use ely_gpui_component::theme::ActiveTheme as _;
+use ely_gpui_component::motion;
 use gpui::{
     Animation, AnimationExt as _, AnyElement, App, Div, IntoElement as _, ParentElement as _, Pixels,
     Styled as _, div, px, rgb,
@@ -25,13 +25,13 @@ pub const ENDINGS: [(Ending, &str, &str); 4] = [
     (Ending::Balloons, "balloons", "show.timer.effect.balloons"),
 ];
 
-/// How long an effect plays before its slide rests.
-const LASTS: Duration = Duration::from_secs(10);
+/// How long an effect stays over its slide.
+pub const LASTS: Duration = Duration::from_secs(10);
 /// Flashes in that time.
 const FLASHES: f32 = 8.0;
 /// How strongly a flash covers the slide at most.
 const COVER: f32 = 0.45;
-/// The moment shown still, under reduced motion.
+/// The one moment an effect shows.
 const STILL: f32 = 0.4;
 // Fixed: party colors, whatever the theme.
 const PARTY: [u32; 6] = [0xe53935, 0xfb8c00, 0xfdd835, 0x43a047, 0x1e88e5, 0x8e24aa];
@@ -48,12 +48,10 @@ pub fn over(ending: Ending, (w, h): (Pixels, Pixels), cx: &App) -> Option<AnyEle
         Ending::Balloons => ("show-timer-balloons", balloons),
     };
     // Clicks pass through: nothing here takes them.
-    let cover = div().absolute().top_0().left_0().w(w).h(h).overflow_hidden();
-    if cx.theme().reduced_motion {
-        return Some(draw(cover, STILL, w, h).into_any_element());
-    }
-    let once = Animation::new(LASTS);
-    Some(cover.with_animation(id, once, move |cover, t| draw(cover, t, w, h)).into_any_element())
+    let still = draw(div().absolute().top_0().left_0().w(w).h(h).overflow_hidden(), STILL, w, h);
+    // Fades in, then holds still.
+    let come = Animation::new(motion::duration(motion::BASE, cx));
+    Some(still.with_animation(id, come, |still, t| still.opacity(t)).into_any_element())
 }
 
 fn flash(cover: Div, t: f32, _: Pixels, _: Pixels) -> Div {
@@ -113,10 +111,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_piece_has_left_when_the_effect_ends() {
-        for n in 0..90 {
-            assert_eq!(pass(n, 1.0, 4.0, 0.8, 3.0), None, "confetti {n}");
-            assert_eq!(pass(n, 1.0, 2.4, 0.4, 2.0), None, "balloon {n}");
-        }
+    fn the_still_moment_shows_each_effect() {
+        let shown = |pieces, speed, late, passes| (0..pieces).filter(|&n| pass(n, STILL, speed, late, passes).is_some()).count();
+        assert!(shown(90, 4.0, 0.8, 3.0) > 45, "most confetti is in the air");
+        assert!(shown(16, 2.4, 0.4, 2.0) > 8, "most balloons are rising");
+        assert!((STILL * FLASHES * TAU / 2.0).sin().abs() > 0.5, "the flash is lit");
     }
 }

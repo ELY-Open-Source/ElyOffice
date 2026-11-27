@@ -72,7 +72,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("show.timer.reset", "Đặt lại hẹn giờ"),
     ("show.timer.effect", "Hiệu ứng khi hết giờ"),
     ("show.timer.effect.none", "Không"),
-    ("show.timer.effect.flash", "Nhấp nháy đỏ"),
+    ("show.timer.effect.flash", "Chớp đỏ"),
     ("show.timer.effect.confetti", "Pháo giấy"),
     ("show.timer.effect.balloons", "Bóng bay"),
     ("show.timer.sound", "Âm thanh khi hết giờ"),

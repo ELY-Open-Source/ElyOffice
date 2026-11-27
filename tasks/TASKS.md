@@ -1108,7 +1108,13 @@
   - 文案：writer 改三条（法 `show.focus.timer`、`show.focus.scores`，德 `show.focus.scores`），帮助与致谢 KEEP
   - 查明：F 与放映其他键不冲突；本页没有链上的记分牌时 F 与按钮都不做事、不显示；换焦点没有动画，减少动效无需另做；放映中的交换只改本次放映的副本，编辑器里的选择经 `keep.rs` 的 `ahead` 存（旧文件没有即 false）
   - Omarchy：ElyShow 160 过，翻译 29 过，clippy（ely-show、ely-ui）无告警；check.sh、panics.py 过
-- [ ] R24.0f PR #139 倒计时变色、到时的效果与声音、图标按钮（60f0ddff）；查：动效每段不超 220 毫秒、减少动效下静止、软件渲染下减少，声音随系统静音
+- [x] R24.0f PR #139 倒计时变色、到时的效果与声音、图标按钮（60f0ddff）；查：动效每段不超 220 毫秒、减少动效下静止、软件渲染下减少，声音随系统静音
+  - 合并：冲突在 `timer.rs`（PR 回到每 200 毫秒重绘以响铃、查声音是否放完）、法语 `play.rs`（留 writer 定的 `show.timer.reset`，接 PR 的 12 个新键）、帮助（倒计时一行换成 writer 改写的，含 #138 的换焦点）
+  - 已做（跟进）：①醒来只为三件事：显示的秒变了、到时效果该撤下、有声音在放时每 200 毫秒查它放完没有（`Clocks::wait`）；只查声音时不重绘；到 0:00 那一刻正好醒来响铃。②效果不再是 10 秒的动画（规则 9：每段不超 220 毫秒）：以 `motion::duration(BASE)` 淡入后静止（减少动效与软件渲染下即刻出现），10 秒后撤下（`Face::party`）——PR 在 0:00 后一直画效果，动画放完看不出，减少动效下静帧却会留到重置。③移除或改掉一个倒计时时，它的声音随之停（`Clocks::keep` 放掉其 `bell`；对话框的试听不动）。④警示色保留 PR 的固定橙、红：主题深色警告色上白字只有 1.9:1，记入 `docs/gaps.md` 与 agents.md 缺口表
+  - 查明：闪烁 10 秒 8 次、每秒不到 3 次，且现在不闪；声音经系统媒体播放（Windows Media Foundation、macOS AVFoundation、Linux GStreamer），系统音量与静音随之生效——按播放途径推断，未实听
+  - 测试：单测 `a_running_countdown_wakes_only_when_its_second_changes` 加“最后一秒在 0:00 醒”“到时后等效果撤下再停”“空闲不醒”；新 `the_effect_shows_only_its_while`；PR 的 `a_done_countdown_rings_once`；`ending.rs` 的单测改为静帧里彩纸、气球、闪光都在
+  - 合并后两处测试（#137 的 `another_programs_comment_is_kept_and_never_written_over`、#136 的倒计时测试）的 `set_timer` 补上 #139 新加的 `Alarm::QUIET`
+  - Omarchy：ElyShow 164 过，翻译 29 过，clippy（ely-show、ely-ui）无告警；check.sh、panics.py 过
 - [ ] R24.0g PR #142 ElyPDF 选中的文字不被选区色盖住（ded310e8，2026-11-27 到）：每行从页面图块切出、纸色换成选区色、墨色转白，淡的选区色加深；查：每帧代价（切图与缓存的上限、离屏即释放，potato computer 拖选不卡）、颜色取自主题、深浅色与 Omarchy、跨图块边缘、旋转与缩放
 - [ ] R24.1 #140 ElyDoc 比较两份文档时不显示两边共有的旧修订，正文与修订都相同即提示“未发现差异”，两份源文档不变（§6）
   - 方案：照 Word（任一份有修订即按全部接受后比较）。比较的新副本先全部接受；旧文件由内核载入内存后全部接受（内核补丁，在 `SwView::InsertMedium` 的比较分支，文件不动）；`.uno:CompareDocuments` 已回 `SfxInt32Item` 差异数（与 0177 同为 "long"），为 0 即 toast“未发现差异”并不开空的比较页

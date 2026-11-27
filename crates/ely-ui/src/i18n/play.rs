@@ -187,7 +187,7 @@ pub(super) const ZH_CN: &[(&str, &str)] = &[
     ("show.timer.reset", "重置计时"),
     ("show.timer.effect", "结束时的效果"),
     ("show.timer.effect.none", "无"),
-    ("show.timer.effect.flash", "红色闪烁"),
+    ("show.timer.effect.flash", "红色闪光"),
     ("show.timer.effect.confetti", "彩纸"),
     ("show.timer.effect.balloons", "气球"),
     ("show.timer.sound", "结束时的声音"),

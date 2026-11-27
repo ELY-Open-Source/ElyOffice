@@ -138,7 +138,7 @@ pub fn face(face: &Face, hand: Hand, (w, h): (Pixels, Pixels), room: Room, cx: &
         (None, Spot::Corner) => place.bottom(h * 0.03).right(w * 0.02),
     }
     .child(held);
-    let party = (face.phase == Phase::Over).then(|| ending::over(face.ending, (w, h), cx)).flatten();
+    let party = face.party.then(|| ending::over(face.ending, (w, h), cx)).flatten();
     let Some(party) = party else {
         return placed.into_any_element();
     };

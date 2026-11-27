@@ -124,7 +124,7 @@ fn another_programs_comment_is_kept_and_never_written_over() {
     update(&mut cx, &deck, |deck, cx| {
         let id = deck.core.active().expect("a tab");
         let first = deck.tab(id).expect("the tab").extra.slides.list[0].name.clone();
-        deck.set_timer(id, Some(first), Some(Duration::from_secs(60)), (Spot::Top, None), cx);
+        deck.set_timer(id, Some(first), Some(Duration::from_secs(60)), (Spot::Top, None, Alarm::QUIET), cx);
     });
     save_as(&mut cx, &again);
     assert_eq!(std::fs::read(&again).expect("still there"), kept, "theirs is never written over");

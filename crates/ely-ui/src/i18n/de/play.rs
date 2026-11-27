@@ -72,7 +72,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("show.timer.reset", "Timer zurücksetzen"),
     ("show.timer.effect", "Effekt bei Ablauf"),
     ("show.timer.effect.none", "Keiner"),
-    ("show.timer.effect.flash", "Rotes Blinken"),
+    ("show.timer.effect.flash", "Rotes Aufleuchten"),
     ("show.timer.effect.confetti", "Konfetti"),
     ("show.timer.effect.balloons", "Luftballons"),
     ("show.timer.sound", "Ton bei Ablauf"),

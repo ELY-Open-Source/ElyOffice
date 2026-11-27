@@ -88,7 +88,7 @@ fn all_slides_share_a_countdown_and_one_slide_may_have_its_own() {
             deck.update(app, |deck, cx| {
                 let tab = deck.core.active().expect("a tab");
                 let name = deck.tab(tab).expect("the tab").extra.slides.list[2].name.clone();
-                deck.set_timer(tab, Some(name.clone()), length.map(Duration::from_secs), (Spot::Corner, None), cx);
+                deck.set_timer(tab, Some(name.clone()), length.map(Duration::from_secs), (Spot::Corner, None, Alarm::QUIET), cx);
                 deck.tab(tab).expect("the tab").extra.timers.get(&name).copied()
             })
         })

@@ -81,6 +81,7 @@ site/        官网（Vite、pnpm、TypeScript，无框架）；site/video 是�
 | 幻灯片缩略图条 | `apps/ely-show` 的 `slides.rs` |
 | PDF 页面缩略图 | `apps/ely-pdf` 的 `side.rs` |
 | 演示的参考线 | 补丁 0027，`apps/ely-show` 的 `guides.rs` |
+| 倒计时警示色（主题深色警告色衬不住白字） | `apps/ely-show` 的 `timer/draw.rs` |
 | 行内公式（gpui 文本里不能嵌图片） | 组件库 `render/math_text.rs` |
 | Omarchy 色板的对照规则 | `ely-ui` 的 `omarchy/palette.rs` |
 | 无障碍语义、禁用状态与内部文案 | 上游待办，见 `docs/accessibility.md` |

@@ -18,6 +18,7 @@
 | 幻灯片缩略图条（`documents::PageThumbnailList` 只收图片路径，无隐藏标记、右键菜单与重排） | `apps/ely-show` 的 `slides.rs`，内核按页绘制到内存图 |
 | PDF 页面缩略图（同上，且一次铺全部页，不合 PERF-05） | `apps/ely-pdf` 的 `side.rs`，`uniform_list` 只画可见行，worker 按需渲染 |
 | 演示的参考线：LOK 不把参考线画进图块，也无参考线接口 | 补丁 0027 读写参考线；`apps/ely-show` 的 `guides.rs` 画在画布上，拖动移动，拖出幻灯片即删除 |
+| 倒计时的警示色：主题的深色警告色上白字只有 1.9:1（危险色 3.0:1），大号数字要 3:1 | ElyShow 的 `timer/draw.rs` 用固定的橙 `#e05d00`（3.7:1）与红 `#d32626`（5.2:1）配白字，时钟在幻灯片上，幻灯片照文件原色、不随深浅色；到时效果的彩纸与气球同为固定色（`timer/ending.rs`） |
 | gpui 文本里不能嵌图片：行内公式无从排版 | 组件库 `render/math_text.rs`：以不断行的空格占出公式的宽（整个公式作一个词折行），排好的公式画在其上，按下处读回公式的原文 |
 | Omarchy 色板要照 `A11yChecker` 的同一套对照规则 | `ely-ui` 的 `omarchy/palette.rs` 抄了对照表；组件库自 70ab3c5 起公开 `devtools::audit`，待改用 |
 | 组件库与 gpui 在无障碍语义、禁用状态与内部文案上的缺口 | 上游待办，逐项的现状在 `docs/accessibility.md` 的“上游待办”一节；项目自绘控件已自带角色与名字 |
