@@ -11,6 +11,20 @@ fail() {
   exit 1
 }
 
+strings=$root/packaging/windows/strings.nsh
+mapfile -t langs < <(sed -n 's/^!insertmacro MUI_LANGUAGE "\(.*\)"$/\1/p' "$strings")
+[ "${langs[0]}" = English ] || fail "English is not first, so it is not the fallback"
+[ "${langs[*]}" = "English SimpChinese SpanishInternational French German Japanese Korean Vietnamese" ] ||
+  fail "the setup's languages are not the apps' eight: ${langs[*]}"
+for key in $(awk '$1 == "LangString" { print $2 }' "$strings" | sort -u); do
+  for lang in "${langs[@]}"; do
+    [ "$(grep -c "^LangString $key \${LANG_${lang^^}} " "$strings")" -eq 1 ] || fail "$key has no single $lang text"
+  done
+done
+for key in $(grep -ohP '\$\(\K[A-Z]\w+(?=\))' "$root"/packaging/windows/*.ns?); do
+  grep -q "^LangString $key " "$strings" || fail "$key is used but has no text"
+done
+
 command -v makensis >/dev/null || {
   echo "SKIP installer-windows: makensis is not installed"
   exit 0
