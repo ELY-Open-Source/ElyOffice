@@ -145,6 +145,8 @@ pub struct WaylandWindowState {
     accesskit_adapter: Option<accesskit_unix::Adapter>,
     /// `WindowParams::focus`: asks for the keyboard once mapped.
     focus: bool,
+    /// The output asked for; the first fullscreen takes it.
+    fullscreen_output: Option<wl_output::WlOutput>,
 }
 
 pub enum WaylandSurfaceState {
@@ -615,6 +617,7 @@ impl WaylandWindowState {
             children: FxHashMap::default(),
             surface,
             focus: options.focus,
+            fullscreen_output: None,
             app_id: options.app_id,
             kde_blur: None,
             background_effects: None,
@@ -854,6 +857,7 @@ impl WaylandWindow {
         target_output: Option<wl_output::WlOutput>,
     ) -> anyhow::Result<(Self, ObjectId)> {
         let surface = globals.compositor.create_surface(&globals.qh, ());
+        let fullscreen_output = target_output.clone();
         let surface_state = WaylandSurfaceState::new(
             &surface,
             &globals,
@@ -893,6 +897,7 @@ impl WaylandWindow {
             scheduled_frame_at: Rc::new(Cell::new(None)),
         });
 
+        this.0.state.borrow_mut().fullscreen_output = fullscreen_output;
         // Kick things off
         surface.commit();
 
@@ -2001,10 +2006,11 @@ impl PlatformWindow for WaylandWindow {
     }
 
     fn toggle_fullscreen(&self) {
-        let state = self.borrow();
+        let mut state = self.borrow_mut();
+        let output = state.fullscreen_output.take();
         if let Some(toplevel) = state.surface_state.toplevel() {
             if !state.fullscreen {
-                toplevel.set_fullscreen(None);
+                toplevel.set_fullscreen(output.as_ref());
             } else {
                 toplevel.unset_fullscreen();
             }

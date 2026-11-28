@@ -4,6 +4,7 @@ pub(super) const VI: &[(&str, &str)] = &[
     ("menu.play", "Trình chiếu"),
     ("show.play.from_start", "Từ đầu"),
     ("show.play.from_here", "Từ trang chiếu hiện tại"),
+    ("show.play.console", "Với chế độ người trình bày…"),
     ("show.play.title", "Trình chiếu"),
     ("show.play.audience", "Màn hình khán giả"),
     ("show.play.presenter", "Chế độ người trình bày"),

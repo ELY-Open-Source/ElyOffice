@@ -169,6 +169,15 @@ pub fn show_window(
 impl Deck {
     /// Plays a copy from the first or shown slide.
     pub fn start_show(&mut self, here: bool, cx: &mut Context<Self>) {
+        self.begin_show(here, false, cx)
+    }
+
+    /// Plays from the first slide with a presenter view.
+    pub fn start_console(&mut self, cx: &mut Context<Self>) {
+        self.begin_show(false, true, cx)
+    }
+
+    fn begin_show(&mut self, here: bool, console: bool, cx: &mut Context<Self>) {
         if self.show.is_some() || self.show_starting {
             log::info!("show: already playing or starting");
             let text = Deck::text(cx, "show.play.busy", &[]);
@@ -180,12 +189,12 @@ impl Deck {
         self.show_starting = true;
         log::info!("show: starts, here {here}");
         if !self.settled(id, cx) {
-            return self.when_settled(id, move |deck, _, cx| deck.read_show(id, here, cx));
+            return self.when_settled(id, move |deck, _, cx| deck.read_show(id, here, console, cx));
         }
-        self.read_show(id, here, cx);
+        self.read_show(id, here, console, cx);
     }
 
-    fn read_show(&mut self, id: u64, here: bool, cx: &mut Context<Self>) {
+    fn read_show(&mut self, id: u64, here: bool, console: bool, cx: &mut Context<Self>) {
         let Some(tab) = self.tab(id) else {
             self.show_starting = false;
             return;
@@ -197,7 +206,7 @@ impl Deck {
         self.read_in(
             id,
             move |worker, doc| copy(worker, doc, &into),
-            move |deck, read, _, cx| {
+            move |deck, read, window, cx| {
                 deck.show_starting = false;
                 let (current, doc, slides, links) = match read {
                     Ok(read) => read,
@@ -224,12 +233,12 @@ impl Deck {
                     first,
                     doc,
                     copy: path,
-                    audience: 0,
-                    presenter: true,
+                    audience: super::screen::chosen(cx),
+                    presenter: console,
                 };
-                match cx.displays().len() {
-                    1 => deck.open_show(starting, cx),
-                    _ => match deck.open_dialog(Dialog::Show(starting), cx) {
+                match console && cx.displays().len() > 1 {
+                    false => deck.play_on_screen(starting, window, cx),
+                    true => match deck.open_dialog(Dialog::Show(starting), cx) {
                         Ok(()) => deck.show_starting = true,
                         Err(refused) => match *refused {
                             Dialog::Show(refused) => discard(worker, refused.doc, refused.copy, cx),
@@ -242,10 +251,27 @@ impl Deck {
         );
     }
 
+    /// Takes the window to the audience's screen, then plays.
+    fn play_on_screen(&mut self, starting: Starting, window: &mut Window, cx: &mut Context<Self>) {
+        self.show_starting = true;
+        // With a console, this window stays by it.
+        let target = super::screen::list(cx).get(starting.audience).map(|display| display.id()).filter(|_| !starting.presenter);
+        let moved = target.map(|display| ely_ui::move_to_display(window, display, cx));
+        cx.spawn(async move |deck, cx| {
+            if let Some(moved) = moved {
+                moved.await;
+            }
+            if deck.update(cx, |deck, cx| deck.open_show(starting, cx)).is_err() {
+                log::warn!("show: the window closed before the show");
+            }
+        })
+        .detach();
+    }
+
     fn open_show(&mut self, starting: Starting, cx: &mut Context<Self>) {
         self.show_starting = false;
         let worker = self.core.worker.clone();
-        let displays = cx.displays();
+        let displays = super::screen::list(cx);
         let (Some(tab), Some(audience)) = (self.tab(starting.tab), displays.get(starting.audience))
         else {
             log::warn!("show: the tab or screen {} is gone", starting.audience);
@@ -311,20 +337,8 @@ impl Deck {
     pub fn show_dialog(&self, starting: &Starting, cx: &mut Context<Self>) -> AnyElement {
         let this = cx.entity();
         let label = |key: &str| Deck::text(cx, key, &[]);
-        let screens: Vec<Choice> = (cx.displays().iter().enumerate())
-            .map(|(at, display)| {
-                let size = display.bounds().size;
-                let name = Deck::text(
-                    cx,
-                    "show.play.screen",
-                    &[
-                        ("number", &(at + 1).to_string()),
-                        ("width", &f32::from(size.width).round().to_string()),
-                        ("height", &f32::from(size.height).round().to_string()),
-                    ],
-                );
-                Choice::new(at.to_string(), name)
-            })
+        let screens: Vec<Choice> = (super::screen::list(cx).iter().enumerate())
+            .map(|(at, display)| Choice::new(at.to_string(), super::screen::name(at, display, cx)))
             .collect();
         let (pick, flip) = (this.clone(), this.clone());
         let screen = Select::new("show-play-screen", screens)
@@ -367,10 +381,11 @@ impl Deck {
             .action(move |_| {
                 Button::new("show-play-go", go)
                     .variant(ButtonVariant::Primary)
-                    .on_click(move |_, _, cx| {
+                    .on_click(move |_, window, cx| {
                         this.update(cx, |deck, cx| {
                             if let Some(Dialog::Show(starting)) = deck.dialog.take() {
-                                deck.open_show(starting, cx);
+                                super::screen::remember(starting.audience, cx);
+                                deck.play_on_screen(starting, window, cx);
                             }
                         })
                     })

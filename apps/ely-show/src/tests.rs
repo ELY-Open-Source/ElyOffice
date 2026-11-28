@@ -44,6 +44,8 @@ pub(super) use wait::{settle, settled};
 /// An unrendered Deck over a fresh worker, if LOK exists.
 pub(super) fn deck(cx: &mut TestAppContext, dir: &Path) -> Option<Entity<Deck>> {
     let install = ely_lok::test_install()?;
+    // A show reads the chosen screen, never the user's.
+    ely_platform::test_root();
     let (worker, stop) = ely_office::lok::test_worker(&install);
     let work = dir.join("work");
     std::fs::create_dir_all(&work).expect("the work dir");

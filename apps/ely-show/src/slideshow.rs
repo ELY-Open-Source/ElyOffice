@@ -24,6 +24,7 @@ mod links;
 mod media;
 mod overlays;
 pub(crate) mod presenter;
+pub(crate) mod screen;
 pub(crate) mod scoreboard;
 mod stage;
 pub(crate) mod start;
