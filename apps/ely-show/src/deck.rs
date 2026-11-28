@@ -442,6 +442,7 @@ impl Render for Deck {
         let status = StatusBar::new()
             .left(self.state_item("show-state", cx))
             .when(shown, |status| status.right(crate::slideshow::present_button(cx)))
+            .when_some(crate::slideshow::screen::picker(cx).filter(|_| shown), |status, picker| status.right(picker))
             .when_some(self.zoom_control(cx), |status, zoom| status.right(zoom));
         let shell = Shell::new(title, &self.core.focus)
             .tabs(self.tab_strip(cx))

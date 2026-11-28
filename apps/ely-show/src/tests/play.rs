@@ -96,6 +96,21 @@ fn a_show_plays_clicks_skips_hidden_and_ends() {
 }
 
 #[test]
+fn the_console_on_one_screen_only_plays() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let mut cx = TestAppContext::single();
+    let Some(deck) = blank(&mut cx, dir.path()) else {
+        eprintln!("SKIP: no LOK build");
+        return;
+    };
+    update(&mut cx, &deck, |deck, cx| deck.start_console(cx));
+    settle(&cx, |app| deck.read(app).show.is_some());
+    assert!(cx.update(|app| deck.read(app).dialog.is_none()), "nothing to pick");
+    let show = cx.update(|app| deck.read(app).show.clone().expect("playing"));
+    assert_eq!(cx.update(|app| show.read(app).windows.len()), 1);
+}
+
+#[test]
 fn from_here_starts_on_the_shown_slide_even_hidden() {
     let dir = tempfile::tempdir().expect("a temp dir");
     let mut cx = TestAppContext::single();

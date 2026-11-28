@@ -13,6 +13,7 @@ mod frames;
 mod opening;
 mod pick;
 mod run;
+mod screen;
 pub mod windows;
 pub mod settings;
 mod shell;
@@ -34,5 +35,6 @@ pub use opening::install_no_launch_files;
 #[cfg(any(test, feature = "test-support"))]
 pub use theme::install as install_theme;
 pub use run::{run, window_options};
+pub use screen::move_to_display;
 pub use shell::{Root, Shell, blank, document_root, root, set_document_menus, tool_root};
 pub use tasks::{LongTask, TaskState};

@@ -4,6 +4,7 @@ pub(super) const JA: &[(&str, &str)] = &[
     ("menu.play", "スライドショー"),
     ("show.play.from_start", "最初から"),
     ("show.play.from_here", "現在のスライドから"),
+    ("show.play.console", "発表者ビューで開始…"),
     ("show.play.title", "スライドショー"),
     ("show.play.audience", "聴衆用の画面"),
     ("show.play.presenter", "発表者ビュー"),

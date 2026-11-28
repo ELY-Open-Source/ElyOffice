@@ -9,7 +9,7 @@ use gpui::{
 use super::Show;
 use crate::deck::Deck;
 
-actions!(show, [StartShow, StartShowHere, CheckShow, LiveScoreboard, SlideTimer]);
+actions!(show, [StartShow, StartShowHere, StartConsole, CheckShow, LiveScoreboard, SlideTimer]);
 
 /// Slide numbers past this many digits are not typed.
 const DIGITS: usize = 6;
@@ -20,6 +20,7 @@ pub fn menu(cx: &App) -> Menu {
     Menu::new(label("menu.play")).items([
         MenuItem::action(label("show.play.from_start"), StartShow),
         MenuItem::action(label("show.play.from_here"), StartShowHere),
+        MenuItem::action(label("show.play.console"), StartConsole),
         MenuItem::separator(),
         MenuItem::action(label("show.score.menu"), LiveScoreboard),
         MenuItem::action(label("show.timer.menu"), SlideTimer),
@@ -47,6 +48,7 @@ pub fn bind_keys(cx: &mut App) {
 pub fn bind(root: Div, cx: &mut Context<Deck>) -> Div {
     root.on_action(cx.listener(|deck, _: &StartShow, _, cx| deck.start_show(false, cx)))
         .on_action(cx.listener(|deck, _: &StartShowHere, _, cx| deck.start_show(true, cx)))
+        .on_action(cx.listener(|deck, _: &StartConsole, _, cx| deck.start_console(cx)))
         .on_action(cx.listener(|deck, _: &CheckShow, _, cx| deck.check_show(cx)))
         .on_action(cx.listener(|deck, _: &LiveScoreboard, _, cx| deck.ask_scoreboard(cx)))
         .on_action(cx.listener(|deck, _: &SlideTimer, window, cx| deck.ask_timer(window, cx)))

@@ -4,6 +4,7 @@ pub(super) const DE: &[(&str, &str)] = &[
     ("menu.play", "Bildschirmpräsentation"),
     ("show.play.from_start", "Von Anfang an"),
     ("show.play.from_here", "Ab aktueller Folie"),
+    ("show.play.console", "Mit Referentenansicht…"),
     ("show.play.title", "Bildschirmpräsentation"),
     ("show.play.audience", "Bildschirm für das Publikum"),
     ("show.play.presenter", "Referentenansicht"),

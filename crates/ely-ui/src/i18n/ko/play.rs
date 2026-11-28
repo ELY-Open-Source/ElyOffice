@@ -4,6 +4,7 @@ pub(super) const KO: &[(&str, &str)] = &[
     ("menu.play", "슬라이드 쇼"),
     ("show.play.from_start", "처음부터"),
     ("show.play.from_here", "현재 슬라이드부터"),
+    ("show.play.console", "발표자 보기로 시작…"),
     ("show.play.title", "슬라이드 쇼"),
     ("show.play.audience", "청중 화면"),
     ("show.play.presenter", "발표자 보기"),
